@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 const docsDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const ACCENT = '#1d1d20'; // tile: the dark-mode content background
-const PAGE = '#a6f0cf'; // pale spectral green (dark-mode link colour)
+const PAGE = '#a6f0cf'; // pale spectral green (dark-mode link color)
 const LINE = '#17694d'; // text lines: the light-mode link green
 
 // A page (rounded rect) with a folded corner and three text lines.

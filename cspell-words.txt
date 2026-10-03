@@ -81,3 +81,21 @@ Nominalized
 Oxymorons
 Nonwords
 Airlinese
+
+# Docs site design, theme and tooling
+wordmark
+DALL
+Imagen
+vectorizing
+Inkscape
+SVGOMG
+FOUC
+typesafe
+Adwaita
+libadwaita
+fontsource
+unlayered
+
+# Agent orchestration
+pickable
+retarget

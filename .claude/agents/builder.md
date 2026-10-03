@@ -49,7 +49,7 @@ nothing is merged.
 
 Follow `planning.md`, "Spikes", instead of steps 5 and 6: throwaway code
 under `spikes/x<n>-<slug>/` on branch `spike/x<n>-<slug>`, no project
-gates, push the branch and keep it. Then, on a second branch
+gates, push the branch, and keep it. Then, on a second branch
 `docs/x<n>-<slug>-result` from `origin/main`, write
 `docs/spec/spikes/X<n>-<slug>.md` with the answer and a permalink to the
 spike commit, update the specs the answer affects, run `mise run ci`,
@@ -69,7 +69,7 @@ plainly; never soften it to keep the plan intact.
   `_windows.go` files; shared code never branches on `runtime.GOOS`.
   `mise run go:cross` passes.
 - No bare `//nolint` or `swiftlint:disable`; no lowered threshold,
-  deleted test, unpinned tool or action.
+  deleted test, or unpinned tool or action.
 - New dependencies have permissive licenses and a committed lockfile.
 - Every sentence you wrote about the code (comment, spec, PR body) is
   true; check each claim with grep.
@@ -90,7 +90,7 @@ plainly; never soften it to keep the plan intact.
 - Push only your own branch, with `git push --force-with-lease` after a
   rebase. Never push to `main`, never merge, never force-push a branch
   another branch is stacked on, never message a reviewer.
-- Every commit message, PR body and issue comment ends with the
+- Every commit message, PR body, and issue comment ends with the
   attribution lines in `AGENTS.md`, with the model you are running in
   `Assisted-by`. No `Signed-off-by`.
 - After every `git commit`, check `git log -1 --oneline` shows your
