@@ -2,11 +2,9 @@
 // (src/styles/custom.css).
 //
 // PLACEHOLDER: a simple "document" glyph (a rounded page with a few text
-// lines on a dark tile with a pale green page), legible at favicon sizes. It
-// stays until the brand mark exists; see design/image-prompts.md for the
-// icon brief and for how to turn the chosen artwork into favicon.svg and
-// apple-touch-icon.png (replace this script's SVG, or drop it and commit the
-// hand-made files).
+// lines on a dark tile with a pale green page), legible at favicon sizes. The
+// brand icon is design/icon.svg: to use it, replace this script's SVG with that
+// markup, or drop this script and commit the hand-made files.
 //
 //   mise run doc:favicon   (or: bun run scripts/gen-favicon.mjs here)
 //

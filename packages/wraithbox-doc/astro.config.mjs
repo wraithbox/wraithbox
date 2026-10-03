@@ -14,9 +14,8 @@ export default defineConfig({
 			title: 'Wraith Box',
 			description: 'Run coding agents inside isolated VMs: one command, fast, default-deny.',
 			// BRAND ASSETS: the favicon and apple-touch-icon below are placeholders
-			// from scripts/gen-favicon.mjs. Briefs for the real logo, icon and hero
-			// image, and how to turn them into these files, are in
-			// design/image-prompts.md.
+			// from scripts/gen-favicon.mjs. The master for the brand icon is
+			// design/icon.svg.
 			//
 			// LOGO HOOK: once src/assets/logo-dark.svg (light artwork for the dark
 			// theme) and src/assets/logo-light.svg exist, uncomment this. Keep
