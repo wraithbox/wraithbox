@@ -33,9 +33,9 @@ Every open work issue carries:
   process from spec 004;
 - optionally a `priority:` label.
 
-The area and component labels are recorded in `.github/labels-areas.yml`,
-which says how to sync them to GitHub. Change the file and GitHub
-together.
+The area and component labels are recorded in `.github/labels-areas.yml`
+(the generic ones in `.github/labels.yml`, see `issue-tracker.md`).
+Change the file, then apply it with `mise run gh:labels`.
 
 ### Area: where the change lands
 
@@ -110,7 +110,8 @@ first-class issues, and the first milestone is mostly spikes.
   (yes / no / yes-with-conditions), the measurements, what it means for
   the specs, and a permalink to the spike branch commit. The same pull
   request changes any spec the answer affects, or, if that is too big,
-  files the spec change as an issue. That pull request says
+  files the spec change as an issue. It also links the result from the
+spike's entry in spec 011. That pull request says
   `Closes #<spike issue>`. A "no" that makes a requirement unachievable
   is written up as a spec change and the work stops there
   (`AGENTS.md`).
