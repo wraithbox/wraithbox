@@ -84,19 +84,13 @@ Airlinese
 
 # Docs site design, theme and tooling
 wordmark
-DALL
-Imagen
-vectorizing
-Inkscape
-SVGOMG
+favicons
 FOUC
 typesafe
 Adwaita
 libadwaita
 fontsource
 unlayered
-genai
-LANCZOS
 
 # Agent orchestration
 pickable
