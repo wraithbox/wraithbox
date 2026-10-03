@@ -23,19 +23,8 @@ export default defineConfig({
 						href: '/apple-touch-icon.png',
 					},
 				},
-				// Fonts: Merriweather = long-form/body, Merriweather Sans = on-screen/UI.
-				{ tag: 'link', attrs: { rel: 'preconnect', href: 'https://fonts.googleapis.com' } },
-				{
-					tag: 'link',
-					attrs: { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: true },
-				},
-				{
-					tag: 'link',
-					attrs: {
-						rel: 'stylesheet',
-						href: 'https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@400;700&display=swap',
-					},
-				},
+				// No webfont links: the theme uses the system font stack
+				// (src/styles/custom.css), so pages make no font-service requests.
 			],
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/wraithbox/wraithbox' },

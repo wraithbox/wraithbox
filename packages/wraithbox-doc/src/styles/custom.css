@@ -1,59 +1,106 @@
-/* LSD Warm theme, mapped onto Starlight's design tokens. Palette source:
-   ~/git/lsimons/lsimons-dotfiles/colors/lsd-colors.json. Starlight derives all
-   surfaces/text/borders from an accent ramp (low/accent/high), a gray ramp
-   (1=lightest .. 6/7=darkest in dark mode, inverted in light) and black/white,
-   so overriding those restyles the whole site. Dark mode is `:root`; light mode
-   is `:root[data-theme='light']`. */
+/* Site theme, ported from the ai-training docs site: the GNOME Adwaita color
+   scheme (libadwaita's CSS variables) mapped onto Starlight's design tokens,
+   a plain blue accent on neutral grays. Values that Adwaita gives as a
+   translucent color are composited onto the surface they sit on, so every
+   token here is opaque. Starlight derives all surfaces/text/borders from an
+   accent ramp (low/accent/high), a gray ramp (1=lightest .. 6/7=darkest in
+   dark mode, inverted in light) and black/white. Dark mode is `:root`; light
+   mode is `:root[data-theme='light']`. */
 :root {
-	/* LSD Warm Dark */
-	--sl-color-accent-low: #4a2f08;
-	--sl-color-accent: #c17a23;
-	--sl-color-accent-high: #eabb79;
-	--sl-color-white: #ffebd2; /* headings */
-	--sl-color-gray-1: #f0dcc4;
-	--sl-color-gray-2: #dfcab2; /* body text (fg) */
-	--sl-color-gray-3: #8a7761; /* muted */
-	--sl-color-gray-4: #6b5b44; /* dim */
-	--sl-color-gray-5: #3a2b16; /* borders / hairlines */
-	--sl-color-gray-6: #1f1000; /* nav & sidebar bg */
-	--sl-color-black: #1a0c00; /* page bg */
+	--sl-color-accent-low: #273a55; /* the accent at 25% on the window */
+	--sl-color-accent: #3584e4; /* accent background */
+	--sl-color-accent-high: #81d0ff; /* standalone accent: link text */
+	--sl-color-white: #ffffff; /* headings: the window foreground */
+	--sl-color-gray-1: #f6f5f4;
+	--sl-color-gray-2: #f6f5f4; /* body text (palette light 2) */
+	--sl-color-gray-3: #c0bfbc; /* secondary text (palette light 4) */
+	--sl-color-gray-4: #9a9996; /* control borders (palette light 5) */
+	--sl-color-gray-5: #434346; /* borders: the foreground at 15% */
+	--sl-color-gray-6: #2e2e32; /* header and sidebar */
+	--sl-color-black: #1d1d20; /* view: inputs */
 }
 :root[data-theme='light'] {
-	/* LSD Warm Light */
-	--sl-color-accent-low: #f6e4c4;
-	--sl-color-accent: #c17a23;
-	--sl-color-accent-high: #8f5610; /* darkened for link contrast on snow */
-	--sl-color-white: #241100; /* headings (fg) */
-	--sl-color-gray-1: #3e290f;
-	--sl-color-gray-2: #4a3418; /* body text */
-	--sl-color-gray-3: #594329; /* dim */
-	--sl-color-gray-4: #765e44; /* faint */
-	--sl-color-gray-5: #dbcbb9; /* borders */
-	--sl-color-gray-6: #f0dfc9;
-	--sl-color-gray-7: #f7e9d6;
-	--sl-color-black: #faf1f3; /* page bg (snow) */
+	--sl-color-accent-low: #e9f2fc; /* the accent at 11% on white */
+	--sl-color-accent: #3584e4;
+	/* The accent background is 3.8:1 on white, below the 4.5:1 text needs.
+	   Links, the current page and filled buttons use the standalone accent
+	   instead, and the accent background stays on borders and rings. */
+	--sl-color-accent-high: #0461be;
+	--sl-color-text-accent: var(--sl-color-accent-high);
+	--sl-color-bg-accent: var(--sl-color-accent-high);
+	--sl-color-white: #242428; /* headings */
+	--sl-color-gray-1: #2a2a2e;
+	--sl-color-gray-2: #333338; /* body text: the window foreground on white */
+	--sl-color-gray-3: #5e5c64; /* secondary text (palette dark 2) */
+	--sl-color-gray-4: #77767b; /* control borders (palette dark 1) */
+	--sl-color-gray-5: #e0e0e1; /* borders: the foreground at 15% */
+	--sl-color-gray-6: #ebebed; /* the sidebar background */
+	--sl-color-gray-7: #f3f3f5; /* the secondary sidebar background */
+	--sl-color-black: #ffffff; /* view: inputs */
+	--sl-color-bg-nav: #ffffff; /* the header bar */
 }
 
-/* Fonts: Merriweather Sans for on-screen/UI (Starlight's global --sl-font, so
-   nav/header/sidebar/labels), Merriweather for long-form prose (the rendered
-   markdown body), and a system-first monospace stack for code. Font choice
-   doesn't vary by theme, so these live at :root. Webfonts loaded in
-   astro.config.mjs's `head`. */
+/* Corner radii: 16px for cards and panels, 10px for rows inside them, 6px
+   for inputs and code, and fully rounded badges and buttons. */
 :root {
-	--sl-font: 'Merriweather Sans', sans-serif;
-	--sl-font-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', 'SF Mono', Menlo, Consolas,
+	--wb-radius-sm: 6px;
+	--wb-radius-md: 10px;
+	--wb-radius-lg: 16px;
+	--wb-radius-pill: 999px;
+}
+
+/* Fonts: the operating system's UI font for all text (San Francisco on
+   macOS, Segoe UI on Windows, Cantarell/Ubuntu/Roboto on Linux) and a
+   system-first monospace stack for code. No webfont is loaded, so a page
+   load sends no request to a font service and the site bundles no font
+   files. ai-training self-hosts Inter from @fontsource-variable/inter, but
+   Inter (like nearly every webfont) is OFL-1.1, which is not on spec 010's
+   license list (Apache-2.0, MIT, BSD, ISC); adding it needs a spec change
+   first. Headings at weight 600 with slightly tight letter spacing. Font
+   choice doesn't vary by theme, so these live at :root. */
+:root {
+	--sl-font:
+		system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Cantarell, Ubuntu, Roboto,
+		'Helvetica Neue', Arial, sans-serif;
+	--sl-font-mono:
+		ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, 'DejaVu Sans Mono',
 		monospace;
 }
-.sl-markdown-content {
-	font-family: 'Merriweather', Georgia, serif;
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6),
+h1#_top {
+	font-weight: 600;
+	letter-spacing: -0.01em;
 }
 
-/* Keep the main content column white in light mode so images with white
-   backgrounds blend in; the header and sidebars keep the off-white LSD Warm
-   surface. `.main-pane` is only the content column. Dark mode keeps its
-   warm-dark content background. */
-:root[data-theme='light'] .main-pane {
-	background-color: #ffffff;
+/* Page, surfaces and side menus in Adwaita's roles: the page is the window
+   background, cards are cards, the left menu is the sidebar and the right
+   menu the secondary sidebar. */
+:root {
+	--wb-page: #222226; /* window */
+	--wb-surface: #343437; /* card: white at 8% on the window */
+	--wb-sidebar-2: #28282c; /* secondary sidebar */
+}
+:root[data-theme='light'] {
+	--wb-page: #fafafb; /* window */
+	--wb-surface: #ffffff; /* card */
+	--wb-sidebar-2: #f3f3f5; /* secondary sidebar */
+	--sl-color-bg-sidebar: #ebebed; /* sidebar */
+	--sl-color-bg-inline-code: var(--sl-color-gray-6);
+}
+body {
+	background-color: var(--wb-page);
+}
+.right-sidebar {
+	background-color: var(--wb-sidebar-2);
+}
+
+/* The theme toggle in the header takes the color of the social icons next
+   to it (the accent text color), and the heading color on hover, as they do. */
+header starlight-theme-select label {
+	color: var(--sl-color-text-accent);
+}
+header starlight-theme-select label:hover {
+	color: var(--sl-color-white);
 }
 
 /* The docs may use floated `align="right"`/`align="left"` images. Cap their
@@ -78,6 +125,35 @@
 	}
 }
 
+/* Starlight's cards and badges: cards are defined by a border, with a small
+   shadow only on hover, and badges are fully rounded. Starlight's component
+   styles sit in a cascade layer, so these unlayered rules win. */
+.sl-link-card,
+.card {
+	border-radius: var(--wb-radius-lg);
+	box-shadow: none;
+	background-color: var(--wb-surface);
+}
+.sl-link-card:hover {
+	border-color: var(--sl-color-accent);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.sl-badge {
+	border-radius: var(--wb-radius-pill);
+}
+
+/* The previous/next links at the foot of a page are cards too: a surface
+   with a border, a 16px radius and no resting shadow. */
+.pagination-links a {
+	background-color: var(--wb-surface);
+	border-radius: var(--wb-radius-lg);
+	box-shadow: none;
+}
+.pagination-links a:hover {
+	border-color: var(--sl-color-accent);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
 /* Make a whole card clickable (the card is wrapped in a `.card-link` anchor)
    with a subtle lift-and-highlight on hover - used on the splash landing page. */
 .card-link {
@@ -97,4 +173,30 @@
 	transform: translateY(-3px);
 	border-color: var(--sl-color-text-accent);
 	box-shadow: 0 0.5rem 1rem -0.5rem rgba(0, 0, 0, 0.4);
+}
+
+/* Sidebars. Starlight gives the table of contents half of whatever is left
+   after the content column, so on a wide laptop it grows past the left menu.
+   Pin it to the same width as the left menu and center the content in the
+   remaining space. Same breakpoint as Starlight's TwoColumnContent. */
+@media (min-width: 72rem) {
+	.right-sidebar-container {
+		width: var(--sl-sidebar-width);
+	}
+	[data-has-sidebar][data-has-toc] .main-pane {
+		--sl-content-margin-inline: auto;
+		width: calc(100% - var(--sl-sidebar-width));
+	}
+}
+
+/* The left menu: link text the size of the table of contents (13px), group
+   labels one step up. Starlight's own rules are layered, so these win. */
+@media (min-width: 50rem) {
+	.sidebar-content a,
+	.sidebar-content .plain-label {
+		font-size: var(--sl-text-xs);
+	}
+	.sidebar-content .large {
+		font-size: var(--sl-text-sm);
+	}
 }
