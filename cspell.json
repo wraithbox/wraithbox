@@ -27,7 +27,7 @@
     "*.png",
     "*.ico"
   ],
-  "ignoreRegExpList": ["/GHSA(-[a-z0-9]{4}){3}/g"],
+  "ignoreRegExpList": ["/GHSA(-[a-z0-9]{4}){3}/g", "/\\b(?=[0-9a-f]*[0-9])[0-9a-f]{6}\\b/gi"],
   "languageSettings": [
     {
       "languageId": "markdown,mdx",
