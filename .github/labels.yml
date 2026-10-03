@@ -1,0 +1,69 @@
+# Generic issue labels for wraithbox/wraithbox.
+#
+# This file is the record; GitHub is the copy. Apply it with
+# `mise run gh:labels` (create or update, never delete). After changing a
+# label on GitHub by hand, change it here too.
+#
+# Not managed here:
+#   - Area / subproject labels (go, swift, doc, netd, ...) are defined
+#     separately, alongside the agent orchestration docs.
+#   - GitHub's defaults (duplicate, invalid, question, good first issue,
+#     help wanted, accessibility) and the labels dependabot creates for
+#     its own pull requests (dependencies, javascript, ...). They stay as
+#     GitHub made them.
+#
+# Names are unprefixed where GitHub's default already uses that name (bug,
+# documentation, enhancement, wontfix), so issues, dependabot and the
+# triage workflow all agree. Colors are quoted hex without the leading
+# `#`: unquoted, YAML reads 000000 or 5319e7 as a number.
+
+# Type: what kind of work the issue asks for. One per issue.
+- name: bug
+  color: "d73a4a"
+  description: Something isn't working
+- name: enhancement
+  color: "a2eeef"
+  description: New feature or request
+- name: spike
+  color: "5319e7"
+  description: Throwaway prototype answering an open question (X* in spec 011)
+- name: documentation
+  color: "0075ca"
+  description: Improvements or additions to documentation or specs
+- name: chore
+  color: "c5def5"
+  description: Maintenance - tooling, CI, dependencies, refactoring
+
+# Priority: how soon. At most one per issue; none means not yet decided.
+- name: "priority: critical"
+  color: "b60205"
+  description: Security problem or broken main; drop other work
+- name: "priority: high"
+  color: "d93f0b"
+  description: Do next
+- name: "priority: medium"
+  color: "fbca04"
+  description: Do soon
+- name: "priority: low"
+  color: "0e8a16"
+  description: Do when convenient
+
+# Status: where the issue is in triage. At most one of the first four.
+- name: needs-triage
+  color: "e6e6fa"
+  description: Maintainer needs to evaluate this issue
+- name: needs-info
+  color: "e6e6fa"
+  description: Waiting on reporter for more information
+- name: ready-for-agent
+  color: "e6e6fa"
+  description: Fully specified, ready for an autonomous agent
+- name: ready-for-human
+  color: "e6e6fa"
+  description: Requires human implementation
+- name: blocked
+  color: "000000"
+  description: Waiting on another issue, pull request or outside decision
+- name: wontfix
+  color: "ffffff"
+  description: This will not be worked on

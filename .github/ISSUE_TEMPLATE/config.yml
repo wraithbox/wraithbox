@@ -1,0 +1,10 @@
+# Blank issues stay enabled for documentation and chore issues, which
+# have no form of their own. Labels: see .github/labels.yml.
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/wraithbox/wraithbox/blob/main/SECURITY.md
+    about: Do not open a public issue for a vulnerability. Follow SECURITY.md instead.
+  - name: Design and requirements
+    url: https://github.com/wraithbox/wraithbox/tree/main/docs/spec
+    about: The specs are the source of truth. Read 003 (requirements) and 004 (architecture) before proposing a design change.

@@ -1,0 +1,51 @@
+name: Spike
+description: A throwaway prototype that answers one open question (X* in spec 011).
+title: "X<n>: "
+labels: ["spike", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Spikes are listed in
+        [spec 011](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/011-verification-and-spikes.md).
+        A spike is throwaway code with a yes/no answer and a written result
+        in `docs/spec/` before any dependent work starts. Do not build on an
+        unanswered spike. A new open question gets an `X*` number in spec
+        011 in the same change that answers it, or before.
+  - type: input
+    id: spike-id
+    attributes:
+      label: Spike ID
+      description: The `X*` identifier from spec 011, e.g. `X1`.
+      placeholder: X1
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: The yes/no question, as stated in spec 011.
+    validations:
+      required: true
+  - type: textarea
+    id: depends
+    attributes:
+      label: What depends on the answer
+      description: Requirements, specs or work that change if the answer is no.
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Approach
+      description: The smallest experiment that answers the question, and what to measure.
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      value: |
+        - [ ] The question has a yes/no answer, with evidence.
+        - [ ] The result is written up in `docs/spec/` and spec 011 points to it.
+        - [ ] Any spec or requirement the answer changes is updated or has its own issue.
+    validations:
+      required: true
