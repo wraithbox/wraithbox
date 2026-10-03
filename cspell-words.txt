@@ -95,6 +95,8 @@ Adwaita
 libadwaita
 fontsource
 unlayered
+genai
+LANCZOS
 
 # Agent orchestration
 pickable
