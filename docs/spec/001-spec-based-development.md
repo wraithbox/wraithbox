@@ -13,10 +13,10 @@
 - Files named `XXX-{feature-name}.md` in `docs/spec/`
 - Standard template focusing on purpose, requirements, design approach
 - Status tracking: Draft -> Approved -> Implemented
-- Update [000-shared-patterns.md] when specs introduce new patterns
+- Update [000-shared-patterns.md](000-shared-patterns.md) when specs introduce new patterns
 
 **Implementation Notes:**
-- See [000-shared-patterns.md] for code templates
+- See [000-shared-patterns.md](000-shared-patterns.md) for code templates
 - Specs should be under 100 lines when possible
 - Extract shared patterns rather than repeating across specs
 - Focus on "why" decisions were made, not "how" to implement

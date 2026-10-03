@@ -3,14 +3,14 @@ title: Design overview
 description: How Wraith Box isolates Claude Code, in one page.
 ---
 
-The authoritative design lives in the repository under
+The authoritative design is in the repository under
 [`docs/spec/`](https://github.com/wraithbox/wraithbox/tree/main/docs/spec).
 This page is a summary.
 
 ## Threat model in one paragraph
 
 Anything inside the sandbox may be controlled by an attacker: a prompt
-injection in a README, issue, dependency or web page can take over the
+injection in a README, issue, dependency, or web page can take over the
 agent and get root in the guest. So every control that matters is
 enforced on the host, and full control of the guest grants none of them.
 
@@ -25,8 +25,8 @@ enforced on the host, and full control of the guest grants none of them.
 | `wb-proxyd` | Go | HTTP policy, credential replacement, dependency gate |
 | `wb-guestd` | Go | Agent inside the guest: users, terminal sessions, git transport |
 
-Two channels cross the VM boundary: a host-guest socket (vsock) to
-`wb-hostd`, and Ethernet frames to `wb-netd`. Nothing else.
+Only two channels cross the VM boundary: a host-guest socket (vsock)
+to `wb-hostd`, and Ethernet frames to `wb-netd`.
 
 ## Key decisions
 
@@ -35,7 +35,7 @@ Two channels cross the VM boundary: a host-guest socket (vsock) to
 - **Separate kernel.** A real VM, never a same-kernel sandbox. First
   target: macOS guests on Macs.
 - **Cross-platform core.** Most code is Go and the same on macOS,
-  Windows and Linux hosts; platform-native code is confined to small
+  Windows, and Linux hosts; platform-native code is confined to small
   helpers. `wb` inside WSL uses the Windows host's VMs.
 - **No host mounts.** The project is cloned into the guest; the agent's
   work returns as a git branch. Changes to files your machine or CI might
@@ -43,8 +43,8 @@ Two channels cross the VM boundary: a host-guest socket (vsock) to
 - **No secrets in the guest.** Placeholders only; the proxy removes
   whatever credential the guest sends and injects the real one.
 - **Default-deny egress.** Only allowlisted names resolve, to synthetic
-  addresses that lead only to the proxy. No raw IPs, no host, no LAN, no
-  arbitrary DNS.
+  addresses that lead only to the proxy. The guest cannot reach raw IP
+  addresses, the host, the LAN, or arbitrary DNS servers.
 - **One work VM, many projects.** Trusted projects share a work VM as
   separate guest users; untrusted repositories get an isolated VM. (macOS
   allows two running macOS guests, which this fits.)

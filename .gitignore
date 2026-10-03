@@ -36,7 +36,7 @@ mise.local.toml
 *~
 
 # Claude
-# `.claude/` itself is tracked on purpose — settings.json is shared
+# `.claude/` itself is tracked on purpose: settings.json is shared
 # config. Only per-user state and scratch worktrees are ignored.
 .claude/settings.local.json
 .claude/worktrees

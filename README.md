@@ -11,24 +11,24 @@ wb diff <session>              # review the work that came back
 wb land <session>              # fetch it into your repo as a branch
 ```
 
-`wb` is the single entry point, `gh`-style: `wb [wb flags] <command> [args]`.
+Every command goes through `wb`, `gh`-style: `wb [wb flags] <command> [args]`.
 
-> **Status: design phase.** Nothing works yet. The design lives in
-> [`docs/spec/`](docs/spec/); the code under `packages/` is a compiling
-> skeleton.
+> **Status: design phase.** The design is in [`docs/spec/`](docs/spec/).
+> The code under `packages/` is a skeleton that compiles but does not
+> run an agent yet.
 
 ## Why
 
 Coding agents are most useful when they can run tools without asking for
 permission at every step. Doing that directly on your Mac hands the agent
-everything you can reach: your files, credentials, other repositories and
-accounts. A single prompt injection in a README, an issue or a dependency
+everything you can reach: your files, credentials, other repositories, and
+accounts. A single prompt injection in a README, an issue, or a dependency
 is enough to turn that access against you.
 
 Wraith Box assumes the agent may be adversarial and capable, and enforces
 every control that matters **outside** the sandbox:
 
-- **Separate kernel.** Claude Code and every tool it runs live in a guest
+- **Separate kernel.** Claude Code and every tool it starts run in a guest
   VM with native tooling for its OS. First target: macOS guests on Macs
   (Apple Virtualization framework) with Homebrew, Xcode command line
   tools, optionally Xcode.
@@ -78,8 +78,8 @@ then [004 - Architecture](docs/spec/004-architecture.md).
 | Host ↓ / Guest → | macOS | Linux (Ubuntu LTS) | Windows 11 |
 |---|---|---|---|
 | macOS 15+, Apple Silicon | **first target** | later | later |
-| Windows 11 Home / Pro (and `wb` inside WSL) | — | later | later |
-| Linux (Ubuntu LTS) | — | later | later |
+| Windows 11 Home / Pro (and `wb` inside WSL) | not possible | later | later |
+| Linux (Ubuntu LTS) | not possible | later | later |
 
 No root or administrator rights and no extra user accounts on the host
 at run time. Most code is cross-platform Go; platform-native code (Swift
@@ -88,10 +88,10 @@ on macOS) is kept to small, separate components. See
 
 ## Development
 
-Go (built and tested on macOS, Linux and Windows) and Swift (macOS),
+Go (built and tested on macOS, Linux, and Windows) and Swift (macOS),
 plus an Astro Starlight documentation site published at
 [wraithbox.nl](https://wraithbox.nl). Toolchains and tasks are managed
-by [`mise`](https://mise.jdx.dev/); Swift comes from Xcode.
+by [`mise`](https://mise.jdx.dev/). Swift comes from Xcode.
 
 ```bash
 mise trust && mise install   # pinned toolchains

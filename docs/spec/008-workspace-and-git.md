@@ -3,7 +3,7 @@
 **Purpose:** How code gets into the guest and how the agent's work gets
 back out, without sharing the host filesystem.
 
-**Requirements:** F2–F5, S2, S3, S10, N1, N2.
+**Requirements:** F2 to F5, S2, S3, S10, N1, N2.
 
 ## Into the guest
 
@@ -35,7 +35,7 @@ back out, without sharing the host filesystem.
   pushes. `wb` can also push mid-session.
 - **Landing on the host.** `wb land <session>` runs the user's own
   `git fetch` from the landing repository into `wb/<session-id>` in the
-  user's repository. It never checks out, merges or runs anything. A
+  user's repository. It never checks out, merges, or runs anything. A
   fetch only writes objects and refs.
 
 ## Flagging risky changes (S3)
@@ -66,7 +66,7 @@ quarantine attribute on macOS, Mark of the Web on Windows; spec 012).
 
 ## WSL
 
-When `wb` runs inside WSL (spec 012), the repository lives in the WSL
+When `wb` runs inside WSL (spec 012), the repository is in the WSL
 distribution. The WSL-side `wb` runs `upload-pack` there, with the same
 restrictions, and tunnels it; `wb land` fetches from the landing
 repository on the Windows side through the same channel. Everything
@@ -74,7 +74,7 @@ else in this spec is unchanged.
 
 ## Open points
 
-Git LFS objects, submodules and very large repositories are not covered
+Git LFS objects, submodules, and very large repositories are not covered
 in v1. They are listed in spec 011.
 
 **Status:** Draft

@@ -3,13 +3,13 @@ title: Getting started
 description: Set up a development environment for Wraith Box.
 ---
 
-Wraith Box is in its design phase, so "getting started" currently means
+Wraith Box is in its design phase, so for now "getting started" means
 getting set up to work on it.
 
 ## Prerequisites
 
 - For the full gate: an Apple Silicon Mac with Xcode installed. Swift,
-  `swift-format` and `xcodebuild` come from Xcode. The Go code also
+  `swift-format`, and `xcodebuild` come from Xcode. The Go code also
   builds and tests on Linux and Windows (`mise run go:test` etc.).
 - [mise](https://mise.jdx.dev/), which installs every other pinned tool:
   Go, linters, bun (docs site).
@@ -17,7 +17,7 @@ getting set up to work on it.
 ```bash
 mise trust
 mise install
-mise run install   # docs site dependencies
+mise run install   # docs site dependencies (and cspell)
 ```
 
 ## The gate
@@ -38,9 +38,9 @@ mise run doc:build   # static build into packages/wraithbox-doc/dist
 mise run doc:check   # Astro type/content check
 ```
 
-Content lives in `packages/wraithbox-doc/src/content/docs/`. Pushing to
-`main` deploys the site to GitHub Pages via `.github/workflows/deploy.yml`;
-it is served at [wraithbox.nl](https://wraithbox.nl).
+Pages are in `packages/wraithbox-doc/src/content/docs/`. Pushing to
+`main` deploys the site to GitHub Pages, which serves it at
+[wraithbox.nl](https://wraithbox.nl), through `.github/workflows/deploy.yml`.
 
 ## Next steps
 

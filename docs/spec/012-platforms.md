@@ -14,10 +14,10 @@ how platform-specific code is isolated, what each platform uses, and how
 | **Windows 11 Home / Pro** | not possible | later | later, blocked on spike X11 |
 | **Linux, Ubuntu LTS first** | not possible | later | later |
 
-- macOS guests need Apple hardware, technically and by licence.
+- macOS guests need Apple hardware, technically and by license.
 - Guests use the host's CPU architecture: arm64 on Apple Silicon; x86-64
   or arm64 on Windows and Linux. No instruction-set emulation.
-- Windows guests need a Windows licence supplied by the user. Wraith Box
+- Windows guests need a Windows license supplied by the user. Wraith Box
   never ships or downloads a Windows image itself.
 - "Windows 11" means current Home and Pro editions. Features available
   only on Pro or Enterprise (the Hyper-V management stack, Windows
@@ -26,7 +26,7 @@ how platform-specific code is isolated, what each platform uses, and how
   considered after Ubuntu works; the Linux code avoids Ubuntu-only
   assumptions where that is free.
 
-The code carries this matrix in `internal/platform` and tests it.
+The code encodes this matrix in `internal/platform` and tests it.
 
 ## Isolation of platform code
 
@@ -51,7 +51,7 @@ small set of interfaces, each with one implementation per host OS:
 Rules:
 
 - **Go interfaces in `internal/platform`**, implemented in files with
-  `_darwin.go`, `_windows.go` and `_linux.go` suffixes. Shared code never
+  `_darwin.go`, `_windows.go`, and `_linux.go` suffixes. Shared code never
   branches on `runtime.GOOS`.
 - **A native component is a separate process** with a gRPC contract,
   used only where Go cannot reasonably call the platform API. It makes no
@@ -71,9 +71,9 @@ alternative and needs its own spec.
 
 ## Languages per platform (N7)
 
-- **Go everywhere** for the core, the guest agent and as much platform
-  code as possible: HCS, Hyper-V sockets and named pipes on Windows;
-  KVM-based VMMs, D-Bus, Landlock and seccomp on Linux.
+- **Go everywhere** for the core, the guest agent, and as much platform
+  code as possible: HCS, Hyper-V sockets, and named pipes on Windows;
+  KVM-based VMMs, D-Bus, Landlock, and seccomp on Linux.
 - **macOS: Swift**, built with Xcode, for the Virtualization framework
   (`wb-vmd`) and notifications (native helper). The Keychain and Secure
   Enclave are reached from Go through a thin cgo shim inside `wb-proxyd`,
@@ -90,7 +90,7 @@ Checked by `wb setup`, explained to the user, never changed silently:
 
 | Host | Prerequisite | Who can do it |
 |---|---|---|
-| macOS | Apple Silicon, macOS 15+ | — |
+| macOS | Apple Silicon, macOS 15+ | n/a (hardware and OS version) |
 | Windows | Virtual Machine Platform optional feature enabled (it is if WSL 2 is installed) | administrator, once |
 | Windows | Permission to create VMs through HCS as a standard user (spike X11) | open |
 | Linux | Read-write access to `/dev/kvm` (desktop sessions usually have it; otherwise the `kvm` group) | administrator, once |
@@ -133,9 +133,9 @@ the Windows host's `wb-hostd`:
   connects to `wb-hostd` over its named pipe as the Windows user, so
   authentication is the same as native use. This needs no networking
   configuration in WSL. A Hyper-V socket channel is a possible later
-  optimisation (spike X12).
+  optimization (spike X12).
 - **Terminal.** The WSL-side `wb` owns the terminal and relays it inside
-  the gRPC stream, so Windows console behaviour does not apply.
+  the gRPC stream, so Windows console behavior does not apply.
 - **Repository.** The repository stays in the WSL filesystem. The
   WSL-side `wb` serves the read-only `upload-pack` side of the git
   transport (spec 008) locally and tunnels it, so the Windows side never
@@ -148,7 +148,7 @@ the Windows host's `wb-hostd`:
 
 ## CI
 
-Go is built, linted, vetted and tested natively on macOS, Ubuntu and
+Go is built, linted, vetted, and tested natively on macOS, Ubuntu, and
 Windows runners from the start (spec 002). Swift runs on macOS only. A
 .NET job is added with the first .NET component.
 

@@ -53,5 +53,5 @@ See the [getting started guide](/guides/getting-started/).
 ## The landing page
 
 `index.mdx` uses Starlight's `splash` template to render a hero and card grid
-instead of the usual docs layout. It is a separate landing page - not the first
-sidebar entry - so the sidebar starts with your actual content.
+instead of the usual docs layout. The landing page is not in the sidebar,
+which starts with your first content page.

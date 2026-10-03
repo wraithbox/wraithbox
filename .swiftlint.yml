@@ -1,4 +1,4 @@
-# SwiftLint is used here ONLY as a maintainability gate — cyclomatic complexity
+# SwiftLint is used here ONLY as a maintainability gate: cyclomatic complexity
 # and structural size/nesting limits. Formatting and style are owned by
 # swift-format (.swift-format); `only_rules` keeps SwiftLint from fighting it.
 #

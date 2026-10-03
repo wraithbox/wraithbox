@@ -1,9 +1,9 @@
 ---
 title: Wraith Box
-description: Run Claude Code inside an isolated VM - one command, fast, default-deny.
+description: Run Claude Code inside an isolated VM. One command, fast, default-deny.
 template: splash
 hero:
-  tagline: Run Claude Code inside an isolated virtual machine. Type wb claude instead of claude; the agent gets native tools, your machine keeps its files, secrets and network to itself.
+  tagline: Run Claude Code inside an isolated virtual machine. Type wb claude instead of claude; the agent gets native tools, your machine keeps its files, secrets, and network to itself.
   actions:
     - text: Design overview
       link: /design/
@@ -17,7 +17,7 @@ hero:
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-> **Status: design phase.** Nothing works yet.
+> **Status: design phase.** The code does not run an agent yet.
 
 ## What it does
 
@@ -28,7 +28,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 		VM.
 	</Card>
 	<Card title="Separate kernel, no host files" icon="seti:lock">
-		Claude Code and its tools run in a guest VM - macOS on Macs first, Linux and
+		Claude Code and its tools run in a guest VM: macOS on Macs first, Linux and
 		Windows guests and hosts later. Nothing from your machine is mounted in;
 		work comes back as a git branch you review and land.
 	</Card>
@@ -38,7 +38,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	</Card>
 	<Card title="Default-deny network" icon="warning">
 		Every packet goes to a host-side userspace network stack. Only allowlisted
-		names resolve; pushes are limited to the project's own repositories.
+		names resolve, and pushes are limited to the project's own repositories.
 	</Card>
 </CardGrid>
 

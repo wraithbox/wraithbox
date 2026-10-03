@@ -1,17 +1,17 @@
 # GitHub organization and repository settings
 
 Settings for the `wraithbox` organization and the `wraithbox/wraithbox`
-repository live in GitHub, not in this tree. This page records what they
+repository are stored in GitHub, not in this tree. This page records what they
 are meant to be, why, and how to apply them with `gh api`, so they can
 be checked and re-applied. Last reviewed 2026-10-03.
 
 Every command below is idempotent: it sets a value, it does not toggle.
 
-## Constraints that shape these settings
+## Constraints on these settings
 
 - The repository is **private** on the organization's **Free** plan.
   On that combination GitHub offers no rulesets, no branch protection,
-  no secret scanning, no code scanning and no private vulnerability
+  no secret scanning, no code scanning, and no private vulnerability
   reporting (the API answers 403 "Upgrade to GitHub Pro or make this
   repository public"). Making the repository public, or moving the
   organization to Team, unlocks them; the commands are listed under
@@ -35,7 +35,7 @@ Needs a token with `repo` scope and admin rights on the repository.
 | Rebase merge, merge commit | on | Merge commits stay available for stacked branches |
 | Delete branch on merge | on | |
 | Suggest updating PR branches | on | |
-| Wiki, Projects | off | Unused; design lives in `docs/spec/` |
+| Wiki, Projects | off | Unused; the design is in `docs/spec/` |
 
 ```sh
 R=repos/wraithbox/wraithbox
@@ -112,7 +112,7 @@ Apply once the repository is public or the organization is on Team.
   `gh api -X PUT repos/wraithbox/wraithbox/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors`.
 - A ruleset on the default branch. It requires a pull request with zero
   approvals, because a solo maintainer cannot approve their own pull
-  request; the CI status checks are the gate. Repository admins can
+  request. The CI status checks are the gate. Repository admins can
   bypass it, so the owner can still repair `main` in an emergency.
   Feature branches are not covered, so pushing branches and opening
   pull requests are unaffected.
