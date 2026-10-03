@@ -148,8 +148,8 @@ jobs:
       # fails on a newly published advisory against an unchanged tree, so
       # it has to be able to go red without implying the code broke.
       #
-      # Runs the same `mise run vuln` a developer runs — osv-scanner over
-      # every lockfile and govulncheck for the Go toolchain — so there is
+      # Runs the same `mise run vuln` a developer runs (osv-scanner over
+      # every lockfile and govulncheck for the Go toolchain), so there is
       # one definition of the check rather than two that can drift.
       - name: Scan every lockfile (osv-scanner + govulncheck)
         run: mise run vuln
@@ -171,7 +171,7 @@ jobs:
       # Caveat worth knowing before copying this to the other jobs: mise
       # can auto-install a missing tool when `mise run` reaches for it, so
       # an `install_args` list that is too narrow shows up as a slower job,
-      # not a failing one. Check the timings, not just the colour.
+      # not a failing one. Check the timings, not just the color.
       - name: Set up mise
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
@@ -192,8 +192,8 @@ jobs:
           # .github/dependabot.yml is audited too. Scope inputs to
           # .github because --collect=all otherwise walks node_modules
           # once the docs site is installed. All three must match
-          # `mise run audit` for that task to be a real local mirror —
-          # bump the version in both places together.
+          # `mise run audit` for that task to be a real local mirror.
+          # Bump the version in both places together.
           version: "1.30.1"
           collect: all
           inputs: .github

@@ -55,12 +55,12 @@ that carries data (S1, S2, S5).
 
 | Process | Lang | Runs as | Holds | Faces the guest via | Purpose |
 |---|---|---|---|---|---|
-| `wb` | Go | user, per invocation | nothing | — | The only CLI: dispatcher for every command, TTY relay for agent sessions (spec 005) |
+| `wb` | Go | user, per invocation | nothing | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (spec 005) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (specs 006, 008, 009) |
-| `wb-vmd` | platform-native | user, spawned by `wb-hostd` | VM handles | — (devices only) | Create, start, stop, save and restore VMs; hand guest socket connections and the NIC endpoint to other processes (spec 012) |
+| `wb-vmd` | platform-native | user, spawned by `wb-hostd` | VM handles | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (spec 012) |
 | `wb-netd` | Go | user, one per VM, spawned by `wb-hostd` | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (spec 007) |
 | `wb-proxyd` | Go | user, spawned by `wb-hostd` | credentials, CA signing handle | streams from `wb-netd` | HTTP policy, credential replacement, dependency gate, upstream connections (specs 007, 009) |
-| `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | — (it *is* guest) | Users, PTY exec, git transport, port discovery (spec 006) |
+| `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | n/a (runs in the guest) | Users, PTY exec, git transport, port discovery (spec 006) |
 
 Native user-interface helpers (notifications with actions, later a tray
 or menu-bar item) are separate small processes per platform. They render
@@ -75,13 +75,13 @@ nothing themselves (spec 012).
   never collide with Wraith Box's (spec 005).
 - **Cross-platform core, native edges.** Session management, policy,
   approvals, audit, the git gateway, the network stack, the proxy, the
-  guest agent and the CLI are Go and the same on every host OS. Only the
+  guest agent, and the CLI are Go and the same on every host OS. Only the
   pieces that must call a platform API with no good Go binding are
   native, and each is a separate process behind a gRPC contract with no
   policy decisions of its own: `wb-vmd` on macOS (Virtualization
   framework) and the user-interface helpers (spec 012, N7).
 - **Secrets live in one process, and not the most exposed one.**
-  `wb-netd` parses raw guest packets — the largest attack surface — and
+  `wb-netd` parses raw guest packets, the largest attack surface, and
   holds no secrets and opens no outbound connections. `wb-proxyd` holds
   credentials but only sees TCP byte streams already reassembled by
   `wb-netd` and validated against the DNS mapping. `wb-hostd` and
@@ -103,7 +103,7 @@ nothing themselves (spec 012).
   guest agent is a convenience for the host, not a security component.
 - **Policy is evaluated on the host, twice.** `wb-netd` decides which
   names resolve and which connections are accepted; `wb-proxyd` re-checks
-  the hostname, SNI and HTTP request. A bug in one layer does not open
+  the hostname, SNI, and HTTP request. A bug in one layer does not open
   egress on its own.
 - **One work VM per guest OS, many projects; an isolated VM for the
   rest.** The work VM hosts every trusted project for its guest OS,
@@ -135,8 +135,8 @@ layout is the same everywhere:
 
 All IPC is protobuf over gRPC. On the host it runs over a local IPC
 endpoint only the user can open: Unix sockets in a `0700` directory on
-macOS and Linux, named pipes with an ACL for the user's SID on Windows;
-the peer's identity is checked on every connection. To the guest it runs
+macOS and Linux, named pipes with an ACL for the user's SID on Windows.
+The peer's identity is checked on every connection. To the guest it runs
 over the host-guest socket. The `.proto` files are the single contract
 for every language (spec 010).
 

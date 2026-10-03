@@ -14,7 +14,7 @@ repo tasks, and CI.
 - Native pin files stay authoritative (`go.work` / `go.mod` `go`
   directive, `Package.swift` tools version). They must agree with
   `.mise.toml`.
-- **Swift comes from Xcode, not mise.** The compiler, `swift-format` and
+- **Swift comes from Xcode, not mise.** The compiler, `swift-format`, and
   `xcodebuild` ship inside Xcode, so the Xcode version is the pin.
   `Package.swift` declares `swift-tools-version: 6.2`, the floor;
   contributors may use a newer Xcode. CI uses the default Xcode of its
@@ -24,21 +24,21 @@ repo tasks, and CI.
   SHA-pinned, to install the toolchain, then calls `mise run <task>`.
 - Secrets use `op://` references resolved by
   [`fnox`](https://fnox.jdx.dev/) via an `[env]` block that loads an
-  optional gitignored `.env`. Plaintext tokens never land on disk.
+  optional gitignored `.env`. Plaintext tokens are never written to disk.
 
 **Design Approach:**
 - **Every tool in `[tools]` is pinned to an exact version.** This is a
   supply-chain rule, not a stability one: an upstream compromise must
   never arrive by auto-download. Nothing in `[tools]` is covered by
   dependabot, so it must be refreshed deliberately with `mise up`.
-- **Go runs on macOS, Linux and Windows from the start.** Most code is
-  cross-platform Go (spec 012), so CI lints, vets, tests and builds it
+- **Go runs on macOS, Linux, and Windows from the start.** Most code is
+  cross-platform Go (spec 012), so CI lints, vets, tests, and builds it
   natively on all three (a job matrix), with only the Go tools installed
   (`install_args`), because some pinned tools have no Windows build.
-  Locally, `mise run go:cross` vets, lints and builds for all three
+  Locally, `mise run go:cross` vets, lints, and builds for all three
   GOOS values from one machine and is part of `ci`; `go:vulncheck`
-  analyses each GOOS. Swift runs on macOS runners only. Docs, workflow
-  linting and the vulnerability scan run on Linux.
+  analyzes each GOOS. Swift runs on macOS runners only. Docs, workflow
+  linting, and the vulnerability scan run on Linux.
 - **Go tasks work under Windows `cmd.exe`.** mise runs a task's `run`
   with `cmd.exe` on Windows, so the tasks CI calls on Windows are single
   plain commands in the module directory (`dir`), with `run_windows`
@@ -46,11 +46,23 @@ repo tasks, and CI.
   compiler). There is one Go module; adding a second means extending
   the Go tasks deliberately. Tasks that only run on macOS or Linux
   (`go:cross`, `go:vulncheck`, Swift, docs) may use shell scripts.
-- **Swift tasks iterate `packages/*-swift` in-shell**, so a new package is
-  "drop it in".
+- **Swift tasks iterate `packages/*-swift` in-shell**, so the tasks pick
+  up a new package without changes.
 - **A .NET toolchain is added with the first .NET component** (spec 012),
   pinned in `.mise.toml` like every other tool, with its own CI job on a
   Windows runner.
+- **Prose is checked like code.** `prose:lint` runs Vale over every
+  Markdown and MDX file (specs, README, AGENTS.md, the docs site) and
+  `prose:spell` runs cspell (American English) over every tracked file,
+  source code included. Both are part of `lint` and run in the CI docs
+  job. Vale does not lint source code comments: a trial run over the
+  Go, Swift, and config comments found little besides section rulers,
+  command-line flags, and terse comment style. Vale is pinned in
+  `.mise.toml`, and its style packages are vendored under
+  `.vale/styles/` (pinned release and checksum recorded in `.vale.ini`),
+  so `ci` stays offline. cspell is an exact-pinned devDependency of the
+  docs package, because mise's `npm:` backend does not record a
+  checksum, and bun.lock pins the whole tree.
 - **CI keeps independent parallel jobs per language.** Each job
   re-installs the toolchain; the mise cache makes this cheap and logs stay
   readable.

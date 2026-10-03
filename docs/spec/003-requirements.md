@@ -2,7 +2,7 @@
 
 **Purpose:** Define what Wraith Box must do, how well, and what it must
 defend against. Every other spec traces back to an identifier here
-(`F*`, `S*`, `N*`, `C*`).
+(`F*`, `S*`, `N*`, `C*`, `R*`).
 
 ## Problem
 
@@ -12,15 +12,15 @@ a developer's machine exposes everything the developer can reach: files,
 credentials, other repositories, accounts. Wraith Box runs Claude Code
 inside a disposable-feeling but persistent virtual machine, so the agent
 keeps a native toolchain for the operating system it works on while the
-host, its secrets and its network stay under host-side control.
+host, its secrets, and its network stay under host-side control.
 
 The first delivery target is macOS guests on macOS hosts. The design is
-for macOS, Windows and Linux hosts, with Linux and Windows guests on all
+for macOS, Windows, and Linux hosts, with Linux and Windows guests on all
 of them (spec 012); platform-specific code is kept behind narrow
 interfaces so later platforms do not reshape the core.
 
 The design assumes the agent is **capable and possibly adversarial**: a
-prompt injection in a README, issue, dependency or web page may take full
+prompt injection in a README, issue, dependency, or web page may take full
 control of everything inside the sandbox, including root in the guest.
 Agents are increasingly good at finding ways out of their environment, so
 every control that matters is enforced *outside* the guest.
@@ -33,7 +33,8 @@ every control that matters is enforced *outside* the guest.
   argument after `claude` reaches Claude Code unchanged, with interactive
   TTY, piped/non-interactive use, and exit code preserved.
 - **F2** Works in any git repository. The first run in a repository
-  registers the project automatically; no setup step per project.
+  registers the project automatically. No setup step is needed per
+  project.
 - **F3** The agent never writes to the host working tree. Its work returns
   as a git branch the user reviews and merges.
 - **F4** Uncommitted host changes (staged, unstaged, untracked-not-ignored)
@@ -62,8 +63,8 @@ every control that matters is enforced *outside* the guest.
 - **F16** On a Windows host, `wb` run inside a WSL 2 distribution works on
   repositories in that distribution, using the VMs and services of the
   Windows host. It does not start a second set of VMs inside WSL.
-- **F17** The same `wb` commands, flags, policy files and behaviour on
-  every host OS; differences are limited to what spec 012 lists.
+- **F17** The same `wb` commands, flags, policy files, and behavior on
+  every host OS. Differences are limited to what spec 012 lists.
 
 ## Security requirements
 
@@ -81,27 +82,28 @@ every control that matters is enforced *outside* the guest.
   host side of the network boundary and replace anything the guest sends.
 - **S5 Default-deny egress, enforced on the host.** Only allowlisted
   hostnames are reachable. No raw-IP destinations, no host or LAN access,
-  no arbitrary DNS (no DNS tunnelling), no UDP except DNS to the gateway.
+  no arbitrary DNS (no DNS tunneling), no UDP except DNS to the gateway.
 - **S6 Repository-scoped writes.** Git pushes and repository-mutating API
   calls are allowed only for the project's own repositories; gists,
-  repository creation and package publishing are denied by default.
+  repository creation, and package publishing are denied by default.
 - **S7 Dependency gate.** Package downloads (npm, PyPI, Go modules,
   crates) are refused when the version is younger than a minimum age or
   has a known vulnerability at or above a severity threshold.
 - **S8 Per-project isolation.** Each project has its own guest user,
   state and history; one project cannot persist into another. Untrusted
   repositories can be confined to a separate VM.
-- **S9 Policy lives on the host.** The guest cannot read or change policy.
+- **S9 Policy is held on the host.** The guest cannot read or change policy.
   Repository-supplied configuration is ignored unless the user trusts the
   repository, and can never add credentials.
-- **S10 Audit.** Every egress decision, approval and returned change is
+- **S10 Audit.** Every egress decision, approval, and returned change is
   recorded on the host in a persisted log the guest cannot alter.
 - **S11 Guest root is not a privilege.** Full control of the guest grants
-  no control over enforcement, secrets or policy.
+  no control over enforcement, secrets, or policy.
 - **S12 Least privilege on the host.** No root or administrator rights
-  at run time, no extra host user accounts, the platform's hardening
-  (hardened runtime and minimal entitlements on macOS; the equivalents in
-  spec 012 elsewhere); credentials are held by exactly one host process.
+  at run time and no extra host user accounts. The platform's hardening
+  applies (hardened runtime and minimal entitlements on macOS, the
+  equivalents in spec 012 elsewhere). Credentials are held by exactly one
+  host process.
   One-time OS prerequisites (enabling a virtualization feature, access to
   the hypervisor device) are documented and checked by `wb setup`, never
   performed silently.
@@ -114,7 +116,7 @@ every control that matters is enforced *outside* the guest.
 - **N1 Startup.** Warm VM: ≤ 4 s to the Claude prompt. Suspended VM:
   ≤ 7 s. Hard ceiling 10 s (p95), excluding first-time project setup and
   the first boot after a host restart.
-- **N2 Filesystem.** The workspace lives on guest-native storage. Target
+- **N2 Filesystem.** The workspace is on guest-native storage. Target
   ≥ 80% of host throughput on representative workloads (`npm ci`,
   `git status` on a large repo, incremental build), measured by the
   benchmark suite (spec 011).
@@ -125,8 +127,8 @@ every control that matters is enforced *outside* the guest.
   distributions considered after that. Works on managed (MDM or
   domain-joined) machines on every host OS.
 - **N5 Platform limit.** macOS permits at most two concurrently running
-  macOS guests per host; the design operates within it (spec 006). Other
-  guest operating systems are limited only by resources.
+  macOS guests per host. The design works within that limit (spec 006).
+  Other guest operating systems are limited only by resources.
 - **N6 Operability.** Every refusal names the rule that caused it and how
   to change it.
 - **N7 Maintainability.** Most code is cross-platform Go. Platform-native
@@ -177,8 +179,8 @@ packet surface to `wb-netd`; (4) git objects returning to the host;
 **Accepted residual risks**, documented rather than solved:
 
 - **R1** Data sent through allowed operations to allowed destinations,
-  e.g. a push to an allowed repository that is public, or prompt content
-  sent to the model provider.
+  for example a push to an allowed repository that is public, or prompt
+  content sent to the model provider.
 - **R2** Data encoded in DNS names under allowed wildcards, bounded by a
   per-session lookup budget.
 - **R3** Escape from the hypervisor.

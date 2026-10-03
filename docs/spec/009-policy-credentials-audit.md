@@ -3,14 +3,14 @@
 **Purpose:** Where policy comes from, how secrets are held, how TLS
 inspection is trusted, and what is recorded.
 
-**Requirements:** F9, F10, F15, S4–S6, S9, S10, S12, S14, N6.
+**Requirements:** F9, F10, F15, S4 to S6, S9, S10, S12, S14, N6.
 
 ## Policy
 
 - **Files.** TOML, validated against a schema. Global defaults in
   `<config>/config.toml`; per-project overrides in
   `<config>/projects/<project-id>.toml` (`<config>` per OS in spec 012;
-  `~/.config/wraithbox` on macOS). Both live on the host, outside every
+  `~/.config/wraithbox` on macOS). Both are on the host, outside every
   repository and every guest. The format is the same on every host OS
   (F17).
 - **Contents.** Allowed hosts and ports (exact names and bounded
@@ -39,7 +39,7 @@ inspection is trusted, and what is recorded.
   the `wb-proxyd` binary, which is weaker and documented as such. Other
   platforms scope items as narrowly as their store allows; the limits
   are documented per platform in spec 012.
-- **Bindings.** A binding names the host(s), the header and scheme to
+- **Bindings.** A binding names the hosts, the header and scheme to
   inject, and the secret store item. `wb cred set <binding>` reads the
   value from a prompt or stdin; it never appears in arguments or logs.
 - **Model credential.** Claude Code in the guest is configured with a
@@ -56,7 +56,7 @@ inspection is trusted, and what is recorded.
   used by `wb-proxyd` to sign leaf certificates (Go's certificate
   creation accepts any signer). Fallback if no hardware key store is
   available: a software key held in the secret store.
-- **Scope.** The CA certificate carries name constraints restricting it
+- **Scope.** The CA certificate has name constraints restricting it
   to the hostnames configured for inspection. It is trusted **only inside
   guests**, never on the host. When the inspected set changes, a new CA
   is issued and `wb-guestd` installs it.
@@ -84,6 +84,6 @@ stripped of control and escape sequences wherever it is shown.
   inspected requests; bytes in and out; approval actions; returned work
   and its flags. Process attribution reported by the guest is stored as
   an untrusted label.
-- Never recorded: credential values, request or response bodies.
+- Never recorded: credential values and request or response bodies.
 
 **Status:** Draft

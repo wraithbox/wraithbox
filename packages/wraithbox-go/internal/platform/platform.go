@@ -1,7 +1,7 @@
 // Package platform describes the host Wraith Box runs on and which guest
 // operating systems each host supports. See docs/spec/012-platforms.md.
 //
-// Platform-specific behaviour lives behind interfaces in this package's
+// Platform-specific behavior is behind interfaces in this package's
 // subpackages, implemented in files with GOOS suffixes; shared code never
 // switches on runtime.GOOS itself.
 package platform

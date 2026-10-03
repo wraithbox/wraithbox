@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose new behaviour or a change to existing behaviour.
+description: Propose new behavior or a change to existing behavior.
 labels: ["enhancement", "needs-triage"]
 body:
   - type: markdown
@@ -19,7 +19,7 @@ body:
     id: proposal
     attributes:
       label: Proposal
-      description: What should change. Commands, flags, or behaviour as you would use them.
+      description: What should change. Commands, flags, or behavior as you would use them.
     validations:
       required: true
   - type: textarea

@@ -72,7 +72,7 @@ type Invocation struct {
 // ErrUsage wraps every command-line error, so callers can map it to exit code 2.
 var ErrUsage = errors.New("usage error")
 
-// Parse parses args (without the program name). Flags are only recognised
+// Parse parses args (without the program name). Flags are only recognized
 // before the command; the first non-flag argument is the command and every
 // argument after it belongs to that command, untouched.
 func Parse(args []string) (Invocation, error) {

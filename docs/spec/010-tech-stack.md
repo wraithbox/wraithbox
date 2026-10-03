@@ -1,6 +1,6 @@
 # 010 - Technology Choices
 
-**Purpose:** Fix languages, libraries, packaging and repository layout,
+**Purpose:** Fix languages, libraries, packaging, and repository layout,
 with the reason for each choice.
 
 **Requirements:** N4, N7, N8, S12, F17.
@@ -14,9 +14,9 @@ in a separate process with a gRPC contract (spec 012).
 | Component | Language | Reason |
 |---|---|---|
 | `wb` | Go | One static binary per OS with millisecond start-up; mature PTY and terminal handling; the same CLI everywhere |
-| `wb-hostd` | Go | Sessions, policy, approvals, audit and the git gateway are platform-independent logic |
+| `wb-hostd` | Go | Sessions, policy, approvals, audit, and the git gateway are platform-independent logic |
 | `wb-netd`, `wb-proxyd` | Go | gVisor's network stack is Go; strong standard TLS/HTTP/HTTP2 libraries; built-in fuzzing for the parsers that face the guest |
-| `wb-guestd`, `git-remote-wb` | Go | One code base for macOS, Linux and Windows guests; PTY, vsock and user management |
+| `wb-guestd`, `git-remote-wb` | Go | One code base for macOS, Linux, and Windows guests; PTY, vsock, and user management |
 | `wb-vmd` on Windows and Linux | Go | HCS and Hyper-V sockets have Go bindings; Linux VMMs are driven over sockets and processes |
 | `wb-vmd` on macOS, macOS notification helper | Swift 6 | First-class access to the Virtualization framework (macOS guests, save/restore, file-handle network attachment) and to notifications |
 | Windows notification and tray helper (later) | C# (.NET) | Native Windows notifications with actions |
@@ -65,9 +65,9 @@ binary of that name comes from the Swift package.
 
 - **macOS:** an app bundle, `Wraith Box.app`, contains `wb-hostd`,
   `wb-vmd`, `wb-netd`, `wb-proxyd`, the notification helper, the guest
-  tools disk image and `wb`, which the installer links onto `PATH`. A
-  bundle is needed for notifications, Keychain access groups and
-  launch-agent registration. Hardened runtime; only `wb-vmd` carries the
+  tools disk image, and `wb`, which the installer links onto `PATH`. A
+  bundle is needed for notifications, Keychain access groups, and
+  launch-agent registration. Hardened runtime; only `wb-vmd` has the
   virtualization entitlement. Developer ID signing and notarization come
   later; until then builds are ad-hoc signed and the Keychain access
   model uses the weaker fallback in spec 009. Distribution via a
@@ -91,7 +91,7 @@ of the host's, within what the Virtualization framework supports.
 `gofumpt`, `goimports`, `golangci-lint`, `go vet`, `govulncheck` (for each
 host OS); `swift-format` (strict) and SwiftLint complexity limits; Swift
 Testing and `go test -race`; fuzz targets for every guest-facing parser
-(spec 011). Go runs natively in CI on macOS, Linux and Windows. See spec
-002 for the toolchain itself.
+(spec 011); Vale and cspell for prose. Go runs natively in CI on macOS,
+Linux, and Windows. See spec 002 for the toolchain itself.
 
 **Status:** Draft

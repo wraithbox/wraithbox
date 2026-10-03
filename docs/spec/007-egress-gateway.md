@@ -4,7 +4,7 @@
 network stack (`wb-netd`) and a policy-enforcing proxy (`wb-proxyd`) on
 the host.
 
-**Requirements:** F8–F10, S4–S7, S10, S11, N6.
+**Requirements:** F8 to F10, S4 to S7, S10, S11, N6.
 
 ## Packet path (`wb-netd`)
 
@@ -40,10 +40,10 @@ the host.
 - **Connections.**
   - TCP to a synthetic address on an allowed port is accepted by the
     stack and handed to `wb-proxyd` as a byte stream over a Unix socket,
-    tagged with VM, project, session, hostname and port.
+    tagged with VM, project, session, hostname, and port.
   - TCP to any other address is reset; UDP other than DNS is dropped
     (clients fall back from QUIC to TCP); ICMP is answered only for the
-    gateway address. The host, the LAN and raw IP destinations are
+    gateway address. The host, the LAN, and raw IP destinations are
     therefore unreachable by construction (S5).
 
 ## Stream path (`wb-proxyd`)
@@ -102,8 +102,8 @@ the host.
 ## Performance
 
 Packets are processed in userspace, so throughput is lower than kernel
-networking. Spec 011 sets a benchmark for large downloads; if that falls
-short, the fix is inside `wb-netd` (batching, buffer sizes), not a
+networking. Spec 011 sets a benchmark for large downloads. If throughput
+misses it, the fix is inside `wb-netd` (batching, buffer sizes), not a
 second network path.
 
 **Status:** Draft

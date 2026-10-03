@@ -3,12 +3,12 @@
 **Purpose:** How guest images are built, how VMs are kept warm, how
 projects and sessions map onto guests, and what `wb-guestd` does.
 
-**Requirements:** F2, F5–F7, F11–F14, S1, S2, S8, S11, S13, N1–N5.
+**Requirements:** F2, F5 to F7, F11 to F14, S1, S2, S8, S11, S13, N1 to N5.
 
 This spec describes macOS guests on a macOS host, the v1 target. The
 structure (image layers, sealing, work and isolated VMs, one guest user
 per project, worktree per session, the duties of `wb-guestd`) is the
-same for every guest OS; what differs per guest and per host is listed
+same for every guest OS. What differs per guest and per host is listed
 in spec 012.
 
 ## Images
@@ -26,10 +26,11 @@ in spec 012.
   looks like a secret (keychain items, tokens in dotfiles, SSH keys,
   shell history). A non-empty result fails the build (S4).
 - **Storage and distribution.** Images are stored locally and cloned
-  copy-on-write (APFS clones on macOS; spec 012) into VM bundles. Sharing images between
-  machines as OCI artifacts in a registry is a later addition.
+  copy-on-write (APFS clones on macOS; spec 012) into VM bundles.
+  Sharing images between machines as OCI artifacts in a registry is a
+  later addition.
 - **Updates.** A VM's system disk is replaced by a fresh clone of the new
-  image; project data lives on a separate data disk and survives (below).
+  image. Project data is on a separate data disk and survives (below).
 
 ## VMs
 
@@ -49,20 +50,21 @@ in spec 012.
   one host-guest socket device (vsock); storage; entropy.
   No shared directories, no host audio input, no USB or serial
   passthrough in v1 (S2).
-- **Resources.** CPU, memory and disk are capped per VM; defaults
+- **Resources.** CPU, memory, and disk are capped per VM; defaults
   4 vCPU / 8 GB, configurable (S13).
-- **Warm start.** `wb-hostd` can have `wb-vmd` start the work VM at login. After a
-  configurable idle period the VM's state is saved and the VM stops;
-  the next session restores from saved state (N1, N3). Whether a saved
-  state can be reused more than once is open (spec 011, spike X2).
+- **Warm start.** `wb-hostd` can have `wb-vmd` start the work VM at
+  login. After a configurable idle period the VM's state is saved and
+  the VM stops; the next session restores from saved state (N1, N3).
+  Whether a saved state can be reused more than once is open (spec 011,
+  spike X2).
 - **Time and sleep.** After host sleep or VM restore, `wb-guestd`
-  resynchronises the guest clock from `wb-hostd`.
+  resynchronizes the guest clock from `wb-hostd`.
 
 ## Projects and sessions inside a VM
 
 - Each project gets a dedicated **guest** user account, created by
   `wb-guestd`; its home on the data disk holds the project clone, Claude
-  Code state (F13) and tool caches. Guest users cannot read each other's
+  Code state (F13), and tool caches. Guest users cannot read each other's
   homes (S8). No host user accounts are created (S12).
 - Each session gets its own git worktree of the project clone, so
   parallel sessions in one project do not collide (F5). Per-session build
@@ -77,8 +79,8 @@ LaunchDaemon on macOS; spec 012 for other guests), serving gRPC over the
 host-guest socket to `wb-hostd` only. One code base for every guest OS,
 with OS-specific parts behind interfaces as on the host. Responsibilities:
 
-- create, lock and remove project users;
-- run commands as a project user with a PTY or pipes, a sanitised
+- create, lock, and remove project users;
+- run commands as a project user with a PTY or pipes, a sanitized
   environment (explicit allowlist; placeholders for credentials), and
   per-session resource limits;
 - install the egress gateway's CA certificate into the guest trust

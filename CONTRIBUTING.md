@@ -18,7 +18,7 @@ installs every other pinned toolchain and runs every repo task.
 ```bash
 mise trust        # allow this repo's .mise.toml
 mise install      # install the exact pinned toolchains
-mise run install  # install the docs site dependencies
+mise run install  # install the docs site dependencies (and cspell)
 ```
 
 ## Before you open a pull request
@@ -31,6 +31,11 @@ mise run vuln     # scan every lockfile for known vulnerabilities
 
 `ci` is deliberately offline; `audit` and `vuln` both need network, which
 is why they are separate. CI runs all three.
+
+`ci` includes the prose checks: Vale over Markdown (`mise run
+prose:lint`) and cspell over every file (`mise run prose:spell`).
+Add names and jargon to `cspell-words.txt`. The **Prose** guideline in
+[AGENTS.md](AGENTS.md) explains the rest.
 
 Design changes start in `docs/spec/`. Read
 `docs/spec/003-requirements.md` first: the security requirements there
@@ -48,7 +53,7 @@ Do not open a public issue for a vulnerability. See
 
 ## Issues
 
-Use the issue forms for bugs, feature requests and spikes (the `X*`
+Use the issue forms for bugs, feature requests, and spikes (the `X*`
 open questions in `docs/spec/011-verification-and-spikes.md`). Labels
 and triage are described in
 [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
