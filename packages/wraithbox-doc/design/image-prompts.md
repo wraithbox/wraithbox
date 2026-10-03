@@ -23,14 +23,14 @@ museum. It is **not** spooky, cartoonish, Halloween, horror, or "hacker".
 ## Palette (exact hex)
 
 These come from the site theme (`src/styles/custom.css`). Use them by name
-in the prompts and, more importantly, snap the colours to them when
+in the prompts and, more importantly, snap the colors to them when
 vectorizing.
 
 | Role | Hex | Notes |
 |---|---|---|
-| Spectral green (pale) | `#a6f0cf` | The wraith. Dark-mode link colour. Main highlight. |
+| Spectral green (pale) | `#a6f0cf` | The wraith. Dark-mode link color. Main highlight. |
 | Spectral green (mid) | `#4cc79a` | Glow, edges, secondary strokes. |
-| Deep green | `#17694d` | Light-mode link colour; the mark on light backgrounds. |
+| Deep green | `#17694d` | Light-mode link color; the mark on light backgrounds. |
 | Accent border green | `#2e9470` | Light-mode borders; mid-tone on light backgrounds. |
 | Green tint | `#e5f5ee` | Light-mode tinted surfaces. |
 | Green shadow | `#213a31` | Dark-mode tinted surfaces; deep shadow inside the box. |
@@ -106,9 +106,9 @@ remove.
 > Minimal flat vector monogram mark: a square frame with rounded corners,
 > stroke in graphite `#343437`. Inside, an abstract shape that reads both as
 > the hem of a floating ghost (three soft downward scallops) and as a
-> stylised letter W, drawn as one smooth pale spectral green `#a6f0cf` form.
+> stylized letter W, drawn as one smooth pale spectral green `#a6f0cf` form.
 > Geometric construction, even stroke weights, perfectly symmetrical,
-> works in one colour. Solid background `#1d1d20`, 1:1 square, centred.
+> works in one color. Solid background `#1d1d20`, 1:1 square, centred.
 
 (For this one the generator may try to draw letters; if so, describe it
 only as "three soft downward scallops" and leave the W reading to the
@@ -116,9 +116,9 @@ vector redraw.)
 
 ### What makes a logo direction usable
 
-- Reads in one flat colour (test: fill it all with `#17694d` on white and
+- Reads in one flat color (test: fill it all with `#17694d` on white and
   with `#a6f0cf` on `#1d1d20`).
-- Still recognisable at 32 px wide.
+- Still recognizable at 32 px wide.
 - No more than about 6 to 10 distinct shapes after vectorizing.
 
 ## (b) Icon / favicon
@@ -133,7 +133,7 @@ shrink to 16 and 32 px to check it before vectorizing.
 > a rounded dome top, straight sides, and a hem of three soft scallops. No
 > face, no eyes, no outline, no gradient, no glow, no texture. The
 > silhouette fills about 65% of the tile height with even margins. Two
-> colours only. Must remain recognisable at 16x16 pixels. 1:1, 512x512,
+> colors only. Must remain recognizable at 16x16 pixels. 1:1, 512x512,
 > centred, crisp edges, vector style.
 
 Variant for light browser tabs (if the dark tile looks heavy):
@@ -162,7 +162,7 @@ Generate two versions: one for dark mode and one for light mode.
 
 - Aspect ratio **4:3** (or 1:1); generate at **1600x1200** so it stays sharp
   on high-density screens.
-- Subject centred with soft edges that fade into the page colour, so no
+- Subject centred with soft edges that fade into the page color, so no
   hard rectangle shows on the page.
 
 Dark version:
@@ -199,13 +199,13 @@ hero prompt so the two match.
    remove the background (Preview's Instant Alpha, GIMP, or a remove-bg
    step).
 2. **Vectorize the logo and icon.** Trace with Inkscape (Path > Trace Bitmap,
-   "Multiple scans: colours", 2 to 4 colours, smooth on, stack scans off),
-   `potrace` (one colour at a time) or `vtracer`. Then clean up by hand:
+   "Multiple scans: colors", 2 to 4 colors, smooth on, stack scans off),
+   `potrace` (one color at a time) or `vtracer`. Then clean up by hand:
    delete stray nodes, make curves symmetrical, snap the fills to the exact
    palette hex values, and set a square `viewBox` such as `0 0 64 64`. A
    redraw from scratch with simple shapes is often cleaner than a trace;
    the generated image is the sketch.
-3. **Optimise.** Run the SVG through `svgo` (already in the docs site's
+3. **Optimize.** Run the SVG through `svgo` (already in the docs site's
    dependency tree via Astro) or SVGOMG. Remove editor metadata. Keep a
    `role="img"` and `aria-label="Wraith Box"` on the root.
 4. **Logo files.** Save as `src/assets/logo-dark.svg` (pale artwork, for the
@@ -217,7 +217,7 @@ hero prompt so the two match.
    `mise run doc:favicon`. It writes `public/favicon.svg` and the 180x180
    `public/apple-touch-icon.png`. For a favicon that follows the browser
    theme, add a `<style>@media (prefers-color-scheme: dark) {...}</style>`
-   block inside the SVG that swaps the fill colours. Check the result at
+   block inside the SVG that swaps the fill colors. Check the result at
    16 and 32 px in a real browser tab, both light and dark.
 6. **Hero.** Keep the hero raster (it relies on soft gradients). Export to
    WebP or AVIF at 1600x1200 and about 150 KB or less, save as
@@ -225,7 +225,7 @@ hero prompt so the two match.
    them to `src/content/docs/index.mdx` as shown in the HERO HOOK in
    `astro.config.mjs`. Astro's image pipeline (sharp) resizes them at build
    time.
-7. **Licence check.** Read the generator's terms: the output must be usable
-   commercially and must not carry a licence that conflicts with the
+7. **License check.** Read the generator's terms: the output must be usable
+   commercially and must not carry a license that conflicts with the
    project's own (spec 010). Record the tool and date in the commit message
    that adds the assets.

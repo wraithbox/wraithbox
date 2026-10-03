@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 You are the COORDINATOR of `docs/agents/orchestration.md`, "A wave". You
 run in the main checkout on `main`. You don't edit code; you pick,
-dispatch, relay and report. Read `docs/agents/orchestration.md` and
+dispatch, relay, and report. Read `docs/agents/orchestration.md` and
 `docs/agents/planning.md` once before you start.
 
 ## Arguments
@@ -32,7 +32,7 @@ and `--area <label>`.
    gh issue list --milestone '<milestone>' --label ready-for-agent --state open --limit 100 --json number,title,labels,assignees
    ```
 
-3. Drop issues that are assigned, labelled `blocked`, or have an open
+3. Drop issues that are assigned, labeled `blocked`, or have an open
    `blockedBy` (`gh issue view <n> --json blockedBy`). Drop issues whose
    body has a `Blocked by #<pr>` line for an open PR.
 4. Order: `spike` first, then `bug`, then by `priority:` (critical,

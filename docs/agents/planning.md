@@ -1,4 +1,4 @@
-# Planning: issues, labels, spikes and milestones
+# Planning: issues, labels, spikes, and milestones
 
 How work on Wraith Box is cut into GitHub issues, so that many agents can
 pick it up in parallel without asking. `orchestration.md` says how the
@@ -80,7 +80,7 @@ pull request with one of them gets a security review
 Shared Go code that belongs to no single process (`internal/version`,
 logging, the `.proto` contracts) has an area label and no component.
 
-No label for the conformance suite, benchmarks or guest images yet. Add
+No label for the conformance suite, benchmarks, or guest images yet. Add
 one to the YAML file when the first issue needs it, and keep the families
 small: a label nobody filters on is noise.
 
@@ -204,7 +204,7 @@ the decisions written down), `ready-for-agent` + `blocked` (blocker set),
   the next agent reads.
 - Agents decide routine triage themselves (labels, duplicates, splits)
   and report what they did. They ask the maintainer only when a decision
-  touches a spec, a rule in `AGENTS.md`, the scope or the cost.
+  touches a spec, a rule in `AGENTS.md`, the scope, or the cost.
 - Fix stale paths in an old body in the triage comment rather than
   leaving them for the builder.
 
