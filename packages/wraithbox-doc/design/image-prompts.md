@@ -46,14 +46,13 @@ optionally one more green.
 
 ## General negative prompt
 
-Append this (or the generator's equivalent "avoid" field) to every prompt:
+Put this list in the generator's negative prompt or "avoid" field. If it has
+none, add it to the end of every prompt as "Avoid: ...".
 
-> no text, no letters, no words, no watermark, no signature, no logo
-> lettering, no gibberish typography, no Halloween, no jack-o-lantern, no
-> cartoon ghost with a face, no eyes, no mouth, no skull, no horror, no blood,
-> no chains, no padlock clip-art, no glitch effects, no matrix code rain, no
-> neon cyberpunk, no purple, no orange, no red, no lens flare, no photographic
-> noise, no busy background, no 3D render plastic look, no drop-shadow clutter
+> text, letters, words, watermark, signature, faces, eyes, mouths,
+> Halloween, horror, skulls, chains, padlock clip-art, glitch effects, code
+> rain, neon cyberpunk, purple, orange, red, lens flare, photo noise, busy
+> background, glossy 3D render, drop shadows
 
 Generators routinely invent fake lettering; if a result has any, regenerate
 rather than retouch. The wordmark "Wraith Box" is set in type later, never
@@ -62,57 +61,89 @@ generated.
 ## (a) Logo concepts
 
 Generate each direction separately, 4 to 8 variations each. Ask for a
-**square, 1:1, 1024x1024** canvas, **flat vector style**, centred mark with
-generous padding (about 15% margin on every side), on a **plain solid
-background** (`#1d1d20` for the dark version; regenerate on `#fafafb` for the
-light one, or invert when vectorizing). Request transparency if the
-generator supports it; otherwise a flat solid background is easiest to
-remove.
+**square, 1:1, 1024x1024** canvas. Every direction has a dark prompt (on
+`#1d1d20`) and a light prompt (on `#fafafb`). Both ask for a plain, flat
+background, which is easy to remove. Do not ask for a transparent
+background: generators that cannot output one tend to paint a fake
+checkerboard instead.
 
 ### Direction 1: The sealed cube
 
-> Minimal flat vector logo mark: an isometric cube drawn with clean, even
-> line weight in graphite `#343437` with pale spectral green `#a6f0cf` edges.
-> Inside the cube, seen through one translucent face, a soft, faceless,
-> tapering wisp of green light `#4cc79a` rises like a candle flame or a
-> curl of mist, fully contained by the walls. The cube's seams are crisp and
-> closed. Geometric, calm, precise, trustworthy, like a museum specimen case.
-> Solid background `#1d1d20`, centred, generous padding, 1:1 square, no
-> gradients except a subtle inner glow on the wisp.
+Dark:
 
-### Direction 2: Ghost silhouette as negative space
+> Flat vector logo. A see-through isometric cube drawn with thin, even
+> lines in graphite #343437, with pale green #a6f0cf edges. Inside the cube
+> is a soft wisp of green light #4cc79a, shaped like a candle flame. The
+> wisp stays inside the cube. Calm and precise, like a museum display case.
+> Plain flat background #1d1d20. Square, centered, wide empty margin.
 
-> Minimal flat vector logo mark: a rounded square, like an app icon tile, in
-> deep green `#17694d`. Cut out of it as negative space is the simple
-> silhouette of a classic ghost shape: a dome top and a gently scalloped
-> hem, no face, no eyes. The silhouette fills about 60% of the tile and is
-> pale spectral green `#a6f0cf`. A thin inset border runs around the inside
-> of the tile, suggesting a container wall that the ghost does not cross.
-> Swiss design, geometric, symmetrical, quiet. Solid background `#fafafb`,
-> 1:1 square, centred.
+Light:
 
-### Direction 3: Lantern / bell jar
+> Flat vector logo. A see-through isometric cube drawn with thin, even
+> lines in ink #242428, with deep green #17694d edges. Inside the cube is a
+> soft wisp of green light #2e9470, shaped like a candle flame. The wisp
+> stays inside the cube. Calm and precise, like a museum display case.
+> Plain flat background #fafafb. Square, centered, wide empty margin.
 
-> Minimal flat vector logo mark: a glass bell jar (cloche) on a short flat
-> base, drawn in a single continuous line of even weight in ink `#242428`.
-> Under the glass floats a small soft orb of pale spectral green light
-> `#a6f0cf` with a faint halo `#4cc79a`, like a firefly kept safe or a pilot
-> light. Calm, scientific, Victorian-instrument elegance but modern and
-> minimal. Plenty of empty space. Solid background `#fafafb`, 1:1 square,
-> centred, no shading except the soft glow.
+### Direction 2: Ghost in a tile
 
-### Direction 4: The "W" in a box (monogram)
+Dark:
 
-> Minimal flat vector monogram mark: a square frame with rounded corners,
-> stroke in graphite `#343437`. Inside, an abstract shape that reads both as
-> the hem of a floating ghost (three soft downward scallops) and as a
-> stylized letter W, drawn as one smooth pale spectral green `#a6f0cf` form.
-> Geometric construction, even stroke weights, perfectly symmetrical,
-> works in one color. Solid background `#1d1d20`, 1:1 square, centred.
+> Flat vector logo. A rounded square tile in deep green #17694d. Inside it
+> is a simple ghost shape in pale green #a6f0cf, with a round top and a
+> wavy bottom edge, and no face. A thin pale green line runs around the
+> inside edge of the tile, and the ghost does not touch it. Symmetrical
+> and quiet. Plain flat background #1d1d20. Square, centered, wide empty
+> margin.
 
-(For this one the generator may try to draw letters; if so, describe it
-only as "three soft downward scallops" and leave the W reading to the
-vector redraw.)
+Light:
+
+> Flat vector logo. A rounded square tile in deep green #17694d. Inside it
+> is a simple ghost shape in pale green #a6f0cf, with a round top and a
+> wavy bottom edge, and no face. A thin pale green line runs around the
+> inside edge of the tile, and the ghost does not touch it. Symmetrical
+> and quiet. Plain flat background #fafafb. Square, centered, wide empty
+> margin.
+
+### Direction 3: Bell jar
+
+Dark:
+
+> Flat vector logo. A glass bell jar on a short flat base, drawn with one
+> thin, even line in off-white #f6f5f4. Under the glass floats a small,
+> soft ball of pale green light #a6f0cf with a faint green glow #4cc79a.
+> Calm and minimal, like a scientific instrument. Plain flat background
+> #1d1d20. Square, centered, wide empty margin.
+
+Light:
+
+> Flat vector logo. A glass bell jar on a short flat base, drawn with one
+> thin, even line in ink #242428. Under the glass floats a small, soft ball
+> of green light #4cc79a with a faint pale green glow #a6f0cf. Calm and
+> minimal, like a scientific instrument. Plain flat background #fafafb.
+> Square, centered, wide empty margin.
+
+### Direction 4: Ghost hem in a frame (monogram)
+
+The idea is that the shape also reads as a "W". The prompts leave that out
+on purpose, because naming a letter makes generators draw letters. Bring
+out the "W" in the vector redraw.
+
+Dark:
+
+> Flat vector logo. A square frame with rounded corners, drawn with an even
+> graphite #343437 line. Inside it is one smooth pale green #a6f0cf shape:
+> the bottom edge of a floating ghost, made of three soft scallops pointing
+> down. Even line weights, perfectly symmetrical. Plain flat background
+> #1d1d20. Square, centered, wide empty margin.
+
+Light:
+
+> Flat vector logo. A square frame with rounded corners, drawn with an even
+> ink #242428 line. Inside it is one smooth deep green #17694d shape: the
+> bottom edge of a floating ghost, made of three soft scallops pointing
+> down. Even line weights, perfectly symmetrical. Plain flat background
+> #fafafb. Square, centered, wide empty margin.
 
 ### What makes a logo direction usable
 
@@ -127,22 +158,26 @@ The favicon must read at **16 and 32 px**, so it is a simplification of the
 chosen logo, not a separate idea. Generate it at **512x512, 1:1**, then
 shrink to 16 and 32 px to check it before vectorizing.
 
-> App icon / favicon, extremely simple bold flat silhouette: a rounded square
-> tile in night `#1d1d20`, corner radius about 20% of the width. In the
-> centre, a single solid ghost silhouette in pale spectral green `#a6f0cf`:
-> a rounded dome top, straight sides, and a hem of three soft scallops. No
-> face, no eyes, no outline, no gradient, no glow, no texture. The
-> silhouette fills about 65% of the tile height with even margins. Two
-> colors only. Must remain recognizable at 16x16 pixels. 1:1, 512x512,
-> centred, crisp edges, vector style.
+Dark, on a tile:
 
-Variant for light browser tabs (if the dark tile looks heavy):
+> Flat app icon. A rounded square tile in #1d1d20. In the middle is a solid
+> ghost shape in pale green #a6f0cf, with a round top, straight sides and a
+> bottom edge of three soft scallops. No face. Flat color only: no outline,
+> no glow, no gradient. The ghost fills about two thirds of the tile
+> height. Two colors only. Bold and simple enough to read at 16 pixels.
+> Square, crisp edges.
 
-> Same silhouette in deep green `#17694d` on a transparent background, no
-> tile.
+Light, without a tile, for light browser tabs (if the dark tile looks
+heavy). Remove the background when vectorizing:
 
-Negative prompt additions for the icon: `no fine detail, no thin lines, no
-small shapes, no shading, no perspective, no 3D, no background scene`.
+> Flat app icon. A solid ghost shape in deep green #17694d, with a round
+> top, straight sides and a bottom edge of three soft scallops. No face.
+> Flat color only: no outline, no glow, no gradient. The ghost fills about
+> two thirds of the image height. Plain flat background #fafafb. Two colors
+> only. Bold and simple enough to read at 16 pixels. Square, crisp edges.
+
+Negative prompt additions for the icon: `fine detail, thin lines, small
+shapes, shading, perspective, 3D, background scene`.
 
 Size checks to do before accepting a design:
 
@@ -165,30 +200,31 @@ Generate two versions: one for dark mode and one for light mode.
 - Subject centred with soft edges that fade into the page color, so no
   hard rectangle shows on the page.
 
-Dark version:
+Dark:
 
-> Calm, atmospheric illustration, flat vector with soft gradients: a single
-> translucent glass cube floating in a dark, quiet space of night `#222226`.
-> Inside the cube, a soft, faceless wisp of pale spectral green light
-> `#a6f0cf` curls upward, gently glowing `#4cc79a`, fully contained by the
-> glass walls; the walls catch a faint green reflection. Thin, precise
-> graphite `#343437` lines extend from the cube's base like a circuit or a
-> blueprint grid, fading out with distance, suggesting a controlled
-> environment. A few tiny motes of light inside the cube only, none outside.
-> Mood: serene, secure, trustworthy, quiet focus. Edges of the image fade
-> smoothly into `#222226`. 4:3, 1600x1200, subject centred, lots of
-> negative space.
+> Calm flat vector illustration with soft gradients. A glass cube floats in
+> a dark, quiet space #222226. Inside the cube, a soft wisp of pale green
+> light #a6f0cf curls upward with a gentle green glow #4cc79a. The wisp
+> stays inside the cube. Thin graphite #343437 lines spread out from the
+> base of the cube like a blueprint grid and fade away. A few small specks
+> of light inside the cube, none outside. Serene and secure. The edges of
+> the image fade into #222226. 4:3, subject in the middle, lots of empty
+> space.
 
-Light version:
+Light:
 
-> The same composition on paper `#fafafb`: a translucent glass cube with
-> deep green `#17694d` edges, the wisp inside in spectral green `#4cc79a`
-> with a pale tint `#e5f5ee` glow; blueprint lines in light grey `#e0e0e1`.
-> Edges fade into `#fafafb`. Same mood, same framing, 4:3, 1600x1200.
+> Calm flat vector illustration with soft gradients. A glass cube with deep
+> green #17694d edges floats in a light, quiet space #fafafb. Inside the
+> cube, a soft wisp of green light #4cc79a curls upward with a pale green
+> glow #e5f5ee. The wisp stays inside the cube. Thin light grey #e0e0e1
+> lines spread out from the base of the cube like a blueprint grid and fade
+> away. A few small specks of light inside the cube, none outside. Serene
+> and secure. The edges of the image fade into #fafafb. 4:3, subject in the
+> middle, lots of empty space.
 
-Negative prompt additions for the hero: `no people, no hands, no computers,
-no screens, no keyboards, no cloud icons, no busy detail, no dramatic
-lighting, no fog that covers the subject, no frame or border`.
+Negative prompt additions for the hero: `people, hands, computers, screens,
+keyboards, cloud icons, busy detail, dramatic lighting, fog over the
+subject, frame or border`.
 
 Once a logo direction is chosen, repeat its shape (cube, jar, tile) in the
 hero prompt so the two match.

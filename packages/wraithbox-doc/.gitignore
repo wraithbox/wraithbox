@@ -21,3 +21,6 @@ pnpm-debug.log*
 
 # Playwright screenshot output (see `mise run docs-screenshot`)
 out.png
+
+# generated logo ideas
+design/generated/
