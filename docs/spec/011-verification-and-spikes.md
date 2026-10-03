@@ -52,6 +52,13 @@ result in this directory before dependent work starts. Spikes are
 numbered `X*` so they cannot be confused with the security requirements
 (`S*`) of spec 003.
 
+Each spike is one GitHub issue titled `X<n>: <name>`. Its throwaway code
+stays on a `spike/x<n>-<slug>` branch that is kept and never merged; the
+written result is `docs/spec/spikes/X<n>-<slug>.md`, merged together
+with any spec change the answer forces. A new open question gets the
+next free number here before it is filed. The workflow is in
+`docs/agents/planning.md`.
+
 ### macOS host, macOS guest (v1)
 
 1. **X1 Model credential via the proxy.** Does Claude Code work with a
