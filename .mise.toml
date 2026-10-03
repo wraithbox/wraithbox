@@ -40,7 +40,10 @@ go = "1.27.1"
 golangci-lint = "2.13.2"
 gofumpt = "0.12.0"
 # Swift maintainability gate (complexity/size rules only; see .swiftlint.yml).
-swiftlint = "0.63.3"
+# macOS only, like all Swift here: it has no Windows build, and `mise run`
+# installs every applicable tool before a task, so on the Windows Go job an
+# unrestricted entry fails the job before any Go runs.
+swiftlint = { version = "0.63.3", os = ["macos"] }
 # Docs site (packages/wraithbox-doc): Astro Starlight builds with bun.
 bun = "1.4.2"
 # Used by `mise run audit`; must match `version:` on the workflow's
