@@ -1,15 +1,49 @@
-/* Site theme, ported from the ai-training docs site: the GNOME Adwaita color
-   scheme (libadwaita's CSS variables) mapped onto Starlight's design tokens,
-   a plain blue accent on neutral grays. Values that Adwaita gives as a
-   translucent color are composited onto the surface they sit on, so every
-   token here is opaque. Starlight derives all surfaces/text/borders from an
-   accent ramp (low/accent/high), a gray ramp (1=lightest .. 6/7=darkest in
-   dark mode, inverted in light) and black/white. Dark mode is `:root`; light
-   mode is `:root[data-theme='light']`. */
+/* Site theme, ported from the ai-training docs site: the GNOME Adwaita
+   neutral grays (libadwaita's CSS variables) mapped onto Starlight's design
+   tokens, with Adwaita's blue accent replaced by a pale "spectral" green for
+   Wraith Box. Every token is opaque. Starlight derives all
+   surfaces/text/borders from an accent ramp (low/accent/high), a gray ramp
+   (1=lightest .. 6/7=darkest in dark mode, inverted in light) and
+   black/white. Dark mode is `:root`; light mode is
+   `:root[data-theme='light']`. Dark is the default theme
+   (src/components/ThemeProvider.astro).
+
+   The green is pale and slightly blue-leaning (ectoplasm, not grass) in dark
+   mode, where it is text on a dark ground. In light mode a pale green cannot
+   carry text, so it becomes the tint (accent-low) and links use a deep
+   green of the same hue.
+
+   WCAG 2 contrast ratios (computed from these hex values; AA text is 4.5:1,
+   AAA 7:1, UI borders 3:1):
+
+   Dark                                    | ratio
+   body #f6f5f4 on page #222226            | 14.56 AAA
+   body #f6f5f4 on content #1d1d20         | 15.44 AAA
+   body #f6f5f4 on card #343437            | 11.40 AAA
+   body #f6f5f4 on sidebar #2e2e32         | 12.42 AAA
+   heading #ffffff on page #222226         | 15.85 AAA
+   secondary #c0bfbc on page / card        |  8.62 AAA / 6.75 AA
+   link #a6f0cf on page #222226            | 12.07 AAA
+   link #a6f0cf on card #343437            |  9.45 AAA
+   link #a6f0cf on sidebar #2e2e32         | 10.29 AAA
+   current-page text #213a31 on #a6f0cf    |  9.33 AAA
+   accent #4cc79a on page / card (border)  |  7.51 / 5.88
+
+   Light                                   | ratio
+   body #333338 on page #fafafb            | 12.05 AAA
+   body #333338 on content #ffffff         | 12.56 AAA
+   body #333338 on sidebar #ebebed         | 10.55 AAA
+   heading #242428 on page #fafafb         | 14.82 AAA
+   secondary #5e5c64 on page / sidebar     |  6.31 AA / 5.53 AA
+   link #17694d on content #ffffff         |  6.64 AA
+   link #17694d on page / sidebar          |  6.36 AA / 5.57 AA
+   link #17694d on tint #e5f5ee            |  5.89 AA
+   button text #ffffff on #17694d          |  6.64 AA
+   accent #2e9470 on content (border)      |  3.76 (UI 3:1) */
 :root {
-	--sl-color-accent-low: #273a55; /* the accent at 25% on the window */
-	--sl-color-accent: #3584e4; /* accent background */
-	--sl-color-accent-high: #81d0ff; /* standalone accent: link text */
+	--sl-color-accent-low: #213a31; /* tint: the accent at ~25% on the window */
+	--sl-color-accent: #4cc79a; /* borders, rings, fills */
+	--sl-color-accent-high: #a6f0cf; /* pale spectral green: link text */
 	--sl-color-white: #ffffff; /* headings: the window foreground */
 	--sl-color-gray-1: #f6f5f4;
 	--sl-color-gray-2: #f6f5f4; /* body text (palette light 2) */
@@ -17,15 +51,15 @@
 	--sl-color-gray-4: #9a9996; /* control borders (palette light 5) */
 	--sl-color-gray-5: #434346; /* borders: the foreground at 15% */
 	--sl-color-gray-6: #2e2e32; /* header and sidebar */
-	--sl-color-black: #1d1d20; /* view: inputs */
+	--sl-color-black: #1d1d20; /* view: content column and inputs */
 }
 :root[data-theme='light'] {
-	--sl-color-accent-low: #e9f2fc; /* the accent at 11% on white */
-	--sl-color-accent: #3584e4;
-	/* The accent background is 3.8:1 on white, below the 4.5:1 text needs.
-	   Links, the current page and filled buttons use the standalone accent
-	   instead, and the accent background stays on borders and rings. */
-	--sl-color-accent-high: #0461be;
+	--sl-color-accent-low: #e5f5ee; /* pale green tint */
+	/* The accent is 3.8:1 on white: enough for borders and rings, not for
+	   the 4.5:1 text needs. Links, the current page and filled buttons use
+	   the deep green instead. */
+	--sl-color-accent: #2e9470;
+	--sl-color-accent-high: #17694d;
 	--sl-color-text-accent: var(--sl-color-accent-high);
 	--sl-color-bg-accent: var(--sl-color-accent-high);
 	--sl-color-white: #242428; /* headings */
@@ -36,7 +70,7 @@
 	--sl-color-gray-5: #e0e0e1; /* borders: the foreground at 15% */
 	--sl-color-gray-6: #ebebed; /* the sidebar background */
 	--sl-color-gray-7: #f3f3f5; /* the secondary sidebar background */
-	--sl-color-black: #ffffff; /* view: inputs */
+	--sl-color-black: #ffffff; /* view: content column and inputs */
 	--sl-color-bg-nav: #ffffff; /* the header bar */
 }
 
