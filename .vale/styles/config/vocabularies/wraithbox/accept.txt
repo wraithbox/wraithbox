@@ -1,1 +1,40 @@
-# Vale vocabulary. Spelling is cspell's job (cspell-words.txt).
+# Vale vocabulary. Spelling is cspell's job (cspell-words.txt); this list
+# serves two Vale rules only:
+#
+# 1. Vale.Terms enforces the casing of a plain word listed here in prose
+#    ("GitHub", not "Github"); code spans and URLs are skipped.
+# 2. Vale adds every entry to the exceptions of rules that support them,
+#    which is how names stay capitalized in sentence-case headings
+#    (Google.Headings) and how the write-good.TooWordy exemptions work.
+#
+# A line is a Go regular expression matched against a single word or
+# phrase. Write `\s` between the words of a multi-word entry, never a
+# literal space, so it still matches where a paragraph wraps.
+
+# Names whose casing Vale.Terms enforces
+Wraith\sBox
+GitHub
+Claude\sCode
+Anthropic
+Apple\sSilicon
+Virtualization\sframework
+Xcode
+SwiftPM
+SwiftLint
+Starlight
+Astro
+Markdown
+Vale
+WSL
+VMs
+TLS
+PTY
+LTS
+LAN
+DNS
+CI
+
+# write-good.TooWordy exemptions: domain vocabulary here, not padding.
+# Requirements are what the specs are made of.
+[Rr]equirement
+[Rr]equirements

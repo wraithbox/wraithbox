@@ -28,7 +28,7 @@ lockfile = true
 # Every tool is pinned to an exact version, deliberately and without
 # exception. This is a supply-chain rule, not a stability one: an upstream
 # compromise must never be auto-downloaded. Nothing here is covered by
-# dependabot, so these go stale silently — refresh them deliberately with
+# dependabot, so these go stale silently. Refresh them deliberately with
 # `mise up`, read the diff, and keep the native pin files in step
 # (`go.work` and each `go.mod` for go).
 #
@@ -169,7 +169,7 @@ for os in darwin linux windows; do
 done
 """
 
-# Run by `mise run vuln`, not by `go:lint` — it needs network access.
+# Run by `mise run vuln`, not by `go:lint`: it needs network access.
 # Analyses each host OS build, since reachability differs per GOOS.
 [tasks."go:vulncheck"]
 description = "govulncheck for darwin, linux and windows (stdlib + deps, reachability-aware)"
@@ -302,8 +302,9 @@ exit "$status"
 #
 # Vale reads Markdown and MDX only: README, AGENTS.md, CONTRIBUTING.md,
 # docs/spec/ and the docs site. It deliberately does not lint comments in
-# source code or config files, where its style rules are mostly noise.
-# Errors fail; warnings print and are for the author to judge. Vale's
+# source code or config files: a trial run found little there besides
+# section rulers, command-line flags, and terse comment style (spec 002).
+# Errors fail. Warnings print and are for the author to judge. Vale's
 # exit code counts errors only, so one run does both.
 [tasks."prose:lint"]
 description = "Vale prose lint over Markdown and MDX; errors fail, warnings advise"
@@ -317,9 +318,10 @@ vale $files
 # Spell check in American English over every tracked text file, source
 # code included: identifiers are split into words, and with the project
 # words in cspell-words.txt it reports little but real typos. cspell.json
-# skips lockfiles, binaries and the vendored Vale styles, and Markdown
-# code spans. cspell comes from the docs package's bun-locked install
-# (see [tools]), so run `mise run install` first.
+# skips lockfiles, binaries, the vendored Vale styles, Markdown code
+# spans, GHSA advisory IDs and hex color codes. cspell comes from the
+# docs package's bun-locked install (see [tools]), so run `mise run
+# install` first.
 [tasks."prose:spell"]
 description = "cspell (American English) over every tracked text file"
 run = """
