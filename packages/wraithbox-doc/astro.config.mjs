@@ -13,6 +13,28 @@ export default defineConfig({
 		starlight({
 			title: 'Wraith Box',
 			description: 'Run coding agents inside isolated VMs: one command, fast, default-deny.',
+			// BRAND ASSETS: the favicon and apple-touch-icon below are placeholders
+			// from scripts/gen-favicon.mjs. Briefs for the real logo, icon and hero
+			// image, and how to turn them into these files, are in
+			// design/image-prompts.md.
+			//
+			// LOGO HOOK: once src/assets/logo-dark.svg (light artwork for the dark
+			// theme) and src/assets/logo-light.svg exist, uncomment this. Keep
+			// replacesTitle false unless the logo includes the wordmark.
+			// logo: {
+			// 	dark: './src/assets/logo-dark.svg',
+			// 	light: './src/assets/logo-light.svg',
+			// 	alt: 'Wraith Box',
+			// 	replacesTitle: false,
+			// },
+			//
+			// HERO HOOK: the landing page's hero image is set in the frontmatter
+			// of src/content/docs/index.mdx, not here. Add under `hero:`
+			//   image:
+			//     dark: ../../assets/hero-dark.webp
+			//     light: ../../assets/hero-light.webp
+			//     alt: ''   (decorative; the tagline carries the meaning)
+			// Starlight renders it beside the title on wide screens.
 			favicon: '/favicon.svg',
 			head: [
 				{
