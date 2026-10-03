@@ -1,9 +1,14 @@
-// Generate the site favicon + apple-touch-icon from the LSD Warm palette.
+// Generate the site favicon + apple-touch-icon from the site palette
+// (src/styles/custom.css).
 //
-// A simple "document" glyph: an accent-coloured rounded page with a few text
-// lines, legible at favicon sizes. Swap this out for your own brand mark.
+// PLACEHOLDER: a simple "document" glyph (a rounded page with a few text
+// lines on a dark tile with a pale green page), legible at favicon sizes. It
+// stays until the brand mark exists; see design/image-prompts.md for the
+// icon brief and for how to turn the chosen artwork into favicon.svg and
+// apple-touch-icon.png (replace this script's SVG, or drop it and commit the
+// hand-made files).
 //
-//   cd docs && bun run scripts/gen-favicon.mjs
+//   mise run doc:favicon   (or: bun run scripts/gen-favicon.mjs here)
 //
 // Writes public/favicon.svg and public/apple-touch-icon.png.
 import sharp from 'sharp';
@@ -13,9 +18,9 @@ import { dirname, join } from 'node:path';
 
 const docsDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const ACCENT = '#c17a23'; // LSD Warm accent
-const PAGE = '#ffebd2'; // warm off-white "paper"
-const LINE = '#c17a23'; // text lines
+const ACCENT = '#1d1d20'; // tile: the dark-mode content background
+const PAGE = '#a6f0cf'; // pale spectral green (dark-mode link colour)
+const LINE = '#17694d'; // text lines: the light-mode link green
 
 // A page (rounded rect) with a folded corner and three text lines.
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Docs">
