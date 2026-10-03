@@ -114,7 +114,9 @@ links and images root-relative.
 - `mise run vuln` must be clean. Fix a finding by moving the dependency,
   never by narrowing the scan.
 - Pin GitHub Actions to full-length commit SHAs (the commit, not an
-  annotated tag object).
+  annotated tag object). The repository only allows GitHub-owned and
+  allowlisted actions; a new third-party action needs an allowlist
+  entry, see `docs/github-settings.md`.
 - Every `.mise.toml` tool is exact-pinned and invisible to dependabot;
   refresh with `mise up` and read the diff.
 
