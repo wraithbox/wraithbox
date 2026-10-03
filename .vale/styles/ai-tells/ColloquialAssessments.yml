@@ -1,0 +1,58 @@
+---
+extends: existence
+message: "AI colloquial assessment: '%s'. State the assessment directly."
+level: error
+nonword: true
+ignorecase: true
+tokens:
+  # ==========================================================================
+  # "X lands" — figurative landing of jokes, points, arguments, analogies.
+  # Anchored to a narrow noun list (and to "really/actually lands"). The broad
+  # arrival-verb sense (a request lands on a node, a PR lands in main) lives in
+  # FigurativeLands, which exempts these assessment nouns and literal landings.
+  # ==========================================================================
+  - "\\b[Tt]he\\s(?:joke|point|argument|line|metaphor|analogy|comparison|critique|distinction|observation|framing|insight|takeaway|punchline|callback|bit|reference|callout)\\s(?:really\\s|actually\\s|just\\s|finally\\s)?lands?\\b"
+  - "\\b[Tt]he\\s(?:joke|point|argument|line|metaphor|analogy|comparison|critique|distinction|observation|framing|insight|takeaway|punchline|callback|bit|reference|callout)\\s(?:really|actually|just|finally)\\slanded\\b"
+  - "\\b(?:really|actually)\\slands\\b"
+  - "\\b(?:really|actually)\\slanded\\b"
+  # Figurative "lands" beyond the curated nouns: abstract subjects and
+  # assessment completions that can't be a literal landing.
+  - "\\bland(?:s|ed)?\\sflat\\b"
+  - "\\bwhere\\s(?:it|this|that|everything|the\\swhole\\sthing)\\s(?:really\\s|finally\\s|ultimately\\s|just\\s|all\\s)?lands?\\b"
+
+  # ==========================================================================
+  # "X is the move" — anchored verdict. Bare "the move" is too broad (chess,
+  # dance, real-estate), so we only catch the assessment construction.
+  # ==========================================================================
+  - "\\bis\\sthe\\smove\\b"
+  - "\\bwas\\sthe\\smove\\b"
+  - "\\b(?:that|this)'?s\\sthe\\smove\\b"
+  - "\\b(?:that|this)\\sis\\sthe\\smove\\b"
+  - "\\bthe\\sright\\smove\\b"
+  - "\\bthe\\ssmart\\smove\\b"
+  - "\\bthe\\sobvious\\smove\\b"
+  - "\\bthe\\splay\\shere\\b"
+  - "\\bthe\\smove\\shere\\b"
+
+  # ==========================================================================
+  # "What really matters" — the knowing-tone matters phrase. Bare "matters" is
+  # ordinary English; this targets the rhetorical wind-up.
+  # ==========================================================================
+  - "\\bwhat\\sreally\\smatters\\b"
+  - "\\bwhat\\struly\\smatters\\b"
+  - "\\bwhat\\sactually\\smatters\\b"
+  - "\\bwhat\\sgenuinely\\smatters\\b"
+  - "\\bwhat\\smatters\\smost\\b"
+  - "\\ball\\sthat\\s(?:really\\s|truly\\s|actually\\s)?matters\\b"
+  - "\\bthe\\sonly\\sthing\\sthat\\s(?:really\\s|truly\\s|actually\\s)?matters\\b"
+
+  # ==========================================================================
+  # "Handy" — the folksy usefulness grade ("Handy for auditing which items
+  # never made it through," "comes in handy"). Added after a
+  # documentation-corpus audit (2026-09) found it in the densest line of
+  # its corpus. Six hits across the Go and Python standard libraries
+  # ("Handy for external data analysis"), each the figure itself.
+  # ==========================================================================
+  - "\\bhandy\\s(?:for|when|if|to\\shave|in|as)\\b"
+  - "\\bcomes?\\sin\\shandy\\b"
+  - "\\bcame\\sin\\shandy\\b"

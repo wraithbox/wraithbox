@@ -1,0 +1,29 @@
+# A copy of ai-tells.VerbTricolon (tbhb/vale-ai-tells v1.37.0, MIT)
+# without the after-colon tokens: a colon introduces a list of nouns far
+# more often than a series of verbs. What stays are the tokens that key
+# on a verb form: a gerund, a past tense, a base form after a modal, a
+# pronoun subject or "to". The third-person -s tokens went too, since
+# nouns end in -s as often as verbs do. "It" joins the pronoun subjects,
+# so "it reads files, edits them, and runs commands" still fires. Copied
+# from lsimons/ai-training's House style, where it was measured. Unlike
+# the other rules, its patterns use literal spaces, so a series split by
+# a line break passes: with `\s` it matched mostly noun lists.
+extends: existence
+message: "Tricolon: '%s'. Three parallel verbs in series. Restructure or vary the count."
+level: warning
+nonword: true
+tokens:
+  # Syndetic: "verbing X, verbing Y, and/or verbing Z"
+  - "\\b(?:\\w+ly )?\\w+ing [^,.!?]+, (?:\\w+ly )?\\w+ing [^,.!?]+, (?:and|or) (?:\\w+ly )?\\w+ing [^.!?]+"
+  - "\\b(?:\\w+ly )?\\w+ed [^,.!?]+, (?:\\w+ly )?\\w+ed [^,.!?]+, (?:and|or) (?:\\w+ly )?\\w+ed [^.!?]+"
+  - "\\b(?:can|could|will|would|should|shall|may|might|must) (?:\\w+ly )?\\w+ [^,.!?]+, (?:\\w+ly )?\\w+ [^,.!?]+, (?:and|or) (?:\\w+ly )?\\w+ [^.!?]+"
+  - "\\b(?:[Ii]t|[Tt]hey|[Ww]e|[Yy]ou) (?:\\w+ly )?\\w+ [^,.!?]+, (?:\\w+ly )?\\w+ [^,.!?]+, (?:and|or) (?:\\w+ly )?\\w+ [^.!?]+"
+  - "\\bto (?:\\w+ly )?\\w+ [^,.!?]+, (?:\\w+ly )?\\w+ [^,.!?]+, (?:and|or) (?:\\w+ly )?\\w+ [^.!?]+"
+  - "\\bto (?:\\w+ly )?\\w+ [^,.!?]+, to (?:\\w+ly )?\\w+ [^,.!?]+, (?:and|or) to (?:\\w+ly )?\\w+ [^.!?]+"
+  # Asyndetic: no conjunction before the third item
+  - "\\b(?:\\w+ly )?\\w+ing [^,.!?]+, (?:\\w+ly )?\\w+ing [^,.!?]+, (?:\\w+ly )?\\w+ing [^,.!?]+"
+  - "\\b(?:\\w+ly )?\\w+ed [^,.!?]+, (?:\\w+ly )?\\w+ed [^,.!?]+, (?:\\w+ly )?\\w+ed [^,.!?]+"
+  - "\\b(?:can|could|will|would|should|shall|may|might|must) (?:\\w+ly )?\\w+ [^,.!?]+, (?:\\w+ly )?\\w+ [^,.!?]+, (?:\\w+ly )?\\w+ [^,.!?]+"
+  - "\\b(?:[Ii]t|[Tt]hey|[Ww]e|[Yy]ou) (?:\\w+ly )?\\w+ [^,.!?]+, (?:\\w+ly )?\\w+ [^,.!?]+, (?:\\w+ly )?\\w+ [^,.!?]+"
+  # Subject-verb: "the X verbs A, the Y verbs B, and the Z verbs C"
+  - "\\b[Tt]he (?:\\w+ ){1,3}\\w+s [^,.!?]+, the (?:\\w+ ){1,3}\\w+s [^,.!?]+, (?:and|or) the (?:\\w+ ){1,3}\\w+s [^.!?]+"

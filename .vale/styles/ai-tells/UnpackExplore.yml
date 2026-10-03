@@ -1,0 +1,26 @@
+---
+extends: existence
+message: "AI explainer prompt: '%s'. Explain it directly instead of announcing it."
+level: error
+ignorecase: true
+tokens:
+  - Let's\sunpack
+  - Let\sme\sunpack
+  - Let's\sbreak\sthis\sdown
+  - Let\sme\sbreak\sthis\sdown
+  - Let's\stake\sa\scloser\slook\sat
+  - Let\sme\stake\sa\scloser\slook\sat
+  - Let's\sdive\sinto
+  - Let\sme\sdive\sinto
+  - Let's\swalk\sthrough
+  - Let\sme\swalk\sthrough
+  - Let's\sdig\sinto
+  - Let\sme\sdig\sinto
+  - Let's\sexamine
+  - Let\sme\sexamine
+  - Let's\sexplore
+  # Ported from Metacommentary so the explainer-prompt family has one owner.
+  - Let\sme\sexplain
+  - Let's\sconsider
+  - Let's\slook\sat
+  - Let's\sbreak\sdown

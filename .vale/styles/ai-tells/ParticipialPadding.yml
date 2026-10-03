@@ -1,0 +1,74 @@
+---
+extends: existence
+message: "AI participial padding: '%s'. Delete it or make the point concrete."
+level: error
+ignorecase: true
+tokens:
+  - highlighting\sits\simportance
+  - highlighting\sits\ssignificance
+  - highlighting\sits\srole
+  - highlighting\sthe\simportance
+  - highlighting\sthe\sneed
+  - highlighting\sthe\sgrowing
+  - underscoring\sits\simportance
+  - underscoring\sits\ssignificance
+  - underscoring\sits\srole
+  - underscoring\sthe\simportance
+  - underscoring\sthe\sneed
+  - underscoring\sits\scommitment
+  - emphasizing\sthe\simportance
+  - emphasizing\sthe\sneed
+  - emphasizing\sits\srole
+  - emphasizing\sits\scommitment
+  - reflecting\sbroader\strends
+  - reflecting\sbroader\schanges
+  - reflecting\sa\sbroader
+  - reflecting\sthe\sbroader
+  - reflecting\sits\scommitment
+  - reflecting\sa\sgrowing
+  - reflecting\sthe\sgrowing
+  - symbolizing\sits
+  - symbolizing\sthe
+  - contributing\sto\sits
+  - contributing\sto\sthe\sdevelopment
+  - contributing\sto\sthe\sgrowth
+  - contributing\sto\sthe\soverall
+  - contributing\sto\sa\smore
+  - contributing\sto\sthe\sregion
+  - showcasing\sits
+  - showcasing\sthe
+  - showcasing\sa
+  - demonstrating\sits\scommitment
+  - demonstrating\sits\sdedication
+  - demonstrating\sa\scommitment
+  - demonstrating\sthe\simportance
+  - underscoring\sits\senduring
+  - underscoring\sits\slasting
+  - reinforcing\sits\sposition
+  - reinforcing\sits\srole
+  - reinforcing\sits\scommitment
+  - reinforcing\sthe\simportance
+  - solidifying\sits\sposition
+  - solidifying\sits\srole
+  - solidifying\sits\splace
+  - cementing\sits\sposition
+  - cementing\sits\srole
+  - cementing\sits\splace
+  - ensuring\sa\sseamless
+  - ensuring\sa\ssmooth
+  - ensuring\sa\smore
+  - fostering\sa\ssense\sof
+  - fostering\sa\sculture\sof
+  - fostering\sa\smore
+  - fostering\san\senvironment
+  - cultivating\sa\ssense\sof
+  - cultivating\sa\sculture\sof
+  - shaping\sthe\sfuture
+  - shaping\sthe\strajectory
+  - shaping\sthe\sdirection
+  - paving\sthe\sway\sfor\sa
+  - setting\sthe\sstage\sfor\sa
+  - marking\sa\ssignificant
+  - marking\sa\spivotal
+  - marking\sa\sturning
+  - marking\sa\snew

@@ -108,6 +108,16 @@ jobs:
       - name: Install
         run: mise run doc:install-frozen
 
+      # Prose checks for the whole repository, not just the site: Vale
+      # over every Markdown/MDX file, cspell over every tracked text file.
+      # They run here because cspell comes from the docs package's
+      # bun-locked install above.
+      - name: Prose lint (Vale)
+        run: mise run prose:lint
+
+      - name: Spell check (cspell)
+        run: mise run prose:spell
+
       - name: Check (Astro type/content check)
         run: mise run doc:check
 

@@ -1,0 +1,10 @@
+extends: existence
+message: "'a.m.' is always morning; 'p.m.' is always night."
+ignorecase: true
+level: error
+nonword: true
+tokens:
+  - '\d{1,2}\s?a\.?m\.?\sin\sthe\smorning'
+  - '\d{1,2}\s?p\.?m\.?\sin\sthe\sevening'
+  - '\d{1,2}\s?p\.?m\.?\sat\snight'
+  - '\d{1,2}\s?p\.?m\.?\sin\sthe\safternoon'

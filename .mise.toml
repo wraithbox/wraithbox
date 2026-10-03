@@ -61,6 +61,14 @@ osv-scanner = "2.5.1"
 # reads go.mod, so it never sees the Go *toolchain*, and a Go stdlib CVE
 # is invisible to it. govulncheck also does reachability analysis.
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
+# Prose lint (`mise run prose:lint`). Its style packages are vendored
+# under .vale/styles/ (see .vale.ini), so the lint needs no network.
+vale = "3.23.0"
+# cspell is deliberately not here. mise's `npm:` backend records no
+# checksum in mise.lock and resolves the package's dependency tree from
+# the registry at install time. It is an exact-pinned devDependency of
+# packages/wraithbox-doc instead, where bun.lock pins the whole tree, and
+# `mise run prose:spell` runs it from that package's node_modules.
 
 # Project-scoped env: load an optional .env if present (fnox-generated
 # or hand-written). Keep secrets out of git; use fnox for op:// refs.
@@ -80,7 +88,7 @@ depends = ["doc:install-frozen"]
 
 [tasks.lint]
 description = "Run all linters"
-depends = ["go:lint", "swift:lint", "gha:lint"]
+depends = ["go:lint", "swift:lint", "gha:lint", "prose:lint", "prose:spell"]
 
 [tasks.format]
 description = "Auto-format all languages"
@@ -284,6 +292,42 @@ if [ "$missing" -ne 0 ]; then
 fi
 exit "$status"
 '''
+
+# ---------- Prose ----------
+# Both tasks take their file list from git, so build output, node_modules
+# and the vendored Vale styles are never read, and a new file is checked
+# before its `git add`. CLAUDE.md is a symlink to AGENTS.md and would
+# count twice. CODE_OF_CONDUCT.md is the Contributor Covenant, quoted
+# verbatim.
+#
+# Vale reads Markdown and MDX only: README, AGENTS.md, CONTRIBUTING.md,
+# docs/spec/ and the docs site. It deliberately does not lint comments in
+# source code or config files, where its style rules are mostly noise.
+# Errors fail; warnings print and are for the author to judge. Vale's
+# exit code counts errors only, so one run does both.
+[tasks."prose:lint"]
+description = "Vale prose lint over Markdown and MDX; errors fail, warnings advise"
+run = """
+set -e
+files=$(git ls-files --cached --others --exclude-standard -- '*.md' '*.mdx' ':!CLAUDE.md' ':!CODE_OF_CONDUCT.md')
+# shellcheck disable=SC2086 # word splitting is the point: one argument per file
+vale $files
+"""
+
+# Spell check in American English over every tracked text file, source
+# code included: identifiers are split into words, and with the project
+# words in cspell-words.txt it reports little but real typos. cspell.json
+# skips lockfiles, binaries and the vendored Vale styles, and Markdown
+# code spans. cspell comes from the docs package's bun-locked install
+# (see [tools]), so run `mise run install` first.
+[tasks."prose:spell"]
+description = "cspell (American English) over every tracked text file"
+run = """
+set -e
+files=$(git ls-files --cached --others --exclude-standard -- ':!CLAUDE.md')
+# shellcheck disable=SC2086 # word splitting is the point: one argument per file
+bun packages/wraithbox-doc/node_modules/.bin/cspell --no-progress --no-summary $files
+"""
 
 # ---------- Docs (Astro Starlight) ----------
 [tasks."doc:install"]

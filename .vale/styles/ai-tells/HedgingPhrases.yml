@@ -1,0 +1,79 @@
+---
+extends: existence
+message: "AI hedge: '%s'. Delete this throat-clearing and state your point directly."
+level: error
+ignorecase: true
+tokens:
+  - It's\simportant\sto\snote\sthat
+  - It\sis\simportant\sto\snote\sthat
+  - It\sis\simportant\sto\sunderstand
+  - It\sis\simportant\sto\sconsider
+  - It\sis\simportant\sto\srecognize
+  - It\sis\simportant\sto\sacknowledge
+  - It\sis\simportant\sto\semphasize
+  - It\sis\simportant\sto\shighlight
+  - It\sis\simportant\sto\smention
+  # The "It's worth <verb>ing" family lives in FigurativeWorth, which flags
+  # every spelling of the word.
+  - It\sis\sessential\sto\snote
+  - It\sis\sessential\sto\sunderstand
+  - It\sis\sessential\sto\srecognize
+  - It\sis\sessential\sto\sacknowledge
+  - It\sis\sessential\sto\semphasize
+  - It\sis\scrucial\sto\snote
+  - It\sis\scrucial\sto\sunderstand
+  - It\sis\scrucial\sto\srecognize
+  - It\sis\scritical\sto\snote
+  - It\sis\scritical\sto\sunderstand
+  - It\sis\scritical\sto\srecognize
+  - It\sis\snecessary\sto\snote
+  - It\sis\snecessary\sto\sunderstand
+  - It\sis\snecessary\sto\srecognize
+  - It\sshould\sbe\snoted\sthat
+  - It\sshould\sbe\semphasized\sthat
+  - It\sshould\sbe\smentioned\sthat
+  - It\sbears\smentioning
+  - It\sgoes\swithout\ssaying
+  - Needless\sto\ssay
+  - Generally\sspeaking
+  - Broadly\sspeaking
+  - For\sthe\smost\spart
+  - By\sand\slarge
+  - All\sthings\sconsidered
+  - That\sbeing\ssaid
+  - That\ssaid
+  - With\sthat\ssaid
+  - Having\ssaid\sthat
+  - On\sthe\sother\shand
+  - At\sthe\ssame\stime
+  - To\sbe\ssure
+  - To\ssome\sextent
+  - In\ssome\sways
+  - In\smany\sways
+  - In\sa\ssense
+  - As\ssuch
+  - As\sit\swere
+  - One\sthing\sis\sclear
+  - One\sthing\sis\scertain
+  - One\sthing\sis\sfor\ssure
+  - One\sthing\sis\sfor\scertain
+  - This\smuch\sis\sclear
+  - This\smuch\sis\scertain
+  - raises\simportant\squestions
+  - raises\sserious\squestions
+  - raises\squestions\sabout
+  - begs\sthe\squestion
+  - forces\sus\sto\sask
+  - forces\sus\sto\sconsider
+  - invites\sus\sto\sconsider
+  - invites\sus\sto\sask
+  - invites\sus\sto\sreflect
+  - prompts\sus\sto\sask
+  - prompts\sus\sto\sconsider
+  - calls\sinto\squestion
+  - calls\son\sus\sto
+  - reminds\sus\sthat
+  - reminds\sus\sof\sthe\simportance
+  - as\syou\smight\sexpect
+  - as\syou'd\sexpect
+  - as\sone\smight\sexpect

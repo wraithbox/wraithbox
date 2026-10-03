@@ -1,0 +1,100 @@
+---
+extends: existence
+message: "AI metacommentary: '%s'. Delete it or replace it with substantive content."
+level: error
+nonword: true
+scope: raw
+tokens:
+  # "This [short noun] matters." - filler bridge sentences
+  - "\\bThis\\s\\w+\\smatters\\."
+  - "\\bThis\\s\\w+\\s\\w+\\smatters\\."
+  - "\\bThis\\s\\w+\\s\\w+\\s\\w+\\smatters\\."
+
+  # "This matters because" variants
+  - "\\bThis\\smatters\\sbecause\\b"
+  - "\\bThis\\sis\\simportant\\sbecause\\b"
+  - "\\bThis\\sdistinction\\smatters\\b"
+  - "\\bThis\\sdifference\\smatters\\b"
+  - "\\bThis\\sframing\\smatters\\b"
+  - "\\bThis\\schoice\\smatters\\b"
+  - "\\bThis\\sdetail\\smatters\\b"
+  - "\\bThis\\snuance\\smatters\\b"
+  - "\\bThis\\ssubtlety\\smatters\\b"
+
+  # The "Let me explain / Let's explore" explainer-prompt family is owned by
+  # UnpackExplore.
+
+  # "The key here is" / "The point is" filler
+  - "\\bThe\\skey\\shere\\sis\\b"
+  - "\\bThe\\spoint\\shere\\sis\\b"
+  - "\\bThe\\sidea\\shere\\sis\\b"
+  - "\\bThe\\sinsight\\shere\\sis\\b"
+  # "The takeaway ... here is" is owned by StructureAnnouncements.
+  - "\\bThe\\simportant\\sthing\\shere\\sis\\b"
+
+  # The "It's worth [verb]ing" hedged-assertion family is owned by
+  # FigurativeWorth.
+
+  # Bold callout phrases (in markdown)
+  - "\\*\\*Key\\sinsight:?\\*\\*"
+  - "\\*\\*Key\\stakeaway:?\\*\\*"
+  - "\\*\\*Key\\spoint:?\\*\\*"
+  - "\\*\\*Important:?\\*\\*"
+  - "\\*\\*Note:?\\*\\*"
+  - "\\*\\*Bottom\\sline:?\\*\\*"
+  - "\\*\\*The\\spoint:?\\*\\*"
+
+  # "This is the insight/key" framing. "This is the point" is PointVerdict's.
+  - "\\bThis\\sis\\sthe\\sinsight\\b"
+  - "\\bThis\\sis\\sthe\\skey\\b"
+  - "\\bThis\\sis\\sthe\\stakeaway\\b"
+  - "\\bThis\\sis\\sthe\\scrucial\\b"
+  - "\\bThis\\sis\\sthe\\scritical\\b"
+  - "\\bThis\\sis\\sthe\\simportant\\b"
+
+  # "This enables/ensures/allows" consequence statements
+  # Includes "This [noun] enables" and "This [noun] [noun] enables" variants
+  - "\\bThis\\senables\\s[^.]+\\."
+  - "\\bThis\\s\\w+\\senables\\s[^.]+\\."
+  - "\\bThis\\s\\w+\\s\\w+\\senables\\s[^.]+\\."
+  - "\\bThis\\sensures\\s[^.]+\\."
+  - "\\bThis\\s\\w+\\sensures\\s[^.]+\\."
+  - "\\bThis\\sallows\\s[^.]+\\."
+  - "\\bThis\\s\\w+\\sallows\\s[^.]+\\."
+  - "\\bThis\\sprovides\\s[^.]+\\."
+  - "\\bThis\\s\\w+\\sprovides\\s[^.]+\\."
+  - "\\bThis\\sgives\\syou\\s[^.]+\\."
+  - "\\bThis\\s\\w+\\sgives\\syou\\s[^.]+\\."
+  - "\\bThis\\smeans\\s[^.]+\\."
+  - "\\bThis\\s\\w+\\smeans\\s[^.]+\\."
+
+  # "Understanding X enables/helps you" opener
+  - "\\bUnderstanding\\s[^.]+enables\\syou\\sto\\s[^.]+\\."
+  - "\\bUnderstanding\\s[^.]+helps\\syou\\s[^.]+\\."
+  - "\\bUnderstanding\\s[^.]+allows\\syou\\sto\\s[^.]+\\."
+
+  # "Real-world" filler
+  - "\\bReal-world\\s[a-z]+"
+  - "\\bIn\\sthe\\sreal\\sworld\\b"
+
+  # "At its core/heart" framing
+  - "\\bAt\\sits\\score\\b"
+  - "\\bAt\\sits\\sheart\\b"
+  - "\\bAt\\sits\\smost\\sbasic\\b"
+  - "\\bAt\\sits\\smost\\sbasic\\slevel\\b"
+  - "\\bAt\\sits\\smost\\sfundamental\\b"
+  - "\\bAt\\sits\\smost\\sfundamental\\slevel\\b"
+  - "\\bAt\\sits\\ssimplest\\b"
+  - "\\bAt\\stheir\\score\\b"
+  - "\\bAt\\stheir\\sheart\\b"
+
+  # "Think of X as" explanatory framing
+  - "\\bThink\\sof\\sit\\sas\\b"
+  - "\\bThink\\sof\\sthis\\sas\\b"
+  - "\\bThink\\sof\\s[^.]+as\\s[^.]+\\."
+
+  # "This is where" pivot phrases
+  - "\\bThis\\sis\\swhere\\sit\\sgets\\sinteresting\\b"
+  - "\\bThis\\sis\\swhere\\sthings\\sget\\sinteresting\\b"
+  - "\\bThis\\sis\\swhere\\s[^.]+\\scomes\\sin\\b"
+  - "\\bThat'?s\\swhere\\s[^.]+\\scomes\\sin\\b"

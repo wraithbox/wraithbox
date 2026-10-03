@@ -1,0 +1,61 @@
+---
+extends: existence
+message: "AI puffery: '%s'. Use neutral, specific language."
+level: error
+ignorecase: true
+tokens:
+  - nestled\sin\sthe
+  - nestled\sin\sa
+  - nestled\sbetween
+  - nestled\samong
+  - nestled\salongside
+  - nestled\swithin
+  - in\sthe\sheart\sof
+  - at\sthe\sheart\sof
+  - rich\scultural\sheritage
+  - rich\shistory\sand
+  - rich\sand\sdiverse
+  - rich\sand\svibrant
+  - vibrant\scommunity
+  - vibrant\sculture
+  - vibrant\secosystem
+  - vibrant\satmosphere
+  - natural\sbeauty
+  - a\shub\sfor
+  - a\shub\sof
+  - a\sdynamic\shub
+  - a\sthriving\shub
+  - a\scultural\shub
+  - a\sbeacon\sof
+  - a\sbeacon\sfor
+  - a\streasure\strove\sof
+  - a\streasure\strove\sfor
+  - a\sshining\sexample
+  - a\sprime\sexample
+  - a\smasterclass\sin
+  - a\stestament\sto\sthe
+  - a\stestament\sto\sits
+  - renowned\sfor\sits
+  - renowned\sfor\stheir
+  - renowned\sfor\sher
+  - renowned\sfor\shis
+  - widely\sregarded\sas
+  - widely\srecognized\sas
+  - widely\sconsidered
+  - is\shome\sto
+  - has\semerged\sas\sa
+  - has\semerged\sas\sthe
+  - has\sestablished\sitself\sas
+  - continues\sto\sevolve
+  - continues\sto\sthrive
+  - continues\sto\sgrow
+  - continues\sto\sinspire
+  - left\san\sindelible\smark
+  - left\san\sindelible\simpact
+  - leaving\san\sindelible\smark
+  - left\sa\slasting\simpact
+  - left\sa\slasting\simpression
+  - leaving\sa\slasting\simpact
+  - a\slasting\slegacy
+  - enduring\slegacy
+  - enduring\simpact

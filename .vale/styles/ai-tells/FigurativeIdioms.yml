@@ -1,0 +1,214 @@
+---
+extends: existence
+message: "AI idiom: '%s'. State the literal outcome instead."
+level: error
+nonword: true
+ignorecase: true
+# Fixed figurative phrases that stand in for a plain statement of what
+# happened. The sibling of the Figurative* verb rules, which gate on a verb
+# and its complement; these are whole idioms, so the phrase itself is the
+# discriminator and no subject gate is needed.
+#
+# That difference is why they belong in the prose style rather than the
+# commit style. A subject-plus-verb token floods ordinary technical writing,
+# because a table really does hold values. A fixed idiom carries no such
+# literal reading, and every token below measured at two or fewer matches
+# across the Go and Python standard libraries and the Markdown shipped in
+# the Go source tree.
+#
+# The first group comes from commit messages a maintainer rejected. The
+# second comes from a skill reference that recorded four phrases clearing
+# every gate in its own repository while its author was writing them. The
+# third comes from a retroactive audit of the toolchain repositories'
+# accepted commit histories, on the maintainer's direction that acceptance
+# there is no evidence of acceptability; each token records its own cost
+# where one was found.
+tokens:
+  # --- Substitutes for a plain cost or comparison. "Costs little" and
+  # "fares no better" both dodge the number the sentence wanted.
+  - '\bcosts?\slittle\b'
+  - '\bfares?\sno\sbetter\b'
+  # A consequence priced but never itemized ("this comes at a cost,"
+  # "flexibility came at a steep price"). The "of" complement is the named
+  # tradeoff pre-LLM prose writes ("that will come at a cost of extra
+  # complexity," once in the Go standard library), so the lookahead leaves
+  # it alone, along with the definite "at the cost of performance" spelling,
+  # which measured nine literal uses in the same corpus and is not covered.
+  # The transaction verbs ("pays off," "buys you") live in FigurativePays.
+  - '\bcom(?:e|es|ing)\sat\sa\s(?:[a-z]+\s)?(?:cost|price)\b(?!\sof)'
+  - '\bcame\sat\sa\s(?:[a-z]+\s)?(?:cost|price)\b(?!\sof)'
+  # The audit formula: a cost presented as already weighed ("the measured
+  # cost is one comment," "the measured cost of what remains"), and the
+  # residue presented as an estate ("this is what remains of it"). Both
+  # started as this project's own methodology vocabulary and spread into
+  # commit messages as boilerplate, which is the substitution this style
+  # exists to catch coming from anyone, its own maintainers included.
+  # Zero matches across the Go and Python standard libraries for both.
+  # The other complements stay uncovered on the same corpus: "what
+  # remains is" opens ordinary mathematical prose there ("What remains
+  # is to choose e"), and "what remains after" is the literal remainder.
+  - '\bmeasured\scost\b'
+  - '\bwhat\sremains\sof\b'
+  # The accepted invoice, the same register's third limb: a cost framed as
+  # a bill somebody already agreed to pay ("the cost the rule already
+  # accepts," "the same cost the present form already accepts," "a
+  # tolerated cost"). Rule comments in this very style write it, which is
+  # where the commit prose picked it up. Zero matches for all three
+  # tokens across the Go and Python standard libraries.
+  # The noun-compound senses are literal (an optimizer accepts a cost
+  # function, an endpoint accepts a cost parameter), so a lookahead
+  # excludes the compound head.
+  # The lookahead accepts any whitespace, because a hard-wrapped commit
+  # buffer parses as plain text and a line break would otherwise split
+  # the exclusion off the match.
+  - '\baccept(?:s|ed|ing)?\s(?:a|an|the|that|this|its|their)\s(?:[a-z]+\s)?cost\b(?!\s+(?:functions?|parameters?|arguments?|matrix|matrices|models?|columns?|fields?))'
+  - '\bcosts?\s(?:a|an|the|this|that|each|every)\s(?:[a-z]+\s)?[a-z]+\s(?:already\s|willingly\s|silently\s)?accept(?:s|ed)\b'
+  - '\btolerated\scost\b'
+  # The one measured false positive in either standard library is a garbage
+  # collector comment where a value is literally unreachable. Runtime and
+  # memory-management prose should disable the rule.
+  - '\bout\sof\sreach\b'
+  - '\bgives?\ssomething\sup\sin\sexchange\b'
+
+  # --- Substitutes for a plain cause. "For want of" is a proverb fragment
+  # standing in for because.
+  - '\bfor\swant\sof\b'
+
+  # --- Blank-start and evasion metaphors. A merge gets an "empty slate," a
+  # change "dodges" the rule that should have caught it.
+  - '\bempty\sslate\b'
+  - '\bclean\sslate\b'
+  - '\b(?:dodges?|dodging|dodged)\s+(?:the|a|that|this)\b'
+  - '\bput\s+\w+\s+in\sfront\sof\b'
+
+  # --- Consequence and evasion metaphors that cleared every gate in the
+  # repository whose own documentation recorded them. A check does not bite,
+  # a document does not sail, and a change has no blast radius.
+  - '\bwhere\s(?:this|that|it)\sbites\b'
+  - '\b(?:bites?|biting)\shardest\b'
+  - '\bsails?\sthrough\b'
+  - '\bsailed\sthrough\b'
+  - '\bmov(?:e|es|ed|ing)\sthe\sgoalposts?\b'
+  - '\bblast\sradius\b'
+
+  # --- Reduction: a question collapsed to one factor rather than the
+  # factor being named ("it comes down to trust," "this boils down to a
+  # race"). "Comes down to" measured zero across the Go and Python
+  # standard libraries; "boils down to" measured once in each, both in
+  # comments making exactly this substitution, the same tolerated cost as
+  # "out of reach" above. The bare "come down to" and most of "came down
+  # to" stay uncovered: both carry the literal descent sense ("come down
+  # to the lobby," "came down to breakfast"), so the past tense is gated
+  # on a reduction complement.
+  - '\bcomes\sdown\sto\b'
+  - '\bcame\sdown\sto\s(?:whether|what|how|one|a\ssingle|the\ssame)\b'
+  - '\bboil(?:s|ed|ing)?\sdown\sto\b'
+
+  # --- Substitution: one thing presented as another's understudy ("the
+  # fixture stands in for real traffic"). The verb form measured three
+  # times across the two standard libraries, every one the precise
+  # placeholder sense, so this is a flag-hard token by the maintainer's
+  # call; API prose built on placeholders disables the rule. The noun
+  # ("a stand-in for the network") stays uncovered: it measured six times
+  # as the ordinary word for a placeholder, and no gate separates that
+  # register from the tell.
+  - '\bstand(?:s|ing)?\sin\sfor\b'
+  - '\bstood\sin\sfor\b'
+
+  # --- Progress and repair figures from the commit-history audit. "In
+  # lockstep" measured twice, both in Python threading-barrier tests where
+  # the lockstep is the tested behavior; "point of no return" measured once
+  # in the Go runtime as the same figure. The rest measured zero.
+  - '\bclos(?:es?|ed|ing)\s(?:the|that|this|a)\sgap\b'
+  - '\bin\slockstep\b'
+  - '\bin\sstep\swith\b'
+  - '\bpoint\sof\sno\sreturn\b'
+  - '\bunder\s(?:its|their)\sown\spower\b'
+  - '\bcover(?:s|ed|ing)?\s(?:more|less|the\ssame|that|this|the)\sground\b'
+  - '\bbr(?:ing|ings|inging|ought)\s(?:\w+\s){0,3}into\sline\swith\b'
+
+  # --- Retraction: an action taken back by walking ("no later step can
+  # walk it back"). The three Go matches on the loose verb are AST walkers
+  # moving backward, so the tokens require a pronoun or retraction object,
+  # and the modal token excludes a walking destination so a stroll back to
+  # the hotel stays quiet.
+  - '\bwalk(?:s|ed|ing)?\s(?:it|that|this|the\s(?:decision|claim|change|commit|release|statement|promise))\sback\b'
+  - '\bwalk\sback\s(?:the|a|an|that|this|what)\b'
+  - '\bcan(?:not|''t)?\swalk\s(?:it\s|that\s|this\s)?back\b(?!\s(?:to|into|out|home|down|up|across|towards?|through)\b)'
+
+  # --- Shifting ground: the base moving under a pronoun ("main had moved
+  # under it"). The pronoun object is the gate, because a file literally
+  # moves under a directory.
+  - '\bmov(?:es|ed|ing)\s(?:out\sfrom\s)?under\s(?:it|them|us)\b'
+
+  # --- Self-consumption: dogfooding and its dressed-up cousins ("the
+  # package eats its own cooking," "drinks its own champagne").
+  - '\beat(?:s|ing)?\s(?:its|their|your|our)\sown\scooking\b'
+  - '\bate\s(?:its|their|your|our)\sown\scooking\b'
+  - '\bdogfood(?:s|ed|ing)?\b'
+  - '\b(?:eat|eats|eating|ate)\s(?:its|their|your|our)\sown\sdog\s?food\b'
+  - '\bdrink(?:s|ing)?\s(?:its|their|your|our)\sown\schampagne\b'
+  - '\bdrank\s(?:its|their|your|our)\sown\schampagne\b'
+
+  # --- Sleeping dogs: risk left alone as a napping animal ("let sleeping
+  # dogs lie," "no reason to wake a sleeping dog").
+  - '\bsleeping\sdogs?\b'
+
+  # --- Scatter: work spreading as a folding fan ("one release fanned out
+  # into separate pull requests," "the query fans out"). The verb matches
+  # with or without its destination; the compound nouns "fan-out,"
+  # "fanout," and "fan-in" are legitimate concurrency and circuit
+  # vocabulary and stay untouched. The bare form matches once in the corpora
+  # ("it fans out nBackendWorkers"), the figure itself.
+  - '\bfan(?:s|ned|ning)?\sout\b'
+
+  # --- Phrases from a documentation-corpus audit (2026-09), which found
+  # each of these clearing every idiom rule. Counts across the Go and
+  # Python standard libraries follow each group, and every hit is the
+  # figure itself.
+  #
+  # Agreement and duplication as physical arrangement: "lines up with"
+  # (eleven, "lines up with reality"), "doubles as" (one), "double duty"
+  # (zero).
+  - '\blin(?:es?|ed|ing)\sup\swith\b'
+  - '\bdoubl(?:es?|ed|ing)\sas\b'
+  - '\bdouble\sduty\b'
+  # The trick, the extra step, and the bar: "the whole trick" (zero), "a
+  # step further" (one), "meets that bar" (zero; "clears the bar" stays in
+  # FigurativeClears).
+  - '\bthe\swhole\strick\b'
+  - '\b(?:a|one)\sstep\sfurther\b'
+  - '\b(?:meets?|met|meeting|passes|passed|hits?)\s(?:the|that|this|a|its|our)\s(?:[a-z]+\s)?bar\b'
+  # Availability and departure: "on hand" (zero), "went missing" and
+  # "went away" (five, "the error went away"), "for good" (three, with the
+  # "for good measure" and "for good reason" phrases refused), "left for
+  # good." "Goes away" stays out with sixty-one hits: "this will go away
+  # once" is how both corpora schedule a removal.
+  - '\bon\shand\b'
+  - '\bwent\s(?:missing|away)\b'
+  - '\bfor\sgood\b(?!\s(?:measure|reason|reasons|style|cause|luck|or|and|behavior|behaviour|practice|hygiene|performance|values?)\b)'
+  # Decisions and delays: "made that call" (one; "made the call" stays
+  # out because both corpora use it for a function call), "judgment
+  # call" (zero), "takes a while" (two), "gets it backwards" (zero),
+  # "picks up on" (three), "from two angles" (zero), "stands up a
+  # service" (one).
+  - '\bma(?:de|kes?|king)\sthat\scall\b'
+  - '\b(?:judgment|judgement)\scall\b'
+  - '\btakes?\sa\swhile\b'
+  - '\bgets?\s(?:it|this|that|them)\sbackwards?\b'
+  - '\bpick(?:s|ed|ing)?\sup\son\b'
+  - '\bfrom\s(?:two|three|several|multiple|different|both)\sangles\b'
+  - '\bstands?\sup\s(?:a|an|the|its|this|that|new|another|fresh|every|each)\b'
+  - '\bstood\sup\s(?:a|an|the|its|this|that|new|another|fresh|every|each)\b'
+
+  # --- Burial: a value or a decision hidden by depth ("buried in the
+  # config," "buried deep in the log," "buries the error"). A
+  # documentation-corpus census (2026-09) listed it among the verbs no
+  # rule read; five hits across the seven pre-LLM corpora ("buried in
+  # the middle of the file," "buried deep"), each the figure. Prose
+  # about graves or geology disables the rule.
+  - '\bburi(?:es|ed)\s(?:in|inside|under|beneath|deep|within)\b'
+  - '\b(?:buries|buried|bury|burying)\s(?:the|a|an|its|their|this|that|it|them)\b'
+
+  # The rest of the substitution frame ("disguised as," "masquerading as,"
+  # "dressed as," "in the guise of") lives in FigurativeDisguises.

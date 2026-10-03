@@ -1,0 +1,8 @@
+extends: existence
+message: "'%s' is hedging."
+ignorecase: true
+level: error
+tokens:
+  - I\swould\sargue\sthat
+  - ',\sso\sto\sspeak'
+  - to\sa\scertain\sdegree

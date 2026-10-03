@@ -1,0 +1,33 @@
+---
+extends: existence
+message: "AI strategy buzzword: '%s'. Describe the actual mechanism or advantage plainly."
+level: error
+nonword: true
+ignorecase: true
+# Strategy-deck buzzword metaphors: the flywheel, the moat, the north star. Each
+# term is scoped to its figurative sense so the literal homograph stays clean
+# without a domain toggle (the engine's flywheel, a castle's moat, the actual
+# North Star). Network effects and first-mover advantage are the most legitimate
+# as analytical terms; they are here because the deck-speak form is overused, but
+# they are the first to drop if they fire on genuine analysis.
+tokens:
+  # flywheel (self-reinforcing loop), not the mechanical part
+  - "\\bflywheel\\seffect\\b"
+  - "\\b(?:growth|data|content|engagement|customer|revenue|sales|marketing|business|virtuous|self-?reinforcing)\\sflywheels?\\b"
+  - "\\b(?:build|building|built|create|creates|created|creating|spin|spins|spinning|start|starts|started|starting)\\s(?:a\\s|the\\s|our\\s|its\\s|their\\s)?flywheels?\\b"
+  # moat (competitive advantage), not the castle
+  - "\\b(?:competitive|economic|defensible|durable|structural|wide|deep|business|data|regulatory|technological|distribution)\\smoats?\\b"
+  - "\\b(?:build|building|built|widen|widens|widening|widened|deepen|deepens|deepening|deepened|create|creates|created|creating)\\s(?:a\\s|the\\s|our\\s|its\\s|their\\s|wider\\s|deeper\\s)?moats?\\b"
+  # figurative object only, so the literal "moat around the castle" stays clean
+  - "\\bmoats?\\s(?:around|against)\\s(?:the\\s|our\\s|its\\s|their\\s|your\\s)?(?:business|company|product|platform|franchise|market|position|revenue|profits?|margins?|data|ecosystem|core)\\b"
+  # north star (guiding metric), not Polaris
+  - "\\bnorth[-\\s]star\\smetric\\b"
+  - "\\bnorth-star\\b"
+  - "\\b(?:our|your|their|its)\\snorth\\sstar\\b"
+  # network effects (econ deck-speak)
+  - "\\bnetwork\\seffects?\\b"
+  # first-mover advantage (cliche form, not bare "first mover")
+  - "\\bfirst[-\\s]mover\\sadvantage\\b"
+  # land grab (figurative), not the historical kind
+  - "\\b(?:market|customer|data|talent|competitive|global|massive|enterprise)\\sland[-\\s]grab\\b"
+  - "\\bland[-\\s]grab\\sfor\\b"

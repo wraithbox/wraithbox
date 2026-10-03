@@ -1,0 +1,22 @@
+extends: existence
+message: "'%s' is an oxymoron."
+ignorecase: true
+level: error
+tokens:
+  - amateur\sexpert
+  - increasingly\sless
+  - advancing\sbackwards
+  - alludes\sexplicitly\sto
+  - explicitly\salludes\sto
+  - totally\sobsolescent
+  - completely\sobsolescent
+  - generally\salways
+  - usually\salways
+  - increasingly\sless
+  - build\sdown
+  - conspicuous\sabsence
+  - exact\sestimate
+  - found\smissing
+  - intense\sapathy
+  - mandatory\schoice
+  - organized\smess

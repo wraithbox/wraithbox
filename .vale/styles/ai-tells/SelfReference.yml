@@ -1,0 +1,52 @@
+---
+extends: existence
+message: "AI cross-reference: '%s'. Rewrite the passage to work without the cross-reference."
+level: error
+ignorecase: true
+tokens:
+  - as\smentioned\sabove
+  - as\smentioned\searlier
+  - as\smentioned\sbefore
+  - as\snoted\sabove
+  - as\snoted\searlier
+  - as\snoted\sbefore
+  - as\sdiscussed\sabove
+  - as\sdiscussed\searlier
+  - as\sdiscussed\sbefore
+  - as\sstated\sabove
+  - as\sstated\searlier
+  - as\sstated\sbefore
+  - as\soutlined\sabove
+  - as\soutlined\searlier
+  - as\sdescribed\sabove
+  - as\sdescribed\searlier
+  - as\sreferenced\sabove
+  - as\sreferenced\searlier
+  - as\swe\ssaw
+  - as\swe\ssaw\sabove
+  - as\swe\ssaw\searlier
+  - as\swe'll\ssee
+  - as\swe'll\sexplore
+  - as\swe'll\sdiscuss
+  - as\swe\sdiscussed
+  - as\swe\sexplored
+  - as\swe\scovered
+  - as\scovered\sabove
+  - as\scovered\searlier
+  - as\sshown\sabove
+  - as\sshown\searlier
+  - as\sexplained\sabove
+  - as\sexplained\searlier
+  - as\swe\snoted
+  - recall\sthat
+  - remember\sthat
+  - as\spreviously\smentioned
+  - as\spreviously\snoted
+  - as\spreviously\sdiscussed
+  - as\spreviously\sstated
+  - as\spreviously\sdescribed
+  - as\sI\smentioned
+  - as\sI\snoted
+  - as\sI\sdiscussed
+  - as\sI\ssaid
+  - as\sI\sexplained

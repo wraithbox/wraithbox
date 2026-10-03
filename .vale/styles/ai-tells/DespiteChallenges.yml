@@ -1,0 +1,32 @@
+---
+extends: existence
+message: "AI despite-formula: '%s'. Engage with the challenges substantively or remove the hedge."
+level: error
+ignorecase: true
+tokens:
+  - despite\sits\schallenges
+  - despite\sthese\schallenges
+  - despite\sthe\schallenges
+  - despite\sthis\schallenge
+  - despite\sthese\slimitations
+  - despite\sits\slimitations
+  - despite\sthe\slimitations
+  - despite\sthese\sdrawbacks
+  - despite\sits\sdrawbacks
+  - despite\sthese\sobstacles
+  - despite\sits\sobstacles
+  - despite\sthese\shurdles
+  - despite\sits\shurdles
+  - despite\sthese\ssetbacks
+  - despite\sits\ssetbacks
+  - despite\sthese\sconcerns
+  - despite\sits\sconcerns
+  - despite\sfacing\schallenges
+  - despite\sfacing\snumerous
+  - despite\sfacing\ssignificant
+  - while\schallenges\sremain
+  - while\sthese\schallenges
+  - while\ssignificant\schallenges
+  - challenges\snotwithstanding
+  - obstacles\snotwithstanding
+  - limitations\snotwithstanding

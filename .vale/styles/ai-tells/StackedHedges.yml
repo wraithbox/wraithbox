@@ -1,0 +1,25 @@
+---
+extends: existence
+# A modal verb followed by an epistemic adverb: "could potentially," "may
+# possibly," "might conceivably." The modal already carries the uncertainty;
+# the adverb restates it. Modal-first order only: the reversed "possibly
+# could" is idiomatic in "she did all she possibly could" and stays clean.
+# Single hedges belong to no rule; this flags only the stack.
+message: "AI stacked hedge: '%s'. Drop one hedge, or give a number instead."
+level: error
+ignorecase: true
+tokens:
+  - could\spotentially
+  - can\spotentially
+  - may\spotentially
+  - might\spotentially
+  - could\spossibly
+  - can\spossibly
+  - may\spossibly
+  - might\spossibly
+  - could\sperhaps
+  - may\sperhaps
+  - might\sperhaps
+  - could\sconceivably
+  - may\sconceivably
+  - might\sconceivably

@@ -1,0 +1,52 @@
+extends: substitution
+message: Did you mean '%s'?
+ignorecase: false
+action:
+  name: replace
+swap:
+  (?:Afrikaaner|Afrikander):             Afrikaner
+  (?:Hong\sKongite|Hong\sKongian):         Hong Konger
+  (?:Indianan|Indianian):                Hoosier
+  (?:Michiganite|Michiganian):           Michigander
+  (?:New\sHampshireite|New\sHampshireman): New Hampshirite
+  (?:Newcastlite|Newcastleite):          Novocastrian
+  (?:Providencian|Providencer):          Providentian
+  (?:Trentian|Trentonian):               Tridentine
+  (?:Warsawer|Warsawian):                Varsovian
+  (?:Wolverhamptonite|Wolverhamptonian): Wulfrunian
+  Alabaman:                              Alabamian
+  Albuquerquian:                         Albuquerquean
+  Anchoragite:                           Anchorageite
+  Arizonian:                             Arizonan
+  Arkansawyer:                           Arkansan
+  Belarusan:                             Belarusian
+  Cayman\sIslander:                       Caymanian
+  Coloradoan:                            Coloradan
+  Connecticuter:                         Nutmegger
+  Fairbanksian:                          Fairbanksan
+  Fort\sWorther:                          Fort Worthian
+  Grenadian:                             Grenadan
+  Halifaxer:                             Haligonian
+  Hartlepoolian:                         Hartlepudlian
+  Illinoisian:                           Illinoisan
+  Iowegian:                              Iowan
+  Leedsian:                              Leodenisian
+  Liverpoolian:                          Liverpudlian
+  Los\sAngelean:                          Angeleno
+  Manchesterian:                         Mancunian
+  Minneapolisian:                        Minneapolitan
+  Missouran:                             Missourian
+  Monacan:                               Monegasque
+  Neopolitan:                            Neapolitan
+  New\sJerseyite:                         New Jerseyan
+  New\sOrleansian:                        New Orleanian
+  Oklahoma\sCitian:                       Oklahoma Cityan
+  Oklahomian:                            Oklahoman
+  Saudi\sArabian:                         Saudi
+  Seattlite:                             Seattleite
+  Surinamer:                             Surinamese
+  Tallahassean:                          Tallahasseean
+  Tennesseean:                           Tennessean
+  Trois-Rivièrester:                     Trifluvian
+  Utahan:                                Utahn
+  Valladolidian:                         Vallisoletano

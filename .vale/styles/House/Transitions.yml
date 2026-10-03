@@ -1,0 +1,77 @@
+# A copy of ai-tells.FormalTransitions (tbhb/vale-ai-tells v1.37.0, MIT),
+# with two changes. "For example" is dropped: it is what Google.Latin
+# prescribes over "e.g.". And the match is case-sensitive, so only the
+# capitalized, sentence-initial form fires ("Notably, ...", "Hence ...");
+# the mid-sentence "and thus" or "similarly sized" is not the tell.
+# Copied from lsimons/ai-training's House style. Each space in a pattern
+# is `\s`, so a phrase split by a line break still matches.
+extends: existence
+message: "Sentence-initial transition: '%s'. Delete it, or join with 'and', 'but', or 'so'."
+level: warning
+tokens:
+  - Moreover
+  - Furthermore
+  - Additionally
+  - Consequently
+  - Subsequently
+  - Nevertheless
+  - Nonetheless
+  - Conversely
+  - Accordingly
+  - Hence
+  - Thus
+  - Therefore
+  - Thereby
+  - Henceforth
+  - Likewise
+  - Similarly
+  - In\saddition
+  - In\scontrast
+  - On\sthe\scontrary
+  - By\scontrast
+  - As\sa\sresult
+  - For\sinstance
+  - In\sparticular
+  - 'Specifically(?=,)'
+  - Notably
+  - Importantly
+  - 'Significantly(?=,)'
+  - Crucially
+  - 'Essentially(?=,)'
+  - 'Fundamentally(?=,)'
+  - With\sthat\sin\smind
+  - With\sthis\sin\smind
+  - To\sthat\send
+  - In\sturn
+  - Building\son\sthis
+  - Building\son\sthat
+  - That's\swhy
+  - This\sis\swhy
+  - Which\sis\swhy
+  - That's\sbecause
+  - This\sis\sbecause
+  - What's\smore
+  - What\sis\smore
+  - Not\sto\smention
+  - To\sthat\spoint
+  - On\sthat\snote
+  - On\sa\srelated\snote
+  - Case\sin\spoint
+  - A\scase\sin\spoint
+  - Of\snote
+  - Along\sthe\ssame\slines
+  - In\sthe\ssame\svein
+  - By\sextension
+  - To\stop\sit\soff
+  - That's\snot\sall
+  - Better\syet
+  - Even\sbetter
+  - Equally\simportant
+  - Equally\scrucial
+  - Equally\ssignificant
+  - That\sis\sto\ssay
+  - In\slight\sof\sthis
+  - In\slight\sof\sthat
+  - Given\sthis
+  - Given\sthat
+  - Given\sthe\sabove

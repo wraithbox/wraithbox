@@ -1,0 +1,26 @@
+---
+extends: existence
+message: "AI conclusion: '%s'. Delete this and end on your final point."
+level: error
+ignorecase: true
+tokens:
+  - In\sconclusion
+  - In\ssummary
+  - To\ssummarize
+  - To\ssum\sup
+  - To\sconclude
+  - In\sclosing
+  # Bare adverbs only as sentence-initial discourse markers with a trailing
+  # comma; the mid-sentence adjective/adverb senses ("overall design",
+  # "ultimately responsible") are not the closer tell.
+  - '^Ultimately(?=,)'
+  - All\sin\sall
+  - At\sthe\send\sof\sthe\sday
+  - When\sall\sis\ssaid\sand\sdone
+  - The\sbottom\sline\sis
+  - In\sthe\sfinal\sanalysis
+  - Taking\severything\sinto\saccount
+  - Taking\sall\sof\sthis\sinto\saccount
+  - '^Overall(?=,)'
+  - On\sthe\swhole
+  - By\sway\sof\sconclusion

@@ -1,0 +1,78 @@
+---
+extends: existence
+message: "AI filler: '%s'. Delete this phrase. The sentence reads the same without it."
+level: error
+ignorecase: true
+tokens:
+  - a\swide\srange\sof
+  - a\sbroad\srange\sof
+  - a\svariety\sof
+  - an\sabundance\sof
+  - a\smultitude\sof
+  - countless
+  - numerous
+  - innumerable
+  - in\sorder\sto
+  - for\sthe\spurpose\sof
+  - with\sthe\saim\sof
+  - with\sa\sview\sto
+  - so\sas\sto
+  - serves\sto
+  - tends\sto
+  - has\sthe\spotential\sto
+  - has\sthe\sability\sto
+  - is\scapable\sof
+  - is\sable\sto
+  - due\sto\sthe\sfact\sthat
+  - owing\sto\sthe\sfact\sthat
+  - in\slight\sof\sthe\sfact\sthat
+  - given\sthe\sfact\sthat
+  - despite\sthe\sfact\sthat
+  - regardless\sof\sthe\sfact\sthat
+  - the\sfact\sthat
+  - it\sis\sclear\sthat
+  - it\sis\sevident\sthat
+  - it\sis\sapparent\sthat
+  - it\sis\sobvious\sthat
+  - it\scan\sbe\sseen\sthat
+  - it\scan\sbe\sobserved\sthat
+
+  # Performative sincerity markers. "to be honest," overlaps DefensiveHedges'
+  # fuller "To be honest, X, but Y" concessive frame on purpose: this rule owns
+  # the bare filler, DefensiveHedges owns the hedged-concession reading, and a
+  # sentence that is both gets both alerts by design.
+  - and\shonestly
+  - and\shonestly,
+  - honestly,
+  - honestly?
+  - to\sbe\shonest,
+  - to\sbe\shonest?
+  - and\sfrankly
+  - and\sfrankly,
+  - frankly,
+  - frankly?
+  - and\struthfully
+  - truthfully,
+  - if\si'm\sbeing\shonest
+  - if\si'm\sbeing\sfrank
+  - to\sbe\sfrank,
+  - to\stell\syou\sthe\struth
+  - the\struth\sis,
+  - in\sall\shonesty
+  - in\sall\shonesty,
+  - quite\shonestly
+  - quite\sfrankly
+  - i'll\sbe\shonest
+  - i\swill\sbe\shonest
+  - to\sbe\sperfectly\shonest
+  - to\sbe\scompletely\shonest
+  - to\sbe\stotally\shonest
+  - to\sbe\sbrutally\shonest
+  - to\sbe\s100%\shonest
+  - the\shonest\struth
+  - the\shonest\sanswer
+  - the\shonest\stake
+  - honest\sanswer
+  - honest\stake
+  - my\shonest\stake
+  - my\shonest\sopinion

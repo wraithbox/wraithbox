@@ -1,0 +1,15 @@
+extends: substitution
+message: "Consider using '%s' instead of '%s'."
+ignorecase: true
+action:
+  name: replace
+swap:
+  homosexual\sman:                            gay man
+  homosexual\smen:                            gay men
+  homosexual\swoman:                          lesbian
+  homosexual\swomen:                          lesbians
+  homosexual\speople:                         gay people
+  homosexual\scouple:                         gay couple
+  sexual\spreference:                         sexual orientation
+  (?:admitted\shomosexual|avowed\shomosexual): openly gay
+  special\srights:                            equal rights

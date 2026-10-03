@@ -1,0 +1,70 @@
+---
+extends: existence
+message: "AI urgency: '%s'. Delete it or show the stakes concretely."
+level: error
+ignorecase: true
+tokens:
+  # "Cannot be overstated" variants
+  - cannot\sbe\soverstated
+  - can't\sbe\soverstated
+  - cannot\sbe\sunderstated
+  - can't\sbe\sunderstated
+  - cannot\sbe\semphasized\senough
+  - can't\sbe\semphasized\senough
+
+  # "More important/critical/relevant than ever" variants
+  - more\simportant\sthan\sever
+  - more\scritical\sthan\sever
+  - more\srelevant\sthan\sever
+  - more\surgent\sthan\sever
+  - more\snecessary\sthan\sever
+  - more\sessential\sthan\sever
+  - more\svital\sthan\sever
+  - more\spressing\sthan\sever
+  - more\ssignificant\sthan\sever
+
+  # "Has never been more X" variants
+  - has\snever\sbeen\smore\simportant
+  - has\snever\sbeen\smore\scritical
+  - has\snever\sbeen\smore\surgent
+  - has\snever\sbeen\smore\srelevant
+  - has\snever\sbeen\smore\snecessary
+  - has\snever\sbeen\smore\sessential
+  - has\snever\sbeen\smore\svital
+  - has\snever\sbeen\smore\spressing
+  - has\snever\sbeen\smore\ssignificant
+  - have\snever\sbeen\smore\simportant
+  - have\snever\sbeen\smore\scritical
+  - have\snever\sbeen\smore\surgent
+  - have\snever\sbeen\smore\srelevant
+
+  # "The stakes have never been higher" variants
+  - the\sstakes\shave\snever\sbeen\shigher
+  - the\sstakes\sare\shigher\sthan\sever
+  - the\sstakes\scouldn't\sbe\shigher
+  - the\sstakes\sare\senormous
+  - the\sstakes\sare\simmense
+
+  # "At a crossroads" variants
+  - at\sa\scrossroads
+  - at\san\sinflection\spoint
+  - at\sa\spivotal\smoment
+  - at\sa\scritical\sjuncture
+  - at\sa\sdefining\smoment
+  - at\sa\sturning\spoint\sin\shistory
+  - at\sa\scritical\smoment\sin\shistory
+  - at\sa\spivotal\smoment\sin\shistory
+
+  # "Increasingly [adjective] world" variants
+  - in\san\sincreasingly\scomplex\sworld
+  - in\san\sincreasingly\sdigital\sworld
+  - in\san\sincreasingly\sconnected\sworld
+  - in\san\sincreasingly\scompetitive\sworld
+  - in\san\sincreasingly\spolarized\sworld
+  - in\san\sincreasingly\suncertain\sworld
+  - in\san\sincreasingly\sfast-paced\sworld
+  - in\san\sincreasingly\sglobalized\sworld
+  - in\san\sincreasingly\sdata-driven\sworld
+  - in\san\sincreasingly\sautomated\sworld
+  - in\san\sever\smore\scomplex\sworld
+  - in\san\sever\smore\sconnected\sworld

@@ -1,0 +1,61 @@
+---
+extends: existence
+message: "AI overused verb: '%s'. State the comparison or the claim directly. Disable this rule for legal or wrestling prose."
+level: error
+nonword: true
+ignorecase: true
+# "Holds" is an AI fingerprint for possession applied to abstractions: a
+# chart "holds the same wide spread," a result "holds across datasets," an
+# approach "holds promise," a claim "holds up under scrutiny." Literal
+# holding is everywhere (hands, containers, courts, wrestling), so the
+# complement after the verb is the discriminator, in the FigurativeSits
+# mold. "Holds its own" stays in AnthropomorphicJustification; the tokens
+# here avoid that span so the two rules never double-flag.
+tokens:
+  # --- Mirrored possession: an artifact possessing a property another one
+  # has ("holds the same wide spread," "holds a similar layout"). A person
+  # holding the same title fires too; state who has what instead.
+  - "\\bhold(?:s|ing)?\\s(?:the\\ssame|an?\\s(?:similar|identical|comparable|matching))\\s\\w+"
+  - "\\bheld\\s(?:the\\ssame|an?\\s(?:similar|identical|comparable|matching))\\s\\w+"
+
+  # --- Validity theater: a claim graded like a load-bearing beam ("holds
+  # true," "holds up under scrutiny," "the analogy holds water").
+  - "\\bhold(?:s|ing)?\\strue\\b"
+  - "\\bheld\\strue\\b"
+  - "\\bhold(?:s|ing)?\\sup\\s(?:well|under|to\\sscrutiny|against)\\b"
+  - "\\bheld\\sup\\s(?:well|under|to\\sscrutiny|against)\\b"
+  - "\\bhold(?:s|ing)?\\swater\\b"
+  - "\\bheld\\swater\\b"
+  - "\\bhold(?:s|ing)?\\sat\\sscale\\b"
+  - "\\bheld\\sat\\sscale\\b"
+  - "\\bhold(?:s|ing)?\\sacross\\b"
+  - "\\bheld\\sacross\\b"
+
+  # --- Subject-gated survival: an abstraction that persists ("the pattern
+  # holds," "the correlation still holds," "the result is still holding").
+  # The curated subject is the gate, since a bare "holds" would flood. The
+  # copula pairs only with "holding" so passive belief ("the assumption is
+  # widely held") stays out.
+  - "\\b(?:pattern|trend|rule|result|relationship|correlation|observation|logic|argument|analogy|comparison|intuition|assumption|invariant|principle|premise|claim|conclusion)\\s(?:still\\s|no\\slonger\\s|always\\s|generally\\s|mostly\\s|largely\\s)?(?:holds|held)\\b"
+  - "\\b(?:pattern|trend|rule|result|relationship|correlation|observation|logic|argument|analogy|comparison|intuition|assumption|invariant|principle|premise|claim|conclusion)\\s(?:(?:is|was)\\s)?(?:still\\s|no\\slonger\\s|always\\s|generally\\s|mostly\\s|largely\\s)?holding\\b"
+
+  # --- Promise and potential: the crystal-ball possession ("holds
+  # promise," "holds great potential," "holds the key to").
+  - "\\bhold(?:s|ing)?\\s(?:great\\s|much\\s|real\\s|considerable\\s|enormous\\s|immense\\s|significant\\s)?(?:promise|potential|appeal)\\b"
+  - "\\bheld\\s(?:great\\s|much\\s|real\\s|considerable\\s|enormous\\s|immense\\s|significant\\s)?(?:promise|potential|appeal)\\b"
+  - "\\bhold(?:s|ing)?\\s(?:more\\s|less\\s|little\\s|no\\s|equal\\s|the\\ssame\\s)?(?:weight|sway)\\b"
+  - "\\bheld\\s(?:more\\s|less\\s|little\\s|no\\s|equal\\s|the\\ssame\\s)?(?:weight|sway)\\b"
+  - "\\bhold(?:s|ing)?\\sthe\\skey\\sto\\b"
+  - "\\bheld\\sthe\\skey\\sto\\b"
+  - "\\bhold(?:s|ing)?\\sthe\\sline\\b"
+  - "\\bheld\\sthe\\sline\\b"
+  - "\\bhold(?:s|ing)?\\scourt\\b"
+  - "\\bheld\\scourt\\b"
+
+  # --- Constraint enforcement: holding an artifact to a bound ("holding
+  # network access to an approved-domain allowlist," "held costs to a
+  # minimum," "holds request rates to under 100"). The bound noun after
+  # "to" is the discriminator; real prose overwhelmingly writes "holds a
+  # reference/pointer to," which this never touches.
+  - "\\b(?:hold(?:s|ing)?|held)\\s(?:[\\w'-]+\\s){0,5}to\\s(?:a|an|the|its|their|our)\\s(?:[\\w-]+\\s){0,2}(?:allowlist|whitelist|blocklist|denylist|minimum|baseline|budget|threshold|limit|quota|cap|subset|handful|standard|scope)s?\\b"
+  - "\\b(?:hold(?:s|ing)?|held)\\s(?:[\\w'-]+\\s){0,5}to\\s(?:under|below|within|at\\smost|no\\smore\\sthan)\\b"
