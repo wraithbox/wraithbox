@@ -1,0 +1,60 @@
+# Area and component labels for GitHub issues and pull requests.
+#
+# This file is the record; GitHub holds the copy. The scheme and the
+# rules for applying these labels are in docs/agents/planning.md.
+# Generic labels (type, priority, triage status) live in a separate file
+# owned by the issue-tracker setup, not here.
+#
+# Two families:
+#   area:*  where in the repository the change lands (a package or a
+#           top-level area). Every work issue has at least one.
+#   comp:*  which process or interface from spec 004 / 012 the work
+#           belongs to. Optional; at most one or two per issue.
+#
+# To apply after editing, run once per entry (idempotent):
+#   gh label create <name> --color <color> --description "<description>" --force
+# To check GitHub matches this file:
+#   gh label list --search area: ; gh label list --search comp:
+
+areas:
+  - name: "area:go"
+    color: "bfd4f2"
+    description: "packages/wraithbox-go: Go code under cmd/ and internal/"
+  - name: "area:swift"
+    color: "bfd4f2"
+    description: "packages/wraithbox-swift: wb-vmd and WraithBoxVM (macOS)"
+  - name: "area:doc"
+    color: "bfd4f2"
+    description: "packages/wraithbox-doc: the documentation site"
+  - name: "area:spec"
+    color: "bfd4f2"
+    description: "docs/spec: requirements, architecture, design specs"
+  - name: "area:ci"
+    color: "bfd4f2"
+    description: "CI workflows, mise tasks, toolchain pins, supply chain"
+  - name: "area:agents"
+    color: "bfd4f2"
+    description: "Agent harness: AGENTS.md, .claude/, docs/agents/"
+
+components:
+  - name: "comp:wb"
+    color: "d4c5f9"
+    description: "wb: the CLI dispatcher and TTY relay (spec 005)"
+  - name: "comp:wb-hostd"
+    color: "d4c5f9"
+    description: "wb-hostd: sessions, git gateway, policy, approvals, audit"
+  - name: "comp:wb-vmd"
+    color: "d4c5f9"
+    description: "wb-vmd: VM provider, Swift on macOS, Go elsewhere (spec 012)"
+  - name: "comp:wb-netd"
+    color: "d4c5f9"
+    description: "wb-netd: userspace TCP/IP, DHCP, DNS (spec 007)"
+  - name: "comp:wb-proxyd"
+    color: "d4c5f9"
+    description: "wb-proxyd: HTTP policy, credentials, dependency gate"
+  - name: "comp:wb-guestd"
+    color: "d4c5f9"
+    description: "wb-guestd: in-guest agent, users, PTY, git transport"
+  - name: "comp:platform"
+    color: "d4c5f9"
+    description: "internal/platform interfaces and per-OS implementations"
