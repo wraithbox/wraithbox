@@ -1,0 +1,10 @@
+---
+extends: existence
+message: "AI cliché: '%s'. State the specific safeguard or cut the phrase."
+level: error
+ignorecase: true
+tokens:
+  - belt\sand\ssuspenders
+  - belt-and-suspenders
+  - belt\sand\sbraces
+  - belt-and-braces

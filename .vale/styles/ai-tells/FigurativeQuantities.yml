@@ -1,0 +1,93 @@
+---
+extends: existence
+message: "AI quantity metaphor: '%s'. Give the count, or write 'a few' or 'many'."
+level: error
+ignorecase: true
+# Quantity expressed through a physical metaphor instead of a number: a
+# body part ("a handful of tests"), a container or vehicle ("a boatload of
+# options"), weather or water ("a flood of alerts"), or a fancy Greek or
+# Latin stand-in ("a plethora of features"). Each one dodges the count the
+# sentence wanted, and each one is what a model reaches for when told to
+# remove one of the others, so the whole substitution pool lives under one
+# rule and one message. "A myriad of," "a plethora of," and "a wealth of"
+# migrated here from FillerPhrases for that reason.
+#
+# Corpus notes, measured against the Go and Python standard libraries:
+# "a handful" appears 14 times as the ordinary human idiom for a small
+# count, so this is a flag-hard token by the maintainer's call rather than
+# a pure fingerprint; the hidden count is the tell. "A host of"
+# measured once, and that one is the literal network host ("A host of ''
+# or port 0" in socket.py), so networking prose about hosts should
+# disable the rule, as should memory-management prose, where objects
+# really do sit on a heap. "A heap of" measured four, "tons of" three,
+# "a ton of" two, "a flurry of" once, and everything else zero.
+tokens:
+  # --- Small counts: the body-part and kitchen dodges for "a few."
+  - a\shandful
+  - the\shandful\sof
+  - handfuls\sof
+  - a\sfistful\sof
+  - an\sarmful\sof
+  - a\ssmattering
+  - a\ssprinkling\sof
+  - a\ssliver\sof
+  - a\sdash\sof
+  - a\spinch\sof
+  - a\sdollop\sof
+
+  # --- Large counts: the crowd nouns standing in for "many."
+  - a\sslew\sof
+  - a\s(?:whole\s)?host\sof
+  - a\sraft\sof
+  - a\sspate\sof
+  - a\sflurry\sof
+  - a\slitany\sof
+  - a\slaundry\slist\sof
+  - a\sbevy\sof
+  - a\sgrab\sbag\sof
+
+  # --- Container, vehicle, and landform scale.
+  - a\sboatload\sof
+  - boatloads\sof
+  - a\struckload\sof
+  - truckloads\sof
+  - a\ston\sof
+  - tons\sof
+  - a\sheap\sof
+  - heaps\sof
+  - a\spile\sof
+  - a\smountain\sof
+
+  # --- Weather and water scale.
+  - a\ssea\sof
+  - an\socean\sof
+  - a\sflood\sof
+  - a\swave\sof
+  - a\sdeluge\sof
+  - a\storrent\sof
+  - an\savalanche\sof
+
+  # --- The fancy vague quantities, migrated from FillerPhrases.
+  - a\smyriad\sof
+  - a\splethora\sof
+  - a\swealth\sof
+  - a\strove\sof
+
+  # --- Variety in place of quantity: a mixture metaphor where a plain list
+  # of what is actually in the mix would serve.
+  - a\ssmorgasbord\sof
+  - a\scornucopia\sof
+  - a\smedley\sof
+  - a\spatchwork\sof
+  - a\smosaic\sof
+  - a\sconstellation\sof
+
+  # --- "Array" only when an adjective inflates it. The bare noun is
+  # literal everywhere in technical prose, so it stays uncovered.
+  - an?\s(?:vast|wide|broad|whole|dizzying|impressive|endless|bewildering)\sarray\sof
+
+  # --- Distance standing in for a count ("how far one label reaches,"
+  # "how far the item copied across the corpus," "how far these numbers
+  # travel"). Added after a documentation-corpus audit (2026-09); the
+  # token measures zero across the Go and Python standard libraries.
+  - how\sfar\s(?:a|an|the|this|that|these|those|each|every|its|their|one|any|some)\s(?:[a-z'-]+\s)?[a-z]+\s(?:reach(?:es|ed)?|travel(?:s|l?ed)?|copied|copies|spread|spreads|propagat(?:es|ed)|carr(?:ies|ied|y)|go(?:es)?|went|extends?|extended)

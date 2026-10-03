@@ -1,0 +1,80 @@
+---
+extends: existence
+message: "AI vague attribution: '%s'. Give the specific source or delete the claim."
+level: error
+ignorecase: true
+tokens:
+  - experts\sargue
+  - experts\ssuggest
+  - experts\sbelieve
+  - experts\ssay
+  - experts\sagree
+  - experts\swarn
+  - experts\snote
+  - experts\spredict
+  - experts\scontend
+  - experts\srecommend
+  - experts\shave\snoted
+  - experts\shave\sargued
+  - experts\shave\ssuggested
+  - experts\shave\swarned
+  - industry\sreports\ssuggest
+  - industry\sreports\sindicate
+  - industry\sreports\sshow
+  - industry\sexperts
+  - industry\sobservers
+  - industry\sanalysts
+  - observers\shave\scited
+  - observers\shave\snoted
+  - observers\snote
+  - critics\sargue
+  - critics\ssuggest
+  - critics\scontend
+  - critics\shave\snoted
+  - critics\shave\sargued
+  - some\scritics\sargue
+  - some\sexperts\sargue
+  - some\sexperts\ssuggest
+  - some\sexperts\sbelieve
+  - some\sanalysts
+  - some\sobservers
+  - some\sresearchers
+  - many\sexperts
+  - many\sanalysts
+  - many\sobservers
+  - many\sresearchers
+  - studies\sshow\sthat
+  - studies\ssuggest\sthat
+  - studies\sindicate\sthat
+  - studies\shave\sshown\sthat
+  - studies\shave\sfound\sthat
+  - research\sshows\sthat
+  - research\ssuggests\sthat
+  - research\sindicates\sthat
+  - research\shas\sshown\sthat
+  - research\shas\sfound\sthat
+  - several\sstudies
+  - several\sexperts
+  - several\sanalysts
+  - several\sobservers
+  - numerous\sstudies
+  - numerous\sexperts
+  - a\sgrowing\sbody\sof\sresearch
+  - a\sgrowing\sbody\sof\sevidence
+  - a\sgrowing\snumber\sof\sexperts
+  - the\sevidence\ssuggests
+  - the\sdata\ssuggests
+  - the\sresearch\ssuggests
+
+  # Candidate not yet implemented: the inverted attribution, where the claim
+  # rests on unnamed people failing to act rather than on unnamed people
+  # asserting something. The pattern is a noun trailed by a dismissive relative
+  # clause, as in a warning nobody reads, a version pin nobody maintains,
+  # results nobody verified, or an adoption nobody noticed. It does the same
+  # argumentative work as the tokens above while resting on nothing anyone
+  # checked, since the writer has not surveyed the readers of that warning.
+  #
+  # The gate has to separate that from the verifiable sense, where the clause
+  # names a real condition: a pull request nobody in the repository authored
+  # is a state a dependency bump produces, and it is checkable. Drafting
+  # tokens without that discriminator would flag both.

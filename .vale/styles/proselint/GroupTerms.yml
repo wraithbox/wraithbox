@@ -1,0 +1,39 @@
+extends: substitution
+message: Consider using '%s' instead of '%s'.
+ignorecase: true
+action:
+  name: replace
+swap:
+  (?:bunch|group|pack|flock)\sof\schickens:    brood of chickens
+  (?:bunch|group|pack|flock)\sof\scrows:       murder of crows
+  (?:bunch|group|pack|flock)\sof\shawks:       cast of hawks
+  (?:bunch|group|pack|flock)\sof\sparrots:     pandemonium of parrots
+  (?:bunch|group|pack|flock)\sof\speacocks:    muster of peacocks
+  (?:bunch|group|pack|flock)\sof\spenguins:    muster of penguins
+  (?:bunch|group|pack|flock)\sof\ssparrows:    host of sparrows
+  (?:bunch|group|pack|flock)\sof\sturkeys:     rafter of turkeys
+  (?:bunch|group|pack|flock)\sof\swoodpeckers: descent of woodpeckers
+  (?:bunch|group|pack|herd)\sof\sapes:         shrewdness of apes
+  (?:bunch|group|pack|herd)\sof\sbaboons:      troop of baboons
+  (?:bunch|group|pack|herd)\sof\sbadgers:      cete of badgers
+  (?:bunch|group|pack|herd)\sof\sbears:        sloth of bears
+  (?:bunch|group|pack|herd)\sof\sbullfinches:  bellowing of bullfinches
+  (?:bunch|group|pack|herd)\sof\sbullocks:     drove of bullocks
+  (?:bunch|group|pack|herd)\sof\scaterpillars: army of caterpillars
+  (?:bunch|group|pack|herd)\sof\scats:         clowder of cats
+  (?:bunch|group|pack|herd)\sof\scolts:        rag of colts
+  (?:bunch|group|pack|herd)\sof\scrocodiles:   bask of crocodiles
+  (?:bunch|group|pack|herd)\sof\sdolphins:     school of dolphins
+  (?:bunch|group|pack|herd)\sof\sfoxes:        skulk of foxes
+  (?:bunch|group|pack|herd)\sof\sgorillas:     band of gorillas
+  (?:bunch|group|pack|herd)\sof\shippopotami:  bloat of hippopotami
+  (?:bunch|group|pack|herd)\sof\shorses:       drove of horses
+  (?:bunch|group|pack|herd)\sof\sjellyfish:    fluther of jellyfish
+  (?:bunch|group|pack|herd)\sof\skangeroos:    mob of kangeroos
+  (?:bunch|group|pack|herd)\sof\smonkeys:      troop of monkeys
+  (?:bunch|group|pack|herd)\sof\soxen:         yoke of oxen
+  (?:bunch|group|pack|herd)\sof\srhinoceros:   crash of rhinoceros
+  (?:bunch|group|pack|herd)\sof\swild\sboar:    sounder of wild boar
+  (?:bunch|group|pack|herd)\sof\swild\spigs:    drift of wild pigs
+  (?:bunch|group|pack|herd)\sof\szebras:       zeal of wild pigs
+  (?:bunch|group|pack|school)\sof\strout:      hover of trout

@@ -1,0 +1,22 @@
+---
+extends: existence
+message: "AI list intro: '%s'. Skip the announcement and present the content directly."
+level: error
+ignorecase: true
+tokens:
+  - Below\syou'll\sfind
+  - Below\syou\swill\sfind
+  - Here's\sa\sbreakdown\sof
+  - Here\sis\sa\sbreakdown\sof
+  - Here's\san\soverview\sof
+  - Here\sis\san\soverview\sof
+  - Here's\sa\ssummary\sof
+  - Here\sis\sa\ssummary\sof
+  - Here's\severything\syou\sneed\sto\sknow
+  - Here\sis\severything\syou\sneed\sto\sknow
+  - Here's\swhat\syou\sneed\sto\sknow\sabout
+  - Here\sis\swhat\syou\sneed\sto\sknow\sabout
+  - The\sfollowing\ssections\swill
+  - The\sfollowing\sguide\swill
+  - The\sfollowing\stutorial\swill
+  - The\sfollowing\swalkthrough\swill

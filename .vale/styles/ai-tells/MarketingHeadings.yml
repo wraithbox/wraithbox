@@ -1,0 +1,19 @@
+---
+extends: existence
+message: "AI marketing heading: '%s'. Strip the puffery and state the topic plainly."
+level: error
+ignorecase: true
+scope: heading
+tokens:
+  - The\sUltimate\sGuide
+  - Everything\sYou\sNeed\sto\sKnow
+  - Mastering
+  - Unlocking
+  - The\sPower\sof
+  - The\sMagic\sof
+  - Why\sChoose
+  - The\sFuture\sof
+  - The\sArt\sof
+  - The\sScience\sof
+  - A\sGame-Changer
+  - Revolutionizing

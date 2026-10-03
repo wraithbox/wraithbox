@@ -1,0 +1,139 @@
+---
+extends: existence
+message: "AI fingerprint: '%s'. Rewrite with concrete specifics instead of this clichéd phrase."
+level: error
+ignorecase: true
+tokens:
+  - rich\stapestry
+  - rich\stapestries
+  - tapestry\sof
+  - intricate\stapestry
+  - complex\sand\smultifaceted
+  - multifaceted\sand\scomplex
+  - intricate\sinterplay
+  - delicate\sbalance
+  - delicate\sinterplay
+  - dynamic\sinterplay
+  - crucial\srole
+  - played\sa\scrucial\srole
+  - plays\sa\scrucial\srole
+  - vital\srole
+  - pivotal\srole
+  - key\srole
+  - instrumental\srole
+  - cutting-edge
+  - game-changer
+  - game-changing
+  - paradigm\sshift
+  - sea\schange
+  - tipping\spoint
+  - watershed\smoment
+  - double-edged\ssword
+  - slippery\sslope
+  - tip\sof\sthe\siceberg
+  - at\sthe\sforefront
+  - on\sthe\scutting\sedge
+  - paving\sthe\sway
+  - laid\sthe\sgroundwork
+  - lays\sthe\sgroundwork
+  - sets\sthe\sstage
+  - set\sthe\sstage
+  - a\stestament\sto
+  - stands\sas\sa\stestament
+  - serve\sas\sa\sreminder
+  - serves\sas\sa\sreminder
+  - it\sremains\sto\sbe\sseen
+  - only\stime\swill\stell
+  - the\sjury\sis\sstill\sout
+  - takes\scenter\sstage
+  - take\scenter\sstage
+  - took\scenter\sstage
+  - paints\sa\spicture\sof
+  - paint\sa\spicture\sof
+  - painted\sa\spicture\sof
+  - is\snot\swithout\sits\schallenges
+  - are\snot\swithout\stheir\schallenges
+  - is\snot\swithout\schallenges
+  - whether\swe\slike\sit\sor\snot
+  - whether\syou\slike\sit\sor\snot
+  - a\scornerstone\sof
+  - the\stransformative\spower\sof
+  - deeply\srooted\sin
+  - deeply\srooted
+  - the\shallmark\sof
+  - a\shallmark\sof
+  - moving\sthe\sneedle
+  - moves\sthe\sneedle
+  - moved\sthe\sneedle
+  - move\sthe\sneedle
+  - nudge\sthe\sneedle
+  - nudges\sthe\sneedle
+  - nudged\sthe\sneedle
+  - unlocks\snew
+  - unlocked\snew
+  - unlocking\snew
+  - unlock\snew
+  - unlocks\sthe\spotential
+  - unlock\sthe\spotential
+  - unlocks\sthe\spower
+  - unlock\sthe\spower
+  - unlocks\sthe\svalue
+  - unlock\sthe\svalue
+  - unlocks\scapabilities
+  - unlock\scapabilities
+  - unlocks\spossibilities
+  - unlock\spossibilities
+
+  # "real" as intensifier before an abstract noun.
+  # AI reaches for "a real choice" / "a real difference" to inflate
+  # weight where a plain noun would do. Bare "real" is too broad
+  # (real-time, real estate, real world), so this is enumerated.
+  - a\sreal\schoice
+  - a\sreal\soption
+  - a\sreal\sdifference
+  - a\sreal\stest
+  - a\sreal\squestion
+  - a\sreal\schance
+  - a\sreal\sproblem
+  - a\sreal\sshot
+  - a\sreal\srisk
+  - a\sreal\scost
+  - a\sreal\sbenefit
+  - real\svalue
+  - real\sprogress
+  - real\sflexibility
+  - real\sbenefits
+  - real\scosts
+  - real\simpact
+  - real\sleverage
+  - real\sownership
+  - real\saccountability
+  - real\sconsequences
+  - real\stradeoffs
+  - real\strade-offs
+  - real\schoices
+  - real\soptions
+  - real\sdifferences
+
+  # Investigation-thread metaphors: AI's preferred way to describe
+  # "open questions" or "loose ends." Tutorial-blog tone.
+  - threads\sto\spull\son
+  - thread\sto\spull\son
+  - threads\sto\spull
+  - thread\sto\spull
+  - loose\sthreads\sto\spull
+  - loose\sthreads\sto\schase
+  - another\sthread\sto\spull
+  - more\sthreads\sto\spull
+
+  # Solidification metaphors: the surface/design/contract "hardens"
+  # before some deadline. AI reaches for this constantly when
+  # describing in-progress work or pre-release windows.
+  # Broad regex catches "before/after X hardens" for any 1-6
+  # word X.
+  - (?:before|after)\s[^.,;:!?]{1,40}\shardens
+  - (?:before|after)\s[^.,;:!?]{1,40}\shardened
+  - (?:before|after)\s[^.,;:!?]{1,40}\ssolidifies
+  - (?:before|after)\s[^.,;:!?]{1,40}\ssolidified
+  - (?:before|after)\s[^.,;:!?]{1,40}\sossifies
+  - (?:before|after)\s[^.,;:!?]{1,40}\sossified

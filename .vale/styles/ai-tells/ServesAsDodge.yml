@@ -1,0 +1,66 @@
+---
+extends: existence
+message: "AI copula dodge: '%s'. Use 'is' or 'are' instead of this inflated construction."
+level: error
+ignorecase: true
+tokens:
+  - serves\sas\sa
+  - serves\sas\san
+  - serves\sas\sthe
+  - served\sas\sa
+  - served\sas\san
+  - served\sas\sthe
+  - serving\sas\sa
+  - serving\sas\san
+  - serving\sas\sthe
+  - stands\sas\sa
+  - stands\sas\san
+  - stands\sas\sthe
+  - stood\sas\sa
+  - stood\sas\san
+  - stood\sas\sthe
+  - standing\sas\sa
+  - standing\sas\san
+  - standing\sas\sthe
+  - marks\sa\spivotal
+  - marks\sa\ssignificant
+  - marks\sa\scrucial
+  - marks\sa\skey
+  - marks\sa\sturning
+  - marks\sa\scritical
+  - marks\sa\smajor
+  - marks\sa\sdefining
+  - marks\sa\snew
+  - represents\sa\ssignificant
+  - represents\sa\spivotal
+  - represents\sa\scrucial
+  - represents\sa\skey
+  - represents\sa\smajor
+  - represents\sa\sfundamental
+  - represents\sa\sparadigm
+  - boasts\sa\svibrant
+  - boasts\sa\srich
+  - boasts\sa\sdiverse
+  - boasts\sa\swide
+  - boasts\sa\sunique
+  - boasts\sa\sthriving
+  - boasts\san\simpressive
+  - features\sa\swide
+  - features\sa\srich
+  - features\sa\sdiverse
+  - features\sa\sunique
+  - features\sa\svibrant
+  - offers\sa\sunique
+  - offers\sa\swide
+  - offers\sa\scomprehensive
+  - offers\sa\sdiverse
+
+  # === Colon-cheat: copula-replacement remediation ===
+  # AI evades weak-verb / passive-voice lints by replacing "is" or
+  # "are" with a colon — same appositive construction, no verb.
+  # "The candidate mechanism is a hook." -->
+  # "The candidate mechanism: a hook on Bash that..."
+  # Triggered by a 4+ word definite-NP subject, indefinite article
+  # after the colon, and 6+ token descriptive content (filters
+  # short pedagogical "X is: Y" answers).
+  - "The\\s[^,.:!?\\s]+(?:\\s[^,.:!?\\s]+){2,}:\\san?\\s[^,.:!?\\s]+(?:\\s[^,.:!?\\s]+){4,}"

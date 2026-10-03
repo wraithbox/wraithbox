@@ -1,0 +1,26 @@
+---
+extends: existence
+message: "AI sycophancy: '%s'. Delete this. It sounds robotic and insincere."
+level: error
+ignorecase: true
+tokens:
+  - Great\squestion
+  - Excellent\squestion
+  - That's\sa\sgreat\squestion
+  - That's\san\sexcellent\squestion
+  - What\sa\sgreat\squestion
+  - Fantastic\squestion
+  - Wonderful\squestion
+  - I'm\sglad\syou\sasked
+  - I'm\shappy\sto\shelp
+  - I'd\sbe\shappy\sto\shelp
+  - I'd\sbe\sglad\sto\shelp
+  - Absolutely
+  - Certainly
+  - Of\scourse
+  - Without\sa\sdoubt
+  - You're\sabsolutely\sright
+  - You\smake\san\sexcellent\spoint
+  - That's\sa\swonderful\sidea
+  - That's\sa\sfantastic\spoint
+  - I\scouldn't\sagree\smore

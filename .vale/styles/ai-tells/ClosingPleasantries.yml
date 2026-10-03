@@ -1,0 +1,120 @@
+---
+extends: existence
+message: "AI closing: '%s'. Delete it and end with your actual content."
+level: error
+ignorecase: true
+tokens:
+  # "I hope this helps" variants
+  - I\shope\sthis\shelps
+  - I\shope\sthis\swas\shelpful
+  - I\shope\sthis\sis\shelpful
+  - I\shope\sthis\sproves\shelpful
+  - I\shope\sthis\swill\sbe\shelpful
+  - Hope\sthis\shelps
+  - Hope\sthis\swas\shelpful
+  - I\shope\sthis\sclears\sthings\sup
+  - I\shope\sthis\scleared\sthings\sup
+  - I\shope\sthis\sanswers\syour\squestion
+  - I\shope\sthat\sanswers\syour\squestion
+  - I\shope\sthis\shelps\sclarify
+  - I\shope\sthis\sgives\syou\sa\sbetter\sunderstanding
+  - I\shope\syou\sfind\sthis\shelpful
+  - I\shope\syou\sfound\sthis\shelpful
+  - I\shope\syou\sfind\sthis\suseful
+  - I\shope\syou\sfound\sthis\suseful
+  - I\shope\sthis\sis\swhat\syou\swere\slooking\sfor
+  - I\shope\sthis\spointed\syou\sin\sthe\sright\sdirection
+  - I\shope\sthis\ssheds\ssome\slight
+  - I\shope\sthis\smakes\sthings\sclearer
+  - Hopefully\sthis\shelps
+  - Hopefully\sthis\sis\shelpful
+
+  # "Feel free to" variants
+  - Feel\sfree\sto\sask
+  - Feel\sfree\sto\sreach\sout
+  - Feel\sfree\sto\slet\sme\sknow
+  - Feel\sfree\sto\scontact
+  - Feel\sfree\sto\sask\squestions
+  - Feel\sfree\sto\sask\sif\syou
+  - Feel\sfree\sto\sask\sif\sthere
+  - Feel\sfree\sto\sdrop
+  - Please\sfeel\sfree\sto\sask
+  - Please\sfeel\sfree\sto\sreach\sout
+
+  # "Don't hesitate" variants
+  - Don't\shesitate\sto\sask
+  - Don't\shesitate\sto\sreach\sout
+  - Don't\shesitate\sto\scontact
+  - Don't\shesitate\sto\sget\sin\stouch
+  - Don't\shesitate\sto\sdrop
+  - Please\sdon't\shesitate\sto\sask
+  - Please\sdon't\shesitate\sto\sreach\sout
+  - Please\sdon't\shesitate\sto\scontact
+
+  # "Let me know if" variants
+  - Let\sme\sknow\sif\syou\shave\sany\squestions
+  - Let\sme\sknow\sif\syou\shave\sfurther\squestions
+  - Let\sme\sknow\sif\syou\shave\sany\sother\squestions
+  - Let\sme\sknow\sif\syou\shave\sadditional\squestions
+  - Let\sme\sknow\sif\syou\sneed\sanything\selse
+  - Let\sme\sknow\sif\syou\sneed\sfurther\sclarification
+  - Let\sme\sknow\sif\syou\sneed\sany\sclarification
+  - Let\sme\sknow\sif\syou'd\slike\smore\sinformation
+  - Let\sme\sknow\sif\syou'd\slike\sme\sto\selaborate
+  - Let\sme\sknow\sif\syou'd\slike\sme\sto\sclarify
+  - Let\sme\sknow\sif\syou'd\slike\sme\sto\sexpand
+  - Let\sme\sknow\sif\sthere's\sanything\selse
+  - Let\sme\sknow\sif\sthere's\sanything\sI\scan\shelp\swith
+  - Let\sme\sknow\sif\sanything\sis\sunclear
+  - Let\sme\sknow\sif\sthat\smakes\ssense
+  - Let\sme\sknow\sif\syou\swant\sme\sto
+
+  # "If you have any questions" standalone variants
+  - If\syou\shave\sany\squestions,\sfeel\sfree
+  - If\syou\shave\sany\sfurther\squestions
+  - If\syou\shave\sany\sadditional\squestions
+  - If\syou\shave\sany\smore\squestions
+  - If\syou\sneed\sany\sclarification
+  - If\syou\sneed\smore\sinformation
+  - If\sanything\sis\sunclear
+  - If\syou'd\slike\smore\sdetails
+  - If\syou'd\slike\sme\sto\selaborate
+  - If\syou\swant\sme\sto\sexpand
+
+  # "Happy to" variants
+  - Happy\sto\shelp
+  - Happy\sto\sanswer
+  - Happy\sto\sclarify
+  - Happy\sto\selaborate
+  - Happy\sto\sexplain
+  - Happy\sto\sassist
+  - Happy\sto\swalk\syou\sthrough
+  - I'm\shappy\sto\shelp
+  - I'd\sbe\shappy\sto\shelp
+  - I'm\shappy\sto\sclarify
+  - I'd\sbe\shappy\sto\sclarify
+  - I'm\shappy\sto\selaborate
+  - I'd\sbe\shappy\sto\selaborate
+  - I'm\shappy\sto\sanswer
+  - I'd\sbe\shappy\sto\sanswer
+  - I'm\shappy\sto\swalk\syou\sthrough
+  - I'd\sbe\shappy\sto\swalk\syou\sthrough
+
+  # "I'm here to help" variants
+  - I'm\shere\sto\shelp
+  - I'm\shere\sif\syou\sneed
+  - I'm\shere\sif\syou\shave
+  - I'm\salways\shere\sto\shelp
+  - We're\shere\sto\shelp
+  - We're\salways\shappy\sto\shelp
+
+  # Encouragement/well-wishing closers
+  - Best\sof\sluck
+  - Good\sluck\swith\syour
+  - Good\sluck\son\syour
+  - You've\sgot\sthis
+  - Happy\scoding
+  - Happy\slearning
+  - Happy\sbuilding
+  - Happy\sexploring
+  - Enjoy\sthe\sjourney

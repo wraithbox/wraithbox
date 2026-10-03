@@ -1,0 +1,22 @@
+---
+extends: existence
+message: "AI wrap-up heading: '%s'. Delete the section or rename the heading to the topic."
+level: error
+ignorecase: true
+scope: heading
+tokens:
+  - Final\sThoughts
+  - Closing\sThoughts
+  - Parting\sThoughts
+  - Wrapping\sUp
+  - Wrap-Up
+  - Wrap\sUp
+  - Putting\sIt\sAll\sTogether
+  - Bringing\sIt\sAll\sTogether
+  - Tying\sIt\sAll\sTogether
+  - The\sBig\sPicture
+  - The\sBottom\sLine
+  - The\sTakeaway
+  - Final\sWord
+  - Last\sWord
+  - Final\sTake

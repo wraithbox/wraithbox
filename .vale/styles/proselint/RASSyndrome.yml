@@ -1,0 +1,30 @@
+extends: existence
+message: "'%s' is redundant."
+level: error
+action:
+  name: edit
+  params:
+   - split
+   - ' '
+   - '0'
+tokens:
+  - ABM\smissile
+  - ACT\stest
+  - ABM\smissiles
+  - ABS\sbraking\ssystem
+  - ATM\smachine
+  - CD\sdisc
+  - CPI\sIndex
+  - GPS\ssystem
+  - GUI\sinterface
+  - HIV\svirus
+  - ISBN\snumber
+  - LCD\sdisplay
+  - PDF\sformat
+  - PIN\snumber
+  - RAS\ssyndrome
+  - RIP\sin\speace
+  - please\sRSVP
+  - SALT\stalks
+  - SAT\stest
+  - UPC\scodes

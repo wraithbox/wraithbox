@@ -1,0 +1,14 @@
+# Logical quotation: a comma or period that is not part of the quoted
+# text goes after the closing quote, so a quoted command never appears to
+# end in punctuation the reader should type ("wb claude", not "wb
+# claude,"). The inverse of Google.Quotes, which is off. A quoted text
+# that starts with a capital is a full sentence and may keep its own
+# period ("Write clean code."), and an ellipsis is not a period.
+# Copied from lsimons/ai-training's House style.
+extends: existence
+message: "Commas and periods go outside quotation marks: %s"
+link: https://en.wikipedia.org/wiki/Quotation_marks_in_English#Order_of_punctuation
+level: warning
+nonword: true
+tokens:
+  - '"[a-z][^"\n]*(?<!\.)[.,]"'

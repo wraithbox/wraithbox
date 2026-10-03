@@ -1,0 +1,21 @@
+---
+extends: existence
+message: "AI overreach: '%s'. Verify this claim or soften it."
+level: error
+ignorecase: true
+tokens:
+  - the\sonly\sway\sto
+  - the\sonly\sreal\ssolution
+  - the\sonly\sway\sforward
+  - the\ssingle\smost\simportant
+  - the\smost\simportant\sthing\sis
+  - above\sall\selse
+  - above\severything\selse
+  - more\sthan\sanything\selse
+  - there\sis\sno\sbetter
+  - there\sis\sno\sother\sway
+  - there\scan\sbe\sno\sdoubt
+  - make\sno\smistake
+  - make\sno\smistake\sabout\sit
+  - there's\sno\sdenying
+  - there\sis\sno\sdenying

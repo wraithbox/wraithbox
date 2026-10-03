@@ -1,0 +1,54 @@
+---
+extends: existence
+message: "AI overused verb: '%s'. State the dependency or the mechanism directly. Disable this rule for transit or equestrian prose."
+level: error
+nonword: true
+ignorecase: true
+# "Rides" is an AI fingerprint for dependence and piggybacking: an outcome
+# "rides on" an assumption, a fix "rides along" in a release, a launch
+# "rides the wave" of a trend. Like FigurativeSits, literal riding is
+# common (people ride buses, bikes, and horses), so the complement after
+# the verb is the discriminator; each token curates a figurative sense and
+# "she rides the bus to work" stays quiet. Transit or equestrian writing
+# disables the whole rule.
+tokens:
+  # --- Dependence: an outcome staked on an abstraction ("everything rides
+  # on this migration," "the plan rides on whether CI stays green"). The
+  # sibling of the "hangs on" arm in AnthropomorphicJustification.
+  - "\\b(?:ride|rides|riding)\\son\\s(?:whether|a\\ssingle|(?:this\\s|that\\s)?one\\s\\w+|(?:the|this|that)\\s(?:assumption|premise|hope|outcome|answer|result|success)|an\\sassumption)\\b"
+  - "\\b(?:everything|it\\sall|a\\slot|much|the\\swhole\\s\\w+)\\s(?:ride|rides|riding)\\son\\b"
+
+  # --- Piggybacking: a change that travels inside another vehicle of work
+  # ("the fix rides along with the release," "the flag rides along in the
+  # config"). Agents adore this one; carpooling prose disables the rule.
+  - "\\b(?:ride|rides|riding)\\salong\\b"
+  - "\\b(?:ride|rides|riding|rode)\\salongside\\b"
+  - "\\b(?:ride|rides|riding|rode)\\sthrough\\b"
+  - "\\b(?:ride|rides|riding)\\sshotgun\\b"
+  - "\\bhitch(?:es|ed|ing)?\\sa\\sride\\b"
+  - "\\balong\\sfor\\sthe\\sride\\b"
+  - "\\bfree\\sride\\b"
+
+  # --- Layering: a component stacked on another ("the cache rides on top
+  # of Redis"). FigurativeSits owns the "sits on top of" twin.
+  - "\\b(?:ride|rides|riding)\\son\\stop\\sof\\b"
+
+  # --- Momentum and opportunism ("riding the wave of adoption," "riding
+  # the coattails of the rewrite," "riding high after the launch").
+  - "\\b(?:ride|rides|riding)\\s(?:the|a|that)\\swave\\b"
+  - "\\b(?:ride|rides|riding)\\s(?:on\\sthe\\s|the\\s)?coattails\\b"
+  - "\\b(?:ride|rides|riding)\\sthe\\smomentum\\b"
+  - "\\b(?:ride|rides|riding)\\shigh\\b"
+
+  # --- Vehicle exploitation: an operation treated as a passenger on the
+  # infrastructure it merely uses ("the query rides the index," "the lookup
+  # rides the cache," "the scan rides the hot path"). The mechanism noun is
+  # the gate and the set stays to software infrastructure that cannot be
+  # literally ridden, so a literal "rides the bus" or "rides the elevator"
+  # never enters the rule.
+  - "\\b(?:ride|rides|riding)\\sthe\\s(?:index|cache|(?:hot|fast|slow|happy|read|write|critical)\\spath|pipeline|queue|wire|backbone|mainline|gradient|event\\sloop|fast\\slane|chain)\\b"
+
+  # --- Supervision and gambling idioms ("riding herd on the linters,"
+  # "let it ride until the next release").
+  - "\\b(?:ride|rides|riding)\\sherd\\son\\b"
+  - "\\blet\\sit\\sride\\b"

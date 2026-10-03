@@ -1,0 +1,59 @@
+---
+extends: existence
+message: "AI narrative pivot: '%s'. State your point directly."
+level: error
+ignorecase: true
+tokens:
+  - something\sshifted
+  - something\schanged
+  - something\sclicked
+  - something\ssnapped
+  - everything\schanged
+  - everything\sshifted
+  - everything\sclicked
+  - and\sthen\severything\schanged
+  - and\sthen\sit\sclicked
+  - and\sthen\sit\shit\sme
+  - that\schanged\severything
+  - that\schanges\severything
+  - this\schanges\severything
+  - this\schanged\severything
+  - and\sthat\smade\sall\sthe\sdifference
+  - and\sthat\smakes\sall\sthe\sdifference
+  - but\sthen\ssomething\sinteresting\shappened
+  - but\sthen\ssomething\sunexpected\shappened
+  - but\sthen\sI\srealized
+  - and\sthat's\swhen\sit\shit\sme
+  - and\sthat's\swhen\sI\srealized
+  - it\swas\sa\sturning\spoint
+  - it\swas\san\sinflection\spoint
+  - it\swas\sa\swatershed\smoment
+  - it\swas\sa\sgame-changer
+  - it\swas\sa\swake-up\scall
+  - a\slight\sbulb\swent\soff
+  - a\slightbulb\swent\soff
+  - the\spenny\sdropped
+  - it\sall\scame\stogether
+  - it\sall\smade\ssense
+  - things\sstarted\sto\sclick
+  - things\sfell\sinto\splace
+  - changed\sthe\sgame
+  - changes\sthe\sgame
+  - changing\sthe\sgame
+  - change\sthe\sgame
+  - changed\sthe\sgame\sforever
+  - changes\sthe\sgame\sforever
+  - changed\severything\sforever
+  - changed\sthe\slandscape
+  - changes\sthe\slandscape
+  - rewrote\sthe\srules
+  - rewrites\sthe\srules
+  - rewriting\sthe\srules
+  - rewrote\sthe\splaybook
+  - rewrites\sthe\splaybook
+  - rewriting\sthe\splaybook
+  - flipped\sthe\sscript
+  - flips\sthe\sscript
+  - flipping\sthe\sscript
+  - moved\sthe\sgoalposts
+  - shifted\sthe\sparadigm

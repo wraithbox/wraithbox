@@ -1,0 +1,22 @@
+---
+extends: existence
+message: "AI structure announcement: '%s'. Present the content instead of narrating that you're about to."
+level: error
+ignorecase: true
+tokens:
+  - key\stakeaway
+  - key\stakeaways
+  - the\stakeaway\sis
+  - the\stakeaway\shere\sis
+  - main\stakeaway
+  - main\stakeaways
+  - quick\srecap
+  - a\squick\srecap
+  - to\srecap
+  - to\srecap\sbriefly
+  - quick\ssummary
+  - a\squick\ssummary
+  - quick\soverview
+  - a\squick\soverview
+  - to\sput\sit\splainly
+  - to\sput\sthis\sin\sperspective

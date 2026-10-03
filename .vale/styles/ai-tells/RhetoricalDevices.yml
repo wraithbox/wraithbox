@@ -1,0 +1,31 @@
+---
+extends: existence
+message: "AI rhetoric: '%s'. Remove it or rephrase as a plain statement."
+level: error
+nonword: true
+tokens:
+  # "When [verb]ing X, ask: [question]" - the imperative test pattern
+  - "\\bWhen\\s\\w+ing\\s[^,]+,\\sask:"
+  - "\\bWhen\\syou\\s\\w+\\s[^,]+,\\sask:"
+  - "\\bBefore\\s\\w+ing\\s[^,]+,\\sask:"
+
+  # "The test:" section-ending pattern
+  - "\\bThe\\stest:"
+  - "\\bThe\\stest\\sis:"
+  - "\\bThe\\slitmus\\stest:"
+  - "\\bHere'?s\\sthe\\stest:"
+  - "\\bA\\sgood\\stest:"
+  - "\\bThe\\sacid\\stest:"
+
+  # "This gives you a concrete test" and similar
+  - "\\b[Tt]his\\sgives\\syou\\sa\\s(?:concrete|simple|good|useful|quick)\\stest\\b"
+
+  # "Ask yourself:" pattern
+  - "\\bAsk\\syourself:"
+  - "\\bAsk\\syourself\\swhether\\b"
+  - "\\bAsk\\syourself\\sif\\b"
+  - "\\bThe\\squestion\\sto\\sask:"
+  - "\\bThe\\squestion\\sto\\sask\\sis:"
+
+  # The "The X:" dramatic-colon labels moved to LabelAndExplain, which owns
+  # the "Label: sentence" construction.

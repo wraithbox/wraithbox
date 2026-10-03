@@ -1,0 +1,41 @@
+---
+extends: existence
+message: "AI false exclusivity: '%s'. State the point directly without claiming insider knowledge."
+level: error
+ignorecase: true
+tokens:
+  - nobody\stalks\sabout
+  - no\sone\stalks\sabout
+  - nobody\smentions
+  - no\sone\smentions
+  - nobody\sis\stalking\sabout
+  - no\sone\sis\stalking\sabout
+  - nobody\sdiscusses
+  - no\sone\sdiscusses
+  - the\spart\snobody\smentions
+  - the\spart\sno\sone\smentions
+  - the\spart\snobody\stalks\sabout
+  - the\spart\sno\sone\stalks\sabout
+  - what\snobody\stells\syou
+  - what\sno\sone\stells\syou
+  - what\snobody\smentions
+  - what\sno\sone\smentions
+  - what\smost\speople\smiss
+  - what\smost\speople\sdon't
+  - what\smost\speople\soverlook
+  - what\smost\speople\sforget
+  - the\sdirty\ssecret
+  - the\sdirty\slittle\ssecret
+  - the\sopen\ssecret
+  - the\suncomfortable\struth
+  - the\sinconvenient\struth
+  - the\selephant\sin\sthe\sroom
+  - the\sunspoken\struth
+  - the\sunspoken\sreality
+  - the\shidden\struth
+  - the\shidden\scost
+  - the\shidden\scosts
+  - the\ssilent\skiller
+  - here's\swhat\smost\speople\smiss
+  - here's\swhat\snobody\stells\syou
+  - here's\swhat\sno\sone\stells\syou

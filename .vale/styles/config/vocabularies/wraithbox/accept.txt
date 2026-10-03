@@ -1,0 +1,1 @@
+# Vale vocabulary. Spelling is cspell's job (cspell-words.txt).

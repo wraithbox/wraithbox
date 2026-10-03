@@ -1,0 +1,63 @@
+---
+extends: existence
+message: "AI defensive hedge: '%s'. State your point directly without pre-defending it."
+level: error
+nonword: true
+tokens:
+  # "This is more of X than Y, but..." pattern
+  - "\\b[Tt]his\\sis\\smore\\sof\\s[^,]+\\sthan\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\b[Ii]t'?s\\smore\\sof\\s[^,]+\\sthan\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "Not the most X, but..." pattern
+  - "\\b[Ii]t'?s\\snot\\sthe\\smost\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\b[Tt]his\\sisn'?t\\sthe\\smost\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "May seem/might seem X, but..." pattern
+  - "\\b[Tt]his\\smay\\sseem\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\b[Tt]his\\smight\\sseem\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\b[Ii]t\\smay\\sseem\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\b[Ii]t\\smight\\sseem\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "Might sound X, but..." pattern
+  - "\\b[Tt]his\\smight\\ssound\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\b[Ii]t\\smight\\ssound\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\b[Tt]hat\\smight\\ssound\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "Admittedly/Granted" openers
+  - "\\bAdmittedly,\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\bGranted,\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "To be fair" pattern
+  - "\\bTo\\sbe\\sfair,\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\bTo\\sbe\\shonest,\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "While this might/may appear" pattern
+  - "\\bWhile\\sthis\\smight\\sappear\\s[^,]+,\\s[^.!?]+"
+  - "\\bWhile\\sthis\\smay\\sappear\\s[^,]+,\\s[^.!?]+"
+  - "\\bWhile\\sit\\smight\\sappear\\s[^,]+,\\s[^.!?]+"
+  - "\\bWhile\\sit\\smay\\sappear\\s[^,]+,\\s[^.!?]+"
+
+  # "Not meant to be X, but..." pattern
+  - "\\b[Tt]his\\sisn'?t\\smeant\\sto\\sbe\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\b[Ii]t'?s\\snot\\smeant\\sto\\sbe\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "On the surface X, but..." pattern
+  - "\\bOn\\sthe\\ssurface,\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\bOn\\sthe\\ssurface\\sthis\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "At first glance" pattern
+  - "\\bAt\\sfirst\\sglance,\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\bAt\\sfirst\\sglance\\sthis\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "I know this seems/sounds" pattern
+  - "\\bI\\sknow\\sthis\\sseems\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\bI\\sknow\\sthis\\ssounds\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\bI\\sknow\\sit\\sseems\\s[^,]+,\\sbut\\s[^.!?]+"
+  - "\\bI\\sknow\\sit\\ssounds\\s[^,]+,\\sbut\\s[^.!?]+"
+
+  # "While X, Y" hedged openers (preemptive concession)
+  - "\\bWhile\\s[^,]+\\scan\\s[^,]+,\\s[^.!?]+"
+  - "\\bWhile\\s[^,]+\\sis\\s[^,]+,\\s[^.!?]+"
+  - "\\bWhile\\s[^,]+\\sare\\s[^,]+,\\s[^.!?]+"
+  - "\\bWhile\\s[^,]+\\smay\\s[^,]+,\\s[^.!?]+"
+  - "\\bAlthough\\s[^,]+,\\s[^.!?]+"

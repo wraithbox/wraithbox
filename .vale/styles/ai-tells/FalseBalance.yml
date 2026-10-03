@@ -1,0 +1,29 @@
+---
+extends: existence
+message: "AI evasion: '%s'. Take a clear position or remove the hedge."
+level: error
+ignorecase: true
+tokens:
+  - both\ssides\sof\sthe\sargument
+  - both\ssides\spresent\svalid\spoints
+  - there\sare\svalid\spoints\son\sboth\ssides
+  - each\sperspective\shas\smerit
+  - each\sside\shas\smerit
+  - it's\simportant\sto\sconsider\sall\sperspectives
+  - important\sto\sconsider\sthe\sperspectives
+  - consider\sall\sstakeholders
+  - perspectives\sof\sall\sstakeholders
+  - a\sbalanced\sapproach
+  - strike\sa\sbalance
+  - find\sa\sbalance
+  - nuanced\sunderstanding
+  - nuanced\sapproach
+  - the\sanswer\sis\snot\sstraightforward
+  - not\sa\ssimple\sanswer
+  - there\sis\sno\ssimple\sanswer
+  - the\sissue\sis\scomplex
+  - this\sis\sa\scomplex\sissue
+  - depends\son\svarious\sfactors
+  - depends\son\smany\sfactors
+  - varies\sdepending\son
+  - case-by-case\sbasis

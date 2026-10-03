@@ -1,0 +1,76 @@
+# Project words for cspell (`mise run prose:spell`). The dictionary is
+# American English; this list is names and jargon only, never a spelling
+# variant. One word per line, case-insensitive. Keep it grouped and short:
+# a word that only appears inside a Markdown code span does not need
+# listing, cspell skips those.
+
+# Wraith Box: the project, its processes and its people
+wraithbox
+hostd
+netd
+proxyd
+guestd
+vmd
+lsimons
+myrepo
+
+# Virtualization, networking and OS facilities
+userspace
+vsock
+hvsock
+virtio
+APFS
+VHDX
+qcow
+reflinks
+DPAPI
+Landlock
+seccomp
+binfmt
+hostnames
+sandboxed
+winget
+
+# Tools and their names in configs
+golangci
+gofumpt
+govulncheck
+vulncheck
+swiftlint
+swiftpm
+shellcheck
+zizmor
+zizmorcore
+fnox
+bunx
+astrojs
+gomod
+xcodeproj
+xcuserdata
+bodyclose
+errorlint
+gocritic
+gosec
+nolintlint
+unconvert
+unparam
+
+# Docs site (Astro Starlight)
+frontmatter
+seti
+Merriweather
+Webfonts
+
+# Engineering jargon the dictionaries lack
+stdlib
+subpackages
+lockfiles
+worktrees
+unscanned
+esac
+ehthumbs
+
+# Vale rule names quoted in .vale.ini
+Cataphoric
+Metacommentary
+Tricolon

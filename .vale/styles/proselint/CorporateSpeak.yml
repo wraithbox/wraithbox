@@ -1,0 +1,30 @@
+extends: existence
+message: "'%s' is corporate speak."
+ignorecase: true
+level: error
+tokens:
+  - at\sthe\send\sof\sthe\sday
+  - back\sto\sthe\sdrawing\sboard
+  - hit\sthe\sground\srunning
+  - get\sthe\sball\srolling
+  - low-hanging\sfruit
+  - thrown\sunder\sthe\sbus
+  - think\soutside\sthe\sbox
+  - let's\stouch\sbase
+  - get\smy\smanager's\sblessing
+  - it's\son\smy\sradar
+  - ping\sme
+  - i\sdon't\shave\sthe\sbandwidth
+  - no\sbrainer
+  - par\sfor\sthe\scourse
+  - bang\sfor\syour\sbuck
+  - synergy
+  - move\sthe\sgoal\spost
+  - apples\sto\sapples
+  - win-win
+  - circle\sback\saround
+  - all\shands\son\sdeck
+  - take\sthis\soffline
+  - drill-down
+  - elephant\sin\sthe\sroom
+  - on\smy\splate
