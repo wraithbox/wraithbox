@@ -1,17 +1,16 @@
 ---
 title: Wraith Box
-description: Run Claude Code inside an isolated macOS VM - drop-in, fast, default-deny.
+description: Run Claude Code inside an isolated VM - one command, fast, default-deny.
 template: splash
 hero:
-  tagline: Run Claude Code inside an isolated macOS virtual machine. Type wb instead of claude; the agent gets native macOS tools, your Mac keeps its files, secrets and network to itself.
+  tagline: Run Claude Code inside an isolated virtual machine. Type wb claude instead of claude; the agent gets native tools, your machine keeps its files, secrets and network to itself.
   actions:
     - text: Design overview
-      # hero action links are used verbatim, so this one includes the deploy base
-      link: /wraithbox/design/
+      link: /design/
       icon: right-arrow
       variant: primary
     - text: View on GitHub
-      link: https://github.com/lsimons/wraithbox
+      link: https://github.com/wraithbox/wraithbox
       icon: external
       variant: minimal
 ---
@@ -23,13 +22,15 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 ## What it does
 
 <CardGrid>
-	<Card title="Drop-in" icon="seti:shell">
-		`wb` takes exactly the arguments `claude` takes. The first run in a git
-		repository sets the project up; later runs start in seconds from a warm VM.
+	<Card title="One command" icon="seti:shell">
+		`wb claude` takes exactly the arguments `claude` takes. The first run in a
+		git repository sets the project up; later runs start in seconds from a warm
+		VM.
 	</Card>
 	<Card title="Separate kernel, no host files" icon="seti:lock">
-		Claude Code and its tools run in a macOS guest VM. Nothing from your Mac is
-		mounted in; work comes back as a git branch you review and land.
+		Claude Code and its tools run in a guest VM - macOS on Macs first, Linux and
+		Windows guests and hosts later. Nothing from your machine is mounted in;
+		work comes back as a git branch you review and land.
 	</Card>
 	<Card title="No secrets in the guest" icon="approve-check">
 		Not even the model credential. A host-side proxy strips what the guest sends
@@ -41,5 +42,5 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	</Card>
 </CardGrid>
 
-Read the [design overview](/wraithbox/design/) or the specifications in
+Read the [design overview](/design/) or the specifications in
 the repository's `docs/spec/` directory.

@@ -1,7 +1,8 @@
 // swift-tools-version: 6.2
-// The host daemon (wb-hostd) and its library. Everything that needs Apple
-// frameworks (Virtualization, XPC, Keychain UI, notifications) lives here;
-// network and protocol work lives in the Go module. See docs/spec/010-tech-stack.md.
+// macOS-native components. wb-vmd runs VMs with the Virtualization framework
+// for the cross-platform Go daemon wb-hostd; it holds no policy and no
+// secrets. Only code that needs Apple frameworks belongs here.
+// See docs/spec/010-tech-stack.md and docs/spec/012-platforms.md.
 import PackageDescription
 
 let package = Package(
@@ -10,18 +11,18 @@ let package = Package(
         .macOS(.v15)
     ],
     products: [
-        .library(name: "WraithBoxHost", targets: ["WraithBoxHost"]),
-        .executable(name: "wb-hostd", targets: ["wb-hostd"]),
+        .library(name: "WraithBoxVM", targets: ["WraithBoxVM"]),
+        .executable(name: "wb-vmd", targets: ["wb-vmd"]),
     ],
     targets: [
-        .target(name: "WraithBoxHost"),
+        .target(name: "WraithBoxVM"),
         .executableTarget(
-            name: "wb-hostd",
-            dependencies: ["WraithBoxHost"]
+            name: "wb-vmd",
+            dependencies: ["WraithBoxVM"]
         ),
         .testTarget(
-            name: "WraithBoxHostTests",
-            dependencies: ["WraithBoxHost"]
+            name: "WraithBoxVMTests",
+            dependencies: ["WraithBoxVM"]
         ),
     ]
 )

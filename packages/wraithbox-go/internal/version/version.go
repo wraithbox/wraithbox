@@ -4,7 +4,7 @@ package version
 
 // Version is overridden at link time for release builds:
 //
-//	go build -ldflags "-X github.com/lsimons/wraithbox/packages/wraithbox-go/internal/version.Version=1.2.3"
+//	go build -ldflags "-X github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version.Version=1.2.3"
 var Version = "0.0.0-dev"
 
 // String formats the version line every binary prints for --version.

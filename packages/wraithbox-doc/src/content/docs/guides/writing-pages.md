@@ -20,7 +20,7 @@ description: A short summary used for SEO and social cards.
 Your content here.
 ```
 
-That page is served at `/guides/my-page/` (under the deploy base path).
+That page is served at `/guides/my-page/`.
 
 ## Wire it into the sidebar
 
@@ -40,19 +40,15 @@ a group's `items`:
 ## Links and images
 
 Write internal links and image sources **root-relative**
-(`/guides/my-page/`, `/diagram.png`) rather than with the deploy base path.
-A small rehype plugin in `astro.config.mjs` prepends the base path
-(`/wraithbox`) at render time, so the same Markdown works in local
-dev and on GitHub Pages.
+(`/guides/my-page/`, `/diagram.png`). The site is served from the root of
+its own domain (`https://wraithbox.nl`), so the same Markdown works in
+local dev and in production.
 
 ```markdown
 See the [getting started guide](/guides/getting-started/).
 
 ![A diagram](/diagram.png)
 ```
-
-The one exception is the landing page's hero action links and any raw HTML
-`<a>` tags, which are used verbatim and must include the base path.
 
 ## The landing page
 

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lsimons/wraithbox/packages/wraithbox-go/internal/version"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
 func main() {

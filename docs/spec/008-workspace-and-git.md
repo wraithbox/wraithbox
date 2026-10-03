@@ -32,15 +32,15 @@ back out, without sharing the host filesystem.
   `refs/heads/wb/<session-id>/*`.
 - **Session end.** If the worktree has uncommitted changes, `wb-guestd`
   commits them to the session branch as a clearly marked WIP commit, then
-  pushes. `wbctl` can also push mid-session.
-- **Landing on the host.** `wbctl land <session>` runs the user's own
+  pushes. `wb` can also push mid-session.
+- **Landing on the host.** `wb land <session>` runs the user's own
   `git fetch` from the landing repository into `wb/<session-id>` in the
   user's repository. It never checks out, merges or runs anything. A
   fetch only writes objects and refs.
 
 ## Flagging risky changes (S3)
 
-`wbctl diff` and the end-of-session summary flag changed paths that the
+`wb diff` and the end-of-session summary flag changed paths that the
 host or CI may execute or that change how git behaves:
 
 - hook managers and hook directories;
@@ -61,7 +61,16 @@ those cannot arrive this way.
 ## Other transfers
 
 Files copied out of the guest by any means other than git (for example a
-future `wbctl cp`) carry the macOS quarantine attribute.
+future `wb cp`) carry the platform's downloaded-file marker (the
+quarantine attribute on macOS, Mark of the Web on Windows; spec 012).
+
+## WSL
+
+When `wb` runs inside WSL (spec 012), the repository lives in the WSL
+distribution. The WSL-side `wb` runs `upload-pack` there, with the same
+restrictions, and tunnels it; `wb land` fetches from the landing
+repository on the Windows side through the same channel. Everything
+else in this spec is unchanged.
 
 ## Open points
 

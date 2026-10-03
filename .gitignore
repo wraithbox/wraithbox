@@ -14,10 +14,6 @@ xcuserdata/
 # Docs site (Astro Starlight)
 .astro/
 out.png
-# Quarto render intermediates (committed html/pdf live in public/presentations/)
-.quarto/
-packages/*/public/presentations/*_files/
-
 # Shared coverage / build artifacts
 coverage/
 build/

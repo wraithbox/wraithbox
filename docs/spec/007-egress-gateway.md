@@ -8,15 +8,19 @@ the host.
 
 ## Packet path (`wb-netd`)
 
-- **Attachment.** `wb-hostd` creates a datagram socketpair per VM, gives
-  one end to the VM's network device (file-handle attachment) and passes
-  the other to that VM's `wb-netd` over a Unix socket (`SCM_RIGHTS`).
-  Every Ethernet frame the guest sends arrives here; the guest has no
-  other network path.
+- **Packet transport.** Each VM's virtual NIC is connected to its
+  `wb-netd` by a platform-specific packet transport (spec 012) that
+  needs no host privileges and no host network device. On macOS,
+  `wb-vmd` creates a datagram socketpair per VM, gives one end to the
+  VM's network device (file-handle attachment) and passes the other to
+  that VM's `wb-netd` through `wb-hostd` (`SCM_RIGHTS`). Every Ethernet
+  frame the guest sends arrives in `wb-netd`; the guest has no other
+  network path. The rest of this spec is the same on every platform.
 - **Stack.** gVisor's userspace TCP/IP stack (`pkg/tcpip`), consumed as a
   Go module from gVisor's `go` branch. Its file-descriptor link endpoint
   is Linux-only, so Wraith Box provides a small link endpoint that moves
-  frames between the datagram socket and the stack.
+  frames between the packet transport and the stack, with one transport
+  adapter per platform.
 - **Addressing.** `wb-netd` runs a DHCP server handing the guest a single
   private IPv4 address, with the gateway as router and DNS server. Only
   the guest's own MAC and leased address are accepted. IPv6 is not
@@ -61,7 +65,8 @@ the host.
 - **Credential replacement** (S4). On inspected hosts, credentials sent
   by the guest (`Authorization`, `Proxy-Authorization`, API-key headers,
   cookies configured per binding) are always removed. If the host has a
-  credential binding, the real credential is injected from the Keychain.
+  credential binding, the real credential is injected from the
+  platform's secret store (spec 009).
   A token supplied by an attacker is therefore never forwarded, and the
   guest only ever holds placeholders.
 - **HTTP policy** (S6). Rules match method and path per host. Built-in
@@ -86,13 +91,13 @@ the host.
 ## Approvals and learning
 
 - An unknown destination produces an approval event in `wb-hostd`, shown
-  as a system notification and listed by `wbctl status`: *allow for this
+  as a native notification and listed by `wb status`: *allow for this
   session*, *allow for this project*, or *deny*. Policy changes take
   effect without restarting anything.
 - **Learn mode** (trusted projects only, F10): DNS resolves any name and
   connections are inspected and allowed, while credentials stay host-side
   as usual. The session's destinations become a suggested allowlist for
-  `wbctl learn report`.
+  `wb learn report`.
 
 ## Performance
 

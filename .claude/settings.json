@@ -44,7 +44,9 @@
       "Bash(mise run doc:check *)",
       "Bash(mise run doc:build *)",
       "Bash(mise run gha:lint *)",
-      "Bash(mise run ci-watch *)"
+      "Bash(mise run ci-watch *)",
+      "Bash(mise run go:cross)",
+      "Bash(mise run go:cross *)"
     ]
   }
 }

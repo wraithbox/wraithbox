@@ -1,13 +1,13 @@
 import Testing
 
-@testable import WraithBoxHost
+@testable import WraithBoxVM
 
 @Suite("Version")
 struct VersionTests {
     @Test(
         "version line names the binary",
         arguments: [
-            ("wb-hostd", "wb-hostd (Wraith Box) 0.0.0-dev"),
+            ("wb-vmd", "wb-vmd (Wraith Box) 0.0.0-dev"),
             ("other", "other (Wraith Box) 0.0.0-dev"),
         ])
     func line(binary: String, expected: String) {

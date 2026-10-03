@@ -3,33 +3,45 @@
 **Purpose:** Fix languages, libraries, packaging and repository layout,
 with the reason for each choice.
 
-**Requirements:** N4, N7, N8, S12.
+**Requirements:** N4, N7, N8, S12, F17.
 
-## Languages: Go and Swift, nothing else
+## Languages: Go first, native where needed
+
+Most of Wraith Box is Go and the same on every host OS. A platform-native
+language is used only where Go cannot reasonably reach a platform API,
+in a separate process with a gRPC contract (spec 012).
 
 | Component | Language | Reason |
 |---|---|---|
-| `wb`, `wbctl` | Go | Static binaries with millisecond start-up; mature PTY and terminal handling |
-| `wb-hostd` | Swift 6 | First-class access to the Virtualization framework (macOS guests, save/restore, file-handle network attachment), launch-agent registration, notifications, Keychain |
+| `wb` | Go | One static binary per OS with millisecond start-up; mature PTY and terminal handling; the same CLI everywhere |
+| `wb-hostd` | Go | Sessions, policy, approvals, audit and the git gateway are platform-independent logic |
 | `wb-netd`, `wb-proxyd` | Go | gVisor's network stack is Go; strong standard TLS/HTTP/HTTP2 libraries; built-in fuzzing for the parsers that face the guest |
-| `wb-guestd`, `git-remote-wb` | Go | Static binary in the guest; PTY, vsock and user management |
+| `wb-guestd`, `git-remote-wb` | Go | One code base for macOS, Linux and Windows guests; PTY, vsock and user management |
+| `wb-vmd` on Windows and Linux | Go | HCS and Hyper-V sockets have Go bindings; Linux VMMs are driven over sockets and processes |
+| `wb-vmd` on macOS, macOS notification helper | Swift 6 | First-class access to the Virtualization framework (macOS guests, save/restore, file-handle network attachment) and to notifications |
+| Windows notification and tray helper (later) | C# (.NET) | Native Windows notifications with actions |
 
-A third language is not added without a spec change.
+No other language is added without a spec change.
 
 ## Libraries
 
 Permissive licenses only (Apache-2.0, MIT, BSD, ISC). No copyleft and no
-source-available licenses.
+source-available licenses. This includes programs Wraith Box ships or
+downloads and runs, such as a VMM on Linux.
 
 | Need | Choice |
 |---|---|
 | Userspace TCP/IP | gVisor `pkg/tcpip`, from gVisor's `go` branch (Apache-2.0) |
-| RPC | protobuf + gRPC (`grpc-go`, `grpc-swift`, `swift-protobuf`); code generated with `buf` |
+| RPC | protobuf + gRPC (`grpc-go`, `grpc-swift`, `swift-protobuf`; `Grpc.Net` when .NET arrives); code generated with `buf` |
 | DNS server | a mature Go DNS library (for example `miekg/dns`) |
 | TLS/HTTP proxying | Go standard library (`crypto/tls`, `net/http`, `httputil`), `golang.org/x/net/http2` |
-| PTY | `creack/pty`, `golang.org/x/term` |
-| Keychain / Secure Enclave from Go | a thin cgo shim over Security.framework, owned by this repo |
-| State | SQLite (system library on macOS) |
+| PTY | `creack/pty` (Unix), ConPTY through `golang.org/x/sys/windows`; `golang.org/x/term` |
+| Windows host APIs | `golang.org/x/sys/windows`; Microsoft's Go libraries for HCS and named pipes / Hyper-V sockets (MIT) |
+| Linux host APIs | `golang.org/x/sys/unix` (KVM device checks, Landlock, seccomp, vsock); a pure-Go D-Bus client (Secret Service, notifications) |
+| Linux VMM | decided by spike X10; must be permissively licensed |
+| TPM | a Go TPM 2.0 library (Linux); CNG through `golang.org/x/sys/windows` (Windows) |
+| Keychain / Secure Enclave from Go | a thin cgo shim over Security.framework, owned by this repo, linked into `wb-proxyd` on macOS only |
+| State | SQLite, through a cgo-free Go driver so every OS builds the same way |
 | Vulnerability data | OSV API |
 | Image distribution (later) | `go-containerregistry` |
 
@@ -37,38 +49,49 @@ source-available licenses.
 
 ```
 packages/
-  wraithbox-go/      Go module: cmd/{wb,wbctl,wb-netd,wb-proxyd,wb-guestd}, internal/…
-  wraithbox-swift/   SwiftPM package: WraithBoxHost library, wb-hostd executable
+  wraithbox-go/      Go module: cmd/{wb,wb-hostd,wb-netd,wb-proxyd,wb-guestd,wb-vmd}, internal/…
+                     internal/platform: host/guest matrix and per-OS interfaces (spec 012)
+  wraithbox-swift/   SwiftPM package: WraithBoxVM library, wb-vmd executable (macOS)
+  wraithbox-dotnet/  .NET solution for Windows-native helpers (when the first one is built)
   wraithbox-doc/     documentation site
-proto/               .proto contracts shared by Go and Swift (added with the first RPC)
+proto/               .proto contracts shared by every language (added with the first RPC)
 docs/spec/           specifications (this directory)
 ```
 
+`cmd/wb-vmd` in the Go module builds for Windows and Linux; on macOS the
+binary of that name comes from the Swift package.
+
 ## Packaging and signing
 
-- An app bundle, `Wraith Box.app`, contains `wb-hostd`, `wb-netd`,
-  `wb-proxyd`, the guest tools disk image, and the CLIs; `wb` and `wbctl`
-  are symlinked onto `PATH` by the installer. A bundle is needed for
-  notifications, Keychain access groups and launch-agent registration.
-- Hardened runtime. Only `wb-hostd` carries the virtualization
-  entitlement. Each host daemon applies its own sandbox profile at start
-  (spec 004).
-- Developer ID signing and notarization come later. Until then builds
-  are ad-hoc signed and the Keychain access model uses the weaker
-  fallback described in spec 009.
-- Distribution via a Homebrew cask once signed builds exist.
+- **macOS:** an app bundle, `Wraith Box.app`, contains `wb-hostd`,
+  `wb-vmd`, `wb-netd`, `wb-proxyd`, the notification helper, the guest
+  tools disk image and `wb`, which the installer links onto `PATH`. A
+  bundle is needed for notifications, Keychain access groups and
+  launch-agent registration. Hardened runtime; only `wb-vmd` carries the
+  virtualization entitlement. Developer ID signing and notarization come
+  later; until then builds are ad-hoc signed and the Keychain access
+  model uses the weaker fallback in spec 009. Distribution via a
+  Homebrew cask once signed builds exist.
+- **Windows (later):** a per-user installer (no administrator rights)
+  with the same set of binaries as `.exe`; code signing when available.
+- **Linux (later):** a tarball and Ubuntu package with the same binaries
+  and a systemd user unit.
+- **WSL:** the Linux `wb` binary; it requires the Windows installation
+  (spec 012).
+- Each host daemon applies its own confinement at start (spec 004).
 
 ## Platforms
 
-- Host: Apple Silicon, macOS 15 or later (N4).
-- Guest: macOS 15 or later; the image's macOS version is independent of
-  the host's, within what the Virtualization framework supports.
+See spec 012 for the host/guest matrix. v1: Apple Silicon, macOS 15 or
+later, with macOS guests; the guest image's macOS version is independent
+of the host's, within what the Virtualization framework supports.
 
 ## Quality gates
 
-`gofmt`/`gofumpt`, `golangci-lint`, `go vet`, `govulncheck`;
-`swift-format` (strict) and SwiftLint complexity limits; Swift Testing
-and `go test -race`; fuzz targets for every guest-facing parser
-(spec 011). See spec 002 for the toolchain itself.
+`gofumpt`, `goimports`, `golangci-lint`, `go vet`, `govulncheck` (for each
+host OS); `swift-format` (strict) and SwiftLint complexity limits; Swift
+Testing and `go test -race`; fuzz targets for every guest-facing parser
+(spec 011). Go runs natively in CI on macOS, Linux and Windows. See spec
+002 for the toolchain itself.
 
 **Status:** Draft

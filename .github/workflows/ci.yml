@@ -18,20 +18,28 @@ concurrency:
 
 jobs:
   go:
-    name: Go
-    # Every binary targets macOS, so build, test and vet see darwin build
-    # constraints. See docs/spec/002-toolchain.md.
-    runs-on: macos-26
+    name: Go (${{ matrix.os }})
+    # Most Wraith Box code is cross-platform Go (spec 012), so it is
+    # linted, vetted, tested and built natively on every host OS from the
+    # start. See docs/spec/002-toolchain.md.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # Only the Go tools: the full list includes tools (SwiftLint) that
+      # have no Windows or Linux build.
       - name: Set up mise
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           install: true
+          install_args: go golangci-lint gofumpt
           cache: true
 
       - name: Lint + format check
@@ -108,8 +116,9 @@ jobs:
 
   vuln:
     name: Dependency vulnerability scan
-    # macOS so govulncheck analyses the darwin build of every binary.
-    runs-on: macos-26
+    # go:vulncheck analyses the darwin, linux and windows builds itself
+    # (GOOS), so one Linux runner covers every host OS.
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -122,6 +131,7 @@ jobs:
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           install: true
+          install_args: go osv-scanner go:golang.org/x/vuln/cmd/govulncheck
           cache: true
 
       # Its own job rather than steps in the per-language jobs: this one

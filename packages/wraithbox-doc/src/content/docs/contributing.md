@@ -1,11 +1,11 @@
 ---
 title: Contributing
-description: How the site and slide decks are built and how to contribute.
+description: How the site is built and how to contribute.
 ---
 
 This site is built with [Astro Starlight](https://starlight.astro.build/) and
-published to GitHub Pages. Contributions are welcome - see
-[CONTRIBUTING.md](https://github.com/lsimons/wraithbox/blob/main/CONTRIBUTING.md)
+published to GitHub Pages at [wraithbox.nl](https://wraithbox.nl). Contributions are welcome - see
+[CONTRIBUTING.md](https://github.com/wraithbox/wraithbox/blob/main/CONTRIBUTING.md)
 in the repository root.
 
 ## The site
@@ -18,15 +18,6 @@ Tools are pinned in `.mise.toml`; run `mise install` once. Then:
 - `mise run doc:check` - run the Astro type/content check.
 
 Content lives in `packages/wraithbox-doc/src/content/docs/`; static assets in `packages/wraithbox-doc/public/`.
-
-## Slide decks
-
-The [example presentation](/presentations/example.qmd) is built with
-[Quarto](https://quarto.org/). Render it with `mise run doc:slides` (or
-`quarto render packages/wraithbox-doc/public/presentations/example.qmd`).
-
-The presentations change so rarely that their rendered HTML and PDF outputs are
-committed to git.
 
 ## Conventions
 

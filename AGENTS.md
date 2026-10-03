@@ -2,10 +2,13 @@
 
 > This file (`AGENTS.md`) is the canonical agent configuration. `CLAUDE.md` is a symlink to this file.
 
-Wraith Box runs Claude Code inside an isolated macOS VM as a drop-in
-replacement for `claude` (`wb`). All security controls are enforced on
-the host: no host mounts, no secrets in the guest, default-deny egress
-through a host-side userspace network stack and proxy.
+Wraith Box runs Claude Code inside an isolated VM: `wb claude [args]`.
+`wb` is the single, `gh`-style entry point for every command. All
+security controls are enforced on the host: no host mounts, no secrets
+in the guest, default-deny egress through a host-side userspace network
+stack and proxy. First target is macOS guests on macOS hosts; Windows
+and Linux hosts and Linux and Windows guests follow (spec 012), so
+platform-specific code stays behind the interfaces defined there.
 
 ## Source of truth: the specs
 
@@ -22,8 +25,9 @@ The design lives in `docs/spec/`. Read `003-requirements.md` and
 - A control from spec 003 (`S*`) is never weakened to make something work.
   If a requirement turns out to be unachievable, write that up as a spec
   change and stop.
-- Open questions are tracked as spikes in spec 011. A spike is throwaway
-  code with a written result; do not build on an unanswered spike.
+- Open questions are tracked as spikes (`X*`) in spec 011. A spike is
+  throwaway code with a written result; do not build on an unanswered
+  spike.
 
 ## Quick Reference
 
@@ -34,7 +38,8 @@ Fresh clone: `mise trust && mise install`, then `mise run install`.
 | `mise run install` | Install docs site deps; may update `bun.lock` |
 | `mise run install-frozen` | Install, failing on a stale lock; what CI runs |
 | `mise run lint` / `format` / `typecheck` / `test` / `build` | All languages |
-| `mise run ci` | Full gate: lint + typecheck + test + build (offline) |
+| `mise run ci` | Full gate: lint + typecheck + test + build + Go cross-OS check (offline) |
+| `mise run go:cross` | go vet + golangci-lint + go build for darwin, linux and windows |
 | `mise run gha:lint` | actionlint + shellcheck over workflows |
 | `mise run audit` | zizmor over `.github/`; needs a GitHub token |
 | `mise run vuln` | osv-scanner + govulncheck; network, no token |
@@ -46,36 +51,43 @@ Native commands work standalone:
 
 | Language | Lint | Test |
 |---|---|---|
-| Go (in `packages/wraithbox-go`) | `golangci-lint run ./...` | `go test -race -cover ./...` |
+| Go (in `packages/wraithbox-go`) | `golangci-lint run ./...` (add `GOOS=windows` etc. for other OSes) | `go test -race -cover ./...` |
 | Swift | `swift format lint --strict --recursive packages/wraithbox-swift/Sources` + `swiftlint lint --strict` | `swift test --package-path packages/wraithbox-swift` |
 
 ## Structure
 
 ```
 packages/
-├── wraithbox-go/      # Go module: cmd/{wb,wbctl,wb-netd,wb-proxyd,wb-guestd}, internal/
-├── wraithbox-swift/   # SwiftPM package: WraithBoxHost library, wb-hostd executable
+├── wraithbox-go/      # Go module: cmd/{wb,wb-hostd,wb-netd,wb-proxyd,wb-guestd}, internal/
+├── wraithbox-swift/   # SwiftPM package (macOS only): WraithBoxVM library, wb-vmd executable
 └── wraithbox-doc/     # Docs site (Astro Starlight; bun; standalone)
 docs/spec/             # Specifications (authoritative design)
 ```
 
-Which process owns what is defined in spec 004. In short: anything that
-needs Apple frameworks (Virtualization, Keychain UI, notifications,
-launch agents) is Swift in `wb-hostd`; network, protocol, CLI and guest
-code is Go. Do not add a third language without a spec change.
+Which process owns what is defined in spec 004; platforms in spec 012.
+In short: almost everything is cross-platform Go, including `wb-hostd`.
+Platform-native code is a separate process behind a gRPC contract, used
+only where Go cannot reasonably reach the platform API: Swift `wb-vmd`
+(Virtualization framework) and notification helpers on macOS; C#/.NET
+on Windows if ever needed (reserved `packages/*-dotnet`). Do not add
+another language without a spec change.
 
 ## Guidelines
 
 **Go:** `gofumpt`-formatted, `goimports`-clean; `go vet` and
-`golangci-lint run` at zero issues; table-driven stdlib tests. Every
-parser that handles guest-controlled bytes gets a fuzz target.
+`golangci-lint run` at zero issues on every GOOS (`mise run go:cross`);
+table-driven stdlib tests. Every parser that handles guest-controlled
+bytes gets a fuzz target. Platform-specific code lives in
+`internal/platform` (and its subpackages) in `_darwin.go`, `_linux.go`
+and `_windows.go` files; shared code never branches on `runtime.GOOS`.
+Go tasks must run under Windows `cmd.exe` (spec 002).
 
 **Swift:** Swift 6 language mode; `swift format lint --strict` clean;
 SwiftLint complexity/size gate (`.swiftlint.yml`) — refactor to pass, do
 not raise thresholds. Tests use Swift Testing (`import Testing`).
 
-**Security-sensitive code** (`wb-netd`, `wb-proxyd`, the vsock handlers
-in `wb-hostd`, git transport): treat every input from the guest as
+**Security-sensitive code** (`wb-netd`, `wb-proxyd`, the host-guest
+socket handlers in `wb-hostd`, git transport): treat every input from the guest as
 adversarial, including from `wb-guestd`. Fail closed. Log the decision
 and the rule that made it.
 

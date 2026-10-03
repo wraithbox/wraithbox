@@ -35,7 +35,9 @@ Packages under `packages/` are suffixed by language so each toolchain can
 discover what it owns:
 
 - `packages/<name>-go/` — Go (module listed in `go.work`)
-- `packages/<name>-swift/` — Swift (standalone SwiftPM package)
+- `packages/<name>-swift/` — Swift (standalone SwiftPM package; macOS only)
+- `packages/<name>-dotnet/` — C# on .NET (Windows only; reserved, not yet
+  present; spec 012)
 - `packages/<name>-doc/` — Docs site (Astro Starlight; bun; standalone)
 
 When a single feature spans languages, pick one `<name>` and let the suffix

@@ -8,10 +8,11 @@ getting set up to work on it.
 
 ## Prerequisites
 
-- An Apple Silicon Mac with Xcode installed. Swift, `swift-format` and
-  `xcodebuild` come from Xcode.
+- For the full gate: an Apple Silicon Mac with Xcode installed. Swift,
+  `swift-format` and `xcodebuild` come from Xcode. The Go code also
+  builds and tests on Linux and Windows (`mise run go:test` etc.).
 - [mise](https://mise.jdx.dev/), which installs every other pinned tool:
-  Go, linters, bun (docs site), Quarto (slide decks).
+  Go, linters, bun (docs site).
 
 ```bash
 mise trust
@@ -32,13 +33,14 @@ Tasks are namespaced by language: `go:test`, `swift:lint`, `doc:build`.
 ## The docs site
 
 ```bash
-mise run doc:dev     # dev server at http://localhost:4321/wraithbox/
+mise run doc:dev     # dev server at http://localhost:4321/
 mise run doc:build   # static build into packages/wraithbox-doc/dist
 mise run doc:check   # Astro type/content check
 ```
 
 Content lives in `packages/wraithbox-doc/src/content/docs/`. Pushing to
-`main` deploys the site to GitHub Pages via `.github/workflows/deploy.yml`.
+`main` deploys the site to GitHub Pages via `.github/workflows/deploy.yml`;
+it is served at [wraithbox.nl](https://wraithbox.nl).
 
 ## Next steps
 

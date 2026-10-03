@@ -10,9 +10,10 @@ Since this is a small hobby project, your contribution may not be noticed for a 
 
 ## Getting set up
 
-You need an Apple Silicon Mac with Xcode installed (Swift comes from
-Xcode). [`mise`](https://mise.jdx.dev/) installs every other pinned
-toolchain and runs every repo task.
+The full gate needs an Apple Silicon Mac with Xcode installed (Swift
+comes from Xcode). The Go code also builds and tests on Linux and
+Windows: there, run the `go:*` tasks. [`mise`](https://mise.jdx.dev/)
+installs every other pinned toolchain and runs every repo task.
 
 ```bash
 mise trust        # allow this repo's .mise.toml
@@ -23,7 +24,7 @@ mise run install  # install the docs site dependencies
 ## Before you open a pull request
 
 ```bash
-mise run ci       # lint + typecheck + test + build, every language
+mise run ci       # lint + typecheck + test + build, every language, Go for every OS
 mise run audit    # zizmor supply-chain audit (needs `gh auth login`)
 mise run vuln     # scan every lockfile for known vulnerabilities
 ```

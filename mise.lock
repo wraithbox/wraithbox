@@ -73,66 +73,6 @@ url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_
 url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924919"
 provenance = "github-attestations"
 
-[[tools."aqua:quarto-dev/quarto-cli"]]
-version = "1.10.18"
-backend = "aqua:quarto-dev/quarto-cli"
-specifiers = ["1.10.18"]
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.linux-arm64"]
-checksum = "sha256:f6a07df68e25330b5df34f65d3df66bca605acce3b830c593a58e91884d4cf6c"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455945"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.linux-arm64-musl"]
-checksum = "sha256:f6a07df68e25330b5df34f65d3df66bca605acce3b830c593a58e91884d4cf6c"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455945"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.linux-x64"]
-checksum = "sha256:afad071b5bd22c02f2d300695743189d3650e0537a53073e654b630cff2b0c73"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455948"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.linux-x64-baseline"]
-checksum = "sha256:afad071b5bd22c02f2d300695743189d3650e0537a53073e654b630cff2b0c73"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455948"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.linux-x64-musl"]
-checksum = "sha256:afad071b5bd22c02f2d300695743189d3650e0537a53073e654b630cff2b0c73"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455948"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:afad071b5bd22c02f2d300695743189d3650e0537a53073e654b630cff2b0c73"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455948"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.macos-arm64"]
-checksum = "sha256:ddd6a71a9e0448ab15fb655bc589e11cb6589a248ec35ccd7f7f44137531688e"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-macos.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455959"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.macos-x64"]
-checksum = "sha256:ddd6a71a9e0448ab15fb655bc589e11cb6589a248ec35ccd7f7f44137531688e"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-macos.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455959"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.macos-x64-baseline"]
-checksum = "sha256:ddd6a71a9e0448ab15fb655bc589e11cb6589a248ec35ccd7f7f44137531688e"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-macos.tar.gz"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455959"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.windows-x64"]
-checksum = "sha256:4e824652ff0da3f646868277582ed59c0872d1456e35350b7d7cdc4243ee18c2"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-win.zip"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455953"
-
-[tools."aqua:quarto-dev/quarto-cli"."platforms.windows-x64-baseline"]
-checksum = "sha256:4e824652ff0da3f646868277582ed59c0872d1456e35350b7d7cdc4243ee18c2"
-url = "https://github.com/quarto-dev/quarto-cli/releases/download/v1.10.18/quarto-1.10.18-win.zip"
-url_api = "https://api.github.com/repos/quarto-dev/quarto-cli/releases/assets/488455953"
-
 [[tools.bun]]
 version = "1.4.2"
 backend = "core:bun"

@@ -1,6 +1,7 @@
 # mise: https://mise.jdx.dev/
 #
 # One-stop toolchain + task runner for this monorepo (Go + Swift + docs).
+# Go is built and tested on macOS, Linux and Windows; Swift on macOS only.
 # `mise install` installs everything under [tools]; `mise run <task>`
 # dispatches to the native toolchain per language.
 #
@@ -40,10 +41,8 @@ golangci-lint = "2.13.2"
 gofumpt = "0.12.0"
 # Swift maintainability gate (complexity/size rules only; see .swiftlint.yml).
 swiftlint = "0.63.3"
-# Docs site (packages/wraithbox-doc): Astro Starlight builds with bun,
-# Quarto renders the slide decks.
+# Docs site (packages/wraithbox-doc): Astro Starlight builds with bun.
 bun = "1.4.2"
-"aqua:quarto-dev/quarto-cli" = "1.10.18"
 # Used by `mise run audit`; must match `version:` on the workflow's
 # zizmor step. Bump them together.
 zizmor = "1.30.1"
@@ -97,8 +96,8 @@ description = "Build all buildable targets"
 depends = ["go:build", "swift:build", "doc:build"]
 
 [tasks.ci]
-description = "Full CI gate: lint + typecheck + test + build"
-depends = ["lint", "typecheck", "test", "build"]
+description = "Full CI gate: lint + typecheck + test + build (+ Go cross-OS check)"
+depends = ["lint", "typecheck", "test", "build", "go:cross"]
 
 [tasks.clean]
 description = "Remove all build output and installed deps"
@@ -111,72 +110,64 @@ find packages -name 'dist' -maxdepth 2 -type d -exec rm -rf {} +
 """
 
 # ---------- Go ----------
-# go.work coordinates the modules, but most `go` subcommands still want
-# to be run from inside a module directory; iterate over packages/*-go
-# so adding a new Go module is just "drop it in + add a `use` line".
+# One Go module, packages/wraithbox-go. The tasks run there with plain
+# commands rather than shell loops, because the Go jobs also run on
+# Windows, where mise executes `run` with cmd.exe. A second Go module
+# means extending these tasks deliberately (see docs/spec/002-toolchain.md).
+#
+# golangci-lint also enforces gofumpt and goimports (`formatters:` in
+# .golangci.yml), so there is no separate format check.
 [tasks."go:lint"]
-run = """
-set -e
-for m in packages/*-go; do
-  [ -d "$m" ] || continue
-  echo "--- golangci-lint $m"
-  (cd "$m" && golangci-lint run ./...)
-  out=$(cd "$m" && gofmt -l .)
-  if [ -n "$out" ]; then
-    echo "Unformatted Go files in $m:"
-    echo "$out"
-    exit 1
-  fi
-done
-"""
+description = "golangci-lint (linters + formatters) for the native OS"
+dir = "packages/wraithbox-go"
+run = "golangci-lint run ./..."
 
 [tasks."go:format"]
-run = """
-set -e
-for m in packages/*-go; do
-  [ -d "$m" ] || continue
-  (cd "$m" && gofumpt -w .)
-done
-"""
+dir = "packages/wraithbox-go"
+run = "gofumpt -w ."
 
 [tasks."go:vet"]
-run = """
-set -e
-for m in packages/*-go; do
-  [ -d "$m" ] || continue
-  (cd "$m" && go vet ./...)
-done
-"""
+dir = "packages/wraithbox-go"
+run = "go vet ./..."
 
+# -race needs cgo and a C compiler, which hosted Windows runners do not
+# guarantee; Windows runs without it rather than failing on the toolchain.
 [tasks."go:test"]
+dir = "packages/wraithbox-go"
+run = "go test -race -cover ./..."
+run_windows = "go test -cover ./..."
+
+[tasks."go:build"]
+dir = "packages/wraithbox-go"
+run = "go build ./..."
+
+# Vet, lint and build for every host OS from one machine, so files with
+# GOOS suffixes cannot rot on the OSes a developer does not use. CI runs
+# go:lint/go:vet/go:test natively on all three instead (spec 002). Unix
+# shell only; not run on Windows.
+[tasks."go:cross"]
+description = "go vet + golangci-lint + go build for darwin, linux and windows"
+dir = "packages/wraithbox-go"
 run = """
 set -e
-for m in packages/*-go; do
-  [ -d "$m" ] || continue
-  echo "--- go test $m"
-  (cd "$m" && go test -race -cover ./...)
+for os in darwin linux windows; do
+  echo "--- GOOS=$os"
+  GOOS=$os go vet ./...
+  GOOS=$os golangci-lint run ./...
+  GOOS=$os go build -o /dev/null ./...
 done
 """
 
 # Run by `mise run vuln`, not by `go:lint` — it needs network access.
+# Analyses each host OS build, since reachability differs per GOOS.
 [tasks."go:vulncheck"]
-description = "govulncheck over every Go module (stdlib + deps, reachability-aware)"
+description = "govulncheck for darwin, linux and windows (stdlib + deps, reachability-aware)"
+dir = "packages/wraithbox-go"
 run = """
 set -e
-for m in packages/*-go; do
-  [ -d "$m" ] || continue
-  echo "--- govulncheck $m"
-  (cd "$m" && govulncheck ./...)
-done
-"""
-
-[tasks."go:build"]
-run = """
-set -e
-for m in packages/*-go; do
-  [ -d "$m" ] || continue
-  echo "--- go build $m"
-  (cd "$m" && go build ./...)
+for os in darwin linux windows; do
+  echo "--- govulncheck GOOS=$os"
+  GOOS=$os govulncheck ./...
 done
 """
 
@@ -291,7 +282,7 @@ fi
 exit "$status"
 '''
 
-# ---------- Docs (Astro Starlight + Quarto) ----------
+# ---------- Docs (Astro Starlight) ----------
 [tasks."doc:install"]
 description = "Install the docs site dependencies (bun); may update bun.lock"
 dir = "packages/wraithbox-doc"
@@ -327,10 +318,6 @@ description = "Astro type/content check for the docs site"
 dir = "packages/wraithbox-doc"
 run = "bunx astro check"
 
-[tasks."doc:slides"]
-description = "Render a Quarto slide deck to HTML + PDF"
-run = "quarto render {{arg(name='deck', default='packages/wraithbox-doc/public/presentations/example.qmd')}}"
-
 [tasks."doc:favicon"]
 description = "Regenerate the docs favicon + apple-touch-icon from the palette"
 dir = "packages/wraithbox-doc"
@@ -350,7 +337,7 @@ description = "Build, serve, and screenshot a page (args: [out] [path]). Needs `
 dir = "packages/wraithbox-doc"
 run = """
 out="{{arg(name='out', default='out.png')}}"
-path="{{arg(name='path', default='/wraithbox/')}}"
+path="{{arg(name='path', default='/')}}"
 bun run build
 bun run preview --port 4321 > /tmp/astro-preview.log 2>&1 &
 sleep 4
