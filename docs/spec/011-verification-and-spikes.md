@@ -54,8 +54,9 @@ numbered `X*` so they cannot be confused with the security requirements
 
 Each spike is one GitHub issue titled `X<n>: <name>`. Its throwaway code
 stays on a `spike/x<n>-<slug>` branch that is kept and never merged; the
-written result is `docs/spec/spikes/X<n>-<slug>.md`, merged together
-with any spec change the answer forces. A new open question gets the
+written result is `docs/spec/spikes/X<n>-<slug>.md`, linked from the
+spike's entry below and merged together with any spec change the answer
+forces. A new open question gets the
 next free number here before it is filed. The workflow is in
 `docs/agents/planning.md`.
 

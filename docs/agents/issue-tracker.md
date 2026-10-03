@@ -50,8 +50,11 @@ never deletes).
   decision. Name the blocker in a comment, and record it with GitHub's
   issue relationships (`gh issue edit <n> --add-blocked-by <m>`).
 
-Area labels for the subprojects and components (Go, Swift, docs,
-`wb-netd`, ...) are defined separately and are not listed here. GitHub's
+Area labels (`area:go`, `area:spec`, ...) and component labels
+(`comp:wb-netd`, ...) are recorded in
+[`.github/labels-areas.yml`](../../.github/labels-areas.yml), applied by
+the same `mise run gh:labels`, and explained in
+[`planning.md`](planning.md) together with milestones and spikes. GitHub's
 default labels (`duplicate`, `invalid`, `question`, `good first issue`,
 `help wanted`, `accessibility`) and the ones dependabot adds to its pull
 requests (`dependencies`, ...) also exist.

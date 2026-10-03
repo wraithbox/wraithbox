@@ -5,8 +5,9 @@
 # label on GitHub by hand, change it here too.
 #
 # Not managed here:
-#   - Area / subproject labels (go, swift, doc, netd, ...) are defined
-#     separately, alongside the agent orchestration docs.
+#   - Area and component labels (area:go, comp:wb-netd, ...) are in
+#     .github/labels-areas.yml, applied by the same task, and explained
+#     in docs/agents/planning.md.
 #   - GitHub's defaults (duplicate, invalid, question, good first issue,
 #     help wanted, accessibility) and the labels dependabot creates for
 #     its own pull requests (dependencies, javascript, ...). They stay as
