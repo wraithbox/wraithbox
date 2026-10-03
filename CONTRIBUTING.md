@@ -43,8 +43,15 @@ request against `main`.
 
 ## Reporting a security problem
 
-Do not open a public issue for a vulnerability. Use the *Report a
-vulnerability* button under this repository's **Security** tab.
+Do not open a public issue for a vulnerability. See
+[SECURITY.md](SECURITY.md).
+
+## Issues
+
+Use the issue forms for bugs, feature requests and spikes (the `X*`
+open questions in `docs/spec/011-verification-and-spikes.md`). Labels
+and triage are described in
+[docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
 
 ## Working with agents
 
