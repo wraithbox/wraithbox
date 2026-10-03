@@ -1,0 +1,9 @@
+# LF everywhere, on every OS. Windows checkouts otherwise convert to CRLF
+# (core.autocrlf), and gofumpt, swift-format and the shell scripts in
+# .mise.toml then fail on files that are correct in the repository.
+* text=auto eol=lf
+
+# Binary assets: never touch.
+*.png binary
+*.ico binary
+*.pdf binary
