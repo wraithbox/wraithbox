@@ -13,19 +13,19 @@ export default defineConfig({
 		starlight({
 			title: 'Wraith Box',
 			description: 'Run coding agents inside isolated VMs: one command, fast, default-deny.',
-			// BRAND ASSETS: the favicon and apple-touch-icon below are placeholders
-			// from scripts/gen-favicon.mjs. The master for the brand icon is
-			// design/icon.svg.
-			//
-			// LOGO HOOK: once src/assets/logo-dark.svg (light artwork for the dark
-			// theme) and src/assets/logo-light.svg exist, uncomment this. Keep
-			// replacesTitle false unless the logo includes the wordmark.
-			// logo: {
-			// 	dark: './src/assets/logo-dark.svg',
-			// 	light: './src/assets/logo-light.svg',
-			// 	alt: 'Wraith Box',
-			// 	replacesTitle: false,
-			// },
+			// BRAND ASSETS: the masters are the SVGs in design/. The favicons and
+			// apple-touch-icon in public/ are derived from them by
+			// scripts/gen-favicon.mjs (mise run doc:favicon). The header logo
+			// uses the masters directly: the inverted icon (white tile) on the
+			// dark theme, the dark-tile icon on the light theme. The logo has no
+			// wordmark, so the title text stays, and the alt text is empty so
+			// screen readers do not read the name twice.
+			logo: {
+				dark: './design/icon-inverted.svg',
+				light: './design/icon.svg',
+				alt: '',
+				replacesTitle: false,
+			},
 			//
 			// HERO HOOK: the landing page's hero image is set in the frontmatter
 			// of src/content/docs/index.mdx, not here. Add under `hero:`
@@ -36,6 +36,12 @@ export default defineConfig({
 			// Starlight renders it beside the title on wide screens.
 			favicon: '/favicon.svg',
 			head: [
+				// Fallback for browsers without SVG favicons. sizes="32x32" (not
+				// "any") keeps browsers that do support SVG on favicon.svg.
+				{
+					tag: 'link',
+					attrs: { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
+				},
 				{
 					tag: 'link',
 					attrs: {

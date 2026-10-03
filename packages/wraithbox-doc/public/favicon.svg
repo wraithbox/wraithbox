@@ -1,10 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Docs">
-  <rect x="6" y="6" width="52" height="52" rx="10" fill="#1d1d20"/>
-  <path d="M20 16 h18 l8 8 v24 a2 2 0 0 1 -2 2 H20 a2 2 0 0 1 -2 -2 V18 a2 2 0 0 1 2 -2 z" fill="#a6f0cf"/>
-  <path d="M38 16 v8 h8 z" fill="#1d1d20" opacity="0.35"/>
-  <g stroke="#17694d" stroke-width="2.5" stroke-linecap="round">
-    <line x1="24" y1="34" x2="40" y2="34"/>
-    <line x1="24" y1="40" x2="40" y2="40"/>
-    <line x1="24" y1="46" x2="34" y2="46"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Wraith Box">
+  <style>
+    .tile { fill: #1d1d20; }
+    .ghost { fill: #a6f0cf; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #ffffff; }
+      .ghost { fill: #17694d; }
+    }
+  </style>
+  <rect class="tile" width="64" height="64" rx="11"/>
+  <path class="ghost" transform="translate(32 32) scale(1.1) translate(-32 -32)" d="M17.45 25.24A14.5475 12.65 0 0 1 46.55 25.24V30.7C46.55 36 49.25 42.5 51.66 46.8C52.7 48.6 50.4 49.9 48.22 49.7C45.23 49.4 42.92 47.2 40.39 47.2C37.75 47.2 35.45 51.1 32 51.1C28.55 51.1 26.25 47.2 23.61 47.2C21.08 47.2 18.77 49.4 15.79 49.7C13.6 49.9 11.3 48.6 12.34 46.8C14.75 42.5 17.45 36 17.45 30.7Z"/>
 </svg>
