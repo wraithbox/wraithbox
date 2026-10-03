@@ -34,6 +34,12 @@ export default defineConfig({
 					'https://github.com/wraithbox/wraithbox/edit/main/packages/wraithbox-doc/',
 			},
 			customCss: ['./src/styles/custom.css'],
+			components: {
+				// Dark is the default theme; an explicit choice in the theme
+				// toggle (dark, light or auto) still wins. See the two files.
+				ThemeProvider: './src/components/ThemeProvider.astro',
+				ThemeSelect: './src/components/ThemeSelect.astro',
+			},
 			sidebar: [
 				{
 					label: 'Overview',
