@@ -1,0 +1,42 @@
+name: Bug report
+description: Something in Wraith Box does not work as specified.
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this lets a guest get around an isolation control (spec 003, `S*`),
+        do not file it here: follow [SECURITY.md](https://github.com/wraithbox/wraithbox/blob/main/SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The exact `wb` commands, or the `mise run` task, that show the problem.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Host OS and version, guest OS, `wb` version or commit, CPU (Apple Silicon / x64).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output. Remove credentials and private paths first.
+      render: text
+  - type: input
+    id: spec
+    attributes:
+      label: Spec reference
+      description: The spec section or requirement this violates, if known (e.g. `007`, `F3`).

@@ -358,3 +358,7 @@ run_id=$(gh run list --repo "$repo" --branch "$(git branch --show-current)" --li
 if [ -z "$run_id" ]; then echo "No run found for current branch on $repo" >&2; exit 1; fi
 gh run watch --repo "$repo" --exit-status "$run_id"
 """
+
+[tasks."gh:labels"]
+description = "Create or update the GitHub issue labels in .github/labels.yml (network; needs `gh auth login`)"
+run = "bun .github/sync-labels.ts"

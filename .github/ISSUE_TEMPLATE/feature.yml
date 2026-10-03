@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose new behaviour or a change to existing behaviour.
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Design lives in [`docs/spec/`](https://github.com/wraithbox/wraithbox/tree/main/docs/spec).
+        A feature that changes a design decision changes the spec first. A
+        feature never weakens a security control (spec 003, `S*`).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you are trying to do, and why Wraith Box does not let you today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change. Commands, flags, or behaviour as you would use them.
+    validations:
+      required: true
+  - type: textarea
+    id: specs
+    attributes:
+      label: Affected specs and requirements
+      description: Spec numbers and requirement IDs (`F*`, `S*`, `N*`, `C*`, `R*`) this touches. Note any security control it interacts with.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

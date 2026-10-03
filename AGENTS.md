@@ -43,6 +43,7 @@ Fresh clone: `mise trust && mise install`, then `mise run install`.
 | `mise run gha:lint` | actionlint + shellcheck over workflows |
 | `mise run audit` | zizmor over `.github/`; needs a GitHub token |
 | `mise run vuln` | osv-scanner + govulncheck; network, no token |
+| `mise run gh:labels` | Create/update GitHub labels from `.github/labels.yml` |
 
 Tasks are namespaced `<lang>:<verb>`: `go:test`, `swift:lint`,
 `doc:build`. `mise tasks` lists them all.
@@ -117,6 +118,23 @@ links and images root-relative.
   annotated tag object).
 - Every `.mise.toml` tool is exact-pinned and invisible to dependabot;
   refresh with `mise up` and read the diff.
+
+## Agent skills
+
+### Git remote
+
+Use GitHub with `gh` (`wraithbox/wraithbox`).
+
+### Issue tracker
+
+Use GitHub issues. Bug, feature and spike (`X*`, spec 011) issue forms
+are in `.github/ISSUE_TEMPLATE/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix;
+plus the type, priority and `blocked` labels in `.github/labels.yml`.
+See `docs/agents/issue-tracker.md`.
 
 ## Commit Message Convention
 
