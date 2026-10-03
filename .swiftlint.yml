@@ -1,0 +1,56 @@
+# SwiftLint is used here ONLY as a maintainability gate — cyclomatic complexity
+# and structural size/nesting limits. Formatting and style are owned by
+# swift-format (.swift-format); `only_rules` keeps SwiftLint from fighting it.
+#
+# Thresholds are hard errors in `mise run swift:lint` (`--strict`).
+# Rule for humans and agents alike: refactor to pass. Do not raise a threshold
+# to go green.
+
+included:
+  - packages/wraithbox-swift/Sources
+  - packages/wraithbox-swift/Tests
+
+only_rules:
+  - cyclomatic_complexity
+  - function_body_length
+  - type_body_length
+  - file_length
+  - function_parameter_count
+  - closure_body_length
+  - nesting
+  - large_tuple
+  # Guards the gate itself: bans un-named `// swiftlint:disable`.
+  - blanket_disable_command
+
+blanket_disable_command:
+  severity: error
+
+cyclomatic_complexity:
+  warning: 10
+  error: 15
+  ignores_case_statements: true
+
+function_body_length:
+  warning: 60
+  error: 100
+
+type_body_length:
+  warning: 300
+  error: 400
+
+file_length:
+  warning: 500
+  error: 1200
+  ignore_comment_only_lines: true
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+closure_body_length:
+  warning: 40
+  error: 100
+
+large_tuple:
+  warning: 3
+  error: 4

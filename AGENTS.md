@@ -1,0 +1,121 @@
+# Agent Instructions for Wraith Box
+
+> This file (`AGENTS.md`) is the canonical agent configuration. `CLAUDE.md` is a symlink to this file.
+
+Wraith Box runs Claude Code inside an isolated macOS VM as a drop-in
+replacement for `claude` (`wb`). All security controls are enforced on
+the host: no host mounts, no secrets in the guest, default-deny egress
+through a host-side userspace network stack and proxy.
+
+## Source of truth: the specs
+
+The design lives in `docs/spec/`. Read `003-requirements.md` and
+`004-architecture.md` before changing anything substantial.
+
+- Specs are authoritative. If code and spec disagree, fix one of them in
+  the same change; do not let them drift.
+- Changing a design decision means changing the spec first (or in the same
+  pull request), with the reason.
+- Requirement identifiers (`F*`, `S*`, `N*`, `C*`, `R*` in spec 003) are
+  stable; reference them in specs, code comments where a control is
+  enforced, and commit messages.
+- A control from spec 003 (`S*`) is never weakened to make something work.
+  If a requirement turns out to be unachievable, write that up as a spec
+  change and stop.
+- Open questions are tracked as spikes in spec 011. A spike is throwaway
+  code with a written result; do not build on an unanswered spike.
+
+## Quick Reference
+
+Fresh clone: `mise trust && mise install`, then `mise run install`.
+
+| Task | What it does |
+| ---- | ------------ |
+| `mise run install` | Install docs site deps; may update `bun.lock` |
+| `mise run install-frozen` | Install, failing on a stale lock; what CI runs |
+| `mise run lint` / `format` / `typecheck` / `test` / `build` | All languages |
+| `mise run ci` | Full gate: lint + typecheck + test + build (offline) |
+| `mise run gha:lint` | actionlint + shellcheck over workflows |
+| `mise run audit` | zizmor over `.github/`; needs a GitHub token |
+| `mise run vuln` | osv-scanner + govulncheck; network, no token |
+
+Tasks are namespaced `<lang>:<verb>`: `go:test`, `swift:lint`,
+`doc:build`. `mise tasks` lists them all.
+
+Native commands work standalone:
+
+| Language | Lint | Test |
+|---|---|---|
+| Go (in `packages/wraithbox-go`) | `golangci-lint run ./...` | `go test -race -cover ./...` |
+| Swift | `swift format lint --strict --recursive packages/wraithbox-swift/Sources` + `swiftlint lint --strict` | `swift test --package-path packages/wraithbox-swift` |
+
+## Structure
+
+```
+packages/
+├── wraithbox-go/      # Go module: cmd/{wb,wbctl,wb-netd,wb-proxyd,wb-guestd}, internal/
+├── wraithbox-swift/   # SwiftPM package: WraithBoxHost library, wb-hostd executable
+└── wraithbox-doc/     # Docs site (Astro Starlight; bun; standalone)
+docs/spec/             # Specifications (authoritative design)
+```
+
+Which process owns what is defined in spec 004. In short: anything that
+needs Apple frameworks (Virtualization, Keychain UI, notifications,
+launch agents) is Swift in `wb-hostd`; network, protocol, CLI and guest
+code is Go. Do not add a third language without a spec change.
+
+## Guidelines
+
+**Go:** `gofumpt`-formatted, `goimports`-clean; `go vet` and
+`golangci-lint run` at zero issues; table-driven stdlib tests. Every
+parser that handles guest-controlled bytes gets a fuzz target.
+
+**Swift:** Swift 6 language mode; `swift format lint --strict` clean;
+SwiftLint complexity/size gate (`.swiftlint.yml`) — refactor to pass, do
+not raise thresholds. Tests use Swift Testing (`import Testing`).
+
+**Security-sensitive code** (`wb-netd`, `wb-proxyd`, the vsock handlers
+in `wb-hostd`, git transport): treat every input from the guest as
+adversarial, including from `wb-guestd`. Fail closed. Log the decision
+and the rule that made it.
+
+**Docs:** `mise run doc:check` and `doc:build` must pass. Pages live in
+`packages/wraithbox-doc/src/content/docs/` and need a `title`; write
+links and images root-relative.
+
+**Cross-cutting:**
+
+- No bare `//nolint` or `// swiftlint:disable`. Narrow it and name the
+  reason on the same line. Prefer fixing the cause.
+- Never weaken a control to make a check pass: no lowered thresholds, no
+  unpinned actions or tools, no deleted tests.
+- `mise run ci` and the CI workflow must cover the same ground. Put shared
+  environment on the mise task, not the workflow.
+- **No `.editorconfig`**, deliberately — formatters own formatting.
+
+**Supply chain:**
+
+- Dependencies must have permissive licenses (Apache-2.0, MIT, BSD, ISC).
+  No copyleft, no source-available licenses (spec 010).
+- Every lockfile is committed (`bun.lock`, each `go.sum`,
+  `Package.resolved`) and has a `.github/dependabot.yml` entry.
+- `mise run vuln` must be clean. Fix a finding by moving the dependency,
+  never by narrowing the scan.
+- Pin GitHub Actions to full-length commit SHAs (the commit, not an
+  annotated tag object).
+- Every `.mise.toml` tool is exact-pinned and invisible to dependabot;
+  refresh with `mise up` and read the diff.
+
+## Commit Message Convention
+
+[Conventional Commits](https://conventionalcommits.org/):
+`type(scope): description`. Use the language or component as scope where
+it helps: `feat(go)`, `fix(swift)`, `docs(spec)`, `feat(netd)`.
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `build`, `ci`, `perf`, `revert`, `improvement`, `chore`
+
+## Session Completion
+
+Work is not complete until every change is committed and `mise run ci`
+passes. When a remote exists: push, then `mise run ci-watch`; on failure
+`gh run view --log-failed`, fix, repeat.

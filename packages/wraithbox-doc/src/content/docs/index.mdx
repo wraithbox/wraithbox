@@ -1,0 +1,45 @@
+---
+title: Wraith Box
+description: Run Claude Code inside an isolated macOS VM - drop-in, fast, default-deny.
+template: splash
+hero:
+  tagline: Run Claude Code inside an isolated macOS virtual machine. Type wb instead of claude; the agent gets native macOS tools, your Mac keeps its files, secrets and network to itself.
+  actions:
+    - text: Design overview
+      # hero action links are used verbatim, so this one includes the deploy base
+      link: /wraithbox/design/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/lsimons/wraithbox
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+> **Status: design phase.** Nothing works yet.
+
+## What it does
+
+<CardGrid>
+	<Card title="Drop-in" icon="seti:shell">
+		`wb` takes exactly the arguments `claude` takes. The first run in a git
+		repository sets the project up; later runs start in seconds from a warm VM.
+	</Card>
+	<Card title="Separate kernel, no host files" icon="seti:lock">
+		Claude Code and its tools run in a macOS guest VM. Nothing from your Mac is
+		mounted in; work comes back as a git branch you review and land.
+	</Card>
+	<Card title="No secrets in the guest" icon="approve-check">
+		Not even the model credential. A host-side proxy strips what the guest sends
+		and injects the real credential, so smuggled tokens are useless.
+	</Card>
+	<Card title="Default-deny network" icon="warning">
+		Every packet goes to a host-side userspace network stack. Only allowlisted
+		names resolve; pushes are limited to the project's own repositories.
+	</Card>
+</CardGrid>
+
+Read the [design overview](/wraithbox/design/) or the specifications in
+the repository's `docs/spec/` directory.

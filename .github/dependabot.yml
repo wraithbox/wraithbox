@@ -1,0 +1,48 @@
+# One entry per lockfile in this monorepo. Each `directory`/`directories`
+# below must point at a manifest+lock pair that actually exists, or the
+# ecosystem silently updates nothing.
+version: 2
+updates:
+  # Docs site: bun manages packages/*-doc standalone.
+  - package-ecosystem: "bun"
+    directories:
+      - "/packages/*-doc"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    ignore:
+      # `astro check` goes through @astrojs/language-server, which needs
+      # the programmatic TypeScript API that the native 7.x compiler does
+      # not ship yet, so a 7.x bump makes `mise run doc:check` fail. Hold
+      # the docs site on 6.x until upstream lands support:
+      # https://github.com/withastro/roadmap/discussions/1321
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
+
+  # Go: go.work coordinates the modules, but dependabot reads each
+  # module's own go.mod/go.sum, so glob the module directories.
+  - package-ecosystem: "gomod"
+    directories:
+      - "/packages/*-go"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+
+  # Swift: each packages/*-swift directory is a SwiftPM package. Inert
+  # until the first dependency adds a Package.resolved.
+  - package-ecosystem: "swift"
+    directories:
+      - "/packages/*-swift"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7

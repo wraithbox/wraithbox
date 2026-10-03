@@ -1,0 +1,44 @@
+{
+  "name": "wraithbox-doc",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "7.3.1",
+    "@astrojs/starlight": "0.42.0",
+    "astro": "7.3.2",
+    "sharp": "0.35.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "playwright": "1.63.0",
+    "typescript": "6.0.3"
+  },
+  "comment:overrides": [
+    "Security floors for transitive deps. Each is the patched release on the",
+    "SAME major the consumers already require, so no consumer sees a breaking",
+    "change: nanoid 3.x for postcss (4+ is ESM-only), js-yaml 4.x for astro and",
+    "starlight, fast-uri 3.x for ajv. Drop an entry once every consumer's own",
+    "range has moved past the floor and `bun audit` stays clean without it.",
+    "GHSA-2v37-7h3g-55p8, GHSA-5p4m-2wfm-xmqj, GHSA-7p8r-x3mc-p8w7.",
+    "The fast-uri floor is 3.1.8 for GHSA-5jgf-p345-68v8, GHSA-f65p-4m7j-42xc,",
+    "GHSA-fph4-wmhf-6fwf, GHSA-jqff-g426-hqxp and GHSA-hrr3-gc8f-f4qj.",
+    "The js-yaml floor is 4.3.2 for GHSA-2883-xcg3-v3hh. devalue 5.x (astro)",
+    "is floored at 5.9.2 for GHSA-9rgm-9g3h-6x36; svgo 4.x (astro) at 4.1.0",
+    "for GHSA-4vpr-x523-8j87 and GHSA-w27v-7q3p-w38r."
+  ],
+  "overrides": {
+    "devalue": "^5.9.2",
+    "fast-uri": "^3.1.8",
+    "js-yaml": "^4.3.2",
+    "nanoid": "^3.3.18",
+    "svgo": "^4.1.0"
+  }
+}

@@ -1,0 +1,15 @@
+// Command wb-guestd is the agent that runs inside the guest VM. See docs/spec/006-vm-lifecycle.md.
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/lsimons/wraithbox/packages/wraithbox-go/internal/version"
+)
+
+func main() {
+	fmt.Println(version.String("wb-guestd"))
+	fmt.Fprintln(os.Stderr, "wb-guestd: not implemented yet")
+	os.Exit(2)
+}

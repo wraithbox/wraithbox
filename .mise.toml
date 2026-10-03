@@ -1,0 +1,370 @@
+# mise: https://mise.jdx.dev/
+#
+# One-stop toolchain + task runner for this monorepo (Go + Swift + docs).
+# `mise install` installs everything under [tools]; `mise run <task>`
+# dispatches to the native toolchain per language.
+#
+# Native per-language pin files are kept alongside this one (go.work /
+# go.mod's `go` directive, Package.swift's tools version) so contributors
+# without mise can still use the native tools directly. If both are
+# present, they must agree.
+#
+# Swift is the exception to "mise pins every toolchain": the Swift
+# compiler, `swift-format` and `xcodebuild` ship inside Xcode and are
+# pinned implicitly by the Xcode version (see docs/spec/002-toolchain.md).
+# Only SwiftLint, which Xcode does not ship, is pinned here.
+
+[settings]
+minimum_release_age = "7d"
+lockfile = true
+
+# mise.lock records a checksum per tool per platform. `govulncheck` has
+# none: it is compiled from source via the `go:` backend, and the Go
+# checksum database authenticates the module download instead. Everything
+# else is verified by mise. If the tool list changes, regenerate with
+# `mise lock` and read the diff.
+
+# Every tool is pinned to an exact version, deliberately and without
+# exception. This is a supply-chain rule, not a stability one: an upstream
+# compromise must never be auto-downloaded. Nothing here is covered by
+# dependabot, so these go stale silently — refresh them deliberately with
+# `mise up`, read the diff, and keep the native pin files in step
+# (`go.work` and each `go.mod` for go).
+#
+# The 7-day cooldown this repo applies to *dependencies* (dependabot
+# cooldown) is deliberately NOT applied here: tool versions are chosen by
+# a human reading a changelog, not resolved automatically.
+[tools]
+go = "1.27.1"
+golangci-lint = "2.13.2"
+gofumpt = "0.12.0"
+# Swift maintainability gate (complexity/size rules only; see .swiftlint.yml).
+swiftlint = "0.63.3"
+# Docs site (packages/wraithbox-doc): Astro Starlight builds with bun,
+# Quarto renders the slide decks.
+bun = "1.4.2"
+"aqua:quarto-dev/quarto-cli" = "1.10.18"
+# Used by `mise run audit`; must match `version:` on the workflow's
+# zizmor step. Bump them together.
+zizmor = "1.30.1"
+# Used by `mise run gha:lint`. actionlint shells out to shellcheck for
+# the `run:` blocks in workflows, and silently skips that half if
+# shellcheck is missing, so it is pinned here too.
+actionlint = "1.7.12"
+shellcheck = "0.11.0"
+# Used by `mise run vuln:osv`: one scanner for go.mod, bun.lock and
+# SwiftPM's Package.resolved.
+osv-scanner = "2.5.1"
+# Used by `mise run go:vulncheck`. Not redundant with osv-scanner: osv
+# reads go.mod, so it never sees the Go *toolchain*, and a Go stdlib CVE
+# is invisible to it. govulncheck also does reachability analysis.
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
+
+# Project-scoped env: load an optional .env if present (fnox-generated
+# or hand-written). Keep secrets out of git; use fnox for op:// refs.
+[env]
+_.file = { path = ".env", optional = true }
+
+# ---------- Top-level fan-outs ----------
+[tasks.install]
+description = "Install all dependencies"
+depends = ["doc:install"]
+
+# The frozen counterpart, for the gate: a manifest edit that the committed
+# lock does not reflect is an error instead of a silent re-resolve.
+[tasks."install-frozen"]
+description = "Install all dependencies, failing on a stale lock"
+depends = ["doc:install-frozen"]
+
+[tasks.lint]
+description = "Run all linters"
+depends = ["go:lint", "swift:lint", "gha:lint"]
+
+[tasks.format]
+description = "Auto-format all languages"
+depends = ["go:format", "swift:format"]
+
+[tasks.typecheck]
+description = "Run type/content checkers (go vet + docs)"
+depends = ["go:vet", "doc:check"]
+
+[tasks.test]
+description = "Run all tests"
+depends = ["go:test", "swift:test"]
+
+[tasks.build]
+description = "Build all buildable targets"
+depends = ["go:build", "swift:build", "doc:build"]
+
+[tasks.ci]
+description = "Full CI gate: lint + typecheck + test + build"
+depends = ["lint", "typecheck", "test", "build"]
+
+[tasks.clean]
+description = "Remove all build output and installed deps"
+run = """
+rm -rf node_modules packages/*/node_modules
+rm -rf packages/*-swift/.build packages/*-swift/.swiftpm
+rm -rf packages/wraithbox-doc/.astro
+find packages -name 'bin' -maxdepth 2 -type d -exec rm -rf {} +
+find packages -name 'dist' -maxdepth 2 -type d -exec rm -rf {} +
+"""
+
+# ---------- Go ----------
+# go.work coordinates the modules, but most `go` subcommands still want
+# to be run from inside a module directory; iterate over packages/*-go
+# so adding a new Go module is just "drop it in + add a `use` line".
+[tasks."go:lint"]
+run = """
+set -e
+for m in packages/*-go; do
+  [ -d "$m" ] || continue
+  echo "--- golangci-lint $m"
+  (cd "$m" && golangci-lint run ./...)
+  out=$(cd "$m" && gofmt -l .)
+  if [ -n "$out" ]; then
+    echo "Unformatted Go files in $m:"
+    echo "$out"
+    exit 1
+  fi
+done
+"""
+
+[tasks."go:format"]
+run = """
+set -e
+for m in packages/*-go; do
+  [ -d "$m" ] || continue
+  (cd "$m" && gofumpt -w .)
+done
+"""
+
+[tasks."go:vet"]
+run = """
+set -e
+for m in packages/*-go; do
+  [ -d "$m" ] || continue
+  (cd "$m" && go vet ./...)
+done
+"""
+
+[tasks."go:test"]
+run = """
+set -e
+for m in packages/*-go; do
+  [ -d "$m" ] || continue
+  echo "--- go test $m"
+  (cd "$m" && go test -race -cover ./...)
+done
+"""
+
+# Run by `mise run vuln`, not by `go:lint` — it needs network access.
+[tasks."go:vulncheck"]
+description = "govulncheck over every Go module (stdlib + deps, reachability-aware)"
+run = """
+set -e
+for m in packages/*-go; do
+  [ -d "$m" ] || continue
+  echo "--- govulncheck $m"
+  (cd "$m" && govulncheck ./...)
+done
+"""
+
+[tasks."go:build"]
+run = """
+set -e
+for m in packages/*-go; do
+  [ -d "$m" ] || continue
+  echo "--- go build $m"
+  (cd "$m" && go build ./...)
+done
+"""
+
+# ---------- Swift ----------
+# Each packages/*-swift directory is a standalone SwiftPM package. The
+# compiler and swift-format come from the selected Xcode (`xcode-select
+# -p`); see docs/spec/002-toolchain.md for which Xcode.
+[tasks."swift:lint"]
+description = "swift-format lint (strict) + SwiftLint maintainability gate"
+run = """
+set -e
+for p in packages/*-swift; do
+  [ -d "$p" ] || continue
+  echo "--- swift format lint $p"
+  swift format lint --strict --recursive "$p/Package.swift" "$p/Sources" "$p/Tests"
+done
+swiftlint lint --strict --quiet
+"""
+
+[tasks."swift:format"]
+run = """
+set -e
+for p in packages/*-swift; do
+  [ -d "$p" ] || continue
+  swift format --in-place --recursive "$p/Package.swift" "$p/Sources" "$p/Tests"
+done
+"""
+
+[tasks."swift:build"]
+run = """
+set -e
+for p in packages/*-swift; do
+  [ -d "$p" ] || continue
+  echo "--- swift build $p"
+  swift build --package-path "$p"
+done
+"""
+
+[tasks."swift:test"]
+run = """
+set -e
+for p in packages/*-swift; do
+  [ -d "$p" ] || continue
+  echo "--- swift test $p"
+  swift test --package-path "$p"
+done
+"""
+
+# ---------- GitHub Actions ----------
+[tasks."gha:lint"]
+description = "actionlint (+ shellcheck) over .github/workflows"
+run = "actionlint"
+
+# Local mirror of the `zizmor` CI step. Not part of `ci` because it needs
+# network access and a GitHub token for the online audits. Without a
+# token zizmor silently skips the `impostor-commit` and
+# `known-vulnerable-actions` audits, so refuse to run rather than pass a
+# weaker check. Scoped to `.github` so the docs site's node_modules is
+# not walked; `inputs:` on the CI zizmor step matches.
+[tasks.audit]
+description = "zizmor audit of GitHub Actions workflows + dependabot config"
+run = """
+set -e
+token="${GH_TOKEN:-}"
+if [ -z "$token" ]; then token="${GITHUB_TOKEN:-}"; fi
+if [ -z "$token" ]; then token=$(gh auth token 2>/dev/null) || true; fi
+if [ -z "$token" ]; then
+  echo "No GitHub token: run \\`gh auth login\\`, or export GH_TOKEN." >&2
+  echo "Refusing to run a partial audit — the online audits" >&2
+  echo "(impostor-commit, known-vulnerable-actions) would be skipped." >&2
+  exit 1
+fi
+unset GH_TOKEN GITHUB_TOKEN
+zizmor --github-token "$token" --collect=all --strict-collection .github
+"""
+
+# ---------- Dependency vulnerability scanning ----------
+# Deliberately NOT part of `ci`: both scanners query a remote database,
+# and `ci` stays runnable offline. CI runs this in its own `vuln` job.
+[tasks.vuln]
+description = "Scan every lockfile for known vulnerabilities (network; not part of `ci`)"
+depends = ["vuln:osv", "go:vulncheck"]
+
+# `-r` is load-bearing: `osv-scanner scan source` is not recursive by
+# default and would report a clean pass having opened only the top level.
+# Because that failure is silent, the loop below re-derives the lockfile
+# list from git and fails if the scanner did not report opening every one.
+# A new package manager means a new lockfile: add its pattern here.
+[tasks."vuln:osv"]
+description = "osv-scanner over every committed lockfile"
+run = '''
+set -eu
+status=0
+out=$(osv-scanner scan source -r . 2>&1) || status=$?
+echo "$out"
+
+missing=0
+for lock in $(git ls-files -- '*bun.lock' '*go.mod' '*Package.resolved'); do
+  case "$out" in
+    *"/$lock file and found"*) ;;
+    *)
+      echo "osv-scanner never opened $lock — its dependencies went unscanned." >&2
+      missing=1
+      ;;
+  esac
+done
+if [ "$missing" -ne 0 ]; then
+  echo "Every committed lockfile must be scanned. Check that osv-scanner" >&2
+  echo "supports its format, and that the -r flag is still present." >&2
+  exit 1
+fi
+exit "$status"
+'''
+
+# ---------- Docs (Astro Starlight + Quarto) ----------
+[tasks."doc:install"]
+description = "Install the docs site dependencies (bun); may update bun.lock"
+dir = "packages/wraithbox-doc"
+run = "bun install"
+
+[tasks."doc:install-frozen"]
+description = "Install the docs site dependencies, failing on a stale bun.lock"
+dir = "packages/wraithbox-doc"
+run = "bun install --frozen-lockfile"
+
+[tasks."doc:dev"]
+description = "Start the live-reloading docs dev server"
+dir = "packages/wraithbox-doc"
+run = "bun run dev"
+
+# `doc:check` and `doc:build` both regenerate .astro/ and race when `ci`
+# runs them in parallel (rename ENOENT on content-modules.mjs). `wait_for`
+# serializes them only when both are in the same run; it does not make
+# `doc:build` run the check on its own.
+[tasks."doc:build"]
+description = "Build the static docs site into packages/wraithbox-doc/dist"
+dir = "packages/wraithbox-doc"
+wait_for = ["doc:check"]
+run = "bun run build"
+
+[tasks."doc:preview"]
+description = "Preview the production docs build"
+dir = "packages/wraithbox-doc"
+run = "bun run preview"
+
+[tasks."doc:check"]
+description = "Astro type/content check for the docs site"
+dir = "packages/wraithbox-doc"
+run = "bunx astro check"
+
+[tasks."doc:slides"]
+description = "Render a Quarto slide deck to HTML + PDF"
+run = "quarto render {{arg(name='deck', default='packages/wraithbox-doc/public/presentations/example.qmd')}}"
+
+[tasks."doc:favicon"]
+description = "Regenerate the docs favicon + apple-touch-icon from the palette"
+dir = "packages/wraithbox-doc"
+run = "bun run scripts/gen-favicon.mjs"
+
+[tasks."doc:clean"]
+description = "Remove docs build artifacts"
+run = "rm -rf packages/wraithbox-doc/dist packages/wraithbox-doc/.astro"
+
+[tasks."doc:browser"]
+description = "Install the Chromium browser Playwright uses for screenshots"
+dir = "packages/wraithbox-doc"
+run = "bunx playwright install chromium"
+
+[tasks."doc:screenshot"]
+description = "Build, serve, and screenshot a page (args: [out] [path]). Needs `mise run doc:browser` once."
+dir = "packages/wraithbox-doc"
+run = """
+out="{{arg(name='out', default='out.png')}}"
+path="{{arg(name='path', default='/wraithbox/')}}"
+bun run build
+bun run preview --port 4321 > /tmp/astro-preview.log 2>&1 &
+sleep 4
+bunx playwright screenshot --viewport-size=1280,800 "http://localhost:4321${path}" "$out"
+status=$?; pkill -f "astro preview" || true; exit $status
+"""
+
+[tasks.ci-watch]
+description = "Watch GitHub Actions CI for the current branch; exits non-zero on failure"
+run = """
+sleep 5
+remote_url=$(git remote get-url upstream 2>/dev/null || git remote get-url origin)
+repo=$(echo "$remote_url" | sed -E 's|^.*github\\.com[:/]||; s|\\.git$||')
+run_id=$(gh run list --repo "$repo" --branch "$(git branch --show-current)" --limit 1 --json databaseId --jq '.[0].databaseId')
+if [ -z "$run_id" ]; then echo "No run found for current branch on $repo" >&2; exit 1; fi
+gh run watch --repo "$repo" --exit-status "$run_id"
+"""

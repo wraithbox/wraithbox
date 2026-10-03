@@ -1,0 +1,179 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Supersede in-flight runs for the same branch/PR; never cancel main, so
+# the main-branch CI history stays complete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  go:
+    name: Go
+    # Every binary targets macOS, so build, test and vet see darwin build
+    # constraints. See docs/spec/002-toolchain.md.
+    runs-on: macos-26
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          cache: true
+
+      - name: Lint + format check
+        run: mise run go:lint
+
+      - name: Vet
+        run: mise run go:vet
+
+      - name: Test
+        run: mise run go:test
+
+      - name: Build
+        run: mise run go:build
+
+  swift:
+    name: Swift
+    # Swift comes from the runner image's default Xcode; Package.swift's
+    # tools version (6.2) is the floor. See docs/spec/002-toolchain.md.
+    runs-on: macos-26
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          install_args: swiftlint
+          cache: true
+
+      - name: Lint (swift-format + SwiftLint)
+        run: mise run swift:lint
+
+      - name: Build
+        run: mise run swift:build
+
+      - name: Test
+        run: mise run swift:test
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          cache: true
+
+      - name: Cache bun install cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('packages/wraithbox-doc/bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      # Frozen: a docs package.json change that
+      # bun.lock does not reflect is an error, not a re-resolve.
+      - name: Install
+        run: mise run doc:install-frozen
+
+      - name: Check (Astro type/content check)
+        run: mise run doc:check
+
+      - name: Build
+        run: mise run doc:build
+
+  vuln:
+    name: Dependency vulnerability scan
+    # macOS so govulncheck analyses the darwin build of every binary.
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          cache: true
+
+      # Its own job rather than steps in the per-language jobs: this one
+      # fails on a newly published advisory against an unchanged tree, so
+      # it has to be able to go red without implying the code broke.
+      #
+      # Runs the same `mise run vuln` a developer runs — osv-scanner over
+      # every lockfile and govulncheck for the Go toolchain — so there is
+      # one definition of the check rather than two that can drift.
+      - name: Scan every lockfile (osv-scanner + govulncheck)
+        run: mise run vuln
+
+  actions:
+    name: GitHub Actions (lint + audit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Only the two tools this job needs; installing the whole polyglot
+      # toolchain here would cost minutes for a workflow linter.
+      #
+      # Caveat worth knowing before copying this to the other jobs: mise
+      # can auto-install a missing tool when `mise run` reaches for it, so
+      # an `install_args` list that is too narrow shows up as a slower job,
+      # not a failing one. Check the timings, not just the colour.
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          install_args: actionlint shellcheck
+          cache: true
+
+      - name: Lint workflows (actionlint + shellcheck)
+        run: mise run gha:lint
+
+      - name: Audit GitHub Actions workflows (zizmor)
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          advanced-security: false
+          # The action's own defaults are version "latest", collect
+          # "default" and inputs ".". Pin the version so a zizmor release
+          # cannot turn CI red on its own, and set collect: all so
+          # .github/dependabot.yml is audited too. Scope inputs to
+          # .github because --collect=all otherwise walks node_modules
+          # once the docs site is installed. All three must match
+          # `mise run audit` for that task to be a real local mirror —
+          # bump the version in both places together.
+          version: "1.30.1"
+          collect: all
+          inputs: .github

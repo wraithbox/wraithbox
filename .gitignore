@@ -1,0 +1,55 @@
+# Docs site dependencies (bun)
+node_modules/
+
+# Swift (SwiftPM)
+.build/
+.swiftpm/
+*.xcodeproj/
+xcuserdata/
+
+# Go
+/bin/
+/out/
+
+# Docs site (Astro Starlight)
+.astro/
+out.png
+# Quarto render intermediates (committed html/pdf live in public/presentations/)
+.quarto/
+packages/*/public/presentations/*_files/
+
+# Shared coverage / build artifacts
+coverage/
+build/
+dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# mise local overrides
+.mise.local.toml
+mise.local.toml
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude
+# `.claude/` itself is tracked on purpose — settings.json is shared
+# config. Only per-user state and scratch worktrees are ignored.
+.claude/settings.local.json
+.claude/worktrees
+
+# Operating systems
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

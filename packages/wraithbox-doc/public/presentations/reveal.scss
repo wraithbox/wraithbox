@@ -1,0 +1,22 @@
+/*-- scss:defaults --*/
+
+// reveal.js theme for the HTML slides, matching the site's LSD Warm palette and
+// Merriweather fonts (see docs/src/styles/custom.css). Edit the variables below
+// to restyle the deck, then re-render with `mise run docs-slides`.
+
+// Theme fonts (Merriweather = body/headings, Cascadia Code = code).
+@import url(https://fonts.googleapis.com/css?display=fallback&family=Merriweather:regular,i,b,bi|Merriweather%20Sans:regular,i,b,bi|Cascadia%20Code:regular,i,b,bi);
+
+$font-family-sans-serif: 'Merriweather Sans', sans-serif !default;
+$font-family-monospace: 'Cascadia Code', Menlo, Monaco, Consolas, 'Courier New', monospace !default;
+
+// LSD Warm on a light slide background.
+$body-color: #241100 !default;
+$body-bg: #faf1f3 !default;
+
+$presentation-heading-font: 'Merriweather', Georgia, serif !default;
+$presentation-heading-font-weight: 700 !default;
+$presentation-heading-color: #8f5610 !default; // LSD Warm accent (light)
+$link-color: #8f5610 !default;
+
+$presentation-font-size-root: 28px !default;
