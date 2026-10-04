@@ -49,8 +49,7 @@
       "Bash(mise run go:cross *)"
     ],
     "ask": [
-      "Edit(./osv-scanner.toml)",
-      "Write(./osv-scanner.toml)"
+      "Edit(./osv-scanner.toml)"
     ]
   }
 }
