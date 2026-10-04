@@ -159,6 +159,8 @@ func main() {
 
 	srv := grpc.NewServer(
 		grpc.ForceServerCodec(vs.Codec{}),
+		grpc.MaxRecvMsgSize(64<<20),
+		grpc.MaxSendMsgSize(64<<20),
 		grpc.StreamInterceptor(func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, h grpc.StreamHandler) error {
 			record("stream-start", info.FullMethod)
 			err := h(srv, ss)

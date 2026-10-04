@@ -29,6 +29,7 @@ import (
 )
 
 type req struct {
+	Net       string `json:"net"`
 	Op        string `json:"op"`
 	ID        string `json:"id"`
 	TimeoutMs int    `json:"timeoutMs"`
@@ -62,9 +63,10 @@ type frameRec struct {
 }
 
 var (
-	mu     sync.Mutex
-	vconns = map[string]*vconn{}
-	nconns = map[string]*nconn{}
+	curPeer *net.UnixConn
+	mu      sync.Mutex
+	vconns  = map[string]*vconn{}
+	nconns  = map[string]*nconn{}
 )
 
 func uptimeRaw() float64 {
@@ -115,6 +117,7 @@ func serve(c *net.UnixConn) {
 			if err := json.Unmarshal(line, &r); err != nil {
 				out["error"] = "bad request: " + err.Error()
 			} else {
+				curPeer = c
 				out = handle(r, fd)
 				fd = -1
 			}
@@ -147,6 +150,8 @@ func handle(r req, fd int) map[string]any {
 		return adoptNet(r, fd)
 	case "net":
 		return netEcho(r)
+	case "stop-peer-and-check":
+		return stopPeerAndCheck(r)
 	case "close":
 		return closeID(r.ID)
 	}
@@ -491,4 +496,39 @@ func netEcho(r req) map[string]any {
 		return map[string]any{"error": "no such id"}
 	}
 	return doEcho(n, r)
+}
+
+// stopPeerAndCheck stops the wb-vmd stand-in (the peer of the Unix socket)
+// with SIGSTOP, uses the vsock and network descriptors it passed, then
+// continues it. If either works, no code in that process is in the data path.
+func stopPeerAndCheck(r req) map[string]any {
+	raw, err := curPeer.SyscallConn()
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	pid := 0
+	var gerr error
+	_ = raw.Control(func(fd uintptr) { pid, gerr = unix.GetsockoptInt(int(fd), unix.SOL_LOCAL, unix.LOCAL_PEERPID) })
+	if gerr != nil {
+		return map[string]any{"error": "LOCAL_PEERPID: " + gerr.Error()}
+	}
+	if err := unix.Kill(pid, unix.SIGSTOP); err != nil {
+		return map[string]any{"error": "SIGSTOP: " + err.Error()}
+	}
+	time.Sleep(200 * time.Millisecond)
+	out := map[string]any{"peerPid": pid}
+	if v := getV(r.ID); v != nil {
+		out["vsock"] = doCheck(v, r)
+	}
+	mu.Lock()
+	n := nconns[r.Net]
+	mu.Unlock()
+	if n != nil {
+		out["net"] = doEcho(n, req{WaitMs: 2000})
+	}
+	out["stoppedMs"] = 200 + out["vsock"].(map[string]any)["healthMs"].(float64)
+	if err := unix.Kill(pid, unix.SIGCONT); err != nil {
+		out["contError"] = err.Error()
+	}
+	return out
 }

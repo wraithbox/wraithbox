@@ -1,0 +1,27 @@
+{"startSeconds":0.19370950001757592,"step":"boot"}
+{"family":1,"fd":4,"mode":"socket","peer":"family 1 len 16","sockType":2,"step":"net-describe"}
+{"id":"n1","lastWriteError":"","local":"unix:","ok":true,"op":"adopt-net","peer":"unix:","receivedFD":6,"replyAtUptimeRaw":228879.50924262399,"replyMs":4655.7430000000004,"sent":229,"sockType":2,"step":"net-adopt","swiftClosedHostEnd":true}
+{"dst":1024,"family":1,"fd":4,"mode":"socket","peer":"family 1 len 16","seconds":10.336012291023508,"sockType":1,"src":2937895658,"step":"connect","tries":698}
+{"echoBytes":1024,"echoMs":0.32000000000000001,"health":"SERVING","healthAtUptimeRaw":228885.00142395799,"healthMs":5.8630000000000004,"id":"c1","local":"unix:","ok":true,"op":"adopt-vsock","peer":"unix:","receivedFD":7,"sockType":1,"step":"c1-adopt-kept"}
+{"id":"c1","ok":true,"op":"watch","step":"c1-watch-start"}
+{"echoBytes":1024,"echoMs":0.19700000000000001,"health":"SERVING","healthAtUptimeRaw":228885.005099125,"healthMs":0.82699999999999996,"id":"c2","local":"unix:","ok":true,"op":"adopt-vsock","peer":"unix:","receivedFD":8,"sockType":1,"step":"c2-adopt"}
+{"fdAfterClose":-1,"step":"c2-closed-in-swift"}
+{"echoBytes":1024,"echoMs":0.29499999999999998,"grpcState":"READY","health":"SERVING","healthAtUptimeRaw":228885.539700416,"healthMs":0.47499999999999998,"id":"c2","ok":true,"op":"check","step":"c2-check-after-close"}
+{"echoBytes":1024,"echoMs":0.23699999999999999,"health":"SERVING","healthAtUptimeRaw":228885.542563458,"healthMs":0.60699999999999998,"id":"c3","local":"unix:","ok":true,"op":"adopt-vsock","peer":"unix:","receivedFD":9,"sockType":1,"step":"c3-adopt"}
+{"fdStillOpenInSwift":false,"step":"c3-released-in-swift"}
+{"echoBytes":1024,"echoMs":0.17100000000000001,"grpcState":"READY","health":"SERVING","healthAtUptimeRaw":228886.064330583,"healthMs":0.33400000000000002,"id":"c3","ok":true,"op":"check","step":"c3-check-after-release"}
+{"echoBytes":8388608,"echoError":"rpc error: code = ResourceExhausted desc = grpc: received message larger than max (8388608 vs. 4194304)","echoMs":0.441,"grpcState":"READY","health":"SERVING","healthAtUptimeRaw":228886.06527275001,"healthMs":0.20799999999999999,"id":"c1","ok":false,"op":"check","step":"c1-check-main-thread-blocked"}
+{"echoBytes":1024,"echoMs":0.187,"family":1,"fd":6,"health":"SERVING","healthAtUptimeRaw":228886.10334912501,"healthMs":0.377,"id":"g1","local":"unix:","mode":"socket","ok":true,"op":"adopt-vsock","peer":"unix:","receivedFD":10,"sockType":1,"step":"g1-adopt"}
+{"echoBytes":1024,"echoMs":0.251,"grpcState":"READY","health":"SERVING","healthAtUptimeRaw":228886.605322583,"healthMs":0.57299999999999995,"id":"g1","ok":true,"op":"check","step":"g1-check-after-close"}
+{"id":"c1","ms":31.593,"op":"guest-dial","result":{"local":"vsock:3:1025","ms":2.4350000000000001,"ok":true,"remote":"vsock:2:2048"},"step":"guest-dial"}
+{"echoBytes":1024,"echoMs":0.219,"grpcState":"READY","health":"SERVING","healthAtUptimeRaw":228888.72356750001,"healthMs":0.501,"id":"c1","ok":true,"op":"check","step":"c1-check"}
+{"id":"n1","lastWriteError":"","ok":true,"op":"net","replyAtUptimeRaw":228888.72435675,"replyMs":0.22500000000000001,"sent":1,"step":"n1-check"}
+{"step":"paused"}
+{"grpcState":"READY","healthAtUptimeRaw":228890.73359037499,"healthError":"rpc error: code = DeadlineExceeded desc = context deadline exceeded","healthMs":2001.095,"id":"c1","ok":false,"op":"check","step":"c1-check-while-paused"}
+{"error":"no echo reply","framesSeen":23,"id":"n1","lastWriteError":"","ok":false,"op":"net","readError":"","sent":98,"step":"n1-check-while-paused"}
+{"seconds":3.1456724579911679,"step":"save-with-open-connections"}
+{"step":"resumed-same-vm"}
+{"echoBytes":1024,"echoMs":0.29199999999999998,"grpcState":"READY","health":"SERVING","healthAtUptimeRaw":228895.88940112499,"healthMs":0.54200000000000004,"id":"c1","ok":true,"op":"check","step":"c1-check-after-resume"}
+{"id":"n1","lastWriteError":"","ok":true,"op":"net","replyAtUptimeRaw":228895.89032741598,"replyMs":0.22900000000000001,"sent":1,"step":"n1-check-after-resume"}
+{"grpcState":"READY","id":"c1","op":"watch-status","step":"c1-watch-status","watch":["2026-10-04T22:16:04.633081Z status: SERVING"]}
+{"error":"Error Domain=VZErrorDomain Code=11 \"The save file could not be created at URL file:\/\/\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x18\/base\/handoff.vzvmsave. Creating the file failed with error “File exists”.\" UserInfo={NSLocalizedFailure=An error occurred while saving the virtual machine., NSLocalizedFailureReason=The save file could not be created at URL file:\/\/\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x18\/base\/handoff.vzvmsave. Creating the file failed with error “File exists”.}"}

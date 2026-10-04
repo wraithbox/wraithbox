@@ -469,10 +469,10 @@ func handoff(_ b: Bundle, recvPath: String) async throws {
     }
     step("guest-dial", await dial)
 
-    // 2f: the process holding the passed fd is stopped (SIGSTOP) for 2 s:
-    // nothing this process does is in the data path, so show the reverse,
-    // that only the Go process matters, by stopping nothing here and
-    // checking c1 and n1 after a quiet minute.
+    // 2f: this whole process stopped (SIGSTOP, sent by hostrecv, which
+    // continues it afterwards) while Go uses c1 and n1: is any of our
+    // code in the data path?
+    step("c1-n1-check-wbvmd-stopped", await rc.call(["op": "stop-peer-and-check", "id": "c1", "net": "n1", "bulkBytes": 8 << 20]))
     try? await Task.sleep(nanoseconds: 2_000_000_000)
     step("c1-check", await rc.call(["op": "check", "id": "c1"]))
     step("n1-check", await rc.call(["op": "net", "id": "n1"]))
@@ -499,6 +499,7 @@ func handoff(_ b: Bundle, recvPath: String) async throws {
 
     // Save again, stop this VM, restore a second VM from a clone.
     try await m.vm.pause()
+    try? FileManager.default.removeItem(at: tmpState)
     let ts2 = now()
     try await m.vm.saveMachineStateTo(url: tmpState)
     step("save-2", ["seconds": now() - ts2])
@@ -599,9 +600,7 @@ func restoreCmd(_ b: Bundle, recvPath: String, keep: Bool) async throws {
     let n = await netR
     close(netFD)
     r["net"] = n
-    if let ms = n["firstReplyAtUnixNano"] as? Double {
-        _ = ms
-    }
+    if let up = n["replyAtUptimeRaw"] as? Double { r["netSeconds"] = up - t0 }
     result(r)
     if !keep { await m.hardStop() }
 }

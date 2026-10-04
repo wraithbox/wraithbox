@@ -1,0 +1,2 @@
+2026-10-05 00:21:09.556 A  com.apple.Virtualization.VirtualMachine[2155:fe4f72] (Security) SecKeyCreateDecryptedDataWithParameters
+2026-10-05 00:21:09.558 E  com.apple.Virtualization.VirtualMachine[2155:fe4f72] [com.apple.security:seckey] SecKeyCreateDecryptedDataWithParameters failed: Error Domain=NSOSStatusErrorDomain Code=-25308 "<sepk:p256(u) kid=b8065dc6eb8a3fc2>: unable to compute shared secret" UserInfo={NSDebugDescription=<sepk:p256(u) kid=b8065dc6eb8a3fc2>: unable to compute shared secret, AKSError=-536870174}
