@@ -35,7 +35,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 
   <rect class="box host" x="30" y="236" width="150" height="56" rx="10" />
   <text class="label" x="105" y="260" text-anchor="middle">git</text>
-  <text class="note" x="105" y="278" text-anchor="middle">as the spike ran it</text>
+  <text class="note" x="105" y="278" text-anchor="middle">fallback, as spiked</text>
 
   <line class="edge" x1="60" y1="76" x2="60" y2="144" marker-end="url(#f1-arrow)" />
   <line class="edge" x1="105" y1="202" x2="105" y2="234" marker-end="url(#f1-arrow)" />
@@ -71,7 +71,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <text class="note" x="600" y="200">Ethernet frames</text>
 </svg>
 <figcaption>
-Figure 1. Option A. The launcher starts before <code>wb-hostd</code> confines itself. The daemons it starts can then each apply their own profile. A child that the confined <code>wb-hostd</code> starts directly (red) inherits the <code>wb-hostd</code> profile, and the kernel refuses its own (<code>forbidden-sandbox-reinit</code>). The figure shows git as the spike ran it, a child of <code>wb-hostd</code> inside its profile. Option A instead starts git through the launcher, as a <code>wb-git</code> shim with a profile for one repository.
+Figure 1. Option A. The launcher starts before <code>wb-hostd</code> confines itself. The daemons it starts can then each apply their own profile. A child that the confined <code>wb-hostd</code> starts directly (red) inherits the <code>wb-hostd</code> profile, and the kernel refuses its own (<code>forbidden-sandbox-reinit</code>). The git box shows the fallback, as the spike ran it: a child of <code>wb-hostd</code> inside its profile. Recommended option A instead starts git through the launcher, as a <code>wb-git</code> shim with a profile for one repository.
 </figcaption>
 </figure>
 
@@ -84,16 +84,18 @@ The spike settled the mechanism: an in-process profile, without cgo. The real ch
 
 ### A. A launcher started before wb-hostd confines itself
 
-`wb-hostd` starts a launcher first, then confines itself. Later it asks the launcher for each daemon (`wb-vmd`, one `wb-netd` per VM, `wb-proxyd`) and hands it their descriptors. The launcher starts only those programs, and each confines itself first thing. The launcher must hold to these conditions, which the spike's looser launcher didn't:
+`wb-hostd` starts a launcher, `wb-launcher`, first, then confines itself. Later it asks `wb-launcher` for each daemon (`wb-vmd`, one `wb-netd` per VM, `wb-proxyd`) and hands it their descriptors. `wb-launcher` starts only those programs, and each confines itself first thing. It must hold to these conditions, which the spike's looser launcher didn't:
 
 - a separate standard-library-only program, not `wb-hostd` started in another mode;
 - requests over a `SOCK_SEQPACKET` or `SOCK_DGRAM` socketpair inherited at start, one fixed-format request per message, with unexpected descriptors closed and the request refused;
-- no arguments and a fixed environment for each program;
+- no arguments and a fixed environment for each program, with one bounded exception for `wb-git` (below);
 - profiles and their parameters compiled into each program, or taken from configuration `wb-hostd` read before it confined itself, never from a request;
 - a table of absolute paths in the installed bundle, never under `<config>`, `<data>` or `<logs>`, which the launcher checks;
 - an instance cap per program.
 
-git starts the same way, as a `wb-git` shim that applies a profile for one repository and then runs git (proposal, not tried). The fallback is git as a child of `wb-hostd` under its profile, as the spike ran it. A git bug then reaches every project's policy, the approvals in `state.db`, other projects' landing repositories, and the audit log.
+git starts the same way, as a `wb-git` shim that applies a profile for one repository and then runs git (recommended, not tried). The table has two fixed entries, `wb-git-receive` and `wb-git-upload`, so the git subcommand is never a free string. The request carries one extra field, the repository. `wb-launcher` accepts it only if it resolves to `<data>/projects/<id>/landing.git` (or the export repository of I41) under a projects root fixed before `wb-hostd` confined itself, with a valid `<id>` and no `..` or symbolic link on the way. An inherited directory descriptor, checked with `F_GETPATH`, is the alternative shape.
+
+The fallback is git as a child of `wb-hostd` under its profile, as the spike ran it. A git bug then reaches every project's policy, the approvals in `state.db`, other projects' landing repositories, and the audit log. If you choose it, that goes into T00-index as an accepted residual risk.
 
 - **Cost:** one small process with no profile (the spike's was 165 lines, test code included), plus the `wb-git` shim. The launcher becomes the parent that sees the daemons exit, which the I48 supervision change must cover, including what happens when `wb-hostd` restarts.
 - **Keeps:** <Badge text="SEC12-least-privilege" variant="success" />
