@@ -39,6 +39,8 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X22-no-guest-credentials | Clients without guest credentials | Open |
 | X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
 | X24-openshell-artifacts | OpenShell artifacts | Open |
+| X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Open |
+| X26-pre-receive-check | Push checks before the quarantine lands | Open |
 
 ## Spikes
 
@@ -200,3 +202,17 @@ assumption that v1 work would otherwise build on. They block v1.
   `supervisor_middleware.proto` (RFC 0009) used inside a Go process?
   The same check covers the OCSF 1.8 classes and the agent-safehouse
   Seatbelt profiles.
+- **X25-vmd-sandbox: Self-sandboxed `wb-vmd`.** Can `wb-vmd` confine
+  itself at start with a Seatbelt profile that allows the
+  Virtualization framework, its VM bundles under `<data>/vms` and
+  nothing else, and still create, start, save and restore a macOS VM?
+  If not, what does it need instead: App Sandbox with the
+  virtualization entitlement, or no confinement and a spec change
+  (S04-architecture, SEC12-least-privilege). Found by
+  X23-sandboxed-daemons. Needs a VM.
+- **X26-pre-receive-check: Push checks before the quarantine lands.**
+  Can a `pre-receive` check that Wraith Box owns, never the repository,
+  refuse a push whose objects inflate past a cap, and repeat the ref
+  checks git only runs in `update()`, so a refused push leaves nothing
+  in `landing.git` (S08-workspace-and-git, SEC13-bounded-resources)?
+  Found in the review of the X07-git-round-trip result.
