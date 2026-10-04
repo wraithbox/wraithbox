@@ -18,11 +18,11 @@ issue, the spike result, or the spec). A brief explains it.
 
 | ID | Description | Status |
 |----|-------------|--------|
-| B16-warm-start | How fast does a suspended VM come back, and can one saved state be restored more than once? | Answered 2026-10-04: yes, with conditions. Awaiting decision on idle-while-locked |
-| B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04 |
-| B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04 |
-| B32-dep-gate-registries | Can the dependency gate refuse young packages without breaking installs? | Answered 2026-10-04: yes, with conditions |
-| B34-sandboxed-daemons | Can the Go daemons confine themselves on macOS? | Answered 2026-10-04 |
+| B16-warm-start | How fast does a suspended VM come back, and can one saved state be restored more than once? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, keep running while locked and save after unlock |
+| B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04. Decided 2026-10-04: A, Go filter plus `receive.hideRefs` |
+| B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04. Decided 2026-10-04: A, allowlist as measured, and H1 plus a URL list for hyperlinks |
+| B32-dep-gate-registries | Can the dependency gate refuse young packages without breaking installs? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, Homebrew ungated, and vulnerability threshold CRITICAL (I73) |
+| B34-sandboxed-daemons | Can the Go daemons confine themselves on macOS? | Answered 2026-10-04. Decided 2026-10-04: A, the `wb-launcher`, with the `wb-git` shim |
 | B36-flow-attribution | Can projects sharing the work VM keep their network grants apart? | Decided 2026-10-04: A. The VM is the enforced unit |
 | B37-terminal-boundary | Should the host terminal be a trust boundary with its own filter? | Decided 2026-10-04: A. Boundary plus allowlist filter, for now |
 | B38-port-forward-clipboard | How should guest dev servers and clipboard text cross to the host? | Decided 2026-10-04: D. Neither in V1 |
