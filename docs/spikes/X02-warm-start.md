@@ -79,10 +79,11 @@ that identity ran (conditions 2 and 3). The conditions:
    the same host, and that a restore can fail after a host software
    update. A saved state can't be part of an image or move between
    machines. A restore that fails for one of these reasons deletes the
-   state and cold boots. The framework reports a host update and an
-   identifier in use (condition 3) with the same "invalid argument"
-   error, so the host tells them apart by whether a VM with that
-   identifier runs.
+   state and cold boots. A host update gives "invalid argument"
+   according to Apple's `VZVirtualMachine.h`, which this spike didn't
+   test. An identifier in use gives the same error, as measured under
+   condition 3. The host tells the two apart by whether a VM with
+   that identifier runs.
 
 ## Measurements
 
@@ -173,11 +174,11 @@ memory in use, restores more slowly.
   A suspended VM has 7 s to the Claude prompt. The restore of an idle
   guest takes 3.7 s to 4.1 s (p50) or 3.9 s to 4.6 s (p95), which
   leaves about 2.5 s for the vsock connection, `wb-guestd`, and
-  starting Claude Code. Two numbers are still missing: the time from
-  restore to `wb-guestd` answering on vsock, which X18-vsock-handoff
-  (I29) measures in its save and restore step, and the restore of a
-  working guest's state, which the time-to-prompt benchmark of
-  S11-verification-and-spikes measures. If either one breaks the
+  starting Claude Code. X18-vsock-handoff (I29) measures the time
+  from restore to `wb-guestd` answering on vsock, in its save and
+  restore step. The time-to-prompt benchmark of
+  S11-verification-and-spikes measures the restore of a working
+  guest's state. If either one breaks the
   budget, NFR01-startup or the warm start design changes then.
 - **NFR03-footprint**: each suspended VM keeps a state file of about the
   guest memory in use (1.4 GB idle) next to its disks.

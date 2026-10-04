@@ -79,10 +79,11 @@ in S12-platforms.
     VM. A restore that fails for a temporary reason, such as another
     VM with the same identifier still running or a locked host, keeps
     the state, and `wb-hostd` retries the restore or reports the
-    reason (NFR06-explained-refusals). The framework reports a host
-    update and an identifier in use with the same "invalid argument"
-    error, so `wb-hostd` tells them apart by what it can see: whether
-    a VM with that identifier runs, and whether the host is locked.
+    reason (NFR06-explained-refusals). Both a host update (per
+    Apple's `VZVirtualMachine.h`) and an identifier in use (measured
+    in X02-warm-start) give the same "invalid argument" error.
+    `wb-hostd` tells them apart by what it can see: whether a VM with
+    that identifier runs, and whether the host is locked.
 - **Time and sleep.** After host sleep or VM restore, `wb-guestd`
   resynchronizes the guest clock from `wb-hostd`.
 

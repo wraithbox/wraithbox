@@ -52,7 +52,10 @@ be tested before building on them.
     objects after the cleanup;
   - forge an approval prompt via terminal output and confirm nothing
     treats it as one.
-- **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended);
+- **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended).
+  The suspended case restores a state saved after a Claude Code
+  session and a build, not an idle guest, and records the state file's
+  size (X02-warm-start). Also
   `npm ci` (with the dependency gate on), `git status` on a large
   repository, and an incremental build on the data disk compared with
   the host; throughput of a large download through the gateway.
