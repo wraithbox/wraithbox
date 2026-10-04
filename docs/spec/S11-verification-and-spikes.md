@@ -9,7 +9,9 @@ be tested before building on them.
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
   DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
-  handling, policy matching, the git transport framing (the request
+  handling, request path canonicalization, the credential parameter
+  scan of query strings and of form and JSON bodies
+  (X22-no-guest-credentials), policy matching, the git transport framing (the request
   header and the push command list, X07-git-round-trip), the pack
   scanner in front of `receive-pack` and the input of the pre-receive
   check (X26-pre-receive-check), every vsock RPC
@@ -60,13 +62,22 @@ be tested before building on them.
   - push to a repository outside the project set, with and without an
     attacker-supplied token; create a gist or repository; publish a
     package;
-  - send an attacker-supplied token in a credential query parameter that
-    a git host's profile names (GitLab's `private_token`) and get a
-    `403`; send a token on a GET and see it removed
-    (X22-no-guest-credentials);
+  - send an attacker-supplied token in a credential parameter that a
+    git host's profile names and get a `403`: GitLab's `private_token`
+    in the query string, as `private%5Ftoken`, repeated, empty, as a
+    form-encoded body field, and as a top-level JSON key; send a token
+    on a GET and see it removed (X22-no-guest-credentials);
+  - send a credential that is neither a placeholder nor a fixed value, and
+    find a detection finding with its header name and no value;
   - download a Homebrew bottle from `ghcr.io` with the guest's
-    `Authorization` removed and the anonymous binding injected, and see
-    a write to `/v2/homebrew/core/` refused;
+    `Authorization` removed and the anonymous binding injected, through
+    the redirect to `pkg-containers.githubusercontent.com`; send any
+    other method to `/v2/homebrew/core/` and see it refused; send
+    `ghcr.io/token?scope=repository:homebrew/core/jq:pull,push` with
+    guest Basic credentials and see it denied;
+  - request `/v2/homebrew/core/x/../../other/image/...` and
+    `/v2/homebrew%2Fcore/...` on `ghcr.io`, and see both refused with
+    nothing sent upstream;
   - call the model API with an attacker-supplied key and observe that it
     is replaced;
   - send a credential placeholder outside its binding (another host, a

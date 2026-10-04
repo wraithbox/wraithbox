@@ -74,6 +74,8 @@ unparam
 safehouse
 Vulns
 openshell
+Gitea
+Forgejo
 
 # Docs site (Astro Starlight)
 frontmatter

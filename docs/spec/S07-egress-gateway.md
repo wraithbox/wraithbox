@@ -62,41 +62,82 @@ the host.
     sent (T01-allowed-channels).
   - Plain HTTP is allowed only when policy names `host:80`, and is
     always inspected.
-- **Credential replacement** (SEC04-no-guest-secrets). On inspected
-  hosts, `wb-proxyd` removes the credentials the guest sends, whatever
-  the method: `Authorization`, `Proxy-Authorization` and `Cookie` on
-  every host, plus each header the host's built-in profile names (the
-  model API's `x-api-key`, GitLab's `PRIVATE-TOKEN` and `JOB-TOKEN`). A
-  request with a query parameter that the profile names as a credential
-  (GitLab's `private_token` and `access_token`) is refused with a `403`
-  that names the rule, because GitLab reads a token from the query
-  string (X22-no-guest-credentials). If the host has a credential
+- **Request form.** On inspected hosts, `wb-proxyd` parses each
+  request and sends upstream a request it builds itself: origin form
+  (the path and query, with any userinfo of an absolute-form target
+  dropped), no trailers, and a `Host` or `:authority` that must equal
+  the stream's hostname, or the request is refused. Policy, bindings
+  and the credential rules match on the canonical path: dot segments
+  removed, and a request whose path has an encoded `/` or `.`, or a
+  control byte, refused. The canonical path is the one sent upstream.
+  Each request then goes through these steps in order: canonicalize,
+  classify and remove guest credentials (audited), HTTP policy, the
+  dependency gate, and credential injection.
+- **Credential replacement** (SEC04-no-guest-secrets). `wb-proxyd`
+  removes the credentials the guest sends, whatever the method:
+  `Authorization`, `Proxy-Authorization` and `Cookie` on every
+  inspected host, plus each header the host's built-in profile names.
+  It refuses with a `403` that names the rule a request that has a
+  credential parameter the profile names, in the query string, in a
+  form-encoded body, or as a top-level key of a JSON body. Bodies are
+  read for this up to a fixed size, and a larger body of those types
+  is refused on a host whose profile names parameters. Names are
+  compared after percent-decoding, with the profile's case rule, and a
+  repeated or empty occurrence counts. If the host has a credential
   binding, the binding's credential is then injected
-  (S09-policy-credentials-audit). A token supplied by an attacker is
-  therefore never forwarded, and the guest only ever holds
-  placeholders. Each removal and refusal is logged with the header or
-  parameter name and the rule, never the value (SEC10-audit).
+  (S09-policy-credentials-audit). A guest token in any of those places
+  is never forwarded. `wb-proxyd` doesn't look for credentials in
+  other places (T10-unnamed-credentials). Each removal and
+  refusal is logged with the header or parameter name and the rule,
+  never the value (SEC10-audit). A removed value that is neither a
+  placeholder the guest was given nor the binding's fixed public value
+  means the guest holds a credential from somewhere else: it is a
+  detection finding (S09-policy-credentials-audit) with the scheme and
+  the header or parameter name, rate-limited per session.
+  - *Named places.* The model API profile names `x-api-key`. The git
+    hosting profile names, per kind of host: GitHub, `Authorization`
+    only (GitHub itself refuses `?access_token=`). GitLab, the headers
+    `PRIVATE-TOKEN`, `JOB-TOKEN` and `Deploy-Token`, and the parameters
+    `private_token`, `access_token` and `job_token`, compared
+    case-sensitively, as GitLab does. Gitea and Forgejo, the
+    parameters `token` and `access_token`, compared case-sensitively
+    (X22-no-guest-credentials). `github.com`, `gitlab.com` and
+    `codeberg.org` get their kind built in. A git remote on any other
+    host gets the git hosting profile when the host repository's
+    remotes name it. Until the user sets its kind in policy, it gets the
+    union of every kind's names, and a self-hosted host fails closed.
   - *Anonymous credentials.* Some hosts answer public reads only to a
-    request with a token. `wb-proxyd` doesn't forward the
-    guest's token for those, not even one the host issued in the same
-    session. A host-side binding with a fixed public value injects one
-    instead. The package registries profile has one:
+    request with a token. `wb-proxyd` doesn't forward the guest's token
+    for those, not even one the host issued in the same session. A
+    host-side binding with a fixed public value injects one instead.
+    The package registries profile has one:
     `Authorization: Bearer QQ==` on GET and HEAD of `ghcr.io`
-    `/v2/homebrew/core/`, the value Homebrew itself sends, and writes
-    to those paths are refused. Without it, every bottle download fails
-    with a 401, because `brew` never asks the token endpoint for a
-    token. Forwarding guest tokens on reads only was rejected: it
-    forwards an attacker's token on every GET, and a placeholder
-    without a binding then fails the request. Forwarding only tokens
-    that the host issued in this session was rejected because it
-    doesn't fix Homebrew.
-  - *What is left.* Server-issued credentials in a download address
-    (presigned storage URLs, as for git LFS and Homebrew bottles) pass
-    unchanged. Removing them would break those downloads, and a
-    storage host still has to be allowed by policy. A
-    guest's own credential in a header or parameter that no profile
-    names reaches a host without a built-in profile
-    (T10-unnamed-credentials).
+    `/v2/homebrew/core/`, the value Homebrew itself sends. On those
+    paths any method other than GET and HEAD is refused and logged with
+    the rule `anonymous-binding-read-only`. Without the binding, every
+    bottle download fails with a 401, because `brew` never asks the
+    token endpoint for a token. `ghcr.io/token` is denied, since no
+    client needs it once the binding answers. Forwarding guest tokens
+    on reads only was rejected: it forwards an attacker's token on
+    every GET, and a placeholder without a binding then fails the
+    request. Forwarding only tokens that the host issued in this
+    session was rejected because it doesn't fix Homebrew.
+  - *Signed URLs.* `wb-proxyd` passes a credential in any other
+    parameter unchanged, as the presigned storage URLs of git LFS and
+    Homebrew bottles need. `wb-proxyd` can't tell who signed such a
+    URL, and the guest can sign one for its own bucket. A storage host still has to
+    be allowed by policy, and the approval risk check flags a shared
+    object-storage host (`*.s3.amazonaws.com`,
+    `storage.googleapis.com`, `*.blob.core.windows.net`), a wildcard
+    over one, and a rule that allows signature parameters on a write
+    method.
+  - *Accepted gaps.* `brew` also reads
+    `ghcr.io/v2/homebrew/command-not-found/`, and bottles of
+    third-party taps can be on `ghcr.io` outside `homebrew/core`. Both
+    are outside the profile and the anonymous binding, and fail in V1.
+    Claude Code sends a built-in `DD-API-KEY` header to Datadog's log intake. That host
+    stays out of the model API profile and is an unknown destination
+    like any other.
 - **Placeholder binding.** Each placeholder is bound to the hosts,
   ports, and paths of its binding, following OpenShell's provider
   model. A placeholder found anywhere else in a request (another host,
@@ -119,9 +160,12 @@ the host.
     upload endpoints denied. npm, PyPI, crates.io and the Go module
     proxy, plus `sum.golang.org` read-only (`/lookup/`, `/latest`,
     `/tile/`), because the module proxy doesn't serve the checksum
-    database. Homebrew bottles: `ghcr.io` only for `homebrew/core` (the
-    anonymous token's `repository:homebrew/core/...:pull` scope and
-    `/v2/homebrew/core/...` paths), and `formulae.brew.sh` read-only.
+    database. Homebrew bottles: `ghcr.io` only for GET and HEAD of
+    `/v2/homebrew/core/...`, with the anonymous binding above and
+    `ghcr.io/token` denied, `pkg-containers.githubusercontent.com` GET
+    and HEAD only, because each bottle download redirects there with a
+    signed query string (X22-no-guest-credentials), and
+    `formulae.brew.sh` read-only.
 - **Dependency gate** (SEC07-dep-gate). For npm, PyPI, the Go module
   proxy and crates.io, `wb-proxyd` looks up each version's publish time
   and known vulnerabilities (OSV data). The minimum age (default 7 days)
@@ -243,6 +287,12 @@ the host.
   result of the prover's risk check on the rule it would add (S09-policy-credentials-audit),
   such as new reach for a credential or a new write method. Policy
   changes take effect without restarting anything.
+- **What an approval grants.** On a host without a built-in profile, an
+  approval grants the read methods GET, HEAD and OPTIONS. A write
+  method (any other) is refused until the user approves it in a
+  separate request, which the risk check flags as a new write method
+  (fail closed, SEC06-repo-writes). The maintainer hasn't decided this
+  yet (B33-no-guest-credentials).
 - **Learn mode** (trusted projects only, FR10-learn-mode): DNS resolves any name and
   connections are inspected and allowed, while credentials stay host-side
   as usual. The session's destinations become a suggested allowlist for
