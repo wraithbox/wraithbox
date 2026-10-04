@@ -1,6 +1,6 @@
 ---
 title: Can wb filter Claude Code's terminal output without breaking it?
-description: Yes, with conditions. An allowlist passes everything Claude Code needs to draw its screen, but file paths stop being links, /copy stops reaching the host clipboard, and desktop notifications lose their text.
+description: Yes, with conditions, for Ghostty and Terminal.app pending a check by eye. An allowlist passes everything Claude Code needs to draw its screen, but file paths stop being links, /copy stops reaching the host clipboard, and desktop notifications lose their text.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-04.** Source: X19-terminal-filter (I30). Feeds I37 (B37-terminal-boundary) and I38. The check by eye in real terminals is I62.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** Claude Code 2.1.289 emitted 56 kinds of control and escape sequence in seven recorded sessions. All but five pass a short allowlist. With those five dropped or rewritten, every screen is the same on replay, except that file paths stop being links. Accepting this gives I37 its allowlist. `/copy` then no longer reaches your clipboard until I38 designs the clipboard.
+**Yes, with conditions**, for Ghostty and Terminal.app, pending the check by eye in I62. Claude Code 2.1.289 emitted 56 kinds of control and escape sequence in seven recorded sessions, under imitated terminal profiles. All pass a short allowlist except four kinds, plus `file://` links within OSC 8. With those dropped or rewritten, every screen is the same on replay, except that file paths stop being links. The iTerm2 and VS Code profiles stay unchecked in the real terminals. Accepting this gives I37 its allowlist. `/copy` then no longer reaches your clipboard until I38 designs the clipboard.
 </Aside>
 
 <figure class="wb-figure">
@@ -81,8 +81,8 @@ As A, but `wb` turns each OSC 52 write into a request to copy that text to the h
 
 As A, but OSC 9 and OSC 777 pass. The desktop shows Claude Code's own notification text.
 
-- **Cost:** none for the user.
-- **Weakens:** the guest writes text into host desktop notifications, where approvals also arrive. <Badge text="SEC14-no-fake-approvals" variant="danger" />
+- **Cost:** none for the user, but a spec change: SEC14-no-fake-approvals would need an exception, and AGENTS.md does not allow weakening a control.
+- **Weakens:** the guest writes text into host desktop notifications, where approvals also arrive. <Badge text="SEC14-no-fake-approvals, spec change" variant="danger" />
 
 </div>
 </div>
@@ -99,7 +99,7 @@ Passing OSC 52 to the terminal unchanged would give the guest the host clipboard
 </thead>
 <tbody>
 <tr><td><strong>SEC03-no-host-exec</strong> nothing the agent produces runs on the host without the user</td><td class="yes">kept</td><td class="yes">holds</td><td class="yes">unchanged</td></tr>
-<tr><td><strong>SEC14-no-fake-approvals</strong> approvals never come from the agent's terminal</td><td class="yes">stronger</td><td class="yes">holds</td><td class="no">guest text in notifications</td></tr>
+<tr><td><strong>SEC14-no-fake-approvals</strong> approvals never come from the agent's terminal</td><td class="partial">title and bell remain, see I37</td><td class="partial">same as A</td><td class="no">guest text in notifications</td></tr>
 <tr><td><strong>FR12-clipboard</strong> clipboard opt-in, per direction, with approval</td><td class="yes">no crossing</td><td class="yes">with approval</td><td class="yes">no crossing</td></tr>
 <tr><td><strong>FR01-drop-in</strong> <code>wb claude</code> behaves as <code>claude</code></td><td class="partial">three losses</td><td class="partial">two losses</td><td class="partial">two losses</td></tr>
 <tr><td>Work</td><td class="na">I37 only</td><td class="na">I37 and the I38 clipboard flow</td><td class="na">I37 only</td></tr>
@@ -111,15 +111,17 @@ Passing OSC 52 to the terminal unchanged would give the guest the host clipboard
 - <Badge text="verified" variant="success" /> The inventory: 56 kinds of sequence in 818 KB of output from seven sessions, four terminal profiles (X19-terminal-filter, "Inventory").
 - <Badge text="verified" variant="success" /> Replayed into two headless emulators, raw and filtered, every screen after every read differs at most in `file://` links. A control run that strips colors shows the comparison sees style (X19-terminal-filter, "What the filter changes").
 - <Badge text="verified" variant="success" /> `/copy` emits `ESC ] 52 ; c ; <base64>` as well as running `pbcopy` (recording `copy-ghostty`).
-- <Badge text="verified" variant="success" /> Claude Code sends "Claude needs your permission" as OSC 777 for Ghostty and OSC 9 for iTerm2 (recordings `session-ghostty`, `session-iterm`).
+- <Badge text="inferred" variant="note" /> Claude Code sends "Claude needs your permission" as OSC 777 for Ghostty and OSC 9 for iTerm2. Observed under the imitated Ghostty and iTerm2 profiles (recordings `session-ghostty`, `session-iterm`), not in the real terminals.
 - <Badge text="verified" variant="success" /> A link printed by a Bash tool reaches the terminal as a live link (recording `session-ghostty`).
-- <Badge text="verified" variant="success" /> About 12 ms of CPU per MB of Claude Code output, 30 ms per MB for random bytes; a fuzz target found and checked one bug (X19-terminal-filter, "Cost", "Fuzzing").
+- <Badge text="verified" variant="success" /> About 12 ms of CPU per MB of Claude Code output, and 34 ms per MB for random bytes (X19-terminal-filter, "Cost").
+- <Badge text="verified" variant="success" /> A fuzz target found one bug, which is fixed, and then ran 17.5 million inputs without a failure (X19-terminal-filter, "Fuzzing").
 - <Badge text="assumed" variant="caution" /> That the headless emulator shows what Ghostty and Terminal.app show. I62 checks it by eye.
-- <Badge text="assumed" variant="caution" /> That the terminal profiles in the recorder answered Claude Code's queries as the real terminals would. I62 covers this too.
+- <Badge text="assumed" variant="caution" /> That the terminal profiles in the recorder answered Claude Code's queries as the real terminals would. I62 covers Ghostty and Terminal.app. The iTerm2 and VS Code profiles stay unchecked.
+- <Badge text="verified" variant="success" /> The filter does not stop every path for guest text to the desktop. The title it passes, plus a bell, shows up in iTerm2's Notification Center alerts and in Ghostty's tab (`bell-features = title`). Reproduced by the security review of PR66. I37 has `wb` own the title.
 
 ## What this unblocks
 
-- I37: the spec change for T00-index, S05-cli and S11-verification-and-spikes, with this allowlist.
+- I37: the spec change for T00-index, S05-cli and S11-verification-and-spikes, with this allowlist and the tightening and reset items in X19-terminal-filter ("What it means for the specs").
 - I62: the check by eye, with the relay from the spike branch.
 - I38: OSC 52 from `/copy` is the input for the guest-to-host clipboard.
 
