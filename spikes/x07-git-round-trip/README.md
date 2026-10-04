@@ -19,9 +19,9 @@ project gates, never merged. The written result is
   `$TMPDIR/x07-cache`, runs everything else in a fresh `$TMPDIR/x07-run-*`
   and deletes it at exit.
 - `results/`: the output of the runs quoted in the result. `run1.txt`
-  is partial (a harness bug hung the raw phase) and predates the
-  helper asking for protocol v2, so every fetch in it is v0, whatever
-  its label says. `run2.txt` ran under heavy load from other agents'
+  is partial (a harness bug hung the raw phase). Its hidden-data probes
+  share one clone, so its v0 "SUCCEEDED" rows only found objects the v2
+  probe had already fetched. Later runs use a fresh clone per probe. `run2.txt` ran under heavy load from other agents'
   VMs. `run3-apple.txt` is Apple git 2.54.0 on both sides.
 
 ```sh
