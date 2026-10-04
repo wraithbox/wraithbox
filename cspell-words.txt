@@ -70,7 +70,6 @@ unparam
 safehouse
 Vulns
 openshell
-Ghostty
 
 # Docs site (Astro Starlight)
 frontmatter

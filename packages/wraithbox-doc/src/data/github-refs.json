@@ -121,7 +121,7 @@
 	},
 	"21": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X07-git-round-trip: Git round trip",
 		"summary": "Does the git round trip work as S08-workspace-and-git describes: a remote helper over vsock, read-only upload-pack against the user's repository, restricted receive-pack into the landing repository, and flagging of ri…",
 		"brief": "B21-git-round-trip"
@@ -431,7 +431,7 @@
 	},
 	"69": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spike): X07-git-round-trip answered, yes with conditions",
 		"summary": "Result of spike X07-git-round-trip: yes, with conditions.",
 		"brief": "B21-git-round-trip"
