@@ -129,7 +129,7 @@
 	width: 100%;
 	height: auto;
 	font-family: var(--sl-font);
-	font-size: 13px;
+	font-size: 15px;
 }
 .sl-markdown-content figure.wb-figure figcaption {
 	margin-top: 0.5rem;
@@ -175,10 +175,10 @@
 }
 .wb-figure .note {
 	fill: var(--sl-color-gray-3);
-	font-size: 11px;
+	font-size: 12.5px;
 }
 .wb-figure .boundary-label {
 	fill: var(--wb-boundary);
-	font-size: 11px;
+	font-size: 12.5px;
 	font-weight: 600;
 }

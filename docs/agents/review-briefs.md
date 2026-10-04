@@ -83,7 +83,8 @@ order.
    SNI, …). A reader who stops before this block must still be able to
    decide.
 
-The ask, the picture and the options fit on one screen at 1280×1000.
+The ask and the picture fit on the first screen at 1280×1000, with the
+options right after them.
 
 ## Writing
 
