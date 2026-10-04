@@ -52,14 +52,14 @@ Figure 1. The relay of a <code>wb claude</code> session with the filter from X19
 
 ## Options
 
-The spike leaves two choices open: what happens to `/copy`, and to Claude Code's desktop notifications.
+The spike leaves three choices open: what happens to `/copy`, to Claude Code's desktop notifications, and to hyperlinks. The cards below cover the first two. Hyperlinks have their own cards after them, and combine with any of A, B or C.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
 ### A. Allowlist as measured
 
-Take the list in X19-terminal-filter into I37. OSC 52 is dropped, notifications become a bell, `file://` links become plain text.
+Take the list in X19-terminal-filter into I37. OSC 52 is dropped, and notifications become a bell. Which links stay links depends on the hyperlink choice below.
 
 - **Cost:** `/copy` says "Copied" but the host clipboard is unchanged until I38 gives the clipboard a design. No text in "Claude needs your permission".
 - **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" /> <Badge text="FR12-clipboard" variant="success" />
@@ -87,6 +87,43 @@ As A, but OSC 9 and OSC 777 pass. The desktop shows Claude Code's own notificati
 </div>
 </div>
 
+**Hyperlinks.**
+
+Claude Code links file paths, web addresses and its own help pages with OSC 8. A link's visible text can differ from where it goes, and a link to `localhost` or a private address names a service on the host, not in the guest.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### H1. Drop OSC 8 in V1
+
+No hyperlinks from the guest. The terminal still makes a bare web address clickable by itself.
+
+- **Cost:** every link Claude Code draws becomes plain text, including "Security guide" style links whose address is not on screen.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" />, and the filter does not need to follow the screen.
+
+</div>
+<div class="wb-option">
+
+### H2. Keep `https://` with host rules
+
+Pass OSC 8 only for `https://` to public dotted hostnames: no IP literals, no `localhost`, `.local` or `.internal`, no user name in the URL.
+
+- **Cost:** a link's text can still differ from its target, which T00-index would record as a residual risk.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="caution" /> with the residual risk written down.
+
+</div>
+<div class="wb-option">
+
+### H3. Pass a link only when its text is its URL
+
+The filter keeps a link only if the characters between its start and end equal its URL.
+
+- **Cost:** the filter has to track what lands on screen between the two sequences, a larger parser of guest bytes. Most of Claude Code's links fail the test and become plain text anyway.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" />
+
+</div>
+</div>
+
 <Aside type="note" title="Not an option">
 Passing OSC 52 to the terminal unchanged would give the guest the host clipboard without approval, which FR12-clipboard rules out and B37-terminal-boundary already decided against.
 </Aside>
@@ -101,7 +138,7 @@ Passing OSC 52 to the terminal unchanged would give the guest the host clipboard
 <tr><td><strong>SEC03-no-host-exec</strong> nothing the agent produces runs on the host without the user</td><td class="yes">kept</td><td class="yes">holds</td><td class="yes">unchanged</td></tr>
 <tr><td><strong>SEC14-no-fake-approvals</strong> approvals never come from the agent's terminal</td><td class="partial">title and bell remain, see I37</td><td class="partial">same as A</td><td class="no">guest text in notifications</td></tr>
 <tr><td><strong>FR12-clipboard</strong> clipboard opt-in, per direction, with approval</td><td class="yes">no crossing</td><td class="yes">with approval</td><td class="yes">no crossing</td></tr>
-<tr><td><strong>FR01-drop-in</strong> <code>wb claude</code> behaves as <code>claude</code></td><td class="partial">three losses</td><td class="partial">two losses</td><td class="partial">two losses</td></tr>
+<tr><td><strong>FR01-drop-in</strong> <code>wb claude</code> behaves as <code>claude</code></td><td class="partial">three losses, all links with H1</td><td class="partial">two losses, all links with H1</td><td class="partial">two losses, all links with H1</td></tr>
 <tr><td>Work</td><td class="na">I37 only</td><td class="na">I37 and the I38 clipboard flow</td><td class="na">I37 only</td></tr>
 </tbody>
 </table>
@@ -117,7 +154,8 @@ Passing OSC 52 to the terminal unchanged would give the guest the host clipboard
 - <Badge text="verified" variant="success" /> A fuzz target found one bug, which is fixed, and then ran 17.5 million inputs without a failure (X19-terminal-filter, "Fuzzing").
 - <Badge text="assumed" variant="caution" /> That the headless emulator shows what Ghostty and Terminal.app show. I62 checks it by eye.
 - <Badge text="assumed" variant="caution" /> That the terminal profiles in the recorder answered Claude Code's queries as the real terminals would. I62 covers Ghostty and Terminal.app. The iTerm2 and VS Code profiles stay unchecked.
-- <Badge text="verified" variant="success" /> The filter does not stop every path for guest text to the desktop. The title it passes, plus a bell, shows up in iTerm2's Notification Center alerts and in Ghostty's tab (`bell-features = title`). Reproduced by the security review of PR66. I37 has `wb` own the title.
+- <Badge text="verified" variant="success" /> The spike filter passes a guest-set window title (OSC 0) followed by BEL unchanged (security review of PR66).
+- <Badge text="inferred" variant="note" /> From the terminals' documentation: with a bell, iTerm2's Notification Center alerts show the session title, and Ghostty's `bell-features = title` shows it in the tab. So guest text can still reach the desktop, and I37 has `wb` own the title. I62 can check the Ghostty part. The iTerm2 part stays unchecked.
 
 ## What this unblocks
 

@@ -29,12 +29,15 @@ of Claude Code output. The conditions are below.
 - **You are approving:** the allowlist below as the starting point for
   I37, and three visible losses: `/copy` no longer reaches the host
   clipboard, the text of Claude Code's desktop notifications becomes a
-  plain bell, and file paths are no longer links.
+  plain bell, and links stop being links. With the recommended answer
+  to open decision 3 (drop OSC 8 in V1), that is every hyperlink. With
+  the alternatives, it is `file://` links and links to hosts the OSC 8
+  rule refuses.
 - **Controls touched:** SEC03-no-host-exec (nothing the agent produces
   runs on the host without the user) is kept: the filter drops iTerm2
   file transfer, kitty graphics (which can read host files) and
   `file://` links. SEC14-no-fake-approvals (approvals never come from the
-  agent's terminal) is kept, and the filter closes one path: guest text
+  agent's terminal) holds in part until I37 lands. The filter closes one path: guest text
   no longer reaches desktop notifications through OSC 9, 99 and 777.
   The filter leaves a second path open. The guest sets the window
   title and rings the bell, and iTerm2's Notification Center alerts and
@@ -333,8 +336,9 @@ Around the stream:
   anything, it resets the terminal state the guest may have changed:
   SGR, alternate screen, mouse modes, bracketed paste, focus events,
   synchronized output, cursor visibility and style, scroll region,
-  character set, the kitty keyboard stack, an open OSC 8 link, and the
-  progress indicator. Then it starts a fresh line. Without the reset,
+  character set, the kitty keyboard stack, `modifyOtherKeys`
+  (`CSI > 4 m`), tab stops (`CSI ? 5 W`, or setting them again
+  explicitly), an open OSC 8 link, and the progress indicator. Then it starts a fresh line. Without the reset,
   the guest can hide the real summary: the reviewer read the background
   color with an OSC 11 query, set the same color as foreground, and
   printed a fake summary without the flagged paths. That defeats the
@@ -349,7 +353,9 @@ Around the stream:
   controls, zero-width joiners). `wb` rate-limits BEL.
 - Input direction (F8). Before restoring cooked mode, `wb` sends a
   `CSI 6 n` and reads standard input until the reply, so late query
-  replies do not reach the user's shell. The spec names the dropped
+  replies do not reach the user's shell. The wait has a short timeout,
+  for example 100 ms, so `wb` never hangs on exit when a terminal does
+  not answer. The spec names the dropped
   sequences that make the terminal echo data back into input, because
   the security property depends on them: `CSI 21 t` (title report), OSC 52
   with `?`, and DECRQSS.
