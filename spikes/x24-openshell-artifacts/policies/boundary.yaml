@@ -1,0 +1,26 @@
+# Boundary: the most a project may be allowed. GitHub reads and PR
+# creation in any repository; npm reads. Every program.
+version: 1
+network_policies:
+  github:
+    name: github
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: "/**" }
+          - allow: { method: POST, path: "/repos/*/*/pulls" }
+    binaries:
+      - path: "/**"
+  npm:
+    name: npm
+    endpoints:
+      - host: registry.npmjs.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-only
+    binaries:
+      - path: "/**"

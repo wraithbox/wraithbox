@@ -1,0 +1,16 @@
+# The git hosting profile's GraphQL rule (S07 HTTP policy).
+version: 1
+network_policies:
+  github-graphql:
+    name: github-graphql
+    endpoints:
+      - host: api.github.com
+        port: 443
+        path: /graphql
+        protocol: graphql
+        enforcement: enforce
+        rules:
+          - allow: { operation_type: query }
+          - allow: { operation_type: mutation, operation_name: CreatePullRequest }
+    binaries:
+      - path: "/**"

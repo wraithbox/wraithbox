@@ -1,0 +1,15 @@
+# Only the REST excess: a DELETE the boundary does not allow.
+version: 1
+network_policies:
+  github:
+    name: github
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: "/**" }
+          - allow: { method: DELETE, path: "/repos/example/project" }
+    binaries:
+      - path: "/**"

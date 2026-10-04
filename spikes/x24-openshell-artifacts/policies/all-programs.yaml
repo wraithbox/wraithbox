@@ -1,0 +1,12 @@
+# Candidate lists `/**`; its boundary allows only curl for the same host.
+# If the prover reads `/**` as every program, this exceeds with
+# binary_identity_required=true.
+version: 1
+network_policies:
+  npm:
+    name: npm
+    endpoints:
+      - host: registry.npmjs.org
+        port: 443
+    binaries:
+      - path: "/**"

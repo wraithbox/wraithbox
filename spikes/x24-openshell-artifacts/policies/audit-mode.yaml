@@ -1,0 +1,14 @@
+# A host set to `audit` while a rule is tried out (S07 HTTP policy).
+version: 1
+network_policies:
+  github:
+    name: github
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: audit
+        rules:
+          - allow: { method: GET, path: "/**" }
+    binaries:
+      - path: "/**"

@@ -1,0 +1,23 @@
+# A trusted repository adds a DELETE on a repository and a host the
+# boundary never allows.
+version: 1
+network_policies:
+  github:
+    name: github
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: "/**" }
+          - allow: { method: DELETE, path: "/repos/example/project" }
+    binaries:
+      - path: "/**"
+  paste:
+    name: paste
+    endpoints:
+      - host: pastebin.com
+        port: 443
+    binaries:
+      - path: "/**"

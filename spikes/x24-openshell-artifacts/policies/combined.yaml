@@ -1,0 +1,20 @@
+# Wraith Box policy file as S09 describes it: OpenShell keys plus
+# Wraith Box extensions as separate top-level keys.
+version: 1
+network_policies:
+  github:
+    name: github
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: "/**" }
+          - allow: { method: POST, path: "/repos/example/project/pulls" }
+    binaries:
+      - path: "/**"
+wraithbox:
+  hosts:
+    api.github.com: { mode: inspect }
+  wildcard_budget: 4

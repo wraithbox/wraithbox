@@ -1,0 +1,15 @@
+# combined.yaml with the Wraith Box top-level key removed.
+version: 1
+network_policies:
+  github:
+    name: github
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: "/**" }
+          - allow: { method: POST, path: "/repos/example/project/pulls" }
+    binaries:
+      - path: "/**"

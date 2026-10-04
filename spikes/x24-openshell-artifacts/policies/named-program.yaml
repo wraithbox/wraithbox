@@ -1,0 +1,13 @@
+# Candidate names one program; boundary.yaml allows every program (`/**`).
+version: 1
+network_policies:
+  npm:
+    name: npm
+    endpoints:
+      - host: registry.npmjs.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-only
+    binaries:
+      - path: /opt/homebrew/bin/node

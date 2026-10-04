@@ -1,0 +1,11 @@
+# A rule with no `binaries` list at all.
+version: 1
+network_policies:
+  npm:
+    name: npm
+    endpoints:
+      - host: registry.npmjs.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-only

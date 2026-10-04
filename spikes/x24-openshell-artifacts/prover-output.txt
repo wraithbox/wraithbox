@@ -1,0 +1,81 @@
+== all-programs (against all-programs.boundary.yaml)
+result: exceeds_boundary
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+counterexample: network binary=/a ancestor_binary=/a binary_identity_required=true host=registry.npmjs.org:443 destination_ip=8.8.8.8 trusted_gateway=false protocol=l4 method=- path=-
+exit=1
+== audit-mode (against boundary.yaml)
+result: unsupported
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+reason: candidate policy rule 'github' uses REST without enforced inspection
+exit=3
+== candidate-exceeds (against boundary.yaml)
+result: exceeds_boundary
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+counterexample: network binary=- ancestor_binary=- binary_identity_required=false host=pastebin.com:443 destination_ip=8.8.8.8 trusted_gateway=false protocol=l4 method=- path=-
+exit=1
+== candidate (against boundary.yaml)
+result: within_boundary
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+exit=0
+== combined (against boundary.yaml)
+openshell-prover: invalid candidate policy: invalid policy: unknown field 'wraithbox' in authored policy
+exit=2
+== graphql (against boundary.yaml)
+result: unsupported
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+reason: candidate policy rule 'github-graphql' uses protocol 'graphql'; only L4 TCP and REST are modeled
+exit=3
+== named-program (against boundary.yaml)
+result: within_boundary
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+exit=0
+== no-binaries (against boundary.yaml)
+result: within_boundary
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+exit=0
+== openshell-only (against boundary.yaml)
+result: within_boundary
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+exit=0
+== rest-only-exceeds (against boundary.yaml)
+result: exceeds_boundary
+coverage: domains=filesystem,network_l4,network_rest,process,landlock
+counterexample: network binary=- ancestor_binary=- binary_identity_required=false host=api.github.com:443 destination_ip=::1:0:0 trusted_gateway=false protocol=rest method=DELETE path=/repos/example/project
+exit=1
+== candidate-exceeds, json
+{
+  "schema_version": 1,
+  "prover_version": "0.1.2",
+  "check": "boundary",
+  "coverage": {
+    "domains": [
+      "filesystem",
+      "network_l4",
+      "network_rest",
+      "process",
+      "landlock"
+    ]
+  },
+  "result": "exceeds_boundary",
+  "exit_code": 1,
+  "inputs": {
+    "candidate": "./policies/candidate-exceeds.yaml",
+    "boundary": "./policies/boundary.yaml"
+  },
+  "counterexample": {
+    "domain": "network",
+    "binary": null,
+    "ancestor_binary": null,
+    "binary_identity_required": false,
+    "host": "pastebin.com",
+    "destination_ip": "8.8.8.8",
+    "trusted_gateway": false,
+    "port": 443,
+    "protocol": "l4",
+    "method": null,
+    "path": null
+  },
+  "reason_code": null,
+  "reason": null
+}
+exit=1

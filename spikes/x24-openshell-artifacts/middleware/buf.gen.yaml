@@ -1,0 +1,15 @@
+# The upstream protos set no go_package, so the import paths are given here.
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: .
+    opt:
+      - module=example.invalid/x24
+      - Msupervisor_middleware.proto=example.invalid/x24/gen/middlewarev1
+      - Mextension.proto=example.invalid/x24/gen/extensionv1
+  - local: protoc-gen-go-grpc
+    out: .
+    opt:
+      - module=example.invalid/x24
+      - Msupervisor_middleware.proto=example.invalid/x24/gen/middlewarev1
+      - Mextension.proto=example.invalid/x24/gen/extensionv1
