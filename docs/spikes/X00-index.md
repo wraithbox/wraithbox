@@ -35,7 +35,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X18-vsock-handoff | Host-guest socket and descriptor hand-off | Open |
 | X19-terminal-filter | Terminal stream filtering | Answered |
 | X20-shared-homebrew | Homebrew with more than one project user | Open |
-| X21-dep-gate-registries | Dependency gate on real registries | Open |
+| X21-dep-gate-registries | Dependency gate on real registries | Answered 2026-10-04: yes, with conditions |
 | X22-no-guest-credentials | Clients without guest credentials | Open |
 | X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
 | X24-openshell-artifacts | OpenShell artifacts | Open |
@@ -173,7 +173,10 @@ assumption that v1 work would otherwise build on. They block v1.
   versions from metadata let resolvers pick an older version, where
   refusing the download fails the whole install? Measure failure
   rates with a 7-day minimum age on real projects, and the time OSV
-  lookups add to an `npm ci` with a large lockfile.
+  lookups add to an `npm ci` with a large lockfile. Answered: yes, with
+  conditions. Filter the metadata and keep refusing the download, use
+  the checksum database as Go's clock, and leave Homebrew ungated
+  (X21-dep-gate-registries).
 - **X22-no-guest-credentials: Clients without guest credentials.** Which common clients
   (Homebrew against `ghcr.io`, git, `gh`, npm, pip, uv, SwiftPM, Go,
   cargo, Claude Code) break when `wb-proxyd` removes every

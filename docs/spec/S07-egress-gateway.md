@@ -90,12 +90,48 @@ the host.
   - *package registries* (npm, PyPI, Go module proxy, crates.io,
     Homebrew bottles): metadata and downloads only; publish and upload
     endpoints denied.
-- **Dependency gate** (SEC07-dep-gate). For registry downloads, `wb-proxyd` looks up
-  the requested version's publish time and known vulnerabilities (OSV
-  data). Versions younger than the minimum age (default 7 days) or with a
-  known vulnerability at or above the threshold (default HIGH) are
-  refused with an explanatory error. If the lookup fails, the request is
-  refused (fail closed); per-project overrides are explicit and audited.
+- **Dependency gate** (SEC07-dep-gate). For npm, PyPI, the Go module
+  proxy and crates.io, `wb-proxyd` looks up each version's publish time
+  and known vulnerabilities (OSV data). The minimum age (default 7 days)
+  is applied twice, because refusing only the download fails nearly
+  every fresh install (X21-dep-gate-registries):
+  - *Metadata.* Versions younger than the minimum age are removed from
+    the registry's metadata responses, and a resolver then picks an
+    older version. This covers npm packument `versions` and
+    `dist-tags` (with `latest` moved to the newest remaining release),
+    the PyPI JSON simple index (PEP 691), crates.io sparse index lines,
+    and Go `@v/list` and `@latest`. A PyPI client that doesn't accept
+    the JSON index is refused.
+  - *Downloads.* A download of a version younger than the minimum age,
+    or with a known vulnerability at or above the threshold (default
+    HIGH, I73), is refused. The error names the package, the version,
+    its publish time and the date it becomes allowed. This catches
+    lockfile pins and direct URLs, which never fetch metadata.
+
+  The publish time comes from the registry, fetched by `wb-proxyd`: npm
+  `time` from the full packument (the abbreviated one has none), PyPI
+  `upload-time` per file (PEP 700, so a file added to an old release
+  later is young on its own), and crates.io `pubtime` from the sparse
+  index. For Go, the clock is the version's record number in the
+  checksum database `sum.golang.org`, compared with the record number of
+  a version that `index.golang.org` shows as first seen 7 days earlier.
+  The `.info` Time is the commit time, which the module's author sets,
+  and is never used. A download is mapped to package and version from
+  its URL alone (a PyPI file name is checked against the project's JSON
+  API), and a redirect from the Go module proxy to its storage host is
+  followed by `wb-proxyd`, not the guest.
+
+  OSV is queried while the download runs, and the body is held back
+  until the answer arrives. Answers are cached for one hour. If the
+  publish time can't be found or a lookup fails, the request is refused
+  (fail closed). Per-project overrides are explicit and audited.
+
+  Homebrew bottles are not gated. Homebrew offers one version per
+  formula and signs its formula metadata, so there is nothing to filter
+  and no older version to fall back to. OSV has no Homebrew data. With
+  a 7-day minimum age, a third of the most installed formulae would be
+  refused. Bottle downloads still go only to the hosts policy allows.
+
   The gate implements OpenShell's supervisor middleware API
   (`SupervisorMiddleware`, RFC 0009) and runs after policy allows a
   request and before credentials are injected, so it never sees a

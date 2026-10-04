@@ -36,7 +36,8 @@ be tested before building on them.
     confirm only rules without program narrowing match, and replace a
     pinned binary and confirm its connections are denied;
   - download a package version younger than the minimum age, or with a
-    known vulnerability;
+    known vulnerability, and find the too-young version missing from the
+    registry metadata;
   - read or change policy, credentials, or the audit log from the guest;
   - write into the host repository through the git transport; fetch an
     object outside the session's branch by its ID; push outside
@@ -46,9 +47,9 @@ be tested before building on them.
   - forge an approval prompt via terminal output and confirm nothing
     treats it as one.
 - **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended);
-  `npm ci`, `git status` on a large repository, and an incremental build
-  on the data disk compared with the host; throughput of a large
-  download through the gateway.
+  `npm ci` (with the dependency gate on), `git status` on a large
+  repository, and an incremental build on the data disk compared with
+  the host; throughput of a large download through the gateway.
 - **Platform contract tests.** Each `internal/platform` interface has
   one test suite that every OS implementation runs (S12-platforms).
 - **CI.** Go unit tests, lint, and vet run natively on macOS, Linux, and
@@ -63,7 +64,8 @@ be tested before building on them.
 The open questions to answer before building on them are in X00-index.
 Each answered spike has a result page next to it, which X00-index links:
 X07-git-round-trip (the git transport between guest and host),
-X19-terminal-filter (the host terminal stream filter) and
+X19-terminal-filter (the host terminal stream filter),
+X21-dep-gate-registries (the dependency gate on real registries) and
 X23-sandboxed-daemons (Go daemons confining themselves on macOS).
 What V1 leaves out is in V1-initial.
 
