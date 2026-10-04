@@ -53,7 +53,7 @@ The conditions below fix both.
    fetched by object ID: the commit of a hidden local branch, a commit
    only on a release branch, and an unreferenced blob. The export
    repository refused all three on the server side under v2 ("not our
-   ref"). Under v0 the guest's git client refused to send the request
+   ref"). The guest's git client refused to send the v0 request
    ("Server does not allow request for unadvertised object"), so the
    server side under v0 against a hostile client wasn't tested. The
    export repository stores a copy of every object it serves: no
@@ -121,6 +121,11 @@ fresh clone for each case. The case of `refs/heads/wb/S1` itself under
 `receive.hideRefs` alone ran once, with Homebrew git
 (`results/run5.txt`).
 
+S08-workspace-and-git adds rules to the filter that the spike never
+tested: it refuses `shallow` lines, which the spike's filter accepts,
+and caps ref components at 255 bytes and refs at 1024. They exist only
+in the spec.
+
 ## Measurements
 
 Apple M2, 16 GB, macOS 27.0.1, Homebrew git 2.56.0 on both sides, the Go
@@ -184,9 +189,9 @@ list short to read.
   and how the flagger detects executables, symlinks and `package.json`
   scripts.
 - S11-verification-and-spikes: a fuzz target for the request header
-  and the push command list, and conformance cases for fetch by ID,
-  pushes outside the session's refs, and a refused push leaving
-  nothing behind.
+  and the push command list. Conformance cases cover fetch by ID,
+  pushes outside the session's refs, and the landing repository after a
+  refused push and its cleanup.
 - I41 (git data scope) gets conditions 1, 4 and 5 as input: item 1 is
   confirmed with both gits, item 4 learns that Apple git 2.54.0 behaved
   the same as 2.56.0 here, and item 6 must keep the objects that landing
