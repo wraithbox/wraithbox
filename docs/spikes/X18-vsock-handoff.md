@@ -18,13 +18,25 @@ Brief: B29-vsock-handoff
   starts, which leaves about 2.9 s of the 7 s in NFR01-startup for
   starting Claude Code.
 - **Controls touched:** none weakened. The hand-off keeps guest bytes
-  out of `wb-vmd` (S04-architecture, SEC12-least-privilege). They still
-  pass through Apple's Virtualization service process, as they always
-  did.
+  out of `wb-vmd`'s code path (S04-architecture, SEC12-least-privilege).
+  They still pass through Apple's Virtualization service process, as
+  they always did. SEC08-proj-isolation and SEC10-audit depend on
+  `wb-hostd` routing only on the destination port, because the source
+  port of a guest-initiated connection is the guest's choice
+  (condition 1). SEC13-bounded-resources gets connection caps
+  (condition 5).
 - **Assumed:** that a working guest restores about as fast as this
   idle one to `wb-guestd` (the state file was 1.44 GB). The time-to-prompt
   benchmark of S11-verification-and-spikes measures a working guest.
-- **Open decisions:** none.
+  That a non-root guest process can open `AF_VSOCK`, and that a
+  Seatbelt profile can deny it (S13-guest-confinement). Neither was
+  tried.
+- **Open decisions:**
+  1. Guest-initiated connections: refuse them, so the host opens every
+     connection (recommended, and enough for everything the spike
+     needed), or bind each to a session with a one-time nonce from the
+     host and close it on a mismatch. S04-architecture states both
+     until this is decided.
 - **Brief:** B29-vsock-handoff
 
 ## Question
@@ -89,19 +101,45 @@ APFS clone of the state and disks.
 
 The conditions:
 
-1. **`wb-vmd` passes connection metadata with the descriptor.** The
-   receiving process sees a Unix socket, so it can't read the vsock
-   ports from it. `wb-vmd` sends the source and destination port along
-   with each descriptor, and `wb-hostd` decides on the port, never on
-   anything the guest sends.
-2. **Every restore starts new connections.** `wb-hostd` drops its
-   `wb-guestd` connections when a VM is saved, and connects again after
-   the restore.
-3. **`wb-netd` gets a new network descriptor for each VM start or
-   restore,** and closes the old one itself.
+1. **`wb-hostd` routes only on the destination port.** The receiving
+   process sees a Unix socket, so it can't read the vsock ports from
+   it, and `wb-vmd` sends them with the descriptor. The destination
+   port is one `wb-hostd` chose: a guest port it asked `wb-vmd` to
+   connect to, or a host listener registered at its request. The
+   source port of a guest-initiated connection is chosen by whatever
+   guest process dialed, so it is only logged. Any guest process that
+   can open `AF_VSOCK` can dial a host listener, so guest-initiated
+   connections are refused (recommended) or bound to a session by a
+   one-time nonce from the host (open decision 1).
+   S13-guest-confinement also denies `AF_VSOCK` to project processes,
+   as a second layer.
+2. **The hand-off channel carries one descriptor per message.** The
+   spike framed requests as lines on a stream socket and attached the
+   descriptor to the first line, which can pair a descriptor with the
+   wrong request when two arrive together. The product uses a
+   `SOCK_SEQPACKET` or `SOCK_DGRAM` socketpair inherited at spawn, with
+   exactly one descriptor and the fields request id, VM generation,
+   direction, source port and destination port in each message. The
+   receiver refuses, closes and logs on a wrong descriptor count, a
+   wrong socket type or a destination port it didn't ask for
+   (S04-architecture, contract in I52).
+3. **Every restore starts new connections and a new VM generation.**
+   `wb-hostd` drops its `wb-guestd` connections when a VM is saved, and
+   connects again after the restore. Before `resume`, it passes the new
+   network descriptor to `wb-netd` and resets that VM's flow state,
+   because the old descriptor never reports an error. Hand-off messages and
+   audit entries carry the VM generation, and a message from an older
+   generation is refused.
 4. **`wb-vmd` may close its copy of every passed descriptor at once.**
    Nothing in `wb-vmd` has to remain for a passed descriptor to
    work, except the VM itself.
+5. **Connections are capped.** `wb-vmd` caps the connections it has
+   accepted but not yet passed, per listener and in total, and
+   `wb-hostd` caps them per VM and per project. Both log each refusal
+   (SEC13-bounded-resources).
+6. **The device set is fixed in `wb-vmd`'s code.** The contract never
+   names a device type, so a request can't add a NAT network or a
+   shared directory to a VM.
 
 ## Measurements
 
@@ -136,14 +174,17 @@ sat at the login window. The clock starts before the
   first `listen` succeeds.
 - Throughput on a passed descriptor: 8 MiB echoed through gRPC in 43
   to 70 ms.
-- **Restore fails while the host is locked.** The first try of the
-  restore series ran after the screen had locked from display sleep.
-  All 20 restores failed with "The virtual machine failed to restore
-  with error permission denied" (`VZErrorDomain` 12), and the system log shows the
-  Secure Enclave key refused (`-25308`, `errSecInteractionNotAllowed`)
-  in Virtualization's service process. The login window logged the
-  lock 12 s before the first failure. After an unlock, 20 of 20
-  restores of the same state worked. X02-warm-start had assumed this.
+- **Restore fails while the host is locked.** In the first try of the
+  restore series, all 20 restores failed with "The virtual machine
+  failed to restore with error permission denied" (`VZErrorDomain`
+  12), and the system log shows the Secure Enclave key refused
+  (`-25308`, `errSecInteractionNotAllowed`) in Virtualization's service
+  process (`results/restore-4g-failed-syslog.txt`). That is the error
+  X02-warm-start saw when saving on a locked host. The second try
+  waited for an unlock before each run and logged the lock state
+  (`results/restore-4g.jsonl.lock`, unlocked for every run), and 20 of
+  20 restores of the same state worked. X02-warm-start had assumed
+  this.
 - **The guest clock lags after a restore.** Right after one restore,
   the guest's wall clock was 9.5 s behind the host's, about the time
   the VM had been saved and stopped. S06-vm-lifecycle already has
@@ -159,7 +200,9 @@ installed the daemon as a root LaunchDaemon with `sudo`, and shut the
 guest down. It took 38 to 40 s from the first boot. No host process
 mounted a guest disk. This is a shortcut for the spike, not the product
 path, which X17-image-build decides. It is evidence for X17-image-build
-that provisioning works on a macOS 27 host and guest.
+that provisioning works on a macOS 27 host and guest. The provisioned
+bundles have Remote Login on and an admin user with a password, so no
+product image may descend from them.
 
 ## What was not measured
 
@@ -177,15 +220,19 @@ that provisioning works on a macOS 27 host and guest.
 ## What it means for the specs
 
 - **S04-architecture**, "The VM provider passes descriptors, not
-  bytes": states what the macOS descriptor is, that `wb-vmd` sends the
-  ports with it and closes its copy, and that a restore ends every
-  connection (changed in this pull request).
+  bytes": states what the macOS descriptor is, the hand-off channel,
+  routing on the destination port, the two ways to handle
+  guest-initiated connections, the connection caps, the fixed device
+  set, and what a restore does (changed in this pull request).
 - **S12-platforms**: the host-guest socket and packet transport rows
-  for macOS name the mechanism and this spike (changed in this pull
-  request).
+  for macOS name the mechanism and this spike, and agree with
+  S07-egress-gateway that the network descriptor reaches `wb-netd`
+  through `wb-hostd` (changed in this pull request).
 - **S06-vm-lifecycle**, "Warm start": restore while locked is now
-  measured, not assumed, and `wb-hostd` reconnects to `wb-guestd` after
-  each restore (changed in this pull request).
+  measured, its error is named as temporary, and `wb-hostd` reconnects
+  to `wb-guestd` after each restore (changed in this pull request).
+- **S13-guest-confinement**: the session profile denies `AF_VSOCK`
+  (changed in this pull request).
 - **NFR01-startup**: fits for an idle guest. 4.1 s to `wb-guestd`
   answering leaves about 2.9 s of the 7 s for a suspended VM. Its text
   is unchanged.

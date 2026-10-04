@@ -154,7 +154,7 @@ from the host side of the device, so it says nothing about the guest.
 
 **Restore while the host is locked**, and restore after a host restart
 or a host update. Restore while locked is assumed to fail as saving
-does. NFR01-startup already excludes the first boot after a host
+does, measured since in X18-vsock-handoff. NFR01-startup already excludes the first boot after a host
 restart.
 
 **A working guest.** Every state here came from a guest idle at Setup

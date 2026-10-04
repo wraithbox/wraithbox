@@ -52,6 +52,10 @@ process cannot remove it, much like Landlock.
   only in the user's home, the session worktree, and temporary
   directories. The profile is generated from policy on the host and
   installed by `wb-guestd`. The repository never supplies it.
+- **Host-guest socket.** The profile denies `AF_VSOCK` sockets, so a
+  project user's processes can't dial the host directly. The host
+  doesn't rely on it: it refuses or binds guest-initiated connections
+  itself (S04-architecture, X18-vsock-handoff).
 - **Source.** The agent-safehouse profiles (Apache-2.0) are the
   starting point.
 - **Known gaps.** Processes started through LaunchServices and `launchd`
