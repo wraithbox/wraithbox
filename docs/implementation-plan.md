@@ -8,8 +8,10 @@ they exist.
 
 ## Where things stand
 
-- **Specs** S03-requirements to S13-guest-confinement are drafts. X00-index lists 24 open questions
-  (spikes X01-model-credential to X24-openshell-artifacts). None is answered yet.
+- **Specs** S03-requirements to S13-guest-confinement are drafts. X00-index lists 26 questions
+  (spikes X01-model-credential to X26-pre-receive-check). X02-warm-start,
+  X07-git-round-trip, X19-terminal-filter, X21-dep-gate-registries and
+  X23-sandboxed-daemons are answered.
 - **Go** (`packages/wraithbox-go`): the `wb` command-line parser
   (`internal/cli`), the host and guest platform matrix
   (`internal/platform`), and empty `main` packages for `wb`,
@@ -89,6 +91,8 @@ before this plan, and don't block v1.
 | X22-no-guest-credentials Clients without guest credentials | I33 | |
 | X23-sandboxed-daemons Self-sandboxed Go daemons on macOS | I34 | |
 | X24-openshell-artifacts OpenShell artifacts | I35 | |
+| X25-vmd-sandbox Self-sandboxed `wb-vmd` | I64 | VM |
+| X26-pre-receive-check Push checks before the quarantine lands | I74 | |
 
 Spec gaps, contradictions and missing specs:
 

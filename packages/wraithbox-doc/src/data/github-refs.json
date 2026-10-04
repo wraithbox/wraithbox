@@ -91,9 +91,10 @@
 	},
 	"16": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X02-warm-start: Warm start",
-		"summary": "How long does it take to restore a macOS guest from saved state with a vsock device and a file-handle network attachment?"
+		"summary": "How long does it take to restore a macOS guest from saved state with a vsock device and a file-handle network attachment?",
+		"brief": "B16-warm-start"
 	},
 	"17": {
 		"kind": "issue",
@@ -189,7 +190,7 @@
 	},
 	"32": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X21-dep-gate-registries: Dependency gate on real registries",
 		"summary": "X21-dep-gate-registries (added to S11-verification-and-spikes in #14)",
 		"brief": "B32-dep-gate-registries"
@@ -401,7 +402,7 @@
 	"64": {
 		"kind": "issue",
 		"state": "open",
-		"title": "wb-vmd self-sandbox profile for the Virtualization framework",
+		"title": "X25-vmd-sandbox: Self-sandboxed wb-vmd",
 		"summary": "Found while answering #34 (X23-sandboxed-daemons)."
 	},
 	"65": {
@@ -463,12 +464,12 @@
 	"74": {
 		"kind": "issue",
 		"state": "open",
-		"title": "Spike: wb-owned pre-receive check for inflated size and update() checks",
+		"title": "X26-pre-receive-check: Push checks before the quarantine lands",
 		"summary": "S08-workspace-and-git caps the compressed size of a push (receive.maxInputSize)."
 	},
 	"75": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X21-dep-gate-registries result, filter metadata and refuse downloads",
 		"summary": "Result of the X21-dep-gate-registries spike: yes, with conditions.",
 		"brief": "B32-dep-gate-registries"
@@ -481,8 +482,20 @@
 	},
 	"77": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(agents): tag each spike commit when its result merges",
 		"summary": "Adds a Tag step to planning.md (\"Spikes\")."
+	},
+	"78": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spike): X02-warm-start result, saved state restores in about 4 s and is reusable from fresh clones",
+		"summary": "Result of spike X02-warm-start: yes, with conditions."
+	},
+	"79": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): record the 2026-10-04 spike wave decisions",
+		"summary": "The maintainer decided the five briefs of the wave and #73:"
 	}
 }
