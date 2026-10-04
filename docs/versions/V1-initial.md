@@ -28,8 +28,8 @@ and the milestones that get there.
 ## Milestones
 
 Each exit criterion cites the requirement IDs it proves. The maintainer
-confirms, renames or reorders these before the GitHub milestones are
-created.
+confirmed these on 2026-10-04, and each is a GitHub milestone of the
+same name.
 
 - **V1-M1-spikes-closed: Spikes answered and spec gaps closed.** X01-model-credential to
   X09-keychain-unsigned and X17-image-build to X24-openshell-artifacts written up in
