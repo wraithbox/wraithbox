@@ -70,7 +70,7 @@ The issue bundles six items. Item 1 is a real fork, with options below. The rest
 | 2. Untracked files | Scan carried-in untracked files, and the staged and unstaged diff, with the image-seal secret scanner (S06-vm-lifecycle). Skip a file that matches and list it in the session summary, as for oversize files. | now |
 | 3. Remote URLs | Strip user names, passwords and query strings from every URL that reaches the guest. Rewrite SSH remotes to HTTPS for the guest, shared with I47. | now |
 | 4. Host git | Require a minimum git version, checked by `wb setup` and at each session start. Keep `receive.fsckObjects` and `receive.maxInputSize`. Don't bundle git (GPL-2.0, against the license rule of S10-tech-stack). A receive side in Go is a later option. | now |
-| 5. Ref restriction | `receive.hideRefs` set to hide everything but `refs/heads/wb/<session-id>/`. A Go filter on the command list is optional on top. | after X07-git-round-trip |
+| 5. Ref restriction | `receive.hideRefs` set to hide everything but `refs/heads/wb/<session-id>/`. A Go filter on the command list is optional on top. Since answered by X07-git-round-trip: the Go filter enforces, and `receive.hideRefs` is the second layer (B21-git-round-trip). | after X07-git-round-trip |
 | 6. Landing lifecycle | `wb discard` deletes the session's refs and guest worktree. `wb-hostd` runs `git gc` on the landing repository after land and discard. A size cap per project, refused with an explanation (SEC13-bounded-resources, NFR06-explained-refusals). | now |
 
 ## Options for the ref scope (item 1)

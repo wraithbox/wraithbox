@@ -21,7 +21,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X04-tls-inspection | Inspection compatibility | Open |
 | X05-fs-benchmark | Filesystem benchmark | Open |
 | X06-guest-xcode | Guest users and Xcode | Open |
-| X07-git-round-trip | Git round trip | Open |
+| X07-git-round-trip | Git round trip | Answered: yes, with conditions |
 | X08-data-disk | Data disk for homes | Open |
 | X09-keychain-unsigned | Keychain access without a signing identity | Open |
 | X10-linux-hypervisor | Linux VMM and packet transport | Open |
@@ -71,7 +71,8 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   isolated VM's console user.
 - **X07-git-round-trip: Git round trip.** Remote helper over vsock, read-only
   `upload-pack`, restricted `receive-pack` into the landing repository,
-  flagging of risky paths.
+  flagging of risky paths. Answered yes, with conditions, in the result
+  page X07-git-round-trip.
 - **X08-data-disk: Data disk for homes.** Guest user homes on a second disk,
   surviving a system-disk replacement.
 - **X09-keychain-unsigned: Keychain access without a signing identity.** Confirm the

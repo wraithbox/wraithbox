@@ -9,7 +9,8 @@ be tested before building on them.
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
   DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
-  handling, policy matching, the git transport framing, every vsock RPC
+  handling, policy matching, the git transport framing (the request
+  header and the push command list, X07-git-round-trip), every vsock RPC
   handler in `wb-hostd`, network policy YAML, and the guest flow labels
   of S13-guest-confinement (Swift: property-based tests where fuzzing is
   impractical).
@@ -37,7 +38,9 @@ be tested before building on them.
   - download a package version younger than the minimum age, or with a
     known vulnerability;
   - read or change policy, credentials, or the audit log from the guest;
-  - write into the host repository through the git transport;
+  - write into the host repository through the git transport; fetch an
+    object outside the session's branch by its ID; push outside
+    `refs/heads/wb/<session-id>/`, or a tree with a `.git` entry;
   - forge an approval prompt via terminal output and confirm nothing
     treats it as one.
 - **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended);
@@ -60,5 +63,10 @@ Each answered spike has a result page next to it, which X00-index links:
 X19-terminal-filter (the host terminal stream filter) and
 X23-sandboxed-daemons (Go daemons confining themselves on macOS).
 What V1 leaves out is in V1-initial.
+
+Answered spikes, each with its result page:
+
+- X07-git-round-trip: yes, with conditions. Fetch from an export
+  repository, restrict pushed refs with a filter in `wb-hostd`.
 
 **Status:** Draft

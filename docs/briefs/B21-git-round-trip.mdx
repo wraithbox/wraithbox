@@ -1,0 +1,159 @@
+---
+title: Does the git round trip work, and what keeps the guest's pushes on its own branches?
+description: Yes, with conditions. Fetch from the export repository, put a Go filter in front of receive-pack with git's hidden refs as a second layer, raise every object check to an error, and let the landing repository borrow objects.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-04.** Source: X07-git-round-trip (I21). Changes S08-workspace-and-git and S11-verification-and-spikes. Feeds I41.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** The guest cloned, fetched and pushed through a remote helper over a socket, with no write to your repository and no push outside its own `wb/<session>/` branches, in every abuse case tried. The spec as written is wrong in two places. Fetching straight from your repository leaks hidden objects to anyone who knows their ID, which the export repository from B41-git-data-scope fixes. And the first push into an empty landing repository sends the whole history, which borrowing objects fixes. The recommended guard on pushes is a small Go filter, with git's own setting behind it. Accepting it merges the S08-workspace-and-git changes and settles item 5 of I41.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="The guest's git-remote-wb talks to wb-hostd over one socket. wb-hostd runs upload-pack on the export repository, never on your repository, and runs receive-pack into the landing repository behind a ref filter. The landing repository borrows objects from the export repository. A fetch by ID from your repository and a push to main are the flows the design stops.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="10" y="14">host: trusted</text>
+
+  <rect class="box host" x="10" y="30" width="170" height="60" rx="10" />
+  <text class="label" x="95" y="56" text-anchor="middle">your repository</text>
+  <text class="note" x="95" y="76" text-anchor="middle">all branches, tags</text>
+
+  <rect class="box host" x="10" y="130" width="170" height="60" rx="10" />
+  <text class="label" x="95" y="156" text-anchor="middle">export.git</text>
+  <text class="note" x="95" y="176" text-anchor="middle">session branch only</text>
+
+  <rect class="box host" x="10" y="240" width="170" height="60" rx="10" />
+  <text class="label" x="95" y="266" text-anchor="middle">landing.git</text>
+  <text class="note" x="95" y="286" text-anchor="middle">wb/&lt;session&gt;/*</text>
+
+  <rect class="box host" x="250" y="120" width="210" height="190" rx="10" />
+  <text class="label" x="355" y="145" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="355" y="170" text-anchor="middle">header check</text>
+  <text class="note" x="355" y="200" text-anchor="middle">upload-pack, read-only</text>
+  <text class="note" x="355" y="250" text-anchor="middle">ref filter (Go)</text>
+  <text class="note" x="355" y="275" text-anchor="middle">receive-pack, strict fsck</text>
+
+  <rect class="boundary" x="510" y="20" width="240" height="300" rx="12" />
+  <text class="boundary-label" x="522" y="40">guest, untrusted</text>
+  <rect class="box guest" x="540" y="170" width="190" height="70" rx="10" />
+  <text class="label" x="635" y="200" text-anchor="middle">git-remote-wb</text>
+  <text class="note" x="635" y="220" text-anchor="middle">clone, fetch, push</text>
+
+  <line class="edge" x1="97" y1="92" x2="97" y2="128" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="182" y1="190" x2="248" y2="196" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="248" y1="262" x2="182" y2="270" marker-end="url(#f1-arrow)" />
+  <path class="edge" d="M60,238 C40,215 40,205 60,192" marker-end="url(#f1-arrow)" />
+  <text class="note" x="18" y="222">borrows</text>
+  <line class="edge" x1="538" y1="205" x2="462" y2="205" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M560,168 C520,60 300,50 184,58" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="300" y="44">fetch by ID</text>
+  <path class="edge-bad" d="M590,242 C580,300 520,315 462,300" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="470" y="326">push to main</text>
+</svg>
+<figcaption>
+Figure 1. The round trip after X07-git-round-trip. The guest reaches only <code>wb-hostd</code>. Fetches come from the export repository, so a fetch by ID from your repository (red, top) has nothing to reach. Pushes pass a Go ref filter before git parses them, so a push to <code>main</code> (red, bottom) stops there. The landing repository borrows objects from the export repository. A push then sends only new objects.
+</figcaption>
+</figure>
+
+## Options for the push guard
+
+S08-workspace-and-git said refs are "restricted to `refs/heads/wb/<session-id>/*`" without saying what restricts them. I41 left this to the spike.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Go filter, git's hidden refs behind it
+
+`wb-hostd` reads the list of refs a push wants to update before git sees it, and refuses the whole push if any ref is outside the session's branches. Git's `receive.hideRefs` setting checks the same thing again.
+
+- **Cost:** about 250 lines of Go in the spike, with a fuzz target. It is a new parser of guest bytes.
+- **Gives:** refusal before git parses the pack, one log line per ref with the rule, all-or-nothing pushes.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="SEC10-audit" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Git's hidden refs alone
+
+What B41-git-data-scope recommended for item 5: `receive.hideRefs` hides everything but the session's branches, and git refuses a push to a hidden ref.
+
+- **Cost:** none, a git setting.
+- **Gaps:** accepted a push to `refs/heads/wb/<session>` itself, which blocks every later session branch. Applied the allowed half of a mixed push. Logs nothing in `wb-hostd` unless it parses git's answer.
+- **Keeps:** <Badge text="FR03-work-as-branch" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Receive side in Go
+
+Replace `receive-pack` with a Go implementation (for example go-git), so host git never parses guest packs.
+
+- **Cost:** large. Object checking as complete as git's fsck is the hard part, and none of it was tried.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> if the checks are complete.
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the spec">
+- **Fetching from your repository leaks by ID.** With every ref but the session's branch hidden, protocol v2 still served a hidden branch's commit, a commit only on a release branch, and an unreferenced blob, with both Homebrew git and Apple git. The export repository refused all three. It must store a copy of every object it serves, not borrow from your repository.
+- **The first push sends everything.** An empty landing repository made the guest send 425 MiB of Go history for a 3-commit push. Borrowing objects from the export repository cut that to 12 objects.
+- **Default object checks miss some.** A tree with a bad file mode passed `receive.fsckObjects` until that check was raised to an error.
+- **The helper picks the protocol.** Git doesn't tell a `connect` helper which version it wants. The helper asks for v2 itself.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Filter and hidden refs</th><th>B. Hidden refs alone</th><th>C. Go receive</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>FR03-work-as-branch</strong> work returns as a branch</td><td class="yes">only session branches</td><td class="partial">accepts the bare session ref</td><td class="yes">only session branches</td></tr>
+<tr><td><strong>SEC03-no-host-exec</strong> returned work runs nothing on the host</td><td class="yes">hooks off, strict fsck</td><td class="yes">same</td><td class="partial">checks to rebuild</td></tr>
+<tr><td><strong>SEC10-audit</strong> returned changes recorded</td><td class="yes">per-ref log</td><td class="partial">parse git output</td><td class="yes">per-ref log</td></tr>
+<tr><td><strong>NFR06-explained-refusals</strong> refusals name the rule</td><td class="yes">names the prefix</td><td class="partial">"hidden ref"</td><td class="yes">own message</td></tr>
+<tr><td><strong>NFR07-maintainability</strong> fuzzing for every parser</td><td class="partial">one new fuzz target</td><td class="yes">no new parser</td><td class="no">a whole pack parser</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Clone, incremental fetch and push through `git-remote-wb` over a socketpair, Go repository (679,335 objects, 426 MiB), git 2.56.0 and Apple git 2.54.0. First clone 16.4 s median through the tunnel, against 17.6 s for a local clone without it. A fetch of 200 new commits 0.6 s, a 3-commit push 0.15 s. X07-git-round-trip, "Measurements".
+- <Badge text="verified" variant="success" /> Protocol v2 `upload-pack` with `uploadpack.hideRefs` and every `allow*SHA1InWant` off served three unadvertised objects by ID. Protocol v0, and the export repository under both versions, refused them.
+- <Badge text="verified" variant="success" /> The Go filter refused pushes to `main`, a tag, another session, a lookalike session `S10`, the bare session ref, deletes, and a mixed push, with landing unchanged in every case.
+- <Badge text="verified" variant="success" /> `receive.hideRefs` alone created `refs/heads/wb/S1` from a push to that name, and applied the allowed ref of a mixed push.
+- <Badge text="verified" variant="success" /> Strict fsck refused trees with `.git`, `.GIT`, `git~1`, `..`, symlinked `.gitmodules` and `.gitattributes`, mode `100666`, a bad commit date, and a `.gitmodules` URL starting with `-`. Garbage, truncated and bit-flipped packs were refused. Your repository's files were unchanged across the raw protocol attacks.
+- <Badge text="verified" variant="success" /> Push commands sent to `upload-pack` ended in a protocol error, and `wb-hostd` refused other services, extra arguments and bad protocol values before running git.
+- <Badge text="verified" variant="success" /> The flagger flagged 2% of 400 Go commits, 17% of 400 Express commits and 51% of 43 Wraith Box commits, at 11 to 18 ms per commit.
+- <Badge text="inferred" variant="note" /> v2 `upload-pack` also serves objects from a borrowed object store, since it served an unreferenced object. So the export repository stores a copy of every object it serves.
+- <Badge text="assumed" variant="caution" /> That vsock behaves like the socketpair: a byte stream with half-close. X18-vsock-handoff tests vsock in a macOS guest.
+
+## What this unblocks
+
+- I41 item 5, settled here, and inputs for items 1, 4 and 6 (see the comment on I41).
+- The git gateway and the risky-path flagger in `wb-hostd` (`docs/implementation-plan.md`), towards V1-M4-claude-end-to-end.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why a filter and not only git.** Git checks hidden refs after it has read and unpacked the pack, one ref at a time. The filter reads only the short list of refs at the start of the push, so a refused push never reaches git's pack parser, and the refusal names the session's prefix. Keeping `receive.hideRefs` as well means a bug in either layer alone does not open the landing repository.
+
+**Why the landing repository borrows.** Git sends what the receiving side doesn't have. An empty landing repository has nothing. The guest then sends the project's whole history on its first push. With the export repository listed as an alternate object store, the landing repository already has that history. Garbage collection on the export repository must then keep what landing branches still use (I41, item 6).
+
+**Glossary**
+
+- **Remote helper:** a program git runs to reach a remote it has no built-in transport for. `git-remote-wb` handles `wb::` URLs.
+- **`connect` capability:** the helper only opens a byte stream to the remote git program and copies bytes both ways.
+- **Pkt-line:** git's framing: a 4-digit hex length, then the data.
+- **Command list:** the lines at the start of a push that say which ref moves from which commit to which.
+- **fsck:** git's object checker.
+- **Alternates:** a list of other object stores a repository may read objects from.
+- **Socketpair:** two connected sockets in one machine, used here in place of vsock.
+
+</details>
