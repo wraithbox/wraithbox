@@ -5,7 +5,7 @@ description: Yes, with conditions. Each daemon applies its own Seatbelt profile 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-04.** Source: X23-sandboxed-daemons, I34. Affects S04-architecture and S12-platforms. The `wb-proxyd` Keychain part is I61.
+**Answered 2026-10-04. Decided 2026-10-04: A, the `wb-launcher`, with the `wb-git` shim.** Source: X23-sandboxed-daemons, I34. Affects S04-architecture and S12-platforms. The `wb-proxyd` Keychain part is I61.
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions.** Each Go daemon can confine itself, but its children can't confine themselves any further. You choose how `wb-hostd` starts the other daemons. Recommended: a small unconfined launcher under strict conditions (option A), which also starts git with its own profile. Accepting merges the S04-architecture and S12-platforms changes here.

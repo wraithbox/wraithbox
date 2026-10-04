@@ -70,8 +70,8 @@ in S12-platforms.
     restore.
   - Saving needs the host user's session unlocked. When the idle
     period ends while the host is locked, the VM keeps running and is
-    saved after the next unlock (pending the decision in
-    B16-warm-start). Restoring while the host is locked is untested,
+    saved after the next unlock (decided on I16, B16-warm-start).
+    Restoring while the host is locked is untested,
     and assumed to fail as saving does.
   - A saved state works only on the host that wrote it, and may stop
     working after a host update. A restore that fails for one of these

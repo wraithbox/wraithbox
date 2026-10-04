@@ -5,7 +5,7 @@ description: Yes, with conditions, for Ghostty and Terminal.app pending a check 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-04.** Source: X19-terminal-filter (I30). Feeds I37 (B37-terminal-boundary) and I38. The check by eye in real terminals is I62.
+**Answered 2026-10-04. Decided 2026-10-04: A, allowlist as measured, and H1 plus a URL list for hyperlinks.** Source: X19-terminal-filter (I30). Feeds I37 (B37-terminal-boundary) and I38. The check by eye in real terminals is I62.
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions**, for Ghostty and Terminal.app, pending the check by eye in I62. Claude Code 2.1.289 emitted 56 kinds of control and escape sequence in seven recorded sessions, under imitated terminal profiles. All pass a short allowlist except four kinds, plus `file://` links within OSC 8. With those dropped or rewritten, every screen is the same on replay, except that file paths stop being links. The iTerm2 and VS Code profiles stay unchecked in the real terminals. Accepting this gives I37 its allowlist. `/copy` then no longer reaches your clipboard until I38 designs the clipboard.
@@ -100,6 +100,7 @@ No hyperlinks from the guest. The terminal still makes a bare web address clicka
 
 - **Cost:** every link Claude Code draws becomes plain text, including "Security guide" style links whose address is not on screen.
 - **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" />, and the filter does not need to follow the screen.
+- **Decided with an addition (I30):** `wb` logs each dropped URL with its link text and lists them in the session summary, so a link whose address isn't on screen is still reachable.
 
 </div>
 <div class="wb-option">

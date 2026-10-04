@@ -109,13 +109,25 @@ the host.
     (`/pypi/<name>/json`, which Poetry reads) loses its young
     `releases`, and when its `info` describes a young release the
     response is refused. A PyPI client that doesn't accept the JSON
-    simple index is refused. B32-dep-gate-registries puts these three
-    rules to the maintainer, so merging them settles them.
+    simple index is refused. The maintainer accepted these three rules
+    on I32.
   - *Downloads.* A download of a version younger than the minimum age,
-    or with a known vulnerability at or above the threshold (default
-    HIGH, I73), is refused. The error names the package, the version,
-    its publish time and the date it becomes allowed. On the gated
-    hosts this catches lockfile pins, which never fetch metadata.
+    or with a known vulnerability at or above the threshold, is
+    refused. The error names the package, the version, its publish time
+    and the date it becomes allowed. On the gated hosts this catches
+    lockfile pins, which never fetch metadata.
+
+  *Vulnerability threshold.* The default threshold is CRITICAL (I73).
+  A malicious-package report (an OSV ID starting `MAL-`) is refused
+  whatever its severity. A vulnerability below the threshold is
+  allowed, logged with the advisory and the rule `vuln-below-threshold`
+  (SEC10-audit), and shown in `wb status`. The severity is the record's
+  `database_specific.severity`. Where that is missing, `wb-proxyd`
+  scores the record's CVSS vector. A record with no severity at all is
+  allowed and logged with the rule `vuln-no-severity`. A failed lookup
+  is still refused. At HIGH, 8 of 10 lockfile installs measured in
+  X21-dep-gate-registries would have been refused, mostly for
+  development tools, so users would have learned to override.
 
   *Scope.* The gate covers the registry hosts above and nothing else.
   The same packages fetched another way are not gated: Go with
@@ -125,8 +137,8 @@ the host.
   as `registry.npmmirror.com`, `goproxy.cn` or an Artifactory server.
   That residual is T07-ungated-sources. Two rules narrow it: the git
   hosting profile denies archive downloads, and the approval risk check
-  flags a host that mirrors a gated registry. B32-dep-gate-registries
-  puts both to the maintainer, so merging settles them.
+  flags a host that mirrors a gated registry. The maintainer accepted
+  T07-ungated-sources with both rules on I32.
 
   *Publish time.* From the registry, fetched by `wb-proxyd`: npm `time`
   from the full packument (the abbreviated one has none), PyPI
@@ -164,8 +176,8 @@ the host.
   cached for one hour, keyed on package, version and threshold. During
   an OSV outage only answers less than an hour old are used, and every
   other download is refused. A malicious-package report published within
-  that hour can be missed, a residual B32-dep-gate-registries puts to the
-  maintainer. If the publish time can't be found or a lookup fails, the
+  that hour can be missed, a residual the maintainer accepted on I32.
+  If the publish time can't be found or a lookup fails, the
   request is refused (fail closed). Per-project overrides are explicit
   and audited.
 
