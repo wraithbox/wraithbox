@@ -125,9 +125,11 @@ SEC07-dep-gate are usable as specified.
 ## Next steps
 
 1. Triage the issues above: labels, priority, `ready-for-agent` or
-   `ready-for-human`.
+   `ready-for-human`. Done on 2026-10-04 for the v1 spikes. X10-linux-hypervisor to
+   X16-openshell-linux stay in `needs-triage` until after V1.
 2. Create milestone V1-M1-spikes-closed and put the triaged v1 spikes and spec issues in
-   it. Decide I50 before running VM spikes in parallel.
+   it. Done on 2026-10-04, with V1-M2-walking-skeleton to V1-M6-release-gate created
+   empty. I50 is decided: VM spikes run one at a time on the maintainer's Mac.
 3. As V1-M1-spikes-closed closes, rewrite this page into milestones
    V1-M2-walking-skeleton to V1-M6-release-gate with
    implementation issues per component, each written to the
