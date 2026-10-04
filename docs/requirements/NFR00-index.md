@@ -3,6 +3,19 @@
 **Purpose:** How fast, how small, on which platforms, and how
 maintainable Wraith Box must be.
 
+| ID | Description | Status |
+|----|-------------|--------|
+| NFR01-startup | Startup | V1-M6-release-gate |
+| NFR02-fs-speed | Filesystem | V1-M6-release-gate |
+| NFR03-footprint | Footprint | V1-M6-release-gate |
+| NFR04-host-platforms | Host platforms | No milestone |
+| NFR05-two-macos-vms | Platform limit | No milestone |
+| NFR06-explained-refusals | Operability | V1-M5-approvals |
+| NFR07-maintainability | Maintainability | No milestone |
+| NFR08-licensing | Licensing | No milestone |
+
+## Requirements
+
 - **NFR01-startup: Startup.** Warm VM: ≤ 4 s to the Claude prompt. Suspended VM:
   ≤ 7 s. Hard ceiling 10 s (p95), excluding first-time project setup and
   the first boot after a host restart.
@@ -28,5 +41,3 @@ maintainable Wraith Box must be.
   that faces the guest, Go CI on all three host OSes from the start.
 - **NFR08-licensing: Licensing.** Apache-2.0; dependencies under permissive licenses
   only.
-
-**Status:** Draft

@@ -4,6 +4,25 @@
 ever weakened to make something work (`AGENTS.md`), and each holds
 against the adversary of T00-index.
 
+| ID | Description | Status |
+|----|-------------|--------|
+| SEC01-separate-kernel | Separate kernel | V1-M2-walking-skeleton |
+| SEC02-no-host-fs-share | No host filesystem sharing | V1-M2-walking-skeleton |
+| SEC03-no-host-exec | No host code execution via returned work | V1-M4-claude-end-to-end |
+| SEC04-no-guest-secrets | No secrets in the guest | V1-M2-walking-skeleton, V1-M4-claude-end-to-end |
+| SEC05-default-deny | Default-deny egress, enforced on the host | V1-M3-network-floor |
+| SEC06-repo-writes | Repository-scoped writes | V1-M4-claude-end-to-end |
+| SEC07-dep-gate | Dependency gate | V1-M5-approvals |
+| SEC08-proj-isolation | Per-project isolation | V1-M2-walking-skeleton |
+| SEC09-host-policy | Policy is held on the host | V1-M5-approvals |
+| SEC10-audit | Audit | V1-M3-network-floor |
+| SEC11-root-gains-nothing | Guest root is not a privilege | V1-M3-network-floor |
+| SEC12-least-privilege | Least privilege on the host | V1-M6-release-gate |
+| SEC13-bounded-resources | Bounded resources | V1-M6-release-gate |
+| SEC14-no-fake-approvals | Approvals cannot be spoofed by the guest | V1-M5-approvals |
+
+## Requirements
+
 - **SEC01-separate-kernel: Separate kernel.** The agent runs in a hardware-virtualized guest
   with its own kernel, never sharing a kernel with the host or with
   another environment of the user (for example a WSL distribution). There
@@ -46,5 +65,3 @@ against the adversary of T00-index.
 - **SEC13-bounded-resources: Bounded resources.** CPU, memory and disk of each VM are capped.
 - **SEC14-no-fake-approvals: Approvals cannot be spoofed by the guest.** Approval prompts are
   never rendered in the agent's terminal stream.
-
-**Status:** Draft

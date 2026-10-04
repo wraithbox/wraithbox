@@ -16,12 +16,12 @@
 // changes, so documents never need frontmatter of their own and nobody
 // edits the copies.
 //
-// The copy also checks that every item with its own file is listed in
-// the index of its kind (X03-network-path.md in X00-index.md), and fails
-// the build when one is missing.
+// The copy also fails the build when the table of an index (S00-index,
+// X00-index, …) is out of date (indexes.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { updateIndexes } from './indexes.mjs';
 import { failures, purposeOf, refsSources } from './remark-refs.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -130,30 +130,13 @@ export function plain(/** @type {string} */ text) {
 		.trim();
 }
 
-/**
- * Fails when an item with its own file (`X03-network-path.md`) is not
- * named in the index of its kind (`X00-index.md`) in the same directory.
- * @param {string[]} files paths relative to docs/
- */
-function checkIndexes(files) {
-	for (const rel of files) {
-		const m = path.basename(rel).match(/^([A-Z]+?)(\d+)-/);
-		if (!m || /^0+$/.test(m[2])) continue;
-		const id = `${m[1]}${m[2]}`;
-		const dir = path.dirname(rel);
-		const index = files.find((f) => path.dirname(f) === dir && path.basename(f).startsWith(`${m[1]}00-`));
-		if (!index) throw new Error(`docs/${rel}: no ${m[1]}00-index.md next to it`);
-		const text = fs.readFileSync(path.join(docsDir, index), 'utf8');
-		if (!new RegExp(`\\b${id}\\b`).test(text)) {
-			throw new Error(`docs/${rel}: ${id} is not listed in docs/${index}`);
-		}
-	}
-}
-
 /** Copies every design document into the content tree, removing copies of deleted ones. */
 export function syncDesign() {
 	const files = designFiles();
-	checkIndexes(files);
+	const stale = updateIndexes({ write: false });
+	if (stale.length > 0) {
+		throw new Error(`index tables out of date, run mise run doc:index: ${stale.join(', ')}`);
+	}
 	const wanted = new Set();
 	for (const rel of files) {
 		const target = path.join(contentDir, rel.toLowerCase());

@@ -29,11 +29,17 @@ out how to implement it. Aim for under 100 lines.
 - **Numbers** have two digits, `01` to `99`, and grow a third past
   that (`S100`). Versions and milestones are few, so they are not
   padded: `V1`, `V1-M2`.
-- **`00` is the index** of its kind: `S00-index`, `T00-index`. It lists
-  every item of the kind, and the docs site build fails when one is
-  missing.
-- **Small items are definitions** in their index, one list item each:
-  `- **SEC06-repo-writes: Repository-scoped writes.** …`. An item that
+- **`00` is the index** of its kind: `S00-index`, `T00-index`. Its
+  table (`| ID | Description | Status |`) lists every item of the kind,
+  and is generated: `mise run doc:index` rewrites it, and the docs site
+  build fails when it is out of date. The description is a page's title
+  or a definition's name. The status is a page's `**Status:**` line, a
+  brief's status line, a spike's issue state (or "Answered" once its
+  result page exists), the milestones whose "Covers" names a
+  requirement, or "Accepted" for a threat. An index has no status of
+  its own.
+- **Small items are definitions** in their index, one list item each,
+  with a name: `- **SEC06-repo-writes: Repository-scoped writes.** …`. An item that
   outgrows a paragraph, such as a spike result, gets its own file next
   to the index (`docs/spikes/X03-network-path.md`). The definition stays
   in the index as its summary.

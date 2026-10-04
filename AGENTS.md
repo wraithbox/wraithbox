@@ -58,6 +58,7 @@ Fresh clone: `mise trust && mise install`, then `mise run install`.
 | `mise run prose:spell` | cspell (American English) over every tracked file |
 | `mise run audit` | zizmor over `.github/`; needs a GitHub token |
 | `mise run vuln` | osv-scanner + govulncheck; network, no token |
+| `mise run doc:index` | Rewrite the tables of the indexes in `docs/` (S00-index, …); the build fails when one is stale |
 | `mise run gh:labels` | Create/update GitHub labels from `.github/labels.yml` |
 
 Tasks are namespaced `<lang>:<verb>`: `go:test`, `swift:lint`,

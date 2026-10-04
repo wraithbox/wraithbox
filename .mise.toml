@@ -380,6 +380,11 @@ description = "Refresh the issue and pull request titles behind the docs hover c
 dir = "packages/wraithbox-doc"
 run = "bun run scripts/github-refs.mjs"
 
+[tasks."doc:index"]
+description = "Rewrite the ID | Description | Status table of every index in docs/ (S00-index, FR00-index, …)"
+dir = "packages/wraithbox-doc"
+run = "bun run scripts/indexes.mjs"
+
 [tasks."doc:favicon"]
 description = "Regenerate the docs favicons + apple-touch-icon from design/*.svg"
 dir = "packages/wraithbox-doc"

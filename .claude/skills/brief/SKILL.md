@@ -39,8 +39,8 @@ The argument names the source:
 4. **Draw the picture** first, before writing prose: the one diagram
    that shows the problem, and a before/after pair if the structure
    changes.
-5. **Write the page** in the layout of `review-briefs.md`, and add its
-   row to B00-index. The file is `docs/briefs/B<NN>-<slug>.mdx`, where
+5. **Write the page** in the layout of `review-briefs.md`, then run
+   `mise run doc:index` to add its row to B00-index. The file is `docs/briefs/B<NN>-<slug>.mdx`, where
    `<NN>` is the source's issue number (`review-briefs.md`, "Where
    briefs go"). If the issue already has a brief, update that one. If
    it needs a second, stop and ask for the issue to be split.
