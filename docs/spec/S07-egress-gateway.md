@@ -96,7 +96,7 @@ the host.
     storage host still has to be allowed by policy. A
     guest's own credential in a header or parameter that no profile
     names reaches a host without a built-in profile
-    (T09-unnamed-credentials).
+    (T10-unnamed-credentials).
 - **Placeholder binding.** Each placeholder is bound to the hosts,
   ports, and paths of its binding, following OpenShell's provider
   model. A placeholder found anywhere else in a request (another host,
