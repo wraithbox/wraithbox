@@ -41,6 +41,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B50-vm-test-infra | How do agents share the two macOS VM slots, and where do VM tests run? | Decided 2026-10-04: C. By hand for now, with VM builders run one at a time |
 | B51-approval-flow | What happens between a blocked lookup and the user's answer? | Decided 2026-10-04: A. Hold the answer, then refuse uncached |
 | B52-proto-contracts | How are the gRPC contracts between the processes written, generated, and checked? | Decided 2026-10-04: A. Commit generated code |
+| B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05 |
 
 ## Order to decide
 

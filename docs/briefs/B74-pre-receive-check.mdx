@@ -1,0 +1,161 @@
+---
+title: Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory?
+description: Yes, with conditions. A pre-receive check that Wraith Box ships keeps refused pushes out of the landing repository, and a Go pack scanner in front of git caps object sizes before git allocates memory for them.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-05.** Source: X26-pre-receive-check (I74). Changes S08-workspace-and-git and S11-verification-and-spikes.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** A `pre-receive` check that Wraith Box ships refused every bad push tried, and none of their objects reached the landing repository. It runs too late to protect memory: an 8 KiB push made git use 2 GiB first. A small Go scanner in front of git refuses oversized objects before git sees them. Accepting merges the S08-workspace-and-git changes: the scanner (100 MiB per object, 1 GiB per push) and the check, with the old cleanup as a fallback.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="The guest's push passes the ref filter, then the pack scanner, then git receive-pack in wb-hostd. git unpacks into a quarantine, the pre-receive check runs, and only then do objects move into landing.git. A huge object (red) is stopped by the scanner before git allocates memory. A refused push's objects (red) no longer reach landing.git.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="590" y="20" width="160" height="260" rx="12" />
+  <text class="boundary-label" x="602" y="40">guest, untrusted</text>
+  <rect class="box guest" x="605" y="120" width="130" height="60" rx="10" />
+  <text class="label" x="670" y="146" text-anchor="middle">git push</text>
+  <text class="note" x="670" y="166" text-anchor="middle">git-remote-wb</text>
+
+  <text class="note" x="10" y="14">host: wb-hostd</text>
+  <rect class="box host" x="430" y="120" width="130" height="60" rx="10" />
+  <text class="label" x="495" y="146" text-anchor="middle">ref filter</text>
+  <text class="note" x="495" y="166" text-anchor="middle">X07, existing</text>
+
+  <rect class="box host" x="270" y="120" width="130" height="60" rx="10" />
+  <text class="label" x="335" y="146" text-anchor="middle">pack scanner</text>
+  <text class="note" x="335" y="166" text-anchor="middle">new: size caps</text>
+
+  <rect class="box host" x="100" y="120" width="140" height="60" rx="10" />
+  <text class="label" x="170" y="146" text-anchor="middle">receive-pack</text>
+  <text class="note" x="170" y="166" text-anchor="middle">unpacks to quarantine</text>
+
+  <rect class="box host" x="100" y="220" width="140" height="56" rx="10" />
+  <text class="label" x="170" y="244" text-anchor="middle">pre-receive check</text>
+  <text class="note" x="170" y="264" text-anchor="middle">new: ref checks</text>
+
+  <rect class="box host" x="100" y="30" width="140" height="50" rx="10" />
+  <text class="label" x="170" y="60" text-anchor="middle">landing.git</text>
+
+  <line class="edge" x1="603" y1="150" x2="562" y2="150" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="428" y1="150" x2="402" y2="150" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="268" y1="150" x2="242" y2="150" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="170" y1="182" x2="170" y2="218" marker-end="url(#f1-arrow)" />
+  <path class="edge" d="M98,248 C40,220 40,80 98,58" marker-end="url(#f1-arrow)" />
+  <text class="note" x="20" y="110">if passed</text>
+  <path class="edge-bad" d="M600,110 C520,60 400,70 345,118" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="430" y="58">2 GiB delta: stopped</text>
+  <path class="edge-bad" d="M200,118 C230,100 250,70 242,60" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="250" y="50">refused push: no objects</text>
+</svg>
+<figcaption>
+Figure 1. A push after X26-pre-receive-check. The scanner (new) refuses an object too large before git sizes a buffer for it. Git unpacks the rest into a quarantine directory, and the pre-receive check (new) refuses bad refs while the objects are still there. A refused push then leaves nothing in <code>landing.git</code>.
+</figcaption>
+</figure>
+
+## Options
+
+The issue asked about the check alone. The spike found that it can't bound memory, so the options are what to combine.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Scanner and check
+
+The Go scanner caps object sizes before git sees them. The check repeats git's late ref checks while the objects are in quarantine. The cleanup stays for the rare late failure.
+
+- **Cost:** two small Go components, one new fuzz target. About 0.02 s on a normal push.
+- **Gives:** bounded memory (208 MiB peak at a 100 MiB cap), a refused push adds nothing to `landing.git`.
+- **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" /> <Badge text="SEC03-no-host-exec" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Check alone
+
+What the issue proposed.
+
+- **Cost:** one small Go program. It reads only git's output, not the pack.
+- **Gap:** git still allocates whatever a delta asks for before the check runs: 2 GiB from an 8 KiB pack, and more is possible. macOS refuses a memory limit on the git process.
+- **Keeps:** <Badge text="SEC13-bounded-resources" variant="danger" /> memory unbounded
+
+</div>
+<div class="wb-option">
+
+### C. Scanner alone
+
+Cap sizes, leave the ref checks to git and the cleanup.
+
+- **Cost:** one Go component with a fuzz target.
+- **Gap:** refused pushes still leave objects in `landing.git` until the cleanup runs, and three ref clashes that git accepts leave inconsistent refs.
+- **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### D. Scanner and a reftable landing repository
+
+Store refs in git's newer reftable format, which has no file names to clash.
+
+- **Cost:** the user's git needs 2.45 or later for `wb land`.
+- **Gap:** stale old IDs and directory/file clashes still fail late, and it applied half of one push.
+- **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Both</th><th>B. Check</th><th>C. Scanner</th><th>D. Reftable</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC13-bounded-resources</strong> memory, CPU and disk capped</td><td class="yes">memory and size caps</td><td class="no">memory open</td><td class="yes">size caps</td><td class="yes">size limits</td></tr>
+<tr><td><strong>SEC03-no-host-exec</strong> returned work runs nothing on the host</td><td class="yes">repository hooks off</td><td class="yes">kept</td><td class="yes">unchanged</td><td class="yes">kept</td></tr>
+<tr><td><strong>FR03-work-as-branch</strong> work returns as a branch</td><td class="yes">consistent refs</td><td class="yes">consistent refs</td><td class="partial">clashes accepted</td><td class="partial">half a push applied</td></tr>
+<tr><td><strong>NFR06-explained-refusals</strong> refusals name the rule</td><td class="yes">says which check refused</td><td class="yes">rule in the log</td><td class="partial">git's message</td><td class="partial">git's own text</td></tr>
+<tr><td><strong>NFR07-maintainability</strong> fuzzing for every parser</td><td class="partial">one new target</td><td class="yes">none new</td><td class="partial">one new target</td><td class="partial">one new target</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Without a check, git refused ten bad pushes only after moving their objects into the landing repository: a ref too long for the file system, a component too long for its lock file, three stale or wrong old IDs, three directory/file clashes, two case clashes. With the check, all were refused and nothing was left. Same results with git 2.56.0 and Apple git 2.54.0. Source: X26-pre-receive-check, "Cases", `results/run1-homebrew.txt` and `run2-apple.txt`.
+- <Badge text="verified" variant="success" /> Git accepted three pushes that leave refs inconsistent on a case-insensitive disk (a packed-ref directory clash, `DIR/y` beside `dir/x`, `MAIN` beside a packed `main`). The check refused them. Source: same.
+- <Badge text="verified" variant="success" /> Delta results of 256 MiB to 2 GiB from 8 KiB packs took 271 to 2,063 MiB of memory in git, before the hook ran. The scanner refused each in 0.03 s. Source: X26-pre-receive-check, "Memory while git unpacks".
+- <Badge text="verified" variant="success" /> `ulimit -v` and `ulimit -d` fail on macOS 27.0.1 with "Invalid argument". Source: same.
+- <Badge text="verified" variant="success" /> A leftover lock file still fails a push after the check passed, leaving objects, so the cleanup stays. Source: X26-pre-receive-check, "Cases".
+- <Badge text="verified" variant="success" /> A check for objects no ref reaches refused a normal thin push on its second push. It stays out of the recommendation. Source: `results/run3-thin-homebrew.txt` and `run4-thin-apple.txt`.
+- <Badge text="verified" variant="success" /> Cost: the check alone 0.01 to 0.02 s on a one-commit push, 1.1 to 1.2 s on the Go repository's whole history. The scanner reads about 0.8 GB of inflated data per second. Source: X26-pre-receive-check, "Cost".
+- <Badge text="assumed" variant="caution" /> That the delta layouts tried cover how git allocates while unpacking. The peak was measured, not derived from git's source. The conformance case in S11-verification-and-spikes checks it again on every release.
+- <Badge text="assumed" variant="caution" /> That the `wb-git-receive` sandbox profile (X23-sandboxed-daemons) can allow the check program to run. Not built yet. I67 is the related open issue for the fetch side.
+
+## What this unblocks
+
+- The git gateway in `wb-hostd`, towards V1-M4-claude-end-to-end. S08-workspace-and-git has no open point left on push sizes.
+- I41 item 6: the landing size cap must also cover objects that successful pushes leave unreachable.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the check alone can't bound memory.** A pack stores most objects as deltas: "take that object, copy these ranges". The start of each delta says how big the result will be, and git allocates that much to apply it, while it unpacks. A hook runs only after unpacking. A delta of a few kilobytes of copy instructions can ask for gigabytes. The scanner reads those size fields as the pack streams in and refuses before git sees the entry.
+
+**Why the cleanup stays.** Some failures happen inside git's final ref update, after the objects moved: a lock file left by a crashed process, a disk error. The check can't foresee those, so the existing repack-and-prune after a refused push remains.
+
+**Glossary**
+
+- **Quarantine:** a temporary directory git unpacks a push into. Git deletes it if a `pre-receive` hook refuses the push.
+- **`pre-receive` hook:** a program git runs once per push after unpacking, before updating refs. Here it comes from a directory Wraith Box owns, never from the repository.
+- **Delta:** an object stored as copy instructions against another object.
+- **Thin pack:** a push whose deltas use objects the receiver already has.
+- **Reftable:** a newer git format that stores refs in one file instead of one file per ref.
+
+</details>
