@@ -31,6 +31,15 @@ hostnames
 sandboxed
 winget
 cdhash
+dyld
+Cryptexes
+Preboot
+reinit
+ncpu
+logicalcpu
+physicalcpu
+osrelease
+osversion
 libkrun
 NXDOMAIN
 SVCB

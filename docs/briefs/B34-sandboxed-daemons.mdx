@@ -1,0 +1,178 @@
+---
+title: Can the Go daemons confine themselves on macOS?
+description: Yes, with conditions. Each daemon applies its own Seatbelt profile in process, and wb-hostd starts the other daemons through an unconfined launcher, because a confined process can't confine its children further.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-04.** Source: X23-sandboxed-daemons, I34. Affects S04-architecture and S12-platforms. The `wb-proxyd` Keychain part is I61.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** Each Go daemon can confine itself, but its children can't confine themselves any further. So `wb-hostd` starts the other daemons through a small unconfined launcher (option A). Accepting merges the S04-architecture and S12-platforms changes here, and leaves the `wb-proxyd` Keychain rules to I61.
+</Aside>
+
+## The picture
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 380" role="img" aria-label="launchd starts wb-hostd. Before it confines itself, wb-hostd starts a launcher, which stays unconfined. wb-hostd then confines itself to its state directories, and git runs as its child under the same profile. The launcher starts wb-netd, wb-proxyd and wb-vmd, and each confines itself with its own profile. A direct start of wb-netd by the confined wb-hostd fails, because the child inherits the wb-hostd profile and can't apply its own. The untrusted guest reaches wb-hostd over the host-guest socket and wb-netd over Ethernet frames.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="20" y="18">host: trusted code, confined anyway</text>
+
+  <rect class="box host" x="20" y="30" width="160" height="46" rx="10" />
+  <text class="label" x="100" y="52" text-anchor="middle">launchd</text>
+  <text class="note" x="100" y="68" text-anchor="middle">LaunchAgent</text>
+
+  <rect class="boundary" x="14" y="118" width="182" height="190" rx="12" />
+  <text class="boundary-label" x="78" y="136">wb-hostd profile</text>
+
+  <rect class="box host" x="30" y="146" width="150" height="56" rx="10" />
+  <text class="label" x="105" y="170" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="105" y="188" text-anchor="middle">state dirs, socket</text>
+
+  <rect class="box host" x="30" y="236" width="150" height="56" rx="10" />
+  <text class="label" x="105" y="260" text-anchor="middle">git</text>
+  <text class="note" x="105" y="278" text-anchor="middle">inherits the profile</text>
+
+  <line class="edge" x1="60" y1="76" x2="60" y2="144" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="105" y1="202" x2="105" y2="234" marker-end="url(#f1-arrow)" />
+
+  <rect class="box host" x="250" y="30" width="160" height="56" rx="10" />
+  <text class="label" x="330" y="54" text-anchor="middle">launcher</text>
+  <text class="note" x="330" y="72" text-anchor="middle">unconfined, fixed table</text>
+  <path class="edge" d="M180,160 C215,150 230,90 248,70" marker-end="url(#f1-arrow)" />
+  <text class="note" x="122" y="104">started first</text>
+
+  <rect class="boundary" x="440" y="20" width="300" height="80" rx="12" />
+  <text class="boundary-label" x="452" y="38">own profile each</text>
+  <rect class="box host" x="452" y="46" width="88" height="44" rx="8" />
+  <text class="label" x="496" y="73" text-anchor="middle">wb-vmd</text>
+  <rect class="box host" x="546" y="46" width="88" height="44" rx="8" />
+  <text class="label" x="590" y="73" text-anchor="middle">wb-netd</text>
+  <rect class="box host" x="640" y="46" width="92" height="44" rx="8" />
+  <text class="label" x="686" y="73" text-anchor="middle">wb-proxyd</text>
+  <line class="edge" x1="410" y1="58" x2="450" y2="58" marker-end="url(#f1-arrow)" />
+
+  <path class="edge-bad" d="M180,190 C320,200 520,170 588,92" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="330" y="150">direct start: can't re-confine</text>
+
+  <rect class="boundary" x="440" y="230" width="300" height="130" rx="12" />
+  <text class="boundary-label" x="452" y="250">VM: guest, untrusted</text>
+  <rect class="box guest" x="500" y="270" width="190" height="56" rx="10" />
+  <text class="label" x="595" y="294" text-anchor="middle">wb-guestd, agent</text>
+  <text class="note" x="595" y="312" text-anchor="middle">adversarial input</text>
+
+  <line class="edge" x1="498" y1="296" x2="182" y2="186" marker-end="url(#f1-arrow)" />
+  <text class="note" x="250" y="250">host-guest socket</text>
+  <line class="edge" x1="595" y1="268" x2="590" y2="94" marker-end="url(#f1-arrow)" />
+  <text class="note" x="600" y="200">Ethernet frames</text>
+</svg>
+<figcaption>
+Figure 1. Option A. The launcher starts before <code>wb-hostd</code> confines itself. The daemons it starts can then each apply their own profile. A child that the confined <code>wb-hostd</code> starts directly (red) inherits the <code>wb-hostd</code> profile, and the kernel refuses its own (<code>forbidden-sandbox-reinit</code>). git runs as a child of <code>wb-hostd</code> and stays inside its profile.
+</figcaption>
+</figure>
+
+## Options
+
+The spike settled the mechanism: an in-process profile, without cgo. The real choice is how `wb-hostd` starts the other daemons.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. A launcher started before wb-hostd confines itself
+
+`wb-hostd` starts a launcher first, then confines itself. Later it asks the launcher for each daemon (`wb-vmd`, one `wb-netd` per VM, `wb-proxyd`) and hands it their descriptors. The launcher starts only those programs, and each confines itself first thing.
+
+- **Cost:** one small process with no profile, under 160 lines in the spike, test code included. Its input is only `wb-hostd`'s requests, which it checks against a fixed table. It also becomes the parent that sees the daemons exit, which the I48 supervision change must cover.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Children inherit the wb-hostd profile
+
+`wb-hostd` starts the daemons directly. Each runs under the `wb-hostd` profile, which must then allow what every daemon needs.
+
+- **Cost:** no launcher. `wb-netd`, which parses raw guest frames, gets the `wb-hostd` directories and the `wb-proxyd` network rules. That breaks the S04-architecture promise of "no filesystem and no network" for `wb-netd`.
+- **Weakens:** <Badge text="SEC12-least-privilege" variant="danger" />
+
+</div>
+<div class="wb-option">
+
+### C. wb-hostd stays unconfined
+
+Only `wb-netd`, `wb-proxyd` and `wb-vmd` confine themselves. `wb-hostd` starts them directly, as now.
+
+- **Cost:** no launcher. `wb-hostd` terminates the host-guest socket and runs git on guest pushes, and a bug there reaches every file of the user. S04-architecture says `wb-hostd` gets only its state directories, so this needs a spec change.
+- **Weakens:** <Badge text="SEC12-least-privilege" variant="danger" />
+
+</div>
+<div class="wb-option">
+
+### D. Each daemon as its own launchd job
+
+`wb-hostd` asks launchd to start each daemon. They aren't its children, so each can confine itself.
+
+- **Cost:** launchd can't pass the guest socket and network descriptors to a job. Each daemon connects back to `wb-hostd` to get them, `wb-netd` needs a launchd job per VM, and the confined `wb-hostd` needs rules to talk to launchd. The spike didn't try this option.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="caution" />
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Launcher</th><th>B. Inherit</th><th>C. hostd open</th><th>D. launchd jobs</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">every daemon</td><td class="no">netd too wide</td><td class="no">hostd open</td><td class="yes">every daemon</td></tr>
+<tr><td><code>wb-netd</code>: only inherited descriptors (S04-architecture)</td><td class="yes">measured</td><td class="no">hostd's rights</td><td class="yes">measured</td><td class="partial">plus a socket path</td></tr>
+<tr><td><code>wb-hostd</code>: its state directories only</td><td class="yes">measured</td><td class="partial">plus all others</td><td class="no">none</td><td class="partial">plus launchd</td></tr>
+<tr><td>Descriptor hand-off (S04-architecture)</td><td class="yes">as now</td><td class="yes">as now</td><td class="yes">as now</td><td class="partial">connect back</td></tr>
+<tr><td>Code and spec work</td><td class="na">small launcher</td><td class="na">none</td><td class="na">spec change</td><td class="na">launchd jobs</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> A Go program that calls `sandbox_init_with_parameters` in `main`, without cgo, keeps goroutines, garbage collection, preemption, timers, `crypto/rand` and ECDSA working under `(deny default)`, and is denied every file open, `stat`, connect, listen, DNS lookup, and program start. The profile covers all 32 OS threads tried (X23-sandboxed-daemons, "What a confined Go program can still do").
+- <Badge text="verified" variant="success" /> A `wb-netd` stand-in on gVisor moves 4 streams of 64 MiB each way over an inherited socket and hands each stream to a proxy with `SCM_RIGHTS`, at the same throughput confined as unconfined: 438 against 420 MiB/s, medians of 5 (X23-sandboxed-daemons, "wb-netd: gVisor over inherited descriptors").
+- <Badge text="verified" variant="success" /> Denying the `hw.ncpu` read makes Go 1.27 set `GOMAXPROCS` to 1 within seconds and cuts that throughput to 258 MiB/s. The runtime re-reads the CPU count every second (`runtime/cgroup_stubs.go`, `sysmonUpdateGOMAXPROCS` in `runtime/proc.go`).
+- <Badge text="verified" variant="success" /> A child of a confined process can't apply its own profile. The kernel logs `deny(1) forbidden-sandbox-reinit` and the call fails with "Operation not permitted". Through a launcher started before confinement, the child's profile applies.
+- <Badge text="verified" variant="success" /> Under its profile, a `wb-hostd` stand-in reads its configuration, writes and locks its state file, appends to its log, serves its Unix socket, and runs a git push and clone into a landing repository with Homebrew git and with the Xcode git binary. Writes to its configuration, files outside its directories, and network connections are denied.
+- <Badge text="verified" variant="success" /> `sandbox-exec` needs extra rules to start a Go binary at all: running and reading it, `/usr/lib`, the dyld cache, and the `sysctl` values the runtime reads at start.
+- <Badge text="verified" variant="success" /> Apple's SDK header marks `sandbox_init` "No longer supported" since macOS 10.8, and the `sandbox-exec` man page says "DEPRECATED". Both work on macOS 27.0.1.
+- <Badge text="inferred" variant="note" /> The launcher doesn't give an attacker in `wb-hostd` any right it lacks today. `wb-hostd` already starts these programs, and each one confines itself before it reads anything `wb-hostd` sends.
+- <Badge text="assumed" variant="caution" /> That Apple keeps `sandbox_init_with_parameters` working in later macOS versions. Apple doesn't promise it.
+- <Badge text="assumed" variant="caution" /> That `wb-vmd` can confine itself with the Virtualization framework running. Not tested: I64.
+
+## What this unblocks
+
+- I61: the `wb-proxyd` profile with Keychain and Secure Enclave rules, starting from this spike's network profiles.
+- I64: the `wb-vmd` profile.
+- The S04-architecture supervision change from I48, which now includes the launcher.
+- The `internal/platform` self-sandbox code for macOS, once V1-M1-spikes-closed closes and the implementation issues are written.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why in process, not `sandbox-exec`.** With `sandbox-exec`, the profile is in force before the program is loaded. It must then also let the process read the system libraries and run its own binary, until the process exits. In process, the call comes after loading, and the profile only allows what the daemon does from then on. It also keeps the profile inside the binary, where the parent can't swap it.
+
+**Why no cgo.** cgo would make each macOS build need a C toolchain for macOS and stop cross-compiling from Linux or Windows. The spike calls the function through a few lines of Go assembly, the way the standard `golang.org/x/sys/unix` package calls the C library on macOS. That links to a function in package `syscall` (`syscall6`) which Go keeps for `golang.org/x/sys` and lets other packages use (`syscall/syscall_darwin.go` in Go 1.27, go.dev/issue/67401). A later Go release could restrict that, and the build would then fail rather than run unconfined.
+
+**Why git stays inside `wb-hostd`'s profile.** The git gateway runs `git upload-pack` and `git receive-pack` on data the guest sends. Under the `wb-hostd` profile, a bug in git reaches only the `wb-hostd` directories. For that, `wb-hostd` runs git without the user's git configuration, which it must do anyway.
+
+**Glossary**
+
+- **Seatbelt:** the macOS kernel sandbox. A profile is a list of rules ("deny everything, allow reading this directory") in a small Lisp-like language.
+- **`sandbox_init_with_parameters`:** the C function that applies a profile to the calling process. Nothing can remove it afterward. `sandbox-exec` is the command-line tool that applies one and then starts a program.
+- **cgo:** Go's way of calling C code. It needs a C compiler for the target platform at build time.
+- **`GOMAXPROCS`:** how many CPU cores the Go runtime uses at once.
+- **Descriptor, `SCM_RIGHTS`:** a handle to an open socket or file, and the Unix mechanism that passes one to another process.
+- **gVisor:** the userspace network stack `wb-netd` runs (S07-egress-gateway).
+
+</details>
