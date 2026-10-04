@@ -13,6 +13,7 @@ trusts, and which risks it accepts rather than solves.
 | T06-forged-labels | Forged program labels after guest root | Accepted |
 | T07-ungated-sources | Dependencies from ungated sources | Accepted |
 | T08-homebrew-ungated | Young Homebrew bottles | Accepted |
+| T09-terminal-fingerprint | Host terminal facts in the guest | Accepted |
 
 ## Model
 
@@ -36,7 +37,12 @@ content).
 **Boundaries.** (1) the VM; (2) the host-guest socket RPC surface to
 `wb-guestd` (vsock or the platform equivalent); (3) the virtual NIC
 packet surface to `wb-netd`; (4) git objects returning to the host;
-(5) user approvals.
+(5) user approvals; (6) the host terminal stream: the guest output
+that `wb` writes to the user's terminal emulator, which acts on some
+escape sequences on the host, and the replies the emulator sends back
+(S05-cli, "Terminal stream"). What host programs such as `git log`
+print about returned work after `wb land` is outside it
+(T04-bad-approvals).
 
 **Accepted residual risks**, documented rather than solved:
 
@@ -69,3 +75,11 @@ packet surface to `wb-netd`; (4) git objects returning to the host;
   one version per formula and signed metadata, so the only option would
   be refusing young bottles, which fails about a third of popular
   formulae (X21-dep-gate-registries).
+- **T09-terminal-fingerprint: Host terminal facts in the guest.** The
+  guest learns the host terminal's name and version, its colors, the
+  window size in cells and pixels, and the state of its modes, from the
+  replies to the queries S05-cli passes, and from the `TERM`,
+  `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `COLORTERM` and `LANG`
+  variables that cross into the guest session. Claude Code needs them
+  to choose its output. No passed query returns clipboard or file
+  contents, or text the guest wrote.

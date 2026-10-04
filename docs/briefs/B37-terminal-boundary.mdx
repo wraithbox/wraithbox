@@ -1,14 +1,14 @@
 ---
 title: Should the host terminal be a trust boundary with its own filter?
-description: Yes. I37 adds the host terminal stream to the boundaries now, with a fail-closed allowlist filter in the relay whose contents come from spike X19-terminal-filter.
+description: Yes, decided. The spec change for I37 writes it down, with the allowlist from X19-terminal-filter, links dropped and listed, and two small open decisions about the exit reset and piped output.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Decided 2026-10-04: A. Boundary plus allowlist filter, for now.** The decision and its reasons are in the I37 comment that starts `Decision (2026-10-04):`. Source: I37, blocked by X19-terminal-filter (I30). Affects T00-index, S05-cli and S11-verification-and-spikes.
+**Decided 2026-10-04: A. Boundary plus allowlist filter, for now.** The decision and its reasons are in the I37 comment that starts `Decision (2026-10-04):`, and the filter's contents in the I30 decision (B30-terminal-filter). The spec change that closes I37 is up for review: T00-index, S05-cli ("Terminal stream") and S11-verification-and-spikes.
 
-<Aside type="tip" title="You are deciding">
-Whether guest output that `wb` writes to your terminal is a trust boundary, filtered the way `wb-netd` filters packets. Recommended: **A**, add the boundary now and filter every guest stream with an allowlist. Which escape sequences go on the list waits for X19-terminal-filter. Accepting it lets the spec pull request for T00-index and S05-cli start, and gives B38-port-forward-clipboard its rule that the clipboard never crosses through the terminal.
+<Aside type="tip" title="You are approving">
+The spec text for the decided boundary: `wb` filters guest output to your terminal with the allowlist measured in X19-terminal-filter, drops links and lists them in the session summary, sets the window title itself, and resets the terminal before the summary. Open below, each with a recommendation: how `wb` cleans up the terminal on exit, and whether output to a pipe is filtered. Approving merges the spec and unblocks the terminal filter in V1-M4-claude-end-to-end.
 </Aside>
 
 ## The problem
@@ -66,7 +66,61 @@ Figure 1. The terminal of a <code>wb claude</code> session shows bytes the guest
 </figcaption>
 </figure>
 
-## Options
+## The spec change
+
+What the decisions on I37 and I30 and the security review of PR66 became, and where:
+
+- **T00-index:** boundary 6 is the host terminal stream. A new accepted risk, T09-terminal-fingerprint, records what the guest learns about your terminal: its name and version, colors, window size, and five environment variables.
+- **S05-cli, "Terminal stream":** the allowlist as a table, tightened as PR66's review asked (at most 16 parameters of at most 5 digits, `CSI 3 J` dropped, unrecorded modes dropped, the kitty keyboard stack at most 4 deep). OSC 52 is dropped until I38. Notifications become a bell, at most one per second. OSC 8 links are dropped on screen. `wb` lists each one with its text in the session summary and the audit log, and marks those that aren't `https://` to a public host. `wb` sets the window title itself, resets the terminal before the summary, drains late query replies on exit, and passes exactly `TERM`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `COLORTERM` and `LANG` to the guest.
+- **S11-verification-and-spikes:** the filter's fuzz properties, and a conformance case that prints every dropped sequence and a fake summary.
+- S03-requirements stays as it is, because it points at T00-index for the boundaries.
+
+Open decisions:
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### 1A. Reset the terminal on exit
+
+`wb` undoes what the guest may have changed (colors, modes, scroll region, keyboard protocol, tab stops) before it prints the summary. Claude Code's output stays in your scroll-back, as with `claude`.
+
+- **Cost:** the reset list has to cover every state on the allowlist, and a gap lets the guest hide part of the summary. The fuzz and conformance checks in S11-verification-and-spikes look for that.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="FR01-drop-in" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### 1B. Run the session on `wb`'s own alternate screen
+
+`wb` switches to the alternate screen before the session and back after it, which discards all screen state at once.
+
+- **Cost:** the session's output is gone from the scroll-back when it ends, unlike `claude`.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> **Weakens:** <Badge text="FR01-drop-in" variant="caution" />
+
+</div>
+<div class="wb-option" data-recommended>
+
+### 2A. Pass piped output unchanged
+
+The filter runs on each stream that goes to a terminal. `wb claude -p … > out.txt` writes Claude Code's bytes exactly.
+
+- **Cost:** `wb claude -p … | cat` puts unfiltered bytes on your terminal. You chose to pipe it, as with `git log` after `wb land`.
+- **Keeps:** <Badge text="FR01-drop-in" variant="success" /> <Badge text="SEC03-no-host-exec" variant="caution" /> for what reaches a terminal through `wb`
+
+</div>
+<div class="wb-option">
+
+### 2B. Filter every stream
+
+The filter also runs when the output goes to a pipe or a file.
+
+- **Cost:** scripts get changed bytes. JSON output keeps working, but a C1 character or `DEL` in a string is dropped.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> **Weakens:** <Badge text="FR01-drop-in" variant="caution" /> for scripts
+
+</div>
+</div>
+
+## Options for the boundary (decided: A)
 
 The issue proposes A and doesn't list alternatives. B, C and D are the alternatives as this brief sees them.
 
@@ -141,15 +195,16 @@ Write it down as an accepted threat in T00-index and point users at their emulat
 - <Badge text="verified" variant="success" /> iTerm2 saves a file sent with `OSC 1337 ; File=` and no `inline=1` to the Downloads folder, and copies text to the pasteboard with `OSC 1337 ; Copy=` ([iTerm2 escape codes](https://iterm2.com/documentation-escape-codes.html), [iTerm2 images](https://iterm2.com/documentation-images.html)).
 - <Badge text="verified" variant="success" /> `git log --format=%s` writes a commit subject containing `ESC ] 52 ; c ; …` unchanged to its output (git 2.56.0, local test).
 - <Badge text="verified" variant="success" /> S11-verification-and-spikes requires a fuzz target for every parser of guest bytes ("Test layers"). The filter gets one under A, B, and C.
-- <Badge text="assumed" variant="caution" /> That Claude Code renders correctly with a short allowlist (colors, cursor movement, bracketed paste, window title). That is spike X19-terminal-filter (I30).
-- <Badge text="assumed" variant="caution" /> Which macOS terminals act on OSC 52 by default. The answer varies per emulator and version, and X19-terminal-filter records it. A holds either way.
+- <Badge text="verified" variant="success" /> Claude Code 2.1.289 draws the same screens through the allowlist, on replay in a headless emulator, except that links stop being links (X19-terminal-filter, "What the filter changes").
+- <Badge text="verified" variant="success" /> The caps in S05-cli sit above what Claude Code sent: in the seven X19-terminal-filter recordings a CSI has at most 5 parameters of at most 4 digits, `J` and `K` take only 2 or none, and the kitty keyboard stack is at most 1 deep (count over the recordings on the spike branch, for this spec change).
+- <Badge text="verified" variant="success" /> The X19-terminal-filter recorder gave Claude Code `TERM`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION` and `COLORTERM` per terminal profile, and the host's own locale. Those are the variables S05-cli lets cross (`cmd/record/main.go` on the spike branch).
+- <Badge text="assumed" variant="caution" /> That the headless emulator shows what Ghostty and Terminal.app show. I62 checks it by eye.
+- <Badge text="assumed" variant="caution" /> Which macOS terminals act on OSC 52 by default. The answer varies per emulator and version. The filter drops it either way.
 
 ## What this unblocks
 
-- Now: the spec pull request that adds boundary 6 to T00-index and the filter rule to S05-cli and S11-verification-and-spikes.
+- The terminal filter in V1-M4-claude-end-to-end, once this spec change merges.
 - I38, whose clipboard design (B38-port-forward-clipboard) relies on OSC 52 never reaching the host.
-- Waits on X19-terminal-filter (I30): the allowlist itself. Until then S05-cli can name the rule and leave the list empty, marked open.
-- The terminal filter in V1-M4-claude-end-to-end.
 
 <details>
 <summary>Details and glossary</summary>
