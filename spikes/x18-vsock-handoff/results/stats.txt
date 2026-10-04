@@ -1,0 +1,14 @@
+restore-4g.jsonl: 20 of 20 runs without error
+  configMs             n=20 p50=   18.492 p95=   22.575 min=   17.166 max=   23.787
+  restoreSeconds       n=20 p50=    3.759 p95=    3.946 min=    3.693 max=    3.972
+  resumeMs             n=20 p50=  184.306 p95=  193.442 min=  177.451 max=  196.381
+  resumedSeconds       n=20 p50=    3.966 p95=    4.147 min=    3.911 max=    4.174
+  connectSeconds       n=20 p50=    3.971 p95=    4.153 min=    3.916 max=    4.176
+  grpcSeconds          n=20 p50=    4.134 p95=    4.214 min=    3.925 max=    4.272
+  netSeconds           n=20 p50=    3.980 p95=    4.155 min=    3.916 max=    4.177
+  connectTries         n=20 p50=    1.000 p95=    1.000 min=    1.000 max=    1.000
+  grpc.healthMs        n=20 p50=  155.062 p95=  188.201 min=    2.343 max=  209.330
+cold-4g.jsonl: 20 of 20 runs without error
+  coldConnectSeconds   n=10 p50=   10.931 p95=   13.477 min=   10.609 max=   15.228
+  coldGrpcSeconds      n=10 p50=   10.939 p95=   13.487 min=   10.617 max=   15.237
+  tries                n=10 p50= 1288.500 p95= 1528.950 min=  970.000 max= 1677.000

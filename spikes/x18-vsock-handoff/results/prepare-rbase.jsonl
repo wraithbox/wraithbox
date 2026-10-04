@@ -1,0 +1,2 @@
+{"adopt":{"echoBytes":1024,"echoMs":0.30299999999999999,"health":"SERVING","healthAtUptimeRaw":229117.77293129099,"healthMs":158.51900000000001,"id":"prep","local":"unix:","ok":true,"op":"adopt-vsock","peer":"unix:","receivedFD":8,"sockType":1},"cmd":"prepare","coldConnectSeconds":11.261944249999942,"coldGrpcSeconds":11.422187374992063,"tries":1285}
+{"cmd":"prepare-save","pauseMs":5.7580829889047891,"saveSeconds":3.0611647499899846}

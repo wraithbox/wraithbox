@@ -1,0 +1,10 @@
+run 1 2026-10-04T22:26:23Z "IOConsoleLocked" = Yes
+run 2 2026-10-04T22:26:39Z "IOConsoleLocked" = No
+run 3 2026-10-04T22:26:55Z "IOConsoleLocked" = No
+run 4 2026-10-04T22:27:16Z "IOConsoleLocked" = No
+run 5 2026-10-04T22:27:32Z "IOConsoleLocked" = No
+run 6 2026-10-04T22:27:49Z "IOConsoleLocked" = No
+run 7 2026-10-04T22:28:05Z "IOConsoleLocked" = No
+run 8 2026-10-04T22:28:21Z "IOConsoleLocked" = No
+run 9 2026-10-04T22:28:37Z "IOConsoleLocked" = Yes
+run 10 2026-10-04T22:28:53Z "IOConsoleLocked" = Yes

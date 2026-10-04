@@ -7,9 +7,9 @@ mode=$1 x18=$2 src=$3 sock=$4 runs=$5 out=$6
 dir=$(dirname "$src")
 i=1
 while [ "$i" -le "$runs" ]; do
-  # Restore and save need the host unlocked (X02-warm-start): wait for it,
+  # Restore needs the host unlocked (X02-warm-start): wait for it,
   # and record the state each run starts in.
-  while ioreg -n Root -d1 | grep -q '"IOConsoleLocked" = Yes'; do sleep 10; done
+  [ "$mode" = cold ] || while ioreg -n Root -d1 | grep -q '"IOConsoleLocked" = Yes'; do sleep 10; done
   echo "run $i $(date -u +%FT%TZ) $(ioreg -n Root -d1 | grep -o '"IOConsoleLocked"[^,}]*')" >>"$out.lock"
   rm -rf "$dir/series"
   cp -c -R "$src" "$dir/series"
