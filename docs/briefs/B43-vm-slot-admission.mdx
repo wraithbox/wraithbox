@@ -1,0 +1,175 @@
+---
+title: What gets one of the two macOS VM slots when everything wants one?
+description: The work VM keeps its slot. Image builds and update checks borrow the isolated VM's slot when no session runs there, and otherwise wb refuses and says what holds the slots. Where GUI work goes waits for the spike on Xcode without a GUI login.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I43. Affects S06-vm-lifecycle, NFR05-two-macos-vms, NFR06-explained-refusals and SEC08-proj-isolation. Related: I50 (the same limit on development Macs).
+
+<Aside type="tip" title="You are deciding">
+Which uses of a running macOS VM `wb-hostd` admits, in what order, and what it suspends or refuses when both slots are taken. Recommended: **A**, the work VM is never touched, and image builds and update checks borrow the isolated slot only while no session runs there. That adds an admission section to S06-vm-lifecycle. Placement of Xcode work that needs a GUI login waits for X06-guest-xcode (I20).
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="Five things want a running macOS VM: image builds, image update checks, Xcode GUI work, other VM software, and agents' spike VMs. Only the first three go through wb-hostd. The host runs at most two macOS VMs, which S06-vm-lifecycle gives to the work VM and the isolated VM.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="20" y="20">host: trusted</text>
+
+  <rect class="box host" x="20" y="35" width="200" height="44" rx="10" />
+  <text class="label" x="120" y="62" text-anchor="middle">wb image build</text>
+  <rect class="box host" x="20" y="90" width="200" height="44" rx="10" />
+  <text class="label" x="120" y="117" text-anchor="middle">image update check</text>
+  <rect class="box host" x="20" y="145" width="200" height="44" rx="10" />
+  <text class="label" x="120" y="166" text-anchor="middle">Xcode GUI work</text>
+  <text class="note" x="120" y="182" text-anchor="middle">if X06 says so</text>
+  <rect class="box" x="20" y="215" width="200" height="44" rx="10" />
+  <text class="label" x="120" y="236" text-anchor="middle">other VM apps</text>
+  <text class="note" x="120" y="252" text-anchor="middle">UTM, Tart</text>
+  <rect class="box" x="20" y="270" width="200" height="44" rx="10" />
+  <text class="label" x="120" y="291" text-anchor="middle">agents' spike VMs</text>
+  <text class="note" x="120" y="307" text-anchor="middle">I50</text>
+
+  <rect class="box host" x="260" y="80" width="150" height="80" rx="10" />
+  <text class="label" x="335" y="108" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="335" y="128" text-anchor="middle">admission control</text>
+  <text class="note" x="335" y="145" text-anchor="middle">explains refusals</text>
+
+  <line class="edge" x1="222" y1="57" x2="258" y2="95" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="222" y1="112" x2="258" y2="118" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="222" y1="167" x2="258" y2="145" marker-end="url(#f1-arrow)" />
+
+  <rect class="boundary" x="450" y="30" width="295" height="290" rx="12" />
+  <text class="boundary-label" x="462" y="50">at most two macOS VMs: untrusted</text>
+
+  <rect class="box guest" x="470" y="65" width="255" height="85" rx="10" />
+  <text class="label" x="597" y="98" text-anchor="middle">slot 1: work VM</text>
+  <text class="note" x="597" y="120" text-anchor="middle">every trusted project</text>
+
+  <rect class="box guest" x="470" y="180" width="255" height="85" rx="10" />
+  <text class="label" x="597" y="213" text-anchor="middle">slot 2: isolated VM</text>
+  <text class="note" x="597" y="235" text-anchor="middle">untrusted repositories, GUI work</text>
+
+  <line class="edge" x1="412" y1="110" x2="468" y2="108" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="412" y1="140" x2="468" y2="215" marker-end="url(#f1-arrow)" />
+
+  <path class="edge-bad" d="M222,237 C330,237 380,250 468,245" marker-end="url(#f1-arrow-bad)" />
+  <path class="edge-bad" d="M222,292 C340,292 400,270 468,255" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="245" y="270">skip wb-hostd</text>
+</svg>
+<figcaption>
+Figure 1. macOS runs at most two macOS guests, and S06-vm-lifecycle gives both slots to Wraith Box: the work VM and the isolated VM. Image builds, update checks, and possibly Xcode GUI work also need a running VM, and go through <code>wb-hostd</code>. Other VM software and the spike code agents run on a development Mac take a slot without asking <code>wb-hostd</code> (red). The Virtualization framework then refuses the next start.
+</figcaption>
+</figure>
+
+## Options
+
+The issue gives a proposal. The other options are the brief's.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. The work VM stays, the isolated slot is lent out
+
+An image build or update check takes the isolated slot. If no session runs in the isolated VM, `wb-hostd` saves its state and stops it, then restores it afterward. If a session runs there, `wb` refuses, names the session, and says how to end it. When another program holds a slot, the start fails and `wb` says that a macOS VM outside Wraith Box is running.
+
+- **Cost:** an admission section in S06-vm-lifecycle and a small queue in `wb-hostd`. Untrusted sessions wait during a build.
+- **Keeps:** <Badge text="NFR05-two-macos-vms" variant="success" /> <Badge text="NFR06-explained-refusals" variant="success" /> <Badge text="SEC08-proj-isolation" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Refuse when both slots are taken
+
+A build or update check runs only when a slot is free. Otherwise `wb` refuses and tells the user to run `wb vm stop`.
+
+- **Cost:** less code. The user stops VMs by hand before each build.
+- **Keeps:** <Badge text="NFR05-two-macos-vms" variant="success" /> <Badge text="NFR06-explained-refusals" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. Take whichever slot is idle
+
+A build takes whichever slot has no running session, the work VM's included.
+
+- **Cost:** builds start more often without waiting. Trusted sessions, the common case, wait for a build to finish.
+- **Keeps:** <Badge text="NFR05-two-macos-vms" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### D. Leave the spec as is
+
+S06-vm-lifecycle says `wb-hostd` "performs admission control and reports a clear error", with no order.
+
+- **Cost:** none now. Each builder decides the order, and the image build work in V1-M2-walking-skeleton has no rule to follow.
+- **Weakens:** <Badge text="NFR06-explained-refusals" variant="caution" />
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+**GUI work next to untrusted repositories is already in the spec.** S06-vm-lifecycle ("VMs") puts "work that needs a GUI login session" in the isolated VM today. For a trusted project that puts its code in the same VM as untrusted repositories, where guest root can read other projects' clones (T05-cross-proj-clones). The isolated VM exists to avoid exactly that. Until X06-guest-xcode answers, that sentence should read as open, not decided. If a GUI login is needed, the choices are: the isolated VM's console user (accepting T05-cross-proj-clones for those projects), a console login for one project user at a time in the work VM, or giving a GUI project the isolated slot alone while untrusted sessions wait.
+
+**`wb-hostd` can't count other programs' VMs.** It learns about them when a start fails with the framework's limit error. Admission for those is "try, then explain", not a check ahead of time.
+
+**Spike code skips admission.** Agents' spike VMs (X02-warm-start, X17-image-build and others) drive the Virtualization framework directly, before `wb-hostd` exists. I50 covers them with a lock on each development Mac. Both rules should name the same limit and the same error. A refusal then reads the same on a development Mac and in `wb`.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Lend isolated</th><th>B. Refuse</th><th>C. Any idle</th><th>D. As is</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>NFR05-two-macos-vms</strong> at most two macOS VMs</td><td class="yes">ordered</td><td class="yes">by hand</td><td class="yes">ordered</td><td class="partial">no order</td></tr>
+<tr><td><strong>NFR06-explained-refusals</strong> a refusal names its rule and the fix</td><td class="yes">names session</td><td class="yes">names fix</td><td class="yes">names session</td><td class="partial">generic error</td></tr>
+<tr><td><strong>FR05-parallel-sessions</strong> sessions run in parallel</td><td class="partial">untrusted wait</td><td class="partial">user stops VMs</td><td class="partial">trusted wait</td><td class="na">unclear</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> untrusted repositories in their own VM</td><td class="yes">holds</td><td class="yes">unchanged</td><td class="yes">holds</td><td class="partial">GUI line open</td></tr>
+<tr><td><strong>FR06-native-tools</strong> full Xcode in the guest</td><td class="na">X06-guest-xcode</td><td class="na">X06-guest-xcode</td><td class="na">X06-guest-xcode</td><td class="na">X06-guest-xcode</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The Virtualization framework has an error for "an attempt to start a virtual machine (VM) exceeded the limit of the number of running VMs the framework allows", `VZErrorVirtualMachineLimitExceeded` (`VZError.h`, macOS 27 SDK).
+- <Badge text="verified" variant="success" /> S06-vm-lifecycle ("VMs") gives the two slots to the work VM and the isolated VM, counts VMs "started by other software", and has `wb-hostd` perform admission control. S04-architecture lists admission control under `wb-hostd`.
+- <Badge text="verified" variant="success" /> Images are built locally on each host (V1-07-local-images). Every image build therefore takes a slot on the user's own Mac.
+- <Badge text="verified" variant="success" /> Image updates swap the system disk for a fresh clone (S06-vm-lifecycle, "Images"). A test boot before the swap is the issue's idea, and S06-vm-lifecycle doesn't have it yet.
+- <Badge text="verified" variant="success" /> Whether a saved state can be restored reliably, and reused, is X02-warm-start (I16).
+- <Badge text="assumed" variant="caution" /> That a VM whose state is saved and which is stopped no longer counts against the limit. Option A depends on it. X02-warm-start can confirm it in passing.
+- <Badge text="assumed" variant="caution" /> That no public API lists macOS VMs other programs run. If one exists, `wb` can name them in the refusal.
+- <Badge text="assumed" variant="caution" /> Whether Xcode builds and simulators need a GUI login. That is X06-guest-xcode (I20).
+
+## What this unblocks
+
+- The admission section in S06-vm-lifecycle, now, for builds, update checks, and other software.
+- GUI placement, after X06-guest-xcode (I20). I43 is blocked by it.
+- `wb image build` in V1-M2-walking-skeleton, which needs a slot rule.
+- I50, which applies the same limit to agents on development Macs.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the work VM keeps its slot.** Every trusted project shares the work VM (S06-vm-lifecycle), so stopping it interrupts the most sessions. The isolated VM is used less, and an untrusted session waiting for a build is the smaller cost.
+
+**Why the order matters for builds.** An image build installs macOS from a restore image and can take long (X17-image-build measures it). Under A the isolated VM is stopped for that whole time, so `wb` should say how long, once X17-image-build has a number.
+
+**Glossary**
+
+- **Slot:** one of the two macOS VMs a Mac may run at once.
+- **Work VM:** the VM for every trusted project, one guest user per project.
+- **Isolated VM:** the VM for untrusted repositories and for projects assigned to it.
+- **Admission control:** the rule in `wb-hostd` that decides whether a VM may start, and what to stop or refuse.
+- **Saved state:** a VM's memory and devices written to a file so it can stop and later resume from that point.
+- **GUI login:** a user logged in at the guest's graphical console, which some Xcode features may need.
+
+</details>

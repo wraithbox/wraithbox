@@ -1,0 +1,193 @@
+---
+title: How does Claude Code run in the guest, and which of the user's settings go with it?
+description: Carry in an allowlist of the user's Claude Code configuration with secrets and hooks removed, start in bypassPermissions mode, and pin Claude Code in the image with every in-guest update path off. The login and endpoint rules wait for X01-model-credential.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I45. Affects V1-02-claude-only, S05-cli, S06-vm-lifecycle, S07-egress-gateway, S09-policy-credentials-audit, and a new agent spec.
+
+<Aside type="tip" title="You are deciding">
+The rules for a new agent spec that don't depend on X01-model-credential: which user configuration the guest gets, the starting permission mode, and the update route for Claude Code in the guest. Recommended: **A**, a filtered copy of an allowlist with secrets and hooks removed, plus the defaults in the table below. The agent spec is written once X01-model-credential (I15) says which login Wraith Box uses.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 350" role="img" aria-label="The user's Claude Code configuration on the host goes through a filter in wb-hostd to the project user's home in the guest. The sign-in session and MCP server secrets in ~/.claude.json must never reach the guest. Claude Code in the guest reaches the model API only through wb-proxyd, which adds the credential.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="20" y="16">host: trusted</text>
+
+  <rect class="box host" x="20" y="40" width="200" height="80" rx="10" />
+  <text class="label" x="120" y="68" text-anchor="middle">~/.claude/</text>
+  <text class="note" x="120" y="88" text-anchor="middle">settings, CLAUDE.md, agents,</text>
+  <text class="note" x="120" y="105" text-anchor="middle">skills, plugins, hooks</text>
+
+  <rect class="box host" x="20" y="150" width="200" height="60" rx="10" />
+  <text class="label" x="120" y="175" text-anchor="middle">~/.claude.json</text>
+  <text class="note" x="120" y="195" text-anchor="middle">sign-in, MCP servers</text>
+
+  <rect class="box host" x="250" y="40" width="130" height="90" rx="10" />
+  <text class="label" x="315" y="68" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="315" y="88" text-anchor="middle">allowlist,</text>
+  <text class="note" x="315" y="105" text-anchor="middle">secret scan</text>
+
+  <rect class="box host" x="250" y="250" width="130" height="70" rx="10" />
+  <text class="label" x="315" y="278" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="315" y="298" text-anchor="middle">model credential</text>
+
+  <rect class="box" x="20" y="255" width="200" height="60" rx="10" />
+  <text class="label" x="120" y="282" text-anchor="middle">model API</text>
+  <text class="note" x="120" y="300" text-anchor="middle">Anthropic</text>
+
+  <rect class="boundary" x="400" y="20" width="350" height="320" rx="12" />
+  <text class="boundary-label" x="412" y="40">guest VM: untrusted</text>
+
+  <rect class="box guest" x="415" y="55" width="140" height="70" rx="10" />
+  <text class="label" x="485" y="85" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="485" y="105" text-anchor="middle">writes the copy</text>
+
+  <rect class="box guest" x="585" y="55" width="150" height="70" rx="10" />
+  <text class="label" x="660" y="85" text-anchor="middle">project user</text>
+  <text class="note" x="660" y="105" text-anchor="middle">~/.claude/ copy</text>
+
+  <rect class="box guest" x="520" y="200" width="200" height="80" rx="10" />
+  <text class="label" x="620" y="228" text-anchor="middle">Claude Code</text>
+  <text class="note" x="620" y="248" text-anchor="middle">pinned in the image,</text>
+  <text class="note" x="620" y="265" text-anchor="middle">updates off</text>
+
+  <line class="edge" x1="222" y1="80" x2="248" y2="80" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="382" y1="85" x2="413" y2="85" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="557" y1="90" x2="583" y2="90" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="650" y1="127" x2="630" y2="198" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="518" y1="260" x2="382" y2="285" marker-end="url(#f1-arrow)" />
+  <text class="note" x="414" y="296">via wb-netd</text>
+  <line class="edge" x1="248" y1="285" x2="222" y2="285" marker-end="url(#f1-arrow)" />
+
+  <path class="edge-bad" d="M222,180 C330,180 420,200 518,220" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="232" y="230">never: sign-in, MCP keys</text>
+</svg>
+<figcaption>
+Figure 1. The user's global Claude Code configuration is on the host. <code>wb-hostd</code> copies an allowlisted part of it into the project user's home through <code>wb-guestd</code>, after a secret scan. The sign-in session and MCP server definitions in <code>~/.claude.json</code>, and hooks, stay on the host (red). Claude Code in the guest holds only a placeholder and reaches the model API through <code>wb-proxyd</code>, which adds the real credential.
+</figcaption>
+</figure>
+
+## Decisions you can make now
+
+The issue bundles six sub-decisions. Items 4 and 5 wait on X01-model-credential in part or in full. You can settle the rest now.
+
+| # | Sub-decision | Recommendation | Decide |
+|---|---|---|---|
+| 1 | Install and update | Install a signed, pinned Claude Code build in the image in a system directory that project users can't write to. Set `DISABLE_UPDATES` in the guest's managed settings. A new version arrives with `wb image build`. Never allowlist the download host. | now |
+| 2 | Permission mode | `wb-guestd` writes `permissions.defaultMode: "bypassPermissions"` in the project user's settings. A user who wants prompts passes `--permission-mode` after `wb claude`, which reaches Claude Code unchanged and takes precedence over user settings. | now |
+| 3 | User configuration | Option A below: an allowlist, minus the keys that run commands or hold secrets. | now |
+| 4 | Commands that don't fit | `claude update` is refused by `DISABLE_UPDATES`. `/ide` can't reach a host editor (SEC05-default-deny) and the agent spec says so. `/login` waits for X01-model-credential. | partly |
+| 5 | Telemetry and other endpoints | The *model API* profile lists only what Claude Code needs to work. The endpoint list waits for X01-model-credential, which lists them. | after X01-model-credential |
+| 6 | Agent interface (V1-02-claude-only) | The agent spec defines the interface as what Claude Code needs (image install step, configuration carry-in rules, credential bindings, endpoint profile, launch environment), with Claude Code as its only implementation. No general design before a second agent exists. | now |
+
+## Options for the user's configuration
+
+The issue gives a proposal without alternatives, so these options are the brief's.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Carry in an allowlist, filtered
+
+At each session start, `wb-hostd` copies `CLAUDE.md`, `agents/`, `skills/`, `commands/` and `settings.json` from `~/.claude/`. It removes the `hooks`, `env`, `apiKeyHelper` and MCP keys from the settings, leaves out plugins, and runs the image seal's secret scanner over the result. Anything left out is listed. The user can add hooks or MCP servers by name.
+
+- **Cost:** a filter in `wb-hostd`, kept current with Claude Code's settings keys. A missed secret depends on the scanner, which is heuristic.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="caution" /> <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="FR01-drop-in" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Start each project with an empty configuration
+
+Each project user starts with an empty Claude Code configuration. The user sets it up inside the guest, and FR13-claude-state keeps it per project.
+
+- **Cost:** no code. Each project starts without the user's `CLAUDE.md` and skills, so `wb claude` doesn't feel like `claude`.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" />
+- **Weakens:** <Badge text="FR01-drop-in in practice" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Copy both files and the directory whole
+
+Copy `~/.claude/` and `~/.claude.json` as they are.
+
+- **Cost:** a copy. It puts the user's sign-in session, MCP server tokens and any token in a hook or `env` block into the guest.
+- **Weakens:** <Badge text="SEC04-no-guest-secrets" variant="danger" />, a spec change, and not allowed by `AGENTS.md`.
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+The issue proposes an allowlist of *files*. That isn't enough. One file, `settings.json`, can hold hooks, an `env` block with tokens in it, or an `apiKeyHelper` command. The filter has to remove those keys from inside the file. MCP server definitions and the sign-in session are not in `~/.claude/` at all but in `~/.claude.json`, which A never copies. Plugins can bundle their own hooks and MCP servers. A leaves them out by default. The copy goes one way only: configuration changed in the guest never returns to the host, because the guest controls it (SEC03-no-host-exec). Changes to a repository's own `.claude/` already return as flagged paths (S08-workspace-and-git).
+
+Since Claude Code 2.1.283, its built-in starting mode is *auto*, where a classifier model reviews each action. On API accounts each check counts toward token use. Claude Code's documentation names `bypassPermissions` as the mode for isolated VMs. In the guest it runs as the project user, never as root.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Allowlist</th><th>B. Nothing</th><th>C. Everything</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC04-no-guest-secrets</strong> the guest holds only placeholders</td><td class="partial">scanner-dependent</td><td class="yes">kept</td><td class="no">weakened</td></tr>
+<tr><td><strong>SEC03-no-host-exec</strong> nothing from the guest runs on the host</td><td class="yes">one-way copy</td><td class="yes">kept</td><td class="yes">one-way copy</td></tr>
+<tr><td><strong>FR01-drop-in</strong> <code>wb claude</code> behaves like <code>claude</code></td><td class="yes">user's setup applies</td><td class="partial">empty setup</td><td class="yes">full setup</td></tr>
+<tr><td><strong>FR13-claude-state</strong> state persists per project</td><td class="yes">per project</td><td class="yes">per project</td><td class="partial">host sign-in shared</td></tr>
+<tr><td>Spec work</td><td class="na">agent spec, S06-vm-lifecycle</td><td class="na">agent spec</td><td class="na">SEC00-index change</td></tr>
+</tbody>
+</table>
+
+SEC05-default-deny (only allowlisted hosts are reachable) holds under every option, and so do the update and permission defaults in the table above.
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> `~/.claude.json` holds "your sign-in session, MCP server configurations, per-project state such as trust decisions" ([Claude Code settings](https://code.claude.com/docs/en/settings)).
+- <Badge text="verified" variant="success" /> Settings precedence is managed, command line, project local, shared project, user. A `--permission-mode` flag takes precedence over a mode set in user settings, and `bypassPermissions` takes effect from user, `--settings` or managed settings, not from project files (same page).
+- <Badge text="verified" variant="success" /> `wb claude` passes its arguments to Claude Code unchanged (FR01-drop-in, S05-cli "Agent commands"), so the user's `--permission-mode` reaches it.
+- <Badge text="verified" variant="success" /> Claude Code's documentation recommends `bypassPermissions` for "isolated containers and VMs only", and refuses it as root or under `sudo` ([permission modes](https://code.claude.com/docs/en/permission-modes)). Project users are never root (S13-guest-confinement, "Layer 1").
+- <Badge text="verified" variant="success" /> Auto mode is the built-in starting mode from Claude Code 2.1.283. Its classifier checks count toward token use on API accounts (same page). `claude --version` on this host prints 2.1.289.
+- <Badge text="verified" variant="success" /> `DISABLE_AUTOUPDATER` stops only the background check. `DISABLE_UPDATES` blocks every update path, `claude update` included ([advanced setup](https://code.claude.com/docs/en/setup), "Disable auto-updates").
+- <Badge text="verified" variant="success" /> Each release has a GPG-signed `manifest.json` with a SHA-256 checksum per binary, and the macOS binary is signed by Anthropic and notarized (same page, "Binary integrity"). The native installer puts versions under the user's home, so a per-machine install in the image needs another route.
+- <Badge text="verified" variant="success" /> `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` turns off updates, telemetry and error reporting, and also feature-flag fetching, which some features need ([environment variables](https://code.claude.com/docs/en/env-vars)).
+- <Badge text="verified" variant="success" /> The image seal scans for secrets and fails the build on a find (S06-vm-lifecycle, "Images"). The guest environment is built from an allowlist (S09-policy-credentials-audit, "Never in the guest").
+- <Badge text="inferred" variant="note" /> With the download host not allowlisted, a guest that turns updates back on can't download a new binary (SEC05-default-deny). `DISABLE_UPDATES` stops the attempt and its error messages. It isn't the control.
+- <Badge text="assumed" variant="caution" /> That the image seal's scanner catches the tokens users put in `CLAUDE.md`, skills, and agent files. The scanner isn't written yet. The implementation of the seal (V1-M2-walking-skeleton) should test it on real `~/.claude/` directories.
+- <Badge text="assumed" variant="caution" /> That Claude Code works with a placeholder credential, and which login Wraith Box owns. That is X01-model-credential (I15).
+
+## What this unblocks
+
+- Drafting the agent spec, which I45 asks for. The draft waits on X01-model-credential (I15) for the login, `/login`, and the endpoint list of the *model API* profile.
+- The "Claude Code in the guest" lane of `docs/implementation-plan.md`, and with it V1-M4-claude-end-to-end (FR01-drop-in, FR13-claude-state).
+- The base image contents in S06-vm-lifecycle ("Images"), which then list the pinned Claude Code build.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why carry-in is per session.** The user edits `~/.claude/` on the host between sessions. Copying at session start keeps the guest current. The copy is small, so it shouldn't move NFR01-startup, but the implementation should measure it.
+
+**Why the user's own hooks stay out.** Hooks are commands Claude Code runs at points in a session. On the host they run as the user. Carried into the guest they would run as the project user, with any token they hold now in the guest. Some hooks only make sense on the host (desktop notifications, editor integration). A user who wants one in the guest lists it by name.
+
+**Version skew.** The host's Claude Code and the guest's can differ. Only configuration files cross, and Claude Code ignores keys it doesn't know, so an older guest build with a newer host configuration is expected to work. The agent spec should say what `wb` prints when it doesn't.
+
+**Glossary**
+
+- **Permission mode:** how Claude Code decides whether to ask before acting. `bypassPermissions` never asks. *auto* asks a classifier model. The default mode asks the user.
+- **Managed settings:** a settings file in a system directory that takes precedence over every user and project setting. Guest root can change it. In the guest it sets defaults and doesn't enforce anything.
+- **Hook:** a command Claude Code runs on an event, configured in settings.
+- **MCP server:** a tool server Claude Code connects to. Its definition can hold API keys in its environment.
+- **Plugin:** a bundle of skills, agents, hooks and MCP servers installed from a marketplace.
+- **Placeholder credential:** a fake token in the guest that `wb-proxyd` replaces with the real one on the host side (SEC04-no-guest-secrets).
+- **Image seal:** the scan for secrets that runs before an image can be used (S06-vm-lifecycle).
+
+</details>

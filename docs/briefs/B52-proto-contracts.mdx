@@ -1,0 +1,183 @@
+---
+title: How are the gRPC contracts between the processes written, generated, and checked?
+description: Recommended to commit generated code, made by pinned local plugins and checked in CI for drift and breaking changes. The terminal stream waits on I46 and the VM provider contract on X18-vsock-handoff.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I52. Affects S04-architecture, S09-policy-credentials-audit, S10-tech-stack and S02-toolchain.
+
+<Aside type="tip" title="You are deciding">
+How the `.proto` contracts are turned into Go and Swift code, and which parts of the design pull request can start before its blockers clear. Recommended: **A**, commit the generated code, generate it with `buf` and locally pinned plugins, and have `mise run ci` fail on drift or a breaking change. The terminal stream waits on I46, and the `wb-hostd` to `wb-vmd` contract on X18-vsock-handoff. The rest can start now.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 340" role="img" aria-label="The contracts between processes. wb talks to wb-hostd over the session contract, which waits on I46. wb-hostd talks to wb-vmd, which waits on X18-vsock-handoff and also passes descriptors outside gRPC. wb-hostd talks to wb-guestd in the untrusted guest over the host-guest socket. wb-netd hands streams to wb-proxyd with a header, and both send audit events to wb-hostd.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="20" y="18">host: trusted</text>
+
+  <rect class="box host" x="20" y="40" width="130" height="50" rx="10" />
+  <text class="label" x="85" y="70" text-anchor="middle">wb</text>
+
+  <rect class="box host" x="250" y="40" width="150" height="50" rx="10" />
+  <text class="label" x="325" y="70" text-anchor="middle">wb-hostd</text>
+
+  <rect class="box host" x="20" y="250" width="130" height="60" rx="10" />
+  <text class="label" x="85" y="276" text-anchor="middle">wb-vmd</text>
+  <text class="note" x="85" y="295" text-anchor="middle">Swift</text>
+
+  <rect class="box host" x="250" y="160" width="150" height="50" rx="10" />
+  <text class="label" x="325" y="190" text-anchor="middle">wb-proxyd</text>
+
+  <rect class="box host" x="250" y="260" width="150" height="50" rx="10" />
+  <text class="label" x="325" y="290" text-anchor="middle">wb-netd</text>
+
+  <line class="edge" x1="152" y1="65" x2="248" y2="65" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <text class="label" x="200" y="55" text-anchor="middle">session</text>
+  <text class="boundary-label" x="200" y="108" text-anchor="middle">waits on I46</text>
+
+  <line class="edge" x1="260" y1="92" x2="120" y2="248" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <text class="label" x="182" y="192">vm</text>
+  <text class="boundary-label" x="170" y="150" text-anchor="end">waits on X18,</text>
+  <text class="boundary-label" x="170" y="166" text-anchor="end">descriptors not gRPC</text>
+
+  <line class="edge" x1="325" y1="258" x2="325" y2="212" marker-end="url(#f1-arrow)" />
+  <text class="note" x="332" y="240">stream header</text>
+
+  <path class="edge" d="M400,180 C430,150 420,100 402,80" marker-end="url(#f1-arrow)" />
+  <path class="edge" d="M400,280 C460,230 450,100 404,72" marker-end="url(#f1-arrow)" />
+  <text class="note" x="430" y="150">audit, approvals</text>
+
+  <rect class="boundary" x="530" y="30" width="210" height="160" rx="12" />
+  <text class="boundary-label" x="542" y="50">guest, untrusted</text>
+  <rect class="box guest" x="560" y="80" width="150" height="70" rx="10" />
+  <text class="label" x="635" y="108" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="635" y="128" text-anchor="middle">may be any old version</text>
+
+  <line class="edge" x1="402" y1="55" x2="558" y2="95" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <text class="label" x="470" y="58">guest</text>
+
+  <line class="edge" x1="402" y1="295" x2="620" y2="295" />
+  <line class="edge" x1="620" y1="295" x2="620" y2="192" marker-end="url(#f1-arrow)" />
+  <text class="note" x="430" y="320">Ethernet frames, not gRPC</text>
+</svg>
+<figcaption>
+Figure 1. The contracts I52 asks for. Two of them can't be written yet (red labels). Not every link is gRPC: descriptors pass from <code>wb-vmd</code> as <code>SCM_RIGHTS</code> messages, and <code>wb-netd</code> hands each stream to <code>wb-proxyd</code> as raw bytes behind a header. The guest end is adversarial and may run an older version.
+</figcaption>
+</figure>
+
+## Options
+
+The issue lists the generated-code question without options. These are mine.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Commit generated code
+
+`buf generate` writes Go and Swift code into the packages, and the result is committed. `mise run ci` regenerates and fails on any difference, and runs `buf lint` and `buf breaking` against `main`.
+
+- **Cost:** generated diffs in pull requests. Generated paths need explicit exclusions from cspell, `swift format lint` and SwiftLint.
+- **Gains:** a fresh clone builds with plain `go build` and `swift build`, on every OS, without `buf`.
+
+</div>
+<div class="wb-option">
+
+### B. Generate at build time
+
+Every build and test task runs `buf generate` first, and Git ignores the output.
+
+- **Cost:** `go build` from a fresh clone fails. The Go tasks on Windows must stay single plain `cmd.exe` commands (S02-toolchain). Each one then needs a generate step in front. Xcode builds need the step too.
+
+</div>
+<div class="wb-option">
+
+### C. Swift by build plugin, Go committed
+
+Go code is committed as in A. The Swift package generates its code at build time with a SwiftPM build plugin.
+
+- **Cost:** two mechanisms for one contract. `buf` no longer checks the Swift side, and the plugin must be pinned through `Package.resolved`.
+
+</div>
+</div>
+
+Each option leaves the `SEC*` controls unchanged. The contracts themselves serve SEC11-root-gains-nothing: every handler that reads guest bytes gets a fuzz target (S11-verification-and-spikes).
+
+<Aside type="note" title="Missing from the issue">
+**Not every link is gRPC.** S04-architecture says "All IPC is protobuf over gRPC". gRPC can't pass file descriptors, so the `wb-vmd` hand-off of S04-architecture and S07-egress-gateway needs a small Unix socket channel next to the gRPC one. The stream from `wb-netd` to `wb-proxyd` is a byte stream with a header (S07-egress-gateway, "Connections"). S04-architecture needs a sentence for both: protobuf messages everywhere, gRPC where there is a request and a reply.
+
+**Committed code meets the prose and Swift gates.** cspell checks every tracked file, and SwiftLint fails on long files. Generated Swift and Go code would fail both, so option A adds path exclusions. That is not a weakened gate, because nobody writes those files by hand. It still changes a checked-in rule, so the maintainer should approve it explicitly.
+</Aside>
+
+## Sub-decisions
+
+| Item | Recommendation | Waits on |
+|---|---|---|
+| `buf` | Exact version in `.mise.toml`, checksum in `mise.lock` (`aqua:bufbuild/buf`). | nothing |
+| Plugins | Local only, never `remote:`, which calls the Buf Schema Registry over the network and would break the offline `ci`. Go plugins pinned with `tool` lines in `go.mod`. Swift plugins built from pinned SwiftPM dependencies. Both are covered by dependabot. | nothing |
+| `grpc-swift` | grpc-swift 2, with `grpc-swift-protobuf` and `grpc-swift-nio-transport`. It needs Swift tools 6.1 and macOS 15, and `Package.swift` already declares 6.2 and macOS 15. | nothing |
+| Layout | `proto/wraithbox/<area>/v1/*.proto`, packages `wraithbox.<area>.v1`. A breaking change means a `v2` package (I48). | nothing |
+| Stream header | One length-prefixed protobuf message at the start of each stream from `wb-netd` to `wb-proxyd`: VM, project, session, hostname, port, label. | I36, which defines the project and session fields |
+| Settings schema | Keys, types and defaults of `config.toml` and `projects/<id>.toml` in S09-policy-credentials-audit. An unknown key is an error that names it (NFR06-explained-refusals). | nothing |
+| `state.db` | Numbered, forward-only migrations, run by `wb-hostd` at start. It refuses a database newer than it knows (I49). | nothing |
+| Terminal stream | Messages for attach, take-over, detach, input, output, resize, signal, and exit status including "session lost". | I46 |
+| `wb-hostd` to `wb-vmd` | VM lifecycle RPCs, and the descriptor channel next to them. | X18-vsock-handoff |
+| Audit events | OCSF 1.8 classes. | X24-openshell-artifacts |
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Commit</th><th>B. Build time</th><th>C. Mixed</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>NFR07-maintainability</strong> one contract, small native parts</td><td class="yes">one generator</td><td class="yes">one generator</td><td class="partial">two generators</td></tr>
+<tr><td><strong>FR17-same-everywhere</strong> same build on every OS</td><td class="yes">plain build</td><td class="partial">extra step on Windows</td><td class="yes">plain build</td></tr>
+<tr><td>Offline <code>mise run ci</code> (S02-toolchain)</td><td class="yes">local plugins</td><td class="yes">local plugins</td><td class="yes">local plugins</td></tr>
+<tr><td>Review noise</td><td class="partial">generated diffs</td><td class="yes">none</td><td class="partial">Go diffs</td></tr>
+<tr><td>Lint and spelling configuration</td><td class="partial">path exclusions</td><td class="yes">as today</td><td class="partial">Go exclusions</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The repository has no `proto/` directory yet, and neither `go.mod` nor `Package.swift` declares a dependency, so no existing code needs migrating.
+- <Badge text="verified" variant="success" /> S10-tech-stack names `grpc-go`, `grpc-swift`, `swift-protobuf` and `buf`, and puts `proto/` at the repository root ("Libraries", "Repository layout").
+- <Badge text="verified" variant="success" /> A `remote` plugin in `buf.gen.yaml` is "hosted on either the public BSR at https://buf.build or a private BSR". A `local` plugin is a binary on disk ([buf.gen.yaml reference](https://buf.build/docs/configuration/v2/buf-gen-yaml/)).
+- <Badge text="verified" variant="success" /> mise resolves `buf` to `aqua:bufbuild/buf` (`mise registry buf`), and `go get -tool` adds a `tool` line to `go.mod` (`go help get`, Go 1.27.1).
+- <Badge text="verified" variant="success" /> The grpc-swift 2 quick start uses `swift-tools-version: 6.1` and `.macOS("15.0")` ([grpc-swift-2 README](https://github.com/grpc/grpc-swift-2)).
+- <Badge text="verified" variant="success" /> cspell runs over every tracked file, and `cspell.json` excludes no generated paths. SwiftLint checks every file under `packages/wraithbox-swift/Sources` for size (`.swiftlint.yml`).
+- <Badge text="verified" variant="success" /> The Go tasks CI runs on Windows are single plain commands (S02-toolchain, "Design Approach").
+- <Badge text="inferred" variant="note" /> gRPC sends messages over HTTP/2 and has no way to pass a file descriptor, so `SCM_RIGHTS` needs its own socket.
+- <Badge text="assumed" variant="caution" /> That golangci-lint skips files marked `Code generated … DO NOT EDIT.` by default. Checked when the first generated file is merged.
+- <Badge text="assumed" variant="caution" /> That `grpc-swift-protobuf` ships a plugin that SwiftPM can build and `buf` can run. Checked when the Swift side is wired up.
+- <Badge text="assumed" variant="caution" /> That descriptors from `wb-vmd` keep working in another process. That is X18-vsock-handoff.
+
+## What this unblocks
+
+- The design pull request with `proto/`, the settings schema and the `buf` tasks. The tooling, layout, settings, `state.db` rule and stream header can be written now.
+- Every builder of a host process: they share contracts instead of inventing them.
+- Still open: the terminal stream (I46), the `wb-vmd` contract (X18-vsock-handoff), and the version rule (I48).
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why `buf breaking` matters here.** `wb-guestd` in an old image may talk to a newer `wb-hostd` (I48). `buf breaking` compares the `.proto` files with those on `main` and fails on a change that would break an old peer, such as a renamed field. That turns the compatibility rule into a check instead of a review habit.
+
+**Why strict settings.** A misspelled key in `config.toml`, such as a resource limit, would otherwise be ignored without a word. An error that names the key is what NFR06-explained-refusals asks for.
+
+**Glossary**
+
+- **protobuf (`.proto`):** a language-neutral way to describe messages. Code generators turn one description into Go and Swift types.
+- **gRPC:** remote procedure calls over HTTP/2 using protobuf messages.
+- **`buf`:** a tool that lints `.proto` files, checks for breaking changes, and runs code generators.
+- **Plugin:** a code generator `buf` runs, one per language.
+- **Drift:** committed generated code that no longer matches what the generator would make from the current `.proto` files.
+- **`SCM_RIGHTS`:** the Unix mechanism for passing an open file descriptor from one process to another over a Unix socket.
+
+</details>

@@ -1,0 +1,171 @@
+---
+title: What does the gateway do with a connection that isn't TLS or HTTP?
+description: Reset it and audit the rule, unless policy names that host and port for raw TCP. Rewrite SSH git remotes to HTTPS, and write down why DNS refuses HTTPS and SVCB records.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I47. Affects S07-egress-gateway, and through I41 S08-workspace-and-git.
+
+<Aside type="tip" title="You are deciding">
+What `wb-proxyd` does with a stream that is neither TLS nor HTTP: SSH, database protocols, TLS with a client certificate, Encrypted ClientHello (ECH) and tunnels inside HTTP. Recommended: **A**, the issue's proposal plus the gaps listed below it. That adds a "Non-HTTP streams" section to S07-egress-gateway, and I41 does the SSH remote rewrite.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 340" role="img" aria-label="The guest opens TCP streams to allowed names. wb-proxyd looks at the first bytes. TLS and HTTP go to inspect or pass. SSH and other protocols have no rule in the spec.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="20" width="190" height="300" rx="12" />
+  <text class="boundary-label" x="22" y="40">guest, untrusted</text>
+
+  <rect class="box guest" x="30" y="60" width="150" height="50" rx="10" />
+  <text class="label" x="105" y="90" text-anchor="middle">curl, npm, gh</text>
+  <rect class="box guest" x="30" y="145" width="150" height="50" rx="10" />
+  <text class="label" x="105" y="175" text-anchor="middle">git over ssh</text>
+  <rect class="box guest" x="30" y="230" width="150" height="50" rx="10" />
+  <text class="label" x="105" y="260" text-anchor="middle">psql, custom tools</text>
+
+  <text class="note" x="220" y="14">host: trusted</text>
+
+  <rect class="box host" x="260" y="120" width="180" height="100" rx="10" />
+  <text class="label" x="350" y="150" text-anchor="middle">wb-netd, wb-proxyd</text>
+  <text class="note" x="350" y="172" text-anchor="middle">name bound by address</text>
+  <text class="note" x="350" y="190" text-anchor="middle">protocol from first bytes</text>
+
+  <line class="edge" x1="180" y1="85" x2="258" y2="140" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="180" y1="170" x2="258" y2="170" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="180" y1="255" x2="258" y2="200" marker-end="url(#f1-arrow)" />
+
+  <rect class="box" x="520" y="40" width="230" height="60" rx="10" />
+  <text class="label" x="635" y="66" text-anchor="middle">TLS or HTTP</text>
+  <text class="note" x="635" y="84" text-anchor="middle">inspect or pass: specified</text>
+
+  <rect class="box" x="520" y="140" width="230" height="60" rx="10" />
+  <text class="label" x="635" y="166" text-anchor="middle">SSH to the git host</text>
+  <text class="note" x="635" y="184" text-anchor="middle">no rule, keys only on the host</text>
+
+  <rect class="box" x="520" y="240" width="230" height="60" rx="10" />
+  <text class="label" x="635" y="266" text-anchor="middle">other TCP protocols</text>
+  <text class="note" x="635" y="284" text-anchor="middle">no rule</text>
+
+  <line class="edge" x1="440" y1="140" x2="518" y2="75" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M440,170 L518,170" marker-end="url(#f1-arrow-bad)" />
+  <path class="edge-bad" d="M440,200 L518,265" marker-end="url(#f1-arrow-bad)" />
+</svg>
+<figcaption>
+Figure 1. `wb-netd` accepts TCP to a synthetic address on an allowed port and hands the stream to `wb-proxyd`. S07-egress-gateway says what happens to TLS and HTTP. For SSH and every other protocol on an allowed port it says nothing (red paths), so the behavior would be whatever the code does.
+</figcaption>
+</figure>
+
+## Options
+
+<Aside type="note" title="Options">
+The issue gives one proposal. Options B to D are this brief's, built as the cheaper, the costlier and the do-nothing alternative.
+</Aside>
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Reset by default, raw TCP as a pass-class entry
+
+A stream that isn't the protocol policy lists for that port is reset and audited with the rule. SSH git remotes are rewritten to HTTPS in the guest (I41). Raw TCP to a named host and port is a policy entry with the restrictions of pass mode (I40). DNS keeps refusing HTTPS and SVCB records, written down as deliberate.
+
+- **Cost:** one spec section, a protocol check on the first bytes of each stream, and a timeout for protocols where the server speaks first.
+- **Keeps:** <Badge text="SEC05-default-deny" variant="success" /> <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC06-repo-writes" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. TLS and HTTP only
+
+Like A, without raw TCP entries. A remote database or a protocol other than TLS and HTTP is unreachable from the guest.
+
+- **Cost:** smallest. Users who need a remote database lose it, with an explained refusal.
+- **Keeps:** <Badge text="SEC05-default-deny" variant="success" /> <Badge text="SEC06-repo-writes" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. A host-side SSH endpoint for git
+
+Like A, but `wb-proxyd` speaks SSH on both sides with a key held on the host. It applies the git hosting rules to SSH as well. SSH remotes keep working unchanged.
+
+- **Cost:** an SSH server and client in `wb-proxyd`, a host key the guest must trust, and git policy on a second protocol. Large, for a case the HTTPS rewrite already handles.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC06-repo-writes if the SSH policy matches HTTPS" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### D. Leave the spec as is
+
+`wb-proxyd` code decides, and the spec drifts from it.
+
+- **Cost:** none now. Each case becomes a code review argument later, and refusals can't name a rule (NFR06-explained-refusals).
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+- **Refusing HTTPS and SVCB records is not a control against an adversarial guest.** It stops well-behaved clients from finding ECH keys. A guest that wants ECH can ship its own key list, because RFC 9849 lets keys come from other places than DNS. The controls are elsewhere. Inspect mode terminates TLS. An ECH client then gets `wb-proxyd`'s certificate, and because that server side has no ECH support, the client must abort. In pass mode, the outer SNI must equal the bound host. The spec should say both, and call the DNS rule a compatibility measure.
+- **Pass hosts on a shared front end.** When a pass host is a content delivery network front end, the hidden inner name (ECH), or the HTTP `Host` header inside TLS, can reach another site behind the same front end. That is a T01-allowed-channels channel for pass mode, with or without ECH, and belongs in the pass-mode list of I40.
+- **The proposal drops two cases its problem lists.** TLS with a client certificate needs the private key, which would be a secret in the guest (SEC04-no-guest-secrets). Recommend: unsupported in V1 and refused with an explanation, and a host-held client certificate binding later. An HTTP `CONNECT` or an `Upgrade` other than WebSocket on an inspected host should be denied unless policy names it, or it opens a tunnel the HTTP rules can't see.
+- **Server-first protocols.** In SMTP, MySQL and some others the server speaks first. The client sends nothing for `wb-proxyd` to look at until then. Without a timeout, the stream hangs instead of being reset with a reason.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Reset + raw TCP</th><th>B. TLS and HTTP</th><th>C. SSH endpoint</th><th>D. As is</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC05-default-deny</strong> only allowlisted hostnames are reachable</td><td class="yes">kept</td><td class="yes">holds</td><td class="yes">unchanged</td><td class="partial">undefined</td></tr>
+<tr><td><strong>SEC06-repo-writes</strong> writes only to the project's repositories</td><td class="yes">over HTTPS</td><td class="yes">over HTTPS</td><td class="partial">two protocols</td><td class="partial">undefined</td></tr>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">kept</td><td class="yes">holds</td><td class="yes">host key only</td><td class="partial">client keys?</td></tr>
+<tr><td><strong>NFR06-explained-refusals</strong> each refusal names its rule</td><td class="yes">audited reset</td><td class="yes">audited reset</td><td class="yes">audited reset</td><td class="no">no rule</td></tr>
+<tr><td><strong>T01-allowed-channels</strong> data through allowed channels</td><td class="partial">plus raw TCP entries</td><td class="yes">unchanged</td><td class="partial">plus raw TCP entries</td><td class="partial">unknown</td></tr>
+<tr><td><strong>FR08-no-proxy-config</strong> tools work without proxy settings</td><td class="partial">SSH via rewrite</td><td class="partial">no databases</td><td class="yes">SSH as is</td><td class="partial">unknown</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> `wb-netd` accepts TCP to a synthetic address on an allowed port and hands it to `wb-proxyd` (S07-egress-gateway, "Connections"). The "Stream path" section covers only TLS (inspect or pass) and plain HTTP on port 80.
+- <Badge text="verified" variant="success" /> For TLS, the ClientHello SNI must equal the bound host or the stream is reset (S07-egress-gateway, "Name binding").
+- <Badge text="verified" variant="success" /> DNS answers `A` queries, gives an empty answer to `AAAA`, and refuses every other type, which includes HTTPS and SVCB (S07-egress-gateway, "DNS"). No spec says why.
+- <Badge text="verified" variant="success" /> ECH keys are advertised in SVCB and HTTPS records. When the server rejects ECH, the client must check the certificate against the public name and then retry or abort with `ech_required` (RFC 9849, [IETF record](https://datatracker.ietf.org/doc/draft-ietf-tls-esni/)).
+- <Badge text="verified" variant="success" /> Git rewrites URLs with `url.<base>.insteadOf` and `url.<base>.pushInsteadOf` (`git help config`, git on macOS 27). That makes the SSH-to-HTTPS rewrite a guest git setting.
+- <Badge text="verified" variant="success" /> I41 already recommends rewriting SSH remotes to HTTPS for the guest, because the guest has no SSH keys.
+- <Badge text="inferred" variant="note" /> A guest can supply ECH keys without DNS. The DNS refusal covers only clients that follow the standard path.
+- <Badge text="inferred" variant="note" /> In a server-first protocol, the client doesn't send a byte before the server greets. Protocol detection needs a timeout for that case.
+- <Badge text="assumed" variant="caution" /> That rewriting SSH remotes is enough for the tools users run in the guest, including `gh` and Homebrew taps. X22-no-guest-credentials, which tests these clients, can cover it.
+
+## What this unblocks
+
+- The protocol check in `wb-proxyd` for V1-M3-network-floor and its conformance cases (SEC05-default-deny).
+- The remote rewrite in I41, which this decision confirms for SSH.
+- It doesn't wait on a spike. The raw TCP entries follow the pass-mode rules decided in I40.
+
+<details>
+<summary>Details and glossary</summary>
+
+**The port says nothing about the protocol.** A policy entry names a host and a port. A guest can send SSH to port 443 of an allowed host. So `wb-proxyd` has to check that the first bytes match the protocol policy expects, and reset the stream when they don't.
+
+**Raw TCP entries.** An entry names one host and one port. The user adds it, never repository configuration, as for pass hosts. The proxy can't see the content, so each entry is a T01-allowed-channels channel, listed in `wb policy explain`.
+
+**Glossary**
+
+- **Stream:** one TCP connection, as `wb-proxyd` receives it from `wb-netd`.
+- **SNI:** the host name a TLS client names in its first message.
+- **ECH (Encrypted ClientHello):** a TLS extension that hides the real host name inside an encrypted part of the first message, and shows only a public name outside.
+- **HTTPS and SVCB records:** DNS record types that tell a client how to connect, including ECH keys.
+- **`CONNECT`:** an HTTP method that asks a proxy to open a raw tunnel to another host.
+- **Server-first protocol:** a protocol where the server sends the first bytes and the client waits for them.
+- **Client certificate:** a certificate and private key the client presents to prove who it is.
+
+</details>

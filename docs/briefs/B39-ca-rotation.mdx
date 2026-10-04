@@ -1,0 +1,150 @@
+---
+title: Can an approval add an inspected host without breaking running tools?
+description: Only if the inspection CA stops changing with the set of inspected hosts. Drop the per-set name constraints, and rotate the CA with an overlap longer than any session.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I39. Affects S07-egress-gateway and S09-policy-credentials-audit. X04-tls-inspection may settle part of it.
+
+<Aside type="tip" title="You are deciding">
+Whether the TLS inspection CA keeps name constraints that follow the inspected hosts, which forces a new CA on every approval. Recommended: **A**, one CA per VM without per-set name constraints, rotated with an overlap longer than the longest session. Then S07-egress-gateway's "without restarting anything" holds, and S09-policy-credentials-audit changes its "Scope" and "Lifetimes". X04-tls-inspection checks the client side.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="wb-proxyd signs leaf certificates with the CA key. A tool in the guest loaded the trusted CAs when it started. After an approval, a new CA is issued and installed, and the running tool rejects leaves signed by it.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="20" width="300" height="290" rx="12" />
+  <text class="boundary-label" x="22" y="40">guest, untrusted</text>
+
+  <rect class="box guest" x="30" y="60" width="260" height="70" rx="10" />
+  <text class="label" x="160" y="88" text-anchor="middle">running tool (Node, Go, Java)</text>
+  <text class="note" x="160" y="108" text-anchor="middle">trusts CA 1, loaded at start</text>
+
+  <rect class="box guest" x="30" y="210" width="260" height="70" rx="10" />
+  <text class="label" x="160" y="238" text-anchor="middle">guest trust store</text>
+  <text class="note" x="160" y="258" text-anchor="middle">wb-guestd installs CA 2</text>
+
+  <text class="note" x="330" y="14">host: trusted</text>
+
+  <rect class="box host" x="390" y="60" width="170" height="80" rx="10" />
+  <text class="label" x="475" y="90" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="475" y="110" text-anchor="middle">signs leaves with CA 2</text>
+
+  <rect class="box host" x="390" y="210" width="170" height="70" rx="10" />
+  <text class="label" x="475" y="238" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="475" y="258" text-anchor="middle">approval adds a host</text>
+
+  <rect class="box host" x="600" y="60" width="150" height="80" rx="10" />
+  <text class="label" x="675" y="90" text-anchor="middle">CA key</text>
+  <text class="note" x="675" y="110" text-anchor="middle">Secure Enclave</text>
+
+  <line class="edge" x1="600" y1="100" x2="562" y2="100" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="475" y1="210" x2="475" y2="142" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="390" y1="245" x2="292" y2="245" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M390,95 L292,95" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="300" y="170">leaf from CA 2: rejected</text>
+</svg>
+<figcaption>
+Figure 1. As S09-policy-credentials-audit is written, the CA is name-constrained to the inspected hosts. Approving a new host means a new CA (CA 2), which `wb-guestd` installs. Tools that loaded their trusted CAs at start still know only CA 1. They reject every leaf `wb-proxyd` now signs (red path) until they restart. The 30-day rotation has the same effect on long sessions.
+</figcaption>
+</figure>
+
+## Options
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. No per-set constraints, rotate with overlap
+
+One CA per VM, without name constraints or with broad ones that don't change on approval. Before the old CA ends, the new one is installed next to it, and `wb-proxyd` keeps signing with the old one until the overlap ends. `wb-proxyd` already decides which hosts get a leaf.
+
+- **Cost:** spec wording, and a CA lifetime longer than the overlap (for example 60 days, the new CA installed at day 30). Only tools that run longer than the overlap break.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="FR08-no-proxy-config" variant="success" /> <Badge text="FR09-approve-unknown" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Keep constraints, accept restarts
+
+A new CA on every change to the inspected set and every 30 days. Running tools that talk to an affected host fail until restarted. S07-egress-gateway's "without restarting anything" is removed.
+
+- **Cost:** no new work. Every approval of an inspected host can break the agent's running tools, and the agent sees TLS errors it can't explain.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" />
+- **Strains:** <Badge text="FR09-approve-unknown" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Constrained intermediate under a fixed root
+
+The guest trusts one unconstrained root. `wb-proxyd` sends a constrained intermediate in each handshake, and replaces it on approval without a guest install.
+
+- **Cost:** a second certificate level. The root key can still sign for any name, so the constraints don't limit anything.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" />
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+- **Option C does avoid restarts.** The issue says it has the restart problem for clients that pin the intermediate. Clients that build the chain from the certificates the server sends need nothing new installed, so most don't restart. What C lacks is a gain: the unconstrained root's key sits in the same Secure Enclave as everything else. That is the reason to drop it.
+- **The specs don't say what the 30-day rotation protects against.** The key is non-exportable, so whoever can use it controls `wb-proxyd` on the host, and a new certificate on the same kind of key doesn't change that. A longer CA lifetime, such as the life of the VM, shrinks the overlap problem. This brief keeps a rotation, because the maintainer may want one, but the spec should name its threat.
+- **Name constraints can break clients.** RFC 5280 requires the extension to be marked critical, and a client that doesn't support it must reject the certificate. Dropping per-set constraints also removes that failure, which X04-tls-inspection was going to look for.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Overlap</th><th>B. Restarts</th><th>C. Intermediate</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>FR09-approve-unknown</strong> an approved host works in the running session</td><td class="yes">at once</td><td class="no">after restart</td><td class="partial">unless pinned</td></tr>
+<tr><td><strong>FR08-no-proxy-config</strong> tools work without proxy settings</td><td class="yes">kept</td><td class="partial">breaks on change</td><td class="yes">holds</td></tr>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">kept</td><td class="yes">holds</td><td class="yes">unchanged</td></tr>
+<tr><td><strong>S07-egress-gateway</strong> policy changes work without a restart</td><td class="yes">true</td><td class="no">false</td><td class="partial">except pinning clients</td></tr>
+<tr><td>Spec work</td><td class="na">S09-policy-credentials-audit</td><td class="na">S07-egress-gateway</td><td class="na">S09-policy-credentials-audit</td></tr>
+</tbody>
+</table>
+
+No `SEC*` control depends on the name constraints. The CA is trusted only inside guests, and the guest reaches no host other than through `wb-proxyd`.
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> "Policy changes take effect without restarting anything" (S07-egress-gateway, "Approvals and learning").
+- <Badge text="verified" variant="success" /> The CA is name-constrained to the inspected hosts and lives 30 days. A new CA is issued when that set changes (S09-policy-credentials-audit, "Scope" and "Lifetimes").
+- <Badge text="verified" variant="success" /> The CA key is non-exportable in the Secure Enclave, and the CA is trusted only inside guests (S09-policy-credentials-audit, "Key" and "Scope").
+- <Badge text="verified" variant="success" /> Node reads `NODE_EXTRA_CA_CERTS` only when the process starts ([Node.js CLI docs](https://raw.githubusercontent.com/nodejs/node/main/doc/api/cli.md), `NODE_EXTRA_CA_CERTS`).
+- <Badge text="verified" variant="success" /> Go loads the system roots once per process (`sync.Once` in `crypto/x509/root.go`, Go 1.27.1), and enforces name constraints when it verifies (`crypto/x509/verify.go`).
+- <Badge text="verified" variant="success" /> Conforming CAs must mark name constraints critical, and a client must reject a certificate with a critical extension it doesn't recognize ([RFC 5280](https://www.rfc-editor.org/rfc/rfc5280.html), 4.2.1.10).
+- <Badge text="inferred" variant="note" /> Python reads its CA bundle when it creates an SSL context. A long-lived client keeps the old CA until it makes a new context.
+- <Badge text="inferred" variant="note" /> With the overlap of option A, a tool started before the new CA is installed works until `wb-proxyd` switches to signing with the new CA.
+- <Badge text="assumed" variant="caution" /> Java loads its trust store once per process. X04-tls-inspection can check it with the other clients.
+- <Badge text="assumed" variant="caution" /> Which guest clients pin certificates or reject a name-constrained CA. That is X04-tls-inspection (I18).
+
+## What this unblocks
+
+- The CA work in `wb-proxyd` for V1-M3-network-floor, and approvals that add an inspected host in V1-M5-approvals.
+- The choice between A and C waits on nothing. X04-tls-inspection (I18) settles only how long the overlap must be and which clients pin.
+
+<details>
+<summary>Details and glossary</summary>
+
+**How the overlap works.** CA 1 is valid for 60 days. On day 30, `wb-guestd` installs CA 2 next to it, and new processes trust both. `wb-proxyd` keeps signing with CA 1 until day 58, then signs with CA 2. A process that started before day 30 and still runs on day 58 trusts only CA 1, and breaks. Every other process keeps working.
+
+**Glossary**
+
+- **CA (certificate authority):** a certificate whose key signs other certificates. Clients trust what it signs.
+- **Leaf certificate:** the certificate for one host name that `wb-proxyd` presents to the guest.
+- **Name constraints:** a field in a CA certificate that limits which host names it may sign for.
+- **Intermediate:** a CA certificate signed by the root, which in turn signs leaves.
+- **Pinning:** a client that accepts only a specific certificate or key for a host, whatever the trust store says.
+- **Secure Enclave:** the hardware key store in Apple chips. A key made there can be used but never read out.
+
+</details>

@@ -1,0 +1,172 @@
+---
+title: Should the host terminal be a trust boundary with its own filter?
+description: Yes. I37 adds the host terminal stream to the boundaries now, with a fail-closed allowlist filter in the relay whose contents come from spike X19-terminal-filter.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I37, blocked by X19-terminal-filter (I30). Affects T00-index, S05-cli and S11-verification-and-spikes.
+
+<Aside type="tip" title="You are deciding">
+Whether guest output that `wb` writes to your terminal is a trust boundary, filtered the way `wb-netd` filters packets. Recommended: **A**, add the boundary now and filter every guest stream with an allowlist. Which escape sequences go on the list waits for X19-terminal-filter. Accepting it lets the spec pull request for T00-index and S05-cli start, and gives B38-port-forward-clipboard its rule that the clipboard never crosses through the terminal.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="Guest program output travels through wb-guestd, wb-hostd and wb to the host terminal emulator unchanged. The emulator acts on some of it: it writes the host clipboard and, in iTerm2, saves files to Downloads.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="20" width="200" height="260" rx="12" />
+  <text class="boundary-label" x="22" y="40">guest, untrusted</text>
+
+  <rect class="box guest" x="30" y="60" width="160" height="60" rx="10" />
+  <text class="label" x="110" y="86" text-anchor="middle">Claude Code, tools</text>
+  <text class="note" x="110" y="105" text-anchor="middle">write any bytes</text>
+
+  <rect class="box guest" x="30" y="190" width="160" height="60" rx="10" />
+  <text class="label" x="110" y="216" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="110" y="235" text-anchor="middle">PTY</text>
+
+  <line class="edge" x1="110" y1="120" x2="110" y2="188" marker-end="url(#f1-arrow)" />
+
+  <text class="note" x="230" y="14">host: trusted</text>
+
+  <rect class="box host" x="240" y="190" width="120" height="60" rx="10" />
+  <text class="label" x="300" y="216" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="300" y="235" text-anchor="middle">relays</text>
+
+  <rect class="box host" x="390" y="190" width="120" height="60" rx="10" />
+  <text class="label" x="450" y="216" text-anchor="middle">wb</text>
+  <text class="note" x="450" y="235" text-anchor="middle">raw-mode relay</text>
+
+  <rect class="box" x="550" y="190" width="190" height="60" rx="10" />
+  <text class="label" x="645" y="216" text-anchor="middle">terminal emulator</text>
+  <text class="note" x="645" y="235" text-anchor="middle">parses escape sequences</text>
+
+  <line class="edge" x1="192" y1="220" x2="238" y2="220" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="362" y1="220" x2="388" y2="220" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="512" y1="220" x2="548" y2="220" marker-end="url(#f1-arrow)" />
+
+  <rect class="box" x="550" y="40" width="85" height="50" rx="10" />
+  <text class="label" x="592" y="70" text-anchor="middle">clipboard</text>
+  <rect class="box" x="650" y="40" width="90" height="50" rx="10" />
+  <text class="label" x="695" y="70" text-anchor="middle">Downloads</text>
+
+  <line class="edge-bad" x1="610" y1="188" x2="592" y2="92" marker-end="url(#f1-arrow-bad)" />
+  <line class="edge-bad" x1="680" y1="188" x2="695" y2="92" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="350" y="130">OSC 52, OSC 1337 File=</text>
+  <text class="boundary-label" x="350" y="150">no Wraith Box check on the way</text>
+</svg>
+<figcaption>
+Figure 1. The terminal of a <code>wb claude</code> session shows bytes the guest chose. Today nothing between the guest and the emulator looks at them. The red paths are escape sequences that make the emulator act on the host: OSC 52 writes the clipboard, and iTerm2's OSC 1337 saves a file to Downloads.
+</figcaption>
+</figure>
+
+## Options
+
+The issue proposes A and doesn't list alternatives. B, C and D are the alternatives as this brief sees them.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Boundary plus allowlist filter
+
+T00-index lists the host terminal stream as boundary 6. `wb` passes only escape sequences on an allowlist and drops the rest, for `wb claude` and `wb shell` alike. Every other place `wb` prints guest text (the session summary, `wb diff`, `wb sessions`) strips control sequences, as `wb approve` already does.
+
+- **Cost:** a parser of guest bytes in `wb`, with a fuzz target. Some rendering may break until the list is right. X19-terminal-filter measures that.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Boundary plus denylist
+
+The same boundary, but `wb` drops only the sequences known to act on the host: OSC 52, OSC 1337, DCS, and replies to queries.
+
+- **Cost:** a smaller parser, and nothing Claude Code uses breaks.
+- **Weakens:** fails open. A sequence that a new emulator release adds passes until someone adds it to the list. <Badge text="SEC03-no-host-exec" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Re-render on the host
+
+`wb` runs a terminal emulator of its own (as `tmux` or `mosh` do), keeps a screen model, and sends the user's terminal only redraws it generates itself.
+
+- **Cost:** the largest parser of the four, and the most visible differences in rendering, scroll-back and mouse handling. FR01-drop-in is at risk.
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### D. Leave the spec as is
+
+Write it down as an accepted threat in T00-index and point users at their emulator's settings.
+
+- **Cost:** none now. OSC 52 bypasses the approval of FR12-clipboard, and every emulator parser bug becomes a path to the host.
+- **Weakens:** <Badge text="SEC03-no-host-exec, spec change" variant="danger" />
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+- The boundaries are listed in T00-index ("Model"), not in S03-requirements. S03-requirements now only points there. The spec change belongs in T00-index.
+- The relay is not the only path. `wb diff`, `wb sessions` and the session summary print commit messages, branch names and paths that the guest wrote. `git` prints a commit subject with an OSC 52 sequence in it byte for byte. The boundary covers every `wb` output of guest text, not only the PTY relay. After `wb land`, the user's own `git log` shows the same bytes. That is outside Wraith Box and is T04-bad-approvals territory.
+- V1-M4-claude-end-to-end already lists "the terminal filter" as a deliverable. The milestone assumes this decision.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Allowlist</th><th>B. Denylist</th><th>C. Re-render</th><th>D. As is</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC03-no-host-exec</strong> nothing the agent produces runs on the host without the user</td><td class="yes">fail closed</td><td class="partial">known sequences</td><td class="yes">kept</td><td class="no">emulator bugs</td></tr>
+<tr><td><strong>SEC14-no-fake-approvals</strong> approvals never in the agent's terminal</td><td class="yes">kept</td><td class="yes">holds</td><td class="yes">kept</td><td class="yes">holds</td></tr>
+<tr><td><strong>FR12-clipboard</strong> clipboard opt-in, per direction, with approval</td><td class="yes">OSC 52 dropped</td><td class="yes">OSC 52 dropped</td><td class="yes">OSC 52 dropped</td><td class="no">bypassed</td></tr>
+<tr><td><strong>FR01-drop-in</strong> <code>wb claude</code> behaves as <code>claude</code></td><td class="partial">per X19</td><td class="yes">kept</td><td class="partial">rendering changes</td><td class="yes">kept</td></tr>
+<tr><td>Spec work</td><td class="na">T00-index, S05-cli, S11-verification-and-spikes</td><td class="na">same</td><td class="na">same, plus a new component</td><td class="na">T00-index</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Interactive `wb claude` is a raw-mode TTY relay, and S05-cli strips control and escape sequences only from the text of `wb approve` and `wb deny` (S05-cli, "Agent commands" and "Management commands").
+- <Badge text="verified" variant="success" /> T00-index lists five boundaries, and the host terminal is not one ("Model").
+- <Badge text="verified" variant="success" /> iTerm2 saves a file sent with `OSC 1337 ; File=` and no `inline=1` to the Downloads folder, and copies text to the pasteboard with `OSC 1337 ; Copy=` ([iTerm2 escape codes](https://iterm2.com/documentation-escape-codes.html), [iTerm2 images](https://iterm2.com/documentation-images.html)).
+- <Badge text="verified" variant="success" /> `git log --format=%s` writes a commit subject containing `ESC ] 52 ; c ; …` unchanged to its output (git 2.56.0, local test).
+- <Badge text="verified" variant="success" /> S11-verification-and-spikes requires a fuzz target for every parser of guest bytes ("Test layers"). The filter gets one under A, B, and C.
+- <Badge text="assumed" variant="caution" /> That Claude Code renders correctly with a short allowlist (colors, cursor movement, bracketed paste, window title). That is spike X19-terminal-filter (I30).
+- <Badge text="assumed" variant="caution" /> Which macOS terminals act on OSC 52 by default. The answer varies per emulator and version, and X19-terminal-filter records it. A holds either way.
+
+## What this unblocks
+
+- Now: the spec pull request that adds boundary 6 to T00-index and the filter rule to S05-cli and S11-verification-and-spikes.
+- I38, whose clipboard design (B38-port-forward-clipboard) relies on OSC 52 never reaching the host.
+- Waits on X19-terminal-filter (I30): the allowlist itself. Until then S05-cli can name the rule and leave the list empty, marked open.
+- The terminal filter in V1-M4-claude-end-to-end.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why an allowlist.** The filter is a security control on a parser of guest bytes, and the rest of the design fails closed (SEC05-default-deny for the network). A denylist depends on knowing every sequence every emulator acts on, across releases. An allowlist depends only on what Claude Code needs, which X19-terminal-filter measures once.
+
+**Dropped sequences.** The filter removes a sequence that isn't on the list rather than escaping it into visible text, which would shift the screen layout. The session summary reports how many it removed, which explains a broken render (NFR06-explained-refusals).
+
+**Input in the other direction.** Keystrokes and replies from the emulator go into the guest. Those are host data in the guest. Replies to queries (cursor position, device attributes) are harmless, but a sequence that asks the emulator to report the clipboard (OSC 52 with `?`) would send host clipboard content into the guest. Dropping OSC 52 in the output direction removes that too.
+
+**Glossary**
+
+- **Escape sequence:** bytes starting with `ESC` that a terminal emulator treats as a command (move the cursor, change color) rather than text.
+- **OSC:** Operating System Command, a family of escape sequences. OSC 52 sets or reads the clipboard. OSC 1337 holds iTerm2's own commands.
+- **DCS:** Device Control String, another family, used by multiplexers such as `tmux` and for graphics.
+- **PTY:** the pseudo-terminal in the guest that Claude Code writes to, as if it were a real terminal.
+- **Raw mode:** the host terminal passes keystrokes straight through, and `wb` passes output straight back.
+- **Fuzz target:** a test that feeds random input to a parser to find crashes.
+
+</details>

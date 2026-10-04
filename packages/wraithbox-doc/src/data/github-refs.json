@@ -220,96 +220,112 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "S03-requirements, S05-cli: treat the host terminal stream as a boundary",
-		"summary": "wb claude relays the guest's PTY output in raw mode to the user's terminal emulator (S05-cli)."
+		"summary": "wb claude relays the guest's PTY output in raw mode to the user's terminal emulator (S05-cli).",
+		"brief": "B37-terminal-boundary"
 	},
 	"38": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S06-vm-lifecycle: design port forwarding and clipboard (FR11-port-forward, FR12-clipboard) and their threats",
-		"summary": "FR11-port-forward (dev servers on host loopback) and FR12-clipboard (clipboard) cross the VM boundary, but no spec designs them and S03-requirements's threat model does not list them."
+		"summary": "FR11-port-forward (dev servers on host loopback) and FR12-clipboard (clipboard) cross the VM boundary, but no spec designs them and S03-requirements's threat model does not list them.",
+		"brief": "B38-port-forward-clipboard"
 	},
 	"39": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S09-policy-credentials-audit: CA name constraints and rotation versus live policy changes",
-		"summary": "- S07-egress-gateway \"Approvals\": \"Policy changes take effect without restarting anything.\" - S09-policy-credentials-audit \"Scope\": the CA has name constraints for the inspected hostnames, and \"when the inspected set…"
+		"summary": "- S07-egress-gateway \"Approvals\": \"Policy changes take effect without restarting anything.\" - S09-policy-credentials-audit \"Scope\": the CA has name constraints for the inspected hostnames, and \"when the inspected set…",
+		"brief": "B39-ca-rotation"
 	},
 	"40": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S03-requirements, S07-egress-gateway: record learn mode and pass mode as SEC05-default-deny exceptions",
-		"summary": "SEC05-default-deny is \"default-deny egress\", and AGENTS.md says an S control is never weakened."
+		"summary": "SEC05-default-deny is \"default-deny egress\", and AGENTS.md says an S control is never weakened.",
+		"brief": "B40-learn-pass-modes"
 	},
 	"41": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S08-workspace-and-git: which git data reaches the guest, and host git as a parser",
-		"summary": "S08-workspace-and-git says how bytes move, but not which data the guest may get or how much the host trusts its own git when it parses guest data:"
+		"summary": "S08-workspace-and-git says how bytes move, but not which data the guest may get or how much the host trusts its own git when it parses guest data:",
+		"brief": "B41-git-data-scope"
 	},
 	"42": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit: separate configuration trust from VM placement; project identity",
-		"summary": "The specs use \"trusted\" for two different things and do not give a default:"
+		"summary": "The specs use \"trusted\" for two different things and do not give a default:",
+		"brief": "B42-trust-placement"
 	},
 	"43": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S06-vm-lifecycle: VM slot admission for image builds, updates and GUI work (NFR05-two-macos-vms)",
-		"summary": "NFR05-two-macos-vms allows two running macOS guests per host, and S06-vm-lifecycle uses both: the work VM and the isolated VM."
+		"summary": "NFR05-two-macos-vms allows two running macOS guests per host, and S06-vm-lifecycle uses both: the work VM and the isolated VM.",
+		"brief": "B43-vm-slot-admission"
 	},
 	"44": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S06-vm-lifecycle: data disk durability, and never mount a guest-written disk",
-		"summary": "S06-vm-lifecycle says the data disk \"can be rebuilt from host state plus git, so it may use relaxed write-through settings for speed\"."
+		"summary": "S06-vm-lifecycle says the data disk \"can be rebuilt from host state plus git, so it may use relaxed write-through settings for speed\".",
+		"brief": "B44-data-disk-durability"
 	},
 	"45": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S14 (new): Claude Code in the guest and the agent interface (V1-02-claude-only)",
-		"summary": "No spec says how Claude Code itself runs in the guest."
+		"summary": "No spec says how Claude Code itself runs in the guest.",
+		"brief": "B45-claude-in-guest"
 	},
 	"46": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S05-cli, S06-vm-lifecycle: session lifecycle, detach, sleep and failure",
-		"summary": "S05-cli and S06-vm-lifecycle describe starting a session and its summary at the end, but not what happens in between, or when things go wrong:"
+		"summary": "S05-cli and S06-vm-lifecycle describe starting a session and its summary at the end, but not what happens in between, or when things go wrong:",
+		"brief": "B46-session-lifecycle"
 	},
 	"47": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S07-egress-gateway: non-HTTP streams, SSH remotes and ECH",
-		"summary": "S07-egress-gateway describes TLS and HTTP."
+		"summary": "S07-egress-gateway describes TLS and HTTP.",
+		"brief": "B47-non-http-streams"
 	},
 	"48": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S04-architecture: process supervision, failure, version skew and host resource limits",
-		"summary": "S04-architecture names the processes but not how they are supervised, what happens when one fails, or how they are upgraded:"
+		"summary": "S04-architecture names the processes but not how they are supervised, what happens when one fails, or how they are upgraded:",
+		"brief": "B48-process-supervision"
 	},
 	"49": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S10-tech-stack: installation, restore image download, upgrades and migrations",
-		"summary": "S10-tech-stack \"Packaging and signing\" gives the shape of the macOS app bundle."
+		"summary": "S10-tech-stack \"Packaging and signing\" gives the shape of the macOS app bundle.",
+		"brief": "B49-install-upgrade"
 	},
 	"50": {
 		"kind": "issue",
 		"state": "open",
 		"title": "Test infrastructure for work that needs a running macOS guest",
-		"summary": "Most v1 work needs a running macOS guest to test: spikes X02-warm-start to X08-data-disk and X17-image-build to X20-shared-homebrew, the conformance suite, and the benchmarks (S11-verification-and-spikes)."
+		"summary": "Most v1 work needs a running macOS guest to test: spikes X02-warm-start to X08-data-disk and X17-image-build to X20-shared-homebrew, the conformance suite, and the benchmarks (S11-verification-and-spikes).",
+		"brief": "B50-vm-test-infra"
 	},
 	"51": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S09-policy-credentials-audit: approval flow, what the blocked client sees, and approval noise",
-		"summary": "S07-egress-gateway and S09-policy-credentials-audit describe approval choices and their security (SEC14-no-fake-approvals), not how the flow behaves."
+		"summary": "S07-egress-gateway and S09-policy-credentials-audit describe approval choices and their security (SEC14-no-fake-approvals), not how the flow behaves.",
+		"brief": "B51-approval-flow"
 	},
 	"52": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S04-architecture, S09-policy-credentials-audit, S10-tech-stack: first .proto contracts and settings schema",
-		"summary": "S04-architecture says all IPC is protobuf over gRPC and S10-tech-stack adds proto/ \"with the first RPC\"."
+		"summary": "S04-architecture says all IPC is protobuf over gRPC and S10-tech-stack adds proto/ \"with the first RPC\".",
+		"brief": "B52-proto-contracts"
 	}
 }

@@ -1,0 +1,228 @@
+---
+title: What happens to a running session when its terminal closes or its VM stops?
+description: Recommended that closing the terminal detaches an interactive session, which `wb attach` resumes, that a session ends only when claude exits, and that `wb` exits 255 when it loses a session.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I46. Affects S05-cli, S06-vm-lifecycle, S08-workspace-and-git and S13-guest-confinement.
+
+<Aside type="tip" title="You are deciding">
+Whether closing the terminal ends a session or detaches it. Recommended: **A**, an interactive session detaches, `wb attach <session>` resumes it, and it ends only when `claude` exits. The sub-decisions below cover sleep, failure, signals, and exit codes. Accepting adds a session lifecycle section with the state diagram to S06-vm-lifecycle and `wb attach` to S05-cli, and unblocks the terminal stream contract of I52.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="The wb client in the user's terminal talks to wb-hostd, which talks to wb-guestd in the untrusted guest, which runs claude on a terminal device. Three links can break: the terminal closes, the host-guest socket drops, or the VM or wb-guestd dies.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="20" y="18">host: trusted</text>
+
+  <rect class="box host" x="20" y="110" width="150" height="70" rx="10" />
+  <text class="label" x="95" y="138" text-anchor="middle">wb claude</text>
+  <text class="note" x="95" y="158" text-anchor="middle">user's terminal</text>
+
+  <rect class="box host" x="240" y="110" width="150" height="70" rx="10" />
+  <text class="label" x="315" y="138" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="315" y="158" text-anchor="middle">session record</text>
+
+  <rect class="boundary" x="440" y="40" width="300" height="240" rx="12" />
+  <text class="boundary-label" x="452" y="60">work VM: guest, untrusted</text>
+
+  <rect class="box guest" x="470" y="110" width="110" height="70" rx="10" />
+  <text class="label" x="525" y="138" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="525" y="158" text-anchor="middle">holds the PTY</text>
+
+  <rect class="box guest" x="610" y="110" width="110" height="70" rx="10" />
+  <text class="label" x="665" y="138" text-anchor="middle">claude</text>
+  <text class="note" x="665" y="158" text-anchor="middle">worktree</text>
+
+  <line class="edge" x1="172" y1="145" x2="238" y2="145" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <line class="edge" x1="392" y1="145" x2="468" y2="145" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <line class="edge" x1="582" y1="145" x2="608" y2="145" />
+
+  <text class="boundary-label" x="205" y="210" text-anchor="middle">1. terminal closes,</text>
+  <text class="boundary-label" x="205" y="226" text-anchor="middle">wb is killed</text>
+  <text class="boundary-label" x="420" y="210" text-anchor="middle">2. socket drops:</text>
+  <text class="boundary-label" x="420" y="226" text-anchor="middle">sleep, suspend, restart</text>
+  <text class="boundary-label" x="595" y="240" text-anchor="middle">3. VM or wb-guestd dies</text>
+</svg>
+<figcaption>
+Figure 1. A session spans three processes and two links. Each numbered break needs a defined outcome. Break 1 is the detach decision. Break 2 is already half specified: <code>wb-guestd</code> pauses the session's processes until the link returns (S13-guest-confinement). Break 3 loses the session.
+</figcaption>
+</figure>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 290" role="img" aria-label="Session states: starting, attached, detached, paused, ending, ended, and lost. Attached and detached switch on terminal close and wb attach. Both pause when the socket drops and come back when it returns. Claude exiting leads to ending, then ended. A VM failure leads to lost, then ended.">
+  <defs>
+    <marker id="f2-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f2-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box" x="20" y="40" width="110" height="50" rx="10" />
+  <text class="label" x="75" y="70" text-anchor="middle">starting</text>
+
+  <rect class="box" x="200" y="40" width="130" height="50" rx="10" />
+  <text class="label" x="265" y="70" text-anchor="middle">attached</text>
+
+  <rect class="box" x="200" y="200" width="130" height="50" rx="10" />
+  <text class="label" x="265" y="230" text-anchor="middle">detached</text>
+
+  <rect class="box" x="20" y="120" width="110" height="50" rx="10" />
+  <text class="label" x="75" y="150" text-anchor="middle">paused</text>
+
+  <rect class="box" x="430" y="40" width="130" height="50" rx="10" />
+  <text class="label" x="495" y="62" text-anchor="middle">ending</text>
+  <text class="note" x="495" y="80" text-anchor="middle">WIP commit, push</text>
+
+  <rect class="box" x="620" y="120" width="120" height="50" rx="10" />
+  <text class="label" x="680" y="150" text-anchor="middle">ended</text>
+
+  <rect class="box" x="430" y="200" width="130" height="50" rx="10" />
+  <text class="label" x="495" y="222" text-anchor="middle">lost</text>
+  <text class="note" x="495" y="240" text-anchor="middle">wb exits 255</text>
+
+  <line class="edge" x1="130" y1="65" x2="198" y2="65" marker-end="url(#f2-arrow)" />
+  <line class="edge" x1="250" y1="90" x2="250" y2="198" marker-end="url(#f2-arrow)" />
+  <text class="note" x="160" y="140">terminal closes</text>
+  <line class="edge" x1="280" y1="198" x2="280" y2="92" marker-end="url(#f2-arrow)" />
+  <text class="note" x="288" y="140">wb attach</text>
+
+  <path class="edge" d="M200,80 C160,95 140,110 132,128" marker-end="url(#f2-arrow)" />
+  <path class="edge" d="M200,215 C160,200 140,185 132,166" marker-end="url(#f2-arrow)" />
+  <text class="note" x="20" y="195">socket down, and back</text>
+
+  <line class="edge" x1="330" y1="65" x2="428" y2="65" marker-end="url(#f2-arrow)" />
+  <path class="edge" d="M330,215 C390,180 410,110 440,92" marker-end="url(#f2-arrow)" />
+  <text class="note" x="345" y="55">claude exits</text>
+  <line class="edge" x1="560" y1="70" x2="640" y2="118" marker-end="url(#f2-arrow)" />
+
+  <line class="edge-bad" x1="330" y1="235" x2="428" y2="235" marker-end="url(#f2-arrow-bad)" />
+  <text class="boundary-label" x="340" y="270">VM or wb-guestd dies</text>
+  <line class="edge-bad" x1="560" y1="225" x2="640" y2="172" marker-end="url(#f2-arrow-bad)" />
+  <text class="note" x="600" y="230">WIP pushed</text>
+  <text class="note" x="600" y="246">on next VM start</text>
+</svg>
+<figcaption>
+Figure 2. The recommended lifecycle (option A). "Paused" means the host-guest socket is down and the session's processes are stopped in the guest: host sleep, idle suspend, or a <code>wb-hostd</code> restart (I48). Any state can go to "lost". The figure shows the one from detached.
+</figcaption>
+</figure>
+
+## Options
+
+The options are mine, built around the issue's recommendation, which is option A.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Detach, and wb attach
+
+Losing the client detaches an interactive session. `claude` keeps running, and `wb attach <session>` shows it again. The session ends when `claude` exits, or on `wb end <session>`, a new command. Pipe and `-p` sessions and ephemeral sessions end with their client.
+
+- **Cost:** a new state and two commands. Forgotten sessions keep a worktree and a guest process, but don't keep the VM awake (sub-decisions).
+- **Differs from `claude`:** closing a terminal running plain `claude` kills it.
+
+</div>
+<div class="wb-option">
+
+### B. Closing the terminal ends the session
+
+`wb-guestd` sends `claude` a hangup, then commits WIP and pushes, as on a normal exit. A new `wb claude --continue` resumes the conversation.
+
+- **Cost:** the least work. The new session starts from the host's `HEAD`. The files the old one left uncommitted are only in its WIP branch.
+- **Same as `claude`** for the terminal, and a closed laptop lid over SSH loses the session.
+
+</div>
+<div class="wb-option">
+
+### C. Detach for a grace period
+
+As A, but a detached session ends as in B after a set time, for example 30 minutes.
+
+- **Cost:** as A, plus a timer. A long autonomous task is killed when the user walks away, which is the case detach is for.
+
+</div>
+</div>
+
+Each option leaves the `SEC*` controls unchanged. `wb attach` shows guest output, so it follows the same rule as a session: no approval prompts in that terminal (SEC14-no-fake-approvals).
+
+<Aside type="note" title="Missing from the issue">
+**"Running foreground process" never goes idle.** The issue blocks idle suspend while a session has "a running foreground process". In a detached session `claude` is always running, so under option A the forgotten session would keep the VM up forever, against NFR03-footprint. This brief recommends defining idle by activity instead (sub-decisions).
+
+**A wb-guestd restart ends sessions.** `wb-guestd` holds the terminal device of each session. When it exits, `claude` loses its terminal and gets a hangup, so the issue's "`wb-guestd` restarts mid-session" is the same case as a VM crash: the session is lost.
+
+**Detach needs a WIP snapshot.** S08-workspace-and-git pushes WIP only at session end. Under option A, one detached session may run for days, and the VM can crash meanwhile. A snapshot pushed on detach and before each suspend, written without touching the agent's worktree or index, keeps the host copy current.
+</Aside>
+
+## Sub-decisions
+
+| Item | Recommendation |
+|---|---|
+| When idle suspend may happen | When no client is attached and the VM has had no session output, guest CPU load, or open guest connections for the idle period. A detached session alone doesn't block it. `wb attach` restores the VM. |
+| Host sleep | The VM pauses with the host. On wake `wb-guestd` resynchronizes the clock (S06-vm-lifecycle). The session continues whether attached or detached. |
+| Socket drops | As S13-guest-confinement says: the session's processes stop, and resume when the link returns. A restore after idle suspend is that case. |
+| VM dies, or `wb-guestd` exits | The session is lost. `wb` prints a `wraith box:` line and exits 255. The worktree stays on the data disk, and at the next VM start `wb-hostd` has `wb-guestd` commit and push its WIP. |
+| Exit codes | `claude`'s own code. 128+n when `claude` was killed by signal n. 255 when the session was lost or `wb` failed after the start. 2 for usage errors before the start (S05-cli). `claude` can also exit 2 or 255. The stderr line tells them apart. |
+| Signals | Interactive: Ctrl-C, Ctrl-Z and the rest are bytes in the terminal stream, window size changes are forwarded, and `SIGHUP` or `SIGTERM` to `wb` detaches. Non-interactive: `SIGINT`, `SIGTERM`, and `SIGHUP` are forwarded to `claude`, and `wb` waits for its exit code. |
+| WIP push | At session end, as S08-workspace-and-git says. Also a snapshot to `wb/<session-id>/wip` on detach and before suspend, which the landing repository's ref rule already allows. |
+| Two clients | One attached client per session. A second `wb attach` takes over and the first one detaches. |
+| Parallel sessions | Unchanged: a worktree and session id each (S06-vm-lifecycle, S05-cli). Each `wb` prints its own summary. A session that ended detached shows its summary in `wb sessions`. |
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Detach</th><th>B. End</th><th>C. Grace period</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>FR01-drop-in</strong> behaves like <code>claude</code>, exit code preserved</td><td class="partial">terminal close differs</td><td class="yes">same</td><td class="partial">terminal close differs</td></tr>
+<tr><td><strong>FR05-parallel-sessions</strong> sessions run side by side</td><td class="yes">as specified</td><td class="yes">no change</td><td class="yes">same as today</td></tr>
+<tr><td><strong>FR13-claude-state</strong> history per project</td><td class="yes">session continues</td><td class="partial">history yes, files in WIP branch</td><td class="partial">until the timer</td></tr>
+<tr><td><strong>FR14-ephemeral</strong> nothing persists</td><td class="yes">ends with client</td><td class="yes">ends with client</td><td class="yes">ends with client</td></tr>
+<tr><td><strong>NFR03-footprint</strong> idle VMs suspend</td><td class="yes">activity-based idle</td><td class="yes">no detached sessions</td><td class="yes">bounded by timer</td></tr>
+<tr><td>Work lost on a closed terminal</td><td class="yes">none</td><td class="partial">interrupted task</td><td class="partial">after the timer</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> S05-cli specifies the summary on exit and the exit code of `claude`, and doesn't list an `attach` or `end` command. The command table in `packages/wraithbox-go/internal/cli/cli.go` has neither, so both names would be new and reserved.
+- <Badge text="verified" variant="success" /> When the host-guest socket drops, `wb-guestd` stops the session's process group and resumes it when the link returns (S13-guest-confinement, "Layer 1").
+- <Badge text="verified" variant="success" /> Idle VMs are saved and stopped, and the next session restores them (S06-vm-lifecycle, "Warm start").
+- <Badge text="verified" variant="success" /> WIP is committed and pushed at session end, `wb` may push mid-session, and the landing repository accepts only `refs/heads/wb/<session-id>/*` (S08-workspace-and-git, "Out of the guest").
+- <Badge text="verified" variant="success" /> A new session's worktree starts at the host's current `HEAD` (S08-workspace-and-git, "Into the guest"), which is why B loses the open files of the old session.
+- <Badge text="verified" variant="success" /> `ssh` "exits with the exit status of the remote command or with 255 if an error occurred" (`man ssh`, OpenSSH 10.3). A command killed by signal n returns 128+n (`man bash`).
+- <Badge text="verified" variant="success" /> `git stash create` makes a commit "without storing it anywhere in the ref namespace" (`git help stash`), but includes tracked files only.
+- <Badge text="inferred" variant="note" /> So the snapshot needs a temporary index to include untracked files. Doing it without touching the agent's index is an implementation detail for the M4 work.
+- <Badge text="inferred" variant="note" /> A `wb-guestd` exit closes the terminal device it holds, and `claude` gets a hangup. The PTY rule is standard Unix behavior. That `wb-guestd` holds the PTY follows from S06-vm-lifecycle ("run commands as a project user with a PTY").
+- <Badge text="assumed" variant="caution" /> That host-guest socket connections drop on save and restore, so "paused" covers idle suspend. X18-vsock-handoff checks descriptors across save and restore.
+- <Badge text="assumed" variant="caution" /> That `claude` continues cleanly after its processes were stopped for hours, retrying model API calls that timed out. Cheap to check once X02-warm-start has a VM that suspends.
+
+## What this unblocks
+
+- I52: the terminal stream contract (attach, detach, resize, signals, exit status) waits on this decision.
+- The spec pull request that adds the lifecycle to S06-vm-lifecycle, `wb attach` and `wb end` to S05-cli, and the WIP snapshot to S08-workspace-and-git.
+- It waits on nothing for the decision. The "paused" state rests on X18-vsock-handoff and X02-warm-start.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why A for non-interactive sessions is different.** A piped session (`wb claude -p "…" | jq`) has no one to come back to it: its input and output are tied to the pipe. Ending it with the client is what a script expects.
+
+**Why ephemeral sessions end with the client.** FR14-ephemeral promises no persisted state. A detached ephemeral session would keep its throwaway user and files until someone ends it.
+
+**Why a second attach takes over.** Sharing one session between terminals would need rules for whose window size wins and who may type. Taking over is what most users expect after moving to another terminal.
+
+**Glossary**
+
+- **Session:** one run of `claude` in its own git worktree, with an id like `myrepo-20261003-1412-k3f9`.
+- **Attach and detach:** connecting a terminal to a running session, and leaving it running without one, as `tmux` does.
+- **PTY:** the terminal device a program like `claude` draws on. Its other end is held by `wb-guestd`.
+- **Hangup:** the signal a program gets when its terminal goes away. Most programs exit on it.
+- **WIP commit:** a commit of everything uncommitted in the worktree, marked as work in progress, so nothing is lost.
+- **Idle suspend:** saving the VM's state to disk and stopping it after a quiet period (NFR03-footprint).
+
+</details>

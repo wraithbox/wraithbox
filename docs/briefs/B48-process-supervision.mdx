@@ -1,0 +1,194 @@
+---
+title: Who restarts the host processes, and what happens to running VMs when one fails?
+description: Recommended that wb-hostd supervises the other daemons, that VMs are saved when wb-hostd stops and restored when it starts, and that every guest-facing handler gets a per-VM limit.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I48. Affects S04-architecture, S06-vm-lifecycle, S10-tech-stack and SEC00-index (SEC13-bounded-resources).
+
+<Aside type="tip" title="You are deciding">
+Who supervises the host processes, and what running VMs do when `wb-hostd` stops or restarts. Recommended: **A**, `wb-vmd` saves its VMs and exits when it loses `wb-hostd`, and `wb-hostd` restores them when it starts again. The issue proposes **B** instead. Accepting also settles the sub-decisions in the table below. That adds a "Supervision and failure" section to S04-architecture, extends SEC13-bounded-resources to the host processes, and unblocks I52.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 360" role="img" aria-label="launchd keeps wb-hostd running. wb-hostd starts wb-vmd, one wb-netd per VM and wb-proxyd. The VM lives inside the wb-vmd process. The untrusted guest reaches wb-hostd over the host-guest socket and wb-netd over Ethernet frames, and can send as much as it likes on both.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="20" y="18">host: trusted</text>
+
+  <rect class="box host" x="20" y="30" width="170" height="50" rx="10" />
+  <text class="label" x="105" y="52" text-anchor="middle">launchd</text>
+  <text class="note" x="105" y="70" text-anchor="middle">LaunchAgent, keeps alive</text>
+
+  <rect class="box host" x="20" y="140" width="170" height="60" rx="10" />
+  <text class="label" x="105" y="166" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="105" y="185" text-anchor="middle">supervisor, sessions</text>
+
+  <line class="edge" x1="105" y1="80" x2="105" y2="138" marker-end="url(#f1-arrow)" />
+  <text class="note" x="112" y="114">restarts</text>
+
+  <rect class="box host" x="250" y="30" width="150" height="50" rx="10" />
+  <text class="label" x="325" y="52" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="325" y="70" text-anchor="middle">credentials</text>
+
+  <rect class="box host" x="250" y="140" width="150" height="60" rx="10" />
+  <text class="label" x="325" y="166" text-anchor="middle">wb-netd</text>
+  <text class="note" x="325" y="185" text-anchor="middle">one per VM</text>
+
+  <rect class="box host" x="250" y="260" width="150" height="70" rx="10" />
+  <text class="label" x="325" y="288" text-anchor="middle">wb-vmd</text>
+  <text class="note" x="325" y="308" text-anchor="middle">the VM runs in here</text>
+
+  <line class="edge" x1="190" y1="155" x2="248" y2="60" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="190" y1="170" x2="248" y2="170" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="190" y1="185" x2="248" y2="285" marker-end="url(#f1-arrow)" />
+  <text class="note" x="196" y="234">spawns</text>
+
+  <line class="edge" x1="325" y1="140" x2="325" y2="82" marker-end="url(#f1-arrow)" />
+
+  <rect class="boundary" x="470" y="110" width="270" height="230" rx="12" />
+  <text class="boundary-label" x="482" y="130">work VM: guest, untrusted</text>
+
+  <rect class="box guest" x="530" y="150" width="190" height="60" rx="10" />
+  <text class="label" x="625" y="176" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="625" y="195" text-anchor="middle">reports its own version</text>
+
+  <rect class="box guest" x="530" y="250" width="190" height="60" rx="10" />
+  <text class="label" x="625" y="276" text-anchor="middle">claude session</text>
+  <text class="note" x="625" y="295" text-anchor="middle">agent and its tools</text>
+
+  <line class="edge" x1="402" y1="295" x2="468" y2="295" />
+  <text class="note" x="405" y="320">VM dies with it</text>
+
+  <path class="edge-bad" d="M528,165 C430,110 260,110 192,150" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="410" y="100">RPC floods, oversized messages</text>
+  <line class="edge-bad" x1="528" y1="270" x2="402" y2="190" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="420" y="240">DNS and connection floods</text>
+</svg>
+<figcaption>
+Figure 1. Who starts and restarts whom. A VM made with the Virtualization framework runs inside the <code>wb-vmd</code> process, so what happens to <code>wb-vmd</code> when <code>wb-hostd</code> stops decides what happens to running sessions. The red arrows are the guest driving host work: SEC13-bounded-resources caps the VM, but not the host processes that serve it.
+</figcaption>
+</figure>
+
+## Options
+
+These cover the one real fork: what running VMs do when `wb-hostd` stops, crashes or is upgraded.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. VMs follow wb-hostd, through saved state
+
+When `wb-vmd` loses its connection to `wb-hostd`, it saves each running VM's state and exits. When `wb-hostd` starts, it restores them. The host-guest socket drops meanwhile, so `wb-guestd` pauses the session's processes and resumes them on restore (S13-guest-confinement, "Layer 1"). A crash and an upgrade take the same path.
+
+- **Cost:** a restore after every `wb-hostd` restart, inside the NFR01-startup budget for a suspended VM (7 s). No protocol for taking over a running VM. Falls back to a hard stop if saving fails.
+- **Depends on:** save and restore working with the vsock device and the file-handle network attachment (X02-warm-start).
+- **Keeps:** <Badge text="SEC11-root-gains-nothing" variant="success" /> <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. wb-vmd keeps running without wb-hostd
+
+The issue's proposal. `wb-vmd` keeps running when `wb-hostd` dies, and a new `wb-hostd` takes the VMs and their descriptors back. launchd kills a job's leftover process group, so `wb-vmd` needs its own launchd job or `AbandonProcessGroup`.
+
+- **Cost:** a takeover protocol. `wb-vmd` must keep copies of the guest socket and network descriptors. An upgrade still restarts `wb-vmd`, so it doesn't help there, and a new `wb-hostd` must talk to an old `wb-vmd`.
+- **Keeps:** <Badge text="SEC11-root-gains-nothing" variant="success" /> <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. VMs stop with wb-hostd
+
+`wb-vmd` stops its VMs at once when it loses `wb-hostd`. Sessions end without their WIP push. Uncommitted work stays in the guest worktree on the data disk until a later session.
+
+- **Cost:** the least code. Every `wb-hostd` crash or upgrade kills running agents mid-task.
+- **Keeps:** <Badge text="SEC11-root-gains-nothing" variant="success" /> <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+**B doesn't help upgrades.** The issue's reason for B is upgrades as well as crashes, but an upgrade replaces `wb-vmd` too. B then still stops the VMs, and also needs a newer `wb-hostd` to talk to an older `wb-vmd`. A uses one path for both, which is why this brief recommends it over the issue's proposal.
+
+**A restart must not reset per-session budgets.** S07-egress-gateway bounds DNS names under wildcards per session (T02-dns-names). If `wb-netd` holds that counter, a guest that finds a crash bug in `wb-netd` gets a fresh budget after each restart. Counters that bound the guest, including approval request counts (I51), belong in `wb-hostd`, or `wb-netd` gets them back from it at start.
+
+**Audit size caps let the guest erase evidence.** S09-policy-credentials-audit says the audit log is "rotated and size-capped". A guest that floods events pushes older records out, which goes against SEC10-audit ("a persisted log the guest cannot alter"). A per-VM event rate limit, with a record of what was dropped, fixes that. Rotation should delete records by age only.
+
+**Process IPC is not all gRPC.** Descriptor hand-off (`SCM_RIGHTS`) can't be sent inside a gRPC message. I52 covers that.
+</Aside>
+
+## Sub-decisions
+
+| Item | Recommendation |
+|---|---|
+| Supervisor | `wb-hostd` runs under the service manager with keep-alive (S12-platforms, "Service manager"). It starts and restarts `wb-netd` and `wb-proxyd` with backoff. A VM whose `wb-netd` keeps failing has no network until the VM stops, and `wb status` says why. |
+| Fail closed, visibly | When `wb-netd` or `wb-proxyd` is down, the guest gets resets and refusals, never a path around them. `wb` prints one `wraith box:` line on stderr and `wb status` shows the process state. That line never asks for input, so SEC14-no-fake-approvals is untouched. |
+| Skew between host processes | They ship in one bundle at one version. Each refuses a host peer of a different build version at connect, so there are no host-to-host compatibility rules to keep. |
+| Skew with `wb-guestd` | Each `.proto` package name ends in a major version (`v1`). `wb-guestd` reports its version at connect. The host refuses a version outside its supported range and updates the guest from the guest tools disk image (S06-vm-lifecycle). The reported version is a guest label: the host uses it only to refuse, never to allow. |
+| Upgrades while running | Option A's path: save VMs, replace the bundle, restart, restore. The install side is I49. |
+| Host resource limits | Each guest-facing handler gets a rate limit and a size limit per VM: host-guest socket RPCs, DNS queries, new connections, `receive-pack` size and time, audit events, approval requests. Extend SEC13-bounded-resources to say so. That is a stricter control, and still a SEC00-index change. |
+| Logs and health | Each daemon logs to `<logs>`. `wb status` lists each process, its restart count, and its last exit reason (NFR06-explained-refusals). |
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Save and restore</th><th>B. Keep running</th><th>C. Stop</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC13-bounded-resources</strong> each VM is capped, extended to host handlers</td><td class="yes">with limits</td><td class="yes">with limits</td><td class="yes">with limits</td></tr>
+<tr><td><strong>SEC10-audit</strong> the guest can't alter the log</td><td class="yes">with rate limit</td><td class="yes">with rate limit</td><td class="yes">with rate limit</td></tr>
+<tr><td><strong>FR01-drop-in</strong> a session behaves like local <code>claude</code></td><td class="yes">pauses, resumes</td><td class="yes">keeps running</td><td class="no">killed</td></tr>
+<tr><td><strong>NFR01-startup</strong> warm start in seconds</td><td class="partial">restore after restart</td><td class="yes">no pause</td><td class="partial">cold boot</td></tr>
+<tr><td>Upgrade path</td><td class="yes">same as a crash</td><td class="partial">still stops VMs</td><td class="partial">kills sessions</td></tr>
+<tr><td>Code and spec work</td><td class="na">save on lost supervisor</td><td class="na">takeover protocol, own launchd job</td><td class="na">least</td></tr>
+</tbody>
+</table>
+
+SEC11-root-gains-nothing (guest root doesn't control enforcement) and SEC05-default-deny (default-deny egress) hold under every option, because a crash only removes the path out of the guest.
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> `wb-hostd` spawns `wb-vmd`, one `wb-netd` per VM, and `wb-proxyd`, and `wb-vmd` hands it the guest socket descriptors (S04-architecture, "Processes" and "Design decisions").
+- <Badge text="verified" variant="success" /> When a launchd job exits, "launchd kills any remaining processes with the same process group ID as the job", unless `AbandonProcessGroup` is set (`man launchd.plist`, macOS 27.0.1).
+- <Badge text="verified" variant="success" /> When the host-guest socket drops, `wb-guestd` stops the session's process group and resumes it when the link returns (S13-guest-confinement, "Layer 1").
+- <Badge text="verified" variant="success" /> The specs already plan to save VM state on idle and restore it (S06-vm-lifecycle, "Warm start"), so A reuses that path.
+- <Badge text="verified" variant="success" /> SEC13-bounded-resources reads "CPU, memory and disk of each VM are capped", and nothing bounds the host processes serving a VM (SEC00-index).
+- <Badge text="verified" variant="success" /> The audit log is "rotated and size-capped" (S09-policy-credentials-audit, "Audit"), and the wildcard DNS budget is per session (S07-egress-gateway, "DNS").
+- <Badge text="verified" variant="success" /> The code has no supervision yet: every daemon under `packages/wraithbox-go/cmd/` and `wb-vmd` prints its version and exits 2. Go and Swift each define their own version string (`internal/version/version.go`, `WraithBoxVM/Version.swift`), so the release build must set both to the same value.
+- <Badge text="assumed" variant="caution" /> That a Virtualization framework VM stops when the process that owns it exits. Probable, and a VM run takes minutes to check: add it to X18-vsock-handoff.
+- <Badge text="assumed" variant="caution" /> That a macOS guest with a vsock device and a file-handle network attachment can be saved and restored. That is X02-warm-start. If it can't, A falls back to C.
+
+## What this unblocks
+
+- I52: the version rule for the `.proto` packages and the supervision RPCs between `wb-hostd` and `wb-vmd`.
+- I49: the upgrade path uses this decision's restart sequence.
+- The spec pull request that adds "Supervision and failure" to S04-architecture and extends SEC13-bounded-resources.
+- It waits on nothing for the decision. Option A's implementation waits on X02-warm-start.
+
+<details>
+<summary>Details and glossary</summary>
+
+**What fails closed means here.** The guest's only network path is `wb-netd`, then `wb-proxyd`. If either is gone, guest connections are reset or time out. Nothing else on the host forwards guest traffic, so a crash can't open egress. The decision is only about how visible the failure is and how fast it recovers.
+
+**A restarted wb-netd forgets its DNS answers.** It hands out synthetic addresses per name and remembers them. After a restart, the guest still has cached addresses that the new `wb-netd` doesn't know, so those connections are reset until the guest looks the names up again. This fails closed without special handling, and `wb status` should show it.
+
+**Why the host doesn't trust the guest's version.** `wb-guestd` runs as root in the guest, and guest root is the adversary (T00-index). A forged version can make the host refuse to talk, which only hurts the guest. It can never make the host accept a message it would otherwise reject, because the host validates each message the same way whatever the version.
+
+**Glossary**
+
+- **Supervisor:** the process that starts other processes and restarts them when they exit.
+- **launchd and LaunchAgent:** the macOS service manager, and its per-user job definition. It keeps `wb-hostd` running.
+- **Saved state:** a snapshot of a running VM's memory and devices on disk, which restores the VM where it left off.
+- **Descriptor:** a handle to an open socket or file that one process can pass to another (`SCM_RIGHTS` on Unix).
+- **Version skew:** two parts of the system running different versions that must still talk to each other.
+- **Backoff:** waiting longer after each failed restart, so a crash loop doesn't use the whole CPU.
+
+</details>
