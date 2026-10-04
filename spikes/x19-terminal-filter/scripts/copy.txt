@@ -1,0 +1,24 @@
+# /copy with a stub pbcopy first in PATH (scripts/fakebin), so the
+# host clipboard is not touched. Shows whether /copy also emits OSC 52.
+wait (trust this folder|shortcuts) 60
+idle 2 10
+# folder trust dialog defaults to "No, exit": move to "Yes" first
+key down enter
+idle 3 30
+snap 00-ready
+type Reply with exactly the word: pineapple
+key enter
+idle 4 120
+type /copy
+key enter
+idle 2 20
+snap 01-copy
+key enter
+idle 2 20
+snap 02-copied
+key esc
+idle 1 5
+key ctrl-c
+sleep 0.5
+key ctrl-c
+idle 2 10

@@ -1,0 +1,19 @@
+# Fresh config dir, no credentials: theme picker and login screens only.
+idle 2 20
+snap 01-start
+key down down
+idle 1 5
+snap 02-theme
+key enter
+idle 2 20
+snap 03-after-theme
+key down
+idle 1 5
+snap 04-login
+resize 90 30
+idle 1 5
+snap 05-resized
+key ctrl-c
+sleep 0.5
+key ctrl-c
+idle 1 5

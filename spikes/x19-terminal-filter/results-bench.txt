@@ -1,0 +1,12 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/wraithbox/wraithbox/spikes/x19-terminal-filter/filter
+cpu: Apple M2
+BenchmarkRecorded-8       	     248	   9602317 ns/op	  85.22 MB/s	  213804 B/op	   32387 allocs/op
+BenchmarkPlainText-8      	    1347	   1780028 ns/op	 846.80 MB/s	  153125 B/op	      20 allocs/op
+BenchmarkDenseSGR-8       	     346	   6935641 ns/op	 137.01 MB/s	  153229 B/op	      23 allocs/op
+BenchmarkDroppedOSC52-8   	     964	   2889141 ns/op	 362.76 MB/s	 1112202 B/op	     149 allocs/op
+BenchmarkRandom-8         	      62	  36106950 ns/op	  29.04 MB/s	 1605091 B/op	  173839 allocs/op
+BenchmarkCopyBaseline-8   	29693874	        81.24 ns/op	12906831.42 MB/s
+PASS
+ok  	github.com/wraithbox/wraithbox/spikes/x19-terminal-filter/filter	14.756s

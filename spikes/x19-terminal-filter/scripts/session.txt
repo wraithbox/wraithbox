@@ -1,0 +1,64 @@
+# Installed claude, logged in, in a scratch git repository.
+# Exercises markdown, tools, permission prompts, diffs, paste, resize,
+# mode cycling, notifications (terminal reported unfocused) and long output.
+wait (trust this folder|shortcuts) 60
+idle 2 10
+snap 00-start
+# folder trust dialog defaults to "No, exit": move to "Yes" first
+key down enter
+idle 3 30
+snap 01-ready
+key focus-out
+type Reply with a short markdown sample: a heading, a bulleted list, bold text, a two-row table, a fenced Go code block, and the link https://example.com. Do not use any tools.
+key enter
+idle 5 180
+snap 02-markdown
+type Use the Bash tool to run exactly this command and show me its output: printf 'x19 \033]52;c;eDE5LXRlc3Q=\a \033]8;;file:///etc/hosts\ahosts\033]8;;\a \033[31mred\033[0m done\n'
+key enter
+idle 8 180
+snap 03-permission
+key enter
+idle 5 180
+snap 04-tool-output
+type Create a file notes.md with three short lines of text, then change its second line to say "edited". Use the Write and Edit tools.
+key enter
+idle 8 180
+snap 05-write-permission
+key enter
+idle 8 180
+snap 06-edit-permission
+key enter
+idle 5 180
+snap 07-after-edit
+key focus-in
+paste first pasted line\nsecond pasted line\nthird pasted line
+idle 2 10
+snap 08-pasted
+key ctrl-c
+idle 2 10
+key shift-tab
+idle 1 5
+snap 09-mode
+key shift-tab
+idle 1 5
+key shift-tab
+idle 1 5
+resize 90 30
+idle 2 10
+snap 10-resized
+resize 120 40
+idle 2 10
+type Print the integers from 1 to 300, one per line, as plain text. No tools, no commentary.
+key enter
+idle 5 240
+snap 11-long
+type /cost
+key enter
+idle 2 20
+snap 12-cost
+key esc
+idle 1 5
+key ctrl-c
+sleep 0.5
+key ctrl-c
+idle 2 10
