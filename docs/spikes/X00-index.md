@@ -16,7 +16,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | ID | Description | Status |
 |----|-------------|--------|
 | X01-model-credential | Model credential via the proxy | Open |
-| X02-warm-start | Warm start | Open |
+| X02-warm-start | Warm start | Answered: yes, with conditions |
 | X03-network-path | Network path | Open |
 | X04-tls-inspection | Inspection compatibility | Open |
 | X05-fs-benchmark | Filesystem benchmark | Open |
@@ -57,6 +57,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 - **X02-warm-start: Warm start.** Measure time to restore a macOS guest from saved
   state with a vsock device and a file-handle network attachment.
   Can a saved state be reused (cloned with its disks) more than once?
+  Answered yes, with conditions, in the result page X02-warm-start.
 - **X03-network-path: Network path.** A macOS guest boots on the file-handle
   attachment with the gVisor stack: gets a DHCP lease, resolves only
   allowlisted names, reaches only the proxy. Confirm no entitlement

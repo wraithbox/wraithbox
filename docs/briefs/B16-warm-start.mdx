@@ -1,0 +1,149 @@
+---
+title: How fast does a suspended VM come back, and can one saved state be restored more than once?
+description: Yes, with conditions. A restore takes about 4 s. One saved state can be restored any number of times from fresh APFS clones that keep its identity, and saving needs the host unlocked.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-04.** Source: X02-warm-start (I16). Changes S06-vm-lifecycle and S11-verification-and-spikes. Feeds X18-vsock-handoff (I29) and X17-image-build (I28).
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** A macOS guest with a vsock device and the file-handle network attachment saves in about 3 s and restores in 3.7 s (p50) to 3.9 s (p95) at 4 GiB, or 4.1 s to 4.6 s at 8 GiB, measured to the guest kernel answering on the network. That fits the 7 s budget of NFR01-startup for a suspended VM, with about 2.5 s left for the session. One saved state restored 30 times from fresh APFS clones. The catches: every restore needs a fresh clone, the same machine identifier and MAC address, no other running VM with that identifier, and the host unlocked at save time. One decision is left for you: what an idle VM does when the host is locked.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="wb-vmd pauses the VM and saves its memory to a state file while the host is unlocked. The state file, the two disks and the auxiliary storage are cloned together. Each restore takes a fresh clone of that set. Restoring the state onto disks that have run since the save is the flow to stop.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box guest" x="20" y="40" width="170" height="70" rx="10" />
+  <text class="label" x="105" y="68" text-anchor="middle">running VM</text>
+  <text class="note" x="105" y="90" text-anchor="middle">memory + disks</text>
+
+  <rect class="box host" x="20" y="190" width="170" height="70" rx="10" />
+  <text class="label" x="105" y="218" text-anchor="middle">wb-vmd</text>
+  <text class="note" x="105" y="240" text-anchor="middle">pause, save: 3 s</text>
+
+  <line class="edge" x1="105" y1="188" x2="105" y2="112" marker-end="url(#f1-arrow)" />
+  <text class="note" x="115" y="155">host unlocked</text>
+
+  <rect class="boundary" x="240" y="30" width="230" height="240" rx="12" />
+  <text class="boundary-label" x="252" y="50">saved together</text>
+  <rect class="box host" x="260" y="65" width="190" height="40" rx="8" />
+  <text class="label" x="355" y="90" text-anchor="middle">state file 1.4 GB</text>
+  <rect class="box host" x="260" y="115" width="190" height="40" rx="8" />
+  <text class="label" x="355" y="140" text-anchor="middle">system disk</text>
+  <rect class="box host" x="260" y="165" width="190" height="40" rx="8" />
+  <text class="label" x="355" y="190" text-anchor="middle">data disk</text>
+  <rect class="box host" x="260" y="215" width="190" height="40" rx="8" />
+  <text class="label" x="355" y="240" text-anchor="middle">identity, aux storage</text>
+
+  <path class="edge" d="M190,75 C215,75 225,85 258,85" marker-end="url(#f1-arrow)" />
+
+  <rect class="box guest" x="560" y="40" width="180" height="60" rx="10" />
+  <text class="label" x="650" y="66" text-anchor="middle">restore 1</text>
+  <text class="note" x="650" y="86" text-anchor="middle">fresh clone: 3.7 s</text>
+  <rect class="box guest" x="560" y="120" width="180" height="60" rx="10" />
+  <text class="label" x="650" y="146" text-anchor="middle">restore 2</text>
+  <text class="note" x="650" y="166" text-anchor="middle">fresh clone: 3.7 s</text>
+  <rect class="box guest" x="560" y="210" width="180" height="60" rx="10" />
+  <text class="label" x="650" y="236" text-anchor="middle">restore onto</text>
+  <text class="note" x="650" y="256" text-anchor="middle">disks that ran on</text>
+
+  <line class="edge" x1="472" y1="110" x2="558" y2="72" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="472" y1="150" x2="558" y2="150" marker-end="url(#f1-arrow)" />
+  <line class="edge-bad" x1="472" y1="190" x2="558" y2="236" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="485" y="232">never</text>
+</svg>
+<figcaption>
+Figure 1. A saved state is the VM's memory, and it only makes sense together with the disks as they were at the save. Clones of the whole set can each be restored once. Virtualization does not stop a restore onto disks the guest has since written to (red): it came up without an error, so S06-vm-lifecycle now forbids it.
+</figcaption>
+</figure>
+
+## The decision left: an idle VM while the host is locked
+
+Saving encrypts the state with a key that macOS keeps in the Secure Enclave, and the key can only be made while your session is unlocked. With the screen locked the save fails. S06-vm-lifecycle saves a VM after an idle period, which often ends while you are away.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Keep running, save after unlock
+
+The VM stays up while the host is locked and is saved at the next unlock if it is still idle.
+
+- **Cost:** guest memory stays in use while you are away.
+- **Keeps:** detached sessions keep running (B46-session-lifecycle). <Badge text="NFR03-footprint" variant="caution" /> idle VMs suspend, later than set.
+
+</div>
+<div class="wb-option">
+
+### B. Shut down instead
+
+The guest shuts down when the idle period ends while locked. The next session cold boots.
+
+- **Cost:** a cold boot (about 5 s to the network, then the rest of startup) instead of a restore, and detached sessions end.
+- **Keeps:** <Badge text="NFR03-footprint" variant="success" /> memory freed on time.
+
+</div>
+<div class="wb-option">
+
+### C. Save before the lock
+
+Save every idle VM when the screen is about to lock.
+
+- **Cost:** a save of 3 to 5 s per VM on every lock, racing the lock itself. Untested whether the key is still available then.
+- **Keeps:** <Badge text="NFR03-footprint" variant="success" />, if it works.
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Keep running</th><th>B. Shut down</th><th>C. Save first</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>NFR01-startup</strong> suspended VM within 7 s to the prompt</td><td class="yes">restore about 4 s</td><td class="partial">cold boot after a lock</td><td class="yes">restore about 4 s</td></tr>
+<tr><td><strong>NFR03-footprint</strong> idle VMs suspend</td><td class="partial">after unlock</td><td class="yes">on time</td><td class="partial">untested</td></tr>
+<tr><td>Detached sessions survive (B46-session-lifecycle)</td><td class="yes">kept</td><td class="no">ended</td><td class="yes">kept</td></tr>
+<tr><td>Spec work</td><td class="na">S06-vm-lifecycle, as written</td><td class="na">S06-vm-lifecycle</td><td class="na">S06-vm-lifecycle, a spike</td></tr>
+</tbody>
+</table>
+
+No `SEC*` control changes under any option.
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The configuration with `VZVirtioSocketDevice` and `VZFileHandleNetworkDeviceAttachment` passes `validateSaveRestoreSupport`, and saves and restores. Source: X02-warm-start, "Answer".
+- <Badge text="verified" variant="success" /> Restore from a fresh clone to the guest answering on the network: 3.71 s p50, 3.92 s p95 at 4 GiB, and 4.11 s and 4.58 s at 8 GiB, 20 runs each. Cold boot from a fresh clone: 5.04 s and 5.38 s. Save: 2.94 s and 3.20 s at 4 GiB. Source: X02-warm-start, "Measurements", and `results/stats.txt` on the spike branch.
+- <Badge text="verified" variant="success" /> A restore with a new machine identifier or a new MAC address fails with "invalid argument". A restore fails while another VM with the same identifier runs (4 of 4 tries). Clones of two states with different identifiers restored side by side. Source: X02-warm-start, "Answer", conditions 2 and 3.
+- <Badge text="verified" variant="success" /> A restore onto disks the guest had run from for 10 s gave no error. Source: X02-warm-start, condition 1.
+- <Badge text="verified" variant="success" /> Save failed with the screen locked: the log shows the Secure Enclave refusing the key (`errSecInteractionNotAllowed`), and the same save worked after an unlock. Source: `results/save-locked.log` on the spike branch.
+- <Badge text="assumed" variant="caution" /> That restore also fails while the host is locked, which no run tried. It doesn't change the recommendation, because under option A, a locked host leaves the VM running.
+- <Badge text="assumed" variant="caution" /> That `wb-guestd` answers on vsock the moment the guest kernel answers on the network. No process of ours ran in the guest. X18-vsock-handoff measures it.
+
+## What it unblocks
+
+X18-vsock-handoff (I29) step 4, X03-network-path (I17) and X05-fs-benchmark (I19), which build on this VM prototype, and the warm start work in S06-vm-lifecycle.
+
+<details>
+<summary>Details and glossary</summary>
+
+**The numbers stop at the guest kernel.** A freshly installed macOS guest runs nothing of ours, and the host may not write into a guest disk after its first boot (B44-data-disk-durability). So the spike timed the guest's network stack answering a ping on the file-handle attachment. A vsock connect is no signal: the host side of the device refuses connections to closed ports within 30 ms of start, before the guest kernel runs.
+
+**Fresh clones are the honest case.** Restoring a state just after saving it took 2.0 s, because the file was still in the host's memory. After an idle period it isn't, and a fresh APFS clone behaves the same way: 3.7 s.
+
+**A cold boot comes close.** The guest answers the network 5 s after a cold boot, but the rest of its startup is still running then. The restored guest has finished starting up.
+
+**Bound to this Mac.** Apple's header says a saved state only restores on the host that wrote it, and can stop working after a macOS update. A saved state can't be shipped in an image, and a failed restore falls back to a cold boot.
+
+- **Saved state:** a file with a paused VM's memory and device state, which restores the VM where it left off.
+- **APFS clone:** a copy that shares disk blocks with its original until either one changes, so it takes no time or space to make.
+- **Machine identifier:** the identity Virtualization gives a macOS VM, stored in the VM bundle.
+- **vsock:** the host-guest socket, a direct channel between host processes and the guest that doesn't go through the network.
+- **p50, p95:** the median, and the value 95% of runs stay under.
+
+</details>
