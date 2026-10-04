@@ -62,18 +62,27 @@ in S12-platforms.
     storage it was saved with. Once the VM has run on from them, the
     state is deleted. The framework does not check this, and would
     restore old guest memory over newer disks. Restoring one state
-    more than once needs APFS clones of the state and both disks
-    taken together at the save, and a fresh clone for each restore.
+    more than once needs APFS clones of the state, both disks and the
+    auxiliary storage, taken together at the save, and a fresh clone
+    for each restore.
   - The restored VM has the machine identifier and MAC address it was
     saved with, and no other VM with that identifier runs during the
     restore.
   - Saving needs the host user's session unlocked. When the idle
     period ends while the host is locked, the VM keeps running and is
     saved after the next unlock (pending the decision in
-    B16-warm-start).
+    B16-warm-start). Restoring while the host is locked is untested,
+    and assumed to fail as saving does.
   - A saved state works only on the host that wrote it, and may stop
-    working after a host update. When a restore fails, `wb-vmd`
-    deletes the state and cold boots the VM.
+    working after a host update. A restore that fails for one of these
+    permanent reasons deletes the state, and `wb-vmd` cold boots the
+    VM. A restore that fails for a temporary reason, such as another
+    VM with the same identifier still running or a locked host, keeps
+    the state, and `wb-hostd` retries the restore or reports the
+    reason (NFR06-explained-refusals). The framework reports a host
+    update and an identifier in use with the same "invalid argument"
+    error, so `wb-hostd` tells them apart by what it can see: whether
+    a VM with that identifier runs, and whether the host is locked.
 - **Time and sleep.** After host sleep or VM restore, `wb-guestd`
   resynchronizes the guest clock from `wb-hostd`.
 

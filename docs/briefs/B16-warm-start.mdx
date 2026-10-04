@@ -5,10 +5,10 @@ description: Yes, with conditions. A restore takes about 4 s. One saved state ca
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-04.** Source: X02-warm-start (I16). Changes S06-vm-lifecycle and S11-verification-and-spikes. Feeds X18-vsock-handoff (I29) and X17-image-build (I28).
+**Answered 2026-10-04: yes, with conditions. Awaiting decision on idle-while-locked.** Source: X02-warm-start (I16). Changes S06-vm-lifecycle and S11-verification-and-spikes. Feeds X18-vsock-handoff (I29) and X17-image-build (I28).
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** A macOS guest with a vsock device and the file-handle network attachment saves in about 3 s and restores in 3.7 s (p50) to 3.9 s (p95) at 4 GiB, or 4.1 s to 4.6 s at 8 GiB, measured to the guest kernel answering on the network. That fits the 7 s budget of NFR01-startup for a suspended VM, with about 2.5 s left for the session. One saved state restored 30 times from fresh APFS clones. The catches: every restore needs a fresh clone, the same machine identifier and MAC address, no other running VM with that identifier, and the host unlocked at save time. One decision is left for you: what an idle VM does when the host is locked.
+**Yes, with conditions.** A macOS guest with a vsock device and the file-handle network attachment saves in about 3 s and restores in 3.7 s (p50) to 3.9 s (p95) at 4 GiB, or 4.1 s to 4.6 s at 8 GiB, measured to the guest kernel answering on the network. For an idle guest that fits the 7 s budget of NFR01-startup for a suspended VM, with about 2.5 s left for the session. Whether it fits for a working guest, with more memory in use, waits on X18-vsock-handoff (I29) and the time-to-prompt benchmark of S11-verification-and-spikes. One saved state restored 30 times from fresh APFS clones. The catches: every restore needs a fresh clone, the same machine identifier and MAC address, no other running VM with that identifier, and the host unlocked at save time. One decision is left for you: what an idle VM does when the host is locked.
 </Aside>
 
 <figure class="wb-figure">
@@ -106,7 +106,7 @@ Save every idle VM when the screen is about to lock.
 <tr><th>Requirement</th><th>A. Keep running</th><th>B. Shut down</th><th>C. Save first</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>NFR01-startup</strong> suspended VM within 7 s to the prompt</td><td class="yes">restore about 4 s</td><td class="partial">cold boot after a lock</td><td class="yes">restore about 4 s</td></tr>
+<tr><td><strong>NFR01-startup</strong> suspended VM within 7 s to the prompt</td><td class="yes">about 4 s, idle guest</td><td class="partial">cold boot after a lock</td><td class="yes">about 4 s, idle guest</td></tr>
 <tr><td><strong>NFR03-footprint</strong> idle VMs suspend</td><td class="partial">after unlock</td><td class="yes">on time</td><td class="partial">untested</td></tr>
 <tr><td>Detached sessions survive (B46-session-lifecycle)</td><td class="yes">kept</td><td class="no">ended</td><td class="yes">kept</td></tr>
 <tr><td>Spec work</td><td class="na">S06-vm-lifecycle, as written</td><td class="na">S06-vm-lifecycle</td><td class="na">S06-vm-lifecycle, a spike</td></tr>
@@ -119,9 +119,10 @@ No `SEC*` control changes under any option.
 
 - <Badge text="verified" variant="success" /> The configuration with `VZVirtioSocketDevice` and `VZFileHandleNetworkDeviceAttachment` passes `validateSaveRestoreSupport`, and saves and restores. Source: X02-warm-start, "Answer".
 - <Badge text="verified" variant="success" /> Restore from a fresh clone to the guest answering on the network: 3.71 s p50, 3.92 s p95 at 4 GiB, and 4.11 s and 4.58 s at 8 GiB, 20 runs each. Cold boot from a fresh clone: 5.04 s and 5.38 s. Save: 2.94 s and 3.20 s at 4 GiB. Source: X02-warm-start, "Measurements", and `results/stats.txt` on the spike branch.
-- <Badge text="verified" variant="success" /> A restore with a new machine identifier or a new MAC address fails with "invalid argument". A restore fails while another VM with the same identifier runs (4 of 4 tries). Clones of two states with different identifiers restored side by side. Source: X02-warm-start, "Answer", conditions 2 and 3.
+- <Badge text="verified" variant="success" /> A restore with a new machine identifier or a new MAC address fails with "invalid argument". A restore fails while another VM with the same identifier runs: 4 failures in 4 tries. Three of the tries were pairs of concurrent restores of one state, where one restore of each pair failed. The fourth was a restore next to a cold-booted VM with the same identifier. Clones of two states with different identifiers restored side by side. Source: X02-warm-start, "Answer", conditions 2 and 3.
 - <Badge text="verified" variant="success" /> A restore onto disks the guest had run from for 10 s gave no error. Source: X02-warm-start, condition 1.
-- <Badge text="verified" variant="success" /> Save failed with the screen locked: the log shows the Secure Enclave refusing the key (`errSecInteractionNotAllowed`), and the same save worked after an unlock. Source: `results/save-locked.log` on the spike branch.
+- <Badge text="verified" variant="success" /> Save failed with the screen locked: the log shows the Secure Enclave refusing the key (`errSecInteractionNotAllowed`), `ioreg` showed the console locked, and the login window process logged the key store as locked just before the unlock. After the unlock, the same binary on the same bundle saved 21 times without an error. Source: `results/save-locked.log`, `results/save-locked-run.md` and `results/cycle-4g.jsonl` on the spike branch. The "permission denied" text in `save-locked-run.md` is transcribed from the session, because the next run overwrote that run's output file.
+- <Badge text="assumed" variant="caution" /> That a working guest restores within the budget too. All states came from a guest idle at Setup Assistant (1.41 GB in use), and reading the state file is most of the restore time (2.0 s from the host's memory, 3.7 s from disk).
 - <Badge text="assumed" variant="caution" /> That restore also fails while the host is locked, which no run tried. It doesn't change the recommendation, because under option A, a locked host leaves the VM running.
 - <Badge text="assumed" variant="caution" /> That `wb-guestd` answers on vsock the moment the guest kernel answers on the network. No process of ours ran in the guest. X18-vsock-handoff measures it.
 
@@ -138,7 +139,7 @@ X18-vsock-handoff (I29) step 4, X03-network-path (I17) and X05-fs-benchmark (I19
 
 **A cold boot comes close.** The guest answers the network 5 s after a cold boot, but the rest of its startup is still running then. The restored guest has finished starting up.
 
-**Bound to this Mac.** Apple's header says a saved state only restores on the host that wrote it, and can stop working after a macOS update. A saved state can't be shipped in an image, and a failed restore falls back to a cold boot.
+**Bound to this Mac.** Apple's header says a saved state only restores on the host that wrote it, and can stop working after a macOS update. A saved state can't be shipped in an image. A restore that fails for one of these reasons deletes the state and cold boots. One that fails because the identifier is in use or the host is locked keeps the state.
 
 - **Saved state:** a file with a paused VM's memory and device state, which restores the VM where it left off.
 - **APFS clone:** a copy that shares disk blocks with its original until either one changes, so it takes no time or space to make.
