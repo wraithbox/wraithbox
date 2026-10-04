@@ -61,3 +61,7 @@ Swift 6.4 (SwiftPM), Claude Code 2.1.289.
   so it ran only under `observe` and `strip`.
 - The LFS repository is `github.com/niik/lfs-test` (four objects, 2 to
   26 MB).
+- `review-probe.sh`, `results-review-probe.txt` (added in the review of
+  PR #85): GitLab form and JSON body credentials, percent-encoded and
+  upper-case parameter names, `job_token`, `Deploy-Token`, and Forgejo on
+  `codeberg.org`.

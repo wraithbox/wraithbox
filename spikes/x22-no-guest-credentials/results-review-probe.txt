@@ -1,0 +1,11 @@
+gitlab graphql form private_token: 401
+gitlab graphql json private_token: 401
+gitlab graphql json none: 200
+gitlab ?private%5Ftoken: 401
+gitlab ?PRIVATE_TOKEN: 200
+gitlab ?job_token: 200
+gitlab Deploy-Token: 200
+codeberg none: 200
+codeberg ?token: 401
+codeberg ?access_token: 401
+codeberg Authorization token: 401
