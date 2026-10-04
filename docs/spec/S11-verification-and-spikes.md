@@ -11,9 +11,11 @@ be tested before building on them.
   DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
   handling, policy matching, the git transport framing (the request
   header and the push command list, X07-git-round-trip), every vsock RPC
-  handler in `wb-hostd`, network policy YAML, and the guest flow labels
-  of S13-guest-confinement (Swift: property-based tests where fuzzing is
-  impractical).
+  handler in `wb-hostd`, network policy YAML, the guest flow labels
+  of S13-guest-confinement, and the dependency gate's parsers: npm
+  request paths, PyPI distribution file names, Go escaped module paths
+  and versions, crates.io index lines, and `sum.golang.org` lookup
+  responses (Swift: property-based tests where fuzzing is impractical).
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
@@ -37,7 +39,11 @@ be tested before building on them.
     pinned binary and confirm its connections are denied;
   - download a package version younger than the minimum age, or with a
     known vulnerability, and find the too-young version missing from the
-    registry metadata;
+    registry metadata; do the same for Go with the checksum-database
+    clock and `sum.golang.org` reached through the gate (I76);
+  - fetch a gated registry path that fits no known form, and get a 403
+    naming the rule; with a test double for the Go module proxy,
+    redirect a download elsewhere and see it refused;
   - read or change policy, credentials, or the audit log from the guest;
   - write into the host repository through the git transport; fetch an
     object outside the session's branch by its ID; push outside

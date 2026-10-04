@@ -18,20 +18,45 @@ of applying a minimum age lets real installs still work?
   fresh installs go from 10 of 10 failing (refuse the download) to 1 of
   10 (filter the metadata). Lockfile installs that pin a version younger
   than 7 days still fail (2 of 10), with a message that says when the
-  version becomes allowed. OSV lookups run while the download runs and
-  are cached for an hour.
+  version becomes allowed. Two residuals, accepted by merging:
+  T07-ungated-sources (dependencies fetched from git hosts, archive URLs
+  or mirrors skip the gate) and T08-homebrew-ungated (young Homebrew
+  bottles aren't refused).
 - **Controls touched:** SEC07-dep-gate is kept: every download of a
-  too-young version is still refused, and the metadata filter comes in
-  front of that refusal. SEC07-dep-gate lists npm, PyPI, Go modules and
-  crates, not Homebrew. S07-egress-gateway now says that Homebrew
-  bottles are not gated, and why.
+  too-young version from a gated registry is still refused, and the
+  metadata filter comes in front of that refusal. SEC07-dep-gate lists
+  npm, PyPI, Go modules and crates, not Homebrew. SEC05-default-deny is
+  kept: the Go redirect is followed only to its storage host, and
+  `ghcr.io` is limited to `homebrew/core`. SEC13-bounded-resources:
+  held-back bodies and gated downloads in flight are bounded.
+  SEC10-audit: each filtered metadata response is an audit event.
 - **Assumed:** that the registries keep publishing the fields measured
   here: npm `time`, PyPI `upload-time`, crates.io `pubtime`, and the
-  Go checksum database's record numbers.
-- **Open decisions:** the vulnerability threshold. At the specified
-  default (HIGH), OSV data would refuse the lockfile installs of 8 of
-  the 10 projects. This result doesn't change that default. I73 asks
-  the maintainer to decide.
+  Go checksum database's record numbers. The Go clock was checked only
+  for ordering, and I76 measures it end to end.
+- **Open decisions:** each has a recommendation in
+  B32-dep-gate-registries.
+  1. The vulnerability threshold. At the specified default (HIGH), OSV
+     data would refuse the lockfile installs of 8 of the 10 projects.
+     This result doesn't change that default, and I73 asks the
+     maintainer to decide.
+  2. The one-hour OSV cache. A malicious-package report published
+     within the hour can be missed. Recommended: accept, with the cache
+     keyed on the threshold and only answers under an hour old used
+     during an OSV outage.
+  3. Clients that read other metadata. Recommended: refuse a PyPI
+     client that doesn't accept the JSON simple index, filter npm
+     `/-/package/<name>/dist-tags`, and filter the young `releases` of
+     the PyPI JSON API (`/pypi/<name>/json`, used by Poetry), refusing
+     it when its `info` describes a young release.
+  4. Private registries. The gate fetches publish times before
+     credentials are injected, so every package on a private registry
+     fails closed. Recommended: leave that as is for V1 and decide how
+     the gate authenticates when the first private registry binding is
+     specified.
+  5. Partial mitigations for T07-ungated-sources. Recommended: deny
+     archive downloads in the git hosting profile, and flag a host that
+     mirrors a gated registry in the approval risk check.
 - **Brief:** B32-dep-gate-registries
 
 ## Question
@@ -53,7 +78,7 @@ download. Per registry:
 |---|---|---|---|---|
 | npm | tarball path `<name>/-/<name>-<version>.tgz` | `time` in the full packument; the abbreviated one that clients ask for has none | packument `versions` and `dist-tags` | yes |
 | PyPI | the file the index listed, else the file name checked against the JSON API | `upload-time` per file in the JSON simple index (PEP 700) | JSON simple index `files` and `versions` | yes, per file |
-| Go module proxy | `<module>/@v/<version>.zip` | not the `.info` Time, which is the commit time; the record number in `sum.golang.org` instead | `@v/list` and `@latest` | yes, with the checksum database as the clock |
+| Go module proxy | `<module>/@v/<version>.zip` | not the `.info` Time, which is the commit time; the record number in `sum.golang.org` instead | `@v/list` and `@latest` | yes, with the checksum database as the clock, checked only for ordering (I76) |
 | crates.io | `/crates/<name>/<version>/download` or `<name>-<version>.crate` | `pubtime` on each sparse index line | sparse index lines | yes |
 | Homebrew | blob digest, through the bottle manifest | `org.opencontainers.image.created` on the manifest | none: one version per formula, and the metadata is signed | no, for the age gate |
 
@@ -73,9 +98,9 @@ installing process. Each project is pinned to a commit.
 
 Fresh install: the lockfile removed (npm, uv) or the pins stripped
 (pip). Lockfile install: `npm ci`, `uv sync --frozen`, or
-`pip install -r` of the pinned file. "Young" is the number of
-downloads, out of all downloads, that were younger than 7 days with the
-gate off.
+`pip install -r` of the pinned file. "Young" is the number of distinct
+package versions downloaded, out of all of them, that were younger than
+7 days with the gate off.
 
 | Project | Tool | Fresh: young | Fresh: refuse / filter | Lockfile: young | Lockfile: refuse / filter |
 |---|---|---|---|---|---|
@@ -102,8 +127,9 @@ gate off.
   In fastapi's lockfile install, it refused the pinned young version.
 - Go: `go mod download` of cli/cli's `go.mod` passes in both modes. A
   `go get` of five fast-moving modules `@latest` fails with refuse and
-  passes with filter. These runs used the `.info` Time as the clock (see
-  below).
+  passes with filter. These runs used the `.info` Time as the clock,
+  which S07-egress-gateway now rules out, and `GOSUMDB=off` (see below
+  and "Limits"). I76 repeats them with the checksum-database clock.
 - crates.io: `cargo fetch --locked` of sharkdp/bat passes in both modes.
   A manifest of nine popular crates with caret ranges resolved 12 young
   crates. It fails with refuse and passes with filter.
@@ -130,13 +156,16 @@ gate off.
   All 2,873 index lines of 20 popular crates have a `pubtime`.
 - Go: the proxy answers a `.zip` request with a redirect to a signed
   `storage.googleapis.com` URL. The spike's proxy follows it itself, so
-  that host doesn't need a policy entry. The `.info` Time is the commit time, which the
-  module's author controls. Of 200 tagged versions that the module proxy
-  first saw in the last 7 days, 173 had an `.info` Time more than 7 days
-  earlier (median gap 1,087 days). The checksum database adds a record
-  the first time a module version is looked up. Across 14 days of
-  `index.golang.org` samples, record numbers grew with first-seen time
-  (64,217,167 on 2026-09-20, 66,602,558 on 2026-10-04). The record
+  that host doesn't need a policy entry. It followed any target, which
+  `wb-proxyd` must not: S07-egress-gateway limits it to one hop to that
+  host. The `.info` Time is the commit time, which the module's author
+  controls. Of 200 tagged versions that the module proxy first saw in
+  the last 7 days, 173 had an `.info` Time more than 7 days earlier
+  (median gap 1,087 days). The checksum database adds a record the
+  first time a module version is looked up. In 36 samples over 14 days
+  of `index.golang.org`, record numbers grew with first-seen time
+  (64,217,167 on 2026-09-20, 66,602,558 on 2026-10-04). Neighbors less
+  than a second apart sometimes swapped. The record
   number seen at "now minus 7 days" therefore separates young from old,
   with one lookup per module version that never needs repeating,
   because a record number doesn't change. The index itself has 1.12
@@ -149,17 +178,25 @@ gate off.
   any host. 61 of the 190 (32%) have a bottle younger than 7 days.
   Homebrew offers one version per formula, and `brew` checks the
   signature of the formula metadata (`formula.jws.json`). `wb-proxyd`
-  has no older version to fall back to and no metadata to filter. OSV has no
-  Homebrew ecosystem.
+  has no older version to fall back to and no metadata to filter. OSV
+  has no Homebrew ecosystem.
 
 ### OSV lookups
 
-- One `/v1/query` takes 230 to 250 ms (median), about 300 ms at p95.
-- `npm ci` of axios (633 downloads): 18.5 and 22.6 s without OSV, 30.6
+Each configuration ran twice (n=2), except the cache runs, which ran
+once. The proxy logs count requests, and npm fetched some tarballs more
+than once: axios's 616 packages took 633 requests and open-webui's
+1,077 took 1,119. The 37 vulnerable requests in the open-webui OSV logs are
+the 31 packages of the table below.
+
+- One `/v1/query` from the proxy took 230 to 250 ms (median of each
+  run), about 300 ms at p95. One at a time from a script, the median
+  was 296 ms (p95 353 ms).
+- `npm ci` of axios: 18.5 and 22.6 s without OSV, 30.6
   and 32.7 s with a lookup before each download, 30.6 and 37.1 s with
   lookups coalesced into `querybatch`, 15.3 and 14.8 s with the lookup
   overlapped with the download, and 13.0 s with a warm cache.
-- `npm ci` of open-webui (1,119 downloads) is bound by download time:
+- `npm ci` of open-webui is bound by download time:
   88.9 and 89.8 s without OSV, 87.9 and 94.2 s with a lookup per
   download. Two `querybatch` runs took 94.8 and 268 s, and a warm-cache
   run that didn't call OSV took 178 s, so network variance on that
@@ -191,29 +228,51 @@ with a known vulnerability. Severity is the advisory's
 
 At HIGH, 8 of the 10 lockfile installs would be refused, at CRITICAL 2.
 Most hits are in development tools (`braces`, `brace-expansion`). Some
-records have no `database_specific.severity`: the advisories of 6 PyPI packages have
-only a CVSS vector, and the RustSec and Go records for bat and cli/cli
-have no severity at all. Failing closed on an unknown severity would
+records have no `database_specific.severity`: the advisories of 6 PyPI
+packages have only a CVSS vector, and the RustSec and Go records for
+bat and cli/cli have no severity at all. Failing closed on an unknown severity would
 refuse those too. None of the hits was a malicious-package report
 (`MAL-`).
+
+## Limits
+
+- The fresh pip and uv installs, with the gate off, built sdists on the
+  host. Building an sdist runs the package's own code, outside any
+  sandbox. Nothing points to harm, but a spike like this one should use
+  `--only-binary=:all:` or `UV_NO_BUILD=1`, or run in a VM.
+- The Go runs used `GOSUMDB=off`, because Go on macOS ignores
+  `SSL_CERT_FILE` and `sum.golang.org` couldn't be inspected. go.sum
+  hashes were still checked for the lockfile run.
+- The spike's URL mappers accepted more than they should, such as
+  `/@v/master.zip` or a tarball path with a trailing slash. No request
+  got through, because the registries answered 404. S07-egress-gateway
+  now asks for explicit path forms.
+- One run per project per mode for installs, and n=2 for the OSV
+  timings, on one machine and network.
 
 ## What it means for the specs
 
 - S07-egress-gateway, "Dependency gate": rewritten. Metadata filtering
-  in front of the download refusal, the publish-time source per
-  registry, the Go checksum database as the clock, mapping from the URL
-  alone, OSV lookups overlapped with the download and cached for an
-  hour, and Homebrew bottles outside the gate.
-- S11-verification-and-spikes: the conformance case for the gate also
-  checks that a too-young version is missing from the metadata, and the
-  `npm ci` benchmark runs with the gate on.
+  in front of the download refusal, the scope of the gate, the
+  publish-time source per registry, the Go checksum database as the
+  clock, explicit path forms, the Go redirect limited to one hop to its
+  storage host, bounded held-back bodies, OSV lookups overlapped with
+  the download and cached for an hour, audit events for filtered
+  metadata, and Homebrew bottles outside the gate. The package
+  registries profile adds `sum.golang.org` read-only and limits
+  `ghcr.io` to `homebrew/core`.
+- T00-index: T07-ungated-sources and T08-homebrew-ungated.
+- S11-verification-and-spikes: fuzz targets for the gate's parsers, the
+  conformance case for the gate also checks the metadata and covers Go
+  with the real clock and unknown paths, and the `npm ci` benchmark runs
+  with the gate on.
 - S07-egress-gateway keeps the vulnerability threshold at HIGH until
-  I73 is decided.
+  I73 is decided. I76 measures the Go clock end to end.
 
 ## Spike code
 
 Branch `spike/x21-dep-gate-registries`, commit
-[`671d7a9`](https://github.com/wraithbox/wraithbox/tree/671d7a909b0f7c8c23f5fe5c8ab16cc779c5c7d2/spikes/x21-dep-gate-registries):
+[`56f264a`](https://github.com/wraithbox/wraithbox/tree/56f264a5e365a0a531b588bd182e50dbcc04f905/spikes/x21-dep-gate-registries):
 the proxy, the harness, the project list, and the raw tables.
 
 **Status:** Answered 2026-10-04: yes, with conditions

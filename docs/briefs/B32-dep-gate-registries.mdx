@@ -5,10 +5,24 @@ description: Yes, with conditions. Hide too-young versions from registry metadat
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-04: yes, with conditions.** Source: I32, X21-dep-gate-registries. Changes S07-egress-gateway and S11-verification-and-spikes. Opens I73.
+**Answered 2026-10-04: yes, with conditions.** Source: I32, X21-dep-gate-registries. Changes S07-egress-gateway, S11-verification-and-spikes and T00-index. Opens I73 and I76.
 
 <Aside type="tip" title="What we learned">
-Yes, with conditions. Refusing every download younger than 7 days, as S07-egress-gateway said, failed the fresh install of all 10 real projects tried. Removing those versions from the registry's metadata as well let 9 of 10 install older versions, and the download refusal still catches lockfile pins. Recommended: **A**, now in S07-egress-gateway. Separately, refusing known vulnerabilities at HIGH would fail 8 of the 10 lockfile installs. That default is unchanged here, and I73 asks you to decide it.
+Yes, with conditions. Refusing every download younger than 7 days, as S07-egress-gateway said, failed the fresh install of all 10 real projects tried. Removing those versions from the registry's metadata as well let 9 of 10 install older versions, and the download refusal still catches lockfile pins. Recommended: **A**, now in S07-egress-gateway.
+
+By merging you also accept two residual risks:
+
+- **T07-ungated-sources.** The gate covers the npm, PyPI, Go module proxy and crates.io hosts only. The same packages fetched from a git host (`GOPROXY=direct`, `git+https:`, `github:`, archive downloads, cargo `git` dependencies) or from a mirror you approve skip it.
+- **T08-homebrew-ungated.** Young Homebrew bottles aren't refused. The alternative is refusing them, which fails about a third of popular formulae (see "Homebrew" below).
+
+And you settle these points, each with the recommendation in S07-egress-gateway:
+
+1. The OSV cache keeps answers for one hour, so a malicious-package report published within that hour can be missed. Recommended: accept, with the cache keyed on the threshold and only answers under an hour old used during an OSV outage.
+2. Clients that read other metadata. Recommended: refuse a PyPI client without the JSON simple index, filter npm `/-/package/<name>/dist-tags`, and filter the young `releases` of the PyPI JSON API (`/pypi/<name>/json`, which Poetry reads), refusing it when it describes a young release.
+3. Private registries fail closed, because the gate fetches publish times before credentials are injected. Recommended: leave that for V1 and decide how the gate authenticates when the first private registry binding is specified.
+4. Partial mitigations for T07-ungated-sources. Recommended: deny archive downloads (`codeload.github.com`, `/archive/` paths) in the git hosting profile, and flag a host that mirrors a gated registry in the approval risk check.
+
+Separately, refusing known vulnerabilities at HIGH would fail 8 of the 10 lockfile installs. That default is unchanged here, and I73 asks you to decide it.
 </Aside>
 
 ## The problem
@@ -88,7 +102,7 @@ What S07-egress-gateway said before this spike.
 
 ### C. Rely on the installers' own cooldowns
 
-npm (`min-release-age`), pnpm (`minimumReleaseAge`) and uv (`exclude-newer`) can skip young versions themselves, if configured in the guest.
+npm (`min-release-age`, in the `config` documentation shipped with npm 12.2), pnpm (`minimumReleaseAge`) and uv (`exclude-newer`) can skip young versions themselves, if configured in the guest.
 
 - **Cost:** no proxy work. But the setting is in the guest, which the agent controls, and pip, go and cargo have no equivalent.
 - **Weakens:** <Badge text="SEC07-dep-gate" variant="danger" /> the guest can turn it off. Needs a spec change.
@@ -100,7 +114,7 @@ npm (`min-release-age`), pnpm (`minimumReleaseAge`) and uv (`exclude-newer`) can
 
 Like A, without refusing downloads.
 
-- **Cost:** no lockfile install ever fails on age. A lockfile, or a URL typed by the agent, fetches any version.
+- **Cost:** a lockfile, or a URL typed by the agent, fetches any version. Lockfile installs: 9 of 10 would pass, derived from the A runs and not run separately. Warehouse's pip still fails, because the pinned version is missing from the filtered index.
 - **Weakens:** <Badge text="SEC07-dep-gate" variant="danger" /> young downloads get through. Needs a spec change.
 
 </div>
@@ -115,11 +129,17 @@ Like A, without refusing downloads.
 <tbody>
 <tr><td><strong>SEC07-dep-gate</strong> young or vulnerable downloads are refused</td><td class="yes">kept</td><td class="yes">holds</td><td class="no">guest can disable</td><td class="no">lockfiles bypass</td></tr>
 <tr><td><strong>Fresh installs</strong> with a 7-day minimum age</td><td class="yes">9 of 10 pass</td><td class="no">0 of 10 pass</td><td class="partial">npm, pnpm, uv only</td><td class="yes">9 of 10 pass</td></tr>
-<tr><td><strong>Lockfile installs</strong> with a 7-day minimum age</td><td class="partial">8 of 10 pass</td><td class="partial">7 of 10 pass</td><td class="partial">not measured</td><td class="partial">9 of 10 pass</td></tr>
+<tr><td><strong>Lockfile installs</strong> with a 7-day minimum age</td><td class="partial">8 of 10 pass</td><td class="partial">7 of 10 pass</td><td class="partial">not measured</td><td class="partial">9 of 10, derived</td></tr>
+<tr><td><strong>T08-homebrew-ungated</strong> young Homebrew bottles</td><td class="partial">accepted, not gated</td><td class="partial">accepted, not gated</td><td class="partial">no Homebrew cooldown</td><td class="partial">accepted, not gated</td></tr>
+<tr><td><strong>T07-ungated-sources</strong> packages from git hosts or mirrors</td><td class="partial">accepted residual</td><td class="partial">same residual</td><td class="partial">mirrors only</td><td class="partial">same residual</td></tr>
 <tr><td><strong>NFR06-explained-refusals</strong> each refusal names its rule</td><td class="yes">package, date</td><td class="yes">package, date</td><td class="partial">installer's own error</td><td class="yes">package, date</td></tr>
 <tr><td><strong>NFR02-fs-speed</strong> `npm ci` close to the host</td><td class="yes">OSV overlapped</td><td class="yes">OSV overlapped</td><td class="yes">no proxy work</td><td class="yes">OSV overlapped</td></tr>
 </tbody>
 </table>
+
+## Homebrew
+
+Homebrew is a separate choice from the options above. Recommended: don't gate it (T08-homebrew-ungated), and limit `ghcr.io` to `homebrew/core` so that bottle access doesn't open every image on that host. The alternative is to refuse bottles younger than 7 days. Homebrew offers one version per formula, so a refused bottle fails the install. On 2026-10-04 that would have refused 61 of the 190 most installed core formulae. OSV has no Homebrew data either way.
 
 <Aside type="caution" title="The vulnerability half needs your decision">
 SEC07-dep-gate also refuses a download with a known vulnerability at or above a threshold, default HIGH. In the same 10 lockfiles, 8 contain a package with a HIGH or CRITICAL advisory in OSV, mostly in development tools. At CRITICAL it is 2 of 10. Some advisories have no severity. This result doesn't change the default. I73 lays out the options and recommends refusing malicious-package reports and CRITICAL, and reporting HIGH.
@@ -129,11 +149,12 @@ SEC07-dep-gate also refuses a download with a known vulnerability at or above a 
 
 - <Badge text="verified" variant="success" /> Fresh installs of 10 projects (5 npm, 3 uv, 2 pip) through the spike's proxy: refuse failed 10 of 10, filter 1 of 10. The failure asks for `PyJWT>=2.15.1`, uploaded 6 days earlier (X21-dep-gate-registries, "Installs with a 7-day minimum age").
 - <Badge text="verified" variant="success" /> Lockfile installs: refuse failed 3 of 10, filter 2 of 10. Both failures pin versions from the last 7 days.
-- <Badge text="verified" variant="success" /> Go and cargo: `go get @latest` of five modules and a fresh `cargo fetch` of nine crates failed with refuse and passed with filter. Lockfile fetches passed with both.
+- <Badge text="verified" variant="success" /> cargo: a fresh `cargo fetch` of nine crates failed with refuse and passed with filter. The lockfile fetch passed with both.
+- <Badge text="inferred" variant="note" /> Go: `go get @latest` of five modules failed with refuse and passed with filter, and the lockfile download passed with both. Those runs used the `.info` Time as the clock, which S07-egress-gateway now rules out, so the Go result under the checksum-database clock is inferred. I76 measures it.
 - <Badge text="verified" variant="success" /> Publish times: npm `time` in the full packument, PyPI `upload-time` per file, crates.io `pubtime` on all 2,873 index lines sampled. `npm ci` and `uv sync --frozen` don't fetch metadata, and every download was still mapped from its URL.
-- <Badge text="verified" variant="success" /> Go's `.info` Time is the commit time. 173 of 200 versions first seen by the module proxy in the last week had one more than 7 days older. Checksum database record numbers grew with first-seen time over 14 days.
+- <Badge text="verified" variant="success" /> Go's `.info` Time is the commit time. 173 of 200 versions first seen by the module proxy in the last week had one more than 7 days older. Checksum database record numbers grew with first-seen time, in 36 samples over 14 days. That is the only check of the new clock.
 - <Badge text="verified" variant="success" /> Homebrew: 61 of the 190 most installed core formulae had a bottle younger than 7 days. `brew` checks the signature of `formula.jws.json` (`Library/Homebrew/api.rb`, `verify_and_parse_jws`). OSV doesn't list a Homebrew ecosystem.
-- <Badge text="verified" variant="success" /> OSV: about 240 ms per lookup. For axios (633 downloads), `npm ci` took 31 to 33 s with a lookup before each download, against 18 to 23 s without OSV. Overlapped with the download, it took 15 s, no slower than without OSV. Coalescing into `querybatch` didn't help.
+- <Badge text="verified" variant="success" /> OSV, two runs per setting: 230 to 250 ms median per lookup from the proxy, and 296 ms one at a time from a script. For axios (616 packages, 633 requests), `npm ci` took 31 to 33 s with a lookup before each download, against 18 to 23 s without OSV. Overlapped with the download, it took 15 s, no slower than without OSV. Coalescing into `querybatch` didn't help.
 - <Badge text="inferred" variant="note" /> The checksum database clock needs one calibration point, the record number of a version that `index.golang.org` lists as first seen 7 days ago. The spike checked the ordering, not a full implementation.
 - <Badge text="assumed" variant="caution" /> That the 10 projects are typical. They are active, popular projects, pinned to their commits of late September and early October 2026.
 
@@ -141,6 +162,7 @@ SEC07-dep-gate also refuses a download with a known vulnerability at or above a 
 
 - The dependency gate in `wb-proxyd` for V1-M5-approvals (SEC07-dep-gate), to the rewritten S07-egress-gateway section.
 - I73, the vulnerability threshold, which the gate's implementation also needs.
+- I76, the end-to-end measurement of the Go clock.
 - Part of the exit criterion of V1-M1-spikes-closed.
 
 <details>
