@@ -141,8 +141,6 @@ func decideCSI(t Token) Decision {
 	return drop("csi-not-allowed")
 }
 
-var semanticPrompt = map[string]bool{"A": true, "A;redraw=0": true, "B": true, "C": true, "D": true}
-
 func decideOSC(t Token) Decision {
 	num, payload := OSCParts(t)
 	switch num {
@@ -184,16 +182,8 @@ func decideOSC(t Token) Decision {
 			return pass("osc-color-query")
 		}
 		return drop("osc-color-set")
-	case "110", "111", "112":
-		if payload == "" {
-			return pass("osc-color-reset")
-		}
 	case "52":
 		return drop("osc52-clipboard") // FR12-clipboard
-	case "133":
-		if semanticPrompt[payload] {
-			return pass("osc133-prompt-mark")
-		}
 	case "1337":
 		return drop("osc1337-iterm2")
 	case "7":
