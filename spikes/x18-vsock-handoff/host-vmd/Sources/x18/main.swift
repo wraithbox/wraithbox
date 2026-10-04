@@ -549,6 +549,32 @@ func handoff(_ b: Bundle, recvPath: String) async throws {
     _ = c1  // keep c1 alive to here (2a)
 }
 
+/// Cold boot, then half-close in both directions on passed raw descriptors.
+@MainActor
+func halfclose(_ b: Bundle, recvPath: String) async throws {
+    let rc = try Recv(path: recvPath)
+    let t0 = now()
+    let m = try Machine(b)
+    try await m.vm.start()
+    close(m.net!.hostFD)
+    guard let (c, _, _) = await m.connectUntil(port: guestPort, deadline: t0 + 300) else { throw err("guest listener never answered") }
+    result(["step": "adopt-c"].merging(await rc.call(["op": "adopt-vsock", "id": "c"], fd: c.fileDescriptor)) { a, _ in a })
+    for (port, op) in [(UInt32(1025), "halfclose-fwd"), (UInt32(1026), "halfclose-rev")] {
+        if case .success(let h) = await m.connect(port: port, timeout: 5) {
+            let r = await rc.call(["op": op, "id": op], fd: h.fileDescriptor)
+            h.close()
+            result(["step": op].merging(r) { a, _ in a })
+        } else {
+            result(["step": op, "error": "connect failed"])
+        }
+    }
+    try? await Task.sleep(nanoseconds: 500_000_000)
+    let ev = await rc.call(["op": "events", "id": "c"])
+    let half = (ev["result"] as? [[String: Any]] ?? []).filter { ($0["kind"] as? String ?? "").hasPrefix("halfclose") }
+    result(["step": "guest-events", "events": half])
+    await m.hardStop()
+}
+
 /// Cold boot, let the guest settle, save state.vzvmsave, stop.
 @MainActor
 func prepare(_ b: Bundle, recvPath: String, settle: Double) async throws {
@@ -614,6 +640,7 @@ Task { @MainActor in
         case "install": try await install(Bundle(args[2]), ipsw: args[3], memGiB: Int(args[4])!)
         case "provision": try await provision(Bundle(args[2]), user: args[3], pass: args[4], minutes: Double(args[5])!)
         case "handoff": try await handoff(Bundle(args[2]), recvPath: args[3])
+        case "halfclose": try await halfclose(Bundle(args[2]), recvPath: args[3])
         case "prepare": try await prepare(Bundle(args[2]), recvPath: args[3], settle: Double(args[4])!)
         case "restore": try await restoreCmd(Bundle(args[2]), recvPath: args[3], keep: args.contains("--keep"))
         default:

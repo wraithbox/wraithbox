@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -186,6 +188,7 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 	}
 	record("listening", "vsock port 1024")
+	go halfCloseServers()
 	go func() {
 		t := time.NewTicker(5 * time.Second)
 		last := time.Now()
@@ -200,4 +203,52 @@ func main() {
 	err = srv.Serve(tracedListener{l})
 	record("serve-end", fmt.Sprint(err))
 	os.Exit(1)
+}
+
+// halfCloseServers tests half-close on raw vsock streams (X07-git-round-trip
+// assumes a byte stream with half-close).
+//
+//	port 1025: read until EOF, then write "got <n>" and close.
+//	port 1026: write 1 MiB, shutdown(SHUT_WR), read until EOF, record the count.
+func halfCloseServers() {
+	serve := func(port uint32, h func(*vs.Conn)) {
+		l, err := vs.Listen(port)
+		if err != nil {
+			record("halfclose-listen-error", fmt.Sprintf("%d: %v", port, err))
+			return
+		}
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				record("halfclose-accept-error", err.Error())
+				return
+			}
+			go h(c.(*vs.Conn))
+		}
+	}
+	go serve(1025, func(c *vs.Conn) {
+		defer c.Close()
+		n, err := io.Copy(io.Discard, c)
+		record("halfclose-1025", fmt.Sprintf("read %d bytes until %s", n, errOrEOF(err)))
+		_, werr := fmt.Fprintf(c, "got %d", n)
+		record("halfclose-1025", fmt.Sprintf("reply written after peer half-close: err %v", werr))
+	})
+	serve(1026, func(c *vs.Conn) {
+		defer c.Close()
+		buf := make([]byte, 1<<20)
+		_, werr := c.Write(buf)
+		var serr error
+		if raw, err := c.SyscallConn(); err == nil {
+			_ = raw.Control(func(fd uintptr) { serr = unix.Shutdown(int(fd), unix.SHUT_WR) })
+		}
+		n, err := io.Copy(io.Discard, c)
+		record("halfclose-1026", fmt.Sprintf("wrote 1 MiB err %v, shutdown(SHUT_WR) err %v, then read %d bytes until %s", werr, serr, n, errOrEOF(err)))
+	})
+}
+
+func errOrEOF(err error) string {
+	if err == nil {
+		return "EOF"
+	}
+	return err.Error()
 }

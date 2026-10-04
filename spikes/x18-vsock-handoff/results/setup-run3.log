@@ -1,0 +1,25 @@
+mac 26:fe:9f:70:a5:06 lease 26:fe:9f:70:a5:6
+guest ip 192.168.64.4 after 5s
+ssh up after 28s
+Warning: Permanently added '192.168.64.4' (ED25519) to the list of known hosts.
+ProductName:		macOS
+ProductVersion:		27.0.1
+BuildVersion:		26A434
+Darwin x18s-Virtual-Machine.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:00:07 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_VMAPPLE arm64
+uid=501(x18) gid=20(staff) groups=20(staff),12(everyone),61(localaccounts),79(_appserverusr),80(admin),81(_appserveradm),33(_appstore),98(_lpadmin),100(_lpoperator),204(_developer),250(_analyticsusers),395(com.apple.access_ftp),398(com.apple.access_screensharing),399(com.apple.access_ssh),400(com.apple.access_remote_ae),701(com.apple.sharepoint.group.1)
+Warning: Permanently added '192.168.64.4' (ED25519) to the list of known hosts.
+Warning: Permanently added '192.168.64.4' (ED25519) to the list of known hosts.
+Password:Warning: Permanently added '192.168.64.4' (ED25519) to the list of known hosts.
+Password:	state = running
+	pid = 494
+		state = active
+		state = active
+	job state = running
+2026/10/04 15:43:10.891357 start pid 494 cid 3 err <nil>
+2026/10/04 15:43:10.891485 listening vsock port 1024
+Warning: Permanently added '192.168.64.4' (ED25519) to the list of known hosts.
+Password:Shutdown NOW!
+
+System shutdown time has arrived
+Connection to 192.168.64.4 closed by remote host.
+provisioned in 38s

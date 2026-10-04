@@ -77,4 +77,9 @@ python3 stats.py results/restore-4g.jsonl results/cold-4g.jsonl > results/stats.
   restore series used.
 - `results/stats.txt`: p50 and p95. For `cold-4g.jsonl`, "20 runs"
   counts lines, two per boot.
-- `results/setup-run*.log`: the two provisioning runs.
+- `results/halfclose.jsonl`: half-close in both directions on raw
+  passed vsock descriptors (`x18 halfclose`, on a bundle provisioned
+  from `pristine` with the guest daemon that has ports 1025 and 1026),
+  with the guest's own record of each.
+- `results/setup-run*.log`: the provisioning runs (run 3 is the
+  half-close bundle).

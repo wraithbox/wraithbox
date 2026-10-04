@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -150,6 +151,8 @@ func handle(r req, fd int) map[string]any {
 		return adoptNet(r, fd)
 	case "net":
 		return netEcho(r)
+	case "halfclose-fwd", "halfclose-rev":
+		return halfClose(r, fd)
 	case "stop-peer-and-check":
 		return stopPeerAndCheck(r)
 	case "close":
@@ -530,5 +533,49 @@ func stopPeerAndCheck(r req) map[string]any {
 	if err := unix.Kill(pid, unix.SIGCONT); err != nil {
 		out["contError"] = err.Error()
 	}
+	return out
+}
+
+// halfClose tests half-close on a raw passed vsock descriptor.
+//
+//	halfclose-fwd (guest port 1025): write 1 MiB, shutdown(SHUT_WR), read the reply until EOF.
+//	halfclose-rev (guest port 1026): read until EOF (the guest half-closed), then write 1 MiB and close.
+func halfClose(r req, fd int) map[string]any {
+	if fd < 0 {
+		return map[string]any{"error": "no descriptor attached"}
+	}
+	c, err := vs.FromFD(fd, "halfclose")
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(10 * time.Second))
+	out := map[string]any{}
+	shut := func() error {
+		var serr error
+		raw, err := c.SyscallConn()
+		if err != nil {
+			return err
+		}
+		_ = raw.Control(func(fd uintptr) { serr = unix.Shutdown(int(fd), unix.SHUT_WR) })
+		return serr
+	}
+	buf := make([]byte, 1<<20)
+	if r.Op == "halfclose-fwd" {
+		_, werr := c.Write(buf)
+		out["writeError"] = errStr(werr)
+		out["shutdownError"] = errStr(shut())
+		reply, rerr := io.ReadAll(c)
+		out["reply"] = string(reply)
+		out["readEnd"] = errStr(rerr)
+		out["ok"] = rerr == nil && string(reply) == "got 1048576"
+		return out
+	}
+	got, rerr := io.ReadAll(c)
+	out["readBytes"] = len(got)
+	out["readEnd"] = errStr(rerr)
+	_, werr := c.Write(buf)
+	out["writeAfterPeerHalfCloseError"] = errStr(werr)
+	out["ok"] = rerr == nil && len(got) == 1<<20 && werr == nil
 	return out
 }
