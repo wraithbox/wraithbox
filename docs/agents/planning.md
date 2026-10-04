@@ -105,6 +105,15 @@ first-class issues, and the first milestone is mostly spikes.
   `spikes/x<NN>-<slug>/` on that branch. That code is not held to the
   project gates, is never merged to `main`, and the branch is kept as
   the record. The user-level `spike` skill follows this convention.
+- **Tag.** When the result pull request merges, the coordinator tags
+  the spike commit that the result page links to with an annotated tag
+  `spike-x<NN>-<slug>` (for example `spike-x19-terminal-filter`) and
+  pushes it. The tag keeps the commit reachable if the branch is ever
+  deleted or rewritten, so the permalink keeps working. The result page
+  links to the head of the spike branch: a builder who adds a spike
+  commit after the first result updates the permalink in the same
+  round. A tag is never moved. If later spike work needs a new record,
+  it gets its own result and tag.
 - **Result.** The answer lands on `main` as a short pull request that
   adds `docs/spikes/X<NN>-<slug>.md`: the question, the answer
   (yes / no / yes-with-conditions), the measurements, what it means for

@@ -123,7 +123,8 @@ request; the result pull request does (`planning.md`).
    PRs with their `mergeable` state (GitHub says `UNKNOWN` for a minute);
    send anything `CONFLICTING` back to its builder with the likely files
    named. A PR that adds a gate or touches a hot file merges first, and
-   the others rebase once onto it.
+   the others rebase once onto it. When a spike result merges, tag its
+   spike commit (`planning.md`, "Spikes", "Tag").
 7. **Finish.** Report what merged, what review caught, what is left and
    which follow-ups were filed. Close the milestone if its exit criterion
    holds (`planning.md`). Stop finished agents with `TaskStop`.
