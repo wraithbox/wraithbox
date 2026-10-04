@@ -1,0 +1,12 @@
+{
+ "axios": {"eco": "npm", "repo": "axios/axios", "ref": "c4303eeb601d3d5914a0f425cc7539616fdc7ea7", "files": [["package.json", "package.json"], ["package-lock.json", "package-lock.json"]]},
+ "open-webui": {"eco": "npm", "repo": "open-webui/open-webui", "ref": "8bd8b4fac5e059578ac0c74b3c18d11139f88b7d", "files": [["package.json", "package.json"], ["package-lock.json", "package-lock.json"]]},
+ "actions-toolkit": {"eco": "npm", "repo": "actions/toolkit", "ref": "6cb87687384f971ebb756e43c7a56f62cd80a31d", "files": [["package.json", "package.json"], ["package-lock.json", "package-lock.json"]]},
+ "datasette": {"eco": "npm", "repo": "simonw/datasette", "ref": "cec5e6b2ef5d33eda31f9be092c4ec174ff0c5e9", "files": [["package.json", "package.json"], ["package-lock.json", "package-lock.json"]]},
+ "undici": {"eco": "npm", "repo": "nodejs/undici", "ref": "a60d1edd2aa7242bcfa59657db97316024c069a0", "files": [["package.json", "package.json"], ["package-lock.json", "package-lock.json"]]},
+ "flask": {"eco": "uv", "repo": "pallets/flask", "ref": "d73fa1cdcbd8b1465c151db8924ba58b1dd14e35", "files": [["pyproject.toml", "pyproject.toml"], ["uv.lock", "uv.lock"]]},
+ "fastapi": {"eco": "uv", "repo": "fastapi/fastapi", "ref": "5f9fc5c59a9bb54608aa35376715f3ba9708188e", "files": [["pyproject.toml", "pyproject.toml"], ["uv.lock", "uv.lock"]]},
+ "starlette": {"eco": "uv", "repo": "Kludex/starlette", "ref": "6beaa2e39d3381e1d7ddb89d4cc7cbb8c7ac0961", "files": [["pyproject.toml", "pyproject.toml"], ["uv.lock", "uv.lock"]]},
+ "warehouse": {"eco": "pip", "repo": "pypi/warehouse", "ref": "8f38ce5c45aef4f0370509d6651551073a2a82fa", "files": [["requirements/main.txt", "requirements.txt"], ["requirements/main.in", "requirements.in"]]},
+ "httpx": {"eco": "pip", "repo": "encode/httpx", "ref": "b5addb64f0161ff6bfe94c124ef76f6a1fba5254", "files": [["requirements.txt", "requirements.txt"]]}
+}
