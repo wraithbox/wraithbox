@@ -1,0 +1,118 @@
+---
+title: Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore?
+description: Yes, with conditions. Go uses vsock in a macOS guest without cgo, passed descriptors keep working without wb-vmd, and every connection ends at a restore, after which wb-guestd answers 4.1 s after the restore starts.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-05: yes, with conditions.** Source: X18-vsock-handoff (I29). Changes S04-architecture, S06-vm-lifecycle, S11-verification-and-spikes and S12-platforms. Follow-up: I86.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** A Go daemon in a macOS guest listens and dials on vsock through `golang.org/x/sys/unix`, with no C code. `wb-vmd` can pass each guest connection and the network endpoint to a Go process and close its own copy: the Go side kept working even with `wb-vmd` frozen. A restore ends every connection, so `wb-hostd` reconnects after each one. From a fresh clone, `wb-guestd` answers 4.1 s (p50) after the restore starts, which leaves about 2.9 s of the 7 s in NFR01-startup. Approving accepts the spec text in this pull request.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 320" role="img" aria-label="wb-vmd asks Virtualization for a vsock connection and gets a Unix socket descriptor. It passes that descriptor with its ports to wb-hostd and closes its own copy. Bytes flow between wb-hostd and the guest through Apple's Virtualization service, not through wb-vmd. The network socket pair end goes to wb-netd the same way.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="560" y="20" width="185" height="280" rx="12" />
+  <text class="boundary-label" x="572" y="40">guest (untrusted)</text>
+  <rect class="box guest" x="580" y="60" width="145" height="60" rx="10" />
+  <text class="label" x="652" y="86" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="652" y="106" text-anchor="middle">vsock, Go</text>
+  <rect class="box guest" x="580" y="210" width="145" height="60" rx="10" />
+  <text class="label" x="652" y="236" text-anchor="middle">guest kernel</text>
+  <text class="note" x="652" y="256" text-anchor="middle">network device</text>
+
+  <rect class="box host" x="320" y="120" width="180" height="80" rx="10" />
+  <text class="label" x="410" y="150" text-anchor="middle">Virtualization</text>
+  <text class="note" x="410" y="172" text-anchor="middle">Apple's service process</text>
+
+  <rect class="box host" x="20" y="130" width="150" height="60" rx="10" />
+  <text class="label" x="95" y="156" text-anchor="middle">wb-vmd</text>
+  <text class="note" x="95" y="176" text-anchor="middle">passes, then closes</text>
+
+  <rect class="box host" x="170" y="40" width="130" height="50" rx="10" />
+  <text class="label" x="235" y="70" text-anchor="middle">wb-hostd</text>
+  <rect class="box host" x="170" y="240" width="130" height="50" rx="10" />
+  <text class="label" x="235" y="270" text-anchor="middle">wb-netd</text>
+
+  <path class="edge" d="M80,128 C80,90 120,70 168,66" marker-end="url(#f1-arrow)" />
+  <text class="note" x="20" y="100">descriptor + ports</text>
+  <path class="edge" d="M80,192 C80,240 120,262 168,265" marker-end="url(#f1-arrow)" />
+  <text class="note" x="20" y="230">descriptor</text>
+
+  <line class="edge" x1="302" y1="70" x2="350" y2="118" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <line class="edge" x1="302" y1="262" x2="350" y2="202" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <line class="edge" x1="502" y1="140" x2="578" y2="96" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <line class="edge" x1="502" y1="180" x2="578" y2="234" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+</svg>
+<figcaption>
+Figure 1. Guest bytes go between our Go daemons and the guest through Apple's Virtualization service process, never through `wb-vmd`. `wb-vmd` only creates the connections and hands them over (S04-architecture). At a restore every vsock connection ends, and `wb-hostd` connects again (S06-vm-lifecycle).
+</figcaption>
+</figure>
+
+## What changes in the specs
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### Hand-off as measured
+
+`wb-vmd` passes each vsock descriptor with its ports, and the network socket end, then closes its copies. `wb-hostd` reconnects to `wb-guestd` after every restore.
+
+- **Cost:** reconnect logic in `wb-hostd`, and ports sent next to each descriptor.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> no guest bytes in `wb-vmd`.
+
+</div>
+</div>
+
+No other option came up. A relay in `wb-vmd`, the fallback the issue named, isn't needed.
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>Hand-off as measured</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>NFR01-startup</strong> suspended VM within 7 s to the prompt</td><td class="yes">4.1 s to wb-guestd, idle guest</td></tr>
+<tr><td><strong>NFR01-startup</strong> hard ceiling 10 s</td><td class="partial">cold boot 11 s, I86</td></tr>
+<tr><td><strong>SEC12-least-privilege</strong> each process gets only what it needs</td><td class="yes">guest bytes stay out of wb-vmd</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> `golang.org/x/sys/unix` has `AF_VSOCK` and `SockaddrVM` for darwin. A Go LaunchDaemon in the guest listened, accepted, dialed the host, and served gRPC. Source: X18-vsock-handoff, "Answer" part 1, `results/handoff-run2.jsonl` on the spike branch.
+- <Badge text="verified" variant="success" /> The descriptor of a vsock connection is a Unix stream socket. It kept working in a Go process after `wb-vmd` closed or dropped its copy, and while `wb-vmd` was stopped with `SIGSTOP`. Source: "Answer" part 2, `results/handoff-run2.jsonl`.
+- <Badge text="verified" variant="success" /> Half-close works in both directions, as X07-git-round-trip assumed. Source: `results/halfclose.jsonl`.
+- <Badge text="verified" variant="success" /> After a save and a restore into a new VM, all old connections read EOF on both sides, and a new connection works 5 ms after `resume`. Source: "Answer" part 4.
+- <Badge text="verified" variant="success" /> Restore from a fresh clone to `wb-guestd` answering gRPC: 4.13 s p50, 4.21 s p95, 20 runs. Source: "Measurements", `results/stats.txt`.
+- <Badge text="verified" variant="success" /> A restore while the host is locked fails with "permission denied", with the Secure Enclave key refused in the system log. Source: "Measurements", `results/restore-4g-failed.jsonl`.
+- <Badge text="assumed" variant="caution" /> That a working guest, with more memory in use, also restores to `wb-guestd` within the budget. Every state here was an idle guest. The time-to-prompt benchmark of S11-verification-and-spikes measures it.
+- <Badge text="assumed" variant="caution" /> That the VM stops with `wb-vmd` if `wb-vmd` exits. Not tested, and no recommendation depends on it.
+
+## What it unblocks
+
+The `wb-vmd` and `wb-guestd` contracts in I52, the vsock RPCs of the walking skeleton (V1-M2-walking-skeleton), and X17-image-build (I28), which gets evidence that `VZMacGuestProvisioningOptions` works on a macOS 27 host and guest.
+
+<details>
+<summary>Details and glossary</summary>
+
+**The descriptor is a Unix socket.** On the host, `socket(AF_VSOCK)` fails: only Virtualization talks to the virtual device. It hands each connection out as one end of a Unix socket and copies bytes to the device itself. So the bytes never go through `wb-vmd`, but they do go through Apple's service process, as they would with any design on macOS.
+
+**`wb-vmd` sends the ports with the descriptor.** The process that gets a Unix socket can't ask it which vsock port it came from. `wb-vmd` reads the ports from `VZVirtioSocketConnection` and sends them along, and `wb-hostd` decides which service a connection reaches by that port.
+
+**A restore ends every connection.** It creates a new VM process. The old VM's connections die with it, and the guest, which resumes with its old memory, finds its side of each connection closed. Its listener still works, so `wb-hostd` connects again.
+
+**How the daemon got into the guest.** The spike used the macOS 27 provisioning options to create a user with remote login on the first boot. It then copied the daemon in over SSH and shut the guest down, 40 s in all. That is a spike shortcut: the product's image build is X17-image-build.
+
+- **vsock:** the host-guest socket, a direct channel between the host and the guest that doesn't go through the network.
+- **Descriptor:** a number a process uses to refer to an open socket or file. A process can send one to another over a Unix socket (`SCM_RIGHTS`).
+- **Half-close:** one side says it's done sending, and can still receive.
+- **p50, p95:** the median, and the value 95% of runs stay under.
+
+</details>

@@ -71,8 +71,11 @@ in S12-platforms.
   - Saving needs the host user's session unlocked. When the idle
     period ends while the host is locked, the VM keeps running and is
     saved after the next unlock (decided on I16, B16-warm-start).
-    Restoring while the host is locked is untested,
-    and assumed to fail as saving does.
+    Restoring needs it unlocked too: a restore while locked fails with
+    "permission denied" (X18-vsock-handoff).
+  - A restore ends every host-guest connection. `wb-hostd` connects
+    to `wb-guestd` again after each one, which answers within about
+    0.2 s of `resume` (X18-vsock-handoff).
   - A saved state works only on the host that wrote it, and may stop
     working after a host update. A restore that fails for one of these
     permanent reasons deletes the state, and `wb-vmd` cold boots the

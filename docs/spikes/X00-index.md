@@ -32,7 +32,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X15-endpoint-security | Endpoint Security entitlement | Open |
 | X16-openshell-linux | OpenShell for Linux guests | Open |
 | X17-image-build | Unattended image build | Open |
-| X18-vsock-handoff | Host-guest socket and descriptor hand-off | Open |
+| X18-vsock-handoff | Host-guest socket and descriptor hand-off | Answered 2026-10-05: yes, with conditions |
 | X19-terminal-filter | Terminal stream filtering | Answered |
 | X20-shared-homebrew | Homebrew with more than one project user | Open |
 | X21-dep-gate-registries | Dependency gate on real registries | Answered 2026-10-04: yes, with conditions |
@@ -158,6 +158,7 @@ assumption that v1 work would otherwise build on. They block v1.
   file descriptors of a vsock connection and of the file-handle
   network attachment keep working after `wb-vmd` passes them to
   another process (`SCM_RIGHTS`), and across save and restore? S04-architecture rests on the answer ("descriptors, not bytes").
+  Answered yes, with conditions, in the result page X18-vsock-handoff.
 - **X19-terminal-filter: Terminal stream filtering.** Which terminal escape sequences
   does Claude Code emit, and can `wb` drop the ones that act on the
   host (clipboard writes, file transfer, terminal multiplexer control

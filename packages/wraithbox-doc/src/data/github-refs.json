@@ -1,14 +1,14 @@
 {
 	"1": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "build(deps): Bump astro from 7.3.2 to 7.3.5 in /packages/wraithbox-doc",
 		"summary": "Bumps astro from 7.3.2 to 7.3.5."
 	},
 	"2": {
 		"kind": "pr",
-		"state": "open",
-		"title": "chore(deps): Bump @astrojs/starlight from 0.42.0 to 0.42.4 in /packages/wraithbox-doc",
+		"state": "merged",
+		"title": "build(deps): Bump @astrojs/starlight from 0.42.0 to 0.42.4 in /packages/wraithbox-doc",
 		"summary": "Bumps @astrojs/starlight from 0.42.0 to 0.42.4."
 	},
 	"3": {
@@ -173,7 +173,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X18-vsock-handoff: Host-guest socket and descriptor hand-off",
-		"summary": "X18-vsock-handoff (added to S11-verification-and-spikes in #14)"
+		"summary": "X18-vsock-handoff (added to S11-verification-and-spikes in #14)",
+		"brief": "B29-vsock-handoff"
 	},
 	"30": {
 		"kind": "issue",
@@ -199,7 +200,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X22-no-guest-credentials: Clients without guest credentials",
-		"summary": "X22-no-guest-credentials (added to S11-verification-and-spikes in #14)"
+		"summary": "X22-no-guest-credentials (added to S11-verification-and-spikes in #14)",
+		"brief": "B33-no-guest-credentials"
 	},
 	"34": {
 		"kind": "issue",
@@ -457,7 +459,7 @@
 	},
 	"73": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: vulnerability threshold of the dependency gate",
 		"summary": "Found by the X21-dep-gate-registries spike (#32)."
 	},
@@ -494,8 +496,51 @@
 	},
 	"79": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): record the 2026-10-04 spike wave decisions",
 		"summary": "The maintainer decided the five briefs of the wave and #73:"
+	},
+	"80": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spikes): add X25-vmd-sandbox and X26-pre-receive-check to V1-M1",
+		"summary": "The maintainer put both follow-up spikes in V1-M1-spikes-closed on 2026-10-04:"
+	},
+	"81": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): treat the host terminal stream as a boundary",
+		"summary": "- Decides: guest output reaching the user's terminal is boundary 6 of T00-index, and wb filters it with the allowlist measured in X19-terminal-filter (S05-cli, \"Terminal stream\")."
+	},
+	"82": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S09-policy-credentials-audit: record terminal filter drops and dropped links",
+		"summary": "S05-cli (\"Terminal stream\", #81) has wb send each dropped OSC 8 link (its URL and link text) and the terminal filter's drop counts to wb-hostd, to go in the audit log."
+	},
+	"83": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Guest terminfo for the host TERM passed into the session",
+		"summary": "S05-cli (\"Terminal stream\", #81) passes the host's TERM into the guest session, because Claude Code picks its sequences from it."
+	},
+	"84": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Move the S05-cli terminal stream section into its own spec",
+		"summary": "The PR #81 review (finding 9) noted that S05-cli is about 270 lines against the S01-spec-based-development aim of under 100, and that its \"Terminal stream\" section is about 105 lines."
+	},
+	"85": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spike): X22-no-guest-credentials result",
+		"summary": "Result of the X22-no-guest-credentials spike (#33).",
+		"brief": "B33-no-guest-credentials"
+	},
+	"86": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Cold boot to wb-guestd takes about 11 s, above the NFR01-startup ceiling",
+		"summary": "Found by X18-vsock-handoff (#29)."
 	}
 }
