@@ -18,6 +18,7 @@ issue, the spike result, or the spec). A brief explains it.
 
 | ID | Description | Status |
 |----|-------------|--------|
+| B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04 |
 | B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04 |
 | B34-sandboxed-daemons | Can the Go daemons confine themselves on macOS? | Answered 2026-10-04 |
 | B36-flow-attribution | Can projects sharing the work VM keep their network grants apart? | Decided 2026-10-04: A. The VM is the enforced unit |
