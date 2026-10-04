@@ -430,7 +430,6 @@
 		"kind": "pr",
 		"state": "open",
 		"title": "docs(spike): X07-git-round-trip answered, yes with conditions",
-		"summary": "Result of spike X07-git-round-trip: yes, with conditions.",
-		"brief": "B21-git-round-trip"
+		"summary": "Result of spike X07-git-round-trip: yes, with conditions."
 	}
 }
