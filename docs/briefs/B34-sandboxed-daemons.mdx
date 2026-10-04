@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-04.** Source: X23-sandboxed-daemons, I34. Affects S04-architecture and S12-platforms. The `wb-proxyd` Keychain part is I61.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** Each Go daemon can confine itself, but its children can't confine themselves any further. So `wb-hostd` starts the other daemons through a small unconfined launcher (option A). Accepting merges the S04-architecture and S12-platforms changes here, and leaves the `wb-proxyd` Keychain rules to I61.
+**Yes, with conditions.** Each Go daemon can confine itself, but its children can't confine themselves any further. You choose how `wb-hostd` starts the other daemons. Recommended: a small unconfined launcher under strict conditions (option A), which also starts git with its own profile. Accepting merges the S04-architecture and S12-platforms changes here.
 </Aside>
 
 ## The picture
@@ -35,7 +35,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 
   <rect class="box host" x="30" y="236" width="150" height="56" rx="10" />
   <text class="label" x="105" y="260" text-anchor="middle">git</text>
-  <text class="note" x="105" y="278" text-anchor="middle">inherits the profile</text>
+  <text class="note" x="105" y="278" text-anchor="middle">as the spike ran it</text>
 
   <line class="edge" x1="60" y1="76" x2="60" y2="144" marker-end="url(#f1-arrow)" />
   <line class="edge" x1="105" y1="202" x2="105" y2="234" marker-end="url(#f1-arrow)" />
@@ -71,7 +71,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <text class="note" x="600" y="200">Ethernet frames</text>
 </svg>
 <figcaption>
-Figure 1. Option A. The launcher starts before <code>wb-hostd</code> confines itself. The daemons it starts can then each apply their own profile. A child that the confined <code>wb-hostd</code> starts directly (red) inherits the <code>wb-hostd</code> profile, and the kernel refuses its own (<code>forbidden-sandbox-reinit</code>). git runs as a child of <code>wb-hostd</code> and stays inside its profile.
+Figure 1. Option A. The launcher starts before <code>wb-hostd</code> confines itself. The daemons it starts can then each apply their own profile. A child that the confined <code>wb-hostd</code> starts directly (red) inherits the <code>wb-hostd</code> profile, and the kernel refuses its own (<code>forbidden-sandbox-reinit</code>). The figure shows git as the spike ran it, a child of <code>wb-hostd</code> inside its profile. Option A instead starts git through the launcher, as a <code>wb-git</code> shim with a profile for one repository.
 </figcaption>
 </figure>
 
@@ -84,9 +84,18 @@ The spike settled the mechanism: an in-process profile, without cgo. The real ch
 
 ### A. A launcher started before wb-hostd confines itself
 
-`wb-hostd` starts a launcher first, then confines itself. Later it asks the launcher for each daemon (`wb-vmd`, one `wb-netd` per VM, `wb-proxyd`) and hands it their descriptors. The launcher starts only those programs, and each confines itself first thing.
+`wb-hostd` starts a launcher first, then confines itself. Later it asks the launcher for each daemon (`wb-vmd`, one `wb-netd` per VM, `wb-proxyd`) and hands it their descriptors. The launcher starts only those programs, and each confines itself first thing. The launcher must hold to these conditions, which the spike's looser launcher didn't:
 
-- **Cost:** one small process with no profile, under 160 lines in the spike, test code included. Its input is only `wb-hostd`'s requests, which it checks against a fixed table. It also becomes the parent that sees the daemons exit, which the I48 supervision change must cover.
+- a separate standard-library-only program, not `wb-hostd` started in another mode;
+- requests over a `SOCK_SEQPACKET` or `SOCK_DGRAM` socketpair inherited at start, one fixed-format request per message, with unexpected descriptors closed and the request refused;
+- no arguments and a fixed environment for each program;
+- profiles and their parameters compiled into each program, or taken from configuration `wb-hostd` read before it confined itself, never from a request;
+- a table of absolute paths in the installed bundle, never under `<config>`, `<data>` or `<logs>`, which the launcher checks;
+- an instance cap per program.
+
+git starts the same way, as a `wb-git` shim that applies a profile for one repository and then runs git (proposal, not tried). The fallback is git as a child of `wb-hostd` under its profile, as the spike ran it. A git bug then reaches every project's policy, the approvals in `state.db`, other projects' landing repositories, and the audit log.
+
+- **Cost:** one small process with no profile (the spike's was 165 lines, test code included), plus the `wb-git` shim. The launcher becomes the parent that sees the daemons exit, which the I48 supervision change must cover, including what happens when `wb-hostd` restarts.
 - **Keeps:** <Badge text="SEC12-least-privilege" variant="success" />
 
 </div>
@@ -141,30 +150,36 @@ Only `wb-netd`, `wb-proxyd` and `wb-vmd` confine themselves. `wb-hostd` starts t
 
 - <Badge text="verified" variant="success" /> A Go program that calls `sandbox_init_with_parameters` in `main`, without cgo, keeps goroutines, garbage collection, preemption, timers, `crypto/rand` and ECDSA working under `(deny default)`, and is denied every file open, `stat`, connect, listen, DNS lookup, and program start. The profile covers all 32 OS threads tried (X23-sandboxed-daemons, "What a confined Go program can still do").
 - <Badge text="verified" variant="success" /> A `wb-netd` stand-in on gVisor moves 4 streams of 64 MiB each way over an inherited socket and hands each stream to a proxy with `SCM_RIGHTS`, at the same throughput confined as unconfined: 438 against 420 MiB/s, medians of 5 (X23-sandboxed-daemons, "wb-netd: gVisor over inherited descriptors").
-- <Badge text="verified" variant="success" /> Denying the `hw.ncpu` read makes Go 1.27 set `GOMAXPROCS` to 1 within seconds and cuts that throughput to 258 MiB/s. The runtime re-reads the CPU count every second (`runtime/cgroup_stubs.go`, `sysmonUpdateGOMAXPROCS` in `runtime/proc.go`).
+- <Badge text="verified" variant="success" /> Denying the `hw.ncpu` read makes Go 1.27 set `GOMAXPROCS` to 1 within seconds and cuts that throughput to 258 MiB/s. The runtime re-reads the CPU count every second (`runtime/cgroup_stubs.go`, `sysmonUpdateGOMAXPROCS` in `runtime/proc.go`). An explicit `runtime.GOMAXPROCS` call before confining turns that off: it stays at 8 under a bare `(deny default)` (437 MiB/s, median of 3). The security review on PR65 found this.
+- <Badge text="verified" variant="success" /> Paths pasted into generated profile text let a crafted path turn the profile off (reproduced in the security review on PR65). Paths go in as parameters instead.
 - <Badge text="verified" variant="success" /> A child of a confined process can't apply its own profile. The kernel logs `deny(1) forbidden-sandbox-reinit` and the call fails with "Operation not permitted". Through a launcher started before confinement, the child's profile applies.
 - <Badge text="verified" variant="success" /> Under its profile, a `wb-hostd` stand-in reads its configuration, writes and locks its state file, appends to its log, serves its Unix socket, and runs a git push and clone into a landing repository with Homebrew git and with the Xcode git binary. Writes to its configuration, files outside its directories, and network connections are denied.
 - <Badge text="verified" variant="success" /> `sandbox-exec` needs extra rules to start a Go binary at all: running and reading it, `/usr/lib`, the dyld cache, and the `sysctl` values the runtime reads at start.
 - <Badge text="verified" variant="success" /> Apple's SDK header marks `sandbox_init` "No longer supported" since macOS 10.8, and the `sandbox-exec` man page says "DEPRECATED". Both work on macOS 27.0.1.
-- <Badge text="inferred" variant="note" /> The launcher doesn't give an attacker in `wb-hostd` any right it lacks today. `wb-hostd` already starts these programs, and each one confines itself before it reads anything `wb-hostd` sends.
+- <Badge text="inferred" variant="note" /> The launcher doesn't give an attacker in `wb-hostd` any right it lacks today, but only while the conditions under option A hold. `wb-hostd` already starts these programs, and each one confines itself before it reads anything `wb-hostd` sends. The spike's launcher didn't meet them: it passed on arguments and the profile from `wb-hostd`, so a compromised `wb-hostd` could have started an unconfined `wb-netd` (code review on PR65).
+- <Badge text="assumed" variant="caution" /> That the `wb-git` shim works with a profile for one repository. Not built in the spike.
 - <Badge text="assumed" variant="caution" /> That Apple keeps `sandbox_init_with_parameters` working in later macOS versions. Apple doesn't promise it.
 - <Badge text="assumed" variant="caution" /> That `wb-vmd` can confine itself with the Virtualization framework running. Not tested: I64.
 
 ## What this unblocks
 
-- I61: the `wb-proxyd` profile with Keychain and Secure Enclave rules, starting from this spike's network profiles.
+- I61: the `wb-proxyd` profile with Keychain and Secure Enclave rules, starting from `proxyd-net.sb`.
 - I64: the `wb-vmd` profile.
+- I67: how `wb-hostd` gets the user's repository without reading it.
+- I68: `wb-proxyd` ties a stream to its VM by the connection, not by a tag from `wb-netd`.
 - The S04-architecture supervision change from I48, which now includes the launcher.
 - The `internal/platform` self-sandbox code for macOS, once V1-M1-spikes-closed closes and the implementation issues are written.
 
 <details>
 <summary>Details and glossary</summary>
 
-**Why in process, not `sandbox-exec`.** With `sandbox-exec`, the profile is in force before the program is loaded. It must then also let the process read the system libraries and run its own binary, until the process exits. In process, the call comes after loading, and the profile only allows what the daemon does from then on. It also keeps the profile inside the binary, where the parent can't swap it.
+**Why in process, not `sandbox-exec`.** With `sandbox-exec`, the profile is in force before the program is loaded. It must then also let the process read the system libraries and run its own binary, until the process exits. In process, the call comes after loading, and the profile only allows what the daemon does from then on. It also keeps the profile inside the binary, so the parent can't swap it. That last point follows from the design and was not tested.
 
 **Why no cgo.** cgo would make each macOS build need a C toolchain for macOS and stop cross-compiling from Linux or Windows. The spike calls the function through a few lines of Go assembly, the way the standard `golang.org/x/sys/unix` package calls the C library on macOS. That links to a function in package `syscall` (`syscall6`) which Go keeps for `golang.org/x/sys` and lets other packages use (`syscall/syscall_darwin.go` in Go 1.27, go.dev/issue/67401). A later Go release could restrict that, and the build would then fail rather than run unconfined.
 
-**Why git stays inside `wb-hostd`'s profile.** The git gateway runs `git upload-pack` and `git receive-pack` on data the guest sends. Under the `wb-hostd` profile, a bug in git reaches only the `wb-hostd` directories. For that, `wb-hostd` runs git without the user's git configuration, which it must do anyway.
+**Why git gets its own profile.** The git gateway runs `git upload-pack` and `git receive-pack` on data the guest sends. Under the `wb-hostd` profile, a bug in git reaches everything in the `wb-hostd` directories: policy, approvals, every landing repository, the audit log. A `wb-git` shim with a profile for one repository limits it to that repository. Either way, git runs without the user's git configuration, and the profile allows only the git installation (`bin/git`, `libexec/git-core/`, `share/git-core/` and the libraries git links), not all of `/opt/homebrew`.
+
+**A gap this found.** `wb-hostd` can't read the user's repository under its profile, which S08-workspace-and-git needs for the project clone. I67 has the options.
 
 **Glossary**
 
