@@ -57,6 +57,7 @@ nolintlint
 unconvert
 unparam
 safehouse
+Vulns
 
 # Docs site (Astro Starlight)
 frontmatter

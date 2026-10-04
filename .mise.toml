@@ -267,12 +267,20 @@ depends = ["vuln:osv", "go:vulncheck"]
 # Because that failure is silent, the loop below re-derives the lockfile
 # list from git and fails if the scanner did not report opening every one.
 # A new package manager means a new lockfile: add its pattern here.
+#
+# `--config` names the root `osv-scanner.toml` for every lockfile. Without
+# it the scanner looks for a config next to each lockfile, so the file
+# would not apply to `packages/wraithbox-doc/bun.lock`. The file holds
+# expiring advisory overrides (AGENTS.md, "Supply chain"), which
+# `scripts/osv-ignores.mjs` checks first, and the scanner prints each
+# advisory it leaves out, with the reason.
 [tasks."vuln:osv"]
 description = "osv-scanner over every committed lockfile"
 run = '''
 set -eu
+bun scripts/osv-ignores.mjs osv-scanner.toml
 status=0
-out=$(osv-scanner scan source -r . 2>&1) || status=$?
+out=$(osv-scanner scan source --config osv-scanner.toml -r . 2>&1) || status=$?
 echo "$out"
 
 missing=0
