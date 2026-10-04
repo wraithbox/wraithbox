@@ -50,8 +50,9 @@ FR07-toolchain-manifest, FR08-no-proxy-config
      token flow as the fallback if `ghcr.io` stops accepting it.
   3. What an approval grants on a host without a built-in profile.
      Recommended: read methods only (GET, HEAD, OPTIONS), with a write
-     method as a separate approval that the risk check flags. No spec
-     said this before, and it bounds T10-unnamed-credentials.
+     method or a WebSocket upgrade as a separate approval that the
+     risk check flags. The specs were silent on this before, and it
+     bounds T10-unnamed-credentials.
 - **Brief:** B33-no-guest-credentials
 
 ## Question

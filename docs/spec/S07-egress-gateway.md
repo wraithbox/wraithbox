@@ -67,9 +67,16 @@ the host.
   (the path and query, with any userinfo of an absolute-form target
   dropped), no trailers, and a `Host` or `:authority` that must equal
   the stream's hostname, or the request is refused. Policy, bindings
-  and the credential rules match on the canonical path: dot segments
-  removed, and a request whose path has an encoded `/` or `.`, or a
-  control byte, refused. The canonical path is the one sent upstream.
+  and the credential rules match on the canonical path, which is also
+  the one sent upstream. Literal dot segments are removed. A request is
+  refused if its path has a control byte, a backslash, malformed
+  percent-encoding (`%zz`, a lone `%`), or a segment that decodes to
+  `.` or `..`. An encoded `/` is data inside its segment, never a
+  separator: rules match it that way, and it goes upstream as
+  received. So npm's scoped `/@scope%2fname` and GitLab's
+  `/api/v4/projects/group%2Fproject` match their rules as one segment,
+  and `ghcr.io/v2/homebrew%2Fcore/...` matches no `homebrew/core`
+  rule and is refused by default-deny.
   Each request then goes through these steps in order: canonicalize,
   classify and remove guest credentials (audited), HTTP policy, the
   dependency gate, and credential injection.
@@ -79,11 +86,17 @@ the host.
   inspected host, plus each header the host's built-in profile names.
   It refuses with a `403` that names the rule a request that has a
   credential parameter the profile names, in the query string, in a
-  form-encoded body, or as a top-level key of a JSON body. Bodies are
-  read for this up to a fixed size, and a larger body of those types
-  is refused on a host whose profile names parameters. Names are
-  compared after percent-decoding, with the profile's case rule, and a
-  repeated or empty occurrence counts. If the host has a credential
+  form-encoded body, in a part of a `multipart/form-data` body, or as
+  a top-level key of a JSON body. The media type is matched
+  case-insensitively with its parameters ignored, so
+  `APPLICATION/JSON; charset=utf-8` is scanned. Bodies are read for
+  this up to a fixed number of bytes received, whatever
+  `Content-Length` says, and on a host whose profile names parameters,
+  a larger body of those types, or one that fails to parse, is
+  refused. Names are compared after percent-decoding and JSON string
+  decoding, with the profile's case rule. A repeated or empty
+  occurrence counts, and so does the name followed by `[`
+  (`private_token[]`). If the host has a credential
   binding, the binding's credential is then injected
   (S09-policy-credentials-audit). A guest token in any of those places
   is never forwarded. `wb-proxyd` doesn't look for credentials in
@@ -93,12 +106,15 @@ the host.
   placeholder the guest was given nor the binding's fixed public value
   means the guest holds a credential from somewhere else: it is a
   detection finding (S09-policy-credentials-audit) with the scheme and
-  the header or parameter name, rate-limited per session.
+  the header or parameter name, rate-limited per session. Git LFS
+  hands the client a server-issued `Authorization` header for each
+  object. An LFS clone therefore raises these findings too, and an operator
+  reading the log should expect them.
   - *Named places.* The model API profile names `x-api-key`. The git
     hosting profile names, per kind of host: GitHub, `Authorization`
     only (GitHub itself refuses `?access_token=`). GitLab, the headers
     `PRIVATE-TOKEN`, `JOB-TOKEN` and `Deploy-Token`, and the parameters
-    `private_token`, `access_token` and `job_token`, compared
+    `private_token`, `access_token`, `job_token` and `bearer_token`, compared
     case-sensitively, as GitLab does. Gitea and Forgejo, the
     parameters `token` and `access_token`, compared case-sensitively
     (X22-no-guest-credentials). `github.com`, `gitlab.com` and
@@ -127,7 +143,7 @@ the host.
     Homebrew bottles need. `wb-proxyd` can't tell who signed such a
     URL, and the guest can sign one for its own bucket. A storage host still has to
     be allowed by policy, and the approval risk check flags a shared
-    object-storage host (`*.s3.amazonaws.com`,
+    object-storage host (such as `*.s3.amazonaws.com`,
     `storage.googleapis.com`, `*.blob.core.windows.net`), a wildcard
     over one, and a rule that allows signature parameters on a write
     method.
@@ -289,7 +305,8 @@ the host.
   changes take effect without restarting anything.
 - **What an approval grants.** On a host without a built-in profile, an
   approval grants the read methods GET, HEAD and OPTIONS. A write
-  method (any other) is refused until the user approves it in a
+  method (any other, and a GET with `Upgrade: websocket`, which opens
+  a channel both ways) is refused until the user approves it in a
   separate request, which the risk check flags as a new write method
   (fail closed, SEC06-repo-writes). The maintainer hasn't decided this
   yet (B33-no-guest-credentials).

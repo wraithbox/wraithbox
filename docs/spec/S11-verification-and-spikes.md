@@ -64,9 +64,16 @@ be tested before building on them.
     package;
   - send an attacker-supplied token in a credential parameter that a
     git host's profile names and get a `403`: GitLab's `private_token`
-    in the query string, as `private%5Ftoken`, repeated, empty, as a
-    form-encoded body field, and as a top-level JSON key; send a token
-    on a GET and see it removed (X22-no-guest-credentials);
+    in the query string, as `private%5Ftoken`, as `private_token[]`,
+    repeated, empty, as a form-encoded body field, as a
+    `multipart/form-data` part, as a top-level JSON key, and as a
+    JSON-escaped key (`"private\u005ftoken"`); send a JSON body that
+    doesn't parse, or one past the size cap with no `Content-Length`,
+    and get a `403`; send a token on a GET and see it removed
+    (X22-no-guest-credentials);
+  - install a scoped npm package (`/@scope%2fname`) and read a GitLab
+    project by its encoded path (`/api/v4/projects/group%2Fproject`),
+    and see both pass;
   - send a credential that is neither a placeholder nor a fixed value, and
     find a detection finding with its header name and no value;
   - download a Homebrew bottle from `ghcr.io` with the guest's
@@ -76,7 +83,8 @@ be tested before building on them.
     `ghcr.io/token?scope=repository:homebrew/core/jq:pull,push` with
     guest Basic credentials and see it denied;
   - request `/v2/homebrew/core/x/../../other/image/...` and
-    `/v2/homebrew%2Fcore/...` on `ghcr.io`, and see both refused with
+    `/v2/homebrew%2Fcore/...` on `ghcr.io`, and paths with `%zz`, a
+    backslash, or a `%2e%2e` segment, and see all refused with
     nothing sent upstream;
   - call the model API with an attacker-supplied key and observe that it
     is replaced;

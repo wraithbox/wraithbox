@@ -86,8 +86,9 @@ print about returned work after `wb land` is outside it
   contents, or text the guest wrote.
 - **T10-unnamed-credentials: Guest credentials in unnamed places.**
   `wb-proxyd` removes `Authorization`, `Proxy-Authorization` and
-  `Cookie` on every inspected host, and refuses the headers, query
-  parameters and body fields a built-in profile names on its hosts. A
+  `Cookie` on every inspected host. On the hosts of a built-in profile
+  it removes the headers and refuses the query parameters and body
+  fields the profile names. A
   guest's own credential somewhere else reaches the host: another
   header or parameter on a host without a built-in profile, a nested
   JSON field, a WebSocket `Sec-WebSocket-Protocol` value or first
