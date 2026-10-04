@@ -78,3 +78,10 @@ No MAL- (malicious package) entries in any of them.
 
 The install matrix is in `results-matrix.md` and `results-go-cargo.md`,
 the OSV timings per download in `results-osv.txt`.
+
+## Hygiene
+
+The fresh pip and uv installs built sdists on the host, which runs package
+build code outside any sandbox, and the Go runs used `GOSUMDB=off`. A
+future spike of this kind should use `--only-binary=:all:` or
+`UV_NO_BUILD=1`, or run inside a VM.
