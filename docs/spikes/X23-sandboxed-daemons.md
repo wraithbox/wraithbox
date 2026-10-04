@@ -38,7 +38,8 @@ self-sandboxed" decision of S04-architecture
   2. How git is confined, under option A: a `wb-git` shim that applies
      a profile for one repository and then runs git (recommended,
      untested), or git inheriting the `wb-hostd` profile (measured,
-     weaker, residual risk under condition 4).
+     weaker, residual risk under condition 4, recorded in T00-index if
+     chosen).
 - **Brief:** B34-sandboxed-daemons
 
 ## Question
@@ -88,8 +89,9 @@ The conditions:
 3. **`wb-hostd` starts its children through a launcher (option A).** A
    confined process can't apply a second profile: the kernel refuses it
    (`forbidden-sandbox-reinit`), and children inherit their parent's
-   profile. So `wb-hostd` starts a launcher before it confines itself,
-   and each program the launcher starts confines itself. The spike's
+   profile. So `wb-hostd` starts a launcher, `wb-launcher`, before it
+   confines itself, and each program the launcher starts confines
+   itself. The spike's
    launcher showed that this works, but it was looser than this
    (it passed arguments and the environment, and read requests from a
    stream socket). A launcher that doesn't widen what a compromised
@@ -103,6 +105,8 @@ The conditions:
      fixed-format request per message. A request with unexpected
      descriptors has them closed and is refused.
    - It starts each program with no arguments and a fixed environment.
+     The one bounded exception is the repository for `wb-git`
+     (condition 4).
    - Each program's profile and its parameters are compiled into the
      program, or come from configuration that `wb-hostd` read before it
      confined itself. They never come over the request channel.
@@ -117,14 +121,42 @@ The conditions:
    have every right of `wb-hostd`. It could read every project's policy,
    change approvals in `state.db`, write other projects' landing
    repositories, and alter the audit log. The proposal: a `wb-git` shim
-   in the launcher table that applies a profile for one repository and
-   then runs git. That profile allows reading the git installation and
-   writing that one repository. The spike didn't build it. Either way:
+   that `wb-launcher` starts, which applies a profile for one repository
+   and then runs git. That profile allows reading the git installation
+   and writing that one repository. The spike didn't build it.
+
+   The repository and the git subcommand differ per request, so
+   `wb-git` is the one bounded exception to the launcher's "no
+   arguments" rule:
+   - The launcher table has two fixed entries, `wb-git-receive` and
+     `wb-git-upload`, so the subcommand is never a free string.
+   - The request carries exactly one extra field, the repository.
+     `wb-launcher` accepts it only if it resolves to
+     `<data>/projects/<id>/landing.git` (or the export repository of
+     I41) under a projects root fixed from configuration before
+     `wb-hostd` confined itself, with `<id>` in the project ID format,
+     and with no `..` component or symbolic link on the way.
+   - The repository becomes the shim's profile parameter and git's one
+     path argument.
+   - The alternative shape is an inherited directory descriptor that
+     the launcher checks with `F_GETPATH`, which keeps the path out of
+     the request.
+
+   If the maintainer chooses the fallback instead, git under the
+   `wb-hostd` profile is recorded in T00-index as an accepted residual
+   risk. Either way:
    - The profile allows only the git installation: `bin/git`,
-     `libexec/git-core/`, `share/git-core/` and the libraries git links
-     (Homebrew git links `pcre2` and `gettext` from `/opt/homebrew/opt`).
-     The spike allowed all of `/opt/homebrew` or the whole Xcode
-     developer directory, which is wider than git needs.
+     `libexec/git-core/`, `share/git-core/` and the libraries git links.
+     Homebrew git links `pcre2` and `gettext` through
+     `/opt/homebrew/opt/<lib>`, a symbolic link into
+     `/opt/homebrew/Cellar/<lib>/<version>`. Seatbelt matches resolved
+     paths, so each library needs two rules: `file-read-metadata` on the
+     `/opt/homebrew/opt/<lib>` literal, and `file-read*` on the resolved
+     Cellar subpath, with the real path resolved before confining (the
+     security review on PR65 reproduced this). `process-exec` can be
+     limited to `git`, `git-receive-pack` and `git-upload-pack`. The
+     spike allowed all of `/opt/homebrew` or the whole Xcode developer
+     directory, which is wider than git needs.
    - `wb-hostd` resolves the `/usr/bin/git` shim to the real binary
      before it confines itself.
    - git runs without the user's or the system's git configuration, in a
