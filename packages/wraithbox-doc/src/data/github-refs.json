@@ -202,7 +202,7 @@
 	},
 	"34": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X23-sandboxed-daemons: Self-sandboxed Go daemons on macOS",
 		"summary": "X23-sandboxed-daemons (added to S11-verification-and-spikes in #14)",
 		"brief": "B34-sandboxed-daemons"
@@ -406,7 +406,7 @@
 	},
 	"65": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spike): X23-sandboxed-daemons result, yes with conditions",
 		"summary": "Result of spike X23-sandboxed-daemons, approach steps 1 and 2 (the scope set by the 2026-10-04 decision on #34)."
 	},
@@ -478,5 +478,11 @@
 		"state": "open",
 		"title": "Measure the Go checksum-database clock of the dependency gate end to end",
 		"summary": "Follow-up from the X21-dep-gate-registries spike (#32) and the review of its result (#75)."
+	},
+	"77": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(agents): tag each spike commit when its result merges",
+		"summary": "Adds a Tag step to planning.md (\"Spikes\")."
 	}
 }
