@@ -55,14 +55,18 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
 
 | Spec | Topic |
 |---|---|
-| spec 003-requirements | Requirements and threat model |
-| spec 004-architecture | Architecture: processes and boundaries |
-| spec 005-cli | The `wb` command |
-| spec 006-vm-lifecycle | Images, VMs, guest users, guest agent |
-| spec 007-egress-gateway | Network stack, DNS, proxy, dependency gate |
-| spec 008-workspace-and-git | Workspace and the git round trip |
-| spec 009-policy-credentials-audit | Policy, credentials, certificates, audit |
-| spec 010-tech-stack | Languages, libraries, packaging |
-| spec 011-verification-and-spikes | Verification and open questions |
-| spec 012-platforms | Host and guest platforms, WSL |
-| spec 013-guest-confinement | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
+| S03-requirements | The problem, and where the requirements are |
+| S04-architecture | Architecture: processes and boundaries |
+| S05-cli | The `wb` command |
+| S06-vm-lifecycle | Images, VMs, guest users, guest agent |
+| S07-egress-gateway | Network stack, DNS, proxy, dependency gate |
+| S08-workspace-and-git | Workspace and the git round trip |
+| S09-policy-credentials-audit | Policy, credentials, certificates, audit |
+| S10-tech-stack | Languages, libraries, packaging |
+| S11-verification-and-spikes | Verification and open questions |
+| S12-platforms | Host and guest platforms, WSL |
+| S13-guest-confinement | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
+
+The requirements and the threat model are in FR00-index, NFR00-index,
+SEC00-index and T00-index. Open questions are spikes, in X00-index.
+What the first version delivers is in V1-initial.

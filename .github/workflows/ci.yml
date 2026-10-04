@@ -19,9 +19,9 @@ concurrency:
 jobs:
   go:
     name: Go (${{ matrix.os }})
-    # Most Wraith Box code is cross-platform Go (spec 012-platforms), so it is
+    # Most Wraith Box code is cross-platform Go (S12-platforms), so it is
     # linted, vetted, tested and built natively on every host OS from the
-    # start. See docs/spec/002-toolchain.md.
+    # start. See docs/spec/S02-toolchain.md.
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +57,7 @@ jobs:
   swift:
     name: Swift
     # Swift comes from the runner image's default Xcode; Package.swift's
-    # tools version (6.2) is the floor. See docs/spec/002-toolchain.md.
+    # tools version (6.2) is the floor. See docs/spec/S02-toolchain.md.
     runs-on: macos-26
     steps:
       - name: Checkout code

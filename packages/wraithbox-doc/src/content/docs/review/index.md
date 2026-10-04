@@ -12,4 +12,4 @@ says what goes in a brief.
 
 | Brief | Source | Status |
 |---|---|---|
-| [Can projects sharing the work VM keep their network grants apart?](/review/issue-36-flow-attribution/) | issue #36 | Awaiting decision |
+| [Can projects sharing the work VM keep their network grants apart?](/review/i36-flow-attribution/) | I36 | Awaiting decision |

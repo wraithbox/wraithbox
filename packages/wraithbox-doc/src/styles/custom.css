@@ -88,7 +88,7 @@
    system-first monospace stack for code. No webfont is loaded, so a page
    load sends no request to a font service and the site bundles no font
    files. ai-training self-hosts Inter from @fontsource-variable/inter, but
-   Inter (like nearly every webfont) is OFL-1.1, which is not on spec 010's
+   Inter (like nearly every webfont) is OFL-1.1, which is not on S10-tech-stack's
    license list (Apache-2.0, MIT, BSD, ISC); adding it needs a spec change
    first. Headings at weight 600 with slightly tight letter spacing. Font
    choice doesn't vary by theme, so these live at :root. */

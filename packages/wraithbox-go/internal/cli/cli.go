@@ -1,5 +1,5 @@
 // Package cli parses the wb command line: wb [global flags] <command> [args].
-// See docs/spec/005-cli.md.
+// See docs/spec/S05-cli.md.
 package cli
 
 import (
@@ -21,7 +21,7 @@ type Command struct {
 	Agent bool
 }
 
-// Commands is the wb command table, in help order (spec 005-cli).
+// Commands is the wb command table, in help order (S05-cli).
 var Commands = []Command{
 	{Name: "claude", Summary: "Run Claude Code in a sandbox; all further arguments go to claude", Agent: true},
 	{Name: "status", Summary: "VMs, running sessions and pending approvals"},
@@ -51,10 +51,10 @@ var Commands = []Command{
 // Guest is checked against the platform matrix when the session starts,
 // not here.
 type Globals struct {
-	Isolated  bool   // run in the isolated VM (S8-proj-isolation)
-	Ephemeral bool   // no persisted state (F14-ephemeral)
-	Learn     bool   // learn mode; refused later unless the project is trusted (F10-learn-mode)
-	Guest     string // guest OS for this project (spec 012-platforms); empty means the default
+	Isolated  bool   // run in the isolated VM (SEC08-proj-isolation)
+	Ephemeral bool   // no persisted state (FR14-ephemeral)
+	Learn     bool   // learn mode; refused later unless the project is trusted (FR10-learn-mode)
+	Guest     string // guest OS for this project (S12-platforms); empty means the default
 	Dir       string // act as if started in this directory
 	Help      bool
 	Version   bool

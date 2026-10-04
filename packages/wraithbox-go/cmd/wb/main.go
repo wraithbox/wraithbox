@@ -1,5 +1,5 @@
 // Command wb is the single Wraith Box entry point: wb [flags] <command> [args].
-// `wb claude [claude args]` runs Claude Code in a sandbox. See docs/spec/005-cli.md.
+// `wb claude [claude args]` runs Claude Code in a sandbox. See docs/spec/S05-cli.md.
 package main
 
 import (

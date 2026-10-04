@@ -1,4 +1,4 @@
-# 002 - Toolchain
+# S02 - Toolchain
 
 **Purpose:** Standardize how this repository manages runtime versions,
 repo tasks, and CI.
@@ -32,7 +32,7 @@ repo tasks, and CI.
   never arrive by auto-download. Nothing in `[tools]` is covered by
   dependabot, so it must be refreshed deliberately with `mise up`.
 - **Go runs on macOS, Linux, and Windows from the start.** Most code is
-  cross-platform Go (spec 012-platforms), so CI lints, vets, tests, and builds it
+  cross-platform Go (S12-platforms), so CI lints, vets, tests, and builds it
   natively on all three (a job matrix), with only the Go tools installed
   (`install_args`), because some pinned tools have no Windows build.
   Locally, `mise run go:cross` vets, lints, and builds for all three
@@ -48,7 +48,7 @@ repo tasks, and CI.
   (`go:cross`, `go:vulncheck`, Swift, docs) may use shell scripts.
 - **Swift tasks iterate `packages/*-swift` in-shell**, so the tasks pick
   up a new package without changes.
-- **A .NET toolchain is added with the first .NET component** (spec 012-platforms),
+- **A .NET toolchain is added with the first .NET component** (S12-platforms),
   pinned in `.mise.toml` like every other tool, with its own CI job on a
   Windows runner.
 - **Prose is checked like code.** `prose:lint` runs Vale over every
@@ -67,7 +67,7 @@ repo tasks, and CI.
   re-installs the toolchain; the mise cache makes this cheap and logs stay
   readable.
 - **Tests that need to run guest VMs** (conformance suite, benchmarks;
-  spec 011-verification-and-spikes) cannot run on hosted runners and are not part of `ci` until
+  S11-verification-and-spikes) cannot run on hosted runners and are not part of `ci` until
   self-hosted runners exist (Apple Silicon for macOS guests).
 
 **Status:** Active

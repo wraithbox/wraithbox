@@ -8,8 +8,8 @@ they exist.
 
 ## Where things stand
 
-- **Specs** 003 to 013 are drafts. Spec 011-verification-and-spikes lists 24 open questions
-  (spikes `X1-model-credential` to `X24-openshell-artifacts`). None is answered yet.
+- **Specs** S03-requirements to S13-guest-confinement are drafts. X00-index lists 24 open questions
+  (spikes X01-model-credential to X24-openshell-artifacts). None is answered yet.
 - **Go** (`packages/wraithbox-go`): the `wb` command-line parser
   (`internal/cli`), the host and guest platform matrix
   (`internal/platform`), and empty `main` packages for `wb`,
@@ -21,13 +21,13 @@ they exist.
 
 ## Approach
 
-1. **Spikes and spec decisions first** (M0 below). Most components
+1. **Spikes and spec decisions first** (V1-M1-spikes-closed). Most components
    rest on an assumption that a spike tests, and some specs
    disagree with each other or leave a hole. Building before those are
    settled means rebuilding.
 2. **Host floor before features.** Boot a guest, then cut its network
    down to the gateway, then return work through git. Each step ends
-   with conformance checks from spec 011-verification-and-spikes for the controls it brings.
+   with conformance checks from S11-verification-and-spikes for the controls it brings.
 3. **Pure logic in parallel.** Parsers and policy code that face guest
    bytes need no VM. Builders can write them, with fuzz targets, while
    the VM spikes run, once the spike or decision they depend on is
@@ -35,144 +35,112 @@ they exist.
 
 ## Critical path
 
-```text
-X17-image-build image build ─┐
-X18-vsock-handoff vsock, fds ──┼─▶ VM boots, wb-guestd answers ─▶ wb shell as a project user
-X2-warm-start  warm start ──┘                │
-                                  ▼
-X3-network-path network path ─▶ wb-netd: DHCP, DNS, synthetic addresses ─▶ wb-proxyd: inspect, policy, audit
-X4-tls-inspection, X9-keychain-unsigned, X22-no-guest-credentials, X24-openshell-artifacts ────────────────────────────────────────────┘           │
-                                                                         ▼
-X7-git-round-trip git round trip ─▶ carry-in, landing repository, wb diff, wb land ─▶ wb claude end to end
-X1-model-credential model credential, X19-terminal-filter terminal filter ───────────────────────────────┘
-```
+![The critical path to V1. Spikes on the left unblock three lanes of work, one per milestone: the VM and wb shell, the network floor, and wb claude end to end.](implementation-plan.svg)
 
-The VM spikes (X2-warm-start, X3-network-path, X5-fs-benchmark to X8-data-disk, X17-image-build, X18-vsock-handoff, X20-shared-homebrew) share one constraint:
-a Mac runs at most two macOS guests at a time (N5-two-macos-vms). Only one or two of
-them can run at once per machine (#50).
+The VM spikes (X02-warm-start, X03-network-path, X05-fs-benchmark to X08-data-disk, X17-image-build, X18-vsock-handoff, X20-shared-homebrew) share one constraint:
+a Mac runs at most two macOS guests at a time (NFR05-two-macos-vms). Only one or two of
+them can run at once per machine (I50).
 
 ## Components and what they wait on
 
 | Component | Work that needs no VM | Waits on |
 |---|---|---|
-| `wb` | TTY relay against a local test server, session and project naming | X19-terminal-filter (#30), #37, #42, #46 |
-| `wb-hostd` | settings loader, `state.db`, audit writer, risky-path flagger (spec 008-workspace-and-git) | #52, #46, X7-git-round-trip (#21), X24-openshell-artifacts (#35) |
-| `wb-vmd` (Swift) | none | X2-warm-start (#16), X17-image-build (#28), X18-vsock-handoff (#29) |
-| `wb-netd` | DHCP and DNS logic on gVisor's in-memory link, with fuzz targets | X3-network-path (#17), #36, #51 |
-| `wb-proxyd` | ClientHello parsing, leaf issuing with a software key, HTTP rule matching | X4-tls-inspection (#18), X9-keychain-unsigned (#23), X21-dep-gate-registries (#32), X22-no-guest-credentials (#33), #39 |
-| `wb-guestd` | user and PTY logic behind interfaces | X18-vsock-handoff (#29), X6-guest-xcode (#20), X8-data-disk (#22), X20-shared-homebrew (#31) |
-| network policy | OpenShell schema parser with a bounded YAML decoder | X24-openshell-artifacts (#35) |
+| `wb` | TTY relay against a local test server, session and project naming | X19-terminal-filter (I30), I37, I42, I46 |
+| `wb-hostd` | settings loader, `state.db`, audit writer, risky-path flagger (S08-workspace-and-git) | I52, I46, X07-git-round-trip (I21), X24-openshell-artifacts (I35) |
+| `wb-vmd` (Swift) | none | X02-warm-start (I16), X17-image-build (I28), X18-vsock-handoff (I29) |
+| `wb-netd` | DHCP and DNS logic on gVisor's in-memory link, with fuzz targets | X03-network-path (I17), I36, I51 |
+| `wb-proxyd` | ClientHello parsing, leaf issuing with a software key, HTTP rule matching | X04-tls-inspection (I18), X09-keychain-unsigned (I23), X21-dep-gate-registries (I32), X22-no-guest-credentials (I33), I39 |
+| `wb-guestd` | user and PTY logic behind interfaces | X18-vsock-handoff (I29), X06-guest-xcode (I20), X08-data-disk (I22), X20-shared-homebrew (I31) |
+| network policy | OpenShell schema parser with a bounded YAML decoder | X24-openshell-artifacts (I35) |
 | `internal/platform` | paths, local IPC with peer checks | none |
-| Claude Code in the guest | none | X1-model-credential (#15), #45 |
+| Claude Code in the guest | none | X01-model-credential (I15), I45 |
 
-## Proposed milestones
+## Milestones
 
-For the maintainer to confirm, rename, or cut differently. Each exit
-criterion cites the requirement IDs it proves.
+The milestones are in V1-initial, from V1-M1-spikes-closed to
+V1-M6-release-gate, each with its exit criterion. They are proposals
+until the maintainer confirms them and the GitHub milestones exist.
 
-- **M0: v1 spikes answered and spec gaps closed.** X1-model-credential to X9-keychain-unsigned and X17-image-build
-  to X24-openshell-artifacts written up in `docs/spec/spikes/`, the spec issues below
-  decided, and specs updated. Covers no requirement by itself. It makes
-  the rest possible to plan.
-- **M1: walking skeleton.** `wb image build` makes a sealed image,
-  `wb-vmd` boots it, `wb-guestd` answers over vsock, and `wb shell`
-  opens a PTY as a project user. The guest has no network device yet.
-  Covers S1-separate-kernel, S2-no-host-fs-share, S4-no-guest-secrets (image seal), S8-proj-isolation (users), F2-any-repo.
-- **M2: the network floor.** `wb-netd` and `wb-proxyd` in inspect
-  mode with a static policy, the audit log, and the conformance cases
-  for egress. Covers S5-default-deny, S10-audit, S11-root-gains-nothing, F8-no-proxy-config.
-- **M3: `wb claude` end to end.** Git round trip with carry-in,
-  landing and flagging, the model credential, the terminal filter,
-  `wb diff` and `wb land`. Covers F1-drop-in to F5-parallel-sessions, F13-claude-state, S3-no-host-exec, S4-no-guest-secrets, S6-repo-writes.
-- **M4: approvals and policy.** Approvals with notifications and
-  `wb approve`, learn mode, credential bindings, the dependency gate,
-  `wb trust` with the boundary check, `wb policy explain`. Covers F9-approve-unknown,
-  F10-learn-mode, F15-inspect, S7-dep-gate, S9-host-policy, S14-no-fake-approvals, N6-explained-refusals.
-- **M5: v1 release gate.** Self-sandboxed daemons, Seatbelt profiles,
-  warm start and suspend, the full conformance suite and benchmarks,
-  packaging. Covers S12-least-privilege, S13-bounded-resources, N1-startup to N3-footprint.
-- **Later:** X10-linux-hypervisor to X16-openshell-linux, spec 013-guest-confinement layers 3 and 4, other host and
-  guest platforms.
+## Issues filed for V1-M1-spikes-closed
 
-## Issues filed for M0
-
-Spikes from spec 011-verification-and-spikes. X14-flow-attribution (#10), X15-endpoint-security (#11) and X16-openshell-linux (#12) were filed
+Spikes from X00-index. X14-flow-attribution (I10), X15-endpoint-security (I11) and X16-openshell-linux (I12) were filed
 before this plan, and don't block v1.
 
 | Spike | Issue | Needs |
 |---|---|---|
-| X1-model-credential Model credential via the proxy | #15 | maintainer's Claude subscription |
-| X2-warm-start Warm start | #16 | VM |
-| X3-network-path Network path | #17 | VM |
-| X4-tls-inspection Inspection compatibility | #18 | |
-| X5-fs-benchmark Filesystem benchmark | #19 | VM |
-| X6-guest-xcode Guest users and Xcode | #20 | VM |
-| X7-git-round-trip Git round trip | #21 | |
-| X8-data-disk Data disk for homes | #22 | VM |
-| X9-keychain-unsigned Keychain access without a signing identity | #23 | |
-| X10-linux-hypervisor Linux VMM and packet transport (later) | #24 | Linux machine, after X16-openshell-linux |
-| X11-windows-host Windows host through HCS (later) | #25 | Windows 11 Home machine |
-| X12-wsl-channel WSL client channel (later) | #26 | Windows machine |
-| X13-windows-guests Windows guests on a macOS host (later) | #27 | Windows media |
-| X17-image-build Unattended image build | #28 | VM |
-| X18-vsock-handoff Host-guest socket and descriptor hand-off | #29 | VM |
-| X19-terminal-filter Terminal stream filtering | #30 | |
-| X20-shared-homebrew Homebrew with more than one project user | #31 | VM |
-| X21-dep-gate-registries Dependency gate on real registries | #32 | |
-| X22-no-guest-credentials Clients without guest credentials | #33 | |
-| X23-sandboxed-daemons Self-sandboxed Go daemons on macOS | #34 | |
-| X24-openshell-artifacts OpenShell artifacts | #35 | |
+| X01-model-credential Model credential via the proxy | I15 | maintainer's Claude subscription |
+| X02-warm-start Warm start | I16 | VM |
+| X03-network-path Network path | I17 | VM |
+| X04-tls-inspection Inspection compatibility | I18 | |
+| X05-fs-benchmark Filesystem benchmark | I19 | VM |
+| X06-guest-xcode Guest users and Xcode | I20 | VM |
+| X07-git-round-trip Git round trip | I21 | |
+| X08-data-disk Data disk for homes | I22 | VM |
+| X09-keychain-unsigned Keychain access without a signing identity | I23 | |
+| X10-linux-hypervisor Linux VMM and packet transport (later) | I24 | Linux machine, after X16-openshell-linux |
+| X11-windows-host Windows host through HCS (later) | I25 | Windows 11 Home machine |
+| X12-wsl-channel WSL client channel (later) | I26 | Windows machine |
+| X13-windows-guests Windows guests on a macOS host (later) | I27 | Windows media |
+| X17-image-build Unattended image build | I28 | VM |
+| X18-vsock-handoff Host-guest socket and descriptor hand-off | I29 | VM |
+| X19-terminal-filter Terminal stream filtering | I30 | |
+| X20-shared-homebrew Homebrew with more than one project user | I31 | VM |
+| X21-dep-gate-registries Dependency gate on real registries | I32 | |
+| X22-no-guest-credentials Clients without guest credentials | I33 | |
+| X23-sandboxed-daemons Self-sandboxed Go daemons on macOS | I34 | |
+| X24-openshell-artifacts OpenShell artifacts | I35 | |
 
 Spec gaps, contradictions and missing specs:
 
 | Issue | Topic | Blocked by |
 |---|---|---|
-| #36 | Network flows in the shared work VM can't be attributed to a project | |
-| #37 | The host terminal stream as a boundary | #30 |
-| #38 | Port forwarding and clipboard design and threats | |
-| #39 | CA name constraints and rotation versus live policy changes | |
-| #40 | Learn mode and pass mode as S5-default-deny exceptions | |
-| #41 | Which git data reaches the guest, and host git as a parser | |
-| #42 | Configuration trust versus VM placement, project identity | |
-| #43 | VM slot admission for image builds and GUI work | #20 |
-| #44 | Data disk durability, never mounting a guest-written disk | #19, #22 |
-| #45 | New spec 014: Claude Code in the guest, agent interface | #15 |
-| #46 | Session lifecycle, detach, sleep and failure | |
-| #47 | Non-HTTP streams, SSH remotes and ECH | |
-| #48 | Process supervision, version skew, host resource limits | |
-| #49 | Installation, restore image download, upgrades | #23, #28 |
-| #50 | Test infrastructure for work that needs a VM | |
-| #51 | Approval flow and approval noise | #17, #36 |
-| #52 | First `.proto` contracts and settings schema | #29, #46 |
+| I36 | Network flows in the shared work VM can't be attributed to a project | |
+| I37 | The host terminal stream as a boundary | I30 |
+| I38 | Port forwarding and clipboard design and threats | |
+| I39 | CA name constraints and rotation versus live policy changes | |
+| I40 | Learn mode and pass mode as SEC05-default-deny exceptions | |
+| I41 | Which git data reaches the guest, and host git as a parser | |
+| I42 | Configuration trust versus VM placement, project identity | |
+| I43 | VM slot admission for image builds and GUI work | I20 |
+| I44 | Data disk durability, never mounting a guest-written disk | I19, I22 |
+| I45 | New spec S14: Claude Code in the guest, agent interface | I15 |
+| I46 | Session lifecycle, detach, sleep and failure | |
+| I47 | Non-HTTP streams, SSH remotes and ECH | |
+| I48 | Process supervision, version skew, host resource limits | |
+| I49 | Installation, restore image download, upgrades | I23, I28 |
+| I50 | Test infrastructure for work that needs a VM | |
+| I51 | Approval flow and approval noise | I17, I36 |
+| I52 | First `.proto` contracts and settings schema | I29, I46 |
 
 ## Read these first
 
 Ordered by how much of the design they can move:
 
-1. **#36.** In the shared work VM, `wb-netd` sees one address for all
-   projects. Per-project policy and credential bindings, as specs 007-egress-gateway
-   and 009-policy-credentials-audit describe them, are then the union of all projects in the
-   VM, even without guest root. Settling this may move X14-flow-attribution (#10) into
+1. **I36.** In the shared work VM, `wb-netd` sees one address for all
+   projects. Per-project policy and credential bindings, as S07-egress-gateway
+   and S09-policy-credentials-audit describe them, are then the union of all projects in the
+   VM, even without guest root. Settling this may move X14-flow-attribution (I10) into
    v1.
-2. **#31.** Homebrew has one prefix per machine. Project users sharing
+2. **I31.** Homebrew has one prefix per machine. Project users sharing
    a writable prefix can plant binaries for each other, which breaks
-   S8-proj-isolation without any root escalation.
-3. **#30 and #37.** The terminal relay passes guest bytes to the host
+   SEC08-proj-isolation without any root escalation.
+3. **I30 and I37.** The terminal relay passes guest bytes to the host
    terminal emulator, which can write the host clipboard and, in some
    emulators, files.
-4. **#33 and #32.** Removing every guest `Authorization` header breaks
+4. **I33 and I32.** Removing every guest `Authorization` header breaks
    anonymous registry tokens (Homebrew bottles from `ghcr.io`).
    Refusing young package downloads may fail most fresh installs. Both
-   decide whether F7-toolchain-manifest and S7-dep-gate are usable.
-5. **#39 and #40.** Specs disagree with each other (#39), or weaken
-   S5-default-deny without saying so (#40).
+   decide whether FR07-toolchain-manifest and SEC07-dep-gate are usable.
+5. **I39 and I40.** Specs disagree with each other (I39), or weaken
+   SEC05-default-deny without saying so (I40).
 
 ## Next steps
 
 1. Triage the issues above: labels, priority, `ready-for-agent` or
    `ready-for-human`.
-2. Create milestone M0 and put the triaged v1 spikes and spec issues in
-   it. Decide #50 before running VM spikes in parallel.
-3. As M0 closes, rewrite this page into milestones M1 to M5 with
+2. Create milestone V1-M1-spikes-closed and put the triaged v1 spikes and spec issues in
+   it. Decide I50 before running VM spikes in parallel.
+3. As V1-M1-spikes-closed closes, rewrite this page into milestones
+   V1-M2-walking-skeleton to V1-M6-release-gate with
    implementation issues per component, each written to the
    `ready-for-agent` standard in `docs/agents/planning.md`.

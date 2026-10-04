@@ -21,9 +21,9 @@ feature request, and spike. Each applies its type label and
 same labels by hand. Documentation and chore issues have no form; open
 them blank.
 
-A spike issue is titled `X<n>: <question>` and tracks one open question
-from [spec 011-verification-and-spikes](../spec/011-verification-and-spikes.md). Give a new
-question its `X*` number in spec 011-verification-and-spikes rather than only in the issue.
+A spike issue is titled `X<NN>-<slug>: <question>` and tracks one open question
+from [X00-index](../spikes/X00-index.md). Give a new
+question its `X*` number in X00-index rather than only in the issue.
 
 ## Labels
 

@@ -12,7 +12,7 @@
 #
 # Swift is the exception to "mise pins every toolchain": the Swift
 # compiler, `swift-format` and `xcodebuild` ship inside Xcode and are
-# pinned implicitly by the Xcode version (see docs/spec/002-toolchain.md).
+# pinned implicitly by the Xcode version (see docs/spec/S02-toolchain.md).
 # Only SwiftLint, which Xcode does not ship, is pinned here.
 
 [settings]
@@ -124,7 +124,7 @@ find packages -name 'dist' -maxdepth 2 -type d -exec rm -rf {} +
 # One Go module, packages/wraithbox-go. The tasks run there with plain
 # commands rather than shell loops, because the Go jobs also run on
 # Windows, where mise executes `run` with cmd.exe. A second Go module
-# means extending these tasks deliberately (see docs/spec/002-toolchain.md).
+# means extending these tasks deliberately (see docs/spec/S02-toolchain.md).
 #
 # golangci-lint also enforces gofumpt and goimports (`formatters:` in
 # .golangci.yml), so there is no separate format check.
@@ -154,7 +154,7 @@ run = "go build ./..."
 
 # Vet, lint and build for every host OS from one machine, so files with
 # GOOS suffixes cannot rot on the OSes a developer does not use. CI runs
-# go:lint/go:vet/go:test natively on all three instead (spec 002). Unix
+# go:lint/go:vet/go:test natively on all three instead (S02-toolchain). Unix
 # shell only; not run on Windows.
 [tasks."go:cross"]
 description = "go vet + golangci-lint + go build for darwin, linux and windows"
@@ -185,7 +185,7 @@ done
 # ---------- Swift ----------
 # Each packages/*-swift directory is a standalone SwiftPM package. The
 # compiler and swift-format come from the selected Xcode (`xcode-select
-# -p`); see docs/spec/002-toolchain.md for which Xcode.
+# -p`); see docs/spec/S02-toolchain.md for which Xcode.
 [tasks."swift:lint"]
 description = "swift-format lint (strict) + SwiftLint maintainability gate"
 run = """
@@ -311,7 +311,7 @@ exit "$status"
 # Vale reads Markdown and MDX only: README, AGENTS.md, CONTRIBUTING.md,
 # docs/spec/ and the docs site. It deliberately does not lint comments in
 # source code or config files: a trial run found little there besides
-# section rulers, command-line flags, and terse comment style (spec 002).
+# section rulers, command-line flags, and terse comment style (S02-toolchain).
 # Errors fail. Warnings print and are for the author to judge. Vale's
 # exit code counts errors only, so one run does both.
 [tasks."prose:lint"]

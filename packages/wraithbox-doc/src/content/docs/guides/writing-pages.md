@@ -52,13 +52,14 @@ See the [getting started guide](/guides/getting-started/).
 
 ## Specs and references
 
-The specs in `docs/spec/` are published under `/spec/`, copied at build
-time by `src/plugins/specs.mjs`. Edit them in `docs/spec/`, never the
-copies.
+The design documents in `docs/` (`spec/`, `requirements/`, `threats/`,
+`spikes/`, `research/` and `versions/`) are published under the same
+paths, copied at build time by `src/plugins/specs.mjs`. Edit them in
+`docs/`, never the copies.
 
-Requirement IDs (`S6-repo-writes`), spikes (`X14-flow-attribution`), specs (`spec 007-egress-gateway`),
-issues (`issue #36`) and pull requests (`PR #12`) written as plain text
-become links with a hover card. `docs/agents/review-briefs.md` lists the
+IDs written as plain text become links with a hover card: specs
+(`S07-egress-gateway`), requirements (`SEC06-repo-writes`), spikes
+(`X14-flow-attribution`), issues (`I36`) and pull requests (`PR13`). `docs/agents/review-briefs.md` lists the
 forms. After citing a new issue or pull request, refresh the titles
 with `mise run doc:refs`.
 

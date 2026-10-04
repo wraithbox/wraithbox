@@ -50,29 +50,27 @@ every control that matters **outside** the sandbox:
 
 ## How it fits together
 
-```
-wb ──▶ wb-hostd (Go) ── vsock ──────────▶ guest VM ── project users ── claude + tools
-          └─ wb-vmd (native: Swift on macOS)   │ runs the VM
-       wb-netd (Go, gVisor) ◀──────── virtual NIC
-          └──▶ wb-proxyd (Go): policy · credentials · dependency gate ──▶ allowlisted Internet
-```
+![The processes on the host and in the guest. Two channels cross the VM boundary: the host-guest socket, which wb-hostd terminates, and Ethernet frames, which wb-netd terminates.](docs/spec/S04-architecture.svg)
 
-Start reading at [003 - Requirements and Threat Model](docs/spec/003-requirements.md),
-then [004 - Architecture](docs/spec/004-architecture.md).
+Start reading at [S03-requirements](docs/spec/S03-requirements.md), the
+[security requirements](docs/requirements/SEC00-index.md), then
+[S04-architecture](docs/spec/S04-architecture.md). Every spec is listed in
+[S00-index](docs/spec/S00-index.md), and S01-spec-based-development
+explains the IDs.
 
 | Spec | Topic |
 |---|---|
-| [003](docs/spec/003-requirements.md) | Requirements and threat model |
-| [004](docs/spec/004-architecture.md) | Architecture: processes and boundaries |
-| [005](docs/spec/005-cli.md) | The `wb` command |
-| [006](docs/spec/006-vm-lifecycle.md) | Images, VMs, guest users, guest agent |
-| [007](docs/spec/007-egress-gateway.md) | Network stack, DNS, proxy, dependency gate |
-| [008](docs/spec/008-workspace-and-git.md) | Workspace and the git round trip |
-| [009](docs/spec/009-policy-credentials-audit.md) | Policy, credentials, certificates, audit |
-| [010](docs/spec/010-tech-stack.md) | Languages, libraries, packaging |
-| [011](docs/spec/011-verification-and-spikes.md) | Verification and open questions |
-| [012](docs/spec/012-platforms.md) | Host and guest platforms, WSL |
-| [013](docs/spec/013-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
+| [S03](docs/spec/S03-requirements.md) | The problem, and where the requirements are |
+| [S04](docs/spec/S04-architecture.md) | Architecture: processes and boundaries |
+| [S05](docs/spec/S05-cli.md) | The `wb` command |
+| [S06](docs/spec/S06-vm-lifecycle.md) | Images, VMs, guest users, guest agent |
+| [S07](docs/spec/S07-egress-gateway.md) | Network stack, DNS, proxy, dependency gate |
+| [S08](docs/spec/S08-workspace-and-git.md) | Workspace and the git round trip |
+| [S09](docs/spec/S09-policy-credentials-audit.md) | Policy, credentials, certificates, audit |
+| [S10](docs/spec/S10-tech-stack.md) | Languages, libraries, packaging |
+| [S11](docs/spec/S11-verification-and-spikes.md) | Verification and open questions |
+| [S12](docs/spec/S12-platforms.md) | Host and guest platforms, WSL |
+| [S13](docs/spec/S13-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
 
 ## Platforms
 
@@ -85,7 +83,7 @@ then [004 - Architecture](docs/spec/004-architecture.md).
 No root or administrator rights and no extra user accounts on the host
 at run time. Most code is cross-platform Go; platform-native code (Swift
 on macOS) is kept to small, separate components. See
-[spec 012-platforms](docs/spec/012-platforms.md).
+[S12-platforms](docs/spec/S12-platforms.md).
 
 ## Development
 

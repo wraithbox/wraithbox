@@ -1,8 +1,8 @@
-# 005 - Command Line Interface
+# S05 - Command Line Interface
 
 **Purpose:** Specify `wb`, the single user-facing command.
 
-**Requirements:** F1-drop-in to F5-parallel-sessions, F9-approve-unknown, F13-claude-state to F17-same-everywhere, S14-no-fake-approvals, N1-startup, N6-explained-refusals.
+**Requirements:** FR01-drop-in to FR05-parallel-sessions, FR09-approve-unknown, FR13-claude-state to FR17-same-everywhere, SEC14-no-fake-approvals, NFR01-startup, NFR06-explained-refusals.
 
 ## Shape
 
@@ -33,14 +33,14 @@ wb [wb flags] claude [claude args]
   help, `wb claude --isolated` passes `--isolated` to Claude Code. So
   `wb claude --resume`, `wb claude -p "…"`, and `wb claude mcp list`
   behave as `claude …` does, and no current or future Claude Code flag or
-  subcommand can collide with Wraith Box (F1-drop-in).
+  subcommand can collide with Wraith Box (FR01-drop-in).
 - Interactive use: raw-mode TTY relay, window-size changes forwarded,
   exit code of `claude` returned. Non-interactive use (pipes, `-p`):
   stdin/stdout streamed, stderr on its own channel.
 - Users who want the bare word can alias it in their shell
   (`alias claude='wb claude'`). Wraith Box does not install such an alias.
 - Further agents are further agent commands (`wb <agent> …`) behind the
-  same agent interface (C2-claude-only). `claude` is the only one in v1.
+  same agent interface (V1-02-claude-only). `claude` is the only one in v1.
 
 ### Session flags
 
@@ -49,10 +49,10 @@ are a usage error:
 
 | Flag | Meaning |
 |---|---|
-| `--isolated` | Run in the isolated VM (S8-proj-isolation) |
-| `--ephemeral` | No persisted state for this session (F14-ephemeral) |
-| `--learn` | Learn mode; refused unless the project is trusted (F10-learn-mode) |
-| `--guest <os>` | Guest OS for this project, where the host offers more than one (spec 012-platforms); otherwise the project's configured or default guest |
+| `--isolated` | Run in the isolated VM (SEC08-proj-isolation) |
+| `--ephemeral` | No persisted state for this session (FR14-ephemeral) |
+| `--learn` | Learn mode; refused unless the project is trusted (FR10-learn-mode) |
+| `--guest <os>` | Guest OS for this project, where the host offers more than one (S12-platforms); otherwise the project's configured or default guest |
 
 ### Global flags
 
@@ -65,7 +65,7 @@ are a usage error:
 ### Session behavior
 
 - Must be run inside a git repository; otherwise `wb` exits with a
-  message explaining why (the return path is git, spec 008-workspace-and-git).
+  message explaining why (the return path is git, S08-workspace-and-git).
 - First run in a repository registers the project, creates its guest
   user and clone, then starts the session. Later runs reuse them.
 - On exit, `wb` prints a short summary of the session's returned work
@@ -80,7 +80,7 @@ are a usage error:
 
 - During an agent session, `wb` never prints approval prompts. That
   terminal shows the agent's output, which the guest controls, so any
-  prompt there could be forged (S14-no-fake-approvals). Approvals arrive as native
+  prompt there could be forged (SEC14-no-fake-approvals). Approvals arrive as native
   notifications, or are answered with `wb approve` from another terminal.
 
 ## Management commands
@@ -93,16 +93,16 @@ are a usage error:
 | `wb land <session> [--branch NAME]` | Fetch returned work into the host repo as a branch; never checks out or merges |
 | `wb discard <session>` | Drop returned work and the session's guest worktree |
 | `wb approve [<id>]` / `wb deny [<id>]` | Answer pending approvals (notification alternative) |
-| `wb allow <host> [--project P]` | Add an allowlist entry (S5-default-deny) |
-| `wb policy show/explain/edit [--project P]` | Effective policy and why a request was allowed or refused (N6-explained-refusals) |
-| `wb learn report [--project P]` | Suggested allowlist from a learn-mode session (F10-learn-mode) |
-| `wb trust <repo>` / `wb untrust <repo>` | Allow repository-supplied configuration (S9-host-policy) |
-| `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (spec 009-policy-credentials-audit) |
-| `wb audit tail/search` | Read the audit log (S10-audit) |
+| `wb allow <host> [--project P]` | Add an allowlist entry (SEC05-default-deny) |
+| `wb policy show/explain/edit [--project P]` | Effective policy and why a request was allowed or refused (NFR06-explained-refusals) |
+| `wb learn report [--project P]` | Suggested allowlist from a learn-mode session (FR10-learn-mode) |
+| `wb trust <repo>` / `wb untrust <repo>` | Allow repository-supplied configuration (SEC09-host-policy) |
+| `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (S09-policy-credentials-audit) |
+| `wb audit tail/search` | Read the audit log (SEC10-audit) |
 | `wb vm start/stop/suspend/status` | Explicit VM control |
-| `wb image build/list/use` | Base image management (spec 006-vm-lifecycle) |
+| `wb image build/list/use` | Base image management (S06-vm-lifecycle) |
 | `wb shell [--project P]` | Debug shell as the project user, labeled as a debug shell |
-| `wb setup` | Check host prerequisites (spec 012-platforms), install and start the per-user services |
+| `wb setup` | Check host prerequisites (S12-platforms), install and start the per-user services |
 | `wb help`, `wb version` | Help and version |
 
 Each command has its own flags after the command name. Names of
@@ -111,12 +111,12 @@ commands are reserved: a new agent command may not reuse one.
 `wb approve` and `wb deny` print what is being approved. That text
 includes guest-influenced values (hostnames, paths); `wb` strips control
 and escape sequences from every such value before printing it, so the
-guest cannot rewrite the approval screen (S14-no-fake-approvals).
+guest cannot rewrite the approval screen (SEC14-no-fake-approvals).
 
 ## On WSL
 
 Inside a WSL 2 distribution on a Windows host, `wb` runs in client mode
-(F16-wsl, spec 012-platforms): the same commands and flags, served by the Windows
+(FR16-wsl, S12-platforms): the same commands and flags, served by the Windows
 host's `wb-hostd`. The repository, the terminal, and `wb land` are on the
 WSL side; VMs, policy, credentials, and audit are on the Windows side.
 
