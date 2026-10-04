@@ -57,7 +57,8 @@ be tested before building on them.
 
 The open questions to answer before building on them are in X00-index.
 Each answered spike has a result page next to it, which X00-index links:
-X19-terminal-filter (the host terminal stream filter).
+X19-terminal-filter (the host terminal stream filter) and
+X23-sandboxed-daemons (Go daemons confining themselves on macOS).
 What V1 leaves out is in V1-initial.
 
 **Status:** Draft

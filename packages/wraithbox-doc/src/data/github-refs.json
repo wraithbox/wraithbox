@@ -123,7 +123,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X07-git-round-trip: Git round trip",
-		"summary": "Does the git round trip work as S08-workspace-and-git describes: a remote helper over vsock, read-only upload-pack against the user's repository, restricted receive-pack into the landing repository, and flagging of ri…"
+		"summary": "Does the git round trip work as S08-workspace-and-git describes: a remote helper over vsock, read-only upload-pack against the user's repository, restricted receive-pack into the landing repository, and flagging of ri…",
+		"brief": "B21-git-round-trip"
 	},
 	"22": {
 		"kind": "issue",
@@ -175,7 +176,7 @@
 	},
 	"30": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X19-terminal-filter: Terminal stream filtering",
 		"summary": "X19-terminal-filter (added to S11-verification-and-spikes in #14)",
 		"brief": "B30-terminal-filter"
@@ -190,7 +191,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X21-dep-gate-registries: Dependency gate on real registries",
-		"summary": "X21-dep-gate-registries (added to S11-verification-and-spikes in #14)"
+		"summary": "X21-dep-gate-registries (added to S11-verification-and-spikes in #14)",
+		"brief": "B32-dep-gate-registries"
 	},
 	"33": {
 		"kind": "issue",
@@ -202,7 +204,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X23-sandboxed-daemons: Self-sandboxed Go daemons on macOS",
-		"summary": "X23-sandboxed-daemons (added to S11-verification-and-spikes in #14)"
+		"summary": "X23-sandboxed-daemons (added to S11-verification-and-spikes in #14)",
+		"brief": "B34-sandboxed-daemons"
 	},
 	"35": {
 		"kind": "issue",
@@ -409,9 +412,9 @@
 	},
 	"66": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X19-terminal-filter result, yes with conditions",
-		"summary": "Answer: yes, with conditions.",
+		"summary": "Answer: yes, with conditions, for Ghostty and Terminal.app, as far as a headless emulator can show.",
 		"brief": "B30-terminal-filter"
 	},
 	"67": {
@@ -430,6 +433,50 @@
 		"kind": "pr",
 		"state": "open",
 		"title": "docs(spike): X07-git-round-trip answered, yes with conditions",
-		"summary": "Result of spike X07-git-round-trip: yes, with conditions."
+		"summary": "Result of spike X07-git-round-trip: yes, with conditions.",
+		"brief": "B21-git-round-trip"
+	},
+	"70": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S08-workspace-and-git: risky-path flagger evasion (case, symlinks, missing files)",
+		"summary": "The security review of #69 found that the X07-git-round-trip flagger prototype (spikes/x07-git-round-trip/flagger/flagger.go on spike/x07-git-round-trip) can be evaded."
+	},
+	"71": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: harden the push command-list filter",
+		"summary": "X07-git-round-trip proposed a Go pkt-line filter in front of receive-pack, and S08-workspace-and-git now names it as the push ref restriction."
+	},
+	"72": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S08-workspace-and-git: pin the host git configuration of the round trip",
+		"summary": "The security review of #69 listed host git settings that the X07-git-round-trip spike (spikes/x07-git-round-trip/host/host.go on spike/x07-git-round-trip) left implicit or non-portable."
+	},
+	"73": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: vulnerability threshold of the dependency gate",
+		"summary": "Found by the X21-dep-gate-registries spike (#32)."
+	},
+	"74": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Spike: wb-owned pre-receive check for inflated size and update() checks",
+		"summary": "S08-workspace-and-git caps the compressed size of a push (receive.maxInputSize)."
+	},
+	"75": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X21-dep-gate-registries result, filter metadata and refuse downloads",
+		"summary": "Result of the X21-dep-gate-registries spike: yes, with conditions.",
+		"brief": "B32-dep-gate-registries"
+	},
+	"76": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Measure the Go checksum-database clock of the dependency gate end to end",
+		"summary": "Follow-up from the X21-dep-gate-registries spike (#32) and the review of its result (#75)."
 	}
 }

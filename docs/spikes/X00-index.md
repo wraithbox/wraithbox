@@ -37,7 +37,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X20-shared-homebrew | Homebrew with more than one project user | Open |
 | X21-dep-gate-registries | Dependency gate on real registries | Open |
 | X22-no-guest-credentials | Clients without guest credentials | Open |
-| X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Open |
+| X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
 | X24-openshell-artifacts | OpenShell artifacts | Open |
 
 ## Spikes
@@ -183,7 +183,9 @@ assumption that v1 work would otherwise build on. They block v1.
   `wb-proxyd` and `wb-hostd` confine themselves at start with a
   sandbox profile, as S04-architecture says, while the Go runtime, inherited
   descriptors, and Keychain and Secure Enclave access in `wb-proxyd`
-  keep working?
+  keep working? Answered: yes with conditions, in
+  `docs/spikes/X23-sandboxed-daemons.md`. The `wb-proxyd` Keychain and
+  Secure Enclave part is I61.
 - **X24-openshell-artifacts: OpenShell artifacts.** Do the OpenShell parts that S07-egress-gateway,
   S09-policy-credentials-audit and S10-tech-stack build on exist in the assumed form, under a permissive
   license, at a version that can be pinned: the `network_policies`

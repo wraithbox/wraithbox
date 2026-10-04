@@ -59,7 +59,17 @@ nothing themselves (S12-platforms).
   beyond inherited descriptors; `wb-proxyd` outbound network and its
   credential store items; `wb-hostd` its state directories; `wb-vmd` the
   hypervisor and the VM bundles. This hardens our own code; it is not how
-  the agent is contained (the VM is).
+  the agent is contained (the VM is). A daemon confines itself first
+  thing in `main`, from a profile compiled into it, and exits if that
+  fails. `wb-netd` writes its log to a descriptor it inherits from
+  `wb-hostd`. On macOS a confined process can't confine itself again,
+  and its children inherit its profile (X23-sandboxed-daemons). So
+  `wb-hostd` starts `wb-vmd`, `wb-netd` and `wb-proxyd` through a
+  launcher it starts before it confines itself. The launcher has no
+  profile of its own, takes requests only from `wb-hostd` over a private socket,
+  starts only those programs, and passes no arguments but the
+  descriptors `wb-hostd` hands it. git, which `wb-hostd` runs for the
+  git gateway, inherits the `wb-hostd` profile.
 - **Everything in the guest is untrusted, including `wb-guestd`.** The
   host validates every message from the guest as adversarial input. The
   guest agent is a convenience for the host, not a security component.
