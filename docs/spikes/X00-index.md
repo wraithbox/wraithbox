@@ -38,7 +38,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X21-dep-gate-registries | Dependency gate on real registries | Answered 2026-10-04: yes, with conditions |
 | X22-no-guest-credentials | Clients without guest credentials | Answered 2026-10-05: yes, with conditions |
 | X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
-| X24-openshell-artifacts | OpenShell artifacts | Open |
+| X24-openshell-artifacts | OpenShell artifacts | Answered 2026-10-05: yes, with conditions |
 | X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Open |
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
 
@@ -206,6 +206,10 @@ assumption that v1 work would otherwise build on. They block v1.
   `supervisor_middleware.proto` (RFC 0009) used inside a Go process?
   The same check covers the OCSF 1.8 classes and the agent-safehouse
   Seatbelt profiles.
+  Answered yes, with conditions, in the result page
+  X24-openshell-artifacts: the extension keys are stripped before
+  OpenShell's tooling sees a policy, and the risk check isn't in the
+  prover binary.
 - **X25-vmd-sandbox: Self-sandboxed `wb-vmd`.** Can `wb-vmd` confine
   itself at start with a Seatbelt profile that allows the
   Virtualization framework, its VM bundles under `<data>/vms` and

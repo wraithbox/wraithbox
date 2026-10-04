@@ -1,0 +1,201 @@
+---
+title: Do the OpenShell parts the specs reuse exist as assumed?
+description: Yes, with conditions. All are Apache-2.0 at OpenShell v0.1.2, but Wraith Box must strip its own keys before OpenShell's prover reads a policy, and the approval risk check isn't in the prover binary.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-05: yes, with conditions. Awaiting decision on which rules go to the prover and where the risk check comes from.** Source: I35, X24-openshell-artifacts. Changes S07-egress-gateway, S09-policy-credentials-audit, S10-tech-stack and S13-guest-confinement.
+
+<Aside type="tip" title="What we learned">
+Yes, with conditions. The policy schema, the prover, the middleware API, the OCSF classes and the agent-safehouse profiles all exist under Apache-2.0, pinned to commits. Merging accepts these conditions, now in the specs:
+
+- OpenShell refuses a policy file with unknown keys, so Wraith Box writes a copy without its own keys before it calls the prover.
+- The boundary check passes only on `within_boundary`. "Unsupported" refuses, and the prover says that for GraphQL rules.
+- OpenShell's approval risk check is a Rust library inside OpenShell, not a program Wraith Box can run.
+
+Decision 1, **which rules go to the prover**: recommended A, leave out the built-in profiles. Decision 2, **where the risk check comes from**: recommended A, write it in Go.
+</Aside>
+
+## The picture
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="wb-hostd reads the user's policy file, which has OpenShell keys and Wraith Box keys. It writes a copy with only the OpenShell keys and runs openshell-prover on it against a boundary. Its own risk check runs on approval requests. wb-proxyd calls the dependency gate through the middleware interface as a Go method.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="10" y="16">host: trusted</text>
+
+  <rect class="box" x="10" y="40" width="190" height="70" rx="10" />
+  <text class="label" x="105" y="66" text-anchor="middle">policy.yaml</text>
+  <text class="note" x="105" y="86" text-anchor="middle">OpenShell keys</text>
+  <text class="note" x="105" y="102" text-anchor="middle">+ wraithbox keys</text>
+
+  <rect class="box host" x="270" y="30" width="210" height="150" rx="10" />
+  <text class="label" x="375" y="56" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="375" y="82" text-anchor="middle">1. parse, refuse unknown keys</text>
+  <text class="note" x="375" y="104" text-anchor="middle">2. write copy: version +</text>
+  <text class="note" x="375" y="122" text-anchor="middle">network_policies only</text>
+  <text class="note" x="375" y="150" text-anchor="middle">risk check (decision 2)</text>
+
+  <rect class="box" x="550" y="40" width="200" height="80" rx="10" />
+  <text class="label" x="650" y="66" text-anchor="middle">openshell-prover 0.1.2</text>
+  <text class="note" x="650" y="88" text-anchor="middle">external program,</text>
+  <text class="note" x="650" y="106" text-anchor="middle">checksum-pinned</text>
+
+  <line class="edge" x1="200" y1="75" x2="268" y2="75" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="480" y1="90" x2="548" y2="80" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M200,100 C320,230 560,230 620,122" fill="none" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="430" y="246" text-anchor="middle">the file as is: "unknown field 'wraithbox'"</text>
+
+  <rect class="box host" x="10" y="200" width="190" height="80" rx="10" />
+  <text class="label" x="105" y="226" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="105" y="248" text-anchor="middle">dependency gate as a</text>
+  <text class="note" x="105" y="266" text-anchor="middle">Go method, no gRPC hop</text>
+</svg>
+<figcaption>
+Figure 1. Where Wraith Box uses OpenShell's parts. The user's policy file holds OpenShell rules and Wraith Box's own keys. Given as is, the prover refuses it (red path). So `wb-hostd` writes a copy with only the OpenShell keys and checks that against the boundary. The risk check for approval requests is decision 2. `wb-proxyd` uses the middleware interface generated from OpenShell's proto as plain Go code (S09-policy-credentials-audit, S07-egress-gateway, X24-openshell-artifacts).
+</figcaption>
+</figure>
+
+## Decision 1: which rules go to the prover at `wb trust`
+
+The prover answers `unsupported` for rules it can't model: GraphQL, WebSocket, and hosts in `audit` mode. The built-in git hosting profile has GraphQL rules, so if the whole merged policy goes to the prover, `wb trust` refuses each project that has a remote on a git host. Until you decide, the spec does that, which is safe but leaves trusted repositories unusable for those projects.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Leave out the built-in profiles
+
+Send the prover the global, project and trusted repository rules, without the built-in profiles. Built-in profiles ship with Wraith Box and get their own tests. A repository rule the prover can't model still refuses.
+
+- **Cost:** a little code to keep the sources apart, which `wb policy explain` already needs. An organization's boundary can't limit a built-in profile.
+- **Keeps:** <Badge text="SEC09-host-policy" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Send everything, refuse "unsupported"
+
+What the spec says until you decide.
+
+- **Cost:** no extra code. `wb trust` fails for every project with a git host remote, so trusted repository configuration is unusable in V1.
+- **Keeps:** <Badge text="SEC09-host-policy" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. Widen the rules the prover can't model
+
+Before the check, replace each GraphQL or WebSocket rule in the candidate with a wider REST rule (for example `POST /graphql`). A wider candidate inside the boundary means the real one is inside too.
+
+- **Cost:** a rewrite step that must only ever widen, which needs its own tests. Boundaries must allow those wider rules, so an organization can't limit GraphQL operations in its boundary.
+- **Keeps:** <Badge text="SEC09-host-policy" variant="caution" /> only while the rewrite never narrows.
+
+</div>
+</div>
+
+## Decision 2: where the approval risk check comes from
+
+S09-policy-credentials-audit said approval requests go through "the prover's proposal risk check". That check exists, but only as a Rust library that OpenShell's gateway calls. The part that keeps only new findings is in the gateway too, and the prover's README says the library isn't a stable SDK. It also has none of the extra checks X22-no-guest-credentials adds.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Write it in Go in `wb-hostd`
+
+Follow OpenShell's four categories and names, add Wraith Box's own checks, and test against OpenShell's cases.
+
+- **Cost:** Go code and tests to write and keep. It can drift from OpenShell's meaning over time.
+- **Keeps:** <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. A Rust helper that links OpenShell's library
+
+A small program built from OpenShell's crate, shipped next to the prover.
+
+- **Cost:** adds Rust and a Z3 build to the repository, which S10-tech-stack forbids without a spec change. Tied to an unstable API, and the extra checks still need Go.
+- **Keeps:** <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. Wait for OpenShell to add it to the prover binary
+
+Ask upstream for a `risk` command and use it when it ships.
+
+- **Cost:** no date. Until then every approval fails closed, so FR09-approve-unknown doesn't work.
+- **Keeps:** <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>1A. No built-ins</th><th>1B. Everything</th><th>1C. Widen</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC09-host-policy</strong> repository config can't widen past the boundary</td><td class="yes">checked</td><td class="yes">checked, all rules</td><td class="partial">if rewrite is sound</td></tr>
+<tr><td><strong>Trusted repositories</strong> usable with a git host remote</td><td class="yes">yes</td><td class="no">no</td><td class="yes">yes, widened</td></tr>
+<tr><td><strong>Organization boundary</strong> limits built-in profiles</td><td class="no">no</td><td class="yes">yes, by refusing</td><td class="partial">not GraphQL</td></tr>
+</tbody>
+</table>
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>2A. Go</th><th>2B. Rust helper</th><th>2C. Wait</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC14-no-fake-approvals</strong> only the user approves, with the findings shown</td><td class="yes">yes</td><td class="yes">holds</td><td class="yes">nothing to approve</td></tr>
+<tr><td><strong>FR09-approve-unknown</strong> approve an unknown destination</td><td class="yes">yes</td><td class="yes">works</td><td class="no">no, until upstream ships</td></tr>
+<tr><td><strong>NFR07-maintainability</strong> languages and dependencies</td><td class="yes">Go only</td><td class="no">adds Rust and Z3</td><td class="yes">none</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> OpenShell refuses unknown keys at every level of a policy (`crates/openshell-policy-schema/src/lib.rs` at v0.1.2). The prover refused the sample file with `unknown field 'wraithbox'`, exit 2, and accepted it without that key.
+- <Badge text="verified" variant="success" /> The prover 0.1.2 macOS archive matches its published SHA-256, and `gh attestation verify` passes. The release has no Windows build.
+- <Badge text="verified" variant="success" /> The prover reads `/**` as every program: against a boundary that allows only `/usr/bin/curl`, a `/**` rule exceeds with `binary=/a`.
+- <Badge text="verified" variant="success" /> GraphQL rules and `audit` mode give `unsupported`, exit 3. A host the boundary lacks and a `DELETE` it lacks give `exceeds_boundary` with a counterexample.
+- <Badge text="verified" variant="success" /> The risk check is `openshell_prover::queries`, and the new-findings step is in `openshell-server`. The standalone binary has only `check`.
+- <Badge text="inferred" variant="note" /> For one proposed `POST` rule on a host already reached with a credential, OpenShell's check would report one `capability_expansion`. Traced through the source, not run.
+- <Badge text="verified" variant="success" /> Go code generated from `supervisor_middleware.proto` with `buf` works called as a method and over gRPC (spike output).
+- <Badge text="verified" variant="success" /> OCSF 1.8.0 defines classes 4001, 4002, 5019 and 2004, which OpenShell emits.
+- <Badge text="verified" variant="success" /> agent-safehouse v0.12.0 is Apache-2.0, with `(deny default)` profiles applied by `sandbox-exec`.
+- <Badge text="assumed" variant="caution" /> That OpenShell keeps the prover's JSON result and the `v1` middleware package compatible within a minor release (RFC 0014, in review). Not run: the risk check, and the safehouse profiles in a guest.
+
+## What this unblocks
+
+- The policy parser and the boundary check in `wb-hostd`, to the S09-policy-credentials-audit rules.
+- The dependency gate's interface in `wb-proxyd` (S07-egress-gateway).
+- The approval risk check, once decision 2 is made.
+- Part of the exit criterion of V1-M1-spikes-closed.
+
+<details>
+<summary>Details and glossary</summary>
+
+**The copy is a new document.** Wraith Box writes it from the rules it parsed. The prover then checks the rules Wraith Box enforces, and nothing it didn't parse.
+
+**"Unsupported" refuses.** The prover only proves what it models. A GraphQL rule it ignores could allow a mutation the boundary forbids. Treating "can't tell" as "no" keeps the check from passing a policy it never checked.
+
+**OpenShell's risk check misses some programs.** Its list of known programs has nine entries. Any other path, `/**` included, counts as an unknown program that speaks HTTP. The check then never flags a program like `ssh` reaching a host where a credential applies.
+
+**Glossary**
+
+- **OpenShell:** NVIDIA's sandbox for AI agents. Wraith Box reuses its policy language and some of its tools.
+- **Prover:** a program that checks a policy against a boundary policy with a solver (Z3), and gives an example when the policy allows more.
+- **Boundary policy:** the most a project may ever be allowed.
+- **Counterexample:** one request the policy allows and the boundary doesn't.
+- **Risk check:** a check of one proposed rule that lists what it adds, such as a new method on a host with a credential.
+- **Middleware API:** OpenShell's interface for code that checks requests after policy and before credentials. The dependency gate uses it.
+- **OCSF:** an open format for security events that log tools read.
+- **Seatbelt:** macOS's kernel sandbox, configured with profiles.
+
+</details>

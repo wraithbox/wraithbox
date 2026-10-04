@@ -22,17 +22,34 @@ inspection is trusted, and what is recorded.
   Box policy, and gives users one policy language for both tools.
   Wraith Box extensions (per-host inspect or pass mode, wildcard
   budget, dependency-gate thresholds, credential bindings) go in
-  separate top-level keys. The OpenShell part is then a valid OpenShell
-  policy by itself.
+  separate top-level keys.
+  - *Pinned release.* OpenShell adds fields to the schema without
+    changing `version: 1`, so the pin is an OpenShell release: v0.1.2
+    (X24-openshell-artifacts, S10-tech-stack). Wraith Box accepts the
+    keys of that release only.
+  - *Closed keys.* OpenShell rejects a policy with an unknown key at
+    any level, so a file with Wraith Box's extension keys isn't a valid
+    OpenShell policy (X24-openshell-artifacts). Wraith Box keeps the
+    extensions in the same file. When it hands policy to OpenShell's
+    tooling, it writes a new document with only `version` and
+    `network_policies`, never the user's file.
+  - *Unimplemented keys.* An OpenShell key that Wraith Box doesn't
+    implement is refused at load with an error that names it
+    (NFR06-explained-refusals), never ignored, so no rule is weaker
+    than written. Examples are the other top-level keys
+    (`filesystem_policy`, `network_middlewares`) and endpoint fields
+    such as `credential_binding` and `mcp`.
 - **Program narrowing.** `binaries` entries match the program label
   from the guest (S13-guest-confinement). Until spike X14-flow-attribution has delivered labels,
-  rules are evaluated the way OpenShell does when binary identity is
-  not required (as for its Windows driver): `binaries` does not narrow
-  a rule. Each rule lists the universal entry `path: "/**"`, and policy
-  that names programs is rejected at load with an error
-  saying why (NFR06-explained-refusals), so no rule is silently weaker than written. Whether
-  the prover reads `/**` as every program is checked when the boundary
-  check is built.
+  `binaries` does not narrow a rule. OpenShell's policy engine has the
+  same mode, switched by its `require_binary_identity` setting, though
+  its isolation backends must resolve binary identity
+  (X24-openshell-artifacts). Each rule lists the universal entry
+  `path: "/**"`, and policy that names programs is rejected at load
+  with an error saying why (NFR06-explained-refusals), so no rule is
+  silently weaker than written. The prover checks each policy both with
+  and without binary identity, and with it reads `/**` as every program
+  (X24-openshell-artifacts).
 - **Settings contents.** The project toolchain manifest (Brewfile on
   macOS guests); extra writable repositories; guest OS; VM slot
   (work/isolated); resource limits. Clipboard and port-forwarding
@@ -46,10 +63,26 @@ inspection is trusted, and what is recorded.
 - **Boundary check.** At `wb trust` and whenever a trusted repository's
   policy changes, the merged project policy is checked against a
   boundary policy (the most a project may ever be allowed) with
-  OpenShell's prover (`openshell-prover`, run as an external program).
-  A policy that exceeds the boundary is refused, and the prover's
-  counterexample is shown. The default boundary ships with Wraith Box,
+  OpenShell's prover (`openshell-prover check --output json`, run as an
+  external program, S10-tech-stack). A policy is accepted only when the
+  result is `within_boundary` and `coverage.domains` lists
+  `network_l4` and `network_rest`. A policy that exceeds the boundary is
+  refused, and the prover's counterexample is shown. Every other result
+  (`unsupported`, `inconclusive`, `error`, a missing or unknown field)
+  refuses the policy too, with the prover's `reason_code` and reason
+  shown and logged. The default boundary ships with Wraith Box,
   and an organization may supply its own.
+  - *What the prover models.* At v0.1.2 it compares hosts, ports and
+    programs, and method and path rules on `protocol: rest` endpoints
+    in `enforce` mode. It answers `unsupported` for GraphQL and
+    WebSocket rules, an endpoint in `audit` mode, query matchers, and a
+    host and port that has both a REST endpoint and one without rules
+    (X24-openshell-artifacts). The git hosting profile has GraphQL
+    rules (S07-egress-gateway), so a merged policy that includes it is
+    refused. Which rules go to the prover, so that `wb trust` can pass
+    for such a project, is open (B35-openshell-artifacts). Until it is
+    decided, the whole merged policy goes to the prover and these
+    results refuse it.
 - **Precedence.** Built-in defaults → global → project → trusted repo
   config → session approvals. `wb policy explain` shows the effective
   value and its source.
@@ -105,10 +138,25 @@ inspection is trusted, and what is recorded.
 ## Approvals (SEC14-no-fake-approvals)
 
 Before an approval request is shown, the rule it would add goes
-through the prover's proposal risk check (new reach for a credential,
+through a risk check (new reach for a credential,
 new write methods, metadata addresses, shared object-storage hosts and
 wildcards over them, signature parameters on a write method,
 S07-egress-gateway). Findings are part of the request. Only the user approves a request.
+
+The risk check compares the policy with and without the proposed rule
+and reports what the rule adds. OpenShell's proposal risk check is the
+model for its first four checks, with the same category names:
+`link_local_reach`, `credential_reach_expansion`,
+`capability_expansion` and `l7_bypass_credentialed`. OpenShell's check
+can't be run as it is. It is a Rust library API that OpenShell's gateway
+calls, isn't in the standalone `openshell-prover` binary, and has none
+of the checks after the first four (X24-openshell-artifacts). It also
+reads `/**` as a single unknown program that speaks HTTP, so it never
+reports `l7_bypass_credentialed` for a `/**` rule. Wraith Box's check
+treats `/**` as covering programs that don't speak HTTP too. Where the
+check runs and in which language is open (B35-openshell-artifacts). A
+request whose risk check fails or can't run can't be approved: the
+destination stays denied, and the failure is logged.
 
 Approval requests are delivered as native notifications (through the
 platform's notification helper, S12-platforms) and through `wb approve` /
@@ -121,9 +169,11 @@ stripped of control and escape sequences wherever it is shown.
 - JSONL in `<logs>` (S12-platforms; `~/Library/Logs/WraithBox/` on macOS),
   written by `wb-hostd` from events
   sent by `wb-netd` and `wb-proxyd`; rotated and size-capped.
-- Events use OCSF 1.8 classes, as OpenShell's do: network activity for
-  connections, HTTP activity for inspected requests, configuration
-  state change for policy and approvals, and detection finding for
+- Events use OCSF 1.8.0 classes, as OpenShell's do
+  (X24-openshell-artifacts): Network Activity (4001) for
+  connections, HTTP Activity (4002) for inspected requests, Device
+  Config State Change (5019) for policy and approvals, and Detection
+  Finding (2004) for
   refused placeholders, foreign credentials removed from a request
   (S07-egress-gateway), pin mismatches, and other signs of an attack. A
   SIEM can read the log without a custom parser.

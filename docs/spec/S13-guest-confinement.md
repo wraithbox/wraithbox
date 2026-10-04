@@ -56,8 +56,17 @@ process cannot remove it, much like Landlock.
   project user's processes can't dial the host directly. The host
   doesn't rely on it: it refuses or binds guest-initiated connections
   itself (S04-architecture, X18-vsock-handoff).
-- **Source.** The agent-safehouse profiles (Apache-2.0) are the
-  starting point.
+- **Source.** The agent-safehouse profiles (Apache-2.0, v0.12.0,
+  commit `6bded066`) are the starting point (X24-openshell-artifacts).
+  They are Seatbelt profile modules that start from `(deny default)`,
+  with placeholders for the home and work directories. Upstream
+  joins them with a shell script and applies them with `sandbox-exec`.
+  Wraith Box copies the modules it uses at the pinned commit, keeps
+  their license text, and generates the profile on the host. Their
+  network module allows every outbound connection, so this layer
+  doesn't narrow egress, and the host enforces it (S07-egress-gateway).
+  X24-openshell-artifacts read the profiles but didn't run them in a
+  guest.
 - **Known gaps.** Processes started through LaunchServices and `launchd`
   services run outside the profile. They stay inside the guest and the
   project user's permissions. Xcode and simulators need exceptions
