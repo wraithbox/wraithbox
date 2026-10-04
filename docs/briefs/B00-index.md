@@ -20,6 +20,7 @@ issue, the spike result, or the spec). A brief explains it.
 |----|-------------|--------|
 | B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04 |
 | B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04 |
+| B32-dep-gate-registries | Can the dependency gate refuse young packages without breaking installs? | Answered 2026-10-04: yes, with conditions |
 | B34-sandboxed-daemons | Can the Go daemons confine themselves on macOS? | Answered 2026-10-04 |
 | B36-flow-attribution | Can projects sharing the work VM keep their network grants apart? | Decided 2026-10-04: A. The VM is the enforced unit |
 | B37-terminal-boundary | Should the host terminal be a trust boundary with its own filter? | Decided 2026-10-04: A. Boundary plus allowlist filter, for now |
@@ -46,4 +47,9 @@ whom, when one is decided badly or late. Take a brief off the list once
 it is decided.
 
 The maintainer decided B36-flow-attribution to B52-proto-contracts on
-2026-10-04, so the list is empty until a new brief arrives.
+2026-10-04.
+
+1. B32-dep-gate-registries: the dependency gate as S07-egress-gateway
+   specified it fails every fresh install. Approving the spike result
+   accepts metadata filtering in front of the download refusal, and
+   Homebrew outside the gate. Its vulnerability threshold is I73.

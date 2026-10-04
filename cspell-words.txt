@@ -70,6 +70,7 @@ unparam
 safehouse
 Vulns
 openshell
+Ghostty
 
 # Docs site (Astro Starlight)
 frontmatter
@@ -121,3 +122,15 @@ asciicast
 iconify
 DECRQM
 DECRQSS
+
+# Package registries, and projects measured by spikes
+packument
+sdist
+ungated
+cooldowns
+datasette
+fastapi
+starlette
+httpx
+webui
+sharkdp

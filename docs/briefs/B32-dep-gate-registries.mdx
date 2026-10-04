@@ -1,0 +1,166 @@
+---
+title: Can the dependency gate refuse young packages without breaking installs?
+description: Yes, with conditions. Hide too-young versions from registry metadata so installers pick older ones, keep refusing too-young downloads, use the checksum database as Go's clock, and leave Homebrew ungated.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-04: yes, with conditions.** Source: I32, X21-dep-gate-registries. Changes S07-egress-gateway and S11-verification-and-spikes. Opens I73.
+
+<Aside type="tip" title="What we learned">
+Yes, with conditions. Refusing every download younger than 7 days, as S07-egress-gateway said, failed the fresh install of all 10 real projects tried. Removing those versions from the registry's metadata as well let 9 of 10 install older versions, and the download refusal still catches lockfile pins. Recommended: **A**, now in S07-egress-gateway. Separately, refusing known vulnerabilities at HIGH would fail 8 of the 10 lockfile installs. That default is unchanged here, and I73 asks you to decide it.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="An installer in the guest asks a registry for the list of versions, then downloads one. wb-proxyd sees both requests. It removes too-young versions from the list and refuses a too-young download.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="20" width="200" height="290" rx="12" />
+  <text class="boundary-label" x="22" y="40">guest, untrusted</text>
+
+  <rect class="box guest" x="30" y="70" width="160" height="50" rx="10" />
+  <text class="label" x="110" y="92" text-anchor="middle">npm, uv, pip,</text>
+  <text class="label" x="110" y="110" text-anchor="middle">go, cargo</text>
+  <rect class="box guest" x="30" y="210" width="160" height="50" rx="10" />
+  <text class="label" x="110" y="240" text-anchor="middle">lockfile install</text>
+
+  <text class="note" x="230" y="14">host: trusted</text>
+
+  <rect class="box host" x="270" y="110" width="200" height="110" rx="10" />
+  <text class="label" x="370" y="140" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="370" y="164" text-anchor="middle">1. list: hide young versions</text>
+  <text class="note" x="370" y="186" text-anchor="middle">2. download: refuse young</text>
+  <text class="note" x="370" y="206" text-anchor="middle">and vulnerable (OSV)</text>
+
+  <line class="edge" x1="190" y1="90" x2="268" y2="135" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="190" y1="235" x2="268" y2="200" marker-end="url(#f1-arrow)" />
+
+  <rect class="box" x="540" y="50" width="210" height="60" rx="10" />
+  <text class="label" x="645" y="76" text-anchor="middle">registry metadata</text>
+  <text class="note" x="645" y="94" text-anchor="middle">versions and publish times</text>
+
+  <rect class="box" x="540" y="140" width="210" height="60" rx="10" />
+  <text class="label" x="645" y="166" text-anchor="middle">package downloads</text>
+  <text class="note" x="645" y="184" text-anchor="middle">old versions pass</text>
+
+  <rect class="box" x="540" y="230" width="210" height="60" rx="10" />
+  <text class="label" x="645" y="256" text-anchor="middle">young version</text>
+  <text class="note" x="645" y="274" text-anchor="middle">refused, with the date</text>
+
+  <line class="edge" x1="470" y1="135" x2="538" y2="85" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="470" y1="165" x2="538" y2="170" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M470,200 L538,255" marker-end="url(#f1-arrow-bad)" />
+</svg>
+<figcaption>
+Figure 1. An installer first asks the registry which versions exist, then downloads one. With caret ranges (`^1.2`), it picks the newest match, which is often younger than 7 days. If `wb-proxyd` only refuses that download, the whole install fails (red path). If it also removes the young versions from the list, the installer picks an older one. A lockfile install skips the list and asks for exact versions. For that case the download refusal stays (S07-egress-gateway, X21-dep-gate-registries).
+</figcaption>
+</figure>
+
+## Options
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Filter the metadata, refuse the download
+
+`wb-proxyd` removes too-young versions from the version lists of npm, PyPI, crates.io and the Go module proxy, and still refuses a too-young download. Homebrew isn't gated.
+
+- **Cost:** `wb-proxyd` rewrites metadata responses, and fetches publish times itself (one extra request per package the first time). Fresh installs: 1 of 10 failed. Lockfile installs with a version pinned in the last 7 days: 2 of 10 failed, with a message that says when it becomes allowed.
+- **Keeps:** <Badge text="SEC07-dep-gate" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Refuse the download only
+
+What S07-egress-gateway said before this spike.
+
+- **Cost:** least code. Fresh installs: 10 of 10 failed, because each project resolved at least one dependency released in the last week. Users would override the gate on most projects.
+- **Keeps:** <Badge text="SEC07-dep-gate" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. Rely on the installers' own cooldowns
+
+npm (`min-release-age`), pnpm (`minimumReleaseAge`) and uv (`exclude-newer`) can skip young versions themselves, if configured in the guest.
+
+- **Cost:** no proxy work. But the setting is in the guest, which the agent controls, and pip, go and cargo have no equivalent.
+- **Weakens:** <Badge text="SEC07-dep-gate" variant="danger" /> the guest can turn it off. Needs a spec change.
+
+</div>
+<div class="wb-option">
+
+### D. Filter the metadata only
+
+Like A, without refusing downloads.
+
+- **Cost:** no lockfile install ever fails on age. A lockfile, or a URL typed by the agent, fetches any version.
+- **Weakens:** <Badge text="SEC07-dep-gate" variant="danger" /> young downloads get through. Needs a spec change.
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Filter + refuse</th><th>B. Refuse only</th><th>C. Guest cooldowns</th><th>D. Filter only</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC07-dep-gate</strong> young or vulnerable downloads are refused</td><td class="yes">kept</td><td class="yes">holds</td><td class="no">guest can disable</td><td class="no">lockfiles bypass</td></tr>
+<tr><td><strong>Fresh installs</strong> with a 7-day minimum age</td><td class="yes">9 of 10 pass</td><td class="no">0 of 10 pass</td><td class="partial">npm, pnpm, uv only</td><td class="yes">9 of 10 pass</td></tr>
+<tr><td><strong>Lockfile installs</strong> with a 7-day minimum age</td><td class="partial">8 of 10 pass</td><td class="partial">7 of 10 pass</td><td class="partial">not measured</td><td class="partial">9 of 10 pass</td></tr>
+<tr><td><strong>NFR06-explained-refusals</strong> each refusal names its rule</td><td class="yes">package, date</td><td class="yes">package, date</td><td class="partial">installer's own error</td><td class="yes">package, date</td></tr>
+<tr><td><strong>NFR02-fs-speed</strong> `npm ci` close to the host</td><td class="yes">OSV overlapped</td><td class="yes">OSV overlapped</td><td class="yes">no proxy work</td><td class="yes">OSV overlapped</td></tr>
+</tbody>
+</table>
+
+<Aside type="caution" title="The vulnerability half needs your decision">
+SEC07-dep-gate also refuses a download with a known vulnerability at or above a threshold, default HIGH. In the same 10 lockfiles, 8 contain a package with a HIGH or CRITICAL advisory in OSV, mostly in development tools. At CRITICAL it is 2 of 10. Some advisories have no severity. This result doesn't change the default. I73 lays out the options and recommends refusing malicious-package reports and CRITICAL, and reporting HIGH.
+</Aside>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Fresh installs of 10 projects (5 npm, 3 uv, 2 pip) through the spike's proxy: refuse failed 10 of 10, filter 1 of 10. The failure asks for `PyJWT>=2.15.1`, uploaded 6 days earlier (X21-dep-gate-registries, "Installs with a 7-day minimum age").
+- <Badge text="verified" variant="success" /> Lockfile installs: refuse failed 3 of 10, filter 2 of 10. Both failures pin versions from the last 7 days.
+- <Badge text="verified" variant="success" /> Go and cargo: `go get @latest` of five modules and a fresh `cargo fetch` of nine crates failed with refuse and passed with filter. Lockfile fetches passed with both.
+- <Badge text="verified" variant="success" /> Publish times: npm `time` in the full packument, PyPI `upload-time` per file, crates.io `pubtime` on all 2,873 index lines sampled. `npm ci` and `uv sync --frozen` don't fetch metadata, and every download was still mapped from its URL.
+- <Badge text="verified" variant="success" /> Go's `.info` Time is the commit time. 173 of 200 versions first seen by the module proxy in the last week had one more than 7 days older. Checksum database record numbers grew with first-seen time over 14 days.
+- <Badge text="verified" variant="success" /> Homebrew: 61 of the 190 most installed core formulae had a bottle younger than 7 days. `brew` checks the signature of `formula.jws.json` (`Library/Homebrew/api.rb`, `verify_and_parse_jws`). OSV doesn't list a Homebrew ecosystem.
+- <Badge text="verified" variant="success" /> OSV: about 240 ms per lookup. For axios (633 downloads), `npm ci` took 31 to 33 s with a lookup before each download, against 18 to 23 s without OSV. Overlapped with the download, it took 15 s, no slower than without OSV. Coalescing into `querybatch` didn't help.
+- <Badge text="inferred" variant="note" /> The checksum database clock needs one calibration point, the record number of a version that `index.golang.org` lists as first seen 7 days ago. The spike checked the ordering, not a full implementation.
+- <Badge text="assumed" variant="caution" /> That the 10 projects are typical. They are active, popular projects, pinned to their commits of late September and early October 2026.
+
+## What this unblocks
+
+- The dependency gate in `wb-proxyd` for V1-M5-approvals (SEC07-dep-gate), to the rewritten S07-egress-gateway section.
+- I73, the vulnerability threshold, which the gate's implementation also needs.
+- Part of the exit criterion of V1-M1-spikes-closed.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why two layers.** A fresh install resolves version ranges against the registry's list of versions and then downloads what it picked. A lockfile install skips the list and downloads exact versions. Filtering the list fixes the first. Only refusing the download covers the second, and also a URL the agent types by hand.
+
+**Why not Go's own time.** The module proxy reports the time of the commit that a version tag points at. Anyone can tag an old commit, or set the commit date, so a version published today can look years old. The checksum database adds a record the first time a version is looked up, in order, and nobody can backdate it.
+
+**Why not Homebrew.** `brew` installs the one current version of a formula, from metadata that Homebrew signs. `wb-proxyd` has no older version to fall back to and no list `wb-proxyd` could change without breaking the signature. A minimum age would only refuse, and would refuse a third of popular formulae.
+
+**Glossary**
+
+- **Registry metadata:** the list of versions of a package, with download addresses and publish times, that an installer reads first.
+- **Packument:** npm's name for that list. The full one has publish times. The abbreviated one npm asks for by default doesn't.
+- **dist-tag:** a named pointer to a version, like `latest`.
+- **Lockfile:** a file in the project with the exact version of every dependency, such as `package-lock.json` or `uv.lock`.
+- **Caret range:** `^1.2.0`, any version from 1.2.0 up to the next major version.
+- **Sparse index:** crates.io's version lists, one file per crate.
+- **Checksum database:** `sum.golang.org`, a public append-only log of the hash of every Go module version.
+- **OSV:** a public database of vulnerabilities in open-source packages.
+
+</details>
