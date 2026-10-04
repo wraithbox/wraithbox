@@ -6,6 +6,8 @@
    text. */
 .sl-markdown-content a.wb-ref {
 	position: relative;
+	/* An ID reads as one word: no break at the hyphens of its slug. */
+	white-space: nowrap;
 	text-decoration-style: dotted;
 	text-underline-offset: 0.2em;
 }

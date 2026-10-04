@@ -11,7 +11,36 @@ throwaway code stays on a `spike/x<NN>-<slug>` branch that is kept and
 never merged. The written result is `docs/spikes/X<NN>-<slug>.md`, next
 to this index, and is merged together with any spec change the answer
 forces. A new open question gets the next free number here before it is
-filed. The workflow is in `docs/agents/planning.md`.
+filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/planning.md`.
+
+| ID | Description | Status |
+|----|-------------|--------|
+| X01-model-credential | Model credential via the proxy | Open |
+| X02-warm-start | Warm start | Open |
+| X03-network-path | Network path | Open |
+| X04-tls-inspection | Inspection compatibility | Open |
+| X05-fs-benchmark | Filesystem benchmark | Open |
+| X06-guest-xcode | Guest users and Xcode | Open |
+| X07-git-round-trip | Git round trip | Open |
+| X08-data-disk | Data disk for homes | Open |
+| X09-keychain-unsigned | Keychain access without a signing identity | Open |
+| X10-linux-hypervisor | Linux VMM and packet transport | Open |
+| X11-windows-host | Windows host through HCS | Open |
+| X12-wsl-channel | WSL client channel | Open |
+| X13-windows-guests | Windows guests on a macOS host | Open |
+| X14-flow-attribution | Guest flow attribution | Open |
+| X15-endpoint-security | Endpoint Security entitlement | Open |
+| X16-openshell-linux | OpenShell for Linux guests | Open |
+| X17-image-build | Unattended image build | Open |
+| X18-vsock-handoff | Host-guest socket and descriptor hand-off | Open |
+| X19-terminal-filter | Terminal stream filtering | Open |
+| X20-shared-homebrew | Homebrew with more than one project user | Open |
+| X21-dep-gate-registries | Dependency gate on real registries | Open |
+| X22-no-guest-credentials | Clients without guest credentials | Open |
+| X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Open |
+| X24-openshell-artifacts | OpenShell artifacts | Open |
+
+## Spikes
 
 ### macOS host, macOS guest (V1)
 
@@ -163,5 +192,3 @@ assumption that v1 work would otherwise build on. They block v1.
   `supervisor_middleware.proto` (RFC 0009) used inside a Go process?
   The same check covers the OCSF 1.8 classes and the agent-safehouse
   Seatbelt profiles.
-
-**Status:** Draft

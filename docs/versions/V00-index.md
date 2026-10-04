@@ -10,7 +10,6 @@ criterion, and is also a GitHub milestone of the same name. Work is
 taken up in milestone order, lowest open one first
 (`docs/agents/planning.md`).
 
-- V1-initial: the first version. A macOS guest on a macOS host, with
-  every control of SEC00-index.
-
-**Status:** Draft
+| ID | Description | Status |
+|----|-------------|--------|
+| V1-initial | Initial version | Draft |

@@ -45,7 +45,7 @@ const githubRepo = 'https://github.com/wraithbox/wraithbox';
 /** @typedef {Target & { slug: string, full: string }} Named a target with an ID-slug name */
 
 /** First sentence of a plain-text passage, at most about 220 characters. */
-function firstSentence(/** @type {string} */ text) {
+export function firstSentence(/** @type {string} */ text) {
 	const sentence = text.match(/^(.+?[.?!])(\s|$)/)?.[1] ?? text;
 	return sentence.length > 220 ? `${sentence.slice(0, 217).trimEnd()}…` : sentence;
 }
@@ -56,11 +56,11 @@ export function purposeOf(/** @type {string} */ source) {
 	return m ? plain(m[1]) : '';
 }
 
-const SLUG = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*`;
+export const SLUG = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*`;
 /** A design ID: S07, SEC06, X14, B36, V1, V1-01, V1-M2. */
-const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[BSTXR])\d{2,}|V\d+(?:-(?:M\d+|\d{2,}))?`;
+export const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[BSTXR])\d{2,}|V\d+(?:-(?:M\d+|\d{2,}))?`;
 /** A definition list item: `- **SEC06-repo-writes: Name.** text`. */
-const DEFINITION = new RegExp(
+export const DEFINITION = new RegExp(
 	String.raw`^- \*\*(${DESIGN_ID})-(${SLUG}):\s*([^*]*?)\.?\*\*([\s\S]*?)(?=\n- \*\*|\n\n|(?![\s\S]))`,
 	'gm',
 );
@@ -144,7 +144,7 @@ function checkBriefs(design, github) {
 	}
 }
 
-function loadGithub() {
+export function loadGithub() {
 	/** @type {Record<string, { kind: 'issue' | 'pr', title: string, state: string, summary: string, brief?: string }>} */
 	const refs = fs.existsSync(githubRefsFile)
 		? JSON.parse(fs.readFileSync(githubRefsFile, 'utf8'))

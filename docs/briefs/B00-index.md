@@ -16,8 +16,6 @@ issue, the spike result, or the spec). A brief explains it.
   first.
 - The issue links to its brief with a `Brief:` line in its body.
 
-| Brief | Status |
-|---|---|
-| B36-flow-attribution | Awaiting decision |
-
-**Status:** Draft
+| ID | Description | Status |
+|----|-------------|--------|
+| B36-flow-attribution | Can projects sharing the work VM keep their network grants apart? | Awaiting decision |

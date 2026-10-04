@@ -34,7 +34,7 @@ request.
 - **One brief per issue.** When an issue needs two briefs, split the
   issue first. The build fails on two briefs with the same number, and
   on a brief numbered after a pull request.
-- Add a row to the table in B00-index, newest first.
+- Run `mise run doc:index` to add its row to B00-index.
 - Link the brief from its source: a `Brief:` line at the end of the
   issue body, above the attribution lines, with the brief's URL
   (`Brief: https://wraithbox.nl/briefs/b36-flow-attribution/`), a line

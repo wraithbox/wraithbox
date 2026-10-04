@@ -3,6 +3,17 @@
 **Purpose:** Who Wraith Box defends against, what it protects, what it
 trusts, and which risks it accepts rather than solves.
 
+| ID | Description | Status |
+|----|-------------|--------|
+| T01-allowed-channels | Data through allowed channels | Accepted |
+| T02-dns-names | Data in DNS names | Accepted |
+| T03-hypervisor-escape | Hypervisor escape | Accepted |
+| T04-bad-approvals | Bad approvals | Accepted |
+| T05-cross-proj-clones | Other projects' clones after guest root | Accepted |
+| T06-forged-labels | Forged program labels after guest root | Accepted |
+
+## Model
+
 **Adversary.** Instructions or code running inside the guest with full
 guest root: a prompt-injected or misaligned agent, a malicious dependency,
 or a tool the agent runs. It can read everything in the guest, craft any
@@ -27,21 +38,19 @@ packet surface to `wb-netd`; (4) git objects returning to the host;
 
 **Accepted residual risks**, documented rather than solved:
 
-- **T01-allowed-channels:** Data sent through allowed operations to allowed destinations,
+- **T01-allowed-channels: Data through allowed channels.** Data sent through allowed operations to allowed destinations,
   for example a push to an allowed repository that is public, or prompt
   content sent to the model provider.
-- **T02-dns-names:** Data encoded in DNS names under allowed wildcards, bounded by a
+- **T02-dns-names: Data in DNS names.** Data encoded in DNS names under allowed wildcards, bounded by a
   per-session lookup budget.
-- **T03-hypervisor-escape:** Escape from the hypervisor.
-- **T04-bad-approvals:** A user approving a malicious request or merging a malicious
+- **T03-hypervisor-escape: Hypervisor escape.** Escape from the hypervisor.
+- **T04-bad-approvals: Bad approvals.** A user approving a malicious request or merging a malicious
   change despite the flags.
-- **T05-cross-proj-clones:** After a guest root escalation inside the shared work VM, read or
+- **T05-cross-proj-clones: Other projects' clones after guest root.** After a guest root escalation inside the shared work VM, read or
   write access to other projects' guest clones (code only; no secrets are
   present; changes still return only as reviewable branches). Untrusted
   repositories use the isolated VM to avoid this.
-- **T06-forged-labels:** After a guest root escalation, forged program identities in the
+- **T06-forged-labels: Forged program labels after guest root.** After a guest root escalation, forged program identities in the
   guest confinement layer (S13-guest-confinement). Rules narrowed to named
   programs then act as the union of the project's grants. The host
   floor (SEC05-default-deny, SEC06-repo-writes) still holds.
-
-**Status:** Draft
