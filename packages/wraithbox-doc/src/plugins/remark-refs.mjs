@@ -4,6 +4,7 @@
 // of S01-spec-based-development:
 //
 //   S07-egress-gateway, X00-index, V1-initial  a design document's page
+//   B36-flow-attribution                       a review brief (for I36)
 //   SEC06-repo-writes, FR01-drop-in, NFR01-…,  a definition in an index
 //   T05-…, X14-…, V1-01-…, V1-M2-…             (or the item's own page)
 //   I36, PR13                                  a GitHub issue or pull request
@@ -56,8 +57,8 @@ export function purposeOf(/** @type {string} */ source) {
 }
 
 const SLUG = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*`;
-/** A design ID: S07, SEC06, X14, V1, V1-01, V1-M2. */
-const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[STXR])\d{2,}|V\d+(?:-(?:M\d+|\d{2,}))?`;
+/** A design ID: S07, SEC06, X14, B36, V1, V1-01, V1-M2. */
+const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[BSTXR])\d{2,}|V\d+(?:-(?:M\d+|\d{2,}))?`;
 /** A definition list item: `- **SEC06-repo-writes: Name.** text`. */
 const DEFINITION = new RegExp(
 	String.raw`^- \*\*(${DESIGN_ID})-(${SLUG}):\s*([^*]*?)\.?\*\*([\s\S]*?)(?=\n- \*\*|\n\n|(?![\s\S]))`,
@@ -75,18 +76,24 @@ function loadDesign() {
 		source: fs.readFileSync(path.join(docsDir, rel), 'utf8'),
 	}));
 	for (const { rel, source } of sources) {
-		const m = path.basename(rel, '.md').match(new RegExp(`^(${DESIGN_ID})-(${SLUG})$`));
+		const m = path.basename(rel).replace(/\.mdx?$/, '').match(new RegExp(`^(${DESIGN_ID})-(${SLUG})$`));
 		if (!m) continue;
 		const [full, id, slug] = m;
 		if (pages.has(id)) throw new Error(`remark-refs: ${id} is both docs/${rel} and docs/${pages.get(id)}`);
 		pages.set(id, rel);
-		const title = source.match(/^# (.+)$/m)?.[1].replace(/^\S+ - /, '') ?? full;
+		// A Markdown document's title is its heading, without the ID in
+		// front. A brief (MDX) has its title in the frontmatter.
+		const front = (/** @type {string} */ key) =>
+			source.match(new RegExp(`^${key}: (.+)$`, 'm'))?.[1].replace(/^"(.*)"$/, '$1');
+		const title = rel.endsWith('.mdx')
+			? (front('title') ?? full)
+			: (source.match(/^# (.+)$/m)?.[1].replace(/^\S+ - /, '') ?? full);
 		table.set(id, {
 			slug,
 			full,
 			url: designUrl(rel),
 			title: `${full}: ${title}`,
-			description: firstSentence(purposeOf(source)),
+			description: firstSentence(rel.endsWith('.mdx') ? (front('description') ?? '') : purposeOf(source)),
 		});
 	}
 	/** @type {Set<string>} */
@@ -115,8 +122,30 @@ function loadDesign() {
 	return table;
 }
 
+/**
+ * A brief takes the number of its GitHub issue (B36 for I36), so each
+ * issue has at most one; two briefs with one number already fail in
+ * `loadDesign`. This fails a brief numbered after a pull request, and
+ * warns when the issue is missing from the snapshot or doesn't link its
+ * brief with a `Brief:` line (docs/agents/review-briefs.md).
+ * @param {Map<string, Named>} design @param {ReturnType<typeof loadGithub>} github
+ */
+function checkBriefs(design, github) {
+	for (const [id, brief] of design) {
+		if (!/^B\d+$/.test(id) || id === 'B00') continue;
+		const ref = github[String(Number(id.slice(1)))];
+		if (!ref) {
+			console.warn(`[remark-refs] ${brief.full}: issue #${Number(id.slice(1))} is not in src/data/github-refs.json`);
+		} else if (ref.kind !== 'issue') {
+			failures.push(`${brief.full}: #${Number(id.slice(1))} is a pull request, and a brief takes an issue's number`);
+		} else if (ref.brief !== brief.full) {
+			console.warn(`[remark-refs] ${brief.full}: issue #${Number(id.slice(1))} doesn't link it (a "Brief:" line in its body, then mise run doc:refs)`);
+		}
+	}
+}
+
 function loadGithub() {
-	/** @type {Record<string, { kind: 'issue' | 'pr', title: string, state: string, summary: string }>} */
+	/** @type {Record<string, { kind: 'issue' | 'pr', title: string, state: string, summary: string, brief?: string }>} */
 	const refs = fs.existsSync(githubRefsFile)
 		? JSON.parse(fs.readFileSync(githubRefsFile, 'utf8'))
 		: {};
@@ -156,7 +185,7 @@ const REF = new RegExp(
 		// 3: an issue or pull request, I36 or PR13
 		String.raw`\b((?:I|PR)\d{2,})\b`,
 		// 4: an ID without its leading zero, or of the old scheme: fails
-		String.raw`\b((?:FR|NFR|SEC|PR|[STXRI])\d(?:-${SLUG})?|[FNC]\d{1,2}-${SLUG}|0\d\d-${SLUG})\b`,
+		String.raw`\b((?:FR|NFR|SEC|PR|[BSTXRI])\d(?:-${SLUG})?|[FNC]\d{1,2}-${SLUG}|0\d\d-${SLUG})\b`,
 		// 5: "spec 007", "issue #36", "PR #12" or a bare "#36": warns
 		String.raw`(\b[Ss]pecs? \d{3}\b|(?:\b(?:issue|Issue|PR|pull request) )?(?<![\w/&])#\d+\b)`,
 	].join('|'),
@@ -183,6 +212,7 @@ const SKIP = new Set([
 export function remarkRefs(_options) {
 	const design = loadDesign();
 	const github = loadGithub();
+	checkBriefs(design, github);
 
 	/** Records a failure for the end of the build, and stops this page. */
 	function fail(/** @type {import('vfile').VFile} */ file, /** @type {string} */ message) {

@@ -1,6 +1,7 @@
 // @ts-check
-// Writes src/data/github-refs.json: the number, kind, state, title and a
-// one-sentence summary of every issue and pull request, for the hover
+// Writes src/data/github-refs.json: the number, kind, state, title, a
+// one-sentence summary and the linked review brief (a `Brief:` line) of
+// every issue and pull request, for the hover
 // cards of src/plugins/remark-refs.mjs. Needs `gh` and the network, so
 // it is its own task (`mise run doc:refs`), and the build reads the
 // committed snapshot. Refresh it when a page starts citing a new issue.
@@ -31,7 +32,7 @@ function summarize(/** @type {string} */ body) {
 		.map((p) => p.trim())
 		// Issue forms put each field's value in its own paragraph: skip the
 		// short ones (an ID, a yes/no) to reach the first real sentence.
-		.filter((p) => p.length >= 30 && !/^(#|Blocked by|Closes|Refs|Co-Authored-By|Assisted-by|```|- \[)/i.test(p));
+		.filter((p) => p.length >= 30 && !/^(#|Blocked by|Brief:|Closes|Refs|Co-Authored-By|Assisted-by|```|- \[)/i.test(p));
 	const text = (paragraphs[0] ?? '')
 		.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
 		.replace(/[`*_>]/g, '')
@@ -41,7 +42,7 @@ function summarize(/** @type {string} */ body) {
 	return sentence.length > 220 ? `${sentence.slice(0, 217).trimEnd()}…` : sentence;
 }
 
-/** @type {Record<string, { kind: string, state: string, title: string, summary: string }>} */
+/** @type {Record<string, { kind: string, state: string, title: string, summary: string, brief?: string }>} */
 const refs = {};
 for (const [kind, items] of [
 	['issue', list('issue')],
@@ -54,6 +55,9 @@ for (const [kind, items] of [
 			title: item.title,
 			summary: summarize(item.body ?? ''),
 		};
+		// `Brief: https://wraithbox.nl/briefs/b36-flow-attribution/`
+		const brief = (item.body ?? '').match(/^Brief:.*\/briefs\/b(\d+)-([a-z0-9-]+)\/?/im);
+		if (brief) refs[String(item.number)].brief = `B${brief[1]}-${brief[2]}`;
 	}
 }
 const sorted = Object.fromEntries(Object.entries(refs).sort(([a], [b]) => Number(a) - Number(b)));

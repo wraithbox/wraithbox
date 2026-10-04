@@ -59,7 +59,7 @@ paths, copied at build time by `src/plugins/specs.mjs`. Edit them in
 
 IDs written as plain text become links with a hover card: specs
 (`S07-egress-gateway`), requirements (`SEC06-repo-writes`), spikes
-(`X14-flow-attribution`), issues (`I36`) and pull requests (`PR13`). `docs/agents/review-briefs.md` lists the
+(`X14-flow-attribution`), review briefs (`B36-flow-attribution`), issues (`I36`) and pull requests (`PR13`). `docs/agents/review-briefs.md` lists the
 forms. After citing a new issue or pull request, refresh the titles
 with `mise run doc:refs`.
 

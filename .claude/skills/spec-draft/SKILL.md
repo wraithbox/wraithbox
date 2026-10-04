@@ -84,8 +84,9 @@ Follow the template in `S01-spec-based-development.md`, and:
 
 ## 5. Brief
 
-Write a review brief with the `brief` skill for the spec change:
-`s<NN>-<slug>`, in the same pull request. Its options are the open
+Write a review brief with the `brief` skill for the spec change, in
+the same pull request: `B<NN>-<slug>`, numbered after the issue the
+change closes (file one first if there is none). Its options are the open
 decisions, and its evidence is the facts and probes from step 2. Skip
 the brief when the change leaves every decision settled and touches
 no `SEC*` control, and say so in the pull request.
