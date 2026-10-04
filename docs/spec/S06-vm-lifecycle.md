@@ -94,12 +94,17 @@ in S12-platforms.
     host is permanent, whatever the error. With a match, "permission
     denied" is temporary, and "invalid argument" is temporary while a
     VM with that identifier runs and permanent otherwise.
-  - After a temporary failure, `wb-hostd` reads the lock state (after
-    the failure, not before the attempt), retries a bounded number of
+  - After a failure, `wb-hostd` reads the lock state and checks whether
+    a VM with that identifier runs (both after the failure, not before
+    the attempt). After a temporary failure, it retries a bounded number of
     times within a bounded wall time, and reports the reason when it
     gives up (NFR06-explained-refusals). `wb-vmd` passes the error
     code, the failure reason, any underlying errno and the
     description, and `wb-hostd` logs them with its classification.
+  - When `wb-hostd` changes a VM's configuration (resources or
+    devices), it deletes the saved state itself and logs why, rather
+    than learning of the change from "invalid argument" at the next
+    restore.
 - **Time and sleep.** After host sleep or VM restore, `wb-guestd`
   resynchronizes the guest clock from `wb-hostd`.
 
