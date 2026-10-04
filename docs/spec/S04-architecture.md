@@ -50,25 +50,51 @@ nothing themselves (S12-platforms).
   credentials but only sees TCP byte streams already reassembled by
   `wb-netd` and validated against the DNS mapping. `wb-hostd` and
   `wb-vmd` never touch a credential (SEC04-no-guest-secrets, SEC12-least-privilege).
-- **The VM provider passes descriptors, not bytes.** `wb-vmd` accepts
-  guest socket connections and creates the NIC endpoint, then hands the
-  descriptors (handles on Windows) to `wb-hostd` and `wb-netd`. It does
-  not relay or parse guest traffic, so the native code has the smallest
-  possible exposure to guest input. On macOS (X18-vsock-handoff):
+- **The VM provider passes descriptors, not bytes.** `wb-vmd` opens
+  host-guest socket connections and creates the NIC endpoint, then
+  hands the descriptors (handles on Windows) to `wb-hostd`, which
+  passes the NIC endpoint on to that VM's `wb-netd`
+  (S07-egress-gateway). Guest bytes stay out of `wb-vmd`'s code path:
+  it does not relay or parse guest traffic, so the native code has the
+  smallest possible exposure to guest input. The device set of a VM is
+  fixed in `wb-vmd`'s code, and no device type is ever taken from the
+  contract. On macOS (X18-vsock-handoff):
   - A vsock connection's descriptor is a Unix stream socket to
     Virtualization's own service process, which moves the bytes to
-    the device. `wb-vmd` passes it with `SCM_RIGHTS`, together with the
-    connection's source and destination ports, because the receiver
-    can't read them from a Unix socket. `wb-hostd` decides on those
-    ports, never on what the guest sends.
+    the device. The receiver can't read the vsock ports from it, so
+    `wb-vmd` sends them along.
+  - The hand-off channel is a socketpair that `wb-hostd` passes to
+    `wb-vmd` at spawn (`SOCK_SEQPACKET` or `SOCK_DGRAM`, no path). Each
+    message carries exactly one descriptor and the fields request id,
+    VM generation, direction, source port and destination port. The
+    receiver refuses the message, closes any descriptor in it, and logs
+    the refusal when the descriptor count is not one, the socket type
+    is wrong, or the destination port is not one it asked for. The
+    full contract is in I52.
+  - `wb-hostd` routes a connection only on its destination port, which
+    is either a guest port `wb-hostd` asked `wb-vmd` to connect to, or a
+    host listener registered at `wb-hostd`'s request. The source port of
+    a guest-initiated connection is chosen by the guest, and is only
+    logged. Every process in the guest that can open `AF_VSOCK` can dial
+    a host listener, so guest-initiated connections are either refused
+    (the host opens every connection, recommended) or bound to a
+    session by a one-time nonce from the host and closed on a mismatch.
+    This is an open decision (B29-vsock-handoff).
+  - `wb-vmd` caps the connections it has accepted but not yet passed,
+    per listener and in total, and `wb-hostd` caps connections per VM
+    and per project. Both log each refusal (SEC13-bounded-resources).
   - `wb-vmd` closes its copy of a descriptor once it has passed it.
     The passed descriptor keeps working, also while `wb-vmd` is
     stopped.
   - A restore ends every connection. The saved VM's descriptors read
     EOF when it stops, and the guest sees EOF on its old connections
-    when the restored VM resumes. `wb-hostd` connects to `wb-guestd`
-    again after every restore, and `wb-netd` gets the new VM's network
-    descriptor.
+    when the restored VM resumes. A frame written to the old network
+    descriptor raises no error and draws no answer, so before `resume`
+    `wb-hostd` passes the new network descriptor to `wb-netd` and
+    resets that VM's flow state. Each restore starts a new VM
+    generation: hand-off messages and audit entries carry it, and a
+    message from an older generation is refused. `wb-hostd` connects to
+    `wb-guestd` again after every restore.
 - **Each host daemon is self-sandboxed.** Host processes confine
   themselves at startup with the platform's mechanism (S12-platforms) so that
   each gets only what it needs: `wb-netd` no filesystem and no network

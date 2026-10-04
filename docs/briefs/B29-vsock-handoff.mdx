@@ -1,14 +1,14 @@
 ---
 title: Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore?
-description: Yes, with conditions. Go uses vsock in a macOS guest without cgo, passed descriptors keep working without wb-vmd, and every connection ends at a restore, after which wb-guestd answers 4.1 s after the restore starts.
+description: Yes, with conditions. Passed descriptors keep working without wb-vmd, wb-guestd answers 4.1 s after a restore starts, and the guest should not open connections to the host (recommended, awaiting decision).
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-05: yes, with conditions.** Source: X18-vsock-handoff (I29). Changes S04-architecture, S06-vm-lifecycle, S11-verification-and-spikes and S12-platforms. Follow-up: I86.
+**Answered 2026-10-05: yes, with conditions. One decision open: guest-initiated connections.** Source: X18-vsock-handoff (I29). Changes S04-architecture, S06-vm-lifecycle, S11-verification-and-spikes, S12-platforms and S13-guest-confinement. Follow-up: I86.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** A Go daemon in a macOS guest listens and dials on vsock through `golang.org/x/sys/unix`, with no C code. `wb-vmd` can pass each guest connection and the network endpoint to a Go process and close its own copy: the Go side kept working even with `wb-vmd` frozen. A restore ends every connection, so `wb-hostd` reconnects after each one. From a fresh clone, `wb-guestd` answers 4.1 s (p50) after the restore starts, which leaves about 2.9 s of the 7 s in NFR01-startup. Approving accepts the spec text in this pull request.
+**Yes, with conditions.** A Go daemon in a macOS guest listens and dials on vsock through `golang.org/x/sys/unix`, with no C code. `wb-vmd` can pass each guest connection and the network endpoint to a Go process and close its own copy: the Go side kept working even with `wb-vmd` frozen. A restore ends every connection, so `wb-hostd` reconnects after each one. From a fresh clone, `wb-guestd` answers 4.1 s (p50) after the restore starts, which leaves about 2.9 s of the 7 s in NFR01-startup. **You are deciding** whether the guest may open connections to the host at all. Recommended: no, the host opens every connection.
 </Aside>
 
 <figure class="wb-figure">
@@ -50,37 +50,53 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <line class="edge" x1="502" y1="180" x2="578" y2="234" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
 </svg>
 <figcaption>
-Figure 1. Guest bytes go between our Go daemons and the guest through Apple's Virtualization service process, never through `wb-vmd`. `wb-vmd` only creates the connections and hands them over (S04-architecture). At a restore every vsock connection ends, and `wb-hostd` connects again (S06-vm-lifecycle).
+Figure 1. Guest bytes go between our Go daemons and the guest through Apple's Virtualization service process, never through `wb-vmd`'s code. `wb-vmd` only creates the connections and hands them over (S04-architecture). At a restore every vsock connection ends, and `wb-hostd` connects again (S06-vm-lifecycle).
 </figcaption>
 </figure>
 
 ## What changes in the specs
 
+The hand-off itself needs no choice: `wb-vmd` passes each vsock descriptor with its ports, and the network socket end, over a socketpair that carries one descriptor per message, then closes its copies. `wb-hostd` routes only on the destination port, which it chose, and reconnects to `wb-guestd` after every restore. A relay in `wb-vmd`, the fallback the issue named, isn't needed.
+
+## The decision: may the guest open connections to the host?
+
+Any process in the guest that can open a vsock socket can dial a listener on the host, and it picks its own source port. So a connection that the guest opens says nothing trustworthy about which project or session it belongs to.
+
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
-### Hand-off as measured
+### A. Host opens every connection
 
-`wb-vmd` passes each vsock descriptor with its ports, and the network socket end, then closes its copies. `wb-hostd` reconnects to `wb-guestd` after every restore.
+`wb-vmd` registers no host listener. `wb-hostd` asks `wb-vmd` to connect to `wb-guestd`, including after each restore.
 
-- **Cost:** reconnect logic in `wb-hostd`, and ports sent next to each descriptor.
-- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> no guest bytes in `wb-vmd`.
+- **Cost:** none found. Everything the spike needed ran host to guest. A guest service that wants to reach the host waits for the host to call.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" /> <Badge text="SEC10-audit" variant="success" /> nothing to forge.
+
+</div>
+<div class="wb-option">
+
+### B. Guest may connect, with a nonce
+
+The host hands `wb-guestd` a one-time nonce per session over a host-opened connection. A guest-opened connection must present it first, and is closed on a mismatch.
+
+- **Cost:** nonce issue and check in `wb-hostd` and `wb-guestd`, and connection caps against a connect loop.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="caution" /> <Badge text="SEC10-audit" variant="caution" /> only while the nonce stays out of project processes.
 
 </div>
 </div>
-
-No other option came up. A relay in `wb-vmd`, the fallback the issue named, isn't needed.
 
 ## Impact
 
 <table class="wb-impact">
 <thead>
-<tr><th>Requirement</th><th>Hand-off as measured</th></tr>
+<tr><th>Requirement</th><th>A. Host opens all</th><th>B. Nonce</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>NFR01-startup</strong> suspended VM within 7 s to the prompt</td><td class="yes">4.1 s to wb-guestd, idle guest</td></tr>
-<tr><td><strong>NFR01-startup</strong> hard ceiling 10 s</td><td class="partial">cold boot 11 s, I86</td></tr>
-<tr><td><strong>SEC12-least-privilege</strong> each process gets only what it needs</td><td class="yes">guest bytes stay out of wb-vmd</td></tr>
+<tr><td><strong>NFR01-startup</strong> suspended VM within 7 s to the prompt</td><td class="yes">4.1 s to wb-guestd, idle guest</td><td class="yes">same</td></tr>
+<tr><td><strong>NFR01-startup</strong> hard ceiling 10 s (p95)</td><td class="partial">cold boot p95 13.5 s to the listener, not yet to the prompt, I86</td><td class="partial">same</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> projects can't reach each other's sessions</td><td class="yes">no guest-opened connection</td><td class="partial">nonce must stay with wb-guestd</td></tr>
+<tr><td><strong>SEC12-least-privilege</strong> each process gets only what it needs</td><td class="yes">guest bytes stay out of wb-vmd's code path</td><td class="yes">same</td></tr>
+<tr><td><strong>SEC13-bounded-resources</strong> capped resources</td><td class="yes">nothing to accept</td><td class="partial">caps in wb-vmd and wb-hostd</td></tr>
 </tbody>
 </table>
 
@@ -91,8 +107,9 @@ No other option came up. A relay in `wb-vmd`, the fallback the issue named, isn'
 - <Badge text="verified" variant="success" /> Half-close works in both directions, as X07-git-round-trip assumed. Source: `results/halfclose.jsonl`.
 - <Badge text="verified" variant="success" /> After a save and a restore into a new VM, all old connections read EOF on both sides, and a new connection works 5 ms after `resume`. Source: "Answer" part 4.
 - <Badge text="verified" variant="success" /> Restore from a fresh clone to `wb-guestd` answering gRPC: 4.13 s p50, 4.21 s p95, 20 runs. Source: "Measurements", `results/stats.txt`.
-- <Badge text="verified" variant="success" /> A restore while the host is locked fails with "permission denied", with the Secure Enclave key refused in the system log. Source: "Measurements", `results/restore-4g-failed.jsonl`.
+- <Badge text="verified" variant="success" /> A restore while the host is locked fails with "permission denied", with the Secure Enclave key refused in the system log. Source: "Measurements", `results/restore-4g-failed-syslog.txt` and `results/restore-4g-failed.jsonl`.
 - <Badge text="assumed" variant="caution" /> That a working guest, with more memory in use, also restores to `wb-guestd` within the budget. Every state here was an idle guest. The time-to-prompt benchmark of S11-verification-and-spikes measures it.
+- <Badge text="assumed" variant="caution" /> That a non-root process in the guest can open a vsock socket, and that the session's Seatbelt profile can deny it (S13-guest-confinement). Neither was tried. Option A doesn't depend on either, because the host refuses guest-opened connections itself.
 - <Badge text="assumed" variant="caution" /> That the VM stops with `wb-vmd` if `wb-vmd` exits. Not tested, and no recommendation depends on it.
 
 ## What it unblocks
@@ -102,13 +119,13 @@ The `wb-vmd` and `wb-guestd` contracts in I52, the vsock RPCs of the walking ske
 <details>
 <summary>Details and glossary</summary>
 
-**The descriptor is a Unix socket.** On the host, `socket(AF_VSOCK)` fails: only Virtualization talks to the virtual device. It hands each connection out as one end of a Unix socket and copies bytes to the device itself. So the bytes never go through `wb-vmd`, but they do go through Apple's service process, as they would with any design on macOS.
+**The descriptor is a Unix socket.** On the host, `socket(AF_VSOCK)` fails: only Virtualization talks to the virtual device. It hands each connection out as one end of a Unix socket and copies bytes to the device itself. So the bytes stay out of `wb-vmd`'s code path, but they do go through Apple's service process, as they would with any design on macOS.
 
 **`wb-vmd` sends the ports with the descriptor.** The process that gets a Unix socket can't ask it which vsock port it came from. `wb-vmd` reads the ports from `VZVirtioSocketConnection` and sends them along, and `wb-hostd` decides which service a connection reaches by that port.
 
 **A restore ends every connection.** It creates a new VM process. The old VM's connections die with it, and the guest, which resumes with its old memory, finds its side of each connection closed. Its listener still works, so `wb-hostd` connects again.
 
-**How the daemon got into the guest.** The spike used the macOS 27 provisioning options to create a user with remote login on the first boot. It then copied the daemon in over SSH and shut the guest down, 40 s in all. That is a spike shortcut: the product's image build is X17-image-build.
+**How the daemon got into the guest.** The spike used the macOS 27 provisioning options to create a user with remote login on the first boot. It then copied the daemon in over SSH and shut the guest down, 40 s in all. That is a spike shortcut: the product's image build is X17-image-build, and no product image may descend from these bundles, which have remote login on and an admin user with a password.
 
 - **vsock:** the host-guest socket, a direct channel between the host and the guest that doesn't go through the network.
 - **Descriptor:** a number a process uses to refer to an open socket or file. A process can send one to another over a Unix socket (`SCM_RIGHTS`).

@@ -86,7 +86,12 @@ in S12-platforms.
     Apple's `VZVirtualMachine.h`) and an identifier in use (measured
     in X02-warm-start) give the same "invalid argument" error.
     `wb-hostd` tells them apart by what it can see: whether a VM with
-    that identifier runs, and whether the host is locked.
+    that identifier runs, and whether the host is locked. A restore
+    while the host is locked fails with `VZErrorDomain` code 12,
+    "permission denied" (X18-vsock-handoff). That is temporary, and
+    keeps the state. Apple's header gives the same "permission denied"
+    for a state written on another host, which is permanent, so
+    `wb-hostd` treats it as temporary only while the host is locked.
 - **Time and sleep.** After host sleep or VM restore, `wb-guestd`
   resynchronizes the guest clock from `wb-hostd`.
 
