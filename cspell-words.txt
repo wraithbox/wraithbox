@@ -38,6 +38,7 @@ reinit
 ncpu
 logicalcpu
 physicalcpu
+terminfo
 osrelease
 osversion
 libkrun

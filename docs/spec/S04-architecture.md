@@ -54,7 +54,21 @@ nothing themselves (S12-platforms).
   guest socket connections and creates the NIC endpoint, then hands the
   descriptors (handles on Windows) to `wb-hostd` and `wb-netd`. It does
   not relay or parse guest traffic, so the native code has the smallest
-  possible exposure to guest input.
+  possible exposure to guest input. On macOS (X18-vsock-handoff):
+  - A vsock connection's descriptor is a Unix stream socket to
+    Virtualization's own service process, which moves the bytes to
+    the device. `wb-vmd` passes it with `SCM_RIGHTS`, together with the
+    connection's source and destination ports, because the receiver
+    can't read them from a Unix socket. `wb-hostd` decides on those
+    ports, never on what the guest sends.
+  - `wb-vmd` closes its copy of a descriptor once it has passed it.
+    The passed descriptor keeps working, also while `wb-vmd` is
+    stopped.
+  - A restore ends every connection. The saved VM's descriptors read
+    EOF when it stops, and the guest sees EOF on its old connections
+    when the restored VM resumes. `wb-hostd` connects to `wb-guestd`
+    again after every restore, and `wb-netd` gets the new VM's network
+    descriptor.
 - **Each host daemon is self-sandboxed.** Host processes confine
   themselves at startup with the platform's mechanism (S12-platforms) so that
   each gets only what it needs: `wb-netd` no filesystem and no network
