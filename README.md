@@ -85,7 +85,7 @@ then [004 - Architecture](docs/spec/004-architecture.md).
 No root or administrator rights and no extra user accounts on the host
 at run time. Most code is cross-platform Go; platform-native code (Swift
 on macOS) is kept to small, separate components. See
-[spec 012](docs/spec/012-platforms.md).
+[spec 012-platforms](docs/spec/012-platforms.md).
 
 ## Development
 

@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { refsSources } from './remark-refs.mjs';
+import { purposeOf, refsSources } from './remark-refs.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(here, '../../../..');
@@ -44,9 +44,9 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
 	const heading = source.match(/^# (.+)$/m);
 	if (!heading) throw new Error(`docs/spec/${rel}: no "# " title heading`);
 	const title = heading[1].trim();
-	const purpose = source.match(/^\*\*Purpose:\*\*\s*([\s\S]*?)(?:\n\n|$)/m);
-	const description = purpose ? plain(purpose[1]) : undefined;
+	const description = purposeOf(source) || undefined;
 	let body = source.replace(heading[0], '').replace(/^\n+/, '');
+	body = inlineFigures(rel, body);
 	body = body.replace(/\]\(([^)\s]+)\)/g, (whole, /** @type {string} */ target) => {
 		if (/^(https?:|mailto:|\/|#)/.test(target)) return whole;
 		const [file, hash] = target.split('#');
@@ -67,6 +67,27 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
 		'',
 	].join('\n');
 	return frontmatter + body;
+}
+
+/**
+ * Replaces `![caption](name.svg)` for an SVG next to the spec with the SVG
+ * itself in a `wb-figure`, so its classes take the site's theme colors
+ * (src/styles/brief.css). The SVG's own <style> is for viewers that show
+ * the file alone, such as GitHub, and is dropped here.
+ */
+function inlineFigures(/** @type {string} */ rel, /** @type {string} */ body) {
+	return body.replace(/^!\[([^\]]*)\]\(([^)\s]+\.svg)\)$/gm, (whole, caption, file) => {
+		const svgPath = path.resolve(specDir, path.dirname(rel), file);
+		if (!svgPath.startsWith(specDir) || !fs.existsSync(svgPath)) return whole;
+		const svg = fs
+			.readFileSync(svgPath, 'utf8')
+			.replace(/<\?xml[^>]*>/, '')
+			.replace(/<style>[\s\S]*?<\/style>/, '')
+			.split('\n')
+			.filter((line) => line.trim())
+			.join('\n');
+		return `<figure class="wb-figure">\n${svg}\n<figcaption>${caption}</figcaption>\n</figure>`;
+	});
 }
 
 /** Markdown inline text to plain text, on one line. */
@@ -112,6 +133,9 @@ export function specsIntegration() {
 				// A change to a spec or to the issue snapshot reloads the config,
 				// which gives the reference plugin a new digest (remark-refs.mjs).
 				for (const file of refsSources()) addWatchFile(file);
+				for (const file of fs.readdirSync(specDir).filter((f) => f.endsWith('.svg'))) {
+					addWatchFile(path.join(specDir, file));
+				}
 			},
 		},
 	};

@@ -7,7 +7,7 @@ body:
       value: |
         Design lives in [`docs/spec/`](https://github.com/wraithbox/wraithbox/tree/main/docs/spec).
         A feature that changes a design decision changes the spec first. A
-        feature never weakens a security control (spec 003, `S*`).
+        feature never weakens a security control (spec 003-requirements, `S*`).
   - type: textarea
     id: problem
     attributes:

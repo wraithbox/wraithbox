@@ -1,7 +1,7 @@
 ---
 name: spec-draft
-description: Draft or change a Wraith Box spec by exploring and probing before asking, asking the maintainer at most once, and producing a short reviewable spec plus a review brief. Use for an `area:spec` issue, a spec gap, or "write/extend spec NNN".
-argument-hint: "<issue number | spec NNN | topic>"
+description: Draft or change a Wraith Box spec by exploring and probing before asking, asking the maintainer at most once, and producing a short reviewable spec plus a review brief. Use for an `area:spec` issue, a spec gap, or "write/extend spec NNN-<slug>".
+argument-hint: "<issue number | spec NNN-<slug> | topic>"
 ---
 
 You turn a question, a spec gap, or a feature into decisions written in
@@ -40,7 +40,7 @@ and `docs/agents/review-briefs.md` before you start.
   `$TMPDIR/wb-probe-<slug>/`. Record the command and the result, because
   they become evidence in the brief. Stop a probe that outgrows its time
   box: it is a spike.
-- A spike question gets its own `X<n>` (next free number in spec 011,
+- A spike question gets its own `X<n>` (next free number in spec 011-verification-and-spikes,
   `planning.md`, "Spikes"). It goes in the spec as an open question
   that names the spike. Don't guess its answer in the spec.
 - For each judgment question, draft a recommendation with the evidence
@@ -71,15 +71,15 @@ Follow the template in `000-shared-patterns.md`, and:
   when it's reopened later.
 - Restate a requirement ID's meaning in a few words the first time a
   spec cites it.
-- Add a Mermaid diagram when the spec describes a flow between
-  processes (`sequenceDiagram`) or a structure with a trust boundary
-  (`flowchart` with a `subgraph` per side). Use the process names from
-  spec 004, and keep it to about a dozen nodes. GitHub renders it in
-  the pull request.
+- Add a diagram when the spec describes a flow between processes or a
+  structure with a trust boundary: an SVG next to the spec, as
+  `review-briefs.md`, "Diagrams", describes. Use the process names from
+  spec 004-architecture, and keep it to about a dozen boxes. GitHub
+  shows it in the pull request, and the site themes it.
 - Never weaken an `S*` control. If the only workable answer needs it, write
   that up as the spec change, flag it first in **For review**, and stop
   (`AGENTS.md`).
-- Aim for under 100 lines of change per spec (spec 001). A larger change
+- Aim for under 100 lines of change per spec (spec 001-spec-based-development). A larger change
   is two pull requests, or one spec split by capability.
 
 ## 5. Brief

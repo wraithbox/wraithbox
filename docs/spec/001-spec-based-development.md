@@ -4,7 +4,7 @@
 
 **Requirements:**
 - Write specs before coding new features
-- Use sequential numbering (001, 002, 003...)
+- Use sequential numbering (`001`, `002`, `003`, …)
 - Include design rationale and key decisions
 - Keep specs focused on design, not implementation details
 - Reference spec numbers in commit messages during implementation

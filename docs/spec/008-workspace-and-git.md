@@ -62,11 +62,11 @@ those cannot arrive this way.
 
 Files copied out of the guest by any means other than git (for example a
 future `wb cp`) carry the platform's downloaded-file marker (the
-quarantine attribute on macOS, Mark of the Web on Windows; spec 012).
+quarantine attribute on macOS, Mark of the Web on Windows; spec 012-platforms).
 
 ## WSL
 
-When `wb` runs inside WSL (spec 012), the repository is in the WSL
+When `wb` runs inside WSL (spec 012-platforms), the repository is in the WSL
 distribution. The WSL-side `wb` runs `upload-pack` there, with the same
 restrictions, and tunnels it; `wb land` fetches from the landing
 repository on the Windows side through the same channel. Everything
@@ -75,6 +75,6 @@ else in this spec is unchanged.
 ## Open points
 
 Git LFS objects, submodules, and very large repositories are not covered
-in v1. They are listed in spec 011.
+in v1. They are listed in spec 011-verification-and-spikes.
 
 **Status:** Draft

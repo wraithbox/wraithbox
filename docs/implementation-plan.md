@@ -8,8 +8,8 @@ they exist.
 
 ## Where things stand
 
-- **Specs** 003 to 013 are drafts. Spec 011 lists 24 open questions
-  (spikes `X1` to `X24`). None is answered yet.
+- **Specs** 003 to 013 are drafts. Spec 011-verification-and-spikes lists 24 open questions
+  (spikes `X1-model-credential` to `X24-openshell-artifacts`). None is answered yet.
 - **Go** (`packages/wraithbox-go`): the `wb` command-line parser
   (`internal/cli`), the host and guest platform matrix
   (`internal/platform`), and empty `main` packages for `wb`,
@@ -27,7 +27,7 @@ they exist.
    settled means rebuilding.
 2. **Host floor before features.** Boot a guest, then cut its network
    down to the gateway, then return work through git. Each step ends
-   with conformance checks from spec 011 for the controls it brings.
+   with conformance checks from spec 011-verification-and-spikes for the controls it brings.
 3. **Pure logic in parallel.** Parsers and policy code that face guest
    bytes need no VM. Builders can write them, with fuzz targets, while
    the VM spikes run, once the spike or decision they depend on is
@@ -36,18 +36,18 @@ they exist.
 ## Critical path
 
 ```text
-X17 image build ─┐
-X18 vsock, fds ──┼─▶ VM boots, wb-guestd answers ─▶ wb shell as a project user
-X2  warm start ──┘                │
+X17-image-build image build ─┐
+X18-vsock-handoff vsock, fds ──┼─▶ VM boots, wb-guestd answers ─▶ wb shell as a project user
+X2-warm-start  warm start ──┘                │
                                   ▼
-X3 network path ─▶ wb-netd: DHCP, DNS, synthetic addresses ─▶ wb-proxyd: inspect, policy, audit
-X4, X9, X22, X24 ────────────────────────────────────────────┘           │
+X3-network-path network path ─▶ wb-netd: DHCP, DNS, synthetic addresses ─▶ wb-proxyd: inspect, policy, audit
+X4-tls-inspection, X9-keychain-unsigned, X22-no-guest-credentials, X24-openshell-artifacts ────────────────────────────────────────────┘           │
                                                                          ▼
-X7 git round trip ─▶ carry-in, landing repository, wb diff, wb land ─▶ wb claude end to end
-X1 model credential, X19 terminal filter ───────────────────────────────┘
+X7-git-round-trip git round trip ─▶ carry-in, landing repository, wb diff, wb land ─▶ wb claude end to end
+X1-model-credential model credential, X19-terminal-filter terminal filter ───────────────────────────────┘
 ```
 
-The VM spikes (X2, X3, X5 to X8, X17, X18, X20) share one constraint:
+The VM spikes (X2-warm-start, X3-network-path, X5-fs-benchmark to X8-data-disk, X17-image-build, X18-vsock-handoff, X20-shared-homebrew) share one constraint:
 a Mac runs at most two macOS guests at a time (N5-two-macos-vms). Only one or two of
 them can run at once per machine (#50).
 
@@ -55,23 +55,23 @@ them can run at once per machine (#50).
 
 | Component | Work that needs no VM | Waits on |
 |---|---|---|
-| `wb` | TTY relay against a local test server, session and project naming | X19 (#30), #37, #42, #46 |
-| `wb-hostd` | settings loader, `state.db`, audit writer, risky-path flagger (spec 008) | #52, #46, X7 (#21), X24 (#35) |
-| `wb-vmd` (Swift) | none | X2 (#16), X17 (#28), X18 (#29) |
-| `wb-netd` | DHCP and DNS logic on gVisor's in-memory link, with fuzz targets | X3 (#17), #36, #51 |
-| `wb-proxyd` | ClientHello parsing, leaf issuing with a software key, HTTP rule matching | X4 (#18), X9 (#23), X21 (#32), X22 (#33), #39 |
-| `wb-guestd` | user and PTY logic behind interfaces | X18 (#29), X6 (#20), X8 (#22), X20 (#31) |
-| network policy | OpenShell schema parser with a bounded YAML decoder | X24 (#35) |
+| `wb` | TTY relay against a local test server, session and project naming | X19-terminal-filter (#30), #37, #42, #46 |
+| `wb-hostd` | settings loader, `state.db`, audit writer, risky-path flagger (spec 008-workspace-and-git) | #52, #46, X7-git-round-trip (#21), X24-openshell-artifacts (#35) |
+| `wb-vmd` (Swift) | none | X2-warm-start (#16), X17-image-build (#28), X18-vsock-handoff (#29) |
+| `wb-netd` | DHCP and DNS logic on gVisor's in-memory link, with fuzz targets | X3-network-path (#17), #36, #51 |
+| `wb-proxyd` | ClientHello parsing, leaf issuing with a software key, HTTP rule matching | X4-tls-inspection (#18), X9-keychain-unsigned (#23), X21-dep-gate-registries (#32), X22-no-guest-credentials (#33), #39 |
+| `wb-guestd` | user and PTY logic behind interfaces | X18-vsock-handoff (#29), X6-guest-xcode (#20), X8-data-disk (#22), X20-shared-homebrew (#31) |
+| network policy | OpenShell schema parser with a bounded YAML decoder | X24-openshell-artifacts (#35) |
 | `internal/platform` | paths, local IPC with peer checks | none |
-| Claude Code in the guest | none | X1 (#15), #45 |
+| Claude Code in the guest | none | X1-model-credential (#15), #45 |
 
 ## Proposed milestones
 
 For the maintainer to confirm, rename, or cut differently. Each exit
 criterion cites the requirement IDs it proves.
 
-- **M0: v1 spikes answered and spec gaps closed.** X1 to X9 and X17
-  to X24 written up in `docs/spec/spikes/`, the spec issues below
+- **M0: v1 spikes answered and spec gaps closed.** X1-model-credential to X9-keychain-unsigned and X17-image-build
+  to X24-openshell-artifacts written up in `docs/spec/spikes/`, the spec issues below
   decided, and specs updated. Covers no requirement by itself. It makes
   the rest possible to plan.
 - **M1: walking skeleton.** `wb image build` makes a sealed image,
@@ -91,37 +91,37 @@ criterion cites the requirement IDs it proves.
 - **M5: v1 release gate.** Self-sandboxed daemons, Seatbelt profiles,
   warm start and suspend, the full conformance suite and benchmarks,
   packaging. Covers S12-least-privilege, S13-bounded-resources, N1-startup to N3-footprint.
-- **Later:** X10 to X16, spec 013 layers 3 and 4, other host and
+- **Later:** X10-linux-hypervisor to X16-openshell-linux, spec 013-guest-confinement layers 3 and 4, other host and
   guest platforms.
 
 ## Issues filed for M0
 
-Spikes from spec 011. X14 (#10), X15 (#11) and X16 (#12) were filed
+Spikes from spec 011-verification-and-spikes. X14-flow-attribution (#10), X15-endpoint-security (#11) and X16-openshell-linux (#12) were filed
 before this plan, and don't block v1.
 
 | Spike | Issue | Needs |
 |---|---|---|
-| X1 Model credential via the proxy | #15 | maintainer's Claude subscription |
-| X2 Warm start | #16 | VM |
-| X3 Network path | #17 | VM |
-| X4 Inspection compatibility | #18 | |
-| X5 Filesystem benchmark | #19 | VM |
-| X6 Guest users and Xcode | #20 | VM |
-| X7 Git round trip | #21 | |
-| X8 Data disk for homes | #22 | VM |
-| X9 Keychain access without a signing identity | #23 | |
-| X10 Linux VMM and packet transport (later) | #24 | Linux machine, after X16 |
-| X11 Windows host through HCS (later) | #25 | Windows 11 Home machine |
-| X12 WSL client channel (later) | #26 | Windows machine |
-| X13 Windows guests on a macOS host (later) | #27 | Windows media |
-| X17 Unattended image build | #28 | VM |
-| X18 Host-guest socket and descriptor hand-off | #29 | VM |
-| X19 Terminal stream filtering | #30 | |
-| X20 Homebrew with more than one project user | #31 | VM |
-| X21 Dependency gate on real registries | #32 | |
-| X22 Clients without guest credentials | #33 | |
-| X23 Self-sandboxed Go daemons on macOS | #34 | |
-| X24 OpenShell artifacts | #35 | |
+| X1-model-credential Model credential via the proxy | #15 | maintainer's Claude subscription |
+| X2-warm-start Warm start | #16 | VM |
+| X3-network-path Network path | #17 | VM |
+| X4-tls-inspection Inspection compatibility | #18 | |
+| X5-fs-benchmark Filesystem benchmark | #19 | VM |
+| X6-guest-xcode Guest users and Xcode | #20 | VM |
+| X7-git-round-trip Git round trip | #21 | |
+| X8-data-disk Data disk for homes | #22 | VM |
+| X9-keychain-unsigned Keychain access without a signing identity | #23 | |
+| X10-linux-hypervisor Linux VMM and packet transport (later) | #24 | Linux machine, after X16-openshell-linux |
+| X11-windows-host Windows host through HCS (later) | #25 | Windows 11 Home machine |
+| X12-wsl-channel WSL client channel (later) | #26 | Windows machine |
+| X13-windows-guests Windows guests on a macOS host (later) | #27 | Windows media |
+| X17-image-build Unattended image build | #28 | VM |
+| X18-vsock-handoff Host-guest socket and descriptor hand-off | #29 | VM |
+| X19-terminal-filter Terminal stream filtering | #30 | |
+| X20-shared-homebrew Homebrew with more than one project user | #31 | VM |
+| X21-dep-gate-registries Dependency gate on real registries | #32 | |
+| X22-no-guest-credentials Clients without guest credentials | #33 | |
+| X23-sandboxed-daemons Self-sandboxed Go daemons on macOS | #34 | |
+| X24-openshell-artifacts OpenShell artifacts | #35 | |
 
 Spec gaps, contradictions and missing specs:
 
@@ -150,9 +150,9 @@ Spec gaps, contradictions and missing specs:
 Ordered by how much of the design they can move:
 
 1. **#36.** In the shared work VM, `wb-netd` sees one address for all
-   projects. Per-project policy and credential bindings, as specs 007
-   and 009 describe them, are then the union of all projects in the
-   VM, even without guest root. Settling this may move X14 (#10) into
+   projects. Per-project policy and credential bindings, as specs 007-egress-gateway
+   and 009-policy-credentials-audit describe them, are then the union of all projects in the
+   VM, even without guest root. Settling this may move X14-flow-attribution (#10) into
    v1.
 2. **#31.** Homebrew has one prefix per machine. Project users sharing
    a writable prefix can plant binaries for each other, which breaks

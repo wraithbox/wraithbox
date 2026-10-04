@@ -19,7 +19,7 @@ concurrency:
 jobs:
   go:
     name: Go (${{ matrix.os }})
-    # Most Wraith Box code is cross-platform Go (spec 012), so it is
+    # Most Wraith Box code is cross-platform Go (spec 012-platforms), so it is
     # linted, vetted, tested and built natively on every host OS from the
     # start. See docs/spec/002-toolchain.md.
     strategy:

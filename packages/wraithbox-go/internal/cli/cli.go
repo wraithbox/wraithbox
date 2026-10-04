@@ -21,7 +21,7 @@ type Command struct {
 	Agent bool
 }
 
-// Commands is the wb command table, in help order (spec 005).
+// Commands is the wb command table, in help order (spec 005-cli).
 var Commands = []Command{
 	{Name: "claude", Summary: "Run Claude Code in a sandbox; all further arguments go to claude", Agent: true},
 	{Name: "status", Summary: "VMs, running sessions and pending approvals"},
@@ -54,7 +54,7 @@ type Globals struct {
 	Isolated  bool   // run in the isolated VM (S8-proj-isolation)
 	Ephemeral bool   // no persisted state (F14-ephemeral)
 	Learn     bool   // learn mode; refused later unless the project is trusted (F10-learn-mode)
-	Guest     string // guest OS for this project (spec 012); empty means the default
+	Guest     string // guest OS for this project (spec 012-platforms); empty means the default
 	Dir       string // act as if started in this directory
 	Help      bool
 	Version   bool

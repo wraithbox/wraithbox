@@ -56,7 +56,7 @@ The specs in `docs/spec/` are published under `/spec/`, copied at build
 time by `src/plugins/specs.mjs`. Edit them in `docs/spec/`, never the
 copies.
 
-Requirement IDs (`S6-repo-writes`), spikes (`X14`), specs (`spec 007`),
+Requirement IDs (`S6-repo-writes`), spikes (`X14-flow-attribution`), specs (`spec 007-egress-gateway`),
 issues (`issue #36`) and pull requests (`PR #12`) written as plain text
 become links with a hover card. `docs/agents/review-briefs.md` lists the
 forms. After citing a new issue or pull request, refresh the titles

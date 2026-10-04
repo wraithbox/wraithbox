@@ -22,8 +22,8 @@ same labels by hand. Documentation and chore issues have no form; open
 them blank.
 
 A spike issue is titled `X<n>: <question>` and tracks one open question
-from [spec 011](../spec/011-verification-and-spikes.md). Give a new
-question its `X*` number in spec 011 rather than only in the issue.
+from [spec 011-verification-and-spikes](../spec/011-verification-and-spikes.md). Give a new
+question its `X*` number in spec 011-verification-and-spikes rather than only in the issue.
 
 ## Labels
 

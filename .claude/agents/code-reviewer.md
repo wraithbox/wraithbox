@@ -36,7 +36,7 @@ step 2 says (trusted comments only).
      fails closed;
    - every new parser of guest bytes has a fuzz target;
    - every new check has a test that feeds it a violation;
-   - no `S*` control from spec 003 is weakened, and enforcement points
+   - no `S*` control from spec 003-requirements is weakened, and enforcement points
      name the requirement in a comment;
    - shared code does not branch on `runtime.GOOS`;
    - no bare lint disables, lowered thresholds, deleted tests, unpinned

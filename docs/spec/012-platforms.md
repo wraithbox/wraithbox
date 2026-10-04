@@ -10,8 +10,8 @@ how platform-specific code is isolated, what each platform uses, and how
 
 | Host ↓ / Guest → | macOS | Linux (Ubuntu LTS first) | Windows 11 |
 |---|---|---|---|
-| **macOS 15+, Apple Silicon** | **v1** | later | later, blocked on spike X13 |
-| **Windows 11 Home / Pro** | not possible | later | later, blocked on spike X11 |
+| **macOS 15+, Apple Silicon** | **v1** | later | later, blocked on spike X13-windows-guests |
+| **Windows 11 Home / Pro** | not possible | later | later, blocked on spike X11-windows-host |
 | **Linux, Ubuntu LTS first** | not possible | later | later |
 
 - macOS guests need Apple hardware, technically and by license.
@@ -35,18 +35,18 @@ small set of interfaces, each with one implementation per host OS:
 
 | Interface | Responsibility | macOS | Windows | Linux |
 |---|---|---|---|---|
-| **VM provider** (`wb-vmd`) | Create, start, stop, save, restore VMs; disks; devices | Swift, Virtualization framework | Go, Host Compute Service (HCS) | Go, supervising a VMM over KVM (spike X10; X16 checks OpenShell's VM driver first) |
+| **VM provider** (`wb-vmd`) | Create, start, stop, save, restore VMs; disks; devices | Swift, Virtualization framework | Go, Host Compute Service (HCS) | Go, supervising a VMM over KVM (spike X10-linux-hypervisor; X16-openshell-linux checks OpenShell's VM driver first) |
 | **Host-guest socket** | Byte streams between `wb-hostd` and `wb-guestd` | virtio-vsock | Hyper-V sockets | virtio-vsock |
-| **Packet transport** | Guest Ethernet frames to and from `wb-netd`, without host privileges | file-handle network attachment (datagram socketpair) | spike X11 | spike X10 |
+| **Packet transport** | Guest Ethernet frames to and from `wb-netd`, without host privileges | file-handle network attachment (datagram socketpair) | spike X11-windows-host | spike X10-linux-hypervisor |
 | **Disk cloning** | Copy-on-write images | APFS clones | VHDX differencing disks | qcow2 backing files, or reflinks where the filesystem supports them |
 | **Local IPC** | Host gRPC endpoints, peer identity | Unix sockets, peer credentials | named pipes, user-SID ACL, client process id | Unix sockets, `SO_PEERCRED` |
 | **Secret store** | Credentials, readable by `wb-proxyd` only | Keychain | Credential Manager (DPAPI, per user) | Secret Service (D-Bus); see below |
 | **Hardware key** | Non-exportable CA signing key | Secure Enclave | TPM via the CNG platform crypto provider | TPM 2.0 where present |
 | **Service manager** | Run `wb-hostd` per user, at login | LaunchAgent | per-user logon task | systemd user unit |
-| **Self-sandbox** | Confine our own daemons (spec 004) | sandbox profile applied at start | restricted token, job objects, AppContainer where it fits | Landlock and seccomp (no unprivileged user namespaces needed) |
+| **Self-sandbox** | Confine our own daemons (spec 004-architecture) | sandbox profile applied at start | restricted token, job objects, AppContainer where it fits | Landlock and seccomp (no unprivileged user namespaces needed) |
 | **Notifications** | Approval prompts with actions | native helper (Swift) | native helper (see languages) | freedesktop notifications over D-Bus from Go |
 | **Downloaded-file marker** | Files leaving the guest other than via git | quarantine attribute | Mark of the Web | none (documented) |
-| **Paths** | `<config>`, `<data>`, `<logs>` of spec 004 | `~/.config/wraithbox`, `~/Library/Application Support/WraithBox`, `~/Library/Logs/WraithBox` | `%APPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox\Logs` | `$XDG_CONFIG_HOME/wraithbox`, `$XDG_DATA_HOME/wraithbox`, `$XDG_STATE_HOME/wraithbox/logs` |
+| **Paths** | `<config>`, `<data>`, `<logs>` of spec 004-architecture | `~/.config/wraithbox`, `~/Library/Application Support/WraithBox`, `~/Library/Logs/WraithBox` | `%APPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox\Logs` | `$XDG_CONFIG_HOME/wraithbox`, `$XDG_DATA_HOME/wraithbox`, `$XDG_STATE_HOME/wraithbox/logs` |
 
 Rules:
 
@@ -57,7 +57,7 @@ Rules:
   used only where Go cannot reasonably call the platform API. It makes no
   policy decisions and holds no secrets.
 - **Every platform implementation has the same conformance tests** (spec
-  011); a platform is not "supported" until its conformance suite passes.
+  011-verification-and-spikes); a platform is not "supported" until its conformance suite passes.
 - **Unimplemented platforms fail clearly.** On a host or guest OS that
   is "later" in the matrix, `wb setup` and every command say so; nothing
   half-works.
@@ -92,10 +92,10 @@ Checked by `wb setup`, explained to the user, never changed silently:
 |---|---|---|
 | macOS | Apple Silicon, macOS 15+ | n/a (hardware and OS version) |
 | Windows | Virtual Machine Platform optional feature enabled (it is if WSL 2 is installed) | administrator, once |
-| Windows | Permission to create VMs through HCS as a standard user (spike X11) | open |
+| Windows | Permission to create VMs through HCS as a standard user (spike X11-windows-host) | open |
 | Linux | Read-write access to `/dev/kvm` (desktop sessions usually have it; otherwise the `kvm` group) | administrator, once |
 
-If spike X11 shows that HCS needs administrator rights for every VM
+If spike X11-windows-host shows that HCS needs administrator rights for every VM
 operation, the Windows design needs a narrowly scoped system service.
 That would change S12-least-privilege for Windows and requires a spec change, not a
 workaround.
@@ -113,12 +113,12 @@ building:
 | Per-project users | local accounts | local accounts | local accounts |
 | PTY | Unix PTY | Unix PTY | ConPTY |
 | Toolchain manifest (F7-toolchain-manifest) | Brewfile | package list (apt) | package list (winget) |
-| CA trust (spec 009) | System keychain + toolchain variables | system trust store + toolchain variables | machine certificate store + toolchain variables |
-| Guest confinement (spec 013) | Seatbelt profiles; Network Extension flow labels (X14); Endpoint Security (X15) | Landlock and seccomp, as in OpenShell's sandbox runtime (X16) | to be decided |
+| CA trust (spec 009-policy-credentials-audit) | System keychain + toolchain variables | system trust store + toolchain variables | machine certificate store + toolchain variables |
+| Guest confinement (spec 013-guest-confinement) | Seatbelt profiles; Network Extension flow labels (X14-flow-attribution); Endpoint Security (X15-endpoint-security) | Landlock and seccomp, as in OpenShell's sandbox runtime (X16-openshell-linux) | to be decided |
 
 Windows 11 requires a TPM 2.0 and Secure Boot. A host that cannot
-provide a virtual TPM to the guest cannot run Windows guests (spikes X11,
-X13).
+provide a virtual TPM to the guest cannot run Windows guests (spikes X11-windows-host,
+X13-windows-guests).
 
 ## WSL (F16-wsl)
 
@@ -134,15 +134,15 @@ the Windows host's `wb-hostd`:
   connects to `wb-hostd` over its named pipe as the Windows user, so
   authentication is the same as native use. This needs no networking
   configuration in WSL. A Hyper-V socket channel is a possible later
-  optimization (spike X12).
+  optimization (spike X12-wsl-channel).
 - **Terminal.** The WSL-side `wb` owns the terminal and relays it inside
   the gRPC stream, so Windows console behavior does not apply.
 - **Repository.** The repository stays in the WSL filesystem. The
   WSL-side `wb` serves the read-only `upload-pack` side of the git
-  transport (spec 008) locally and tunnels it, so the Windows side never
+  transport (spec 008-workspace-and-git) locally and tunnels it, so the Windows side never
   reads the repository over the cross-OS file share. `wb land` fetches
   from the Windows-side landing repository over the same channel.
-- **Project identity** includes the distribution name (spec 005), so the
+- **Project identity** includes the distribution name (spec 005-cli), so the
   same path in two distributions is two projects.
 - **Requirement.** The Windows side must have Wraith Box installed and
   `wb setup` done; WSL-side `wb` explains this if `wb.exe` is missing.
@@ -150,7 +150,7 @@ the Windows host's `wb-hostd`:
 ## CI
 
 Go is built, linted, vetted, and tested natively on macOS, Ubuntu, and
-Windows runners from the start (spec 002). Swift runs on macOS only. A
+Windows runners from the start (spec 002-toolchain). Swift runs on macOS only. A
 .NET job is added with the first .NET component.
 
 **Status:** Draft

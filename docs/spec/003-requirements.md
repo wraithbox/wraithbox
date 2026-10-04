@@ -21,7 +21,7 @@ host, its secrets, and its network stay under host-side control.
 
 The first delivery target is macOS guests on macOS hosts. The design is
 for macOS, Windows, and Linux hosts, with Linux and Windows guests on all
-of them (spec 012); platform-specific code is kept behind narrow
+of them (spec 012-platforms); platform-specific code is kept behind narrow
 interfaces so later platforms do not reshape the core.
 
 The design assumes the agent is **capable and possibly adversarial**: a
@@ -69,7 +69,7 @@ every control that matters is enforced *outside* the guest.
   repositories in that distribution, using the VMs and services of the
   Windows host. It does not start a second set of VMs inside WSL.
 - **F17-same-everywhere:** The same `wb` commands, flags, policy files, and behavior on
-  every host OS. Differences are limited to what spec 012 lists.
+  every host OS. Differences are limited to what spec 012-platforms lists.
 
 ## Security requirements
 
@@ -107,7 +107,7 @@ every control that matters is enforced *outside* the guest.
 - **S12-least-privilege: Least privilege on the host.** No root or administrator rights
   at run time and no extra host user accounts. The platform's hardening
   applies (hardened runtime and minimal entitlements on macOS, the
-  equivalents in spec 012 elsewhere). Credentials are held by exactly one
+  equivalents in spec 012-platforms elsewhere). Credentials are held by exactly one
   host process.
   One-time OS prerequisites (enabling a virtualization feature, access to
   the hypervisor device) are documented and checked by `wb setup`, never
@@ -124,7 +124,7 @@ every control that matters is enforced *outside* the guest.
 - **N2-fs-speed: Filesystem.** The workspace is on guest-native storage. Target
   ≥ 80% of host throughput on representative workloads (`npm ci`,
   `git status` on a large repo, incremental build), measured by the
-  benchmark suite (spec 011).
+  benchmark suite (spec 011-verification-and-spikes).
 - **N3-footprint: Footprint.** Idle VMs suspend after a configurable period. Disk use
   grows only with divergence from the base image (copy-on-write clones).
 - **N4-host-platforms: Host platforms.** First target: Apple Silicon, macOS 15 or later.
@@ -132,14 +132,14 @@ every control that matters is enforced *outside* the guest.
   distributions considered after that. Works on managed (MDM or
   domain-joined) machines on every host OS.
 - **N5-two-macos-vms: Platform limit.** macOS permits at most two concurrently running
-  macOS guests per host. The design works within that limit (spec 006).
+  macOS guests per host. The design works within that limit (spec 006-vm-lifecycle).
   Other guest operating systems are limited only by resources.
 - **N6-explained-refusals: Operability.** Every refusal names the rule that caused it and how
   to change it.
 - **N7-maintainability: Maintainability.** Most code is cross-platform Go. Platform-native
   code (Swift on macOS, and the native toolchain of Windows or Linux only
   where Go cannot do the job) is confined to small components behind
-  defined contracts (spec 010). Complexity gates, fuzzing for every parser
+  defined contracts (spec 010-tech-stack). Complexity gates, fuzzing for every parser
   that faces the guest, Go CI on all three host OSes from the start.
 - **N8-licensing: Licensing.** Apache-2.0; dependencies under permissive licenses
   only.
@@ -148,7 +148,7 @@ every control that matters is enforced *outside* the guest.
 
 - **C1-macos-first:** The first delivery target is macOS guests on macOS hosts.
   Linux guests (Ubuntu LTS first) and Windows 11 guests follow, on every
-  host that can run them (spec 012). macOS guests run only on macOS hosts.
+  host that can run them (spec 012-platforms). macOS guests run only on macOS hosts.
 - **C2-claude-only:** Claude Code is the supported agent. Keep agent-specific code
   behind one interface so another agent can be added later.
 - **C3-win-linux-later:** Windows and Linux hosts are designed for but not delivered in
@@ -170,7 +170,7 @@ integrity of the user's working tree and future host-side executions; the
 user's attention (approval fatigue is an attack surface).
 
 **Trusted.** Host kernel and the platform's hypervisor and virtualization
-API (spec 012); the host user account, including the user's WSL
+API (spec 012-platforms); the host user account, including the user's WSL
 distributions on Windows; Wraith Box host binaries; the platform's
 credential store and hardware key store (Keychain and Secure Enclave on
 macOS); the operators of allowlisted services (as services, not their
@@ -196,7 +196,7 @@ packet surface to `wb-netd`; (4) git objects returning to the host;
   present; changes still return only as reviewable branches). Untrusted
   repositories use the isolated VM to avoid this.
 - **R6-forged-labels:** After a guest root escalation, forged program identities in the
-  guest confinement layer (spec 013). Rules narrowed to named
+  guest confinement layer (spec 013-guest-confinement). Rules narrowed to named
   programs then act as the union of the project's grants. The host
   floor (S5-default-deny, S6-repo-writes) still holds.
 
