@@ -5,7 +5,7 @@ description: Serve the guest from a host-side export repository holding only the
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Decided 2026-10-04: A. Export repository.** The decision and its reasons are in the I41 comment that starts `Decision (2026-10-04):`. Source: I41, item 5 waits on X07-git-round-trip (I21). Affects S05-cli and S08-workspace-and-git.
+**Decided 2026-10-04: A. Export repository.** The decision and its reasons are in the I41 comment that starts `Decision (2026-10-04):`. Source: I41, item 5 waits on X07-git-round-trip (I21). Affects S05-cli and S08-workspace-and-git. Note 2026-10-04: X07-git-round-trip answered item 5 with a Go filter on the command list, and `receive.hideRefs` as a second layer only (B21-git-round-trip).
 
 <Aside type="tip" title="You are deciding">
 Rules for what the git round trip sends into the guest and how the host handles what comes back. Recommended: the table below, with **A** for the ref scope: the guest fetches from a host-side copy that holds only the branch it works on. Hiding refs, as the issue proposes, does not stop a fetch by object ID. Items 1 to 4 and 6 can be decided now. Item 5 waits on X07-git-round-trip. Accepting starts the S08-workspace-and-git pull request.
@@ -70,7 +70,7 @@ The issue bundles six items. Item 1 is a real fork, with options below. The rest
 | 2. Untracked files | Scan carried-in untracked files, and the staged and unstaged diff, with the image-seal secret scanner (S06-vm-lifecycle). Skip a file that matches and list it in the session summary, as for oversize files. | now |
 | 3. Remote URLs | Strip user names, passwords and query strings from every URL that reaches the guest. Rewrite SSH remotes to HTTPS for the guest, shared with I47. | now |
 | 4. Host git | Require a minimum git version, checked by `wb setup` and at each session start. Keep `receive.fsckObjects` and `receive.maxInputSize`. Don't bundle git (GPL-2.0, against the license rule of S10-tech-stack). A receive side in Go is a later option. | now |
-| 5. Ref restriction | `receive.hideRefs` set to hide everything but `refs/heads/wb/<session-id>/`. A Go filter on the command list is optional on top. Since answered by X07-git-round-trip: the Go filter enforces, and `receive.hideRefs` is the second layer (B21-git-round-trip). | after X07-git-round-trip |
+| 5. Ref restriction | `receive.hideRefs` set to hide everything but `refs/heads/wb/<session-id>/`. A Go filter on the command list is optional on top. | after X07-git-round-trip |
 | 6. Landing lifecycle | `wb discard` deletes the session's refs and guest worktree. `wb-hostd` runs `git gc` on the landing repository after land and discard. A size cap per project, refused with an explanation (SEC13-bounded-resources, NFR06-explained-refusals). | now |
 
 ## Options for the ref scope (item 1)
@@ -152,7 +152,7 @@ Items 2 to 6 strengthen SEC03-no-host-exec, SEC04-no-guest-secrets, SEC06-repo-w
 - <Badge text="verified" variant="success" /> This Mac has Apple git 2.54.0 (Apple Git-157) in `/usr/bin` and Homebrew git 2.56.0. Upstream's newest tag is `v2.56.0`.
 - <Badge text="verified" variant="success" /> git is GPL-2.0 (`COPYING` in the Homebrew git package), so shipping it with Wraith Box conflicts with S10-tech-stack.
 - <Badge text="verified" variant="success" /> `git remote` lists remotes alphabetically, not in the order they were added (local test).
-- <Badge text="assumed" variant="caution" /> That the same git behavior holds through `git-remote-wb` over the host-guest socket and with Apple's git. That is spike X07-git-round-trip (I21).
+- <Badge text="verified" variant="success" /> The same git behavior holds through `git-remote-wb` over a socketpair standing in for the host-guest socket, and with Apple git 2.54.0, except that `receive.hideRefs` alone also accepts the bare session ref (X07-git-round-trip, B21-git-round-trip).
 - <Badge text="assumed" variant="caution" /> That the image-seal scanner is precise enough for working trees without too many false hits. No scanner is chosen yet (S06-vm-lifecycle, "Sealing").
 
 ## What this unblocks

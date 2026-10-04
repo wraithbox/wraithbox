@@ -40,7 +40,9 @@ be tested before building on them.
   - read or change policy, credentials, or the audit log from the guest;
   - write into the host repository through the git transport; fetch an
     object outside the session's branch by its ID; push outside
-    `refs/heads/wb/<session-id>/`, or a tree with a `.git` entry;
+    `refs/heads/wb/<session-id>/`, or a tree with a `.git` entry; and
+    confirm that a refused push leaves no object in the landing
+    repository;
   - forge an approval prompt via terminal output and confirm nothing
     treats it as one.
 - **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended);
