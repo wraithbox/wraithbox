@@ -70,13 +70,22 @@ the host.
   and the credential rules match on the canonical path, which is also
   the one sent upstream. Literal dot segments are removed. A request is
   refused if its path has a control byte, a backslash, malformed
-  percent-encoding (`%zz`, a lone `%`), or a segment that decodes to
-  `.` or `..`. An encoded `/` is data inside its segment, never a
-  separator: rules match it that way, and it goes upstream as
-  received. So npm's scoped `/@scope%2fname` and GitLab's
-  `/api/v4/projects/group%2Fproject` match their rules as one segment,
-  and `ghcr.io/v2/homebrew%2Fcore/...` matches no `homebrew/core`
-  rule and is refused by default-deny.
+  percent-encoding (`%zz`, a lone `%`), or a segment whose
+  percent-decoded value, split on `/`, has a `.` or `..` component
+  (`%2e%2e`, `wget%2F..%2Fcurl`, `wget%2F%2e%2e%2Fcurl`). An encoded
+  `/` is data inside its segment, never a separator: rules match it
+  that way, and it goes upstream as received. So npm's scoped
+  `/@scope%2fname` and GitLab's `/api/v4/projects/group%2Fproject`
+  match their rules as one segment, and
+  `ghcr.io/v2/homebrew%2Fcore/...` matches no `homebrew/core` rule and
+  is refused by default-deny. Some hosts decode `%2F` before routing,
+  and `ghcr.io` is one of them. On such a host, profile authors shape
+  rules by path prefix and method only. A rule that allows a wildcard
+  segment and denies a sibling path under it isn't sound there,
+  because the host can route an encoded `/` to that sibling. GitHub,
+  GitLab, Codeberg, npm and PyPI treat `%2F` as data, so a deny under
+  an allowed prefix holds on them, such as the git hosting profile's
+  archive deny.
   Each request then goes through these steps in order: canonicalize,
   classify and remove guest credentials (audited), HTTP policy, the
   dependency gate, and credential injection.
@@ -247,7 +256,10 @@ the host.
   version in a distribution file name, a Go escaped module path with a
   semantic or pseudo-version, and a crate name with a semantic version.
   A request that fits none of them gets a 403 that names the rule.
-  Parsed names and versions are validated before they go into a lookup
+  The gate identifies a package by its percent-decoded name, so
+  `/@scope/name`, `/@scope%2fname` and `/@scope%2Fname` get the same
+  decision. A request on a gated host whose package can't be
+  identified is refused. Parsed names and versions are validated before they go into a lookup
   URL or an OSV query. A download is mapped from its URL alone, and a
   PyPI file name is checked against the project's JSON API. The Go
   module proxy answers a `.zip` request with a redirect. `wb-proxyd`

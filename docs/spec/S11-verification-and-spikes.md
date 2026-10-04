@@ -73,7 +73,8 @@ be tested before building on them.
     (X22-no-guest-credentials);
   - install a scoped npm package (`/@scope%2fname`) and read a GitLab
     project by its encoded path (`/api/v4/projects/group%2Fproject`),
-    and see both pass;
+    and see both pass; fetch `/@scope/name`, `/@scope%2fname` and
+    `/@scope%2Fname` and get the same gate decision for each;
   - send a credential that is neither a placeholder nor a fixed value, and
     find a detection finding with its header name and no value;
   - download a Homebrew bottle from `ghcr.io` with the guest's
@@ -84,7 +85,8 @@ be tested before building on them.
     guest Basic credentials and see it denied;
   - request `/v2/homebrew/core/x/../../other/image/...` and
     `/v2/homebrew%2Fcore/...` on `ghcr.io`, and paths with `%zz`, a
-    backslash, or a `%2e%2e` segment, and see all refused with
+    backslash, a `%2e%2e` segment, or a segment like `wget%2F..%2Fcurl`
+    or `wget%2F%2e%2e%2Fcurl`, and see all refused with
     nothing sent upstream;
   - call the model API with an attacker-supplied key and observe that it
     is replaced;

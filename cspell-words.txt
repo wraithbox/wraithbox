@@ -76,6 +76,7 @@ Vulns
 openshell
 Gitea
 Forgejo
+Codeberg
 
 # Docs site (Astro Starlight)
 frontmatter
