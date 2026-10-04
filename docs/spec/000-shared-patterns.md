@@ -4,27 +4,42 @@ This document contains templates and boilerplate code that specs can reference t
 
 ## Spec Template
 
-Standard template for new specification documents:
+Standard template for new specification documents. The **For review**
+block is what the maintainer reads first: it says what approving the
+spec commits to, without needing the rest of the spec or spec 003 open
+(`docs/agents/review-briefs.md`).
 
 ```markdown
 # XXX - Feature Name
 
 **Purpose:** One-line description of what this does and why
 
-**Requirements:**
-- Key functional requirement 1
-- Key functional requirement 2
-- Important constraints or non-functional requirements
+**Requirements:** The spec 003 IDs this spec covers
 
-**Design Approach:**
-- High-level design decision 1
-- High-level design decision 2
-- Key technical choices and rationale
+## For review
 
-**Implementation Notes:**
-- Critical implementation details only
-- Dependencies or special considerations
-- Integration points with existing code
+- **Decides:** what this spec settles, in a sentence or two
+- **You are approving:** the commitments, in plain words
+- **Controls touched:** each `S*` ID with its meaning, kept or how it
+  changes; or "none"
+- **Assumed:** what was assumed rather than checked or asked
+- **Open decisions:** numbered, each with a recommendation; or "none"
+- **Brief:** `/review/<slug>/` when there is one
+
+## Design
+
+The sections the topic needs. Each decision says what was chosen, why,
+and which options were rejected and why. A Mermaid diagram for a flow
+between processes or a trust boundary.
+
+## Open questions
+
+1. A question, the current leaning, and what settles it (a spike `X<n>`
+   or a maintainer decision).
+
+## Out of scope
+
+- What a reader could reasonably assume is included, but isn't.
 
 **Status:** [Draft/Approved/Implemented]
 ```

@@ -60,7 +60,7 @@ export default defineConfig({
 				baseUrl:
 					'https://github.com/wraithbox/wraithbox/edit/main/packages/wraithbox-doc/',
 			},
-			customCss: ['./src/styles/custom.css'],
+			customCss: ['./src/styles/custom.css', './src/styles/brief.css'],
 			components: {
 				// Dark is the default theme; an explicit choice in the theme
 				// toggle (dark, light or auto) still wins. See the two files.
@@ -71,6 +71,10 @@ export default defineConfig({
 				{
 					label: 'Overview',
 					items: [{ slug: 'design', label: 'Design overview' }],
+				},
+				{
+					label: 'Review',
+					items: [{ slug: 'review', label: 'Review briefs' }],
 				},
 				{
 					label: 'Guides',
