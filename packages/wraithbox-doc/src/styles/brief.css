@@ -88,7 +88,24 @@
 
 /* Impact table: rows are requirements or controls, columns are options.
    A cell is `yes`, `partial`, `no` or `na`, and always holds a word as well
-   as a color, so it reads without color too. */
+   as a color, so it reads without color too. The table fits the content
+   column rather than scrolling, so references in it may wrap at their
+   hyphens (refs.css keeps them on one line elsewhere). */
+.sl-markdown-content table.wb-impact {
+	display: table;
+	width: 100%;
+	table-layout: fixed;
+	font-size: var(--sl-text-sm);
+}
+.sl-markdown-content table.wb-impact th:first-child {
+	width: 30%;
+}
+.sl-markdown-content table.wb-impact :is(th, td) {
+	padding: 0.4rem 0.45rem;
+}
+.sl-markdown-content table.wb-impact a.wb-ref {
+	white-space: normal;
+}
 .sl-markdown-content table.wb-impact td.yes,
 .sl-markdown-content table.wb-impact td.partial,
 .sl-markdown-content table.wb-impact td.no {
