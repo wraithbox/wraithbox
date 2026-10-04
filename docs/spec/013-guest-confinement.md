@@ -5,7 +5,7 @@ processes can do, and tell the host which program opened each
 connection. They add a layer on top of the host-side controls and never
 replace them.
 
-**Requirements:** S5, S6, S8, S11, F15, N6. Residual risk R6.
+**Requirements:** S5-default-deny, S6-repo-writes, S8-proj-isolation, S11-root-gains-nothing, F15-inspect, N6-explained-refusals. Residual risk R6-forged-labels.
 
 This spec describes macOS guests, the v1 target. OpenShell's Linux
 sandbox runtime (Landlock, seccomp, process identity from `/proc`) is
@@ -16,7 +16,7 @@ mechanisms in spec 012 when they arrive.
 
 The guest kernel, or software that guest root can reach, enforces each
 control here. Spec 003 assumes the attacker may hold guest root
-(S11). So:
+(S11-root-gains-nothing). So:
 
 - **The host floor is complete.** The host meets each `S*` control
   (specs 007 to 009) with this layer absent, disabled, or compromised.
@@ -28,7 +28,7 @@ control here. Spec 003 assumes the attacker may hold guest root
   reported by the guest (spec 009), never as proof.
 
 Guest root can forge identities, which collapses per-program rules into
-the union of the project's grants. That is residual risk R6.
+the union of the project's grants. That is residual risk R6-forged-labels.
 
 ## Layer 1: process hardening (v1)
 

@@ -39,4 +39,4 @@ body:
     id: spec
     attributes:
       label: Spec reference
-      description: The spec section or requirement this violates, if known (e.g. `007`, `F3`).
+      description: The spec section or requirement this violates, if known (e.g. `007`, `F3-work-as-branch`).

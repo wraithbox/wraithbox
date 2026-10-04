@@ -1,6 +1,9 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { unified } from '@astrojs/markdown-remark';
+import { refsDigest, remarkRefs } from './src/plugins/remark-refs.mjs';
+import { specsIntegration } from './src/plugins/specs.mjs';
 
 // The site is served from the root of its own domain, https://wraithbox.nl
 // (GitHub Pages with a custom domain), so there is no `base` path and
@@ -9,7 +12,12 @@ import starlight from '@astrojs/starlight';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://wraithbox.nl',
+	// Requirement IDs, spikes, specs, issues and pull requests in page text
+	// become links with a hover card (src/plugins/remark-refs.mjs).
+	markdown: { processor: unified({ remarkPlugins: [[remarkRefs, { digest: refsDigest() }]] }) },
 	integrations: [
+		// Publishes docs/spec/ under /spec/ (src/plugins/specs.mjs).
+		specsIntegration(),
 		starlight({
 			title: 'Wraith Box',
 			description: 'Run coding agents inside isolated VMs: one command, fast, default-deny.',
@@ -60,7 +68,7 @@ export default defineConfig({
 				baseUrl:
 					'https://github.com/wraithbox/wraithbox/edit/main/packages/wraithbox-doc/',
 			},
-			customCss: ['./src/styles/custom.css', './src/styles/brief.css'],
+			customCss: ['./src/styles/custom.css', './src/styles/brief.css', './src/styles/refs.css'],
 			components: {
 				// Dark is the default theme; an explicit choice in the theme
 				// toggle (dark, light or auto) still wins. See the two files.
@@ -71,6 +79,11 @@ export default defineConfig({
 				{
 					label: 'Overview',
 					items: [{ slug: 'design', label: 'Design overview' }],
+				},
+				{
+					label: 'Specs',
+					collapsed: true,
+					items: [{ autogenerate: { directory: 'spec' } }],
 				},
 				{
 					label: 'Review',

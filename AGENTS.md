@@ -21,7 +21,12 @@ The design is in `docs/spec/`. Read `003-requirements.md` and
   pull request), with the reason.
 - Requirement identifiers (`F*`, `S*`, `N*`, `C*`, `R*` in spec 003) are
   stable; reference them in specs, code comments where a control is
-  enforced, and commit messages.
+  enforced, and commit messages. Write the number with its slug
+  (`S6-repo-writes`), so a reader knows what it means without spec 003.
+- In specs and docs, write references as plain text and let the docs
+  site link them with a hover card: `S6-repo-writes`, `X14`,
+  `spec 007`, `issue #36`, `PR #12`. Don't write a bare `#36` or link
+  a spec on GitHub (`docs/agents/review-briefs.md`, "References").
 - A control from spec 003 (`S*`) is never weakened to make something work.
   If a requirement turns out to be unachievable, write that up as a spec
   change and stop.

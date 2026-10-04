@@ -49,7 +49,7 @@ Exactly two channels cross the VM boundary: the **host-guest socket**
 (vsock on macOS and Linux, Hyper-V sockets on Windows; terminated by
 `wb-hostd`) and **Ethernet frames** (terminated by `wb-netd`). There is
 no shared directory, no NAT to the host network, and no other device
-that carries data (S1, S2, S5).
+that carries data (S1-separate-kernel, S2-no-host-fs-share, S5-default-deny).
 
 ## Processes
 
@@ -79,13 +79,13 @@ nothing themselves (spec 012).
   pieces that must call a platform API with no good Go binding are
   native, and each is a separate process behind a gRPC contract with no
   policy decisions of its own: `wb-vmd` on macOS (Virtualization
-  framework) and the user-interface helpers (spec 012, N7).
+  framework) and the user-interface helpers (spec 012, N7-maintainability).
 - **Secrets live in one process, and not the most exposed one.**
   `wb-netd` parses raw guest packets, the largest attack surface, and
   holds no secrets and opens no outbound connections. `wb-proxyd` holds
   credentials but only sees TCP byte streams already reassembled by
   `wb-netd` and validated against the DNS mapping. `wb-hostd` and
-  `wb-vmd` never touch a credential (S4, S12).
+  `wb-vmd` never touch a credential (S4-no-guest-secrets, S12-least-privilege).
 - **The VM provider passes descriptors, not bytes.** `wb-vmd` accepts
   guest socket connections and creates the NIC endpoint, then hands the
   descriptors (handles on Windows) to `wb-hostd` and `wb-netd`. It does
@@ -104,7 +104,7 @@ nothing themselves (spec 012).
 - **Guest confinement narrows, never widens.** Controls inside the
   guest (Seatbelt profiles, a Network Extension that labels flows with
   the program that opened them) can only deny what the host would allow.
-  Every `S*` control holds without them (spec 013, R6).
+  Every `S*` control holds without them (spec 013, R6-forged-labels).
 - **Policy is evaluated on the host, twice.** `wb-netd` decides which
   names resolve and which connections are accepted; `wb-proxyd` re-checks
   the hostname, SNI, and HTTP request. A bug in one layer does not open
@@ -112,10 +112,10 @@ nothing themselves (spec 012).
 - **One work VM per guest OS, many projects; an isolated VM for the
   rest.** The work VM hosts every trusted project for its guest OS,
   separated by guest user accounts; an isolated VM takes untrusted
-  repositories. For macOS guests this fits Apple's two-VM limit (S8, N5).
+  repositories. For macOS guests this fits Apple's two-VM limit (S8-proj-isolation, N5-two-macos-vms).
 - **No root or administrator rights at run time.** The packet transport
   and the userspace stack replace host networking features that would
-  need them (S12, N4).
+  need them (S12-least-privilege, N4-host-platforms).
 
 ## Host state
 

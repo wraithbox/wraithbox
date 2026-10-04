@@ -51,9 +51,9 @@ var Commands = []Command{
 // Guest is checked against the platform matrix when the session starts,
 // not here.
 type Globals struct {
-	Isolated  bool   // run in the isolated VM (S8)
-	Ephemeral bool   // no persisted state (F14)
-	Learn     bool   // learn mode; refused later unless the project is trusted (F10)
+	Isolated  bool   // run in the isolated VM (S8-proj-isolation)
+	Ephemeral bool   // no persisted state (F14-ephemeral)
+	Learn     bool   // learn mode; refused later unless the project is trusted (F10-learn-mode)
 	Guest     string // guest OS for this project (spec 012); empty means the default
 	Dir       string // act as if started in this directory
 	Help      bool

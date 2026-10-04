@@ -46,8 +46,8 @@ order.
    ("Can each project get its own egress policy in a shared VM?").
    `description` is the one-sentence answer or recommendation.
 2. **Status line.** `Awaiting decision`, `Decided YYYY-MM-DD: <option>`,
-   `Answered YYYY-MM-DD` (spike), or `Superseded by <link>`. Then links
-   to the source: issue, spec section, spike result, pull request.
+   `Answered YYYY-MM-DD` (spike), or `Superseded by <link>`. Then the
+   source as references (below): `issue #36`, `spec 007`, `PR #12`.
 3. **The ask.** A `<Aside type="tip" title="You are deciding">` with
    one sentence on what is being decided, the recommendation, and what
    happens next if the maintainer accepts it (which issues unblock,
@@ -65,9 +65,9 @@ order.
    when weakened. AGENTS.md forbids weakening an `S*` control, so an
    option that does needs a spec change, and the card says so.
 6. **Impact.** A `wb-impact` table: one row per requirement or control
-   affected, columns per option. Restate each ID's meaning in the row
-   ("S10: egress is default-deny per project"), so the reader does not
-   need spec 003 open. Cells are `yes`, `partial`, `no` or `na`, and
+   affected, columns per option. Write the ID with its slug and a few
+   words of meaning ("S5-default-deny: only allowlisted hostnames are
+   reachable"), so the reader does not need spec 003 open. Cells are `yes`, `partial`, `no` or `na`, and
    each holds a word or two, never only a color.
 7. **Evidence.** The claims the recommendation rests on, each with its
    source (a `file:line`, a spec section, a primary doc URL, a probe or
@@ -77,7 +77,7 @@ order.
    `variant="caution"`). An `assumed` claim that the recommendation
    depends on is a reason for a spike, and the brief says which.
 8. **What it unblocks.** Issues, spikes, and milestones that wait on
-   this, as links.
+   this, as references.
 9. **Details.** A `<details>` block with the deeper explanation and a
    short glossary of the terms a non-expert needs (vsock, ClientHello,
    SNI, …). A reader who stops before this block must still be able to
@@ -90,11 +90,34 @@ options right after them.
 
 - Plain words first. Define a technical term in a phrase on first use,
   and put the longer explanation in the glossary.
-- Give a requirement ID's meaning in a few words wherever it appears
-  outside the impact table.
+- Write requirement IDs with their slug (`S6-repo-writes`). The hover
+  card gives the full text, so a few words of meaning are enough where
+  the point depends on it.
 - No claim without a source. "Probably" gets the `inferred` or
   `assumed` badge instead.
 - The house prose rules apply (Vale and cspell run on `.mdx`).
+
+## References
+
+Write references as plain text. The docs site turns them into links
+with a hover card that shows the title and a one-sentence description
+(`src/plugins/remark-refs.mjs`):
+
+| Write | Links to |
+|---|---|
+| `S6-repo-writes` (or the alias `S6`) | the requirement in spec 003 |
+| `X14` | the spike in spec 011 |
+| `spec 007`, `specs 003, 007 and 009` | the spec pages on the site |
+| `issue #36`, `PR #12` (a bare `#36` becomes `issue #36`) | GitHub |
+
+- Don't link specs on GitHub. Spec pages are on the site under
+  `/spec/`.
+- A requirement with the wrong slug fails the build.
+- Issue and pull request titles come from a snapshot. After citing a
+  new one, run `mise run doc:refs` and commit
+  `src/data/github-refs.json`.
+- References inside code spans, headings, and component attributes
+  (such as a `<Badge text>`) stay plain text.
 
 ## Diagrams
 

@@ -3,12 +3,12 @@
 **Purpose:** Where policy comes from, how secrets are held, how TLS
 inspection is trusted, and what is recorded.
 
-**Requirements:** F9, F10, F15, S4 to S6, S9, S10, S12, S14, N6.
+**Requirements:** F9-approve-unknown, F10-learn-mode, F15-inspect, S4-no-guest-secrets to S6-repo-writes, S9-host-policy, S10-audit, S12-least-privilege, S14-no-fake-approvals, N6-explained-refusals.
 
 ## Policy
 
 - **Files.** Two kinds, both on the host, outside every repository and
-  every guest, and the same on every host OS (F17). `<config>` is per OS
+  every guest, and the same on every host OS (F17-same-everywhere). `<config>` is per OS
   in spec 012 (`~/.config/wraithbox` on macOS).
   - *Settings* in TOML: `<config>/config.toml` and
     `<config>/projects/<project-id>.toml`.
@@ -30,7 +30,7 @@ inspection is trusted, and what is recorded.
   not required (as for its Windows driver): `binaries` does not narrow
   a rule. Each rule lists the universal entry `path: "/**"`, and policy
   that names programs is rejected at load with an error
-  saying why (N6), so no rule is silently weaker than written. Whether
+  saying why (N6-explained-refusals), so no rule is silently weaker than written. Whether
   the prover reads `/**` as every program is checked when the boundary
   check is built.
 - **Settings contents.** The project toolchain manifest (Brewfile on
@@ -42,7 +42,7 @@ inspection is trusted, and what is recorded.
   has run `wb trust` for that repository. Even then it may only add
   allowed hosts, a toolchain manifest and HTTP rules, and every addition
   is shown in `wb policy explain`. It can never add credential bindings
-  or switch hosts to pass-through (S9).
+  or switch hosts to pass-through (S9-host-policy).
 - **Boundary check.** At `wb trust` and whenever a trusted repository's
   policy changes, the merged project policy is checked against a
   boundary policy (the most a project may ever be allowed) with
@@ -96,7 +96,7 @@ inspection is trusted, and what is recorded.
   trust store and sets toolchain-specific trust variables so that every
   common client accepts it.
 
-## Approvals (S14)
+## Approvals (S14-no-fake-approvals)
 
 Before an approval request is shown, the rule it would add goes
 through the prover's proposal risk check (new reach for a credential,
@@ -109,7 +109,7 @@ platform's notification helper, spec 012) and through `wb approve` /
 session, which the guest controls. Guest-influenced text in a request is
 stripped of control and escape sequences wherever it is shown.
 
-## Audit (S10)
+## Audit (S10-audit)
 
 - JSONL in `<logs>` (spec 012; `~/Library/Logs/WraithBox/` on macOS),
   written by `wb-hostd` from events

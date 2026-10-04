@@ -4,7 +4,7 @@
 how platform-specific code is isolated, what each platform uses, and how
 `wb` works inside WSL.
 
-**Requirements:** F16, F17, S1, S2, S4, S5, S12, N4, N5, N7, C1, C3.
+**Requirements:** F16-wsl, F17-same-everywhere, S1-separate-kernel, S2-no-host-fs-share, S4-no-guest-secrets, S5-default-deny, S12-least-privilege, N4-host-platforms, N5-two-macos-vms, N7-maintainability, C1-macos-first, C3-win-linux-later.
 
 ## Platform matrix
 
@@ -69,7 +69,7 @@ systems may lack. Without one, `wb setup` refuses to store credentials
 rather than writing them to a file. A TPM-sealed file is the candidate
 alternative and needs its own spec.
 
-## Languages per platform (N7)
+## Languages per platform (N7-maintainability)
 
 - **Go everywhere** for the core, the guest agent, and as much platform
   code as possible: HCS, Hyper-V sockets, and named pipes on Windows;
@@ -77,7 +77,7 @@ alternative and needs its own spec.
 - **macOS: Swift**, built with Xcode, for the Virtualization framework
   (`wb-vmd`) and notifications (native helper). The Keychain and Secure
   Enclave are reached from Go through a thin cgo shim inside `wb-proxyd`,
-  because the credential must live in that process (S4, S12).
+  because the credential must live in that process (S4-no-guest-secrets, S12-least-privilege).
 - **Windows: C# on .NET**, built with the `dotnet` CLI, for a native
   notification and tray helper when that is built. Nothing else on
   Windows is expected to need it.
@@ -97,7 +97,7 @@ Checked by `wb setup`, explained to the user, never changed silently:
 
 If spike X11 shows that HCS needs administrator rights for every VM
 operation, the Windows design needs a narrowly scoped system service.
-That would change S12 for Windows and requires a spec change, not a
+That would change S12-least-privilege for Windows and requires a spec change, not a
 workaround.
 
 ## Guest operating systems
@@ -112,7 +112,7 @@ building:
 | `wb-guestd` runs as | root LaunchDaemon | root systemd unit | SYSTEM service |
 | Per-project users | local accounts | local accounts | local accounts |
 | PTY | Unix PTY | Unix PTY | ConPTY |
-| Toolchain manifest (F7) | Brewfile | package list (apt) | package list (winget) |
+| Toolchain manifest (F7-toolchain-manifest) | Brewfile | package list (apt) | package list (winget) |
 | CA trust (spec 009) | System keychain + toolchain variables | system trust store + toolchain variables | machine certificate store + toolchain variables |
 | Guest confinement (spec 013) | Seatbelt profiles; Network Extension flow labels (X14); Endpoint Security (X15) | Landlock and seccomp, as in OpenShell's sandbox runtime (X16) | to be decided |
 
@@ -120,7 +120,7 @@ Windows 11 requires a TPM 2.0 and Secure Boot. A host that cannot
 provide a virtual TPM to the guest cannot run Windows guests (spikes X11,
 X13).
 
-## WSL (F16)
+## WSL (F16-wsl)
 
 On a Windows host, `wb` inside a WSL 2 distribution is a **client** of
 the Windows host's `wb-hostd`:
@@ -128,7 +128,7 @@ the Windows host's `wb-hostd`:
 - **Detection.** Linux `wb` checks for WSL (`internal/platform`). In WSL
   it never starts services or VMs inside the distribution; the WSL
   distribution shares one kernel with every other distribution of the
-  user, so it is not a sandbox (S1).
+  user, so it is not a sandbox (S1-separate-kernel).
 - **Channel.** `wb` starts the Windows `wb.exe relay` through WSL
   interop and speaks gRPC over its standard input and output. `wb.exe`
   connects to `wb-hostd` over its named pipe as the Windows user, so

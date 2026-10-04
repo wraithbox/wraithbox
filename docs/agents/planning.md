@@ -131,7 +131,7 @@ macOS guest; spec 012). They are GitHub milestones, not labels.
 - **Description:** the exit criterion in one or two sentences, and the
   requirement IDs (spec 003) and spikes it covers. Example:
   `X1 to X9 answered and written up in docs/spec/spikes/; specs updated
-  where an answer changed the design. Covers S4, N1, N2.`
+  where an answer changed the design. Covers S4-no-guest-secrets, N1-startup, N2-fs-speed.`
 - **Membership:** every `ready-for-agent` issue is in exactly one
   milestone. An issue without one is not picked. Follow-ups found during
   a milestone go into it if they block its exit criterion, otherwise

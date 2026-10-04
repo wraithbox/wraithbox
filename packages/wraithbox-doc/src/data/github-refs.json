@@ -1,0 +1,314 @@
+{
+	"1": {
+		"kind": "pr",
+		"state": "open",
+		"title": "build(deps): Bump astro from 7.3.2 to 7.3.5 in /packages/wraithbox-doc",
+		"summary": "Bumps astro from 7.3.2 to 7.3.5."
+	},
+	"2": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump @astrojs/starlight from 0.42.0 to 0.42.4 in /packages/wraithbox-doc",
+		"summary": "Bumps @astrojs/starlight from 0.42.0 to 0.42.4."
+	},
+	"3": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: record GitHub org and repo security settings",
+		"summary": "Records the GitHub settings applied to wraithbox/wraithbox today and the ones still to apply, as idempotent gh api commands in docs/github-settings.md."
+	},
+	"4": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "Setup: SECURITY.md, issue forms, labels and issue tracker docs",
+		"summary": "Result of running the setup skill over the repo."
+	},
+	"5": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(doc): Adwaita-based theme, spectral green accent, dark by default",
+		"summary": "Restyles the docs site (packages/wraithbox-doc)."
+	},
+	"6": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(agents): agent orchestration, area labels, spikes and milestones",
+		"summary": "Ports the agent and multi-agent orchestration setup from lsimons/ai-training, reworked for a code-first monorepo on its first day."
+	},
+	"7": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build(prose): Vale and cspell prose checks, plus a one-off prose pass",
+		"summary": "Ports the prose tooling from lsimons/ai-training and runs it once over the whole repository."
+	},
+	"8": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: record org settings and default-branch ruleset",
+		"summary": "Updates docs/github-settings.md to match the GitHub settings applied today (outside this diff):"
+	},
+	"9": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(doc): Wraith Box ghost icon, favicon and header logo",
+		"summary": "Adds the Wraith Box brand icon and uses it on the docs site."
+	},
+	"10": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X14: Guest flow attribution",
+		"summary": "A Network Extension transparent proxy in a macOS guest (spec 013, layer 3): can it be approved during the image build without MDM?"
+	},
+	"11": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X15: Endpoint Security entitlement",
+		"summary": "Request the Endpoint Security entitlement from Apple."
+	},
+	"12": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X16: OpenShell for Linux guests",
+		"summary": "Could OpenShell's VM driver (libkrun, guest without a network device, egress over vsock) run Linux guests for Wraith Box on macOS and Linux hosts instead of a VMM chosen in X10?"
+	},
+	"13": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): adopt OpenShell ideas, add spec 013 guest confinement",
+		"summary": "Adopts the parts of NVIDIA's OpenShell that fit Wraith Box without its runtime, and adds spec 013 for confinement inside the guest."
+	},
+	"14": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: initial implementation plan, spikes X17 to X24",
+		"summary": "Prepares milestone planning."
+	},
+	"15": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X1: Model credential via the proxy",
+		"summary": "Does Claude Code work with a placeholder credential while wb-proxyd injects the real one, for each supported authentication mode, including token refresh?"
+	},
+	"16": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X2: Warm start",
+		"summary": "How long does it take to restore a macOS guest from saved state with a vsock device and a file-handle network attachment?"
+	},
+	"17": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X3: Network path",
+		"summary": "Does a macOS guest boot on the file-handle network attachment with the gVisor stack: get a DHCP lease, resolve only allowlisted names, and reach only the proxy?"
+	},
+	"18": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X4: Inspection compatibility",
+		"summary": "Do Go-based, Swift-based, and Xcode clients accept the name-constrained Wraith Box CA when it is trusted only in the guest?"
+	},
+	"19": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X5: Filesystem benchmark",
+		"summary": "How does the data disk perform with default versus relaxed write-through settings, against the host, on the N2 workloads?"
+	},
+	"20": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X6: Guest users and Xcode",
+		"summary": "Can builds and simulators run for a guest user without a GUI login?"
+	},
+	"21": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X7: Git round trip",
+		"summary": "Does the git round trip work as spec 008 describes: a remote helper over vsock, read-only upload-pack against the user's repository, restricted receive-pack into the landing repository, and flagging of risky paths?"
+	},
+	"22": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X8: Data disk for homes",
+		"summary": "Can guest user homes live on a second disk and survive a replacement of the system disk?"
+	},
+	"23": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X9: Keychain access without a signing identity",
+		"summary": "Does the fallback Keychain access model from spec 009 work for an ad-hoc signed binary, and can such a binary create a Secure Enclave key?"
+	},
+	"24": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X10: Linux VMM and packet transport",
+		"summary": "Which permissively licensed VMM over KVM supports vsock, save and restore, copy-on-write disks, and a virtual TPM (for Windows guests)?"
+	},
+	"25": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X11: Windows host through HCS",
+		"summary": "On Windows 11 Home with only the Virtual Machine Platform feature: can a standard user create, start, save, and restore a VM through HCS?"
+	},
+	"26": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X12: WSL client channel",
+		"summary": "Does wb in WSL 2, relaying through wb.exe relay over interop standard streams, give acceptable terminal fidelity, window resizing, git transport throughput, and latency to the first prompt?"
+	},
+	"27": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X13: Windows guests on a macOS host",
+		"summary": "Can the Virtualization framework boot Windows 11 for Arm in a supported way, including TPM and Secure Boot requirements and usable display and network drivers?"
+	},
+	"28": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X17: Unattended image build",
+		"summary": "X17 (added to spec 011 in #14)"
+	},
+	"29": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X18: Host-guest socket and descriptor hand-off",
+		"summary": "X18 (added to spec 011 in #14)"
+	},
+	"30": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X19: Terminal stream filtering",
+		"summary": "X19 (added to spec 011 in #14)"
+	},
+	"31": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X20: Homebrew with more than one project user",
+		"summary": "X20 (added to spec 011 in #14)"
+	},
+	"32": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X21: Dependency gate on real registries",
+		"summary": "X21 (added to spec 011 in #14)"
+	},
+	"33": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X22: Clients without guest credentials",
+		"summary": "X22 (added to spec 011 in #14)"
+	},
+	"34": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X23: Self-sandboxed Go daemons on macOS",
+		"summary": "X23 (added to spec 011 in #14)"
+	},
+	"35": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X24: OpenShell artifacts",
+		"summary": "X24 (added to spec 011 in #14)"
+	},
+	"36": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 007: attribute network flows to projects in the shared work VM",
+		"summary": "The work VM hosts every trusted project, and its wb-netd sees one guest MAC and one leased IPv4 address (spec 007 \"Addressing\")."
+	},
+	"37": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 003, 005: treat the host terminal stream as a boundary",
+		"summary": "wb claude relays the guest's PTY output in raw mode to the user's terminal emulator (spec 005)."
+	},
+	"38": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 006: design port forwarding and clipboard (F11, F12) and their threats",
+		"summary": "F11 (dev servers on host loopback) and F12 (clipboard) cross the VM boundary, but no spec designs them and spec 003's threat model does not list them."
+	},
+	"39": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 009: CA name constraints and rotation versus live policy changes",
+		"summary": "- spec 007 \"Approvals\": \"Policy changes take effect without restarting anything.\" - spec 009 \"Scope\": the CA has name constraints for the inspected hostnames, and \"when the inspected set changes, a new CA is issued an…"
+	},
+	"40": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 003, 007: record learn mode and pass mode as S5 exceptions",
+		"summary": "S5 is \"default-deny egress\", and AGENTS.md says an S control is never weakened."
+	},
+	"41": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 008: which git data reaches the guest, and host git as a parser",
+		"summary": "Spec 008 says how bytes move, but not which data the guest may get or how much the host trusts its own git when it parses guest data:"
+	},
+	"42": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 005, 006, 009: separate configuration trust from VM placement; project identity",
+		"summary": "The specs use \"trusted\" for two different things and do not give a default:"
+	},
+	"43": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 006: VM slot admission for image builds, updates and GUI work (N5)",
+		"summary": "N5 allows two running macOS guests per host, and spec 006 uses both: the work VM and the isolated VM."
+	},
+	"44": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 006: data disk durability, and never mount a guest-written disk",
+		"summary": "Spec 006 says the data disk \"can be rebuilt from host state plus git, so it may use relaxed write-through settings for speed\"."
+	},
+	"45": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 014 (new): Claude Code in the guest and the agent interface (C2)",
+		"summary": "No spec says how Claude Code itself runs in the guest."
+	},
+	"46": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 005, 006: session lifecycle, detach, sleep and failure",
+		"summary": "Specs 005 and 006 describe starting a session and its summary at the end, but not what happens in between, or when things go wrong:"
+	},
+	"47": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 007: non-HTTP streams, SSH remotes and ECH",
+		"summary": "Spec 007 describes TLS and HTTP."
+	},
+	"48": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 004: process supervision, failure, version skew and host resource limits",
+		"summary": "Spec 004 names the processes but not how they are supervised, what happens when one fails, or how they are upgraded:"
+	},
+	"49": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 010: installation, restore image download, upgrades and migrations",
+		"summary": "Spec 010 \"Packaging and signing\" gives the shape of the macOS app bundle."
+	},
+	"50": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Test infrastructure for work that needs a running macOS guest",
+		"summary": "Most v1 work needs a running macOS guest to test: spikes X2 to X8 and X17 to X20, the conformance suite, and the benchmarks (spec 011)."
+	},
+	"51": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 009: approval flow, what the blocked client sees, and approval noise",
+		"summary": "Spec 007 and 009 describe approval choices and their security (S14), not how the flow behaves."
+	},
+	"52": {
+		"kind": "issue",
+		"state": "open",
+		"title": "spec 004, 009, 010: first .proto contracts and settings schema",
+		"summary": "Spec 004 says all IPC is protobuf over gRPC and spec 010 adds proto/ \"with the first RPC\"."
+	}
+}
