@@ -195,7 +195,7 @@ list short to read.
 ## Code
 
 Throwaway code on branch `spike/x07-git-round-trip`, commit
-[`a0a10cc`](https://github.com/wraithbox/wraithbox/tree/a0a10ccfb5a61305d23b8df34cc30b1eed34d98d/spikes/x07-git-round-trip):
+[`f810207`](https://github.com/wraithbox/wraithbox/tree/f810207d8e609edd72b79c1ab67236dd4ba1b90c/spikes/x07-git-round-trip):
 the helper, the host side, the filter with its fuzz target, the flagger,
 the harness, and the output of each run under `results/`.
 
