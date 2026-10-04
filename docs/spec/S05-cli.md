@@ -2,7 +2,7 @@
 
 **Purpose:** Specify `wb`, the single user-facing command.
 
-**Requirements:** FR01-drop-in to FR05-parallel-sessions, FR09-approve-unknown, FR12-clipboard, FR13-claude-state to FR17-same-everywhere, SEC03-no-host-exec, SEC14-no-fake-approvals, NFR01-startup, NFR06-explained-refusals.
+**Requirements:** FR01-drop-in to FR05-parallel-sessions, FR09-approve-unknown, FR12-clipboard, FR13-claude-state to FR17-same-everywhere, SEC03-no-host-exec, SEC10-audit, SEC14-no-fake-approvals, NFR01-startup, NFR06-explained-refusals.
 
 ## For review
 
@@ -14,8 +14,12 @@
   review of PR66 asked. OSC 52 is dropped until I38, notifications
   become a bell, and links are dropped on screen and listed in the
   session summary. `wb` sets the window title, resets the terminal
-  before the summary, and passes five environment variables to the
-  guest.
+  before the summary, and passes seven environment variables to the
+  guest. One change from the I37 decision, which says `wb` strips
+  control sequences from guest text outside the stream: `wb diff`, logs
+  and audit records show them escaped instead, where a reviewer sees
+  them (X19-terminal-filter asks for escaping in logs). Other output still
+  removes them.
 - **Controls touched:** SEC03-no-host-exec (nothing the agent produces
   runs on the host without the user) and SEC14-no-fake-approvals
   (approvals can't be spoofed by the guest), both kept and extended to
@@ -24,12 +28,18 @@
   as `claude`) holds, except that `/copy`, notification text, links,
   and Claude Code's own window title are lost.
 - **Assumed:** that a headless emulator shows what Ghostty and
-  Terminal.app show (I62 checks it by eye), and that the caps fit
-  later Claude Code versions. Drop counts show it when they don't.
+  Terminal.app show (I62 checks it by eye), that both answer the
+  drain's `CSI ? 6 n`, and that the caps fit later Claude Code
+  versions. Drop counts show it when they don't.
 - **Open decisions:** 1. Reset the terminal on exit, rather than run
   the session on an alternate screen of `wb`'s own (recommended:
-  reset). 2. Pass a stream that goes to a pipe or a file unfiltered
-  (recommended: yes).
+  reset). 2. What `wb` does with a stream that goes to a pipe or a
+  file: pass it unchanged, drop only `ESC`-introduced sequences, or
+  apply the full filter. This one has no recommendation, because
+  passing the stream unchanged weakens SEC03-no-host-exec. Dropping `ESC`-introduced sequences
+  changes only output that holds an `ESC`, which valid JSON can't. The
+  full filter can also drop C1 characters and `DEL` from JSON. Until it
+  is decided, the full filter applies.
 - **Brief:** B37-terminal-boundary
 
 ## Shape
@@ -125,17 +135,24 @@ filters packets (SEC03-no-host-exec).
 
 - **Where.** On every stream that `wb claude` or `wb shell` writes to a
   terminal. On WSL that is the WSL-side `wb`, which writes to the
-  terminal (S12-platforms). A stream that goes to a pipe or a file passes
-  unchanged, because it is data for a program and `claude -p` output
-  must stay byte-exact (FR01-drop-in). What reads it later is outside
-  Wraith Box, as `git log` is after `wb land` (open decision 2).
+  terminal (S12-platforms). A stream that goes to a pipe or a file is
+  open decision 2, and gets the full filter until it is decided.
+  Scripts read such a stream (`claude -p`), and a later `| cat` puts it
+  on the terminal.
 - **How.** The filter splits the stream into text, controls and
   sequences, and passes a token only when a rule below allows it. It
   drops any other token whole, from its `ESC` to its end, so the
   terminal's parser is back in its ground state after every token. It
   never escapes a dropped sequence into visible text, which would move
-  what the TUI drew. It buffers at most 64 bytes of an unfinished CSI
-  and 16 KB of an unfinished string sequence, and drops a longer one.
+  what the TUI drew.
+- **Ends of a sequence.** A CSI ends at its final byte (`@` to `~`). A
+  string sequence (OSC, DCS, APC, PM, SOS) ends at ST, written as
+  `ESC \` or as U+009C, and an OSC also at BEL. CAN and SUB end any
+  sequence, and so does an `ESC` inside a string sequence that doesn't
+  start ST, which then begins the next token. The filter buffers at most 64 bytes of an unfinished CSI
+  and 16 KB of an unfinished string sequence. Past that it discards
+  everything up to the sequence's end, counted as one drop, so the tail
+  of a long payload never shows as text.
 - **Counts.** Each drop is counted by rule, and the session summary
   reports the counts (NFR06-explained-refusals). A sequence that a new
   Claude Code version starts to use shows up there.
@@ -148,7 +165,7 @@ filters packets (SEC03-no-host-exec).
 | CSI parameters | digits, `;` and `:`, at most 16 values of at most 5 digits, 64 bytes in all | any other |
 | CSI screen | `A` to `H`, `f`, `` ` ``, `a`, `d`, `e`, `@`, `L`, `M`, `P`, `X`, `b`, `S`, `T`, `r`, `I`, `Z`, `g`, `m`; `J` and `K` with 0 to 2; `s` and `u` without parameters | `CSI 3 J`, which erases the host's scroll-back |
 | CSI modes | `? h/l` for 25, 1000, 1002, 1003, 1004, 1006, 1016, 1049, 2004, 2026, 2031; `? … $ p` (mode query) | other modes |
-| CSI keyboard | kitty keyboard `> u` (at most 4 deep), `< u`, `= u`, `? u`; `> 4 ; 2 m` and `> 4 m`; `SP q`; `! p` | other `> m` |
+| CSI keyboard | kitty keyboard `> u` (push, at most 4 deep per screen), `< u` (pop, only entries the guest pushed on that screen), `? u`; `> 4 ; 2 m` and `> 4 m`; `SP q`; `! p` | `= u`, which changes the current entry in place; other `> m` |
 | CSI queries | `c`, `> c`, `5 n`, `6 n`, `> q`, `14 t`, `16 t`, `18 t` | other `t`: window moves, title reports, the title stack |
 | OSC | 9 ; 4 (progress) with numeric parameters; 10, 11, 12 with `?` only; 9, 99 and 777 (notifications) become one BEL | the rest: 0 to 2 (title), 8 (links), 52, 1337, 7, 133, … |
 | DCS, APC, PM, SOS | | all, whole |
@@ -160,10 +177,12 @@ value recorded. OSC 10 to 12 queries stay because the Claude Code
 binary holds the background color query. Queries pass because the
 reply goes to the guest, and Claude Code uses them to learn what the
 terminal supports. What a reply tells the guest is T09-terminal-fingerprint.
-The title report (`CSI 21 t`), OSC 52 with `?` and DECRQSS (a DCS) stay
-off the list for good: each makes the terminal type guest-chosen text
-back into its input, which would reach the user's shell after `wb`
-exits.
+The kitty keyboard protocol keeps one stack per screen, so `wb` counts
+the guest's pushes on the main and the alternate screen apart, and
+drops a pop that would reach an entry the user's shell pushed. The
+title report (`CSI 21 t`), OSC 52 with `?`, and DECRQSS (a DCS) never
+join the list: each makes the terminal type guest-chosen text back
+into its input, which would reach the user's shell after `wb` exits.
 
 **Links.** OSC 8 is dropped and its text stays as plain text (H1,
 I30). A link's text can differ from its target, and a link to
@@ -171,10 +190,14 @@ I30). A link's text can differ from its target, and a link to
 the guest. Terminals still make a bare URL clickable. `wb` keeps each
 dropped link's URL (at most 2048 bytes) and text (at most 256
 characters), records them in the audit log through `wb-hostd`, and
-lists them, without repeats, in the session summary. An entry is marked
-unless it is `https://` to a public dotted hostname: `file:` (a guest
-path), an IP literal, `localhost`, `.local`, `.internal`, a name
-without a dot, a user name in the URL, `http:`, or another scheme.
+lists them, without repeats, in the session summary. It keeps at most
+100 entries. Past that it counts the rest by mark, and the summary says
+"and N more". An entry is marked when the URL is `file:` (a guest
+path), an IP literal, `localhost` or a name under `.localhost`,
+`.local`, `.internal`, `.home.arpa` or `.lan`, a name without a dot, a
+URL with a user name, `http:`, or another scheme. The mark is a
+heuristic on the name alone: an unmarked name can still resolve to a
+host-local address, so no mark doesn't mean safe.
 Rejected: rewriting a link inline as `text (url)`, which changes line
 widths the TUI has laid out; passing `https://` links to public hosts,
 which leaves the text-target mismatch; and passing a link only when
@@ -193,8 +216,9 @@ its text equals its URL, which makes the filter follow the screen.
   style, the alternate screen, mouse modes, bracketed paste, focus
   events, color scheme reports, synchronized output, cursor visibility
   and style, the scroll region, the character sets, the kitty keyboard
-  stack (popped as far as the guest pushed it), `modifyOtherKeys`
-  (`CSI > 4 m`), tab stops (`CSI ? 5 W`), and the progress indicator.
+  stacks (the guest's pushes popped, the alternate screen's before
+  leaving it), `modifyOtherKeys` (`CSI > 4 m`), the keypad mode
+  (`ESC >`), tab stops (`CSI ? 5 W`), and the progress indicator.
   Then it starts a new line. Without it, the guest can print a fake
   summary in the background color and hide the real flags that
   SEC03-no-host-exec relies on. The summary is advisory, and `wb diff`
@@ -202,16 +226,23 @@ its text equals its URL, which makes the filter follow the screen.
   Rejected: running the session on an alternate screen of `wb`'s own,
   which resets everything but doesn't leave the session's output in the
   scroll-back, unlike `claude` (FR01-drop-in, open decision 1).
-- **Input drain.** Before restoring cooked mode, `wb` sends `CSI 6 n`
-  and reads and discards input until the reply arrives or 100 ms pass,
-  so a late reply to a guest query doesn't reach the user's shell.
-  Input to the guest is not filtered.
+- **Input drain.** Before restoring cooked mode, `wb` sends a sentinel
+  query that the allowlist never passes, `CSI ? 6 n` (extended cursor
+  position), and reads and discards input until the reply of that form
+  (`CSI ? … R`) arrives or 100 ms pass. Terminals answer in order, so
+  every reply to a guest query comes first, and a guest `CSI 6 n` can't
+  end the drain early. A late reply to a guest query doesn't reach the
+  user's shell. Input to the guest is not filtered.
 - **Environment.** The guest session gets these host variables and no
   others: `TERM`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `COLORTERM`,
-  `LANG`. Claude Code picks its sequences from them and from query
-  replies. Not `TMUX` or `STY`, which make it wrap sequences in DCS,
-  not `SSH_*`, `TERMINFO`, `LC_TERMINAL` or `ITERM_SESSION_ID`. The
-  window size crosses as resize messages.
+  `LANG`, `LC_ALL`, `LC_CTYPE`. Claude Code picks its sequences from the
+  first four and from query replies. The locale ones keep the guest's
+  character encoding the same as the host's, also on a host that sets
+  `LC_ALL` or `LC_CTYPE` without `LANG`. The other `LC_*` variables change formatting,
+  not what reaches the terminal, and are left out. Not `TMUX` or `STY`,
+  which make Claude Code wrap sequences in DCS, and not `SSH_*`,
+  `TERMINFO`, `LC_TERMINAL` or `ITERM_SESSION_ID`. The window size
+  crosses as resize messages.
 
 **Guest text elsewhere.** Wherever else `wb` prints text the guest
 influenced (the session summary and its link list, `wb diff`,
