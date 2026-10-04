@@ -163,6 +163,63 @@ Answered before X10, because a yes may make X10 unnecessary.
     saved-state restore, so those are Wraith Box's to add. Its other drivers share a kernel between
     sandboxes (S1) and are out of the question.
 
+### Found during initial planning (v1)
+
+These came out of the first read-through of the specs for an
+implementation plan (`docs/implementation-plan.md`). Each tests an
+assumption that v1 work would otherwise build on. They block v1.
+
+17. **X17 Unattended image build.** Can a macOS guest installed from
+    an Apple restore image get past Setup Assistant, with `wb-guestd`
+    running as a root LaunchDaemon, without SSH, scripted clicks, or
+    MDM? The candidate is writing files to the new guest's data
+    volume from the host at build time, before any untrusted code has
+    run. Measure the build time from the restore image.
+18. **X18 Host-guest socket and descriptor hand-off.** Can `wb-guestd`,
+    written in Go, open `AF_VSOCK` sockets in a macOS guest? Do the
+    file descriptors of a vsock connection and of the file-handle
+    network attachment keep working after `wb-vmd` passes them to
+    another process (`SCM_RIGHTS`), and across save and restore? Spec
+    004 rests on the answer ("descriptors, not bytes").
+19. **X19 Terminal stream filtering.** Which terminal escape sequences
+    does Claude Code emit, and can `wb` drop the ones that act on the
+    host (clipboard writes, file transfer, terminal multiplexer control
+    sequences) without visible damage in the common macOS terminals?
+    The relay passes guest bytes to the host terminal emulator.
+20. **X20 Homebrew with more than one project user.** Can each project
+    user in one guest get its declared Brewfile without a Homebrew
+    prefix that another project user can write to (S8)? Compare a
+    prefix owned by `wb-guestd` that installs every declared Brewfile
+    with per-user prefixes. Measure bottle availability and install
+    time for both.
+21. **X21 Dependency gate on real registries.** Can `wb-proxyd` map a
+    download to package, version and publish time for npm, PyPI, the
+    Go module proxy, crates.io and Homebrew? Does removing too-young
+    versions from metadata let resolvers pick an older version, where
+    refusing the download fails the whole install? Measure failure
+    rates with a 7-day minimum age on real projects, and the time OSV
+    lookups add to an `npm ci` with a large lockfile.
+22. **X22 Clients without guest credentials.** Which common clients
+    (Homebrew against `ghcr.io`, git, `gh`, npm, pip, uv, SwiftPM, Go,
+    cargo, Claude Code) break when `wb-proxyd` removes every
+    guest-supplied `Authorization` header and cookie on inspected
+    hosts? Registries such as `ghcr.io` hand out anonymous tokens that the
+    client must send back. Find a rule for those that keeps S4 and S6.
+23. **X23 Self-sandboxed Go daemons on macOS.** Can `wb-netd`,
+    `wb-proxyd` and `wb-hostd` confine themselves at start with a
+    sandbox profile, as spec 004 says, while the Go runtime, inherited
+    descriptors, and Keychain and Secure Enclave access in `wb-proxyd`
+    keep working?
+24. **X24 OpenShell artifacts.** Do the OpenShell parts that specs 007,
+    009 and 010 build on exist in the assumed form, under a permissive
+    license, at a version that can be pinned: the `network_policies`
+    schema version 1 (still valid with Wraith Box's extra top-level
+    keys), a standalone `openshell-prover` binary and its reading of
+    `binaries: /**`, the proposal risk check for one rule, and
+    `supervisor_middleware.proto` (RFC 0009) used inside a Go process?
+    The same check covers the OCSF 1.8 classes and the agent-safehouse
+    Seatbelt profiles.
+
 ## Deferred beyond v1
 
 Git LFS and submodules; image distribution through a registry; Linux
