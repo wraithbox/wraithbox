@@ -8,21 +8,16 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-04: yes, with conditions.** Source: I32, X21-dep-gate-registries. Changes S07-egress-gateway, S11-verification-and-spikes and T00-index. Opens I73 and I76.
 
 <Aside type="tip" title="What we learned">
-Yes, with conditions. Refusing every download younger than 7 days, as S07-egress-gateway said, failed the fresh install of all 10 real projects tried. Removing those versions from the registry's metadata as well let 9 of 10 install older versions, and the download refusal still catches lockfile pins. Recommended: **A**, now in S07-egress-gateway.
+Yes, with conditions. Refusing young downloads failed 10 of 10 fresh installs. Also hiding young versions in the metadata failed 1 of 10. Recommended: **A**, now in S07-egress-gateway. Merging also accepts these, detailed in S07-egress-gateway and X21-dep-gate-registries:
 
-By merging you also accept two residual risks:
+- T07-ungated-sources: packages from git hosts or mirrors skip the gate.
+- T08-homebrew-ungated: young Homebrew bottles aren't refused (see "Homebrew").
+- A one-hour OSV cache, which can miss a fresh malicious-package report.
+- Rules for other metadata: PyPI JSON API, npm dist-tags, HTML-only PyPI clients.
+- Private registries fail closed for now.
+- Git hosts deny archive downloads, and approval flags registry mirrors.
 
-- **T07-ungated-sources.** The gate covers the npm, PyPI, Go module proxy and crates.io hosts only. The same packages fetched from a git host (`GOPROXY=direct`, `git+https:`, `github:`, archive downloads, cargo `git` dependencies) or from a mirror you approve skip it.
-- **T08-homebrew-ungated.** Young Homebrew bottles aren't refused. The alternative is refusing them, which fails about a third of popular formulae (see "Homebrew" below).
-
-And you settle these points, each with the recommendation in S07-egress-gateway:
-
-1. The OSV cache keeps answers for one hour, so a malicious-package report published within that hour can be missed. Recommended: accept, with the cache keyed on the threshold and only answers under an hour old used during an OSV outage.
-2. Clients that read other metadata. Recommended: refuse a PyPI client without the JSON simple index, filter npm `/-/package/<name>/dist-tags`, and filter the young `releases` of the PyPI JSON API (`/pypi/<name>/json`, which Poetry reads), refusing it when it describes a young release.
-3. Private registries fail closed, because the gate fetches publish times before credentials are injected. Recommended: leave that for V1 and decide how the gate authenticates when the first private registry binding is specified.
-4. Partial mitigations for T07-ungated-sources. Recommended: deny archive downloads (`codeload.github.com`, `/archive/` paths) in the git hosting profile, and flag a host that mirrors a gated registry in the approval risk check.
-
-Separately, refusing known vulnerabilities at HIGH would fail 8 of the 10 lockfile installs. That default is unchanged here, and I73 asks you to decide it.
+The vulnerability threshold is unchanged, and I73 asks you to decide it.
 </Aside>
 
 ## The problem
