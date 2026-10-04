@@ -69,6 +69,7 @@ be tested before building on them.
 
 The open questions to answer before building on them are in X00-index.
 Each answered spike has a result page next to it, which X00-index links:
+X02-warm-start (restoring a macOS guest from saved state),
 X07-git-round-trip (the git transport between guest and host),
 X19-terminal-filter (the host terminal stream filter),
 X21-dep-gate-registries (the dependency gate on real registries) and

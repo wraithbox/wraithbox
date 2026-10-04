@@ -57,8 +57,23 @@ in S12-platforms.
 - **Warm start.** `wb-hostd` can have `wb-vmd` start the work VM at
   login. After a configurable idle period the VM's state is saved and
   the VM stops; the next session restores from saved state (NFR01-startup, NFR03-footprint).
-  Whether a saved state can be reused more than once is open
-  (X02-warm-start).
+  A restore takes about 4 s (X02-warm-start), under these rules:
+  - A saved state is restored only onto the disks and auxiliary
+    storage it was saved with. Once the VM has run on from them, the
+    state is deleted. The framework does not check this, and would
+    restore old guest memory over newer disks. Restoring one state
+    more than once needs APFS clones of the state and both disks
+    taken together at the save, and a fresh clone for each restore.
+  - The restored VM has the machine identifier and MAC address it was
+    saved with, and no other VM with that identifier runs during the
+    restore.
+  - Saving needs the host user's session unlocked. When the idle
+    period ends while the host is locked, the VM keeps running and is
+    saved after the next unlock (pending the decision in
+    B16-warm-start).
+  - A saved state works only on the host that wrote it, and may stop
+    working after a host update. When a restore fails, `wb-vmd`
+    deletes the state and cold boots the VM.
 - **Time and sleep.** After host sleep or VM restore, `wb-guestd`
   resynchronizes the guest clock from `wb-hostd`.
 
