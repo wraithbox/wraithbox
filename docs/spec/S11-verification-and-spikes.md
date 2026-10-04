@@ -16,6 +16,14 @@ be tested before building on them.
   request paths, PyPI distribution file names, Go escaped module paths
   and versions, crates.io index lines, and `sum.golang.org` lookup
   responses (Swift: property-based tests where fuzzing is impractical).
+  The terminal filter in `wb` (S05-cli, "Terminal stream") is one of
+  them. Its fuzz target checks that the output holds only tokens the
+  allowlist passes unchanged; that filtering twice gives the bytes of
+  filtering once; that where a read splits the input doesn't change the
+  output; that no OSC 0 to 2, 8, 52 or 1337, and no DCS, APC, PM or SOS
+  introducer, survives; that no parameter exceeds the caps and no `J`
+  or `K` has a parameter above 2; and that the link list marks every
+  URL that isn't `https://` to a public dotted hostname.
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
@@ -51,7 +59,11 @@ be tested before building on them.
   - check that the landing repository holds none of a refused push's
     objects after the cleanup;
   - forge an approval prompt via terminal output and confirm nothing
-    treats it as one.
+    treats it as one;
+  - print every sequence the terminal filter drops, a guest window
+    title, and a fake session summary in the background color, then
+    exit: confirm the host terminal received none of the sequences,
+    still shows the title `wb` set, and shows the real summary legibly.
 - **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended).
   The suspended case restores a state saved after a Claude Code
   session and a build, not an idle guest, and records the state file's
