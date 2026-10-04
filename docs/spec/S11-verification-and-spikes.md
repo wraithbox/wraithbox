@@ -157,7 +157,8 @@ X18-vsock-handoff (vsock and descriptor hand-off on macOS),
 X19-terminal-filter (the host terminal stream filter),
 X21-dep-gate-registries (the dependency gate on real registries),
 X22-no-guest-credentials (clients when guest credentials are removed),
-X23-sandboxed-daemons (Go daemons confining themselves on macOS) and
+X23-sandboxed-daemons (Go daemons confining themselves on macOS),
+X24-openshell-artifacts (the OpenShell parts the specs reuse) and
 X26-pre-receive-check (push checks before the quarantine lands).
 What V1 leaves out is in V1-initial.
 

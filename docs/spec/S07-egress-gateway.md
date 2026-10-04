@@ -306,13 +306,24 @@ the host.
   (`SupervisorMiddleware`, RFC 0009) and runs after policy allows a
   request and before credentials are injected, so it never sees a
   credential. It runs inside `wb-proxyd`.
+  - *In process.* The gate implements the Go interface generated from
+    `supervisor_middleware.proto` (package `openshell.middleware.v1`,
+    OpenShell v0.1.2, S10-tech-stack), and `wb-proxyd` calls it as a Go
+    method, with no listener and no gRPC hop (X24-openshell-artifacts).
+    Download checks use `EvaluateHttpRequest`. The metadata filter uses
+    the messages of the `HttpResponsePreReturn` service.
+  - *Not bound by OpenShell's proxy.* OpenShell's own proxy doesn't
+    offer a middleware the body of a compressed response, and doesn't
+    pass a middleware's free-form deny reason to the client. Those
+    limits belong to OpenShell's caller, not the API. `wb-proxyd` is the caller here, so it decodes
+    metadata before filtering and writes its own refusal message.
 
 ## Approvals and learning
 
 - An unknown destination produces an approval event in `wb-hostd`, shown
   as a native notification and listed by `wb status`: *allow for this
   session*, *allow for this project*, or *deny*. Each request shows the
-  result of the prover's risk check on the rule it would add (S09-policy-credentials-audit),
+  result of the risk check on the rule it would add (S09-policy-credentials-audit),
   such as new reach for a credential or a new write method. Policy
   changes take effect without restarting anything.
 - **What an approval grants.** On a host without a built-in profile, an

@@ -43,10 +43,11 @@ downloads and runs, such as a VMM on Linux.
 | Keychain / Secure Enclave from Go | a thin cgo shim over Security.framework, owned by this repo, linked into `wb-proxyd` on macOS only |
 | State | SQLite, through a cgo-free Go driver so every OS builds the same way |
 | Vulnerability data | OSV API |
-| Network policy schema | OpenShell's `network_policies` schema, version 1 (Apache-2.0), implemented in Go by this repo; YAML read with a size- and depth-bounded decoder |
-| Policy prover | OpenShell's standalone `openshell-prover` release binary (Apache-2.0, bundles Z3 under MIT), run as an external program, version- and checksum-pinned |
-| Dependency-gate API | OpenShell's `supervisor_middleware.proto` (Apache-2.0), Go code generated with `buf` |
-| Audit event schema | OCSF 1.8 |
+| Network policy schema | OpenShell's `network_policies` schema, version 1, with the keys of OpenShell v0.1.2 (commit `6648bd0c`, Apache-2.0), implemented in Go by this repo; YAML read with a size- and depth-bounded decoder (S09-policy-credentials-audit) |
+| Policy prover | OpenShell's standalone `openshell-prover` 0.1.2 release binary (Apache-2.0, Z3 linked in statically under MIT), run as an external program, pinned by version and by the SHA-256 of each platform's archive, and checked against the release's build attestation. v0.1.2 has builds for macOS arm64 and Linux (x86-64 and arm64), none for Windows, so the boundary check fails closed on a Windows host until one exists (X24-openshell-artifacts) |
+| Approval risk check | Open (B35-openshell-artifacts). Recommended: Go code in `wb-hostd`, modeled on OpenShell's proposal risk check at v0.1.2 (S09-policy-credentials-audit) |
+| Dependency-gate API | OpenShell's `supervisor_middleware.proto` and `extension.proto` (package `openshell.middleware.v1`, OpenShell v0.1.2, Apache-2.0), copied with their license headers; Go code generated with `buf`, with import paths set in the generation config because the files set no `go_package`. They follow OpenShell's `buf` lint exceptions, not this repo's rules |
+| Audit event schema | OCSF 1.8.0 (`ocsf-schema` commit `6fa6499a`, Apache-2.0), the version OpenShell v0.1.2 emits |
 | Guest confinement (macOS guest) | Seatbelt profiles applied by `wb-guestd`; a Network Extension system extension in Swift (S13-guest-confinement) |
 | Image distribution (later) | `go-containerregistry` |
 
