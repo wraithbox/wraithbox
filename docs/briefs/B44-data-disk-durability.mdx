@@ -5,7 +5,7 @@ description: Write a new security control now that the host never mounts or pars
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I44. Affects SEC00-index, S06-vm-lifecycle, FR13-claude-state and NFR02-fs-speed.
+**Decided 2026-10-04: the mount rule becomes a SEC control, and A. Keep state and commits.** The decision and its reasons are in the I44 comment that starts `Decision (2026-10-04):`. Source: I44. Affects SEC00-index, S06-vm-lifecycle, FR13-claude-state and NFR02-fs-speed.
 
 <Aside type="tip" title="You are deciding">
 Two things. First, a rule that the host never mounts or parses a disk image once a guest has booted from it, with one exception: image building, before the first boot. Recommended: make it a new control in SEC00-index. Second, what the data disk must keep after a host crash or power loss. Recommended: Claude Code state and commits not yet pushed are kept, caches may be lost. The disk settings that deliver this wait on X05-fs-benchmark (I19) and X08-data-disk (I22).

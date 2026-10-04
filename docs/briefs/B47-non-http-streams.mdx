@@ -5,7 +5,7 @@ description: Reset it and audit the rule, unless policy names that host and port
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I47. Affects S07-egress-gateway, and through I41 S08-workspace-and-git.
+**Decided 2026-10-04: A. Reset by default, raw TCP as a pass-class entry.** The decision and its reasons are in the I47 comment that starts `Decision (2026-10-04):`. Source: I47. Affects S07-egress-gateway, and through I41 S08-workspace-and-git.
 
 <Aside type="tip" title="You are deciding">
 What `wb-proxyd` does with a stream that is neither TLS nor HTTP: SSH, database protocols, TLS with a client certificate, Encrypted ClientHello (ECH) and tunnels inside HTTP. Recommended: **A**, the issue's proposal plus the gaps listed below it. That adds a "Non-HTTP streams" section to S07-egress-gateway, and I41 does the SSH remote rewrite.

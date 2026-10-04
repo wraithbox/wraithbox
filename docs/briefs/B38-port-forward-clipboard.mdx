@@ -5,7 +5,7 @@ description: Forward HTTP through a host proxy that gives each forwarded port it
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I38. Affects T00-index, S05-cli, S06-vm-lifecycle and S09-policy-credentials-audit.
+**Decided 2026-10-04: D. Neither in V1.** The decision and its reasons are in the I38 comment that starts `Decision (2026-10-04):`. Source: I38. Affects T00-index, S05-cli, S06-vm-lifecycle and S09-policy-credentials-audit.
 
 <Aside type="tip" title="You are deciding">
 How port forwarding (FR11-port-forward) and the clipboard (FR12-clipboard) cross the VM boundary. Recommended: **A**, an HTTP proxy that gives each forwarded port a name of its own (`3000-myrepo.localhost`), plain TCP only for ports you name, and the clipboard only through `wb` with an approval. Accepting it starts a forwarding and clipboard section in S06-vm-lifecycle and adds both crossings to T00-index.

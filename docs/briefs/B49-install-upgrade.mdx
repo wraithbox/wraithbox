@@ -5,7 +5,7 @@ description: Recommended that wb-proxyd downloads restore images from Apple only
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I49. Affects S04-architecture, S05-cli, S06-vm-lifecycle, S10-tech-stack and S12-platforms.
+**Decided 2026-10-04: a dedicated download program that wb-hostd invokes.** The decision and its reasons are in the I49 comment that starts `Decision (2026-10-04):`. Source: I49. Affects S04-architecture, S05-cli, S06-vm-lifecycle, S10-tech-stack and S12-platforms.
 
 <Aside type="tip" title="You are deciding">
 Which process downloads macOS restore images. Recommended: **A**, `wb-proxyd`, under a built-in rule for Apple's hosts only, writing into a file `wb-hostd` opens for it. The issue proposes **B**, `wb-hostd`. The sub-decisions on install, upgrade and migration can be decided now as well. Signing, Keychain access after an upgrade, and the guest tools image wait on X09-keychain-unsigned and X17-image-build.

@@ -5,7 +5,7 @@ description: Recommended to commit generated code, made by pinned local plugins 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I52. Affects S04-architecture, S09-policy-credentials-audit, S10-tech-stack and S02-toolchain.
+**Decided 2026-10-04: A. Commit generated code.** The decision and its reasons are in the I52 comment that starts `Decision (2026-10-04):`. Source: I52. Affects S04-architecture, S09-policy-credentials-audit, S10-tech-stack and S02-toolchain.
 
 <Aside type="tip" title="You are deciding">
 How the `.proto` contracts are turned into Go and Swift code, and which parts of the design pull request can start before its blockers clear. Recommended: **A**, commit the generated code, generate it with `buf` and locally pinned plugins, and have `mise run ci` fail on drift or a breaking change. The terminal stream waits on I46, and the `wb-hostd` to `wb-vmd` contract on X18-vsock-handoff. The rest can start now.

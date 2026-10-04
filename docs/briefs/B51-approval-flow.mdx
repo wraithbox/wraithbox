@@ -5,7 +5,7 @@ description: Hold the DNS answer for a few seconds while the notification is ope
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I51. Affects S07-egress-gateway and S09-policy-credentials-audit. Blocked by I36 and X03-network-path.
+**Decided 2026-10-04: A. Hold the answer, then refuse uncached.** The decision and its reasons are in the I51 comment that starts `Decision (2026-10-04):`. Source: I51. Affects S07-egress-gateway and S09-policy-credentials-audit. Blocked by I36 and X03-network-path.
 
 <Aside type="tip" title="You are deciding">
 The behavior of the approval flow: what a blocked client sees, how notifications are kept few, when a request expires and how a name is shown. Recommended: **A**, hold the DNS answer for up to 4 seconds and refuse with a negative TTL of zero, plus the sub-decisions in the table. You can decide that now. The silent deny list waits for the names X03-network-path measures, and per-session caps and "allow for this session" wait for I36 (B36-flow-attribution).
