@@ -126,7 +126,7 @@ The conditions:
 3. **Every restore starts new connections and a new VM generation.**
    `wb-hostd` drops its `wb-guestd` connections when a VM is saved, and
    connects again after the restore. Before `resume`, it passes the new
-   network descriptor to `wb-netd` and resets that VM's TCP flows and their `wb-proxyd` streams (not the guest's DHCP lease),
+   network descriptor to `wb-netd` and resets that VM's TCP flows and their `wb-proxyd` streams (not the guest's DHCP lease or its synthetic DNS name mapping, so the resumed guest's cached answers still work),
    because the old descriptor never reports an error. Hand-off messages and
    audit entries carry the VM generation, and a message from an older
    generation is refused.
