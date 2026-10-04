@@ -130,17 +130,25 @@ The conditions:
    arguments" rule:
    - The launcher table has two fixed entries, `wb-git-receive` and
      `wb-git-upload`, so the subcommand is never a free string.
-   - The request carries exactly one extra field, the repository.
-     `wb-launcher` accepts it only if it resolves to
-     `<data>/projects/<id>/landing.git` (or the export repository of
-     I41) under a projects root fixed from configuration before
-     `wb-hostd` confined itself, with `<id>` in the project ID format,
-     and with no `..` component or symbolic link on the way.
+   - Besides its program, the request holds one field, the repository.
+     `wb-launcher` takes the real path of the projects root
+     (`<data>/projects`, from configuration `wb-hostd` read before it
+     confined itself) once, when it starts. It accepts the repository
+     only if it equals, after cleaning,
+     `<real path of the projects root>/<id>/<basename>`, with `<id>` in
+     the project ID format and `<basename>` either `landing.git` or
+     `export.git` (I41). It never resolves the request string itself,
+     which would follow a symbolic link an attacker placed.
+   - The shim repeats the same check before it calls `sandbox_init`.
    - The repository becomes the shim's profile parameter and git's one
      path argument.
-   - The alternative shape is an inherited directory descriptor that
-     the launcher checks with `F_GETPATH`, which keeps the path out of
-     the request.
+   - Seatbelt matches resolved paths. The security review on PR65
+     reproduced that a symbolic link swapped in after the check is
+     denied, not followed to the new target. That Seatbelt match is the
+     control that matters, and the path check is defense in depth.
+   - Instead of a path, `wb-hostd` could hand over an inherited
+     directory descriptor that the launcher checks with `F_GETPATH`,
+     which keeps the path out of the request.
 
    If the maintainer chooses the fallback instead, git under the
    `wb-hostd` profile is recorded in T00-index as an accepted residual
@@ -150,7 +158,7 @@ The conditions:
      Homebrew git links `pcre2` and `gettext` through
      `/opt/homebrew/opt/<lib>`, a symbolic link into
      `/opt/homebrew/Cellar/<lib>/<version>`. Seatbelt matches resolved
-     paths, so each library needs two rules: `file-read-metadata` on the
+     paths. Each library needs two rules: `file-read-metadata` on the
      `/opt/homebrew/opt/<lib>` literal, and `file-read*` on the resolved
      Cellar subpath, with the real path resolved before confining (the
      security review on PR65 reproduced this). `process-exec` can be

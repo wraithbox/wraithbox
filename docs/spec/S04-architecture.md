@@ -20,7 +20,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb` | Go | user, per invocation | nothing | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
-| `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (recommended, not yet built; X23-sandboxed-daemons open decision 2) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository, then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
+| `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (recommended, not yet built; X23-sandboxed-daemons open decision 2) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository, then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
 | `wb-vmd` | platform-native | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | VM handles | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
 | `wb-netd` | Go | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS) | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (S07-egress-gateway) |
 | `wb-proxyd` | Go | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | credentials, CA signing handle | streams from `wb-netd` | HTTP policy, credential replacement, dependency gate, upstream connections (S07-egress-gateway, S09-policy-credentials-audit) |
@@ -81,7 +81,8 @@ nothing themselves (S12-platforms).
     `wb-netd` and `wb-proxyd` through `wb-launcher`, which has no
     profile. On Linux, Landlock and seccomp restrictions stack, so a
     child can confine itself further and needs no launcher (assumed from
-    their documentation, not tested; X10-linux-hypervisor work confirms it).
+    their documentation, not tested; to be confirmed when Linux
+    self-sandboxing is built).
     `wb-launcher` doesn't widen what a compromised `wb-hostd` can do
     only while all of these hold:
     - It is a separate, small program that uses only the Go standard
@@ -106,18 +107,24 @@ nothing themselves (S12-platforms).
     built, X23-sandboxed-daemons open decision 2). The launcher table
     has two fixed entries, `wb-git-receive` (`git receive-pack`) and
     `wb-git-upload` (`git upload-pack`), so the subcommand is never a
-    free string. A `wb-git` request carries exactly one extra field,
-    the repository. `wb-launcher` accepts it only if it resolves to
-    `<data>/projects/<id>/landing.git`, or the export repository of
-    I41, under a projects root fixed from configuration before
-    `wb-hostd` confined itself, with `<id>` matching the project ID
-    format, and with no `..` component or symbolic link on the way. It
-    passes the repository to the shim as the profile parameter and as
-    git's one path argument. This is the one bounded exception to "no
-    arguments". The alternative shape, an inherited directory
-    descriptor that the launcher checks with `F_GETPATH`, keeps the path
-    out of the request. It is the fallback if the path check turns out
-    to be fragile.
+    free string. Besides its program, a `wb-git` request holds one
+    field, the repository. `wb-launcher` takes the real path of the
+    projects root (`<data>/projects`, from configuration `wb-hostd` read
+    before it confined itself) once, when it starts. It accepts the
+    repository only if it equals, after cleaning,
+    `<real path of the projects root>/<id>/<basename>`, with `<id>` in
+    the project ID format and `<basename>` either `landing.git` or
+    `export.git` (I41). It never resolves the request string itself,
+    which would follow a symbolic link an attacker placed. The shim
+    repeats the same check before it calls `sandbox_init`. The
+    repository becomes the shim's profile parameter and git's one path
+    argument. This is the one bounded exception to "no arguments". The
+    Seatbelt match on the resolved path is the control that matters,
+    and the path check is defense in depth (X23-sandboxed-daemons).
+    Instead of a path, `wb-hostd` could hand over an inherited
+    directory descriptor that the launcher checks with `F_GETPATH`,
+    which keeps the path out of the request. That is the fallback if
+    the path check turns out to be fragile.
   - The measured, weaker fallback is git as a child of `wb-hostd`,
     under the `wb-hostd` profile. A git bug would then reach every
     project's policy, the approvals in `state.db`, other projects'
