@@ -1,6 +1,6 @@
 ---
 title: Can wb filter Claude Code's terminal output without breaking it?
-description: Yes, with conditions, for Ghostty and Terminal.app pending a check by eye. An allowlist passes everything Claude Code needs to draw its screen, but file paths stop being links, /copy stops reaching the host clipboard, and desktop notifications lose their text.
+description: Yes, with conditions, for Ghostty and Terminal.app pending a check by eye. An allowlist passes everything Claude Code needs to draw its screen, but links from the guest stop being links (all of them under the recommended hyperlink choice), /copy stops reaching the host clipboard, and desktop notifications lose their text.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
@@ -12,7 +12,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 </Aside>
 
 <figure class="wb-figure">
-<svg viewBox="0 0 760 290" role="img" aria-label="Guest output passes through the filter in wb. Screen drawing, colors, web links and the title pass to the terminal emulator. Clipboard writes, file links and graphics are dropped, and notifications become a bell.">
+<svg viewBox="0 0 760 290" role="img" aria-label="Guest output passes through the filter in wb. Screen drawing, colors and the title pass to the terminal emulator. Clipboard writes, file links and graphics are dropped, and notifications become a bell.">
   <defs>
     <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
     <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
@@ -35,8 +35,8 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <line class="edge" x1="192" y1="140" x2="268" y2="140" marker-end="url(#f1-arrow)" />
   <line class="edge" x1="432" y1="140" x2="518" y2="140" marker-end="url(#f1-arrow)" />
   <text class="note" x="475" y="100" text-anchor="middle">passes</text>
-  <text class="note" x="630" y="200" text-anchor="middle">cursor, colors, web links,</text>
-  <text class="note" x="630" y="218" text-anchor="middle">title, keyboard, paste modes</text>
+  <text class="note" x="630" y="200" text-anchor="middle">cursor, colors, title,</text>
+  <text class="note" x="630" y="218" text-anchor="middle">keyboard and paste modes</text>
 
   <rect class="box" x="270" y="215" width="160" height="50" rx="10" />
   <text class="label" x="350" y="245" text-anchor="middle">dropped, counted</text>
@@ -62,7 +62,7 @@ The spike leaves three choices open: what happens to `/copy`, to Claude Code's d
 Take the list in X19-terminal-filter into I37. OSC 52 is dropped, and notifications become a bell. Which links stay links depends on the hyperlink choice below.
 
 - **Cost:** `/copy` says "Copied" but the host clipboard is unchanged until I38 gives the clipboard a design. No text in "Claude needs your permission".
-- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" /> <Badge text="FR12-clipboard" variant="success" />
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="caution" /> in part until I37 (title and bell) <Badge text="FR12-clipboard" variant="success" />
 
 </div>
 <div class="wb-option">
@@ -72,7 +72,7 @@ Take the list in X19-terminal-filter into I37. OSC 52 is dropped, and notificati
 As A, but `wb` turns each OSC 52 write into a request to copy that text to the host clipboard, approved by the user (FR12-clipboard).
 
 - **Cost:** an approval flow for the clipboard now, which B38-port-forward-clipboard deferred past V1.
-- **Keeps:** <Badge text="FR12-clipboard" variant="success" /> if approval is outside the agent's terminal (SEC14-no-fake-approvals).
+- **Keeps:** <Badge text="FR12-clipboard" variant="success" /> if approval is outside the agent's terminal. <Badge text="SEC14-no-fake-approvals" variant="caution" /> in part, as in A.
 
 </div>
 <div class="wb-option">
