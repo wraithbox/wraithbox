@@ -1,5 +1,13 @@
 // X02-warm-start spike host tool. Throwaway code, not held to the gates.
 //
+// The guest runs nothing of ours: it is a fresh macOS install sitting at
+// Setup Assistant. Liveness is measured from the guest kernel:
+//   vsock  the guest's vsock driver refuses a connect to an unbound port
+//          (an answer from the guest kernel, distinct from "no answer")
+//   net    the guest's IPv6 stack answers an ICMPv6 echo to ff02::1 sent
+//          into the file-handle attachment (after neighbor discovery of
+//          fe80::1, which the host answers)
+//
 // Bundle layout (a directory):
 //   aux.img hw.bin mid.bin sys.img data.img cfg.json [state.vzvmsave]
 //
@@ -7,12 +15,12 @@
 //   fetch-url                          print the latest supported restore image URL
 //   install <bundle> <ipsw> <memGiB>   create a bundle and install macOS
 //   validate <bundle>                  validateSaveRestoreSupport
-//   boot <bundle> <holdSec>            cold boot, ping, hold, halt
-//   cold <bundle> <runs>               N cold boots to vsock pong, halt each
+//   explore <bundle> <seconds>         cold boot and log every probe outcome and frame
+//   cold <bundle> <runs>               N cold boots to vsock and net answers
 //   cycle <bundle> <runs> <settleSec>  cold boot once, then N save+restore cycles;
 //                                      leaves state.vzvmsave in the bundle
-//   restore <bundle> <holdSec> [opts]  restore once from state.vzvmsave, ping, net,
-//                                      hold, then stop (no save). opts:
+//   restore <bundle> <holdSec> [opts]  restore once from state.vzvmsave, probe,
+//                                      hold, probe again, then stop. opts:
 //                                      --new-mid  use a fresh machine identifier
 //                                      --new-mac  use a fresh MAC address
 //                                      --save     save state again before stopping
@@ -68,58 +76,6 @@ func createSparse(_ u: URL, gib: Int) throws {
     guard ftruncate(fd, off_t(gib) << 30) == 0 else { throw NSError(domain: "x02", code: Int(errno)) }
 }
 
-// MARK: - network endpoint (host side of the file-handle attachment)
-
-/// Host end of a SOCK_DGRAM socketpair; a reader thread records frames.
-final class NetEndpoint {
-    let hostFD: Int32
-    let guestHandle: FileHandle
-    private let lock = NSLock()
-    private var frames: [(t: Double, data: Data)] = []
-    private var stopped = false
-
-    init() {
-        var fds: [Int32] = [0, 0]
-        precondition(socketpair(AF_UNIX, SOCK_DGRAM, 0, &fds) == 0)
-        var sz: Int32 = 1 << 20
-        for fd in fds {
-            setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sz, socklen_t(MemoryLayout<Int32>.size))
-            setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &sz, socklen_t(MemoryLayout<Int32>.size))
-        }
-        hostFD = fds[0]
-        guestHandle = FileHandle(fileDescriptor: fds[1], closeOnDealloc: true)
-        let fd = hostFD
-        Thread.detachNewThread { [weak self] in
-            var buf = [UInt8](repeating: 0, count: 65536)
-            while true {
-                let n = read(fd, &buf, buf.count)
-                if n <= 0 { return }
-                guard let self else { return }
-                self.lock.lock()
-                self.frames.append((now(), Data(buf[0..<n])))
-                let s = self.stopped
-                self.lock.unlock()
-                if s { return }
-            }
-        }
-    }
-
-    func frameCount() -> Int { lock.lock(); defer { lock.unlock() }; return frames.count }
-
-    /// Time of the first frame containing marker, if any.
-    func find(_ marker: String) -> Double? {
-        let m = marker.data(using: .utf8)!
-        lock.lock(); defer { lock.unlock() }
-        return frames.first(where: { $0.data.range(of: m) != nil })?.t
-    }
-
-    func close() {
-        lock.lock(); stopped = true; lock.unlock()
-        Darwin.shutdown(hostFD, SHUT_RDWR)
-        Darwin.close(hostFD)
-    }
-}
-
 // MARK: - configuration
 
 func makeConfig(_ b: Bundle, net: NetEndpoint, newMID: Bool = false, newMAC: Bool = false) throws -> VZVirtualMachineConfiguration {
@@ -170,68 +126,97 @@ final class Delegate: NSObject, VZVirtualMachineDelegate {
     func virtualMachine(_ vm: VZVirtualMachine, didStopWithError error: Error) { log("vm stopped with error: \(error)"); onStop?(error) }
 }
 
+/// Outcome of one vsock connect attempt.
+struct VsockAttempt {
+    let start: Double
+    let end: Double
+    let outcome: String  // "connected", "error <domain> <code>: <desc>", or "timeout"
+}
+
 @MainActor
 final class Machine {
     let vm: VZVirtualMachine
     let net: NetEndpoint
     let delegate = Delegate()
-    private var stopCont: CheckedContinuation<Void, Never>?
     private(set) var stopped = false
+    private var seq: UInt16 = 0
 
     init(_ b: Bundle, newMID: Bool = false, newMAC: Bool = false) throws {
         net = NetEndpoint()
         vm = VZVirtualMachine(configuration: try makeConfig(b, net: net, newMID: newMID, newMAC: newMAC))
         vm.delegate = delegate
-        delegate.onStop = { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.stopped = true
-                self?.stopCont?.resume()
-                self?.stopCont = nil
-            }
-        }
+        delegate.onStop = { [weak self] _ in MainActor.assumeIsolated { self?.stopped = true } }
     }
 
     var socket: VZVirtioSocketDevice { vm.socketDevices[0] as! VZVirtioSocketDevice }
 
-    /// Connect to the guest probe and send one request line; retries until deadline.
-    func request(_ line: String, deadline: Double, retry: Double = 0.02) async throws -> String {
-        var lastErr: Error?
-        while now() < deadline {
-            do {
-                let conn = try await socket.connect(toPort: 1024)
-                let fd = conn.fileDescriptor
-                let reply: String? = await Task.detached { exchange(fd: fd, line: line, timeout: 5) }.value
-                conn.close()
-                if let reply { return reply }
-            } catch {
-                lastErr = error
+    /// One connect attempt to an unbound vsock port, capped at timeout.
+    func vsockAttempt(timeout: Double) async -> VsockAttempt {
+        let start = now()
+        final class Box { var done = false; var outcome = "timeout" }
+        let box = Box()
+        socket.connect(toPort: 1024) { res in
+            switch res {
+            case .success(let c):
+                box.outcome = "connected"
+                c.close()
+            case .failure(let e):
+                let ne = e as NSError
+                let u = (ne.userInfo[NSUnderlyingErrorKey] as? NSError).map { " underlying \($0.domain) \($0.code)" } ?? ""
+                box.outcome = "error \(ne.domain) \(ne.code)\(u): \(ne.localizedDescription)"
             }
-            try await Task.sleep(nanoseconds: UInt64(retry * 1e9))
+            box.done = true
         }
-        throw lastErr ?? NSError(domain: "x02", code: 3, userInfo: [NSLocalizedDescriptionKey: "no reply to \(line)"])
+        while !box.done && now() - start < timeout {
+            try? await Task.sleep(nanoseconds: 1_000_000)
+        }
+        return VsockAttempt(start: start, end: now(), outcome: box.outcome)
+    }
+
+    /// Repeat vsock attempts until the guest kernel answers (any non-timeout outcome).
+    /// Returns the time the answer arrived.
+    func vsockAnswer(deadline: Double, attemptTimeout: Double = 0.5) async -> (Double, String)? {
+        while now() < deadline {
+            let a = await vsockAttempt(timeout: attemptTimeout)
+            if a.outcome != "timeout" { return (a.end, a.outcome) }
+        }
+        return nil
+    }
+
+    /// Send echo requests every interval until one is answered. Returns reply time.
+    func netAnswer(deadline: Double, interval: Double = 0.02) async -> Double? {
+        var sent: [UInt16] = []
+        while now() < deadline {
+            seq &+= 1
+            sent.append(seq)
+            net.send(echoRequest(seq: seq))
+            let until = now() + interval
+            while now() < until {
+                for s in sent { if let t = net.echoReply(seq: s) { return t } }
+                try? await Task.sleep(nanoseconds: 1_000_000)
+            }
+        }
+        return nil
     }
 
     func waitStopped(timeout: Double) async -> Bool {
-        if stopped || vm.state == .stopped { return true }
-        let t = Task { @MainActor in
-            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-                if self.stopped { c.resume() } else { self.stopCont = c }
-            }
-        }
         let deadline = now() + timeout
         while now() < deadline {
-            if stopped || vm.state == .stopped { t.cancel(); return true }
+            if stopped || vm.state == .stopped { return true }
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
         return false
     }
 
-    /// Ask the guest to halt; hard stop if it does not within timeout.
-    func halt(timeout: Double = 120) async {
-        _ = try? await request("halt", deadline: now() + 5)
-        if await waitStopped(timeout: timeout) { return }
-        log("guest did not halt in \(timeout)s, hard stop")
+    /// Graceful shutdown request, hard stop after timeout. Returns seconds and how.
+    func shutdown(timeout: Double = 90) async -> (Double, String) {
+        let t0 = now()
+        do { try vm.requestStop() } catch { log("requestStop: \(error)") }
+        if await waitStopped(timeout: timeout) { net.close(); return (now() - t0, "graceful") }
+        log("guest did not stop in \(timeout)s, hard stop")
         try? await vm.stop()
+        net.close()
+        return (now() - t0, "hard")
     }
 
     func hardStop() async {
@@ -240,24 +225,16 @@ final class Machine {
     }
 }
 
-/// Blocking line exchange on a connected vsock fd (called off the main actor).
-func exchange(fd: Int32, line: String, timeout: Double) -> String? {
-    let out = Array((line + "\n").utf8)
-    guard write(fd, out, out.count) == out.count else { return nil }
-    var buf = [UInt8](repeating: 0, count: 256)
-    var got = [UInt8]()
-    let deadline = now() + timeout
-    while now() < deadline {
-        var p = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
-        let r = poll(&p, 1, 100)
-        if r < 0 { return nil }
-        if r == 0 { continue }
-        let n = read(fd, &buf, buf.count)
-        if n <= 0 { return nil }
-        got += buf[0..<n]
-        if got.contains(10) { return String(decoding: got, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) }
-    }
-    return nil
+/// Probe both answers, measured from t0. Runs the two probes concurrently.
+@MainActor
+func probe(_ m: Machine, t0: Double, deadline: Double) async -> [String: Any] {
+    async let v = m.vsockAnswer(deadline: deadline)
+    async let n = m.netAnswer(deadline: deadline)
+    let (vr, nr) = await (v, n)
+    var r: [String: Any] = [:]
+    if let (t, o) = vr { r["vsockSeconds"] = t - t0; r["vsockOutcome"] = o } else { r["vsockSeconds"] = NSNull() }
+    if let t = nr { r["netSeconds"] = t - t0 } else { r["netSeconds"] = NSNull() }
+    return r
 }
 
 // MARK: - commands
@@ -304,60 +281,107 @@ func validate(_ b: Bundle) throws {
     }
 }
 
-/// Cold boot to first vsock pong. Returns (machine, seconds, reply).
 @MainActor
-func coldBoot(_ b: Bundle) async throws -> (Machine, Double, String) {
+func explore(_ b: Bundle, seconds: Double) async throws {
     let t0 = now()
     let m = try Machine(b)
     try await m.vm.start()
-    let tStarted = now()
-    let reply = try await m.request("ping", deadline: t0 + 600, retry: 0.1)
-    let t = now() - t0
-    log(String(format: "cold boot: start %.2fs, pong %.2fs: %@", tStarted - t0, t, reply))
-    return (m, t, reply)
+    log(String(format: "started in %.2fs", now() - t0))
+    let end = t0 + seconds
+    var last = ""
+    async let net: Void = {
+        var seq: UInt16 = 1000
+        while now() < end {
+            seq += 1
+            m.net.send(echoRequest(seq: seq))
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if let t = m.net.echoReply(seq: seq) { log(String(format: "echo %d reply at %.3fs", seq, t - t0)) }
+        }
+    }()
+    while now() < end {
+        let a = await m.vsockAttempt(timeout: 2)
+        if a.outcome != last {
+            log(String(format: "vsock %.3fs..%.3fs: %@", a.start - t0, a.end - t0, a.outcome))
+            last = a.outcome
+        }
+        try? await Task.sleep(nanoseconds: 50_000_000)
+    }
+    await net
+    var lastSummary = ""
+    var count = 0
+    for f in m.net.snapshot() {
+        if f.summary != lastSummary {
+            if count > 1 { log("  ... x\(count)") }
+            log(String(format: "frame %.3fs %@ len %d", f.t - t0, f.summary, f.bytes.count))
+            lastSummary = f.summary
+            count = 1
+        } else {
+            count += 1
+        }
+    }
+    let (s, how) = await m.shutdown()
+    log(String(format: "shutdown %.1fs %@", s, how))
 }
 
+/// Boot, wait, then try every vsock port for a listener that accepts.
 @MainActor
-func netCheck(_ m: Machine, t0: Double) async -> [String: Any] {
-    let nonce = UUID().uuidString.prefix(8)
-    let tReq = now()
-    let reply = (try? await m.request("net \(nonce)", deadline: now() + 10)) ?? "noreply"
-    var seen: Double?
-    let deadline = now() + 5
-    while now() < deadline {
-        if let t = m.net.find("x02-net-\(nonce)") { seen = t; break }
-        try? await Task.sleep(nanoseconds: 2_000_000)
+func scan(_ b: Bundle, wait: Double) async throws {
+    let m = try Machine(b)
+    try await m.vm.start()
+    try await Task.sleep(nanoseconds: UInt64(wait * 1e9))
+    var outcomes: [String: Int] = [:]
+    var open: [UInt32] = []
+    var port: UInt32 = 1
+    while port < 65536 {
+        var pending = 0
+        let batchEnd = min(port + 512, 65536)
+        for p in port..<batchEnd {
+            pending += 1
+            m.socket.connect(toPort: p) { res in
+                switch res {
+                case .success(let c): open.append(p); c.close(); outcomes["connected", default: 0] += 1
+                case .failure(let e): outcomes["\((e as NSError).domain) \((e as NSError).code)", default: 0] += 1
+                }
+                pending -= 1
+            }
+        }
+        let t = now()
+        while pending > 0 && now() - t < 5 { try? await Task.sleep(nanoseconds: 2_000_000) }
+        if pending > 0 { outcomes["timeout", default: 0] += pending }
+        port = batchEnd
     }
-    var r: [String: Any] = ["netReply": reply, "netFrames": m.net.frameCount()]
-    if let seen {
-        r["netFrameSeconds"] = seen - t0
-        r["netRoundTripMs"] = (seen - tReq) * 1000
-    }
-    return r
+    result(["cmd": "scan", "open": open, "outcomes": outcomes])
+    await m.hardStop()
 }
 
+/// Cold boot to both answers.
 @MainActor
-func boot(_ b: Bundle, hold: Double) async throws {
-    let (m, t, reply) = try await coldBoot(b)
-    var r: [String: Any] = ["cmd": "boot", "coldSeconds": t, "reply": reply]
-    r.merge(await netCheck(m, t0: now()), uniquingKeysWith: { a, _ in a })
-    result(r)
-    if hold > 0 { try await Task.sleep(nanoseconds: UInt64(hold * 1e9)) }
-    await m.halt()
-    m.net.close()
+func coldBoot(_ b: Bundle) async throws -> (Machine, [String: Any], Double) {
+    let t0 = now()
+    let m = try Machine(b)
+    try await m.vm.start()
+    var r: [String: Any] = ["startSeconds": now() - t0]
+    r.merge(await probe(m, t0: t0, deadline: t0 + 300)) { a, _ in a }
+    return (m, r, t0)
 }
 
 @MainActor
 func cold(_ b: Bundle, runs: Int) async throws {
     for i in 1...runs {
-        let (m, t, reply) = try await coldBoot(b)
-        var r: [String: Any] = ["cmd": "cold", "run": i, "coldSeconds": t, "reply": reply]
-        r.merge(await netCheck(m, t0: now()), uniquingKeysWith: { a, _ in a })
-        let th = now()
-        await m.halt()
-        r["haltSeconds"] = now() - th
-        m.net.close()
+        let (m, r0, t0) = try await coldBoot(b)
+        var r = r0
+        r["cmd"] = "cold"
+        r["run"] = i
+        // First DHCPDISCOVER: configd (guest userland) has brought the NIC up.
+        let deadline = now() + 120
+        while now() < deadline {
+            if let f = m.net.firstFrame(after: 0, where: { $0.udpDstPort == 67 }) { r["dhcpSeconds"] = f.t - t0; break }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        // requestStop has no effect at Setup Assistant; stop hard.
+        await m.hardStop()
         result(r)
+        try await Task.sleep(nanoseconds: 2_000_000_000)
     }
 }
 
@@ -375,7 +399,7 @@ func save(_ m: Machine, to url: URL) async throws -> [String: Any] {
             "stateBytes": sz.logical, "stateAllocBytes": sz.allocated]
 }
 
-/// Restore from url into a fresh Machine, resume, and wait for pong.
+/// Restore from url into a fresh Machine, resume, and wait for both answers.
 @MainActor
 func restore(_ b: Bundle, from url: URL, newMID: Bool = false, newMAC: Bool = false) async throws -> (Machine, [String: Any]) {
     let t0 = now()
@@ -385,31 +409,28 @@ func restore(_ b: Bundle, from url: URL, newMID: Bool = false, newMAC: Bool = fa
     let tRestored = now()
     try await m.vm.resume()
     let tResumed = now()
-    let reply = try await m.request("ping", deadline: t0 + 120, retry: 0.005)
-    let tPong = now()
     var r: [String: Any] = ["configMs": (tCfg - t0) * 1000, "restoreSeconds": tRestored - tCfg,
-                            "resumeMs": (tResumed - tRestored) * 1000, "pongAfterResumeMs": (tPong - tResumed) * 1000,
-                            "restoreToPongSeconds": tPong - t0, "reply": reply]
-    r.merge(await netCheck(m, t0: t0), uniquingKeysWith: { a, _ in a })
+                            "resumeMs": (tResumed - tRestored) * 1000, "resumedSeconds": tResumed - t0]
+    r.merge(await probe(m, t0: t0, deadline: t0 + 60)) { a, _ in a }
     return (m, r)
 }
 
 @MainActor
 func cycle(_ b: Bundle, runs: Int, settle: Double) async throws {
-    var (m, t, reply) = try await coldBoot(b)
-    result(["cmd": "cycle-boot", "coldSeconds": t, "reply": reply])
+    var (m, r0, _) = try await coldBoot(b)
+    result(["cmd": "cycle-boot"].merging(r0) { a, _ in a })
     log("settling \(settle)s")
     try await Task.sleep(nanoseconds: UInt64(settle * 1e9))
     let tmp = b.dir.appendingPathComponent("cycle.vzvmsave")
     for i in 1...runs {
         var r: [String: Any] = ["cmd": "cycle", "run": i]
-        r.merge(try await save(m, to: tmp), uniquingKeysWith: { a, _ in a })
+        r.merge(try await save(m, to: tmp)) { a, _ in a }
         let ts = now()
         try await m.vm.stop()
         r["stopMs"] = (now() - ts) * 1000
         m.net.close()
         let (m2, rr) = try await restore(b, from: tmp)
-        r.merge(rr, uniquingKeysWith: { a, _ in a })
+        r.merge(rr) { a, _ in a }
         result(r)
         m = m2
         try await Task.sleep(nanoseconds: 3_000_000_000)
@@ -419,28 +440,29 @@ func cycle(_ b: Bundle, runs: Int, settle: Double) async throws {
     try await m.vm.stop()
     m.net.close()
     try? FileManager.default.removeItem(at: tmp)
-    result(["cmd": "cycle-final-save"].merging(r, uniquingKeysWith: { a, _ in a }))
+    result(["cmd": "cycle-final-save"].merging(r) { a, _ in a })
 }
 
 @MainActor
 func restoreCmd(_ b: Bundle, hold: Double, opts: Set<String>) async throws {
     let t0 = now()
+    let name = b.dir.lastPathComponent
     do {
         let (m, r) = try await restore(b, from: b.state, newMID: opts.contains("--new-mid"), newMAC: opts.contains("--new-mac"))
-        result(["cmd": "restore", "bundle": b.dir.lastPathComponent, "opts": Array(opts).sorted()].merging(r, uniquingKeysWith: { a, _ in a }))
+        result(["cmd": "restore", "bundle": name, "opts": Array(opts).sorted()].merging(r) { a, _ in a })
         if hold > 0 {
             try await Task.sleep(nanoseconds: UInt64(hold * 1e9))
-            let again = (try? await m.request("ping", deadline: now() + 5)) ?? "noreply"
-            result(["cmd": "restore-hold", "bundle": b.dir.lastPathComponent, "afterHold": again])
+            let t1 = now()
+            let again = await probe(m, t0: t1, deadline: t1 + 10)
+            result(["cmd": "restore-hold", "bundle": name, "state": "\(m.vm.state.rawValue)"].merging(again) { a, _ in a })
         }
         if opts.contains("--save") {
             let s = try await save(m, to: b.state)
-            result(["cmd": "restore-resave", "bundle": b.dir.lastPathComponent].merging(s, uniquingKeysWith: { a, _ in a }))
+            result(["cmd": "restore-resave", "bundle": name].merging(s) { a, _ in a })
         }
         await m.hardStop()
     } catch {
-        result(["cmd": "restore", "bundle": b.dir.lastPathComponent, "opts": Array(opts).sorted(), "error": "\(error)",
-                "seconds": now() - t0])
+        result(["cmd": "restore", "bundle": name, "opts": Array(opts).sorted(), "error": "\(error)", "seconds": now() - t0])
     }
 }
 
@@ -453,7 +475,8 @@ Task { @MainActor in
         case "fetch-url": try await fetchURL()
         case "install": try await install(Bundle(args[2]), ipsw: args[3], memGiB: Int(args[4])!)
         case "validate": try validate(Bundle(args[2]))
-        case "boot": try await boot(Bundle(args[2]), hold: Double(args[3])!)
+        case "explore": try await explore(Bundle(args[2]), seconds: Double(args[3])!)
+        case "scan": try await scan(Bundle(args[2]), wait: Double(args[3])!)
         case "cold": try await cold(Bundle(args[2]), runs: Int(args[3])!)
         case "cycle": try await cycle(Bundle(args[2]), runs: Int(args[3])!, settle: Double(args[4])!)
         case "restore": try await restoreCmd(Bundle(args[2]), hold: Double(args[3])!, opts: Set(args.dropFirst(4)))
