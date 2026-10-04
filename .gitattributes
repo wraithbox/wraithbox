@@ -7,3 +7,11 @@
 *.png binary
 *.ico binary
 *.pdf binary
+*.jpg binary
+
+# Append-only word lists that many branches add to at once. The union
+# driver keeps the lines of both sides instead of stopping on an add/add
+# conflict, in merges, rebases and cherry-picks alike. Both files are one
+# entry per line, so a word both sides add twice is harmless.
+cspell-words.txt merge=union
+.vale/styles/config/vocabularies/wraithbox/accept.txt merge=union
