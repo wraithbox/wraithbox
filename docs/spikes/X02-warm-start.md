@@ -193,4 +193,4 @@ a Swift command-line tool that installs, boots, saves, and restores the
 VM, the clone and series scripts, and the raw results in `results/`
 with their p50 and p95 in `results/stats.txt`.
 
-**Status:** Answered 2026-10-04: yes, with conditions. Awaiting decision on idle-while-locked
+**Status:** Answered 2026-10-04: yes, with conditions. Decided 2026-10-04 (I16): an idle VM keeps running while the host is locked and is saved after unlock

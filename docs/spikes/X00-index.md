@@ -16,7 +16,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | ID | Description | Status |
 |----|-------------|--------|
 | X01-model-credential | Model credential via the proxy | Open |
-| X02-warm-start | Warm start | Answered 2026-10-04: yes, with conditions. Awaiting decision on idle-while-locked |
+| X02-warm-start | Warm start | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04 (I16): an idle VM keeps running while the host is locked and is saved after unlock |
 | X03-network-path | Network path | Open |
 | X04-tls-inspection | Inspection compatibility | Open |
 | X05-fs-benchmark | Filesystem benchmark | Open |
