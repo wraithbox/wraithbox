@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-05.** Source: X26-pre-receive-check (I74). Changes S08-workspace-and-git and S11-verification-and-spikes.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** A `pre-receive` check that Wraith Box ships refused every bad push tried, and none of their objects reached the landing repository. It runs too late to protect memory: an 8 KiB push made git use 2 GiB first. A small Go scanner in front of git refuses oversized objects before git sees them. Accepting merges the S08-workspace-and-git changes: the scanner (100 MiB per object, 1 GiB per push) and the check, with the old cleanup as a fallback.
+**Yes, with conditions.** A `pre-receive` check that Wraith Box ships refused every bad push tried, and none of their objects reached the landing repository. It runs too late to protect memory: an 8 KiB push made git use 2 GiB first. A small Go scanner in front of git refuses oversized objects before git sees them. You decide the cap values (100 MiB per object, 1 GiB per push, 1,000,000 objects) and whether to add the scanner, which goes past I74. Accepting merges the S08-workspace-and-git changes, with the old cleanup kept as a fallback.
 </Aside>
 
 <figure class="wb-figure">
@@ -72,7 +72,7 @@ The issue asked about the check alone. The spike found that it can't bound memor
 The Go scanner caps object sizes before git sees them. The check repeats git's late ref checks while the objects are in quarantine. The cleanup stays for the rare late failure.
 
 - **Cost:** two small Go components, one new fuzz target. About 0.02 s on a normal push.
-- **Gives:** bounded memory (208 MiB peak at a 100 MiB cap), a refused push adds nothing to `landing.git`.
+- **Gives:** bounded memory (207 MiB peak in `index-pack` at a 100 MiB cap), a refused push adds nothing to `landing.git`.
 - **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" /> <Badge text="SEC03-no-host-exec" variant="success" />
 
 </div>
@@ -135,6 +135,8 @@ Store refs in git's newer reftable format, which has no file names to clash.
 - <Badge text="verified" variant="success" /> A leftover lock file still fails a push after the check passed, leaving objects, so the cleanup stays. Source: X26-pre-receive-check, "Cases".
 - <Badge text="verified" variant="success" /> A check for objects no ref reaches refused a normal thin push on its second push. It stays out of the recommendation. Source: `results/run3-thin-homebrew.txt` and `run4-thin-apple.txt`.
 - <Badge text="verified" variant="success" /> Cost: the check alone 0.01 to 0.02 s on a one-commit push, 1.1 to 1.2 s on the Go repository's whole history. The scanner reads about 0.8 GB of inflated data per second. Source: X26-pre-receive-check, "Cost".
+- <Badge text="verified" variant="success" /> The spike's scanner held each entry with no limit on its wire bytes: a blob of size 1 followed by 512 MiB of empty zlib blocks took its heap to 2,055 MiB. S08-workspace-and-git now caps wire bytes per entry and per pack. Source: the code review of PR88, at spike commit `077a8da`.
+- <Badge text="inferred" variant="note" /> Without `receive.unpackLimit=1`, small pushes go to `unpack-objects --strict`, which keeps their trees and commits in memory. A pack header declaring 10 million objects costs `index-pack` about 500 MiB, so the count cap is 1,000,000. Source: the security review of PR88, from reading git. Not measured here, and S11-verification-and-spikes adds a case for each.
 - <Badge text="assumed" variant="caution" /> That the delta layouts tried cover how git allocates while unpacking. The peak was measured, not derived from git's source. The conformance case in S11-verification-and-spikes checks it again on every release.
 - <Badge text="assumed" variant="caution" /> That the `wb-git-receive` sandbox profile (X23-sandboxed-daemons) can allow the check program to run. Not built yet. I67 is the related open issue for the fetch side.
 

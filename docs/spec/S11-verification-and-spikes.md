@@ -37,6 +37,11 @@ be tested before building on them.
     scroll region, tab stops, and colors and style. For each of these
     states, a test removes its step from the reset and sees the
     property fail, for example `ESC =` with no `ESC >`.
+
+  The pack scanner's target checks that what it forwards equals its
+  input when a pack passes, and is a prefix of it when one is refused.
+  Its seeds include REF_DELTA entries, delta chains and empty zlib
+  stored blocks.
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
@@ -74,12 +79,20 @@ be tested before building on them.
     check (a ref too long for the file system, a stale old object ID,
     directory/file and case clashes, an object over the cap), and after
     the cleanup for a push that failed later (X26-pre-receive-check);
-  - push a delta whose result, or a blob whose inflated size, is over
-    the per-object cap, and many objects whose sizes add up to more than
-    the per-push cap, and see each refused before git unpacks it. Under
-    the caps, the git child's peak memory stays near twice the
-    per-object cap (X26-pre-receive-check measured 208 MiB at a 100 MiB
-    cap);
+  - push each of these and see it refused before git unpacks it, with
+    the memory of the git child and of `wb-hostd` measured
+    (X26-pre-receive-check): a delta whose result, source size or own
+    data length is over the per-object cap; a blob whose inflated size
+    is over it; objects whose sizes add up to more than the per-push
+    cap; a pack header that declares more objects than the count cap,
+    with no entries after it; and an entry that declares a small size
+    and is followed by hundreds of MiB of empty zlib stored blocks,
+    refused on its wire bytes. Under the caps, the git child's peak
+    memory stays near what X26-pre-receive-check measured, 207 MiB at a
+    100 MiB per-object cap;
+  - kill `receive-pack` in the middle of a push, and check that the
+    cleanup leaves no `objects/tmp_objdir-*` and no `*.lock` under
+    `refs/heads/wb/`;
   - forge an approval prompt via terminal output and confirm nothing
     treats it as one;
   - print every sequence the terminal filter drops, a guest window

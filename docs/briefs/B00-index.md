@@ -56,3 +56,8 @@ The maintainer decided B36-flow-attribution to B52-proto-contracts on
    specified it fails every fresh install. Approving the spike result
    accepts metadata filtering in front of the download refusal, and
    Homebrew outside the gate. Its vulnerability threshold is I73.
+2. B74-pre-receive-check: until it is decided, S08-workspace-and-git
+   has no bound on the memory git uses to unpack a push, and refused
+   pushes leave objects in the landing repository. Approving it sets the
+   scanner's cap values and accepts a new parser of guest bytes in
+   `wb-hostd`.
