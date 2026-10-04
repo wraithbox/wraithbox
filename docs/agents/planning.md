@@ -30,7 +30,7 @@ Every open work issue carries:
   or `ready-for-human` (plus `blocked` when it waits on something);
 - at least one **area** label (`area:*`);
 - zero to two **component** labels (`comp:*`), when the work belongs to a
-  process from spec 004;
+  process from spec 004-architecture;
 - optionally a `priority:` label.
 
 The area and component labels are recorded in `.github/labels-areas.yml`
@@ -44,7 +44,7 @@ Change the file, then apply it with `mise run gh:labels`.
 | `area:go` | `packages/wraithbox-go` | `go:lint`, `go:test`, `go:cross` |
 | `area:swift` | `packages/wraithbox-swift` | `swift:lint`, `swift:test` |
 | `area:doc` | `packages/wraithbox-doc` | `doc:check`, `doc:build` |
-| `area:spec` | `docs/spec/` | read-through against spec 003 IDs |
+| `area:spec` | `docs/spec/` | read-through against spec 003-requirements IDs |
 | `area:ci` | `.github/`, `.mise.toml`, lockfiles, dependabot | `gha:lint`, `audit`, `vuln` |
 | `area:agents` | `AGENTS.md`, `.claude/`, `docs/agents/` | read-through; restart to test |
 
@@ -61,13 +61,13 @@ example).
 
 | Label | Process or interface | Main specs |
 |---|---|---|
-| `comp:wb` | `wb` CLI, dispatcher, TTY relay | 005 |
-| `comp:wb-hostd` | sessions, git gateway, policy store, approvals, audit | 006, 008, 009 |
-| `comp:wb-vmd` | VM provider (Swift on macOS, Go elsewhere) | 006, 012 |
-| `comp:wb-netd` | userspace network stack, DHCP, DNS | 007 |
-| `comp:wb-proxyd` | HTTP policy, credential replacement, dependency gate | 007, 009 |
-| `comp:wb-guestd` | in-guest agent: users, PTY exec, git transport | 006, 008 |
-| `comp:platform` | `internal/platform` interfaces and per-OS code | 012 |
+| `comp:wb` | `wb` CLI, dispatcher, TTY relay | 005-cli |
+| `comp:wb-hostd` | sessions, git gateway, policy store, approvals, audit | 006-vm-lifecycle, 008-workspace-and-git, 009-policy-credentials-audit |
+| `comp:wb-vmd` | VM provider (Swift on macOS, Go elsewhere) | 006-vm-lifecycle, 012-platforms |
+| `comp:wb-netd` | userspace network stack, DHCP, DNS | 007-egress-gateway |
+| `comp:wb-proxyd` | HTTP policy, credential replacement, dependency gate | 007-egress-gateway, 009-policy-credentials-audit |
+| `comp:wb-guestd` | in-guest agent: users, PTY exec, git transport | 006-vm-lifecycle, 008-workspace-and-git |
+| `comp:platform` | `internal/platform` interfaces and per-OS code | 012-platforms |
 
 Component labels make it possible to see one process's backlog across
 packages (`wb-vmd` is Swift on macOS and Go elsewhere) and to keep two
@@ -86,15 +86,16 @@ small: a label nobody filters on is noise.
 
 ## Spikes
 
-Spikes are the open questions `X1` to `X24` in spec 011. They are
+Spikes are the open questions `X1-model-credential` to `X24-openshell-artifacts` in spec 011-verification-and-spikes. They are
 first-class issues, and the first milestone is mostly spikes.
 
-- **One issue per spike**, title `X<n>: <name from spec 011>`, for
-  example `X3: Network path`. Labels: `spike`, the area where the
+- **One issue per spike**, title `X<n>-<slug>: <name>` as spec
+  011-verification-and-spikes defines them, for example
+  `X3-network-path: Network path`. Labels: `spike`, the area where the
   throwaway code will live, and the component it informs. The body quotes
-  the question from spec 011 and states the yes/no answer it needs, what
+  the question from spec 011-verification-and-spikes and states the yes/no answer it needs, what
   will be measured, and which requirement IDs depend on it.
-- **IDs are stable.** A new open question is added to spec 011 first,
+- **IDs are stable.** A new open question is added to spec 011-verification-and-spikes first,
   with the next free `X` number, then filed. A spike is never renumbered.
 - **Dependent work is blocked on the spike.** Any issue that builds on
   a spike's answer is `blocked by` the spike issue (GitHub relationship,
@@ -109,13 +110,13 @@ first-class issues, and the first milestone is mostly spikes.
   adds `docs/spec/spikes/X<n>-<slug>.md`: the question, the answer
   (yes / no / yes-with-conditions), the measurements, what it means for
   the specs, and a permalink to the spike branch commit. It opens with
-  the **For review** block of the spec template (spec 000), and the same
+  the **For review** block of the spec template (spec 000-shared-patterns), and the same
   pull request adds a review brief (`review-briefs.md`, the `brief`
   skill), so the maintainer can approve the answer without reading the
   spike code. The same pull
   request changes any spec the answer affects, or, if that is too big,
   files the spec change as an issue. It also links the result from the
-spike's entry in spec 011. That pull request says
+spike's entry in spec 011-verification-and-spikes. That pull request says
   `Closes #<spike issue>`. A "no" that makes a requirement unachievable
   is written up as a spec change and the work stops there
   (`AGENTS.md`).
@@ -123,14 +124,14 @@ spike's entry in spec 011. That pull request says
 ## Milestones
 
 Milestones group issues into deliverable steps toward v1 (macOS host,
-macOS guest; spec 012). They are GitHub milestones, not labels.
+macOS guest; spec 012-platforms). They are GitHub milestones, not labels.
 
 - **Name:** `M<n>: <outcome>`, numbered in order, for example
   `M0: v1 spikes answered`. The number gives the order; agents work the
   lowest open one first.
 - **Description:** the exit criterion in one or two sentences, and the
-  requirement IDs (spec 003) and spikes it covers. Example:
-  `X1 to X9 answered and written up in docs/spec/spikes/; specs updated
+  requirement IDs (spec 003-requirements) and spikes it covers. Example:
+  `X1-model-credential to X9-keychain-unsigned answered and written up in docs/spec/spikes/; specs updated
   where an answer changed the design. Covers S4-no-guest-secrets, N1-startup, N2-fs-speed.`
 - **Membership:** every `ready-for-agent` issue is in exactly one
   milestone. An issue without one is not picked. Follow-ups found during

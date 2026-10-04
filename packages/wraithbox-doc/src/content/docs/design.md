@@ -55,14 +55,14 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
 
 | Spec | Topic |
 |---|---|
-| 003 | Requirements and threat model |
-| 004 | Architecture: processes and boundaries |
-| 005 | The `wb` command |
-| 006 | Images, VMs, guest users, guest agent |
-| 007 | Network stack, DNS, proxy, dependency gate |
-| 008 | Workspace and the git round trip |
-| 009 | Policy, credentials, certificates, audit |
-| 010 | Languages, libraries, packaging |
-| 011 | Verification and open questions |
-| 012 | Host and guest platforms, WSL |
-| 013 | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
+| spec 003-requirements | Requirements and threat model |
+| spec 004-architecture | Architecture: processes and boundaries |
+| spec 005-cli | The `wb` command |
+| spec 006-vm-lifecycle | Images, VMs, guest users, guest agent |
+| spec 007-egress-gateway | Network stack, DNS, proxy, dependency gate |
+| spec 008-workspace-and-git | Workspace and the git round trip |
+| spec 009-policy-credentials-audit | Policy, credentials, certificates, audit |
+| spec 010-tech-stack | Languages, libraries, packaging |
+| spec 011-verification-and-spikes | Verification and open questions |
+| spec 012-platforms | Host and guest platforms, WSL |
+| spec 013-guest-confinement | Guest confinement: Seatbelt, Network Extension, Endpoint Security |

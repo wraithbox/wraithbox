@@ -40,3 +40,11 @@
 .sl-markdown-content a.wb-ref:focus-visible .wb-ref-tip {
 	display: block;
 }
+
+/* Starlight isolates the content pane (`isolation: isolate`), so nothing
+   inside it can stack above the right-hand menu. While a card is open,
+   lift the whole pane above the menu, and keep it below the header. */
+.main-pane:has(a.wb-ref:hover, a.wb-ref:focus-visible) {
+	position: relative;
+	z-index: calc(var(--sl-z-index-toc) + 1);
+}

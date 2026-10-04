@@ -63,7 +63,7 @@ plainly; never soften it to keep the plan intact.
 - Every new check or policy decision has a test that feeds it a
   violation and sees it fail closed, and it logs the decision and the
   rule.
-- No `S*` control from spec 003 is weakened, and a code comment names
+- No `S*` control from spec 003-requirements is weakened, and a code comment names
   the requirement where a control is enforced.
 - Platform code is in `internal/platform` `_darwin.go` / `_linux.go` /
   `_windows.go` files; shared code never branches on `runtime.GOOS`.

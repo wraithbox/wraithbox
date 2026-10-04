@@ -9,7 +9,7 @@ the host.
 ## Packet path (`wb-netd`)
 
 - **Packet transport.** Each VM's virtual NIC is connected to its
-  `wb-netd` by a platform-specific packet transport (spec 012) that
+  `wb-netd` by a platform-specific packet transport (spec 012-platforms) that
   needs no host privileges and no host network device. On macOS,
   `wb-vmd` creates a datagram socketpair per VM, gives one end to the
   VM's network device (file-handle attachment) and passes the other to
@@ -53,7 +53,7 @@ the host.
   reset. `wb-proxyd` resolves the real upstream address itself.
 - **Modes, per host:**
   - **inspect** (default): terminate TLS with a leaf certificate from the
-    Wraith Box CA (spec 009), apply HTTP policy and credential
+    Wraith Box CA (spec 009-policy-credentials-audit), apply HTTP policy and credential
     replacement, then open a new TLS connection upstream validated
     against the host's system trust store. HTTP/1.1 and HTTP/2.
   - **pass**: relay TLS bytes unchanged to the named host. Only for hosts
@@ -66,7 +66,7 @@ the host.
   by the guest (`Authorization`, `Proxy-Authorization`, API-key headers,
   cookies configured per binding) are always removed. If the host has a
   credential binding, the real credential is injected from the
-  platform's secret store (spec 009).
+  platform's secret store (spec 009-policy-credentials-audit).
   A token supplied by an attacker is therefore never forwarded, and the
   guest only ever holds placeholders.
 - **Placeholder binding.** Each placeholder is bound to the hosts,
@@ -77,7 +77,7 @@ the host.
   `wb-proxyd` signs requests (SigV4) rather than injecting a key.
 - **HTTP policy** (S6-repo-writes). Rules match method and path per host, GraphQL
   operation type and name, and WebSocket messages, in the OpenShell
-  policy schema (spec 009). Each inspected host enforces its rules by
+  policy schema (spec 009-policy-credentials-audit). Each inspected host enforces its rules by
   default. A host can be set to `audit` while a new rule is tried out:
   violations are then logged but allowed. Built-in profiles:
   - *git hosting*: reads allowed; `git-receive-pack` and mutating API
@@ -106,7 +106,7 @@ the host.
 - An unknown destination produces an approval event in `wb-hostd`, shown
   as a native notification and listed by `wb status`: *allow for this
   session*, *allow for this project*, or *deny*. Each request shows the
-  result of the prover's risk check on the rule it would add (spec 009),
+  result of the prover's risk check on the rule it would add (spec 009-policy-credentials-audit),
   such as new reach for a credential or a new write method. Policy
   changes take effect without restarting anything.
 - **Learn mode** (trusted projects only, F10-learn-mode): DNS resolves any name and
@@ -117,7 +117,7 @@ the host.
 ## Performance
 
 Packets are processed in userspace, so throughput is lower than kernel
-networking. Spec 011 sets a benchmark for large downloads. If throughput
+networking. Spec 011-verification-and-spikes sets a benchmark for large downloads. If throughput
 misses it, the fix is inside `wb-netd` (batching, buffer sizes), not a
 second network path.
 

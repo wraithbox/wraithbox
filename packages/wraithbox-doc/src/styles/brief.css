@@ -172,6 +172,7 @@
 }
 .wb-figure .label {
 	fill: var(--sl-color-white);
+	font-weight: 600;
 }
 .wb-figure .note {
 	fill: var(--sl-color-gray-3);

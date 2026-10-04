@@ -1,6 +1,6 @@
 ---
 name: security-reviewer
-description: Security review of one Wraith Box pull request or of main, without editing anything. Models the trust boundaries from spec 004, checks the S* controls of spec 003 at each, tries cheap abuse cases locally, and returns findings as its final text. The coordinator files them; exploitable ones become draft security advisories, never public issues.
+description: Security review of one Wraith Box pull request or of main, without editing anything. Models the trust boundaries from spec 004-architecture, checks the S* controls of spec 003-requirements at each, tries cheap abuse cases locally, and returns findings as its final text. The coordinator files them; exploitable ones become draft security advisories, never public issues.
 model: fable
 effort: high
 maxTurns: 150

@@ -7,4 +7,4 @@ contact_links:
     about: Do not open a public issue for a vulnerability. Follow SECURITY.md instead.
   - name: Design and requirements
     url: https://github.com/wraithbox/wraithbox/tree/main/docs/spec
-    about: The specs are the source of truth. Read 003 (requirements) and 004 (architecture) before proposing a design change.
+    about: The specs are the source of truth. Read spec 003-requirements and spec 004-architecture before proposing a design change.

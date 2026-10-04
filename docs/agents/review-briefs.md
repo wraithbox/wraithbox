@@ -47,7 +47,7 @@ order.
    `description` is the one-sentence answer or recommendation.
 2. **Status line.** `Awaiting decision`, `Decided YYYY-MM-DD: <option>`,
    `Answered YYYY-MM-DD` (spike), or `Superseded by <link>`. Then the
-   source as references (below): `issue #36`, `spec 007`, `PR #12`.
+   source as references (below): `issue #36`, `spec 007-egress-gateway`, `PR #12`.
 3. **The ask.** A `<Aside type="tip" title="You are deciding">` with
    one sentence on what is being decided, the recommendation, and what
    happens next if the maintainer accepts it (which issues unblock,
@@ -67,7 +67,7 @@ order.
 6. **Impact.** A `wb-impact` table: one row per requirement or control
    affected, columns per option. Write the ID with its slug and a few
    words of meaning ("S5-default-deny: only allowlisted hostnames are
-   reachable"), so the reader does not need spec 003 open. Cells are `yes`, `partial`, `no` or `na`, and
+   reachable"), so the reader does not need spec 003-requirements open. Cells are `yes`, `partial`, `no` or `na`, and
    each holds a word or two, never only a color.
 7. **Evidence.** The claims the recommendation rests on, each with its
    source (a `file:line`, a spec section, a primary doc URL, a probe or
@@ -105,10 +105,16 @@ with a hover card that shows the title and a one-sentence description
 
 | Write | Links to |
 |---|---|
-| `S6-repo-writes` (or the alias `S6`) | the requirement in spec 003 |
-| `X14` | the spike in spec 011 |
-| `spec 007`, `specs 003, 007 and 009` | the spec pages on the site |
-| `issue #36`, `PR #12` (a bare `#36` becomes `issue #36`) | GitHub |
+| `S6-repo-writes` | the requirement in spec 003-requirements |
+| `X14-flow-attribution` | the spike in spec 011-verification-and-spikes |
+| `spec 007-egress-gateway`, `specs 003-requirements and 007-egress-gateway` | the spec pages on the site |
+| `007-egress-gateway` (a spec's full name, without "spec") | the spec page |
+| `issue #36`, `PR #12` | GitHub |
+
+The short forms `S6`, `X14`, `spec 007` and a bare `#36` still work and
+are shown in full, but write the full form: it reads the same in the
+source, on GitHub, and in a terminal. A bare spec number, as in
+"(003, 007)", is not a reference: the build warns about it.
 
 - Don't link specs on GitHub. Spec pages are on the site under
   `/spec/`.
@@ -116,8 +122,9 @@ with a hover card that shows the title and a one-sentence description
 - Issue and pull request titles come from a snapshot. After citing a
   new one, run `mise run doc:refs` and commit
   `src/data/github-refs.json`.
-- References inside code spans, headings, and component attributes
-  (such as a `<Badge text>`) stay plain text.
+- References inside code spans and headings stay plain text. A
+  `<Badge>` whose text starts with a reference becomes a link with the
+  hover card.
 
 ## Diagrams
 
@@ -142,10 +149,14 @@ Rules:
 - MDX is JSX: comments are `{/* … */}`, not `<!-- … -->`.
 - At most about a dozen boxes. A diagram that needs a paragraph to be
   understood gets redrawn, not explained.
-- Use the process names from spec 004, and draw the guest as untrusted.
+- Use the process names from spec 004-architecture, and draw the guest as untrusted.
 
-When the site gains a LikeC4 model or Mermaid support, a brief may embed
-a view from it instead. Until then, inline SVG is the one way.
+A spec's diagram is an SVG file next to it (`docs/spec/NNN-<slug>.svg`),
+linked as an image: `![caption](NNN-<slug>.svg)`. It uses the same
+classes, plus its own `<style>` block with colors for both light and
+dark, so GitHub shows it too. The site copies the file into the spec
+page, drops that `<style>`, and turns the image's alt text into the
+caption. `docs/spec/004-architecture.svg` is the example to copy.
 
 ## Check
 

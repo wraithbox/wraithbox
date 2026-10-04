@@ -8,7 +8,7 @@
 # Two families, one color each:
 #   area:*  where in the repository the change lands (a package or a
 #           top-level area). Every work issue has at least one.
-#   comp:*  which process or interface from spec 004 / 012 the work
+#   comp:*  which process or interface from spec 004-architecture / 012 the work
 #           belongs to. Optional; at most two per issue.
 
 # Area: where the change lands.
@@ -31,19 +31,19 @@
   color: "bfd4f2"
   description: "Agent harness: AGENTS.md, .claude/, docs/agents/"
 
-# Component: which process or interface (spec 004, spec 012).
+# Component: which process or interface (spec 004-architecture, spec 012-platforms).
 - name: "comp:wb"
   color: "d4c5f9"
-  description: "wb: the CLI dispatcher and TTY relay (spec 005)"
+  description: "wb: the CLI dispatcher and TTY relay (spec 005-cli)"
 - name: "comp:wb-hostd"
   color: "d4c5f9"
   description: "wb-hostd: sessions, git gateway, policy, approvals, audit"
 - name: "comp:wb-vmd"
   color: "d4c5f9"
-  description: "wb-vmd: VM provider, Swift on macOS, Go elsewhere (spec 012)"
+  description: "wb-vmd: VM provider, Swift on macOS, Go elsewhere (spec 012-platforms)"
 - name: "comp:wb-netd"
   color: "d4c5f9"
-  description: "wb-netd: userspace TCP/IP, DHCP, DNS (spec 007)"
+  description: "wb-netd: userspace TCP/IP, DHCP, DNS (spec 007-egress-gateway)"
 - name: "comp:wb-proxyd"
   color: "d4c5f9"
   description: "wb-proxyd: HTTP policy, credentials, dependency gate"

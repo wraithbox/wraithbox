@@ -14,7 +14,7 @@ import (
 // OS is a host or guest operating system.
 type OS string
 
-// Operating systems, as named in spec 012.
+// Operating systems, as named in spec 012-platforms.
 const (
 	MacOS   OS = "macos"
 	Windows OS = "windows"
@@ -31,7 +31,7 @@ const (
 	V1                         // first delivery target
 )
 
-// GuestSupport reports the support level of guest on host (spec 012,
+// GuestSupport reports the support level of guest on host (spec 012-platforms,
 // platform matrix).
 func GuestSupport(host, guest OS) Support {
 	switch {
@@ -51,7 +51,7 @@ func GuestSupport(host, guest OS) Support {
 type Host struct {
 	OS OS
 	// WSL is true when running inside a WSL 2 distribution. wb then acts as
-	// a client of the Wraith Box services on the Windows side (spec 012).
+	// a client of the Wraith Box services on the Windows side (spec 012-platforms).
 	WSL bool
 }
 

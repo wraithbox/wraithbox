@@ -58,6 +58,7 @@ unconvert
 unparam
 safehouse
 Vulns
+openshell
 
 # Docs site (Astro Starlight)
 frontmatter
@@ -66,6 +67,7 @@ Merriweather
 Webfonts
 mdxjs
 FSNCR
+FSNCRX
 
 # Engineering jargon the dictionaries lack
 stdlib

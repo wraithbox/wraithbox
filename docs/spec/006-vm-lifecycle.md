@@ -9,7 +9,7 @@ This spec describes macOS guests on a macOS host, the v1 target. The
 structure (image layers, sealing, work and isolated VMs, one guest user
 per project, worktree per session, the duties of `wb-guestd`) is the
 same for every guest OS. What differs per guest and per host is listed
-in spec 012.
+in spec 012-platforms.
 
 ## Images
 
@@ -23,12 +23,12 @@ in spec 012.
   credentials). Builds are scripted and repeatable; nobody configures an
   image by hand.
 - **Guest confinement.** The base image includes the Network Extension
-  of spec 013, approved during the build, once spike X14 allows it.
+  of spec 013-guest-confinement, approved during the build, once spike X14-flow-attribution allows it.
 - **Sealing.** Before an image is usable it is scanned for anything that
   looks like a secret (keychain items, tokens in dotfiles, SSH keys,
   shell history). A non-empty result fails the build (S4-no-guest-secrets).
 - **Storage and distribution.** Images are stored locally and cloned
-  copy-on-write (APFS clones on macOS; spec 012) into VM bundles.
+  copy-on-write (APFS clones on macOS; spec 012-platforms) into VM bundles.
   Sharing images between machines as OCI artifacts in a registry is a
   later addition.
 - **Updates.** A VM's system disk is replaced by a fresh clone of the new
@@ -48,7 +48,7 @@ in spec 012.
   host state plus git, so it may use relaxed write-through settings for
   speed (N2-fs-speed).
 - **Devices.** One virtio network device whose packet transport leads
-  to `wb-netd` (on macOS a file-handle attachment; spec 007, spec 012);
+  to `wb-netd` (on macOS a file-handle attachment; spec 007-egress-gateway, spec 012-platforms);
   one host-guest socket device (vsock); storage; entropy.
   No shared directories, no host audio input, no USB or serial
   passthrough in v1 (S2-no-host-fs-share).
@@ -57,8 +57,8 @@ in spec 012.
 - **Warm start.** `wb-hostd` can have `wb-vmd` start the work VM at
   login. After a configurable idle period the VM's state is saved and
   the VM stops; the next session restores from saved state (N1-startup, N3-footprint).
-  Whether a saved state can be reused more than once is open (spec 011,
-  spike X2).
+  Whether a saved state can be reused more than once is open (spec 011-verification-and-spikes,
+  spike X2-warm-start).
 - **Time and sleep.** After host sleep or VM restore, `wb-guestd`
   resynchronizes the guest clock from `wb-hostd`.
 
@@ -77,7 +77,7 @@ in spec 012.
 ## `wb-guestd`
 
 A Go service running with full privileges in the guest (a root
-LaunchDaemon on macOS; spec 012 for other guests), serving gRPC over the
+LaunchDaemon on macOS; spec 012-platforms for other guests), serving gRPC over the
 host-guest socket to `wb-hostd` only. One code base for every guest OS,
 with OS-specific parts behind interfaces as on the host. Responsibilities:
 
@@ -85,14 +85,14 @@ with OS-specific parts behind interfaces as on the host. Responsibilities:
 - run commands as a project user with a PTY or pipes, a sanitized
   environment (explicit allowlist; placeholders for credentials),
   per-session resource limits, and the session's Seatbelt profile
-  (spec 013);
+  (spec 013-guest-confinement);
 - install the egress gateway's CA certificate into the guest trust
-  store and toolchain-specific trust settings (spec 009);
-- act as the guest end of the git transport (spec 008);
+  store and toolchain-specific trust settings (spec 009-policy-credentials-audit);
+- act as the guest end of the git transport (spec 008-workspace-and-git);
 - report listening TCP ports so `wb-hostd` can forward them to host
   loopback (F11-port-forward), and optionally bridge text clipboard (F12-clipboard);
 - relay the flow labels of the guest Network Extension, once spike
-  X14 allows it (spec 013). The host uses them only to narrow rules.
+  X14-flow-attribution allows it (spec 013-guest-confinement). The host uses them only to narrow rules.
 
 `wb-guestd` updates itself from a read-only disk image attached by
 `wb-hostd`, never from the network. The host treats every response from

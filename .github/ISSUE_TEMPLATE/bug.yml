@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        If this lets a guest get around an isolation control (spec 003, `S*`),
+        If this lets a guest get around an isolation control (spec 003-requirements, `S*`),
         do not file it here: follow [SECURITY.md](https://github.com/wraithbox/wraithbox/blob/main/SECURITY.md).
   - type: textarea
     id: what-happened
@@ -39,4 +39,4 @@ body:
     id: spec
     attributes:
       label: Spec reference
-      description: The spec section or requirement this violates, if known (e.g. `007`, `F3-work-as-branch`).
+      description: The spec section or requirement this violates, if known (e.g. `spec 007-egress-gateway`, `F3-work-as-branch`).

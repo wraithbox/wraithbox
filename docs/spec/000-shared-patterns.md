@@ -6,7 +6,7 @@ This document contains templates and boilerplate code that specs can reference t
 
 Standard template for new specification documents. The **For review**
 block is what the maintainer reads first: it says what approving the
-spec commits to, without needing the rest of the spec or spec 003 open
+spec commits to, without needing the rest of the spec or spec 003-requirements open
 (`docs/agents/review-briefs.md`).
 
 ```markdown
@@ -14,7 +14,7 @@ spec commits to, without needing the rest of the spec or spec 003 open
 
 **Purpose:** One-line description of what this does and why
 
-**Requirements:** The spec 003 IDs this spec covers
+**Requirements:** The spec 003-requirements IDs this spec covers
 
 ## For review
 
@@ -29,8 +29,9 @@ spec commits to, without needing the rest of the spec or spec 003 open
 ## Design
 
 The sections the topic needs. Each decision says what was chosen, why,
-and which options were rejected and why. A Mermaid diagram for a flow
-between processes or a trust boundary.
+and which options were rejected and why. A diagram for a flow between
+processes or a trust boundary, as an SVG next to the spec
+(`docs/agents/review-briefs.md`, "Diagrams").
 
 ## Open questions
 
@@ -52,7 +53,7 @@ discover what it owns:
 - `packages/<name>-go/`: Go (module listed in `go.work`)
 - `packages/<name>-swift/`: Swift (standalone SwiftPM package; macOS only)
 - `packages/<name>-dotnet/`: C# on .NET (Windows only; reserved, not yet
-  present; spec 012)
+  present; spec 012-platforms)
 - `packages/<name>-doc/`: Docs site (Astro Starlight; bun; standalone)
 
 When one feature spans languages, pick one `<name>` and let the suffix
@@ -64,4 +65,4 @@ distinguish the implementation.
 - `003` onward: the product. `003` holds the requirement identifiers
   (`F*`, `S*`, `N*`, `C*`, `R*`) that later specs reference.
 - A spike result is written up as its own spec before dependent work
-  starts (see `011`).
+  starts (see spec 011-verification-and-spikes).
