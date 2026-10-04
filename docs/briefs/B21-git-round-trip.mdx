@@ -49,12 +49,12 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <line class="edge" x1="182" y1="190" x2="248" y2="196" marker-end="url(#f1-arrow)" />
   <line class="edge" x1="248" y1="262" x2="182" y2="270" marker-end="url(#f1-arrow)" />
   <path class="edge" d="M60,238 C40,215 40,205 60,192" marker-end="url(#f1-arrow)" />
-  <text class="note" x="18" y="222">borrows</text>
+  <text class="note" x="66" y="219">borrows</text>
   <line class="edge" x1="538" y1="205" x2="462" y2="205" marker-end="url(#f1-arrow)" />
   <path class="edge-bad" d="M560,168 C520,60 300,50 184,58" marker-end="url(#f1-arrow-bad)" />
   <text class="boundary-label" x="300" y="44">fetch by ID</text>
   <path class="edge-bad" d="M590,242 C580,300 520,315 462,300" marker-end="url(#f1-arrow-bad)" />
-  <text class="boundary-label" x="470" y="326">push to main</text>
+  <text class="boundary-label" x="600" y="275">push to main</text>
 </svg>
 <figcaption>
 Figure 1. The round trip after X07-git-round-trip. The guest reaches only <code>wb-hostd</code>. Fetches come from the export repository, so a fetch by ID from your repository (red, top) has nothing to reach. Pushes pass a Go ref filter before git parses them, so a push to <code>main</code> (red, bottom) stops there. The landing repository borrows objects from the export repository. A push then sends only new objects.
