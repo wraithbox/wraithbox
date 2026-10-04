@@ -1,0 +1,166 @@
+---
+title: Where does a new project run, and what makes it the same project later?
+description: Split "trusted" into two named settings, start new projects in the isolated VM until the user moves them, and key project identity on the git directory rather than the remote URL.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I42, related to I36 and I41. Affects T00-index, S05-cli, S06-vm-lifecycle and S09-policy-credentials-audit.
+
+<Aside type="tip" title="You are deciding">
+What "trusted" means, which VM a newly registered project uses, and when two directories are the same project. Recommended: two settings, `config_trust` and `placement`, as the issue proposes, but **A**: new projects start in the isolated VM, not the work VM as the issue proposes. The reason is I36: in the work VM a new repository can use every other project's network grants. Accepting starts the spec pull request for S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit and T00-index.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 320" role="img" aria-label="A newly cloned repository is registered on first run. If it lands in the work VM it sits next to trusted projects, whose grants it can use. If it lands in the isolated VM it shares that VM only with other untrusted projects.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="10" y="14">host: trusted</text>
+  <rect class="box host" x="10" y="125" width="180" height="90" rx="10" />
+  <text class="label" x="100" y="155" text-anchor="middle">wb claude</text>
+  <text class="note" x="100" y="175" text-anchor="middle">in a new clone:</text>
+  <text class="note" x="100" y="191" text-anchor="middle">which VM?</text>
+
+  <rect class="boundary" x="260" y="20" width="490" height="150" rx="12" />
+  <text class="boundary-label" x="272" y="40">work VM: guest, untrusted</text>
+  <rect class="box guest" x="280" y="55" width="140" height="70" rx="10" />
+  <text class="label" x="350" y="85" text-anchor="middle">new clone</text>
+  <text class="note" x="350" y="105" text-anchor="middle">issue's default</text>
+  <rect class="box guest" x="440" y="55" width="140" height="70" rx="10" />
+  <text class="label" x="510" y="85" text-anchor="middle">your project</text>
+  <text class="note" x="510" y="105" text-anchor="middle">push token</text>
+  <rect class="box guest" x="600" y="55" width="135" height="70" rx="10" />
+  <text class="label" x="667" y="85" text-anchor="middle">your project 2</text>
+  <text class="note" x="667" y="105" text-anchor="middle">API grant</text>
+  <path class="edge-bad" d="M350,127 C350,150 510,150 510,129" marker-end="url(#f1-arrow-bad)" />
+  <path class="edge-bad" d="M350,127 C350,155 667,155 667,129" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="560" y="162" text-anchor="middle">uses their grants (I36)</text>
+
+  <rect class="boundary" x="260" y="190" width="490" height="120" rx="12" />
+  <text class="boundary-label" x="272" y="210">isolated VM: guest, untrusted</text>
+  <rect class="box guest" x="280" y="225" width="140" height="65" rx="10" />
+  <text class="label" x="350" y="255" text-anchor="middle">new clone</text>
+  <text class="note" x="350" y="273" text-anchor="middle">recommended default</text>
+  <rect class="box guest" x="440" y="225" width="140" height="65" rx="10" />
+  <text class="label" x="510" y="255" text-anchor="middle">untrusted repo</text>
+  <text class="note" x="510" y="273" text-anchor="middle">no grants of yours</text>
+
+  <line class="edge" x1="192" y1="150" x2="278" y2="95" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="192" y1="195" x2="278" y2="255" marker-end="url(#f1-arrow)" />
+</svg>
+<figcaption>
+Figure 1. On first run, <code>wb claude</code> registers the repository as a project and has to put it in a VM. In the work VM, the new project shares one network address with your projects, and the host can't tell their connections apart (I36). In the isolated VM it shares a VM only with other repositories nobody vouched for.
+</figcaption>
+</figure>
+
+## Sub-decisions
+
+The issue raises four points. Point 1 hides the one real fork, the default VM, with options below.
+
+| Point | Recommendation | Source |
+|---|---|---|
+| Meanings of "trusted" | Separate, named project settings. `config_trust` (set by `wb trust`) decides whether `.wraithbox/` in the repository is read (SEC09-host-policy). `placement` (`work` or `isolated`) decides the VM. `--isolated` overrides it for one session. The word "trusted" alone leaves the specs. | issue |
+| 1. Default VM for a new project | **A** below: `isolated`, until the user runs `wb project place work`. | this brief |
+| 2. Untrusted projects share one VM | A new accepted threat in T00-index next to T05-cross-proj-clones: after guest root, one isolated project can read and write another's clone. | issue, but in T00-index |
+| 3. Learn mode | Needs `placement = work`, the setting that says the user vouches for the repository. `config_trust` is about reading `.wraithbox/` and says nothing about the content the agent reads. Whether learn mode stays at all is I40. | this brief |
+| 4. Project identity | Key on the host realm and the path of the repository's git directory (`git rev-parse --git-common-dir`), so every `git worktree` of one repository is one project. Record the cleaned remote URL. If it changes, stop and ask the user to confirm with `wb project`. `wb project show/move/rename` handle moves explicitly. | issue, amended |
+
+## Options for the default VM
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. New projects start isolated
+
+A newly registered project runs in the isolated VM. One command moves it to the work VM, and from then on it shares grants with your other projects.
+
+- **Cost:** the isolated VM starts for most first runs, which uses memory and a second VM slot (NFR05-two-macos-vms). One command per project you keep.
+- **Keeps:** <Badge text="SEC06-repo-writes" variant="success" /> <Badge text="SEC08-proj-isolation" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. New projects start in the work VM
+
+The issue's recommendation. The user adds `--isolated`, or sets `placement`, for a repository they don't trust.
+
+- **Cost:** none for the user, one VM in daily use.
+- **Weakens:** under I36's option A, every new clone gets the network grants and credentials of every work-VM project. <Badge text="SEC06-repo-writes" variant="caution" /> <Badge text="SEC08-proj-isolation" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Ask on first run
+
+`wb` asks once, before the session starts and before any guest output, which VM to use.
+
+- **Cost:** a question per new project, and no answer in non-interactive use (`wb claude -p`), which then needs a default anyway. FR02-any-repo says no setup step per project.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" />
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+- **The default depends on I36.** If I36 makes the VM the enforced unit (its option A), a project in the work VM can use every other work-VM project's grants without guest root. A freshly cloned repository is the most likely place for a prompt injection, so B hands it your tokens by default. If I36 keeps project secrets in a VM of their own (its option B), B is reasonable again.
+- **The threats are in T00-index.** The issue says to record the shared isolated VM in S03-requirements, but the accepted threats are in T00-index.
+- **The remote URL is a weak identity.** "First remote" is alphabetical, so adding a remote can change the project. A token in the URL (I41, item 3) changes it when the token rotates. Dropping the URL from the key needs a guard, because a different repository cloned into the same directory would then inherit the old project's approvals. That is why point 4 stops on a URL change.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Isolated</th><th>B. Work</th><th>C. Ask</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC06-repo-writes</strong> writes only to the project's own repositories</td><td class="yes">kept for new</td><td class="partial">per VM, after I36</td><td class="yes">user's choice</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> untrusted repositories can be confined</td><td class="yes">by default</td><td class="partial">on request</td><td class="yes">user's choice</td></tr>
+<tr><td><strong>FR02-any-repo</strong> no setup step per project</td><td class="yes">works at once</td><td class="yes">kept</td><td class="partial">one question</td></tr>
+<tr><td><strong>FR10-learn-mode</strong> learn mode for trusted repositories only</td><td class="yes">work placement</td><td class="yes">work placement</td><td class="yes">work placement</td></tr>
+<tr><td><strong>NFR05-two-macos-vms</strong> at most two macOS VMs</td><td class="partial">both often busy</td><td class="yes">one in use</td><td class="partial">depends</td></tr>
+<tr><td><strong>FR13-claude-state</strong> state survives per project</td><td class="yes">kept on move</td><td class="yes">kept on move</td><td class="yes">kept on move</td></tr>
+<tr><td>Spec work</td><td class="na">T00-index, S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit</td><td class="na">as A</td><td class="na">as A</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> S06-vm-lifecycle sends "untrusted repositories" to the isolated VM, by `--isolated` or "a project marked untrusted" ("VMs"). S05-cli has `wb trust` and `wb untrust` for repository configuration only, and no command that marks a project untrusted ("Management commands").
+- <Badge text="verified" variant="success" /> `--learn` is "refused unless the project is trusted" (S05-cli, "Session flags"), and FR10-learn-mode says "trusted repositories", without saying which trust.
+- <Badge text="verified" variant="success" /> S09-policy-credentials-audit already lists the VM slot (work or isolated) among the project settings ("Settings contents").
+- <Badge text="verified" variant="success" /> T05-cross-proj-clones accepts cross-project access in the work VM because "untrusted repositories use the isolated VM", and says nothing about projects sharing the isolated VM (T00-index).
+- <Badge text="verified" variant="success" /> Project identity is a hash of the repository's location and the URL of its first remote (S05-cli, "Naming"). `git remote` lists remotes alphabetically (local test, git 2.56.0).
+- <Badge text="verified" variant="success" /> In a `git worktree`, `git rev-parse --git-common-dir` returns the main repository's `.git` directory, while `--show-toplevel` returns the worktree's own path (local test).
+- <Badge text="inferred" variant="note" /> So today each worktree of one repository is its own project, and keying on the common directory makes them one.
+- <Badge text="assumed" variant="caution" /> That I36 is decided as its brief recommends (B36-flow-attribution). The case for A over B rests on it.
+- <Badge text="assumed" variant="caution" /> That the isolated VM can host more than one project user at once, as the work VM does. S06-vm-lifecycle implies it, and X06-guest-xcode and I43 may give that slot other work too.
+
+## What this unblocks
+
+- The spec pull request: `config_trust` and `placement` in S05-cli, S06-vm-lifecycle and S09-policy-credentials-audit, the `wb project` commands in S05-cli, and the shared isolated VM in T00-index.
+- I52, whose settings schema needs the two setting names.
+- Waits on: nothing for points 2 to 4. The choice between A and B is cleaner once I36 is decided.
+
+<details>
+<summary>Details and glossary</summary>
+
+**The default decides for most repositories.** Few users pass `--isolated` by habit. The default then places nearly every repository, including the ones cloned to try out once. Those are the likeliest to contain a prompt injection.
+
+**Moving a project.** `wb project move` points a project at a new directory, keeping its id, Claude Code state (FR13-claude-state), approvals and policy. `wb project place` moves it between VMs. Moving between VMs copies the project user's home, which needs the data-disk design of I44.
+
+**Glossary**
+
+- **Project:** a repository that Wraith Box knows, with its own guest user, state, policy and landing repository.
+- **Work VM / isolated VM:** the two VM slots per guest OS (S06-vm-lifecycle).
+- **Configuration trust:** reading the repository's own `.wraithbox/` settings, which can add hosts but never credentials (SEC09-host-policy).
+- **Placement:** which of the two VMs a project runs in.
+- **Host realm:** the native host, or a WSL distribution on Windows (S12-platforms).
+- **Git common directory:** the `.git` directory that all worktrees of one repository share.
+- **Learn mode:** a session that allows every destination and records them as a suggested allowlist (FR10-learn-mode).
+
+</details>

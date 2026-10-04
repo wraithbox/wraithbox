@@ -1,0 +1,181 @@
+---
+title: Which git data may reach the guest, and how far does the host trust its own git?
+description: Serve the guest from a host-side export repository holding only the session's branch, scan carried-in files, clean remote URLs, and require a minimum git version. Ref restriction waits on X07-git-round-trip.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I41, item 5 waits on X07-git-round-trip (I21). Affects S05-cli and S08-workspace-and-git.
+
+<Aside type="tip" title="You are deciding">
+Rules for what the git round trip sends into the guest and how the host handles what comes back. Recommended: the table below, with **A** for the ref scope: the guest fetches from a host-side copy that holds only the branch it works on. Hiding refs, as the issue proposes, does not stop a fetch by object ID. Items 1 to 4 and 6 can be decided now. Item 5 waits on X07-git-round-trip. Accepting starts the S08-workspace-and-git pull request.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="The host repository holds the session branch and also local branches, tags, notes and untracked files. Today upload-pack serves the whole repository to the guest. On the way back, host git parses guest packs into the landing repository.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="10" y="14">host: trusted</text>
+
+  <rect class="box host" x="10" y="30" width="230" height="110" rx="10" />
+  <text class="label" x="125" y="56" text-anchor="middle">your repository</text>
+  <text class="note" x="125" y="78" text-anchor="middle">HEAD branch</text>
+  <text class="note" x="125" y="96" text-anchor="middle">other branches, tags, notes, stash</text>
+  <text class="note" x="125" y="114" text-anchor="middle">untracked files, remote URLs</text>
+
+  <rect class="box host" x="290" y="40" width="160" height="80" rx="10" />
+  <text class="label" x="370" y="70" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="370" y="90" text-anchor="middle">git upload-pack</text>
+  <text class="note" x="370" y="106" text-anchor="middle">read-only</text>
+
+  <rect class="box host" x="290" y="200" width="160" height="80" rx="10" />
+  <text class="label" x="370" y="230" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="370" y="250" text-anchor="middle">git receive-pack</text>
+  <text class="note" x="370" y="266" text-anchor="middle">parses guest packs</text>
+
+  <rect class="box host" x="10" y="210" width="230" height="60" rx="10" />
+  <text class="label" x="125" y="236" text-anchor="middle">landing.git</text>
+  <text class="note" x="125" y="255" text-anchor="middle">refs/heads/wb/&lt;session&gt;/*</text>
+
+  <rect class="boundary" x="510" y="20" width="240" height="290" rx="12" />
+  <text class="boundary-label" x="522" y="40">guest, untrusted</text>
+  <rect class="box guest" x="540" y="120" width="190" height="80" rx="10" />
+  <text class="label" x="635" y="150" text-anchor="middle">git-remote-wb</text>
+  <text class="note" x="635" y="170" text-anchor="middle">project clone, agent</text>
+
+  <line class="edge" x1="242" y1="80" x2="288" y2="80" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M452,80 C500,80 520,130 538,140" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="455" y="66">every ref</text>
+  <path class="edge" d="M538,180 C510,200 480,230 452,240" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="288" y1="240" x2="242" y2="240" marker-end="url(#f1-arrow)" />
+  <text class="note" x="125" y="300" text-anchor="middle">wb land fetches into your repository</text>
+</svg>
+<figcaption>
+Figure 1. Both directions of the git round trip in S08-workspace-and-git. Into the guest, <code>upload-pack</code> serves your repository, and the guest can ask for more than the branch it works on (red). Out of the guest, your own git parses packs the guest built, and later fetches them into your repository at <code>wb land</code>.
+</figcaption>
+</figure>
+
+## Sub-decisions
+
+The issue bundles six items. Item 1 is a real fork, with options below. The rest have one recommendation each.
+
+| Item | Recommendation | Now or later |
+|---|---|---|
+| 1. Ref scope | **A** below: an export repository with only the `HEAD` branch and refs the user adds in project settings. | now |
+| 2. Untracked files | Scan carried-in untracked files, and the staged and unstaged diff, with the image-seal secret scanner (S06-vm-lifecycle). Skip a file that matches and list it in the session summary, as for oversize files. | now |
+| 3. Remote URLs | Strip user names, passwords and query strings from every URL that reaches the guest. Rewrite SSH remotes to HTTPS for the guest, shared with I47. | now |
+| 4. Host git | Require a minimum git version, checked by `wb setup` and at each session start. Keep `receive.fsckObjects` and `receive.maxInputSize`. Don't bundle git (GPL-2.0, against the license rule of S10-tech-stack). A receive side in Go is a later option. | now |
+| 5. Ref restriction | `receive.hideRefs` set to hide everything but `refs/heads/wb/<session-id>/`. A Go filter on the command list is optional on top. | after X07-git-round-trip |
+| 6. Landing lifecycle | `wb discard` deletes the session's refs and guest worktree. `wb-hostd` runs `git gc` on the landing repository after land and discard. A size cap per project, refused with an explanation (SEC13-bounded-resources, NFR06-explained-refusals). | now |
+
+## Options for the ref scope (item 1)
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Export repository
+
+`wb-hostd` keeps a bare repository per project (`projects/<id>/export.git`), fetches only the selected branches into it from your repository, and serves `upload-pack` from there. Objects reachable only from other refs are never in it.
+
+- **Cost:** one local fetch per session start, which copies new objects only, and the disk space of one more copy.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Hidden refs, protocol v0
+
+What the issue proposes (`uploadpack.hideRefs`), plus forcing git's older protocol v0, which refuses a fetch of an object it didn't advertise.
+
+- **Cost:** none extra, but v0 is slower for large repositories.
+- **Weakens:** git's documentation says other ways to fetch hidden objects exist. <Badge text="SEC04-no-guest-secrets" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Hidden refs only
+
+The issue's proposal as written.
+
+- **Cost:** none.
+- **Weakens:** with protocol v2, the guest fetches a hidden branch's commit by its ID. <Badge text="SEC04-no-guest-secrets, spec change" variant="danger" />
+
+</div>
+<div class="wb-option">
+
+### D. Leave the spec as is
+
+Advertise every ref, as `upload-pack` does by default.
+
+- **Cost:** none. Every local branch, tag, note and stash reaches the guest.
+- **Weakens:** <Badge text="SEC04-no-guest-secrets, spec change" variant="danger" />
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+- **Hidden refs are not access control.** With `uploadpack.hideRefs` hiding a branch, git 2.56 still sent that branch's commit to a client that asked for it by ID over protocol v2. Protocol v0 refused. Git's own documentation says to keep private data in a separate repository. A commit ID leaks easily: `git cherry-pick -x` writes the full ID of the source commit into the message.
+- **Git can enforce the ref restriction without hooks.** `receive.hideRefs` rejects a push to any hidden ref. Hiding `refs/` and exposing `refs/heads/wb/s1/` let a push to `refs/heads/wb/s1/a` through and rejected `main`, a tag, `wb/s2/a` and `wb/s1x`. Item 5 is then a git setting that X07-git-round-trip confirms.
+- **Tracked changes too.** The carry-in diff of staged and unstaged changes can also hold a new token, so item 2's scan covers it as well.
+- **Identity depends on the URL.** Project identity hashes the first remote URL (S05-cli). A token in that URL changes the project when the token rotates, and "first" is alphabetical. B42-trust-placement takes this up.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Export repo</th><th>B. Hidden, v0</th><th>C. Hidden only</th><th>D. As is</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">other refs absent</td><td class="partial">known attacks</td><td class="no">fetch by ID</td><td class="no">all refs</td></tr>
+<tr><td><strong>FR04-carry-in</strong> uncommitted changes carried in</td><td class="yes">unchanged</td><td class="yes">same</td><td class="yes">unchanged</td><td class="yes">same</td></tr>
+<tr><td><strong>NFR01-startup</strong> session start time</td><td class="partial">one local fetch</td><td class="partial">v0 slower</td><td class="yes">unchanged</td><td class="yes">same</td></tr>
+<tr><td>Spec work</td><td class="na">S08-workspace-and-git</td><td class="na">S08-workspace-and-git</td><td class="na">S08-workspace-and-git</td><td class="na">none</td></tr>
+</tbody>
+</table>
+
+Items 2 to 6 strengthen SEC03-no-host-exec, SEC04-no-guest-secrets, SEC06-repo-writes and SEC13-bounded-resources, and weaken nothing.
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> `upload-pack` without extra configuration advertised `HEAD`, both branches, `refs/notes/commits` and a tag (git 2.56.0, local test).
+- <Badge text="verified" variant="success" /> With `uploadpack.hideRefs=refs/` and `!refs/heads/main`, only `HEAD` and `main` were advertised, under protocol v0 and v2.
+- <Badge text="verified" variant="success" /> Under the same hiding, a fresh repository fetched the hidden branch's commit by its ID over protocol v2. Over protocol v0 git answered "Server does not allow request for unadvertised object".
+- <Badge text="verified" variant="success" /> git: "it's best to keep private data in a separate repository" (`git help config`, `uploadpack.allowTipSHA1InWant`), and the attacks in `gitnamespaces(7)`, "SECURITY".
+- <Badge text="verified" variant="success" /> `receive.hideRefs` restricted pushes to `refs/heads/wb/s1/` with hooks off (`core.hooksPath=/dev/null`) and `receive.fsckObjects=true` (git 2.56.0, local test).
+- <Badge text="verified" variant="success" /> `git ls-files --others --exclude-standard` lists a new `credentials.json`, the set FR04-carry-in carries in.
+- <Badge text="verified" variant="success" /> This Mac has Apple git 2.54.0 (Apple Git-157) in `/usr/bin` and Homebrew git 2.56.0. Upstream's newest tag is `v2.56.0`.
+- <Badge text="verified" variant="success" /> git is GPL-2.0 (`COPYING` in the Homebrew git package), so shipping it with Wraith Box conflicts with S10-tech-stack.
+- <Badge text="verified" variant="success" /> `git remote` lists remotes alphabetically, not in the order they were added (local test).
+- <Badge text="assumed" variant="caution" /> That the same git behavior holds through `git-remote-wb` over the host-guest socket and with Apple's git. That is spike X07-git-round-trip (I21).
+- <Badge text="assumed" variant="caution" /> That the image-seal scanner is precise enough for working trees without too many false hits. No scanner is chosen yet (S06-vm-lifecycle, "Sealing").
+
+## What this unblocks
+
+- Now: the S08-workspace-and-git pull request for items 1 to 4 and 6, and the SSH rewrite shared with I47.
+- Waits on X07-git-round-trip (I21): item 5, whether `receive.hideRefs` suffices through the remote helper or a Go filter is also needed.
+- The git round trip in V1-M4-claude-end-to-end.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the guest can name a hidden commit.** The ID of a commit is in plain sight more often than it seems: cherry-picks with `-x`, reverts ("This reverts commit …"), issue comments, CI logs. With protocol v2 the guest asks for that ID and receives the commit with its whole history, unless the object isn't in the served repository at all, which is what an export repository ensures.
+
+**Why a minimum version.** Each `receive-pack` parses packs the guest built, and `wb land` later runs your own git against them. Git has had security fixes in these code paths, and Apple's git ships them later than upstream. `wb setup` names the git it uses and refuses one below the minimum, with the reason.
+
+**Glossary**
+
+- **Ref:** a name for a commit, such as a branch (`refs/heads/main`), a tag, a note, or the stash.
+- **Advertise:** the list of refs the serving side offers at the start of a fetch.
+- **`upload-pack` / `receive-pack`:** the host-side git programs that serve a fetch and accept a push.
+- **Pack:** the compressed bundle of objects that a fetch or push transfers.
+- **Protocol v0 / v2:** git's older and newer wire protocols. v2 is the default.
+- **Landing repository:** the bare repository in Wraith Box's state that receives the guest's pushes (S08-workspace-and-git).
+- **Userinfo:** the `user:token@` part of a URL.
+
+</details>

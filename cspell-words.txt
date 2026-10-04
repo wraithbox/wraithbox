@@ -32,6 +32,8 @@ sandboxed
 winget
 cdhash
 libkrun
+NXDOMAIN
+SVCB
 
 # Tools and their names in configs
 golangci

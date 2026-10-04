@@ -1,0 +1,177 @@
+---
+title: How should guest dev servers and clipboard text cross to the host?
+description: Forward HTTP through a host proxy that gives each forwarded port its own localhost site, plain TCP only on ports the user names, and the clipboard only through wb with an approval.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I38. Affects T00-index, S05-cli, S06-vm-lifecycle and S09-policy-credentials-audit.
+
+<Aside type="tip" title="You are deciding">
+How port forwarding (FR11-port-forward) and the clipboard (FR12-clipboard) cross the VM boundary. Recommended: **A**, an HTTP proxy that gives each forwarded port a name of its own (`3000-myrepo.localhost`), plain TCP only for ports you name, and the clipboard only through `wb` with an approval. Accepting it starts a forwarding and clipboard section in S06-vm-lifecycle and adds both crossings to T00-index.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 320" role="img" aria-label="A dev server in the guest is forwarded to localhost on the host. The host browser sends it the cookies of other localhost services, and a page it serves can call other services on host loopback.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="20" width="220" height="280" rx="12" />
+  <text class="boundary-label" x="22" y="40">guest, untrusted</text>
+
+  <rect class="box guest" x="30" y="60" width="180" height="60" rx="10" />
+  <text class="label" x="120" y="86" text-anchor="middle">dev server</text>
+  <text class="note" x="120" y="105" text-anchor="middle">listens on port 3000</text>
+
+  <rect class="box guest" x="30" y="200" width="180" height="60" rx="10" />
+  <text class="label" x="120" y="226" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="120" y="245" text-anchor="middle">reports ports, clipboard</text>
+
+  <text class="note" x="250" y="14">host: trusted</text>
+
+  <rect class="box host" x="280" y="130" width="160" height="60" rx="10" />
+  <text class="label" x="360" y="156" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="360" y="175" text-anchor="middle">127.0.0.1:3000</text>
+
+  <rect class="box" x="520" y="60" width="220" height="60" rx="10" />
+  <text class="label" x="630" y="86" text-anchor="middle">browser</text>
+  <text class="note" x="630" y="105" text-anchor="middle">cookies for localhost</text>
+
+  <rect class="box" x="520" y="230" width="220" height="60" rx="10" />
+  <text class="label" x="630" y="256" text-anchor="middle">other loopback service</text>
+  <text class="note" x="630" y="275" text-anchor="middle">admin UI on localhost:8080</text>
+
+  <line class="edge" x1="120" y1="122" x2="120" y2="198" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="212" y1="220" x2="278" y2="175" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="518" y1="100" x2="442" y2="145" marker-end="url(#f1-arrow)" />
+
+  <path class="edge-bad" d="M520,75 C380,40 300,40 212,80" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="300" y="45">host cookies to the guest</text>
+  <path class="edge-bad" d="M600,122 C600,170 610,190 615,228" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="455" y="215">guest page calls it</text>
+</svg>
+<figcaption>
+Figure 1. Forwarding a guest port to the same port on host <code>localhost</code>, as S06-vm-lifecycle implies. Cookies don't separate ports, and the browser sends cookies set by other local services to the guest's server. A page from the guest runs in the host browser and can send requests to any service on host loopback. The guest also chooses which ports appear.
+</figcaption>
+</figure>
+
+## Options for forwarding
+
+The issue lists 1 to 3 as options. A is its recommendation with one change to the names, explained below. D, defer both, is this brief's.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Named HTTP proxy, TCP on request
+
+`wb-hostd` serves each forwarded HTTP port at `<port>-<project>.localhost` on one loopback port, routed by the browser's `Host` header. Plain TCP forwarding happens only for a port the user names (`wb forward`, or a project setting).
+
+- **Cost:** a small host proxy and a printed URL instead of `localhost:3000`. Tools that insist on `localhost` itself need the TCP form.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC03-no-host-exec" variant="success" />
+- **Leaves:** a guest page can still call host loopback services from the browser.
+
+</div>
+<div class="wb-option">
+
+### B. Named ports only
+
+Forward only ports the user names, each to the same port on `127.0.0.1`.
+
+- **Cost:** one command or setting per port. Every cookie problem stays for the ports named.
+- **Weakens:** <Badge text="SEC04-no-guest-secrets via localhost cookies" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Every port, automatically
+
+What S06-vm-lifecycle implies: every port the guest listens on appears on host `localhost`.
+
+- **Cost:** none for the user. The guest decides what listens on host loopback.
+- **Weakens:** <Badge text="SEC04-no-guest-secrets, spec change" variant="danger" />
+
+</div>
+<div class="wb-option">
+
+### D. Neither in V1
+
+Leave port forwarding and the clipboard out of V1 and design them later. FR11-port-forward and FR12-clipboard have no milestone today.
+
+- **Cost:** no dev server preview from the host in V1.
+- **Keeps:** every control. Nothing new crosses.
+
+</div>
+</div>
+
+### The clipboard
+
+| Sub-decision | Recommendation |
+|---|---|
+| Guest to host | Only through `wb` (a guest command that asks `wb-guestd`), each copy approved through a notification, never in the terminal (SEC14-no-fake-approvals). The approval shows the text with newlines and control characters made visible. |
+| OSC 52 | Never. The terminal filter of B37-terminal-boundary drops it, so it can't bypass the approval. |
+| Host to guest | Off by default, opt-in per project, with an approval per paste. The approval warns that the text goes into the guest, where SEC04-no-guest-secrets says no secret belongs. |
+| Kinds | Plain text only, capped in size. No files, images, or rich text. |
+
+<Aside type="note" title="Missing from the issue">
+- **Subdomains of one project share a site.** Under option 3 of the issue, `3000.myrepo.localhost` and `5173.myrepo.localhost` share the site `myrepo.localhost`. `localhost` is not in the Public Suffix List. Its default rule then makes `localhost` the public suffix and `myrepo.localhost` the site. A cookie set for `Domain=myrepo.localhost` then reaches every port of the project. A flat name, `3000-myrepo.localhost`, is a site of its own. A uses the flat name.
+- **Host cookies leak into the guest.** The bigger risk of B and C is the other direction: the browser sends cookies of host services on `localhost` to the guest's server. That breaks SEC04-no-guest-secrets, not only the host services.
+- **No option stops loopback calls.** A page from any forwarded port can send requests to other host loopback services. Separate names don't change that. Only D does.
+- **Host to guest.** The issue covers guest to host only. Host to guest can put a copied password into the guest.
+- **Wrong place for threats.** The boundaries and accepted threats are in T00-index, not S03-requirements.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Named proxy</th><th>B. Named ports</th><th>C. Every port</th><th>D. Neither</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">own cookie jar</td><td class="partial">localhost cookies</td><td class="no">localhost cookies</td><td class="yes">kept</td></tr>
+<tr><td><strong>SEC03-no-host-exec</strong> nothing runs on the host without the user</td><td class="partial">loopback calls</td><td class="partial">loopback calls</td><td class="no">guest picks ports</td><td class="yes">kept</td></tr>
+<tr><td><strong>SEC14-no-fake-approvals</strong> approvals never in the agent's terminal</td><td class="yes">notification</td><td class="yes">as in A</td><td class="yes">as in A</td><td class="na">no approvals</td></tr>
+<tr><td><strong>FR11-port-forward</strong> guest dev servers on host loopback</td><td class="yes">by name</td><td class="partial">per port</td><td class="yes">automatic</td><td class="no">not in V1</td></tr>
+<tr><td><strong>FR12-clipboard</strong> opt-in, per direction, with approval</td><td class="yes">kept</td><td class="yes">as in A</td><td class="yes">as in A</td><td class="no">not in V1</td></tr>
+<tr><td>Spec work</td><td class="na">T00-index, S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit</td><td class="na">same</td><td class="na">T00-index, S06-vm-lifecycle</td><td class="na">V1-initial</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> S06-vm-lifecycle says only that `wb-guestd` reports listening TCP ports for forwarding to host loopback and "optionally" bridges text clipboard ("`wb-guestd`"). S09-policy-credentials-audit lists clipboard and port-forwarding switches in the project settings ("Settings contents").
+- <Badge text="verified" variant="success" /> "Cookies do not provide isolation by port" ([RFC 6265, section 8.5](https://www.rfc-editor.org/rfc/rfc6265.html)).
+- <Badge text="verified" variant="success" /> The Public Suffix List has no `localhost` entry, and when no rule matches, the prevailing rule is `*` ([list](https://publicsuffix.org/list/public_suffix_list.dat), [format](https://github.com/publicsuffix/list/wiki/Format)).
+- <Badge text="inferred" variant="note" /> So `<port>.<project>.localhost` names share one site per project, and `<port>-<project>.localhost` names don't.
+- <Badge text="verified" variant="success" /> macOS resolves `3000.proj.localhost` to `127.0.0.1` and `::1` (`dscacheutil` and `getaddrinfo` on macOS 27).
+- <Badge text="inferred" variant="note" /> The proxy in A routes by the `Host` header of the browser's request, which comes from the host, and passes the guest's response bytes through. It doesn't need to parse guest HTTP, though its framing of the stream over the host-guest socket still gets a fuzz target (S11-verification-and-spikes).
+- <Badge text="assumed" variant="caution" /> That Safari, Chrome and Firefox all keep cookies for `3000-myrepo.localhost` apart from `localhost`, and refuse `Domain=localhost`. A browser check of under an hour answers it, with no VM needed.
+- <Badge text="assumed" variant="caution" /> That browsers let a page on one loopback name send requests to another loopback port (the loopback-calls row). Browser rules for private network access change often.
+
+## What this unblocks
+
+- The spec pull request, with a forwarding and clipboard section in S06-vm-lifecycle, `wb forward` and the clipboard command in S05-cli, the switches in S09-policy-credentials-audit, and both crossings in T00-index.
+- A milestone for FR11-port-forward and FR12-clipboard, which have none today.
+- Relies on I37 (B37-terminal-boundary) for dropping OSC 52. Without that filter, the clipboard approval can be bypassed.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why plain TCP stays opt-in.** Databases and language servers in the guest don't speak HTTP, so the proxy can't route them by name. Forwarding them to the same port on `127.0.0.1` keeps the issues of B, but only for a port the user named, and `wb status` lists it.
+
+**Port conflicts.** The proxy uses one loopback port for every HTTP forward, so a guest port never collides with a host service. Plain TCP forwards fail with an explanation when the host port is taken (NFR06-explained-refusals).
+
+**Paste-jacking.** Text that looks like one command but holds a newline and a second command runs both when pasted into a shell. Showing newlines and control characters in the approval makes that visible. Many shells also turn on bracketed paste, which stops the newline from running the command.
+
+**Glossary**
+
+- **Loopback, `localhost`:** the host's own network address (`127.0.0.1`). Only programs on the host can reach it.
+- **Site:** what browsers use to keep cookies and storage apart: the part of a name one owner can register, such as `example.com`.
+- **Public Suffix List:** the list browsers use to find that part (`co.uk` is a suffix, so `example.co.uk` is a site).
+- **Cookie:** data a browser stores per site and sends back with each request, often a login.
+- **OSC 52:** the escape sequence that lets a program write the terminal's clipboard (B37-terminal-boundary).
+
+</details>

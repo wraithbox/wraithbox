@@ -1,0 +1,183 @@
+---
+title: How do agents share the two macOS VM slots, and where do VM tests run?
+description: Add a needs-vm label now, let a wave start one such issue at a time, guard the slots with a lock file on each Mac, and cache restore images in one shared place. Decide on a dedicated self-hosted runner before the network floor milestone, which has the first conformance cases.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I50. Affects S02-toolchain, S11-verification-and-spikes, `docs/agents/orchestration.md` and `.github/labels.yml`. Related: I43 (the same limit in `wb-hostd`).
+
+<Aside type="tip" title="You are deciding">
+How agents run work that needs a running macOS guest, given that a Mac runs at most two (NFR05-two-macos-vms), and where the conformance suite and benchmarks run. Recommended: **A**, a `needs-vm` label, at most one such issue per wave, a lock file per slot, and one restore image cache per Mac, with a dedicated self-hosted runner decided before V1-M3-network-floor. This decision gates running the VM spikes of V1-M1-spikes-closed in parallel.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 340" role="img" aria-label="On one development Mac, builder agents that need a VM and the maintainer's own Wraith Box share two macOS VM slots. A slot lock makes a second builder wait. A separate self-hosted runner Mac runs the conformance suite and benchmarks for main only. GitHub's hosted runners run mise run ci.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="20" y="22">development Mac: host, trusted</text>
+
+  <rect class="box host" x="20" y="40" width="170" height="50" rx="10" />
+  <text class="label" x="105" y="62" text-anchor="middle">builder 1</text>
+  <text class="note" x="105" y="80" text-anchor="middle">needs-vm, has the lock</text>
+
+  <rect class="box host" x="20" y="105" width="170" height="50" rx="10" />
+  <text class="label" x="105" y="127" text-anchor="middle">builder 2</text>
+  <text class="note" x="105" y="145" text-anchor="middle">needs-vm, waits</text>
+
+  <rect class="box host" x="20" y="170" width="170" height="50" rx="10" />
+  <text class="label" x="105" y="192" text-anchor="middle">builder 3</text>
+  <text class="note" x="105" y="210" text-anchor="middle">no VM: parsers, fuzzing</text>
+
+  <rect class="box host" x="20" y="250" width="170" height="50" rx="10" />
+  <text class="label" x="105" y="272" text-anchor="middle">maintainer</text>
+  <text class="note" x="105" y="290" text-anchor="middle">own Wraith Box VMs</text>
+
+  <rect class="box host" x="220" y="70" width="125" height="70" rx="10" />
+  <text class="label" x="282" y="98" text-anchor="middle">slot lock</text>
+  <text class="note" x="282" y="118" text-anchor="middle">one file per slot</text>
+
+  <rect class="box host" x="220" y="170" width="125" height="60" rx="10" />
+  <text class="label" x="282" y="195" text-anchor="middle">image cache</text>
+  <text class="note" x="282" y="214" text-anchor="middle">one per Mac</text>
+
+  <rect class="boundary" x="370" y="35" width="160" height="285" rx="12" />
+  <text class="boundary-label" x="380" y="55">guests: untrusted</text>
+
+  <rect class="box guest" x="385" y="70" width="130" height="80" rx="10" />
+  <text class="label" x="450" y="105" text-anchor="middle">VM slot 1</text>
+  <text class="note" x="450" y="125" text-anchor="middle">spike VM</text>
+
+  <rect class="box guest" x="385" y="220" width="130" height="80" rx="10" />
+  <text class="label" x="450" y="255" text-anchor="middle">VM slot 2</text>
+  <text class="note" x="450" y="275" text-anchor="middle">maintainer</text>
+
+  <line class="edge" x1="192" y1="65" x2="218" y2="90" marker-end="url(#f1-arrow)" />
+  <line class="edge-bad" x1="192" y1="130" x2="218" y2="120" marker-end="url(#f1-arrow-bad)" />
+  <line class="edge" x1="347" y1="105" x2="383" y2="108" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="192" y1="275" x2="383" y2="262" marker-end="url(#f1-arrow)" />
+
+  <text class="note" x="560" y="22">separate machines</text>
+
+  <rect class="box host" x="560" y="40" width="185" height="90" rx="10" />
+  <text class="label" x="652" y="68" text-anchor="middle">self-hosted runner</text>
+  <text class="note" x="652" y="88" text-anchor="middle">dedicated Mac</text>
+  <text class="note" x="652" y="105" text-anchor="middle">conformance, benchmarks</text>
+
+  <rect class="box" x="560" y="220" width="185" height="80" rx="10" />
+  <text class="label" x="652" y="248" text-anchor="middle">GitHub</text>
+  <text class="note" x="652" y="268" text-anchor="middle">hosted runners:</text>
+  <text class="note" x="652" y="285" text-anchor="middle">CI checks, no VMs</text>
+
+  <line class="edge" x1="652" y1="218" x2="652" y2="132" marker-end="url(#f1-arrow)" />
+  <text class="note" x="660" y="180">main only</text>
+</svg>
+<figcaption>
+Figure 1. On a development Mac, builder agents whose issue needs a VM take a slot lock before they start one. A second such builder waits (red) instead of failing at start. The maintainer's own Wraith Box VMs hold a slot without the lock, and the Virtualization framework enforces the limit for everyone. The conformance suite and benchmarks run on a separate self-hosted Mac, for <code>main</code> only. GitHub's hosted runners keep running <code>mise run ci</code>, which doesn't start a VM.
+</figcaption>
+</figure>
+
+## Options
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Label, wave limit, lock, and a dedicated runner
+
+The issue's option 1, with a lock added. A `needs-vm` label in `.github/labels.yml`. `/wave` starts at most one `needs-vm` issue per wave. Spike code takes a slot lock with `lockf` before it starts a VM, so a second VM user waits with a message. Restore images go in one cache directory per Mac, outside worktrees. A dedicated Apple Silicon Mac runs the conformance suite and benchmarks as a self-hosted runner, for `main` and manual runs only.
+
+- **Cost:** a label, a few lines in `orchestration.md` and the wave skill, a lock helper, and a Mac for the runner. The nine VM spikes run one after another on each machine.
+- **Keeps:** <Badge text="NFR05-two-macos-vms" variant="success" /> one slot left for the maintainer
+
+</div>
+<div class="wb-option">
+
+### B. Rent a bare-metal Mac
+
+Instead of a Mac of your own, rent a bare-metal Apple Silicon Mac by the day, such as Amazon EC2 Mac. It runs the Virtualization framework directly, so no nested virtualization is needed. The label, wave limit and lock from A still apply on development Macs.
+
+- **Cost:** a 24-hour minimum per allocation, cloud account setup, and credentials for it in CI.
+- **Keeps:** <Badge text="NFR05-two-macos-vms" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. By hand until v1 is close
+
+VM tests run only when the maintainer runs them, on the maintainer's Mac. Agents don't take VM issues.
+
+- **Cost:** none in tooling. Every VM spike waits for the maintainer, and 9 of the 17 spikes in V1-M1-spikes-closed need a VM.
+- **Keeps:** <Badge text="NFR05-two-macos-vms" variant="success" />
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+**A wave limit doesn't cover everything.** "At most one `needs-vm` issue per wave" counts one coordinator's agents. It doesn't count a second session, a spike the maintainer runs, or the maintainer's own VMs. A lock file per slot on each Mac covers the first two. The framework's limit error covers the rest, and a builder that hits it should report it, not retry in a loop. `lockf` ships with macOS.
+
+**The runner is needed earlier than "close to v1".** V1-M3-network-floor already has conformance cases for egress, and S11-verification-and-spikes makes the suite a release gate. Decide the runner before V1-M3-network-floor starts.
+
+**A self-hosted runner runs whatever its workflow runs.** On that Mac, a job runs as the runner's user, with the rights of host code. It should be a dedicated machine without the maintainer's credentials, and its workflow should not run on pull requests, which can come from anyone if the repository becomes public. The repository is private today. Its jobs stay out of `mise run ci`, as S02-toolchain already says.
+
+**I43 is the same limit inside the product.** `wb-hostd` admission (I43) only sees VMs that `wb-hostd` starts. Spike code starts VMs directly, so the lock here is the only guard for it. Both should use the same words in their refusals.
+
+**The issue's option 2 looks for nested virtualization.** Bare-metal rental, option B here, doesn't need it.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Concern</th><th>A. Own runner</th><th>B. Rented Mac</th><th>C. By hand</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>NFR05-two-macos-vms</strong> at most two macOS VMs per Mac</td><td class="yes">lock, one free slot</td><td class="yes">lock, one free slot</td><td class="yes">maintainer decides</td></tr>
+<tr><td><strong>S11-verification-and-spikes</strong> conformance suite as a release gate</td><td class="yes">on every main push</td><td class="yes">on schedule</td><td class="no">manual</td></tr>
+<tr><td>VM spikes of V1-M1-spikes-closed</td><td class="partial">one per machine</td><td class="partial">one per machine</td><td class="no">maintainer only</td></tr>
+<tr><td>Same checks locally and in CI (<code>AGENTS.md</code>)</td><td class="yes">separate VM job</td><td class="yes">separate VM job</td><td class="na">no VM jobs</td></tr>
+<tr><td>Cost</td><td class="na">one Mac</td><td class="na">rent, 24-hour minimum</td><td class="na">maintainer time</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Tests that need guest VMs can't run on hosted runners and aren't part of `ci` until self-hosted runners exist (S02-toolchain, "Design Approach", and S11-verification-and-spikes, "CI").
+- <Badge text="verified" variant="success" /> V1-M3-network-floor includes "the conformance cases for egress" (V1-initial).
+- <Badge text="verified" variant="success" /> The VM spikes are X02-warm-start, X03-network-path, X05-fs-benchmark to X08-data-disk, X17-image-build, X18-vsock-handoff and X20-shared-homebrew, and only one or two run at once per machine (`docs/implementation-plan.md`, "Critical path").
+- <Badge text="verified" variant="success" /> `/wave` orders spikes first and fills up to six issues, default four (`.claude/skills/wave/SKILL.md`). No `needs-vm` label exists in `.github/labels.yml`, and `planning.md` says to add such a label when the first issue needs it.
+- <Badge text="verified" variant="success" /> `lockf` "acquires an exclusive lock on a file" and runs a command while holding it (`man lockf`, macOS 27.0.1).
+- <Badge text="verified" variant="success" /> Starting a VM past the limit fails with `VZErrorVirtualMachineLimitExceeded` (`VZError.h`, macOS 27 SDK).
+- <Badge text="verified" variant="success" /> EC2 Mac instances are "bare metal instances on Dedicated Hosts, with a minimum allocation period of 24 hours", including M4 and M4 Pro Mac minis ([AWS EC2 Mac documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-mac-instances.html)).
+- <Badge text="verified" variant="success" /> The repository `wraithbox/wraithbox` is private (`gh repo view`).
+- <Badge text="assumed" variant="caution" /> That a restore image is around 15 GB, as the issue says. The catalog lookup failed from this machine. X17-image-build (I28) records the real size.
+- <Badge text="assumed" variant="caution" /> That a bare-metal EC2 Mac runs two macOS guests like a local Mac. Nobody has tried it for this project.
+
+## What this unblocks
+
+- Running the VM spikes of V1-M1-spikes-closed in parallel with other work (`docs/implementation-plan.md`, "Next steps").
+- The label and the wave rule in `orchestration.md` and the wave skill, then S02-toolchain and S11-verification-and-spikes for the runner.
+- A runner decision before V1-M3-network-floor.
+- I43 keeps the matching rule for `wb-hostd`.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why one and not two.** Two `needs-vm` issues per wave would take both slots and leave the maintainer none. A lock with two slots lets the maintainer allow two when not using Wraith Box. Some spikes may need both slots at once, for example to test what happens at the limit. Such a spike takes both locks.
+
+**Disk space.** Each VM bundle grows with use, and each restore image is large. A cache per worktree would copy the image for every builder. One cache directory per Mac, outside worktrees, holds each restore image once.
+
+**Glossary**
+
+- **Slot:** one of the two macOS VMs a Mac may run at once.
+- **Restore image:** Apple's macOS installer file that a VM is installed from.
+- **Self-hosted runner:** a machine you own that runs GitHub Actions jobs for the repository.
+- **Nested virtualization:** running a VM inside a VM. The issue notes that most hosted Mac services don't offer it for macOS guests.
+- **Bare metal:** a whole physical machine rented to one customer, with no hypervisor of the provider's underneath.
+- **Wave:** one batch of up to six issues a coordinator runs builders for (`orchestration.md`).
+
+</details>

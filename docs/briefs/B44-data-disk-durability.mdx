@@ -1,0 +1,183 @@
+---
+title: What may the host do with a guest's disks, and how much of the data disk may a crash lose?
+description: Write a new security control now that the host never mounts or parses a disk after the guest has booted from it. Decide now that Claude Code state and commits not yet pushed must be kept through a host crash, and pick the disk settings that deliver it after X05-fs-benchmark and X08-data-disk.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I44. Affects SEC00-index, S06-vm-lifecycle, FR13-claude-state and NFR02-fs-speed.
+
+<Aside type="tip" title="You are deciding">
+Two things. First, a rule that the host never mounts or parses a disk image once a guest has booted from it, with one exception: image building, before the first boot. Recommended: make it a new control in SEC00-index. Second, what the data disk must keep after a host crash or power loss. Recommended: Claude Code state and commits not yet pushed are kept, caches may be lost. The disk settings that deliver this wait on X05-fs-benchmark (I19) and X08-data-disk (I22).
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 340" role="img" aria-label="The host writes a new disk image only before its first boot. After that the system and data disks are guest-written, and the host must never mount them. Work leaves the guest only through git to wb-hostd. The data disk holds Claude Code state, commits not yet pushed, and caches.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="note" x="20" y="20">host: trusted</text>
+
+  <rect class="box host" x="20" y="50" width="170" height="60" rx="10" />
+  <text class="label" x="105" y="76" text-anchor="middle">wb image build</text>
+  <text class="note" x="105" y="96" text-anchor="middle">may write files</text>
+
+  <rect class="box host" x="20" y="170" width="170" height="60" rx="10" />
+  <text class="label" x="105" y="196" text-anchor="middle">new disk image</text>
+  <text class="note" x="105" y="216" text-anchor="middle">never booted</text>
+
+  <line class="edge" x1="105" y1="110" x2="105" y2="168" marker-end="url(#f1-arrow)" />
+
+  <rect class="boundary" x="225" y="30" width="310" height="295" rx="12" />
+  <text class="boundary-label" x="237" y="50">guest-written after first boot</text>
+
+  <rect class="box guest" x="245" y="65" width="270" height="50" rx="10" />
+  <text class="label" x="380" y="88" text-anchor="middle">system disk</text>
+  <text class="note" x="380" y="106" text-anchor="middle">clone of the image</text>
+
+  <rect class="box guest" x="245" y="135" width="270" height="115" rx="10" />
+  <text class="label" x="380" y="160" text-anchor="middle">data disk</text>
+  <text class="note" x="380" y="182" text-anchor="middle">Claude Code state per project</text>
+  <text class="note" x="380" y="200" text-anchor="middle">commits not yet pushed</text>
+  <text class="note" x="380" y="218" text-anchor="middle">tool caches (can be rebuilt)</text>
+  <text class="note" x="380" y="238" text-anchor="middle">sync setting: X05, X08 spikes</text>
+
+  <rect class="box guest" x="245" y="265" width="270" height="45" rx="10" />
+  <text class="label" x="380" y="293" text-anchor="middle">wb-guestd</text>
+
+  <path class="edge" d="M190,200 C215,200 220,90 243,90" marker-end="url(#f1-arrow)" />
+  <text class="note" x="150" y="150">first boot</text>
+
+  <rect class="box host" x="570" y="60" width="175" height="70" rx="10" />
+  <text class="label" x="657" y="88" text-anchor="middle">host kernel</text>
+  <text class="note" x="657" y="108" text-anchor="middle">mounts, parses</text>
+
+  <rect class="box host" x="570" y="245" width="175" height="70" rx="10" />
+  <text class="label" x="657" y="273" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="657" y="293" text-anchor="middle">landing repository</text>
+
+  <line class="edge-bad" x1="517" y1="170" x2="568" y2="115" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="548" y="160">never</text>
+  <line class="edge" x1="517" y1="287" x2="568" y2="280" marker-end="url(#f1-arrow)" />
+  <text class="note" x="552" y="232">git over vsock</text>
+</svg>
+<figcaption>
+Figure 1. The host may write into a new disk image while building it, before the guest has ever run from it. After the first boot both disks are written by the guest, which T00-index treats as an adversary with root. Mounting either disk on the host (red) would make the host kernel parse a filesystem the adversary built. Work leaves the guest only through git to <code>wb-hostd</code> (S08-workspace-and-git).
+</figcaption>
+</figure>
+
+## Decision 1: the mount rule
+
+Decidable now.
+
+| Choice | Recommendation | Why |
+|---|---|---|
+| Where the rule goes | A new control in SEC00-index, cited from S06-vm-lifecycle | It protects the host from guest input, like SEC02-no-host-fs-share. A control in SEC00-index can't be weakened to make something work (`AGENTS.md`). A sentence in S06-vm-lifecycle can. |
+| When the exception ends | At the image's first boot | "Before untrusted code has run", the issue's wording, is hard to judge: provisioning installs Homebrew packages, which run third-party code. The first boot is a clear point. |
+
+The issue says the rule goes in S03-requirements or S06-vm-lifecycle. Requirements are now in SEC00-index, and S03-requirements only points to them.
+
+## Decision 2: what the data disk must keep
+
+The target is decidable now. The settings that meet it wait on the spikes. The options are the brief's, built from the issue's proposal.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Keep state and commits, let caches go
+
+Write the target into S06-vm-lifecycle now. After X05-fs-benchmark and X08-data-disk, pick the cheapest setting that meets it: full sync on the data disk if X05-fs-benchmark finds the cost small, or a small fully synced disk for homes next to a relaxed one for caches and build output.
+
+- **Cost:** maybe a second data disk. X08-data-disk already tests homes on a second disk.
+- **Keeps:** <Badge text="FR13-claude-state" variant="success" /> <Badge text="NFR02-fs-speed" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### B. Relaxed disk, push state out often
+
+Keep relaxed settings for speed. `wb-guestd` pushes work to the landing repository and exports Claude Code state to the host on a timer.
+
+- **Cost:** a state export the host stores but must not parse, and a restore path. Loses whatever came after the last push.
+- **Keeps:** <Badge text="NFR02-fs-speed" variant="success" /> <Badge text="FR13-claude-state" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Leave the spec as is
+
+Relaxed settings, and the data disk counts as something the host can rebuild.
+
+- **Cost:** none now. A host crash can lose a project's Claude Code history and the commits not yet pushed, or the whole data disk.
+- **Weakens:** <Badge text="FR13-claude-state" variant="danger" />, which needs a requirement change.
+
+</div>
+</div>
+
+<Aside type="note" title="Missing from the issue">
+**The loss can be the whole disk.** The issue says relaxed settings lose recent writes. Apple's header for the no-sync mode says more: on a host panic or power loss "the state of blocks on disk and their order is undefined", and the image "cannot safely be reused on failure". On a shared work VM that is every trusted project's state at once.
+
+**macOS 27 may remove the build-time exception.** The macOS 27 SDK adds `VZMacGuestProvisioningOptions`: on the first boot the framework configures a user account and the initial setup, with no host writes into the disk. It needs macOS 27 on both host and guest, and NFR04-host-platforms allows macOS 15 hosts. X17-image-build (I28) should test it, and the exception can then shrink to older hosts or go.
+
+**The image seal must not mount either.** S06-vm-lifecycle doesn't say where the seal's secret scan runs. If it mounts the provisioned image on the host, it breaks the rule, because provisioning booted the image. It has to run in the guest through `wb-guestd`.
+
+**Recovery goes through the guest.** Under the rule the host can't rescue Claude Code state by mounting a broken data disk. S06-vm-lifecycle should say recovery needs a booted guest.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Keep state</th><th>B. Push out</th><th>C. As is</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>FR13-claude-state</strong> Claude Code state persists per project</td><td class="yes">kept after crash</td><td class="partial">up to last export</td><td class="no">lost on crash</td></tr>
+<tr><td><strong>NFR02-fs-speed</strong> at least 80% of host throughput</td><td class="partial">X05-fs-benchmark</td><td class="yes">relaxed sync</td><td class="yes">as today</td></tr>
+<tr><td><strong>FR03-work-as-branch</strong> work returns as a branch</td><td class="yes">commits kept</td><td class="partial">up to last push</td><td class="no">recent commits lost</td></tr>
+<tr><td>The host never parses guest data</td><td class="yes">holds</td><td class="partial">opaque export</td><td class="yes">holds</td></tr>
+<tr><td>Spec work</td><td class="na">S06-vm-lifecycle</td><td class="na">S06-vm-lifecycle, S08-workspace-and-git</td><td class="na">FR00-index</td></tr>
+</tbody>
+</table>
+
+The mount rule applies under every option. It supports SEC01-separate-kernel and SEC11-root-gains-nothing (guest root doesn't gain control over the host).
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> S06-vm-lifecycle ("Disks") says the data disk "can be rebuilt from host state plus git". The project user's home on that disk holds Claude Code state (S06-vm-lifecycle, "Projects and sessions", and FR13-claude-state).
+- <Badge text="verified" variant="success" /> The Virtualization framework offers three sync modes for disk images: full, `fsync`, and none. For none, "In case of failure, the state of blocks on disk and their order is undefined" and the image "cannot safely be reused on failure" (`VZDiskImageStorageDeviceAttachment.h` and `VZDiskSynchronizationMode.h`, macOS 27 SDK, Xcode 27.0).
+- <Badge text="verified" variant="success" /> `VZMacGuestProvisioningOptions` sets a user name, password and automatic login for the first boot after restore, needs macOS 27 in the guest, and has remote login off by default (`VZMacGuestProvisioningOptions.h`, available from macOS 27.0).
+- <Badge text="verified" variant="success" /> The X17-image-build candidate is "writing files to the new guest's data volume from the host at build time, before any untrusted code has run" (X00-index).
+- <Badge text="verified" variant="success" /> The base layer installs Homebrew and the org and project layers install each Brewfile (S06-vm-lifecycle, "Images"), so third-party code runs during provisioning.
+- <Badge text="verified" variant="success" /> No code under `packages/` mounts or reads a disk image yet (searched for `hdiutil`, `diskutil`, `mount` and the sync modes).
+- <Badge text="inferred" variant="note" /> `wb-guestd`'s self-update disk is written by the host and attached read-only (S06-vm-lifecycle, "`wb-guestd`"). The rule doesn't touch it, because the host never reads it back.
+- <Badge text="assumed" variant="caution" /> That full sync on the data disk costs too much for NFR02-fs-speed. That is X05-fs-benchmark (I19).
+- <Badge text="assumed" variant="caution" /> That homes on a second disk are kept through a system disk swap. That is X08-data-disk (I22).
+- <Badge text="assumed" variant="caution" /> That provisioning options get a macOS 27 guest past Setup Assistant with `wb-guestd` running. That belongs in X17-image-build (I28).
+
+## What this unblocks
+
+- The mount rule: a pull request for SEC00-index and S06-vm-lifecycle, now. X17-image-build (I28) then works inside it.
+- The disk settings in S06-vm-lifecycle, after X05-fs-benchmark (I19) and X08-data-disk (I22). I44 is blocked by both.
+- `wb-vmd` disk setup in V1-M2-walking-skeleton.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why mounting is dangerous.** A filesystem driver in the host kernel trusts the on-disk structures more than a network parser trusts packets. A crafted APFS or HFS+ volume is a known way to attack a kernel. The guest has root, so it can write any bytes to its disks. Mounting a guest disk would add a third channel next to the two in S04-architecture, the host-guest socket and Ethernet frames, which are the only places the host is meant to read guest data.
+
+**What still counts as allowed.** Cloning a disk file (APFS clone), copying it, deleting it, and attaching it to a VM handle bytes without interpreting them. The rule is about interpreting the filesystem: mounting, `fsck`, scanning files.
+
+**Glossary**
+
+- **Data disk:** the second virtual disk of a VM, holding project users' homes and workspaces. An image update leaves it in place.
+- **Sync mode:** how the host handles the guest's "write this to permanent storage now" requests. Full honors them, `fsync` passes them to the drive, none ignores them.
+- **Host crash:** a host kernel panic, power loss, or forced restart. A clean shutdown of the VM is not a crash.
+- **Provisioning:** the steps `wb image build` runs after installing macOS, through `wb-guestd`.
+- **Setup Assistant:** the macOS first-boot screens that create the first user account.
+- **Image seal:** the scan for secrets before an image can be used (S06-vm-lifecycle).
+
+</details>

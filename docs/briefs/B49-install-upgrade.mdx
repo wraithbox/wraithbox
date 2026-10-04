@@ -1,0 +1,180 @@
+---
+title: Which process downloads macOS restore images, and how are Wraith Box installs upgraded?
+description: Recommended that wb-proxyd downloads restore images from Apple only, since it already makes the host's outbound connections. Migrations run in wb-hostd at start. Signing and the image build wait on X09-keychain-unsigned and X17-image-build.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I49. Affects S04-architecture, S05-cli, S06-vm-lifecycle, S10-tech-stack and S12-platforms.
+
+<Aside type="tip" title="You are deciding">
+Which process downloads macOS restore images. Recommended: **A**, `wb-proxyd`, under a built-in rule for Apple's hosts only, writing into a file `wb-hostd` opens for it. The issue proposes **B**, `wb-hostd`. The sub-decisions on install, upgrade and migration can be decided now as well. Signing, Keychain access after an upgrade, and the guest tools image wait on X09-keychain-unsigned and X17-image-build.
+</Aside>
+
+## The problem
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 340" role="img" aria-label="Apple's servers hold the restore images. Under the recommendation wb-proxyd downloads one into a file that wb-hostd opened, wb-hostd checks it, and wb-vmd installs it into a new VM. Whether wb-vmd itself needs Apple's servers during the install is open. The guest gets wb-guestd from a read-only disk image, never from the network.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box" x="590" y="30" width="160" height="60" rx="10" />
+  <text class="label" x="670" y="56" text-anchor="middle">Apple</text>
+  <text class="note" x="670" y="75" text-anchor="middle">catalog, restore images</text>
+
+  <text class="note" x="20" y="18">host: trusted</text>
+
+  <rect class="box host" x="330" y="30" width="170" height="60" rx="10" />
+  <text class="label" x="415" y="56" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="415" y="75" text-anchor="middle">already connects out</text>
+
+  <rect class="box host" x="20" y="30" width="170" height="60" rx="10" />
+  <text class="label" x="105" y="56" text-anchor="middle">wb image build</text>
+  <text class="note" x="105" y="75" text-anchor="middle">user runs it</text>
+
+  <rect class="box host" x="20" y="150" width="170" height="70" rx="10" />
+  <text class="label" x="105" y="176" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="105" y="196" text-anchor="middle">opens file, checks hash,</text>
+  <text class="note" x="105" y="211" text-anchor="middle">runs migrations</text>
+
+  <rect class="box host" x="330" y="150" width="170" height="70" rx="10" />
+  <text class="label" x="415" y="176" text-anchor="middle">wb-vmd</text>
+  <text class="note" x="415" y="196" text-anchor="middle">installs macOS,</text>
+  <text class="note" x="415" y="211" text-anchor="middle">no network by spec</text>
+
+  <line class="edge" x1="588" y1="60" x2="502" y2="60" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="105" y1="90" x2="105" y2="148" marker-end="url(#f1-arrow)" />
+  <path class="edge" d="M192,165 C260,140 300,110 335,92" marker-end="url(#f1-arrow)" />
+  <text class="note" x="345" y="135">fetch into this file</text>
+  <line class="edge" x1="192" y1="190" x2="328" y2="190" marker-end="url(#f1-arrow)" />
+
+  <path class="edge-bad" d="M502,170 C560,150 620,120 650,92" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="545" y="165">personalization? X17</text>
+
+  <rect class="boundary" x="330" y="250" width="420" height="80" rx="12" />
+  <text class="boundary-label" x="342" y="270">new VM: guest, untrusted</text>
+  <rect class="box guest" x="520" y="262" width="210" height="56" rx="10" />
+  <text class="label" x="625" y="286" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="625" y="304" text-anchor="middle">from guest tools image</text>
+
+  <line class="edge" x1="415" y1="220" x2="415" y2="290" />
+  <line class="edge" x1="415" y1="290" x2="518" y2="290" marker-end="url(#f1-arrow)" />
+  <text class="note" x="20" y="300">read-only disk image, never</text>
+  <text class="note" x="20" y="316">the network (S06-vm-lifecycle)</text>
+</svg>
+<figcaption>
+Figure 1. The recommended download path. Only <code>wb-proxyd</code> connects to Apple, and <code>wb-hostd</code> checks the file before <code>wb-vmd</code> uses it. The red arrow is an open question for X17-image-build: if installing a macOS guest needs Apple's servers, <code>wb-vmd</code> needs network during an image build, which S04-architecture rules out today.
+</figcaption>
+</figure>
+
+## Options
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. wb-proxyd downloads
+
+`wb-hostd` opens the target file and asks `wb-proxyd` to fill it. A built-in rule allows only Apple's catalog and download hosts, and the download is audited like any other connection. `wb-hostd` checks the hash before `wb-vmd` may use the file.
+
+- **Cost:** one RPC and one fixed rule. `wb-proxyd` does more than serve guests, as it already does for vulnerability lookups (SEC07-dep-gate).
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC10-audit" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. wb-hostd downloads
+
+The issue's proposal. `wb-hostd` fetches from Apple's catalog only and checks the catalog's hash.
+
+- **Cost:** the least code. `wb-hostd`'s self-sandbox gains outbound network (S04-architecture lists only its state directories), and the download needs its own audit and its own upstream proxy settings.
+- **Keeps:** <Badge text="SEC12-least-privilege with a wider sandbox" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. wb downloads
+
+`wb image build` downloads in the foreground and hands the file to `wb-hostd`. No daemon gains network.
+
+- **Cost:** the download stops when the terminal closes and resumes on the next run. Inside WSL `wb` runs on the wrong side for later Linux images (S12-platforms, "WSL").
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" />
+
+</div>
+</div>
+
+A fourth choice, `wb-vmd` downloading through the Virtualization framework's own catalog call, is ruled out today: S04-architecture gives `wb-vmd` no network. X17-image-build may reopen it if the install needs network anyway.
+
+<Aside type="note" title="Missing from the issue">
+**B breaks two stated rules.** S04-architecture gives `wb-hostd` "its state directories" and `wb-proxyd` "outbound network". The code comment on `wb-proxyd` says it "is the only Wraith Box process that connects upstream" (`packages/wraithbox-go/cmd/wb-proxyd/main.go`). B changes both, and A keeps both, so this brief recommends A over the issue's proposal.
+
+**The install itself may need network.** Installing macOS into a new VM may contact Apple to personalize the install. That call would come from `wb-vmd`, which S04-architecture says has no network. X17-image-build should check this, because the answer may force a spec change for `wb-vmd` whichever option is chosen.
+
+**Finding the newest image is a Swift API.** The Virtualization framework's call for the newest supported restore image runs in the calling process. Under A or B, Go must read Apple's catalog directly. That needs a catalog with a stable address and a hash per image. Also X17-image-build.
+</Aside>
+
+## Sub-decisions
+
+| Item | Recommendation | Waits on |
+|---|---|---|
+| Image source | Apple's catalog only, or a local restore image file the user names (for offline and managed machines). | X17-image-build, for the hash |
+| What `wb setup` installs | A LaunchAgent plist for `wb-hostd` in `~/Library/LaunchAgents`, loaded for the user only, and a `wb` link in a per-user directory, with the `PATH` line printed. Nothing that needs administrator rights (SEC12-least-privilege). | X09-keychain-unsigned, for whether a signed bundle can register itself instead |
+| Uninstall | `wb setup --remove` stops the services and removes the plist and the link. It keeps `<config>`, `<data>`, `<logs>` and Keychain items unless `--purge` is given. | nothing |
+| Upgrades | Replace the whole bundle, then I48's sequence: save VMs, restart, restore. No in-place update of a running bundle. | I48 |
+| Migrations | `wb-hostd` at start, never `wb`. Back up `state.db` first, apply numbered migrations forward only, and refuse to start on a database newer than it knows, with a message saying why (NFR06-explained-refusals). User-edited configuration files are never rewritten: a renamed key is an error naming the new key. | nothing |
+| Guest tools disk image | Built with the bundle from `wb-guestd` and `git-remote-wb`, with the bundle's version, attached read-only (S06-vm-lifecycle). | X17-image-build, for signing inside the guest |
+| Keychain after an upgrade | Whatever X09-keychain-unsigned shows. If an ad-hoc signed `wb-proxyd` loses its access-list entry at each upgrade, `wb setup` must say so and offer to grant it again. | X09-keychain-unsigned |
+| Build order in `mise` | `go build`, then `swift build`, then the guest tools image, then the bundle, then ad-hoc signing from the inside out (`codesign -s -`), with the virtualization entitlement on `wb-vmd` only (S10-tech-stack). | nothing |
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. wb-proxyd</th><th>B. wb-hostd</th><th>C. wb</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">sandboxes as specified</td><td class="partial">network in <code>wb-hostd</code></td><td class="yes">no daemon changes</td></tr>
+<tr><td><strong>SEC10-audit</strong> egress decisions recorded</td><td class="yes">existing audit</td><td class="partial">separate audit</td><td class="partial">separate audit</td></tr>
+<tr><td><strong>NFR04-host-platforms</strong> works on managed machines</td><td class="yes">one upstream config</td><td class="partial">second upstream config</td><td class="partial">second upstream config</td></tr>
+<tr><td><strong>NFR06-explained-refusals</strong> refusals name the rule</td><td class="yes">built-in rule</td><td class="yes">own messages</td><td class="yes">in the terminal</td></tr>
+<tr><td>WSL and later guests (S12-platforms)</td><td class="yes">Windows side</td><td class="yes">Windows side</td><td class="no">WSL side</td></tr>
+<tr><td>Code</td><td class="na">one RPC, one rule</td><td class="na">least</td><td class="na">resumable download</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> S04-architecture gives `wb-vmd` no network, `wb-hostd` its state directories, and `wb-proxyd` outbound network ("Processes", "Each host daemon is self-sandboxed").
+- <Badge text="verified" variant="success" /> The `wb-proxyd` command says it "is the only Wraith Box process that connects upstream" (`packages/wraithbox-go/cmd/wb-proxyd/main.go`).
+- <Badge text="verified" variant="success" /> `wb-proxyd` already makes requests of its own: OSV lookups for the dependency gate (S07-egress-gateway, "Dependency gate"; S10-tech-stack, "Libraries").
+- <Badge text="verified" variant="success" /> `wb-guestd` updates only from a read-only disk image attached by `wb-hostd`, never from the network (S06-vm-lifecycle).
+- <Badge text="verified" variant="success" /> S12-platforms puts the service manager on macOS as a LaunchAgent, and SEC12-least-privilege forbids root at run time (SEC00-index).
+- <Badge text="verified" variant="success" /> "If identity is the single letter "-" (dash), ad-hoc signing is performed" (`man codesign`, macOS 27.0.1).
+- <Badge text="verified" variant="success" /> Go and Swift set their versions separately (`internal/version/version.go`, `WraithBoxVM/Version.swift`), so the bundle task must stamp both with one value.
+- <Badge text="assumed" variant="caution" /> That installing macOS into a VM needs Apple's servers for personalization. X17-image-build.
+- <Badge text="assumed" variant="caution" /> That Apple's restore image catalog can be read without the Virtualization framework and lists a hash per image. X17-image-build.
+- <Badge text="assumed" variant="caution" /> That an ad-hoc signed `wb-proxyd` loses its Keychain access-list entry when the binary changes. X09-keychain-unsigned.
+
+## What this unblocks
+
+- The spec section in S10-tech-stack (or a new spec) on install, upgrade and migration, and the `mise` tasks for a local bundle.
+- Still open: signing and Keychain access after upgrades (X09-keychain-unsigned, I23), the image source and guest tools image (X17-image-build, I28), and the upgrade sequence (I48).
+
+<details>
+<summary>Details and glossary</summary>
+
+**The download isn't a security boundary.** T00-index trusts the operators of allowlisted services, Apple included. The danger isn't Apple's content but giving a long-lived daemon a network path it doesn't otherwise need. A keeps the one process that already has that path as the only one.
+
+**Migrations belong to wb-hostd.** Each terminal runs its own `wb` process, and during an upgrade they may briefly be different versions. `wb-hostd` alone owns `state.db`, so only `wb-hostd` can safely change its layout.
+
+**Glossary**
+
+- **Restore image:** Apple's macOS installer file (`.ipsw`, around 15 GB) that the Virtualization framework installs into a new VM.
+- **Catalog:** Apple's list of current restore images and their download addresses.
+- **Personalization:** Apple's servers signing an install for one device, which recent macOS installs require.
+- **Guest tools disk image:** a read-only disk with `wb-guestd` and `git-remote-wb` that `wb-hostd` attaches to a VM to install or update them.
+- **Ad-hoc signing:** signing a binary without a developer identity. macOS on Apple Silicon requires at least this, but it identifies only that exact file.
+- **Migration:** a step that changes the layout of stored data from one version to the next.
+
+</details>

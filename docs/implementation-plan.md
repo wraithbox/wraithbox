@@ -114,25 +114,13 @@ Spec gaps, contradictions and missing specs:
 
 ## Read these first
 
-Ordered by how much of the design they can move:
-
-1. **I36.** In the shared work VM, `wb-netd` sees one address for all
-   projects. Per-project policy and credential bindings, as S07-egress-gateway
-   and S09-policy-credentials-audit describe them, are then the union of all projects in the
-   VM, even without guest root. Settling this may move X14-flow-attribution (I10) into
-   v1.
-2. **I31.** Homebrew has one prefix per machine. Project users sharing
-   a writable prefix can plant binaries for each other, which breaks
-   SEC08-proj-isolation without any root escalation.
-3. **I30 and I37.** The terminal relay passes guest bytes to the host
-   terminal emulator, which can write the host clipboard and, in some
-   emulators, files.
-4. **I33 and I32.** Removing every guest `Authorization` header breaks
-   anonymous registry tokens (Homebrew bottles from `ghcr.io`).
-   Refusing young package downloads may fail most fresh installs. Both
-   decide whether FR07-toolchain-manifest and SEC07-dep-gate are usable.
-5. **I39 and I40.** Specs disagree with each other (I39), or weaken
-   SEC05-default-deny without saying so (I40).
+The spec decisions I36 to I52 each have a review brief, and B00-index
+orders them by impact and risk. Of the spikes, X20-shared-homebrew
+(I31), X19-terminal-filter (I30), X22-no-guest-credentials (I33) and
+X21-dep-gate-registries (I32) can move the design most: shared
+Homebrew breaks SEC08-proj-isolation without root, and the other three
+decide whether B37-terminal-boundary, FR07-toolchain-manifest and
+SEC07-dep-gate are usable as specified.
 
 ## Next steps
 
