@@ -79,7 +79,7 @@ print about returned work after `wb land` is outside it
   guest learns the host terminal's name and version, its colors, the
   window size in cells and pixels, and the state of its modes, from the
   replies to the queries S05-cli passes, and from the `TERM`,
-  `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `COLORTERM` and `LANG`
-  variables that cross into the guest session. Claude Code needs them
+  `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `COLORTERM`, `LANG`, `LC_ALL`,
+  and `LC_CTYPE` variables that cross into the guest session. Claude Code needs them
   to choose its output. No passed query returns clipboard or file
   contents, or text the guest wrote.

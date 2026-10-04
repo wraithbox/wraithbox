@@ -17,13 +17,22 @@ be tested before building on them.
   and versions, crates.io index lines, and `sum.golang.org` lookup
   responses (Swift: property-based tests where fuzzing is impractical).
   The terminal filter in `wb` (S05-cli, "Terminal stream") is one of
-  them. Its fuzz target checks that the output holds only tokens the
-  allowlist passes unchanged; that filtering twice gives the bytes of
-  filtering once; that where a read splits the input doesn't change the
-  output; that no OSC 0 to 2, 8, 52 or 1337, and no DCS, APC, PM or SOS
-  introducer, survives; that no parameter exceeds the caps and no `J`
-  or `K` has a parameter above 2; and that the link list marks every
-  URL that isn't `https://` to a public dotted hostname.
+  them. Its fuzz target checks these properties, with the BEL rate
+  limit off:
+  - every output token is one the allowlist passes unchanged, a BEL
+    that replaced a notification, or U+FFFD for an invalid byte;
+  - filtering twice gives the bytes of filtering once;
+  - where a read splits the input doesn't change the output;
+  - no OSC 0 to 2, 8, 52 or 1337 survives, and no DCS, APC, PM, or SOS
+    introducer;
+  - no parameter exceeds the caps, and no `J` or `K` has a parameter
+    above 2;
+  - the link list holds at most 100 entries, and marks every URL that
+    matches a mark rule of S05-cli;
+  - the filtered output followed by the exit reset, replayed into a
+    headless terminal emulator, leaves it in its initial state: modes,
+    kitty keyboard stacks on both screens, keypad mode, character sets,
+    scroll region, tab stops, and colors and style.
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
