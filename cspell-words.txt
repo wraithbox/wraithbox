@@ -45,6 +45,7 @@ osrelease
 osversion
 libkrun
 NXDOMAIN
+terminfo
 SVCB
 
 # Tools and their names in configs

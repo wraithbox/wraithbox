@@ -60,6 +60,13 @@ be tested before building on them.
   - push to a repository outside the project set, with and without an
     attacker-supplied token; create a gist or repository; publish a
     package;
+  - send an attacker-supplied token in a credential query parameter that
+    a git host's profile names (GitLab's `private_token`) and get a
+    `403`; send a token on a GET and see it removed
+    (X22-no-guest-credentials);
+  - download a Homebrew bottle from `ghcr.io` with the guest's
+    `Authorization` removed and the anonymous binding injected, and see
+    a write to `/v2/homebrew/core/` refused;
   - call the model API with an attacker-supplied key and observe that it
     is replaced;
   - send a credential placeholder outside its binding (another host, a
@@ -128,6 +135,7 @@ X07-git-round-trip (the git transport between guest and host),
 X18-vsock-handoff (vsock and descriptor hand-off on macOS),
 X19-terminal-filter (the host terminal stream filter),
 X21-dep-gate-registries (the dependency gate on real registries),
+X22-no-guest-credentials (clients when guest credentials are removed),
 X23-sandboxed-daemons (Go daemons confining themselves on macOS) and
 X26-pre-receive-check (push checks before the quarantine lands).
 What V1 leaves out is in V1-initial.

@@ -36,7 +36,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X19-terminal-filter | Terminal stream filtering | Answered |
 | X20-shared-homebrew | Homebrew with more than one project user | Open |
 | X21-dep-gate-registries | Dependency gate on real registries | Answered 2026-10-04: yes, with conditions |
-| X22-no-guest-credentials | Clients without guest credentials | Open |
+| X22-no-guest-credentials | Clients without guest credentials | Answered 2026-10-05: yes, with conditions |
 | X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
 | X24-openshell-artifacts | OpenShell artifacts | Open |
 | X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Open |
@@ -187,6 +187,9 @@ assumption that v1 work would otherwise build on. They block v1.
   guest-supplied `Authorization` header and cookie on inspected
   hosts? Registries such as `ghcr.io` hand out anonymous tokens that the
   client must send back. Find a rule for those that keeps SEC04-no-guest-secrets and SEC06-repo-writes.
+  Answered: yes, with conditions. Only Homebrew breaks, and a host-side
+  anonymous binding for `ghcr.io` fixes it, so no guest credential is
+  ever forwarded (X22-no-guest-credentials).
 - **X23-sandboxed-daemons: Self-sandboxed Go daemons on macOS.** Can `wb-netd`,
   `wb-proxyd` and `wb-hostd` confine themselves at start with a
   sandbox profile, as S04-architecture says, while the Go runtime, inherited
