@@ -74,6 +74,8 @@ export default defineConfig({
 				// toggle (dark, light or auto) still wins. See the two files.
 				ThemeProvider: './src/components/ThemeProvider.astro',
 				ThemeSelect: './src/components/ThemeSelect.astro',
+				// The front page: title, wide banner, then tagline and actions.
+				Hero: './src/components/Hero.astro',
 			},
 			sidebar: [
 				{

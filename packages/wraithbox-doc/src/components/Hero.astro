@@ -1,0 +1,117 @@
+---
+/**
+ * Starlight `Hero` override: a wide banner image under the title.
+ *
+ * Starlight's hero puts a small image beside the title. The front page has
+ * a wide banner instead, so this stacks the parts:
+ *
+ *   title
+ *   image (full content width)
+ *   tagline                  actions, one per line
+ *
+ * It reads the same `hero` frontmatter as Starlight's (title, tagline,
+ * image.file and image.alt, actions), so a page without this override
+ * still renders. The block above the title is half Starlight's, so more
+ * of the page fits above the fold.
+ */
+import { Image } from 'astro:assets';
+import { LinkButton } from '@astrojs/starlight/components';
+
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, image, actions = [] } = data.hero || {};
+// Starlight's page title id (PAGE_TITLE_ID, not exported): the
+// "Overview" link of the table of contents points at it.
+const PAGE_TITLE_ID = '_top';
+const file = image && 'file' in image ? image.file : undefined;
+---
+
+<div class="hero">
+	<h1 id={PAGE_TITLE_ID} data-page-title set:html={title} />
+	{
+		file && (
+			<Image
+				src={file}
+				alt={image?.alt ?? ''}
+				widths={[960, 1440, 1920]}
+				sizes="(min-width: 72rem) 60rem, 100vw"
+				loading="eager"
+				class="banner"
+			/>
+		)
+	}
+	<div class="row">
+		{tagline && <div class="tagline" set:html={tagline} />}
+		{
+			actions.length > 0 && (
+				<div class="actions">
+					{actions.map(({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
+						<LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
+							{text}
+							{icon?.html && <Fragment set:html={icon.html} />}
+						</LinkButton>
+					))}
+				</div>
+			)
+		}
+	</div>
+</div>
+
+<style>
+	.hero {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+		/* Starlight's splash hero: clamp(2.5rem, 1rem + 10vmin, 10rem). */
+		padding-block: clamp(1.25rem, 0.5rem + 5vmin, 5rem) 0.5rem;
+	}
+
+	h1 {
+		font-size: clamp(var(--sl-text-3xl), calc(0.25rem + 5vw), var(--sl-text-6xl));
+		line-height: var(--sl-line-height-headings);
+		font-weight: 600;
+		color: var(--sl-color-white);
+	}
+
+	.banner {
+		width: 100%;
+		height: auto;
+		border-radius: 0.75rem;
+	}
+
+	.row {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.tagline {
+		font-size: clamp(var(--sl-text-base), calc(0.0625rem + 2vw), var(--sl-text-xl));
+		color: var(--sl-color-gray-2);
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+	}
+
+	@media (min-width: 50rem) {
+		.row {
+			flex-direction: row;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 3rem;
+		}
+
+		.tagline {
+			max-width: 50ch;
+		}
+
+		.actions {
+			flex-direction: column;
+			flex-wrap: nowrap;
+			align-items: stretch;
+			flex-shrink: 0;
+		}
+	}
+</style>
