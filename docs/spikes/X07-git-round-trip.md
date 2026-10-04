@@ -24,8 +24,10 @@ The conditions below fix both.
   `receive-pack` command list before git sees it, with
   `receive.hideRefs` as a second layer.
 - **You are approving:** the conditions below and the
-  S08-workspace-and-git changes in this pull request: the ref filter, strict object checks, and a landing repository that borrows
-  objects from the repository the guest fetches from.
+  S08-workspace-and-git changes in this pull request: fetches from
+  `projects/<id>/export.git` as I41 decided, the ref filter, strict
+  object checks, cleanup after a refused push, bounds on the transport,
+  and a landing repository that borrows objects from `export.git`.
 - **Controls touched:** SEC02-no-host-fs-share (no host directory shared
   with the guest) and SEC03-no-host-exec (returned work runs nothing on
   the host) are kept, and the push path is now specified in more detail.
@@ -35,7 +37,9 @@ The conditions below fix both.
   reliable byte stream with half-close), which X18-vsock-handoff tests.
   That v2 `upload-pack` also serves objects from an alternate object
   store. It follows from v2 serving an unreferenced object, but no run
-  tried it.
+  tried it. How `upload-pack` behaves under v0 against a hostile client:
+  every v0 refusal came from the guest's own git client, which
+  wouldn't send the request.
 - **Open decisions:** none. I41 still decides the export repository's
   lifecycle (item 6), with a new constraint from condition 4.
 - **Brief:** B21-git-round-trip
@@ -47,12 +51,15 @@ The conditions below fix both.
    `uploadpack.hideRefs` hiding everything but the session's branch,
    and every `allow*SHA1InWant` setting off, a protocol v2 client still
    fetched by object ID: the commit of a hidden local branch, a commit
-   only on a release branch, and an unreferenced blob. Protocol
-   v0 refused all three, and so did an export repository under either
-   protocol. The export repository stores a copy of every object it serves: no
-   `objects/info/alternates` to the user's repository, and no
-   `git clone --local`, which hard-links pack files that hold every
-   object.
+   only on a release branch, and an unreferenced blob. The export
+   repository refused all three on the server side under v2 ("not our
+   ref"). Under v0 the guest's git client refused to send the request
+   ("Server does not allow request for unadvertised object"), so the
+   server side under v0 against a hostile client wasn't tested. The
+   export repository stores a copy of every object it serves: no
+   `objects/info/alternates` to the user's repository (inferred, not
+   run), and no `git clone --local`, which hard-links everything under
+   `objects/` (`git help clone`, `--local`).
 2. **The remote helper asks for protocol v2.** Git tells a `connect`
    helper the service but not the protocol version, and `upload-pack`
    speaks v0 unless asked, so `git-remote-wb` sends the version in its
@@ -94,7 +101,8 @@ succeeded, with both gits. "Refused" includes what the guest saw.
 |---|---|
 | Fetch a hidden branch, a note, `refs/remotes/*` by name | refused: not advertised |
 | Fetch a hidden commit, a release-branch commit, an unreferenced blob by ID, from the user's repository, protocol v2 | **succeeded**, so condition 1 |
-| The same by ID, protocol v0, or from the export repository | refused: "not our ref" |
+| The same by ID from the export repository, protocol v2 | refused by the server: "not our ref" |
+| The same by ID, protocol v0, either repository | refused by the guest's own git client before it asked; the server side wasn't tested |
 | v2 `object-info` for a hidden blob | refused: not advertised, `invalid command` |
 | Write to the user's repository: push commands and a pack sent to `upload-pack` | refused: protocol error; the user's `.git` file names, sizes and times unchanged |
 | Service other than upload or receive (`/bin/sh`, `git-upload-archive`), extra arguments, bad protocol value, oversize header | refused by `wb-hostd` before git runs |
@@ -106,33 +114,42 @@ succeeded, with both gits. "Refused" includes what the guest saw.
 | Bad pkt-line length, NUL in a later command, command list cut off | refused by the filter |
 | Garbage, a truncated or bit-flipped pack, a header claiming 4 billion objects, a ref to a missing object | refused by `receive-pack`, nothing written |
 
+`results/run1.txt` shows a v0 fetch by ID as succeeded. In that run the
+v0 case reused the clone into which the v2 case had already fetched the
+object, so git found it locally and asked nothing. Later runs use a
+fresh clone for each case. The case of `refs/heads/wb/S1` itself under
+`receive.hideRefs` alone ran once, with Homebrew git
+(`results/run5.txt`).
+
 ## Measurements
 
 Apple M2, 16 GB, macOS 27.0.1, Homebrew git 2.56.0 on both sides, the Go
 repository at `master~200`, then at `master`. Other agents' VMs ran on
 the same machine during the runs. The table gives the median and the
-range, and under that load a few runs took two to four times as long.
- One run with Apple git 2.54.0 on both sides, also under load,
-took 19 to 45 s for a first clone and matched the incremental steps.
+range over the five Homebrew runs in `results/`: `run1`, `run2`,
+`run4`, `run5` and `run6`. Under
+that load a few runs took two to four times as long. One run with Apple
+git 2.54.0 on both sides (`run3-apple`), also under load, took 19 to
+45 s for a first clone and matched the incremental steps.
 
 | Step | Median (range) | Runs | Transferred |
 |---|---|---|---|
-| Local clone without the tunnel (`--no-local`), for comparison | 17.6 s (16.8 to 54.9) | 4 | 679,335 objects, 426 MiB |
-| First clone through the tunnel, protocol v2 | 16.4 s (16.3 to 56.5) | 3 | same |
-| First clone through the tunnel, protocol v0 | 16.4 s (16.3 to 22.6) | 5 | same |
-| Build the export repository (first session of a project) | 16.4 s (15.7 to 61.5) | 4 | |
-| First clone from the export repository | 16.8 s (16.4 to 32.4) | 4 | same |
-| Update the export repository, 200 new commits | 0.85 s (0.69 to 1.19) | 4 | |
-| Incremental fetch from the export repository, 200 commits | 0.58 s (0.57 to 0.72) | 4 | 2,590 objects, 912 KiB |
-| Fetch with nothing new | 0.05 s | 4 | |
-| Push 3 commits, landing borrows from export | 0.15 s (0.09 to 0.23) | 4 | 12 objects, under 1 KiB |
-| Push 20 MiB of random data | 1.0 s | 4 | 20 MiB |
-| Push into an empty landing repository (no borrowing) | 19.3 s (19.0 to 19.4) | 4 | 681,925 objects, 425 MiB |
-| `wb land`: the user's git fetches the session branch | 1.1 s | 4 | |
+| Local clone without the tunnel (`--no-local`), for comparison | 17.1 s (16.8 to 54.9) | 5 | 679,335 objects, 426 MiB |
+| First clone through the tunnel, protocol v2 | 16.3 s (16.1 to 56.5) | 5 | same |
+| First clone through the tunnel, protocol v0 | 16.6 s (16.3 to 22.6) | 5 | same |
+| Build the export repository (first session of a project) | 16.2 s (15.7 to 61.5) | 5 | |
+| First clone from the export repository | 16.6 s (16.4 to 32.4) | 5 | same |
+| Update the export repository, 200 new commits | 0.83 s (0.69 to 1.19) | 5 | |
+| Incremental fetch from the export repository, 200 commits | 0.57 s (0.57 to 0.72) | 5 | 2,590 objects, 912 KiB |
+| Fetch with nothing new | 0.05 s | 5 | |
+| Push 3 commits, landing borrows from export | 0.10 s (0.09 to 0.23) | 5 | 12 objects, under 1 KiB |
+| Push 20 MiB of random data | 1.0 s | 5 | 20 MiB |
+| Push into an empty landing repository (no borrowing) | 19.3 s (19.0 to 19.4) | 5 | 681,925 objects, 425 MiB |
+| `wb land`: the user's git fetches the session branch | 1.1 s | 5 | |
 
 The tunnel doesn't measurably slow a clone down. A session start in
 an existing project costs an export update and an incremental fetch,
-about 1.5 s for 200 Go commits. That fits NFR01-startup, whose budget
+about 1.4 s for 200 Go commits. That fits NFR01-startup, whose budget
 leaves out first-time project setup.
 
 ## Risky-path flagger
@@ -159,10 +176,17 @@ list short to read.
 
 ## What changes in the specs
 
-- S08-workspace-and-git: names the ref filter and the second layer,
-  lists the `receive-pack` settings, has the landing repository borrow
-  objects, and says how the flagger detects executables, symlinks and
-  `package.json` scripts.
+- S08-workspace-and-git: fetches come from `export.git` (the I41
+  decision), and everything in its object store counts as readable by
+  the guest. The spec names the ref filter and its rules, the second
+  layer, the `receive-pack` settings, cleanup after a refused push, the
+  transport bounds, the landing repository borrowing from `export.git`,
+  and how the flagger detects executables, symlinks and `package.json`
+  scripts.
+- S11-verification-and-spikes: a fuzz target for the request header
+  and the push command list, and conformance cases for fetch by ID,
+  pushes outside the session's refs, and a refused push leaving
+  nothing behind.
 - I41 (git data scope) gets conditions 1, 4 and 5 as input: item 1 is
   confirmed with both gits, item 4 learns that Apple git 2.54.0 behaved
   the same as 2.56.0 here, and item 6 must keep the objects that landing

@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-04.** Source: X07-git-round-trip (I21). Changes S08-workspace-and-git and S11-verification-and-spikes. Feeds I41.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** The guest cloned, fetched and pushed through a remote helper over a socket, with no write to your repository and no push outside its own `wb/<session>/` branches, in every abuse case tried. The spec as written is wrong in two places. Fetching straight from your repository leaks hidden objects to anyone who knows their ID, which the export repository from B41-git-data-scope fixes. And the first push into an empty landing repository sends the whole history, which borrowing objects fixes. The recommended guard on pushes is a small Go filter, with git's own setting behind it. Accepting it merges the S08-workspace-and-git changes and settles item 5 of I41.
+**Yes, with conditions.** The guest cloned, fetched and pushed through a remote helper over a socket, with no write to your repository and no push outside its own `wb/<session>/` branches, in every abuse case tried. The spec as written is wrong in two places. Fetching straight from your repository leaks hidden objects to anyone who knows their ID, which the export repository from B41-git-data-scope fixes. And the first push into an empty landing repository sends the whole history, which borrowing objects fixes. The recommended guard on pushes is a small Go filter, with git's own setting behind it. Accepting it merges the S08-workspace-and-git changes, which fetch from the export repository as I41 decided, and settles item 5 of I41.
 </Aside>
 
 <figure class="wb-figure">
@@ -84,7 +84,7 @@ S08-workspace-and-git said refs are "restricted to `refs/heads/wb/<session-id>/*
 What B41-git-data-scope recommended for item 5: `receive.hideRefs` hides everything but the session's branches, and git refuses a push to a hidden ref.
 
 - **Cost:** none, a git setting.
-- **Gaps:** accepted a push to `refs/heads/wb/<session>` itself, which blocks every later session branch. Applied the allowed half of a mixed push. Logs nothing in `wb-hostd` unless it parses git's answer.
+- **Gaps:** accepted a push to `refs/heads/wb/<session>` itself (one run, Homebrew git), which blocks every later session branch. Applied the allowed half of a mixed push. Logs nothing in `wb-hostd` unless it parses git's answer.
 - **Keeps:** <Badge text="FR03-work-as-branch" variant="caution" />
 
 </div>
@@ -124,14 +124,14 @@ Replace `receive-pack` with a Go implementation (for example go-git), so host gi
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> Clone, incremental fetch and push through `git-remote-wb` over a socketpair, Go repository (679,335 objects, 426 MiB), git 2.56.0 and Apple git 2.54.0. First clone 16.4 s median through the tunnel, against 17.6 s for a local clone without it. A fetch of 200 new commits 0.6 s, a 3-commit push 0.15 s. X07-git-round-trip, "Measurements".
-- <Badge text="verified" variant="success" /> Protocol v2 `upload-pack` with `uploadpack.hideRefs` and every `allow*SHA1InWant` off served three unadvertised objects by ID. Protocol v0, and the export repository under both versions, refused them.
-- <Badge text="verified" variant="success" /> The Go filter refused pushes to `main`, a tag, another session, a lookalike session `S10`, the bare session ref, deletes, and a mixed push, with landing unchanged in every case.
-- <Badge text="verified" variant="success" /> `receive.hideRefs` alone created `refs/heads/wb/S1` from a push to that name, and applied the allowed ref of a mixed push.
-- <Badge text="verified" variant="success" /> Strict fsck refused trees with `.git`, `.GIT`, `git~1`, `..`, symlinked `.gitmodules` and `.gitattributes`, mode `100666`, a bad commit date, and a `.gitmodules` URL starting with `-`. Garbage, truncated and bit-flipped packs were refused. Your repository's files were unchanged across the raw protocol attacks.
-- <Badge text="verified" variant="success" /> Push commands sent to `upload-pack` ended in a protocol error, and `wb-hostd` refused other services, extra arguments and bad protocol values before running git.
-- <Badge text="verified" variant="success" /> The flagger flagged 2% of 400 Go commits, 17% of 400 Express commits and 51% of 43 Wraith Box commits, at 11 to 18 ms per commit.
-- <Badge text="inferred" variant="note" /> v2 `upload-pack` also serves objects from a borrowed object store, since it served an unreferenced object. So the export repository stores a copy of every object it serves.
+- <Badge text="verified" variant="success" /> Clone, incremental fetch and push through `git-remote-wb` over a socketpair, Go repository (679,335 objects, 426 MiB), git 2.56.0 and Apple git 2.54.0. First clone 16.3 s median through the tunnel, against 17.1 s for a local clone without it. A fetch of 200 new commits 0.6 s, a 3-commit push 0.1 s. Source: X07-git-round-trip, "Measurements", and `results/run1.txt` to `run6.txt` on the spike branch.
+- <Badge text="verified" variant="success" /> Protocol v2 `upload-pack` with `uploadpack.hideRefs` and every `allow*SHA1InWant` off served three unadvertised objects by ID. The export repository refused them on the server side under v2. The guest's own git client refused to send the v0 request, so the server side under v0 against a hostile client wasn't tested. Source: `results/run2.txt` and `run3-apple.txt`, "Hidden data".
+- <Badge text="verified" variant="success" /> The Go filter refused pushes to `main`, a tag, another session, a lookalike session `S10`, the bare session ref, deletes, and a mixed push, with landing unchanged in every case. Source: `results/run5.txt` and `run3-apple.txt`, "Push abuse".
+- <Badge text="verified" variant="success" /> `receive.hideRefs` alone created `refs/heads/wb/S1` from a push to that name (one run, Homebrew git, `results/run5.txt`), and applied the allowed ref of a mixed push (`run3-apple.txt`, `run5.txt`).
+- <Badge text="verified" variant="success" /> Strict fsck refused trees with `.git`, `.GIT`, `git~1`, `..`, symlinked `.gitmodules` and `.gitattributes`, mode `100666`, a bad commit date, and a `.gitmodules` URL starting with `-`. Garbage, truncated and bit-flipped packs were refused. Your repository's files were unchanged across the raw protocol attacks. Source: `results/run3-apple.txt`, "Push abuse" and "Raw protocol abuse".
+- <Badge text="verified" variant="success" /> Push commands sent to `upload-pack` ended in a protocol error, and `wb-hostd` refused other services, extra arguments and bad protocol values before running git. Source: `results/run3-apple.txt`, "Raw protocol abuse".
+- <Badge text="verified" variant="success" /> The flagger flagged 2% of 400 Go commits, 17% of 400 Express commits and 51% of 43 Wraith Box commits, at 11 to 18 ms per commit. Source: `results/run2.txt`, "Risky-path flagger".
+- <Badge text="inferred" variant="note" /> v2 `upload-pack` also serves objects from a borrowed object store, since it served an unreferenced object (`results/run2.txt`), though no run tried a borrowed store. So the export repository stores a copy of every object it serves.
 - <Badge text="assumed" variant="caution" /> That vsock behaves like the socketpair: a byte stream with half-close. X18-vsock-handoff tests vsock in a macOS guest.
 
 ## What this unblocks

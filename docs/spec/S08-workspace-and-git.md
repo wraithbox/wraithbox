@@ -3,7 +3,7 @@
 **Purpose:** How code gets into the guest and how the agent's work gets
 back out, without sharing the host filesystem.
 
-**Requirements:** FR02-any-repo to FR05-parallel-sessions, SEC02-no-host-fs-share, SEC03-no-host-exec, SEC10-audit, NFR01-startup, NFR02-fs-speed.
+**Requirements:** FR02-any-repo to FR05-parallel-sessions, SEC02-no-host-fs-share, SEC03-no-host-exec, SEC10-audit, SEC13-bounded-resources, NFR01-startup, NFR02-fs-speed.
 
 ## Into the guest
 
@@ -13,12 +13,21 @@ back out, without sharing the host filesystem.
 - **Transport.** The guest uses a git remote helper (`git-remote-wb`,
   shipped with `wb-guestd`) for a remote named `host`. It tunnels git's
   smart protocol over vsock to `wb-hostd`, which runs `git upload-pack`
-  against the user's repository **read-only**: hooks disabled, system
-  and global git configuration ignored, environment scrubbed. Nothing in
-  the guest can write to the host repository through this path. Git
-  doesn't tell a `connect` helper which protocol version it wants, so
-  the helper asks for v2 itself, and `wb-hostd` passes only `version=0`,
-  `1` or `2` on to git.
+  **read-only** against the project's export repository
+  (`projects/<id>/export.git`, B41-git-data-scope), never against the
+  user's repository: hooks disabled, system and global git
+  configuration ignored, environment scrubbed. Nothing in the guest can
+  write to the host repository through this path.
+- **Export repository.** `wb-hostd` fetches the session's branch from
+  the user's repository into `export.git` at session start. It holds a
+  copy of every object it serves and borrows from nothing. The guest can
+  read everything in its object store: over protocol v2, `upload-pack`
+  serves any object it has to a client that names the ID, so
+  `uploadpack.hideRefs` on it only trims the ref list
+  (X07-git-round-trip).
+- **Protocol version.** Git doesn't tell a `connect` helper which
+  protocol version it wants. The helper asks for v2 itself, and
+  `wb-hostd` passes only `version=0`, `1` or `2` on to git.
 - **Session start.** `wb-guestd` creates a worktree for the session at the
   host's current `HEAD`, then applies the carry-in: staged and unstaged
   changes as a binary diff, plus untracked files that are not ignored, up
@@ -29,23 +38,41 @@ back out, without sharing the host filesystem.
 
 - **Landing repository.** Each project has a bare repository in Wraith
   Box's state directory (`projects/<id>/landing.git`), not the user's
-  repository. It borrows objects from the repository the guest fetches
-  from (git alternates). A push then sends only new objects. Without
+  repository. It borrows objects from the same project's `export.git`:
+  at each session start `wb-hostd` rewrites its alternates file to
+  exactly that one entry. A push then sends only new objects. Without
   borrowing, a session's first push sends the whole history
   (X07-git-round-trip). The guest pushes to it through the same
   transport; `wb-hostd` runs `git receive-pack` with hooks disabled,
   every object check (`fsck`) an error, including the checks git only
-  reports by default, deletes and push options refused, and a size limit.
+  reports by default, deletes, push options and signed pushes
+  (`push-cert`) refused, and a size limit.
 - **Ref restriction.** A filter in `wb-hostd` reads the push's command
   list before `receive-pack` sees any of it, and refuses the whole push
-  unless every ref is under `refs/heads/wb/<session-id>/`. It is a
-  parser of guest bytes, so it has a fuzz target
-  (S11-verification-and-spikes), and it logs each ref it allows or
-  refuses with the rule. `receive.hideRefs` restricts the same refs
-  inside git as a second layer, and hides other sessions' branches. It
-  can't be the only layer: it accepts `refs/heads/wb/<session-id>`
-  itself, and applies the allowed half of a mixed push
-  (X07-git-round-trip).
+  unless every ref is under `refs/heads/wb/<session-id>/`. Below that
+  prefix, ref components use only `A-Z`, `a-z`, `0-9`, `-`, `_` and
+  `.`, don't start with `.` or end with `.` or `.lock`, and hold no
+  `..`. A component is at most 255 bytes and a ref at most 1024.
+  `shallow` lines are refused. The filter is a parser of guest bytes,
+  so it has a fuzz target (S11-verification-and-spikes), and it logs
+  each ref it allows or refuses with the rule. `receive.hideRefs`
+  restricts the same refs inside git as a second layer, and hides other
+  sessions' branches. It can't be the only layer: it accepts
+  `refs/heads/wb/<session-id>` itself, and applies the allowed half of a
+  mixed push (X07-git-round-trip).
+- **Cleanup after a refused push.** Git moves a pushed pack out of
+  quarantine before some of its own ref checks (a ref name git rejects,
+  a stale lease, a directory/file conflict, a case clash on APFS). So
+  after any push that didn't update every ref it named, and while no
+  other push to it runs, `wb-hostd` drops the unreachable objects of
+  `landing.git`: `git repack -a -d -l`, then
+  `git prune --expire=now`. A size cap per project
+  bounds `landing.git` (B41-git-data-scope, item 6).
+- **Bounds.** Next to the size limit, which counts compressed bytes
+  only (SEC13-bounded-resources): a deadline and an idle timeout per
+  connection, at most one `upload-pack` and one `receive-pack` per
+  session at a time, a wall-clock watchdog that kills the git child, and
+  a cap on the inflated size of each object.
 - **Session end.** If the worktree has uncommitted changes, `wb-guestd`
   commits them to the session branch as a clearly marked WIP commit, then
   pushes. `wb` can also push mid-session.
