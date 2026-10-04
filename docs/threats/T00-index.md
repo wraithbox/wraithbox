@@ -86,11 +86,16 @@ print about returned work after `wb land` is outside it
   contents, or text the guest wrote.
 - **T10-unnamed-credentials: Guest credentials in unnamed places.**
   `wb-proxyd` removes `Authorization`, `Proxy-Authorization` and
-  `Cookie` on every inspected host, and the headers and query
-  parameters a built-in profile names on its hosts. On an allowed host
-  without a built-in profile, a guest's own credential in another
-  header or parameter, such as an API key in the query string, is
-  forwarded, and the guest acts as its own account there. It never
-  carries one of the user's credentials (SEC04-no-guest-secrets), and
-  the git hosts of SEC06-repo-writes have built-in profiles
-  (S07-egress-gateway, X22-no-guest-credentials).
+  `Cookie` on every inspected host, and refuses the headers, query
+  parameters and body fields a built-in profile names on its hosts. A
+  guest's own credential somewhere else reaches the host: another
+  header or parameter on a host without a built-in profile, a nested
+  JSON field, a WebSocket `Sec-WebSocket-Protocol` value or first
+  message, or a signed URL the guest made for its own storage bucket.
+  The guest then acts as its own account there, within the methods
+  policy allows there. An approval grants read methods only
+  (S07-egress-gateway, "What an approval grants"). The user's
+  credentials are never in the guest (SEC04-no-guest-secrets), and the
+  git hosts of SEC06-repo-writes get the git hosting profile, a
+  self-hosted one with every kind's names (S07-egress-gateway,
+  X22-no-guest-credentials).

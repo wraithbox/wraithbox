@@ -74,8 +74,8 @@ inspection is trusted, and what is recorded.
   store item, for a host that answers public reads only to a request
   with a token. Built-in profiles ship these, such as the anonymous
   `ghcr.io` token for Homebrew bottles (S07-egress-gateway,
-  X22-no-guest-credentials). Such a value is no secret and gets no
-  placeholder in the guest.
+  X22-no-guest-credentials). Such a value isn't a secret, and the
+  guest doesn't get a placeholder for it.
 - **Model credential.** Claude Code in the guest is configured with a
   placeholder and a binding for the model API host. Whether every Claude
   Code authentication mode works with host-side replacement (including
@@ -106,8 +106,9 @@ inspection is trusted, and what is recorded.
 
 Before an approval request is shown, the rule it would add goes
 through the prover's proposal risk check (new reach for a credential,
-new write methods, metadata addresses). Findings are part of the
-request. Only the user approves a request.
+new write methods, metadata addresses, shared object-storage hosts and
+wildcards over them, signature parameters on a write method,
+S07-egress-gateway). Findings are part of the request. Only the user approves a request.
 
 Approval requests are delivered as native notifications (through the
 platform's notification helper, S12-platforms) and through `wb approve` /
@@ -123,7 +124,8 @@ stripped of control and escape sequences wherever it is shown.
 - Events use OCSF 1.8 classes, as OpenShell's do: network activity for
   connections, HTTP activity for inspected requests, configuration
   state change for policy and approvals, and detection finding for
-  refused placeholders, pin mismatches, and other signs of an attack. A
+  refused placeholders, foreign credentials removed from a request
+  (S07-egress-gateway), pin mismatches, and other signs of an attack. A
   SIEM can read the log without a custom parser.
 - Records: timestamp; project; session; guest user; destination host and
   port; decision and the rule that made it; HTTP method and path for
