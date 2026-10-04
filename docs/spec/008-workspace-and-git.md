@@ -3,7 +3,7 @@
 **Purpose:** How code gets into the guest and how the agent's work gets
 back out, without sharing the host filesystem.
 
-**Requirements:** F2 to F5, S2, S3, S10, N1, N2.
+**Requirements:** F2-any-repo to F5-parallel-sessions, S2-no-host-fs-share, S3-no-host-exec, S10-audit, N1-startup, N2-fs-speed.
 
 ## Into the guest
 
@@ -19,7 +19,7 @@ back out, without sharing the host filesystem.
 - **Session start.** `wb-guestd` creates a worktree for the session at the
   host's current `HEAD`, then applies the carry-in: staged and unstaged
   changes as a binary diff, plus untracked files that are not ignored, up
-  to a size cap (F4). Files over the cap are listed in the session
+  to a size cap (F4-carry-in). Files over the cap are listed in the session
   summary rather than silently dropped.
 
 ## Out of the guest
@@ -38,7 +38,7 @@ back out, without sharing the host filesystem.
   user's repository. It never checks out, merges, or runs anything. A
   fetch only writes objects and refs.
 
-## Flagging risky changes (S3)
+## Flagging risky changes (S3-no-host-exec)
 
 `wb diff` and the end-of-session summary flag changed paths that the
 host or CI may execute or that change how git behaves:

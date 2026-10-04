@@ -1,0 +1,42 @@
+/* Reference links from src/plugins/remark-refs.mjs: requirement IDs,
+   spikes, specs, issues and pull requests. A dotted underline marks them
+   apart from ordinary links, and hovering or focusing one shows a card
+   with its title and a one-sentence description. The card is hidden with
+   display: none until then, so screen readers announce only the link
+   text. */
+.sl-markdown-content a.wb-ref {
+	position: relative;
+	text-decoration-style: dotted;
+	text-underline-offset: 0.2em;
+}
+.sl-markdown-content .wb-ref-tip {
+	display: none;
+	position: absolute;
+	left: 0;
+	top: calc(100% + 0.35rem);
+	z-index: 20;
+	width: max-content;
+	max-width: min(24rem, 80vw);
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: var(--wb-radius-md);
+	background-color: var(--wb-surface);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-sm);
+	font-weight: 400;
+	line-height: 1.45;
+	text-align: left;
+	white-space: normal;
+	pointer-events: none;
+}
+.sl-markdown-content .wb-ref-tip-title {
+	display: block;
+	margin-bottom: 0.2rem;
+	color: var(--sl-color-white);
+	font-weight: 600;
+}
+.sl-markdown-content a.wb-ref:hover .wb-ref-tip,
+.sl-markdown-content a.wb-ref:focus-visible .wb-ref-tip {
+	display: block;
+}

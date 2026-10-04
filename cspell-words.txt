@@ -64,6 +64,8 @@ frontmatter
 seti
 Merriweather
 Webfonts
+mdxjs
+FSNCR
 
 # Engineering jargon the dictionaries lack
 stdlib

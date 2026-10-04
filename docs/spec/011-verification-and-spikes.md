@@ -40,7 +40,7 @@ be tested before building on them.
   - write into the host repository through the git transport;
   - forge an approval prompt via terminal output and confirm nothing
     treats it as one.
-- **Benchmarks** (N1, N2): time to Claude prompt (warm, suspended);
+- **Benchmarks** (N1-startup, N2-fs-speed): time to Claude prompt (warm, suspended);
   `npm ci`, `git status` on a large repository, and an incremental build
   on the data disk compared with the host; throughput of a large
   download through the gateway.
@@ -73,7 +73,7 @@ next free number here before it is filed. The workflow is in
 1. **X1 Model credential via the proxy.** Does Claude Code work with a
    placeholder credential while `wb-proxyd` injects the real one, for
    each supported authentication mode, including token refresh? If not,
-   requirement S4 needs a documented exception and the threat model changes.
+   requirement S4-no-guest-secrets needs a documented exception and the threat model changes.
    OpenShell's Claude Code provider shows that an API key works. A Claude
    subscription login is the open part: OpenShell holds back from it
    until Anthropic approves an OAuth client identity for third-party
@@ -91,7 +91,7 @@ next free number here before it is filed. The workflow is in
    clients accept the name-constrained CA when it is trusted only in the
    guest. List clients that pin certificates.
 5. **X5 Filesystem benchmark.** Data disk with default versus relaxed
-   write-through settings, against the host, on the N2 workloads.
+   write-through settings, against the host, on the N2-fs-speed workloads.
 6. **X6 Guest users and Xcode.** Can builds and simulators run for a
    guest user without a GUI login? If not, Xcode sessions go to the
    isolated VM's console user.
@@ -113,7 +113,7 @@ platform starts.
     VMM over KVM that supports vsock, save/restore, copy-on-write disks,
     and a virtual TPM (for Windows guests), and a way to deliver guest
     Ethernet frames to `wb-netd` as an unprivileged user (no tap device,
-    no `CAP_NET_ADMIN`, no unprivileged user namespaces). Measure N1 and
+    no `CAP_NET_ADMIN`, no unprivileged user namespaces). Measure N1-startup and
     network throughput.
 11. **X11 Windows host through HCS.** On Windows 11 **Home** with only
     the Virtual Machine Platform feature: can a standard user create,
@@ -122,7 +122,7 @@ platform starts.
     virtual switch that bridges to the host network? Can a Windows 11
     guest get a virtual TPM and Secure Boot? If any answer needs
     administrator rights, write up the smallest privileged component
-    that would do (spec 012, S12).
+    that would do (spec 012, S12-least-privilege).
 12. **X12 WSL client channel.** `wb` in WSL 2 relaying through
     `wb.exe relay` over interop standard streams: terminal fidelity,
     window resizing, throughput of the git transport, latency to the
@@ -158,10 +158,10 @@ Answered before X10, because a yes may make X10 unnecessary.
 16. **X16 OpenShell for Linux guests.** Could OpenShell's VM driver
     (libkrun, guest without a network device, egress over vsock) run
     Linux guests for Wraith Box on macOS and Linux hosts instead of a
-    VMM chosen in X10? The check covers S1 to S14, a policy shared with
-    macOS guests (spec 009), and N1. It has no git round trip and no
+    VMM chosen in X10? The check covers S1-separate-kernel to S14-no-fake-approvals, a policy shared with
+    macOS guests (spec 009), and N1-startup. It has no git round trip and no
     saved-state restore, so those are Wraith Box's to add. Its other drivers share a kernel between
-    sandboxes (S1) and are out of the question.
+    sandboxes (S1-separate-kernel) and are out of the question.
 
 ### Found during initial planning (v1)
 
@@ -188,7 +188,7 @@ assumption that v1 work would otherwise build on. They block v1.
     The relay passes guest bytes to the host terminal emulator.
 20. **X20 Homebrew with more than one project user.** Can each project
     user in one guest get its declared Brewfile without a Homebrew
-    prefix that another project user can write to (S8)? Compare a
+    prefix that another project user can write to (S8-proj-isolation)? Compare a
     prefix owned by `wb-guestd` that installs every declared Brewfile
     with per-user prefixes. Measure bottle availability and install
     time for both.
@@ -204,7 +204,7 @@ assumption that v1 work would otherwise build on. They block v1.
     cargo, Claude Code) break when `wb-proxyd` removes every
     guest-supplied `Authorization` header and cookie on inspected
     hosts? Registries such as `ghcr.io` hand out anonymous tokens that the
-    client must send back. Find a rule for those that keeps S4 and S6.
+    client must send back. Find a rule for those that keeps S4-no-guest-secrets and S6-repo-writes.
 23. **X23 Self-sandboxed Go daemons on macOS.** Can `wb-netd`,
     `wb-proxyd` and `wb-hostd` confine themselves at start with a
     sandbox profile, as spec 004 says, while the Go runtime, inherited

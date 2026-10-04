@@ -5,14 +5,10 @@ description: Not as the specs are written. Issue 36 recommends making the VM the
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: [issue #36](https://github.com/wraithbox/wraithbox/issues/36).
-Specs affected: [003](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/003-requirements.md),
-[007](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/007-egress-gateway.md),
-[009](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/009-policy-credentials-audit.md),
-[013](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/013-guest-confinement.md).
+**Awaiting decision.** Source: issue #36. Affects specs 003, 007, 009 and 013.
 
 <Aside type="tip" title="You are deciding">
-Whether the host keeps network grants and credentials apart for trusted projects in the shared work VM. Recommended: **A**, enforce per VM and write the gap down as a risk. That rewrites S6 and S8, so it is a spec change. It unblocks [#51](https://github.com/wraithbox/wraithbox/issues/51).
+Whether the host keeps network grants and credentials apart for trusted projects in the shared work VM. Recommended: **A**, enforce per VM and write the gap down as a risk. That rewrites S6-repo-writes and S8-proj-isolation, so it is a spec change. It unblocks issue #51.
 </Aside>
 
 ## The problem
@@ -78,11 +74,11 @@ Figure 1. Every trusted project shares the work VM and its one network address. 
 
 ### A. The VM is the enforced unit
 
-The host enforces the union of every work-VM project's grants and credentials. Per-project and per-session rules narrow that union using a label the guest reports, recorded as untrusted. A new residual risk (R7) says so.
+The host enforces the union of every work-VM project's grants and credentials. Per-project and per-session rules narrow that union using a label the guest reports, recorded as untrusted. A new residual risk in spec 003 says so.
 
 - **Cost:** spec wording only (003, 007, 009). Per-project credentials look stronger than they are, so `wb policy explain` must say who can reach each one.
-- **Weakens:** <Badge text="S6 per VM" variant="danger" /> <Badge text="S8 network" variant="danger" />
-- **Keeps:** <Badge text="S4" variant="success" /> <Badge text="S5" variant="success" /> <Badge text="S11" variant="success" />
+- **Weakens:** <Badge text="S6-repo-writes per VM" variant="danger" /> <Badge text="S8-proj-isolation network" variant="danger" />
+- **Keeps:** <Badge text="S4-no-guest-secrets" variant="success" /> <Badge text="S5-default-deny" variant="success" /> <Badge text="S11-root-gains-nothing" variant="success" />
 
 </div>
 <div class="wb-option">
@@ -91,8 +87,8 @@ The host enforces the union of every work-VM project's grants and credentials. P
 
 The work VM gets only credentials and write grants that every project in it shares. A project with its own token runs alone in the second VM slot.
 
-- **Cost:** macOS runs at most two macOS VMs (N5). The second slot also hosts untrusted repositories, so only one such project runs at a time, and untrusted work waits meanwhile.
-- **Keeps:** <Badge text="S6" variant="success" /> <Badge text="S8" variant="success" />
+- **Cost:** macOS runs at most two macOS VMs (N5-two-macos-vms). The second slot also hosts untrusted repositories, so only one such project runs at a time, and untrusted work waits meanwhile.
+- **Keeps:** <Badge text="S6-repo-writes" variant="success" /> <Badge text="S8-proj-isolation" variant="success" />
 
 </div>
 <div class="wb-option">
@@ -102,7 +98,7 @@ The work VM gets only credentials and write grants that every project in it shar
 Give each project user its own virtual network card, and route by user inside the guest.
 
 - **Cost:** guest root controls the routing, so under the threat model this is the same as A. It does stop a non-root agent.
-- **Not viable alone:** <Badge text="S6 per VM under root" variant="caution" />
+- **Not viable alone:** <Badge text="S6-repo-writes per VM under root" variant="caution" />
 
 </div>
 </div>
@@ -118,43 +114,43 @@ Option A narrows per project only once a label exists, and today the only planne
 <tr><th>Requirement</th><th>A. VM unit</th><th>B. Own VM</th><th>C. Routing</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>S6</strong> pushes and repository writes only to the project's own repositories</td><td class="partial">any work-VM project</td><td class="yes">kept</td><td class="partial">non-root only</td></tr>
-<tr><td><strong>S8</strong> one project cannot reach into another</td><td class="partial">files only</td><td class="yes">kept</td><td class="partial">non-root only</td></tr>
-<tr><td><strong>S10</strong> audit records the project and session</td><td class="partial">guest label</td><td class="yes">kept</td><td class="partial">guest label</td></tr>
-<tr><td><strong>F9</strong> approval "allow for this project"</td><td class="partial">whole VM</td><td class="partial">whole VM</td><td class="partial">non-root only</td></tr>
-<tr><td><strong>R2</strong> DNS lookup budget per session</td><td class="partial">per VM</td><td class="partial">per VM</td><td class="partial">per VM</td></tr>
-<tr><td><strong>N5</strong> at most two macOS VMs</td><td class="yes">fits</td><td class="no">one project</td><td class="yes">fits</td></tr>
+<tr><td><strong>S6-repo-writes</strong> pushes and repository writes only to the project's own repositories</td><td class="partial">any work-VM project</td><td class="yes">kept</td><td class="partial">non-root only</td></tr>
+<tr><td><strong>S8-proj-isolation</strong> one project cannot reach into another</td><td class="partial">files only</td><td class="yes">kept</td><td class="partial">non-root only</td></tr>
+<tr><td><strong>S10-audit</strong> audit records the project and session</td><td class="partial">guest label</td><td class="yes">kept</td><td class="partial">guest label</td></tr>
+<tr><td><strong>F9-approve-unknown</strong> approval "allow for this project"</td><td class="partial">whole VM</td><td class="partial">whole VM</td><td class="partial">non-root only</td></tr>
+<tr><td><strong>R2-dns-names</strong> DNS lookup budget per session</td><td class="partial">per VM</td><td class="partial">per VM</td><td class="partial">per VM</td></tr>
+<tr><td><strong>N5-two-macos-vms</strong> at most two macOS VMs</td><td class="yes">fits</td><td class="no">one project</td><td class="yes">fits</td></tr>
 <tr><td>Spec work</td><td class="na">003, 007, 009</td><td class="na">006, 009</td><td class="na">spike first</td></tr>
 </tbody>
 </table>
 
-S4 (no secrets in the guest), S5 (default-deny egress), and S11 (guest root doesn't gain control over enforcement) hold under every option.
+S4-no-guest-secrets (no secrets in the guest), S5-default-deny (default-deny egress), and S11-root-gains-nothing (guest root doesn't gain control over enforcement) hold under every option.
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> `wb-netd` leases one IPv4 address per VM and accepts only that VM's MAC address ([spec 007, "Addressing"](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/007-egress-gateway.md)).
+- <Badge text="verified" variant="success" /> `wb-netd` leases one IPv4 address per VM and accepts only that VM's MAC address (spec 007, "Addressing").
 - <Badge text="verified" variant="success" /> Spec 007 still says each stream is "tagged with VM, project, session, hostname, and port" ("Connections"), with no source for the project and session.
-- <Badge text="verified" variant="success" /> All trusted projects share the work VM, each as its own guest user ([spec 006, "VMs" and "Projects and sessions"](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/006-vm-lifecycle.md)).
+- <Badge text="verified" variant="success" /> All trusted projects share the work VM, each as its own guest user (spec 006, "VMs" and "Projects and sessions").
 - <Badge text="inferred" variant="note" /> So before any label exists, project B's agent can use project A's credential binding without guest root. Specs 007 and 009 don't say how the host would tell the two users' connections apart.
-- <Badge text="verified" variant="success" /> Work returned through git is not affected: pushes to the landing repository go over the host-guest socket, not the network ([spec 008, "Out of the guest"](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/008-workspace-and-git.md)).
-- <Badge text="verified" variant="success" /> Guest labels can only narrow host rules, and guest root can forge them (spec 013, "Principle", and risk R6). Program narrowing is off until X14 (spec 009, "Program narrowing").
+- <Badge text="verified" variant="success" /> Work returned through git is not affected: pushes to the landing repository go over the host-guest socket, not the network (spec 008, "Out of the guest").
+- <Badge text="verified" variant="success" /> Guest labels can only narrow host rules, and guest root can forge them (spec 013, "Principle", and risk R6-forged-labels). Program narrowing is off until X14 (spec 009, "Program narrowing").
 - <Badge text="verified" variant="success" /> A project can already be assigned to the isolated VM slot in its settings (spec 009, "Settings contents"), which is what option B builds on.
 - <Badge text="verified" variant="success" /> The macOS packet filter documents a `user` rule option that matches "packets of sockets owned by the specified user" (`man pf.conf` on macOS 27.0.1).
 - <Badge text="assumed" variant="caution" /> That `pf` per-user rules can give each project user a distinct source address inside a macOS guest. Testing it needs a VM, so it would be a spike.
-- <Badge text="assumed" variant="caution" /> That the X14 Network Extension can be approved in the image without MDM and sees every relevant flow. That is spike X14 ([#10](https://github.com/wraithbox/wraithbox/issues/10)).
+- <Badge text="assumed" variant="caution" /> That the X14 Network Extension can be approved in the image without MDM and sees every relevant flow. That is spike X14 (issue #10).
 
 ## What this unblocks
 
-- [#51](https://github.com/wraithbox/wraithbox/issues/51), the approval flow, which is blocked by this issue.
-- The spec pull request that rewrites 003 (new R7), 007 ("Connections") and 009 (effective policy per VM).
-- The priority of X14 ([#10](https://github.com/wraithbox/wraithbox/issues/10)): under option A it decides whether v1 has any per-project narrowing at all.
+- Issue #51, the approval flow, which is blocked by this issue.
+- The spec pull request that rewrites spec 003 (a new residual risk), spec 007 ("Connections") and spec 009 (effective policy per VM).
+- The priority of X14 (issue #10): under option A it decides whether v1 has any per-project narrowing at all.
 
 <details>
 <summary>Details and glossary</summary>
 
 **Why the issue rules out option C.** Spec 003 assumes the agent may hold root in the guest. Anything inside the guest that decides which network card or address a connection uses, root can change. So routing by user protects against an agent without root, and against nothing more. That is the same protection a guest label gives in option A.
 
-**A related question.** The git transport over the host-guest socket has the same problem: `wb-hostd` learns which project a push is for from `wb-guestd`, which runs in the guest. Risk R5 covers that today ("changes still return only as reviewable branches").
+**A related question.** The git transport over the host-guest socket has the same problem: `wb-hostd` learns which project a push is for from `wb-guestd`, which runs in the guest. Risk R5-cross-proj-clones covers that today ("changes still return only as reviewable branches").
 
 **Glossary**
 

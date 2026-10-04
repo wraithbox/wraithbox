@@ -3,7 +3,7 @@
 **Purpose:** Fix languages, libraries, packaging, and repository layout,
 with the reason for each choice.
 
-**Requirements:** N4, N7, N8, S12, F17.
+**Requirements:** N4-host-platforms, N7-maintainability, N8-licensing, S12-least-privilege, F17-same-everywhere.
 
 ## Languages: Go first, native where needed
 

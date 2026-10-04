@@ -48,7 +48,7 @@ X1 model credential, X19 terminal filter ─────────────
 ```
 
 The VM spikes (X2, X3, X5 to X8, X17, X18, X20) share one constraint:
-a Mac runs at most two macOS guests at a time (N5). Only one or two of
+a Mac runs at most two macOS guests at a time (N5-two-macos-vms). Only one or two of
 them can run at once per machine (#50).
 
 ## Components and what they wait on
@@ -77,20 +77,20 @@ criterion cites the requirement IDs it proves.
 - **M1: walking skeleton.** `wb image build` makes a sealed image,
   `wb-vmd` boots it, `wb-guestd` answers over vsock, and `wb shell`
   opens a PTY as a project user. The guest has no network device yet.
-  Covers S1, S2, S4 (image seal), S8 (users), F2.
+  Covers S1-separate-kernel, S2-no-host-fs-share, S4-no-guest-secrets (image seal), S8-proj-isolation (users), F2-any-repo.
 - **M2: the network floor.** `wb-netd` and `wb-proxyd` in inspect
   mode with a static policy, the audit log, and the conformance cases
-  for egress. Covers S5, S10, S11, F8.
+  for egress. Covers S5-default-deny, S10-audit, S11-root-gains-nothing, F8-no-proxy-config.
 - **M3: `wb claude` end to end.** Git round trip with carry-in,
   landing and flagging, the model credential, the terminal filter,
-  `wb diff` and `wb land`. Covers F1 to F5, F13, S3, S4, S6.
+  `wb diff` and `wb land`. Covers F1-drop-in to F5-parallel-sessions, F13-claude-state, S3-no-host-exec, S4-no-guest-secrets, S6-repo-writes.
 - **M4: approvals and policy.** Approvals with notifications and
   `wb approve`, learn mode, credential bindings, the dependency gate,
-  `wb trust` with the boundary check, `wb policy explain`. Covers F9,
-  F10, F15, S7, S9, S14, N6.
+  `wb trust` with the boundary check, `wb policy explain`. Covers F9-approve-unknown,
+  F10-learn-mode, F15-inspect, S7-dep-gate, S9-host-policy, S14-no-fake-approvals, N6-explained-refusals.
 - **M5: v1 release gate.** Self-sandboxed daemons, Seatbelt profiles,
   warm start and suspend, the full conformance suite and benchmarks,
-  packaging. Covers S12, S13, N1 to N3.
+  packaging. Covers S12-least-privilege, S13-bounded-resources, N1-startup to N3-footprint.
 - **Later:** X10 to X16, spec 013 layers 3 and 4, other host and
   guest platforms.
 
@@ -131,7 +131,7 @@ Spec gaps, contradictions and missing specs:
 | #37 | The host terminal stream as a boundary | #30 |
 | #38 | Port forwarding and clipboard design and threats | |
 | #39 | CA name constraints and rotation versus live policy changes | |
-| #40 | Learn mode and pass mode as S5 exceptions | |
+| #40 | Learn mode and pass mode as S5-default-deny exceptions | |
 | #41 | Which git data reaches the guest, and host git as a parser | |
 | #42 | Configuration trust versus VM placement, project identity | |
 | #43 | VM slot admission for image builds and GUI work | #20 |
@@ -156,16 +156,16 @@ Ordered by how much of the design they can move:
    v1.
 2. **#31.** Homebrew has one prefix per machine. Project users sharing
    a writable prefix can plant binaries for each other, which breaks
-   S8 without any root escalation.
+   S8-proj-isolation without any root escalation.
 3. **#30 and #37.** The terminal relay passes guest bytes to the host
    terminal emulator, which can write the host clipboard and, in some
    emulators, files.
 4. **#33 and #32.** Removing every guest `Authorization` header breaks
    anonymous registry tokens (Homebrew bottles from `ghcr.io`).
    Refusing young package downloads may fail most fresh installs. Both
-   decide whether F7 and S7 are usable.
+   decide whether F7-toolchain-manifest and S7-dep-gate are usable.
 5. **#39 and #40.** Specs disagree with each other (#39), or weaken
-   S5 without saying so (#40).
+   S5-default-deny without saying so (#40).
 
 ## Next steps
 

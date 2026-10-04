@@ -4,7 +4,7 @@
 network stack (`wb-netd`) and a policy-enforcing proxy (`wb-proxyd`) on
 the host.
 
-**Requirements:** F8 to F10, S4 to S7, S10, S11, N6.
+**Requirements:** F8-no-proxy-config to F10-learn-mode, S4-no-guest-secrets to S7-dep-gate, S10-audit, S11-root-gains-nothing, N6-explained-refusals.
 
 ## Packet path (`wb-netd`)
 
@@ -32,11 +32,11 @@ the host.
     to the guest.
   - `AAAA` queries get an empty answer; other record types are refused.
   - Names not on the allowlist get `NXDOMAIN` and raise an approval
-    event (F9). After approval, the next lookup succeeds.
+    event (F9-approve-unknown). After approval, the next lookup succeeds.
   - Wildcard allowlist entries are bounded: each session may resolve at
     most a fixed number of new names under wildcards, and failed lookups
     count against that budget, because names themselves can carry data
-    (R2). Query rate and name length are limited.
+    (R2-dns-names). Query rate and name length are limited.
 - **Connections.**
   - TCP to a synthetic address on an allowed port is accepted by the
     stack and handed to `wb-proxyd` as a byte stream over a Unix socket,
@@ -44,7 +44,7 @@ the host.
   - TCP to any other address is reset; UDP other than DNS is dropped
     (clients fall back from QUIC to TCP); ICMP is answered only for the
     gateway address. The host, the LAN, and raw IP destinations are
-    therefore unreachable by construction (S5).
+    therefore unreachable by construction (S5-default-deny).
 
 ## Stream path (`wb-proxyd`)
 
@@ -59,10 +59,10 @@ the host.
   - **pass**: relay TLS bytes unchanged to the named host. Only for hosts
     where inspection breaks the client; every pass-through host is a
     documented residual channel, because the proxy cannot see what is
-    sent (R1).
+    sent (R1-allowed-channels).
   - Plain HTTP is allowed only when policy names `host:80`, and is
     always inspected.
-- **Credential replacement** (S4). On inspected hosts, credentials sent
+- **Credential replacement** (S4-no-guest-secrets). On inspected hosts, credentials sent
   by the guest (`Authorization`, `Proxy-Authorization`, API-key headers,
   cookies configured per binding) are always removed. If the host has a
   credential binding, the real credential is injected from the
@@ -75,7 +75,7 @@ the host.
   a query string, a body) gets a `403` naming the binding, and an audit
   event. The placeholder itself is never sent upstream. For AWS,
   `wb-proxyd` signs requests (SigV4) rather than injecting a key.
-- **HTTP policy** (S6). Rules match method and path per host, GraphQL
+- **HTTP policy** (S6-repo-writes). Rules match method and path per host, GraphQL
   operation type and name, and WebSocket messages, in the OpenShell
   policy schema (spec 009). Each inspected host enforces its rules by
   default. A host can be set to `audit` while a new rule is tried out:
@@ -90,7 +90,7 @@ the host.
   - *package registries* (npm, PyPI, Go module proxy, crates.io,
     Homebrew bottles): metadata and downloads only; publish and upload
     endpoints denied.
-- **Dependency gate** (S7). For registry downloads, `wb-proxyd` looks up
+- **Dependency gate** (S7-dep-gate). For registry downloads, `wb-proxyd` looks up
   the requested version's publish time and known vulnerabilities (OSV
   data). Versions younger than the minimum age (default 7 days) or with a
   known vulnerability at or above the threshold (default HIGH) are
@@ -109,7 +109,7 @@ the host.
   result of the prover's risk check on the rule it would add (spec 009),
   such as new reach for a credential or a new write method. Policy
   changes take effect without restarting anything.
-- **Learn mode** (trusted projects only, F10): DNS resolves any name and
+- **Learn mode** (trusted projects only, F10-learn-mode): DNS resolves any name and
   connections are inspected and allowed, while credentials stay host-side
   as usual. The session's destinations become a suggested allowlist for
   `wb learn report`.
