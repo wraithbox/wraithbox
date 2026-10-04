@@ -19,7 +19,7 @@ FR07-toolchain-manifest, FR08-no-proxy-config
   headers and query parameters each built-in profile names.
 - **You are approving:** the rewritten "Credential replacement" bullet
   of S07-egress-gateway, the anonymous binding in S09-policy-credentials-audit,
-  and T09-unnamed-credentials. Of 11 clients, only Homebrew breaks when
+  and T10-unnamed-credentials. Of 11 clients, only Homebrew breaks when
   every guest credential is removed. A built-in binding that injects
   Homebrew's own anonymous token on `ghcr.io` fixes it. The other two
   candidate rules forward a value the guest chose, and one of them
@@ -207,7 +207,7 @@ refuses only those.
   `homebrew/core` reads, and refuses writes there.
 - S09-policy-credentials-audit, "Bindings": a binding can hold a fixed
   public value, with no secret store item.
-- T00-index: T09-unnamed-credentials, a guest's own credential in a
+- T00-index: T10-unnamed-credentials, a guest's own credential in a
   header or parameter that no profile names, on a host without a
   built-in profile.
 - S11-verification-and-spikes: conformance cases for the query
