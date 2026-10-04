@@ -1,0 +1,142 @@
+---
+title: Can wb filter Claude Code's terminal output without breaking it?
+description: Yes, with conditions. An allowlist passes everything Claude Code needs to draw its screen, but file paths stop being links, /copy stops reaching the host clipboard, and desktop notifications lose their text.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-04.** Source: X19-terminal-filter (I30). Feeds I37 (B37-terminal-boundary) and I38. The check by eye in real terminals is I62.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** Claude Code 2.1.289 emitted 56 kinds of control and escape sequence in seven recorded sessions. All but five pass a short allowlist. With those five dropped or rewritten, every screen is the same on replay, except that file paths stop being links. Accepting this gives I37 its allowlist. `/copy` then no longer reaches your clipboard until I38 designs the clipboard.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 290" role="img" aria-label="Guest output passes through the filter in wb. Screen drawing, colors, web links and the title pass to the terminal emulator. Clipboard writes, file links and graphics are dropped, and notifications become a bell.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="20" width="200" height="250" rx="12" />
+  <text class="boundary-label" x="22" y="40">guest, untrusted</text>
+  <rect class="box guest" x="30" y="110" width="160" height="60" rx="10" />
+  <text class="label" x="110" y="136" text-anchor="middle">Claude Code</text>
+  <text class="note" x="110" y="155" text-anchor="middle">writes any bytes</text>
+
+  <rect class="box host" x="270" y="110" width="160" height="60" rx="10" />
+  <text class="label" x="350" y="136" text-anchor="middle">wb relay</text>
+  <text class="note" x="350" y="155" text-anchor="middle">allowlist filter</text>
+
+  <rect class="box" x="520" y="110" width="220" height="60" rx="10" />
+  <text class="label" x="630" y="136" text-anchor="middle">terminal emulator</text>
+  <text class="note" x="630" y="155" text-anchor="middle">Ghostty, Terminal.app</text>
+
+  <line class="edge" x1="192" y1="140" x2="268" y2="140" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="432" y1="140" x2="518" y2="140" marker-end="url(#f1-arrow)" />
+  <text class="note" x="475" y="100" text-anchor="middle">passes</text>
+  <text class="note" x="630" y="200" text-anchor="middle">cursor, colors, web links,</text>
+  <text class="note" x="630" y="218" text-anchor="middle">title, keyboard, paste modes</text>
+
+  <rect class="box" x="270" y="215" width="160" height="50" rx="10" />
+  <text class="label" x="350" y="245" text-anchor="middle">dropped, counted</text>
+  <line class="edge-bad" x1="350" y1="172" x2="350" y2="213" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="230" y="40">OSC 52 clipboard, file:// links,</text>
+  <text class="boundary-label" x="230" y="58">kitty graphics, iTerm2 files</text>
+  <text class="boundary-label" x="230" y="76">notifications: become a bell</text>
+</svg>
+<figcaption>
+Figure 1. The relay of a <code>wb claude</code> session with the filter from X19-terminal-filter. What draws the screen passes. What acts on the host is dropped whole and counted, and a desktop notification arrives as a bell without its text.
+</figcaption>
+</figure>
+
+## Options
+
+The spike leaves two choices open: what happens to `/copy`, and to Claude Code's desktop notifications.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Allowlist as measured
+
+Take the list in X19-terminal-filter into I37. OSC 52 is dropped, notifications become a bell, `file://` links become plain text.
+
+- **Cost:** `/copy` says "Copied" but the host clipboard is unchanged until I38 gives the clipboard a design. No text in "Claude needs your permission".
+- **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" /> <Badge text="FR12-clipboard" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Allowlist, OSC 52 becomes a clipboard request
+
+As A, but `wb` turns each OSC 52 write into a request to copy that text to the host clipboard, approved by the user (FR12-clipboard).
+
+- **Cost:** an approval flow for the clipboard now, which B38-port-forward-clipboard deferred past V1.
+- **Keeps:** <Badge text="FR12-clipboard" variant="success" /> if approval is outside the agent's terminal (SEC14-no-fake-approvals).
+
+</div>
+<div class="wb-option">
+
+### C. Pass notification text
+
+As A, but OSC 9 and OSC 777 pass. The desktop shows Claude Code's own notification text.
+
+- **Cost:** none for the user.
+- **Weakens:** the guest writes text into host desktop notifications, where approvals also arrive. <Badge text="SEC14-no-fake-approvals" variant="danger" />
+
+</div>
+</div>
+
+<Aside type="note" title="Not an option">
+Passing OSC 52 to the terminal unchanged would give the guest the host clipboard without approval, which FR12-clipboard rules out and B37-terminal-boundary already decided against.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. As measured</th><th>B. OSC 52 request</th><th>C. Notification text</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC03-no-host-exec</strong> nothing the agent produces runs on the host without the user</td><td class="yes">kept</td><td class="yes">holds</td><td class="yes">unchanged</td></tr>
+<tr><td><strong>SEC14-no-fake-approvals</strong> approvals never come from the agent's terminal</td><td class="yes">stronger</td><td class="yes">holds</td><td class="no">guest text in notifications</td></tr>
+<tr><td><strong>FR12-clipboard</strong> clipboard opt-in, per direction, with approval</td><td class="yes">no crossing</td><td class="yes">with approval</td><td class="yes">no crossing</td></tr>
+<tr><td><strong>FR01-drop-in</strong> <code>wb claude</code> behaves as <code>claude</code></td><td class="partial">three losses</td><td class="partial">two losses</td><td class="partial">two losses</td></tr>
+<tr><td>Work</td><td class="na">I37 only</td><td class="na">I37 and the I38 clipboard flow</td><td class="na">I37 only</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The inventory: 56 kinds of sequence in 818 KB of output from seven sessions, four terminal profiles (X19-terminal-filter, "Inventory").
+- <Badge text="verified" variant="success" /> Replayed into two headless emulators, raw and filtered, every screen after every read differs at most in `file://` links. A control run that strips colors shows the comparison sees style (X19-terminal-filter, "What the filter changes").
+- <Badge text="verified" variant="success" /> `/copy` emits `ESC ] 52 ; c ; <base64>` as well as running `pbcopy` (recording `copy-ghostty`).
+- <Badge text="verified" variant="success" /> Claude Code sends "Claude needs your permission" as OSC 777 for Ghostty and OSC 9 for iTerm2 (recordings `session-ghostty`, `session-iterm`).
+- <Badge text="verified" variant="success" /> A link printed by a Bash tool reaches the terminal as a live link (recording `session-ghostty`).
+- <Badge text="verified" variant="success" /> About 12 ms of CPU per MB of Claude Code output, 30 ms per MB for random bytes; a fuzz target found and checked one bug (X19-terminal-filter, "Cost", "Fuzzing").
+- <Badge text="assumed" variant="caution" /> That the headless emulator shows what Ghostty and Terminal.app show. I62 checks it by eye.
+- <Badge text="assumed" variant="caution" /> That the terminal profiles in the recorder answered Claude Code's queries as the real terminals would. I62 covers this too.
+
+## What this unblocks
+
+- I37: the spec change for T00-index, S05-cli and S11-verification-and-spikes, with this allowlist.
+- I62: the check by eye, with the relay from the spike branch.
+- I38: OSC 52 from `/copy` is the input for the guest-to-host clipboard.
+
+<details>
+<summary>Details and glossary</summary>
+
+**How the filter works.** It splits the stream into text, controls, and escape sequences. It passes a sequence only when a rule allows it and drops any other whole, from its `ESC` to its end. The terminal never sees the start of a dropped sequence. Each drop is counted by rule, so the session summary can say why something looked wrong (NFR06-explained-refusals).
+
+**Why file links go.** Claude Code links the paths it shows with `file://` URLs. In a guest those are guest paths. On the host they name another file or none, and a click opens whatever is there.
+
+**Glossary**
+
+- **Escape sequence:** bytes starting with `ESC` that a terminal treats as a command, not text.
+- **OSC 52:** the sequence that sets the terminal's clipboard.
+- **OSC 8:** a hyperlink around some text.
+- **OSC 9, OSC 777:** desktop notifications in iTerm2 and Ghostty.
+- **Kitty graphics:** a protocol for images in the terminal, one mode of which reads a file by its path.
+- **Headless emulator:** a terminal emulator in a library, with no window, used to compare screens.
+
+</details>

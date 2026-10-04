@@ -33,7 +33,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X16-openshell-linux | OpenShell for Linux guests | Open |
 | X17-image-build | Unattended image build | Open |
 | X18-vsock-handoff | Host-guest socket and descriptor hand-off | Open |
-| X19-terminal-filter | Terminal stream filtering | Open |
+| X19-terminal-filter | Terminal stream filtering | Answered |
 | X20-shared-homebrew | Homebrew with more than one project user | Open |
 | X21-dep-gate-registries | Dependency gate on real registries | Open |
 | X22-no-guest-credentials | Clients without guest credentials | Open |
@@ -159,6 +159,7 @@ assumption that v1 work would otherwise build on. They block v1.
   host (clipboard writes, file transfer, terminal multiplexer control
   sequences) without visible damage in the common macOS terminals?
   The relay passes guest bytes to the host terminal emulator.
+  Answered: yes, with conditions (X19-terminal-filter).
 - **X20-shared-homebrew: Homebrew with more than one project user.** Can each project
   user in one guest get its declared Brewfile without a Homebrew
   prefix that another project user can write to (SEC08-proj-isolation)? Compare a

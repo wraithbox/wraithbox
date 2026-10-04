@@ -177,7 +177,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X19-terminal-filter: Terminal stream filtering",
-		"summary": "X19-terminal-filter (added to S11-verification-and-spikes in #14)"
+		"summary": "X19-terminal-filter (added to S11-verification-and-spikes in #14)",
+		"brief": "B30-terminal-filter"
 	},
 	"31": {
 		"kind": "issue",
@@ -201,7 +202,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X23-sandboxed-daemons: Self-sandboxed Go daemons on macOS",
-		"summary": "X23-sandboxed-daemons (added to S11-verification-and-spikes in #14)"
+		"summary": "X23-sandboxed-daemons (added to S11-verification-and-spikes in #14)",
+		"brief": "B34-sandboxed-daemons"
 	},
 	"35": {
 		"kind": "issue",
@@ -327,5 +329,83 @@
 		"title": "S04-architecture, S09-policy-credentials-audit, S10-tech-stack: first .proto contracts and settings schema",
 		"summary": "S04-architecture says all IPC is protobuf over gRPC and S10-tech-stack adds proto/ \"with the first RPC\".",
 		"brief": "B52-proto-contracts"
+	},
+	"53": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(agents): review briefs, the spec-draft and brief skills, and the brief for #36",
+		"summary": "Adds review briefs: one page on the docs site per decision, spike result or spec change, so the maintainer can decide without being a Go, Swift or virtualization expert."
+	},
+	"54": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: specs on the site, one ID scheme, generated indexes, briefs for #37 to #52",
+		"summary": "Stacked on #53."
+	},
+	"55": {
+		"kind": "issue",
+		"state": "open",
+		"title": "GHSA-ch52-4w7c-c8xp: no fixed http-cache-semantics release (through astro)",
+		"summary": "mise run vuln fails on every branch, main included: osv-scanner reports GHSA-ch52-4w7c-c8xp (high, CVSS 8.7) in http-cache-semantics 4.2.0, \"max-stale handling can disclose cross-user cached responses\"."
+	},
+	"56": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "ci(vuln): expiring advisory overrides in osv-scanner.toml",
+		"summary": "mise run vuln fails on every branch and on main: GHSA-ch52-4w7c-c8xp in http-cache-semantics 4.2.0 (through astro) has no fixed release."
+	},
+	"57": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build: union merge for the word lists, and mark .jpg as binary",
+		"summary": "- cspell-words.txt and .vale/styles/config/vocabularies/wraithbox/accept.txt get merge=union, as ai-training does for its word list."
+	},
+	"58": {
+		"kind": "issue",
+		"state": "open",
+		"title": "CI: run the go, swift and docs jobs only when their inputs changed",
+		"summary": "Every push and pull request runs all jobs in .github/workflows/ci.yml: go (a matrix over three OSes), swift (macos-26), docs, vuln and actions."
+	},
+	"59": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(review): record the decisions on briefs B36 to B52",
+		"summary": "Marks briefs B36 to B52 as decided (2026-10-04) and empties the \"Order to decide\" list in B00-index."
+	},
+	"60": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X01-model-credential: API key mode via the proxy",
+		"summary": "Split from #15 (X01-model-credential) during triage on 2026-10-04."
+	},
+	"61": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X23-sandboxed-daemons: wb-proxyd profile with Keychain and Secure Enclave",
+		"summary": "Split from #34 (X23-sandboxed-daemons) during triage on 2026-10-04."
+	},
+	"62": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X19-terminal-filter: visual check in real terminals",
+		"summary": "Split from #30 (X19-terminal-filter) during triage on 2026-10-04."
+	},
+	"63": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(plan): V1 milestones confirmed and created, v1 spikes triaged",
+		"summary": "V1-initial said the maintainer confirms the milestones before they are created."
+	},
+	"64": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd self-sandbox profile for the Virtualization framework",
+		"summary": "Found while answering #34 (X23-sandboxed-daemons)."
+	},
+	"65": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spike): X23-sandboxed-daemons result, yes with conditions",
+		"summary": "Result of spike X23-sandboxed-daemons, approach steps 1 and 2 (the scope set by the 2026-10-04 decision on #34)."
 	}
 }
