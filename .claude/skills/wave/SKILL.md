@@ -67,7 +67,9 @@ Follow `orchestration.md`, "A wave", steps 3 to 7:
 - Wait by ending your turn; notifications wake you. Never poll.
 - When a PR is green and approved, ask the maintainer to approve the
   merge. Merge with `gh pr merge <n> --rebase` only after they say so.
-  Check the other PRs' `mergeable` state after each merge.
+  Check the other PRs' `mergeable` state after each merge. After a
+  spike result merges, tag its spike commit `spike-x<NN>-<slug>`
+  (`planning.md`, "Spikes", "Tag").
 - File follow-ups as issues (`--parent` the issue whose review named
   them) before you report.
 

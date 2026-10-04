@@ -52,8 +52,11 @@ under `spikes/x<NN>-<slug>/` on branch `spike/x<NN>-<slug>`, no project
 gates, push the branch, and keep it. Then, on a second branch
 `docs/x<NN>-<slug>-result` from `origin/main`, write
 `docs/spikes/X<NN>-<slug>.md` with the answer and a permalink to the
-spike commit, update the specs the answer affects, run `mise run ci`,
-and open that PR with `Closes #<issue>`. The answer is yes, no, or yes
+head of the spike branch, update the specs the answer affects, run
+`mise run ci`, and open that PR with `Closes #<issue>`. If you push
+another spike commit later, move the permalink to it in the same round.
+The coordinator tags that commit when the result merges; don't tag it
+yourself. The answer is yes, no, or yes
 with conditions, and it is backed by what you measured. Report a "no"
 plainly; never soften it to keep the plan intact.
 
