@@ -45,5 +45,6 @@ Pages are in `packages/wraithbox-doc/src/content/docs/`. Pushing to
 ## Next steps
 
 - Read the [design overview](/design/), then the specifications in
-  `docs/spec/`, starting with `003-requirements.md`.
+  `docs/spec/`, starting with `S03-requirements.md`, and the
+  requirements in `docs/requirements/`.
 - [Writing pages](/guides/writing-pages/) for adding documentation.

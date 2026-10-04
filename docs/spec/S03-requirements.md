@@ -1,0 +1,38 @@
+# S03 - Requirements
+
+**Purpose:** The problem Wraith Box solves, and where the requirements
+that answer it are.
+
+## Problem
+
+Coding agents such as Claude Code are most useful when they can run tools
+without asking permission for each step. Running them that way directly on
+a developer's machine exposes everything the developer can reach: files,
+credentials, other repositories, accounts. Wraith Box runs Claude Code
+inside a disposable-feeling but persistent virtual machine, so the agent
+keeps a native toolchain for the operating system it works on while the
+host, its secrets, and its network stay under host-side control.
+
+The first delivery target is macOS guests on macOS hosts. The design is
+for macOS, Windows, and Linux hosts, with Linux and Windows guests on all
+of them (S12-platforms); platform-specific code is kept behind narrow
+interfaces so later platforms do not reshape the core.
+
+The design assumes the agent is **capable and possibly adversarial**: a
+prompt injection in a README, issue, dependency, or web page may take full
+control of everything inside the sandbox, including root in the guest.
+Agents are increasingly good at finding ways out of their environment, so
+every control that matters is enforced *outside* the guest.
+
+## Requirements
+
+Every other spec traces back to these:
+
+- FR00-index: what Wraith Box must do for the user.
+- SEC00-index: the security controls, never weakened.
+- NFR00-index: how fast, how small, on which platforms.
+- T00-index: the adversary, the assets, the trust boundaries, and the
+  risks accepted rather than solved.
+- V1-initial: what the first version delivers and leaves out.
+
+**Status:** Draft

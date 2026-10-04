@@ -25,7 +25,7 @@ Needs a token with `repo` scope and admin rights on the repository.
 
 | Setting | Value | Why |
 | ------- | ----- | --- |
-| Dependabot alerts | on | Supply-chain policy (spec 010-tech-stack) |
+| Dependabot alerts | on | Supply-chain policy (S10-tech-stack) |
 | Dependabot security updates | on | Same; `.github/dependabot.yml` covers version updates |
 | Actions allowed | GitHub-owned plus `jdx/mise-action@*`, `zizmorcore/zizmor-action@*` | Only actions the workflows use; a new third-party action needs an explicit entry here |
 | Actions SHA pinning required | on | Enforces the "pin to full-length commit SHA" rule from `AGENTS.md` |

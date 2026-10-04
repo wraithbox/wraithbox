@@ -105,7 +105,7 @@ request; the result pull request does (`planning.md`).
    `internal/platform` self-sandboxing, local IPC, or secret store code.
    The prompt names the PR, the branch, and the specific risks to probe
    (a new parser of guest bytes without a fuzz target, a policy check
-   that fails open, an `S*` control weakened). The reviewer returns its
+   that fails open, a `SEC*` control weakened). The reviewer returns its
    review as its final text: findings by severity with `file:line` and a
    concrete failure scenario, then `Verdict: approve` or
    `Verdict: needs changes`, then the attribution lines. The coordinator

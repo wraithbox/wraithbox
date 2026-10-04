@@ -9,8 +9,8 @@ Do not depend on this project, and in particular do not depend on its
 security. There is no mechanism yet for security updates.
 
 The security requirements and threat model the design aims for are in
-[spec 003](docs/spec/003-requirements.md). A way to get around one of
-its controls (`S*`) is a vulnerability, even before the first release.
+[SEC00-index](docs/requirements/SEC00-index.md). A way to get around one of
+its controls (`SEC*`) is a vulnerability, even before the first release.
 
 ## Reporting a vulnerability
 

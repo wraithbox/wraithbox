@@ -45,13 +45,13 @@ changing at the same time. Everything else is here.
 Done means the PR is open, `mise run ci` and GitHub CI are green, and
 nothing is merged.
 
-## For a spike (`spike` label, title `X<n>: …`)
+## For a spike (`spike` label, title `X<NN>-<slug>: …`)
 
 Follow `planning.md`, "Spikes", instead of steps 5 and 6: throwaway code
-under `spikes/x<n>-<slug>/` on branch `spike/x<n>-<slug>`, no project
+under `spikes/x<NN>-<slug>/` on branch `spike/x<NN>-<slug>`, no project
 gates, push the branch, and keep it. Then, on a second branch
-`docs/x<n>-<slug>-result` from `origin/main`, write
-`docs/spec/spikes/X<n>-<slug>.md` with the answer and a permalink to the
+`docs/x<NN>-<slug>-result` from `origin/main`, write
+`docs/spikes/X<NN>-<slug>.md` with the answer and a permalink to the
 spike commit, update the specs the answer affects, run `mise run ci`,
 and open that PR with `Closes #<issue>`. The answer is yes, no, or yes
 with conditions, and it is backed by what you measured. Report a "no"
@@ -63,7 +63,7 @@ plainly; never soften it to keep the plan intact.
 - Every new check or policy decision has a test that feeds it a
   violation and sees it fail closed, and it logs the decision and the
   rule.
-- No `S*` control from spec 003-requirements is weakened, and a code comment names
+- No `SEC*` control from SEC00-index is weakened, and a code comment names
   the requirement where a control is enforced.
 - Platform code is in `internal/platform` `_darwin.go` / `_linux.go` /
   `_windows.go` files; shared code never branches on `runtime.GOOS`.

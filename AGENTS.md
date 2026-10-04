@@ -7,30 +7,37 @@ Every command goes through `wb`, `gh`-style. All security controls are
 enforced on the host: no host mounts, no secrets in the guest,
 default-deny egress through a host-side userspace network stack and
 proxy. The first target is macOS guests on macOS hosts. Windows and
-Linux hosts and Linux and Windows guests follow (spec 012-platforms), so
+Linux hosts and Linux and Windows guests follow (S12-platforms), so
 platform-specific code is kept behind the interfaces defined there.
 
 ## Source of truth: the specs
 
-The design is in `docs/spec/`. Read `003-requirements.md` and
-`004-architecture.md` before changing anything substantial.
+The design is in `docs/` (S01-spec-based-development lists what goes
+where). Read `docs/spec/S03-requirements.md`,
+`docs/requirements/SEC00-index.md` and `docs/spec/S04-architecture.md`
+before changing anything substantial.
 
 - Specs are authoritative. If code and spec disagree, fix one of them in
   the same change. Do not let them drift.
 - Changing a design decision means changing the spec first (or in the same
   pull request), with the reason.
-- Requirement identifiers (`F*`, `S*`, `N*`, `C*`, `R*` in spec 003-requirements) are
-  stable; reference them in specs, code comments where a control is
-  enforced, and commit messages. Write the number with its slug
-  (`S6-repo-writes`), so a reader knows what it means without spec 003-requirements.
-- In specs and docs, write references as plain text and let the docs
-  site link them with a hover card: `S6-repo-writes`, `X14-flow-attribution`,
-  `spec 007-egress-gateway`, `issue #36`, `PR #12`. Don't write a bare `#36` or link
-  a spec on GitHub (`docs/agents/review-briefs.md`, "References").
-- A control from spec 003-requirements (`S*`) is never weakened to make something work.
+- IDs are stable: specs `S*`, requirements `FR*`, `NFR*` and `SEC*`,
+  threats `T*`, spikes `X*`, research notes `R*`, versions `V*`
+  (S01-spec-based-development). Reference them in specs, code comments
+  where a control is enforced, and commit messages. Write the ID with
+  its slug (`SEC06-repo-writes`), so a reader knows what it means
+  without the index open.
+- In specs and docs, write references as bare IDs and let the docs
+  site link them with a hover card: `SEC06-repo-writes`,
+  `X14-flow-attribution`, `S07-egress-gateway`, `I36`, `PR13`. No
+  "spec" or "issue" in front, no `#36`, and no links to specs on
+  GitHub. In issue and pull request bodies and commit messages, write
+  `#36`, which GitHub links (`docs/agents/review-briefs.md`,
+  "References").
+- A security control (`SEC*`, SEC00-index) is never weakened to make something work.
   If a requirement turns out to be unachievable, write that up as a spec
   change and stop.
-- Open questions are tracked as spikes (`X*`) in spec 011-verification-and-spikes. A spike is
+- Open questions are tracked as spikes (`X*`) in X00-index. A spike is
   throwaway code with a written result; do not build on an unanswered
   spike.
 
@@ -73,7 +80,7 @@ docs/spec/             # Specifications (authoritative design)
 docs/agents/           # How agents plan, pick up, build and review work
 ```
 
-Spec 004-architecture defines which process owns what, and spec 012-platforms the platforms.
+S04-architecture defines which process owns what, and S12-platforms the platforms.
 In short: almost everything is cross-platform Go, including `wb-hostd`.
 Platform-native code is a separate process behind a gRPC contract, used
 only where Go cannot reasonably reach the platform API: Swift `wb-vmd`
@@ -89,7 +96,7 @@ table-driven stdlib tests. Every parser that handles guest-controlled
 bytes gets a fuzz target. Platform-specific code goes in
 `internal/platform` (and its subpackages) in `_darwin.go`, `_linux.go`,
 and `_windows.go` files; shared code never branches on `runtime.GOOS`.
-Go tasks must run under Windows `cmd.exe` (spec 002-toolchain).
+Go tasks must run under Windows `cmd.exe` (S02-toolchain).
 
 **Swift:** Swift 6 language mode; `swift format lint --strict` clean;
 SwiftLint complexity/size gate (`.swiftlint.yml`): refactor to pass, do
@@ -134,7 +141,7 @@ ai-tells rules flag them:
 **Supply chain:**
 
 - Dependencies must have permissive licenses (Apache-2.0, MIT, BSD, ISC).
-  No copyleft, no source-available licenses (spec 010-tech-stack).
+  No copyleft, no source-available licenses (S10-tech-stack).
 - Every lockfile is committed (`bun.lock`, each `go.sum`,
   `Package.resolved`) and has a `.github/dependabot.yml` entry.
 - `mise run vuln` must be clean. Fix a finding by moving the dependency,
@@ -162,7 +169,7 @@ Use GitHub with `gh` (`wraithbox/wraithbox`).
 
 ### Issue tracker
 
-Use GitHub issues. Bug, feature, and spike (`X*`, spec 011-verification-and-spikes) issue forms
+Use GitHub issues. Bug, feature, and spike (`X*`, X00-index) issue forms
 are in `.github/ISSUE_TEMPLATE/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
@@ -173,12 +180,12 @@ See `docs/agents/issue-tracker.md`.
 
 ### Planning and orchestration
 
-Work is ordered by milestone (`M<n>: …`, lowest open first), spikes
+Work is ordered by milestone (`V<N>-M<N>-<slug>`, lowest open first), spikes
 before the work they unblock. Besides the labels above, issues carry
 `area:*` labels (where the change lands) and optional `comp:*` labels
-(which process from spec 004-architecture), recorded in `.github/labels-areas.yml`.
+(which process from S04-architecture), recorded in `.github/labels-areas.yml`.
 
-- How issues, labels, spikes (`X<n>: …`) and milestones work:
+- How issues, labels, spikes (`X<NN>-<slug>: …`) and milestones work:
   `docs/agents/planning.md`.
 - How to pick up, claim, build and hand back an issue, and how a
   coordinator runs builders and reviewers in parallel:

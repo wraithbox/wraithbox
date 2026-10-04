@@ -38,7 +38,7 @@ Add names and jargon to `cspell-words.txt`. The **Prose** guideline in
 [AGENTS.md](AGENTS.md) explains the rest.
 
 Design changes start in `docs/spec/`. Read
-`docs/spec/003-requirements.md` first: the security requirements there
+`docs/requirements/SEC00-index.md` first: the security requirements there
 are not traded away for convenience.
 
 Commit messages follow [Conventional Commits](https://conventionalcommits.org/),
@@ -54,7 +54,7 @@ Do not open a public issue for a vulnerability. See
 ## Issues
 
 Use the issue forms for bugs, feature requests, and spikes (the `X*`
-open questions in `docs/spec/011-verification-and-spikes.md`). Labels
+open questions in `docs/spikes/X00-index.md`). Labels
 and triage are described in
 [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
 

@@ -1,30 +1,29 @@
 name: Spike
-description: A throwaway prototype that answers one open question (X* in spec 011-verification-and-spikes).
-title: "X<n>: "
+description: A throwaway prototype that answers one open question (X* in X00-index).
+title: "X<NN>-<slug>: "
 labels: ["spike", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
         Spikes are listed in
-        [spec 011-verification-and-spikes](https://github.com/wraithbox/wraithbox/blob/main/docs/spec/011-verification-and-spikes.md).
+        [X00-index](https://github.com/wraithbox/wraithbox/blob/main/docs/spikes/X00-index.md).
         A spike is throwaway code with a yes/no answer and a written result
         in `docs/spec/` before any dependent work starts. Do not build on an
-        unanswered spike. A new open question gets an `X*` number in spec
-        011-verification-and-spikes in the same change that answers it, or before.
+        unanswered spike. A new open question gets an `X*` number in X00-index in the same change that answers it, or before.
   - type: input
     id: spike-id
     attributes:
       label: Spike ID
-      description: The `X*` identifier from spec 011-verification-and-spikes, e.g. `X1-model-credential`.
-      placeholder: X1-model-credential
+      description: The `X*` identifier from X00-index, e.g. `X01-model-credential`.
+      placeholder: X01-model-credential
     validations:
       required: true
   - type: textarea
     id: question
     attributes:
       label: Question
-      description: The yes/no question, as stated in spec 011-verification-and-spikes.
+      description: The yes/no question, as stated in X00-index.
     validations:
       required: true
   - type: textarea
@@ -45,7 +44,7 @@ body:
       label: Done when
       value: |
         - [ ] The question has a yes/no answer, with evidence.
-        - [ ] The result is written up in `docs/spec/` and spec 011-verification-and-spikes points to it.
+        - [ ] The result is written up in `docs/spikes/X<NN>-<slug>.md` and X00-index points to it.
         - [ ] Any spec or requirement the answer changes is updated or has its own issue.
     validations:
       required: true

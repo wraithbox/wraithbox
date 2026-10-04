@@ -1,15 +1,15 @@
-# 009 - Policy, Credentials, Certificates and Audit
+# S09 - Policy, Credentials, Certificates and Audit
 
 **Purpose:** Where policy comes from, how secrets are held, how TLS
 inspection is trusted, and what is recorded.
 
-**Requirements:** F9-approve-unknown, F10-learn-mode, F15-inspect, S4-no-guest-secrets to S6-repo-writes, S9-host-policy, S10-audit, S12-least-privilege, S14-no-fake-approvals, N6-explained-refusals.
+**Requirements:** FR09-approve-unknown, FR10-learn-mode, FR15-inspect, SEC04-no-guest-secrets to SEC06-repo-writes, SEC09-host-policy, SEC10-audit, SEC12-least-privilege, SEC14-no-fake-approvals, NFR06-explained-refusals.
 
 ## Policy
 
 - **Files.** Two kinds, both on the host, outside every repository and
-  every guest, and the same on every host OS (F17-same-everywhere). `<config>` is per OS
-  in spec 012-platforms (`~/.config/wraithbox` on macOS).
+  every guest, and the same on every host OS (FR17-same-everywhere). `<config>` is per OS
+  in S12-platforms (`~/.config/wraithbox` on macOS).
   - *Settings* in TOML: `<config>/config.toml` and
     `<config>/projects/<project-id>.toml`.
   - *Network policy* in YAML: `<config>/policy.yaml` and
@@ -25,12 +25,12 @@ inspection is trusted, and what is recorded.
   separate top-level keys. The OpenShell part is then a valid OpenShell
   policy by itself.
 - **Program narrowing.** `binaries` entries match the program label
-  from the guest (spec 013-guest-confinement). Until spike X14-flow-attribution has delivered labels,
+  from the guest (S13-guest-confinement). Until spike X14-flow-attribution has delivered labels,
   rules are evaluated the way OpenShell does when binary identity is
   not required (as for its Windows driver): `binaries` does not narrow
   a rule. Each rule lists the universal entry `path: "/**"`, and policy
   that names programs is rejected at load with an error
-  saying why (N6-explained-refusals), so no rule is silently weaker than written. Whether
+  saying why (NFR06-explained-refusals), so no rule is silently weaker than written. Whether
   the prover reads `/**` as every program is checked when the boundary
   check is built.
 - **Settings contents.** The project toolchain manifest (Brewfile on
@@ -42,7 +42,7 @@ inspection is trusted, and what is recorded.
   has run `wb trust` for that repository. Even then it may only add
   allowed hosts, a toolchain manifest and HTTP rules, and every addition
   is shown in `wb policy explain`. It can never add credential bindings
-  or switch hosts to pass-through (S9-host-policy).
+  or switch hosts to pass-through (SEC09-host-policy).
 - **Boundary check.** At `wb trust` and whenever a trusted repository's
   policy changes, the merged project policy is checked against a
   boundary policy (the most a project may ever be allowed) with
@@ -57,15 +57,15 @@ inspection is trusted, and what is recorded.
 ## Credentials
 
 - **Storage.** Each credential is an item in the platform's secret
-  store (spec 012-platforms), readable only by `wb-proxyd`. On macOS: a Keychain
+  store (S12-platforms), readable only by `wb-proxyd`. On macOS: a Keychain
   item in an access group bound to Wraith Box's code-signing identity
   once that identity exists; until then, an access-control list naming
   the `wb-proxyd` binary, which is weaker and documented as such. Other
   platforms scope items as narrowly as their store allows; the limits
-  are documented per platform in spec 012-platforms.
+  are documented per platform in S12-platforms.
 - **Bindings.** A binding names the hosts, ports, and paths it applies
   to, the header and scheme to inject, and the secret store item
-  (spec 007-egress-gateway for placeholders found elsewhere). Besides static values,
+  (S07-egress-gateway for placeholders found elsewhere). Besides static values,
   a binding can hold an OAuth 2 refresh token or client credentials,
   which `wb-proxyd` exchanges for short-lived access tokens, or AWS keys
   for SigV4 signing. `wb cred set <binding>` reads the
@@ -73,16 +73,16 @@ inspection is trusted, and what is recorded.
 - **Model credential.** Claude Code in the guest is configured with a
   placeholder and a binding for the model API host. Whether every Claude
   Code authentication mode works with host-side replacement (including
-  token refresh) is the first spike in spec 011-verification-and-spikes. OpenShell has shown
+  token refresh) is the first spike in X00-index. OpenShell has shown
   that an API key works this way. A Claude subscription login is the
-  open part (spike X1-model-credential).
+  open part (spike X01-model-credential).
 - **Never in the guest.** Images are scanned for secrets at seal time;
   the environment of every guest process is built from an allowlist.
 
 ## TLS inspection certificate authority
 
 - **Key.** A P-256 key generated in the platform's hardware key store
-  (Secure Enclave on macOS, TPM elsewhere; spec 012-platforms), non-exportable,
+  (Secure Enclave on macOS, TPM elsewhere; S12-platforms), non-exportable,
   used by `wb-proxyd` to sign leaf certificates (Go's certificate
   creation accepts any signer). Fallback if no hardware key store is
   available: a software key held in the secret store.
@@ -96,7 +96,7 @@ inspection is trusted, and what is recorded.
   trust store and sets toolchain-specific trust variables so that every
   common client accepts it.
 
-## Approvals (S14-no-fake-approvals)
+## Approvals (SEC14-no-fake-approvals)
 
 Before an approval request is shown, the rule it would add goes
 through the prover's proposal risk check (new reach for a credential,
@@ -104,14 +104,14 @@ new write methods, metadata addresses). Findings are part of the
 request. Only the user approves a request.
 
 Approval requests are delivered as native notifications (through the
-platform's notification helper, spec 012-platforms) and through `wb approve` /
+platform's notification helper, S12-platforms) and through `wb approve` /
 `wb deny`. They are never written to the terminal stream of an agent
 session, which the guest controls. Guest-influenced text in a request is
 stripped of control and escape sequences wherever it is shown.
 
-## Audit (S10-audit)
+## Audit (SEC10-audit)
 
-- JSONL in `<logs>` (spec 012-platforms; `~/Library/Logs/WraithBox/` on macOS),
+- JSONL in `<logs>` (S12-platforms; `~/Library/Logs/WraithBox/` on macOS),
   written by `wb-hostd` from events
   sent by `wb-netd` and `wb-proxyd`; rotated and size-capped.
 - Events use OCSF 1.8 classes, as OpenShell's do: network activity for

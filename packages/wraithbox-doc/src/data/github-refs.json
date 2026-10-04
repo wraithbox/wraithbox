@@ -57,7 +57,7 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X14-flow-attribution: Guest flow attribution",
-		"summary": "A Network Extension transparent proxy in a macOS guest (spec 013-guest-confinement, layer 3): can it be approved during the image build without MDM?"
+		"summary": "A Network Extension transparent proxy in a macOS guest (S13-guest-confinement, layer 3): can it be approved during the image build without MDM?"
 	},
 	"11": {
 		"kind": "issue",
@@ -86,56 +86,56 @@
 	"15": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X1-model-credential: Model credential via the proxy",
+		"title": "X01-model-credential: Model credential via the proxy",
 		"summary": "Does Claude Code work with a placeholder credential while wb-proxyd injects the real one, for each supported authentication mode, including token refresh?"
 	},
 	"16": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X2-warm-start: Warm start",
+		"title": "X02-warm-start: Warm start",
 		"summary": "How long does it take to restore a macOS guest from saved state with a vsock device and a file-handle network attachment?"
 	},
 	"17": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X3-network-path: Network path",
+		"title": "X03-network-path: Network path",
 		"summary": "Does a macOS guest boot on the file-handle network attachment with the gVisor stack: get a DHCP lease, resolve only allowlisted names, and reach only the proxy?"
 	},
 	"18": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X4-tls-inspection: Inspection compatibility",
+		"title": "X04-tls-inspection: Inspection compatibility",
 		"summary": "Do Go-based, Swift-based, and Xcode clients accept the name-constrained Wraith Box CA when it is trusted only in the guest?"
 	},
 	"19": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X5-fs-benchmark: Filesystem benchmark",
-		"summary": "How does the data disk perform with default versus relaxed write-through settings, against the host, on the N2-fs-speed workloads?"
+		"title": "X05-fs-benchmark: Filesystem benchmark",
+		"summary": "How does the data disk perform with default versus relaxed write-through settings, against the host, on the NFR02-fs-speed workloads?"
 	},
 	"20": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X6-guest-xcode: Guest users and Xcode",
+		"title": "X06-guest-xcode: Guest users and Xcode",
 		"summary": "Can builds and simulators run for a guest user without a GUI login?"
 	},
 	"21": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X7-git-round-trip: Git round trip",
-		"summary": "Does the git round trip work as spec 008-workspace-and-git describes: a remote helper over vsock, read-only upload-pack against the user's repository, restricted receive-pack into the landing repository, and flagging…"
+		"title": "X07-git-round-trip: Git round trip",
+		"summary": "Does the git round trip work as S08-workspace-and-git describes: a remote helper over vsock, read-only upload-pack against the user's repository, restricted receive-pack into the landing repository, and flagging of ri…"
 	},
 	"22": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X8-data-disk: Data disk for homes",
+		"title": "X08-data-disk: Data disk for homes",
 		"summary": "Can guest user homes live on a second disk and survive a replacement of the system disk?"
 	},
 	"23": {
 		"kind": "issue",
 		"state": "open",
-		"title": "X9-keychain-unsigned: Keychain access without a signing identity",
-		"summary": "Does the fallback Keychain access model from spec 009-policy-credentials-audit work for an ad-hoc signed binary, and can such a binary create a Secure Enclave key?"
+		"title": "X09-keychain-unsigned: Keychain access without a signing identity",
+		"summary": "Does the fallback Keychain access model from S09-policy-credentials-audit work for an ad-hoc signed binary, and can such a binary create a Secure Enclave key?"
 	},
 	"24": {
 		"kind": "issue",
@@ -165,150 +165,150 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X17-image-build: Unattended image build",
-		"summary": "X17-image-build (added to spec 011-verification-and-spikes in #14)"
+		"summary": "X17-image-build (added to S11-verification-and-spikes in #14)"
 	},
 	"29": {
 		"kind": "issue",
 		"state": "open",
 		"title": "X18-vsock-handoff: Host-guest socket and descriptor hand-off",
-		"summary": "X18-vsock-handoff (added to spec 011-verification-and-spikes in #14)"
+		"summary": "X18-vsock-handoff (added to S11-verification-and-spikes in #14)"
 	},
 	"30": {
 		"kind": "issue",
 		"state": "open",
 		"title": "X19-terminal-filter: Terminal stream filtering",
-		"summary": "X19-terminal-filter (added to spec 011-verification-and-spikes in #14)"
+		"summary": "X19-terminal-filter (added to S11-verification-and-spikes in #14)"
 	},
 	"31": {
 		"kind": "issue",
 		"state": "open",
 		"title": "X20-shared-homebrew: Homebrew with more than one project user",
-		"summary": "X20-shared-homebrew (added to spec 011-verification-and-spikes in #14)"
+		"summary": "X20-shared-homebrew (added to S11-verification-and-spikes in #14)"
 	},
 	"32": {
 		"kind": "issue",
 		"state": "open",
 		"title": "X21-dep-gate-registries: Dependency gate on real registries",
-		"summary": "X21-dep-gate-registries (added to spec 011-verification-and-spikes in #14)"
+		"summary": "X21-dep-gate-registries (added to S11-verification-and-spikes in #14)"
 	},
 	"33": {
 		"kind": "issue",
 		"state": "open",
 		"title": "X22-no-guest-credentials: Clients without guest credentials",
-		"summary": "X22-no-guest-credentials (added to spec 011-verification-and-spikes in #14)"
+		"summary": "X22-no-guest-credentials (added to S11-verification-and-spikes in #14)"
 	},
 	"34": {
 		"kind": "issue",
 		"state": "open",
 		"title": "X23-sandboxed-daemons: Self-sandboxed Go daemons on macOS",
-		"summary": "X23-sandboxed-daemons (added to spec 011-verification-and-spikes in #14)"
+		"summary": "X23-sandboxed-daemons (added to S11-verification-and-spikes in #14)"
 	},
 	"35": {
 		"kind": "issue",
 		"state": "open",
 		"title": "X24-openshell-artifacts: OpenShell artifacts",
-		"summary": "X24-openshell-artifacts (added to spec 011-verification-and-spikes in #14)"
+		"summary": "X24-openshell-artifacts (added to S11-verification-and-spikes in #14)"
 	},
 	"36": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 007-egress-gateway: attribute network flows to projects in the shared work VM",
-		"summary": "The work VM hosts every trusted project, and its wb-netd sees one guest MAC and one leased IPv4 address (spec 007-egress-gateway \"Addressing\")."
+		"title": "S07-egress-gateway: attribute network flows to projects in the shared work VM",
+		"summary": "The work VM hosts every trusted project, and its wb-netd sees one guest MAC and one leased IPv4 address (S07-egress-gateway \"Addressing\")."
 	},
 	"37": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 003-requirements, 005-cli: treat the host terminal stream as a boundary",
-		"summary": "wb claude relays the guest's PTY output in raw mode to the user's terminal emulator (spec 005-cli)."
+		"title": "S03-requirements, S05-cli: treat the host terminal stream as a boundary",
+		"summary": "wb claude relays the guest's PTY output in raw mode to the user's terminal emulator (S05-cli)."
 	},
 	"38": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 006-vm-lifecycle: design port forwarding and clipboard (F11-port-forward, F12-clipboard) and their threats",
-		"summary": "F11-port-forward (dev servers on host loopback) and F12-clipboard (clipboard) cross the VM boundary, but no spec designs them and spec 003-requirements's threat model does not list them."
+		"title": "S06-vm-lifecycle: design port forwarding and clipboard (FR11-port-forward, FR12-clipboard) and their threats",
+		"summary": "FR11-port-forward (dev servers on host loopback) and FR12-clipboard (clipboard) cross the VM boundary, but no spec designs them and S03-requirements's threat model does not list them."
 	},
 	"39": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 009-policy-credentials-audit: CA name constraints and rotation versus live policy changes",
-		"summary": "- spec 007-egress-gateway \"Approvals\": \"Policy changes take effect without restarting anything.\" - spec 009-policy-credentials-audit \"Scope\": the CA has name constraints for the inspected hostnames, and \"when the insp…"
+		"title": "S09-policy-credentials-audit: CA name constraints and rotation versus live policy changes",
+		"summary": "- S07-egress-gateway \"Approvals\": \"Policy changes take effect without restarting anything.\" - S09-policy-credentials-audit \"Scope\": the CA has name constraints for the inspected hostnames, and \"when the inspected set…"
 	},
 	"40": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 003-requirements, 007-egress-gateway: record learn mode and pass mode as S5-default-deny exceptions",
-		"summary": "S5-default-deny is \"default-deny egress\", and AGENTS.md says an S control is never weakened."
+		"title": "S03-requirements, S07-egress-gateway: record learn mode and pass mode as SEC05-default-deny exceptions",
+		"summary": "SEC05-default-deny is \"default-deny egress\", and AGENTS.md says an S control is never weakened."
 	},
 	"41": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 008-workspace-and-git: which git data reaches the guest, and host git as a parser",
-		"summary": "Spec 008-workspace-and-git says how bytes move, but not which data the guest may get or how much the host trusts its own git when it parses guest data:"
+		"title": "S08-workspace-and-git: which git data reaches the guest, and host git as a parser",
+		"summary": "S08-workspace-and-git says how bytes move, but not which data the guest may get or how much the host trusts its own git when it parses guest data:"
 	},
 	"42": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 005-cli, 006-vm-lifecycle, 009-policy-credentials-audit: separate configuration trust from VM placement; project identity",
+		"title": "S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit: separate configuration trust from VM placement; project identity",
 		"summary": "The specs use \"trusted\" for two different things and do not give a default:"
 	},
 	"43": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 006-vm-lifecycle: VM slot admission for image builds, updates and GUI work (N5-two-macos-vms)",
-		"summary": "N5-two-macos-vms allows two running macOS guests per host, and spec 006-vm-lifecycle uses both: the work VM and the isolated VM."
+		"title": "S06-vm-lifecycle: VM slot admission for image builds, updates and GUI work (NFR05-two-macos-vms)",
+		"summary": "NFR05-two-macos-vms allows two running macOS guests per host, and S06-vm-lifecycle uses both: the work VM and the isolated VM."
 	},
 	"44": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 006-vm-lifecycle: data disk durability, and never mount a guest-written disk",
-		"summary": "Spec 006-vm-lifecycle says the data disk \"can be rebuilt from host state plus git, so it may use relaxed write-through settings for speed\"."
+		"title": "S06-vm-lifecycle: data disk durability, and never mount a guest-written disk",
+		"summary": "S06-vm-lifecycle says the data disk \"can be rebuilt from host state plus git, so it may use relaxed write-through settings for speed\"."
 	},
 	"45": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 014 (new): Claude Code in the guest and the agent interface (C2-claude-only)",
+		"title": "S14 (new): Claude Code in the guest and the agent interface (V1-02-claude-only)",
 		"summary": "No spec says how Claude Code itself runs in the guest."
 	},
 	"46": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 005-cli, 006-vm-lifecycle: session lifecycle, detach, sleep and failure",
-		"summary": "Specs 005-cli and 006-vm-lifecycle describe starting a session and its summary at the end, but not what happens in between, or when things go wrong:"
+		"title": "S05-cli, S06-vm-lifecycle: session lifecycle, detach, sleep and failure",
+		"summary": "S05-cli and S06-vm-lifecycle describe starting a session and its summary at the end, but not what happens in between, or when things go wrong:"
 	},
 	"47": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 007-egress-gateway: non-HTTP streams, SSH remotes and ECH",
-		"summary": "Spec 007-egress-gateway describes TLS and HTTP."
+		"title": "S07-egress-gateway: non-HTTP streams, SSH remotes and ECH",
+		"summary": "S07-egress-gateway describes TLS and HTTP."
 	},
 	"48": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 004-architecture: process supervision, failure, version skew and host resource limits",
-		"summary": "Spec 004-architecture names the processes but not how they are supervised, what happens when one fails, or how they are upgraded:"
+		"title": "S04-architecture: process supervision, failure, version skew and host resource limits",
+		"summary": "S04-architecture names the processes but not how they are supervised, what happens when one fails, or how they are upgraded:"
 	},
 	"49": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 010-tech-stack: installation, restore image download, upgrades and migrations",
-		"summary": "Spec 010-tech-stack \"Packaging and signing\" gives the shape of the macOS app bundle."
+		"title": "S10-tech-stack: installation, restore image download, upgrades and migrations",
+		"summary": "S10-tech-stack \"Packaging and signing\" gives the shape of the macOS app bundle."
 	},
 	"50": {
 		"kind": "issue",
 		"state": "open",
 		"title": "Test infrastructure for work that needs a running macOS guest",
-		"summary": "Most v1 work needs a running macOS guest to test: spikes X2-warm-start to X8-data-disk and X17-image-build to X20-shared-homebrew, the conformance suite, and the benchmarks (spec 011-verification-and-spikes)."
+		"summary": "Most v1 work needs a running macOS guest to test: spikes X02-warm-start to X08-data-disk and X17-image-build to X20-shared-homebrew, the conformance suite, and the benchmarks (S11-verification-and-spikes)."
 	},
 	"51": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 009-policy-credentials-audit: approval flow, what the blocked client sees, and approval noise",
-		"summary": "Spec 007-egress-gateway and 009-policy-credentials-audit describe approval choices and their security (S14-no-fake-approvals), not how the flow behaves."
+		"title": "S09-policy-credentials-audit: approval flow, what the blocked client sees, and approval noise",
+		"summary": "S07-egress-gateway and S09-policy-credentials-audit describe approval choices and their security (SEC14-no-fake-approvals), not how the flow behaves."
 	},
 	"52": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 004-architecture, 009-policy-credentials-audit, 010-tech-stack: first .proto contracts and settings schema",
-		"summary": "Spec 004-architecture says all IPC is protobuf over gRPC and spec 010-tech-stack adds proto/ \"with the first RPC\"."
+		"title": "S04-architecture, S09-policy-credentials-audit, S10-tech-stack: first .proto contracts and settings schema",
+		"summary": "S04-architecture says all IPC is protobuf over gRPC and S10-tech-stack adds proto/ \"with the first RPC\"."
 	}
 }

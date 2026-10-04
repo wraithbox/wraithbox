@@ -12,11 +12,11 @@ import { specsIntegration } from './src/plugins/specs.mjs';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://wraithbox.nl',
-	// Requirement IDs, spikes, specs, issues and pull requests in page text
-	// become links with a hover card (src/plugins/remark-refs.mjs).
+	// IDs in page text (S07-egress-gateway, SEC06-repo-writes, I36) become
+	// links with a hover card (src/plugins/remark-refs.mjs).
 	markdown: { processor: unified({ remarkPlugins: [[remarkRefs, { digest: refsDigest() }]] }) },
 	integrations: [
-		// Publishes docs/spec/ under /spec/ (src/plugins/specs.mjs).
+		// Publishes the design documents in docs/ (src/plugins/specs.mjs).
 		specsIntegration(),
 		starlight({
 			title: 'Wraith Box',
@@ -80,11 +80,20 @@ export default defineConfig({
 					label: 'Overview',
 					items: [{ slug: 'design', label: 'Design overview' }],
 				},
-				{
-					label: 'Specs',
+				// The design documents from docs/ (src/plugins/specs.mjs), one
+				// group per kind of ID (S01-spec-based-development).
+				...[
+					['Specs', 'spec'],
+					['Requirements', 'requirements'],
+					['Threats', 'threats'],
+					['Spikes', 'spikes'],
+					['Research', 'research'],
+					['Versions', 'versions'],
+				].map(([label, directory]) => ({
+					label,
 					collapsed: true,
-					items: [{ autogenerate: { directory: 'spec' } }],
-				},
+					items: [{ autogenerate: { directory } }],
+				})),
 				{
 					label: 'Review',
 					items: [{ slug: 'review', label: 'Review briefs' }],

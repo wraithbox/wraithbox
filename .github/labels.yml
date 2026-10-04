@@ -27,7 +27,7 @@
   description: New feature or request
 - name: spike
   color: "5319e7"
-  description: Throwaway prototype answering an open question (X* in spec 011-verification-and-spikes)
+  description: Throwaway prototype answering an open question (X* in X00-index)
 - name: documentation
   color: "0075ca"
   description: Improvements or additions to documentation or specs

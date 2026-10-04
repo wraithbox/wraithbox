@@ -1,48 +1,66 @@
 // @ts-check
-// Publishes the specs in docs/spec/ (the source of truth, outside this
-// package) as site pages under /spec/. Each spec is copied into
-// src/content/docs/spec/, which is gitignored, with Starlight frontmatter
-// taken from the spec itself: the first `# ` heading becomes the title and
-// the `**Purpose:**` line the description. Relative links between specs
-// become site links. Links to other repository files go to GitHub.
+// Publishes the design documents in docs/ (the source of truth, outside
+// this package) as site pages: docs/spec/ under /spec/, docs/requirements/
+// under /requirements/, and so on for each of `designDirs`
+// (S01-spec-based-development lists what goes where). Each document is
+// copied into src/content/docs/<dir>/, which is gitignored, with Starlight
+// frontmatter taken from the document itself: the first `# ` heading
+// becomes the title and the `**Purpose:**` line the description. Relative
+// links between design documents become site links. Links to other
+// repository files go to GitHub.
 //
 // The copy runs whenever Astro loads its config (dev, build, check). The
-// dev server watches the specs and reloads the config when one changes,
-// so specs never need frontmatter of their own and nobody edits the
-// copies.
+// dev server watches the documents and reloads the config when one
+// changes, so documents never need frontmatter of their own and nobody
+// edits the copies.
+//
+// The copy also checks that every item with its own file is listed in
+// the index of its kind (X03-network-path.md in X00-index.md), and fails
+// the build when one is missing.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { purposeOf, refsSources } from './remark-refs.mjs';
+import { failures, purposeOf, refsSources } from './remark-refs.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(here, '../../../..');
-export const specDir = path.join(repoRoot, 'docs/spec');
-const outDir = path.resolve(here, '../content/docs/spec');
+export const docsDir = path.join(repoRoot, 'docs');
+/** The directories under docs/ that are published, each under /<dir>/. */
+export const designDirs = ['spec', 'requirements', 'threats', 'spikes', 'research', 'versions'];
+const contentDir = path.resolve(here, '../content/docs');
 const githubBlob = 'https://github.com/wraithbox/wraithbox/blob/main/';
 const githubEdit = 'https://github.com/wraithbox/wraithbox/edit/main/';
 
-/** @param {string} dir @returns {string[]} spec paths relative to dir */
-function listSpecs(dir, prefix = '') {
+/** @param {string} dir @param {string} ext @returns {string[]} paths relative to dir */
+function listFiles(dir, ext, prefix = '') {
 	/** @type {string[]} */
 	const found = [];
+	if (!fs.existsSync(dir)) return found;
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 		const rel = path.join(prefix, entry.name);
-		if (entry.isDirectory()) found.push(...listSpecs(path.join(dir, entry.name), rel));
-		else if (entry.name.endsWith('.md')) found.push(rel);
+		if (entry.isDirectory()) found.push(...listFiles(path.join(dir, entry.name), ext, rel));
+		else if (entry.name.endsWith(ext)) found.push(rel);
 	}
 	return found;
 }
 
-/** The site path of a spec file, relative to docs/spec. */
-export function specUrl(/** @type {string} */ rel) {
-	return `/spec/${rel.replace(/\.md$/, '').split(path.sep).join('/').toLowerCase()}/`;
+/**
+ * Every design document, or every file with another extension, as a path
+ * relative to docs/ (`spec/S04-architecture.md`).
+ */
+export function designFiles(ext = '.md') {
+	return designDirs.flatMap((dir) => listFiles(path.join(docsDir, dir), ext, dir)).sort();
 }
 
-/** Turns a spec's Markdown into a site page. */
+/** The site path of a design document, from its path relative to docs/. */
+export function designUrl(/** @type {string} */ rel) {
+	return `/${rel.replace(/\.md$/, '').split(path.sep).join('/').toLowerCase()}/`;
+}
+
+/** Turns a design document's Markdown into a site page. */
 export function toPage(/** @type {string} */ rel, /** @type {string} */ source) {
 	const heading = source.match(/^# (.+)$/m);
-	if (!heading) throw new Error(`docs/spec/${rel}: no "# " title heading`);
+	if (!heading) throw new Error(`docs/${rel}: no "# " title heading`);
 	const title = heading[1].trim();
 	const description = purposeOf(source) || undefined;
 	let body = source.replace(heading[0], '').replace(/^\n+/, '');
@@ -50,10 +68,11 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
 	body = body.replace(/\]\(([^)\s]+)\)/g, (whole, /** @type {string} */ target) => {
 		if (/^(https?:|mailto:|\/|#)/.test(target)) return whole;
 		const [file, hash] = target.split('#');
-		const fromRepo = path.relative(repoRoot, path.resolve(specDir, path.dirname(rel), file));
+		const fromRepo = path.relative(repoRoot, path.resolve(docsDir, path.dirname(rel), file));
 		const anchor = hash ? `#${hash}` : '';
-		if (fromRepo.startsWith('docs/spec/') && fromRepo.endsWith('.md')) {
-			return `](${specUrl(fromRepo.slice('docs/spec/'.length))}${anchor})`;
+		const fromDocs = path.relative('docs', fromRepo);
+		if (designDirs.includes(fromDocs.split(path.sep)[0]) && fromDocs.endsWith('.md')) {
+			return `](${designUrl(fromDocs)}${anchor})`;
 		}
 		return `](${githubBlob}${fromRepo.split(path.sep).join('/')}${anchor})`;
 	});
@@ -61,7 +80,7 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
 		'---',
 		`title: ${JSON.stringify(title)}`,
 		...(description ? [`description: ${JSON.stringify(description)}`] : []),
-		`editUrl: ${JSON.stringify(`${githubEdit}docs/spec/${rel.split(path.sep).join('/')}`)}`,
+		`editUrl: ${JSON.stringify(`${githubEdit}docs/${rel.split(path.sep).join('/')}`)}`,
 		'---',
 		'',
 		'',
@@ -70,15 +89,15 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
 }
 
 /**
- * Replaces `![caption](name.svg)` for an SVG next to the spec with the SVG
- * itself in a `wb-figure`, so its classes take the site's theme colors
+ * Replaces `![caption](name.svg)` for an SVG next to the document with the
+ * SVG itself in a `wb-figure`, so its classes take the site's theme colors
  * (src/styles/brief.css). The SVG's own <style> is for viewers that show
  * the file alone, such as GitHub, and is dropped here.
  */
 function inlineFigures(/** @type {string} */ rel, /** @type {string} */ body) {
 	return body.replace(/^!\[([^\]]*)\]\(([^)\s]+\.svg)\)$/gm, (whole, caption, file) => {
-		const svgPath = path.resolve(specDir, path.dirname(rel), file);
-		if (!svgPath.startsWith(specDir) || !fs.existsSync(svgPath)) return whole;
+		const svgPath = path.resolve(docsDir, path.dirname(rel), file);
+		if (!svgPath.startsWith(docsDir) || !fs.existsSync(svgPath)) return whole;
 		const svg = fs
 			.readFileSync(svgPath, 'utf8')
 			.replace(/<\?xml[^>]*>/, '')
@@ -99,14 +118,35 @@ export function plain(/** @type {string} */ text) {
 		.trim();
 }
 
-/** Copies every spec into the content tree, removing copies of deleted specs. */
-export function syncSpecs() {
-	const specs = listSpecs(specDir);
+/**
+ * Fails when an item with its own file (`X03-network-path.md`) is not
+ * named in the index of its kind (`X00-index.md`) in the same directory.
+ * @param {string[]} files paths relative to docs/
+ */
+function checkIndexes(files) {
+	for (const rel of files) {
+		const m = path.basename(rel).match(/^([A-Z]+?)(\d+)-/);
+		if (!m || /^0+$/.test(m[2])) continue;
+		const id = `${m[1]}${m[2]}`;
+		const dir = path.dirname(rel);
+		const index = files.find((f) => path.dirname(f) === dir && path.basename(f).startsWith(`${m[1]}00-`));
+		if (!index) throw new Error(`docs/${rel}: no ${m[1]}00-index.md next to it`);
+		const text = fs.readFileSync(path.join(docsDir, index), 'utf8');
+		if (!new RegExp(`\\b${id}\\b`).test(text)) {
+			throw new Error(`docs/${rel}: ${id} is not listed in docs/${index}`);
+		}
+	}
+}
+
+/** Copies every design document into the content tree, removing copies of deleted ones. */
+export function syncDesign() {
+	const files = designFiles();
+	checkIndexes(files);
 	const wanted = new Set();
-	for (const rel of specs) {
-		const target = path.join(outDir, rel.toLowerCase());
+	for (const rel of files) {
+		const target = path.join(contentDir, rel.toLowerCase());
 		wanted.add(target);
-		const page = toPage(rel, fs.readFileSync(path.join(specDir, rel), 'utf8'));
+		const page = toPage(rel, fs.readFileSync(path.join(docsDir, rel), 'utf8'));
 		fs.mkdirSync(path.dirname(target), { recursive: true });
 		const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
 		if (current !== page) {
@@ -117,24 +157,30 @@ export function syncSpecs() {
 			fs.renameSync(temp, target);
 		}
 	}
-	for (const rel of fs.existsSync(outDir) ? listSpecs(outDir) : []) {
-		const target = path.join(outDir, rel);
-		if (!wanted.has(target)) fs.rmSync(target);
+	for (const dir of designDirs) {
+		for (const rel of listFiles(path.join(contentDir, dir), '.md', dir)) {
+			const target = path.join(contentDir, rel);
+			if (!wanted.has(target)) fs.rmSync(target);
+		}
 	}
 }
 
 /** @returns {import('astro').AstroIntegration} */
 export function specsIntegration() {
 	return {
-		name: 'wraithbox-specs',
+		name: 'wraithbox-design-docs',
 		hooks: {
 			'astro:config:setup': ({ addWatchFile }) => {
-				syncSpecs();
-				// A change to a spec or to the issue snapshot reloads the config,
-				// which gives the reference plugin a new digest (remark-refs.mjs).
+				syncDesign();
+				// A change to a document or to the issue snapshot reloads the
+				// config, which gives the reference plugin a new digest
+				// (remark-refs.mjs).
 				for (const file of refsSources()) addWatchFile(file);
-				for (const file of fs.readdirSync(specDir).filter((f) => f.endsWith('.svg'))) {
-					addWatchFile(path.join(specDir, file));
+				for (const rel of designFiles('.svg')) addWatchFile(path.join(docsDir, rel));
+			},
+			'astro:build:done': () => {
+				if (failures.length > 0) {
+					throw new Error(`references that are wrong:\n${failures.join('\n')}`);
 				}
 			},
 		},

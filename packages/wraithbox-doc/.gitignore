@@ -25,5 +25,10 @@ out.png
 # generated logo ideas
 design/generated/
 
-# specs copied from docs/spec/ by src/plugins/specs.mjs
+# design documents copied from docs/ by src/plugins/specs.mjs
 src/content/docs/spec/
+src/content/docs/requirements/
+src/content/docs/threats/
+src/content/docs/spikes/
+src/content/docs/research/
+src/content/docs/versions/
