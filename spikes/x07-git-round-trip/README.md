@@ -18,7 +18,11 @@ project gates, never merged. The written result is
 - `cmd/x07`: the harness. Clones the Go repository once into
   `$TMPDIR/x07-cache`, runs everything else in a fresh `$TMPDIR/x07-run-*`
   and deletes it at exit.
-- `results/`: the output of the runs quoted in the result.
+- `results/`: the output of the runs quoted in the result. `run1.txt`
+  is partial (a harness bug hung the raw phase) and predates the
+  helper asking for protocol v2, so every fetch in it is v0, whatever
+  its label says. `run2.txt` ran under heavy load from other agents'
+  VMs. `run3-apple.txt` is Apple git 2.54.0 on both sides.
 
 ```sh
 cd spikes/x07-git-round-trip

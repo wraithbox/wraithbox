@@ -1,0 +1,148 @@
+# X07 run 2026-10-04T16:17:02+02:00
+host git: git version 2.56.0
+guest git: git version 2.56.0
+
+
+user repository: 566 refs; first clone at f043823a99a4 (tip~200), tip 6f5c275ebdc4
+    count: 97
+    size: 100.40 MiB
+    in-pack: 714554
+    packs: 1
+    size-pack: 466.04 MiB
+    prune-packable: 0
+    garbage: 0
+    size-garbage: 0 bytes
+
+## Clone and fetch, upload-pack on the user's repository (direct)
+
+| baseline `git clone --no-local --single-branch` (no tunnel) | 17.07 s | 679335 objects, 426.06 MiB | err=<nil> |
+
+ls-remote through the tunnel, protocol v2 (err=<nil>):
+    f043823a99a4118989a34afec015d23b5d54d01e	HEAD
+    f043823a99a4118989a34afec015d23b5d54d01e	refs/heads/x07-main
+
+ls-remote through the tunnel, protocol v0 (err=<nil>):
+    f043823a99a4118989a34afec015d23b5d54d01e	HEAD
+    f043823a99a4118989a34afec015d23b5d54d01e	refs/heads/x07-main
+
+| first clone through the tunnel (v2) | 16.33 s | 679335 objects, 426.06 MiB | err=<nil> host=<nil> |
+| first clone through the tunnel (v0) | 16.27 s | 679335 objects, 426.06 MiB | err=<nil> |
+| incremental fetch, 200 commits (v2) | 0.70 s | 2590 objects, 912.22 KiB | err=<nil> |
+| no-op fetch (v2) | 0.05 s | - | err=<nil> |
+
+Hidden data, direct mode, the guest's protocol version honored (each must fail):
+
+- want the secret branch's commit by id (client v0): refused: `error: Server does not allow request for unadvertised object 7e5ae73058de579e07498c5891c478b92f793fc3`
+- want the secret branch's commit by id (client v2): **SUCCEEDED (leak/bypass)**:  * branch                  7e5ae73058de579e07498c5891c478b92f793fc3 -> FETCH_HEAD
+- want a release-branch commit not reachable from the advertised ref (client v0): refused: `error: Server does not allow request for unadvertised object 68fa7699a27d745f90bf8630202e1a415d1b0769`
+- want a release-branch commit not reachable from the advertised ref (client v2): **SUCCEEDED (leak/bypass)**:  * branch                  68fa7699a27d745f90bf8630202e1a415d1b0769 -> FETCH_HEAD
+- want a dangling blob no ref reaches (client v0): refused: `error: Server does not allow request for unadvertised object f844d073a2759673339bf02cc477dffcb7018dc9`
+- want a dangling blob no ref reaches (client v2): **SUCCEEDED (leak/bypass)**:  * branch                  f844d073a2759673339bf02cc477dffcb7018dc9 -> FETCH_HEAD
+- fetch refs/heads/secret by name (client v2): refused: `fatal: couldn't find remote ref refs/heads/secret`
+- fetch refs/notes/commits by name (client v2): refused: `fatal: couldn't find remote ref refs/notes/commits`
+
+Hidden data, direct mode, host forces protocol v0 (each must fail):
+
+- want the secret branch's commit by id (client v0): refused: `error: Server does not allow request for unadvertised object 7e5ae73058de579e07498c5891c478b92f793fc3`
+- want the secret branch's commit by id (client v2): refused: `error: Server does not allow request for unadvertised object 7e5ae73058de579e07498c5891c478b92f793fc3`
+- want a release-branch commit not reachable from the advertised ref (client v0): refused: `error: Server does not allow request for unadvertised object 68fa7699a27d745f90bf8630202e1a415d1b0769`
+- want a release-branch commit not reachable from the advertised ref (client v2): refused: `error: Server does not allow request for unadvertised object 68fa7699a27d745f90bf8630202e1a415d1b0769`
+- want a dangling blob no ref reaches (client v0): refused: `error: Server does not allow request for unadvertised object f844d073a2759673339bf02cc477dffcb7018dc9`
+- want a dangling blob no ref reaches (client v2): refused: `error: Server does not allow request for unadvertised object f844d073a2759673339bf02cc477dffcb7018dc9`
+- fetch refs/heads/secret by name (client v2): refused: `fatal: couldn't find remote ref refs/heads/secret`
+- fetch refs/notes/commits by name (client v2): refused: `fatal: couldn't find remote ref refs/notes/commits`
+
+| first clone, host forces v0 | 18.92 s | 681913 objects, 428.82 MiB | err=<nil> |
+
+## Export repository (only the advertised branch's objects)
+
+| build export.git from the user's repository | 61.49 s |
+| first clone from export.git (v2) | 32.43 s | 679335 objects, 426.28 MiB | err=<nil> |
+| update export.git, 200 commits | 0.87 s |
+| incremental fetch from export.git (v2) | 0.57 s | 2590 objects, 912.22 KiB | err=<nil> |
+
+Hidden data, export.git, the guest's protocol version honored (each must fail):
+
+- want the secret branch's commit by id (client v0): refused: `error: Server does not allow request for unadvertised object 7e5ae73058de579e07498c5891c478b92f793fc3`
+- want the secret branch's commit by id (client v2): refused: `fatal: remote error: upload-pack: not our ref 7e5ae73058de579e07498c5891c478b92f793fc3`
+- want a release-branch commit not reachable from the advertised ref (client v0): refused: `error: Server does not allow request for unadvertised object 68fa7699a27d745f90bf8630202e1a415d1b0769`
+- want a release-branch commit not reachable from the advertised ref (client v2): refused: `fatal: remote error: upload-pack: not our ref 68fa7699a27d745f90bf8630202e1a415d1b0769`
+- want a dangling blob no ref reaches (client v0): refused: `error: Server does not allow request for unadvertised object f844d073a2759673339bf02cc477dffcb7018dc9`
+- want a dangling blob no ref reaches (client v2): refused: `fatal: remote error: upload-pack: not our ref f844d073a2759673339bf02cc477dffcb7018dc9`
+- fetch refs/heads/secret by name (client v2): refused: `fatal: couldn't find remote ref refs/heads/secret`
+- fetch refs/notes/commits by name (client v2): refused: `fatal: couldn't find remote ref refs/notes/commits`
+- export.git size: 462M	/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x07-run-2536053656/export.git
+
+## Push into the landing repository
+
+| push to an empty landing repository, 64 MiB limit | 4.56 s | - | refused: `error: remote unpack failed: index-pack abnormal exit` |
+| push to an empty landing repository, 4 GiB limit | 19.29 s | 681925 objects, 424.81 MiB | err=<nil> |
+| push 3 commits, landing has export.git as alternate | 0.10 s | 12 objects, 837 bytes | err=<nil> host=<nil> |
+| incremental push, 5 more commits | 0.11 s | 20 objects, 1.42 KiB | err=<nil> |
+| push a 20 MiB random file | 1.03 s | 4 objects, 20.01 MiB | err=<nil> |
+| `wb land`: user's git fetches refs/heads/wb/S1/* from landing | 1.08 s | | err=<nil>  * [new branch]            wb/S1/work -> wb/S1/work |
+
+refs in the user's repository after landing: refs/heads/wb/S1/work; HEAD still refs/heads/x07-main
+
+## Host decision log (last 60 lines)
+```
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack: fatal: the remote end hung up unexpectedly
+host upload-pack exit err=exit status 128
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack: fatal: the remote end hung up unexpectedly
+host upload-pack exit err=exit status 128
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol="version=2"
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol="version=2"
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol="version=2"
+host upload-pack: fatal: git upload-pack: not our ref 7e5ae73058de579e07498c5891c478b92f793fc3
+host upload-pack exit err=exit status 128
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol="version=2"
+host upload-pack: fatal: git upload-pack: not our ref 68fa7699a27d745f90bf8630202e1a415d1b0769
+host upload-pack exit err=exit status 128
+host decision=allow rule=upload-pack-readonly protocol=""
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol="version=2"
+host upload-pack: fatal: git upload-pack: not our ref f844d073a2759673339bf02cc477dffcb7018dc9
+host upload-pack exit err=exit status 128
+host decision=allow rule=upload-pack-readonly protocol="version=2"
+host upload-pack exit err=<nil>
+host decision=allow rule=upload-pack-readonly protocol="version=2"
+host upload-pack exit err=<nil>
+host decision=allow rule=receive-pack-landing protocol=""
+host decision=allow rule=ref-prefix ref=refs/heads/wb/S1/work old=0000000000000000000000000000000000000000 new=6feadc229e49fdd1ee08a8e776269758fe680db6
+host receive-pack exit err=<nil>
+host decision=allow rule=receive-pack-landing protocol=""
+host decision=allow rule=ref-prefix ref=refs/heads/wb/S1/work old=0000000000000000000000000000000000000000 new=6feadc229e49fdd1ee08a8e776269758fe680db6
+host receive-pack exit err=<nil>
+host decision=allow rule=receive-pack-landing protocol=""
+host decision=allow rule=ref-prefix ref=refs/heads/wb/S1/work old=0000000000000000000000000000000000000000 new=6feadc229e49fdd1ee08a8e776269758fe680db6
+host receive-pack exit err=<nil>
+host decision=allow rule=receive-pack-landing protocol=""
+host decision=allow rule=ref-prefix ref=refs/heads/wb/S1/work old=6feadc229e49fdd1ee08a8e776269758fe680db6 new=74e08b024546cecfb7ebddb150a964a5082a7280
+host receive-pack exit err=<nil>
+host decision=allow rule=receive-pack-landing protocol=""
+host decision=allow rule=ref-prefix ref=refs/heads/wb/S1/work old=74e08b024546cecfb7ebddb150a964a5082a7280 new=fba3f90b42771c00f48e5c7021ea2121bbc553cc
+host receive-pack exit err=<nil>
+```

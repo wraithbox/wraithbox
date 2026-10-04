@@ -1,0 +1,94 @@
+# X07 run 2026-10-04T15:46:26+02:00
+host git: git version 2.56.0
+guest git: git version 2.56.0
+
+
+user repository: 566 refs; first clone at f043823a99a4 (tip~200), tip 6f5c275ebdc4
+    count: 4
+    size: 16.00 KiB
+    in-pack: 714554
+    packs: 1
+    size-pack: 466.04 MiB
+    prune-packable: 0
+    garbage: 0
+    size-garbage: 0 bytes
+
+## Clone and fetch, upload-pack on the user's repository (direct)
+
+| baseline `git clone --no-local --single-branch` (no tunnel) | 18.16 s | 679335 objects, 426.06 MiB | err=<nil> |
+
+ls-remote through the tunnel, protocol v2 (err=<nil>):
+    f043823a99a4118989a34afec015d23b5d54d01e	HEAD
+    f043823a99a4118989a34afec015d23b5d54d01e	refs/heads/x07-main
+
+ls-remote through the tunnel, protocol v0 (err=<nil>):
+    f043823a99a4118989a34afec015d23b5d54d01e	HEAD
+    f043823a99a4118989a34afec015d23b5d54d01e	refs/heads/x07-main
+
+| first clone through the tunnel (v2) | 16.25 s | 679335 objects, 426.06 MiB | err=<nil> host=<nil> |
+| first clone through the tunnel (v0) | 17.23 s | 679335 objects, 426.06 MiB | err=<nil> |
+| incremental fetch, 200 commits (v2) | 0.73 s | 2590 objects, 912.22 KiB | err=<nil> |
+| no-op fetch (v2) | 0.05 s | - | err=<nil> |
+
+Hidden data, direct mode (each must fail):
+
+- want the secret branch's commit by id (v2): **SUCCEEDED (leak/bypass)**:  * branch                  3e8b13dd854d0bcd4443e43a151285d6883846af -> FETCH_HEAD
+- want the secret branch's commit by id (v0): **SUCCEEDED (leak/bypass)**:  * branch                  3e8b13dd854d0bcd4443e43a151285d6883846af -> FETCH_HEAD
+- fetch refs/heads/secret by name (v2): refused: `fatal: couldn't find remote ref refs/heads/secret`
+- fetch refs/notes/commits by name (v2): refused: `fatal: couldn't find remote ref refs/notes/commits`
+- fetch refs/remotes/origin/HEAD by name (v2): refused: `fatal: couldn't find remote ref refs/remotes/origin/HEAD`
+- want a release-branch commit not reachable from the advertised ref (v2): **SUCCEEDED (leak/bypass)**:  * branch                  68fa7699a27d745f90bf8630202e1a415d1b0769 -> FETCH_HEAD
+  LEAK: the guest has the secret commit
+
+## Export repository (only the advertised branch's objects)
+
+| build export.git from the user's repository | 16.19 s |
+| first clone from export.git (v2) | 16.40 s | 679335 objects, 426.28 MiB | err=<nil> |
+| update export.git, 200 commits | 1.19 s |
+| incremental fetch from export.git (v2) | 0.72 s | 2590 objects, 912.22 KiB | err=<nil> |
+
+- want the secret commit by id from export.git: refused: `fatal: remote error: upload-pack: not our ref 3e8b13dd854d0bcd4443e43a151285d6883846af`
+- export.git size: 462M	/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x07-run-1986382836/export.git
+
+## Push into the landing repository
+
+| push to an empty landing repository, 64 MiB limit | 4.59 s | - | refused: `error: remote unpack failed: index-pack abnormal exit` |
+| push to an empty landing repository, 4 GiB limit | 19.00 s | 681925 objects, 424.81 MiB | err=<nil> |
+| push 3 commits, landing has export.git as alternate | 0.23 s | 12 objects, 836 bytes | err=<nil> host=<nil> |
+| incremental push, 5 more commits | 0.10 s | 20 objects, 1.42 KiB | err=<nil> |
+| push a 20 MiB random file | 0.98 s | 4 objects, 20.01 MiB | err=<nil> |
+| `wb land`: user's git fetches refs/heads/wb/S1/* from landing | 1.21 s | | err=<nil>  * [new branch]            wb/S1/work -> wb/S1/work |
+
+refs in the user's repository after landing: refs/heads/wb/S1/work; HEAD still refs/heads/x07-main
+
+## Push abuse through a real git client (each must be refused, landing unchanged)
+
+- push to refs/heads/main: refused: `remote: wb: push refused: outside refs/heads/wb/S1/`; landing unchanged
+- push a tag: refused: `remote: wb: push refused: outside refs/heads/wb/S1/`; landing unchanged
+- push into another session: refused: `remote: wb: push refused: outside refs/heads/wb/S1/`; landing unchanged
+- push to the session prefix itself: refused: `remote: wb: push refused: outside refs/heads/wb/S1/`; landing unchanged
+- lookalike session S10: refused: `remote: wb: push refused: outside refs/heads/wb/S1/`; landing unchanged
+- delete the session branch: refused: `remote: wb: push refused: deletes are not accepted`; landing unchanged
+- one allowed and one forbidden ref: refused: `remote: wb: push refused: outside refs/heads/wb/S1/`; landing unchanged
+- push option: refused: `fatal: the receiving end does not support push options`; landing unchanged
+- over the 16 MiB size limit (20 MiB file already pushed, so add 20 MiB more): refused: `remote: fatal: pack exceeds maximum allowed size`; landing unchanged
+- malformed object: tree with a .git directory holding hooks: refused: `remote: error: object 1d44733ddbd67d5f89d6a8c5dbd3058e8da85122: hasDotgit: contains '.git'`; landing unchanged
+- malformed object: tree with a .GIT directory (case-insensitive file systems): refused: `remote: error: object 03b82add644a257253ddccffaec127b7de0d748c: hasDotgit: contains '.git'`; landing unchanged
+- malformed object: tree with a git~1 directory (NTFS short name): refused: `remote: error: object e1759e1baa99ff0722e89dca297930e8638b4984: hasDotgit: contains '.git'`; landing unchanged
+- malformed object: tree with a .gitmodules symlink: refused: `remote: error: object 76cb0ca7a6301bee1df07a8fcb9a7a7a21d45406: gitmodulesSymlink: .gitmodules is a symbolic link`; landing unchanged
+- malformed object: tree with a bad mode: **SUCCEEDED (leak/bypass)**: remote: warning: object 5eee842b5cfe983fae4d89f88546c4246e9be749: badFilemode: contains bad file modes; **landing CHANGED**
+    remote: warning: object 5eee842b5cfe983fae4d89f88546c4246e9be749: badFilemode: contains bad file modes        
+    To wb::project
+     * [new branch]            a5ed02843ef73f8e909a1ee7e34c8e3cdbf1d873 -> wb/S1/mode
+- malformed object: tree with a ../ path: refused: `remote: error: object 38b59a11188003b5f19d01a9b6983bf45a8656d9: hasDotdot: contains '..'`; landing unchanged
+- malformed object: commit with a malformed author date: refused: `remote: error: object 7cdc60ecf61ab9a6e971b0caf168ecc3d88b6b2f: badDate: invalid author/committer line - bad date`; landing unchanged
+- malformed object: .gitmodules with a URL that starts with a dash (CVE-2018-17456 class): refused: `remote: error: object 671287f4e5383aab8e63c073da6ef35de510ceab: gitmodulesUrl: disallowed submodule url: --upload-pack=touch pwned`; landing unchanged
+
+## Raw protocol abuse (no git client; each must be refused)
+
+- header "wb-connect /bin/sh -\n": host err=`service`; guest saw "001cERR service not allowed\n"
+- header "wb-connect git-upload-archive -\n": host err=`service`; guest saw "001cERR service not allowed\n"
+- header "wb-connect git-upload-pack version=2:x\n": host err=`protocol`; guest saw "001dERR protocol not allowed\n"
+- header "wb-connect git-upload-pack --upload-pack=touch -\n": host err=`bad header`; guest saw "0013ERR bad header\n"
+- header "not a header": host err=`bad header`; guest saw "0013ERR bad header\n"
+- oversized header pkt: host err=`bad header`; guest saw ""
