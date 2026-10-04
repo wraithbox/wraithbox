@@ -111,7 +111,7 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X5: Filesystem benchmark",
-		"summary": "How does the data disk perform with default versus relaxed write-through settings, against the host, on the N2 workloads?"
+		"summary": "How does the data disk perform with default versus relaxed write-through settings, against the host, on the N2-fs-speed workloads?"
 	},
 	"20": {
 		"kind": "issue",
@@ -224,8 +224,8 @@
 	"38": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 006: design port forwarding and clipboard (F11, F12) and their threats",
-		"summary": "F11 (dev servers on host loopback) and F12 (clipboard) cross the VM boundary, but no spec designs them and spec 003's threat model does not list them."
+		"title": "spec 006: design port forwarding and clipboard (F11-port-forward, F12-clipboard) and their threats",
+		"summary": "F11-port-forward (dev servers on host loopback) and F12-clipboard (clipboard) cross the VM boundary, but no spec designs them and spec 003's threat model does not list them."
 	},
 	"39": {
 		"kind": "issue",
@@ -236,8 +236,8 @@
 	"40": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 003, 007: record learn mode and pass mode as S5 exceptions",
-		"summary": "S5 is \"default-deny egress\", and AGENTS.md says an S control is never weakened."
+		"title": "spec 003, 007: record learn mode and pass mode as S5-default-deny exceptions",
+		"summary": "S5-default-deny is \"default-deny egress\", and AGENTS.md says an S control is never weakened."
 	},
 	"41": {
 		"kind": "issue",
@@ -254,8 +254,8 @@
 	"43": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 006: VM slot admission for image builds, updates and GUI work (N5)",
-		"summary": "N5 allows two running macOS guests per host, and spec 006 uses both: the work VM and the isolated VM."
+		"title": "spec 006: VM slot admission for image builds, updates and GUI work (N5-two-macos-vms)",
+		"summary": "N5-two-macos-vms allows two running macOS guests per host, and spec 006 uses both: the work VM and the isolated VM."
 	},
 	"44": {
 		"kind": "issue",
@@ -266,7 +266,7 @@
 	"45": {
 		"kind": "issue",
 		"state": "open",
-		"title": "spec 014 (new): Claude Code in the guest and the agent interface (C2)",
+		"title": "spec 014 (new): Claude Code in the guest and the agent interface (C2-claude-only)",
 		"summary": "No spec says how Claude Code itself runs in the guest."
 	},
 	"46": {
@@ -303,7 +303,7 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "spec 009: approval flow, what the blocked client sees, and approval noise",
-		"summary": "Spec 007 and 009 describe approval choices and their security (S14), not how the flow behaves."
+		"summary": "Spec 007 and 009 describe approval choices and their security (S14-no-fake-approvals), not how the flow behaves."
 	},
 	"52": {
 		"kind": "issue",

@@ -77,7 +77,7 @@ next free number here before it is filed. The workflow is in
    OpenShell's Claude Code provider shows that an API key works. A Claude
    subscription login is the open part: OpenShell holds back from it
    until Anthropic approves an OAuth client identity for third-party
-   tools (OpenShell issue #3331), and a login shared with the host's
+   tools ([OpenShell issue 3331](https://github.com/NVIDIA/OpenShell/issues/3331)), and a login shared with the host's
    Claude Code would race it on token refresh. The answer must say
    which login Wraith Box owns and how it is refreshed.
 2. **X2 Warm start.** Measure time to restore a macOS guest from saved
