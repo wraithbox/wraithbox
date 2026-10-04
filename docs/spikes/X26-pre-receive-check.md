@@ -139,15 +139,22 @@ adds a conformance case for each.
   can consume input without producing output (empty stored blocks). A
   blob of size 1 followed by 512 MiB of empty stored blocks took the
   spike scanner's heap to 2,055 MiB (code review, at `077a8da`). The
-  scanner now counts wire bytes itself, for the full pack and per entry
-  (zlib's `deflateBound` for the declared size).
+  scanner now counts wire bytes itself, for the full pack and per
+  entry. The per-entry bound is the entry's header and base reference
+  plus zlib's conservative bound for the declared size N, about
+  N + N/8 + N/64 + 11 bytes, because zlib-ng at level 1 and
+  fixed-Huffman encoders can exceed the tighter bound for zlib's
+  default parameters.
 - **A delta's own data length.** `index-pack` allocates a delta's data
   from the entry header. The spike's scanner had the cap, and
   S08-workspace-and-git now names it and counts it in the per-push
   total.
 - **A delta's source size.** A small `REF_DELTA` against a large blob
   in `export.git` makes git load that whole blob. The scanner refuses a
-  source size over the per-object cap.
+  declared source size over the per-object cap. Under the cap, a guest
+  can still make git load the largest object of the user's own
+  repository once per push before the push fails closed, which is
+  accepted because it's the user's content.
 - **The object count.** `index-pack` allocates its object table from
   the count in the pack header before it reads an entry. Review
   estimated about 500 MiB for 10 million objects. The default cap of
@@ -157,8 +164,17 @@ adds a conformance case for each.
   push in memory, so its bound is the per-push total, not twice the
   per-object cap. `receive.unpackLimit=1` sends every push to
   `index-pack`.
-- **Size fields.** The scanner reads each size field with git's own
-  length limit, so it doesn't accept a field git refuses.
+- **Size fields.** The scanner reads an entry's size header as git
+  2.56.0's `unpack_object_header_buffer` does on 64-bit: at most 9
+  bytes, value under 2^60. A delta's size fields are at most 10 bytes,
+  with values that fit in 64 bits. A longer field or an overflowing bit
+  is malformed. A differential test checks that the scanner and
+  `git index-pack --stdin --strict` agree on entry boundaries and size
+  fields (S11-verification-and-spikes).
+- **Audit descriptor.** The hook takes its log descriptor's number
+  from an environment variable `wb-hostd` sets. That an inherited
+  descriptor reaches the hook on Windows, as an inheritable handle, is
+  assumed.
 
 ## Cases
 

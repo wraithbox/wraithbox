@@ -40,8 +40,12 @@ be tested before building on them.
 
   The pack scanner's target checks that what it forwards equals its
   input when a pack passes, and is a prefix of it when one is refused.
-  Its seeds include REF_DELTA entries, delta chains and empty zlib
-  stored blocks.
+  Its seeds include REF_DELTA entries, delta chains, empty zlib stored
+  blocks, and packs written by zlib-ng at level 1 and with
+  `core.compression=0`. A differential test feeds the scanner's corpus
+  and the generated packs to `git index-pack --stdin --strict`: the two
+  must agree on entry boundaries and size fields, and every pack the
+  scanner refuses as malformed git refuses too.
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
