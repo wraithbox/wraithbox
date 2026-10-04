@@ -86,7 +86,7 @@ small: a label nobody filters on is noise.
 
 ## Spikes
 
-Spikes are the open questions `X1` to `X16` in spec 011. They are
+Spikes are the open questions `X1` to `X24` in spec 011. They are
 first-class issues, and the first milestone is mostly spikes.
 
 - **One issue per spike**, title `X<n>: <name from spec 011>`, for
@@ -108,7 +108,11 @@ first-class issues, and the first milestone is mostly spikes.
 - **Result.** The answer lands on `main` as a short pull request that
   adds `docs/spec/spikes/X<n>-<slug>.md`: the question, the answer
   (yes / no / yes-with-conditions), the measurements, what it means for
-  the specs, and a permalink to the spike branch commit. The same pull
+  the specs, and a permalink to the spike branch commit. It opens with
+  the **For review** block of the spec template (spec 000), and the same
+  pull request adds a review brief (`review-briefs.md`, the `brief`
+  skill), so the maintainer can approve the answer without reading the
+  spike code. The same pull
   request changes any spec the answer affects, or, if that is too big,
   files the spec change as an issue. It also links the result from the
 spike's entry in spec 011. That pull request says
@@ -163,7 +167,9 @@ issue (body plus any `Decision (YYYY-MM-DD):` comment) holds:
 
 An issue that lacks a decision only the maintainer can make is
 `ready-for-human`, with the problem, the options with their cost, and one
-recommendation, so the maintainer can decide from the issue alone.
+recommendation, so the maintainer can decide from the issue alone. When
+the decision touches an `S*` control or more than one spec, add a
+review brief as well (`review-briefs.md`, the `brief` skill).
 
 An issue that holds a list (ideas, deferred items) is not a task. Triage
 splits it: each kept entry becomes its own sub-issue

@@ -1,0 +1,184 @@
+/* Review briefs: the pages under src/content/docs/review/ that put one
+   decision, spike result or spec change in front of the maintainer
+   (docs/agents/review-briefs.md says what goes in one). These classes add
+   what Starlight's own components (Aside, Badge, Card) don't have: option
+   cards with the recommended one marked, an impact table in traffic-light
+   colors, and diagram styles for inline SVG that follow the theme.
+
+   Traffic-light semantics are the same everywhere: good is "meets it",
+   mid is "partly, or with a condition", bad is "breaks or weakens it".
+
+   WCAG 2 contrast ratios (text on its own tint; AA text is 4.5:1):
+
+   Dark                                    | ratio
+   good #9ae6b4 on #1f3a2b                 |  8.45 AAA
+   mid  #f3cd7a on #3d3322                 |  8.16 AAA
+   bad  #ffa8a8 on #47282b                 |  7.11 AAA
+   boundary stroke #ff7b7b on card/content |  4.95 / 6.70
+   text #f6f5f4 on guest fill #2b3340      | 11.69 AAA
+
+   Light                                   | ratio
+   good #17663b on #e2f3e8                 |  6.07 AA
+   mid  #7a4a00 on #fbefd9                 |  6.57 AA
+   bad  #a1222f on #fbe4e2                 |  6.21 AA
+   boundary stroke #c01c28 on white        |  6.11
+   text #333338 on guest fill #e8eef8      | 10.78 AAA */
+:root {
+	--wb-good: #9ae6b4;
+	--wb-good-bg: #1f3a2b;
+	--wb-mid: #f3cd7a;
+	--wb-mid-bg: #3d3322;
+	--wb-bad: #ffa8a8;
+	--wb-bad-bg: #47282b;
+	--wb-boundary: #ff7b7b;
+	--wb-host-fill: var(--wb-surface);
+	--wb-guest-fill: #2b3340;
+}
+:root[data-theme='light'] {
+	--wb-good: #17663b;
+	--wb-good-bg: #e2f3e8;
+	--wb-mid: #7a4a00;
+	--wb-mid-bg: #fbefd9;
+	--wb-bad: #a1222f;
+	--wb-bad-bg: #fbe4e2;
+	--wb-boundary: #c01c28;
+	--wb-guest-fill: #e8eef8;
+}
+
+/* Options: one card per option, at most four, two to a row on wide
+   screens. The recommended option comes first and carries
+   `data-recommended`, which draws the accent border and a label. */
+.sl-markdown-content .wb-options {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+	gap: 1rem;
+}
+.sl-markdown-content .wb-option {
+	margin: 0;
+	padding: 0.75rem 1rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: var(--wb-radius-lg);
+	background-color: var(--wb-surface);
+}
+.sl-markdown-content .wb-option[data-recommended] {
+	border: 2px solid var(--sl-color-accent);
+}
+.sl-markdown-content .wb-option[data-recommended]::before {
+	content: 'Recommended';
+	display: inline-block;
+	margin-bottom: 0.25rem;
+	padding: 0 0.6rem;
+	border-radius: var(--wb-radius-pill);
+	background-color: var(--sl-color-accent-low);
+	color: var(--sl-color-text-accent);
+	font-size: var(--sl-text-xs);
+	font-weight: 600;
+}
+.sl-markdown-content .wb-option > :first-child {
+	margin-top: 0;
+}
+.sl-markdown-content .wb-option h3 {
+	margin-top: 0.25rem;
+	font-size: var(--sl-text-lg);
+}
+.sl-markdown-content .wb-option p,
+.sl-markdown-content .wb-option ul {
+	margin-top: 0.4rem;
+}
+
+/* Impact table: rows are requirements or controls, columns are options.
+   A cell is `yes`, `partial`, `no` or `na`, and always holds a word as well
+   as a color, so it reads without color too. */
+.sl-markdown-content table.wb-impact td.yes,
+.sl-markdown-content table.wb-impact td.partial,
+.sl-markdown-content table.wb-impact td.no {
+	font-weight: 600;
+	text-align: center;
+}
+.sl-markdown-content table.wb-impact td.yes {
+	background-color: var(--wb-good-bg);
+	color: var(--wb-good);
+}
+.sl-markdown-content table.wb-impact td.partial {
+	background-color: var(--wb-mid-bg);
+	color: var(--wb-mid);
+}
+.sl-markdown-content table.wb-impact td.no {
+	background-color: var(--wb-bad-bg);
+	color: var(--wb-bad);
+}
+.sl-markdown-content table.wb-impact td.na {
+	color: var(--sl-color-gray-3);
+	text-align: center;
+}
+
+/* Diagrams: inline SVG in a figure. Shapes take a class rather than a
+   color, so one drawing works in both themes:
+   `box` a process or component, `host` and `guest` the side it runs on,
+   `boundary` a trust boundary (dashed), `edge` a flow, `edge-bad` a flow
+   the design must stop, `label` text, `note` secondary text. */
+.sl-markdown-content figure.wb-figure {
+	margin: 1rem 0;
+	padding: 0.75rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: var(--wb-radius-lg);
+	background-color: var(--sl-color-black);
+}
+.sl-markdown-content figure.wb-figure svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	font-family: var(--sl-font);
+	font-size: 15px;
+}
+.sl-markdown-content figure.wb-figure figcaption {
+	margin-top: 0.5rem;
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-sm);
+}
+.wb-figure .box {
+	fill: var(--wb-surface);
+	stroke: var(--sl-color-gray-4);
+	stroke-width: 1.5;
+}
+.wb-figure .host {
+	fill: var(--wb-host-fill);
+}
+.wb-figure .guest {
+	fill: var(--wb-guest-fill);
+}
+.wb-figure .boundary {
+	fill: none;
+	stroke: var(--wb-boundary);
+	stroke-width: 2;
+	stroke-dasharray: 6 4;
+}
+.wb-figure .edge {
+	fill: none;
+	stroke: var(--sl-color-gray-3);
+	stroke-width: 1.5;
+}
+.wb-figure .edge-bad {
+	fill: none;
+	stroke: var(--wb-boundary);
+	stroke-width: 1.5;
+	stroke-dasharray: 3 3;
+}
+.wb-figure .arrow {
+	fill: var(--sl-color-gray-3);
+}
+.wb-figure .arrow-bad {
+	fill: var(--wb-boundary);
+}
+.wb-figure .label {
+	fill: var(--sl-color-white);
+}
+.wb-figure .note {
+	fill: var(--sl-color-gray-3);
+	font-size: 12.5px;
+}
+.wb-figure .boundary-label {
+	fill: var(--wb-boundary);
+	font-size: 12.5px;
+	font-weight: 600;
+}
