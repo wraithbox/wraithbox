@@ -203,7 +203,10 @@ widths the TUI has laid out; passing `https://` links to public hosts,
 which leaves the text-target mismatch; and passing a link only when
 its text equals its URL, which makes the filter follow the screen.
 
-**Around the stream.**
+**Around the stream.** The title, the reset and the input drain apply
+only when `wb`'s standard output is a terminal, and the drain also
+needs standard input to be one. `wb claude -p … > out.txt` gets none
+of them, whatever open decision 2 settles.
 
 - **Title.** `wb` saves the user's window title on the terminal's
   title stack (`CSI 22 t`), sets its own (`wb: <session id>`), and
@@ -238,8 +241,10 @@ its text equals its URL, which makes the filter follow the screen.
   `LANG`, `LC_ALL`, `LC_CTYPE`. Claude Code picks its sequences from the
   first four and from query replies. The locale ones keep the guest's
   character encoding the same as the host's, also on a host that sets
-  `LC_ALL` or `LC_CTYPE` without `LANG`. The other `LC_*` variables change formatting,
-  not what reaches the terminal, and are left out. Not `TMUX` or `STY`,
+  `LC_ALL` or `LC_CTYPE` without `LANG`. `LC_ALL` also sets the
+  formatting categories, as it does on the host. The other `LC_*`
+  variables, which set one formatting category each (`LC_TIME`,
+  `LC_NUMERIC`, …), are left out. Not `TMUX` or `STY`,
   which make Claude Code wrap sequences in DCS, and not `SSH_*`,
   `TERMINFO`, `LC_TERMINAL` or `ITERM_SESSION_ID`. The window size
   crosses as resize messages.

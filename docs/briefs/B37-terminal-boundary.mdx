@@ -130,7 +130,7 @@ On a stream that isn't a terminal, `wb` drops `ESC` and every sequence it starts
 
 The allowlist runs whatever the output goes to. The spec does this until you decide.
 
-- **Cost:** JSON keeps working, but a C1 character or `DEL` inside a string is dropped, and a script sees changed bytes.
+- **Cost:** JSON keeps working, but a C1 character or `DEL` inside a string is dropped, and a script sees changed bytes. Invalid UTF-8 becomes U+FFFD, so binary output piped out of `wb shell` is corrupted.
 - **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="FR01-drop-in" variant="caution" /> except rare bytes in scripts
 
 </div>

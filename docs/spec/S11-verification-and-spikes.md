@@ -32,7 +32,9 @@ be tested before building on them.
   - the filtered output followed by the exit reset, replayed into a
     headless terminal emulator, leaves it in its initial state: modes,
     kitty keyboard stacks on both screens, keypad mode, character sets,
-    scroll region, tab stops, and colors and style.
+    scroll region, tab stops, and colors and style. For each of these
+    states, a test removes its step from the reset and sees the
+    property fail, for example `ESC =` with no `ESC >`.
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
