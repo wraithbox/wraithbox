@@ -107,3 +107,6 @@ unlayered
 # Agent orchestration
 pickable
 retarget
+Ghostty
+asciicast
+iconify

@@ -38,3 +38,4 @@ CI
 # Requirements are what the specs are made of.
 [Rr]equirement
 [Rr]equirements
+Ghostty

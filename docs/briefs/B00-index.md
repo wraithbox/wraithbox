@@ -18,6 +18,7 @@ issue, the spike result, or the spec). A brief explains it.
 
 | ID | Description | Status |
 |----|-------------|--------|
+| B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04 |
 | B36-flow-attribution | Can projects sharing the work VM keep their network grants apart? | Decided 2026-10-04: A. The VM is the enforced unit |
 | B37-terminal-boundary | Should the host terminal be a trust boundary with its own filter? | Decided 2026-10-04: A. Boundary plus allowlist filter, for now |
 | B38-port-forward-clipboard | How should guest dev servers and clipboard text cross to the host? | Decided 2026-10-04: D. Neither in V1 |
