@@ -70,6 +70,12 @@ inspection is trusted, and what is recorded.
   which `wb-proxyd` exchanges for short-lived access tokens, or AWS keys
   for SigV4 signing. `wb cred set <binding>` reads the
   value from a prompt or stdin; it never appears in arguments or logs.
+  A binding can also hold a fixed public value in place of a secret
+  store item, for a host that answers public reads only to a request
+  with a token. Built-in profiles ship these, such as the anonymous
+  `ghcr.io` token for Homebrew bottles (S07-egress-gateway,
+  X22-no-guest-credentials). Such a value is no secret and gets no
+  placeholder in the guest.
 - **Model credential.** Claude Code in the guest is configured with a
   placeholder and a binding for the model API host. Whether every Claude
   Code authentication mode works with host-side replacement (including

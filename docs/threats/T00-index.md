@@ -14,6 +14,7 @@ trusts, and which risks it accepts rather than solves.
 | T07-ungated-sources | Dependencies from ungated sources | Accepted |
 | T08-homebrew-ungated | Young Homebrew bottles | Accepted |
 | T09-terminal-fingerprint | Host terminal facts in the guest | Accepted |
+| T09-unnamed-credentials | Guest credentials in unnamed places | Accepted |
 
 ## Model
 
@@ -83,3 +84,13 @@ print about returned work after `wb land` is outside it
   and `LC_CTYPE` variables that cross into the guest session. Claude Code needs them
   to choose its output. No passed query returns clipboard or file
   contents, or text the guest wrote.
+- **T09-unnamed-credentials: Guest credentials in unnamed places.**
+  `wb-proxyd` removes `Authorization`, `Proxy-Authorization` and
+  `Cookie` on every inspected host, and the headers and query
+  parameters a built-in profile names on its hosts. On an allowed host
+  without a built-in profile, a guest's own credential in another
+  header or parameter, such as an API key in the query string, is
+  forwarded, and the guest acts as its own account there. It never
+  carries one of the user's credentials (SEC04-no-guest-secrets), and
+  the git hosts of SEC06-repo-writes have built-in profiles
+  (S07-egress-gateway, X22-no-guest-credentials).

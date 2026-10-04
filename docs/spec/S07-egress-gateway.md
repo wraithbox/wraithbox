@@ -62,13 +62,41 @@ the host.
     sent (T01-allowed-channels).
   - Plain HTTP is allowed only when policy names `host:80`, and is
     always inspected.
-- **Credential replacement** (SEC04-no-guest-secrets). On inspected hosts, credentials sent
-  by the guest (`Authorization`, `Proxy-Authorization`, API-key headers,
-  cookies configured per binding) are always removed. If the host has a
-  credential binding, the real credential is injected from the
-  platform's secret store (S09-policy-credentials-audit).
-  A token supplied by an attacker is therefore never forwarded, and the
-  guest only ever holds placeholders.
+- **Credential replacement** (SEC04-no-guest-secrets). On inspected
+  hosts, `wb-proxyd` removes the credentials the guest sends, whatever
+  the method: `Authorization`, `Proxy-Authorization` and `Cookie` on
+  every host, plus each header the host's built-in profile names (the
+  model API's `x-api-key`, GitLab's `PRIVATE-TOKEN` and `JOB-TOKEN`). A
+  request with a query parameter that the profile names as a credential
+  (GitLab's `private_token` and `access_token`) is refused with a `403`
+  that names the rule, because GitLab reads a token from the query
+  string (X22-no-guest-credentials). If the host has a credential
+  binding, the binding's credential is then injected
+  (S09-policy-credentials-audit). A token supplied by an attacker is
+  therefore never forwarded, and the guest only ever holds
+  placeholders. Each removal and refusal is logged with the header or
+  parameter name and the rule, never the value (SEC10-audit).
+  - *Anonymous credentials.* Some hosts answer public reads only to a
+    request with a token. `wb-proxyd` doesn't forward the
+    guest's token for those, not even one the host issued in the same
+    session. A host-side binding with a fixed public value injects one
+    instead. The package registries profile has one:
+    `Authorization: Bearer QQ==` on GET and HEAD of `ghcr.io`
+    `/v2/homebrew/core/`, the value Homebrew itself sends, and writes
+    to those paths are refused. Without it, every bottle download fails
+    with a 401, because `brew` never asks the token endpoint for a
+    token. Forwarding guest tokens on reads only was rejected: it
+    forwards an attacker's token on every GET, and a placeholder
+    without a binding then fails the request. Forwarding only tokens
+    that the host issued in this session was rejected because it
+    doesn't fix Homebrew.
+  - *What is left.* Server-issued credentials in a download address
+    (presigned storage URLs, as for git LFS and Homebrew bottles) pass
+    unchanged. Removing them would break those downloads, and a
+    storage host still has to be allowed by policy. A
+    guest's own credential in a header or parameter that no profile
+    names reaches a host without a built-in profile
+    (T09-unnamed-credentials).
 - **Placeholder binding.** Each placeholder is bound to the hosts,
   ports, and paths of its binding, following OpenShell's provider
   model. A placeholder found anywhere else in a request (another host,
