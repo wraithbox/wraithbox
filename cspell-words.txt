@@ -110,3 +110,5 @@ retarget
 Ghostty
 asciicast
 iconify
+DECRQM
+DECRQSS

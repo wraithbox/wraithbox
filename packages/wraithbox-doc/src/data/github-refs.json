@@ -202,8 +202,7 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X23-sandboxed-daemons: Self-sandboxed Go daemons on macOS",
-		"summary": "X23-sandboxed-daemons (added to S11-verification-and-spikes in #14)",
-		"brief": "B34-sandboxed-daemons"
+		"summary": "X23-sandboxed-daemons (added to S11-verification-and-spikes in #14)"
 	},
 	"35": {
 		"kind": "issue",
@@ -407,5 +406,31 @@
 		"state": "open",
 		"title": "docs(spike): X23-sandboxed-daemons result, yes with conditions",
 		"summary": "Result of spike X23-sandboxed-daemons, approach steps 1 and 2 (the scope set by the 2026-10-04 decision on #34)."
+	},
+	"66": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X19-terminal-filter result, yes with conditions",
+		"summary": "Answer: yes, with conditions.",
+		"brief": "B30-terminal-filter"
+	},
+	"67": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd can't read the user's repository under its sandbox profile (S08 upload-pack)",
+		"summary": "Found in the review of #65 (X23-sandboxed-daemons result)."
+	},
+	"68": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-proxyd must bind stream identity to the connection, not to wb-netd's tags",
+		"summary": "Found in the security review of #65 (X23-sandboxed-daemons result)."
+	},
+	"69": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spike): X07-git-round-trip answered, yes with conditions",
+		"summary": "Result of spike X07-git-round-trip: yes, with conditions.",
+		"brief": "B21-git-round-trip"
 	}
 }
