@@ -86,7 +86,7 @@ small: a label nobody filters on is noise.
 
 ## Spikes
 
-Spikes are the open questions `X1` to `X13` in spec 011. They are
+Spikes are the open questions `X1` to `X16` in spec 011. They are
 first-class issues, and the first milestone is mostly spikes.
 
 - **One issue per spike**, title `X<n>: <name from spec 011>`, for

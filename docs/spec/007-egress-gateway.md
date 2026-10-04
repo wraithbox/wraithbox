@@ -69,8 +69,17 @@ the host.
   platform's secret store (spec 009).
   A token supplied by an attacker is therefore never forwarded, and the
   guest only ever holds placeholders.
-- **HTTP policy** (S6). Rules match method and path per host. Built-in
-  profiles:
+- **Placeholder binding.** Each placeholder is bound to the hosts,
+  ports, and paths of its binding, following OpenShell's provider
+  model. A placeholder found anywhere else in a request (another host,
+  a query string, a body) gets a `403` naming the binding, and an audit
+  event. The placeholder itself is never sent upstream. For AWS,
+  `wb-proxyd` signs requests (SigV4) rather than injecting a key.
+- **HTTP policy** (S6). Rules match method and path per host, GraphQL
+  operation type and name, and WebSocket messages, in the OpenShell
+  policy schema (spec 009). Each inspected host enforces its rules by
+  default. A host can be set to `audit` while a new rule is tried out:
+  violations are then logged but allowed. Built-in profiles:
   - *git hosting*: reads allowed; `git-receive-pack` and mutating API
     calls only for the project's repositories (derived from the host
     repository's remotes, plus explicit additions); gists, repository
@@ -87,13 +96,19 @@ the host.
   known vulnerability at or above the threshold (default HIGH) are
   refused with an explanatory error. If the lookup fails, the request is
   refused (fail closed); per-project overrides are explicit and audited.
+  The gate implements OpenShell's supervisor middleware API
+  (`SupervisorMiddleware`, RFC 0009) and runs after policy allows a
+  request and before credentials are injected, so it never sees a
+  credential. It runs inside `wb-proxyd`.
 
 ## Approvals and learning
 
 - An unknown destination produces an approval event in `wb-hostd`, shown
   as a native notification and listed by `wb status`: *allow for this
-  session*, *allow for this project*, or *deny*. Policy changes take
-  effect without restarting anything.
+  session*, *allow for this project*, or *deny*. Each request shows the
+  result of the prover's risk check on the rule it would add (spec 009),
+  such as new reach for a credential or a new write method. Policy
+  changes take effect without restarting anything.
 - **Learn mode** (trusted projects only, F10): DNS resolves any name and
   connections are inspected and allowed, while credentials stay host-side
   as usual. The session's destinations become a suggested allowlist for

@@ -190,5 +190,9 @@ packet surface to `wb-netd`; (4) git objects returning to the host;
   write access to other projects' guest clones (code only; no secrets are
   present; changes still return only as reviewable branches). Untrusted
   repositories use the isolated VM to avoid this.
+- **R6** After a guest root escalation, forged program identities in the
+  guest confinement layer (spec 013). Rules narrowed to named
+  programs then act as the union of the project's grants. The host
+  floor (S5, S6) still holds.
 
 **Status:** Draft

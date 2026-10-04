@@ -35,7 +35,7 @@ small set of interfaces, each with one implementation per host OS:
 
 | Interface | Responsibility | macOS | Windows | Linux |
 |---|---|---|---|---|
-| **VM provider** (`wb-vmd`) | Create, start, stop, save, restore VMs; disks; devices | Swift, Virtualization framework | Go, Host Compute Service (HCS) | Go, supervising a VMM over KVM (spike X10) |
+| **VM provider** (`wb-vmd`) | Create, start, stop, save, restore VMs; disks; devices | Swift, Virtualization framework | Go, Host Compute Service (HCS) | Go, supervising a VMM over KVM (spike X10; X16 checks OpenShell's VM driver first) |
 | **Host-guest socket** | Byte streams between `wb-hostd` and `wb-guestd` | virtio-vsock | Hyper-V sockets | virtio-vsock |
 | **Packet transport** | Guest Ethernet frames to and from `wb-netd`, without host privileges | file-handle network attachment (datagram socketpair) | spike X11 | spike X10 |
 | **Disk cloning** | Copy-on-write images | APFS clones | VHDX differencing disks | qcow2 backing files, or reflinks where the filesystem supports them |
@@ -114,6 +114,7 @@ building:
 | PTY | Unix PTY | Unix PTY | ConPTY |
 | Toolchain manifest (F7) | Brewfile | package list (apt) | package list (winget) |
 | CA trust (spec 009) | System keychain + toolchain variables | system trust store + toolchain variables | machine certificate store + toolchain variables |
+| Guest confinement (spec 013) | Seatbelt profiles; Network Extension flow labels (X14); Endpoint Security (X15) | Landlock and seccomp, as in OpenShell's sandbox runtime (X16) | to be decided |
 
 Windows 11 requires a TPM 2.0 and Secure Boot. A host that cannot
 provide a virtual TPM to the guest cannot run Windows guests (spikes X11,

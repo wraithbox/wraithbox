@@ -18,7 +18,7 @@ in a separate process with a gRPC contract (spec 012).
 | `wb-netd`, `wb-proxyd` | Go | gVisor's network stack is Go; strong standard TLS/HTTP/HTTP2 libraries; built-in fuzzing for the parsers that face the guest |
 | `wb-guestd`, `git-remote-wb` | Go | One code base for macOS, Linux, and Windows guests; PTY, vsock, and user management |
 | `wb-vmd` on Windows and Linux | Go | HCS and Hyper-V sockets have Go bindings; Linux VMMs are driven over sockets and processes |
-| `wb-vmd` on macOS, macOS notification helper | Swift 6 | First-class access to the Virtualization framework (macOS guests, save/restore, file-handle network attachment) and to notifications |
+| `wb-vmd` on macOS, macOS notification helper, macOS guest Network Extension (spec 013) | Swift 6 | First-class access to the Virtualization framework (macOS guests, save/restore, file-handle network attachment), to notifications, and to the Network Extension provider classes |
 | Windows notification and tray helper (later) | C# (.NET) | Native Windows notifications with actions |
 
 No other language is added without a spec change.
@@ -43,6 +43,11 @@ downloads and runs, such as a VMM on Linux.
 | Keychain / Secure Enclave from Go | a thin cgo shim over Security.framework, owned by this repo, linked into `wb-proxyd` on macOS only |
 | State | SQLite, through a cgo-free Go driver so every OS builds the same way |
 | Vulnerability data | OSV API |
+| Network policy schema | OpenShell's `network_policies` schema, version 1 (Apache-2.0), implemented in Go by this repo; YAML read with a size- and depth-bounded decoder |
+| Policy prover | OpenShell's standalone `openshell-prover` release binary (Apache-2.0, bundles Z3 under MIT), run as an external program, version- and checksum-pinned |
+| Dependency-gate API | OpenShell's `supervisor_middleware.proto` (Apache-2.0), Go code generated with `buf` |
+| Audit event schema | OCSF 1.8 |
+| Guest confinement (macOS guest) | Seatbelt profiles applied by `wb-guestd`; a Network Extension system extension in Swift (spec 013) |
 | Image distribution (later) | `go-containerregistry` |
 
 ## Repository layout
