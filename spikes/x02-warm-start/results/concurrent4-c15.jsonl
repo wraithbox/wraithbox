@@ -1,0 +1,1 @@
+{"bundle":"c15","cmd":"restore","error":"Error Domain=VZErrorDomain Code=12 \"The virtual machine failed to restore with error “invalid argument”.\" UserInfo={NSLocalizedFailure=An error occurred while restoring the virtual machine., NSLocalizedFailureReason=The virtual machine failed to restore with error “invalid argument”.}","opts":[],"seconds":5.4443355409894139}

@@ -1,0 +1,46 @@
+## cold-4g
+n=20
+netSeconds             p50=     4.761 p95=     5.078 min=     4.627 max=     6.087 n=20
+dhcpSeconds            p50=     4.767 p95=     5.099 min=     4.625 max=     6.467 n=20
+## cold-8g
+n=20
+netSeconds             p50=     5.015 p95=     5.924 min=     4.804 max=     7.871 n=20
+dhcpSeconds            p50=     5.038 p95=     5.923 min=     4.792 max=     7.874 n=20
+## cold-clone-4g
+n=20
+netSeconds             p50=     5.039 p95=     5.383 min=     4.953 max=     6.456 n=20
+dhcpSeconds            p50=     5.048 p95=     5.394 min=     4.940 max=     6.699 n=20
+## cycle-4g
+n=20
+pauseMs                p50=     6.755 p95=    13.261 min=     3.661 max=    13.273 n=20
+saveSeconds            p50=     2.937 p95=     3.204 min=     2.803 max=     3.369 n=20
+stateBytes             p50=1409290240.000 p95=1409290240.000 min=1409290240.000 max=1409290240.000 n=20
+stateAllocBytes        p50=1418768384.000 p95=1424063692.800 min=1411428352.000 max=1425059840.000 n=20
+stopMs                 p50=    27.150 p95=    40.407 min=    22.404 max=    48.960 n=20
+configMs               p50=     7.038 p95=     9.183 min=     6.397 max=     9.675 n=20
+restoreSeconds         p50=     1.836 p95=     1.881 min=     1.808 max=     2.007 n=20
+resumeMs               p50=   118.667 p95=   129.210 min=   114.980 max=   129.232 n=20
+netSeconds             p50=     1.965 p95=     2.020 min=     1.933 max=     2.145 n=20
+## cycle-8g
+n=20
+pauseMs                p50=     6.890 p95=    15.505 min=     4.393 max=    20.269 n=20
+saveSeconds            p50=     4.780 p95=     5.158 min=     4.671 max=     5.585 n=20
+stateBytes             p50=1409290240.000 p95=1410967961.600 min=1409290240.000 max=1442844672.000 n=20
+stateAllocBytes        p50=1419282432.000 p95=1426422988.800 min=1410379776.000 max=1452322816.000 n=20
+stopMs                 p50=    40.103 p95=    47.559 min=    34.807 max=    50.187 n=20
+configMs               p50=     8.297 p95=     9.379 min=     7.337 max=     9.540 n=20
+restoreSeconds         p50=     2.253 p95=     2.329 min=     2.218 max=     2.383 n=20
+resumeMs               p50=   119.839 p95=   144.051 min=   115.798 max=   144.070 n=20
+netSeconds             p50=     2.386 p95=     2.465 min=     2.348 max=     2.540 n=20
+## series-4g
+n=20
+configMs               p50=    14.410 p95=    16.784 min=    13.986 max=    23.972 n=20
+restoreSeconds         p50=     3.569 p95=     3.778 min=     3.521 max=     3.877 n=20
+resumeMs               p50=   119.165 p95=   128.387 min=   116.098 max=   134.117 n=20
+netSeconds             p50=     3.705 p95=     3.923 min=     3.659 max=     4.014 n=20
+## series-8g
+n=20
+configMs               p50=    14.161 p95=    16.160 min=    13.614 max=    26.640 n=20
+restoreSeconds         p50=     3.970 p95=     4.433 min=     3.919 max=     4.958 n=20
+resumeMs               p50=   118.418 p95=   126.079 min=   116.214 max=   131.797 n=20
+netSeconds             p50=     4.106 p95=     4.577 min=     4.054 max=     5.114 n=20

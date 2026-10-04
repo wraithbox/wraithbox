@@ -1,0 +1,1 @@
+{"cmd":"cold","dhcpSeconds":8.5240539580117911,"netSeconds":8.5256558750115801,"run":1,"startSeconds":0.22761599998921156,"vsockOutcome":"error NSPOSIXErrorDomain 54: The operation couldn’t be completed. Connection reset by peer","vsockSeconds":0.25419058298575692}

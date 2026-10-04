@@ -1,0 +1,2 @@
+{"bundle":"c12","cmd":"restore","configMs":20.262042002286762,"netSeconds":5.0427324579795823,"opts":[],"restoreSeconds":4.8783620829926804,"resumedSeconds":5.0350674579967745,"resumeMs":136.44333300180733,"vsockOutcome":"error NSPOSIXErrorDomain 54: The operation couldn’t be completed. Connection reset by peer","vsockSeconds":5.0545695829787292}
+{"bundle":"c12","cmd":"restore-hold","netSeconds":0.0004857500025536865,"state":"1","vsockOutcome":"error NSPOSIXErrorDomain 54: The operation couldn’t be completed. Connection reset by peer","vsockSeconds":0.0023023330140858889}

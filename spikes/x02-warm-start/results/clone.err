@@ -1,0 +1,160 @@
+[2026-10-04T15:40:48Z] settling 30.0s
+[2026-10-04T15:42:08Z] started in 0.26s
+[2026-10-04T15:42:08Z] vsock 0.269s..0.296s: error NSPOSIXErrorDomain 54: The operation couldn’t be completed. Connection reset by peer
+[2026-10-04T15:42:14Z] echo 1012 reply at 5.821s
+[2026-10-04T15:42:15Z] echo 1013 reply at 6.321s
+[2026-10-04T15:42:15Z] echo 1014 reply at 6.824s
+[2026-10-04T15:42:16Z] echo 1015 reply at 7.324s
+[2026-10-04T15:42:16Z] echo 1016 reply at 7.830s
+[2026-10-04T15:42:17Z] echo 1017 reply at 8.363s
+[2026-10-04T15:42:17Z] echo 1018 reply at 8.867s
+[2026-10-04T15:42:18Z] echo 1019 reply at 9.378s
+[2026-10-04T15:42:18Z] echo 1020 reply at 9.883s
+[2026-10-04T15:42:19Z] echo 1021 reply at 10.390s
+[2026-10-04T15:42:19Z] echo 1022 reply at 10.896s
+[2026-10-04T15:42:20Z] echo 1023 reply at 11.411s
+[2026-10-04T15:42:20Z] echo 1024 reply at 11.928s
+[2026-10-04T15:42:21Z] echo 1025 reply at 12.429s
+[2026-10-04T15:42:21Z] echo 1026 reply at 12.933s
+[2026-10-04T15:42:22Z] echo 1027 reply at 13.437s
+[2026-10-04T15:42:22Z] echo 1028 reply at 13.940s
+[2026-10-04T15:42:23Z] echo 1029 reply at 14.446s
+[2026-10-04T15:42:24Z] echo 1030 reply at 14.949s
+[2026-10-04T15:42:24Z] echo 1031 reply at 15.454s
+[2026-10-04T15:42:25Z] echo 1032 reply at 15.978s
+[2026-10-04T15:42:25Z] echo 1033 reply at 16.479s
+[2026-10-04T15:42:26Z] echo 1034 reply at 16.988s
+[2026-10-04T15:42:26Z] echo 1035 reply at 17.500s
+[2026-10-04T15:42:27Z] echo 1036 reply at 18.006s
+[2026-10-04T15:42:27Z] echo 1037 reply at 18.517s
+[2026-10-04T15:42:28Z] echo 1038 reply at 19.036s
+[2026-10-04T15:42:28Z] echo 1039 reply at 19.544s
+[2026-10-04T15:42:29Z] echo 1040 reply at 20.046s
+[2026-10-04T15:42:29Z] echo 1041 reply at 20.570s
+[2026-10-04T15:42:30Z] echo 1042 reply at 21.080s
+[2026-10-04T15:42:30Z] echo 1043 reply at 21.583s
+[2026-10-04T15:42:31Z] echo 1044 reply at 22.088s
+[2026-10-04T15:42:31Z] echo 1045 reply at 22.590s
+[2026-10-04T15:42:32Z] echo 1046 reply at 23.091s
+[2026-10-04T15:42:32Z] echo 1047 reply at 23.593s
+[2026-10-04T15:42:33Z] echo 1048 reply at 24.095s
+[2026-10-04T15:42:33Z] echo 1049 reply at 24.607s
+[2026-10-04T15:42:34Z] echo 1050 reply at 25.113s
+[2026-10-04T15:42:34Z] echo 1051 reply at 25.621s
+[2026-10-04T15:42:35Z] echo 1052 reply at 26.145s
+[2026-10-04T15:42:35Z] echo 1053 reply at 26.661s
+[2026-10-04T15:42:36Z] echo 1054 reply at 27.179s
+[2026-10-04T15:42:36Z] echo 1055 reply at 27.682s
+[2026-10-04T15:42:37Z] echo 1056 reply at 28.187s
+[2026-10-04T15:42:37Z] echo 1057 reply at 28.690s
+[2026-10-04T15:42:38Z] echo 1058 reply at 29.197s
+[2026-10-04T15:42:38Z] echo 1059 reply at 29.711s
+[2026-10-04T15:42:39Z] echo 1060 reply at 30.245s
+[2026-10-04T15:42:39Z] echo 1061 reply at 30.746s
+[2026-10-04T15:42:40Z] echo 1062 reply at 31.261s
+[2026-10-04T15:42:40Z] echo 1063 reply at 31.763s
+[2026-10-04T15:42:41Z] echo 1064 reply at 32.278s
+[2026-10-04T15:42:41Z] echo 1065 reply at 32.786s
+[2026-10-04T15:42:42Z] echo 1066 reply at 33.295s
+[2026-10-04T15:42:42Z] echo 1067 reply at 33.796s
+[2026-10-04T15:42:43Z] echo 1068 reply at 34.302s
+[2026-10-04T15:42:43Z] echo 1069 reply at 34.804s
+[2026-10-04T15:42:44Z] echo 1070 reply at 35.311s
+[2026-10-04T15:42:44Z] echo 1071 reply at 35.813s
+[2026-10-04T15:42:45Z] echo 1072 reply at 36.323s
+[2026-10-04T15:42:45Z] echo 1073 reply at 36.828s
+[2026-10-04T15:42:46Z] echo 1074 reply at 37.361s
+[2026-10-04T15:42:46Z] echo 1075 reply at 37.863s
+[2026-10-04T15:42:47Z] echo 1076 reply at 38.394s
+[2026-10-04T15:42:47Z] echo 1077 reply at 38.901s
+[2026-10-04T15:42:48Z] echo 1078 reply at 39.433s
+[2026-10-04T15:42:48Z] echo 1079 reply at 39.938s
+[2026-10-04T15:42:49Z] echo 1080 reply at 40.441s
+[2026-10-04T15:42:50Z] echo 1081 reply at 40.947s
+[2026-10-04T15:42:50Z] echo 1082 reply at 41.461s
+[2026-10-04T15:42:51Z] echo 1083 reply at 41.962s
+[2026-10-04T15:42:51Z] echo 1084 reply at 42.473s
+[2026-10-04T15:42:52Z] echo 1085 reply at 42.985s
+[2026-10-04T15:42:52Z] echo 1086 reply at 43.504s
+[2026-10-04T15:42:53Z] echo 1087 reply at 44.011s
+[2026-10-04T15:42:53Z] echo 1088 reply at 44.522s
+[2026-10-04T15:42:54Z] echo 1089 reply at 45.028s
+[2026-10-04T15:42:54Z] echo 1090 reply at 45.529s
+[2026-10-04T15:42:55Z] echo 1091 reply at 46.030s
+[2026-10-04T15:42:55Z] echo 1092 reply at 46.541s
+[2026-10-04T15:42:56Z] echo 1093 reply at 47.065s
+[2026-10-04T15:42:56Z] echo 1094 reply at 47.567s
+[2026-10-04T15:42:57Z] echo 1095 reply at 48.084s
+[2026-10-04T15:42:57Z] echo 1096 reply at 48.589s
+[2026-10-04T15:42:58Z] echo 1097 reply at 49.119s
+[2026-10-04T15:42:58Z] echo 1098 reply at 49.625s
+[2026-10-04T15:42:59Z] echo 1099 reply at 50.128s
+[2026-10-04T15:42:59Z] echo 1100 reply at 50.630s
+[2026-10-04T15:43:00Z] echo 1101 reply at 51.137s
+[2026-10-04T15:43:00Z] echo 1102 reply at 51.661s
+[2026-10-04T15:43:01Z] echo 1103 reply at 52.162s
+[2026-10-04T15:43:01Z] echo 1104 reply at 52.671s
+[2026-10-04T15:43:02Z] echo 1105 reply at 53.195s
+[2026-10-04T15:43:02Z] echo 1106 reply at 53.729s
+[2026-10-04T15:43:03Z] echo 1107 reply at 54.231s
+[2026-10-04T15:43:03Z] echo 1108 reply at 54.765s
+[2026-10-04T15:43:04Z] echo 1109 reply at 55.278s
+[2026-10-04T15:43:04Z] echo 1110 reply at 55.785s
+[2026-10-04T15:43:05Z] echo 1111 reply at 56.286s
+[2026-10-04T15:43:05Z] echo 1112 reply at 56.787s
+[2026-10-04T15:43:06Z] echo 1113 reply at 57.294s
+[2026-10-04T15:43:06Z] echo 1114 reply at 57.803s
+[2026-10-04T15:43:07Z] echo 1115 reply at 58.304s
+[2026-10-04T15:43:07Z] echo 1116 reply at 58.812s
+[2026-10-04T15:43:08Z] echo 1117 reply at 59.324s
+[2026-10-04T15:43:08Z] echo 1118 reply at 59.826s
+[2026-10-04T15:43:08Z] frame 5.705s icmp6/135 len 86
+[2026-10-04T15:43:08Z] frame 5.705s eth/86dd len 110
+[2026-10-04T15:43:08Z] frame 5.821s icmp6/135 len 78
+[2026-10-04T15:43:08Z] frame 5.821s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x2
+[2026-10-04T15:43:08Z] frame 6.787s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 6.787s icmp6/133 len 70
+[2026-10-04T15:43:08Z] frame 6.824s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x4
+[2026-10-04T15:43:08Z] frame 8.680s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 8.867s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x2
+[2026-10-04T15:43:08Z] frame 9.439s eth/86dd len 110
+[2026-10-04T15:43:08Z] frame 9.883s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x4
+[2026-10-04T15:43:08Z] frame 11.560s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 11.688s icmp6/133 len 70
+[2026-10-04T15:43:08Z] frame 11.928s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x9
+[2026-10-04T15:43:08Z] frame 16.349s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 16.479s icmp6/129 len 75
+[2026-10-04T15:43:08Z] frame 16.564s icmp6/133 len 70
+[2026-10-04T15:43:08Z] frame 16.988s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x17
+[2026-10-04T15:43:08Z] frame 25.180s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 25.181s eth/0806 len 42
+[2026-10-04T15:43:08Z]   ... x2
+[2026-10-04T15:43:08Z] frame 25.621s icmp6/129 len 75
+[2026-10-04T15:43:08Z] frame 25.831s eth/0806 len 42
+[2026-10-04T15:43:08Z] frame 26.145s icmp6/129 len 75
+[2026-10-04T15:43:08Z] frame 26.156s eth/0806 len 42
+[2026-10-04T15:43:08Z]   ... x2
+[2026-10-04T15:43:08Z] frame 26.661s icmp6/129 len 75
+[2026-10-04T15:43:08Z] frame 26.806s eth/0806 len 42
+[2026-10-04T15:43:08Z] frame 27.179s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x14
+[2026-10-04T15:43:08Z] frame 34.084s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 34.302s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x17
+[2026-10-04T15:43:08Z] frame 42.529s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 42.985s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x17
+[2026-10-04T15:43:08Z] frame 51.512s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 51.595s icmp6/135 len 86
+[2026-10-04T15:43:08Z] frame 51.661s icmp6/129 len 75
+[2026-10-04T15:43:08Z]   ... x16
+[2026-10-04T15:43:08Z] frame 59.540s udp4/67 len 342
+[2026-10-04T15:43:08Z] frame 59.826s icmp6/129 len 75
+[2026-10-04T15:44:38Z] guest did not stop in 90.0s, hard stop
+[2026-10-04T15:44:39Z] shutdown 90.1s hard

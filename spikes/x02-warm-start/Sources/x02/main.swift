@@ -476,6 +476,9 @@ Task { @MainActor in
         case "install": try await install(Bundle(args[2]), ipsw: args[3], memGiB: Int(args[4])!)
         case "validate": try validate(Bundle(args[2]))
         case "explore": try await explore(Bundle(args[2]), seconds: Double(args[3])!)
+        case "newmid":
+            // Give a bundle a fresh machine identifier (invalidates its saved state).
+            try VZMacMachineIdentifier().dataRepresentation.write(to: Bundle(args[2]).mid)
         case "scan": try await scan(Bundle(args[2]), wait: Double(args[3])!)
         case "cold": try await cold(Bundle(args[2]), runs: Int(args[3])!)
         case "cycle": try await cycle(Bundle(args[2]), runs: Int(args[3])!, settle: Double(args[4])!)
