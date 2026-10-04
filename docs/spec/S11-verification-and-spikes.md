@@ -10,7 +10,9 @@ be tested before building on them.
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
   DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
   handling, policy matching, the git transport framing (the request
-  header and the push command list, X07-git-round-trip), every vsock RPC
+  header and the push command list, X07-git-round-trip), the pack
+  scanner in front of `receive-pack` and the input of the pre-receive
+  check (X26-pre-receive-check), every vsock RPC
   handler in `wb-hostd`, network policy YAML, the guest flow labels
   of S13-guest-confinement, and the dependency gate's parsers: npm
   request paths, PyPI distribution file names, Go escaped module paths
@@ -68,7 +70,16 @@ be tested before building on them.
     object outside the session's branch by its ID; push outside
     `refs/heads/wb/<session-id>/`, or a tree with a `.git` entry;
   - check that the landing repository holds none of a refused push's
-    objects after the cleanup;
+    objects: right after the push for each refusal of the pre-receive
+    check (a ref too long for the file system, a stale old object ID,
+    directory/file and case clashes, an object over the cap), and after
+    the cleanup for a push that failed later (X26-pre-receive-check);
+  - push a delta whose result, or a blob whose inflated size, is over
+    the per-object cap, and many objects whose sizes add up to more than
+    the per-push cap, and see each refused before git unpacks it. Under
+    the caps, the git child's peak memory stays near twice the
+    per-object cap (X26-pre-receive-check measured 208 MiB at a 100 MiB
+    cap);
   - forge an approval prompt via terminal output and confirm nothing
     treats it as one;
   - print every sequence the terminal filter drops, a guest window
@@ -99,8 +110,9 @@ X02-warm-start (restoring a macOS guest from saved state),
 X07-git-round-trip (the git transport between guest and host),
 X18-vsock-handoff (vsock and descriptor hand-off on macOS),
 X19-terminal-filter (the host terminal stream filter),
-X21-dep-gate-registries (the dependency gate on real registries) and
-X23-sandboxed-daemons (Go daemons confining themselves on macOS).
+X21-dep-gate-registries (the dependency gate on real registries),
+X23-sandboxed-daemons (Go daemons confining themselves on macOS) and
+X26-pre-receive-check (push checks before the quarantine lands).
 What V1 leaves out is in V1-initial.
 
 **Status:** Draft

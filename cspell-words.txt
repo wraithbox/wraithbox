@@ -20,6 +20,8 @@ vsock
 hvsock
 virtio
 APFS
+NTFS
+reftable
 VHDX
 qcow
 reflinks

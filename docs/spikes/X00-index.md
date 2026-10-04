@@ -40,7 +40,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
 | X24-openshell-artifacts | OpenShell artifacts | Open |
 | X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Open |
-| X26-pre-receive-check | Push checks before the quarantine lands | Open |
+| X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
 
 ## Spikes
 
@@ -216,4 +216,7 @@ assumption that v1 work would otherwise build on. They block v1.
   refuse a push whose objects inflate past a cap, and repeat the ref
   checks git only runs in `update()`, so a refused push leaves nothing
   in `landing.git` (S08-workspace-and-git, SEC13-bounded-resources)?
-  Found in the review of the X07-git-round-trip result.
+  Found in the review of the X07-git-round-trip result. Answered yes,
+  with conditions, in the result page X26-pre-receive-check: the check
+  works, and a Go pack scanner in front of `receive-pack` bounds the
+  memory git uses while it unpacks.

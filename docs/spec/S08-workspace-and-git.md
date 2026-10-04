@@ -15,7 +15,7 @@ back out, without sharing the host filesystem.
   smart protocol over vsock to `wb-hostd`, which runs `git upload-pack`
   **read-only** against the project's export repository
   (`projects/<id>/export.git`, B41-git-data-scope), never against the
-  user's repository: hooks disabled, system and global git
+  user's repository: repository hooks disabled, system and global git
   configuration ignored, environment scrubbed. Nothing in the guest can
   write to the host repository through this path.
 - **Export repository.** `wb-hostd` fetches the session's branch from
@@ -46,10 +46,12 @@ back out, without sharing the host filesystem.
   exactly that one entry. A push then sends only new objects. Without
   borrowing, a session's first push sends the whole history
   (X07-git-round-trip). The guest pushes to it through the same
-  transport; `wb-hostd` runs `git receive-pack` with hooks disabled,
-  every object check (`fsck`) an error, including the checks git only
-  reports by default, deletes, push options and signed pushes
-  (`push-cert`) refused, and a size limit.
+  transport; `wb-hostd` runs `git receive-pack` with repository hooks
+  disabled (`core.hooksPath` names a directory outside the repository
+  that `wb-hostd` owns and that holds only the pre-receive check
+  below), every object check (`fsck`) an error, including the checks
+  git only reports by default, deletes, push options and signed pushes
+  (`push-cert`) refused, `pack.threads=1`, and a size limit.
 - **Ref restriction.** A filter in `wb-hostd` reads the push's command
   list before `receive-pack` sees any of it, and refuses the whole push
   unless every ref is under `refs/heads/wb/<session-id>/`. Below that
@@ -63,24 +65,72 @@ back out, without sharing the host filesystem.
   sessions' branches. It can't be the only layer: it accepts
   `refs/heads/wb/<session-id>` itself, and applies the allowed half of a
   mixed push (X07-git-round-trip).
-- **Cleanup after a refused push.** Git moves a pushed pack out of
-  quarantine before some of its own ref checks (a ref name git rejects,
-  a stale lease, a directory/file conflict, a case clash on APFS). So
-  after any push that didn't update every ref it named, and while no
-  other push to it runs, `wb-hostd` drops the unreachable objects of
-  `landing.git`: `git repack -a -d -l`, then
+- **Pack scanner.** Git sizes its buffers from numbers in the pack:
+  the header size of each object, and the result size at the start of
+  each delta. It allocates them while it unpacks, before any hook runs,
+  so an 8 KiB pack made `receive-pack` use 2 GiB of memory
+  (X26-pre-receive-check). A scanner in `wb-hostd` reads the pack after
+  the ref filter and before git does. It forwards each entry to
+  `receive-pack` only after the entry passed. Three caps apply: on
+  each object's inflated size and each delta's result size (default
+  100 MiB), on their sum per push (default 1 GiB), and on the number of
+  objects the pack declares. Over any of them, it refuses the push. It inflates each entry only to find the
+  next one, and stops one byte past the declared size. The scanner is a
+  parser of guest bytes, so it has a fuzz target
+  (S11-verification-and-spikes), and it logs each refusal with the
+  rule.
+- **Pre-receive check.** Git moves a pushed pack out of quarantine
+  before some of its own ref checks, which it makes only in `update()`
+  (X07-git-round-trip). A `pre-receive` program that `wb-hostd` ships,
+  run from the hooks directory `wb-hostd` owns, makes them first, while
+  the objects are still in quarantine. When it refuses, git deletes the
+  quarantine and refuses every ref of the push, so nothing of it
+  reaches `landing.git` (X26-pre-receive-check). It refuses the push
+  when, for any ref:
+  - the ref's lock file path (`<landing.git>/<ref>.lock`) is longer
+    than the file system allows, or a component plus `.lock` is longer
+    than 255 bytes;
+  - the old object ID isn't the ref's current value (for a create, the
+    ref must not exist);
+  - another ref, existing (loose or packed) or in the same push, is a
+    directory prefix of it or has it as one;
+  - another ref, existing or in the same push, has a path prefix equal
+    to one of its own when case is folded but not byte for byte, which
+    would be the same file on APFS or NTFS;
+  - an object in the quarantine is over the per-object cap, or all of
+    the objects together are over the per-push cap. It lists only the
+    quarantine (`git cat-file --batch-all-objects` with
+    `GIT_OBJECT_DIRECTORY` set to it and no alternates).
+
+  It runs under the landing lock below. The refs it reads are then the
+  refs `update()` sees. Its limits come from the environment `wb-hostd`
+  sets on `receive-pack`, and a missing limit refuses everything. It
+  logs each decision with its rule, and the guest sees only the rule
+  name. For the object caps it adds a second layer to the scanner, and
+  for the ref checks it is the only one.
+- **Cleanup after a refused push.** Some late failures get past the
+  pre-receive check. A lock file left by a crashed push, or an I/O
+  error, still fails a ref in `update()` after git moved the pack
+  (X26-pre-receive-check). So after any push that didn't update every
+  ref it named, and while no other push to it runs, `wb-hostd` drops
+  the unreachable objects of `landing.git`: `git repack -a -d -l`, then
   `git prune --expire=now`. Pushes to one landing repository and its
   cleanup are serialized by a per-project lock in `wb-hostd`, because
   sessions share it (FR05-parallel-sessions) and a cleanup would
   otherwise prune a concurrent push's objects in the moment between
-  leaving quarantine and its ref update. A size cap per project bounds
-  `landing.git` (B41-git-data-scope, item 6).
+  leaving quarantine and its ref update. A successful push can also
+  leave objects no ref reaches: extra objects in its pack, and the
+  bases that `index-pack --fix-thin` copies in from `export.git`. A
+  size cap per project bounds `landing.git`, those included
+  (B41-git-data-scope, item 6).
 - **Bounds.** Next to the size limit, which counts compressed bytes
   only (SEC13-bounded-resources): a deadline and an idle timeout per
   connection, at most one `upload-pack` per session at a time, at most
   one `receive-pack` per project at a time (the landing lock above), and
-  a wall-clock watchdog that kills the git child. A cap on the inflated
-  size of objects is an open point.
+  a wall-clock watchdog that kills the git child. The pack scanner's
+  caps bound the memory and CPU time git spends unpacking. With
+  `pack.threads=1`, the peak measured was about twice the per-object
+  cap (X26-pre-receive-check).
 - **Session end.** If the worktree has uncommitted changes, `wb-guestd`
   commits them to the session branch as a clearly marked WIP commit, then
   pushes. `wb` can also push mid-session.
@@ -136,17 +186,5 @@ else in this spec is unchanged.
 
 Git LFS objects, submodules, and very large repositories are not covered
 in v1. They are listed in V1-initial.
-
-The inflated size of pushed objects has no cap yet. The candidate
-mechanism is a `pre-receive` check that `wb-hostd` owns, run from a hooks
-directory that `wb-hostd` creates, not one the repository supplies, so
-hooks stay disabled for guest content. It would read object sizes in
-the quarantine (`git cat-file --batch-check`), and repeat the checks git
-only runs in `update()`: ref-name length, the old object ID,
-directory/file and case conflicts. A failing `pre-receive` deletes the
-quarantine before git moves it, so the cleanup after a refused push
-would become a fallback. This is untested, and I74 is the spike for it.
-If the check reads pack headers in Go instead, it is a new parser of
-guest bytes for the fuzz list of S11-verification-and-spikes.
 
 **Status:** Draft
