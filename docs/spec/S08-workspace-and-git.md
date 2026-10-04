@@ -24,7 +24,10 @@ back out, without sharing the host filesystem.
   read everything in its object store: over protocol v2, `upload-pack`
   serves any object it has to a client that names the ID, so
   `uploadpack.hideRefs` on it only trims the ref list
-  (X07-git-round-trip).
+  (X07-git-round-trip). The store also keeps objects from branches of
+  earlier sessions until garbage collection removes them, and all of
+  those are readable too. Its garbage collection and size cap are
+  I41's item 6.
 - **Protocol version.** Git doesn't tell a `connect` helper which
   protocol version it wants. The helper asks for v2 itself, and
   `wb-hostd` passes only `version=0`, `1` or `2` on to git.
@@ -66,13 +69,18 @@ back out, without sharing the host filesystem.
   after any push that didn't update every ref it named, and while no
   other push to it runs, `wb-hostd` drops the unreachable objects of
   `landing.git`: `git repack -a -d -l`, then
-  `git prune --expire=now`. A size cap per project
-  bounds `landing.git` (B41-git-data-scope, item 6).
+  `git prune --expire=now`. Pushes to one landing repository and its
+  cleanup are serialized by a per-project lock in `wb-hostd`, because
+  sessions share it (FR05-parallel-sessions) and a cleanup would
+  otherwise prune a concurrent push's objects in the moment between
+  leaving quarantine and its ref update. A size cap per project bounds
+  `landing.git` (B41-git-data-scope, item 6).
 - **Bounds.** Next to the size limit, which counts compressed bytes
   only (SEC13-bounded-resources): a deadline and an idle timeout per
-  connection, at most one `upload-pack` and one `receive-pack` per
-  session at a time, a wall-clock watchdog that kills the git child, and
-  a cap on the inflated size of each object.
+  connection, at most one `upload-pack` per session at a time, at most
+  one `receive-pack` per project at a time (the landing lock above), and
+  a wall-clock watchdog that kills the git child. A cap on the inflated
+  size of objects is an open point.
 - **Session end.** If the worktree has uncommitted changes, `wb-guestd`
   commits them to the session branch as a clearly marked WIP commit, then
   pushes. `wb` can also push mid-session.
@@ -128,5 +136,17 @@ else in this spec is unchanged.
 
 Git LFS objects, submodules, and very large repositories are not covered
 in v1. They are listed in V1-initial.
+
+The inflated size of pushed objects has no cap yet. The candidate
+mechanism is a `pre-receive` check that `wb-hostd` owns, run from a hooks
+directory that `wb-hostd` creates, not one the repository supplies, so
+hooks stay disabled for guest content. It would read object sizes in
+the quarantine (`git cat-file --batch-check`), and repeat the checks git
+only runs in `update()`: ref-name length, the old object ID,
+directory/file and case conflicts. A failing `pre-receive` deletes the
+quarantine before git moves it, so the cleanup after a refused push
+would become a fallback. This is untested, and I74 is the spike for it.
+If the check reads pack headers in Go instead, it is a new parser of
+guest bytes for the fuzz list of S11-verification-and-spikes.
 
 **Status:** Draft
