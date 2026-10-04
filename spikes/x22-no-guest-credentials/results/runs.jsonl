@@ -1,0 +1,172 @@
+{"op": "brew-fetch", "mode": "observe", "rc": 0, "secs": 4.6, "tail": "==> Fetching jq from homebrew/core | \u2714\ufe0e Bottle Manifest jq (1.8.2) | \u2714\ufe0e Bottle jq (1.8.2)"}
+{"op": "brew-fetch", "mode": "strip", "rc": 1, "secs": 4.5, "tail": "\u2718 Bottle Manifest wget (1.25.0_2) | Error: Failed to download resource \"wget (1.25.0_2)\" | Download failed: https://ghcr.io/v2/homebrew/core/wget/manifests/1.25.0_2 | curl: (22) The requested URL returned error: 401"}
+{"op": "brew-fetch", "mode": "read-only", "rc": 0, "secs": 7.5, "tail": "==> Fetching jq from homebrew/core | \u2714\ufe0e Bottle Manifest jq (1.8.2) | \u2714\ufe0e Bottle jq (1.8.2)"}
+{"op": "brew-fetch", "mode": "issued", "rc": 1, "secs": 4.5, "tail": "\u2718 Bottle Manifest wget (1.25.0_2) | Error: Failed to download resource \"wget (1.25.0_2)\" | Download failed: https://ghcr.io/v2/homebrew/core/wget/manifests/1.25.0_2 | curl: (22) The requested URL returned error: 401"}
+{"op": "brew-fetch", "mode": "inject", "rc": 0, "secs": 3.3, "tail": "==> Fetching jq from homebrew/core | \u2714\ufe0e Bottle Manifest jq (1.8.2) | \u2714\ufe0e Bottle jq (1.8.2)"}
+{"op": "brew-fetch", "mode": "inject-flow", "rc": 0, "secs": 3.4, "tail": "==> Fetching jq from homebrew/core | \u2714\ufe0e Bottle Manifest jq (1.8.2) | \u2714\ufe0e Bottle jq (1.8.2)"}
+{"op": "brew-fetch+ph", "mode": "observe", "rc": 0, "secs": 3.1, "tail": "==> Fetching jq from homebrew/core | \u2714\ufe0e Bottle Manifest jq (1.8.2) | \u2714\ufe0e Bottle jq (1.8.2)"}
+{"op": "brew-fetch+ph", "mode": "strip", "rc": 1, "secs": 4.3, "tail": "\u2718 Bottle Manifest wget (1.25.0_2) | Error: Failed to download resource \"wget (1.25.0_2)\" | Download failed: https://ghcr.io/v2/homebrew/core/wget/manifests/1.25.0_2 | curl: (22) The requested URL returned error: 401"}
+{"op": "brew-fetch+ph", "mode": "read-only", "rc": 0, "secs": 3.1, "tail": "==> Fetching jq from homebrew/core | \u2714\ufe0e Bottle Manifest jq (1.8.2) | \u2714\ufe0e Bottle jq (1.8.2)"}
+{"op": "brew-fetch+ph", "mode": "issued", "rc": 1, "secs": 4.3, "tail": "\u2718 Bottle Manifest wget (1.25.0_2) | Error: Failed to download resource \"wget (1.25.0_2)\" | Download failed: https://ghcr.io/v2/homebrew/core/wget/manifests/1.25.0_2 | curl: (22) The requested URL returned error: 401"}
+{"op": "brew-fetch+ph", "mode": "inject", "rc": 0, "secs": 3.1, "tail": "==> Fetching jq from homebrew/core | \u2714\ufe0e Bottle Manifest jq (1.8.2) | \u2714\ufe0e Bottle jq (1.8.2)"}
+{"op": "brew-fetch+ph", "mode": "inject-flow", "rc": 0, "secs": 3.3, "tail": "==> Fetching jq from homebrew/core | \u2714\ufe0e Bottle Manifest jq (1.8.2) | \u2714\ufe0e Bottle jq (1.8.2)"}
+{"op": "git-clone", "mode": "observe", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-z0h_mh3z/hw'..."}
+{"op": "git-clone", "mode": "strip", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-hqbukxkh/hw'..."}
+{"op": "git-clone", "mode": "read-only", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-hwtihrjm/hw'..."}
+{"op": "git-clone", "mode": "issued", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-uzopin8n/hw'..."}
+{"op": "git-clone", "mode": "inject", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-g5j688q6/hw'..."}
+{"op": "git-clone", "mode": "inject-flow", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-cqc92pdu/hw'..."}
+{"op": "git-clone+ph", "mode": "observe", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-2ey1iube/hw'..."}
+{"op": "git-clone+ph", "mode": "strip", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-eyr7cr_s/hw'..."}
+{"op": "git-clone+ph", "mode": "read-only", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-tjjti500/hw'..."}
+{"op": "git-clone+ph", "mode": "issued", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-j1v4cv9g/hw'..."}
+{"op": "git-clone+ph", "mode": "inject", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-ybcmgnw_/hw'..."}
+{"op": "git-clone+ph", "mode": "inject-flow", "rc": 0, "secs": 0.6, "tail": "Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-6m8waasa/hw'..."}
+{"op": "git-push-dry", "mode": "observe", "rc": 128, "secs": 0.9, "tail": "remote: Invalid username or token. Password authentication is not supported for Git operations. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry", "mode": "strip", "rc": 128, "secs": 0.9, "tail": "remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry", "mode": "read-only", "rc": 128, "secs": 0.9, "tail": "remote: Invalid username or token. Password authentication is not supported for Git operations. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry", "mode": "issued", "rc": 128, "secs": 0.9, "tail": "remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry", "mode": "inject", "rc": 128, "secs": 0.9, "tail": "remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry", "mode": "inject-flow", "rc": 128, "secs": 0.9, "tail": "remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry+ph", "mode": "observe", "rc": 128, "secs": 0.9, "tail": "remote: Invalid username or token. Password authentication is not supported for Git operations. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry+ph", "mode": "strip", "rc": 128, "secs": 0.9, "tail": "remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry+ph", "mode": "read-only", "rc": 128, "secs": 0.9, "tail": "remote: Invalid username or token. Password authentication is not supported for Git operations. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry+ph", "mode": "issued", "rc": 128, "secs": 0.9, "tail": "remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry+ph", "mode": "inject", "rc": 128, "secs": 0.9, "tail": "remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-push-dry+ph", "mode": "inject-flow", "rc": 128, "secs": 0.9, "tail": "remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'"}
+{"op": "git-lfs", "mode": "observe", "rc": 0, "secs": 11.4, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs", "mode": "strip", "rc": 0, "secs": 11.1, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs", "mode": "read-only", "rc": 0, "secs": 11.6, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs", "mode": "issued", "rc": 0, "secs": 11.5, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs", "mode": "inject", "rc": 0, "secs": 11.4, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs", "mode": "inject-flow", "rc": 0, "secs": 12.4, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs+ph", "mode": "observe", "rc": 0, "secs": 12.6, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs+ph", "mode": "strip", "rc": 0, "secs": 12.4, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs+ph", "mode": "read-only", "rc": 0, "secs": 11.0, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs+ph", "mode": "issued", "rc": 0, "secs": 12.0, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs+ph", "mode": "inject", "rc": 0, "secs": 11.8, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "git-lfs+ph", "mode": "inject-flow", "rc": 0, "secs": 11.6, "tail": "bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)"}
+{"op": "gh", "mode": "observe", "rc": 4, "secs": 0.1, "tail": "To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token."}
+{"op": "gh", "mode": "strip", "rc": 4, "secs": 0.1, "tail": "To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token."}
+{"op": "gh", "mode": "read-only", "rc": 4, "secs": 0.1, "tail": "To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token."}
+{"op": "gh", "mode": "issued", "rc": 4, "secs": 0.1, "tail": "To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token."}
+{"op": "gh", "mode": "inject", "rc": 4, "secs": 0.1, "tail": "To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token."}
+{"op": "gh", "mode": "inject-flow", "rc": 4, "secs": 0.1, "tail": "To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token."}
+{"op": "gh+ph", "mode": "observe", "rc": 1, "secs": 0.2, "tail": "\"message\": \"Bad credentials\", | \"documentation_url\": \"https://docs.github.com/rest\", | \"status\": \"401\" | }gh: Bad credentials (HTTP 401)"}
+{"op": "gh+ph", "mode": "strip", "rc": 0, "secs": 0.6, "tail": "v2.102.0"}
+{"op": "gh+ph", "mode": "read-only", "rc": 1, "secs": 0.2, "tail": "\"message\": \"Bad credentials\", | \"documentation_url\": \"https://docs.github.com/rest\", | \"status\": \"401\" | }gh: Bad credentials (HTTP 401)"}
+{"op": "gh+ph", "mode": "issued", "rc": 0, "secs": 0.2, "tail": "v2.102.0"}
+{"op": "gh+ph", "mode": "inject", "rc": 0, "secs": 0.2, "tail": "v2.102.0"}
+{"op": "gh+ph", "mode": "inject-flow", "rc": 0, "secs": 0.2, "tail": "v2.102.0"}
+{"op": "npm", "mode": "observe", "rc": 0, "secs": 1.1, "tail": "added 2 packages in 428ms"}
+{"op": "npm", "mode": "strip", "rc": 0, "secs": 0.7, "tail": "added 2 packages in 317ms"}
+{"op": "npm", "mode": "read-only", "rc": 0, "secs": 0.7, "tail": "added 2 packages in 285ms"}
+{"op": "npm", "mode": "issued", "rc": 0, "secs": 0.7, "tail": "added 2 packages in 277ms"}
+{"op": "npm", "mode": "inject", "rc": 0, "secs": 0.7, "tail": "added 2 packages in 336ms"}
+{"op": "npm", "mode": "inject-flow", "rc": 0, "secs": 0.9, "tail": "added 2 packages in 402ms"}
+{"op": "npm+ph", "mode": "observe", "rc": 0, "secs": 0.7, "tail": "added 2 packages in 308ms"}
+{"op": "npm+ph", "mode": "strip", "rc": 0, "secs": 0.8, "tail": "added 2 packages in 319ms"}
+{"op": "npm+ph", "mode": "read-only", "rc": 0, "secs": 0.8, "tail": "added 2 packages in 344ms"}
+{"op": "npm+ph", "mode": "issued", "rc": 0, "secs": 0.7, "tail": "added 2 packages in 305ms"}
+{"op": "npm+ph", "mode": "inject", "rc": 0, "secs": 0.8, "tail": "added 2 packages in 330ms"}
+{"op": "npm+ph", "mode": "inject-flow", "rc": 0, "secs": 0.7, "tail": "added 2 packages in 291ms"}
+{"op": "pip", "mode": "observe", "rc": 0, "secs": 0.6, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip", "mode": "strip", "rc": 0, "secs": 0.6, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip", "mode": "read-only", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip", "mode": "issued", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip", "mode": "inject", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip", "mode": "inject-flow", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip+ph", "mode": "observe", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip+ph", "mode": "strip", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip+ph", "mode": "read-only", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip+ph", "mode": "issued", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip+ph", "mode": "inject", "rc": 0, "secs": 0.4, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "pip+ph", "mode": "inject-flow", "rc": 0, "secs": 0.5, "tail": "Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna"}
+{"op": "uv", "mode": "observe", "rc": 0, "secs": 0.3, "tail": "Prepared 2 packages in 27ms | Installed 2 packages in 3ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv", "mode": "strip", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv", "mode": "read-only", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 25ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv", "mode": "issued", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv", "mode": "inject", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 20ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv", "mode": "inject-flow", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 25ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv+ph", "mode": "observe", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 25ms | Installed 2 packages in 3ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv+ph", "mode": "strip", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 23ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv+ph", "mode": "read-only", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv+ph", "mode": "issued", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 22ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv+ph", "mode": "inject", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "uv+ph", "mode": "inject-flow", "rc": 0, "secs": 0.2, "tail": "Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0"}
+{"op": "go", "mode": "observe", "rc": 0, "secs": 1.9, "tail": "# get https://sum.golang.org/tile/8/2/003.p/248: 200 OK (0.024s) | # get http://127.0.0.1:65068/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65068/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.012s) | all modules verified"}
+{"op": "go", "mode": "strip", "rc": 0, "secs": 1.9, "tail": "# get https://sum.golang.org/tile/8/3/000.p/3: 200 OK (0.022s) | # get http://127.0.0.1:65081/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65081/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.013s) | all modules verified"}
+{"op": "go", "mode": "read-only", "rc": 0, "secs": 2.0, "tail": "# get https://sum.golang.org/tile/8/0/x260/315.p/49: 200 OK (0.029s) | # get http://127.0.0.1:65094/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65094/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.013s) | all modules verified"}
+{"op": "go", "mode": "issued", "rc": 0, "secs": 4.1, "tail": "# get https://sum.golang.org/tile/8/2/001: 200 OK (0.142s) | # get http://127.0.0.1:65114/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65114/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.077s) | all modules verified"}
+{"op": "go", "mode": "inject", "rc": 0, "secs": 2.4, "tail": "# get https://sum.golang.org/tile/8/0/x260/315.p/49: 200 OK (0.023s) | # get http://127.0.0.1:65130/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65130/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.013s) | all modules verified"}
+{"op": "go", "mode": "inject-flow", "rc": 0, "secs": 2.1, "tail": "# get https://sum.golang.org/tile/8/0/x260/315.p/49: 200 OK (0.023s) | # get http://127.0.0.1:65143/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65143/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.012s) | all modules verified"}
+{"op": "go+ph", "mode": "observe", "rc": 0, "secs": 2.2, "tail": "# get https://sum.golang.org/tile/8/1/x001/016.p/219: 200 OK (0.018s) | # get http://127.0.0.1:65156/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65156/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.009s) | all modules verified"}
+{"op": "go+ph", "mode": "strip", "rc": 0, "secs": 2.1, "tail": "# get https://sum.golang.org/tile/8/1/x001/016.p/219: 200 OK (0.023s) | # get http://127.0.0.1:65169/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65169/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.009s) | all modules verified"}
+{"op": "go+ph", "mode": "read-only", "rc": 0, "secs": 2.3, "tail": "# get https://sum.golang.org/tile/8/1/x001/016.p/219: 200 OK (0.023s) | # get http://127.0.0.1:65182/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65182/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.016s) | all modules verified"}
+{"op": "go+ph", "mode": "issued", "rc": 0, "secs": 1.9, "tail": "# get https://sum.golang.org/tile/8/3/000.p/3: 200 OK (0.023s) | # get http://127.0.0.1:65198/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65198/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.012s) | all modules verified"}
+{"op": "go+ph", "mode": "inject", "rc": 0, "secs": 1.9, "tail": "# get https://sum.golang.org/tile/8/1/x001/016.p/219: 200 OK (0.027s) | # get http://127.0.0.1:65211/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65211/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.013s) | all modules verified"}
+{"op": "go+ph", "mode": "inject-flow", "rc": 0, "secs": 1.9, "tail": "# get https://sum.golang.org/tile/8/0/x080/021: 200 OK (0.020s) | # get http://127.0.0.1:65224/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65224/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip: 200 OK (0.010s) | all modules verified"}
+{"op": "go-direct", "mode": "observe", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct", "mode": "strip", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct", "mode": "read-only", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct", "mode": "issued", "rc": 0, "secs": 1.7, "tail": ""}
+{"op": "go-direct", "mode": "inject", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct", "mode": "inject-flow", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct+ph", "mode": "observe", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct+ph", "mode": "strip", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct+ph", "mode": "read-only", "rc": 0, "secs": 1.7, "tail": ""}
+{"op": "go-direct+ph", "mode": "issued", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct+ph", "mode": "inject", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "go-direct+ph", "mode": "inject-flow", "rc": 0, "secs": 1.6, "tail": ""}
+{"op": "cargo", "mode": "observe", "rc": 0, "secs": 0.5, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo", "mode": "strip", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo", "mode": "read-only", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo", "mode": "issued", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo", "mode": "inject", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo", "mode": "inject-flow", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded memchr v2.8.3 | Downloaded itoa v1.0.18"}
+{"op": "cargo+ph", "mode": "observe", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded memchr v2.8.3 | Downloaded itoa v1.0.18"}
+{"op": "cargo+ph", "mode": "strip", "rc": 0, "secs": 0.3, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo+ph", "mode": "read-only", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo+ph", "mode": "issued", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo+ph", "mode": "inject", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "cargo+ph", "mode": "inject-flow", "rc": 0, "secs": 0.2, "tail": "Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3"}
+{"op": "swiftpm", "mode": "observe", "rc": 0, "secs": 4.1, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (2.51s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm", "mode": "strip", "rc": 0, "secs": 3.2, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (2.00s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm", "mode": "read-only", "rc": 0, "secs": 3.0, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.89s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm", "mode": "issued", "rc": 0, "secs": 3.0, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.94s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm", "mode": "inject", "rc": 0, "secs": 3.1, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.97s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm", "mode": "inject-flow", "rc": 0, "secs": 3.0, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.88s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm+ph", "mode": "observe", "rc": 0, "secs": 3.0, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.92s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm+ph", "mode": "strip", "rc": 0, "secs": 3.6, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (2.56s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm+ph", "mode": "read-only", "rc": 0, "secs": 3.0, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.87s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm+ph", "mode": "issued", "rc": 0, "secs": 3.2, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.99s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm+ph", "mode": "inject", "rc": 0, "secs": 4.4, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (3.23s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "swiftpm+ph", "mode": "inject-flow", "rc": 0, "secs": 3.0, "tail": "Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.88s) | Creating working copy for https://github.com/apple/swift-argument-parser | Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2"}
+{"op": "claude", "mode": "observe", "rc": 1, "secs": 184.9, "tail": "Failed to authenticate. API Error: 401 API key is invalid."}
+{"op": "claude", "mode": "strip", "rc": 1, "secs": 1.7, "tail": "Invalid API key \u00b7 Fix external API key"}
+{"op": "claude+ph", "mode": "observe", "rc": 1, "secs": 181.6, "tail": "Failed to authenticate. API Error: 401 API key is invalid."}
+{"op": "claude+ph", "mode": "strip", "rc": 1, "secs": 1.5, "tail": "Invalid API key \u00b7 Fix external API key"}
+{"op": "oci-flow", "mode": "observe", "rc": 0, "secs": 0.6, "tail": "first GET: 401 | token: 52 chars | GET with token: 200"}
+{"op": "oci-flow", "mode": "strip", "rc": 1, "secs": 0.6, "tail": "first GET: 401 | token: 52 chars | GET with token: 401"}
+{"op": "oci-flow", "mode": "read-only", "rc": 0, "secs": 0.6, "tail": "first GET: 401 | token: 52 chars | GET with token: 200"}
+{"op": "oci-flow", "mode": "issued", "rc": 0, "secs": 0.6, "tail": "first GET: 401 | token: 52 chars | GET with token: 200"}
+{"op": "oci-flow", "mode": "inject", "rc": 0, "secs": 0.2, "tail": "first GET: 200"}
+{"op": "oci-flow", "mode": "inject-flow", "rc": 0, "secs": 0.3, "tail": "first GET: 200"}
+{"op": "oci-flow+ph", "mode": "observe", "rc": 0, "secs": 0.6, "tail": "first GET: 401 | token: 52 chars | GET with token: 200"}
+{"op": "oci-flow+ph", "mode": "strip", "rc": 1, "secs": 0.6, "tail": "first GET: 401 | token: 52 chars | GET with token: 401"}
+{"op": "oci-flow+ph", "mode": "read-only", "rc": 0, "secs": 0.6, "tail": "first GET: 401 | token: 52 chars | GET with token: 200"}
+{"op": "oci-flow+ph", "mode": "issued", "rc": 0, "secs": 0.6, "tail": "first GET: 401 | token: 52 chars | GET with token: 200"}
+{"op": "oci-flow+ph", "mode": "inject", "rc": 0, "secs": 0.2, "tail": "first GET: 200"}
+{"op": "oci-flow+ph", "mode": "inject-flow", "rc": 0, "secs": 0.3, "tail": "first GET: 200"}
+{"op": "attacker", "mode": "observe", "rc": 0, "secs": 2.6, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker", "mode": "strip", "rc": 0, "secs": 1.9, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker", "mode": "read-only", "rc": 0, "secs": 2.1, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker", "mode": "issued", "rc": 0, "secs": 1.8, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker", "mode": "inject", "rc": 0, "secs": 1.7, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 403 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker", "mode": "inject-flow", "rc": 0, "secs": 1.8, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 403 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker+ph", "mode": "observe", "rc": 0, "secs": 2.9, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker+ph", "mode": "strip", "rc": 0, "secs": 1.8, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker+ph", "mode": "read-only", "rc": 0, "secs": 2.2, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker+ph", "mode": "issued", "rc": 0, "secs": 1.9, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker+ph", "mode": "inject", "rc": 0, "secs": 1.7, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 403 | issued anonymous token on another host (GET): 401"}
+{"op": "attacker+ph", "mode": "inject-flow", "rc": 0, "secs": 2.0, "tail": "anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 403 | issued anonymous token on another host (GET): 401"}

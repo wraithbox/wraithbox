@@ -1,0 +1,148 @@
+brew-fetch         observe      rc=0       4.6s  ==> Fetching jq from homebrew/core | ✔︎ Bottle Manifest jq (1.8.2) | ✔︎ Bottle jq (1.8.2)
+brew-fetch         strip        rc=1       4.5s  ✘ Bottle Manifest wget (1.25.0_2) | Error: Failed to download resource "wget (1.25.0_2)" | Download failed: https://ghcr.io/v2/homebrew/core/wget/manifests/1.25.0_2 | curl: (22) The requested URL retu
+brew-fetch         read-only    rc=0       7.5s  ==> Fetching jq from homebrew/core | ✔︎ Bottle Manifest jq (1.8.2) | ✔︎ Bottle jq (1.8.2)
+brew-fetch         issued       rc=1       4.5s  ✘ Bottle Manifest wget (1.25.0_2) | Error: Failed to download resource "wget (1.25.0_2)" | Download failed: https://ghcr.io/v2/homebrew/core/wget/manifests/1.25.0_2 | curl: (22) The requested URL retu
+brew-fetch         inject       rc=0       3.3s  ==> Fetching jq from homebrew/core | ✔︎ Bottle Manifest jq (1.8.2) | ✔︎ Bottle jq (1.8.2)
+brew-fetch         inject-flow  rc=0       3.4s  ==> Fetching jq from homebrew/core | ✔︎ Bottle Manifest jq (1.8.2) | ✔︎ Bottle jq (1.8.2)
+brew-fetch+ph      observe      rc=0       3.1s  ==> Fetching jq from homebrew/core | ✔︎ Bottle Manifest jq (1.8.2) | ✔︎ Bottle jq (1.8.2)
+brew-fetch+ph      strip        rc=1       4.3s  ✘ Bottle Manifest wget (1.25.0_2) | Error: Failed to download resource "wget (1.25.0_2)" | Download failed: https://ghcr.io/v2/homebrew/core/wget/manifests/1.25.0_2 | curl: (22) The requested URL retu
+brew-fetch+ph      read-only    rc=0       3.1s  ==> Fetching jq from homebrew/core | ✔︎ Bottle Manifest jq (1.8.2) | ✔︎ Bottle jq (1.8.2)
+brew-fetch+ph      issued       rc=1       4.3s  ✘ Bottle Manifest wget (1.25.0_2) | Error: Failed to download resource "wget (1.25.0_2)" | Download failed: https://ghcr.io/v2/homebrew/core/wget/manifests/1.25.0_2 | curl: (22) The requested URL retu
+brew-fetch+ph      inject       rc=0       3.1s  ==> Fetching jq from homebrew/core | ✔︎ Bottle Manifest jq (1.8.2) | ✔︎ Bottle jq (1.8.2)
+brew-fetch+ph      inject-flow  rc=0       3.3s  ==> Fetching jq from homebrew/core | ✔︎ Bottle Manifest jq (1.8.2) | ✔︎ Bottle jq (1.8.2)
+git-clone          observe      rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-z0h_mh3z/hw'...
+git-clone          strip        rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-hqbukxkh/hw'...
+git-clone          read-only    rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-hwtihrjm/hw'...
+git-clone          issued       rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-uzopin8n/hw'...
+git-clone          inject       rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-g5j688q6/hw'...
+git-clone          inject-flow  rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-cqc92pdu/hw'...
+git-clone+ph       observe      rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-2ey1iube/hw'...
+git-clone+ph       strip        rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-eyr7cr_s/hw'...
+git-clone+ph       read-only    rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-tjjti500/hw'...
+git-clone+ph       issued       rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-j1v4cv9g/hw'...
+git-clone+ph       inject       rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-ybcmgnw_/hw'...
+git-clone+ph       inject-flow  rc=0       0.6s  Cloning into '/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/T/x22-6m8waasa/hw'...
+git-push-dry       observe      rc=128     0.9s  remote: Invalid username or token. Password authentication is not supported for Git operations. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry       strip        rc=128     0.9s  remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry       read-only    rc=128     0.9s  remote: Invalid username or token. Password authentication is not supported for Git operations. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry       issued       rc=128     0.9s  remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry       inject       rc=128     0.9s  remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry       inject-flow  rc=128     0.9s  remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry+ph    observe      rc=128     0.9s  remote: Invalid username or token. Password authentication is not supported for Git operations. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry+ph    strip        rc=128     0.9s  remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry+ph    read-only    rc=128     0.9s  remote: Invalid username or token. Password authentication is not supported for Git operations. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry+ph    issued       rc=128     0.9s  remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry+ph    inject       rc=128     0.9s  remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-push-dry+ph    inject-flow  rc=128     0.9s  remote: No anonymous write access. | fatal: Authentication failed for 'https://github.com/octocat/Hello-World.git/'
+git-lfs            observe      rc=0      11.4s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs            strip        rc=0      11.1s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs            read-only    rc=0      11.6s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs            issued       rc=0      11.5s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs            inject       rc=0      11.4s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs            inject-flow  rc=0      12.4s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs+ph         observe      rc=0      12.6s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs+ph         strip        rc=0      12.4s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs+ph         read-only    rc=0      11.0s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs+ph         issued       rc=0      12.0s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs+ph         inject       rc=0      11.8s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+git-lfs+ph         inject-flow  rc=0      11.6s  bb7e339e3e * 2.bin (2.1 MB) | 3f08672284 * 20.bin (21 MB) | 791b19d9ea * 25.bin (26 MB) | ccab173896 * 5.bin (5.2 MB)
+gh                 observe      rc=4       0.1s  To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.
+gh                 strip        rc=4       0.1s  To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.
+gh                 read-only    rc=4       0.1s  To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.
+gh                 issued       rc=4       0.1s  To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.
+gh                 inject       rc=4       0.1s  To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.
+gh                 inject-flow  rc=4       0.1s  To get started with GitHub CLI, please run:  gh auth login | Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.
+gh+ph              observe      rc=1       0.2s  "message": "Bad credentials", | "documentation_url": "https://docs.github.com/rest", | "status": "401" | }gh: Bad credentials (HTTP 401)
+gh+ph              strip        rc=0       0.6s  v2.102.0
+gh+ph              read-only    rc=1       0.2s  "message": "Bad credentials", | "documentation_url": "https://docs.github.com/rest", | "status": "401" | }gh: Bad credentials (HTTP 401)
+gh+ph              issued       rc=0       0.2s  v2.102.0
+gh+ph              inject       rc=0       0.2s  v2.102.0
+gh+ph              inject-flow  rc=0       0.2s  v2.102.0
+npm                observe      rc=0       1.1s  added 2 packages in 428ms
+npm                strip        rc=0       0.7s  added 2 packages in 317ms
+npm                read-only    rc=0       0.7s  added 2 packages in 285ms
+npm                issued       rc=0       0.7s  added 2 packages in 277ms
+npm                inject       rc=0       0.7s  added 2 packages in 336ms
+npm                inject-flow  rc=0       0.9s  added 2 packages in 402ms
+npm+ph             observe      rc=0       0.7s  added 2 packages in 308ms
+npm+ph             strip        rc=0       0.8s  added 2 packages in 319ms
+npm+ph             read-only    rc=0       0.8s  added 2 packages in 344ms
+npm+ph             issued       rc=0       0.7s  added 2 packages in 305ms
+npm+ph             inject       rc=0       0.8s  added 2 packages in 330ms
+npm+ph             inject-flow  rc=0       0.7s  added 2 packages in 291ms
+pip                observe      rc=0       0.6s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip                strip        rc=0       0.6s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip                read-only    rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip                issued       rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip                inject       rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip                inject-flow  rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip+ph             observe      rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip+ph             strip        rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip+ph             read-only    rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip+ph             issued       rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip+ph             inject       rc=0       0.4s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+pip+ph             inject-flow  rc=0       0.5s  Downloading idna-3.20-py3-none-any.whl (69 kB) | Saved ./dl/six-1.17.0-py2.py3-none-any.whl | Saved ./dl/idna-3.20-py3-none-any.whl | Successfully downloaded six idna
+uv                 observe      rc=0       0.3s  Prepared 2 packages in 27ms | Installed 2 packages in 3ms | + idna==3.20 | + six==1.17.0
+uv                 strip        rc=0       0.2s  Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv                 read-only    rc=0       0.2s  Prepared 2 packages in 25ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv                 issued       rc=0       0.2s  Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv                 inject       rc=0       0.2s  Prepared 2 packages in 20ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv                 inject-flow  rc=0       0.2s  Prepared 2 packages in 25ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv+ph              observe      rc=0       0.2s  Prepared 2 packages in 25ms | Installed 2 packages in 3ms | + idna==3.20 | + six==1.17.0
+uv+ph              strip        rc=0       0.2s  Prepared 2 packages in 23ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv+ph              read-only    rc=0       0.2s  Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv+ph              issued       rc=0       0.2s  Prepared 2 packages in 22ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv+ph              inject       rc=0       0.2s  Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+uv+ph              inject-flow  rc=0       0.2s  Prepared 2 packages in 26ms | Installed 2 packages in 2ms | + idna==3.20 | + six==1.17.0
+go                 observe      rc=0       1.9s  # get https://sum.golang.org/tile/8/2/003.p/248: 200 OK (0.024s) | # get http://127.0.0.1:65068/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65068/r/proxy.golang.org/go
+go                 strip        rc=0       1.9s  # get https://sum.golang.org/tile/8/3/000.p/3: 200 OK (0.022s) | # get http://127.0.0.1:65081/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65081/r/proxy.golang.org/gola
+go                 read-only    rc=0       2.0s  # get https://sum.golang.org/tile/8/0/x260/315.p/49: 200 OK (0.029s) | # get http://127.0.0.1:65094/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65094/r/proxy.golang.or
+go                 issued       rc=0       4.1s  # get https://sum.golang.org/tile/8/2/001: 200 OK (0.142s) | # get http://127.0.0.1:65114/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65114/r/proxy.golang.org/golang.o
+go                 inject       rc=0       2.4s  # get https://sum.golang.org/tile/8/0/x260/315.p/49: 200 OK (0.023s) | # get http://127.0.0.1:65130/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65130/r/proxy.golang.or
+go                 inject-flow  rc=0       2.1s  # get https://sum.golang.org/tile/8/0/x260/315.p/49: 200 OK (0.023s) | # get http://127.0.0.1:65143/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65143/r/proxy.golang.or
+go+ph              observe      rc=0       2.2s  # get https://sum.golang.org/tile/8/1/x001/016.p/219: 200 OK (0.018s) | # get http://127.0.0.1:65156/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65156/r/proxy.golang.o
+go+ph              strip        rc=0       2.1s  # get https://sum.golang.org/tile/8/1/x001/016.p/219: 200 OK (0.023s) | # get http://127.0.0.1:65169/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65169/r/proxy.golang.o
+go+ph              read-only    rc=0       2.3s  # get https://sum.golang.org/tile/8/1/x001/016.p/219: 200 OK (0.023s) | # get http://127.0.0.1:65182/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65182/r/proxy.golang.o
+go+ph              issued       rc=0       1.9s  # get https://sum.golang.org/tile/8/3/000.p/3: 200 OK (0.023s) | # get http://127.0.0.1:65198/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65198/r/proxy.golang.org/gola
+go+ph              inject       rc=0       1.9s  # get https://sum.golang.org/tile/8/1/x001/016.p/219: 200 OK (0.027s) | # get http://127.0.0.1:65211/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65211/r/proxy.golang.o
+go+ph              inject-flow  rc=0       1.9s  # get https://sum.golang.org/tile/8/0/x080/021: 200 OK (0.020s) | # get http://127.0.0.1:65224/r/proxy.golang.org/golang.org/x/text/@v/v0.14.0.zip | # get http://127.0.0.1:65224/r/proxy.golang.org/gol
+go-direct          observe      rc=0       1.6s  
+go-direct          strip        rc=0       1.6s  
+go-direct          read-only    rc=0       1.6s  
+go-direct          issued       rc=0       1.7s  
+go-direct          inject       rc=0       1.6s  
+go-direct          inject-flow  rc=0       1.6s  
+go-direct+ph       observe      rc=0       1.6s  
+go-direct+ph       strip        rc=0       1.6s  
+go-direct+ph       read-only    rc=0       1.7s  
+go-direct+ph       issued       rc=0       1.6s  
+go-direct+ph       inject       rc=0       1.6s  
+go-direct+ph       inject-flow  rc=0       1.6s  
+cargo              observe      rc=0       0.5s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo              strip        rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo              read-only    rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo              issued       rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo              inject       rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo              inject-flow  rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded memchr v2.8.3 | Downloaded itoa v1.0.18
+cargo+ph           observe      rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded memchr v2.8.3 | Downloaded itoa v1.0.18
+cargo+ph           strip        rc=0       0.3s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo+ph           read-only    rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo+ph           issued       rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo+ph           inject       rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+cargo+ph           inject-flow  rc=0       0.2s  Locking 2 packages to highest compatible versions | Downloading crates ... | Downloaded itoa v1.0.18 | Downloaded memchr v2.8.3
+swiftpm            observe      rc=0       4.1s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (2.51s) | Creating working copy for https://github.com/apple/swi
+swiftpm            strip        rc=0       3.2s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (2.00s) | Creating working copy for https://github.com/apple/swi
+swiftpm            read-only    rc=0       3.0s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.89s) | Creating working copy for https://github.com/apple/swi
+swiftpm            issued       rc=0       3.0s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.94s) | Creating working copy for https://github.com/apple/swi
+swiftpm            inject       rc=0       3.1s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.97s) | Creating working copy for https://github.com/apple/swi
+swiftpm            inject-flow  rc=0       3.0s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.88s) | Creating working copy for https://github.com/apple/swi
+swiftpm+ph         observe      rc=0       3.0s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.92s) | Creating working copy for https://github.com/apple/swi
+swiftpm+ph         strip        rc=0       3.6s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (2.56s) | Creating working copy for https://github.com/apple/swi
+swiftpm+ph         read-only    rc=0       3.0s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.87s) | Creating working copy for https://github.com/apple/swi
+swiftpm+ph         issued       rc=0       3.2s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.99s) | Creating working copy for https://github.com/apple/swi
+swiftpm+ph         inject       rc=0       4.4s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (3.23s) | Creating working copy for https://github.com/apple/swi
+swiftpm+ph         inject-flow  rc=0       3.0s  Computing version for https://github.com/apple/swift-argument-parser | Computed https://github.com/apple/swift-argument-parser at 1.8.2 (1.88s) | Creating working copy for https://github.com/apple/swi
+claude             observe      rc=1     184.9s  Failed to authenticate. API Error: 401 API key is invalid.
+claude             strip        rc=1       1.7s  Invalid API key · Fix external API key
+claude+ph          observe      rc=1     181.6s  Failed to authenticate. API Error: 401 API key is invalid.
+claude+ph          strip        rc=1       1.5s  Invalid API key · Fix external API key

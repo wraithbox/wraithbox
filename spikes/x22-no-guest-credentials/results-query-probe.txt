@@ -1,0 +1,14 @@
+github api, no credential: 200
+github api, ?access_token=: 400
+github api, Authorization: token: 401
+gitlab api, no credential: 200
+gitlab api, ?private_token=: 401
+gitlab api, ?access_token=: 401
+gitlab api, PRIVATE-TOKEN header: 401
+gitlab api, JOB-TOKEN header: 200
+gitlab api, Authorization: Bearer: 401
+bitbucket api, no credential: 404
+bitbucket api, ?access_token=: 404
+npm registry, ?token= ignored?: 200
+huggingface api, no credential: 307
+huggingface api, Authorization: Bearer: 307

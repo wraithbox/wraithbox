@@ -1,0 +1,12 @@
+oci-flow           observe      rc=0       0.6s  first GET: 401 | token: 52 chars | GET with token: 200
+oci-flow           strip        rc=1       0.6s  first GET: 401 | token: 52 chars | GET with token: 401
+oci-flow           read-only    rc=0       0.6s  first GET: 401 | token: 52 chars | GET with token: 200
+oci-flow           issued       rc=0       0.6s  first GET: 401 | token: 52 chars | GET with token: 200
+oci-flow           inject       rc=0       0.2s  first GET: 200
+oci-flow           inject-flow  rc=0       0.3s  first GET: 200
+attacker           observe      rc=0       2.6s  anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401
+attacker           strip        rc=0       1.9s  anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401
+attacker           read-only    rc=0       2.1s  anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401
+attacker           issued       rc=0       1.8s  anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 401 | issued anonymous token on another host (GET): 401
+attacker           inject       rc=0       1.7s  anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 403 | issued anonymous token on another host (GET): 401
+attacker           inject-flow  rc=0       1.8s  anthropic api with own key (POST, x-api-key): 401 | cookie session (GET, cookie): 302 | ghcr blob upload with an issued anonymous token (POST): 403 | issued anonymous token on another host (GET): 401

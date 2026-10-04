@@ -1,0 +1,21 @@
+tags/list, no Authorization: 401
+www-authenticate: Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="repository:homebrew/core/wget:pull"
+tags/list, Bearer QQ==: 200
+tags/list, Bearer <random>: 200
+manifest, Bearer QQ==: 404
+other public package (not homebrew), Bearer QQ==: 404
+anonymous token issued: 56 chars
+tags/list, issued token: 200
+issued token for wget used on curl repo: 200
+start blob upload with issued token (write): 401
+start blob upload with QQ== (write): 401
+token GET with bogus Basic creds: 403
+token GET push scope, anonymous:
+{"errors":[{"code":"DENIED","message":"requested access to the resource is denied"}]}
+
+token POST oauth2 password grant, bogus creds:
+{"errors":[{"code":"UNSUPPORTED","message":"The operation is unsupported."}]}
+ [405]
+token POST oauth2 refresh_token grant, bogus:
+{"errors":[{"code":"UNSUPPORTED","message":"The operation is unsupported."}]}
+ [405]
