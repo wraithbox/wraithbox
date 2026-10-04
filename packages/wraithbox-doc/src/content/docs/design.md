@@ -65,3 +65,4 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
 | 010 | Languages, libraries, packaging |
 | 011 | Verification and open questions |
 | 012 | Host and guest platforms, WSL |
+| 013 | Guest confinement: Seatbelt, Network Extension, Endpoint Security |

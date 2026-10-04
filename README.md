@@ -72,6 +72,7 @@ then [004 - Architecture](docs/spec/004-architecture.md).
 | [010](docs/spec/010-tech-stack.md) | Languages, libraries, packaging |
 | [011](docs/spec/011-verification-and-spikes.md) | Verification and open questions |
 | [012](docs/spec/012-platforms.md) | Host and guest platforms, WSL |
+| [013](docs/spec/013-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
 
 ## Platforms
 

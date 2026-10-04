@@ -10,13 +10,16 @@ be tested before building on them.
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
   DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
   handling, policy matching, the git transport framing, every vsock RPC
-  handler in `wb-hostd` (Swift: property-based tests where fuzzing is
+  handler in `wb-hostd`, network policy YAML, and the guest flow labels
+  of spec 013 (Swift: property-based tests where fuzzing is
   impractical).
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
   platform matrix (spec 012); a combination is not supported until it
-  passes:
+  passes. OpenShell's adversarial end-to-end tests (`e2e/rust/tests/`:
+  bypass detection, L7 proxy bypass, credential gating) are the first
+  source of further cases:
   - connect to a raw IP address, to the host, to the LAN, over IPv6;
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
@@ -26,6 +29,11 @@ be tested before building on them.
     package;
   - call the model API with an attacker-supplied key and observe that it
     is replaced;
+  - send a credential placeholder outside its binding (another host, a
+    query string, a body) and get a `403`;
+  - once X14 has delivered labels: forge or omit a flow label and
+    confirm only rules without program narrowing match, and replace a
+    pinned binary and confirm its connections are denied;
   - download a package version younger than the minimum age, or with a
     known vulnerability;
   - read or change policy, credentials, or the audit log from the guest;
@@ -66,6 +74,12 @@ next free number here before it is filed. The workflow is in
    placeholder credential while `wb-proxyd` injects the real one, for
    each supported authentication mode, including token refresh? If not,
    requirement S4 needs a documented exception and the threat model changes.
+   OpenShell's Claude Code provider shows that an API key works. A Claude
+   subscription login is the open part: OpenShell holds back from it
+   until Anthropic approves an OAuth client identity for third-party
+   tools (OpenShell issue #3331), and a login shared with the host's
+   Claude Code would race it on token refresh. The answer must say
+   which login Wraith Box owns and how it is refreshed.
 2. **X2 Warm start.** Measure time to restore a macOS guest from saved
    state with a vsock device and a file-handle network attachment.
    Can a saved state be reused (cloned with its disks) more than once?
@@ -118,6 +132,36 @@ platform starts.
     and Secure Boot requirements and usable display and network drivers?
     If not, Windows guests on macOS stay unsupported; a second VMM on
     macOS needs a spec change.
+
+### Guest confinement (spec 013)
+
+These do not block v1: every `S*` control holds without spec 013's
+layers 3 and 4.
+
+14. **X14 Guest flow attribution.** A Network Extension transparent
+    proxy in a macOS guest (spec 013): can it be approved during the
+    image build without MDM? Does it see the flows of Claude Code, git,
+    Homebrew, SwiftPM, and `xcodebuild`? How do labels reach `wb-netd`
+    (a header on each flow, or a side channel over vsock)? What happens
+    to flows when guest root kills or unloads it, with System Integrity
+    Protection on? Which Developer ID entitlement does it need?
+15. **X15 Endpoint Security entitlement.** Request the Endpoint
+    Security entitlement from Apple. Until it is granted, prototype the
+    client in a development guest with System Integrity Protection off:
+    exec authorization by cdhash and process ancestry for spec 013's
+    layer 4.
+
+### Linux guests through OpenShell
+
+Answered before X10, because a yes may make X10 unnecessary.
+
+16. **X16 OpenShell for Linux guests.** Could OpenShell's VM driver
+    (libkrun, guest without a network device, egress over vsock) run
+    Linux guests for Wraith Box on macOS and Linux hosts instead of a
+    VMM chosen in X10? The check covers S1 to S14, a policy shared with
+    macOS guests (spec 009), and N1. It has no git round trip and no
+    saved-state restore, so those are Wraith Box's to add. Its other drivers share a kernel between
+    sandboxes (S1) and are out of the question.
 
 ## Deferred beyond v1
 

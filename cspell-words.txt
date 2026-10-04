@@ -30,6 +30,8 @@ binfmt
 hostnames
 sandboxed
 winget
+cdhash
+libkrun
 
 # Tools and their names in configs
 golangci
@@ -54,6 +56,7 @@ gosec
 nolintlint
 unconvert
 unparam
+safehouse
 
 # Docs site (Astro Starlight)
 frontmatter
@@ -69,6 +72,8 @@ worktrees
 unscanned
 esac
 ehthumbs
+OCSF
+SIEM
 
 # Vale rule names quoted in .vale.ini
 Cataphoric

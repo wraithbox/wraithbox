@@ -101,6 +101,10 @@ nothing themselves (spec 012).
 - **Everything in the guest is untrusted, including `wb-guestd`.** The
   host validates every message from the guest as adversarial input. The
   guest agent is a convenience for the host, not a security component.
+- **Guest confinement narrows, never widens.** Controls inside the
+  guest (Seatbelt profiles, a Network Extension that labels flows with
+  the program that opened them) can only deny what the host would allow.
+  Every `S*` control holds without them (spec 013, R6).
 - **Policy is evaluated on the host, twice.** `wb-netd` decides which
   names resolve and which connections are accepted; `wb-proxyd` re-checks
   the hostname, SNI, and HTTP request. A bug in one layer does not open
@@ -120,8 +124,10 @@ layout is the same everywhere:
 
 ```
 <config>/                             user-editable configuration (spec 009)
-  config.toml                         global policy and defaults
-  projects/<project-id>.toml          per-project policy, toolchain manifest reference
+  config.toml                         global settings and defaults
+  policy.yaml                         global network policy (spec 009)
+  projects/<project-id>.toml          per-project settings, toolchain manifest reference
+  projects/<project-id>.policy.yaml   per-project network policy
 <data>/
   images/                             base images (copy-on-write clones)
   vms/<guest-os>-{work,isolated}/     VM bundles: disks, machine identity, saved state

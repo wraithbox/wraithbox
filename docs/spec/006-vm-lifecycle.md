@@ -22,6 +22,8 @@ in spec 012.
   VM, then provisions it through `wb-guestd` (no SSH, no guest network
   credentials). Builds are scripted and repeatable; nobody configures an
   image by hand.
+- **Guest confinement.** The base image includes the Network Extension
+  of spec 013, approved during the build, once spike X14 allows it.
 - **Sealing.** Before an image is usable it is scanned for anything that
   looks like a secret (keychain items, tokens in dotfiles, SSH keys,
   shell history). A non-empty result fails the build (S4).
@@ -81,14 +83,16 @@ with OS-specific parts behind interfaces as on the host. Responsibilities:
 
 - create, lock, and remove project users;
 - run commands as a project user with a PTY or pipes, a sanitized
-  environment (explicit allowlist; placeholders for credentials), and
-  per-session resource limits;
+  environment (explicit allowlist; placeholders for credentials),
+  per-session resource limits, and the session's Seatbelt profile
+  (spec 013);
 - install the egress gateway's CA certificate into the guest trust
   store and toolchain-specific trust settings (spec 009);
 - act as the guest end of the git transport (spec 008);
 - report listening TCP ports so `wb-hostd` can forward them to host
   loopback (F11), and optionally bridge text clipboard (F12);
-- report process attribution for connections (informational only).
+- relay the flow labels of the guest Network Extension, once spike
+  X14 allows it (spec 013). The host uses them only to narrow rules.
 
 `wb-guestd` updates itself from a read-only disk image attached by
 `wb-hostd`, never from the network. The host treats every response from
