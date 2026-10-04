@@ -5,7 +5,7 @@ description: Recommended that closing the terminal detaches an interactive sessi
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I46. Affects S05-cli, S06-vm-lifecycle, S08-workspace-and-git and S13-guest-confinement.
+**Decided 2026-10-04: B. Closing the terminal ends the session.** The decision and its reasons are in the I46 comment that starts `Decision (2026-10-04):`. Source: I46. Affects S05-cli, S06-vm-lifecycle, S08-workspace-and-git and S13-guest-confinement.
 
 <Aside type="tip" title="You are deciding">
 Whether closing the terminal ends a session or detaches it. Recommended: **A**, an interactive session detaches, `wb attach <session>` resumes it, and it ends only when `claude` exits. The sub-decisions below cover sleep, failure, signals, and exit codes. Accepting adds a session lifecycle section with the state diagram to S06-vm-lifecycle and `wb attach` to S05-cli, and unblocks the terminal stream contract of I52.

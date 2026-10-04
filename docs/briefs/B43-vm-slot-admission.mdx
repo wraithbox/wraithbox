@@ -5,7 +5,7 @@ description: The work VM keeps its slot. Image builds and update checks borrow t
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I43. Affects S06-vm-lifecycle, NFR05-two-macos-vms, NFR06-explained-refusals and SEC08-proj-isolation. Related: I50 (the same limit on development Macs).
+**Decided 2026-10-04: A. The work VM stays, the isolated slot is lent out.** The decision and its reasons are in the I43 comment that starts `Decision (2026-10-04):`. Source: I43. Affects S06-vm-lifecycle, NFR05-two-macos-vms, NFR06-explained-refusals and SEC08-proj-isolation. Related: I50 (the same limit on development Macs).
 
 <Aside type="tip" title="You are deciding">
 Which uses of a running macOS VM `wb-hostd` admits, in what order, and what it suspends or refuses when both slots are taken. Recommended: **A**, the work VM is never touched, and image builds and update checks borrow the isolated slot only while no session runs there. That adds an admission section to S06-vm-lifecycle. Placement of Xcode work that needs a GUI login waits for X06-guest-xcode (I20).

@@ -5,7 +5,7 @@ description: Recommended that wb-hostd supervises the other daemons, that VMs ar
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I48. Affects S04-architecture, S06-vm-lifecycle, S10-tech-stack and SEC00-index (SEC13-bounded-resources).
+**Decided 2026-10-04: C. VMs stop with wb-hostd, for V1.** The decision and its reasons are in the I48 comment that starts `Decision (2026-10-04):`. Source: I48. Affects S04-architecture, S06-vm-lifecycle, S10-tech-stack and SEC00-index (SEC13-bounded-resources).
 
 <Aside type="tip" title="You are deciding">
 Who supervises the host processes, and what running VMs do when `wb-hostd` stops or restarts. Recommended: **A**, `wb-vmd` saves its VMs and exits when it loses `wb-hostd`, and `wb-hostd` restores them when it starts again. The issue proposes **B** instead. Accepting also settles the sub-decisions in the table below. That adds a "Supervision and failure" section to S04-architecture, extends SEC13-bounded-resources to the host processes, and unblocks I52.

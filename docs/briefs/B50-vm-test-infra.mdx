@@ -5,7 +5,7 @@ description: Add a needs-vm label now, let a wave start one such issue at a time
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I50. Affects S02-toolchain, S11-verification-and-spikes, `docs/agents/orchestration.md` and `.github/labels.yml`. Related: I43 (the same limit in `wb-hostd`).
+**Decided 2026-10-04: C. By hand for now, with VM builders run one at a time.** The decision and its reasons are in the I50 comment that starts `Decision (2026-10-04):`. Source: I50. Affects S02-toolchain, S11-verification-and-spikes, `docs/agents/orchestration.md` and `.github/labels.yml`. Related: I43 (the same limit in `wb-hostd`).
 
 <Aside type="tip" title="You are deciding">
 How agents run work that needs a running macOS guest, given that a Mac runs at most two (NFR05-two-macos-vms), and where the conformance suite and benchmarks run. Recommended: **A**, a `needs-vm` label, at most one such issue per wave, a lock file per slot, and one restore image cache per Mac, with a dedicated self-hosted runner decided before V1-M3-network-floor. This decision gates running the VM spikes of V1-M1-spikes-closed in parallel.

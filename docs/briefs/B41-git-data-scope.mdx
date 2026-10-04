@@ -5,7 +5,7 @@ description: Serve the guest from a host-side export repository holding only the
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I41, item 5 waits on X07-git-round-trip (I21). Affects S05-cli and S08-workspace-and-git.
+**Decided 2026-10-04: A. Export repository.** The decision and its reasons are in the I41 comment that starts `Decision (2026-10-04):`. Source: I41, item 5 waits on X07-git-round-trip (I21). Affects S05-cli and S08-workspace-and-git.
 
 <Aside type="tip" title="You are deciding">
 Rules for what the git round trip sends into the guest and how the host handles what comes back. Recommended: the table below, with **A** for the ref scope: the guest fetches from a host-side copy that holds only the branch it works on. Hiding refs, as the issue proposes, does not stop a fetch by object ID. Items 1 to 4 and 6 can be decided now. Item 5 waits on X07-git-round-trip. Accepting starts the S08-workspace-and-git pull request.

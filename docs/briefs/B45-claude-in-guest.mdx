@@ -5,7 +5,7 @@ description: Carry in an allowlist of the user's Claude Code configuration with 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I45. Affects V1-02-claude-only, S05-cli, S06-vm-lifecycle, S07-egress-gateway, S09-policy-credentials-audit, and a new agent spec.
+**Decided 2026-10-04: per row, see the comment on I45.** The decision and its reasons are in the I45 comment that starts `Decision (2026-10-04):`. Source: I45. Affects V1-02-claude-only, S05-cli, S06-vm-lifecycle, S07-egress-gateway, S09-policy-credentials-audit, and a new agent spec.
 
 <Aside type="tip" title="You are deciding">
 The rules for a new agent spec that don't depend on X01-model-credential: which user configuration the guest gets, the starting permission mode, and the update route for Claude Code in the guest. Recommended: **A**, a filtered copy of an allowlist with secrets and hooks removed, plus the defaults in the table below. The agent spec is written once X01-model-credential (I15) says which login Wraith Box uses.

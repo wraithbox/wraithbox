@@ -5,7 +5,7 @@ description: Split "trusted" into two named settings, start new projects in the 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I42, related to I36 and I41. Affects T00-index, S05-cli, S06-vm-lifecycle and S09-policy-credentials-audit.
+**Decided 2026-10-04: B. New projects start in the work VM.** The decision and its reasons are in the I42 comment that starts `Decision (2026-10-04):`. Source: I42, related to I36 and I41. Affects T00-index, S05-cli, S06-vm-lifecycle and S09-policy-credentials-audit.
 
 <Aside type="tip" title="You are deciding">
 What "trusted" means, which VM a newly registered project uses, and when two directories are the same project. Recommended: two settings, `config_trust` and `placement`, as the issue proposes, but **A**: new projects start in the isolated VM, not the work VM as the issue proposes. The reason is I36: in the work VM a new repository can use every other project's network grants. Accepting starts the spec pull request for S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit and T00-index.

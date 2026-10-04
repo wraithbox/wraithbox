@@ -5,7 +5,7 @@ description: Not as the specs are written. I36 recommends making the VM the enfo
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I36. Affects T00-index, S07-egress-gateway, S09-policy-credentials-audit and S13-guest-confinement.
+**Decided 2026-10-04: A. The VM is the enforced unit.** The decision and its reasons are in the I36 comment that starts `Decision (2026-10-04):`. Source: I36. Affects T00-index, S07-egress-gateway, S09-policy-credentials-audit and S13-guest-confinement.
 
 <Aside type="tip" title="You are deciding">
 Whether the host keeps network grants and credentials apart for trusted projects in the shared work VM. Recommended: **A**, enforce per VM and write the gap down as a risk. That rewrites SEC06-repo-writes and SEC08-proj-isolation, so it is a spec change. It unblocks I51.

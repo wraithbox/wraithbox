@@ -5,7 +5,7 @@ description: Yes. I37 adds the host terminal stream to the boundaries now, with 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I37, blocked by X19-terminal-filter (I30). Affects T00-index, S05-cli and S11-verification-and-spikes.
+**Decided 2026-10-04: A. Boundary plus allowlist filter, for now.** The decision and its reasons are in the I37 comment that starts `Decision (2026-10-04):`. Source: I37, blocked by X19-terminal-filter (I30). Affects T00-index, S05-cli and S11-verification-and-spikes.
 
 <Aside type="tip" title="You are deciding">
 Whether guest output that `wb` writes to your terminal is a trust boundary, filtered the way `wb-netd` filters packets. Recommended: **A**, add the boundary now and filter every guest stream with an allowlist. Which escape sequences go on the list waits for X19-terminal-filter. Accepting it lets the spec pull request for T00-index and S05-cli start, and gives B38-port-forward-clipboard its rule that the clipboard never crosses through the terminal.

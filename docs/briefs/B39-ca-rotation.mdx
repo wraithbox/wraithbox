@@ -5,7 +5,7 @@ description: Only if the inspection CA stops changing with the set of inspected 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I39. Affects S07-egress-gateway and S09-policy-credentials-audit. X04-tls-inspection may settle part of it.
+**Decided 2026-10-04: A. No per-set constraints, rotate with overlap.** The decision and its reasons are in the I39 comment that starts `Decision (2026-10-04):`. Source: I39. Affects S07-egress-gateway and S09-policy-credentials-audit. X04-tls-inspection may settle part of it.
 
 <Aside type="tip" title="You are deciding">
 Whether the TLS inspection CA keeps name constraints that follow the inspected hosts, which forces a new CA on every approval. Recommended: **A**, one CA per VM without per-set name constraints, rotated with an overlap longer than the longest session. Then S07-egress-gateway's "without restarting anything" holds, and S09-policy-credentials-audit changes its "Scope" and "Lifetimes". X04-tls-inspection checks the client side.

@@ -5,7 +5,7 @@ description: Learn mode should collect unknown names and refuse them, so SEC05-d
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I40. Affects SEC00-index, T00-index, S07-egress-gateway and S09-policy-credentials-audit.
+**Decided 2026-10-04: A. Collect and refuse.** The decision and its reasons are in the I40 comment that starts `Decision (2026-10-04):`. Source: I40. Affects SEC00-index, T00-index, S07-egress-gateway and S09-policy-credentials-audit.
 
 <Aside type="tip" title="You are deciding">
 Whether learn mode may open egress to any host, and who may put a host in pass mode. Recommended: **A**, learn mode refuses unknown names and collects them for `wb learn report`, which keeps SEC05-default-deny as written. The issue recommends **B** instead, which needs SEC05-default-deny rewritten. Pass mode: a user-only, audited list. Either way, S07-egress-gateway gets the rules and T00-index the residual risk.
