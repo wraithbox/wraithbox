@@ -5,7 +5,7 @@ description: Yes, with conditions. Hide too-young versions from registry metadat
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-04: yes, with conditions.** Source: I32, X21-dep-gate-registries. Changes S07-egress-gateway, S11-verification-and-spikes and T00-index. Opens I73 and I76.
+**Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, Homebrew ungated, and vulnerability threshold CRITICAL (I73).** Source: I32, X21-dep-gate-registries. Changes S07-egress-gateway, S11-verification-and-spikes and T00-index. Opens I73 and I76.
 
 <Aside type="tip" title="What we learned">
 Yes, with conditions. Refusing young downloads failed 10 of 10 fresh installs. Also hiding young versions in the metadata failed 1 of 10. Recommended: **A**, now in S07-egress-gateway. Merging also accepts these, detailed in S07-egress-gateway and X21-dep-gate-registries:
@@ -17,7 +17,7 @@ Yes, with conditions. Refusing young downloads failed 10 of 10 fresh installs. A
 - Private registries fail closed for now.
 - Git hosts deny archive downloads, and approval flags registry mirrors.
 
-The vulnerability threshold is unchanged, and I73 asks you to decide it.
+The vulnerability threshold was decided on I73: refuse malicious-package reports and CRITICAL, and report HIGH.
 </Aside>
 
 ## The problem
@@ -136,8 +136,8 @@ Like A, without refusing downloads.
 
 Homebrew is a separate choice from the options above. Recommended: don't gate it (T08-homebrew-ungated), and limit `ghcr.io` to `homebrew/core` so that bottle access doesn't open every image on that host. The alternative is to refuse bottles younger than 7 days. Homebrew offers one version per formula, so a refused bottle fails the install. On 2026-10-04 that would have refused 61 of the 190 most installed core formulae. OSV has no Homebrew data either way.
 
-<Aside type="caution" title="The vulnerability half needs your decision">
-SEC07-dep-gate also refuses a download with a known vulnerability at or above a threshold, default HIGH. In the same 10 lockfiles, 8 contain a package with a HIGH or CRITICAL advisory in OSV, mostly in development tools. At CRITICAL it is 2 of 10. Some advisories have no severity. This result doesn't change the default. I73 lays out the options and recommends refusing malicious-package reports and CRITICAL, and reporting HIGH.
+<Aside type="caution" title="The vulnerability half, decided on I73">
+SEC07-dep-gate also refuses a download with a known vulnerability at or above a threshold, which S07-egress-gateway set to HIGH. In the same 10 lockfiles, 8 contain a package with a HIGH or CRITICAL advisory in OSV, mostly in development tools. At CRITICAL it is 2 of 10. Some advisories have no severity. This result didn't change the default. On I73 the maintainer chose to refuse malicious-package reports and CRITICAL, and to report HIGH, now in S07-egress-gateway.
 </Aside>
 
 ## Evidence

@@ -5,10 +5,10 @@ description: Yes, with conditions. A restore takes about 4 s. One saved state ca
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-04: yes, with conditions. Awaiting decision on idle-while-locked.** Source: X02-warm-start (I16). Changes S06-vm-lifecycle and S11-verification-and-spikes. Feeds X18-vsock-handoff (I29) and X17-image-build (I28).
+**Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, keep running while locked and save after unlock.** Source: X02-warm-start (I16). Changes S06-vm-lifecycle and S11-verification-and-spikes. Feeds X18-vsock-handoff (I29) and X17-image-build (I28).
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** A macOS guest with a vsock device and the file-handle network attachment saves in about 3 s and restores in 3.7 s (p50) to 3.9 s (p95) at 4 GiB, or 4.1 s to 4.6 s at 8 GiB, measured to the guest kernel answering on the network. For an idle guest that fits the 7 s budget of NFR01-startup for a suspended VM, with about 2.5 s left for the session. Whether it fits for a working guest, with more memory in use, waits on X18-vsock-handoff (I29) and the time-to-prompt benchmark of S11-verification-and-spikes. One saved state restored 30 times from fresh APFS clones. The catches: every restore needs a fresh clone, the same machine identifier and MAC address, no other running VM with that identifier, and the host unlocked at save time. One decision is left for you: what an idle VM does when the host is locked.
+**Yes, with conditions.** A macOS guest with a vsock device and the file-handle network attachment saves in about 3 s and restores in 3.7 s (p50) to 3.9 s (p95) at 4 GiB, or 4.1 s to 4.6 s at 8 GiB, measured to the guest kernel answering on the network. For an idle guest that fits the 7 s budget of NFR01-startup for a suspended VM, with about 2.5 s left for the session. Whether it fits for a working guest, with more memory in use, waits on X18-vsock-handoff (I29) and the time-to-prompt benchmark of S11-verification-and-spikes. One saved state restored 30 times from fresh APFS clones. The catches: every restore needs a fresh clone, the same machine identifier and MAC address, no other running VM with that identifier, and the host unlocked at save time. The maintainer decided on I16 that an idle VM keeps running while the host is locked and is saved at the next unlock.
 </Aside>
 
 <figure class="wb-figure">

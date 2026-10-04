@@ -5,7 +5,7 @@ description: Yes, with conditions. Fetch from the export repository, put a Go fi
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-04.** Source: X07-git-round-trip (I21). Changes S08-workspace-and-git and S11-verification-and-spikes. Feeds I41.
+**Answered 2026-10-04. Decided 2026-10-04: A, Go filter plus `receive.hideRefs`.** Source: X07-git-round-trip (I21). Changes S08-workspace-and-git and S11-verification-and-spikes. Feeds I41.
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions.** The guest cloned, fetched and pushed through a remote helper over a socket, with no write to your repository and no push outside its own `wb/<session>/` branches, in every abuse case tried. The spec as written is wrong in two places. Fetching straight from your repository leaks hidden objects to anyone who knows their ID, which the export repository from B41-git-data-scope fixes. And the first push into an empty landing repository sends the whole history, which borrowing objects fixes. The recommended guard on pushes is a small Go filter, with git's own setting behind it. Accepting it merges the S08-workspace-and-git changes, which fetch from the export repository as I41 decided, and settles item 5 of I41.

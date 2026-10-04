@@ -128,9 +128,9 @@ nothing themselves (S12-platforms).
   - The measured, weaker fallback is git as a child of `wb-hostd`,
     under the `wb-hostd` profile. A git bug would then reach every
     project's policy, the approvals in `state.db`, other projects'
-    landing repositories, and the audit log. If the maintainer chooses
-    the fallback, it is recorded in T00-index as an accepted residual
-    risk.
+    landing repositories, and the audit log. The maintainer chose the
+    `wb-git` shim on I34. Falling back would need a spec change and a
+    T00-index entry for the residual risk.
   - Open: `wb-hostd` can't read the user's repository under its profile,
     which S08-workspace-and-git's `upload-pack` and export repository
     need (I67).
