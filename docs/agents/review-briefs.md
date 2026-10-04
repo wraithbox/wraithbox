@@ -161,6 +161,9 @@ Rules:
 - Marker `id`s are page-global, so prefix them with the figure number
   (`f1-arrow`).
 - MDX is JSX: comments are `{/* … */}`, not `<!-- … -->`.
+- Text in the SVG is not linked or checked, so an ID there stays as
+  written. Keep it short (`X06`), and reference it with its slug in the
+  caption, which is checked.
 - At most about a dozen boxes. A diagram that needs a paragraph to be
   understood gets redrawn, not explained.
 - Use the process names from S04-architecture, and draw the guest as untrusted.

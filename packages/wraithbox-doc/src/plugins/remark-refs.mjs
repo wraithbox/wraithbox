@@ -344,6 +344,9 @@ export function remarkRefs(_options) {
 		for (let i = from; i < node.children.length; i++) {
 			const child = node.children[i];
 			if (SKIP.has(child.type)) continue;
+			// Text in an inline SVG diagram stays as written: a link inside
+			// `<text>` breaks the drawing, and a diagram's labels are short.
+			if (child.type.startsWith('mdxJsx') && child.name === 'svg') continue;
 			if (child.type === 'link') {
 				decorateLink(child);
 				continue;
