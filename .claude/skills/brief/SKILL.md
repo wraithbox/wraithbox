@@ -40,7 +40,10 @@ The argument names the source:
    that shows the problem, and a before/after pair if the structure
    changes.
 5. **Write the page** in the layout of `review-briefs.md`, and add its
-   row to `review/index.md`.
+   row to B00-index. The file is `docs/briefs/B<NN>-<slug>.mdx`, where
+   `<NN>` is the source's issue number (`review-briefs.md`, "Where
+   briefs go"). If the issue already has a brief, update that one. If
+   it needs a second, stop and ask for the issue to be split.
 6. **Check** with the commands in `review-briefs.md`. Then screenshot
    the page in both themes and look at the screenshots. Fix what reads
    wrong: overlapping SVG text, a table that overflows, an ask longer
@@ -51,8 +54,9 @@ The argument names the source:
 - Commit on the current branch, or on a new branch `docs/brief-<slug>`
   when there is none. Use `docs(review): brief for <source>` with the
   attribution lines from `AGENTS.md`.
-- Comment on the source issue with the brief's URL path
-  (`/review/<slug>/`) and the recommendation in one sentence. Don't
+- Add `Brief: https://wraithbox.nl/briefs/b<NN>-<slug>/` to the end of
+  the source issue's body, above its attribution lines, then comment on the issue with the
+  recommendation in one sentence. Run `mise run doc:refs`. Don't
   change labels: deciding is the maintainer's move.
 - Report back: the path, the recommendation, and every claim you left
   `assumed`.

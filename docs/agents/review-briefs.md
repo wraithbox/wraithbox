@@ -25,14 +25,22 @@ request.
 
 ## Where briefs go
 
-- Page: `packages/wraithbox-doc/src/content/docs/review/<slug>.mdx`,
-  served at `/review/<slug>/`.
-- Slug: the ID of the source and a short slug, in lowercase:
-  `i36-flow-attribution` for a decision, `x03-network-path` for a
-  spike, `s07-egress-gateway` for a spec change.
-- Add a row to the table in `review/index.md`, newest first.
-- Link the brief from its source: a comment on the issue, a line under
-  the title of the spike result or spec, and the pull request body.
+- Page: `docs/briefs/B<NN>-<slug>.mdx`, served at
+  `/briefs/b<NN>-<slug>/`. `<NN>` is the number of the GitHub issue the
+  brief belongs to: B36-flow-attribution is the brief for I36. A
+  spike's brief takes the number of the spike's issue, and a spec
+  change or pull request the number of the issue it closes. File an
+  issue first when there is none.
+- **One brief per issue.** When an issue needs two briefs, split the
+  issue first. The build fails on two briefs with the same number, and
+  on a brief numbered after a pull request.
+- Add a row to the table in B00-index, newest first.
+- Link the brief from its source: a `Brief:` line at the end of the
+  issue body, above the attribution lines, with the brief's URL
+  (`Brief: https://wraithbox.nl/briefs/b36-flow-attribution/`), a line
+  under the title of the spike result or spec, and the pull request
+  body. The build warns when an issue doesn't link its brief (after
+  `mise run doc:refs`).
 
 The brief goes in the same pull request as its source when there is
 one. A brief for an open decision issue gets a pull request of its own, with

@@ -213,7 +213,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "S07-egress-gateway: attribute network flows to projects in the shared work VM",
-		"summary": "The work VM hosts every trusted project, and its wb-netd sees one guest MAC and one leased IPv4 address (S07-egress-gateway \"Addressing\")."
+		"summary": "The work VM hosts every trusted project, and its wb-netd sees one guest MAC and one leased IPv4 address (S07-egress-gateway \"Addressing\").",
+		"brief": "B36-flow-attribution"
 	},
 	"37": {
 		"kind": "issue",

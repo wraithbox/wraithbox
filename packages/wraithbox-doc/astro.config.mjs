@@ -83,6 +83,7 @@ export default defineConfig({
 				// The design documents from docs/ (src/plugins/specs.mjs), one
 				// group per kind of ID (S01-spec-based-development).
 				...[
+					['Review briefs', 'briefs'],
 					['Specs', 'spec'],
 					['Requirements', 'requirements'],
 					['Threats', 'threats'],
@@ -94,10 +95,6 @@ export default defineConfig({
 					collapsed: true,
 					items: [{ autogenerate: { directory } }],
 				})),
-				{
-					label: 'Review',
-					items: [{ slug: 'review', label: 'Review briefs' }],
-				},
 				{
 					label: 'Guides',
 					items: [

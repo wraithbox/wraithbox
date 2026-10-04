@@ -19,6 +19,7 @@ out how to implement it. Aim for under 100 lines.
 | `T<NN>-<slug>` | Threat | `docs/threats/` | T00-index |
 | `X<NN>-<slug>` | Spike | `docs/spikes/` | X00-index |
 | `R<NN>-<slug>` | Research note | `docs/research/` | R00-index |
+| `B<NN>-<slug>` | Review brief, numbered after its issue | `docs/briefs/` | B00-index |
 | `V<N>-<slug>` | Version | `docs/versions/` | V00-index |
 | `V<N>-<NN>-<slug>` | Decision scoping version N | its version page | |
 | `V<N>-M<N>-<slug>` | Milestone of version N | its version page | |
@@ -67,7 +68,7 @@ spec or the requirement indexes open (`docs/agents/review-briefs.md`).
   changes; or "none"
 - **Assumed:** what was assumed rather than checked or asked
 - **Open decisions:** numbered, each with a recommendation; or "none"
-- **Brief:** `/review/<slug>/` when there is one
+- **Brief:** `B<NN>-<slug>` when there is one
 
 ## Design
 

@@ -1,11 +1,13 @@
 // @ts-check
 // Publishes the design documents in docs/ (the source of truth, outside
 // this package) as site pages: docs/spec/ under /spec/, docs/requirements/
-// under /requirements/, and so on for each of `designDirs`
+// under /requirements/, docs/briefs/ under /briefs/, and so on for each
+// of `designDirs`
 // (S01-spec-based-development lists what goes where). Each document is
 // copied into src/content/docs/<dir>/, which is gitignored, with Starlight
 // frontmatter taken from the document itself: the first `# ` heading
-// becomes the title and the `**Purpose:**` line the description. Relative
+// becomes the title and the `**Purpose:**` line the description. A
+// review brief is MDX with its own frontmatter, which is kept. Relative
 // links between design documents become site links. Links to other
 // repository files go to GitHub.
 //
@@ -26,12 +28,12 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(here, '../../../..');
 export const docsDir = path.join(repoRoot, 'docs');
 /** The directories under docs/ that are published, each under /<dir>/. */
-export const designDirs = ['spec', 'requirements', 'threats', 'spikes', 'research', 'versions'];
+export const designDirs = ['briefs', 'spec', 'requirements', 'threats', 'spikes', 'research', 'versions'];
 const contentDir = path.resolve(here, '../content/docs');
 const githubBlob = 'https://github.com/wraithbox/wraithbox/blob/main/';
 const githubEdit = 'https://github.com/wraithbox/wraithbox/edit/main/';
 
-/** @param {string} dir @param {string} ext @returns {string[]} paths relative to dir */
+/** @param {string} dir @param {RegExp} ext @returns {string[]} paths relative to dir */
 function listFiles(dir, ext, prefix = '') {
 	/** @type {string[]} */
 	const found = [];
@@ -39,26 +41,36 @@ function listFiles(dir, ext, prefix = '') {
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 		const rel = path.join(prefix, entry.name);
 		if (entry.isDirectory()) found.push(...listFiles(path.join(dir, entry.name), ext, rel));
-		else if (entry.name.endsWith(ext)) found.push(rel);
+		else if (ext.test(entry.name)) found.push(rel);
 	}
 	return found;
 }
 
 /**
- * Every design document, or every file with another extension, as a path
- * relative to docs/ (`spec/S04-architecture.md`).
+ * Every design document (Markdown or MDX), or every file matching `ext`,
+ * as a path relative to docs/ (`spec/S04-architecture.md`).
  */
-export function designFiles(ext = '.md') {
+export function designFiles(ext = /\.mdx?$/) {
 	return designDirs.flatMap((dir) => listFiles(path.join(docsDir, dir), ext, dir)).sort();
 }
 
 /** The site path of a design document, from its path relative to docs/. */
 export function designUrl(/** @type {string} */ rel) {
-	return `/${rel.replace(/\.md$/, '').split(path.sep).join('/').toLowerCase()}/`;
+	return `/${rel.replace(/\.mdx?$/, '').split(path.sep).join('/').toLowerCase()}/`;
 }
 
 /** Turns a design document's Markdown into a site page. */
 export function toPage(/** @type {string} */ rel, /** @type {string} */ source) {
+	const editUrl = `editUrl: ${JSON.stringify(`${githubEdit}docs/${rel.split(path.sep).join('/')}`)}`;
+	if (rel.endsWith('.mdx')) {
+		if (!source.startsWith('---\n')) throw new Error(`docs/${rel}: no frontmatter`);
+		// The sidebar shows the ID in front, as for the other documents
+		// ("B36 - Can projects …").
+		const id = path.basename(rel).match(/^([A-Z]+\d+)-/)?.[1];
+		const title = source.match(/^title: (.+)$/m)?.[1].replace(/^"(.*)"$/, '$1');
+		const label = id && title ? `\nsidebar:\n  label: ${JSON.stringify(`${id} - ${title}`)}` : '';
+		return source.replace(/\n---\n/, `\n${editUrl}${label}\n---\n`);
+	}
 	const heading = source.match(/^# (.+)$/m);
 	if (!heading) throw new Error(`docs/${rel}: no "# " title heading`);
 	const title = heading[1].trim();
@@ -71,7 +83,7 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
 		const fromRepo = path.relative(repoRoot, path.resolve(docsDir, path.dirname(rel), file));
 		const anchor = hash ? `#${hash}` : '';
 		const fromDocs = path.relative('docs', fromRepo);
-		if (designDirs.includes(fromDocs.split(path.sep)[0]) && fromDocs.endsWith('.md')) {
+		if (designDirs.includes(fromDocs.split(path.sep)[0]) && /\.mdx?$/.test(fromDocs)) {
 			return `](${designUrl(fromDocs)}${anchor})`;
 		}
 		return `](${githubBlob}${fromRepo.split(path.sep).join('/')}${anchor})`;
@@ -80,7 +92,7 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
 		'---',
 		`title: ${JSON.stringify(title)}`,
 		...(description ? [`description: ${JSON.stringify(description)}`] : []),
-		`editUrl: ${JSON.stringify(`${githubEdit}docs/${rel.split(path.sep).join('/')}`)}`,
+		editUrl,
 		'---',
 		'',
 		'',
@@ -158,7 +170,7 @@ export function syncDesign() {
 		}
 	}
 	for (const dir of designDirs) {
-		for (const rel of listFiles(path.join(contentDir, dir), '.md', dir)) {
+		for (const rel of listFiles(path.join(contentDir, dir), /\.mdx?$/, dir)) {
 			const target = path.join(contentDir, rel);
 			if (!wanted.has(target)) fs.rmSync(target);
 		}
@@ -176,7 +188,7 @@ export function specsIntegration() {
 				// config, which gives the reference plugin a new digest
 				// (remark-refs.mjs).
 				for (const file of refsSources()) addWatchFile(file);
-				for (const rel of designFiles('.svg')) addWatchFile(path.join(docsDir, rel));
+				for (const rel of designFiles(/\.svg$/)) addWatchFile(path.join(docsDir, rel));
 			},
 			'astro:build:done': () => {
 				if (failures.length > 0) {

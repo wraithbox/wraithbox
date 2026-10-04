@@ -66,8 +66,8 @@ seti
 Merriweather
 Webfonts
 mdxjs
-STXR
-STXRI
+BSTXR
+BSTXRI
 
 # Engineering jargon the dictionaries lack
 stdlib
