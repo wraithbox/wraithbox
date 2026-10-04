@@ -126,7 +126,7 @@ The conditions:
 3. **Every restore starts new connections and a new VM generation.**
    `wb-hostd` drops its `wb-guestd` connections when a VM is saved, and
    connects again after the restore. Before `resume`, it passes the new
-   network descriptor to `wb-netd` and resets that VM's flow state,
+   network descriptor to `wb-netd` and resets that VM's TCP flows and their `wb-proxyd` streams (not the guest's DHCP lease),
    because the old descriptor never reports an error. Hand-off messages and
    audit entries carry the VM generation, and a message from an older
    generation is refused.
@@ -176,8 +176,8 @@ sat at the login window. The clock starts before the
   to 70 ms.
 - **Restore fails while the host is locked.** In the first try of the
   restore series, all 20 restores failed with "The virtual machine
-  failed to restore with error permission denied" (`VZErrorDomain`
-  12), and the system log shows the Secure Enclave key refused
+  failed to restore with error permission denied" (`VZErrorRestore`,
+  code 12, the code of every restore failure), and the system log shows the Secure Enclave key refused
   (`-25308`, `errSecInteractionNotAllowed`) in Virtualization's service
   process (`results/restore-4g-failed-syslog.txt`). That is the error
   X02-warm-start saw when saving on a locked host. The second try
@@ -229,7 +229,7 @@ product image may descend from them.
   S07-egress-gateway that the network descriptor reaches `wb-netd`
   through `wb-hostd` (changed in this pull request).
 - **S06-vm-lifecycle**, "Warm start": restore while locked is now
-  measured, its error is named as temporary, and `wb-hostd` reconnects
+  measured, permanence of a failed restore is decided from the host identity and build recorded with the state, and `wb-hostd` reconnects
   to `wb-guestd` after each restore (changed in this pull request).
 - **S13-guest-confinement**: the session profile denies `AF_VSOCK`
   (changed in this pull request).

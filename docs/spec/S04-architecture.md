@@ -91,7 +91,7 @@ nothing themselves (S12-platforms).
     when the restored VM resumes. A frame written to the old network
     descriptor raises no error and draws no answer, so before `resume`
     `wb-hostd` passes the new network descriptor to `wb-netd` and
-    resets that VM's flow state. Each restore starts a new VM
+    resets that VM's TCP flows and their `wb-proxyd` streams, but not the guest's DHCP lease. Each restore starts a new VM
     generation: hand-off messages and audit entries carry it, and a
     message from an older generation is refused. `wb-hostd` connects to
     `wb-guestd` again after every restore.

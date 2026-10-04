@@ -81,17 +81,25 @@ in S12-platforms.
     permanent reasons deletes the state, and `wb-vmd` cold boots the
     VM. A restore that fails for a temporary reason, such as another
     VM with the same identifier still running or a locked host, keeps
-    the state, and `wb-hostd` retries the restore or reports the
-    reason (NFR06-explained-refusals). Both a host update (per
-    Apple's `VZVirtualMachine.h`) and an identifier in use (measured
-    in X02-warm-start) give the same "invalid argument" error.
-    `wb-hostd` tells them apart by what it can see: whether a VM with
-    that identifier runs, and whether the host is locked. A restore
-    while the host is locked fails with `VZErrorDomain` code 12,
-    "permission denied" (X18-vsock-handoff). That is temporary, and
-    keeps the state. Apple's header gives the same "permission denied"
-    for a state written on another host, which is permanent, so
-    `wb-hostd` treats it as temporary only while the host is locked.
+    the state.
+  - Every restore failure has the same error code, `VZErrorRestore`
+    (12), in Apple's `VZVirtualMachine.h`. Only the failure reason
+    tells them apart, so `wb-hostd` never matches on the code alone.
+    "Permission denied" comes from a locked host (X18-vsock-handoff)
+    and from a state written on another host. "Invalid argument" comes
+    from an identifier in use (X02-warm-start) and from a host update.
+  - `wb-hostd` decides permanence from evidence it owns. It records the
+    host's hardware identity (the `IOPlatformUUID`) and the macOS build
+    with each saved state in `state.db`. A mismatch with the running
+    host is permanent, whatever the error. With a match, "permission
+    denied" is temporary, and "invalid argument" is temporary while a
+    VM with that identifier runs and permanent otherwise.
+  - After a temporary failure, `wb-hostd` reads the lock state (after
+    the failure, not before the attempt), retries a bounded number of
+    times within a bounded wall time, and reports the reason when it
+    gives up (NFR06-explained-refusals). `wb-vmd` passes the error
+    code, the failure reason, any underlying errno and the
+    description, and `wb-hostd` logs them with its classification.
 - **Time and sleep.** After host sleep or VM restore, `wb-guestd`
   resynchronizes the guest clock from `wb-hostd`.
 
