@@ -1,0 +1,28 @@
+netd: mechanism=pure apply=7.038208ms
+netd probe: runtime: goroutines+GC+FreeOSMemory ok
+netd probe: runtime: async preemption+timer    ok
+netd probe: runtime: NumCPU=8 GOMAXPROCS=8     ok
+netd probe: crypto/rand                        ok
+netd probe: crypto ecdsa sign                  ok
+netd probe: time.LoadLocation (zoneinfo read)  DENIED operation not permitted
+netd probe: time.Local=UTC                     ok
+netd probe: os.Hostname                        DENIED sysctl kern.hostname: operation not permitted
+netd probe: os.Getwd                           DENIED stat .: operation not permitted
+netd probe: fs: read /etc/passwd               DENIED open /etc/passwd: operation not permitted
+netd probe: fs: read /etc/passwd on 32 locked threads (0 allowed) DENIED denied on all 32 threads
+netd probe: fs: read /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/go.mod DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/go.mod: operation not permitted
+netd probe: fs: write /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/x23-probe-96628: operation not permitted
+netd probe: fs: write /tmp                     DENIED open /tmp/x23-probe-96628: operation not permitted
+netd probe: fs: readdir $HOME                  DENIED open /Users/lsimons: operation not permitted
+netd probe: fs: stat /etc/passwd               DENIED stat /etc/passwd: operation not permitted
+netd probe: net: tcp connect loopback 127.0.0.1:63993 DENIED dial tcp 127.0.0.1:63993: connect: operation not permitted
+netd probe: net: tcp connect 1.1.1.1:443       DENIED dial tcp 1.1.1.1:443: connect: operation not permitted
+netd probe: net: udp connect 1.1.1.1:53        DENIED dial udp 1.1.1.1:53: connect: operation not permitted
+netd probe: net: unix connect x23-96627.sock   DENIED dial unix ../../.scratch/x23-96627.sock: connect: operation not permitted
+netd probe: net: DNS lookup example.com        DENIED lookup example.com: no such host
+netd probe: net: tcp listen loopback           DENIED listen tcp 127.0.0.1:0: bind: operation not permitted
+netd probe: net: socketpair                    ok
+netd probe: proc: exec /bin/echo               DENIED open /dev/null: operation not permitted
+netd probe: proc: signal 0 to launchd (pid 1)  DENIED operation not permitted
+netd probe: proc: signal 0 to parent           DENIED operation not permitted
+RESULT mech=pure streams=4 each=64MiB echoed ok=true time=1.251s throughput=409.2 MiB/s (both directions)

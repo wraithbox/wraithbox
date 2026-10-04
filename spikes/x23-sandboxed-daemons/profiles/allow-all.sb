@@ -1,0 +1,3 @@
+(version 1)
+; Control: sandboxed, but every operation allowed.
+(allow default)

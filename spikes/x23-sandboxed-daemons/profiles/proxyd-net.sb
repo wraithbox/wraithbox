@@ -1,0 +1,16 @@
+(version 1)
+; The network half of a wb-proxyd profile: outbound TCP, DNS through the
+; system resolver, and certificate verification through trustd. The
+; Keychain and Secure Enclave half is #61. Not a final profile.
+(deny default)
+(allow sysctl-read (sysctl-name "hw.ncpu"))
+(allow network-outbound (remote tcp))
+; DNS: with CGO_ENABLED=0 Go's own resolver reads resolv.conf and hosts
+; and sends UDP to the configured server.
+(allow file-read-metadata (literal "/etc") (literal "/var"))
+(allow file-read* (literal "/private/etc/resolv.conf") (literal "/private/var/run/resolv.conf") (literal "/private/etc/hosts"))
+(allow network-outbound (remote udp "*:53"))
+; ...and on macOS it calls res_search in libSystem, which asks mDNSResponder.
+(allow network-outbound (literal "/private/var/run/mDNSResponder"))
+; crypto/x509 on macOS verifies chains with Security.framework (trustd).
+(allow mach-lookup (global-name "com.apple.trustd" "com.apple.trustd.agent"))

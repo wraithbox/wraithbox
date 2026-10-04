@@ -1,0 +1,2 @@
+sandbox-exec: execvp() of './bin/probe-nocgo' failed: Operation not permitted
+exit=71

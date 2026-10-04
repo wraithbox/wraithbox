@@ -1,0 +1,4 @@
+(version 1)
+; Bisect: netd.sb plus the sysctl reads of netd-exec.sb.
+(deny default)
+(allow sysctl-read (sysctl-name "hw.pagesize" "hw.pagesize_compat" "hw.ncpu" "hw.logicalcpu_max" "hw.physicalcpu_max" "kern.osrelease" "kern.osversion"))

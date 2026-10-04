@@ -1,0 +1,6 @@
+mech=pure profiles/deny-all.sb 256.2
+mech=pure profiles/netd.sb 441.8
+mech=pure profiles/deny-all.sb 257.7
+mech=pure profiles/netd.sb 418.8
+mech=pure profiles/deny-all.sb 267.8
+mech=pure profiles/netd.sb 422.6

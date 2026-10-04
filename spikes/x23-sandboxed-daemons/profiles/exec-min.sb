@@ -1,0 +1,10 @@
+(version 1)
+(deny default)
+; What sandbox-exec needs on top of deny-all.sb, because the profile is
+; in force before dyld loads the binary and libSystem.
+(allow process-exec (literal (string-append (param "BIN") "/probe-nocgo")))
+(allow file-read* (literal (string-append (param "BIN") "/probe-nocgo")))
+(allow file-read* (subpath "/usr/lib") (subpath "/System/Library/dyld") (subpath "/System/Cryptexes/OS"))
+(allow file-read* (literal "/"))
+(allow sysctl-read (sysctl-name "hw.pagesize" "hw.pagesize_compat" "hw.ncpu" "hw.logicalcpu_max" "hw.physicalcpu_max" "kern.osrelease" "kern.osversion"))
+(allow file-read-metadata(subpath "/System/Volumes/Preboot/Cryptexes"))

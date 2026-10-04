@@ -1,0 +1,15 @@
+(version 1)
+; proxyd-net.sb plus a first try at what Security.framework needs to
+; verify a chain against the system roots. Input for #61.
+(deny default)
+(allow sysctl-read (sysctl-name "hw.ncpu"))
+(allow network-outbound (remote tcp))
+(allow file-read-metadata (literal "/etc") (literal "/var"))
+(allow file-read* (literal "/private/etc/resolv.conf") (literal "/private/var/run/resolv.conf") (literal "/private/etc/hosts"))
+(allow network-outbound (remote udp "*:53"))
+(allow network-outbound (literal "/private/var/run/mDNSResponder"))
+(allow mach-lookup (global-name "com.apple.trustd" "com.apple.trustd.agent" "com.apple.SecurityServer" "com.apple.cfprefsd.daemon" "com.apple.cfprefsd.agent" "com.apple.ocspd"))
+(allow file-read* (subpath "/System/Library/Frameworks/Security.framework") (subpath "/System/Library/Security") (subpath "/private/var/db/mds") (subpath "/Library/Keychains") (subpath "/System/Library/Keychains") (literal "/usr/share/icu"))
+(allow file-read-metadata)
+(allow sysctl-read)
+(allow ipc-posix-shm-read-data ipc-posix-shm-read-metadata)

@@ -1,0 +1,28 @@
+mechanism=cgo profile=profiles/netd.sb apply=9.257583ms
+runtime: goroutines+GC+FreeOSMemory ok
+runtime: async preemption+timer    ok
+runtime: NumCPU=8 GOMAXPROCS=8     ok
+crypto/rand                        ok
+crypto ecdsa sign                  ok
+time.LoadLocation (zoneinfo read)  DENIED operation not permitted
+time.Local=UTC                     ok
+os.Hostname                        DENIED sysctl kern.hostname: operation not permitted
+os.Getwd                           DENIED stat .: operation not permitted
+fs: read /etc/passwd               DENIED open /etc/passwd: operation not permitted
+fs: read /etc/passwd on 32 locked threads (0 allowed) DENIED denied on all 32 threads
+fs: read /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/go.mod DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/go.mod: operation not permitted
+fs: write /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/x23-probe-96611: operation not permitted
+fs: write /tmp                     DENIED open /tmp/x23-probe-96611: operation not permitted
+fs: readdir $HOME                  DENIED open /Users/lsimons: operation not permitted
+fs: stat /etc/passwd               DENIED stat /etc/passwd: operation not permitted
+net: tcp connect loopback 127.0.0.1:1 DENIED dial tcp 127.0.0.1:1: connect: operation not permitted
+net: tcp connect 1.1.1.1:443       DENIED dial tcp 1.1.1.1:443: connect: operation not permitted
+net: udp connect 1.1.1.1:53        DENIED dial udp 1.1.1.1:53: connect: operation not permitted
+net: DNS lookup example.com        DENIED lookup example.com: no such host
+net: tcp listen loopback           DENIED listen tcp 127.0.0.1:0: bind: operation not permitted
+net: socketpair                    ok
+proc: exec /bin/echo               DENIED open /dev/null: operation not permitted
+proc: signal 0 to launchd (pid 1)  DENIED operation not permitted
+proc: signal 0 to parent           DENIED operation not permitted
+after 3s: GOMAXPROCS=8 NumCPU=8
+exit=0

@@ -1,0 +1,11 @@
+(version 1)
+; wb-netd started by wb-hostd under sandbox-exec. The profile is in force
+; before dyld loads the binary and libSystem, and before the Go runtime
+; starts, so it needs these rules on top of netd.sb (which is empty).
+(deny default)
+(allow process-exec (literal (param "EXE")))
+(allow file-read* (literal (param "EXE")))
+(allow file-read* (literal "/") (subpath "/usr/lib") (subpath "/System/Library/dyld") (subpath "/System/Cryptexes/OS"))
+(allow file-read-metadata (subpath "/System/Volumes/Preboot/Cryptexes"))
+; Go runtime start (runtime.osinit, mallocinit).
+(allow sysctl-read (sysctl-name "hw.pagesize" "hw.pagesize_compat" "hw.ncpu" "hw.logicalcpu_max" "hw.physicalcpu_max" "kern.osrelease" "kern.osversion"))

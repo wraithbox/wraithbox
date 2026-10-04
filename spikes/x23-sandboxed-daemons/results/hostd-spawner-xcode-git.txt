@@ -1,0 +1,65 @@
+hostd: mechanism=pure apply=5.891041ms
+hostd: read <config>/config.toml          ok
+hostd: write <config>/new.toml            DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/.scratch/x23/config/new.toml: operation not permitted
+hostd: write+flock <data>/state.db        ok
+hostd: append <logs>/audit.jsonl          ok
+hostd: listen unix <data>/run/hostd.sock  ok
+hostd: mkdir landing.git, work            ok
+hostd: git init --bare landing.git:       ok
+hostd: git init work:                     ok
+hostd: git add: warning: unable to access '/etc/gitattributes': Operation not permitted ok
+hostd: git commit: warning: unable to access '/etc/gitattributes': Operation not permitted ok
+hostd: git push (receive-pack): warning: unable to access '/etc/gitattributes': Operation not permitted ok
+hostd: git clone (upload-pack): warning: unable to access '/etc/gitattributes': Operation not permitted ok
+hostd: round trip: clone has f.txt        ok
+hostd: spawner reply "pid 98094" <nil>
+  child| netd: mechanism=pure apply=6.420625ms
+  child| netd probe: runtime: goroutines+GC+FreeOSMemory ok
+  child| netd probe: runtime: async preemption+timer    ok
+  child| netd probe: runtime: NumCPU=8 GOMAXPROCS=8     ok
+  child| netd probe: crypto/rand                        ok
+  child| netd probe: crypto ecdsa sign                  ok
+  child| netd probe: time.LoadLocation (zoneinfo read)  DENIED operation not permitted
+  child| netd probe: time.Local=UTC                     ok
+  child| netd probe: os.Hostname                        DENIED sysctl kern.hostname: operation not permitted
+  child| netd probe: os.Getwd                           DENIED stat .: operation not permitted
+  child| netd probe: fs: read /etc/passwd               DENIED open /etc/passwd: operation not permitted
+  child| netd probe: fs: read /etc/passwd on 32 locked threads (0 allowed) DENIED denied on all 32 threads
+  child| netd probe: fs: read /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/go.mod DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/go.mod: operation not permitted
+  child| netd probe: fs: write /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/x23-probe-98094: operation not permitted
+  child| netd probe: fs: write /tmp                     DENIED open /tmp/x23-probe-98094: operation not permitted
+  child| netd probe: fs: readdir $HOME                  DENIED open /Users/lsimons: operation not permitted
+  child| netd probe: fs: stat /etc/passwd               DENIED stat /etc/passwd: operation not permitted
+  child| netd probe: net: tcp connect loopback 127.0.0.1:1 DENIED dial tcp 127.0.0.1:1: connect: operation not permitted
+  child| netd probe: net: tcp connect 1.1.1.1:443       DENIED dial tcp 1.1.1.1:443: connect: operation not permitted
+  child| netd probe: net: udp connect 1.1.1.1:53        DENIED dial udp 1.1.1.1:53: connect: operation not permitted
+  child| netd probe: net: DNS lookup example.com        DENIED lookup example.com: no such host
+  child| netd probe: net: tcp listen loopback           DENIED listen tcp 127.0.0.1:0: bind: operation not permitted
+  child| netd probe: net: socketpair                    ok
+  child| netd probe: proc: exec /bin/echo               DENIED open /dev/null: operation not permitted
+  child| netd probe: proc: signal 0 to launchd (pid 1)  DENIED operation not permitted
+  child| netd probe: proc: signal 0 to parent           DENIED operation not permitted
+spawner: refused "sh": not in the program table
+hostd: spawner request for a program outside the table: "error refused sh" <nil>
+hostd probe: fs: read /etc/passwd               DENIED open /etc/passwd: operation not permitted
+hostd probe: fs: read /etc/passwd on 32 locked threads (0 allowed) DENIED denied on all 32 threads
+hostd probe: fs: read /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/go.mod DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/go.mod: operation not permitted
+hostd probe: fs: write /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/spikes/x23-sandboxed-daemons/x23-probe-98073: operation not permitted
+hostd probe: fs: write /tmp                     DENIED open /tmp/x23-probe-98073: operation not permitted
+hostd probe: fs: readdir $HOME                  DENIED open /Users/lsimons: operation not permitted
+hostd probe: fs: stat /etc/passwd               DENIED stat /etc/passwd: operation not permitted
+hostd probe: fs: read state /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/.scratch/x23/data/state.txt DENIED open /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/.scratch/x23/data/state.txt: no such file or directory
+hostd probe: fs: write state /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a0da605f7170a9b3b/.scratch/x23/data ok
+hostd probe: net: tcp connect loopback 127.0.0.1:1 DENIED dial tcp 127.0.0.1:1: connect: operation not permitted
+hostd probe: net: tcp connect 1.1.1.1:443       DENIED dial tcp 1.1.1.1:443: connect: operation not permitted
+hostd probe: net: udp connect 1.1.1.1:53        DENIED dial udp 1.1.1.1:53: connect: operation not permitted
+hostd probe: net: DNS lookup example.com        DENIED lookup example.com: no such host
+hostd probe: net: tcp listen loopback           DENIED listen tcp 127.0.0.1:0: bind: operation not permitted
+hostd probe: net: socketpair                    ok
+hostd probe: proc: exec /bin/echo               DENIED fork/exec /bin/echo: operation not permitted
+hostd probe: proc: signal 0 to launchd (pid 1)  DENIED operation not permitted
+hostd probe: proc: signal 0 to parent           DENIED operation not permitted
+READY
+hostd got "hello"
+hostd: served a client on the Unix socket
+exit=0

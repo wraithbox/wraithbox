@@ -1,0 +1,3 @@
+sandbox initialization failed: invalid data type of path filter; expected pattern, got boolean
+apply: sandbox_init_with_parameters failed: invalid data type of path filter; expected pattern, got boolean
+exit=2

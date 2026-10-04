@@ -1,0 +1,24 @@
+(version 1)
+; wb-hostd, applied in process after the Go runtime has started.
+; Parameters: CONFIG, DATA, LOGS (state directories), GIT, NETD (programs
+; it may run). Children inherit this profile.
+(deny default)
+(allow sysctl-read (sysctl-name "hw.ncpu"))
+
+; Its state directories.
+(allow file-read* (subpath (param "CONFIG")))
+(allow file-read* file-write* (subpath (param "DATA")) (subpath (param "LOGS")))
+; The local IPC endpoint in <data>/run.
+(allow network-bind network-inbound (local unix-socket (subpath (string-append (param "DATA") "/run"))))
+
+; Programs it runs.
+(allow process-exec (literal (param "GIT")) (literal (param "NETD")))
+; git and its helpers (git-upload-pack and friends live in libexec).
+(allow process-exec file-read* (subpath (param "GITROOT")))
+(allow process-fork)
+(allow file-read* file-write-data (literal "/dev/null"))
+; Children start under this profile, so dyld must load them.
+(allow file-read* (literal (param "GIT")) (literal (param "NETD")))
+(allow file-read* (literal "/") (subpath "/usr/lib") (subpath "/System/Library/dyld") (subpath "/System/Cryptexes/OS"))
+(allow file-read-metadata (subpath "/System/Volumes/Preboot/Cryptexes"))
+(allow sysctl-read (sysctl-name "hw.pagesize" "hw.pagesize_compat" "hw.logicalcpu_max" "hw.physicalcpu_max" "kern.osrelease" "kern.osversion"))

@@ -1,0 +1,9 @@
+(version 1)
+; wb-netd, applied in process after the Go runtime has started.
+; No file system, no network, no exec, no IPC lookups. Descriptors
+; inherited from wb-hostd (the NIC socket and the Unix socket to
+; wb-proxyd) keep working, and so do socketpair() and SCM_RIGHTS.
+(deny default)
+; Go 1.25+ sysmon re-reads hw.ncpu every second to update GOMAXPROCS.
+; Denied, the read returns 1 and GOMAXPROCS drops to 1.
+(allow sysctl-read (sysctl-name "hw.ncpu"))
