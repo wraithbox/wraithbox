@@ -126,6 +126,7 @@ DECRQSS
 # Package registries, and projects measured by spikes
 packument
 sdist
+sdists
 ungated
 cooldowns
 datasette

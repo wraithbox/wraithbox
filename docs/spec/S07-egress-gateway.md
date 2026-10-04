@@ -4,7 +4,7 @@
 network stack (`wb-netd`) and a policy-enforcing proxy (`wb-proxyd`) on
 the host.
 
-**Requirements:** FR08-no-proxy-config to FR10-learn-mode, SEC04-no-guest-secrets to SEC07-dep-gate, SEC10-audit, SEC11-root-gains-nothing, NFR06-explained-refusals.
+**Requirements:** FR08-no-proxy-config to FR10-learn-mode, SEC04-no-guest-secrets to SEC07-dep-gate, SEC10-audit, SEC11-root-gains-nothing, SEC13-bounded-resources, NFR06-explained-refusals.
 
 ## Packet path (`wb-netd`)
 
@@ -87,9 +87,13 @@ the host.
     operation name is allowlisted.
   - *model API*: the endpoints Claude Code needs, with the model
     credential binding.
-  - *package registries* (npm, PyPI, Go module proxy, crates.io,
-    Homebrew bottles): metadata and downloads only; publish and upload
-    endpoints denied.
+  - *package registries*: metadata and downloads only, publish and
+    upload endpoints denied. npm, PyPI, crates.io and the Go module
+    proxy, plus `sum.golang.org` read-only (`/lookup/`, `/latest`,
+    `/tile/`), because the module proxy doesn't serve the checksum
+    database. Homebrew bottles: `ghcr.io` only for `homebrew/core` (the
+    anonymous token's `repository:homebrew/core/...:pull` scope and
+    `/v2/homebrew/core/...` paths), and `formulae.brew.sh` read-only.
 - **Dependency gate** (SEC07-dep-gate). For npm, PyPI, the Go module
   proxy and crates.io, `wb-proxyd` looks up each version's publish time
   and known vulnerabilities (OSV data). The minimum age (default 7 days)
@@ -100,37 +104,89 @@ the host.
     older version. This covers npm packument `versions` and
     `dist-tags` (with `latest` moved to the newest remaining release),
     the PyPI JSON simple index (PEP 691), crates.io sparse index lines,
-    and Go `@v/list` and `@latest`. A PyPI client that doesn't accept
-    the JSON index is refused.
+    and Go `@v/list` and `@latest`. npm `/-/package/<name>/dist-tags`
+    is filtered like the packument's `dist-tags`. The PyPI JSON API
+    (`/pypi/<name>/json`, which Poetry reads) loses its young
+    `releases`, and when its `info` describes a young release the
+    response is refused. A PyPI client that doesn't accept the JSON
+    simple index is refused. These last three are proposals in
+    B32-dep-gate-registries.
   - *Downloads.* A download of a version younger than the minimum age,
     or with a known vulnerability at or above the threshold (default
     HIGH, I73), is refused. The error names the package, the version,
-    its publish time and the date it becomes allowed. This catches
-    lockfile pins and direct URLs, which never fetch metadata.
+    its publish time and the date it becomes allowed. On the gated
+    hosts this catches lockfile pins, which never fetch metadata.
 
-  The publish time comes from the registry, fetched by `wb-proxyd`: npm
-  `time` from the full packument (the abbreviated one has none), PyPI
+  *Scope.* The gate covers the registry hosts above and nothing else.
+  The same packages fetched another way are not gated: Go with
+  `GOPROXY=direct` or `GOPRIVATE` from a git host, `git+https:` and
+  `github:` dependencies and archive downloads from a git host
+  (`codeload.github.com`), cargo `git` dependencies, and mirrors such
+  as `registry.npmmirror.com`, `goproxy.cn` or an Artifactory server.
+  That residual is T07-ungated-sources. B32-dep-gate-registries
+  proposes two partial mitigations: deny archive downloads in the git
+  hosting profile, and flag a host that mirrors a gated registry in the
+  approval risk check.
+
+  *Publish time.* From the registry, fetched by `wb-proxyd`: npm `time`
+  from the full packument (the abbreviated one has none), PyPI
   `upload-time` per file (PEP 700, so a file added to an old release
   later is young on its own), and crates.io `pubtime` from the sparse
   index. For Go, the clock is the version's record number in the
   checksum database `sum.golang.org`, compared with the record number of
   a version that `index.golang.org` shows as first seen 7 days earlier.
   The `.info` Time is the commit time, which the module's author sets,
-  and is never used. A download is mapped to package and version from
-  its URL alone (a PyPI file name is checked against the project's JSON
-  API), and a redirect from the Go module proxy to its storage host is
-  followed by `wb-proxyd`, not the guest.
+  and is never used. Under that clock, a version nobody has looked up
+  before is young, a pseudo-version of an old commit is young for 7
+  days, and filtering `@v/list` costs one lookup per listed version.
+  The spike checked only the ordering of record numbers, and I76
+  measures the clock end to end.
 
-  OSV is queried while the download runs, and the body is held back
-  until the answer arrives. Answers are cached for one hour. If the
-  publish time can't be found or a lookup fails, the request is refused
-  (fail closed). Per-project overrides are explicit and audited.
+  *Mapping a request.* Each gated host accepts only explicit path forms:
+  an npm package name and tarball, a PEP 503 project name with a PEP 440
+  version in a distribution file name, a Go escaped module path with a
+  semantic or pseudo-version, and a crate name with a semantic version.
+  A request that fits none of them gets a 403 that names the rule.
+  Parsed names and versions are validated before they go into a lookup
+  URL or an OSV query. A download is mapped from its URL alone, and a
+  PyPI file name is checked against the project's JSON API. The Go
+  module proxy answers a `.zip` request with a redirect. `wb-proxyd`
+  follows it itself, one hop, and only to
+  `https://storage.googleapis.com/`. Any other `Location` is refused
+  and logged with the rule, so the redirect can't reach the host, the
+  LAN or another site (SEC05-default-deny).
 
-  Homebrew bottles are not gated. Homebrew offers one version per
-  formula and signs its formula metadata, so there is nothing to filter
-  and no older version to fall back to. OSV has no Homebrew data. With
-  a 7-day minimum age, a third of the most installed formulae would be
-  refused. Bottle downloads still go only to the hosts policy allows.
+  *Holding the body.* OSV is queried while the download runs, and no
+  byte of the body reaches the guest before the verdict. A held body is
+  buffered in memory up to a fixed size per stream and spooled to a
+  bounded temporary file beyond it. The number of gated downloads in
+  flight per VM is bounded (SEC13-bounded-resources). OSV answers are
+  cached for one hour, keyed on package, version and threshold. During
+  an OSV outage only answers less than an hour old are used, and every
+  other download is refused. A malicious-package report published within
+  that hour can be missed, a residual B32-dep-gate-registries puts to the
+  maintainer. If the publish time can't be found or a lookup fails, the
+  request is refused (fail closed). Per-project overrides are explicit
+  and audited.
+
+  *Logging.* Each filtered metadata response is an audit event with the
+  package, the versions hidden and the rule `min-age` (SEC10-audit).
+  `wb status` shows it, so a package with only young versions reads as
+  too new and not as a typo (NFR06-explained-refusals). On gated
+  metadata requests `wb-proxyd` removes `If-None-Match` and
+  `If-Modified-Since`, and a rewritten body goes out without `ETag` or
+  `Last-Modified`.
+
+  *Private registries.* The gate fetches publish times itself, before
+  credentials are injected, so a package on a private registry fails
+  closed. How the gate authenticates its own fetch is open
+  (B32-dep-gate-registries).
+
+  *Homebrew.* Bottles are not gated (T08-homebrew-ungated). Homebrew
+  offers one version per formula and signs its formula metadata, so
+  there is nothing to filter and no older version to fall back to. OSV
+  has no Homebrew data. With a 7-day minimum age, about a third of the
+  most installed formulae would be refused.
 
   The gate implements OpenShell's supervisor middleware API
   (`SupervisorMiddleware`, RFC 0009) and runs after policy allows a

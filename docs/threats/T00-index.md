@@ -11,6 +11,8 @@ trusts, and which risks it accepts rather than solves.
 | T04-bad-approvals | Bad approvals | Accepted |
 | T05-cross-proj-clones | Other projects' clones after guest root | Accepted |
 | T06-forged-labels | Forged program labels after guest root | Accepted |
+| T07-ungated-sources | Dependencies from ungated sources | Accepted |
+| T08-homebrew-ungated | Young Homebrew bottles | Accepted |
 
 ## Model
 
@@ -54,3 +56,16 @@ packet surface to `wb-netd`; (4) git objects returning to the host;
   guest confinement layer (S13-guest-confinement). Rules narrowed to named
   programs then act as the union of the project's grants. The host
   floor (SEC05-default-deny, SEC06-repo-writes) still holds.
+- **T07-ungated-sources: Dependencies from ungated sources.** The dependency gate
+  (SEC07-dep-gate) covers the npm, PyPI, Go module proxy and crates.io
+  hosts only. A dependency fetched from another allowed host skips the
+  minimum age and the vulnerability check: Go with `GOPROXY=direct` or
+  `GOPRIVATE` from a git host, `git+https:` and `github:` dependencies,
+  archive downloads from a git host, cargo `git` dependencies, and
+  registry mirrors the user approved (S07-egress-gateway, "Dependency
+  gate").
+- **T08-homebrew-ungated: Young Homebrew bottles.** Homebrew bottles from
+  `homebrew/core` are not age-gated or checked against OSV. Homebrew has
+  one version per formula and signed metadata, so the only option would
+  be refusing young bottles, which fails about a third of popular
+  formulae (X21-dep-gate-registries).
