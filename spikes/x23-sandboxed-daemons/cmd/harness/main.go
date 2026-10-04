@@ -36,6 +36,7 @@ func must(err error) {
 
 func main() {
 	mech := flag.String("mech", "pure", "none, cgo, pure, exec")
+	setProcs := flag.Bool("setprocs", false, "netd sets GOMAXPROCS before confining")
 	bin := flag.String("netd", "bin/netd", "netd binary")
 	profile := flag.String("profile", "profiles/netd.sb", "profile")
 	streams := flag.Int("streams", 4, "concurrent streams")
@@ -75,7 +76,12 @@ func main() {
 		a := append([]string{"-f", absProf, "-D", "BIN=" + filepath.Dir(absBin), "-D", "EXE=" + absBin, absBin, "-mech", "none"}, args...)
 		cmd = exec.Command("/usr/bin/sandbox-exec", a...)
 	default:
-		a := append([]string{"-mech", *mech, "-profile", absProf, "-D", "BIN=" + filepath.Dir(absBin), "-D", "EXE=" + absBin}, args...)
+		pre := []string{}
+		if *setProcs {
+			pre = append(pre, "-setprocs")
+		}
+		a := append(pre, "-mech", *mech, "-profile", absProf, "-D", "BIN="+filepath.Dir(absBin), "-D", "EXE="+absBin)
+		a = append(a, args...)
 		cmd = exec.Command(absBin, a...)
 	}
 	nicChild := os.NewFile(uintptr(nic[1]), "nic-child")

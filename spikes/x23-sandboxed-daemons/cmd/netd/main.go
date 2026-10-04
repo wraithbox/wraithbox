@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"syscall"
 
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
@@ -23,6 +24,7 @@ import (
 func main() {
 	mech := flag.String("mech", "none", "none, cgo, pure")
 	probeOnly := flag.Bool("probe-only", false, "run the probes and exit")
+	setProcs := flag.Bool("setprocs", false, "call runtime.GOMAXPROCS(runtime.NumCPU()) before confining")
 	profile := flag.String("profile", "", "SBPL profile file")
 	var params sbxapply.Params
 	flag.Var(&params, "D", "profile parameter key=value")
@@ -35,6 +37,9 @@ func main() {
 	flag.StringVar(&e.RemoteName, "name", "example.com", "DNS name")
 	flag.Parse()
 
+	if *setProcs {
+		runtime.GOMAXPROCS(runtime.NumCPU()) // turns off the periodic hw.ncpu re-read
+	}
 	d, err := sbxapply.Apply(*mech, *profile, params)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "netd: apply:", err)

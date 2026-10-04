@@ -27,9 +27,15 @@ func main() {
 	flag.StringVar(&e.StateDir, "statedir", "", "allowed state dir")
 	flag.StringVar(&e.RemoteAddr, "remote", "1.1.1.1:443", "internet TCP address")
 	flag.StringVar(&e.RemoteName, "name", "example.com", "DNS name")
+	setProcs := flag.Bool("setprocs", false, "call runtime.GOMAXPROCS(runtime.NumCPU()) before confining")
 	flag.Parse()
 
 	// Profile is read before sandboxing; the file need not be allowed.
+	if *setProcs {
+		// An explicit GOMAXPROCS turns off the runtime's periodic update,
+		// so it never re-reads hw.ncpu (review on PR 65).
+		runtime.GOMAXPROCS(runtime.NumCPU())
+	}
 	d, err := sbxapply.Apply(*mech, *profile, params)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "apply:", err)

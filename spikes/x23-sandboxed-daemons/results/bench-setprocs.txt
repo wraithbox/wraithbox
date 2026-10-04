@@ -1,0 +1,6 @@
+RESULT mech=pure-denyall-setprocs streams=4 each=64MiB echoed ok=true time=1.171s throughput=437.4 MiB/s (both directions)
+RESULT mech=pure-netd.sb streams=4 each=64MiB echoed ok=true time=1.078s throughput=474.9 MiB/s (both directions)
+RESULT mech=pure-denyall-setprocs streams=4 each=64MiB echoed ok=true time=1.629s throughput=314.2 MiB/s (both directions)
+RESULT mech=pure-netd.sb streams=4 each=64MiB echoed ok=true time=1.084s throughput=472.2 MiB/s (both directions)
+RESULT mech=pure-denyall-setprocs streams=4 each=64MiB echoed ok=true time=1.117s throughput=458.3 MiB/s (both directions)
+RESULT mech=pure-netd.sb streams=4 each=64MiB echoed ok=true time=1.105s throughput=463.4 MiB/s (both directions)
