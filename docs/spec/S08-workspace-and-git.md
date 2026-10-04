@@ -84,13 +84,22 @@ back out, without sharing the host filesystem.
   entry until the entry has passed, then forwards it to `receive-pack`.
   It refuses the push when one of these caps is exceeded:
   - wire bytes: the whole pack over the size limit, or one entry over
-    zlib's `deflateBound` for the size it declares, counted while the
-    scanner reads. Zlib can consume input without producing output, so
-    the caps on inflated sizes alone don't bound what the scanner holds;
+    its bound, counted while the scanner reads. An entry's bound is its
+    header, its OFS_DELTA offset or REF_DELTA base ID, and zlib's
+    conservative bound for the size N it declares, about
+    N + N/8 + N/64 + 11 bytes. That is the bound zlib gives for
+    non-default parameters, not the tighter one for its defaults, which
+    zlib-ng at level 1 and fixed-Huffman encoders can exceed. Zlib can
+    consume input without producing output, so the caps on inflated
+    sizes alone don't bound what the scanner holds;
   - per object (default 100 MiB): an object's inflated size, a delta's
-    result size, a delta's source size, and a delta's own inflated data
-    length. A delta whose base is in `export.git` is held to the same
-    cap through its source size;
+    result size, a delta's declared source size, and a delta's own
+    inflated data length. A delta whose base is in `export.git` is held
+    to the same cap through its declared source size. A residual stays:
+    a delta can declare the size of the largest object in the user's
+    own repository, under the cap, and git loads that object once
+    before the push fails closed. That is accepted, because the content
+    is the user's own;
   - per push (default 1 GiB): the sum of all object and delta result
     sizes and delta data lengths. It counts resolved sizes, not new
     bytes, so 40 edits of a 30 MiB file exceed it in a few KiB. The cap
@@ -101,7 +110,11 @@ back out, without sharing the host filesystem.
     allocates its object table from that count, and the scanner keeps
     one size per entry.
 
-  It reads every size field with the same length limit as git, inflates
+  An entry's size header is at most 9 bytes with a value under 2^60,
+  as `unpack_object_header_buffer` reads it in git 2.56.0 on 64-bit. A
+  delta's size fields are at most 10 bytes each, with values that fit in
+  64 bits. A longer field, or one with bits past those limits, is
+  malformed and refused. The scanner inflates
   each entry only to find the next one, and stops one byte past the
   declared size. After the pack's checksum it forwards nothing more and
   closes git's input. A push with an empty command list carries no pack,
@@ -138,8 +151,9 @@ back out, without sharing the host filesystem.
   refs `update()` sees. Its limits come from the environment `wb-hostd`
   sets on `receive-pack`, and a missing limit refuses everything. It
   writes each decision with its rule to a descriptor that `wb-hostd`
-  opens and `receive-pack` passes on, and a missing descriptor is a
-  refusal. Its standard error goes to the guest, so it writes only the
+  opens and `receive-pack` passes on. It takes the descriptor's number
+  from an environment variable `wb-hostd` sets, and a missing variable
+  or descriptor is a refusal. Its standard error goes to the guest, so it writes only the
   rule name there. For the object caps it adds a second layer to the
   scanner, and for the ref checks it is the only one. At start,
   `wb-hostd` checks that the hooks directory holds exactly this one
@@ -154,8 +168,9 @@ back out, without sharing the host filesystem.
   remove its quarantine, and with SIGKILL after a grace period. So after
   every push in which not every ref reported `ok`, including kills,
   disconnects and scanner refusals, and while no other push to it runs,
-  `wb-hostd` cleans `landing.git`: it removes `objects/tmp_objdir-*`
-  and `*.lock` files under `refs/heads/wb/`, then runs
+  `wb-hostd` cleans `landing.git`: it removes `objects/tmp_objdir-*`,
+  `*.lock` files under `refs/heads/wb/` and `packed-refs.lock` at
+  the repository's root, then runs
   `git repack -a -d -l` and `git prune --expire=now`. Pushes to one
   landing repository and its cleanup are serialized by a per-project
   lock in `wb-hostd`, because sessions share it (FR05-parallel-sessions)
