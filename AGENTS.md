@@ -133,7 +133,15 @@ ai-tells rules flag them:
 - Every lockfile is committed (`bun.lock`, each `go.sum`,
   `Package.resolved`) and has a `.github/dependabot.yml` entry.
 - `mise run vuln` must be clean. Fix a finding by moving the dependency,
-  never by narrowing the scan.
+  never by narrowing the scan. The one exception is an advisory with no
+  fixed release: it gets an entry in `osv-scanner.toml` with an
+  `ignoreUntil` date at most 30 days ahead and a `reason` that starts
+  with the issue tracking the fix (`#55: ...`). `scripts/osv-ignores.mjs`
+  checks the format before each scan, and the scan fails again when the
+  date passes. An agent may add, extend or remove an entry after it has
+  checked that no fixed version exists and filed the issue. Each edit to
+  the file asks the maintainer first (an `ask` rule in
+  `.claude/settings.json`). Remove the entry once the fix ships.
 - Pin GitHub Actions to full-length commit SHAs (the commit, not an
   annotated tag object). The repository only allows GitHub-owned and
   allowlisted actions; a new third-party action needs an allowlist

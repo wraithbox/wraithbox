@@ -47,6 +47,10 @@
       "Bash(mise run ci-watch *)",
       "Bash(mise run go:cross)",
       "Bash(mise run go:cross *)"
+    ],
+    "ask": [
+      "Edit(./osv-scanner.toml)",
+      "Write(./osv-scanner.toml)"
     ]
   }
 }
