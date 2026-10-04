@@ -109,8 +109,8 @@ the host.
     (`/pypi/<name>/json`, which Poetry reads) loses its young
     `releases`, and when its `info` describes a young release the
     response is refused. A PyPI client that doesn't accept the JSON
-    simple index is refused. These last three are proposals in
-    B32-dep-gate-registries.
+    simple index is refused. B32-dep-gate-registries puts these three
+    rules to the maintainer, so merging them settles them.
   - *Downloads.* A download of a version younger than the minimum age,
     or with a known vulnerability at or above the threshold (default
     HIGH, I73), is refused. The error names the package, the version,
@@ -123,10 +123,10 @@ the host.
   `github:` dependencies and archive downloads from a git host
   (`codeload.github.com`), cargo `git` dependencies, and mirrors such
   as `registry.npmmirror.com`, `goproxy.cn` or an Artifactory server.
-  That residual is T07-ungated-sources. B32-dep-gate-registries
-  proposes two partial mitigations: deny archive downloads in the git
-  hosting profile, and flag a host that mirrors a gated registry in the
-  approval risk check.
+  That residual is T07-ungated-sources. Two rules narrow it: the git
+  hosting profile denies archive downloads, and the approval risk check
+  flags a host that mirrors a gated registry. B32-dep-gate-registries
+  puts both to the maintainer, so merging settles them.
 
   *Publish time.* From the registry, fetched by `wb-proxyd`: npm `time`
   from the full packument (the abbreviated one has none), PyPI
@@ -186,7 +186,9 @@ the host.
   offers one version per formula and signs its formula metadata, so
   there is nothing to filter and no older version to fall back to. OSV
   has no Homebrew data. With a 7-day minimum age, about a third of the
-  most installed formulae would be refused.
+  most installed formulae would be refused. Casks (`homebrew/cask`) are
+  outside the `ghcr.io` scope in V1, so `brew install --cask` raises an
+  approval prompt for the host its download comes from.
 
   The gate implements OpenShell's supervisor middleware API
   (`SupervisorMiddleware`, RFC 0009) and runs after policy allows a
