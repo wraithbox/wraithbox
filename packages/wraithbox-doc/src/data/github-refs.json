@@ -100,7 +100,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X03-network-path: Network path",
-		"summary": "Does a macOS guest boot on the file-handle network attachment with the gVisor stack: get a DHCP lease, resolve only allowlisted names, and reach only the proxy?"
+		"summary": "Does a macOS guest boot on the file-handle network attachment with the gVisor stack: get a DHCP lease, resolve only allowlisted names, and reach only the proxy?",
+		"brief": "B17-network-path"
 	},
 	"18": {
 		"kind": "issue",
@@ -112,7 +113,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X05-fs-benchmark: Filesystem benchmark",
-		"summary": "How does the data disk perform with default versus relaxed write-through settings, against the host, on the NFR02-fs-speed workloads?"
+		"summary": "How does the data disk perform with default versus relaxed write-through settings, against the host, on the NFR02-fs-speed workloads?",
+		"brief": "B19-fs-benchmark"
 	},
 	"20": {
 		"kind": "issue",
@@ -171,7 +173,7 @@
 	},
 	"29": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X18-vsock-handoff: Host-guest socket and descriptor hand-off",
 		"summary": "X18-vsock-handoff (added to S11-verification-and-spikes in #14)",
 		"brief": "B29-vsock-handoff"
@@ -214,7 +216,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X24-openshell-artifacts: OpenShell artifacts",
-		"summary": "X24-openshell-artifacts (added to S11-verification-and-spikes in #14)"
+		"summary": "X24-openshell-artifacts (added to S11-verification-and-spikes in #14)",
+		"brief": "B35-openshell-artifacts"
 	},
 	"36": {
 		"kind": "issue",
@@ -225,14 +228,14 @@
 	},
 	"37": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S03-requirements, S05-cli: treat the host terminal stream as a boundary",
 		"summary": "wb claude relays the guest's PTY output in raw mode to the user's terminal emulator (S05-cli).",
 		"brief": "B37-terminal-boundary"
 	},
 	"38": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: design port forwarding and clipboard (FR11-port-forward, FR12-clipboard) and their threats",
 		"summary": "FR11-port-forward (dev servers on host loopback) and FR12-clipboard (clipboard) cross the VM boundary, but no spec designs them and S03-requirements's threat model does not list them.",
 		"brief": "B38-port-forward-clipboard"
@@ -465,9 +468,10 @@
 	},
 	"74": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X26-pre-receive-check: Push checks before the quarantine lands",
-		"summary": "S08-workspace-and-git caps the compressed size of a push (receive.maxInputSize)."
+		"summary": "S08-workspace-and-git caps the compressed size of a push (receive.maxInputSize).",
+		"brief": "B74-pre-receive-check"
 	},
 	"75": {
 		"kind": "pr",
@@ -508,7 +512,7 @@
 	},
 	"81": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): treat the host terminal stream as a boundary",
 		"summary": "- Decides: guest output reaching the user's terminal is boundary 6 of T00-index, and wb filters it with the allowlist measured in X19-terminal-filter (S05-cli, \"Terminal stream\")."
 	},
@@ -542,5 +546,78 @@
 		"state": "open",
 		"title": "Cold boot to wb-guestd takes about 11 s, above the NFR01-startup ceiling",
 		"summary": "Found by X18-vsock-handoff (#29)."
+	},
+	"87": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spikes): X18-vsock-handoff result, brief, and spec updates",
+		"summary": "Result of the X18-vsock-handoff spike (#29): yes, with conditions.",
+		"brief": "B29-vsock-handoff"
+	},
+	"88": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spike): X26-pre-receive-check result: pack scanner and pre-receive check",
+		"summary": "Result of spike X26-pre-receive-check."
+	},
+	"89": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spike): X24-openshell-artifacts result",
+		"summary": "Stacked on docs/33-x22-result (#85): this result rewrites the S09 \"Approvals\" paragraph and the OCSF bullet in \"Audit\", which #85 also changes."
+	},
+	"90": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Manifest and review for the copied agent-safehouse Seatbelt modules",
+		"summary": "From the PR #89 security review (X24-openshell-artifacts), finding 10."
+	},
+	"91": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Windows build of openshell-prover for the wb trust boundary check",
+		"summary": "From the PR #89 security review (X24-openshell-artifacts), finding 12."
+	},
+	"92": {
+		"kind": "issue",
+		"state": "open",
+		"title": "mise run vuln can't find lockfiles from a git worktree",
+		"summary": "The PR #88 and #89 security reviewers found that mise run vuln (the vuln:osv part) fails when it runs inside a git worktree."
+	},
+	"93": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: set the guest clock after a cold boot too, since the guest has no NTP",
+		"summary": "X03-network-path (#17) found that the guest has no network time: NTP is UDP, which wb-netd drops (S07-egress-gateway, \"Connections\"), and an idle macOS guest sends NTP to time.apple.com every 2 s with no answer."
+	},
+	"94": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spike): X03-network-path result, guest network on gVisor works with a link filter",
+		"summary": "Result of spike X03-network-path: yes, with conditions."
+	},
+	"95": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): keep port forwarding and clipboard out of V1",
+		"summary": "The maintainer decided on #38 (2026-10-04, option D) to leave port forwarding and the clipboard out of V1."
+	},
+	"96": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): enforce network grants per VM and accept T11-shared-vm-grants",
+		"summary": "Writes the spec change for the decision on #36 (option A, 2026-10-04): the VM is the unit the host enforces."
+	},
+	"97": {
+		"kind": "issue",
+		"state": "open",
+		"title": "npm ci in a macOS guest runs at 71% of host speed with every disk setting",
+		"summary": "X05-fs-benchmark (#19) found that npm ci in a macOS guest reaches only 71% of host throughput with the chosen data disk setting (raw image, automatic caching, full sync), below the 80% of NFR02-fs-speed."
+	},
+	"98": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spike): X05-fs-benchmark result, data disk uses full sync",
+		"summary": "The result of X05-fs-benchmark, with its review brief and the spec changes it forces."
 	}
 }
