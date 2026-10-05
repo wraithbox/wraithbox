@@ -200,7 +200,7 @@
 	},
 	"33": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X22-no-guest-credentials: Clients without guest credentials",
 		"summary": "X22-no-guest-credentials (added to S11-verification-and-spikes in #14)",
 		"brief": "B33-no-guest-credentials"
@@ -536,7 +536,7 @@
 	},
 	"85": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spike): X22-no-guest-credentials result",
 		"summary": "Result of the X22-no-guest-credentials spike (#33).",
 		"brief": "B33-no-guest-credentials"
