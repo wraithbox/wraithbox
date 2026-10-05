@@ -144,16 +144,16 @@ Ask upstream for a `risk` command and use it when it ships.
 
 ## Decision 3: are approvals bound by the boundary?
 
-The boundary limits what a trusted repository adds. The spec didn't check approvals against it, so a request the guest triggers and the user accepts could add a rule an organization's boundary forbids. An approved rule has a fixed form (one exact host, `rest`, `enforce`, read-only access), which the prover models. A rule that only allows can be checked alone. If it's inside the boundary, adding it keeps a policy that is inside the boundary inside it. That check doesn't depend on decision 1. Until you decide, the spec applies option A.
+The boundary limits what a trusted repository adds. The spec didn't check approvals against it, so a request the guest triggers and the user accepts could add a rule an organization's boundary forbids. An approved rule has a fixed form (one exact host, `rest`, `enforce`, read-only access), which the prover models. A rule that only allows can be checked alone. If it's inside the boundary, adding it keeps a policy that is inside the boundary inside it. That check doesn't depend on decision 1. It does rely on the project's policy being inside the boundary already, and policy the user writes globally or per project is only boundary-checked at `wb trust`. For a project with no trusted repository it is never checked. So the choice is either to bind approvals and check the user's own policy too, or to say the boundary binds only repository configuration. Until you decide, the spec applies option A.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
 ### A. Yes, refuse a request outside the boundary
 
-The prover checks the proposed rule alone. A rule outside the boundary isn't shown as a request, and the refusal is logged as a Device Config State Change (5019) event.
+The prover checks the proposed rule alone. A rule outside the boundary isn't shown as a request, and the refusal is logged as a Device Config State Change (5019) event. The user's global and project policy is checked against the boundary too, also for a project with no trusted repository.
 
-- **Cost:** one prover run per approval request. The default boundary must allow the approved form for any host, or approvals of new hosts stop. An organization boundary that lists hosts then limits approvals to them, which is its purpose.
+- **Cost:** a prover run per approval request whose result isn't cached, bounded by per-VM limits, deduplication by host and a per-session rate limit. The default boundary must allow the approved form for any host, or approvals of new hosts stop. An organization boundary that lists hosts then limits approvals to them, which is its purpose.
 - **Keeps:** <Badge text="SEC09-host-policy" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" />
 
 </div>
@@ -161,7 +161,7 @@ The prover checks the proposed rule alone. A rule outside the boundary isn't sho
 
 ### B. No, the boundary binds only repository configuration
 
-Approvals stay the user's call, whatever the boundary says.
+Approvals, and the user's own global and project policy, stay the user's call, whatever the boundary says.
 
 - **Cost:** no prover run per request. T04-bad-approvals must then say that an approval can exceed an organization's boundary.
 - **Keeps:** <Badge text="SEC14-no-fake-approvals" variant="success" /> only the user approves. <Badge text="SEC09-host-policy" variant="caution" /> an organization's boundary doesn't cover approvals.
