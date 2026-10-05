@@ -17,7 +17,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 |----|-------------|--------|
 | X01-model-credential | Model credential via the proxy | Open |
 | X02-warm-start | Warm start | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04 (I16): an idle VM keeps running while the host is locked and is saved after unlock |
-| X03-network-path | Network path | Open |
+| X03-network-path | Network path | Answered 2026-10-05: yes, with conditions |
 | X04-tls-inspection | Inspection compatibility | Open |
 | X05-fs-benchmark | Filesystem benchmark | Open |
 | X06-guest-xcode | Guest users and Xcode | Open |
@@ -63,7 +63,8 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 - **X03-network-path: Network path.** A macOS guest boots on the file-handle
   attachment with the gVisor stack: gets a DHCP lease, resolves only
   allowlisted names, reaches only the proxy. Confirm no entitlement
-  beyond virtualization is needed. Measure throughput.
+  beyond virtualization is needed. Measure throughput. Answered yes,
+  with conditions, in the result page X03-network-path.
 - **X04-tls-inspection: Inspection compatibility.** Go-based, Swift-based, and Xcode
   clients accept the name-constrained CA when it is trusted only in the
   guest. List clients that pin certificates.
