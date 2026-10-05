@@ -48,6 +48,10 @@ be tested before building on them.
   and the generated packs to `git index-pack --stdin --strict`: the two
   must agree on entry boundaries and size fields, and every pack the
   scanner refuses as malformed git refuses too.
+
+  The link endpoint's targets include the link filter of
+  S07-egress-gateway and its ARP branch, with a corpus of frames from
+  0 to 65535 + 14 bytes.
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
@@ -59,7 +63,12 @@ be tested before building on them.
     ping them and a synthetic address and see that nothing answers;
     check that nothing answers the guest's ARP probes for its own
     address, and that the lease holds only the options in
-    S07-egress-gateway's list (X03-network-path);
+    S07-egress-gateway's list (X03-network-path); send a forged ARP
+    reply, a fragment, an IPv4 packet with options and a frame to
+    another destination MAC, and see each dropped with its rule;
+  - with the gateway's empty answers to `HTTPS` and `SVCB`, check that
+    the macOS resolver still connects to an allowlisted name as fast as
+    it did when they were refused (B17-network-path);
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
   - present an SNI that differs from the resolved name;
@@ -173,7 +182,9 @@ be tested before building on them.
   repository, and an incremental build on the data disk compared with
   the host; throughput of a large download through the gateway, with
   the CPU time of `wb-netd` and `wb-proxyd`, compared with the figures
-  of X03-network-path at the same MTU.
+  of X03-network-path at the same MTU. Its CPU figures cover the
+  `wb-netd` stand-in and a plain HTTP stand-in for `wb-proxyd` in one
+  process, so they are a bound on the two together, not on `wb-netd`.
 - **Platform contract tests.** Each `internal/platform` interface has
   one test suite that every OS implementation runs (S12-platforms).
 - **CI.** Go unit tests, lint, and vet run natively on macOS, Linux, and
