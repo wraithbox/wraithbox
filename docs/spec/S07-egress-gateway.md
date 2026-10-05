@@ -4,7 +4,50 @@
 network stack (`wb-netd`) and a policy-enforcing proxy (`wb-proxyd`) on
 the host.
 
-**Requirements:** FR08-no-proxy-config to FR10-learn-mode, SEC04-no-guest-secrets to SEC07-dep-gate, SEC10-audit, SEC11-root-gains-nothing, SEC13-bounded-resources, NFR06-explained-refusals.
+**Requirements:** FR08-no-proxy-config to FR10-learn-mode, SEC04-no-guest-secrets to SEC08-proj-isolation, SEC10-audit, SEC11-root-gains-nothing, SEC13-bounded-resources, NFR06-explained-refusals. Residual risk T11-shared-vm-grants.
+
+## Enforced per VM
+
+A VM has one guest MAC address and one leased IPv4 address
+("Addressing"), and every project user in it sends from them. The host
+can't tell which project user, session or program opened a
+connection, so the VM is the unit it enforces. The maintainer decided
+this on I36 (B36-flow-attribution).
+
+- **Effective policy.** A VM's effective policy is the built-in
+  profiles, the global policy, and the network policy, credential
+  bindings and dependency-gate overrides of every project that has a
+  session in the VM, merged as a union (S09-policy-credentials-audit,
+  "Precedence"), plus the approvals held for the VM ("Approvals and
+  learning"). Where projects set a limit, such as the wildcard budget,
+  the minimum age or the vulnerability threshold, the VM gets the
+  strictest value among them. `wb-hostd` recomputes the effective
+  policy when a session starts or ends, and it applies to each new
+  connection and each request after that. A project's rules and
+  bindings leave the effective policy when its last session in the VM
+  ends, so its bindings can't be reached while none of its sessions
+  run.
+- **What is per project.** The project's policy file and settings on
+  the host, its guest user and clone (S06-vm-lifecycle), and its
+  landing repository with the ref restriction per session
+  (S08-workspace-and-git). Pushes of returned work go over the
+  host-guest socket, not through this gateway.
+- **Narrowing by label.** Per-project, per-session and per-program
+  rules can only narrow the effective policy, using a label the guest
+  reports for each flow (S13-guest-confinement). The host records the
+  label as reported by the guest, and guest root can forge it
+  (T06-forged-labels). Until X14-flow-attribution delivers labels,
+  nothing narrows the effective policy.
+- **Residual risk.** Every project with a session in a VM can use the
+  grants of the others in it: their credential bindings, their write
+  grants under the git hosting profile, and their approvals
+  (T11-shared-vm-grants). A project whose grants must stay apart
+  needs a VM with no other project's sessions, which in practice is
+  the isolated VM (S06-vm-lifecycle).
+
+Where this spec counts or grants something per VM, the count or grant
+lasts for an *active period*: from the first session start in the VM
+to the end of the last session running in it.
 
 ## Packet path (`wb-netd`)
 
@@ -33,14 +76,19 @@ the host.
   - `AAAA` queries get an empty answer; other record types are refused.
   - Names not on the allowlist get `NXDOMAIN` and raise an approval
     event (FR09-approve-unknown). After approval, the next lookup succeeds.
-  - Wildcard allowlist entries are bounded: each session may resolve at
-    most a fixed number of new names under wildcards, and failed lookups
-    count against that budget, because names themselves can carry data
-    (T02-dns-names). Query rate and name length are limited.
+  - Wildcard allowlist entries are bounded: each VM may resolve at most
+    a fixed number of new names under wildcards in an active period
+    ("Enforced per VM"), and failed lookups count against that budget,
+    because names themselves can carry data (T02-dns-names). Parallel
+    sessions in the VM share the budget. Query rate and name length are
+    limited.
 - **Connections.**
   - TCP to a synthetic address on an allowed port is accepted by the
     stack and handed to `wb-proxyd` as a byte stream over a Unix socket,
-    tagged with VM, project, session, hostname, and port.
+    tagged with the VM, hostname, and port. Once X14-flow-attribution
+    delivers labels, the stream's tags also hold the label the guest
+    reported for the flow, marked untrusted (S13-guest-confinement).
+    The project and session come only from that label.
   - TCP to any other address is reset; UDP other than DNS is dropped
     (clients fall back from QUIC to TCP); ICMP is answered only for the
     gateway address. The host, the LAN, and raw IP destinations are
@@ -115,7 +163,7 @@ the host.
   placeholder the guest was given nor the binding's fixed public value
   means the guest holds a credential from somewhere else: it is a
   detection finding (S09-policy-credentials-audit) with the scheme and
-  the header or parameter name, rate-limited per session. Git LFS
+  the header or parameter name, rate-limited per VM. Git LFS
   hands the client a server-issued `Authorization` header for each
   object. An LFS clone therefore raises these findings too, and an operator
   reading the log should expect them.
@@ -175,9 +223,11 @@ the host.
   default. A host can be set to `audit` while a new rule is tried out:
   violations are then logged but allowed. Built-in profiles:
   - *git hosting*: reads allowed; `git-receive-pack` and mutating API
-    calls only for the project's repositories (derived from the host
-    repository's remotes, plus explicit additions); gists, repository
-    creation and forks denied. GraphQL mutations are denied unless the
+    calls only for the repositories of the projects with a session in
+    the VM (derived from each project's host repository remotes, plus
+    explicit additions), which every project in the VM can then write
+    to (T11-shared-vm-grants); gists, repository creation and forks
+    denied. GraphQL mutations are denied unless the
     operation name is allowlisted.
   - *model API*: the endpoints Claude Code needs, with the model
     credential binding.
@@ -279,7 +329,8 @@ the host.
   that hour can be missed, a residual the maintainer accepted on I32.
   If the publish time can't be found or a lookup fails, the
   request is refused (fail closed). Per-project overrides are explicit
-  and audited.
+  and audited, and they apply to the whole VM while the project has a
+  session in it ("Enforced per VM").
 
   *Logging.* Each filtered metadata response is an audit event with the
   package, the versions hidden and the rule `min-age` (SEC10-audit).
@@ -336,6 +387,15 @@ the host.
   result of the risk check on the rule it would add (S09-policy-credentials-audit),
   such as new reach for a credential or a new write method. Policy
   changes take effect without restarting anything.
+- **Who an approval reaches.** The host can't tell which session looked
+  up a name ("Enforced per VM"). A request names the VM and the
+  projects with a session in it, and shows a project or session the
+  guest reported only as reported by the guest. *Allow for this
+  session* holds the rule for the VM until its active period ends.
+  *Allow for this project* saves the rule to the policy of the project
+  the user picks, and it applies to the whole VM whenever that project
+  has a session in it. Either way every project with a session in the
+  VM can use it (T11-shared-vm-grants), and the request says so.
 - **What an approval grants.** On a host without a built-in profile, an
   approval grants the read methods GET, HEAD and OPTIONS. A write
   method (any other, and a GET with `Upgrade: websocket`, which opens
@@ -346,7 +406,12 @@ the host.
 - **Learn mode** (trusted projects only, FR10-learn-mode): DNS resolves any name and
   connections are inspected and allowed, while credentials stay host-side
   as usual. The session's destinations become a suggested allowlist for
-  `wb learn report`.
+  `wb learn report`. Learn mode opens the whole VM, and the host can't
+  tell whose destinations it sees. So a learn-mode session starts only
+  when no other project has a session in the VM, and while it runs, a
+  session of another project doesn't start there. `wb` refuses either
+  start with an error that names the other project
+  (NFR06-explained-refusals).
 
 ## Performance
 

@@ -119,7 +119,9 @@ layers 3 and 4.
 - **X14-flow-attribution: Guest flow attribution.** A Network Extension transparent
   proxy in a macOS guest (S13-guest-confinement): can it be approved during the
   image build without MDM? Does it see the flows of Claude Code, git,
-  Homebrew, SwiftPM, and `xcodebuild`? How do labels reach `wb-netd`
+  Homebrew, SwiftPM, and `xcodebuild`? Does each label carry the user
+  ID of the process, so the host can narrow per project
+  (T11-shared-vm-grants)? How do labels reach `wb-netd`
   (a header on each flow, or a side channel over vsock)? What happens
   to flows when guest root kills or unloads it, with System Integrity
   Protection on? Which Developer ID entitlement does it need?

@@ -15,6 +15,7 @@ trusts, and which risks it accepts rather than solves.
 | T08-homebrew-ungated | Young Homebrew bottles | Accepted |
 | T09-terminal-fingerprint | Host terminal facts in the guest | Accepted |
 | T10-unnamed-credentials | Guest credentials in unnamed places | Accepted |
+| T11-shared-vm-grants | Projects in one VM share network grants | Accepted |
 
 ## Model
 
@@ -51,7 +52,7 @@ print about returned work after `wb land` is outside it
   for example a push to an allowed repository that is public, or prompt
   content sent to the model provider.
 - **T02-dns-names: Data in DNS names.** Data encoded in DNS names under allowed wildcards, bounded by a
-  per-session lookup budget.
+  lookup budget per VM (S07-egress-gateway, "DNS").
 - **T03-hypervisor-escape: Hypervisor escape.** Escape from the hypervisor.
 - **T04-bad-approvals: Bad approvals.** A user approving a malicious request or merging a malicious
   change despite the flags.
@@ -61,8 +62,9 @@ print about returned work after `wb land` is outside it
   repositories use the isolated VM to avoid this.
 - **T06-forged-labels: Forged program labels after guest root.** After a guest root escalation, forged program identities in the
   guest confinement layer (S13-guest-confinement). Rules narrowed to named
-  programs then act as the union of the project's grants. The host
-  floor (SEC05-default-deny, SEC06-repo-writes) still holds.
+  programs or to a project then act as the union of the VM's grants
+  (T11-shared-vm-grants). The host floor (SEC05-default-deny,
+  SEC06-repo-writes) still holds.
 - **T07-ungated-sources: Dependencies from ungated sources.** The dependency gate
   (SEC07-dep-gate) covers the npm, PyPI, Go module proxy and crates.io
   hosts only. A dependency fetched from another allowed host skips the
@@ -100,3 +102,22 @@ print about returned work after `wb land` is outside it
   git hosts of SEC06-repo-writes get the git hosting profile, a
   self-hosted one with every kind's names (S07-egress-gateway,
   X22-no-guest-credentials).
+- **T11-shared-vm-grants: Projects in one VM share network grants.**
+  The host sees one guest address per VM, and can't tell which
+  project user, session or program opened a connection. So it enforces
+  network policy, credential bindings and approvals per VM, as the
+  union of those of the projects with a session in the VM
+  (S07-egress-gateway, "Enforced per VM"). Any process in the work
+  VM, without guest root, can use the credential bindings and write
+  grants of every other project that has a session there, and the
+  hosts approved for it. Per-project and per-session rules narrow
+  the union only by a label the guest reports, which guest root can
+  forge (T06-forged-labels), and until X14-flow-attribution delivers
+  labels nothing narrows it. Credentials still never enter the guest
+  (SEC04-no-guest-secrets), the floor of SEC05-default-deny holds for
+  the whole VM, and returned work still lands per project and session
+  (S08-workspace-and-git). A project's grants stay apart only while no
+  other project has a session in its VM, so such a project needs the
+  isolated VM (S06-vm-lifecycle) to itself, and under
+  NFR05-two-macos-vms one such project runs at a time. The maintainer
+  accepted this on I36.

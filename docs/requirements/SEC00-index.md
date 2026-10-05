@@ -39,14 +39,25 @@ against the adversary of T00-index.
   hostnames are reachable. No raw-IP destinations, no host or LAN access,
   no arbitrary DNS (no DNS tunneling), no UDP except DNS to the gateway.
 - **SEC06-repo-writes: Repository-scoped writes.** Git pushes and repository-mutating API
-  calls are allowed only for the project's own repositories; gists,
-  repository creation, and package publishing are denied by default.
+  calls are allowed only for the repositories of the projects that
+  have a session in the VM. The host can't tell the projects in one VM
+  apart, so it enforces this per VM, and the projects that share a VM
+  share their write grants (T11-shared-vm-grants). Gists, repository
+  creation, and package publishing are denied by default. Work
+  returned over the host-guest socket lands only in the session's own
+  branch of its project's landing repository (S08-workspace-and-git).
 - **SEC07-dep-gate: Dependency gate.** Package downloads (npm, PyPI, Go modules,
   crates) are refused when the version is younger than a minimum age or
   has a known vulnerability at or above a severity threshold.
 - **SEC08-proj-isolation: Per-project isolation.** Each project has its own guest user,
-  state and history; one project cannot persist into another. Untrusted
-  repositories can be confined to a separate VM.
+  state and history, and one project cannot persist into another. Per
+  project: the guest user with its home and clone, enforced by the
+  guest kernel (T05-cross-proj-clones), and the host-side settings,
+  policy file and landing repository. Per VM: network grants,
+  credential bindings and approvals, which every project with a
+  session in the VM can use (T11-shared-vm-grants). Untrusted
+  repositories, and a project whose grants must stay apart, can be
+  confined to a separate VM.
 - **SEC09-host-policy: Policy is held on the host.** The guest cannot read or change policy.
   Repository-supplied configuration is ignored unless the user trusts the
   repository, and can never add credentials.
