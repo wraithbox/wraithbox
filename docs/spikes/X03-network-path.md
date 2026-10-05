@@ -200,7 +200,7 @@ service process, which includes the guest's own CPUs.
 - **Lease.** NIC hand-off to the first DHCP ACK on 11 cold boots
   (runs 1 to 10 and 12): 4.69 to 5.67 s, median 4.90 s. The
   provisioning boot took 8.13 s. Run 11, with the ARP rule off, had
-  its first ACK at 4.82 s and then declined it. X02-warm-start measured the guest answering on the
+  its first ACK 4.69 s after the hand-off and then declined it. X02-warm-start measured the guest answering on the
   network 5.04 s (p50) after a cold boot.
 - **Other runs.** The probe at MTU 1500 measured 360, 348 and 367 MB/s,
   and a second boot at MTU 65535 measured 544, 571 and 577 MB/s.
