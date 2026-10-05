@@ -1,0 +1,149 @@
+---
+title: Is the data disk fast enough, and which disk settings does it use?
+description: No for npm ci, which reaches 71% of host speed with every disk setting, while git status and the Go incremental build meet the 80% target. The relaxed settings don't help, so the data disk uses the safe one, full sync.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-05: no. Awaiting decision on what to do about `npm ci`.** Source: X05-fs-benchmark (I19). Changes S06-vm-lifecycle and S11-verification-and-spikes. Feeds I44. Follow-up: I97.
+
+<Aside type="tip" title="What we learned">
+**No.** NFR02-fs-speed asks for 80% of host throughput. In a guest with 4 vCPU, `git status` on a 43,000-file repository ran at 137% of the host and the Go incremental build at 81%, but `npm ci` reached only 71%. No disk setting fixes that: the most relaxed one reaches 75%, and even a RAM disk inside the guest only 77%. The sync setting made no measurable difference to any of the three workloads, so the data disk now uses full sync, the one that keeps Claude Code state and unpushed commits through a host crash (I44). You decide what happens to the `npm ci` target. Recommended: keep it, and find the cause in the guest first (I97).
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="Bar chart of guest throughput as a share of the host. npm ci: 71% with full sync, 75% with no sync, 77% on a guest RAM disk. git status: 137%, 129%, 123%. Go incremental build: 81%, 72%, 78%. A dashed line marks the 80% target. Only npm ci stays under it in every case.">
+  <text class="note" x="20" y="20">share of host throughput, warm, 4 vCPU</text>
+
+  <line class="edge" x1="110" y1="260" x2="740" y2="260" />
+  <text class="note" x="100" y="264" text-anchor="end">0%</text>
+  <line class="boundary" x1="110" y1="103" x2="740" y2="103" />
+  <text class="note" x="100" y="107" text-anchor="end">100%</text>
+  <line class="edge-bad" x1="110" y1="134" x2="740" y2="134" />
+  <text class="note" x="100" y="138" text-anchor="end">80% target</text>
+
+  <rect class="box host" x="150" y="148" width="50" height="112" />
+  <rect class="box guest" x="210" y="142" width="50" height="118" />
+  <rect class="boundary" x="270" y="139" width="50" height="121" />
+  <text class="label" x="175" y="140" text-anchor="middle">71</text>
+  <text class="label" x="235" y="134" text-anchor="middle">75</text>
+  <text class="label" x="295" y="131" text-anchor="middle">77</text>
+  <text class="label" x="235" y="285" text-anchor="middle">npm ci</text>
+
+  <rect class="box host" x="360" y="45" width="50" height="215" />
+  <rect class="box guest" x="420" y="57" width="50" height="203" />
+  <rect class="boundary" x="480" y="67" width="50" height="193" />
+  <text class="label" x="385" y="38" text-anchor="middle">137</text>
+  <text class="label" x="445" y="50" text-anchor="middle">129</text>
+  <text class="label" x="505" y="60" text-anchor="middle">123</text>
+  <text class="label" x="445" y="285" text-anchor="middle">git status</text>
+
+  <rect class="box host" x="570" y="133" width="50" height="127" />
+  <rect class="box guest" x="630" y="147" width="50" height="113" />
+  <rect class="boundary" x="690" y="137" width="50" height="123" />
+  <text class="label" x="595" y="125" text-anchor="middle">81</text>
+  <text class="label" x="655" y="139" text-anchor="middle">72</text>
+  <text class="label" x="715" y="129" text-anchor="middle">78</text>
+  <text class="label" x="655" y="285" text-anchor="middle">Go incremental</text>
+
+  <rect class="box host" x="150" y="305" width="16" height="12" />
+  <text class="note" x="172" y="316">full sync (chosen)</text>
+  <rect class="box guest" x="330" y="305" width="16" height="12" />
+  <text class="note" x="352" y="316">no sync, host cache</text>
+  <rect class="boundary" x="520" y="305" width="16" height="12" />
+  <text class="note" x="542" y="316">guest RAM disk</text>
+</svg>
+<figcaption>
+Figure 1. Guest speed as a share of host speed (medians of five warm runs, raw data image). The relaxed setting (no sync, host cache) is not faster on these workloads than full sync, and `npm ci` falls short even on a RAM disk in the guest, where no virtual disk is involved. The time goes elsewhere in the guest. Details in X05-fs-benchmark.
+</figcaption>
+</figure>
+
+## The decision left: the `npm ci` target
+
+NFR02-fs-speed is a V1-M6-release-gate requirement. `npm ci` misses it by about 9 points, and the disk settings can't close the gap. The spec stays on full sync under every option.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Keep the target, find the cause
+
+Keep NFR02-fs-speed as written. I97 looks for where the guest loses the time (vCPU scheduling, system call cost, APFS work for 17,000 new files) and for a setting Wraith Box controls that gets it to 80%.
+
+- **Cost:** a spike before the release gate. The gate may still fail on `npm ci`.
+- **Keeps:** <Badge text="NFR02-fs-speed" variant="caution" /> as written, not yet met.
+
+</div>
+<div class="wb-option">
+
+### B. Measure the disk, not the guest
+
+Restate NFR02-fs-speed as the data disk against a RAM disk in the same guest, and report the host comparison without a target. With full sync the data disk reaches 93% of the guest's RAM disk on `npm ci`.
+
+- **Cost:** a requirement change. The guest can be slow for other reasons and the target wouldn't show it.
+- **Keeps:** <Badge text="NFR02-fs-speed" variant="caution" /> met, with a narrower meaning.
+
+</div>
+<div class="wb-option">
+
+### C. Lower the `npm ci` target
+
+Set 70% for `npm ci` and keep 80% for the other two workloads.
+
+- **Cost:** a requirement change, and 71% passes 70% with almost no margin.
+- **Keeps:** <Badge text="NFR02-fs-speed" variant="caution" /> met, at a lower bar.
+
+</div>
+</div>
+
+<Aside type="note" title="Not an option">
+**Relaxed disk settings.** The issue and B44-data-disk-durability expected them to buy speed. They don't on these workloads (75% at best for `npm ci`), and Apple's header says an image without sync "cannot safely be reused" after a host crash, which would lose what I44 decided to keep.
+</Aside>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Find the cause</th><th>B. Measure the disk</th><th>C. Lower target</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>NFR02-fs-speed</strong> at least 80% of host throughput</td><td class="partial">not yet met</td><td class="yes">met, narrower</td><td class="yes">met, at 70%</td></tr>
+<tr><td><strong>FR13-claude-state</strong> Claude Code state persists per project</td><td class="yes">full sync</td><td class="yes">full sync</td><td class="yes">full sync</td></tr>
+<tr><td><strong>NFR03-footprint</strong> disk use grows only with divergence</td><td class="yes">raw image</td><td class="yes">raw image</td><td class="yes">raw image</td></tr>
+<tr><td>Spec work</td><td class="na">I97, then maybe NFR02</td><td class="na">NFR00-index, S11</td><td class="na">NFR00-index</td></tr>
+</tbody>
+</table>
+
+No `SEC*` control changes under any option.
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Warm medians with 4 vCPU, raw image, automatic caching and full sync: `npm ci` 3.26 s against 2.33 s on the host (71%), `git status` 0.182 s against 0.250 s (137%), Go incremental build 0.542 s against 0.439 s (81%). Five guest runs per setting, 75 host runs. Source: X05-fs-benchmark, "Answer", and `results/stats.txt` on the spike branch.
+- <Badge text="verified" variant="success" /> Across 13 disk settings (every caching and sync mode on ASIF, four on raw), `npm ci` took 3.08 s to 3.60 s with no order by sync mode. On a guest RAM disk it took 3.03 s, with 8 vCPU 3.65 s. Source: X05-fs-benchmark, "Measurements".
+- <Badge text="verified" variant="success" /> The sync mode shows on flush-heavy writes: 500 appends with `fsync` took 1.50 s to 2.05 s with full sync and 0.20 s to 0.49 s with none. Source: X05-fs-benchmark, "Answer".
+- <Badge text="verified" variant="success" /> Six kills of a VM process mid-write (three modes, either the `wb-vmd` stand-in or the Virtualization service) lost no flushed write, and `fsck_apfs` found each volume clean. Source: `results/kill-*` on the spike branch.
+- <Badge text="verified" variant="success" /> A raw image gave back 1 GiB the guest deleted within 30 s, and an ASIF image kept it. Source: `results/trim-raw.txt`, `results/trim-asif.txt`.
+- <Badge text="verified" variant="success" /> With no sync, "the disk image cannot safely be reused on failure", and the `fsync` mode is "best-effort" (`VZDiskImageStorageDeviceAttachment.h`, macOS 27 SDK).
+- <Badge text="assumed" variant="caution" /> That full sync keeps flushed writes through a host power loss, as the header says. Only process kills were tested.
+- <Badge text="assumed" variant="caution" /> That the host baseline is fair. The host has FileVault and an Endpoint Security extension, and other agents' work ran during the runs. A quieter host would set a higher bar. I97 checks it.
+- <Badge text="assumed" variant="caution" /> That Claude Code doesn't flush often enough for full sync to slow it down. Not measured.
+
+## What it unblocks
+
+I44 (data disk durability) gets its disk settings from this spike: one fully synced data disk. X08-data-disk (I22) is still open for homes on a second disk. `wb-vmd` disk setup in V1-M2-walking-skeleton can use the S06-vm-lifecycle settings.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the relaxed modes don't help.** `npm ci`, `git status` and a Go build write and read a lot of files, but they rarely ask the disk to make writes permanent. The sync mode only changes what happens at that request, so it only shows on programs that make it after each write, like a database or a log that must survive a crash.
+
+**Why a process kill isn't a host crash.** When the VM's process dies, its writes are already in the host kernel's memory, and the host writes them out later. Every mode passed that test. A host crash or power loss loses whatever the host hadn't written out yet, and only full sync makes the host write out each flushed write before telling the guest it's done.
+
+**ASIF.** Apple's newer disk image format, sparse by design. The SDK header says the attachment takes raw images only, but ASIF worked. It never gave space back, so the data disk stays raw.
+
+- **Data disk:** the second virtual disk of a VM, holding project users' homes, Claude Code state and workspaces.
+- **Sync mode:** how the host handles the guest's request to make writes permanent: full honors it to the storage itself, `fsync` passes it to the drive without flushing the drive's cache, none ignores it.
+- **Caching mode:** whether the host keeps disk image data in its own memory: automatic (Virtualization decides), cached, or uncached.
+- **Warm and cold:** a warm run finds its files in memory from the run before. A cold run starts after the guest dropped its file cache.
+- **vCPU:** a virtual processor of the VM. S06-vm-lifecycle's default is 4.
+
+</details>
