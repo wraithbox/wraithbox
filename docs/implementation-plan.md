@@ -100,7 +100,7 @@ Spec gaps, contradictions and missing specs:
 |---|---|---|
 | I36 | Network flows in the shared work VM can't be attributed to a project | |
 | I37 | The host terminal stream as a boundary | I30 |
-| I38 | Port forwarding and clipboard design and threats | |
+| I38 | Port forwarding and clipboard design and threats (decided: after V1, V1-08-no-forward-clipboard) | |
 | I39 | CA name constraints and rotation versus live policy changes | |
 | I40 | Learn mode and pass mode as SEC05-default-deny exceptions | |
 | I41 | Which git data reaches the guest, and host git as a parser | |
