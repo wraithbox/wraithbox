@@ -78,6 +78,9 @@ included.
   project and rule that caused it, the VM keeps its last effective
   policy that passed, and `wb policy explain` shows the change as
   pending. The user can still apply a removal as a change of its own.
+  When a refused change narrows in part, the refusal and
+  `wb policy explain` name the narrowing part and say "apply the
+  removal on its own to revoke it now" (NFR06-explained-refusals).
 - **Open streams.** After each recompute, `wb-proxyd` checks every
   open stream of the VM against the new effective policy: a WebSocket,
   an HTTP/2 connection, a pass relay, a server-sent event stream, or a
