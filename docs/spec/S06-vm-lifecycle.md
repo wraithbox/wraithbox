@@ -56,9 +56,18 @@ in S12-platforms.
   Untrusted repositories, and projects marked shared, may share the
   isolated VM with each other, and then share their grants.
 - **Disks.** A system disk (clone of the image) and a data disk holding
-  project users' homes and workspaces. The data disk can be rebuilt from
-  host state plus git, so it may use relaxed write-through settings for
-  speed (NFR02-fs-speed).
+  project users' homes and workspaces, including Claude Code state
+  (FR13-claude-state) and commits not yet pushed. The data disk is a
+  raw sparse image file, attached with automatic host caching and full
+  synchronization (on macOS, `VZDiskImageStorageDeviceAttachment` with
+  `VZDiskImageCachingModeAutomatic` and
+  `VZDiskImageSynchronizationModeFull`), so every write the guest
+  flushes reaches permanent storage on the host. The relaxed modes are
+  not used: X05-fs-benchmark found they don't speed up the
+  NFR02-fs-speed workloads, and Apple's header says an image without
+  synchronization "cannot safely be reused" after a host crash or
+  power loss. A raw image gives the host back the space of data the
+  guest deletes, and an ASIF image does not (X05-fs-benchmark).
 - **Devices.** One virtio network device whose packet transport leads
   to `wb-netd` (on macOS a file-handle attachment; S07-egress-gateway, S12-platforms);
   one host-guest socket device (vsock); storage; entropy.

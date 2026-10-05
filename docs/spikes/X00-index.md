@@ -19,7 +19,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X02-warm-start | Warm start | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04 (I16): an idle VM keeps running while the host is locked and is saved after unlock |
 | X03-network-path | Network path | Answered 2026-10-05: yes, with conditions |
 | X04-tls-inspection | Inspection compatibility | Open |
-| X05-fs-benchmark | Filesystem benchmark | Open |
+| X05-fs-benchmark | Filesystem benchmark | Answered 2026-10-05: no. NFR02-fs-speed is not met for `npm ci` with any disk setting, and the data disk uses full sync |
 | X06-guest-xcode | Guest users and Xcode | Open |
 | X07-git-round-trip | Git round trip | Answered: yes, with conditions |
 | X08-data-disk | Data disk for homes | Open |
@@ -70,6 +70,9 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   guest. List clients that pin certificates.
 - **X05-fs-benchmark: Filesystem benchmark.** Data disk with default versus relaxed
   write-through settings, against the host, on the NFR02-fs-speed workloads.
+  Answered no in the result page X05-fs-benchmark: `npm ci` stays under
+  80% of the host with every disk setting, and the data disk uses full
+  sync.
 - **X06-guest-xcode: Guest users and Xcode.** Can builds and simulators run for a
   guest user without a GUI login? If not, Xcode sessions go to the
   isolated VM's console user.

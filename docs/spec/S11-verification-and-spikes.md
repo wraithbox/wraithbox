@@ -200,6 +200,7 @@ The open questions to answer before building on them are in X00-index.
 Each answered spike has a result page next to it, which X00-index links:
 X02-warm-start (restoring a macOS guest from saved state),
 X03-network-path (the guest network on gVisor's stack),
+X05-fs-benchmark (the data disk against the host, and its disk settings),
 X07-git-round-trip (the git transport between guest and host),
 X18-vsock-handoff (vsock and descriptor hand-off on macOS),
 X19-terminal-filter (the host terminal stream filter),
