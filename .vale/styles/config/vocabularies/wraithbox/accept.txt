@@ -33,6 +33,7 @@ LTS
 LAN
 DNS
 CI
+npm ci
 
 # write-good.TooWordy exemptions: domain vocabulary here, not padding.
 # Requirements are what the specs are made of.

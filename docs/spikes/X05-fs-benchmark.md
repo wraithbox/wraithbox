@@ -25,11 +25,21 @@ host, on the NFR02-fs-speed workloads?
   data image. The guest formatted each one, and the workloads went in as
   tar streams over SSH. The VM's only network device was the file-handle
   attachment, which allowed no names, and it had no shared directory.
+  The spike drove the guest over SSH through a host-loopback forward in
+  x05-netd (127.0.0.1:2222 to the guest's port 22), a spike-only path
+  the product doesn't have. The guest user, its password and its sudo
+  rule without a password were the spike's own, and were deleted with
+  the VM bundles.
 - **Assumed:** that a full-sync image keeps flushed writes through a
   host power loss, as Apple's header says. The spike killed the VM's
-  processes, not the host. That the host baseline is fair: the host has
-  FileVault and an Endpoint Security extension, and other agents' work
-  ran on it during the runs (see "Measurements").
+  processes, not the host. That the host baseline is fair, which can be
+  wrong in both directions. FileVault and an Endpoint Security extension
+  slow the host. Other agents' work (load average 3 to 4) may slow the
+  4-vCPU guest more than the mostly single-threaded host run: the best
+  single guest runs of `npm ci` reached 77.6% of the host median on the
+  data disk and 82.6% on the guest RAM disk. A quiet host could put the
+  guest above 80%. The "no" holds for the conditions measured, and I97
+  measures again on a quiet host (see "Measurements").
 - **Open decisions:**
   1. What to do about `npm ci` at 71% of host throughput, below the 80%
      of NFR02-fs-speed with every disk setting. Recommended: keep
@@ -72,15 +82,17 @@ The answer is the same for every disk setting:
 2. **`npm ci` stays under the target even without a virtual disk.** On an APFS
    volume on a guest RAM disk it took 3.03 s, 77% of the host. The
    virtual disk costs 8% on top of that with the chosen setting. With 8
-   vCPU it was slower (3.65 s), so the vCPU count isn't the cause
-   either. Why the guest creates 17,000 files more slowly than the host
-   is open (I97).
+   vCPU it was slower on this loaded host (3.65 s). Why the guest
+   creates 17,000 files more slowly than the host, and whether the
+   vCPU count plays a part, is open (I97).
 3. **ASIF and raw perform alike** (`npm ci` 3.46 s and 3.26 s with
    automatic caching and full sync). But a raw image gives space back to
    the host when the guest deletes data, and an ASIF image doesn't: 1
    GiB written and deleted in the guest left the ASIF image 1 GiB larger,
    and the raw image back where it started within 30 s. Over the
-   benchmark, the 16 GB ASIF image grew to 11.7 GB on the host. That
+   benchmark, the 16 GB ASIF image grew to 11.7 GB on the host
+   (observed with `ls -s` before it was deleted, not kept in the
+   results). That
    makes raw the choice for NFR03-footprint.
 
 **Killing the VM mid-write lost nothing that the guest had flushed**, in
@@ -125,7 +137,9 @@ and five times cold, after `purge` in the guest, which drops the guest's file ca
 (and with it the toolchain on the system disk). The host can't run
 `purge` without a password, so it has no cold runs. The host ran the
 workloads after each guest setting, with no VM running: 75 runs per
-workload. Medians, warm:
+workload, 15 for the clean Go build, which runs once per set. The ASIF
+automatic/full row has 10 warm runs: the probe boot before the matrix
+has the same label and `stats.py` counts both. Medians, warm:
 
 | Setting | `npm ci` | `git status` | Go incremental | Go clean | 500 × `fsync` |
 |---|---|---|---|---|---|
@@ -148,8 +162,12 @@ Cold, with the chosen setting, the guest took 4.51 s for `npm ci`,
 0.579 s for `git status` and 2.05 s for the Go build. The host has no
 cold number to compare them with.
 
-- **The host baseline spreads, and may be slow.** The host's 75
-  `npm ci` runs spread from 2.29 s to 2.60 s. FileVault and the Endpoint
+- **The host baseline can be off in both directions.** The host's 75
+  `npm ci` runs spread from 2.29 s to 2.60 s, and the guest's from 2.99
+  s to 4.94 s. Load from other agents may slow the 4-vCPU guest more
+  than the mostly single-threaded host run, so a quiet host could raise
+  the guest's share (best single runs: 77.6% on the data disk, 82.6% on
+  the RAM disk). FileVault and the Endpoint
   Security extension add work to every file operation on the host and
   none in the guest, whose data volume isn't encrypted. That may be why
   `git status` is faster in the guest. A host without them would set a
