@@ -5,7 +5,7 @@ description: Yes, with conditions. All are Apache-2.0 at OpenShell v0.1.2, but W
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-05: yes, with conditions. Awaiting decision on which rules go to the prover and where the risk check comes from.** Source: I35, X24-openshell-artifacts. Changes S07-egress-gateway, S09-policy-credentials-audit, S10-tech-stack and S13-guest-confinement.
+**Answered 2026-10-05: yes, with conditions. Awaiting decision on which rules go to the prover, where the risk check comes from, and whether approvals are bound by the boundary.** Source: I35, X24-openshell-artifacts. Changes S04-architecture, S07-egress-gateway, S08-workspace-and-git, S09-policy-credentials-audit, S10-tech-stack and S13-guest-confinement.
 
 <Aside type="tip" title="What we learned">
 Yes, with conditions. The policy schema, the prover, the middleware API, the OCSF classes and the agent-safehouse profiles all exist under Apache-2.0, pinned to commits. Merging accepts these conditions, now in the specs:
@@ -13,8 +13,11 @@ Yes, with conditions. The policy schema, the prover, the middleware API, the OCS
 - OpenShell refuses a policy file with unknown keys, so Wraith Box writes a copy without its own keys before it calls the prover.
 - The boundary check passes only on `within_boundary`. "Unsupported" refuses, and the prover says that for GraphQL rules.
 - OpenShell's approval risk check is a Rust library inside OpenShell, not a program Wraith Box can run.
+- The prover parses repository bytes, so it runs confined as `wb-prover`, from a re-signed binary whose hash is checked first.
+- On a Windows host the boundary check fails closed, because v0.1.2 has no Windows prover build.
+- OpenShell's check for a credential reached outside HTTP inspection never fires for a `/**` rule, so Wraith Box defines that check its own way: a host with a credential binding put into pass mode or given an L4-only endpoint.
 
-Decision 1, **which rules go to the prover**: recommended A, leave out the built-in profiles. Decision 2, **where the risk check comes from**: recommended A, write it in Go.
+Decision 1, **which rules go to the prover**: recommended A, leave out the built-in profiles. Decision 2, **where the risk check comes from**: recommended A, write it in Go. Decision 3, **whether approvals are bound by the boundary**: recommended A, yes.
 </Aside>
 
 ## The picture
@@ -63,6 +66,11 @@ Figure 1. Where Wraith Box uses OpenShell's parts. The user's policy file holds 
 ## Decision 1: which rules go to the prover at `wb trust`
 
 The prover answers `unsupported` for rules it can't model: GraphQL, WebSocket, and hosts in `audit` mode. The built-in git hosting profile has GraphQL rules, so if the whole merged policy goes to the prover, `wb trust` refuses each project that has a remote on a git host. Until you decide, the spec does that, which is safe but leaves trusted repositories unusable for those projects.
+
+Before option A is relied on, two conditions hold:
+
+- **Merge rules, now in S09-policy-credentials-audit.** Network rules merge as a union keyed by source and rule name. A user or repository rule with a built-in rule's name is a load error, built-in denies apply whatever the source, and user or repository policy can't change a built-in host's kind, mode or rules. Without these, a repository rule named like a built-in could replace it and drop its denies, and leaving built-ins out of the check would hide that.
+- **Prover cases to test.** The spike didn't run the prover on `deny_rules` on both sides, or on a wildcard host against an exact one. Both appear in real policies and must be tested before the check is trusted on them.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
@@ -128,8 +136,35 @@ A small program built from OpenShell's crate, shipped next to the prover.
 
 Ask upstream for a `risk` command and use it when it ships.
 
-- **Cost:** no date. Until then every approval fails closed, so FR09-approve-unknown doesn't work.
+- **Cost:** no date. Until then every approval fails closed, so FR09-approve-unknown doesn't work. Once it ships, it still has none of Wraith Box's own checks, and its `l7_bypass_credentialed` still never fires for a `/**` rule.
 - **Keeps:** <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+</div>
+
+## Decision 3: are approvals bound by the boundary?
+
+The boundary limits what a trusted repository adds. The spec didn't check approvals against it, so a request the guest triggers and the user accepts could add a rule an organization's boundary forbids. An approved rule has a fixed form (one exact host, `rest`, `enforce`, read-only access), which the prover models. A rule that only allows can be checked alone. If it's inside the boundary, adding it keeps a policy that is inside the boundary inside it. That check doesn't depend on decision 1. Until you decide, the spec applies option A.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Yes, refuse a request outside the boundary
+
+The prover checks the proposed rule alone. A rule outside the boundary isn't shown as a request, and the refusal is logged as a Device Config State Change (5019) event.
+
+- **Cost:** one prover run per approval request. The default boundary must allow the approved form for any host, or approvals of new hosts stop. An organization boundary that lists hosts then limits approvals to them, which is its purpose.
+- **Keeps:** <Badge text="SEC09-host-policy" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. No, the boundary binds only repository configuration
+
+Approvals stay the user's call, whatever the boundary says.
+
+- **Cost:** no prover run per request. T04-bad-approvals must then say that an approval can exceed an organization's boundary.
+- **Keeps:** <Badge text="SEC14-no-fake-approvals" variant="success" /> only the user approves. <Badge text="SEC09-host-policy" variant="caution" /> an organization's boundary doesn't cover approvals.
 
 </div>
 </div>
@@ -158,6 +193,17 @@ Ask upstream for a `risk` command and use it when it ships.
 </tbody>
 </table>
 
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>3A. Bound</th><th>3B. Not bound</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC09-host-policy</strong> an organization's boundary limits the project</td><td class="yes">approvals too</td><td class="partial">repository config only</td></tr>
+<tr><td><strong>FR09-approve-unknown</strong> approve an unknown destination</td><td class="partial">inside the boundary</td><td class="yes">any host</td></tr>
+<tr><td><strong>T04-bad-approvals</strong> a user approves a malicious request</td><td class="yes">capped by the boundary</td><td class="partial">update needed</td></tr>
+</tbody>
+</table>
+
 ## Evidence
 
 - <Badge text="verified" variant="success" /> OpenShell refuses unknown keys at every level of a policy (`crates/openshell-policy-schema/src/lib.rs` at v0.1.2). The prover refused the sample file with `unknown field 'wraithbox'`, exit 2, and accepted it without that key.
@@ -169,13 +215,17 @@ Ask upstream for a `risk` command and use it when it ships.
 - <Badge text="verified" variant="success" /> Go code generated from `supervisor_middleware.proto` with `buf` works called as a method and over gRPC (spike output).
 - <Badge text="verified" variant="success" /> OCSF 1.8.0 defines classes 4001, 4002, 5019 and 2004, which OpenShell emits.
 - <Badge text="verified" variant="success" /> agent-safehouse v0.12.0 is Apache-2.0, with `(deny default)` profiles applied by `sandbox-exec`.
-- <Badge text="assumed" variant="caution" /> That OpenShell keeps the prover's JSON result and the `v1` middleware package compatible within a minor release (RFC 0014, in review). Not run: the risk check, and the safehouse profiles in a guest.
+- <Badge text="verified" variant="success" /> OpenShell's `read-only` access preset expands to GET, HEAD and OPTIONS for `rest` (`expand_access_preset`), the methods an approval grants.
+- <Badge text="verified" variant="success" /> On Windows, OpenShell's host proxy matches every connection against one static agent identity, because MXC doesn't expose socket owners (RFC 0013).
+- <Badge text="inferred" variant="note" /> A rule that only allows, checked alone inside the boundary, keeps a policy inside the boundary when added. This follows from containment and wasn't run.
+- <Badge text="assumed" variant="caution" /> That OpenShell keeps the prover's JSON result and the `v1` middleware package compatible within a minor release (RFC 0014, in review). Not run: the risk check, `HttpResponsePreReturn`, the prover on `deny_rules` and on a wildcard host against an exact one, and the safehouse profiles in a guest.
 
 ## What this unblocks
 
 - The policy parser and the boundary check in `wb-hostd`, to the S09-policy-credentials-audit rules.
 - The dependency gate's interface in `wb-proxyd` (S07-egress-gateway).
-- The approval risk check, once decision 2 is made.
+- The approval risk check, once decisions 2 and 3 are made.
+- The boundary check for trusted repositories, once decision 1 is made and its two conditions hold.
 - Part of the exit criterion of V1-M1-spikes-closed.
 
 <details>

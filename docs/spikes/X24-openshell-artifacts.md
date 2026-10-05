@@ -9,40 +9,67 @@ permissive license, at a version that can be pinned?
 
 ## For review
 
-- **Decides:** the pins for the policy schema, the prover binary, the
-  middleware API, OCSF, and the Seatbelt profiles. It also decides how
-  Wraith Box hands policy to OpenShell's tooling, and what a boundary
-  check result has to say before a policy is accepted.
+- **Decides:**
+  - the pins for the policy schema, the prover binary, the middleware
+    API, OCSF, and the Seatbelt profiles;
+  - how Wraith Box hands policy to OpenShell's prover: a new document
+    with only OpenShell's keys, written at least as wide as what
+    `wb-proxyd` enforces, with the extension keys compared by
+    Wraith Box's own check;
+  - how the prover runs: as `wb-prover` through `wb-launcher`,
+    confined, capped, from a re-signed binary whose hash is checked
+    before each run;
+  - what a boundary check result has to say before a policy is
+    accepted;
+  - that the boundary check fails closed on a Windows host, because
+    v0.1.2 has no Windows prover build;
+  - what `l7_bypass_credentialed` means in Wraith Box: a host with a
+    credential binding put into pass mode or given an L4-only endpoint.
+    OpenShell's version never fires for a `/**` rule.
 - **You are approving:** the changes to S09-policy-credentials-audit
-  ("Network policy schema", "Program narrowing", "Boundary check",
-  "Approvals", "Audit"), S07-egress-gateway ("Dependency gate", one line
-  in "Approvals and learning"), S10-tech-stack (the OpenShell rows) and
+  ("Network policy schema", "Program narrowing", "Repository-supplied
+  configuration", "Boundary check", "Precedence", "Approvals", "Audit"),
+  S07-egress-gateway ("Dependency gate", one line in "Approvals and
+  learning"), S10-tech-stack (the OpenShell rows), S04-architecture (a
+  `wb-prover` row), S08-workspace-and-git (`.wraithbox/` is flagged) and
   S13-guest-confinement ("Source"). Every part exists under Apache-2.0
   at OpenShell v0.1.2, with two gaps. A policy file with Wraith Box's
   extension keys isn't a valid OpenShell policy. The proposal risk
   check isn't in the prover binary.
 - **Controls touched:** SEC09-host-policy is kept: the boundary check
-  accepts only `within_boundary` with network coverage, and every other
-  result refuses. SEC14-no-fake-approvals is kept: a request whose risk
-  check fails can't be approved. SEC10-audit: the OCSF classes are now
-  named by number. SEC05-default-deny and SEC07-dep-gate are unchanged.
+  accepts only `within_boundary` with network coverage, every other
+  result refuses, repository policy is read only from the checked-out
+  `HEAD`, and the built-in rules can't be replaced.
+  SEC12-least-privilege and SEC13-bounded-resources: the prover runs
+  confined and capped, and metadata decoding is capped.
+  SEC14-no-fake-approvals is kept: a request whose risk check or
+  boundary check fails can't be approved. SEC05-default-deny:
+  `allowed_ips` is refused. SEC10-audit: the OCSF classes are named by
+  number. SEC07-dep-gate is unchanged.
 - **Assumed:** that OpenShell keeps the prover's JSON result
   (`schema_version` 1) and the `openshell.middleware.v1` package
   compatible within a minor release, as RFC 0014 (in review upstream)
-  says for `v1` packages. Not run: the proposal risk check, and the
-  Seatbelt profiles inside a guest.
+  says for `v1` packages. Not run: the proposal risk check, the
+  `HttpResponsePreReturn` messages, the prover on `deny_rules` and on a
+  wildcard host against an exact one, and the Seatbelt profiles inside
+  a guest.
 - **Open decisions:** each has a recommendation in
   B35-openshell-artifacts.
   1. Which rules go to the prover at `wb trust`. The prover answers
      `unsupported` for GraphQL rules, and the git hosting profile has
-     them, so each project with a remote on a git host would be refused. Recommended:
-     send the user's and the repository's rules, and leave out the
-     built-in profiles, which ship with Wraith Box and get their own
-     tests.
+     them, so each project with a remote on a git host would be
+     refused. Recommended: send the user's and the repository's rules,
+     and leave out the built-in profiles, which ship with Wraith Box
+     and get their own tests. It depends on the merge rules now in S09
+     and on prover tests of `deny_rules` and wildcard hosts.
   2. Where the approval risk check comes from. Recommended: Go code in
-     `wb-hostd` that follows OpenShell's four categories, because
-     OpenShell's check is a Rust library API, not a program, and
-     S07-egress-gateway already asks for checks OpenShell doesn't have.
+     `wb-hostd` that uses OpenShell's four category names. OpenShell's
+     check is a Rust library API, and S07-egress-gateway asks for
+     checks OpenShell doesn't have.
+  3. Whether approvals are bound by the boundary. Recommended: yes. The
+     check refuses to show a request whose rule is outside the
+     boundary, and logs a 5019 event. Until it is decided, the spec
+     does that.
 - **Brief:** B35-openshell-artifacts
 
 ## Question
@@ -74,15 +101,20 @@ profiles.
 The conditions, now in the specs:
 
 1. Wraith Box writes a new document with only `version` and
-   `network_policies` before it calls OpenShell's tooling.
+   `network_policies` before it calls OpenShell's tooling. A pass-mode
+   host goes in as an L4 endpoint with no rules, and Wraith Box's own
+   check compares the extension keys with the boundary.
 2. The pin is an OpenShell release, not "schema version 1", because
    OpenShell adds fields without changing the version. OpenShell keys
-   that Wraith Box doesn't implement are refused at load.
+   that Wraith Box doesn't implement, `allowed_ips` among them, are
+   refused at load, and strings are ASCII with no control bytes.
 3. The boundary check accepts only `within_boundary` with
    `network_l4` and `network_rest` in its coverage. `unsupported`,
-   `inconclusive` and errors refuse.
-4. The approval risk check is Wraith Box's own (open decision 2).
-5. The gate calls the generated Go interface as a method, and the
+   `inconclusive`, errors, and a killed prover refuse.
+4. The prover runs as `wb-prover`, confined to the two documents with
+   no network, from a re-signed binary whose hash is checked first.
+5. The approval risk check is Wraith Box's own (open decision 2).
+6. The gate calls the generated Go interface as a method, and the
    proto files keep OpenShell's lint exceptions.
 
 ## Measurements
@@ -115,8 +147,8 @@ exit=2
 
 The same file without that key: `within_boundary`, exit 0.
 
-The schema has more than S09-policy-credentials-audit lists: endpoint
-fields for credential rewriting (`credential_binding`,
+Besides the fields S09-policy-credentials-audit lists, the schema has
+endpoint fields for credential rewriting (`credential_binding`,
 `request_body_credential_rewrite`, `websocket_credential_rewrite`),
 `allowed_ips`, `deny_rules`, GraphQL persisted queries, JSON-RPC and
 MCP. A `binaries` entry has only `path`. The SHA-256 pin is applied at
@@ -127,7 +159,7 @@ runtime, not written in policy.
 The v0.1.2 release has `openshell-prover-aarch64-apple-darwin.tar.gz`
 and Linux musl archives for x86-64 and arm64, with
 `openshell-prover-checksums-sha256.txt`. The release has no Windows archive.
-For the macOS archive:
+For the macOS archive, the only one whose hash this spike recorded:
 
 - SHA-256
   `77f624498e1110abd0da26e926a71c834b5e58f8baa5a33252d59d7ab4629a53`,
@@ -190,9 +222,12 @@ false, `binary_allowed` holds for every program, so `binaries` doesn't
 narrow. RFC 0012 says each isolation backend must resolve binary
 identity, with no exempt mode. S09-policy-credentials-audit said
 OpenShell evaluates rules without binary identity "for its Windows
-driver". The pinned source doesn't show that. The MXC driver RFC (0013)
-hands `network_policies` to a host proxy that keeps per-binary scope.
-The spec now names the switch instead.
+driver". The source does something narrower. MXC doesn't expose
+which process owns a socket. The Windows host proxy in RFC 0013
+therefore evaluates each connection against one static agent identity derived
+from the configured `agent_command`. `binaries` then matches that one
+identity, not the program that opened the connection. The spec now
+names the switch instead of the Windows driver.
 
 ### Proposal risk check
 
@@ -205,7 +240,7 @@ SDK, and calls the risk queries "legacy" until a managed-policy
 migration. A Rust driver that links the crate wasn't built, so this
 part comes from reading the source.
 
-The four categories, from `queries.rs`:
+Its categories, from `queries.rs`:
 
 | Category | Fires when |
 |---|---|
@@ -218,37 +253,50 @@ Credentials come from a separate YAML file of names, scopes and target
 hosts. Programs come from a registry of nine descriptors (`claude`,
 `curl`, `gh`, `git`, `nc`, `node`, `python3`, `ssh`, `wget`). A path
 not in the registry, `/**` included, gets the "unknown binary"
-descriptor (`registry.rs`, `get_or_unknown`): it can exfiltrate and
-build HTTP requests, and has no protocols, so it never bypasses L7. For
-Wraith Box's `/**` rules, `l7_bypass_credentialed` therefore never
-fires, even though `/**` covers `ssh` and `nc`.
+descriptor (`registry.rs`, `get_or_unknown`). That descriptor may
+exfiltrate data and build HTTP requests, but lists no protocols, so it
+never counts as bypassing L7. For Wraith Box's `/**` rules,
+`l7_bypass_credentialed` never fires, even though `/**` covers `ssh`
+and `nc`.
 
 Traced through the source by hand, not run, for one rule: adding
 `POST /repos/example/project/pulls` on `api.github.com`, with a GitHub
 credential bound and a baseline that only reads, would give one
-`capability_expansion` path for `/**` with method `POST`, because the
-reach existed and the method is new. Adding a first rule for
+`capability_expansion` path for `/**` with method `POST`, because
+`/**` could already reach the host with the credential and the method
+is new. Adding a first rule for
 `api.github.com` would give `credential_reach_expansion`, and
 `finding_delta` would drop the per-method paths. A rule for
 `169.254.169.254` would give `link_local_reach`.
 
-S07-egress-gateway and S09-policy-credentials-audit ask the risk check
-for more than these four (X22-no-guest-credentials adds shared
-object-storage hosts and signature parameters on a write method), and
-for new write methods on hosts without a credential, which
-`capability_expansion` doesn't cover.
+S07-egress-gateway asks the risk check for more than these four, and
+S09-policy-credentials-audit now maps each check to an OpenShell
+category or marks it Wraith Box only:
+
+- a first write method on a host without a credential, which
+  `capability_expansion` doesn't cover;
+- shared object-storage hosts and signature parameters on a write
+  method (X22-no-guest-credentials);
+- a host that mirrors a gated registry, the condition on which
+  T07-ungated-sources was accepted (X21-dep-gate-registries).
+
+In Wraith Box no program that doesn't speak HTTP gets a credential,
+because `wb-proxyd` injects credentials only into inspected HTTP. So
+S09-policy-credentials-audit gives `l7_bypass_credentialed` a Wraith
+Box meaning: a host with a credential binding put into pass mode, or
+given an L4-only endpoint.
 
 ### Middleware API
 
 `proto/supervisor_middleware.proto` (720 lines, package
 `openshell.middleware.v1`) imports `extension.proto` and two
-well-known types. It sets no `go_package`. It defines
+well-known types. It doesn't set `go_package`. It defines
 `SupervisorMiddleware` (`Describe`, `ValidateConfig`,
 `EvaluateHttpRequest`, `EvaluateWebSocketSession`) and
 `HttpResponsePreReturn` (`Evaluate`, a stream over response preflight,
 body units and trailers). RFC 0009 is `accepted`. It describes built-in
 middleware that runs in process and operator-run services reached over
-gRPC. Its text calls response inspection future work, while the proto
+gRPC. Its text leaves response inspection for later, while the proto
 and the operations documentation at v0.1.2 already have
 `HTTP_RESPONSE/PRE_RETURN`.
 
@@ -268,12 +316,14 @@ grpc       /left-pad/-/left-pad-9.9.9.tgz -> DECISION_DENY dependency_too_young 
 Describe (not implemented) err=rpc error: code = Unimplemented desc = method Describe not implemented
 ```
 
-The interface fits use inside `wb-proxyd`. Two limits in OpenShell's
-documentation are limits of OpenShell's proxy as the caller, not of the
-API: it offers no body inspection of compressed responses, or of
-responses with `Cache-Control: no-transform`, and it doesn't relay a
-middleware's free-form `reason` to the client (it may relay
-`reason_code`). When `wb-proxyd` is the caller, neither applies.
+The interface fits use inside `wb-proxyd`. OpenShell's documentation
+has limits that belong to OpenShell's proxy as the caller, not to the
+API. That proxy doesn't offer a middleware the body of a compressed
+response, or of one with `Cache-Control: no-transform`. It also doesn't
+relay a middleware's free-form `reason` to the client, though it may
+relay `reason_code`. When `wb-proxyd` is the caller, neither applies.
+The spike called `EvaluateHttpRequest` only, so the
+`HttpResponsePreReturn` messages weren't exercised.
 
 RFC 0014 (state `review`) makes a `v1` protobuf package Stable:
 backward compatible across patch releases, breaking only in a minor
@@ -307,16 +357,23 @@ directory.
 
 ## What it means for the specs
 
-- S09-policy-credentials-audit: the pin, closed keys, refusing keys
-  Wraith Box doesn't implement, the document handed to OpenShell's
-  tooling, the `require_binary_identity` correction, the prover's
-  reading of `/**`, the boundary check's acceptance rule and its
-  rules it can't model, the risk check's source, and the OCSF class numbers.
+- S09-policy-credentials-audit: the pin; closed, implemented and
+  refused keys; string rules; the document handed to the prover and its
+  width; the `require_binary_identity` correction; the prover's reading
+  of `/**`; which commit repository policy comes from; how the prover
+  runs and which binary; the boundary check's acceptance rule and the
+  rules it can't model; the merge rules; the approved rule's form; the
+  risk checks and their names; the boundary on approvals; and the OCSF
+  class numbers.
 - S07-egress-gateway: the gate calls the generated interface in
-  process, and isn't bound by OpenShell's caller limits. The approval
-  line says "the risk check", not "the prover's".
-- S10-tech-stack: pins, checksums, attestation, the missing Windows
-  build, a row for the risk check, the proto files' lint exceptions.
+  process, isn't bound by OpenShell's caller limits, and decodes
+  metadata under caps. The approval line says "the risk check", not
+  "the prover's".
+- S10-tech-stack: pins, checksums, attestation, re-signing, the
+  missing Windows build, a row for the risk check, the proto files'
+  lint exceptions.
+- S04-architecture: a `wb-prover` row in the process table.
+- S08-workspace-and-git: `.wraithbox/` changes are flagged.
 - S13-guest-confinement: the safehouse pin and how its profiles are
   reused.
 
@@ -328,6 +385,9 @@ directory.
   S13-guest-confinement has to.
 - The Linux prover archives weren't downloaded or run.
 - A boundary policy for Wraith Box's default profiles wasn't written.
+- The prover wasn't run on `deny_rules`, on a wildcard host against an
+  exact one, or on a narrower boundary that lists more than one port.
+- `HttpResponsePreReturn` wasn't exercised, only `EvaluateHttpRequest`.
 
 Spike code:
 [`fde7a3c`](https://github.com/wraithbox/wraithbox/tree/fde7a3cf2d968f309611575eb53c22511dfebc1f/spikes/x24-openshell-artifacts).

@@ -311,12 +311,22 @@ the host.
     OpenShell v0.1.2, S10-tech-stack), and `wb-proxyd` calls it as a Go
     method, with no listener and no gRPC hop (X24-openshell-artifacts).
     Download checks use `EvaluateHttpRequest`. The metadata filter uses
-    the messages of the `HttpResponsePreReturn` service.
+    the messages of the `HttpResponsePreReturn` service, which the spike
+    didn't exercise. An error returned by a gate method is a refusal.
   - *Not bound by OpenShell's proxy.* OpenShell's own proxy doesn't
     offer a middleware the body of a compressed response, and doesn't
     pass a middleware's free-form deny reason to the client. Those
-    limits belong to OpenShell's caller, not the API. `wb-proxyd` is the caller here, so it decodes
-    metadata before filtering and writes its own refusal message.
+    limits belong to OpenShell's caller, not the API. `wb-proxyd` is
+    the caller here, so it writes its own refusal message, and decodes
+    metadata before filtering under these rules
+    (SEC13-bounded-resources):
+    - It sets `Accept-Encoding` on the upstream request itself, to the
+      encodings it decodes.
+    - It caps the decoded size and the ratio of decoded to received
+      bytes. A response past either cap is refused with a 403 that
+      names the rule (NFR06-explained-refusals).
+    - It assembles the whole body before filtering, and spools a body
+      past its memory limit to disk, within the size cap.
 
 ## Approvals and learning
 

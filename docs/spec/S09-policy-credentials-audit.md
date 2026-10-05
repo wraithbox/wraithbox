@@ -33,12 +33,32 @@ inspection is trusted, and what is recorded.
     extensions in the same file. When it hands policy to OpenShell's
     tooling, it writes a new document with only `version` and
     `network_policies`, never the user's file.
-  - *Unimplemented keys.* An OpenShell key that Wraith Box doesn't
-    implement is refused at load with an error that names it
-    (NFR06-explained-refusals), never ignored, so no rule is weaker
-    than written. Examples are the other top-level keys
-    (`filesystem_policy`, `network_middlewares`) and endpoint fields
-    such as `credential_binding` and `mcp`.
+  - *Implemented keys.* Per endpoint, Wraith Box implements `host`,
+    `port` or `ports`, `path`, `protocol`, `enforcement`, `access`,
+    `rules` and `deny_rules`. The built-in profiles need `deny_rules`
+    for denies such as the git hosting profile's archive deny. The
+    prover's handling of `deny_rules` wasn't tested
+    (X24-openshell-artifacts), and is tested before the boundary check
+    relies on it.
+  - *Refused keys.* Any other OpenShell key is refused at load with an
+    error that names it (NFR06-explained-refusals), never ignored, so
+    no rule is weaker than written. Examples are the other top-level
+    keys (`filesystem_policy`, `network_middlewares`) and the endpoint
+    fields `credential_binding`, `mcp` and `allowed_ips`. `allowed_ips`
+    would allow destinations by raw IP address (SEC05-default-deny).
+  - *Strings.* Every rule name, host, path and method must be ASCII,
+    with no control bytes, and within a length cap fixed in code, or
+    the file is refused at load. The prover models ASCII values only,
+    and its output repeats these strings (X24-openshell-artifacts).
+  - *What the prover sees.* The document Wraith Box writes for the
+    prover allows at least what `wb-proxyd` enforces, never less. A
+    host in pass mode is written as an L4 endpoint with no `protocol`
+    and no rules, whatever rules the file gives it, so the boundary
+    must allow L4 to that host. The prover can't see the extension
+    keys, so Wraith Box's own Go check compares them with the
+    boundary's extension part: each pass host must be a pass host in
+    the boundary, dependency-gate thresholds can't be looser, and the
+    wildcard budget can't be larger.
 - **Program narrowing.** `binaries` entries match the program label
   from the guest (S13-guest-confinement). Until spike X14-flow-attribution has delivered labels,
   `binaries` does not narrow a rule. OpenShell's policy engine has the
@@ -60,6 +80,15 @@ inspection is trusted, and what is recorded.
   allowed hosts, a toolchain manifest and HTTP rules, and every addition
   is shown in `wb policy explain`. It can never add credential bindings
   or switch hosts to pass-through (SEC09-host-policy).
+  - *Closed keys.* It is parsed against a closed list of those keys, and
+    any other key is a load error.
+  - *Which commit.* It is read only from the host repository's
+    checked-out `HEAD`, never from the landing, quarantine or export
+    repository (S08-workspace-and-git), so the guest can't change it by
+    pushing. Returned work that changes `.wraithbox/` is flagged
+    (S08-workspace-and-git). The guest can still propose such a change,
+    so the parser has a fuzz target (S11-verification-and-spikes,
+    network policy YAML).
 - **Boundary check.** At `wb trust` and whenever a trusted repository's
   policy changes, the merged project policy is checked against a
   boundary policy (the most a project may ever be allowed) with
@@ -72,6 +101,23 @@ inspection is trusted, and what is recorded.
   refuses the policy too, with the prover's `reason_code` and reason
   shown and logged. The default boundary ships with Wraith Box,
   and an organization may supply its own.
+  - *How the prover runs.* The prover parses repository bytes, so it
+    doesn't run with `wb-hostd`'s access. `wb-hostd` writes the
+    candidate and the boundary to two temporary documents and starts
+    `wb-prover` through `wb-launcher` (S04-architecture). `wb-prover`
+    confines itself to reading those two documents, with no network,
+    and runs the prover with fixed arguments. `wb-hostd` caps its
+    memory and kills it past a wall-clock limit. A kill or any non-zero
+    exit refuses the policy (SEC12-least-privilege,
+    SEC13-bounded-resources).
+  - *Which binary.* The prover comes from the installed bundle,
+    re-signed with Wraith Box's signing identity at release. Before it
+    runs the prover, `wb-prover` checks the binary's SHA-256 against the
+    value pinned at release. A mismatch refuses the policy and is a
+    Detection Finding (2004) event. The release checks OpenShell's
+    build attestation, not the run (S10-tech-stack).
+  - *Output.* `wb trust` shows the prover's reason and counterexample
+    stripped of control and escape sequences, as approval text is.
   - *What the prover models.* At v0.1.2 it compares hosts, ports and
     programs, and method and path rules on `protocol: rest` endpoints
     in `enforce` mode. It answers `unsupported` for GraphQL and
@@ -86,6 +132,12 @@ inspection is trusted, and what is recorded.
 - **Precedence.** Built-in defaults → global → project → trusted repo
   config → session approvals. `wb policy explain` shows the effective
   value and its source.
+  - *Network rules merge as a union.* Rules are keyed by source and
+    rule name, so a later source adds rules and never replaces one. A
+    rule in user or repository policy with the name of a built-in
+    profile's rule is a load error. Built-in denies apply whatever the
+    source of the allow. User and repository policy can't change a
+    built-in host's kind, mode or rules.
 
 ## Credentials
 
@@ -138,25 +190,52 @@ inspection is trusted, and what is recorded.
 ## Approvals (SEC14-no-fake-approvals)
 
 Before an approval request is shown, the rule it would add goes
-through a risk check (new reach for a credential,
-new write methods, metadata addresses, shared object-storage hosts and
-wildcards over them, signature parameters on a write method,
-S07-egress-gateway). Findings are part of the request. Only the user approves a request.
+through a risk check, which compares the policy with and without the
+rule and reports what the rule adds. Findings are part of the request.
+Only the user approves a request.
 
-The risk check compares the policy with and without the proposed rule
-and reports what the rule adds. OpenShell's proposal risk check is the
-model for its first four checks, with the same category names:
-`link_local_reach`, `credential_reach_expansion`,
-`capability_expansion` and `l7_bypass_credentialed`. OpenShell's check
-can't be run as it is. It is a Rust library API that OpenShell's gateway
-calls, isn't in the standalone `openshell-prover` binary, and has none
-of the checks after the first four (X24-openshell-artifacts). It also
-reads `/**` as a single unknown program that speaks HTTP, so it never
-reports `l7_bypass_credentialed` for a `/**` rule. Wraith Box's check
-treats `/**` as covering programs that don't speak HTTP too. Where the
-check runs and in which language is open (B35-openshell-artifacts). A
-request whose risk check fails or can't run can't be approved: the
-destination stays denied, and the failure is logged.
+- **Approved rule.** An approval adds one rule of a fixed form: one
+  exact host with no wildcard, `protocol: rest`, `enforcement: enforce`,
+  `access: read-only` (GET, HEAD and OPTIONS) and `binaries: /**`. A
+  write method needs a separate request (S07-egress-gateway).
+- **Checks.** Each check reports under a name. The first four take
+  their names from OpenShell's proposal risk check:
+  - `link_local_reach` (OpenShell): the rule reaches a link-local or
+    cloud metadata address.
+  - `credential_reach_expansion` (OpenShell): the rule gives a host and
+    port with a credential binding reach it didn't have.
+  - `capability_expansion` (OpenShell): the rule adds a method on a
+    host that already had reach with a credential.
+  - `l7_bypass_credentialed` (OpenShell's name, Wraith Box's meaning):
+    the rule puts a host with a credential binding into pass mode, or
+    gives it an L4-only endpoint. `wb-proxyd` injects credentials only
+    into inspected HTTP, so no program that doesn't speak HTTP gets a
+    credential, and this is the bypass that matters. OpenShell keys
+    this check on its list of known programs, and it never fires for a
+    `/**` rule (X24-openshell-artifacts).
+  - Wraith Box only: a first write method on a host without a
+    credential (S07-egress-gateway, "What an approval grants").
+  - Wraith Box only: a shared object-storage host or a wildcard over
+    one, and signature parameters on a write method (S07-egress-gateway,
+    X22-no-guest-credentials).
+  - Wraith Box only: a host that mirrors a gated registry
+    (S07-egress-gateway, "Dependency gate", the condition on which
+    T07-ungated-sources was accepted).
+- **Source.** OpenShell's check can't be run as it is. It is a Rust
+  library API that OpenShell's gateway calls, and isn't in the
+  standalone `openshell-prover` binary (X24-openshell-artifacts). Where
+  Wraith Box's check runs and in which language is open
+  (B35-openshell-artifacts).
+- **Boundary.** A request whose rule would leave the boundary isn't
+  shown. The prover checks the rule alone, in the approved form,
+  against the boundary. An approved rule only allows, so a rule inside
+  the boundary can't take a policy that is inside it outside. A
+  refusal is logged as a Device Config State Change (5019) event.
+  Whether approvals are bound by the boundary at all is open
+  (B35-openshell-artifacts), and until it is decided they are.
+- **Failure.** A request whose risk check or boundary check fails or
+  can't run can't be approved: the destination stays denied, and the
+  failure is logged.
 
 Approval requests are delivered as native notifications (through the
 platform's notification helper, S12-platforms) and through `wb approve` /
