@@ -29,10 +29,10 @@ included.
   VM gets the strictest value among them. A limit that shrinks during
   an active period applies to the count already reached, and a refusal
   under it names the project the limit came from
-  (NFR06-explained-refusals). Per-host modes take the strictest value
-  too: inspect over pass, and `enforce` over `audit`. The join notice
-  and the audit event name the host and both projects when a mode
-  changes this way.
+  (NFR06-explained-refusals). Where projects set a host to `enforce`
+  and `audit`, the VM gets `enforce`, and the join notice and the
+  audit event name the host and both projects. A host in pass mode for
+  one project and inspected for another is a conflict (below).
 - **Conflicts refuse the joining session.** At each recompute
   `wb-hostd` checks the union, and refuses the session start that
   would create it, with an error that names both projects and the
@@ -41,6 +41,8 @@ included.
     from another project, or a built-in profile. These are the pass
     refusals of I40 (B40-learn-pass-modes), checked over the union and
     not only per file;
+  - a host that one project puts in pass mode is inspected under
+    another project's policy;
   - two projects bind the same host and port, with overlapping paths,
     to different secret store items;
   - the union fails the extension check or the boundary check
@@ -51,15 +53,27 @@ included.
     was approved to write to (`capability_expansion`), or an approved
     rule that gives another project's binding new reach
     (`credential_reach_expansion`). The start is refused, and the
-    findings go to the user as an approval request. Once the user
+    findings go to the user as a join approval
+    (S09-policy-credentials-audit, "Approvals"). Once the user
     approves it, the start can go ahead.
 
-  `wb-hostd` never settles a conflict by switching a mode or picking
+  `wb-hostd` never settles a conflict by weakening a mode or picking
   one binding. A check that fails or can't run refuses the start too
-  (fail closed). The same checks run when a policy file changes while
-  sessions run. A change whose union fails one is refused, logged with
-  the project and rule that caused it, and the VM keeps its last
-  effective policy that passed.
+  (fail closed).
+- **Policy changes while sessions run.** A change that only narrows
+  the union applies at once, without the union checks, because a
+  smaller union can't leave the boundary or add reach. That covers
+  removing a rule, binding or approval, and tightening a limit or a
+  mode. If that leaves a host in pass mode for one project and
+  inspected for another, the VM inspects it, and the 5019 event names
+  the host and both projects. Open streams are then checked again
+  ("Open streams"). A change
+  that widens anything goes through the same checks as a joining
+  session. If one fails or can't run, the change is refused and logged
+  with the project and rule that caused it, the VM keeps its last
+  effective policy that passed, and `wb policy explain` shows the
+  change as pending. A change that both narrows and widens applies its
+  narrowing part at once.
 - **Open streams.** After each recompute, `wb-proxyd` checks every
   open stream of the VM against the new effective policy: a WebSocket,
   an HTTP/2 connection, a pass relay, a server-sent event stream, or a
@@ -470,9 +484,9 @@ session start in the VM to the end of the last session running in it.
     project may start, with or without `--learn`, and the names it
     looks up go on the same list.
   - *Leftover processes.* When a project's last session ends,
-    `wb-guestd` stops every process of that project user
-    (S13-guest-confinement), so no process of another project runs
-    during a learn-mode session. Guest root can keep one running. Its
+    `wb-guestd` locks that project user and kills its processes until
+    none remain (S13-guest-confinement), so no process of another
+    project is meant to run during a learn-mode session. Guest root can keep one running. Its
     names then reach the list, which the user reviews before any name
     is allowed.
 

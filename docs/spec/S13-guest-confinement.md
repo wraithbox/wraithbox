@@ -50,8 +50,10 @@ Applied by `wb-guestd` to every process it starts for a project user:
   process group, so no session runs on without host session control. It
   resumes the group when the link returns;
 - when `wb-hostd` ends a project's last session in the VM, debug
-  shells included, `wb-guestd` stops every process of that project
-  user. None keeps running after its project leaves the VM's
+  shells included, `wb-guestd` locks that project user, so nothing new
+  starts as it, and kills its processes in a loop until none remain.
+  This holds against a process without guest root only. None is meant
+  to keep running after its project leaves the VM's
   effective policy or during another project's learn-mode session (S07-egress-gateway, "Approvals and
   learning").
 

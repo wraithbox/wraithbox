@@ -71,8 +71,11 @@ be tested before building on them.
     - give two projects different wildcard budgets or minimum ages,
       start both, and see the stricter one applied to both, including
       to a count reached before the second one joined;
+    - with the prover unavailable, remove a binding while sessions
+      run and see it no longer injected and its streams closed, then
+      add a rule and see the change refused and shown as pending;
     - start a second project whose policy puts a host in pass mode
-      that the first project binds, whose binding overlaps the first
+      that the first project binds or inspects, whose binding overlaps the first
       one's on the same host, port and path with another secret, or
       whose rules leave the boundary in union, and see the start
       refused with both projects named and the first project's policy

@@ -142,9 +142,12 @@ inspection is trusted, and what is recorded.
     (S07-egress-gateway, "Enforced per VM"), projected as above,
     without the built-in profiles. A failing check refuses the session
     start, with the reason, the project and the rule that caused it
-    shown and logged. A check that fails while sessions run refuses the
-    policy change, and the VM keeps its last policy that passed
-    (S07-egress-gateway, "Enforced per VM"). The result is cached on the SHA-256
+    shown and logged. While sessions run, a change that only narrows
+    the union applies without this check. A change that widens it and
+    fails the check, or can't be checked, is refused, the VM keeps its
+    last policy that passed, and `wb policy explain` shows the change
+    as pending (S07-egress-gateway, "Policy changes while sessions
+    run"). The result is cached on the SHA-256
     of the candidate and of the boundary, so an unchanged policy adds
     no prover run to session start (NFR01-startup). This is option A of
     the open decision on approvals and the boundary
@@ -172,10 +175,10 @@ inspection is trusted, and what is recorded.
     built-in host's kind, mode or rules.
   - *Per VM.* The host enforces the merge for a VM, not for a project:
     the project sources are those of every project with a session in
-    the VM. Limits and per-host modes take the strictest value among
-    them, and a conflict between projects, such as a pass host that
-    another project binds or two bindings for one host and path,
-    refuses the joining session (S07-egress-gateway, "Enforced per
+    the VM. Limits take the strictest value among them, and so does
+    `enforce` over `audit`. A conflict between projects, such as a host
+    in pass mode for one and inspected or bound for another, or two
+    bindings for one host and path, refuses the joining session (S07-egress-gateway, "Enforced per
     VM"). The extension check above runs over the union at each
     recompute. `wb policy explain` shows for each rule and each
     credential binding the project it comes from and the projects
@@ -305,6 +308,18 @@ Only the user approves a request.
 - **Failure.** A request whose risk check or boundary check fails or
   can't run can't be approved: the destination stays denied, and the
   failure is logged.
+- **Join approval.** When the risk check finds something in a joining
+  project's rules and bindings compared with the VM's current union
+  (S07-egress-gateway, "Enforced per VM"), the session start waits on
+  a join approval. It is delivered like any approval request and lists
+  the joining project, the projects already in the VM and each
+  finding. The answer is a Device Config State Change (5019) event
+  that records the projects, the findings, the decision, and the
+  SHA-256 of the joining project's policy and of the union. An
+  approval is cached on that pair, so the next start with the same
+  policy and the same union doesn't ask again, and any change to
+  either asks again. A denial, or no answer before the request
+  expires, refuses the start.
 
 Approval requests are delivered as native notifications (through the
 platform's notification helper, S12-platforms) and through `wb approve` /
