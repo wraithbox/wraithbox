@@ -56,6 +56,10 @@ be tested before building on them.
   bypass detection, L7 proxy bypass, credential gating) are the first
   source of further cases:
   - connect to a raw IP address, to the host, to the LAN, over IPv6;
+    ping them and a synthetic address and see that nothing answers;
+    check that nothing answers the guest's ARP probes for its own
+    address, and that the lease holds only the options in
+    S07-egress-gateway's list (X03-network-path);
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
   - present an SNI that differs from the resolved name;
@@ -167,7 +171,9 @@ be tested before building on them.
   size (X02-warm-start). Also
   `npm ci` (with the dependency gate on), `git status` on a large
   repository, and an incremental build on the data disk compared with
-  the host; throughput of a large download through the gateway.
+  the host; throughput of a large download through the gateway, with
+  the CPU time of `wb-netd` and `wb-proxyd`, compared with the figures
+  of X03-network-path at the same MTU.
 - **Platform contract tests.** Each `internal/platform` interface has
   one test suite that every OS implementation runs (S12-platforms).
 - **CI.** Go unit tests, lint, and vet run natively on macOS, Linux, and
@@ -182,6 +188,7 @@ be tested before building on them.
 The open questions to answer before building on them are in X00-index.
 Each answered spike has a result page next to it, which X00-index links:
 X02-warm-start (restoring a macOS guest from saved state),
+X03-network-path (the guest network on gVisor's stack),
 X07-git-round-trip (the git transport between guest and host),
 X18-vsock-handoff (vsock and descriptor hand-off on macOS),
 X19-terminal-filter (the host terminal stream filter),

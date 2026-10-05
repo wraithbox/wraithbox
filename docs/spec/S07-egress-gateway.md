@@ -129,19 +129,60 @@ session start in the VM to the end of the last session running in it.
   Go module from gVisor's `go` branch. Its file-descriptor link endpoint
   is Linux-only, so Wraith Box provides a small link endpoint that moves
   frames between the packet transport and the stack, with one transport
-  adapter per platform.
+  adapter per platform. On macOS each datagram is one Ethernet frame,
+  and the host end's `SO_RCVBUF` is at least twice its `SO_SNDBUF`, as
+  Apple's header for the attachment asks. The stack runs in promiscuous
+  and spoofing mode, so that it accepts and answers connections to
+  every synthetic address (X03-network-path).
+- **Link filter.** With spoofing on, gVisor answers ARP for any
+  address, and the guest then declines every lease as an address
+  conflict (X03-network-path). So `wb-netd` checks every frame before
+  the stack sees it, and drops it unless all of these hold:
+  - it comes from the guest's MAC, and is IPv4 or ARP;
+  - its source is the leased address, or `0.0.0.0` for DHCP only;
+  - an ARP request asks for the gateway address. The guest's probes for
+    its own leased address are dropped, because an answer would tell it
+    the address is taken;
+  - ICMP goes to the gateway, UDP to the gateway's port 53 or the DHCP
+    server, and broadcast only to the DHCP server. Multicast and IPv6
+    are always dropped. gVisor didn't answer ping to other addresses
+    even without the ICMP rule, which is a second layer.
+
+  Each drop is counted and logged with its rule, rate-limited per rule
+  (SEC10-audit, SEC13-bounded-resources).
 - **Addressing.** `wb-netd` runs a DHCP server handing the guest a single
   private IPv4 address, with the gateway as router and DNS server. Only
   the guest's own MAC and leased address are accepted. IPv6 is not
-  offered and all IPv6 frames are dropped.
+  offered and all IPv6 frames are dropped. A reply holds only the
+  subnet mask, router, DNS server, lease time, server identifier and
+  interface MTU. The macOS client also asks for a proxy configuration
+  (WPAD, option 252), static routes, encrypted DNS, IPv6-only
+  preferred, NetBIOS, LDAP and a search domain, and the gateway never
+  offers them (FR08-no-proxy-config). A `DHCPDECLINE` from the guest means
+  something answered for its address, and is logged as a finding.
+- **MTU.** The packet transport and the DHCP interface-MTU option
+  (26) use the same MTU, which `wb-vmd` sets on the attachment. It is
+  1500 until B17-network-path decides on a larger one. The macOS
+  attachment accepts 1500 to 65535, and the guest uses the offered
+  value.
 - **DNS** (UDP and TCP port 53 on the gateway only):
   - `A` queries for allowlisted names are answered with a **synthetic
     address** from a reserved range (198.18.0.0/15), allocated per name
     and remembered with a TTL. Real upstream addresses are never revealed
     to the guest.
-  - `AAAA` queries get an empty answer; other record types are refused.
+  - `AAAA`, `HTTPS` and `SVCB` queries for allowlisted names get an
+    empty answer, and other record types are refused. The macOS
+    resolver asks for `HTTPS` before most `A` queries, and an `HTTPS`
+    record could hold an encrypted ClientHello configuration or an
+    HTTP/3 hint that `wb-proxyd` can't honor (X03-network-path).
   - Names not on the allowlist get `NXDOMAIN` and raise an approval
     event (FR09-approve-unknown). After approval, the next lookup succeeds.
+    The guest OS resolves names of its own, with no user action: an
+    idle guest at the login window looked up 14 host names, 109 queries
+    in all, in its first hour (X03-network-path). Whether those get a
+    prompt is open
+    (B17-network-path). Until it is decided, they are refused with an
+    approval event like any other name.
   - Wildcard allowlist entries are bounded: each VM may resolve at most
     a fixed number of new names under wildcards in an active period
     ("Enforced per VM"), and failed lookups count against that budget,
@@ -159,6 +200,9 @@ session start in the VM to the end of the last session running in it.
     (clients fall back from QUIC to TCP); ICMP is answered only for the
     gateway address. The host, the LAN, and raw IP destinations are
     therefore unreachable by construction (SEC05-default-deny).
+    TCP to the gateway on any port but 53 is reset too.
+  - NTP is UDP, so it is dropped, and the guest clock comes only from
+    `wb-guestd` (S06-vm-lifecycle).
 
 ## Stream path (`wb-proxyd`)
 
@@ -503,5 +547,13 @@ Packets are processed in userspace, so throughput is lower than kernel
 networking. S11-verification-and-spikes sets a benchmark for large downloads. If throughput
 misses it, the fix is inside `wb-netd` (batching, buffer sizes), not a
 second network path.
+
+X03-network-path measured a 1 GiB download from a plain HTTP stand-in
+for `wb-proxyd` at about 350 MB/s at MTU 1500 and 570 MB/s at MTU 9000
+or 65535, where the stand-in was the limit, and an upload at about 300
+and 950 MB/s. At MTU 1500 the cost per frame dominates: `wb-netd` used
+about 7 CPU-seconds per GiB downloaded, and about 4 at the larger
+MTUs. Whatever the MTU, `wb-netd` bounds its frame queues in bytes, not
+only in frames (SEC13-bounded-resources).
 
 **Status:** Draft

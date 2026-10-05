@@ -47,6 +47,8 @@ libkrun
 NXDOMAIN
 terminfo
 SVCB
+WPAD
+terminfo
 
 # Tools and their names in configs
 golangci

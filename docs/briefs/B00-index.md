@@ -19,6 +19,7 @@ issue, the spike result, or the spec). A brief explains it.
 | ID | Description | Status |
 |----|-------------|--------|
 | B16-warm-start | How fast does a suspended VM come back, and can one saved state be restored more than once? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, keep running while locked and save after unlock |
+| B17-network-path | Does a macOS guest work on our userspace network stack, reaching only the proxy, and how fast? | Answered 2026-10-05: yes, with conditions. Open: the link MTU, and prompts for the guest OS's own names |
 | B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04. Decided 2026-10-04: A, Go filter plus `receive.hideRefs` |
 | B29-vsock-handoff | Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore? | Answered 2026-10-05: yes, with conditions. One decision open: guest-initiated connections |
 | B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04. Decided 2026-10-04: A, allowlist as measured, and H1 plus a URL list for hyperlinks |
