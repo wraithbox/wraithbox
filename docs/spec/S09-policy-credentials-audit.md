@@ -35,8 +35,8 @@ inspection is trusted, and what is recorded.
   check is built.
 - **Settings contents.** The project toolchain manifest (Brewfile on
   macOS guests); extra writable repositories; guest OS; VM slot
-  (work/isolated); resource limits; clipboard and port-forwarding
-  switches.
+  (work/isolated); resource limits. Clipboard and port-forwarding
+  switches come after V1 (V1-08-no-forward-clipboard).
 - **Repository-supplied configuration.** A `.wraithbox/` directory in a
   repository (`config.toml`, `policy.yaml`) is ignored unless the user
   has run `wb trust` for that repository. Even then it may only add
