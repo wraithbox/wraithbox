@@ -98,7 +98,7 @@
 	},
 	"17": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X03-network-path: Network path",
 		"summary": "Does a macOS guest boot on the file-handle network attachment with the gVisor stack: get a DHCP lease, resolve only allowlisted names, and reach only the proxy?",
 		"brief": "B17-network-path"
@@ -592,7 +592,7 @@
 	},
 	"94": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spike): X03-network-path result, guest network on gVisor works with a link filter",
 		"summary": "Result of spike X03-network-path: yes, with conditions."
 	},
