@@ -92,6 +92,10 @@ be tested before building on them.
     is replaced;
   - send a credential placeholder outside its binding (another host, a
     query string, a body) and get a `403`;
+  - look up a burst of unknown hostnames from the guest, and see the
+    approval limits deny the requests past the limit and log each with
+    the rule, with no more prover runs than the cap
+    (S09-policy-credentials-audit);
   - once X14-flow-attribution has delivered labels: forge or omit a flow label and
     confirm only rules without program narrowing match, and replace a
     pinned binary and confirm its connections are denied;

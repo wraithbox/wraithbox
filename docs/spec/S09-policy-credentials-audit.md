@@ -123,6 +123,14 @@ inspection is trusted, and what is recorded.
     build attestation, not the run (S10-tech-stack).
   - *Output.* `wb trust` shows the prover's reason and counterexample
     stripped of control and escape sequences, as approval text is.
+  - *User policy.* The user's global and project network rules are
+    checked against the boundary too, at session start and whenever
+    they change, also for a project with no trusted repository. The
+    candidate is those rules only, projected as above, without the
+    built-in profiles. A failing check refuses the session start, with
+    the reason shown and logged. This is option A of the open decision
+    on approvals and the boundary (B35-openshell-artifacts), which the
+    spec applies until it is decided.
   - *What the prover models.* At v0.1.2 it compares hosts, ports and
     programs, and method and path rules on `protocol: rest` endpoints
     in `enforce` mode. It answers `unsupported` for GraphQL and
@@ -242,18 +250,21 @@ Only the user approves a request.
 - **Boundary.** A request whose rule would leave the boundary isn't
   shown. The prover checks the rule alone, in the approved form,
   against the boundary. An approved rule only allows, so a rule inside
-  the boundary can't take a policy that is inside it outside. A
-  refusal is logged as a Device Config State Change (5019) event.
+  the boundary can't take a policy that is inside it outside. The
+  user's own policy is checked at session start for that reason
+  ("Boundary check" above). A refusal is logged as a Device Config
+  State Change (5019) event.
   Whether approvals are bound by the boundary at all is open
   (B35-openshell-artifacts), and until it is decided they are.
 - **Limits.** The guest triggers approval requests, one per unknown
   name it looks up (S07-egress-gateway), so prover runs are bounded
   (SEC13-bounded-resources). Requests are deduplicated by host and
-  rate-limited per session. Each VM has a limit on pending requests and
-  on concurrent prover runs (S04-architecture). The boundary doesn't
-  change while a project runs, so boundary results are cached per host,
-  port and rule form. A request over a limit stays denied and is logged
-  with the rule that limited it.
+  rate-limited per session, with a limit fixed in code. Each VM has a
+  limit fixed in code on pending requests, and a cap on concurrent
+  prover runs (S04-architecture). Boundary results are cached per host,
+  port and rule form, keyed on the SHA-256 of the boundary document, so
+  a changed boundary is checked again. A request over a limit stays
+  denied and is logged with the rule that limited it.
 - **Failure.** A request whose risk check or boundary check fails or
   can't run can't be approved: the destination stays denied, and the
   failure is logged.
