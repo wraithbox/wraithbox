@@ -1,0 +1,4 @@
+{"cache":2,"cpus":"bundle","data":"\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x05\/raw.img","event":"config","memGiB":8,"nvme":false,"pid":98968,"sync":3}
+{"event":"nic-passed","mtu":1500,"swiftClosedHostEnd":true}
+{"event":"started","seconds":0.19926724999095313}
+{"event":"guest-stopped","seconds":36.859009124978911}

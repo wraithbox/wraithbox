@@ -1,0 +1,3 @@
+start: 18036 KiB allocated, guest 40 KiB used
+after writing 1 GiB: 1068660 KiB allocated, guest 1048612 KiB used
+30 s after deleting it: 1068660 KiB allocated, guest 36 KiB used

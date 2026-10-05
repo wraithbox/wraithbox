@@ -1,0 +1,9 @@
+target=service pid=98969 client=98968
+  PID  PPID COMM
+98969     1 /System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine
+image holders before kill: 98969 
+last ack before kill: ack 24599
+killed at 2026-10-05T02:54:15
+image holders after: 
+last ack seen by host: ack 24605
+last file seen by host: file 24605

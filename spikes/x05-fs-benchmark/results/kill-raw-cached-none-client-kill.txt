@@ -1,0 +1,9 @@
+target=client pid=99201 client=99201
+  PID  PPID COMM
+99201 99190 /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a096ee4101648ed79/.scratch/x05
+image holders before kill: 99202 
+last ack before kill: ack 27416
+killed at 2026-10-05T02:55:36
+image holders after: 
+last ack seen by host: ack 27421
+last file seen by host: file 27421

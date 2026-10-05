@@ -1,0 +1,14 @@
+ProductName:		macOS
+ProductVersion:		27.0.1
+BuildVersion:		26A434
+Apple M2
+8
+4
+4
+17179869184
+FileVault is On.
+1 extension(s)
+--- com.apple.system_extension.endpoint_security (Go to 'System Settings > General > Login Items & Extensions > Endpoint Security Extensions' to modify these system extension(s))
+enabled	active	teamID	bundleID (version)	name	[state]
+*	*	864VDCS2QY	com.infomaniak.drive.desktopclient.LiteSyncExt (3.8.2/1)	kDrive LiteSync Extension	[activated enabled]
+ 5:06  up 5 days, 19:35, 3 users, load averages: 3.27 3.69 4.44

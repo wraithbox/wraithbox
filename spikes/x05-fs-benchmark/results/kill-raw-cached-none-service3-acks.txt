@@ -1,0 +1,12 @@
+# trimmed: 114756 lines, 57378 ack lines, 57378 file lines; first 4 and last 6 kept
+ack 0
+file 0
+ack 1
+file 1
+...
+ack 57375
+file 57375
+ack 57376
+file 57376
+ack 57377
+file 57377

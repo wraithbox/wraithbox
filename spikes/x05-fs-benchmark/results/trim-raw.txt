@@ -1,0 +1,4 @@
+start: 3885820 KiB allocated, guest 2242040 KiB used
+after writing 1 GiB: 4934260 KiB allocated, guest 3290700 KiB used
+30 s after deleting it: 3885764 KiB allocated, guest 2242116 KiB used
+earlier, same boot: deleting /Volumes/data/crash (guest used 6164016 -> 2242052 KiB): image 6264296 -> 3993768 KiB allocated 30 s later, 3885820 KiB 60 s later
