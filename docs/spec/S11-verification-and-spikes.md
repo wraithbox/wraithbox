@@ -61,7 +61,29 @@ be tested before building on them.
   - present an SNI that differs from the resolved name;
   - push to a repository outside the project set, with and without an
     attacker-supplied token; create a gist or repository; publish a
-    package;
+    package. The project set is the VM's: the repositories of every
+    project with a session in the VM (S07-egress-gateway, "Enforced per
+    VM");
+  - per-VM enforcement (S07-egress-gateway, "Enforced per VM"):
+    - end a project's last session and see its binding no longer
+      injected, its open streams closed with the rule
+      `policy-recomputed`, and its project user's processes stopped;
+    - give two projects different wildcard budgets or minimum ages,
+      start both, and see the stricter one applied to both, including
+      to a count reached before the second one joined;
+    - start a second project whose policy puts a host in pass mode
+      that the first project binds, whose binding overlaps the first
+      one's on the same host, port and path with another secret, or
+      whose rules leave the boundary in union, and see the start
+      refused with both projects named and the first project's policy
+      unchanged;
+    - start a learn-mode session while a session or a debug shell of
+      another project runs, and start another project's session while
+      a learn-mode session runs, and see each refused with the other
+      project named;
+    - start another project or an untrusted repository in the
+      isolated VM while a project set to the isolated slot has a
+      session there, and the reverse, and see each refused;
   - send an attacker-supplied token in a credential parameter that a
     git host's profile names and get a `403`: GitLab's `private_token`
     in the query string, as `private%5Ftoken`, as `private_token[]`,

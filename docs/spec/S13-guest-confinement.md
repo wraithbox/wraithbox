@@ -32,8 +32,8 @@ per-project rules into the union of the VM's grants. That is residual
 risk T06-forged-labels.
 
 The host floor is per VM, not per project (S07-egress-gateway,
-"Enforced per VM"). Every project with a session in a VM can use the
-network grants and credential bindings of the others in it, without
+"Enforced per VM"). Any process in a VM can use the network grants and
+credential bindings of every project with a session in it, without
 guest root (T11-shared-vm-grants). Only a label from this layer
 (Layer 3) can tell projects apart on the network, and only against a
 process without guest root.
@@ -48,7 +48,12 @@ Applied by `wb-guestd` to every process it starts for a project user:
   (S09-policy-credentials-audit);
 - when the host-guest socket drops, `wb-guestd` stops the session's
   process group, so no session runs on without host session control. It
-  resumes the group when the link returns.
+  resumes the group when the link returns;
+- when `wb-hostd` ends a project's last session in the VM, debug
+  shells included, `wb-guestd` stops every process of that project
+  user. None keeps running after its project leaves the VM's
+  effective policy or during another project's learn-mode session (S07-egress-gateway, "Approvals and
+  learning").
 
 ## Layer 2: Seatbelt filesystem profile (v1)
 

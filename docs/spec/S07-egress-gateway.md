@@ -12,21 +12,66 @@ A VM has one guest MAC address and one leased IPv4 address
 ("Addressing"), and every project user in it sends from them. The host
 can't tell which project user, session or program opened a
 connection, so the VM is the unit it enforces. The maintainer decided
-this on I36 (B36-flow-attribution).
+this on I36 (B36-flow-attribution). In this spec a *session* is any
+session `wb-hostd` starts for a project, a debug shell (`wb shell`)
+included.
 
 - **Effective policy.** A VM's effective policy is the built-in
   profiles, the global policy, and the network policy, credential
   bindings and dependency-gate overrides of every project that has a
   session in the VM, merged as a union (S09-policy-credentials-audit,
   "Precedence"), plus the approvals held for the VM ("Approvals and
-  learning"). Where projects set a limit, such as the wildcard budget,
-  the minimum age or the vulnerability threshold, the VM gets the
-  strictest value among them. `wb-hostd` recomputes the effective
-  policy when a session starts or ends, and it applies to each new
-  connection and each request after that. A project's rules and
-  bindings leave the effective policy when its last session in the VM
-  ends, so its bindings can't be reached while none of its sessions
-  run.
+  learning"). `wb-hostd` recomputes it whenever a session starts or
+  ends. A project's rules and bindings leave the effective policy when
+  its last session in the VM ends.
+- **Limits and modes.** Where projects set a limit, such as the
+  wildcard budget, the minimum age or the vulnerability threshold, the
+  VM gets the strictest value among them. A limit that shrinks during
+  an active period applies to the count already reached, and a refusal
+  under it names the project the limit came from
+  (NFR06-explained-refusals). Per-host modes take the strictest value
+  too: inspect over pass, and `enforce` over `audit`. The join notice
+  and the audit event name the host and both projects when a mode
+  changes this way.
+- **Conflicts refuse the joining session.** At each recompute
+  `wb-hostd` checks the union, and refuses the session start that
+  would create it, with an error that names both projects and the
+  host (NFR06-explained-refusals), when:
+  - a host that one project puts in pass mode has a credential binding
+    from another project, or a built-in profile. These are the pass
+    refusals of I40 (B40-learn-pass-modes), checked over the union and
+    not only per file;
+  - two projects bind the same host and port, with overlapping paths,
+    to different secret store items;
+  - the union fails the extension check or the boundary check
+    (S09-policy-credentials-audit, "Boundary check");
+  - the risk check (S09-policy-credentials-audit, "Approvals") finds
+    something in the joining project's rules and bindings compared
+    with the current union, such as a binding on a host another project
+    was approved to write to (`capability_expansion`), or an approved
+    rule that gives another project's binding new reach
+    (`credential_reach_expansion`). The start is refused, and the
+    findings go to the user as an approval request. Once the user
+    approves it, the start can go ahead.
+
+  `wb-hostd` never settles a conflict by switching a mode or picking
+  one binding. A check that fails or can't run refuses the start too
+  (fail closed). The same checks run when a policy file changes while
+  sessions run. A change whose union fails one is refused, logged with
+  the project and rule that caused it, and the VM keeps its last
+  effective policy that passed.
+- **Open streams.** After each recompute, `wb-proxyd` checks every
+  open stream of the VM against the new effective policy: a WebSocket,
+  an HTTP/2 connection, a pass relay, a server-sent event stream, or a
+  held download. A stream whose allow rule, mode or binding is gone is
+  closed and logged with the rule `policy-recomputed`. So a project's
+  bindings can't be reached while none of its sessions run.
+- **Join notice.** At session start, `wb` prints the other projects
+  with a session in the VM, the credential bindings and write grants
+  of theirs that the new session can reach, and those of the new
+  project that they can reach. `wb status` lists the same reach for
+  each VM. Each recompute is a Device Config State Change (5019) event
+  that names the projects that joined or left (SEC10-audit).
 - **What is per project.** The project's policy file and settings on
   the host, its guest user and clone (S06-vm-lifecycle), and its
   landing repository with the ref restriction per session
@@ -38,16 +83,16 @@ this on I36 (B36-flow-attribution).
   label as reported by the guest, and guest root can forge it
   (T06-forged-labels). Until X14-flow-attribution delivers labels,
   nothing narrows the effective policy.
-- **Residual risk.** Every project with a session in a VM can use the
-  grants of the others in it: their credential bindings, their write
-  grants under the git hosting profile, and their approvals
-  (T11-shared-vm-grants). A project whose grants must stay apart
-  needs a VM with no other project's sessions, which in practice is
-  the isolated VM (S06-vm-lifecycle).
+- **Residual risk.** Any process in a VM can use the grants of every
+  project with a session in it: their credential bindings, their
+  write grants under the git hosting profile, their dependency-gate
+  overrides and their approvals. The projects also share the VM's
+  limits (T11-shared-vm-grants). A project whose grants must stay
+  apart is set to the isolated slot, and `wb-hostd` then gives it the
+  isolated VM to itself (S06-vm-lifecycle, "VMs").
 
-Where this spec counts or grants something per VM, the count or grant
-lasts for an *active period*: from the first session start in the VM
-to the end of the last session running in it.
+The wildcard budget is counted per *active period*: from the first
+session start in the VM to the end of the last session running in it.
 
 ## Packet path (`wb-netd`)
 
@@ -225,7 +270,7 @@ to the end of the last session running in it.
   - *git hosting*: reads allowed; `git-receive-pack` and mutating API
     calls only for the repositories of the projects with a session in
     the VM (derived from each project's host repository remotes, plus
-    explicit additions), which every project in the VM can then write
+    explicit additions), which any process in the VM can then write
     to (T11-shared-vm-grants); gists, repository creation and forks
     denied. GraphQL mutations are denied unless the
     operation name is allowlisted.
@@ -389,13 +434,20 @@ to the end of the last session running in it.
   changes take effect without restarting anything.
 - **Who an approval reaches.** The host can't tell which session looked
   up a name ("Enforced per VM"). A request names the VM and the
-  projects with a session in it, and shows a project or session the
-  guest reported only as reported by the guest. *Allow for this
-  session* holds the rule for the VM until its active period ends.
-  *Allow for this project* saves the rule to the policy of the project
-  the user picks, and it applies to the whole VM whenever that project
-  has a session in it. Either way every project with a session in the
-  VM can use it (T11-shared-vm-grants), and the request says so.
+  sessions running in it. A project or session the guest reported is
+  shown marked as reported by the guest and untrusted.
+  - *Allow for this session* is shown as "for this VM until these
+    sessions end", with the sessions listed. It holds the rule for the
+    VM until every session that was running when the user approved has
+    ended.
+  - *Allow for this project* saves the rule to the policy of the
+    project the user picks. The request preselects no project, also
+    not from the guest's label. The rule then applies to the whole VM whenever that
+    project has a session in it.
+  - Either way any process in the VM can use the rule
+    (T11-shared-vm-grants), and the request says so. The 5019 event of
+    the answer records the guest's label, if any, and the project the
+    user picked.
 - **What an approval grants.** On a host without a built-in profile, an
   approval grants the read methods GET, HEAD and OPTIONS. A write
   method (any other, and a GET with `Upgrade: websocket`, which opens
@@ -406,12 +458,23 @@ to the end of the last session running in it.
 - **Learn mode** (trusted projects only, FR10-learn-mode): DNS resolves any name and
   connections are inspected and allowed, while credentials stay host-side
   as usual. The session's destinations become a suggested allowlist for
-  `wb learn report`. Learn mode opens the whole VM, and the host can't
-  tell whose destinations it sees. So a learn-mode session starts only
-  when no other project has a session in the VM, and while it runs, a
-  session of another project doesn't start there. `wb` refuses either
-  start with an error that names the other project
-  (NFR06-explained-refusals).
+  `wb learn report`. The maintainer decided on I40 that learn mode
+  collects unknown names and refuses them (B40-learn-pass-modes), and
+  that spec change rewrites the sentences above.
+  - *One project at a time.* The host can't attribute the destinations
+    it collects to a project ("Enforced per VM"). So `wb-hostd` starts
+    a learn-mode session only when no session of another project runs
+    in the VM, and refuses a session of another project while a
+    learn-mode session runs there. Each refusal names the other
+    project (NFR06-explained-refusals). Another session of the same
+    project may start, with or without `--learn`, and the names it
+    looks up go on the same list.
+  - *Leftover processes.* When a project's last session ends,
+    `wb-guestd` stops every process of that project user
+    (S13-guest-confinement), so no process of another project runs
+    during a learn-mode session. Guest root can keep one running. Its
+    names then reach the list, which the user reviews before any name
+    is allowed.
 
 ## Performance
 

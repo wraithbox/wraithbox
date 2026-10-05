@@ -89,7 +89,7 @@ are a usage error:
 |---|---|
 | `--isolated` | Run in the isolated VM (SEC08-proj-isolation) |
 | `--ephemeral` | No persisted state for this session (FR14-ephemeral) |
-| `--learn` | Learn mode; refused unless the project is trusted (FR10-learn-mode) |
+| `--learn` | Learn mode; refused unless the project is trusted (FR10-learn-mode). `wb-hostd` also refuses it while a session of another project, a debug shell included, runs in the VM, and refuses other projects' sessions while it runs (S07-egress-gateway, "Approvals and learning") |
 | `--guest <os>` | Guest OS for this project, where the host offers more than one (S12-platforms); otherwise the project's configured or default guest |
 
 ### Global flags
