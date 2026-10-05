@@ -214,7 +214,7 @@
 	},
 	"35": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X24-openshell-artifacts: OpenShell artifacts",
 		"summary": "X24-openshell-artifacts (added to S11-verification-and-spikes in #14)",
 		"brief": "B35-openshell-artifacts"
@@ -562,7 +562,7 @@
 	},
 	"89": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spike): X24-openshell-artifacts result",
 		"summary": "Stacked on docs/33-x22-result (#85): this result rewrites the S09 \"Approvals\" paragraph and the OCSF bullet in \"Audit\", which #85 also changes."
 	},
