@@ -58,9 +58,14 @@ Figure 1. Every frame from the guest arrives in `wb-netd`. The link filter lets 
 
 ## What changes in the specs without a choice
 
-S07-egress-gateway now states the complete link filter, the DHCP options the gateway never offers (a proxy configuration URL among them), local answers for reverse and service-discovery names, one approval event per name per session, the size and reuse rules of the synthetic address pool, per-VM caps, rate limits on every event the guest can trigger, the same MTU on both ends of the link, that `wb-netd` has no host-side listener, and that NTP is dropped, so the guest clock comes from `wb-guestd`. S11-verification-and-spikes adds the filter to the fuzz targets, adds conformance checks for it, and compares the download benchmark with this spike.
+S07-egress-gateway now states the complete link filter, the DHCP options the gateway never offers (a proxy configuration URL among them), local answers for names under `.arpa` and `.local`, the size and reuse rules of the synthetic address pool, per-VM caps, rate limits on every event the guest can trigger, the same MTU on both ends of the link, and that NTP is dropped, so the guest clock comes from `wb-guestd`. S11-verification-and-spikes adds the filter to the fuzz targets, adds conformance checks for it, and compares the download benchmark with this spike.
 
-**One choice of the builder, not measured:** S07-egress-gateway gives an empty answer to `HTTPS` and `SVCB` queries for allowlisted names, where the spike refused them and the guest connected fine. An empty answer gives the guest no record that could hold an encrypted ClientHello configuration or an HTTP/3 hint the proxy can't honor. The cost: nobody has checked the macOS resolver behaves the same with it, so S11-verification-and-spikes adds a case for that, and until it passes the choice rests on reading, not on a run.
+**Choices of the builder.** These go beyond what the spike measured, and are yours to overrule:
+
+- One approval event per name per session, with later queries counted on it. This overlaps the approval design of B51-approval-flow.
+- `wb-netd` has no host-side listener and never opens a connection to the guest. This commits port forwarding (FR11-port-forward) to a path outside `wb-netd`.
+
+**Not measured:** S07-egress-gateway gives an empty answer to `HTTPS` and `SVCB` queries for allowlisted names, where the spike refused them and the guest connected fine. An empty answer gives the guest no record that could hold an encrypted ClientHello configuration or an HTTP/3 hint the proxy can't honor. The cost: nobody has checked the macOS resolver behaves the same with it, so S11-verification-and-spikes adds a case for that, and until it passes the choice rests on reading, not on a run.
 
 ## Decision 1: the link MTU
 

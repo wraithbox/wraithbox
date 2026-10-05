@@ -147,19 +147,17 @@ session start in the VM to the end of the last session running in it.
   - ARP is Ethernet/IPv4 (hardware type 1, protocol type `0x0800`,
     address lengths 6 and 4), with the operation request or reply, the
     sender hardware address equal to the guest's MAC, the sender
-    protocol address equal to the leased address or `0.0.0.0`, and the
-    target protocol address equal to the gateway. So the guest's
+    protocol address equal to the leased address, and the target
+    protocol address equal to the gateway. So the guest's
     probes for its own address go unanswered, because an answer would
     tell it the address is taken, and nothing the guest sends can
     claim another address in the stack's neighbor table.
   - IPv4 has a header of 20 bytes (no options) and is not a fragment
-    (MF clear, offset 0). Its source is the leased address. The
-    address `0.0.0.0` is allowed as a source in exactly two places: an
-    IPv4 DHCP packet from UDP port 68 to port 67, and the sender
-    protocol address of the guest's ARP probes.
+    (MF clear, offset 0). Its source is the leased address, or
+    `0.0.0.0` only for DHCP from UDP port 68 to port 67.
   - TCP passes to the stack, which decides under "Connections". UDP
     passes only to the gateway's port 53, or from port 68 to port 67
-    for DHCP, to the gateway or to broadcast. ICMP passes only as an
+    for DHCP, to the gateway or to limited and subnet-directed broadcast. ICMP passes only as an
     echo request to the gateway. Every other IP protocol, multicast,
     and broadcast other than DHCP is dropped. gVisor didn't answer ping
     to other addresses even without the ICMP rule, which is a second
@@ -222,9 +220,9 @@ session start in the VM to the end of the last session running in it.
     (B17-network-path): it gives no `HTTPS` record that could hold an
     encrypted ClientHello configuration or an HTTP/3 hint that
     `wb-proxyd` can't honor.
-  - *Local answers.* Reverse lookups (`in-addr.arpa`, `ip6.arpa`),
-    service-discovery names under `.arpa` such as `_dns.resolver.arpa`,
-    and names under `.local` are answered by `wb-netd` itself, with
+  - *Local answers.* Every name under `.arpa` (reverse lookups,
+    `_dns.resolver.arpa`, `ipv4only.arpa`, `home.arpa`) and every name
+    under `.local` are answered by `wb-netd` itself, with
     `NXDOMAIN` or an empty answer and no approval event, and logged.
     An idle macOS guest asks for its own reverse name and for
     `_dns.resolver.arpa` after each lease (X03-network-path).
@@ -264,7 +262,9 @@ session start in the VM to the end of the last session running in it.
 
 - **Name binding.** The hostname comes from the synthetic address. For
   TLS, the ClientHello SNI must equal that hostname or the stream is
-  reset. `wb-proxyd` resolves the real upstream address itself.
+  reset. `wb-proxyd` resolves the real upstream address itself. For
+  inspected plain HTTP, the `Host` header must equal that hostname
+  ("Packet path", synthetic pool).
 - **Modes, per host:**
   - **inspect** (default): terminate TLS with a leaf certificate from the
     Wraith Box CA (S09-policy-credentials-audit), apply HTTP policy and credential
