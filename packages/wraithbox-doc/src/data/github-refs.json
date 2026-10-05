@@ -221,7 +221,7 @@
 	},
 	"36": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: attribute network flows to projects in the shared work VM",
 		"summary": "The work VM hosts every trusted project, and its wb-netd sees one guest MAC and one leased IPv4 address (S07-egress-gateway \"Addressing\").",
 		"brief": "B36-flow-attribution"
@@ -604,7 +604,7 @@
 	},
 	"96": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): enforce network grants per VM and accept T11-shared-vm-grants",
 		"summary": "Writes the spec change for the decision on #36 (option A, 2026-10-04): the VM is the unit the host enforces."
 	},
