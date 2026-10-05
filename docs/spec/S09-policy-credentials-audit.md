@@ -82,7 +82,9 @@ inspection is trusted, and what is recorded.
   (work/isolated); resource limits. Clipboard and port-forwarding
   switches come after V1 (V1-08-no-forward-clipboard). A project whose
   credentials or write grants must stay apart from other projects is
-  set to the isolated slot (T11-shared-vm-grants).
+  set to the isolated slot, and then gets the isolated VM to itself
+  unless a `shared` switch says otherwise (S06-vm-lifecycle, "VMs",
+  T11-shared-vm-grants).
 - **Repository-supplied configuration.** A `.wraithbox/` directory in a
   repository (`config.toml`, `policy.yaml`) is ignored unless the user
   has run `wb trust` for that repository. Even then it may only add
@@ -138,8 +140,11 @@ inspection is trusted, and what is recorded.
     candidate is the global rules and the rules of every project with
     a session in the VM, which is what the VM enforces
     (S07-egress-gateway, "Enforced per VM"), projected as above,
-    without the built-in profiles. A failing check refuses the session start, with
-    the reason shown and logged. The result is cached on the SHA-256
+    without the built-in profiles. A failing check refuses the session
+    start, with the reason, the project and the rule that caused it
+    shown and logged. A check that fails while sessions run refuses the
+    policy change, and the VM keeps its last policy that passed
+    (S07-egress-gateway, "Enforced per VM"). The result is cached on the SHA-256
     of the candidate and of the boundary, so an unchanged policy adds
     no prover run to session start (NFR01-startup). This is option A of
     the open decision on approvals and the boundary
@@ -167,11 +172,15 @@ inspection is trusted, and what is recorded.
     built-in host's kind, mode or rules.
   - *Per VM.* The host enforces the merge for a VM, not for a project:
     the project sources are those of every project with a session in
-    the VM, and limits take the strictest value among them
-    (S07-egress-gateway, "Enforced per VM"). `wb policy explain` shows
-    for each rule and each credential binding the project it comes from
-    and the projects that can reach it now, which are every project with
-    a session in the same VM (T11-shared-vm-grants).
+    the VM. Limits and per-host modes take the strictest value among
+    them, and a conflict between projects, such as a pass host that
+    another project binds or two bindings for one host and path,
+    refuses the joining session (S07-egress-gateway, "Enforced per
+    VM"). The extension check above runs over the union at each
+    recompute. `wb policy explain` shows for each rule and each
+    credential binding the project it comes from and the projects
+    whose sessions can reach it now, which are all the projects with a
+    session in the same VM (T11-shared-vm-grants).
 
 ## Credentials
 
@@ -196,8 +205,8 @@ inspection is trusted, and what is recorded.
   X22-no-guest-credentials). Such a value isn't a secret, and the
   guest doesn't get a placeholder for it.
 - **Reach.** A project's binding is injected for requests from the whole
-  VM while the project has a session in it, so every project in that
-  VM can have it used on their behalf, though none can read it
+  VM while the project has a session in it, so any process in that VM
+  can have it used on its behalf, though none can read it
   (T11-shared-vm-grants). `wb policy explain` shows who can reach it
   ("Precedence").
 - **Model credential.** Claude Code in the guest is configured with a
@@ -316,18 +325,20 @@ stripped of control and escape sequences wherever it is shown.
   refused placeholders, foreign credentials removed from a request
   (S07-egress-gateway), pin mismatches, and other signs of an attack. A
   SIEM can read the log without a custom parser.
-- Records: timestamp; project; session; guest user; destination host and
-  port; decision and the rule that made it; HTTP method and path for
-  inspected requests; bytes in and out; approval actions; returned work
-  and its flags. Process attribution reported by the guest is stored as
-  an untrusted label.
+- Records: timestamp; VM; project, session and guest user (for
+  network events, derived from the guest's label, see below);
+  destination host and port; decision and the rule that made it; HTTP
+  method and path for inspected requests; bytes in and out; approval
+  actions; returned work and its flags. Process attribution reported by
+  the guest is stored as an untrusted label.
 - Attribution of network events. `wb-netd` and `wb-proxyd` know the VM,
   and `wb-hostd` adds the projects and sessions running in it. The
   project, session, guest user and program of each connection come
   only from the guest's label, stored as untrusted (S07-egress-gateway,
-  "Enforced per VM"). A per-session view of network events
-  (FR15-inspect) shows that label as reported by the guest. Returned
-  work keeps the project and session of its git transport
+  "Enforced per VM"). The per-session audit log of FR15-inspect holds
+  returned work and approvals by the host's attribution, and network
+  events by the guest's label, shown as reported by the guest.
+  Returned work keeps the project and session of its git transport
   (S08-workspace-and-git).
 - Never recorded: credential values and request or response bodies.
 

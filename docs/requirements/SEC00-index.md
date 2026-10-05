@@ -54,10 +54,12 @@ against the adversary of T00-index.
   project: the guest user with its home and clone, enforced by the
   guest kernel (T05-cross-proj-clones), and the host-side settings,
   policy file and landing repository. Per VM: network grants,
-  credential bindings and approvals, which every project with a
-  session in the VM can use (T11-shared-vm-grants). Untrusted
-  repositories, and a project whose grants must stay apart, can be
-  confined to a separate VM.
+  credential bindings and approvals of the projects with a session in
+  the VM, which any process in the VM can use (T11-shared-vm-grants).
+  Untrusted repositories run in the isolated VM. A project whose grants
+  must stay apart is set to the isolated slot, and `wb-hostd` refuses
+  to start another project or untrusted repository next to it
+  (S06-vm-lifecycle, "VMs").
 - **SEC09-host-policy: Policy is held on the host.** The guest cannot read or change policy.
   Repository-supplied configuration is ignored unless the user trusts the
   repository, and can never add credentials.

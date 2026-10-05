@@ -58,6 +58,9 @@ answer is in S03-requirements.
 - **FR14-ephemeral: Ephemeral sessions.** An ephemeral mode runs a session with no persisted state.
 - **FR15-inspect: Inspect what happened.** The user can inspect what happened: per-session audit log,
   policy explanation, diff of returned work with risky changes flagged.
+  Network events are attributed to a session only by a label the guest
+  reports, and the log shows them as reported by the guest
+  (T11-shared-vm-grants).
 - **FR16-wsl: WSL on Windows.** On a Windows host, `wb` run inside a WSL 2 distribution works on
   repositories in that distribution, using the VMs and services of the
   Windows host. It does not start a second set of VMs inside WSL.

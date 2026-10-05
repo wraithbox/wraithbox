@@ -59,7 +59,10 @@ print about returned work after `wb land` is outside it
 - **T05-cross-proj-clones: Other projects' clones after guest root.** After a guest root escalation inside the shared work VM, read or
   write access to other projects' guest clones (code only; no secrets are
   present; changes still return only as reviewable branches). Untrusted
-  repositories use the isolated VM to avoid this.
+  repositories use the isolated VM to avoid this. Untrusted
+  repositories and shared projects in the isolated VM are co-tenants
+  there: they share their clones after guest root in the same way,
+  and their network grants even without it (T11-shared-vm-grants).
 - **T06-forged-labels: Forged program labels after guest root.** After a guest root escalation, forged program identities in the
   guest confinement layer (S13-guest-confinement). Rules narrowed to named
   programs or to a project then act as the union of the VM's grants
@@ -107,17 +110,28 @@ print about returned work after `wb land` is outside it
   project user, session or program opened a connection. So it enforces
   network policy, credential bindings and approvals per VM, as the
   union of those of the projects with a session in the VM
-  (S07-egress-gateway, "Enforced per VM"). Any process in the work
-  VM, without guest root, can use the credential bindings and write
-  grants of every other project that has a session there, and the
-  hosts approved for it. Per-project and per-session rules narrow
-  the union only by a label the guest reports, which guest root can
-  forge (T06-forged-labels), and until X14-flow-attribution delivers
-  labels nothing narrows it. Credentials still never enter the guest
-  (SEC04-no-guest-secrets), the floor of SEC05-default-deny holds for
-  the whole VM, and returned work still lands per project and session
-  (S08-workspace-and-git). A project's grants stay apart only while no
-  other project has a session in its VM, so such a project needs the
-  isolated VM (S06-vm-lifecycle) to itself, and under
-  NFR05-two-macos-vms one such project runs at a time. The maintainer
-  accepted this on I36.
+  (S07-egress-gateway, "Enforced per VM"). This holds in any VM: the
+  work VM, and the isolated VM when untrusted repositories or shared
+  projects run there together. Any process in the VM, without guest
+  root, can use what every project with a session there was granted:
+  - its credential bindings and its write grants;
+  - its dependency-gate overrides, which apply VM-wide;
+  - the hosts approved for it, and session approvals, which hold for
+    the VM until the sessions running at approval end.
+
+  The projects also share the VM's availability. One project can use
+  up the wildcard budget, the approval request rate and pending cap,
+  and the detection-finding rate limit for the others, and the
+  strictest limit any of them sets applies to all. Per-project and
+  per-session rules narrow the union only by a label the guest
+  reports, which guest root can forge (T06-forged-labels), and until
+  X14-flow-attribution delivers labels nothing narrows it. Credentials
+  still never enter the guest (SEC04-no-guest-secrets), the floor of
+  SEC05-default-deny holds for the whole VM, and returned work still
+  lands per project and session (S08-workspace-and-git). Conflicting
+  modes and bindings refuse the joining session, and the join notice
+  says what becomes reachable. A project whose grants must stay apart
+  is set to the isolated slot, and `wb-hostd` gives it the isolated VM
+  to itself (S06-vm-lifecycle, "VMs"). With NFR05-two-macos-vms, one
+  such project runs at a time, and untrusted work waits meanwhile. The
+  maintainer accepted this on I36.

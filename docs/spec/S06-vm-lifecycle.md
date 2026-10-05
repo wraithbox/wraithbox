@@ -43,6 +43,18 @@ in S12-platforms.
   guests, including any started by other software: `wb-hostd` performs
   admission control and reports a clear error when a slot is unavailable
   (NFR05-two-macos-vms).
+- **Isolated slot to itself.** Projects in one VM share its network
+  grants and credential bindings (S07-egress-gateway, "Enforced per
+  VM", T11-shared-vm-grants). A project whose settings put it in the
+  isolated slot gets the isolated VM to itself, unless its settings
+  mark it shared (S09-policy-credentials-audit, "Settings contents").
+  `wb-hostd` refuses a session start that would put another project or
+  an untrusted repository in the isolated VM while such a project has
+  a session there, and refuses that project's session start while
+  another project or untrusted repository has one there. The error
+  names the other project or repository (NFR06-explained-refusals).
+  Untrusted repositories, and projects marked shared, may share the
+  isolated VM with each other, and then share their grants.
 - **Disks.** A system disk (clone of the image) and a data disk holding
   project users' homes and workspaces. The data disk can be rebuilt from
   host state plus git, so it may use relaxed write-through settings for
