@@ -60,20 +60,24 @@ included.
   `wb-hostd` never settles a conflict by weakening a mode or picking
   one binding. A check that fails or can't run refuses the start too
   (fail closed).
-- **Policy changes while sessions run.** A change that only narrows
-  the union applies at once, without the union checks, because a
-  smaller union can't leave the boundary or add reach. That covers
-  removing a rule, binding or approval, and tightening a limit or a
-  mode. If that leaves a host in pass mode for one project and
-  inspected for another, the VM inspects it, and the 5019 event names
-  the host and both projects. Open streams are then checked again
-  ("Open streams"). A change
-  that widens anything goes through the same checks as a joining
-  session. If one fails or can't run, the change is refused and logged
-  with the project and rule that caused it, the VM keeps its last
-  effective policy that passed, and `wb policy explain` shows the
-  change as pending. A change that both narrows and widens applies its
-  narrowing part at once.
+- **Policy changes while sessions run.** A change *narrows* when the
+  new union allows a subset of what the old union allowed: no request,
+  host, method, path, credential injection or mode that the old union
+  refused becomes allowed. Removing an allow rule, a binding or an
+  approval, and tightening a limit or a mode, narrow. Removing a
+  `deny_rules` entry, loosening a limit, and weakening a mode (pass
+  over inspect, `audit` over `enforce`) widen. A change that narrows
+  applies at once, without the union checks, because a subset of a
+  union inside the boundary is inside it too and doesn't add reach. If it
+  leaves a host in pass mode for one project and inspected for
+  another, the VM inspects it, and the 5019 event names the host and
+  both projects. Open streams are then checked again ("Open
+  streams"). Every other change widens, including one that narrows in
+  part, and goes through the same checks as a joining session. If one
+  fails or can't run, the change is refused and logged with the
+  project and rule that caused it, the VM keeps its last effective
+  policy that passed, and `wb policy explain` shows the change as
+  pending. The user can still apply a removal as a change of its own.
 - **Open streams.** After each recompute, `wb-proxyd` checks every
   open stream of the VM against the new effective policy: a WebSocket,
   an HTTP/2 connection, a pass relay, a server-sent event stream, or a

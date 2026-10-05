@@ -73,7 +73,8 @@ be tested before building on them.
       to a count reached before the second one joined;
     - with the prover unavailable, remove a binding while sessions
       run and see it no longer injected and its streams closed, then
-      add a rule and see the change refused and shown as pending;
+      add a rule, and separately remove a `deny_rules` entry, and see
+      each change refused and shown as pending;
     - start a second project whose policy puts a host in pass mode
       that the first project binds or inspects, whose binding overlaps the first
       one's on the same host, port and path with another secret, or
