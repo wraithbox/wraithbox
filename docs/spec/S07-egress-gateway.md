@@ -137,19 +137,51 @@ session start in the VM to the end of the last session running in it.
 - **Link filter.** With spoofing on, gVisor answers ARP for any
   address, and the guest then declines every lease as an address
   conflict (X03-network-path). So `wb-netd` checks every frame before
-  the stack sees it, and drops it unless all of these hold:
-  - it comes from the guest's MAC, and is IPv4 or ARP;
-  - its source is the leased address, or `0.0.0.0` for DHCP only;
-  - an ARP request asks for the gateway address. The guest's probes for
-    its own leased address are dropped, because an answer would tell it
-    the address is taken;
-  - ICMP goes to the gateway, UDP to the gateway's port 53 or the DHCP
-    server, and broadcast only to the DHCP server. Multicast and IPv6
-    are always dropped. gVisor didn't answer ping to other addresses
-    even without the ICMP rule, which is a second layer.
-
-  Each drop is counted and logged with its rule, rate-limited per rule
-  (SEC10-audit, SEC13-bounded-resources).
+  the stack sees it, and drops it unless all of these hold, in this
+  order:
+  - The frame is 14 to MTU + 14 bytes long.
+  - Its source MAC is the guest's, and its destination MAC is the
+    gateway's or broadcast.
+  - It is ARP or IPv4. Every other EtherType is dropped, IPv6
+    included.
+  - ARP is Ethernet/IPv4 (hardware type 1, protocol type `0x0800`,
+    address lengths 6 and 4), with the operation request or reply, the
+    sender hardware address equal to the guest's MAC, the sender
+    protocol address equal to the leased address or `0.0.0.0`, and the
+    target protocol address equal to the gateway. So the guest's
+    probes for its own address go unanswered, because an answer would
+    tell it the address is taken, and nothing the guest sends can
+    claim another address in the stack's neighbor table.
+  - IPv4 has a header of 20 bytes (no options) and is not a fragment
+    (MF clear, offset 0). Its source is the leased address. The
+    address `0.0.0.0` is allowed as a source in exactly two places: an
+    IPv4 DHCP packet from UDP port 68 to port 67, and the sender
+    protocol address of the guest's ARP probes.
+  - TCP passes to the stack, which decides under "Connections". UDP
+    passes only to the gateway's port 53, or from port 68 to port 67
+    for DHCP, to the gateway or to broadcast. ICMP passes only as an
+    echo request to the gateway. Every other IP protocol, multicast,
+    and broadcast other than DHCP is dropped. gVisor didn't answer ping
+    to other addresses even without the ICMP rule, which is a second
+    layer.
+- **Events and rate limits.** Each drop is counted and logged with its
+  rule. Every class of event the guest can trigger, which is link
+  filter drops, DHCP findings, DNS refusals and approval events, is
+  rate-limited per rule, and the record that follows a suppressed run
+  holds the count it suppressed (SEC10-audit,
+  SEC13-bounded-resources). Packets the stack sends itself, such as
+  its own broadcast DHCP replies, are never counted as guest drops.
+- **Per-VM caps.** Each VM's `wb-netd` caps TCP connections in flight
+  (half-open and established), DNS-over-TCP connections, the stack's
+  buffer memory, and the bytes in its frame queues, not only their
+  frame counts. Each cap is configuration with a default. A frame or
+  connection over a cap is dropped and logged with the cap's rule
+  (SEC13-bounded-resources).
+- **No host-side listener.** `wb-netd` listens on nothing on the host
+  and never opens a connection to the guest. Its only peers are the
+  packet transport and `wb-proxyd`. A path from the host into the
+  guest, such as port forwarding (FR11-port-forward), needs its own
+  spec text, and doesn't go through `wb-netd`.
 - **Addressing.** `wb-netd` runs a DHCP server handing the guest a single
   private IPv4 address, with the gateway as router and DNS server. Only
   the guest's own MAC and leased address are accepted. IPv6 is not
@@ -158,8 +190,14 @@ session start in the VM to the end of the last session running in it.
   interface MTU. The macOS client also asks for a proxy configuration
   (WPAD, option 252), static routes, encrypted DNS, IPv6-only
   preferred, NetBIOS, LDAP and a search domain, and the gateway never
-  offers them (FR08-no-proxy-config). A `DHCPDECLINE` from the guest means
-  something answered for its address, and is logged as a finding.
+  offers them (FR08-no-proxy-config). The server answers DISCOVER with
+  OFFER, REQUEST for the leased address with ACK and any other REQUEST
+  with NAK, and INFORM with an ACK of the same options and no address.
+  RELEASE is logged, and the lease stays with the guest's MAC, because
+  there is only one. A `DHCPDECLINE` means something answered for the
+  guest's address, and is logged as a finding. Strings the guest
+  sends, such as the host name, vendor class and client identifier
+  (options 12, 60, 61 and 81), are logged escaped, never raw.
 - **MTU.** The packet transport and the DHCP interface-MTU option
   (26) use the same MTU, which `wb-vmd` sets on the attachment. It is
   1500 until B17-network-path decides on a larger one. The macOS
@@ -170,19 +208,35 @@ session start in the VM to the end of the last session running in it.
     address** from a reserved range (198.18.0.0/15), allocated per name
     and remembered with a TTL. Real upstream addresses are never revealed
     to the guest.
+  - *Synthetic pool.* Each VM has the 131,072 addresses of
+    198.18.0.0/15. An address is never given to another name while a
+    connection to it is open, or before its TTL plus a guard interval
+    has passed since its last answer. When no address is free, a new
+    name gets `SERVFAIL`, logged with the rule `synthetic-pool-full`.
+    Inspected plain HTTP requires the `Host` header to equal the name
+    mapped to the synthetic address.
   - `AAAA`, `HTTPS` and `SVCB` queries for allowlisted names get an
     empty answer, and other record types are refused. The macOS
-    resolver asks for `HTTPS` before most `A` queries, and an `HTTPS`
-    record could hold an encrypted ClientHello configuration or an
-    HTTP/3 hint that `wb-proxyd` can't honor (X03-network-path).
+    resolver asks for `HTTPS` before most `A` queries. The spike
+    refused `HTTPS`, and the empty answer is a choice nobody measured
+    (B17-network-path): it gives no `HTTPS` record that could hold an
+    encrypted ClientHello configuration or an HTTP/3 hint that
+    `wb-proxyd` can't honor.
+  - *Local answers.* Reverse lookups (`in-addr.arpa`, `ip6.arpa`),
+    service-discovery names under `.arpa` such as `_dns.resolver.arpa`,
+    and names under `.local` are answered by `wb-netd` itself, with
+    `NXDOMAIN` or an empty answer and no approval event, and logged.
+    An idle macOS guest asks for its own reverse name and for
+    `_dns.resolver.arpa` after each lease (X03-network-path).
   - Names not on the allowlist get `NXDOMAIN` and raise an approval
-    event (FR09-approve-unknown). After approval, the next lookup succeeds.
-    The guest OS resolves names of its own, with no user action: an
-    idle guest at the login window looked up 14 host names, 109 queries
-    in all, in its first hour (X03-network-path). Whether those get a
-    prompt is open
-    (B17-network-path). Until it is decided, they are refused with an
-    approval event like any other name.
+    event (FR09-approve-unknown). After approval, the next lookup
+    succeeds. Each name raises one approval event per session, and
+    later queries for it are counted on that event. The guest OS
+    resolves names of its own, with no user action: an idle guest at
+    the login window looked up 14 host names, 109 queries in all, in
+    its first hour (X03-network-path). Whether those get a prompt is
+    open (B17-network-path). Until it is decided, they are refused
+    with an approval event like any other name.
   - Wildcard allowlist entries are bounded: each VM may resolve at most
     a fixed number of new names under wildcards in an active period
     ("Enforced per VM"), and failed lookups count against that budget,
@@ -200,7 +254,9 @@ session start in the VM to the end of the last session running in it.
     (clients fall back from QUIC to TCP); ICMP is answered only for the
     gateway address. The host, the LAN, and raw IP destinations are
     therefore unreachable by construction (SEC05-default-deny).
-    TCP to the gateway on any port but 53 is reset too.
+    TCP to the gateway on any port but 53 is reset too. The reset is
+    sent for the first SYN: in the spike the guest sent the SYN to the
+    gateway's port 80 twice before it failed (X03-network-path).
   - NTP is UDP, so it is dropped, and the guest clock comes only from
     `wb-guestd` (S06-vm-lifecycle).
 
@@ -550,10 +606,12 @@ second network path.
 
 X03-network-path measured a 1 GiB download from a plain HTTP stand-in
 for `wb-proxyd` at about 350 MB/s at MTU 1500 and 570 MB/s at MTU 9000
-or 65535, where the stand-in was the limit, and an upload at about 300
-and 950 MB/s. At MTU 1500 the cost per frame dominates: `wb-netd` used
-about 7 CPU-seconds per GiB downloaded, and about 4 at the larger
-MTUs. Whatever the MTU, `wb-netd` bounds its frame queues in bytes, not
-only in frames (SEC13-bounded-resources).
+or 65535, where the stand-in was the limit. It measured uploads only at
+MTU 1500 and 65535, at about 300 and 950 MB/s. At MTU 1500 the cost
+per frame dominates: the `wb-netd` stand-in used about 7 CPU-seconds
+per GiB downloaded, and about 4 at the larger MTUs. Those CPU figures
+include the stand-in for `wb-proxyd`, which ran in the same process.
+Whatever the MTU, `wb-netd` bounds its frame queues in bytes, not only
+in frames (SEC13-bounded-resources).
 
 **Status:** Draft

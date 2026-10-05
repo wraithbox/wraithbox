@@ -58,7 +58,9 @@ Figure 1. Every frame from the guest arrives in `wb-netd`. The link filter lets 
 
 ## What changes in the specs without a choice
 
-S07-egress-gateway now states the link filter, the DHCP options the gateway never offers (a proxy configuration URL among them), empty answers to `HTTPS` and `SVCB` queries, the same MTU on both ends of the link, and that NTP is dropped, so the guest clock comes from `wb-guestd`. S11-verification-and-spikes adds the conformance checks for the filter and compares the download benchmark with this spike.
+S07-egress-gateway now states the complete link filter, the DHCP options the gateway never offers (a proxy configuration URL among them), local answers for reverse and service-discovery names, one approval event per name per session, the size and reuse rules of the synthetic address pool, per-VM caps, rate limits on every event the guest can trigger, the same MTU on both ends of the link, that `wb-netd` has no host-side listener, and that NTP is dropped, so the guest clock comes from `wb-guestd`. S11-verification-and-spikes adds the filter to the fuzz targets, adds conformance checks for it, and compares the download benchmark with this spike.
+
+**One choice of the builder, not measured:** S07-egress-gateway gives an empty answer to `HTTPS` and `SVCB` queries for allowlisted names, where the spike refused them and the guest connected fine. An empty answer gives the guest no record that could hold an encrypted ClientHello configuration or an HTTP/3 hint the proxy can't honor. The cost: nobody has checked the macOS resolver behaves the same with it, so S11-verification-and-spikes adds a case for that, and until it passes the choice rests on reading, not on a run.
 
 ## Decision 1: the link MTU
 
@@ -93,7 +95,7 @@ A common "jumbo frame" size.
 
 What every network uses, and what S07-egress-gateway says until this is decided.
 
-- **Cost:** about 350 MB/s down and 300 MB/s up, and about 7 CPU-seconds per GiB in `wb-netd`, close to two cores busy during a large download.
+- **Cost:** about 350 MB/s down and 300 MB/s up, and about 7 CPU-seconds per GiB in `wb-netd`, about 2.4 cores busy during a large download. Option A keeps about 2.2 cores busy, but moves 60% more bytes in that time. These figures include the proxy stand-in, which ran in the same process.
 - **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" />
 
 </div>
@@ -103,16 +105,20 @@ No security control depends on the MTU: the link filter, DNS and the proxy apply
 
 ## Decision 2: the guest OS's own lookups
 
-An idle guest at the login window, with nothing installed and nobody logged in, looked up 14 host names in its first hour, 109 queries in all, every one under `apple.com` or `icloud.com`: by their names, push, time, software update, location and iCloud services. Today each is an approval event, a prompt on the host for something the user never did.
+An idle guest at the login window, with nothing installed and nobody logged in, looked up 14 host names in its first hour, 109 queries in all, every one under `apple.com` or `icloud.com`: by their names, push, time, software update, location and iCloud services. It also asked for the reverse name of its own address and for `_dns.resolver.arpa`, which S07-egress-gateway now answers locally without a prompt. Under the spec as it stands, each of the 14 host names raises one approval event per session, a prompt on the host for something the user never did.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
 ### A. Refuse quietly, and turn them off in the image
 
-A built-in list of the guest OS's background names gets `NXDOMAIN` and an audit entry, but no prompt. The image (X17-image-build) turns off the services it can.
+A list of the guest OS's background names gets `NXDOMAIN` and an audit entry, but no prompt. The image (X17-image-build) turns off the services it can. The conditions:
 
-- **Cost:** a list to keep up with macOS releases. A user who wants one of those services allows it by hand.
+- the list is host-held policy, which the guest can never extend;
+- it holds exact names, not suffixes, so `developer.apple.com` doesn't fall under it;
+- `wb status` shows the list and counts each name's refusals.
+
+- **Cost:** a list to keep up with macOS releases. A user who wants one of those services allows it by hand. FR09-approve-unknown is amended to exempt the list.
 - **Keeps:** <Badge text="SEC05-default-deny" variant="success" /> still refused. <Badge text="SEC10-audit" variant="success" /> logged.
 
 </div>
@@ -146,7 +152,7 @@ Put Apple's background services on the default allowlist.
 </thead>
 <tbody>
 <tr><td><strong>SEC05-default-deny</strong> only allowlisted hostnames are reachable</td><td class="yes">refused</td><td class="partial">until someone clicks allow</td><td class="no">allowed</td></tr>
-<tr><td><strong>FR09-approve-unknown</strong> unknown destinations raise a prompt</td><td class="partial">not for the list</td><td class="yes">every name</td><td class="na">not asked</td></tr>
+<tr><td><strong>FR09-approve-unknown</strong> unknown destinations raise a prompt</td><td class="partial">not for the list, FR09 amended</td><td class="yes">every name</td><td class="na">not asked</td></tr>
 <tr><td><strong>SEC10-audit</strong> every decision logged</td><td class="yes">audit entry</td><td class="yes">prompt, audited</td><td class="yes">each connection audited</td></tr>
 <tr><td><strong>NFR06-explained-refusals</strong> refusals say why</td><td class="yes">in `wb status`</td><td class="yes">prompt</td><td class="na">nothing refused</td></tr>
 </tbody>
@@ -154,13 +160,14 @@ Put Apple's background services on the default allowlist.
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> Lease 4.70 to 5.02 s after the VM started, on six cold boots, with only the file-handle attachment. Source: X03-network-path, "Measurements", and the `*-netd.jsonl` logs on the spike branch.
+- <Badge text="verified" variant="success" /> Lease 4.7 to 5.7 s after the VM started, median 4.9 s, on 11 cold boots, with only the file-handle attachment. Source: X03-network-path, "Measurements", and the `*-netd.jsonl` logs on the spike branch.
 - <Badge text="verified" variant="success" /> Allowlisted `A` queries got a synthetic address, `AAAA` an empty answer, and other names `NXDOMAIN`. DNS to another server timed out or was reset. TCP outside a synthetic address and allowed port was reset. Only the gateway answered ping. UDP other than DNS and IPv6 were dropped. Source: `results/run1-mtu1500-probe.txt`.
 - <Badge text="verified" variant="success" /> The `wb-vmd` stand-in had only the virtualization entitlement, the `wb-netd` stand-in none. Source: `results/entitlements.txt`.
 - <Badge text="verified" variant="success" /> With the ARP rule of the filter off, the guest declined every lease as an address conflict and never got an address. With the ICMP rule off, gVisor still didn't answer ping to other addresses. Source: `results/run11-*` and `results/run12-*` on the spike branch.
 - <Badge text="verified" variant="success" /> Download throughput and CPU time at MTU 1500, 9000 and 65535. Source: X03-network-path, "Measurements".
 - <Badge text="verified" variant="success" /> The idle guest's names. Source: `results/run6-idle-hour-netd.jsonl`.
 - <Badge text="assumed" variant="caution" /> That `wb-proxyd`, which terminates and re-originates TLS, costs more than the stack, so the stack isn't the limit. X04-tls-inspection measures inspection.
+- <Badge text="assumed" variant="caution" /> That the macOS resolver behaves the same when `HTTPS` and `SVCB` get an empty answer as when they were refused, as in the spike. S11-verification-and-spikes checks it.
 - <Badge text="assumed" variant="caution" /> That a guest with a logged-in user and tools installed adds names to the idle list but no new kind of traffic.
 
 ## What it unblocks
