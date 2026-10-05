@@ -215,6 +215,8 @@ host or CI may execute or that change how git behaves:
   `scripts`, toolchain pin files;
 - editor and agent configuration (`.vscode/`, `.idea/`, `.claude/`,
   `AGENTS.md`, `CLAUDE.md`);
+- Wraith Box's own repository configuration, `.wraithbox/`
+  (S09-policy-credentials-audit);
 - CI definitions (`.github/workflows/` and equivalents);
 - `.gitattributes`, `.gitmodules`, submodule URL changes;
 - lockfiles;
