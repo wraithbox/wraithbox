@@ -22,7 +22,9 @@ permissive license, at a version that can be pinned?
   - what a boundary check result has to say before a policy is
     accepted;
   - that the boundary check fails closed on a Windows host, because
-    v0.1.2 has no Windows prover build;
+    v0.1.2 has no Windows prover build. With the session-start check
+    of the user's policy, that refuses every session on a Windows host,
+    not only `wb trust`, until a Windows prover exists (I91);
   - what `l7_bypass_credentialed` means in Wraith Box: a host with a
     credential binding put into pass mode or given an L4-only endpoint.
     OpenShell's version never fires for a `/**` rule.

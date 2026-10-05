@@ -128,9 +128,12 @@ inspection is trusted, and what is recorded.
     they change, also for a project with no trusted repository. The
     candidate is those rules only, projected as above, without the
     built-in profiles. A failing check refuses the session start, with
-    the reason shown and logged. This is option A of the open decision
-    on approvals and the boundary (B35-openshell-artifacts), which the
-    spec applies until it is decided.
+    the reason shown and logged. The result is cached on the SHA-256
+    of the candidate and of the boundary, so an unchanged policy adds
+    no prover run to session start (NFR01-startup). This is option A of
+    the open decision on approvals and the boundary
+    (B35-openshell-artifacts), which the spec applies until it is
+    decided.
   - *What the prover models.* At v0.1.2 it compares hosts, ports and
     programs, and method and path rules on `protocol: rest` endpoints
     in `enforce` mode. It answers `unsupported` for GraphQL and

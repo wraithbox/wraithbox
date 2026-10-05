@@ -151,7 +151,7 @@ The boundary limits what a trusted repository adds. The spec didn't check approv
 
 ### A. Yes, refuse a request outside the boundary
 
-The prover checks the proposed rule alone. A rule outside the boundary isn't shown as a request, and the refusal is logged as a Device Config State Change (5019) event. The user's global and project policy is checked against the boundary too, also for a project with no trusted repository.
+The prover checks the proposed rule alone. A rule outside the boundary isn't shown as a request, and the refusal is logged as a Device Config State Change (5019) event. The user's global and project policy is checked against the boundary too, also for a project with no trusted repository. That check sends no built-in profiles whatever decision 1 says, so for a project with no trusted repository the boundary never limits the built-in profiles.
 
 - **Cost:** a prover run per approval request whose result isn't cached, bounded by per-VM limits, deduplication by host and a per-session rate limit. The default boundary must allow the approved form for any host, or approvals of new hosts stop. An organization boundary that lists hosts then limits approvals to them, which is its purpose.
 - **Keeps:** <Badge text="SEC09-host-policy" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" />
