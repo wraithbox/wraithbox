@@ -156,9 +156,15 @@ run = "go build ./..."
 # GOOS suffixes cannot rot on the OSes a developer does not use. CI runs
 # go:lint/go:vet/go:test natively on all three instead (S02-toolchain). Unix
 # shell only; not run on Windows.
+#
+# golangci-lint refuses to run while another instance holds its lock
+# ("parallel golangci-lint is running"), so under `ci` this task waits
+# for go:lint instead of racing it. wait_for orders without depending:
+# `mise run go:cross` alone does not pull in go:lint.
 [tasks."go:cross"]
 description = "go vet + golangci-lint + go build for darwin, linux and windows"
 dir = "packages/wraithbox-go"
+wait_for = ["go:lint"]
 run = """
 set -e
 for os in darwin linux windows; do
@@ -217,7 +223,10 @@ for p in packages/*-swift; do
 done
 """
 
+# SwiftPM locks .build, so under `ci` test waits for build instead of
+# blocking on the lock.
 [tasks."swift:test"]
+wait_for = ["swift:build"]
 run = """
 set -e
 for p in packages/*-swift; do
