@@ -23,8 +23,8 @@ host, on the NFR02-fs-speed workloads?
   shortfall is in the guest, not in the disk settings.
 - **Controls touched:** none. The host never mounted, formatted or read a
   data image. The guest formatted each one, and the workloads went in as
-  tar streams over SSH. The VM had only the file-handle network device,
-  with no name allowed, and no shared directory.
+  tar streams over SSH. The VM's only network device was the file-handle
+  attachment, which allowed no names, and it had no shared directory.
 - **Assumed:** that a full-sync image keeps flushed writes through a
   host power loss, as Apple's header says. The spike killed the VM's
   processes, not the host. That the host baseline is fair: the host has
@@ -59,17 +59,17 @@ With 4 vCPU, the S06-vm-lifecycle default, and the setting chosen here
 | `git status`, 43k files | 0.250 s | 0.182 s | 137% |
 | Go incremental build | 0.439 s | 0.542 s | 81% |
 
-No disk setting changes that answer:
+The answer is the same for every disk setting:
 
 1. **The sync mode doesn't matter for these workloads.** Across all 13
    settings with 4 vCPU, `npm ci` took 3.08 s to 3.60 s (65% to 75%),
    `git status` 0.179 s to 0.205 s, and the Go build 0.533 s to 0.613 s
-   (72% to 82%), with no order by mode. None of them issues many
+   (72% to 82%), with no order by mode. These workloads issue few
    flushes. The sync mode only shows where a program flushes after each
    write: 500 appends with `fsync` took 1.50 s to 2.05 s with full
    sync, 0.66 s to 1.22 s with the `fsync` mode, and 0.20 s to 0.49 s
    with no sync, against 1.28 s on the host.
-2. **`npm ci` falls short even without a virtual disk.** On an APFS
+2. **`npm ci` stays under the target even without a virtual disk.** On an APFS
    volume on a guest RAM disk it took 3.03 s, 77% of the host. The
    virtual disk costs 8% on top of that with the chosen setting. With 8
    vCPU it was slower (3.65 s), so the vCPU count isn't the cause
@@ -95,7 +95,7 @@ apart. A host crash or power loss can, and for that Apple's header is
 the source: with no sync, "the disk image cannot safely be reused on
 failure", and the `fsync` mode is "best-effort" and doesn't flush the
 drive's cache. Only full sync keeps flushed writes, which is what I44
-decided Claude Code state and unpushed commits need.
+decided Claude Code state and commits not yet pushed need.
 
 ## Measurements
 
@@ -116,12 +116,12 @@ the host, both excluded from Spotlight:
 - Go incremental build: `go build` of a gVisor-based program with its
   modules vendored, after changing one file. Also a clean build with an
   empty build cache.
-- Two probes of the sync modes: 500 appends of 4 KiB, each followed by
+- Probes of the sync modes: 500 appends of 4 KiB, each followed by
   `fsync` (node's libuv issues `F_FULLFSYNC` on macOS), and 512 MiB of
   sequential writes with one `fsync` at the end.
 
-Five warm runs per workload and setting, after one run to settle. Five
-cold runs after `purge` in the guest, which drops the guest's file cache
+Each workload ran five times warm per setting, after one run to settle,
+and five times cold, after `purge` in the guest, which drops the guest's file cache
 (and with it the toolchain on the system disk). The host can't run
 `purge` without a password, so it has no cold runs. The host ran the
 workloads after each guest setting, with no VM running: 75 runs per
@@ -145,10 +145,10 @@ workload. Medians, warm:
 The other four ASIF settings, the cold runs, the sequential writes and
 the spread of each set are in `results/stats.txt` on the spike branch.
 Cold, with the chosen setting, the guest took 4.51 s for `npm ci`,
-0.579 s for `git status` and 2.05 s for the Go build. There is no host
-number to compare them with.
+0.579 s for `git status` and 2.05 s for the Go build. The host has no
+cold number to compare them with.
 
-- **The host baseline is noisy and may be slow.** The host's 75
+- **The host baseline spreads, and may be slow.** The host's 75
   `npm ci` runs spread from 2.29 s to 2.60 s. FileVault and the Endpoint
   Security extension add work to every file operation on the host and
   none in the guest, whose data volume isn't encrypted. That may be why

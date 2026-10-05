@@ -48,6 +48,8 @@ NXDOMAIN
 terminfo
 SVCB
 WPAD
+ASIF
+libuv
 terminfo
 
 # Tools and their names in configs
