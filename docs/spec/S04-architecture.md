@@ -190,6 +190,10 @@ nothing themselves (S12-platforms).
   rest.** The work VM hosts every trusted project for its guest OS,
   separated by guest user accounts; an isolated VM takes untrusted
   repositories. For macOS guests this fits Apple's two-VM limit (SEC08-proj-isolation, NFR05-two-macos-vms).
+  The accounts keep the projects' files apart. The host can't tell
+  their connections apart, so it enforces the policy and the
+  credential bindings of a VM's projects for the whole VM
+  (S07-egress-gateway, "Enforced per VM", T11-shared-vm-grants).
 - **No root or administrator rights at run time.** The packet transport
   and the userspace stack replace host networking features that would
   need them (SEC12-least-privilege, NFR04-host-platforms).

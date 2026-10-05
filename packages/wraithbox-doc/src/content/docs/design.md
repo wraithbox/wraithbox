@@ -47,7 +47,9 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
   addresses, the host, the LAN, or arbitrary DNS servers.
 - **One work VM, many projects.** Trusted projects share a work VM as
   separate guest users; untrusted repositories get an isolated VM. (macOS
-  allows two running macOS guests, which this fits.)
+  allows two running macOS guests, which this fits.) Projects in one VM
+  share its network grants and credential bindings. A project whose
+  tokens must stay apart runs in the isolated VM.
 - **No root or admin on the host, no extra host accounts.** Works on
   managed machines.
 

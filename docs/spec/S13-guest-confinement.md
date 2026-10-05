@@ -5,7 +5,7 @@ processes can do, and tell the host which program opened each
 connection. They add a layer on top of the host-side controls and never
 replace them.
 
-**Requirements:** SEC05-default-deny, SEC06-repo-writes, SEC08-proj-isolation, SEC11-root-gains-nothing, FR15-inspect, NFR06-explained-refusals. Residual risk T06-forged-labels.
+**Requirements:** SEC05-default-deny, SEC06-repo-writes, SEC08-proj-isolation, SEC11-root-gains-nothing, FR15-inspect, NFR06-explained-refusals. Residual risks T06-forged-labels and T11-shared-vm-grants.
 
 This spec describes macOS guests, the v1 target. OpenShell's Linux
 sandbox runtime (Landlock, seccomp, process identity from `/proc`) is
@@ -27,14 +27,23 @@ control here. T00-index assumes the attacker may hold guest root
 - **Identities are labels.** They are recorded in the audit log as
   reported by the guest (S09-policy-credentials-audit), never as proof.
 
-Guest root can forge identities, which collapses per-program rules into
-the union of the project's grants. That is residual risk T06-forged-labels.
+Guest root can forge identities, which collapses per-program and
+per-project rules into the union of the VM's grants. That is residual
+risk T06-forged-labels.
+
+The host floor is per VM, not per project (S07-egress-gateway,
+"Enforced per VM"). Every project with a session in a VM can use the
+network grants and credential bindings of the others in it, without
+guest root (T11-shared-vm-grants). Only a label from this layer
+(Layer 3) can tell projects apart on the network, and only against a
+process without guest root.
 
 ## Layer 1: process hardening (v1)
 
 Applied by `wb-guestd` to every process it starts for a project user:
 
-- a project user per project (S06-vm-lifecycle), never root;
+- a project user per project (S06-vm-lifecycle), never root. Project
+  users keep files apart, not network traffic (T11-shared-vm-grants);
 - `RLIMIT_CORE` set to 0, and an environment built from an allowlist
   (S09-policy-credentials-audit);
 - when the host-guest socket drops, `wb-guestd` stops the session's
@@ -83,6 +92,10 @@ label to the host:
   directory hash (cdhash). Apple Silicon runs only signed binaries, at
   least ad hoc signed. The cdhash identifies the file the way OpenShell's
   SHA-256 does.
+- the user ID of the process from the same audit token, which names
+  the project user and so the project. Parallel sessions of one
+  project run as the same user. The label names a session only while
+  its project has one session running.
 
 `wb-netd` attaches the label to the stream it hands to `wb-proxyd`.
 Rules then match on it (S09-policy-credentials-audit):

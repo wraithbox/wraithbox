@@ -3,7 +3,7 @@
 **Purpose:** Where policy comes from, how secrets are held, how TLS
 inspection is trusted, and what is recorded.
 
-**Requirements:** FR09-approve-unknown, FR10-learn-mode, FR15-inspect, SEC04-no-guest-secrets to SEC06-repo-writes, SEC09-host-policy, SEC10-audit, SEC12-least-privilege, SEC14-no-fake-approvals, NFR06-explained-refusals.
+**Requirements:** FR09-approve-unknown, FR10-learn-mode, FR15-inspect, SEC04-no-guest-secrets to SEC06-repo-writes, SEC08-proj-isolation to SEC10-audit, SEC12-least-privilege, SEC14-no-fake-approvals, NFR06-explained-refusals. Residual risk T11-shared-vm-grants.
 
 ## Policy
 
@@ -70,10 +70,19 @@ inspection is trusted, and what is recorded.
   silently weaker than written. The prover checks each policy both with
   and without binary identity, and with it reads `/**` as every program
   (X24-openshell-artifacts).
+- **Project narrowing.** A project's rules and bindings apply to the
+  whole VM while the project has a session in it (S07-egress-gateway,
+  "Enforced per VM"). Once X14-flow-attribution delivers labels that
+  name the project user (S13-guest-confinement), those labels may
+  narrow a project's rules to its own flows. The rules of program
+  narrowing apply: a missing or malformed label matches no narrowed
+  rule. Until then nothing is narrowed by project.
 - **Settings contents.** The project toolchain manifest (Brewfile on
   macOS guests); extra writable repositories; guest OS; VM slot
   (work/isolated); resource limits. Clipboard and port-forwarding
-  switches come after V1 (V1-08-no-forward-clipboard).
+  switches come after V1 (V1-08-no-forward-clipboard). A project whose
+  credentials or write grants must stay apart from other projects is
+  set to the isolated slot (T11-shared-vm-grants).
 - **Repository-supplied configuration.** A `.wraithbox/` directory in a
   repository (`config.toml`, `policy.yaml`) is ignored unless the user
   has run `wb trust` for that repository. Even then it may only add
@@ -126,8 +135,10 @@ inspection is trusted, and what is recorded.
   - *User policy.* The user's global and project network rules are
     checked against the boundary too, at session start and whenever
     they change, also for a project with no trusted repository. The
-    candidate is those rules only, projected as above, without the
-    built-in profiles. A failing check refuses the session start, with
+    candidate is the global rules and the rules of every project with
+    a session in the VM, which is what the VM enforces
+    (S07-egress-gateway, "Enforced per VM"), projected as above,
+    without the built-in profiles. A failing check refuses the session start, with
     the reason shown and logged. The result is cached on the SHA-256
     of the candidate and of the boundary, so an unchanged policy adds
     no prover run to session start (NFR01-startup). This is option A of
@@ -154,6 +165,13 @@ inspection is trusted, and what is recorded.
     profile's rule is a load error. Built-in denies apply whatever the
     source of the allow. User and repository policy can't change a
     built-in host's kind, mode or rules.
+  - *Per VM.* The host enforces the merge for a VM, not for a project:
+    the project sources are those of every project with a session in
+    the VM, and limits take the strictest value among them
+    (S07-egress-gateway, "Enforced per VM"). `wb policy explain` shows
+    for each rule and each credential binding the project it comes from
+    and the projects that can reach it now, which are every project with
+    a session in the same VM (T11-shared-vm-grants).
 
 ## Credentials
 
@@ -177,6 +195,11 @@ inspection is trusted, and what is recorded.
   `ghcr.io` token for Homebrew bottles (S07-egress-gateway,
   X22-no-guest-credentials). Such a value isn't a secret, and the
   guest doesn't get a placeholder for it.
+- **Reach.** A project's binding is injected for requests from the whole
+  VM while the project has a session in it, so every project in that
+  VM can have it used on their behalf, though none can read it
+  (T11-shared-vm-grants). `wb policy explain` shows who can reach it
+  ("Precedence").
 - **Model credential.** Claude Code in the guest is configured with a
   placeholder and a binding for the model API host. Whether every Claude
   Code authentication mode works with host-side replacement (including
@@ -262,7 +285,9 @@ Only the user approves a request.
 - **Limits.** The guest triggers approval requests, one per unknown
   name it looks up (S07-egress-gateway), so prover runs are bounded
   (SEC13-bounded-resources). Requests are deduplicated by host and
-  rate-limited per session, with a limit fixed in code. Each VM has a
+  rate-limited per VM, with a limit fixed in code, because the host
+  can't tell which session raised one (S07-egress-gateway, "Enforced
+  per VM"). Each VM has a
   limit fixed in code on pending requests, and a cap on concurrent
   prover runs (S04-architecture). Boundary results are cached per host,
   port and rule form, keyed on the SHA-256 of the boundary document, so
@@ -296,6 +321,14 @@ stripped of control and escape sequences wherever it is shown.
   inspected requests; bytes in and out; approval actions; returned work
   and its flags. Process attribution reported by the guest is stored as
   an untrusted label.
+- Attribution of network events. `wb-netd` and `wb-proxyd` know the VM,
+  and `wb-hostd` adds the projects and sessions running in it. The
+  project, session, guest user and program of each connection come
+  only from the guest's label, stored as untrusted (S07-egress-gateway,
+  "Enforced per VM"). A per-session view of network events
+  (FR15-inspect) shows that label as reported by the guest. Returned
+  work keeps the project and session of its git transport
+  (S08-workspace-and-git).
 - Never recorded: credential values and request or response bodies.
 
 **Status:** Draft
