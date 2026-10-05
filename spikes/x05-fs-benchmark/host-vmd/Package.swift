@@ -1,0 +1,11 @@
+// swift-tools-version: 5.9
+// X05-fs-benchmark spike: a wb-vmd stand-in. Throwaway code, not held to the project gates.
+import PackageDescription
+
+let package = Package(
+    name: "x05",
+    platforms: [.macOS("27.0")],
+    targets: [
+        .executableTarget(name: "x05", path: "Sources/x05")
+    ]
+)

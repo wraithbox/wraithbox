@@ -1,0 +1,4 @@
+{"cache":1,"data":"\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x05\/asif.asif","event":"config","memGiB":8,"nvme":false,"pid":93836,"sync":2}
+{"event":"nic-passed","mtu":1500,"swiftClosedHostEnd":true}
+{"event":"started","seconds":0.21354475000407547}
+{"event":"guest-stopped","seconds":147.68954495800426}
