@@ -142,9 +142,11 @@ inspection is trusted, and what is recorded.
     (S07-egress-gateway, "Enforced per VM"), projected as above,
     without the built-in profiles. A failing check refuses the session
     start, with the reason, the project and the rule that caused it
-    shown and logged. While sessions run, a change that only narrows
-    the union applies without this check. A change that widens it and
-    fails the check, or can't be checked, is refused, the VM keeps its
+    shown and logged. While sessions run, a change that narrows the
+    union, so that the new union allows a subset of what the old one
+    allowed, applies without this check. Removing a `deny_rules` entry,
+    loosening a limit or weakening a mode widens. A change that widens
+    and fails the check, or can't be checked, is refused, the VM keeps its
     last policy that passed, and `wb policy explain` shows the change
     as pending (S07-egress-gateway, "Policy changes while sessions
     run"). The result is cached on the SHA-256
