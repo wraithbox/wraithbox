@@ -1,0 +1,97 @@
+== ifconfig en0
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	inet6 fe80::809:9c15:cd29:7ecd%en0 prefixlen 64 secured scopeid 0x5 
+	inet 10.0.2.15 netmask 0xffffff00 broadcast 10.0.2.255
+== lease
+yiaddr = 10.0.2.15
+router (ip_mult): {10.0.2.2}
+domain_name_server (ip_mult): {10.0.2.2}
+interface_mtu (uint16): 0x5dc
+lease_time (uint32): 0xe10
+== dns A allowlisted
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 22707
+bulk.test.		60	IN	A	198.18.0.1
+== dns A allowlisted again (same synthetic address)
+198.18.0.1
+== dns A second name
+198.18.0.2
+== dns AAAA allowlisted (empty)
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 55579
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 0
+== dns MX allowlisted (refused)
+;; ->>HEADER<<- opcode: QUERY, status: REFUSED, id: 13407
+== dns A not allowlisted (NXDOMAIN)
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 36395
+== dns over TCP
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 13050
+bulk.test.		60	IN	A	198.18.0.1
+== dns to another server (dropped, times out)
+;; connection timed out; no servers could be reached
+real 2.01
+== dns to another server over TCP (reset)
+;; Connection to 8.8.8.8#53(8.8.8.8) for example.com failed: connection refused.
+real 0.00
+== system resolver
+name: bulk.test
+ip_address: 198.18.0.1
+
+(empty = not found)
+== tcp allowed: synthetic, port 80
+stub: GET /hello host=bulk.test
+== tcp synthetic, port not allowed (reset)
+curl: (7) Failed to connect to bulk.test port 8080 after 1 ms: Couldn't connect to server
+real 0.01
+== tcp synthetic, unallocated (reset)
+curl: (7) Failed to connect to 198.18.200.200 port 80 after 1 ms: Couldn't connect to server
+real 0.00
+== tcp raw public IP (reset)
+curl: (7) Failed to connect to 1.1.1.1 port 80 after 1 ms: Couldn't connect to server
+real 0.00
+== tcp gateway (reset)
+curl: (7) Failed to connect to 10.0.2.2 port 80 after 1002 ms: Couldn't connect to server
+real 1.01
+== tcp host LAN address 192.168.2.19 (reset)
+curl: (7) Failed to connect to 192.168.2.19 port 80 after 1 ms: Couldn't connect to server
+real 0.01
+== tcp host loopback via 127.0.0.1 is the guest's own
+curl: (7) Failed to connect to 127.0.0.1 port 18080 after 0 ms: Couldn't connect to server
+== tcp ssh to raw IP port 22 (reset)
+nc exit 1
+== icmp gateway
+2 packets transmitted, 2 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = 0.141/0.329/0.517/0.188 ms
+== icmp public IP (dropped)
+--- 1.1.1.1 ping statistics ---
+2 packets transmitted, 0 packets received, 100.0% packet loss
+== icmp synthetic (dropped)
+--- 198.18.0.1 ping statistics ---
+2 packets transmitted, 0 packets received, 100.0% packet loss
+== icmp host LAN (dropped)
+--- 192.168.2.19 ping statistics ---
+2 packets transmitted, 0 packets received, 100.0% packet loss
+== udp QUIC to synthetic 443 (dropped)
+nc exit 0
+== udp to public IP (dropped)
+nc exit 0
+== udp NTP (dropped)
+}
+== ipv6 link-local all-nodes (dropped)
+2 packets transmitted, 2 packets received, 0.0% packet loss
+round-trip min/avg/max/std-dev = 0.068/0.085/0.102/0.017 ms
+== ipv6 global (no route)
+curl: (7) Failed to connect to 2606:4700:4700::1111 port 80 after 0 ms: Couldn't connect to server
+== ipv6 addresses
+	inet6 fe80::809:9c15:cd29:7ecd%en0 prefixlen 64 secured scopeid 0x5 
+== bulk download 1
+bytes 1073741824 seconds 2.979248 Bps 360406996
+== bulk download 2
+bytes 1073741824 seconds 3.088503 Bps 347657691
+== bulk download 3
+bytes 1073741824 seconds 2.928300 Bps 366677534
+== counters
+		0 data packet (0 byte) retransmitted
+		0 duplicate ack
+		0 completely duplicate packet (0 byte)
+		0 old duplicate packet
+		0 out-of-order packet (0 byte)
+	0 retransmit timeout

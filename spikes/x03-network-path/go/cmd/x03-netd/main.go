@@ -127,7 +127,14 @@ type cfg struct {
 	stubFile  string
 	stubTCP   string
 	dhcpMTU   bool
+	// unfiltered turns off the ARP and ICMP rules of the link filter, to
+	// see what gVisor alone answers in promiscuous and spoofing mode.
+	unfiltered bool
 }
+
+// relayBuf is the copy buffer between the guest stream and the stub; 0
+// means io.Copy's default (32 KiB).
+var relayBuf int
 
 func main() {
 	var c cfg
@@ -136,6 +143,8 @@ func main() {
 	flag.StringVar(&mac, "mac", "", "guest MAC")
 	flag.IntVar(&c.mtu, "mtu", 1500, "MTU (IP), must match the attachment")
 	flag.BoolVar(&c.dhcpMTU, "dhcp-mtu", true, "send DHCP option 26 (interface MTU)")
+	flag.BoolVar(&c.unfiltered, "unfiltered", false, "turn off the ARP and ICMP link rules (experiment only)")
+	flag.IntVar(&relayBuf, "relay-buf", 0, "relay copy buffer in bytes (0: io.Copy default)")
 	flag.StringVar(&allow, "allow", "bulk.test,allowed.test", "comma-separated allowlist; *.x for wildcards")
 	flag.StringVar(&ports, "ports", "80,443", "allowed TCP ports to synthetic addresses")
 	flag.StringVar(&c.stubSock, "stub", "", "unix socket for the stub (wb-proxyd stand-in); started in-process")
@@ -347,7 +356,7 @@ func filterIn(f []byte, c cfg) bool {
 			drop("arp-spoof", map[string]any{"spa": spa.String()})
 			return false
 		}
-		if a.Op() == header.ARPRequest && !tpa.Equal(gwIP) {
+		if a.Op() == header.ARPRequest && !tpa.Equal(gwIP) && !c.unfiltered {
 			// Includes the guest's own probes for its leased address,
 			// which must go unanswered.
 			drop("arp-not-gateway", map[string]any{"tpa": tpa.String(), "spa": spa.String()})
@@ -383,7 +392,7 @@ func filterIn(f []byte, c cfg) bool {
 		}
 		switch proto {
 		case header.ICMPv4ProtocolNumber:
-			if !d.Equal(gwIP) {
+			if !d.Equal(gwIP) && !c.unfiltered {
 				drop("icmp-not-gateway", map[string]any{"dst": d.String()})
 				return false
 			}
@@ -555,6 +564,9 @@ func (d *dnsServer) allowed(name string) (bool, string) {
 	for _, a := range d.allow {
 		if a == "" {
 			continue
+		}
+		if a == "*" {
+			return true, "learn-mode" // FR10-learn-mode stand-in: every name resolves
 		}
 		if strings.HasPrefix(a, "*.") {
 			if strings.HasSuffix(name, a[1:]) {
@@ -738,7 +750,51 @@ func handleTCP(s *stack.Stack, c cfg, d *dnsServer, r *tcp.ForwarderRequest) {
 	go relayToStub(gc, c.stubSock, sid, name, id.LocalPort)
 }
 
+// serveZeros answers one HTTP request with 1 GiB of zeros from memory, so
+// the stack's own ceiling can be measured without the stub's Unix socket.
+func serveZeros(gc *gonet.TCPConn, sid uint64) {
+	defer gc.Close()
+	r := bufio.NewReader(gc)
+	for {
+		l, err := r.ReadString('\n')
+		if err != nil {
+			return
+		}
+		if l == "\r\n" {
+			break
+		}
+	}
+	const total = 1 << 30
+	start := time.Now()
+	fmt.Fprintf(gc, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nConnection: close\r\n\r\n", total)
+	buf := make([]byte, 1<<20)
+	var n int64
+	for n < total {
+		w, err := gc.Write(buf)
+		n += int64(w)
+		if err != nil {
+			break
+		}
+	}
+	gc.CloseWrite()
+	el := time.Since(start).Seconds()
+	ev("tcp-done", map[string]any{"stream": sid, "host": "zero.test", "bytesToGuest": n, "seconds": el, "MBps": float64(n) / el / 1e6})
+}
+
+// relayCopy copies with a relayBuf-sized buffer. The wrappers hide
+// ReaderFrom/WriterTo, which would otherwise bypass the buffer.
+func relayCopy(dst io.Writer, src io.Reader) (int64, error) {
+	if relayBuf == 0 {
+		return io.Copy(dst, src)
+	}
+	return io.CopyBuffer(struct{ io.Writer }{dst}, struct{ io.Reader }{src}, make([]byte, relayBuf))
+}
+
 func relayToStub(gc *gonet.TCPConn, stubSock string, sid uint64, host string, port uint16) {
+	if host == "zero.test" {
+		serveZeros(gc, sid)
+		return
+	}
 	defer gc.Close()
 	up, err := net.Dial("unix", stubSock)
 	if err != nil {
@@ -752,10 +808,10 @@ func relayToStub(gc *gonet.TCPConn, stubSock string, sid uint64, host string, po
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		upb, _ = io.Copy(up, gc)
+		upb, _ = relayCopy(up, gc)
 		up.(*net.UnixConn).CloseWrite()
 	}()
-	down, _ = io.Copy(gc, up)
+	down, _ = relayCopy(gc, up)
 	gc.CloseWrite()
 	wg.Wait()
 	el := time.Since(start).Seconds()
@@ -768,6 +824,13 @@ func runStub(sock, file, tcpAddr string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/1g", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, file)
+	})
+	mux.HandleFunc("/sink", func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		n, _ := io.Copy(io.Discard, r.Body)
+		el := time.Since(start).Seconds()
+		ev("stub-sink", map[string]any{"bytesFromGuest": n, "seconds": el, "MBps": float64(n) / el / 1e6})
+		fmt.Fprintf(w, "%d\n", n)
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "stub: %s %s host=%s\n", r.Method, r.URL.Path, r.Host)

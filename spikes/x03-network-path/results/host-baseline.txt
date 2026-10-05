@@ -1,0 +1,6 @@
+host loopback TCP: bytes 1073741824 seconds 0.163718 Bps 6558483636
+host loopback TCP: bytes 1073741824 seconds 0.153876 Bps 6977968130
+host loopback TCP: bytes 1073741824 seconds 0.163137 Bps 6581841176
+host unix socket to stub: bytes 1073741824 seconds 1.690141 Bps 635297187
+host unix socket to stub: bytes 1073741824 seconds 1.679780 Bps 639215744
+host unix socket to stub: bytes 1073741824 seconds 1.691089 Bps 634941049
