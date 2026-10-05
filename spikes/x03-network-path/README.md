@@ -37,9 +37,11 @@ any boot, including the provisioning boot.
 - `guest/probe.sh`: runs in the guest and tries each path
   S07-egress-gateway says must work or fail.
 - `run.sh`: starts `x03-netd`, then `x03`, logs to `results/`.
-- `gssh.sh`: SSH into the guest through the forward.
-- `bulk-cpu.sh`: 1 GiB downloads in the guest, with the CPU time of
-  `x03-netd` and of Virtualization's service process for each.
+- `gssh.sh`: SSH into the guest through the forward. `gstop.sh`: shut
+  it down.
+- `bulk-cpu.sh`: 1 GiB downloads (or uploads, to `/sink`) in the guest,
+  with the CPU time of `x03-netd` and of Virtualization's service
+  process for each.
 - `summarize.py`: lease times, names resolved, drop counters.
 
 ## Build and run
@@ -83,5 +85,14 @@ with the rule. Every `*-vmd.jsonl` is `x03`'s.
   then Claude Code again (`run5-claude-learn.txt`).
 - `run6-idle-hour-*`: an idle guest's first hour, no SSH, every name
   outside the allowlist refused.
+- `run7-mtu1500-*`, `run10-mtu65535-*`: uploads of 1 GiB to the stub's
+  `/sink` (`*-upload-cpu.txt`).
+- `run8-mtu1500-relay1m-*`, `run9-mtu65535-relay1m-*`: downloads and
+  uploads with a 1 MiB relay buffer instead of `io.Copy`'s 32 KiB.
+- `run11-mtu1500-unfiltered-*`: the ARP rule off (`-unfiltered`). The
+  guest declines every lease and never gets an address.
+- `run12-mtu1500-unfiltered-icmp-*`: the ICMP rule off
+  (`-unfiltered-icmp`). Ping to other addresses still gets no answer.
+- `entitlements.txt`: `codesign` of both binaries.
 - `host-baseline.txt`: the same file from the stub on the host, over
   loopback TCP and over the stub's Unix socket.

@@ -1,0 +1,14 @@
+Executable=/Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-af713f6401e2686c1/.scratch/x03
+[Dict]
+	[Key] com.apple.security.virtualization
+	[Value]
+		[Bool] true
+Executable=/Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-af713f6401e2686c1/.scratch/x03-netd
+Identifier=a.out
+Format=Mach-O thin (arm64)
+CodeDirectory v=20400 size=102846 flags=0x20002(adhoc,linker-signed) hashes=3211+0 location=embedded
+Signature=adhoc
+Info.plist=not bound
+TeamIdentifier=not set
+Sealed Resources=none
+Internal requirements=none

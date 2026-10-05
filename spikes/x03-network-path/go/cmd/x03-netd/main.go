@@ -127,9 +127,9 @@ type cfg struct {
 	stubFile  string
 	stubTCP   string
 	dhcpMTU   bool
-	// unfiltered turns off the ARP and ICMP rules of the link filter, to
+	// unfiltered turns off the ARP rule of the link filter, unfilteredICMP the ICMP rule, to
 	// see what gVisor alone answers in promiscuous and spoofing mode.
-	unfiltered bool
+	unfiltered, unfilteredICMP bool
 }
 
 // relayBuf is the copy buffer between the guest stream and the stub; 0
@@ -143,7 +143,8 @@ func main() {
 	flag.StringVar(&mac, "mac", "", "guest MAC")
 	flag.IntVar(&c.mtu, "mtu", 1500, "MTU (IP), must match the attachment")
 	flag.BoolVar(&c.dhcpMTU, "dhcp-mtu", true, "send DHCP option 26 (interface MTU)")
-	flag.BoolVar(&c.unfiltered, "unfiltered", false, "turn off the ARP and ICMP link rules (experiment only)")
+	flag.BoolVar(&c.unfiltered, "unfiltered", false, "turn off the ARP link rule (experiment only)")
+	flag.BoolVar(&c.unfilteredICMP, "unfiltered-icmp", false, "turn off the ICMP link rule (experiment only)")
 	flag.IntVar(&relayBuf, "relay-buf", 0, "relay copy buffer in bytes (0: io.Copy default)")
 	flag.StringVar(&allow, "allow", "bulk.test,allowed.test", "comma-separated allowlist; *.x for wildcards")
 	flag.StringVar(&ports, "ports", "80,443", "allowed TCP ports to synthetic addresses")
@@ -392,7 +393,7 @@ func filterIn(f []byte, c cfg) bool {
 		}
 		switch proto {
 		case header.ICMPv4ProtocolNumber:
-			if !d.Equal(gwIP) && !c.unfiltered {
+			if !d.Equal(gwIP) && !c.unfilteredICMP {
 				drop("icmp-not-gateway", map[string]any{"dst": d.String()})
 				return false
 			}

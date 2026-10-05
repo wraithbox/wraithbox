@@ -1,0 +1,3 @@
+bytes 1073741824 seconds 1.885734 MBps 569.4 netdCPUs 4.18 vzCPUs 7.64
+bytes 1073741824 seconds 1.867215 MBps 575.0 netdCPUs 4.14 vzCPUs 7.37
+bytes 1073741824 seconds 1.874576 MBps 572.8 netdCPUs 4.13 vzCPUs 7.33
