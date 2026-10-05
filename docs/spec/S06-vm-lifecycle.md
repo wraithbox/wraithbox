@@ -114,10 +114,15 @@ with OS-specific parts behind interfaces as on the host. Responsibilities:
 - install the egress gateway's CA certificate into the guest trust
   store and toolchain-specific trust settings (S09-policy-credentials-audit);
 - act as the guest end of the git transport (S08-workspace-and-git);
-- report listening TCP ports so `wb-hostd` can forward them to host
-  loopback (FR11-port-forward), and optionally bridge text clipboard (FR12-clipboard);
 - relay the flow labels of the guest Network Extension, once spike
   X14-flow-attribution allows it (S13-guest-confinement). The host uses them only to narrow rules.
+
+Port forwarding (FR11-port-forward) and the clipboard (FR12-clipboard)
+are out of scope for V1 (V1-08-no-forward-clipboard, decided on I38).
+`wb-guestd` does not report listening ports or bridge the clipboard,
+and nothing crosses the VM boundary for either. The analysis in
+B38-port-forward-clipboard is the input for their design once they are
+scheduled.
 
 `wb-guestd` updates itself from a read-only disk image attached by
 `wb-hostd`, never from the network. The host treats every response from

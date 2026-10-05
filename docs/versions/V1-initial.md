@@ -24,6 +24,14 @@ and the milestones that get there.
 - **V1-07-local-images: Images are built locally.** Each host builds its own
   guest images (S06-vm-lifecycle). Distributing images through a
   registry comes later.
+- **V1-08-no-forward-clipboard: No port forwarding or clipboard.** Port
+  forwarding (FR11-port-forward) and the clipboard (FR12-clipboard) are
+  out of scope for V1, so nothing new crosses the VM boundary for them
+  (S06-vm-lifecycle). The terminal filter drops OSC 52
+  (X19-terminal-filter), so the clipboard cannot arrive through the
+  terminal either. Decided on I38, and
+  B38-port-forward-clipboard holds the analysis for when they are
+  scheduled.
 
 ## Milestones
 
@@ -60,6 +68,7 @@ same name.
   NFR01-startup to NFR03-footprint.
 
 After V1: X10-linux-hypervisor to X16-openshell-linux, layers 3 and 4 of
-S13-guest-confinement, and the other host and guest platforms.
+S13-guest-confinement, FR11-port-forward, FR12-clipboard, and the other
+host and guest platforms.
 
 **Status:** Draft
