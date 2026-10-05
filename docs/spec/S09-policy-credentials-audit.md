@@ -58,7 +58,7 @@ inspection is trusted, and what is recorded.
     keys, so Wraith Box's own Go check compares them with the
     boundary's extension part: each pass host must be a pass host in
     the boundary, dependency-gate thresholds can't be looser, and the
-    wildcard budget can't be larger.
+    wildcard budget can't be larger. Any mismatch refuses the policy.
 - **Program narrowing.** `binaries` entries match the program label
   from the guest (S13-guest-confinement). Until spike X14-flow-attribution has delivered labels,
   `binaries` does not narrow a rule. OpenShell's policy engine has the
@@ -103,13 +103,18 @@ inspection is trusted, and what is recorded.
   and an organization may supply its own.
   - *How the prover runs.* The prover parses repository bytes, so it
     doesn't run with `wb-hostd`'s access. `wb-hostd` writes the
-    candidate and the boundary to two temporary documents and starts
-    `wb-prover` through `wb-launcher` (S04-architecture). `wb-prover`
-    confines itself to reading those two documents, with no network,
-    and runs the prover with fixed arguments. `wb-hostd` caps its
-    memory and kills it past a wall-clock limit. A kill or any non-zero
-    exit refuses the policy (SEC12-least-privilege,
-    SEC13-bounded-resources).
+    candidate and the boundary to two documents and starts `wb-prover`
+    through `wb-launcher` (S04-architecture). The two documents and the
+    pipe for the result are inherited descriptors, never paths in the
+    request, so `wb-prover` adds no exception to the launcher's "no
+    arguments" rule. The prover reads them as `/dev/fd/N`, or
+    `wb-prover` copies them into its own confined temporary directory
+    first. `wb-prover` sets its memory cap on itself before it runs
+    the prover, because `wb-hostd` isn't its parent, then confines
+    itself to those descriptors, with no network, and runs the prover
+    with fixed arguments. `wb-hostd` kills it past a wall-clock limit.
+    A kill or any non-zero exit refuses the policy
+    (SEC12-least-privilege, SEC13-bounded-resources).
   - *Which binary.* The prover comes from the installed bundle,
     re-signed with Wraith Box's signing identity at release. Before it
     runs the prover, `wb-prover` checks the binary's SHA-256 against the
@@ -197,7 +202,15 @@ Only the user approves a request.
 - **Approved rule.** An approval adds one rule of a fixed form: one
   exact host with no wildcard, `protocol: rest`, `enforcement: enforce`,
   `access: read-only` (GET, HEAD and OPTIONS) and `binaries: /**`. A
-  write method needs a separate request (S07-egress-gateway).
+  write method needs a separate request (S07-egress-gateway), which
+  adds a rule of the same fixed form with one named method and the
+  exact path, or path prefix, the request used in place of
+  `access: read-only`. Both forms only allow: no denies, no `audit`
+  mode, no extension keys.
+- **Host name.** The host in an approved rule comes from the guest. It
+  must pass the same ASCII, control-byte and length rules as policy
+  strings before the risk check or the prover sees it, or the request
+  stays denied and is logged with the rule.
 - **Checks.** Each check reports under a name. The first four take
   their names from OpenShell's proposal risk check:
   - `link_local_reach` (OpenShell): the rule reaches a link-local or
@@ -233,6 +246,14 @@ Only the user approves a request.
   refusal is logged as a Device Config State Change (5019) event.
   Whether approvals are bound by the boundary at all is open
   (B35-openshell-artifacts), and until it is decided they are.
+- **Limits.** The guest triggers approval requests, one per unknown
+  name it looks up (S07-egress-gateway), so prover runs are bounded
+  (SEC13-bounded-resources). Requests are deduplicated by host and
+  rate-limited per session. Each VM has a limit on pending requests and
+  on concurrent prover runs (S04-architecture). The boundary doesn't
+  change while a project runs, so boundary results are cached per host,
+  port and rule form. A request over a limit stays denied and is logged
+  with the rule that limited it.
 - **Failure.** A request whose risk check or boundary check fails or
   can't run can't be approved: the destination stays denied, and the
   failure is logged.
