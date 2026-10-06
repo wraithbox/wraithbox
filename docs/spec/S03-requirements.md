@@ -50,8 +50,10 @@ SEC08-proj-isolation say what is enforced per VM and what per project.
 
 Sessions started with `--isolated` and projects marked shared run in
 the isolated VM together. The repositories the user trusts least
-aren't isolated from each other there (T05-cross-proj-clones). A new project starts in the work VM and gets
-the grants of the work-VM projects (T13-new-project-grants). The
-maintainer accepted both on I42 (B42-trust-placement).
+aren't isolated from each other there (T05-cross-proj-clones). That
+was decided with I42, by the recommendation of B42-trust-placement. A
+new project starts in the work VM and gets the grants of the work-VM
+projects (T13-new-project-grants), which the maintainer accepted on
+I42.
 
 **Status:** Draft

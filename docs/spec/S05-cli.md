@@ -282,12 +282,13 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb allow <host> [--project P]` | Add an allowlist entry (SEC05-default-deny) |
 | `wb policy show/explain/edit [--project P]` | Effective policy and why a request was allowed or refused (NFR06-explained-refusals) |
 | `wb learn report [--project P]` | Suggested allowlist from a learn-mode session (FR10-learn-mode) |
-| `wb trust <repo>` / `wb untrust <repo>` | Set or clear the project's `config_trust`, which allows repository-supplied configuration (SEC09-host-policy). It doesn't change the VM |
-| `wb project show [--project P]` | Project id, name, location, recorded remote URLs, `placement` and `config_trust` |
+| `wb trust [<repo>] [--project P]` / `wb untrust [<repo>] [--project P]` | Set or clear the project's `config_trust`, which allows repository-supplied configuration (SEC09-host-policy). `<repo>` (default: the current directory) resolves to its project by the rules of "Naming". It doesn't change the VM |
+| `wb project show [--project P]` | Project id, name, location, recorded identity (remote URLs, root commits), `placement` and `config_trust` |
 | `wb project move <dir> [--project P]` | Point the project at the repository in `<dir>`, keeping its id, state, approvals and policy ("Naming") |
 | `wb project rename <name> [--project P]` | Change the project's name; the id stays |
 | `wb project place work\|isolated [--project P]` | Set the project's `placement` (S06-vm-lifecycle, "VMs"). In a repository that isn't a project yet, it registers one first, so a new clone can start isolated |
-| `wb project confirm [--project P]` | Accept the repository's current remote URLs as the project's ("Naming") |
+| `wb project confirm [--project P]` | Accept the repository's current remote URLs and root commits as the project's, and clear `config_trust` ("Naming") |
+| `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it ("Naming") |
 | `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (S09-policy-credentials-audit) |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
 | `wb vm start/stop/suspend/status` | Explicit VM control |
@@ -298,6 +299,11 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 
 Each command has its own flags after the command name. Names of
 commands are reserved: a new agent command may not reuse one.
+
+`wb trust`, `wb untrust` and each `wb project` command that changes a
+project (`move`, `rename`, `place`, `confirm`, `rm`) write a Device
+Config State Change (5019) event with the project and the values
+before and after (SEC10-audit, S09-policy-credentials-audit, "Audit").
 
 `wb approve` and `wb deny` print what is being approved. That text
 includes guest-influenced values (hostnames, paths); `wb` strips control
@@ -313,32 +319,104 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
 
 ## Naming
 
-- Project key: the host realm (native host, or WSL distribution name)
-  and the absolute path of the repository's git common directory
+- Project key: the host realm and the absolute path of the
+  repository's git common directory
   (`git rev-parse --path-format=absolute --git-common-dir`). Every
   `git worktree` of one repository has the same common directory, so
-  they are one project. The remote URLs aren't part of the key, so a
-  changed or added remote, or a token in a URL, doesn't make a new
-  project.
-- Project id: a stable hash of the key at registration (FR02-any-repo),
-  kept for the project's life. `wb project move` changes the key and
-  keeps the id. The project's Claude Code state (FR13-claude-state),
-  approvals, policy and landing repository stay with it. The user runs
-  it before the first session in the new location, which otherwise
-  registers a new project. A move to a key that another project has is
-  refused, with that project named. A human-readable name is derived
-  from the directory that holds the common directory, and
-  `wb project rename` changes it.
-- Recorded remote URLs: at registration `wb` records every URL of each
-  remote as the user's git resolves it, with the user name, password,
-  query string and fragment removed (S08-workspace-and-git, "Remote
-  URLs"), also the URLs the guest doesn't get. A rotated token in a
-  URL doesn't count as a change. At each session start `wb` compares
-  them with the repository's current ones. On any difference it refuses the session start and names the
-  recorded URLs, the current ones and `wb project confirm`, which
-  records the current ones (NFR06-explained-refusals). Without this
-  check a different repository cloned into the same directory would
-  inherit the old project's approvals and policy.
+  they are one project. A submodule has a common directory of its own
+  (under the parent repository's `modules/`), so it is a project of its
+  own. The remote URLs aren't part of the key, so a changed or added
+  remote, or a token in a URL, doesn't make a new project.
+  - *Realm.* The native host, or a WSL distribution by name. A
+    repository on a Windows drive opened from WSL through `/mnt/c` and
+    the same repository opened from native Windows are in two realms,
+    so they are two projects.
+  - *Path.* The key uses the path as git returns it, and `wb` doesn't
+    recompute it. On macOS git's absolute common directory already
+    resolves symbolic links and folds letter case to the spelling on
+    disk (APFS), so `~/Git/foo` and `~/git/foo` give one key. On other
+    platforms the canonical form comes from `internal/platform`
+    (S12-platforms).
+- Resolving the key: `wb` runs git for the key, the remotes and the
+  root commits with the git binary of S08-workspace-and-git ("Host
+  git"), `core.hooksPath=/dev/null` on its command line, and `GIT_DIR`,
+  `GIT_COMMON_DIR`, `GIT_WORK_TREE`, `GIT_CEILING_DIRECTORIES` and
+  `GIT_DISCOVERY_ACROSS_FILESYSTEM` removed from its environment. So
+  neither the user's shell nor a `.envrc` can point the directory at
+  another repository.
+  - *A `.git` file.* When the working tree's top directory
+    (`--show-toplevel`) holds a `.git` file (`gitdir: …`) instead of a
+    directory, `wb` accepts it only for a linked worktree or a
+    submodule. A linked worktree has `--git-dir` equal to
+    `<common>/worktrees/<name>`, and that worktree's back-link,
+    `<common>/worktrees/<name>/gitdir`, names this `.git` file. A
+    submodule has `--git-dir` equal to the common directory, and its
+    `core.worktree` names this top directory. Anything else, such as a
+    `.git` file in a downloaded archive that names another project's
+    repository, refuses the session start.
+  - *Failure.* Any failed `rev-parse`, "dubious ownership" included,
+    refuses the session start. Every refusal here says why
+    (NFR06-explained-refusals), and nothing is registered.
+- Project id: 128 random bits at registration (FR02-any-repo), written
+  as 32 lowercase hexadecimal characters (the project ID format), kept
+  for the project's life. The id isn't derived from the key, so a new
+  repository at a moved project's old path never gets its id. The
+  `projects` table of `state.db` (S04-architecture, "Host state") maps
+  each key to one id, and a key has at most one project.
+- Recorded identity: at registration `wb` records every URL of each
+  remote as the user's git resolves it, after the cleaning of
+  S08-workspace-and-git ("Remote URLs"). An SSH remote is compared as
+  its `https://host/path` form, without user, port, password, query or
+  fragment, so a switch between SSH and HTTPS for the same repository,
+  or a rotated token, isn't a difference. A URL the guest doesn't get
+  is compared with its user name, password, query string and fragment
+  removed. For a repository with no remote, `wb` also records its root
+  commits (`git rev-list --max-parents=0 --all`). It doesn't record
+  them for a repository with a remote, because the walk reads the whole
+  history at every session start, and the URLs already tell repositories
+  apart. A repository with neither a remote nor a commit has nothing to
+  record, so a replacement at its path is the same project.
+- Checked at each session start: `wb` compares the recorded identity
+  with the repository's current one. A difference in the URLs, or a
+  recorded root commit that is no longer among the current root
+  commits, refuses the session start, and the message names what was
+  recorded, what is there now and `wb project confirm`
+  (NFR06-explained-refusals). Without this check a different repository
+  cloned into the same directory would inherit the old project's
+  approvals and policy.
+- `wb project confirm` records the current identity and clears
+  `config_trust`, so a replaced repository's `.wraithbox/` isn't read
+  until the user runs `wb trust` and its boundary check again
+  (SEC09-host-policy). It prints the `placement` and the approvals the
+  project keeps, and its 5019 event holds both URL and root commit
+  sets.
+- Moving: `wb project move <dir>` changes the key and keeps the id. The
+  project's Claude Code state (FR13-claude-state), approvals, policy
+  and landing repository stay with it. It runs the identity comparison
+  for `<dir>` and prints any difference, and the next session start
+  then refuses until `wb project confirm`. A move to a key that another
+  project has is refused, with that project named.
+- Registration: the first session in an unknown key registers a new
+  project, unless the repository's recorded identity (the same URLs, or
+  for a repository without a remote, a shared root commit) matches an
+  existing project whose location no longer resolves to its key. Then
+  it refuses the session start and names that project with
+  `wb project move`, which keeps its state, and `wb project rm`, which
+  drops it. A second clone of a repository whose first clone is still
+  in place registers as its own project.
+- `wb project rm` removes the project: its settings, policy, approvals,
+  `export.git` and `landing.git`, and its row in `state.db`. It asks
+  `wb-guestd` in each VM to remove the project user and its home,
+  at once when the VM runs, otherwise at its next start. It is refused
+  while the project has a session, or returned work that wasn't landed
+  or discarded, and the refusal lists them. Branches already landed in
+  the user's repository stay. When a project holds a key or identity
+  that another project should have, the user removes it with
+  `wb project rm` and then moves the other one. `wb project move`
+  never replaces a project, so dropping a project's state and
+  approvals always takes this one explicit command.
+- Name: a human-readable name is derived from the directory that holds
+  the common directory, and `wb project rename` changes it.
 - The maintainer decided project identity on I42
   (B42-trust-placement).
 - Session id: `<project-name>-<yyyymmdd>-<hhmm>-<4 random chars>`.
