@@ -643,5 +643,41 @@
 		"state": "open",
 		"title": "S08-workspace-and-git: test GIT_ALLOC_LIMIT against the X26 delta bombs before building the pack scanner",
 		"summary": "X26-pre-receive-check (#74) found that a small pack makes receive-pack allocate a delta's declared result before any hook runs (2 GiB from an 8 KiB pack), and that macOS refuses ulimit -v and -d on the git child."
+	},
+	"103": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): NFR02-fs-speed is a goal outside the release gate",
+		"summary": "Writes the maintainer's decision of 2026-10-06 on #19 (option D, which came up in discussion and wasn't in B19-fs-benchmark) into the specs."
+	},
+	"104": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): record 2026-10-06 decisions on vsock, pre-receive caps, terminal",
+		"summary": "Writes the maintainer decisions from 2026-10-06 (the issue comments that start Decision (2026-10-06):) into the specs and briefs."
+	},
+	"105": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "mise run vuln: three new npm advisories in the docs site bun.lock (postcss-selector-parser, smol-toml, source-map-js)",
+		"summary": "The \"Dependency vulnerability scan\" job failed on PR #103, a docs-only change that doesn't touch any lockfile (run https://github.com/wraithbox/wraithbox/actions/runs/37434110616)."
+	},
+	"106": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): record 2026-10-06 network and policy decisions",
+		"summary": "Spec-only change that writes the maintainer's 2026-10-06 decisions into the specs and briefs."
+	},
+	"107": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(doc): move docs site deps past three npm advisories",
+		"summary": "mise run vuln and the CI \"Dependency vulnerability scan\" fail on three transitive npm advisories in packages/wraithbox-doc/bun.lock."
+	},
+	"108": {
+		"kind": "issue",
+		"state": "open",
+		"title": "mise run vuln:osv scans nothing when run from a worktree under .claude/worktrees",
+		"summary": "Found while building #105 (PR #107)."
 	}
 }
