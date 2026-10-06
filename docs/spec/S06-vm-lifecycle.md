@@ -18,6 +18,9 @@ in S12-platforms.
   variant adds full Xcode. (2) *Org layer* (optional): a shared Brewfile
   and settings. (3) *Project layer*: the project's Brewfile, reconciled
   inside the project user's environment at session start (FR07-toolchain-manifest).
+  The image doesn't contain a Wraith Box CA. `wb-guestd` installs the
+  VM's CAs at runtime (S09-policy-credentials-audit, "TLS inspection certificate
+  authority").
 - **Built by Wraith Box.** `wb image build` installs macOS into a new
   VM, then provisions it through `wb-guestd` (no SSH, no guest network
   credentials). Builds are scripted and repeatable; nobody configures an

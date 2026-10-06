@@ -282,13 +282,19 @@ inspection is trusted, and what is recorded.
 
 ## TLS inspection certificate authority
 
-- **Key.** Each CA has a P-256 key generated in the platform's
-  hardware key store (Secure Enclave on macOS, TPM elsewhere;
-  S12-platforms), non-exportable, used by `wb-proxyd` to sign leaf
-  certificates (Go's certificate creation accepts any signer).
-  Fallback if no hardware key store is available: a software key held
-  in the secret store.
-- **Scope.** Each VM has its own CA, and two during a rotation
+- **Key.** Each CA has its own P-256 key. `wb-proxyd` generates it in
+  the platform's hardware key store (Secure Enclave on macOS, TPM
+  elsewhere; S12-platforms), non-exportable, self-signs the CA
+  certificate with it, and uses it to sign leaf certificates (Go's
+  certificate creation accepts any signer). Fallback if no hardware
+  key store is available: a software key held in the secret store.
+  Only `wb-proxyd` holds the key handle (S04-architecture, "Secrets
+  live in one process"). `wb-hostd` gets the public certificate over
+  local IPC and hands it to `wb-guestd`.
+- **CA profile.** `basicConstraints` critical with `CA:TRUE` and
+  `pathLen:0`, `keyUsage` `keyCertSign` only, and no extended key
+  usage.
+- **Scope.** Each VM has its own CA, and two from day 30 of each CA on
   ("Lifetimes"), so a leaf signed for one VM isn't trusted in another.
   A CA is trusted **only inside guests**, never on the host. The CA
   certificate has no name constraints. The set of inspected hosts
@@ -297,39 +303,74 @@ inspection is trusted, and what is recorded.
   each time. Clients that read trust once per process would then
   reject every leaf from the new CA until they restart. The maintainer
   decided this on I39 (B39-ca-rotation).
-  - *Leaf issuance.* What limits the names the CA vouches for is
-    `wb-proxyd`: it signs a leaf only for the hostname of the stream,
-    after the SNI check, and only when policy inspects that host
-    (S07-egress-gateway, "Stream path", "Name binding" and "Modes"). Any other
-    request for a leaf is refused and logged with the rule.
+  - *Leaf issuance.* What limits the names a CA vouches for is
+    `wb-proxyd`. It signs a leaf only for the hostname of the stream,
+    after the SNI check, and only when the VM's effective policy
+    inspects that host (S07-egress-gateway, "Stream path", "Name
+    binding" and "Modes"). It signs with the CA of the stream's VM,
+    and keys its leaf cache on VM, CA, and hostname. A stream that fails
+    this rule is reset and logged with the rule.
+  - *Leaf profile.* Exactly one `dNSName` subject alternative name,
+    equal to the stream's hostname. It has neither a wildcard nor an
+    IP address name. `CA:FALSE`, extended key usage `serverAuth`, and
+    a validity within the signing CA's.
   - *No constraint at all.* A broad constraint that never changes
     limits nothing that leaf issuance doesn't already limit. RFC 5280
     requires the extension to be marked critical, so a client that
     doesn't support it rejects the CA.
-- **Lifetimes.** Leaf certificates: 24 hours, cached in memory. CA: 60
-  days, rotated with an overlap.
-  - *Overlap.* When the current CA is 30 days old, `wb-hostd` issues
-    its successor with a new key, and `wb-guestd` installs it next to
-    the current one.
-    `wb-proxyd` keeps signing with the current CA until 2 days before
-    it expires, then signs with the successor, and `wb-guestd` removes
-    the expired CA from the trust store. A process that started before
-    the successor was installed works until that switch, 28 days
-    later. Only a process that runs longer than that and never rereads
-    its trust fails, with a certificate error. After a restore from
-    saved state, `wb-guestd` installs any CA the guest lacks before
-    `wb-proxyd` accepts the VM's streams.
+  - *Not on the host.* `wb-proxyd`'s pool of roots for upstream
+    connections never includes a Wraith Box CA, whatever the host's
+    trust store holds.
+- **Lifetimes.** Leaf certificates: 24 hours, cut to the signing CA's
+  end, cached in memory. CA: 60 days, rotated with an overlap.
+  `wb-hostd` schedules each step, and `wb-proxyd` issues, switches and
+  destroys. Days count from the current CA's issue:
+  - *Day 30.* `wb-proxyd` issues the successor with a new key, and
+    `wb-guestd` installs it next to the current CA. `wb-hostd` records
+    the install when `wb-guestd` reports it.
+  - *Day 58.* `wb-proxyd` signs with the successor, but only once its
+    install is recorded. Until then it refuses the VM's inspected
+    streams with the rule `ca-not-installed`. A guest that doesn't
+    report the install only cuts off its own traffic.
+  - *Day 60.* The old CA expires. `wb-guestd` removes it from the trust
+    store, and `wb-proxyd` destroys its key. `wb-proxyd` never signs
+    with an expired CA.
+  - *Overlap.* A process that started before the successor was
+    installed works until the switch, 28 days later. Only a process
+    that runs longer than that and never rereads its trust fails, with
+    a certificate error. Time the VM spends saved counts toward that
+    bound.
+  - *Boot and restore.* On every boot and every restore from saved
+    state, in this order: `wb-guestd` resynchronizes the guest clock
+    (S06-vm-lifecycle, "Time and sleep"), a CA that has expired is
+    removed and its key destroyed, a step of the schedule that came due
+    while the VM was off runs, and if no valid CA remains, `wb-proxyd`
+    issues a new one. Then `wb-guestd` installs the VM's current CAs
+    from `wb-hostd`'s own record, never from what the guest
+    reports it has, and `wb-hostd` records the install. Only then does
+    `wb-proxyd` accept the VM's streams. After a restore, `wb-proxyd`
+    keeps signing with the newest CA the guest had before the save,
+    also past day 58, while that CA is valid, because resumed processes loaded their
+    trust before the save.
   - *Why rotate.* The hardware key can't be read out, so whoever can use
     it controls `wb-proxyd` on the host, and a new certificate doesn't
     change that. Rotation bounds how long the software fallback key
-    is useful to someone who copied it. With a hardware key it adds little,
-    and the overlap keeps it from breaking running tools.
-    X04-tls-inspection checks which guest clients reread trust and
-    whether 28 days of overlap is enough.
-- **Guest trust.** `wb-guestd` installs the CA in the guest OS's system
-  trust store and sets toolchain-specific trust variables so that every
-  common client accepts it. During an overlap both CAs are installed,
-  and each trust variable's file holds both.
+    is useful to someone who copied it, now up to 60 days. Only that
+    VM's guest trusts it. The thief also needs a position in that
+    guest's traffic, which runs only through the host. With a hardware
+    key rotation adds little, and the overlap keeps it from breaking
+    running tools. X04-tls-inspection checks which guest clients
+    reread trust and whether 28 days of overlap is enough.
+  - *Audit.* Issuing a CA, its install, the signing switch, its
+    removal, and an install `wb-guestd` refuses or doesn't report are
+    each a Device Config State Change (5019) event with the VM and the
+    CA certificate's SHA-256 fingerprint (SEC10-audit).
+- **Guest trust.** The sealed image doesn't contain a Wraith Box CA
+  (S06-vm-lifecycle, "Layers"). `wb-guestd` installs the VM's current
+  CAs at runtime in the guest OS's system trust store and sets
+  toolchain-specific trust variables so that every common client
+  accepts them. Each trust variable's file holds every current CA of the
+  VM.
 
 ## Approvals (SEC14-no-fake-approvals)
 

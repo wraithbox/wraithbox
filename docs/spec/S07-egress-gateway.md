@@ -748,7 +748,7 @@ session start in the VM to the end of the last session running in it.
   result of the risk check on the rule it would add (S09-policy-credentials-audit),
   such as new reach for a credential or a new write method. Policy
   changes take effect without restarting anything. An approval that
-  adds an inspected host needs no new CA, because the CA has no name
+  adds an inspected host doesn't need a new CA, because the CA has no name
   constraints (S09-policy-credentials-audit, "TLS inspection
   certificate authority").
 - **Who an approval reaches.** The host can't tell which session looked
