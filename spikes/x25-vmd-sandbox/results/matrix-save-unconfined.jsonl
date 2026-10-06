@@ -1,0 +1,4 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"confined":false,"read \/etc\/passwd":"ok","read ~\/.ssh\/known_hosts":"ok","spawn \/usr\/bin\/true":"ok, status 0","step":"probes","tcp connect 127.0.0.1:1":"Connection refused","write \/tmp\/x25-probe":"ok"}
+{"bundle":"su","configMs":14.838958973996341,"devices":[],"pauseMs":7.3065829928964376,"saveSeconds":3.0805617499863729,"startSeconds":0.19506570900557563,"step":"boot","stopMs":32.084584003314376,"vsockSeconds":10.975401667004917,"vsockTries":401}
+{"step":"run","name":"matrix-save-unconfined","exit":0,"start":"2026-10-06 19:30:36","end":"2026-10-06 19:30:52"}

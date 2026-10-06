@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":5.1738329930230975,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/series-confined-2","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-final.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"series-confined-2","configMs":14.43616597680375,"devices":[],"restoreSeconds":3.3788169999606907,"resumedSeconds":3.5959345829905942,"step":"restore","stopMs":3.4260840038768947,"vsockSeconds":3.5988082909607328,"vsockTries":1}
+{"step":"run","name":"series-confined-2","exit":0,"start":"2026-10-06 19:34:32","end":"2026-10-06 19:34:37"}

@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":6.2029590480960906,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/addon-6","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-ad9f58ef3eecfb4eb\/.scratch\/addon-6.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"ok","read ~\/.ssh\/known_hosts":"ok","spawn \/usr\/bin\/true":"ok, status 0","step":"probes","tcp connect 127.0.0.1:1":"Connection refused","write \/tmp\/x25-probe":"ok"}
+{"bundle":"addon-6","configMs":15.101165976375341,"devices":[],"restoreSeconds":3.5606809579767287,"resumedSeconds":3.7693954159622081,"step":"restore","stopMs":21.69504202902317,"vsockSeconds":3.7722735829884186,"vsockTries":1}
+{"step":"run","name":"addon-6","exit":0,"start":"2026-10-06 19:32:52","end":"2026-10-06 19:32:57"}

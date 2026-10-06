@@ -1,0 +1,3 @@
+confined   restore p50 3.40 s max 3.57 s, vsock p50 3.60 s max 3.78 s (n=10)
+unconfined restore p50 3.40 s max 3.53 s, vsock p50 3.60 s max 3.75 s (n=10)
+sandbox_init over all runs: n 73, min 5.1 ms, p50 5.9 ms, max 15.2 ms

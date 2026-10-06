@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":5.3300830186344683,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-final.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"f2","configMs":10.310332989320159,"devices":[],"handoff":"ok: passed descriptor got a SETTINGS frame from the guest","startSeconds":0.19911350001348183,"step":"boot","stopMs":2.8863750048913062,"vsockSeconds":10.193339499994181,"vsockTries":338}
+{"step":"run","name":"final-handoff","exit":0,"start":"2026-10-06 19:43:20","end":"2026-10-06 19:43:32"}

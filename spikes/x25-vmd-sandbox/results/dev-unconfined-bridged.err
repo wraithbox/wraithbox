@@ -1,0 +1,1 @@
+[283703.203] error: Error Domain=VZErrorDomain Code=2 "Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement." UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement.}

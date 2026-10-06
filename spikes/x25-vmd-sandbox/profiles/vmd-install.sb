@@ -45,3 +45,9 @@
   (require-all (subpath (param "BUNDLE")) (extension-class "com.apple.app-sandbox.read")))
 (allow file-issue-extension
   (require-all (subpath (param "CACHE")) (extension-class "com.apple.app-sandbox.read-write")))
+
+; Installing: read the restore image (parameter IPSW).
+(allow file-read* (literal (param "IPSW")))
+(allow mach-lookup (xpc-service-name "com.apple.Virtualization.Installation"))
+(allow file-issue-extension
+  (require-all (literal (param "IPSW")) (extension-class "com.apple.app-sandbox.read")))

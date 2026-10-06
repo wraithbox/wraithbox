@@ -1,0 +1,1 @@
+[284549.799] error: Error Domain=VZErrorDomain Code=2 "A directory sharing device configuration is invalid." UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=A directory sharing device configuration is invalid., NSUnderlyingError=0x7823040120 {Error Domain=NSPOSIXErrorDomain Code=1 "Operation not permitted"}}

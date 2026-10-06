@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":5.347208003513515,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/su-r6","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-final.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"su-r6","configMs":14.206124993506819,"devices":[],"restoreSeconds":3.5332788330269977,"resumedSeconds":3.7363353749969974,"step":"restore","stopMs":3.6338749923743308,"vsockSeconds":3.7388082080287859,"vsockTries":1}
+{"step":"run","name":"matrix2-su-restore-confined","exit":0,"start":"2026-10-06 19:34:07","end":"2026-10-06 19:34:12"}

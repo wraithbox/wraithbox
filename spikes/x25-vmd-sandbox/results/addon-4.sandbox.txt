@@ -1,0 +1,9 @@
+   1 deny file-write-data /private/tmp/x25-probe
+   2 deny mach-lookup com.apple.diskimagescontroller (xpc)
+   1 deny mach-task-name others [com.apple.Virtualization.Virtual(5274)]
+   1 deny network-outbound /private/var/run/syslog
+   1 deny network-outbound remote:*:1
+   1 deny process-fork 
+   1 deny sysctl-read kern.maxfilesperproc
+   1 deny sysctl-read machdep.cpu.brand_string
+   8 deny system-info vfs.disk-space

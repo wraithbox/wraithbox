@@ -1,0 +1,1 @@
+libc++abi: terminating due to uncaught exception of type std::__1::__fs::filesystem::filesystem_error: filesystem error: in posix_stat: failed to determine attributes for the specified path: Operation not permitted ["/Users/lsimons/Library/Caches/wraithbox-spikes/x25-outside/secret.img"]

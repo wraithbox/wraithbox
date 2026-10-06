@@ -16,12 +16,13 @@
 
 ; The service process that runs the VM.
 (allow mach-lookup (xpc-service-name "com.apple.Virtualization.VirtualMachine"))
+; The disk image service. A boot doesn't need it, but without it the disks
+; open in another mode, and a state saved one way doesn't restore the other
+; way (results/matrix-*).
+(allow mach-lookup (xpc-service-name "com.apple.diskimagescontroller"))
 
-; Configuration checks: is virtualization supported, how much memory. The
-; CPU name goes into a saved state: a state saved by a process that can't
-; read it restores only in such a process, and the other way round
-; (results/matrix-*, results/addon-round*.txt).
-(allow sysctl-read (sysctl-name "kern.hv_support" "hw.memsize" "machdep.cpu.brand_string"))
+; Configuration checks: is virtualization supported, how much memory.
+(allow sysctl-read (sysctl-name "kern.hv_support" "hw.memsize"))
 (allow file-read* (literal "/System/Library/CoreServices/SystemVersion.plist"))
 
 ; Error texts.

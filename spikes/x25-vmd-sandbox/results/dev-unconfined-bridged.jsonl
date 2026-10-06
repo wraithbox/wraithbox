@@ -1,0 +1,6 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"confined":false,"read \/etc\/passwd":"ok","read ~\/.ssh\/known_hosts":"ok","spawn \/usr\/bin\/true":"ok, status 0","step":"probes","tcp connect 127.0.0.1:1":"Connection refused","write \/tmp\/x25-probe":"ok"}
+{"count":1,"names":["en0"],"step":"bridged-interfaces"}
+{"bundle":"f2","configError":"Error Domain=VZErrorDomain Code=2 \"Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement.\" UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement.}","devices":["bridged"],"step":"boot"}
+{"error":"Error Domain=VZErrorDomain Code=2 \"Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement.\" UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement.}","step":"error"}
+{"step":"run","name":"dev-unconfined-bridged","exit":1,"start":"2026-10-06 19:27:50","end":"2026-10-06 19:27:52"}

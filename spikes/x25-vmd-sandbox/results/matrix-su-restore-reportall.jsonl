@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":5.4977909894660115,"ok":true,"params":[],"profile":"spikes\/x25-vmd-sandbox\/profiles\/report-all.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"ok","read ~\/.ssh\/known_hosts":"ok","spawn \/usr\/bin\/true":"ok, status 0","step":"probes","tcp connect 127.0.0.1:1":"Connection refused","write \/tmp\/x25-probe":"ok"}
+{"bundle":"su-r4","configMs":15.61137504177168,"devices":[],"restoreSeconds":3.9270521670114249,"resumedSeconds":4.1421092090313323,"step":"restore","stopMs":23.765624966472387,"vsockSeconds":4.1512923749978654,"vsockTries":1}
+{"step":"run","name":"matrix-su-restore-reportall","exit":0,"start":"2026-10-06 19:31:13","end":"2026-10-06 19:31:19"}

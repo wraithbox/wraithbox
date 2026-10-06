@@ -1,0 +1,7 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":5.514417018275708,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/f2","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-final.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"count":0,"names":[],"step":"bridged-interfaces"}
+{"bundle":"f2","configError":"Error Domain=x25 Code=1 \"no bridgeable host interface offered\" UserInfo={NSLocalizedDescription=no bridgeable host interface offered}","devices":["bridged"],"step":"boot"}
+{"error":"Error Domain=x25 Code=1 \"no bridgeable host interface offered\" UserInfo={NSLocalizedDescription=no bridgeable host interface offered}","step":"error"}
+{"step":"run","name":"dev-final-bridged","exit":1,"start":"2026-10-06 19:27:53","end":"2026-10-06 19:27:55"}

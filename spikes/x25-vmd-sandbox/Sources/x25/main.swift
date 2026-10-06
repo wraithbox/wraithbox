@@ -21,6 +21,8 @@
 //   --save            after vsock answers: pause, save state.vzvmsave, stop
 //   --hold <sec>      keep the VM running this long after vsock answers
 //   --nat <mac>       add a second NIC with a NAT attachment and this MAC
+//   --bridged         add a second NIC bridged to the first host interface the framework offers
+//   --nat-primary     the bundle's own NIC gets a NAT attachment, no file-handle NIC
 //   --share <dir>     add a virtio-fs device, tag "x25share", read-write
 //   --disk <path>     add a read-only virtio block device on this image
 //   --serial <path>   add a virtio console serial port that writes to this file
@@ -88,6 +90,12 @@ let preCache = ProcessInfo.processInfo.environment["X25_PRECACHE"] != "0"
 if preCache {
     result(["step": "pre-confine", "cacheDir": userCacheDir()])
 }
+// The hand-off channel stands in for the socketpair wb-hostd passes at spawn.
+let handoffPair: (Int32, Int32) = {
+    var fds: [Int32] = [0, 0]
+    precondition(socketpair(AF_UNIX, SOCK_DGRAM, 0, &fds) == 0)
+    return (fds[0], fds[1])
+}()
 if let profilePath {
     // Read the profile before confining: the profile itself need not allow it.
     let text = try! String(contentsOfFile: profilePath, encoding: .utf8)
@@ -189,6 +197,8 @@ struct Opts {
     var spice = false
     var mic = false
     var provisioningNAT = false
+    var natPrimary = false
+    var bridged = false
 
     init() {}
     init(_ a: [String]) {
@@ -199,6 +209,8 @@ struct Opts {
             case "--save": save = true
             case "--hold": hold = Double(a.removeFirst())!
             case "--nat": natMAC = a.removeFirst()
+            case "--nat-primary": natPrimary = true
+            case "--bridged": bridged = true
             case "--share": share = a.removeFirst()
             case "--disk": disk = a.removeFirst()
             case "--serial": serial = a.removeFirst()
@@ -212,6 +224,8 @@ struct Opts {
     var devices: [String] {
         var d: [String] = []
         if let natMAC { d.append("nat \(natMAC)") }
+        if natPrimary { d.append("nat-primary") }
+        if bridged { d.append("bridged") }
         if let share { d.append("share \(share)") }
         if let disk { d.append("disk \(disk)") }
         if let serial { d.append("serial \(serial)") }
@@ -270,7 +284,7 @@ func makeConfig(_ b: Bundle, net: NetPair?, o: Opts) throws -> VZVirtualMachineC
     var nics: [VZVirtioNetworkDeviceConfiguration] = []
     let n = VZVirtioNetworkDeviceConfiguration()
     n.macAddress = VZMACAddress(string: cfg.mac)!
-    if o.provisioningNAT {
+    if o.provisioningNAT || o.natPrimary {
         n.attachment = VZNATNetworkDeviceAttachment()
     } else {
         n.attachment = VZFileHandleNetworkDeviceAttachment(fileHandle: net!.guestHandle)
@@ -281,6 +295,15 @@ func makeConfig(_ b: Bundle, net: NetPair?, o: Opts) throws -> VZVirtualMachineC
         n2.macAddress = VZMACAddress(string: m)!
         n2.attachment = VZNATNetworkDeviceAttachment()
         nics.append(n2)
+    }
+    if o.bridged {
+        let ifs = VZBridgedNetworkInterface.networkInterfaces
+        result(["step": "bridged-interfaces", "count": ifs.count, "names": ifs.map { $0.identifier }])
+        guard let first = ifs.first else { throw err("no bridgeable host interface offered") }
+        let n3 = VZVirtioNetworkDeviceConfiguration()
+        n3.macAddress = VZMACAddress.randomLocallyAdministered()
+        n3.attachment = VZBridgedNetworkDeviceAttachment(interface: first)
+        nics.append(n3)
     }
     c.networkDevices = nics
 
@@ -342,7 +365,7 @@ final class Machine {
     let net: NetPair?
 
     init(_ b: Bundle, o: Opts) throws {
-        net = o.provisioningNAT ? nil : NetPair()
+        net = (o.provisioningNAT || o.natPrimary) ? nil : NetPair()
         vm = VZVirtualMachine(configuration: try makeConfig(b, net: net, o: o))
         vm.delegate = delegate
     }
@@ -384,6 +407,7 @@ final class Machine {
 
 let guestPort: UInt32 = 1024
 
+@MainActor
 func install(_ b: Bundle, ipsw: String, memGiB: Int) async throws {
     let t0 = now()
     let img = try await VZMacOSRestoreImage.image(from: URL(fileURLWithPath: ipsw))
@@ -398,8 +422,8 @@ func install(_ b: Bundle, ipsw: String, memGiB: Int) async throws {
     let cfg = BundleCfg(cpus: max(4, req.minimumSupportedCPUCount), memGiB: memGiB, mac: VZMACAddress.randomLocallyAdministered().string)
     try JSONEncoder().encode(cfg).write(to: b.cfgURL)
     result(["step": "bundle-created", "seconds": now() - t0])
-    let m = try await MainActor.run { try Machine(b, o: Opts()) }
-    let inst = await MainActor.run { VZMacOSInstaller(virtualMachine: m.vm, restoringFromImageAt: URL(fileURLWithPath: ipsw)) }
+    let m = try Machine(b, o: Opts())
+    let inst = VZMacOSInstaller(virtualMachine: m.vm, restoringFromImageAt: URL(fileURLWithPath: ipsw))
     var lastPct = -1
     let obs = inst.progress.observe(\.fractionCompleted, options: [.new]) { p, _ in
         let pct = Int(p.fractionCompleted * 100)
@@ -470,6 +494,7 @@ func boot(_ b: Bundle, _ o: Opts) async throws {
     if let (c, tc, tries) = await m.connectUntil(port: guestPort, deadline: t0 + 300) {
         r["vsockSeconds"] = tc - t0
         r["vsockTries"] = tries
+        r["handoff"] = handoff(c.fileDescriptor)
         c.close()
     } else {
         r["vsockSeconds"] = NSNull()
@@ -477,6 +502,61 @@ func boot(_ b: Bundle, _ o: Opts) async throws {
     }
     await afterUp(m, b, o, &r)
     result(r)
+}
+
+/// Pass a vsock descriptor over the socketpair made before confining (as
+/// wb-vmd passes it to wb-hostd), receive it on the other end, then speak to
+/// the guest's gRPC server on the received copy: send the HTTP/2 client
+/// preface and an empty SETTINGS frame, and expect a SETTINGS frame back.
+func handoff(_ fd: Int32) -> String {
+    let (a, z) = handoffPair
+    // send with SCM_RIGHTS
+    var one: UInt8 = 0x2a
+    let space = Int(MemoryLayout<cmsghdr>.size + MemoryLayout<Int32>.size + 8)
+    var cbuf = [UInt8](repeating: 0, count: space)
+    var sent: Int = -1
+    withUnsafeMutablePointer(to: &one) { op in
+        var iov = iovec(iov_base: op, iov_len: 1)
+        cbuf.withUnsafeMutableBytes { cb in
+            let cm = cb.baseAddress!.assumingMemoryBound(to: cmsghdr.self)
+            cm.pointee.cmsg_len = socklen_t(MemoryLayout<cmsghdr>.size + MemoryLayout<Int32>.size)
+            cm.pointee.cmsg_level = SOL_SOCKET
+            cm.pointee.cmsg_type = SCM_RIGHTS
+            (cb.baseAddress! + MemoryLayout<cmsghdr>.size).storeBytes(of: fd, as: Int32.self)
+            withUnsafeMutablePointer(to: &iov) { ip in
+                var msg = msghdr(msg_name: nil, msg_namelen: 0, msg_iov: ip, msg_iovlen: 1,
+                                 msg_control: cb.baseAddress, msg_controllen: socklen_t(cm.pointee.cmsg_len), msg_flags: 0)
+                sent = sendmsg(a, &msg, 0)
+            }
+        }
+    }
+    if sent != 1 { return "sendmsg: \(errnoName(errno))" }
+    // receive
+    var got: Int32 = -1
+    var byte: UInt8 = 0
+    var rbuf = [UInt8](repeating: 0, count: space)
+    withUnsafeMutablePointer(to: &byte) { bp in
+        var iov = iovec(iov_base: bp, iov_len: 1)
+        rbuf.withUnsafeMutableBytes { cb in
+            withUnsafeMutablePointer(to: &iov) { ip in
+                var msg = msghdr(msg_name: nil, msg_namelen: 0, msg_iov: ip, msg_iovlen: 1,
+                                 msg_control: cb.baseAddress, msg_controllen: socklen_t(space), msg_flags: 0)
+                if recvmsg(z, &msg, 0) == 1 && msg.msg_controllen > 0 {
+                    got = (cb.baseAddress! + MemoryLayout<cmsghdr>.size).load(as: Int32.self)
+                }
+            }
+        }
+    }
+    if got < 0 { return "recvmsg: \(errnoName(errno))" }
+    defer { close(got) }
+    let preface = Array("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".utf8) + [0, 0, 0, 4, 0, 0, 0, 0, 0]
+    if write(got, preface, preface.count) != preface.count { return "write: \(errnoName(errno))" }
+    var tv = timeval(tv_sec: 5, tv_usec: 0)
+    setsockopt(got, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+    var hdr = [UInt8](repeating: 0, count: 9)
+    let n = read(got, &hdr, 9)
+    if n != 9 { return "read: \(n) bytes, \(errnoName(errno))" }
+    return hdr[3] == 4 ? "ok: passed descriptor got a SETTINGS frame from the guest" : "unexpected frame type \(hdr[3])"
 }
 
 @MainActor

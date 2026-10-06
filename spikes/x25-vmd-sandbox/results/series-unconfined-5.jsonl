@@ -1,0 +1,4 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"confined":false,"read \/etc\/passwd":"ok","read ~\/.ssh\/known_hosts":"ok","spawn \/usr\/bin\/true":"ok, status 0","step":"probes","tcp connect 127.0.0.1:1":"Connection refused","write \/tmp\/x25-probe":"ok"}
+{"bundle":"series-unconfined-5","configMs":14.464874984696507,"devices":[],"restoreSeconds":3.4153023329563439,"resumedSeconds":3.614073125005234,"step":"restore","stopMs":20.789375004824251,"vsockSeconds":3.6174198749940842,"vsockTries":1}
+{"step":"run","name":"series-unconfined-5","exit":0,"start":"2026-10-06 19:35:17","end":"2026-10-06 19:35:22"}

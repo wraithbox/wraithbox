@@ -1,0 +1,8 @@
+   3 deny file-read-data /System/Library/CoreServices/SystemVersion.bundle
+   1 deny file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch
+   2 deny file-read-data /usr/lib
+   3 deny file-read-metadata /System/Library/CoreServices/SystemVersion.bundle
+   2 deny mach-lookup com.apple.diskimagescontroller (xpc)
+   1 deny mach-task-name others [com.apple.Virtualization.Virtual(6924)]
+   1 deny network-outbound /private/var/run/syslog
+   3 deny system-info vfs.disk-space

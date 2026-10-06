@@ -1,0 +1,6 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":5.5315420031547546,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/f2","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-final.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"f2","configMs":14.718374994117767,"devices":["share \/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/f2\/shared"],"startError":"Error Domain=VZErrorDomain Code=1 \"Failed to issue Fuse sandbox extension.\" UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to issue Fuse sandbox extension.}","step":"boot"}
+{"error":"Error Domain=VZErrorDomain Code=1 \"Failed to issue Fuse sandbox extension.\" UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to issue Fuse sandbox extension.}","step":"error"}
+{"step":"run","name":"dev-final-share-in-bundle","exit":1,"start":"2026-10-06 19:27:26","end":"2026-10-06 19:27:28"}

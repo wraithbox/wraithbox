@@ -1,0 +1,8 @@
+guest: SSH over NAT at 192.168.64.4 after 1 s
+--- internet through NAT
+https://www.apple.com/ -> HTTP 200
+--- virtio-fs share
+Password:x25 host secret 1791307121
+--- extra disk
+marker found on /dev/disk0
+--- done

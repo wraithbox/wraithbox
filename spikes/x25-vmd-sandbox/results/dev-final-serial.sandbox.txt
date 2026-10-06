@@ -1,0 +1,13 @@
+   1 deny file-read-data /Users/lsimons/.ssh/known_hosts
+   1 deny file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch
+   1 deny file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch/x25
+   1 deny file-read-metadata /etc
+   1 deny file-read-metadata /tmp
+   1 deny file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25-outside/serial.log
+   1 deny file-write-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25-outside/serial.log
+   2 deny mach-lookup com.apple.diskimagescontroller (xpc)
+   1 deny network-outbound /private/var/run/syslog
+   1 deny network-outbound remote:*:1
+   1 deny process-fork 
+   1 deny sysctl-read kern.maxfilesperproc
+   4 deny system-info vfs.disk-space

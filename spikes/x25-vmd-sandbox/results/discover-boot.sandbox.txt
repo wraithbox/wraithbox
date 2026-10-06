@@ -1,0 +1,68 @@
+   1 allow file-issue-extension target:/private/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/C/com.apple.metal-b7dcf7e69f9d3679 extension-class:com.apple.app-sandbox.read-write
+   1 allow file-issue-extension target:/private/var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/C/com.apple.paravirtualizedgraphics-13248736773709575801 extension-class:com.apple.app-sandbox.read-write
+   1 allow file-issue-extension target:/Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/aux.img extension-class:com.apple.app-sandbox.read
+   1 allow file-read-data /private/etc/passwd
+   4 allow file-read-data /System/Library/CoreServices/SystemVersion.bundle
+   1 allow file-read-data /System/Library/CoreServices/SystemVersion.bundle/English.lproj
+   1 allow file-read-data /System/Library/CoreServices/SystemVersion.bundle/English.lproj/SystemVersion.strings
+   1 allow file-read-data /System/Library/CoreServices/SystemVersion.plist
+   1 allow file-read-data /Users/lsimons/.ssh/known_hosts
+   2 allow file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch
+   2 allow file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch/x25
+   1 allow file-read-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/aux.img
+   1 allow file-read-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/cfg.json
+   6 allow file-read-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/data.img
+   1 allow file-read-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/hw.bin
+   1 allow file-read-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/mid.bin
+   6 allow file-read-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/sys.img
+   2 allow file-read-data /usr/lib
+   1 allow file-read-metadata /etc
+   1 allow file-read-metadata /private/tmp/claude-501/-Users-lsimons-git-wraithbox-wraithbox/5cbdd6b5-3fb7-45e1-aae5-6f159ca5454f/tasks/b6n53uex9.output
+   1 allow file-read-metadata /System/Library/CoreServices/SystemVersion.bundle
+   1 allow file-read-metadata /System/Volumes/Data
+   1 allow file-read-metadata /tmp
+   1 allow file-read-metadata /Users
+   2 allow file-read-metadata /Users/lsimons
+   1 allow file-read-metadata /Users/lsimons/git
+   1 allow file-read-metadata /Users/lsimons/git/wraithbox
+   1 allow file-read-metadata /Users/lsimons/git/wraithbox/wraithbox
+   1 allow file-read-metadata /Users/lsimons/git/wraithbox/wraithbox/.claude
+   1 allow file-read-metadata /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees
+   1 allow file-read-metadata /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb
+   3 allow file-read-metadata /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch
+   1 allow file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1
+   1 allow file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/aux.img
+   1 allow file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/cfg.json
+   4 allow file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/data.img
+   1 allow file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/hw.bin
+   1 allow file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/mid.bin
+   4 allow file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/sys.img
+   7 allow file-read-metadata /var
+   1 allow file-write-create /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/state.vzvmsave
+   1 allow file-write-data /private/tmp/x25-probe
+   1 allow file-write-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/aux.img
+   2 allow file-write-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/data.img
+   2 allow file-write-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/d1/sys.img
+   1 allow generic-issue-extension com.apple.virtualization.extension.avp.rtc
+   1 allow generic-issue-extension com.apple.virtualization.extension.fp
+   1 allow generic-issue-extension com.apple.virtualization.extension.io-surface
+   1 allow generic-issue-extension com.apple.virtualization.extension.paravirtualized-graphics
+   1 allow generic-issue-extension com.apple.virtualization.extension.strong-identity
+   1 allow generic-issue-extension com.apple.virtualization.extension.usb-hci
+   1 allow generic-issue-extension com.apple.virtualization.extension.videotoolbox
+   1 allow ipc-posix-shm-read-data apple.cfprefs.501v1
+   1 allow ipc-posix-shm-read-data apple.cfprefs.daemonv1
+   1 allow mach-lookup com.apple.cfprefsd.agent
+   1 allow mach-lookup com.apple.cfprefsd.daemon
+   2 allow mach-lookup com.apple.diskimagescontroller (xpc)
+   1 allow mach-lookup com.apple.system.opendirectoryd.membership
+   1 allow mach-lookup com.apple.Virtualization.VirtualMachine (xpc)
+   1 allow mach-task-name others [com.apple.Virtualization.Virtual(83790)]
+   1 allow network-outbound remote:*:1
+   1 allow process-exec* /usr/bin/true
+   1 allow process-fork 
+   4 allow sysctl-read hw.memsize
+   4 allow sysctl-read kern.hv_support
+   1 allow sysctl-read kern.maxfilesperproc
+   2 allow sysctl-read machdep.cpu.brand_string
+  19 allow system-info vfs.disk-space

@@ -1,0 +1,1 @@
+[284001.864] error: Error Domain=VZErrorDomain Code=12 "The virtual machine failed to restore with error “invalid argument”." UserInfo={NSLocalizedFailure=An error occurred while restoring the virtual machine., NSLocalizedFailureReason=The virtual machine failed to restore with error “invalid argument”.}

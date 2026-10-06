@@ -1,0 +1,6 @@
+(allow mach-task-name)	restore fails
+(allow sysctl-read)	restores
+(allow system-info)	restore fails
+(allow file-read*)	restore fails
+(allow mach-lookup)	restore fails
+(allow default)	restores

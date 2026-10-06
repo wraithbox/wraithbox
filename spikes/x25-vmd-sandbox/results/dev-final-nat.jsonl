@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":5.1197919528931379,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/f2","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-final.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"f2","configMs":20.484457956627011,"devices":["nat 26:fe:9f:70:a5:07"],"startSeconds":0.25818924995837733,"step":"boot","stopMs":60.390874976292253,"vsockSeconds":8.7900278329616413,"vsockTries":282}
+{"step":"run","name":"dev-final-nat","exit":0,"start":"2026-10-06 19:41:45","end":"2026-10-06 19:41:56"}

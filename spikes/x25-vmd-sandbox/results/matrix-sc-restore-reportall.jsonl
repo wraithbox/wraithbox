@@ -1,0 +1,6 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":5.5819589761085808,"ok":true,"params":[],"profile":"spikes\/x25-vmd-sandbox\/profiles\/report-all.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"ok","read ~\/.ssh\/known_hosts":"ok","spawn \/usr\/bin\/true":"ok, status 0","step":"probes","tcp connect 127.0.0.1:1":"Connection refused","write \/tmp\/x25-probe":"ok"}
+{"bundle":"sc-r3","configMs":14.055209001526237,"devices":[],"restoreError":"Error Domain=VZErrorDomain Code=12 \"The virtual machine failed to restore with error “invalid argument”.\" UserInfo={NSLocalizedFailure=An error occurred while restoring the virtual machine., NSLocalizedFailureReason=The virtual machine failed to restore with error “invalid argument”.}","step":"restore"}
+{"error":"Error Domain=VZErrorDomain Code=12 \"The virtual machine failed to restore with error “invalid argument”.\" UserInfo={NSLocalizedFailure=An error occurred while restoring the virtual machine., NSLocalizedFailureReason=The virtual machine failed to restore with error “invalid argument”.}","step":"error"}
+{"step":"run","name":"matrix-sc-restore-reportall","exit":1,"start":"2026-10-06 19:31:10","end":"2026-10-06 19:31:12"}

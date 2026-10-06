@@ -1,0 +1,5 @@
+nat	{"bundle":"f2","configMs":20.484457956627011,"devices":["nat 26:fe:9f:70:a5:07"],"startSeconds":0.25818924995837733,"step":"boot","stopMs":60.390874976292253,"vsockSeconds":8.7900278329616413,"vsockTries":282}
+share	{"bundle":"f2","configMs":9.7907500457949936,"devices":["share \/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25-outside\/share"],"startError":"Error Domain=VZErrorDomain Code=2 \"A directory sharing device configuration is invalid.\" UserInfo={NSLocali
+disk	serial	{"bundle":"f2","configError":"Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\"","devices":["serial \/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25-outside\/serial.log"],"step":"boot"}
+spice	{"bundle":"f2","configMs":10.579958034213632,"devices":["spice"],"startSeconds":0.18768050003563985,"step":"boot","stopMs":2.5064579676836729,"vsockSeconds":9.4253669580211863,"vsockTries":302}
+mic	{"bundle":"f2","configMs":9.8381660063751042,"devices":["mic"],"startError":"Error Domain=VZErrorDomain Code=1 \"Failed to issue audio input sandbox extension.\" UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to is

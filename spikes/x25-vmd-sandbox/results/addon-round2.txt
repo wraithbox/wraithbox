@@ -1,0 +1,2 @@
+(allow sysctl-read (sysctl-name "machdep.cpu.brand_string"))	restores
+(allow sysctl-read (sysctl-name "kern.maxfilesperproc"))	restore fails

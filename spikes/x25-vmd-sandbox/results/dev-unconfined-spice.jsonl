@@ -1,0 +1,4 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"confined":false,"read \/etc\/passwd":"ok","read ~\/.ssh\/known_hosts":"ok","spawn \/usr\/bin\/true":"ok, status 0","step":"probes","tcp connect 127.0.0.1:1":"Connection refused","write \/tmp\/x25-probe":"ok"}
+{"bundle":"f2","configMs":10.724917054176331,"devices":["spice"],"startSeconds":0.189853000047151,"step":"boot","stopMs":13.750125013757497,"vsockSeconds":8.8467609170475043,"vsockTries":319}
+{"step":"run","name":"dev-unconfined-spice","exit":0,"start":"2026-10-06 19:29:00","end":"2026-10-06 19:29:11"}

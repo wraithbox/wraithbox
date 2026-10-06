@@ -1,0 +1,2 @@
+sandbox_extension_issue_generic_to_process failed: 1 (Operation not permitted)
+[283679.057] error: Error Domain=VZErrorDomain Code=1 "Failed to issue Fuse sandbox extension." UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to issue Fuse sandbox extension.}

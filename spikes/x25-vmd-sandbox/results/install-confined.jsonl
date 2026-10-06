@@ -1,0 +1,7 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":15.157583053223789,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/inst2","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C","IPSW=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/restore-images\/UniversalMac_27.0.1_26A434_Restore.ipsw"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-install.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"build":"26A434","seconds":0.39803650003159419,"step":"restore-image-loaded"}
+{"seconds":0.39941675000591204,"step":"bundle-created"}
+{"mac":"be:e9:e0:b6:b2:5a","seconds":240.23698462505126,"step":"installed"}
+{"step":"run","name":"install-confined","exit":0,"start":"2026-10-06 19:37:32","end":"2026-10-06 19:41:35"}
