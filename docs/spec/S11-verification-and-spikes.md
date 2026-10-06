@@ -200,12 +200,26 @@ be tested before building on them.
       session at the new path, and see it refused with the old project
       named and `wb project move` and `wb project rm` offered; clone
       the same repository a second time while the first clone stays,
-      and see the second registered as its own project;
+      and see the second registered as its own project, with a notice
+      that names the first; do the same for a project with
+      `placement = isolated` and see the second clone start isolated,
+      with none of the first's approvals or `config_trust`;
+    - register a repository with no remote and no commit, commit,
+      start a session and see the root commit recorded with a 5019
+      event, then replace the repository and see the start refused;
     - start a session in a directory whose `.git` file reads
-      `gitdir: <project A>/.git`, and in one with `GIT_DIR` set to
-      project A's git directory in the environment, and see the first
-      refused with the reason and nothing registered, and the second
-      resolve to the directory's own repository, not A;
+      `gitdir: <project A>/.git`, in one whose `.git` file reads
+      `gitdir: <project A>/.git/modules/sub`, and in one with
+      `GIT_DIR`, `GIT_CONFIG_PARAMETERS` or `GIT_CONFIG_COUNT` set in
+      the environment to point at project A or rewrite its
+      configuration. See the first two refused with the reason and
+      nothing registered, and the third resolve to the directory's own
+      repository, not A; run `wb trust` and `wb project place` in the
+      first two and see them refused the same way;
+    - run `wb project rm` with the VM stopped, restart `wb-hostd`, start
+      the VM and see the guest user removal sent; send a removal reply
+      from the guest for another project and see that project's record
+      kept;
     - on macOS, start sessions in one repository as `~/git/foo` and
       `~/Git/foo` and through a symbolic link, and see one project;
     - run `wb project place isolated` for a project that has a home on
