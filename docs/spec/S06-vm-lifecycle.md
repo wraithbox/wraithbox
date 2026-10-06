@@ -162,9 +162,9 @@ and Linux), it listens on a port below 1024. On macOS a process needs
 effective user ID 0 to bind one, and on Linux it needs
 `CAP_NET_BIND_SERVICE`, so a project user can't take the port
 while the service manager restarts it (S04-architecture, X27-vsock-confinement).
-Hyper-V sockets on Windows guests name services by GUID instead of a
-port number. How a Windows guest keeps a project user from posing as
-`wb-guestd` is open in S12-platforms. One code base for every guest OS,
+How a Windows guest's vsock driver, and Hyper-V sockets on a Windows
+host, keep a project user from posing as `wb-guestd` is open in
+S12-platforms. One code base for every guest OS,
 with OS-specific parts behind interfaces as on the host. Responsibilities:
 
 - create, lock, and remove project users;
