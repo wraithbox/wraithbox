@@ -98,9 +98,10 @@ nothing themselves (S12-platforms).
     still pose as any project user, which T11-shared-vm-grants and the
     isolated slot cover.
   - A project user can't pose as `wb-guestd` (X27-vsock-confinement).
-    `wb-guestd` listens on a vsock port below 1024, and every guest
-    port `wb-hostd` connects to is below 1024. The guest kernel lets
-    only root bind those ports, so no project process can take one
+    On guests that use vsock (macOS and Linux, S06-vm-lifecycle),
+    `wb-guestd` listens on a port below 1024, and every guest port
+    `wb-hostd` connects to is below 1024. The guest kernel lets only
+    root bind those ports, so no project process can take one
     while `wb-guestd` restarts, inside the Seatbelt profile or outside
     it. From 1024 up, any guest user can bind a free port, and in
     X27-vsock-confinement one answered the host as `wb-guestd` for

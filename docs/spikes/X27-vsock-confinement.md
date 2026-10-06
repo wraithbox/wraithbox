@@ -122,10 +122,11 @@ The conditions:
    profile denies `socket(AF_VSOCK)`.
 5. **Project users can't become root.** "Root" here means effective
    user ID 0, which `sudo` gives. A project user is a standard account
-   outside the `admin` and `wheel` groups. It has neither a sudoers rule
-   nor a password login, and the image build disables or removes any admin
-   account it creates before sealing (S06-vm-lifecycle). The
-   spike's project user stand-in was such an account. The spike's
+   outside the `admin` and `wheel` groups, with no sudoers rule. Sealing
+   fails on an enabled admin account or an added sudoers entry, so the
+   image build disables or removes any admin account it creates
+   (S06-vm-lifecycle). The spike's project user stand-in was outside
+   `admin` and `wheel`, with no sudoers rule. The spike's
    guest also had an admin account with `sudo`, which could bind any
    port and so defeat condition 1.
    X20-shared-homebrew has to work within this.

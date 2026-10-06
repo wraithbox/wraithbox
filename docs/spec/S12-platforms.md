@@ -61,6 +61,15 @@ Rules:
   is "later" in the matrix, `wb setup` and every command say so; nothing
   half-works.
 
+### Host-guest socket on Windows guests
+
+Open: on macOS and Linux guests, `wb-guestd` listens on a vsock port
+below 1024, which a project user can't bind (S06-vm-lifecycle,
+X27-vsock-confinement). Hyper-V sockets name a service by GUID instead
+of a port number. How a Windows guest stops a project user from
+registering `wb-guestd`'s service while `wb-guestd` restarts is
+undecided until Windows guests are designed (X13-windows-guests).
+
 ### Secret store on Linux without a desktop session
 
 Secret Service needs a running keyring, which headless or minimal

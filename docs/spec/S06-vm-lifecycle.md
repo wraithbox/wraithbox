@@ -28,9 +28,9 @@ in S12-platforms.
   looks like a secret (keychain items, tokens in dotfiles, SSH keys,
   shell history). A non-empty result fails the build (SEC04-no-guest-secrets).
   The scan also fails the build on an enabled account in the `admin`
-  or `wheel` group other than root, so any admin account the build
-  creates is disabled or removed before the image is sealed
-  (X27-vsock-confinement).
+  or `wheel` group other than root, and on a sudoers entry beyond the
+  ones macOS ships, so any admin account the build creates is disabled
+  or removed before the image is sealed (X27-vsock-confinement).
 - **Storage and distribution.** Images are stored locally and cloned
   copy-on-write (APFS clones on macOS; S12-platforms) into VM bundles.
   Sharing images between machines as OCI artifacts in a registry is a
@@ -142,8 +142,8 @@ in S12-platforms.
   `wb-guestd`; its home on the data disk holds the project clone, Claude
   Code state (FR13-claude-state), and tool caches. Guest users cannot read each other's
   homes (SEC08-proj-isolation). No host user accounts are created (SEC12-least-privilege).
-- A project user is a standard account: not in the `admin` or `wheel`
-  group, no sudoers rule, and no password login. Guest root can bind
+- A project user is a standard account, outside the `admin` and
+  `wheel` groups, with no sudoers rule. Guest root can bind
   the host-guest socket port of `wb-guestd`, so a project user must not
   reach root through `sudo` (X27-vsock-confinement). X20-shared-homebrew
   has to work within this.
@@ -163,8 +163,8 @@ effective user ID 0 to bind one, and on Linux it needs
 `CAP_NET_BIND_SERVICE`, so a project user can't take the port
 while the service manager restarts it (S04-architecture, X27-vsock-confinement).
 Hyper-V sockets on Windows guests name services by GUID instead of a
-port number, and S12-platforms decides how they keep a project user
-from posing as `wb-guestd`. One code base for every guest OS,
+port number. How a Windows guest keeps a project user from posing as
+`wb-guestd` is open in S12-platforms. One code base for every guest OS,
 with OS-specific parts behind interfaces as on the host. Responsibilities:
 
 - create, lock, and remove project users;
