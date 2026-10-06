@@ -322,7 +322,7 @@ inspection is trusted, and what is recorded.
   - *Why rotate.* The hardware key can't be read out, so whoever can use
     it controls `wb-proxyd` on the host, and a new certificate doesn't
     change that. Rotation bounds how long the software fallback key
-    stays useful if it is copied. With a hardware key it adds little,
+    is useful to someone who copied it. With a hardware key it adds little,
     and the overlap keeps it from breaking running tools.
     X04-tls-inspection checks which guest clients reread trust and
     whether 28 days of overlap is enough.
