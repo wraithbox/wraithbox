@@ -90,6 +90,7 @@ Webfonts
 mdxjs
 BSTXR
 BSTXRI
+smol
 
 # Engineering jargon the dictionaries lack
 stdlib
