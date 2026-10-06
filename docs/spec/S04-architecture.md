@@ -155,10 +155,11 @@ nothing themselves (S12-platforms).
     test of the check (S11-verification-and-spikes), an in-guest
     conformance check that the guest has one network interface with
     its lease from `wb-netd` (S11-verification-and-spikes), and a
-    static check in CI that rejects `VZNATNetworkDeviceAttachment`,
-    `VZBridgedNetworkDeviceAttachment`, `VZSharedDirectory`,
-    `VZVirtioFileSystemDeviceConfiguration` and
-    `VZHostAudioInputStreamSource` in `wb-vmd`'s sources outside its
+    static check in CI that rejects at least
+    `VZNATNetworkDeviceAttachment`, `VZBridgedNetworkDeviceAttachment`,
+    `VZSharedDirectory`, `VZVirtioFileSystemDeviceConfiguration`,
+    `VZHostAudioInputStreamSource`, `VZSpiceAgentPortAttachment` and
+    `VZVirtioSoundDeviceInputStreamConfiguration` in `wb-vmd`'s sources outside its
     tests (a grep or a SwiftLint custom rule, not yet built).
 - **Each host daemon is self-sandboxed.** Host processes confine
   themselves at startup with the platform's mechanism (S12-platforms) so that
@@ -182,8 +183,10 @@ nothing themselves (S12-platforms).
     itself, it calls `confstr(_CS_DARWIN_USER_CACHE_DIR)` once, because
     the framework needs the per-user cache directory and the lookup
     goes to a system service the profile denies. libSystem keeps the
-    answer. It doesn't read anything from the guest or `wb-hostd` before
-    it confines itself.
+    answer. It also looks up the user's home directory and resolves the
+    bundle path with `realpath`, to get its profile parameter. It
+    doesn't read anything from the guest or `wb-hostd` before it
+    confines itself.
     The profile's parameters are the bundle path, from the fixed
     platform path (S12-platforms, "Paths") resolved to its real path,
     and the cache directory from `confstr`. The gRPC contract carries
@@ -207,7 +210,10 @@ nothing themselves (S12-platforms).
     puts the isolated VM there for. Recommended: one `wb-vmd` per VM,
     with two fixed `wb-launcher` entries (`wb-vmd-work`,
     `wb-vmd-isolated`), each with that VM's bundle as its profile
-    parameter. If the maintainer keeps one `wb-vmd`, T00-index records
+    parameter. Each instance learns its slot without arguments, from
+    its program path (two installed names for one binary) or from a
+    fixed environment variable in its launcher entry. Which of the two
+    is part of this decision. If the maintainer keeps one `wb-vmd`, T00-index records
     the residual risk.
   - Open (X25-vmd-sandbox, decision 2): installing from a restore image
     needs three more rules (reading the image, a read extension for

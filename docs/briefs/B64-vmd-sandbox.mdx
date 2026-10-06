@@ -150,7 +150,7 @@ Every `wb-vmd` profile carries the install rules, with the image path as a param
 
 ## What this unblocks
 
-- The `wb-vmd` implementation in `packages/wraithbox-swift`: its profile, the configuration check against the fixed device set, and a test that passes a NAT attachment and a shared directory to that check.
+- The `wb-vmd` implementation in `packages/wraithbox-swift`: its profile, the configuration check against the fixed device set, a unit test that passes each refused device to that check, and the static CI check that rejects the NAT, bridged, shared directory, SPICE and audio input classes in `wb-vmd`'s sources.
 - I28 (X17-image-build): the image build can run in a confined `wb-vmd`, with the three install rules.
 - The V1-M1-spikes-closed exit criterion: one fewer open spike.
 
