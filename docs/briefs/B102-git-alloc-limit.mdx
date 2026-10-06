@@ -1,0 +1,143 @@
+---
+title: Can git itself refuse a push that asks for too much memory, so the pack scanner gets simpler?
+description: Yes, with conditions. GIT_ALLOC_LIMIT makes git refuse every oversized allocation before making it, but not the CPU time of many deltas under the cap, so the scanner stays for the totals and stops holding entries.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-06.** Source: X28-git-alloc-limit (I102). Changes S08-workspace-and-git and S11-verification-and-spikes. Follows B74-pre-receive-check.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** With `GIT_ALLOC_LIMIT` set, both host gits refused every bomb of X26-pre-receive-check before allocating it, in under 0.1 s and 15 MiB, and refused no real push. The limit caps one allocation, not the work: 640 deltas just under the cap cost git 145 s of CPU from a 42 KiB pack. Recommended: set the limit, check at start that git honors it, and keep the scanner for the object count and the per-push total, but let it stream the pack instead of holding each entry. That removes the scanner's own memory bound from the spec.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="The guest's push passes the ref filter and the pack scanner in wb-hostd, then git receive-pack. The scanner now streams each entry on and holds back only the pack's checksum, refusing on the object count and the per-push total. Inside git, GIT_ALLOC_LIMIT refuses an allocation over 100 MiB. The pre-receive check runs after unpacking, as before.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="590" y="20" width="160" height="260" rx="12" />
+  <text class="boundary-label" x="602" y="40">guest, untrusted</text>
+  <rect class="box guest" x="605" y="120" width="130" height="60" rx="10" />
+  <text class="label" x="670" y="146" text-anchor="middle">git push</text>
+  <text class="note" x="670" y="166" text-anchor="middle">git-remote-wb</text>
+
+  <text class="note" x="10" y="14">host: wb-hostd</text>
+  <rect class="box host" x="430" y="120" width="130" height="60" rx="10" />
+  <text class="label" x="495" y="146" text-anchor="middle">ref filter</text>
+  <text class="note" x="495" y="166" text-anchor="middle">X07</text>
+
+  <rect class="box host" x="270" y="120" width="130" height="60" rx="10" />
+  <text class="label" x="335" y="146" text-anchor="middle">pack scanner</text>
+  <text class="note" x="335" y="166" text-anchor="middle">streams; count, total</text>
+
+  <rect class="box host" x="60" y="110" width="180" height="80" rx="10" />
+  <text class="label" x="150" y="138" text-anchor="middle">receive-pack</text>
+  <text class="note" x="150" y="158" text-anchor="middle">GIT_ALLOC_LIMIT:</text>
+  <text class="note" x="150" y="176" text-anchor="middle">no allocation over the cap</text>
+
+  <rect class="box host" x="80" y="230" width="140" height="50" rx="10" />
+  <text class="label" x="150" y="260" text-anchor="middle">pre-receive check</text>
+
+  <rect class="box host" x="80" y="30" width="140" height="50" rx="10" />
+  <text class="label" x="150" y="60" text-anchor="middle">landing.git</text>
+
+  <line class="edge" x1="603" y1="150" x2="562" y2="150" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="428" y1="150" x2="402" y2="150" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="268" y1="150" x2="242" y2="150" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="150" y1="192" x2="150" y2="228" marker-end="url(#f1-arrow)" />
+  <path class="edge" d="M78,255 C20,220 20,80 78,58" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M600,110 C520,60 400,70 345,118" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="380" y="58">640 deltas: stopped on the total</text>
+  <path class="edge-bad" d="M335,182 C320,230 260,230 230,180" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="270" y="250">2 GiB delta: git refuses</text>
+</svg>
+<figcaption>
+Figure 1. A push after X28-git-alloc-limit. Git refuses an allocation over the 100 MiB cap by itself. The scanner no longer has to hold entries back to protect git's memory. It streams the pack and holds back only its checksum, refusing when the object count or the per-push total is over its cap.
+</figcaption>
+</figure>
+
+## Options
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Git's limit and a streaming scanner
+
+Set `GIT_ALLOC_LIMIT` to the per-object cap plus one byte. Check at start that the git found honors it, and refuse pushes if not. The scanner checks each entry's header, forwards the entry at once, and holds back only the pack's checksum.
+
+- **Cost:** one environment variable and a start check. The scanner loses its per-entry buffer and wire-byte bound.
+- **Gives:** two independent memory bounds, so a scanner bug no longer lets a pack ask git for gigabytes. Refusals keep naming their rule.
+- **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Git's limit alone
+
+Set the limit and drop the scanner.
+
+- **Cost:** least code, no parser of guest bytes in `wb-hostd`.
+- **Gap:** a 42 KiB pack of deltas under the cap kept git busy for 145 s, and a 16 MiB pack could hold hours of it. Only the watchdog would stop it. The object count cap and named refusals go.
+- **Keeps:** <Badge text="SEC13-bounded-resources" variant="caution" /> CPU bounded only by the watchdog
+
+</div>
+<div class="wb-option">
+
+### C. The scanner as decided on I74, no limit
+
+What S08-workspace-and-git says today: the scanner holds each entry until it passes.
+
+- **Cost:** the scanner's wire-byte bound per entry, and its memory up to one entry.
+- **Gap:** git's memory depends on the scanner alone. Where the scanner and git read a pack differently, git can still allocate what the pack asks for.
+- **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Limit and streaming scanner</th><th>B. Limit alone</th><th>C. Scanner alone</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC13-bounded-resources</strong> memory, CPU and disk capped</td><td class="yes">two memory layers, CPU capped</td><td class="partial">memory yes, CPU to the watchdog</td><td class="yes">one memory layer</td></tr>
+<tr><td><strong>NFR06-explained-refusals</strong> refusals name the rule</td><td class="yes">scanner names it</td><td class="partial">git's <code>fatal:</code> line</td><td class="yes">scanner names it</td></tr>
+<tr><td><strong>NFR07-maintainability</strong> fuzzing for every parser</td><td class="partial">one target, simpler</td><td class="yes">none</td><td class="partial">one target</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> With `GIT_ALLOC_LIMIT=100m`, git 2.56.0 and Apple git 2.54.0 refused one delta of 256 MiB to 2 GiB, 8 deltas of 256 MiB, a delta with 128 MiB of its own data, a delta against a 200 MiB blob in the borrowed repository, and a 400 MiB blob, each in 0.02 to 0.06 s with the git child at 15 MiB or less, leaving nothing in `landing.git`. Without the limit the same packs took 207 to 2,063 MiB. Source: X28-git-alloc-limit, "Memory and time".
+- <Badge text="verified" variant="success" /> A pack header declaring 1,638,400 objects or more was refused by the limit before git read an entry. Source: same, "The object table".
+- <Badge text="verified" variant="success" /> An object of exactly 100 MiB needs a limit of 104857601, because git adds a byte to the buffer. Source: same.
+- <Badge text="verified" variant="success" /> The Go repository's whole history and a one-commit push passed with the limit, with the same memory as without. Source: same, "Cost".
+- <Badge text="verified" variant="success" /> 640 deltas of 96 MiB each took 145 s of CPU in git with the limit set, before the `pre-receive` check refused them on the total. A 1 GiB blob streams past the limit. Source: same.
+- <Badge text="verified" variant="success" /> Without the pack's checksum, `index-pack` resolved no delta: every delta bomb failed with `early EOF` at 15 MiB or less. Source: same, "S08, no limit, pack without its checksum" rows in `results/x28-run1-homebrew.txt`.
+- <Badge text="verified" variant="success" /> `git hash-object --stdin` with `GIT_ALLOC_LIMIT=1k` on 2 KiB fails with `over limit` in both gits, which is the start check. Source: same, condition 2.
+- <Badge text="assumed" variant="caution" /> That later gits, Git for Windows and Linux gits honor the variable the same way. It isn't in `git(1)`, only in git's tests. The start check fails closed if one doesn't.
+- <Badge text="inferred" variant="note" /> That the scanner's memory no longer depends on the pack once it forwards as it reads. Follows from the design, and the fuzz target in S11-verification-and-spikes checks it.
+
+## What this unblocks
+
+- The git gateway in `wb-hostd`, towards V1-M4-claude-end-to-end: S08-workspace-and-git no longer waits on I102 for the scanner's scope.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why git's limit doesn't make the scanner unnecessary.** The limit stops one big allocation. A pack can instead hold many deltas that each stay under the cap. Git builds each one in full to check its hash, so the work grows with the number of deltas, while the pack is a few KiB. Only a running total, read before git starts building, stops that early.
+
+**Why the scanner can stream now.** Git reads a pack in two passes. In the first, as bytes arrive, it allocates each object and each delta's instructions from sizes in the entry header. The scanner checks that header before forwarding it. Only after the checksum at the end does git build the deltas. Holding back the checksum gives the scanner time to finish its totals, and git's limit covers anything the scanner gets wrong.
+
+**Glossary**
+
+- **`GIT_ALLOC_LIMIT`:** an environment variable git's test suite uses. Git refuses and exits when one allocation would exceed it.
+- **Delta:** an object stored as copy instructions against another object. Its header gives the size of the result.
+- **Checksum:** the 20 bytes at the end of a pack that cover everything before them.
+- **`index-pack`:** the git program that reads a pushed pack and builds its index.
+
+</details>

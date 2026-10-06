@@ -51,7 +51,9 @@ be tested before building on them.
 
   The pack scanner's target checks that what it forwards equals its
   input when a pack passes, and is a prefix of it when one is refused.
-  Its seeds include REF_DELTA entries, delta chains, empty zlib stored
+  A refused prefix never holds the pack's 20-byte checksum, and the
+  scanner's heap stays under a fixed bound for every input
+  (X28-git-alloc-limit). Its seeds include REF_DELTA entries, delta chains, empty zlib stored
   blocks, and packs written by zlib-ng at level 1 and with
   `core.compression=0`. A differential test feeds the scanner's corpus
   and the generated packs to `git index-pack --stdin --strict`: the two
@@ -228,9 +230,21 @@ be tested before building on them.
     cap; a pack header that declares more objects than the count cap,
     with no entries after it; and an entry that declares a small size
     and is followed by hundreds of MiB of empty zlib stored blocks,
-    refused on its wire bytes. Under the caps, the git child's peak
-    memory stays near what X26-pre-receive-check measured, 207 MiB at a
-    100 MiB per-object cap;
+    which git refuses on its size limit while the scanner's memory
+    doesn't grow. Under the caps, the git child's peak memory stays near
+    what X26-pre-receive-check and X28-git-alloc-limit measured,
+    207 MiB at a 100 MiB per-object cap;
+  - with the scanner off, push the same packs and see git refuse each
+    one that asks for more than the per-object cap in one allocation,
+    with the git child under 20 MiB, through `GIT_ALLOC_LIMIT`
+    (X28-git-alloc-limit). An object of exactly the cap passes and one
+    byte more is refused. A pack header that declares 1,638,400 objects
+    or more is refused;
+  - with the scanner off, push 64 deltas under the per-object cap
+    without the pack's checksum, and see `index-pack` fail with no
+    delta resolved, in under a second (X28-git-alloc-limit);
+  - start `wb-hostd` with a stand-in git that ignores
+    `GIT_ALLOC_LIMIT`, and see every push refused with the reason;
   - kill `receive-pack` in the middle of a push, and check that the
     cleanup leaves no `objects/tmp_objdir-*` and no `*.lock` under
     `refs/heads/wb/`;
@@ -277,8 +291,9 @@ X19-terminal-filter (the host terminal stream filter),
 X21-dep-gate-registries (the dependency gate on real registries),
 X22-no-guest-credentials (clients when guest credentials are removed),
 X23-sandboxed-daemons (Go daemons confining themselves on macOS),
-X24-openshell-artifacts (the OpenShell parts the specs reuse) and
-X26-pre-receive-check (push checks before the quarantine lands).
+X24-openshell-artifacts (the OpenShell parts the specs reuse),
+X26-pre-receive-check (push checks before the quarantine lands) and
+X28-git-alloc-limit (git's allocation cap against delta bombs).
 What V1 leaves out is in V1-initial.
 
 **Status:** Draft

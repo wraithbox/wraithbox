@@ -48,6 +48,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B64-vmd-sandbox | Can wb-vmd confine itself and still run a macOS VM? | Answered 2026-10-06. Awaiting decision on two points |
 | B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps |
 | B101-vsock-confinement | Can a project user take wb-guestd's place on the host-guest socket? | Answered 2026-10-06: yes, with conditions |
+| B102-git-alloc-limit | Can git itself refuse a push that asks for too much memory, so the pack scanner gets simpler? | Answered 2026-10-06 |
 
 ## Order to decide
 
@@ -59,4 +60,9 @@ The maintainer decided B36-flow-attribution to B52-proto-contracts on
 2026-10-04, B32-dep-gate-registries on 2026-10-04, and
 B17-network-path, B19-fs-benchmark, B29-vsock-handoff,
 B33-no-guest-credentials, B35-openshell-artifacts,
-B37-terminal-boundary and B74-pre-receive-check on 2026-10-06. The list is empty until a brief is added to it.
+B37-terminal-boundary and B74-pre-receive-check on 2026-10-06.
+
+1. B102-git-alloc-limit: blocks the pack scanner in the git gateway.
+   Decided late, the scanner gets built to the larger design of
+   B74-pre-receive-check. Decided badly, a push of many small deltas
+   keeps git busy until the watchdog stops it.
