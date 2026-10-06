@@ -177,7 +177,8 @@ nothing themselves (S12-platforms).
   - `wb-hostd` is one exception. Before it confines itself, it reads its
     own configuration, sets `GOMAXPROCS`, loads the local time zone,
     starts `wb-launcher` (on macOS), resolves the git binary, checks
-    that it honors `GIT_ALLOC_LIMIT` (S08-workspace-and-git, "Pack
+    its version against the minimum (S08-workspace-and-git, "Host git")
+    and that it honors `GIT_ALLOC_LIMIT` (S08-workspace-and-git, "Pack
     scanner"), and works out the paths for its profile. None of that reads
     anything the guest sent.
   - `wb-vmd` on macOS is a second, bounded exception. Before it confines
@@ -321,6 +322,7 @@ layout is the same everywhere:
 <data>/
   images/                             base images (copy-on-write clones)
   vms/<guest-os>-{work,isolated}/     VM bundles: disks, machine identity, saved state
+  projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
   state.db                            SQLite: projects, sessions, approvals, caches
   run/                                user-only directory for local IPC endpoints

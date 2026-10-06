@@ -287,7 +287,7 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb vm start/stop/suspend/status` | Explicit VM control |
 | `wb image build/list/use` | Base image management (S06-vm-lifecycle) |
 | `wb shell [--project P]` | Debug shell as the project user, labeled as a debug shell |
-| `wb setup` | Check host prerequisites (S12-platforms), install and start the per-user services |
+| `wb setup` | Check host prerequisites (S12-platforms) and the minimum git version (S08-workspace-and-git), install and start the per-user services |
 | `wb help`, `wb version` | Help and version |
 
 Each command has its own flags after the command name. Names of

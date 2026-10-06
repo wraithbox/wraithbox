@@ -5,7 +5,7 @@ description: Serve the guest from a host-side export repository holding only the
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Decided 2026-10-04: A. Export repository.** The decision and its reasons are in the I41 comment that starts `Decision (2026-10-04):`. Source: I41, item 5 waits on X07-git-round-trip (I21). Affects S05-cli and S08-workspace-and-git. Note 2026-10-04: X07-git-round-trip answered item 5 with a Go filter on the command list, and `receive.hideRefs` as a second layer only (B21-git-round-trip).
+**Decided 2026-10-04: A. Export repository.** The decision and its reasons are in the I41 comment that starts `Decision (2026-10-04):`. Source: I41, item 5 waits on X07-git-round-trip (I21). Affects S05-cli and S08-workspace-and-git. Note 2026-10-04: X07-git-round-trip answered item 5 with a Go filter on the command list, and `receive.hideRefs` as a second layer only (B21-git-round-trip). Note 2026-10-06: the decision is now in S08-workspace-and-git, see "The spec change" below.
 
 <Aside type="tip" title="You are deciding">
 Rules for what the git round trip sends into the guest and how the host handles what comes back. Recommended: the table below, with **A** for the ref scope: the guest fetches from a host-side copy that holds only the branch it works on. Hiding refs, as the issue proposes, does not stop a fetch by object ID. Items 1 to 4 and 6 can be decided now. Item 5 waits on X07-git-round-trip. Accepting starts the S08-workspace-and-git pull request.
@@ -59,6 +59,16 @@ Rules for what the git round trip sends into the guest and how the host handles 
 Figure 1. Both directions of the git round trip in S08-workspace-and-git. Into the guest, <code>upload-pack</code> serves your repository, and the guest can ask for more than the branch it works on (red). Out of the guest, your own git parses packs the guest built, and later fetches them into your repository at <code>wb land</code>.
 </figcaption>
 </figure>
+
+## The spec change
+
+What the decision became in S08-workspace-and-git, with the details the table below left open:
+
+- **Item 1, "Export repository":** `export.git` holds the branch your `HEAD` points to, a detached `HEAD` as is, and the refs you list in `export_refs` in the project's host settings, matched by exact name. Repository-supplied configuration can't add a ref. Each session start makes its refs exactly that set. Per I67, `wb` reads your repository and `wb-hostd` never opens it.
+- **Item 2, "Carry-in scan":** a file with a match is skipped whole, and a tracked one keeps its `HEAD` version in the guest. The summary names the scanner rule, never the matched text. When the scanner fails, the session starts without any carry-in. Committed content isn't scanned.
+- **Item 3, "Remote URLs":** `wb` reads each URL after your `insteadOf` rules and removes the user name, password, query and fragment. SSH remotes become `https://host/path` without the port. Any URL that isn't SSH or `https://` isn't given to the guest, and the summary says so. Project identity stays with I42.
+- **Item 4, "Host git":** the minimum is git 2.54.0, the oldest the spikes ran. `wb-hostd` checks its git at start, and `wb` checks your git and that one in `wb setup`, at session start and before `wb land`.
+- **Item 6, "Repository lifecycle":** git's own automatic garbage collection is off in both repositories. `wb discard` deletes the session's refs and guest worktree, and `wb land` keeps them. The landing cap is 4 GiB per project, settable. Because `landing.git` borrows from `export.git`, no object leaves `export.git` while any session ref exists, and it is cleaned at the next session start once none does.
 
 ## Sub-decisions
 
