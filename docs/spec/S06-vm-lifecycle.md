@@ -97,7 +97,7 @@ in S12-platforms.
   the VM stops; the next session restores from saved state (NFR01-startup, NFR03-footprint).
   A restore of an idle guest takes about 4 s (X02-warm-start), inside
   the 7 s goal of NFR01-startup for a suspended VM. A cold boot takes
-  about 11 s (p50) and 13.5 s (p95) to the guest daemon's vsock
+  10.9 s (p50) and 13.5 s (p95) to the guest daemon's vsock
   listener, over the 10 s goal (X18-vsock-handoff). These goals aren't
   a release gate. A restore runs under these rules:
   - A saved state is restored only onto the disks and auxiliary

@@ -235,7 +235,7 @@ product image may descend from them.
   (changed in this pull request).
 - **NFR01-startup**: fits for an idle guest. 4.1 s to `wb-guestd`
   answering leaves about 2.9 s of the 7 s for a suspended VM. Its text
-  is unchanged.
+  changed on I111 (see "Cold boot" below).
 - **Cold boot:** about 11 s to `wb-guestd` (p95 13.5 s) is above the
   10 s ceiling of NFR01-startup, if a cold boot after a failed restore
   counts against it. NFR01-startup excludes only the first boot after
