@@ -1,0 +1,5 @@
+(version 1)
+; First try: the VM bundle and the Virtualization service, nothing else.
+(deny default)
+(allow file-read* file-write* (subpath (param "BUNDLE")))
+(allow mach-lookup (xpc-service-name "com.apple.Virtualization.VirtualMachine"))

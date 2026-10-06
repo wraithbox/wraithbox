@@ -1,0 +1,1 @@
+[282998.756] error: Error Domain=VZErrorDomain Code=2 "“memorySize” is greater than “maximumAllowedMemorySize”." UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=“memorySize” is greater than “maximumAllowedMemorySize”.}

@@ -1,0 +1,2 @@
+sandbox_extension_issue_generic_to_process failed: 1 (Operation not permitted)
+[282743.955] error: Error Domain=VZErrorDomain Code=1 "Failed to issue USB HCI sandbox extension." UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to issue USB HCI sandbox extension.}

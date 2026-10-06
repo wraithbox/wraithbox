@@ -1,0 +1,1 @@
+[282995.947] error: Error Domain=VZErrorDomain Code=2 "Virtualization is not available on this hardware." UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=Virtualization is not available on this hardware.}

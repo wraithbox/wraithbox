@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":8.0470000393688679,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/ablate-diskimages","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-ad9f58ef3eecfb4eb\/.scratch\/ablate\/without-diskimages.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"ablate-diskimages","configMs":19.94937495328486,"devices":[],"startSeconds":0.31487366696819663,"step":"boot","stopMs":7.0295000332407653,"vsockSeconds":15.280184458009899,"vsockTries":581}
+{"step":"run","name":"ablate-without-diskimages","exit":0,"start":"2026-10-06 19:13:13","end":"2026-10-06 19:13:30"}

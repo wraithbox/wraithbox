@@ -1,0 +1,12 @@
+   1 deny file-read-data /Users/lsimons/.ssh/known_hosts
+   1 deny file-read-data /Users/lsimons/Library/Caches/wraithbox-spikes/x25/ablate-bundle/cfg.json
+   1 deny file-read-metadata /etc
+   5 deny file-read-metadata /System
+   1 deny file-read-metadata /System/Cryptexes/App
+   2 deny file-read-metadata /System/Library/Frameworks/Foundation.framework
+   1 deny file-read-metadata /System/Library/Frameworks/Foundation.framework/Versions/C
+   1 deny file-read-metadata /tmp
+   1 deny file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/ablate-bundle
+   1 deny file-read-metadata /Users/lsimons/Library/Caches/wraithbox-spikes/x25/ablate-bundle/cfg.json
+   1 deny network-outbound remote:*:1
+   1 deny process-fork 

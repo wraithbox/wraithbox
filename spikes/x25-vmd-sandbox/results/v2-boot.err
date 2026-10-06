@@ -1,0 +1,17 @@
+uncaught NSInvalidArgumentException: *** -[__NSPlaceholderDictionary initWithObjects:forKeys:count:]: attempt to insert nil object from objects[0]
+0   CoreFoundation                      0x000000019a26e8c0 __exceptionPreprocess + 176
+1   libobjc.A.dylib                     0x0000000199ccc60c objc_exception_throw + 88
+2   CoreFoundation                      0x000000019a186c88 -[__NSPlaceholderDictionary initWithObjects:forKeys:count:] + 764
+3   CoreFoundation                      0x000000019a186960 +[NSDictionary dictionaryWithObjects:forKeys:count:] + 52
+4   Virtualization                      0x000000023fa4a560 _ZN2Vz10make_errorE11VZErrorCodeP8NSString + 152
+5   Virtualization                      0x000000023f8816c4 -[VZMacPlatformConfiguration validate] + 224
+6   Virtualization                      0x000000023f8e65ec -[VZVirtualMachineConfiguration validateWithError:] + 156
+7   x25                                 0x000000010479c99c $s3x2510makeConfig_3net1oSo29VZVirtualMachineConfigurationCAA6BundleC_AA7NetPairCSgAA4OptsVtKF + 5052
+8   x25                                 0x000000010479cfcc $s3x257MachineC_1oAcA6BundleC_AA4OptsVtKcfc + 136
+9   x25                                 0x00000001047973ec $s3x254bootyyAA6BundleC_AA4OptsVtYaKFTY0_ + 396
+10  x25                                 0x0000000104793951 $s3x25yyYacfU4_TQ5_ + 1
+11  x25                                 0x00000001047a0181 $s3x25yyYacfU4_TATQ0_ + 1
+12  x25                                 0x000000010479e815 $sxIeAgHr_xs5Error_pIegHrzo_s8SendableRzs5NeverORs_r0_lTRyt_Tg5TQ0_ + 1
+13  x25                                 0x00000001047a0251 $sxIeAgHr_xs5Error_pIegHrzo_s8SendableRzs5NeverORs_r0_lTRyt_Tg5TATQ0_ + 1
+14  libswift_Concurrency.dylib          0x00000002c6a3ad41 _ZL23completeTaskWithClosurePN5swift12AsyncContextEPNS_10SwiftErrorE + 1
+libc++abi: terminating due to uncaught exception of type NSException

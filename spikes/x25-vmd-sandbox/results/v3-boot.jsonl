@@ -1,0 +1,5 @@
+{"ms":7.3076249682344496,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/v1"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-v3.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"v1","configMs":24.284709012135863,"devices":[],"startError":"Error Domain=VZErrorDomain Code=1 \"Failed to retrieve cache directory.\" UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to retrieve cache directory.}","step":"boot"}
+{"error":"Error Domain=VZErrorDomain Code=1 \"Failed to retrieve cache directory.\" UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to retrieve cache directory.}","step":"error"}
+{"step":"run","name":"v3-boot","exit":1,"start":"2026-10-06 19:11:16","end":"2026-10-06 19:11:18"}

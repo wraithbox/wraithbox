@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":8.7557919905520976,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/ablate-vz-framework","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-ad9f58ef3eecfb4eb\/.scratch\/ablate\/without-vz-framework.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"ablate-vz-framework","configMs":20.416666986420751,"devices":[],"startSeconds":0.29715337499510497,"step":"boot","stopMs":3.4074169816449285,"vsockSeconds":14.068856499972753,"vsockTries":530}
+{"step":"run","name":"ablate-without-vz-framework","exit":0,"start":"2026-10-06 19:14:12","end":"2026-10-06 19:14:28"}

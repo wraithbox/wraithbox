@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":8.1924999831244349,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/ablate-sysctl-brand","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-ad9f58ef3eecfb4eb\/.scratch\/ablate\/without-sysctl-brand.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"ablate-sysctl-brand","configMs":19.618625054135919,"devices":[],"startSeconds":0.31619537505321205,"step":"boot","stopMs":5.1779579953290522,"vsockSeconds":13.493891291029286,"vsockTries":472}
+{"step":"run","name":"ablate-without-sysctl-brand","exit":0,"start":"2026-10-06 19:16:09","end":"2026-10-06 19:16:24"}

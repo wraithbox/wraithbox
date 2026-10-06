@@ -1,0 +1,2 @@
+sandbox_extension_issue_generic_to_process failed: 1 (Operation not permitted)
+[282974.023] error: Error Domain=VZErrorDomain Code=1 "Failed to issue VideoToolbox sandbox extension." UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to issue VideoToolbox sandbox extension.}

@@ -1,0 +1,10 @@
+   1 deny file-read-data /System/Library/CoreServices/SystemVersion.plist
+   1 deny file-read-data /Users/lsimons/.ssh/known_hosts
+   1 deny file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch
+   1 deny file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch/x25
+   1 deny file-read-metadata /etc
+   1 deny file-read-metadata /System
+   1 deny file-read-metadata /tmp
+   1 deny network-outbound /private/var/run/syslog
+   1 deny network-outbound remote:*:1
+   1 deny process-fork 

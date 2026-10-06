@@ -1,0 +1,33 @@
+(version 1)
+; Fifth try: v4 plus the sandbox extensions the framework hands to its service.
+(deny default)
+(allow file-read* file-write* (subpath (param "BUNDLE")))
+(allow mach-lookup
+  (xpc-service-name "com.apple.Virtualization.VirtualMachine")
+  (xpc-service-name "com.apple.diskimagescontroller"))
+(allow sysctl-read
+  (sysctl-name "kern.hv_support" "hw.memsize" "machdep.cpu.brand_string" "kern.maxfilesperproc"))
+(allow system-info (info-type "vfs.disk-space"))
+(allow file-read* (literal "/usr/share/icu/icudt78l.dat"))
+(allow file-read*
+  (literal "/System/Library/CoreServices/SystemVersion.plist")
+  (subpath "/System/Library/Frameworks/Virtualization.framework"))
+(allow file-read-metadata (literal "/var") (literal "/private/var/folders"))
+(allow file-read* file-write* (subpath (param "CACHE")))
+(allow generic-issue-extension
+  (extension-class
+    "com.apple.virtualization.extension.avp.rtc"
+    "com.apple.virtualization.extension.fp"
+    "com.apple.virtualization.extension.io-surface"
+    "com.apple.virtualization.extension.paravirtualized-graphics"
+    "com.apple.virtualization.extension.strong-identity"
+    "com.apple.virtualization.extension.usb-hci"
+    "com.apple.virtualization.extension.videotoolbox"))
+(allow file-issue-extension
+  (require-all
+    (subpath (param "BUNDLE"))
+    (extension-class "com.apple.app-sandbox.read" "com.apple.app-sandbox.read-write")))
+(allow file-issue-extension
+  (require-all
+    (subpath (param "CACHE"))
+    (extension-class "com.apple.app-sandbox.read-write")))

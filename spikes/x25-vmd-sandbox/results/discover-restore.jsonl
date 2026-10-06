@@ -1,0 +1,4 @@
+{"ms":7.95437500346452,"ok":true,"params":[],"profile":"spikes\/x25-vmd-sandbox\/profiles\/report-all.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"ok","read ~\/.ssh\/known_hosts":"ok","spawn \/usr\/bin\/true":"ok, status 0","step":"probes","tcp connect 127.0.0.1:1":"Connection refused","write \/tmp\/x25-probe":"ok"}
+{"bundle":"d1","configMs":22.457666986156255,"devices":[],"pauseMs":44.144125015009195,"restoreSeconds":5.3076759589603171,"resumedSeconds":5.598521834006533,"saveSeconds":3.4549557910067961,"step":"restore","stopMs":29.277333989739418,"vsockSeconds":5.6042863340117037,"vsockTries":1}
+{"step":"run","name":"discover-restore","exit":0,"start":"2026-10-06 19:09:59","end":"2026-10-06 19:10:10"}

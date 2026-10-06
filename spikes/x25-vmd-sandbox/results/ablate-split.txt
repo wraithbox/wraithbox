@@ -1,0 +1,6 @@
+sysctl-hv	{"error":"Error Domain=VZErrorDomain Code=2 \"Virtualization is not available on this hardware.\" UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=Virtualization is not availa
+sysctl-memsize	{"error":"Error Domain=VZErrorDomain Code=2 \"“memorySize” is greater than “maximumAllowedMemorySize”.\" UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=“memorySize” is great
+sysctl-brand	{"bundle":"ablate-sysctl-brand","configMs":19.618625054135919,"devices":[],"startSeconds":0.31619537505321205,"step":"boot","stopMs":5.1779579953290522,"vsockSeconds":13.493891291029286,"vsockTries":472}
+sysctl-maxfiles	{"bundle":"ablate-sysctl-maxfiles","configMs":19.588999974075705,"devices":[],"startSeconds":0.30530358297983184,"step":"boot","stopMs":9.2707499861717224,"vsockSeconds":15.741711458016653,"vsockTries":578}
+bundle-ext-rw	{"bundle":"ablate-bundle-ext-rw","configMs":18.977792002260685,"devices":[],"startSeconds":0.3172046669642441,"step":"boot","stopMs":2.9344999929890037,"vsockSeconds":14.502815832966007,"vsockTries":532}
+var-metadata	{"error":"Error Domain=VZErrorDomain Code=1 \"Failed to retrieve cache directory.\" UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to retrieve cache directory.}","step":"erro

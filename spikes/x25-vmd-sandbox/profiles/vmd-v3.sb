@@ -1,0 +1,15 @@
+(version 1)
+; Third try: v2 plus the system version and the framework bundle.
+; framework reads in process.
+(deny default)
+(allow file-read* file-write* (subpath (param "BUNDLE")))
+(allow mach-lookup
+  (xpc-service-name "com.apple.Virtualization.VirtualMachine")
+  (xpc-service-name "com.apple.diskimagescontroller"))
+(allow sysctl-read
+  (sysctl-name "kern.hv_support" "hw.memsize" "machdep.cpu.brand_string" "kern.maxfilesperproc"))
+(allow system-info (info-type "vfs.disk-space"))
+(allow file-read* (literal "/usr/share/icu/icudt78l.dat"))
+(allow file-read*
+  (literal "/System/Library/CoreServices/SystemVersion.plist")
+  (subpath "/System/Library/Frameworks/Virtualization.framework"))

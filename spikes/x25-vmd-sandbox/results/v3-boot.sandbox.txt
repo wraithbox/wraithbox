@@ -1,0 +1,19 @@
+   1 deny file-read-data /Library/Preferences/.GlobalPreferences.plist
+   3 deny file-read-data /System/Library/CoreServices/SystemVersion.bundle
+   1 deny file-read-data /Users/lsimons/.ssh/known_hosts
+   2 deny file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch
+   1 deny file-read-data /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch/x25
+   2 deny file-read-data /usr/lib
+   1 deny file-read-metadata /etc
+   1 deny file-read-metadata /System
+   3 deny file-read-metadata /System/Library/CoreServices/SystemVersion.bundle
+   1 deny file-read-metadata /tmp
+   1 deny file-read-metadata /Users/lsimons
+   1 deny file-read-metadata /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/.scratch
+   1 deny file-read-metadata /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-ad9f58ef3eecfb4eb/spikes/x25-vmd-sandbox/results/v3-boot.jsonl
+   5 deny file-read-metadata /var
+   2 deny mach-lookup com.apple.bsd.dirhelper
+   4 deny mach-lookup com.apple.system.opendirectoryd.membership
+   1 deny mach-task-name others [com.apple.Virtualization.Virtual(86221)]
+   1 deny network-outbound remote:*:1
+   1 deny process-fork 

@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":8.2349999574944377,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/v1","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-v5.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"v1","configMs":14.742415980435908,"devices":[],"pauseMs":56.223082996439189,"saveSeconds":3.5005473750061356,"startSeconds":0.3549815000151284,"step":"boot","stopMs":5.845333042088896,"vsockSeconds":14.905941749981139,"vsockTries":544}
+{"step":"run","name":"v5-boot","exit":0,"start":"2026-10-06 19:12:11","end":"2026-10-06 19:12:31"}

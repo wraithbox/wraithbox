@@ -1,0 +1,2 @@
+sandbox_extension_issue_generic_to_process failed: 1 (Operation not permitted)
+[282964.635] error: Error Domain=VZErrorDomain Code=1 "Failed to issue Paravirtualized Graphics sandbox extension." UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to issue Paravirtualized Graphics sandbox extension.}

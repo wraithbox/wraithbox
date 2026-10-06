@@ -1,0 +1,4 @@
+(version 1)
+; Discovery: allow everything and log every operation, to find what the
+; Virtualization framework does in the client process.
+(allow default (with report))

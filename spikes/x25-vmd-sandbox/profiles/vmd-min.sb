@@ -1,0 +1,55 @@
+(version 1)
+; wb-vmd profile after the first ablation round (results/ablate-v5.txt):
+; vmd.sb without the sections a boot didn't need, the Virtualization
+; framework bundle kept so errors come with their text (without it, a
+; configuration error ends in an uncaught exception), and each sandbox
+; extension class in its own section.
+; Parameters: BUNDLE (the VM bundle), CACHE (the per-user cache directory,
+; resolved with confstr before confining).
+(deny default)
+
+;; [bundle]
+(allow file-read* file-write* (subpath (param "BUNDLE")))
+
+;; [vz-service]
+(allow mach-lookup (xpc-service-name "com.apple.Virtualization.VirtualMachine"))
+
+;; [sysctl]
+(allow sysctl-read
+  (sysctl-name "kern.hv_support" "hw.memsize" "machdep.cpu.brand_string" "kern.maxfilesperproc"))
+
+;; [system-version]
+(allow file-read* (literal "/System/Library/CoreServices/SystemVersion.plist"))
+
+;; [vz-framework]
+(allow file-read* (subpath "/System/Library/Frameworks/Virtualization.framework"))
+
+;; [var-metadata]
+(allow file-read-metadata (literal "/var") (literal "/private/var/folders"))
+
+;; [ext-avp-rtc]
+(allow generic-issue-extension (extension-class "com.apple.virtualization.extension.avp.rtc"))
+;; [ext-fp]
+(allow generic-issue-extension (extension-class "com.apple.virtualization.extension.fp"))
+;; [ext-io-surface]
+(allow generic-issue-extension (extension-class "com.apple.virtualization.extension.io-surface"))
+;; [ext-pvg]
+(allow generic-issue-extension (extension-class "com.apple.virtualization.extension.paravirtualized-graphics"))
+;; [ext-strong-identity]
+(allow generic-issue-extension (extension-class "com.apple.virtualization.extension.strong-identity"))
+;; [ext-usb-hci]
+(allow generic-issue-extension (extension-class "com.apple.virtualization.extension.usb-hci"))
+;; [ext-videotoolbox]
+(allow generic-issue-extension (extension-class "com.apple.virtualization.extension.videotoolbox"))
+
+;; [bundle-extensions]
+(allow file-issue-extension
+  (require-all
+    (subpath (param "BUNDLE"))
+    (extension-class "com.apple.app-sandbox.read" "com.apple.app-sandbox.read-write")))
+
+;; [cache-extensions]
+(allow file-issue-extension
+  (require-all
+    (subpath (param "CACHE"))
+    (extension-class "com.apple.app-sandbox.read-write")))

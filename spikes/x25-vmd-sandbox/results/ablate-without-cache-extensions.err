@@ -1,0 +1,2 @@
+sandbox_extension_issue_file_to_process failed for /var/folders/6j/d03nbvfj5j14pd4gb5_5320c0000gn/C/com.apple.paravirtualizedgraphics-13248736773709575801: 1 (Operation not permitted)
+[282929.740] error: Error Domain=VZErrorDomain Code=1 "Failed to issue sandbox extension for ParavirtualizedGraphics cache directory." UserInfo={NSLocalizedFailure=Internal Virtualization error., NSLocalizedFailureReason=Failed to issue sandbox extension for ParavirtualizedGraphics cache directory.}
