@@ -41,6 +41,8 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X24-openshell-artifacts | OpenShell artifacts | Answered 2026-10-05: yes, with conditions |
 | X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Open |
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
+| X27-vsock-confinement | vsock confinement of project users | No issue |
+| X28-git-alloc-limit | git's allocation cap against delta bombs | No issue |
 
 ## Spikes
 
@@ -233,3 +235,17 @@ assumption that v1 work would otherwise build on. They block v1.
   with conditions, in the result page X26-pre-receive-check: the check
   works, and a Go pack scanner in front of `receive-pack` bounds the
   memory git uses while it unpacks.
+- **X27-vsock-confinement: vsock confinement of project users.** Can a
+  non-root process in a macOS guest open `AF_VSOCK`, and bind or
+  listen on `wb-guestd`'s port while `wb-guestd` is running or being
+  restarted? Can the Seatbelt profile of S13-guest-confinement deny
+  `AF_VSOCK` to project users? If a project user can bind the port,
+  it can pose as `wb-guestd` and claim another project's identity
+  (S04-architecture, SEC08-proj-isolation). Found while deciding
+  B29-vsock-handoff. Needs a VM.
+- **X28-git-alloc-limit: git's allocation cap against delta bombs.**
+  Does `GIT_ALLOC_LIMIT` in `receive-pack`'s environment make both host
+  gits refuse each delta bomb of X26-pre-receive-check before
+  allocating its result? If so, git bounds per-object memory and the
+  Go pack scanner of S08-workspace-and-git shrinks to the per-push
+  caps (SEC13-bounded-resources). Found after deciding B74-pre-receive-check.
