@@ -240,7 +240,10 @@ product image may descend from them.
   10 s ceiling of NFR01-startup, if a cold boot after a failed restore
   counts against it. NFR01-startup excludes only the first boot after
   a host restart. The image work of X17-image-build should look at how
-  early the LaunchDaemon starts (I86).
+  early the LaunchDaemon starts (I86). Decided 2026-10-06 (I111): the
+  figures of NFR01-startup are goals that V1-M6-release-gate doesn't
+  pass or fail on, and NFR01-startup states the cold boot measured
+  here.
 
 ## Spike code
 
