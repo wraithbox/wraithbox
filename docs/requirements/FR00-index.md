@@ -53,7 +53,8 @@ answer is in S03-requirements.
   background lookups is refused and logged without a prompt, and so is a host whose only rules are in a built-in
   profile part the user turned off (S07-egress-gateway).
 - **FR10-learn-mode: Learn mode.** A learn mode, available for trusted repositories only, records
-  the destinations a project needs and proposes an allowlist.
+  the destinations a project needs and proposes an allowlist. Unknown destinations stay refused
+  (SEC05-default-deny), and learn mode collects them for one review instead of asking for each.
 - **FR11-port-forward: Port forwarding.** Dev servers listening in the guest are reachable on host
   loopback.
 - **FR12-clipboard: Opt-in clipboard.** Text clipboard sharing is opt-in, per direction, with approval.

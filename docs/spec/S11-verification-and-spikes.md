@@ -29,6 +29,11 @@ be tested before building on them.
   CA `wb-proxyd` signed with before the save. A save on day 40 and a
   restore on day 45 keep signing with the old CA. Each step checks its 5019
   event.
+  The policy loader has a test that puts a host in pass mode from a
+  trusted repository's `.wraithbox/policy.yaml`, on a host with a
+  credential binding, on a host a built-in profile covers, and without
+  a reason, and sees each refused at load with an error that names the
+  host and the rule (S07-egress-gateway, "Modes, per host").
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
   DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
@@ -117,6 +122,11 @@ be tested before building on them.
     package. The project set is the VM's: the repositories of every
     project with a session in the VM (S07-egress-gateway, "Enforced per
     VM");
+  - in a learn-mode session, resolve a name that isn't allowlisted and
+    see `NXDOMAIN` with the same answer bytes as outside learn mode, no
+    approval event, and the name in `wb learn report`; push to a
+    repository outside the project set and see it refused
+    (S07-egress-gateway, "Approvals and learning");
   - per-VM enforcement (S07-egress-gateway, "Enforced per VM"):
     - end a project's last session and see its binding no longer
       injected, its open streams closed with the rule
