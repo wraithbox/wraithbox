@@ -36,7 +36,9 @@ answer is in S03-requirements.
 - **FR03-work-as-branch: Work returns as a branch.** The agent never writes to the host working tree. Its work returns
   as a git branch the user reviews and merges.
 - **FR04-carry-in: Uncommitted changes carried in.** Uncommitted host changes (staged, unstaged, untracked-not-ignored)
-  are carried into the session at start.
+  are carried into the session at start. The exceptions, each listed in the session summary with its reason: a file
+  over the size cap, a file the secret scan matches or can't read, and anything other than a regular file or a
+  symbolic link. With no secret scanner, or when it fails, nothing is carried in (S08-workspace-and-git).
 - **FR05-parallel-sessions: Parallel sessions.** Several sessions can run at once, in the same project and across
   projects.
 - **FR06-native-tools: Native guest tools.** Agent tool calls run tools native to the guest operating system
