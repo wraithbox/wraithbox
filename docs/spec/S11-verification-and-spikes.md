@@ -17,15 +17,17 @@ be tested before building on them.
   inspection certificate authority") has a test that asks for a leaf
   for a host the policy doesn't inspect, a host in pass mode, a stream
   whose SNI differs from its hostname, a hostname on another VM's
-  stream, and a VM whose only CA has expired. It sees each stream reset
-  and logged with its rule, and no leaf signed. The CA rotation has a
+  stream, and a VM whose only CA has expired. In every case
+  `wb-proxyd` doesn't sign a leaf. The pass-mode stream is relayed
+  unchanged, and each other stream is reset and logged with its rule. The CA rotation has a
   test on a fake clock: day 30 issues and installs the successor, day
   58 switches only after the install is recorded and otherwise refuses
   the VM's streams with `ca-not-installed`, and day 60 removes the old
   CA and destroys its key. A restore test checks the order: clock
-  resynchronized, expired CAs removed, both current CAs installed from
+  resynchronized, expired CAs removed, the current CAs installed from
   the host's record, and only then streams accepted, signed with the
-  newest CA the guest had before the save. Each step checks its 5019
+  CA `wb-proxyd` signed with before the save. A save on day 40 and a
+  restore on day 45 keep signing with the old CA. Each step checks its 5019
   event.
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,

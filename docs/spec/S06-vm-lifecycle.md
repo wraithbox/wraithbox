@@ -145,7 +145,7 @@ in S12-platforms.
     devices), it deletes the saved state itself and logs why, rather
     than learning of the change from "invalid argument" at the next
     restore.
-- **Time and sleep.** After host sleep or VM restore, `wb-guestd`
+- **Time and sleep.** After VM boot, host sleep or VM restore, `wb-guestd`
   resynchronizes the guest clock from `wb-hostd`.
 
 ## Projects and sessions inside a VM
