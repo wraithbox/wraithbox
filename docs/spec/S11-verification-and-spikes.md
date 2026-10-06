@@ -75,8 +75,10 @@ be tested before building on them.
   - resolve a name on the guest OS's background list and see
     `NXDOMAIN`, an audit entry and no approval event, also when it is
     sent in mixed case and with a trailing dot; resolve a name one
-    label longer under it and see an approval event
-    (S07-egress-gateway, quiet refusals);
+    label longer under it and see an approval event; see the same
+    answer bytes for a name that is not allowlisted, denied, on the
+    list or in a part that is off (S07-egress-gateway, quiet
+    refusals);
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
   - present an SNI that differs from the resolved name;
@@ -102,6 +104,18 @@ be tested before building on them.
       whose rules leave the boundary in union, and see the start
       refused with both projects named and the first project's policy
       unchanged;
+    - with the prover unavailable, end the last session of a project
+      that held the stricter minimum age, turned a part off, set
+      inspection on a host the other project passes, or had a
+      `deny_rules` entry, and see each kept as a held source, a 5019
+      event that names the project, and the widening shown as pending,
+      while the project's binding is no longer injected
+      (S07-egress-gateway, "Session end");
+    - deny a name, start and end another session, and see the name
+      still refused with no new approval event until every session
+      running at the deny has ended; answer an approval after a
+      session started or ended, and see the answer refused and the
+      request shown again (S07-egress-gateway, "Deny duration");
     - start a learn-mode session while a session or a debug shell of
       another project runs, and start another project's session while
       a learn-mode session runs, and see each refused with the other
@@ -125,14 +139,33 @@ be tested before building on them.
   - send a credential that is neither a placeholder nor a fixed value, and
     find a detection finding with its header name and no value;
   - fetch from an inspected host with a credential binding a response
-    that sets a cookie, and see no `Set-Cookie` reach the guest and a
-    log record with the cookie's name and no value;
+    that sets a cookie and has `X-OAuth-Scopes`,
+    `X-Accepted-OAuth-Scopes` and `X-OAuth-Client-Id` headers, and see
+    none of them reach the guest and a log record with each name and
+    no value;
+  - turn off every GitHub part but `git` and see fetch and push to
+    `github.com` pass, any REST or GraphQL request refused with
+    `profile-part-off`, no GitHub binding injected on `api.github.com`,
+    and a lookup of `api.github.com` refused at DNS with no approval
+    event, also while another project's rule allows that host; load a
+    trusted repository rule on that host, or on
+    `api.github.com/graphql`, and see a load error (S07-egress-gateway,
+    "Profile parts");
+  - with a boundary that forbids `api.github.com` and only the GitHub
+    `graphql` part on, see the prover refuse the session start
+    (S09-policy-credentials-audit, "Built-in profiles in the check");
   - download a Homebrew bottle from `ghcr.io` with the guest's
     `Authorization` removed and the anonymous binding injected, through
     the redirect to `pkg-containers.githubusercontent.com`; send any
     other method to `/v2/homebrew/core/` and see it refused; send
     `ghcr.io/token?scope=repository:homebrew/core/jq:pull,push` with
     guest Basic credentials and see it denied;
+  - with a stand-in for `ghcr.io` that refuses the fixed value, see the
+    token fallback fetch only the fixed `ghcr.io/token` URL when the
+    401 names another realm, refuse a bottle name outside the OCI
+    repository-name grammar, refuse requests past the per-VM rate
+    with `anonymous-token-cap`, and not retry a 401 with a fresh token
+    (S07-egress-gateway, "Token fallback");
   - request `/v2/homebrew/core/x/../../other/image/...` and
     `/v2/homebrew%2Fcore/...` on `ghcr.io`, and paths with `%zz`, a
     backslash, a `%2e%2e` segment, or a segment like `wget%2F..%2Fcurl`

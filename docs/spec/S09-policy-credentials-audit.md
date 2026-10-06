@@ -54,10 +54,11 @@ inspection is trusted, and what is recorded.
     prover allows at least what `wb-proxyd` enforces, never less. A
     built-in GraphQL rule is written as a REST rule that allows `POST`
     to its GraphQL path on its host, which is wider than the rule
-    ("Built-in profiles in the check"). A host in pass mode is written as an L4 endpoint with no `protocol`
-    and no rules, whatever rules the file gives it, so the boundary
-    must allow L4 to that host. The prover can't see the extension
-    keys, so Wraith Box's own Go check compares them with the
+    ("Built-in profiles in the check"). A host in pass mode is written
+    as an L4 endpoint with no `protocol` and no rules, whatever rules
+    the file gives it, so the boundary must allow L4 to that host. The
+    prover can't see the extension keys, so Wraith Box's own Go check
+    compares them with the
     boundary's extension part: each pass host must be a pass host in
     the boundary, dependency-gate thresholds can't be looser, and the
     wildcard budget can't be larger. Any mismatch refuses the policy.
@@ -155,7 +156,9 @@ inspection is trusted, and what is recorded.
     last policy that passed, and `wb policy explain` shows the change
     as pending (S07-egress-gateway, "Policy changes while sessions
     run"). A recompute when a session ends goes through the same check
-    when it widens the union (S07-egress-gateway, "Session end"). The
+    when it widens the union, and on failure the departing project's
+    denies, limits, modes and parts that are off stay as a held source
+    (S07-egress-gateway, "Session end"). The
     result is cached on the SHA-256
     of the candidate and of the boundary, so an unchanged policy adds
     no prover run to session start (NFR01-startup). The maintainer
@@ -170,9 +173,12 @@ inspection is trusted, and what is recorded.
     (X24-openshell-artifacts).
   - *Built-in profiles in the check.* The candidate holds the parts of
     the built-in profiles that are on (S07-egress-gateway, "Profile
-    parts"), and no built-in rule is left out. An organization's
-    boundary limits them like any other rule. The default boundary
-    allows every rule of every built-in part as the prover sees it.
+    parts"), and no built-in rule is left out. The candidate holds the
+    git hosting profile on every host that a project's remotes name,
+    with the GraphQL path of that host's kind. A host whose kind isn't
+    known doesn't add an allow rule until the user sets its kind. An
+    organization's boundary limits these rules like any other rule. The default boundary allows every rule
+    of every built-in part as the prover sees it.
     - *GraphQL.* The prover can't model GraphQL rules, and the git
       hosting profile has them (S07-egress-gateway). So the candidate
       holds each built-in GraphQL rule as a REST rule that allows
@@ -181,14 +187,21 @@ inspection is trusted, and what is recorded.
       the GraphQL rule allows and more. A candidate inside the
       boundary with the REST rule is inside it with the GraphQL rule
       too.
+    - *By source, not by shape.* The default boundary admits that
+      projection because it comes from a built-in rule. A user or
+      repository rule on a built-in host's GraphQL endpoint is a load
+      error ("Precedence"), so no other source can put a rule of that
+      shape in the candidate. The built-in operation filter, which
+      denies mutations unless the operation name is allowlisted,
+      applies to every request on that endpoint.
     - *The gap.* The boundary then limits whether a host's GraphQL
       endpoint is reachable, not which operations are allowed on it.
       An organization that wants no GraphQL on a host forbids the
       endpoint in its boundary. The check then refuses every session
       start until the user turns that part off, such as the GitHub
-      `graphql` part. `wb policy explain` shows each
-      such rule as "boundary-checked as POST to its endpoint", and the
-      docs list them.
+      `graphql` part. `wb policy explain` shows each such rule as
+      "boundary-checked as POST to its endpoint", and the docs list
+      them.
     - *Only built-in rules.* A user or repository rule the prover
       can't model still refuses the policy.
     - *Merge rules.* The merge rules below still hold, so user or
@@ -205,7 +218,10 @@ inspection is trusted, and what is recorded.
     rule in user or repository policy with the name of a built-in
     profile's rule is a load error. Built-in denies apply whatever the
     source of the allow. User and repository policy can't change a
-    built-in host's kind, mode or rules. The one change the global and
+    built-in host's kind, mode or rules, and a user or repository rule
+    on a built-in host's GraphQL endpoint is a load error. The built-in
+    GraphQL operation filter applies whatever the source of the allow.
+    The one change the global and
     project policy can make to a built-in profile is to turn a part of
     it off (S07-egress-gateway, "Profile parts"). This lock, and the
     removal of guest credentials in the places a profile names, hold
@@ -244,8 +260,8 @@ inspection is trusted, and what is recorded.
   `ghcr.io` token for Homebrew bottles (S07-egress-gateway,
   X22-no-guest-credentials). Such a value isn't a secret, and the
   guest doesn't get a placeholder for it. A binding on a host that a
-  built-in profile covers applies only to the hosts and paths of the profile's
-  parts that are on (S07-egress-gateway, "Profile parts").
+  built-in profile covers applies only to the hosts and paths of the
+  profile's parts that are on (S07-egress-gateway, "Profile parts").
 - **Reach.** A project's binding is injected for requests from the whole
   VM while the project has a session in it, so any process in that VM
   can have it used on its behalf, though none can read it

@@ -22,8 +22,9 @@ included.
   session in the VM, merged as a union (S09-policy-credentials-audit,
   "Precedence"), plus the approvals held for the VM ("Approvals and
   learning"). `wb-hostd` recomputes it whenever a session starts or
-  ends. A project's rules and bindings leave the effective policy when
-  its last session in the VM ends.
+  ends. A project's allow rules and bindings leave the effective
+  policy when its last session in the VM ends, and its denies, limits
+  and modes leave under the rules of "Session end".
 - **Limits and modes.** Where projects set a limit, such as the
   wildcard budget, the minimum age or the vulnerability threshold, the
   VM gets the strictest value among them. A limit that shrinks during
@@ -82,16 +83,26 @@ included.
   `wb policy explain` name the narrowing part and say "apply the
   removal on its own to revoke it now" (NFR06-explained-refusals).
 - **Session end.** When a project's last session in the VM ends, its
-  rules and bindings leave the union. That part narrows and applies at
-  once. The recompute widens when the project held a limit at the
-  strictest value, turned a part off, or set `enforce` over another
-  project's `audit`, because that setting leaves with it. A recompute
-  that widens goes through the same checks as a joining session. If
-  one fails or can't run, the VM keeps the limits, modes and parts
-  that are off of its last effective policy that passed. Only the
-  removal of the project's rules and bindings applies. A Device Config State Change (5019) event names the project
-  that left and the rule that failed, and `wb policy explain` shows
-  the widening as pending until a later recompute passes.
+  allow rules, bindings and approvals leave the union at once. That
+  part only narrows. The rest of what the project set can widen the
+  union when it leaves, and the recompute widens when any of these
+  leave with it:
+  - a `deny_rules` entry;
+  - a limit the project held at the strictest value;
+  - a part it turned off;
+  - `enforce` it set over another project's `audit`;
+  - inspection it set on a host another project puts in pass mode,
+    which the VM inspected (above).
+
+  A recompute that widens goes through the extension check and the
+  boundary check of a joining session. The join risk check doesn't
+  run, because no project joins. If a check fails or can't run, the
+  VM keeps the departing project's `deny_rules`, limits, modes and
+  parts that are off as a held source. A Device Config State Change
+  (5019) event names the project that left and the rule that failed,
+  and `wb policy explain` shows the held source and the widening as
+  pending. The held source stays until a recompute without it passes,
+  or the active period ends.
 - **Open streams.** After each recompute, `wb-proxyd` checks every
   open stream of the VM against the new effective policy: a WebSocket,
   an HTTP/2 connection, a pass relay, a server-sent event stream, or a
@@ -287,11 +298,17 @@ session start in the VM to the end of the last session running in it.
     (X17-image-build), so the list holds what remains. The maintainer
     decided this on I17 (B17-network-path), as an exception to
     FR09-approve-unknown.
-  - *Parts that are off.* A host whose only rules are in a built-in
-    profile part that is off ("Stream path", "Profile parts") gets
+  - *Parts that are off.* A host whose built-in rules are all in
+    profile parts that are off ("Stream path", "Profile parts") gets
     `NXDOMAIN` and an audit entry with the rule `profile-part-off`,
-    and doesn't raise an approval event. So an approval can't undo the
-    user's switch.
+    whatever other rule allows it, and doesn't raise an approval
+    event. So an approval can't undo the user's switch.
+  - *Same answer for every refusal.* `wb-netd` sends the answer to a
+    refused name before any approval processing starts, and the
+    answer's bytes are the same whatever the reason: not allowlisted,
+    denied, quiet list or part off. The approval event is raised
+    asynchronously after the answer is sent. The guest can't tell the
+    reasons apart by the answer or by its timing.
   - Wildcard allowlist entries are bounded: each VM may resolve at most
     a fixed number of new names under wildcards in an active period
     ("Enforced per VM"), and failed lookups count against that budget,
@@ -368,41 +385,48 @@ session start in the VM to the end of the last session running in it.
   whose flow needs cookies, such as a challenge page or a download
   behind a session redirect, fails until a built-in profile for it
   allows them. The maintainer decided the rules of this paragraph on
-  I33 (B33-no-guest-credentials). `wb-proxyd` refuses with a `403`
-  that names the rule a request that has a credential parameter the
-  profile names, in the query string, in a
-  form-encoded body, in a part of a `multipart/form-data` body, or as
-  a top-level key of a JSON body. The media type is matched
-  case-insensitively with its parameters ignored, so
-  `APPLICATION/JSON; charset=utf-8` is scanned. Bodies are read for
-  this up to a fixed number of bytes received, whatever
-  `Content-Length` says, and on a host whose profile names parameters,
-  a larger body of those types, or one that fails to parse, is
-  refused. Names are compared after percent-decoding and JSON string
-  decoding, with the profile's case rule. A repeated or empty
-  occurrence counts, and so does the name followed by `[`
-  (`private_token[]`). If the host has a credential
-  binding, the binding's credential is then injected
-  (S09-policy-credentials-audit). A guest token in any of those places
-  is never forwarded. `wb-proxyd` doesn't look for credentials in
-  other places (T10-unnamed-credentials). Each removal and
-  refusal is logged with the header or parameter name and the rule,
-  never the value (SEC10-audit). A removed value that is neither a
-  placeholder the guest was given nor the binding's fixed public value
-  means the guest holds a credential from somewhere else: it is a
-  detection finding (S09-policy-credentials-audit) with the scheme and
-  the header or parameter name, rate-limited per VM. Git LFS
-  hands the client a server-issued `Authorization` header for each
-  object. An LFS clone therefore raises these findings too, and an operator
-  reading the log should expect them.
-  - *Cookies the server sets.* On an inspected host with a credential
-    binding, `wb-proxyd` removes every `Set-Cookie` header from the
-    response before it reaches the guest. A session cookie that a
-    server issues to a request with the injected credential is a
-    secret derived from it, which SEC04-no-guest-secrets keeps out of
-    the guest. Each removal is logged with the cookie's
-    name and the rule `set-cookie-bound-host`, never the value
-    (SEC10-audit).
+  I33 (B33-no-guest-credentials).
+
+  A request with a credential parameter that the profile names is
+  refused with a `403` that names the rule. The parameter counts in
+  the query string, in a form-encoded body, in a part of a
+  `multipart/form-data` body, or as a top-level key of a JSON body.
+  The media type is matched case-insensitively with its parameters
+  ignored, so `APPLICATION/JSON; charset=utf-8` is scanned. Bodies are
+  read for this up to a fixed number of bytes received, whatever
+  `Content-Length` says. On a host whose profile names parameters, a
+  larger body of those types, or one that fails to parse, is refused.
+  Names are compared after percent-decoding and JSON string decoding,
+  with the profile's case rule. A repeated or empty occurrence counts,
+  and so does the name followed by `[` (`private_token[]`).
+
+  If the host has a credential binding, the binding's credential is
+  then injected (S09-policy-credentials-audit). A guest token in any of
+  those places is never forwarded. `wb-proxyd` doesn't look for
+  credentials in other places (T10-unnamed-credentials). Each removal
+  and refusal is logged with the header or parameter name and the
+  rule, never the value (SEC10-audit). A removed value that is neither
+  a placeholder the guest was given nor the binding's fixed public
+  value means the guest holds a credential from somewhere else. It is
+  a detection finding (S09-policy-credentials-audit) with the scheme
+  and the header or parameter name, rate-limited per VM. Git LFS isn't
+  in the git hosting profile (S08-workspace-and-git, "Open points").
+  On a host the user allows for it, LFS hands the client a
+  server-issued `Authorization` header for each object. An LFS clone
+  there raises these findings too.
+  - *Credential headers in responses.* On an inspected host with a
+    credential binding, `wb-proxyd` removes these headers from the
+    response before it reaches the guest:
+    - every `Set-Cookie`. A session cookie that a server issues to a
+      request with the injected credential is a secret derived from
+      it, which SEC04-no-guest-secrets keeps out of the guest;
+    - `X-OAuth-Scopes`, `X-Accepted-OAuth-Scopes` and
+      `X-OAuth-Client-Id`, which describe the injected credential.
+
+    Each removal is logged with the header's name, and for a cookie
+    the cookie's name, with the rule `set-cookie-bound-host` for
+    cookies and `credential-header-bound-host` for the others, never
+    the value (SEC10-audit).
   - *Named places.* The model API profile names `x-api-key`. The git
     hosting profile names, per kind of host: GitHub, `Authorization`
     only (GitHub itself refuses `?access_token=`). GitLab, the headers
@@ -425,35 +449,40 @@ session start in the VM to the end of the last session running in it.
     paths any method other than GET and HEAD is refused and logged with
     the rule `anonymous-binding-read-only`. Without the binding, every
     bottle download fails with a 401, because `brew` never asks the
-    token endpoint for a token. `ghcr.io/token` is denied to the guest,
-    since no client needs it once the binding answers. Forwarding guest tokens
-    on reads only was rejected: it forwards an attacker's token on
-    every GET, and a placeholder without a binding then fails the
-    request. Forwarding only tokens that the host issued in this
-    session was rejected because it doesn't fix Homebrew.
+    token endpoint for a token. `ghcr.io/token` is denied to the
+    guest, since no client needs it once the binding answers.
+    Forwarding guest tokens on reads only was rejected: it forwards an
+    attacker's token on every GET, and a placeholder without a binding
+    then fails the request. Forwarding only tokens that the host issued
+    in this session was rejected because it doesn't fix Homebrew.
   - *Token fallback.* If `ghcr.io` stops accepting the fixed value,
     `wb-proxyd` fetches an anonymous token itself, the documented flow
     (X22-no-guest-credentials), and injects it in place of the fixed
     value:
     - It builds the URL itself: host `ghcr.io`, path `/token`, the
       parameter `service=ghcr.io` and the scope
-      `repository:homebrew/core/<name>:pull`. `<name>` comes from the
-      request path and must match the binding's path rule, or the
-      request is refused. The URL never comes from the realm of a
-      `WWW-Authenticate` header.
+      `repository:homebrew/core/<name>:pull`, percent-encoded.
+      `<name>` comes from the request path. It must match the OCI
+      distribution specification's repository-name grammar and the
+      binding's path rule, or the request is refused. The URL never
+      comes from the realm of a `WWW-Authenticate` header.
     - `wb-proxyd` sends no credential with the fetch.
-    - A token is cached per scope until it expires. The fetches per VM
-      are capped, and a request over the cap is refused with the cap's
-      rule (SEC13-bounded-resources).
+    - The token response is read up to a fixed size, and a larger one
+      fails the fetch. Its `expires_in` is clamped to a range fixed in
+      code.
+    - A token is cached per scope until it expires. Fetches are
+      rate-limited per VM, and a request over the rate is refused with
+      the rule `anonymous-token-cap` (SEC13-bounded-resources).
     - A request that gets a 401 with a freshly fetched token isn't
       retried. The 401 goes to the guest and is logged.
     - Each fetch is a Network Activity (4001) event with the rule
       `anonymous-token-fallback` (SEC10-audit).
   - *Signed URLs.* `wb-proxyd` passes a credential in any other
-    parameter unchanged, as the presigned storage URLs of git LFS and
-    Homebrew bottles need. `wb-proxyd` can't tell who signed such a
-    URL, and the guest can sign one for its own bucket. A storage host still has to
-    be allowed by policy, and the approval risk check flags a shared
+    parameter unchanged, as the presigned storage URLs of Homebrew
+    bottles need, and those of git LFS on a host the user allows.
+    `wb-proxyd` can't tell who signed such a URL, and the guest can
+    sign one for its own bucket. A storage host still has to be
+    allowed by policy, and the approval risk check flags a shared
     object-storage host (such as `*.s3.amazonaws.com`,
     `storage.googleapis.com`, `*.blob.core.windows.net`), a wildcard
     over one, and a rule that allows signature parameters on a write
@@ -462,9 +491,9 @@ session start in the VM to the end of the last session running in it.
     `ghcr.io/v2/homebrew/command-not-found/`, and bottles of
     third-party taps can be on `ghcr.io` outside `homebrew/core`. Both
     are outside the profile and the anonymous binding, and fail in V1.
-    Claude Code sends a built-in `DD-API-KEY` header to Datadog's log intake. That host
-    stays out of the model API profile and is an unknown destination
-    like any other.
+    Claude Code sends a built-in `DD-API-KEY` header to Datadog's log
+    intake. That host stays out of the model API profile and is an
+    unknown destination like any other.
 - **Placeholder binding.** Each placeholder is bound to the hosts,
   ports, and paths of its binding, following OpenShell's provider
   model. A placeholder found anywhere else in a request (another host,
@@ -481,14 +510,17 @@ session start in the VM to the end of the last session running in it.
     the VM (derived from each project's host repository remotes, plus
     explicit additions), which any process in the VM can then write
     to (T11-shared-vm-grants); gists, repository creation and forks
-    denied. GraphQL mutations are denied unless the
-    operation name is allowlisted. The prover can't model GraphQL
-    rules. The boundary check sees each one as `POST` to its GraphQL
-    path on its host. The boundary then limits whether that
-    endpoint is reachable, not which operations are allowed
-    (S09-policy-credentials-audit, "Built-in profiles in the check").
-    Git LFS isn't in the profile and fails in V1 (S08-workspace-and-git,
-    "Open points").
+    denied. GraphQL mutations are denied unless the operation name is
+    allowlisted, and this operation filter applies to every request
+    to the GraphQL endpoint of a built-in host, whatever the source of
+    the rule that allows it. A user or repository rule on that
+    endpoint is a load error (S09-policy-credentials-audit,
+    "Precedence"). The prover can't model GraphQL rules. The boundary
+    check sees each one as `POST` to its GraphQL path on its host, and
+    the boundary then limits whether that endpoint is reachable, not
+    which operations are allowed (S09-policy-credentials-audit,
+    "Built-in profiles in the check"). Git LFS isn't in the profile and
+    fails in V1 (S08-workspace-and-git, "Open points").
   - *model API*: the endpoints Claude Code needs, with the model
     credential binding.
   - *package registries*: metadata and downloads only, publish and
@@ -512,11 +544,12 @@ session start in the VM to the end of the last session running in it.
     configuration has no such key. A trusted repository's rule on a
     built-in host whose part is off is a load error that names the
     part (NFR06-explained-refusals).
-  - *Effect.* A part that is off is not in the effective policy.
-    Default-deny then refuses its hosts and paths, unless another rule
-    allows them. A host whose only rules are in parts that are off is
-    refused at DNS with the rule `profile-part-off` and no approval
-    event ("Packet path", DNS).
+  - *Effect.* A part that is off is not in the effective policy, and
+    its hosts and paths are refused whatever other rule allows them,
+    from any project or approval. A request refused this way is logged
+    with the rule `profile-part-off`. A host whose built-in rules are
+    all in parts that are off is refused at DNS with the same rule and
+    no approval event ("Packet path", DNS).
   - *Bindings.* A credential binding covers the hosts and paths of the
     parts that are on, and nothing of a part that is off. With only
     `git` on, the GitHub binding is injected into git's transport and
@@ -529,7 +562,8 @@ session start in the VM to the end of the last session running in it.
   - *Per VM.* A part is off in a VM when the global policy or any
     project with a session in the VM turns it off. Turning a part off
     is a limit, and the VM takes the strictest value of a limit
-    ("Enforced per VM").
+    ("Enforced per VM"). The result doesn't depend on the order in
+    which sessions started.
   - *Narrowing.* Turning a part off only narrows. It needs no boundary
     check to pass ("Policy changes while sessions run"). Turning a
     part back on widens, and so does a session end that removes the
@@ -692,8 +726,9 @@ session start in the VM to the end of the last session running in it.
 
 ## Approvals and learning
 
-- An unknown destination, other than a name on the guest OS's
-  background list ("Packet path", DNS), produces an approval event in `wb-hostd`, shown
+- An unknown destination produces an approval event in `wb-hostd`,
+  except a name on the guest OS's background list and a host refused
+  with `profile-part-off` ("Packet path", DNS). The event is shown
   as a native notification and listed by `wb status`: *allow for this
   session*, *allow for this project*, or *deny*. Each request shows the
   result of the risk check on the rule it would add (S09-policy-credentials-audit),
