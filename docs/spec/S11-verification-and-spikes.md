@@ -32,8 +32,11 @@ be tested before building on them.
   The policy loader has a test that puts a host in pass mode from a
   trusted repository's `.wraithbox/policy.yaml`, on a host with a
   credential binding, on a host a built-in profile covers, and without
-  a reason, and sees each refused at load with an error that names the
-  host and the rule (S07-egress-gateway, "Modes, per host").
+  a reason, with a wildcard host, and then adds a binding on a pass
+  host, and sees each refused at load with an error that names the
+  host and the rule (S07-egress-gateway, "Modes, per host"). A global
+  pass entry on a host that a joining project's remote names refuses
+  that project's session start, with the project named.
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
   DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
@@ -125,8 +128,15 @@ be tested before building on them.
   - in a learn-mode session, resolve a name that isn't allowlisted and
     see `NXDOMAIN` with the same answer bytes as outside learn mode, no
     approval event, and the name in `wb learn report`; push to a
-    repository outside the project set and see it refused
-    (S07-egress-gateway, "Approvals and learning");
+    repository outside the project set and see it refused; resolve
+    more distinct names than the list cap and see the rest refused with
+    `learn-list-full`, not listed, and counted as dropped in the
+    summary; resolve a name with a control byte, an escape or a
+    non-ASCII byte and see it refused with `dns-name-form` and absent
+    from the report, the summary and `wb status`; put a name with a
+    risk-check finding on the list, approve the batch, and see only
+    the names without a finding allowed (S07-egress-gateway,
+    "Approvals and learning");
   - per-VM enforcement (S07-egress-gateway, "Enforced per VM"):
     - end a project's last session and see its binding no longer
       injected, its open streams closed with the rule

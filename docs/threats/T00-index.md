@@ -57,6 +57,10 @@ print about returned work after `wb land` is outside it
   can make a host a pass host, each one is audited, and a host with a
   credential binding or a built-in profile can't be one
   (S07-egress-gateway, "Modes, per host", and B40-learn-pass-modes).
+  A pass host on a shared front end, such as a CDN, can carry in its
+  encrypted bytes the name of any site behind that front end, in the
+  inner `Host` header or in an encrypted ClientHello. That channel
+  reaches past `wb-proxyd`'s check of the SNI.
 - **T02-dns-names: Data in DNS names.** Data encoded in DNS names under allowed wildcards, bounded by a
   lookup budget per VM (S07-egress-gateway, "DNS").
 - **T03-hypervisor-escape: Hypervisor escape.** Escape from the hypervisor.

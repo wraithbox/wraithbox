@@ -262,7 +262,8 @@ its output still passes the filter ("Where").
 
 **Guest text elsewhere.** Wherever else `wb` prints text the guest
 influenced (the session summary and its link list, `wb diff`,
-`wb sessions`, `wb approve`, `wb audit`), it never passes a control
+`wb sessions`, `wb approve`, `wb audit`, `wb learn report`,
+`wb status`), it never passes a control
 character, an escape sequence, or a Unicode format character
 (bidirectional controls, zero-width characters). `wb diff`, logs and
 audit records show them escaped, where a reviewer sees them. Other

@@ -102,7 +102,7 @@ Spec gaps, contradictions and missing specs:
 | I37 | The host terminal stream as a boundary | I30 |
 | I38 | Port forwarding and clipboard design and threats (decided: after V1, V1-08-no-forward-clipboard) | |
 | I39 | CA name constraints and rotation versus live policy changes | |
-| I40 | Learn mode and pass mode as SEC05-default-deny exceptions | |
+| I40 | Learn mode and pass mode under SEC05-default-deny (decided: learn mode collects and refuses) | |
 | I41 | Which git data reaches the guest, and host git as a parser | |
 | I42 | Configuration trust versus VM placement, project identity | |
 | I43 | VM slot admission for image builds and GUI work | I20 |
