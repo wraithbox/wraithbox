@@ -147,16 +147,27 @@ in S12-platforms.
     restore.
 - **Time and sleep.** The guest has no network time: NTP is UDP, and
   `wb-netd` drops it (S07-egress-gateway, X03-network-path). Its clock
-  comes only from `wb-guestd`, which sets it from `wb-hostd`:
-  - after every cold boot, every restore from saved state and every
-    host wake, before the steps that depend on the time
-    (S09-policy-credentials-audit, "TLS inspection certificate
-    authority"). Without this, a cold-booted guest starts from the
-    virtual clock, and a restored guest lags by the time it spent saved
-    (X18-vsock-handoff);
-  - every 60 seconds while the VM runs. Drift then never builds up for
-    more than a minute, and a missed wake or a change of the host clock
-    is corrected within a minute.
+  comes only from `wb-hostd`, which sends its own time to `wb-guestd`,
+  and `wb-guestd` sets the guest clock from it.
+  - `wb-hostd` starts every update. It sends the time after every cold
+    boot, every restore from saved state and every host wake, before
+    the steps that depend on the time (S09-policy-credentials-audit,
+    "TLS inspection certificate authority"), and every 60 seconds while
+    the VM runs. Without the first update, a cold-booted guest starts
+    from the virtual clock, and a restored guest lags by the time it
+    spent saved (X18-vsock-handoff). The periodic update corrects drift
+    and a change of the host clock within a minute.
+  - `wb-hostd` never reads or uses a time value from the guest, and the
+    guest has no message that asks for the time (S04-architecture,
+    "Everything in the guest is untrusted"). The guest can't make
+    `wb-hostd` send more updates than this schedule.
+  - `wb-guestd` steps the clock to the host's time after a cold boot, a
+    restore or a host wake, and when the guest is more than 1 second
+    off. Otherwise it slews the clock, so a running build never sees
+    the wall clock go backward. Drift between two updates 60 seconds
+    apart stays far below 1 second. A larger offset means the host
+    clock changed or an update was missed, and slewing it off at NTP's
+    limit of 500 ppm would take more than half an hour.
 
 ## Projects and sessions inside a VM
 
