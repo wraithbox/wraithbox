@@ -189,8 +189,9 @@ inspection is trusted, and what is recorded.
       too.
     - *By source, not by shape.* The default boundary admits that
       projection because it comes from a built-in rule. A user or
-      repository rule on a built-in host's GraphQL endpoint is a load
-      error ("Precedence"), so no other source can put a rule of that
+      repository rule that can match a request to a built-in host's
+      GraphQL endpoint is a load error ("Precedence"), so no other
+      source can put a rule of that
       shape in the candidate. The built-in operation filter, which
       denies mutations unless the operation name is allowlisted,
       applies to every request on that endpoint.
@@ -218,8 +219,11 @@ inspection is trusted, and what is recorded.
     rule in user or repository policy with the name of a built-in
     profile's rule is a load error. Built-in denies apply whatever the
     source of the allow. User and repository policy can't change a
-    built-in host's kind, mode or rules, and a user or repository rule
-    on a built-in host's GraphQL endpoint is a load error. The built-in
+    built-in host's kind, mode or rules. A user or repository rule on
+    a built-in host is a load error when its method and path pattern
+    can match a request to that host's GraphQL path after
+    normalization: a path prefix or glob that covers it, a wildcard
+    method, a trailing slash, or percent-encoding. The built-in
     GraphQL operation filter applies whatever the source of the allow.
     The one change the global and
     project policy can make to a built-in profile is to turn a part of
@@ -377,8 +381,9 @@ Only the user approves a request.
   the joining project, the projects already in the VM and each
   finding. The answer is a Device Config State Change (5019) event
   that records the projects, the findings, the decision, and the
-  SHA-256 of the joining project's policy and of the union. An
-  approval is cached on that pair, so the next start with the same
+  SHA-256 of the joining project's policy and of the union, without a
+  held source if the VM has one (S07-egress-gateway, "Session end").
+  An approval is cached on that pair, so the next start with the same
   policy and the same union doesn't ask again, and any change to
   either asks again. A denial, or no answer before the request
   expires, refuses the start.

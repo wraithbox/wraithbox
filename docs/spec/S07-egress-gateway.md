@@ -83,7 +83,8 @@ included.
   `wb policy explain` name the narrowing part and say "apply the
   removal on its own to revoke it now" (NFR06-explained-refusals).
 - **Session end.** When a project's last session in the VM ends, its
-  allow rules, bindings and approvals leave the union at once. That
+  allow rules and bindings, and the approvals whose session set has
+  fully ended, leave the union at once. That
   part only narrows. The rest of what the project set can widen the
   union when it leaves, and the recompute widens when any of these
   leave with it:
@@ -103,6 +104,14 @@ included.
   and `wb policy explain` shows the held source and the widening as
   pending. The held source stays until a recompute without it passes,
   or the active period ends.
+
+  When a project joins while a held source exists, `wb-hostd` runs the
+  extension check, the boundary check and the risk check on the union
+  without the held source, and drops the held source only if all
+  three pass. Otherwise the held source stays through the join, and
+  the risk check runs on the union with it. The join approval is
+  cached on the union without the held source
+  (S09-policy-credentials-audit, "Join approval").
 - **Open streams.** After each recompute, `wb-proxyd` checks every
   open stream of the VM against the new effective policy: a WebSocket,
   an HTTP/2 connection, a pass relay, a server-sent event stream, or a
@@ -303,12 +312,13 @@ session start in the VM to the end of the last session running in it.
     `NXDOMAIN` and an audit entry with the rule `profile-part-off`,
     whatever other rule allows it, and doesn't raise an approval
     event. So an approval can't undo the user's switch.
-  - *Same answer for every refusal.* `wb-netd` sends the answer to a
-    refused name before any approval processing starts, and the
-    answer's bytes are the same whatever the reason: not allowlisted,
-    denied, quiet list or part off. The approval event is raised
-    asynchronously after the answer is sent. The guest can't tell the
-    reasons apart by the answer or by its timing.
+  - *Same answer for every refusal.* The answer's bytes are the same
+    whatever the reason a name is refused: not allowlisted, denied,
+    quiet list or part off. Before the answer is sent, `wb-netd` debits
+    the wildcard budget and takes the one-open-event-per-name check
+    under one lock, and does no other work that depends on the reason.
+    Only the notification and the emission of the approval event and
+    the audit entry happen asynchronously, after the answer.
   - Wildcard allowlist entries are bounded: each VM may resolve at most
     a fixed number of new names under wildcards in an active period
     ("Enforced per VM"), and failed lookups count against that budget,
@@ -545,7 +555,8 @@ session start in the VM to the end of the last session running in it.
     built-in host whose part is off is a load error that names the
     part (NFR06-explained-refusals).
   - *Effect.* A part that is off is not in the effective policy, and
-    its hosts and paths are refused whatever other rule allows them,
+    the requests its rules would allow are refused whatever other rule
+    allows them,
     from any project or approval. A request refused this way is logged
     with the rule `profile-part-off`. A host whose built-in rules are
     all in parts that are off is refused at DNS with the same rule and

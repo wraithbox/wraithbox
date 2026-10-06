@@ -148,8 +148,9 @@ be tested before building on them.
     `profile-part-off`, no GitHub binding injected on `api.github.com`,
     and a lookup of `api.github.com` refused at DNS with no approval
     event, also while another project's rule allows that host; load a
-    trusted repository rule on that host, or on
-    `api.github.com/graphql`, and see a load error (S07-egress-gateway,
+    trusted repository rule on that host, or on `api.github.com` with
+    the path `/graphql`, `/graphql/`, `/graph*`, `/%67raphql` or `/**`
+    and any method, and see a load error (S07-egress-gateway,
     "Profile parts");
   - with a boundary that forbids `api.github.com` and only the GitHub
     `graphql` part on, see the prover refuse the session start
