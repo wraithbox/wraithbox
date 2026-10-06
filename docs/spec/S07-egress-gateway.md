@@ -747,7 +747,10 @@ session start in the VM to the end of the last session running in it.
   session*, *allow for this project*, or *deny*. Each request shows the
   result of the risk check on the rule it would add (S09-policy-credentials-audit),
   such as new reach for a credential or a new write method. Policy
-  changes take effect without restarting anything.
+  changes take effect without restarting anything. An approval that
+  adds an inspected host needs no new CA, because the CA has no name
+  constraints (S09-policy-credentials-audit, "TLS inspection
+  certificate authority").
 - **Who an approval reaches.** The host can't tell which session looked
   up a name ("Enforced per VM"). A request names the VM and the
   sessions running in it. A project or session the guest reported is
