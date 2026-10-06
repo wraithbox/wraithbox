@@ -51,7 +51,8 @@ in S12-platforms.
   by other software: `wb-hostd` performs admission control and reports
   a clear error when a slot is unavailable (NFR05-two-macos-vms).
 - **Placement and configuration trust.** `placement` (`work` or
-  `isolated`) is a project setting (S09-policy-credentials-audit, "Settings contents"),
+  `isolated`) is a project setting (S09-policy-credentials-audit,
+  "Settings contents"),
   and `wb project place` changes it (S05-cli). `--isolated` overrides
   it for one session. `config_trust` (`wb trust`) only decides whether
   `.wraithbox/` is read, and never moves a project between VMs.
@@ -63,10 +64,17 @@ in S12-platforms.
   (B42-trust-placement): projects in the work VM still run as separate
   guest users.
 - **Changing placement.** A new `placement` applies from the next
-  session start, and `wb project place` is refused while the project
-  has a session. The project user's home, with its Claude Code state
-  (FR13-claude-state), is on the old VM's data disk ("Disks"). Moving
-  it to the other VM's data disk needs the data-disk design of I44.
+  session start. `wb project place` is refused while the project has a
+  session, and the refusal names the session. A project user's home,
+  with its Claude Code state (FR13-claude-state) and commits not yet
+  pushed, is on the data disk of the VM it ran in ("Disks"). Moving a
+  home to the other VM's data disk needs the data-disk design of I44.
+  Until I44 is decided and built, `wb project place` is refused for a
+  project that has a home on any VM's data disk, and the refusal names
+  I44 (NFR06-explained-refusals). So no home is left on the old VM,
+  exposed to its other projects (T05-cross-proj-clones), and no
+  session starts with an empty home without saying so. A new clone,
+  which has no home yet, can still be placed before its first session.
 - **Isolated slot to itself.** Projects in one VM share its network
   grants and credential bindings (S07-egress-gateway, "Enforced per
   VM", T11-shared-vm-grants). A project whose `placement` is

@@ -91,21 +91,34 @@ inspection is trusted, and what is recorded.
   rule. Until then nothing is narrowed by project.
 - **Settings contents.** The project toolchain manifest (Brewfile on
   macOS guests); extra writable repositories; guest OS; `placement`;
-  `config_trust`; resource limits. Clipboard and port-forwarding
-  switches come after V1 (V1-08-no-forward-clipboard).
+  `shared`; `config_trust`; resource limits. Clipboard and
+  port-forwarding switches come after V1 (V1-08-no-forward-clipboard).
   - *`placement`.* `work` or `isolated`, the VM the project's sessions
     run in. `work` for a new project, and `--isolated` overrides it for
     one session (S06-vm-lifecycle, "VMs"). A project whose credentials
     or write grants must stay apart from other projects, or whose
     repository the user doesn't trust, is set to `isolated`, and then
-    gets the isolated VM to itself unless a `shared` switch says
-    otherwise (T11-shared-vm-grants).
+    gets the isolated VM to itself unless `shared` is on
+    (T11-shared-vm-grants).
+  - *`shared`.* Off by default. On for a project with
+    `placement = isolated`, it lets the project share the isolated VM
+    with `--isolated` sessions and other shared projects, and their
+    grants (S06-vm-lifecycle, "VMs"). It has no effect with
+    `placement = work`.
+  - *Learn mode.* A learn-mode session (FR10-learn-mode) needs
+    `placement = work` and is refused with `--isolated`. That isn't a
+    vouch for the repository, because every new project has
+    `placement = work`. The condition keeps learn mode in the work VM,
+    where the project's sessions run and its learned allowlist
+    applies, and out of sessions the user isolated. What keeps a learn
+    period attributable to one project is that `wb-hostd` runs it only
+    while no other project has a session in the VM (S07-egress-gateway,
+    "Approvals and learning").
   - *`config_trust`.* Whether the repository's `.wraithbox/` is read
-    ("Repository-supplied configuration"). Off for a new project, and
-    changed only by `wb trust` and `wb untrust`, so the boundary check
-    runs before it is set. It says nothing about the code the agent reads, so
-    nothing that needs a vouched-for repository, such as learn mode
-    (FR10-learn-mode), looks at it.
+    ("Repository-supplied configuration"). Off for a new project. Only
+    `wb trust` sets it, after the boundary check. `wb untrust` and
+    `wb project confirm` clear it (S05-cli, "Naming"). Learn mode
+    doesn't look at it.
   - The maintainer split the two on I42 (B42-trust-placement). The
     word "trusted" alone names neither.
 - **Repository-supplied configuration.** A `.wraithbox/` directory in a
@@ -501,11 +514,16 @@ stripped of control and escape sequences wherever it is shown.
 - Events use OCSF 1.8.0 classes, as OpenShell's do
   (X24-openshell-artifacts): Network Activity (4001) for
   connections, HTTP Activity (4002) for inspected requests, Device
-  Config State Change (5019) for policy and approvals, and Detection
-  Finding (2004) for
+  Config State Change (5019) for policy, approvals and project
+  settings, and Detection Finding (2004) for
   refused placeholders, foreign credentials removed from a request
   (S07-egress-gateway), pin mismatches, and other signs of an attack. A
   SIEM can read the log without a custom parser.
+- Project settings. `wb trust`, `wb untrust`, and the `wb project`
+  commands that change a project write a 5019 event with the values
+  before and after: `config_trust`, `placement`, the location, the
+  name, or the recorded remote URLs and root commits (S05-cli,
+  "Management commands").
 - Records: timestamp; VM; project, session and guest user (for
   network events, derived from the guest's label, see below);
   destination host and port; decision and the rule that made it; HTTP

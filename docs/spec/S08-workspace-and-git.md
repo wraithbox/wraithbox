@@ -123,9 +123,8 @@ back out, without sharing the host filesystem.
   `pushInsteadOf`, `insteadOf`, `proxy`, `http.<url>.extraHeader` or
   `credential.*`. The guest pushes to the cleaned URL. A `.gitmodules`
   URL is tracked content and isn't rewritten (submodules are in "Open
-  points"). Project identity records the URLs without user name,
-  password, query string and fragment, but they aren't part of the
-  project key (S05-cli, "Naming"). Each withheld URL goes to `wb-hostd`'s audit
+  points"). Project identity records the URLs after this cleaning, but
+  they aren't part of the project key (S05-cli, "Naming"). Each withheld URL goes to `wb-hostd`'s audit
   writer with its reason (SEC10-audit).
 - **Protocol version.** Git doesn't tell a `connect` helper which
   protocol version it wants. The helper asks for v2 itself, and

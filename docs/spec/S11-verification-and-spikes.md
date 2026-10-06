@@ -184,9 +184,37 @@ be tested before building on them.
       `config_trust` on, and see each refused;
     - change a remote URL of a registered project's repository, start
       a session and see it refused with both URLs named, then run
-      `wb project confirm` and see the next start pass; start a session
-      in a second `git worktree` of the repository and see it use the
-      same project (S05-cli, "Naming");
+      `wb project confirm` and see the next start pass, `config_trust`
+      cleared, and a 5019 event with both URL sets; switch the remote
+      between its SSH and HTTPS forms and see the start pass; start a
+      session in a second `git worktree` of the repository and see it
+      use the same project (S05-cli, "Naming");
+    - in a repository without a remote, replace it at the same path
+      with another repository without a remote and see the start
+      refused with both root commit sets named;
+    - move project A from `/x` to `/y` with `wb project move`, clone
+      another repository into `/x`, start a session there, and see a
+      new project with a new id, none of A's settings, policy or
+      approvals, and A still at `/y`;
+    - move a project's directory without `wb project move`, start a
+      session at the new path, and see it refused with the old project
+      named and `wb project move` and `wb project rm` offered; clone
+      the same repository a second time while the first clone stays,
+      and see the second registered as its own project;
+    - start a session in a directory whose `.git` file reads
+      `gitdir: <project A>/.git`, and in one with `GIT_DIR` set to
+      project A's git directory in the environment, and see the first
+      refused with the reason and nothing registered, and the second
+      resolve to the directory's own repository, not A;
+    - on macOS, start sessions in one repository as `~/git/foo` and
+      `~/Git/foo` and through a symbolic link, and see one project;
+    - run `wb project place isolated` for a project that has a home on
+      a data disk and see it refused with I44 named, and while the
+      project has a session and see it refused with the session named;
+      run it in a new clone before its first session and see the first
+      session start in the isolated VM;
+    - run `wb trust`, `wb untrust`, and each changing `wb project`
+      command, and see a 5019 event with the values before and after;
   - send an attacker-supplied token in a credential parameter that a
     git host's profile names and get a `403`: GitLab's `private_token`
     in the query string, as `private%5Ftoken`, as `private_token[]`,
