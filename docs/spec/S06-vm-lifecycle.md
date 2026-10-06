@@ -148,7 +148,10 @@ in S12-platforms.
 
 A Go service running with full privileges in the guest (a root
 LaunchDaemon on macOS; S12-platforms for other guests), serving gRPC over the
-host-guest socket to `wb-hostd` only. One code base for every guest OS,
+host-guest socket to `wb-hostd` only. It listens on a vsock port below
+1024, which only guest root can bind, so a project user can't take the
+port while launchd restarts it (S04-architecture,
+X27-vsock-confinement). One code base for every guest OS,
 with OS-specific parts behind interfaces as on the host. Responsibilities:
 
 - create, lock, and remove project users;

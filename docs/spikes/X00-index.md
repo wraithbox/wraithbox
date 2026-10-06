@@ -41,8 +41,8 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X24-openshell-artifacts | OpenShell artifacts | Answered 2026-10-05: yes, with conditions |
 | X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Open |
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
-| X27-vsock-confinement | vsock confinement of project users | No issue |
-| X28-git-alloc-limit | git's allocation cap against delta bombs | No issue |
+| X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
+| X28-git-alloc-limit | git's allocation cap against delta bombs | Open |
 
 ## Spikes
 
@@ -242,7 +242,10 @@ assumption that v1 work would otherwise build on. They block v1.
   `AF_VSOCK` to project users? If a project user can bind the port,
   it can pose as `wb-guestd` and claim another project's identity
   (S04-architecture, SEC08-proj-isolation). Found while deciding
-  B29-vsock-handoff. Needs a VM.
+  B29-vsock-handoff. Needs a VM. Answered yes, with conditions, in the
+  result page X27-vsock-confinement: a project user took port 1024
+  while launchd restarted the daemon, ports below 1024 need guest
+  root, and a Seatbelt rule on the socket domain denies `AF_VSOCK`.
 - **X28-git-alloc-limit: git's allocation cap against delta bombs.**
   Does `GIT_ALLOC_LIMIT` in `receive-pack`'s environment make both host
   gits refuse each delta bomb of X26-pre-receive-check before

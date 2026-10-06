@@ -46,6 +46,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B51-approval-flow | What happens between a blocked lookup and the user's answer? | Decided 2026-10-04: A. Hold the answer, then refuse uncached |
 | B52-proto-contracts | How are the gRPC contracts between the processes written, generated, and checked? | Decided 2026-10-04: A. Commit generated code |
 | B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps |
+| B101-vsock-confinement | Can a project user take wb-guestd's place on the host-guest socket? | Answered 2026-10-06: yes, with conditions |
 
 ## Order to decide
 
