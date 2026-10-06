@@ -40,7 +40,7 @@ confirmed these on 2026-10-04, and each is a GitHub milestone of the
 same name.
 
 - **V1-M1-spikes-closed: Spikes answered and spec gaps closed.** X01-model-credential to
-  X09-keychain-unsigned and X17-image-build to X26-pre-receive-check written up in
+  X09-keychain-unsigned and X17-image-build to X28-git-alloc-limit written up in
   `docs/spikes/`, the spec issues of `docs/implementation-plan.md`
   decided, and specs updated. Covers no requirement by itself. It makes
   the rest possible to plan.
