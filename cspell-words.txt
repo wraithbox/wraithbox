@@ -45,6 +45,7 @@ machdep
 dirhelper
 vmnet
 paravirtualized
+paravirtualizedgraphics
 videotoolbox
 terminfo
 osrelease

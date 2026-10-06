@@ -20,24 +20,50 @@ decision of S04-architecture
   allows the VM bundles under `<data>/vms`, the Virtualization service,
   and a short list of system reads and sandbox extensions, and denies
   the rest. Under it, a confined `wb-vmd` installs, boots, saves and
-  restores a macOS VM and hands out vsock descriptors. S04-architecture,
-  S06-vm-lifecycle and S12-platforms say so (changed in this pull
-  request).
+  restores a macOS VM and hands out vsock descriptors. Because the
+  profile can't refuse a NAT network, `wb-vmd` checks its own
+  description of every configuration against the fixed device set
+  before it creates any device, and refuses and logs anything else,
+  verified by a unit test, an in-guest conformance check, and a static
+  check in CI. S04-architecture, S06-vm-lifecycle, S07-egress-gateway,
+  S11-verification-and-spikes and S12-platforms say so (changed in
+  this pull request).
 - **Controls touched:** SEC12-least-privilege (least privilege on the
   host): kept, and `wb-vmd` now has a measured profile.
   SEC02-no-host-fs-share (no host directory in the guest): kept, now
   enforced twice, by `wb-vmd`'s code and by the profile.
   SEC05-default-deny (default-deny egress): kept, but only by
   `wb-vmd`'s code. The profile can't stop `wb-vmd` from giving the
-  guest a NAT network, which bypasses `wb-netd` and `wb-proxyd`. No
-  control is weakened.
+  guest a NAT network, which bypasses `wb-netd` and `wb-proxyd`.
+  SEC08-proj-isolation (per-project isolation, untrusted repositories
+  in the isolated VM): kept under open decision 1's recommendation. With
+  one `wb-vmd` for both VMs, a compromise of `wb-vmd` from the isolated
+  VM reaches the work VM's bundle. No control is weakened.
 - **Assumed:** that Apple keeps `sandbox_init_with_parameters` working,
   as in X23-sandboxed-daemons. That the profile holds for the signed
   release binary with the hardened runtime: the spike was ad-hoc signed
   without it. That the SPICE clipboard device can't reach the host
   clipboard under the profile: the lookup of the pasteboard service is
-  denied, but the guest had no SPICE agent to show the effect.
-- **Open decisions:** none.
+  denied, but the guest had no SPICE agent to show the effect. That
+  the sandbox extensions the profile allows fit the final device set:
+  they were measured with the X18-vsock-handoff configuration, which
+  had a Mac graphics device and a USB keyboard and pointer, and are
+  ablated again once S06-vm-lifecycle fixes the set.
+- **Open decisions:**
+  1. One `wb-vmd` for both VMs, or one per VM. One `wb-vmd` reads and
+     writes all of `<data>/vms`, so a compromise that starts in the
+     isolated VM, through framework code in `wb-vmd`'s process, reaches
+     the work VM's disks and saved state (SEC08-proj-isolation).
+     Recommended: one `wb-vmd` per VM, started from two fixed
+     `wb-launcher` entries, each with that VM's bundle as its profile
+     parameter. Every boot, save and restore of the spike already ran
+     one VM per process. Keeping one `wb-vmd` needs a
+     T00-index entry for the residual risk.
+  2. How `wb-vmd` is started to install from a restore image, given
+     that `wb-launcher` passes no arguments. Recommended: a fixed
+     launcher entry, `wb-vmd-install`, whose compiled-in profile adds
+     the three install rules, with the restore image at a fixed path
+     under `<data>/images/`, so no request chooses the mode or a path.
 - **Brief:** B64-vmd-sandbox
 
 ## Question
@@ -83,17 +109,22 @@ conditions:
 4. **Installing needs three more rules,** for the restore image: read
    it, issue a read extension for it, and look up the
    `com.apple.Virtualization.Installation` service. They belong in the
-   profile only while `wb-vmd` installs an image (X17-image-build).
+   profile only while `wb-vmd` installs an image (X17-image-build), and
+   open decision 2 is how that mode is chosen.
 5. **The profile can't keep a NAT network from the guest.** It enforces
    part of the device set and not the rest (below). Which network a VM
    gets is up to `wb-vmd`'s code, and SEC05-default-deny depends on it.
+   That code checks `wb-vmd`'s own description of the configuration
+   before it creates any device object. A disk outside the bundle
+   otherwise ends the confined process in an uncaught exception.
 
 ### What the profile enforces in the device set
 
 Each device was added to the VM configuration, pointing at a file or
 directory outside the bundle, once with `wb-vmd` confined and once
 unconfined. Unconfined, every device below except the bridged network
-starts.
+starts. Confined, the framework offered no host interface to bridge
+to at all (`dev-final-bridged.jsonl`).
 
 | Device | Confined | Enforced by |
 |---|---|---|
@@ -102,7 +133,7 @@ starts.
 | Extra disk image outside `<data>/vms` | refused: the process can't read it (and ends in an uncaught C++ exception) | profile, and `wb-vmd`'s code |
 | Serial port that writes to a file outside `<data>/vms` | refused at configuration: "Operation not permitted" | profile, and `wb-vmd`'s code |
 | SPICE agent with clipboard sharing | starts. The pasteboard lookup is denied, so the process can't reach the host clipboard (not checked from the guest) | profile (inferred), and `wb-vmd`'s code |
-| Bridged network | refused: needs the `com.apple.vm.networking` entitlement, which `wb-vmd` doesn't get | code signing, and `wb-vmd`'s code |
+| Bridged network | refused: the framework lists no host interface to bridge to. Unconfined, it lists one and refuses the attachment without the `com.apple.vm.networking` entitlement, which `wb-vmd` doesn't get | profile and code signing, and `wb-vmd`'s code |
 | **NAT network** | **starts, and the guest reached `https://www.apple.com/` (HTTP 200)** | **only `wb-vmd`'s code** |
 | Disks and files inside `<data>/vms` | allowed | only `wb-vmd`'s code |
 | Devices on a descriptor `wb-vmd` holds: file-handle network, serial port on a file handle | allowed | only `wb-vmd`'s code |
@@ -120,7 +151,12 @@ only `wb-vmd`'s code keeps it out. `wb-vmd` doesn't read guest bytes
 (S04-architecture), so getting a NAT network attached takes a bug in
 `wb-hostd`'s requests or in `wb-vmd` itself.
 S04-architecture now has `wb-vmd` check each configuration against its
-fixed device set before every start and restore.
+fixed device set before every start and restore, and three checks
+verify it: a unit test that passes each refused device to the check,
+an in-guest check for one network interface with its lease from
+`wb-netd`, and a static check in CI that rejects the NAT, bridged,
+shared directory and audio input classes in `wb-vmd`'s sources
+(S11-verification-and-spikes).
 
 ## Measurements
 
@@ -128,7 +164,7 @@ Host: Apple M2, 8 cores, 16 GB, macOS 27.0.1 (26A434), Xcode 27.0.
 Guest: macOS 27.0.1, 4 vCPU, 4 GiB, the X18-vsock-handoff configuration,
 with the X18 guest daemon answering gRPC on vsock port 1024. The spike
 code and its recorded output are on the spike branch:
-[spikes/x25-vmd-sandbox at cc58d25](https://github.com/wraithbox/wraithbox/tree/cc58d254fb218a9d219579a565ee47f8b591caa6/spikes/x25-vmd-sandbox)
+[spikes/x25-vmd-sandbox at abb23b0](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox)
 (`results/` holds the output of each run, and the Sandbox log lines it
 caused).
 
@@ -147,11 +183,22 @@ caused).
    CPU name, which step 4 put back.
 4. Restores across confined and unconfined saves found the CPU name
    rule (`matrix-*`, `addon-round1.txt`, `addon-round2.txt`).
+5. The read-write extension on the cache directory was narrowed to the
+   two entries the discovery runs showed, `com.apple.metal-*` and
+   `com.apple.paravirtualizedgraphics-*`. Boot, save and restore
+   worked under it (`narrow-*`, profile `vmd-final-narrow.sb`).
+
+The VM in every run had the X18-vsock-handoff devices: a Mac graphics
+device with one display, a USB keyboard and pointer, vsock, the
+file-handle network device, two disks and entropy. Several extension
+classes serve the graphics and USB devices. If S06-vm-lifecycle drops
+one of them, the classes are ablated again against that set.
 
 ### The profile
 
-`BUNDLE` is `<data>/vms`: a run with the parent of all bundles as the
-parameter booted the same (`final-vms-root`). `CACHE` is the cache
+`BUNDLE` is one VM's bundle in the spike runs, and a run with the
+parent of all bundles as the parameter booted the same
+(`final-vms-root`). Open decision 1 is which one `wb-vmd` gets. `CACHE` is the cache
 directory from `confstr`, resolved (`/private/var/folders/...`),
 without the trailing slash.
 
@@ -176,7 +223,11 @@ without the trailing slash.
 (allow file-issue-extension
   (require-all (subpath (param "BUNDLE")) (extension-class "com.apple.app-sandbox.read")))
 (allow file-issue-extension
-  (require-all (subpath (param "CACHE")) (extension-class "com.apple.app-sandbox.read-write")))
+  (require-all
+    (extension-class "com.apple.app-sandbox.read-write")
+    (prefix
+      (string-append (param "CACHE") "/com.apple.metal-")
+      (string-append (param "CACHE") "/com.apple.paravirtualizedgraphics-"))))
 ```
 
 What each part is for, and what happened without it:
@@ -193,7 +244,7 @@ What each part is for, and what happened without it:
 | metadata of `/var` and `/private/var/folders` | "Failed to retrieve cache directory" |
 | each of the 7 extension classes | "Failed to issue ... sandbox extension", one per class |
 | read extension in `BUNDLE` | "Failed to issue sandbox extension for auxiliary storage device" |
-| read-write extension in `CACHE` | "Failed to issue sandbox extension for ParavirtualizedGraphics cache directory" |
+| read-write extension in `CACHE` (before narrowing) | "Failed to issue sandbox extension for ParavirtualizedGraphics cache directory" |
 
 The extensions are how the framework passes access to its service
 process: the auxiliary storage file, the graphics caches, and the
@@ -229,14 +280,23 @@ wasn't booted: it had no guest daemon to answer.
 ## What it means for the specs
 
 - **S04-architecture, "Each host daemon is self-sandboxed":** a
-  `wb-vmd` item with the profile's shape, condition 1 as what `wb-vmd`
-  does before confining, and the install rules (changed in this pull
+  `wb-vmd` item with the profile's shape and where its parameters come
+  from, condition 1 as a second bounded exception to "confine first",
+  `wb-vmd`'s log on an inherited pipe to `wb-hostd`, and open decisions
+  1 and 2 (changed in this pull request).
+- **S04-architecture, "The device set is fixed and checked"** (new):
+  the check before any device object is created, which devices the
+  profile enforces, that NAT and the other devices in the table are
+  only enforced by `wb-vmd`'s code, and the three checks that verify
+  it (changed in this pull request).
+- **S06-vm-lifecycle, "Devices":** the graphics and USB devices the
+  spikes used are open, and the profile is ablated again against the
+  final set (changed in this pull request).
+- **S07-egress-gateway, "Packet transport":** "no other network path"
+  points to the device-set check (changed in this pull request).
+- **S11-verification-and-spikes**: the unit test of the device-set
+  check and the in-guest interface check (changed in this pull
   request).
-- **S04-architecture, "The VM provider passes descriptors, not
-  bytes":** which devices the profile enforces, that NAT and the other
-  devices in the table are only enforced by `wb-vmd`'s code, and that
-  `wb-vmd` checks every configuration against its fixed device set and
-  refuses and logs anything else (changed in this pull request).
 - **S06-vm-lifecycle, "Warm start":** "invalid argument" also comes
   from a state saved under a `wb-vmd` profile that read different host
   facts, which the existing rules already treat as permanent (changed
@@ -254,8 +314,7 @@ wasn't booted: it had no guest daemon to answer.
   and no hardened runtime.
 - The SPICE clipboard seen from inside the guest. The guest has no
   SPICE agent.
-- Two VMs at once under one `wb-vmd`. Each run had one VM. The profile
-  has no rule that names one bundle.
+- Two VMs at once under one `wb-vmd`. Each run had one VM.
 - App Sandbox through entitlements. The Seatbelt profile works, so it
   wasn't needed.
 - Other devices: USB mass storage (the same file rules as a disk
