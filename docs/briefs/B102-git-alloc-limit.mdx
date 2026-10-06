@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-06.** Source: X28-git-alloc-limit (I102). Changes S08-workspace-and-git and S11-verification-and-spikes. Follows B74-pre-receive-check.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** With `GIT_ALLOC_LIMIT` set, both host gits refused every bomb of X26-pre-receive-check before allocating it, in under 0.1 s and 15 MiB, and refused no real push. The limit caps one allocation, not the work: 640 deltas just under the cap cost git 145 s of CPU from a 42 KiB pack. Recommended: set the limit, check at start that git honors it, and keep the scanner for the object count and the per-push total, but let it stream the pack instead of holding each entry. Its memory then depends only on the object count cap. Review added two items: every REF_DELTA's base size counts toward the per-push total, with at most 10,000 of them per push, and git's error output is cleaned before it is logged.
+**Yes, with conditions.** With `GIT_ALLOC_LIMIT` set, both host gits refused every bomb of X26-pre-receive-check before allocating it, in under 0.1 s and 15 MiB, and refused no real push. The limit caps one allocation, not the work: 640 deltas just under the cap cost git 145 s of CPU from a 42 KiB pack. Recommended: set the limit, check at start that git honors it, and keep the scanner for the object count and the per-push total, but let it stream the pack instead of holding each entry. Its memory then depends only on the object count cap. Review added these items: every REF_DELTA's base size counts toward the per-push total, with at most 10,000 of them per push; a push must use git's side channel for messages (`side-band-64k`), and git's own error output is cleaned before it is logged; the size limit (`receive.maxInputSize`) is 1 GiB; a push gets a 60 s idle timeout and a 5 minute watchdog. The values are open decisions in X28-git-alloc-limit.
 </Aside>
 
 <figure class="wb-figure">
@@ -66,7 +66,7 @@ Figure 1. A push after X28-git-alloc-limit. The scanner streams the pack and hol
 
 ### A. Git's limit and a streaming scanner
 
-Set `GIT_ALLOC_LIMIT` to the per-object cap plus one byte. Check at start that the git found honors it, and refuse pushes if not. The scanner checks each entry's header, forwards the entry at once, and holds back only the pack's checksum. It keeps its caps on wire bytes (1 GiB), object size, the per-push total and the object count, counts the base of every REF_DELTA toward the total, and allows at most 10,000 REF_DELTA entries.
+Set `GIT_ALLOC_LIMIT` to the per-object cap plus one byte. Check at start that the git found honors it, and refuse pushes if not. The scanner checks each entry's header, forwards the entry at once, and holds back only the pack's checksum. It keeps its caps on wire bytes (1 GiB), object size, the per-push total and the object count, counts the base of every REF_DELTA toward the total, and allows at most 10,000 REF_DELTA entries. Git's `receive.maxInputSize` is 1 GiB as well. A push must ask for `side-band-64k`, and gets a 60 s idle timeout and a 5 minute watchdog.
 
 - **Cost:** one environment variable and a start check. The scanner loses its per-entry buffer and per-entry wire-byte bound.
 - **Gives:** two independent memory bounds, so a scanner bug no longer lets a pack ask git for gigabytes. Refusals keep naming their rule.
@@ -80,7 +80,7 @@ Set `GIT_ALLOC_LIMIT` to the per-object cap plus one byte. Check at start that t
 Set the limit and drop the scanner.
 
 - **Cost:** least code, no parser of guest bytes in `wb-hostd`.
-- **Gap:** a 42 KiB pack of deltas under the cap kept git busy for 145 s, and a 16 MiB pack could hold hours of it. Only the watchdog would stop it. The object count cap and named refusals go.
+- **Gap:** a 42 KiB pack of deltas under the cap kept git busy for 145 s. A pack under the 1 GiB size limit could hold as many such deltas as git's object table allows, about 1.6 million, which is about 100 hours of it at the measured rate (inferred). Only the watchdog would stop it. The object count cap and named refusals go.
 - **Keeps:** <Badge text="SEC13-bounded-resources" variant="caution" /> CPU bounded only by the watchdog
 
 </div>
@@ -121,7 +121,7 @@ What S08-workspace-and-git says today: the scanner holds each entry until it pas
 - <Badge text="verified" variant="success" /> `git hash-object --stdin` with `GIT_ALLOC_LIMIT=1k` on 2 KiB exits with 128 and `over limit` in both gits, which is the start check. An unparsable value also exits with 128, with another message, so the check needs both. Source: same, condition 2, `results/x28-probe.txt`. The security review of PR116 reproduced it.
 - <Badge text="assumed" variant="caution" /> That later gits, Git for Windows and Linux gits honor the variable the same way. It isn't in `git(1)`, only in git's tests. The start check fails closed if one doesn't.
 - <Badge text="inferred" variant="note" /> That the scanner's memory, once it forwards as it reads, is its inflate state plus one size per entry, which the object count cap bounds. Follows from the design, and the fuzz target in S11-verification-and-spikes checks it.
-- <Badge text="inferred" variant="note" /> `index-pack --fix-thin` reads and writes one base from `export.git` for each distinct REF_DELTA base not in the pack, before the pre-receive check runs, about 490,000 of them in 16 MiB. Counting REF_DELTA source sizes and capping their number bounds it. Source: the security review of PR116, from reading git. Not measured here.
+- <Badge text="inferred" variant="note" /> `index-pack --fix-thin` reads and writes one base from `export.git` for each distinct REF_DELTA base not in the pack, before the pre-receive check runs. At about 34 bytes each, 16 MiB names about 490,000 of them, and a pack under the 1 GiB size limit as many as the object count allows. Counting REF_DELTA source sizes and capping their number bounds it. Source: the security review of PR116, from reading git. Not measured here.
 
 ## What this unblocks
 

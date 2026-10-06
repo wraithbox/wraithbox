@@ -111,7 +111,9 @@ git's memory.
 2. **`wb-hostd` checks that its git honors the limit, before it
    confines itself.** Right after it resolves the git binary
    (S04-architecture), it runs that absolute path as
-   `git hash-object --stdin` with `GIT_ALLOC_LIMIT=1k` and `LC_ALL=C`,
+   `git hash-object --stdin` with `GIT_ALLOC_LIMIT=1k`, `LC_ALL=C`,
+   `GIT_CONFIG_NOSYSTEM=1` and `GIT_CONFIG_GLOBAL=/dev/null`, as the
+   probe script did,
    writes 2 KiB of zeros and closes the input, and waits at most 5 s.
    It passes only on exit status 128 with `over limit` on standard
    error, and anything else refuses every push. Both gits passed: exit
@@ -126,8 +128,9 @@ git's memory.
 3. **The scanner stays, for the per-push total and the object count.**
    Git's limit caps one allocation, not the work. 640 deltas of 96 MiB,
    each under the cap, took git 145 s of CPU, and 64 of them 18 s. At
-   about 54 bytes each, a 16 MiB pack holds about 300,000 such deltas
-   (inferred). A blob over `core.bigFileThreshold` (512 MiB) is
+   about 54 bytes each, a pack under the 1 GiB size limit could hold
+   about 20 million such deltas, and git's object table stops at
+   1,638,399 objects. That is about 100 hours of CPU (inferred). A blob over `core.bigFileThreshold` (512 MiB) is
    streamed through a fixed buffer, so the limit doesn't stop it
    either: a 1 GiB blob of zeros cost 3.4 s of CPU and landed when the
    check was off. The scanner refuses the deltas on the per-push total,
@@ -163,7 +166,9 @@ S11-verification-and-spikes adds a case for each.
 - **Bases from `export.git`.** `index-pack --fix-thin` reads, hashes
   and writes into the quarantine one base for each distinct REF_DELTA
   base that isn't in the pack, before the pre-receive check runs. The
-  security review counted about 490,000 such entries in 16 MiB. So the
+  security review counted about 490,000 such entries in 16 MiB, and a
+  pack under the 1 GiB size limit holds as many as the object count
+  allows. So the
   scanner counts the declared source size of every REF_DELTA toward
   the per-push total, and refuses a pack with more than 10,000
   REF_DELTA entries. Git checks a declared source size against the base
