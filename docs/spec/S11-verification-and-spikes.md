@@ -23,11 +23,13 @@ be tested before building on them.
   test on a fake clock: day 30 issues and installs the successor, day
   58 switches only after the install is recorded and otherwise refuses
   the VM's streams with `ca-not-installed`, and day 60 removes the old
-  CA and destroys its key. A restore test checks the order: clock
-  resynchronized, expired CAs removed, the current CAs installed from
-  the host's record, and only then streams accepted, signed with the
-  CA `wb-proxyd` signed with before the save. A save on day 40 and a
-  restore on day 45 keep signing with the old CA. Each step checks its 5019
+  CA and destroys its key. A restore test and a host wake test check
+  the order: clock set, expired CAs removed, the current CAs installed
+  from the host's record, and only then streams accepted, signed with
+  the CA `wb-proxyd` signed with before the save or the sleep. A save
+  on day 40 and a restore on day 45 keep signing with the old CA, and
+  a host that sleeps from day 50 to day 61 removes the old CA before
+  it accepts a stream. Each step checks its 5019
   event.
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,

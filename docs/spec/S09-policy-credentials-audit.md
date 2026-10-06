@@ -342,18 +342,19 @@ inspection is trusted, and what is recorded.
     that runs longer than that and never rereads its trust fails, with
     a certificate error. Time the VM spends saved counts toward that
     bound.
-  - *Boot and restore.* On every boot and every restore from saved
-    state, in this order: `wb-guestd` resynchronizes the guest clock
-    (S06-vm-lifecycle, "Time and sleep"), a CA that has expired is
-    removed and its key destroyed, a step of the schedule that came due
-    while the VM was off runs, and if no valid CA remains, `wb-proxyd`
-    issues a new one. Then `wb-guestd` installs the VM's current CAs
-    from `wb-hostd`'s own record, never from what the guest
-    reports it has, and `wb-hostd` records the install. Only then does
-    `wb-proxyd` accept the VM's streams. After a restore, `wb-proxyd`
-    keeps signing with the CA it signed with before the save, also
-    past day 58, while that CA is valid, because resumed processes
-    loaded their trust before the save.
+  - *Boot, restore and host wake.* On every boot, every restore from
+    saved state and every host wake, in this order: `wb-guestd` sets
+    the guest clock from `wb-hostd` (S06-vm-lifecycle, "Time and
+    sleep"), a CA that has expired is removed and its key destroyed, a
+    step of the schedule that came due while the VM was off or the host
+    slept runs, and if no valid CA remains, `wb-proxyd` issues a new
+    one. Then `wb-guestd` installs the VM's current CAs from
+    `wb-hostd`'s own record, never from what the guest reports it has,
+    and `wb-hostd` records the install. Only then does `wb-proxyd`
+    accept the VM's streams. After a restore or a host wake,
+    `wb-proxyd` keeps signing with the CA it signed with before the
+    save or the sleep, also past day 58, while that CA is valid,
+    because resumed processes loaded their trust before it.
   - *Why rotate.* The hardware key can't be read out, so whoever can use
     it controls `wb-proxyd` on the host, and a new certificate doesn't
     change that. Rotation bounds how long the software fallback key
