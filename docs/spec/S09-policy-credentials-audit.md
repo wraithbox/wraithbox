@@ -52,9 +52,11 @@ inspection is trusted, and what is recorded.
     and its output repeats these strings (X24-openshell-artifacts).
   - *Pass hosts.* Only the global and project network policy files can
     put a host in pass mode, never repository configuration. Each pass
-    entry needs a reason, which follows the string rules above. An entry for a host with a credential binding or a
-    built-in profile is refused at load, and adding a pass host is a
-    Device Config State Change (5019) event. The maintainer decided this
+    entry names one exact host and needs a reason, which follows the
+    string rules above. A wildcard entry, or an entry for a host with a
+    credential binding or one a built-in profile covers, is refused at
+    load, and adding a pass host is a Device Config State Change (5019)
+    event. The maintainer decided this
     on I40 (B40-learn-pass-modes), and S07-egress-gateway, "Modes, per
     host", has the rules.
   - *What the prover sees.* The document Wraith Box writes for the

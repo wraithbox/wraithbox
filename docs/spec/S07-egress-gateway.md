@@ -275,8 +275,17 @@ session start in the VM to the end of the last session running in it.
     `NXDOMAIN` or an empty answer and no approval event, and logged.
     An idle macOS guest asks for its own reverse name and for
     `_dns.resolver.arpa` after each lease (X03-network-path).
+  - *Name form.* Outside the local answers above, a query whose name
+    isn't LDH ASCII (letters, digits, hyphens and dots, compared
+    case-insensitively) or is past the name length limit (below) gets
+    `NXDOMAIN` with the rule `dns-name-form`, before any other check.
+    Such a name raises no approval event and stays off every learn
+    list, so no control byte or non-ASCII character from a name
+    reaches a notification, `wb status` or `wb learn report`.
   - Names not on the allowlist get `NXDOMAIN` and raise an approval
-    event (FR09-approve-unknown). After approval, the next lookup
+    event (FR09-approve-unknown), except while a learn-mode session
+    runs in the VM, when they go on the learn list instead ("Approvals
+    and learning"). After approval, the next lookup
     succeeds. A VM has at most one open approval event per name, and
     later queries for that name, from any session in the VM, are
     counted on it, because the host can't tell which session looked a
@@ -316,12 +325,14 @@ session start in the VM to the end of the last session running in it.
     whatever other rule allows it, and doesn't raise an approval
     event. So an approval can't undo the user's switch.
   - *Same answer for every refusal.* The answer's bytes are the same
-    whatever the reason a name is refused: not allowlisted, denied,
-    quiet list or part off. Before the answer is sent, `wb-netd` debits
+    whatever the reason a name is refused: name form, not allowlisted,
+    denied, quiet list, part off, `learn-collected` or `learn-list-full`.
+    Before the answer is sent, `wb-netd` debits
     the wildcard budget and takes the one-open-event-per-name check
     under one lock, and does no other work that depends on the reason.
-    Only the notification and the emission of the approval event and
-    the audit entry happen asynchronously, after the answer.
+    Only the notification, the emission of the approval event, the
+    entry on a learn list and the audit entry happen asynchronously,
+    after the answer.
   - Wildcard allowlist entries are bounded: each VM may resolve at most
     a fixed number of new names under wildcards in an active period
     ("Enforced per VM"), and failed lookups count against that budget,
@@ -364,7 +375,8 @@ session start in the VM to the end of the last session running in it.
     (B40-learn-pass-modes):
     - *Still one named host.* Pass isn't an exception to
       SEC05-default-deny. The name must be allowed, and the SNI must
-      equal it ("Name binding").
+      equal it ("Name binding"). A pass entry names one exact host,
+      and a wildcard pass entry is refused at load.
     - *Only the user sets it.* A host is put in pass mode only in the
       global policy or a project's network policy on the host
       (S09-policy-credentials-audit). Repository-supplied configuration
@@ -376,13 +388,27 @@ session start in the VM to the end of the last session running in it.
       `wb policy explain` lists every pass host with its file and its
       reason.
     - *Never on a guarded host.* A host with a credential binding, or a
-      host a built-in profile covers (git hosting, model API, package
-      registries), can't be a pass host. Pass would switch off
-      credential replacement, HTTP policy and the dependency gate on it,
-      and with them SEC06-repo-writes and SEC07-dep-gate. Such an entry
-      is refused at load with an error that names the host and the
-      reason (NFR06-explained-refusals). Across projects the same rule
-      is checked over the union ("Enforced per VM").
+      host a built-in profile covers, can't be a pass host. Pass would
+      switch off credential replacement, HTTP policy and the dependency
+      gate on it, and with them SEC06-repo-writes and SEC07-dep-gate.
+      A profile covers a host when any host of a built-in profile (git
+      hosting, model API, package registries) matches it, or when the
+      remotes of a project's host repository name it, which gives it
+      the git hosting profile ("Credential replacement", named places).
+      - *At load.* A pass entry in the global policy or a project's
+        policy on a guarded host is refused at load with an error that
+        names the host and the reason (NFR06-explained-refusals).
+      - *At every recompute.* `wb-hostd` checks the same rule over the
+        union, global pass entries included, so a global entry that
+        loaded while no project named its host refuses the session
+        start of a project whose remote names it. The error names
+        that project, the host and the file of the pass entry
+        (NFR06-explained-refusals).
+      - *A binding added later.* A change that adds a credential
+        binding on a pass host, in a policy file or with `wb cred set`,
+        is refused, and the pass entry stays. The error names the pass
+        entry and its file, and says to remove the pass entry first
+        (NFR06-explained-refusals).
     - *Audited.* Each policy change that adds a pass host is a Device
       Config State Change (5019) event with the host, the file and the
       reason (SEC10-audit).
@@ -819,19 +845,44 @@ session start in the VM to the end of the last session running in it.
     placeholder binding. Learn mode never adds a rule or a pass host.
   - *Collected.* While a learn-mode session runs in the VM, an unknown
     name doesn't raise an approval event or a notification.
-    `wb-hostd` puts it on the VM's learn list with the time, the count
-    of lookups and the guest's program label, if any, shown as reported
+    `wb-hostd` puts it on the learn list with the time, the count of
+    lookups and the guest's program label, if any, shown as reported
     by the guest and untrusted. The refusal is logged with the rule
-    `learn-collected` (SEC10-audit). A name on the guest OS's
-    background list, a host refused with `profile-part-off` and a
+    `learn-collected` (SEC10-audit). A name answered locally (`.arpa`
+    and `.local`), a name refused for its form, a name on the guest
+    OS's background list, a host refused with `profile-part-off` and a
     denied name are refused as outside learn mode and don't go on the
     list.
+  - *The list.* A learn list belongs to the learn project and the set
+    of sessions of its learn period, which runs from the start of the
+    project's first learn-mode session in the VM to the end of the
+    last session running in the VM. A new learn period of the project
+    starts a new list, which replaces the old one, and the user can
+    clear a list from `wb learn report`. A list holds at most as many
+    distinct names as a cap fixed in code allows (SEC13-bounded-resources). Past
+    it, a new name is refused as usual, isn't collected, and is logged
+    with the rule `learn-list-full`. Names are stored only after they
+    pass the name form check and its length limit, and labels are cut as guest strings in log
+    records are ("Packet path", "Events and rate limits").
   - *Review.* At session end `wb` prints the list in the session
-    summary, and `wb learn report` shows it. The user allows the names
-    they accept with `wb allow`, or approves a selection from the
-    report in one batch. Each name the user accepts goes through the
-    risk check and grants what an approval grants (above), and the
-    answer is a Device Config State Change (5019) event.
+    summary, at most 100 names, then "and N more", as it does for the
+    link list (S05-cli, "Links"). The summary and `wb learn report`
+    also say how many names were dropped past the cap. Both follow
+    S05-cli, "Guest text elsewhere". The report shows each name with
+    its risk-check findings and its boundary result
+    (S09-policy-credentials-audit, "Approvals"). The user allows the
+    names they accept with `wb allow`, or approves a selection from
+    the report in one batch. A name with any finding, or whose rule
+    would leave the boundary, is left out of the batch, and the user
+    allows it on its own with `wb allow`.
+  - *What acceptance grants.* An accepted name is saved to the learn
+    project's network policy, as *Allow for this project* does, with
+    the project fixed by the list and not picked by the user. It grants
+    what an approval grants (above). The review answers no live
+    request, so the check on the session set at the answer doesn't
+    apply. The new rule widens the policy and goes through the checks
+    of "Policy changes while sessions run". Each accepted name is a
+    Device Config State Change (5019) event with its findings.
   - *More than one run.* The agent stops at the first refused host and
     doesn't reach the hosts behind it, so learning a project's hosts can
     take more than one run, with the user allowing names between them.
