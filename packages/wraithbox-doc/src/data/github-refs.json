@@ -652,7 +652,7 @@
 	},
 	"104": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): record 2026-10-06 decisions on vsock, pre-receive caps, terminal",
 		"summary": "Writes the maintainer decisions from 2026-10-06 (the issue comments that start Decision (2026-10-06):) into the specs and briefs."
 	},
