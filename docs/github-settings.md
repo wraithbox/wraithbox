@@ -78,11 +78,12 @@ pushing feature branches and opening pull requests are unaffected. It:
 The ruleset deliberately leaves out `required_linear_history`: it would
 forbid the merge commits that stacked branches need.
 
-`Dependency vulnerability scan` is deliberately **not** required yet.
-It fails on `main` because of
+`Dependency vulnerability scan` is **not** required yet. The ruleset left it out
+while it failed on `main` because of
 [GHSA-ch52-4w7c-c8xp](https://osv.dev/GHSA-ch52-4w7c-c8xp)
-(`http-cache-semantics` in `packages/wraithbox-doc/bun.lock`), which has no fixed
-version. Add it to `required_status_checks` once that is resolved.
+(`http-cache-semantics` in `packages/wraithbox-doc/bun.lock`). I55 moved
+that dependency to the fixed 4.3.0, and the scan passes. Adding it to
+`required_status_checks` is the maintainer's decision.
 
 ```json
 {
@@ -193,5 +194,6 @@ grants. The owner has kept `read` for now.
   `gh api -X PUT repos/wraithbox/wraithbox/private-vulnerability-reporting`.
 - Fork pull request workflow approval (public repositories only):
   `gh api -X PUT repos/wraithbox/wraithbox/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors`.
-- `Dependency vulnerability scan` as a required check, once
-  GHSA-ch52-4w7c-c8xp has a fix.
+- `Dependency vulnerability scan` as a required check. GHSA-ch52-4w7c-c8xp,
+  the advisory that kept it out, is fixed (I55), so this waits only on
+  the maintainer's decision.
