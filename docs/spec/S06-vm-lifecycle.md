@@ -68,6 +68,9 @@ in S12-platforms.
   synchronization "cannot safely be reused" after a host crash or
   power loss. A raw image gives the host back the space of data the
   guest deletes, and an ASIF image does not (X05-fs-benchmark).
+  With these settings, `npm ci` on the data disk ran at about 71% of
+  the host on a loaded host, under the 80% goal of NFR02-fs-speed. The
+  goal is not a release gate.
 - **Devices.** One virtio network device whose packet transport leads
   to `wb-netd` (on macOS a file-handle attachment; S07-egress-gateway, S12-platforms);
   one host-guest socket device (vsock); storage; entropy.
