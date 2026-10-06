@@ -145,8 +145,18 @@ in S12-platforms.
     devices), it deletes the saved state itself and logs why, rather
     than learning of the change from "invalid argument" at the next
     restore.
-- **Time and sleep.** After VM boot, host sleep or VM restore, `wb-guestd`
-  resynchronizes the guest clock from `wb-hostd`.
+- **Time and sleep.** The guest has no network time: NTP is UDP, and
+  `wb-netd` drops it (S07-egress-gateway, X03-network-path). Its clock
+  comes only from `wb-guestd`, which sets it from `wb-hostd`:
+  - after every cold boot, every restore from saved state and every
+    host wake, before the steps that depend on the time
+    (S09-policy-credentials-audit, "TLS inspection certificate
+    authority"). Without this, a cold-booted guest starts from the
+    virtual clock, and a restored guest lags by the time it spent saved
+    (X18-vsock-handoff);
+  - every 60 seconds while the VM runs. Drift then never builds up for
+    more than a minute, and a missed wake or a change of the host clock
+    is corrected within a minute.
 
 ## Projects and sessions inside a VM
 
