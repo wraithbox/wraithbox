@@ -6,8 +6,3 @@
 # checks that before every scan. Agents may edit this file, and every edit
 # asks the maintainer first. When an entry expires the scan fails again,
 # and the entry is removed or extended on purpose.
-
-[[IgnoredVulns]]
-id = "GHSA-ch52-4w7c-c8xp"
-ignoreUntil = 2026-11-03
-reason = "#55: no fixed http-cache-semantics release yet. Through astro."
