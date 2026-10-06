@@ -1,14 +1,14 @@
 ---
 title: Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore?
-description: Yes, with conditions. Passed descriptors keep working without wb-vmd, wb-guestd answers 4.1 s after a restore starts, and the guest should not open connections to the host (recommended, awaiting decision).
+description: Yes, with conditions. Passed descriptors keep working without wb-vmd, wb-guestd answers 4.1 s after a restore starts, and the guest doesn't open connections to the host (decided 2026-10-06).
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-05: yes, with conditions. One decision open: guest-initiated connections.** Source: X18-vsock-handoff (I29). Changes S04-architecture, S06-vm-lifecycle, S11-verification-and-spikes, S12-platforms and S13-guest-confinement. Follow-up: I86.
+**Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, the host opens every connection.** The decision and its reasons are in the I29 comment that starts `Decision (2026-10-06):`. Source: X18-vsock-handoff (I29). Changes S04-architecture, S06-vm-lifecycle, S08-workspace-and-git, S11-verification-and-spikes, S12-platforms and S13-guest-confinement. Follow-ups: I86, and I101, which checks that a project user can't open, bind or listen on vsock and pose as `wb-guestd`.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** A Go daemon in a macOS guest listens and dials on vsock through `golang.org/x/sys/unix`, with no C code. `wb-vmd` can pass each guest connection and the network endpoint to a Go process and close its own copy: the Go side kept working even with `wb-vmd` frozen. A restore ends every connection, so `wb-hostd` reconnects after each one. From a fresh clone, `wb-guestd` answers 4.1 s (p50) after the restore starts, which leaves about 2.9 s of the 7 s in NFR01-startup. **You are deciding** whether the guest may open connections to the host at all. Recommended: no, the host opens every connection.
+**Yes, with conditions.** A Go daemon in a macOS guest listens and dials on vsock through `golang.org/x/sys/unix`, with no C code. `wb-vmd` can pass each guest connection and the network endpoint to a Go process and close its own copy: the Go side kept working even with `wb-vmd` frozen. A restore ends every connection, so `wb-hostd` reconnects after each one. From a fresh clone, `wb-guestd` answers 4.1 s (p50) after the restore starts, which leaves about 2.9 s of the 7 s in NFR01-startup. The maintainer decided on I29 that the guest doesn't open connections to the host: the host opens every one, and requests that start in the guest go through `wb-guestd`.
 </Aside>
 
 <figure class="wb-figure">
@@ -58,7 +58,7 @@ Figure 1. Guest bytes go between our Go daemons and the guest through Apple's Vi
 
 The hand-off itself needs no choice: `wb-vmd` passes each vsock descriptor with its ports, and the network socket end, over a socketpair that carries one descriptor per message, then closes its copies. `wb-hostd` routes only on the destination port, which it chose, and reconnects to `wb-guestd` after every restore. A relay in `wb-vmd`, the fallback the issue named, isn't needed.
 
-## The decision: may the guest open connections to the host?
+## The decision: may the guest open connections to the host? (decided: A)
 
 Any process in the guest that can open a vsock socket can dial a listener on the host, and it picks its own source port. So a connection that the guest opens says nothing trustworthy about which project or session it belongs to.
 

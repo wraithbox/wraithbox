@@ -22,14 +22,14 @@ issue, the spike result, or the spec). A brief explains it.
 | B17-network-path | Does a macOS guest work on our userspace network stack, reaching only the proxy, and how fast? | Answered 2026-10-05: yes, with conditions. Open: the link MTU, and prompts for the guest OS's own names |
 | B19-fs-benchmark | Is the data disk fast enough, and which disk settings does it use? | Answered 2026-10-05: no. Decided 2026-10-06: D, NFR02-fs-speed becomes a goal outside the release gate |
 | B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04. Decided 2026-10-04: A, Go filter plus `receive.hideRefs` |
-| B29-vsock-handoff | Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore? | Answered 2026-10-05: yes, with conditions. One decision open: guest-initiated connections |
+| B29-vsock-handoff | Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, the host opens every connection |
 | B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04. Decided 2026-10-04: A, allowlist as measured, and H1 plus a URL list for hyperlinks |
 | B32-dep-gate-registries | Can the dependency gate refuse young packages without breaking installs? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, Homebrew ungated, and vulnerability threshold CRITICAL (I73) |
 | B33-no-guest-credentials | Can the proxy drop every credential the guest sends without breaking its tools? | Answered 2026-10-05: yes, with conditions. Awaiting decision |
 | B34-sandboxed-daemons | Can the Go daemons confine themselves on macOS? | Answered 2026-10-04. Decided 2026-10-04: A, the `wb-launcher`, with the `wb-git` shim |
 | B35-openshell-artifacts | Do the OpenShell parts the specs reuse exist as assumed? | Answered 2026-10-05: yes, with conditions. Awaiting decision on which rules go to the prover, where the risk check comes from, and whether approvals are bound by the boundary |
 | B36-flow-attribution | Can projects sharing the work VM keep their network grants apart? | Decided 2026-10-04: A. The VM is the enforced unit |
-| B37-terminal-boundary | Should the host terminal be a trust boundary with its own filter? | Decided 2026-10-04: A. Boundary plus allowlist filter, for now |
+| B37-terminal-boundary | Should the host terminal be a trust boundary with its own filter? | Decided 2026-10-04: A. Boundary plus allowlist filter, for now. Decided 2026-10-06: 1A, reset on exit, and 2C, the full filter on every stream |
 | B38-port-forward-clipboard | How should guest dev servers and clipboard text cross to the host? | Decided 2026-10-04: D. Neither in V1 |
 | B39-ca-rotation | Can an approval add an inspected host without breaking running tools? | Decided 2026-10-04: A. No per-set constraints, rotate with overlap |
 | B40-learn-pass-modes | May learn mode and pass mode open holes in default-deny egress? | Decided 2026-10-04: A. Collect and refuse |
@@ -45,7 +45,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B50-vm-test-infra | How do agents share the two macOS VM slots, and where do VM tests run? | Decided 2026-10-04: C. By hand for now, with VM builders run one at a time |
 | B51-approval-flow | What happens between a blocked lookup and the user's answer? | Decided 2026-10-04: A. Hold the answer, then refuse uncached |
 | B52-proto-contracts | How are the gRPC contracts between the processes written, generated, and checked? | Decided 2026-10-04: A. Commit generated code |
-| B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05 |
+| B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps |
 
 ## Order to decide
 
@@ -60,8 +60,3 @@ The maintainer decided B36-flow-attribution to B52-proto-contracts on
    specified it fails every fresh install. Approving the spike result
    accepts metadata filtering in front of the download refusal, and
    Homebrew outside the gate. Its vulnerability threshold is I73.
-2. B74-pre-receive-check: until it is decided, S08-workspace-and-git
-   has no bound on the memory git uses to unpack a push, and refused
-   pushes leave objects in the landing repository. Approving it sets the
-   scanner's cap values and accepts a new parser of guest bytes in
-   `wb-hostd`.
