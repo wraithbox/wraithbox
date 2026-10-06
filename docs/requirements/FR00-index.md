@@ -47,7 +47,8 @@ answer is in S03-requirements.
 - **FR08-no-proxy-config: No per-tool proxy settings.** Allowlisted network destinations work for every tool without
   per-tool proxy configuration.
 - **FR09-approve-unknown: Approve unknown destinations.** A request to an unknown destination is blocked and offered to the
-  user for approval out-of-band (allow once, allow for project, deny).
+  user for approval out-of-band (allow once, allow for project, deny). The exception is a name on the host-held
+  list of the guest OS's own background lookups, which is refused and logged without a prompt (S07-egress-gateway).
 - **FR10-learn-mode: Learn mode.** A learn mode, available for trusted repositories only, records
   the destinations a project needs and proposes an allowlist.
 - **FR11-port-forward: Port forwarding.** Dev servers listening in the guest are reachable on host

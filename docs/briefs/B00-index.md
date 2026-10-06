@@ -19,15 +19,15 @@ issue, the spike result, or the spec). A brief explains it.
 | ID | Description | Status |
 |----|-------------|--------|
 | B16-warm-start | How fast does a suspended VM come back, and can one saved state be restored more than once? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, keep running while locked and save after unlock |
-| B17-network-path | Does a macOS guest work on our userspace network stack, reaching only the proxy, and how fast? | Answered 2026-10-05: yes, with conditions. Open: the link MTU, and prompts for the guest OS's own names |
+| B17-network-path | Does a macOS guest work on our userspace network stack, reaching only the proxy, and how fast? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: 1A, link MTU 65535, and 2A, refuse the guest OS's own lookups quietly |
 | B19-fs-benchmark | Is the data disk fast enough, and which disk settings does it use? | Answered 2026-10-05: no. Decided 2026-10-06: D, NFR02-fs-speed becomes a goal outside the release gate |
 | B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04. Decided 2026-10-04: A, Go filter plus `receive.hideRefs` |
 | B29-vsock-handoff | Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, the host opens every connection |
 | B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04. Decided 2026-10-04: A, allowlist as measured, and H1 plus a URL list for hyperlinks |
 | B32-dep-gate-registries | Can the dependency gate refuse young packages without breaking installs? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, Homebrew ungated, and vulnerability threshold CRITICAL (I73) |
-| B33-no-guest-credentials | Can the proxy drop every credential the guest sends without breaking its tools? | Answered 2026-10-05: yes, with conditions. Awaiting decision |
+| B33-no-guest-credentials | Can the proxy drop every credential the guest sends without breaking its tools? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, remove every guest credential and inject from the host, with the three open decisions as recommended |
 | B34-sandboxed-daemons | Can the Go daemons confine themselves on macOS? | Answered 2026-10-04. Decided 2026-10-04: A, the `wb-launcher`, with the `wb-git` shim |
-| B35-openshell-artifacts | Do the OpenShell parts the specs reuse exist as assumed? | Answered 2026-10-05: yes, with conditions. Awaiting decision on which rules go to the prover, where the risk check comes from, and whether approvals are bound by the boundary |
+| B35-openshell-artifacts | Do the OpenShell parts the specs reuse exist as assumed? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: 1A changed, leave out only the built-in rules the prover can't model, 2A, the risk check in Go, and 3A, approvals bound by the boundary |
 | B36-flow-attribution | Can projects sharing the work VM keep their network grants apart? | Decided 2026-10-04: A. The VM is the enforced unit |
 | B37-terminal-boundary | Should the host terminal be a trust boundary with its own filter? | Decided 2026-10-04: A. Boundary plus allowlist filter, for now. Decided 2026-10-06: 1A, reset on exit, and 2C, the full filter on every stream |
 | B38-port-forward-clipboard | How should guest dev servers and clipboard text cross to the host? | Decided 2026-10-04: D. Neither in V1 |
@@ -55,5 +55,6 @@ it is decided.
 
 The maintainer decided B36-flow-attribution to B52-proto-contracts on
 2026-10-04, B32-dep-gate-registries on 2026-10-04, and
-B29-vsock-handoff, B37-terminal-boundary and B74-pre-receive-check on
-2026-10-06. The list is empty until a brief is added to it.
+B17-network-path, B19-fs-benchmark, B29-vsock-handoff,
+B33-no-guest-credentials, B35-openshell-artifacts,
+B37-terminal-boundary and B74-pre-receive-check on 2026-10-06. The list is empty until a brief is added to it.

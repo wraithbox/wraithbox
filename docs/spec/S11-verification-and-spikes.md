@@ -71,6 +71,10 @@ be tested before building on them.
   - with the gateway's empty answers to `HTTPS` and `SVCB`, check that
     the macOS resolver still connects to an allowlisted name as fast as
     it did when they were refused (B17-network-path);
+  - resolve a name on the guest OS's background list and see
+    `NXDOMAIN`, an audit entry and no approval event; resolve a name
+    one label longer under it and see an approval event
+    (S07-egress-gateway, quiet refusals);
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
   - present an SNI that differs from the resolved name;
