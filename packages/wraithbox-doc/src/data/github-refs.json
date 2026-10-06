@@ -408,7 +408,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X25-vmd-sandbox: Self-sandboxed wb-vmd",
-		"summary": "Found while answering #34 (X23-sandboxed-daemons)."
+		"summary": "Found while answering #34 (X23-sandboxed-daemons).",
+		"brief": "B64-vmd-sandbox"
 	},
 	"65": {
 		"kind": "pr",
@@ -580,7 +581,7 @@
 	},
 	"92": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "mise run vuln can't find lockfiles from a git worktree",
 		"summary": "The PR #88 and #89 security reviewers found that mise run vuln (the vuln:osv part) fails when it runs inside a git worktree."
 	},
@@ -634,15 +635,17 @@
 	},
 	"101": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X27-vsock-confinement: vsock confinement of project users",
-		"summary": "The B29-vsock-handoff decision (#29) is that the host opens every host-guest connection."
+		"summary": "The B29-vsock-handoff decision (#29) is that the host opens every host-guest connection.",
+		"brief": "B101-vsock-confinement"
 	},
 	"102": {
 		"kind": "issue",
 		"state": "open",
 		"title": "X28-git-alloc-limit: git's allocation cap against delta bombs",
-		"summary": "X26-pre-receive-check (#74) found that a small pack makes receive-pack allocate a delta's declared result before any hook runs (2 GiB from an 8 KiB pack), and that macOS refuses ulimit -v and -d on the git child."
+		"summary": "X26-pre-receive-check (#74) found that a small pack makes receive-pack allocate a delta's declared result before any hook runs (2 GiB from an 8 KiB pack), and that macOS refuses ulimit -v and -d on the git child.",
+		"brief": "B102-git-alloc-limit"
 	},
 	"103": {
 		"kind": "pr",
@@ -706,8 +709,46 @@
 	},
 	"113": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "fix(ci): pass each lockfile to osv-scanner so vuln runs in worktrees",
 		"summary": "osv-scanner scan source -r ."
+	},
+	"114": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spikes): X27-vsock-confinement result",
+		"summary": "Result of spike X27-vsock-confinement: yes, with conditions.",
+		"brief": "B101-vsock-confinement"
+	},
+	"115": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S04-architecture, S06-vm-lifecycle: wb-guestd vsock listener under connect floods and bind failures",
+		"summary": "Follow-up from the security review of #114 (the X27-vsock-confinement result, #101)."
+	},
+	"116": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X28-git-alloc-limit result, yes with conditions",
+		"summary": "Result of spike X28-git-alloc-limit: yes, with conditions."
+	},
+	"117": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X25-vmd-sandbox result, wb-vmd confines itself",
+		"summary": "The X25-vmd-sandbox result: yes, with conditions.",
+		"brief": "B64-vmd-sandbox"
+	},
+	"118": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd sandbox profile under the hardened runtime and a Developer ID signature",
+		"summary": "Found while answering #64 (X25-vmd-sandbox)."
+	},
+	"119": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle, S11-verification-and-spikes: wb-vmd entitlement gate and profile identity on saved state",
+		"summary": "Follow-up from the security review of #117 (the X25-vmd-sandbox result, #64)."
 	}
 }

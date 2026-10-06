@@ -40,6 +40,12 @@ reinit
 ncpu
 logicalcpu
 physicalcpu
+memsize
+machdep
+dirhelper
+vmnet
+paravirtualized
+videotoolbox
 terminfo
 osrelease
 osversion

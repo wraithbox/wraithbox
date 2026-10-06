@@ -1,0 +1,154 @@
+---
+title: Can wb-vmd confine itself and still run a macOS VM?
+description: Yes, with conditions. A Seatbelt profile with the VM bundles, the Virtualization service and the framework's sandbox extensions runs install, boot, save and restore. It keeps shared directories out of the guest, but only wb-vmd's code keeps a NAT network out.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-06.** Source: X25-vmd-sandbox, I64. Affects S04-architecture, S06-vm-lifecycle and S12-platforms.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** `wb-vmd` confines itself the way the Go daemons do (X23-sandboxed-daemons), and a macOS VM installs, boots, saves and restores under the profile at the same speed. The profile also stops `wb-vmd` from sharing a host directory with the guest. It can't stop a NAT network, which would bypass the egress gateway, so that stays a check in `wb-vmd`'s code. Accepting merges the S04-architecture, S06-vm-lifecycle and S12-platforms changes in this pull request. You have no open decisions to make.
+</Aside>
+
+## The picture
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 360" role="img" aria-label="wb-launcher starts wb-vmd, which confines itself with its profile. Inside the profile, wb-vmd reads and writes the VM bundles and talks to Apple's Virtualization service. The service runs the VM. A shared host directory is refused by the profile. A NAT network is not refused by the profile, because the service provides it: it would give the untrusted guest a path to the internet around wb-netd and wb-proxyd, and only wb-vmd's code stops it.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="20" y="30" width="150" height="50" rx="10" />
+  <text class="label" x="95" y="60" text-anchor="middle">wb-launcher</text>
+
+  <rect class="boundary" x="10" y="110" width="330" height="140" rx="12" />
+  <text class="boundary-label" x="22" y="130">wb-vmd profile</text>
+  <rect class="box host" x="30" y="145" width="140" height="56" rx="10" />
+  <text class="label" x="100" y="170" text-anchor="middle">wb-vmd</text>
+  <text class="note" x="100" y="188" text-anchor="middle">confined at start</text>
+  <rect class="box host" x="190" y="145" width="135" height="56" rx="10" />
+  <text class="label" x="257" y="170" text-anchor="middle">VM bundles</text>
+  <text class="note" x="257" y="188" text-anchor="middle">disks, saved state</text>
+  <line class="edge" x1="170" y1="173" x2="188" y2="173" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="95" y1="80" x2="95" y2="143" marker-end="url(#f1-arrow)" />
+
+  <rect class="box host" x="410" y="145" width="160" height="56" rx="10" />
+  <text class="label" x="490" y="170" text-anchor="middle">Virtualization</text>
+  <text class="note" x="490" y="188" text-anchor="middle">Apple's service</text>
+  <path class="edge" d="M170,160 C250,110 360,110 408,160" marker-end="url(#f1-arrow)" />
+  <text class="note" x="250" y="100">configuration, extensions</text>
+
+  <rect class="boundary" x="400" y="240" width="200" height="100" rx="12" />
+  <text class="boundary-label" x="412" y="260">VM: guest, untrusted</text>
+  <rect class="box guest" x="430" y="270" width="140" height="50" rx="10" />
+  <text class="label" x="500" y="300" text-anchor="middle">guest</text>
+  <line class="edge" x1="490" y1="201" x2="490" y2="268" marker-end="url(#f1-arrow)" />
+
+  <rect class="box host" x="40" y="280" width="170" height="50" rx="10" />
+  <text class="label" x="125" y="302" text-anchor="middle">host directory</text>
+  <text class="note" x="125" y="318" text-anchor="middle">refused by the profile</text>
+  <line class="edge-bad" x1="212" y1="305" x2="428" y2="300" marker-end="url(#f1-arrow-bad)" />
+
+  <rect class="box host" x="630" y="270" width="110" height="50" rx="10" />
+  <text class="label" x="685" y="300" text-anchor="middle">internet</text>
+  <line class="edge-bad" x1="572" y1="295" x2="628" y2="295" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="590" y="230">NAT: only wb-vmd's</text>
+  <text class="boundary-label" x="590" y="246">code stops it</text>
+</svg>
+<figcaption>
+Figure 1. `wb-vmd` confines itself after `wb-launcher` starts it, and keeps access to the VM bundles and Apple's Virtualization service. The profile refuses a shared host directory, because sharing one needs a sandbox extension the profile denies (SEC02-no-host-fs-share). The service provides a NAT network without any help from `wb-vmd`'s process. Only `wb-vmd`'s own check keeps that network from the guest (SEC05-default-deny).
+</figcaption>
+</figure>
+
+## Options
+
+The spike answers the question with option A. The other two are the alternatives the question named.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Seatbelt profile in process
+
+`wb-vmd` resolves the cache directory, then applies its profile as the first thing it does, as the Go daemons do. The profile allows `<data>/vms`, the Virtualization service, a few system values and files the framework checks, and the sandbox extensions the framework hands to its service. `wb-vmd` also checks every VM configuration against its fixed device set before start and restore.
+
+- **Cost:** about 6 ms at start. No measurable cost on a restore (3.40 s confined and unconfined, medians of 10). The profile must keep the CPU name readable, or saved states stop restoring after a profile change.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC02-no-host-fs-share" variant="success" /> <Badge text="SEC05-default-deny" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### B. App Sandbox through entitlements
+
+`wb-vmd` is signed with the App Sandbox entitlement and the virtualization entitlement, and macOS confines it at launch with a container directory.
+
+- **Cost:** not tried. The bundles would have to be in the container or granted to it, and Apple sets the rules. Option A works, so the spike didn't need it.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. No confinement for wb-vmd
+
+`wb-vmd` runs with every right of the user. S04-architecture would need a change.
+
+- **Cost:** none in code. A bug in `wb-vmd` would reach all the user's files and the network.
+- **Weakens:** <Badge text="SEC12-least-privilege" variant="danger" />
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Seatbelt</th><th>B. App Sandbox</th><th>C. None</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">measured profile</td><td class="partial">untested</td><td class="no">full user rights</td></tr>
+<tr><td><strong>SEC02-no-host-fs-share</strong> no host directory in the guest</td><td class="yes">code and profile</td><td class="partial">untested</td><td class="partial">code only</td></tr>
+<tr><td><strong>SEC05-default-deny</strong> only allowlisted hosts reachable</td><td class="partial">code only (NAT)</td><td class="partial">code only</td><td class="partial">code only</td></tr>
+<tr><td>Warm start (NFR01-startup)</td><td class="yes">no slower</td><td class="na">untested</td><td class="yes">as now</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Under the profile, a Swift `wb-vmd` stand-in installed macOS from a restore image (240 s), cold booted to the guest daemon answering on vsock, saved, and restored. Right after confining, the profile denied it reading `/etc/passwd`, writing in `/tmp`, connecting over TCP, and starting a program (X25-vmd-sandbox, "Boot, save, restore, install, hand-off").
+- <Badge text="verified" variant="success" /> A boot without any one of the rules fails with a named error. The two exceptions are the CPU name and the framework bundle, which conditions 2 and 3 of the result explain (X25-vmd-sandbox, "The profile").
+- <Badge text="verified" variant="success" /> 10 restores confined and 10 unconfined, alternating, each from a fresh clone: 3.40 s median both ways. The guest answered on vsock at 3.60 s median both ways.
+- <Badge text="verified" variant="success" /> A state saved while the CPU name was denied failed to restore with "invalid argument" in an unconfined process, and the other way round, in all 9 tries. With the CPU name allowed, states restore both ways.
+- <Badge text="verified" variant="success" /> A shared directory, the host microphone, and a disk or serial log file outside `<data>/vms` are refused under the profile and start unconfined. Unconfined, the guest read a secret file through the share and saw the extra disk.
+- <Badge text="verified" variant="success" /> With a NAT network, the confined `wb-vmd`'s guest fetched `https://www.apple.com/` (HTTP 200).
+- <Badge text="verified" variant="success" /> A bridged network fails without the `com.apple.vm.networking` entitlement, both confined and unconfined.
+- <Badge text="verified" variant="success" /> A vsock descriptor passed with `SCM_RIGHTS` out of the confined process still talks to the guest.
+- <Badge text="inferred" variant="note" /> The SPICE clipboard device can't reach the host clipboard under the profile, because the pasteboard lookup is denied. The guest had no SPICE agent to show it.
+- <Badge text="assumed" variant="caution" /> That the profile works the same for the release build with the hardened runtime and a Developer ID signature. The spike was ad-hoc signed.
+- <Badge text="assumed" variant="caution" /> That Apple keeps `sandbox_init_with_parameters` working (as in X23-sandboxed-daemons).
+
+## What this unblocks
+
+- The `wb-vmd` implementation in `packages/wraithbox-swift`: its profile, the configuration check against the fixed device set, and a test that passes a NAT attachment and a shared directory to that check.
+- I28 (X17-image-build): the image build can run in a confined `wb-vmd`, with the three install rules.
+- The V1-M1-spikes-closed exit criterion: one fewer open spike.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why NAT gets past the profile.** A Seatbelt profile limits what a process does itself: which files it opens, which services it looks up. The Virtualization framework runs the VM in a separate service process that Apple confines with its own profile. For most devices, `wb-vmd` hands that service a sandbox extension: a token that grants access to a file or a device class. The profile decides which tokens `wb-vmd` may issue. A NAT network doesn't need a token, because the service sets it up with Apple's vmnet on its own. So `wb-vmd`'s profile has nothing to deny.
+
+**Why the CPU name matters.** The framework writes facts about the host into the saved state, among them the CPU name, which it reads with `sysctl`. When the profile denies that read, the saved state records a different value from what an unconfined process sees. The restore then fails with "invalid argument". With the read allowed, states restore between a confined and an unconfined process in both directions (measured), so a later profile change is less likely to strand them. S06-vm-lifecycle already treats an unexplained "invalid argument" as permanent: the state is deleted and the VM cold boots.
+
+**What `wb-vmd` does before confining.** It asks for its cache directory with `confstr`. libSystem gets the answer from a system service once and keeps it, so the framework's later call works without that service. Nothing guest-controlled is read before confining.
+
+**Glossary**
+
+- **Seatbelt:** the macOS kernel sandbox. A profile lists what a process may do, and the kernel denies the rest.
+- **Sandbox extension:** a token one process issues to give another access to a file or a class of device. The issuing process's profile decides which tokens it may issue.
+- **NAT network:** a virtual network where the host's network stack translates the guest's addresses and forwards its traffic to the internet.
+- **virtio-fs:** the device that shares a host directory with the guest.
+- **vsock:** the socket between host and guest that `wb-hostd` and `wb-guestd` talk over.
+- **Restore image:** the file Apple publishes to install macOS into a VM.
+
+</details>
