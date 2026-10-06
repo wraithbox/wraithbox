@@ -291,6 +291,28 @@ be tested before building on them.
     `GIT_ALLOC_LIMIT` and exits with 0, one that exits with 128 and
     another message, and one that hangs past the 5 s timeout, and see
     every push refused with the reason;
+  - the git data scope of S08-workspace-and-git (B41-git-data-scope),
+    each refusal with its rule in the audit log:
+    - start a session with an untracked file that holds a token the
+      scanner knows, and a tracked binary file changed to hold one, and
+      see neither in the guest, the tracked file at its `HEAD` version,
+      and both listed in the summary;
+    - start a session with an untracked symbolic link to a host file,
+      and see a link in the guest whose target is the string only,
+      with none of the file's content;
+    - give the host repository remotes with a token in the user info,
+      an `ext::` URL, a `git+ssh://` URL, an IP-literal host and a URL
+      that doesn't parse, and see the guest get only cleaned `https://`
+      URLs, the rest listed as withheld;
+    - start `wb` and `wb-hostd` with a stand-in git that reports a
+      version below the minimum, and one that reports a release
+      candidate of the minimum, and see both refused with the reason;
+    - fill `landing.git` until its size plus the worst case of one push
+      is over the cap, and see the next push refused before
+      `receive-pack` starts;
+    - remove a ref from the selection, start a session, and see a fetch
+      of that ref's tip commit by ID refused, and the ref not
+      advertised;
   - kill `receive-pack` in the middle of a push, and check that the
     cleanup leaves no `objects/tmp_objdir-*` and no `*.lock` under
     `refs/heads/wb/`;

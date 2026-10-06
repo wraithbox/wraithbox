@@ -21,78 +21,133 @@ back out, without sharing the host filesystem.
   configuration ignored, environment scrubbed. Nothing in the guest can
   write to the host repository through this path.
 - **Export repository.** `export.git` holds only the refs the guest
-  may fetch (B41-git-data-scope, item 1): the branch the user's `HEAD`
-  points to, as `export.git`'s `HEAD`, plus the refs listed in
-  `export_refs` in the project's settings
-  (`<config>/projects/<project-id>.toml`, S04-architecture). An entry
-  there is a full ref name, matched exactly, and a listed ref the user's
-  repository doesn't have is skipped with a message. On a detached
-  `HEAD`, `export.git`'s `HEAD` is detached at the same commit. The list
-  is host configuration only. Repository-supplied configuration
-  (`.wraithbox/`, S09-policy-credentials-audit) can't add a ref, because
-  the guest can write it. At session start the update makes
-  `export.git`'s refs exactly that set: it fetches new objects and
-  deletes refs that are no longer selected. `wb-hostd` never opens the
-  user's repository. `wb`, running as the user, runs `git upload-pack`
-  and the fetch into `export.git` itself and tunnels the stream to
-  `wb-hostd`, as for WSL below (I67). The `upload-pack` on the user's
-  repository sets `uploadpack.hideRefs` so that it advertises only the
-  selected refs. The update holds the project's export lock
-  ("Repository lifecycle" below).
+  may fetch (B41-git-data-scope, item 1). A session selects the branch
+  the user's `HEAD` points to, plus the refs listed in `export_refs` in
+  the project's settings (`<config>/projects/<project-id>.toml`,
+  S04-architecture). An entry there is a full ref name, matched
+  exactly, and a listed ref the user's repository doesn't have is
+  skipped with a message. The list is host configuration only.
+  Repository-supplied configuration (`.wraithbox/`,
+  S09-policy-credentials-audit) can't add a ref, because the guest can
+  write it.
+
+  Sessions of one project run in parallel (FR05-parallel-sessions), so
+  `export.git` holds the selections of every live session, not only the
+  newest. Each session's selection is kept under
+  `refs/wb/session/<session-id>/`, at the commits it had when the
+  session started: `refs/wb/session/<session-id>/HEAD` for the user's
+  `HEAD`, also when it is detached, and the full name of each other
+  selected ref below that prefix. The newest session's selection is
+  also under the plain names, with `export.git`'s `HEAD` pointing to
+  its branch, or detached at its commit. Every commit a live session
+  starts from is then reachable from a ref, which `receive-pack`
+  advertises to a push into `landing.git` as a base (below).
+
+  `wb-hostd` never opens the user's repository, and `export.git` has
+  one writer, `wb` (I67). At session start, `wb`, running as the user,
+  takes the project's export lock through `wb-hostd`'s local IPC
+  ("Repository lifecycle" below) and runs one `git fetch` from the
+  user's repository into `export.git`, with an explicit source and
+  destination ref for each selected ref. That fetch runs
+  `git upload-pack` on the user's repository locally. `wb` then deletes
+  the refs of sessions that `wb-hostd` reports as no longer live, after
+  it checks each session ID against the session ID format. `wb-hostd`
+  only serves `export.git` to the guest, read-only, through `wb-git`.
+  Its profile must not allow writes under `projects/*/export.git`,
+  because `wb` runs git in that repository and git trusts a
+  repository's own configuration. I67 writes that into
+  S04-architecture ("Open points"). Before each run, `wb` also checks that
+  `export.git`'s `config` holds exactly what `wb` wrote, and runs git
+  with `core.hooksPath=/dev/null` on its command line.
+
+  On a partial clone, `upload-pack` refuses to fetch missing objects
+  from the user's `origin` (`git-upload-pack(1)`, `GIT_NO_LAZY_FETCH`),
+  and `wb` sets `GIT_NO_LAZY_FETCH=1` as well. An update that needs
+  such an object fails, and the session doesn't start, with that
+  reason.
 
   `export.git` holds a copy of every object it serves and borrows from
-  nothing. The guest can read everything in its object store: over
+  nothing. The guest can read everything in its object store. Over
   protocol v2, `upload-pack` serves any object it has to a client that
-  names the ID, so `uploadpack.hideRefs` on it only trims the ref list
-  (X07-git-round-trip). The store also keeps objects from branches of
-  earlier sessions until garbage collection removes them, and all of
-  those are readable too. Objects reachable only from the user's other
-  branches, tags, notes and stash are never in it, so a guest that
-  knows such an object's ID still can't fetch it (X07-git-round-trip).
+  names the ID, also one that `uploadpack.hideRefs` hides, so
+  `uploadpack.hideRefs` only trims the advertised ref list and isn't
+  access control (X07-git-round-trip). Objects reachable only from the
+  user's other branches, tags, notes and stash are never in
+  `export.git`, so a guest that knows such an object's ID still can't
+  fetch it (X07-git-round-trip). When a ref leaves the selection, its
+  objects are removed as "Repository lifecycle" says.
 - **Remote URLs** (B41-git-data-scope, item 3). The guest's clone gets
   the host repository's remotes next to `host`, so the agent can push
   to the forge through the egress gateway (SEC06-repo-writes). `wb`
-  reads each URL as the user's git resolves it (`git remote get-url`,
-  which applies `url.<base>.insteadOf`) and cleans it before it sends
-  it on:
-  - user name, password, query string and fragment are removed from
-    every URL;
+  reads each remote's URLs as the user's git resolves them
+  (`git remote get-url --all`, which applies `url.<base>.insteadOf`)
+  and cleans each one before it sends it on:
+  - git's own rule tells an SSH short form from a path: `host:path` is
+    SSH only when no slash comes before the first colon, and on Windows
+    a drive letter (`C:/x`) is a local path. An IPv6 host is in
+    brackets (`[::1]`);
+  - user name, password, query string and fragment are removed;
   - an SSH remote, `ssh://[user@]host[:port]/path` or the short form
-    `[user@]host:path`, becomes `https://host/path` without the port,
-    because the guest has no SSH keys (SEC04-no-guest-secrets) and
+    `[user@]host:path`, becomes `https://host/path`. The port is
+    dropped, because an SSH port says nothing about the forge's HTTPS
+    port. The guest has no SSH keys (SEC04-no-guest-secrets) and
     reaches the forge only over HTTPS (I47);
-  - an `https://` URL is kept, cleaned as above;
-  - any other URL (`http://`, `git://`, `file://`, a local path, or a
-    `<helper>::` URL) isn't given to the guest, and the session summary
-    lists the remote with the reason.
+  - an `https://` URL keeps its host, port and path;
+  - any other URL isn't given to the guest: `http://`, `git://`,
+    `file://`, `git+ssh://`, `ssh+git://`, a local path, a
+    `<helper>::` URL, a URL whose host is an IP address, and a URL the
+    cleaner can't parse. The session summary lists each such remote
+    with the reason.
 
-  The guest doesn't get a `pushurl` and pushes to the cleaned URL. A
-  `.gitmodules` URL is tracked content and isn't rewritten (submodules
-  are in "Open points"). Project identity, which also reads a remote
-  URL, is I42's (S05-cli, "Naming").
+  An SSH host alias from the user's SSH configuration, or a path that
+  only works on a non-default SSH port, gives an HTTPS URL that doesn't
+  reach the forge. The push then fails at the egress gateway, which
+  refuses the unknown host (fail closed). Nothing else from the
+  repository's configuration reaches the guest: no `pushurl`,
+  `pushInsteadOf`, `insteadOf`, `proxy`, `http.<url>.extraHeader` or
+  `credential.*`. The guest pushes to the cleaned URL. A `.gitmodules`
+  URL is tracked content and isn't rewritten (submodules are in "Open
+  points"). Project identity, which also reads a remote URL, is I42's
+  (S05-cli, "Naming"). Each withheld URL goes to `wb-hostd`'s audit
+  writer with its reason (SEC10-audit).
 - **Protocol version.** Git doesn't tell a `connect` helper which
   protocol version it wants. The helper asks for v2 itself, and
   `wb-hostd` passes only `version=0`, `1` or `2` on to git.
-- **Session start.** `wb-guestd` creates a worktree for the session at the
-  host's current `HEAD`, then applies the carry-in: staged and unstaged
-  changes as a binary diff, plus untracked files that are not ignored, up
-  to a size cap (FR04-carry-in). Files over the cap are listed in the session
-  summary rather than silently dropped.
+- **Session start.** `wb-guestd` creates a worktree for the session at
+  the session's `HEAD` in `export.git`, then applies the carry-in:
+  staged and unstaged changes as a binary diff, plus untracked files
+  that are not ignored, up to a size cap (FR04-carry-in). Files over
+  the cap are listed in the session summary rather than silently
+  dropped.
 - **Carry-in scan** (B41-git-data-scope, item 2). A new
   `credentials.json` that the user hasn't ignored yet is an untracked
   file that isn't ignored, so the carry-in would send it. `wb` collects
-  the carry-in in the user's repository and scans each untracked file,
-  and each file's part of the staged and unstaged diff, with the secret
-  scanner of the image seal (S06-vm-lifecycle, "Sealing") before it
-  sends any of it on (SEC04-no-guest-secrets). A file with a match is
-  skipped whole: the guest doesn't get an untracked file, and a tracked
-  file keeps its `HEAD` version in the guest. The session summary lists each
-  skipped file with the scanner rule that matched, never the matched
-  text, as for oversize files, and `wb` logs the decision with the
-  rule. When the scanner fails or times out, no carry-in reaches the
-  guest: the session starts at `HEAD` without it and says why.
-  Committed content isn't scanned, because committing a file on the
-  selected branch is the user's choice to send it.
+  the carry-in in the user's repository and checks each changed or
+  untracked path before it sends any of it on (SEC04-no-guest-secrets):
+  - the guest gets a symbolic link as a link, with its target
+    string only, and `wb` never reads the file it points to
+    (SEC02-no-host-fs-share);
+  - anything other than a regular file or a symbolic link (a FIFO, a
+    socket, a device) is skipped;
+  - the size cap applies first. The scanner doesn't read a file over it;
+  - `wb` scans the new content of each changed file, both its version
+    in the index and its version in the working tree, and each
+    untracked file, with the secret scanner of the image seal
+    (S06-vm-lifecycle, "Sealing"). It scans the content, not the diff
+    text, which for a binary file is compressed;
+  - a file `wb` can't read, or that the scanner can't decode, is
+    skipped.
+
+  A skipped file is skipped whole: the guest doesn't get an untracked
+  file, and a tracked file keeps its `HEAD` version in the guest. The
+  session summary lists each skipped path with its reason, and for a
+  scanner match the rule that matched, never the matched text. Each
+  decision goes to `wb-hostd`'s audit writer with its rule
+  (SEC10-audit). When no scanner is configured or chosen, or the
+  scanner fails or times out, no carry-in reaches the guest: the
+  session starts at its `HEAD` without it and says why. Committed
+  content isn't scanned, because committing a file on a selected
+  branch is the user's choice to send it.
 
 ## Out of the guest
 
@@ -329,13 +384,18 @@ back out, without sharing the host filesystem.
   reaches: extra objects in its pack, and the bases that
   `index-pack --fix-thin` copies in from `export.git`. A size cap per
   project bounds `landing.git`, those included (B41-git-data-scope,
-  item 6). The cap is 4 GiB, so that it holds at least one push at the
-  1 GiB wire-byte cap with its quarantine, and the user can change it
-  with `landing_size_cap` in the project's settings. When a push would pass the cap, `wb-hostd` runs the same
-  repack and prune first. When `landing.git` is still over the cap, the
-  push is refused with a message that names the cap and says to land or
-  discard finished sessions. `wb land` retries a fetch that fails while
-  a repack runs.
+  item 6). Before `receive-pack` starts, `wb-hostd` adds the size of
+  everything under `landing.git`, quarantine directories included, to
+  the worst case of one push, about 2 GiB (the quarantine in "Bounds"
+  below). When the sum is over the cap, it runs the same repack and
+  prune first. When the sum is still over the cap, the push is refused
+  with a message that names the cap and the sum and says to discard
+  finished sessions. A cap below the worst case of one push refuses
+  every push, with that reason. The cap is 4 GiB, twice the worst case,
+  which follows from the 1 GiB wire-byte and per-push caps that
+  X28-git-alloc-limit still has open. The user can change it with
+  `landing_size_cap` in the project's settings. `wb land` retries a
+  fetch that fails while a repack runs.
 - **Bounds.** Next to the size limit, which counts compressed bytes
   only (SEC13-bounded-resources): a deadline and an idle timeout per
   connection, at most one `upload-pack` per session at a time, at most
@@ -376,10 +436,31 @@ back out, without sharing the host filesystem.
 - **Session end.** If the worktree has uncommitted changes, `wb-guestd`
   commits them to the session branch as a clearly marked WIP commit, then
   pushes. `wb` can also push mid-session.
-- **Landing on the host.** `wb land <session>` runs the user's own
-  `git fetch` from the landing repository into `wb/<session-id>` in the
-  user's repository. It never checks out, merges, or runs anything. A
-  fetch only writes objects and refs.
+- **Landing on the host.** `wb land <session>` runs `git fetch` (the
+  git binary of "Host git" below) from the landing repository into
+  `wb/<session-id>` in the user's repository. It never checks out,
+  merges, or runs anything. A fetch only writes objects and refs.
+  - `wb` derives the landing repository's path itself, as
+    `<data>/projects/<project-id>/landing.git` from a project ID it
+    checks against the project ID format. It compares that path with
+    the one `wb-hostd` reports and refuses on a mismatch. It never
+    passes git a path or URL that `wb-hostd` handed it, so a
+    compromised `wb-hostd` can't make it fetch from an `ext::` URL or
+    another repository (SEC12-least-privilege).
+  - The fetch checks every object it receives:
+    `fetch.fsckObjects=true`, `transfer.fsckObjects=true`, and each
+    check that `receive-pack` sets to an error set to an error here too
+    (`fetch.fsck.<msg-id>=error`), all on git's command line. A failed
+    check refuses the land, and the fetch doesn't update a ref in the
+    user's repository. This repeats the checks of the push, for objects
+    that reached `landing.git` another way (SEC03-no-host-exec).
+  - The fetch starts `upload-pack` in `landing.git`, whose
+    configuration `wb-hostd` can write. That relies on git's rule for
+    protected configuration: `upload-pack` runs
+    `uploadpack.packObjectsHook` only when the setting comes from the
+    system, global or command-line configuration, never from the
+    repository's own (`git-config(1)`, "Protected configuration", and
+    `git-upload-pack(1)`, "SECURITY").
 - **Repository lifecycle** (B41-git-data-scope, item 6). Git never
   collects garbage in `export.git` or `landing.git` by itself. Both have
   `gc.auto=0` and `maintenance.auto=false`, and `landing.git` has
@@ -390,56 +471,83 @@ back out, without sharing the host filesystem.
     deletes the session's refs under `refs/heads/wb/<session-id>/` from
     `landing.git`, and has `wb-guestd` delete the session's guest
     worktree, at the VM's next start when it isn't running. The audit
-    log keeps the session's entries. After each `wb land` and
-    `wb discard`, `wb-hostd` runs the landing cleanup above (repack and
-    prune) under the landing lock.
-  - Each project has an export lock in `wb-hostd`. The export update
-    at session start and every repack or prune of `export.git` hold it
-    alone. Each `upload-pack` from `export.git` holds it shared, so no
-    object disappears under a running fetch.
+    log keeps the session's entries. After each `wb discard`,
+    `wb-hostd` runs the landing cleanup above (repack and prune) under
+    the landing lock. `wb land` doesn't remove refs and doesn't run it.
+  - Each project has an export lock in `wb-hostd`. `wb` takes it
+    alone, through `wb-hostd`'s local IPC, for the export update at
+    session start and for every repack or prune of `export.git`, and
+    `wb-hostd` releases it when `wb` does or disconnects. Each
+    `upload-pack` from `export.git` to the guest holds it shared, so no
+    object disappears under a running fetch. The git gateway's
+    connection deadline ("Bounds" above) ends such an `upload-pack`, so
+    a guest can't hold the lock past it.
   - `landing.git` borrows from `export.git`, and `receive-pack`
     advertises the tips of `export.git` to the pushing guest
     (`core.alternateRefsCommand` in `git-config(1)`). A push leaves out
     the objects those refs reach. A session branch can then depend on
-    any object `export.git`'s refs reached at the time of the push,
-    also one from a branch that is no longer selected. So `wb-hostd`
-    doesn't remove objects from `export.git` while `landing.git` holds
-    any session ref: it runs neither `git prune` nor `git repack -a -d`
-    there. When `landing.git` holds none, the next export update first
-    runs `git repack -a -d` and `git prune --expire=now` on
-    `export.git`. It holds the export lock and the landing lock while
-    it does, so that no push starts meanwhile. That removes the objects
-    of branches that are no longer selected. In exchange, `export.git`
-    keeps every branch exported since the project last had no sessions.
+    any object that `export.git`'s refs reached at the time of the
+    push.
+  - An export update shrinks the selection when it deletes a ref, or
+    moves one to a commit that doesn't contain the old one. The refs of
+    every live session stay (above), so only objects that no live
+    session selected can go. Two steps follow. `wb` holds the export
+    lock and `wb-hostd` the landing lock through both, so that neither
+    a push nor a landing cleanup starts before the prune ends:
+    1. `wb-hostd` copies into `landing.git` the objects its session refs
+       reach that the refs `export.git` keeps don't reach:
+       `git rev-list --objects` of the session refs, with `--not` and
+       the kept tips, piped into `git pack-objects` without `--local`.
+       `landing.git` then holds every object its refs need that the
+       prune can remove.
+    2. `wb` deletes the refs and runs `git repack -a -d` and
+       `git prune --expire=now` on `export.git`.
+
+    The objects of a ref that left the selection are then gone from
+    `export.git`, and a later session can't fetch them by ID. A guest
+    that fetched them earlier still has them in the project user's
+    clone, because pruning only stops later fetches. The copy adds to
+    `landing.git`'s size only the objects of deselected refs that a
+    session branch still reaches, and it counts toward the cap.
     `export.git` has no size cap, because what it holds comes from the
     user's own repository.
 
 ## Host git
 
 Git on the host parses data the guest built: `receive-pack` and
-`index-pack` parse each push into `landing.git`, and `wb land` runs the
-user's own git on the same objects (SEC03-no-host-exec). Wraith Box
-doesn't ship git, because git is GPL-2.0 and S10-tech-stack allows only
-permissive licenses. It requires a minimum version instead
+`index-pack` parse each push into `landing.git`, and `wb land` fetches
+the same objects into the user's repository (SEC03-no-host-exec).
+Wraith Box doesn't ship git, because git is GPL-2.0 and S10-tech-stack
+allows only permissive licenses. It requires a minimum version instead
 (B41-git-data-scope, item 4).
 
+- **Which git.** `wb` and `wb-hostd` resolve the git binary the same
+  way, and never from `PATH`: the `git` setting in
+  `<config>/config.toml` when it is set, otherwise the platform's fixed
+  default, `/usr/bin/git` on macOS and Linux and
+  `C:\Program Files\Git\cmd\git.exe` on Windows. `wb` never runs a
+  binary that `wb-hostd` names. It resolves its own, compares it with
+  the path `wb-hostd` reports, and refuses on a mismatch, so a
+  compromised `wb-hostd` can't make `wb` run a program it wrote
+  (SEC12-least-privilege).
 - **Minimum version.** Git 2.54.0, the oldest version the git spikes
   ran (Apple git 2.54.0 in X07-git-round-trip and X28-git-alloc-limit),
   as a constant in `wb` and `wb-hostd`. A git security release that
   fixes code the round trip runs (`upload-pack`, `fetch`,
   `receive-pack`, `index-pack`) raises it, by a change to this spec.
-- **Where it is checked.** `wb-hostd` checks the git binary it
-  resolved, before it confines itself (S04-architecture), and refuses
-  every push and every session start when the check fails. `wb` checks
-  the user's git, which it runs for the export update and `wb land`,
-  and the binary `wb-hostd` resolved, in `wb setup`, at each session
-  start and before each `wb land`. Each check runs the absolute path it
-  checks as `git version` and reads `git version <major>.<minor>.<patch>`
-  from the start of the output, so a suffix such as
-  `(Apple Git-157)` is ignored. Output it can't read, a failed run, or a
+- **Where it is checked.** `wb-hostd` checks its git before it
+  confines itself (S04-architecture), and refuses every push and every
+  session start when the check fails. `wb` checks its own resolved git
+  in `wb setup`, at each session start and before each `wb land`. Each
+  check runs the absolute path as `git version` and reads
+  `git version <major>.<minor>.<patch>` from the start of the output.
+  After the patch number it accepts only the end of the line, a space
+  and a comment such as `(Apple Git-157)`, or `.windows.<n>`. Anything
+  else, a release candidate such as `2.54.0.rc1` included, counts as
+  output it can't read. Output it can't read, a failed run, or a
   version below the minimum refuses, with a message that names the
   binary, its version and the minimum (NFR06-explained-refusals), and
-  the decision is logged with the rule.
+  the decision goes to the audit log with the rule.
 - **Kept on top.** The settings of `receive-pack` above (every object
   check an error, the size limit, `GIT_ALLOC_LIMIT`) and the pack
   scanner stay, whatever the version.
@@ -496,10 +604,15 @@ else in this spec is unchanged.
 Git LFS objects, submodules, and very large repositories are not covered
 in v1. They are listed in V1-initial.
 
-No secret scanner is chosen yet (S06-vm-lifecycle, "Sealing"). The
-carry-in scan assumes it is precise enough on working trees that it
-skips few files by mistake, and that is not measured. How `wb` hands the
-export stream to `wb-hostd`, and which process writes `export.git`, is
-I67's to write into this spec and S04-architecture.
+No secret scanner is chosen yet (S06-vm-lifecycle, "Sealing"), so
+carry-in is off until one is. The carry-in scan assumes the scanner is
+precise enough on working trees that it skips few files by mistake,
+which isn't measured.
+
+I67 still has to write into S04-architecture that `wb` writes
+`export.git` and `wb-hostd` only serves it: the `wb-hostd` profile
+without write access to `projects/*/export.git`, a read-only
+`wb-git-upload` shim profile for it, and the export lock in
+`wb-hostd`'s local IPC.
 
 **Status:** Draft

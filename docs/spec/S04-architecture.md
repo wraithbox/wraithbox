@@ -176,7 +176,8 @@ nothing themselves (S12-platforms).
     succeeds.
   - `wb-hostd` is one exception. Before it confines itself, it reads its
     own configuration, sets `GOMAXPROCS`, loads the local time zone,
-    starts `wb-launcher` (on macOS), resolves the git binary, checks
+    starts `wb-launcher` (on macOS), resolves the git binary from
+    `<config>` or the fixed platform path, never from `PATH`, checks
     its version against the minimum (S08-workspace-and-git, "Host git")
     and that it honors `GIT_ALLOC_LIMIT` (S08-workspace-and-git, "Pack
     scanner"), and works out the paths for its profile. None of that reads
