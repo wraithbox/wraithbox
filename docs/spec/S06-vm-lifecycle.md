@@ -70,8 +70,11 @@ in S12-platforms.
   pushed, is on the data disk of the VM it ran in ("Disks"). Moving a
   home to the other VM's data disk needs the data-disk design of I44.
   Until I44 is decided and built, `wb project place` is refused for a
-  project that has a home on any VM's data disk, and the refusal names
-  I44 (NFR06-explained-refusals). So no home is left on the old VM,
+  project that has a home on any VM's data disk. The refusal names I44
+  and today's way to isolate such a project: `wb project rm`, then
+  `wb project place isolated` in the repository, which registers it
+  again with no home, at the cost of its Claude Code state and
+  approvals (NFR06-explained-refusals). So no home is left on the old VM,
   exposed to its other projects (T05-cross-proj-clones), and no
   session starts with an empty home without saying so. A new clone,
   which has no home yet, can still be placed before its first session.

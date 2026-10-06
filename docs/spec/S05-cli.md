@@ -339,24 +339,36 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
     (S12-platforms).
 - Resolving the key: `wb` runs git for the key, the remotes and the
   root commits with the git binary of S08-workspace-and-git ("Host
-  git"), `core.hooksPath=/dev/null` on its command line, and `GIT_DIR`,
-  `GIT_COMMON_DIR`, `GIT_WORK_TREE`, `GIT_CEILING_DIRECTORIES` and
-  `GIT_DISCOVERY_ACROSS_FILESYSTEM` removed from its environment. So
-  neither the user's shell nor a `.envrc` can point the directory at
-  another repository.
-  - *A `.git` file.* When the working tree's top directory
-    (`--show-toplevel`) holds a `.git` file (`gitdir: …`) instead of a
-    directory, `wb` accepts it only for a linked worktree or a
+  git"), `core.hooksPath=/dev/null` on its command line, and an
+  otherwise scrubbed environment, as `wb-git` runs git
+  (S08-workspace-and-git, "Out of the guest"). It keeps only `HOME`,
+  `XDG_CONFIG_HOME` from the login environment when it is set,
+  `TMPDIR`, and `LC_ALL=C`. Unlike `wb-git` it reads the user's global
+  git configuration, so remote URLs resolve as the user's git resolves
+  them (`url.<base>.insteadOf`). So no `GIT_*` variable, from the user's
+  shell or a `.envrc`, can point the directory at another repository
+  or add configuration.
+  - *Which directory.* `wb` walks up from the current directory to the
+    first directory that holds a `.git` entry, as git does. That
+    directory is the one the key must belong to.
+  - *A `.git` file.* When that entry is a file (`gitdir: …`) instead
+    of a directory, `wb` accepts it only for a linked worktree or a
     submodule. A linked worktree has `--git-dir` equal to
     `<common>/worktrees/<name>`, and that worktree's back-link,
     `<common>/worktrees/<name>/gitdir`, names this `.git` file. A
     submodule has `--git-dir` equal to the common directory, and its
-    `core.worktree` names this top directory. Anything else, such as a
-    `.git` file in a downloaded archive that names another project's
-    repository, refuses the session start.
+    `core.worktree`, resolved relative to `--git-dir`, canonicalizes
+    to the directory that holds this `.git` file. `wb` doesn't use
+    `--show-toplevel` for this, because git derives it from that same
+    `core.worktree`. Anything else, such as a `.git` file in a
+    downloaded archive that names another project's repository or one
+    of its submodules, refuses the command.
   - *Failure.* Any failed `rev-parse`, "dubious ownership" included,
-    refuses the session start. Every refusal here says why
+    refuses the command. Every refusal here says why
     (NFR06-explained-refusals), and nothing is registered.
+  - *Which commands.* Every command that resolves a project from a
+    directory resolves it this way: `wb claude`, `wb trust`,
+    `wb untrust`, and the `wb project` commands without `--project`.
 - Project id: 128 random bits at registration (FR02-any-repo), written
   as 32 lowercase hexadecimal characters (the project ID format), kept
   for the project's life. The id isn't derived from the key, so a new
@@ -374,12 +386,18 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
   commits (`git rev-list --max-parents=0 --all`). It doesn't record
   them for a repository with a remote, because the walk reads the whole
   history at every session start, and the URLs already tell repositories
-  apart. A repository with neither a remote nor a commit has nothing to
-  record, so a replacement at its path is the same project.
-- Checked at each session start: `wb` compares the recorded identity
+  apart.
+- Grow-only: at a session start where the recorded identity is empty
+  and the repository now has a remote or a root commit, `wb` records
+  it, with a 5019 event. A repository that has had neither a remote
+  nor a commit at any session start has nothing recorded, so a
+  replacement at its path before then is the same project.
+- Checked at each session start, and by every other command that
+  resolves the project from a directory except `wb project confirm`
+  and `wb project rm`: `wb` compares the recorded identity
   with the repository's current one. A difference in the URLs, or a
   recorded root commit that is no longer among the current root
-  commits, refuses the session start, and the message names what was
+  commits, refuses the command, and the message names what was
   recorded, what is there now and `wb project confirm`
   (NFR06-explained-refusals). Without this check a different repository
   cloned into the same directory would inherit the old project's
@@ -397,20 +415,40 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
   then refuses until `wb project confirm`. A move to a key that another
   project has is refused, with that project named.
 - Registration: the first session in an unknown key registers a new
-  project, unless the repository's recorded identity (the same URLs, or
-  for a repository without a remote, a shared root commit) matches an
-  existing project whose location no longer resolves to its key. Then
-  it refuses the session start and names that project with
-  `wb project move`, which keeps its state, and `wb project rm`, which
-  drops it. A second clone of a repository whose first clone is still
-  in place registers as its own project.
-- `wb project rm` removes the project: its settings, policy, approvals,
-  `export.git` and `landing.git`, and its row in `state.db`. It asks
-  `wb-guestd` in each VM to remove the project user and its home,
-  at once when the VM runs, otherwise at its next start. It is refused
-  while the project has a session, or returned work that wasn't landed
-  or discarded, and the refusal lists them. Branches already landed in
-  the user's repository stay. When a project holds a key or identity
+  project. `wb` first compares the repository's identity (the same
+  URLs, or for a repository without a remote, a shared root commit)
+  with every existing project's.
+  - *Moved.* When it matches a project whose location no longer
+    resolves to its key, `wb` refuses the command and names that
+    project with `wb project move`, which keeps its state, and
+    `wb project rm`, which drops it.
+  - *Second clone.* Otherwise a match is a second clone of a
+    repository whose first clone is still in place, and it registers
+    as its own project. The registration notice names each matching
+    project and its `placement` (NFR06-explained-refusals). When any
+    of them has `placement = isolated`, the new project starts with
+    `placement = isolated` too, so a clone of a repository the user
+    isolated doesn't land in the work VM (T13-new-project-grants).
+    Only the placement is copied, never approvals, bindings, policy or
+    `config_trust`.
+- `wb project rm` removes the project: its settings, policy and the
+  credential bindings in it, approvals, cached join approvals and the
+  learn list that name it, `export.git` and `landing.git`, and its row
+  in `state.db`. The secret store items behind its bindings stay,
+  because `wb cred` manages them and another project may use the same
+  item. `rm` lists them, and `wb cred rm` removes them. It asks
+  `wb-guestd` in each VM to remove the project user and its home. The
+  pending removal is a record in `state.db` that survives restarts,
+  and `wb-hostd` sends it when the VM runs, otherwise at its next
+  start. `wb-guestd`'s reply is untrusted (SEC11-root-gains-nothing):
+  the record stays until a reply for that project comes, and a reply
+  never clears another project's record. A false reply can only leave
+  the home inside that guest. The host-side state is gone before the
+  request is sent, and ids are random, so no later project gets this
+  one's id. `rm` is
+  refused while the project has a session, or returned work that
+  wasn't landed or discarded, and the refusal lists them. Branches
+  already landed in the user's repository stay. When a project holds a key or identity
   that another project should have, the user removes it with
   `wb project rm` and then moves the other one. `wb project move`
   never replaces a project, so dropping a project's state and
