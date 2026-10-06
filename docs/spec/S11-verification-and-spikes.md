@@ -36,7 +36,11 @@ be tested before building on them.
   credential binding, on a host a built-in profile covers, and without
   a reason, with a wildcard host, and then adds a binding on a pass
   host, and sees each refused at load with an error that names the
-  host and the rule (S07-egress-gateway, "Modes, per host"). A global
+  host and the rule (S07-egress-gateway, "Modes, per host"). The same
+  test loads a policy with a host that has `_` or a non-ASCII byte in
+  its name, and runs `wb allow` on such a host, and sees both refused
+  with the rule `dns-name-form` (S07-egress-gateway, "Packet path",
+  DNS). A global
   pass entry on a host that a joining project's remote names refuses
   that project's session start, with the project named.
 - **Fuzzing.** Go native fuzz targets for every parser that sees

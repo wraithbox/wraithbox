@@ -281,10 +281,15 @@ session start in the VM to the end of the last session running in it.
     `NXDOMAIN` with the rule `dns-name-form`, before any other check.
     Such a name raises no approval event and stays off every learn
     list, so no control byte or non-ASCII character from a name
-    reaches a notification, `wb status` or `wb learn report`.
+    reaches a notification, `wb status` or `wb learn report`. The
+    policy loader and `wb allow` refuse a host that fails this rule,
+    and for a wildcard host the part after its leading `*.`, with the
+    same rule name and an error that names the host and the character
+    or length at fault (NFR06-explained-refusals). So an allowed host
+    never loads and then fails to resolve.
   - Names not on the allowlist get `NXDOMAIN` and raise an approval
-    event (FR09-approve-unknown), except while a learn-mode session
-    runs in the VM, when they go on the learn list instead ("Approvals
+    event (FR09-approve-unknown), except during a learn period in
+    the VM, when they go on the learn list instead ("Approvals
     and learning"). After approval, the next lookup
     succeeds. A VM has at most one open approval event per name, and
     later queries for that name, from any session in the VM, are
@@ -843,8 +848,8 @@ session start in the VM to the end of the last session running in it.
     hold: HTTP policy, the git hosting profile (SEC06-repo-writes), the
     dependency gate (SEC07-dep-gate), credential replacement and
     placeholder binding. Learn mode never adds a rule or a pass host.
-  - *Collected.* While a learn-mode session runs in the VM, an unknown
-    name doesn't raise an approval event or a notification.
+  - *Collected.* During a learn period in the VM ("The list" below),
+    an unknown name doesn't raise an approval event or a notification.
     `wb-hostd` puts it on the learn list with the time, the count of
     lookups and the guest's program label, if any, shown as reported
     by the guest and untrusted. The refusal is logged with the rule
@@ -854,16 +859,20 @@ session start in the VM to the end of the last session running in it.
     denied name are refused as outside learn mode and don't go on the
     list.
   - *The list.* A learn list belongs to the learn project and the set
-    of sessions of its learn period, which runs from the start of the
-    project's first learn-mode session in the VM to the end of the
-    last session running in the VM. A new learn period of the project
-    starts a new list, which replaces the old one, and the user can
-    clear a list from `wb learn report`. A list holds at most as many
-    distinct names as a cap fixed in code allows (SEC13-bounded-resources). Past
-    it, a new name is refused as usual, isn't collected, and is logged
-    with the rule `learn-list-full`. Names are stored only after they
-    pass the name form check and its length limit, and labels are cut as guest strings in log
-    records are ("Packet path", "Events and rate limits").
+    of sessions of its learn period. The period runs from the start of
+    the project's first learn-mode session in the VM to the end of the
+    last learn-mode session in the VM. Collection, the period and the
+    refusal of other projects ("One project at a time") all use this
+    span. After the period ends the list stays for review. A new learn
+    period of the project starts a new list, which replaces the old
+    one, and the user can clear a list from `wb learn report`. A list
+    holds at most as many distinct names as a cap fixed in code allows
+    (SEC13-bounded-resources). Past it, a new name is refused as
+    usual, isn't collected, and is logged with the rule
+    `learn-list-full`. Names are stored only after they pass the name
+    form check and its length limit, and program labels are cut as
+    guest strings in log records are ("Packet path", "Events and rate
+    limits").
   - *Review.* At session end `wb` prints the list in the session
     summary, at most 100 names, then "and N more", as it does for the
     link list (S05-cli, "Links"). The summary and `wb learn report`
@@ -889,11 +898,11 @@ session start in the VM to the end of the last session running in it.
   - *One project at a time.* The host can't attribute the destinations
     it collects to a project ("Enforced per VM"). So `wb-hostd` starts
     a learn-mode session only when no session of another project runs
-    in the VM, and refuses a session of another project while a
-    learn-mode session runs there. Each refusal names the other
-    project (NFR06-explained-refusals). Another session of the same
-    project may start, with or without `--learn`, and the names it
-    looks up go on the same list.
+    in the VM, and refuses a session of another project during the
+    learn period. Each refusal names the other project
+    (NFR06-explained-refusals). Another session of the same project
+    may start, with or without `--learn`, and the names it looks up
+    during the learn period go on the same list.
   - *Leftover processes.* When a project's last session ends,
     `wb-guestd` locks that project user and kills its processes until
     none remain (S13-guest-confinement), so no process of another
