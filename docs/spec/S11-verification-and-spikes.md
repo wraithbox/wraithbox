@@ -198,9 +198,9 @@ be tested before building on them.
     (`bsd/kern/vsock_domain.c`, `VSOCK_PORT_RESERVED`, `proc_suser`),
     so each guest image is checked. Inside a session, open an
     `AF_VSOCK` socket and see `EPERM` (X27-vsock-confinement);
-  - as a project user, run `sudo -n true` and see it fail, and see no
-    `admin` or `wheel` group in `id` (S06-vm-lifecycle,
-    X27-vsock-confinement);
+  - as root, run `sudo -l -U` for each project user and see no rules
+    listed, and see no `admin` or `wheel` group in its `id`
+    (S06-vm-lifecycle, X27-vsock-confinement);
   - write into the host repository through the git transport; fetch an
     object outside the session's branch by its ID; push outside
     `refs/heads/wb/<session-id>/`, or a tree with a `.git` entry;
