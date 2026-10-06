@@ -42,7 +42,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Answered 2026-10-06: yes, with conditions. Only `wb-vmd`'s code keeps a NAT network from the guest |
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
 | X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
-| X28-git-alloc-limit | git's allocation cap against delta bombs | Open |
+| X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |
 
 ## Spikes
 
@@ -256,3 +256,7 @@ assumption that v1 work would otherwise build on. They block v1.
   allocating its result? If so, git bounds per-object memory and the
   Go pack scanner of S08-workspace-and-git shrinks to the per-push
   caps (SEC13-bounded-resources). Found after deciding B74-pre-receive-check.
+  Answered yes, with conditions, in the result page
+  X28-git-alloc-limit: git refuses each oversized allocation itself,
+  and the scanner stays for the per-push total and the object count,
+  because deltas under the cap still cost git CPU time.

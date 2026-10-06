@@ -406,7 +406,7 @@
 	},
 	"64": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X25-vmd-sandbox: Self-sandboxed wb-vmd",
 		"summary": "Found while answering #34 (X23-sandboxed-daemons).",
 		"brief": "B64-vmd-sandbox"
@@ -734,7 +734,7 @@
 	},
 	"117": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X25-vmd-sandbox result, wb-vmd confines itself",
 		"summary": "The X25-vmd-sandbox result: yes, with conditions.",
 		"brief": "B64-vmd-sandbox"
@@ -750,5 +750,11 @@
 		"state": "open",
 		"title": "S06-vm-lifecycle, S11-verification-and-spikes: wb-vmd entitlement gate and profile identity on saved state",
 		"summary": "Follow-up from the security review of #117 (the X25-vmd-sandbox result, #64)."
+	},
+	"120": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Clean up spike VM bundles under ~/Library/Caches/wraithbox-spikes after each spike",
+		"summary": "Spikes that need a macOS guest keep VM bundles under ~/Library/Caches/wraithbox-spikes/<spike/, and nothing removes them."
 	}
 }
