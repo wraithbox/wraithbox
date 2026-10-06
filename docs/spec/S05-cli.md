@@ -286,7 +286,7 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb project show [--project P]` | Project id, name, location, recorded identity (remote URLs, root commits), `placement` and `config_trust` |
 | `wb project move <dir> [--project P]` | Point the project at the repository in `<dir>`, keeping its id, state, approvals and policy ("Naming") |
 | `wb project rename <name> [--project P]` | Change the project's name; the id stays |
-| `wb project place work\|isolated [--project P]` | Set the project's `placement` (S06-vm-lifecycle, "VMs"). In a repository that isn't a project yet, it registers one first, so a new clone can start isolated |
+| `wb project place work\|isolated [--project P]` | Set the project's `placement` (S06-vm-lifecycle, "VMs"). In a repository that isn't a project yet, it registers one first by the rules of "Naming" (moved-project refusal, second-clone placement), so a new clone can start isolated |
 | `wb project confirm [--project P]` | Accept the repository's current remote URLs and root commits as the project's, and clear `config_trust` ("Naming") |
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it ("Naming") |
 | `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (S09-policy-credentials-audit) |
@@ -341,9 +341,10 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
   root commits with the git binary of S08-workspace-and-git ("Host
   git"), `core.hooksPath=/dev/null` on its command line, and an
   otherwise scrubbed environment, as `wb-git` runs git
-  (S08-workspace-and-git, "Out of the guest"). It keeps only `HOME`,
-  `XDG_CONFIG_HOME` from the login environment when it is set,
-  `TMPDIR`, and `LC_ALL=C`. Unlike `wb-git` it reads the user's global
+  (S08-workspace-and-git, "Out of the guest"). It sets only `HOME`,
+  taken from the user database (the account's home directory), not
+  from the environment, `XDG_CONFIG_HOME` from the login environment
+  when it is set, `TMPDIR`, and `LC_ALL=C`. Unlike `wb-git` it reads the user's global
   git configuration, so remote URLs resolve as the user's git resolves
   them (`url.<base>.insteadOf`). So no `GIT_*` variable, from the user's
   shell or a `.envrc`, can point the directory at another repository
@@ -368,7 +369,8 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
     (NFR06-explained-refusals), and nothing is registered.
   - *Which commands.* Every command that resolves a project from a
     directory resolves it this way: `wb claude`, `wb trust`,
-    `wb untrust`, and the `wb project` commands without `--project`.
+    `wb untrust`, the `wb project` commands without `--project`, and
+    `wb project move` for its `<dir>`, also when `--project` is given.
 - Project id: 128 random bits at registration (FR02-any-repo), written
   as 32 lowercase hexadecimal characters (the project ID format), kept
   for the project's life. The id isn't derived from the key, so a new
@@ -408,14 +410,16 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
   (SEC09-host-policy). It prints the `placement` and the approvals the
   project keeps, and its 5019 event holds both URL and root commit
   sets.
-- Moving: `wb project move <dir>` changes the key and keeps the id. The
+- Moving: `wb project move <dir>` resolves the key of `<dir>` by the
+  rules above, then changes the project's key to it and keeps the id. The
   project's Claude Code state (FR13-claude-state), approvals, policy
   and landing repository stay with it. It runs the identity comparison
   for `<dir>` and prints any difference, and the next session start
   then refuses until `wb project confirm`. A move to a key that another
   project has is refused, with that project named.
-- Registration: the first session in an unknown key registers a new
-  project. `wb` first compares the repository's identity (the same
+- Registration: the first command that registers an unknown key (a
+  session start, or `wb project place`) registers a new project, by
+  the same rules for both. `wb` first compares the repository's identity (the same
   URLs, or for a repository without a remote, a shared root commit)
   with every existing project's.
   - *Moved.* When it matches a project whose location no longer
