@@ -1,0 +1,278 @@
+# X26 run 2026-10-05T00:49:13+02:00
+
+git: git version 2.54.0 (Apple Git-157)
+run directory: /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a636ff0d329d49be4/.scratch/x26-run-2683091811 (path length 108)
+receive.maxInputSize=16777216, object cap 104857600, total cap 1073741824
+
+## Cases
+
+Each case runs against a fresh landing repository holding one commit at `refs/heads/wb/S1/main`. "Left behind" is what the push added to `objects/` of the landing repository: loose objects, packs, and quarantine directories.
+
+### valid
+
+create a new session branch
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ok refs/heads/wb/S1/feature | +3 loose, +0 packs (0 B), tmp dirs 0 | feature |  |
+| files, wb pre-receive | unpack ok; ok refs/heads/wb/S1/feature | +3 loose, +0 packs (0 B), tmp dirs 0 | feature | hook elapsed=40.25325ms err=<nil> |
+| files, wb pre-receive + stray check | unpack ok; ok refs/heads/wb/S1/feature | +3 loose, +0 packs (0 B), tmp dirs 0 | feature | hook elapsed=35.427625ms err=<nil> |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/feature | +3 loose, +0 packs (0 B), tmp dirs 0 | feature |  |
+
+### long-path
+
+ref of 1020 bytes (4 components of 250): passes the S08 filter, path too long with the state directory in front
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/aaaaaaaaaaaaa…dddddddddddddddddd failed to update refs | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/aaaaaaaaaaaaa…dddddddddddddd pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-path-length ref=refs/heads/wb/S1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa… hook elapsed=9.348875ms err=ref-path-length: refs/heads/wb/S1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa… |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/aaaaaaaaaaaaa…dddddddddddddddddddddddddddddddddddddddd | +3 loose, +0 packs (0 B), tmp dirs 0 | aaaaaaaaaaaaaaaaaaaa… |  |
+
+### long-component
+
+one component of 253 bytes: passes the 255-byte filter rule, its .lock file does not fit NAME_MAX
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/ccccccccccccc…cccccccccccccccccc failed to update refs | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/ccccccccccccc…cccccccccccccc pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-component-length ref=refs/heads/wb/S1/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc… hook elapsed=8.942084ms err=ref-component-length: refs/heads/wb/S1/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc… |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/ccccccccccccc…cccccccccccccccccccccccccccccccccccccccc | +3 loose, +0 packs (0 B), tmp dirs 0 | cccccccccccccccccccc… |  |
+
+### stale-old
+
+update main with an old id that is not its value
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/main incorrect old value provided | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/main pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-old-oid ref=refs/heads/wb/S1/main detail="old object id is stale" hook elapsed=9.24525ms err=ref-old-oid: refs/heads/wb/S1/main old object id is stale |
+| reftable, no hook | unpack ok; ng refs/heads/wb/S1/main incorrect old value provided | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+
+### create-existing
+
+create main (old id zero) although it exists
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/main reference already exists | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/main pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-old-oid ref=refs/heads/wb/S1/main detail="push creates a ref that exists" hook elapsed=9.466458ms err=ref-old-oid: refs/heads/wb/S1/main push creates a ref that exists |
+| reftable, no hook | unpack ok; ng refs/heads/wb/S1/main reference already exists | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+
+### update-missing
+
+update a ref that does not exist (old id given)
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/nosuch reference does not exist | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/nosuch pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-old-oid ref=refs/heads/wb/S1/nosuch detail="push updates a ref that does not exist" hook elapsed=8.978292ms err=ref-old-oid: refs/heads/wb/S1/nosuch push updates a ref that does not exist |
+| reftable, no hook | unpack ok; ng refs/heads/wb/S1/nosuch reference does not exist | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+
+### df-file-exists
+
+push main/x while main exists
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/main/x refname conflict | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/main/x pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-dir-file ref=refs/heads/wb/S1/main/x detail="conflicts with refs/heads/wb/S1/main" hook elapsed=8.975375ms err=ref-dir-file: refs/heads/wb/S1/main/x conflicts with refs/heads/wb/S1/main |
+| reftable, no hook | unpack ok; ng refs/heads/wb/S1/main/x refname conflict | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+
+### df-dir-exists
+
+push dir while dir/x exists
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/dir refname conflict | +3 loose, +0 packs (0 B), tmp dirs 0 | dir/x |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/dir pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 | dir/x | decision=deny rule=ref-dir-file ref=refs/heads/wb/S1/dir detail="conflicts with refs/heads/wb/S1/dir/x" hook elapsed=8.8375ms err=ref-dir-file: refs/heads/wb/S1/dir conflicts with refs/heads/wb/S1/dir/x |
+| reftable, no hook | unpack ok; ng refs/heads/wb/S1/dir refname conflict | +3 loose, +0 packs (0 B), tmp dirs 0 | dir/x |  |
+
+### df-in-push
+
+push p and p/q in one push
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/p failed to update refs; ng refs/heads/wb/S1/p/q failed to update refs | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/p pre-receive hook declined; ng refs/heads/wb/S1/p/q pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-dir-file ref=refs/heads/wb/S1/p detail="conflicts with refs/heads/wb/S1/p/q" hook elapsed=8.942583ms err=ref-dir-file: refs/heads/wb/S1/p conflicts with refs/heads/wb/S1/p/q |
+| reftable, no hook | unpack ok; ng refs/heads/wb/S1/p refname conflict; ok refs/heads/wb/S1/p/q | +3 loose, +0 packs (0 B), tmp dirs 0 | p/q |  |
+
+### df-packed
+
+push main/x while main exists as a packed ref
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ok refs/heads/wb/S1/main/x | +3 loose, +0 packs (0 B), tmp dirs 0 | main/x |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/main/x pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-dir-file ref=refs/heads/wb/S1/main/x detail="conflicts with refs/heads/wb/S1/main" hook elapsed=9.001625ms err=ref-dir-file: refs/heads/wb/S1/main/x conflicts with refs/heads/wb/S1/main |
+| reftable, no hook | unpack ok; ng refs/heads/wb/S1/main/x refname conflict | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+
+### case-file
+
+push MAIN while main exists
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/MAIN reference already exists | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/MAIN pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-case ref=refs/heads/wb/S1/MAIN detail="differs only in case from refs/heads/wb/S1/main" hook elapsed=9.313666ms err=ref-case: refs/heads/wb/S1/MAIN differs only in case from refs/heads/wb/S1/main |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/MAIN | +3 loose, +0 packs (0 B), tmp dirs 0 | MAIN |  |
+
+### case-dir
+
+push DIR/y while dir/x exists
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ok refs/heads/wb/S1/DIR/y | +3 loose, +0 packs (0 B), tmp dirs 0 | dir/x, dir/y |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/DIR/y pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 | dir/x | decision=deny rule=ref-case ref=refs/heads/wb/S1/DIR/y detail="differs only in case from refs/heads/wb/S1/dir" hook elapsed=8.998541ms err=ref-case: refs/heads/wb/S1/DIR/y differs only in case from refs/heads/wb/S1/dir |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/DIR/y | +3 loose, +0 packs (0 B), tmp dirs 0 | DIR/y, dir/x |  |
+
+### case-in-push
+
+push abc and ABC in one push
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ok refs/heads/wb/S1/abc; ng refs/heads/wb/S1/ABC reference conflict due to case-insensitive filesystem | +3 loose, +0 packs (0 B), tmp dirs 0 | abc |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/abc pre-receive hook declined; ng refs/heads/wb/S1/ABC pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-case ref=refs/heads/wb/S1/abc detail="differs only in case from refs/heads/wb/S1/ABC" hook elapsed=9.4765ms err=ref-case: refs/heads/wb/S1/abc differs only in case from refs/heads/wb/S1/ABC |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/abc; ok refs/heads/wb/S1/ABC | +3 loose, +0 packs (0 B), tmp dirs 0 | ABC, abc |  |
+
+### case-packed
+
+push MAIN while main exists as a packed ref
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ok refs/heads/wb/S1/MAIN | +3 loose, +0 packs (0 B), tmp dirs 0 | MAIN |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/MAIN pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=ref-case ref=refs/heads/wb/S1/MAIN detail="differs only in case from refs/heads/wb/S1/main" hook elapsed=8.937ms err=ref-case: refs/heads/wb/S1/MAIN differs only in case from refs/heads/wb/S1/main |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/MAIN | +3 loose, +0 packs (0 B), tmp dirs 0 | MAIN |  |
+
+### missing-object
+
+the push names a commit the pack does not contain
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/missing missing necessary objects | +0 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/missing missing necessary objects | +0 loose, +0 packs (0 B), tmp dirs 0 |  | hook elapsed=18.756625ms err=<nil> |
+| reftable, no hook | unpack ok; ng refs/heads/wb/S1/missing missing necessary objects | +0 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+
+### stale-lock
+
+a leftover feature.lock file (from a crashed earlier push) blocks the ref
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ng refs/heads/wb/S1/feature reference already exists | +3 loose, +0 packs (0 B), tmp dirs 0 |  |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/feature reference already exists | +3 loose, +0 packs (0 B), tmp dirs 0 |  | hook elapsed=19.438708ms err=<nil> |
+
+### big-object
+
+a commit whose blob inflates to 200 MiB (zeros; about 200 KiB on the wire)
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ok refs/heads/wb/S1/big | +3 loose, +0 packs (0 B), tmp dirs 0 | big |  |
+| files, wb pre-receive | unpack ok; ng refs/heads/wb/S1/big pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=object-size ref=10f1a0bf47fca0d7b287e96142ffbf7fdfedf059 detail="blob of 209715200 bytes, limit 104857600" hook elapsed=19.218167ms err=object-size: 10f1a0bf47fca0d7b287e96142ffbf7fdfedf059 blob of 209715200 bytes, limit 104857600 |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/big | +3 loose, +0 packs (0 B), tmp dirs 0 | big |  |
+
+### stray
+
+a valid push that also carries a blob no ref reaches
+
+| Mode | Report | Left behind | Refs after (besides main) | Hook log |
+|---|---|---|---|---|
+| files, no hook | unpack ok; ok refs/heads/wb/S1/stray | +4 loose, +0 packs (0 B), tmp dirs 0 | stray |  |
+| files, wb pre-receive | unpack ok; ok refs/heads/wb/S1/stray | +4 loose, +0 packs (0 B), tmp dirs 0 | stray | hook elapsed=18.640958ms err=<nil> |
+| files, wb pre-receive + stray check | unpack ok; ng refs/heads/wb/S1/stray pre-receive hook declined | +0 loose, +0 packs (0 B), tmp dirs 0 |  | decision=deny rule=stray-objects ref=bba8bd6843c3598713eea1d4b34f1c398e96496c detail="1 quarantined objects no pushed ref reaches" hook elapsed=36.654125ms err=stray-objects: bba8bd6843c3598713eea1d4b34f1c398e96496c 1 quarantined objects no pushed ref reaches |
+| reftable, no hook | unpack ok; ok refs/heads/wb/S1/stray | +4 loose, +0 packs (0 B), tmp dirs 0 | stray |  |
+
+
+## Memory while git unpacks
+
+maxrss is ru_maxrss of receive-pack as wait4 reports it, which includes its reaped children (index-pack or unpack-objects, the hook). Every pack here is far under receive.maxInputSize, and its commit reaches every object, so the hook runs.
+
+| Pack | Wire bytes | Mode | Result | Time | maxrss |
+|---|---|---|---|---|---|
+| one delta, result 256 MiB (base 8 MiB) | 8395 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +4 B) | 1.40s | 268 MiB |
+| one delta, result 256 MiB (base 8 MiB) | 8395 | wb pre-receive (unpack-objects) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 1.42s | 268 MiB |
+| one delta, result 256 MiB (base 8 MiB) | 8395 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 0.60s | 268 MiB |
+| one delta, result 256 MiB (base 8 MiB) | 8395 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 0.60s | 268 MiB |
+| one delta, result 256 MiB (base 8 MiB) | 8395 | pack scanner + wb pre-receive, index-pack | scanner: max-object-size: entry 1: delta result of 268435456 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| one delta, result 256 MiB (base 8 MiB) | 8395 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | scanner: max-object-size: entry 1: delta result of 268435456 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| one delta, result 256 MiB (base 8 MiB) | 8395 | no hook, ulimit -v 512 MiB | err=exit status 99 sh: line 0: ulimit: virtual memory: cannot modify limit: Invalid argument  (landing +0 B) | 0.00s | 2 MiB |
+| one delta, result 256 MiB (base 8 MiB) | 8395 | no hook, ulimit -d 512 MiB | err=exit status 99 sh: line 0: ulimit: data seg size: cannot modify limit: Invalid argument  (landing +0 B) | 0.00s | 2 MiB |
+| one delta, result 512 MiB (base 8 MiB) | 8395 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +4 B) | 2.71s | 524 MiB |
+| one delta, result 512 MiB (base 8 MiB) | 8395 | wb pre-receive (unpack-objects) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 2.73s | 524 MiB |
+| one delta, result 512 MiB (base 8 MiB) | 8395 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 1.13s | 524 MiB |
+| one delta, result 512 MiB (base 8 MiB) | 8395 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 1.13s | 524 MiB |
+| one delta, result 512 MiB (base 8 MiB) | 8395 | pack scanner + wb pre-receive, index-pack | scanner: max-object-size: entry 1: delta result of 536870912 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| one delta, result 512 MiB (base 8 MiB) | 8395 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | scanner: max-object-size: entry 1: delta result of 536870912 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| one delta, result 1024 MiB (base 8 MiB) | 8395 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +4 B) | 5.29s | 1036 MiB |
+| one delta, result 1024 MiB (base 8 MiB) | 8395 | wb pre-receive (unpack-objects) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 5.32s | 1036 MiB |
+| one delta, result 1024 MiB (base 8 MiB) | 8395 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 2.16s | 1036 MiB |
+| one delta, result 1024 MiB (base 8 MiB) | 8395 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 2.16s | 1036 MiB |
+| one delta, result 1024 MiB (base 8 MiB) | 8395 | pack scanner + wb pre-receive, index-pack | scanner: max-object-size: entry 1: delta result of 1073741824 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| one delta, result 1024 MiB (base 8 MiB) | 8395 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | scanner: max-object-size: entry 1: delta result of 1073741824 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| one delta, result 2048 MiB (base 8 MiB) | 8395 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +4 B) | 10.53s | 2060 MiB |
+| one delta, result 2048 MiB (base 8 MiB) | 8395 | wb pre-receive (unpack-objects) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 10.55s | 2060 MiB |
+| one delta, result 2048 MiB (base 8 MiB) | 8395 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 4.26s | 2060 MiB |
+| one delta, result 2048 MiB (base 8 MiB) | 8395 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 4.27s | 2060 MiB |
+| one delta, result 2048 MiB (base 8 MiB) | 8395 | pack scanner + wb pre-receive, index-pack | scanner: max-object-size: entry 1: delta result of 2147483648 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| one delta, result 2048 MiB (base 8 MiB) | 8395 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | scanner: max-object-size: entry 1: delta result of 2147483648 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| 8 deltas, results 256 MiB each (base 8 MiB) | 8779 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +11 B) | 10.52s | 268 MiB |
+| 8 deltas, results 256 MiB each (base 8 MiB) | 8779 | wb pre-receive (unpack-objects) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 10.53s | 268 MiB |
+| 8 deltas, results 256 MiB each (base 8 MiB) | 8779 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 4.22s | 524 MiB |
+| 8 deltas, results 256 MiB each (base 8 MiB) | 8779 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 4.22s | 524 MiB |
+| 8 deltas, results 256 MiB each (base 8 MiB) | 8779 | pack scanner + wb pre-receive, index-pack | scanner: max-object-size: entry 1: delta result of 268435456 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| 8 deltas, results 256 MiB each (base 8 MiB) | 8779 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | scanner: max-object-size: entry 1: delta result of 268435456 bytes, limit 104857600 (landing +0 B) | 0.03s | 12 MiB |
+| 8 deltas, results 96 MiB each (base 8 MiB), all under the 100 MiB cap | 8778 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +11 B) | 4.01s | 108 MiB |
+| 8 deltas, results 96 MiB each (base 8 MiB), all under the 100 MiB cap | 8778 | wb pre-receive (unpack-objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +11 B) | 4.03s | 108 MiB |
+| 8 deltas, results 96 MiB each (base 8 MiB), all under the 100 MiB cap | 8778 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ok refs/heads/wb/S1/bomb (landing +8778 B) | 1.64s | 204 MiB |
+| 8 deltas, results 96 MiB each (base 8 MiB), all under the 100 MiB cap | 8778 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ok refs/heads/wb/S1/bomb (landing +8778 B) | 1.63s | 204 MiB |
+| 8 deltas, results 96 MiB each (base 8 MiB), all under the 100 MiB cap | 8778 | pack scanner + wb pre-receive, index-pack | unpack ok; ok refs/heads/wb/S1/bomb (landing +8778 B) | 1.63s | 204 MiB |
+| 8 deltas, results 96 MiB each (base 8 MiB), all under the 100 MiB cap | 8778 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | unpack ok; ok refs/heads/wb/S1/bomb (landing +8778 B) | 1.63s | 204 MiB |
+| 64 deltas, results 96 MiB each (base 8 MiB), all under the cap | 11796 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +67 B) | 31.48s | 108 MiB |
+| 64 deltas, results 96 MiB each (base 8 MiB), all under the cap | 11796 | wb pre-receive (unpack-objects) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 31.61s | 108 MiB |
+| 64 deltas, results 96 MiB each (base 8 MiB), all under the cap | 11796 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 12.53s | 204 MiB |
+| 64 deltas, results 96 MiB each (base 8 MiB), all under the cap | 11796 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 12.46s | 204 MiB |
+| 64 deltas, results 96 MiB each (base 8 MiB), all under the cap | 11796 | pack scanner + wb pre-receive, index-pack | scanner: max-total-size: objects total 1115684809 bytes, limit 1073741824 (landing +0 B) | 0.03s | 12 MiB |
+| 64 deltas, results 96 MiB each (base 8 MiB), all under the cap | 11796 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | scanner: max-total-size: objects total 1115684809 bytes, limit 1073741824 (landing +0 B) | 0.03s | 12 MiB |
+| chain of 8 deltas, each the base of the next, results 96 MiB each, all under the cap | 8770 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +11 B) | 4.08s | 205 MiB |
+| chain of 8 deltas, each the base of the next, results 96 MiB each, all under the cap | 8770 | wb pre-receive (unpack-objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +11 B) | 4.12s | 205 MiB |
+| chain of 8 deltas, each the base of the next, results 96 MiB each, all under the cap | 8770 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ok refs/heads/wb/S1/bomb (landing +8770 B) | 1.67s | 492 MiB |
+| chain of 8 deltas, each the base of the next, results 96 MiB each, all under the cap | 8770 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ok refs/heads/wb/S1/bomb (landing +8770 B) | 1.71s | 204 MiB |
+| chain of 8 deltas, each the base of the next, results 96 MiB each, all under the cap | 8770 | pack scanner + wb pre-receive, index-pack | unpack ok; ok refs/heads/wb/S1/bomb (landing +8770 B) | 1.67s | 492 MiB |
+| chain of 8 deltas, each the base of the next, results 96 MiB each, all under the cap | 8770 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | unpack ok; ok refs/heads/wb/S1/bomb (landing +8770 B) | 1.71s | 204 MiB |
+| blob 400 MiB of zeros | 406653 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +3 B) | 2.18s | 404 MiB |
+| blob 400 MiB of zeros | 406653 | wb pre-receive (unpack-objects) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 2.23s | 404 MiB |
+| blob 400 MiB of zeros | 406653 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 0.98s | 404 MiB |
+| blob 400 MiB of zeros | 406653 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 0.98s | 404 MiB |
+| blob 400 MiB of zeros | 406653 | pack scanner + wb pre-receive, index-pack | scanner: max-object-size: entry 0: object of 419430400 bytes, limit 104857600 (landing +0 B) | 0.01s | 4 MiB |
+| blob 400 MiB of zeros | 406653 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | scanner: max-object-size: entry 0: object of 419430400 bytes, limit 104857600 (landing +0 B) | 0.01s | 4 MiB |
+| blob 1024 MiB of zeros | 1040662 | no hook (unpack-objects: under 100 objects) | unpack ok; ok refs/heads/wb/S1/bomb (landing +3 B) | 3.59s | 4 MiB |
+| blob 1024 MiB of zeros | 1040662 | wb pre-receive (unpack-objects) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 3.60s | 4 MiB |
+| blob 1024 MiB of zeros | 1040662 | wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 2.37s | 4 MiB |
+| blob 1024 MiB of zeros | 1040662 | wb pre-receive, index-pack, pack.threads=1 | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined (landing +0 B) | 2.52s | 4 MiB |
+| blob 1024 MiB of zeros | 1040662 | pack scanner + wb pre-receive, index-pack | scanner: max-object-size: entry 0: object of 1073741824 bytes, limit 104857600 (landing +0 B) | 0.02s | 4 MiB |
+| blob 1024 MiB of zeros | 1040662 | pack scanner + wb pre-receive, index-pack, pack.threads=1 | scanner: max-object-size: entry 0: object of 1073741824 bytes, limit 104857600 (landing +0 B) | 0.02s | 4 MiB |
+
+## Cost
+
+Large repository: /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a636ff0d329d49be4/.scratch/cache/go.git, master at 6f5c275ebd.
+
+Whole-history pack: 438 MiB.
+
+| Step | Median (range) | Runs |
+|---|---|---|
+| Pack scanner alone over the whole-history pack (681913 objects, 537132 deltas, 9047 MiB inflated) | 11.17 s (11.13 s to 11.48 s) | 3 |
+| Whole history, receive-pack, no hook (unpack ok; ok refs/heads/wb/S1/whole, maxrss 472 MiB) | 18.53 s (18.52 s to 18.54 s) | 3 |
+| Whole history, receive-pack + wb pre-receive (unpack ok; ok refs/heads/wb/S1/whole; hook alone 1.19 s (1.19 s to 1.21 s), maxrss 472 MiB) | 19.75 s (19.73 s to 19.79 s) | 3 |
+| Whole history, receive-pack + wb pre-receive + stray check (unpack ok; ok refs/heads/wb/S1/whole; hook alone 3.48 s (3.47 s to 3.50 s), maxrss 472 MiB) | 22.03 s (22.00 s to 22.13 s) | 3 |
+| Whole history, pack scanner + receive-pack + wb pre-receive (unpack ok; ok refs/heads/wb/S1/whole; hook alone 1.20 s (1.19 s to 1.20 s), maxrss 472 MiB) | 27.79 s (27.67 s to 31.51 s) | 3 |
+| Push of one new commit, landing borrows from the large repository, no hook (unpack ok; ok refs/heads/wb/S1/small-7-2) | 0.14 s (0.14 s to 0.14 s) | 3 |
+| Push of one new commit, landing borrows from the large repository, wb pre-receive (unpack ok; ok refs/heads/wb/S1/small-14-2; hook alone 0.02 s (0.02 s to 0.02 s); hook saw objects=3 in the quarantine) | 0.17 s (0.16 s to 0.17 s) | 3 |
+| Push of one new commit, landing borrows from the large repository, wb pre-receive + stray check (unpack ok; ok refs/heads/wb/S1/small-28-2; hook alone 0.12 s (0.12 s to 0.13 s); hook saw objects=3 in the quarantine) | 0.27 s (0.27 s to 0.27 s) | 3 |
+| Push of one new commit, landing borrows from the large repository, pack scanner + wb pre-receive (unpack ok; ok refs/heads/wb/S1/small-29-2; hook alone 0.02 s (0.02 s to 0.02 s); hook saw objects=3 in the quarantine) | 0.17 s (0.17 s to 0.17 s) | 3 |

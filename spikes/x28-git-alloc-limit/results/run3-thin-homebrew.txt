@@ -1,0 +1,27 @@
+# X26 run 2026-10-05T01:00:24+02:00
+
+git: git version 2.56.0
+run directory: /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a636ff0d329d49be4/.scratch/x26-run-3527436941 (path length 108)
+receive.maxInputSize=16777216, object cap 104857600, total cap 1073741824
+
+## Thin pack from git pack-objects
+
+One edited `README.md` on top of master, packed with `git pack-objects --thin --revs`, pushed into a landing repository that borrows from the large repository.
+
+Pack: 288 bytes, 3 objects, 2 deltas; scanner err=<nil>
+
+| Mode | Report | Quarantine (hook) | Hook log |
+|---|---|---|---|
+| no hook | unpack ok; ok refs/heads/wb/S1/thin |  |  |
+| wb pre-receive | unpack ok; ok refs/heads/wb/S1/thin | objects=3 | hook elapsed=15.844958ms err=<nil> |
+| wb pre-receive + stray check | unpack ok; ok refs/heads/wb/S1/thin | objects=3 | hook elapsed=3.803032042s err=<nil> |
+| pack scanner + wb pre-receive | unpack ok; ok refs/heads/wb/S1/thin | objects=3 | hook elapsed=12.654834ms err=<nil> |
+| wb pre-receive, index-pack (receive.unpackLimit=1) | unpack ok; ok refs/heads/wb/S1/thin | objects=5 | hook elapsed=11.925916ms err=<nil> |
+| wb pre-receive + stray check, index-pack (receive.unpackLimit=1) | unpack ok; ok refs/heads/wb/S1/thin | objects=5 | hook elapsed=3.801752875s err=<nil> |
+
+Second push, on top of the first, into each landing repository above that accepted the first:
+
+| Mode | Report | Quarantine (hook) | Hook log |
+|---|---|---|---|
+| wb pre-receive + stray check (unpack-objects) | unpack ok; ok refs/heads/wb/S1/thin | objects=3 | hook elapsed=34.611917ms err=<nil> |
+| wb pre-receive + stray check, index-pack (receive.unpackLimit=1) | unpack ok; ng refs/heads/wb/S1/thin pre-receive hook declined | objects=5 | decision=deny rule=stray-objects ref=cea64475b770d64d4f3d2c6450152c929dbd3c5e detail="2 quarantined objects no pushed ref reaches" hook elapsed=34.813208ms err=stray-objects: cea64475b770d64d4f3d2c6450152c929dbd3c5e 2 quarantined objects no pushed ref reaches |
