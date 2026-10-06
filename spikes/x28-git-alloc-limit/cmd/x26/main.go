@@ -90,6 +90,10 @@ func main() {
 			h.phaseCost()
 		case "thin":
 			h.phaseThin()
+		case "alloc":
+			h.phaseAlloc()
+		case "alloccost":
+			h.phaseAllocCost()
 		}
 	}
 }
@@ -125,6 +129,8 @@ type opts struct {
 	unpackLimit int    // receive.unpackLimit; 1 forces index-pack
 	maxInput    int64
 	maxTotal    uint64 // 0 = the spike default total cap
+	allocLimit  string // X28: GIT_ALLOC_LIMIT in receive-pack's environment; "" = unset
+	noTrailer   bool   // X28: send the pack without its 20-byte checksum
 }
 
 type result struct {
@@ -134,6 +140,7 @@ type result struct {
 	scanErr error
 	dur     time.Duration
 	maxRSS  int64 // bytes, receive-pack and its children
+	cpu     time.Duration // X28: user + system time of receive-pack and its children
 }
 
 // receive runs one push: the X07 filter over the command list, then
@@ -204,6 +211,12 @@ func (h *H) receive(landing string, cmds []pktfilter.Command, pack []byte, o opt
 	if o.stray {
 		cmd.Env = append(cmd.Env, "WB_CHECK_STRAY=1")
 	}
+	if o.allocLimit != "" {
+		cmd.Env = append(cmd.Env, "GIT_ALLOC_LIMIT="+o.allocLimit)
+	}
+	if o.noTrailer && len(pack) >= 20 {
+		pack = pack[:len(pack)-20]
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	stdin, err := cmd.StdinPipe()
@@ -227,6 +240,7 @@ func (h *H) receive(landing string, cmds []pktfilter.Command, pack []byte, o opt
 	r := result{err: err, scanErr: scanErr, dur: time.Since(t0), stderr: stderr.String()}
 	if ru, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok {
 		r.maxRSS = ru.Maxrss // bytes on darwin
+		r.cpu = time.Duration(ru.Utime.Nano() + ru.Stime.Nano())
 	}
 	r.report = reportLines(stdout.Bytes())
 	return r
