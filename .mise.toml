@@ -271,11 +271,18 @@ zizmor --github-token "$token" --collect=all --strict-collection .github
 description = "Scan every lockfile for known vulnerabilities (network; not part of `ci`)"
 depends = ["vuln:osv", "go:vulncheck"]
 
-# `-r` is load-bearing: `osv-scanner scan source` is not recursive by
-# default and would report a clean pass having opened only the top level.
-# Because that failure is silent, the loop below re-derives the lockfile
-# list from git and fails if the scanner did not report opening every one.
-# A new package manager means a new lockfile: add its pattern here.
+# The lockfiles come from git and go to the scanner one `-L` each. A
+# recursive walk (`scan source -r .`) is not used: osv-scanner applies
+# the `.gitignore` of every enclosing directory, so in a linked worktree
+# under `.claude/worktrees/` (ignored by the main checkout) it walks
+# nothing and finds no lockfile (#92). `git ls-files` reads only the
+# checkout's own ignore rules. `--others --exclude-standard` adds
+# lockfiles not yet `git add`ed, the same set the walk used to see. A new
+# package manager means a new lockfile: add its pattern to `patterns`.
+#
+# Because a missed lockfile passes silently, the loop after the scan
+# fails if the scanner did not report opening every listed file, and the
+# task fails if git lists none at all.
 #
 # `--config` names the root `osv-scanner.toml` for every lockfile. Without
 # it the scanner looks for a config next to each lockfile, so the file
@@ -288,12 +295,23 @@ description = "osv-scanner over every committed lockfile"
 run = '''
 set -eu
 bun scripts/osv-ignores.mjs osv-scanner.toml
+patterns="*bun.lock *go.mod *Package.resolved"
+# shellcheck disable=SC2086 # word splitting is the point: one argument per pattern
+locks=$(git ls-files --cached --others --exclude-standard -- $patterns)
+if [ -z "$locks" ]; then
+  echo "git lists no lockfile matching: $patterns" >&2
+  exit 1
+fi
+set --
+for lock in $locks; do
+  set -- "$@" -L "$lock"
+done
 status=0
-out=$(osv-scanner scan source --config osv-scanner.toml -r . 2>&1) || status=$?
+out=$(osv-scanner scan source --config osv-scanner.toml "$@" 2>&1) || status=$?
 echo "$out"
 
 missing=0
-for lock in $(git ls-files -- '*bun.lock' '*go.mod' '*Package.resolved'); do
+for lock in $locks; do
   case "$out" in
     *"/$lock file and found"*) ;;
     *)
@@ -304,7 +322,7 @@ for lock in $(git ls-files -- '*bun.lock' '*go.mod' '*Package.resolved'); do
 done
 if [ "$missing" -ne 0 ]; then
   echo "Every committed lockfile must be scanned. Check that osv-scanner" >&2
-  echo "supports its format, and that the -r flag is still present." >&2
+  echo "supports its format." >&2
   exit 1
 fi
 exit "$status"
