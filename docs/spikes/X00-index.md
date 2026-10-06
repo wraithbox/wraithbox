@@ -170,6 +170,7 @@ assumption that v1 work would otherwise build on. They block v1.
   network attachment keep working after `wb-vmd` passes them to
   another process (`SCM_RIGHTS`), and across save and restore? S04-architecture rests on the answer ("descriptors, not bytes").
   Answered yes, with conditions, in the result page X18-vsock-handoff.
+  Decided on I111: NFR01-startup is a goal outside the release gate.
 - **X19-terminal-filter: Terminal stream filtering.** Which terminal escape sequences
   does Claude Code emit, and can `wb` drop the ones that act on the
   host (clipboard writes, file transfer, terminal multiplexer control
