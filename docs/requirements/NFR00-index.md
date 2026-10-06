@@ -5,7 +5,7 @@ maintainable Wraith Box must be.
 
 | ID | Description | Status |
 |----|-------------|--------|
-| NFR01-startup | Startup | V1-M6-release-gate |
+| NFR01-startup | Startup | No milestone |
 | NFR02-fs-speed | Filesystem | No milestone |
 | NFR03-footprint | Footprint | V1-M6-release-gate |
 | NFR04-host-platforms | Host platforms | No milestone |
@@ -16,9 +16,24 @@ maintainable Wraith Box must be.
 
 ## Requirements
 
-- **NFR01-startup: Startup.** Warm VM: ≤ 4 s to the Claude prompt. Suspended VM:
-  ≤ 7 s. Hard ceiling 10 s (p95), excluding first-time project setup and
-  the first boot after a host restart.
+- **NFR01-startup: Startup.** Goals: a warm VM reaches the Claude prompt
+  in about 4 s and a suspended VM in about 7 s, and no start takes more
+  than 10 s (p95), excluding first-time project setup and the first boot
+  after a host restart. V1-M6-release-gate doesn't pass or fail on these
+  goals. Performance work is planned later, and until then it's enough
+  to know where a goal isn't met yet (decided on I111). Measured so far,
+  on an Apple M2 host with 16 GB and a 4 vCPU guest that sat idle, and
+  not yet to the Claude prompt:
+  - A restore from saved state, with the state file not in the host's
+    page cache, answers on the network in 3.7 s (p50) and 3.9 s (p95)
+    with 4 GiB of guest memory, and in 4.1 s and 4.6 s with 8 GiB
+    (X02-warm-start). `wb-guestd` answers on vsock 4.1 s (p50) and
+    4.2 s (p95) after a 4 GiB restore starts (X18-vsock-handoff).
+  - A cold boot, which is how every new VM starts the first time,
+    reaches the guest daemon's vsock listener in 10.9 s (p50) and
+    13.5 s (p95), over the 10 s goal (X18-vsock-handoff). I86 looks at
+    the boot.
+  - A warm VM, already running, hasn't been measured.
 - **NFR02-fs-speed: Filesystem.** The workspace is on guest-native storage. Goal:
   about 80% of host throughput on representative workloads (`npm ci`,
   `git status` on a large repo, incremental build), measured by the

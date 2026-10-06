@@ -322,7 +322,7 @@ be tested before building on them.
     title, and a fake session summary in the background color, then
     exit: confirm the host terminal received none of the sequences,
     still shows the title `wb` set, and shows the real summary legibly.
-- **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended).
+- **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended, cold boot).
   The suspended case restores a state saved after a Claude Code
   session and a build, not an idle guest, and records the state file's
   size (X02-warm-start). Also
@@ -333,10 +333,13 @@ be tested before building on them.
   of X03-network-path at the same MTU. Its CPU figures cover the
   `wb-netd` stand-in and a plain HTTP stand-in for `wb-proxyd` in one
   process, so they are a bound on the two together, not on `wb-netd`.
-  The filesystem figures are reported against the NFR02-fs-speed goal
-  with the host's conditions (load, FileVault, Endpoint Security
-  agents, chip), and don't pass or fail the release gate. Results vary
-  more between hosts than the gap they would judge.
+  The startup and filesystem figures are reported against the
+  NFR01-startup and NFR02-fs-speed goals with the host's conditions
+  (load, FileVault, Endpoint Security agents, chip), the guest's memory
+  size, and whether the state file was in the host's page cache. They
+  don't pass or fail the release gate (decided on I19 and I111).
+  Filesystem results vary more between hosts than the gap they would
+  judge.
 - **Platform contract tests.** Each `internal/platform` interface has
   one test suite that every OS implementation runs (S12-platforms).
 - **CI.** Go unit tests, lint, and vet run natively on macOS, Linux, and
