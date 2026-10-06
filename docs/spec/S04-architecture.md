@@ -72,18 +72,28 @@ nothing themselves (S12-platforms).
     the refusal when the descriptor count is not one, the socket type
     is wrong, or the destination port is not one it asked for. The
     full contract is in I52.
-  - `wb-hostd` routes a connection only on its destination port, which
-    is either a guest port `wb-hostd` asked `wb-vmd` to connect to, or a
-    host listener registered at `wb-hostd`'s request. The source port of
-    a guest-initiated connection is chosen by the guest, and is only
-    logged. Every process in the guest that can open `AF_VSOCK` can dial
-    a host listener, so guest-initiated connections are either refused
-    (the host opens every connection, recommended) or bound to a
-    session by a one-time nonce from the host and closed on a mismatch.
-    This is an open decision (B29-vsock-handoff).
-  - `wb-vmd` caps the connections it has accepted but not yet passed,
-    per listener and in total, and `wb-hostd` caps connections per VM
-    and per project. Both log each refusal (SEC13-bounded-resources).
+  - The host opens every host-guest connection (B29-vsock-handoff).
+    `wb-vmd` doesn't register a host vsock listener, so nothing in the
+    guest can dial the host. `wb-hostd` asks `wb-vmd` to connect to
+    `wb-guestd`, at boot, after each restore, and after `wb-guestd`
+    restarts. `wb-hostd` routes a connection only on its destination
+    port, which is the guest port it asked `wb-vmd` to connect to. A
+    connection the guest opened would say nothing trustworthy about who
+    opened it: every process in the guest that can open `AF_VSOCK` can
+    dial, and it picks its own source port.
+  - Requests that start in the guest, from `git-remote-wb` and guest
+    events, go to `wb-guestd` over a local Unix socket. There the peer
+    user ID names the project user (S13-guest-confinement). `wb-guestd`
+    sends them to `wb-hostd` on a connection the host opened: multiplexed
+    on an existing one, or on a further connection the host opens at
+    `wb-guestd`'s request. Root in the guest can still pose as any
+    project user, which T11-shared-vm-grants and the isolated slot
+    cover. That a project user can't open, bind or listen on vsock and
+    so pose as `wb-guestd` is untested in X18-vsock-handoff, and I101
+    checks it.
+  - `wb-vmd` caps the connections it has opened but not yet passed, and
+    `wb-hostd` caps connections per VM and per project. Both log each
+    refusal (SEC13-bounded-resources).
   - `wb-vmd` closes its copy of a descriptor once it has passed it.
     The passed descriptor keeps working, also while `wb-vmd` is
     stopped.

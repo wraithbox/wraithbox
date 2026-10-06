@@ -11,7 +11,8 @@
   filter in `wb` ("Terminal stream"), boundary 6 of T00-index.
 - **You are approving:** the I37 and I30 decisions as spec text: the
   allowlist measured in X19-terminal-filter, tightened as the security
-  review of PR66 asked. OSC 52 is dropped until I38, notifications
+  review of PR66 asked. OSC 52 is dropped, because V1 has no clipboard
+  (V1-08-no-forward-clipboard), notifications
   become a bell, and links are dropped on screen and listed in the
   session summary. `wb` sets the window title, resets the terminal
   before the summary, and passes seven environment variables to the
@@ -31,15 +32,11 @@
   Terminal.app show (I62 checks it by eye), that both answer the
   drain's `CSI ? 6 n`, and that the caps fit later Claude Code
   versions. Drop counts show it when they don't.
-- **Open decisions:** 1. Reset the terminal on exit, rather than run
-  the session on an alternate screen of `wb`'s own (recommended:
-  reset). 2. What `wb` does with a stream that goes to a pipe or a
-  file: pass it unchanged, drop only `ESC`-introduced sequences, or
-  apply the full filter. This one has no recommendation, because
-  passing the stream unchanged weakens SEC03-no-host-exec. Dropping `ESC`-introduced sequences
-  changes only output that holds an `ESC`, which valid JSON can't. The
-  full filter can also drop C1 characters and `DEL` from JSON. Until it
-  is decided, the full filter applies.
+- **Open decisions:** none. The maintainer decided both on I37 on
+  2026-10-06: `wb` resets the terminal on exit rather than run the
+  session on an alternate screen of its own ("Reset on exit"), and a
+  stream that goes to a pipe or a file passes the same full filter as
+  terminal output ("Where").
 - **Brief:** B37-terminal-boundary
 
 ## Shape
@@ -135,10 +132,21 @@ filters packets (SEC03-no-host-exec).
 
 - **Where.** On every stream that `wb claude` or `wb shell` writes to a
   terminal. On WSL that is the WSL-side `wb`, which writes to the
-  terminal (S12-platforms). A stream that goes to a pipe or a file is
-  open decision 2, and gets the full filter until it is decided.
-  Scripts read such a stream (`claude -p`), and a later `| cat` puts it
-  on the terminal.
+  terminal (S12-platforms). A stream that goes to a pipe or a file
+  passes the same full filter (decided on I37, 2026-10-06). Scripts
+  read such a stream (`claude -p`), and a later `| cat` puts it on the
+  terminal. The filter passes only output that is safe in a terminal,
+  so a later `cat` of the file is as safe as the live session. One
+  filter keeps one code path and one fuzz target, passes text, Markdown
+  and JSON unchanged unless they hold a control character the table
+  below drops (C1, `DEL`, or a C0 control other than the ones it
+  passes), and keeps colors for `less -R` and CI logs. Binary output
+  through standard output isn't supported. If moving files out of the
+  guest is ever needed, it gets its own command, not an unfiltered
+  stream. Rejected: passing the stream
+  unchanged, which weakens SEC03-no-host-exec, and dropping only
+  `ESC`-introduced sequences, which is a second filter to keep and
+  fuzz.
 - **How.** The filter splits the stream into text, controls and
   sequences, and passes a token only when a rule below allows it. It
   drops any other token whole, from its `ESC` to its end, so the
@@ -203,10 +211,12 @@ widths the TUI has laid out; passing `https://` links to public hosts,
 which leaves the text-target mismatch; and passing a link only when
 its text equals its URL, which makes the filter follow the screen.
 
-**Around the stream.** The title, the reset and the input drain apply
-only when `wb`'s standard output is a terminal, and the drain also
-needs standard input to be one. `wb claude -p … > out.txt` gets none
-of them, whatever open decision 2 settles.
+**Around the stream.** What `wb` itself writes to the terminal (the
+window title, the reset on exit, and the `CSI ? 6 n` sentinel query of
+the input drain) happens only when `wb`'s standard output is a
+terminal, and the drain also needs standard input to be one (decided
+on I37, 2026-10-06). `wb claude -p … > out.txt` gets none of them, and
+its output still passes the filter ("Where").
 
 - **Title.** `wb` saves the user's window title on the terminal's
   title stack (`CSI 22 t`), sets its own (`wb: <session id>`), and
@@ -228,7 +238,8 @@ of them, whatever open decision 2 settles.
   is authoritative. Not `ESC c`, which can clear the scroll-back.
   Rejected: running the session on an alternate screen of `wb`'s own,
   which resets everything but doesn't leave the session's output in the
-  scroll-back, unlike `claude` (FR01-drop-in, open decision 1).
+  scroll-back, unlike `claude` (FR01-drop-in, decided on I37,
+  2026-10-06).
 - **Input drain.** Before restoring cooked mode, `wb` sends a sentinel
   query that the allowlist never passes, `CSI ? 6 n` (extended cursor
   position), and reads and discards input until the reply of that form

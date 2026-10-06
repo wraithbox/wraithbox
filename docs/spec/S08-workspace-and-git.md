@@ -12,7 +12,9 @@ back out, without sharing the host filesystem.
   fetch only new objects.
 - **Transport.** The guest uses a git remote helper (`git-remote-wb`,
   shipped with `wb-guestd`) for a remote named `host`. It tunnels git's
-  smart protocol over vsock to `wb-hostd`, which runs `git upload-pack`
+  smart protocol over a local Unix socket to `wb-guestd`, which sends
+  it to `wb-hostd` on a host-guest connection the host opened
+  (S04-architecture, B29-vsock-handoff). `wb-hostd` runs `git upload-pack`
   **read-only** against the project's export repository
   (`projects/<id>/export.git`, B41-git-data-scope), never against the
   user's repository: repository hooks disabled, system and global git
@@ -82,7 +84,9 @@ back out, without sharing the host filesystem.
   use 2 GiB of memory (X26-pre-receive-check). A scanner in `wb-hostd`
   reads the pack after the ref filter and before git does. It holds each
   entry until the entry has passed, then forwards it to `receive-pack`.
-  It refuses the push when one of these caps is exceeded:
+  The caps are fixed, not configurable, until a real repository needs
+  more (B74-pre-receive-check). It refuses the push when one of these
+  caps is exceeded:
   - wire bytes: the whole pack over the size limit, or one entry over
     its bound, counted while the scanner reads. An entry's bound is its
     header, its OFS_DELTA offset or REF_DELTA base ID, and zlib's
@@ -92,7 +96,7 @@ back out, without sharing the host filesystem.
     zlib-ng at level 1 and fixed-Huffman encoders can exceed. Zlib can
     consume input without producing output, so the caps on inflated
     sizes alone don't bound what the scanner holds;
-  - per object (default 100 MiB): an object's inflated size, a delta's
+  - per object (100 MiB): an object's inflated size, a delta's
     result size, a delta's declared source size, and a delta's own
     inflated data length. A delta whose base is in `export.git` is held
     to the same cap through its declared source size. A residual stays:
@@ -100,12 +104,12 @@ back out, without sharing the host filesystem.
     own repository, under the cap, and git loads that object once
     before the push fails closed. That is accepted, because the content
     is the user's own;
-  - per push (default 1 GiB): the sum of all object and delta result
+  - per push (1 GiB): the sum of all object and delta result
     sizes and delta data lengths. It counts resolved sizes, not new
-    bytes, so 40 edits of a 30 MiB file exceed it in a few KiB. The cap
-    is configurable per project, and the refusal names the cap and the
-    total, and says to push fewer commits at a time or raise the cap;
-  - object count (default 1,000,000): the count in the pack header,
+    bytes, so 40 edits of a 30 MiB file exceed it in a few KiB. The
+    refusal names the cap and the total, and says to push fewer commits
+    at a time;
+  - object count (1,000,000): the count in the pack header,
     checked before the scanner forwards the header. `index-pack`
     allocates its object table from that count, and the scanner keeps
     one size per entry.
@@ -122,6 +126,12 @@ back out, without sharing the host filesystem.
   it has a fuzz target (S11-verification-and-spikes). It logs each
   refusal with the rule, and each push it passes with its object count,
   wire bytes and total size.
+
+  The scanner's scope waits on I102. If `GIT_ALLOC_LIMIT` makes git
+  refuse an oversized delta before it allocates the memory, the
+  per-object bound comes from git, and the scanner keeps only the
+  per-push total and the object count, or is dropped. I102 is answered
+  before the git gateway work builds the scanner.
 - **Pre-receive check.** Git moves a pushed pack out of quarantine
   before some of its own ref checks, which it makes only in `update()`
   (X07-git-round-trip). A small `pre-receive` program, separate from

@@ -1,14 +1,14 @@
 ---
 title: Should the host terminal be a trust boundary with its own filter?
-description: Yes, decided. The spec change for I37 writes it down, with the allowlist from X19-terminal-filter, links dropped and listed, and two open decisions about the exit reset and piped output.
+description: Yes, decided. The spec change for I37 writes it down, with the allowlist from X19-terminal-filter, links dropped and listed, a reset on exit, and the full filter on piped output.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Decided 2026-10-04: A. Boundary plus allowlist filter, for now.** The decision and its reasons are in the I37 comment that starts `Decision (2026-10-04):`, and the filter's contents in the I30 decision (B30-terminal-filter). The spec change that closes I37 is up for review: T00-index, S05-cli ("Terminal stream") and S11-verification-and-spikes.
+**Decided 2026-10-04: A. Boundary plus allowlist filter, for now. Decided 2026-10-06: 1A, reset on exit, and 2C, the full filter on every stream.** The decisions and their reasons are in the I37 comments that start `Decision (2026-10-04):` and `Decision (2026-10-06):`, and the filter's contents in the I30 decision (B30-terminal-filter). The spec change from PR81 is confirmed: T00-index, S05-cli ("Terminal stream") and S11-verification-and-spikes.
 
 <Aside type="tip" title="You are approving">
-The spec text for the decided boundary: `wb` filters guest output to your terminal with the allowlist measured in X19-terminal-filter, drops links and lists them in the session summary, sets the window title itself, and resets the terminal before the summary. Open below: how `wb` cleans up the terminal on exit (recommended: reset), and what happens to output that goes to a pipe (no recommendation, because one option weakens SEC03-no-host-exec). Approving merges the spec and unblocks the terminal filter in V1-M4-claude-end-to-end.
+The spec text for the decided boundary: `wb` filters guest output to your terminal with the allowlist measured in X19-terminal-filter, drops links and lists them in the session summary, sets the window title itself, and resets the terminal before the summary. Decided on 2026-10-06: `wb` resets the terminal on exit (1A), and output that goes to a pipe or a file passes the same full filter (2C). What `wb` itself writes to a terminal (the window title, the reset, and the input drain's sentinel query) happens only when the output is a terminal, and binary output through standard output isn't supported. This unblocks the terminal filter in V1-M4-claude-end-to-end.
 </Aside>
 
 ## The problem
@@ -76,7 +76,7 @@ What the decisions on I37 and I30 and the security review of PR66 became, and wh
 - **S11-verification-and-spikes:** the filter's fuzz properties, including one that replays the filtered output and the exit reset into a headless emulator and checks it is back in its initial state, and a conformance case that prints every dropped sequence and a fake summary.
 - S03-requirements stays as it is, because it points at T00-index for the boundaries.
 
-**Decision 1: how `wb` cleans up the terminal on exit.**
+**Decision 1: how `wb` cleans up the terminal on exit.** Decided 2026-10-06: 1A.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
@@ -101,7 +101,7 @@ What the decisions on I37 and I30 and the security review of PR66 became, and wh
 </div>
 </div>
 
-**Decision 2: output to a pipe or a file.** The I37 decision doesn't make an exception for pipes, so this has no recommendation. Until you decide, the spec applies the full filter (2C), which fails closed.
+**Decision 2: output to a pipe or a file.** Decided 2026-10-06: 2C. The I37 decision doesn't make an exception for pipes, so this had no recommendation. The filter passes only output that is safe in a terminal, so a later `cat` of the file is as safe as the live session, and one filter keeps one code path and one fuzz target.
 
 <div class="wb-options">
 <div class="wb-option">
@@ -128,7 +128,7 @@ On a stream that isn't a terminal, `wb` drops `ESC` and every sequence it starts
 
 ### 2C. Full filter on every stream
 
-The allowlist runs whatever the output goes to. The spec does this until you decide.
+The allowlist runs whatever the output goes to. This is the decided option.
 
 - **Cost:** JSON keeps working, but a C1 character or `DEL` inside a string is dropped, and a script sees changed bytes. Invalid UTF-8 becomes U+FFFD, so binary output piped out of `wb shell` is corrupted.
 - **Keeps:** <Badge text="SEC03-no-host-exec" variant="success" /> <Badge text="FR01-drop-in" variant="caution" /> except rare bytes in scripts

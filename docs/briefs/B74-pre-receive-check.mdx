@@ -5,10 +5,10 @@ description: Yes, with conditions. A pre-receive check that Wraith Box ships kee
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-05.** Source: X26-pre-receive-check (I74). Changes S08-workspace-and-git and S11-verification-and-spikes.
+**Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps.** The decision and its reasons are in the I74 comment that starts `Decision (2026-10-06):`. Source: X26-pre-receive-check (I74). Changes S08-workspace-and-git and S11-verification-and-spikes. The scanner's scope waits on I102: if `GIT_ALLOC_LIMIT` makes git refuse an oversized delta before it allocates the memory, the per-object bound comes from git.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** A `pre-receive` check that Wraith Box ships refused every bad push tried, and none of their objects reached the landing repository. It runs too late to protect memory: an 8 KiB push made git use 2 GiB first. A small Go scanner in front of git refuses oversized objects before git sees them. You decide the cap values (100 MiB per object, 1 GiB per push, 1,000,000 objects) and whether to add the scanner, which goes past I74. Accepting merges the S08-workspace-and-git changes, with the old cleanup kept as a fallback.
+**Yes, with conditions.** A `pre-receive` check that Wraith Box ships refused every bad push tried, and none of their objects reached the landing repository. It runs too late to protect memory: an 8 KiB push made git use 2 GiB first. A small Go scanner in front of git refuses oversized objects before git sees them. The maintainer decided on I74 to add the scanner, with the caps as proposed (100 MiB per object, 1 GiB per push, 1,000,000 objects) and fixed, not configurable, until a real repository needs more. The S08-workspace-and-git changes keep the old cleanup as a fallback.
 </Aside>
 
 <figure class="wb-figure">

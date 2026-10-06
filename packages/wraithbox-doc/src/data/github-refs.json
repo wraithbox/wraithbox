@@ -111,7 +111,7 @@
 	},
 	"19": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X05-fs-benchmark: Filesystem benchmark",
 		"summary": "How does the data disk perform with default versus relaxed write-through settings, against the host, on the NFR02-fs-speed workloads?",
 		"brief": "B19-fs-benchmark"
@@ -616,8 +616,32 @@
 	},
 	"98": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spike): X05-fs-benchmark result, data disk uses full sync",
 		"summary": "The result of X05-fs-benchmark, with its review brief and the spec changes it forces."
+	},
+	"99": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "mise run ci fails: go:lint and go:cross run golangci-lint in parallel",
+		"summary": "mise run ci fails locally."
+	},
+	"100": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(ci): order go:cross after go:lint and swift:test after swift:build",
+		"summary": "mise run ci runs its subtasks in parallel."
+	},
+	"101": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S13-guest-confinement: check that a project user can't open, bind or listen on vsock",
+		"summary": "The B29-vsock-handoff decision (#29) is that the host opens every host-guest connection."
+	},
+	"102": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S08-workspace-and-git: test GIT_ALLOC_LIMIT against the X26 delta bombs before building the pack scanner",
+		"summary": "X26-pre-receive-check (#74) found that a small pack makes receive-pack allocate a delta's declared result before any hook runs (2 GiB from an 8 KiB pack), and that macOS refuses ulimit -v and -d on the git child."
 	}
 }
