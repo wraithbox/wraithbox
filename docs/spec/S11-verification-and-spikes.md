@@ -32,7 +32,7 @@ be tested before building on them.
   it accepts a stream. Each step checks its 5019
   event.
   The policy loader has a test that puts a host in pass mode from a
-  trusted repository's `.wraithbox/policy.yaml`, on a host with a
+  repository's `.wraithbox/policy.yaml` with `config_trust` on, on a host with a
   credential binding, on a host a built-in profile covers, and without
   a reason, with a wildcard host, and then adds a binding on a pass
   host, and sees each refused at load with an error that names the

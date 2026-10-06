@@ -79,8 +79,8 @@ print about returned work after `wb land` is outside it
   their clones after guest root in the same way, and their network
   grants even without it (T11-shared-vm-grants). Only a project with
   `placement = isolated` that isn't marked shared has the VM to itself
-  (S06-vm-lifecycle, "VMs"). This co-tenancy was decided with I42, by
-  the recommendation of B42-trust-placement.
+  (S06-vm-lifecycle, "VMs"). The maintainer accepted this co-tenancy
+  on I42 (2026-10-06, B42-trust-placement).
 - **T06-forged-labels: Forged program labels after guest root.** After a guest root escalation, forged program identities in the
   guest confinement layer (S13-guest-confinement). Rules narrowed to named
   programs or to a project then act as the union of the VM's grants
