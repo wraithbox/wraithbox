@@ -5,7 +5,7 @@ Seatbelt profile at start and still run a macOS VM, and which devices
 that profile keeps `wb-vmd` from configuring.
 
 **Requirements:** SEC12-least-privilege, SEC02-no-host-fs-share,
-SEC05-default-deny, and the "Each host daemon is self-sandboxed"
+SEC05-default-deny, SEC08-proj-isolation, and the "Each host daemon is self-sandboxed"
 decision of S04-architecture
 
 **Brief:** B64-vmd-sandbox
