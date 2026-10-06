@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-05: no. Decided 2026-10-06: D, NFR02-fs-speed becomes a goal outside the release gate.** Option D isn't one this brief offered. It came up in discussion, and is added below. The decision and its reasons are in the I19 comment that starts `Decision (2026-10-06):`. Source: X05-fs-benchmark (I19). Changes NFR00-index, V1-initial, S06-vm-lifecycle and S11-verification-and-spikes. Feeds I44. Follow-up: I97.
 
 <Aside type="tip" title="What we learned">
-**No.** NFR02-fs-speed asks for 80% of host throughput. In a guest with 4 vCPU, `git status` in a repository of 43,000 files ran at 137% of the host and the Go incremental build at 81%, but `npm ci` reached only 71%. No disk setting fixes that: the most relaxed one reaches 75%, and even a RAM disk inside the guest only 77%. The sync setting didn't change any of the three workloads measurably. The data disk now uses full sync, the one that keeps Claude Code state and commits not yet pushed through a host crash (I44). Those numbers come from a host busy with other agents' work, which may slow the guest more than the host: the best single `npm ci` runs reached 78% on the data disk and 83% on the RAM disk. You decide what happens to the `npm ci` target. Recommended: keep it, and have I97 measure again on a quiet host and find the cause.
+**No.** NFR02-fs-speed asks for 80% of host throughput. In a guest with 4 vCPU, `git status` in a repository of 43,000 files ran at 137% of the host and the Go incremental build at 81%, but `npm ci` reached only 71%. No disk setting fixes that: the most relaxed one reaches 75%, and even a RAM disk inside the guest only 77%. The sync setting didn't change any of the three workloads measurably. The data disk now uses full sync, the one that keeps Claude Code state and commits not yet pushed through a host crash (I44). Those numbers come from a host busy with other agents' work, which may slow the guest more than the host: the best single `npm ci` runs reached 78% on the data disk and 83% on the RAM disk. The maintainer decided on I19 that NFR02-fs-speed is a goal that V1-M6-release-gate doesn't pass or fail on, with the overhead stated as measured. I97 is unchanged.
 </Aside>
 
 <figure class="wb-figure">
@@ -97,7 +97,7 @@ Set 70% for `npm ci` and keep 80% for the other two workloads.
 
 ### D. A goal outside the release gate (decided)
 
-Not in the brief as written. It came up in discussion with the maintainer. NFR02-fs-speed stays at about 80% of host throughput, as a goal with no hard ceiling, and is no longer a pass/fail item of V1-M6-release-gate. Results vary more between hosts (FileVault, Endpoint Security agents, load, chip generation) than the gap in question. The docs state the overhead as measured: `npm ci` at about 71% to 77% of the host, on a loaded host. CPU-bound and memory-bound overhead hasn't been measured. The docs don't state a figure for it. I97 is unchanged.
+Not in the brief as written. It came up in discussion with the maintainer. NFR02-fs-speed stays at about 80% of host throughput, as a goal that V1-M6-release-gate doesn't pass or fail on. Results vary more between hosts (FileVault, Endpoint Security agents, load, chip generation) than the gap in question. The docs state the overhead as measured: `npm ci` at 71% of the host on the data disk and 77% on a guest RAM disk, on a loaded host. CPU-bound and memory-bound overhead hasn't been measured. The docs don't state a figure for it. I97 is unchanged.
 
 - **Cost:** a requirement change. The release gate no longer catches a slow guest.
 - **Keeps:** <Badge text="NFR02-fs-speed" variant="caution" /> as a goal, not yet met for `npm ci`.
@@ -119,7 +119,7 @@ Not in the brief as written. It came up in discussion with the maintainer. NFR02
 <tr><td><strong>NFR02-fs-speed</strong> at least 80% of host throughput</td><td class="partial">not yet met</td><td class="yes">met, narrower</td><td class="yes">met, at 70%</td><td class="partial">a goal, not yet met</td></tr>
 <tr><td><strong>FR13-claude-state</strong> Claude Code state persists per project</td><td class="yes">full sync</td><td class="yes">full sync</td><td class="yes">full sync</td><td class="yes">full sync</td></tr>
 <tr><td><strong>NFR03-footprint</strong> disk use grows only with divergence</td><td class="yes">raw image</td><td class="yes">raw image</td><td class="yes">raw image</td><td class="yes">raw image</td></tr>
-<tr><td>Spec work</td><td class="na">I97, then maybe NFR02</td><td class="na">NFR00-index, S11</td><td class="na">NFR00-index</td><td class="na">NFR00-index, V1-initial, S06, S11</td></tr>
+<tr><td>Spec work</td><td class="na">I97, then maybe NFR02</td><td class="na">NFR00-index, S11-verification-and-spikes</td><td class="na">NFR00-index</td><td class="na">NFR00-index, V1-initial, S06-vm-lifecycle, S11-verification-and-spikes</td></tr>
 </tbody>
 </table>
 
