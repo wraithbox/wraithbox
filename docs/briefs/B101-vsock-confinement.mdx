@@ -5,10 +5,10 @@ description: Yes, unless two controls stop it. wb-guestd listens on a port below
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-06: yes, with conditions.** Source: X27-vsock-confinement (I101). Changes S04-architecture, S06-vm-lifecycle, S11-verification-and-spikes and S13-guest-confinement. Found while deciding B29-vsock-handoff.
+**Answered 2026-10-06: yes, with conditions.** Source: X27-vsock-confinement (I101). Changes S04-architecture, S06-vm-lifecycle, S11-verification-and-spikes and S13-guest-confinement. Touches X20-shared-homebrew, which has to work with project users who have no `sudo`. Found while deciding B29-vsock-handoff.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** On the spike's port 1024, a standard guest user took `wb-guestd`'s place while launchd restarted it, and answered the host for 21.7 s. Ports below 1024 need guest root, and a one-line Seatbelt rule makes vsock sockets fail for the session. The specs now require both. Nothing is left to decide: approve the answer and the spec text.
+**Yes, with conditions.** On the spike's port 1024, a standard guest user took `wb-guestd`'s place while launchd restarted it, and answered the host for 21.7 s. Ports below 1024 need guest root, and a one-line Seatbelt rule makes vsock sockets fail for the session. The specs now require both, and project users without any way to `sudo` to root. Nothing is left to decide: approve the answer and the spec text.
 </Aside>
 
 <figure class="wb-figure">
@@ -83,6 +83,7 @@ The profile denies vsock sockets, and `wb-guestd`'s port stays at 1024 or above.
 </thead>
 <tbody>
 <tr><td><strong>SEC08-proj-isolation</strong> one project can't act as another</td><td class="yes">no project process can take the port</td><td class="partial">processes outside the profile can</td></tr>
+<tr><td><strong>SEC06-repo-writes</strong> the guest pushes only to its own session branches</td><td class="yes">no impostor can push as another project</td><td class="partial">processes outside the profile can</td></tr>
 <tr><td><strong>SEC10-audit</strong> every request attributed to its project</td><td class="yes">only wb-guestd answers</td><td class="partial">same gap as above</td></tr>
 <tr><td><strong>SEC11-root-gains-nothing</strong> guest root is not a privilege</td><td class="na">unchanged: root can still bind, as before</td><td class="na">unchanged</td></tr>
 </tbody>
@@ -95,7 +96,9 @@ The profile denies vsock sockets, and `wb-guestd`'s port stays at 1024 or above.
 - <Badge text="verified" variant="success" /> While the daemon holds its port, every bind variant fails with `EADDRINUSE`, for root too. Source: "Answer" part 3.
 - <Badge text="verified" variant="success" /> After `kill -9`, the restarted daemon answers 11.5 to 18.2 ms later. A squatting project user got port 1024 and answered 410 host connections over 21.7 s, while the real daemon's three restarts failed. Source: "Measurements", `results/gap-summary.txt`.
 - <Badge text="verified" variant="success" /> `(deny system-socket (socket-domain AF_VSOCK))` makes `socket()` fail with `EPERM`, also added to the agent-safehouse v0.12.0 profiles. `(deny network*)` alone leaves `socket()` working. Source: "Answer" parts 5 to 7, `results/profiles.jsonl`.
-- <Badge text="assumed" variant="caution" /> That the guest kernel keeps refusing ports below 1024 to non-root users in later macOS releases. It's undocumented. The conformance suite now checks it on every image (S11-verification-and-spikes).
+- <Badge text="verified" variant="success" /> The port rule isn't in Apple's developer documentation, but the XNU source has it: `bsd/kern/vsock_domain.c` returns `EACCES` for a port below `VSOCK_PORT_RESERVED` (1024) unless `proc_suser` passes, which needs effective user ID 0. A later macOS that drops it fails the conformance check on that image (S11-verification-and-spikes).
+- <Badge text="verified" variant="success" /> The spike's project user stand-in had no `sudo`. Its admin account could have become root and bound the port, so S06-vm-lifecycle now requires project users without `admin`, `wheel` or a sudoers rule, and sealing fails on an enabled admin account. Source: X27-vsock-confinement, condition 5.
+- <Badge text="assumed" variant="caution" /> That X20-shared-homebrew can work without `sudo` for project users. The maintainer is to confirm this strict default.
 
 ## What it unblocks
 
