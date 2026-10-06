@@ -151,11 +151,12 @@ the Windows host's `wb-hostd`:
   optimization (spike X12-wsl-channel).
 - **Terminal.** The WSL-side `wb` owns the terminal and relays it inside
   the gRPC stream, so Windows console behavior does not apply.
-- **Repository.** The repository stays in the WSL filesystem. The
-  WSL-side `wb` serves the read-only `upload-pack` side of the git
-  transport (S08-workspace-and-git) locally and tunnels it, so the Windows side never
-  reads the repository over the cross-OS file share. `wb land` fetches
-  from the Windows-side landing repository over the same channel.
+- **Repository.** The repository stays in the WSL filesystem, and
+  `wb-hostd` never reads it. How the WSL-side `wb` gets the selected
+  refs into the Windows-side `export.git` without making `wb-hostd` the
+  fetch client is open under I67 (S08-workspace-and-git, "WSL").
+  `wb land` fetches from the Windows-side landing repository over the
+  gRPC channel.
 - **Project identity** includes the distribution name (S05-cli), so the
   same path in two distributions is two projects.
 - **Requirement.** The Windows side must have Wraith Box installed and
