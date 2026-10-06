@@ -54,9 +54,6 @@ whom, when one is decided badly or late. Take a brief off the list once
 it is decided.
 
 The maintainer decided B36-flow-attribution to B52-proto-contracts on
-2026-10-04.
-
-1. B32-dep-gate-registries: the dependency gate as S07-egress-gateway
-   specified it fails every fresh install. Approving the spike result
-   accepts metadata filtering in front of the download refusal, and
-   Homebrew outside the gate. Its vulnerability threshold is I73.
+2026-10-04, B32-dep-gate-registries on 2026-10-04, and
+B29-vsock-handoff, B37-terminal-boundary and B74-pre-receive-check on
+2026-10-06. The list is empty until a brief is added to it.

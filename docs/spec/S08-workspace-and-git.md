@@ -107,8 +107,8 @@ back out, without sharing the host filesystem.
   - per push (1 GiB): the sum of all object and delta result
     sizes and delta data lengths. It counts resolved sizes, not new
     bytes, so 40 edits of a 30 MiB file exceed it in a few KiB. The
-    refusal names the cap and the total, and says to push fewer commits
-    at a time;
+    refusal names the cap and the total, says that the cap is fixed,
+    and says to push fewer commits at a time;
   - object count (1,000,000): the count in the pack header,
     checked before the scanner forwards the header. `index-pack`
     allocates its object table from that count, and the scanner keeps
@@ -130,8 +130,11 @@ back out, without sharing the host filesystem.
   The scanner's scope waits on I102. If `GIT_ALLOC_LIMIT` makes git
   refuse an oversized delta before it allocates the memory, the
   per-object bound comes from git, and the scanner keeps only the
-  per-push total and the object count, or is dropped. I102 is answered
-  before the git gateway work builds the scanner.
+  per-push total and the object count, or is dropped. Dropping it needs
+  I102 to show that git also bounds the object table it allocates from
+  the header's count. I102 is answered before the git gateway work
+  builds the scanner. Until I102 is answered, the scanner above is the
+  spec, and narrowing it is a spec change.
 - **Pre-receive check.** Git moves a pushed pack out of quarantine
   before some of its own ref checks, which it makes only in `update()`
   (X07-git-round-trip). A small `pre-receive` program, separate from

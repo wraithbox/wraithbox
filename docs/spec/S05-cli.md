@@ -137,16 +137,16 @@ filters packets (SEC03-no-host-exec).
   read such a stream (`claude -p`), and a later `| cat` puts it on the
   terminal. The filter passes only output that is safe in a terminal,
   so a later `cat` of the file is as safe as the live session. One
-  filter keeps one code path and one fuzz target, passes text, Markdown
-  and JSON unchanged unless they hold a control character the table
-  below drops (C1, `DEL`, or a C0 control other than the ones it
-  passes), and keeps colors for `less -R` and CI logs. Binary output
-  through standard output isn't supported. If moving files out of the
-  guest is ever needed, it gets its own command, not an unfiltered
-  stream. Rejected: passing the stream
-  unchanged, which weakens SEC03-no-host-exec, and dropping only
-  `ESC`-introduced sequences, which is a second filter to keep and
-  fuzz.
+  filter keeps one code path and one fuzz target, and keeps colors for
+  `less -R` and CI logs. It passes text, Markdown and JSON unchanged
+  when they are valid UTF-8 and don't hold a control character that
+  the table below drops (C1, `DEL`, or a C0 control other than the ones it
+  passes). Invalid bytes become U+FFFD, so binary output through
+  standard output isn't supported. If moving files out of the guest is
+  ever needed, it gets its own command, not an unfiltered stream.
+  Rejected: passing the stream unchanged, which weakens
+  SEC03-no-host-exec, and dropping only `ESC`-introduced sequences,
+  which is a second filter to keep and fuzz.
 - **How.** The filter splits the stream into text, controls and
   sequences, and passes a token only when a rule below allows it. It
   drops any other token whole, from its `ESC` to its end, so the

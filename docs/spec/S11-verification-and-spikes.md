@@ -15,7 +15,9 @@ be tested before building on them.
   header and the push command list, X07-git-round-trip), the pack
   scanner in front of `receive-pack` and the input of the pre-receive
   check (X26-pre-receive-check), every vsock RPC
-  handler in `wb-hostd`, network policy YAML, the guest flow labels
+  handler in `wb-hostd`, the stream framing that multiplexes guest
+  requests on a host-opened connection, with the project each request
+  is attributed to (S04-architecture, B29-vsock-handoff), network policy YAML, the guest flow labels
   of S13-guest-confinement, and the dependency gate's parsers: npm
   request paths, PyPI distribution file names, Go escaped module paths
   and versions, crates.io index lines, and `sum.golang.org` lookup

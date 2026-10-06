@@ -20,7 +20,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb` | Go | user, per invocation | nothing | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
-| `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (recommended, not yet built; X23-sandboxed-daemons open decision 2) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository, then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
+| `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository, then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
 | `wb-prover` | Go | user, per boundary check (at `wb trust` and for an approval request whose result isn't cached), started through `wb-launcher` (on macOS); instance cap one per VM plus one for `wb trust` | nothing | repository policy, and a host name the guest asked for in an approval request, both through `wb-hostd` | Set its memory cap, confine itself to its inherited descriptors (the two documents and the result pipe), check the prover binary's hash, then run `openshell-prover check` with fixed arguments (S09-policy-credentials-audit) |
 | `wb-vmd` | platform-native | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | VM handles | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
 | `wb-netd` | Go | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS) | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (S07-egress-gateway) |
@@ -86,11 +86,19 @@ nothing themselves (S12-platforms).
     user ID names the project user (S13-guest-confinement). `wb-guestd`
     sends them to `wb-hostd` on a connection the host opened: multiplexed
     on an existing one, or on a further connection the host opens at
-    `wb-guestd`'s request. Root in the guest can still pose as any
-    project user, which T11-shared-vm-grants and the isolated slot
-    cover. That a project user can't open, bind or listen on vsock and
-    so pose as `wb-guestd` is untested in X18-vsock-handoff, and I101
-    checks it.
+    `wb-guestd`'s request. Each request names the project it came
+    from, and the stream framing on that connection is a parser of
+    guest bytes with a fuzz target (S11-verification-and-spikes).
+  - Attribution fails closed (SEC08-proj-isolation, SEC10-audit).
+    `wb-guestd` refuses a peer user ID that isn't an active, unlocked
+    project user of this VM: root, system accounts, user IDs created
+    at runtime, and a locked project user are all refused. `wb-hostd`
+    refuses a request for a project that isn't in the VM's effective
+    policy. Both log each refusal with the rule. Root in the guest can
+    still pose as any project user, which T11-shared-vm-grants and the
+    isolated slot cover. That a project user can't open, bind, or
+    listen on vsock and so pose as `wb-guestd` is untested in
+    X18-vsock-handoff, and I101 checks it.
   - `wb-vmd` caps the connections it has opened but not yet passed, and
     `wb-hostd` caps connections per VM and per project. Both log each
     refusal (SEC13-bounded-resources).
@@ -152,10 +160,10 @@ nothing themselves (S12-platforms).
       never under `<config>`, `<data>` or `<logs>`, and it checks that
       when it starts.
     - Each program has an instance cap (SEC13-bounded-resources).
-  - git, which the git gateway runs on data the guest sends, is
-    recommended to start through `wb-launcher` as `wb-git`, a shim that
-    applies a profile for one repository and then runs git (not yet
-    built, X23-sandboxed-daemons open decision 2). The launcher table
+  - git, which the git gateway runs on data the guest sends, starts
+    through `wb-launcher` as `wb-git`, a shim that applies a profile for
+    one repository and then runs git (decided in B34-sandboxed-daemons,
+    not yet built). The launcher table
     has two fixed entries, `wb-git-receive` (`git receive-pack`) and
     `wb-git-upload` (`git upload-pack`), so the subcommand is never a
     free string. Besides its program, a `wb-git` request holds one
