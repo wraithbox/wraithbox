@@ -96,9 +96,19 @@ nothing themselves (S12-platforms).
     refuses a request for a project that isn't in the VM's effective
     policy. Both log each refusal with the rule. Root in the guest can
     still pose as any project user, which T11-shared-vm-grants and the
-    isolated slot cover. That a project user can't open, bind, or
-    listen on vsock and so pose as `wb-guestd` is untested in
-    X18-vsock-handoff, and I101 checks it.
+    isolated slot cover.
+  - A project user can't pose as `wb-guestd` (X27-vsock-confinement).
+    `wb-guestd` listens on a vsock port below 1024, and every guest
+    port `wb-hostd` connects to is below 1024. The guest kernel lets
+    only root bind those ports, so no project process can take one
+    while `wb-guestd` restarts, inside the Seatbelt profile or outside
+    it. From 1024 up, any guest user can bind a free port, and in
+    X27-vsock-confinement one answered the host as `wb-guestd` for
+    21.7 s while launchd restarted the daemon. The session profile
+    also denies `AF_VSOCK` sockets (S13-guest-confinement).
+    `wb-guestd` logs and skips a failed `accept` (`ECONNABORTED`, which
+    a guest process causes by connecting to the guest's own CID), so
+    it never stops listening because of one.
   - `wb-vmd` caps the connections it has opened but not yet passed, and
     `wb-hostd` caps connections per VM and per project. Both log each
     refusal (SEC13-bounded-resources).

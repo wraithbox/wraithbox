@@ -68,11 +68,18 @@ process cannot remove it, much like Landlock.
   only in the user's home, the session worktree, and temporary
   directories. The profile is generated from policy on the host and
   installed by `wb-guestd`. The repository never supplies it.
-- **Host-guest socket.** The profile denies `AF_VSOCK` sockets, so that
-  a project user's processes can't open, bind, or listen on vsock and
-  pose as `wb-guestd`. X18-vsock-handoff didn't test this, and I101
-  checks it. The host doesn't rely on it to keep the guest from dialing
-  in: it doesn't register a vsock listener, and it opens every
+- **Host-guest socket.** The profile denies `AF_VSOCK` sockets with
+  `(deny system-socket (socket-domain AF_VSOCK))`, so a project user's
+  processes can't open, bind, or listen on vsock and pose as
+  `wb-guestd` (X27-vsock-confinement). `socket()` then fails with
+  `EPERM`. The network rules alone aren't enough: `(deny network*)`
+  stops `bind` and `connect` on vsock but not `socket()`, and the
+  agent-safehouse modules allow every `system-socket`. A second control
+  backs it: `wb-guestd`'s port is below 1024, which the guest kernel
+  lets only root bind, and that also holds for project processes
+  outside the profile (S04-architecture, "Known gaps" below). The
+  host doesn't rely on either to keep the guest from dialing in: it
+  doesn't register a vsock listener, and it opens every
   connection itself (S04-architecture, B29-vsock-handoff). A project
   user's requests to the host go to `wb-guestd` over a local Unix
   socket, where the peer user ID names the project user. Attribution

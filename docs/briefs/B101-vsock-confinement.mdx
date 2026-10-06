@@ -1,0 +1,118 @@
+---
+title: Can a project user take wb-guestd's place on the host-guest socket?
+description: Yes, unless two controls stop it. wb-guestd listens on a port below 1024, which only guest root can bind, and the session profile denies vsock sockets.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-06: yes, with conditions.** Source: X27-vsock-confinement (I101). Changes S04-architecture, S06-vm-lifecycle, S11-verification-and-spikes and S13-guest-confinement. Found while deciding B29-vsock-handoff.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** On the spike's port 1024, a standard guest user took `wb-guestd`'s place while launchd restarted it, and answered the host for 21.7 s. Ports below 1024 need guest root, and a one-line Seatbelt rule makes vsock sockets fail for the session. The specs now require both. Nothing is left to decide: approve the answer and the spec text.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="wb-hostd on the host connects to a vsock port in the guest and trusts whoever answers to be wb-guestd. When wb-guestd is killed, launchd restarts it about 12 ms later. A project user process that grabs the port in between answers instead. A port below 1024 and a Seatbelt rule stop it.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="20" y="110" width="150" height="70" rx="10" />
+  <text class="label" x="95" y="140" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="95" y="162" text-anchor="middle">connects to the port</text>
+
+  <rect class="boundary" x="300" y="20" width="440" height="260" rx="12" />
+  <text class="boundary-label" x="312" y="40">guest (untrusted)</text>
+
+  <rect class="box guest" x="330" y="55" width="160" height="70" rx="10" />
+  <text class="label" x="410" y="85" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="410" y="107" text-anchor="middle">root, restarted by launchd</text>
+
+  <rect class="box guest" x="330" y="180" width="160" height="70" rx="10" />
+  <text class="label" x="410" y="210" text-anchor="middle">project process</text>
+  <text class="note" x="410" y="232" text-anchor="middle">not root</text>
+
+  <rect class="box guest" x="560" y="110" width="160" height="70" rx="10" />
+  <text class="label" x="640" y="140" text-anchor="middle">vsock port</text>
+  <text class="note" x="640" y="162" text-anchor="middle">below 1024: root only</text>
+
+  <line class="edge" x1="172" y1="135" x2="328" y2="95" marker-end="url(#f1-arrow)" />
+  <text class="note" x="180" y="100">trusts who answers</text>
+  <line class="edge" x1="492" y1="95" x2="558" y2="128" marker-end="url(#f1-arrow)" />
+  <line class="edge-bad" x1="492" y1="215" x2="558" y2="165" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="500" y="262">bind during the restart</text>
+</svg>
+<figcaption>
+Figure 1. `wb-hostd` connects to `wb-guestd`'s port and trusts whatever answers, because `wb-guestd` vouches for the project user behind each request (S04-architecture). The design must stop the red flow, a project process that binds the port in the 12 ms while launchd restarts `wb-guestd`.
+</figcaption>
+</figure>
+
+## The fix the specs now state
+
+The spike found the problem and measured two controls that each stop it. The specs take both, so that one of them failing doesn't reopen the hole. An option the issue named, a check `wb-hostd` makes that a project user can't fake, isn't needed and isn't in the specs.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Port below 1024, plus the Seatbelt rule
+
+`wb-guestd` listens on a vsock port below 1024, and the session profile adds `(deny system-socket (socket-domain AF_VSOCK))`.
+
+- **Cost:** a port number and one profile line. The port rule applies to non-root processes outside the profile too, such as those that LaunchServices or `launchd` start.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" /> <Badge text="SEC10-audit" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Seatbelt rule only
+
+The profile denies vsock sockets, and `wb-guestd`'s port stays at 1024 or above.
+
+- **Cost:** none to build, but S13-guest-confinement lists processes outside the profile, and any of them can take the port during a restart.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="caution" /> only for processes inside the profile.
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Port and rule</th><th>B. Rule only</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC08-proj-isolation</strong> one project can't act as another</td><td class="yes">no project process can take the port</td><td class="partial">processes outside the profile can</td></tr>
+<tr><td><strong>SEC10-audit</strong> every request attributed to its project</td><td class="yes">only wb-guestd answers</td><td class="partial">same gap as above</td></tr>
+<tr><td><strong>SEC11-root-gains-nothing</strong> guest root is not a privilege</td><td class="na">unchanged: root can still bind, as before</td><td class="na">unchanged</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> A standard user (uid 502, outside the `admin` group) creates vsock sockets, binds any free port from 1024 up, and connects to a host listener. Source: X27-vsock-confinement, "Answer" parts 1 and 2, `results/matrix.jsonl` on the spike branch.
+- <Badge text="verified" variant="success" /> Ports 1, 80 and 1023 fail with `EACCES` for both non-root users and work for root. Source: "Answer" part 2, `results/matrix.jsonl`, `results/squat-1023-guest.jsonl`.
+- <Badge text="verified" variant="success" /> While the daemon holds its port, every bind variant fails with `EADDRINUSE`, for root too. Source: "Answer" part 3.
+- <Badge text="verified" variant="success" /> After `kill -9`, the restarted daemon answers 11.5 to 18.2 ms later. A squatting project user got port 1024 and answered 410 host connections over 21.7 s, while the real daemon's three restarts failed. Source: "Measurements", `results/gap-summary.txt`.
+- <Badge text="verified" variant="success" /> `(deny system-socket (socket-domain AF_VSOCK))` makes `socket()` fail with `EPERM`, also added to the agent-safehouse v0.12.0 profiles. `(deny network*)` alone leaves `socket()` working. Source: "Answer" parts 5 to 7, `results/profiles.jsonl`.
+- <Badge text="assumed" variant="caution" /> That the guest kernel keeps refusing ports below 1024 to non-root users in later macOS releases. It's undocumented. The conformance suite now checks it on every image (S11-verification-and-spikes).
+
+## What it unblocks
+
+The `wb-guestd` contract in I52, the vsock RPCs of the walking skeleton (V1-M2-walking-skeleton), and the Layer 2 profile work of S13-guest-confinement, which now has a tested rule for vsock.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the port matters.** `wb-hostd` opens every connection to the guest (B29-vsock-handoff). It can't see which process answers, so it trusts that the process on `wb-guestd`'s port is `wb-guestd`. That daemon then names the project user behind each request. A process that takes the port could claim any project's identity.
+
+**Why launchd restarts leave a window.** launchd restarts a crashed daemon within milliseconds, but the port is free until then. If another process binds it first, the real daemon fails to start and launchd waits 10 s before the next try.
+
+**Why both controls.** The port rule is enforced by the guest kernel for every non-root process. The Seatbelt rule keeps project processes off vsock altogether, which also covers any other guest port the host connects to later.
+
+- **vsock:** the host-guest socket, a direct channel between the host and the guest that doesn't go through the network.
+- **Bind:** claim a port, so that connections to it reach your process.
+- **Seatbelt:** macOS's kernel sandbox. A profile lists what a process may do, and its children inherit it.
+- **launchd:** the macOS service manager, which starts and restarts daemons.
+
+</details>

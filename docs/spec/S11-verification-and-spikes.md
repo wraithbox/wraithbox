@@ -191,6 +191,10 @@ be tested before building on them.
     naming the rule; with a test double for the Go module proxy,
     redirect a download elsewhere and see it refused;
   - read or change policy, credentials, or the audit log from the guest;
+  - as a project user outside the session profile, bind `wb-guestd`'s
+    vsock port and see `EACCES`, since the guest kernel's rule for
+    ports below 1024 is undocumented; inside a session, open an
+    `AF_VSOCK` socket and see `EPERM` (X27-vsock-confinement);
   - write into the host repository through the git transport; fetch an
     object outside the session's branch by its ID; push outside
     `refs/heads/wb/<session-id>/`, or a tree with a `.git` entry;
