@@ -1,3 +1,41 @@
+# X28-git-alloc-limit spike (throwaway)
+
+Throwaway code for spike X28-git-alloc-limit (#102). Not held to the
+project gates, never merged. The written result is
+`docs/spikes/X28-git-alloc-limit.md` on `main`.
+
+The code is the X26-pre-receive-check harness, copied unchanged from
+`spike/x26-pre-receive-check` at `077a8da` (the Go module is still
+called `x26`), plus:
+
+- `cmd/x26/alloc.go`: two phases.
+  - `alloc` pushes the X26 bomb packs, and a few more (delta data
+    length, a REF_DELTA against a large base in the borrowed repository,
+    object counts in the pack header, a million tiny objects, 640 deltas
+    under the cap), through `receive-pack` in five modes: the S08
+    settings with and without `GIT_ALLOC_LIMIT=100m`, without the hook,
+    with git's default `unpack-objects` path, and the S08 settings with
+    the pack's 20-byte checksum left off. It records the result, time,
+    CPU time, peak memory, and what the push left in `landing.git`.
+  - `alloccost` pushes the Go repository's whole history, and one new
+    commit into a landing repository that borrows from it, with and
+    without the limit, to show that the limit refuses no real push.
+- `cmd/x26/main.go`: `opts.allocLimit` and `opts.noTrailer`, and CPU
+  time from `wait4`.
+- `run-x28.sh`: both phases with Homebrew git and Apple git.
+- `results/x28-run1-homebrew.txt` (git 2.56.0) and
+  `results/x28-run2-apple.txt` (Apple git 2.54.0). The `run1` to `run4`
+  files are X26's, unchanged.
+
+```sh
+cd spikes/x28-git-alloc-limit
+sh run-x28.sh /path/to/bare/clone/of/golang/go
+```
+
+The X26 README follows, unchanged.
+
+---
+
 # X26-pre-receive-check spike (throwaway)
 
 Throwaway code for spike X26-pre-receive-check (#74). Not held to the

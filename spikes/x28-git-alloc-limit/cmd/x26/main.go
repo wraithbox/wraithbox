@@ -139,7 +139,7 @@ type result struct {
 	err     error
 	scanErr error
 	dur     time.Duration
-	maxRSS  int64 // bytes, receive-pack and its children
+	maxRSS  int64         // bytes, receive-pack and its children
 	cpu     time.Duration // X28: user + system time of receive-pack and its children
 }
 

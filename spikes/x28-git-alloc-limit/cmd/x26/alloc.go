@@ -48,7 +48,7 @@ type allocBomb struct {
 	pack  func() ([]byte, string)
 	setup func(h *H, landing string) // optional: prepare the landing repository
 	modes []int                      // run only these modes (indexes); nil = all
-	limit string                    // GIT_ALLOC_LIMIT for the limit modes, if not allocLimit
+	limit string                     // GIT_ALLOC_LIMIT for the limit modes, if not allocLimit
 }
 
 func allocBombs(h *H) []allocBomb {

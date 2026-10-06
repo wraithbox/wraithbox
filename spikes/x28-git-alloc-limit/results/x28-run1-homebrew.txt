@@ -1,0 +1,125 @@
+# X26 run 2026-10-06T19:11:34+02:00
+
+git: git version 2.56.0
+run directory: /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a7066d7a2bfd8561c/.scratch/x26-run-2268838546 (path length 108)
+receive.maxInputSize=16777216, object cap 104857600, total cap 1073741824
+
+## GIT_ALLOC_LIMIT=100m
+
+maxrss is ru_maxrss of receive-pack with its reaped children; cpu is their user + system time. "S08" is receive.unpackLimit=1 and pack.threads=1 with the pre-receive check, as S08-workspace-and-git sets them. "Left" is what the push added to objects/ of landing.git, and the quarantine directories it left.
+
+| Pack | Wire bytes | Mode | Result | Time | cpu | maxrss | Left |
+|---|---|---|---|---|---|---|---|
+| One delta, result 256 MiB | 8395 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 1.13 s | 0.89 s | 271 MiB | +0 B, 0 quarantine |
+| One delta, result 256 MiB | 8395 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 268435457 over limit 104857600 | 0.06 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 256 MiB | 8395 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 268435457 over limit 104857600 | 0.06 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 256 MiB | 8395 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 268435457 over limit 104857600 | 0.10 s | 0.09 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 256 MiB | 8395 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 512 MiB | 8395 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 1.81 s | 1.72 s | 527 MiB | +0 B, 0 quarantine |
+| One delta, result 512 MiB | 8395 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 536870913 over limit 104857600 | 0.06 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 512 MiB | 8395 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 536870913 over limit 104857600 | 0.10 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 512 MiB | 8395 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 536870913 over limit 104857600 | 0.10 s | 0.09 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 512 MiB | 8395 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.06 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 1024 MiB | 8395 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 3.33 s | 3.23 s | 1039 MiB | +0 B, 0 quarantine |
+| One delta, result 1024 MiB | 8395 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 1073741825 over limit 104857600 | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 1024 MiB | 8395 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 1073741825 over limit 104857600 | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 1024 MiB | 8395 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 1073741825 over limit 104857600 | 0.09 s | 0.08 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 1024 MiB | 8395 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.04 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 2048 MiB | 8395 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 6.40 s | 6.29 s | 2063 MiB | +0 B, 0 quarantine |
+| One delta, result 2048 MiB | 8395 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 2147483649 over limit 104857600 | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 2048 MiB | 8395 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 2147483649 over limit 104857600 | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 2048 MiB | 8395 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 2147483649 over limit 104857600 | 0.09 s | 0.08 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 2048 MiB | 8395 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| 8 deltas of 256 MiB | 8779 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 6.40 s | 6.25 s | 527 MiB | +0 B, 0 quarantine |
+| 8 deltas of 256 MiB | 8779 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 268435450 over limit 104857600 | 0.06 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| 8 deltas of 256 MiB | 8779 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 268435450 over limit 104857600 | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| 8 deltas of 256 MiB | 8779 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 268435457 over limit 104857600 | 0.09 s | 0.08 s | 15 MiB | +0 B, 0 quarantine |
+| 8 deltas of 256 MiB | 8779 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| 8 deltas of 96 MiB | 8778 | S08, no limit | unpack ok; ok refs/heads/wb/S1/bomb | 2.39 s | 2.34 s | 207 MiB | +8778 B, 0 quarantine |
+| 8 deltas of 96 MiB | 8778 | S08 + limit | unpack ok; ok refs/heads/wb/S1/bomb | 2.35 s | 2.33 s | 207 MiB | +8778 B, 0 quarantine |
+| 8 deltas of 96 MiB | 8778 | S08 + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 2.39 s | 2.33 s | 207 MiB | +8778 B, 0 quarantine |
+| 8 deltas of 96 MiB | 8778 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 5.93 s | 5.81 s | 111 MiB | +11 B, 0 quarantine |
+| 8 deltas of 96 MiB | 8778 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| 64 deltas of 96 MiB (6 GiB together) | 11796 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (total-size) | 25.48 s | 17.35 s | 206 MiB | +0 B, 0 quarantine |
+| 64 deltas of 96 MiB (6 GiB together) | 11796 | S08 + limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (total-size) | 18.22 s | 18.04 s | 207 MiB | +0 B, 0 quarantine |
+| 64 deltas of 96 MiB (6 GiB together) | 11796 | S08 + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 18.76 s | 18.03 s | 207 MiB | +11796 B, 0 quarantine |
+| 64 deltas of 96 MiB (6 GiB together) | 11796 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 51.10 s | 44.81 s | 112 MiB | +67 B, 0 quarantine |
+| 64 deltas of 96 MiB (6 GiB together) | 11796 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| Chain of 8 deltas of 96 MiB | 8770 | S08, no limit | unpack ok; ok refs/heads/wb/S1/bomb | 2.45 s | 2.39 s | 207 MiB | +8770 B, 0 quarantine |
+| Chain of 8 deltas of 96 MiB | 8770 | S08 + limit | unpack ok; ok refs/heads/wb/S1/bomb | 2.50 s | 2.45 s | 207 MiB | +8770 B, 0 quarantine |
+| Chain of 8 deltas of 96 MiB | 8770 | S08 + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 2.57 s | 2.24 s | 207 MiB | +8770 B, 0 quarantine |
+| Chain of 8 deltas of 96 MiB | 8770 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 6.73 s | 5.64 s | 208 MiB | +11 B, 0 quarantine |
+| Chain of 8 deltas of 96 MiB | 8770 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.04 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 99 MiB (under the limit) | 8394 | S08, no limit | unpack ok; ok refs/heads/wb/S1/bomb | 0.40 s | 0.39 s | 114 MiB | +8394 B, 0 quarantine |
+| One delta, result 99 MiB (under the limit) | 8394 | S08 + limit | unpack ok; ok refs/heads/wb/S1/bomb | 0.39 s | 0.38 s | 114 MiB | +8394 B, 0 quarantine |
+| One delta, result 99 MiB (under the limit) | 8394 | S08 + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 0.37 s | 0.36 s | 114 MiB | +8394 B, 0 quarantine |
+| One delta, result 99 MiB (under the limit) | 8394 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 0.87 s | 0.85 s | 114 MiB | +4 B, 0 quarantine |
+| One delta, result 99 MiB (under the limit) | 8394 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.04 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result exactly 100 MiB | 8396 | S08, no limit | unpack ok; ok refs/heads/wb/S1/bomb | 0.40 s | 0.39 s | 115 MiB | +8396 B, 0 quarantine |
+| One delta, result exactly 100 MiB | 8396 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 104857601 over limit 104857600 | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result exactly 100 MiB | 8396 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 104857601 over limit 104857600 | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result exactly 100 MiB | 8396 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 104857601 over limit 104857600 | 0.09 s | 0.08 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result exactly 100 MiB | 8396 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.04 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result exactly 100 MiB, GIT_ALLOC_LIMIT=104857601 | 8396 | S08, no limit | unpack ok; ok refs/heads/wb/S1/bomb | 0.40 s | 0.39 s | 115 MiB | +8396 B, 0 quarantine |
+| One delta, result exactly 100 MiB, GIT_ALLOC_LIMIT=104857601 | 8396 | S08 + limit | unpack ok; ok refs/heads/wb/S1/bomb | 0.40 s | 0.39 s | 115 MiB | +8396 B, 0 quarantine |
+| One delta, result exactly 100 MiB, GIT_ALLOC_LIMIT=104857601 | 8396 | S08 + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 0.37 s | 0.36 s | 115 MiB | +8396 B, 0 quarantine |
+| One delta, result exactly 100 MiB, GIT_ALLOC_LIMIT=104857601 | 8396 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 0.90 s | 0.88 s | 115 MiB | +4 B, 0 quarantine |
+| One delta, result exactly 100 MiB, GIT_ALLOC_LIMIT=104857601 | 8396 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 100 MiB + 1, GIT_ALLOC_LIMIT=104857601 | 8398 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 0.42 s | 0.41 s | 115 MiB | +0 B, 0 quarantine |
+| One delta, result 100 MiB + 1, GIT_ALLOC_LIMIT=104857601 | 8398 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 104857602 over limit 104857601 | 0.06 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 100 MiB + 1, GIT_ALLOC_LIMIT=104857601 | 8398 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 104857602 over limit 104857601 | 0.06 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 100 MiB + 1, GIT_ALLOC_LIMIT=104857601 | 8398 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 104857602 over limit 104857601 | 0.09 s | 0.08 s | 15 MiB | +0 B, 0 quarantine |
+| One delta, result 100 MiB + 1, GIT_ALLOC_LIMIT=104857601 | 8398 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.05 s | 0.04 s | 15 MiB | +0 B, 0 quarantine |
+| Delta data of 128 MiB (copy ops of 1 byte, result 64 MiB) | 138476 | S08, no limit | unpack ok; ok refs/heads/wb/S1/bomb | 0.76 s | 0.74 s | 207 MiB | +138476 B, 0 quarantine |
+| Delta data of 128 MiB (copy ops of 1 byte, result 64 MiB) | 138476 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 134217737 over limit 104857600 | 0.05 s | 0.04 s | 15 MiB | +0 B, 0 quarantine |
+| Delta data of 128 MiB (copy ops of 1 byte, result 64 MiB) | 138476 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 134217737 over limit 104857600 | 0.05 s | 0.05 s | 15 MiB | +0 B, 0 quarantine |
+| Delta data of 128 MiB (copy ops of 1 byte, result 64 MiB) | 138476 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 134217737 over limit 104857600 | 0.08 s | 0.08 s | 15 MiB | +0 B, 0 quarantine |
+| Delta data of 128 MiB (copy ops of 1 byte, result 64 MiB) | 138476 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.11 s | 0.10 s | 143 MiB | +0 B, 0 quarantine |
+| REF_DELTA against a 200 MiB blob in the borrowed repository, result 1 KiB | 230 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 1.21 s | 1.04 s | 208 MiB | +0 B, 0 quarantine |
+| REF_DELTA against a 200 MiB blob in the borrowed repository, result 1 KiB | 230 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 209715201 over limit 104857600 | 0.04 s | 0.03 s | 7 MiB | +0 B, 0 quarantine |
+| REF_DELTA against a 200 MiB blob in the borrowed repository, result 1 KiB | 230 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 209715201 over limit 104857600 | 0.04 s | 0.03 s | 7 MiB | +0 B, 0 quarantine |
+| REF_DELTA against a 200 MiB blob in the borrowed repository, result 1 KiB | 230 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 209715201 over limit 104857600 | 0.05 s | 0.04 s | 7 MiB | +0 B, 0 quarantine |
+| REF_DELTA against a 200 MiB blob in the borrowed repository, result 1 KiB | 230 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.04 s | 0.03 s | 7 MiB | +0 B, 0 quarantine |
+| Blob of 99 MiB zeros | 100820 | S08, no limit | unpack ok; ok refs/heads/wb/S1/bomb | 0.39 s | 0.36 s | 106 MiB | +100820 B, 0 quarantine |
+| Blob of 99 MiB zeros | 100820 | S08 + limit | unpack ok; ok refs/heads/wb/S1/bomb | 0.58 s | 0.43 s | 106 MiB | +100820 B, 0 quarantine |
+| Blob of 99 MiB zeros | 100820 | S08 + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 0.44 s | 0.39 s | 106 MiB | +100820 B, 0 quarantine |
+| Blob of 99 MiB zeros | 100820 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 0.87 s | 0.74 s | 106 MiB | +3 B, 0 quarantine |
+| Blob of 99 MiB zeros | 100820 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.42 s | 0.34 s | 106 MiB | +0 B, 0 quarantine |
+| Blob of 400 MiB zeros | 406653 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 1.44 s | 1.41 s | 407 MiB | +0 B, 0 quarantine |
+| Blob of 400 MiB zeros | 406653 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 419430401 over limit 104857600 | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Blob of 400 MiB zeros | 406653 | S08 + limit, no hook | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 419430401 over limit 104857600 | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Blob of 400 MiB zeros | 406653 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack unpack-objects abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 419430401 over limit 104857600 | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Blob of 400 MiB zeros | 406653 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 1.42 s | 1.39 s | 407 MiB | +0 B, 0 quarantine |
+| Blob of 1 GiB zeros | 1040662 | S08, no limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 3.48 s | 3.41 s | 7 MiB | +0 B, 0 quarantine |
+| Blob of 1 GiB zeros | 1040662 | S08 + limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (object-size) | 3.40 s | 3.38 s | 7 MiB | +0 B, 0 quarantine |
+| Blob of 1 GiB zeros | 1040662 | S08 + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 3.39 s | 3.37 s | 8 MiB | +1040662 B, 0 quarantine |
+| Blob of 1 GiB zeros | 1040662 | git defaults (unpack-objects under 100 objects) + limit, no hook | unpack ok; ok refs/heads/wb/S1/bomb | 5.15 s | 5.07 s | 8 MiB | +3 B, 0 quarantine |
+| Blob of 1 GiB zeros | 1040662 | S08, no limit, pack without its checksum | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 3.39 s | 3.35 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 1000000 objects, pack holds 3, no checksum | 206 | S08, no limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 1000000 objects, pack holds 3, no checksum | 206 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 1638399 objects, pack holds 3, no checksum | 210 | S08, no limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 1638399 objects, pack holds 3, no checksum | 210 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 1638400 objects, pack holds 3, no checksum | 211 | S08, no limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 1638400 objects, pack holds 3, no checksum | 211 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 104857664 over limit 104857600 | 0.02 s | 0.01 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 10000000 objects, pack holds 3, no checksum | 205 | S08, no limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 10000000 objects, pack holds 3, no checksum | 205 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 640000064 over limit 104857600 | 0.02 s | 0.01 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 100000000 objects, pack holds 3, no checksum | 206 | S08, no limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: early EOF | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 100000000 objects, pack holds 3, no checksum | 206 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: attempting to allocate 6400000064 over limit 104857600 | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 4294967295 objects, pack holds 3, no checksum | 215 | S08, no limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: size_t overflow: 18446744073709551615 + 1 | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| Header declares 4294967295 objects, pack holds 3, no checksum | 215 | S08 + limit | unpack index-pack abnormal exit; ng refs/heads/wb/S1/bomb unpacker error / stderr: fatal: size_t overflow: 18446744073709551615 + 1 | 0.02 s | 0.02 s | 7 MiB | +0 B, 0 quarantine |
+| 1,000,000 tiny blobs no ref reaches, and one commit | 13000214 | S08, no limit | unpack ok; ok refs/heads/wb/S1/bomb | 2.15 s | 2.32 s | 146 MiB | +13000214 B, 0 quarantine |
+| 1,000,000 tiny blobs no ref reaches, and one commit | 13000214 | S08 + limit | unpack ok; ok refs/heads/wb/S1/bomb | 2.08 s | 2.27 s | 146 MiB | +13000214 B, 0 quarantine |
+| 640 deltas of 96 MiB (60 GiB together) | 42542 | S08 + limit | unpack ok; ng refs/heads/wb/S1/bomb pre-receive hook declined / stderr: wb: push refused (total-size) | 151.99 s | 144.58 s | 207 MiB | +0 B, 0 quarantine |
+
+## Cost with the limit
+
+Large repository: /Users/lsimons/git/wraithbox/wraithbox/.claude/worktrees/agent-a7066d7a2bfd8561c/.scratch/cache/go.git, master at 1a1b710b4c.
+
+Whole-history pack: 439 MiB, 682580 objects in its header.
+
+| Step | Result | Median (range) | cpu (last) | maxrss | Runs |
+|---|---|---|---|---|---|
+| Whole history, S08, no limit | unpack ok; ok refs/heads/wb/S1/whole | 44.03 s (32.87 s to 55.86 s) | 47.2 s | 476 MiB | 3 |
+| Whole history, S08 + limit | unpack ok; ok refs/heads/wb/S1/whole | 37.10 s (35.62 s to 47.02 s) | 34.3 s | 475 MiB | 3 |
+| One new commit, landing borrows from the large repository, S08, no limit | unpack ok; ok refs/heads/wb/S1/small-13-2 | 0.16 s (0.16 s to 0.28 s) | - | 52 MiB | 3 |
+| One new commit, landing borrows from the large repository, S08 + limit | unpack ok; ok refs/heads/wb/S1/small-11-2 | 0.16 s (0.15 s to 0.17 s) | - | 52 MiB | 3 |
