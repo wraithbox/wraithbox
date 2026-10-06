@@ -291,12 +291,16 @@ depends = ["vuln:osv", "go:vulncheck"]
 # `scripts/osv-ignores.mjs` checks first, and the scanner prints each
 # advisory it leaves out, with the reason.
 [tasks."vuln:osv"]
-description = "osv-scanner over every committed lockfile"
+description = "osv-scanner over every lockfile git lists (tracked, or untracked and not ignored)"
 run = '''
-set -eu
+# -f turns off filename globbing for the whole script. Without it the
+# shell expands `$patterns` against the repository root before git sees
+# it: a stray root `bun.lock` would turn `*bun.lock` into `bun.lock` and
+# drop every nested one. `$locks` below is split with globbing off too.
+set -euf
 bun scripts/osv-ignores.mjs osv-scanner.toml
 patterns="*bun.lock *go.mod *Package.resolved"
-# shellcheck disable=SC2086 # word splitting is the point: one argument per pattern
+# shellcheck disable=SC2086 # word splitting is the point: one argument per pattern; set -f stops globbing
 locks=$(git ls-files --cached --others --exclude-standard -- $patterns)
 if [ -z "$locks" ]; then
   echo "git lists no lockfile matching: $patterns" >&2
@@ -312,8 +316,10 @@ echo "$out"
 
 missing=0
 for lock in $locks; do
+  # The full path: `/bun.lock file and found` alone would also match a
+  # nested bun.lock, and pass a root one the scanner never opened.
   case "$out" in
-    *"/$lock file and found"*) ;;
+    *"Scanned $PWD/$lock file and found"*) ;;
     *)
       echo "osv-scanner never opened $lock — its dependencies went unscanned." >&2
       missing=1
@@ -321,7 +327,7 @@ for lock in $locks; do
   esac
 done
 if [ "$missing" -ne 0 ]; then
-  echo "Every committed lockfile must be scanned. Check that osv-scanner" >&2
+  echo "Every lockfile git lists must be scanned. Check that osv-scanner" >&2
   echo "supports its format." >&2
   exit 1
 fi
