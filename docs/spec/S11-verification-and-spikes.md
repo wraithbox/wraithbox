@@ -295,8 +295,8 @@ be tested before building on them.
     each refusal with its rule in the audit log:
     - start a session with an untracked file that holds a token the
       scanner knows, and a tracked binary file changed to hold one, and
-      see neither in the guest, the tracked file at its `HEAD` version,
-      and both listed in the summary;
+      see the untracked file absent from the guest, the tracked file
+      at its `HEAD` version, and both listed in the summary;
     - start a session with an untracked symbolic link to a host file,
       and see a link in the guest whose target is the string only,
       with none of the file's content;

@@ -20,8 +20,12 @@ back out, without sharing the host filesystem.
   user's repository: repository hooks disabled, system and global git
   configuration ignored, environment scrubbed. Nothing in the guest can
   write to the host repository through this path.
-- **Export repository.** `export.git` holds only the refs the guest
-  may fetch (B41-git-data-scope, item 1). A session selects the branch
+- **Export repository.** `export.git` holds only the refs that some
+  live session of the project selected (B41-git-data-scope, item 1).
+  A session is live from its start until it ends. A session that has
+  ended but isn't discarded yet isn't live: its pushed work in
+  `landing.git` is kept by the copy in "Repository lifecycle" below,
+  not by refs in `export.git`. A session selects the branch
   the user's `HEAD` points to, plus the refs listed in `export_refs` in
   the project's settings (`<config>/projects/<project-id>.toml`,
   S04-architecture). An entry there is a full ref name, matched
@@ -43,6 +47,13 @@ back out, without sharing the host filesystem.
   starts from is then reachable from a ref, which `receive-pack`
   advertises to a push into `landing.git` as a base (below).
 
+  The guest's `upload-pack` runs with `uploadpack.hideRefs` set to
+  `refs/wb/session/` and `!refs/wb/session/<own-session-id>/`, so a
+  session's guest isn't offered other sessions' refs. That is cosmetic:
+  over protocol v2 the guest can still fetch any object in `export.git`
+  by ID, so a guest can read the bases of the project's other live
+  sessions, and keeps what it fetched earlier (T12-shared-export).
+
   `wb-hostd` never opens the user's repository, and `export.git` has
   one writer, `wb` (I67). At session start, `wb`, running as the user,
   takes the project's export lock through `wb-hostd`'s local IPC
@@ -56,9 +67,14 @@ back out, without sharing the host filesystem.
   Its profile must not allow writes under `projects/*/export.git`,
   because `wb` runs git in that repository and git trusts a
   repository's own configuration. I67 writes that into
-  S04-architecture ("Open points"). Before each run, `wb` also checks that
-  `export.git`'s `config` holds exactly what `wb` wrote, and runs git
-  with `core.hooksPath=/dev/null` on its command line.
+  S04-architecture ("Open points"). That denial is the control. As a
+  second layer, before each run `wb` checks that `export.git` holds
+  only the fixed layout it creates (`HEAD`, `config`, `packed-refs`,
+  refs under `refs/`, and loose objects and packs under `objects/`),
+  and that `config` holds exactly what `wb` wrote. Any other file
+  refuses the run, among them `objects/info/alternates`, `commondir`,
+  `info/grafts` and `shallow`. `wb` also runs git with
+  `core.hooksPath=/dev/null` on its command line.
 
   On a partial clone, `upload-pack` refuses to fetch missing objects
   from the user's `origin` (`git-upload-pack(1)`, `GIT_NO_LAZY_FETCH`),
@@ -386,8 +402,10 @@ back out, without sharing the host filesystem.
   project bounds `landing.git`, those included (B41-git-data-scope,
   item 6). Before `receive-pack` starts, `wb-hostd` adds the size of
   everything under `landing.git`, quarantine directories included, to
-  the worst case of one push, about 2 GiB (the quarantine in "Bounds"
-  below). When the sum is over the cap, it runs the same repack and
+  the worst case of one push. That worst case is a constant, the
+  wire-byte cap plus the per-push cap of the pack scanner above,
+  2 GiB with the current values: the pack itself, and the bases
+  `--fix-thin` copies in, which the per-push cap counts. When the sum is over the cap, it runs the same repack and
   prune first. When the sum is still over the cap, the push is refused
   with a message that names the cap and the sum and says to discard
   finished sessions. A cap below the worst case of one push refuses
@@ -473,7 +491,8 @@ back out, without sharing the host filesystem.
     worktree, at the VM's next start when it isn't running. The audit
     log keeps the session's entries. After each `wb discard`,
     `wb-hostd` runs the landing cleanup above (repack and prune) under
-    the landing lock. `wb land` doesn't remove refs and doesn't run it.
+    the landing lock. `wb land` keeps the refs, so no cleanup follows
+    it.
   - Each project has an export lock in `wb-hostd`. `wb` takes it
     alone, through `wb-hostd`'s local IPC, for the export update at
     session start and for every repack or prune of `export.git`, and
@@ -488,29 +507,49 @@ back out, without sharing the host filesystem.
     the objects those refs reach. A session branch can then depend on
     any object that `export.git`'s refs reached at the time of the
     push.
-  - An export update shrinks the selection when it deletes a ref, or
-    moves one to a commit that doesn't contain the old one. The refs of
-    every live session stay (above), so only objects that no live
-    session selected can go. Two steps follow. `wb` holds the export
-    lock and `wb-hostd` the landing lock through both, so that neither
-    a push nor a landing cleanup starts before the prune ends:
-    1. `wb-hostd` copies into `landing.git` the objects its session refs
-       reach that the refs `export.git` keeps don't reach:
-       `git rev-list --objects` of the session refs, with `--not` and
-       the kept tips, piped into `git pack-objects` without `--local`.
-       `landing.git` then holds every object its refs need that the
-       prune can remove.
-    2. `wb` deletes the refs and runs `git repack -a -d` and
-       `git prune --expire=now` on `export.git`.
+  - An export update shrinks the selection when, after it deletes the
+    refs of sessions that are no longer live and moves the plain names,
+    some object is no longer reachable from any ref of `export.git`.
+    `wb` finds that with `git rev-list --objects` of the old tips, with
+    `--not` and the new ones: any output is a shrink. The refs of every
+    live session stay (above), so only objects that no live session
+    selected can go. Without a shrink, `wb` only deletes the refs.
+    With one, `wb` holds the export lock, and `wb-hostd`
+    the landing lock, from the first of these steps to the last, so
+    that neither a push nor a landing cleanup starts before the prune
+    ends:
+    1. `wb` sends `wb-hostd` the exact list of refs to delete.
+       The fetch has already moved the plain names, and the objects
+       their old tips reach stay in `export.git` until the prune.
+    2. `wb-hostd` checks each name with `git check-ref-format`, then
+       copies into `landing.git` the objects its session refs reach
+       that the remaining refs don't reach: `git rev-list --objects` of
+       the session refs, with `--not` and every ref of `export.git`
+       not on the list, piped into `git pack-objects` without
+       `--local`. `landing.git` then holds every object its refs need
+       that the prune can remove. `wb-hostd` acknowledges the list.
+    3. After the acknowledgment, `wb` deletes exactly the refs on the
+       list, and runs `git repack -a -d` and `git prune --expire=now` on
+       `export.git`.
 
     The objects of a ref that left the selection are then gone from
     `export.git`, and a later session can't fetch them by ID. A guest
     that fetched them earlier still has them in the project user's
-    clone, because pruning only stops later fetches. The copy adds to
-    `landing.git`'s size only the objects of deselected refs that a
-    session branch still reaches, and it counts toward the cap.
-    `export.git` has no size cap, because what it holds comes from the
-    user's own repository.
+    clone, because pruning only stops later fetches (T12-shared-export).
+    The copy adds to `landing.git`'s size only the objects of
+    deselected refs that a session branch still reaches, and it counts
+    toward the cap. `export.git` has no size cap, because what it holds
+    comes from the user's own repository.
+
+    The prune runs on the session start path, before the new session's
+    guest fetches. That costs NFR01-startup a full repack of
+    `export.git` whenever the selection shrinks, and the project's
+    pushes wait for the landing lock meanwhile. It isn't measured. As
+    a rough guide, building `export.git` for the Go repository took
+    about 16 s (X07-git-round-trip). When the user stays on one branch
+    and only adds commits to it, the base of an ended session is an
+    ancestor of the new tip, so deleting its refs isn't a shrink and
+    the update doesn't prune.
 
 ## Host git
 
@@ -525,7 +564,11 @@ allows only permissive licenses. It requires a minimum version instead
   way, and never from `PATH`: the `git` setting in
   `<config>/config.toml` when it is set, otherwise the platform's fixed
   default, `/usr/bin/git` on macOS and Linux and
-  `C:\Program Files\Git\cmd\git.exe` on Windows. `wb` never runs a
+  `C:\Program Files\Git\cmd\git.exe` on Windows. A `git` setting that
+  isn't an absolute path is refused. On macOS without the Command Line
+  Tools, `/usr/bin/git` is a stub that doesn't run git, so the version
+  check below fails there, and its message says to install the Command
+  Line Tools or set `git`. `wb` never runs a
   binary that `wb-hostd` names. It resolves its own, compares it with
   the path `wb-hostd` reports, and refuses on a mismatch, so a
   compromised `wb-hostd` can't make `wb` run a program it wrote
@@ -594,10 +637,15 @@ quarantine attribute on macOS, Mark of the Web on Windows; S12-platforms).
 ## WSL
 
 When `wb` runs inside WSL (S12-platforms), the repository is in the WSL
-distribution. The WSL-side `wb` runs `upload-pack` there, with the same
-restrictions, and tunnels it; `wb land` fetches from the landing
-repository on the Windows side through the same channel. Everything
-else in this spec is unchanged.
+distribution, and `export.git` is on the Windows side. `wb-hostd`
+must not become the fetch client of an `upload-pack` on the user's
+repository, so the export update can't be a stream that the WSL-side
+`wb` tunnels to it. Which process writes `export.git` instead, the
+WSL-side `wb` over the cross-OS file share or a Windows-side process
+running as the user, is open under I67. `wb land` fetches from the
+landing repository on the Windows side through the gRPC channel, with
+the object checks of "Landing on the host". Everything else in this
+spec is unchanged.
 
 ## Open points
 
@@ -610,9 +658,9 @@ precise enough on working trees that it skips few files by mistake,
 which isn't measured.
 
 I67 still has to write into S04-architecture that `wb` writes
-`export.git` and `wb-hostd` only serves it: the `wb-hostd` profile
-without write access to `projects/*/export.git`, a read-only
-`wb-git-upload` shim profile for it, and the export lock in
-`wb-hostd`'s local IPC.
+`export.git` and `wb-hostd` only serves it. That covers a `wb-hostd`
+profile without write access to `projects/*/export.git`, a read-only
+`wb-git-upload` shim profile for it, the export lock in `wb-hostd`'s
+local IPC, and the export path on WSL above.
 
 **Status:** Draft

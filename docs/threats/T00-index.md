@@ -16,6 +16,7 @@ trusts, and which risks it accepts rather than solves.
 | T09-terminal-fingerprint | Host terminal facts in the guest | Accepted |
 | T10-unnamed-credentials | Guest credentials in unnamed places | Accepted |
 | T11-shared-vm-grants | Projects in one VM share network grants | Accepted |
+| T12-shared-export | Sessions of a project share what they can fetch | Accepted |
 
 ## Model
 
@@ -135,3 +136,19 @@ print about returned work after `wb land` is outside it
   to itself (S06-vm-lifecycle, "VMs"). With NFR05-two-macos-vms, one
   such project runs at a time, and untrusted work waits meanwhile. The
   maintainer accepted this on I36.
+- **T12-shared-export: Sessions of a project share what they can
+  fetch.** A project's `export.git` holds the refs that any live session
+  of the project selected (S08-workspace-and-git, "Export repository").
+  Over protocol v2 `upload-pack` serves any object it holds to a client
+  that names its ID, and `uploadpack.hideRefs` only trims the list of
+  refs it offers (X07-git-round-trip). So a session's guest can fetch
+  the start commits and selected refs of the project's other live
+  sessions, also when the user selected them for that other session
+  only. A guest also keeps every object it fetched earlier in the
+  project user's clone, after the ref left the selection and
+  `export.git` was pruned. Pruning stops only later fetches. Everything
+  here is the user's own repository content, selected for a session of
+  the same project, and the project's sessions share one guest user.
+  Other branches, tags, notes and the stash never reach `export.git`,
+  and other projects have their own (SEC04-no-guest-secrets). Proposed
+  in PR123 (B41-git-data-scope).
