@@ -308,8 +308,10 @@ inspection is trusted, and what is recorded.
     after the SNI check, and only when the VM's effective policy
     inspects that host (S07-egress-gateway, "Stream path", "Name
     binding" and "Modes"). It signs with the CA of the stream's VM,
-    and keys its leaf cache on VM, CA, and hostname. A stream that fails
-    this rule is reset and logged with the rule.
+    and keys its leaf cache on VM, CA, and hostname. A pass-mode
+    stream is relayed unchanged, and `wb-proxyd` doesn't sign a leaf
+    for it. Any other stream that fails this rule is reset and logged
+    with the rule.
   - *Leaf profile.* Exactly one `dNSName` subject alternative name,
     equal to the stream's hostname. It has neither a wildcard nor an
     IP address name. `CA:FALSE`, extended key usage `serverAuth`, and
@@ -349,9 +351,9 @@ inspection is trusted, and what is recorded.
     from `wb-hostd`'s own record, never from what the guest
     reports it has, and `wb-hostd` records the install. Only then does
     `wb-proxyd` accept the VM's streams. After a restore, `wb-proxyd`
-    keeps signing with the newest CA the guest had before the save,
-    also past day 58, while that CA is valid, because resumed processes loaded their
-    trust before the save.
+    keeps signing with the CA it signed with before the save, also
+    past day 58, while that CA is valid, because resumed processes
+    loaded their trust before the save.
   - *Why rotate.* The hardware key can't be read out, so whoever can use
     it controls `wb-proxyd` on the host, and a new certificate doesn't
     change that. Rotation bounds how long the software fallback key
