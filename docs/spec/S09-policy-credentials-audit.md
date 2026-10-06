@@ -282,20 +282,54 @@ inspection is trusted, and what is recorded.
 
 ## TLS inspection certificate authority
 
-- **Key.** A P-256 key generated in the platform's hardware key store
-  (Secure Enclave on macOS, TPM elsewhere; S12-platforms), non-exportable,
-  used by `wb-proxyd` to sign leaf certificates (Go's certificate
-  creation accepts any signer). Fallback if no hardware key store is
-  available: a software key held in the secret store.
-- **Scope.** The CA certificate has name constraints restricting it
-  to the hostnames configured for inspection. It is trusted **only inside
-  guests**, never on the host. When the inspected set changes, a new CA
-  is issued and `wb-guestd` installs it.
-- **Lifetimes.** CA: 30 days, rotated automatically. Leaf certificates:
-  24 hours, cached in memory.
+- **Key.** Each CA has a P-256 key generated in the platform's
+  hardware key store (Secure Enclave on macOS, TPM elsewhere;
+  S12-platforms), non-exportable, used by `wb-proxyd` to sign leaf
+  certificates (Go's certificate creation accepts any signer).
+  Fallback if no hardware key store is available: a software key held
+  in the secret store.
+- **Scope.** Each VM has its own CA, and two during a rotation
+  ("Lifetimes"), so a leaf signed for one VM isn't trusted in another.
+  A CA is trusted **only inside guests**, never on the host. The CA
+  certificate has no name constraints. The set of inspected hosts
+  changes with every approval (S07-egress-gateway, "Approvals and
+  learning"), and a constraint that followed it would need a new CA
+  each time. Clients that read trust once per process would then
+  reject every leaf from the new CA until they restart. The maintainer
+  decided this on I39 (B39-ca-rotation).
+  - *Leaf issuance.* What limits the names the CA vouches for is
+    `wb-proxyd`: it signs a leaf only for the hostname of the stream,
+    after the SNI check, and only when policy inspects that host
+    (S07-egress-gateway, "Stream path", "Name binding" and "Modes"). Any other
+    request for a leaf is refused and logged with the rule.
+  - *No constraint at all.* A broad constraint that never changes
+    limits nothing that leaf issuance doesn't already limit. RFC 5280
+    requires the extension to be marked critical, so a client that
+    doesn't support it rejects the CA.
+- **Lifetimes.** Leaf certificates: 24 hours, cached in memory. CA: 60
+  days, rotated with an overlap.
+  - *Overlap.* When the current CA is 30 days old, `wb-hostd` issues
+    its successor with a new key, and `wb-guestd` installs it next to
+    the current one.
+    `wb-proxyd` keeps signing with the current CA until 2 days before
+    it expires, then signs with the successor, and `wb-guestd` removes
+    the expired CA from the trust store. A process that started before
+    the successor was installed works until that switch, 28 days
+    later. Only a process that runs longer than that and never rereads
+    its trust fails, with a certificate error. After a restore from
+    saved state, `wb-guestd` installs any CA the guest lacks before
+    `wb-proxyd` accepts the VM's streams.
+  - *Why rotate.* The hardware key can't be read out, so whoever can use
+    it controls `wb-proxyd` on the host, and a new certificate doesn't
+    change that. Rotation bounds how long the software fallback key
+    stays useful if it is copied. With a hardware key it adds little,
+    and the overlap keeps it from breaking running tools.
+    X04-tls-inspection checks which guest clients reread trust and
+    whether 28 days of overlap is enough.
 - **Guest trust.** `wb-guestd` installs the CA in the guest OS's system
   trust store and sets toolchain-specific trust variables so that every
-  common client accepts it.
+  common client accepts it. During an overlap both CAs are installed,
+  and each trust variable's file holds both.
 
 ## Approvals (SEC14-no-fake-approvals)
 

@@ -68,8 +68,11 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   beyond virtualization is needed. Measure throughput. Answered yes,
   with conditions, in the result page X03-network-path.
 - **X04-tls-inspection: Inspection compatibility.** Go-based, Swift-based, and Xcode
-  clients accept the name-constrained CA when it is trusted only in the
-  guest. List clients that pin certificates.
+  clients accept the CA when it is trusted only in the guest. List
+  clients that pin certificates, and which clients reread trust
+  without a restart, which sets the CA overlap
+  (S09-policy-credentials-audit, "Lifetimes"). The CA has no name
+  constraints since I39.
 - **X05-fs-benchmark: Filesystem benchmark.** Data disk with default versus relaxed
   write-through settings, against the host, on the NFR02-fs-speed workloads.
   Answered no in the result page X05-fs-benchmark: `npm ci` stays under
