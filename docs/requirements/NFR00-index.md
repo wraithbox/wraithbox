@@ -22,18 +22,15 @@ maintainable Wraith Box must be.
 - **NFR02-fs-speed: Filesystem.** The workspace is on guest-native storage. Goal:
   about 80% of host throughput on representative workloads (`npm ci`,
   `git status` on a large repo, incremental build), measured by the
-  benchmark suite (S11-verification-and-spikes). Unlike NFR01-startup,
-  it has a target only and no hard ceiling, and it doesn't pass or fail
-  V1-M6-release-gate. Results vary more between hosts (FileVault,
-  Endpoint Security agents, load, chip generation) than the gap in
-  question, so a fixed bar would pass on one Mac and fail on the next
-  without saying anything about the design (decided on I19). Expected
-  overhead, as measured: disk-heavy agent work (`npm ci`) runs at about
-  71% to 77% of the host, on a loaded host (X05-fs-benchmark).
-  CPU-bound and memory-bound overhead hasn't been measured, so no
-  figure is given for it. A 2022 M2 MacBook Air with 16 GB RAM and a 512 GB
-  disk is the kind of machine many developers have, and Wraith Box
-  should run well on it.
+  benchmark suite (S11-verification-and-spikes). V1-M6-release-gate
+  doesn't pass or fail on this goal. Results vary more between hosts
+  (FileVault, Endpoint Security agents, load, chip generation) than the
+  gap in question, so a fixed bar would pass on one Mac and fail on the
+  next without saying anything about the design (decided on I19).
+  Expected overhead, as measured: disk-heavy agent work (`npm ci`) runs
+  at 71% of the host on the data disk and 77% on a guest RAM disk, on a
+  loaded host (X05-fs-benchmark). CPU-bound and memory-bound overhead
+  hasn't been measured, so no figure is given for it.
 - **NFR03-footprint: Footprint.** Idle VMs suspend after a configurable period. Disk use
   grows only with divergence from the base image (copy-on-write clones).
 - **NFR04-host-platforms: Host platforms.** First target: Apple Silicon, macOS 15 or later.
