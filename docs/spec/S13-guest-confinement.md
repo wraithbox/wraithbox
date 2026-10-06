@@ -69,13 +69,19 @@ process cannot remove it, much like Landlock.
   directories. The profile is generated from policy on the host and
   installed by `wb-guestd`. The repository never supplies it.
 - **Host-guest socket.** The profile denies `AF_VSOCK` sockets, so that
-  a project user's processes can't open, bind or listen on vsock and
+  a project user's processes can't open, bind, or listen on vsock and
   pose as `wb-guestd`. X18-vsock-handoff didn't test this, and I101
   checks it. The host doesn't rely on it to keep the guest from dialing
   in: it doesn't register a vsock listener, and it opens every
-  connection itself (S04-architecture, B29-vsock-handoff). A project user's requests to
-  the host go to `wb-guestd` over a local Unix socket, where the peer
-  user ID names the project user.
+  connection itself (S04-architecture, B29-vsock-handoff). A project
+  user's requests to the host go to `wb-guestd` over a local Unix
+  socket, where the peer user ID names the project user. Attribution
+  fails closed (SEC08-proj-isolation, SEC10-audit): `wb-guestd` refuses
+  a peer user ID that isn't an active, unlocked project user of this
+  VM, such as root, a system account, a user ID created at runtime, or
+  a locked project user, and logs the refusal with the rule. `wb-hostd`
+  refuses a request for a project that isn't in the VM's effective
+  policy.
 - **Source.** The agent-safehouse profiles (Apache-2.0, v0.12.0,
   commit `6bded066`) are the starting point (X24-openshell-artifacts).
   They are Seatbelt profile modules that start from `(deny default)`,
