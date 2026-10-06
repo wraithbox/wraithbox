@@ -1,0 +1,221 @@
+{"cid":3,"euid":502,"ioctl":"ok","label":"p0-allow-default","socket":"ok","t":1791306767.598703,"test":"local-cid","uid":502}
+{"euid":502,"label":"p0-allow-default","socket":"EPROTONOSUPPORT (errno 43)","t":1791306767.598905,"test":"socket-dgram","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p0-allow-default","port":1,"socket":"ok","t":1791306767.598921,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p0-allow-default","port":80,"socket":"ok","t":1791306767.598937,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p0-allow-default","port":1023,"socket":"ok","t":1791306767.598944,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":502,"label":"p0-allow-default","listen":"ok","port":1024,"socket":"ok","t":1791306767.598954,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":502,"label":"p0-allow-default","listen":"ok","port":1025,"socket":"ok","t":1791306767.598966,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":502,"label":"p0-allow-default","listen":"ok","port":4096,"socket":"ok","t":1791306767.598975,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":502,"label":"p0-allow-default","listen":"ok","port":50000,"socket":"ok","t":1791306767.598984,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":502,"label":"p0-allow-default","listen":"ok","port":1024,"socket":"ok","t":1791306767.598994,"test":"bind-localcid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":502,"label":"p0-allow-default","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306767.599007,"test":"bind-any-reuse","uid":502}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":502,"label":"p0-allow-default","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306767.599016,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":502,"label":"p0-allow-default","port":1024,"socket":"ok","t":1791306767.599022,"test":"bind-host-cid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1079","cid":4294967295,"euid":502,"label":"p0-allow-default","listen":"ok","port":4294967295,"socket":"ok","t":1791306767.599028,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"ok","euid":502,"label":"p0-allow-default","localAddr":"3:1080","ms":1.218,"port":2048,"socket":"ok","t":1791306767.600288,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":502,"label":"p0-allow-default","ms":0.195,"port":2049,"socket":"ok","t":1791306767.600518,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"EINVAL (errno 22)","euid":502,"label":"p0-allow-default","ms":0.013,"port":1024,"socket":"ok","t":1791306767.60058,"test":"connect-self-guestd","uid":502}
+{"cid":3,"euid":502,"ioctl":"ok","label":"p1-deny-network","socket":"ok","t":1791306767.982667,"test":"local-cid","uid":502}
+{"euid":502,"label":"p1-deny-network","socket":"EPROTONOSUPPORT (errno 43)","t":1791306767.982753,"test":"socket-dgram","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":1,"socket":"ok","t":1791306767.982802,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":80,"socket":"ok","t":1791306767.982887,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":1023,"socket":"ok","t":1791306767.982897,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":1024,"socket":"ok","t":1791306767.982903,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":1025,"socket":"ok","t":1791306767.982909,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":4096,"socket":"ok","t":1791306767.982914,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":50000,"socket":"ok","t":1791306767.98292,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":3,"euid":502,"label":"p1-deny-network","port":1024,"socket":"ok","t":1791306767.982925,"test":"bind-localcid","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306767.982933,"test":"bind-any-reuse","uid":502}
+{"bind":"EPERM (errno 1)","cid":3,"euid":502,"label":"p1-deny-network","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306767.982941,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EPERM (errno 1)","cid":2,"euid":502,"label":"p1-deny-network","port":1024,"socket":"ok","t":1791306767.982947,"test":"bind-host-cid","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p1-deny-network","port":4294967295,"socket":"ok","t":1791306767.982952,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"EPERM (errno 1)","euid":502,"label":"p1-deny-network","ms":0.015,"port":2048,"socket":"ok","t":1791306767.982976,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EPERM (errno 1)","euid":502,"label":"p1-deny-network","ms":0.002,"port":2049,"socket":"ok","t":1791306767.982984,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"EPERM (errno 1)","euid":502,"label":"p1-deny-network","ms":0.001,"port":1024,"socket":"ok","t":1791306767.982991,"test":"connect-self-guestd","uid":502}
+{"euid":502,"label":"p2-deny-socket-domain-40","socket":"EPERM (errno 1)","t":1791306768.359523,"test":"local-cid","uid":502}
+{"euid":502,"label":"p2-deny-socket-domain-40","socket":"EPERM (errno 1)","t":1791306768.359624,"test":"socket-dgram","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":1,"socket":"EPERM (errno 1)","t":1791306768.359641,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":80,"socket":"EPERM (errno 1)","t":1791306768.359652,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":1023,"socket":"EPERM (errno 1)","t":1791306768.359659,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":1024,"socket":"EPERM (errno 1)","t":1791306768.359664,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":1025,"socket":"EPERM (errno 1)","t":1791306768.359671,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":4096,"socket":"EPERM (errno 1)","t":1791306768.359677,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":50000,"socket":"EPERM (errno 1)","t":1791306768.359681,"test":"bind-any","uid":502}
+{"cid":3,"euid":502,"label":"p2-deny-socket-domain-40","port":1024,"socket":"EPERM (errno 1)","t":1791306768.359685,"test":"bind-localcid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":1024,"socket":"EPERM (errno 1)","t":1791306768.359688,"test":"bind-any-reuse","uid":502}
+{"cid":3,"euid":502,"label":"p2-deny-socket-domain-40","port":1024,"socket":"EPERM (errno 1)","t":1791306768.359692,"test":"bind-localcid-reuse","uid":502}
+{"cid":2,"euid":502,"label":"p2-deny-socket-domain-40","port":1024,"socket":"EPERM (errno 1)","t":1791306768.359695,"test":"bind-host-cid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2-deny-socket-domain-40","port":4294967295,"socket":"EPERM (errno 1)","t":1791306768.359699,"test":"bind-port-any","uid":502}
+{"cid":2,"euid":502,"label":"p2-deny-socket-domain-40","port":2048,"socket":"EPERM (errno 1)","t":1791306768.359704,"test":"connect-host-listener","uid":502}
+{"cid":2,"euid":502,"label":"p2-deny-socket-domain-40","port":2049,"socket":"EPERM (errno 1)","t":1791306768.359707,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"euid":502,"label":"p2-deny-socket-domain-40","port":1024,"socket":"EPERM (errno 1)","t":1791306768.359711,"test":"connect-self-guestd","uid":502}
+{"euid":502,"label":"p2b-deny-socket-domain-sym","socket":"EPERM (errno 1)","t":1791306768.746353,"test":"local-cid","uid":502}
+{"euid":502,"label":"p2b-deny-socket-domain-sym","socket":"EPERM (errno 1)","t":1791306768.746439,"test":"socket-dgram","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1,"socket":"EPERM (errno 1)","t":1791306768.74645,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":80,"socket":"EPERM (errno 1)","t":1791306768.746457,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1023,"socket":"EPERM (errno 1)","t":1791306768.746463,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1024,"socket":"EPERM (errno 1)","t":1791306768.746469,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1025,"socket":"EPERM (errno 1)","t":1791306768.746475,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":4096,"socket":"EPERM (errno 1)","t":1791306768.74648,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":50000,"socket":"EPERM (errno 1)","t":1791306768.746486,"test":"bind-any","uid":502}
+{"cid":3,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1024,"socket":"EPERM (errno 1)","t":1791306768.746491,"test":"bind-localcid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1024,"socket":"EPERM (errno 1)","t":1791306768.746496,"test":"bind-any-reuse","uid":502}
+{"cid":3,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1024,"socket":"EPERM (errno 1)","t":1791306768.746505,"test":"bind-localcid-reuse","uid":502}
+{"cid":2,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1024,"socket":"EPERM (errno 1)","t":1791306768.746511,"test":"bind-host-cid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p2b-deny-socket-domain-sym","port":4294967295,"socket":"EPERM (errno 1)","t":1791306768.746516,"test":"bind-port-any","uid":502}
+{"cid":2,"euid":502,"label":"p2b-deny-socket-domain-sym","port":2048,"socket":"EPERM (errno 1)","t":1791306768.746521,"test":"connect-host-listener","uid":502}
+{"cid":2,"euid":502,"label":"p2b-deny-socket-domain-sym","port":2049,"socket":"EPERM (errno 1)","t":1791306768.746524,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"euid":502,"label":"p2b-deny-socket-domain-sym","port":1024,"socket":"EPERM (errno 1)","t":1791306768.746528,"test":"connect-self-guestd","uid":502}
+{"cid":3,"euid":502,"ioctl":"ok","label":"p3-deny-network-bind","socket":"ok","t":1791306769.126572,"test":"local-cid","uid":502}
+{"euid":502,"label":"p3-deny-network-bind","socket":"EPROTONOSUPPORT (errno 43)","t":1791306769.126664,"test":"socket-dgram","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":1,"socket":"ok","t":1791306769.126684,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":80,"socket":"ok","t":1791306769.1267,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":1023,"socket":"ok","t":1791306769.126707,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":1024,"socket":"ok","t":1791306769.126714,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":1025,"socket":"ok","t":1791306769.12672,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":4096,"socket":"ok","t":1791306769.126726,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":50000,"socket":"ok","t":1791306769.126731,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":3,"euid":502,"label":"p3-deny-network-bind","port":1024,"socket":"ok","t":1791306769.126736,"test":"bind-localcid","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306769.126744,"test":"bind-any-reuse","uid":502}
+{"bind":"EPERM (errno 1)","cid":3,"euid":502,"label":"p3-deny-network-bind","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306769.126752,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EPERM (errno 1)","cid":2,"euid":502,"label":"p3-deny-network-bind","port":1024,"socket":"ok","t":1791306769.126758,"test":"bind-host-cid","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p3-deny-network-bind","port":4294967295,"socket":"ok","t":1791306769.126763,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"ok","euid":502,"label":"p3-deny-network-bind","localAddr":"3:1083","ms":0.473,"port":2048,"socket":"ok","t":1791306769.127254,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":502,"label":"p3-deny-network-bind","ms":0.179,"port":2049,"socket":"ok","t":1791306769.127451,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"EINVAL (errno 22)","euid":502,"label":"p3-deny-network-bind","ms":0.001,"port":1024,"socket":"ok","t":1791306769.127461,"test":"connect-self-guestd","uid":502}
+{"cid":3,"euid":502,"ioctl":"ok","label":"p4-deny-network-inbound","socket":"ok","t":1791306769.510289,"test":"local-cid","uid":502}
+{"euid":502,"label":"p4-deny-network-inbound","socket":"EPROTONOSUPPORT (errno 43)","t":1791306769.510367,"test":"socket-dgram","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":1,"socket":"ok","t":1791306769.510387,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":80,"socket":"ok","t":1791306769.5104,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":1023,"socket":"ok","t":1791306769.510414,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":1024,"socket":"ok","t":1791306769.510423,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":1025,"socket":"ok","t":1791306769.510431,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":4096,"socket":"ok","t":1791306769.510438,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":50000,"socket":"ok","t":1791306769.510447,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":3,"euid":502,"label":"p4-deny-network-inbound","port":1024,"socket":"ok","t":1791306769.510453,"test":"bind-localcid","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306769.510462,"test":"bind-any-reuse","uid":502}
+{"bind":"EPERM (errno 1)","cid":3,"euid":502,"label":"p4-deny-network-inbound","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306769.510469,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EPERM (errno 1)","cid":2,"euid":502,"label":"p4-deny-network-inbound","port":1024,"socket":"ok","t":1791306769.510475,"test":"bind-host-cid","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"p4-deny-network-inbound","port":4294967295,"socket":"ok","t":1791306769.51048,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"ok","euid":502,"label":"p4-deny-network-inbound","localAddr":"3:1086","ms":0.671,"port":2048,"socket":"ok","t":1791306769.511184,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":502,"label":"p4-deny-network-inbound","ms":0.23,"port":2049,"socket":"ok","t":1791306769.511511,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"EINVAL (errno 22)","euid":502,"label":"p4-deny-network-inbound","ms":0.005,"port":1024,"socket":"ok","t":1791306769.511535,"test":"connect-self-guestd","uid":502}
+{"cid":3,"euid":502,"ioctl":"ok","label":"p5-deny-network-outbound","socket":"ok","t":1791306769.891299,"test":"local-cid","uid":502}
+{"euid":502,"label":"p5-deny-network-outbound","socket":"EPROTONOSUPPORT (errno 43)","t":1791306769.891386,"test":"socket-dgram","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","port":1,"socket":"ok","t":1791306769.891397,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","port":80,"socket":"ok","t":1791306769.891413,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","port":1023,"socket":"ok","t":1791306769.891419,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","listen":"ok","port":1024,"socket":"ok","t":1791306769.891427,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","listen":"ok","port":1025,"socket":"ok","t":1791306769.891436,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","listen":"ok","port":4096,"socket":"ok","t":1791306769.891443,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","listen":"ok","port":50000,"socket":"ok","t":1791306769.891449,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":502,"label":"p5-deny-network-outbound","listen":"ok","port":1024,"socket":"ok","t":1791306769.891454,"test":"bind-localcid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306769.891479,"test":"bind-any-reuse","uid":502}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":502,"label":"p5-deny-network-outbound","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306769.891497,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":502,"label":"p5-deny-network-outbound","port":1024,"socket":"ok","t":1791306769.891507,"test":"bind-host-cid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1089","cid":4294967295,"euid":502,"label":"p5-deny-network-outbound","listen":"ok","port":4294967295,"socket":"ok","t":1791306769.891515,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"EPERM (errno 1)","euid":502,"label":"p5-deny-network-outbound","ms":0.013,"port":2048,"socket":"ok","t":1791306769.891539,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EPERM (errno 1)","euid":502,"label":"p5-deny-network-outbound","ms":0.001,"port":2049,"socket":"ok","t":1791306769.891547,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"EPERM (errno 1)","euid":502,"label":"p5-deny-network-outbound","ms":0.001,"port":1024,"socket":"ok","t":1791306769.891556,"test":"connect-self-guestd","uid":502}
+{"euid":502,"label":"p6-deny-default-allow-network","socket":"EPERM (errno 1)","t":1791306770.273994,"test":"local-cid","uid":502}
+{"euid":502,"label":"p6-deny-default-allow-network","socket":"EPERM (errno 1)","t":1791306770.274073,"test":"socket-dgram","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":1,"socket":"EPERM (errno 1)","t":1791306770.274082,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":80,"socket":"EPERM (errno 1)","t":1791306770.274092,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":1023,"socket":"EPERM (errno 1)","t":1791306770.274097,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":1024,"socket":"EPERM (errno 1)","t":1791306770.274101,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":1025,"socket":"EPERM (errno 1)","t":1791306770.274106,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":4096,"socket":"EPERM (errno 1)","t":1791306770.274112,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":50000,"socket":"EPERM (errno 1)","t":1791306770.274117,"test":"bind-any","uid":502}
+{"cid":3,"euid":502,"label":"p6-deny-default-allow-network","port":1024,"socket":"EPERM (errno 1)","t":1791306770.274122,"test":"bind-localcid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":1024,"socket":"EPERM (errno 1)","t":1791306770.274128,"test":"bind-any-reuse","uid":502}
+{"cid":3,"euid":502,"label":"p6-deny-default-allow-network","port":1024,"socket":"EPERM (errno 1)","t":1791306770.274134,"test":"bind-localcid-reuse","uid":502}
+{"cid":2,"euid":502,"label":"p6-deny-default-allow-network","port":1024,"socket":"EPERM (errno 1)","t":1791306770.274139,"test":"bind-host-cid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p6-deny-default-allow-network","port":4294967295,"socket":"EPERM (errno 1)","t":1791306770.274144,"test":"bind-port-any","uid":502}
+{"cid":2,"euid":502,"label":"p6-deny-default-allow-network","port":2048,"socket":"EPERM (errno 1)","t":1791306770.274151,"test":"connect-host-listener","uid":502}
+{"cid":2,"euid":502,"label":"p6-deny-default-allow-network","port":2049,"socket":"EPERM (errno 1)","t":1791306770.274156,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"euid":502,"label":"p6-deny-default-allow-network","port":1024,"socket":"EPERM (errno 1)","t":1791306770.27416,"test":"connect-self-guestd","uid":502}
+{"cid":3,"euid":502,"ioctl":"ok","label":"p7-deny-default-allow-network-socket","socket":"ok","t":1791306770.662122,"test":"local-cid","uid":502}
+{"euid":502,"label":"p7-deny-default-allow-network-socket","socket":"EPROTONOSUPPORT (errno 43)","t":1791306770.662206,"test":"socket-dgram","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","port":1,"socket":"ok","t":1791306770.662217,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","port":80,"socket":"ok","t":1791306770.662233,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","port":1023,"socket":"ok","t":1791306770.662239,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","listen":"ok","port":1024,"socket":"ok","t":1791306770.662248,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","listen":"ok","port":1025,"socket":"ok","t":1791306770.662279,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","listen":"ok","port":4096,"socket":"ok","t":1791306770.662289,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","listen":"ok","port":50000,"socket":"ok","t":1791306770.662299,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":502,"label":"p7-deny-default-allow-network-socket","listen":"ok","port":1024,"socket":"ok","t":1791306770.662308,"test":"bind-localcid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306770.662317,"test":"bind-any-reuse","uid":502}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":502,"label":"p7-deny-default-allow-network-socket","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306770.662327,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":502,"label":"p7-deny-default-allow-network-socket","port":1024,"socket":"ok","t":1791306770.662333,"test":"bind-host-cid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1090","cid":4294967295,"euid":502,"label":"p7-deny-default-allow-network-socket","listen":"ok","port":4294967295,"socket":"ok","t":1791306770.66234,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"ok","euid":502,"label":"p7-deny-default-allow-network-socket","localAddr":"3:1091","ms":0.453,"port":2048,"socket":"ok","t":1791306770.66283,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":502,"label":"p7-deny-default-allow-network-socket","ms":0.229,"port":2049,"socket":"ok","t":1791306770.663096,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"EINVAL (errno 22)","euid":502,"label":"p7-deny-default-allow-network-socket","ms":0.006,"port":1024,"socket":"ok","t":1791306770.663149,"test":"connect-self-guestd","uid":502}
+{"euid":502,"label":"p8-allow-socket-then-deny-vsock","socket":"EPERM (errno 1)","t":1791306771.043021,"test":"local-cid","uid":502}
+{"euid":502,"label":"p8-allow-socket-then-deny-vsock","socket":"EPERM (errno 1)","t":1791306771.043085,"test":"socket-dgram","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1,"socket":"EPERM (errno 1)","t":1791306771.043092,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":80,"socket":"EPERM (errno 1)","t":1791306771.043099,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1023,"socket":"EPERM (errno 1)","t":1791306771.043103,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306771.043107,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1025,"socket":"EPERM (errno 1)","t":1791306771.043111,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":4096,"socket":"EPERM (errno 1)","t":1791306771.043115,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":50000,"socket":"EPERM (errno 1)","t":1791306771.043119,"test":"bind-any","uid":502}
+{"cid":3,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306771.043124,"test":"bind-localcid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306771.043128,"test":"bind-any-reuse","uid":502}
+{"cid":3,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306771.043132,"test":"bind-localcid-reuse","uid":502}
+{"cid":2,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306771.043135,"test":"bind-host-cid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":4294967295,"socket":"EPERM (errno 1)","t":1791306771.043139,"test":"bind-port-any","uid":502}
+{"cid":2,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":2048,"socket":"EPERM (errno 1)","t":1791306771.043142,"test":"connect-host-listener","uid":502}
+{"cid":2,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":2049,"socket":"EPERM (errno 1)","t":1791306771.043146,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"euid":502,"label":"p8-allow-socket-then-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306771.043149,"test":"connect-self-guestd","uid":502}
+{"euid":502,"label":"p9-deny-vsock-then-allow-socket","socket":"EPERM (errno 1)","t":1791306771.427255,"test":"local-cid","uid":502}
+{"euid":502,"label":"p9-deny-vsock-then-allow-socket","socket":"EPERM (errno 1)","t":1791306771.427343,"test":"socket-dgram","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1,"socket":"EPERM (errno 1)","t":1791306771.427353,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":80,"socket":"EPERM (errno 1)","t":1791306771.427368,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1023,"socket":"EPERM (errno 1)","t":1791306771.427374,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1024,"socket":"EPERM (errno 1)","t":1791306771.427378,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1025,"socket":"EPERM (errno 1)","t":1791306771.427381,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":4096,"socket":"EPERM (errno 1)","t":1791306771.427385,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":50000,"socket":"EPERM (errno 1)","t":1791306771.427389,"test":"bind-any","uid":502}
+{"cid":3,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1024,"socket":"EPERM (errno 1)","t":1791306771.427393,"test":"bind-localcid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1024,"socket":"EPERM (errno 1)","t":1791306771.427397,"test":"bind-any-reuse","uid":502}
+{"cid":3,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1024,"socket":"EPERM (errno 1)","t":1791306771.4274,"test":"bind-localcid-reuse","uid":502}
+{"cid":2,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1024,"socket":"EPERM (errno 1)","t":1791306771.427404,"test":"bind-host-cid","uid":502}
+{"cid":4294967295,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":4294967295,"socket":"EPERM (errno 1)","t":1791306771.427407,"test":"bind-port-any","uid":502}
+{"cid":2,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":2048,"socket":"EPERM (errno 1)","t":1791306771.427411,"test":"connect-host-listener","uid":502}
+{"cid":2,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":2049,"socket":"EPERM (errno 1)","t":1791306771.427414,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"euid":502,"label":"p9-deny-vsock-then-allow-socket","port":1024,"socket":"EPERM (errno 1)","t":1791306771.427418,"test":"connect-self-guestd","uid":502}
+{"cid":3,"euid":502,"ioctl":"ok","label":"s1-safehouse","socket":"ok","t":1791306771.876408,"test":"local-cid","uid":502}
+{"euid":502,"label":"s1-safehouse","socket":"EPROTONOSUPPORT (errno 43)","t":1791306771.876488,"test":"socket-dgram","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":1,"socket":"ok","t":1791306771.876501,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":80,"socket":"ok","t":1791306771.876513,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":1023,"socket":"ok","t":1791306771.87652,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":1024,"socket":"ok","t":1791306771.876526,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":1025,"socket":"ok","t":1791306771.876531,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":4096,"socket":"ok","t":1791306771.876536,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":50000,"socket":"ok","t":1791306771.876541,"test":"bind-any","uid":502}
+{"bind":"EPERM (errno 1)","cid":3,"euid":502,"label":"s1-safehouse","port":1024,"socket":"ok","t":1791306771.876547,"test":"bind-localcid","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306771.876556,"test":"bind-any-reuse","uid":502}
+{"bind":"EPERM (errno 1)","cid":3,"euid":502,"label":"s1-safehouse","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791306771.876565,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EPERM (errno 1)","cid":2,"euid":502,"label":"s1-safehouse","port":1024,"socket":"ok","t":1791306771.876571,"test":"bind-host-cid","uid":502}
+{"bind":"EPERM (errno 1)","cid":4294967295,"euid":502,"label":"s1-safehouse","port":4294967295,"socket":"ok","t":1791306771.876579,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"EPERM (errno 1)","euid":502,"label":"s1-safehouse","ms":0.008,"port":2048,"socket":"ok","t":1791306771.876595,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EPERM (errno 1)","euid":502,"label":"s1-safehouse","ms":0.001,"port":2049,"socket":"ok","t":1791306771.876602,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"EPERM (errno 1)","euid":502,"label":"s1-safehouse","ms":0.001,"port":1024,"socket":"ok","t":1791306771.876608,"test":"connect-self-guestd","uid":502}
+{"euid":502,"label":"s2-safehouse-deny-vsock","socket":"EPERM (errno 1)","t":1791306772.333072,"test":"local-cid","uid":502}
+{"euid":502,"label":"s2-safehouse-deny-vsock","socket":"EPERM (errno 1)","t":1791306772.333155,"test":"socket-dgram","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":1,"socket":"EPERM (errno 1)","t":1791306772.333164,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":80,"socket":"EPERM (errno 1)","t":1791306772.333176,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":1023,"socket":"EPERM (errno 1)","t":1791306772.333184,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306772.333188,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":1025,"socket":"EPERM (errno 1)","t":1791306772.333192,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":4096,"socket":"EPERM (errno 1)","t":1791306772.333195,"test":"bind-any","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":50000,"socket":"EPERM (errno 1)","t":1791306772.333199,"test":"bind-any","uid":502}
+{"cid":3,"euid":502,"label":"s2-safehouse-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306772.333202,"test":"bind-localcid","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306772.333206,"test":"bind-any-reuse","uid":502}
+{"cid":3,"euid":502,"label":"s2-safehouse-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306772.333209,"test":"bind-localcid-reuse","uid":502}
+{"cid":2,"euid":502,"label":"s2-safehouse-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306772.333213,"test":"bind-host-cid","uid":502}
+{"cid":4294967295,"euid":502,"label":"s2-safehouse-deny-vsock","port":4294967295,"socket":"EPERM (errno 1)","t":1791306772.333216,"test":"bind-port-any","uid":502}
+{"cid":2,"euid":502,"label":"s2-safehouse-deny-vsock","port":2048,"socket":"EPERM (errno 1)","t":1791306772.33322,"test":"connect-host-listener","uid":502}
+{"cid":2,"euid":502,"label":"s2-safehouse-deny-vsock","port":2049,"socket":"EPERM (errno 1)","t":1791306772.333225,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"euid":502,"label":"s2-safehouse-deny-vsock","port":1024,"socket":"EPERM (errno 1)","t":1791306772.333229,"test":"connect-self-guestd","uid":502}

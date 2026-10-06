@@ -1,0 +1,8 @@
+kill pid 1230 at 1791306915
+	state = running
+	runs = 10
+	pid = 1271
+	last exit code = 1
+		state = active
+		state = active
+	job state = running

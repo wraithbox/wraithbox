@@ -1,0 +1,3 @@
+(version 1)
+(allow default)
+(deny system-socket (socket-domain AF_VSOCK))

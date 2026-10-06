@@ -1,0 +1,4 @@
+(version 1)
+(deny default)
+(allow process-exec process-fork signal sysctl-read file-read* mach-lookup)
+(allow network*)

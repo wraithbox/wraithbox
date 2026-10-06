@@ -1,0 +1,19 @@
+{"event":"started","mac":"2a:ce:70:33:3b:6c","provision":true,"seconds":0.20177404198329896}
+{"dst":2048,"event":"guest dialed host","src":1026,"wall":1791305107.6630991}
+{"dst":2048,"event":"guest dialed host","src":1030,"wall":1791305108.4315031}
+{"dst":2048,"event":"guest dialed host","src":1034,"wall":1791305109.2703881}
+{"dst":2048,"event":"guest dialed host","src":1038,"wall":1791305111.0422568}
+{"dst":2048,"event":"guest dialed host","src":1042,"wall":1791305111.274878}
+{"dst":2048,"event":"guest dialed host","src":1046,"wall":1791305111.630969}
+{"dst":2048,"event":"guest dialed host","src":1050,"wall":1791306597.5520449}
+{"dst":2048,"event":"guest dialed host","src":1053,"wall":1791306599.0454969}
+{"dst":2048,"event":"guest dialed host","src":1056,"wall":1791306599.4199471}
+{"dst":2048,"event":"guest dialed host","src":1061,"wall":1791306600.713707}
+{"dst":2048,"event":"guest dialed host","src":1065,"wall":1791306666.983964}
+{"dst":2048,"event":"guest dialed host","src":1068,"wall":1791306669.151675}
+{"dst":2048,"event":"guest dialed host","src":1071,"wall":1791306669.8500891}
+{"dst":2048,"event":"guest dialed host","src":1076,"wall":1791306672.4581399}
+{"dst":2048,"event":"guest dialed host","src":1080,"wall":1791306767.6034279}
+{"dst":2048,"event":"guest dialed host","src":1083,"wall":1791306769.1310959}
+{"dst":2048,"event":"guest dialed host","src":1086,"wall":1791306769.515099}
+{"dst":2048,"event":"guest dialed host","src":1091,"wall":1791306770.6666961}

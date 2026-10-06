@@ -1,0 +1,102 @@
+{"cid":3,"euid":0,"ioctl":"ok","label":"root-guestd-running","socket":"ok","t":1791305107.667935,"test":"local-cid","uid":0}
+{"euid":0,"label":"root-guestd-running","socket":"EPROTONOSUPPORT (errno 43)","t":1791305107.668288,"test":"socket-dgram","uid":0}
+{"bind":"ok","boundAs":"4294967295:1","cid":4294967295,"euid":0,"label":"root-guestd-running","listen":"ok","port":1,"socket":"ok","t":1791305107.668315,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:80","cid":4294967295,"euid":0,"label":"root-guestd-running","listen":"ok","port":80,"socket":"ok","t":1791305107.668329,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:1023","cid":4294967295,"euid":0,"label":"root-guestd-running","listen":"ok","port":1023,"socket":"ok","t":1791305107.668337,"test":"bind-any","uid":0}
+{"bind":"EADDRINUSE (errno 48)","cid":4294967295,"euid":0,"label":"root-guestd-running","port":1024,"socket":"ok","t":1791305107.668342,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":0,"label":"root-guestd-running","listen":"ok","port":1025,"socket":"ok","t":1791305107.66835,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":0,"label":"root-guestd-running","listen":"ok","port":4096,"socket":"ok","t":1791305107.66836,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":0,"label":"root-guestd-running","listen":"ok","port":50000,"socket":"ok","t":1791305107.668367,"test":"bind-any","uid":0}
+{"bind":"EADDRINUSE (errno 48)","cid":3,"euid":0,"label":"root-guestd-running","port":1024,"socket":"ok","t":1791305107.668374,"test":"bind-localcid","uid":0}
+{"bind":"EADDRINUSE (errno 48)","cid":4294967295,"euid":0,"label":"root-guestd-running","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305107.668389,"test":"bind-any-reuse","uid":0}
+{"bind":"EADDRINUSE (errno 48)","cid":3,"euid":0,"label":"root-guestd-running","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305107.668399,"test":"bind-localcid-reuse","uid":0}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":0,"label":"root-guestd-running","port":1024,"socket":"ok","t":1791305107.668405,"test":"bind-host-cid","uid":0}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":0,"label":"root-guestd-running","listen":"ok","port":4294967295,"socket":"ok","t":1791305107.668411,"test":"bind-port-any","uid":0}
+{"cid":2,"connect":"ok","euid":0,"label":"root-guestd-running","localAddr":"3:1026","ms":0.919,"port":2048,"socket":"ok","t":1791305107.66935,"test":"connect-host-listener","uid":0}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":0,"label":"root-guestd-running","ms":0.639,"port":2049,"socket":"ok","t":1791305107.670005,"test":"connect-host-nolistener","uid":0}
+{"cid":3,"connect":"ok","euid":0,"label":"root-guestd-running","localAddr":"3:1028","ms":0.013,"port":1024,"socket":"ok","t":1791305107.670041,"test":"connect-self-guestd","uid":0}
+{"cid":3,"euid":501,"ioctl":"ok","label":"admin-guestd-running","socket":"ok","t":1791305108.436407,"test":"local-cid","uid":501}
+{"euid":501,"label":"admin-guestd-running","socket":"EPROTONOSUPPORT (errno 43)","t":1791305108.43655,"test":"socket-dgram","uid":501}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":501,"label":"admin-guestd-running","port":1,"socket":"ok","t":1791305108.436559,"test":"bind-any","uid":501}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":501,"label":"admin-guestd-running","port":80,"socket":"ok","t":1791305108.436571,"test":"bind-any","uid":501}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":501,"label":"admin-guestd-running","port":1023,"socket":"ok","t":1791305108.436579,"test":"bind-any","uid":501}
+{"bind":"EADDRINUSE (errno 48)","cid":4294967295,"euid":501,"label":"admin-guestd-running","port":1024,"socket":"ok","t":1791305108.436595,"test":"bind-any","uid":501}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":501,"label":"admin-guestd-running","listen":"ok","port":1025,"socket":"ok","t":1791305108.436605,"test":"bind-any","uid":501}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":501,"label":"admin-guestd-running","listen":"ok","port":4096,"socket":"ok","t":1791305108.436622,"test":"bind-any","uid":501}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":501,"label":"admin-guestd-running","listen":"ok","port":50000,"socket":"ok","t":1791305108.436632,"test":"bind-any","uid":501}
+{"bind":"EADDRINUSE (errno 48)","cid":3,"euid":501,"label":"admin-guestd-running","port":1024,"socket":"ok","t":1791305108.436639,"test":"bind-localcid","uid":501}
+{"bind":"EADDRINUSE (errno 48)","cid":4294967295,"euid":501,"label":"admin-guestd-running","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305108.436651,"test":"bind-any-reuse","uid":501}
+{"bind":"EADDRINUSE (errno 48)","cid":3,"euid":501,"label":"admin-guestd-running","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305108.436659,"test":"bind-localcid-reuse","uid":501}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":501,"label":"admin-guestd-running","port":1024,"socket":"ok","t":1791305108.436664,"test":"bind-host-cid","uid":501}
+{"bind":"ok","boundAs":"4294967295:1029","cid":4294967295,"euid":501,"label":"admin-guestd-running","listen":"ok","port":4294967295,"socket":"ok","t":1791305108.43667,"test":"bind-port-any","uid":501}
+{"cid":2,"connect":"ok","euid":501,"label":"admin-guestd-running","localAddr":"3:1030","ms":2.17,"port":2048,"socket":"ok","t":1791305108.43886,"test":"connect-host-listener","uid":501}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":501,"label":"admin-guestd-running","ms":8.941,"port":2049,"socket":"ok","t":1791305108.447817,"test":"connect-host-nolistener","uid":501}
+{"cid":3,"connect":"ok","euid":501,"label":"admin-guestd-running","localAddr":"3:1032","ms":0.007,"port":1024,"socket":"ok","t":1791305108.447879,"test":"connect-self-guestd","uid":501}
+{"cid":3,"euid":502,"ioctl":"ok","label":"proj1-guestd-running","socket":"ok","t":1791305109.272998,"test":"local-cid","uid":502}
+{"euid":502,"label":"proj1-guestd-running","socket":"EPROTONOSUPPORT (errno 43)","t":1791305109.273068,"test":"socket-dgram","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"proj1-guestd-running","port":1,"socket":"ok","t":1791305109.273076,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"proj1-guestd-running","port":80,"socket":"ok","t":1791305109.273087,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"proj1-guestd-running","port":1023,"socket":"ok","t":1791305109.273095,"test":"bind-any","uid":502}
+{"bind":"EADDRINUSE (errno 48)","cid":4294967295,"euid":502,"label":"proj1-guestd-running","port":1024,"socket":"ok","t":1791305109.273101,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":502,"label":"proj1-guestd-running","listen":"ok","port":1025,"socket":"ok","t":1791305109.273112,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":502,"label":"proj1-guestd-running","listen":"ok","port":4096,"socket":"ok","t":1791305109.273119,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":502,"label":"proj1-guestd-running","listen":"ok","port":50000,"socket":"ok","t":1791305109.273126,"test":"bind-any","uid":502}
+{"bind":"EADDRINUSE (errno 48)","cid":3,"euid":502,"label":"proj1-guestd-running","port":1024,"socket":"ok","t":1791305109.273131,"test":"bind-localcid","uid":502}
+{"bind":"EADDRINUSE (errno 48)","cid":4294967295,"euid":502,"label":"proj1-guestd-running","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305109.273138,"test":"bind-any-reuse","uid":502}
+{"bind":"EADDRINUSE (errno 48)","cid":3,"euid":502,"label":"proj1-guestd-running","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305109.27315,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":502,"label":"proj1-guestd-running","port":1024,"socket":"ok","t":1791305109.273155,"test":"bind-host-cid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1033","cid":4294967295,"euid":502,"label":"proj1-guestd-running","listen":"ok","port":4294967295,"socket":"ok","t":1791305109.273161,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"ok","euid":502,"label":"proj1-guestd-running","localAddr":"3:1034","ms":3.305,"port":2048,"socket":"ok","t":1791305109.276489,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":502,"label":"proj1-guestd-running","ms":0.342,"port":2049,"socket":"ok","t":1791305109.276864,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"ok","euid":502,"label":"proj1-guestd-running","localAddr":"3:1036","ms":0.006,"port":1024,"socket":"ok","t":1791305109.276894,"test":"connect-self-guestd","uid":502}
+{"cid":3,"euid":502,"ioctl":"ok","label":"proj1-guestd-stopped","socket":"ok","t":1791305111.047746,"test":"local-cid","uid":502}
+{"euid":502,"label":"proj1-guestd-stopped","socket":"EPROTONOSUPPORT (errno 43)","t":1791305111.04783,"test":"socket-dgram","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","port":1,"socket":"ok","t":1791305111.047841,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","port":80,"socket":"ok","t":1791305111.047858,"test":"bind-any","uid":502}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","port":1023,"socket":"ok","t":1791305111.047868,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","listen":"ok","port":1024,"socket":"ok","t":1791305111.047878,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","listen":"ok","port":1025,"socket":"ok","t":1791305111.047887,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","listen":"ok","port":4096,"socket":"ok","t":1791305111.047895,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","listen":"ok","port":50000,"socket":"ok","t":1791305111.047904,"test":"bind-any","uid":502}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":502,"label":"proj1-guestd-stopped","listen":"ok","port":1024,"socket":"ok","t":1791305111.047913,"test":"bind-localcid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305111.047926,"test":"bind-any-reuse","uid":502}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":502,"label":"proj1-guestd-stopped","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305111.047938,"test":"bind-localcid-reuse","uid":502}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":502,"label":"proj1-guestd-stopped","port":1024,"socket":"ok","t":1791305111.047948,"test":"bind-host-cid","uid":502}
+{"bind":"ok","boundAs":"4294967295:1037","cid":4294967295,"euid":502,"label":"proj1-guestd-stopped","listen":"ok","port":4294967295,"socket":"ok","t":1791305111.047955,"test":"bind-port-any","uid":502}
+{"cid":2,"connect":"ok","euid":502,"label":"proj1-guestd-stopped","localAddr":"3:1038","ms":0.327,"port":2048,"socket":"ok","t":1791305111.0483,"test":"connect-host-listener","uid":502}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":502,"label":"proj1-guestd-stopped","ms":0.149,"port":2049,"socket":"ok","t":1791305111.048475,"test":"connect-host-nolistener","uid":502}
+{"cid":3,"connect":"EINVAL (errno 22)","euid":502,"label":"proj1-guestd-stopped","ms":0.006,"port":1024,"socket":"ok","t":1791305111.04851,"test":"connect-self-guestd","uid":502}
+{"cid":3,"euid":501,"ioctl":"ok","label":"admin-guestd-stopped","socket":"ok","t":1791305111.280351,"test":"local-cid","uid":501}
+{"euid":501,"label":"admin-guestd-stopped","socket":"EPROTONOSUPPORT (errno 43)","t":1791305111.280436,"test":"socket-dgram","uid":501}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","port":1,"socket":"ok","t":1791305111.280444,"test":"bind-any","uid":501}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","port":80,"socket":"ok","t":1791305111.280458,"test":"bind-any","uid":501}
+{"bind":"EACCES (errno 13)","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","port":1023,"socket":"ok","t":1791305111.280467,"test":"bind-any","uid":501}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","listen":"ok","port":1024,"socket":"ok","t":1791305111.280479,"test":"bind-any","uid":501}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","listen":"ok","port":1025,"socket":"ok","t":1791305111.280492,"test":"bind-any","uid":501}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","listen":"ok","port":4096,"socket":"ok","t":1791305111.280501,"test":"bind-any","uid":501}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","listen":"ok","port":50000,"socket":"ok","t":1791305111.280509,"test":"bind-any","uid":501}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":501,"label":"admin-guestd-stopped","listen":"ok","port":1024,"socket":"ok","t":1791305111.280515,"test":"bind-localcid","uid":501}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305111.280523,"test":"bind-any-reuse","uid":501}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":501,"label":"admin-guestd-stopped","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305111.280534,"test":"bind-localcid-reuse","uid":501}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":501,"label":"admin-guestd-stopped","port":1024,"socket":"ok","t":1791305111.280543,"test":"bind-host-cid","uid":501}
+{"bind":"ok","boundAs":"4294967295:1041","cid":4294967295,"euid":501,"label":"admin-guestd-stopped","listen":"ok","port":4294967295,"socket":"ok","t":1791305111.280552,"test":"bind-port-any","uid":501}
+{"cid":2,"connect":"ok","euid":501,"label":"admin-guestd-stopped","localAddr":"3:1042","ms":0.338,"port":2048,"socket":"ok","t":1791305111.280909,"test":"connect-host-listener","uid":501}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":501,"label":"admin-guestd-stopped","ms":0.139,"port":2049,"socket":"ok","t":1791305111.281078,"test":"connect-host-nolistener","uid":501}
+{"cid":3,"connect":"EINVAL (errno 22)","euid":501,"label":"admin-guestd-stopped","ms":0.005,"port":1024,"socket":"ok","t":1791305111.281099,"test":"connect-self-guestd","uid":501}
+{"cid":3,"euid":0,"ioctl":"ok","label":"root-guestd-stopped","socket":"ok","t":1791305111.636479,"test":"local-cid","uid":0}
+{"euid":0,"label":"root-guestd-stopped","socket":"EPROTONOSUPPORT (errno 43)","t":1791305111.636561,"test":"socket-dgram","uid":0}
+{"bind":"ok","boundAs":"4294967295:1","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":1,"socket":"ok","t":1791305111.636579,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:80","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":80,"socket":"ok","t":1791305111.63659,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:1023","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":1023,"socket":"ok","t":1791305111.636597,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":1024,"socket":"ok","t":1791305111.636605,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:1025","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":1025,"socket":"ok","t":1791305111.636615,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:4096","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":4096,"socket":"ok","t":1791305111.636624,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"4294967295:50000","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":50000,"socket":"ok","t":1791305111.636633,"test":"bind-any","uid":0}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":1024,"socket":"ok","t":1791305111.636642,"test":"bind-localcid","uid":0}
+{"bind":"ok","boundAs":"4294967295:1024","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305111.636655,"test":"bind-any-reuse","uid":0}
+{"bind":"ok","boundAs":"3:1024","cid":3,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":1024,"setsockopt_0x200":"ok","setsockopt_0x4":"ok","socket":"ok","t":1791305111.636666,"test":"bind-localcid-reuse","uid":0}
+{"bind":"EADDRNOTAVAIL (errno 49)","cid":2,"euid":0,"label":"root-guestd-stopped","port":1024,"socket":"ok","t":1791305111.636673,"test":"bind-host-cid","uid":0}
+{"bind":"ok","boundAs":"4294967295:1045","cid":4294967295,"euid":0,"label":"root-guestd-stopped","listen":"ok","port":4294967295,"socket":"ok","t":1791305111.636678,"test":"bind-port-any","uid":0}
+{"cid":2,"connect":"ok","euid":0,"label":"root-guestd-stopped","localAddr":"3:1046","ms":0.347,"port":2048,"socket":"ok","t":1791305111.637069,"test":"connect-host-listener","uid":0}
+{"cid":2,"connect":"EAGAIN (errno 35)","euid":0,"label":"root-guestd-stopped","ms":0.221,"port":2049,"socket":"ok","t":1791305111.637314,"test":"connect-host-nolistener","uid":0}
+{"cid":3,"connect":"EINVAL (errno 22)","euid":0,"label":"root-guestd-stopped","ms":0.003,"port":1024,"socket":"ok","t":1791305111.637334,"test":"connect-self-guestd","uid":0}

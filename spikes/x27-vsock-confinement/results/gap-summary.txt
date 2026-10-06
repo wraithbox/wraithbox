@@ -1,0 +1,34 @@
+spikes/x27-vsock-confinement/results/gap-host.jsonl
+  run 1: 990 attempts
+    1791306794.251 .. 1791306796.874  (  2622.6 ms,   440 x)  guestd pid=1152 uid=0
+    1791306796.881 .. 1791306796.881  (     0.0 ms,     1 x)  error: Error Domain=NSPOSIXErrorDomain Code=54 
+    1791306796.887 .. 1791306800.245  (  3358.7 ms,   549 x)  guestd pid=1174 uid=0
+  run 2: 1014 attempts
+    1791306813.267 .. 1791306815.912  (  2644.8 ms,   452 x)  guestd pid=1174 uid=0
+    1791306815.918 .. 1791306815.918  (     0.0 ms,     1 x)  error: Error Domain=NSPOSIXErrorDomain Code=54 
+    1791306815.923 .. 1791306819.262  (  3338.3 ms,   561 x)  guestd pid=1188 uid=0
+  run 3: 1014 attempts
+    1791306832.282 .. 1791306834.922  (  2640.8 ms,   446 x)  guestd pid=1188 uid=0
+    1791306834.928 .. 1791306834.934  (     6.1 ms,     2 x)  error: Error Domain=NSPOSIXErrorDomain Code=54 
+    1791306834.940 .. 1791306838.278  (  3337.3 ms,   566 x)  guestd pid=1202 uid=0
+  run 4: 1016 attempts
+    1791306851.300 .. 1791306853.943  (  2642.5 ms,   448 x)  guestd pid=1202 uid=0
+    1791306853.949 .. 1791306853.949  (     0.0 ms,     1 x)  error: Error Domain=NSPOSIXErrorDomain Code=54 
+    1791306853.954 .. 1791306857.296  (  3341.9 ms,   567 x)  guestd pid=1216 uid=0
+  run 5: 1029 attempts
+    1791306870.312 .. 1791306872.941  (  2628.4 ms,   448 x)  guestd pid=1216 uid=0
+    1791306872.948 .. 1791306872.948  (     0.0 ms,     1 x)  error: Error Domain=NSPOSIXErrorDomain Code=54 
+    1791306872.954 .. 1791306876.309  (  3354.6 ms,   580 x)  guestd pid=1230 uid=0
+  gaps between guestd answers (ms): 11.5, 11.7, 12.6, 13.3, 18.2
+spikes/x27-vsock-confinement/results/squat-host.jsonl
+  run 1: 757 attempts
+    1791306912.614 .. 1791306916.225  (  3610.6 ms,    71 x)  guestd pid=1230 uid=0
+    1791306916.277 .. 1791306937.950  ( 21672.9 ms,   410 x)  IMPOSTOR uid=502 pid=1254
+    1791306938.007 .. 1791306946.248  (  8240.5 ms,   156 x)  error: Error Domain=NSPOSIXErrorDomain Code=54 
+    1791306946.300 .. 1791306952.563  (  6262.4 ms,   120 x)  guestd pid=1271 uid=0
+  gaps between guestd answers (ms): 30075.5
+spikes/x27-vsock-confinement/results/squat-sb-host.jsonl
+  run 1: 743 attempts
+    1791306967.934 .. 1791306971.538  (  3604.3 ms,    69 x)  guestd pid=1271 uid=0
+    1791306971.592 .. 1791307007.885  ( 36292.8 ms,   674 x)  guestd pid=1319 uid=0
+  gaps between guestd answers (ms): 53.6

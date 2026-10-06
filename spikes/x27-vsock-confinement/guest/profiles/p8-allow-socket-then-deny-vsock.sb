@@ -1,0 +1,6 @@
+(version 1)
+(deny default)
+(allow process-exec process-fork signal sysctl-read file-read* mach-lookup)
+(allow network*)
+(allow system-socket)
+(deny system-socket (socket-domain AF_VSOCK))
