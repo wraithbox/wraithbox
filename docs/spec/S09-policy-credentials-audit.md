@@ -51,10 +51,10 @@ inspection is trusted, and what is recorded.
     the file is refused at load. The prover models ASCII values only,
     and its output repeats these strings (X24-openshell-artifacts).
   - *What the prover sees.* The document Wraith Box writes for the
-    prover allows at least what `wb-proxyd` enforces, never less, with
-    one exception: the built-in rules left out of the boundary check
-    ("Boundary check", "Built-in profiles in the check"). A
-    host in pass mode is written as an L4 endpoint with no `protocol`
+    prover allows at least what `wb-proxyd` enforces, never less. A
+    built-in GraphQL rule is written as a REST rule that allows `POST`
+    to its GraphQL path on its host, which is wider than the rule
+    ("Built-in profiles in the check"). A host in pass mode is written as an L4 endpoint with no `protocol`
     and no rules, whatever rules the file gives it, so the boundary
     must allow L4 to that host. The prover can't see the extension
     keys, so Wraith Box's own Go check compares them with the
@@ -94,7 +94,9 @@ inspection is trusted, and what is recorded.
   is shown in `wb policy explain`. It can never add credential bindings
   or switch hosts to pass-through (SEC09-host-policy).
   - *Closed keys.* It is parsed against a closed list of those keys, and
-    any other key is a load error.
+    any other key is a load error. A rule on a built-in host whose
+    profile part is off is a load error too (S07-egress-gateway,
+    "Profile parts").
   - *Which commit.* It is read only from the host repository's
     checked-out `HEAD`, never from the landing, quarantine or export
     repository (S08-workspace-and-git), so the guest can't change it by
@@ -152,7 +154,9 @@ inspection is trusted, and what is recorded.
     and fails the check, or can't be checked, is refused, the VM keeps its
     last policy that passed, and `wb policy explain` shows the change
     as pending (S07-egress-gateway, "Policy changes while sessions
-    run"). The result is cached on the SHA-256
+    run"). A recompute when a session ends goes through the same check
+    when it widens the union (S07-egress-gateway, "Session end"). The
+    result is cached on the SHA-256
     of the candidate and of the boundary, so an unchanged policy adds
     no prover run to session start (NFR01-startup). The maintainer
     decided on I35 that the user's own policy is checked, because
@@ -166,23 +170,33 @@ inspection is trusted, and what is recorded.
     (X24-openshell-artifacts).
   - *Built-in profiles in the check.* The candidate holds the parts of
     the built-in profiles that are on (S07-egress-gateway, "Profile
-    parts"). An organization's boundary limits them like any other
-    rule. The default boundary allows every checked rule of every
-    built-in part. The one exception is a built-in rule the prover can't model.
-    Such a rule is left out of the candidate, and:
-    - its profile names it as left out of the boundary check, and the
-      docs list every such rule;
-    - `wb policy explain` shows it as "not boundary-checked";
-    - the merge rules below still hold, so user or repository policy
-      can't replace or weaken it.
+    parts"), and no built-in rule is left out. An organization's
+    boundary limits them like any other rule. The default boundary
+    allows every rule of every built-in part as the prover sees it.
+    - *GraphQL.* The prover can't model GraphQL rules, and the git
+      hosting profile has them (S07-egress-gateway). So the candidate
+      holds each built-in GraphQL rule as a REST rule that allows
+      `POST` to its GraphQL path on its host, such as
+      `POST api.github.com/graphql`. That rule allows every operation
+      the GraphQL rule allows and more. A candidate inside the
+      boundary with the REST rule is inside it with the GraphQL rule
+      too.
+    - *The gap.* The boundary then limits whether a host's GraphQL
+      endpoint is reachable, not which operations are allowed on it.
+      An organization that wants no GraphQL on a host forbids the
+      endpoint in its boundary. The check then refuses every session
+      start until the user turns that part off, such as the GitHub
+      `graphql` part. `wb policy explain` shows each
+      such rule as "boundary-checked as POST to its endpoint", and the
+      docs list them.
+    - *Only built-in rules.* A user or repository rule the prover
+      can't model still refuses the policy.
+    - *Merge rules.* The merge rules below still hold, so user or
+      repository policy can't replace or weaken a built-in rule.
 
-    Today the left-out rules are the GraphQL rules of the git hosting
-    profile. Only a built-in rule can be left out: a user or repository
-    rule the prover can't model still refuses the policy. A user who
-    wants a left-out rule gone turns its part off, such as the GitHub
-    `graphql` part. The maintainer decided this on I35
-    (B35-openshell-artifacts), changing the brief's option A, which
-    left the built-in profiles out as a whole.
+    The maintainer decided this on I35 (B35-openshell-artifacts), in
+    the addendum to decision 1, which applies the brief's option C to
+    the built-in rules.
 - **Precedence.** Built-in defaults → global → project → trusted repo
   config → session approvals. `wb policy explain` shows the effective
   value and its source.
@@ -193,7 +207,9 @@ inspection is trusted, and what is recorded.
     source of the allow. User and repository policy can't change a
     built-in host's kind, mode or rules. The one change the global and
     project policy can make to a built-in profile is to turn a part of
-    it off (S07-egress-gateway, "Profile parts").
+    it off (S07-egress-gateway, "Profile parts"). This lock, and the
+    removal of guest credentials in the places a profile names, hold
+    whatever parts are on.
   - *Per VM.* The host enforces the merge for a VM, not for a project:
     the project sources are those of every project with a session in
     the VM. Limits take the strictest value among them, and so does
@@ -227,7 +243,9 @@ inspection is trusted, and what is recorded.
   with a token. Built-in profiles ship these, such as the anonymous
   `ghcr.io` token for Homebrew bottles (S07-egress-gateway,
   X22-no-guest-credentials). Such a value isn't a secret, and the
-  guest doesn't get a placeholder for it.
+  guest doesn't get a placeholder for it. A binding on a host that a
+  built-in profile covers applies only to the hosts and paths of the profile's
+  parts that are on (S07-egress-gateway, "Profile parts").
 - **Reach.** A project's binding is injected for requests from the whole
   VM while the project has a session in it, so any process in that VM
   can have it used on its behalf, though none can read it
@@ -318,12 +336,16 @@ Only the user approves a request.
   State Change (5019) event. The maintainer decided on I35 that
   approvals are bound by the boundary (B35-openshell-artifacts).
 - **Limits.** The guest triggers approval requests, one per unknown
-  name it looks up outside the guest OS's background list
-  (S07-egress-gateway, "Packet path", DNS), so prover runs are bounded
-  (SEC13-bounded-resources). Requests are deduplicated by host and
-  rate-limited per VM, with a limit fixed in code, because the host
-  can't tell which session raised one (S07-egress-gateway, "Enforced
-  per VM"). Each VM has a
+  name it looks up outside the guest OS's background list and the
+  hosts of parts that are off (S07-egress-gateway, "Packet path",
+  DNS), so prover runs are bounded (SEC13-bounded-resources).
+  Requests are deduplicated by host and rate-limited per VM, with a
+  limit fixed in code, because the host can't tell which session
+  raised one (S07-egress-gateway, "Enforced per VM"). A deny holds
+  until the sessions running at the deny have ended, and an answer
+  given after the VM's sessions changed is refused and the request
+  shown again (S07-egress-gateway, "Deny duration", "Session set at
+  the answer"). Each VM has a
   limit fixed in code on pending requests, and a cap on concurrent
   prover runs (S04-architecture). Boundary results are cached per host,
   port and rule form, keyed on the SHA-256 of the boundary document, so

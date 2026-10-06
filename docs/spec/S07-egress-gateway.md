@@ -81,6 +81,17 @@ included.
   When a refused change narrows in part, the refusal and
   `wb policy explain` name the narrowing part and say "apply the
   removal on its own to revoke it now" (NFR06-explained-refusals).
+- **Session end.** When a project's last session in the VM ends, its
+  rules and bindings leave the union. That part narrows and applies at
+  once. The recompute widens when the project held a limit at the
+  strictest value, turned a part off, or set `enforce` over another
+  project's `audit`, because that setting leaves with it. A recompute
+  that widens goes through the same checks as a joining session. If
+  one fails or can't run, the VM keeps the limits, modes and parts
+  that are off of its last effective policy that passed. Only the
+  removal of the project's rules and bindings applies. A Device Config State Change (5019) event names the project
+  that left and the rule that failed, and `wb policy explain` shows
+  the widening as pending until a later recompute passes.
 - **Open streams.** After each recompute, `wb-proxyd` checks every
   open stream of the VM against the new effective policy: a WebSocket,
   an HTTP/2 connection, a pass relay, a server-sent event stream, or a
@@ -131,7 +142,11 @@ session start in the VM to the end of the last session running in it.
   frames between the packet transport and the stack, with one transport
   adapter per platform. On macOS each datagram is one Ethernet frame,
   and the host end's `SO_RCVBUF` is at least twice its `SO_SNDBUF`, as
-  Apple's header for the attachment asks. The stack runs in promiscuous
+  Apple's header for the attachment asks. The adapter reads each
+  datagram into a buffer of MTU + 15 bytes, one more than the largest
+  frame, so a datagram that fills the buffer was truncated. It is
+  dropped and logged with the rule `frame-truncated`, never passed on
+  in part. The stack runs in promiscuous
   and spoofing mode, so that it accepts and answers connections to
   every synthetic address (X03-network-path).
 - **Link filter.** With spoofing on, gVisor answers ARP for any
@@ -167,7 +182,10 @@ session start in the VM to the end of the last session running in it.
   filter drops, DHCP findings, DNS refusals and approval events, is
   rate-limited per rule, and the record that follows a suppressed run
   holds the count it suppressed (SEC10-audit,
-  SEC13-bounded-resources). Packets the stack sends itself, such as
+  SEC13-bounded-resources). A string from the guest that goes into a
+  log record, such as a DHCP option or a DNS name, is escaped and cut
+  to a fixed length in code, and a cut string ends with a truncation
+  marker. Packets the stack sends itself, such as
   its own broadcast DHCP replies, are never counted as guest drops.
 - **Per-VM caps.** Each VM's `wb-netd` caps TCP connections in flight
   (half-open and established), DNS-over-TCP connections, the stack's
@@ -195,7 +213,8 @@ session start in the VM to the end of the last session running in it.
   there is only one. A `DHCPDECLINE` means something answered for the
   guest's address, and is logged as a finding. Strings the guest
   sends, such as the host name, vendor class and client identifier
-  (options 12, 60, 61 and 81), are logged escaped, never raw.
+  (options 12, 60, 61 and 81), are logged escaped and cut to the
+  fixed length ("Events and rate limits"), never raw.
 - **MTU.** The link MTU is 65535, the largest the macOS attachment
   accepts (1500 to 65535). `wb-vmd` sets it on the attachment, the
   DHCP interface-MTU option (26) offers the same value, and the guest
@@ -203,10 +222,11 @@ session start in the VM to the end of the last session running in it.
   (B17-network-path). `wb-netd` isn't a router: the guest's TCP
   connections end in its stack, and `wb-proxyd` opens its own
   connections upstream at the host's MTU, so the link MTU never
-  reaches another network. A frame can then be 64 KiB, so `wb-netd`
-  bounds its frame queues in bytes as well as in frames ("Per-VM
-  caps", SEC13-bounded-resources), and the link endpoint's fuzz target
-  covers frames of that size (S11-verification-and-spikes).
+  reaches another network. The largest frame is then 65535 + 14
+  bytes. `wb-netd` bounds its frame queues in bytes as well as in
+  frames ("Per-VM caps", SEC13-bounded-resources), and the link
+  endpoint's fuzz target covers frames of that size
+  (S11-verification-and-spikes).
 - **DNS** (UDP and TCP port 53 on the gateway only):
   - `A` queries for allowlisted names are answered with a **synthetic
     address** from a reserved range (198.18.0.0/15), allocated per name
@@ -239,22 +259,39 @@ session start in the VM to the end of the last session running in it.
     counted on it, because the host can't tell which session looked a
     name up ("Enforced per VM"). The maintainer decided the per-VM
     rules on I36 (B36-flow-attribution).
+  - *Deny duration.* A deny holds for the VM until every session that
+    was running when the user denied has ended. Until then the name
+    gets `NXDOMAIN` without a new approval event, and later queries
+    are counted on the closed event. After that, a lookup raises a new
+    event.
+  - *Session set at the answer.* An approval event records the
+    sessions running in the VM when it was raised. If that set has
+    changed when the user answers, the answer is refused, and the
+    request is shown again with the current sessions.
   - *Quiet refusals.* The guest OS resolves names of its own, with no
     user action: an idle guest at the login window looked up 14 host
     names, 109 queries in all, in its first hour (X03-network-path).
     Names on the guest OS's background list get `NXDOMAIN` and an
-    audit entry with the rule `guest-os-background`, and don't raise an
-    approval event. The list is host-held: it ships with Wraith Box
-    for each guest OS release. Nothing the guest sends adds a name to
-    it. It
-    holds exact names, such as `init.push.apple.com`, never suffixes or
-    wildcards, so a lookup of `developer.apple.com` still raises an
-    approval event. A name on the list that is also
-    allowed by policy is answered as allowed. `wb status` shows the
-    list and the count of refusals per name. The image turns off the
-    services that send these lookups where it can (X17-image-build), so
-    the list holds what remains. The maintainer decided this on I17
-    (B17-network-path), as an exception to FR09-approve-unknown.
+    audit entry with the rule `guest-os-background`, and don't raise
+    an approval event. The list is host-held: it ships with Wraith Box
+    for each guest OS release. `wb-hostd` picks the list from the
+    image it booted, never from anything the guest reports, and
+    nothing the guest sends adds a name to it. The list holds exact
+    names, such as `init.push.apple.com`, never suffixes or wildcards,
+    so a lookup of `developer.apple.com` still raises an approval
+    event. A query matches when its name equals a listed name compared
+    case-insensitively, after one trailing dot is removed. A name on
+    the list that is also allowed by policy is answered as allowed.
+    `wb status` shows the list and the count of refusals per name. The
+    image turns off the services that send these lookups where it can
+    (X17-image-build), so the list holds what remains. The maintainer
+    decided this on I17 (B17-network-path), as an exception to
+    FR09-approve-unknown.
+  - *Parts that are off.* A host whose only rules are in a built-in
+    profile part that is off ("Stream path", "Profile parts") gets
+    `NXDOMAIN` and an audit entry with the rule `profile-part-off`,
+    and doesn't raise an approval event. So an approval can't undo the
+    user's switch.
   - Wildcard allowlist entries are bounded: each VM may resolve at most
     a fixed number of new names under wildcards in an active period
     ("Enforced per VM"), and failed lookups count against that budget,
@@ -331,8 +368,9 @@ session start in the VM to the end of the last session running in it.
   whose flow needs cookies, such as a challenge page or a download
   behind a session redirect, fails until a built-in profile for it
   allows them. The maintainer decided the rules of this paragraph on
-  I33 (B33-no-guest-credentials). It refuses with a `403` that names the rule a request that has a
-  credential parameter the profile names, in the query string, in a
+  I33 (B33-no-guest-credentials). `wb-proxyd` refuses with a `403`
+  that names the rule a request that has a credential parameter the
+  profile names, in the query string, in a
   form-encoded body, in a part of a `multipart/form-data` body, or as
   a top-level key of a JSON body. The media type is matched
   case-insensitively with its parameters ignored, so
@@ -357,6 +395,14 @@ session start in the VM to the end of the last session running in it.
   hands the client a server-issued `Authorization` header for each
   object. An LFS clone therefore raises these findings too, and an operator
   reading the log should expect them.
+  - *Cookies the server sets.* On an inspected host with a credential
+    binding, `wb-proxyd` removes every `Set-Cookie` header from the
+    response before it reaches the guest. A session cookie that a
+    server issues to a request with the injected credential is a
+    secret derived from it, which SEC04-no-guest-secrets keeps out of
+    the guest. Each removal is logged with the cookie's
+    name and the rule `set-cookie-bound-host`, never the value
+    (SEC10-audit).
   - *Named places.* The model API profile names `x-api-key`. The git
     hosting profile names, per kind of host: GitHub, `Authorization`
     only (GitHub itself refuses `?access_token=`). GitLab, the headers
@@ -380,14 +426,29 @@ session start in the VM to the end of the last session running in it.
     the rule `anonymous-binding-read-only`. Without the binding, every
     bottle download fails with a 401, because `brew` never asks the
     token endpoint for a token. `ghcr.io/token` is denied to the guest,
-    since no client needs it once the binding answers. If `ghcr.io`
-    stops accepting the fixed value, `wb-proxyd` fetches an anonymous
-    token from `ghcr.io/token` itself, the documented flow, and injects
-    that instead (X22-no-guest-credentials). Forwarding guest tokens
+    since no client needs it once the binding answers. Forwarding guest tokens
     on reads only was rejected: it forwards an attacker's token on
     every GET, and a placeholder without a binding then fails the
     request. Forwarding only tokens that the host issued in this
     session was rejected because it doesn't fix Homebrew.
+  - *Token fallback.* If `ghcr.io` stops accepting the fixed value,
+    `wb-proxyd` fetches an anonymous token itself, the documented flow
+    (X22-no-guest-credentials), and injects it in place of the fixed
+    value:
+    - It builds the URL itself: host `ghcr.io`, path `/token`, the
+      parameter `service=ghcr.io` and the scope
+      `repository:homebrew/core/<name>:pull`. `<name>` comes from the
+      request path and must match the binding's path rule, or the
+      request is refused. The URL never comes from the realm of a
+      `WWW-Authenticate` header.
+    - `wb-proxyd` sends no credential with the fetch.
+    - A token is cached per scope until it expires. The fetches per VM
+      are capped, and a request over the cap is refused with the cap's
+      rule (SEC13-bounded-resources).
+    - A request that gets a 401 with a freshly fetched token isn't
+      retried. The 401 goes to the guest and is logged.
+    - Each fetch is a Network Activity (4001) event with the rule
+      `anonymous-token-fallback` (SEC10-audit).
   - *Signed URLs.* `wb-proxyd` passes a credential in any other
     parameter unchanged, as the presigned storage URLs of git LFS and
     Homebrew bottles need. `wb-proxyd` can't tell who signed such a
@@ -421,9 +482,13 @@ session start in the VM to the end of the last session running in it.
     explicit additions), which any process in the VM can then write
     to (T11-shared-vm-grants); gists, repository creation and forks
     denied. GraphQL mutations are denied unless the
-    operation name is allowlisted. The profile names these GraphQL
-    rules as left out of the boundary check, because the prover can't
-    model them (S09-policy-credentials-audit, "Boundary check").
+    operation name is allowlisted. The prover can't model GraphQL
+    rules. The boundary check sees each one as `POST` to its GraphQL
+    path on its host. The boundary then limits whether that
+    endpoint is reachable, not which operations are allowed
+    (S09-policy-credentials-audit, "Built-in profiles in the check").
+    Git LFS isn't in the profile and fails in V1 (S08-workspace-and-git,
+    "Open points").
   - *model API*: the endpoints Claude Code needs, with the model
     credential binding.
   - *package registries*: metadata and downloads only, publish and
@@ -438,36 +503,47 @@ session start in the VM to the end of the last session running in it.
     `formulae.brew.sh` read-only.
 
   *Profile parts.* Each built-in profile is split into named parts, and
-  every allow rule and credential binding of a profile belongs to one
-  part. A built-in deny, such as the git hosting profile's archive
-  deny, belongs to no part and applies whatever parts are on. Turning
-  a part off therefore can't remove a deny. All parts are on by
-  default.
+  every allow rule of a profile belongs to one part. A built-in deny,
+  such as the git hosting profile's archive deny, belongs to no part
+  and applies whatever parts are on. Turning a part off therefore
+  can't remove a deny. All parts are on by default.
   - *Switches.* The global policy and a project's network policy turn
     a part off with a Wraith Box extension key. Repository
-    configuration has no such key.
+    configuration has no such key. A trusted repository's rule on a
+    built-in host whose part is off is a load error that names the
+    part (NFR06-explained-refusals).
   - *Effect.* A part that is off is not in the effective policy.
     Default-deny then refuses its hosts and paths, unless another rule
-    allows them.
+    allows them. A host whose only rules are in parts that are off is
+    refused at DNS with the rule `profile-part-off` and no approval
+    event ("Packet path", DNS).
+  - *Bindings.* A credential binding covers the hosts and paths of the
+    parts that are on, and nothing of a part that is off. With only
+    `git` on, the GitHub binding is injected into git's transport and
+    nowhere else.
+  - *What parts don't change.* The removal of guest credentials in
+    the places a profile names ("Credential replacement") and the lock
+    on a built-in host's kind, mode and rules
+    (S09-policy-credentials-audit, "Precedence") hold whatever parts
+    are on.
   - *Per VM.* A part is off in a VM when the global policy or any
     project with a session in the VM turns it off. Turning a part off
     is a limit, and the VM takes the strictest value of a limit
     ("Enforced per VM").
   - *Narrowing.* Turning a part off only narrows. It needs no boundary
     check to pass ("Policy changes while sessions run"). Turning a
-    part back on widens.
+    part back on widens, and so does a session end that removes the
+    last project that turned a part off ("Session end").
+
   `wb policy explain` shows each part, whether it is on, and the policy
   that turned it off, and a request refused because its part is off
   names the part and that policy (NFR06-explained-refusals). The
-  maintainer decided this on I35
-  (B35-openshell-artifacts). The GitHub kind of the git hosting profile
-  has these parts:
+  maintainer decided this on I35 (B35-openshell-artifacts). The GitHub
+  kind of the git hosting profile has these parts:
   - `git`: git's smart HTTP transport on `github.com`, which is the
     `info/refs` advertisement and the `git-upload-pack` and
     `git-receive-pack` requests of a repository, so fetch, pull and
     push. Push stays limited to the repositories above.
-  - `lfs`: the git LFS batch API on `github.com` and the object
-    downloads and uploads it hands out.
   - `rest`: the REST API on `api.github.com`.
   - `graphql`: the GraphQL API, `POST api.github.com/graphql`.
   - `web`: every other rule of the GitHub kind.
@@ -639,6 +715,11 @@ session start in the VM to the end of the last session running in it.
     (T11-shared-vm-grants), and the request says so. The 5019 event of
     the answer records the guest's label, if any, and the project the
     user picked.
+  - *Deny* holds for the VM until every session that was running when
+    the user denied has ended ("Packet path", DNS, "Deny duration").
+  - An answer given after the VM's sessions changed is refused, and
+    the request is shown again ("Packet path", DNS, "Session set at
+    the answer").
 - **What an approval grants.** On a host without a built-in profile, an
   approval grants the read methods GET, HEAD and OPTIONS. A write
   method (any other, and a GET with `Upgrade: websocket`, which opens

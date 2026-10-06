@@ -53,7 +53,8 @@ be tested before building on them.
 
   The link endpoint's targets include the link filter of
   S07-egress-gateway and its ARP branch, with a corpus of frames from
-  0 to 65535 + 14 bytes.
+  0 to 65535 + 14 bytes, and seeds of truncated reads that fill the
+  MTU + 15 byte buffer, which must be dropped.
 - **Conformance suite.** A set of adversarial checks run *inside a guest*
   against a real `wb-netd`/`wb-proxyd`. Each must fail safely, and the
   suite is a release gate for every host/guest combination in the
@@ -72,8 +73,9 @@ be tested before building on them.
     the macOS resolver still connects to an allowlisted name as fast as
     it did when they were refused (B17-network-path);
   - resolve a name on the guest OS's background list and see
-    `NXDOMAIN`, an audit entry and no approval event; resolve a name
-    one label longer under it and see an approval event
+    `NXDOMAIN`, an audit entry and no approval event, also when it is
+    sent in mixed case and with a trailing dot; resolve a name one
+    label longer under it and see an approval event
     (S07-egress-gateway, quiet refusals);
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
@@ -122,6 +124,9 @@ be tested before building on them.
     `/@scope%2Fname` and get the same gate decision for each;
   - send a credential that is neither a placeholder nor a fixed value, and
     find a detection finding with its header name and no value;
+  - fetch from an inspected host with a credential binding a response
+    that sets a cookie, and see no `Set-Cookie` reach the guest and a
+    log record with the cookie's name and no value;
   - download a Homebrew bottle from `ghcr.io` with the guest's
     `Authorization` removed and the anonymous binding injected, through
     the redirect to `pkg-containers.githubusercontent.com`; send any
