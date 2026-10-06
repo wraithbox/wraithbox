@@ -96,10 +96,11 @@ process cannot remove it, much like Landlock.
   joins them with a shell script and applies them with `sandbox-exec`.
   Wraith Box copies the modules it uses at the pinned commit, keeps
   their license text, and generates the profile on the host. Their
-  network module allows every outbound connection, so this layer
+  network module allows every outbound IP connection, so this layer
   doesn't narrow egress, and the host enforces it (S07-egress-gateway).
   X24-openshell-artifacts read the profiles but didn't run them in a
-  guest.
+  guest. X27-vsock-confinement ran the modules that upstream's renderer
+  selects by default in a guest, for the vsock calls only.
 - **Known gaps.** Processes started through LaunchServices and `launchd`
   services run outside the profile. They stay inside the guest and the
   project user's permissions. Xcode and simulators need exceptions

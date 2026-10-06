@@ -9,7 +9,7 @@ Brief: B101-vsock-confinement
 - **Decides:** the answer to X27-vsock-confinement (I101), and what
   S04-architecture, S06-vm-lifecycle and S13-guest-confinement now
   state: `wb-guestd` listens on a vsock port below 1024, which only
-  guest root can bind, and the session profile denies creating
+  guest root (effective user ID 0) can bind, and the session profile denies creating
   `AF_VSOCK` sockets with one named rule.
 - **You are approving:** the answer "yes, with conditions", the
   measurements, and the spec text in this pull request. Without the
@@ -23,9 +23,12 @@ Brief: B101-vsock-confinement
   unchanged: guest root can still bind the port, as it can already
   pose as any project user (T11-shared-vm-grants).
 - **Assumed:** that the guest kernel's rule for ports below 1024 stays
-  in later macOS releases. It isn't documented, and the conformance
-  suite of S11-verification-and-spikes should test it on each guest
-  image (I101 follow-up below).
+  in later macOS releases. The rule isn't in Apple's developer documentation, but the XNU source has it
+  (`bsd/kern/vsock_domain.c`, `VSOCK_PORT_RESERVED`, `proc_suser`).
+  Condition 4 and its conformance check in
+  S11-verification-and-spikes test it on each guest image. Also that
+  X20-shared-homebrew can work with project users who have no `sudo`
+  (condition 5). The maintainer is to confirm this strict default.
 - **Open decisions:** none.
 - **Brief:** B101-vsock-confinement
 
@@ -50,7 +53,10 @@ nothing stops it, and two controls stop it.
 2. **Ports below 1024 need root: yes.** `bind` on ports 1, 80, and 1023
    fails with `EACCES` for both non-root users and works for root.
    From 1024 up, any user binds any free port. An automatic port
-   (`VMADDR_PORT_ANY`) is taken from 1025 up, for root too.
+   (`VMADDR_PORT_ANY`) is taken from 1025 up, for root too. The XNU
+   source has the same rule: `bind` below `VSOCK_PORT_RESERVED` (1024)
+   returns `EACCES` unless `proc_suser` passes, which checks for
+   effective user ID 0 (`bsd/kern/vsock_domain.c`).
 3. **While `wb-guestd` holds its port, nobody else gets it.** Every
    variant fails with `EADDRINUSE` for root and non-root alike: the
    wildcard CID, the guest's own CID, and `SO_REUSEADDR` with
@@ -110,8 +116,19 @@ The conditions:
    connects to the guest's own CID can't stop the listener.
 4. **The guest kernel's port rule is tested on every image.** The
    conformance suite of S11-verification-and-spikes checks, as a
-   project user, that binding `wb-guestd`'s port fails, and that the
-   session profile denies `socket(AF_VSOCK)`.
+   project user outside the session profile, that binding a free port
+   below 1024 fails with `EACCES` and that binding `wb-guestd`'s port
+   while it runs is refused. Inside a session, it checks that the
+   profile denies `socket(AF_VSOCK)`.
+5. **Project users can't become root.** "Root" here means effective
+   user ID 0, which `sudo` gives. A project user is a standard account
+   outside the `admin` and `wheel` groups. It has neither a sudoers rule
+   nor a password login, and the image build disables or removes any admin
+   account it creates before sealing (S06-vm-lifecycle). The
+   spike's project user stand-in was such an account. The spike's
+   guest also had an admin account with `sudo`, which could bind any
+   port and so defeat condition 1.
+   X20-shared-homebrew has to work within this.
 
 ## Measurements
 
@@ -149,8 +166,10 @@ Every call ran without a Seatbelt profile unless a profile is named.
 
 ## What was not measured
 
-- **Older or newer guests.** Only macOS 27.0.1 ran. The port rule isn't
-  in Apple's documentation, so condition 4 tests it per image.
+- **Older or newer guests.** Only macOS 27.0.1 ran. The port rule
+  isn't in Apple's developer documentation, but the XNU source has it
+  (`bsd/kern/vsock_domain.c`, `VSOCK_PORT_RESERVED`, `proc_suser`),
+  and condition 4 tests it per image.
 - **`sandbox_init` from `wb-guestd`.** The spike applied profiles with
   `sandbox-exec`, which uses the same kernel policy. Its children
   inherit the profile, as S13-guest-confinement states.
@@ -168,13 +187,15 @@ Every call ran without a Seatbelt profile unless a profile is named.
   to it, and `wb-guestd` keeps listening after an aborted `accept`. The line that
   called this untested now cites this result (changed in this pull
   request).
-- **S06-vm-lifecycle**, "`wb-guestd`": the LaunchDaemon listens on a
-  vsock port below 1024 (changed in this pull request).
+- **S06-vm-lifecycle**: `wb-guestd` listens on a port below 1024 on
+  vsock guests, project users are standard accounts with no `sudo`,
+  and sealing fails on an enabled admin account (changed in this pull
+  request).
 - **S13-guest-confinement**, Layer 2: the rule in the profile, why the
   generic network rules aren't enough, and that the port rule covers
   processes outside the profile (changed in this pull request).
 - **S11-verification-and-spikes**: the conformance checks of
-  condition 4 (changed in this pull request).
+  conditions 4 and 5 (changed in this pull request).
 
 ## Spike code
 
