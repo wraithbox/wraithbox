@@ -1,7 +1,8 @@
 (version 1)
 ; wb-vmd profile: what the boot, save and restore runs needed, after the
 ; ablation rounds (results/ablate-*.txt). Every rule here was needed by a
-; boot, except vz-framework, which is kept so a configuration error comes
+; boot, except machdep.cpu.brand_string (needed for saved states, below) and
+; vz-framework, which is kept so a configuration error comes
 ; back as an NSError with its text instead of an uncaught exception.
 ; Parameters:
 ;   BUNDLE  the VM bundle directory (disks, auxiliary storage, identity, state)
