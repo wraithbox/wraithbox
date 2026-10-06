@@ -59,7 +59,20 @@ nothing themselves (S12-platforms).
   it does not relay or parse guest traffic, so the native code has the
   smallest possible exposure to guest input. The device set of a VM is
   fixed in `wb-vmd`'s code, and no device type is ever taken from the
-  contract. On macOS (X18-vsock-handoff):
+  contract. Before every start and restore, `wb-vmd` checks the
+  configuration against that set and refuses, and logs with the rule,
+  any other device or attachment. On macOS, `wb-vmd`'s sandbox profile
+  enforces part of the set as well (X25-vmd-sandbox): it refuses a
+  shared directory (SEC02-no-host-fs-share), host audio input, and
+  disks or serial port files outside `<data>/vms`, and it denies the
+  lookup of the host clipboard service (the effect in the guest is
+  untested).
+  It can't refuse a NAT network, which Apple's Virtualization service
+  provides and which would bypass `wb-netd` and `wb-proxyd`
+  (SEC05-default-deny), nor disks in `<data>/vms` or devices on
+  descriptors `wb-vmd` holds. Those are enforced by `wb-vmd`'s code
+  alone. A bridged network needs an entitlement `wb-vmd` isn't signed
+  with. On macOS (X18-vsock-handoff):
   - A vsock connection's descriptor is a Unix stream socket to
     Virtualization's own service process, which moves the bytes to
     the device. The receiver can't read the vsock ports from it, so
@@ -143,6 +156,18 @@ nothing themselves (S12-platforms).
     starts `wb-launcher` (on macOS), resolves the git binary, and works
     out the paths for its profile. None of that reads
     anything the guest sent.
+  - On macOS, `wb-vmd` resolves the per-user cache directory
+    (`confstr(_CS_DARWIN_USER_CACHE_DIR)`) before it confines itself,
+    because the framework needs it and the lookup would need a
+    system service the profile denies. Its profile allows reading and
+    writing `<data>/vms`, the Virtualization service, the `sysctl`
+    values and system files the framework checks (the CPU name among
+    them, without which saved states don't restore across profiles),
+    and the sandbox extensions the framework hands to its service
+    process. It denies the user's other files, the network, starting
+    programs, and other services. Installing from a restore image adds
+    reading that one file and the installation service
+    (X25-vmd-sandbox).
   - `wb-netd` writes its log to an inherited pipe or socket to
     `wb-hostd`, which frames, attributes and rate-limits each line.
     `wb-netd` holds no descriptor on any file in `<logs>` or `<data>`.

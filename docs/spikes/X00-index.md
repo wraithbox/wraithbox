@@ -39,7 +39,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X22-no-guest-credentials | Clients without guest credentials | Answered 2026-10-05: yes, with conditions |
 | X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
 | X24-openshell-artifacts | OpenShell artifacts | Answered 2026-10-05: yes, with conditions |
-| X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Open |
+| X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Answered 2026-10-06: yes, with conditions. Only `wb-vmd`'s code keeps a NAT network from the guest |
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
 | X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Open |
@@ -225,7 +225,11 @@ assumption that v1 work would otherwise build on. They block v1.
   If not, what does it need instead: App Sandbox with the
   virtualization entitlement, or no confinement and a spec change
   (S04-architecture, SEC12-least-privilege). Found by
-  X23-sandboxed-daemons. Needs a VM.
+  X23-sandboxed-daemons. Needs a VM. Answered yes, with conditions, in
+  the result page X25-vmd-sandbox: a Seatbelt profile with the VM
+  bundles, the Virtualization service and the framework's sandbox
+  extensions works for install, boot, save and restore. It keeps
+  shared directories out of the guest, but not a NAT network.
 - **X26-pre-receive-check: Push checks before the quarantine lands.**
   Can a `pre-receive` check that Wraith Box owns, never the repository,
   refuse a push whose objects inflate past a cap, and repeat the ref

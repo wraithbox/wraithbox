@@ -115,7 +115,9 @@ in S12-platforms.
     tells them apart, so `wb-hostd` never matches on the code alone.
     "Permission denied" comes from a locked host (X18-vsock-handoff)
     and from a state written on another host. "Invalid argument" comes
-    from an identifier in use (X02-warm-start) and from a host update.
+    from an identifier in use (X02-warm-start), from a host update, and
+    from a state saved by a `wb-vmd` whose sandbox profile let it read
+    different host facts, such as the CPU name (X25-vmd-sandbox).
   - `wb-hostd` decides permanence from evidence it owns. It records the
     host's hardware identity (the `IOPlatformUUID`) and the macOS build
     with each saved state in `state.db`. A mismatch with the running
