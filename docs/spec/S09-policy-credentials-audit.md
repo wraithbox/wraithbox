@@ -51,7 +51,9 @@ inspection is trusted, and what is recorded.
     the file is refused at load. The prover models ASCII values only,
     and its output repeats these strings (X24-openshell-artifacts).
   - *What the prover sees.* The document Wraith Box writes for the
-    prover allows at least what `wb-proxyd` enforces, never less. A
+    prover allows at least what `wb-proxyd` enforces, never less, with
+    one exception: the built-in rules left out of the boundary check
+    ("Boundary check", "Built-in profiles in the check"). A
     host in pass mode is written as an L4 endpoint with no `protocol`
     and no rules, whatever rules the file gives it, so the boundary
     must allow L4 to that host. The prover can't see the extension
@@ -138,9 +140,10 @@ inspection is trusted, and what is recorded.
     checked against the boundary too, at session start and whenever
     they change, also for a project with no trusted repository. The
     candidate is the global rules and the rules of every project with
-    a session in the VM, which is what the VM enforces
-    (S07-egress-gateway, "Enforced per VM"), projected as above,
-    without the built-in profiles. A failing check refuses the session
+    a session in the VM, with the built-in profiles, which is what the
+    VM enforces (S07-egress-gateway, "Enforced per VM"), projected as
+    above ("Built-in profiles in the check" below). A failing check
+    refuses the session
     start, with the reason, the project and the rule that caused it
     shown and logged. While sessions run, a change that narrows the
     union, so that the new union allows a subset of what the old one
@@ -151,21 +154,35 @@ inspection is trusted, and what is recorded.
     as pending (S07-egress-gateway, "Policy changes while sessions
     run"). The result is cached on the SHA-256
     of the candidate and of the boundary, so an unchanged policy adds
-    no prover run to session start (NFR01-startup). This is option A of
-    the open decision on approvals and the boundary
-    (B35-openshell-artifacts), which the spec applies until it is
-    decided.
+    no prover run to session start (NFR01-startup). The maintainer
+    decided on I35 that the user's own policy is checked, because
+    approvals are bound by the boundary (B35-openshell-artifacts,
+    "Approvals" below).
   - *What the prover models.* At v0.1.2 it compares hosts, ports and
     programs, and method and path rules on `protocol: rest` endpoints
     in `enforce` mode. It answers `unsupported` for GraphQL and
     WebSocket rules, an endpoint in `audit` mode, query matchers, and a
     host and port that has both a REST endpoint and one without rules
-    (X24-openshell-artifacts). The git hosting profile has GraphQL
-    rules (S07-egress-gateway), so a merged policy that includes it is
-    refused. Which rules go to the prover, so that `wb trust` can pass
-    for such a project, is open (B35-openshell-artifacts). Until it is
-    decided, the whole merged policy goes to the prover and these
-    results refuse it.
+    (X24-openshell-artifacts).
+  - *Built-in profiles in the check.* The candidate holds the parts of
+    the built-in profiles that are on (S07-egress-gateway, "Profile
+    parts"). An organization's boundary limits them like any other
+    rule. The default boundary allows every checked rule of every
+    built-in part. The one exception is a built-in rule the prover can't model.
+    Such a rule is left out of the candidate, and:
+    - its profile names it as left out of the boundary check, and the
+      docs list every such rule;
+    - `wb policy explain` shows it as "not boundary-checked";
+    - the merge rules below still hold, so user or repository policy
+      can't replace or weaken it.
+
+    Today the left-out rules are the GraphQL rules of the git hosting
+    profile. Only a built-in rule can be left out: a user or repository
+    rule the prover can't model still refuses the policy. A user who
+    wants a left-out rule gone turns its part off, such as the GitHub
+    `graphql` part. The maintainer decided this on I35
+    (B35-openshell-artifacts), changing the brief's option A, which
+    left the built-in profiles out as a whole.
 - **Precedence.** Built-in defaults → global → project → trusted repo
   config → session approvals. `wb policy explain` shows the effective
   value and its source.
@@ -174,7 +191,9 @@ inspection is trusted, and what is recorded.
     rule in user or repository policy with the name of a built-in
     profile's rule is a load error. Built-in denies apply whatever the
     source of the allow. User and repository policy can't change a
-    built-in host's kind, mode or rules.
+    built-in host's kind, mode or rules. The one change the global and
+    project policy can make to a built-in profile is to turn a part of
+    it off (S07-egress-gateway, "Profile parts").
   - *Per VM.* The host enforces the merge for a VM, not for a project:
     the project sources are those of every project with a session in
     the VM. Limits take the strictest value among them, and so does
@@ -284,20 +303,23 @@ Only the user approves a request.
     T07-ungated-sources was accepted).
 - **Source.** OpenShell's check can't be run as it is. It is a Rust
   library API that OpenShell's gateway calls, and isn't in the
-  standalone `openshell-prover` binary (X24-openshell-artifacts). Where
-  Wraith Box's check runs and in which language is open
-  (B35-openshell-artifacts).
+  standalone `openshell-prover` binary (X24-openshell-artifacts). So
+  the risk check is Go code in `wb-hostd`. It follows the four
+  categories and names of OpenShell's check at v0.1.2, adds Wraith
+  Box's own checks above, and runs OpenShell's cases as its tests. The
+  maintainer decided this on I35 (B35-openshell-artifacts,
+  S10-tech-stack).
 - **Boundary.** A request whose rule would leave the boundary isn't
   shown. The prover checks the rule alone, in the approved form,
   against the boundary. An approved rule only allows, so a rule inside
   the boundary can't take a policy that is inside it outside. The
   user's own policy is checked at session start for that reason
   ("Boundary check" above). A refusal is logged as a Device Config
-  State Change (5019) event.
-  Whether approvals are bound by the boundary at all is open
-  (B35-openshell-artifacts), and until it is decided they are.
+  State Change (5019) event. The maintainer decided on I35 that
+  approvals are bound by the boundary (B35-openshell-artifacts).
 - **Limits.** The guest triggers approval requests, one per unknown
-  name it looks up (S07-egress-gateway), so prover runs are bounded
+  name it looks up outside the guest OS's background list
+  (S07-egress-gateway, "Packet path", DNS), so prover runs are bounded
   (SEC13-bounded-resources). Requests are deduplicated by host and
   rate-limited per VM, with a limit fixed in code, because the host
   can't tell which session raised one (S07-egress-gateway, "Enforced

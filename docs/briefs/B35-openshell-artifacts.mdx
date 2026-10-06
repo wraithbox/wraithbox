@@ -5,7 +5,7 @@ description: Yes, with conditions. All are Apache-2.0 at OpenShell v0.1.2, but W
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-05: yes, with conditions. Awaiting decision on which rules go to the prover, where the risk check comes from, and whether approvals are bound by the boundary.** Source: I35, X24-openshell-artifacts. Changes S04-architecture, S07-egress-gateway, S08-workspace-and-git, S09-policy-credentials-audit, S10-tech-stack and S13-guest-confinement.
+**Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: 1A changed, leave out only the built-in rules the prover can't model, 2A, the risk check in Go, and 3A, approvals bound by the boundary.** The decision and its reasons are in the I35 comment that starts `Decision (2026-10-06):`. Source: I35, X24-openshell-artifacts. Changes S04-architecture, S07-egress-gateway, S08-workspace-and-git, S09-policy-credentials-audit, S10-tech-stack and S13-guest-confinement.
 
 <Aside type="tip" title="What we learned">
 Yes, with conditions. The policy schema, the prover, the middleware API, the OCSF classes and the agent-safehouse profiles all exist under Apache-2.0, pinned to commits. Merging accepts these conditions, now in the specs:
@@ -17,7 +17,7 @@ Yes, with conditions. The policy schema, the prover, the middleware API, the OCS
 - On a Windows host the boundary check fails closed, because v0.1.2 has no Windows prover build.
 - OpenShell's check for a credential reached outside HTTP inspection never fires for a `/**` rule, so Wraith Box defines that check its own way: a host with a credential binding put into pass mode or given an L4-only endpoint.
 
-Decision 1, **which rules go to the prover**: recommended A, leave out the built-in profiles. Decision 2, **where the risk check comes from**: recommended A, write it in Go. Decision 3, **whether approvals are bound by the boundary**: recommended A, yes.
+Decision 1, **which rules go to the prover**: recommended A, leave out the built-in profiles. Decided A, changed: only the built-in rules the prover can't model are left out, and built-in profiles are split into parts the user can turn off (below). Decision 2, **where the risk check comes from**: recommended and decided A, write it in Go. Decision 3, **whether approvals are bound by the boundary**: recommended and decided A, yes.
 </Aside>
 
 ## The picture
@@ -65,7 +65,11 @@ Figure 1. Where Wraith Box uses OpenShell's parts. The user's policy file holds 
 
 ## Decision 1: which rules go to the prover at `wb trust`
 
-The prover answers `unsupported` for rules it can't model: GraphQL, WebSocket, and hosts in `audit` mode. The built-in git hosting profile has GraphQL rules, so if the whole merged policy goes to the prover, `wb trust` refuses each project that has a remote on a git host. Until you decide, the spec does that, which is safe but leaves trusted repositories unusable for those projects.
+The prover answers `unsupported` for rules it can't model: GraphQL, WebSocket, and hosts in `audit` mode. The built-in git hosting profile has GraphQL rules, so if the whole merged policy goes to the prover, `wb trust` refuses each project that has a remote on a git host. Until the decision, the spec did that, which is safe but leaves trusted repositories unusable for those projects.
+
+<Aside type="note" title="Decided: A, changed">
+The built-in profiles aren't left out as a whole. Only the built-in rules the prover can't model are left out, today the GraphQL rules of the git hosting profile. Each is named in its profile, listed in the docs, and shown by `wb policy explain` as "not boundary-checked". Every other built-in rule goes to the prover with the rest of the policy, and an organization's boundary limits it. Built-in profiles are split into parts a user can turn off. Turning a part off only narrows, and doesn't need the boundary check. For GitHub, turning off every part but `git` allows only fetch, pull and push over smart HTTP to `github.com` and refuses all REST and GraphQL API traffic. The merge rules stay. Now in S07-egress-gateway ("Profile parts") and S09-policy-credentials-audit ("Built-in profiles in the check").
+</Aside>
 
 Before option A is relied on, two conditions hold:
 
@@ -144,14 +148,14 @@ Ask upstream for a `risk` command and use it when it ships.
 
 ## Decision 3: are approvals bound by the boundary?
 
-The boundary limits what a trusted repository adds. The spec didn't check approvals against it, so a request the guest triggers and the user accepts could add a rule an organization's boundary forbids. An approved rule has a fixed form (one exact host, `rest`, `enforce`, read-only access), which the prover models. A rule that only allows can be checked alone. If it's inside the boundary, adding it keeps a policy that is inside the boundary inside it. That check doesn't depend on decision 1. It does rely on the project's policy being inside the boundary already, and policy the user writes globally or per project is only boundary-checked at `wb trust`. For a project with no trusted repository it is never checked. So the choice is either to bind approvals and check the user's own policy too, or to say the boundary binds only repository configuration. Until you decide, the spec applies option A.
+The boundary limits what a trusted repository adds. The spec didn't check approvals against it, so a request the guest triggers and the user accepts could add a rule an organization's boundary forbids. An approved rule has a fixed form (one exact host, `rest`, `enforce`, read-only access), which the prover models. A rule that only allows can be checked alone. If it's inside the boundary, adding it keeps a policy that is inside the boundary inside it. That check doesn't depend on decision 1. It does rely on the project's policy being inside the boundary already, and policy the user writes globally or per project is only boundary-checked at `wb trust`. For a project with no trusted repository it is never checked. So the choice is either to bind approvals and check the user's own policy too, or to say the boundary binds only repository configuration. Until the decision, the spec applied option A, and the maintainer chose it.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
 ### A. Yes, refuse a request outside the boundary
 
-The prover checks the proposed rule alone. A rule outside the boundary isn't shown as a request, and the refusal is logged as a Device Config State Change (5019) event. The user's global and project policy is checked against the boundary too, also for a project with no trusted repository. That check sends no built-in profiles whatever decision 1 says, so for a project with no trusted repository the boundary never limits the built-in profiles.
+The prover checks the proposed rule alone. A rule outside the boundary isn't shown as a request, and the refusal is logged as a Device Config State Change (5019) event. The user's global and project policy is checked against the boundary too, also for a project with no trusted repository. As recommended, that check left out the built-in profiles. Under decision 1 as decided, it sends the built-in parts that are on, without the rules the prover can't model.
 
 - **Cost:** a prover run per approval request whose result isn't cached, bounded by per-VM limits, deduplication by host and a per-session rate limit. The default boundary must allow the approved form for any host, or approvals of new hosts stop. An organization boundary that lists hosts then limits approvals to them, which is its purpose.
 - **Keeps:** <Badge text="SEC09-host-policy" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" />
@@ -224,8 +228,8 @@ Approvals, and the user's own global and project policy, stay the user's call, w
 
 - The policy parser and the boundary check in `wb-hostd`, to the S09-policy-credentials-audit rules.
 - The dependency gate's interface in `wb-proxyd` (S07-egress-gateway).
-- The approval risk check, once decisions 2 and 3 are made.
-- The boundary check for trusted repositories, once decision 1 is made and its two conditions hold.
+- The approval risk check, now that decisions 2 and 3 are made.
+- The boundary check for trusted repositories and the built-in profile parts, now that decision 1 is made, once its two conditions hold.
 - Part of the exit criterion of V1-M1-spikes-closed.
 
 <details>

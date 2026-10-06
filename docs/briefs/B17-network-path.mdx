@@ -1,11 +1,11 @@
 ---
 title: Does a macOS guest work on our userspace network stack, reaching only the proxy, and how fast?
-description: Yes, with conditions. The guest gets a lease in about 5 s, reaches only allowlisted names through the proxy, and downloads at about 350 MB/s at MTU 1500 and 570 MB/s at larger MTUs, with a link filter in front of the stack. Still open are the MTU and approval noise from the guest OS.
+description: Yes, with conditions. The guest gets a lease in about 5 s, reaches only allowlisted names through the proxy, and downloads at about 350 MB/s at MTU 1500 and 570 MB/s at larger MTUs, with a link filter in front of the stack. The maintainer chose link MTU 65535, and quiet refusals for the guest OS's own lookups.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-05: yes, with conditions. Open: the link MTU, and prompts for the guest OS's own names.** Source: X03-network-path (I17). Changes S07-egress-gateway and S11-verification-and-spikes. Follow-up: I93.
+**Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: 1A, link MTU 65535, and 2A, refuse the guest OS's own lookups quietly.** The decision and its reasons are in the I17 comment that starts `Decision (2026-10-06):`. Source: X03-network-path (I17). Changes S07-egress-gateway, S11-verification-and-spikes and FR00-index (FR09-approve-unknown). Follow-up: I93.
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions.** A macOS guest whose only network card is a socket pair to our Go stack (gVisor) got its address from our DHCP server about 5 s after starting. Only allowlisted names resolved, each to a stand-in address. The proxy stand-in was the one thing it could reach, and our stack reset or dropped every other connection, including IPv6 and UDP other than DNS. No permission beyond the virtualization entitlement was needed. A 1 GiB download reached about 350 MB/s at MTU 1500 and 570 MB/s at MTU 65535, and an upload 300 and 950 MB/s. The catch: to accept connections to the stand-in addresses, the stack claims every address on the local network, so the guest saw its own address as taken. So `wb-netd` must filter frames before the stack sees them. **You are deciding** the link MTU (recommended: 65535) and whether the guest OS's own background lookups raise approval prompts (recommended: no, refuse them quietly and log them).
@@ -62,7 +62,7 @@ S07-egress-gateway now states the complete link filter, the DHCP options the gat
 
 **Choices of the builder.** These go beyond what the spike measured, and are yours to overrule:
 
-- One approval event per name per session, with later queries counted on it. This overlaps the approval design of B51-approval-flow.
+- One approval event per name per session, with later queries counted on it. This overlaps the approval design of B51-approval-flow. The per-VM rules of B36-flow-attribution changed this to one open approval event per name per VM.
 - `wb-netd` has no host-side listener and never opens a connection to the guest. This commits port forwarding (FR11-port-forward) to a path outside `wb-netd`.
 
 **Not measured:** S07-egress-gateway gives an empty answer to `HTTPS` and `SVCB` queries for allowlisted names, where the spike refused them and the guest connected fine. An empty answer gives the guest no record that could hold an encrypted ClientHello configuration or an HTTP/3 hint the proxy can't honor. The cost: nobody has checked the macOS resolver behaves the same with it, so S11-verification-and-spikes adds a case for that, and until it passes the choice rests on reading, not on a run.
@@ -98,7 +98,7 @@ A common "jumbo frame" size.
 
 ### C. 1500, the default
 
-What every network uses, and what S07-egress-gateway says until this is decided.
+What every network uses, and what S07-egress-gateway said until this was decided.
 
 - **Cost:** about 350 MB/s down and 300 MB/s up, and about 7 CPU-seconds per GiB in `wb-netd`, about 2.4 cores busy during a large download. Option A keeps about 2.2 cores busy, but moves 60% more bytes in that time. These figures include the proxy stand-in, which ran in the same process.
 - **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" />
@@ -110,7 +110,7 @@ No security control depends on the MTU: the link filter, DNS and the proxy apply
 
 ## Decision 2: the guest OS's own lookups
 
-An idle guest at the login window, with nothing installed and nobody logged in, looked up 14 host names in its first hour, 109 queries in all, every one under `apple.com` or `icloud.com`: by their names, push, time, software update, location and iCloud services. It also asked for the reverse name of its own address and for `_dns.resolver.arpa`, which S07-egress-gateway now answers locally without a prompt. Under the spec as it stands, each of the 14 host names raises one approval event per session, a prompt on the host for something the user never did.
+An idle guest at the login window, with nothing installed and nobody logged in, looked up 14 host names in its first hour, 109 queries in all, every one under `apple.com` or `icloud.com`: by their names, push, time, software update, location and iCloud services. It also asked for the reverse name of its own address and for `_dns.resolver.arpa`, which S07-egress-gateway now answers locally without a prompt. Under the spec as it stood, each of the 14 host names raised one approval event per session, a prompt on the host for something the user never did.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
