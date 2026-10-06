@@ -112,8 +112,9 @@ back out, without sharing the host filesystem.
   honors it, before it confines itself, right after it resolves the git
   binary (S04-architecture). It runs that absolute path, the one
   `wb-git` later executes, as `git hash-object --stdin` with
-  `GIT_ALLOC_LIMIT=1k` and `LC_ALL=C` in an otherwise scrubbed
-  environment, writes 2 KiB of zeros to its standard input and closes
+  `GIT_ALLOC_LIMIT=1k`, `LC_ALL=C`, `GIT_CONFIG_NOSYSTEM=1` and
+  `GIT_CONFIG_GLOBAL=/dev/null` in an otherwise scrubbed environment,
+  as `wb-git` runs git, writes 2 KiB of zeros to its standard input and closes
   it, and waits at most 5 s. The check passes only when git exits with
   status 128 and its standard error holds `over limit`. Anything else
   (exit 0, another status or message, a timeout) makes `wb-hostd`
@@ -180,8 +181,9 @@ back out, without sharing the host filesystem.
   - REF_DELTA entries (10,000): their number in one pack, which bounds
     how many bases `index-pack --fix-thin` reads from `export.git`
     however small each one is. Without it, each 34 bytes of a pack
-    could name another base, about 490,000 in 16 MiB (security review
-    of PR116), and the object count cap alone would allow 1,000,000;
+    could name another base (security review of PR116), so a pack under
+    the 1 GiB wire-byte cap could name as many as the object count cap
+    allows, 1,000,000;
   - object count (1,000,000): the count in the pack header,
     checked before the scanner forwards the header. `index-pack`
     allocates its object table from that count, and the scanner keeps
@@ -283,11 +285,19 @@ back out, without sharing the host filesystem.
   one `receive-pack` per project at a time (the landing lock above), and
   a wall-clock watchdog that stops the git child. For a push, the
   idle timeout is 60 s and the watchdog, which is also the
-  connection's deadline, 5 minutes. The largest push measured, the Go
+  connection's deadline, 5 minutes. Traffic in either direction counts
+  as activity for the idle timeout. While `index-pack` resolves the
+  pack, `receive-pack` sends a keepalive on the side band every
+  `receive.keepAlive` seconds (git's default, 5 s), so resolution time
+  doesn't trip it. The largest push measured, the Go
   repository's whole history with the size limit raised to 1 GiB,
   took 33 to 56 s in `receive-pack` (X28-git-alloc-limit), and a push
   under the scanner's caps resolves at most 1 GiB. The git gateway work
-  sets the values for `upload-pack`. `GIT_ALLOC_LIMIT`
+  sets the values for `upload-pack`. The quarantine of one push holds
+  at most the pack (1 GiB on the wire) and the bases `--fix-thin`
+  copies in (counted in the 1 GiB per-push total), about 2 GiB of disk,
+  and with one `receive-pack` per project at a time that is per
+  project. `GIT_ALLOC_LIMIT`
   bounds each allocation git makes while it unpacks, and the pack
   scanner's caps bound the total and the CPU time. With
   `receive.unpackLimit=1` and `pack.threads=1`, `index-pack` holds its
@@ -296,7 +306,12 @@ back out, without sharing the host filesystem.
   record for each object and for each ID a tree or commit names. One
   tree or commit of up to 100 MiB can name millions of IDs,
   so that part can add a few hundred MiB (security review of PR116,
-  not measured). The peak measured under a 100 MiB cap
+  not measured). `GIT_ALLOC_LIMIT` also bounds it: git keeps those
+  records in one hash table of 8-byte slots that it doubles with
+  `xcalloc` when it is half full. The largest table under the limit has
+  8,388,608 slots (64 MiB), so a push that names more than about
+  4.2 million distinct IDs fails with git's `fatal:` line (read from
+  `grow_object_hash` in git 2.56.0, not measured). The peak measured under a 100 MiB cap
   was 207 MiB for large deltas (X26-pre-receive-check), and 146 MiB for
   a million objects of 3 bytes in 12 MiB (X28-git-alloc-limit). These are
   measurements, and the conformance suite checks them again

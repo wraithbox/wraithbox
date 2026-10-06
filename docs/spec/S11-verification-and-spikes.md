@@ -244,7 +244,7 @@ be tested before building on them.
     lines, each under the caps, and record the git child's peak memory
     when the conformance suite is built. These cases have no measured
     value yet (S08-workspace-and-git, "Bounds");
-  - with the scanner off, push a pack one byte over 1 GiB and see git
+  - with the scanner off and `receive.unpackLimit=1` as S08 sets it, push a pack one byte over 1 GiB and see git
     refuse it on `receive.maxInputSize`;
   - check that the environment builder of `wb-hostd` sets
     `GIT_ALLOC_LIMIT=104857601` for `receive-pack`, in a unit test;
@@ -253,15 +253,24 @@ be tested before building on them.
     `receive-pack` write escape sequences and more than 4 KiB to its
     standard error, check that the log holds one quoted field of at
     most 4 KiB with none of them;
-  - with the scanner off, push the same packs and see git refuse each
+  - with the scanner off and `receive.unpackLimit=1` as S08 sets it, push the same packs and see git refuse each
     one that asks for more than the per-object cap in one allocation,
     with the git child under 20 MiB, through `GIT_ALLOC_LIMIT`
     (X28-git-alloc-limit). An object of exactly the cap passes and one
     byte more is refused. A pack header that declares 1,638,400 objects
     or more is refused;
-  - with the scanner off, push 64 deltas under the per-object cap
+  - with the scanner off and `receive.unpackLimit=1` as S08 sets it, push 64 deltas under the per-object cap
     without the pack's checksum, and see `index-pack` fail with no
     delta resolved, in under a second (X28-git-alloc-limit);
+  - with the scanner off and `receive.unpackLimit=1`, push a pack that
+    names more than 4.2 million distinct object IDs (for example trees
+    that name many blobs) and see git fail when its object hash table
+    would grow past `GIT_ALLOC_LIMIT` (S08-workspace-and-git, "Bounds");
+  - record the wall-clock time of the slowest pushes the caps allow,
+    against the 5 minute watchdog: 1 GiB of empty zlib stored blocks
+    behind one entry, 1 GiB of trees under `--strict`, and 1 GiB of
+    bases that `--fix-thin` copies in from `export.git`, each just
+    under its cap. Each one must finish well inside the watchdog;
   - start `wb-hostd` with a stand-in git that ignores
     `GIT_ALLOC_LIMIT` and exits with 0, one that exits with 128 and
     another message, and one that hangs past the 5 s timeout, and see
