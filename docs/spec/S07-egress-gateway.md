@@ -155,7 +155,10 @@ session start in the VM to the end of the last session running in it.
   VM's network device (file-handle attachment) and passes the other to
   that VM's `wb-netd` through `wb-hostd` (`SCM_RIGHTS`). Every Ethernet
   frame the guest sends arrives in `wb-netd`; the guest has no other
-  network path. The rest of this spec is the same on every platform.
+  network path. A NAT or bridged network device would be one, and
+  `wb-vmd`'s device-set check keeps it out, not its sandbox profile
+  (S04-architecture, "The device set is fixed and checked",
+  X25-vmd-sandbox). The rest of this spec is the same on every platform.
 - **Stack.** gVisor's userspace TCP/IP stack (`pkg/tcpip`), consumed as a
   Go module from gVisor's `go` branch. Its file-descriptor link endpoint
   is Linux-only, so Wraith Box provides a small link endpoint that moves

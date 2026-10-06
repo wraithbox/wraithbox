@@ -6,6 +6,13 @@ be tested before building on them.
 ## Test layers
 
 - **Unit tests.** Go `go test -race`, table-driven; Swift Testing.
+  The `wb-vmd` device-set check (S04-architecture, "The device set is
+  fixed and checked") has a test that passes it each of a NAT network,
+  a bridged network, a shared directory, a console or SPICE device, an
+  audio device, a disk or serial port file outside the VM's bundle,
+  and a second network device, and sees each refused with its rule,
+  and that accepts the fixed set of S06-vm-lifecycle
+  (X25-vmd-sandbox).
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
   DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
@@ -62,6 +69,10 @@ be tested before building on them.
   passes. OpenShell's adversarial end-to-end tests (`e2e/rust/tests/`:
   bypass detection, L7 proxy bypass, credential gating) are the first
   source of further cases:
+  - list the guest's network interfaces and routes: exactly one
+    Ethernet interface, its lease from `wb-netd`, and no address or
+    route in a vmnet subnet, which a NAT device would add
+    (X25-vmd-sandbox; the spike's NAT guest got 192.168.64.4);
   - connect to a raw IP address, to the host, to the LAN, over IPv6;
     ping them and a synthetic address and see that nothing answers;
     check that nothing answers the guest's ARP probes for its own

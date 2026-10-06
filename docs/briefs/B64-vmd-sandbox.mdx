@@ -5,10 +5,10 @@ description: Yes, with conditions. A Seatbelt profile with the VM bundles, the V
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-06.** Source: X25-vmd-sandbox, I64. Affects S04-architecture, S06-vm-lifecycle and S12-platforms.
+**Answered 2026-10-06. Awaiting decision on two points.** Source: X25-vmd-sandbox, I64. Affects S04-architecture, S06-vm-lifecycle, S07-egress-gateway, S11-verification-and-spikes and S12-platforms.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** `wb-vmd` confines itself the way the Go daemons do (X23-sandboxed-daemons), and a macOS VM installs, boots, saves and restores under the profile at the same speed. The profile also stops `wb-vmd` from sharing a host directory with the guest. It can't stop a NAT network, which would bypass the egress gateway, so that stays a check in `wb-vmd`'s code. Accepting merges the S04-architecture, S06-vm-lifecycle and S12-platforms changes in this pull request. You have no open decisions to make.
+**Yes, with conditions.** `wb-vmd` confines itself the way the Go daemons do (X23-sandboxed-daemons), and a macOS VM installs, boots, saves and restores under the profile at the same speed. The profile also stops `wb-vmd` from sharing a host directory with the guest. It can't stop a NAT network, which would bypass the egress gateway, so that stays a check in `wb-vmd`'s code, which a unit test, an in-guest check and a static check in CI verify. You decide two things. First, whether each VM gets its own `wb-vmd` (recommended), so a compromise from the isolated VM can't reach the work VM. Second, how `wb-vmd` is started to install an image (recommended: a fixed launcher entry). Accepting merges the spec changes in this pull request with both recommendations.
 </Aside>
 
 ## The picture
@@ -64,37 +64,54 @@ Figure 1. `wb-vmd` confines itself after `wb-launcher` starts it, and keeps acce
 
 ## Options
 
-The spike answers the question with option A. The other two are the alternatives the question named.
+The spike settled the mechanism: a Seatbelt profile in process, as for the Go daemons. App Sandbox wasn't needed, and no confinement would weaken SEC12-least-privilege (Details). You choose how many `wb-vmd` processes run, and how one starts to install an image.
+
+### Decision 1: how many wb-vmd processes
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
-### A. Seatbelt profile in process
+#### A. One wb-vmd per VM
 
-`wb-vmd` resolves the cache directory, then applies its profile as the first thing it does, as the Go daemons do. The profile allows `<data>/vms`, the Virtualization service, a few system values and files the framework checks, and the sandbox extensions the framework hands to its service. `wb-vmd` also checks every VM configuration against its fixed device set before start and restore.
+`wb-launcher` has two fixed entries, `wb-vmd-work` and `wb-vmd-isolated`. Each confines itself to its own VM's bundle.
 
-- **Cost:** about 6 ms at start. No measurable cost on a restore (3.40 s confined and unconfined, medians of 10). The profile must keep the CPU name readable, or saved states stop restoring after a profile change.
-- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC02-no-host-fs-share" variant="success" /> <Badge text="SEC05-default-deny" variant="caution" />
+- **Cost:** a second small process while both VMs run, and `wb-hostd` talks to two. Every spike run already had one VM per process.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" /> <Badge text="SEC12-least-privilege" variant="success" />
 
 </div>
 <div class="wb-option">
 
-### B. App Sandbox through entitlements
+#### B. One wb-vmd for both VMs
 
-`wb-vmd` is signed with the App Sandbox entitlement and the virtualization entitlement, and macOS confines it at launch with a container directory.
+As S04-architecture lists it today. The profile allows all of `<data>/vms`.
 
-- **Cost:** not tried. The bundles would have to be in the container or granted to it, and Apple sets the rules. Option A works, so the spike didn't need it.
+- **Cost:** none in code. A compromise of `wb-vmd` that starts in the isolated VM, through framework code that runs in `wb-vmd`'s process, reaches the work VM's disks and saved state. That needs a T00-index entry for the residual risk.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="caution" /> <Badge text="SEC12-least-privilege" variant="caution" />
+
+</div>
+</div>
+
+### Decision 2: how wb-vmd is started to install an image
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+#### A. A fixed launcher entry
+
+`wb-launcher` has a `wb-vmd-install` entry whose compiled-in profile adds the three install rules. The restore image sits at a fixed path under `<data>/images/`.
+
+- **Cost:** one more table entry. No request chooses the mode or a path.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" />
+
+</div>
+<div class="wb-option">
+
+#### B. Install rules in every wb-vmd
+
+Every `wb-vmd` profile carries the install rules, with the image path as a parameter.
+
+- **Cost:** none in the launcher. Every running `wb-vmd` can read the restore image and reach the installation service, which only the image build needs.
 - **Keeps:** <Badge text="SEC12-least-privilege" variant="caution" />
-
-</div>
-<div class="wb-option">
-
-### C. No confinement for wb-vmd
-
-`wb-vmd` runs with every right of the user. S04-architecture would need a change.
-
-- **Cost:** none in code. A bug in `wb-vmd` would reach all the user's files and the network.
-- **Weakens:** <Badge text="SEC12-least-privilege" variant="danger" />
 
 </div>
 </div>
@@ -103,28 +120,32 @@ The spike answers the question with option A. The other two are the alternatives
 
 <table class="wb-impact">
 <thead>
-<tr><th>Requirement</th><th>A. Seatbelt</th><th>B. App Sandbox</th><th>C. None</th></tr>
+<tr><th>Requirement</th><th>1A. Per VM</th><th>1B. Shared</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">measured profile</td><td class="partial">untested</td><td class="no">full user rights</td></tr>
-<tr><td><strong>SEC02-no-host-fs-share</strong> no host directory in the guest</td><td class="yes">code and profile</td><td class="partial">untested</td><td class="partial">code only</td></tr>
-<tr><td><strong>SEC05-default-deny</strong> only allowlisted hosts reachable</td><td class="partial">code only (NAT)</td><td class="partial">code only</td><td class="partial">code only</td></tr>
-<tr><td>Warm start (NFR01-startup)</td><td class="yes">no slower</td><td class="na">untested</td><td class="yes">as now</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> untrusted repositories in the isolated VM, apart from the work VM</td><td class="yes">separate bundles</td><td class="partial">shared process</td></tr>
+<tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">one bundle each</td><td class="partial">both bundles</td></tr>
+<tr><td><strong>SEC02-no-host-fs-share</strong> no host directory in the guest</td><td class="yes">code and profile</td><td class="yes">code and profile</td></tr>
+<tr><td><strong>SEC05-default-deny</strong> only allowlisted hosts reachable</td><td class="partial">code check, verified</td><td class="partial">code check, verified</td></tr>
+<tr><td>Warm start (NFR01-startup)</td><td class="yes">no slower</td><td class="yes">no slower</td></tr>
 </tbody>
 </table>
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> Under the profile, a Swift `wb-vmd` stand-in installed macOS from a restore image (240 s), cold booted to the guest daemon answering on vsock, saved, and restored. Right after confining, the profile denied it reading `/etc/passwd`, writing in `/tmp`, connecting over TCP, and starting a program (X25-vmd-sandbox, "Boot, save, restore, install, hand-off").
-- <Badge text="verified" variant="success" /> A boot without any one of the rules fails with a named error. The two exceptions are the CPU name and the framework bundle, which conditions 2 and 3 of the result explain (X25-vmd-sandbox, "The profile").
-- <Badge text="verified" variant="success" /> 10 restores confined and 10 unconfined, alternating, each from a fresh clone: 3.40 s median both ways. The guest answered on vsock at 3.60 s median both ways.
-- <Badge text="verified" variant="success" /> A state saved while the CPU name was denied failed to restore with "invalid argument" in an unconfined process, and the other way round, in all 9 tries. With the CPU name allowed, states restore both ways.
-- <Badge text="verified" variant="success" /> A shared directory, the host microphone, and a disk or serial log file outside `<data>/vms` are refused under the profile and start unconfined. Unconfined, the guest read a secret file through the share and saw the extra disk.
-- <Badge text="verified" variant="success" /> With a NAT network, the confined `wb-vmd`'s guest fetched `https://www.apple.com/` (HTTP 200).
-- <Badge text="verified" variant="success" /> A bridged network fails without the `com.apple.vm.networking` entitlement, both confined and unconfined.
-- <Badge text="verified" variant="success" /> A vsock descriptor passed with `SCM_RIGHTS` out of the confined process still talks to the guest.
-- <Badge text="inferred" variant="note" /> The SPICE clipboard device can't reach the host clipboard under the profile, because the pasteboard lookup is denied. The guest had no SPICE agent to show it.
-- <Badge text="assumed" variant="caution" /> That the profile works the same for the release build with the hardened runtime and a Developer ID signature. The spike was ad-hoc signed.
+- <Badge text="verified" variant="success" /> Under the profile, a Swift `wb-vmd` stand-in installed macOS from a restore image (240 s), cold booted to the guest daemon answering on vsock, saved, and restored. Right after confining, the profile denied it reading `/etc/passwd`, writing in `/tmp`, connecting over TCP, and starting a program (X25-vmd-sandbox, "Boot, save, restore, install, hand-off"; [`install-confined.jsonl`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/install-confined.jsonl), [`final-boot-save.jsonl`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/final-boot-save.jsonl)).
+- <Badge text="verified" variant="success" /> A boot without any one of the rules fails with a named error. The two exceptions are the CPU name and the framework bundle, which conditions 2 and 3 of the result explain (X25-vmd-sandbox, "The profile"; [`ablate-v5.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/ablate-v5.txt), [`ablate-split.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/ablate-split.txt)).
+- <Badge text="verified" variant="success" /> 10 restores confined and 10 unconfined, alternating, each from a fresh clone: 3.40 s median both ways. The guest answered on vsock at 3.60 s median both ways ([`series.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/series.txt)).
+- <Badge text="verified" variant="success" /> A state saved while the CPU name was denied failed to restore with "invalid argument" in an unconfined process, and the other way round, in all 9 tries. With the CPU name allowed, states restore both ways ([`series-cpu-name-denied.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/series-cpu-name-denied.txt), [`addon-round2.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/addon-round2.txt)).
+- <Badge text="verified" variant="success" /> A shared directory, the host microphone, and a disk or serial log file outside `<data>/vms` are refused under the profile and start unconfined. Unconfined, the guest read a secret file through the share and saw the extra disk ([`devices-final.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/devices-final.txt), [`devices-unconfined.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/devices-unconfined.txt), [`guest-unconfined-check.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/guest-unconfined-check.txt)).
+- <Badge text="verified" variant="success" /> With a NAT network, the confined `wb-vmd`'s guest fetched `https://www.apple.com/` (HTTP 200) ([`guest-confined-nat-check.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/guest-confined-nat-check.txt)).
+- <Badge text="verified" variant="success" /> A bridged network failed both ways. Confined, the framework offered no host interface to bridge to. Unconfined, it offered one and refused the attachment without the `com.apple.vm.networking` entitlement ([`dev-final-bridged.jsonl`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/dev-final-bridged.jsonl), [`dev-unconfined-bridged.jsonl`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/dev-unconfined-bridged.jsonl)).
+- <Badge text="verified" variant="success" /> A vsock descriptor passed with `SCM_RIGHTS` out of the confined process still talks to the guest ([`final-handoff.jsonl`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/final-handoff.jsonl)).
+- <Badge text="inferred" variant="note" /> The SPICE clipboard device can't reach the host clipboard under the profile, because the pasteboard lookup is denied. The guest had no SPICE agent to show it ([`dev-final-spice.sandbox.txt`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/dev-final-spice.sandbox.txt)).
+- <Badge text="assumed" variant="caution" /> That the profile works the same for the release build with the hardened runtime and a Developer ID signature. The spike was ad-hoc signed (X25-vmd-sandbox, "Not covered"). I118 checks it.
+- <Badge text="verified" variant="success" /> The read-write extension on the cache directory, narrowed to the `com.apple.metal-` and `com.apple.paravirtualizedgraphics-` entries, is enough for boot, save and restore ([`narrow-boot-save.jsonl`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/narrow-boot-save.jsonl), [`narrow-restore.jsonl`](https://github.com/wraithbox/wraithbox/tree/abb23b0d1993a1121185222d02886c8895a3133f/spikes/x25-vmd-sandbox/results/narrow-restore.jsonl)).
+- <Badge text="assumed" variant="caution" /> That the extension classes fit the final device set. They were measured with the X18-vsock-handoff devices, including a graphics device and a USB keyboard and pointer, and are ablated again when S06-vm-lifecycle fixes the set.
+- <Badge text="inferred" variant="note" /> That a compromise of one `wb-vmd` can reach every bundle its profile allows: the profile is the only limit on the process's file access (X25-vmd-sandbox, "The profile").
 - <Badge text="assumed" variant="caution" /> That Apple keeps `sandbox_init_with_parameters` working (as in X23-sandboxed-daemons).
 
 ## What this unblocks
@@ -137,6 +158,10 @@ The spike answers the question with option A. The other two are the alternatives
 <summary>Details and glossary</summary>
 
 **Why NAT gets past the profile.** A Seatbelt profile limits what a process does itself: which files it opens, which services it looks up. The Virtualization framework runs the VM in a separate service process that Apple confines with its own profile. For most devices, `wb-vmd` hands that service a sandbox extension: a token that grants access to a file or a device class. The profile decides which tokens `wb-vmd` may issue. A NAT network doesn't need a token, because the service sets it up with Apple's vmnet on its own. So `wb-vmd`'s profile has nothing to deny.
+
+**Other ways to confine wb-vmd.** App Sandbox, set by entitlements at signing, would confine `wb-vmd` at launch with a container directory. It wasn't tried, because the in-process profile works. Leaving `wb-vmd` unconfined would give a bug in it all the user's files and the network, and would need a spec change, since it weakens SEC12-least-privilege.
+
+**What the device-set check does.** Before every start and restore, `wb-vmd` compares its own description of the VM with the fixed list in S06-vm-lifecycle, before it creates any Virtualization object, and refuses anything else with the rule in its log and in the error it returns. It runs first because a disk outside the bundle crashes the confined process when the framework tries to open it. A unit test passes it each refused device, a conformance check in the guest looks for exactly one network interface, and a CI check rejects the NAT, bridged, shared directory and audio input classes in `wb-vmd`'s code (S11-verification-and-spikes, S04-architecture).
 
 **Why the CPU name matters.** The framework writes facts about the host into the saved state, among them the CPU name, which it reads with `sysctl`. When the profile denies that read, the saved state records a different value from what an unconfined process sees. The restore then fails with "invalid argument". With the read allowed, states restore between a confined and an unconfined process in both directions (measured), so a later profile change is less likely to strand them. S06-vm-lifecycle already treats an unexplained "invalid argument" as permanent: the state is deleted and the VM cold boots.
 

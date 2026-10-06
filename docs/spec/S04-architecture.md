@@ -59,20 +59,8 @@ nothing themselves (S12-platforms).
   it does not relay or parse guest traffic, so the native code has the
   smallest possible exposure to guest input. The device set of a VM is
   fixed in `wb-vmd`'s code, and no device type is ever taken from the
-  contract. Before every start and restore, `wb-vmd` checks the
-  configuration against that set and refuses, and logs with the rule,
-  any other device or attachment. On macOS, `wb-vmd`'s sandbox profile
-  enforces part of the set as well (X25-vmd-sandbox): it refuses a
-  shared directory (SEC02-no-host-fs-share), host audio input, and
-  disks or serial port files outside `<data>/vms`, and it denies the
-  lookup of the host clipboard service (the effect in the guest is
-  untested).
-  It can't refuse a NAT network, which Apple's Virtualization service
-  provides and which would bypass `wb-netd` and `wb-proxyd`
-  (SEC05-default-deny), nor disks in `<data>/vms` or devices on
-  descriptors `wb-vmd` holds. Those are enforced by `wb-vmd`'s code
-  alone. A bridged network needs an entitlement `wb-vmd` isn't signed
-  with. On macOS (X18-vsock-handoff):
+  contract ("The device set is fixed and checked", below). On macOS
+  (X18-vsock-handoff):
   - A vsock connection's descriptor is a Unix stream socket to
     Virtualization's own service process, which moves the bytes to
     the device. The receiver can't read the vsock ports from it, so
@@ -138,6 +126,40 @@ nothing themselves (S12-platforms).
     generation: hand-off messages and audit entries carry it, and a
     message from an older generation is refused. `wb-hostd` connects to
     `wb-guestd` again after every restore.
+- **The device set is fixed and checked.** A VM's devices are the ones
+  in S06-vm-lifecycle, "Devices", fixed in `wb-vmd`'s code
+  (X25-vmd-sandbox, SEC02-no-host-fs-share, SEC05-default-deny):
+  - Before every start and restore, `wb-vmd` checks its own description
+    of the configuration against that set, before it creates any
+    Virtualization device or attachment object. It refuses any other
+    device, attachment, a second network device, and a disk or serial
+    port file outside the VM's bundle. The check runs first because
+    creating a disk attachment on a path the profile denies ends the
+    confined process in an uncaught exception (X25-vmd-sandbox). Each
+    refusal is logged with its rule (below) and returns the rule in the
+    gRPC error.
+  - On macOS, `wb-vmd`'s sandbox profile also refuses a shared
+    directory, host audio input, and a disk or serial port file outside
+    the bundle, and it denies the lookup of the host clipboard service
+    (the effect in the guest is untested).
+  - The profile can't refuse a NAT network, which Apple's
+    Virtualization service provides and which would bypass `wb-netd`
+    and `wb-proxyd`, nor a disk in the bundle or a device on a
+    descriptor `wb-vmd` holds. Only `wb-vmd`'s code keeps those out.
+    A bridged network failed both ways in X25-vmd-sandbox: confined,
+    the framework offered no host interface to bridge to, and
+    unconfined it refused the attachment without the
+    `com.apple.vm.networking` entitlement, which `wb-vmd` isn't signed
+    with.
+  - Three checks verify the parts the profile doesn't enforce: a unit
+    test of the check (S11-verification-and-spikes), an in-guest
+    conformance check that the guest has one network interface with
+    its lease from `wb-netd` (S11-verification-and-spikes), and a
+    static check in CI that rejects `VZNATNetworkDeviceAttachment`,
+    `VZBridgedNetworkDeviceAttachment`, `VZSharedDirectory`,
+    `VZVirtioFileSystemDeviceConfiguration` and
+    `VZHostAudioInputStreamSource` in `wb-vmd`'s sources outside its
+    tests (a grep or a SwiftLint custom rule, not yet built).
 - **Each host daemon is self-sandboxed.** Host processes confine
   themselves at startup with the platform's mechanism (S12-platforms) so that
   each gets only what it needs: `wb-netd` no filesystem and no network
@@ -151,26 +173,52 @@ nothing themselves (S12-platforms).
     an inherited descriptor, the arguments or the environment. Right
     after, it tries one operation its profile denies, and exits if that
     succeeds.
-  - `wb-hostd` is the exception. Before it confines itself, it reads its
+  - `wb-hostd` is one exception. Before it confines itself, it reads its
     own configuration, sets `GOMAXPROCS`, loads the local time zone,
     starts `wb-launcher` (on macOS), resolves the git binary, and works
     out the paths for its profile. None of that reads
     anything the guest sent.
-  - On macOS, `wb-vmd` resolves the per-user cache directory
-    (`confstr(_CS_DARWIN_USER_CACHE_DIR)`) before it confines itself,
-    because the framework needs it and the lookup would need a
-    system service the profile denies. Its profile allows reading and
-    writing `<data>/vms`, the Virtualization service, the `sysctl`
-    values and system files the framework checks (the CPU name among
-    them, without which saved states don't restore across profiles),
-    and the sandbox extensions the framework hands to its service
-    process. It denies the user's other files, the network, starting
-    programs, and other services. Installing from a restore image adds
-    reading that one file and the installation service
-    (X25-vmd-sandbox).
-  - `wb-netd` writes its log to an inherited pipe or socket to
-    `wb-hostd`, which frames, attributes and rate-limits each line.
-    `wb-netd` holds no descriptor on any file in `<logs>` or `<data>`.
+  - `wb-vmd` on macOS is a second, bounded exception. Before it confines
+    itself, it calls `confstr(_CS_DARWIN_USER_CACHE_DIR)` once, because
+    the framework needs the per-user cache directory and the lookup
+    goes to a system service the profile denies. libSystem keeps the
+    answer. It doesn't read anything from the guest or `wb-hostd` before
+    it confines itself.
+    The profile's parameters are the bundle path, from the fixed
+    platform path (S12-platforms, "Paths") resolved to its real path,
+    and the cache directory from `confstr`. The gRPC contract carries
+    no path. The profile allows reading and writing the bundles, the
+    Virtualization service, the `sysctl` values and system files the
+    framework checks (the CPU name among them, without which saved
+    states don't restore across profiles), and the sandbox extensions
+    the framework hands to its service process, with the cache
+    directory extension limited to its `com.apple.metal-` and
+    `com.apple.paravirtualizedgraphics-` entries. It denies the user's
+    other files, the network, starting programs, and other services
+    (X25-vmd-sandbox). The extension classes were measured with the
+    X18-vsock-handoff configuration, which also had a Mac graphics
+    device with one display and a USB keyboard and pointer. They are
+    ablated again against the final device set of S06-vm-lifecycle.
+  - Open (X25-vmd-sandbox, decision 1): one `wb-vmd` serves both VMs
+    and can read and write all of `<data>/vms`. A compromise of
+    `wb-vmd` that starts in the isolated VM, through framework code
+    that runs in `wb-vmd`'s process, then reaches the work VM's disks
+    and saved state, which breaks the separation SEC08-proj-isolation
+    puts the isolated VM there for. Recommended: one `wb-vmd` per VM,
+    with two fixed `wb-launcher` entries (`wb-vmd-work`,
+    `wb-vmd-isolated`), each with that VM's bundle as its profile
+    parameter. If the maintainer keeps one `wb-vmd`, T00-index records
+    the residual risk.
+  - Open (X25-vmd-sandbox, decision 2): installing from a restore image
+    needs three more rules (reading the image, a read extension for
+    it, and the installation service). Recommended: a fixed
+    `wb-launcher` entry, `wb-vmd-install`, whose compiled-in profile
+    adds them, with the restore image at a fixed path under
+    `<data>/images/`. The request doesn't choose the mode or a path.
+  - `wb-netd` and `wb-vmd` write their logs to an inherited pipe or
+    socket to `wb-hostd`, which frames, attributes and rate-limits each
+    line. Neither holds a descriptor on any file in `<logs>` or
+    `<data>` for its log.
   - On macOS a confined process can't confine itself again, and its
     children inherit its profile. So `wb-hostd` starts `wb-vmd`,
     `wb-netd` and `wb-proxyd` through `wb-launcher`, which has no

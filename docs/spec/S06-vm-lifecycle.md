@@ -79,7 +79,14 @@ in S12-platforms.
   to `wb-netd` (on macOS a file-handle attachment; S07-egress-gateway, S12-platforms);
   one host-guest socket device (vsock); storage; entropy.
   No shared directories, no host audio input, no USB or serial
-  passthrough in v1 (SEC02-no-host-fs-share).
+  passthrough in v1 (SEC02-no-host-fs-share). The spikes so far also
+  gave each VM a Mac graphics device with one display and a USB
+  keyboard and pointer (X02-warm-start, X18-vsock-handoff), and several
+  of the sandbox extensions in `wb-vmd`'s profile serve them
+  (X25-vmd-sandbox). Whether v1 keeps them is open, and
+  `wb-vmd`'s profile is ablated again against the set chosen here.
+  `wb-vmd` refuses any device not in this list
+  (S04-architecture, "The device set is fixed and checked").
 - **Resources.** CPU, memory, and disk are capped per VM; defaults
   4 vCPU / 8 GB, configurable (SEC13-bounded-resources).
 - **Warm start.** `wb-hostd` can have `wb-vmd` start the work VM at
