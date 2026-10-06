@@ -51,9 +51,10 @@ be tested before building on them.
 
   The pack scanner's target checks that what it forwards equals its
   input when a pack passes, and is a prefix of it when one is refused.
-  A refused prefix never holds the pack's 20-byte checksum, and the
-  scanner's heap stays under a fixed bound for every input
-  (X28-git-alloc-limit). Its seeds include REF_DELTA entries, delta chains, empty zlib stored
+  A refused prefix never holds the pack's checksum (as long as the
+  landing repository's hash), and the scanner's heap stays under a
+  fixed bound plus its slice of entry sizes, which the object count
+  cap bounds (X28-git-alloc-limit). Its seeds include REF_DELTA entries, delta chains, empty zlib stored
   blocks, and packs written by zlib-ng at level 1 and with
   `core.compression=0`. A differential test feeds the scanner's corpus
   and the generated packs to `git index-pack --stdin --strict`: the two
@@ -222,18 +223,36 @@ be tested before building on them.
     check (a ref too long for the file system, a stale old object ID,
     directory/file and case clashes, an object over the cap), and after
     the cleanup for a push that failed later (X26-pre-receive-check);
-  - push each of these and see it refused before git unpacks it, with
-    the memory of the git child and of `wb-hostd` measured
-    (X26-pre-receive-check): a delta whose result, source size or own
-    data length is over the per-object cap; a blob whose inflated size
-    is over it; objects whose sizes add up to more than the per-push
-    cap; a pack header that declares more objects than the count cap,
-    with no entries after it; and an entry that declares a small size
-    and is followed by hundreds of MiB of empty zlib stored blocks,
-    which git refuses on its size limit while the scanner's memory
-    doesn't grow. Under the caps, the git child's peak memory stays near
-    what X26-pre-receive-check and X28-git-alloc-limit measured,
-    207 MiB at a 100 MiB per-object cap;
+  - push each of these and see the scanner refuse it, with its rule,
+    before the pack's checksum reaches git and so before git resolves
+    any delta, with the memory of the git child and of `wb-hostd`
+    measured (X26-pre-receive-check, X28-git-alloc-limit): a delta whose
+    result, source size or own data length is over the per-object cap;
+    a blob whose inflated size is over it; objects whose sizes add up to
+    more than the per-push cap; REF_DELTA entries whose declared source
+    sizes alone add up to more than the per-push cap; 10,001 REF_DELTA
+    entries against distinct small bases in `export.git`, refused
+    before git reads a base; a pack header that declares more objects
+    than the count cap, with no entries after it; and an entry that
+    declares a size of 1 byte, followed by empty zlib stored blocks
+    until the pack is one byte over the 1 GiB wire-byte cap, which the
+    scanner refuses on that cap while its memory doesn't grow. Under the
+    caps, the git child's peak memory stays near what
+    X26-pre-receive-check and X28-git-alloc-limit measured, 207 MiB at a
+    100 MiB per-object cap;
+  - push one tree of 100 MiB, and one commit with 100 MiB of `parent`
+    lines, each under the caps, and record the git child's peak memory
+    when the conformance suite is built. These cases have no measured
+    value yet (S08-workspace-and-git, "Bounds");
+  - with the scanner off, push a pack one byte over 1 GiB and see git
+    refuse it on `receive.maxInputSize`;
+  - check that the environment builder of `wb-hostd` sets
+    `GIT_ALLOC_LIMIT=104857601` for `receive-pack`, in a unit test;
+  - push with a first command that doesn't ask for `side-band-64k`,
+    and see the ref filter refuse it. With a pack that makes
+    `receive-pack` write escape sequences and more than 4 KiB to its
+    standard error, check that the log holds one quoted field of at
+    most 4 KiB with none of them;
   - with the scanner off, push the same packs and see git refuse each
     one that asks for more than the per-object cap in one allocation,
     with the git child under 20 MiB, through `GIT_ALLOC_LIMIT`
@@ -244,7 +263,9 @@ be tested before building on them.
     without the pack's checksum, and see `index-pack` fail with no
     delta resolved, in under a second (X28-git-alloc-limit);
   - start `wb-hostd` with a stand-in git that ignores
-    `GIT_ALLOC_LIMIT`, and see every push refused with the reason;
+    `GIT_ALLOC_LIMIT` and exits with 0, one that exits with 128 and
+    another message, and one that hangs past the 5 s timeout, and see
+    every push refused with the reason;
   - kill `receive-pack` in the middle of a push, and check that the
     cleanup leaves no `objects/tmp_objdir-*` and no `*.lock` under
     `refs/heads/wb/`;

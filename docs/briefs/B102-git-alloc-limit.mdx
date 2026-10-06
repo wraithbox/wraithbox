@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-06.** Source: X28-git-alloc-limit (I102). Changes S08-workspace-and-git and S11-verification-and-spikes. Follows B74-pre-receive-check.
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** With `GIT_ALLOC_LIMIT` set, both host gits refused every bomb of X26-pre-receive-check before allocating it, in under 0.1 s and 15 MiB, and refused no real push. The limit caps one allocation, not the work: 640 deltas just under the cap cost git 145 s of CPU from a 42 KiB pack. Recommended: set the limit, check at start that git honors it, and keep the scanner for the object count and the per-push total, but let it stream the pack instead of holding each entry. That removes the scanner's own memory bound from the spec.
+**Yes, with conditions.** With `GIT_ALLOC_LIMIT` set, both host gits refused every bomb of X26-pre-receive-check before allocating it, in under 0.1 s and 15 MiB, and refused no real push. The limit caps one allocation, not the work: 640 deltas just under the cap cost git 145 s of CPU from a 42 KiB pack. Recommended: set the limit, check at start that git honors it, and keep the scanner for the object count and the per-push total, but let it stream the pack instead of holding each entry. Its memory then depends only on the object count cap. Review added two items: every REF_DELTA's base size counts toward the per-push total, with at most 10,000 of them per push, and git's error output is cleaned before it is logged.
 </Aside>
 
 <figure class="wb-figure">
@@ -52,10 +52,10 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <path class="edge-bad" d="M600,110 C520,60 400,70 345,118" marker-end="url(#f1-arrow-bad)" />
   <text class="boundary-label" x="380" y="58">640 deltas: stopped on the total</text>
   <path class="edge-bad" d="M335,182 C320,230 260,230 230,180" marker-end="url(#f1-arrow-bad)" />
-  <text class="boundary-label" x="270" y="250">2 GiB delta: git refuses</text>
+  <text class="boundary-label" x="250" y="250">2 GiB delta: scanner refuses, git backs it up</text>
 </svg>
 <figcaption>
-Figure 1. A push after X28-git-alloc-limit. Git refuses an allocation over the 100 MiB cap by itself. The scanner no longer has to hold entries back to protect git's memory. It streams the pack and holds back only its checksum, refusing when the object count or the per-push total is over its cap.
+Figure 1. A push after X28-git-alloc-limit. The scanner streams the pack and holds back only its checksum. It refuses, with a named rule, when a size, the wire bytes, the object count or the per-push total is over its cap. Git's own limit is the second layer: it refuses an allocation over the 100 MiB cap by itself, so the scanner no longer has to hold entries back to protect git's memory.
 </figcaption>
 </figure>
 
@@ -66,9 +66,9 @@ Figure 1. A push after X28-git-alloc-limit. Git refuses an allocation over the 1
 
 ### A. Git's limit and a streaming scanner
 
-Set `GIT_ALLOC_LIMIT` to the per-object cap plus one byte. Check at start that the git found honors it, and refuse pushes if not. The scanner checks each entry's header, forwards the entry at once, and holds back only the pack's checksum.
+Set `GIT_ALLOC_LIMIT` to the per-object cap plus one byte. Check at start that the git found honors it, and refuse pushes if not. The scanner checks each entry's header, forwards the entry at once, and holds back only the pack's checksum. It keeps its caps on wire bytes (1 GiB), object size, the per-push total and the object count, counts the base of every REF_DELTA toward the total, and allows at most 10,000 REF_DELTA entries.
 
-- **Cost:** one environment variable and a start check. The scanner loses its per-entry buffer and wire-byte bound.
+- **Cost:** one environment variable and a start check. The scanner loses its per-entry buffer and per-entry wire-byte bound.
 - **Gives:** two independent memory bounds, so a scanner bug no longer lets a pack ask git for gigabytes. Refusals keep naming their rule.
 - **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" />
 
@@ -118,9 +118,10 @@ What S08-workspace-and-git says today: the scanner holds each entry until it pas
 - <Badge text="verified" variant="success" /> The Go repository's whole history and a one-commit push passed with the limit, with the same memory as without. Source: same, "Cost".
 - <Badge text="verified" variant="success" /> 640 deltas of 96 MiB each took 145 s of CPU in git with the limit set, before the `pre-receive` check refused them on the total. A 1 GiB blob streams past the limit. Source: same.
 - <Badge text="verified" variant="success" /> Without the pack's checksum, `index-pack` resolved no delta: every delta bomb failed with `early EOF` at 15 MiB or less. Source: same, "S08, no limit, pack without its checksum" rows in `results/x28-run1-homebrew.txt`.
-- <Badge text="verified" variant="success" /> `git hash-object --stdin` with `GIT_ALLOC_LIMIT=1k` on 2 KiB fails with `over limit` in both gits, which is the start check. Source: same, condition 2.
+- <Badge text="verified" variant="success" /> `git hash-object --stdin` with `GIT_ALLOC_LIMIT=1k` on 2 KiB exits with 128 and `over limit` in both gits, which is the start check. An unparsable value also exits with 128, with another message, so the check needs both. Source: same, condition 2, `results/x28-probe.txt`. The security review of PR116 reproduced it.
 - <Badge text="assumed" variant="caution" /> That later gits, Git for Windows and Linux gits honor the variable the same way. It isn't in `git(1)`, only in git's tests. The start check fails closed if one doesn't.
-- <Badge text="inferred" variant="note" /> That the scanner's memory no longer depends on the pack once it forwards as it reads. Follows from the design, and the fuzz target in S11-verification-and-spikes checks it.
+- <Badge text="inferred" variant="note" /> That the scanner's memory, once it forwards as it reads, is its inflate state plus one size per entry, which the object count cap bounds. Follows from the design, and the fuzz target in S11-verification-and-spikes checks it.
+- <Badge text="inferred" variant="note" /> `index-pack --fix-thin` reads and writes one base from `export.git` for each distinct REF_DELTA base not in the pack, before the pre-receive check runs, about 490,000 of them in 16 MiB. Counting REF_DELTA source sizes and capping their number bounds it. Source: the security review of PR116, from reading git. Not measured here.
 
 ## What this unblocks
 

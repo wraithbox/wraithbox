@@ -56,15 +56,23 @@ back out, without sharing the host filesystem.
   - every object check (`fsck`) an error, including the checks git
     only reports by default;
   - deletes, push options and signed pushes (`push-cert`) refused;
-  - `receive.unpackLimit=1`, so every push goes through `index-pack`.
-    `unpack-objects --strict` keeps the trees and commits of a push in
-    memory until it ends, which only the per-push cap would bound;
+  - `receive.unpackLimit=1`, so every push goes through `index-pack`,
+    for two reasons. `unpack-objects --strict` keeps the trees and
+    commits of a push in memory until it ends, which only the per-push
+    cap would bound. And `unpack-objects` resolves a delta as soon as
+    its base has arrived, while `index-pack` waits for the pack's
+    checksum, which the pack scanner below holds back
+    (X28-git-alloc-limit);
   - `pack.threads=1`;
-  - a size limit (`receive.maxInputSize`);
+  - a size limit, `receive.maxInputSize`, of 1 GiB, the same value as
+    the scanner's wire-byte cap below;
   - `GIT_ALLOC_LIMIT` in its environment, at the per-object cap plus
     one byte (104857601), which its children inherit. Git then refuses
     each allocation above it before making it
-    (X28-git-alloc-limit, "Pack scanner" below).
+    (X28-git-alloc-limit, "Pack scanner" below). The environment
+    builder in `wb-hostd` has a unit test that pins this value
+    (S11-verification-and-spikes). Git reads `0` as no limit, so the
+    value is never computed from a setting that can be zero.
 - **Ref restriction.** A filter in `wb-hostd` reads the push's command
   list before `receive-pack` sees any of it, and refuses the whole push
   unless every ref is under `refs/heads/wb/<session-id>/`. Below that
@@ -72,7 +80,10 @@ back out, without sharing the host filesystem.
   `.`, don't start with `.` or end with `.` or `.lock`, and hold no
   `..`. A component is at most 255 bytes and a ref at most 1024. Object
   IDs must have the length of the landing repository's hash. `shallow`
-  lines are refused. The filter reads no byte past the flush that ends
+  lines are refused. The first command must ask for `side-band-64k`,
+  so git sends its messages and those of `index-pack` and the
+  pre-receive check to the guest inside the protocol, not on its own
+  standard error. The filter reads no byte past the flush that ends
   the command list, so the pack scanner gets the pack from its first
   byte. The filter is a parser of guest bytes, so it has a fuzz target
   (S11-verification-and-spikes), and it logs each ref it allows or
@@ -97,23 +108,48 @@ back out, without sharing the host filesystem.
   cap still cost git CPU time, 145 s for 640 of them from a 42 KiB pack,
   and a blob over `core.bigFileThreshold` streams through a fixed
   buffer without reaching the limit. Git's tests use the variable, and
-  `git(1)` doesn't document it. So after `wb-hostd` resolves the git
-  binary at start (S04-architecture), it runs `git hash-object --stdin`
-  with `GIT_ALLOC_LIMIT=1k` on 2 KiB of input. When git doesn't fail
-  with `over limit`, `wb-hostd` refuses every push, and logs and shows
-  why.
+  `git(1)` doesn't document it. So `wb-hostd` checks that its git
+  honors it, before it confines itself, right after it resolves the git
+  binary (S04-architecture). It runs that absolute path, the one
+  `wb-git` later executes, as `git hash-object --stdin` with
+  `GIT_ALLOC_LIMIT=1k` and `LC_ALL=C` in an otherwise scrubbed
+  environment, writes 2 KiB of zeros to its standard input and closes
+  it, and waits at most 5 s. The check passes only when git exits with
+  status 128 and its standard error holds `over limit`. Anything else
+  (exit 0, another status or message, a timeout) makes `wb-hostd`
+  refuse every push, and log and show why. Exit status alone isn't
+  enough: an unparsable value also exits with 128
+  (`failed to parse GIT_ALLOC_LIMIT`). The same check runs again,
+  against the same path, wherever the minimum git version check of
+  B41-git-data-scope (item 4) runs. Both host gits passed it, and with
+  `GIT_ALLOC_LIMIT=0` both hashed the input, because git reads `0` as
+  no limit (X28-git-alloc-limit, `results/x28-probe.txt`).
 
   A scanner in `wb-hostd` reads the pack after the ref filter and
   before git does, and bounds the work. It checks each entry's header
   before it forwards it, then forwards the rest of the entry as it
-  reads it, so it doesn't hold an entry. It holds back the pack's 20-byte
-  checksum until the whole pack has passed: `index-pack` resolves
+  reads it, so it doesn't hold an entry. It holds back the pack's
+  checksum, as long as the landing repository's hash, until the whole
+  pack has passed: `index-pack` resolves
   deltas, allocating their bases and results, only after the checksum
   arrives, and with the checksum left off it resolved none
   (X28-git-alloc-limit). On a refusal the scanner closes git's input
   without the checksum. The caps are fixed, not configurable, until a
   real repository needs more (B74-pre-receive-check). It refuses the
   push when one of these caps is exceeded:
+  - wire bytes (1 GiB): the whole pack, counted while the scanner reads
+    it. The refusal names the rule (NFR06-explained-refusals), and
+    `receive.maxInputSize` at the same value is git's second layer. A
+    pack that passes the per-push cap compresses to less than about
+    1.15 GiB (zlib's bound for 1 GiB), so the wire cap refuses little
+    that the per-push cap would pass. A session's pushes are much
+    smaller, because `landing.git` borrows from `export.git`: one new
+    commit was under 1 KiB (X07-git-round-trip). The largest push
+    measured, the Go repository's whole history, is 439 MiB on the wire
+    and passes this cap (X28-git-alloc-limit), but at about 9 GiB
+    inflated (X26-pre-receive-check) the per-push cap refuses it. The
+    scanner doesn't hold an entry. This cap bounds the quarantine's disk use and the scanner's time, not its
+    memory. There is no per-entry wire bound;
   - per object (100 MiB): an object's inflated size and a delta's own
     inflated data length, from the entry header before it is forwarded,
     and a delta's result size and declared source size, from the start
@@ -121,19 +157,35 @@ back out, without sharing the host filesystem.
     so this check is there to refuse with a named rule
     (NFR06-explained-refusals) rather than with git's `fatal:` line. A
     delta whose base is in `export.git` is held to the same cap through
-    its declared source size. A residual stays: a delta can declare the
-    size of the largest object in the user's own repository, under the
-    cap, and git loads that object once before the push fails closed.
-    That is accepted, because the content is the user's own;
+    its declared source size. Git checks that size against the base it
+    loads and fails the push when they differ. A residual stays: a
+    delta can declare a small source size for a large object of the
+    user's own repository, and git loads that object once, at most
+    `GIT_ALLOC_LIMIT` bytes, before the push fails closed. That is
+    accepted, because the content is the user's own;
   - per push (1 GiB): the sum of all object and delta result
-    sizes and delta data lengths. It counts resolved sizes, not new
-    bytes, so 40 edits of a 30 MiB file exceed it in a few KiB. The
-    refusal names the cap and the total, says that the cap is fixed,
-    and says to push fewer commits at a time;
+    sizes, delta data lengths, and the declared source size of every
+    REF_DELTA. It counts resolved sizes, not new bytes, so 40 edits of
+    a 30 MiB file exceed it in a few KiB. The refusal names the cap and
+    the total, says that the cap is fixed, and says to push fewer
+    commits at a time. A REF_DELTA names its base by ID, and when the
+    base isn't in the pack, `index-pack --fix-thin` reads it from
+    `export.git`, hashes it and writes it into the quarantine, once for
+    each distinct base. Counting every REF_DELTA's source size, without
+    telling a base in the pack from one outside it, bounds that work by
+    this cap. It counts a base shared by several deltas more than once,
+    which is strict. Git's own client names a base in the same pack
+    with an OFS_DELTA once `ofs-delta` is agreed, so in a normal push a
+    REF_DELTA's base comes from `export.git`;
+  - REF_DELTA entries (10,000): their number in one pack, which bounds
+    how many bases `index-pack --fix-thin` reads from `export.git`
+    however small each one is. Without it, each 34 bytes of a pack
+    could name another base, about 490,000 in 16 MiB (security review
+    of PR116), and the object count cap alone would allow 1,000,000;
   - object count (1,000,000): the count in the pack header,
     checked before the scanner forwards the header. `index-pack`
     allocates its object table from that count, and the scanner keeps
-    one size per entry.
+    one size per entry in a slice of that length, 8 MB at the cap.
 
   An entry's size header is at most 9 bytes with a value under 2^60,
   as `unpack_object_header_buffer` reads it in git 2.56.0 on 64-bit. A
@@ -141,10 +193,10 @@ back out, without sharing the host filesystem.
   64 bits. A longer field, or one with bits past those limits, is
   malformed and refused. The scanner inflates each entry only to find
   the next one and to read a delta's sizes, discards what it inflates,
-  and stops one byte past the declared size. Its memory is then the
-  same for every pack, and git's `receive.maxInputSize` bounds the wire
-  bytes. After the pack's checksum it forwards nothing more and closes
-  git's input. A push with an empty command list carries no pack, and
+  and stops one byte past the declared size. Its memory is then its
+  inflate state and buffers, which don't depend on the pack, plus the
+  slice of entry sizes, which the object count cap bounds. After the
+  pack's checksum it forwards nothing more and closes git's input. A push with an empty command list carries no pack, and
   the scanner doesn't run. The scanner is a parser of guest bytes, so
   it has a fuzz target (S11-verification-and-spikes). It logs each
   refusal with the rule, and each push it passes with its object count,
@@ -187,6 +239,17 @@ back out, without sharing the host filesystem.
   scanner and git's limit, and for the ref checks it is the only one. At start,
   `wb-hostd` checks that the hooks directory holds exactly this one
   file, and refuses pushes when it doesn't.
+- **Git's standard error.** With `side-band-64k`, `receive-pack` sends
+  the messages of `index-pack` and the hook to the guest inside the
+  protocol, and `wb-hostd` passes them on without reading them. What
+  `receive-pack` still writes to its own standard error, such as a
+  `fatal:` line, reaches `wb-hostd`. Its text depends on the pack,
+  for example an fsck message that quotes a tag name or a
+  `.gitmodules` value, so `wb-hostd` treats it as guest input. It
+  keeps at most 4 KiB per push, replaces control characters, escape
+  sequences and invalid UTF-8 with U+FFFD, and logs the result as one
+  quoted field next to the rule that ended the push
+  (SEC10-audit).
 - **Cleanup after a push that didn't end all `ok`.** Some late failures
   get past the pre-receive check. A lock file left by a crashed push, or
   an I/O error, still fails a ref in `update()` after git moved the pack
@@ -218,12 +281,22 @@ back out, without sharing the host filesystem.
   only (SEC13-bounded-resources): a deadline and an idle timeout per
   connection, at most one `upload-pack` per session at a time, at most
   one `receive-pack` per project at a time (the landing lock above), and
-  a wall-clock watchdog that stops the git child. `GIT_ALLOC_LIMIT`
+  a wall-clock watchdog that stops the git child. For a push, the
+  idle timeout is 60 s and the watchdog, which is also the
+  connection's deadline, 5 minutes. The largest push measured, the Go
+  repository's whole history with the size limit raised to 1 GiB,
+  took 33 to 56 s in `receive-pack` (X28-git-alloc-limit), and a push
+  under the scanner's caps resolves at most 1 GiB. The git gateway work
+  sets the values for `upload-pack`. `GIT_ALLOC_LIMIT`
   bounds each allocation git makes while it unpacks, and the pack
   scanner's caps bound the total and the CPU time. With
   `receive.unpackLimit=1` and `pack.threads=1`, `index-pack` holds its
-  object table, its delta base cache (`core.deltaBaseCacheLimit`), and
-  a base and a result at a time. The peak measured under a 100 MiB cap
+  object table, its delta base cache (`core.deltaBaseCacheLimit`), a
+  base and a result at a time, and under `--strict` one fsck object
+  record for each object and for each ID a tree or commit names. One
+  tree or commit of up to 100 MiB can name millions of IDs,
+  so that part can add a few hundred MiB (security review of PR116,
+  not measured). The peak measured under a 100 MiB cap
   was 207 MiB for large deltas (X26-pre-receive-check), and 146 MiB for
   a million objects of 3 bytes in 12 MiB (X28-git-alloc-limit). These are
   measurements, and the conformance suite checks them again
