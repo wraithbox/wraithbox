@@ -84,9 +84,9 @@ are a usage error:
 
 | Flag | Meaning |
 |---|---|
-| `--isolated` | Run in the isolated VM (SEC08-proj-isolation) |
+| `--isolated` | Run this session in the isolated VM, whatever the project's `placement` (SEC08-proj-isolation, S06-vm-lifecycle, "VMs") |
 | `--ephemeral` | No persisted state for this session (FR14-ephemeral) |
-| `--learn` | Learn mode; refused unless the project is trusted (FR10-learn-mode). `wb-hostd` also refuses it while a session of another project, a debug shell included, runs in the VM, and refuses other projects' sessions while it runs (S07-egress-gateway, "Approvals and learning") |
+| `--learn` | Learn mode; refused unless the project's `placement` is `work`, and refused with `--isolated` (FR10-learn-mode). `config_trust` doesn't count. `wb-hostd` also refuses it while a session of another project, a debug shell included, runs in the VM, and refuses other projects' sessions while it runs (S07-egress-gateway, "Approvals and learning") |
 | `--guest <os>` | Guest OS for this project, where the host offers more than one (S12-platforms); otherwise the project's configured or default guest |
 
 ### Global flags
@@ -282,7 +282,12 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb allow <host> [--project P]` | Add an allowlist entry (SEC05-default-deny) |
 | `wb policy show/explain/edit [--project P]` | Effective policy and why a request was allowed or refused (NFR06-explained-refusals) |
 | `wb learn report [--project P]` | Suggested allowlist from a learn-mode session (FR10-learn-mode) |
-| `wb trust <repo>` / `wb untrust <repo>` | Allow repository-supplied configuration (SEC09-host-policy) |
+| `wb trust <repo>` / `wb untrust <repo>` | Set or clear the project's `config_trust`, which allows repository-supplied configuration (SEC09-host-policy). It doesn't change the VM |
+| `wb project show [--project P]` | Project id, name, location, recorded remote URLs, `placement` and `config_trust` |
+| `wb project move <dir> [--project P]` | Point the project at the repository in `<dir>`, keeping its id, state, approvals and policy ("Naming") |
+| `wb project rename <name> [--project P]` | Change the project's name; the id stays |
+| `wb project place work\|isolated [--project P]` | Set the project's `placement` (S06-vm-lifecycle, "VMs"). In a repository that isn't a project yet, it registers one first, so a new clone can start isolated |
+| `wb project confirm [--project P]` | Accept the repository's current remote URLs as the project's ("Naming") |
 | `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (S09-policy-credentials-audit) |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
 | `wb vm start/stop/suspend/status` | Explicit VM control |
@@ -308,9 +313,34 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
 
 ## Naming
 
-- Project id: stable hash of the repository's location (including the
-  host realm: native host, or WSL distribution name) plus the URL of its
-  first remote. A human-readable name is derived from the directory.
+- Project key: the host realm (native host, or WSL distribution name)
+  and the absolute path of the repository's git common directory
+  (`git rev-parse --path-format=absolute --git-common-dir`). Every
+  `git worktree` of one repository has the same common directory, so
+  they are one project. The remote URLs aren't part of the key, so a
+  changed or added remote, or a token in a URL, doesn't make a new
+  project.
+- Project id: a stable hash of the key at registration (FR02-any-repo),
+  kept for the project's life. `wb project move` changes the key and
+  keeps the id. The project's Claude Code state (FR13-claude-state),
+  approvals, policy and landing repository stay with it. The user runs
+  it before the first session in the new location, which otherwise
+  registers a new project. A move to a key that another project has is
+  refused, with that project named. A human-readable name is derived
+  from the directory that holds the common directory, and
+  `wb project rename` changes it.
+- Recorded remote URLs: at registration `wb` records every URL of each
+  remote as the user's git resolves it, with the user name, password,
+  query string and fragment removed (S08-workspace-and-git, "Remote
+  URLs"), also the URLs the guest doesn't get. A rotated token in a
+  URL doesn't count as a change. At each session start `wb` compares
+  them with the repository's current ones. On any difference it refuses the session start and names the
+  recorded URLs, the current ones and `wb project confirm`, which
+  records the current ones (NFR06-explained-refusals). Without this
+  check a different repository cloned into the same directory would
+  inherit the old project's approvals and policy.
+- The maintainer decided project identity on I42
+  (B42-trust-placement).
 - Session id: `<project-name>-<yyyymmdd>-<hhmm>-<4 random chars>`.
 - Returned work lands on host branches `wb/<session-id>` by default.
 

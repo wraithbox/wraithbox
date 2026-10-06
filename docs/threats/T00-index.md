@@ -17,6 +17,7 @@ trusts, and which risks it accepts rather than solves.
 | T10-unnamed-credentials | Guest credentials in unnamed places | Accepted |
 | T11-shared-vm-grants | Projects in one VM share network grants | Accepted |
 | T12-shared-export | Sessions of a project share what they can fetch | Accepted |
+| T13-new-project-grants | New projects share the work VM's grants | Accepted |
 
 ## Model
 
@@ -68,11 +69,17 @@ print about returned work after `wb land` is outside it
   change despite the flags.
 - **T05-cross-proj-clones: Other projects' clones after guest root.** After a guest root escalation inside the shared work VM, read or
   write access to other projects' guest clones (code only; no secrets are
-  present; changes still return only as reviewable branches). Untrusted
-  repositories use the isolated VM to avoid this. Untrusted
-  repositories and shared projects in the isolated VM are co-tenants
-  there: they share their clones after guest root in the same way,
-  and their network grants even without it (T11-shared-vm-grants).
+  present; changes still return only as reviewable branches). A
+  repository the user doesn't trust runs in the isolated VM to avoid
+  this, with `--isolated` or `placement = isolated`, but a new project
+  starts in the work VM (T13-new-project-grants). The isolated VM
+  doesn't isolate its tenants from each other: sessions started with
+  `--isolated` and projects marked shared are co-tenants there, though
+  they hold the repositories most likely to be hostile. They share
+  their clones after guest root in the same way, and their network
+  grants even without it (T11-shared-vm-grants). Only a project with
+  `placement = isolated` that isn't marked shared has the VM to itself
+  (S06-vm-lifecycle, "VMs"). The maintainer accepted this on I42.
 - **T06-forged-labels: Forged program labels after guest root.** After a guest root escalation, forged program identities in the
   guest confinement layer (S13-guest-confinement). Rules narrowed to named
   programs or to a project then act as the union of the VM's grants
@@ -121,7 +128,7 @@ print about returned work after `wb land` is outside it
   network policy, credential bindings and approvals per VM, as the
   union of those of the projects with a session in the VM
   (S07-egress-gateway, "Enforced per VM"). This holds in any VM: the
-  work VM, and the isolated VM when untrusted repositories or shared
+  work VM, and the isolated VM when `--isolated` sessions or shared
   projects run there together. Any process in the VM, without guest
   root, can use what every project with a session there was granted:
   - its credential bindings and its write grants;
@@ -141,10 +148,11 @@ print about returned work after `wb land` is outside it
   lands per project and session (S08-workspace-and-git). Conflicting
   modes and bindings refuse the joining session, and the join notice
   says what becomes reachable. A project whose grants must stay apart
-  is set to the isolated slot, and `wb-hostd` gives it the isolated VM
-  to itself (S06-vm-lifecycle, "VMs"). With NFR05-two-macos-vms, one
-  such project runs at a time, and untrusted work waits meanwhile. The
-  maintainer accepted this on I36.
+  is set to `placement = isolated`, and `wb-hostd` gives it the
+  isolated VM to itself (S06-vm-lifecycle, "VMs"). With
+  NFR05-two-macos-vms, one such project runs at a time, and
+  `--isolated` sessions wait meanwhile. The maintainer accepted this
+  on I36.
 - **T12-shared-export: Sessions of a project share what they can
   fetch.** A project's `export.git` holds the refs that any live session
   of the project selected (S08-workspace-and-git, "Export repository").
@@ -161,3 +169,17 @@ print about returned work after `wb land` is outside it
   Other branches, tags, notes and the stash never reach `export.git`,
   and other projects have their own (SEC04-no-guest-secrets). Proposed
   in PR123 (B41-git-data-scope).
+- **T13-new-project-grants: New projects share the work VM's grants.**
+  A newly registered project has `placement = work`
+  (S06-vm-lifecycle, "VMs"). So the first session in a freshly cloned
+  repository, the likeliest place for a prompt injection, runs in the
+  work VM. Any process in it can use the network grants, credential
+  bindings and approvals of every work-VM project with a session
+  running alongside it (T11-shared-vm-grants), and after guest root
+  their clones (T05-cross-proj-clones). The user avoids this for a
+  repository they don't trust by passing `--isolated`, or by running
+  `wb project place isolated` before the first session (S05-cli).
+  Credentials still never enter the guest (SEC04-no-guest-secrets),
+  and the floor of SEC05-default-deny holds. The maintainer accepted this on I42
+  (B42-trust-placement), because projects in the work VM still run as
+  separate guest users.

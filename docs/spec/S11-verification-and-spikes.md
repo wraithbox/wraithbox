@@ -176,9 +176,17 @@ be tested before building on them.
       another project runs, and start another project's session while
       a learn-mode session runs, and see each refused with the other
       project named;
-    - start another project or an untrusted repository in the
-      isolated VM while a project set to the isolated slot has a
+    - start another project, or an `--isolated` session, in the
+      isolated VM while a project with `placement = isolated` has a
       session there, and the reverse, and see each refused;
+    - start `--learn` in a project with `placement = isolated`, and
+      with `--isolated` in a project with `placement = work` and
+      `config_trust` on, and see each refused;
+    - change a remote URL of a registered project's repository, start
+      a session and see it refused with both URLs named, then run
+      `wb project confirm` and see the next start pass; start a session
+      in a second `git worktree` of the repository and see it use the
+      same project (S05-cli, "Naming");
   - send an attacker-supplied token in a credential parameter that a
     git host's profile names and get a `403`: GitLab's `private_token`
     in the query string, as `private%5Ftoken`, as `private_token[]`,
@@ -204,7 +212,7 @@ be tested before building on them.
     `profile-part-off`, no GitHub binding injected on `api.github.com`,
     and a lookup of `api.github.com` refused at DNS with no approval
     event, also while another project's rule allows that host; load a
-    trusted repository rule on that host, or on `api.github.com` with
+    repository configuration rule on that host, or on `api.github.com` with
     the path `/graphql`, `/graphql/`, `/graph*`, `/%67raphql` or `/**`
     and any method, and see a load error (S07-egress-gateway,
     "Profile parts");

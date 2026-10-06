@@ -52,7 +52,7 @@ answer is in S03-requirements.
   user for approval out-of-band (allow once, allow for project, deny). A name on the host-held list of the guest OS's own
   background lookups is refused and logged without a prompt, and so is a host whose only rules are in a built-in
   profile part the user turned off (S07-egress-gateway).
-- **FR10-learn-mode: Learn mode.** A learn mode, available for trusted repositories only, records
+- **FR10-learn-mode: Learn mode.** A learn mode, available only to projects whose `placement` is `work` (S05-cli), records
   the destinations a project needs and proposes an allowlist. Unknown destinations stay refused
   (SEC05-default-deny), and learn mode collects them for one review instead of asking for each.
 - **FR11-port-forward: Port forwarding.** Dev servers listening in the guest are reachable on host

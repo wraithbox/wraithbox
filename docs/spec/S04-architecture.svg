@@ -93,6 +93,6 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <rect class="boundary" x="740" y="400" width="250" height="236" rx="14" />
 <text class="boundary-label" x="752" y="420">isolated VM (optional)</text>
 <text class="note" x="865" y="480" text-anchor="middle">same wiring, own policy</text>
-<text class="note" x="865" y="505" text-anchor="middle">untrusted repositories</text>
+<text class="note" x="865" y="505" text-anchor="middle">isolated projects, --isolated</text>
 <text class="note" x="865" y="530" text-anchor="middle">work needing a GUI login</text>
 </svg>

@@ -56,13 +56,15 @@ against the adversary of T00-index.
   policy file and landing repository. Per VM: network grants,
   credential bindings and approvals of the projects with a session in
   the VM, which any process in the VM can use (T11-shared-vm-grants).
-  Untrusted repositories run in the isolated VM. A project whose grants
-  must stay apart is set to the isolated slot, and `wb-hostd` refuses
-  to start another project or untrusted repository next to it
-  (S06-vm-lifecycle, "VMs").
+  A repository the user doesn't trust runs in the isolated VM, by
+  `--isolated` or `placement = isolated`. New projects start in the
+  work VM (T13-new-project-grants). A project whose grants must stay
+  apart is set to `placement = isolated`, and `wb-hostd` refuses to
+  start another project next to it (S06-vm-lifecycle, "VMs").
 - **SEC09-host-policy: Policy is held on the host.** The guest cannot read or change policy.
-  Repository-supplied configuration is ignored unless the user trusts the
-  repository, and can never add credentials.
+  Repository-supplied configuration is ignored unless the user turns on
+  the project's `config_trust` (`wb trust`), and can never add
+  credentials. `config_trust` doesn't decide the VM.
 - **SEC10-audit: Audit.** Every egress decision, approval, and returned change is
   recorded on the host in a persisted log the guest cannot alter.
 - **SEC11-root-gains-nothing: Guest root is not a privilege.** Full control of the guest grants

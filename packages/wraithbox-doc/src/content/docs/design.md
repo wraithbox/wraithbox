@@ -45,11 +45,13 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
 - **Default-deny egress.** Only allowlisted names resolve, to synthetic
   addresses that lead only to the proxy. The guest cannot reach raw IP
   addresses, the host, the LAN, or arbitrary DNS servers.
-- **One work VM, many projects.** Trusted projects share a work VM as
-  separate guest users; untrusted repositories get an isolated VM. (macOS
-  allows two running macOS guests, which this fits.) Projects in one VM
-  share its network grants and credential bindings. A project whose
-  tokens must stay apart runs in the isolated VM.
+- **One work VM, many projects.** Projects share a work VM as separate
+  guest users, new ones included. A repository you don't trust runs in
+  an isolated VM, with `wb --isolated claude` or
+  `wb project place isolated`. (macOS allows two running macOS guests,
+  which this fits.) Projects in one VM share its network grants and
+  credential bindings. A project whose tokens must stay apart runs in
+  the isolated VM.
 - **No root or admin on the host, no extra host accounts.** Works on
   managed machines.
 
