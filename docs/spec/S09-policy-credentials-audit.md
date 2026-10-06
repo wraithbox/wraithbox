@@ -90,21 +90,33 @@ inspection is trusted, and what is recorded.
   narrowing apply: a missing or malformed label matches no narrowed
   rule. Until then nothing is narrowed by project.
 - **Settings contents.** The project toolchain manifest (Brewfile on
-  macOS guests); extra writable repositories; guest OS; VM slot
-  (work/isolated); resource limits. Clipboard and port-forwarding
-  switches come after V1 (V1-08-no-forward-clipboard). A project whose
-  credentials or write grants must stay apart from other projects is
-  set to the isolated slot, and then gets the isolated VM to itself
-  unless a `shared` switch says otherwise (S06-vm-lifecycle, "VMs",
-  T11-shared-vm-grants).
+  macOS guests); extra writable repositories; guest OS; `placement`;
+  `config_trust`; resource limits. Clipboard and port-forwarding
+  switches come after V1 (V1-08-no-forward-clipboard).
+  - *`placement`.* `work` or `isolated`, the VM the project's sessions
+    run in. `work` for a new project, and `--isolated` overrides it for
+    one session (S06-vm-lifecycle, "VMs"). A project whose credentials
+    or write grants must stay apart from other projects, or whose
+    repository the user doesn't trust, is set to `isolated`, and then
+    gets the isolated VM to itself unless a `shared` switch says
+    otherwise (T11-shared-vm-grants).
+  - *`config_trust`.* Whether the repository's `.wraithbox/` is read
+    ("Repository-supplied configuration"). Off for a new project, and
+    changed only by `wb trust` and `wb untrust`, so the boundary check
+    runs before it is set. It says nothing about the code the agent reads, so
+    nothing that needs a vouched-for repository, such as learn mode
+    (FR10-learn-mode), looks at it.
+  - The maintainer split the two on I42 (B42-trust-placement). The
+    word "trusted" alone names neither.
 - **Repository-supplied configuration.** A `.wraithbox/` directory in a
-  repository (`config.toml`, `policy.yaml`) is ignored unless the user
-  has run `wb trust` for that repository. Even then it may only add
+  repository (`config.toml`, `policy.yaml`) is ignored unless the
+  project's `config_trust` is on (`wb trust`). Even then it may only add
   allowed hosts, a toolchain manifest and HTTP rules, and every addition
   is shown in `wb policy explain`. It can never add credential bindings
   or switch hosts to pass-through (SEC09-host-policy).
   - *Closed keys.* It is parsed against a closed list of those keys, and
-    any other key is a load error. A rule on a built-in host whose
+    any other key is a load error, so it can't set `placement` or
+    `config_trust`. A rule on a built-in host whose
     profile part is off is a load error too (S07-egress-gateway,
     "Profile parts").
   - *Which commit.* It is read only from the host repository's
@@ -114,8 +126,8 @@ inspection is trusted, and what is recorded.
     (S08-workspace-and-git). The guest can still propose such a change,
     so the parser has a fuzz target (S11-verification-and-spikes,
     network policy YAML).
-- **Boundary check.** At `wb trust` and whenever a trusted repository's
-  policy changes, the merged project policy is checked against a
+- **Boundary check.** At `wb trust` and whenever the repository
+  configuration of a project with `config_trust` changes, the merged project policy is checked against a
   boundary policy (the most a project may ever be allowed) with
   OpenShell's prover (`openshell-prover check --output json`, run as an
   external program, S10-tech-stack). A policy is accepted only when the
@@ -150,7 +162,7 @@ inspection is trusted, and what is recorded.
     stripped of control and escape sequences, as approval text is.
   - *User policy.* The user's global and project network rules are
     checked against the boundary too, at session start and whenever
-    they change, also for a project with no trusted repository. The
+    they change, also for a project without `config_trust`. The
     candidate is the global rules and the rules of every project with
     a session in the VM, with the built-in profiles, which is what the
     VM enforces (S07-egress-gateway, "Enforced per VM"), projected as
@@ -220,8 +232,8 @@ inspection is trusted, and what is recorded.
     The maintainer decided this on I35 (B35-openshell-artifacts), in
     the addendum to decision 1, which applies the brief's option C to
     the built-in rules.
-- **Precedence.** Built-in defaults → global → project → trusted repo
-  config → session approvals. `wb policy explain` shows the effective
+- **Precedence.** Built-in defaults → global → project → repository
+  configuration (with `config_trust`) → session approvals. `wb policy explain` shows the effective
   value and its source.
   - *Network rules merge as a union.* Rules are keyed by source and
     rule name, so a later source adds rules and never replaces one. A

@@ -37,9 +37,9 @@ Every other spec traces back to these:
 
 ## Unit of enforcement
 
-Trusted projects share the work VM, each as its own guest user
-(S06-vm-lifecycle). The host keeps their files, settings and returned
-work apart, but it sees one network address per VM and can't tell
+Projects whose `placement` is `work`, the default for a new project,
+share the work VM, each as its own guest user (S06-vm-lifecycle).
+The host keeps their files, settings and returned work apart, but it sees one network address per VM and can't tell
 which project opened a connection. So it enforces network grants,
 credential bindings and approvals per VM: any process in a VM can use
 those of every project with a session there (S07-egress-gateway,
@@ -47,5 +47,11 @@ those of every project with a session there (S07-egress-gateway,
 The maintainer accepted this residual risk on I36, and T00-index
 records it as T11-shared-vm-grants. SEC06-repo-writes and
 SEC08-proj-isolation say what is enforced per VM and what per project.
+
+Sessions started with `--isolated` and projects marked shared run in
+the isolated VM together. The repositories the user trusts least
+aren't isolated from each other there (T05-cross-proj-clones). A new project starts in the work VM and gets
+the grants of the work-VM projects (T13-new-project-grants). The
+maintainer accepted both on I42 (B42-trust-placement).
 
 **Status:** Draft

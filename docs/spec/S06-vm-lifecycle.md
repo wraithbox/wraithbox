@@ -43,25 +43,43 @@ in S12-platforms.
 
 ## VMs
 
-- **Two slots per guest OS.** The **work VM** hosts every trusted
-  project. The **isolated VM** hosts untrusted repositories
-  (`wb --isolated claude`, or a project marked untrusted) and work that
-  needs a GUI login session. macOS allows at most two running macOS
-  guests, including any started by other software: `wb-hostd` performs
-  admission control and reports a clear error when a slot is unavailable
-  (NFR05-two-macos-vms).
+- **Two slots per guest OS.** The **work VM** hosts every project whose
+  `placement` is `work`. The **isolated VM** hosts projects whose
+  `placement` is `isolated`, sessions started with
+  `wb --isolated claude`, and work that needs a GUI login session.
+  macOS allows at most two running macOS guests, including any started
+  by other software: `wb-hostd` performs admission control and reports
+  a clear error when a slot is unavailable (NFR05-two-macos-vms).
+- **Placement and configuration trust.** `placement` (`work` or
+  `isolated`) is a project setting (S09-policy-credentials-audit, "Settings contents"),
+  and `wb project place` changes it (S05-cli). `--isolated` overrides
+  it for one session. `config_trust` (`wb trust`) only decides whether
+  `.wraithbox/` is read, and never moves a project between VMs.
+- **New projects start in the work VM.** A newly registered project
+  (FR02-any-repo) has `placement = work`, so it shares the grants of
+  every work-VM project with a session (T13-new-project-grants). For a
+  repository they don't trust, the user passes `--isolated` or sets
+  `placement = isolated`. The maintainer decided this on I42
+  (B42-trust-placement): projects in the work VM still run as separate
+  guest users.
+- **Changing placement.** A new `placement` applies from the next
+  session start, and `wb project place` is refused while the project
+  has a session. The project user's home, with its Claude Code state
+  (FR13-claude-state), is on the old VM's data disk ("Disks"). Moving
+  it to the other VM's data disk needs the data-disk design of I44.
 - **Isolated slot to itself.** Projects in one VM share its network
   grants and credential bindings (S07-egress-gateway, "Enforced per
-  VM", T11-shared-vm-grants). A project whose settings put it in the
-  isolated slot gets the isolated VM to itself, unless its settings
-  mark it shared (S09-policy-credentials-audit, "Settings contents").
-  `wb-hostd` refuses a session start that would put another project or
-  an untrusted repository in the isolated VM while such a project has
-  a session there, and refuses that project's session start while
-  another project or untrusted repository has one there. The error
-  names the other project or repository (NFR06-explained-refusals).
-  Untrusted repositories, and projects marked shared, may share the
-  isolated VM with each other, and then share their grants.
+  VM", T11-shared-vm-grants). A project whose `placement` is
+  `isolated` gets the isolated VM to itself, unless its settings mark
+  it shared (S09-policy-credentials-audit, "Settings contents").
+  `wb-hostd` refuses a session start that would put another project,
+  or an `--isolated` session, in the isolated VM while such a project
+  has a session there, and refuses that project's session start while
+  another project has one there. The error names the other project
+  (NFR06-explained-refusals). Sessions started with `--isolated`, and
+  projects marked shared, may share the isolated VM with each other.
+  They then share their grants, and after guest root their clones
+  (T05-cross-proj-clones).
 - **Disks.** A system disk (clone of the image) and a data disk holding
   project users' homes and workspaces, including Claude Code state
   (FR13-claude-state) and commits not yet pushed. The data disk is a

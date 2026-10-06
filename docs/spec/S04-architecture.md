@@ -298,9 +298,10 @@ nothing themselves (S12-platforms).
   the hostname, SNI, and HTTP request. A bug in one layer does not open
   egress on its own.
 - **One work VM per guest OS, many projects; an isolated VM for the
-  rest.** The work VM hosts every trusted project for its guest OS,
-  separated by guest user accounts; an isolated VM takes untrusted
-  repositories. For macOS guests this fits Apple's two-VM limit (SEC08-proj-isolation, NFR05-two-macos-vms).
+  rest.** The work VM hosts every project placed there for its guest
+  OS, new projects included, separated by guest user accounts. An
+  isolated VM takes projects placed there and `--isolated` sessions
+  (S06-vm-lifecycle, "VMs"). For macOS guests this fits Apple's two-VM limit (SEC08-proj-isolation, NFR05-two-macos-vms).
   The accounts keep the projects' files apart. The host can't tell
   their connections apart, so it enforces the policy and the
   credential bindings of a VM's projects for the whole VM

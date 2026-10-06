@@ -140,7 +140,7 @@ included.
   write grants under the git hosting profile, their dependency-gate
   overrides and their approvals. The projects also share the VM's
   limits (T11-shared-vm-grants). A project whose grants must stay
-  apart is set to the isolated slot, and `wb-hostd` then gives it the
+  apart is set to `placement = isolated`, and `wb-hostd` then gives it the
   isolated VM to itself (S06-vm-lifecycle, "VMs").
 
 The wildcard budget is counted per *active period*: from the first
@@ -610,7 +610,7 @@ session start in the VM to the end of the last session running in it.
   can't remove a deny. All parts are on by default.
   - *Switches.* The global policy and a project's network policy turn
     a part off with a Wraith Box extension key. Repository
-    configuration has no such key. A trusted repository's rule on a
+    configuration has no such key. A repository configuration rule on a
     built-in host whose part is off is a load error that names the
     part (NFR06-explained-refusals).
   - *Effect.* A part that is off is not in the effective policy, and
@@ -837,7 +837,8 @@ session start in the VM to the end of the last session running in it.
   (B33-no-guest-credentials). An approval is bound by the boundary
   (S09-policy-credentials-audit, "Approvals"): a rule outside it
   isn't shown as a request.
-- **Learn mode** (trusted projects only, FR10-learn-mode). Learn mode
+- **Learn mode** (projects with `placement = work` only, not in an
+  `--isolated` session, FR10-learn-mode). Learn mode
   changes how unknown names reach the user, not what the guest can
   reach. The maintainer decided on I40 that learn mode collects unknown
   names and refuses them (B40-learn-pass-modes), so SEC05-default-deny
