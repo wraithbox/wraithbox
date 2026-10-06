@@ -1,0 +1,5 @@
+{"cacheDir":"\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C\/","step":"pre-confine"}
+{"ms":10.067708033602685,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x25\/n1","CACHE=\/private\/var\/folders\/6j\/d03nbvfj5j14pd4gb5_5320c0000gn\/C"],"profile":"spikes\/x25-vmd-sandbox\/profiles\/vmd-final-narrow.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"Operation not permitted","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"bundle":"n1","configMs":17.866624984890223,"devices":[],"handoff":"ok: passed descriptor got a SETTINGS frame from the guest","pauseMs":6.4664580277167261,"saveSeconds":2.8773597499821335,"startSeconds":0.21319229202345014,"step":"boot","stopMs":9.262499981559813,"vsockSeconds":10.142019624996465,"vsockTries":329}
+{"step":"run","name":"narrow-boot-save","exit":0,"start":"2026-10-06 20:03:19","end":"2026-10-06 20:03:34"}
