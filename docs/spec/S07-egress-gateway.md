@@ -358,9 +358,34 @@ session start in the VM to the end of the last session running in it.
     replacement, then open a new TLS connection upstream validated
     against the host's system trust store. HTTP/1.1 and HTTP/2.
   - **pass**: relay TLS bytes unchanged to the named host. Only for hosts
-    where inspection breaks the client; every pass-through host is a
-    documented residual channel, because the proxy cannot see what is
-    sent (T01-allowed-channels).
+    where inspection breaks the client. The proxy can't see what is
+    sent, so every pass host is a residual channel
+    (T01-allowed-channels). The maintainer decided its rules on I40
+    (B40-learn-pass-modes):
+    - *Still one named host.* Pass isn't an exception to
+      SEC05-default-deny. The name must be allowed, and the SNI must
+      equal it ("Name binding").
+    - *Only the user sets it.* A host is put in pass mode only in the
+      global policy or a project's network policy on the host
+      (S09-policy-credentials-audit). Repository-supplied configuration
+      can never switch a host to pass (SEC09-host-policy), and an
+      approval or learn mode never does either ("Approvals and
+      learning").
+    - *A reason for each.* Each pass entry holds a reason the user
+      writes, and an entry without one is refused at load.
+      `wb policy explain` lists every pass host with its file and its
+      reason.
+    - *Never on a guarded host.* A host with a credential binding, or a
+      host a built-in profile covers (git hosting, model API, package
+      registries), can't be a pass host. Pass would switch off
+      credential replacement, HTTP policy and the dependency gate on it,
+      and with them SEC06-repo-writes and SEC07-dep-gate. Such an entry
+      is refused at load with an error that names the host and the
+      reason (NFR06-explained-refusals). Across projects the same rule
+      is checked over the union ("Enforced per VM").
+    - *Audited.* Each policy change that adds a pass host is a Device
+      Config State Change (5019) event with the host, the file and the
+      reason (SEC10-audit).
   - Plain HTTP is allowed only when policy names `host:80`, and is
     always inspected.
 - **Request form.** On inspected hosts, `wb-proxyd` parses each
@@ -781,12 +806,35 @@ session start in the VM to the end of the last session running in it.
   (B33-no-guest-credentials). An approval is bound by the boundary
   (S09-policy-credentials-audit, "Approvals"): a rule outside it
   isn't shown as a request.
-- **Learn mode** (trusted projects only, FR10-learn-mode): DNS resolves any name and
-  connections are inspected and allowed, while credentials stay host-side
-  as usual. The session's destinations become a suggested allowlist for
-  `wb learn report`. The maintainer decided on I40 that learn mode
-  collects unknown names and refuses them (B40-learn-pass-modes), and
-  that spec change rewrites the sentences above.
+- **Learn mode** (trusted projects only, FR10-learn-mode). Learn mode
+  changes how unknown names reach the user, not what the guest can
+  reach. The maintainer decided on I40 that learn mode collects unknown
+  names and refuses them (B40-learn-pass-modes), so SEC05-default-deny
+  holds as written during a learn-mode session.
+  - *Refused as usual.* A name that isn't allowlisted gets `NXDOMAIN`,
+    with the same answer bytes and the same wildcard budget as outside
+    learn mode ("Packet path", DNS). The rules of allowed hosts all
+    hold: HTTP policy, the git hosting profile (SEC06-repo-writes), the
+    dependency gate (SEC07-dep-gate), credential replacement and
+    placeholder binding. Learn mode never adds a rule or a pass host.
+  - *Collected.* While a learn-mode session runs in the VM, an unknown
+    name doesn't raise an approval event or a notification.
+    `wb-hostd` puts it on the VM's learn list with the time, the count
+    of lookups and the guest's program label, if any, shown as reported
+    by the guest and untrusted. The refusal is logged with the rule
+    `learn-collected` (SEC10-audit). A name on the guest OS's
+    background list, a host refused with `profile-part-off` and a
+    denied name are refused as outside learn mode and don't go on the
+    list.
+  - *Review.* At session end `wb` prints the list in the session
+    summary, and `wb learn report` shows it. The user allows the names
+    they accept with `wb allow`, or approves a selection from the
+    report in one batch. Each name the user accepts goes through the
+    risk check and grants what an approval grants (above), and the
+    answer is a Device Config State Change (5019) event.
+  - *More than one run.* The agent stops at the first refused host and
+    doesn't reach the hosts behind it, so learning a project's hosts can
+    take more than one run, with the user allowing names between them.
   - *One project at a time.* The host can't attribute the destinations
     it collects to a project ("Enforced per VM"). So `wb-hostd` starts
     a learn-mode session only when no session of another project runs

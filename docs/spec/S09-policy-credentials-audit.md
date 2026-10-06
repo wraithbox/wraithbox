@@ -50,6 +50,13 @@ inspection is trusted, and what is recorded.
     with no control bytes, and within a length cap fixed in code, or
     the file is refused at load. The prover models ASCII values only,
     and its output repeats these strings (X24-openshell-artifacts).
+  - *Pass hosts.* Only the global and project network policy files can
+    put a host in pass mode, never repository configuration. Each pass
+    entry needs a reason, which follows the string rules above. An entry for a host with a credential binding or a
+    built-in profile is refused at load, and adding a pass host is a
+    Device Config State Change (5019) event. The maintainer decided this
+    on I40 (B40-learn-pass-modes), and S07-egress-gateway, "Modes, per
+    host", has the rules.
   - *What the prover sees.* The document Wraith Box writes for the
     prover allows at least what `wb-proxyd` enforces, never less. A
     built-in GraphQL rule is written as a REST rule that allows `POST`
