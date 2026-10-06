@@ -65,7 +65,8 @@ same name.
 - **V1-M6-release-gate: Release gate.** Self-sandboxed daemons, Seatbelt profiles,
   warm start and suspend, the full conformance suite and benchmarks,
   packaging. Covers SEC12-least-privilege, SEC13-bounded-resources,
-  NFR01-startup to NFR03-footprint.
+  NFR01-startup, NFR03-footprint. The benchmarks also measure
+  NFR02-fs-speed, which is a goal and doesn't pass or fail the gate.
 
 After V1: X10-linux-hypervisor to X16-openshell-linux, layers 3 and 4 of
 S13-guest-confinement, FR11-port-forward, FR12-clipboard, and the other

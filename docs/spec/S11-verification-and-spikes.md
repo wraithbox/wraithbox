@@ -185,6 +185,10 @@ be tested before building on them.
   of X03-network-path at the same MTU. Its CPU figures cover the
   `wb-netd` stand-in and a plain HTTP stand-in for `wb-proxyd` in one
   process, so they are a bound on the two together, not on `wb-netd`.
+  The filesystem figures are reported against the NFR02-fs-speed goal
+  with the host's conditions (load, FileVault, Endpoint Security
+  agents, chip), and don't pass or fail the release gate. Results vary
+  more between hosts than the gap they would judge.
 - **Platform contract tests.** Each `internal/platform` interface has
   one test suite that every OS implementation runs (S12-platforms).
 - **CI.** Go unit tests, lint, and vet run natively on macOS, Linux, and

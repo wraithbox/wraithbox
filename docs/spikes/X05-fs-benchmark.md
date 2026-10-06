@@ -45,6 +45,10 @@ host, on the NFR02-fs-speed workloads?
      of NFR02-fs-speed with every disk setting. Recommended: keep
      NFR02-fs-speed as written, and find where the guest loses the time
      in a follow-up (I97) before the V1-M6-release-gate benchmark.
+     Decided 2026-10-06 (I19), with an option the brief didn't list:
+     NFR02-fs-speed stays at about 80% as a goal that V1-M6-release-gate
+     doesn't pass or fail on, and the docs state the overhead as
+     measured here. I97 is unchanged.
 - **Brief:** B19-fs-benchmark
 
 ## Question
@@ -206,10 +210,10 @@ swap are X08-data-disk.
   automatic caching, full sync. It drops "can be rebuilt from host state
   plus git, so it may use relaxed write-through settings", which I44
   overturned (changed in this pull request).
-- **NFR02-fs-speed** is not met for `npm ci`, and its text is unchanged.
-  The release gate (V1-M6-release-gate) measures it again. I97 looks
-  for the cause in the guest. The open decision above says what to do
-  until then.
+- **NFR02-fs-speed** is not met for `npm ci`. Since the decision of
+  2026-10-06 (I19) NFR02-fs-speed is a goal that V1-M6-release-gate
+  doesn't pass or fail on, and it states the overhead measured here. I97
+  looks for the cause in the guest.
 - **I44** (data disk durability) gets the answer it waited on from this
   spike: full sync costs the NFR02-fs-speed workloads nothing measurable,
   so one fully synced data disk meets its target, and a second, relaxed
@@ -225,4 +229,4 @@ Branch `spike/x5-fs-benchmark`, at
 the `wb-vmd` stand-in with the data disk settings, the benchmark, the
 kill and trim tests, and the raw results with `results/stats.txt`.
 
-**Status:** Answered 2026-10-05: no. NFR02-fs-speed is not met for `npm ci` with any disk setting, and the data disk uses full sync
+**Status:** Answered 2026-10-05: no. NFR02-fs-speed is not met for `npm ci` with any disk setting, and the data disk uses full sync. Decided 2026-10-06 (I19): NFR02-fs-speed is a goal outside the release gate
