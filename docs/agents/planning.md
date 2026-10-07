@@ -27,7 +27,8 @@ Every open work issue carries:
 - exactly one **type**: `bug`, `enhancement`, `spike`, `documentation` or
   `chore`;
 - one **triage status**: `needs-triage`, `needs-info`, `ready-for-agent`
-  or `ready-for-human` (plus `blocked` when it waits on something);
+  or `ready-for-human` (plus `blocked` when it waits on something, and
+  `needs-vm` when it needs a running macOS guest);
 - at least one **area** label (`area:*`);
 - zero to two **component** labels (`comp:*`), when the work belongs to a
   process from S04-architecture;

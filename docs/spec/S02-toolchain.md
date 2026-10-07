@@ -67,7 +67,10 @@ repo tasks, and CI.
   re-installs the toolchain; the mise cache makes this cheap and logs stay
   readable.
 - **Tests that need to run guest VMs** (conformance suite, benchmarks;
-  S11-verification-and-spikes) cannot run on hosted runners and are not part of `ci` until
-  self-hosted runners exist (Apple Silicon for macOS guests).
+  S11-verification-and-spikes) cannot run on hosted runners and are not
+  part of `ci`. Until v1 is close they run on the maintainer's Mac, and
+  issues that need a running macOS guest carry the `needs-vm` label, of
+  which a wave builds one at a time (decided on I50). Whether to add a
+  self-hosted Apple Silicon runner is revisited near v1.
 
 **Status:** Active
