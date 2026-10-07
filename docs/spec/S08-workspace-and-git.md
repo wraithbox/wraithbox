@@ -22,7 +22,9 @@ back out, without sharing the host filesystem.
   write to the host repository through this path.
 - **Export repository.** `export.git` holds only the refs that some
   live session of the project selected (B41-git-data-scope, item 1).
-  A session is live from its start until it ends. A session that has
+  A session is live from its start until it ends. A lost session
+  (S06-vm-lifecycle, "Session lifecycle") stays live until its
+  recovery ends it, so its WIP push still has its base. A session that has
   ended but isn't discarded yet isn't live: its pushed work in
   `landing.git` is kept by the copy in "Repository lifecycle" below,
   not by refs in `export.git`. A session selects the branch
@@ -130,6 +132,8 @@ back out, without sharing the host filesystem.
   protocol version it wants. The helper asks for v2 itself, and
   `wb-hostd` passes only `version=0`, `1` or `2` on to git.
 - **Session start.** `wb-guestd` creates a worktree for the session at
+  `<home>/sessions/<session-id>` (S06-vm-lifecycle, "Projects and
+  sessions inside a VM"), checked out at
   the session's `HEAD` in `export.git`, then applies the carry-in:
   staged and unstaged changes as a binary diff, plus untracked files
   that are not ignored, up to a size cap (FR04-carry-in). Files over
@@ -453,7 +457,19 @@ back out, without sharing the host filesystem.
   (S11-verification-and-spikes).
 - **Session end.** If the worktree has uncommitted changes, `wb-guestd`
   commits them to the session branch as a clearly marked WIP commit, then
-  pushes. `wb` can also push mid-session.
+  pushes. `wb` can also push mid-session. The same happens whether
+  `claude` exited by itself or after a hangup, because closing the
+  terminal ends the session (decided on I46, S06-vm-lifecycle,
+  "Session lifecycle"). `wb-guestd` commits only after `claude` has
+  exited or was killed, so the commit doesn't race the agent's own
+  writes. A session that was lost gets the same commit and push at the
+  next connection to its VM. When the commit or the push fails, the
+  worktree keeps the changes, the summary says what failed, and `wb`
+  exits with 255 (S05-cli, "Exit status and signals"). A later
+  `wb claude --continue` starts from the host's `HEAD`
+  ("Into the guest"). The old session's uncommitted files reach a new
+  session only after the user lands its WIP commit and merges it, or
+  carries the files in by hand (FR04-carry-in).
 - **Landing on the host.** `wb land <session>` runs `git fetch` (the
   git binary of "Host git" below) from the landing repository into
   `wb/<session-id>` in the user's repository. It never checks out,

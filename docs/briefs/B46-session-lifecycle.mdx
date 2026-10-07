@@ -5,7 +5,7 @@ description: Recommended that closing the terminal detaches an interactive sessi
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Decided 2026-10-04: B. Closing the terminal ends the session.** The decision and its reasons are in the I46 comment that starts `Decision (2026-10-04):`. Source: I46. Affects S05-cli, S06-vm-lifecycle, S08-workspace-and-git and S13-guest-confinement.
+**Decided 2026-10-04: B. Closing the terminal ends the session.** The decision and its reasons are in the I46 comment that starts `Decision (2026-10-04):`. Source: I46. Affects S05-cli, S06-vm-lifecycle, S08-workspace-and-git and S13-guest-confinement. Note 2026-10-07: the decision is now in those specs, see "The spec change" below. The figures and sub-decisions further down show option A as recommended before the decision.
 
 <Aside type="tip" title="You are deciding">
 Whether closing the terminal ends a session or detaches it. Recommended: **A**, an interactive session detaches, `wb attach <session>` resumes it, and it ends only when `claude` exits. The sub-decisions below cover sleep, failure, signals, and exit codes. Accepting adds a session lifecycle section with the state diagram to S06-vm-lifecycle and `wb attach` to S05-cli, and unblocks the terminal stream contract of I52.
@@ -110,6 +110,19 @@ Figure 1. A session spans three processes and two links. Each numbered break nee
 Figure 2. The recommended lifecycle (option A). "Paused" means the host-guest socket is down and the session's processes are stopped in the guest: host sleep, idle suspend, or a <code>wb-hostd</code> restart (I48). Any state can go to "lost". The figure shows the one from detached.
 </figcaption>
 </figure>
+
+## The spec change
+
+What option B became, with the sub-decisions it left open written the strict way:
+
+- **States** (S06-vm-lifecycle, "Session lifecycle"): starting, running, paused, ending, ended and lost, with no detached state. A session has one client, the `wb` that started it.
+- **Hangup:** when `wb` gets `SIGHUP` or its connection to `wb-hostd` closes, `wb-guestd` closes the session's terminal device, so `claude` gets `SIGHUP` from the guest kernel, and kills its process group 10 seconds later if it is still running. WIP is then committed and pushed as on a normal exit (S08-workspace-and-git, "Session end").
+- **`--continue`:** Claude Code keeps conversations per working directory, and each session has its own worktree path. So `wb-guestd` links each new worktree's history directory to one directory per project, as the project user. That rests on Claude Code's storage layout, which was read on the host, not checked in a guest.
+- **Socket drops:** the session's processes stop. When the link returns, `wb-guestd` resumes them only when `wb-hostd` says the session still has its `wb`, and otherwise ends the session. A session paused for 30 seconds of host time awake is lost.
+- **Lost:** a VM, `wb-guestd` or `wb-hostd` that stops loses its sessions, and `wb` exits 255. At the next connection to that VM, `wb-hostd` has `wb-guestd` commit and push each lost session's WIP. A lost session stays live for `export.git` until then.
+- **Idle suspend:** never while the VM has a session. `wb vm suspend` and `wb vm stop` are refused while it has one. A terminal left open keeps the VM up.
+- **Exit status** (S05-cli, "Exit status and signals"): `claude`'s code, 128 + n for signal n, 2 for a usage error, 255 for every other Wraith Box failure, a WIP push that failed included. Interactive use means both standard input and standard output are terminals.
+- **Signals:** keyboard signals are bytes in the stream. `wb` forwards `SIGINT`, `SIGQUIT` and `SIGTERM`. Ctrl-Z stops `wb` too, after it resets the terminal, and `fg` continues both.
 
 ## Options
 

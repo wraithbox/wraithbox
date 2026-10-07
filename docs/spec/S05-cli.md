@@ -8,7 +8,10 @@
 
 - **Decides:** the shape of `wb` and its commands, and, since I37,
   that guest output reaching the user's terminal passes an allowlist
-  filter in `wb` ("Terminal stream"), boundary 6 of T00-index.
+  filter in `wb` ("Terminal stream"), boundary 6 of T00-index. Since
+  I46, closing the terminal ends the session, and "Exit status and
+  signals" says what `wb claude` exits with and which signals it
+  forwards (B46-session-lifecycle).
 - **You are approving:** the I37 and I30 decisions as spec text: the
   allowlist measured in X19-terminal-filter, tightened as the security
   review of PR66 asked. OSC 52 is dropped, because V1 has no clipboard
@@ -69,9 +72,16 @@ wb [wb flags] claude [claude args]
   `wb claude --resume`, `wb claude -p "…"`, and `wb claude mcp list`
   behave as `claude …` does, and no current or future Claude Code flag or
   subcommand can collide with Wraith Box (FR01-drop-in).
-- Interactive use: raw-mode TTY relay, window-size changes forwarded,
-  exit code of `claude` returned. Non-interactive use (pipes, `-p`):
-  stdin/stdout streamed, stderr on its own channel.
+- Interactive use, when `wb`'s standard input and standard output are
+  both terminals: raw-mode TTY relay, and `claude` runs on a PTY in the
+  guest. Window-size changes are forwarded. Standard error goes to the
+  PTY too, unless `wb`'s standard error isn't a terminal, in which case
+  it is on its own channel. Non-interactive use, when either isn't a
+  terminal (a pipe, or `claude -p … > out.txt`): stdin and stdout
+  streamed, stderr on its own channel. `wb` doesn't read `claude`'s
+  arguments to decide, so `wb claude -p "…"` in a terminal is
+  interactive use, as `claude -p "…"` there has a terminal. The exit
+  status is in "Exit status and signals".
 - Users who want the bare word can alias it in their shell
   (`alias claude='wb claude'`). Wraith Box does not install such an alias.
 - Further agents are further agent commands (`wb <agent> …`) behind the
@@ -101,6 +111,14 @@ are a usage error:
 
 - Must be run inside a git repository; otherwise `wb` exits with a
   message explaining why (the return path is git, S08-workspace-and-git).
+- Closing the terminal ends the session (decided on I46,
+  B46-session-lifecycle). `claude` gets a hangup, and its work is
+  committed as WIP and pushed as on a normal exit. V1 has no detach
+  and no `wb attach`. `wb claude --continue` starts a new
+  session at the host's `HEAD` that resumes the project's most recent
+  conversation. The files the old session left uncommitted are only in
+  its WIP commit, and `wb land` brings them back. The states of a
+  session are in S06-vm-lifecycle, "Session lifecycle".
 - First run in a repository registers the project, creates its guest
   user and clone, then starts the session. Later runs reuse them.
 - On exit, `wb` prints a short summary of the session's returned work
@@ -116,10 +134,63 @@ are a usage error:
               src/main.go     file:///…/myrepo/src/main.go  (guest path)
   ```
 
+  A session that ended after its terminal closed, or after it was
+  lost, has no `wb` left to print it, and `wb sessions` shows its
+  summary. Each of several parallel sessions prints its own
+  (FR05-parallel-sessions).
+
 - During an agent session, `wb` never prints approval prompts. That
   terminal shows the agent's output, which the guest controls, so any
   prompt there could be forged (SEC14-no-fake-approvals). Approvals arrive as native
   notifications, or are answered with `wb approve` from another terminal.
+
+### Exit status and signals
+
+`wb claude` exits as `claude` did, and with 255 when Wraith Box
+failed, as `ssh` "exits with the exit status of the remote command or
+with 255 if an error occurred" (`man ssh`):
+
+| Outcome | `wb` exits with |
+|---|---|
+| `claude` exited with code n, and its work was returned | n |
+| `claude` was ended by signal n, and its work was returned | 128 + n, as a shell reports it |
+| a usage error in the `wb` flags | 2 |
+| any other failure of Wraith Box: a refusal before the session starts, a lost session (S06-vm-lifecycle, "Session lifecycle"), a WIP commit or push that failed, an exit status from the guest out of range | 255 |
+
+`claude` can exit with 2 or 255 itself. When the code comes from Wraith
+Box, the last line `wb` writes to standard error starts with
+`wraith box:` and says what failed. When the work wasn't returned, that
+line also gives `claude`'s own exit status. A script then never takes
+work that didn't reach the host for returned work.
+
+Signals:
+
+- **From the keyboard.** In interactive use `Ctrl-C`, `Ctrl-\` and `Ctrl-Z`
+  are bytes in the terminal stream, and the PTY in the guest turns
+  them into signals for `claude`, as a local terminal does. A window
+  size change (`SIGWINCH`) becomes a resize message.
+- **Hangup.** `SIGHUP` to `wb` ends the session ("Session behavior").
+  `wb` still waits for the end, writes nothing more to the terminal,
+  and exits as the table says. When `wb` is killed instead, `wb-hostd`
+  sees its connection close and hangs up the session the same way.
+- **Forwarded.** `wb` forwards `SIGINT`, `SIGQUIT` and `SIGTERM` that
+  it receives to `claude`'s process group, in interactive and
+  non-interactive use, and keeps waiting for `claude` to exit. Other
+  signals have their default effect on `wb`. One that ends it ends the
+  session as a hangup does.
+- **Job control.** When `claude` stops itself in interactive use, as
+  it does on Ctrl-Z, `wb-guestd` reports it. `wb` then resets the
+  terminal and drains its input as on exit ("Around the stream"),
+  restores the user's window title, and stops itself with `SIGTSTP`,
+  so the user's shell has the terminal again. On `SIGCONT` (`fg`),
+  `wb` sets its title and raw mode again and has `wb-guestd` continue
+  `claude`, which redraws. In non-interactive use, `wb` forwards
+  `SIGTSTP` to `claude` before it stops itself, and `SIGCONT` after
+  it continues.
+- **A closed output.** When `wb`'s standard output is closed in
+  non-interactive use (`wb claude -p … | head -1`), `wb-guestd` closes
+  `claude`'s standard output, so `claude` sees a broken pipe as it
+  would on the host.
 
 ## Terminal stream
 
@@ -291,7 +362,7 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it ("Naming") |
 | `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (S09-policy-credentials-audit) |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
-| `wb vm start/stop/suspend/status` | Explicit VM control |
+| `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session, and the refusal names it (S06-vm-lifecycle, "Session lifecycle") |
 | `wb image build/list/use` | Base image management (S06-vm-lifecycle) |
 | `wb shell [--project P]` | Debug shell as the project user, labeled as a debug shell |
 | `wb setup` | Check host prerequisites (S12-platforms) and the minimum git version (S08-workspace-and-git), install and start the per-user services |
