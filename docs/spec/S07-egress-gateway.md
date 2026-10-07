@@ -399,19 +399,30 @@ session start in the VM to the end of the last session running in it.
   reset. `wb-proxyd` resolves the real upstream address itself. For
   inspected plain HTTP, the `Host` header must equal that hostname
   ("Packet path", synthetic pool).
-- **Upstream address** (SEC05-default-deny). In every mode (inspect,
-  pass and raw TCP), `wb-proxyd` refuses an upstream connection when
-  any address the name resolves to is in one of these ranges:
+- **Upstream address** (SEC05-default-deny). The rule applies to each
+  connection `wb-proxyd` opens: upstream streams in every mode
+  (inspect, pass and raw TCP), and its own fetches, such as following
+  a Go module proxy redirect, the `ghcr.io` token fallback and OSV
+  lookups. `wb-proxyd` refuses the connection when any address the
+  name resolves to is in one of these ranges:
   - IPv4: unspecified and "this network" (0.0.0.0/8), loopback
     (127.0.0.0/8), RFC 1918 (10.0.0.0/8, 172.16.0.0/12,
     192.168.0.0/16), CGNAT (100.64.0.0/10), link-local
-    (169.254.0.0/16), multicast (224.0.0.0/4), reserved
-    (240.0.0.0/4, broadcast included), and the synthetic range (198.18.0.0/15);
+    (169.254.0.0/16), IETF protocol assignments (192.0.0.0/24),
+    multicast (224.0.0.0/4), reserved (240.0.0.0/4, broadcast
+    included), and the synthetic range (198.18.0.0/15);
   - IPv6: unspecified (`::`), loopback (`::1`), link-local
-    (`fe80::/10`), unique local (`fc00::/7`) and multicast (`ff00::/8`);
-  - an IPv4 address in any range above embedded in IPv6, as an
-    IPv4-mapped address (`::ffff:0:0/96`) or under the NAT64 prefixes
-    (`64:ff9b::/96`, `64:ff9b:1::/48`).
+    (`fe80::/10`), unique local (`fc00::/7`) and multicast
+    (`ff00::/8`);
+  - an IPv4 address embedded in IPv6: IPv4-mapped (`::ffff:0:0/96`)
+    and IPv4-compatible (`::/96`) addresses, the NAT64 prefixes
+    (`64:ff9b::/96`, `64:ff9b:1::/48`), 6to4 (`2002::/16`) and Teredo
+    (`2001::/32`). The whole 6to4 and Teredo prefixes are refused,
+    whatever address they embed;
+  - at connect time, any address assigned to a network interface of
+    the host, and any address in the on-link prefix of one of the
+    host's interfaces. This covers the host's own public addresses
+    and a LAN that uses global IPv6 addresses.
 
   `wb-proxyd` connects only to an address it checked, and never
   resolves the name again between the check and the connect. A
@@ -419,8 +430,12 @@ session start in the VM to the end of the last session running in it.
   rule `upstream-address-refused` (SEC10-audit). On an inspected
   stream the guest gets a `502` that names the rule, and a pass or
   raw TCP stream is reset (NFR06-explained-refusals). So a name whose
-  zone someone else controls can't point a relay at the host itself
-  or at the LAN. Wraith Box has no LAN opt-in in V1.
+  zone someone else controls can't point a relay at the host itself,
+  at a private or link-local network, or at a network on the host's
+  own links. A network on public addresses that the host reaches
+  through another route, such as a VPN, isn't in these ranges and
+  is still reachable by name (T01-allowed-channels). Wraith Box has no
+  LAN opt-in in V1.
 - **Modes, per host:**
   - **inspect** (default): terminate TLS with a leaf certificate from the
     Wraith Box CA (S09-policy-credentials-audit), apply HTTP policy and credential
@@ -1014,11 +1029,14 @@ as written.
     as usual.
   - *Pass.* In a pass relay the inner name would reach the upstream
     front end unread, and `wb-proxyd` can't tell a real ECH extension
-    from a GREASE one. So it parses every plaintext ClientHello the
-    client sends, up to the first application data record in either
-    direction. That includes a second ClientHello after a
-    HelloRetryRequest, whose SNI must equal the bound host too. A
-    ClientHello to a pass host is reset when it holds:
+    from a GREASE one. So it parses the client's handshake records
+    until the server sends a ServerHello that isn't a
+    HelloRetryRequest. That includes a second ClientHello after a
+    HelloRetryRequest, whose SNI must equal the bound host too. Before
+    that ServerHello, an application data record from the client, or
+    a client handshake record that isn't a ClientHello, resets the stream with
+    the rule `stream-protocol-mismatch`. A ClientHello to a pass host
+    is reset when it holds:
     - an `encrypted_client_hello` extension (`0xfe0d`) or the
       earlier encrypted SNI extension (`0xffce`), with the rule
       `tls-ech-pass`;
