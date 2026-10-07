@@ -131,7 +131,9 @@ Older hosts download an image built elsewhere. S06-vm-lifecycle leaves image dis
 
 ## Decision 4: which host process holds the provisioning password?
 
-The provisioning options take a password, the one SSH session needs it, and the disable step needs it again to keep the secure token usable. Some host process has to hold it during a build, which is an exception to SEC12-least-privilege. The options, and the decision, are in [I145](https://github.com/wraithbox/wraithbox/issues/145). Until it is decided there is no `wb image build`. Whatever it decides, S06-vm-lifecycle requires that provisioning options for a session VM are refused and logged, that the password never reaches disk, a log, a gRPC message or an audit record, and that the guest gets it only on standard input.
+The provisioning options take a password, the one SSH session needs it, and the disable step needs it again to keep the secure token usable. Some host process has to hold it during a build, which is an exception to SEC12-least-privilege. The options, and the decision, are in I145. Until it is decided there is no `wb image build`. Whatever it decides, S06-vm-lifecycle requires that provisioning options for a session VM are refused and logged, that the password never reaches disk, a log, a gRPC message or an audit record, and that the guest gets it only on standard input.
+
+I145's option 4, which avoids a shared password, works whichever way I142 comes out, because a dead token is acceptable when images are rebuilt and never updated. So it would remove the need for a SEC12 exception, and I142 only has to rule out the token staying usable after a root reset.
 
 ## Impact
 
