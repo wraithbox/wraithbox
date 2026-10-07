@@ -111,7 +111,7 @@ request; the result pull request does (`planning.md`).
    `comp:` label, or two that both change a hot file (below), unless one
    is stacked on the other. At most one `needs-vm` builder runs at a
    time. Every open, assigned `needs-vm` issue counts as running until
-   it closes, when its pull request merges or closes. The count
+   it closes (its pull request merges) or is released. The count
    includes builders of other sessions and a builder sent back to fix
    review findings
    (`gh issue list --label needs-vm --state open --json number,assignees`).
