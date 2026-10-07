@@ -45,8 +45,9 @@ be tested before building on them.
   that project's session start, with the project named.
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
-  DHCP, DNS, TLS ClientHello parsing, the first-byte protocol check
-  of S07-egress-gateway ("Non-HTTP streams"), HTTP/1.1 and HTTP/2 request
+  DHCP, DNS, TLS ClientHello parsing (a ClientHello split across
+  TLS records included), the first-byte protocol check of
+  S07-egress-gateway ("Non-HTTP streams"), HTTP/1.1 and HTTP/2 request
   handling, request path canonicalization, the credential parameter
   scan of query strings and of form and JSON bodies
   (X22-no-guest-credentials), policy matching, the git transport framing (the request
@@ -135,6 +136,19 @@ be tested before building on them.
     host. See each reset or refused with its rule from
     S07-egress-gateway, "Non-HTTP streams", and no connection opened
     upstream for a stream reset on its first bytes;
+  - send a ClientHello with a real ECH configuration to an inspected
+    host and see the client abort and `tls-ech-refused` logged; after
+    a HelloRetryRequest from a pass host, send a second ClientHello
+    with another SNI and see it reset;
+  - try to add a raw TCP entry on a guarded host (`github.com`,
+    `ssh.github.com`, a host with a credential binding), at load and
+    at a recompute, and see it refused with the host named;
+  - with an allowed name that resolves to `127.0.0.1`, an RFC 1918
+    address, `169.254.169.254` or an IPv4-mapped form of one, open an
+    inspected, a pass and a raw TCP stream to it, and see each refused
+    with `upstream-address-refused` and no upstream connection; load a
+    policy whose host is `127.0.0.1` or `0x7f000001` and see it
+    refused;
   - push to a repository outside the project set, with and without an
     attacker-supplied token; create a gist or repository; publish a
     package. The project set is the VM's: the repositories of every

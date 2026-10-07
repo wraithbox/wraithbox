@@ -55,6 +55,8 @@ NXDOMAIN
 terminfo
 SVCB
 WPAD
+CGNAT
+ALPN
 ASIF
 libuv
 terminfo

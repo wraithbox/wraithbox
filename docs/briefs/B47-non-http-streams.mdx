@@ -137,7 +137,7 @@ Like A, but `wb-proxyd` speaks SSH on both sides with a key held on the host. It
 
 - <Badge text="verified" variant="success" /> `wb-netd` accepts TCP to a synthetic address on an allowed port and hands it to `wb-proxyd` (S07-egress-gateway, "Connections"). The "Stream path" section covers only TLS (inspect or pass) and plain HTTP on port 80.
 - <Badge text="verified" variant="success" /> For TLS, the ClientHello SNI must equal the bound host or the stream is reset (S07-egress-gateway, "Name binding").
-- <Badge text="verified" variant="success" /> DNS answers `A` queries, gives an empty answer to `AAAA`, and refuses every other type, which includes HTTPS and SVCB (S07-egress-gateway, "DNS"). No spec says why.
+- <Badge text="verified" variant="success" /> DNS answers `A` queries, gives an empty answer to `AAAA`, `HTTPS` and `SVCB` since B17-network-path, and refuses every other type (S07-egress-gateway, "DNS"). No spec says why HTTPS and SVCB get an empty answer.
 - <Badge text="verified" variant="success" /> ECH keys are advertised in SVCB and HTTPS records. When the server rejects ECH, the client must check the certificate against the public name and then retry or abort with `ech_required` (RFC 9849, [IETF record](https://datatracker.ietf.org/doc/draft-ietf-tls-esni/)).
 - <Badge text="verified" variant="success" /> Git rewrites URLs with `url.<base>.insteadOf` and `url.<base>.pushInsteadOf` (`git help config`, git on macOS 27). That makes the SSH-to-HTTPS rewrite a guest git setting.
 - <Badge text="verified" variant="success" /> I41 already recommends rewriting SSH remotes to HTTPS for the guest, because the guest has no SSH keys.

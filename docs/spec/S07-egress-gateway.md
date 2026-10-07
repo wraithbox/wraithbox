@@ -44,6 +44,14 @@ included.
     not only per file;
   - a host that one project puts in pass mode is inspected under
     another project's policy;
+  - a host with a raw TCP entry from one project has a credential
+    binding from another project, or a built-in profile. This holds
+    for the host on any port ("Non-HTTP streams", "Raw TCP entries");
+  - a host and port that one project names in a raw TCP entry expects
+    another protocol under another project's policy, such as TLS on
+    the same port. Raw TCP on one port and TLS on another port of the
+    same host isn't a conflict ("Non-HTTP streams", "One protocol per
+    host and port");
   - two projects bind the same host and port, with overlapping paths,
     to different secret store items;
   - the union fails the extension check or the boundary check
@@ -67,13 +75,18 @@ included.
   refused becomes allowed. Removing an allow rule, a binding or an
   approval, and tightening a limit or a mode, narrow. Removing a
   `deny_rules` entry, loosening a limit, and weakening a mode (pass
-  over inspect, `audit` over `enforce`) widen. A change that narrows
+  over inspect, `audit` over `enforce`) widen. Adding a raw TCP entry
+  widens, and removing one narrows. A change that narrows
   applies at once, without the union checks, because a subset of a
   union inside the boundary is inside it too and doesn't add reach. If it
   leaves a host in pass mode for one project and inspected for
   another, the VM inspects it, and the 5019 event names the host and
-  both projects. Open streams are then checked again ("Open
-  streams"). Every other change widens, including one that narrows in
+  both projects. A raw TCP stream can't be inspected. So if a change
+  that narrows leaves a host and port named in a raw TCP entry for one
+  project and expecting another protocol for another, the VM drops the
+  raw TCP entry and closes its relays, and the 5019 event names the
+  host, the port, and both projects. Open streams are then checked
+  again ("Open streams"). Every other change widens, including one that narrows in
   part, and goes through the same checks as a joining session. If one
   fails or can't run, the change is refused and logged with the
   project and rule that caused it, the VM keeps its last effective
@@ -93,7 +106,9 @@ included.
   - a part it turned off;
   - `enforce` it set over another project's `audit`;
   - inspection it set on a host another project puts in pass mode,
-    which the VM inspected (above).
+    which the VM inspected (above);
+  - another protocol it set on a host and port that another project
+    names in a raw TCP entry, which the VM dropped (above).
 
   A recompute that widens goes through the extension check and the
   boundary check of a joining session. The join risk check doesn't
@@ -115,8 +130,8 @@ included.
 - **Open streams.** After each recompute, `wb-proxyd` checks every
   open stream of the VM against the new effective policy: a WebSocket,
   an HTTP/2 connection, a pass relay, a raw TCP relay ("Non-HTTP
-  streams"), a server-sent event stream, or a held download. A stream whose allow rule, mode or binding is gone is
-  closed and logged with the rule `policy-recomputed`. So a project's
+  streams"), a server-sent event stream, or a held download. A stream
+  whose allow rule, mode or binding is gone is closed and logged with the rule `policy-recomputed`. So a project's
   bindings can't be reached while none of its sessions run.
 - **Join notice.** At session start, `wb` prints the other projects
   with a session in the VM, the credential bindings and write grants
@@ -201,9 +216,10 @@ session start in the VM to the end of the last session running in it.
     to other addresses even without the ICMP rule, which is a second
     layer.
 - **Events and rate limits.** Each drop is counted and logged with its
-  rule. Every class of event the guest can trigger, which is link
-  filter drops, DHCP findings, DNS refusals and approval events, is
-  rate-limited per rule, and the record that follows a suppressed run
+  rule. Every class of event the guest can trigger is rate-limited per
+  rule: link filter drops, DHCP findings, DNS refusals, approval
+  events, and in `wb-proxyd` stream resets and HTTP refusals
+  ("Non-HTTP streams"), and the record that follows a suppressed run
   holds the count it suppressed (SEC10-audit,
   SEC13-bounded-resources). A string from the guest that goes into a
   log record, such as a DHCP option or a DNS name, is escaped and cut
@@ -269,8 +285,9 @@ session start in the VM to the end of the last session running in it.
     (B17-network-path): it gives no `HTTPS` record that could hold an
     encrypted ClientHello configuration or an HTTP/3 hint that
     `wb-proxyd` can't honor. Giving no `HTTPS` or `SVCB` record is a
-    deliberate control against ECH for clients that look up their ECH
-    keys in DNS (I47, "Non-HTTP streams", "Encrypted ClientHello").
+    deliberate compatibility measure: clients that look up ECH keys in
+    DNS don't try ECH. It isn't a control against a guest that brings
+    its own ECH keys ("Non-HTTP streams", "Encrypted ClientHello").
   - *Local answers.* Every name under `.arpa` (reverse lookups,
     `_dns.resolver.arpa`, `ipv4only.arpa`, `home.arpa`) and every name
     under `.local` are answered by `wb-netd` itself, with
@@ -289,6 +306,13 @@ session start in the VM to the end of the last session running in it.
     same rule name and an error that names the host and the character
     or length at fault (NFR06-explained-refusals). So an allowed host
     never loads and then fails to resolve.
+  - *IP literals.* A name whose last label is all digits, or is a
+    hexadecimal number starting with `0x`, is an IPv4 address in a form
+    some resolvers accept. It fails the name form rule as above: a
+    query gets `NXDOMAIN` with the rule `dns-name-form`, and the policy
+    loader and `wb allow` refuse it as a host. An IPv6 literal has
+    colons and already fails the LDH rule. So no policy host names an
+    address (SEC05-default-deny).
   - Names not on the allowlist get `NXDOMAIN` and raise an approval
     event (FR09-approve-unknown), except during a learn period in
     the VM, when they go on the learn list instead ("Approvals
@@ -353,6 +377,11 @@ session start in the VM to the end of the last session running in it.
     delivers labels, the stream's tags also hold the label the guest
     reported for the flow, marked untrusted (S13-guest-confinement).
     The project and session come only from that label.
+  - A port is allowed for a synthetic address when the effective
+    policy names it for that address's host: in an endpoint's `port`
+    or `ports`, or in a raw TCP entry ("Non-HTTP streams"). TCP to a
+    synthetic address on any other port is reset at the first SYN and
+    audited with the rule `port-not-allowed`.
   - TCP to any other address is reset; UDP other than DNS is dropped
     (clients fall back from QUIC to TCP); ICMP is answered only for the
     gateway address. The host, the LAN, and raw IP destinations are
@@ -370,6 +399,28 @@ session start in the VM to the end of the last session running in it.
   reset. `wb-proxyd` resolves the real upstream address itself. For
   inspected plain HTTP, the `Host` header must equal that hostname
   ("Packet path", synthetic pool).
+- **Upstream address** (SEC05-default-deny). In every mode (inspect,
+  pass and raw TCP), `wb-proxyd` refuses an upstream connection when
+  any address the name resolves to is in one of these ranges:
+  - IPv4: unspecified and "this network" (0.0.0.0/8), loopback
+    (127.0.0.0/8), RFC 1918 (10.0.0.0/8, 172.16.0.0/12,
+    192.168.0.0/16), CGNAT (100.64.0.0/10), link-local
+    (169.254.0.0/16), multicast (224.0.0.0/4), reserved
+    (240.0.0.0/4, broadcast included), and the synthetic range (198.18.0.0/15);
+  - IPv6: unspecified (`::`), loopback (`::1`), link-local
+    (`fe80::/10`), unique local (`fc00::/7`) and multicast (`ff00::/8`);
+  - an IPv4 address in any range above embedded in IPv6, as an
+    IPv4-mapped address (`::ffff:0:0/96`) or under the NAT64 prefixes
+    (`64:ff9b::/96`, `64:ff9b:1::/48`).
+
+  `wb-proxyd` connects only to an address it checked, and never
+  resolves the name again between the check and the connect. A
+  refused connection is logged with the host, the address, and the
+  rule `upstream-address-refused` (SEC10-audit). On an inspected
+  stream the guest gets a `502` that names the rule, and a pass or
+  raw TCP stream is reset (NFR06-explained-refusals). So a name whose
+  zone someone else controls can't point a relay at the host itself
+  or at the LAN. Wraith Box has no LAN opt-in in V1.
 - **Modes, per host:**
   - **inspect** (default): terminate TLS with a leaf certificate from the
     Wraith Box CA (S09-policy-credentials-audit), apply HTTP policy and credential
@@ -421,7 +472,7 @@ session start in the VM to the end of the last session running in it.
       reason (SEC10-audit).
   - Plain HTTP is allowed only when policy names `host:80`, and is
     always inspected.
-  - A stream that is neither TLS nor HTTP is reset unless policy names
+  - A stream that isn't TLS or HTTP is reset unless policy names
     its host and port for raw TCP ("Non-HTTP streams").
 - **Request form.** On inspected hosts, `wb-proxyd` parses each
   request and sends upstream a request it builds itself: origin form
@@ -593,7 +644,13 @@ session start in the VM to the end of the last session running in it.
     the boundary then limits whether that endpoint is reachable, not
     which operations are allowed (S09-policy-credentials-audit,
     "Built-in profiles in the check"). Git LFS isn't in the profile and
-    fails in V1 (S08-workspace-and-git, "Open points").
+    fails in V1 (S08-workspace-and-git, "Open points"). The built-in
+    kinds also name the hosts on which their forges serve SSH on port
+    443: `ssh.github.com` for GitHub and `altssh.gitlab.com` for
+    GitLab. The profile doesn't allow a request to them, but it covers
+    them, so they are guarded hosts ("Modes, per host", pass). They can't be
+    pass hosts or have a raw TCP entry, so SSH to them always meets the
+    first-byte check ("Non-HTTP streams", "SSH").
   - *model API*: the endpoints Claude Code needs, with the model
     credential binding.
   - *package registries*: metadata and downloads only, publish and
@@ -802,10 +859,11 @@ session start in the VM to the end of the last session running in it.
 
 A guest can send SSH, or any other protocol, to port 443 of an
 allowed host. So `wb-proxyd` checks the first bytes of each stream
-against the protocol policy expects on that host and port. It resets a stream that is neither TLS nor HTTP, unless
-policy names that host and port for raw TCP. The maintainer decided
-this on I47 (B47-non-http-streams). SEC05-default-deny and
-SEC06-repo-writes hold as written.
+against the protocol policy expects on that host and port. It resets
+a stream that is neither TLS nor HTTP, unless policy names that host
+and port for raw TCP. The maintainer decided this on I47
+(B47-non-http-streams). SEC05-default-deny and SEC06-repo-writes hold
+as written.
 
 - **One protocol per host and port.** Each host and port that the
   effective policy allows ("Enforced per VM") expects one protocol:
@@ -819,65 +877,90 @@ SEC06-repo-writes hold as written.
   refused at load. In the union it is a conflict that refuses the
   joining session ("Conflicts refuse the joining session"). Both
   errors name the host, the port, and both sources
-  (NFR06-explained-refusals). TCP to a synthetic address on a port
-  that policy doesn't name for that address's host is reset by
-  `wb-netd` ("Connections") and audited with the rule
-  `port-not-allowed`.
+  (NFR06-explained-refusals). TCP to a port that policy doesn't name
+  for the host is reset by `wb-netd` with the rule `port-not-allowed`
+  ("Packet path", "Connections").
 - **First bytes.** On a TLS or plain HTTP port, `wb-proxyd` reads the
   first bytes of the stream before it resolves or connects upstream,
   so no byte of a refused stream leaves the host:
   - On a TLS port the stream must start with a TLS handshake record
     that holds a ClientHello, read by the ClientHello parser of
-    "Name binding".
+    "Name binding". The parser reassembles a ClientHello split across
+    more than one record.
   - On port 80 it must start with an HTTP/1.1 or HTTP/1.0 request
     line. An HTTP/2 connection preface is reset, because "Request
-    form" doesn't parse cleartext HTTP/2.
-  - On an inspected host, the bytes inside TLS must be HTTP/1.1 or
-    HTTP/2 as well.
+    form" parses HTTP/2 only inside TLS.
   - The check reads at most a byte count fixed in code
     (SEC13-bounded-resources). A stream that doesn't match by then, or
     whose bytes are another protocol, is reset with the rule
     `stream-protocol-mismatch`.
-  - A stream whose client doesn't send within a fixed timeout is
-    reset with the rule `stream-first-bytes-timeout`. In a server-first protocol,
-    such as SMTP or MySQL, the client waits for the server's greeting,
-    which never comes. Without the timeout the stream would hang
-    instead of failing with a reason.
+  - A deadline fixed in code runs from the moment `wb-netd` hands the
+    stream over to the decision. A stream that isn't decided by then
+    is reset with the rule `stream-first-bytes-timeout`, whether its
+    client didn't send or sent too slowly. In a server-first
+    protocol, such as SMTP or MySQL, the client waits for the server's
+    greeting, which never comes. Without the deadline the stream would
+    hang instead of failing with a reason.
 
   Each reset is a refusal in the audit log (SEC10-audit) with the VM,
   the host, the port, the rule and the protocol the first bytes looked
   like (`ssh`, `tls`, `http`, `http2` or `unknown`), never the bytes
-  themselves. `wb policy explain` shows the refusal with its rule and
+  themselves. Resets and refusals are rate-limited per rule like the
+  other events the guest can trigger ("Packet path", "Events and rate
+  limits"). `wb policy explain` shows the refusal with its rule and
   the policy change that would allow it, if any
   (NFR06-explained-refusals). The guest sees a TCP reset.
+- **Inside TLS on an inspected host.** `wb-proxyd` offers only the
+  ALPN protocols `h2` and `http/1.1`. A ClientHello whose ALPN list is
+  non-empty and names neither is reset with `stream-protocol-mismatch`
+  before the handshake completes.
+  - After the handshake, the bytes must start with an HTTP/1.1 request
+    line or the HTTP/2 connection preface. The byte cap applies, and a
+    deadline runs from the hand-off, as on a plain port. Only then
+    does `wb-proxyd` resolve and connect upstream.
+  - Each later request on the stream has a deadline fixed in code from
+    its first byte to the end of its headers. A request past it ends
+    the stream with the rule `http-header-timeout`
+    (SEC13-bounded-resources).
+  - An upstream `101 Switching Protocols` answer to anything but a
+    WebSocket upgrade the host's policy allowed resets the stream with
+    the rule `http-tunnel`.
 - **SSH.** SSH to a git forge is refused. SSH reaches a host only
   through a raw TCP entry, because every other allowed port expects
   TLS or HTTP and SSH fails the first-byte check there. A forge that a
-  built-in profile or a project's remote names is a guarded host,
-  which can't have a raw TCP entry (below). The guest doesn't need SSH. It
-  has no SSH keys (SEC04-no-guest-secrets), and the guest's clone gets
-  each SSH remote rewritten to `https://host/path`
-  (S08-workspace-and-git, "Remote URLs"). Git over HTTPS goes through
-  the git hosting profile, so SEC06-repo-writes holds for every push
-  the guest makes.
+  built-in kind or a project's remote names is a guarded host, and so
+  are the SSH hosts of the built-in kinds, such as `ssh.github.com`
+  ("HTTP policy", git hosting). A guarded host can't have a raw TCP
+  entry (below). The guest doesn't need SSH. It has no SSH keys
+  (SEC04-no-guest-secrets), and the guest's clone gets each SSH remote
+  rewritten to `https://host/path` (S08-workspace-and-git, "Remote
+  URLs"). So every push to a forge that a built-in kind or a project's
+  remote names goes over HTTPS through the git hosting profile, and
+  SEC06-repo-writes holds for it. A forge that nothing names, reached
+  through a raw TCP entry the user added, is a T01-allowed-channels
+  channel like any raw TCP entry.
 - **Other protocols on allowed ports.** A database protocol, SMTP, or
   any other protocol sent to a TLS or HTTP port is reset as above. A
   protocol that starts in plain text and switches to TLS, such as
   PostgreSQL's `SSLRequest` or SMTP's `STARTTLS`, is reset too. A user
   who needs such a host adds a raw TCP entry.
 - **Raw TCP entries.** A raw TCP entry names one host and one port.
-  `wb-proxyd` resolves the host itself, connects to that port and
-  relays bytes both ways unchanged, with no first-byte check. A
-  server-first protocol works there. An entry is in the same class as a pass
-  host and has the same restrictions ("Modes, per host", pass):
-  - *One named host.* The host must be allowed, and the entry names
-    one exact host and one port. A wildcard host or a port range is
-    refused at load. The hostname comes from the synthetic address,
-    which is the only name binding a raw stream has.
+  The entry allows that host and port by itself. The host doesn't
+  need another rule, and its name resolves for the guest once an entry names
+  it. `wb-proxyd` resolves the host itself, connects to that port
+  under "Upstream address", and relays bytes both ways unchanged, with
+  no first-byte check. A server-first protocol works there. An entry
+  is in the same class as a pass host, with the same restrictions
+  ("Modes, per host", pass):
+  - *One named host.* The entry names one exact host and one port. A
+    wildcard host, an IP literal ("Packet path", DNS, "IP literals")
+    or a port range is refused at load. The hostname comes from the
+    synthetic address, which is the only name binding a raw stream
+    has.
   - *Only the user sets it.* Only the global policy or a project's
     network policy on the host adds one (S09-policy-credentials-audit).
-    Repository configuration, an approval, and learn mode never do
-    (SEC09-host-policy, "Approvals and learning").
+    Repository configuration, an approval, `wb allow`, and learn mode
+    never do (SEC09-host-policy, "Approvals and learning").
   - *A reason for each.* An entry without a reason is refused at load.
     `wb policy explain` lists every raw TCP entry with its host, port,
     file and reason.
@@ -894,13 +977,12 @@ SEC06-repo-writes hold as written.
     stream, so each entry is a T01-allowed-channels channel, as a pass
     host is.
 
-  Wherever this spec gives a rule for pass mode, the same rule applies
-  to a raw TCP entry: the conflicts of "Enforced per VM", a widening
-  change, and closing an open relay after a recompute ("Open
-  streams").
+  "Enforced per VM" lists the raw TCP cases of a conflict, of a change
+  while sessions run, and of a session end. "Open streams" closes a
+  raw relay whose entry is gone.
 - **TLS with a client certificate.** Wraith Box doesn't support client
   certificates in V1. A client certificate needs its private key, and
-  the guest holds no secrets (SEC04-no-guest-secrets).
+  the guest can't hold one (SEC04-no-guest-secrets).
   - *Inspect.* `wb-proxyd` doesn't ask the guest for a certificate, and
     never presents one upstream. When the upstream server asks for one
     and the handshake then fails, the guest's request gets a `502` with
@@ -916,38 +998,55 @@ SEC06-repo-writes hold as written.
   name. `wb-proxyd` binds every TLS stream to the outer SNI ("Name
   binding"), and these rules keep the inner name from reaching a host
   the guest isn't allowed:
-  - *DNS.* `wb-netd` deliberately answers `HTTPS` and `SVCB` queries
-    without a record ("Packet path", DNS). Those records hold ECH
+  - *DNS.* `wb-netd` answers `HTTPS` and `SVCB` queries without a
+    record ("Packet path", DNS). Those records hold ECH
     configurations. A client that looks up its keys in DNS doesn't
-    learn an ECH key, so it doesn't try ECH. It doesn't stop a guest that brings its own
-    ECH configuration, which the next two rules handle.
+    learn an ECH key, so it doesn't try ECH. That is a compatibility
+    measure, and it doesn't stop a guest that brings its own ECH
+    configuration. The next two rules do.
   - *Inspect.* `wb-proxyd` terminates TLS and doesn't implement ECH as
     a server, so it completes the handshake for the outer ClientHello
     with a certificate for the outer name. A client that sent a real
     ECH extension then aborts with an `ech_required` alert, as the ECH
     RFC (RFC 9849) requires, and the stream fails closed. `wb-proxyd`
     logs that alert with the rule `tls-ech-refused`. A client that
-    sends a GREASE ECH extension, which holds no inner name,
-    continues as usual.
-  - *Pass.* `wb-proxyd` can't tell a real ECH extension from a GREASE
-    one, and in a pass relay the inner name would reach the upstream
-    front end unread. So a ClientHello with an `encrypted_client_hello`
-    extension to a pass host is reset with the rule `tls-ech-pass`. A
-    client that sends GREASE ECH by default can't reach a pass host
+    sends a GREASE ECH extension, which lacks an inner name, continues
+    as usual.
+  - *Pass.* In a pass relay the inner name would reach the upstream
+    front end unread, and `wb-proxyd` can't tell a real ECH extension
+    from a GREASE one. So it parses every plaintext ClientHello the
+    client sends, up to the first application data record in either
+    direction. That includes a second ClientHello after a
+    HelloRetryRequest, whose SNI must equal the bound host too. A
+    ClientHello to a pass host is reset when it holds:
+    - an `encrypted_client_hello` extension (`0xfe0d`) or the
+      earlier encrypted SNI extension (`0xffce`), with the rule
+      `tls-ech-pass`;
+    - any other extension outside a list fixed in code of the
+      extensions `wb-proxyd` recognizes and the GREASE values of
+      RFC 8701, with the rule `tls-extension-unknown` (fail closed).
+
+    A client that sends GREASE ECH by default can't reach a pass host
     until it is configured not to.
-- **`CONNECT` and other tunnels.** On an inspected host, a request with
-  the method `CONNECT`, or with an `Upgrade` header for any protocol
-  other than WebSocket, is refused with a `403` and the rule
-  `http-tunnel`, whatever policy allows. A policy rule that names
-  `CONNECT` is refused at load. The bytes after a `200` would reach
-  whatever host the upstream proxy picks, outside every rule of this
-  spec (SEC05-default-deny). On HTTP/2, `wb-proxyd` doesn't offer
-  extended `CONNECT` (RFC 8441). A client then opens a WebSocket over
-  HTTP/1.1, under the host's HTTP policy and "What an approval grants".
-  A proxy that runs inside the guest doesn't need an exception. The
-  connections it opens are ordinary streams to synthetic addresses,
-  checked as above, and no tool needs proxy settings
-  (FR08-no-proxy-config).
+- **`CONNECT` and other tunnels.** On every inspected stream, inspected
+  TLS and plain HTTP alike, a request with the method `CONNECT`, or
+  with an `Upgrade` header for any protocol other than WebSocket, is
+  refused with a `403` and the rule `http-tunnel`, whatever policy
+  allows. A policy rule that names `CONNECT` is refused at load. The
+  bytes after a `200` would reach whatever host the upstream proxy
+  picks, outside every rule of this spec (SEC05-default-deny). On
+  HTTP/2, `wb-proxyd` doesn't offer extended `CONNECT` (RFC 8441). A
+  client then opens a WebSocket over HTTP/1.1, under the host's HTTP
+  policy and "What an approval grants". A proxy that runs inside the
+  guest doesn't need an exception. The connections it opens are
+  ordinary streams to synthetic addresses, checked as above, and no
+  tool needs proxy settings (FR08-no-proxy-config).
+- **Not relaxed by audit mode or approvals.** The `http-tunnel`
+  refusal, the `tls-*` refusals, the `stream-*` resets,
+  `http-header-timeout` and
+  `upstream-address-refused` apply on a host in `audit` mode too
+  ("HTTP policy"). A `CONNECT` request or an `Upgrade` other than
+  WebSocket never raises an approval request.
 
 ## Approvals and learning
 
@@ -1003,7 +1102,8 @@ SEC06-repo-writes hold as written.
     learn mode ("Packet path", DNS). The rules of allowed hosts all
     hold: HTTP policy, the git hosting profile (SEC06-repo-writes), the
     dependency gate (SEC07-dep-gate), credential replacement and
-    placeholder binding. Learn mode never adds a rule or a pass host.
+    placeholder binding. Learn mode never adds a rule, a pass host
+    or a raw TCP entry.
   - *Collected.* During a learn period in the VM ("The list" below),
     an unknown name doesn't raise an approval event or a notification.
     `wb-hostd` puts it on the learn list with the time, the count of
