@@ -45,7 +45,8 @@ be tested before building on them.
   that project's session start, with the project named.
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
-  DHCP, DNS, TLS ClientHello parsing, HTTP/1.1 and HTTP/2 request
+  DHCP, DNS, TLS ClientHello parsing, the first-byte protocol check
+  of S07-egress-gateway ("Non-HTTP streams"), HTTP/1.1 and HTTP/2 request
   handling, request path canonicalization, the credential parameter
   scan of query strings and of form and JSON bodies
   (X22-no-guest-credentials), policy matching, the git transport framing (the request
@@ -126,6 +127,14 @@ be tested before building on them.
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
   - present an SNI that differs from the resolved name;
+  - send SSH, a PostgreSQL startup message and a cleartext HTTP/2
+    preface to an allowed TLS port, and SSH to port 22 of a git
+    forge; open a stream to an allowed port and don't send; send an
+    HTTP `CONNECT` and an `Upgrade: h2c` to an inspected host; send a
+    ClientHello with an `encrypted_client_hello` extension to a pass
+    host. See each reset or refused with its rule from
+    S07-egress-gateway, "Non-HTTP streams", and no connection opened
+    upstream for a stream reset on its first bytes;
   - push to a repository outside the project set, with and without an
     attacker-supplied token; create a gist or repository; publish a
     package. The project set is the VM's: the repositories of every
