@@ -351,8 +351,9 @@ nothing themselves (S12-platforms).
 - **`wb-proxyd` takes a stream's identity from the connection, not from
   `wb-netd`** (SEC04-no-guest-secrets, SEC08-proj-isolation).
   `wb-hostd` creates a hand-off socket for each VM at each start and
-  restore, and when it restarts that VM's `wb-netd` or `wb-proxyd`. It
-  passes one end to `wb-proxyd`, naming the VM, and the other to that
+  restore, and when it restarts the VM's `wb-netd`. A restart of the
+  shared `wb-proxyd` gives every running VM a new one. It passes one
+  end to `wb-proxyd`, naming the VM, and the other to that
   VM's `wb-netd`. A stream's VM, and so its policy, credential bindings
   and CA, comes from the socket it arrived on. Its name comes from the
   name reports `wb-proxyd` checked and kept, and what `wb-netd` writes
