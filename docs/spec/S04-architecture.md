@@ -17,7 +17,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 
 | Process | Lang | Runs as | Holds | Faces the guest via | Purpose |
 |---|---|---|---|---|---|
-| `wb` | Go | user, per invocation | nothing; writes binding secrets to the secret store (`wb cred set`, S15-least-privilege) | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
+| `wb` | Go | user, per invocation | nothing; writes binding secrets to the secret store (`wb cred set`), and shows a break-glass password once (S15-least-privilege) | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
 | `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository, then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
@@ -25,7 +25,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-vmd` | platform-native | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | VM handles; during an image build, the provisioning password on a pipe until the start call returns (S15-least-privilege) | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
 | `wb-netd` | Go | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS) | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (S07-egress-gateway) |
 | `wb-proxyd` | Go | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | the binding secrets of the VM's sessions, fetched just in time, and the use of the CA signing key (S15-least-privilege) | streams from `wb-netd` | HTTP policy, credential replacement, dependency gate, upstream connections (S07-egress-gateway, S09-policy-credentials-audit) |
-| `wb-guestadmin` | Go | user, per image build or `wbadmin` rotation, started through `wb-launcher` (proposed in S15-least-privilege, open question 1) | the `wbadmin` passwords it writes and fetches | writes to one host-guest connection, reads nothing from the guest | Generate and rotate the guest admin password (S15-least-privilege) |
+| `wb-guestadmin` | Go | user, one run per image build, `wbadmin` rotation or break-glass, started through `wb-launcher`, then exits | the `wbadmin/*` secret store items it writes and fetches, and nothing else | one write-only host-guest connection to `wb-guestd`; pipes to the build's `wb-vmd` and `ssh`, and at break-glass to `wb` | The admin side of the image build, `wbadmin` rotation at each VM's first contact, and break-glass (S15-least-privilege) |
 | `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | n/a (runs in the guest) | Users, PTY exec, git transport (S06-vm-lifecycle) |
 
 Native user-interface helpers (notifications with actions, later a tray
@@ -59,6 +59,21 @@ nothing themselves (S12-platforms).
   `wb-hostd` has no store access, and may pass on a descriptor with a
   secret in it without reading it (SEC04-no-guest-secrets,
   SEC12-least-privilege).
+- **The guest admin password has a process of its own.**
+  `wb-guestadmin` does the admin side of an image build, rotates
+  `wbadmin`'s password at each VM's first contact, serves a break-glass
+  login, and removes the items of images and VMs that are gone
+  (S15-least-privilege). It may touch the `wbadmin/*`
+  items in the secret store and nothing else. `wb-hostd` starts it
+  through `wb-launcher` for one run, and it exits when that run ends.
+  Its channels are pipes to the build's `wb-vmd` and `ssh`, whose read
+  ends `wb-launcher` hands over at spawn, a pipe to `wb vm console` at
+  break-glass, and one host-guest connection
+  to `wb-guestd` that `wb-hostd` has `wb-vmd` open for it. It only
+  writes to that connection, so it parses nothing from the guest. It
+  doesn't talk to `wb-proxyd`. It runs apart from `wb-hostd` for least
+  privilege: `wb-hostd` runs the host-guest
+  socket handlers, and so never reads a credential.
 - **The VM provider passes descriptors, not bytes.** `wb-vmd` opens
   host-guest socket connections and creates the NIC endpoint, then
   hands the descriptors (handles on Windows) to `wb-hostd`, which
@@ -173,7 +188,8 @@ nothing themselves (S12-platforms).
   themselves at startup with the platform's mechanism (S12-platforms) so that
   each gets only what it needs: `wb-netd` no filesystem and no network
   beyond inherited descriptors; `wb-proxyd` outbound network and its
-  credential store items; `wb-hostd` its state directories; `wb-vmd` the
+  credential store items; `wb-guestadmin` its `wbadmin/*` store items
+  and inherited descriptors; `wb-hostd` its state directories; `wb-vmd` the
   hypervisor and the VM bundles. This hardens our own code; it is not how
   the agent is contained (the VM is). How it is done (X23-sandboxed-daemons,
   SEC12-least-privilege):
@@ -232,6 +248,15 @@ nothing themselves (S12-platforms).
     `wb-launcher` entry, `wb-vmd-install`, whose compiled-in profile
     adds them, with the restore image at a fixed path under
     `<data>/images/`. The request doesn't choose the mode or a path.
+  - `wb-guestadmin` confines itself at start the same way, from a
+    compiled-in profile (X23-sandboxed-daemons, X25-vmd-sandbox). The
+    profile allows the secret store service for its `wbadmin/*` items
+    and its inherited descriptors, and denies files, the network, and
+    starting programs. `wb-launcher` has one fixed entry per run kind
+    (`wb-guestadmin-build`, `wb-guestadmin-rotate`,
+    `wb-guestadmin-breakglass`, and `wb-guestadmin-cleanup`, which
+    removes the items of images and VMs that are gone), so a request
+    never chooses what it does.
   - `wb-netd` and `wb-vmd` write their logs to an inherited pipe or
     socket to `wb-hostd`, which frames, attributes and rate-limits each
     line. Neither holds a descriptor on any file in `<logs>` or

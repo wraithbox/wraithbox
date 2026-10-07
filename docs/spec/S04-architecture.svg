@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 650" role="img" aria-label="Wraith Box processes on the host and in the guest. Two channels cross the VM boundary: the host-guest socket to wb-hostd and Ethernet frames to wb-netd.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 650" role="img" aria-label="Wraith Box processes on the host and in the guest, including wb-guestadmin, which only writes to its own host-guest connection. Two channels cross the VM boundary: the host-guest socket to wb-hostd and Ethernet frames to wb-netd.">
 <style>
 svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
 .box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
@@ -63,6 +63,13 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="885" y="345" text-anchor="middle">fetches what it injects</text>
 <line class="edge" x1="885" y1="238" x2="885" y2="156" marker-end="url(#f004-arrow)" />
 <text class="note" x="895" y="202">allowlisted only</text>
+<rect class="box" x="580" y="70" width="190" height="104" rx="10" />
+<text class="label" x="675" y="96" text-anchor="middle">wb-guestadmin</text>
+<text class="note" x="675" y="117" text-anchor="middle">wbadmin passwords only</text>
+<text class="note" x="675" y="136" text-anchor="middle">one build, rotation or</text>
+<text class="note" x="675" y="155" text-anchor="middle">break-glass, then exits</text>
+<polyline class="edge" points="600,176 600,215 530,215 530,432" marker-end="url(#f004-arrow)" />
+<text class="note" x="608" y="208">write-only</text>
 <rect class="box" x="790" y="100" width="190" height="54" rx="10" />
 <text class="label" x="885" y="132" text-anchor="middle">Internet</text>
 <rect class="boundary" x="10" y="400" width="710" height="236" rx="14" />
@@ -73,7 +80,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <rect class="box guest" x="560" y="436" width="140" height="46" rx="10" />
 <text class="label" x="630" y="464" text-anchor="middle">virtual NIC</text>
 <line class="edge" x1="630" y1="434" x2="630" y2="352" marker-end="url(#f004-arrow)" />
-<text class="boundary-label" x="430" y="392">crosses: socket (vsock)</text>
+<text class="boundary-label" x="412" y="392" text-anchor="end">crosses: socket (vsock)</text>
 <text class="boundary-label" x="640" y="392">crosses: frames</text>
 <rect class="box guest" x="30" y="436" width="240" height="46" rx="10" />
 <text class="label" x="150" y="464" text-anchor="middle">wb-guestd (root)</text>
