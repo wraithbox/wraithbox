@@ -70,6 +70,7 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
 | S11-verification-and-spikes | Verification and open questions |
 | S12-platforms | Host and guest platforms, WSL |
 | S13-guest-confinement | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
+| S16-terminal-stream | The filter on guest output to the host terminal |
 
 The requirements and the threat model are in FR00-index, NFR00-index,
 SEC00-index and T00-index. Open questions are spikes, in X00-index.

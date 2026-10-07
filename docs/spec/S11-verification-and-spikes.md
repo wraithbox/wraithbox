@@ -106,7 +106,7 @@ be tested before building on them.
   request paths, PyPI distribution file names, Go escaped module paths
   and versions, crates.io index lines, and `sum.golang.org` lookup
   responses (Swift: property-based tests where fuzzing is impractical).
-  The terminal filter in `wb` (S05-cli, "Terminal stream") is one of
+  The terminal filter in `wb` (S16-terminal-stream) is one of
   them. Its fuzz target checks these properties, with the BEL rate
   limit off:
   - every output token is one the allowlist passes unchanged, a BEL
@@ -118,7 +118,7 @@ be tested before building on them.
   - no parameter exceeds the caps, and no `J` or `K` has a parameter
     above 2;
   - the link list holds at most 100 entries, and marks every URL that
-    matches a mark rule of S05-cli;
+    matches a mark rule of S16-terminal-stream;
   - the filtered output followed by the exit reset, replayed into a
     headless terminal emulator, leaves it in its initial state: modes,
     kitty keyboard stacks on both screens, keypad mode, character sets,
