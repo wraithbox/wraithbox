@@ -907,7 +907,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "SEC12-least-privilege: who holds the image build provisioning password (X17)",
-		"summary": "X17-image-build (PR #141, #28) found that the image build needs a provisioning password: - wb-vmd sets it on VZMacGuestProvisioningOptions; - the build's one SSH session uses it; - wb-guestd's disable step needs the o…"
+		"summary": "X17-image-build (PR #141, #28) found that the image build needs a provisioning password: - wb-vmd sets it on VZMacGuestProvisioningOptions; - the build's one SSH session uses it; - wb-guestd's disable step needs the o…",
+		"brief": "B145-least-privilege"
 	},
 	"146": {
 		"kind": "issue",
@@ -926,5 +927,11 @@
 		"state": "open",
 		"title": "Measure or justify the unmeasured session and stream limits from #46 and #47",
 		"summary": "The specs merged on 2026-10-07 contain numbers that were picked strictly and never measured."
+	},
+	"149": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): S15-least-privilege and the reworded SEC12",
+		"summary": "- Decides: how SEC12-least-privilege is met as a whole, and the predetermined pattern for sharing a credential beyond its one nominal holder."
 	}
 }
