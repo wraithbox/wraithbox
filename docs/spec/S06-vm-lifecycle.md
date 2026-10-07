@@ -285,9 +285,13 @@ audit log (SEC10-audit).
   controlling terminal, and it starts `claude` in a process group of
   its own as the terminal's foreground group, as a shell does for a
   job. It waits with `WUNTRACED`, so it sees `claude` stop, and reports
-  that, and `claude`'s exit status, to `wb-guestd`. The session's
-  processes are the processes in the helper's POSIX session, and
-  `wb-guestd` records its session id on the data disk. A process
+  that, and `claude`'s exit status, to `wb-guestd`. It ignores the
+  `SIGHUP` it gets when the PTY's other end closes, so it can still
+  report `claude`'s exit after a hangup. The session's processes are
+  the processes in the helper's POSIX session. `wb-guestd` records
+  that POSIX session id in a root-owned directory on the data disk,
+  outside every project user's home, and uses a recorded id only for
+  processes whose user ID is this session's project user. A process
   that leaves it with `setsid` is out of the session (S13-guest-confinement,
   "Known gaps"). That job control works through this helper is not
   checked yet (I135).
@@ -316,7 +320,16 @@ audit log (SEC10-audit).
   from 1 to 64. Anything else is recorded as a failure with the rule,
   and `wb` exits as for a Wraith Box failure (S05-cli, "Exit status
   and signals"). When `wb` is still connected, it prints the summary
-  and exits.
+  and exits. `wb-guestd` keeps each finished session's report (its
+  exit status and whether the WIP commit and push succeeded) in its
+  root-owned directory until `wb-hostd` acknowledges it, and sends it
+  again after a reconnect. So a report lost in a dropped link still
+  ends the session normally, not as lost.
+- **Changes left in the guest.** When a session ends at a deadline,
+  or its WIP commit or push failed, its changes stay in the guest
+  worktree. The summary and `wb sessions` then give the worktree's
+  path in the guest and `wb shell --project P` to reach it, and say
+  that `wb discard` deletes it (NFR06-explained-refusals).
 - **Deadlines.** Each state that waits on the guest has a deadline on
   the host, counted in host time awake: starting has 10 minutes from
   admission, which includes the toolchain reconcile (FR07-toolchain-manifest),
@@ -334,7 +347,8 @@ audit log (SEC10-audit).
   first try, doubles the wait after each failed one up to 5 s, and
   opens at most 20 connections to one VM in a minute
   (SEC13-bounded-resources). After it connects, `wb-guestd` lists the
-  sessions it holds. The list is guest input
+  sessions it holds, and the reports of finished sessions that
+  `wb-hostd` hasn't acknowledged ("Ending"). The list is guest input
   (SEC11-root-gains-nothing). `wb-hostd` refuses a list of more than
   64 entries whole, logs it, and closes the connection, which counts
   as a failed try. It runs at most 64 sessions in one VM. For each
@@ -345,20 +359,28 @@ audit log (SEC10-audit).
     connected. It goes back to running.
   - "finish" for a running or paused session whose `wb` has gone, and
     for an ending session. It hangs up as above if `claude` still
-    runs, and commits and pushes WIP. It goes to ending. A lost
-    session of this VM gets "finish" from recovery (below).
+    runs. Then it kills every process left in the session, a stopped
+    WIP commit or push included, removes the lock files that a killed
+    commit leaves in the worktree's index directory, and commits and
+    pushes WIP again. It goes to ending. A lost session of this VM
+    gets "finish" from recovery (below).
+  - for a finished session's report: the acknowledgment, and the
+    session ends with that report as at a normal end, under the
+    checks of "Ending".
   - "end" for every other entry: a starting session (the start has
     failed), a session of another VM, a running, paused or ending
     session of another VM generation, an ended session, a malformed
-    id, and an id it has no record of. `wb-guestd` kills the
-    processes of that session, and doesn't commit or push. For
+    id, and an id it has no record of. `wb-guestd` kills every
+    process left in that session, a stopped WIP commit or push
+    included, and doesn't commit or push. For
     a session whose start failed, or that was discarded, it also
     removes the worktree and its history link. `wb-hostd` logs each
     such entry with the rule.
 
   `wb-guestd` resumes a session only on "resume". A session of this VM
-  that `wb-hostd` has as starting, running, paused or ending and the
-  list doesn't hold is lost. A false list can only stop, keep or end
+  that `wb-hostd` has as running, paused or ending and the list
+  doesn't hold, as a held session or as a report, is lost. A starting
+  session isn't in that rule: a link drop already failed its start. A false list can only stop, keep or end
   sessions in that guest. `wb` doesn't print anything while a session
   is paused.
 - **Pause limit.** A session that is paused for 30 seconds of host
@@ -379,17 +401,23 @@ audit log (SEC10-audit).
   S07-egress-gateway, and for `wb vm stop` and `wb vm suspend`, a lost
   session counts as ended: its project's grants leave the VM when no
   other session of the project is starting, running, paused or ending
-  there.
+  there. For the lock and the kill of a project's last session
+  (S13-guest-confinement, "Layer 1"), a lost session still counts as
+  a session, so the project user is locked only after its lost
+  sessions have ended, by recovery, `wb discard`, `wb project rm` or
+  the deadline.
 - **Recovery.** A lost session's worktree stays on the data disk. At
   the next connection to a `wb-guestd` in that VM, after a restart or
   the next VM start, `wb-hostd` sends "finish" for each lost session
   of the VM that it has a record of, whatever the list holds:
   `wb-guestd` kills what is left of the session's processes, then
   commits and pushes WIP as at a normal end. During recovery
-  `wb-hostd` accepts only that session's push, to its own branch
-  (S08-workspace-and-git, "Ref restriction"), and gives its project
-  no network grants. The session is then ended, with "lost" as its
-  exit status in `wb sessions`. A lost session stays live for
+  `wb-hostd` accepts a push for the lost session only to its own
+  branch (S08-workspace-and-git, "Ref restriction"), and gives no
+  network grants on account of the lost session. The session is then
+  ended, with "lost" as its exit status in `wb sessions`. When this
+  was the project's last session in the VM, the project user is then
+  locked and its processes killed (S13-guest-confinement, "Layer 1"). A lost session stays live for
   `export.git` until it ends (S08-workspace-and-git, "Export
   repository"), so its WIP push still has its base.
 - **Discarding a lost session.** `wb discard` on a lost session, and
@@ -413,7 +441,8 @@ audit log (SEC10-audit).
   never saved for idleness with such a session in it, and no restore
   has a session to resume. `wb vm suspend` and `wb vm stop` are
   refused while the VM has a starting, running, paused or ending
-  session. The refusal names each one with its state and how it ends:
+  session. The refusal names each one with its state, the process ID
+  of its `wb`, and how it ends:
   close its terminal for a running or paused session, or wait for its
   deadline for a starting or ending one, and `wb sessions` lists them
   (NFR06-explained-refusals). A terminal left open on a session keeps

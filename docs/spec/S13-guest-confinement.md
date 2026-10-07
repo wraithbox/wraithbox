@@ -67,14 +67,23 @@ Applied by `wb-guestd` to every process it starts for a project user:
 - when a session's client goes (its terminal closed, or `wb` was
   killed), `wb-guestd` hangs up `claude`. When it hasn't exited 10
   seconds later, `wb-guestd` sends `SIGKILL` to every process in the
-  session's POSIX session (S06-vm-lifecycle, "Session helper"). When
-  the project user has no other session in the VM, it then kills every
+  session's POSIX session (S06-vm-lifecycle, "Session helper"), and
+  only to those whose user ID is the session's project user. When
+  the project user has no other session in the VM, a lost one
+  included, it then kills every
   process of that user, in a loop until none remain. Otherwise it logs
   each process of that user that is in no session's POSIX session,
   with the rule, and leaves it (Known gaps below);
 - when `wb-hostd` ends a project's last session in the VM, debug
   shells included, `wb-guestd` locks that project user, so nothing new
   starts as it, and kills its processes in a loop until none remain.
+  A lost session counts here until recovery, `wb discard`,
+  `wb project rm` or its deadline ends it (S06-vm-lifecycle,
+  "Lost"), so recovery can still commit and push as that user. Until
+  then the user's remaining processes stay stopped: `wb-guestd` stops
+  them at the link drop, and a new `wb-guestd` process stops every
+  project user's processes when it starts, before it serves the host.
+  A stopped VM leaves none.
   This holds against a process without guest root only. None is meant
   to keep running after its project leaves the VM's
   effective policy or during another project's learn-mode session (S07-egress-gateway, "Approvals and
