@@ -1164,9 +1164,9 @@ as written.
     limits").
   - *Review.* At session end `wb` prints the list in the session
     summary, at most 100 names, then "and N more", as it does for the
-    link list (S05-cli, "Links"). The summary and `wb learn report`
+    link list (S16-terminal-stream, "Links"). The summary and `wb learn report`
     also say how many names were dropped past the cap. Both follow
-    S05-cli, "Guest text elsewhere". The report shows each name with
+    S16-terminal-stream, "Guest text elsewhere". The report shows each name with
     its risk-check findings and its boundary result
     (S09-policy-credentials-audit, "Approvals"). The user allows the
     names they accept with `wb allow`, or approves a selection from

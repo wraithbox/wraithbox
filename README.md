@@ -73,6 +73,7 @@ explains the IDs.
 | [S11](docs/spec/S11-verification-and-spikes.md) | Verification and open questions |
 | [S12](docs/spec/S12-platforms.md) | Host and guest platforms, WSL |
 | [S13](docs/spec/S13-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
+| [S16](docs/spec/S16-terminal-stream.md) | The filter on guest output to the host terminal |
 
 ## Platforms
 

@@ -62,7 +62,7 @@ example).
 
 | Label | Process or interface | Main specs |
 |---|---|---|
-| `comp:wb` | `wb` CLI, dispatcher, TTY relay | S05-cli |
+| `comp:wb` | `wb` CLI, dispatcher, TTY relay | S05-cli, S16-terminal-stream |
 | `comp:wb-hostd` | sessions, git gateway, policy store, approvals, audit | S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit |
 | `comp:wb-vmd` | VM provider (Swift on macOS, Go elsewhere) | S06-vm-lifecycle, S12-platforms |
 | `comp:wb-netd` | userspace network stack, DHCP, DNS | S07-egress-gateway |

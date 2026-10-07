@@ -44,7 +44,7 @@ packet surface to `wb-netd`; (4) git objects returning to the host;
 (5) user approvals; (6) the host terminal stream: the guest output
 that `wb` writes to the user's terminal emulator, which acts on some
 escape sequences on the host, and the replies the emulator sends back
-(S05-cli, "Terminal stream"). What host programs such as `git log`
+(S16-terminal-stream). What host programs such as `git log`
 print about returned work after `wb land` is outside it
 (T04-bad-approvals).
 
@@ -116,7 +116,7 @@ print about returned work after `wb land` is outside it
 - **T09-terminal-fingerprint: Host terminal facts in the guest.** The
   guest learns the host terminal's name and version, its colors, the
   window size in cells and pixels, and the state of its modes, from the
-  replies to the queries S05-cli passes, and from the `TERM`,
+  replies to the queries S16-terminal-stream passes, and from the `TERM`,
   `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `COLORTERM`, `LANG`, `LC_ALL`,
   and `LC_CTYPE` variables that cross into the guest session. Claude Code needs them
   to choose its output. No passed query returns clipboard or file

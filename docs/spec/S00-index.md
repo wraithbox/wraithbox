@@ -19,6 +19,7 @@ Wraith Box works and why.
 | S12-platforms | Platforms | Draft |
 | S13-guest-confinement | Guest Confinement | Draft |
 | S15-least-privilege | Least Privilege on the Host | Draft |
+| S16-terminal-stream | Terminal Stream | Draft |
 
 The other indexes: FR00-index, NFR00-index, SEC00-index, T00-index,
 X00-index, R00-index and V00-index.
