@@ -364,7 +364,8 @@ session start in the VM to the end of the last session running in it.
   - *Same answer for every refusal.* The answer's bytes are the same
     whatever the reason a name is refused: name form, not allowlisted,
     denied, quiet list, part off, `learn-collected`, `learn-list-full`,
-    `accounting-write-failed`, `audit-budget`, `audit-bytes` or
+    `accounting-write-failed`, `handoff-send-failed` ("Stream
+    hand-off"), `audit-budget`, `audit-bytes` or
     `event-channel-blocked`. The last three come from the host's own
     state, not from the name (S04-architecture, "Accounting and event
     channels", S09-policy-credentials-audit, "Audit"). They don't raise
@@ -433,10 +434,12 @@ session start in the VM to the end of the last session running in it.
     `SOCK_DGRAM`. The design needs two properties of the type: messages
     arrive in the order they were sent, and a message that doesn't fit
     fails at the sender with an error and is never dropped silently.
-    I172 measures them on each host platform. A sender that gets an
-    error doesn't retry out of order. `wb-netd` answers the DNS query
-    with `SERVFAIL` or resets the TCP connection, and logs it with the
-    rule `handoff-send-failed`.
+    I172 measures them on each host platform. A send that fails, or
+    that blocks for more than 100 ms, counts as failed, and a sender
+    never retries out of order. When a name report fails, `wb-netd`
+    refuses the name with the same answer as every refusal ("Packet
+    path", DNS), and when a stream fails it resets the TCP connection.
+    Both are logged with the rule `handoff-send-failed`.
   - *Message form.* A message from `wb-netd` is one of three kinds.
     A name report and a release hold no descriptor, and a stream holds
     exactly one. A hand-off message is at most 4 KiB, fixed in
@@ -452,16 +455,12 @@ session start in the VM to the end of the last session running in it.
     waits on `wb-hostd` (the wildcard budget, below) waits too, and
     isn't refused for a missing entry.
   - *One hand-off socket per VM.* `wb-hostd` creates a hand-off
-    socketpair for a VM at each start and restore, and again when it
-    restarts the VM's `wb-netd` (S04-architecture). `wb-proxyd` serves
-    every VM, so when `wb-hostd` restarts it, it creates a new hand-off
-    socket for every running VM. It
-    passes one end to `wb-proxyd` and waits for `wb-proxyd` to
-    acknowledge it. Only then does it give the other end to `wb-netd`,
-    at a `wb-netd` start through `wb-launcher`, and otherwise on the
-    channel that delivers `wb-netd`'s new packet transport descriptor
-    (S04-architecture, "The VM provider passes descriptors, not
-    bytes"). It starts or resumes the VM only after `wb-netd` holds its
+    socketpair for a VM at each start and restore, and at the restarts
+    of S04-architecture, "Restarting a daemon". It passes one end to
+    `wb-proxyd` and waits for `wb-proxyd` to acknowledge it. Only then
+    does it give the other end to `wb-netd`, as that section says:
+    at start to a new `wb-netd`, and on its control channel to a
+    running one. It starts or resumes the VM only after `wb-netd` holds its
     end. `wb-proxyd` holds its end under the VM and generation
     `wb-hostd` named. A newer end for the VM replaces the old one, and
     `wb-proxyd` closes the old socket and every stream that came on it.
@@ -475,20 +474,25 @@ session start in the VM to the end of the last session running in it.
     form is wrong, the descriptor isn't a Unix domain socket of the
     platform's hand-off type, the VM isn't a VM slot of
     S06-vm-lifecycle ("VMs") or the build VM of a running image build,
-    or the generation is older than the one it holds for the VM. An
-    equal generation is accepted only as a replacement. `wb-hostd`
-    sends one only when it restarts the VM's `wb-netd`, or
-    `wb-proxyd`, within a generation, and the new socket replaces the old one as
-    above.
+    or the generation is older than the one it holds for the VM. A
+    message with the generation it holds is a replacement, the new
+    socket for the same VM and generation that `wb-hostd` sends at a
+    `wb-netd` restart (S04-architecture, "Restarting a daemon"). It
+    replaces the old socket as above. After a `wb-proxyd` restart,
+    `wb-proxyd` holds no socket, and each VM's first message sets its
+    generation.
   - *Replay.* On each new hand-off socket, `wb-netd` first sends a
     name report for every live entry of its mapping, in order and
     before any other message. A replay send that fails with
     `ENOBUFS` is retried in order, so no later message overtakes it.
-    `wb-proxyd` checks each report as below. After a `wb-proxyd` restart
-    the replay rebuilds its copy. After a `wb-netd` restart the new
-    `wb-netd` holds the mapping that `wb-hostd` kept from its
-    accounting messages (S04-architecture), and its replay matches the
-    copy `wb-proxyd` kept.
+    `wb-proxyd` checks each report as below, with the bounds that
+    `wb-hostd` puts on mapping entries: at most one entry per address
+    of the pool, the name in canonical form and the address in the
+    synthetic range. After a `wb-proxyd` restart the replay rebuilds
+    its copy. After a `wb-netd` restart the new `wb-netd` holds the
+    mapping that `wb-hostd` kept from its accounting records
+    (S04-architecture, "Accounting and event channels" and "Restarting
+    a daemon"), and its replay matches the copy `wb-proxyd` kept.
   - *Name reports.* For each `A` answer with a synthetic address,
     `wb-netd` sends the name and the address on the VM's hand-off
     socket before the answer leaves. With the ordering property above,
@@ -506,7 +510,14 @@ session start in the VM to the end of the last session running in it.
     Otherwise it drops the report and logs it with the rule
     `name-report-refused` and the check that failed: `message-form`,
     `name-form`, `not-allowed`, `synthetic-range`, `address-conflict`
-    or `wildcard-budget`. A report whose address the copy holds for
+    or `wildcard-budget`. A report or release that fails the message
+    form, the name form or the synthetic range is malformed, and an
+    honest `wb-netd` never sends one, because `wb-hostd` checks the
+    same entry first. `wb-proxyd` then also closes the VM's hand-off
+    socket and every stream that came on it, and tells `wb-hostd` on
+    its control channel. `wb-hostd` ends that `wb-netd` and counts the
+    exit toward the restart limit, as for a malformed accounting record
+    (S04-architecture, "Accounting and event channels"). A report whose address the copy holds for
     another name means `wb-netd` gave out an address it hadn't
     released. `wb-proxyd` then removes the old entry too and closes
     every open stream to that address. Streams to it are then refused
@@ -535,9 +546,11 @@ session start in the VM to the end of the last session running in it.
     second count against the same budget: the distinct names it
     accepted only under a wildcard entry, per VM and active period. A
     replayed or repeated name isn't counted again. Before it accepts a
-    name that adds to the count, `wb-proxyd` sends the name to
-    `wb-hostd` on its control channel, and refuses the report if that
-    fails. `wb-hostd` keeps the set per VM and active period and gives
+    name that adds to the count, `wb-proxyd` writes the name to
+    `wb-hostd` as an accounting record (S04-architecture, "Accounting
+    and event channels"). A write that fails, or that blocks for more
+    than 100 ms, counts as failed, and the report is refused with the
+    rule `name-report-refused` and the check `wildcard-budget`. `wb-hostd` keeps the set per VM and active period and gives
     it to a new `wb-proxyd` at start. A `wb-proxyd` restart thus keeps
     the count. Refused lookups never reach `wb-proxyd`, so
     its count is at most `wb-netd`'s.
