@@ -10,9 +10,7 @@ Brief: B28-image-build
   `wb image build` gets `wb-guestd` into a new guest, which
   S06-vm-lifecycle, "Images", now states.
 - **You are approving:** the answer "no", and the build that replaces
-  the one S06-vm-lifecycle described, with a carve-out in
-  S04-architecture for the provisioning password, which `wb-vmd` holds
-  for a build VM's first start. The first boot uses the macOS 27
+  the one S06-vm-lifecycle described. The first boot uses the macOS 27
   provisioning options, which create a provisioning user and turn
   Remote Login on, and one SSH session as that user installs
   `wb-guestd`. Everything after that goes through `wb-guestd`. The
@@ -20,9 +18,11 @@ Brief: B28-image-build
   because macOS refuses to delete it, and the sealing scan fails the
   build on either. A build takes about 6.6 minutes from a downloaded
   restore image.
-- **Controls touched:** SEC12-least-privilege (no root on the host) is
-  kept. The issue's candidate fails because of it, since an unprivileged
-  host can't write the root-owned files launchd needs. SEC04-no-guest-secrets
+- **Controls touched:** SEC12-least-privilege: an exception is needed,
+  see decision 4. A host process has to hold the provisioning password
+  during a build. The issue's candidate fails because SEC12 rules out
+  root on the host, since an unprivileged host can't write the
+  root-owned files launchd needs. SEC04-no-guest-secrets
   and SEC05-default-deny are kept by the sealing scan, which now fails
   the build on Remote Login, automatic login, `/etc/kcpassword`, the
   provisioning user unless it is disabled, and files a non-system user
@@ -56,6 +56,14 @@ Brief: B28-image-build
      Recommended: raise NFR04-host-platforms to macOS 27 for v1 hosts.
      The alternative is to ship built images to older hosts, which
      S06-vm-lifecycle leaves for later. Tracked in I143.
+  4. Which host process holds the provisioning password, for how long,
+     and over which channel. The provisioning options take it, the one
+     SSH session needs it, and the disable step needs it again to keep
+     the secure token usable. Holding it is an exception to
+     SEC12-least-privilege, so it is the maintainer's decision, in
+     [I145](https://github.com/wraithbox/wraithbox/issues/145). Until
+     then the build fails closed, and S06-vm-lifecycle states the rules
+     that hold whatever I145 decides.
 - **Brief:** B28-image-build
 
 ## Question
@@ -152,8 +160,8 @@ The conditions of the build that works:
 1. **The host runs macOS 27 or later**, for the provisioning options
    (open decision 3, I143).
 2. **The first boot is the only one with SSH.** It uses the provisioning
-   options with a random password that `wb-vmd` generates, hands to the
-   build's SSH client and drops when the start call returns, and one
+   options with a random password, which a host process holds during
+   the build (open decision 4, I145), and one
    SSH session that installs `wb-guestd` and nothing else. No product
    image descends from a bundle that skipped the later steps.
 3. **All later provisioning goes through `wb-guestd`**, over vsock,
@@ -252,10 +260,8 @@ starts when the boot tool starts the VM.
   image. "Sealing" lists the checks of condition 5 (changed in this pull
   request). The rest of S06-vm-lifecycle is unchanged, because I46
   edits its session parts.
-- **S04-architecture**: the `wb-vmd` row and "Secrets live in one
-  process" name the provisioning password as the one secret `wb-vmd`
-  holds, for a build VM until its first start returns (changed in this
-  pull request).
+- **S04-architecture** doesn't change in this pull request. Where the
+  provisioning password lives is I145 (open decision 4).
 - **NFR04-host-platforms** says macOS 15 or later, and this build
   needs macOS 27 (open decision 3). This pull request leaves it as it
   is until that is decided.

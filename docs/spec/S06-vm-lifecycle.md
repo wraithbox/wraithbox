@@ -29,14 +29,23 @@ in S12-platforms.
      options, which are new in macOS 27. Whether v1 hosts must run
      macOS 27 for that is pending (I143). The options create a
      provisioning user and turn Remote Login on, and get the guest
-     past Setup Assistant with no clicks. `wb-vmd` generates the
-     user's password for a build VM, sets it on the start options,
-     hands it to the build's SSH client over the hand-off channel, and
-     drops it when the start call returns. It is a build-time
-     throwaway, not a user credential (S04-architecture). One SSH
-     session as that user installs `wb-guestd` as a root LaunchDaemon
-     and nothing else. Which network carries that session is open
-     (I139).
+     past Setup Assistant with no clicks. One SSH session as that user
+     installs `wb-guestd` as a root LaunchDaemon and nothing else.
+     Which network carries that session is open (I139).
+
+     *The provisioning password.* The provisioning options take a
+     password, the build's one SSH session needs it, and the disable
+     step of stage 2 needs it again: resetting the provisioning user
+     with `-adminPassword` and the old password keeps its secure token
+     usable. Which host process holds it, for how long, and over which
+     channel is open (I145), and until that is decided the build fails
+     closed: there is no `wb image build`. Whatever I145 decides, these
+     hold:
+     - provisioning options for a session VM are refused, and the
+       refusal is logged with its rule;
+     - the password is never written to disk, and never appears in a
+       log, a gRPC message or an audit record;
+     - the guest gets it only on standard input.
   2. *Through `wb-guestd`.* Everything after that goes over the
      host-guest socket to `wb-guestd`. It first turns Remote Login and
      automatic login off. It then takes the provisioning user out of
@@ -55,9 +64,10 @@ in S12-platforms.
   standard input, never in arguments. Every clone of an image starts
   with the same per-machine keys, so sealing deletes the SSH host keys
   (`/etc/ssh/ssh_host_*_key`). The local Kerberos realm (`LKDC`) of the provisioning user is
-  also the same in every clone. If I142 confirms that the disabled
-  user's secure token can't be used, an image is rebuilt from a newer
-  restore image, never updated in place.
+  also the same in every clone. An image is rebuilt from a newer
+  restore image, never updated in place. One reason is I142: if the
+  disabled user's secure token can't be used, no volume owner is left
+  to authorize an update.
 - **Guest confinement.** The base image includes the Network Extension
   of S13-guest-confinement, approved during the build, once spike X14-flow-attribution allows it.
 - **Sealing.** Before an image is usable, `wb-guestd` scans it as root,
