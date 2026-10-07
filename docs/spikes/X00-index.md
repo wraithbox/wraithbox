@@ -34,7 +34,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X17-image-build | Unattended image build | Answered 2026-10-07: no |
 | X18-vsock-handoff | Host-guest socket and descriptor hand-off | Answered 2026-10-05: yes, with conditions |
 | X19-terminal-filter | Terminal stream filtering | Answered |
-| X20-shared-homebrew | Homebrew with more than one project user | Open |
+| X20-shared-homebrew | Homebrew with more than one project user | Answered 2026-10-07: yes, with conditions |
 | X21-dep-gate-registries | Dependency gate on real registries | Answered 2026-10-04: yes, with conditions |
 | X22-no-guest-credentials | Clients without guest credentials | Answered 2026-10-05: yes, with conditions |
 | X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
@@ -185,7 +185,10 @@ assumption that v1 work would otherwise build on. They block v1.
   prefix that another project user can write to (SEC08-proj-isolation)? Compare a
   prefix owned by `wb-guestd` that installs every declared Brewfile
   with per-user prefixes. Measure bottle availability and install
-  time for both.
+  time for both. Answered: yes, with conditions. A prefix owned by the
+  toolchain user works when the manifest is read as formula names and
+  only `wb-guestd` installs, and a prefix in each home builds too much
+  from source (X20-shared-homebrew).
 - **X21-dep-gate-registries: Dependency gate on real registries.** Can `wb-proxyd` map a
   download to package, version and publish time for npm, PyPI, the
   Go module proxy, crates.io and Homebrew? Does removing too-young

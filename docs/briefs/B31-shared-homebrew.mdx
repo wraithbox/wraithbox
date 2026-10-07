@@ -1,0 +1,137 @@
+---
+title: Can projects in one guest share Homebrew without being able to change each other's tools?
+description: Yes, with conditions. One prefix owned by the toolchain user, which only wb-guestd drives, and a manifest read as package names. A prefix per project works only at a short path.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-07: yes, with conditions. Awaiting decision.** Source: X20-shared-homebrew (I31). Changes S06-vm-lifecycle ("Images" only) and S11-verification-and-spikes. Confirms I144 for how projects add packages, and builds on I150.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** One Homebrew prefix, `/opt/homebrew`, that belongs to the toolchain user works. `wb-guestd` installs every project's declared packages into it as that user. A project user can run them but couldn't change any file or install anything, and the agent runs as that project user. The catch is the Brewfile, which is a Ruby program. Run by `brew bundle` as the toolchain user, a Brewfile planted a file in the prefix every project runs from. So the host reads the manifest as a list of package names and refuses anything else. Installing a realistic project took 3 minutes. A prefix in each project's home doesn't work in practice: Homebrew set out to build nine of the project's packages and LLVM from source there, and was still going after 51 minutes. The one decision is whether a project may have a prefix of its own anyway.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="On the host, wb-hostd reads the project's manifest and sends only package names to wb-guestd. In the guest, wb-guestd runs brew install as the toolchain user, which owns /opt/homebrew. Project users A and B can read and run the prefix. Their writes to it, and a Brewfile run as code, are the flows the design stops.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="20" y="60" width="180" height="60" rx="10" />
+  <text class="label" x="110" y="86" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="110" y="106" text-anchor="middle">reads the manifest</text>
+
+  <rect class="boundary" x="250" y="20" width="490" height="295" rx="12" />
+  <text class="boundary-label" x="262" y="40">guest</text>
+  <rect class="box guest" x="270" y="60" width="180" height="60" rx="10" />
+  <text class="label" x="360" y="86" text-anchor="middle">wb-guestd, root</text>
+  <text class="note" x="360" y="106" text-anchor="middle">sudo -u toolchain user</text>
+  <rect class="box guest" x="530" y="60" width="190" height="60" rx="10" />
+  <text class="label" x="625" y="86" text-anchor="middle">/opt/homebrew</text>
+  <text class="note" x="625" y="106" text-anchor="middle">owned by toolchain user</text>
+  <rect class="box guest" x="270" y="230" width="180" height="60" rx="10" />
+  <text class="label" x="360" y="256" text-anchor="middle">project user A</text>
+  <text class="note" x="360" y="276" text-anchor="middle">and the agent</text>
+  <rect class="box guest" x="530" y="230" width="190" height="60" rx="10" />
+  <text class="label" x="625" y="256" text-anchor="middle">project user B</text>
+  <text class="note" x="625" y="276" text-anchor="middle">runs git, node, python</text>
+
+  <line class="edge" x1="202" y1="90" x2="268" y2="90" marker-end="url(#f1-arrow)" />
+  <text class="note" x="206" y="140">names only</text>
+  <line class="edge" x1="452" y1="90" x2="528" y2="90" marker-end="url(#f1-arrow)" />
+  <text class="note" x="462" y="80">brew install</text>
+  <line class="edge" x1="625" y1="228" x2="625" y2="122" marker-end="url(#f1-arrow)" />
+  <text class="note" x="632" y="180">read, run</text>
+  <path class="edge-bad" d="M400,228 C430,180 520,160 560,122" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="420" y="190">write, brew install</text>
+  <path class="edge-bad" d="M110,122 C110,200 230,170 330,122" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="40" y="200">a Brewfile run as code</text>
+</svg>
+<figcaption>
+Figure 1. Only `wb-guestd`, as the toolchain user, writes the shared prefix, and only from a list of package names. Project users read and run it. The red flows are what the spike showed would let project A change project B's tools, and what the conditions stop (S06-vm-lifecycle, "Toolchain prefix").
+</figcaption>
+</figure>
+
+## Decision: may a project have a prefix of its own?
+
+The shared prefix covers what projects declare. A prefix per project would let the agent run `brew install` itself, and would keep one project's versions out of another's way.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Shared prefix only
+
+Every project's declared packages go into `/opt/homebrew` through `wb-guestd`. Projects with conflicting packages use `--isolated`.
+
+- **Cost:** the agent can't install Homebrew packages, only language packages in its home (`pip --user`, `uv tool`, `go install`, `npm` with a home prefix). A conflicting project needs the isolated VM.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="caution" /> with the manifest read as names.
+
+</div>
+<div class="wb-option">
+
+### B. Also a short per-project prefix
+
+Root makes `/opt/<id>`, at most 13 characters long, for the project and gives it to the project user. The agent can then install into it. All 59 packages of the test project poured in 230 s.
+
+- **Cost:** a second Homebrew per project, 1.7 GB each, on the system disk, so lost and installed again with each new system disk. Homebrew failed to sign 8 static library files and carried on.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" />, since a project writes only its own prefix.
+
+</div>
+<div class="wb-option">
+
+### C. A prefix in each home
+
+`~/homebrew`, owned by the project user, with no help from root.
+
+- **Cost:** 9 of the test project's 59 packages, plus LLVM, are built from source. Stopped after 51 minutes, unfinished.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" />, but isn't usable.
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Shared only</th><th>B. Short per-project</th><th>C. In each home</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC08-proj-isolation</strong> a project can't touch another's files</td><td class="yes">with the manifest read as names</td><td class="yes">own prefix only</td><td class="yes">own prefix only</td></tr>
+<tr><td><strong>FR07-toolchain-manifest</strong> declared packages installed before the session</td><td class="yes">3 min first time, under a second after</td><td class="yes">4 min first time per project</td><td class="no">hours</td></tr>
+<tr><td><strong>FR06-native-tools</strong> native guest tools</td><td class="partial">conflicting packages need the isolated VM</td><td class="yes">per project</td><td class="partial">after the source builds</td></tr>
+<tr><td><strong>NFR01-startup</strong> quick session start</td><td class="yes">nothing to install after the first</td><td class="partial">again after a new system disk</td><td class="no">no</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The toolchain user (uid 440, shell `/usr/bin/false`, password `*`, outside the admin group) installed Homebrew 7.0.8 into the `/opt/homebrew` root made for it, with Homebrew's own installer and no `sudo`. Source: X20-shared-homebrew, "Answer" part 1.
+- <Badge text="verified" variant="success" /> As a project user, every write to the prefix and `brew install`, `uninstall`, `link` and `update` failed, and `sudo` and `su` to the toolchain user failed. Only the toolchain user can write the prefix's files, and none is set-user-ID. Source: "Answer" part 2, `results/g1-requests.jsonl`.
+- <Badge text="verified" variant="success" /> A Brewfile with a `system` line, run by `brew bundle` as the toolchain user, created a file in `/opt/homebrew/bin`. Source: "Answer" part 4.
+- <Badge text="verified" variant="success" /> Older versions of the same packages installed side by side and ran from their own folders. `mysql` was refused while `mariadb` was installed. `python3` in the shared `bin` was 3.14 for a project that declared 3.13. Source: "Answer" part 5.
+- <Badge text="verified" variant="success" /> Times: 179 s for the test project in the shared prefix, 66 s for a second project after it, under a second when nothing is new, 230 s in a short per-project prefix, unfinished after 51 minutes in a home prefix. Source: "Measurements".
+- <Badge text="verified" variant="success" /> A symbolic link from a short path to the home doesn't help: Homebrew followed it and started building from source. Source: "Answer" part 7.
+- <Badge text="assumed" variant="caution" /> That a reconcile with `HOMEBREW_NO_INSTALL_UPGRADE` and no cleanup never changes what another running session uses, which the spike didn't try (condition 4).
+- <Badge text="assumed" variant="caution" /> That a session `PATH` with only the declared packages' folders, and not the shared `bin`, is enough for common tools, which the spike didn't try (condition 5).
+
+## What it unblocks
+
+I144 and I150 can write the toolchain user and the derived images into S06-vm-lifecycle with the shared prefix confirmed. The `wb-guestd` user and package work of the walking skeleton (V1-M2-walking-skeleton) can build on S06-vm-lifecycle, "Toolchain prefix".
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why a shared prefix is a risk at all.** Every project runs tools like `git` from the prefix. If project A could replace `/opt/homebrew/bin/git`, project B would run A's program the next time it commits, with B's files and B's network grants. That is persistence from one project into another without root, which SEC08-proj-isolation forbids.
+
+**Why the Brewfile matters.** A Brewfile looks like a list, but Homebrew evaluates it as Ruby. Run as the user the prefix belongs to, any line can write anywhere in the prefix. Reading it on the host as `brew "<name>"` lines only keeps the common Brewfile working and drops the rest. Third-party taps are refused for the same reason: their package recipes are Ruby too.
+
+**Why a home prefix builds from source.** Homebrew's prebuilt packages (bottles) are built for `/opt/homebrew`. Homebrew 7 can move most of them, but some have the path compiled in, and it can only rewrite that path into one of at most 13 characters, the length of `/opt/homebrew`. `/Users/wbp-b/homebrew` is 21. Those packages, Python, Node.js, OpenSSL, git and PostgreSQL among them, are then compiled, and Node.js needs Rust, which needs LLVM.
+
+- **Prefix:** the folder Homebrew installs into, with `bin`, `Cellar` (one folder per package version) and `opt` (a stable link per package).
+- **Bottle:** a prebuilt Homebrew package.
+- **Keg-only:** a package Homebrew installs but doesn't link into the shared `bin`, for example an older version.
+- **Tap:** a third-party collection of Homebrew package recipes.
+- **Toolchain user:** the non-admin account of I144 that the prefix belongs to. The spike called it `_wbtool`, and the name is still open.
+
+</details>

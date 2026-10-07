@@ -25,6 +25,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B28-image-build | Can an unprivileged host build a macOS guest image without SSH or clicks? | Answered 2026-10-07: no. Awaiting decision |
 | B29-vsock-handoff | Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, the host opens every connection |
 | B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04. Decided 2026-10-04: A, allowlist as measured, and H1 plus a URL list for hyperlinks |
+| B31-shared-homebrew | Can projects in one guest share Homebrew without being able to change each other's tools? | Answered 2026-10-07: yes, with conditions. Awaiting decision |
 | B32-dep-gate-registries | Can the dependency gate refuse young packages without breaking installs? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, Homebrew ungated, and vulnerability threshold CRITICAL (I73) |
 | B33-no-guest-credentials | Can the proxy drop every credential the guest sends without breaking its tools? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, remove every guest credential and inject from the host, with the three open decisions as recommended |
 | B34-sandboxed-daemons | Can the Go daemons confine themselves on macOS? | Answered 2026-10-04. Decided 2026-10-04: A, the `wb-launcher`, with the `wb-git` shim |

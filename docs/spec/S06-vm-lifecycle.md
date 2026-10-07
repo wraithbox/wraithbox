@@ -16,11 +16,51 @@ in S12-platforms.
 - **Layers.** (1) *Base*: macOS installed from an Apple restore image,
   plus `wb-guestd`, Homebrew, and Xcode command line tools; an Xcode
   variant adds full Xcode. (2) *Org layer* (optional): a shared Brewfile
-  and settings. (3) *Project layer*: the project's Brewfile, reconciled
-  inside the project user's environment at session start (FR07-toolchain-manifest).
+  and settings. (3) *Project layer*: the formulae the project declares,
+  installed by `wb-guestd` as the toolchain user into the toolchain
+  prefix before the session starts (FR07-toolchain-manifest, "Toolchain
+  prefix" below).
   The image doesn't contain a Wraith Box CA. `wb-guestd` installs the
   VM's CAs at runtime (S09-policy-credentials-audit, "TLS inspection certificate
   authority").
+- **Toolchain prefix** (X20-shared-homebrew). A guest has one tool
+  prefix, `/opt/homebrew` on macOS, owned by the toolchain user (I144).
+  That user isn't an admin, has neither a password nor a shell, and
+  has a home of mode 700. Only `wb-guestd` runs commands as it, through
+  `sudo -u` from root. Project users can read and run the prefix, and
+  can't write to it or install packages, the agent included. They
+  install language packages into their own home instead.
+  - *The manifest is data.* A Brewfile is Ruby, and `brew bundle` runs
+    it as the toolchain user, so a project could plant a file in the
+    prefix that every other project runs from (SEC08-proj-isolation).
+    `wb-hostd` reads the manifest as a list of formula names: each
+    line is `brew "<name>"`, a comment, or blank. It refuses any other
+    line, such as a `tap`, a `cask`, options, or `system`, and logs the
+    line and the rule. `wb-guestd` installs the names with
+    `brew install --formula`. It never runs `brew bundle` and never
+    hands Homebrew a file a project wrote.
+  - *`homebrew/core` only.* A third-party tap is code that would run
+    as the toolchain user, so a name with a `/`, which names a tap's
+    formula, is refused too.
+  - *A reconcile only adds.* `wb-guestd` builds the toolchain user's
+    environment from an allowlist: `HOMEBREW_NO_AUTO_UPDATE`,
+    `HOMEBREW_NO_INSTALL_UPGRADE` and `HOMEBREW_NO_INSTALL_CLEANUP`, so
+    one project's install doesn't upgrade or remove what another
+    project's session runs, and `HOMEBREW_TEMP` and `HOMEBREW_CACHE` in
+    the toolchain user's home.
+  - *The session's `PATH`.* Which version a name like `python3` runs
+    in the prefix's shared `bin` depends on every project's formulae.
+    The session's `PATH` has `opt/<formula>/bin` (and Python's
+    `libexec/bin`) for each formula of the image's recipe and the
+    project's manifest, and not the shared `bin`. `wb-guestd` sets
+    `NPM_CONFIG_PREFIX` to a folder in the home, because `npm -g`
+    writes to the prefix by default.
+  - *Conflicts.* When Homebrew refuses a formula because a conflicting
+    one is installed (`mysql` and `mariadb`), the reconcile fails, and
+    `wb` refuses the session, names both formulae, and points to
+    `--isolated` (NFR06-explained-refusals).
+  - The prefix is on the system disk, so a new system disk loses what
+    project layers added, and the next session start installs it again.
 - **Built by Wraith Box.** `wb image build` installs macOS into a new
   VM from a restore image in a local file, then provisions it in two
   stages (X17-image-build). Builds are scripted and repeatable, and
