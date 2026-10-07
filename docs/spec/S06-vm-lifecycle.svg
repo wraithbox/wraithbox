@@ -1,76 +1,79 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 340" role="img" aria-label="Session states: starting, running, paused, ending, ended and lost. A session starts, runs, and ends with a WIP commit and push when claude exits or its terminal closes. A dropped host-guest link pauses it, and it resumes or ends when the link returns. A stopped VM or daemon, or a pause past 30 seconds, loses it, and a lost session ends at the next connection to its VM.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" role="img" aria-label="Session states: starting, running, paused, ending, ended and lost. A session starts, runs, and ends with a WIP commit and push when claude exits or its terminal closes. A start that is refused, fails or times out ends at once. A dropped host-guest link pauses a running session, which resumes when the link returns with wb still there, and finishes otherwise. A stopped VM or daemon, from starting, running, paused or ending, or a pause past 30 seconds, loses a session. A lost session ends by recovery, wb discard or its deadline.">
 <style>
 svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
 .box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
 .edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
-.edge-bad { fill: none; stroke: #c01c28; stroke-width: 1.5; stroke-dasharray: 3 3; }
 .arrow { fill: #5e5c64; }
-.arrow-bad { fill: #c01c28; }
 .label { fill: #242428; font-weight: 600; }
 .note { fill: #5e5c64; font-size: 12.5px; }
 @media (prefers-color-scheme: dark) {
 .box { fill: #343437; stroke: #9a9996; }
 .edge { stroke: #c0bfbc; }
-.edge-bad { stroke: #ff7b7b; }
 .arrow { fill: #c0bfbc; }
-.arrow-bad { fill: #ff7b7b; }
 .label { fill: #ffffff; }
 .note { fill: #c0bfbc; }
 }
 </style>
 <defs>
 <marker id="f006-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
-<marker id="f006-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
 </defs>
 
-<rect class="box" x="20" y="40" width="150" height="56" rx="10" />
-<text class="label" x="95" y="66" text-anchor="middle">starting</text>
-<text class="note" x="95" y="84" text-anchor="middle">worktree, carry-in</text>
+<rect class="box" x="20" y="60" width="150" height="56" rx="10" />
+<text class="label" x="95" y="86" text-anchor="middle">starting</text>
+<text class="note" x="95" y="104" text-anchor="middle">worktree, carry-in</text>
 
-<rect class="box" x="240" y="40" width="150" height="56" rx="10" />
-<text class="label" x="315" y="66" text-anchor="middle">running</text>
-<text class="note" x="315" y="84" text-anchor="middle">wb relays</text>
+<rect class="box" x="240" y="60" width="150" height="56" rx="10" />
+<text class="label" x="315" y="86" text-anchor="middle">running</text>
+<text class="note" x="315" y="104" text-anchor="middle">wb relays</text>
 
-<rect class="box" x="480" y="40" width="150" height="56" rx="10" />
-<text class="label" x="555" y="66" text-anchor="middle">ending</text>
-<text class="note" x="555" y="84" text-anchor="middle">WIP commit, push</text>
+<rect class="box" x="480" y="60" width="150" height="56" rx="10" />
+<text class="label" x="555" y="86" text-anchor="middle">ending</text>
+<text class="note" x="555" y="104" text-anchor="middle">WIP commit, push</text>
 
-<rect class="box" x="720" y="40" width="150" height="56" rx="10" />
-<text class="label" x="795" y="66" text-anchor="middle">ended</text>
-<text class="note" x="795" y="84" text-anchor="middle">summary, exit status</text>
+<rect class="box" x="720" y="60" width="150" height="56" rx="10" />
+<text class="label" x="795" y="86" text-anchor="middle">ended</text>
+<text class="note" x="795" y="104" text-anchor="middle">summary, exit status</text>
 
 <rect class="box" x="240" y="220" width="150" height="56" rx="10" />
 <text class="label" x="315" y="246" text-anchor="middle">paused</text>
 <text class="note" x="315" y="264" text-anchor="middle">processes stopped</text>
 
-<rect class="box" x="20" y="220" width="150" height="56" rx="10" />
-<text class="label" x="95" y="246" text-anchor="middle">lost</text>
-<text class="note" x="95" y="264" text-anchor="middle">wb exits 255</text>
+<rect class="box" x="480" y="320" width="150" height="56" rx="10" />
+<text class="label" x="555" y="346" text-anchor="middle">lost</text>
+<text class="note" x="555" y="364" text-anchor="middle">wb exits 255</text>
 
-<line class="edge" x1="170" y1="68" x2="238" y2="68" marker-end="url(#f006-arrow)" />
-<text class="note" x="204" y="30" text-anchor="middle">claude starts</text>
+<path class="edge" d="M95,60 L95,26 L795,26 L795,58" marker-end="url(#f006-arrow)" />
+<text class="note" x="445" y="18" text-anchor="middle">start refused, fails, link drops, or deadline: wb exits 255</text>
 
-<line class="edge" x1="390" y1="68" x2="478" y2="68" marker-end="url(#f006-arrow)" />
-<text class="note" x="434" y="30" text-anchor="middle">claude exits, or hangup</text>
+<line class="edge" x1="170" y1="88" x2="238" y2="88" marker-end="url(#f006-arrow)" />
+<text class="note" x="204" y="50" text-anchor="middle">claude starts</text>
 
-<line class="edge" x1="630" y1="68" x2="718" y2="68" marker-end="url(#f006-arrow)" />
-<text class="note" x="674" y="30" text-anchor="middle">pushed</text>
+<line class="edge" x1="390" y1="88" x2="478" y2="88" marker-end="url(#f006-arrow)" />
+<text class="note" x="434" y="50" text-anchor="middle">claude exits, or hangup</text>
 
-<line class="edge" x1="300" y1="96" x2="300" y2="218" marker-end="url(#f006-arrow)" />
-<text class="note" x="292" y="150" text-anchor="end">link drops</text>
-<line class="edge" x1="340" y1="218" x2="340" y2="98" marker-end="url(#f006-arrow)" />
-<text class="note" x="348" y="150">back, wb there</text>
+<line class="edge" x1="630" y1="88" x2="718" y2="88" marker-end="url(#f006-arrow)" />
+<text class="note" x="674" y="50" text-anchor="middle">done, or deadline</text>
 
-<line class="edge" x1="390" y1="226" x2="520" y2="98" marker-end="url(#f006-arrow)" />
-<text class="note" x="468" y="180">back, wb gone</text>
+<line class="edge" x1="290" y1="116" x2="290" y2="218" marker-end="url(#f006-arrow)" />
+<text class="note" x="282" y="170" text-anchor="end">link drops</text>
+<line class="edge" x1="340" y1="218" x2="340" y2="118" marker-end="url(#f006-arrow)" />
+<text class="note" x="348" y="160">back, wb there:</text>
+<text class="note" x="348" y="176">resume</text>
 
-<line class="edge-bad" x1="250" y1="96" x2="160" y2="218" marker-end="url(#f006-arrow-bad)" />
-<text class="note" x="190" y="140" text-anchor="end">VM, wb-guestd</text>
-<text class="note" x="190" y="156" text-anchor="end">or wb-hostd stops</text>
+<line class="edge" x1="390" y1="226" x2="520" y2="118" marker-end="url(#f006-arrow)" />
+<text class="note" x="462" y="196">back, wb gone:</text>
+<text class="note" x="462" y="212">finish</text>
 
-<line class="edge-bad" x1="240" y1="248" x2="172" y2="248" marker-end="url(#f006-arrow-bad)" />
-<text class="note" x="206" y="240" text-anchor="middle">30 s</text>
+<path class="edge" d="M95,116 L95,348 L478,348" marker-end="url(#f006-arrow)" />
+<path class="edge" d="M240,108 L215,108 L215,348" />
+<path class="edge" d="M315,276 L315,348" />
+<text class="note" x="105" y="370">VM, wb-guestd or wb-hostd stops, or paused past 30 s</text>
 
-<path class="edge" d="M95,276 L95,320 L795,320 L795,98" marker-end="url(#f006-arrow)" />
-<text class="note" x="560" y="312" text-anchor="middle">recovery at the next connection to the VM: WIP commit, push</text>
+<line class="edge" x1="590" y1="116" x2="590" y2="318" marker-end="url(#f006-arrow)" />
+<text class="note" x="598" y="230">VM or daemon</text>
+<text class="note" x="598" y="246">stops</text>
+
+<path class="edge" d="M630,348 L795,348 L795,118" marker-end="url(#f006-arrow)" />
+<text class="note" x="787" y="290" text-anchor="end">recovery, discard,</text>
+<text class="note" x="787" y="306" text-anchor="end">or deadline</text>
 </svg>

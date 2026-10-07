@@ -426,7 +426,33 @@ be tested before building on them.
   - print every sequence the terminal filter drops, a guest window
     title, and a fake session summary in the background color, then
     exit: confirm the host terminal received none of the sequences,
-    still shows the title `wb` set, and shows the real summary legibly.
+    still shows the title `wb` set, and shows the real summary legibly;
+  - the session lifecycle (S06-vm-lifecycle, "Session lifecycle"),
+    with a `wb-guestd` that the test drives as guest root. Each case
+    checks the audit entry with its rule:
+    - report an exit code of 256 and a signal number of 0 and of 65,
+      and see `wb` exit with 255;
+    - drop the link, then list a running session of the other VM, an
+      ended session, a malformed id, an unknown id and a running
+      session of an earlier VM generation, and see "end" for each and
+      no session of the other VM change state;
+    - drop the link and leave a running session out of the list, and
+      see it lost and `wb` exit with 255;
+    - send a list of 65 entries, and see it refused and the connection
+      closed; drop the link again and again, and see at most 20
+      connections to the VM in a minute;
+    - never report a WIP commit, and see the session end as a failure
+      at its deadline, with `wb` exiting 255;
+    - run `wb vm stop` and `wb vm suspend` with a running session,
+      and see both refused with the session named;
+    - during recovery, push to the recovering session's branch and to
+      another session's, and see only the first accepted;
+    - push to an ended session's branch, and to a discarded one's, and
+      see both refused;
+    - close the terminal while a child of `claude` has left the
+      session with `setsid` and another session of the project runs,
+      and see the child logged as a survivor; with no other session,
+      see it killed.
 - **Benchmarks** (NFR01-startup, NFR02-fs-speed): time to Claude prompt (warm, suspended, cold boot).
   The suspended case restores a state saved after a Claude Code
   session and a build, not an idle guest, and records the state file's
