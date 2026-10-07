@@ -1033,10 +1033,25 @@ as written.
     until the server sends a ServerHello that isn't a
     HelloRetryRequest. That includes a second ClientHello after a
     HelloRetryRequest, whose SNI must equal the bound host too. Before
-    that ServerHello, an application data record from the client, or
-    a client handshake record that isn't a ClientHello, resets the stream with
-    the rule `stream-protocol-mismatch`. A ClientHello to a pass host
-    is reset when it holds:
+    that ServerHello, the client's records are handled like this:
+    - A handshake record that isn't a ClientHello, or an application
+      data record, resets the stream with the rule
+      `stream-protocol-mismatch`. TLS 1.3 early data (0-RTT) is sent
+      as application data before the ServerHello, so this rule resets
+      it. A ClientHello with the `early_data` extension is reset with
+      the same rule before any early data, and the audit entry says
+      early data isn't allowed to a pass host
+      (NFR06-explained-refusals).
+    - One Change Cipher Spec record, holding one byte `0x01`,
+      is relayed, because a TLS 1.3 client in its compatibility mode
+      for network middleboxes (RFC 8446) sends one before its second ClientHello. A second one, or
+      one with other content, resets the stream with
+      `stream-protocol-mismatch`.
+    - An alert record closes the stream in both directions without
+      relaying it, and the audit entry records the alert's level and
+      description with the rule `tls-client-alert`.
+
+    A ClientHello to a pass host is reset when it holds:
     - an `encrypted_client_hello` extension (`0xfe0d`) or the
       earlier encrypted SNI extension (`0xffce`), with the rule
       `tls-ech-pass`;
