@@ -37,10 +37,11 @@ and `--area <label>`.
    blockers of each candidate with:
 
    ```bash
-   gh issue view <n> --json blockedBy -q '[.blockedBy.nodes[] | select(.state == "OPEN") | .number]'
+   gh issue view <n> --json blockedBy -q 'if .blockedBy.totalCount > (.blockedBy.nodes | length) then "truncated" else [.blockedBy.nodes[] | select(.state == "OPEN") | .number] end'
    ```
 
-   `[]` means none open. Drop issues whose body or trusted comments
+   `[]` means none open, and `truncated` means the list is cut short:
+   drop the issue. Drop issues whose body or trusted comments
    have a `Blocked by #<pr>` line for an open PR, or name an outside
    wait that still holds. Don't treat the `blocked` label alone as
    proof: when every blocker of a `blocked` issue is closed, the label
@@ -54,7 +55,8 @@ and `--area <label>`.
    label or a hot file (`orchestration.md`, "Hot files") with one
    already in the wave. Say which you skipped and why.
    Take at most one `needs-vm` issue, and none while another
-   `needs-vm` builder is running, in this session or another
+   `needs-vm` builder is running, in this session or another. Every
+   open, assigned `needs-vm` issue counts as running until it closes
    (`orchestration.md`, "A wave", step 2). The maintainer's Mac runs at
    most two macOS guests (NFR05-two-macos-vms). Name the `needs-vm`
    issue in the wave you announce. Hold back the other `needs-vm`

@@ -43,10 +43,11 @@ other; the coordinator relays.
    is an object with a `nodes` list, so list the open blockers with:
 
    ```bash
-   gh issue view <n> --json blockedBy -q '[.blockedBy.nodes[] | select(.state == "OPEN") | .number]'
+   gh issue view <n> --json blockedBy -q 'if .blockedBy.totalCount > (.blockedBy.nodes | length) then "truncated" else [.blockedBy.nodes[] | select(.state == "OPEN") | .number] end'
    ```
 
-   `[]` means no open blocker. A pull request or an outside decision
+   `[]` means no open blocker. `truncated` means the list is cut short:
+   treat the issue as blocked. A pull request or an outside decision
    can't be a `blockedBy` target, so also read the body and the
    trusted comments for a `Blocked by #<pr>` line or a named outside
    wait (`planning.md`, "Dependencies and relationships"). When the
@@ -109,9 +110,10 @@ request; the result pull request does (`planning.md`).
 2. **Choose the wave.** Up to six issues. Avoid two issues with the same
    `comp:` label, or two that both change a hot file (below), unless one
    is stacked on the other. At most one `needs-vm` builder runs at a
-   time. That count includes builders of other sessions and a builder
-   sent back to fix review findings. Count an open `needs-vm` issue that is
-   assigned and has no open pull request as running
+   time. Every open, assigned `needs-vm` issue counts as running until
+   it closes, when its pull request merges or closes. The count
+   includes builders of other sessions and a builder sent back to fix
+   review findings
    (`gh issue list --label needs-vm --state open --json number,assignees`).
    macOS runs at most two macOS guests per host
    (NFR05-two-macos-vms), and the agents share the maintainer's Mac
