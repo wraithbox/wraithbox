@@ -360,6 +360,209 @@ nothing themselves (S12-platforms).
   and the userspace stack replace host networking features that would
   need them (SEC12-least-privilege, NFR04-host-platforms).
 
+## Supervision and failure
+
+The service manager keeps `wb-hostd` running, and `wb-hostd` keeps the
+other host processes running. A failure stops egress and never opens
+it, and the work a guest can make the host do is bounded
+(SEC10-audit, SEC11-root-gains-nothing, SEC13-bounded-resources,
+NFR06-explained-refusals). The maintainer
+decided the VM behavior on I48 (B48-process-supervision).
+
+### Who starts whom
+
+- The service manager (S12-platforms, "Service manager") runs
+  `wb-hostd` and no other Wraith Box process. It starts `wb-hostd` at
+  login and again whenever it exits. On macOS the LaunchAgent sets
+  `KeepAlive` and doesn't set `AbandonProcessGroup`.
+- `wb-hostd` supervises every other host process. It decides when
+  `wb-vmd`, each VM's `wb-netd` and `wb-proxyd` start, and whether one
+  starts again after it exits. On macOS it starts them through
+  `wb-launcher` ("Each host daemon is self-sandboxed"). Elsewhere it
+  starts them itself.
+- `wb-launcher` is the parent of the programs it starts, so only it
+  sees their wait status. It reports each exit to `wb-hostd` on its
+  request channel, in one fixed-format message: the program table
+  entry, the instance ID it returned when it started the process, and
+  the exit code or the signal. It never restarts anything itself.
+- The programs started for one run (`wb-git`, `wb-prover`,
+  `wb-guestadmin`, `wb-build-ssh`) are never restarted. A run whose
+  program exits before it reports a result fails, and the caller gets
+  the exit reason (S08-workspace-and-git, S09-policy-credentials-audit,
+  S15-least-privilege).
+
+### When `wb-hostd` stops
+
+VMs stop with `wb-hostd`, for V1 (decided on I48). Every process
+`wb-hostd` starts inherits a control channel to it, a socket and never
+a path. End of file or an error on that channel means `wb-hostd` is
+gone, and each process acts on its own:
+
+- `wb-vmd` stops every VM it runs at once and exits. It doesn't ask
+  the guest to shut down, and it doesn't save the VM. The sessions in those
+  VMs are lost, and their worktrees stay on the data disk until
+  recovery at the next connection to the VM (S06-vm-lifecycle,
+  "Session lifecycle"). Writes the guest flushed are on the disk
+  (S06-vm-lifecycle, "Disks").
+- `wb-netd` and `wb-proxyd` close every stream and exit. The guest's
+  only network path is gone, so egress stops (SEC05-default-deny).
+- `wb-launcher` sends `SIGTERM` to every program it started that still
+  runs, sends `SIGKILL` to any left after 5 seconds, waits for them,
+  and exits. So no old `wb-launcher`, `wb-netd` or `wb-proxyd` runs
+  next to the ones a new `wb-hostd` starts.
+
+On macOS, launchd also kills the processes left in `wb-hostd`'s
+process group when `wb-hostd` exits (`man launchd.plist`,
+`AbandonProcessGroup`). That is a second layer. The control channel is
+the rule on every host.
+
+A new `wb-hostd` takes over nothing. It starts a new `wb-launcher` and
+new daemons, marks the sessions it has as starting, running, paused or
+ending as lost (S06-vm-lifecycle, "Lost"), and starts a VM again only
+when a session or warm start asks for one (S06-vm-lifecycle, "Warm
+start"). A start that fails because the old VM is still stopping is a
+temporary failure, which `wb-hostd` retries a bounded number of times,
+as for a restore.
+
+An upgrade takes the same path. The installer replaces the bundle
+(I49), `wb-hostd` restarts from the new one, and the running VMs stop
+with their sessions lost.
+
+Rejected for V1:
+
+- `wb-vmd` saves each VM and exits when it loses `wb-hostd`, and the
+  new `wb-hostd` restores them, so sessions pause instead of ending
+  (B48-process-supervision, option A). It depends on save and restore
+  of a VM with its vsock device and network attachment
+  (X02-warm-start), and needs a bounded save on every exit path. A
+  later version may move to it. The guest version rule below then
+  becomes a range.
+- `wb-vmd` keeps its VMs running without `wb-hostd`, and a new
+  `wb-hostd` takes them over (option B). That needs a takeover
+  protocol and a `wb-vmd` outside `wb-hostd`'s process group. An
+  upgrade replaces `wb-vmd` as well, so it would stop the VMs anyway.
+
+### Restarting a daemon
+
+`wb-hostd` restarts `wb-proxyd`, and each VM's `wb-netd`, after an exit
+it didn't ask for:
+
+- It waits 0.5 seconds before the first restart and doubles the wait
+  after each one, up to 30 seconds. After the fifth exit in 10
+  minutes it stops restarting that process and logs that it gave up,
+  with the last exit reason. So a crash a guest can cause doesn't
+  become a stream of fresh processes. A `wb-netd` it gave up on leaves
+  its VM without network until the VM stops, and the VM's next start
+  gets a new one. A `wb-proxyd` it gave up on is tried once more at the
+  next session start in any VM.
+- The guest sees resets and refusals while a daemon is down, never a
+  path around it. Nothing else on the host forwards guest traffic.
+- A new `wb-netd` gets the same start as the first one: its VM's
+  packet transport descriptor, which `wb-hostd` keeps a copy of and
+  never reads or writes, the VM's MAC address and leased address, the
+  effective policy, and its channel to `wb-proxyd`. The guest's lease
+  holds across the restart. Its synthetic name mapping starts empty. A connection
+  to an address it doesn't know is reset, as TCP to any other address
+  is (S07-egress-gateway, "Packet path"), until the guest looks the
+  name up again.
+- A restart doesn't reset what bounds the guest. `wb-hostd` holds each
+  VM's wildcard budget for the active period (S07-egress-gateway,
+  "Enforced per VM"). `wb-netd` writes each debit to its event channel
+  before it sends the answer, and refuses the lookup when the write
+  fails. `wb-hostd` adds each debit to the VM's total, reads what is
+  still in the channel after `wb-netd` exits, and hands the total to
+  each new `wb-netd` at start. Approval request counts are in
+  `wb-hostd` already (S09-policy-credentials-audit, "Approvals").
+- A new `wb-proxyd` has no streams. It fetches binding secrets again
+  when proxying needs them (S15-least-privilege), and `wb-hostd`
+  connects each VM's `wb-netd` to it as at the first start.
+- `wb-vmd` isn't restarted in a loop. When it exits, its VMs have
+  stopped with it, and their sessions are lost. `wb-hostd` starts a
+  new `wb-vmd` when a VM is next needed, with the same backoff and the
+  same limit.
+
+`wb-hostd` shows a native notification once per outage of a VM's
+`wb-netd` or `wb-proxyd`. It says which process is down, for which VM,
+and why, and asks for nothing (SEC14-no-fake-approvals). `wb` in
+non-interactive use prints the same as one `wraith box:` line on its
+standard error. In interactive use `wb` doesn't write into the agent's
+terminal, and the session's summary says that its network was
+down and for how long (S05-cli, "Session behavior"). `wb status` shows
+the outage while it lasts.
+
+### Version skew
+
+Every host program comes from one bundle with one build version, which
+the release build sets in the Go and the Swift code alike
+(S10-tech-stack, "Packaging and signing"). `wb` is linked from that
+bundle as well.
+
+- **Between host processes.** The first message on every host
+  connection, gRPC or not, gives the sender's build version. A peer of
+  another build version is refused, the connection closed, and both
+  versions logged. So there are no compatibility rules between host
+  processes. When `wb-hostd` refuses `wb`, `wb` prints a `wraith box:`
+  line that names both versions and says to run the command again,
+  and exits with 255.
+- **`.proto` packages.** Each package name ends in its major version
+  (`wraithbox.<area>.v1`). A change that an older peer can't read is a
+  new major package next to the old one, never an edit of the old one
+  (I52).
+- **With `wb-guestd`.** After the host opens a connection, the first
+  message from `wb-guestd` gives its build version and the major
+  version of each package it serves. In V1 `wb-hostd` accepts only its
+  own build version. Every running VM was started by the running
+  bundle, because VMs stop with `wb-hostd`, and `wb-guestd` updates
+  itself at start from that bundle's guest tools disk
+  (S06-vm-lifecycle, "`wb-guestd`"). A `wb-guestd` that reports another
+  version is refused before any session request. `wb-hostd` logs both
+  versions, and a session start in that VM is refused with a message
+  that names both and says to stop and start the VM, and to rebuild the
+  image with `wb image build` if that doesn't help
+  (NFR06-explained-refusals).
+- **The guest's version is a label.** `wb-guestd` runs as root in the
+  guest, which T00-index takes as the adversary. The host uses the
+  reported version only to refuse, never to allow something or to pick
+  how a message is parsed. Every message is checked the same way
+  whatever the version (SEC11-root-gains-nothing).
+
+### Host work the guest can cause
+
+SEC13-bounded-resources caps each VM, and also the host work each VM
+can cause. Every host handler that takes input from a guest has a per-VM
+rate limit, a size limit on each input, and a bound on the work it runs
+at once. A request over a limit is refused or dropped, never queued
+without bound, and logged with the limit's rule. Those log records are
+rate-limited too, with a record of how many were suppressed
+(S07-egress-gateway, "Events and rate limits"). A new handler gets its
+limits before it merges.
+
+| Guest input | Process | Limits | Where |
+|---|---|---|---|
+| Host-guest socket connections | `wb-vmd`, `wb-hostd` | connections opened and not yet passed, connections per VM and per project, reconnects per minute | "The VM provider passes descriptors, not bytes", S06-vm-lifecycle, "Reconnect" |
+| RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on the server and never left at the library default, requests per second per VM, entries in the reconnect session list | I52 for the values, S06-vm-lifecycle, "Reconnect" |
+| Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget | S07-egress-gateway, "Packet path" |
+| Connections and streams | `wb-netd`, `wb-proxyd` | connections in flight, stream resets and refusals per rule | S07-egress-gateway |
+| Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-workspace-and-git, "Pack scanner", "Bounds" |
+| Approval requests | `wb-hostd`, `wb-prover` | requests per VM, pending requests, prover runs at once | S09-policy-credentials-audit, "Approvals" |
+| Audit events | `wb-hostd` | events per VM, with a record of what was dropped | S09-policy-credentials-audit, "Audit" |
+| Daemon log lines | `wb-hostd` | lines per process, line length | "Each host daemon is self-sandboxed" |
+
+### Logs and health
+
+- `wb-hostd` writes its own log and the lines the other daemons send it
+  to `<logs>`, one file per process, apart from the audit log, and
+  rotated by size. A daemon log isn't the record of a decision. The
+  audit log is (S09-policy-credentials-audit, "Audit").
+- For each host process `wb-hostd` keeps its state (running, waiting
+  to restart, given up, stopped), its version, when it started, its
+  restarts in the last 10 minutes, and its last exit reason (the exit
+  code or signal). `wb status` shows them, and for each VM without
+  network, which process is down and why (NFR06-explained-refusals).
+- When `wb` can't reach `wb-hostd`, `wb status` says so and says to
+  run `wb setup`, which installs and starts the service
+  (S05-cli, "Management commands").
+
 ## Host state
 
 Locations follow each OS's conventions (paths in S12-platforms); the logical

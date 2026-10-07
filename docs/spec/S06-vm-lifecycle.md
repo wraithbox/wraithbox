@@ -254,9 +254,11 @@ in S12-platforms.
     from a state saved by a `wb-vmd` whose sandbox profile let it read
     different host facts, such as the CPU name (X25-vmd-sandbox).
   - `wb-hostd` decides permanence from evidence it owns. It records the
-    host's hardware identity (the `IOPlatformUUID`) and the macOS build
-    with each saved state in `state.db`. A mismatch with the running
-    host is permanent, whatever the error. With a match, "permission
+    host's hardware identity (the `IOPlatformUUID`), the macOS build
+    and Wraith Box's build version with each saved state in `state.db`.
+    A mismatch with the running host is permanent, whatever the error.
+    A build version mismatch deletes the state before any restore is
+    tried ("`wb-guestd`", "The host checks, not the guest"). With a match, "permission
     denied" is temporary, and "invalid argument" is temporary while a
     VM with that identifier runs and permanent otherwise.
   - After a failure, `wb-hostd` reads the lock state and checks whether
@@ -601,5 +603,24 @@ scheduled.
 `wb-guestd` updates itself from a read-only disk image attached by
 `wb-hostd`, never from the network. The host treats every response from
 `wb-guestd` as untrusted input (SEC11-root-gains-nothing).
+
+- **Guest tools disk.** The bundle holds a disk image with `wb-guestd`
+  and the other programs Wraith Box puts in the guest, built with the
+  bundle and stamped with its build version (S10-tech-stack). `wb-vmd`
+  attaches no disk file outside the VM's bundle (S04-architecture,
+  "The device set is fixed and checked"), so before each start
+  `wb-hostd` copies the image into the VM's bundle when the copy there
+  has another version. `wb-vmd` attaches it read-only.
+- **Update at start.** When it starts, `wb-guestd` compares its own
+  build version with the disk's. When they differ, it installs the
+  disk's programs and has the service manager start it again, before
+  it listens for the host.
+- **The host checks, not the guest.** `wb-hostd` accepts only a
+  `wb-guestd` of its own build version and refuses any other before
+  any session request (S04-architecture, "Version skew"). A guest that
+  skips the update doesn't get a session. A saved state written under
+  another build version is deleted and the VM cold boots, as after a
+  configuration change ("Warm start"), because the restored guest would
+  run the old `wb-guestd`.
 
 **Status:** Draft

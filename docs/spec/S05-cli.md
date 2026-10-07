@@ -144,7 +144,9 @@ are a usage error:
   guest, after a deadline or a failed WIP commit or push, the summary
   and `wb sessions` give the worktree's path in the guest and
   `wb shell --project P` to reach it (S06-vm-lifecycle, "Changes left
-  in the guest").
+  in the guest"). When the VM's `wb-netd` or `wb-proxyd` was down
+  during the session, the summary says so and for how long
+  (S04-architecture, "Supervision and failure").
 
 - During an agent session, `wb` never prints approval prompts. That
   terminal shows the agent's output, which the guest controls, so any
@@ -360,7 +362,7 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 
 | Command | Purpose |
 |---|---|
-| `wb status` | VMs, their state, running sessions, pending approvals |
+| `wb status` | VMs, their state, running sessions, pending approvals, and each host process with its state, version, restarts and last exit reason (S04-architecture, "Logs and health") |
 | `wb sessions [--project P]` | List sessions and their returned work |
 | `wb diff <session>` | Review returned work with flagged paths highlighted |
 | `wb land <session> [--branch NAME]` | Fetch returned work into the host repo as a branch; never checks out or merges |

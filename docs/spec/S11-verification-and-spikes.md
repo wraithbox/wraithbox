@@ -13,6 +13,16 @@ be tested before building on them.
   and a second network device, and sees each refused with its rule,
   and that accepts the fixed set of S06-vm-lifecycle
   (X25-vmd-sandbox).
+  Supervision (S04-architecture, "Supervision and failure") has tests
+  that close each daemon's control channel and see `wb-netd` and
+  `wb-proxyd` exit, `wb-launcher` end what it started and exit, and a
+  fake VM provider stop its VMs. A test on a fake clock kills
+  `wb-netd` five times in 10 minutes and sees the backoff, each new
+  `wb-netd` start with the wildcard budget its predecessor spent, a
+  debit written just before the kill included, and no restart after
+  the fifth exit. A `wb-guestd` that reports another build version,
+  and a host peer of another build version, are each refused before
+  any other request, with both versions logged.
   Leaf issuance in `wb-proxyd` (S09-policy-credentials-audit, "TLS
   inspection certificate authority") has a test that asks for a leaf
   for a host the policy doesn't inspect, a host in pass mode, a stream
