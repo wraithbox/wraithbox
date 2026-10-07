@@ -357,10 +357,16 @@ session start in the VM to the end of the last session running in it.
     event. So an approval can't undo the user's switch.
   - *Same answer for every refusal.* The answer's bytes are the same
     whatever the reason a name is refused: name form, not allowlisted,
-    denied, quiet list, part off, `learn-collected` or `learn-list-full`.
-    Before the answer is sent, `wb-netd` debits
-    the wildcard budget and takes the one-open-event-per-name check
-    under one lock, and does no other work that depends on the reason.
+    denied, quiet list, part off, `learn-collected`, `learn-list-full`
+    or `accounting-write-failed`. Before the answer is sent, `wb-netd`
+    debits the wildcard budget, writes the debit's accounting record to
+    `wb-hostd`, and takes the one-open-event-per-name check under one
+    lock, and does no other work that depends on the reason. When that
+    write fails, the name is refused with the rule
+    `accounting-write-failed` (S04-architecture, "Accounting and event
+    channels"). An answered name's accounting record, with its address,
+    is written before its answer too, and a failed write refuses the
+    name the same way.
     Only the notification, the emission of the approval event, the
     entry on a learn list and the audit entry happen asynchronously,
     after the answer.

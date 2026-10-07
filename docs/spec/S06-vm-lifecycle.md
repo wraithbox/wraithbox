@@ -198,7 +198,8 @@ in S12-platforms.
   goal is not a release gate.
 - **Devices.** One virtio network device whose packet transport leads
   to `wb-netd` (on macOS a file-handle attachment; S07-egress-gateway, S12-platforms);
-  one host-guest socket device (vsock); storage; entropy.
+  one host-guest socket device (vsock); storage: the system disk, the
+  data disk, and the guest tools disk, read-only ("`wb-guestd`"); entropy.
   No shared directories, no host audio input, no USB or serial
   passthrough in v1 (SEC02-no-host-fs-share). The spikes so far also
   gave each VM a Mac graphics device with one display and a USB
@@ -608,11 +609,15 @@ scheduled.
   and the other programs Wraith Box puts in the guest, built with the
   bundle and stamped with its build version (S10-tech-stack). `wb-vmd`
   attaches no disk file outside the VM's bundle (S04-architecture,
-  "The device set is fixed and checked"), so before each start
-  `wb-hostd` copies the image into the VM's bundle when the copy there
-  has another version. `wb-vmd` attaches it read-only.
+  "The device set is fixed and checked"), so before each cold start
+  `wb-hostd` clones the bundle's image into the VM's bundle (an APFS
+  clone on macOS), replacing the copy there. So a change that `wb-vmd`,
+  which can write the VM's bundle, made to the copy is gone at the next
+  cold start. `wb-vmd` attaches it read-only. A restore keeps the copy the
+  state was saved with, and a saved state of another build version is
+  deleted (below).
 - **Update at start.** When it starts, `wb-guestd` compares its own
-  build version with the disk's. When they differ, it installs the
+  build version with the one recorded on the disk. When they differ, it installs the
   disk's programs and has the service manager start it again, before
   it listens for the host.
 - **The host checks, not the guest.** `wb-hostd` accepts only a

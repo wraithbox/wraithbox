@@ -18,6 +18,7 @@ trusts, and which risks it accepts rather than solves.
 | T11-shared-vm-grants | Projects in one VM share network grants | Accepted |
 | T12-shared-export | Sessions of a project share what they can fetch | Accepted |
 | T13-new-project-grants | New projects share the work VM's grants | Accepted |
+| T14-shared-proxyd | One proxy process serves both VMs | Accepted |
 
 ## Model
 
@@ -198,3 +199,11 @@ print about returned work after `wb land` is outside it
   and the floor of SEC05-default-deny holds. The maintainer accepted
   this on I42 (B42-trust-placement), because projects in the work VM
   still run as separate guest users.
+- **T14-shared-proxyd: One proxy process serves both VMs.** One
+  `wb-proxyd` serves the work VM and the isolated VM
+  (S04-architecture, "Processes"). A guest that finds a way to crash
+  it takes the other VM's network down too, until `wb-hostd` restarts
+  it, and until the next session start once `wb-hostd` gives up after five exits in ten
+  minutes (S04-architecture, "Restarting a daemon"). This costs
+  availability, not egress: while `wb-proxyd` is down, both guests get
+  resets and refusals. Proposed in PR171 (B48-process-supervision).

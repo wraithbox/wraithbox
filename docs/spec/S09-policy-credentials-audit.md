@@ -527,18 +527,45 @@ stripped of control and escape sequences wherever it is shown.
   each secret store access without its value (S15-least-privilege).
 - Rotation deletes records by age only, never to make room. A file is
   deleted once its newest record is older than `audit_retention_days`
-  in `config.toml` (default 90). A size cap would let a guest push
-  older records out by flooding events.
-- The guest can't grow the log without bound. Besides the per-rule
-  limits in `wb-netd` and `wb-proxyd` (S07-egress-gateway, "Events and
-  rate limits"), `wb-hostd` limits the events it writes per VM. Over
-  the limit it drops events, and the next record it writes for that VM
-  holds how many it dropped and of which classes
-  (S04-architecture, "Host work the guest can cause").
-- When a record can't be written, for example on a full disk,
-  `wb-hostd` stops every VM, and refuses a session start until it can
-  write that start's record. So no guest keeps its network while its
-  decisions aren't recorded (SEC10-audit). `wb status` says why.
+  in `config.toml` (default 90, at least 30). A setting below 30 is
+  refused at load with the rule `audit-retention-min`. A size cap
+  would let a guest push older records out by flooding events.
+- No record of these classes is ever dropped: Device Config State
+  Change (5019), Detection Finding (2004), approvals, returned work,
+  recovery pushes, secret store accesses, and the records of VM starts
+  and stops and of sessions. Their sources bound them already
+  (approval limits, push limits, session limits).
+- The high-volume classes, Network Activity (4001) and HTTP Activity
+  (4002), have a budget per VM per minute: `audit_events_per_minute`
+  in `config.toml` (default 6000). Over the budget `wb-hostd` doesn't
+  drop records. It refuses new work instead: the VM's `wb-netd` refuses
+  new lookups and connections, and `wb-proxyd` new streams and
+  requests, with the rule `audit-budget`, until the minute turns. The
+  refusals under that rule are written as one record per minute with
+  their count.
+- Only the refusal classes that S07-egress-gateway aggregates per rule
+  ("Events and rate limits") are written as runs with a count. Each
+  open run's count is written when its window ends and in the VM's stop
+  record, so no count is lost with the VM.
+- Each VM has a byte budget per day, `audit_vm_bytes_per_day` (default
+  64 MiB). Over it, new work gets the same refusals
+  until the day turns, with the rule `audit-bytes`, and `wb status`
+  says so. The classes that are never dropped are still written. So
+  the high-volume classes of two VMs add at most 2 × 64 MiB to the log
+  a day, at the defaults.
+- `wb-hostd` keeps free space for the log. At each VM start, each
+  session start and every minute, it checks the volume that holds
+  `<logs>` against `audit_free_space_floor` (default 1 GiB). Below the
+  floor it shows a native notification and a `wb status` line, and
+  refuses VM and session starts with the rule `audit-free-space`. At
+  start it also allocates a 64 MiB reserve file in `<logs>`, which it
+  frees only when a write fails for lack of space, so the records that
+  follow, a VM's stop record among them, can still be written.
+- When a record can't be written, `wb-hostd` stops the VM the record
+  belongs to first. A failed record that belongs to no VM stops every
+  VM. It refuses a session start until it can write that start's
+  record. So no guest keeps its network while its decisions aren't
+  recorded (SEC10-audit). `wb status` says why.
 - Events use OCSF 1.8.0 classes, as OpenShell's do
   (X24-openshell-artifacts): Network Activity (4001) for
   connections, HTTP Activity (4002) for inspected requests, Device
