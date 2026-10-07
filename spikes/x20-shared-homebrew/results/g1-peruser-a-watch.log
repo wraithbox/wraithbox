@@ -1,0 +1,52 @@
+21:02:44 hostFreeGiB=30 guest: 7 ==> Installing git dependency: gettext (1.0) 24 
+21:03:45 hostFreeGiB=30 guest: 7 ==> Installing git dependency: gettext (1.0) 24 
+21:04:45 hostFreeGiB=30 guest: 7 ==> Installing git dependency: gettext (1.0) 24 
+21:05:45 hostFreeGiB=30 guest: 7 ==> Installing git dependency: gettext (1.0) 24 
+21:06:45 hostFreeGiB=30 guest: 7 ==> Installing git dependency: gettext (1.0) 24 
+21:07:45 hostFreeGiB=30 guest: 11 ==> Installing git 25 
+21:08:45 hostFreeGiB=30 guest: 21 ==> Installing node dependency: ca-certificates (2026-09-25) 24 
+21:09:45 hostFreeGiB=30 guest: 24 ==> Installing node dependency: openssl@3 (3.6.5) 24 
+21:10:46 hostFreeGiB=30 guest: 24 ==> Installing node dependency: openssl@3 (3.6.5) 24 
+21:11:46 hostFreeGiB=29 guest: 24 ==> Installing node dependency: openssl@3 (3.6.5) 24 
+21:12:46 hostFreeGiB=30 guest: 34 ==> Installing node dependency: zstd (1.5.7_1) 24 
+21:13:46 hostFreeGiB=30 guest: 35 ==> Installing node dependency: python@3.14 (3.14.8) 24 
+21:14:46 hostFreeGiB=30 guest: 35 ==> Installing node dependency: python@3.14 (3.14.8) 24 
+21:15:46 hostFreeGiB=30 guest: 35 ==> Installing node dependency: python@3.14 (3.14.8) 24 
+21:16:47 hostFreeGiB=30 guest: 35 ==> Installing node dependency: python@3.14 (3.14.8) 24 
+21:17:47 hostFreeGiB=30 guest: 35 ==> Installing node dependency: python@3.14 (3.14.8) 24 
+21:18:47 hostFreeGiB=29 guest: 48 ==> Installing node dependency: llvm (23.1.2) 23 
+21:19:47 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:20:47 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:21:47 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:22:47 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:23:48 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:24:48 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:25:48 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:26:49 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:27:49 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:28:49 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:29:49 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:30:49 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:31:50 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:32:50 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:33:50 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:34:50 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:35:50 hostFreeGiB=27 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:36:51 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:37:51 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 21 
+21:38:51 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 20 
+21:39:51 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 20 
+21:40:52 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:41:52 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:42:52 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:43:52 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:44:53 hostFreeGiB=26 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:45:53 hostFreeGiB=25 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:46:53 hostFreeGiB=25 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:47:53 hostFreeGiB=25 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:48:54 hostFreeGiB=25 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:49:54 hostFreeGiB=25 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:50:54 hostFreeGiB=25 guest: 48 ==> Installing node dependency: llvm (23.1.2) 19 
+21:50:54 stopping: hostFreeGiB=25 deadline=1791402640
+{"exit": 0, "ms": 2149.077, "op": "run"} host 2.2s
+killed
