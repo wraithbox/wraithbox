@@ -41,6 +41,14 @@ Brief: B31-shared-homebrew
      pours. Recommended: not in v1. The shared prefix covers declared
      packages, `--isolated` covers conflicts, and an agent that
      installs packages is a capability v1 doesn't need.
+  2. Whether to refuse packages without a bottle for the guest. Bottles
+     only: `wb-guestd` checks every formula in the closure and refuses
+     the session with the name of one that has none, so a package
+     without a bottle can't be declared. Building from source instead
+     means slow starts, builds killed at the start deadline, and more
+     of `homebrew/core`'s code run as the toolchain user
+     (T15-shared-toolchain). Recommended: bottles only, which the spec
+     says now.
 - **Brief:** B31-shared-homebrew
 
 ## Question
@@ -73,7 +81,8 @@ at a path no longer than `/opt/homebrew` pours every bottle.
    environment and `NONINTERACTIVE=1`, installed Homebrew 7.0.8 without
    asking for `sudo`, because the prefix already existed and belonged
    to it. Every file in the prefix belongs to `_wbtool` and its own
-   group, which has no other members. The installer made some folders
+   group, which has no other members because root created it fresh
+   for `_wbtool`. The installer made some folders
    writable by that group (`drwxrwxr-x`), none is writable by others,
    and none is set-user-ID.
 2. **A project user can't change the shared prefix: verified.** As a
@@ -162,18 +171,24 @@ sessions reproducible.
    in `.rb`, and fit length and count caps. It refuses anything else,
    a tap, a cask, options, `system`, a name with a `/` or a leading
    `-`, and logs the line and the rule. `wb-guestd` checks the names
-   again and runs `brew install --formula --force-bottle -- <names>`
-   by argument list, with `HOMEBREW_FORBID_PACKAGES_FROM_PATHS=1`.
+   again, resolves their runtime closure, and runs
+   `brew install --formula --force-bottle -- <closure>` by argument
+   list, with `HOMEBREW_FORBID_PACKAGES_FROM_PATHS=1`.
    Neither runs `brew bundle` or hands Homebrew a file a project wrote
    (answer 4). Formulae come from `homebrew/core` only, because a tap
    is code that would run as the toolchain user. Trusting
    `homebrew/core` with every project's tools is T15-shared-toolchain.
-3. **Bottles only.** A formula with no bottle for the guest refuses
-   the session, and nothing is built from source (answer 6). The
-   reconcile's process group is killed at the start deadline.
+3. **Bottles only.** A formula in the closure with no bottle for the
+   guest refuses the session before anything is installed, and nothing
+   is built from source (answer 6). A missing or empty formula data
+   snapshot refuses the reconcile, any nonzero exit of `brew` refuses
+   the session, and the reconcile's process group is killed at the
+   start deadline.
 4. **A reconcile only adds** (untested, I180).
-   `HOMEBREW_NO_INSTALL_UPGRADE` covers only the formulae on the command line, and
-   Homebrew still upgrades an outdated dependency. The control is the
+   `HOMEBREW_NO_INSTALL_UPGRADE` and `--force-bottle` cover only the
+   formulae on the command line, and Homebrew still upgrades an
+   outdated dependency, so `wb-guestd` names the whole closure. The
+   control is the
    formula API snapshot in the toolchain user's cache, written at
    image build and kept by `HOMEBREW_NO_AUTO_UPDATE`, together with
    `HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK` and
@@ -239,11 +254,12 @@ afresh into its own cache.
   Tools that look up a dependency's command by name may need it. I180.
 - **Homebrew's temporary and cache folders in the toolchain user's
   home** (condition 7). I180.
-- **`--force-bottle`, `--` before the names, and
-  `HOMEBREW_FORBID_PACKAGES_FROM_PATHS`** with Homebrew 7. The spike
-  ran `brew install --formula` with names only. The bottle check
-  before the install is `wb-guestd`'s own, so it doesn't rest on how
-  Homebrew treats `--force-bottle`.
+- **The closure from `brew deps --formula -n --union`, `--force-bottle`,
+  `--` before the names, `HOMEBREW_FORBID_PACKAGES_FROM_PATHS`, and a
+  missing formula data snapshot** with Homebrew 7. The spike ran
+  `brew install --formula` with names only. The bottle check before
+  the install is `wb-guestd`'s own, so it doesn't rest on how Homebrew
+  treats `--force-bottle`, which doesn't reach dependencies. I180.
 - **The full source build in the home prefix.** The spike stopped it to
   keep the host's disk free.
 - **Derived images.** I150 builds images from recipes as the toolchain
