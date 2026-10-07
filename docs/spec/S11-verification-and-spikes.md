@@ -18,11 +18,28 @@ be tested before building on them.
   `wb-proxyd` exit, `wb-launcher` end what it started and exit, and a
   fake VM provider stop its VMs. A test on a fake clock kills
   `wb-netd` five times in 10 minutes and sees the backoff, each new
-  `wb-netd` start with the wildcard budget its predecessor spent, a
-  debit written just before the kill included, and no restart after
-  the fifth exit. A `wb-guestd` that reports another build version,
-  and a host peer of another build version, are each refused before
-  any other request, with both versions logged.
+  `wb-netd` start with the wildcard budget and the synthetic name
+  mapping its predecessor left, a debit written just before the kill
+  included, no restart after the fifth exit, and a session start then
+  refused with `daemon-given-up`. The same test runs with the VM's
+  audit event budget exceeded and its refusal events suppressed, and
+  sees every debit counted. An accounting write that blocks past
+  100 ms refuses the lookup with `accounting-write-failed`. A
+  `wb-guestd` that reports another build version, a version string
+  that is not ASCII, longer than 64 bytes or not of the fixed form,
+  and a host peer of another build version or of an unstamped build,
+  are each refused before any other request, with the version escaped
+  and cut in the log. A host peer from a replaced bundle makes
+  `wb-hostd` exit with `bundle-replaced`. The type that holds
+  `wb-hostd`'s copy of the packet transport descriptor has no read or
+  write method, and
+  the copy is closed at VM stop and at a restore.
+  The audit writer has tests that exceed the per-class budget and see
+  no 5019, 2004, approval, returned-work, store-access, VM or session
+  record dropped, and `wb-netd` and `wb-proxyd` refuse with
+  `audit-budget` until the window turns, and that stop a VM with an
+  open run of suppressed refusals and see its count in the stop record
+  (S09-policy-credentials-audit, "Audit").
   Leaf issuance in `wb-proxyd` (S09-policy-credentials-audit, "TLS
   inspection certificate authority") has a test that asks for a leaf
   for a host the policy doesn't inspect, a host in pass mode, a stream
@@ -63,7 +80,9 @@ be tested before building on them.
   (X22-no-guest-credentials), policy matching, the git transport framing (the request
   header and the push command list, X07-git-round-trip), the pack
   scanner in front of `receive-pack` and the input of the pre-receive
-  check (X26-pre-receive-check), every vsock RPC
+  check (X26-pre-receive-check), the accounting and event records
+  `wb-hostd` reads from `wb-netd` and `wb-proxyd` (S04-architecture,
+  "Accounting and event channels"), every vsock RPC
   handler in `wb-hostd`, the stream framing that multiplexes guest
   requests on a host-opened connection, with the project each request
   is attributed to (S04-architecture, B29-vsock-handoff), network policy YAML, the guest flow labels

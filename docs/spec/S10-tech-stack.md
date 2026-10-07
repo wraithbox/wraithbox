@@ -90,7 +90,9 @@ binary of that name comes from the Swift package.
 - **One build version.** The release build stamps one version into
   every program of the bundle, Go and Swift alike
   (`internal/version/version.go`, `WraithBoxVM/Version.swift`), and
-  into the guest tools disk image. Host processes refuse a peer of
+  into the guest tools disk image. The version includes the VCS
+  revision. A build that wasn't stamped has no version, and every peer
+  refuses it, an unstamped peer included. Host processes refuse a peer of
   another version, and `wb-hostd` refuses a `wb-guestd` of another
   version (S04-architecture, "Version skew").
 - **Versioned contracts.** Each `.proto` package name ends in its
