@@ -145,7 +145,9 @@ be tested before building on them.
   of S13-guest-confinement, and the dependency gate's parsers: npm
   request paths, PyPI distribution file names, Go escaped module paths
   and versions, crates.io index lines, and `sum.golang.org` lookup
-  responses (Swift: property-based tests where fuzzing is impractical).
+  responses, and the toolchain manifest parser in `wb-hostd` and the
+  name check in `wb-guestd` (S06-vm-lifecycle, "Toolchain prefix")
+  (Swift: property-based tests where fuzzing is impractical).
   The terminal filter in `wb` (S16-terminal-stream) is one of
   them. Its fuzz target checks these properties, with the BEL rate
   limit off:
@@ -423,11 +425,23 @@ be tested before building on them.
     (S06-vm-lifecycle, X27-vsock-confinement);
   - as a project user, replace a link in the toolchain prefix's `bin`,
     write to a binary in its `Cellar`, and run `brew install`, and see
-    each refused; as root, check that the toolchain user owns every
-    file in the prefix and that neither its group nor others can write
-    one; hand `wb-hostd` a manifest with a `tap`, a `cask` or a `system`
-    line, and see it refused with the line and the rule
-    (S06-vm-lifecycle, "Toolchain prefix", X20-shared-homebrew);
+    each refused; as root, check that every file in the prefix belongs
+    to the toolchain user and to its own group, that the group has no
+    other members, and that others can't write any of them; hand
+    `wb-hostd` manifests with a `tap`, a `cask`, a `system` line,
+    `brew "--force"`, `brew "--HEAD"`, `brew "jq.rb"`, a name with a
+    `/`, a name over the length cap and too many lines, and see each
+    refused with the line and the rule, and send the same names to
+    `wb-guestd` directly and see it refuse them too; declare a formula
+    with no bottle for the guest and see the session refused with its
+    name and nothing built (S06-vm-lifecycle, "Toolchain prefix",
+    X20-shared-homebrew);
+  - with a session of project A running, reconcile project B, whose
+    formulae share dependencies with A's, and see every `opt/*` link
+    of A's formulae point where it did before; run A's tools with the
+    session `PATH`, which leaves out the prefix's shared `bin`; and
+    see Homebrew's temporary and cache files only in the toolchain
+    user's mode-700 home (S06-vm-lifecycle, "Toolchain prefix", I180);
   - write into the host repository through the git transport; fetch an
     object outside the session's branch by its ID; push outside
     `refs/heads/wb/<session-id>/`, or a tree with a `.git` entry;

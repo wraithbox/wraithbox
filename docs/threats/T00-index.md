@@ -19,6 +19,7 @@ trusts, and which risks it accepts rather than solves.
 | T12-shared-export | Sessions of a project share what they can fetch | Accepted |
 | T13-new-project-grants | New projects share the work VM's grants | Accepted |
 | T14-shared-proxyd | One proxy process serves both VMs | Accepted |
+| T15-shared-toolchain | Projects in one guest share the toolchain prefix | Accepted |
 
 ## Model
 
@@ -209,3 +210,22 @@ print about returned work after `wb land` is outside it
   (`event-channel-blocked`) and the secret store prompts its restarts
   cause. This costs availability, not egress: while `wb-proxyd` is
   down or blocked, both guests get resets and refusals. Proposed in PR171 (B48-process-supervision).
+- **T15-shared-toolchain: Projects in one guest share the toolchain
+  prefix.** Every project user runs tools from the one prefix that
+  the toolchain user owns (S06-vm-lifecycle, "Toolchain prefix"). So
+  the integrity of every project's tools rests on `homebrew/core`: its
+  bottles, the Ruby of its formulae, and the `post_install` steps that
+  run as the toolchain user when any project declares a formula. A
+  compromised formula that one project declares can change the tools
+  of every project in the guest. Bottles only, with no build from
+  source, narrows what runs, and the bottles are ungated
+  (T08-homebrew-ungated). Projects also share what the prefix's
+  formulae read from it: `lib/python3.*/site-packages`,
+  `etc/gitconfig` and the rest of `etc`, `share/zsh/site-functions`,
+  and `lib/pkgconfig`. A project user can't write any of them, but
+  one project's formulae decide what all of them hold. One project's
+  formulae also use the guest's disk for every project, an
+  availability cost that the manifest's caps bound. A project with
+  `placement = isolated` that isn't marked shared has a guest, and so
+  a prefix, of its own (S06-vm-lifecycle, "VMs"). Proposed in PR178
+  (X20-shared-homebrew, B31-shared-homebrew).
