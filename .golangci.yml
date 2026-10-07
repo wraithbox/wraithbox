@@ -9,16 +9,25 @@ linters:
     - bodyclose
     - cyclop
     - errorlint
+    - exhaustive
+    - forcetypeassert
     - funlen
     - gocognit
     - gocritic
     - gosec
     - misspell
+    - modernize
     - nestif
+    - nilerr
+    - nilnil
+    - noctx
     - nolintlint
+    - recvcheck
     - revive
+    - sloglint
     - unconvert
     - unparam
+    - usetesting
   # Maintainability gate, the Go counterpart of .swiftlint.yml
   # (S10-tech-stack, "Quality gates"). Refactor to pass. Do not raise a
   # threshold or suppress a finding to go green. A limit that is wrong for
@@ -38,6 +47,11 @@ linters:
       lines: 80
       statements: 50
       ignore-comments: true
+    # A switch on a protocol or policy enum names every value. A default
+    # branch does not count, so a new value fails lint instead of falling
+    # through (fail closed).
+    exhaustive:
+      default-signifies-exhaustive: false
     revive:
       enable-default-rules: true
       rules:

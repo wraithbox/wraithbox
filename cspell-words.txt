@@ -72,6 +72,13 @@ cyclop
 funlen
 gocognit
 nestif
+forcetypeassert
+nilerr
+nilnil
+noctx
+recvcheck
+sloglint
+usetesting
 govulncheck
 vulncheck
 swiftlint
