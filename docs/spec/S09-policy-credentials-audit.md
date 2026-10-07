@@ -524,8 +524,21 @@ stripped of control and escape sequences wherever it is shown.
 - JSONL in `<logs>` (S12-platforms; `~/Library/Logs/WraithBox/` on macOS),
   written by `wb-hostd` from events
   sent by `wb`, `wb-netd`, `wb-proxyd` and `wb-guestadmin`, including
-  each secret store access without its value (S15-least-privilege);
-  rotated and size-capped.
+  each secret store access without its value (S15-least-privilege).
+- Rotation deletes records by age only, never to make room. A file is
+  deleted once its newest record is older than `audit_retention_days`
+  in `config.toml` (default 90). A size cap would let a guest push
+  older records out by flooding events.
+- The guest can't grow the log without bound. Besides the per-rule
+  limits in `wb-netd` and `wb-proxyd` (S07-egress-gateway, "Events and
+  rate limits"), `wb-hostd` limits the events it writes per VM. Over
+  the limit it drops events, and the next record it writes for that VM
+  holds how many it dropped and of which classes
+  (S04-architecture, "Host work the guest can cause").
+- When a record can't be written, for example on a full disk,
+  `wb-hostd` stops every VM, and refuses a session start until it can
+  write that start's record. So no guest keeps its network while its
+  decisions aren't recorded (SEC10-audit). `wb status` says why.
 - Events use OCSF 1.8.0 classes, as OpenShell's do
   (X24-openshell-artifacts): Network Activity (4001) for
   connections, HTTP Activity (4002) for inspected requests, Device

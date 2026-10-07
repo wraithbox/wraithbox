@@ -87,5 +87,9 @@ against the adversary of T00-index.
   the hypervisor device) are documented and checked by `wb setup`, never
   performed silently.
 - **SEC13-bounded-resources: Bounded resources.** CPU, memory and disk of each VM are capped.
+  So is the host work a VM can cause: every host handler that takes
+  input from a guest limits, per VM, the rate and the size of that
+  input and the work it runs at once, and refuses what is over a limit
+  (S04-architecture, "Host work the guest can cause").
 - **SEC14-no-fake-approvals: Approvals cannot be spoofed by the guest.** Approval prompts are
   never rendered in the agent's terminal stream.

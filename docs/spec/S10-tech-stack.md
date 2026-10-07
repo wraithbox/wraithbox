@@ -87,6 +87,16 @@ binary of that name comes from the Swift package.
 - **WSL:** the Linux `wb` binary; it requires the Windows installation
   (S12-platforms).
 - Each host daemon applies its own confinement at start (S04-architecture).
+- **One build version.** The release build stamps one version into
+  every program of the bundle, Go and Swift alike
+  (`internal/version/version.go`, `WraithBoxVM/Version.swift`), and
+  into the guest tools disk image. Host processes refuse a peer of
+  another version, and `wb-hostd` refuses a `wb-guestd` of another
+  version (S04-architecture, "Version skew").
+- **Versioned contracts.** Each `.proto` package name ends in its
+  major version (`wraithbox.<area>.v1`). A change an older peer can't
+  read goes into a new major package (S04-architecture, "Version
+  skew").
 
 ## Platforms
 

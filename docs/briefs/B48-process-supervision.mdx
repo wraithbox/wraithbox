@@ -5,7 +5,7 @@ description: Recommended that wb-hostd supervises the other daemons, that VMs ar
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Decided 2026-10-04: C. VMs stop with wb-hostd, for V1.** The decision and its reasons are in the I48 comment that starts `Decision (2026-10-04):`. Source: I48. Affects S04-architecture, S06-vm-lifecycle, S10-tech-stack and SEC00-index (SEC13-bounded-resources).
+**Decided 2026-10-04: C. VMs stop with wb-hostd, for V1.** The decision and its reasons are in the I48 comment that starts `Decision (2026-10-04):`. Source: I48. Affects S04-architecture, S06-vm-lifecycle, S10-tech-stack and SEC00-index (SEC13-bounded-resources). The spec change is awaiting review, with the choices made while writing it listed under "The spec change" below.
 
 <Aside type="tip" title="You are deciding">
 Who supervises the host processes, and what running VMs do when `wb-hostd` stops or restarts. Recommended: **A**, `wb-vmd` saves its VMs and exits when it loses `wb-hostd`, and `wb-hostd` restores them when it starts again. The issue proposes **B** instead. Accepting also settles the sub-decisions in the table below. That adds a "Supervision and failure" section to S04-architecture, extends SEC13-bounded-resources to the host processes, and unblocks I52.
@@ -135,6 +135,24 @@ The issue's proposal. `wb-vmd` keeps running when `wb-hostd` dies, and a new `wb
 | Upgrades while running | Option A's path: save VMs, replace the bundle, restart, restore. The install side is I49. |
 | Host resource limits | Each guest-facing handler gets a rate limit and a size limit per VM: host-guest socket RPCs, DNS queries, new connections, `receive-pack` size and time, audit events, approval requests. Extend SEC13-bounded-resources to say so. That is a stricter control, and still a SEC00-index change. |
 | Logs and health | Each daemon logs to `<logs>`. `wb status` lists each process, its restart count, and its last exit reason (NFR06-explained-refusals). |
+
+## The spec change
+
+The spec pull request for I48 adds "Supervision and failure" to S04-architecture, with option C and the sub-decisions above, and the `wb-launcher` duties from the I48 comment on the X23-sandboxed-daemons result. Approving it also approves these choices, which neither the decision nor this brief made. Each row says what the spec chose and the alternative it passed over.
+
+| Choice | The spec says | Passed over |
+|---|---|---|
+| Guest version rule | `wb-hostd` accepts only a `wb-guestd` of its own build version. Under C every running VM was started by the running bundle and gets its guest tools disk. A range adds nothing in V1. | A supported range, which needs compatibility rules now. It returns if option A is adopted later. |
+| Upgrades | Same path as a crash: the VMs stop and their sessions are lost and recovered later. The "Upgrades while running" row above assumed option A. | Saving VMs across an upgrade (option A). |
+| Losing `wb-hostd` | Every daemon reads end of file on its control channel as `wb-hostd` gone. `wb-vmd` stops its VMs, `wb-netd` and `wb-proxyd` exit, and `wb-launcher` sends `SIGTERM`, then `SIGKILL` after 5 seconds, and exits. launchd's process group kill is a second layer. | Relying on launchd alone, which works on macOS only. |
+| Restart limits | Backoff from 0.5 seconds, doubling to 30 seconds. After 5 exits in 10 minutes `wb-hostd` gives up: the VM has no network until it stops, or for `wb-proxyd`, one more try at the next session start. | Unlimited restarts, which turn a guest-triggered crash into an endless supply of fresh processes. |
+| Wildcard budget across a restart | `wb-hostd` holds the total. `wb-netd` writes each debit to its event channel before it answers and refuses the lookup if the write fails, so a crash can't lose a debit. | Keeping the counter in `wb-netd` only, which a crash resets (T02-dns-names). |
+| Restarting `wb-netd` without the VM | `wb-hostd` keeps a copy of each VM's packet transport descriptor, never reads or writes it, and hands it to the new `wb-netd`. | Stopping the VM whenever `wb-netd` exits. |
+| Telling the user | A native notification once per outage, a `wraith box:` line in non-interactive use, a line in the session summary, and `wb status`. In interactive use `wb` doesn't write into the agent's screen, where a line would garble the display. | The `wraith box:` line in interactive use that the "Fail closed, visibly" row proposed. |
+| Audit retention | Deleted by age only, after `audit_retention_days` (default 90), and `wb-hostd` limits events per VM with a count of what it dropped. When a record can't be written, `wb-hostd` stops every VM and refuses session starts until it can write. | A size cap, which a flood turns into deleted evidence. |
+| Guest tools disk | `wb-hostd` copies it into the VM's bundle, because `wb-vmd` attaches no disk outside it. A saved state from another build version is deleted before any restore. | Attaching the image in place, which the device-set check refuses. |
+
+Left to I52: the values of the message size, stream and request rate limits on the `wb-guestd` connection, and the version exchange message itself.
 
 ## Impact
 
