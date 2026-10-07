@@ -98,9 +98,13 @@ be tested before building on them.
   stream open and once with a stream to it open, and sees the old
   entry removed and the open stream closed. Each is refused and logged
   with its rule and check, and `wb-proxyd` doesn't resolve a name
-  upstream, open an upstream connection or fetch a binding. A replay
+  upstream, open an upstream connection or fetch a binding. The
+  malformed ones, a name not in canonical form and an address outside
+  the range, also close VM A's hand-off socket, and `wb-hostd` ends
+  VM A's `wb-netd` and counts the exit. A replay
   of the live entries doesn't change the copy or the wildcard
-  count. From `wb-hostd` the test sends hand-off messages
+  count, and a wildcard name whose accounting record blocks for more
+  than 100 ms is refused. From `wb-hostd` the test sends hand-off messages
   with an older generation, a VM that isn't a VM slot, and a datagram
   with two descriptors, and sees each refused. An equal generation
   replaces the old socket and closes its streams. A change to the
