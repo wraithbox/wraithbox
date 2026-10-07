@@ -68,3 +68,9 @@
 - name: wontfix
   color: "ffffff"
   description: This will not be worked on
+
+# Resources: what the work needs besides a worktree. A wave runs at most
+# one needs-vm builder at a time (docs/agents/orchestration.md).
+- name: needs-vm
+  color: "fef2c0"
+  description: Needs a running macOS guest on the maintainer's Mac (one builder at a time)

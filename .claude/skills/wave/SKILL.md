@@ -32,14 +32,33 @@ and `--area <label>`.
    gh issue list --milestone '<milestone>' --label ready-for-agent --state open --limit 100 --json number,title,labels,assignees
    ```
 
-3. Drop issues that are assigned, labeled `blocked`, or have an open
-   `blockedBy` (`gh issue view <n> --json blockedBy`). Drop issues whose
-   body has a `Blocked by #<pr>` line for an open PR.
+3. Drop issues that are assigned or have an open blocker. `blockedBy`
+   is an object with a `nodes` list, not an array, so list the open
+   blockers of each candidate with:
+
+   ```bash
+   gh issue view <n> --json blockedBy -q '[.blockedBy.nodes[] | select(.state == "OPEN") | .number]'
+   ```
+
+   `[]` means none open. Drop issues whose body or trusted comments
+   have a `Blocked by #<pr>` line for an open PR, or name an outside
+   wait that still holds. Don't treat the `blocked` label alone as
+   proof: when every blocker of a `blocked` issue is closed, the label
+   is stale. Remove it (`gh issue edit <n> --remove-label blocked`),
+   comment `Triage (YYYY-MM-DD): blockers #a #b closed, removed the
+   stale blocked label.` with the attribution lines, and keep the issue
+   as a candidate.
 4. Order: `spike` first, then `bug`, then by `priority:` (critical,
    high, medium, low, none), then by number.
 5. Fill the wave in that order, skipping an issue that shares a `comp:`
    label or a hot file (`orchestration.md`, "Hot files") with one
    already in the wave. Say which you skipped and why.
+   Take at most one `needs-vm` issue, and none while another
+   `needs-vm` builder is running, in this session or another
+   (`orchestration.md`, "A wave", step 2). The maintainer's Mac runs at
+   most two macOS guests (NFR05-two-macos-vms). Name the `needs-vm`
+   issue in the wave you announce. Hold back the other `needs-vm`
+   issues for a later wave and say so.
 6. Tell the maintainer the wave (number, title, branch name for each)
    and start. No confirmation needed unless the wave touches a spec
    decision or `area:agents`.

@@ -422,8 +422,13 @@ be tested before building on them.
   Windows hosted runners; Swift on macOS; fuzz smoke runs. The
   conformance suite and benchmarks need machines that can run the guest
   VMs (Apple Silicon for macOS guests; nested virtualization or bare
-  metal elsewhere); hosted runners mostly cannot, so self-hosted runners
-  are needed later.
+  metal elsewhere). Hosted runners mostly cannot. Until v1 is close,
+  tests that need a running macOS guest (spikes, the conformance suite,
+  benchmarks) run on the maintainer's Mac, outside `ci`. Agents may
+  build issues that need a guest: the `needs-vm` label marks them, and
+  a wave runs at most one such builder at a time. That keeps the Mac
+  within NFR05-two-macos-vms (`docs/agents/orchestration.md`). The
+  runner question is revisited near v1 (decided on I50).
 
 ## Spikes
 

@@ -177,7 +177,8 @@ are in `.github/ISSUE_TEMPLATE/`. See `docs/agents/issue-tracker.md`.
 ### Triage labels
 
 Use needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix;
-plus the type, priority, and `blocked` labels in `.github/labels.yml`.
+plus the type, priority, `blocked` and `needs-vm` labels in
+`.github/labels.yml`.
 See `docs/agents/issue-tracker.md`.
 
 ### Planning and orchestration

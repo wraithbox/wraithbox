@@ -37,7 +37,7 @@ never deletes).
 | Type     | `bug`, `enhancement`, `spike`, `documentation`, `chore` (one per issue)           |
 | Priority | `priority: critical`, `priority: high`, `priority: medium`, `priority: low`       |
 | Status   | `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human` (at most one)  |
-| Other    | `blocked`, `wontfix`                                                              |
+| Other    | `blocked`, `wontfix`, `needs-vm`                                                  |
 
 - `needs-triage`: a maintainer needs to evaluate the issue. New issues
   start here.
@@ -49,6 +49,12 @@ never deletes).
 - `blocked`: waits on another issue, a pull request, or an outside
   decision. Name the blocker in a comment, and record it with GitHub's
   issue relationships (`gh issue edit <n> --add-blocked-by <m>`).
+  A `blocked` label whose blockers are all closed is stale: remove it
+  with a `Triage (YYYY-MM-DD):` comment.
+- `needs-vm`: the work needs a running macOS guest on the maintainer's
+  Mac. A wave runs at most one such builder at a time
+  ([`orchestration.md`](orchestration.md), "A wave"). Triage adds it
+  when the issue says it needs a macOS guest.
 
 Area labels (`area:go`, `area:spec`, ...) and component labels
 (`comp:wb-netd`, ...) are recorded in
