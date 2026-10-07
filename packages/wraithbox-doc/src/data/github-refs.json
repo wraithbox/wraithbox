@@ -242,28 +242,28 @@
 	},
 	"39": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit: CA name constraints and rotation versus live policy changes",
 		"summary": "- S07-egress-gateway \"Approvals\": \"Policy changes take effect without restarting anything.\" - S09-policy-credentials-audit \"Scope\": the CA has name constraints for the inspected hostnames, and \"when the inspected set…",
 		"brief": "B39-ca-rotation"
 	},
 	"40": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S03-requirements, S07-egress-gateway: record learn mode and pass mode as SEC05-default-deny exceptions",
 		"summary": "SEC05-default-deny is \"default-deny egress\", and AGENTS.md says an S control is never weakened.",
 		"brief": "B40-learn-pass-modes"
 	},
 	"41": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S08-workspace-and-git: which git data reaches the guest, and host git as a parser",
 		"summary": "S08-workspace-and-git says how bytes move, but not which data the guest may get or how much the host trusts its own git when it parses guest data:",
 		"brief": "B41-git-data-scope"
 	},
 	"42": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit: separate configuration trust from VM placement; project identity",
 		"summary": "The specs use \"trusted\" for two different things and do not give a default:",
 		"brief": "B42-trust-placement"
@@ -352,7 +352,7 @@
 	},
 	"55": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "GHSA-ch52-4w7c-c8xp: no fixed http-cache-semantics release (through astro)",
 		"summary": "mise run vuln fails on every branch, main included: osv-scanner reports GHSA-ch52-4w7c-c8xp (high, CVSS 8.7) in http-cache-semantics 4.2.0, \"max-stale handling can disclose cross-user cached responses\"."
 	},
@@ -587,7 +587,7 @@
 	},
 	"93": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: set the guest clock after a cold boot too, since the guest has no NTP",
 		"summary": "X03-network-path (#17) found that the guest has no network time: NTP is UDP, which wb-netd drops (S07-egress-gateway, \"Connections\"), and an idle macOS guest sends NTP to time.apple.com every 2 s with no answer."
 	},
@@ -642,7 +642,7 @@
 	},
 	"102": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X28-git-alloc-limit: git's allocation cap against delta bombs",
 		"summary": "X26-pre-receive-check (#74) found that a small pack makes receive-pack allocate a delta's declared result before any hook runs (2 GiB from an 8 KiB pack), and that macOS refuses ulimit -v and -d on the git child.",
 		"brief": "B102-git-alloc-limit"
@@ -697,7 +697,7 @@
 	},
 	"111": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "NFR00-index: write the performance requirements as goals, like NFR02-fs-speed",
 		"summary": "X18-vsock-handoff measured a cold boot to wb-guestd at 10.93 s (p50) and 13.48 s (p95), against the 10 s hard ceiling (p95) of NFR01-startup (#86)."
 	},
@@ -728,7 +728,7 @@
 	},
 	"116": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X28-git-alloc-limit result, yes with conditions",
 		"summary": "Result of spike X28-git-alloc-limit: yes, with conditions."
 	},
@@ -756,5 +756,95 @@
 		"state": "open",
 		"title": "Clean up spike VM bundles under ~/Library/Caches/wraithbox-spikes after each spike",
 		"summary": "Spikes that need a macOS guest keep VM bundles under ~/Library/Caches/wraithbox-spikes/<spike/, and nothing removes them."
+	},
+	"121": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "chore(doc): move http-cache-semantics to 4.3.0 for GHSA-ch52-4w7c-c8xp",
+		"summary": "- http-cache-semantics 4.3.0 is a fixed release: OSV lists 4.2.0 as the last affected version of GHSA-ch52-4w7c-c8xp (checked against api.osv.dev)."
+	},
+	"122": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): drop per-set CA name constraints, rotate with overlap",
+		"summary": "Applies the maintainer's decision on #39 (option A, brief B39-ca-rotation): one inspection CA per VM with no name constraints, rotated with an overlap, so an approval that adds an inspected host needs no restart."
+	},
+	"123": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): which git data reaches the guest, and host git (I41)",
+		"summary": "Writes the #41 decision (option A, export repository, with the rest of the B41-git-data-scope table as recommended) into S08-workspace-and-git."
+	},
+	"124": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: restrict DNS query names to lower-case LDH labels",
+		"summary": "From the security review of PR #122 (#39), finding 2e."
+	},
+	"125": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): set the guest clock after every start and every minute",
+		"summary": "Applies the 2026-10-06 decision on #93 to S06-vm-lifecycle, \"Time and sleep\"."
+	},
+	"126": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): NFR01-startup is a goal outside the release gate",
+		"summary": "Rewords NFR01-startup the way #103 reworded NFR02-fs-speed for #19."
+	},
+	"127": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): learn mode collects and refuses, pass mode rules",
+		"summary": "Applies the maintainer's decision on #40, A."
+	},
+	"128": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: Claude Code state of a work-placed project in an --isolated session",
+		"summary": "S06-vm-lifecycle (\"VMs\", \"Disks\") keeps a project user's home, with its Claude Code state (FR13-claude-state), on the data disk of the VM the project runs in."
+	},
+	"129": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): split config_trust from placement and key projects on the git dir",
+		"summary": "Applies the maintainer's Decision (2026-10-04) on #42 (B."
+	},
+	"130": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S08-workspace-and-git: run the fetch into export.git in a scrubbed git environment",
+		"summary": "From the security re-check of PR #129 (#42), note N1."
+	},
+	"131": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: host-held client certificate bindings",
+		"summary": "Users with mTLS endpoints (internal registries, some enterprise APIs) can't reach them from the guest."
+	},
+	"132": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): non-HTTP streams in S07-egress-gateway",
+		"summary": "Writes the Decision of 2026-10-04 on #47 (option A, B47-non-http-streams) as a \"Non-HTTP streams\" section in S07-egress-gateway."
+	},
+	"133": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Record blocks only as issue relationships and drop the blocked label",
+		"summary": "Whether an issue is blocked is recorded in two places that nothing keeps in sync: the GitHub blockedBy relationship, which clears itself when the blocker closes, and the blocked label, which stays until someone remove…"
+	},
+	"134": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(agents): add the needs-vm label and run one VM builder at a time",
+		"summary": "Implements the Decision (2026-10-04) on #50 (option C): tests that need a running macOS guest run on the maintainer's Mac until the runner question is revisited near v1."
+	},
+	"135": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: check claude --continue and the trust prompt across session worktrees",
+		"summary": "The spec change for #46 (S06-vm-lifecycle, \"Projects and sessions inside a VM\") gives each session a new worktree at <home/sessions/<session-id."
 	}
 }
