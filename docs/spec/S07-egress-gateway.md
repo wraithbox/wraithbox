@@ -272,7 +272,8 @@ session start in the VM to the end of the last session running in it.
   - `A` queries for allowlisted names are answered with a **synthetic
     address** from a reserved range (198.18.0.0/15), allocated per name
     and remembered with a TTL. Real upstream addresses are never revealed
-    to the guest.
+    to the guest. Before each such answer leaves, `wb-netd` reports the
+    name and address to `wb-proxyd` ("Stream path", "Stream hand-off").
   - *Synthetic pool.* Each VM has the 131,072 addresses of
     198.18.0.0/15. An address is never given to another name while a
     connection to it is open, or before its TTL plus a guard interval
@@ -384,11 +385,12 @@ session start in the VM to the end of the last session running in it.
     limited.
 - **Connections.**
   - TCP to a synthetic address on an allowed port is accepted by the
-    stack and handed to `wb-proxyd` as a byte stream over a Unix socket,
-    tagged with the VM, hostname, and port. Once X14-flow-attribution
-    delivers labels, the stream's tags also hold the label the guest
-    reported for the flow, marked untrusted (S13-guest-confinement).
-    The project and session come only from that label.
+    stack and handed to `wb-proxyd` as a byte stream over the VM's
+    hand-off socket, with the synthetic address and port ("Stream
+    path", "Stream hand-off"). Once X14-flow-attribution delivers
+    labels, the hand-off also holds the label the guest reported for
+    the flow, marked untrusted (S13-guest-confinement). The project and
+    session come only from that label, and it can only narrow.
   - A port is allowed for a synthetic address when the effective
     policy names it for that address's host: in an endpoint's `port`
     or `ports`, or in a raw TCP entry ("Non-HTTP streams"). TCP to a
@@ -406,7 +408,74 @@ session start in the VM to the end of the last session running in it.
 
 ## Stream path (`wb-proxyd`)
 
-- **Name binding.** The hostname comes from the synthetic address. For
+- **Stream hand-off** (SEC04-no-guest-secrets, SEC08-proj-isolation).
+  `wb-netd` parses raw guest frames, so it is the process most likely
+  to be compromised (S04-architecture). `wb-proxyd` takes nothing from
+  it that widens what a stream may reach. A stream's VM comes from the
+  socket it arrived on, its name from `wb-proxyd`'s own copy of the
+  VM's name mapping, and its policy from `wb-hostd`. The maintainer
+  decided this on I68. A name written with each stream and checked
+  only against policy was rejected, because a `wb-netd` bug that mixes
+  up two allowed names would then go through. Moving the synthetic
+  pool into `wb-proxyd` was rejected, because it puts a round trip on
+  every DNS answer and doesn't protect more: a compromised `wb-netd` can
+  still ask for any name the policy allows.
+  - *One hand-off socket per VM.* For each VM generation (S04-architecture,
+    "The VM provider passes descriptors, not bytes"), `wb-hostd` creates
+    a `SOCK_SEQPACKET` socketpair. It passes one end to that VM's
+    `wb-netd` and the other to `wb-proxyd`, which holds it under the VM
+    and generation `wb-hostd` named. When a new generation's socket
+    arrives, `wb-proxyd` closes the old one and every stream that came
+    on it.
+  - *From `wb-hostd`.* `wb-hostd` passes these ends over a
+    `SOCK_SEQPACKET` socketpair it gives `wb-proxyd` at spawn, with no
+    path. `wb-netd` never holds an end of it. Each message holds
+    exactly one descriptor and the fields VM and generation.
+    `wb-proxyd` refuses the message, closes any descriptor in it, and
+    logs the refusal with the rule `handoff-socket-refused` when the
+    descriptor count isn't one, the descriptor isn't a
+    `SOCK_SEQPACKET` socket, or the generation is older than the one it
+    holds for the VM.
+  - *Name reports.* For each `A` answer with a synthetic address,
+    `wb-netd` sends the name and the address on the VM's hand-off
+    socket before the answer leaves. The socket keeps message order,
+    and the report arrives before any stream to that address. `wb-proxyd`
+    adds the pair to its copy of the VM's mapping only when the name
+    passes the name form rule ("Packet path", DNS), the VM's effective
+    policy allows it, the address is in the synthetic range, and its
+    copy doesn't hold the address for another name. It keeps an entry
+    while a stream to the address is open and for the TTL plus the
+    guard interval after the last report, the same values `wb-netd`
+    uses. Otherwise it drops the report and logs it with the rule
+    `name-report-refused` and the check that failed. A stream to
+    that address then doesn't find an entry. The copy holds at most the
+    131,072 addresses of the pool (SEC13-bounded-resources). It
+    belongs to the VM and is kept across a restore, as `wb-netd`'s
+    mapping is (S04-architecture).
+  - *Streams.* A stream message holds exactly one descriptor, a
+    `SOCK_STREAM` socket, and the fields generation, synthetic address,
+    port and, once X14-flow-attribution delivers labels, the guest's
+    label. `wb-proxyd` refuses the stream, closes the descriptor, and
+    logs the refusal with the rule `stream-handoff-refused` and the
+    check that failed when the descriptor count isn't one, the socket
+    type is wrong, the generation isn't the socket's, its copy has no
+    entry for the address, or the VM's effective policy doesn't allow
+    the port for the entry's name.
+  - *Only narrows.* A field `wb-netd` writes either matches what
+    `wb-proxyd` already holds or refuses the stream, and the label can
+    only narrow ("Enforced per VM", "Narrowing by label"). So a
+    compromised `wb-netd` can hand over a stream only under a name and
+    port that the VM's effective policy allows. It can skip the checks
+    that only `wb-netd` makes, such as the wildcard budget, but it
+    can't give a stream another
+    VM's policy, credential bindings or CA, or the grants of a project
+    with no session in the VM.
+  - *Policy order.* `wb-hostd` gives each recompute of the effective
+    policy to `wb-proxyd` before `wb-netd`. So a report for a newly
+    allowed name isn't refused, and a narrowing reaches `wb-proxyd`
+    first.
+- **Name binding.** The hostname is the name `wb-proxyd`'s copy holds
+  for the synthetic address ("Stream hand-off"). For
   TLS, the ClientHello SNI must equal that hostname or the stream is
   reset. `wb-proxyd` resolves the real upstream address itself. For
   inspected plain HTTP, the `Host` header must equal that hostname

@@ -73,6 +73,18 @@ be tested before building on them.
   a host that sleeps from day 50 to day 61 removes the old CA before
   it accepts a stream. Each step checks its 5019
   event.
+  The stream hand-off in `wb-proxyd` (S07-egress-gateway, "Stream
+  hand-off") has a test with two VMs. It sends, on VM A's hand-off
+  socket, a stream whose fields name VM B's generation, a stream to an
+  address only VM B's copy holds, a stream to an address with no
+  entry, a stream on a port the name's policy doesn't allow, a message
+  with two descriptors, and a datagram socket as the stream. It also
+  sends name reports with a name only VM B's policy allows, a name
+  that fails the name form rule, and an address already held for
+  another name. Each is refused and logged with its rule, and
+  `wb-proxyd` doesn't open an upstream connection or fetch a binding. A
+  hand-off message from `wb-hostd` with an older generation is
+  refused too.
   The policy loader has a test that puts a host in pass mode from a
   repository's `.wraithbox/policy.yaml` with `config_trust` on, on a host with a
   credential binding, on a host a built-in profile covers, and without
@@ -101,7 +113,10 @@ be tested before building on them.
   "Accounting and event channels"), every vsock RPC
   handler in `wb-hostd`, the stream framing that multiplexes guest
   requests on a host-opened connection, with the project each request
-  is attributed to (S04-architecture, B29-vsock-handoff), network policy YAML, the guest flow labels
+  is attributed to (S04-architecture, B29-vsock-handoff), the name
+  reports and stream messages `wb-proxyd` reads from `wb-netd` and the
+  hand-off messages it reads from `wb-hostd` (S07-egress-gateway,
+  "Stream hand-off"), network policy YAML, the guest flow labels
   of S13-guest-confinement, and the dependency gate's parsers: npm
   request paths, PyPI distribution file names, Go escaped module paths
   and versions, crates.io index lines, and `sum.golang.org` lookup

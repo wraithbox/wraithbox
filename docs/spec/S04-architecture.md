@@ -344,9 +344,20 @@ nothing themselves (S12-platforms).
   the program that opened them) can only deny what the host would allow.
   Every `SEC*` control holds without them (S13-guest-confinement, T06-forged-labels).
 - **Policy is evaluated on the host, twice.** `wb-netd` decides which
-  names resolve and which connections are accepted; `wb-proxyd` re-checks
-  the hostname, SNI, and HTTP request. A bug in one layer does not open
-  egress on its own.
+  names resolve and which connections are accepted. `wb-proxyd`
+  re-checks the hostname against its own copy of the name mapping and
+  the VM's effective policy, then the SNI and the HTTP request. A bug
+  in one layer does not open egress on its own.
+- **`wb-proxyd` takes a stream's identity from the connection, not from
+  `wb-netd`** (SEC04-no-guest-secrets, SEC08-proj-isolation).
+  `wb-hostd` creates one hand-off socket per VM generation and passes
+  its ends to that VM's `wb-netd` and to `wb-proxyd`, naming the VM to
+  `wb-proxyd`. A stream's VM, and so its policy, credential bindings
+  and CA, comes from the socket it arrived on. Its name comes from the
+  name reports `wb-proxyd` checked and kept, and what `wb-netd` writes
+  with a stream can only narrow. So a compromised `wb-netd` can't label
+  a stream as another VM's, or as a project's that has no session in
+  the VM (S07-egress-gateway, "Stream hand-off").
 - **One work VM per guest OS, many projects; an isolated VM for the
   rest.** The work VM hosts every project placed there for its guest
   OS, new projects included, separated by guest user accounts. An
