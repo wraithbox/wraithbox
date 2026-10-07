@@ -140,7 +140,11 @@ are a usage error:
   A session that ended after its terminal closed, or after it was
   lost, has no `wb` left to print it, and `wb sessions` shows its
   summary. Each of several parallel sessions prints its own
-  (FR05-parallel-sessions).
+  (FR05-parallel-sessions). When a session's changes stayed in the
+  guest, after a deadline or a failed WIP commit or push, the summary
+  and `wb sessions` give the worktree's path in the guest and
+  `wb shell --project P` to reach it (S06-vm-lifecycle, "Changes left
+  in the guest").
 
 - During an agent session, `wb` never prints approval prompts. That
   terminal shows the agent's output, which the guest controls, so any
@@ -374,7 +378,7 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it ("Naming") |
 | `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (S09-policy-credentials-audit) |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
-| `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session that is starting, running, paused or ending. The refusal names each one and how it ends: close its terminal, or wait for its deadline, and `wb sessions` lists them (S06-vm-lifecycle, "Idle suspend") |
+| `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session that is starting, running, paused or ending. The refusal names each one, the process ID of its `wb`, and how it ends: close its terminal, or wait for its deadline, and `wb sessions` lists them (S06-vm-lifecycle, "Idle suspend") |
 | `wb image build/list/use` | Base image management (S06-vm-lifecycle) |
 | `wb shell [--project P]` | Debug shell as the project user, labeled as a debug shell |
 | `wb setup` | Check host prerequisites (S12-platforms) and the minimum git version (S08-workspace-and-git), install and start the per-user services |

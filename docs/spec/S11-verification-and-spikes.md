@@ -412,8 +412,15 @@ be tested before building on them.
     - send a list of 65 entries, and see it refused and the connection
       closed; drop the link again and again, and see at most 20
       connections to the VM in a minute;
+    - drop the link while the WIP commit runs, bring it back, and see
+      the stopped commit killed, the commit run again and the session
+      end normally;
+    - drop the link right after a session ends, before its report
+      reaches the host, and see the session end with that report, not
+      as lost;
     - never report a WIP commit, and see the session end as a failure
-      at its deadline, with `wb` exiting 255;
+      at its deadline, with `wb` exiting 255 and the summary naming
+      the worktree's path and `wb shell`;
     - run `wb vm stop` and `wb vm suspend` with a running session,
       and see both refused with the session named;
     - during recovery, push to the recovering session's branch and to
