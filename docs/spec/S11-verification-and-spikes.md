@@ -421,6 +421,13 @@ be tested before building on them.
   - as root, run `sudo -l -U` for each project user and see no rules
     listed, and see no `admin` or `wheel` group in its `id`
     (S06-vm-lifecycle, X27-vsock-confinement);
+  - as a project user, replace a link in the toolchain prefix's `bin`,
+    write to a binary in its `Cellar`, and run `brew install`, and see
+    each refused; as root, check that the toolchain user owns every
+    file in the prefix and that neither its group nor others can write
+    one; hand `wb-hostd` a manifest with a `tap`, a `cask` or a `system`
+    line, and see it refused with the line and the rule
+    (S06-vm-lifecycle, "Toolchain prefix", X20-shared-homebrew);
   - write into the host repository through the git transport; fetch an
     object outside the session's branch by its ID; push outside
     `refs/heads/wb/<session-id>/`, or a tree with a `.git` entry;
@@ -603,6 +610,7 @@ X05-fs-benchmark (the data disk against the host, and its disk settings),
 X07-git-round-trip (the git transport between guest and host),
 X18-vsock-handoff (vsock and descriptor hand-off on macOS),
 X19-terminal-filter (the host terminal stream filter),
+X20-shared-homebrew (one Homebrew prefix for every project user),
 X21-dep-gate-registries (the dependency gate on real registries),
 X22-no-guest-credentials (clients when guest credentials are removed),
 X23-sandboxed-daemons (Go daemons confining themselves on macOS),
