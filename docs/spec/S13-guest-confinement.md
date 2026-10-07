@@ -46,19 +46,32 @@ Applied by `wb-guestd` to every process it starts for a project user:
   users keep files apart, not network traffic (T11-shared-vm-grants);
 - `RLIMIT_CORE` set to 0, and an environment built from an allowlist
   (S09-policy-credentials-audit);
-- when the host-guest socket drops, `wb-guestd` stops the session's
-  process group, so no session runs on without host session control.
-  When the link returns, it resumes the group only when `wb-hostd`
-  answers that the session still has its client, and otherwise hangs
-  up the session and ends it (S06-vm-lifecycle, "Session lifecycle").
-  It resumes only a group it stopped itself, not one `claude` stopped
-  with job control. A new `wb-guestd` process never takes over the
-  sessions of an earlier one. A VM with a session is never saved for
-  idleness. A restore then never has a session to resume;
-- when a session's client goes (its terminal closed, or `wb` was
-  killed), `wb-guestd` hangs up `claude`, and sends `SIGKILL` to its
-  process group when it hasn't exited 10 seconds later
+- every operation under a project user's home, the worktree, the
+  carry-in and the WIP commit and push included, runs in a child
+  process as that user with the session's environment allowlist.
+  `wb-guestd`, running as root, never opens a path there
   (S06-vm-lifecycle, "Session lifecycle");
+- when the host-guest socket drops, `wb-guestd` stops every process of
+  every project user in the VM, in a loop until none is left running,
+  so no session runs on without host session control. It records
+  which processes were already stopped, such as a `claude` stopped
+  with job control. When the link returns, it resumes a session only
+  when `wb-hostd` answers "resume", and then sends `SIGCONT` only to
+  the processes it stopped itself. On "finish" or "end" it hangs up or
+  kills the session (S06-vm-lifecycle, "Session lifecycle"). A
+  project user's processes that it stopped and that no resumed
+  session holds stay stopped until that user's processes are killed.
+  A new `wb-guestd` process never takes over the sessions of an
+  earlier one. A VM with a session is never saved for idleness. A
+  restore then never has a session to resume;
+- when a session's client goes (its terminal closed, or `wb` was
+  killed), `wb-guestd` hangs up `claude`. When it hasn't exited 10
+  seconds later, `wb-guestd` sends `SIGKILL` to every process in the
+  session's POSIX session (S06-vm-lifecycle, "Session helper"). When
+  the project user has no other session in the VM, it then kills every
+  process of that user, in a loop until none remain. Otherwise it logs
+  each process of that user that is in no session's POSIX session,
+  with the rule, and leaves it (Known gaps below);
 - when `wb-hostd` ends a project's last session in the VM, debug
   shells included, `wb-guestd` locks that project user, so nothing new
   starts as it, and kills its processes in a loop until none remain.
@@ -115,6 +128,13 @@ process cannot remove it, much like Landlock.
   services run outside the profile. They stay inside the guest and the
   project user's permissions. Xcode and simulators need exceptions
   (spike X06-guest-xcode).
+  A process that leaves its session's POSIX session with `setsid`,
+  while another session of the same project runs in the VM, survives
+  its session's hangup and kill (Layer 1). It keeps the project
+  user's rights and the VM's network grants until the project's last
+  session ends, and it can still write to the worktree while the WIP
+  commit runs. `wb-guestd` logs it, and S11-verification-and-spikes
+  checks the log.
 
 ## Layer 3: per-program network attribution (after X14-flow-attribution)
 

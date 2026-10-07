@@ -124,8 +124,9 @@ in S12-platforms.
 - **Warm start.** `wb-hostd` can have `wb-vmd` start the work VM at
   login. After a configurable idle period the VM's state is saved and
   the VM stops; the next session restores from saved state (NFR01-startup, NFR03-footprint).
-  The idle period runs only while the VM has no session, so a VM with
-  a session is never saved for idleness ("Session lifecycle").
+  The idle period runs only while the VM has no session that is
+  starting, running, paused or ending, so a VM with one is never saved
+  for idleness ("Session lifecycle", "Idle suspend").
   A restore of an idle guest takes about 4 s (X02-warm-start), inside
   the 7 s goal of NFR01-startup for a suspended VM. A cold boot takes
   10.9 s (p50) and 13.5 s (p95) to the guest daemon's vsock
@@ -229,12 +230,17 @@ in S12-platforms.
   the new worktree a symbolic link to one directory per project,
   `~/.claude/projects/wb-project`. `--continue` and `--resume` then
   find the conversations of the project's earlier sessions
-  (FR13-claude-state). The link is made as the project user, so
-  `wb-guestd` never follows a link the project user made with root's
-  rights. Parallel sessions share that directory, so `--continue` in
-  one can pick the conversation another session is running. The layout
-  was read on a macOS host, not checked in a guest, and I135 checks it
-  there.
+  (FR13-claude-state). The link is made as the project user ("Session
+  lifecycle", "As the project user"), so `wb-guestd` never follows a
+  link the project user made with root's rights. `wb discard` removes
+  the session's link with its worktree, and leaves the per-project
+  directory. Parallel sessions share that directory, so `--continue` in
+  one can pick the conversation another session is running, and two
+  sessions can then write one conversation. Whether Claude Code allows
+  that is open. The layout was read on a macOS host, not checked in a
+  guest, and I135 checks it there. I135 also checks Claude Code's
+  prompt to trust a folder, which a new worktree path per session may
+  bring up at every session start, unlike `claude` (FR01-drop-in).
   Rejected: one worktree path for every session, which a parallel
   session, or an ended session that isn't discarded yet, still holds.
 - Ephemeral sessions use a throwaway guest user removed at session end
@@ -244,80 +250,157 @@ in S12-platforms.
 
 A session runs from `wb claude` to its summary. `wb-hostd` keeps each
 session's record and state in `state.db` (S04-architecture, "Host
-state"), and `wb-guestd` holds the session's processes and, in
-interactive use, its terminal device (PTY). The maintainer decided on
-I46 (B46-session-lifecycle) that closing the terminal ends the
-session. V1 has no detach and no `wb attach`, and a session has one
-client, the `wb` process that started it.
+state"), with the VM and the VM generation it runs in. `wb-guestd`
+holds the session's processes and, in interactive use, its terminal
+device (PTY). The maintainer decided on I46 (B46-session-lifecycle)
+that closing the terminal ends the session. V1 has no detach and no
+`wb attach`, and a session has one client, the `wb` process that
+started it.
 
-![Session states. A session starts, runs, and ends with a WIP commit and push. A dropped host-guest link pauses it. A stopped VM, or a link that stays down, loses it, and a lost session ends at the next connection to its VM.](S06-vm-lifecycle.svg)
+![Session states. A session starts, runs, and ends with a WIP commit and push. A start that fails or times out ends at once. A dropped host-guest link pauses a running session, which resumes or finishes when the link returns. A stopped VM or daemon, or a pause past 30 seconds, loses a session, and a lost session ends by recovery, by wb discard, or at its deadline.](S06-vm-lifecycle.svg)
 
-| State | What holds | Next |
-|---|---|---|
-| starting | `wb-hostd` admits the session, starts or restores the VM, and `wb-guestd` creates the worktree and applies the carry-in (S08-workspace-and-git) | running when `claude` starts. After a refusal or a failure before that, `wb` exits with 255, and `wb-guestd` removes a worktree it made |
-| running | `claude` runs, and `wb` relays its terminal or its streams (S05-cli) | ending, paused, or lost |
-| paused | the host-guest link is down, and the session's process group is stopped (S13-guest-confinement, "Layer 1") | running, ending, or lost |
-| ending | `claude` has exited or was killed, and `wb-guestd` commits WIP and pushes (S08-workspace-and-git, "Session end") | ended |
-| lost | the session's VM, its `wb-guestd`, or `wb-hostd` stopped under it | ended, by recovery |
-| ended | the exit status and the summary are in `wb sessions`, and the returned work stays until `wb land` or `wb discard` | |
+| State | What holds | Link drops | VM or daemon stops | Other exits |
+|---|---|---|---|---|
+| starting | `wb-hostd` admits the session, starts or restores the VM, and `wb-guestd` creates the worktree and applies the carry-in (S08-workspace-and-git) | ended, as a failed start | lost | running when `claude` starts. ended, as a failed start, on a refusal, a failure or the deadline |
+| running | `claude` runs, and `wb` relays its terminal or its streams (S05-cli) | paused | lost | ending when `claude` exits or the client goes |
+| paused | the link is down, and the guest's project processes are stopped (S13-guest-confinement, "Layer 1") | stays paused | lost | running or ending when the link returns. lost at the pause limit |
+| ending | `claude` has exited or was killed, and `wb-guestd` commits WIP and pushes (S08-workspace-and-git, "Session end") | stays ending, and finishes again when the link returns | lost | ended when done, or as a failure at the deadline |
+| lost | the session's VM, its `wb-guestd`, or `wb-hostd` stopped under it | | | ended by recovery, `wb discard`, `wb project rm`, or the deadline |
+| ended | the exit status and the summary are in `wb sessions`, and the returned work stays until `wb land` or `wb discard` | | | |
 
+`wb-hostd` logs every transition to paused, lost and ended, and each
+answer it gives `wb-guestd` below, with the rule that made it, in the
+audit log (SEC10-audit).
+
+- **As the project user.** Every operation under a project user's home
+  (creating and removing the worktree, the carry-in, the history link
+  of "Projects and sessions inside a VM", the WIP commit and the push)
+  runs in a child process as that user, with the session's environment
+  allowlist (S09-policy-credentials-audit). `wb-guestd`, running as
+  root, never opens a path under a project user's home. So a project
+  user's `.git/config` or hooks never run as root.
+- **Session helper.** `wb-guestd` starts each session through a small
+  helper that runs as the project user. The helper starts a new POSIX
+  session (`setsid`). In interactive use it makes the PTY its
+  controlling terminal, and it starts `claude` in a process group of
+  its own as the terminal's foreground group, as a shell does for a
+  job. It waits with `WUNTRACED`, so it sees `claude` stop, and reports
+  that, and `claude`'s exit status, to `wb-guestd`. The session's
+  processes are the processes in the helper's POSIX session, and
+  `wb-guestd` records its session id on the data disk. A process
+  that leaves it with `setsid` is out of the session (S13-guest-confinement,
+  "Known gaps"). That job control works through this helper is not
+  checked yet (I135).
 - **Closing the terminal ends the session.** When `wb` gets `SIGHUP`,
   or its connection to `wb-hostd` closes for any reason (`wb` was
   killed or crashed), `wb-hostd` has `wb-guestd` hang up the session.
-  In interactive use `wb-guestd` closes its end of the session's
-  PTY, and the guest kernel sends `SIGHUP` as it does for a closed
-  terminal. Otherwise it sends `SIGHUP` to `claude`'s process group.
-  A stopped group also gets `SIGCONT`, so the hangup is delivered.
-  When `claude` hasn't exited 10 seconds later, `wb-guestd` sends
-  `SIGKILL` to that process group. Either way the session goes on to
-  ending, as on a normal exit. `wb claude --continue` then starts a
-  new session at the host's `HEAD`, which resumes the conversation
-  ("Projects and sessions inside a VM"). The files the old session
-  left uncommitted are only in its WIP commit, on its session branch.
+  `wb-hostd` detects this by the closed connection, never by a missed
+  heartbeat, so a `wb` stopped with job control keeps its session. In
+  interactive use `wb-guestd` closes its end of the session's PTY, and
+  the guest kernel sends `SIGHUP` as it does for a closed terminal.
+  Otherwise the helper sends `SIGHUP` to `claude`'s process group and
+  closes its standard input. A stopped group also gets `SIGCONT`, so
+  the hangup is delivered. When `claude` hasn't exited 10 seconds
+  later, `wb-guestd` kills the session's processes, and the project
+  user's other processes as S13-guest-confinement ("Layer 1") says.
+  Either way the session goes on to ending, as on a normal exit.
+  `wb claude --continue` then starts a new session at the host's
+  `HEAD`, which resumes the conversation ("Projects and sessions
+  inside a VM"). The files the old session left uncommitted are only
+  in its WIP commit, on its session branch.
 - **Ending.** The session ends when `claude` exits, or after a hangup.
   `wb-guestd` commits and pushes WIP (S08-workspace-and-git, "Session
   end") and reports `claude`'s exit status, an exit code or the signal
   that ended it. The report is guest input (SEC11-root-gains-nothing):
   `wb-hostd` accepts an exit code from 0 to 255 or a signal number
   from 1 to 64. Anything else is recorded as a failure with the rule,
-  and `wb` exits as for a Wraith Box failure (S05-cli, "Exit status").
-  When `wb` is still connected, it prints the summary and exits.
-- **Paused.** When the host-guest link drops, `wb-guestd` stops each
-  session's process group (S13-guest-confinement, "Layer 1"), and
-  `wb-hostd` connects to it again (S04-architecture). After it
-  connects, `wb-guestd` lists the sessions it holds. `wb-hostd` answers
-  "resume" for each one that it has as running or paused with its
-  client still connected, and "end" for the rest, which then hang up
-  as above. `wb-guestd` resumes a session only on that answer. A
-  session `wb-hostd` has as running or paused and the list doesn't
-  hold is lost. The list is guest input: a false one can only stop,
-  keep or end sessions in that guest, and `wb-hostd` logs each entry
-  it has no record of with the rule. `wb` doesn't print anything
-  while a session is paused.
+  and `wb` exits as for a Wraith Box failure (S05-cli, "Exit status
+  and signals"). When `wb` is still connected, it prints the summary
+  and exits.
+- **Deadlines.** Each state that waits on the guest has a deadline on
+  the host, counted in host time awake: starting has 10 minutes from
+  admission, which includes the toolchain reconcile (FR07-toolchain-manifest),
+  and ending and recovery have 7 minutes each, which hold the 10
+  seconds of the hangup, the WIP commit and the 5-minute push
+  watchdog (S08-workspace-and-git, "Bounds"). Past its deadline,
+  `wb-hostd` has `wb-guestd` end the session (below) and records it
+  as ended with a Wraith Box failure, and `wb` exits with 255. The
+  worktree keeps its changes until `wb discard`. So a guest that never
+  reports can't hold a session, or its VM, past the deadline
+  (SEC13-bounded-resources).
+- **Reconnect.** When the host-guest link drops, `wb-guestd` stops the
+  project processes (S13-guest-confinement, "Layer 1"), and `wb-hostd`
+  connects to it again (S04-architecture). It waits 0.1 s before the
+  first try, doubles the wait after each failed one up to 5 s, and
+  opens at most 20 connections to one VM in a minute
+  (SEC13-bounded-resources). After it connects, `wb-guestd` lists the
+  sessions it holds. The list is guest input
+  (SEC11-root-gains-nothing). `wb-hostd` refuses a list of more than
+  64 entries whole, logs it, and closes the connection, which counts
+  as a failed try. It runs at most 64 sessions in one VM. For each
+  entry it checks the session ID format of S05-cli ("Naming") first,
+  then looks for a session of this VM and this VM generation only, and
+  answers:
+  - "resume" for a running or paused session whose `wb` is still
+    connected. It goes back to running.
+  - "finish" for a running or paused session whose `wb` has gone, and
+    for an ending session. It hangs up as above if `claude` still
+    runs, and commits and pushes WIP. It goes to ending. A lost
+    session of this VM gets "finish" from recovery (below).
+  - "end" for every other entry: a starting session (the start has
+    failed), a session of another VM, a running, paused or ending
+    session of another VM generation, an ended session, a malformed
+    id, and an id it has no record of. `wb-guestd` kills the
+    processes of that session, and doesn't commit or push. For
+    a session whose start failed, or that was discarded, it also
+    removes the worktree and its history link. `wb-hostd` logs each
+    such entry with the rule.
+
+  `wb-guestd` resumes a session only on "resume". A session of this VM
+  that `wb-hostd` has as starting, running, paused or ending and the
+  list doesn't hold is lost. A false list can only stop, keep or end
+  sessions in that guest. `wb` doesn't print anything while a session
+  is paused.
 - **Pause limit.** A session that is paused for 30 seconds of host
   time awake is lost. Time the host spends asleep doesn't count. A
   restore reconnects in about 0.2 s (X18-vsock-handoff), and a
   `wb-guestd` restart loses the session anyway ("Lost"), so the limit
-  only has to outlast a slow reconnect. When the link returns after
-  the limit, `wb-hostd` answers "end" for that session.
+  only has to outlast a slow reconnect.
 - **Lost.** A session is lost when `wb-vmd` reports its VM stopped,
   when its `wb-guestd` exits (the reconnected `wb-guestd` doesn't list
   it, and a new `wb-guestd` process never takes over an earlier one's
   sessions), when `wb-hostd` exits, which stops every VM (decided on
-  I48), or after the pause limit. A `wb-guestd` exit closes the PTYs it
+  I48), or at the pause limit. A `wb-guestd` exit closes the PTYs it
   holds, so `claude` gets a hangup from the guest kernel. `wb` prints a
   `wraith box:` line that names the session and says its WIP returns
   at the next connection to the VM, and exits with 255 (S05-cli). When
   `wb-hostd` starts, it marks every session it has as starting,
-  running, paused or ending as lost.
+  running, paused or ending as lost. For the effective policy of
+  S07-egress-gateway, and for `wb vm stop` and `wb vm suspend`, a lost
+  session counts as ended: its project's grants leave the VM when no
+  other session of the project is starting, running, paused or ending
+  there.
 - **Recovery.** A lost session's worktree stays on the data disk. At
   the next connection to a `wb-guestd` in that VM, after a restart or
-  the next VM start, `wb-hostd` has `wb-guestd` end each lost session
-  of the VM: kill what is left of its process group, then commit and
-  push WIP as at a normal end. The session is then ended, with "lost"
-  as its exit status in `wb sessions`. A lost session stays live for
-  `export.git` until then (S08-workspace-and-git, "Export repository"),
-  so its WIP push still has its base.
+  the next VM start, `wb-hostd` sends "finish" for each lost session
+  of the VM that it has a record of, whatever the list holds:
+  `wb-guestd` kills what is left of the session's processes, then
+  commits and pushes WIP as at a normal end. During recovery
+  `wb-hostd` accepts only that session's push, to its own branch
+  (S08-workspace-and-git, "Ref restriction"), and gives its project
+  no network grants. The session is then ended, with "lost" as its
+  exit status in `wb sessions`. A lost session stays live for
+  `export.git` until it ends (S08-workspace-and-git, "Export
+  repository"), so its WIP push still has its base.
+- **Discarding a lost session.** `wb discard` on a lost session, and
+  `wb project rm` for each lost session of the project, end it with no
+  recovery push. `wb-hostd` takes the project's landing lock
+  (S08-workspace-and-git), records the session as ended and discarded,
+  and only then deletes its refs. A recovery push that already holds
+  the lock finishes first, and its refs are deleted after it. A later
+  one is refused, because the session is no longer live. At the next
+  connection to the VM, `wb-guestd` gets "end" for it, and removes
+  the worktree and its history link.
 - **Host sleep.** The VM sleeps with the host, and on wake `wb-hostd`
   updates the guest clock ("Time and sleep"). The session runs on as
   long as `wb` still has its terminal. When the host-guest link drops
@@ -326,18 +409,23 @@ client, the `wb` process that started it.
   session.
 - **Idle suspend.** The idle period of "Warm start" runs only while the
   VM has no session that is starting, running, paused or ending, debug
-  shells included. So a VM is never saved for idleness with a session
-  in it, and no restore has a session to resume. `wb vm suspend` and
-  `wb vm stop` are refused while the VM has such a session, and the
-  refusal names each one (NFR06-explained-refusals). A terminal left
-  open on a session keeps its VM running (NFR03-footprint).
+  shells included. A lost or ended session doesn't count. So a VM is
+  never saved for idleness with such a session in it, and no restore
+  has a session to resume. `wb vm suspend` and `wb vm stop` are
+  refused while the VM has a starting, running, paused or ending
+  session. The refusal names each one with its state and how it ends:
+  close its terminal for a running or paused session, or wait for its
+  deadline for a starting or ending one, and `wb sessions` lists them
+  (NFR06-explained-refusals). A terminal left open on a session keeps
+  its VM running (NFR03-footprint) and holds the VM's slot
+  (NFR05-two-macos-vms).
   Rejected: saving a VM whose sessions have been quiet, which needs a
   restore on the next keystroke and turns every restore into a pause.
 - **Parallel sessions.** Each session has its own id, worktree, client,
   exit status and summary (FR05-parallel-sessions). Ending one session
-  doesn't touch the others, except that the project user is locked
-  when its project's last session ends (S13-guest-confinement,
-  "Layer 1").
+  doesn't touch the others, except that the project user's processes
+  are all killed and the user is locked when its project's last
+  session ends (S13-guest-confinement, "Layer 1").
 
 ## `wb-guestd`
 

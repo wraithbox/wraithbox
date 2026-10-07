@@ -109,8 +109,9 @@ are a usage error:
 
 ### Session behavior
 
-- Must be run inside a git repository; otherwise `wb` exits with a
-  message explaining why (the return path is git, S08-workspace-and-git).
+- Must be run inside a git repository; otherwise `wb` exits with 255
+  and a message explaining why (the return path is git,
+  S08-workspace-and-git).
 - Closing the terminal ends the session (decided on I46,
   B46-session-lifecycle). `claude` gets a hangup, and its work is
   committed as WIP and pushed as on a normal exit. V1 has no detach
@@ -122,7 +123,9 @@ are a usage error:
 - First run in a repository registers the project, creates its guest
   user and clone, then starts the session. Later runs reuse them.
 - On exit, `wb` prints a short summary of the session's returned work
-  and the commands to review and land it, for example:
+  and the commands to review and land it, on its standard error in
+  interactive and non-interactive use, so it never mixes into
+  `claude`'s output on standard output, for example:
 
   ```
   wraith box: session myrepo-20261003-1412-k3f9 returned 3 commits (+ WIP)
@@ -179,18 +182,27 @@ Signals:
   signals have their default effect on `wb`. One that ends it ends the
   session as a hangup does.
 - **Job control.** When `claude` stops itself in interactive use, as
-  it does on Ctrl-Z, `wb-guestd` reports it. `wb` then resets the
-  terminal and drains its input as on exit ("Around the stream"),
-  restores the user's window title, and stops itself with `SIGTSTP`,
-  so the user's shell has the terminal again. On `SIGCONT` (`fg`),
-  `wb` sets its title and raw mode again and has `wb-guestd` continue
-  `claude`, which redraws. In non-interactive use, `wb` forwards
+  it does on `Ctrl-Z`, the session helper in the guest sees it
+  (S06-vm-lifecycle, "Session helper"), and `wb-guestd` reports it.
+  The report is guest input, and it can only make `wb` give the
+  terminal back early. `wb` then resets the terminal and drains its
+  input as on exit ("Around the stream"), restores the user's window
+  title, and stops itself with `SIGSTOP`, so the user's shell has the
+  terminal again. On `SIGCONT` (`fg`), `wb` sets its title and raw
+  mode again and has `wb-guestd` continue `claude`, which redraws. A
+  `SIGTSTP` sent to `wb` from outside, which a terminal in raw mode
+  never sends, gets the same steps, after `wb` has `wb-guestd` stop
+  `claude`'s process group. In non-interactive use, `wb` forwards
   `SIGTSTP` to `claude` before it stops itself, and `SIGCONT` after
-  it continues.
-- **A closed output.** When `wb`'s standard output is closed in
-  non-interactive use (`wb claude -p … | head -1`), `wb-guestd` closes
+  it continues. A stopped `wb` keeps its connection to `wb-hostd`, so
+  the session stays. That job control works through the helper is not
+  checked yet (I135).
+- **A closed output.** `wb` ignores `SIGPIPE`, and an `EPIPE` on its
+  standard output in non-interactive use (`wb claude -p … | head -1`)
+  is how it learns that the reader closed its end. `wb-guestd` then closes
   `claude`'s standard output, so `claude` sees a broken pipe as it
-  would on the host.
+  would on the host, and `wb` exits as the table says for `claude`'s
+  exit.
 
 ## Terminal stream
 
@@ -348,7 +360,7 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb sessions [--project P]` | List sessions and their returned work |
 | `wb diff <session>` | Review returned work with flagged paths highlighted |
 | `wb land <session> [--branch NAME]` | Fetch returned work into the host repo as a branch; never checks out or merges |
-| `wb discard <session>` | Drop returned work and the session's guest worktree |
+| `wb discard <session>` | Drop returned work and the session's guest worktree with its history link. A lost session ends with no recovery push (S06-vm-lifecycle, "Discarding a lost session") |
 | `wb approve [<id>]` / `wb deny [<id>]` | Answer pending approvals (notification alternative) |
 | `wb allow <host> [--project P]` | Add an allowlist entry (SEC05-default-deny) |
 | `wb policy show/explain/edit [--project P]` | Effective policy and why a request was allowed or refused (NFR06-explained-refusals) |
@@ -362,7 +374,7 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it ("Naming") |
 | `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (S09-policy-credentials-audit) |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
-| `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session, and the refusal names it (S06-vm-lifecycle, "Session lifecycle") |
+| `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session that is starting, running, paused or ending. The refusal names each one and how it ends: close its terminal, or wait for its deadline, and `wb sessions` lists them (S06-vm-lifecycle, "Idle suspend") |
 | `wb image build/list/use` | Base image management (S06-vm-lifecycle) |
 | `wb shell [--project P]` | Debug shell as the project user, labeled as a debug shell |
 | `wb setup` | Check host prerequisites (S12-platforms) and the minimum git version (S08-workspace-and-git), install and start the per-user services |
@@ -522,7 +534,9 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
   request is sent, and ids are random, so no later project gets this
   one's id. `rm` is
   refused while the project has a session, or returned work that
-  wasn't landed or discarded, and the refusal lists them. Branches
+  wasn't landed or discarded, and the refusal lists them. A lost
+  session doesn't count as a session here: `rm` ends it with no
+  recovery push (S06-vm-lifecycle, "Discarding a lost session"). Branches
   already landed in the user's repository stay. When a project holds a key or identity
   that another project should have, the user removes it with
   `wb project rm` and then moves the other one. `wb project move`

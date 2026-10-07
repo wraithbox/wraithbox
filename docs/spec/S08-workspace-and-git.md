@@ -24,7 +24,8 @@ back out, without sharing the host filesystem.
   live session of the project selected (B41-git-data-scope, item 1).
   A session is live from its start until it ends. A lost session
   (S06-vm-lifecycle, "Session lifecycle") stays live until its
-  recovery ends it, so its WIP push still has its base. A session that has
+  recovery, `wb discard` or `wb project rm` ends it, so its WIP push
+  still has its base. A session that has
   ended but isn't discarded yet isn't live: its pushed work in
   `landing.git` is kept by the copy in "Repository lifecycle" below,
   not by refs in `export.git`. A session selects the branch
@@ -205,7 +206,12 @@ back out, without sharing the host filesystem.
     value is never computed from a setting that can be zero.
 - **Ref restriction.** A filter in `wb-hostd` reads the push's command
   list before `receive-pack` sees any of it, and refuses the whole push
-  unless every ref is under `refs/heads/wb/<session-id>/`. Below that
+  unless every ref is under `refs/heads/wb/<session-id>/`, where
+  `<session-id>` is a live session (starting, running, paused, ending
+  or lost, S06-vm-lifecycle) of the project the request names, in the
+  VM the push came from. A push to an ended or discarded session's
+  branch, or to another project's or another VM's, is refused and
+  logged with the rule (SEC06-repo-writes). Below that
   prefix, ref components use only `A-Z`, `a-z`, `0-9`, `-`, `_` and
   `.`, don't start with `.` or end with `.` or `.lock`, and hold no
   `..`. A component is at most 255 bytes and a ref at most 1024. Object
@@ -461,9 +467,13 @@ back out, without sharing the host filesystem.
   `claude` exited by itself or after a hangup, because closing the
   terminal ends the session (decided on I46, S06-vm-lifecycle,
   "Session lifecycle"). `wb-guestd` commits only after `claude` has
-  exited or was killed, so the commit doesn't race the agent's own
-  writes. A session that was lost gets the same commit and push at the
-  next connection to its VM. When the commit or the push fails, the
+  exited or was killed, and after the session's processes were killed
+  (S13-guest-confinement, "Layer 1"). A process that left the session
+  while another session of the project runs can still write during the
+  commit (S13-guest-confinement, "Known gaps"). The commit and the push
+  run as the project user (S06-vm-lifecycle, "As the project user").
+  A session that was lost gets the same commit and push at the
+  next connection to its VM, unless it was discarded first. When the commit or the push fails, the
   worktree keeps the changes, the summary says what failed, and `wb`
   exits with 255 (S05-cli, "Exit status and signals"). A later
   `wb claude --continue` starts from the host's `HEAD`
@@ -504,7 +514,10 @@ back out, without sharing the host filesystem.
     and another `wb land --branch` still work. `wb discard <session>`
     deletes the session's refs under `refs/heads/wb/<session-id>/` from
     `landing.git`, and has `wb-guestd` delete the session's guest
-    worktree, at the VM's next start when it isn't running. The audit
+    worktree and its history link (S06-vm-lifecycle), at the VM's next
+    start when it isn't running. On a lost session it first ends the
+    session with no recovery push, under the landing lock
+    (S06-vm-lifecycle, "Discarding a lost session"). The audit
     log keeps the session's entries. After each `wb discard`,
     `wb-hostd` runs the landing cleanup above (repack and prune) under
     the landing lock. `wb land` keeps the refs, so no cleanup follows
