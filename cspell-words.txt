@@ -13,6 +13,7 @@ guestd
 vmd
 lsimons
 myrepo
+wbprov
 
 # Virtualization, networking and OS facilities
 userspace

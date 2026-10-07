@@ -50,6 +50,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps |
 | B101-vsock-confinement | Can a project user take wb-guestd's place on the host-guest socket? | Answered 2026-10-06: yes, with conditions |
 | B102-git-alloc-limit | Can git itself refuse a push that asks for too much memory, so the pack scanner gets simpler? | Answered 2026-10-06 |
+| B145-least-privilege | Who may hold a credential on the host, and how may it be shared? | Awaiting decision |
 
 ## Order to decide
 

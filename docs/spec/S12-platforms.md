@@ -55,7 +55,9 @@ Rules:
   branches on `runtime.GOOS`.
 - **A native component is a separate process** with a gRPC contract,
   used only where Go cannot reasonably call the platform API. It makes no
-  policy decisions and holds no secrets.
+  policy decisions and holds no secrets. The one exception is that
+  `wb-vmd` gets an image build's provisioning password until its start
+  call returns, along a path S15-least-privilege names.
 - **Every platform implementation has the same conformance tests** (S11-verification-and-spikes); a platform is not "supported" until its conformance suite passes.
 - **Unimplemented platforms fail clearly.** On a host or guest OS that
   is "later" in the matrix, `wb setup` and every command say so; nothing

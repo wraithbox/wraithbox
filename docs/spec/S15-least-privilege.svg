@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" role="img" aria-label="Host processes and the credentials each one nominally holds, with the predetermined sharing paths and how long each lasts.">
+<style>
+svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
+.box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
+.guest { fill: #e8eef8; }
+.boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
+.edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
+.edge-bad { fill: none; stroke: #c01c28; stroke-width: 1.5; stroke-dasharray: 3 3; }
+.arrow { fill: #5e5c64; }
+.arrow-bad { fill: #c01c28; }
+.label { fill: #242428; font-weight: 600; }
+.note { fill: #5e5c64; font-size: 12.5px; }
+.boundary-label { fill: #c01c28; font-size: 12.5px; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+.box { fill: #343437; stroke: #9a9996; }
+.guest { fill: #2b3340; }
+.boundary { stroke: #ff7b7b; }
+.edge { stroke: #c0bfbc; }
+.edge-bad { stroke: #ff7b7b; }
+.arrow { fill: #c0bfbc; }
+.arrow-bad { fill: #ff7b7b; }
+.label { fill: #ffffff; }
+.note { fill: #c0bfbc; }
+.boundary-label { fill: #ff7b7b; }
+}
+</style>
+<defs>
+<marker id="f015-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+<marker id="f015-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+</defs>
+
+<rect class="boundary" x="10" y="10" width="630" height="580" rx="14" />
+<text class="boundary-label" x="24" y="32">host: runs as the user, no root</text>
+
+<rect class="box host" x="30" y="50" width="200" height="60" rx="10" />
+<text class="label" x="130" y="76" text-anchor="middle">wb</text>
+<text class="note" x="130" y="96" text-anchor="middle">holds nothing</text>
+
+<rect class="box host" x="30" y="150" width="200" height="70" rx="10" />
+<text class="label" x="130" y="177" text-anchor="middle">secret store</text>
+<text class="note" x="130" y="198" text-anchor="middle">Keychain, Secure Enclave</text>
+
+<rect class="box host" x="30" y="290" width="200" height="104" rx="10" />
+<text class="label" x="130" y="316" text-anchor="middle">wb-hostd</text>
+<text class="note" x="130" y="337" text-anchor="middle">holds no credential</text>
+<text class="note" x="130" y="354" text-anchor="middle">passes the pipe ends and</text>
+<text class="note" x="130" y="370" text-anchor="middle">the rotation connection</text>
+<text class="note" x="130" y="386" text-anchor="middle">on, reads none of them</text>
+
+<rect class="box host" x="360" y="50" width="250" height="110" rx="10" />
+<text class="label" x="485" y="77" text-anchor="middle">wb-proxyd</text>
+<text class="note" x="485" y="99" text-anchor="middle">holds: binding secrets,</text>
+<text class="note" x="485" y="116" text-anchor="middle">CA key handle, guest admin</text>
+<text class="note" x="485" y="133" text-anchor="middle">passwords (per image, per VM)</text>
+
+<rect class="box host" x="340" y="300" width="210" height="80" rx="10" />
+<text class="label" x="445" y="326" text-anchor="middle">wb-vmd (build)</text>
+<text class="note" x="445" y="347" text-anchor="middle">gets the build password</text>
+<text class="note" x="445" y="364" text-anchor="middle">until the start call returns</text>
+
+<rect class="box host" x="340" y="460" width="270" height="80" rx="10" />
+<text class="label" x="475" y="486" text-anchor="middle">SSH client (build)</text>
+<text class="note" x="475" y="507" text-anchor="middle">named by I139, one session,</text>
+<text class="note" x="475" y="524" text-anchor="middle">password on stdin, then exits</text>
+
+<line class="edge" x1="232" y1="80" x2="358" y2="80" marker-end="url(#f015-arrow)" />
+<text class="note" x="244" y="70">wb cred set: open</text>
+<line class="edge" x1="232" y1="185" x2="358" y2="135" marker-end="url(#f015-arrow)" />
+<text class="note" x="262" y="200">read at use</text>
+<line class="edge" x1="232" y1="340" x2="338" y2="340" marker-end="url(#f015-arrow)" />
+<path class="edge" d="M130,396 C130,470 250,500 338,500" marker-end="url(#f015-arrow)" />
+<line class="edge" x1="445" y1="162" x2="445" y2="298" marker-end="url(#f015-arrow)" />
+<text class="note" x="400" y="235">pipe</text>
+<line class="edge" x1="590" y1="162" x2="590" y2="458" marker-end="url(#f015-arrow)" />
+<text class="note" x="560" y="420">pipe</text>
+
+<rect class="box host" x="700" y="30" width="270" height="66" rx="10" />
+<text class="label" x="835" y="54" text-anchor="middle">upstream host</text>
+<text class="note" x="835" y="73" text-anchor="middle">only the binding's hosts,</text>
+<text class="note" x="835" y="89" text-anchor="middle">per request, over TLS</text>
+<line class="edge" x1="612" y1="70" x2="698" y2="65" marker-end="url(#f015-arrow)" />
+
+<rect class="boundary" x="660" y="120" width="330" height="110" rx="14" />
+<text class="boundary-label" x="672" y="140">VM running project code</text>
+<rect class="box guest" x="700" y="155" width="270" height="60" rx="10" />
+<text class="label" x="835" y="179" text-anchor="middle">guest</text>
+<text class="note" x="835" y="199" text-anchor="middle">placeholders only, never a secret</text>
+<line class="edge-bad" x1="612" y1="110" x2="698" y2="180" marker-end="url(#f015-arrow-bad)" />
+
+<rect class="boundary" x="660" y="270" width="330" height="300" rx="14" />
+<text class="boundary-label" x="672" y="290">build VM or fresh clone: no project code yet</text>
+<rect class="box guest" x="700" y="310" width="270" height="70" rx="10" />
+<text class="label" x="835" y="336" text-anchor="middle">wbprov</text>
+<text class="note" x="835" y="357" text-anchor="middle">volume owner, host-administered</text>
+<rect class="box guest" x="700" y="440" width="270" height="104" rx="10" />
+<text class="label" x="835" y="466" text-anchor="middle">wb-guestd</text>
+<text class="note" x="835" y="487" text-anchor="middle">first contact: sets a new</text>
+<text class="note" x="835" y="504" text-anchor="middle">password from wb-proxyd,</text>
+<text class="note" x="835" y="520" text-anchor="middle">on its own connection, and</text>
+<text class="note" x="835" y="536" text-anchor="middle">retires the old one</text>
+<line class="edge" x1="835" y1="438" x2="835" y2="382" marker-end="url(#f015-arrow)" />
+<line class="edge" x1="552" y1="330" x2="698" y2="340" marker-end="url(#f015-arrow)" />
+<line class="edge" x1="612" y1="490" x2="698" y2="370" marker-end="url(#f015-arrow)" />
+<path class="edge" d="M612,145 C680,210 640,420 698,470" marker-end="url(#f015-arrow)" />
+</svg>
