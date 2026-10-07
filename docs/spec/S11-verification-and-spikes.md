@@ -74,17 +74,35 @@ be tested before building on them.
   it accepts a stream. Each step checks its 5019
   event.
   The stream hand-off in `wb-proxyd` (S07-egress-gateway, "Stream
-  hand-off") has a test with two VMs. It sends, on VM A's hand-off
-  socket, a stream whose fields name VM B's generation, a stream to an
-  address only VM B's copy holds, a stream to an address with no
-  entry, a stream on a port the name's policy doesn't allow, a message
-  with two descriptors, and a datagram socket as the stream. It also
-  sends name reports with a name only VM B's policy allows, a name
-  that fails the name form rule, and an address already held for
-  another name. Each is refused and logged with its rule, and
-  `wb-proxyd` doesn't open an upstream connection or fetch a binding. A
-  hand-off message from `wb-hostd` with an older generation is
-  refused too.
+  hand-off") has a test with two VMs at different generations. On VM
+  A's hand-off socket it sends these streams:
+  - one whose generation field is VM B's;
+  - one to an address only VM B's copy holds, and one to an address
+    with no entry;
+  - one on a port the name's policy doesn't allow;
+  - one to a name that a policy change removed after its report;
+  - one with no descriptor, one with two, and one with three, which
+    cuts the control data (`MSG_CTRUNC`);
+  - one with a datagram socket as the stream;
+  - one in a message over 4 KiB;
+  - streams past the per-socket cap, while VM B's streams still pass.
+
+  On the same socket it sends name reports with a name only VM B's
+  policy allows, a name that fails the name form rule, a name with a
+  capital letter or a trailing dot, an address outside the synthetic
+  range, and new names under a wildcard past the wildcard budget. It
+  also reports an address held for another name twice, once with no
+  stream open and once with a stream to it open, and sees the old
+  entry removed and the open stream closed. Each is refused and logged
+  with its rule and check, and `wb-proxyd` doesn't resolve a name
+  upstream, open an upstream connection or fetch a binding. A replay
+  of the live entries doesn't change the copy or the wildcard
+  count. From `wb-hostd` the test sends hand-off messages
+  with an older generation, a VM that isn't a VM slot, and a datagram
+  with two descriptors, and sees each refused. An equal generation
+  replaces the old socket and closes its streams. A change to the
+  effective policy reaches `wb-netd` only after `wb-proxyd` has
+  acknowledged it.
   The policy loader has a test that puts a host in pass mode from a
   repository's `.wraithbox/policy.yaml` with `config_trust` on, on a host with a
   credential binding, on a host a built-in profile covers, and without
