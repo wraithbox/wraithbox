@@ -169,7 +169,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X17-image-build: Unattended image build",
-		"summary": "X17-image-build (added to S11-verification-and-spikes in #14)"
+		"summary": "X17-image-build (added to S11-verification-and-spikes in #14)",
+		"brief": "B28-image-build"
 	},
 	"29": {
 		"kind": "issue",
@@ -291,14 +292,14 @@
 	},
 	"46": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S05-cli, S06-vm-lifecycle: session lifecycle, detach, sleep and failure",
 		"summary": "S05-cli and S06-vm-lifecycle describe starting a session and its summary at the end, but not what happens in between, or when things go wrong:",
 		"brief": "B46-session-lifecycle"
 	},
 	"47": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: non-HTTP streams, SSH remotes and ECH",
 		"summary": "S07-egress-gateway describes TLS and HTTP.",
 		"brief": "B47-non-http-streams"
@@ -319,7 +320,7 @@
 	},
 	"50": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Test infrastructure for work that needs a running macOS guest",
 		"summary": "Most v1 work needs a running macOS guest to test: spikes X02-warm-start to X08-data-disk and X17-image-build to X20-shared-homebrew, the conformance suite, and the benchmarks (S11-verification-and-spikes).",
 		"brief": "B50-vm-test-infra"
@@ -825,7 +826,7 @@
 	},
 	"132": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): non-HTTP streams in S07-egress-gateway",
 		"summary": "Writes the Decision of 2026-10-04 on #47 (option A, B47-non-http-streams) as a \"Non-HTTP streams\" section in S07-egress-gateway."
 	},
@@ -837,7 +838,7 @@
 	},
 	"134": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "chore(agents): add the needs-vm label and run one VM builder at a time",
 		"summary": "Implements the Decision (2026-10-04) on #50 (option C): tests that need a running macOS guest run on the maintainer's Mac until the runner question is revisited near v1."
 	},
@@ -846,5 +847,66 @@
 		"state": "open",
 		"title": "S06-vm-lifecycle: check claude --continue and the trust prompt across session worktrees",
 		"summary": "The spec change for #46 (S06-vm-lifecycle, \"Projects and sessions inside a VM\") gives each session a new worktree at <home/sessions/<session-id."
+	},
+	"136": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): session lifecycle, closing the terminal ends the session",
+		"summary": "Writes the maintainer's decision of 2026-10-04 on #46 (option B: closing the terminal ends the session, no detach or wb attach in V1, wb claude --continue resumes from the host's HEAD) into the four specs it names, an…",
+		"brief": "B46-session-lifecycle"
+	},
+	"137": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb land lands the tip wb diff showed, not whatever the session branch points at",
+		"summary": "From the security review of PR #136 (#46), finding F3."
+	},
+	"138": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: wb-guestd can't delete a macOS user record (eDSPermissionError)",
+		"summary": "S06-vm-lifecycle says wb-guestd creates, locks and removes project users."
+	},
+	"139": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: SSH for the image build's provisioning boot without a NAT network",
+		"summary": "X17-image-build (#28) answered \"no\": a host without root can't get wb-guestd into a new macOS guest by writing to its disk."
+	},
+	"140": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S11-verification-and-spikes: list the X17-image-build result",
+		"summary": "The done-when of #28 asks S11-verification-and-spikes, \"Spikes\", to point to the X17-image-build result."
+	},
+	"141": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X17-image-build result: no, build via provisioning and one SSH session",
+		"summary": "Result of spike X17-image-build: no."
+	},
+	"142": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X17-image-build: measure whether guest root can revive the disabled provisioning user secure token",
+		"summary": "From the security review of PR #141 (X17-image-build, #28), finding 2."
+	},
+	"143": {
+		"kind": "issue",
+		"state": "open",
+		"title": "NFR04-host-platforms: macOS 27 host for wb image build (X17 decision 3)",
+		"summary": "X17-image-build (PR #141, #28) found that wb image build needs a macOS 27 host."
+	},
+	"144": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: which user installs the base layer before sealing",
+		"summary": "From the security review of PR #141 (X17-image-build, #28), finding 3."
+	},
+	"145": {
+		"kind": "issue",
+		"state": "open",
+		"title": "SEC12-least-privilege: who holds the image build provisioning password (X17)",
+		"summary": "X17-image-build (PR #141, #28) found that the image build needs a provisioning password: - wb-vmd sets it on VZMacGuestProvisioningOptions; - the build's one SSH session uses it; - wb-guestd's disable step needs the o…"
 	}
 }
