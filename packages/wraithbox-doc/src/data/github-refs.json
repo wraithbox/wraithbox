@@ -973,7 +973,7 @@
 	"156": {
 		"kind": "issue",
 		"state": "open",
-		"title": "S06-vm-lifecycle: wbadmin account properties for a break-glass console login",
+		"title": "S06-vm-lifecycle: v1 break-glass replaces the system disk, wbadmin stays disabled",
 		"summary": "S15-least-privilege (PR #149) uses wbadmin for a break-glass console login when wb-guestd is dead or wedged: wb-guestadmin fetches the VM's password from the secret store, wb vm console shows it once, and the VM gets…"
 	},
 	"157": {
@@ -987,5 +987,41 @@
 		"state": "open",
 		"title": "S15-least-privilege: developer break-glass through recoveryOS with a disabled wbadmin",
 		"summary": "Can the host boot a macOS VM into recoveryOS (VZMacOSVirtualMachineStartOptions, startUpFromMacOSRecovery), authenticate there as the volume owner wbadmin with its host-held password, and get a root Terminal on the st…"
+	},
+	"159": {
+		"kind": "issue",
+		"state": "open",
+		"title": "proto: first contracts, wb-vmd boot, state and guest connections, wb-guestd hello",
+		"summary": "The first production code for wb-vmd and wb-guestd needs a contract to build against."
+	},
+	"160": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: the device-set check, refusing any network or sharing device",
+		"summary": "S04-architecture has wb-vmd check its own description of every VM configuration against a fixed device set, before it creates any Virtualization object, and refuse everything else with a named rule."
+	},
+	"161": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: confined process that boots and stops the work VM's bundle",
+		"summary": "The remaining VM spikes (X06-guest-xcode, X08-data-disk, X20-shared-homebrew, X04-tls-inspection, #142, #154, #155, #158) each rebuild boot code on a throwaway branch."
+	},
+	"162": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci: go:fuzz task that runs every Go fuzz target briefly",
+		"summary": "S11-verification-and-spikes asks for \"fuzz smoke runs\" in CI and a fuzz target for every parser of guest bytes."
+	},
+	"163": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: vsock listener below port 1024 and the hello",
+		"summary": "wb-guestd is a stub."
+	},
+	"164": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: connect to a guest port and hand off the descriptor, end-to-end hello, wb-dev-vm",
+		"summary": "After #161 and #163, a VM boots and wb-guestd listens, but the host can't reach it."
 	}
 }

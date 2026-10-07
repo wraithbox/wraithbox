@@ -25,7 +25,9 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-vmd` | platform-native | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | VM handles; during an image build, the provisioning password on a pipe until the start call returns (S15-least-privilege) | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
 | `wb-netd` | Go | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS) | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (S07-egress-gateway) |
 | `wb-proxyd` | Go | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | the binding secrets of the VM's sessions, fetched just in time, and the use of the CA signing key (S15-least-privilege) | streams from `wb-netd` | HTTP policy, credential replacement, dependency gate, upstream connections (S07-egress-gateway, S09-policy-credentials-audit) |
-| `wb-guestadmin` | Go | user, one run per image build, `wbadmin` rotation or cleanup, started through `wb-launcher`, then exits | the `wbadmin/*` secret store items it writes and fetches, and nothing else | one write-only host-guest connection to `wb-guestd`; pipes to the build's `wb-vmd` and `ssh` | The admin side of the image build, `wbadmin` rotation at each VM's first contact, and removing the items of images and system disks that are gone (S15-least-privilege) |
+| `wb-guestadmin` | Go | user, one run per image build, `wbadmin` rotation or cleanup, started through `wb-launcher` (on macOS), then exits | the `wbadmin/*` secret store items it writes and fetches, and nothing else | one write-only host-guest connection to `wb-guestd`; pipes to the build's `wb-vmd` and `wb-build-ssh` | The admin side of the image build, `wbadmin` rotation at each VM's first contact, and removing the items of images and system disks that are gone (S15-least-privilege) |
+| `wb-build-ssh` | Go | user, one per image build, started through `wb-launcher` (on macOS) | the build password on its standard input, for one session | one SSH session to the build guest, on the build VM's own network | Confine itself, then run the system `ssh` with compiled-in arguments and environment for the build's one install session (S15-least-privilege) |
+| `wb-askpass` | Go | user, started by `ssh` for the login prompt | one line of `ssh`'s standard input, until it prints it | none | Print the first line of its standard input to `ssh` (S15-least-privilege) |
 | `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | n/a (runs in the guest) | Users, PTY exec, git transport (S06-vm-lifecycle) |
 
 Native user-interface helpers (notifications with actions, later a tray
@@ -66,11 +68,19 @@ nothing themselves (S12-platforms).
   item when a VM's system disk is replaced (S15-least-privilege). It may touch the `wbadmin/*`
   items in the secret store and nothing else. `wb-hostd` starts it
   through `wb-launcher` for one run, and it exits when that run ends.
-  Its channels are pipes to the build's `wb-vmd` and `ssh`, whose read
-  ends `wb-launcher` hands over at spawn, and one host-guest connection
-  to `wb-guestd` that `wb-hostd` has `wb-vmd` open for it. It only
-  writes to that connection, so it parses nothing from the guest. It
-  doesn't talk to `wb-proxyd`. It runs apart from `wb-hostd` for least
+  Its channels are pipes to the build's `wb-vmd` and `wb-build-ssh`,
+  whose read ends `wb-launcher` hands over at spawn, and one host-guest
+  connection to `wb-guestd` that `wb-hostd` has `wb-vmd` open for it.
+  It only writes to that connection, so it parses nothing from the
+  guest. Before it writes, it checks with `LOCAL_PEERPID` that the
+  connection's peer is Virtualization's service process, and refuses
+  any other descriptor. It doesn't talk to `wb-proxyd`. Its requests
+  carry only item names in the fixed format of S15-least-privilege,
+  which `wb-launcher` and `wb-guestadmin` both check. A compromised
+  `wb-hostd` can still keep a read end of a build pipe and so read
+  that build's password, because a pipe has no peer to check. That
+  password is burned at the build VM's first contact, and the residual
+  stays limited to builds. It runs apart from `wb-hostd` for least
   privilege: `wb-hostd` runs the host-guest
   socket handlers, and so never reads a credential.
 - **The VM provider passes descriptors, not bytes.** `wb-vmd` opens
@@ -256,14 +266,14 @@ nothing themselves (S12-platforms).
     and `wb-guestadmin-cleanup`, which removes the items of images and
     system disks that are gone), so a request
     never chooses what it does.
-  - `wb-netd` and `wb-vmd` write their logs to an inherited pipe or
-    socket to `wb-hostd`, which frames, attributes and rate-limits each
-    line. Neither holds a descriptor on any file in `<logs>` or
-    `<data>` for its log.
+  - `wb-netd`, `wb-vmd`, `wb-guestadmin` and `wb-build-ssh` write
+    their logs to an inherited pipe or socket to `wb-hostd`, which
+    frames, attributes and rate-limits each line. None of them holds a
+    descriptor on any file in `<logs>` or `<data>` for its log.
   - On macOS a confined process can't confine itself again, and its
     children inherit its profile. So `wb-hostd` starts `wb-vmd`,
-    `wb-netd` and `wb-proxyd` through `wb-launcher`, which has no
-    profile. On Linux, Landlock and seccomp restrictions stack, so a
+    `wb-netd`, `wb-proxyd`, `wb-git`, `wb-prover`, `wb-guestadmin` and
+    `wb-build-ssh` through `wb-launcher`, which has no profile. On Linux, Landlock and seccomp restrictions stack, so a
     child can confine itself further and needs no launcher (assumed from
     their documentation, not tested; to be confirmed when Linux
     self-sandboxing is built).
@@ -276,8 +286,8 @@ nothing themselves (S12-platforms).
       fixed-format request. A request with unexpected descriptors has
       them closed and is refused.
     - It starts each program with no arguments and a fixed environment.
-      It passes only the descriptors `wb-hostd` hands it. The one
-      bounded exception is `wb-git`, below.
+      It passes only the descriptors `wb-hostd` hands it. The two
+      bounded exceptions are `wb-git` and `wb-build-ssh`, below.
     - Each program's profile and its parameters are compiled into it or
       come from configuration `wb-hostd` read before it confined
       itself, never over the request channel.
@@ -302,13 +312,21 @@ nothing themselves (S12-platforms).
     which would follow a symbolic link an attacker placed. The shim
     repeats the same check before it calls `sandbox_init`. The
     repository becomes the shim's profile parameter and git's one path
-    argument. This is the one bounded exception to "no arguments". The
+    argument. This is a bounded exception to "no arguments". The
     Seatbelt match on the resolved path is the control that matters,
     and the path check is defense in depth (X23-sandboxed-daemons).
     Instead of a path, `wb-hostd` could hand over an inherited
     directory descriptor that the launcher checks with `F_GETPATH`,
     which keeps the path out of the request. That is the fallback if
     the path check turns out to be fragile.
+  - `wb-build-ssh` is the second bounded exception. It is a fixed shim
+    in the bundle that takes no request field. It confines itself, then
+    runs the one program outside the bundle that the launcher allows,
+    the system `ssh` at its fixed platform path, with arguments and
+    environment compiled into the shim (S15-least-privilege, "The
+    build's SSH session"). Its only connection is to the build guest's
+    port 22, through `wb-netd` on the build VM's own network
+    (S06-vm-lifecycle, "Images").
   - The measured, weaker fallback is git as a child of `wb-hostd`,
     under the `wb-hostd` profile. A git bug would then reach every
     project's policy, the approvals in `state.db`, other projects'

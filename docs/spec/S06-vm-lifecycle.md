@@ -26,22 +26,24 @@ in S12-platforms.
   stages (X17-image-build). Builds are scripted and repeatable, and
   nobody configures an image by hand.
   1. *Provisioning boot.* The first boot sets the macOS provisioning
-     options, which are new in macOS 27. Whether v1 hosts must run
-     macOS 27 for that is pending (I143). The options create a
-     provisioning user and turn Remote Login on, and get the guest
-     past Setup Assistant with no clicks. One SSH session as that user
-     installs `wb-guestd` as a root LaunchDaemon and nothing else.
-     Which network carries that session is open (I139).
+     options, which are new in macOS 27, so `wb image build` runs on a
+     macOS 27 host. The options create the user `wbadmin` and turn
+     Remote Login on, and get the guest past Setup Assistant with no
+     clicks. One SSH session as `wbadmin` installs `wb-guestd` as a
+     root LaunchDaemon and nothing else. That session runs on the build
+     VM's own file-handle network through the host's userspace stack,
+     which nothing but the host and the build guest can join, so the
+     channel authenticates the guest. A session that doesn't complete
+     fails the build.
 
-     *The guest admin password.* The provisioning options create the
-     user `wbadmin` with a password, and the build's one SSH session
-     needs it. The host keeps that user's password in the configured
+     *The guest admin password.* The provisioning options give
+     `wbadmin` a password, and the build's one SSH session needs it. The host keeps that user's password in the configured
      secret store from then on, and S15-least-privilege declares who
      may write, fetch or receive it:
      - `wb-guestadmin` (S04-architecture) generates a password for
        each build, writes it to the store, and hands it on pipes to the
-       build's `wb-vmd` until the start call returns and to the build's
-       `ssh` for its one session;
+       build's `wb-vmd` until the start call returns and to
+       `wb-build-ssh` for its one session;
      - provisioning options for a session VM are refused, and the
        refusal is logged with its rule;
      - the password is never in arguments, never written to disk
@@ -58,10 +60,9 @@ in S12-platforms.
      fails. It then turns Remote Login and automatic login off.
      macOS refuses to delete `wbadmin`, because it holds the volume's
      only secure token. The image keeps it as a host-administered
-     account, and the build takes it out of every group and disables
-     it. Then the base layer is installed and the
-     image is sealed. Which user installs the base layer, and in which
-     order, is open (I144).
+     account, and the build takes it out of every group, disables it,
+     and deletes its keychains. Then the base layer is installed
+     through `wb-guestd`, and the image is sealed.
 
   The host never mounts a guest disk to build an image. An
   unprivileged host process can't create a root-owned file on it, so
@@ -71,7 +72,7 @@ in S12-platforms.
   that runs an arbitrary command as root, and it takes secrets on
   standard input, never in arguments. Every clone of an image starts
   with the same per-machine keys, so sealing deletes the SSH host keys
-  (`/etc/ssh/ssh_host_*_key`). The local Kerberos realm (`LKDC`) of the provisioning user is
+  (`/etc/ssh/ssh_host_*_key`). The local Kerberos realm (`LKDC`) of `wbadmin` is
   also the same in every clone. An image is rebuilt from a newer
   restore image, never updated in place.
 - **Guest confinement.** The base image includes the Network Extension
@@ -87,7 +88,7 @@ in S12-platforms.
     checked by `dsmemberutil checkmembership` (which sees both
     `GroupMembership` and `GroupMembers`), and any sudoers entry
     beyond macOS's own (X27-vsock-confinement);
-  - a non-system account, except the provisioning user if all of these
+  - a non-system account, except `wbadmin` if all of these
     hold (X17-image-build): it is the volume's only crypto user
     (`diskutil apfs listCryptoUsers` lists one) and its
     `AuthenticationAuthority` has `;SecureToken;`; it is disabled,
@@ -95,7 +96,8 @@ in S12-platforms.
     `staff`, `everyone`, `localaccounts`, `_lpoperator`,
     `com.apple.sharepoint.group.*`, and `com.apple.access_disabled`
     (the group `pwpolicy` adds when it disables an account); its
-    `~/Library/LaunchAgents` is empty;
+    `~/Library/LaunchAgents` is empty; and its `~/Library/Keychains`
+    is empty;
   - Remote Login (`com.openssh.sshd` enabled or loaded, or a listener
     on TCP port 22), screen sharing or remote management, and
     automatic login (SEC04-no-guest-secrets, SEC05-default-deny);
@@ -103,7 +105,7 @@ in S12-platforms.
     `sshd_config` or a file in `sshd_config.d` that macOS doesn't
     ship, and SSH host keys left in `/etc/ssh`;
   - files outside `/Users` owned by a non-system user id, other than the
-    provisioning user's temporary folders, and launchd jobs outside an
+    temporary folders of `wbadmin`, and launchd jobs outside an
     allowlist of what macOS ships (`com.apple.*` and `amsdstat.plist`
     in `/Library/LaunchDaemons`) plus `wb-guestd`'s.
 
@@ -116,10 +118,13 @@ in S12-platforms.
 - **Updates.** A VM's system disk is replaced by a fresh clone of the new
   image. Project data is on a separate data disk and survives (below).
 - **One guest admin password per VM.** At first contact in each fresh
-  clone of an image, before any other request, and before any project
-  code, `wbadmin`'s password is rotated to one that is generated for
-  that VM and kept in the secret store, so a password burned in one VM
-  opens nothing in another. `wb-hostd` doesn't start a session in a VM
+  clone of an image, before any project code, `wbadmin`'s password is
+  rotated to one that is generated for that VM and kept in the secret
+  store, so a password burned in one VM opens nothing in another.
+  Rotation comes before any other request: before `wb-hostd` sends the
+  time ("Time and sleep"), and before `wb-guestd` lists its sessions
+  ("Reconnect"). `wb-guestd` enables `wbadmin` for the reset, with the
+  old and new password on standard input, and disables it again. `wb-hostd` doesn't start a session in a VM
   whose rotation hasn't succeeded. When `wb-guestd` is dead or wedged,
   `wb-hostd` replaces the VM's system disk with a fresh clone, and
   nobody logs in as `wbadmin`. The store items and the channel are in

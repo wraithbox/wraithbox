@@ -35,6 +35,10 @@ against the adversary of T00-index.
 - **SEC04-no-guest-secrets: No secrets in the guest.** This includes the model credential. The
   guest only ever holds placeholders; real credentials are injected on the
   host side of the network boundary and replace anything the guest sends.
+  A credential that opens nothing outside its own VM, such as the
+  guest's own `wbadmin` password, isn't a host secret. It enters its VM
+  only at first contact, before project code runs, and is rotated per
+  VM (S15-least-privilege).
 - **SEC05-default-deny: Default-deny egress, enforced on the host.** Only allowlisted
   hostnames are reachable. No raw-IP destinations, no host or LAN access,
   no arbitrary DNS (no DNS tunneling), no UDP except DNS to the gateway.
@@ -74,10 +78,11 @@ against the adversary of T00-index.
   applies (hardened runtime and minimal entitlements on macOS, the
   equivalents in S12-platforms elsewhere). Credentials are nominally
   held by the configured secret store. Each host process has a declared
-  set of items, each with the access it may have: read, write, or use
+  set of items, each with the access it may have: write, fetch, or use
   in place. It gets them just in time, for no longer than it needs
-  them. A credential is never passed in arguments, files, or logs
-  (S15-least-privilege).
+  them. A credential never appears in arguments, the environment, a
+  file, a log line, a gRPC message field, an audit record, or an error
+  message (S15-least-privilege).
   One-time OS prerequisites (enabling a virtualization feature, access to
   the hypervisor device) are documented and checked by `wb setup`, never
   performed silently.

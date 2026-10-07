@@ -376,7 +376,7 @@ output removes them (SEC10-audit, SEC14-no-fake-approvals).
 | `wb project place work\|isolated [--project P]` | Set the project's `placement` (S06-vm-lifecycle, "VMs"). In a repository that isn't a project yet, it registers one first by the rules of "Naming" (moved-project refusal, second-clone placement), so a new clone can start isolated |
 | `wb project confirm [--project P]` | Accept the repository's current remote URLs and root commits as the project's, and clear `config_trust` ("Naming") |
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it ("Naming") |
-| `wb cred set/list/rm <binding>` | Manage credentials held by `wb-proxyd` (S09-policy-credentials-audit) |
+| `wb cred set/list/rm <binding>` | Manage the binding credentials in the secret store, which `wb-proxyd` fetches when proxying needs them (S09-policy-credentials-audit, S15-least-privilege) |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
 | `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session that is starting, running, paused or ending. The refusal names each one, the process ID of its `wb`, and how it ends: close its terminal, or wait for its deadline, and `wb sessions` lists them (S06-vm-lifecycle, "Idle suspend") |
 | `wb image build/list/use` | Base image management (S06-vm-lifecycle) |

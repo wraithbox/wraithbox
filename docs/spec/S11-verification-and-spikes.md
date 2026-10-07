@@ -427,6 +427,14 @@ be tested before building on them.
     title, and a fake session summary in the background color, then
     exit: confirm the host terminal received none of the sequences,
     still shows the title `wb` set, and shows the real summary legibly;
+  - the guest admin password at first contact (S15-least-privilege),
+    with a data disk whose project homes hold a LaunchAgent and a login
+    item: see the rotation finish before `wb-hostd` sends the time and
+    before `wb-guestd` lists its sessions, nothing from the data disk
+    run before it, `wbadmin` disabled again with a usable secure token,
+    and the image password refused by `dscl . -authonly`. Drop the link
+    during a rotation, and see the disk marked "rotation unknown" and
+    every session start refused with its rule;
   - the session lifecycle (S06-vm-lifecycle, "Session lifecycle"),
     with a `wb-guestd` that the test drives as guest root. Each case
     checks the audit entry with its rule:

@@ -5,7 +5,7 @@ description: Recommended, the configured secret store holds every credential, an
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I145, S15-least-privilege, SEC12-least-privilege. Related: I142, I146, I139, I51, I151 to I158, X09-keychain-unsigned. Changes SEC00-index, S01-spec-based-development "Spec template", S04-architecture, S06-vm-lifecycle "Images", S09-policy-credentials-audit "Storage", S10-tech-stack and S12-platforms.
+**Awaiting decision.** Source: I145, S15-least-privilege, SEC12-least-privilege. Related: I142, I146, I139, I51, I151 to I158, X09-keychain-unsigned. Changes SEC00-index (SEC04-no-guest-secrets and SEC12-least-privilege), S01-spec-based-development "Spec template", S04-architecture, S05-cli, S06-vm-lifecycle "Images", S09-policy-credentials-audit, S10-tech-stack, S11-verification-and-spikes and S12-platforms.
 
 <Aside type="tip" title="You are deciding">
 Whether to approve S15-least-privilege, the first spec of one per security requirement. SEC12-least-privilege becomes "credentials are nominally held by the configured secret store, and each host process has a declared set of items, just in time". `wb-proxyd` stops being the holder for everyone, and S04-architecture's "Secrets live in one process" is superseded. Recommended: approve. S15-least-privilege now states each leaning as the design, and `wb-guestadmin` is a process in S04-architecture. Accepting lets I145 close. The image build still waits on I139, I154 and I155.
@@ -13,13 +13,18 @@ Whether to approve S15-least-privilege, the first spec of one per security requi
 
 ## What changed since the first draft
 
-Four rounds of changes, all from you on 2026-10-07. The design differs from what I145 and I146 say today.
+Every change below is yours, from 2026-10-07. The design differs from what I145 and I146 say today.
 
-- **The host keeps the guest admin password.** I145 option 4 had nobody keep it, and accepted a dead secure token. Now the host keeps it, and the token keeps working. The host already has guest root through `wb-guestd`, so that is no escalation, and SEC11-root-gains-nothing is about guest root reaching the host. One password per VM: every VM is a clone of the image, so the password is rotated at each VM's first contact, and a password burned in one VM opens nothing elsewhere. I146 option 1B is dropped, because a second admin only renames the token holder.
+- **The host keeps the guest admin password.** I145 option 4 had nobody keep it, and accepted a dead secure token. Now the host keeps it, and the token keeps working. SEC11-root-gains-nothing holds because the asset never leaves its VM: the password and the token unlock only that VM's disk, and no VM can reach another VM's `wbadmin`. One password per VM: every VM is a clone of the image, so the password is rotated at each VM's first contact, and a password burned in one VM opens nothing elsewhere. I146 option 1B is dropped, because a second admin only renames the token holder.
 - **The store is the holder, not a Wraith Box process.** The first draft made `wb-proxyd` the nominal holder of every credential, which gives the process that faces guest streams every secret. Now the configured secret store holds them, the macOS Keychain first, 1Password next, other backends later. `wb-proxyd` fetches only what proxying needs. The guest admin user is renamed `wbadmin`, and a short-lived `wb-guestadmin` generates, writes and rotates its passwords, without `wb-proxyd`.
 - **I142 narrows.** It has to show that guest root can't extract the host-held password or reset its way into the token.
 - **Specs carry no review material.** On review, you set the rule that a spec states only the design. S15-least-privilege lost its "For review" and "Open questions" sections, each leaning became its design, and this brief and I151 to I156 carry the rest. S01-spec-based-development's template, the `spec-draft` and `brief` skills, `review-briefs.md` and `planning.md` follow. `wb-guestadmin` became a process of its own in S04-architecture.
 - **Break-glass replaces the disk.** You decided I156 as option C. In v1, break-glass replaces the VM's system disk, nobody logs in, and `wbadmin` stays disabled, hidden, without a shell and out of `admin`, so the sealing scan is unchanged. The host still keeps the per-VM password, for rotation and a later diagnostics path. Developer break-glass through recoveryOS is I158.
+- **Both reviews applied.** You adopted every recommendation of the code review and the security review on PR149, with two decisions of your own:
+  - **SEC04-no-guest-secrets is amended.** A credential that opens nothing outside its own VM, such as the guest's own `wbadmin` password, isn't a host secret. It enters its VM only at first contact, before project code runs, and is rotated per VM.
+  - **Rotation with a disabled `wbadmin`.** At first contact `wb-guestd`, as root, enables `wbadmin`, runs the reset with both passwords on standard input, and disables it again, before any project code runs. I154 still checks that the reset keeps the secure token usable.
+
+  The review changes: `wb-hostd` keeps the current-item marker in `state.db`, and a failed or unanswered rotation marks the disk "rotation unknown" and refuses sessions until the disk is replaced. The build's `ssh` runs through a fixed `wb-build-ssh` shim, a second bounded launcher exception next to `wb-git`, with `-F /dev/null`, no known-hosts file and `IdentitiesOnly=yes`, only on the build VM's own network, and an incomplete session burns the build password. The password reaches `ssh` on its standard input through `wb-askpass` with `SSH_ASKPASS_REQUIRE=force`, because OpenSSH closes inherited descriptors before it runs askpass. `wb-guestadmin` requests carry only item names, and it checks its guest connection's peer with `LOCAL_PEERPID`. The ad-hoc keychain's unlock item, the CA fallback item and the build VM's rotation are in the access table. G2 for 1Password and ad-hoc builds now says that only our code enforces it, and ad-hoc builds are for development only. S15 states what first contact relies on, and S11-verification-and-spikes has a conformance case. `wbadmin`'s keychains are deleted before sealing. Stale text in S04-architecture, S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit, S10-tech-stack and SEC00-index is fixed.
 
 ## The picture
 
@@ -66,9 +71,9 @@ Four rounds of changes, all from you on 2026-10-07. The design differs from what
 <text class="note" x="370" y="532" text-anchor="middle">call returns</text>
 
 <rect class="box host" x="500" y="470" width="200" height="76" rx="10" />
-<text class="label" x="600" y="496" text-anchor="middle">ssh (build)</text>
-<text class="note" x="600" y="516" text-anchor="middle">one session (I139)</text>
-<text class="note" x="600" y="532" text-anchor="middle">stdin to sudo</text>
+<text class="label" x="600" y="496" text-anchor="middle">wb-build-ssh</text>
+<text class="note" x="600" y="516" text-anchor="middle">runs ssh, one session</text>
+<text class="note" x="600" y="532" text-anchor="middle">password on stdin</text>
 
 <path class="edge" d="M280,100 C230,110 180,170 150,228" marker-end="url(#f1-arrow)" />
 <text class="note" x="160" y="150">write</text>
@@ -128,7 +133,7 @@ Figure 1. Each arrow into or out of the store is a declared access: write, fetch
 Each process has a declared set of store items and an access kind for each. A backend must keep Wraith Box items apart and scope them per process. It fails closed when locked. A weaker backend runs only when you turn it on by name.
 
 - **Cost:** a store access shim in each declared process, and a table to keep current.
-- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC11-root-gains-nothing" variant="success" /> <Badge text="SEC04-no-guest-secrets" variant="caution" />
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC11-root-gains-nothing" variant="success" /> <Badge text="SEC04-no-guest-secrets" variant="success" />
 
 </div>
 <div class="wb-option">
@@ -158,24 +163,24 @@ I145 option 4 as first written: nobody keeps it, and the secure token stops work
 S15-least-privilege states each leaning below as its design, because a spec carries no open questions (S01-spec-based-development, "Spec template"). The points and what each relies on are listed here instead, with the issue that tracks each one that still needs work.
 
 1. **Who builds and rotates.** `wb-guestadmin`, a short-lived program started through `wb-launcher`, with access to `wbadmin/*` items only, now a process of its own in S04-architecture. The alternative, `wb-hostd`, would give store access to the process that runs the host-guest socket handlers.
-2. **The build's `ssh`.** `wb-guestadmin` pipes the password, through an askpass program that reads an inherited descriptor, and to `sudo -S` on the session's standard input. The alternative is a `wb-askpass` helper that reads the store itself, which adds a store reader. Which network carries the session stays with I139.
+2. **The build's `ssh`.** `wb-guestadmin` writes two lines to the standard input of `wb-build-ssh`, which runs `ssh`: `wb-askpass` reads the first for the login, and the guest's `sudo -S` gets the second. Answering the prompt through a terminal was the alternative, rejected so that the password never passes through a terminal stream. The session runs only on the build VM's own network. How `ssh` reaches the guest's port 22 through `wb-netd` is I139.
 3. **Break-glass.** When `wb-guestd` is dead or wedged, `wb-hostd` replaces the VM's system disk with a fresh clone. The data disk stays, and first contact rotates again.
 4. **Break-glass login, and `admin`.** Decided on I156, option C: in v1 nobody logs in, no password is fetched, and `wbadmin` stays disabled, hidden, without a shell and out of `admin`. Developer break-glass through recoveryOS with the volume owner's password is I158.
-5. **Unlocking the dedicated keychain.** With signed builds, the data protection keychain with an access group per role. Until then, a dedicated keychain file whose password is the one Wraith Box item in the login keychain. G2 on the Keychain waits for X09-keychain-unsigned and I61.
-6. **1Password.** The desktop app integration, with a vault per role, and a license check of the client first: I151.
+5. **Unlocking the dedicated keychain.** With signed builds, the data protection keychain with an access group per role. Ad-hoc builds, for development only, use a dedicated keychain file whose password is `wraithbox/unlock` in the login keychain, a declared item. G2 on the Keychain waits for X09-keychain-unsigned and I61.
+6. **1Password.** The desktop app integration, with a vault per role, and a license check of the client first: I151. Running `op` means starting a program, which `wb-guestadmin`'s profile denies, so I151 has to solve that.
 7. **Passwords in host remote URLs.** Removed from withheld URLs too, before the audit record: I152.
 8. **OAuth token endpoint.** A binding names its token endpoint, so the refresh token goes only to a declared recipient: I153.
-9. **`wbadmin` rotation on standard input.** Relies on `sysadminctl` reading both passwords from standard input, and on a disabled account authorizing its own reset: I154.
+9. **`wbadmin` rotation on standard input.** Relies on `sysadminctl` reading both passwords from standard input, and on the reset keeping the secure token usable: I154. `wb-guestd` enables `wbadmin` for the reset, because X17-image-build item 8 showed that a disabled account fails `pwpolicy -authentication-allowed`. If I154 fails, rotation fails in every VM, and no session starts anywhere until the rotation design changes.
 10. **The provisioning password in the bundle.** Relies on Virtualization not writing it into the build bundle, which the build's test checks: I155.
 11. **Guest root and the secure token.** Relies on guest root being unable to extract the host-held password or reset its way into the token: I142.
+13. **Rotation failure.** A failed or unanswered rotation marks the disk "rotation unknown", refuses sessions, and recovers by replacing the disk. Designed, no issue needed.
+14. **A compromised `wb-hostd` and the build pipes.** It can keep a read end of a build pipe and read that build's password. S04-architecture records this residual, limited to builds, because the password is burned at the build VM's first contact.
 12. **The Claude subscription login** stays with X01-model-credential.
 
 ### Questions for you
 
 - **S01-spec-based-development.** Should it record the "one spec per security requirement" approach now, or after you have reviewed this first one? This pull request changes S01's template only, to keep review material out of specs.
-- **SEC04-no-guest-secrets.** A `wbadmin` password enters its own guest at first contact. Should SEC04 say that a credential which opens nothing outside its own VM is outside its scope, or is S15-least-privilege rule 9 enough?
-- **1Password's weaker scoping.** It scopes by vault and session, not by process. Is "runs only when turned on by name, and every session start says so" the right way to allow it, or should it wait until a vault per role is built?
-- **The other specs.** This pull request also edits S09-policy-credentials-audit "Storage" and S10-tech-stack's Keychain row, which named `wb-proxyd` as the only reader. Keep those edits here, or split them out?
+- **The other specs.** This pull request also edits S05-cli, S09-policy-credentials-audit, S10-tech-stack and S11-verification-and-spikes, which named `wb-proxyd` as the only reader or missed the new processes. Keep those edits here, or split them out?
 - **I142 and I146.** Update their bodies to the narrowed question and the dropped option, or close them and file again?
 - **Other specs' review material.** I157 moves the "For review" blocks, open questions and "pending" wording out of the specs this pull request doesn't touch.
 
@@ -188,10 +193,10 @@ S15-least-privilege states each leaning below as its design, because a spec carr
 <tbody>
 <tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">per process, just in time</td><td class="partial">one process has all</td><td class="yes">no password kept</td></tr>
 <tr><td><strong>SEC11-root-gains-nothing</strong> guest root doesn't reach the host</td><td class="yes">no escalation: wb-guestd is root</td><td class="partial">guest streams reach the holder</td><td class="yes">no password left</td></tr>
-<tr><td><strong>SEC04-no-guest-secrets</strong> no host secret in the guest</td><td class="partial">guest's own password, before project code</td><td class="partial">same</td><td class="yes">nothing kept</td></tr>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no host secret in the guest</td><td class="yes">amended: the guest's own password isn't a host secret</td><td class="partial">needs the same amendment</td><td class="yes">nothing kept</td></tr>
 <tr><td><strong>SEC10-audit</strong> every decision recorded on the host</td><td class="yes">each access, no value</td><td class="partial">unspecified</td><td class="yes">nothing to record</td></tr>
 <tr><td>Prompts at session start (I51)</td><td class="partial">one unlock, batched</td><td class="partial">one unlock</td><td class="na">n/a</td></tr>
-<tr><td>Break-glass (I156: replace the disk) and later recovery (I158)</td><td class="yes">password kept in the store</td><td class="yes">kept in wb-proxyd</td><td class="partial">disk only, no recovery</td></tr>
+<tr><td>Break-glass (I156: replace the disk) and later recovery (I158)</td><td class="yes">disk replaced; password kept for I158</td><td class="yes">disk replaced; kept in wb-proxyd</td><td class="partial">disk replaced; no recovery path</td></tr>
 </tbody>
 </table>
 
@@ -203,7 +208,9 @@ S15-least-privilege states each leaning below as its design, because a spec carr
 - <Badge text="verified" variant="success" /> S04-architecture, S09-policy-credentials-audit and S12-platforms named `wb-proxyd` as the only process with secret store access before this change.
 - <Badge text="inferred" variant="note" /> The Keychain scopes an item by the reading app's code signature. An ad-hoc signed binary is identified by its hash. Each update then asks again. X09-keychain-unsigned and I61 confirm it.
 - <Badge text="assumed" variant="caution" /> 1Password's desktop app authorizes its CLI for 10 minutes after use, up to 12 hours, and scopes by vault and session, not by process. To check against its documentation in I151.
-- <Badge text="assumed" variant="caution" /> `sysadminctl` reads both `-newPassword -` and `-adminPassword -` from standard input in one call, and a disabled account can authorize its own password change. I154 checks both on a VM.
+- <Badge text="assumed" variant="caution" /> `sysadminctl` reads both `-newPassword -` and `-adminPassword -` from standard input in one call, and the reset of a briefly enabled `wbadmin` keeps the secure token usable. I154 checks both on a VM.
+- <Badge text="verified" variant="success" /> A disabled account fails `pwpolicy -authentication-allowed` (X17-image-build, "Answer", item 8), which is why `wb-guestd` enables `wbadmin` for the reset.
+- <Badge text="inferred" variant="note" /> OpenSSH closes every descriptor above standard error before it runs askpass, so an inherited descriptor can't reach `wb-askpass`, and its standard input can (security review on PR149).
 - <Badge text="assumed" variant="caution" /> Guest root can't extract the host-held password or reset its way into the secure token. I142 measures it.
 - <Badge text="assumed" variant="caution" /> Virtualization doesn't write the provisioning password into the build bundle. I155 checks it.
 
@@ -212,7 +219,7 @@ S15-least-privilege states each leaning below as its design, because a spec carr
 - I145 closes when this merges.
 - The image build, once I139, I154 and I155 are done.
 - I142 and I146, with their narrowed scope.
-- I151 (1Password), I152, I153, I156, and the next spec in this form.
+- I151 (1Password), I152, I153, I154, I155, I158, and the next spec in this form.
 
 <details>
 <summary>Details and glossary</summary>
