@@ -57,6 +57,7 @@ SVCB
 WPAD
 CGNAT
 ALPN
+middleboxes
 ASIF
 libuv
 terminfo
