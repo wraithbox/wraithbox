@@ -28,8 +28,9 @@ in S12-platforms.
   That user isn't an admin, has neither a password nor a shell, and
   has a home of mode 700. Only `wb-guestd` runs commands as it: through
   `sudo -u` from root (I144), or by setting the child's user and group
-  IDs itself (`syscall.Credential` in Go), which the implementation
-  may prefer because then `wb-guestd` alone sets the environment.
+  IDs itself (`syscall.Credential` in Go, with the toolchain group as
+  the only supplementary group), which the implementation may prefer
+  because then `wb-guestd` alone sets the environment.
   Project users can read and run the prefix, and can't write to it or
   install packages. That includes the agent. They install language
   packages into their own home instead. Who may write the prefix,
@@ -51,18 +52,29 @@ in S12-platforms.
     `tap`, a `cask`, options, `system`, a name with a `/` (a tap's
     formula, so `homebrew/core` only) or a name starting with `-`,
     and logs the line and the rule. `wb-guestd` checks the names
-    against the same rules before it runs anything. It runs
-    `brew install --formula --force-bottle -- <names>` by argument
-    list, with no shell, in the toolchain user's home. It never runs
+    against the same rules before it runs anything. It never runs
     `brew bundle` and never hands Homebrew a file a project wrote.
-  - *Bottles only.* Before the install, `wb-guestd` checks Homebrew's
-    formula data for a bottle for the guest of every formula the
-    names need. When one has none, the session is refused with its
-    name, and nothing is built from source. At the start deadline
+  - *The install* (untested, I180). `wb-guestd` resolves the names'
+    whole runtime closure over the formula data snapshot, as the
+    toolchain user (`brew deps --formula -n --union -- <names>`),
+    checks every name in it against the same rules, and runs
+    `brew install --formula --force-bottle -- <closure>` by argument
+    list, with no shell, in the toolchain user's home. Homebrew
+    applies `--force-bottle` and `HOMEBREW_NO_INSTALL_UPGRADE` only to
+    the formulae on the command line, so every keg is named there.
+    Any nonzero exit of a `brew` command refuses the session, and
+    nothing relies on what a failed run left in the prefix.
+  - *Bottles only.* Before the install, `wb-guestd` checks the
+    formula data for a bottle for the guest of every formula in the
+    closure. When one has none, the session is refused with its name
+    before anything is installed, and nothing is built from source.
+    When the formula data snapshot is missing or empty, `wb-guestd`
+    refuses the reconcile, because Homebrew would download new data
+    (untested, I180). At the start deadline
     ("Session lifecycle"), `wb-guestd` kills the reconcile's process
     group.
-  - *The environment.* `wb-guestd` builds the toolchain user's
-    environment from an allowlist: `HOME` and the working directory
+  - *The environment* (untested, I180). `wb-guestd` builds the
+    toolchain user's environment from an allowlist: `HOME` and the working directory
     in its home, umask 022, `PATH` with the prefix's `bin` and the
     system folders, `HOMEBREW_NO_AUTO_UPDATE`,
     `HOMEBREW_NO_INSTALL_UPGRADE`,
@@ -73,8 +85,8 @@ in S12-platforms.
     `HOMEBREW_DEVELOPER`.
   - *A reconcile only adds* (untested, I180). Homebrew upgrades an
     outdated dependency of a formula it installs, whatever
-    `HOMEBREW_NO_INSTALL_UPGRADE` says, which covers only the
-    formulae on the command line. What keeps dependencies, such as `openssl@3`, from moving
+    `HOMEBREW_NO_INSTALL_UPGRADE` says, unless that dependency is named on the
+    command line, which "The install" makes sure of. What keeps dependencies, such as `openssl@3`, from moving
     under a running session is the formula data: the image build
     writes a snapshot of Homebrew's formula API into the toolchain
     user's cache, and `HOMEBREW_NO_AUTO_UPDATE` keeps it. Then nothing

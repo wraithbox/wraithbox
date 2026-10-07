@@ -433,8 +433,10 @@ be tested before building on them.
     `/`, a name over the length cap and too many lines, and see each
     refused with the line and the rule, and send the same names to
     `wb-guestd` directly and see it refuse them too; declare a formula
-    with no bottle for the guest and see the session refused with its
-    name and nothing built (S06-vm-lifecycle, "Toolchain prefix",
+    with no bottle for the guest, and one whose dependency has none,
+    and see the session refused with the formula's name before
+    anything is installed; remove the formula data snapshot and see
+    the reconcile refused (S06-vm-lifecycle, "Toolchain prefix",
     X20-shared-homebrew);
   - with a session of project A running, reconcile project B, whose
     formulae share dependencies with A's, and see every `opt/*` link

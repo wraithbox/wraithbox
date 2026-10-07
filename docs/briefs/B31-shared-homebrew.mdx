@@ -99,7 +99,7 @@ A bottle is a prebuilt package. When a declared package has none for the guest, 
 
 ### A. Bottles only
 
-`wb-guestd` checks that every package the names need has a bottle for the guest, installs with `--force-bottle`, and otherwise refuses the session with the package's name. The spec says this now.
+`wb-guestd` checks that every package the names need has a bottle for the guest, names them all on the command line with `--force-bottle`, because Homebrew doesn't apply it to dependencies, and otherwise refuses the session with the package's name before anything is installed. The spec says this now.
 
 - **Cost:** a package without a bottle for the guest's macOS can't be declared. A project that needs one installs it into its home with another tool, or waits for the bottle.
 - **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" /> <Badge text="SEC13-bounded-resources" variant="success" />
