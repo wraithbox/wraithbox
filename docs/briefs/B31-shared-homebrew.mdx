@@ -5,10 +5,10 @@ description: Yes, with conditions. One prefix owned by the toolchain user, which
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-07: yes, with conditions. Awaiting decision.** Source: X20-shared-homebrew (I31). Changes S06-vm-lifecycle ("Images" only) and S11-verification-and-spikes. Confirms I144 for how projects add packages, and builds on I150.
+**Answered 2026-10-07: yes, with conditions. Awaiting decision.** Source: X20-shared-homebrew (I31). Changes S06-vm-lifecycle ("Images" only), S11-verification-and-spikes and T00-index (T15-shared-toolchain). Confirms I144 for how projects add packages, and builds on I150. Follow-up: I180 (the three untested conditions, in a guest).
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** One Homebrew prefix, `/opt/homebrew`, that belongs to the toolchain user works. `wb-guestd` installs every project's declared packages into it as that user. A project user can run them but couldn't change any file or install anything, and the agent runs as that project user. The catch is the Brewfile, which is a Ruby program. Run by `brew bundle` as the toolchain user, a Brewfile planted a file in the prefix every project runs from. So the host reads the manifest as a list of package names and refuses anything else. Installing a realistic project took 3 minutes. A prefix in each project's home doesn't work in practice: Homebrew set out to build nine of the project's packages and LLVM from source there, and was still going after 51 minutes. The one decision is whether a project may have a prefix of its own anyway.
+**Yes, with conditions.** One Homebrew prefix, `/opt/homebrew`, that belongs to the toolchain user works. `wb-guestd` installs every project's declared packages into it as that user. A project user can run them but couldn't change any file or install anything, and the agent runs as that project user. The catch is the Brewfile, which is a Ruby program. Run by `brew bundle` as the toolchain user, a Brewfile planted a file in the prefix every project runs from. So the host reads the manifest as a list of package names and refuses anything else. Installing a realistic project took 3 minutes. A prefix in each project's home doesn't work in practice: Homebrew set out to build nine of the project's packages and LLVM from source there, and was still going after 51 minutes. The decisions are whether a project may have a prefix of its own anyway, and whether to refuse packages without a prebuilt bottle.
 </Aside>
 
 <figure class="wb-figure">
@@ -74,7 +74,7 @@ Every project's declared packages go into `/opt/homebrew` through `wb-guestd`. P
 
 Root makes `/opt/<id>`, at most 13 characters long, for the project and gives it to the project user. The agent can then install into it. All 59 packages of the test project poured in 230 s.
 
-- **Cost:** a second Homebrew per project, 1.7 GB each, on the system disk, so lost and installed again with each new system disk. Homebrew failed to sign 8 static library files and carried on.
+- **Cost:** a second Homebrew per project, 1.7 GB each, where A shares one copy of each package. Both are on the system disk, so after a new system disk each project's own packages are installed again in either option, and B has no packages from the image to start from. Homebrew failed to sign 8 static library files and carried on.
 - **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" />, since a project writes only its own prefix.
 
 </div>
@@ -90,6 +90,35 @@ Root makes `/opt/<id>`, at most 13 characters long, for the project and gives it
 </div>
 </div>
 
+## Decision: refuse packages without a bottle?
+
+A bottle is a prebuilt package. When a declared package has none for the guest, Homebrew builds it from source as the toolchain user, which runs more of the package's code and can take hours (LLVM above).
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Bottles only
+
+`wb-guestd` checks that every package the names need has a bottle for the guest, installs with `--force-bottle`, and otherwise refuses the session with the package's name. The spec says this now.
+
+- **Cost:** a package without a bottle for the guest's macOS can't be declared. A project that needs one installs it into its home with another tool, or waits for the bottle.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" /> <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Build from source
+
+Homebrew builds what has no bottle, within the session start deadline, after which `wb-guestd` kills the build.
+
+- **Cost:** slow starts, builds that fail at the deadline, and more code from `homebrew/core` run as the toolchain user (T15-shared-toolchain).
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="caution" /> on more trust in `homebrew/core`.
+
+</div>
+</div>
+
+Not adopted: `HOMEBREW_VERIFY_ATTESTATIONS`, which has Homebrew check GitHub's build attestation of each bottle. It would bind bottles to Homebrew's own build workflow, and needs the `gh` command and more allowed hosts. The spike didn't try it, and it stays an option for later hardening of T15-shared-toolchain.
+
 ## Impact
 
 <table class="wb-impact">
@@ -100,20 +129,22 @@ Root makes `/opt/<id>`, at most 13 characters long, for the project and gives it
 <tr><td><strong>SEC08-proj-isolation</strong> a project can't touch another's files</td><td class="yes">with the manifest read as names</td><td class="yes">own prefix only</td><td class="yes">own prefix only</td></tr>
 <tr><td><strong>FR07-toolchain-manifest</strong> declared packages installed before the session</td><td class="yes">3 min first time, under a second after</td><td class="yes">4 min first time per project</td><td class="no">hours</td></tr>
 <tr><td><strong>FR06-native-tools</strong> native guest tools</td><td class="partial">conflicting packages need the isolated VM</td><td class="yes">per project</td><td class="partial">after the source builds</td></tr>
-<tr><td><strong>NFR01-startup</strong> quick session start</td><td class="yes">nothing to install after the first</td><td class="partial">again after a new system disk</td><td class="no">no</td></tr>
+<tr><td><strong>NFR01-startup</strong> quick session start</td><td class="partial">nothing to install after the first, again after a new system disk</td><td class="partial">same, and nothing from the image</td><td class="no">no</td></tr>
 </tbody>
 </table>
 
 ## Evidence
 
 - <Badge text="verified" variant="success" /> The toolchain user (uid 440, shell `/usr/bin/false`, password `*`, outside the admin group) installed Homebrew 7.0.8 into the `/opt/homebrew` root made for it, with Homebrew's own installer and no `sudo`. Source: X20-shared-homebrew, "Answer" part 1.
-- <Badge text="verified" variant="success" /> As a project user, every write to the prefix and `brew install`, `uninstall`, `link` and `update` failed, and `sudo` and `su` to the toolchain user failed. Only the toolchain user can write the prefix's files, and none is set-user-ID. Source: "Answer" part 2, `results/g1-requests.jsonl`.
+- <Badge text="verified" variant="success" /> As a project user, every write to the prefix and `brew install`, `uninstall`, `link` and `update` failed, and `su` to the toolchain user failed. Only the toolchain user and its own group can write the prefix's files, and none is set-user-ID. Source: "Answer" part 2, `probe-shared.sh`, and `probe-shared-2.sh` for the `Cellar` write and `brew install tree`.
+- <Badge text="verified" variant="success" /> `sudo -n -u _wbtool` was refused. That rules out a rule without a password only, and the S11-verification-and-spikes check `sudo -l -U` covers the rest. Source: "Answer" part 2.
 - <Badge text="verified" variant="success" /> A Brewfile with a `system` line, run by `brew bundle` as the toolchain user, created a file in `/opt/homebrew/bin`. Source: "Answer" part 4.
 - <Badge text="verified" variant="success" /> Older versions of the same packages installed side by side and ran from their own folders. `mysql` was refused while `mariadb` was installed. `python3` in the shared `bin` was 3.14 for a project that declared 3.13. Source: "Answer" part 5.
 - <Badge text="verified" variant="success" /> Times: 179 s for the test project in the shared prefix, 66 s for a second project after it, under a second when nothing is new, 230 s in a short per-project prefix, unfinished after 51 minutes in a home prefix. Source: "Measurements".
 - <Badge text="verified" variant="success" /> A symbolic link from a short path to the home doesn't help: Homebrew followed it and started building from source. Source: "Answer" part 7.
-- <Badge text="assumed" variant="caution" /> That a reconcile with `HOMEBREW_NO_INSTALL_UPGRADE` and no cleanup never changes what another running session uses, which the spike didn't try (condition 4).
-- <Badge text="assumed" variant="caution" /> That a session `PATH` with only the declared packages' folders, and not the shared `bin`, is enough for common tools, which the spike didn't try (condition 5).
+- <Badge text="assumed" variant="caution" /> That a reconcile never changes what another running session uses. `HOMEBREW_NO_INSTALL_UPGRADE` covers only the packages on the command line, so the control is the formula data pinned at image build. The spike didn't try it (condition 4, I180).
+- <Badge text="assumed" variant="caution" /> That a session `PATH` with only the declared packages' folders, and not the shared `bin`, is enough for common tools, which the spike didn't try (condition 5, I180).
+- <Badge text="assumed" variant="caution" /> That Homebrew keeps its temporary and cache files in the toolchain user's mode-700 home when told to, and not in the shared `/private/tmp`, which the spike didn't try (condition 7, I180).
 
 ## What it unblocks
 

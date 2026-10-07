@@ -190,7 +190,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X20-shared-homebrew: Homebrew with more than one project user",
-		"summary": "X20-shared-homebrew (added to S11-verification-and-spikes in #14)"
+		"summary": "X20-shared-homebrew (added to S11-verification-and-spikes in #14)",
+		"brief": "B31-shared-homebrew"
 	},
 	"32": {
 		"kind": "issue",
@@ -433,7 +434,7 @@
 	},
 	"68": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd must bind stream identity to the connection, not to wb-netd's tags",
 		"summary": "Found in the security review of #65 (X23-sandboxed-daemons result).",
 		"brief": "B68-proxyd-stream-identity"
@@ -1057,7 +1058,7 @@
 	},
 	"170": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): bind wb-proxyd stream identity to the hand-off socket",
 		"summary": "Writes the #68 decision into the specs: wb-proxyd takes a stream's VM from the per-VM hand-off socket that wb-hostd creates and labels, re-checks the name against its own copy of the name mapping, the VM's effective p…",
 		"brief": "B68-proxyd-stream-identity"
@@ -1104,5 +1105,23 @@
 		"state": "open",
 		"title": "S04-architecture: state the bound on the event retry queue in wb-netd and wb-proxyd",
 		"summary": "From the final code re-check of #171 (#48)."
+	},
+	"178": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X20-shared-homebrew result, yes with conditions",
+		"summary": "Result of the X20-shared-homebrew spike: yes, with conditions."
+	},
+	"179": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: small clarifications to the stream hand-off",
+		"summary": "Low-severity follow-ups from the final code and security re-checks of #170 (#68)."
+	},
+	"180": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X20-shared-homebrew: verify the untested toolchain prefix conditions in a guest",
+		"summary": "X20-shared-homebrew (#31, PR #178) answered \"yes, with conditions\" for one Homebrew prefix owned by the toolchain user."
 	}
 }

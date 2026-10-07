@@ -21,16 +21,18 @@ Brief: B31-shared-homebrew
   the prefix that every project runs from.
 - **Controls touched:** none weakened. SEC08-proj-isolation gains the
   manifest rule: without it, any project's Brewfile could plant a
-  binary that other projects run. Projects in one VM share the
+  binary that other projects run. A new threat,
+  T15-shared-toolchain, accepts that every project's tools rest on
+  `homebrew/core`. Projects in one VM share the
   versions in the prefix, much as they share network grants
   (T11-shared-vm-grants). The spike didn't measure whether a project
   can change what another project's session runs while it runs
   (condition 4).
 - **Assumed:** that the conditions the spike didn't try work as written:
   Homebrew's temporary and cache folders in the toolchain user's home,
-  `HOMEBREW_NO_INSTALL_UPGRADE` keeping a reconcile from changing kegs
-  other projects use, and a session `PATH` without the prefix's shared
-  `bin`. The spike used a NAT network, not the egress gateway, and the
+  the pinned formula data keeping a reconcile from upgrading kegs other
+  projects use, and a session `PATH` without the prefix's shared
+  `bin`. I180 measures all three in a guest. The spike used a NAT network, not the egress gateway, and the
   toolchain user name `_wbtool` is a stand-in until I144 picks one.
 - **Open decisions:**
   1. Whether a project may get a prefix of its own instead, where the
@@ -70,17 +72,24 @@ at a path no longer than `/opt/homebrew` pours every bottle.
    installer, run as `_wbtool` through `sudo -u` with a clean
    environment and `NONINTERACTIVE=1`, installed Homebrew 7.0.8 without
    asking for `sudo`, because the prefix already existed and belonged
-   to it. Every file in the prefix belongs to `_wbtool` and its group,
-   none is writable by others, and none is set-user-ID.
+   to it. Every file in the prefix belongs to `_wbtool` and its own
+   group, which has no other members. The installer made some folders
+   writable by that group (`drwxrwxr-x`), none is writable by others,
+   and none is set-user-ID.
 2. **A project user can't change the shared prefix: verified.** As a
    standard project user, every write was refused: replacing the
-   `bin/git` link, a new file in `bin`, appending to the `git` binary
-   in `Cellar`, a new directory in `Cellar`, editing Homebrew's Ruby,
-   writing to `etc`, `var`, `lib/node_modules` and Python's
-   `site-packages`, and `chmod` of `bin`. `brew install tree`,
-   `brew uninstall`, `brew link` and `brew update` failed on
-   permissions. `sudo -n -u _wbtool` asked for a password, `su` failed,
-   and the toolchain user's home was unreadable.
+   `bin/git` link, a new file in `bin`, a new directory in `Cellar`,
+   editing Homebrew's Ruby, writing to `etc`, `var`, `lib/node_modules`
+   and Python's `site-packages`, and `chmod` of `bin`
+   (`probe-shared.sh`). `brew uninstall`, `brew link` and `brew update`
+   failed on permissions. The first probe's append to the `git` binary
+   and its `brew install` were broken (a glob that didn't expand, and a
+   formula that was already installed), so `probe-shared-2.sh` repeated
+   them: appending to `Cellar/git/2.56.0/bin/git` was refused, and
+   `brew install tree` failed on permissions and left no `Cellar/tree`.
+   `sudo -n -u _wbtool` was refused because it needed a password, and
+   `su` failed. That rules out a rule without a password. The S11 check
+   `sudo -l -U` covers the project user's other sudoers rules. The toolchain user's home was unreadable.
 3. **The agent can't install packages there, and installs into its home
    instead: verified.** `brew install` and `npm install -g` fail for a
    project user. `pip install` falls back to the user's own
@@ -119,14 +128,21 @@ at a path no longer than `/opt/homebrew` pours every bottle.
    needs `rust` to build, and `rust` needs `llvm`, whose bottle is the
    same kind, so LLVM is built too. Homebrew also printed that this
    prefix is "not a Tier 1 configuration" and not to report issues.
-   After 51 minutes the spike stopped the build, with 5 formulae built
+   51 minutes (3161 s) into the `brew bundle` run, the spike stopped
+   the build, with 5 formulae built
    and LLVM at step 2963 of 9131.
 7. **A per-user prefix at a short path: yes.** In `/opt/wbp-c`
    (10 characters), created by root and given to the project user,
    all 59 formulae poured from bottles in 230 s, and none was built.
    The relocated tools worked: `git` cloned over HTTPS, Python built
-   a C extension from source in a virtual environment against its relocated headers,
-   and `psql` and `node` ran. Homebrew failed to sign 8 static
+   a C extension from source in a virtual environment against its
+   relocated headers, and `psql` and `node` ran. But
+   `pkgconf --cflags --libs openssl` found no `openssl`, and so a C
+   program against OpenSSL didn't compile. The cause is that
+   `openssl@3` is keg-only, so its `openssl.pc` is only in
+   `opt/openssl@3/lib/pkgconfig`, off `pkgconf`'s search path. The
+   shared prefix is the same, and `pkgconf`'s search path was
+   relocated correctly (`/opt/wbp-c/lib/pkgconfig` first). Homebrew failed to sign 8 static
    archives (`.a` files) and carried on, and 15 files outside the
    install receipts still name `/opt/homebrew` (documentation, and
    `python@3.14`'s build settings, `uvwasi.pc` and `pcre2-config`). A
@@ -135,36 +151,43 @@ at a path no longer than `/opt/homebrew` pours every bottle.
    building from source.
 
 The conditions of the shared prefix (S06-vm-lifecycle, "Toolchain
-prefix"):
+prefix"). The first three are the integrity control. The others keep
+sessions reproducible.
 
-1. **The manifest is data.** `wb-hostd` reads it as a list of formula
-   names, and `wb-guestd` installs them with
-   `brew install --formula <names>` as the toolchain user. Neither
-   runs `brew bundle` or hands Homebrew a file a project wrote. A
-   manifest line that isn't `brew "<name>"` with a plain formula name
-   (a tap, a cask, options, `system` or any other Ruby) is refused,
-   with the line and the rule logged (answer 4).
-2. **Formulae come from `homebrew/core` only**, because a third-party
-   tap is code that would run as the toolchain user (answer 4).
-3. **Only `wb-guestd` installs.** Project users and the agent have read
-   and execute only, no `sudo`, and no way to the toolchain user
-   (answers 2 and 3).
-4. **A reconcile only adds.** `HOMEBREW_NO_AUTO_UPDATE`,
-   `HOMEBREW_NO_INSTALL_UPGRADE` and `HOMEBREW_NO_INSTALL_CLEANUP` are
-   set, so installing one project's packages doesn't upgrade or remove
-   kegs that another project's session runs. The spike didn't try
-   this.
-5. **The session's `PATH` comes from what it declared**, not from what
-   the prefix happens to link: `opt/<formula>/bin` for each formula of
-   the image's recipe and the project's manifest (and Python's
-   `libexec/bin`), without the prefix's shared `bin` (answer 5). The
-   spike didn't try a `PATH` without the shared `bin`.
+1. **Only the toolchain user writes the prefix**, and its group is its
+   own, with no other members. Project users and the agent have read
+   and execute only (answers 1 to 3).
+2. **The manifest is data.** `wb-hostd` reads it as `brew "<name>"`
+   lines, with names that match `^[a-z0-9][a-z0-9+._@-]*$`, don't end
+   in `.rb`, and fit length and count caps. It refuses anything else,
+   a tap, a cask, options, `system`, a name with a `/` or a leading
+   `-`, and logs the line and the rule. `wb-guestd` checks the names
+   again and runs `brew install --formula --force-bottle -- <names>`
+   by argument list, with `HOMEBREW_FORBID_PACKAGES_FROM_PATHS=1`.
+   Neither runs `brew bundle` or hands Homebrew a file a project wrote
+   (answer 4). Formulae come from `homebrew/core` only, because a tap
+   is code that would run as the toolchain user. Trusting
+   `homebrew/core` with every project's tools is T15-shared-toolchain.
+3. **Bottles only.** A formula with no bottle for the guest refuses
+   the session, and nothing is built from source (answer 6). The
+   reconcile's process group is killed at the start deadline.
+4. **A reconcile only adds** (untested, I180).
+   `HOMEBREW_NO_INSTALL_UPGRADE` covers only the formulae on the command line, and
+   Homebrew still upgrades an outdated dependency. The control is the
+   formula API snapshot in the toolchain user's cache, written at
+   image build and kept by `HOMEBREW_NO_AUTO_UPDATE`, together with
+   `HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK` and
+   `HOMEBREW_NO_INSTALL_CLEANUP`. Then nothing installed is outdated.
+5. **The session's `PATH` comes from what it declared** (untested,
+   I180): `opt/<formula>/bin` for each declared formula (and Python's
+   `libexec/bin`), without the prefix's shared `bin` (answer 5). A
+   project can add the shared `bin` back, so this isn't a control.
 6. **A conflict fails the reconcile, and `wb` refuses the session**
    with both formula names and `--isolated` (answer 5).
 7. **The toolchain user's environment is built by `wb-guestd`** from an
    allowlist, with `HOMEBREW_TEMP` and `HOMEBREW_CACHE` in its own
-   home, which is mode 700. The default temporary folder is the shared
-   `/private/tmp`. The spike didn't try this.
+   home, which is mode 700 (untested, I180). The default temporary
+   folder is the shared `/private/tmp`.
 
 ## Measurements
 
@@ -172,7 +195,9 @@ Host: Apple M2, 8 cores, 16 GB, macOS 27.0.1 (26A434), no `sudo`. Guest:
 a fresh APFS clone of the X17-image-build spike's sealed bundle
 (macOS 27.0.1, 4 vCPU, 4 GiB, 64 GiB sparse disk), on Apple's NAT
 network, with the Xcode command line tools installed first as I150
-puts them in the base image. Homebrew 7.0.8. Bottle tag
+puts them in the base image. Homebrew 7.0.8 from its installer in the
+shared prefix, and a clone at `7.0.8-50-g8d49321` in the per-user
+prefixes. Bottle tag
 `arm64_golden_gate`. Project A is a realistic polyglot Brewfile:
 `git`, `gh`, `jq`, `ripgrep`, `fd`, `node`, `python@3.13`, `uv`, `go`,
 `mise`, `cmake`, `pkgconf`, `postgresql@17`, `redis` and `awscli`,
@@ -208,12 +233,17 @@ afresh into its own cache.
   `ghcr.io`, which X22-no-guest-credentials and S07-egress-gateway
   already cover.
 - **A reconcile while another project's session runs** (condition 4),
-  and whether the three variables keep Homebrew from changing shared
-  dependencies when the formula data is newer than the installed kegs.
+  and whether the pinned formula data keeps Homebrew from upgrading
+  shared dependencies. I180 measures it.
 - **A session `PATH` without the prefix's shared `bin`** (condition 5).
-  Tools that look up a dependency's command by name may need it.
+  Tools that look up a dependency's command by name may need it. I180.
 - **Homebrew's temporary and cache folders in the toolchain user's
-  home** (condition 7).
+  home** (condition 7). I180.
+- **`--force-bottle`, `--` before the names, and
+  `HOMEBREW_FORBID_PACKAGES_FROM_PATHS`** with Homebrew 7. The spike
+  ran `brew install --formula` with names only. The bottle check
+  before the install is `wb-guestd`'s own, so it doesn't rest on how
+  Homebrew treats `--force-bottle`.
 - **The full source build in the home prefix.** The spike stopped it to
   keep the host's disk free.
 - **Derived images.** I150 builds images from recipes as the toolchain
@@ -228,10 +258,15 @@ afresh into its own cache.
   rewrite them. The sealing scan has to accept the toolchain user and
   its prefix: I144 decided the scan checks kept users by name, and
   I150 lists the toolchain user's areas.
-- **S11-verification-and-spikes**: a conformance check that a project
-  user can't write the prefix or install, and that a manifest with
-  anything but formula names is refused, and X20-shared-homebrew in the
-  list of answered spikes (changed in this pull request).
+- **S11-verification-and-spikes**: the manifest parser and the name
+  check in the fuzz list, conformance checks that a project user can't
+  write the prefix or install, that a manifest with anything but
+  formula names is refused, and the untested conditions, and
+  X20-shared-homebrew in the list of answered spikes (changed in this
+  pull request).
+- **T00-index**: T15-shared-toolchain, projects in one guest share the
+  toolchain prefix and trust `homebrew/core` with each other's tools
+  (added in this pull request).
 - **FR06-native-tools and FR07-toolchain-manifest** still say Homebrew
   and Brewfile. I150 rewords them to the guest's package manager. The
   manifest keeps the Brewfile's `brew "<name>"` lines, so a simple
