@@ -41,8 +41,10 @@ and `docs/agents/review-briefs.md` before you start.
   they become evidence in the brief. Stop a probe that outgrows its time
   box: it is a spike.
 - A spike question gets its own `X<NN>` (next free number in X00-index,
-  `planning.md`, "Spikes"). It goes in the spec as an open question
-  that names the spike. Don't guess its answer in the spec.
+  `planning.md`, "Spikes"), and its issue. The brief lists it as an
+  open point that names the spike. The spec doesn't guess its answer:
+  it states the design that doesn't depend on it, or the property the
+  design relies on.
 - For each judgment question, draft a recommendation with the evidence
   for it.
 

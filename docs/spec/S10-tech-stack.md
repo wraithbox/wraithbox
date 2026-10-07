@@ -70,8 +70,10 @@ binary of that name comes from the Swift package.
 ## Packaging and signing
 
 - **macOS:** an app bundle, `Wraith Box.app`, contains `wb-hostd`,
-  `wb-vmd`, `wb-netd`, `wb-proxyd`, the notification helper, the guest
-  tools disk image, and `wb`, which the installer links onto `PATH`. A
+  `wb-launcher`, `wb-vmd`, `wb-netd`, `wb-proxyd`, `wb-git`,
+  `wb-prover`, `openshell-prover`, `wb-guestadmin`, `wb-build-ssh`,
+  `wb-askpass`, the
+  notification helper, the guest tools disk image, and `wb`, which the installer links onto `PATH`. A
   bundle is needed for notifications, Keychain access groups, and
   launch-agent registration. Hardened runtime; only `wb-vmd` has the
   virtualization entitlement. Developer ID signing and notarization come

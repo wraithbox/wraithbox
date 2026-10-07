@@ -332,9 +332,9 @@ inspection is trusted, and what is recorded.
   elsewhere; S12-platforms), non-exportable, self-signs the CA
   certificate with it, and uses it to sign leaf certificates (Go's
   certificate creation accepts any signer). Fallback if no hardware
-  key store is available: a software key held in the secret store.
-  Only `wb-proxyd` holds the key handle (S04-architecture, "Secrets
-  live in one process"). `wb-hostd` gets the public certificate over
+  key store is available: a software key held in the secret store,
+  as the item `wraithbox/ca/<vm>/<ca>`. Only `wb-proxyd` uses the key
+  handle or fetches that item (S15-least-privilege, "Declared access"). `wb-hostd` gets the public certificate over
   local IPC and hands it to `wb-guestd`.
 - **CA profile.** `basicConstraints` critical with `CA:TRUE` and
   `pathLen:0`, `keyUsage` `keyCertSign` only, and no extended key
@@ -523,7 +523,9 @@ stripped of control and escape sequences wherever it is shown.
 
 - JSONL in `<logs>` (S12-platforms; `~/Library/Logs/WraithBox/` on macOS),
   written by `wb-hostd` from events
-  sent by `wb-netd` and `wb-proxyd`; rotated and size-capped.
+  sent by `wb`, `wb-netd`, `wb-proxyd` and `wb-guestadmin`, including
+  each secret store access without its value (S15-least-privilege);
+  rotated and size-capped.
 - Events use OCSF 1.8.0 classes, as OpenShell's do
   (X24-openshell-artifacts): Network Activity (4001) for
   connections, HTTP Activity (4002) for inspected requests, Device

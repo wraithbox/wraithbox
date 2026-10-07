@@ -65,9 +65,9 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="370" y="532" text-anchor="middle">call returns</text>
 
 <rect class="box host" x="500" y="470" width="200" height="76" rx="10" />
-<text class="label" x="600" y="496" text-anchor="middle">ssh (build)</text>
-<text class="note" x="600" y="516" text-anchor="middle">one session (I139)</text>
-<text class="note" x="600" y="532" text-anchor="middle">stdin to sudo</text>
+<text class="label" x="600" y="496" text-anchor="middle">wb-build-ssh</text>
+<text class="note" x="600" y="516" text-anchor="middle">runs ssh, one session</text>
+<text class="note" x="600" y="532" text-anchor="middle">password on stdin</text>
 
 <path class="edge" d="M280,100 C230,110 180,170 150,228" marker-end="url(#f015-arrow)" />
 <text class="note" x="160" y="150">write</text>
