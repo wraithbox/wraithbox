@@ -428,7 +428,9 @@ audit log (SEC10-audit).
 - **Recovery.** A lost session's worktree stays on the data disk. At
   the next connection to a `wb-guestd` in that VM, after a restart or
   the next VM start, `wb-hostd` sends "finish" for each lost session
-  of the VM that it has a record of, whatever the list holds:
+  of the VM that it has a record of, whatever else the list holds.
+  Recovery skips a lost session whose report the list holds, which
+  "acknowledged" ends instead ("Reconnect"). On "finish",
   `wb-guestd` kills what is left of the session's processes, then
   commits and pushes WIP as at a normal end. During recovery
   `wb-hostd` accepts a push for the lost session only to its own
