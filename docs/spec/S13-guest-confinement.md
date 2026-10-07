@@ -47,8 +47,18 @@ Applied by `wb-guestd` to every process it starts for a project user:
 - `RLIMIT_CORE` set to 0, and an environment built from an allowlist
   (S09-policy-credentials-audit);
 - when the host-guest socket drops, `wb-guestd` stops the session's
-  process group, so no session runs on without host session control. It
-  resumes the group when the link returns;
+  process group, so no session runs on without host session control.
+  When the link returns, it resumes the group only when `wb-hostd`
+  answers that the session still has its client, and otherwise hangs
+  up the session and ends it (S06-vm-lifecycle, "Session lifecycle").
+  It resumes only a group it stopped itself, not one `claude` stopped
+  with job control. A new `wb-guestd` process never takes over the
+  sessions of an earlier one. A VM with a session is never saved for
+  idleness. A restore then never has a session to resume;
+- when a session's client goes (its terminal closed, or `wb` was
+  killed), `wb-guestd` hangs up `claude`, and sends `SIGKILL` to its
+  process group when it hasn't exited 10 seconds later
+  (S06-vm-lifecycle, "Session lifecycle");
 - when `wb-hostd` ends a project's last session in the VM, debug
   shells included, `wb-guestd` locks that project user, so nothing new
   starts as it, and kills its processes in a loop until none remain.
