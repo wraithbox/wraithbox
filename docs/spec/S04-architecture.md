@@ -589,9 +589,11 @@ restart limit.
   from `wb-netd`.
 - **Event records** carry what goes to the audit log
   (S09-policy-credentials-audit, "Audit"). When an event write blocks
-  for more than 100 ms, `wb-netd` refuses new lookups and connections,
-  and `wb-proxyd` new streams and requests, with the rule
-  `event-channel-blocked`, until a write succeeds. So a slow or hung
+  for more than 100 ms, or fails without blocking (`ENOBUFS` or
+  `EAGAIN` on a `SOCK_DGRAM` socket), `wb-netd` refuses new lookups and
+  connections, and `wb-proxyd` new streams and requests, with the rule
+  `event-channel-blocked`. It keeps the record and retries it until a
+  write succeeds, so no event is lost. So a slow or hung
   `wb-hostd` makes the VM's network refuse, not run without records.
 
 ### Version skew

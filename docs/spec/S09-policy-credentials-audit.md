@@ -562,8 +562,10 @@ stripped of control and escape sequences wherever it is shown.
   session start and every minute, it checks the volume that holds
   `<logs>` against `audit_free_space_floor` (default 1 GiB).
   - A VM starts only when the free space is at least the floor plus the
-    room the VM's disks on that volume can still grow, up to their caps
-    (SEC13-bounded-resources). Otherwise the start is refused with the
+    room the VM's data disk can still grow on that volume, up to its cap
+    (SEC13-bounded-resources). The guest controls what the data disk
+    holds. The system disk's growth isn't counted, and the stop rule
+    below covers the data disk while the VM runs. Otherwise the start is refused with the
     rule `audit-free-space`.
   - Below the floor at the check every minute, `wb-hostd` stops each VM
     whose data disk grew since the last check, before any write fails,
