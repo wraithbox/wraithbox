@@ -155,4 +155,9 @@ character, an escape sequence, or a Unicode format character
 audit records show them escaped, where a reviewer sees them. Other
 output removes them (SEC10-audit, SEC14-no-fake-approvals).
 
+## Out of scope
+
+- The TTY relay itself, and the exit status and signals of `wb claude`,
+  are in S05-cli ("Agent commands", "Exit status and signals").
+
 **Status:** Draft

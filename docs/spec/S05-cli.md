@@ -37,9 +37,10 @@
   versions. Drop counts show it when they don't.
 - **Open decisions:** none. The maintainer decided both on I37 on
   2026-10-06: `wb` resets the terminal on exit rather than run the
-  session on an alternate screen of its own (S16-terminal-stream, "Reset on exit"), and a
-  stream that goes to a pipe or a file passes the same full filter as
-  terminal output (S16-terminal-stream, "Where").
+  session on an alternate screen of its own (S16-terminal-stream,
+  "Reset on exit"), and a stream that goes to a pipe or a file passes
+  the same full filter as terminal output (S16-terminal-stream,
+  "Where").
 - **Brief:** B37-terminal-boundary
 
 ## Shape
@@ -192,8 +193,8 @@ Signals:
   (S06-vm-lifecycle, "Session helper"), and `wb-guestd` reports it.
   The report is guest input, and it can only make `wb` give the
   terminal back early. `wb` then resets the terminal and drains its
-  input as on exit (S16-terminal-stream, "Around the stream"), restores the user's window
-  title, and stops itself with `SIGSTOP`, so the user's shell has the
+  input as on exit (S16-terminal-stream, "Around the stream"),
+  restores the user's window title, and stops itself with `SIGSTOP`, so the user's shell has the
   terminal again. On `SIGCONT` (`fg`), `wb` sets its title and raw
   mode again and has `wb-guestd` continue `claude`, which redraws. A
   `SIGTSTP` sent to `wb` from outside, which a terminal in raw mode
