@@ -19,6 +19,13 @@ A brief explains, it does not decide. The record stays where it is:
 - a spike result in `docs/spikes/X<NN>-<slug>.md`;
 - a spec change in `docs/spec/`.
 
+For a spec change, the brief holds the review material, because
+a spec states only the design (S01-spec-based-development, "Spec
+template"): what approving commits to, the controls touched, the
+assumptions, and the open decisions with their recommendations. Each
+open point that needs work after the decision also gets an issue, and
+the brief lists it.
+
 A brief doesn't add requirements or rules. If a brief and its source
 disagree, the source is right, and the brief gets fixed in the same pull
 request.

@@ -58,14 +58,20 @@ where a wrong guess means rewriting the spec:
 - say what you assumed for everything you are not asking.
 
 If the maintainer is not available, don't ask. Write the judgment
-questions into the spec as open decisions with recommendations, and the
-brief presents them as options.
+questions into the brief as options with a recommendation, and file an
+issue for each one that has none. The spec states the recommended
+design.
 
 ## 4. Write the spec
 
 Follow the template in `S01-spec-based-development.md`, and:
 
-- The **For review** block comes first and stays short.
+- The spec states the design only (S01-spec-based-development, "Spec
+  template"). It has no **For review** block, no open questions, and no
+  "assumed", "pending" or "open" wording. That material goes in the
+  brief, and each open point in an issue. Where the design relies on a
+  property not yet measured, state the design and the property, and
+  file an issue for the measurement.
 - Each decision states what was chosen, why, and the options rejected
   with the reason. A rejected option stays in the text, struck through,
   when it's reopened later.
@@ -77,7 +83,8 @@ Follow the template in `S01-spec-based-development.md`, and:
   S04-architecture, and keep it to about a dozen boxes. GitHub
   shows it in the pull request, and the site themes it.
 - Never weaken a `SEC*` control. If the only workable answer needs it, write
-  that up as the spec change, flag it first in **For review**, and stop
+  that up as the spec change, flag it first in the brief and the pull
+  request body, and stop
   (`AGENTS.md`).
 - Aim for under 100 lines of change per spec (S01-spec-based-development). A larger change
   is two pull requests, or one spec split by capability.
@@ -86,8 +93,11 @@ Follow the template in `S01-spec-based-development.md`, and:
 
 Write a review brief with the `brief` skill for the spec change, in
 the same pull request: `B<NN>-<slug>`, numbered after the issue the
-change closes (file one first if there is none). Its options are the open
-decisions, and its evidence is the facts and probes from step 2. Skip
+change closes (file one first if there is none). It holds the review
+material the spec leaves out: what approving commits to, the controls
+touched, the assumptions, and the open decisions as options. Its
+evidence is the facts and probes from step 2, and it lists the issues
+filed for open points. Skip
 the brief when the change leaves every decision settled and touches
 no `SEC*` control, and say so in the pull request.
 
@@ -97,7 +107,9 @@ no `SEC*` control, and say so in the pull request.
   `mise run doc:check` and `mise run doc:build`.
 - Branch `docs/s<NN>-<slug>` (or the issue's branch name), commit as
   `docs(spec): <what changed>`, open a pull request. The body starts
-  with the **For review** block and links the brief, then
+  with a short **For review** block (what approving commits to, the
+  controls touched, assumptions, open decisions) and links the brief,
+  then
   `Closes #<n>` or `Refs #<n>`, and the attribution lines.
 - If you filed spikes, list them.
 - Report back: the decisions made, the decisions left to the

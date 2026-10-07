@@ -37,14 +37,11 @@ in S12-platforms.
      user `wbadmin` with a password, and the build's one SSH session
      needs it. The host keeps that user's password in the configured
      secret store from then on, and S15-least-privilege declares who
-     may write, fetch or receive it (I145):
-     - the program that builds the image (`wb-guestadmin`, proposed in
-       S15-least-privilege open question 1) generates a password for
+     may write, fetch or receive it:
+     - `wb-guestadmin` (S04-architecture) generates a password for
        each build, writes it to the store, and hands it on pipes to the
-       build's `wb-vmd` until the start call returns and to the SSH
-       client (I139, S15-least-privilege open question 2) for its one
-       session. The build fails closed until both questions are
-       settled;
+       build's `wb-vmd` until the start call returns and to the build's
+       `ssh` for its one session;
      - provisioning options for a session VM are refused, and the
        refusal is logged with its rule;
      - the password is never in arguments, never written to disk
@@ -61,10 +58,8 @@ in S12-platforms.
      fails. It then turns Remote Login and automatic login off.
      macOS refuses to delete `wbadmin`, because it holds the volume's
      only secure token. The image keeps it as a host-administered
-     account. Whether it stays in `admin`, and what a break-glass
-     console login needs, is open (I146, S15-least-privilege open
-     question 4). Until that is decided the build takes it out of every
-     group and disables it. Then the base layer is installed and the
+     account, and the build takes it out of every group and disables
+     it. Then the base layer is installed and the
      image is sealed. Which user installs the base layer, and in which
      order, is open (I144).
 
@@ -126,9 +121,7 @@ in S12-platforms.
   that VM and kept in the secret store, so a password burned in one VM
   opens nothing in another. `wb-hostd` doesn't start a session in a VM
   whose rotation hasn't succeeded. The store items, the channel, and the
-  break-glass use are in S15-least-privilege. Whether guest root can
-  extract the host-held password or reset its way into the secure token
-  is I142.
+  break-glass use are in S15-least-privilege.
 
 ## VMs
 
