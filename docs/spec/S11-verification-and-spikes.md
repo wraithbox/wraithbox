@@ -146,9 +146,15 @@ be tested before building on them.
   - with an allowed name that resolves to `127.0.0.1`, an RFC 1918
     address, `169.254.169.254` or an IPv4-mapped form of one, open an
     inspected, a pass and a raw TCP stream to it, and see each refused
-    with `upstream-address-refused` and no upstream connection; load a
-    policy whose host is `127.0.0.1` or `0x7f000001` and see it
-    refused;
+    with `upstream-address-refused` and no upstream connection. Do the
+    same for a name that resolves to an address of one of the host's
+    interfaces, to an address in an on-link prefix of the host (a
+    global IPv6 LAN address included), to `192.0.0.8`, and to
+    IPv4-compatible, 6to4, and Teredo addresses. Load a policy whose
+    host is `127.0.0.1` or `0x7f000001` and see it refused;
+  - to a pass host, send client application data, or a handshake
+    record that isn't a ClientHello, before the server's ServerHello,
+    and see it reset;
   - push to a repository outside the project set, with and without an
     attacker-supplied token; create a gist or repository; publish a
     package. The project set is the VM's: the repositories of every
