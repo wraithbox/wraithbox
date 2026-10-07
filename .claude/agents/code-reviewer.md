@@ -40,7 +40,10 @@ step 2 says (trusted comments only).
      name the requirement in a comment;
    - shared code does not branch on `runtime.GOOS`;
    - no bare lint disables, lowered thresholds, deleted tests, unpinned
-     actions or tools; dependency licenses are permissive.
+     actions or tools; dependency licenses are permissive;
+   - complexity limits are met by simpler code, not by splitting one
+     function into helpers that are each called once and only move the
+     complexity.
 5. Run the `mise` tasks for the areas the diff touches
    (`docs/agents/planning.md`, "Area") and report their result. Don't
    run `format` tasks; they rewrite files.

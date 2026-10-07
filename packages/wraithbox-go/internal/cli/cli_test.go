@@ -6,14 +6,39 @@ import (
 	"testing"
 )
 
+// parseCase is one row of TestParse: the arguments and what Parse
+// should make of them.
+type parseCase struct {
+	name    string
+	args    []string
+	command string
+	rest    []string
+	globals Globals
+}
+
+func (tc parseCase) check(t *testing.T) {
+	t.Helper()
+	inv, err := Parse(tc.args)
+	if err != nil {
+		t.Fatalf("Parse(%q) error: %v", tc.args, err)
+	}
+	if inv.Globals != tc.globals {
+		t.Errorf("globals = %+v, want %+v", inv.Globals, tc.globals)
+	}
+	got := ""
+	if inv.Command != nil {
+		got = inv.Command.Name
+	}
+	if got != tc.command {
+		t.Errorf("command = %q, want %q", got, tc.command)
+	}
+	if tc.command != "" && !slices.Equal(inv.Args, tc.rest) {
+		t.Errorf("args = %q, want %q", inv.Args, tc.rest)
+	}
+}
+
 func TestParse(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		command string
-		rest    []string
-		globals Globals
-	}{
+	tests := []parseCase{
 		{name: "no args", args: nil},
 		{name: "claude bare", args: []string{"claude"}, command: "claude", rest: []string{}},
 		{
@@ -46,25 +71,7 @@ func TestParse(t *testing.T) {
 		{name: "help flag", args: []string{"--help"}, globals: Globals{Help: true}},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			inv, err := Parse(tt.args)
-			if err != nil {
-				t.Fatalf("Parse(%q) error: %v", tt.args, err)
-			}
-			if inv.Globals != tt.globals {
-				t.Errorf("globals = %+v, want %+v", inv.Globals, tt.globals)
-			}
-			got := ""
-			if inv.Command != nil {
-				got = inv.Command.Name
-			}
-			if got != tt.command {
-				t.Errorf("command = %q, want %q", got, tt.command)
-			}
-			if tt.command != "" && !slices.Equal(inv.Args, tt.rest) {
-				t.Errorf("args = %q, want %q", inv.Args, tt.rest)
-			}
-		})
+		t.Run(tt.name, tt.check)
 	}
 }
 
