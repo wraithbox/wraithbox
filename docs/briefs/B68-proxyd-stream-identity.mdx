@@ -1,0 +1,139 @@
+---
+title: How does wb-proxyd know which VM and name a stream belongs to, when wb-netd may be compromised?
+description: From the per-VM socket the stream arrived on and from name reports it checked itself, so nothing wb-netd writes can widen what a stream reaches. One detail is open, where wb-proxyd's copy of the name mapping comes from.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Decided 2026-10-04: per-VM hand-off socket, re-check, header only narrows. Awaiting review: the name reports.** Source: I68, from the security review of X23-sandboxed-daemons. Changes S07-egress-gateway ("Stream hand-off" and "Name binding"), S04-architecture ("Design decisions") and S11-verification-and-spikes.
+
+<Aside type="tip" title="You are deciding">
+Whether the spec change fills in your I68 decision the way you meant it. The open point is how `wb-proxyd` gets "its own copy of the DNS mapping". Recommended: `wb-netd` reports each name and synthetic address before it answers the guest, and `wb-proxyd` keeps a report only after checking it against the VM's policy. Accepting it merges the S07-egress-gateway and S04-architecture text, and the proxy work in V1-M2-walking-skeleton builds to it.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 320" role="img" aria-label="wb-hostd creates one hand-off socket per VM and passes its ends to that VM's wb-netd and to wb-proxyd, naming the VM to wb-proxyd. wb-netd sends name reports and streams on it. A compromised wb-netd for VM A can't reach VM B's socket, so it can't put a stream under VM B's policy or credentials.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="600" y="20" width="150" height="280" rx="12" />
+  <text class="boundary-label" x="612" y="40">guests, untrusted</text>
+  <rect class="box guest" x="615" y="70" width="120" height="50" rx="10" />
+  <text class="label" x="675" y="100" text-anchor="middle">VM A</text>
+  <rect class="box guest" x="615" y="210" width="120" height="50" rx="10" />
+  <text class="label" x="675" y="240" text-anchor="middle">VM B</text>
+
+  <rect class="box host" x="400" y="65" width="150" height="60" rx="10" />
+  <text class="label" x="475" y="92" text-anchor="middle">wb-netd A</text>
+  <text class="note" x="475" y="112" text-anchor="middle">may be compromised</text>
+  <rect class="box host" x="400" y="205" width="150" height="60" rx="10" />
+  <text class="label" x="475" y="240" text-anchor="middle">wb-netd B</text>
+
+  <rect class="box host" x="60" y="120" width="170" height="90" rx="10" />
+  <text class="label" x="145" y="150" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="145" y="170" text-anchor="middle">VM from the socket</text>
+  <text class="note" x="145" y="188" text-anchor="middle">name from its own copy</text>
+
+  <rect class="box host" x="60" y="20" width="170" height="50" rx="10" />
+  <text class="label" x="145" y="50" text-anchor="middle">wb-hostd</text>
+
+  <line class="edge" x1="613" y1="95" x2="552" y2="95" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="613" y1="235" x2="552" y2="235" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="398" y1="100" x2="232" y2="150" marker-end="url(#f1-arrow)" />
+  <text class="note" x="300" y="112">socket A</text>
+  <line class="edge" x1="398" y1="230" x2="232" y2="185" marker-end="url(#f1-arrow)" />
+  <text class="note" x="300" y="230">socket B</text>
+  <line class="edge" x1="145" y1="72" x2="145" y2="118" marker-end="url(#f1-arrow)" />
+  <text class="note" x="152" y="100">ends, named</text>
+  <path class="edge-bad" d="M470,128 C470,170 380,200 300,200" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="300" y="290">"this stream is VM B's": no socket for it</text>
+</svg>
+<figcaption>
+Figure 1. One hand-off socket per VM. `wb-hostd` creates it and tells `wb-proxyd` which VM it belongs to, so `wb-proxyd` never asks `wb-netd`. The red arrow shows what the X23-sandboxed-daemons spike allowed, where a header that `wb-netd` wrote named the VM.
+</figcaption>
+</figure>
+
+## Options
+
+These are ways to fill in "its own copy of the DNS mapping". Each keeps the per-VM socket you decided, and that socket keeps one VM's streams away from another VM's policy and credentials.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Checked name reports
+
+Before each DNS answer with a synthetic address leaves, `wb-netd` sends the name and address on the VM's socket. `wb-proxyd` keeps the pair only if the name is well formed and allowed by the VM's policy, and the address isn't held for another name. A stream message holds only the address, and `wb-proxyd` looks the name up in its copy.
+
+- **Cost:** one small message per DNS answer, sent without waiting for a reply. A second table per VM in `wb-proxyd`, at most 131,072 entries.
+- **Gives:** a `wb-netd` bug that mixes up names or reuses an address too early is refused, not followed.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC08-proj-isolation" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Name in the stream, checked against policy
+
+The stream message holds the name. `wb-proxyd` checks it against the VM's policy and then the SNI or `Host`, and doesn't keep a table.
+
+- **Cost:** least code.
+- **Gap:** it isn't a copy of the mapping, so it doesn't match your decision's wording. A `wb-netd` bug that labels a stream with the wrong allowed name goes through when the guest's SNI matches that name.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC08-proj-isolation" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. wb-proxyd hands out the addresses
+
+`wb-netd` asks `wb-proxyd` for each synthetic address, and the pool moves into `wb-proxyd`.
+
+- **Cost:** a round trip on every DNS answer, and the pool rules (reuse, budget, the same answer for every refusal) split across two processes.
+- **Gap:** no more protection than A against a compromised `wb-netd`, which can still ask for any allowed name.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC08-proj-isolation" variant="success" />
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Name reports</th><th>B. Name in stream</th><th>C. Pool in wb-proxyd</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC08-proj-isolation</strong> one project can't reach another's grants</td><td class="yes">VM from the socket</td><td class="yes">VM from the socket</td><td class="yes">VM from the socket</td></tr>
+<tr><td><strong>SEC04-no-guest-secrets</strong> credentials only on the host side</td><td class="yes">bindings of the socket's VM</td><td class="yes">bindings of the socket's VM</td><td class="yes">bindings of the socket's VM</td></tr>
+<tr><td><strong>SEC05-default-deny</strong> only allowlisted names reachable</td><td class="yes">checked twice, with a copy</td><td class="yes">checked twice, no copy</td><td class="yes">checked twice</td></tr>
+<tr><td><strong>NFR01-startup</strong> fast start and resume</td><td class="yes">no round trip</td><td class="yes">no round trip</td><td class="partial">round trip per answer</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The X23-sandboxed-daemons stand-in passed each stream as a socketpair end with `SCM_RIGHTS` on an inherited Unix socket, at 438 MiB/s. Source: X23-sandboxed-daemons, "wb-netd: gVisor over inherited descriptors".
+- <Badge text="verified" variant="success" /> `wb-vmd` already hands descriptors to `wb-hostd` the same way, one descriptor per `SOCK_SEQPACKET` message with fixed fields, refused when the count or type is wrong. The new channels copy that rule. Source: S04-architecture, "The VM provider passes descriptors, not bytes".
+- <Badge text="inferred" variant="note" /> A `SOCK_SEQPACKET` socket keeps message order, so a name report sent before the DNS answer arrives before any stream to that address. Follows from the socket type, not measured here.
+- <Badge text="inferred" variant="note" /> A compromised `wb-netd` can still hand over a stream under any name its VM's policy allows. It can also skip the wildcard budget, which only it checks. Each option leaves that as it is, because only `wb-netd` sees the guest's DNS queries. The spec states it in "Only narrows".
+- <Badge text="assumed" variant="caution" /> That `wb-hostd` can give `wb-proxyd` a recompute before `wb-netd` without a visible delay. No test or spike has timed how `wb-hostd` delivers a policy yet.
+
+## What this unblocks
+
+- The `wb-netd` to `wb-proxyd` contract in I52 and the proxy work in V1-M2-walking-skeleton.
+
+<details>
+<summary>Details and glossary</summary>
+
+**What `wb-netd` can still do if it is compromised.** It sees every packet from its own VM and can break that VM's traffic. Under option A it can't give a stream a name its VM's policy doesn't allow, and it can't reach another VM's socket, because `wb-hostd` passed it only its own end. The new generation after a restore gets a new socket, and `wb-proxyd` closes the old one.
+
+**Why the label only narrows.** Once X14-flow-attribution delivers labels, a stream message also holds the program and user the guest reported. Guest root can forge it (T06-forged-labels). So a rule that uses it only takes access away.
+
+**Glossary**
+
+- **Synthetic address:** the made-up address in 198.18.0.0/15 that `wb-netd` answers a DNS query with. The guest never learns the real address.
+- **Socketpair:** two connected sockets with no file path, so only the processes that are handed an end can use them.
+- **`SCM_RIGHTS`:** the way one process sends an open socket to another over a Unix socket.
+- **Generation:** a number that names one run of a VM. Each restore starts a new one, and messages from an older one are refused.
+- **SNI:** the host name a TLS client sends in the clear when it connects.
+
+</details>

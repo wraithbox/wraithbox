@@ -306,7 +306,7 @@
 	},
 	"48": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S04-architecture: process supervision, failure, version skew and host resource limits",
 		"summary": "S04-architecture names the processes but not how they are supervised, what happens when one fails, or how they are upgraded:",
 		"brief": "B48-process-supervision"
@@ -533,7 +533,7 @@
 	},
 	"84": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Move the S05-cli terminal stream section into its own spec",
 		"summary": "The PR #81 review (finding 9) noted that S05-cli is about 270 lines against the S01-spec-based-development aim of under 100, and that its \"Terminal stream\" section is about 105 lines."
 	},
@@ -1045,7 +1045,7 @@
 	},
 	"168": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): move the S05-cli terminal stream section into S16",
 		"summary": "Moves the \"Terminal stream\" section of S05-cli (about 145 lines) into a new spec, S16-terminal-stream, with no change of meaning."
 	},
@@ -1064,7 +1064,7 @@
 	},
 	"171": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): supervision, failure and version skew of the host processes",
 		"summary": "Adds \"Supervision and failure\" to S04-architecture, following the decision on #48 (C: VMs stop with wb-hostd, for V1) and the wb-launcher duties from the maintainer's comment on the X23-sandboxed-daemons result.",
 		"brief": "B48-process-supervision"
@@ -1080,5 +1080,29 @@
 		"state": "open",
 		"title": "Measure the delay of delivering an effective policy change to wb-proxyd before wb-netd",
 		"summary": "Follow-up from the code review of #170 (#68)."
+	},
+	"174": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Stamp the VCS revision into the build version, and treat an unstamped build as no version",
+		"summary": "Follow-up from the security review of #171 (#48, finding L5)."
+	},
+	"175": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Measure the audit budget defaults (events per minute, bytes per day) against real sessions",
+		"summary": "Follow-up from the code re-review of #171 (#48, finding C)."
+	},
+	"176": {
+		"kind": "issue",
+		"state": "open",
+		"title": "End per-run programs with wb-hostd on hosts without wb-launcher (Linux, Windows)",
+		"summary": "Follow-up from the code re-review of #171 (#48, finding G)."
+	},
+	"177": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S04-architecture: state the bound on the event retry queue in wb-netd and wb-proxyd",
+		"summary": "From the final code re-check of #171 (#48)."
 	}
 }
