@@ -99,6 +99,14 @@ bytes gets a fuzz target. Platform-specific code goes in
 `internal/platform` (and its subpackages) in `_darwin.go`, `_linux.go`,
 and `_windows.go` files; shared code never branches on `runtime.GOOS`.
 Go tasks must run under Windows `cmd.exe` (S02-toolchain).
+golangci-lint limits complexity and size (`.golangci.yml`): cognitive
+complexity 15 (`gocognit`), cyclomatic 15 (`cyclop`), `nestif` 4,
+functions of 80 lines or 50 statements (`funlen`, not in tests), 6
+parameters, 3 results, and 800-line files. Refactor to pass. Don't
+raise a limit or add a `//nolint` for one. Split a function where the
+parts have names a reader would look for, not into helpers called once
+that only move the complexity. A limit that proves wrong for the code
+base is changed in `.golangci.yml` with the reason.
 
 **Swift:** Swift 6 language mode; `swift format lint --strict` clean;
 SwiftLint complexity/size gate (`.swiftlint.yml`): refactor to pass, do

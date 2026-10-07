@@ -73,6 +73,9 @@ plainly; never soften it to keep the plan intact.
   `mise run go:cross` passes.
 - No bare `//nolint` or `swiftlint:disable`; no lowered threshold,
   deleted test, or unpinned tool or action.
+- Complexity limits (`.golangci.yml`, `.swiftlint.yml`) are met by
+  simpler code: less nesting, early returns, named steps. Not by
+  helpers called once that only move the complexity.
 - New dependencies have permissive licenses and a committed lockfile.
 - Every sentence you wrote about the code (comment, spec, PR body) is
   true; check each claim with grep.

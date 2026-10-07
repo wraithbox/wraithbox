@@ -97,7 +97,9 @@ of the host's, within what the Virtualization framework supports.
 ## Quality gates
 
 `gofumpt`, `goimports`, `golangci-lint`, `go vet`, `govulncheck` (for each
-host OS); `swift-format` (strict) and SwiftLint complexity limits; Swift
+host OS); complexity and size limits in golangci-lint (cognitive and
+cyclomatic complexity, nesting, function, file and signature size) and
+in SwiftLint; `swift-format` (strict); Swift
 Testing and `go test -race`; fuzz targets for every guest-facing parser
 (S11-verification-and-spikes); Vale and cspell for prose. Go runs natively in CI on macOS,
 Linux, and Windows. See S02-toolchain for the toolchain itself.

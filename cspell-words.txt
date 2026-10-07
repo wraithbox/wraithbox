@@ -68,6 +68,10 @@ terminfo
 # Tools and their names in configs
 golangci
 gofumpt
+cyclop
+funlen
+gocognit
+nestif
 govulncheck
 vulncheck
 swiftlint
