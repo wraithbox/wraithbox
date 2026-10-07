@@ -542,25 +542,38 @@ stripped of control and escape sequences wherever it is shown.
   new lookups and connections, and `wb-proxyd` new streams and
   requests, with the rule `audit-budget`, until the minute turns. The
   refusals under that rule are written as one record per minute with
-  their count.
+  their count. A minute is a calendar minute of UTC.
 - Only the refusal classes that S07-egress-gateway aggregates per rule
   ("Events and rate limits") are written as runs with a count. Each
   open run's count is written when its window ends and in the VM's stop
   record, so no count is lost with the VM.
 - Each VM has a byte budget per day, `audit_vm_bytes_per_day` (default
-  64 MiB). Over it, new work gets the same refusals
-  until the day turns, with the rule `audit-bytes`, and `wb status`
-  says so. The classes that are never dropped are still written. So
-  the high-volume classes of two VMs add at most 2 × 64 MiB to the log
-  a day, at the defaults.
+  64 MiB). The day is a calendar day of UTC. Over the budget, new work
+  gets the same refusals until the day turns, with the rule
+  `audit-bytes`, and `wb status` says so. The classes that are never
+  dropped are still written. So the high-volume classes of two VMs add
+  at most 2 × 64 MiB to the log a day, at the defaults.
+- Both budgets are per VM, because the host can't tell the projects in
+  a VM apart (S07-egress-gateway, "Enforced per VM"). In the work VM,
+  one project's traffic can use up the budget, and the other projects'
+  new work is refused with it (T11-shared-vm-grants). The defaults are
+  not measured yet (I175).
 - `wb-hostd` keeps free space for the log. At each VM start, each
   session start and every minute, it checks the volume that holds
-  `<logs>` against `audit_free_space_floor` (default 1 GiB). Below the
-  floor it shows a native notification and a `wb status` line, and
-  refuses VM and session starts with the rule `audit-free-space`. At
-  start it also allocates a 64 MiB reserve file in `<logs>`, which it
-  frees only when a write fails for lack of space, so the records that
-  follow, a VM's stop record among them, can still be written.
+  `<logs>` against `audit_free_space_floor` (default 1 GiB).
+  - A VM starts only when the free space is at least the floor plus the
+    room the VM's disks on that volume can still grow, up to their caps
+    (SEC13-bounded-resources). Otherwise the start is refused with the
+    rule `audit-free-space`.
+  - Below the floor at the check every minute, `wb-hostd` stops each VM
+    whose data disk grew since the last check, before any write fails,
+    shows a native notification and a `wb status` line, and refuses VM
+    and session starts with the rule `audit-free-space`.
+  - At start it allocates a 64 MiB reserve file in `<logs>`. It frees
+    the reserve only when a write fails for lack of space, so the
+    records that follow, a VM's stop record among them, can still be
+    written. It allocates the reserve again once the free space is back
+    above the floor.
 - When a record can't be written, `wb-hostd` stops the VM the record
   belongs to first. A failed record that belongs to no VM stops every
   VM. It refuses a session start until it can write that start's

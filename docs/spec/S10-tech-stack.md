@@ -87,12 +87,17 @@ binary of that name comes from the Swift package.
 - **WSL:** the Linux `wb` binary; it requires the Windows installation
   (S12-platforms).
 - Each host daemon applies its own confinement at start (S04-architecture).
-- **One build version.** The release build stamps one version into
+- **One build version.** Every build task stamps one version into
   every program of the bundle, Go and Swift alike
   (`internal/version/version.go`, `WraithBoxVM/Version.swift`), and
-  into the guest tools disk image. The version includes the VCS
-  revision. A build that wasn't stamped has no version, and every peer
-  refuses it, an unstamped peer included. Host processes refuse a peer of
+  into the guest tools disk image: the release build, the dev build
+  (`mise run build`) and CI. The version includes the VCS revision. A
+  build of a modified working tree adds a modified flag and a nonce
+  for that build, so two different uncommitted trees never match. Only
+  a bare toolchain build (`go build`, `go run`, `swift build`) is
+  unstamped. It has no version, and every peer refuses it, an
+  unstamped peer included. Unit tests that exercise the version
+  exchange set the version explicitly (I174). Host processes refuse a peer of
   another version, and `wb-hostd` refuses a `wb-guestd` of another
   version (S04-architecture, "Version skew").
 - **Versioned contracts.** Each `.proto` package name ends in its

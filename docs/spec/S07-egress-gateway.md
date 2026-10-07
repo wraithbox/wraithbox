@@ -234,7 +234,9 @@ session start in the VM to the end of the last session running in it.
   (SEC13-bounded-resources).
 - **No host-side listener.** `wb-netd` listens on nothing on the host
   and never opens a connection to the guest. Its only peers are the
-  packet transport and `wb-proxyd`. A path from the host into the
+  packet transport, `wb-proxyd`, and `wb-hostd` over the control,
+  accounting and event channels it inherits at start
+  (S04-architecture, "Supervision and failure"). A path from the host into the
   guest, such as port forwarding (FR11-port-forward), needs its own
   spec text, and doesn't go through `wb-netd`.
 - **Addressing.** `wb-netd` runs a DHCP server handing the guest a single
@@ -357,8 +359,12 @@ session start in the VM to the end of the last session running in it.
     event. So an approval can't undo the user's switch.
   - *Same answer for every refusal.* The answer's bytes are the same
     whatever the reason a name is refused: name form, not allowlisted,
-    denied, quiet list, part off, `learn-collected`, `learn-list-full`
-    or `accounting-write-failed`. Before the answer is sent, `wb-netd`
+    denied, quiet list, part off, `learn-collected`, `learn-list-full`,
+    `accounting-write-failed`, `audit-budget`, `audit-bytes` or
+    `event-channel-blocked`. The last three come from the host's own
+    state, not from the name (S04-architecture, "Accounting and event
+    channels", S09-policy-credentials-audit, "Audit"). They don't raise
+    an approval event or debit the wildcard budget. Before the answer is sent, `wb-netd`
     debits the wildcard budget, writes the debit's accounting record to
     `wb-hostd`, and takes the one-open-event-per-name check under one
     lock, and does no other work that depends on the reason. When that
