@@ -931,7 +931,55 @@
 	"149": {
 		"kind": "pr",
 		"state": "open",
-		"title": "docs(spec): S15-least-privilege and the reworded SEC12",
-		"summary": "- Decides: how SEC12-least-privilege is met as a whole, and the predetermined pattern for sharing a credential beyond its one nominal holder."
+		"title": "docs(spec): S15-least-privilege, credentials held by the secret store",
+		"summary": "- Decides: how SEC12-least-privilege is met as a whole."
+	},
+	"150": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: minimal base image and named derived images built from recipes",
+		"summary": "S06-vm-lifecycle \"Images\" puts Homebrew, the Xcode command line tools and wb-guestd in the base image."
+	},
+	"151": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S15-least-privilege: 1Password as a secret store backend",
+		"summary": "S15-least-privilege (PR #149, B145-least-privilege) makes the configured secret store the nominal holder of every credential, with the macOS Keychain first and 1Password next."
+	},
+	"152": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S08-workspace-and-git: remove credentials from withheld remote URLs before the audit record",
+		"summary": "S08-workspace-and-git \"Remote URLs\" removes the user name and password from each remote URL that wb gives the guest, and sends each withheld URL to wb-hostd's audit writer with its reason."
+	},
+	"153": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S09-policy-credentials-audit: an OAuth binding names its token endpoint",
+		"summary": "S09-policy-credentials-audit lets a binding hold an OAuth 2 refresh token or client credentials, which wb-proxyd exchanges for short-lived access tokens."
+	},
+	"154": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S15-least-privilege: check that wbadmin rotation works with both passwords on standard input",
+		"summary": "S15-least-privilege (PR #149) rotates wbadmin's password at each VM's first contact."
+	},
+	"155": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S15-least-privilege: check that Virtualization doesn't write the provisioning password into the build bundle",
+		"summary": "S15-least-privilege (PR #149) never writes the image build's provisioning password to disk outside the secret store."
+	},
+	"156": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: wbadmin account properties for a break-glass console login",
+		"summary": "S15-least-privilege (PR #149) uses wbadmin for a break-glass console login when wb-guestd is dead or wedged: wb-guestadmin fetches the VM's password from the secret store, wb vm console shows it once, and the VM gets…"
+	},
+	"157": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Move review blocks and open questions out of the specs into briefs and issues",
+		"summary": "PR #149 changes S01-spec-based-development, \"Spec template\": a spec states the design, and review material (what approving commits to, the controls touched, assumptions, open decisions) lives in the review brief and t…"
 	}
 }

@@ -119,7 +119,10 @@ first-class issues, and the first milestone is mostly spikes.
   adds `docs/spikes/X<NN>-<slug>.md`: the question, the answer
   (yes / no / yes-with-conditions), the measurements, what it means for
   the specs, and a permalink to the spike branch commit. It opens with
-  the **For review** block of the spec template (S01-spec-based-development), and the same
+  a short **For review** block: what approving the answer commits to,
+  the controls touched, the assumptions, and the open decisions. A
+  result records the answer to a question, and keeps that block, which
+  S01-spec-based-development keeps out of specs. The same
   pull request adds a review brief (`review-briefs.md`, the `brief`
   skill), so the maintainer can approve the answer without reading the
   spike code. The same pull

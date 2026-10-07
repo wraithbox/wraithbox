@@ -11,37 +11,6 @@ boundary.
 
 Brief: B145-least-privilege
 
-## For review
-
-- **Decides:** how SEC12-least-privilege is met as a whole. Credentials
-  are held by the configured secret store, the macOS Keychain first,
-  and each host process gets a declared set of items, just in time.
-  No Wraith Box process holds secrets for another. The guest admin
-  user `wbadmin` is the worked example.
-- **You are approving:** no root, no extra host accounts, the
-  entitlement table, `wb setup` as the only place for one-time
-  prerequisites, the store as nominal holder, the guarantees a store
-  backend must give, the access rules, and the table in "Declared
-  access". S04-architecture's "Secrets live in one process" is
-  superseded.
-- **Controls touched:** SEC12-least-privilege (least privilege on the
-  host) is reworded from "held by exactly one host process" to
-  "nominally held by the configured secret store, with a declared set
-  of items per process". SEC11-root-gains-nothing (guest root doesn't
-  control the host) is kept: the host already has guest root through
-  `wb-guestd`, so a guest admin password in the host's store is no
-  escalation. SEC04-no-guest-secrets (no secrets in the guest) is kept
-  for every credential that opens anything outside one VM.
-- **Assumed:** that Virtualization doesn't write the provisioning
-  password into the VM bundle (open question 8). That `sysadminctl`
-  reads both the new and the old password from standard input when each
-  is `-`. That a disabled account can authorize its own password
-  change. That 1Password's desktop app authorizes its CLI for 10
-  minutes after use, up to 12 hours.
-- **Open decisions:** 1 to 7 under "Open questions", each with a
-  recommendation. Question 8 is a check.
-- **Brief:** B145-least-privilege
-
 ## Design
 
 ![The secret store is outside every Wraith Box process. wb writes binding secrets to it. wb-proxyd fetches the binding secrets of the VM's sessions and uses the CA key in place. wb-guestadmin writes and fetches the wbadmin passwords, pipes the build password to the build's wb-vmd and SSH client, and writes the old and new password to wb-guestd at a VM's first contact. wb-hostd has no store access and passes descriptors on. A VM that runs project code gets placeholders only.](S15-least-privilege.svg)
@@ -72,18 +41,25 @@ Brief: B145-least-privilege
 ### The store holds credentials
 
 Every credential is nominally held by the configured secret store, in a
-container that holds only Wraith Box's items: a dedicated keychain, or
-a dedicated 1Password vault per role. Keys that must never leave
-hardware (the CA signing key) are in the platform's hardware key store
-whatever the backend (S12-platforms). No Wraith Box process is the
-holder for another, and none gets a secret through another.
+container that holds only Wraith Box's items. No Wraith Box process is
+the holder for another, and none gets a secret through another. Keys
+that must never leave hardware (the CA signing key) are in the
+platform's hardware key store whatever the backend (S12-platforms).
+
+- **Keychain.** With signed builds, the data protection keychain, with
+  one access group per role, so each item is reachable only by the
+  binaries of its role and there is nothing to unlock. With ad-hoc
+  signed builds, a dedicated keychain file, whose password is the one
+  Wraith Box item in the login keychain.
+- **1Password.** The desktop app integration, with one vault per role,
+  and no service account token to store.
 
 A backend must give these guarantees:
 
 | Guarantee | Keychain, signed | Keychain, ad-hoc signed | 1Password |
 |---|---|---|---|
 | G1. A container of Wraith Box items only | yes | yes | yes, a vault |
-| G2. Each item reachable only by its declared processes | yes, by code signature | weaker: by the binary's hash. Each update prompts again (X09-keychain-unsigned) | no: by vault and session. A vault per role narrows it |
+| G2. Each item reachable only by its declared processes | yes, by code signature | weaker: by the binary's hash. Each update prompts again (X09-keychain-unsigned) | weaker: by vault and session. A vault per role narrows it |
 | G3. Locked or unreachable fails, with no fallback | yes | yes | yes |
 | G4. Values never written outside the store | yes | yes | yes |
 
@@ -107,7 +83,7 @@ which guarantee is weaker. No fallback is silent.
    ends. Go and Swift can't reliably wipe memory, so the bound is the
    work's end, or the process's exit.
 4. **Few prompts.** A session start fetches every item it needs in one
-   batch, so a 1Password unlock asks once. `wb-proxyd` doesn't fetch per
+   batch, so a 1Password unlock asks at most once. `wb-proxyd` doesn't fetch per
    request. A store prompt is never an approval, and is never shown in
    the agent's terminal (SEC14-no-fake-approvals, I51). With ad-hoc
    signed builds the Keychain asks once per item after each update.
@@ -137,88 +113,69 @@ which guarantee is weaker. No fallback is silent.
 
 ### Declared access
 
-| Item | Process, access | Channel to the consumer | Lifetime | Status |
-|---|---|---|---|---|
-| `binding/<name>` | `wb`, write (`wb cred set`) | the value from a prompt or standard input | one command | instance |
-| `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend | instance. G2 on Keychain waits for X09-keychain-unsigned and I61 |
-| `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the binding's token endpoint, over TLS | per exchange. Access tokens stay in memory | instance, once a binding names its token endpoint |
-| CA signing key | `wb-proxyd`, use | none: the key stays in the Secure Enclave | the CA's life | instance. The software fallback is a fetch, weaker |
-| `wbadmin/build/<build>` | `wb-guestadmin`, write, then fetch | pipes to the build's `wb-vmd` (until the start call returns) and its SSH client (one session) | removed when the build ends | instance (open questions 1 and 2) |
-| `wbadmin/image/<image>` | `wb-guestadmin`, write at the build, fetch at each VM's first contact | the guest connection below | removed with the image | instance |
-| `wbadmin/vm/<vm>/<disk>` | `wb-guestadmin`, write at first contact, fetch to rotate again | the guest connection below | removed when the system disk is replaced | instance |
-| `wbadmin/vm/<vm>/<disk>` | `wb`, fetch, break-glass | shown to the user | one login, then burned | open question 4 |
-| Password in a host remote URL | not a store item. `wb` removes it from each URL it reads | | at once | open question 7 |
-| Claude subscription login | open | | | X01-model-credential |
+Item names start with `wraithbox/`.
 
-### Worked example: the guest admin user
+| Item | Process, access | Channel to the consumer | Lifetime |
+|---|---|---|---|
+| `binding/<name>` | `wb`, write (`wb cred set`) | the value from a prompt or standard input | one command |
+| `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend |
+| `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the token endpoint the binding names, over TLS | per exchange. Access tokens stay in memory |
+| CA signing key | `wb-proxyd`, use | none: the key stays in the Secure Enclave. The software fallback key is a fetch | the CA's life |
+| `wbadmin/build/<build>` | `wb-guestadmin`, write, then fetch | pipes to the build's `wb-vmd` (until the start call returns) and its `ssh` (one session) | removed when the build ends |
+| `wbadmin/image/<image>` | `wb-guestadmin`, write at the build, fetch at each VM's first contact | the guest connection below | removed with the image |
+| `wbadmin/vm/<vm>/<disk>` | `wb-guestadmin`, write at first contact, fetch at break-glass | the guest connection below, or a pipe to `wb vm console` | removed when the system disk is replaced |
+
+A password in a host remote URL isn't a store item. `wb` removes the
+user name and password from every remote URL it reads, withheld ones
+included, before the URL goes anywhere, the audit log among them
+(S08-workspace-and-git, "Remote URLs").
+
+### The guest admin user
 
 The provisioning options create the user `wbadmin`, the volume's only
 secure-token holder, which macOS refuses to delete (X17-image-build).
 It stays in the image as a host-administered account. The host keeps
 its password in the store, the secure token keeps working, and the
 host alone can unlock it. The host already has guest root through
-`wb-guestd`, so this gives the host no more than it has.
+`wb-guestd`, so this gives the host no more than it has. Guest root
+can't read the password back from the guest, because the guest keeps
+only what macOS keeps for any account, and the secure token opens only
+with that password. `wb-guestadmin` (S04-architecture) does each step below, and
+only it reads or writes `wbadmin/*`.
 
 - **Build.** `wb-guestadmin` generates the build password and writes
   `wbadmin/build/<build>`. `wb-hostd` creates two pipes and has
-  `wb-launcher` hand their read ends to the build's `wb-vmd` and SSH
-  client at spawn. `wb-guestadmin` writes the password to both.
+  `wb-launcher` hand their read ends to the build's `wb-vmd` and `ssh`
+  at spawn. `wb-guestadmin` writes the password to both. `ssh` reads it
+  through an askpass program that reads an inherited descriptor, and
+  passes it to the guest's `sudo -S` on the session's standard input.
+  The build never writes the password into the build bundle, and its
+  test searches the bundle for it.
 - **One password per VM.** Every system disk is a clone of the image.
   At first contact in each fresh clone, before any other request and
-  before project code, `wb-guestadmin` writes a new item, marked
-  pending, then sends the old and new password to `wb-guestd` on a
+  before project code, `wb-guestadmin` writes the new password as the
+  VM's next item, then sends the old and new password to `wb-guestd` on a
   host-guest connection of its own, to a port below 1024 that serves
   only this. It never reads from that connection. `wb-guestd` passes
-  both to `sysadminctl -resetPasswordFor wbadmin -newPassword - -adminUser wbadmin -adminPassword -`
-  on standard input and reports the result to `wb-hostd`. Only then is
-  the item marked current. A crash then never loses the working password.
-  The build VM rotates the same way, from the build password to the
-  image password. `wb-hostd` doesn't start a session in a VM whose
-  rotation hasn't succeeded.
+  both to `sysadminctl -resetPasswordFor wbadmin -newPassword - -adminUser wbadmin -adminPassword -`,
+  which reads them from standard input, and reports the result to
+  `wb-hostd`. Only then does the next item become the current one. A
+  crash then never loses the working password. The build VM rotates the same way, from
+  the build password to the image password. `wb-hostd` doesn't start a
+  session in a VM whose rotation hasn't succeeded.
+- **Break-glass.** When `wb-guestd` is dead or wedged, `wb vm console`
+  has `wb-hostd` start `wb-guestadmin`, which fetches the VM's item and
+  writes it to a pipe that `wb` reads and shows once. The user logs in
+  at the VM's console as `wbadmin`, with the account properties that
+  S06-vm-lifecycle "Sealing" gives it. The password is then burned, and
+  the VM gets a fresh clone of the image as its system disk at its next
+  stop. The data disk stays, and first contact rotates again.
 - **Refused outside the path.** `wb-vmd` refuses provisioning options
   for any VM that isn't a new build bundle under `<data>/images/`.
   `wb-guestadmin` refuses a rotation for a VM disk that has rotated.
   Both log the refusal with its rule.
 - **Not readable in the image.** No automatic login and no
   `/etc/kcpassword`, which the sealing scan checks (S06-vm-lifecycle).
-- **I142** has to show that guest root can't extract the host-held
-  password or reset its way into the secure token. Until then that is
-  assumed.
-
-## Open questions
-
-1. **Who builds and rotates.** Leaning: `wb-guestadmin`, a short-lived Go
-   program that `wb-launcher` starts for one build or one rotation, with
-   store access to `wbadmin/` items only and no guest parser. The
-   alternative, `wb-hostd`, would give store access to the process that
-   parses guest messages.
-2. **The build's SSH client.** Leaning: `wb-guestadmin` pipes the
-   password, to `ssh` through an askpass program that reads it from an
-   inherited descriptor, and to the guest's `sudo -S` on the session's
-   standard input. The alternative is a `wb-askpass` helper that reads
-   the store, which adds a store reader.
-3. **After break-glass.** Leaning: replace the VM's system disk with a
-   fresh clone at its next stop. The data disk stays, and first contact
-   rotates. Rotating in place hands the new password to a guest that may
-   be rooted.
-4. **Break-glass delivery, and `admin`.** Leaning: `wb vm console`
-   fetches the VM's item and shows it once. Whether `wbadmin` stays in
-   `admin`, enabled, and with a shell depends on what that login needs.
-   The sealing scan today requires it disabled, hidden, without a shell,
-   and out of `admin` (I146).
-5. **Unlocking the dedicated keychain.** Leaning: with signed builds, the
-   data protection keychain, with one access group per role and nothing
-   to unlock. Until then, a dedicated keychain file, whose password is
-   the one Wraith Box item in the login keychain.
-6. **1Password.** Leaning: the desktop app integration, with a vault per
-   role and no service account token to store. It needs its own issue
-   and a license check of the client before it is built.
-7. **Credentials in host remote URLs.** Leaning: remove user name and
-   password from withheld URLs too, before their audit record
-   (S08-workspace-and-git, "Remote URLs").
-8. **The provisioning password in the bundle.** Check in the I139 work
-   whether Virtualization writes it into the build bundle. If it does,
-   the build deletes it before sealing.
 
 ## Out of scope
 

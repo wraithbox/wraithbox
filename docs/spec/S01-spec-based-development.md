@@ -55,9 +55,13 @@ out how to implement it. Aim for under 100 lines.
 
 ## Spec template
 
-The **For review** block is what the maintainer reads first: it says
-what approving the spec commits to, without needing the rest of the
-spec or the requirement indexes open (`docs/agents/review-briefs.md`).
+A spec states the design, as something a builder can implement and,
+later, as what is implemented. Review material goes in the review brief
+and the issue, never in the spec: what approving commits to, the
+controls touched, assumptions, and open decisions with their
+recommendations (`docs/agents/review-briefs.md`). Where a design
+relies on a property still to be measured, the spec states the design
+and the property, and the issue tracks the measurement.
 
 ```markdown
 # S<NN> - Feature Name
@@ -66,15 +70,7 @@ spec or the requirement indexes open (`docs/agents/review-briefs.md`).
 
 **Requirements:** The FR, NFR and SEC IDs this spec covers
 
-## For review
-
-- **Decides:** what this spec settles, in a sentence or two
-- **You are approving:** the commitments, in plain words
-- **Controls touched:** each SEC ID with its meaning, kept or how it
-  changes; or "none"
-- **Assumed:** what was assumed rather than checked or asked
-- **Open decisions:** numbered, each with a recommendation; or "none"
-- **Brief:** `B<NN>-<slug>` when there is one
+Brief: B<NN>-<slug>, when there is one
 
 ## Design
 
@@ -82,11 +78,6 @@ The sections the topic needs. Each decision says what was chosen, why,
 and which options were rejected and why. A diagram for a flow between
 processes or a trust boundary, as an SVG next to the spec
 (`docs/agents/review-briefs.md`, "Diagrams").
-
-## Open questions
-
-1. A question, the current leaning, and what settles it (a spike
-   `X<NN>` or a maintainer decision).
 
 ## Out of scope
 

@@ -19,7 +19,10 @@ The argument names the source:
 - `X<NN>-<slug>`: a spike. Read its issue, the result in
   `docs/spikes/X<NN>-*.md` if it exists, and the spike branch.
 - `S<NN>-<slug>`: a spec change on the current branch. Read the diff
-  against `main`.
+  against `main`. The spec states only the design. The brief holds
+  its review material: what approving commits to, the controls touched,
+  the assumptions, the open decisions, and the issues filed for open
+  points (`review-briefs.md`, "What a brief is not").
 - a pull request number: whatever that pull request changes.
 
 ## Steps
