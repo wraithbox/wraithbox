@@ -26,15 +26,20 @@ be tested before building on them.
   sees every debit and every mapping entry and release counted. A
   mapping entry with an uppercase or non-LDH name, a trailing dot, an
   address outside 198.18.0.0/15, or one past 131,072 live entries is
-  refused with `mapping-entry-invalid`. A `wb-proxyd` restart gives
-  every running VM a new hand-off socket. An accounting write that blocks past
+  logged with `mapping-entry-invalid` and ends the `wb-netd` that sent
+  it, as a record received with `MSG_TRUNC` does. Entries are kept
+  until their release record, with `wb-hostd`'s receipt time. A
+  `wb-proxyd` restart gives every running VM a new hand-off socket,
+  and a running `wb-netd` refuses a socket message with two
+  descriptors or another VM's generation. An accounting write that blocks past
   100 ms refuses the lookup with `accounting-write-failed`. A
   `wb-guestd` that reports another build version, a version string
   that is not ASCII, longer than 64 bytes or not of the fixed form,
   and a host peer of another build version or of an unstamped build,
   are each refused before any other request, with the version escaped
   and cut in the log. A host peer from a replaced bundle makes
-  `wb-hostd` exit with `bundle-replaced`. The type that holds
+  `wb-hostd` exit with `bundle-replaced`, and an unreadable installed
+  version doesn't make it exit. The type that holds
   `wb-hostd`'s copy of the packet transport descriptor has no read or
   write method, and
   the copy is closed at VM stop and at a restore.
@@ -43,7 +48,10 @@ be tested before building on them.
   record dropped, and `wb-netd` and `wb-proxyd` refuse with
   `audit-budget` until the window turns, and that stop a VM with an
   open run of suppressed refusals and see its count in the stop record
-  (S09-policy-credentials-audit, "Audit").
+  (S09-policy-credentials-audit, "Audit"). A test on a fake volume
+  drops the free space below the floor and sees the VM whose data disk
+  grew stopped before any write fails, and the reserve allocated again
+  once space returns.
   Leaf issuance in `wb-proxyd` (S09-policy-credentials-audit, "TLS
   inspection certificate authority") has a test that asks for a leaf
   for a host the policy doesn't inspect, a host in pass mode, a stream

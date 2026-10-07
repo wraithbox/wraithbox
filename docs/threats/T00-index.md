@@ -204,6 +204,8 @@ print about returned work after `wb land` is outside it
   (S04-architecture, "Processes"). A guest that finds a way to crash
   it takes the other VM's network down too, until `wb-hostd` restarts
   it, and until the next session start once `wb-hostd` gives up after five exits in ten
-  minutes (S04-architecture, "Restarting a daemon"). This costs
-  availability, not egress: while `wb-proxyd` is down, both guests get
-  resets and refusals. Proposed in PR171 (B48-process-supervision).
+  minutes (S04-architecture, "Restarting a daemon"). The other VM
+  also shares `wb-proxyd`'s blocked event channel
+  (`event-channel-blocked`) and the secret store prompts its restarts
+  cause. This costs availability, not egress: while `wb-proxyd` is
+  down or blocked, both guests get resets and refusals. Proposed in PR171 (B48-process-supervision).

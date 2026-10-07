@@ -415,7 +415,7 @@ channel means `wb-hostd` is gone, and each of them acts on its own:
 The per-run programs don't hold a control channel and can't learn that
 `wb-hostd` has gone. `wb-launcher` ends them. On hosts without
 `wb-launcher`, the service manager ends them with `wb-hostd`, which is
-to be confirmed when those hosts are built (S12-platforms).
+to be confirmed when those hosts are built (S12-platforms, I176).
 
 On macOS, launchd also kills the processes left in `wb-hostd`'s
 process group when `wb-hostd` exits (`man launchd.plist`,
@@ -436,8 +436,7 @@ An upgrade takes the same path as a crash. The installer replaces the
 bundle (I49), the running `wb-hostd` exits, the service manager starts
 the new one, and the running VMs stop with their sessions lost.
 
-`wb-hostd` notices a replaced bundle itself and restarts soon after the
-swap. It reads the installed bundle's
+`wb-hostd` notices a replaced bundle itself and restarts. It reads the installed bundle's
 build version (on macOS from the app bundle's `Info.plist`, elsewhere
 from a version file next to the programs, I49) when a host peer
 reports a build version other than its own ("Version skew"), and
@@ -446,7 +445,11 @@ it logs the rule `bundle-replaced` with both versions and exits, and
 the service manager starts the new `wb-hostd`. A daemon refused this
 way doesn't count as an exit toward the restart limit. When the
 installed version is its own and the peer's isn't, the peer is
-refused, and a daemon refused this way counts as a failed start.
+refused, and a daemon refused this way counts as a failed start. When
+it can't read the installed version, it logs that with the rule
+`bundle-version-unreadable`, treats the installed version as its own,
+doesn't exit, and `wb status` shows it. So a damaged bundle can't make
+`wb-hostd` exit in a loop.
 
 Rejected for V1:
 
@@ -497,17 +500,18 @@ it didn't ask for:
   every other count S07-egress-gateway has `wb-netd` or
   `wb-proxyd` keep for the active period. Approval request counts are
   in `wb-hostd` already (S09-policy-credentials-audit, "Approvals").
-- `wb-hostd` keeps each VM's synthetic name mapping too: every name
-  with its address and the time of its last answer, for as long as the
-  address is within its TTL plus the guard interval
-  (S07-egress-gateway, "Synthetic pool"). It learns the mapping the
-  way it learns the wildcard debits, from accounting records
-  ("Accounting and event channels"). `wb-netd` sends each new or
-  renewed entry before the DNS answer that uses it, and refuses the
-  lookup when the write fails. It sends each release before it gives
-  the address to another name. A new `wb-netd` starts with the kept
-  entries and gives none of their addresses to another name before
-  that time. Without them, an address the guest still has cached
+- `wb-hostd` keeps each VM's synthetic name mapping too: every live
+  entry, with its name, its address, and the time `wb-hostd` received
+  its last record. It keeps an entry until the entry's release record
+  arrives, and has no clock of its own for it. `wb-netd` decides when
+  to release an address (S07-egress-gateway, "Synthetic pool"). It
+  learns the mapping the way it learns the wildcard debits, from
+  accounting records ("Accounting and event channels"). `wb-netd`
+  sends each new or renewed entry before the DNS answer that uses it,
+  and refuses the lookup when the write fails. It sends each release
+  before it gives the address to another name. A new `wb-netd` starts
+  with the kept entries and gives none of their addresses to another
+  name until it has released that address. Without them, an address the guest still has cached
   for one name could go to another, and a raw or pass-mode stream
   meant for the first would reach the second.
 - A new `wb-proxyd` has no streams. It fetches binding secrets again
@@ -517,9 +521,18 @@ it didn't ask for:
   same VM and generation, and closes the old one. `wb-proxyd` serves
   every VM, so when it restarts, `wb-hostd` creates a new hand-off
   socket for every running VM, each for that VM and its current
-  generation. On each new socket `wb-netd` first replays the VM's live
-  mapping, which `wb-hostd` kept, so that `wb-proxyd` has it again
-  (S07-egress-gateway).
+  generation. A new `wb-netd` gets its end at start. A running
+  `wb-netd` gets its end on its control channel, in a message with
+  exactly one descriptor and the VM and generation it is for. It
+  refuses the message, closes any descriptor in it, and logs the
+  refusal when the descriptor count isn't one, the socket type is
+  wrong, or the VM or generation isn't its own, as for the hand-off
+  channel of `wb-vmd` ("The VM provider passes descriptors, not
+  bytes"). On each new socket `wb-netd` first replays the VM's live
+  mapping, so that `wb-proxyd` has it again (S07-egress-gateway). The
+  replay is the same set either way: the entries `wb-hostd` kept, which
+  a new `wb-netd` got at start and a running one sent `wb-hostd` entry
+  by entry, with every release.
 - `wb-vmd` isn't restarted in a loop. When it exits, its VMs have
   stopped with it, and their sessions are lost. `wb-hostd` starts a
   new `wb-vmd` when a VM is next needed, with the same backoff and the
@@ -535,38 +548,45 @@ agent's terminal, and the session's summary says that its network was
 down and for how long (S05-cli, "Session behavior"). `wb status` shows
 the outage while it lasts.
 
-One `wb-proxyd` serves both VMs, so a crash that a guest finds in it
-takes the network of the other VM down too, until the restart. That
-is a residual risk to availability, not to egress
-(T14-shared-proxyd).
+One `wb-proxyd` serves both VMs. A crash that a guest finds in it takes
+the network of the other VM down too, until the restart, and so do its
+given-up state, a blocked event channel (`event-channel-blocked`), and
+the secret store prompts its restarts cause. That is a residual risk to
+availability, not to egress (T14-shared-proxyd).
 
 ### Accounting and event channels
 
 `wb-netd` and `wb-proxyd` send `wb-hostd` two kinds of record on
-inherited `SOCK_SEQPACKET` sockets, one record per message. A record
-arrives whole or not at all. Each record is at most 4 KiB, in a fixed
-format. `wb-hostd` parses them with a parser that has a fuzz target
+inherited sockets of type `SOCK_SEQPACKET` or `SOCK_DGRAM`
+(`SOCK_DGRAM` on macOS, I172), one record per message. A record arrives
+whole or not at all. Each record is at most 4 KiB, in a fixed format.
+`wb-hostd` parses them with a parser that has a fuzz target
 (S11-verification-and-spikes), and treats a malformed or oversized
-record as a crash of the process that sent it: it ends that process
-and counts the exit toward the restart limit.
+record, and one received with `MSG_TRUNC`, as a crash of the process
+that sent it: it ends that process and counts the exit toward the
+restart limit.
 
-- **Accounting records** carry the counts and the name mapping of the
-  section above: each wildcard budget debit, each new or renewed
-  mapping entry with its name, address and time, and each release.
-  `wb-netd` derives the names from guest queries, so `wb-hostd` checks
-  each entry before it keeps it: the name in canonical form (lowercase
-  LDH ASCII, no trailing dot, within the name length limit of
-  S07-egress-gateway), the address inside 198.18.0.0/15, and at most
-  131,072 live entries per VM. It refuses any other entry and logs it
-  with the rule `mapping-entry-invalid`, rate-limited, with a count of
-  the suppressed ones. They aren't audit events. Nothing
-  rate-limits, suppresses or drops them, and `wb-netd` writes one
-  before any drop or suppression decision about the event that goes
-  with it. `wb-netd` writes the record before it sends the DNS answer.
-  A write that fails, or that blocks for more than 100 ms, counts as
-  failed, and the lookup is refused (S07-egress-gateway, "Packet path",
-  DNS). `wb-hostd` reads what is left in the socket after `wb-netd`
-  exits before it starts a new one.
+- **Accounting records** carry the counts and the name mapping of
+  "Restarting a daemon": each wildcard budget debit, each new or
+  renewed mapping entry with its name and address, and each release.
+  They aren't audit events. Nothing rate-limits, suppresses or drops
+  them, and `wb-netd` writes one before any drop or suppression
+  decision about the event that goes with it, and before it sends the
+  DNS answer. A write that fails, or that blocks for more than 100 ms,
+  counts as failed, and the lookup is refused (S07-egress-gateway,
+  "Packet path", DNS). `wb-hostd` reads what is left in the socket
+  after `wb-netd` exits before it starts a new one.
+- **Mapping entries are checked.** `wb-netd` derives the names from
+  guest queries, so `wb-hostd` checks each entry before it keeps it:
+  the name in canonical form (lowercase LDH ASCII, no trailing dot,
+  within the name length limit of S07-egress-gateway), the address
+  inside 198.18.0.0/15, and at most 131,072 live entries per VM. An
+  entry that fails a check is logged with the rule
+  `mapping-entry-invalid`, rate-limited, and ends the `wb-netd` that
+  sent it, as a malformed record does. So `wb-netd` never runs on with
+  a mapping that differs from the one `wb-hostd` keeps. `wb-hostd`
+  stamps each entry with its own receipt time and never uses a time
+  from `wb-netd`.
 - **Event records** carry what goes to the audit log
   (S09-policy-credentials-audit, "Audit"). When an event write blocks
   for more than 100 ms, `wb-netd` refuses new lookups and connections,
@@ -577,11 +597,13 @@ and counts the exit toward the restart limit.
 ### Version skew
 
 Every host program comes from one bundle with one build version, which
-the release build sets in the Go and the Swift code alike
-(S10-tech-stack, "Packaging and signing"). The version includes the
-VCS revision. A build that wasn't stamped has no version, and every
-peer counts it as another version, so two unstamped builds refuse each
-other. `wb` is linked from that bundle as well.
+every build task sets in the Go and the Swift code alike, the dev
+build and CI included (S10-tech-stack, "Packaging and signing"). The
+version includes the VCS revision, and marks a modified working tree.
+Only a bare toolchain build (`go build`, `go run`, `swift build`) is
+unstamped. It has no version, and every peer counts it as another
+version. Two unstamped builds refuse each other. `wb` is linked
+from that bundle as well.
 
 - **Between host processes.** The first message on every host
   connection, gRPC or not, gives the sender's build version. A peer of
