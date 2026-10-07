@@ -5,10 +5,10 @@ description: No. The host can't write files that launchd accepts. The build inst
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-07: no. Awaiting decision.** Source: X17-image-build (I28). Changes S06-vm-lifecycle ("Images" only). Follow-ups: I138 (deleting a project user's record), I139 (the network for the SSH session), I140 (the S11-verification-and-spikes spike list).
+**Answered 2026-10-07: no. Awaiting decision.** Source: X17-image-build (I28). Changes S06-vm-lifecycle ("Images" only) and S04-architecture (the provisioning password in `wb-vmd`). Follow-ups: I138 (deleting a project user's record), I139 (the network for the SSH session), I140 (the S11-verification-and-spikes spike list), I142 (whether the disabled user's secure token gives anything), I143 (decision 3), I144 (which user installs the base layer).
 
 <Aside type="tip" title="What we learned">
-**No.** Without root, the host can mount a new guest's disk and write to it. Every file it writes belongs to the host user, though, and launchd refused to start them. What works: the macOS 27 provisioning options create a user and get past Setup Assistant, one SSH session as that user installs `wb-guestd`, and from then on everything goes through `wb-guestd`. It turns Remote Login off, and the sealing scan now fails the build when it's on. The build disables the provisioning user, because macOS refuses to delete it. About 6.6 minutes from a downloaded restore image to a sealed image. The decisions below are about the disabled user, the network for the SSH session and the macOS version of v1 hosts.
+**No.** Without root, the host can mount a new guest's disk and write to it. Every file it writes belongs to the host user, though, and launchd refused to start them. What works: the macOS 27 provisioning options create a user and get past Setup Assistant, one SSH session as that user installs `wb-guestd`, and from then on everything goes through `wb-guestd`. It turns Remote Login off, and the sealing scan now fails the build when it's on. The build disables the provisioning user, because macOS refuses to delete it. About 6.6 minutes from a downloaded restore image to a sealed image without the base layer's tools. The decisions below are about the disabled user, the network for the SSH session and the macOS version of v1 hosts.
 </Aside>
 
 <figure class="wb-figure">
@@ -26,7 +26,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <text class="note" x="115" y="186" text-anchor="middle">no root on the host</text>
 
   <rect class="boundary" x="430" y="20" width="310" height="295" rx="12" />
-  <text class="boundary-label" x="442" y="40">new guest (no untrusted code yet)</text>
+  <text class="boundary-label" x="442" y="40">new guest (no project code yet)</text>
   <rect class="box guest" x="455" y="50" width="260" height="50" rx="10" />
   <text class="label" x="585" y="80" text-anchor="middle">1. provisioning user, sshd on</text>
   <rect class="box guest" x="455" y="145" width="260" height="50" rx="10" />
@@ -62,7 +62,7 @@ The provisioning user holds the guest volume's only secure token, the key macOS 
 Out of `admin` and every group it can leave, a random password nobody keeps, disabled, no shell, hidden, keychain removed. The sealing scan fails the build unless each of these holds.
 
 - **Cost:** none in the build. One hidden account in every image.
-- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC11-root-gains-nothing" variant="caution" /> assumed: a disabled token holder gives a project user nothing.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC11-root-gains-nothing" variant="caution" /> assumed: a disabled token holder gives a project user nothing, measured in I142.
 
 </div>
 <div class="wb-option">
@@ -97,14 +97,14 @@ The build VM gets the file-handle network of a product VM. The host dials the gu
 The spike used Apple's NAT network for the provisioning boot, and none after it.
 
 - **Cost:** none to build.
-- **Weakens:** <Badge text="SEC05-default-deny" variant="danger" /> the guest has unfiltered internet before any untrusted code runs, and `wb-vmd` needs a NAT network in its device set. Needs a spec change.
+- **Weakens:** <Badge text="SEC05-default-deny" variant="danger" /> the guest has unfiltered internet before any project code runs, and `wb-vmd` needs a NAT network in its device set. Needs a spec change.
 
 </div>
 </div>
 
 ## Decision 3: do v1 hosts need macOS 27?
 
-The provisioning options are new in macOS 27. NFR04-host-platforms says macOS 15 or later.
+The provisioning options are new in macOS 27. NFR04-host-platforms says macOS 15 or later. Tracked in I143.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
@@ -138,7 +138,7 @@ Older hosts download an image built elsewhere. S06-vm-lifecycle leaves image dis
 <tbody>
 <tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">password replaced and discarded, keychain removed, scan checks</td><td class="yes">same</td></tr>
 <tr><td><strong>SEC05-default-deny</strong> egress only through the gateway</td><td class="yes">Remote Login off, scanned; no NAT, I139</td><td class="no">2B: open internet during the provisioning boot</td></tr>
-<tr><td><strong>SEC11-root-gains-nothing</strong> guest root gets nothing from the host</td><td class="partial">a disabled account stays, assumed harmless</td><td class="yes">1B: no account, if a way is found</td></tr>
+<tr><td><strong>SEC11-root-gains-nothing</strong> guest root gets nothing from the host</td><td class="partial">a disabled account stays, assumed harmless (I142)</td><td class="yes">1B: no account, if a way is found</td></tr>
 <tr><td><strong>SEC12-least-privilege</strong> no root on the host</td><td class="yes">no sudo, no host mount</td><td class="yes">same</td></tr>
 <tr><td><strong>NFR04-host-platforms</strong> v1 hosts</td><td class="partial">macOS 27 or later</td><td class="partial">3B: older hosts need shipped images</td></tr>
 </tbody>
@@ -153,7 +153,7 @@ Older hosts download an image built elsewhere. S06-vm-lifecycle leaves image dis
 - <Badge text="verified" variant="success" /> The sealing scan failed with 8 findings before the cleanup, including Remote Login and the provisioning user, and passed after it and on the next boot. Source: "Answer" part 9, `results/e5-provision-boot.jsonl`, `results/e5-sealed-boot.jsonl`.
 - <Badge text="verified" variant="success" /> 271.6 s to install and 127.1 s for the provisioning boot, about 6.6 minutes in all. Source: "Measurements".
 - <Badge text="assumed" variant="caution" /> That the SSH session works over the build VM's own network and the host's userspace stack. I139 tries it.
-- <Badge text="assumed" variant="caution" /> That a disabled account holding the secure token gives a project user or guest root nothing, which the spike didn't test.
+- <Badge text="assumed" variant="caution" /> That a disabled account holding the secure token gives a project user or guest root nothing, which the spike didn't test. Decision 1A and the SEC11-root-gains-nothing row rest on it, and I142 measures it.
 - <Badge text="assumed" variant="caution" /> That root on the host would make the host-write candidate work. Not tried, because SEC12-least-privilege rules it out.
 
 ## What it unblocks
@@ -167,7 +167,7 @@ The end-to-end tests of the walking skeleton need an image (V1-M2-walking-skelet
 
 **Why SSH at all.** Without root on the host and without MDM, the first root process in the guest has to come from the guest's own provisioning. The macOS 27 options create an admin user and can turn Remote Login on, and SSH is the only way in that they open. The build uses it once, to install `wb-guestd`.
 
-**Why the user can't be removed.** In the spike, the provisioning user, the first account with a password, became the volume owner, and got its secure token. macOS won't delete the last holder or take the token from it. Disabled, the account can't log in, nobody knows its password, and none of its groups grants anything.
+**Why the user can't be removed.** In the spike, the provisioning user, the first account with a password, became the volume owner, and got its secure token. macOS won't delete the last holder or take the token from it. Disabled, the account can't log in and nobody knows its password. It stays in `staff`, `everyone`, `localaccounts`, `_lpoperator`, a share point group and `com.apple.access_disabled`. That none of these grants anything is assumed, `_lpoperator` (print queue operator) included.
 
 - **LaunchDaemon:** a program launchd starts at boot, as root, from a file in `/Library/LaunchDaemons`.
 - **Setup Assistant:** the macOS first-run screens that create the first account.

@@ -26,9 +26,14 @@ in S12-platforms.
   stages (X17-image-build). Builds are scripted and repeatable, and
   nobody configures an image by hand.
   1. *Provisioning boot.* The first boot sets the macOS provisioning
-     options (macOS 27 host and guest). They create a provisioning user
-     with a random password that only the build holds, turn Remote
-     Login on, and get the guest past Setup Assistant with no clicks. One SSH
+     options, which are new in macOS 27. Whether v1 hosts must run
+     macOS 27 for that is pending (I143). The options create a
+     provisioning user and turn Remote Login on, and get the guest
+     past Setup Assistant with no clicks. `wb-vmd` generates the
+     user's password for a build VM, sets it on the start options,
+     hands it to the build's SSH client over the hand-off channel, and
+     drops it when the start call returns. It is a build-time
+     throwaway, not a user credential (S04-architecture). One SSH
      session as that user installs `wb-guestd` as a root LaunchDaemon
      and nothing else. Which network carries that session is open
      (I139).
@@ -36,34 +41,55 @@ in S12-platforms.
      host-guest socket to `wb-guestd`. It first turns Remote Login and
      automatic login off. It then takes the provisioning user out of
      every group and disables it, with a new random password that the
-     build discards. macOS refuses to delete that
-     user, because it holds the volume's only secure token. Then the
-     base layer is installed and the image is sealed.
+     build discards. macOS refuses to delete that user, because it
+     holds the volume's only secure token. Then the base layer is
+     installed and the image is sealed. Which user installs the base
+     layer, and in which order, is open (I144).
 
   The host never mounts a guest disk to build an image. An
   unprivileged host process can't create a root-owned file on it, so
   launchd refuses anything the host would write there, and root on the
   host is ruled out by SEC12-least-privilege (X17-image-build).
+  `wb-guestd` provisions through named operations: it has no operation
+  that runs an arbitrary command as root, and it takes secrets on
+  standard input, never in arguments. Every clone of an image starts
+  with the same per-machine keys, so sealing deletes the SSH host keys
+  (`/etc/ssh/ssh_host_*_key`). The local Kerberos realm (`LKDC`) of the provisioning user is
+  also the same in every clone. If I142 confirms that the disabled
+  user's secure token can't be used, an image is rebuilt from a newer
+  restore image, never updated in place.
 - **Guest confinement.** The base image includes the Network Extension
   of S13-guest-confinement, approved during the build, once spike X14-flow-attribution allows it.
 - **Sealing.** Before an image is usable, `wb-guestd` scans it as root,
-  before any untrusted code has run. The host parses no guest
+  before any project code has run. The host parses no guest
   filesystem. Any finding fails the build:
   - anything that looks like a secret (keychain items, tokens in
     dotfiles, SSH keys, shell history) and `/etc/kcpassword`
     (SEC04-no-guest-secrets);
-  - an account other than root with a password in the `admin` or
-    `wheel` group, and a sudoers entry beyond the ones macOS ships
-    (X27-vsock-confinement);
-  - a non-system account, except the provisioning user if it is the
-    volume owner, disabled, without a shell, and only in the groups
-    every local user is in (X17-image-build);
+  - an enabled account in the `admin` or `wheel` group, other than
+    root and the system accounts macOS ships in it, with membership
+    checked by `dsmemberutil checkmembership` (which sees both
+    `GroupMembership` and `GroupMembers`), and any sudoers entry
+    beyond macOS's own (X27-vsock-confinement);
+  - a non-system account, except the provisioning user if all of these
+    hold (X17-image-build): it is the volume's only crypto user
+    (`diskutil apfs listCryptoUsers` lists one) and its
+    `AuthenticationAuthority` has `;SecureToken;`; it is disabled,
+    hidden (`IsHidden`), and without a shell; it is in no groups but
+    `staff`, `everyone`, `localaccounts`, `_lpoperator`,
+    `com.apple.sharepoint.group.*`, and `com.apple.access_disabled`
+    (the group `pwpolicy` adds when it disables an account); and its
+    `~/Library/LaunchAgents` is empty;
   - Remote Login (`com.openssh.sshd` enabled or loaded, or a listener
     on TCP port 22), screen sharing or remote management, and
     automatic login (SEC04-no-guest-secrets, SEC05-default-deny);
+  - an `~/.ssh/authorized_keys` of any user, root included, a change to
+    `sshd_config` or a file in `sshd_config.d` that macOS doesn't
+    ship, and SSH host keys left in `/etc/ssh`;
   - files outside `/Users` owned by a non-system user id, other than the
-    provisioning user's temporary folders, and launchd jobs other than
-    Apple's and `wb-guestd`'s.
+    provisioning user's temporary folders, and launchd jobs outside an
+    allowlist of what macOS ships (`com.apple.*` and `amsdstat.plist`
+    in `/Library/LaunchDaemons`) plus `wb-guestd`'s.
 
   So any admin account the build creates is disabled or removed before
   the image is sealed.

@@ -10,7 +10,9 @@ Brief: B28-image-build
   `wb image build` gets `wb-guestd` into a new guest, which
   S06-vm-lifecycle, "Images", now states.
 - **You are approving:** the answer "no", and the build that replaces
-  the one S06-vm-lifecycle described. The first boot uses the macOS 27
+  the one S06-vm-lifecycle described, with a carve-out in
+  S04-architecture for the provisioning password, which `wb-vmd` holds
+  for a build VM's first start. The first boot uses the macOS 27
   provisioning options, which create a provisioning user and turn
   Remote Login on, and one SSH session as that user installs
   `wb-guestd`. Everything after that goes through `wb-guestd`. The
@@ -30,26 +32,30 @@ Brief: B28-image-build
   file-handle network and the host's userspace stack instead of a NAT
   network. The spike used NAT for that one boot. That a disabled
   account that holds the volume's secure token gives a project user
-  nothing. The spike tried neither.
+  nothing (I142 measures it). The spike tried neither.
 - **Open decisions:**
   1. The provisioning user stays in the image, disabled, because macOS
      refuses to delete the last secure token holder. The I28 comment of
      2026-10-04 asked for it to be removed. Recommended: accept the
      disabled user, which S06-vm-lifecycle already allowed ("disabled
      or removed"), and have the sealing scan check the properties that
-     make it harmless.
+     make it harmless. This rests on the secure-token assumption above
+     (I142).
   2. Which network carries the one SSH session. Recommended: the build
      VM's file-handle network, with the host dialing the guest's port
      22 through its userspace stack and nothing else reachable, tried
      in I139. The alternative is a NAT network for the
      provisioning boot only, as in this spike, which gives the guest
-     unfiltered internet before any untrusted code has run.
+     unfiltered internet before any project code has run. The spike's
+     SSH client also didn't check the guest's host key
+     (`StrictHostKeyChecking=no`), so nothing authenticated the guest
+     end of that session.
   3. The provisioning options are new in macOS 27, so this build needs
      a macOS 27 host, and NFR04-host-platforms says macOS 15 or later.
      No build without SSH or clicks was found for older hosts.
      Recommended: raise NFR04-host-platforms to macOS 27 for v1 hosts.
      The alternative is to ship built images to older hosts, which
-     S06-vm-lifecycle leaves for later.
+     S06-vm-lifecycle leaves for later. Tracked in I143.
 - **Brief:** B28-image-build
 
 ## Question
@@ -144,9 +150,10 @@ the evidence in "Measurements":
 The conditions of the build that works:
 
 1. **The host runs macOS 27 or later**, for the provisioning options
-   (open decision 3).
+   (open decision 3, I143).
 2. **The first boot is the only one with SSH.** It uses the provisioning
-   options with a random password that only the build holds, and one
+   options with a random password that `wb-vmd` generates, hands to the
+   build's SSH client and drops when the start call returns, and one
    SSH session that installs `wb-guestd` and nothing else. No product
    image descends from a bundle that skipped the later steps.
 3. **All later provisioning goes through `wb-guestd`**, over vsock,
@@ -155,16 +162,29 @@ The conditions of the build that works:
    1). Its password is replaced with a random one that the build
    discards.
 5. **The sealing scan runs in the guest, as root, through
-   `wb-guestd`**, before any untrusted code has run. It fails the build
-   on: an account other than root with a password in `admin` or `wheel`;
-   a non-system account other than one that is the volume owner,
-   disabled, without a shell and only in groups every local user is in;
+   `wb-guestd`**, before any project code has run (I144 settles which
+   user installs the base layer, and when). It fails the build on: an
+   enabled account in `admin` or `wheel` other than root and the system
+   accounts macOS ships in it; a non-system account other than one that
+   is the volume owner, disabled, hidden, without a shell, and only in
+   `staff`, `everyone`, `localaccounts`, `_lpoperator`,
+   `com.apple.sharepoint.group.*` and `com.apple.access_disabled` (the
+   group `pwpolicy` adds when it disables an account);
    Remote Login (sshd enabled or loaded, or a listener on port 22);
    screen sharing or remote management; automatic login or
    `/etc/kcpassword`; sudoers additions; files outside `/Users` owned by
    a non-system uid other than that user's temporary folders; launchd
-   jobs other than Apple's and `wb-guestd`'s; and the secrets the scan
-   already looked for.
+   jobs outside an allowlist of what macOS ships (`com.apple.*` and
+   `amsdstat.plist` in `/Library/LaunchDaemons`) plus `wb-guestd`'s; and
+   the secrets the scan already looked for. S06-vm-lifecycle,
+   "Sealing", adds checks the spike's scan didn't have: membership
+   through `dsmemberutil`, `authorized_keys`, `sshd_config`, SSH host
+   keys, the kept user's LaunchAgents, its secure token, and `IsHidden`.
+
+   The spike's scan treated an account as enabled when its
+   `AuthenticationAuthority` had a `ShadowHash` entry, which is what a
+   password login needs. macOS ships `_mbsetupuser` in `admin` without
+   one.
 6. **The host never mounts a guest disk to build an image.** It doesn't
    need to, and the host then parses no guest-written filesystem.
 
@@ -186,16 +206,18 @@ starts when the boot tool starts the VM.
 | Provisioning boot: SSH answers | 21 to 24 s | 3 |
 | Provisioning boot: test daemon answers on vsock | 23.1 to 26.0 s | 3 |
 | Sealing scan, in the guest | 19.4 to 32.2 s | 11 |
-| Remote Login off, deletion attempts, disable | 40.7 s | 1 |
+| Cleanup and disable requests, guest-side time | 40.7 s | 1 |
 | Provisioning boot, start to guest stopped (full pipeline) | 127.1 s | 1 |
 | Provisioned image, cold boot to the test daemon answering | 8.5 to 11.0 s (median 8.8 s) | 6 |
 
 - **Build time:** 271.6 s to install and 127.1 s for the provisioning
   boot make 398.7 s, about 6.6 minutes, from a downloaded restore image
   to a sealed image. Of the 127.1 s, the two scans took 54.7 s, and the
-  cleanup step took 38.7 s, with the deletion attempts that a product
-  build skips and two `find` passes over the Data volume. A
-  verification boot of the sealed image took 40 s more.
+  cleanup request took 38.7 s in the guest, with the deletion attempts
+  that a product build skips and two `find` passes over the Data
+  volume. The 40.7 s in the table is that request plus the disable
+  request (2.0 s). A verification boot of the sealed image, start to
+  guest stopped, took 35.6 s more.
   The restore image download was not measured (I49).
 - **Cold boot:** after the provisioning boot, the daemon started 7.6 to 10.1 s after
   the guest kernel's boot time, with one disk. X18-vsock-handoff
@@ -230,6 +252,10 @@ starts when the boot tool starts the VM.
   image. "Sealing" lists the checks of condition 5 (changed in this pull
   request). The rest of S06-vm-lifecycle is unchanged, because I46
   edits its session parts.
+- **S04-architecture**: the `wb-vmd` row and "Secrets live in one
+  process" name the provisioning password as the one secret `wb-vmd`
+  holds, for a build VM until its first start returns (changed in this
+  pull request).
 - **NFR04-host-platforms** says macOS 15 or later, and this build
   needs macOS 27 (open decision 3). This pull request leaves it as it
   is until that is decided.
@@ -246,6 +272,8 @@ Branch `spike/x17-image-build`, at
 [6d3ff44](https://github.com/wraithbox/wraithbox/tree/6d3ff44df8f8e3cd5e9ec3ed2c0dd07dcdeac4c7/spikes/x17-image-build):
 the Swift `wb-vmd` stand-in, the Go guest daemon, the host-side Data
 volume scripts, the provisioning script, the scan and cleanup scripts,
-and the raw results in `results/`, with passwords redacted.
+and the raw results in `results/`, with passwords redacted. The
+spike's bundles (`base` and `e1` to `e5`) are spike artifacts, and no
+product image may descend from them.
 
 **Status:** Answered 2026-10-07: no
