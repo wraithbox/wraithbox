@@ -105,11 +105,10 @@ which guarantee is weaker. No fallback is silent.
    named for what it belongs to, and removed with it. At start,
    `wb-hostd` asks `wb-guestadmin` to remove items whose image or VM is
    gone, and logs each.
-9. **Into a guest only before project code, or as a burn.** A
-   credential that opens anything outside one VM never enters a guest,
-   which gets a placeholder (SEC04-no-guest-secrets). A `wbadmin`
-   password enters its own guest at first contact, before project code,
-   or at a break-glass login, which burns it.
+9. **Into a guest only before project code.** A credential that opens
+   anything outside one VM never enters a guest, which gets a
+   placeholder (SEC04-no-guest-secrets). A `wbadmin` password enters
+   its own guest only at first contact, before project code.
 
 ### Declared access
 
@@ -123,7 +122,7 @@ Item names start with `wraithbox/`.
 | CA signing key | `wb-proxyd`, use | none: the key stays in the Secure Enclave. The software fallback key is a fetch | the CA's life |
 | `wbadmin/build/<build>` | `wb-guestadmin`, write, then fetch | pipes to the build's `wb-vmd` (until the start call returns) and its `ssh` (one session) | removed when the build ends |
 | `wbadmin/image/<image>` | `wb-guestadmin`, write at the build, fetch at each VM's first contact | the guest connection below | removed with the image |
-| `wbadmin/vm/<vm>/<disk>` | `wb-guestadmin`, write at first contact, fetch at break-glass | the guest connection below, or a pipe to `wb vm console` | removed when the system disk is replaced |
+| `wbadmin/vm/<vm>/<disk>` | `wb-guestadmin`, write at first contact | the guest connection below | kept for the secure token and a later diagnostics path (I158), removed when the system disk is replaced |
 
 A password in a host remote URL isn't a store item. `wb` removes the
 user name and password from every remote URL it reads, withheld ones
@@ -163,13 +162,12 @@ only it reads or writes `wbadmin/*`.
   crash then never loses the working password. The build VM rotates the same way, from
   the build password to the image password. `wb-hostd` doesn't start a
   session in a VM whose rotation hasn't succeeded.
-- **Break-glass.** When `wb-guestd` is dead or wedged, `wb vm console`
-  has `wb-hostd` start `wb-guestadmin`, which fetches the VM's item and
-  writes it to a pipe that `wb` reads and shows once. The user logs in
-  at the VM's console as `wbadmin`, with the account properties that
-  S06-vm-lifecycle "Sealing" gives it. The password is then burned, and
-  the VM gets a fresh clone of the image as its system disk at its next
-  stop. The data disk stays, and first contact rotates again.
+- **Break-glass.** When `wb-guestd` is dead or wedged, `wb-hostd`
+  replaces the VM's system disk with a fresh clone of the image. The
+  data disk stays, and first contact rotates again. No password is
+  fetched and nobody logs in: `wbadmin` stays disabled, hidden, without
+  a shell and out of `admin` (S06-vm-lifecycle, "Sealing").
+  `wb-guestadmin-cleanup` removes the old disk's item.
 - **Refused outside the path.** `wb-vmd` refuses provisioning options
   for any VM that isn't a new build bundle under `<data>/images/`.
   `wb-guestadmin` refuses a rotation for a VM disk that has rotated.

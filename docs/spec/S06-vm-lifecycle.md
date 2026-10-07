@@ -120,8 +120,10 @@ in S12-platforms.
   code, `wbadmin`'s password is rotated to one that is generated for
   that VM and kept in the secret store, so a password burned in one VM
   opens nothing in another. `wb-hostd` doesn't start a session in a VM
-  whose rotation hasn't succeeded. The store items, the channel, and the
-  break-glass use are in S15-least-privilege.
+  whose rotation hasn't succeeded. When `wb-guestd` is dead or wedged,
+  `wb-hostd` replaces the VM's system disk with a fresh clone, and
+  nobody logs in as `wbadmin`. The store items and the channel are in
+  S15-least-privilege.
 
 ## VMs
 
