@@ -20,8 +20,9 @@ inspection is trusted, and what is recorded.
   `audit`) and `binaries`. Wraith Box parses and validates it in Go with
   its own code. Reusing the schema lets OpenShell's prover check Wraith
   Box policy, and gives users one policy language for both tools.
-  Wraith Box extensions (per-host inspect or pass mode, wildcard
-  budget, dependency-gate thresholds, credential bindings) go in
+  Wraith Box extensions (per-host inspect or pass mode, raw TCP
+  entries, wildcard budget, dependency-gate thresholds, credential
+  bindings) go in
   separate top-level keys.
   - *Pinned release.* OpenShell adds fields to the schema without
     changing `version: 1`, so the pin is an OpenShell release: v0.1.2
@@ -59,17 +60,24 @@ inspection is trusted, and what is recorded.
     event. The maintainer decided this
     on I40 (B40-learn-pass-modes), and S07-egress-gateway, "Modes, per
     host", has the rules.
+  - *Raw TCP entries.* A raw TCP entry names one exact host and one
+    port for a stream that is neither TLS nor HTTP. A raw TCP entry
+    follows the rules of a pass host above, on its host and port. The
+    maintainer decided this on I47 (B47-non-http-streams), and
+    S07-egress-gateway, "Non-HTTP streams", has the rules.
   - *What the prover sees.* The document Wraith Box writes for the
     prover allows at least what `wb-proxyd` enforces, never less. A
     built-in GraphQL rule is written as a REST rule that allows `POST`
     to its GraphQL path on its host, which is wider than the rule
     ("Built-in profiles in the check"). A host in pass mode is written
     as an L4 endpoint with no `protocol` and no rules, whatever rules
-    the file gives it, so the boundary must allow L4 to that host. The
-    prover can't see the extension keys, so Wraith Box's own Go check
-    compares them with the
+    the file gives it, so the boundary must allow L4 to that host. A
+    raw TCP entry is written as an L4 endpoint for its host and port.
+    The prover can't see the extension keys, so Wraith Box's own Go
+    check compares them with the
     boundary's extension part: each pass host must be a pass host in
-    the boundary, dependency-gate thresholds can't be looser, and the
+    the boundary, each raw TCP entry must be a raw TCP entry in the
+    boundary, dependency-gate thresholds can't be looser, and the
     wildcard budget can't be larger. Any mismatch refuses the policy.
 - **Program narrowing.** `binaries` entries match the program label
   from the guest (S13-guest-confinement). Until spike X14-flow-attribution has delivered labels,
