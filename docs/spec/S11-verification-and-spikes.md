@@ -444,6 +444,14 @@ be tested before building on them.
     - drop the link while the WIP commit runs, bring it back, and see
       the stopped commit killed, the commit run again and the session
       end normally;
+    - list one id both as a held session and as a report, and see the
+      list refused; send a report for another VM's session and for an
+      unknown id, and see "end" and the report gone from the guest's
+      directory; send a report again for an ended session, and see it
+      acknowledged with no change;
+    - report a WIP push that never reached `receive-pack`, and see a
+      failed push with `wb` exiting 255 and the summary's count taken
+      from `landing.git`;
     - drop the link right after a session ends, before its report
       reaches the host, and see the session end with that report, not
       as lost;

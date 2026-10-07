@@ -83,6 +83,9 @@ Applied by `wb-guestd` to every process it starts for a project user:
   then the user's remaining processes stay stopped: `wb-guestd` stops
   them at the link drop, and a new `wb-guestd` process stops every
   project user's processes when it starts, before it serves the host.
+  On its first connection `wb-hostd` names the project users that have
+  a lost session in the VM, and `wb-guestd` kills the stopped
+  processes of every other project user, in a loop until none remain.
   A stopped VM leaves none.
   This holds against a process without guest root only. None is meant
   to keep running after its project leaves the VM's
