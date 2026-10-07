@@ -40,7 +40,7 @@ small set of interfaces, each with one implementation per host OS:
 | **Packet transport** | Guest Ethernet frames to and from `wb-netd`, without host privileges | file-handle network attachment (datagram socketpair). `wb-vmd` passes the host end to `wb-hostd`, which passes it to that VM's `wb-netd`, a new one for each start or restore (S07-egress-gateway, X18-vsock-handoff) | spike X11-windows-host | spike X10-linux-hypervisor |
 | **Disk cloning** | Copy-on-write images | APFS clones | VHDX differencing disks | qcow2 backing files, or reflinks where the filesystem supports them |
 | **Local IPC** | Host gRPC endpoints, peer identity | Unix sockets, peer credentials | named pipes, user-SID ACL, client process id | Unix sockets, `SO_PEERCRED` |
-| **Secret store** | Credentials, readable by `wb-proxyd` only | Keychain | Credential Manager (DPAPI, per user) | Secret Service (D-Bus); see below |
+| **Secret store** | Holds every credential. Each item is readable only by the processes S15-least-privilege declares for it | Keychain | Credential Manager (DPAPI, per user) | Secret Service (D-Bus); see below |
 | **Hardware key** | Non-exportable CA signing key | Secure Enclave | TPM via the CNG platform crypto provider | TPM 2.0 where present |
 | **Service manager** | Run `wb-hostd` per user, at login | LaunchAgent | per-user logon task | systemd user unit |
 | **Self-sandbox** | Confine our own daemons (S04-architecture) | Seatbelt profile applied in process at start with `sandbox_init_with_parameters`, called without cgo. A confined process can't confine its children further, so `wb-hostd` starts the other daemons through `wb-launcher`, which it starts before it confines itself (X23-sandboxed-daemons). `wb-vmd` confines itself the same way, with the Virtualization service, the VM bundles and the framework's sandbox extensions in its profile (X25-vmd-sandbox) | restricted token, job objects, AppContainer where it fits | Landlock and seccomp (no unprivileged user namespaces needed) |
@@ -56,8 +56,8 @@ Rules:
 - **A native component is a separate process** with a gRPC contract,
   used only where Go cannot reasonably call the platform API. It makes no
   policy decisions and holds no secrets. The one exception is that
-  `wb-vmd` gets an image build's provisioning password until its start
-  call returns, along a path S15-least-privilege names.
+  `wb-vmd` gets an image build's provisioning password on a pipe until
+  its start call returns (S15-least-privilege).
 - **Every platform implementation has the same conformance tests** (S11-verification-and-spikes); a platform is not "supported" until its conformance suite passes.
 - **Unimplemented platforms fail clearly.** On a host or guest OS that
   is "later" in the matrix, `wb setup` and every command say so; nothing
@@ -92,8 +92,9 @@ alternative and needs its own spec.
   KVM-based VMMs, D-Bus, Landlock, and seccomp on Linux.
 - **macOS: Swift**, built with Xcode, for the Virtualization framework
   (`wb-vmd`) and notifications (native helper). The Keychain and Secure
-  Enclave are reached from Go through a thin cgo shim inside `wb-proxyd`,
-  because the credential must live in that process (SEC04-no-guest-secrets, SEC12-least-privilege).
+  Enclave are reached from Go through a thin cgo shim, linked into each
+  process that S15-least-privilege declares store access for, so no
+  process gets a credential through another (SEC04-no-guest-secrets, SEC12-least-privilege).
 - **Windows: C# on .NET**, built with the `dotnet` CLI, for a native
   notification and tray helper when that is built. Nothing else on
   Windows is expected to need it.

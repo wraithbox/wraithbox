@@ -72,11 +72,12 @@ against the adversary of T00-index.
 - **SEC12-least-privilege: Least privilege on the host.** No root or administrator rights
   at run time and no extra host user accounts. The platform's hardening
   applies (hardened runtime and minimal entitlements on macOS, the
-  equivalents in S12-platforms elsewhere). Each credential is nominally
-  held by one host process. When it has to reach another process, it
-  goes only along a sharing path decided in advance, which names the
-  recipients, the channel and how long each recipient keeps it, and
-  never through arguments, files or logs (S15-least-privilege).
+  equivalents in S12-platforms elsewhere). Credentials are nominally
+  held by the configured secret store. Each host process has a declared
+  set of items, each with the access it may have: read, write, or use
+  in place. It gets them just in time, for no longer than it needs
+  them. A credential is never passed in arguments, files, or logs
+  (S15-least-privilege).
   One-time OS prerequisites (enabling a virtualization feature, access to
   the hypervisor device) are documented and checked by `wb setup`, never
   performed silently.

@@ -289,10 +289,11 @@ inspection is trusted, and what is recorded.
 ## Credentials
 
 - **Storage.** Each credential is an item in the platform's secret
-  store (S12-platforms), readable only by `wb-proxyd`. On macOS: a Keychain
+  store (S12-platforms), readable only by the processes that
+  S15-least-privilege declares for it: `wb-proxyd` for bindings. On macOS: a Keychain
   item in an access group bound to Wraith Box's code-signing identity
   once that identity exists; until then, an access-control list naming
-  the `wb-proxyd` binary, which is weaker and documented as such. Other
+  the declared binaries, which is weaker and documented as such. Other
   platforms scope items as narrowly as their store allows; the limits
   are documented per platform in S12-platforms.
 - **Bindings.** A binding names the hosts, ports, and paths it applies
