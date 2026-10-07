@@ -981,5 +981,11 @@
 		"state": "open",
 		"title": "Move review blocks and open questions out of the specs into briefs and issues",
 		"summary": "PR #149 changes S01-spec-based-development, \"Spec template\": a spec states the design, and review material (what approving commits to, the controls touched, assumptions, open decisions) lives in the review brief and t…"
+	},
+	"158": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S15-least-privilege: developer break-glass through recoveryOS with a disabled wbadmin",
+		"summary": "Can the host boot a macOS VM into recoveryOS (VZMacOSVirtualMachineStartOptions, startUpFromMacOSRecovery), authenticate there as the volume owner wbadmin with its host-held password, and get a root Terminal on the st…"
 	}
 }

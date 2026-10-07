@@ -67,7 +67,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="label" x="675" y="96" text-anchor="middle">wb-guestadmin</text>
 <text class="note" x="675" y="117" text-anchor="middle">wbadmin passwords only</text>
 <text class="note" x="675" y="136" text-anchor="middle">one build, rotation or</text>
-<text class="note" x="675" y="155" text-anchor="middle">break-glass, then exits</text>
+<text class="note" x="675" y="155" text-anchor="middle">cleanup, then exits</text>
 <polyline class="edge" points="600,176 600,215 530,215 530,432" marker-end="url(#f004-arrow)" />
 <text class="note" x="608" y="208">write-only</text>
 <rect class="box" x="790" y="100" width="190" height="54" rx="10" />
