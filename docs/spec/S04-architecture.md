@@ -500,18 +500,26 @@ it didn't ask for:
 - `wb-hostd` keeps each VM's synthetic name mapping too: every name
   with its address and the time of its last answer, for as long as the
   address is within its TTL plus the guard interval
-  (S07-egress-gateway, "Synthetic pool"). A new `wb-netd` starts with
-  those entries and gives none of their addresses to another name
-  before that time. Without them, an address the guest still has cached
+  (S07-egress-gateway, "Synthetic pool"). It learns the mapping the
+  way it learns the wildcard debits, from accounting records
+  ("Accounting and event channels"). `wb-netd` sends each new or
+  renewed entry before the DNS answer that uses it, and refuses the
+  lookup when the write fails. It sends each release before it gives
+  the address to another name. A new `wb-netd` starts with the kept
+  entries and gives none of their addresses to another name before
+  that time. Without them, an address the guest still has cached
   for one name could go to another, and a raw or pass-mode stream
   meant for the first would reach the second.
 - A new `wb-proxyd` has no streams. It fetches binding secrets again
   when proxying needs them (S15-least-privilege).
-- When `wb-netd` or `wb-proxyd` restarts within a VM generation,
-  `wb-hostd` creates a new hand-off socket between that VM's `wb-netd`
-  and `wb-proxyd`, for the same VM and generation, and closes the old
-  one. What `wb-netd` sends first on a new socket, so that `wb-proxyd`
-  has the VM's name mapping again, is in S07-egress-gateway.
+- When a VM's `wb-netd` restarts within a VM generation, `wb-hostd`
+  creates a new hand-off socket between it and `wb-proxyd`, for the
+  same VM and generation, and closes the old one. `wb-proxyd` serves
+  every VM, so when it restarts, `wb-hostd` creates a new hand-off
+  socket for every running VM, each for that VM and its current
+  generation. On each new socket `wb-netd` first replays the VM's live
+  mapping, which `wb-hostd` kept, so that `wb-proxyd` has it again
+  (S07-egress-gateway).
 - `wb-vmd` isn't restarted in a loop. When it exits, its VMs have
   stopped with it, and their sessions are lost. `wb-hostd` starts a
   new `wb-vmd` when a VM is next needed, with the same backoff and the
@@ -543,8 +551,15 @@ record as a crash of the process that sent it: it ends that process
 and counts the exit toward the restart limit.
 
 - **Accounting records** carry the counts and the name mapping of the
-  section above: each wildcard budget debit, and each name answered
-  with its address and the time. They aren't audit events. Nothing
+  section above: each wildcard budget debit, each new or renewed
+  mapping entry with its name, address and time, and each release.
+  `wb-netd` derives the names from guest queries, so `wb-hostd` checks
+  each entry before it keeps it: the name in canonical form (lowercase
+  LDH ASCII, no trailing dot, within the name length limit of
+  S07-egress-gateway), the address inside 198.18.0.0/15, and at most
+  131,072 live entries per VM. It refuses any other entry and logs it
+  with the rule `mapping-entry-invalid`, rate-limited, with a count of
+  the suppressed ones. They aren't audit events. Nothing
   rate-limits, suppresses or drops them, and `wb-netd` writes one
   before any drop or suppression decision about the event that goes
   with it. `wb-netd` writes the record before it sends the DNS answer.

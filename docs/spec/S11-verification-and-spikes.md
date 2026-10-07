@@ -23,7 +23,11 @@ be tested before building on them.
   included, no restart after the fifth exit, and a session start then
   refused with `daemon-given-up`. The same test runs with the VM's
   audit event budget exceeded and its refusal events suppressed, and
-  sees every debit counted. An accounting write that blocks past
+  sees every debit and every mapping entry and release counted. A
+  mapping entry with an uppercase or non-LDH name, a trailing dot, an
+  address outside 198.18.0.0/15, or one past 131,072 live entries is
+  refused with `mapping-entry-invalid`. A `wb-proxyd` restart gives
+  every running VM a new hand-off socket. An accounting write that blocks past
   100 ms refuses the lookup with `accounting-write-failed`. A
   `wb-guestd` that reports another build version, a version string
   that is not ASCII, longer than 64 bytes or not of the fixed form,
@@ -80,7 +84,8 @@ be tested before building on them.
   (X22-no-guest-credentials), policy matching, the git transport framing (the request
   header and the push command list, X07-git-round-trip), the pack
   scanner in front of `receive-pack` and the input of the pre-receive
-  check (X26-pre-receive-check), the accounting and event records
+  check (X26-pre-receive-check), the accounting records (debits,
+  mapping entries and releases) and event records
   `wb-hostd` reads from `wb-netd` and `wb-proxyd` (S04-architecture,
   "Accounting and event channels"), every vsock RPC
   handler in `wb-hostd`, the stream framing that multiplexes guest
