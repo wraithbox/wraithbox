@@ -55,9 +55,9 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 
 <rect class="box host" x="500" y="200" width="200" height="90" rx="10" />
 <text class="label" x="600" y="226" text-anchor="middle">wb-guestadmin</text>
-<text class="note" x="600" y="247" text-anchor="middle">one build or rotation</text>
-<text class="note" x="600" y="264" text-anchor="middle">generates wbadmin</text>
-<text class="note" x="600" y="280" text-anchor="middle">passwords</text>
+<text class="note" x="600" y="247" text-anchor="middle">one build, rotation or</text>
+<text class="note" x="600" y="264" text-anchor="middle">break-glass, wbadmin</text>
+<text class="note" x="600" y="280" text-anchor="middle">items only</text>
 
 <rect class="box host" x="280" y="470" width="180" height="76" rx="10" />
 <text class="label" x="370" y="496" text-anchor="middle">wb-vmd (build)</text>
