@@ -1,0 +1,32 @@
+hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.
+/dev/disk4          	GUID_partition_scheme          	
+/dev/disk4s1        	Apple_APFS_ISC                 	
+/dev/disk4s2        	Apple_APFS                     	
+/dev/disk4s3        	Apple_APFS_Recovery            	
+/dev/disk5          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk5s1        	41504653-0000-11AA-AA11-0030654	
+/dev/disk5s2        	41504653-0000-11AA-AA11-0030654	
+/dev/disk5s3        	41504653-0000-11AA-AA11-0030654	
+/dev/disk5s4        	41504653-0000-11AA-AA11-0030654	
+/dev/disk6          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk6s1        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk7s1        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s2        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s3        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s4        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s5        	41504653-0000-11AA-AA11-0030654	
+disk7s5 Data False False
+Volume Data on disk7s5 mounted
+/dev/disk7s5 on /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol (apfs, local, nodev, nosuid, journaled, noowners, nobrowse, mounted by lsimons)
+-rw-r--r--@ 1 501  20        0 Oct  7 06:55 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/private/var/db/.AppleSetupDone
+-rwxr-xr-x@ 1 501  20  4447778 Oct  7 06:55 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/usr/local/libexec/x17-guestd
+
+/Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Library/LaunchDaemons/:
+total 24
+-rw-r--r--  1 501  20  546 Sep 24 09:10 amsdstat.plist
+-rw-r--r--  1 501  20  526 Sep 24 09:10 com.apple.postfixsetup.plist
+-rw-r--r--@ 1 501  20  480 Oct  7 06:55 org.wraithbox.x17-guestd.plist
+Volume Data on disk7s5 unmounted
+hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.
+"disk4" ejected.

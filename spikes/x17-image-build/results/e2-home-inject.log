@@ -1,0 +1,39 @@
+hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.
+/dev/disk4          	GUID_partition_scheme          	
+/dev/disk4s1        	Apple_APFS_ISC                 	
+/dev/disk4s2        	Apple_APFS                     	
+/dev/disk4s3        	Apple_APFS_Recovery            	
+/dev/disk5          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk5s1        	41504653-0000-11AA-AA11-0030654	
+/dev/disk5s2        	41504653-0000-11AA-AA11-0030654	
+/dev/disk5s3        	41504653-0000-11AA-AA11-0030654	
+/dev/disk5s4        	41504653-0000-11AA-AA11-0030654	
+/dev/disk6          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk6s1        	41504653-0000-11AA-AA11-0030654	
+/dev/disk6s2        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7          	EF57347C-0000-11AA-AA11-0030654	
+/dev/disk7s1        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s2        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s3        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s4        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s5        	41504653-0000-11AA-AA11-0030654	
+/dev/disk7s6        	41504653-0000-11AA-AA11-0030654	
+disk7s5 Data False False
+Volume Data on disk7s5 mounted
+/dev/disk7s5 on /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol (apfs, local, nodev, nosuid, journaled, noowners, nobrowse, mounted by lsimons)
+drwxr-x---+ 13 501  20  416 Oct  7 07:02 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Users/x17prov
+drwxr-xr-x@  3 501  20   96 Oct  7 07:09 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Users/x17prov/Library/LaunchAgents
+-rw-r--r--@  1 501  20  408 Oct  7 07:09 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Users/x17prov/Library/LaunchAgents/org.wraithbox.x17-bootstrap.plist
+drwxr-xr-x  3 501  20       96 Oct  7 07:00 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Library/LaunchAgents
+-rw-r--r--@ 1 501  20      408 Oct  7 07:00 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Library/LaunchAgents/org.wraithbox.x17-bootstrap.plist
+drwxr-xr-x  3 501  20       96 Oct  7 07:01 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Library/LaunchDaemons
+-rw-r--r--@ 1 501  20      427 Oct  7 07:00 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Library/LaunchDaemons/org.wraithbox.x17-hostwritten.plist
+-r--------  1 501  20        0 Oct  7 07:01 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/private/var/db/.AppleSetupDone
+drwxr-xr-x@ 6 501  20      192 Oct  7 07:00 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Users/Shared/x17
+-rwxr-xr-x@ 1 501  20      855 Oct  7 07:00 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Users/Shared/x17/bootstrap.sh
+-rw-r--r--@ 1 501  20      480 Oct  7 07:00 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Users/Shared/x17/org.wraithbox.x17-guestd.plist
+-rw-------@ 1 501  20       25 Oct  7 07:00 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Users/Shared/x17/pw
+-rwxr-xr-x@ 1 501  20  4447778 Oct  7 07:00 /Users/lsimons/Library/Caches/wraithbox-spikes/x17/datavol/Users/Shared/x17/x17-guestd
+Volume Data on disk7s5 unmounted
+hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.
+"disk4" ejected.

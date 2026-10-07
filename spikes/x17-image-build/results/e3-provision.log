@@ -1,0 +1,4 @@
+guest ip 192.168.64.6 after 10s
+ssh up after 21s
+x17-guestd installed after 22s
+provisioning boot done after 77s
