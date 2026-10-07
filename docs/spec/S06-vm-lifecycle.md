@@ -26,35 +26,68 @@ in S12-platforms.
 - **Toolchain prefix** (X20-shared-homebrew). A guest has one tool
   prefix, `/opt/homebrew` on macOS, owned by the toolchain user (I144).
   That user isn't an admin, has neither a password nor a shell, and
-  has a home of mode 700. Only `wb-guestd` runs commands as it, through
-  `sudo -u` from root. Project users can read and run the prefix, and
-  can't write to it or install packages, the agent included. They
-  install language packages into their own home instead.
+  has a home of mode 700. Only `wb-guestd` runs commands as it: through
+  `sudo -u` from root (I144), or by setting the child's user and group
+  IDs itself (`syscall.Credential` in Go), which the implementation
+  may prefer because then `wb-guestd` alone sets the environment.
+  Project users can read and run the prefix, and can't write to it or
+  install packages. That includes the agent. They install language
+  packages into their own home instead. Who may write the prefix,
+  and that a manifest is names only, keep one project from changing
+  the tools of another (SEC08-proj-isolation). The session `PATH` rule
+  below keeps sessions reproducible, and isn't a control. Projects still
+  share the prefix's contents (T15-shared-toolchain).
+  - *Who may write.* Every file in the prefix belongs to the toolchain
+    user and to its own group, which has no other members. Others
+    have no write permission on any of them.
   - *The manifest is data.* A Brewfile is Ruby, and `brew bundle` runs
     it as the toolchain user, so a project could plant a file in the
-    prefix that every other project runs from (SEC08-proj-isolation).
-    `wb-hostd` reads the manifest as a list of formula names: each
-    line is `brew "<name>"`, a comment, or blank. It refuses any other
-    line, such as a `tap`, a `cask`, options, or `system`, and logs the
-    line and the rule. `wb-guestd` installs the names with
-    `brew install --formula`. It never runs `brew bundle` and never
-    hands Homebrew a file a project wrote.
-  - *`homebrew/core` only.* A third-party tap is code that would run
-    as the toolchain user, so a name with a `/`, which names a tap's
-    formula, is refused too.
-  - *A reconcile only adds.* `wb-guestd` builds the toolchain user's
-    environment from an allowlist: `HOMEBREW_NO_AUTO_UPDATE`,
-    `HOMEBREW_NO_INSTALL_UPGRADE` and `HOMEBREW_NO_INSTALL_CLEANUP`, so
-    one project's install doesn't upgrade or remove what another
-    project's session runs, and `HOMEBREW_TEMP` and `HOMEBREW_CACHE` in
-    the toolchain user's home.
-  - *The session's `PATH`.* Which version a name like `python3` runs
-    in the prefix's shared `bin` depends on every project's formulae.
-    The session's `PATH` has `opt/<formula>/bin` (and Python's
-    `libexec/bin`) for each formula of the image's recipe and the
-    project's manifest, and not the shared `bin`. `wb-guestd` sets
-    `NPM_CONFIG_PREFIX` to a folder in the home, because `npm -g`
-    writes to the prefix by default.
+    prefix that every other project runs from. `wb-hostd` reads the
+    manifest as a list of formula names. Each line is `brew "<name>"`,
+    a comment, or blank, and each name matches
+    `^[a-z0-9][a-z0-9+._@-]*$`, doesn't end in `.rb`, and is at most
+    64 characters long. A manifest has at most 1000 lines and 200
+    names. `wb-hostd` refuses any other manifest, such as one with a
+    `tap`, a `cask`, options, `system`, a name with a `/` (a tap's
+    formula, so `homebrew/core` only) or a name starting with `-`,
+    and logs the line and the rule. `wb-guestd` checks the names
+    against the same rules before it runs anything. It runs
+    `brew install --formula --force-bottle -- <names>` by argument
+    list, with no shell, in the toolchain user's home. It never runs
+    `brew bundle` and never hands Homebrew a file a project wrote.
+  - *Bottles only.* Before the install, `wb-guestd` checks Homebrew's
+    formula data for a bottle for the guest of every formula the
+    names need. When one has none, the session is refused with its
+    name, and nothing is built from source. At the start deadline
+    ("Session lifecycle"), `wb-guestd` kills the reconcile's process
+    group.
+  - *The environment.* `wb-guestd` builds the toolchain user's
+    environment from an allowlist: `HOME` and the working directory
+    in its home, umask 022, `PATH` with the prefix's `bin` and the
+    system folders, `HOMEBREW_NO_AUTO_UPDATE`,
+    `HOMEBREW_NO_INSTALL_UPGRADE`,
+    `HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK`,
+    `HOMEBREW_NO_INSTALL_CLEANUP`, `HOMEBREW_NO_ANALYTICS`,
+    `HOMEBREW_NO_ENV_HINTS`, `HOMEBREW_FORBID_PACKAGES_FROM_PATHS=1`,
+    and `HOMEBREW_TEMP` and `HOMEBREW_CACHE` in its home. Never
+    `HOMEBREW_DEVELOPER`.
+  - *A reconcile only adds* (untested, I180). Homebrew upgrades an
+    outdated dependency of a formula it installs, whatever
+    `HOMEBREW_NO_INSTALL_UPGRADE` says, which covers only the
+    formulae on the command line. What keeps dependencies, such as `openssl@3`, from moving
+    under a running session is the formula data: the image build
+    writes a snapshot of Homebrew's formula API into the toolchain
+    user's cache, and `HOMEBREW_NO_AUTO_UPDATE` keeps it. Then nothing
+    installed is outdated, and a reconcile only adds kegs.
+  - *The session's `PATH`* (untested, I180). Which version a name like
+    `python3` runs in the prefix's shared `bin` depends on every
+    project's formulae. The session's `PATH` has `opt/<formula>/bin`
+    (and Python's `libexec/bin`) for each formula of the image's
+    recipe (I150) and of the project's manifest, and not the shared
+    `bin`. A project can add the shared `bin` back, so this is for
+    reproducible sessions only. `wb-guestd` sets `NPM_CONFIG_PREFIX`
+    to a folder in the home, because `npm -g` writes to the prefix by
+    default.
   - *Conflicts.* When Homebrew refuses a formula because a conflicting
     one is installed (`mysql` and `mariadb`), the reconcile fails, and
     `wb` refuses the session, names both formulae, and points to
@@ -346,8 +379,9 @@ in S12-platforms.
 - A project user is a standard account, outside the `admin` and
   `wheel` groups, with no sudoers rule. Guest root can bind
   the host-guest socket port of `wb-guestd`, so a project user must not
-  reach root through `sudo` (X27-vsock-confinement). X20-shared-homebrew
-  has to work within this.
+  reach root through `sudo` (X27-vsock-confinement). Packages come from
+  the toolchain prefix, which only `wb-guestd` writes ("Images",
+  "Toolchain prefix", X20-shared-homebrew).
 - Each session gets its own git worktree of the project clone, at
   `<home>/sessions/<session-id>` in the project user's home, so
   parallel sessions in one project do not collide (FR05-parallel-sessions). Per-session build
