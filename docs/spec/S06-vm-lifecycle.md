@@ -232,7 +232,9 @@ in S12-platforms.
   (FR13-claude-state). The link is made as the project user, so
   `wb-guestd` never follows a link the project user made with root's
   rights. Parallel sessions share that directory, so `--continue` in
-  one can pick the conversation another session is running.
+  one can pick the conversation another session is running. The layout
+  was read on a macOS host, not checked in a guest, and I135 checks it
+  there.
   Rejected: one worktree path for every session, which a parallel
   session, or an ended session that isn't discarded yet, still holds.
 - Ephemeral sessions use a throwaway guest user removed at session end
