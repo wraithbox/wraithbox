@@ -83,7 +83,10 @@ be tested before building on them.
   - one to a name that a policy change removed after its report;
   - one with no descriptor, one with two, and one with three, which
     cuts the control data (`MSG_CTRUNC`);
-  - one with a datagram socket as the stream;
+  - one with a datagram socket, and one with a socket that isn't a
+    Unix domain socket, as the stream;
+  - one sent right behind a report that waits on `wb-hostd` for the
+    wildcard budget, which passes once the report is accepted;
   - one in a message over 4 KiB;
   - streams past the per-socket cap, while VM B's streams still pass.
 
@@ -132,7 +135,7 @@ be tested before building on them.
   handler in `wb-hostd`, the stream framing that multiplexes guest
   requests on a host-opened connection, with the project each request
   is attributed to (S04-architecture, B29-vsock-handoff), the name
-  reports and stream messages `wb-proxyd` reads from `wb-netd` and the
+  reports, releases and stream messages `wb-proxyd` reads from `wb-netd` and the
   hand-off messages it reads from `wb-hostd` (S07-egress-gateway,
   "Stream hand-off"), network policy YAML, the guest flow labels
   of S13-guest-confinement, and the dependency gate's parsers: npm
