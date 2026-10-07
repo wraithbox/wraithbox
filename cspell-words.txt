@@ -13,6 +13,8 @@ guestd
 vmd
 lsimons
 myrepo
+wbadmin
+guestadmin
 wbprov
 
 # Virtualization, networking and OS facilities
@@ -109,6 +111,7 @@ subpackages
 lockfiles
 worktrees
 unscanned
+askpass
 esac
 ehthumbs
 OCSF

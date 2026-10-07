@@ -60,7 +60,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="885" y="288" text-anchor="middle">HTTP policy</text>
 <text class="note" x="885" y="307" text-anchor="middle">credential replacement</text>
 <text class="note" x="885" y="326" text-anchor="middle">dependency gate</text>
-<text class="note" x="885" y="345" text-anchor="middle">holds the credentials</text>
+<text class="note" x="885" y="345" text-anchor="middle">fetches what it injects</text>
 <line class="edge" x1="885" y1="238" x2="885" y2="156" marker-end="url(#f004-arrow)" />
 <text class="note" x="895" y="202">allowlisted only</text>
 <rect class="box" x="790" y="100" width="190" height="54" rx="10" />

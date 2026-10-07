@@ -40,7 +40,7 @@ downloads and runs, such as a VMM on Linux.
 | Linux host APIs | `golang.org/x/sys/unix` (KVM device checks, Landlock, seccomp, vsock); a pure-Go D-Bus client (Secret Service, notifications) |
 | Linux VMM | decided by spike X10-linux-hypervisor; must be permissively licensed |
 | TPM | a Go TPM 2.0 library (Linux); CNG through `golang.org/x/sys/windows` (Windows) |
-| Keychain / Secure Enclave from Go | a thin cgo shim over Security.framework, owned by this repo, linked into `wb-proxyd` on macOS only |
+| Keychain / Secure Enclave from Go | a thin cgo shim over Security.framework, owned by this repo, linked on macOS only into the processes that S15-least-privilege declares store access for |
 | State | SQLite, through a cgo-free Go driver so every OS builds the same way |
 | Vulnerability data | OSV API |
 | Network policy schema | OpenShell's `network_policies` schema, version 1, with the keys of OpenShell v0.1.2 (commit `6648bd0c`, Apache-2.0), implemented in Go by this repo; YAML read with a size- and depth-bounded decoder (S09-policy-credentials-audit) |

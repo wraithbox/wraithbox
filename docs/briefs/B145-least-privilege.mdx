@@ -1,146 +1,151 @@
 ---
-title: Who may hold a credential on the host, and how may it be shared?
-description: Recommended, each credential has one nominal holder and reaches other processes only along paths named in S15-least-privilege. The host keeps each VM's guest admin password in wb-proxyd as the first worked example.
+title: Where are credentials held on the host, and who may reach them?
+description: Recommended, the configured secret store holds every credential, and each host process gets a declared set of items just in time. The guest admin user wbadmin is the worked example.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I145, S15-least-privilege, SEC12-least-privilege. Related: I142, I146, I139. Changes SEC00-index, S04-architecture, S06-vm-lifecycle "Images" and S12-platforms.
+**Awaiting decision.** Source: I145, S15-least-privilege, SEC12-least-privilege. Related: I142, I146, I139, I51, X09-keychain-unsigned. Changes SEC00-index, S04-architecture, S06-vm-lifecycle "Images", S09-policy-credentials-audit "Storage", S10-tech-stack and S12-platforms.
 
 <Aside type="tip" title="You are deciding">
-Whether to approve S15-least-privilege, the first spec of one per security requirement: SEC12-least-privilege reworded to "nominally held by one process, shared only along a path named in advance", six sharing rules, and the guest admin password as their worked example. The host keeps one password per VM for the provisioning user, and `wb-proxyd` holds it. Recommended: approve, with the leanings on the open questions below. Accepting merges the SEC12 wording and S15-least-privilege as Draft, and lets I145 close. The image build still waits on I139 and on open question 1.
+Whether to approve S15-least-privilege, the first spec of one per security requirement. SEC12-least-privilege becomes "credentials are nominally held by the configured secret store, and each host process has a declared set of items, just in time". `wb-proxyd` stops being the holder for everyone, and S04-architecture's "Secrets live in one process" is superseded. Recommended: approve, with the leanings on the open questions. Accepting lets I145 close. The image build still waits on I139 and open questions 1 and 2.
 </Aside>
 
-## What changed since I145 and I146
+## What changed since the first draft
 
-The design in this pull request differs from what those issues say today:
+Two corrections, both from you on 2026-10-07. The design differs from what I145 and I146 say today.
 
-- **The host keeps the password.** I145 option 4 had `wb-guestd` set a random password at first contact that nobody keeps, and accepted a dead secure token as better for SEC11-root-gains-nothing. Now the host keeps that password, and the token keeps working. The argument changed: the host already has guest root through `wb-guestd`, so a guest admin password it holds is no escalation, and SEC11-root-gains-nothing is about guest root reaching the host.
-- **One password per VM, not per image.** Every VM is a clone of the image, so `wb-guestd` rotates the password at each VM's first contact. The build's provisioning password is the first one, retired by the build VM's rotation.
-- **Break-glass.** The password also serves a console login when `wb-guestd` is dead or wedged. Piping it into a guest that has run project code burns it.
-- **I146 option 1B is dropped.** A second admin created to delete the first only renames the token holder. `wbprov` stays in the image as a host-administered account. Whether it stays in `admin` is open question 3.
-- **I142 narrows.** It no longer has to prove the token dead. It has to show that guest root can't extract the host-held password, or reset its way into the token.
+- **The host keeps the guest admin password.** I145 option 4 had nobody keep it, and accepted a dead secure token. Now the host keeps it, and the token keeps working. The host already has guest root through `wb-guestd`, so that is no escalation, and SEC11-root-gains-nothing is about guest root reaching the host. One password per VM: every VM is a clone of the image, so the password is rotated at each VM's first contact, and a password burned in one VM opens nothing elsewhere. It also serves a break-glass console login. I146 option 1B is dropped, because a second admin only renames the token holder.
+- **The store is the holder, not a Wraith Box process.** The first draft made `wb-proxyd` the nominal holder of every credential, which gives the process that faces guest streams every secret. Now the configured secret store holds them, the macOS Keychain first, 1Password next, other backends later. `wb-proxyd` fetches only what proxying needs. The guest admin user is renamed `wbadmin`, and a short-lived `wb-guestadmin` generates, writes and rotates its passwords, without `wb-proxyd`.
+- **I142 narrows.** It has to show that guest root can't extract the host-held password or reset its way into the token.
 
 ## The picture
 
 <figure class="wb-figure">
-<svg viewBox="0 0 1000 600" role="img" aria-label="Host processes and the credentials each one nominally holds. wb-proxyd holds binding secrets, the CA key handle and the guest admin passwords, read from the secret store. It sends binding secrets only to the upstream host, never to a VM running project code. It shares the build password with the build's wb-vmd and SSH client over pipes, and writes each VM's new admin password to wb-guestd at first contact. wb-hostd passes the pipe ends and the connection on and reads none of them.">
+<svg viewBox="0 0 1000 600" role="img" aria-label="The secret store outside the Wraith Box processes. wb writes binding secrets. wb-proxyd fetches bindings and uses the CA key. wb-guestadmin writes and fetches wbadmin passwords and pipes the build password to wb-vmd and ssh, and writes the rotation to wb-guestd. wb-hostd has no store access.">
 <defs>
 <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
 <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
 </defs>
 
-<rect class="boundary" x="10" y="10" width="630" height="580" rx="14" />
-<text class="boundary-label" x="24" y="32">host: runs as the user, no root</text>
+<rect class="box host" x="20" y="230" width="200" height="110" rx="10" />
+<text class="label" x="120" y="258" text-anchor="middle">secret store</text>
+<text class="note" x="120" y="280" text-anchor="middle">nominal holder</text>
+<text class="note" x="120" y="298" text-anchor="middle">Wraith Box keychain,</text>
+<text class="note" x="120" y="315" text-anchor="middle">later a 1Password vault</text>
 
-<rect class="box host" x="30" y="50" width="200" height="60" rx="10" />
-<text class="label" x="130" y="76" text-anchor="middle">wb</text>
-<text class="note" x="130" y="96" text-anchor="middle">holds nothing</text>
+<rect class="boundary" x="260" y="30" width="460" height="540" rx="14" />
+<text class="boundary-label" x="274" y="52">Wraith Box processes, as the user</text>
 
-<rect class="box host" x="30" y="150" width="200" height="70" rx="10" />
-<text class="label" x="130" y="177" text-anchor="middle">secret store</text>
-<text class="note" x="130" y="198" text-anchor="middle">Keychain, Secure Enclave</text>
+<rect class="box host" x="280" y="70" width="180" height="56" rx="10" />
+<text class="label" x="370" y="95" text-anchor="middle">wb</text>
+<text class="note" x="370" y="114" text-anchor="middle">the CLI: cred set</text>
 
-<rect class="box host" x="30" y="290" width="200" height="104" rx="10" />
-<text class="label" x="130" y="316" text-anchor="middle">wb-hostd</text>
-<text class="note" x="130" y="337" text-anchor="middle">holds no credential</text>
-<text class="note" x="130" y="354" text-anchor="middle">passes the pipe ends and</text>
-<text class="note" x="130" y="370" text-anchor="middle">the rotation connection</text>
-<text class="note" x="130" y="386" text-anchor="middle">on, reads none of them</text>
+<rect class="box host" x="500" y="70" width="200" height="74" rx="10" />
+<text class="label" x="600" y="95" text-anchor="middle">wb-proxyd</text>
+<text class="note" x="600" y="114" text-anchor="middle">only what proxying</text>
+<text class="note" x="600" y="131" text-anchor="middle">needs, just in time</text>
 
-<rect class="box host" x="360" y="50" width="250" height="110" rx="10" />
-<text class="label" x="485" y="77" text-anchor="middle">wb-proxyd</text>
-<text class="note" x="485" y="99" text-anchor="middle">holds: binding secrets,</text>
-<text class="note" x="485" y="116" text-anchor="middle">CA key handle, guest admin</text>
-<text class="note" x="485" y="133" text-anchor="middle">passwords (per image, per VM)</text>
+<rect class="box host" x="280" y="200" width="180" height="90" rx="10" />
+<text class="label" x="370" y="226" text-anchor="middle">wb-hostd</text>
+<text class="note" x="370" y="247" text-anchor="middle">no store access</text>
+<text class="note" x="370" y="264" text-anchor="middle">passes descriptors,</text>
+<text class="note" x="370" y="280" text-anchor="middle">reads none</text>
 
-<rect class="box host" x="340" y="300" width="210" height="80" rx="10" />
-<text class="label" x="445" y="326" text-anchor="middle">wb-vmd (build)</text>
-<text class="note" x="445" y="347" text-anchor="middle">gets the build password</text>
-<text class="note" x="445" y="364" text-anchor="middle">until the start call returns</text>
+<rect class="box host" x="500" y="200" width="200" height="90" rx="10" />
+<text class="label" x="600" y="226" text-anchor="middle">wb-guestadmin</text>
+<text class="note" x="600" y="247" text-anchor="middle">one build or rotation</text>
+<text class="note" x="600" y="264" text-anchor="middle">generates wbadmin</text>
+<text class="note" x="600" y="280" text-anchor="middle">passwords</text>
 
-<rect class="box host" x="340" y="460" width="270" height="80" rx="10" />
-<text class="label" x="475" y="486" text-anchor="middle">SSH client (build)</text>
-<text class="note" x="475" y="507" text-anchor="middle">named by I139, one session,</text>
-<text class="note" x="475" y="524" text-anchor="middle">password on stdin, then exits</text>
+<rect class="box host" x="280" y="470" width="180" height="76" rx="10" />
+<text class="label" x="370" y="496" text-anchor="middle">wb-vmd (build)</text>
+<text class="note" x="370" y="516" text-anchor="middle">until the start</text>
+<text class="note" x="370" y="532" text-anchor="middle">call returns</text>
 
-<line class="edge" x1="232" y1="80" x2="358" y2="80" marker-end="url(#f1-arrow)" />
-<text class="note" x="244" y="70">wb cred set: open</text>
-<line class="edge" x1="232" y1="185" x2="358" y2="135" marker-end="url(#f1-arrow)" />
-<text class="note" x="262" y="200">read at use</text>
-<line class="edge" x1="232" y1="340" x2="338" y2="340" marker-end="url(#f1-arrow)" />
-<path class="edge" d="M130,396 C130,470 250,500 338,500" marker-end="url(#f1-arrow)" />
-<line class="edge" x1="445" y1="162" x2="445" y2="298" marker-end="url(#f1-arrow)" />
-<text class="note" x="400" y="235">pipe</text>
-<line class="edge" x1="590" y1="162" x2="590" y2="458" marker-end="url(#f1-arrow)" />
-<text class="note" x="560" y="420">pipe</text>
+<rect class="box host" x="500" y="470" width="200" height="76" rx="10" />
+<text class="label" x="600" y="496" text-anchor="middle">ssh (build)</text>
+<text class="note" x="600" y="516" text-anchor="middle">one session (I139)</text>
+<text class="note" x="600" y="532" text-anchor="middle">stdin to sudo</text>
 
-<rect class="box host" x="700" y="30" width="270" height="66" rx="10" />
-<text class="label" x="835" y="54" text-anchor="middle">upstream host</text>
-<text class="note" x="835" y="73" text-anchor="middle">only the binding's hosts,</text>
-<text class="note" x="835" y="89" text-anchor="middle">per request, over TLS</text>
-<line class="edge" x1="612" y1="70" x2="698" y2="65" marker-end="url(#f1-arrow)" />
+<path class="edge" d="M280,100 C230,110 180,170 150,228" marker-end="url(#f1-arrow)" />
+<text class="note" x="160" y="150">write</text>
+<path class="edge" d="M120,228 C120,20 560,10 580,68" marker-end="url(#f1-arrow)" />
+<text class="note" x="290" y="22">fetch: bindings · use: CA key</text>
+<polyline class="edge" points="222,330 580,330 600,292" marker-start="url(#f1-arrow)" marker-end="url(#f1-arrow)" />
+<text class="note" x="236" y="352">write, fetch: wbadmin items</text>
 
-<rect class="boundary" x="660" y="120" width="330" height="110" rx="14" />
-<text class="boundary-label" x="672" y="140">VM running project code</text>
-<rect class="box guest" x="700" y="155" width="270" height="60" rx="10" />
-<text class="label" x="835" y="179" text-anchor="middle">guest</text>
-<text class="note" x="835" y="199" text-anchor="middle">placeholders only, never a secret</text>
-<line class="edge-bad" x1="612" y1="110" x2="698" y2="180" marker-end="url(#f1-arrow-bad)" />
+<line class="edge" x1="520" y1="292" x2="400" y2="468" marker-end="url(#f1-arrow)" />
+<text class="note" x="440" y="455">pipe</text>
+<line class="edge" x1="660" y1="292" x2="660" y2="468" marker-end="url(#f1-arrow)" />
+<text class="note" x="668" y="455">pipe</text>
 
-<rect class="boundary" x="660" y="270" width="330" height="300" rx="14" />
-<text class="boundary-label" x="672" y="290">build VM or fresh clone: no project code yet</text>
-<rect class="box guest" x="700" y="310" width="270" height="70" rx="10" />
-<text class="label" x="835" y="336" text-anchor="middle">wbprov</text>
-<text class="note" x="835" y="357" text-anchor="middle">volume owner, host-administered</text>
-<rect class="box guest" x="700" y="440" width="270" height="104" rx="10" />
-<text class="label" x="835" y="466" text-anchor="middle">wb-guestd</text>
-<text class="note" x="835" y="487" text-anchor="middle">first contact: sets a new</text>
-<text class="note" x="835" y="504" text-anchor="middle">password from wb-proxyd,</text>
-<text class="note" x="835" y="520" text-anchor="middle">on its own connection, and</text>
-<text class="note" x="835" y="536" text-anchor="middle">retires the old one</text>
-<line class="edge" x1="835" y1="438" x2="835" y2="382" marker-end="url(#f1-arrow)" />
-<line class="edge" x1="552" y1="330" x2="698" y2="340" marker-end="url(#f1-arrow)" />
-<line class="edge" x1="612" y1="490" x2="698" y2="370" marker-end="url(#f1-arrow)" />
-<path class="edge" d="M612,145 C680,210 640,420 698,470" marker-end="url(#f1-arrow)" />
+<rect class="box host" x="770" y="40" width="210" height="66" rx="10" />
+<text class="label" x="875" y="64" text-anchor="middle">upstream host</text>
+<text class="note" x="875" y="83" text-anchor="middle">the binding's hosts,</text>
+<text class="note" x="875" y="99" text-anchor="middle">per request, over TLS</text>
+<line class="edge" x1="702" y1="90" x2="768" y2="78" marker-end="url(#f1-arrow)" />
+
+<rect class="boundary" x="745" y="125" width="245" height="100" rx="14" />
+<text class="boundary-label" x="757" y="145">VM running project code</text>
+<rect class="box guest" x="770" y="155" width="210" height="56" rx="10" />
+<text class="label" x="875" y="179" text-anchor="middle">guest</text>
+<text class="note" x="875" y="198" text-anchor="middle">placeholders only</text>
+<line class="edge-bad" x1="702" y1="130" x2="768" y2="175" marker-end="url(#f1-arrow-bad)" />
+
+<rect class="boundary" x="745" y="250" width="245" height="320" rx="14" />
+<text class="boundary-label" x="757" y="270">build VM or fresh clone</text>
+<text class="note" x="757" y="287">no project code yet</text>
+<rect class="box guest" x="770" y="300" width="210" height="70" rx="10" />
+<text class="label" x="875" y="326" text-anchor="middle">wbadmin</text>
+<text class="note" x="875" y="347" text-anchor="middle">host-administered</text>
+<rect class="box guest" x="770" y="420" width="210" height="96" rx="10" />
+<text class="label" x="875" y="446" text-anchor="middle">wb-guestd</text>
+<text class="note" x="875" y="467" text-anchor="middle">first contact: old and</text>
+<text class="note" x="875" y="484" text-anchor="middle">new password on its</text>
+<text class="note" x="875" y="500" text-anchor="middle">own connection</text>
+<line class="edge" x1="875" y1="418" x2="875" y2="372" marker-end="url(#f1-arrow)" />
+<path class="edge" d="M702,250 C740,300 730,420 768,450" marker-end="url(#f1-arrow)" />
+<path class="edge" d="M462,480 C560,430 700,380 768,345" marker-end="url(#f1-arrow)" />
+<line class="edge" x1="702" y1="500" x2="768" y2="360" marker-end="url(#f1-arrow)" />
 </svg>
 <figcaption>
-Figure 1. Each box on the host says what it holds. Every arrow out of `wb-proxyd` is a path S15-least-privilege names, with its channel, and with the event that ends it. The red dashed arrow shows what the design stops. A credential that opens anything outside one VM never enters a guest (SEC04-no-guest-secrets). The break-glass console login isn't drawn, because its delivery is open question 3.
+Figure 1. Each arrow into or out of the store is a declared access: write, fetch, or use in place. `wb-hostd` has no store access. The red dashed arrow is a path the design stops. A credential that opens anything outside one VM never enters a guest (SEC04-no-guest-secrets). The break-glass login isn't drawn, because its delivery is open question 4.
 </figcaption>
 </figure>
 
 ## Options
 
-### Decision 1: how SEC12 treats a credential that must be shared
+### Decision 1: where credentials are held
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
-#### A. One nominal holder, named sharing paths
+#### A. The store, with declared access per process
 
-SEC12-least-privilege says each credential is nominally held by one process and reaches others only along paths S15-least-privilege names, with recipients, channel, and lifetime. The guest admin password is the worked example, kept by the host per VM.
+Each process has a declared set of store items and an access kind for each. A backend must keep Wraith Box items apart and scope them per process. It fails closed when locked. A weaker backend runs only when you turn it on by name.
 
-- **Cost:** a crossing table to keep current. Each new path is a spec change.
+- **Cost:** a store access shim in each declared process, and a table to keep current.
 - **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC11-root-gains-nothing" variant="success" /> <Badge text="SEC04-no-guest-secrets" variant="caution" />
 
 </div>
 <div class="wb-option">
 
-#### B. Keep "exactly one", with named exceptions
+#### B. wb-proxyd holds every credential
 
-I145 options 1 to 3: the wording stays, and the build password becomes a written exception in SEC00-index and S04-architecture.
+The first draft, and S04-architecture as written. Other processes get their secrets through `wb-proxyd`.
 
-- **Cost:** every later case (`wb cred set`, OAuth refresh, break-glass) needs an exception of its own, and the rule stops describing what the code does.
+- **Cost:** a compromise of `wb-proxyd` through a guest stream reaches every secret, the guest admin passwords included.
 - **Keeps:** <Badge text="SEC12-least-privilege" variant="caution" />
 
 </div>
 <div class="wb-option">
 
-#### C. Discard the password, dead token
+#### C. Discard the guest admin password
 
-I145 option 4 as first written: nobody keeps the password, and the secure token stops working.
+I145 option 4 as first written: nobody keeps it, and the secure token stops working.
 
-- **Cost:** no break-glass login. No volume owner is left, so nothing can authorize a change that needs one.
+- **Cost:** no break-glass login, and no volume owner left.
 - **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC11-root-gains-nothing" variant="success" />
 
 </div>
@@ -148,73 +153,75 @@ I145 option 4 as first written: nobody keeps the password, and the secure token 
 
 ### The open questions in S15-least-privilege
 
-Each has a leaning. Approving the spec accepts the leanings unless you say otherwise.
+Approving the spec accepts each leaning unless you say otherwise.
 
-1. **Build pipes.** `wb-hostd` creates a pipe each for the build's `wb-vmd` and SSH client, and `wb-launcher` hands the read ends over at spawn. The alternative, a gRPC field, breaks rule 3. Needs X25-vmd-sandbox decision 2 and I139.
-2. **After break-glass.** Leaning: replace the VM's system disk with a fresh clone at its next stop, which keeps the data disk and rotates at first contact. Rotating in place gives the new password to a guest that may be rooted.
-3. **Break-glass delivery, and `admin`.** Leaning: `wb vm console` shows the password once, and the user types it. Is `wbprov` kept in `admin`, enabled, and with a shell? A console login may need all three. Today's sealing scan requires it disabled, hidden, without a shell and out of `admin`.
-4. **`wb cred set`.** Leaning: `wb` passes the value to `wb-proxyd` on a descriptor, and `wb-proxyd` writes the secret store item, so `wb-hostd` never sees it. Bindings name their OAuth token endpoint.
-5. **Passwords in host remote URLs.** Leaning: remove user name and password from withheld URLs too, before their audit record.
+1. **Who builds and rotates.** Leaning: `wb-guestadmin`, a short-lived program started through `wb-launcher`, with access to `wbadmin` items only. The alternative, `wb-hostd`, would give store access to the process that parses guest messages.
+2. **The build's `ssh`.** Leaning: `wb-guestadmin` pipes the password, through an askpass program that reads an inherited descriptor, and to `sudo -S` on the session's standard input. The alternative is a `wb-askpass` helper that reads the store itself.
+3. **After break-glass.** Leaning: replace the VM's system disk with a fresh clone at its next stop. The data disk stays.
+4. **Break-glass delivery, and `admin`.** Leaning: `wb vm console` fetches the VM's password and shows it once. Should `wbadmin` stay in `admin`, enabled, and with a shell? Today's sealing scan requires the opposite.
+5. **Unlocking the dedicated keychain.** Leaning: with signed builds, the data protection keychain with an access group per role. Until then, a dedicated keychain file whose password is the one Wraith Box item in the login keychain.
+6. **1Password.** Leaning: the desktop app integration, with a vault per role. It gets its own issue and a license check of the client first.
+7. **Passwords in host remote URLs.** Leaning: remove them from withheld URLs too, before the audit record.
 
 ### Questions for you
 
 - **S01-spec-based-development.** Should it record the "one spec per security requirement" approach now, or after you have reviewed this first one? This pull request doesn't change S01.
-- **SEC04-no-guest-secrets.** The guest admin password enters its own guest at first contact and at break-glass. Should SEC04 say that a credential which opens nothing outside its own VM is outside its scope, or is S15-least-privilege rule 6 enough?
-- **Length.** S15-least-privilege is about 270 lines, against the 100-line aim of S01-spec-based-development. Is that the right size for a spec per security requirement, or should the crossing table move to its own page?
-- **I142 and I146.** Should their bodies be updated to the narrowed question and the dropped option, or closed and filed again?
+- **SEC04-no-guest-secrets.** A `wbadmin` password enters its own guest at first contact and at break-glass. Should SEC04 say that a credential which opens nothing outside its own VM is outside its scope, or is S15-least-privilege rule 9 enough?
+- **1Password's weaker scoping.** It scopes by vault and session, not by process. Is "runs only when turned on by name, and every session start says so" the right way to allow it, or should it wait until a vault per role is built?
+- **The other specs.** This pull request also edits S09-policy-credentials-audit "Storage" and S10-tech-stack's Keychain row, which named `wb-proxyd` as the only reader. Keep those edits here, or split them out?
+- **Length.** S15-least-privilege is about 250 lines, against the 100-line aim. Is that right for a spec per security requirement?
+- **I142 and I146.** Update their bodies to the narrowed question and the dropped option, or close them and file again?
 
 ## Impact
 
 <table class="wb-impact">
 <thead>
-<tr><th>Requirement</th><th>A. Named paths</th><th>B. Exceptions</th><th>C. Dead token</th></tr>
+<tr><th>Requirement</th><th>A. Store, declared</th><th>B. wb-proxyd holds all</th><th>C. Discard</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">one holder, named paths</td><td class="partial">rule plus exceptions</td><td class="yes">no password kept</td></tr>
-<tr><td><strong>SEC11-root-gains-nothing</strong> guest root doesn't reach the host</td><td class="yes">no escalation: wb-guestd is root</td><td class="yes">unchanged</td><td class="yes">no password left</td></tr>
+<tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">per process, just in time</td><td class="partial">one process has all</td><td class="yes">no password kept</td></tr>
+<tr><td><strong>SEC11-root-gains-nothing</strong> guest root doesn't reach the host</td><td class="yes">no escalation: wb-guestd is root</td><td class="partial">guest streams reach the holder</td><td class="yes">no password left</td></tr>
 <tr><td><strong>SEC04-no-guest-secrets</strong> no host secret in the guest</td><td class="partial">guest's own password, before project code</td><td class="partial">same</td><td class="yes">nothing kept</td></tr>
-<tr><td><strong>SEC10-audit</strong> every decision recorded on the host</td><td class="yes">path use, no value</td><td class="yes">unchanged</td><td class="yes">nothing to record</td></tr>
-<tr><td>Break-glass console login</td><td class="yes">host-held password</td><td class="partial">unspecified</td><td class="no">impossible</td></tr>
+<tr><td><strong>SEC10-audit</strong> every decision recorded on the host</td><td class="yes">each access, no value</td><td class="partial">unspecified</td><td class="yes">nothing to record</td></tr>
+<tr><td>Prompts at session start (I51)</td><td class="partial">one unlock, batched</td><td class="partial">one unlock</td><td class="na">n/a</td></tr>
+<tr><td>Break-glass console login</td><td class="yes">from the store</td><td class="yes">through wb-proxyd</td><td class="no">impossible</td></tr>
 </tbody>
 </table>
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> macOS refuses to delete `wbprov` or take its secure token: `sysadminctl -deleteUser` and `-secureTokenOff` both refuse, and `dscl . -delete` fails (X17-image-build, "Answer", item 7).
+- <Badge text="verified" variant="success" /> macOS refuses to delete the provisioning user or take its secure token: `sysadminctl -deleteUser` and `-secureTokenOff` refuse, and `dscl . -delete` fails (X17-image-build, "Answer", item 7).
 - <Badge text="verified" variant="success" /> `sysadminctl -adminPassword "$P"` puts the password in the process arguments, which any guest process sees with `ps`, and `-` makes it read the password interactively (I145 comment of 2026-10-07).
-- <Badge text="verified" variant="success" /> S04-architecture already puts every credential in `wb-proxyd`, with the only secret store access, and keeps `wb-hostd` and `wb-vmd` free of them (S04-architecture, "Secrets live in one process"; S09-policy-credentials-audit, "Storage"; S12-platforms, "Secret store").
-- <Badge text="verified" variant="success" /> `wb-hostd` terminates the host-guest socket and parses guest messages, which is why it isn't the holder (S04-architecture, "Processes").
 - <Badge text="verified" variant="success" /> A reset without the old password logged that the changed password can't be used for disk encryption (I142 body, from the X17-image-build cleanup log). The rotation passes the old password for that reason.
-- <Badge text="assumed" variant="caution" /> That `sysadminctl` reads both `-newPassword -` and `-adminPassword -` from standard input in one call. Only `-adminPassword -` was checked. A builder checks it on a VM.
-- <Badge text="assumed" variant="caution" /> That a disabled account can authorize its own password change, which each VM's rotation relies on. If not, the rotation enables it for the step, or open question 3 keeps it enabled.
-- <Badge text="assumed" variant="caution" /> That guest root can't extract the host-held password or reset its way into the secure token. I142 measures it.
-- <Badge text="assumed" variant="caution" /> That Virtualization doesn't write the provisioning password into the build bundle. S15-least-privilege open question 6 checks it during I139.
-- <Badge text="inferred" variant="note" /> A rotation connection that `wb-proxyd` only writes to doesn't add a guest parser to it, because it doesn't read from it (S15-least-privilege, "Worked example").
+- <Badge text="verified" variant="success" /> S04-architecture, S09-policy-credentials-audit and S12-platforms named `wb-proxyd` as the only process with secret store access before this change.
+- <Badge text="inferred" variant="note" /> The Keychain scopes an item by the reading app's code signature. An ad-hoc signed binary is identified by its hash. Each update then asks again. X09-keychain-unsigned and I61 confirm it.
+- <Badge text="assumed" variant="caution" /> 1Password's desktop app authorizes its CLI for 10 minutes after use, up to 12 hours, and scopes by vault and session, not by process. To check against its documentation in the 1Password issue.
+- <Badge text="assumed" variant="caution" /> `sysadminctl` reads both `-newPassword -` and `-adminPassword -` from standard input in one call, and a disabled account can authorize its own password change. A builder checks both on a VM.
+- <Badge text="assumed" variant="caution" /> Guest root can't extract the host-held password or reset its way into the secure token. I142 measures it.
+- <Badge text="assumed" variant="caution" /> Virtualization doesn't write the provisioning password into the build bundle. S15-least-privilege open question 8 checks it during I139.
 
 ## What it unblocks
 
 - I145 closes when this merges.
-- The image build, once I139 and open question 1 are settled. S06-vm-lifecycle keeps it failing closed until then.
+- The image build, once I139 and open questions 1 and 2 are settled.
 - I142 and I146, with their narrowed scope.
-- The next spec in this form, for the next security requirement.
+- A 1Password backend issue, and the next spec in this form.
 
 <details>
 <summary>Details and glossary</summary>
 
-**Why "nominally".** A credential always spends some time somewhere else: in the OS service that stores it, in the TLS connection that sends it, or in the guest that has to check it. "Held by exactly one process" can't be true of any of them. S15-least-privilege keeps one process responsible for each credential and makes every other place it goes a named path with a channel and an end.
+**Why "nominally".** A credential always spends some time somewhere else: in the process that injects it, in the TLS connection that sends it, or in the guest that checks it. S15-least-privilege keeps the store as the one place a credential lives, and makes each other place a declared access with a kind, a channel, and an end.
 
-**The rules, short.** Named in advance, random and narrow, descriptors or standard input only, audited without the value, dropped or burned and replaced, and into a guest only before project code or as a burn.
+**Fetch and use.** A fetch brings the value into the process. With a use, the store signs or decrypts in place and keeps the value. The Secure Enclave CA key and 1Password's SSH agent work that way, and S15-least-privilege prefers use wherever the store allows it.
 
-**Why the host may keep the guest's admin password.** `wb-guestd` runs as root in the guest and does what the host asks, so the host is already the guest's administrator. The password adds the secure token, which lets a volume owner approve changes such as turning off System Integrity Protection. Only the host can use it, and a password burned in one VM opens nothing in another.
-
-**Crossings still open.** How `wb cred set` hands a value to `wb-proxyd` (question 4), passwords in withheld remote URLs (question 5), and the Claude subscription login (X01-model-credential).
+**Why the host may keep the guest's admin password.** `wb-guestd` runs as root in the guest and does what the host asks, so the host is already the guest's administrator. The password adds the secure token, which lets a volume owner approve changes such as turning off System Integrity Protection.
 
 **Glossary**
 
-- **Nominal holder:** the one process responsible for a credential, which reads it, uses it, and decides who else may see it.
-- **Secure token:** a macOS account property that lets the account unlock the disk and approve changes to it. The first account on a volume gets it.
-- **Volume owner:** an account with a secure token, which macOS asks before changes to the startup disk's security.
-- **Break-glass:** an emergency way in, used when the normal one (`wb-guestd`) is broken, and treated as compromising the password.
+- **Secret store:** the place credentials are kept, for example the macOS Keychain, or a 1Password vault.
+- **Declared access:** an entry in S15-least-privilege that lets one process write, fetch or use one kind of store item.
+- **Secure token:** a macOS account property that lets the account unlock the disk and approve changes to it.
+- **Break-glass:** an emergency way in, used when `wb-guestd` is broken, and treated as compromising the password.
 - **Descriptor:** a handle to an open pipe or socket that one process can pass to another. The data then goes straight between them.
 - **Burned:** a credential that reached a place that may be hostile, and is replaced before it is used again.
 

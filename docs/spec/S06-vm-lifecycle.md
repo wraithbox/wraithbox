@@ -33,37 +33,40 @@ in S12-platforms.
      installs `wb-guestd` as a root LaunchDaemon and nothing else.
      Which network carries that session is open (I139).
 
-     *The guest admin password.* The provisioning options take a
-     password for the provisioning user (`wbprov`), and the build's one
-     SSH session needs it. The host keeps that user's password from
-     then on, as a credential that `wb-proxyd` holds and shares only
-     along the paths of S15-least-privilege, where it is the main
-     worked example (I145):
-     - `wb-proxyd` generates a password for each build, and hands it to
-       the build's `wb-vmd` until the start call returns and to the SSH
-       client (I139) for its one session, each on a pipe. Which process
-       creates the pipes is S15-least-privilege open question 1, and the
-       build fails closed until it is settled;
+     *The guest admin password.* The provisioning options create the
+     user `wbadmin` with a password, and the build's one SSH session
+     needs it. The host keeps that user's password in the configured
+     secret store from then on, and S15-least-privilege declares who
+     may write, fetch or receive it (I145):
+     - the program that builds the image (`wb-guestadmin`, proposed in
+       S15-least-privilege open question 1) generates a password for
+       each build, writes it to the store, and hands it on pipes to the
+       build's `wb-vmd` until the start call returns and to the SSH
+       client (I139, S15-least-privilege open question 2) for its one
+       session. The build fails closed until both questions are
+       settled;
      - provisioning options for a session VM are refused, and the
        refusal is logged with its rule;
-     - the password is never in arguments, never written to disk, and
-       never in a log, a gRPC message or an audit record;
+     - the password is never in arguments, never written to disk
+       outside the store, and never in a log, a gRPC message, or an
+       audit record;
      - the guest gets it only on standard input.
   2. *Through `wb-guestd`.* Everything after that goes over the
      host-guest socket to `wb-guestd`. At first contact, before any
-     other request, it rotates the provisioning user's password to the
-     image's password from `wb-proxyd`, authorized with the build's
-     password, both on standard input. The secure token keeps working,
+     other request, `wbadmin`'s password is rotated from the build's
+     password to the image's, which `wb-guestadmin` writes to the store
+     first. Both reach `wb-guestd` on a connection of their own, and
+     `sysadminctl` on standard input. The secure token keeps working,
      and the host alone can unlock it. The build fails if the rotation
      fails. It then turns Remote Login and automatic login off.
-     macOS refuses to delete the provisioning user, because it holds
-     the volume's only secure token. The image keeps it as a
-     host-administered account. Whether it stays in `admin`, and what
-     a break-glass console login needs, is open (I146,
-     S15-least-privilege open question 3). Until that is decided the
-     build takes it out of every group and disables it. Then the base
-     layer is installed and the image is sealed. Which user installs
-     the base layer, and in which order, is open (I144).
+     macOS refuses to delete `wbadmin`, because it holds the volume's
+     only secure token. The image keeps it as a host-administered
+     account. Whether it stays in `admin`, and what a break-glass
+     console login needs, is open (I146, S15-least-privilege open
+     question 4). Until that is decided the build takes it out of every
+     group and disables it. Then the base layer is installed and the
+     image is sealed. Which user installs the base layer, and in which
+     order, is open (I144).
 
   The host never mounts a guest disk to build an image. An
   unprivileged host process can't create a root-owned file on it, so
@@ -119,12 +122,13 @@ in S12-platforms.
   image. Project data is on a separate data disk and survives (below).
 - **One guest admin password per VM.** At first contact in each fresh
   clone of an image, before any other request, and before any project
-  code, `wb-guestd` rotates the provisioning user's password to one
-  that `wb-proxyd` generates for that VM, so a password burned in one
-  VM opens nothing in another. `wb-hostd` doesn't start a session in a VM
-  whose rotation hasn't succeeded. The channel and the break-glass use
-  are in S15-least-privilege. Whether guest root can extract the
-  host-held password or reset its way into the secure token is I142.
+  code, `wbadmin`'s password is rotated to one that is generated for
+  that VM and kept in the secret store, so a password burned in one VM
+  opens nothing in another. `wb-hostd` doesn't start a session in a VM
+  whose rotation hasn't succeeded. The store items, the channel, and the
+  break-glass use are in S15-least-privilege. Whether guest root can
+  extract the host-held password or reset its way into the secure token
+  is I142.
 
 ## VMs
 
