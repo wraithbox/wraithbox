@@ -92,12 +92,16 @@ binary of that name comes from the Swift package.
   (`internal/version/version.go`, `WraithBoxVM/Version.swift`), and
   into the guest tools disk image: the release build, the dev build
   (`mise run build`) and CI. The version includes the VCS revision. A
-  build of a modified working tree adds a modified flag and a nonce
-  for that build, so two different uncommitted trees never match. Only
+  build of a modified working tree adds a modified flag and a nonce,
+  so two different uncommitted trees never match. The nonce is made
+  once per `mise run build` invocation and shared by every language
+  task in it, so a partial rebuild of a modified tree needs a full
+  build. Only
   a bare toolchain build (`go build`, `go run`, `swift build`) is
   unstamped. It has no version, and every peer refuses it, an
-  unstamped peer included. Unit tests that exercise the version
-  exchange set the version explicitly (I174). Host processes refuse a peer of
+  unstamped peer included. Tests that exercise the version exchange
+  set the version explicitly, and integration tests build through the
+  stamping task (I174). Host processes refuse a peer of
   another version, and `wb-hostd` refuses a `wb-guestd` of another
   version (S04-architecture, "Version skew").
 - **Versioned contracts.** Each `.proto` package name ends in its

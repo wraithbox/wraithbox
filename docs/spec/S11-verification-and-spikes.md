@@ -23,7 +23,10 @@ be tested before building on them.
   included, no restart after the fifth exit, and a session start then
   refused with `daemon-given-up`. The same test runs with the VM's
   audit event budget exceeded and its refusal events suppressed, and
-  sees every debit and every mapping entry and release counted. A
+  sees every debit and every mapping entry and release counted. An
+  event write that fails with `ENOBUFS` or `EAGAIN` refuses new work
+  with `event-channel-blocked`, and the record is written once the
+  retry succeeds. A
   mapping entry with an uppercase or non-LDH name, a trailing dot, an
   address outside 198.18.0.0/15, or one past 131,072 live entries is
   logged with `mapping-entry-invalid` and ends the `wb-netd` that sent
