@@ -61,9 +61,13 @@ Brief: B28-image-build
      SSH session needs it, and the disable step needs it again to keep
      the secure token usable. Holding it is an exception to
      SEC12-least-privilege, so it is the maintainer's decision, in
-     [I145](https://github.com/wraithbox/wraithbox/issues/145). Until
-     then the build fails closed, and S06-vm-lifecycle states the rules
-     that hold whatever I145 decides.
+     I145. Until then the build fails closed, and S06-vm-lifecycle
+     states the rules that hold whatever I145 decides.
+     I145's option 4, which avoids a shared password, works whichever
+     way I142 comes out, because a dead token is acceptable when images
+     are rebuilt and never updated. So it would remove the need for a
+     SEC12 exception, and I142 only has to rule out the token staying
+     usable after a root reset.
 - **Brief:** B28-image-build
 
 ## Question
