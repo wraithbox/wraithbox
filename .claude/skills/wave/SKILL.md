@@ -57,6 +57,7 @@ and `--area <label>`.
    Take at most one `needs-vm` issue, and none while another
    `needs-vm` builder is running, in this session or another. Every
    open, assigned `needs-vm` issue counts as running until it closes
+   or is released
    (`orchestration.md`, "A wave", step 2). The maintainer's Mac runs at
    most two macOS guests (NFR05-two-macos-vms). Name the `needs-vm`
    issue in the wave you announce. Hold back the other `needs-vm`
