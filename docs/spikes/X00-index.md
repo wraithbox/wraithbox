@@ -31,7 +31,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X14-flow-attribution | Guest flow attribution | Open |
 | X15-endpoint-security | Endpoint Security entitlement | Open |
 | X16-openshell-linux | OpenShell for Linux guests | Open |
-| X17-image-build | Unattended image build | Open |
+| X17-image-build | Unattended image build | Answered 2026-10-07: no |
 | X18-vsock-handoff | Host-guest socket and descriptor hand-off | Answered 2026-10-05: yes, with conditions |
 | X19-terminal-filter | Terminal stream filtering | Answered |
 | X20-shared-homebrew | Homebrew with more than one project user | Open |
@@ -164,6 +164,9 @@ assumption that v1 work would otherwise build on. They block v1.
   MDM? The candidate is writing files to the new guest's data
   volume from the host at build time, before any untrusted code has
   run. Measure the build time from the restore image.
+  Answered no, in the result page X17-image-build: a host without root
+  can't write files launchd accepts, so the build installs `wb-guestd`
+  with one SSH session on its first boot.
 - **X18-vsock-handoff: Host-guest socket and descriptor hand-off.** Can `wb-guestd`,
   written in Go, open `AF_VSOCK` sockets in a macOS guest? Do the
   file descriptors of a vsock connection and of the file-handle

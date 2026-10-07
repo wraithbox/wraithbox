@@ -22,18 +22,51 @@ in S12-platforms.
   VM's CAs at runtime (S09-policy-credentials-audit, "TLS inspection certificate
   authority").
 - **Built by Wraith Box.** `wb image build` installs macOS into a new
-  VM, then provisions it through `wb-guestd` (no SSH, no guest network
-  credentials). Builds are scripted and repeatable; nobody configures an
-  image by hand.
+  VM from a restore image in a local file, then provisions it in two
+  stages (X17-image-build). Builds are scripted and repeatable, and
+  nobody configures an image by hand.
+  1. *Provisioning boot.* The first boot sets the macOS provisioning
+     options (macOS 27 host and guest). They create a provisioning user
+     with a random password that only the build holds, turn Remote
+     Login on, and get the guest past Setup Assistant with no clicks. One SSH
+     session as that user installs `wb-guestd` as a root LaunchDaemon
+     and nothing else. Which network carries that session is open
+     (I139).
+  2. *Through `wb-guestd`.* Everything after that goes over the
+     host-guest socket to `wb-guestd`. It first turns Remote Login and
+     automatic login off. It then takes the provisioning user out of
+     every group and disables it, with a new random password that the
+     build discards. macOS refuses to delete that
+     user, because it holds the volume's only secure token. Then the
+     base layer is installed and the image is sealed.
+
+  The host never mounts a guest disk to build an image. An
+  unprivileged host process can't create a root-owned file on it, so
+  launchd refuses anything the host would write there, and root on the
+  host is ruled out by SEC12-least-privilege (X17-image-build).
 - **Guest confinement.** The base image includes the Network Extension
   of S13-guest-confinement, approved during the build, once spike X14-flow-attribution allows it.
-- **Sealing.** Before an image is usable it is scanned for anything that
-  looks like a secret (keychain items, tokens in dotfiles, SSH keys,
-  shell history). A non-empty result fails the build (SEC04-no-guest-secrets).
-  The scan also fails the build on an enabled account in the `admin`
-  or `wheel` group other than root, and on a sudoers entry beyond the
-  ones macOS ships, so any admin account the build creates is disabled
-  or removed before the image is sealed (X27-vsock-confinement).
+- **Sealing.** Before an image is usable, `wb-guestd` scans it as root,
+  before any untrusted code has run. The host parses no guest
+  filesystem. Any finding fails the build:
+  - anything that looks like a secret (keychain items, tokens in
+    dotfiles, SSH keys, shell history) and `/etc/kcpassword`
+    (SEC04-no-guest-secrets);
+  - an account other than root with a password in the `admin` or
+    `wheel` group, and a sudoers entry beyond the ones macOS ships
+    (X27-vsock-confinement);
+  - a non-system account, except the provisioning user if it is the
+    volume owner, disabled, without a shell, and only in the groups
+    every local user is in (X17-image-build);
+  - Remote Login (`com.openssh.sshd` enabled or loaded, or a listener
+    on TCP port 22), screen sharing or remote management, and
+    automatic login (SEC04-no-guest-secrets, SEC05-default-deny);
+  - files outside `/Users` owned by a non-system user id, other than the
+    provisioning user's temporary folders, and launchd jobs other than
+    Apple's and `wb-guestd`'s.
+
+  So any admin account the build creates is disabled or removed before
+  the image is sealed.
 - **Storage and distribution.** Images are stored locally and cloned
   copy-on-write (APFS clones on macOS; S12-platforms) into VM bundles.
   Sharing images between machines as OCI artifacts in a registry is a

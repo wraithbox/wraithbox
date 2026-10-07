@@ -1,0 +1,178 @@
+---
+title: Can an unprivileged host build a macOS guest image without SSH or clicks?
+description: No. The host can't write files that launchd accepts. The build installs wb-guestd with one SSH session on its first boot, then turns Remote Login off and disables the provisioning user.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-07: no. Awaiting decision.** Source: X17-image-build (I28). Changes S06-vm-lifecycle ("Images" only). Follow-ups: I138 (deleting a project user's record), I139 (the network for the SSH session), I140 (the S11-verification-and-spikes spike list).
+
+<Aside type="tip" title="What we learned">
+**No.** Without root, the host can mount a new guest's disk and write to it. Every file it writes belongs to the host user, though, and launchd refused to start them. What works: the macOS 27 provisioning options create a user and get past Setup Assistant, one SSH session as that user installs `wb-guestd`, and from then on everything goes through `wb-guestd`. It turns Remote Login off, and the sealing scan now fails the build when it's on. The build disables the provisioning user, because macOS refuses to delete it. About 6.6 minutes from a downloaded restore image to a sealed image. The decisions below are about the disabled user, the network for the SSH session and the macOS version of v1 hosts.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="On the host, wb image build asks wb-vmd to install and boot a new VM. Writing wb-guestd to the guest's disk from the host fails because launchd refuses files the host owns. Instead, the first boot gets provisioning options, one SSH session installs wb-guestd, and after that the build talks to wb-guestd over vsock to turn Remote Login off, disable the provisioning user and scan the image.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="20" y="40" width="190" height="60" rx="10" />
+  <text class="label" x="115" y="66" text-anchor="middle">wb-vmd</text>
+  <text class="note" x="115" y="86" text-anchor="middle">install, boot</text>
+  <rect class="box host" x="20" y="140" width="190" height="60" rx="10" />
+  <text class="label" x="115" y="166" text-anchor="middle">wb image build</text>
+  <text class="note" x="115" y="186" text-anchor="middle">no root on the host</text>
+
+  <rect class="boundary" x="430" y="20" width="310" height="295" rx="12" />
+  <text class="boundary-label" x="442" y="40">new guest (no untrusted code yet)</text>
+  <rect class="box guest" x="455" y="50" width="260" height="50" rx="10" />
+  <text class="label" x="585" y="80" text-anchor="middle">1. provisioning user, sshd on</text>
+  <rect class="box guest" x="455" y="145" width="260" height="50" rx="10" />
+  <text class="label" x="585" y="175" text-anchor="middle">2. wb-guestd, root</text>
+  <rect class="box guest" x="455" y="245" width="260" height="55" rx="10" />
+  <text class="label" x="585" y="268" text-anchor="middle">Data volume</text>
+  <text class="note" x="585" y="288" text-anchor="middle">launchd refuses host files</text>
+
+  <line class="edge" x1="212" y1="70" x2="453" y2="70" marker-end="url(#f1-arrow)" />
+  <text class="note" x="240" y="62">first boot: provisioning options</text>
+  <line class="edge" x1="212" y1="150" x2="453" y2="90" marker-end="url(#f1-arrow)" />
+  <text class="note" x="300" y="105">one SSH session</text>
+  <line class="edge" x1="212" y1="180" x2="453" y2="180" marker-end="url(#f1-arrow)" marker-start="url(#f1-arrow)" />
+  <text class="note" x="240" y="198">vsock: sshd off, user disabled,</text>
+  <text class="note" x="240" y="214">sealing scan</text>
+  <path class="edge-bad" d="M115,202 C115,260 300,272 453,272" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="160" y="300">host writes files to the disk</text>
+</svg>
+<figcaption>
+Figure 1. The candidate, writing `wb-guestd` to the guest's disk from the host, fails: the files belong to the host user, and launchd won't start them. The build that works uses the macOS 27 provisioning options and one SSH session on the first boot, then only `wb-guestd` over vsock (S06-vm-lifecycle, "Images").
+</figcaption>
+</figure>
+
+## Decision 1: may the provisioning user stay, disabled?
+
+The provisioning user holds the guest volume's only secure token, the key macOS uses to unlock and manage the volume. macOS refuses to delete that last holder, and refuses to take its token away. The I28 comment of 2026-10-04 asked for the user to be removed.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Keep it disabled
+
+Out of `admin` and every group it can leave, a random password nobody keeps, disabled, no shell, hidden, keychain removed. The sealing scan fails the build unless each of these holds.
+
+- **Cost:** none in the build. One hidden account in every image.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC11-root-gains-nothing" variant="caution" /> assumed: a disabled token holder gives a project user nothing.
+
+</div>
+<div class="wb-option">
+
+### B. Require removal
+
+Look for another way to remove the last secure token holder, or to keep the provisioning user from getting the token.
+
+- **Cost:** the spike found no way. Image builds wait until someone finds one.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" />
+
+</div>
+</div>
+
+## Decision 2: which network carries the SSH session?
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Our own network stack
+
+The build VM gets the file-handle network of a product VM. The host dials the guest's port 22 through its userspace stack, which reaches no other address. Tried in I139.
+
+- **Cost:** a short spike, and a build-only path in `wb-netd`.
+- **Keeps:** <Badge text="SEC05-default-deny" variant="success" />, and no NAT network in `wb-vmd` (X25-vmd-sandbox).
+
+</div>
+<div class="wb-option">
+
+### B. NAT for that boot only
+
+The spike used Apple's NAT network for the provisioning boot, and none after it.
+
+- **Cost:** none to build.
+- **Weakens:** <Badge text="SEC05-default-deny" variant="danger" /> the guest has unfiltered internet before any untrusted code runs, and `wb-vmd` needs a NAT network in its device set. Needs a spec change.
+
+</div>
+</div>
+
+## Decision 3: do v1 hosts need macOS 27?
+
+The provisioning options are new in macOS 27. NFR04-host-platforms says macOS 15 or later.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Raise NFR04-host-platforms to macOS 27
+
+Every v1 host can build its own images.
+
+- **Cost:** users on macOS 15 to 26 can't use v1.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. Ship built images to older hosts
+
+Older hosts download an image built elsewhere. S06-vm-lifecycle leaves image distribution for later.
+
+- **Cost:** a signed image registry in v1, and trust in whoever built the image.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" />
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>Recommended (1A, 2A, 3A)</th><th>Alternatives</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">password replaced and discarded, keychain removed, scan checks</td><td class="yes">same</td></tr>
+<tr><td><strong>SEC05-default-deny</strong> egress only through the gateway</td><td class="yes">Remote Login off, scanned; no NAT, I139</td><td class="no">2B: open internet during the provisioning boot</td></tr>
+<tr><td><strong>SEC11-root-gains-nothing</strong> guest root gets nothing from the host</td><td class="partial">a disabled account stays, assumed harmless</td><td class="yes">1B: no account, if a way is found</td></tr>
+<tr><td><strong>SEC12-least-privilege</strong> no root on the host</td><td class="yes">no sudo, no host mount</td><td class="yes">same</td></tr>
+<tr><td><strong>NFR04-host-platforms</strong> v1 hosts</td><td class="partial">macOS 27 or later</td><td class="partial">3B: older hosts need shipped images</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The host mounts the new guest's Data volume as the user, and every file it writes gets the host user's uid. `chown` to root fails. Source: X17-image-build, "Answer" parts 1 and 2, `results/e1-inject.log`.
+- <Badge text="verified" variant="success" /> launchd refused a host-written LaunchAgent with "bad ownership/permissions", and `smd` skipped a host-written LaunchDaemon at boot. Source: "Answer" part 3, `results/e2-launchd-x17.txt`, `results/e1-host-write-unprivileged.jsonl`.
+- <Badge text="verified" variant="success" /> The provisioning options get past Setup Assistant, and one SSH session installs the daemon, which answers on vsock 23 to 26 s after the start. Source: "Answer" parts 4 and 5, `results/e5-provision-boot.jsonl`.
+- <Badge text="verified" variant="success" /> macOS refuses to delete the provisioning user and to take away its secure token. Disabled, it can't authenticate. Source: "Answer" parts 7 and 8, `results/e4-provision-boot.jsonl`, `results/e5-sealed-boot.jsonl`.
+- <Badge text="verified" variant="success" /> The sealing scan failed with 8 findings before the cleanup, including Remote Login and the provisioning user, and passed after it and on the next boot. Source: "Answer" part 9, `results/e5-provision-boot.jsonl`, `results/e5-sealed-boot.jsonl`.
+- <Badge text="verified" variant="success" /> 271.6 s to install and 127.1 s for the provisioning boot, about 6.6 minutes in all. Source: "Measurements".
+- <Badge text="assumed" variant="caution" /> That the SSH session works over the build VM's own network and the host's userspace stack. I139 tries it.
+- <Badge text="assumed" variant="caution" /> That a disabled account holding the secure token gives a project user or guest root nothing, which the spike didn't test.
+- <Badge text="assumed" variant="caution" /> That root on the host would make the host-write candidate work. Not tried, because SEC12-least-privilege rules it out.
+
+## What it unblocks
+
+The end-to-end tests of the walking skeleton need an image (V1-M2-walking-skeleton). Also I43 (VM slots for image builds), I49 (restore image download: the install reads a local file, so `wb-vmd` doesn't need a network), and I86 (cold boot to `wb-guestd`: 8.5 to 11.0 s here, with one disk).
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the host's files don't work.** The host mounts the guest's disk without root, so macOS ignores ownership on it: the host can write anywhere, but whatever it creates is stored with its own user id. launchd refused or skipped every such file. The host user's id, 501, is also the id macOS gives the first account in the guest, so a daemon binary written that way would belong to that account. With root on the host the files could be owned by root, but Wraith Box never runs as root on the host.
+
+**Why SSH at all.** Without root on the host and without MDM, the first root process in the guest has to come from the guest's own provisioning. The macOS 27 options create an admin user and can turn Remote Login on, and SSH is the only way in that they open. The build uses it once, to install `wb-guestd`.
+
+**Why the user can't be removed.** In the spike, the provisioning user, the first account with a password, became the volume owner, and got its secure token. macOS won't delete the last holder or take the token from it. Disabled, the account can't log in, nobody knows its password, and none of its groups grants anything.
+
+- **LaunchDaemon:** a program launchd starts at boot, as root, from a file in `/Library/LaunchDaemons`.
+- **Setup Assistant:** the macOS first-run screens that create the first account.
+- **Remote Login:** macOS's name for the SSH server.
+- **Secure token:** what lets an account unlock the volume's encryption key and approve changes to it.
+- **Sealing scan:** the check `wb-guestd` runs before an image is used. Any finding fails the build.
+
+</details>
