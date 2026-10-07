@@ -43,7 +43,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="label" x="135" y="266" text-anchor="middle">wb-vmd</text>
 <text class="note" x="135" y="288" text-anchor="middle">platform-native VM provider</text>
 <text class="note" x="135" y="307" text-anchor="middle">macOS: Swift, Virtualization</text>
-<text class="note" x="135" y="326" text-anchor="middle">no policy · no secrets</text>
+<text class="note" x="135" y="326" text-anchor="middle">no policy · build password only</text>
 <line class="edge" x1="252" y1="295" x2="538" y2="295" marker-end="url(#f004-arrow)" />
 <text class="note" x="395" y="287" text-anchor="middle">NIC descriptor</text>
 <line class="edge" x1="135" y1="352" x2="135" y2="398" marker-end="url(#f004-arrow)" />

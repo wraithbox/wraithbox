@@ -167,7 +167,7 @@
 	},
 	"28": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X17-image-build: Unattended image build",
 		"summary": "X17-image-build (added to S11-verification-and-spikes in #14)",
 		"brief": "B28-image-build"
@@ -881,7 +881,7 @@
 	},
 	"141": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X17-image-build result: no, build via provisioning and one SSH session",
 		"summary": "Result of spike X17-image-build: no."
 	},
@@ -908,5 +908,23 @@
 		"state": "open",
 		"title": "SEC12-least-privilege: who holds the image build provisioning password (X17)",
 		"summary": "X17-image-build (PR #141, #28) found that the image build needs a provisioning password: - wb-vmd sets it on VZMacGuestProvisioningOptions; - the build's one SSH session uses it; - wb-guestd's disable step needs the o…"
+	},
+	"146": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X17-image-build decision 1: keep the disabled provisioning user in the image",
+		"summary": "X17-image-build open decision 1 (docs/spikes/X17-image-build.md, B28-image-build): the provisioning user (wbprov) is the volume's only secure-token holder, and macOS refuses both deleting it and taking its token away."
+	},
+	"147": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X17-image-build: try installing wb-guestd by renaming a root-owned file on the host mount (needs maintainer permission)",
+		"summary": "During X17-image-build (#28), the builder planned one more variant of \"write wb-guestd into the guest disk from the host\"."
+	},
+	"148": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Measure or justify the unmeasured session and stream limits from #46 and #47",
+		"summary": "The specs merged on 2026-10-07 contain numbers that were picked strictly and never measured."
 	}
 }

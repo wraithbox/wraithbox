@@ -33,27 +33,37 @@ in S12-platforms.
      installs `wb-guestd` as a root LaunchDaemon and nothing else.
      Which network carries that session is open (I139).
 
-     *The provisioning password.* The provisioning options take a
-     password, the build's one SSH session needs it, and the disable
-     step of stage 2 needs it again: resetting the provisioning user
-     with `-adminPassword` and the old password keeps its secure token
-     usable. Which host process holds it, for how long, and over which
-     channel is open (I145), and until that is decided the build fails
-     closed: there is no `wb image build`. Whatever I145 decides, these
-     hold:
+     *The guest admin password.* The provisioning options take a
+     password for the provisioning user (`wbprov`), and the build's one
+     SSH session needs it. The host keeps that user's password from
+     then on, as a credential that `wb-proxyd` holds and shares only
+     along the paths of S15-least-privilege, where it is the main
+     worked example (I145):
+     - `wb-proxyd` generates a password for each build, and hands it to
+       the build's `wb-vmd` until the start call returns and to the SSH
+       client (I139) for its one session, each on a pipe. Which process
+       creates the pipes is S15-least-privilege open question 1, and the
+       build fails closed until it is settled;
      - provisioning options for a session VM are refused, and the
        refusal is logged with its rule;
-     - the password is never written to disk, and never appears in a
-       log, a gRPC message or an audit record;
+     - the password is never in arguments, never written to disk, and
+       never in a log, a gRPC message or an audit record;
      - the guest gets it only on standard input.
   2. *Through `wb-guestd`.* Everything after that goes over the
-     host-guest socket to `wb-guestd`. It first turns Remote Login and
-     automatic login off. It then takes the provisioning user out of
-     every group and disables it, with a new random password that the
-     build discards. macOS refuses to delete that user, because it
-     holds the volume's only secure token. Then the base layer is
-     installed and the image is sealed. Which user installs the base
-     layer, and in which order, is open (I144).
+     host-guest socket to `wb-guestd`. At first contact, before any
+     other request, it rotates the provisioning user's password to the
+     image's password from `wb-proxyd`, authorized with the build's
+     password, both on standard input. The secure token keeps working,
+     and the host alone can unlock it. The build fails if the rotation
+     fails. It then turns Remote Login and automatic login off.
+     macOS refuses to delete the provisioning user, because it holds
+     the volume's only secure token. The image keeps it as a
+     host-administered account. Whether it stays in `admin`, and what
+     a break-glass console login needs, is open (I146,
+     S15-least-privilege open question 3). Until that is decided the
+     build takes it out of every group and disables it. Then the base
+     layer is installed and the image is sealed. Which user installs
+     the base layer, and in which order, is open (I144).
 
   The host never mounts a guest disk to build an image. An
   unprivileged host process can't create a root-owned file on it, so
@@ -65,9 +75,7 @@ in S12-platforms.
   with the same per-machine keys, so sealing deletes the SSH host keys
   (`/etc/ssh/ssh_host_*_key`). The local Kerberos realm (`LKDC`) of the provisioning user is
   also the same in every clone. An image is rebuilt from a newer
-  restore image, never updated in place. One reason is I142: if the
-  disabled user's secure token can't be used, no volume owner is left
-  to authorize an update.
+  restore image, never updated in place.
 - **Guest confinement.** The base image includes the Network Extension
   of S13-guest-confinement, approved during the build, once spike X14-flow-attribution allows it.
 - **Sealing.** Before an image is usable, `wb-guestd` scans it as root,
@@ -88,7 +96,7 @@ in S12-platforms.
     hidden (`IsHidden`), and without a shell; it is in no groups but
     `staff`, `everyone`, `localaccounts`, `_lpoperator`,
     `com.apple.sharepoint.group.*`, and `com.apple.access_disabled`
-    (the group `pwpolicy` adds when it disables an account); and its
+    (the group `pwpolicy` adds when it disables an account); its
     `~/Library/LaunchAgents` is empty;
   - Remote Login (`com.openssh.sshd` enabled or loaded, or a listener
     on TCP port 22), screen sharing or remote management, and
@@ -109,6 +117,14 @@ in S12-platforms.
   later addition.
 - **Updates.** A VM's system disk is replaced by a fresh clone of the new
   image. Project data is on a separate data disk and survives (below).
+- **One guest admin password per VM.** At first contact in each fresh
+  clone of an image, before any other request, and before any project
+  code, `wb-guestd` rotates the provisioning user's password to one
+  that `wb-proxyd` generates for that VM, so a password burned in one
+  VM opens nothing in another. `wb-hostd` doesn't start a session in a VM
+  whose rotation hasn't succeeded. The channel and the break-glass use
+  are in S15-least-privilege. Whether guest root can extract the
+  host-held password or reset its way into the secure token is I142.
 
 ## VMs
 

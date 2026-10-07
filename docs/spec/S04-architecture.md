@@ -22,9 +22,9 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
 | `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository, then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
 | `wb-prover` | Go | user, per boundary check (at `wb trust` and for an approval request whose result isn't cached), started through `wb-launcher` (on macOS); instance cap one per VM plus one for `wb trust` | nothing | repository policy, and a host name the guest asked for in an approval request, both through `wb-hostd` | Set its memory cap, confine itself to its inherited descriptors (the two documents and the result pipe), check the prover binary's hash, then run `openshell-prover check` with fixed arguments (S09-policy-credentials-audit) |
-| `wb-vmd` | platform-native | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | VM handles | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
+| `wb-vmd` | platform-native | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | VM handles; during an image build, the provisioning password until the start call returns (S15-least-privilege) | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
 | `wb-netd` | Go | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS) | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (S07-egress-gateway) |
-| `wb-proxyd` | Go | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | credentials, CA signing handle | streams from `wb-netd` | HTTP policy, credential replacement, dependency gate, upstream connections (S07-egress-gateway, S09-policy-credentials-audit) |
+| `wb-proxyd` | Go | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | credentials, CA signing handle, guest admin passwords (S15-least-privilege) | streams from `wb-netd`; at a VM's first contact, one host-guest connection that it only writes to (S15-least-privilege) | HTTP policy, credential replacement, dependency gate, upstream connections (S07-egress-gateway, S09-policy-credentials-audit) |
 | `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | n/a (runs in the guest) | Users, PTY exec, git transport (S06-vm-lifecycle) |
 
 Native user-interface helpers (notifications with actions, later a tray
@@ -49,8 +49,14 @@ nothing themselves (S12-platforms).
   `wb-netd` parses raw guest packets, the largest attack surface, and
   holds no secrets and opens no outbound connections. `wb-proxyd` holds
   credentials but only sees TCP byte streams already reassembled by
-  `wb-netd` and validated against the DNS mapping. `wb-hostd` and
-  `wb-vmd` never touch a credential (SEC04-no-guest-secrets, SEC12-least-privilege).
+  `wb-netd` and validated against the DNS mapping. `wb-hostd` never
+  reads a credential, though it may pass on a descriptor with one in
+  it. `wb-proxyd` also holds the guest admin password of each image
+  and each VM. `wb-vmd` gets one only during an image build: the
+  provisioning password, until its start call returns. Each credential has one
+  nominal holder, and every path on which it reaches another process
+  is listed in S15-least-privilege (SEC04-no-guest-secrets,
+  SEC12-least-privilege).
 - **The VM provider passes descriptors, not bytes.** `wb-vmd` opens
   host-guest socket connections and creates the NIC endpoint, then
   hands the descriptors (handles on Windows) to `wb-hostd`, which
