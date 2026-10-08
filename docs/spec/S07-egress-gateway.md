@@ -1181,6 +1181,15 @@ session start in the VM to the end of the last session running in it.
       direction applies: the smaller tree must be a consistent prefix
       of the larger, and it keeps the larger. A stored head that fails
       the check is a finding, the same as one within a run ("Lookup").
+    - The fresh head isn't accepted, and calibration doesn't use it,
+      until that proof is done. While the proof can't be fetched, the
+      computation fails: requests get `go-clock-uncalibrated` before
+      the first point, or `go-clock-stale` applies within a run. The
+      stored head is kept and checked again at the next attempt.
+    - A stored finding is checked at start too. `wb-proxyd` verifies its
+      two heads again and checks the contradiction itself. A finding
+      whose heads don't verify, or turn out consistent, is logged with
+      the rule `go-sumdb-finding-invalid` and discarded.
     - Across a restart, the tree bound is only as tight as the heads
       and times `wb-hostd` returns, and detection of a fork rests on
       `wb-hostd` keeping the heads and any finding. `wb-hostd` can
@@ -1224,7 +1233,13 @@ session start in the VM to the end of the last session running in it.
     `wb-hostd` deletes the finding and the stored heads, writes a 5019
     event naming the user's command and the finding it deleted, and
     restarts `wb-proxyd`, which then starts from a fresh head. No RPC to
-    `wb-proxyd` is added for it. The gate's own lookup adds a record
+    `wb-proxyd` is added for it. The restart resets every proxied
+    stream of both VMs, `claude` API streams included, and starts a new
+    wait of up to 30 seconds for the first point. It doesn't count
+    toward the restart limit (S04-architecture, "Restarting a daemon"),
+    because the operator asked for it. The command refuses to run
+    without a terminal, because the confirmation has to come from a
+    person. The gate's own lookup adds a record
     for a version the checksum database doesn't have yet, so such a
     version is young for the minimum age from that first request. That
     covers a version nobody has looked up before, including a
@@ -1232,8 +1247,9 @@ session start in the VM to the end of the last session running in it.
     says when the version becomes allowed, marked as an estimate from
     its record number at the rate records were added since the point,
     and under a kept stale point it also gives the point's age.
-  - *Events.* `go-clock-stale` and `go-clock-implausible` are Device
-    Config State Change (5019) events, and `go-sumdb-inconsistent` is a
+  - *Events.* `go-clock-stale`, `go-clock-implausible` and
+    `go-sumdb-finding-invalid` are Device Config State Change (5019)
+    events, and `go-sumdb-inconsistent` is a
     Detection Finding (2004). They belong to `wb-proxyd`, not to a VM,
     so the per-VM audit budgets don't apply to them, and each is written at
     most once a minute (SEC10-audit).
@@ -1262,20 +1278,27 @@ session start in the VM to the end of the last session running in it.
     seconds.
   - *Tile cache.* Verified tiles are cached per VM, like records, up to
     16 MiB each, and the least recently used is evicted. A cached tile
-    makes a lookup's proof one request shorter.
-  - *Deadline.* A request's lookups have a deadline of 21 seconds plus
-    125 ms for each uncached lookup it needs, at most 5 minutes. The 21
-    seconds cover a timeout, the backoff and a second timeout, so one
-    retry always fits. The 125 ms are 250 ms for each round of 4
-    requests, two requests per lookup. The count of uncached lookups is
-    fixed when the request is admitted. Past the deadline the request
+    makes a lookup's proof one request shorter. The tiles calibration
+    fetches go in a cache of their own of 1 MiB, never in a VM's cache.
+  - *Deadline.* A request's lookups have a deadline of 42 seconds plus
+    125 ms for each uncached lookup it needs and each lookup already
+    queued ahead of it in the VM, at most 5 minutes. A cold verified
+    lookup is two upstream requests, and the 42 seconds cover a
+    timeout, the backoff and a second timeout for each, so one retry
+    of each always fits. The 125 ms are 250 ms for each round of 4
+    requests, two requests per lookup. Both counts are fixed when the
+    request is admitted, and the VM's requests are served first in,
+    first out. Counting the queue ahead keeps a download admitted
+    behind a cold list from running out of time while it waits. The
+    queue cap below keeps the sum within 5 minutes. Serving requests in
+    turn instead would let two large lists in one VM each miss their own
+    deadline. Past the deadline the request
     is refused with the rule `go-clock-deadline` and its queued lookups
     are dropped. Lookups it completed stay cached, and a retry needs
     fewer. A request the client abandons releases its queue entries at
     once.
   - *Filtering `@v/list`.* One lookup per listed version. A list of
-    more than 2,000 versions, about the most the longest deadline
-    covers, is refused with the rule `go-list-too-long`.
+    more than 2,000 versions is refused with the rule `go-list-too-long`.
 
   *Mapping a request.* Each gated host accepts only explicit path forms:
   an npm package name and tarball, a PEP 503 project name with a PEP 440
