@@ -45,8 +45,8 @@ Not the egress gateway: a throwaway relay in the guest stands in for
   - `trust-supported.sh`: the authorization rights for trust settings,
     user domain trust as the project user, and `profiles install`.
     Earlier versions of this file (named `find-ts.sh` then) listed the
-    trustd files and the `authorizationdb` rules; their text and output
-    are in `results/g1-requests.jsonl`.
+    trustd files and the `authorizationdb` rules. Their output is in
+    `results/g1-requests.jsonl`, and their text is not kept.
   - `matrix.sh`: every client once as `wbp-a`, with the variables of
     `/etc/wraithbox/env` or only one of them (`ONLYVAR`).
   - `reread.sh`: long-running clients across a CA install and a switch.
@@ -98,8 +98,10 @@ $R shutdown
 
 ## Results
 
-- `g1-requests.jsonl`: every request to the guest and its answer, with
-  the scripts' text and output.
+- `g1-requests.jsonl`: every request to the guest, by script name, and
+  its answer with the script's output. The scripts' text isn't logged.
+  `matrix.sh` got `pipefail` after the `none` run, and `find-ts.sh`
+  changed between runs.
 - `matrix-*.jsonl`: one line per client and condition: exit status,
   seconds, the relay's view (SNI, mode, result, the client's alert), and
   the tail of the client's output.
