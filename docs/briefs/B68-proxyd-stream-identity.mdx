@@ -5,7 +5,7 @@ description: From the per-VM socket the stream arrived on and from name reports 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** The per-VM hand-off socket, the re-check and the narrowing header were decided on I68 on 2026-10-04. This brief asks about how the spec fills them in. Source: I68, from the security review of X23-sandboxed-daemons. Changes S07-egress-gateway ("Stream hand-off", "Name binding" and "Events and rate limits"), S04-architecture ("Design decisions") and S11-verification-and-spikes. Follow-ups: I172, I173.
+**Decided 2026-10-08: A.** The decision is in the I68 comment that starts `Decision (2026-10-08):`. The per-VM hand-off socket, the re-check and the narrowing header were decided on I68 on 2026-10-04. This brief asked about how the spec fills them in. Source: I68, from the security review of X23-sandboxed-daemons. Changes S07-egress-gateway ("Stream hand-off", "Name binding" and "Events and rate limits"), S04-architecture ("Design decisions") and S11-verification-and-spikes. Follow-ups: I172, I173.
 
 <Aside type="tip" title="You are deciding">
 Whether the spec change fills in your I68 decision the way you meant it. The open point is how `wb-proxyd` gets "its own copy of the DNS mapping". Recommended: `wb-netd` reports each name and synthetic address before it answers the guest, and `wb-proxyd` keeps a report only after checking it against the VM's policy. Accepting it merges the S07-egress-gateway and S04-architecture text, and the proxy work in V1-M2-walking-skeleton builds to it.
@@ -62,7 +62,7 @@ These are ways to fill in "its own copy of the DNS mapping". Each keeps the per-
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
-### A. Checked name reports
+### A. Checked name reports (decided)
 
 Before each DNS answer with a synthetic address leaves, `wb-netd` sends the name and address on the VM's socket. `wb-proxyd` keeps the pair only if the name is well formed and allowed by the VM's policy, and the address isn't held for another name. A stream message holds only the address, and `wb-proxyd` looks the name up in its copy.
 
