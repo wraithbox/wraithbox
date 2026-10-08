@@ -72,7 +72,7 @@ The isolated VM logs one project user in at its screen. I195 designs and measure
 
 ## Decision 2: simulators and the profile
 
-The simulator can't be confined by the session's profile, and `xcodebuild test` on it needed a profile that allows nearly everything. Until this is decided, S13-guest-confinement states the gap: a project that uses simulators has no Layer 2 file system confinement. I196 holds the follow-up.
+The simulator can't be confined by the session's profile, and `xcodebuild test` on it needed a profile that allows nearly everything. As specified now, no Layer 2 profile in S13-guest-confinement runs simulators: under the base and build profiles `simctl` can't reach CoreSimulatorService, so simulators and iOS tests don't run in a confined session. Option A would change that. I196 holds the follow-up.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>

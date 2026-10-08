@@ -226,8 +226,11 @@ in S12-platforms.
   Every `xcodebuild test` of a macOS target, a SwiftPM package's
   included, and launching a macOS app need a GUI login session, which
   the work VM doesn't have. Xcode builds, `swift build` and
-  `swift test`, signing to run locally, and iOS simulators with their
-  tests run without one (X06-guest-xcode).
+  `swift test`, and signing to run locally run without one under the
+  Layer 2 profiles of S13-guest-confinement. X06-guest-xcode also ran
+  iOS simulators and their tests for a project user without a GUI
+  session, but under the Layer 2 profiles specified there they don't
+  run.
   macOS allows at most two running macOS guests, including any started
   by other software: `wb-hostd` performs admission control and reports
   a clear error when a slot is unavailable (NFR05-two-macos-vms).

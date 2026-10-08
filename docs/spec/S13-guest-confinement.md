@@ -99,7 +99,12 @@ Applied by `wb-guestd` to every process it starts for a project user:
   the first connection of the users with no lost session, and when a
   user's last client goes and no session of that user is left), the
   kill loop and `launchctl bootout user/<uid>` repeat as one loop
-  until a check after the `bootout` finds no process of the user. It
+  until a check after the `bootout` finds no process of the user. The
+  loop is bounded: at most 10 rounds and 30 seconds. When a check
+  still finds a process of the user after either bound, `wb-guestd`
+  logs the failure with its rule and the processes left
+  (SEC10-audit, SEC13-bounded-resources), leaves the user locked, and
+  reports the project to `wb-hostd` as not cleaned up. It
   never boots out a domain where it only stops processes, such as at
   the link drop, so a resumed session keeps its services. `wb-guestd`
   never runs `launchctl print` or `launchctl asuser` against a locked
@@ -116,8 +121,8 @@ process cannot remove it, much like Landlock.
   (S09-policy-credentials-audit, "Guest trust"), and the user's own
   home. Writes are allowed
   only in the user's home, the session worktree, and temporary
-  directories. A project that uses simulators doesn't get this
-  confinement ("Known gaps" below). The profile is generated from policy on the host and
+  directories. No profile of this layer runs simulators ("Xcode build
+  profile" and "Known gaps" below). The profile is generated from policy on the host and
   installed by `wb-guestd`. The repository never supplies it.
 - **Host-guest socket.** The profile denies `AF_VSOCK` sockets with
   `(deny system-socket (socket-domain AF_VSOCK))`, so a project user's
@@ -156,19 +161,20 @@ process cannot remove it, much like Landlock.
   signing get these exceptions and no others: reads of
   `/Library/Preferences/com.apple.dt.Xcode.plist`,
   `/Library/Developer` and `/Library/Keychains`, and lookups of
-  `com.apple.SecurityServer` and `com.apple.security.syspolicy`. This
-  set wasn't run as written. The generator's tests run every Xcode
-  build task under it, a build for a simulator destination included.
-  If that build needs a CoreSimulator lookup, the generator adds the
-  narrowest rule that works.
+  `com.apple.SecurityServer` and `com.apple.security.syspolicy`. The
+  generator emits exactly these exceptions. Its tests run every Xcode
+  build task under the profile, a build for a simulator destination
+  included. A build task that fails under it gets its missing rule
+  through a spec change that names the rule. Under the base and build
+  profiles `simctl` can't reach CoreSimulatorService, so simulators
+  and iOS tests don't run in a confined session.
 - **Known gaps.** Processes started through LaunchServices and `launchd`
   services run outside the profile. They stay inside the guest and the
   project user's permissions. Simulator processes run in the user's
   per-user launchd domain, outside the session's profile, and
-  `simctl spawn` runs a program outside it (X06-guest-xcode). Until
-  B20-guest-xcode's decision 2 is made, a project that uses simulators
-  has no file system confinement from this layer. Simulator processes
-  also escape the resource limits `wb-guestd` sets on the session's
+  `simctl spawn` runs a program outside it (X06-guest-xcode). They
+  are outside every profile of this layer. Simulator processes also
+  escape the resource limits `wb-guestd` sets on the session's
   processes, and the VM's caps (SEC13-bounded-resources) are their
   bound. launchd can start one of a project user's agents again after
   the loop of Layer 1 has ended, so a process of a locked user can

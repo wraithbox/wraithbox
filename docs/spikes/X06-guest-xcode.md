@@ -41,9 +41,8 @@ Brief: B20-guest-xcode
      (NFR06-explained-refusals).
   2. How the Xcode image variant gets Xcode and the runtimes (I194).
   3. How a project that uses simulators is profiled (B20-guest-xcode,
-     decision 2, I196). Until it is decided, S13-guest-confinement
-     states the gap: such a project has no Layer 2 file system
-     confinement. Recommended: option 2A, a simulator profile for
+     decision 2, I196). As specified now, no Layer 2 profile runs
+     simulators, so a confined session can't use them. Recommended: option 2A, a simulator profile for
      projects that declare simulators, as described in "The draft
      profile and its exceptions" below. The alternative is to keep
      looking for a narrower profile.
@@ -267,12 +266,19 @@ host's Xcode. The project user `x06p` was made with `sysadminctl
 
 ## What it means for the specs
 
-- **S13-guest-confinement**, "Layer 2": the Xcode build profile, and
-  in "Known gaps" the simulator gap, which holds until decision 3, and
-  agents launchd starts again. "Layer 1": where `wb-guestd` kills every
-  process of a project user, the kill loop and a `bootout` of the user's
-  launchd domain repeat until none is left (changed in this pull
-  request).
+- **S13-guest-confinement**, "Layer 2": the Xcode build profile, which
+  runs no simulators, and in "Known gaps" the simulator processes
+  outside every profile and agents launchd starts again. B20-guest-xcode
+  decision 2 would add a simulator profile. "Layer 1": where
+  `wb-guestd` kills every process of a project user, the kill loop and
+  a `bootout` of the user's launchd domain repeat until none is left,
+  for at most 10 rounds and 30 seconds. Both bounds are chosen, not
+  measured: the spike's loop needed two rounds. Past them `wb-guestd`
+  logs the failure, leaves the user locked and reports the project as
+  not cleaned up (changed in this pull request).
+- **The build profile** in S13-guest-confinement wasn't run as
+  written: the spike's p1 also had the simulator rules. The
+  generator's tests run every build task under it (I196).
 - **S07-egress-gateway**, "Leftover processes": the same `bootout`
   (changed in this pull request).
 - **S06-vm-lifecycle**, "VMs": every `xcodebuild test` on macOS and
