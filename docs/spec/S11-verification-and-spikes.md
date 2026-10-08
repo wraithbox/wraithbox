@@ -479,12 +479,24 @@ be tested before building on them.
     `wb status`; more lookups than the VM's in-flight cap, its
     per-minute cap and its queue, and see the excess refused with
     `go-clock-lookup-rate` and no extra request reach the double; a
-    `@v/list` of 5,001 versions, and see `go-list-too-long`; an index
+    double that answers slower than the deadline allows, and see
+    `go-clock-deadline` with the completed lookups cached; a
+    `@v/list` of 4,501 versions, and see `go-list-too-long`; an index
     window whose point exceeds the tree bound, and see the point
     rejected with `go-clock-implausible`, the last accepted point kept,
     and the rejection with both numbers in `wb status`; and an index
     that fails after a point was accepted, and see the point kept,
     `go-clock-stale` logged, and the point's age in `wb status`;
+  - restart `wb-proxyd` with records in `state.db` and see: a stored
+    point equal to the current tree size isn't used, and requests wait
+    for the first computation; a record that fails `wb-hostd`'s checks
+    (an oversized head, a 193rd head, a negative point, a cutoff after
+    the receipt time minus the minimum age) is logged and discarded; a
+    stored head inconsistent with the first head fetched gives
+    `go-sumdb-inconsistent`, every stored head discarded, and the gate
+    continuing from the fresh head; and a head inconsistency within a
+    run refuses every Go download, still does after a restart, and
+    stops after `wb gate reset go-clock`;
   - fetch a gated registry path that fits no known form, and get a 403
     naming the rule; with a test double for the Go module proxy,
     redirect a download elsewhere and see it refused;

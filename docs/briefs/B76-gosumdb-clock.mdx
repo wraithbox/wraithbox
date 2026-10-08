@@ -5,10 +5,10 @@ description: Yes. Record numbers in sum.golang.org order Go module versions by w
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-08: yes. Awaiting decision.** Source: I76, X21-dep-gate-registries ("The Go clock end to end"). Changes S07-egress-gateway, S04-architecture ("Host work the guest can cause") and S11-verification-and-spikes. Follows B32-dep-gate-registries. Follow-up: I193 (branch and commit queries).
+**Answered 2026-10-08: yes. Awaiting decision.** Source: I76, X21-dep-gate-registries ("The Go clock end to end"). Changes S07-egress-gateway, S04-architecture ("Host work the guest can cause", "Accounting and event channels", "Host state"), S05-cli (`wb gate reset go-clock`) and S11-verification-and-spikes. Follows B32-dep-gate-registries. Follow-up: I193 (branch and commit queries).
 
 <Aside type="tip" title="What we learned">
-**Yes.** The gate reads each Go module version's record number in the public checksum database and compares it with the record number of 7 days ago, found from `index.golang.org`. In 320 samples over 16 days, every version fell on the side of that line its first-seen time puts it on. Lockfile installs of cli/cli, fzf, caddy, node_exporter and hugo passed, and a fresh `go get` of fast-moving modules passed by picking an older version. The samples were 6 hours apart and the nearest was about 2 hours from the cutoff, so the claim that the line is on the safe side rests on how far apart out-of-order records were (3.8 s at most) against the 1-minute margin. With `index.golang.org` unreachable from the start, the gate refused every Go download, as required. One open choice is what happens when the index goes away **after** the gate has a point. Recommended: **A**, keep the last point, which only refuses more. The values of the new limits are open too ("Values" below). Approving puts the calibration rules, the lookup limits and the check of each lookup against the signed log in S07-egress-gateway, already in this pull request.
+**Yes.** The gate reads each Go module version's record number in the public checksum database and compares it with the record number of 7 days ago, found from `index.golang.org`. In 320 samples over 16 days, every version fell on the side of that line its first-seen time puts it on. Lockfile installs of cli/cli, fzf, caddy, node_exporter and hugo passed, and a fresh `go get` of fast-moving modules passed by picking an older version. The samples were 6 hours apart and the nearest was about 2 hours from the cutoff, so the claim that the line is on the safe side rests on how far apart out-of-order records were (3.8 s at most) against the 1-minute margin. With `index.golang.org` unreachable from the start, the gate refused every Go download, as required. One open choice is what happens when the index goes away **after** the gate has a point. Recommended: **A**, keep the last point, which only refuses more. The values of the new limits are open too ("Values" below), and so is the recovery command after a fork of the checksum database ("Recovery" below). Approving puts the calibration rules, the lookup limits and the check of each lookup against the signed log in S07-egress-gateway, already in this pull request.
 </Aside>
 
 <figure class="wb-figure">
@@ -59,7 +59,7 @@ The choice is only about a point that exists but can't be refreshed. Without any
 
 ### A. Keep the last point
 
-When the hourly refresh fails, the gate keeps using the point it has, retries every minute, and logs `go-clock-stale` with the point's age. `wb status` shows the age, and a refusal gives it too. `state.db` keeps the point across a restart.
+When the hourly refresh fails, the gate keeps using the point it has, retries every minute, and logs `go-clock-stale` with the point's age. `wb status` shows the age, and a refusal gives it too. After a restart the gate computes a point before it decides: the stored point is only shown in `wb status`, so requests wait up to 30 s for the first computation, as on a new install.
 
 - **Cost:** none for the user while the outage is short. The longer it lasts, the more versions are refused: after a day, versions 7 to 8 days old are refused too.
 - **Safety:** each point is at or below the true record number at its own cutoff, which is at or below the true record number at any later cutoff. Every version an old point allows, a fresh point would allow too.
@@ -83,13 +83,17 @@ When the hourly refresh fails, the gate drops its point and refuses every Go req
 
 S07-egress-gateway now sets these. Each is open for the maintainer to change, and the spike's data supports them only as far as stated.
 
-- **4 lookups in flight per VM, 8 requests in flight per `wb-proxyd`.** The strict choice: 8 at once ran clean. At 16 at once, the full list-filter run (4,074 lookups) and the fresh `go get` with filtering (3,423) ran clean, and one other run, next to an install, got a connection reset. More was never tried.
-- **6,000 uncached lookups a minute per VM, and a queue of 5,000.** The fresh `go get` with filtering made 3,423 lookups, calibration included.
-- **One retry after 1 second, 10 seconds per lookup, 60 seconds per request.** The spike measured a median of 87 ms and a p95 of 176 ms per lookup, and no retry or deadline.
-- **5,000 versions per `@v/list`.** The longest list measured had 1,865. The spike didn't search for longer ones.
+- **4 lookups in flight per VM, 8 requests in flight per `wb-proxyd`, one of them kept for calibration.** The strict choice: 8 at once ran clean. At 16 at once, the full list-filter run (4,074 lookups) and the fresh `go get` with filtering (3,423) ran clean, and one other run, next to an install, got a connection reset. More was never tried. **What it costs:** every timing was measured at 16 at once, and at 4 the lookups take about 4 times as long. That is inferred, not measured: filtering the 1,865 versions of `aws-sdk-go` cold goes from 5.6 s to about 22 s, the fresh `go get` from 9.2 s to about 45 s, and a lockfile install of 179 modules gains up to about 4 s.
+- **6,000 uncached lookups a minute per VM.** At 4 in flight and the 87 ms median, a VM makes about 2,760 lookups a minute, so this cap isn't reached. It only matters if lookups get faster than about 40 ms. The fresh `go get` with filtering made 3,423 lookups, calibration included.
+- **One retry after 1 second, and 10 seconds per lookup.** The spike measured a median of 87 ms and a p95 of 176 ms per lookup, and no retry or timeout.
+- **A deadline per request of 10 s plus 250 ms per 4 uncached lookups, at most 5 minutes, and 4,500 versions per `@v/list` and per queue.** 250 ms per round of 4 is above the 176 ms p95. 4,500 is the most the 5-minute maximum covers. The longest list measured had 1,865, which gets about 2 minutes, and the spike didn't search for longer ones. The 30 s wait for the first point doesn't count toward it.
 - **100,000 cached records per VM, least recently used evicted.** The spike didn't measure a cache, and an eviction only costs a lookup. A cache per VM, not one shared, closes a timing channel between VMs (SEC08-proj-isolation). At a guessed 150 bytes an entry, that's about 15 MiB per VM.
-- **30 seconds of waiting for the first point when `state.db` has no stored point, and a retry every minute.** The spike didn't measure either.
-- **8 days of verified tree heads, one an hour,** for the tree bound on a fresh point. Not measured: the spike didn't keep heads.
+- **30 seconds of waiting for the first point after each start, and a retry every minute.** The spike didn't measure either. Its first list request, calibration included, took 1.1 to 1.5 s.
+- **8 days of verified tree heads, one an hour, at most 192 stored heads of 1 KiB each,** for the tree bound on a fresh point. Not measured: the spike didn't keep heads.
+
+### Recovery
+
+When a tree head contradicts one the gate accepted in the same run, the checksum database has forked or someone is answering in its place. The gate then refuses every Go download, across restarts too, until the operator runs `wb gate reset go-clock`, a new command in S05-cli that deletes the finding and the stored heads. Open: the command's name, and whether it should also ask the operator to confirm they checked the finding. Recommended: the name above, with a confirmation prompt.
 
 ## Impact
 

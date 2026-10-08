@@ -391,14 +391,18 @@ the index until it reaches 1 minute before the cutoff.
 - I76: S07-egress-gateway, "Publish time", now says how the Go
   calibration point is found, bounded by the verified tree size
   (`go-clock-implausible`), refreshed on `wb-proxyd`'s own timer, kept
-  when a refresh fails (`go-clock-stale`), and persisted in `state.db`
-  through `wb-hostd`. The gate refuses every Go download and listing
+  when a refresh fails (`go-clock-stale`), and shown after a restart
+  from `state.db` but never used for a decision. Stored tree heads,
+  checked by `wb-hostd`, tighten the bound. The gate refuses every Go download and listing
   without a point (`go-clock-uncalibrated`), and verifies each lookup
   against the signed tree head with the compiled-in key
   (`go-clock-lookup-failed`, and `go-sumdb-inconsistent` for a tree
   that doesn't extend the last one). It caches verified record numbers
   per VM, and caps lookups per VM and per `wb-proxyd`
-  (`go-clock-lookup-rate`) and versions per list (`go-list-too-long`).
+  (`go-clock-lookup-rate`), the time per request (`go-clock-deadline`)
+  and versions per list (`go-list-too-long`). After a head
+  inconsistency within a run it refuses every Go download until
+  `wb gate reset go-clock`, a new S05-cli command.
   "Downloads" says that only a Go `.zip` is age-gated. S04-architecture
   adds the clock lookups to "Host work the guest can cause".
   S11-verification-and-spikes adds the unreachable-index case and a
