@@ -1,0 +1,15 @@
+== 1. swift package resolve, binary target on example.com (inspected)
+Downloading binary artifact https://example.com/x04/Nothing.xcframework.zip
+error: failed downloading 'https://example.com/x04/Nothing.xcframework.zip' which is required by binary target 'Nothing': downloadError("The certificate for this server is invalid. You might be connecting to a server that is pretending to be “example.com” which could put your confidential information at risk.. Would you like to connect to the server anyway?")
+error: fatalError
+{"t":"2026-10-08T01:38:40.53125Z","sni":"example.com","mode":"inspect","ca":"ca2","clientAlpn":["h2","http/1.1"],"peer":"192.168.64.6:50441","result":"client-handshake-failed","err":"EOF","up":0,"down":0,"ms":35}
+== 2. pass-mode example.com
+-- SSL_CERT_FILE=/etc/wraithbox/ca.pem
+000
+{"err":"Get \"https://example.com/\": tls: failed to verify certificate: x509: certificate signed by unknown authority","i":0,"t":"2026-10-08T01:38:40Z"}
+{"t": "2026-10-08T01:38:40Z", "i": 0, "err": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1082)>"}
+-- SSL_CERT_FILE=/etc/wraithbox/ca-bundle.pem
+200
+{"i":0,"status":200,"t":"2026-10-08T01:38:41Z"}
+{"t": "2026-10-08T01:38:41Z", "i": 0, "status": 200}
+5

@@ -1,0 +1,97 @@
+01:36:24 group A starts
+ca.pem: 2 certs; ca-bundle.pem: 130 certs; p12: 113 entries
+01:36:50 files hold ca1 + ca2; group B starts
+01:37:10 relay signs with ca2
+01:37:36 done
+== A-go
+{"i":0,"status":200,"t":"2026-10-08T01:36:24Z"}
+{"i":1,"status":200,"t":"2026-10-08T01:36:34Z"}
+{"i":2,"status":200,"t":"2026-10-08T01:36:44Z"}
+{"i":3,"status":200,"t":"2026-10-08T01:36:54Z"}
+{"i":4,"status":200,"t":"2026-10-08T01:37:04Z"}
+{"err":"Get \"https://example.com/\": tls: failed to verify certificate: x509: certificate signed by unknown authority","i":5,"t":"2026-10-08T01:37:14Z"}
+{"err":"Get \"https://example.com/\": tls: failed to verify certificate: x509: certificate signed by unknown authority","i":6,"t":"2026-10-08T01:37:24Z"}
+{"err":"Get \"https://example.com/\": tls: failed to verify certificate: x509: certificate signed by unknown authority","i":7,"t":"2026-10-08T01:37:34Z"}
+== A-java
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/wraithbox/ca-bundle.p12 -Djavax.net.ssl.trustStorePassword=changeit
+{"t":"2026-10-08T01:36:25.235665Z","i":0,"status":200}
+{"t":"2026-10-08T01:36:35.418593Z","i":1,"status":200}
+{"t":"2026-10-08T01:36:45.540033Z","i":2,"status":200}
+{"t":"2026-10-08T01:36:55.606410Z","i":3,"status":200}
+{"t":"2026-10-08T01:37:05.691101Z","i":4,"status":200}
+{"t":"2026-10-08T01:37:15.911863Z","i":5,"err":"javax.net.ssl.SSLHandshakeException: (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target / sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target"}
+{"t":"2026-10-08T01:37:26.094776Z","i":6,"err":"javax.net.ssl.SSLHandshakeException: (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target / sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target"}
+{"t":"2026-10-08T01:37:36.244035Z","i":7,"err":"javax.net.ssl.SSLHandshakeException: (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target / sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target"}
+== A-node
+{"t":"2026-10-08T01:36:24.492Z","i":0,"status":200}
+{"t":"2026-10-08T01:36:34.602Z","i":1,"status":200}
+{"t":"2026-10-08T01:36:44.658Z","i":2,"status":200}
+{"t":"2026-10-08T01:36:54.715Z","i":3,"status":200}
+{"t":"2026-10-08T01:37:04.774Z","i":4,"status":200}
+{"t":"2026-10-08T01:37:14.905Z","i":5,"err":"UNABLE_TO_VERIFY_LEAF_SIGNATURE unable to verify the first certificate; if the root CA is installed locally, try running Node.js with --use-system-ca"}
+{"t":"2026-10-08T01:37:24.945Z","i":6,"err":"UNABLE_TO_VERIFY_LEAF_SIGNATURE unable to verify the first certificate; if the root CA is installed locally, try running Node.js with --use-system-ca"}
+{"t":"2026-10-08T01:37:34.981Z","i":7,"err":"UNABLE_TO_VERIFY_LEAF_SIGNATURE unable to verify the first certificate; if the root CA is installed locally, try running Node.js with --use-system-ca"}
+== A-python-requests
+{"t": "2026-10-08T01:36:24Z", "i": 0, "status": 200}
+{"t": "2026-10-08T01:36:34Z", "i": 1, "status": 200}
+{"t": "2026-10-08T01:36:44Z", "i": 2, "status": 200}
+{"t": "2026-10-08T01:36:55Z", "i": 3, "status": 200}
+{"t": "2026-10-08T01:37:05Z", "i": 4, "status": 200}
+{"t": "2026-10-08T01:37:15Z", "i": 5, "status": 200}
+{"t": "2026-10-08T01:37:25Z", "i": 6, "status": 200}
+{"t": "2026-10-08T01:37:35Z", "i": 7, "status": 200}
+== A-python-urllib
+{"t": "2026-10-08T01:36:24Z", "i": 0, "status": 200}
+{"t": "2026-10-08T01:36:34Z", "i": 1, "status": 200}
+{"t": "2026-10-08T01:36:44Z", "i": 2, "status": 200}
+{"t": "2026-10-08T01:36:54Z", "i": 3, "status": 200}
+{"t": "2026-10-08T01:37:04Z", "i": 4, "status": 200}
+{"t": "2026-10-08T01:37:15Z", "i": 5, "err": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1082)>"}
+{"t": "2026-10-08T01:37:25Z", "i": 6, "err": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1082)>"}
+{"t": "2026-10-08T01:37:35Z", "i": 7, "err": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1082)>"}
+== A-ruby
+{"t":"2026-10-08T01:36:24Z","i":0,"status":200}
+{"t":"2026-10-08T01:36:34Z","i":1,"status":200}
+{"t":"2026-10-08T01:36:44Z","i":2,"status":200}
+{"t":"2026-10-08T01:36:54Z","i":3,"status":200}
+{"t":"2026-10-08T01:37:04Z","i":4,"status":200}
+{"t":"2026-10-08T01:37:15Z","i":5,"err":"OpenSSL::SSL::SSLError: SSL_connect returned=1 errno=0 peeraddr=172.66.147.243:443 state=error: certificate verify failed (unable to get local issuer certificate)"}
+{"t":"2026-10-08T01:37:25Z","i":6,"err":"OpenSSL::SSL::SSLError: SSL_connect returned=1 errno=0 peeraddr=172.66.147.243:443 state=error: certificate verify failed (unable to get local issuer certificate)"}
+{"t":"2026-10-08T01:37:35Z","i":7,"err":"OpenSSL::SSL::SSLError: SSL_connect returned=1 errno=0 peeraddr=172.66.147.243:443 state=error: certificate verify failed (unable to get local issuer certificate)"}
+== B-go
+{"i":0,"status":200,"t":"2026-10-08T01:36:50Z"}
+{"i":1,"status":200,"t":"2026-10-08T01:37:00Z"}
+{"i":2,"status":200,"t":"2026-10-08T01:37:10Z"}
+{"i":3,"status":200,"t":"2026-10-08T01:37:20Z"}
+{"i":4,"status":200,"t":"2026-10-08T01:37:30Z"}
+== B-java
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/wraithbox/ca-bundle.p12 -Djavax.net.ssl.trustStorePassword=changeit
+{"t":"2026-10-08T01:36:51.623322Z","i":0,"status":200}
+{"t":"2026-10-08T01:37:01.803863Z","i":1,"status":200}
+{"t":"2026-10-08T01:37:11.883216Z","i":2,"status":200}
+{"t":"2026-10-08T01:37:22.180260Z","i":3,"status":200}
+{"t":"2026-10-08T01:37:32.315377Z","i":4,"status":200}
+== B-node
+{"t":"2026-10-08T01:36:50.868Z","i":0,"status":200}
+{"t":"2026-10-08T01:37:00.981Z","i":1,"status":200}
+{"t":"2026-10-08T01:37:11.037Z","i":2,"status":200}
+{"t":"2026-10-08T01:37:21.175Z","i":3,"err":"EPROTO write EPROTO 80FF85F101000000:error:0A000438:SSL routines:ssl3_read_bytes:tlsv1 alert internal error:ssl/record/rec_layer_s3.c:918:SSL alert number 80\n"}
+{"t":"2026-10-08T01:37:31.224Z","i":4,"status":200}
+== B-python-requests
+{"t": "2026-10-08T01:36:50Z", "i": 0, "status": 200}
+{"t": "2026-10-08T01:37:01Z", "i": 1, "status": 200}
+{"t": "2026-10-08T01:37:11Z", "i": 2, "status": 200}
+{"t": "2026-10-08T01:37:21Z", "i": 3, "status": 200}
+{"t": "2026-10-08T01:37:31Z", "i": 4, "status": 200}
+== B-python-urllib
+{"t": "2026-10-08T01:36:50Z", "i": 0, "status": 200}
+{"t": "2026-10-08T01:37:00Z", "i": 1, "status": 200}
+{"t": "2026-10-08T01:37:11Z", "i": 2, "status": 200}
+{"t": "2026-10-08T01:37:21Z", "i": 3, "status": 200}
+{"t": "2026-10-08T01:37:31Z", "i": 4, "status": 200}
+== B-ruby
+{"t":"2026-10-08T01:36:50Z","i":0,"status":200}
+{"t":"2026-10-08T01:37:01Z","i":1,"status":200}
+{"t":"2026-10-08T01:37:11Z","i":2,"status":200}
+{"t":"2026-10-08T01:37:21Z","i":3,"status":200}
+{"t":"2026-10-08T01:37:31Z","i":4,"status":200}
