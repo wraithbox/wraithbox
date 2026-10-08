@@ -85,8 +85,9 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 - **X06-guest-xcode: Guest users and Xcode.** Can builds and simulators run for a
   guest user without a GUI login? If not, Xcode sessions go to the
   isolated VM's console user. Answered yes, with conditions, in the
-  result page X06-guest-xcode: everything but macOS app tests runs
-  without one.
+  result page X06-guest-xcode: everything runs without one except
+  `xcodebuild test` on macOS, SwiftPM packages included, and launching
+  a macOS app.
 - **X07-git-round-trip: Git round trip.** Remote helper over vsock, read-only
   `upload-pack`, restricted `receive-pack` into the landing repository,
   flagging of risky paths. Answered yes, with conditions, in the result
