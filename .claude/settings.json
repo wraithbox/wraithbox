@@ -46,10 +46,12 @@
       "Bash(mise run gha:lint *)",
       "Bash(mise run ci-watch *)",
       "Bash(mise run go:cross)",
-      "Bash(mise run go:cross *)"
+      "Bash(mise run go:cross *)",
+      "Bash(codesign -f -s - --entitlements spikes/vm.entitlements .scratch/*)"
     ],
     "ask": [
-      "Edit(./osv-scanner.toml)"
+      "Edit(./osv-scanner.toml)",
+      "Edit(./spikes/vm.entitlements)"
     ]
   }
 }
