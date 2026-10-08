@@ -1,0 +1,9 @@
+;; X06-guest-xcode: added to xcode.sb for p2. Throwaway.
+;; ios-test, ios-uitest: with every rule above, the tests run and pass, but
+;; xcodebuild doesn't exit, and no denial is logged. Narrower sets tried
+;; (results/g3-bisect-tasks.jsonl) all hung: file* alone, file* with mach*
+;; and network*, file* with mach*, ipc* and process*, file* with network*,
+;; signal, iokit*, sysctl* and system*. This is the set that let it finish.
+(allow file* mach* ipc* network* signal process* iokit* sysctl* system*
+       user-preference* darwin-notification-post job-creation lsopen
+       appleevent-send generic-issue-extension authorization-right-obtain)

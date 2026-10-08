@@ -11,7 +11,11 @@ for a in $X06_ARGS; do
 done
 echo "xcodebuild $*"
 t0=$(date +%s)
-xcodebuild "$@" -derivedDataPath "$dd" > "$log" 2>&1; rc=$?
+xcodebuild "$@" -derivedDataPath "$dd" > "$log" 2>&1 &
+xp=$!
+# X06_LIMIT: kill xcodebuild after that many seconds (a hang under the profile).
+if [ -n "${X06_LIMIT:-}" ]; then ( sleep "$X06_LIMIT"; kill -KILL $xp 2>/dev/null && echo "RESULT killed after ${X06_LIMIT}s" ) & fi
+wait $xp; rc=$?
 t1=$(date +%s)
 grep -E "error:|warning: .*(sign|Sign)|Test Suite|Test Case .*(passed|failed)|Executed|TEST (SUCCEEDED|FAILED)|BUILD (SUCCEEDED|FAILED)|\*\* |Testing failed|Failed to|Unable to|timed out|Underlying Error|Early unexpected exit|Restarting after" "$log" | grep -v '^    ' | head -40
 echo "--- last lines"

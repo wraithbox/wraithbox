@@ -15,3 +15,39 @@
 ;; keychain's folder.
 (allow mach-lookup (global-name "com.apple.SecurityServer") (global-name "com.apple.security.syspolicy"))
 (allow file-read* (subpath "/Library/Keychains"))
+
+;; sim, ios-test: simctl and xcodebuild reach CoreSimulatorService (an XPC
+;; service that launchd starts in the user's domain, outside this profile)
+;; and simdiskimaged (a root daemon that mounts simulator runtimes).
+(allow mach-lookup
+    (xpc-service-name "com.apple.CoreSimulator.CoreSimulatorService")
+    (global-name "com.apple.CoreSimulator.CoreSimulatorService")
+    (global-name "com.apple.CoreSimulator.simdiskimaged"))
+;; sim: the simulator runtime, which cryptexd mounts, and the volume list
+;; CoreSimulator walks to find runtimes.
+(allow file-read* (subpath "/private/var/run/com.apple.security.cryptexd/mnt"))
+(allow file-read-metadata (literal "/Volumes") (subpath "/Volumes"))
+;; sim: simctl talks to CoreSimulator's other XPC services, and opens the
+;; GPU (IOSurface, the paravirtualized GPU of the VM) for rendering.
+(allow mach-lookup (xpc-service-name-prefix "com.apple.CoreSimulator."))
+(allow iokit-open-user-client
+    (iokit-user-client-class "IOSurfaceRootUserClient")
+    (iokit-user-client-class "AppleParavirtDeviceUserClient"))
+
+;; ios-test: xcodebuild test takes a power assertion against idle sleep, and
+;; refuses to test without it.
+(allow mach-lookup (global-name "com.apple.PowerManagement.control"))
+;; ios-test: xcodebuild posts and waits for distributed notifications about
+;; test progress, and asks CoreDevice for destinations.
+(allow mach-lookup
+    (global-name "com.apple.distributed_notifications@1v3")
+    (xpc-service-name "com.apple.CoreDevice.CoreDeviceService"))
+
+;; ios-test: xcodebuild watches the test runner and the simulator's
+;; processes by pid (DTServiceHub "bless"). The safehouse base denies
+;; pidinfo outright, outside `(deny default)`, and this allow does not undo
+;; that deny: profiles.sh leaves the deny out of p1. Without pidinfo,
+;; xcodebuild waits for the runner until its 600 s timeout and crashes.
+(allow process-info-pidinfo)
+(allow sysctl-read (sysctl-name-regex #"procargs"))
+

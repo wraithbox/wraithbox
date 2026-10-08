@@ -3,7 +3,7 @@
 
 sbloop.py <run label> <task> <how> [profile, default p1]
 
-Copies guest/xcode.sb to /var/db/x06/xcode.sb, rebuilds the profiles, runs
+Copies guest/xcode.sb and guest/xcode-simtest.sb to /var/db/x06/, rebuilds the profiles, runs
 the task under the profile, and prints the denials of the last 2 minutes,
 leaving out daemons that are not the user's (they run under their own
 sandboxes and log denials all the time).
@@ -17,7 +17,8 @@ label, task, how = sys.argv[1:4]
 prof = sys.argv[4] if len(sys.argv) > 4 else "p1"
 req = [sys.executable, os.path.join(HERE, "req.py"), ".scratch/g.sock"]
 log = os.path.join(HERE, "results", label + "-setup.jsonl")
-subprocess.check_call(req + ["put", "--put", os.path.join(HERE, "guest", "xcode.sb"), "/var/db/x06/xcode.sb", "0644"], stdout=subprocess.DEVNULL)
+for f in ("xcode.sb", "xcode-simtest.sb"):
+    subprocess.check_call(req + ["put", "--put", os.path.join(HERE, "guest", f), "/var/db/x06/" + f, "0644"], stdout=subprocess.DEVNULL)
 subprocess.check_call(req + ["run", "--script", os.path.join(HERE, "guest", "profiles.sh"), "--log", log, "--label", "profiles"], stdout=subprocess.DEVNULL)
 rc = subprocess.call([sys.executable, os.path.join(HERE, "task.py"), label, task, how, "--sandbox", "/var/db/x06/%s.sb" % prof])
 out = subprocess.run(req + ["run", "--script", os.path.join(HERE, "guest", "denials.sh"),

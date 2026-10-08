@@ -7,8 +7,10 @@
 #          worktree /Users/x06p/work, the Xcode bundle readable), and the
 #          S13 vsock rule last
 #   p1.sb  p0 plus the Xcode exceptions in /var/db/x06/xcode.sb, before the
-#          vsock rule
-# The exceptions file comes from the host (x06-guestd put). Throwaway.
+#          vsock rule, and without the safehouse's (deny process-info-pidinfo)
+#   p2.sb  p1 plus /var/db/x06/xcode-simtest.sb, what xcodebuild test on a
+#          simulator needed to finish
+# The exceptions files come from the host (x06-guestd put). Throwaway.
 set -eu
 mkdir -p /var/db/x06
 s13() {
@@ -30,7 +32,10 @@ sed -e 's|/Users/proj1/work|/Users/x06p/work|g' -e 's|/Users/proj1|/Users/x06p|g
   /Volumes/X06XCODE/x06/s2-safehouse-deny-vsock.sb | grep -v 'socket-domain AF_VSOCK' > /var/db/x06/safehouse.sb
 { cat /var/db/x06/safehouse.sb; s13; vsock; } > /var/db/x06/p0.sb
 if [ -f /var/db/x06/xcode.sb ]; then
-  { cat /var/db/x06/safehouse.sb; s13; cat /var/db/x06/xcode.sb; vsock; } > /var/db/x06/p1.sb
+  # The safehouse base denies pidinfo with a rule that a later allow does not
+  # undo (X06 ios-test). p1 leaves that one rule out; xcode.sb allows pidinfo.
+  { grep -v '^(deny process-info-pidinfo)' /var/db/x06/safehouse.sb; s13; cat /var/db/x06/xcode.sb; vsock; } > /var/db/x06/p1.sb
+  { grep -v '^(deny process-info-pidinfo)' /var/db/x06/safehouse.sb; s13; cat /var/db/x06/xcode.sb /var/db/x06/xcode-simtest.sb; vsock; } > /var/db/x06/p2.sb
 fi
 chmod 644 /var/db/x06/*.sb
 grep -n 'define HOME_DIR\|AF_VSOCK' /var/db/x06/p*.sb

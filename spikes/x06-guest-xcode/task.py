@@ -24,7 +24,7 @@ XCB = {
     "ios-uitest": ("X06Apps", "-project X06Apps.xcodeproj -scheme iOSAppUI -destination " + SIM.replace(" ", "+") + " test"),
     "pkg-xcb-test": ("X06Pkg", "-scheme X06Pkg -destination platform=macOS test"),
 }
-SCRIPTS = {"env", "spm", "sign", "sim", "xctest", "run-app"}
+SCRIPTS = {"env", "spm", "sign", "sim", "escape"}
 
 label, task, how = sys.argv[1:4]
 rest = sys.argv[4:]
@@ -42,6 +42,8 @@ if task in XCB:
     # Spaces inside one argument are written as "+" above, and xcb.sh splits on spaces.
     cmd += ["--script", os.path.join(HERE, "guest", "tasks", "xcb.sh"),
             "--env", "X06_NAME=" + name, "--env", "X06_DIR=" + d, "--env", "X06_ARGS=" + args]
+    if os.environ.get("X06_LIMIT"):
+        cmd += ["--env", "X06_LIMIT=" + os.environ["X06_LIMIT"]]
 elif task in SCRIPTS:
     cmd += ["--script", os.path.join(HERE, "guest", "tasks", task + ".sh")]
 else:

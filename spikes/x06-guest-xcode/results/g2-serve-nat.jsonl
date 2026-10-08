@@ -1,0 +1,4 @@
+{"cmd":"serve","disks":["\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x06\/xcode.img"],"event":"started","nat":true,"seconds":0.20945045899134129}
+{"cmd":"serve","event":"connected","seconds":9.7554616669658571,"tries":160}
+{"cmd":"serve","event":"listening","socket":".scratch\/g.sock"}
+{"cmd":"serve","event":"guest stopped","seconds":1336.3582786669722}
