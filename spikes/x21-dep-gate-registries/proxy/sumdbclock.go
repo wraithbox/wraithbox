@@ -249,7 +249,7 @@ func goAgeTime(escMod, escVer string) (time.Time, error) {
 func filterList(escMod string, lines []string) (keep []string, lookups int, err error) {
 	if *listLazy {
 		sorted := append([]string(nil), lines...)
-		sort.Slice(sorted, func(i, j int) bool { return semverLess(sorted[j], sorted[i]) })
+		sort.Slice(sorted, func(i, j int) bool { return semverCmp(sorted[j], sorted[i]) < 0 })
 		for i, v := range sorted {
 			t, err := goAgeTime(escMod, goEscape(v))
 			lookups++
@@ -332,4 +332,41 @@ func clockStats() string {
 		s += fmt.Sprintf(", point %d tree %d", c.point, c.treeSize)
 	}
 	return s
+}
+
+// semverCmp compares Go versions vMAJOR.MINOR.PATCH[-pre][+build] well
+// enough for ordering a list: numeric parts, then a release above its
+// prereleases, then prereleases as strings. (main.go's semverLess ignores
+// the "v" and the prerelease, which ordered terraform's list wrongly.)
+func semverCmp(a, b string) int {
+	core := func(v string) ([3]int, string) {
+		v = strings.TrimPrefix(strings.SplitN(v, "+", 2)[0], "v")
+		c, pre, _ := strings.Cut(v, "-")
+		var n [3]int
+		for i, p := range strings.SplitN(c, ".", 3) {
+			n[i], _ = strconv.Atoi(p)
+		}
+		return n, pre
+	}
+	na, pa := core(a)
+	nb, pb := core(b)
+	for i := range 3 {
+		if na[i] != nb[i] {
+			if na[i] < nb[i] {
+				return -1
+			}
+			return 1
+		}
+	}
+	switch {
+	case pa == pb:
+		return 0
+	case pa == "":
+		return 1
+	case pb == "":
+		return -1
+	case pa < pb:
+		return -1
+	}
+	return 1
 }

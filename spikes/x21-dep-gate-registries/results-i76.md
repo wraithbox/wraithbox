@@ -95,27 +95,31 @@ sumdb lookups 4074, records past the calibration tree size 0, calibration errors
   github.com/hashicorp/terraform: listed 476, hidden 2, lookups 476, 1.26s
   github.com/prometheus/client_golang: listed 58, hidden 1, lookups 58, 0.20s
 
-{"module": "github.com/aws/aws-sdk-go", "kept": 1865, "seconds": 0.06}
-{"module": "github.com/aws/aws-sdk-go-v2/service/s3", "kept": 300, "seconds": 0.07}
-{"module": "k8s.io/client-go", "kept": 670, "seconds": 0.05}
-{"module": "google.golang.org/grpc", "kept": 248, "seconds": 0.04}
-{"module": "github.com/spf13/cobra", "kept": 27, "seconds": 0.04}
-{"module": "golang.org/x/net", "kept": 59, "seconds": 0.04}
-{"module": "github.com/hashicorp/terraform", "kept": 476, "seconds": 0.04}
-{"module": "github.com/prometheus/client_golang", "kept": 57, "seconds": 0.05}
-sumdb lookups 31, records past the calibration tree size 0, calibration errors 0, point 66157893 tree 67058346
-  golang.org/x/text: listed 50, hidden 0, lookups 1, 1.30s
-  github.com/aws/aws-sdk-go: listed 1865, hidden 0, lookups 1, 0.03s
-  github.com/aws/aws-sdk-go-v2/service/s3: listed 301, hidden 1, lookups 2, 0.04s
-  k8s.io/client-go: listed 670, hidden 0, lookups 1, 0.02s
-  google.golang.org/grpc: listed 248, hidden 0, lookups 1, 0.02s
-  github.com/spf13/cobra: listed 27, hidden 0, lookups 1, 0.02s
-  golang.org/x/net: listed 59, hidden 0, lookups 1, 0.02s
-  github.com/hashicorp/terraform: listed 476, hidden 0, lookups 1, 0.02s
-  github.com/prometheus/client_golang: listed 58, hidden 1, lookups 2, 0.03s
+{"module": "github.com/aws/aws-sdk-go", "kept": 1865, "seconds": 0.05}
+{"module": "github.com/aws/aws-sdk-go-v2/service/s3", "kept": 300, "seconds": 0.04}
+{"module": "k8s.io/client-go", "kept": 670, "seconds": 0.02}
+{"module": "google.golang.org/grpc", "kept": 248, "seconds": 0.02}
+{"module": "github.com/spf13/cobra", "kept": 27, "seconds": 0.03}
+{"module": "golang.org/x/net", "kept": 59, "seconds": 0.02}
+{"module": "github.com/hashicorp/terraform", "kept": 475, "seconds": 0.03}
+{"module": "github.com/prometheus/client_golang", "kept": 57, "seconds": 0.04}
+sumdb lookups 32, records past the calibration tree size 0, calibration errors 0, point 66160395 tree 67060334
+  golang.org/x/text: listed 50, hidden 0, lookups 1, 1.14s
+  github.com/aws/aws-sdk-go: listed 1865, hidden 0, lookups 1, 0.01s
+  github.com/aws/aws-sdk-go-v2/service/s3: listed 301, hidden 1, lookups 2, 0.02s
+  k8s.io/client-go: listed 670, hidden 0, lookups 1, 0.01s
+  google.golang.org/grpc: listed 248, hidden 0, lookups 1, 0.01s
+  github.com/spf13/cobra: listed 27, hidden 0, lookups 1, 0.01s
+  golang.org/x/net: listed 59, hidden 0, lookups 1, 0.01s
+  github.com/hashicorp/terraform: listed 476, hidden 1, lookups 2, 0.02s
+  github.com/prometheus/client_golang: listed 58, hidden 1, lookups 2, 0.02s
 ```
 
-The first list (golang.org/x/text) includes calibration. `listcheck.py`
+The lazy rows are from a rerun after `semverCmp` replaced main.go's
+`semverLess`, which ignored the leading "v" and prereleases and so took
+the wrong version as the highest. The first list (golang.org/x/text)
+includes calibration. Lazy hides terraform v1.17.0-rc1 but not v1.16.5,
+a young patch release below the highest old version (v1.17.0-beta2). `listcheck.py`
 shows why versions were hidden. aws-sdk-go v1.10.49, v1.12.42 and v1.12.68
 have no record: sum.golang.org answers 404 ("case-insensitive file name
 collision"), so the proxy can't serve them either. terraform v1.17.0-rc1
