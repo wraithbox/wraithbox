@@ -1,0 +1,39 @@
+env               setuid  -    exit=0        0s  
+spm               setuid  -    exit=0       48s  RESULT spm build exit=0 37s, test exit=0 11s
+mac-build         setuid  -    exit=0       14s  RESULT mac-build-setuid-pty exit=0 13s
+mac-test          setuid  -    exit=65       4s  RESULT mac-test-setuid-pty exit=65 4s
+mac-uitest        setuid  -    exit=65       4s  RESULT mac-uitest-setuid-pty exit=65 4s
+pkg-xcb-test      setuid  -    exit=65      10s  RESULT pkg-xcb-test-setuid-pty exit=65 9s
+ios-build         setuid  -    exit=0       12s  RESULT ios-build-setuid-pty exit=0 12s
+ios-device-build  setuid  -    exit=0        9s  RESULT ios-device-build-setuid-pty exit=0 10s
+sign              setuid  -    exit=0       11s  RESULT adhoc verify exit=0 | RESULT app binary exited 133 | RESULT open exit=1 | RESULT self-signed codesign exit=0 | RESULT self-signed binary still running after 5s
+sim               setuid  -    exit=0      143s  RESULT create: 726BFE4D-ACA2-4E03-977E-0CEEB9D61923 | RESULT boot exit=0 2s | RESULT bootstatus exit=0 52s | RESULT install exit=0 | RESULT launch exit=0 | RESULT screenshot exit=0 | RESULT total 143s
+ios-test          setuid  -    exit=0       35s  RESULT ios-test-setuid-pty exit=0 34s
+ios-uitest        setuid  -    exit=0       46s  RESULT ios-uitest-setuid-pty exit=0 45s
+env               asuser  -    exit=0        0s  
+spm               asuser  -    exit=0      280s  RESULT spm build exit=0 103s, test exit=0 176s
+mac-build         asuser  -    exit=0       13s  RESULT mac-build-asuser-pty exit=0 13s
+mac-test          asuser  -    exit=65      10s  RESULT mac-test-asuser-pty exit=65 9s
+mac-uitest        asuser  -    exit=65       9s  RESULT mac-uitest-asuser-pty exit=65 9s
+pkg-xcb-test      asuser  -    exit=65      12s  RESULT pkg-xcb-test-asuser-pty exit=65 12s
+ios-build         asuser  -    exit=0       17s  RESULT ios-build-asuser-pty exit=0 17s
+ios-device-build  asuser  -    exit=0        9s  RESULT ios-device-build-asuser-pty exit=0 9s
+sign              asuser  -    exit=0       11s  RESULT adhoc verify exit=0 | RESULT app binary still running after 5s | RESULT open exit=1 | RESULT self-signed codesign exit=0 | RESULT self-signed binary still running after 5s
+sim               asuser  -    exit=0      166s  RESULT create: AF0BCDA8-15B0-4D62-9BA7-2E39F07D2288 | RESULT boot exit=0 9s | RESULT bootstatus exit=0 67s | RESULT install exit=0 | RESULT launch exit=0 | RESULT screenshot exit=0 | RESULT total 166s
+ios-test          asuser  -    exit=0       31s  RESULT ios-test-asuser-pty exit=0 29s
+ios-uitest        asuser  -    exit=0       20s  RESULT ios-uitest-asuser-pty exit=0 20s
+spm               setuid  p0   exit=0       48s  RESULT spm build exit=0 26s, test exit=0 22s
+mac-build         setuid  p0   exit=69       2s  RESULT mac-build-setuid-pty-sb exit=69 2s
+ios-build         setuid  p0   exit=69       2s  RESULT ios-build-setuid-pty-sb exit=69 2s
+sign              setuid  p0   exit=0       12s  RESULT adhoc verify exit=0 | RESULT app binary exited 134 | RESULT open exit=1 | RESULT self-signed codesign exit=1 | RESULT self-signed binary exited 134
+sim               setuid  p0   exit=0        6s  RESULT create: dyld[3897]: Library not loaded: /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Frameworks/CoreSimulatorUtilities.framework/Versions/A/CoreSimulatorUtilities | R
+spm               setuid  p1   exit=0       29s  RESULT spm build exit=0 18s, test exit=0 9s
+mac-build         setuid  p1   exit=0        3s  RESULT mac-build-setuid-pty-sb exit=0 3s
+ios-build         setuid  p1   exit=0        3s  RESULT ios-build-setuid-pty-sb exit=0 3s
+sign              setuid  p1   exit=0       11s  RESULT adhoc verify exit=0 | RESULT app binary exited 134 | RESULT open exit=1 | RESULT self-signed codesign exit=0 | RESULT self-signed binary still running after 5s
+sim               setuid  p1   exit=0      157s  RESULT create: 36671B57-0ECB-4926-ACA8-5F2A89AB6DEE | RESULT boot exit=0 7s | RESULT bootstatus exit=0 66s | RESULT install exit=0 | RESULT launch exit=0 | RESULT screenshot exit=0 | RESULT total 157s
+ios-test          setuid  p1   exit=137    303s  RESULT killed after 300s | RESULT ios-test-setuid-pty-sb exit=137 301s
+escape            setuid  p1   exit=1        2s  RESULT direct write exit=1 | RESULT write via simctl spawn exit=0
+ios-test          setuid  p2   exit=0       60s  RESULT ios-test-setuid-pty-sb exit=0 59s
+ios-uitest        setuid  p2   exit=0       21s  RESULT ios-uitest-setuid-pty-sb exit=0 21s
+escape            setuid  p2   exit=0        1s  RESULT direct write exit=0 | RESULT write via simctl spawn exit=0
