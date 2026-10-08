@@ -39,7 +39,9 @@ other; the coordinator relays.
      --json number,title,labels,assignees
    ```
 
-   Skip issues that are assigned or have an open blocker. `blockedBy`
+   Skip issues that are assigned or have an open blocker. An issue is
+   blocked when it has an open `blockedBy` issue, and no label marks
+   it (`planning.md`, "Dependencies and relationships"). `blockedBy`
    is an object with a `nodes` list, so list the open blockers with:
 
    ```bash
@@ -47,15 +49,10 @@ other; the coordinator relays.
    ```
 
    `[]` means no open blocker. `truncated` means the list is cut short:
-   treat the issue as blocked. A pull request or an outside decision
-   can't be a `blockedBy` target, so also read the body and the
-   trusted comments for a `Blocked by #<pr>` line or a named outside
-   wait (`planning.md`, "Dependencies and relationships"). When the
-   issue has the `blocked` label but every blocker, of either kind, is
-   closed or resolved, the label is stale: remove it
-   (`gh issue edit <n> --remove-label blocked`) with a
-   `Triage (YYYY-MM-DD):` comment that names the closed blockers, and
-   pick the issue. Spikes come before the work they unblock. An issue
+   treat the issue as blocked. A wait on a pull request or on the
+   maintainer is recorded as a blocker issue as well, and this query
+   finds it. Spikes come before the work they
+   unblock. An issue
    labeled `needs-vm` needs a running macOS guest on the maintainer's
    Mac: take it only when no other `needs-vm` builder is running
    ("A wave", step 2).
@@ -106,7 +103,8 @@ request; the result pull request does (`planning.md`).
 ## A wave: the coordinator's flow
 
 1. **Triage first** (`planning.md`, "Triage"). Every issue in the wave
-   is `ready-for-agent`, unblocked, in the current milestone.
+   is `ready-for-agent`, has no open `blockedBy` issue, and is in the
+   current milestone.
 2. **Choose the wave.** Up to six issues. Avoid two issues with the same
    `comp:` label, or two that both change a hot file (below), unless one
    is stacked on the other. At most one `needs-vm` builder runs at a

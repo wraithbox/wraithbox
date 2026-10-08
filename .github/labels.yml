@@ -62,9 +62,6 @@
 - name: ready-for-human
   color: "e6e6fa"
   description: Requires human implementation
-- name: blocked
-  color: "000000"
-  description: Waiting on another issue, pull request or outside decision
 - name: wontfix
   color: "ffffff"
   description: This will not be worked on
