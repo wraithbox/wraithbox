@@ -244,7 +244,8 @@ print about returned work after `wb land` is outside it
   filter, the pack scanner, and the pre-receive check, so it can put
   any object of any project into a session's branch. Between `wb`'s
   checks of `landing.git` and its fetch, it can also swap
-  `landing.git` for a link to any repository the user can read
+  `landing.git` for a link to any repository the user can read, or
+  rewrite `objects/info/alternates` and the refs
   (S08-workspace-and-git, "Landing on the host"). `wb land` then
   brings those objects into a `wb/<session-id>` branch of the user's
   repository, and they leave the host only if the user pushes that

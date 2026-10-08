@@ -89,10 +89,13 @@ back out, without sharing the host filesystem.
   runs every git command in `export.git` with
   `core.hooksPath=/dev/null`, `gc.auto=0`, `maintenance.auto=false`
   and `repack.updateServerInfo=false` on its command line, and fetches
-  with `--no-write-fetch-head`. Before the check it removes what an
-  interrupted run of its own leaves behind, `*.lock` files,
-  `objects/pack/tmp_*` and `objects/pack/*.keep`, because no other
-  process writes there.
+  with `--no-write-fetch-head`. While it holds the export lock, and
+  before the check, it removes what an interrupted run of its own
+  leaves behind, because no other process writes there: `HEAD.lock`,
+  `config.lock`, `packed-refs.lock`, `*.lock` files under `refs/`, and
+  `objects/pack/tmp_*` and `objects/pack/*.keep`. It examines each one
+  with `lstat`, and refuses the run instead of removing an entry that
+  isn't a regular file with a link count of 1.
 
   On a partial clone, `upload-pack` refuses to fetch missing objects
   from the user's `origin` (`git-upload-pack(1)`, `GIT_NO_LAZY_FETCH`),
@@ -525,8 +528,9 @@ back out, without sharing the host filesystem.
     `objects/info/http-alternates`, and no ref under `refs/replace/`,
     loose or in `packed-refs`. `wb-hostd` can write `landing.git`, so
     these checks only narrow what it can do: it can swap the directory
-    between the check and the fetch, and it can put objects of any
-    project in the session's branch (T16-hostd-landing).
+    between the check and the fetch, or rewrite
+    `objects/info/alternates` and the refs, and it can put objects of
+    any project in the session's branch (T16-hostd-landing).
   - The fetch checks every object it receives:
     `fetch.fsckObjects=true`, `transfer.fsckObjects=true`, and each
     check that `receive-pack` sets to an error set to an error here too
@@ -538,12 +542,16 @@ back out, without sharing the host filesystem.
     `maintenance.auto=false` and `gc.auto=0` on git's command line.
     Git then doesn't run a hook or maintenance in the user's
     repository during it.
-    It runs with `GIT_PROTOCOL_FROM_USER=0` in its environment and
-    `protocol.file.allow=always` on its command line, so a transport
-    other than the local one, such as `ext::`, is refused. With
-    `GIT_PROTOCOL_FROM_USER=0` and without that setting, git 2.54.0
-    and 2.56.0 refuse the local fetch too (`transport 'file' not
-    allowed`).
+    It runs with `GIT_PROTOCOL_FROM_USER=0` in its environment, and
+    with `protocol.allow=never` followed by `protocol.file.allow=always`
+    on its command line, so every transport other than the local one
+    is refused: `ext::`, `https`, `ssh` and `git` among them. With
+    `GIT_PROTOCOL_FROM_USER=0` and without `protocol.file.allow`, git
+    2.54.0 and 2.56.0 refuse the local fetch too (`transport 'file' not
+    allowed`). It runs with `--no-recurse-submodules`, because
+    `fetch.recurseSubmodules` defaults to `on-demand` and
+    `protocol.file.allow=always` would then also apply to submodule
+    fetches of commits the guest chose.
   - The fetch starts `upload-pack` in `landing.git`, whose
     configuration `wb-hostd` can write. That relies on git's rule for
     protected configuration: `upload-pack` runs
@@ -560,7 +568,10 @@ back out, without sharing the host filesystem.
     copied. Then it runs the same checks and the same fetch into it,
     and runs `git --no-pager diff` and `git --no-pager log` there with
     `--no-ext-diff`, `--no-textconv` and `core.hooksPath=/dev/null`,
-    and `git log` also with `--no-show-signature`. It removes the
+    and `git log` also with `--no-show-signature`. Every git command
+    in the scratch repository runs with `GIT_NO_LAZY_FETCH=1`, so a
+    missing object never makes git fetch it from a promisor remote of
+    the user's repository. It removes the
     scratch repository when it is done. `wb diff` writes nothing in
     the user's repository.
 - **Repository lifecycle** (B41-git-data-scope, item 6). Git never
@@ -751,37 +762,54 @@ quarantine attribute on macOS, Mark of the Web on Windows; S12-platforms).
 When `wb` runs inside WSL (S12-platforms), the repository is in the WSL
 distribution, and `export.git` and `landing.git` are on the Windows
 side. Both fetches cross between the two with `git fetch
---upload-pack=<program>`, where the program is an absolute path, so
-git looks up no remote helper and nothing on `PATH`. Git passes the
-program the fetch's path as its last argument. That path is a fixed
-placeholder, `/wb-relay`, which doesn't name a repository, and the
-program ignores it. Each fetch runs with `GIT_PROTOCOL_FROM_USER=0` and
-`protocol.file.allow=always`, as in "Landing on the host".
+--upload-pack=<command>`.
 
+- **The command is shell text.** Git runs the `--upload-pack` value as
+  a POSIX shell command line (`sh -c`, the `sh` of Git for Windows on
+  the Windows side), with the fetch's path appended as its last word.
+  The side that composes the value first checks each project ID and
+  session ID in it against its format, then single-quotes every word
+  the way git's `sq_quote_buf` does: the word in single quotes, with
+  each `'` in it written as `'\''` and each `!` as `'\!'`. That
+  covers the program's path, the distribution and user names, the
+  repository's path and the IDs, so no word can expand or split. The
+  path of `wsl.exe` is written with forward slashes, which `sh`
+  doesn't read as escapes. The first word is an absolute path, so git
+  doesn't look up a remote helper, and the shell doesn't search `PATH`
+  for the program.
+- **The placeholder path.** The fetch's path is a placeholder that the
+  program ignores. Git reads an existing bundle file at that path as a
+  bundle and ignores `--upload-pack` (reproduced with git 2.56.0 for
+  I67). So the composing side creates a new empty directory, readable
+  only by the user, in its temporary directory, uses `wb-relay` in it
+  as the placeholder, and checks with `lstat` right before the fetch
+  that the placeholder doesn't exist.
+- **Fetch settings.** Each fetch runs with `GIT_PROTOCOL_FROM_USER=0`,
+  `protocol.allow=never`, `protocol.file.allow=always` and
+  `--no-recurse-submodules`, as in "Landing on the host".
 - **Export update.** The Windows-side `wb.exe relay` that the WSL-side
   `wb` starts (S12-platforms, "WSL") runs as the Windows user, outside
   any sandbox. It is the `wb` of "Export repository" and "Repository
   lifecycle" for `export.git`, with the Windows host git ("Host
   git"). It takes the export lock over `wb-hostd`'s named pipe. Under
-  it, it checks the layout and `config`, fetches, deletes refs, and
-  runs the shrink steps and the prune. Its fetch's program is
-  `wsl.exe` at its fixed path in the Windows system directory, with
-  the distribution and the Linux user of the WSL-side `wb`, and
-  `--exec` of the WSL-side `wb`'s absolute path with the subcommand
-  `upload-pack-relay` and the repository's path. The WSL-side `wb`
-  sends those three values, and `wb.exe` takes none of them from
-  `wb-hostd`. In the distribution, `wb upload-pack-relay` checks that
-  the path is the git common directory that the rules of S05-cli
-  ("Naming") give for that path, then runs
-  `git upload-pack` on it with its own git, which it resolves and
-  checks by "Host git", and with `GIT_NO_LAZY_FETCH=1`. WSL interop
-  carries the standard input and output.
+  the lock it checks the layout and `config`, then fetches, deletes
+  refs, and runs the shrink steps and the prune. Its command is
+  `wsl.exe` from the Windows system directory, with the distribution
+  and the Linux user of the WSL-side `wb`, then `--exec`, the
+  WSL-side `wb`'s absolute path, the subcommand `upload-pack-relay`
+  and the repository's path. The WSL-side `wb` sends those values,
+  and `wb.exe` takes none of them from `wb-hostd`. In the
+  distribution, `wb upload-pack-relay` checks that the path is the git
+  common directory that the rules of S05-cli ("Naming") give for that
+  path. It then runs `git upload-pack` on it with its own git, which
+  it resolves and checks by "Host git", and with `GIT_NO_LAZY_FETCH=1`.
+  WSL interop carries the standard input and output.
 - **Land and diff.** The WSL-side `wb` runs the fetch of "Landing on
   the host" in the distribution, into the user's repository or the
-  scratch repository of `wb diff`. Its program is `wb.exe` at the path
-  the WSL-side `wb` uses to start the relay, with the subcommand
+  scratch repository of `wb diff`. Its command is `wb.exe`, at the
+  path the WSL-side `wb` uses to start the relay, with the subcommand
   `landing-upload-pack`, the project ID and the session ID. `wb.exe`
-  checks both IDs against their formats, derives the landing
+  checks both IDs against their formats again, derives the landing
   repository's path itself, runs the checks of "Landing on the host"
   on it, and then runs `git upload-pack` on it with the Windows git.
 
@@ -792,6 +820,7 @@ could ask for any object of that repository by its ID
 over the cross-OS file share either. `export.git` then has one writer,
 on the Windows side, with the Windows git. Everything else in this
 spec is unchanged.
+
 ## Open points
 
 Git LFS objects, submodules, and very large repositories are not covered

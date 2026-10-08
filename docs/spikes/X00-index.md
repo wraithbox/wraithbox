@@ -117,7 +117,11 @@ platform starts.
 - **X12-wsl-channel: WSL client channel.** `wb` in WSL 2 relaying through
   `wb.exe relay` over interop standard streams: terminal fidelity,
   window resizing, throughput of the git transport, latency to the
-  first prompt. Compare with a Hyper-V socket from the WSL VM.
+  first prompt. Compare with a Hyper-V socket from the WSL VM. For the
+  git fetches of S08-workspace-and-git ("WSL"), also measure how
+  `wsl.exe --exec` passes arguments that hold spaces and quotes, and
+  whether `GIT_PROTOCOL=version=2` reaches the relayed `upload-pack`
+  in both directions.
 - **X13-windows-guests: Windows guests on a macOS host.** Can the Virtualization
   framework boot Windows 11 for Arm in a supported way, including TPM
   and Secure Boot requirements and usable display and network drivers?
