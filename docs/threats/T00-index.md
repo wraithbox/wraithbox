@@ -83,10 +83,12 @@ print about returned work after `wb land` is outside it
 - **T03-hypervisor-escape: Hypervisor escape.** Escape from the hypervisor.
 - **T04-bad-approvals: Bad approvals.** A user approving a malicious request or merging a malicious
   change despite the flags. The guest chooses which names it looks up,
-  so it can raise requests to wear down the user's attention, or pick
-  a name that looks like another. The limits on pending and new
-  requests per VM bound the first, and the name display rules flag the
-  second (S09-policy-credentials-audit, "Approval flow").
+  so it can raise requests to wear down the user's attention, and the
+  limits on pending and new requests per VM bound that. A request for
+  an internationalized name whose Unicode form mixes scripts or uses
+  confusable characters shows a warning
+  (S09-policy-credentials-audit, "Approval flow"). An ASCII name that
+  looks like another, such as `github.corn`, doesn't get a warning.
 - **T05-cross-proj-clones: Other projects' clones after guest root.** After a guest root escalation inside the shared work VM, read or
   write access to other projects' guest clones (code only; no secrets are
   present; changes still return only as reviewable branches). A

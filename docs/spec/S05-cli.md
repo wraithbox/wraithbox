@@ -227,7 +227,7 @@ everything else `wb` does at that boundary.
 | `wb diff <session>` | Review returned work with flagged paths highlighted |
 | `wb land <session> [--branch NAME]` | Fetch returned work into the host repo as a branch; never checks out or merges |
 | `wb discard <session>` | Drop returned work and the session's guest worktree with its history link. A lost session ends with no recovery push (S06-vm-lifecycle, "Discarding a lost session") |
-| `wb approve [<id>]` / `wb deny [<id>]` | Answer pending approvals (notification alternative) |
+| `wb approve [<id>]` / `wb deny [<id>]` | Answer the pending approval request with that id (notification alternative). Without an id, refused when more than one request is pending, listing their ids. An id that doesn't name an open request is refused with `approval-stale` (S09-policy-credentials-audit, "Approval flow") |
 | `wb allow <host> [--project P]` | Add an allowlist entry (SEC05-default-deny) |
 | `wb policy show/explain/edit [--project P]` | Effective policy and why a request was allowed or refused (NFR06-explained-refusals) |
 | `wb learn report [--project P]` | Suggested allowlist from a learn-mode session (FR10-learn-mode) |

@@ -488,7 +488,7 @@ Only the user approves a request.
   pending and new requests ("Approval flow" below). A deny holds
   until the sessions running at the deny have ended, and an answer
   given after the VM's sessions changed is refused and the request
-  shown again (S07-egress-gateway, "Deny duration", "Session set at
+  shown again as a new request ("Approval flow", S07-egress-gateway, "Deny duration", "Session set at
   the answer"). Each VM has a cap on concurrent
   prover runs (S04-architecture). Boundary results are cached per host,
   port and rule form, keyed on the SHA-256 of the boundary document, so
@@ -510,6 +510,11 @@ Only the user approves a request.
   policy and the same union doesn't ask again, and any change to
   either asks again. A denial, or no answer before the request
   expires, refuses the start.
+  - *Expiry.* The set a join approval records holds the sessions in
+    the VM and the waiting `wb` process. The request expires when that
+    `wb` exits, or when the VM's set of sessions changes before the
+    answer. The expiry is a Device Config State Change (5019) event
+    with the rule `approval-expired`, and the start is refused.
 
 Approval requests are delivered as native notifications (through the
 platform's notification helper, S12-platforms) and through `wb approve` /
@@ -540,13 +545,34 @@ VM", I36).
   image turns off the services behind the background list where it
   can (X17-image-build).
 - **One request per name.** A VM has at most one open request per name.
-  Later lookups of that name join it and are counted on it, and the
-  request shows the count.
-- **Limits.** Each VM has two limits fixed in code: the number of
-  pending requests, and the number of new requests a minute. A name
-  over either limit is refused at DNS as any unknown name is, without
-  a request, and is logged with the rule `approval-pending-cap` or
-  `approval-rate`. These refusals are aggregated per rule
+  Later lookups of that name join it and are counted on it. The
+  request shows the count in its body as guest-driven, "the guest
+  looked this up N times", never in the notification's title.
+- **Request ids.** Each request has an id that `wb-hostd` never
+  reuses. The notification's actions and `wb approve <id>` and
+  `wb deny <id>` name it, and an answer applies only to the request
+  with that id.
+  - *Stale answers.* An answer whose id doesn't name an open request, such
+    as one for a request that expired or was replaced, is refused and
+    logged with the rule `approval-stale`. So an old answer can't apply
+    to a newer request for the same name, which may have other
+    sessions or other risk-check findings.
+  - *Replaced requests.* When an answer is refused because the VM's
+    sessions changed (S07-egress-gateway, "Session set at the
+    answer"), the request closes, and a new request with a new id and
+    the current set of sessions replaces it. The new request's 5019
+    event names the old id.
+  - *Without an id.* `wb approve` and `wb deny` without an id are
+    refused when more than one request is pending, and the refusal
+    lists the pending ids (S05-cli).
+- **Limits.** Each VM has two limits fixed in code: 16 pending
+  requests, and 10 new requests a minute. `wb-netd` checks both when
+  the query arrives, under the lock of the one-open-event-per-name
+  check (S07-egress-gateway, "Same answer for every refusal"), from
+  its own count of open events. `wb-hostd` tells it when a request
+  closes. A name over either limit is refused at DNS with the same
+  answer and hold as any unknown name, without a request, and is
+  logged with the rule `approval-pending-cap` or `approval-rate`. These refusals are aggregated per rule
   (S07-egress-gateway, "Events and rate limits"). `wb status` shows
   the VM's pending requests and the count of names refused under each
   limit since the VM started. The guest chooses which names it looks
@@ -556,8 +582,11 @@ VM", I36).
 - **Expiry.** A request has no wall-clock timeout. It stays pending, in
   `wb status` and as a notification, until the user answers it or
   until every session in the set it records has ended
-  (S07-egress-gateway, "Session set at the answer"). Then it expires:
-  the notification is withdrawn, and the expiry is a Device Config
+  (S07-egress-gateway, "Session set at the answer"). A replaced
+  request's set is the one it was replaced with, so a request
+  replaced with sessions A and B doesn't expire when A ends. A
+  request that expires has its notification withdrawn, and the expiry
+  is a Device Config
   State Change (5019) event with the name, the sessions and the rule
   `approval-expired`. An expired request grants nothing, and the next
   lookup of the name raises a new request.
@@ -574,11 +603,17 @@ VM", I36).
     marked as decoded. When a label fails to decode, no Unicode form
     is shown, and the request shows a warning that the name isn't a
     valid internationalized name.
-  - *Warning.* When a label mixes scripts (UTS 39, not "highly
-    restrictive"), or the name holds a character that Unicode's table
-    of confusable characters (UTS 39) maps to another character, a warning
-    next to the Unicode form names the reason. The rule the user
-    approves always holds the ASCII form.
+  - *Warning.* A warning next to the Unicode form names the reason
+    when a label mixes scripts or the name holds a confusable
+    character. The rule the user approves always holds the ASCII
+    form.
+    - *Mixed scripts:* a label holds letters from more than one
+      script (UTS 39, Single Script). Characters of the Common and
+      Inherited scripts, such as digits and hyphens, don't count.
+    - *Confusable:* a non-ASCII character that Unicode's
+      `confusables.txt` (UTS 39) maps to a prototype in another
+      script, or to an ASCII letter or digit. ASCII characters never
+      count, so `bücher1.de` doesn't warn.
   - *Parser.* The decoder and the script check read bytes the guest
     chose, so they have a fuzz target (S11-verification-and-spikes).
 - **Allow for this session.** Shown as "for this VM until these

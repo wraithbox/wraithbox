@@ -590,8 +590,10 @@ restart limit.
   after `wb-netd` exits before it starts a new one.
 - **Mapping entries are checked.** `wb-netd` derives the names from
   guest queries, so `wb-hostd` checks each entry before it keeps it:
-  the name in canonical form (lowercase LDH ASCII, no trailing dot,
-  within the name length limit of S07-egress-gateway), the address
+  the name in canonical form (lowercase, no trailing dot, each label 1
+  to 63 bytes of letters, digits and hyphens with no dot byte inside
+  it, and at most 253 bytes in all, the name form of
+  S07-egress-gateway), the address
   inside 198.18.0.0/15, and at most 131,072 live entries per VM. An
   entry that fails a check is logged with the rule
   `mapping-entry-invalid`, rate-limited, and ends the `wb-netd` that
@@ -671,12 +673,13 @@ gets its limits before it merges.
 | RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on the server and never left at the library default, requests per second per VM, entries in the reconnect session list | I52 for the values, S06-vm-lifecycle, "Reconnect" |
 | The version `wb-guestd` reports | `wb-hostd` | 64 bytes, fixed form | "Version skew" |
 | Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-egress-gateway, "Packet path" |
+| Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-egress-gateway, "Packet path", DNS, "Hold limits" |
 | Connections and streams | `wb-netd`, `wb-proxyd` | connections in flight, stream resets and refusals per rule | S07-egress-gateway |
 | Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-egress-gateway, "Stream path" |
 | Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-policy-credentials-audit, "TLS inspection certificate authority" |
 | Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-workspace-and-git, "Pack scanner", "Bounds" |
 | Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-vm-lifecycle, "Recovery" |
-| Approval requests | `wb-hostd`, `wb-prover` | requests per VM, pending requests, prover runs at once | S09-policy-credentials-audit, "Approvals" |
+| Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-policy-credentials-audit, "Approval flow", "Approvals" |
 | Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | S09-policy-credentials-audit, "Approvals", "Restarting a daemon" |
 | Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-policy-credentials-audit, "Audit" |
 | Accounting and event records | `wb-hostd` | 4 KiB per record, fixed format, a malformed record ends the sender | "Accounting and event channels" |
