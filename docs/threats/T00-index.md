@@ -163,7 +163,11 @@ print about returned work after `wb land` is outside it
   The projects also share the VM's availability. One project can use
   up the wildcard budget, the approval request rate and pending cap,
   and the detection-finding rate limit for the others, and the
-  strictest limit any of them sets applies to all. Per-project and
+  strictest limit any of them sets applies to all. Guest root can
+  also fake a leftover-process result, which locks the VM against new
+  sessions until the user ends the running ones and stops and starts
+  the VM (S06-vm-lifecycle, "Leftover processes"). That cost stays in
+  the VM, and the user can recover from it. Per-project and
   per-session rules narrow the union only by a label the guest
   reports, which guest root can forge (T06-forged-labels), and until
   X14-flow-attribution delivers labels nothing narrows it. Credentials
