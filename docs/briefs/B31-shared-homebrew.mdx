@@ -5,10 +5,10 @@ description: Yes, with conditions. One prefix owned by the toolchain user, which
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-07: yes, with conditions. Awaiting decision.** Source: X20-shared-homebrew (I31). Changes S06-vm-lifecycle ("Images" only), S11-verification-and-spikes and T00-index (T15-shared-toolchain). Confirms I144 for how projects add packages, and builds on I150. Follow-up: I180 (the three untested conditions, in a guest).
+**Answered 2026-10-07: yes, with conditions. Decided 2026-10-08: no per-project prefix in v1 (A), and bottles only (A).** The decision is in the I31 comment that starts `Decision (2026-10-08):`. Source: X20-shared-homebrew (I31). Changes S06-vm-lifecycle ("Images" only), S11-verification-and-spikes and T00-index (T15-shared-toolchain). Confirms I144 for how projects add packages, and builds on I150. Follow-up: I180 (the untested conditions, in a guest).
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** One Homebrew prefix, `/opt/homebrew`, that belongs to the toolchain user works. `wb-guestd` installs every project's declared packages into it as that user. A project user can run them but couldn't change any file or install anything, and the agent runs as that project user. The catch is the Brewfile, which is a Ruby program. Run by `brew bundle` as the toolchain user, a Brewfile planted a file in the prefix every project runs from. So the host reads the manifest as a list of package names and refuses anything else. Installing a realistic project took 3 minutes. A prefix in each project's home doesn't work in practice: Homebrew set out to build nine of the project's packages and LLVM from source there, and was still going after 51 minutes. The decisions are whether a project may have a prefix of its own anyway, and whether to refuse packages without a prebuilt bottle.
+**Yes, with conditions.** One Homebrew prefix, `/opt/homebrew`, that belongs to the toolchain user works. `wb-guestd` installs every project's declared packages into it as that user. A project user can run them but couldn't change any file or install anything, and the agent runs as that project user. The catch is the Brewfile, which is a Ruby program. Run by `brew bundle` as the toolchain user, a Brewfile planted a file in the prefix every project runs from. So the host reads the manifest as a list of package names and refuses anything else. Installing a realistic project took 3 minutes. A prefix in each project's home doesn't work in practice: Homebrew set out to build nine of the project's packages and LLVM from source there, and was still going after 51 minutes. The maintainer decided that a project gets no prefix of its own in v1, and that packages without a prebuilt bottle are refused.
 </Aside>
 
 <figure class="wb-figure">
@@ -53,14 +53,14 @@ Figure 1. Only `wb-guestd`, as the toolchain user, writes the shared prefix, and
 </figcaption>
 </figure>
 
-## Decision: may a project have a prefix of its own?
+## Decision 1: may a project have a prefix of its own? Decided 2026-10-08: A
 
 The shared prefix covers what projects declare. A prefix per project would let the agent run `brew install` itself, and would keep one project's versions out of another's way.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
-### A. Shared prefix only
+### A. Shared prefix only (decided)
 
 Every project's declared packages go into `/opt/homebrew` through `wb-guestd`. Projects with conflicting packages use `--isolated`.
 
@@ -90,14 +90,14 @@ Root makes `/opt/<id>`, at most 13 characters long, for the project and gives it
 </div>
 </div>
 
-## Decision: refuse packages without a bottle?
+## Decision 2: refuse packages without a bottle? Decided 2026-10-08: A
 
 A bottle is a prebuilt package. When a declared package has none for the guest, Homebrew builds it from source as the toolchain user, which runs more of the package's code and can take hours (LLVM above).
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
-### A. Bottles only
+### A. Bottles only (decided)
 
 `wb-guestd` checks that every package the names need has a bottle for the guest, names them all on the command line with `--force-bottle`, because Homebrew doesn't apply it to dependencies, and otherwise refuses the session with the package's name before anything is installed. The spec says this now.
 
