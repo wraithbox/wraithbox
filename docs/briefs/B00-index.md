@@ -51,7 +51,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B64-vmd-sandbox | Can wb-vmd confine itself and still run a macOS VM? | Answered 2026-10-06. Awaiting decision on two points |
 | B68-proxyd-stream-identity | How does wb-proxyd know which VM and name a stream belongs to, when wb-netd may be compromised? | Decided 2026-10-08: A |
 | B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps |
-| B76-gosumdb-clock | Does the checksum database work as Go's clock for the dependency gate? | Answered 2026-10-08: yes |
+| B76-gosumdb-clock | Does the checksum database work as Go's clock for the dependency gate? | Answered 2026-10-08: yes. Awaiting decision |
 | B101-vsock-confinement | Can a project user take wb-guestd's place on the host-guest socket? | Answered 2026-10-06: yes, with conditions |
 | B102-git-alloc-limit | Can git itself refuse a push that asks for too much memory, so the pack scanner gets simpler? | Answered 2026-10-06 |
 | B145-least-privilege | Where are credentials held on the host, and who may reach them? | Awaiting decision |

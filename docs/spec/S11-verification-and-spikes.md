@@ -146,7 +146,8 @@ be tested before building on them.
   "Stream hand-off"), network policy YAML, the guest flow labels
   of S13-guest-confinement, and the dependency gate's parsers: npm
   request paths, PyPI distribution file names, Go escaped module paths
-  and versions, crates.io index lines, and `sum.golang.org` lookup
+  and versions (checking that the clock lookup key and the download URL
+  come from the same parse), crates.io index lines, and `sum.golang.org` lookup
   responses, and the toolchain manifest parser in `wb-hostd` and the
   name check in `wb-guestd` (S06-vm-lifecycle, "Toolchain prefix"),
   and the decoder and script check that show internationalized names
