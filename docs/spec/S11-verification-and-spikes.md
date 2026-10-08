@@ -480,8 +480,10 @@ be tested before building on them.
     per-minute cap and its queue, and see the excess refused with
     `go-clock-lookup-rate` and no extra request reach the double; a
     double that answers slower than the deadline allows, and see
-    `go-clock-deadline` with the completed lookups cached; a
-    `@v/list` of 4,501 versions, and see `go-list-too-long`; an index
+    `go-clock-deadline` with the completed lookups cached; a download
+    admitted behind a cold list of 2,000 versions in the same VM, and
+    see it served, not refused with `go-clock-deadline`; a
+    `@v/list` of 2,001 versions, and see `go-list-too-long`; an index
     window whose point exceeds the tree bound, and see the point
     rejected with `go-clock-implausible`, the last accepted point kept,
     and the rejection with both numbers in `wb status`; and an index
@@ -496,7 +498,12 @@ be tested before building on them.
     fetched, and one larger than it that the fresh head isn't a prefix
     of, each give `go-sumdb-inconsistent` with both heads stored and
     every Go request refused; a consistency proof the double won't
-    serve gives `go-clock-lookup-failed` and no finding; and a head
+    serve gives `go-clock-lookup-failed` and no finding; a fresh head
+    whose proof against the stored head can't be fetched isn't used
+    for calibration, requests get `go-clock-uncalibrated`, and the
+    stored head is checked again at the next attempt; a stored finding
+    whose heads don't verify, or are consistent, is discarded with
+    `go-sumdb-finding-invalid`; and a head
     inconsistency within a run refuses every Go download, still does
     after a restart, and stops only after `wb gate reset go-clock` is
     confirmed, with a 5019 event naming the command and the finding;
