@@ -222,7 +222,10 @@ inspection is trusted, and what is recorded.
     shown and logged. While sessions run, a change that narrows the
     union, so that the new union allows a subset of what the old one
     allowed, applies without this check. Removing a `deny_rules` entry,
-    loosening a limit or weakening a mode widens. A change that widens
+    loosening a limit or weakening a mode widens, and so does any
+    change that moves a host and port from `enforce` to `audit`, such
+    as removing the last `enforce` endpoint on it ("Mode per host and
+    port"). A change that widens
     and fails the check, or can't be checked, is refused, the VM keeps its
     last policy that passed, and `wb policy explain` shows the change
     as pending (S07-egress-gateway, "Policy changes while sessions
@@ -310,12 +313,18 @@ inspection is trusted, and what is recorded.
     session in the VM ("Per VM"). Any endpoint in `enforce` on a host
     and port, from any source, puts that host and port in `enforce`,
     and an endpoint with no `enforcement` field counts as `enforce`.
+    An endpoint counts on every host its host pattern matches, so a
+    wildcard endpoint in `enforce` keeps a matching exact host in
+    `enforce`, which fails closed.
     A host and port resolves to `audit` only when every endpoint on it
     is in `audit`. `wb-proxyd`
     applies the resolved mode to every request on that host and port,
     never the `enforcement` field of the endpoint whose rule matched,
     and the boundary check projects the same mode ("Audit as the
-    whole host"). The maintainer decided this on I109.
+    whole host"). A change that moves a host and port from `enforce`
+    to `audit`, whatever removal caused it, widens
+    (S07-egress-gateway, "Policy changes while sessions run",
+    "Session end"). The maintainer decided this on I109.
   - *Per VM.* The host enforces the merge for a VM, not for a project:
     the project sources are those of every project with a session in
     the VM. Limits take the strictest value among them, and the mode
