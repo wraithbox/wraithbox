@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-08: yes, with conditions. Awaiting decision.** Source: X06-guest-xcode (I20). Changes S13-guest-confinement ("Layer 2"), S06-vm-lifecycle ("VMs") and S11-verification-and-spikes ("Spikes"). Follow-ups: I194 (getting Xcode and the runtimes into the image), I195 (a console session for macOS app tests), I196 (simulators, the per-user launchd domain and the profile).
 
 <Aside type="tip" title="What we learned">
-**Yes, with conditions.** A project user that `wb-guestd` starts from root, never logged in at the screen, can build macOS and iOS apps, build and test SwiftPM packages, sign apps to run locally, boot an iOS simulator, and run iOS unit and UI tests on it. Tests of a macOS app through `xcodebuild` fail without a console (GUI) session, so they stay with the isolated VM, and how that VM gets a console session is still open. Under the draft Seatbelt profile, builds and `simctl` need a short list of exceptions. iOS tests only finished when the profile allowed nearly everything, and the simulator runs outside the profile anyway.
+**Yes, with conditions.** A project user that `wb-guestd` starts from root, never logged in at the screen, can build macOS and iOS apps, build and test SwiftPM packages with `swift`, sign apps to run locally, boot an iOS simulator, and run iOS unit and UI tests on it. Every `xcodebuild test` on macOS, a SwiftPM package's included, and launching a macOS app fail without a console (GUI) session. Decision 1 is whether v1 offers them at all. Under the draft Seatbelt profile, builds and `simctl` need a short list of exceptions. iOS tests only finished when the profile allowed nearly everything, and the simulator runs outside the profile anyway.
 </Aside>
 
 <figure class="wb-figure">
@@ -27,7 +27,8 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <rect class="box guest" x="270" y="70" width="190" height="50" rx="10" />
   <text class="label" x="365" y="100" text-anchor="middle">xcodebuild, swift: yes</text>
   <rect class="box guest" x="270" y="135" width="190" height="50" rx="10" />
-  <text class="label" x="365" y="165" text-anchor="middle">simctl, iOS tests: yes</text>
+  <text class="label" x="365" y="160" text-anchor="middle">simctl, iOS tests: yes</text>
+  <text class="note" x="365" y="177" text-anchor="middle">tests: broad profile only</text>
   <rect class="box guest" x="530" y="120" width="200" height="60" rx="10" />
   <text class="label" x="630" y="145" text-anchor="middle">simulator services</text>
   <text class="note" x="630" y="164" text-anchor="middle">launchd, user domain</text>
@@ -40,18 +41,18 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <line class="edge-bad" x1="462" y1="100" x2="528" y2="235" marker-end="url(#f1-arrow-bad)" />
 </svg>
 <figcaption>
-Figure 1. A session runs as the project user under its profile. Builds and simulators work. The simulator's services run in launchd's per-user domain, outside the session and its profile. macOS app tests need a GUI session, which a project user doesn't have (X06-guest-xcode).
+Figure 1. A session runs as the project user under its profile. Builds and simulators work, and iOS tests on the simulator finished only under the broad simulator profile. The simulator's services run in launchd's per-user domain, outside the session and its profile. Every `xcodebuild test` on macOS and launching a macOS app need a GUI session, which a project user doesn't have (X06-guest-xcode).
 </figcaption>
 </figure>
 
-## Decision 1: macOS app tests in v1?
+## Decision 1: macOS tests through xcodebuild in v1?
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
 ### A. Not in v1
 
-`wb` refuses a session that asks for them and says why. Everything else in Xcode works in either VM.
+Nothing tells `wb-hostd` before a session that it will run one, so there is nothing to refuse it on. The limit is documented, and `wb` turns the `testmanagerd` error into an explained message that names it. Everything else in Xcode works in either VM.
 
 - **Cost:** macOS app projects can build but not run their tests in a session.
 - **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" />, no automatic login or stored password in any image.
@@ -103,7 +104,7 @@ Bisect further, and confine simulator services some other way.
 <tr><th>Requirement</th><th>Recommended (1A, 2A)</th><th>Alternatives</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>FR06-native-tools</strong> native tools, optionally full Xcode</td><td class="partial">all but macOS app tests</td><td class="yes">1B: all, once I195 works</td></tr>
+<tr><td><strong>FR06-native-tools</strong> native tools, optionally full Xcode</td><td class="partial">all but macOS tests through xcodebuild and app launches</td><td class="yes">1B: all, once I195 works</td></tr>
 <tr><td><strong>SEC08-proj-isolation</strong> one project user per project</td><td class="yes">kept by Unix permissions; simulators are per user</td><td class="yes">same</td></tr>
 <tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">no login password needed</td><td class="partial">1B: depends on the login design</td></tr>
 <tr><td><strong>NFR05-two-macos-vms</strong> two macOS guests at most</td><td class="yes">no GUI work forces the isolated VM</td><td class="partial">1B: macOS tests hold the isolated VM</td></tr>

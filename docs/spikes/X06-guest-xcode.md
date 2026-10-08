@@ -7,14 +7,16 @@ Brief: B20-guest-xcode
 ## For review
 
 - **Decides:** the answer to X06-guest-xcode (I20), which says what
-  FR06-native-tools can offer with full Xcode, and which work needs the
-  isolated VM's console user (S06-vm-lifecycle, "VMs").
+  FR06-native-tools can offer with full Xcode, and which work needs a
+  GUI login session (S06-vm-lifecycle, "VMs").
 - **You are approving:** the answer "yes, with conditions". Without a
   GUI login, a project user can build macOS and iOS apps, build and
   test SwiftPM packages, sign to run locally, boot simulators, and run
-  iOS unit and UI tests on them. macOS app tests through `xcodebuild`
-  don't run without a console session, so they stay with the isolated
-  VM's console user. That fallback is not measured yet (I195).
+  iOS unit and UI tests on them. Every `xcodebuild test` on macOS, a
+  SwiftPM package's included, and launching a macOS app need a GUI
+  session. Only `swift test` runs macOS tests without one. Whether the
+  isolated VM's console user takes that work is open decision 1, and
+  that fallback is not measured (I195).
 - **Controls touched:** none of the `SEC*` controls changes. Layer 2
   of S13-guest-confinement is weaker than its text implied: a simulator
   runs outside the session's profile, and `xcodebuild test` on a
@@ -29,13 +31,19 @@ Brief: B20-guest-xcode
   That a console session for macOS app tests can be had without a
   stored password in the image (I195).
 - **Open decisions:**
-  1. Whether v1 offers macOS app tests at all, and if so how the
-     isolated VM gets a console session (I195). Recommended: leave
-     them out of v1, and say so when a session asks for one.
+  1. Whether v1 offers macOS tests through `xcodebuild` and macOS app
+     launches at all, and if so how the isolated VM gets a console
+     session (I195). Recommended: not in v1. Nothing tells `wb-hostd`
+     before a session that it will run such a test, so there is nothing
+     to refuse it on. Instead the limit is documented, and `wb` turns
+     the `testmanagerd` error ("com.apple.testmanagerd.control was
+     invalidated") into an explained message that names it
+     (NFR06-explained-refusals).
   2. How the Xcode image variant gets Xcode and the runtimes (I194).
-  3. How `wb-guestd` ends a project user's per-user launchd domain,
-     where simulators run, and how a project that uses simulators is
-     profiled (I196).
+  3. The simulator profile: S13-guest-confinement now gives it only to
+     projects that declare simulators, and says it doesn't confine the
+     file system. The alternative is to keep looking for a narrower
+     profile (I196). Recommended: accept it as specified.
 - **Brief:** B20-guest-xcode
 
 ## Question
@@ -50,8 +58,10 @@ Seatbelt profile, noting the exceptions it needs.
 
 ## Answer
 
-**Yes, with conditions.** Everything but macOS app tests runs for a
-project user with no GUI login. Each task, from the final run on a
+**Yes, with conditions.** For a project user with no GUI login,
+everything runs except every `xcodebuild test` on macOS (a SwiftPM
+package's included, where only `swift test` works) and launching a
+macOS app. Each task, from the final run on a
 fresh boot (`results/final-matrix.txt`):
 
 | Task | `setuid` | `asuser` | Under the draft profile |
@@ -107,10 +117,16 @@ failed the same way.
    `CoreSimulatorService`, `launchd_sim` and the simulated device's
    processes have launchd as their parent and POSIX session 0, so the
    session helper's POSIX session doesn't hold them. A booted simulator
-   brought the project user to 308 processes. Killing every process of
-   the user in a loop cleared 339 in two rounds, and none came back in
-   5 seconds. Within the next minute launchd started the user's
-   `distnoted` agent again, with no session running (I196).
+   brought the project user to 308 processes. In the final run,
+   killing every process of the user in a loop cleared 218 in two
+   rounds, none came back in 5 seconds, and
+   `launchctl bootout user/<uid>` then returned 0 with no process of
+   the user left. The script's next step printed the user's domain with
+   `launchctl print`. Two later checks found one process of the user,
+   `distnoted agent`, started by launchd 11 s before the second check,
+   with no session running (`results/final-setup.jsonl`, `killuser`,
+   `mem-after-kill`, `ps-after-kill`). What started it, the `print` or
+   something else, wasn't recorded (I196).
 
 ## The draft profile and its exceptions
 
@@ -148,9 +164,14 @@ removed and `(allow default)` added, the test passed, so the generator
 has to leave the rule out rather than allow pidinfo after it.
 
 **p2, what `xcodebuild test` on a simulator needs**
-(`guest/xcode-simtest.sb`). With p1 the tests ran and passed, but
-`xcodebuild` didn't exit until the spike killed it, and the log showed no
-denial. The narrower sets tried all hung: `file*` alone, `file*` with
+(`guest/xcode-simtest.sb`). With p1 plus `file-read*`,
+`file-issue-extension`, any `mach-lookup` and outbound Unix sockets,
+the tests ran
+and passed, but `xcodebuild` didn't exit until the spike killed it, and
+the log showed no Seatbelt denial (`results/g3-bisect-tasks.jsonl`).
+The one lead is `xcodebuild`'s own message "attempt to post
+distributed notification 'IDETestProgressNotification' thwarted by
+sandboxing", which it logs for any sandboxed process (I196). The narrower sets tried all hung: `file*` alone, `file*` with
 `mach*` and `network*`, `file*` with `mach*`, `ipc*` and `process*`,
 and `file*` with `network*`, `signal`, `iokit*`, `sysctl*` and
 `system*`. What finished was an allow of nearly every operation class:
@@ -210,15 +231,20 @@ host's Xcode. The project user `x06p` was made with `sysadminctl
 
 ## What it means for the specs
 
-- **S13-guest-confinement**, "Layer 2": the Xcode exceptions, the
-  safehouse rule the generator leaves out, and the simulator gap
-  replace "Xcode and simulators need exceptions (spike
-  X06-guest-xcode)" (changed in this pull request).
-- **S06-vm-lifecycle**, "VMs": the isolated VM's console user is for
-  macOS app tests, which need a GUI login session (changed in this
-  pull request). "Images" is unchanged until I194 decides how Xcode
-  and the runtimes get in. How `wb-guestd` ends a project user's
-  per-user launchd domain is I196.
+- **S13-guest-confinement**, "Layer 2": a build profile and a
+  simulator profile with their exceptions, the safehouse rule the
+  generator leaves out, the vsock check on every profile, and the
+  simulator gap in "Known gaps". "Layer 1": `wb-guestd` boots out a
+  project user's per-user launchd domain after its kill loop, and
+  keeps it down while the user is locked (changed in this pull
+  request). I196 measures whether it stays down.
+- **S07-egress-gateway**, "Leftover processes": the same `bootout`
+  (changed in this pull request).
+- **S06-vm-lifecycle**, "VMs": every `xcodebuild test` on macOS and
+  launching a macOS app need a GUI login session, which the work VM
+  doesn't have (changed in this pull request). Where that work goes is
+  open decision 1. "Images" is unchanged until I194 decides how Xcode
+  and the runtimes get in.
 - **S11-verification-and-spikes**, "Spikes": lists X06-guest-xcode
   (changed in this pull request).
 - **FR06-native-tools** stays as it is. Full Xcode works for builds,

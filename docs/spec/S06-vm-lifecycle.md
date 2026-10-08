@@ -223,11 +223,11 @@ in S12-platforms.
   `placement` is `work`. The **isolated VM** hosts projects whose
   `placement` is `isolated`, sessions started with
   `wb --isolated claude`, and work that needs a GUI login session.
-  Xcode builds, SwiftPM, signing to run locally and iOS simulators,
-  tests included, run for a project user without one. Tests of a macOS
-  app through `xcodebuild` don't, so they are such work
-  (X06-guest-xcode). How the isolated VM gets a console session is open
-  (I195).
+  Every `xcodebuild test` of a macOS target, a SwiftPM package's
+  included, and launching a macOS app need a GUI login session, which
+  the work VM doesn't have. Xcode builds, `swift build` and
+  `swift test`, signing to run locally, and iOS simulators with their
+  tests run without one (X06-guest-xcode).
   macOS allows at most two running macOS guests, including any started
   by other software: `wb-hostd` performs admission control and reports
   a clear error when a slot is unavailable (NFR05-two-macos-vms).
