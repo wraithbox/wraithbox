@@ -510,8 +510,10 @@ it didn't ask for:
   debits the VM's wildcard budget (S07-egress-gateway, "Packet path",
   DNS). `wb-hostd` only keeps the count across restarts. It also keeps
   every other count S07-egress-gateway has `wb-netd` or
-  `wb-proxyd` keep for the active period. Approval request counts are
-  in `wb-hostd` already (S09-policy-credentials-audit, "Approvals").
+  `wb-proxyd` keep for the active period. `wb-hostd` keeps the
+  authoritative count of pending approval requests and the rate of new
+  ones, and a new `wb-netd` gets both at start, with the policy
+  (S09-policy-credentials-audit, "Approval flow").
 - `wb-hostd` keeps each VM's synthetic name mapping too: every live
   entry, with its name, its address, and the time `wb-hostd` received
   its last record. It keeps an entry until the entry's release record

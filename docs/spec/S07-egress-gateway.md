@@ -347,8 +347,16 @@ session start in the VM to the end of the last session running in it.
     - *Widening during the hold.* A change that widens the VM's
       effective policy, such as an approval, runs each held query
       through every check of this section again, as if it had just
-      arrived, the audit budgets and the event channel included. A debit already made for
-      the query isn't made again. An allowed result is sent at once.
+      arrived, the audit budgets and the event channel included.
+    - *What the re-run changes.* The re-run reads policy and host
+      state: the allowlist, denies, the budgets, and the event channel.
+      Each re-run query counts against the query rate limit, so a
+      burst of re-runs over the limit is refused with
+      `dns-query-rate`, and those queries keep their timers. A debit
+      already made for the query isn't made again. The re-run doesn't
+      add to an open event's lookup count, doesn't raise a request,
+      and doesn't add a learn list entry.
+    - *Result of the re-run.* An allowed result is sent at once.
       Its accounting record and name report go first, as for every
       allowed answer. When the result is a
       refusal, the query keeps its refusal bytes and its timer, so a
@@ -384,8 +392,11 @@ session start in the VM to the end of the last session running in it.
       connection that sent it, so the client doesn't wait on an open
       connection.
     - *TCP.* `wb-netd` keeps a DNS-over-TCP connection open while it
-      has a held query, and counts it in the per-VM cap on DNS-over-TCP connections
-      until its last held answer is sent.
+      has a held query, and counts it in the per-VM cap on
+      DNS-over-TCP connections until its last held answer is sent. An
+      over-cap query closes the connection anyway. The connection's
+      held queries leave the table at the close, and their timers
+      don't fire.
   - *Negative answers.* Every `NXDOMAIN` that `wb-netd` sends, the
     local answers included, carries in its authority section an SOA
     record for the root zone with a TTL of 0 and a `MINIMUM` of 0, the
@@ -451,7 +462,8 @@ session start in the VM to the end of the last session running in it.
     state, not from the name (S04-architecture, "Accounting and event
     channels", S09-policy-credentials-audit, "Audit"). They don't raise
     an approval event or debit the wildcard budget. When the query
-    arrives, `wb-netd` debits the wildcard budget, writes the debit's
+    arrives, `wb-netd` checks the query rate (`dns-query-rate`) before
+    anything else that can debit, then debits the wildcard budget, writes the debit's
     accounting record to `wb-hostd`, and takes the
     one-open-event-per-name check and the checks of the request limits
     (S09-policy-credentials-audit, "Approval flow") under one lock,
@@ -669,8 +681,11 @@ session start in the VM to the end of the last session running in it.
     in the wildcard budget, the local and quiet answers, approval
     events and learn lists, and the rule that every refusal gets the
     same answer. A compromised `wb-netd` that skips them can refuse or
-    slow its own VM's traffic, or raise approval events, which are
-    rate-limited ("Events and rate limits"). None of them lets a stream reach a name or
+    slow its own VM's traffic, or send approval events. `wb-hostd`
+    applies the request limits to every event it receives, whatever
+    `wb-netd` checked, so those events can't raise more requests than
+    the limits allow (S09-policy-credentials-audit, "Approval flow").
+    None of them lets a stream reach a name or
     port the VM's effective policy refuses.
   - *Policy order.* Every change to the effective policy (a session
     start or end, an approval, a policy file edit, `wb allow`) goes to
