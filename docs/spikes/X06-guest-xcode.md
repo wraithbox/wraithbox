@@ -288,8 +288,10 @@ host's Xcode. The project user `x06p` was made with `sysadminctl
   and the runtimes get in.
 - **S11-verification-and-spikes**, "Spikes": lists X06-guest-xcode
   (changed in this pull request).
-- **FR06-native-tools** stays as it is. Full Xcode works for builds,
-  SwiftPM and iOS simulators.
+- **FR06-native-tools** stays as it is. Full Xcode works for builds
+  and SwiftPM under the Layer 2 profiles as specified. iOS simulators
+  and their tests work only with decision 2's option 2A, outside those
+  profiles.
 
 ## Spike code
 
