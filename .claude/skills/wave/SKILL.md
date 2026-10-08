@@ -41,14 +41,10 @@ and `--area <label>`.
    ```
 
    `[]` means none open, and `truncated` means the list is cut short:
-   drop the issue. Drop issues whose body or trusted comments
-   have a `Blocked by #<pr>` line for an open PR, or name an outside
-   wait that still holds. Don't treat the `blocked` label alone as
-   proof: when every blocker of a `blocked` issue is closed, the label
-   is stale. Remove it (`gh issue edit <n> --remove-label blocked`),
-   comment `Triage (YYYY-MM-DD): blockers #a #b closed, removed the
-   stale blocked label.` with the attribution lines, and keep the issue
-   as a candidate.
+   drop the issue. This query is the whole check. A wait on a pull
+   request or on the maintainer is a blocker issue too, and no label
+   marks an issue as blocked (`planning.md`, "Dependencies and
+   relationships").
 4. Order: `spike` first, then `bug`, then by `priority:` (critical,
    high, medium, low, none), then by number.
 5. Fill the wave in that order, skipping an issue that shares a `comp:`

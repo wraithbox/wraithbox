@@ -27,12 +27,15 @@ Every open work issue carries:
 - exactly one **type**: `bug`, `enhancement`, `spike`, `documentation` or
   `chore`;
 - one **triage status**: `needs-triage`, `needs-info`, `ready-for-agent`
-  or `ready-for-human` (plus `blocked` when it waits on something, and
-  `needs-vm` when it needs a running macOS guest);
+  or `ready-for-human` (plus `needs-vm` when it needs a running macOS
+  guest);
 - at least one **area** label (`area:*`);
 - zero to two **component** labels (`comp:*`), when the work belongs to a
   process from S04-architecture;
 - optionally a `priority:` label.
+
+No label says an issue is blocked. A `blockedBy` relationship does
+("Dependencies and relationships").
 
 The area and component labels are recorded in `.github/labels-areas.yml`
 (the generic ones in `.github/labels.yml`, see `issue-tracker.md`).
@@ -207,9 +210,22 @@ gh issue view 34 --json blockedBy,blocking,parent,subIssues,milestone
 
 - **Blocked by** is for order only. A follow-up does not block the issue
   it came from.
-- A pull request can't be a blocker target. Write `Blocked by #<pr>` on
-  its own line near the top of the body instead, and add the `blocked`
-  label.
+- An issue is blocked when it has an open `blockedBy` issue, and only
+  then. GitHub drops the block when the blocker closes, so nothing has
+  to be cleaned up. A label or a line in the body doesn't block an
+  issue.
+- **Blocked by a pull request:** a pull request can't be a blocker
+  target, so block on the issue the pull request closes. A pull request
+  without an issue gets one, and its body says `Closes #<it>`, so the
+  merge closes the issue and lifts the block. A stacked pull request
+  gets `main` as its base before it merges (`orchestration.md`,
+  "Stacked pull requests"). The closing keyword fires on a merge into
+  `main`. A pull request closed without merging leaves the issue open,
+  which keeps the block, as it should.
+- **Waiting on the maintainer** (a decision, or a machine setup such as
+  a test account): file an issue for that action, labeled
+  `ready-for-human`, and block the waiting issue on it. The maintainer
+  closes the action issue once done.
 - **Parent** records where an issue came from: a split, a kept entry of a
   list, or a follow-up from a review of issue N.
 - A pull request links its issue with `Closes #N` in the body. To mention
@@ -219,7 +235,7 @@ gh issue view 34 --json blockedBy,blocking,parent,subIssues,milestone
 ## Triage
 
 Triage turns `needs-triage` issues into one of: `ready-for-agent` (with
-the decisions written down), `ready-for-agent` + `blocked` (blocker set),
+the decisions written down, and any blockers set as relationships),
 `ready-for-human` (the one action named), or closed with a reason.
 
 - Record each decision in a comment that starts `Decision (YYYY-MM-DD):`
