@@ -1710,7 +1710,8 @@ as written.
     project is meant to run during a learn-mode session, but a process
     can still be left running, by guest root or by launchd. When
     `wb-guestd` reports one, `wb-hostd` refuses learn mode in that VM
-    until it restarts (S06-vm-lifecycle, "Leftover processes"). Its
+    until the VM is cold-booted (S06-vm-lifecycle, "Leftover
+    processes"). Its
     names then reach the list, which the user reviews before any name
     is allowed.
 
