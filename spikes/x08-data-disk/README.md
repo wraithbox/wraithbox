@@ -2,9 +2,9 @@
 
 Throwaway code for X08-data-disk (#22), never merged. Not run yet: the
 host tool needs an ad-hoc signature with the
-`com.apple.security.virtualization` entitlement before it can start a VM,
-and the agent that wrote this was not allowed to run `codesign` on the
-host. Nothing below has been measured.
+`com.apple.security.virtualization` entitlement before it can start a VM.
+Agents may sign it since #200 (#209), with the shared
+`spikes/vm.entitlements` from `main`. Nothing below has been measured.
 
 ## Parts
 
@@ -18,11 +18,15 @@ host. Nothing below has been measured.
 
 ## Build
 
+Merge `main` into this branch first if `spikes/vm.entitlements` is
+missing. Write the paths literally: the permission rule matches the
+command text, so `$S/x08` does not match.
+
 ```sh
-S=.scratch
-swift build -c release --package-path spikes/x08-data-disk/host-vmd --scratch-path $S/x08-build
-cp $S/x08-build/release/x08 $S/x08
-codesign -f -s - --entitlements spikes/x08-data-disk/host-vmd/x08.entitlements $S/x08   # needs the maintainer's OK
+swift build -c release --package-path spikes/x08-data-disk/host-vmd --scratch-path .scratch/x08-build
+cp .scratch/x08-build/release/x08 .scratch/x08
+codesign -f -s - --entitlements spikes/vm.entitlements .scratch/x08
+codesign -d --entitlements - .scratch/x08   # lists com.apple.security.virtualization
 ```
 
 ## Plan
