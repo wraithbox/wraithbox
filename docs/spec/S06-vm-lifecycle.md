@@ -533,7 +533,9 @@ audit log (SEC10-audit).
     the count of processes left, capped at 1001. It keeps the record
     until `wb-hostd` acknowledges it, and lists it at reconnect
     ("Reconnect"). It holds at most one record per project user in the
-    VM, counted apart from the 64 session entries. Where the loop runs
+    VM, counted apart from the 64 session entries: a newer record
+    replaces an older one of the same user, and the replaced kill then
+    fails closed at its deadline. Where the loop runs
     because a session's client went and no session of that user is
     left, the result is the cleanup field of that session's report
     ("Ending").
@@ -542,11 +544,16 @@ audit log (SEC10-audit).
     record's kill ID is exactly one that `wb-hostd` sent for that
     project in this VM and this VM generation, or the report is that
     of the session whose end led to the kill. It must arrive before
-    the kill's deadline ("Deadlines"). Anything else is dropped and
-    logged with its rule.
+    the kill's deadline ("Deadlines"), in the VM generation the kill
+    was sent to. Anything else is dropped and logged with its rule.
   - *Failing closed.* A kill without an accepted clean result by its
     deadline counts as a result of processes left. A late, missing or
-    dropped result never counts as clean.
+    dropped result never counts as clean. A pending kill whose VM
+    generation ends in a cold stop before its deadline, by
+    `wb vm stop`, a crash or an upgrade, is closed instead: the guest
+    it targeted no longer runs. The refusals below belong to the VM
+    generation that produced them, and a cold boot starts a new
+    generation without them.
 
   For a result of processes left, `wb-hostd`:
   - writes an audit event with the rule (SEC10-audit) and tells the
@@ -557,7 +564,8 @@ audit log (SEC10-audit).
     mode, until the VM is cold-booted (NFR06-explained-refusals).
     Sessions that already run continue;
   - never saves the VM: idle suspend doesn't run, and `wb vm suspend`
-    is refused with the reason. Its next start is a cold boot, and a
+    is refused with the reason, as they also are while a kill is
+    pending ("Idle suspend"). Its next start is a cold boot, and a
     saved state from before the result is deleted. Only a cold boot
     clears the refusals, never a suspend and restore;
   - offers `wb vm stop` followed by `wb vm start` (S05-cli), which
@@ -584,14 +592,16 @@ audit log (SEC10-audit).
   admission, which includes the toolchain reconcile (FR07-toolchain-manifest),
   and ending and recovery have 7 minutes each, which hold the 10
   seconds of the hangup, the WIP commit and the 5-minute push
-  watchdog (S08-workspace-and-git, "Bounds"). A kill of a project user
-  ("Leftover processes") has 7 minutes from the kill, or from the
-  start of ending for one that follows a client that went. Past its deadline,
+  watchdog (S08-workspace-and-git, "Bounds"). Past its deadline,
   `wb-hostd` has `wb-guestd` end the session (below) and records it
   as ended with a Wraith Box failure, and `wb` exits with 255. The
   worktree keeps its changes until `wb discard`. So a guest that never
   reports can't hold a session, or its VM, past the deadline
-  (SEC13-bounded-resources).
+  (SEC13-bounded-resources). A kill of a project user ("Leftover
+  processes") has 7 minutes from the kill, or from the start of ending
+  for one that follows a client that went. Past that deadline, without
+  an accepted clean result, the kill counts as processes left
+  ("Leftover processes", "Failing closed").
 - **Reconnect.** When the host-guest link drops, `wb-guestd` stops the
   project processes (S13-guest-confinement, "Layer 1"), and `wb-hostd`
   connects to it again (S04-architecture). It waits 0.1 s before the
@@ -708,8 +718,10 @@ audit log (SEC10-audit).
   VM has no session that is starting, running, paused or ending, debug
   shells included. A lost or ended session doesn't count. So a VM is
   never saved for idleness with such a session in it, and no restore
-  has a session to resume. A VM with an accepted leftover result is
-  never saved ("Leftover processes"). `wb vm suspend` and `wb vm stop` are
+  has a session to resume. While a kill of a project user in the VM is
+  pending, and after a result of processes left, the idle period
+  doesn't run and `wb vm suspend` is refused with the reason
+  ("Leftover processes"). `wb vm suspend` and `wb vm stop` are
   refused while the VM has a starting, running, paused or ending
   session. The refusal names each one with its state, the process ID
   of its `wb`, and how it ends:
