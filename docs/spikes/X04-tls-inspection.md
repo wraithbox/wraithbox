@@ -42,6 +42,11 @@ Brief: B18-tls-inspection
   - That the six variables of S09-policy-credentials-audit work as a
     set. Inferred: the spike ran all eight it set together, and each
     client with one variable at a time, but never these six alone.
+  - That Homebrew's downloads accept the CA through the trust
+    variables, which S09-policy-credentials-audit and S06-vm-lifecycle
+    now give the toolchain user. Untested: Homebrew filters its
+    environment, and the spike installed every formula before the relay
+    ran (I180).
   - That option B of I185 works at all (below).
 - **Open decisions:**
   1. How a macOS guest gets the CA into its system trust store, if at
@@ -217,8 +222,11 @@ with `sudo -u`.
   connection). The verdict comes from the relay's log and the client's
   output, not from exit codes. Four runs in `matrix-none.jsonl` exit
   0 (`go-mod-download`, `swiftpm-cli` and both `xcodebuild-spm` runs),
-  because a pipe in the command hid the failure. The runner set
-  `pipefail` only after this run.
+  though the relay logged the refusal and the output shows the failed
+  fetch. Their commands end in a pipe. In the later runs the same
+  commands exit non-zero when they fail, for example `swiftpm-cli`
+  with 1 and both `xcodebuild-spm` runs with 74 in
+  `matrix-only-SSL_CERT_FILE.jsonl`.
 - **Variables.** With all eight variables set, every client but the
   URLSession ones passed. Then one variable at a time, for the table
   above.
@@ -248,6 +256,11 @@ with `sudo -u`.
   supported tool refuses the change, and editing the database directly
   changes a guest security setting, which is the maintainer's call
   (I185, option B).
+- **Homebrew under inspection.** Every formula went in before the relay
+  ran. Whether `brew install` from `ghcr.io` accepts the CA, and
+  whether Homebrew passes `SSL_CERT_FILE` and the other trust variables
+  through the environment it filters before it runs curl, is untested
+  (I180).
 - **Claude Code's reread**, and `NODE_USE_SYSTEM_CA` for Node and Claude
   Code, which needs the CA in the system store.
 - **Official Node builds** from nodejs.org, and Python from python.org.
@@ -268,6 +281,8 @@ with `sudo -u`.
 - **S07-egress-gateway**, "Modes": names Apple's pinned hosts and the
   URLSession clients as known to break under inspection (changed in
   this pull request). Wraith Box doesn't put them in pass mode itself.
+- **S06-vm-lifecycle**, "The environment": the toolchain user's
+  allowlist gets the trust variables (changed in this pull request).
 - **S13-guest-confinement**, "Profile": the read allowlist names the
   trust files' directory (changed in this pull request).
 - **S12-platforms**: the macOS guest's "CA trust" cell says the System
