@@ -121,7 +121,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X06-guest-xcode: Guest users and Xcode",
-		"summary": "Can builds and simulators run for a guest user without a GUI login?"
+		"summary": "Can builds and simulators run for a guest user without a GUI login?",
+		"brief": "B20-guest-xcode"
 	},
 	"21": {
 		"kind": "issue",
@@ -429,7 +430,7 @@
 	},
 	"67": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd can't read the user's repository under its sandbox profile (S08 upload-pack)",
 		"summary": "Found in the review of #65 (X23-sandboxed-daemons result)."
 	},
@@ -487,7 +488,7 @@
 	},
 	"76": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Measure the Go checksum-database clock of the dependency gate end to end",
 		"summary": "Follow-up from the X21-dep-gate-registries spike (#32) and the review of its result (#75).",
 		"brief": "B76-gosumdb-clock"
@@ -1190,8 +1191,45 @@
 	},
 	"191": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): wb writes export.git, wb-hostd only serves it",
 		"summary": "Writes the #67 decision (2026-10-04) and the points the 2026-10-06 triage left to it into the specs."
+	},
+	"192": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spikes): X21 Go checksum-database clock measured end to end",
+		"summary": "Measures the Go checksum-database clock of the dependency gate end to end and adds the result to docs/spikes/X21-dep-gate-registries.md (\"The Go clock end to end\").",
+		"brief": "B76-gosumdb-clock"
+	},
+	"193": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Go branch and commit queries (go get foo@master, @<sha>) under the dependency gate's path forms",
+		"summary": "Follow-up from the review of #192 (#76)."
+	},
+	"194": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Xcode image variant: getting Xcode and simulator runtimes into the image",
+		"summary": "From the X06-guest-xcode result (#20)."
+	},
+	"195": {
+		"kind": "issue",
+		"state": "open",
+		"title": "macOS app tests need a console session: decide the isolated-VM fallback",
+		"summary": "From the X06-guest-xcode result (#20)."
+	},
+	"196": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Simulators leave the session: per-user launchd domain and the Seatbelt profile",
+		"summary": "From the X06-guest-xcode result (#20), for S13-guest-confinement layers 1 and 2."
+	},
+	"197": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X06-guest-xcode result and brief",
+		"summary": "Result of X06-guest-xcode: yes, with conditions."
 	}
 }
