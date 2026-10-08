@@ -1,0 +1,17 @@
+
+;; X06-guest-xcode: exceptions the S13 draft (p0) needs for Xcode, found by
+;; running each task under it and reading the sandbox denials. Each rule
+;; names the task that needed it.
+
+;; xcodebuild, swift: the license acceptance and Xcode's system defaults.
+(allow file-read* (literal "/Library/Preferences/com.apple.dt.Xcode.plist"))
+
+;; mac-build: xcodebuild loads the frameworks -runFirstLaunch installs
+;; (CoreSimulator, CoreDevice), and refuses to start without them.
+(allow file-read* (subpath "/Library/Developer"))
+
+;; sign: a code signing identity in a keychain in the user's home. The
+;; security tool and codesign talk to securityd and read the system
+;; keychain's folder.
+(allow mach-lookup (global-name "com.apple.SecurityServer") (global-name "com.apple.security.syspolicy"))
+(allow file-read* (subpath "/Library/Keychains"))
