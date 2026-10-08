@@ -436,15 +436,21 @@ slot. Guests of other operating systems are limited only by resources
   instead, which those rules allow without a session. When the
   maintenance VM stops, `wb-hostd` restores an isolated VM it saved,
   under the rules of "Warm start". One it stopped cold stays stopped
-  until its next session starts it.
+  until its next session starts it. When the isolated VM wasn't
+  running at the lend, `wb-hostd` doesn't start it afterward, and a
+  saved state left from an earlier idle suspend is kept unchanged for
+  the next session.
   `wb-hostd` logs each lend and return with the rule that allowed it.
 - **The lent slot is reserved.** The lend starts when `wb-hostd`
-  decides it, before it saves or stops the isolated VM, and lasts
-  until the return restore has finished or failed, or, for a VM it
-  stopped cold, until the maintenance VM has stopped. While it lasts,
-  `wb-hostd` refuses every start or restore of the isolated VM: for a
-  session, a debug shell, the recovery of a lost session, and
-  `wb vm start`. So a refusal names the build, never a VM outside
+  decides it, before it saves or stops the isolated VM. For a VM it
+  saved, the lend ends when the return restore succeeds, or when
+  `wb-hostd` gives up on it under "Warm start", after the bounded
+  retries and not at the first temporary failure. For a VM it stopped
+  cold, and for an isolated VM that wasn't running at the lend, the
+  lend ends when the maintenance VM stops. While the lend lasts,
+  `wb-hostd` refuses every other start or restore of the isolated VM:
+  for a session, a debug shell, the recovery of a lost session, and
+  `wb vm start`. The return restore is the one start the lend allows. So a refusal names the build, never a VM outside
   Wraith Box ("Other software").
 - **A maintenance VM gets nothing of a session VM.** It never gets the
   data disk, saved state, auxiliary storage, machine identifier or MAC
