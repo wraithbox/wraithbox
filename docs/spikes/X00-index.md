@@ -20,7 +20,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X03-network-path | Network path | Answered 2026-10-05: yes, with conditions |
 | X04-tls-inspection | Inspection compatibility | Answered 2026-10-08: no |
 | X05-fs-benchmark | Filesystem benchmark | Answered 2026-10-05: no. NFR02-fs-speed is not met for `npm ci` with any disk setting, and the data disk uses full sync. Decided 2026-10-06 (I19): NFR02-fs-speed is a goal outside the release gate |
-| X06-guest-xcode | Guest users and Xcode | Open |
+| X06-guest-xcode | Guest users and Xcode | Answered 2026-10-08: yes, with conditions |
 | X07-git-round-trip | Git round trip | Answered: yes, with conditions |
 | X08-data-disk | Data disk for homes | Open |
 | X09-keychain-unsigned | Keychain access without a signing identity | Open |
@@ -84,7 +84,9 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   sync. Decided on I19: NFR02-fs-speed is a goal outside the release gate.
 - **X06-guest-xcode: Guest users and Xcode.** Can builds and simulators run for a
   guest user without a GUI login? If not, Xcode sessions go to the
-  isolated VM's console user.
+  isolated VM's console user. Answered yes, with conditions, in the
+  result page X06-guest-xcode: everything but macOS app tests runs
+  without one.
 - **X07-git-round-trip: Git round trip.** Remote helper over vsock, read-only
   `upload-pack`, restricted `receive-pack` into the landing repository,
   flagging of risky paths. Answered yes, with conditions, in the result

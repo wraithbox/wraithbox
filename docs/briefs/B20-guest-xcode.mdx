@@ -1,0 +1,139 @@
+---
+title: Can Xcode builds, tests and simulators run for a project user without a GUI login?
+description: Yes, with conditions. Builds, SwiftPM, signing, iOS simulators and their tests run. macOS app tests don't, and the simulator runs outside the session's Seatbelt profile.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-08: yes, with conditions. Awaiting decision.** Source: X06-guest-xcode (I20). Changes S13-guest-confinement ("Layer 2"), S06-vm-lifecycle ("VMs") and S11-verification-and-spikes ("Spikes"). Follow-ups: I194 (getting Xcode and the runtimes into the image), I195 (a console session for macOS app tests), I196 (simulators, the per-user launchd domain and the profile).
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** A project user that `wb-guestd` starts from root, never logged in at the screen, can build macOS and iOS apps, build and test SwiftPM packages, sign apps to run locally, boot an iOS simulator, and run iOS unit and UI tests on it. Tests of a macOS app through `xcodebuild` fail without a console (GUI) session, so they stay with the isolated VM, and how that VM gets a console session is still open. Under the draft Seatbelt profile, builds and `simctl` need a short list of exceptions. iOS tests only finished when the profile allowed nearly everything, and the simulator runs outside the profile anyway.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="Inside the guest, wb-guestd starts a project user's session under a Seatbelt profile. Builds, SwiftPM and signing run inside the session. The simulator's services are started by launchd in the user's own domain, outside the session and its profile. macOS app tests need a GUI session, which doesn't exist.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+  <rect class="boundary" x="10" y="10" width="740" height="280" rx="12" />
+  <text class="boundary-label" x="22" y="30">guest (untrusted)</text>
+  <rect class="box guest" x="30" y="50" width="170" height="55" rx="10" />
+  <text class="label" x="115" y="75" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="115" y="93" text-anchor="middle">root</text>
+  <rect class="boundary" x="250" y="40" width="230" height="160" rx="10" />
+  <text class="boundary-label" x="262" y="58">session + Seatbelt profile</text>
+  <rect class="box guest" x="270" y="70" width="190" height="50" rx="10" />
+  <text class="label" x="365" y="100" text-anchor="middle">xcodebuild, swift: yes</text>
+  <rect class="box guest" x="270" y="135" width="190" height="50" rx="10" />
+  <text class="label" x="365" y="165" text-anchor="middle">simctl, iOS tests: yes</text>
+  <rect class="box guest" x="530" y="120" width="200" height="60" rx="10" />
+  <text class="label" x="630" y="145" text-anchor="middle">simulator services</text>
+  <text class="note" x="630" y="164" text-anchor="middle">launchd, user domain</text>
+  <rect class="box guest" x="530" y="215" width="200" height="60" rx="10" />
+  <text class="label" x="630" y="240" text-anchor="middle">GUI session</text>
+  <text class="note" x="630" y="259" text-anchor="middle">none: macOS tests fail</text>
+  <line class="edge" x1="202" y1="78" x2="268" y2="95" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="462" y1="160" x2="528" y2="150" marker-end="url(#f1-arrow)" />
+  <text class="note" x="470" y="115">outside the profile</text>
+  <line class="edge-bad" x1="462" y1="100" x2="528" y2="235" marker-end="url(#f1-arrow-bad)" />
+</svg>
+<figcaption>
+Figure 1. A session runs as the project user under its profile. Builds and simulators work. The simulator's services run in launchd's per-user domain, outside the session and its profile. macOS app tests need a GUI session, which a project user doesn't have (X06-guest-xcode).
+</figcaption>
+</figure>
+
+## Decision 1: macOS app tests in v1?
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Not in v1
+
+`wb` refuses a session that asks for them and says why. Everything else in Xcode works in either VM.
+
+- **Cost:** macOS app projects can build but not run their tests in a session.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" />, no automatic login or stored password in any image.
+
+</div>
+<div class="wb-option">
+
+### B. A console session in the isolated VM
+
+The isolated VM logs one project user in at its screen. I195 designs and measures it.
+
+- **Cost:** a design for logging in without a stored password, a spike, and one project per console session.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="caution" /> only if the login needs no password left in the guest.
+
+</div>
+</div>
+
+## Decision 2: simulators and the profile
+
+The simulator can't be confined by the session's profile, and `xcodebuild test` on it needed a profile that allows nearly everything. I196 holds the design.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. A simulator profile, stated as unconfined
+
+A project that uses simulators gets the broad profile, and S13-guest-confinement says that its sessions have no file system confinement from Layer 2.
+
+- **Cost:** none to build. Weaker defense in depth for those projects.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" />, which rests on the project user.
+
+</div>
+<div class="wb-option">
+
+### B. Keep looking for a narrow profile
+
+Bisect further, and confine simulator services some other way.
+
+- **Cost:** more spike time, with no path found for the simulator's own processes.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" />
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>Recommended (1A, 2A)</th><th>Alternatives</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>FR06-native-tools</strong> native tools, optionally full Xcode</td><td class="partial">all but macOS app tests</td><td class="yes">1B: all, once I195 works</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> one project user per project</td><td class="yes">kept by Unix permissions; simulators are per user</td><td class="yes">same</td></tr>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">no login password needed</td><td class="partial">1B: depends on the login design</td></tr>
+<tr><td><strong>NFR05-two-macos-vms</strong> two macOS guests at most</td><td class="yes">no GUI work forces the isolated VM</td><td class="partial">1B: macOS tests hold the isolated VM</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Builds, SwiftPM, ad hoc and keychain signing, `simctl` and iOS unit and UI tests pass for a never-logged-in user, started with `setuid` or `launchctl asuser`. Source: X06-guest-xcode, "Answer", `results/final-matrix.txt`.
+- <Badge text="verified" variant="success" /> macOS tests fail because `testmanagerd` loads only in `LoginWindow` and `Aqua` sessions, and test hosts launch into a missing `gui/<uid>` domain. Source: "Answer" part 3.
+- <Badge text="verified" variant="success" /> A write the profile refused succeeded through `simctl spawn`. Source: "The draft profile and its exceptions", `results/final-tasks.jsonl` (`escape`).
+- <Badge text="verified" variant="success" /> With the p1 exceptions, `xcodebuild test` on a simulator hung, and it finished with p2. Source: `results/final-matrix.txt`, `results/g3-bisect-tasks.jsonl`.
+- <Badge text="verified" variant="success" /> Xcode installs from a copy with no Apple ID, and the iOS runtime downloads with no Apple ID. Source: "Measurements".
+- <Badge text="assumed" variant="caution" /> That a console session can be had without a password in the guest. Not measured: I195.
+- <Badge text="assumed" variant="caution" /> That the product image can get Xcode and the runtimes as the spike did. I194.
+
+## What it unblocks
+
+FR06-native-tools for Xcode projects, the Xcode image variant (I194), and the guest confinement work of S13-guest-confinement (I196). I43 (VM slots) no longer needs room for GUI work beyond macOS app tests.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why simulators work but macOS tests don't.** The simulator's services are started by launchd in the user's own background domain, which exists for any user that runs a process. The macOS test daemon is only allowed in a logged-in screen session, and macOS launches the app under test into that session too. A project user never has one.
+
+**Why the profile can't hold the simulator.** A Seatbelt profile applies to a process and its children. The simulator's processes are started by launchd, not by the session, so they never get it.
+
+- **Seatbelt profile:** macOS's kernel sandbox rules for a process tree (S13-guest-confinement, Layer 2).
+- **Console session:** a user logged in at the screen (`Aqua`), with WindowServer access.
+- **launchd domain:** the set of services launchd runs for the system, a user in the background, or a logged-in user's screen session.
+- **Sign to run locally:** an ad hoc signature, with no certificate, which is enough to run on the same Mac.
+
+</details>
