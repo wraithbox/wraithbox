@@ -22,6 +22,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B17-network-path | Does a macOS guest work on our userspace network stack, reaching only the proxy, and how fast? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: 1A, link MTU 65535, and 2A, refuse the guest OS's own lookups quietly |
 | B18-tls-inspection | Do the guest's tools accept the inspection CA? | Answered 2026-10-08: no. Awaiting decision |
 | B19-fs-benchmark | Is the data disk fast enough, and which disk settings does it use? | Answered 2026-10-05: no. Decided 2026-10-06: D, NFR02-fs-speed becomes a goal outside the release gate |
+| B20-guest-xcode | Can Xcode builds, tests and simulators run for a project user without a GUI login? | Answered 2026-10-08: yes, with conditions. Awaiting decision |
 | B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04. Decided 2026-10-04: A, Go filter plus `receive.hideRefs` |
 | B28-image-build | Can an unprivileged host build a macOS guest image without SSH or clicks? | Answered 2026-10-07: no. Awaiting decision |
 | B29-vsock-handoff | Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, the host opens every connection |

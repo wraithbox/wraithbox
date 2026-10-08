@@ -138,10 +138,26 @@ process cannot remove it, much like Landlock.
   X24-openshell-artifacts read the profiles but didn't run them in a
   guest. X27-vsock-confinement ran the modules that upstream's renderer
   selects by default in a guest, for the vsock calls only.
+- **Xcode** (X06-guest-xcode). Builds, SwiftPM, signing and `simctl`
+  need exceptions. They read Xcode's system defaults
+  (`/Library/Preferences/com.apple.dt.Xcode.plist`),
+  `/Library/Developer`, the system keychain folder and the mounted
+  simulator runtimes. They look up `securityd`, CoreSimulator's
+  services, power management, distributed notifications and
+  CoreDevice. They open the GPU user clients, and need
+  `process-info-pidinfo` with the `procargs` sysctls. The safehouse base
+  denies `process-info-pidinfo` with a rule that a later allow doesn't
+  undo, so the generator leaves that rule out of a profile that allows
+  it. `xcodebuild test` on a simulator only finished under a profile
+  that allows nearly every operation class, file access included, so a
+  session that runs it has no file system confinement from this layer
+  (I196).
 - **Known gaps.** Processes started through LaunchServices and `launchd`
   services run outside the profile. They stay inside the guest and the
-  project user's permissions. Xcode and simulators need exceptions
-  (spike X06-guest-xcode).
+  project user's permissions. Simulators are such services: their
+  processes run in launchd's per-user domain, and work handed to them
+  with `simctl spawn` isn't confined by the session's profile
+  (X06-guest-xcode, I196).
   A process that leaves its session's POSIX session with `setsid`,
   while another session of the same project runs in the VM, survives
   its session's hangup and kill (Layer 1). It keeps the project
