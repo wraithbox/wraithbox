@@ -114,6 +114,7 @@ openshell
 Gitea
 Forgejo
 Codeberg
+codesign
 
 # Docs site (Astro Starlight)
 frontmatter
