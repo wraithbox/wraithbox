@@ -96,12 +96,14 @@ included.
   project and rule that caused it, the VM keeps its last effective
   policy that passed, and `wb policy explain` shows the change as
   pending. The user can still apply a removal as a change of its own.
-  When that removal moves a host and port to `audit` and the checks
-  fail or can't run, the removal applies, and the host and port stays
-  in `enforce` as a held mode, with no rule from the removed endpoint.
-  The 5019 event and `wb policy explain` show the held mode, which
-  stays until a recompute without it passes, or the active period
-  ends.
+  A removal that moves a host and port to `audit` applies at once,
+  as other removals do, so revoking a rule never waits for the
+  prover. The host and port's `enforce` mode is kept as a held source
+  ("Session end") while the checks run, with no rule from the removed
+  endpoint. The held source is dropped when the checks pass, and stays
+  when they fail or can't run. The 5019 event and `wb policy explain`
+  show it, and it stays until a recompute without it passes, or the
+  active period ends.
   When a refused change narrows in part, the refusal and
   `wb policy explain` name the narrowing part and say "apply the
   removal on its own to revoke it now" (NFR06-explained-refusals).
@@ -135,7 +137,9 @@ included.
   pending. The held source stays until a recompute without it passes,
   or the active period ends.
 
-  When a project joins while a held source exists, `wb-hostd` runs the
+  When a project joins while a held source exists, a held `enforce`
+  mode from a removal while sessions run ("Policy changes while
+  sessions run") included, `wb-hostd` runs the
   extension check, the boundary check and the risk check on the union
   without the held source, and drops the held source only if all
   three pass. Otherwise the held source stays through the join, and
