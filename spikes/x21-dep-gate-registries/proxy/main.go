@@ -33,7 +33,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -845,24 +844,23 @@ func goHandle(host string, w http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
-		var keep []string
-		var wg sync.WaitGroup
-		var mu sync.Mutex
-		lines := strings.Fields(string(body))
-		for _, v := range lines {
-			wg.Add(1)
-			go func(v string) {
-				defer wg.Done()
-				t, err := goInfoTime(escMod, v)
-				if err == nil && !tooYoung(t) {
-					mu.Lock()
-					keep = append(keep, v)
-					mu.Unlock()
-				}
-			}(v)
+		if resp.StatusCode != 200 {
+			// A 404 for a path prefix the go command probes: not a list.
+			e.Status, e.Decision = resp.StatusCode, "allow"
+			emit(e)
+			copyResp(w, resp, body)
+			return
 		}
-		wg.Wait()
-		sort.Strings(keep)
+		lines := strings.Fields(string(body))
+		t0 := time.Now()
+		keep, lookups, ferr := filterList(escMod, lines)
+		e.Ms = float64(time.Since(t0).Microseconds()) / 1000
+		e.OSVms = float64(lookups) // spike: number of clock lookups for this list
+		if ferr != nil {
+			e.Rule = ferr.Error()
+			refuse(w, e, "Go "+e.Name+" @v/list: "+ferr.Error()+" (fail closed)")
+			return
+		}
 		out := []byte(strings.Join(keep, "\n") + "\n")
 		e.Removed = len(lines) - len(keep)
 		e.Kept = len(keep)
@@ -878,13 +876,26 @@ func goHandle(host string, w http.ResponseWriter, r *http.Request) {
 			Version string
 			Time    time.Time
 		}
-		if _, _, err := getJSON("https://proxy.golang.org/"+escMod+"/@latest", "", &info); err == nil && *mode == "filter" && tooYoung(info.Time) {
-			e.Version = info.Version
-			e.Decision = "filter"
-			e.Rule = "latest-too-young"
-			emit(e)
-			http.Error(w, "not found", 404)
-			return
+		if *mode == "filter" {
+			if _, _, err := getJSON("https://proxy.golang.org/"+escMod+"/@latest", "", &info); err == nil {
+				e.Version = info.Version
+				t := info.Time
+				if *goClock == "sumdb" {
+					t, err = goAgeTime(escMod, goEscape(info.Version))
+				}
+				if err != nil {
+					e.Rule = err.Error()
+					refuse(w, e, "Go "+e.Name+" @latest: "+err.Error()+" (fail closed)")
+					return
+				}
+				if tooYoung(t) {
+					e.Decision = "filter"
+					e.Rule = "latest-too-young"
+					emit(e)
+					http.Error(w, "not found", 404)
+					return
+				}
+			}
 		}
 		passThrough(host, w, r, e)
 	case strings.HasPrefix(rest, "@v/"):
@@ -897,7 +908,15 @@ func goHandle(host string, w http.ResponseWriter, r *http.Request) {
 			passThrough(host, w, r, e)
 			return
 		}
-		t, err := goInfoTime(escMod, escVer)
+		t, err := goAgeTime(escMod, escVer)
+		if err != nil {
+			e.Rule = err.Error()
+			if *mode != "off" {
+				e.Kind = "download"
+				refuse(w, e, fmt.Sprintf("Go %s@%s: %v (fail closed)", e.Name, e.Version, err))
+				return
+			}
+		}
 		gateDownload(host, w, r, e, t, err == nil)
 	default:
 		e.Kind = "other"
@@ -1231,6 +1250,14 @@ func main() {
 			// Go on macOS verifies TLS with the system trust store and
 			// ignores SSL_CERT_FILE, so the go command is pointed at
 			// GOPROXY=http://<addr>/goproxy instead of CONNECT.
+			if rest, ok := strings.CutPrefix(r.URL.Path, "/goproxy/sumdb/sum.golang.org"); ok {
+				sumdbPassThrough(w, r, rest)
+				return
+			}
+			if r.URL.Path == "/x21/clock-stats" {
+				fmt.Fprintln(w, clockStats())
+				return
+			}
 			if strings.HasPrefix(r.URL.Path, "/goproxy/") {
 				r.URL.Path = strings.TrimPrefix(r.URL.Path, "/goproxy")
 				r.URL.RawPath = ""

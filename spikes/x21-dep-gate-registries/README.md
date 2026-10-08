@@ -33,6 +33,27 @@ Run on 2026-10-04, macOS 27 on Apple Silicon, against the public registries.
 - `vulnsev.py`: how many lockfile installs a severity threshold would refuse.
 - `analyze.py`: the tables in `results-*.md`.
 
+## I76: the checksum-database clock end to end (2026-10-08)
+
+Added for issue #76 as new commits; the tag `spike-x21-dep-gate-registries`
+stays on the first result.
+
+- `proxy/sumdbclock.go`: `-go-clock sumdb` takes Go's age from the record
+  number in sum.golang.org. The calibration point is the minimum record
+  number of up to 20 index.golang.org entries first seen in the ten minutes
+  before now - 7 days (minus one minute), recomputed hourly. A stale point
+  is kept when recomputing fails; with no point every Go download and
+  listing is refused (`go-clock-uncalibrated`). `-list-lazy` filters
+  `@v/list` from the highest version down and stops at the first old one.
+  The go command's own sumdb traffic goes through
+  `GOPROXY=http://<addr>/goproxy/sumdb/sum.golang.org/...`.
+- `clock.py`: record numbers of 320 index entries over 16 days against
+  their first-seen time, and the calibration point.
+- `goclock.py`: lockfile installs of five Go projects, the fresh `go get`,
+  `@v/list` cost, index unreachable, and old-commit pseudo-versions.
+- `listcheck.py`: which listed versions the full filter hides, and why.
+- `results-i76.md`: the output of those runs.
+
 ## Measured output (copied from the runs)
 
 ```text
