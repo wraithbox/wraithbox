@@ -184,6 +184,16 @@ its output still passes the filter ("Where").
   which make Claude Code wrap sequences in DCS, and not `SSH_*`,
   `TERMINFO`, `LC_TERMINAL` or `ITERM_SESSION_ID`. The window size
   crosses as resize messages.
+- **Terminfo.** `TERM` crosses unchanged. `wb` and `wb-guestd` never
+  map it to another name, so what Claude Code prints is the same as on
+  the host. Claude Code doesn't read terminfo, but programs in the
+  session such as `less`, `vim` and `top` look `TERM` up in it.
+  `TERMINFO` names a path on the host and doesn't cross. The guest
+  looks `TERM` up in the terminfo database of its image
+  (S06-vm-lifecycle, "Terminfo"). That database has ncurses' entries
+  and the names Ghostty and kitty set, `xterm-ghostty` and
+  `xterm-kitty`. When the guest has no entry for `TERM`, those programs
+  report an unknown terminal, and `TERM` still isn't changed (I83).
 
 **Guest text elsewhere.** Wherever else `wb` prints text the guest
 influenced (the session summary and its link list, `wb diff`,
