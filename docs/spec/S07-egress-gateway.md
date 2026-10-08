@@ -217,8 +217,8 @@ session start in the VM to the end of the last session running in it.
     layer.
 - **Events and rate limits.** Each drop is counted and logged with its
   rule. Every class of event the guest can trigger is rate-limited per
-  rule: link filter drops, DHCP findings, DNS refusals, approval
-  events, `handoff-send-failed`, and in `wb-proxyd` stream resets,
+  rule: link filter drops, DHCP findings, DNS refusals, queries
+  dropped with `dns-hold-full`, approval events, `handoff-send-failed`, and in `wb-proxyd` stream resets,
   HTTP refusals ("Non-HTTP streams") and the hand-off refusals
   `handoff-socket-refused`, `name-report-refused` and
   `stream-handoff-refused`, including the `stream-cap` check ("Stream
@@ -230,8 +230,8 @@ session start in the VM to the end of the last session running in it.
   marker. Packets the stack sends itself, such as
   its own broadcast DHCP replies, are never counted as guest drops.
 - **Per-VM caps.** Each VM's `wb-netd` caps TCP connections in flight
-  (half-open and established), DNS-over-TCP connections, the stack's
-  buffer memory, and the bytes in its frame queues, not only their
+  (half-open and established), DNS-over-TCP connections, held DNS
+  queries ("Hold limits" under DNS), the stack's buffer memory, and the bytes in its frame queues, not only their
   frame counts. Each cap is configuration with a default. A frame or
   connection over a cap is dropped and logged with the cap's rule
   (SEC13-bounded-resources).
@@ -300,9 +300,12 @@ session start in the VM to the end of the last session running in it.
     `NXDOMAIN` or an empty answer and no approval event, and logged.
     An idle macOS guest asks for its own reverse name and for
     `_dns.resolver.arpa` after each lease (X03-network-path).
-  - *Name form.* Outside the local answers above, a query whose name
-    isn't LDH ASCII (letters, digits, hyphens and dots, compared
-    case-insensitively) or is past the name length limit (below) gets
+  - *Name form.* The form is checked on the labels as they are on the
+    wire. Each label is 1 to 63 bytes of ASCII letters, digits and
+    hyphens only, so no label holds a dot byte or any other byte, and
+    the name is at most 253 bytes written with dots between its
+    labels. Letters compare case-insensitively. Outside the local
+    answers above, a query whose name breaks the form gets
     `NXDOMAIN` with the rule `dns-name-form`, before any other check.
     Such a name raises no approval event and stays off every learn
     list, so no control byte or non-ASCII character from a name
@@ -330,46 +333,86 @@ session start in the VM to the end of the last session running in it.
     name up ("Enforced per VM"). The maintainer decided the per-VM
     rules on I36 (B36-flow-attribution). Over the VM's limits on
     pending requests and on new requests, a name is refused the same
-    way and doesn't raise an approval event (S09-policy-credentials-audit,
+    way with the rule `approval-pending-cap` or `approval-rate`, and
+    doesn't raise an approval event (S09-policy-credentials-audit,
     "Approval flow").
   - *Hold.* `wb-netd` sends the answer to a refused query 4 seconds
     after the query arrived, not before, whatever the reason in the
-    list under "Same answer for every refusal". A change to the VM's
-    effective policy that allows a held query's name, such as an
-    approval, ends the hold. The query is then answered at once as an
-    allowed name. Its accounting record and name report go first, as
-    for every allowed answer. A deny, or no answer within the 4
-    seconds, gets the refusal at the end of the hold. The macOS
-    resolver library waits 5 seconds before it sends a query again.
-    The guest gets its answer before that retry. The maintainer decided
-    on I51 to hold the answer for up to 4 seconds while a request is
-    open (B51-approval-flow). The hold applies to every reason, not
-    only to names with an open request. A shorter wait for the other
-    reasons would let the guest tell them apart by the timing of the
-    refusal, which "Same answer for every refusal" rules out.
-  - *Hold limits.* A limit fixed in code caps the queries each VM's
-    `wb-netd` holds, and every query of a name counts on its own. A refused query over that limit is dropped without an answer
-    and counted with the rule `dns-hold-full`, so the guest's
-    resolver sends it again after its own timeout. A DNS-over-TCP
-    connection with a held query counts toward the cap on such
-    connections ("Per-VM caps") until the answer is sent.
-  - *Negative answers.* Every `NXDOMAIN` and every empty answer that
-    `wb-netd` sends, the local answers included, carries in its
-    authority section an SOA record for the root zone with a TTL of 0
-    and a `MINIMUM` of 0, the same record every time. A resolver
-    caches a negative answer for the smaller of the two (RFC 2308), so
-    the guest doesn't cache it, and a lookup after a later approval
-    reaches `wb-netd` and succeeds. The maintainer decided this on I51
+    list under "Same answer for every refusal". Every step that
+    depends on the reason runs when the query arrives: the checks of
+    this section in their order, the wildcard budget debit with its
+    accounting record, the one-open-event-per-name check, the request
+    limits, and building the answer's bytes. The end of the hold is a
+    timer that only sends those bytes.
+    - *Widening during the hold.* A change that widens the VM's
+      effective policy, such as an approval, runs each held query
+      through every check of this section again, as if it had just
+      arrived, the audit budgets and the event channel included. A debit already made for
+      the query isn't made again. An allowed result is sent at once.
+      Its accounting record and name report go first, as for every
+      allowed answer. When the result is a
+      refusal, the query keeps its refusal bytes and its timer, so a
+      refusal always arrives 4 seconds after its query. A name
+      approved while the VM is over its audit budget is still refused.
+    - *Deny or no answer.* A deny, or no answer within the 4 seconds,
+      gets the refusal at the end of the hold.
+    - *Why 4 seconds.* The macOS resolver library (`libresolv`,
+      `RES_TIMEOUT`) waits 5 seconds before it sends a query again.
+      The guest gets its answer before that retry. The guest's system
+      resolver is `mDNSResponder`, and B51-approval-flow assumes it
+      waits at least as long. S11-verification-and-spikes checks it.
+    - *Every reason.* The maintainer decided on I51 to hold the answer
+      for up to 4 seconds while a request is open
+      (B51-approval-flow). The hold applies to every reason, not only
+      to names with an open request. A shorter wait for the other
+      reasons would let the guest tell them apart by the timing of
+      the refusal, which "Same answer for every refusal" rules out.
+  - *Hold limits.* Each VM's `wb-netd` holds at most 1,024 queries at
+    once by default, a per-VM cap that is configuration like the
+    others ("Per-VM caps"). Every query of a name counts on its own.
+    A held query costs a few hundred bytes. The default table then
+    takes well under a megabyte per VM.
+    - *Over the cap.* A refused query over the cap is dropped without
+      an answer. Its wildcard budget debit and accounting record are
+      made first, as for every refused query, because accounting
+      records come before any drop decision (S04-architecture,
+      "Accounting and event channels"). It doesn't raise or join an
+      approval event, doesn't go on a learn list, and is counted with
+      the rule `dns-hold-full`, in runs per rule ("Events and rate
+      limits"). Over UDP the guest's resolver sends it again after its
+      own timeout. Over TCP `wb-netd` closes the DNS-over-TCP
+      connection that sent it, so the client doesn't wait on an open
+      connection.
+    - *TCP.* `wb-netd` keeps a DNS-over-TCP connection open while it
+      has a held query, and counts it in the per-VM cap on DNS-over-TCP connections
+      until its last held answer is sent.
+  - *Negative answers.* Every `NXDOMAIN` that `wb-netd` sends, the
+    local answers included, carries in its authority section an SOA
+    record for the root zone with a TTL of 0 and a `MINIMUM` of 0, the
+    same record every time. A resolver caches a negative answer for
+    the smaller of the two (RFC 2308), so the guest doesn't cache a
+    refusal, and a lookup after a later approval reaches `wb-netd`
+    and succeeds. The maintainer decided this on I51
     (B51-approval-flow).
+    - *Allowed names.* An empty answer for an allowed name (`AAAA`,
+      `HTTPS`, `SVCB`) has the same SOA record with the TTL and
+      `MINIMUM` of that name's `A` answer, so the guest doesn't ask
+      for those types more often than for `A`. An empty local answer
+      has the zero SOA record.
+    - *Program caches.* The SOA record doesn't reach a negative cache
+      inside a program, such as Java's (10 seconds by default). Such a
+      program's lookups of a name fail until its cache expires.
   - *Deny duration.* A deny holds for the VM until every session that
     was running when the user denied has ended. Until then the name
     gets `NXDOMAIN` without a new approval event, and later queries
     are counted on the closed event. After that, a lookup raises a new
     event.
   - *Session set at the answer.* An approval event records the
-    sessions running in the VM when it was raised. If that set has
-    changed when the user answers, the answer is refused, and the
-    request is shown again with the current sessions.
+    sessions running in the VM when it was raised, and has a request
+    id (S09-policy-credentials-audit, "Approval flow"). If that set
+    has changed when the user answers, the answer is refused with the
+    rule `approval-sessions-changed`. The request closes, and a new
+    request with a new id and the current sessions replaces it.
   - *Quiet refusals.* The guest OS resolves names of its own, with no
     user action: an idle guest at the login window looked up 14 host
     names, 109 queries in all, in its first hour (X03-network-path).
@@ -397,16 +440,22 @@ session start in the VM to the end of the last session running in it.
   - *Same answer for every refusal.* The answer's bytes are the same
     whatever the reason a name is refused: name form, not allowlisted,
     denied, quiet list, part off, `learn-collected`, `learn-list-full`,
+    `approval-pending-cap`, `approval-rate`, `wildcard-budget` (the
+    budget is used up), `dns-query-rate`,
     `accounting-write-failed`, `handoff-send-failed` ("Stream
     hand-off"), `audit-budget`, `audit-bytes` or
     `event-channel-blocked`, and so is the time of sending ("Hold").
-    The last three come from the host's own
+    Each of them can be held, because a held query costs only an entry
+    in the held-query table, whose cap drops what doesn't fit ("Hold
+    limits"). The last three come from the host's own
     state, not from the name (S04-architecture, "Accounting and event
     channels", S09-policy-credentials-audit, "Audit"). They don't raise
-    an approval event or debit the wildcard budget. Before the answer is sent, `wb-netd`
-    debits the wildcard budget, writes the debit's accounting record to
-    `wb-hostd`, and takes the one-open-event-per-name check under one
-    lock, and does no other work that depends on the reason. When that
+    an approval event or debit the wildcard budget. When the query
+    arrives, `wb-netd` debits the wildcard budget, writes the debit's
+    accounting record to `wb-hostd`, and takes the
+    one-open-event-per-name check and the checks of the request limits
+    (S09-policy-credentials-audit, "Approval flow") under one lock,
+    and does no other work that depends on the reason. When that
     write fails, the name is refused with the rule
     `accounting-write-failed` (S04-architecture, "Accounting and event
     channels"). An answered name's accounting record, with its address,
@@ -421,8 +470,10 @@ session start in the VM to the end of the last session running in it.
     a fixed number of new names under wildcards in an active period
     ("Enforced per VM"), and failed lookups count against that budget,
     because names themselves can carry data (T02-dns-names). Parallel
-    sessions in the VM share the budget. Query rate and name length are
-    limited.
+    sessions in the VM share the budget. A name past the budget is
+    refused with the rule `wildcard-budget`. The name length is
+    limited ("Name form"). A query over the VM's query rate limit is
+    refused with the rule `dns-query-rate`.
 - **Connections.**
   - TCP to a synthetic address on an allowed port is accepted by the
     stack and handed to `wb-proxyd` as a byte stream over the VM's
@@ -1352,8 +1403,8 @@ as written.
   - *Deny* holds for the VM until every session that was running when
     the user denied has ended ("Packet path", DNS, "Deny duration").
   - An answer given after the VM's sessions changed is refused, and
-    the request is shown again ("Packet path", DNS, "Session set at
-    the answer").
+    the request is shown again as a new request with a new id
+    ("Packet path", DNS, "Session set at the answer").
 - **What an approval grants.** On a host without a built-in profile, an
   approval grants the read methods GET, HEAD and OPTIONS. A write
   method (any other, and a GET with `Upgrade: websocket`, which opens

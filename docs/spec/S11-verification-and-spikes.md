@@ -124,7 +124,9 @@ be tested before building on them.
   that project's session start, with the project named.
 - **Fuzzing.** Go native fuzz targets for every parser that sees
   guest-controlled bytes: Ethernet/IP/TCP handling at the link endpoint,
-  DHCP, DNS, TLS ClientHello parsing (a ClientHello split across
+  DHCP, DNS (with a corpus that holds a dot byte inside a wire label,
+  a label of 0 and of 64 bytes, and a name of 254 bytes,
+  S07-egress-gateway, "Name form"), TLS ClientHello parsing (a ClientHello split across
   TLS records included), the first-byte protocol check of
   S07-egress-gateway ("Non-HTTP streams"), HTTP/1.1 and HTTP/2 request
   handling, request path canonicalization, the credential parameter
@@ -218,14 +220,28 @@ be tested before building on them.
     and see the same lookup answered with an address; resolve another,
     leave it unanswered, and see `NXDOMAIN` after 4 seconds with an SOA
     record of TTL 0 and `MINIMUM` 0; then approve it, resolve it again
-    and see it succeed, so the guest didn't cache the refusal. Time the
-    refusals of a denied name, a name on the background list and a name
-    that isn't allowlisted, and see the same hold for each. Check that
-    the guest's resolver (`mDNSResponder` on macOS) waits for a held
-    answer and doesn't fail the lookup sooner (S07-egress-gateway,
-    "Hold", B51-approval-flow);
+    within 1 second of the approval, and see it succeed, so the guest
+    didn't cache the refusal. A guest resolver that keeps a minimum
+    negative cache time despite the zero TTL fails this check, and the
+    delay it adds after a late approval is then written into
+    S07-egress-gateway, "Negative answers". Check that an empty `AAAA`
+    answer for an allowed name has the TTL of its `A` answer;
+  - time the refusals of a denied name, a name on the background list,
+    a name that isn't allowlisted, and a name refused with
+    `audit-budget`, with the accounting channel answering at once and
+    again with it blocking for just under its 100 ms limit, and see
+    the same hold for each. Check that the guest's resolver
+    (`mDNSResponder` on macOS) waits for a held answer and doesn't
+    fail the lookup sooner (S07-egress-gateway, "Hold",
+    B51-approval-flow);
+  - with the VM over its audit budget, resolve a name that isn't
+    allowlisted, approve it during the hold, and see the lookup still
+    refused at the end of the hold with `audit-budget`
+    (S07-egress-gateway, "Widening during the hold");
   - send more refused queries at once than the hold limit and see the
-    rest dropped and counted with `dns-hold-full`;
+    rest dropped and counted with `dns-hold-full`, with no approval
+    event for them; send one over DNS over TCP and see the connection
+    closed;
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
   - present an SNI that differs from the resolved name;
@@ -300,8 +316,9 @@ be tested before building on them.
     - deny a name, start and end another session, and see the name
       still refused with no new approval event until every session
       running at the deny has ended; answer an approval after a
-      session started or ended, and see the answer refused and the
-      request shown again (S07-egress-gateway, "Deny duration");
+      session started or ended, and see the answer refused with
+      `approval-sessions-changed` and the request shown again with a
+      new id (S07-egress-gateway, "Deny duration");
     - start a learn-mode session while a session or a debug shell of
       another project runs, and start another project's session while
       a learn-mode session runs, and see each refused with the other
@@ -421,7 +438,14 @@ be tested before building on them.
     it expire with the rule `approval-expired` and grant nothing; look
     up an `xn--` name whose Unicode form mixes Latin and Cyrillic, and
     one that fails to decode, and see each request show the ASCII form
-    with a warning;
+    with a warning; look up `xn--bcher1-3ya.de` (`bücher1.de`) and see
+    no warning;
+  - answer a request with `wb approve <id>` after it expired, and after
+    it was replaced when the VM's sessions changed, and see each answer
+    refused with `approval-stale` and the newer request for the same
+    name still pending; with two requests pending, run `wb approve`
+    without an id and see it refused with both ids listed
+    (S09-policy-credentials-audit, "Approval flow");
   - once X14-flow-attribution has delivered labels: forge or omit a flow label and
     confirm only rules without program narrowing match, and replace a
     pinned binary and confirm its connections are denied;
