@@ -776,45 +776,72 @@ VM", I36).
   Process attribution reported by the guest is stored as an untrusted
   label.
 - Terminal filter. `wb` filters the guest's terminal stream and sends
-  `wb-hostd`, over its connection for the session, the drop counts by
-  rule and the dropped links it keeps (S16-terminal-stream, "Drop
-  rules" and "Links"). It sends each kept link when it keeps it, the
-  counts every 10 seconds while they change, and the counts once more
-  when the stream ends. So a `wb` that crashes loses at most the last
-  10 seconds of counts. `wb-hostd` keeps the last counts with the
-  session's record in `state.db`, and `wb sessions` shows them in the
-  summary of a session whose `wb` is gone (S05-cli, "Session
-  behavior").
-  - *Records.* All are Detection Findings (2004), with the session's
-    VM, project and session by the host's attribution, because they
-    come from the `wb` that started the session, not from a guest
-    label. Each kept link is one record when it arrives: its URL, its
-    text, and its mark, if it has one. When the session ends, each rule
-    with drops is one record with its count, and the links past the 100
-    kept, if any, are one record with their counts by mark. So a
-    session writes at most 100 link records, one record per rule, and
-    one for the links past 100.
-  - *Severity.* Low for a marked link and for the rules whose sequence
-    makes a terminal act on the host or type text into its input:
-    `terminal-osc-clipboard`, `terminal-osc-iterm`,
-    `terminal-csi-window`, `terminal-dcs` and `terminal-apc`.
-    Informational for the rest. The filter dropped every one, so none
-    needs action at once.
+  `wb-hostd`, over its connection for the session, what the filter
+  counted and the dropped links it keeps (S16-terminal-stream, "Drop
+  rules" and "Links").
+  - *Reports.* `wb` sends each kept link when it keeps it: its URL, its
+    text, whether either was cut, and its mark, if it has one. Every 10
+    seconds while they change, and once more when the stream ends, it
+    sends the counts: the counts by rule, and the links past the 100
+    kept, counted by mark and as `unmarked`. Each report holds the
+    totals so far, not the change. URL and text cross as protobuf
+    `bytes`, because a `string` field must be valid UTF-8 and the URL
+    is raw guest bytes.
+  - *State.* `wb-hostd` keeps the last counts and the kept links with
+    the session's record in `state.db`. So `wb sessions` shows the
+    same summary, links included, for a session whose `wb` is gone
+    (S05-cli, "Session behavior").
   - *Form.* `wb-hostd` takes these reports only from the `wb` of the
     session, and checks them: rule names and marks from
-    S16-terminal-stream's lists, counts that never go down, at most 100
-    links per session, URLs of at most 2048 bytes and texts of at most
-    256 characters. It refuses a report that fails the check with the
-    rule `terminal-report-form`, and logs the refusal with the session.
+    S16-terminal-stream's lists, mark counts under those names or
+    `unmarked`, totals that never go down, at most 100 links per
+    session, URLs of at most 2048 bytes, and texts of valid UTF-8 of
+    at most 256 code points. It refuses a report that fails the check,
+    or that arrives after the end records are written, with the rule
+    `terminal-report-form`, and logs the refusal with the session.
+  - *Link records.* Each kept link is a Detection Finding (2004) when
+    it arrives, with its URL, text, mark and cut flags.
+  - *End records.* `wb-hostd` writes them once, from the stored counts,
+    when both the session has ended and `wb`'s connection for the
+    session has closed, or 30 seconds after the session ended,
+    whichever comes first (S06-vm-lifecycle, "Session lifecycle"). The
+    deadline covers a `wb` that is stopped with job control or hangs.
+    The session's end record holds every count by rule and every count
+    by mark, and says whether the report from the end of the stream
+    arrived. When `wb` crashed, it didn't. Its closed connection hung
+    up the session. The end records then hold the counts of the last
+    report, at most 10 seconds old, and the links `wb` had sent. Each
+    rule with drops is also a
+    Detection Finding with its count, except `terminal-osc-title` and
+    `terminal-osc-notify`. Claude Code writes titles and notifications
+    in nearly every session, and a notification becomes a BEL rather
+    than a drop, so those two counts are only in the session's end
+    record. When links went past the 100 kept, their counts by mark are
+    one more Detection Finding. So a session writes at most 100 link
+    findings, one finding per drop rule, and one for the links past
+    100.
+  - *Attribution.* Every one of these records has the session's VM,
+    project and session by the host's attribution, because they come
+    from the `wb` that started the session, not from a guest label.
+  - *Severity.* Low for a marked link, for the links-past-100 finding
+    when any of its marked counts is above zero, and for the rules
+    whose sequence makes a terminal act on the host or type text into
+    its input: `terminal-osc-clipboard`, `terminal-osc-file`,
+    `terminal-csi-window`, `terminal-dcs` and `terminal-apc`.
+    Informational for the rest. The filter dropped each sequence these
+    findings count, so none needs action at once.
   - *Escaping.* A link's URL and text are guest bytes. The record holds
-    each control character (C0, `DEL` and C1) and each Unicode format
-    character (general category Cf, which holds the bidirectional
-    controls and the zero-width characters) as `\u{XXXX}`, each byte
-    that isn't valid UTF-8 as `\xNN`, and each backslash as `\\`. So a
-    reader of the log sees them, and no viewer acts on them
-    (S16-terminal-stream, "Guest text elsewhere"). JSON's own escaping
-    isn't enough, because a JSON reader turns `\u202e` back into the
-    character it names.
+    each backslash as `\\`, each byte that isn't valid UTF-8 as `\xNN`,
+    and as `\u{H…}` (the code point in 1 to 6 uppercase hex digits,
+    without leading zeros, such as `\u{7F}`, `\u{202E}` or `\u{E0041}`)
+    each code point in the escaped set of S16-terminal-stream ("Guest
+    text elsewhere"): controls (Cc), format characters (Cf), line and
+    paragraph separators (Zl, Zp), and every
+    `Default_Ignorable_Code_Point`. So a reader of the log sees them,
+    and no viewer acts on them. JSON's own escaping isn't enough, because a JSON reader turns `\u202e`
+    back into the character it names, and a raw U+2028 starts a forged
+    line in a viewer that breaks lines there. The length limits apply
+    before escaping, so an escape is never cut.
 - Attribution of network events. `wb-netd` and `wb-proxyd` know the VM,
   and `wb-hostd` adds the projects and sessions running in it. The
   project, session, guest user and program of each connection come
