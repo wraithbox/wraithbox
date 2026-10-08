@@ -121,7 +121,12 @@ platform starts.
   git fetches of S08-workspace-and-git ("WSL"), also measure how
   `wsl.exe --exec` passes arguments that hold spaces and quotes, and
   whether `GIT_PROTOCOL=version=2` reaches the relayed `upload-pack`
-  in both directions.
+  in both directions. Measure the MSYS path conversion of the Git for
+  Windows `sh` on those arguments, with and without
+  `MSYS_NO_PATHCONV=1`. Try a placeholder path that no user process
+  can create, under `/proc/self/` on WSL and under the Windows system
+  directory on Windows. Once it works, that is the stricter choice
+  over a path in an empty directory that `wb` creates.
 - **X13-windows-guests: Windows guests on a macOS host.** Can the Virtualization
   framework boot Windows 11 for Arm in a supported way, including TPM
   and Secure Boot requirements and usable display and network drivers?

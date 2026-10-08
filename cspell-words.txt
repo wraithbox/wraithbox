@@ -69,6 +69,7 @@ libuv
 terminfo
 
 # Tools and their names in configs
+msys
 golangci
 gofumpt
 cyclop
