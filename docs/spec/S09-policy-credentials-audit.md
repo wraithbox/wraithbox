@@ -380,8 +380,10 @@ inspection is trusted, and what is recorded.
     streams with the rule `ca-not-installed`. A guest that doesn't
     report the install only cuts off its own traffic.
   - *Day 60.* The old CA expires. `wb-guestd` removes it from the trust
-    store, and `wb-proxyd` destroys its key. `wb-proxyd` never signs
-    with an expired CA.
+    files, and from the system trust store where the guest has one
+    (S12-platforms), and `wb-proxyd` destroys its key. `wb-proxyd`
+    never signs with an expired CA. That is what revokes the CA: a
+    guest that keeps trusting it gets no leaf signed by it.
   - *Overlap.* A process that started before the successor was
     installed works until the switch, 28 days later. Only a process
     that runs longer than that and never rereads its trust fails, with
@@ -408,9 +410,10 @@ inspection is trusted, and what is recorded.
     guest's traffic, which runs only through the host. With a hardware
     key rotation adds little, and the overlap keeps it from breaking
     running tools. Of the clients X04-tls-inspection tried, only
-    Python's `requests` rereads its CA file while it runs. Every other
-    long-running process keeps the trust it read at start, so the
-    overlap bounds its life as stated above.
+    Python's `requests` rereads its CA file while it runs. Go, Node,
+    Python's `urllib`, Ruby and Java keep the trust they read at start,
+    and the clients it didn't test are assumed to do the same. So the
+    overlap bounds their life as stated above.
   - *Audit.* Issuing a CA, its install, the signing switch, its
     removal, and an install `wb-guestd` refuses or doesn't report are
     each a Device Config State Change (5019) event with the VM and the
@@ -419,18 +422,30 @@ inspection is trusted, and what is recorded.
   (S06-vm-lifecycle, "Layers"). `wb-guestd` installs the VM's current
   CAs at runtime and sets toolchain trust variables, so that common
   clients accept them (X04-tls-inspection).
-  - *Files.* `wb-guestd` owns three files that every user can read, and
-    replaces each one with a rename, so a client never reads half a
-    file:
+  - *Files.* `wb-guestd` writes three files in a fixed directory that
+    root owns, `/etc/wraithbox/trust/` on macOS and Linux guests, with
+    mode 0755. Each file has mode 0644. `wb-guestd` writes each one to a
+    temporary file in the same directory and renames it into place, so
+    a client never reads half a file. The path holds no whitespace and
+    no character a shell treats specially. Project users read the
+    directory under S13-guest-confinement, "Profile".
     - the CA file: every current CA of the VM;
     - the bundle: the guest's public roots (`/etc/ssl/cert.pem` on
-      macOS) and every current CA. A variable that replaces a client's
-      roots points here, because pass hosts and raw TCP relays present
-      public certificates (S07-egress-gateway, "Modes");
-    - the Java trust store: a PKCS #12 file with the same certificates
-      as the bundle.
+      macOS) and every current CA. `wb-guestd` rebuilds it from the
+      current public roots on every write. A variable that replaces a
+      client's roots points here, because pass hosts and raw TCP relays
+      present public certificates (S07-egress-gateway, "Modes");
+    - the Java trust store: a PKCS12 file without a password, with
+      the same certificates as the bundle. `wb-guestd` builds it
+      itself, in Go.
   - *Variables.* `wb-guestd` sets them in the environment of every
-    project user's processes:
+    project user's processes. Each value is built from constants, and
+    the value of `JAVA_TOOL_OPTIONS` is exactly
+    `-Djavax.net.ssl.trustStore=` followed by the Java trust store's
+    fixed path. `wb-guestd` never appends to a value it inherits or
+    merges with one. A value that a project or the user sets replaces
+    Wraith Box's, and that client then fails closed on inspected hosts,
+    because it doesn't trust the CA.
 
     | Variable | File | Clients X04-tls-inspection saw use it |
     |---|---|---|

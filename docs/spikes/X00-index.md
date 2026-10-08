@@ -76,7 +76,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   X04-tls-inspection: every client that takes a CA file or variable
   accepts the CA and none pins, but `wb-guestd` can't add it to a macOS
   guest's system trust store, so URLSession clients reject inspected
-  hosts (I185). Only Python's `requests` rereads trust while it runs.
+  hosts (I185). Of the clients tested, only Python's `requests` rereads trust while it runs.
 - **X05-fs-benchmark: Filesystem benchmark.** Data disk with default versus relaxed
   write-through settings, against the host, on the NFR02-fs-speed workloads.
   Answered no in the result page X05-fs-benchmark: `npm ci` stays under

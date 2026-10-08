@@ -99,7 +99,9 @@ Each session's process tree runs under a Seatbelt profile
 process cannot remove it, much like Landlock.
 
 - **Profile.** Reads are denied by default, with an allowlist for the
-  system, Homebrew, Xcode, and the user's own home. Writes are allowed
+  system, Homebrew, Xcode, the trust files in `/etc/wraithbox/trust/`
+  (S09-policy-credentials-audit, "Guest trust"), and the user's own
+  home. Writes are allowed
   only in the user's home, the session worktree, and temporary
   directories. The profile is generated from policy on the host and
   installed by `wb-guestd`. The repository never supplies it.

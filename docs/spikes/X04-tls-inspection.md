@@ -11,7 +11,8 @@ Brief: B18-tls-inspection
   trust"), and the hosts S07-egress-gateway names as known to break
   under inspection.
 - **You are approving:** the answer "no". Each client that reads a CA
-  file or a variable accepted the CA, and none of them pins. But
+  file or a variable accepted the CA, and none of the clients that
+  could be tested pins. But
   `wb-guestd` can't put the CA in a macOS guest's system trust store,
   because macOS 27 refuses every way the spike tried without a user to
   confirm it. So URLSession clients, which read only that store,
@@ -22,19 +23,38 @@ Brief: B18-tls-inspection
 - **Controls touched:** none weakened. A client that doesn't trust the
   CA fails closed. FR08-no-proxy-config isn't met for URLSession
   clients on inspected hosts.
-- **Assumed:** that Homebrew's builds stand for the clients a project
-  installs. Homebrew's Node honored `SSL_CERT_FILE`, which Node's own
-  builds don't by default, so `NODE_EXTRA_CA_CERTS` stays. That
-  `/etc/ssl/cert.pem` is a fair source for the public roots in the
-  bundle.
+- **Assumed or inferred:**
+  - That Homebrew's builds stand for the clients a project installs.
+    Homebrew's Node honored `SSL_CERT_FILE`, which Node's own builds
+    don't by default, so `NODE_EXTRA_CA_CERTS` stays.
+  - That `/etc/ssl/cert.pem` is a fair source for the public roots in
+    the bundle.
+  - That Claude Code reads its trust once at start, like Node. It
+    couldn't run in a loop without an API key.
+  - That the Java trust store S09-policy-credentials-audit specifies
+    works: built by `wb-guestd` from the bundle, without a password,
+    named by `JAVA_TOOL_OPTIONS` alone. The spike tested a different
+    one: the JDK's own roots plus the CA, built with `keytool`, with
+    the password `changeit` set in `JAVA_TOOL_OPTIONS`.
+  - That Apple's pinned hosts refuse an inspected leaf. Inferred from
+    trustd's pinning rules, not seen, because the CA never got into
+    the system store.
+  - That the six variables of S09-policy-credentials-audit work as a
+    set. Inferred: the spike ran all eight it set together, and each
+    client with one variable at a time, but never these six alone.
+  - That option B of I185 works at all (below).
 - **Open decisions:**
   1. How a macOS guest gets the CA into its system trust store, if at
      all. I185 has the options: accept that URLSession clients reach
      only pass hosts, change one authorization right of the guest at
      image build so root may set trust settings, or a configuration
-     profile through MDM. Recommended: accept it for now, and try the
+     profile through MDM. Recommended: accept it for now, which means
+     amending FR08-no-proxy-config for URLSession clients, and try the
      authorization right in a VM before deciding on it. The spike didn't
-     try that change, because it edits authd's database directly.
+     try that change, because it edits authd's database directly. It
+     gives guest root admin trust over trustd and URLSession, which
+     T05-cross-proj-clones already concedes to guest root, and trustd's
+     own entitlement check may defeat it.
 - **Brief:** B18-tls-inspection
 
 ## Question
@@ -86,7 +106,7 @@ Each part, with the evidence in "Measurements":
    default (Apple's message "certificate is not trusted"), but takes a
    variable.
 3. **Every other client accepts the CA through a variable: verified.**
-   No client pins. Which variable each one needs is in the table below.
+   None of these clients pins. Which variable each one needs is in the table below.
    `xcodebuild -resolvePackageDependencies` and `swift package resolve`
    clone over git, so `GIT_SSL_CAINFO` covers them, with Xcode's
    built-in source control and with `-scmProvider system`.
@@ -159,13 +179,16 @@ The conditions under which inspection works:
    public roots and every current CA of the VM, and
    `NODE_EXTRA_CA_CERTS` at a file with only the CAs, since Node adds it
    to its own roots. `CURL_CA_BUNDLE` and `PIP_CERT` add nothing that
-   these don't cover.
+   these don't cover. That is inferred from the runs with one variable
+   at a time: these six never ran as a set.
 2. **Java prints a line for `JAVA_TOOL_OPTIONS`.** Every JVM writes
    "Picked up JAVA_TOOL_OPTIONS: …" to standard error at start. A tool
    that parses a JVM's standard error sees it.
 3. **URLSession clients reach only pass hosts** until I185 decides
    otherwise.
-4. **Apple's pinned hosts are pass hosts** when a user allows them.
+4. **Apple's pinned hosts work only as pass hosts.** Whether a user
+   puts one in pass mode is the user's choice, and each one is then a
+   T01-allowed-channels channel.
 
 ## Measurements
 
@@ -189,8 +212,13 @@ with `sudo -u`.
   logged each client's alert. Session tickets were off, so each
   connection was a full handshake. Its log has 448 connections.
 - **Control.** With no trust anywhere, every one of the 27 client runs
-  failed its request, and the relay logged each client's refusal ("unknown certificate
-  authority", "bad certificate", or a closed connection).
+  failed its request, and the relay logged each client's refusal
+  ("unknown certificate authority", "bad certificate", or a closed
+  connection). The verdict comes from the relay's log and the client's
+  output, not from exit codes. Four runs in `matrix-none.jsonl` exit
+  0 (`go-mod-download`, `swiftpm-cli` and both `xcodebuild-spm` runs),
+  because a pipe in the command hid the failure. The runner set
+  `pipefail` only after this run.
 - **Variables.** With all eight variables set, every client but the
   URLSession ones passed. Then one variable at a time, for the table
   above.
@@ -200,10 +228,16 @@ with `sudo -u`.
 - **Install time.** Writing the variable files, with the Java trust
   store, took under 1 s. The system store refused in 0.3 s.
 - **The relay's own upstream checks.** 6 of the 448 upstream handshakes
-  failed the relay's own check ("certificate is not trusted"), all from
-  clients that sent no ALPN, to `api.anthropic.com`,
-  `registry.npmjs.org` and `example.com`. The clients' retries passed.
-  The spike didn't look into it. `wb-proxyd` runs on the host.
+  failed the relay's own check ("certificate is not trusted"), all on
+  connections that sent no ALPN, to `api.anthropic.com`,
+  `registry.npmjs.org` and `example.com`. Each is followed 6 to 25 ms
+  later by a client's "bad certificate" alert for the same name (lines
+  45 and 46, 100 and 101, 194 and 195, 263 and 264, 352 and 353, 417
+  and 418 of `proxy.jsonl`). The last pair is the error of group B's
+  Node client at 01:37:21 in the reread test. The likely cause is
+  trustd's own fetches being redirected by pf into the relay, which
+  runs as `nobody`. It is unexplained, it is a property of the stand-in
+  and not of `wb-proxyd` on the host, and no conclusion rests on it.
 
 ## What was not measured
 
@@ -225,12 +259,17 @@ with `sudo -u`.
 ## What it means for the specs
 
 - **S09-policy-credentials-audit**, "Guest trust": names the variables
-  and their files, says the replacing files hold the public roots, and
-  says a macOS guest's system store waits on I185. "Lifetimes" states
-  which clients reread (changed in this pull request).
+  and their files, where the files live and how they're written, that
+  the replacing files hold the public roots, how the Java trust store
+  is built, that an inherited value is never merged, and that a macOS
+  guest's system store waits on I185. "Lifetimes" states which clients
+  reread, and that day 60 removes the CA from the trust files (changed
+  in this pull request).
 - **S07-egress-gateway**, "Modes": names Apple's pinned hosts and the
   URLSession clients as known to break under inspection (changed in
   this pull request). Wraith Box doesn't put them in pass mode itself.
+- **S13-guest-confinement**, "Profile": the read allowlist names the
+  trust files' directory (changed in this pull request).
 - **S12-platforms**: the macOS guest's "CA trust" cell says the System
   keychain waits on I185 (changed in this pull request).
 - **S11-verification-and-spikes**, "Spikes": names X04-tls-inspection

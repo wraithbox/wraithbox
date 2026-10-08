@@ -5,10 +5,10 @@ description: No. The tools that take a CA file or variable accept it. A macOS gu
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-08: no. Awaiting decision.** Source: X04-tls-inspection (I18). Changes S09-policy-credentials-audit ("Guest trust", and one sentence of "Lifetimes"), S07-egress-gateway ("Modes", pass), S12-platforms (the macOS "CA trust" cell) and S11-verification-and-spikes (the spike list). Follow-up: I185 (the decision below).
+**Answered 2026-10-08: no. Awaiting decision.** Source: X04-tls-inspection (I18). Changes S09-policy-credentials-audit ("Guest trust", and the day-60 step and one sentence of "Lifetimes"), S13-guest-confinement (the read allowlist), S07-egress-gateway ("Modes", pass), S12-platforms (the macOS "CA trust" cell) and S11-verification-and-spikes (the spike list). Follow-up: I185 (the decision below).
 
 <Aside type="tip" title="What we learned">
-**No.** In a macOS 27 guest, behind a stand-in for `wb-proxyd`, every tool that can be pointed at a CA file accepted the per-VM CA: curl, git, `gh`, Go, Node and `npm`, Python, `pip`, `uv`, Ruby, cargo, Java, Claude Code, and SwiftPM's git clones. None pins. But `wb-guestd` can't put the CA in the guest's system trust store: macOS refuses every way the spike tried without a user to click "allow". So URLSession clients, which read only that store, reject every inspected host: Swift programs, SwiftPM's binary target downloads, and Xcode's own requests. Only Python's `requests` rereads trust while it runs, so the 28-day CA overlap stands. You decide how to treat URLSession clients (I185).
+**No.** In a macOS 27 guest, behind a stand-in for `wb-proxyd`, every tool that can be pointed at a CA file accepted the per-VM CA: curl, git, `gh`, Go, Node and `npm`, Python, `pip`, `uv`, Ruby, cargo, Java, Claude Code, and SwiftPM's git clones. None pins. But `wb-guestd` can't put the CA in the guest's system trust store: macOS refuses every way the spike tried without a user to click "allow". So URLSession clients, which read only that store, reject every inspected host: Swift programs, SwiftPM's binary target downloads, and Xcode's own requests. Of the clients tested, only Python's `requests` rereads trust while it runs, so the 28-day CA overlap stands. You decide how to treat URLSession clients (I185).
 </Aside>
 
 <figure class="wb-figure">
@@ -63,9 +63,9 @@ Figure 1. `wb-guestd` can write the trust files and variables, and the tools tha
 
 ### A. Accept it, and test B in a VM
 
-URLSession clients reach only pass hosts. A host with a credential binding or a built-in profile, such as `github.com` or the model API, can't be a pass host, so they can't reach it. Then test option B in a VM before deciding on it.
+URLSession clients reach only pass hosts. A host with a credential binding or a built-in profile, such as `github.com` or the model API, can't be a pass host, so they can't reach it. FR08-no-proxy-config is then amended to leave out URLSession clients on inspected hosts. Then test option B in a VM before deciding on it.
 
-- **Cost:** Swift programs that call inspected hosts fail, and so do SwiftPM binary targets hosted on GitHub. It needs no code.
+- **Cost:** Swift programs that call inspected hosts fail, and so do SwiftPM binary targets hosted on GitHub. It needs no code, but a requirement change.
 - **Keeps:** <Badge text="SEC05-default-deny" variant="success" /> <Badge text="SEC06-repo-writes" variant="success" />, fails closed.
 
 </div>
@@ -73,9 +73,9 @@ URLSession clients reach only pass hosts. A host with a credential binding or a 
 
 ### B. Let guest root set trust
 
-At image build, add `is-root` to the authorization right `com.apple.trust-settings.admin`, so root (only) may set admin trust without a user. The sealing scan checks the rule. Guest root is untrusted already, so it gains nothing new.
+At image build, add `is-root` to the authorization right `com.apple.trust-settings.admin`, so root may set admin trust without a user. Guest root then gets admin trust over trustd and URLSession for every user in the guest. T05-cross-proj-clones already concedes that guest root reaches every project, and the CA has no name constraints (I39), so a root-made CA could vouch for any name. The whole control is the gap between `is-root` and `allow`: with `allow`, any user could change admin trust. The sealing scan compares the full rule and the rights next to it, at every seal and at first contact, because authd may rewrite its database on a macOS update.
 
-- **Cost:** the supported tool refuses the change. The build would edit authd's database directly, which nobody has tried yet, and needs a VM test.
+- **Cost:** the supported tool refuses the change. The build would edit authd's database directly, which nobody has tried yet, and needs a VM test. trustd's own entitlement check may still refuse it.
 - **Keeps:** <Badge text="SEC11-root-gains-nothing" variant="caution" /> changes one guest security setting, the maintainer's call.
 
 </div>
@@ -98,10 +98,10 @@ Deliver the CA as a configuration profile through MDM, which installs without a 
 <tr><th>Requirement</th><th>A. Accept</th><th>B. Root sets trust</th><th>C. MDM</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>FR08-no-proxy-config</strong> allowed hosts work for every tool without proxy settings</td><td class="partial">not for URLSession clients on inspected hosts</td><td class="yes">if the VM test passes</td><td class="no">not viable</td></tr>
+<tr><td><strong>FR08-no-proxy-config</strong> allowed hosts work for every tool without proxy settings</td><td class="partial">amended: not for URLSession clients on inspected hosts</td><td class="yes">if the VM test passes</td><td class="no">not viable</td></tr>
 <tr><td><strong>SEC05-default-deny</strong> only allowed hosts</td><td class="yes">kept</td><td class="yes">unchanged</td><td class="yes">same</td></tr>
 <tr><td><strong>SEC06-repo-writes</strong> and <strong>SEC07-dep-gate</strong> checked on inspected hosts</td><td class="yes">kept, fails closed</td><td class="yes">unchanged</td><td class="yes">same</td></tr>
-<tr><td><strong>SEC11-root-gains-nothing</strong> guest root gets nothing from the host</td><td class="yes">kept</td><td class="partial">a guest rule changes, root gains nothing new (inferred)</td><td class="partial">enrollment in the guest</td></tr>
+<tr><td><strong>SEC11-root-gains-nothing</strong> guest root gets nothing from the host</td><td class="yes">kept</td><td class="partial">guest root gains admin trust, which T05 already concedes</td><td class="partial">enrollment in the guest</td></tr>
 <tr><td><strong>T01-allowed-channels</strong> each pass host is a channel</td><td class="partial">more pass hosts, if users add them</td><td class="yes">fewer</td><td class="yes">also fewer</td></tr>
 </tbody>
 </table>
@@ -113,11 +113,12 @@ Deliver the CA as a configuration profile through MDM, which installs without a 
 - <Badge text="verified" variant="success" /> Which single variable each client needs. `results/matrix-only-*.jsonl`, X04-tls-inspection, table.
 - <Badge text="verified" variant="success" /> A bundle without the public roots breaks pass hosts for curl, Go, and Python. `results/extras.txt`.
 - <Badge text="verified" variant="success" /> Only Python's `requests` accepted the successor CA in a process started before its install. Go, Node, `urllib`, Ruby and Java didn't. `results/reread.txt`.
-- <Badge text="verified" variant="success" /> No client outside Apple's pins. The guest's pinning rules list Apple's hosts for software updates, `xcode-cdn.apple.com`, `mesu.apple.com` and others. `results/pinning-rules.txt`.
-- <Badge text="inferred" variant="note" /> Those Apple hosts would refuse an inspected leaf even with the CA in the system store. The spike couldn't put it there.
-- <Badge text="assumed" variant="caution" /> Option B works: that `add-trusted-cert` succeeds once the rule allows root, that the rule is still there after a reboot, and that other users still need an admin. Untried, it needs a VM test (I185).
+- <Badge text="verified" variant="success" /> None of the clients that could be tested pins. URLSession and Xcode couldn't be tested for pinning. `results/matrix-vars.jsonl`.
+- <Badge text="inferred" variant="note" /> Apple pins its own hosts: trustd's pinning rules in the guest list software update, `xcode-cdn.apple.com`, `mesu.apple.com` and others, so they would refuse an inspected leaf even with the CA in the system store. The spike couldn't put it there. `results/pinning-rules.txt`.
+- <Badge text="inferred" variant="note" /> The six variables S09-policy-credentials-audit names work as a set. The spike ran eight together and each one alone, never these six alone.
+- <Badge text="assumed" variant="caution" /> Option B works: that `add-trusted-cert` succeeds once the rule allows root, that trustd's entitlement check doesn't refuse it, that the rule is still there after a reboot and a macOS update, and that other users still need an admin. Untried, it needs a VM test (I185).
 - <Badge text="assumed" variant="caution" /> Claude Code reads its trust once at start, like Node. It couldn't be run in a loop without an API key.
-- <Badge text="assumed" variant="caution" /> A Java trust store built from the bundle works like the one the spike built from the JDK's own roots plus the CA.
+- <Badge text="assumed" variant="caution" /> The Java trust store of S09-policy-credentials-audit works: built by `wb-guestd` from the bundle, without a password. The spike tested the JDK's own roots plus the CA, built with `keytool`, with a password.
 
 ## What it unblocks
 
