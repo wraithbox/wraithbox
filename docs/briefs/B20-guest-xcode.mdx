@@ -52,7 +52,7 @@ Figure 1. A session runs as the project user under its profile. Builds and simul
 
 ### A. Not in v1
 
-Nothing tells `wb-hostd` before a session that it will run one, so there is nothing to refuse it on. The limit is documented, and `wb` turns the `testmanagerd` error into an explained message that names it. Everything else in Xcode works in either VM.
+Nothing tells `wb-hostd` before a session that it will run one, so there is nothing to refuse it on. The limit is documented, and `wb` turns the `testmanagerd` error into an explained message that names it. Builds, SwiftPM and signing work in either VM under the Layer 2 profiles as specified. Simulators and iOS tests work only with option 2A below, outside those profiles.
 
 - **Cost:** macOS app projects can build but not run their tests in a session.
 - **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" />, no automatic login or stored password in any image.
