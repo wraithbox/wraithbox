@@ -107,7 +107,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X04-tls-inspection: Inspection compatibility",
-		"summary": "Do Go-based, Swift-based, and Xcode clients accept the name-constrained Wraith Box CA when it is trusted only in the guest?"
+		"summary": "Do Go-based, Swift-based, and Xcode clients accept the name-constrained Wraith Box CA when it is trusted only in the guest?",
+		"brief": "B18-tls-inspection"
 	},
 	"19": {
 		"kind": "issue",
@@ -188,7 +189,7 @@
 	},
 	"31": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X20-shared-homebrew: Homebrew with more than one project user",
 		"summary": "X20-shared-homebrew (added to S11-verification-and-spikes in #14)",
 		"brief": "B31-shared-homebrew"
@@ -1108,7 +1109,7 @@
 	},
 	"178": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X20-shared-homebrew result, yes with conditions",
 		"summary": "Result of the X20-shared-homebrew spike: yes, with conditions."
 	},
@@ -1123,5 +1124,36 @@
 		"state": "open",
 		"title": "X20-shared-homebrew: verify the untested toolchain prefix conditions in a guest",
 		"summary": "X20-shared-homebrew (#31, PR #178) answered \"yes, with conditions\" for one Homebrew prefix owned by the toolchain user."
+	},
+	"181": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: toolchain prefix follow-ups from the X20 reviews",
+		"summary": "Low-severity follow-ups from the final code and security re-checks of #178 (X20-shared-homebrew)."
+	},
+	"182": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(briefs): record the B68 decision",
+		"summary": "Marks B68-proxyd-stream-identity as decided: option A, checked name reports, accepted by the maintainer on 2026-10-08 (decision comment on #68)."
+	},
+	"183": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S09-policy-credentials-audit: when a join approval expires",
+		"summary": "S09-policy-credentials-audit, \"Join approval\", says a join approval that gets \"no answer before the request expires\" refuses the session start, but no spec says when a join approval expires."
+	},
+	"184": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): approval flow, held DNS answers and zero negative TTL",
+		"summary": "Writes the approval flow the maintainer decided on #51 (option A, \"hold the answer, then refuse uncached\", with the B51 brief's sub-decision table as recommended) into the specs."
+	},
+	"185": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Decide how wb-guestd makes a macOS guest trust the per-VM CA",
+		"summary": "X04-tls-inspection (#18) found that a root daemon in a macOS 27 guest can't make the system trust a CA without a user to confirm:",
+		"brief": "B18-tls-inspection"
 	}
 }

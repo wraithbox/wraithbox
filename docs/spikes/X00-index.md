@@ -18,7 +18,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X01-model-credential | Model credential via the proxy | Open |
 | X02-warm-start | Warm start | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04 (I16): an idle VM keeps running while the host is locked and is saved after unlock |
 | X03-network-path | Network path | Answered 2026-10-05: yes, with conditions |
-| X04-tls-inspection | Inspection compatibility | Open |
+| X04-tls-inspection | Inspection compatibility | Answered 2026-10-08: no |
 | X05-fs-benchmark | Filesystem benchmark | Answered 2026-10-05: no. NFR02-fs-speed is not met for `npm ci` with any disk setting, and the data disk uses full sync. Decided 2026-10-06 (I19): NFR02-fs-speed is a goal outside the release gate |
 | X06-guest-xcode | Guest users and Xcode | Open |
 | X07-git-round-trip | Git round trip | Answered: yes, with conditions |
@@ -72,7 +72,11 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   clients that pin certificates, and which clients reread trust
   without a restart, which sets the CA overlap
   (S09-policy-credentials-audit, "Lifetimes"). The CA has no name
-  constraints since I39.
+  constraints since I39. Answered no, in the result page
+  X04-tls-inspection: every client that takes a CA file or variable
+  accepts the CA and none pins, but `wb-guestd` can't add it to a macOS
+  guest's system trust store, so URLSession clients reject inspected
+  hosts (I185). Only Python's `requests` rereads trust while it runs.
 - **X05-fs-benchmark: Filesystem benchmark.** Data disk with default versus relaxed
   write-through settings, against the host, on the NFR02-fs-speed workloads.
   Answered no in the result page X05-fs-benchmark: `npm ci` stays under

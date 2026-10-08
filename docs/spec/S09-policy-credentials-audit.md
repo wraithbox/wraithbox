@@ -407,18 +407,49 @@ inspection is trusted, and what is recorded.
     VM's guest trusts it. The thief also needs a position in that
     guest's traffic, which runs only through the host. With a hardware
     key rotation adds little, and the overlap keeps it from breaking
-    running tools. X04-tls-inspection checks which guest clients
-    reread trust and whether 28 days of overlap is enough.
+    running tools. Of the clients X04-tls-inspection tried, only
+    Python's `requests` rereads its CA file while it runs. Every other
+    long-running process keeps the trust it read at start, so the
+    overlap bounds its life as stated above.
   - *Audit.* Issuing a CA, its install, the signing switch, its
     removal, and an install `wb-guestd` refuses or doesn't report are
     each a Device Config State Change (5019) event with the VM and the
     CA certificate's SHA-256 fingerprint (SEC10-audit).
 - **Guest trust.** The sealed image doesn't contain a Wraith Box CA
   (S06-vm-lifecycle, "Layers"). `wb-guestd` installs the VM's current
-  CAs at runtime in the guest OS's system trust store and sets
-  toolchain-specific trust variables so that every common client
-  accepts them. Each trust variable's file holds every current CA of the
-  VM.
+  CAs at runtime and sets toolchain trust variables, so that common
+  clients accept them (X04-tls-inspection).
+  - *Files.* `wb-guestd` owns three files that every user can read, and
+    replaces each one with a rename, so a client never reads half a
+    file:
+    - the CA file: every current CA of the VM;
+    - the bundle: the guest's public roots (`/etc/ssl/cert.pem` on
+      macOS) and every current CA. A variable that replaces a client's
+      roots points here, because pass hosts and raw TCP relays present
+      public certificates (S07-egress-gateway, "Modes");
+    - the Java trust store: a PKCS #12 file with the same certificates
+      as the bundle.
+  - *Variables.* `wb-guestd` sets them in the environment of every
+    project user's processes:
+
+    | Variable | File | Clients X04-tls-inspection saw use it |
+    |---|---|---|
+    | `SSL_CERT_FILE` | bundle | Go, `gh`, `curl`, Python's `ssl` and `urllib`, `uv`, Ruby and `gem` |
+    | `REQUESTS_CA_BUNDLE` | bundle | Python `requests` and `pip` |
+    | `GIT_SSL_CAINFO` | bundle | `git`, and SwiftPM and `xcodebuild` resolving packages over git |
+    | `CARGO_HTTP_CAINFO` | bundle | cargo |
+    | `NODE_EXTRA_CA_CERTS` | CA file | Node, `npm` and Claude Code, which add it to their own roots |
+    | `JAVA_TOOL_OPTIONS` | Java trust store | Java, through `-Djavax.net.ssl.trustStore` |
+
+    Every JVM writes a line about `JAVA_TOOL_OPTIONS` to standard
+    error when it starts.
+  - *System trust store.* On Linux and Windows guests `wb-guestd` also
+    adds the CAs to the system trust store (S12-platforms). On a macOS
+    guest it can't: macOS 27 refuses every way X04-tls-inspection tried
+    to add a trusted root without a user to confirm it. There, clients
+    that read only the system trust store, URLSession and what is built
+    on it, reject inspected hosts and reach only pass hosts. I185
+    decides whether that changes.
 
 ## Approvals (SEC14-no-fake-approvals)
 

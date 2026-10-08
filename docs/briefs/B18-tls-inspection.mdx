@@ -1,0 +1,146 @@
+---
+title: Do the guest's tools accept the inspection CA?
+description: No. The tools that take a CA file or variable accept it. A macOS guest's system trust store refuses the CA without a user, though, and URLSession clients reject inspected hosts.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-08: no. Awaiting decision.** Source: X04-tls-inspection (I18). Changes S09-policy-credentials-audit ("Guest trust", and one sentence of "Lifetimes"), S07-egress-gateway ("Modes", pass), S12-platforms (the macOS "CA trust" cell) and S11-verification-and-spikes (the spike list). Follow-up: I185 (the decision below).
+
+<Aside type="tip" title="What we learned">
+**No.** In a macOS 27 guest, behind a stand-in for `wb-proxyd`, every tool that can be pointed at a CA file accepted the per-VM CA: curl, git, `gh`, Go, Node and `npm`, Python, `pip`, `uv`, Ruby, cargo, Java, Claude Code, and SwiftPM's git clones. None pins. But `wb-guestd` can't put the CA in the guest's system trust store: macOS refuses every way the spike tried without a user to click "allow". So URLSession clients, which read only that store, reject every inspected host: Swift programs, SwiftPM's binary target downloads, and Xcode's own requests. Only Python's `requests` rereads trust while it runs, so the 28-day CA overlap stands. You decide how to treat URLSession clients (I185).
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 320" role="img" aria-label="On the host, wb-proxyd signs a leaf certificate for each inspected stream with the VM's CA. In the guest, wb-guestd writes the CA into trust files and sets variables, which most tools read. Its attempt to add the CA to the macOS system trust store is refused, so URLSession clients, which read only that store, reject the leaf.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="20" y="120" width="170" height="70" rx="10" />
+  <text class="label" x="105" y="150" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="105" y="170" text-anchor="middle">leaf signed by the VM CA</text>
+
+  <rect class="boundary" x="250" y="15" width="495" height="295" rx="12" />
+  <text class="boundary-label" x="262" y="35">macOS guest (untrusted)</text>
+
+  <rect class="box guest" x="275" y="50" width="190" height="55" rx="10" />
+  <text class="label" x="370" y="75" text-anchor="middle">wb-guestd (root)</text>
+  <text class="note" x="370" y="93" text-anchor="middle">no user to confirm</text>
+
+  <rect class="box guest" x="530" y="50" width="195" height="55" rx="10" />
+  <text class="label" x="627" y="75" text-anchor="middle">trust files + variables</text>
+  <text class="note" x="627" y="93" text-anchor="middle">SSL_CERT_FILE and 5 more</text>
+
+  <rect class="box guest" x="530" y="215" width="195" height="55" rx="10" />
+  <text class="label" x="627" y="240" text-anchor="middle">system trust store</text>
+  <text class="note" x="627" y="258" text-anchor="middle">"no user interaction"</text>
+
+  <rect class="box guest" x="275" y="135" width="190" height="45" rx="10" />
+  <text class="label" x="370" y="162" text-anchor="middle">curl, git, Go, Node, …</text>
+  <rect class="box guest" x="275" y="230" width="190" height="45" rx="10" />
+  <text class="label" x="370" y="257" text-anchor="middle">URLSession clients</text>
+
+  <line class="edge" x1="467" y1="77" x2="528" y2="77" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M440,107 C470,170 500,230 528,240" marker-end="url(#f1-arrow-bad)" />
+  <line class="edge" x1="467" y1="150" x2="560" y2="107" marker-end="url(#f1-arrow)" />
+  <text class="note" x="478" y="150">reads</text>
+  <line class="edge-bad" x1="467" y1="252" x2="528" y2="252" marker-end="url(#f1-arrow-bad)" />
+  <line class="edge" x1="192" y1="150" x2="273" y2="157" marker-end="url(#f1-arrow)" />
+  <line class="edge-bad" x1="192" y1="170" x2="273" y2="250" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="150" y="240">rejected</text>
+</svg>
+<figcaption>
+Figure 1. `wb-guestd` can write the trust files and variables, and the tools that read them accept the leaf from `wb-proxyd`. The system trust store refuses the CA without a user, so URLSession clients reject inspected hosts (X04-tls-inspection, answer 1).
+</figcaption>
+</figure>
+
+## Decision: URLSession clients on a macOS guest (I185)
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Accept it, and test B in a VM
+
+URLSession clients reach only pass hosts. A host with a credential binding or a built-in profile, such as `github.com` or the model API, can't be a pass host, so they can't reach it. Then test option B in a VM before deciding on it.
+
+- **Cost:** Swift programs that call inspected hosts fail, and so do SwiftPM binary targets hosted on GitHub. It needs no code.
+- **Keeps:** <Badge text="SEC05-default-deny" variant="success" /> <Badge text="SEC06-repo-writes" variant="success" />, fails closed.
+
+</div>
+<div class="wb-option">
+
+### B. Let guest root set trust
+
+At image build, add `is-root` to the authorization right `com.apple.trust-settings.admin`, so root (only) may set admin trust without a user. The sealing scan checks the rule. Guest root is untrusted already, so it gains nothing new.
+
+- **Cost:** the supported tool refuses the change. The build would edit authd's database directly, which nobody has tried yet, and needs a VM test.
+- **Keeps:** <Badge text="SEC11-root-gains-nothing" variant="caution" /> changes one guest security setting, the maintainer's call.
+
+</div>
+<div class="wb-option">
+
+### C. A profile through MDM
+
+Deliver the CA as a configuration profile through MDM, which installs without a click.
+
+- **Cost:** the guest must be enrolled, which needs a user's approval or Apple Business Manager. Not viable for local VMs (inferred).
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="caution" /> an enrollment identity in the guest.
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Accept</th><th>B. Root sets trust</th><th>C. MDM</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>FR08-no-proxy-config</strong> allowed hosts work for every tool without proxy settings</td><td class="partial">not for URLSession clients on inspected hosts</td><td class="yes">if the VM test passes</td><td class="no">not viable</td></tr>
+<tr><td><strong>SEC05-default-deny</strong> only allowed hosts</td><td class="yes">kept</td><td class="yes">unchanged</td><td class="yes">same</td></tr>
+<tr><td><strong>SEC06-repo-writes</strong> and <strong>SEC07-dep-gate</strong> checked on inspected hosts</td><td class="yes">kept, fails closed</td><td class="yes">unchanged</td><td class="yes">same</td></tr>
+<tr><td><strong>SEC11-root-gains-nothing</strong> guest root gets nothing from the host</td><td class="yes">kept</td><td class="partial">a guest rule changes, root gains nothing new (inferred)</td><td class="partial">enrollment in the guest</td></tr>
+<tr><td><strong>T01-allowed-channels</strong> each pass host is a channel</td><td class="partial">more pass hosts, if users add them</td><td class="yes">fewer</td><td class="yes">also fewer</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> `security add-trusted-cert -d`, `security authorizationdb write`, `trust-settings-import`, user domain trust and `profiles install` are all refused as root without a user, on macOS 27.0.1. Spike branch, `results/g1-requests.jsonl` (`trust.sh`, `trust-probe.sh`, `trust-supported.sh`).
+- <Badge text="verified" variant="success" /> With every variable set, the Swift URLSession client and a SwiftPM binary target download reject the leaf, and every other client accepts it. `results/matrix-vars.jsonl`, `results/extras.txt`.
+- <Badge text="verified" variant="success" /> Which single variable each client needs. `results/matrix-only-*.jsonl`, X04-tls-inspection, table.
+- <Badge text="verified" variant="success" /> A bundle without the public roots breaks pass hosts for curl, Go, and Python. `results/extras.txt`.
+- <Badge text="verified" variant="success" /> Only Python's `requests` accepted the successor CA in a process started before its install. Go, Node, `urllib`, Ruby and Java didn't. `results/reread.txt`.
+- <Badge text="verified" variant="success" /> No client outside Apple's pins. The guest's pinning rules list Apple's hosts for software updates, `xcode-cdn.apple.com`, `mesu.apple.com` and others. `results/pinning-rules.txt`.
+- <Badge text="inferred" variant="note" /> Those Apple hosts would refuse an inspected leaf even with the CA in the system store. The spike couldn't put it there.
+- <Badge text="assumed" variant="caution" /> Option B works: that `add-trusted-cert` succeeds once the rule allows root, that the rule is still there after a reboot, and that other users still need an admin. Untried, it needs a VM test (I185).
+- <Badge text="assumed" variant="caution" /> Claude Code reads its trust once at start, like Node. It couldn't be run in a loop without an API key.
+- <Badge text="assumed" variant="caution" /> A Java trust store built from the bundle works like the one the spike built from the JDK's own roots plus the CA.
+
+## What it unblocks
+
+- `wb-guestd`'s CA install and the trust variables (S09-policy-credentials-audit, "Guest trust").
+- `wb-proxyd` leaf issuing, which X04-tls-inspection blocked in `docs/implementation-plan.md`.
+- I185, which decides URLSession clients on macOS guests.
+
+<details>
+<summary>Details and glossary</summary>
+
+**How the spike ran.** A macOS 27 guest from the X17-image-build image, with the Xcode command line tools, Xcode 27.0 and Homebrew. A Go relay in the guest took the place of `wb-proxyd`, and pf in the guest sent every process's port 443 to it, so no tool had proxy settings. The relay signed a 24-hour leaf for each name with a CA of the S09-policy-credentials-audit profile, without name constraints. Each client ran three ways: without the CA anywhere, with all variables set, and with one variable at a time.
+
+**Why "no".** The question names Swift-based and Xcode clients. Xcode's package resolution passes, because it clones over git. URLSession, the HTTP client of Apple's frameworks, reads only the system trust store, and nothing could put the CA there.
+
+**Glossary.**
+
+- *CA (certificate authority):* the certificate that signs others. A client accepts a server's certificate when a CA it trusts signed it.
+- *Leaf:* the certificate a server shows. `wb-proxyd` signs one per inspected host name.
+- *Trust store:* the list of CAs a client accepts. macOS keeps one for the system, and many tools read their own file instead.
+- *Trust variable:* an environment variable that points a tool at a CA file, such as `SSL_CERT_FILE`.
+- *Pinning:* a client accepts only the certificates it expects for a host, whatever CAs it trusts.
+- *URLSession:* Apple's HTTP client, used by Swift programs and Apple's tools.
+- *Authorization right:* a rule in macOS's authorization database that says who may do a protected action, here change trust settings.
+- *MDM:* mobile device management, Apple's remote management of devices, which can install profiles without a click.
+
+</details>
