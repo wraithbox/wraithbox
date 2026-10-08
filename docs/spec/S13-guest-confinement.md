@@ -104,7 +104,8 @@ Applied by `wb-guestd` to every process it starts for a project user:
   still finds a process of the user after either bound, `wb-guestd`
   logs the failure with its rule and the processes left
   (SEC10-audit, SEC13-bounded-resources), leaves the user locked, and
-  reports the project to `wb-hostd` as not cleaned up. It
+  reports the project to `wb-hostd` as not cleaned up
+  (S06-vm-lifecycle, "Leftover processes"). It
   never boots out a domain where it only stops processes, such as at
   the link drop, so a resumed session keeps its services. `wb-guestd`
   never runs `launchctl print` or `launchctl asuser` against a locked
