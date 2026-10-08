@@ -211,7 +211,8 @@ assumption that v1 work would otherwise build on. They block v1.
   lookups add to an `npm ci` with a large lockfile. Answered: yes, with
   conditions. Filter the metadata and keep refusing the download, use
   the checksum database as Go's clock, and leave Homebrew ungated
-  (X21-dep-gate-registries).
+  (X21-dep-gate-registries). I76 measured the Go clock end to end on
+  2026-10-08, and it held.
 - **X22-no-guest-credentials: Clients without guest credentials.** Which common clients
   (Homebrew against `ghcr.io`, git, `gh`, npm, pip, uv, SwiftPM, Go,
   cargo, Claude Code) break when `wb-proxyd` removes every

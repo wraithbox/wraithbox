@@ -1,6 +1,6 @@
 # X21 - Dependency gate on real registries
 
-Brief: B32-dep-gate-registries
+Brief: B32-dep-gate-registries, and B76-gosumdb-clock for the Go clock
 
 **Purpose:** The result of the spike for I32. Can `wb-proxyd` tell the
 package, version and publish time of a registry download, and which way
@@ -32,10 +32,11 @@ of applying a minimum age lets real installs still work?
   SEC10-audit: each filtered metadata response is an audit event.
 - **Assumed:** that the registries keep publishing the fields measured
   here: npm `time`, PyPI `upload-time`, crates.io `pubtime`, and the
-  Go checksum database's record numbers. The Go clock was checked only
-  for ordering, and I76 measures it end to end.
+  Go checksum database's record numbers. I76 measured the Go clock end
+  to end ("The Go clock end to end"), and B76-gosumdb-clock puts its
+  calibration rules up for review.
 - **Open decisions:** each has a recommendation in
-  B32-dep-gate-registries.
+  B32-dep-gate-registries, and the sixth in B76-gosumdb-clock.
   1. The vulnerability threshold. At the specified default (HIGH), OSV
      data would refuse the lockfile installs of 8 of the 10 projects.
      This result doesn't change that default, and I73 asks the
@@ -57,7 +58,11 @@ of applying a minimum age lets real installs still work?
   5. Partial mitigations for T07-ungated-sources. Recommended: deny
      archive downloads in the git hosting profile, and flag a host that
      mirrors a gated registry in the approval risk check.
-- **Brief:** B32-dep-gate-registries
+  6. The Go calibration point during a long outage of
+     `index.golang.org` (I76). Recommended: keep the last point, which only
+     refuses more, and refuse every Go request only when there has
+     never been one. B76-gosumdb-clock has the options.
+- **Brief:** B32-dep-gate-registries, and B76-gosumdb-clock for I76
 
 ## Question
 
@@ -78,7 +83,7 @@ download. Per registry:
 |---|---|---|---|---|
 | npm | tarball path `<name>/-/<name>-<version>.tgz` | `time` in the full packument; the abbreviated one that clients ask for has none | packument `versions` and `dist-tags` | yes |
 | PyPI | the file the index listed, else the file name checked against the JSON API | `upload-time` per file in the JSON simple index (PEP 700) | JSON simple index `files` and `versions` | yes, per file |
-| Go module proxy | `<module>/@v/<version>.zip` | not the `.info` Time, which is the commit time; the record number in `sum.golang.org` instead | `@v/list` and `@latest` | yes, with the checksum database as the clock, checked only for ordering (I76) |
+| Go module proxy | `<module>/@v/<version>.zip` | not the `.info` Time, which is the commit time; the record number in `sum.golang.org` instead | `@v/list` and `@latest` | yes, with the checksum database as the clock, measured end to end (I76) |
 | crates.io | `/crates/<name>/<version>/download` or `<name>-<version>.crate` | `pubtime` on each sparse index line | sparse index lines | yes |
 | Homebrew | blob digest, through the bottle manifest | `org.opencontainers.image.created` on the manifest | none: one version per formula, and the metadata is signed | no, for the age gate |
 
@@ -129,7 +134,8 @@ package versions downloaded, out of all of them, that were younger than
   `go get` of five fast-moving modules `@latest` fails with refuse and
   passes with filter. These runs used the `.info` Time as the clock,
   which S07-egress-gateway now rules out, and `GOSUMDB=off` (see below
-  and "Limits"). I76 repeats them with the checksum-database clock.
+  and "Limits"). I76 repeated them with the checksum-database clock and
+  `GOSUMDB` on, with the same outcome ("The Go clock end to end").
 - crates.io: `cargo fetch --locked` of sharkdp/bat passes in both modes.
   A manifest of nine popular crates with caret ranges resolved 12 young
   crates. It fails with refuse and passes with filter.
@@ -234,21 +240,104 @@ bat and cli/cli have no severity at all. Failing closed on an unknown severity w
 refuse those too. None of the hits was a malicious-package report
 (`MAL-`).
 
+### The Go clock end to end (I76)
+
+Run on 2026-10-08 with go1.27.1 and `GOSUMDB=sum.golang.org`. The go
+command reached the checksum database through the spike's proxy, which
+served it on the `GOPROXY` path, so the go command checked every signed
+tree it got. The gate took a version's age from its record number and a
+calibration point found as S07-egress-gateway now specifies: the lowest
+record number among 20 versions that `index.golang.org` shows as first
+seen between 11 minutes and 1 minute before the cutoff.
+
+- **Order.** 320 index entries, 5 at random every 6 hours over 16
+  days, all had a record before the spike looked them up. Their record
+  numbers follow first-seen time except for 4 pairs, at most 3.8 s
+  apart. Against the point, no entry first seen more than 7 days ago
+  read as young, and none first seen since read as old. The 20 records
+  of a calibration window spread over 22 numbers, and the point
+  moved 5,974 numbers in 30 minutes. Over the 7 days the database
+  added 1.49 records a second.
+- **Lookups.** A lookup took 87 ms at the median and 176 ms at p95,
+  with 8 at once. One run with 16 at once, next to an install, got a
+  connection reset from `sum.golang.org`.
+- **Lockfile installs.** `go mod download` of five projects, each with
+  its `go.mod` and `go.sum` at a pinned commit, passed in refuse and
+  filter mode. None of their 589 module versions was young. The go
+  command didn't look anything up itself, because `go.sum` was complete. The
+  gate made one per download.
+
+| Project | Modules | No gate (s) | Refuse (s) | Filter (s) |
+|---|---|---|---|---|
+| `cli/cli` | 179 | 16.2 | 18.8 | 20.0 |
+| `junegunn/fzf` | 11 | 2.6 | 3.4 | 3.5 |
+| `caddyserver/caddy` | 165 | 31.3 | 32.4 | 32.3 |
+| `prometheus/node_exporter` | 54 | 3.9 | 4.6 | 4.5 |
+| `gohugoio/hugo` | 180 | 28.1 | 30.5 | 30.6 |
+
+  "No gate" downloads straight from `proxy.golang.org`. The other
+  columns also include the spike proxy's own hop and the redirect it
+  follows, so the difference is an upper bound on what the clock costs.
+- **Fresh install.** `go get` of the five fast-moving modules `@latest`
+  resolved one young version, `aws-sdk-go-v2/service/s3` v1.114.1.
+  Refuse failed on it, with a message that estimated its publish time
+  from its record number. Filter passed in 9.2 s, against 7.0 s with
+  the gate only logging. Filtering 21 lists hid 3 versions and took
+  3,423 lookups in all, calibration included. The go command's own 29 lookups went through the
+  proxy.
+- **Filtering `@v/list`.** With one lookup per listed version, 16 at
+  once and nothing cached, `github.com/aws/aws-sdk-go` (1,865 versions)
+  took 5.6 s, `k8s.io/client-go` (670) 1.8 s, `hashicorp/terraform`
+  (476) 1.3 s and `google.golang.org/grpc` (248) 0.75 s. Lists of under
+  60 versions took 0.2 s or less, apart from the first, which included
+  the calibration. A record number never changes. With a
+  cache, a list costs only its new versions. The filter hid 3 versions of
+  `aws-sdk-go` that have no record (the checksum database answers 404,
+  so the module proxy can't serve them either) and 2 young versions of
+  `terraform`. A cheaper filter that checks versions from the highest
+  down and stops at the first old one took 1 or 2 lookups per list, but
+  missed `terraform` v1.16.5, a young patch release that sorts below an
+  old prerelease. A `go get` of that line would then fail on the download
+  instead of picking v1.16.4.
+- **`index.golang.org` unreachable.** With no calibration point, the
+  gate refused all 179 downloads of the cli/cli lockfile install and
+  every `@v/list` of the fresh install, each with the rule
+  `go-clock-uncalibrated`. With the index taken away after the first
+  calibration, both installs passed on the kept point.
+- **Versions nobody had looked up.** `go get` of 15 pseudo-versions of
+  commits from before 2022, 3 each from five popular modules: 14 were
+  in the checksum database already and installed. One cobra commit got
+  its record from the gate's own lookup and was refused as young. Under
+  this clock it becomes allowed 7 days after that first request. Of the
+  first result's 200 versions that the module proxy first saw in the
+  7 days before 2026-10-04, 173 have an older commit time. Under this
+  clock all 200 were young then, as the order above implies.
+
 ## Limits
 
 - The fresh pip and uv installs, with the gate off, built sdists on the
   host. Building an sdist runs the package's own code, outside any
   sandbox. Nothing points to harm, but a spike like this one should use
   `--only-binary=:all:` or `UV_NO_BUILD=1`, or run in a VM.
-- The Go runs used `GOSUMDB=off`, because Go on macOS ignores
+- The first Go runs used `GOSUMDB=off`, because Go on macOS ignores
   `SSL_CERT_FILE` and `sum.golang.org` couldn't be inspected. go.sum
-  hashes were still checked for the lockfile run.
+  hashes were still checked for the lockfile run. The I76 runs served
+  the checksum database through the proxy's `GOPROXY` path instead, so
+  `GOSUMDB` was on.
 - The spike's URL mappers accepted more than they should, such as
   `/@v/master.zip` or a tarball path with a trailing slash. No request
   got through, because the registries answered 404. S07-egress-gateway
   now asks for explicit path forms.
 - One run per project per mode for installs, and n=2 for the OSV
   timings, on one machine and network.
+- The I76 calibration wasn't single-flight: requests that arrived
+  before the first point each calibrated on their own, so the spike made
+  more lookups than an implementation would. The gate also took the
+  record number from the lookup's first line over TLS, without checking
+  the signed tree that follows it.
+- The gate's own lookups added a record to the public checksum database
+  for the one version nobody had looked up, as the go command would
+  have.
 
 ## What it means for the specs
 
@@ -267,12 +356,21 @@ refuse those too. None of the hits was a malicious-package report
   with the real clock and unknown paths, and the `npm ci` benchmark runs
   with the gate on.
 - S07-egress-gateway keeps the vulnerability threshold at HIGH until
-  I73 is decided. I76 measures the Go clock end to end.
+  I73 is decided.
+- I76: S07-egress-gateway, "Publish time", now says how the Go
+  calibration point is found, refreshed and kept, that the gate refuses
+  every Go download and listing without one (`go-clock-uncalibrated`),
+  that record numbers are cached with no expiry, and how many lookups
+  run at once. S11-verification-and-spikes adds the unreachable-index
+  case to the conformance case for the gate.
 
 ## Spike code
 
 Branch `spike/x21-dep-gate-registries`, commit
-[`56f264a`](https://github.com/wraithbox/wraithbox/tree/56f264a5e365a0a531b588bd182e50dbcc04f905/spikes/x21-dep-gate-registries):
-the proxy, the harness, the project list, and the raw tables.
+[`7955742`](https://github.com/wraithbox/wraithbox/tree/79557420e88339946a7debf84df57d4ccc40ba36/spikes/x21-dep-gate-registries):
+the proxy, the harness, the project list, and the raw tables. The I76
+runs are in `proxy/sumdbclock.go`, `clock.py`, `goclock.py`,
+`listcheck.py` and `results-i76.md`. The first result was measured at
+commit `56f264a`, tagged `spike-x21-dep-gate-registries`.
 
 **Status:** Answered 2026-10-04: yes, with conditions
