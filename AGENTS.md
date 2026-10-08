@@ -171,6 +171,13 @@ ai-tells rules flag them:
 - Every `.mise.toml` tool is exact-pinned and invisible to dependabot;
   refresh with `mise up` and read the diff.
 
+**Mac VMs for spikes and testing:**
+
+To make ad-hoc binaries that can use apple virtualization, you can use
+`codesign -f -s - --entitlements spikes/vm.entitlements .scratch/<path>`.
+
+Any non-adhoc code signing is handled by the maintainer.
+
 ## Agent skills
 
 ### Git remote
