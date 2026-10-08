@@ -189,7 +189,10 @@ in S12-platforms.
   (above). For X17-image-build (I28): the host checks the tarball's
   SHA-256 and sends the source to a named `wb-guestd` operation, which
   compiles it with `tic -x` from the same ncurses release and installs
-  the result as root. The build doesn't use macOS's own `tic`
+  the result as root. The operation returns success or a failure with
+  a text. A failure fails the build, and the host cuts that text to
+  1024 bytes and escapes it wherever it shows it, as it does the
+  version `wb-guestd` reports (S04-architecture, "Version skew"). The build doesn't use macOS's own `tic`
   (ncurses 6.0): on the raw 6.6 `terminfo.src` it stops with
   `error writing` at `scrt`, and at `kitty` when limited to the
   entries above.
