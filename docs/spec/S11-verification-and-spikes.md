@@ -146,8 +146,10 @@ be tested before building on them.
   request paths, PyPI distribution file names, Go escaped module paths
   and versions, crates.io index lines, and `sum.golang.org` lookup
   responses, and the toolchain manifest parser in `wb-hostd` and the
-  name check in `wb-guestd` (S06-vm-lifecycle, "Toolchain prefix")
-  (Swift: property-based tests where fuzzing is impractical).
+  name check in `wb-guestd` (S06-vm-lifecycle, "Toolchain prefix"),
+  and the decoder and script check that show internationalized names
+  in approval requests (S09-policy-credentials-audit, "Approval
+  flow") (Swift: property-based tests where fuzzing is impractical).
   The terminal filter in `wb` (S16-terminal-stream) is one of
   them. Its fuzz target checks these properties, with the BEL rate
   limit off:
@@ -212,6 +214,18 @@ be tested before building on them.
     answer bytes for a name that is not allowlisted, denied, on the
     list or in a part that is off (S07-egress-gateway, quiet
     refusals);
+  - resolve a name that isn't allowlisted, approve it within 4 seconds,
+    and see the same lookup answered with an address; resolve another,
+    leave it unanswered, and see `NXDOMAIN` after 4 seconds with an SOA
+    record of TTL 0 and `MINIMUM` 0; then approve it, resolve it again
+    and see it succeed, so the guest didn't cache the refusal. Time the
+    refusals of a denied name, a name on the background list and a name
+    that isn't allowlisted, and see the same hold for each. Check that
+    the guest's resolver (`mDNSResponder` on macOS) waits for a held
+    answer and doesn't fail the lookup sooner (S07-egress-gateway,
+    "Hold", B51-approval-flow);
+  - send more refused queries at once than the hold limit and see the
+    rest dropped and counted with `dns-hold-full`;
   - send UDP other than DNS; resolve a non-allowlisted name; exceed the
     wildcard budget; use a DNS server other than the gateway;
   - present an SNI that differs from the resolved name;
@@ -400,8 +414,14 @@ be tested before building on them.
     query string, a body) and get a `403`;
   - look up a burst of unknown hostnames from the guest, and see the
     approval limits deny the requests past the limit and log each with
-    the rule, with no more prover runs than the cap
-    (S09-policy-credentials-audit);
+    the rule `approval-pending-cap` or `approval-rate`, `wb status`
+    show the counts, and no more prover runs than the cap
+    (S09-policy-credentials-audit, "Approval flow");
+  - leave a request unanswered, end every session it records, and see
+    it expire with the rule `approval-expired` and grant nothing; look
+    up an `xn--` name whose Unicode form mixes Latin and Cyrillic, and
+    one that fails to decode, and see each request show the ASCII form
+    with a warning;
   - once X14-flow-attribution has delivered labels: forge or omit a flow label and
     confirm only rules without program narrowing match, and replace a
     pinned binary and confirm its connections are denied;

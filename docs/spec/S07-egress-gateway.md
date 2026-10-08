@@ -322,12 +322,45 @@ session start in the VM to the end of the last session running in it.
   - Names not on the allowlist get `NXDOMAIN` and raise an approval
     event (FR09-approve-unknown), except during a learn period in
     the VM, when they go on the learn list instead ("Approvals
-    and learning"). After approval, the next lookup
-    succeeds. A VM has at most one open approval event per name, and
+    and learning"). The answer is held first ("Hold" below), so a user
+    who approves in time sees the lookup succeed. A VM has at most one
+    open approval event per name, and
     later queries for that name, from any session in the VM, are
     counted on it, because the host can't tell which session looked a
     name up ("Enforced per VM"). The maintainer decided the per-VM
-    rules on I36 (B36-flow-attribution).
+    rules on I36 (B36-flow-attribution). Over the VM's limits on
+    pending requests and on new requests, a name is refused the same
+    way and doesn't raise an approval event (S09-policy-credentials-audit,
+    "Approval flow").
+  - *Hold.* `wb-netd` sends the answer to a refused query 4 seconds
+    after the query arrived, not before, whatever the reason in the
+    list under "Same answer for every refusal". A change to the VM's
+    effective policy that allows a held query's name, such as an
+    approval, ends the hold. The query is then answered at once as an
+    allowed name. Its accounting record and name report go first, as
+    for every allowed answer. A deny, or no answer within the 4
+    seconds, gets the refusal at the end of the hold. The macOS
+    resolver library waits 5 seconds before it sends a query again.
+    The guest gets its answer before that retry. The maintainer decided
+    on I51 to hold the answer for up to 4 seconds while a request is
+    open (B51-approval-flow). The hold applies to every reason, not
+    only to names with an open request. A shorter wait for the other
+    reasons would let the guest tell them apart by the timing of the
+    refusal, which "Same answer for every refusal" rules out.
+  - *Hold limits.* A limit fixed in code caps the queries each VM's
+    `wb-netd` holds, and every query of a name counts on its own. A refused query over that limit is dropped without an answer
+    and counted with the rule `dns-hold-full`, so the guest's
+    resolver sends it again after its own timeout. A DNS-over-TCP
+    connection with a held query counts toward the cap on such
+    connections ("Per-VM caps") until the answer is sent.
+  - *Negative answers.* Every `NXDOMAIN` and every empty answer that
+    `wb-netd` sends, the local answers included, carries in its
+    authority section an SOA record for the root zone with a TTL of 0
+    and a `MINIMUM` of 0, the same record every time. A resolver
+    caches a negative answer for the smaller of the two (RFC 2308), so
+    the guest doesn't cache it, and a lookup after a later approval
+    reaches `wb-netd` and succeeds. The maintainer decided this on I51
+    (B51-approval-flow).
   - *Deny duration.* A deny holds for the VM until every session that
     was running when the user denied has ended. Until then the name
     gets `NXDOMAIN` without a new approval event, and later queries
@@ -366,7 +399,8 @@ session start in the VM to the end of the last session running in it.
     denied, quiet list, part off, `learn-collected`, `learn-list-full`,
     `accounting-write-failed`, `handoff-send-failed` ("Stream
     hand-off"), `audit-budget`, `audit-bytes` or
-    `event-channel-blocked`. The last three come from the host's own
+    `event-channel-blocked`, and so is the time of sending ("Hold").
+    The last three come from the host's own
     state, not from the name (S04-architecture, "Accounting and event
     channels", S09-policy-credentials-audit, "Audit"). They don't raise
     an approval event or debit the wildcard budget. Before the answer is sent, `wb-netd`
@@ -378,9 +412,11 @@ session start in the VM to the end of the last session running in it.
     channels"). An answered name's accounting record, with its address,
     is written before its answer too, and a failed write refuses the
     name the same way.
-    Only the notification, the emission of the approval event, the
-    entry on a learn list and the audit entry happen asynchronously,
-    after the answer.
+    The emission of the approval event and the notification start
+    with the hold, so the user can answer while the query waits. They,
+    the entry on a learn list and the audit entry run apart from the
+    answer, and nothing they do changes when the answer is sent
+    ("Hold").
   - Wildcard allowlist entries are bounded: each VM may resolve at most
     a fixed number of new names under wildcards in an active period
     ("Enforced per VM"), and failed lookups count against that budget,
@@ -1334,8 +1370,8 @@ as written.
   names and refuses them (B40-learn-pass-modes), so SEC05-default-deny
   holds as written during a learn-mode session.
   - *Refused as usual.* A name that isn't allowlisted gets `NXDOMAIN`,
-    with the same answer bytes and the same wildcard budget as outside
-    learn mode ("Packet path", DNS). The rules of allowed hosts all
+    with the same answer bytes, the same hold, and the same wildcard
+    budget as outside learn mode ("Packet path", DNS). The rules of allowed hosts all
     hold: HTTP policy, the git hosting profile (SEC06-repo-writes), the
     dependency gate (SEC07-dep-gate), credential replacement and
     placeholder binding. Learn mode never adds a rule, a pass host
