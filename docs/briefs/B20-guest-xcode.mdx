@@ -5,7 +5,7 @@ description: Yes, with conditions. Builds, SwiftPM, signing, iOS simulators and 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-08: yes, with conditions. Awaiting decision.** Source: X06-guest-xcode (I20). Changes S13-guest-confinement ("Layer 2"), S06-vm-lifecycle ("VMs") and S11-verification-and-spikes ("Spikes"). Follow-ups: I194 (getting Xcode and the runtimes into the image), I195 (a console session for macOS app tests), I196 (simulators, the per-user launchd domain and the profile).
+**Answered 2026-10-08: yes, with conditions. Awaiting decision.** Source: X06-guest-xcode (I20). Changes S13-guest-confinement ("Layer 1", "Layer 2"), S07-egress-gateway ("Leftover processes"), S06-vm-lifecycle ("VMs") and S11-verification-and-spikes ("Spikes"). Follow-ups: I194 (getting Xcode and the runtimes into the image), I195 (a console session for macOS app tests), I196 (simulators, the per-user launchd domain and the profile).
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions.** A project user that `wb-guestd` starts from root, never logged in at the screen, can build macOS and iOS apps, build and test SwiftPM packages with `swift`, sign apps to run locally, boot an iOS simulator, and run iOS unit and UI tests on it. Every `xcodebuild test` on macOS, a SwiftPM package's included, and launching a macOS app fail without a console (GUI) session. Decision 1 is whether v1 offers them at all. Under the draft Seatbelt profile, builds and `simctl` need a short list of exceptions. iOS tests only finished when the profile allowed nearly everything, and the simulator runs outside the profile anyway.
@@ -72,17 +72,17 @@ The isolated VM logs one project user in at its screen. I195 designs and measure
 
 ## Decision 2: simulators and the profile
 
-The simulator can't be confined by the session's profile, and `xcodebuild test` on it needed a profile that allows nearly everything. I196 holds the design.
+The simulator can't be confined by the session's profile, and `xcodebuild test` on it needed a profile that allows nearly everything. Until this is decided, S13-guest-confinement states the gap: a project that uses simulators has no Layer 2 file system confinement. I196 holds the follow-up.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
 ### A. A simulator profile, stated as unconfined
 
-A project that uses simulators gets the broad profile, and S13-guest-confinement says that its sessions have no file system confinement from Layer 2.
+Only a project that declares simulators gets a simulator profile: the build profile plus the simulator runtime mounts, CoreSimulator's and CoreDevice's services, power management, distributed notifications, the GPU user clients, `pidinfo` with `procargs`, and the broad allow `xcodebuild test` needed (X06-guest-xcode, "Option 2A"). Its sessions have no file system confinement from Layer 2. The declaration is a host-side project setting that `wb` sets, never read from `.wraithbox/`, even with `config_trust`.
 
-- **Cost:** none to build. Weaker defense in depth for those projects.
-- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" />, which rests on the project user.
+- **Cost:** none to build. Weaker defense in depth for those projects. Unfiltered `pidinfo` shows the session every process in the VM with its path. That other users' arguments and environment stay hidden is unverified.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" />, which rests on the project user, and <Badge text="SEC09-host-policy" variant="success" />. Only the `AF_VSOCK` deny is left in the profile, so the generator's tests run the X27-vsock-confinement check on every profile.
 
 </div>
 <div class="wb-option">
