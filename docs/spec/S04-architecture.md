@@ -405,9 +405,14 @@ nothing themselves (S12-platforms).
     `wb setup` also creates a probe directory,
     `<projects root>/.wb-probe/export.git`, with one file in it,
     `probe`. `.wb-probe` isn't in the project ID format, so no request
-    can name it. Right after it confines itself, `wb-hostd` tries each
-    of these, and exits when one succeeds, fails for any reason other
-    than the sandbox's denial, or the probe file is missing:
+    can name it. These probes check the macOS profile. They don't
+    carry over to Windows as they are, because there `<logs>` is
+    inside `<data>` (S12-platforms, "Paths"). I190 covers Linux and
+    Windows. Right after it confines itself, `wb-hostd`
+    tries each of these, and exits when one succeeds or fails for any
+    reason other than the sandbox's denial. When the probe file is
+    missing, it exits with a message that says to run `wb setup`,
+    which creates it again (NFR06-explained-refusals):
     - creating a file in the projects root;
     - writing `.wb-probe/export.git/probe`;
     - hard-linking `.wb-probe/export.git/probe` to a fixed name in
@@ -422,11 +427,14 @@ nothing themselves (S12-platforms).
   that SEC12-least-privilege puts around a compromised `wb-hostd`. It
   never runs a binary that `wb-hostd` names, never passes git a path
   or URL that `wb-hostd` handed it, and never runs git with a
-  repository that `wb-hostd` can write as its repository. The one
-  place git reads such a repository for `wb` is the `upload-pack` that
-  a fetch from it starts, which doesn't run a command from that
-  repository's own configuration (protected configuration, S08-workspace-and-git,
-  "Landing on the host"). It derives
+  repository that `wb-hostd` can write as its repository. Git reads
+  such a repository for `wb` in two places only. One is the
+  `upload-pack` that a fetch from it starts. The other is, on WSL, the
+  `git upload-pack` that `wb.exe landing-upload-pack` runs on
+  `landing.git` after its checks, for the fetch of the WSL-side `wb`
+  (S08-workspace-and-git, "WSL"). Neither runs a command from that
+  repository's own configuration (protected configuration,
+  S08-workspace-and-git, "Landing on the host"). It derives
   each path under `<data>` itself, from IDs it checks against their
   format, and compares any path `wb-hostd` reports with its own,
   refusing on a mismatch. A directory `wb-hostd` can write, such as
