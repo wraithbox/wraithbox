@@ -470,6 +470,21 @@ be tested before building on them.
     with `index.golang.org` unreachable before the first calibration
     see every Go download and `@v/list` refused with
     `go-clock-uncalibrated`;
+  - with test doubles for `sum.golang.org` and `index.golang.org`, give
+    the Go clock each violation and see it fail closed with its rule:
+    a lookup reply that fails verification, and see the download
+    refused with `go-clock-lookup-failed` and nothing cached; a tree
+    head inconsistent with the last accepted one, and see
+    `go-clock-lookup-failed` and a `go-sumdb-inconsistent` finding in
+    `wb status`; more lookups than the VM's in-flight cap, its
+    per-minute cap and its queue, and see the excess refused with
+    `go-clock-lookup-rate` and no extra request reach the double; a
+    `@v/list` of 5,001 versions, and see `go-list-too-long`; an index
+    window whose point exceeds the tree bound, and see the point
+    rejected with `go-clock-implausible`, the last accepted point kept,
+    and the rejection with both numbers in `wb status`; and an index
+    that fails after a point was accepted, and see the point kept,
+    `go-clock-stale` logged, and the point's age in `wb status`;
   - fetch a gated registry path that fits no known form, and get a 403
     naming the rule; with a test double for the Go module proxy,
     redirect a download elsewhere and see it refused;
