@@ -40,10 +40,13 @@ Brief: B20-guest-xcode
      invalidated") into an explained message that names it
      (NFR06-explained-refusals).
   2. How the Xcode image variant gets Xcode and the runtimes (I194).
-  3. The simulator profile: S13-guest-confinement now gives it only to
-     projects that declare simulators, and says it doesn't confine the
-     file system. The alternative is to keep looking for a narrower
-     profile (I196). Recommended: accept it as specified.
+  3. How a project that uses simulators is profiled (B20-guest-xcode,
+     decision 2, I196). Until it is decided, S13-guest-confinement
+     states the gap: such a project has no Layer 2 file system
+     confinement. Recommended: option 2A, a simulator profile for
+     projects that declare simulators, as described in "The draft
+     profile and its exceptions" below. The alternative is to keep
+     looking for a narrower profile.
 - **Brief:** B20-guest-xcode
 
 ## Question
@@ -116,17 +119,18 @@ failed the same way.
 5. **The simulator's processes are outside the session.**
    `CoreSimulatorService`, `launchd_sim` and the simulated device's
    processes have launchd as their parent and POSIX session 0, so the
-   session helper's POSIX session doesn't hold them. A booted simulator
-   brought the project user to 308 processes. In the final run,
-   killing every process of the user in a loop cleared 218 in two
-   rounds, none came back in 5 seconds, and
+   session helper's POSIX session doesn't hold them. In the g3 run, a
+   booted simulator brought the project user to 308 processes. In the
+   final run, killing every process of the user in a loop found 218,
+   then 11, then none. None came back in 5 seconds, and
    `launchctl bootout user/<uid>` then returned 0 with no process of
    the user left. The script's next step printed the user's domain with
    `launchctl print`. Two later checks found one process of the user,
    `distnoted agent`, started by launchd 11 s before the second check,
    with no session running (`results/final-setup.jsonl`, `killuser`,
    `mem-after-kill`, `ps-after-kill`). What started it, the `print` or
-   something else, wasn't recorded (I196).
+   something else, wasn't recorded. Whether a booted-out domain stays
+   down while the user is locked is not checked yet (I196).
 
 ## The draft profile and its exceptions
 
@@ -143,7 +147,8 @@ it failed the license check, which reads
 `/Library/Preferences/com.apple.dt.Xcode.plist`.
 
 **p1, what builds, SwiftPM, signing and `simctl` need**
-(`guest/xcode.sb`):
+(`guest/xcode.sb`). S13-guest-confinement's build profile takes the
+build rows. The rest belong to option 2A below.
 
 | Exception | For |
 |---|---|
@@ -168,10 +173,14 @@ has to leave the rule out rather than allow pidinfo after it.
 `file-issue-extension`, any `mach-lookup` and outbound Unix sockets,
 the tests ran
 and passed, but `xcodebuild` didn't exit until the spike killed it, and
-the log showed no Seatbelt denial (`results/g3-bisect-tasks.jsonl`).
+the log showed no Seatbelt denial. The runs' outputs and exit codes
+are in `results/g3-bisect-tasks.jsonl`, but the profile of each run
+wasn't kept, so the sets below come from the spike's notes and are not
+recorded.
 The one lead is `xcodebuild`'s own message "attempt to post
 distributed notification 'IDETestProgressNotification' thwarted by
-sandboxing", which it logs for any sandboxed process (I196). The narrower sets tried all hung: `file*` alone, `file*` with
+sandboxing", which it logs for any sandboxed process (I196). The
+narrower sets tried all hung: `file*` alone, `file*` with
 `mach*` and `network*`, `file*` with `mach*`, `ipc*` and `process*`,
 and `file*` with `network*`, `signal`, `iokit*`, `sysctl*` and
 `system*`. What finished was an allow of nearly every operation class:
@@ -187,6 +196,33 @@ by launchd, which S13-guest-confinement's "Known gaps" already names.
 So any project that may use a simulator has no Layer 2 file
 system confinement in practice. It keeps the project user's Unix
 permissions, which is what SEC08-proj-isolation rests on.
+
+**Option 2A, a simulator profile** (B20-guest-xcode, decision 2).
+Only a project that declares simulators would get it. That
+declaration is a host-side project setting that `wb` sets, never read
+from `.wraithbox/`, even with `config_trust` (SEC09-host-policy). On
+top of the build profile of S13-guest-confinement, it would add:
+
+- reads of the `cryptexd` runtime mounts
+  (`/private/var/run/com.apple.security.cryptexd/mnt`) and the
+  metadata of `/Volumes`;
+- lookups of CoreSimulator's services,
+  `com.apple.CoreSimulator.simdiskimaged`,
+  `com.apple.PowerManagement.control`, distributed notifications and
+  CoreDevice;
+- the `IOSurfaceRootUserClient` and `AppleParavirtDeviceUserClient`
+  user clients;
+- `process-info-pidinfo` and the `procargs` sysctls, with the base's
+  deny left out;
+- p2's allow of nearly every operation class, for `xcodebuild test`.
+
+Unfiltered `pidinfo` shows the session every process in the VM with
+its executable path. That the guest kernel still hides the arguments
+and environment of other users' processes from `procargs` is
+unverified: the spike didn't test it. Under this profile only the
+`AF_VSOCK` deny is left, and it wasn't checked again under it, so the
+generator's tests would run the X27-vsock-confinement check on every
+profile they generate.
 
 ## Measurements
 
@@ -231,13 +267,12 @@ host's Xcode. The project user `x06p` was made with `sysadminctl
 
 ## What it means for the specs
 
-- **S13-guest-confinement**, "Layer 2": a build profile and a
-  simulator profile with their exceptions, the safehouse rule the
-  generator leaves out, the vsock check on every profile, and the
-  simulator gap in "Known gaps". "Layer 1": `wb-guestd` boots out a
-  project user's per-user launchd domain after its kill loop, and
-  keeps it down while the user is locked (changed in this pull
-  request). I196 measures whether it stays down.
+- **S13-guest-confinement**, "Layer 2": the Xcode build profile, and
+  in "Known gaps" the simulator gap, which holds until decision 3, and
+  agents launchd starts again. "Layer 1": where `wb-guestd` kills every
+  process of a project user, the kill loop and a `bootout` of the user's
+  launchd domain repeat until none is left (changed in this pull
+  request).
 - **S07-egress-gateway**, "Leftover processes": the same `bootout`
   (changed in this pull request).
 - **S06-vm-lifecycle**, "VMs": every `xcodebuild test` on macOS and

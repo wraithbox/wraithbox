@@ -93,15 +93,17 @@ Applied by `wb-guestd` to every process it starts for a project user:
   learning");
 - launchd starts a project user's per-user agents and services, such
   as a simulator's, in that user's launchd domain (`user/<uid>`),
-  outside every session, where stopping or killing the session's
-  processes doesn't reach them. So at the link drop, at the end of a
-  project's last session, and when a new `wb-guestd` process starts,
-  `wb-guestd` runs `launchctl bootout user/<uid>` for each project
-  user it stops or kills, after its kill loop, and keeps the domain
-  booted out while the user is locked. X06-guest-xcode measured that
-  the `bootout` returns 0 and leaves no process of the user. Whether the
-  domain stays down while the user is locked is not checked yet
-  (I196).
+  outside every session, where killing the session's processes
+  doesn't reach them. So wherever `wb-guestd` kills every process of a
+  project user (at the end of a project's last session, in the kill at
+  the first connection of the users with no lost session, and when a
+  user's last client goes and no session of that user is left), the
+  kill loop and `launchctl bootout user/<uid>` repeat as one loop
+  until a check after the `bootout` finds no process of the user. It
+  never boots out a domain where it only stops processes, such as at
+  the link drop, so a resumed session keeps its services. `wb-guestd`
+  never runs `launchctl print` or `launchctl asuser` against a locked
+  project user.
 
 ## Layer 2: Seatbelt filesystem profile (v1)
 
@@ -114,9 +116,8 @@ process cannot remove it, much like Landlock.
   (S09-policy-credentials-audit, "Guest trust"), and the user's own
   home. Writes are allowed
   only in the user's home, the session worktree, and temporary
-  directories. A session of a project that declares simulators gets
-  the simulator profile below instead, which doesn't confine the file
-  system. The profile is generated from policy on the host and
+  directories. A project that uses simulators doesn't get this
+  confinement ("Known gaps" below). The profile is generated from policy on the host and
   installed by `wb-guestd`. The repository never supplies it.
 - **Host-guest socket.** The profile denies `AF_VSOCK` sockets with
   `(deny system-socket (socket-domain AF_VSOCK))`, so a project user's
@@ -154,36 +155,24 @@ process cannot remove it, much like Landlock.
 - **Xcode build profile** (X06-guest-xcode). Builds, SwiftPM and
   signing get these exceptions and no others: reads of
   `/Library/Preferences/com.apple.dt.Xcode.plist`,
-  `/Library/Developer`, `/Library/Keychains` and the runtime mounts of
-  `cryptexd` (`/private/var/run/com.apple.security.cryptexd/mnt`), the
-  metadata of `/Volumes`, and lookups of `com.apple.SecurityServer` and
-  `com.apple.security.syspolicy`.
-- **Simulator profile** (X06-guest-xcode). Only a project that
-  declares simulators gets it. It adds lookups of CoreSimulator's
-  services, `com.apple.CoreSimulator.simdiskimaged`,
-  `com.apple.PowerManagement.control`, distributed notifications and
-  CoreDevice, the `IOSurfaceRootUserClient` and
-  `AppleParavirtDeviceUserClient` user clients, and
-  `process-info-pidinfo` with the `procargs` sysctls. Unfiltered
-  `pidinfo` shows the session every process in the VM with its
-  executable path. The guest kernel still hides the arguments and
-  environment of other users' processes. The safehouse base denies
-  `process-info-pidinfo`, and an unfiltered allow later in the profile
-  didn't undo that deny in X06-guest-xcode, so the generator leaves
-  the base's rule out of this profile. `xcodebuild test` on a
-  simulator also needs nearly every operation class allowed, file
-  access included, so the profile adds them. Of the profile's denies,
-  only the `AF_VSOCK` rule is left, which wasn't checked again under
-  this profile, so the generator's tests run the X27-vsock-confinement
-  check on every profile it generates.
+  `/Library/Developer` and `/Library/Keychains`, and lookups of
+  `com.apple.SecurityServer` and `com.apple.security.syspolicy`. This
+  set wasn't run as written. The generator's tests run every Xcode
+  build task under it, a build for a simulator destination included.
+  If that build needs a CoreSimulator lookup, the generator adds the
+  narrowest rule that works.
 - **Known gaps.** Processes started through LaunchServices and `launchd`
   services run outside the profile. They stay inside the guest and the
-  project user's permissions. A simulator session has no file system
-  confinement from this layer: the simulator's processes are launchd
-  services in the user's per-user domain, and `simctl spawn` runs a
-  program outside the profile (X06-guest-xcode). They also escape the
-  resource limits `wb-guestd` sets on the session's processes, and the VM's caps
-  (SEC13-bounded-resources) are their bound.
+  project user's permissions. Simulator processes run in the user's
+  per-user launchd domain, outside the session's profile, and
+  `simctl spawn` runs a program outside it (X06-guest-xcode). Until
+  B20-guest-xcode's decision 2 is made, a project that uses simulators
+  has no file system confinement from this layer. Simulator processes
+  also escape the resource limits `wb-guestd` sets on the session's
+  processes, and the VM's caps (SEC13-bounded-resources) are their
+  bound. launchd can start one of a project user's agents again after
+  the loop of Layer 1 has ended, so a process of a locked user can
+  still appear (X06-guest-xcode).
   A process that leaves its session's POSIX session with `setsid`,
   while another session of the same project runs in the VM, survives
   its session's hangup and kill (Layer 1). It keeps the project
