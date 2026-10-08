@@ -244,7 +244,7 @@ everything else `wb` does at that boundary.
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it ("Naming") |
 | `wb cred set/list/rm <binding>` | Manage the binding credentials in the secret store, which `wb-proxyd` fetches when proxying needs them (S09-policy-credentials-audit, S15-least-privilege) |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
-| `wb gate reset go-clock` | After a `go-sumdb-inconsistent` finding, delete it and the Go clock's stored tree heads, so the dependency gate allows Go downloads again from a fresh head. Writes a 5019 event (S07-egress-gateway, "Dependency gate") |
+| `wb gate reset go-clock` | After a `go-sumdb-inconsistent` finding, print its two tree heads and their receipt times and ask for confirmation. Then `wb-hostd`, asked over local IPC, deletes the finding and the Go clock's stored tree heads, writes a 5019 event naming the command and the finding, and restarts `wb-proxyd`. The dependency gate then allows Go downloads again from a fresh head. It is never part of a guest RPC (S07-egress-gateway, "Dependency gate") |
 | `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session that is starting, running, paused or ending. The refusal names each one, the process ID of its `wb`, and how it ends: close its terminal, or wait for its deadline, and `wb sessions` lists them (S06-vm-lifecycle, "Idle suspend") |
 | `wb image build/list/use` | Base image management (S06-vm-lifecycle) |
 | `wb shell [--project P]` | Debug shell as the project user, labeled as a debug shell |

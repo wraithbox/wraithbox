@@ -1175,14 +1175,17 @@ session start in the VM to the end of the last session running in it.
       decides only on numbers `wb-proxyd` verified or computed itself
       in this run, and after a restart it has to compute a point
       first ("Before the first point").
-    - `wb-proxyd` checks each stored head's signature again. It drops
-      a head larger than the first head it fetches, or with a receipt
-      time in the future. When a stored head isn't consistent with that
-      first head, it logs `go-sumdb-inconsistent`, discards every
-      stored head, continues from the fresh head, and `wb status`
-      shows it.
+    - `wb-proxyd` checks each stored head's signature again, and drops
+      a head with a receipt time in the future. It then checks each
+      stored head against the first head it fetches, in whichever
+      direction applies: the smaller tree must be a consistent prefix
+      of the larger, and it keeps the larger. A stored head that fails
+      the check is a finding, the same as one within a run ("Lookup").
     - Across a restart, the tree bound is only as tight as the heads
-      and times `wb-hostd` returns. Within a run, `wb-proxyd` adds the
+      and times `wb-hostd` returns, and detection of a fork rests on
+      `wb-hostd` keeping the heads and any finding. `wb-hostd` can
+      withhold them, but it can't forge a contradiction, because both
+      heads of a finding are signed with the verifier key. Within a run, `wb-proxyd` adds the
       heads it fetches itself, so from the second computation on the
       bound also rests on its own heads.
     - A missing or unreadable record means no stored point and no
@@ -1205,15 +1208,23 @@ session start in the VM to the end of the last session running in it.
     the network never supply it, and only a release changes it. A lookup that fails, times out, or fails that check
     refuses the download with the rule `go-clock-lookup-failed`, and
     hides the version from a list with the same rule in the audit
-    event. A head fetched in this run that isn't consistent with a head
-    accepted in this run also logs the event `go-sumdb-inconsistent`, a
-    Detection Finding (2004) that `wb status` shows. From then on, the
-    gate refuses every Go download, `@v/list` and `@latest` with the
-    rule `go-sumdb-inconsistent`. `wb-proxyd` sends the finding to
-    `wb-hostd` as an accounting record, and the refusal goes on after a
-    restart. The operator recovers with `wb gate reset go-clock`,
-    which deletes the finding and the stored heads, and writes a 5019
-    event. The next computation then starts from a fresh head. The gate's own lookup adds a record
+    event. Any two verified heads that aren't consistent, whether
+    fetched in this run or stored, are a finding: the smaller tree
+    isn't a prefix of the larger. `wb-proxyd` logs the event
+    `go-sumdb-inconsistent`, a Detection Finding (2004) that `wb status`
+    shows, and from then on refuses every Go download, `@v/list` and
+    `@latest` with the rule `go-sumdb-inconsistent`. It sends the
+    finding, with both heads as the proof, to `wb-hostd` as an
+    accounting record, and the refusal goes on after a restart. A
+    consistency proof that can't be fetched isn't a finding: the
+    request is refused with `go-clock-lookup-failed`. The operator
+    recovers with `wb gate reset go-clock` (S05-cli). It prints both
+    heads and their receipt times and asks for confirmation. `wb` sends
+    it to `wb-hostd` over local IPC, and it is never part of a guest RPC.
+    `wb-hostd` deletes the finding and the stored heads, writes a 5019
+    event naming the user's command and the finding it deleted, and
+    restarts `wb-proxyd`, which then starts from a fresh head. No RPC to
+    `wb-proxyd` is added for it. The gate's own lookup adds a record
     for a version the checksum database doesn't have yet, so such a
     version is young for the minimum age from that first request. That
     covers a version nobody has looked up before, including a
@@ -1234,26 +1245,37 @@ session start in the VM to the end of the last session running in it.
     evicts the least recently used. An evicted entry costs only a new
     lookup.
   - *Lookup limits* (SEC13-bounded-resources, S04-architecture, "Host
-    work the guest can cause"). Each VM has at most 4 clock lookups in
-    flight and 6,000 uncached lookups a minute. `wb-proxyd` has at most
-    8 requests to `sum.golang.org` and `index.golang.org` in flight
-    across all VMs. One of the 8 is kept for the timer's calibration
-    and tile fetches, so guest lookups use at most 7, and calibration
-    can't be starved. A lookup over the in-flight caps waits in a
-    per-VM queue of at most 4,500, the list cap below. A request whose
-    lookups would go past that queue or the per-minute cap is refused
-    with the rule `go-clock-lookup-rate`. A failed lookup is retried
-    once after a one-second backoff, and the retry counts against the
-    VM's budget. Each lookup times out after 10 seconds.
-  - *Deadline.* A request's lookups have a deadline of 10 seconds plus
-    250 ms for each 4 uncached lookups it needs (the VM's in-flight
-    cap), at most 5 minutes. Past the deadline the request is refused
-    with the rule `go-clock-deadline` and its queued lookups are
-    dropped. Lookups it completed stay cached, and a retry needs fewer.
-    A request the client abandons releases its queue entries at once.
+    work the guest can cause"). A verified lookup takes a `/lookup/`
+    request and the tile fetches its proof needs, about two requests
+    when the tiles aren't cached. Each VM has at most 4 such requests
+    in flight and 6,000 uncached lookups a minute. `wb-proxyd` has at
+    most 8 requests to `sum.golang.org` and `index.golang.org` in
+    flight across all VMs. One of the 8 is kept for the timer's
+    calibration and the tiles it fetches itself. Guest lookups and
+    their tile fetches use the other 7 and never the kept one, so they
+    can't starve calibration. A lookup over the in-flight caps waits in
+    a per-VM queue of at most 2,000, the list cap below. A request
+    whose lookups would go past that queue or the per-minute cap is
+    refused with the rule `go-clock-lookup-rate`. A failed lookup is
+    retried once after a one-second backoff, and the retry counts
+    against the VM's budget. Each request upstream times out after 10
+    seconds.
+  - *Tile cache.* Verified tiles are cached per VM, like records, up to
+    16 MiB each, and the least recently used is evicted. A cached tile
+    makes a lookup's proof one request shorter.
+  - *Deadline.* A request's lookups have a deadline of 21 seconds plus
+    125 ms for each uncached lookup it needs, at most 5 minutes. The 21
+    seconds cover a timeout, the backoff and a second timeout, so one
+    retry always fits. The 125 ms are 250 ms for each round of 4
+    requests, two requests per lookup. The count of uncached lookups is
+    fixed when the request is admitted. Past the deadline the request
+    is refused with the rule `go-clock-deadline` and its queued lookups
+    are dropped. Lookups it completed stay cached, and a retry needs
+    fewer. A request the client abandons releases its queue entries at
+    once.
   - *Filtering `@v/list`.* One lookup per listed version. A list of
-    more than 4,500 versions, the most the longest deadline covers, is
-    refused with the rule `go-list-too-long`.
+    more than 2,000 versions, about the most the longest deadline
+    covers, is refused with the rule `go-list-too-long`.
 
   *Mapping a request.* Each gated host accepts only explicit path forms:
   an npm package name and tarball, a PEP 503 project name with a PEP 440
