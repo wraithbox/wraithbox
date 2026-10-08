@@ -155,9 +155,10 @@ the Windows host's `wb-hostd`:
 - **Terminal.** The WSL-side `wb` owns the terminal and relays it inside
   the gRPC stream, so Windows console behavior does not apply.
 - **Repository.** The repository stays in the WSL filesystem, and
-  `wb-hostd` never reads it. How the WSL-side `wb` gets the selected
-  refs into the Windows-side `export.git` without making `wb-hostd` the
-  fetch client is open under I67 (S08-workspace-and-git, "WSL").
+  `wb-hostd` never reads it. The WSL-side `wb` runs `git upload-pack`
+  on it and relays the stream to `wb.exe`, which fetches the selected
+  refs into the Windows-side `export.git` as its only writer, so
+  `wb-hostd` is never the fetch client (S08-workspace-and-git, "WSL").
   `wb land` fetches from the Windows-side landing repository over the
   gRPC channel.
 - **Project identity** includes the distribution name (S05-cli), so the

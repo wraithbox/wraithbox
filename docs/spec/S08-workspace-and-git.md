@@ -66,11 +66,15 @@ back out, without sharing the host filesystem.
   `git upload-pack` on the user's repository locally. `wb` then deletes
   the refs of sessions that `wb-hostd` reports as no longer live, after
   it checks each session ID against the session ID format. `wb-hostd`
-  only serves `export.git` to the guest, read-only, through `wb-git`.
-  Its profile must not allow writes under `projects/*/export.git`,
-  because `wb` runs git in that repository and git trusts a
-  repository's own configuration. I67 writes that into
-  S04-architecture ("Open points"). That denial is the control. As a
+  only serves `export.git` to the guest, read-only, through the
+  `wb-git-upload` shim, whose profile doesn't allow writing it.
+  `wb-hostd`'s own profile doesn't allow writing `export.git`, the
+  project directory that holds it, or the projects root
+  (S04-architecture, "Each host daemon is self-sandboxed"), because
+  `wb` runs git in that repository and git trusts a repository's own
+  configuration. `wb` creates the project directory and `export.git`
+  in it, with the fixed layout and `config` below. That denial is the
+  control. As a
   second layer, before each run `wb` checks that `export.git` holds
   only the fixed layout it creates (`HEAD`, `config`, `packed-refs`,
   refs under `refs/`, and loose objects and packs under `objects/`),
@@ -524,12 +528,37 @@ back out, without sharing the host filesystem.
     it.
   - Each project has an export lock in `wb-hostd`. `wb` takes it
     alone, through `wb-hostd`'s local IPC, for the export update at
-    session start and for every repack or prune of `export.git`, and
-    `wb-hostd` releases it when `wb` does or disconnects. Each
+    session start and for every repack or prune of `export.git`. Each
     `upload-pack` from `export.git` to the guest holds it shared, so no
     object disappears under a running fetch. The git gateway's
     connection deadline ("Bounds" above) ends such an `upload-pack`, so
     a guest can't hold the lock past it.
+
+    The lock is one streaming call on `wb-hostd`'s local IPC
+    endpoint, named with the project ID. `wb-hostd` grants it once
+    no `upload-pack` of the project holds it shared, and from the
+    moment `wb` asks, it doesn't start another `upload-pack` of that
+    project until `wb` lets go, so the guest's fetches can't keep `wb` waiting
+    past one connection deadline. The grant lists the sessions of the
+    project that are no longer live. The ref lists and the
+    acknowledgment of a shrink (below) travel on the same call. `wb`
+    holds the lock as long as the call is open, and `wb-hostd`
+    releases it when `wb` closes the call or its connection ends. The
+    lock is only in `wb-hostd`'s memory, so a restart of `wb-hostd`
+    doesn't leave a stale lock. When the call ends while `wb` holds the lock,
+    because `wb-hostd` stopped or `wb` lost the connection, `wb` stops
+    its git child and refuses the session start with that reason
+    (NFR06-explained-refusals). A fetch, delete or prune that stops
+    part way leaves objects and refs in `export.git` that the next
+    update replaces, deletes or prunes. A prune, finished or not,
+    removes only objects that no ref of `export.git` reaches.
+
+    The lock orders work and is not a control. A compromised
+    `wb-hostd` that grants it while an `upload-pack` runs only breaks
+    that guest's fetch, and one that never grants it only stops
+    session starts. What it says can't make `wb` write anything but
+    the selected refs, the deletes of names it checked, and the prune
+    above.
   - `landing.git` borrows from `export.git`, and `receive-pack`
     advertises the tips of `export.git` to the pushing guest
     (`core.alternateRefsCommand` in `git-config(1)`). A push leaves out
@@ -666,15 +695,34 @@ quarantine attribute on macOS, Mark of the Web on Windows; S12-platforms).
 ## WSL
 
 When `wb` runs inside WSL (S12-platforms), the repository is in the WSL
-distribution, and `export.git` is on the Windows side. `wb-hostd`
-must not become the fetch client of an `upload-pack` on the user's
-repository, so the export update can't be a stream that the WSL-side
-`wb` tunnels to it. Which process writes `export.git` instead, the
-WSL-side `wb` over the cross-OS file share or a Windows-side process
-running as the user, is open under I67. `wb land` fetches from the
-landing repository on the Windows side through the gRPC channel, with
-the object checks of "Landing on the host". Everything else in this
-spec is unchanged.
+distribution, and `export.git` is on the Windows side. The
+Windows-side `wb.exe relay` that the WSL-side `wb` starts
+(S12-platforms, "WSL") runs as the Windows user, outside any
+sandbox, and acts as the `wb` of "Export repository" and "Repository
+lifecycle" for `export.git`. It takes the export lock over
+`wb-hostd`'s named pipe, checks the layout and `config`, runs the
+fetch, deletes refs, and runs the shrink steps and the prune, all
+with the Windows host git ("Host git"). The server of its fetch is a
+`git upload-pack` that the WSL-side `wb` runs on the user's
+repository, with its own git, which it resolves and checks by "Host
+git", and with `GIT_NO_LAZY_FETCH=1`. The WSL-side `wb` relays that
+`upload-pack`'s standard input and output in the gRPC stream it
+already has with `wb.exe`. `wb.exe` hands the stream to its
+`git fetch` through Wraith Box's own remote helper with `connect`,
+the mechanism `git-remote-wb` uses in the guest, with a URL it builds
+itself, never a path or URL from `wb-hostd`.
+
+`wb-hostd` sees none of this stream, so it never becomes the fetch
+client of an `upload-pack` on the user's repository, which over
+protocol v2 could ask for any object of that repository by its ID
+(X07-git-round-trip). The WSL-side `wb` doesn't write `export.git`
+over the cross-OS file share either. `export.git` then has one
+writer, which runs on the Windows side with the Windows git, and
+`wb-hostd` doesn't need to write it on Windows either.
+
+`wb land` fetches from the landing repository on the Windows side
+through the gRPC channel, with the object checks of "Landing on the
+host". Everything else in this spec is unchanged.
 
 ## Open points
 
@@ -685,11 +733,5 @@ No secret scanner is chosen yet (S06-vm-lifecycle, "Sealing"), so
 carry-in is off until one is. The carry-in scan assumes the scanner is
 precise enough on working trees that it skips few files by mistake,
 which isn't measured.
-
-I67 still has to write into S04-architecture that `wb` writes
-`export.git` and `wb-hostd` only serves it. That covers a `wb-hostd`
-profile without write access to `projects/*/export.git`, a read-only
-`wb-git-upload` shim profile for it, the export lock in `wb-hostd`'s
-local IPC, and the export path on WSL above.
 
 **Status:** Draft
