@@ -776,14 +776,25 @@ side. Both fetches cross between the two with `git fetch
   path of `wsl.exe` is written with forward slashes, which `sh`
   doesn't read as escapes. The first word is an absolute path, so git
   doesn't look up a remote helper, and the shell doesn't search `PATH`
-  for the program.
+  for the program. When the Git for Windows `sh` starts a program that
+  isn't an MSYS program, such as `wsl.exe`, it converts arguments that
+  look like POSIX paths into Windows paths, so `/usr/local/bin/wb` or
+  `/home/<user>/repo` would reach the distribution as Windows paths.
+  The Windows-side fetch therefore runs with `MSYS_NO_PATHCONV=1` in
+  its environment, which turns that conversion off.
 - **The placeholder path.** The fetch's path is a placeholder that the
   program ignores. Git reads an existing bundle file at that path as a
   bundle and ignores `--upload-pack` (reproduced with git 2.56.0 for
   I67). So the composing side creates a new empty directory, readable
   only by the user, in its temporary directory, uses `wb-relay` in it
   as the placeholder, and checks with `lstat` right before the fetch
-  that the placeholder doesn't exist.
+  that the placeholder doesn't exist. The check guards against a file
+  that is already there. Between the check and git's own `stat`, only
+  a process of the user can create one, because only the user can
+  write the directory. T00-index trusts the user's processes. On
+  Windows they include `wb-hostd` until I190 gives it a profile there,
+  and what it could gain with a bundle at the placeholder, objects of
+  its choosing in a landed branch, is already in T16-hostd-landing.
 - **Fetch settings.** Each fetch runs with `GIT_PROTOCOL_FROM_USER=0`,
   `protocol.allow=never`, `protocol.file.allow=always` and
   `--no-recurse-submodules`, as in "Landing on the host".
