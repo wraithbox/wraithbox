@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Answered 2026-10-08: yes. Awaiting decision.** Source: I76, X21-dep-gate-registries ("The Go clock end to end"). Changes S07-egress-gateway, S04-architecture ("Host work the guest can cause") and S11-verification-and-spikes. Follows B32-dep-gate-registries. Follow-up: I193 (branch and commit queries).
 
 <Aside type="tip" title="What we learned">
-**Yes.** The gate reads each Go module version's record number in the public checksum database and compares it with the record number of 7 days ago, found from `index.golang.org`. In 320 samples over 16 days, every version fell on the side of that line its first-seen time puts it on. Lockfile installs of cli/cli, fzf, caddy, node_exporter and hugo passed, and a fresh `go get` of fast-moving modules passed by picking an older version. With `index.golang.org` unreachable from the start, the gate refused every Go download, as required. One open choice is what happens when the index goes away **after** the gate has a point. Recommended: **A**, keep the last point, which only refuses more. The values of the new limits are open too ("Values" below). Approving puts the calibration rules, the lookup limits and the check of each lookup against the signed log in S07-egress-gateway, already in this pull request.
+**Yes.** The gate reads each Go module version's record number in the public checksum database and compares it with the record number of 7 days ago, found from `index.golang.org`. In 320 samples over 16 days, every version fell on the side of that line its first-seen time puts it on. Lockfile installs of cli/cli, fzf, caddy, node_exporter and hugo passed, and a fresh `go get` of fast-moving modules passed by picking an older version. The samples were 6 hours apart and the nearest was about 2 hours from the cutoff, so the claim that the line is on the safe side rests on how far apart out-of-order records were (3.8 s at most) against the 1-minute margin. With `index.golang.org` unreachable from the start, the gate refused every Go download, as required. One open choice is what happens when the index goes away **after** the gate has a point. Recommended: **A**, keep the last point, which only refuses more. The values of the new limits are open too ("Values" below). Approving puts the calibration rules, the lookup limits and the check of each lookup against the signed log in S07-egress-gateway, already in this pull request.
 </Aside>
 
 <figure class="wb-figure">
@@ -59,7 +59,7 @@ The choice is only about a point that exists but can't be refreshed. Without any
 
 ### A. Keep the last point
 
-When the hourly refresh fails, the gate keeps using the point it has, retries every minute, and logs `go-clock-stale` with the point's age. `wb status` shows the age, and a refusal gives it too.
+When the hourly refresh fails, the gate keeps using the point it has, retries every minute, and logs `go-clock-stale` with the point's age. `wb status` shows the age, and a refusal gives it too. `state.db` keeps the point across a restart.
 
 - **Cost:** none for the user while the outage is short. The longer it lasts, the more versions are refused: after a day, versions 7 to 8 days old are refused too.
 - **Safety:** each point is at or below the true record number at its own cutoff, which is at or below the true record number at any later cutoff. Every version an old point allows, a fresh point would allow too.
@@ -83,12 +83,13 @@ When the hourly refresh fails, the gate drops its point and refuses every Go req
 
 S07-egress-gateway now sets these. Each is open for the maintainer to change, and the spike's data supports them only as far as stated.
 
-- **8 lookups in flight per VM, 16 per `wb-proxyd`.** 8 at once ran clean. One run at 16, next to an install, got a connection reset. More was never tried.
-- **6,000 lookups a minute per VM, and a queue of 5,000.** The fresh `go get` with filtering made 3,423 lookups, calibration included.
+- **4 lookups in flight per VM, 8 requests in flight per `wb-proxyd`.** The strict choice: 8 at once ran clean. At 16 at once, the full list-filter run (4,074 lookups) and the fresh `go get` with filtering (3,423) ran clean, and one other run, next to an install, got a connection reset. More was never tried.
+- **6,000 uncached lookups a minute per VM, and a queue of 5,000.** The fresh `go get` with filtering made 3,423 lookups, calibration included.
+- **One retry after 1 second, 10 seconds per lookup, 60 seconds per request.** The spike measured a median of 87 ms and a p95 of 176 ms per lookup, and no retry or deadline.
 - **5,000 versions per `@v/list`.** The longest list measured had 1,865. The spike didn't search for longer ones.
-- **100,000 cached records, least recently used evicted.** The spike didn't measure a cache, and an eviction only costs a lookup.
-- **30 seconds of waiting for the first point after start, and a retry every minute.** The spike didn't measure either.
-- **10 records a second for the plausibility guard.** Three times the highest rate measured (3.3 a second over half an hour). The peak rate wasn't measured.
+- **100,000 cached records per VM, least recently used evicted.** The spike didn't measure a cache, and an eviction only costs a lookup. A cache per VM, not one shared, closes a timing channel between VMs (SEC08-proj-isolation). At a guessed 150 bytes an entry, that's about 15 MiB per VM.
+- **30 seconds of waiting for the first point when `state.db` has no stored point, and a retry every minute.** The spike didn't measure either.
+- **8 days of verified tree heads, one an hour,** for the tree bound on a fresh point. Not measured: the spike didn't keep heads.
 
 ## Impact
 
@@ -108,7 +109,7 @@ S07-egress-gateway now sets these. Each is open for the maintainer to change, an
 - <Badge text="verified" variant="success" /> 320 index entries sampled every 6 hours over 16 days all had a record already, and their record numbers follow first-seen time except for 4 pairs at most 3.8 s apart. Against the point, none was on the wrong side of the 7-day line. Source: X21-dep-gate-registries, "The Go clock end to end".
 - <Badge text="inferred" variant="note" /> The point is on the safe side of the cutoff. The nearest sample was about 2 hours from the cutoff, so the samples don't show the boundary. The claim rests on the inversion width, 3.8 s at most, against the 1-minute margin. Source: same.
 - <Badge text="inferred" variant="note" /> The spike's point was about 8 minutes before the cutoff, not 1. It read one page of 400 index entries from 10 minutes before the cutoff, which at 3.3 records a second covers about 2 minutes. That is on the safe side. S07-egress-gateway now pages until 1 minute before the cutoff. The 20 records of one window spread over 22 numbers. Source: same.
-- <Badge text="assumed" variant="caution" /> That the checksum database adds a version's record when the module proxy first serves it. All 320 sampled versions had one, but nothing in the database's design promises it. A point that jumps more than 10 records a second ahead of the last one is not used (`go-clock-implausible`).
+- <Badge text="assumed" variant="caution" /> That the checksum database adds a version's record when the module proxy first serves it. All 320 sampled versions had one, but nothing in the database's design promises it. A point larger than the earliest verified tree head fetched at or after its cutoff is rejected (`go-clock-implausible`). New records only raise a head, so a burst of new records that a guest causes can't make a correct point fail that check.
 - <Badge text="verified" variant="success" /> Lockfile installs of cli/cli, fzf, caddy, node_exporter and hugo (589 module versions) passed through the gate, with no young version, in 3.4 to 32.4 s against 2.6 to 31.3 s without the spike's proxy. Source: same.
 - <Badge text="verified" variant="success" /> A fresh `go get` of five modules `@latest` failed with refuse on one young version and passed with filter. Source: same.
 - <Badge text="verified" variant="success" /> Filtering `@v/list` with one lookup per version, 16 at once, took 5.6 s for the 1,865 versions of `aws-sdk-go` on a cold cache. Checking from the highest version down was cheaper but missed a young patch release, so S07-egress-gateway keeps one lookup per version. Source: same.

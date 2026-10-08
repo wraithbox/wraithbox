@@ -1080,7 +1080,8 @@ session start in the VM to the end of the last session running in it.
     and the date it becomes allowed. On the gated hosts this catches
     lockfile pins, which never fetch metadata.
     For the Go module proxy, only `.zip` is a download. `.info` and
-    `.mod` pass ungated. The clock lookup key and the upstream download
+    `.mod` are not age-gated, but the path forms ("Mapping a request")
+    still apply to them. The clock lookup key and the upstream download
     URL are built from the same parsed module path and version, and the
     fuzz target of the path mapper (S11-verification-and-spikes) checks
     that they agree.
@@ -1125,62 +1126,103 @@ session start in the VM to the end of the last session running in it.
     minutes before the cutoff and pages forward until it reaches that
     time. A window without an entry widens backwards in 10-minute
     steps up to an hour, never forwards. If that hour has no entry
-    either, the computation fails. One version
-    in the window whose record was added when it was first seen puts
-    the point before the cutoff, and a record added late only raises a
-    number the minimum ignores. So each point is at or below the true
-    record number at its own cutoff, which is at or below the true
-    record number at any later cutoff.
+    either, the computation fails. One version in the window whose
+    record was added when it was first seen puts the point before the
+    cutoff, and a record added late only raises a number the minimum
+    ignores. So each point is at or below the true record number at
+    its own cutoff, which is at or below the true record number at any
+    later cutoff.
+  - *Tree bound.* `wb-proxyd` fetches and verifies the signed tree head
+    (`/latest`) at each computation, and keeps the heads it verified in
+    the last 8 days, one an hour. A fresh point may not exceed the size
+    of the earliest of those heads fetched at or after the point's
+    cutoff. Records are only appended, so a correct point never
+    exceeds it. A point over the bound is rejected: `wb-proxyd` logs
+    the event `go-clock-implausible` with the point and the bound, and
+    the computation counts as failed ("Refresh"). The bound is tight
+    once `wb-proxyd` has heads from the last 8 days, and on a new
+    install it is the current head, which only stops a point past the
+    end of the log. New records only raise a head, so a burst of new
+    records that a guest causes, through the gate or through `/lookup/`
+    directly, can't trip it, while a bound on the rate of growth could.
   - *Refresh.* `wb-proxyd` computes the point on its own timer, at
     start and then every hour, one computation at a time, and never on
-    a guest request. After a failed computation it retries every
-    minute. It keeps the last point while the retries fail, which can
-    only refuse more by the argument above, and logs the audit event
-    `go-clock-stale` with the point's age at each failed refresh
-    (SEC10-audit). `wb status` shows the point's age. A fresh point
-    that exceeds the previous one by more than 10 records a second
-    since the previous cutoff is not used: the previous point stays,
-    and `wb-proxyd` logs the event `go-clock-implausible` with both
-    numbers. X21-dep-gate-registries measured 1.49 records a second
-    over 7 days and 3.3 over one half hour, but not the peak rate.
-  - *Before the first point.* A Go download, `@v/list` or `@latest`
-    waits up to 30 seconds for the first computation after start. If
-    there is no point after that, or the first computation fails, the
-    request is refused with the rule `go-clock-uncalibrated` (fail
-    closed).
+    a guest request. After a failed computation, a rejected point
+    included, it retries every minute and keeps the last accepted
+    point, which can only refuse more by the argument above. While it
+    keeps a point past its hour, it logs the event `go-clock-stale`
+    with the point's age. It recovers at the first computation that
+    passes. `wb status` shows the point's age at all times, and the
+    last rejected point with the bound it exceeded.
+  - *Persisted state.* After each accepted computation, `wb-proxyd`
+    sends the accepted point (number, cutoff, and when it was
+    computed) and the verified tree heads it keeps to `wb-hostd` as
+    accounting records, one for the point and one for each head
+    (S04-architecture, "Accounting and event channels"). `wb-hostd`
+    stores them in `state.db`
+    (S04-architecture, "Host state"). `wb-hostd` owns `state.db` and
+    its caches, and `wb-proxyd` doesn't write files. At start `wb-hostd`
+    passes them back. `wb-proxyd` checks each head's signature again,
+    and checks that the newest is consistent with the first head it
+    fetches. While the first computation runs it uses the stored point,
+    which can only refuse more. A missing or unreadable record means no
+    previous point and no previous heads, and `wb-hostd` logs an audit
+    event saying so.
+  - *Before the first point.* With no stored point, a Go download,
+    `@v/list` or `@latest` waits up to 30 seconds for the first
+    computation after start. A waiting request holds its connection,
+    which counts against the VM's cap on connections in flight
+    ("Per-VM caps"). If there is no point after that, or the first
+    computation fails, the request is refused with the rule
+    `go-clock-uncalibrated` (fail closed).
   - *Lookup.* A version is old when its record number is at or below
     the point. `wb-proxyd` reads the record number from a lookup it has
     verified the way `golang.org/x/mod/sumdb` does: the signed tree
-    head checked against the `sum.golang.org` public key, the record's
-    inclusion in that tree, and the tree's consistency with the last
-    tree it accepted. A lookup that fails, times out, or fails that
-    check refuses the download with the rule `go-clock-lookup-failed`,
-    and hides the version from a list with the same rule in the audit
-    event. The gate's own lookup adds a record for a version the
-    checksum database doesn't have yet, so such a version is young for
-    the minimum age from that first request. That covers a version
-    nobody has looked up before, including a pseudo-version of an old
-    commit nobody has asked for. A refusal says when the version
-    becomes allowed, marked as an estimate from its record number at the
-    rate records were added since the point, and under a kept stale
-    point it also gives the point's age.
+    head checked against the verifier key, the record's inclusion in
+    that tree, and the tree's consistency with the last head it
+    accepted. The verifier key is the go command's default key for
+    `sum.golang.org`, compiled into `wb-proxyd`. Policy, the guest and
+    the network never supply it, and only a release changes it. A lookup that fails, times out, or fails that check
+    refuses the download with the rule `go-clock-lookup-failed`, and
+    hides the version from a list with the same rule in the audit
+    event. A head that isn't consistent with the last accepted one
+    also logs the event `go-sumdb-inconsistent`, a Detection Finding
+    (2004) that `wb status` shows. The gate's own lookup adds a record
+    for a version the checksum database doesn't have yet, so such a
+    version is young for the minimum age from that first request. That
+    covers a version nobody has looked up before, including a
+    pseudo-version of an old commit nobody has asked for. A refusal
+    says when the version becomes allowed, marked as an estimate from
+    its record number at the rate records were added since the point,
+    and under a kept stale point it also gives the point's age.
+  - *Events.* `go-clock-stale` and `go-clock-implausible` are Device
+    Config State Change (5019) events, and `go-sumdb-inconsistent` is a
+    Detection Finding (2004). They belong to `wb-proxyd`, not to a VM,
+    so the per-VM audit budgets don't apply to them, and each is written at
+    most once a minute (SEC10-audit).
   - *Record cache.* A record number never changes, so `wb-proxyd`
-    caches it with no expiry in one cache for all VMs. The cache holds up
-    to 100,000 entries and evicts the least recently used. An evicted entry costs
-    only a new lookup.
+    caches it with no expiry. It caches only records from verified
+    lookups. Each VM has its own cache, so one VM can't learn from a
+    lookup's timing which module versions another VM fetched
+    (SEC08-proj-isolation). A cache holds up to 100,000 entries and
+    evicts the least recently used. An evicted entry costs only a new
+    lookup.
   - *Lookup limits* (SEC13-bounded-resources, S04-architecture, "Host
-    work the guest can cause"). Each VM has at most 8 clock lookups in
-    flight and 6,000 a minute, and `wb-proxyd` at most 16 in flight
-    across all VMs. A lookup over the in-flight caps waits in a per-VM
-    queue of at most 5,000, the list cap below. A request whose lookups
-    would go past that queue or the per-minute cap is refused with the
-    rule `go-clock-lookup-rate`.
-    X21-dep-gate-registries ran 8 lookups at once without an error,
-    and one run with 16 at once, next to an install, got a connection
-    reset.
+    work the guest can cause"). Each VM has at most 4 clock lookups in
+    flight and 6,000 uncached lookups a minute. `wb-proxyd` has at most
+    8 requests to `sum.golang.org` and `index.golang.org` in flight
+    across all VMs, and calibration and tile fetches count against
+    that cap. A lookup over the in-flight caps waits in a per-VM queue
+    of at most 5,000, the list cap below. A request whose lookups would
+    go past that queue or the per-minute cap is refused with the rule
+    `go-clock-lookup-rate`. A failed lookup is retried once after a
+    one-second backoff, and the retry counts against the VM's budget.
+    Each lookup times out after 10 seconds, and each request has a
+    deadline of 60 seconds. Past the deadline the request is refused
+    with `go-clock-lookup-failed` and its queued lookups are dropped. A
+    request the client abandons releases its queue entries at once.
   - *Filtering `@v/list`.* One lookup per listed version. A list of
     more than 5,000 versions is refused with the rule `go-list-too-long`.
-    The longest list measured had 1,865.
 
   *Mapping a request.* Each gated host accepts only explicit path forms:
   an npm package name and tarball, a PEP 503 project name with a PEP 440

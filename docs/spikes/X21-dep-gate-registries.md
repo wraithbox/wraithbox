@@ -356,10 +356,16 @@ the index until it reaches 1 minute before the cutoff.
   the signed tree that follows it, which S07-egress-gateway now
   requires.
 - The spike didn't measure the peak rate at which the checksum
-  database adds records, so the 10 records a second of the plausibility
-  guard in S07-egress-gateway is three times the highest rate measured,
-  3.3 a second over half an hour. It didn't try
-  more than 16 lookups at once, or a window with no index entries.
+  database adds records: 1.49 a second over 7 days and 3.3 over one
+  half hour are the only rates. S07-egress-gateway's check of a fresh
+  point uses the verified tree size instead of a rate. The spike didn't
+  keep tree heads, so that check is untested. It didn't try more
+  than 16 lookups at once, or a window with no index entries.
+- Lookups at once: 8 at once ran clean for the 320 samples. At 16 at
+  once, the full list-filter run (4,074 lookups) and the fresh `go get`
+  with filtering (3,423) ran clean, and one `listcheck.py` run, next to
+  an install, got a connection reset. The longest list measured had
+  1,865 versions, and the spike didn't look for longer ones.
 - The gate's own lookups added a record to the public checksum database
   for the one version nobody had looked up, as the go command would
   have.
@@ -383,16 +389,20 @@ the index until it reaches 1 minute before the cutoff.
 - S07-egress-gateway keeps the vulnerability threshold at HIGH until
   I73 is decided.
 - I76: S07-egress-gateway, "Publish time", now says how the Go
-  calibration point is found, refreshed on `wb-proxyd`'s own timer and
-  kept, with a plausibility guard and the events `go-clock-stale` and
-  `go-clock-implausible`. The gate refuses every Go download and
-  listing without a point (`go-clock-uncalibrated`), verifies each
-  lookup against the signed tree head (`go-clock-lookup-failed`), caches
-  record numbers in a bounded cache, and caps lookups per VM
+  calibration point is found, bounded by the verified tree size
+  (`go-clock-implausible`), refreshed on `wb-proxyd`'s own timer, kept
+  when a refresh fails (`go-clock-stale`), and persisted in `state.db`
+  through `wb-hostd`. The gate refuses every Go download and listing
+  without a point (`go-clock-uncalibrated`), and verifies each lookup
+  against the signed tree head with the compiled-in key
+  (`go-clock-lookup-failed`, and `go-sumdb-inconsistent` for a tree
+  that doesn't extend the last one). It caches verified record numbers
+  per VM, and caps lookups per VM and per `wb-proxyd`
   (`go-clock-lookup-rate`) and versions per list (`go-list-too-long`).
-  "Downloads" says that only a Go `.zip` is gated. S04-architecture
+  "Downloads" says that only a Go `.zip` is age-gated. S04-architecture
   adds the clock lookups to "Host work the guest can cause".
-  S11-verification-and-spikes adds the unreachable-index case to the
+  S11-verification-and-spikes adds the unreachable-index case and a
+  case for each new rule, against doubles of both services, to the
   conformance case for the gate, and a check to the path mapper's fuzz
   target.
 

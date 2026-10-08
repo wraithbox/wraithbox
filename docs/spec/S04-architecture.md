@@ -688,6 +688,9 @@ restart limit.
 - **Accounting records** carry the counts and the name mapping of
   "Restarting a daemon": each wildcard budget debit, each new or
   renewed mapping entry with its name and address, and each release.
+  From `wb-proxyd` they carry the Go clock's accepted calibration point
+  and its verified tree heads, which `wb-hostd` keeps in `state.db` and
+  passes back at start (S07-egress-gateway, "Persisted state").
   They aren't audit events. Nothing rate-limits, suppresses or drops
   them, and `wb-netd` writes one before any drop or suppression
   decision about the event that goes with it, and before it sends the
@@ -782,7 +785,7 @@ gets its limits before it merges.
 | Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-egress-gateway, "Packet path" |
 | Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-egress-gateway, "Packet path", DNS, "Hold limits" |
 | Connections and streams | `wb-netd`, `wb-proxyd` | connections in flight, stream resets and refusals per rule | S07-egress-gateway |
-| Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | 8 lookups in flight and 6,000 a minute per VM, 16 in flight per `wb-proxyd`, a queue of 5,000 per VM, 5,000 versions per `@v/list`, 100,000 cached records, calibration on its own timer only, over a cap refused with `go-clock-lookup-rate` or `go-list-too-long` | S07-egress-gateway, "Dependency gate", "Publish time" |
+| Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | 4 lookups in flight and 6,000 uncached lookups a minute per VM, 8 requests in flight per `wb-proxyd` with calibration and tile fetches included, a queue of 5,000 per VM, one retry, 10 s per lookup and 60 s per request, 5,000 versions per `@v/list`, 100,000 cached records per VM, calibration on its own timer only, over a cap refused with `go-clock-lookup-rate` or `go-list-too-long` | S07-egress-gateway, "Dependency gate", "Publish time" |
 | Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-egress-gateway, "Stream path" |
 | Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-policy-credentials-audit, "TLS inspection certificate authority" |
 | Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-workspace-and-git, "Pack scanner", "Bounds" |
@@ -827,7 +830,7 @@ layout is the same everywhere:
   vms/<guest-os>-{work,isolated}/     VM bundles: disks, machine identity, saved state
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
-  state.db                            SQLite: projects, sessions, approvals, caches
+  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway)
   run/                                user-only directory for local IPC endpoints
 <logs>/                               audit JSONL and daemon logs
 ```
