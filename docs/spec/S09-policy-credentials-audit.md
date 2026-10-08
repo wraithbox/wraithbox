@@ -73,7 +73,19 @@ inspection is trusted, and what is recorded.
     as an L4 endpoint with no `protocol` and no rules, whatever rules
     the file gives it, so the boundary must allow L4 to that host. A
     raw TCP entry is written as an L4 endpoint for its host and port,
-    so the boundary must allow L4 to that host and port.
+    so the boundary must allow L4 to that host and port. An endpoint
+    in `audit` mode is written as the whole host: a `protocol: rest`
+    endpoint in `enforce` mode on its host and port with one rule that
+    allows every method on every path (`/**`) and no `deny_rules`,
+    whatever rules and denies the file gives it. `audit` lets every
+    request through and only logs a violation (S07-egress-gateway,
+    "HTTP policy"), so the boundary must allow every method and path
+    on that host. A boundary that allows less refuses the policy, and
+    the counterexample names the host. The mode is the one the merge
+    gives the host ("Precedence", "Per VM"), so a host that one project
+    sets to `enforce` and another to `audit` is written with its rules,
+    in `enforce` mode. The
+    maintainer decided this on I109.
     The prover can't see the extension keys, so Wraith Box's own Go
     check compares them with the
     boundary's extension part: each pass host must be a pass host in
@@ -212,9 +224,11 @@ inspection is trusted, and what is recorded.
   - *What the prover models.* At v0.1.2 it compares hosts, ports and
     programs, and method and path rules on `protocol: rest` endpoints
     in `enforce` mode. It answers `unsupported` for GraphQL and
-    WebSocket rules, an endpoint in `audit` mode, query matchers, and a
-    host and port that has both a REST endpoint and one without rules
-    (X24-openshell-artifacts).
+    WebSocket rules, query matchers, and a host and port that has both
+    a REST endpoint and one without rules (X24-openshell-artifacts). It
+    answers `unsupported` for an endpoint in `audit` mode too. The
+    candidate never holds one, because Wraith Box writes it as the
+    whole host in `enforce` mode ("What the prover sees" above).
   - *Built-in profiles in the check.* The candidate holds the parts of
     the built-in profiles that are on (S07-egress-gateway, "Profile
     parts"), and no built-in rule is left out. The candidate holds the

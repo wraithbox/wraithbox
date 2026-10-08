@@ -968,7 +968,10 @@ session start in the VM to the end of the last session running in it.
   operation type and name, and WebSocket messages, in the OpenShell
   policy schema (S09-policy-credentials-audit). Each inspected host enforces its rules by
   default. A host can be set to `audit` while a new rule is tried out:
-  violations are then logged but allowed. Built-in profiles:
+  violations are then logged but allowed. The boundary check sees a
+  host in `audit` mode as the whole host, every method and path, so it
+  passes only when the boundary allows the whole host
+  (S09-policy-credentials-audit, "What the prover sees"). Built-in profiles:
   - *git hosting*: reads allowed; `git-receive-pack` and mutating API
     calls only for the repositories of the projects with a session in
     the VM (derived from each project's host repository remotes, plus
