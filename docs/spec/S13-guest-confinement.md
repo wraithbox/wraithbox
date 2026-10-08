@@ -121,8 +121,9 @@ process cannot remove it, much like Landlock.
 
 - **Profile.** Reads are denied by default, with an allowlist for the
   system, Homebrew, Xcode, the trust files in `/etc/wraithbox/trust/`
-  (S09-policy-credentials-audit, "Guest trust"), and the user's own
-  home. Writes are allowed
+  (S09-policy-credentials-audit, "Guest trust"), the terminfo database
+  in `/usr/local/share/terminfo`, read-only (S06-vm-lifecycle,
+  "Terminfo"), and the user's own home. Writes are allowed
   only in the user's home, the session worktree, and temporary
   directories. No profile of this layer runs simulators ("Xcode build
   profile" and "Known gaps" below). The profile is generated from policy on the host and
