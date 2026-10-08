@@ -791,6 +791,7 @@ gets its limits before it merges.
 | Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-egress-gateway, "Stream path" |
 | Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-policy-credentials-audit, "TLS inspection certificate authority" |
 | Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-workspace-and-git, "Pack scanner", "Bounds" |
+| Leftover-process reports | `wb-hostd` | one fixed-size message per project per session end (project ID, count of processes left), any other form dropped | S06-vm-lifecycle, "Leftover processes" |
 | Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-vm-lifecycle, "Recovery" |
 | Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-policy-credentials-audit, "Approval flow", "Approvals" |
 | Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | S09-policy-credentials-audit, "Approvals", "Restarting a daemon" |

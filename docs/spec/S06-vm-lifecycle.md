@@ -518,6 +518,26 @@ audit log (SEC10-audit).
   report when it is acknowledged, and a report or a recorded POSIX
   session id when it gets "end" for that session ("Reconnect"), so
   the directory holds at most the 64 sessions of one VM.
+- **Leftover processes.** When the bounded kill and `bootout` loop of
+  S13-guest-confinement ("Layer 1") still finds a process of a project
+  user, `wb-guestd` sends `wb-hostd` one leftover report: a fixed-size
+  message with the project ID and the count of processes left, at most
+  one per project per session end. `wb-hostd` drops any other form,
+  and any report beyond that one, and logs the rule. For a report it
+  accepts, `wb-hostd`:
+  - writes an audit event with the rule (SEC10-audit) and tells the
+    user in `wb status` and at the next `wb` command;
+  - until the VM is stopped and started again, refuses learn mode for
+    any project in that VM, and refuses a session of a different
+    project there (NFR06-explained-refusals). Sessions of the same
+    project may continue;
+  - offers `wb vm stop` followed by `wb vm start` (S05-cli), which
+    work once no session runs in the VM.
+
+  Guest root can fake the report or hold it back. A faked report only
+  makes `wb-hostd` stricter. A withheld one leaves the residual of
+  S07-egress-gateway, "Leftover processes", which a VM restart and the
+  review of the learn list cover.
 - **Returned work comes from the host.** The summary's commit count
   and its "(+ WIP)" mark come from `landing.git`, not from the
   report. A report that claims a push that `wb-hostd`'s `receive-pack`
