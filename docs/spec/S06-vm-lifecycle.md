@@ -527,7 +527,8 @@ audit log (SEC10-audit).
   - *Kill IDs and records.* Each kill of a project user that
     `wb-hostd` sends (when it ends a project's last session in the VM,
     and the kill of users with no lost session at the first
-    connection) carries a kill ID that `wb-hostd` assigns. For each
+    connection, which it sends only after it has answered the
+    reconnect list) carries a kill ID that `wb-hostd` assigns. For each
     one, `wb-guestd` writes a cleanup record to its root-owned
     directory: the kill ID, the project ID, and the result, clean or
     the count of processes left, capped at 1001. It keeps the record
@@ -548,12 +549,20 @@ audit log (SEC10-audit).
     was sent to. Anything else is dropped and logged with its rule.
   - *Failing closed.* A kill without an accepted clean result by its
     deadline counts as a result of processes left. A late, missing or
-    dropped result never counts as clean. A pending kill whose VM
-    generation ends in a cold stop before its deadline, by
-    `wb vm stop`, a crash or an upgrade, is closed instead: the guest
-    it targeted no longer runs. The refusals below belong to the VM
-    generation that produced them, and a cold boot starts a new
-    generation without them.
+    dropped result never counts as clean. `wb-hostd` keeps its pending
+    kills in memory, not in `state.db`. A `wb-hostd` exit stops every
+    VM, so a pending kill closes either way. A pending kill whose VM
+    generation ends in a cold stop before its deadline is closed
+    instead, because the guest it targeted no longer runs. A cold stop
+    is a stop that `wb-vmd` reports for any reason, guest shutdown and
+    panic included, `wb vm stop`, a `wb-hostd` exit, and the cold boot
+    of an upgrade. An in-place reboot of the guest is not a cold stop.
+    A stop the guest forces is safe, because a running generation has
+    no saved state and suspend is refused while a kill is pending
+    ("Idle suspend"). `wb-hostd` logs each kill a cold stop closes,
+    with its rule and the stop's cause (SEC10-audit). The refusals
+    below belong to the VM generation that produced them, and a cold
+    boot starts a new generation without them.
 
   For a result of processes left, `wb-hostd`:
   - writes an audit event with the rule (SEC10-audit) and tells the
