@@ -295,7 +295,7 @@ with `sudo -u`.
 ## Spike code
 
 Branch `spike/x04-tls-inspection`, at
-[aaef115](https://github.com/wraithbox/wraithbox/tree/aaef115f2a9d1c5e6fb9b14876be1fd6e72727d5/spikes/x04-tls-inspection):
+[7e10eab](https://github.com/wraithbox/wraithbox/tree/7e10eab7bc56f3ac8d28bf8501b3928f36865d16/spikes/x04-tls-inspection):
 the `wb-vmd` stand-in with a read-only share, the relay, the clients,
 the guest scripts, and the raw results in `results/`. The spike's bundle
 `g1` is a spike artifact, and no product image may descend from it.
