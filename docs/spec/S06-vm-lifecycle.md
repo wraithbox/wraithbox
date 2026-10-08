@@ -168,8 +168,9 @@ in S12-platforms.
   (S16-terminal-stream, "Terminfo"), and the image describes it with a
   terminfo database that the build compiles into
   `/usr/local/share/terminfo`. Root owns it, and no other user can
-  write to it. The source is `misc/terminfo.src` from a pinned ncurses
-  release, 6.6 or later, with two alias entries appended:
+  write to it. The source is `misc/terminfo.src` from an ncurses
+  release tarball, 6.6 or later, pinned by version and SHA-256, with
+  two alias entries appended:
 
   ```text
   xterm-ghostty|Ghostty terminal emulator,
@@ -183,12 +184,19 @@ in S12-platforms.
   `kitty` (first in release 6.2). The aliases point those names at
   ncurses' reviewed entries instead of a terminfo source from an
   emulator, which the image doesn't ship (kitty's is GPL-3.0,
-  S10-tech-stack). The build compiles with that release's `tic -x`,
-  because macOS's own `tic` (ncurses 6.0) fails on entries of the newer
-  source, such as `kitty`.
+  S10-tech-stack). The guest compiles it, because the host never writes
+  the guest disk and a root-owned file has to be created in the guest
+  (above). For X17-image-build (I28): the host checks the tarball's
+  SHA-256 and sends the source to a named `wb-guestd` operation, which
+  compiles it with `tic -x` from the same ncurses release and installs
+  the result as root. The build doesn't use macOS's own `tic`
+  (ncurses 6.0): on the raw 6.6 `terminfo.src` it stops with
+  `error writing` at `scrt`, and at `kitty` when limited to the
+  entries above.
   `wb-guestd` sets `TERMINFO_DIRS=/usr/local/share/terminfo:` for
-  project users. The empty last entry keeps macOS's
-  `/usr/share/terminfo` as the fallback.
+  project users. macOS's ncurses also falls back to
+  `/usr/share/terminfo` without the empty last entry, which keeps that
+  fallback explicit.
   - *macOS's ncurses.* `/usr/bin/less`, `vim` and `top` link macOS's
     own ncurses 6.0, which can't read an entry that `tic` from
     ncurses 6.1 or later writes in the extended number format, used

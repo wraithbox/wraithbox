@@ -192,7 +192,9 @@ its output still passes the filter ("Where").
   looks `TERM` up in the terminfo database of its image
   (S06-vm-lifecycle, "Terminfo"). That database has ncurses' entries
   and the names Ghostty and kitty set, `xterm-ghostty` and
-  `xterm-kitty`. When the guest has no entry for `TERM`, those programs
+  `xterm-kitty`. The `less`, `vim` and `top` that macOS ships can't
+  read the kitty entries yet (S06-vm-lifecycle, "Terminfo", I203).
+  When the guest has no entry for `TERM`, those programs
   report an unknown terminal, and `TERM` still isn't changed (I83).
 
 **Guest text elsewhere.** Wherever else `wb` prints text the guest
