@@ -1247,10 +1247,11 @@ session start in the VM to the end of the last session running in it.
     says when the version becomes allowed, marked as an estimate from
     its record number at the rate records were added since the point,
     and under a kept stale point it also gives the point's age.
-  - *Events.* `go-clock-stale`, `go-clock-implausible` and
-    `go-sumdb-finding-invalid` are Device Config State Change (5019)
-    events, and `go-sumdb-inconsistent` is a
-    Detection Finding (2004). They belong to `wb-proxyd`, not to a VM,
+  - *Events.* `go-clock-stale` and `go-clock-implausible` are Device
+    Config State Change (5019) events. `go-sumdb-inconsistent` and
+    `go-sumdb-finding-invalid` are Detection Findings (2004): a stored
+    finding that fails verification again means `state.db` was altered
+    or there is a bug. All four belong to `wb-proxyd`, not to a VM,
     so the per-VM audit budgets don't apply to them, and each is written at
     most once a minute (SEC10-audit).
   - *Record cache.* A record number never changes, so `wb-proxyd`
@@ -1287,7 +1288,9 @@ session start in the VM to the end of the last session running in it.
     timeout, the backoff and a second timeout for each, so one retry
     of each always fits. The 125 ms are 250 ms for each round of 4
     requests, two requests per lookup. Both counts are fixed when the
-    request is admitted, and the VM's requests are served first in,
+    request is admitted, without the retries of the lookups queued
+    ahead, so a degraded upstream can still cause `go-clock-deadline`,
+    which fails closed, and the VM's requests are served first in,
     first out. Counting the queue ahead keeps a download admitted
     behind a cold list from running out of time while it waits. The
     queue cap below keeps the sum within 5 minutes. Serving requests in

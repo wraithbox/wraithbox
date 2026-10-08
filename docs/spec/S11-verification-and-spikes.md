@@ -502,11 +502,15 @@ be tested before building on them.
     whose proof against the stored head can't be fetched isn't used
     for calibration, requests get `go-clock-uncalibrated`, and the
     stored head is checked again at the next attempt; a stored finding
-    whose heads don't verify, or are consistent, is discarded with
-    `go-sumdb-finding-invalid`; and a head
+    whose heads don't verify, or are consistent, is discarded with a
+    `go-sumdb-finding-invalid` Detection Finding (2004); and a head
     inconsistency within a run refuses every Go download, still does
     after a restart, and stops only after `wb gate reset go-clock` is
     confirmed, with a 5019 event naming the command and the finding;
+  - run `wb gate reset go-clock` without a terminal and see it refuse
+    and change nothing; run it with one, and see that the restart of `wb-proxyd` it causes doesn't count
+    toward the restart limit of S04-architecture, "Restarting a
+    daemon", so five resets in 10 minutes leave `wb-proxyd` running;
   - fetch a gated registry path that fits no known form, and get a 403
     naming the rule; with a test double for the Go module proxy,
     redirect a download elsewhere and see it refused;
