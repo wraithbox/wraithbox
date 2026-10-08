@@ -465,7 +465,10 @@ be tested before building on them.
   - download a package version younger than the minimum age, or with a
     known vulnerability, and find the too-young version missing from the
     registry metadata; do the same for Go with the checksum-database
-    clock and `sum.golang.org` reached through the gate (I76);
+    clock and `sum.golang.org` reached through the gate (I76), and
+    with `index.golang.org` unreachable before the first calibration
+    see every Go download and `@v/list` refused with
+    `go-clock-uncalibrated`;
   - fetch a gated registry path that fits no known form, and get a 403
     naming the rule; with a test double for the Go module proxy,
     redirect a download elsewhere and see it refused;

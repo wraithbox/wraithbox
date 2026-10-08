@@ -105,7 +105,7 @@
 	},
 	"18": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X04-tls-inspection: Inspection compatibility",
 		"summary": "Do Go-based, Swift-based, and Xcode clients accept the name-constrained Wraith Box CA when it is trusted only in the guest?",
 		"brief": "B18-tls-inspection"
@@ -329,7 +329,7 @@
 	},
 	"51": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit: approval flow, what the blocked client sees, and approval noise",
 		"summary": "S07-egress-gateway and S09-policy-credentials-audit describe approval choices and their security (SEC14-no-fake-approvals), not how the flow behaves.",
 		"brief": "B51-approval-flow"
@@ -489,7 +489,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "Measure the Go checksum-database clock of the dependency gate end to end",
-		"summary": "Follow-up from the X21-dep-gate-registries spike (#32) and the review of its result (#75)."
+		"summary": "Follow-up from the X21-dep-gate-registries spike (#32) and the review of its result (#75).",
+		"brief": "B76-gosumdb-clock"
 	},
 	"77": {
 		"kind": "pr",
@@ -835,7 +836,7 @@
 	},
 	"133": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Record blocks only as issue relationships and drop the blocked label",
 		"summary": "Whether an issue is blocked is recorded in two places that nothing keeps in sync: the GitHub blockedBy relationship, which clears itself when the blocker closes, and the blocked label, which stays until someone remove…"
 	},
@@ -1139,13 +1140,13 @@
 	},
 	"183": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit: when a join approval expires",
 		"summary": "S09-policy-credentials-audit, \"Join approval\", says a join approval that gets \"no answer before the request expires\" refuses the session start, but no spec says when a join approval expires."
 	},
 	"184": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): approval flow, held DNS answers and zero negative TTL",
 		"summary": "Writes the approval flow the maintainer decided on #51 (option A, \"hold the answer, then refuse uncached\", with the B51 brief's sub-decision table as recommended) into the specs."
 	},
@@ -1155,5 +1156,42 @@
 		"title": "Decide how wb-guestd makes a macOS guest trust the per-VM CA",
 		"summary": "X04-tls-inspection (#18) found that a root daemon in a macOS 27 guest can't make the system trust a CA without a user to confirm:",
 		"brief": "B18-tls-inspection"
+	},
+	"186": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spikes): X04-tls-inspection result and brief",
+		"summary": "X04-tls-inspection result: no.",
+		"brief": "B18-tls-inspection"
+	},
+	"187": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "chore(agents): record blocks only as issue relationships",
+		"summary": "Blocked-ness is recorded only as a blockedBy relationship between issues, per the 2026-10-07 decision in #133."
+	},
+	"188": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X01-model-credential: set up the test account and Keychain item for API key mode",
+		"summary": "1."
+	},
+	"189": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S09-policy-credentials-audit: warn on ASCII look-alike names in approvals",
+		"summary": "Follow-up from the security review of #184 (#51), finding F3."
+	},
+	"190": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd write rule for landing.git without export.git on Linux and Windows",
+		"summary": "Found while writing #67 into S04-architecture."
+	},
+	"191": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): wb writes export.git, wb-hostd only serves it",
+		"summary": "Writes the #67 decision (2026-10-04) and the points the 2026-10-06 triage left to it into the specs."
 	}
 }

@@ -1108,14 +1108,34 @@ session start in the VM to the end of the last session running in it.
   `upload-time` per file (PEP 700, so a file added to an old release
   later is young on its own), and crates.io `pubtime` from the sparse
   index. For Go, the clock is the version's record number in the
-  checksum database `sum.golang.org`, compared with the record number of
-  a version that `index.golang.org` shows as first seen 7 days earlier.
-  The `.info` Time is the commit time, which the module's author sets,
-  and is never used. Under that clock, a version nobody has looked up
-  before is young, a pseudo-version of an old commit is young for 7
-  days, and filtering `@v/list` costs one lookup per listed version.
-  The spike checked only the ordering of record numbers, and I76
-  measures the clock end to end.
+  checksum database `sum.golang.org`, compared with a calibration point:
+  the record number at the cutoff, the minimum age ago. The `.info` Time is the
+  commit time, which the module's author sets, and is never used.
+  X21-dep-gate-registries measured this clock end to end (I76).
+  - *Calibration point.* The lowest record number among up to 20
+    versions that `index.golang.org` shows as first seen between 11
+    minutes and 1 minute before the cutoff. One version in that
+    window whose record was added on time puts the point before the
+    cutoff, and a record added late only raises a number the minimum
+    ignores. `wb-proxyd` recomputes the point every hour, one
+    computation at a time. When that fails, it keeps the last point,
+    which is lower than a fresh one and so only refuses more, and logs
+    the failure. With no point, every Go download, `@v/list` and
+    `@latest` is refused with the rule `go-clock-uncalibrated` (fail
+    closed).
+  - *Lookup.* A version is old when its record number is at or below
+    the point. The gate's own lookup adds a record for a version the
+    checksum database doesn't have yet, so such a version is young for
+    the minimum age from that first request. That covers a version
+    nobody has looked up before, including a pseudo-version of an old
+    commit nobody has asked for. A failed lookup
+    refuses the download and hides the version from a list. A record
+    number never changes, so `wb-proxyd` caches it with no expiry, in a
+    bounded cache (SEC13-bounded-resources). A refusal says when the
+    version becomes allowed, estimated from its record number at the
+    rate records were added since the point.
+  - *Filtering `@v/list`.* One lookup per listed version, at most 16 at
+    once.
 
   *Mapping a request.* Each gated host accepts only explicit path forms:
   an npm package name and tarball, a PEP 503 project name with a PEP 440
