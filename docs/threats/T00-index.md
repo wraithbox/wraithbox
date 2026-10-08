@@ -82,7 +82,11 @@ print about returned work after `wb land` is outside it
   lookup budget per VM (S07-egress-gateway, "DNS").
 - **T03-hypervisor-escape: Hypervisor escape.** Escape from the hypervisor.
 - **T04-bad-approvals: Bad approvals.** A user approving a malicious request or merging a malicious
-  change despite the flags.
+  change despite the flags. The guest chooses which names it looks up,
+  so it can raise requests to wear down the user's attention, or pick
+  a name that looks like another. The limits on pending and new
+  requests per VM bound the first, and the name display rules flag the
+  second (S09-policy-credentials-audit, "Approval flow").
 - **T05-cross-proj-clones: Other projects' clones after guest root.** After a guest root escalation inside the shared work VM, read or
   write access to other projects' guest clones (code only; no secrets are
   present; changes still return only as reviewable branches). A

@@ -484,14 +484,12 @@ Only the user approves a request.
   name it looks up outside the guest OS's background list and the
   hosts of parts that are off (S07-egress-gateway, "Packet path",
   DNS), so prover runs are bounded (SEC13-bounded-resources).
-  Requests are deduplicated by host and rate-limited per VM, with a
-  limit fixed in code, because the host can't tell which session
-  raised one (S07-egress-gateway, "Enforced per VM"). A deny holds
+  Requests are deduplicated by host, and each VM has limits on
+  pending and new requests ("Approval flow" below). A deny holds
   until the sessions running at the deny have ended, and an answer
   given after the VM's sessions changed is refused and the request
   shown again (S07-egress-gateway, "Deny duration", "Session set at
-  the answer"). Each VM has a
-  limit fixed in code on pending requests, and a cap on concurrent
+  the answer"). Each VM has a cap on concurrent
   prover runs (S04-architecture). Boundary results are cached per host,
   port and rule form, keyed on the SHA-256 of the boundary document, so
   a changed boundary is checked again. A request over a limit stays
@@ -518,6 +516,74 @@ platform's notification helper, S12-platforms) and through `wb approve` /
 `wb deny`. They are never written to the terminal stream of an agent
 session, which the guest controls. Guest-influenced text in a request is
 stripped of control and escape sequences wherever it is shown.
+
+## Approval flow
+
+How an approval request for a name behaves, from the lookup that
+raises it to its answer or its expiry. The maintainer decided this on
+I51 (B51-approval-flow, option A with its recommended sub-decisions).
+The VM is the unit for each rule here, because the host can't tell
+which session looked a name up (S07-egress-gateway, "Enforced per
+VM", I36).
+
+- **What the blocked client sees.** `wb-netd` holds the answer to a
+  refused lookup for 4 seconds (S07-egress-gateway, "Packet path",
+  DNS, "Hold"). When the user approves within the hold, the waiting
+  lookup gets the allowed answer, and the tool works on its first try.
+  Otherwise it gets `NXDOMAIN` with a negative TTL of 0 ("Negative
+  answers" there), and the tool fails. After a later approval, the
+  next lookup reaches `wb-netd` and succeeds, so the agent must retry.
+- **Kept out of notifications.** A name on the guest OS's background
+  list, a host refused with `profile-part-off`, a name that fails the
+  name form rule, and a name collected in a learn period don't raise a
+  request (S07-egress-gateway, DNS and "Approvals and learning"). The
+  image turns off the services behind the background list where it
+  can (X17-image-build).
+- **One request per name.** A VM has at most one open request per name.
+  Later lookups of that name join it and are counted on it, and the
+  request shows the count.
+- **Limits.** Each VM has two limits fixed in code: the number of
+  pending requests, and the number of new requests a minute. A name
+  over either limit is refused at DNS as any unknown name is, without
+  a request, and is logged with the rule `approval-pending-cap` or
+  `approval-rate`. These refusals are aggregated per rule
+  (S07-egress-gateway, "Events and rate limits"). `wb status` shows
+  the VM's pending requests and the count of names refused under each
+  limit since the VM started. The guest chooses which names it looks
+  up, so it could raise requests to wear down the user's attention
+  (T04-bad-approvals). These limits are the control against that,
+  and they bound the prover runs too (SEC13-bounded-resources).
+- **Expiry.** A request has no wall-clock timeout. It stays pending, in
+  `wb status` and as a notification, until the user answers it or
+  until every session in the set it records has ended
+  (S07-egress-gateway, "Session set at the answer"). Then it expires:
+  the notification is withdrawn, and the expiry is a Device Config
+  State Change (5019) event with the name, the sessions and the rule
+  `approval-expired`. An expired request grants nothing, and the next
+  lookup of the name raises a new request.
+- **Name display.** A notification, `wb approve`, `wb deny` and
+  `wb status` show a name in ASCII, as `wb-netd` received it but in
+  lowercase and without a trailing dot. The name
+  form rule lets only letters, digits, hyphens, and dots through
+  (S07-egress-gateway, DNS, "Name form"), and the display code still
+  escapes every other byte as `\xNN`, as a second layer. An
+  internationalized name arrives in punycode, with labels that start
+  with `xn--`, and is shown in that form.
+  - *Unicode form.* `wb-hostd` decodes such a name with the IDNA 2008
+    lookup rules and shows the Unicode form next to the ASCII form,
+    marked as decoded. When a label fails to decode, no Unicode form
+    is shown, and the request shows a warning that the name isn't a
+    valid internationalized name.
+  - *Warning.* When a label mixes scripts (UTS 39, not "highly
+    restrictive"), or the name holds a character that Unicode's table
+    of confusable characters (UTS 39) maps to another character, a warning
+    next to the Unicode form names the reason. The rule the user
+    approves always holds the ASCII form.
+  - *Parser.* The decoder and the script check read bytes the guest
+    chose, so they have a fuzz target (S11-verification-and-spikes).
+- **Allow for this session.** Shown as "for this VM until these
+  sessions end", with the sessions listed (S07-egress-gateway, "Who an
+  approval reaches").
 
 ## Audit (SEC10-audit)
 
