@@ -677,6 +677,7 @@ gets its limits before it merges.
 | Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-egress-gateway, "Packet path" |
 | Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-egress-gateway, "Packet path", DNS, "Hold limits" |
 | Connections and streams | `wb-netd`, `wb-proxyd` | connections in flight, stream resets and refusals per rule | S07-egress-gateway |
+| Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | 8 lookups in flight and 6,000 a minute per VM, 16 in flight per `wb-proxyd`, a queue of 5,000 per VM, 5,000 versions per `@v/list`, 100,000 cached records, calibration on its own timer only, over a cap refused with `go-clock-lookup-rate` or `go-list-too-long` | S07-egress-gateway, "Dependency gate", "Publish time" |
 | Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-egress-gateway, "Stream path" |
 | Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-policy-credentials-audit, "TLS inspection certificate authority" |
 | Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-workspace-and-git, "Pack scanner", "Bounds" |

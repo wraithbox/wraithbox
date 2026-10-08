@@ -61,7 +61,8 @@ of applying a minimum age lets real installs still work?
   6. The Go calibration point during a long outage of
      `index.golang.org` (I76). Recommended: keep the last point, which only
      refuses more, and refuse every Go request only when there has
-     never been one. B76-gosumdb-clock has the options.
+     never been one. B76-gosumdb-clock has the options, and the values
+     of the new lookup limits, which the spike supports only in part.
 - **Brief:** B32-dep-gate-registries, and B76-gosumdb-clock for I76
 
 ## Question
@@ -246,15 +247,25 @@ Run on 2026-10-08 with go1.27.1 and `GOSUMDB=sum.golang.org`. The go
 command reached the checksum database through the spike's proxy, which
 served it on the `GOPROXY` path, so the go command checked every signed
 tree it got. The gate took a version's age from its record number and a
-calibration point found as S07-egress-gateway now specifies: the lowest
-record number among 20 versions that `index.golang.org` shows as first
-seen between 11 minutes and 1 minute before the cutoff.
+calibration point: the lowest record number of the 20 latest versions
+that `index.golang.org` shows as first seen at or before 1 minute before
+the cutoff, among the first 400 entries from 10 minutes before it. The
+spike read one page of 400 entries and didn't page on. At the 3.3
+records a second of that hour, 400 entries cover about 2 minutes, so
+its 20 versions were about 8 minutes (about 1,600 records) before the
+cutoff, not 1 minute. That error is on the safe side, because it only
+lowers the point. S07-egress-gateway now asks the implementation to page
+the index until it reaches 1 minute before the cutoff.
 
 - **Order.** 320 index entries, 5 at random every 6 hours over 16
   days, all had a record before the spike looked them up. Their record
   numbers follow first-seen time except for 4 pairs, at most 3.8 s
   apart. Against the point, no entry first seen more than 7 days ago
-  read as young, and none first seen since read as old. The 20 records
+  read as young, and none first seen since read as old. The samples
+  were 6 hours apart, and the nearest was about 2 hours from the
+  cutoff, so they don't show the boundary itself. The claim that the
+  point is on the right side of the cutoff rests on the inversion width
+  instead: 3.8 s at most, against the 1-minute margin. The 20 records
   of a calibration window spread over 22 numbers, and the point
   moved 5,974 numbers in 30 minutes. Over the 7 days the database
   added 1.49 records a second.
@@ -312,6 +323,13 @@ seen between 11 minutes and 1 minute before the cutoff.
   first result's 200 versions that the module proxy first saw in the
   7 days before 2026-10-04, 173 have an older commit time. Under this
   clock all 200 were young then, as the order above implies.
+- **Branch and commit queries.** `go get foo@master` and
+  `go get foo@<sha>` make the go command ask for `@v/master.info` or
+  `@v/<sha>.info`. Neither fits the Go path form of S07-egress-gateway,
+  a semantic or pseudo-version, and the gate refuses them with a 403.
+  The spike's proxy didn't enforce the path forms, and the
+  pseudo-version runs above passed the query. I193 asks whether the gate should
+  resolve such a query.
 
 ## Limits
 
@@ -332,9 +350,16 @@ seen between 11 minutes and 1 minute before the cutoff.
   timings, on one machine and network.
 - The I76 calibration wasn't single-flight: requests that arrived
   before the first point each calibrated on their own, so the spike made
-  more lookups than an implementation would. The gate also took the
+  more lookups than an implementation would. S07-egress-gateway now
+  calibrates on a timer of `wb-proxyd`'s own. The spike also took the
   record number from the lookup's first line over TLS, without checking
-  the signed tree that follows it.
+  the signed tree that follows it, which S07-egress-gateway now
+  requires.
+- The spike didn't measure the peak rate at which the checksum
+  database adds records, so the 10 records a second of the plausibility
+  guard in S07-egress-gateway is three times the highest rate measured,
+  3.3 a second over half an hour. It didn't try
+  more than 16 lookups at once, or a window with no index entries.
 - The gate's own lookups added a record to the public checksum database
   for the one version nobody had looked up, as the go command would
   have.
@@ -358,11 +383,18 @@ seen between 11 minutes and 1 minute before the cutoff.
 - S07-egress-gateway keeps the vulnerability threshold at HIGH until
   I73 is decided.
 - I76: S07-egress-gateway, "Publish time", now says how the Go
-  calibration point is found, refreshed and kept, that the gate refuses
-  every Go download and listing without one (`go-clock-uncalibrated`),
-  that record numbers are cached with no expiry, and how many lookups
-  run at once. S11-verification-and-spikes adds the unreachable-index
-  case to the conformance case for the gate.
+  calibration point is found, refreshed on `wb-proxyd`'s own timer and
+  kept, with a plausibility guard and the events `go-clock-stale` and
+  `go-clock-implausible`. The gate refuses every Go download and
+  listing without a point (`go-clock-uncalibrated`), verifies each
+  lookup against the signed tree head (`go-clock-lookup-failed`), caches
+  record numbers in a bounded cache, and caps lookups per VM
+  (`go-clock-lookup-rate`) and versions per list (`go-list-too-long`).
+  "Downloads" says that only a Go `.zip` is gated. S04-architecture
+  adds the clock lookups to "Host work the guest can cause".
+  S11-verification-and-spikes adds the unreachable-index case to the
+  conformance case for the gate, and a check to the path mapper's fuzz
+  target.
 
 ## Spike code
 
