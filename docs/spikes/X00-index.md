@@ -123,8 +123,8 @@ platform starts.
   whether `GIT_PROTOCOL=version=2` reaches the relayed `upload-pack`
   in both directions. Measure the MSYS path conversion of the Git for
   Windows `sh` on those arguments, with and without
-  `MSYS_NO_PATHCONV=1`. Try a placeholder path that no user process
-  can create, under `/proc/self/` on WSL and under the Windows system
+  `MSYS_NO_PATHCONV=1`. Try a placeholder path in a place where user
+  processes can't create files, under `/proc/self/` on WSL and under the Windows system
   directory on Windows. Once it works, that is the stricter choice
   over a path in an empty directory that `wb` creates.
 - **X13-windows-guests: Windows guests on a macOS host.** Can the Virtualization
