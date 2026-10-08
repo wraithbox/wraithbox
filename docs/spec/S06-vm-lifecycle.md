@@ -164,6 +164,41 @@ in S12-platforms.
   restore image, never updated in place.
 - **Guest confinement.** The base image includes the Network Extension
   of S13-guest-confinement, approved during the build, once spike X14-flow-attribution allows it.
+- **Terminfo** (I83). Sessions get the host's `TERM` unchanged
+  (S16-terminal-stream, "Terminfo"), and the image describes it with a
+  terminfo database that the build compiles into
+  `/usr/local/share/terminfo`. Root owns it, and no other user can
+  write to it. The source is `misc/terminfo.src` from a pinned ncurses
+  release, 6.6 or later, with two alias entries appended:
+
+  ```text
+  xterm-ghostty|Ghostty terminal emulator,
+  	use=ghostty,
+  xterm-kitty|KovId's TTY,
+  	use=kitty,
+  ```
+
+  Ghostty sets `TERM=xterm-ghostty` and kitty sets `TERM=xterm-kitty`,
+  but ncurses names their entries `ghostty` (first in release 6.6) and
+  `kitty` (first in release 6.2). The aliases point those names at
+  ncurses' reviewed entries instead of a terminfo source from an
+  emulator, which the image doesn't ship (kitty's is GPL-3.0,
+  S10-tech-stack). The build compiles with that release's `tic -x`,
+  because macOS's own `tic` (ncurses 6.0) fails on entries of the newer
+  source, such as `kitty`.
+  `wb-guestd` sets `TERMINFO_DIRS=/usr/local/share/terminfo:` for
+  project users. The empty last entry keeps macOS's
+  `/usr/share/terminfo` as the fallback.
+  - *macOS's ncurses.* `/usr/bin/less`, `vim` and `top` link macOS's
+    own ncurses 6.0, which can't read an entry that `tic` from
+    ncurses 6.1 or later writes in the extended number format, used
+    for an entry with a number above 32767. `kitty` and `xterm-kitty`
+    (`pairs#0x10000`) are among them. Those programs report an unknown
+    terminal for kitty, and programs that link Homebrew's ncurses read
+    the entry. For a name macOS ships, such as `xterm-256color`,
+    macOS's ncurses skips the file it can't read and uses its own
+    copy. Measured on a macOS 27 host with ncurses 6.6 (I83). I203
+    decides whether `xterm-kitty` gets an entry macOS can read.
 - **Sealing.** Before an image is usable, `wb-guestd` scans it as root,
   before any project code has run. The host parses no guest
   filesystem. Any finding fails the build:
