@@ -297,6 +297,24 @@ be tested before building on them.
     - give two projects different wildcard budgets or minimum ages,
       start both, and see the stricter one applied to both, including
       to a count reached before the second one joined;
+    - for every host and port of a union, see the mode `wb-proxyd`
+      applies equal the mode the boundary check projected
+      (S09-policy-credentials-audit, "Mode per host and port"), with a
+      boundary that allows only `GET` on a host: put the host's port
+      443 in `audit` with a `GET` rule in one project and add an
+      `enforce` endpoint with a `GET` rule on the same host and port in
+      another file, see the start pass and a `DELETE` to that port
+      refused; then put port 8443 of the same
+      host in `audit` with a `GET` rule while port 443 stays in
+      `enforce`, and see the start refused with a counterexample that
+      names the host, so a `DELETE` to port 8443 is never sent;
+    - put `github.com`, a host a project's remote names, or a host with
+      a credential binding in `audit`, in a policy file and as a
+      global entry loaded before a project names the host, and add a
+      binding on a host in `audit` with `wb cred set`, and see each
+      refused with the host and the rule; load repository
+      configuration with `enforcement: audit` and see a load error
+      (S07-egress-gateway, "Modes, per host", audit);
     - with the prover unavailable, remove a binding while sessions
       run and see it no longer injected and its streams closed, then
       add a rule, and separately remove a `deny_rules` entry, and see
