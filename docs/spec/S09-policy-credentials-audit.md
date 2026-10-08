@@ -559,20 +559,36 @@ VM", I36).
     sessions or other risk-check findings.
   - *Replaced requests.* When an answer is refused because the VM's
     sessions changed (S07-egress-gateway, "Session set at the
-    answer"), the request closes, and a new request with a new id and
-    the current set of sessions replaces it. The new request's 5019
-    event names the old id.
-  - *Without an id.* `wb approve` and `wb deny` without an id are
-    refused when more than one request is pending, and the refusal
-    lists the pending ids (S05-cli).
+    answer"), the request closes and its notification is withdrawn. A
+    new request with a new id and the current set of sessions
+    replaces it, and the risk check runs again against the VM's
+    current union. The new request's 5019 event names the old id. The
+    host caused the replacement, so it doesn't count against the rate
+    of new requests.
+  - *Id required.* `wb approve` and `wb deny` need an id. Without one
+    they are refused, and the error lists the pending ids (S05-cli).
+    So the user answers the request they read, not one the guest
+    swapped in after it.
 - **Limits.** Each VM has two limits fixed in code: 16 pending
-  requests, and 10 new requests a minute. `wb-netd` checks both when
-  the query arrives, under the lock of the one-open-event-per-name
-  check (S07-egress-gateway, "Same answer for every refusal"), from
-  its own count of open events. `wb-hostd` tells it when a request
-  closes. A name over either limit is refused at DNS with the same
-  answer and hold as any unknown name, without a request, and is
-  logged with the rule `approval-pending-cap` or `approval-rate`. These refusals are aggregated per rule
+  requests, and 10 new requests a minute.
+  - *Authoritative in `wb-hostd`.* `wb-hostd` keeps each VM's count of
+    pending requests and its rate of new requests, and applies both
+    limits to every approval event it receives. An event over either
+    limit is dropped and logged
+    with the rule `approval-pending-cap` or `approval-rate`. It
+    doesn't raise a request, so the user sees no notification for it.
+    So a compromised or restarted `wb-netd` can't raise more requests than
+    the limits allow.
+  - *Mirrored in `wb-netd`.* `wb-netd` checks both limits when the
+    query arrives, under the lock of the one-open-event-per-name
+    check (S07-egress-gateway, "Same answer for every refusal"), only
+    to decide the answer and the hold. `wb-hostd` tells it when a
+    request closes, and a new `wb-netd` gets the VM's pending count
+    and recent rate from `wb-hostd` at start, with the policy
+    (S04-architecture, "Restarting a daemon"). A name over either
+    limit is refused at DNS with the same answer and hold as any
+    unknown name, without a request, and is logged with the same
+    rule. These refusals are aggregated per rule
   (S07-egress-gateway, "Events and rate limits"). `wb status` shows
   the VM's pending requests and the count of names refused under each
   limit since the VM started. The guest chooses which names it looks

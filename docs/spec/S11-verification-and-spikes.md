@@ -443,9 +443,22 @@ be tested before building on them.
   - answer a request with `wb approve <id>` after it expired, and after
     it was replaced when the VM's sessions changed, and see each answer
     refused with `approval-stale` and the newer request for the same
-    name still pending; with two requests pending, run `wb approve`
-    without an id and see it refused with both ids listed
-    (S09-policy-credentials-audit, "Approval flow");
+    name still pending, its old notification withdrawn; with one
+    request pending, run `wb approve` without an id and see it refused
+    with the pending id listed (S09-policy-credentials-audit,
+    "Approval flow");
+  - with 16 requests pending, restart `wb-netd`, look up a 17th
+    unknown name and see it refused with `approval-pending-cap`; from
+    a test `wb-netd` that skips its own check, send a 17th approval
+    event and see `wb-hostd` drop it without a notification, logged
+    with the same rule;
+  - with queries held, approve a name, so that more held queries are
+    re-run at once than the query rate allows, and see the excess
+    refused with `dns-query-rate` at the end of their holds, with no
+    new requests, learn entries or lookup counts; close a
+    DNS-over-TCP connection for `dns-hold-full` while it has held
+    queries and see their timers not fire (S07-egress-gateway,
+    "Hold");
   - once X14-flow-attribution has delivered labels: forge or omit a flow label and
     confirm only rules without program narrowing match, and replace a
     pinned binary and confirm its connections are denied;
