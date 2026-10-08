@@ -65,6 +65,12 @@ inspection is trusted, and what is recorded.
     pass host above apply to it, on its host and port. The
     maintainer decided this on I47 (B47-non-http-streams), and
     S07-egress-gateway, "Non-HTTP streams", has the rules.
+  - *Audit hosts.* Only the global and project network policy files
+    can put a host and port in `audit`. An `audit` endpoint on a host
+    with a credential binding, or on one a built-in profile covers, is
+    refused at load, at every recompute, and when a binding is added
+    later (SEC06-repo-writes). The maintainer decided this on I109, and
+    S07-egress-gateway, "Modes, per host", has the rules.
   - *What the prover sees.* The document Wraith Box writes for the
     prover allows at least what `wb-proxyd` enforces, never less. A
     built-in GraphQL rule is written as a REST rule that allows `POST`
@@ -73,25 +79,31 @@ inspection is trusted, and what is recorded.
     as an L4 endpoint with no `protocol` and no rules, whatever rules
     the file gives it, so the boundary must allow L4 to that host. A
     raw TCP entry is written as an L4 endpoint for its host and port,
-    so the boundary must allow L4 to that host and port. An endpoint
-    in `audit` mode is written as the whole host: a `protocol: rest`
-    endpoint in `enforce` mode on its host and port with one rule that
-    allows every method on every path (`/**`) and no `deny_rules`,
-    whatever rules and denies the file gives it. `audit` lets every
-    request through and only logs a violation (S07-egress-gateway,
-    "HTTP policy"), so the boundary must allow every method and path
-    on that host. A boundary that allows less refuses the policy, and
-    the counterexample names the host. The mode is the one the merge
-    gives the host ("Precedence", "Per VM"), so a host that one project
-    sets to `enforce` and another to `audit` is written with its rules,
-    in `enforce` mode. The
-    maintainer decided this on I109.
+    so the boundary must allow L4 to that host and port.
     The prover can't see the extension keys, so Wraith Box's own Go
     check compares them with the
     boundary's extension part: each pass host must be a pass host in
     the boundary, each raw TCP entry must be a raw TCP entry in the
     boundary, dependency-gate thresholds can't be looser, and the
     wildcard budget can't be larger. Any mismatch refuses the policy.
+  - *Audit as the whole host.* `audit` lets every request through and
+    only logs a violation (S07-egress-gateway, "Modes, per host"), so
+    a host and port whose mode resolves to `audit` ("Precedence",
+    "Mode per host and port") is written as the whole host on that
+    port. The projected endpoint is built from the host and the port
+    only: `protocol: rest`, `enforcement: enforce`, and one rule
+    `allow: { method: "*", path: "/**" }`, in an entry whose
+    `binaries` is `path: "/**"`. The endpoint-level `path`, `access`
+    and `rules`, the entry's `binaries`, and the `deny_rules` of every
+    endpoint on that host and port are dropped. An endpoint with
+    `ports` is written once for each port, each in the mode its host
+    and port resolves to. The boundary must then allow every method
+    and path on that host and port, and a boundary that allows less
+    refuses the policy with a counterexample that names the host. The
+    prover's reading of `method: "*"` wasn't tested
+    (X24-openshell-artifacts), and is tested before the boundary check
+    relies on it. A host and port that resolves to `enforce` is
+    written with its rules. The maintainer decided this on I109.
 - **Program narrowing.** `binaries` entries match the program label
   from the guest (S13-guest-confinement). Until spike X14-flow-attribution has delivered labels,
   `binaries` does not narrow a rule. OpenShell's policy engine has the
@@ -148,7 +160,10 @@ inspection is trusted, and what is recorded.
   allowed hosts, a toolchain manifest and HTTP rules, and every addition
   is shown in `wb policy explain`. It can never add credential bindings
   or switch hosts to pass-through, or add a raw TCP entry
-  (SEC09-host-policy).
+  (SEC09-host-policy). Repository configuration that sets
+  `enforcement: audit` on an endpoint is refused at load with an error
+  that names the host, like a pass host or a raw TCP entry. An approved
+  rule can't be in `audit` either ("Approved rule"). The maintainer decided this on I109.
   - *Closed keys.* It is parsed against a closed list of those keys, and
     any other key is a load error, so it can't set `placement` or
     `config_trust`. A rule on a built-in host whose
@@ -228,7 +243,7 @@ inspection is trusted, and what is recorded.
     a REST endpoint and one without rules (X24-openshell-artifacts). It
     answers `unsupported` for an endpoint in `audit` mode too. The
     candidate never holds one, because Wraith Box writes it as the
-    whole host in `enforce` mode ("What the prover sees" above).
+    whole host in `enforce` mode ("Audit as the whole host" above).
   - *Built-in profiles in the check.* The candidate holds the parts of
     the built-in profiles that are on (S07-egress-gateway, "Profile
     parts"), and no built-in rule is left out. The candidate holds the
@@ -288,10 +303,24 @@ inspection is trusted, and what is recorded.
     it off (S07-egress-gateway, "Profile parts"). This lock, and the
     removal of guest credentials in the places a profile names, hold
     whatever parts are on.
+  - *Mode per host and port.* `enforcement` is resolved for each host
+    and port over the whole union, not per endpoint: the built-in
+    profiles, the global, project and repository policy, the approved
+    rules, every endpoint within one file, and every project with a
+    session in the VM ("Per VM"). Any endpoint in `enforce` on a host
+    and port, from any source, puts that host and port in `enforce`,
+    and an endpoint with no `enforcement` field counts as `enforce`.
+    A host and port resolves to `audit` only when every endpoint on it
+    is in `audit`. `wb-proxyd`
+    applies the resolved mode to every request on that host and port,
+    never the `enforcement` field of the endpoint whose rule matched,
+    and the boundary check projects the same mode ("Audit as the
+    whole host"). The maintainer decided this on I109.
   - *Per VM.* The host enforces the merge for a VM, not for a project:
     the project sources are those of every project with a session in
-    the VM. Limits take the strictest value among them, and so does
-    `enforce` over `audit`. A conflict between projects, such as a host
+    the VM. Limits take the strictest value among them, and the mode
+    of a host and port resolves over every source, so `enforce` wins
+    over `audit` ("Mode per host and port"). A conflict between projects, such as a host
     in pass mode for one and inspected or bound for another, or two
     bindings for one host and path, refuses the joining session (S07-egress-gateway, "Enforced per
     VM"). The extension check above runs over the union at each

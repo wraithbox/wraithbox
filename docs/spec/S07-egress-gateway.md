@@ -810,6 +810,39 @@ session start in the VM to the end of the last session running in it.
       `gsa.apple.com`) then carry whatever Apple credentials the guest
       holds, which Wraith Box neither gave nor removes
       (T10-unnamed-credentials).
+  - **audit**: inspect, with the HTTP policy of the host and port
+    logging a violation and letting the request through ("HTTP
+    policy"). The mode is per host and port, resolved over the whole
+    union, and `enforce` wins when any source has an `enforce`
+    endpoint on that host and port (S09-policy-credentials-audit,
+    "Mode per host and port"). The boundary check sees an `audit` host
+    and port as every method and path on it
+    (S09-policy-credentials-audit, "Audit as the whole host"). The
+    maintainer decided its rules on I109:
+    - *Only the user sets it.* Only the global policy and a project's
+      network policy can put a host and port in `audit`. Repository
+      configuration and approvals can't (S09-policy-credentials-audit,
+      "Repository-supplied configuration", "Approved rule").
+    - *Never on a guarded host.* A host with a credential binding, or a
+      host a built-in profile covers (as for pass above, by name or
+      through a project's remotes), can't be in `audit`. With policy
+      not enforced there, a write the git hosting profile refuses
+      would pass with a credential injected, against
+      SEC06-repo-writes.
+      - *At load.* An `audit` endpoint on a guarded host is refused at
+        load with an error that names the host and the reason
+        (NFR06-explained-refusals).
+      - *At every recompute.* `wb-hostd` checks the same rule over the
+        union, whatever source set `audit`, so a global entry that
+        loaded while no project named its host refuses the session
+        start of a project whose remote names it. The error names that
+        project, the host and the file of the `audit` endpoint
+        (NFR06-explained-refusals).
+      - *A binding added later.* A change that adds a credential
+        binding on a host with an `audit` endpoint, in a policy file or
+        with `wb cred set`, is refused, and the `audit` endpoint stays.
+        The error names the endpoint and its file, and says to remove
+        it first (NFR06-explained-refusals).
   - Plain HTTP is allowed only when policy names `host:80`, and is
     always inspected.
   - A stream that isn't TLS or HTTP is reset unless policy names
@@ -967,11 +1000,12 @@ session start in the VM to the end of the last session running in it.
 - **HTTP policy** (SEC06-repo-writes). Rules match method and path per host, GraphQL
   operation type and name, and WebSocket messages, in the OpenShell
   policy schema (S09-policy-credentials-audit). Each inspected host enforces its rules by
-  default. A host can be set to `audit` while a new rule is tried out:
-  violations are then logged but allowed. The boundary check sees a
-  host in `audit` mode as the whole host, every method and path, so it
-  passes only when the boundary allows the whole host
-  (S09-policy-credentials-audit, "What the prover sees"). Built-in profiles:
+  default. A host and port can be set to `audit` while a new rule is
+  tried out: violations are then logged but allowed ("Modes, per
+  host"). The boundary check sees a host and port in `audit` as the
+  whole host on that port, every method and path, so it passes only
+  when the boundary allows every one (S09-policy-credentials-audit,
+  "Audit as the whole host"). Built-in profiles:
   - *git hosting*: reads allowed; `git-receive-pack` and mutating API
     calls only for the repositories of the projects with a session in
     the VM (derived from each project's host repository remotes, plus
