@@ -517,30 +517,38 @@ audit log (SEC10-audit).
   ends the session normally, not as lost. `wb-guestd` deletes a
   report when it is acknowledged, and a report or a recorded POSIX
   session id when it gets "end" for that session ("Reconnect"), so
-  the directory holds at most the 64 sessions of one VM.
+  the directory holds at most the 64 sessions of one VM. When the
+  session's client went and no session of its project user was left,
+  the report also has a cleanup field, the result of the kill loop
+  that followed ("Leftover processes"): clean, or the count of
+  processes left, capped at 1001.
 - **Leftover processes.** The kill loop of S13-guest-confinement
-  ("Layer 1") ends clean or with a count of processes left. Where
-  `wb-hostd` triggers the loop (when it ends a project's last session
-  in the VM, and the kill of users with no lost session at the first
-  connection), `wb-guestd` writes a cleanup record to its root-owned
-  directory: the project ID, which kill it was, and the result. It
-  keeps the record until `wb-hostd` acknowledges it, and lists it at
-  reconnect next to the session reports, inside the same 64-entry
-  bound and duplicate rule ("Reconnect"). Where the loop runs because
-  a session's client went and no session of that user is left, the
-  result is a field of that session's report ("Ending"). So there is
-  at most one result per project per kill loop.
-  `wb-hostd` accepts a result of processes left only when all of these
-  hold, and otherwise drops it and logs the rule:
-  - the project ID passes the project ID format check of S05-cli
-    ("Naming");
-  - it matches a kill that `wb-hostd` itself sent for that project in
-    this VM and this VM generation, or the session whose report
-    carries it is that project's;
-  - it arrives within the ending deadline of that kill or session
-    ("Deadlines").
+  ("Layer 1") ends clean or with a count of processes left.
+  - *Kill IDs and records.* Each kill of a project user that
+    `wb-hostd` sends (when it ends a project's last session in the VM,
+    and the kill of users with no lost session at the first
+    connection) carries a kill ID that `wb-hostd` assigns. For each
+    one, `wb-guestd` writes a cleanup record to its root-owned
+    directory: the kill ID, the project ID, and the result, clean or
+    the count of processes left, capped at 1001. It keeps the record
+    until `wb-hostd` acknowledges it, and lists it at reconnect
+    ("Reconnect"). It holds at most one record per project user in the
+    VM, counted apart from the 64 session entries. Where the loop runs
+    because a session's client went and no session of that user is
+    left, the result is the cleanup field of that session's report
+    ("Ending").
+  - *Acceptance.* `wb-hostd` accepts a result only when the project ID
+    passes the project ID format check of S05-cli ("Naming"), and the
+    record's kill ID is exactly one that `wb-hostd` sent for that
+    project in this VM and this VM generation, or the report is that
+    of the session whose end led to the kill. It must arrive before
+    the kill's deadline ("Deadlines"). Anything else is dropped and
+    logged with its rule.
+  - *Failing closed.* A kill without an accepted clean result by its
+    deadline counts as a result of processes left. A late, missing or
+    dropped result never counts as clean.
 
-  For an accepted result, `wb-hostd`:
+  For a result of processes left, `wb-hostd`:
   - writes an audit event with the rule (SEC10-audit) and tells the
     user in `wb status` and at the next `wb` command. Both name the
     project from `wb-hostd`'s own table, never from the guest's
@@ -555,10 +563,11 @@ audit log (SEC10-audit).
   - offers `wb vm stop` followed by `wb vm start` (S05-cli), which
     work once no session runs in the VM.
 
-  Guest root can fake a result or hold it back. A faked one only makes
-  `wb-hostd` stricter, a cost T11-shared-vm-grants records. A withheld
-  one leaves the residual of S07-egress-gateway, "Leftover processes",
-  which a cold boot and the review of the learn list cover.
+  Guest root can fake a result or hold it back. A faked count, a
+  withheld result or a late one only makes `wb-hostd` stricter, a
+  cost T11-shared-vm-grants records. A faked clean result leaves the
+  residual of S07-egress-gateway, "Leftover processes", which a cold
+  boot and the review of the learn list cover.
 - **Returned work comes from the host.** The summary's commit count
   and its "(+ WIP)" mark come from `landing.git`, not from the
   report. A report that claims a push that `wb-hostd`'s `receive-pack`
@@ -575,7 +584,9 @@ audit log (SEC10-audit).
   admission, which includes the toolchain reconcile (FR07-toolchain-manifest),
   and ending and recovery have 7 minutes each, which hold the 10
   seconds of the hangup, the WIP commit and the 5-minute push
-  watchdog (S08-workspace-and-git, "Bounds"). Past its deadline,
+  watchdog (S08-workspace-and-git, "Bounds"). A kill of a project user
+  ("Leftover processes") has 7 minutes from the kill, or from the
+  start of ending for one that follows a client that went. Past its deadline,
   `wb-hostd` has `wb-guestd` end the session (below) and records it
   as ended with a Wraith Box failure, and `wb` exits with 255. The
   worktree keeps its changes until `wb discard`. So a guest that never
@@ -587,14 +598,15 @@ audit log (SEC10-audit).
   first try, doubles the wait after each failed one up to 5 s, and
   opens at most 20 connections to one VM in a minute
   (SEC13-bounded-resources). After it connects, `wb-guestd` lists the
-  sessions it holds, the reports of finished sessions and the cleanup
-  records that `wb-hostd` hasn't acknowledged ("Ending", "Leftover
-  processes"). The list is guest input
+  sessions it holds, the reports of finished sessions, and the cleanup
+  records, each with its kill ID, that `wb-hostd` hasn't acknowledged
+  ("Ending", "Leftover processes"). The list is guest input
   (SEC11-root-gains-nothing). `wb-hostd` refuses a list of more than
-  64 entries, held sessions, reports and cleanup records counted
-  together, whole. It
+  64 entries, held sessions and reports counted together, or with more
+  cleanup records than project users in the VM, whole. It
   also refuses a list that names one id twice, as a held session and
-  as a report or twice as either. It logs the refusal and closes the
+  as a report or twice as either, or that has two records with one
+  kill ID. It logs the refusal and closes the
   connection, which counts as a failed try. It runs at most 64 sessions in one VM. For each
   entry it checks the session ID format of S05-cli ("Naming") first,
   then looks for a session of this VM and this VM generation only, and
@@ -625,7 +637,12 @@ audit log (SEC10-audit).
     removes the worktree and its history link. `wb-hostd` logs each
     such entry with the rule.
 
-  Every entry gets one of these answers, so every report is cleared.
+  A cleanup record gets "acknowledged" when it passes the checks of
+  "Leftover processes" or was already acknowledged, and "end"
+  otherwise, which deletes it.
+
+  Every entry gets one of these answers, so every report and record is
+  cleared.
 
   `wb-guestd` resumes a session only on "resume". A session of this VM
   that `wb-hostd` has as running, paused or ending and the list
