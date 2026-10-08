@@ -226,6 +226,9 @@ gh issue view 34 --json blockedBy,blocking,parent,subIssues,milestone
   a test account): file an issue for that action, labeled
   `ready-for-human`, and block the waiting issue on it. The maintainer
   closes the action issue once done.
+- **Any other outside wait** (an upstream release, a vendor fix) also
+  gets an issue, closed when the wait ends, and the waiting issue is
+  blocked on it.
 - **Parent** records where an issue came from: a split, a kept entry of a
   list, or a follow-up from a review of issue N.
 - A pull request links its issue with `Closes #N` in the body. To mention
