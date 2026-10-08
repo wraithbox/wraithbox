@@ -780,8 +780,8 @@ side. Both fetches cross between the two with `git fetch
   isn't an MSYS program, such as `wsl.exe`, it converts arguments that
   look like POSIX paths into Windows paths, so `/usr/local/bin/wb` or
   `/home/<user>/repo` would reach the distribution as Windows paths.
-  The Windows-side fetch therefore runs with `MSYS_NO_PATHCONV=1` in
-  its environment, which turns that conversion off.
+  `MSYS_NO_PATHCONV=1` turns that conversion off, and the
+  Windows-side fetch runs with it in its environment.
 - **The placeholder path.** The fetch's path is a placeholder that the
   program ignores. Git reads an existing bundle file at that path as a
   bundle and ignores `--upload-pack` (reproduced with git 2.56.0 for
@@ -793,8 +793,16 @@ side. Both fetches cross between the two with `git fetch
   a process of the user can create one, because only the user can
   write the directory. T00-index trusts the user's processes. On
   Windows they include `wb-hostd` until I190 gives it a profile there,
-  and what it could gain with a bundle at the placeholder, objects of
-  its choosing in a landed branch, is already in T16-hostd-landing.
+  and what it could gain depends on the side:
+  - The WSL-side placeholder belongs to the land and diff fetches. A
+    bundle there puts objects and refs of its choosing in a landed
+    branch or the `wb diff` scratch repository, which
+    T16-hostd-landing already covers.
+  - The Windows-side placeholder belongs to the export update. A
+    bundle there puts objects and refs of its choosing in
+    `export.git`, which T16-hostd-landing doesn't cover. On Windows
+    that adds nothing until I190, because without a profile
+    `wb-hostd` can already write `export.git` there.
 - **Fetch settings.** Each fetch runs with `GIT_PROTOCOL_FROM_USER=0`,
   `protocol.allow=never`, `protocol.file.allow=always` and
   `--no-recurse-submodules`, as in "Landing on the host".
