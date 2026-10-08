@@ -317,7 +317,16 @@ nothing themselves (S12-platforms).
     Seatbelt match on the resolved path is the control that matters,
     and the path check is defense in depth (X23-sandboxed-daemons).
     Both profiles allow reading the git installation and writing
-    `/dev/null`. The `wb-git-upload` profile allows reading its
+    `/dev/null`. The only programs they let the shim start are git and
+    the programs of its own installation (`libexec/git-core/`), plus,
+    for `wb-git-receive`, the pre-receive check in the bundle's hooks
+    directory (S08-workspace-and-git, "Pre-receive check"). Neither
+    allows a shell. A command that git would run through one, such as
+    a `core.alternateRefsCommand` from a repository's own
+    configuration, fails. `wb-hostd` writes `landing.git/config` as fixed content
+    when it creates the repository, checks at start that each
+    `landing.git/config` still holds exactly that content, and refuses
+    pushes to a project whose `config` differs. The `wb-git-upload` profile allows reading its
     `export.git` and no other write, because `upload-pack` only reads
     the repository it serves (I67). The `wb-git-receive` profile
     allows reading and writing its `landing.git`, and reading, never
@@ -348,28 +357,82 @@ nothing themselves (S12-platforms).
     serves `export.git` to the guest, through `wb-git-upload`
     (S08-workspace-and-git, "Export repository", decided on I67).
   - `wb-hostd`'s profile allows reading `<config>`, and reading and
-    writing `<logs>` and `<data>`, except under the projects root
-    `<data>/projects`. It may read the whole projects root, and write
-    only inside `<data>/projects/<id>/landing.git`: the path itself and
-    everything below it, for any `<id>`. It can't write `export.git`,
-    a project directory or the projects root itself. `wb` runs git in
-    `export.git`, and git trusts a repository's own configuration, so
-    a compromised `wb-hostd` that could write there could make `wb` run
-    a program (SEC12-least-privilege, SEC03-no-host-exec). A profile
-    that allows the whole of `<data>` and only denies `export.git` isn't
-    enough. It still lets the process move a project directory out of
-    the projects root, write the `export.git` inside it, and move it
-    back. On macOS the profile allows writes under `<data>`, then denies
-    them under the projects root, then allows them again for a path
-    matching `^<projects root>/[^/]+/landing\.git(/|$)`, with the
-    projects root's real path, because a later Seatbelt rule takes
-    precedence over an earlier one. So `wb setup` creates the projects
-    root before it starts the service, `wb` creates each project
-    directory and its `export.git`, `wb-hostd` creates `landing.git`
-    inside it, and at `wb project rm` `wb` removes the project
-    directory (S05-cli). The operation `wb-hostd` tries right after it
-    confines itself, to check that the profile holds, is creating a
-    file in the projects root.
+    writing `<logs>` and `<data>`, with these exceptions
+    (SEC12-least-privilege, SEC03-no-host-exec):
+    - Under the projects root `<data>/projects` it may read
+      everything, and write only inside
+      `<data>/projects/<id>/landing.git`: that path and everything
+      below it, for any `<id>`. It can't write `export.git`, a project
+      directory, or the projects root itself, so it can't create,
+      rename or remove any of them.
+    - It can't write `<data>` itself, or any other directory between
+      `<data>` and the projects root, so it can't rename or remove
+      them. Seatbelt checks a rename against the two paths it names,
+      not against what the moved directory holds. Without this rule
+      `wb-hostd` could move `<data>` into `<logs>`, write the
+      `export.git` inside it and move it back.
+    - It can't make a hard link whose source is under the projects root
+      outside a `landing.git`. Seatbelt checks `file-link` against the
+      source path as well as the new name, so the rule that denies
+      writing `export.git` denies linking its files into a place
+      `wb-hostd` may write.
+
+    `wb` runs git in `export.git`, and git trusts a repository's own
+    configuration, so a compromised `wb-hostd` that could write there
+    could make `wb` run a program. It can still rename `landing.git`
+    out of its project directory, replace it, or create it as a
+    symbolic link to anything, because the rule allows every write at
+    that path. So `wb` never runs git with `landing.git` as its
+    repository, and checks it before every fetch from it
+    (S08-workspace-and-git, "Landing on the host").
+
+    On macOS the profile allows writes under `<data>` and `<logs>`,
+    then denies writes to the literal path of `<data>` and of each
+    directory between it and the projects root, then denies writes
+    under the projects root, then allows them again where both
+    `(subpath <projects root>)` and a regex match. The regex doesn't
+    hold any byte of the projects root's path, which therefore doesn't
+    need escaping. It pins the depth instead: `^` followed by one `/[^/]+` per
+    component of the projects root's real path, then
+    `/[^/]+/landing[.]git(/|$)`. `wb-hostd` builds it from that count
+    before it confines itself and passes it as a profile parameter. A
+    later Seatbelt rule takes precedence over an earlier one. So
+    `wb setup` creates the projects root before it starts the
+    service, `wb` creates each project directory and its `export.git`,
+    `wb-hostd` creates `landing.git` inside it, and at `wb project rm`
+    `wb` removes the project directory (S05-cli).
+
+    `wb setup` also creates a probe directory,
+    `<projects root>/.wb-probe/export.git`, with one file in it,
+    `probe`. `.wb-probe` isn't in the project ID format, so no request
+    can name it. Right after it confines itself, `wb-hostd` tries each
+    of these, and exits when one succeeds, fails for any reason other
+    than the sandbox's denial, or the probe file is missing:
+    - creating a file in the projects root;
+    - writing `.wb-probe/export.git/probe`;
+    - hard-linking `.wb-probe/export.git/probe` to a fixed name in
+      `<data>/run`;
+    - renaming `<data>` to a fixed name in `<logs>`;
+    - renaming `.wb-probe` to a fixed name in `<data>/run`;
+    - creating `.wb-probe/landing.git-probe`, next to where a
+      `landing.git` would be, which checks that the regex ends at
+      `landing.git` or a `/` after it.
+- **`wb` takes no path, URL or program from `wb-hostd`.** `wb` runs
+  as the user outside any profile, so what it runs is the boundary
+  that SEC12-least-privilege puts around a compromised `wb-hostd`. It
+  never runs a binary that `wb-hostd` names, never passes git a path
+  or URL that `wb-hostd` handed it, and never runs git with a
+  repository that `wb-hostd` can write as its repository. The one
+  place git reads such a repository for `wb` is the `upload-pack` that
+  a fetch from it starts, which doesn't run a command from that
+  repository's own configuration (protected configuration, S08-workspace-and-git,
+  "Landing on the host"). It derives
+  each path under `<data>` itself, from IDs it checks against their
+  format, and compares any path `wb-hostd` reports with its own,
+  refusing on a mismatch. A directory `wb-hostd` can write, such as
+  `landing.git`, is only ever the remote of a fetch that `wb` runs in
+  another repository (S08-workspace-and-git, "Landing on the host",
+  "Host git").
 - **Everything in the guest is untrusted, including `wb-guestd`.** The
   host validates every message from the guest as adversarial input. The
   guest agent is a convenience for the host, not a security component.

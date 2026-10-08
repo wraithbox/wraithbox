@@ -72,16 +72,27 @@ back out, without sharing the host filesystem.
   project directory that holds it, or the projects root
   (S04-architecture, "Each host daemon is self-sandboxed"), because
   `wb` runs git in that repository and git trusts a repository's own
-  configuration. `wb` creates the project directory and `export.git`
-  in it, with the fixed layout and `config` below. That denial is the
-  control. As a
-  second layer, before each run `wb` checks that `export.git` holds
-  only the fixed layout it creates (`HEAD`, `config`, `packed-refs`,
-  refs under `refs/`, and loose objects and packs under `objects/`),
-  and that `config` holds exactly what `wb` wrote. Any other file
-  refuses the run, among them `objects/info/alternates`, `commondir`,
-  `info/grafts` and `shallow`. `wb` also runs git with
-  `core.hooksPath=/dev/null` on its command line.
+  configuration. `wb` creates the project directory, and `export.git`
+  in it with `git init --bare --template=`, which doesn't copy
+  template files, and then writes `config` itself. That denial is the control.
+  As a second layer, before each run `wb` checks that `export.git`
+  holds only the fixed layout it creates and the files its own git
+  commands write: `HEAD`, `config`, `packed-refs`, refs under `refs/`,
+  loose objects under `objects/`, the directories `objects/info` and
+  `objects/pack`, and in `objects/pack` packs with their `.idx`,
+  `.rev` and `.bitmap` side files. Every entry must be a regular file
+  or a directory, and every file must have a link count of 1, so a
+  hard link into `export.git` is refused too. `config` must hold
+  exactly what `wb` wrote. Any other file refuses the run, among them
+  `objects/info/alternates`, `objects/info/packs`, `info/refs`,
+  `FETCH_HEAD`, `commondir`, `info/grafts` and `shallow`. So `wb`
+  runs every git command in `export.git` with
+  `core.hooksPath=/dev/null`, `gc.auto=0`, `maintenance.auto=false`
+  and `repack.updateServerInfo=false` on its command line, and fetches
+  with `--no-write-fetch-head`. Before the check it removes what an
+  interrupted run of its own leaves behind, `*.lock` files,
+  `objects/pack/tmp_*` and `objects/pack/*.keep`, because no other
+  process writes there.
 
   On a partial clone, `upload-pack` refuses to fetch missing objects
   from the user's `origin` (`git-upload-pack(1)`, `GIT_NO_LAZY_FETCH`),
@@ -488,6 +499,15 @@ back out, without sharing the host filesystem.
   git binary of "Host git" below) from the landing repository into
   `wb/<session-id>` in the user's repository. It never checks out,
   merges, or runs anything. A fetch only writes objects and refs.
+  `landing.git` is only ever the remote of a fetch: `wb` never runs git
+  with it, or with any other directory `wb-hostd` can write, as its
+  repository (S04-architecture, "`wb` takes no path, URL or program
+  from `wb-hostd`").
+  - `wb land` and `wb diff` resolve the user's repository from the
+    current directory, by the rules `wb claude` uses (S05-cli,
+    "Naming"), never from a path in `state.db` or from `wb-hostd`.
+    They refuse a session that doesn't belong to that project, and a
+    project key under `<data>`, `<config>` or `<logs>`.
   - `wb` derives the landing repository's path itself, as
     `<data>/projects/<project-id>/landing.git` from a project ID it
     checks against the project ID format. It compares that path with
@@ -495,6 +515,18 @@ back out, without sharing the host filesystem.
     passes git a path or URL that `wb-hostd` handed it, so a
     compromised `wb-hostd` can't make it fetch from an `ext::` URL or
     another repository (SEC12-least-privilege).
+  - Before each fetch from `landing.git`, `wb` checks it, and refuses
+    the command when a check fails. With `lstat`, it checks that the
+    projects root, the project directory, `landing.git`, `objects`,
+    `objects/info` and `refs` are each a directory and not a symbolic
+    link. `objects/info/alternates` must hold exactly one line,
+    `<real path of the projects root>/<project-id>/export.git/objects`.
+    There must be no `commondir`, `gitdir`, `info/grafts`, `shallow` or
+    `objects/info/http-alternates`, and no ref under `refs/replace/`,
+    loose or in `packed-refs`. `wb-hostd` can write `landing.git`, so
+    these checks only narrow what it can do: it can swap the directory
+    between the check and the fetch, and it can put objects of any
+    project in the session's branch (T16-hostd-landing).
   - The fetch checks every object it receives:
     `fetch.fsckObjects=true`, `transfer.fsckObjects=true`, and each
     check that `receive-pack` sets to an error set to an error here too
@@ -502,6 +534,16 @@ back out, without sharing the host filesystem.
     check refuses the land, and the fetch doesn't update a ref in the
     user's repository. This repeats the checks of the push, for objects
     that reached `landing.git` another way (SEC03-no-host-exec).
+  - The fetch runs with `core.hooksPath=/dev/null`,
+    `maintenance.auto=false` and `gc.auto=0` on git's command line.
+    Git then doesn't run a hook or maintenance in the user's
+    repository during it.
+    It runs with `GIT_PROTOCOL_FROM_USER=0` in its environment and
+    `protocol.file.allow=always` on its command line, so a transport
+    other than the local one, such as `ext::`, is refused. With
+    `GIT_PROTOCOL_FROM_USER=0` and without that setting, git 2.54.0
+    and 2.56.0 refuse the local fetch too (`transport 'file' not
+    allowed`).
   - The fetch starts `upload-pack` in `landing.git`, whose
     configuration `wb-hostd` can write. That relies on git's rule for
     protected configuration: `upload-pack` runs
@@ -509,6 +551,18 @@ back out, without sharing the host filesystem.
     system, global or command-line configuration, never from the
     repository's own (`git-config(1)`, "Protected configuration", and
     `git-upload-pack(1)`, "SECURITY").
+  - `wb diff` reads the session's commits the same way. It creates a
+    scratch bare repository with `git init --bare --template=` in a new
+    directory, readable only by the user, in the user's temporary
+    directory, outside `<data>`, `<config>` and `<logs>`. It writes
+    the scratch repository's `config` itself, and an alternates entry
+    to the user repository's objects, so the session's base isn't
+    copied. Then it runs the same checks and the same fetch into it,
+    and runs `git --no-pager diff` and `git --no-pager log` there with
+    `--no-ext-diff`, `--no-textconv` and `core.hooksPath=/dev/null`,
+    and `git log` also with `--no-show-signature`. It removes the
+    scratch repository when it is done. `wb diff` writes nothing in
+    the user's repository.
 - **Repository lifecycle** (B41-git-data-scope, item 6). Git never
   collects garbage in `export.git` or `landing.git` by itself. Both have
   `gc.auto=0` and `maintenance.auto=false`, and `landing.git` has
@@ -695,35 +749,49 @@ quarantine attribute on macOS, Mark of the Web on Windows; S12-platforms).
 ## WSL
 
 When `wb` runs inside WSL (S12-platforms), the repository is in the WSL
-distribution, and `export.git` is on the Windows side. The
-Windows-side `wb.exe relay` that the WSL-side `wb` starts
-(S12-platforms, "WSL") runs as the Windows user, outside any
-sandbox, and acts as the `wb` of "Export repository" and "Repository
-lifecycle" for `export.git`. It takes the export lock over
-`wb-hostd`'s named pipe, checks the layout and `config`, runs the
-fetch, deletes refs, and runs the shrink steps and the prune, all
-with the Windows host git ("Host git"). The server of its fetch is a
-`git upload-pack` that the WSL-side `wb` runs on the user's
-repository, with its own git, which it resolves and checks by "Host
-git", and with `GIT_NO_LAZY_FETCH=1`. The WSL-side `wb` relays that
-`upload-pack`'s standard input and output in the gRPC stream it
-already has with `wb.exe`. `wb.exe` hands the stream to its
-`git fetch` through Wraith Box's own remote helper with `connect`,
-the mechanism `git-remote-wb` uses in the guest, with a URL it builds
-itself, never a path or URL from `wb-hostd`.
+distribution, and `export.git` and `landing.git` are on the Windows
+side. Both fetches cross between the two with `git fetch
+--upload-pack=<program>`, where the program is an absolute path, so
+git looks up no remote helper and nothing on `PATH`. Git passes the
+program the fetch's path as its last argument. That path is a fixed
+placeholder, `/wb-relay`, which doesn't name a repository, and the
+program ignores it. Each fetch runs with `GIT_PROTOCOL_FROM_USER=0` and
+`protocol.file.allow=always`, as in "Landing on the host".
 
-`wb-hostd` sees none of this stream, so it never becomes the fetch
-client of an `upload-pack` on the user's repository, which over
-protocol v2 could ask for any object of that repository by its ID
+- **Export update.** The Windows-side `wb.exe relay` that the WSL-side
+  `wb` starts (S12-platforms, "WSL") runs as the Windows user, outside
+  any sandbox. It is the `wb` of "Export repository" and "Repository
+  lifecycle" for `export.git`, with the Windows host git ("Host
+  git"). It takes the export lock over `wb-hostd`'s named pipe. Under
+  it, it checks the layout and `config`, fetches, deletes refs, and
+  runs the shrink steps and the prune. Its fetch's program is
+  `wsl.exe` at its fixed path in the Windows system directory, with
+  the distribution and the Linux user of the WSL-side `wb`, and
+  `--exec` of the WSL-side `wb`'s absolute path with the subcommand
+  `upload-pack-relay` and the repository's path. The WSL-side `wb`
+  sends those three values, and `wb.exe` takes none of them from
+  `wb-hostd`. In the distribution, `wb upload-pack-relay` checks that
+  the path is the git common directory that the rules of S05-cli
+  ("Naming") give for that path, then runs
+  `git upload-pack` on it with its own git, which it resolves and
+  checks by "Host git", and with `GIT_NO_LAZY_FETCH=1`. WSL interop
+  carries the standard input and output.
+- **Land and diff.** The WSL-side `wb` runs the fetch of "Landing on
+  the host" in the distribution, into the user's repository or the
+  scratch repository of `wb diff`. Its program is `wb.exe` at the path
+  the WSL-side `wb` uses to start the relay, with the subcommand
+  `landing-upload-pack`, the project ID and the session ID. `wb.exe`
+  checks both IDs against their formats, derives the landing
+  repository's path itself, runs the checks of "Landing on the host"
+  on it, and then runs `git upload-pack` on it with the Windows git.
+
+Both streams bypass `wb-hostd`, so it never becomes the fetch client of
+an `upload-pack` on the user's repository, which over protocol v2
+could ask for any object of that repository by its ID
 (X07-git-round-trip). The WSL-side `wb` doesn't write `export.git`
-over the cross-OS file share either. `export.git` then has one
-writer, which runs on the Windows side with the Windows git, and
-`wb-hostd` doesn't need to write it on Windows either.
-
-`wb land` fetches from the landing repository on the Windows side
-through the gRPC channel, with the object checks of "Landing on the
-host". Everything else in this spec is unchanged.
-
+over the cross-OS file share either. `export.git` then has one writer,
+on the Windows side, with the Windows git. Everything else in this
+spec is unchanged.
 ## Open points
 
 Git LFS objects, submodules, and very large repositories are not covered
