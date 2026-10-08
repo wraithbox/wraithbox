@@ -20,7 +20,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb` | Go | user, per invocation | nothing; writes binding secrets to the secret store (`wb cred set`, S15-least-privilege) | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
-| `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository, then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
+| `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository (for a push, also reading the `export.git` it borrows from), then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
 | `wb-prover` | Go | user, per boundary check (at `wb trust` and for an approval request whose result isn't cached), started through `wb-launcher` (on macOS); instance cap one per VM plus one for `wb trust` | nothing | repository policy, and a host name the guest asked for in an approval request, both through `wb-hostd` | Set its memory cap, confine itself to its inherited descriptors (the two documents and the result pipe), check the prover binary's hash, then run `openshell-prover check` with fixed arguments (S09-policy-credentials-audit) |
 | `wb-vmd` | platform-native | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | VM handles; during an image build, the provisioning password on a pipe until the start call returns (S15-least-privilege) | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
 | `wb-netd` | Go | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS) | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (S07-egress-gateway) |
@@ -307,14 +307,22 @@ nothing themselves (S12-platforms).
     before it confined itself) once, when it starts. It accepts the
     repository only if it equals, after cleaning,
     `<real path of the projects root>/<id>/<basename>`, with `<id>` in
-    the project ID format and `<basename>` either `landing.git` or
-    `export.git` (I41). It never resolves the request string itself,
+    the project ID format and `<basename>` `landing.git` for
+    `wb-git-receive` and `export.git` for `wb-git-upload` (I41, I67).
+    It never resolves the request string itself,
     which would follow a symbolic link an attacker placed. The shim
     repeats the same check before it calls `sandbox_init`. The
     repository becomes the shim's profile parameter and git's one path
     argument. This is a bounded exception to "no arguments". The
     Seatbelt match on the resolved path is the control that matters,
     and the path check is defense in depth (X23-sandboxed-daemons).
+    Both profiles allow reading the git installation and writing
+    `/dev/null`. The `wb-git-upload` profile allows reading its
+    `export.git` and no other write, because `upload-pack` only reads
+    the repository it serves (I67). The `wb-git-receive` profile
+    allows reading and writing its `landing.git`, and reading, never
+    writing, the `export.git` next to it, which `landing.git` borrows
+    objects from (S08-workspace-and-git, "Landing repository").
     Instead of a path, `wb-hostd` could hand over an inherited
     directory descriptor that the launcher checks with `F_GETPATH`,
     which keeps the path out of the request. That is the fallback if
@@ -333,9 +341,35 @@ nothing themselves (S12-platforms).
     landing repositories, and the audit log. The maintainer chose the
     `wb-git` shim on I34. Falling back would need a spec change and a
     T00-index entry for the residual risk.
-  - Open: `wb-hostd` can't read the user's repository under its profile,
-    which S08-workspace-and-git's `upload-pack` and export repository
-    need (I67).
+  - `wb-hostd` never opens the user's repository, and its profile
+    doesn't name one. `wb`, running as the user outside any profile,
+    fetches the selected refs from the user's repository into the
+    project's `export.git` and is its only writer. `wb-hostd` only
+    serves `export.git` to the guest, through `wb-git-upload`
+    (S08-workspace-and-git, "Export repository", decided on I67).
+  - `wb-hostd`'s profile allows reading `<config>`, and reading and
+    writing `<logs>` and `<data>`, except under the projects root
+    `<data>/projects`. It may read the whole projects root, and write
+    only inside `<data>/projects/<id>/landing.git`: the path itself and
+    everything below it, for any `<id>`. It can't write `export.git`,
+    a project directory or the projects root itself. `wb` runs git in
+    `export.git`, and git trusts a repository's own configuration, so
+    a compromised `wb-hostd` that could write there could make `wb` run
+    a program (SEC12-least-privilege, SEC03-no-host-exec). A profile
+    that allows the whole of `<data>` and only denies `export.git` isn't
+    enough. It still lets the process move a project directory out of
+    the projects root, write the `export.git` inside it, and move it
+    back. On macOS the profile allows writes under `<data>`, then denies
+    them under the projects root, then allows them again for a path
+    matching `^<projects root>/[^/]+/landing\.git(/|$)`, with the
+    projects root's real path, because a later Seatbelt rule takes
+    precedence over an earlier one. So `wb setup` creates the projects
+    root before it starts the service, `wb` creates each project
+    directory and its `export.git`, `wb-hostd` creates `landing.git`
+    inside it, and at `wb project rm` `wb` removes the project
+    directory (S05-cli). The operation `wb-hostd` tries right after it
+    confines itself, to check that the profile holds, is creating a
+    file in the projects root.
 - **Everything in the guest is untrusted, including `wb-guestd`.** The
   host validates every message from the guest as adversarial input. The
   guest agent is a convenience for the host, not a security component.
@@ -719,7 +753,7 @@ layout is the same everywhere:
 <data>/
   images/                             base images (copy-on-write clones)
   vms/<guest-os>-{work,isolated}/     VM bundles: disks, machine identity, saved state
-  projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only (S08-workspace-and-git)
+  projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
   state.db                            SQLite: projects, sessions, approvals, caches
   run/                                user-only directory for local IPC endpoints
