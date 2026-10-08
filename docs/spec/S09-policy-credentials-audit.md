@@ -705,7 +705,8 @@ VM", I36).
   Change (5019), Detection Finding (2004), approvals, returned work,
   recovery pushes, secret store accesses, and the records of VM starts
   and stops and of sessions. Their sources bound them already
-  (approval limits, push limits, session limits).
+  (approval limits, push limits, session limits, and the terminal
+  filter's records per session, "Terminal filter" below).
 - The high-volume classes, Network Activity (4001) and HTTP Activity
   (4002), have a budget per VM per minute: `audit_events_per_minute`
   in `config.toml` (default 6000). Over the budget `wb-hostd` doesn't
@@ -758,8 +759,9 @@ VM", I36).
   Config State Change (5019) for policy, approvals and project
   settings, and Detection Finding (2004) for
   refused placeholders, foreign credentials removed from a request
-  (S07-egress-gateway), pin mismatches, and other signs of an attack. A
-  SIEM can read the log without a custom parser.
+  (S07-egress-gateway), pin mismatches, the terminal filter's drops
+  and dropped links, and other signs of an attack. A SIEM can read the
+  log without a custom parser.
 - Project settings. `wb trust`, `wb untrust`, and the `wb project`
   commands that change a project write a 5019 event with the values
   before and after: `config_trust`, `placement`, the location, the
@@ -769,8 +771,50 @@ VM", I36).
   network events, derived from the guest's label, see below);
   destination host and port; decision and the rule that made it; HTTP
   method and path for inspected requests; bytes in and out; approval
-  actions; returned work and its flags. Process attribution reported by
-  the guest is stored as an untrusted label.
+  actions; returned work and its flags; the terminal filter's drop
+  counts by rule and its dropped links, escaped ("Terminal filter").
+  Process attribution reported by the guest is stored as an untrusted
+  label.
+- Terminal filter. `wb` filters the guest's terminal stream and sends
+  `wb-hostd`, over its connection for the session, the drop counts by
+  rule and the dropped links it keeps (S16-terminal-stream, "Drop
+  rules" and "Links"). It sends each kept link when it keeps it, the
+  counts every 10 seconds while they change, and the counts once more
+  when the stream ends. So a `wb` that crashes loses at most the last
+  10 seconds of counts. `wb-hostd` keeps the last counts with the
+  session's record in `state.db`, and `wb sessions` shows them in the
+  summary of a session whose `wb` is gone (S05-cli, "Session
+  behavior").
+  - *Records.* All are Detection Findings (2004), with the session's
+    VM, project and session by the host's attribution, because they
+    come from the `wb` that started the session, not from a guest
+    label. Each kept link is one record when it arrives: its URL, its
+    text, and its mark, if it has one. When the session ends, each rule
+    with drops is one record with its count, and the links past the 100
+    kept, if any, are one record with their counts by mark. So a
+    session writes at most 100 link records, one record per rule, and
+    one for the links past 100.
+  - *Severity.* Low for a marked link and for the rules whose sequence
+    makes a terminal act on the host or type text into its input:
+    `terminal-osc-clipboard`, `terminal-osc-iterm`,
+    `terminal-csi-window`, `terminal-dcs` and `terminal-apc`.
+    Informational for the rest. The filter dropped every one, so none
+    needs action at once.
+  - *Form.* `wb-hostd` takes these reports only from the `wb` of the
+    session, and checks them: rule names and marks from
+    S16-terminal-stream's lists, counts that never go down, at most 100
+    links per session, URLs of at most 2048 bytes and texts of at most
+    256 characters. It refuses a report that fails the check with the
+    rule `terminal-report-form`, and logs the refusal with the session.
+  - *Escaping.* A link's URL and text are guest bytes. The record holds
+    each control character (C0, `DEL` and C1) and each Unicode format
+    character (general category Cf, which holds the bidirectional
+    controls and the zero-width characters) as `\u{XXXX}`, each byte
+    that isn't valid UTF-8 as `\xNN`, and each backslash as `\\`. So a
+    reader of the log sees them, and no viewer acts on them
+    (S16-terminal-stream, "Guest text elsewhere"). JSON's own escaping
+    isn't enough, because a JSON reader turns `\u202e` back into the
+    character it names.
 - Attribution of network events. `wb-netd` and `wb-proxyd` know the VM,
   and `wb-hostd` adds the projects and sessions running in it. The
   project, session, guest user and program of each connection come

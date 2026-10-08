@@ -49,7 +49,8 @@ filters packets (SEC03-no-host-exec).
   of a long payload never shows as text.
 - **Counts.** Each drop is counted by rule, and the session summary
   reports the counts (NFR06-explained-refusals). A sequence that a new
-  Claude Code version starts to use shows up there.
+  Claude Code version starts to use shows up there. A sequence cut at
+  a buffer cap counts under the rule of its class ("Drop rules").
 
 | Class | Passes | Dropped |
 |---|---|---|
@@ -78,18 +79,43 @@ title report (`CSI 21 t`), OSC 52 with `?`, and DECRQSS (a DCS) never
 join the list: each makes the terminal type guest-chosen text back
 into its input, which would reach the user's shell after `wb` exits.
 
+**Drop rules.** The counts are by these rules. They are a fixed list,
+so a guest can't make up new ones, and the audit log records the
+counts by these names (S09-policy-credentials-audit, "Audit").
+
+| Rule | Counts |
+|---|---|
+| `terminal-c1` | C1 controls in text |
+| `terminal-c0` | the C0 controls and `DEL` the table drops, and each BEL over the rate |
+| `terminal-esc` | `ESC` sequences the table drops |
+| `terminal-csi` | CSI sequences the table drops, other than `t` |
+| `terminal-csi-window` | CSI `t` sequences the table drops: window moves, title reports, the title stack |
+| `terminal-osc-title` | OSC 0 to 2 |
+| `terminal-osc-link` | OSC 8 |
+| `terminal-osc-clipboard` | OSC 52 |
+| `terminal-osc-iterm` | OSC 1337 |
+| `terminal-osc` | the other OSC sequences the table drops |
+| `terminal-osc-notify` | OSC 9, 99 and 777, which the filter turns into a BEL rather than drop |
+| `terminal-dcs` | DCS |
+| `terminal-apc` | APC, the kitty graphics protocol among them |
+| `terminal-pm-sos` | PM and SOS |
+
 **Links.** OSC 8 is dropped and its text stays as plain text (H1,
 I30). A link's text can differ from its target, and a link to
 `localhost` or a private address names a service on the host, not in
 the guest. Terminals still make a bare URL clickable. `wb` keeps each
 dropped link's URL (at most 2048 bytes) and text (at most 256
-characters), records them in the audit log through `wb-hostd`, and
-lists them, without repeats, in the session summary. It keeps at most
+characters), records them in the audit log through `wb-hostd`
+(S09-policy-credentials-audit, "Audit"), and lists them, without
+repeats, in the session summary. It keeps at most
 100 entries. Past that it counts the rest by mark, and the summary says
 "and N more". An entry is marked when the URL is `file:` (a guest
 path), an IP literal, `localhost` or a name under `.localhost`,
 `.local`, `.internal`, `.home.arpa` or `.lan`, a name without a dot, a
-URL with a user name, `http:`, or another scheme. The mark is a
+URL with a user name, `http:`, or another scheme. The audit log names
+these marks `guest-path`, `ip-literal`, `local-name`, `dotless-name`,
+`user-name`, `http` and `other-scheme`, in the same order, and an
+entry gets the first one that applies. The mark is a
 heuristic on the name alone: an unmarked name can still resolve to a
 host-local address, so no mark doesn't mean safe.
 Rejected: rewriting a link inline as `text (url)`, which changes line
