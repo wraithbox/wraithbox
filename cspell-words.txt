@@ -18,6 +18,9 @@ guestadmin
 wbprov
 
 # Virtualization, networking and OS facilities
+authd
+authorizationdb
+trustd
 userspace
 vsock
 hvsock
