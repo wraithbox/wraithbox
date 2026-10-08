@@ -119,7 +119,7 @@
 	},
 	"20": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X06-guest-xcode: Guest users and Xcode",
 		"summary": "Can builds and simulators run for a guest user without a GUI login?",
 		"brief": "B20-guest-xcode"
@@ -525,7 +525,7 @@
 	},
 	"82": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit: record terminal filter drops and dropped links",
 		"summary": "S05-cli (\"Terminal stream\", #81) has wb send each dropped OSC 8 link (its URL and link text) and the terminal filter's drop counts to wb-hostd, to go in the audit log."
 	},
@@ -1228,8 +1228,44 @@
 	},
 	"197": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X06-guest-xcode result and brief",
 		"summary": "Result of X06-guest-xcode: yes, with conditions."
+	},
+	"198": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): record terminal filter drops and dropped links in the audit log",
+		"summary": "- S09-policy-credentials-audit, \"Audit\": the \"Records\" list names the terminal filter's records."
+	},
+	"199": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S11-verification-and-spikes: verify escaping in the terminal filter's audit records",
+		"summary": "PR #198 (#82) adds the terminal filter's records to S09-policy-credentials-audit (\"Audit\", \"Terminal filter\"): dropped links and drop counts as Detection Findings (2004), with each control and Unicode format character…"
+	},
+	"200": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Allow ad-hoc signing of the X08-data-disk spike's VM tool",
+		"summary": "X08-data-disk (#22) can't start a guest."
+	},
+	"201": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): project an audit endpoint as the whole host for the boundary check",
+		"summary": "The prover answers unsupported for an endpoint in audit mode, so any union with an audit host refused the session start, and the \"enforce over audit\" merge rules could never run."
+	},
+	"202": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): add VM slot admission to S06-vm-lifecycle",
+		"summary": "Adds a \"Slot admission\" section to S06-vm-lifecycle and applies the X06-guest-xcode answer to where Xcode work runs."
+	},
+	"203": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Guest terminfo: xterm-kitty unreadable by macOS's own ncurses",
+		"summary": "So a kitty user running less or vim from /usr/bin in wb shell still gets no terminfo entry."
 	}
 }
