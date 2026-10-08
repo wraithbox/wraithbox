@@ -308,6 +308,14 @@ be tested before building on them.
       host in `audit` with a `GET` rule while port 443 stays in
       `enforce`, and see the start refused with a counterexample that
       names the host, so a `DELETE` to port 8443 is never sent;
+    - with port 443 of a host in `audit` in the global policy and one
+      project's `enforce` endpoint with a `GET` rule keeping it in
+      `enforce`, and a boundary that allows only `GET`, remove that
+      endpoint while sessions run, and separately end that project's
+      last session while another session stays: see each change
+      checked as widening and refused by the boundary, the host and
+      port held in `enforce` with a 5019 event, and a `DELETE` to it
+      still refused;
     - put `github.com`, a host a project's remote names, or a host with
       a credential binding in `audit`, in a policy file and as a
       global entry loaded before a project names the host, and add a

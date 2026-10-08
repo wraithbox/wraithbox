@@ -73,10 +73,14 @@ included.
   new union allows a subset of what the old union allowed: no request,
   host, method, path, credential injection or mode that the old union
   refused becomes allowed. Removing an allow rule, a binding or an
-  approval, and tightening a limit or a mode, narrow. Removing a
-  `deny_rules` entry, loosening a limit, and weakening a mode (pass
-  over inspect, `audit` over `enforce`) widen. Adding a raw TCP entry
-  widens, and removing one narrows. A change that narrows
+  approval, and tightening a limit or a mode, narrow, unless the
+  change moves a host and port to `audit`. Removing a `deny_rules`
+  entry, loosening a limit, and weakening a mode (pass over inspect,
+  `audit` over `enforce`) widen. A change that moves a host and port
+  from `enforce` to `audit` widens, whatever removal caused it, such
+  as removing the last `enforce` endpoint on it while an `audit`
+  endpoint stays (S09-policy-credentials-audit, "Mode per host and
+  port"). Adding a raw TCP entry widens, and removing one narrows. A change that narrows
   applies at once, without the union checks, because a subset of a
   union inside the boundary is inside it too and doesn't add reach. If it
   leaves a host in pass mode for one project and inspected for
@@ -92,19 +96,28 @@ included.
   project and rule that caused it, the VM keeps its last effective
   policy that passed, and `wb policy explain` shows the change as
   pending. The user can still apply a removal as a change of its own.
+  When that removal moves a host and port to `audit` and the checks
+  fail or can't run, the removal applies, and the host and port stays
+  in `enforce` as a held mode, with no rule from the removed endpoint.
+  The 5019 event and `wb policy explain` show the held mode, which
+  stays until a recompute without it passes, or the active period
+  ends.
   When a refused change narrows in part, the refusal and
   `wb policy explain` name the narrowing part and say "apply the
   removal on its own to revoke it now" (NFR06-explained-refusals).
 - **Session end.** When a project's last session in the VM ends, its
   allow rules and bindings, and the approvals whose session set has
   fully ended, leave the union at once. That
-  part only narrows. The rest of what the project set can widen the
+  part only narrows, unless it moves a host and port to `audit`
+  (below). The rest of what the project set can widen the
   union when it leaves, and the recompute widens when any of these
   leave with it:
   - a `deny_rules` entry;
   - a limit the project held at the strictest value;
   - a part it turned off;
-  - `enforce` it set over another project's `audit`;
+  - `enforce` that any of its endpoints or approvals gave a host and
+    port that another source puts in `audit`, which then resolves to
+    `audit`;
   - inspection it set on a host another project puts in pass mode,
     which the VM inspected (above);
   - another protocol it set on a host and port that another project
@@ -114,7 +127,9 @@ included.
   boundary check of a joining session. The join risk check doesn't
   run, because no project joins. If a check fails or can't run, the
   VM keeps the departing project's `deny_rules`, limits, modes and
-  parts that are off as a held source. A Device Config State Change
+  parts that are off as a held source. An `enforce` mode is held
+  alone: the host and port stays in `enforce`, and the allow rules
+  and approvals that gave it leave. A Device Config State Change
   (5019) event names the project that left and the rule that failed,
   and `wb policy explain` shows the held source and the widening as
   pending. The held source stays until a recompute without it passes,
