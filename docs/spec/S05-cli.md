@@ -123,6 +123,10 @@ are a usage error:
   session are in S06-vm-lifecycle, "Session lifecycle".
 - First run in a repository registers the project, creates its guest
   user and clone, then starts the session. Later runs reuse them.
+  At registration `wb` creates the project directory
+  `<data>/projects/<project-id>` and the `export.git` in it, because
+  `wb-hostd` can't write either (S08-workspace-and-git, "Export
+  repository").
 - On exit, `wb` prints a short summary of the session's returned work
   and the commands to review and land it, on its standard error in
   interactive and non-interactive use, so it never mixes into
@@ -243,7 +247,7 @@ everything else `wb` does at that boundary.
 | `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session that is starting, running, paused or ending. The refusal names each one, the process ID of its `wb`, and how it ends: close its terminal, or wait for its deadline, and `wb sessions` lists them (S06-vm-lifecycle, "Idle suspend") |
 | `wb image build/list/use` | Base image management (S06-vm-lifecycle) |
 | `wb shell [--project P]` | Debug shell as the project user, labeled as a debug shell |
-| `wb setup` | Check host prerequisites (S12-platforms) and the minimum git version (S08-workspace-and-git), install and start the per-user services |
+| `wb setup` | Check host prerequisites (S12-platforms) and the minimum git version (S08-workspace-and-git), create the projects root `<data>/projects` and its probe directory, which `wb-hostd` can't write (S04-architecture, "Each host daemon is self-sandboxed"), then install and start the per-user services |
 | `wb help`, `wb version` | Help and version |
 
 Each command has its own flags after the command name. Names of
@@ -318,8 +322,15 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
     (NFR06-explained-refusals), and nothing is registered.
   - *Which commands.* Every command that resolves a project from a
     directory resolves it this way: `wb claude`, `wb trust`,
-    `wb untrust`, the `wb project` commands without `--project`, and
-    `wb project move` for its `<dir>`, also when `--project` is given.
+    `wb untrust`, the `wb project` commands without `--project`,
+    `wb project move` for its `<dir>`, also when `--project` is given,
+    and `wb land` and `wb diff`, which find the user's repository
+    only this way, never from a path in `state.db` or from `wb-hostd`.
+    `wb land` and `wb diff` refuse a session that isn't the resolved
+    project's (S08-workspace-and-git, "Landing on the host").
+  - *Wraith Box's own directories.* A key under `<data>`, `<config>`
+    or `<logs>` refuses the command, so no command treats a repository
+    that `wb-hostd` can write, such as a `landing.git`, as the user's.
 - Project id: 128 random bits at registration (FR02-any-repo), written
   as 32 lowercase hexadecimal characters (the project ID format), kept
   for the project's life. The id isn't derived from the key, so a new
@@ -387,7 +398,10 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
 - `wb project rm` removes the project: its settings, policy and the
   credential bindings in it, approvals, cached join approvals and the
   learn list that name it, `export.git` and `landing.git`, and its row
-  in `state.db`. The secret store items behind its bindings stay,
+  in `state.db`. `wb` removes the project directory
+  `<data>/projects/<project-id>` with both repositories itself, because
+  `wb-hostd` can't remove it (S04-architecture, "Each host daemon is
+  self-sandboxed"). The secret store items behind its bindings stay,
   because `wb cred` manages them and another project may use the same
   item. `rm` lists them, and `wb cred rm` removes them. It asks
   `wb-guestd` in each VM to remove the project user and its home. The

@@ -20,6 +20,7 @@ trusts, and which risks it accepts rather than solves.
 | T13-new-project-grants | New projects share the work VM's grants | Accepted |
 | T14-shared-proxyd | One proxy process serves both VMs | Accepted |
 | T15-shared-toolchain | Projects in one guest share the toolchain prefix | Accepted |
+| T16-hostd-landing | A compromised `wb-hostd` decides what `wb land` brings in | Accepted |
 
 ## Model
 
@@ -235,3 +236,21 @@ print about returned work after `wb land` is outside it
   `placement = isolated` that isn't marked shared has a guest, and so
   a prefix, of its own (S06-vm-lifecycle, "VMs"). Proposed in PR178
   (X20-shared-homebrew, B31-shared-homebrew).
+- **T16-hostd-landing: A compromised `wb-hostd` decides what
+  `wb land` brings in.** `wb-hostd` faces the guest, and it may read
+  every project's `export.git` and write every project's `landing.git`
+  (S04-architecture, "Each host daemon is self-sandboxed"). A
+  compromised `wb-hostd` writes `landing.git` directly, past the ref
+  filter, the pack scanner, and the pre-receive check, so it can put
+  any object of any project into a session's branch. Between `wb`'s
+  checks of `landing.git` and its fetch, it can also swap
+  `landing.git` for a link to any repository the user can read
+  (S08-workspace-and-git, "Landing on the host"). `wb land` then
+  brings those objects into a `wb/<session-id>` branch of the user's
+  repository, and they leave the host only if the user pushes that
+  branch. What still holds: the fetch checks every object it gets.
+  It doesn't run a hook, or a command from `landing.git`'s
+  configuration. `wb diff` and the summary flag risky paths, and
+  `wb land` never checks out or merges (SEC03-no-host-exec). Neither
+  `export.git` nor the user's repository is ever a repository that
+  `wb-hostd` can write. Proposed in PR191 (I67).
