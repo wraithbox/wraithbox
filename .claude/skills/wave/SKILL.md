@@ -42,8 +42,8 @@ and `--area <label>`.
 
    `[]` means none open, and `truncated` means the list is cut short:
    drop the issue. This query is the whole check. A wait on a pull
-   request or on the maintainer is a blocker issue too, and no label
-   marks an issue as blocked (`planning.md`, "Dependencies and
+   request, on the maintainer, or on anything else outside is a blocker
+   issue too, and no label marks an issue as blocked (`planning.md`, "Dependencies and
    relationships").
 4. Order: `spike` first, then `bug`, then by `priority:` (critical,
    high, medium, low, none), then by number.
