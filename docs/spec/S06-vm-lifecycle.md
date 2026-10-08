@@ -81,8 +81,10 @@ in S12-platforms.
     `HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK`,
     `HOMEBREW_NO_INSTALL_CLEANUP`, `HOMEBREW_NO_ANALYTICS`,
     `HOMEBREW_NO_ENV_HINTS`, `HOMEBREW_FORBID_PACKAGES_FROM_PATHS=1`,
-    and `HOMEBREW_TEMP` and `HOMEBREW_CACHE` in its home. Never
-    `HOMEBREW_DEVELOPER`.
+    and `HOMEBREW_TEMP` and `HOMEBREW_CACHE` in its home, and the trust
+    variables of S09-policy-credentials-audit, "Guest trust", with the
+    same constant values project users get and never appended to an
+    inherited value. Never `HOMEBREW_DEVELOPER`.
   - *A reconcile only adds* (untested, I180). Homebrew upgrades an
     outdated dependency of a formula it installs, whatever
     `HOMEBREW_NO_INSTALL_UPGRADE` says, unless that dependency is named on the

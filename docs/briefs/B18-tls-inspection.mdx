@@ -5,7 +5,7 @@ description: No. The tools that take a CA file or variable accept it. A macOS gu
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-08: no. Awaiting decision.** Source: X04-tls-inspection (I18). Changes S09-policy-credentials-audit ("Guest trust", and the day-60 step and one sentence of "Lifetimes"), S13-guest-confinement (the read allowlist), S07-egress-gateway ("Modes", pass), S12-platforms (the macOS "CA trust" cell) and S11-verification-and-spikes (the spike list). Follow-up: I185 (the decision below).
+**Answered 2026-10-08: no. Awaiting decision.** Source: X04-tls-inspection (I18). Changes S09-policy-credentials-audit ("Guest trust", and the day-60 step and one sentence of "Lifetimes"), S13-guest-confinement (the read allowlist), S06-vm-lifecycle (the toolchain user's environment), S07-egress-gateway ("Modes", pass), S12-platforms (the macOS "CA trust" cell) and S11-verification-and-spikes (the spike list). Follow-up: I185 (the decision below).
 
 <Aside type="tip" title="What we learned">
 **No.** In a macOS 27 guest, behind a stand-in for `wb-proxyd`, every tool that can be pointed at a CA file accepted the per-VM CA: curl, git, `gh`, Go, Node and `npm`, Python, `pip`, `uv`, Ruby, cargo, Java, Claude Code, and SwiftPM's git clones. None pins. But `wb-guestd` can't put the CA in the guest's system trust store: macOS refuses every way the spike tried without a user to click "allow". So URLSession clients, which read only that store, reject every inspected host: Swift programs, SwiftPM's binary target downloads, and Xcode's own requests. Of the clients tested, only Python's `requests` rereads trust while it runs, so the 28-day CA overlap stands. You decide how to treat URLSession clients (I185).

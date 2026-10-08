@@ -437,9 +437,17 @@ inspection is trusted, and what is recorded.
       present public certificates (S07-egress-gateway, "Modes");
     - the Java trust store: a PKCS12 file without a password, with
       the same certificates as the bundle. `wb-guestd` builds it
-      itself, in Go.
+      itself, in Go. Neither the standard library nor
+      `golang.org/x/crypto/pkcs12` can write PKCS12, so this needs a
+      writer with a permissive license, such as
+      `software.sslmate.com/src/go-pkcs12` (BSD-3-Clause), which
+      S10-tech-stack records when the code lands.
   - *Variables.* `wb-guestd` sets them in the environment of every
-    project user's processes. Each value is built from constants, and
+    project user's processes, and in the toolchain user's environment
+    for a toolchain reconcile (S06-vm-lifecycle, "The environment"),
+    since on a macOS guest Homebrew's downloads from inspected hosts
+    such as `ghcr.io` have no other way to trust the CA. Each value is
+    built from constants, and
     the value of `JAVA_TOOL_OPTIONS` is exactly
     `-Djavax.net.ssl.trustStore=` followed by the Java trust store's
     fixed path. `wb-guestd` never appends to a value it inherits or
