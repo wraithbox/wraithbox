@@ -105,7 +105,7 @@ Spec gaps, contradictions and missing specs:
 | I40 | Learn mode and pass mode under SEC05-default-deny (decided: learn mode collects and refuses) | |
 | I41 | Which git data reaches the guest, and host git as a parser | |
 | I42 | Configuration trust versus VM placement, project identity | |
-| I43 | VM slot admission for image builds and GUI work | I20 |
+| I43 | VM slot admission for image builds and other macOS VMs | I20 |
 | I44 | Data disk durability, never mounting a guest-written disk | I19, I22 |
 | I45 | New spec S14: Claude Code in the guest, agent interface | I15 |
 | I46 | Session lifecycle, detach, sleep and failure | |

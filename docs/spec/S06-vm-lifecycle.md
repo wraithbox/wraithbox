@@ -225,8 +225,8 @@ in S12-platforms.
   `wb --isolated claude`.
   macOS allows at most two running macOS guests, including any started
   by other software: `wb-hostd` performs admission control and reports
-  a clear error when a slot is unavailable (NFR05-two-macos-vms, "Slot
-  admission").
+  a clear error when a slot is unavailable (NFR05-two-macos-vms). The
+  rules are in "Slot admission" below.
 - **Xcode in the session's VM.** Xcode builds, `swift build` and
   `swift test`, and signing to run locally run for a project user
   without a GUI login session, under the Layer 2 profiles of
@@ -426,27 +426,44 @@ slot. Guests of other operating systems are limited only by resources
   one runs at a time.
 - **Lending the isolated slot.** A maintenance VM may start when the
   isolated VM isn't running, or when it has no session that is
-  starting, running, paused or ending ("Idle suspend"). In the second
-  case `wb-hostd` first saves the isolated VM's state and stops it, as
-  at the end of its idle period ("Warm start"). When a save isn't
-  allowed, because the host is locked, a kill is pending, or there is a
-  result of processes left ("Leftover processes"), `wb-hostd` stops it
-  cold instead, which those rules allow without a session. When the
+  starting, running, paused or ending ("Idle suspend"). A debug shell
+  (`wb shell`) counts as a session here, as for idle suspend, so one
+  open in the isolated VM blocks a lend. In the second case `wb-hostd`
+  first saves the isolated VM's state and stops it, as at the end of
+  its idle period ("Warm start"). When a save isn't allowed, because
+  the host is locked, a kill is pending, or there is a result of
+  processes left ("Leftover processes"), `wb-hostd` stops it cold
+  instead, which those rules allow without a session. When the
   maintenance VM stops, `wb-hostd` restores an isolated VM it saved,
   under the rules of "Warm start". One it stopped cold stays stopped
   until its next session starts it.
   `wb-hostd` logs each lend and return with the rule that allowed it.
+- **The lent slot is reserved.** The lend starts when `wb-hostd`
+  decides it, before it saves or stops the isolated VM, and lasts
+  until the return restore has finished or failed, or, for a VM it
+  stopped cold, until the maintenance VM has stopped. While it lasts,
+  `wb-hostd` refuses every start or restore of the isolated VM: for a
+  session, a debug shell, the recovery of a lost session, and
+  `wb vm start`. So a refusal names the build, never a VM outside
+  Wraith Box ("Other software").
+- **A maintenance VM gets nothing of a session VM.** It never gets the
+  data disk, saved state, auxiliary storage, machine identifier or MAC
+  address of the work VM or the isolated VM, and no network grant or
+  credential binding of a project (SEC08-proj-isolation). The build
+  makes a new VM with its own network ("Built by Wraith Box"). Lending moves
+  a slot, never a VM's disks or identity.
 - **Refusals** (NFR06-explained-refusals). Each one names the rule, what
   holds the slots, and how to free one:
   - a maintenance VM, while the isolated VM has a session that is
-    starting, running, paused or ending. The refusal names each session
-    with its state, the process ID of its `wb`, and how it ends, as the
-    refusal of `wb vm stop` does ("Idle suspend");
+    starting, running, paused or ending, a debug shell included. The
+    refusal names each session with its state, the process ID of its
+    `wb`, and how it ends, as the refusal of `wb vm stop` does
+    ("Idle suspend");
   - a second maintenance VM while one runs, naming the first and how
     long a build takes, about 7 minutes (X17-image-build);
-  - a session start that needs the isolated VM while a maintenance VM
-    holds its slot, naming the maintenance VM and that the session can
-    start once it ends. The session isn't queued.
+  - any start or restore of the isolated VM while its slot is lent
+    ("The lent slot is reserved"), naming the maintenance VM and that
+    the start works once the lend ends. A session isn't queued.
 - **Other software.** `wb-hostd` can't count macOS VMs that other
   programs run (UTM, Tart, spike code on a development Mac, I50). It
   learns of them only when starting or restoring one of its own VMs
