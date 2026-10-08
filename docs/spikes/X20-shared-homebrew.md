@@ -34,13 +34,15 @@ Brief: B31-shared-homebrew
   projects use, and a session `PATH` without the prefix's shared
   `bin`. I180 measures all three in a guest. The spike used a NAT network, not the egress gateway, and the
   toolchain user name `_wbtool` is a stand-in until I144 picks one.
-- **Open decisions:**
+- **Decisions:** both decided 2026-10-08 as recommended, in the I31
+  comment that starts `Decision (2026-10-08):`.
   1. Whether a project may get a prefix of its own instead, where the
      agent can run `brew install`. It works when the path is at most
      13 characters long, such as `/opt/wbp-c`, and every bottle then
      pours. Recommended: not in v1. The shared prefix covers declared
      packages, `--isolated` covers conflicts, and an agent that
-     installs packages is a capability v1 doesn't need.
+     installs packages is a capability v1 doesn't need. Decided
+     2026-10-08 (I31): no per-project prefix in v1.
   2. Whether to refuse packages without a bottle for the guest. Bottles
      only: `wb-guestd` checks every formula in the closure and refuses
      the session with the name of one that has none, so a package
@@ -48,7 +50,7 @@ Brief: B31-shared-homebrew
      means slow starts, builds killed at the start deadline, and more
      of `homebrew/core`'s code run as the toolchain user
      (T15-shared-toolchain). Recommended: bottles only, which the spec
-     says now.
+     says now. Decided 2026-10-08 (I31): bottles only.
 - **Brief:** B31-shared-homebrew
 
 ## Question
