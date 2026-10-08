@@ -688,9 +688,11 @@ session start in the VM to the end of the last session running in it.
     - *Audited.* Each policy change that adds a pass host is a Device
       Config State Change (5019) event with the host, the file and the
       reason (SEC10-audit).
-    - *Known to break under inspection.* No client X04-tls-inspection
-      tried pins a certificate, except Apple's own. The guest's pinning
-      rules pin Apple hosts a development guest may use: software
+    - *Known to break under inspection.* None of the clients
+      X04-tls-inspection could test pins a certificate. The guest's
+      trustd pinning rules pin Apple hosts a development guest may use,
+      so these are expected to refuse an inspected leaf (inferred from
+      the rules, not seen): software
       update and the command line tools (`swscan.apple.com`,
       `swcdn.apple.com`, `swdist.apple.com`, `swdownload.apple.com`),
       `xcode-cdn.apple.com`, `mesu.apple.com`, `updates.cdn-apple.com`,
@@ -701,7 +703,11 @@ session start in the VM to the end of the last session running in it.
       "Guest trust"). Those clients are URLSession and what is built on
       it, such as SwiftPM's binary target downloads. Wraith Box never
       puts these hosts in pass mode itself, so the rules above apply to
-      them.
+      them. A user who does makes each one a T01-allowed-channels
+      channel. The Apple Account hosts (`idmsa.apple.com`,
+      `gsa.apple.com`) then carry whatever Apple credentials the guest
+      holds, which Wraith Box neither gave nor removes
+      (T10-unnamed-credentials).
   - Plain HTTP is allowed only when policy names `host:80`, and is
     always inspected.
   - A stream that isn't TLS or HTTP is reset unless policy names
