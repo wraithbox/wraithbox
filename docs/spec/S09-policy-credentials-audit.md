@@ -800,8 +800,8 @@ VM", I36).
     or that arrives after the end records are written, with the rule
     `terminal-report-form`, and logs the refusal with the session.
   - *Link records.* Each kept link is a Detection Finding (2004) when
-    it arrives, with its URL, text, mark and cut flags.
-  - *End records.* `wb-hostd` writes them once, from the stored counts,
+    it arrives, with its URL, its text, its mark, and its cut flags.
+  - *End records.* `wb-hostd` writes them from the stored counts,
     when both the session has ended and `wb`'s connection for the
     session has closed, or 30 seconds after the session ended,
     whichever comes first (S06-vm-lifecycle, "Session lifecycle"). The
@@ -810,8 +810,18 @@ VM", I36).
     by mark, and says whether the report from the end of the stream
     arrived. When `wb` crashed, it didn't. Its closed connection hung
     up the session. The end records then hold the counts of the last
-    report, at most 10 seconds old, and the links `wb` had sent. Each
-    rule with drops is also a
+    report, at most 10 seconds old, and the links `wb` had sent.
+    `wb-hostd` writes the end records, waits until the log has them on
+    disk, and then sets an "end records written" flag with the
+    session's record in `state.db`. It checks the flag before it writes
+    them. So a lost session that ends after a `wb-hostd` restart
+    (S06-vm-lifecycle, "Session lifecycle") gets its end records from
+    the stored counts, and a session that already has them doesn't get
+    them again. A `wb-hostd` that stops between the write and the flag
+    writes them again after its restart. Each end record has an ID
+    made of the session and the rule, `links-past-100` or
+    `session-end`, so a reader
+    sees the repeat as one record. Each rule with drops is also a
     Detection Finding with its count, except `terminal-osc-title` and
     `terminal-osc-notify`. Claude Code writes titles and notifications
     in nearly every session, and a notification becomes a BEL rather
@@ -831,8 +841,8 @@ VM", I36).
     Informational for the rest. The filter dropped each sequence these
     findings count, so none needs action at once.
   - *Escaping.* A link's URL and text are guest bytes. The record holds
-    each backslash as `\\`, each byte that isn't valid UTF-8 as `\xNN`,
-    and as `\u{H…}` (the code point in 1 to 6 uppercase hex digits,
+    each backslash as `\\`, each byte that isn't valid UTF-8 as `\xNN`
+    in uppercase hex, and as `\u{H…}` (the code point in 1 to 6 uppercase hex digits,
     without leading zeros, such as `\u{7F}`, `\u{202E}` or `\u{E0041}`)
     each code point in the escaped set of S16-terminal-stream ("Guest
     text elsewhere"): controls (Cc), format characters (Cf), line and
