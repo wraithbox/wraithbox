@@ -492,11 +492,14 @@ be tested before building on them.
     for the first computation; a record that fails `wb-hostd`'s checks
     (an oversized head, a 193rd head, a negative point, a cutoff after
     the receipt time minus the minimum age) is logged and discarded; a
-    stored head inconsistent with the first head fetched gives
-    `go-sumdb-inconsistent`, every stored head discarded, and the gate
-    continuing from the fresh head; and a head inconsistency within a
-    run refuses every Go download, still does after a restart, and
-    stops after `wb gate reset go-clock`;
+    stored head that isn't a consistent prefix of the first head
+    fetched, and one larger than it that the fresh head isn't a prefix
+    of, each give `go-sumdb-inconsistent` with both heads stored and
+    every Go request refused; a consistency proof the double won't
+    serve gives `go-clock-lookup-failed` and no finding; and a head
+    inconsistency within a run refuses every Go download, still does
+    after a restart, and stops only after `wb gate reset go-clock` is
+    confirmed, with a 5019 event naming the command and the finding;
   - fetch a gated registry path that fits no known form, and get a 403
     naming the rule; with a test double for the Go module proxy,
     redirect a download elsewhere and see it refused;
