@@ -164,6 +164,52 @@ in S12-platforms.
   restore image, never updated in place.
 - **Guest confinement.** The base image includes the Network Extension
   of S13-guest-confinement, approved during the build, once spike X14-flow-attribution allows it.
+- **Terminfo** (I83). Sessions get the host's `TERM` unchanged
+  (S16-terminal-stream, "Terminfo"), and the image describes it with a
+  terminfo database that the build compiles into
+  `/usr/local/share/terminfo`. Root owns it, and no other user can
+  write to it. The source is `misc/terminfo.src` from an ncurses
+  release tarball, 6.6 or later, pinned by version and SHA-256, with
+  two alias entries appended:
+
+  ```text
+  xterm-ghostty|Ghostty terminal emulator,
+  	use=ghostty,
+  xterm-kitty|KovId's TTY,
+  	use=kitty,
+  ```
+
+  Ghostty sets `TERM=xterm-ghostty` and kitty sets `TERM=xterm-kitty`,
+  but ncurses names their entries `ghostty` (first in release 6.6) and
+  `kitty` (first in release 6.2). The aliases point those names at
+  ncurses' reviewed entries instead of a terminfo source from an
+  emulator, which the image doesn't ship (kitty's is GPL-3.0,
+  S10-tech-stack). The guest compiles it, because the host never writes
+  the guest disk and a root-owned file has to be created in the guest
+  (above). For X17-image-build (I28): the host checks the tarball's
+  SHA-256 and sends the source to a named `wb-guestd` operation, which
+  compiles it with `tic -x` from the same ncurses release and installs
+  the result as root. The operation returns success or a failure with
+  a text. A failure fails the build, and the host cuts that text to
+  1024 bytes and escapes it wherever it shows it, as it does the
+  version `wb-guestd` reports (S04-architecture, "Version skew"). The build doesn't use macOS's own `tic`
+  (ncurses 6.0): on the raw 6.6 `terminfo.src` it stops with
+  `error writing` at `scrt`, and at `kitty` when limited to the
+  entries above.
+  `wb-guestd` sets `TERMINFO_DIRS=/usr/local/share/terminfo:` for
+  project users. macOS's ncurses also falls back to
+  `/usr/share/terminfo` without the empty last entry, which keeps that
+  fallback explicit.
+  - *macOS's ncurses.* `/usr/bin/less`, `vim` and `top` link macOS's
+    own ncurses 6.0, which can't read an entry that `tic` from
+    ncurses 6.1 or later writes in the extended number format, used
+    for an entry with a number above 32767. `kitty` and `xterm-kitty`
+    (`pairs#0x10000`) are among them. Those programs report an unknown
+    terminal for kitty, and programs that link Homebrew's ncurses read
+    the entry. For a name macOS ships, such as `xterm-256color`,
+    macOS's ncurses skips the file it can't read and uses its own
+    copy. Measured on a macOS 27 host with ncurses 6.6 (I83). I203
+    decides whether `xterm-kitty` gets an entry macOS can read.
 - **Sealing.** Before an image is usable, `wb-guestd` scans it as root,
   before any project code has run. The host parses no guest
   filesystem. Any finding fails the build:
@@ -221,19 +267,28 @@ in S12-platforms.
 
 - **Two slots per guest OS.** The **work VM** hosts every project whose
   `placement` is `work`. The **isolated VM** hosts projects whose
-  `placement` is `isolated`, sessions started with
-  `wb --isolated claude`, and work that needs a GUI login session.
-  Every `xcodebuild test` of a macOS target, a SwiftPM package's
-  included, and launching a macOS app need a GUI login session, which
-  the work VM doesn't have. Xcode builds, `swift build` and
-  `swift test`, and signing to run locally run without one under the
-  Layer 2 profiles of S13-guest-confinement. X06-guest-xcode also ran
-  iOS simulators and their tests for a project user without a GUI
-  session, but under the Layer 2 profiles specified there they don't
-  run.
+  `placement` is `isolated`, and sessions started with
+  `wb --isolated claude`.
   macOS allows at most two running macOS guests, including any started
   by other software: `wb-hostd` performs admission control and reports
-  a clear error when a slot is unavailable (NFR05-two-macos-vms).
+  a clear error when a slot is unavailable (NFR05-two-macos-vms). The
+  rules are in "Slot admission" below.
+- **Xcode in the session's VM.** Xcode builds, `swift build` and
+  `swift test`, and signing to run locally run for a project user
+  without a GUI login session, under the Layer 2 profiles of
+  S13-guest-confinement (X06-guest-xcode). They run in the VM the
+  project's `placement` picks, and take no slot of their own.
+  X06-guest-xcode also ran iOS simulators and their tests for a
+  project user without a GUI session, but under the Layer 2 profiles
+  specified there they don't run (I196).
+- **No GUI login session.** Every `xcodebuild test` of a macOS target,
+  a SwiftPM package's included, and launching a macOS app need a GUI
+  login session (X06-guest-xcode). Neither VM gives a project user
+  one: sealing refuses an image with automatic login or an
+  `/etc/kcpassword` ("Sealing"). Whether v1 offers that work, and in
+  which VM a project user would get a console session, is I195, and
+  the isolated VM isn't assumed. Until I195 is decided, "Slot
+  admission" has no rule for it.
 - **Placement and configuration trust.** `placement` (`work` or
   `isolated`) is a project setting (S09-policy-credentials-audit,
   "Settings contents"),
@@ -391,6 +446,84 @@ in S12-platforms.
     apart stays far below 1 second. A larger offset means the host
     clock changed or an update was missed, and slewing it off at NTP's
     limit of 500 ppm would take more than half an hour.
+
+## Slot admission
+
+macOS runs at most two macOS guests per host (NFR05-two-macos-vms).
+`wb-hostd` admits every macOS VM it starts against that limit. The
+maintainer decided on I43 (B43-vm-slot-admission) that the work VM
+keeps its slot, and that a maintenance VM borrows the isolated VM's
+slot. Guests of other operating systems are limited only by resources
+(NFR05-two-macos-vms), and these rules don't apply to them.
+
+- **What takes a slot.** The work VM, the isolated VM, and a
+  *maintenance VM*: one that `wb-hostd` starts for an image rather than
+  for a session. Today that is the build VM of `wb image build`
+  ("Built by Wraith Box"). "Updates" has no boot that checks a new
+  image before it replaces a system disk, and such a boot would be a
+  maintenance VM too. Once its state is saved and it has stopped, a
+  VM doesn't hold a slot. Xcode work takes no slot of its own
+  ("Xcode in the session's VM").
+- **The work VM is never moved.** `wb-hostd` never saves or stops the
+  work VM to make room. A maintenance VM never starts while, by
+  `wb-hostd`'s count, it would take the slot the work VM needs, even
+  when the work VM isn't running.
+  So a maintenance VM runs only in the isolated VM's slot, and at most
+  one runs at a time.
+- **Lending the isolated slot.** A maintenance VM may start when the
+  isolated VM isn't running, or when it has no session that is
+  starting, running, paused or ending ("Idle suspend"). A debug shell
+  (`wb shell`) counts as a session here, as for idle suspend, so one
+  open in the isolated VM blocks a lend. In the second case `wb-hostd`
+  first saves the isolated VM's state and stops it, as at the end of
+  its idle period ("Warm start"). When a save isn't allowed, because
+  the host is locked, a kill is pending, or there is a result of
+  processes left ("Leftover processes"), `wb-hostd` stops it cold
+  instead, which those rules allow without a session. When the
+  maintenance VM stops, `wb-hostd` restores an isolated VM it saved,
+  under the rules of "Warm start". One it stopped cold stays stopped
+  until its next session starts it. When the isolated VM wasn't
+  running at the lend, `wb-hostd` doesn't start it afterward, and a
+  saved state left from an earlier idle suspend is kept unchanged for
+  the next session.
+  `wb-hostd` logs each lend and return with the rule that allowed it.
+- **The lent slot is reserved.** The lend starts when `wb-hostd`
+  decides it, before it saves or stops the isolated VM. For a VM it
+  saved, the lend ends when the return restore succeeds, or when
+  `wb-hostd` gives up on it under "Warm start", after the bounded
+  retries and not at the first temporary failure. For a VM it stopped
+  cold, and for an isolated VM that wasn't running at the lend, the
+  lend ends when the maintenance VM stops. While the lend lasts,
+  `wb-hostd` refuses every other start or restore of the isolated VM:
+  for a session, a debug shell, the recovery of a lost session, and
+  `wb vm start`. The return restore is the one start the lend allows. So a refusal names the build, never a VM outside
+  Wraith Box ("Other software").
+- **A maintenance VM gets nothing of a session VM.** It never gets the
+  data disk, saved state, auxiliary storage, machine identifier or MAC
+  address of the work VM or the isolated VM, and no network grant or
+  credential binding of a project (SEC08-proj-isolation). The build
+  makes a new VM with its own network ("Built by Wraith Box"). Lending moves
+  a slot, never a VM's disks or identity.
+- **Refusals** (NFR06-explained-refusals). Each one names the rule, what
+  holds the slots, and how to free one:
+  - a maintenance VM, while the isolated VM has a session that is
+    starting, running, paused or ending, a debug shell included. The
+    refusal names each session with its state, the process ID of its
+    `wb`, and how it ends, as the refusal of `wb vm stop` does
+    ("Idle suspend");
+  - a second maintenance VM while one runs, naming the first and how
+    long a build takes, about 7 minutes (X17-image-build);
+  - any start or restore of the isolated VM while its slot is lent
+    ("The lent slot is reserved"), naming the maintenance VM and that
+    the start works once the lend ends. A session isn't queued.
+- **Other software.** `wb-hostd` can't count macOS VMs that other
+  programs run (UTM, Tart, spike code on a development Mac, I50). It
+  learns of them only when starting or restoring one of its own VMs
+  fails on the Virtualization framework's limit of running VMs
+  (`VZErrorVirtualMachineLimitExceeded` in `VZError.h`). `wb` then
+  says that a macOS VM outside Wraith Box holds a slot, lists the VMs
+  Wraith Box runs, and says to quit the other one. `wb-hostd`
+  doesn't retry, and doesn't stop one of its own VMs to make room.
 
 ## Projects and sessions inside a VM
 

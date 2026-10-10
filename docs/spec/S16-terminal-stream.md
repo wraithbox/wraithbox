@@ -49,7 +49,7 @@ filters packets (SEC03-no-host-exec).
   of a long payload never shows as text.
 - **Counts.** Each drop is counted by rule, and the session summary
   reports the counts (NFR06-explained-refusals). A sequence that a new
-  Claude Code version starts to use shows up there.
+  Claude Code version starts to use shows up there ("Drop rules").
 
 | Class | Passes | Dropped |
 |---|---|---|
@@ -78,18 +78,57 @@ title report (`CSI 21 t`), OSC 52 with `?`, and DECRQSS (a DCS) never
 join the list: each makes the terminal type guest-chosen text back
 into its input, which would reach the user's shell after `wb` exits.
 
+**Drop rules.** The counts are by these rules. They are a fixed list,
+so a guest can't make up new ones, and the audit log records the
+counts by these names (S09-policy-credentials-audit, "Audit").
+
+| Rule | Counts |
+|---|---|
+| `terminal-c1` | C1 controls in text |
+| `terminal-c0` | the C0 controls and `DEL` the table drops, and each BEL over the rate |
+| `terminal-esc` | `ESC` sequences the table drops |
+| `terminal-csi` | CSI sequences the table drops, other than `t` |
+| `terminal-csi-window` | CSI `t` sequences the table drops: window moves, title reports, the title stack |
+| `terminal-osc-title` | OSC 0 to 2 |
+| `terminal-osc-link` | OSC 8 |
+| `terminal-osc-clipboard` | OSC 52 |
+| `terminal-osc-file` | OSC 7 (current directory), 1337 (iTerm2 files and clipboard) and 5113 (kitty file transfer) |
+| `terminal-osc` | the other OSC sequences the table drops |
+| `terminal-osc-notify` | OSC 9, 99 and 777, which the filter turns into a BEL rather than drop |
+| `terminal-dcs` | DCS |
+| `terminal-apc` | APC, the kitty graphics protocol among them |
+| `terminal-pm-sos` | PM and SOS |
+
+A sequence cut at a buffer cap counts under the rule of its class, as
+far as its first bytes tell it. A CSI cut at the 64-byte cap, or ended
+by CAN, SUB or `ESC` before its final byte, counts as `terminal-csi`.
+A CSI with the final byte `t` counts as `terminal-csi-window` whatever
+its parameters, also when they break the CSI parameter caps. An OSC
+without a number before its first `;` counts as `terminal-osc`. An
+OSC `9 ; 4` whose parameters aren't all numeric is a malformed
+progress report, not a notification: the filter drops it, counted as
+`terminal-osc`, and doesn't turn it into a BEL. An invalid byte that
+the filter replaces with U+FFFD isn't counted as a drop and has no
+rule, because the text around it stays.
+
 **Links.** OSC 8 is dropped and its text stays as plain text (H1,
 I30). A link's text can differ from its target, and a link to
 `localhost` or a private address names a service on the host, not in
 the guest. Terminals still make a bare URL clickable. `wb` keeps each
-dropped link's URL (at most 2048 bytes) and text (at most 256
-characters), records them in the audit log through `wb-hostd`, and
-lists them, without repeats, in the session summary. It keeps at most
-100 entries. Past that it counts the rest by mark, and the summary says
-"and N more". An entry is marked when the URL is `file:` (a guest
-path), an IP literal, `localhost` or a name under `.localhost`,
-`.local`, `.internal`, `.home.arpa` or `.lan`, a name without a dot, a
-URL with a user name, `http:`, or another scheme. The mark is a
+dropped link's URL (its first 2048 bytes, as the guest sent them,
+an invalid byte counting as one) and text (its first 256 code points
+after the text filter, an invalid byte counting as the one U+FFFD that
+replaces it), and notes when it cut either. It records them in the
+audit log through `wb-hostd` (S09-policy-credentials-audit, "Audit"),
+and lists them, without repeats, in the session summary. It keeps at
+most 100 entries. Past that it counts the rest by mark, the ones
+without a mark as `unmarked`. The summary then says "and N more". An
+entry is marked when the URL is `file:` (a guest path), an IP literal,
+`localhost` or a name under `.localhost`, `.local`, `.internal`,
+`.home.arpa` or `.lan`, a name without a dot, a URL with a user name, `http:`, or another scheme. The audit log names
+these marks `guest-path`, `ip-literal`, `local-name`, `dotless-name`,
+`user-name`, `http` and `other-scheme`, in the same order, and an
+entry gets the first one that applies. The mark is a
 heuristic on the name alone: an unmarked name can still resolve to a
 host-local address, so no mark doesn't mean safe.
 Rejected: rewriting a link inline as `text (url)`, which changes line
@@ -145,14 +184,31 @@ its output still passes the filter ("Where").
   which make Claude Code wrap sequences in DCS, and not `SSH_*`,
   `TERMINFO`, `LC_TERMINAL` or `ITERM_SESSION_ID`. The window size
   crosses as resize messages.
+- **Terminfo.** `TERM` crosses unchanged. `wb` and `wb-guestd` never
+  map it to another name, so what Claude Code prints is the same as on
+  the host. Claude Code doesn't read terminfo, but programs in the
+  session such as `less`, `vim` and `top` look `TERM` up in it.
+  `TERMINFO` names a path on the host and doesn't cross. The guest
+  looks `TERM` up in the terminfo database of its image
+  (S06-vm-lifecycle, "Terminfo"). That database has ncurses' entries
+  and the names Ghostty and kitty set, `xterm-ghostty` and
+  `xterm-kitty`. The `less`, `vim` and `top` that macOS ships can't
+  read the kitty entries yet (S06-vm-lifecycle, "Terminfo", I203).
+  When the guest has no entry for `TERM`, those programs
+  report an unknown terminal, and `TERM` still isn't changed (I83).
 
 **Guest text elsewhere.** Wherever else `wb` prints text the guest
 influenced (the session summary and its link list, `wb diff`,
 `wb sessions`, `wb approve`, `wb audit`, `wb learn report`,
-`wb status`), it never passes a control
-character, an escape sequence, or a Unicode format character
-(bidirectional controls, zero-width characters). `wb diff`, logs and
-audit records show them escaped, where a reviewer sees them. Other
+`wb status`), it never passes a code point of the escaped set: a
+control (Unicode category Cc, which holds `ESC` and so every escape
+sequence), a format character (Cf, such as the bidirectional controls
+and the zero-width characters), a line or paragraph separator (Zl,
+Zp), or a `Default_Ignorable_Code_Point` (such as the tag characters,
+the variation selectors and the Hangul fillers). `wb diff`, logs and
+audit records show them escaped, where a reviewer sees them, and
+S09-policy-credentials-audit ("Audit") gives the form for audit
+records. Other
 output removes them (SEC10-audit, SEC14-no-fake-approvals).
 
 ## Out of scope

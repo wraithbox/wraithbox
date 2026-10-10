@@ -65,6 +65,12 @@ inspection is trusted, and what is recorded.
     pass host above apply to it, on its host and port. The
     maintainer decided this on I47 (B47-non-http-streams), and
     S07-egress-gateway, "Non-HTTP streams", has the rules.
+  - *Audit hosts.* Only the global and project network policy files
+    can put a host and port in `audit`. An `audit` endpoint on a host
+    with a credential binding, or on one a built-in profile covers, is
+    refused at load, at every recompute, and when a binding is added
+    later (SEC06-repo-writes). The maintainer decided this on I109, and
+    S07-egress-gateway, "Modes, per host", has the rules.
   - *What the prover sees.* The document Wraith Box writes for the
     prover allows at least what `wb-proxyd` enforces, never less. A
     built-in GraphQL rule is written as a REST rule that allows `POST`
@@ -80,6 +86,24 @@ inspection is trusted, and what is recorded.
     the boundary, each raw TCP entry must be a raw TCP entry in the
     boundary, dependency-gate thresholds can't be looser, and the
     wildcard budget can't be larger. Any mismatch refuses the policy.
+  - *Audit as the whole host.* `audit` lets every request through and
+    only logs a violation (S07-egress-gateway, "Modes, per host"), so
+    a host and port whose mode resolves to `audit` ("Precedence",
+    "Mode per host and port") is written as the whole host on that
+    port. The projected endpoint is built from the host and the port
+    only: `protocol: rest`, `enforcement: enforce`, and one rule
+    `allow: { method: "*", path: "/**" }`, in an entry whose
+    `binaries` is `path: "/**"`. The endpoint-level `path`, `access`
+    and `rules`, the entry's `binaries`, and the `deny_rules` of every
+    endpoint on that host and port are dropped. An endpoint with
+    `ports` is written once for each port, each in the mode its host
+    and port resolves to. The boundary must then allow every method
+    and path on that host and port, and a boundary that allows less
+    refuses the policy with a counterexample that names the host. The
+    prover's reading of `method: "*"` wasn't tested
+    (X24-openshell-artifacts), and is tested before the boundary check
+    relies on it. A host and port that resolves to `enforce` is
+    written with its rules. The maintainer decided this on I109.
 - **Program narrowing.** `binaries` entries match the program label
   from the guest (S13-guest-confinement). Until spike X14-flow-attribution has delivered labels,
   `binaries` does not narrow a rule. OpenShell's policy engine has the
@@ -136,7 +160,10 @@ inspection is trusted, and what is recorded.
   allowed hosts, a toolchain manifest and HTTP rules, and every addition
   is shown in `wb policy explain`. It can never add credential bindings
   or switch hosts to pass-through, or add a raw TCP entry
-  (SEC09-host-policy).
+  (SEC09-host-policy). Repository configuration that sets
+  `enforcement: audit` on an endpoint is refused at load with an error
+  that names the host, like a pass host or a raw TCP entry. An approved
+  rule can't be in `audit` either ("Approved rule"). The maintainer decided this on I109.
   - *Closed keys.* It is parsed against a closed list of those keys, and
     any other key is a load error, so it can't set `placement` or
     `config_trust`. A rule on a built-in host whose
@@ -195,7 +222,10 @@ inspection is trusted, and what is recorded.
     shown and logged. While sessions run, a change that narrows the
     union, so that the new union allows a subset of what the old one
     allowed, applies without this check. Removing a `deny_rules` entry,
-    loosening a limit or weakening a mode widens. A change that widens
+    loosening a limit or weakening a mode widens, and so does any
+    change that moves a host and port from `enforce` to `audit`, such
+    as removing the last `enforce` endpoint on it ("Mode per host and
+    port"). A change that widens
     and fails the check, or can't be checked, is refused, the VM keeps its
     last policy that passed, and `wb policy explain` shows the change
     as pending (S07-egress-gateway, "Policy changes while sessions
@@ -212,9 +242,11 @@ inspection is trusted, and what is recorded.
   - *What the prover models.* At v0.1.2 it compares hosts, ports and
     programs, and method and path rules on `protocol: rest` endpoints
     in `enforce` mode. It answers `unsupported` for GraphQL and
-    WebSocket rules, an endpoint in `audit` mode, query matchers, and a
-    host and port that has both a REST endpoint and one without rules
-    (X24-openshell-artifacts).
+    WebSocket rules, query matchers, and a host and port that has both
+    a REST endpoint and one without rules (X24-openshell-artifacts). It
+    answers `unsupported` for an endpoint in `audit` mode too. The
+    candidate never holds one, because Wraith Box writes it as the
+    whole host in `enforce` mode ("Audit as the whole host" above).
   - *Built-in profiles in the check.* The candidate holds the parts of
     the built-in profiles that are on (S07-egress-gateway, "Profile
     parts"), and no built-in rule is left out. The candidate holds the
@@ -274,10 +306,30 @@ inspection is trusted, and what is recorded.
     it off (S07-egress-gateway, "Profile parts"). This lock, and the
     removal of guest credentials in the places a profile names, hold
     whatever parts are on.
+  - *Mode per host and port.* `enforcement` is resolved for each host
+    and port over the whole union, not per endpoint: the built-in
+    profiles, the global, project and repository policy, the approved
+    rules, every endpoint within one file, and every project with a
+    session in the VM ("Per VM"). Any endpoint in `enforce` on a host
+    and port, from any source, puts that host and port in `enforce`,
+    and an endpoint with no `enforcement` field counts as `enforce`.
+    An endpoint counts on every host its host pattern matches, so a
+    wildcard endpoint in `enforce` keeps a matching exact host in
+    `enforce`, which fails closed.
+    A host and port resolves to `audit` only when every endpoint on it
+    is in `audit`. `wb-proxyd`
+    applies the resolved mode to every request on that host and port,
+    never the `enforcement` field of the endpoint whose rule matched,
+    and the boundary check projects the same mode ("Audit as the
+    whole host"). A change that moves a host and port from `enforce`
+    to `audit`, whatever removal caused it, widens
+    (S07-egress-gateway, "Policy changes while sessions run",
+    "Session end"). The maintainer decided this on I109.
   - *Per VM.* The host enforces the merge for a VM, not for a project:
     the project sources are those of every project with a session in
-    the VM. Limits take the strictest value among them, and so does
-    `enforce` over `audit`. A conflict between projects, such as a host
+    the VM. Limits take the strictest value among them, and the mode
+    of a host and port resolves over every source, so `enforce` wins
+    over `audit` ("Mode per host and port"). A conflict between projects, such as a host
     in pass mode for one and inspected or bound for another, or two
     bindings for one host and path, refuses the joining session (S07-egress-gateway, "Enforced per
     VM"). The extension check above runs over the union at each
@@ -705,7 +757,8 @@ VM", I36).
   Change (5019), Detection Finding (2004), approvals, returned work,
   recovery pushes, secret store accesses, and the records of VM starts
   and stops and of sessions. Their sources bound them already
-  (approval limits, push limits, session limits).
+  (approval limits, push limits, session limits, and the terminal
+  filter's records per session, "Terminal filter" below).
 - The high-volume classes, Network Activity (4001) and HTTP Activity
   (4002), have a budget per VM per minute: `audit_events_per_minute`
   in `config.toml` (default 6000). Over the budget `wb-hostd` doesn't
@@ -758,8 +811,9 @@ VM", I36).
   Config State Change (5019) for policy, approvals and project
   settings, and Detection Finding (2004) for
   refused placeholders, foreign credentials removed from a request
-  (S07-egress-gateway), pin mismatches, and other signs of an attack. A
-  SIEM can read the log without a custom parser.
+  (S07-egress-gateway), pin mismatches, the terminal filter's drops
+  and dropped links, and other signs of an attack. A SIEM can read the
+  log without a custom parser.
 - Project settings. `wb trust`, `wb untrust`, and the `wb project`
   commands that change a project write a 5019 event with the values
   before and after: `config_trust`, `placement`, the location, the
@@ -769,8 +823,87 @@ VM", I36).
   network events, derived from the guest's label, see below);
   destination host and port; decision and the rule that made it; HTTP
   method and path for inspected requests; bytes in and out; approval
-  actions; returned work and its flags. Process attribution reported by
-  the guest is stored as an untrusted label.
+  actions; returned work and its flags; the terminal filter's drop
+  counts by rule and its dropped links, escaped ("Terminal filter").
+  Process attribution reported by the guest is stored as an untrusted
+  label.
+- Terminal filter. `wb` filters the guest's terminal stream and sends
+  `wb-hostd`, over its connection for the session, what the filter
+  counted and the dropped links it keeps (S16-terminal-stream, "Drop
+  rules" and "Links").
+  - *Reports.* `wb` sends each kept link when it keeps it: its URL, its
+    text, whether either was cut, and its mark, if it has one. Every 10
+    seconds while they change, and once more when the stream ends, it
+    sends the counts: the counts by rule, and the links past the 100
+    kept, counted by mark and as `unmarked`. Each report holds the
+    totals so far, not the change. URL and text cross as protobuf
+    `bytes`, because a `string` field must be valid UTF-8 and the URL
+    is raw guest bytes.
+  - *State.* `wb-hostd` keeps the last counts and the kept links with
+    the session's record in `state.db`. So `wb sessions` shows the
+    same summary, links included, for a session whose `wb` is gone
+    (S05-cli, "Session behavior").
+  - *Form.* `wb-hostd` takes these reports only from the `wb` of the
+    session, and checks them: rule names and marks from
+    S16-terminal-stream's lists, mark counts under those names or
+    `unmarked`, totals that never go down, at most 100 links per
+    session, URLs of at most 2048 bytes, and texts of valid UTF-8 of
+    at most 256 code points. It refuses a report that fails the check,
+    or that arrives after the end records are written, with the rule
+    `terminal-report-form`, and logs the refusal with the session.
+  - *Link records.* Each kept link is a Detection Finding (2004) when
+    it arrives, with its URL, its text, its mark, and its cut flags.
+  - *End records.* `wb-hostd` writes them from the stored counts,
+    when both the session has ended and `wb`'s connection for the
+    session has closed, or 30 seconds after the session ended,
+    whichever comes first (S06-vm-lifecycle, "Session lifecycle"). The
+    deadline covers a `wb` that is stopped with job control or hangs.
+    The session's end record holds every count by rule and every count
+    by mark, and says whether the report from the end of the stream
+    arrived. When `wb` crashed, it didn't. Its closed connection hung
+    up the session. The end records then hold the counts of the last
+    report, at most 10 seconds old, and the links `wb` had sent.
+    `wb-hostd` writes the end records, waits until the log has them on
+    disk, and then sets an "end records written" flag with the
+    session's record in `state.db`. It checks the flag before it writes
+    them. So a lost session that ends after a `wb-hostd` restart
+    (S06-vm-lifecycle, "Session lifecycle") gets its end records from
+    the stored counts, and a session that already has them doesn't get
+    them again. A `wb-hostd` that stops between the write and the flag
+    writes them again after its restart. Each end record has an ID
+    made of the session and the rule, `links-past-100` or
+    `session-end`, so a reader
+    sees the repeat as one record. Each rule with drops is also a
+    Detection Finding with its count, except `terminal-osc-title` and
+    `terminal-osc-notify`. Claude Code writes titles and notifications
+    in nearly every session, and a notification becomes a BEL rather
+    than a drop, so those two counts are only in the session's end
+    record. When links went past the 100 kept, their counts by mark are
+    one more Detection Finding. So a session writes at most 100 link
+    findings, one finding per drop rule, and one for the links past
+    100.
+  - *Attribution.* Every one of these records has the session's VM,
+    project and session by the host's attribution, because they come
+    from the `wb` that started the session, not from a guest label.
+  - *Severity.* Low for a marked link, for the links-past-100 finding
+    when any of its marked counts is above zero, and for the rules
+    whose sequence makes a terminal act on the host or type text into
+    its input: `terminal-osc-clipboard`, `terminal-osc-file`,
+    `terminal-csi-window`, `terminal-dcs` and `terminal-apc`.
+    Informational for the rest. The filter dropped each sequence these
+    findings count, so none needs action at once.
+  - *Escaping.* A link's URL and text are guest bytes. The record holds
+    each backslash as `\\`, each byte that isn't valid UTF-8 as `\xNN`
+    in uppercase hex, and as `\u{H…}` (the code point in 1 to 6 uppercase hex digits,
+    without leading zeros, such as `\u{7F}`, `\u{202E}` or `\u{E0041}`)
+    each code point in the escaped set of S16-terminal-stream ("Guest
+    text elsewhere"): controls (Cc), format characters (Cf), line and
+    paragraph separators (Zl, Zp), and every
+    `Default_Ignorable_Code_Point`. So a reader of the log sees them,
+    and no viewer acts on them. JSON's own escaping isn't enough, because a JSON reader turns `\u202e`
+    back into the character it names, and a raw U+2028 starts a forged
+    line in a viewer that breaks lines there. The length limits apply
+    before escaping, so an escape is never cut.
 - Attribution of network events. `wb-netd` and `wb-proxyd` know the VM,
   and `wb-hostd` adds the projects and sessions running in it. The
   project, session, guest user and program of each connection come
