@@ -6,6 +6,12 @@ host tool needs an ad-hoc signature with the
 Agents may sign it since #200 (#209), with the shared
 `spikes/vm.entitlements` from `main`. Nothing below has been measured.
 
+Status 2026-10-10: the build and the signing below work for an agent
+(`codesign -d` lists `com.apple.security.virtualization`). The next
+step, an APFS clone (`cp -c`) of `e5` into `.scratch/g1`, was refused by
+the agent's permission check, so no guest has booted yet. Someone with
+that permission makes the clone, or the permission rule allows it.
+
 ## Parts
 
 - `host-vmd/`: Swift `wb-vmd` stand-in, copied from X06-guest-xcode's
