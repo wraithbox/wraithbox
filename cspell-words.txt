@@ -183,3 +183,8 @@ starlette
 httpx
 webui
 sharkdp
+nosuid
+nodev
+xattrs
+opendirectoryd
+covdata

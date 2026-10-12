@@ -22,7 +22,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X05-fs-benchmark | Filesystem benchmark | Answered 2026-10-05: no. NFR02-fs-speed is not met for `npm ci` with any disk setting, and the data disk uses full sync. Decided 2026-10-06 (I19): NFR02-fs-speed is a goal outside the release gate |
 | X06-guest-xcode | Guest users and Xcode | Answered 2026-10-08: yes, with conditions |
 | X07-git-round-trip | Git round trip | Answered: yes, with conditions |
-| X08-data-disk | Data disk for homes | Open |
+| X08-data-disk | Data disk for homes | Answered 2026-10-12: yes, with conditions |
 | X09-keychain-unsigned | Keychain access without a signing identity | Open |
 | X10-linux-hypervisor | Linux VMM and packet transport | Open |
 | X11-windows-host | Windows host through HCS | Open |
@@ -98,7 +98,10 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   flagging of risky paths. Answered yes, with conditions, in the result
   page X07-git-round-trip.
 - **X08-data-disk: Data disk for homes.** Guest user homes on a second disk,
-  surviving a system-disk replacement.
+  surviving a system-disk replacement. Answered yes, with conditions,
+  in the result page X08-data-disk: a volume the guest formats APFS is
+  lost with its system disk, and one the host formats APFS before the
+  first boot survives, with the users recreated from host state.
 - **X09-keychain-unsigned: Keychain access without a signing identity.** Confirm the
   fallback access-control model from S09-policy-credentials-audit and the Secure Enclave
   key creation for an ad-hoc signed binary.

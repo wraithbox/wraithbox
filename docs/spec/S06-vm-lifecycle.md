@@ -250,6 +250,25 @@ in S12-platforms.
   later addition.
 - **Updates.** A VM's system disk is replaced by a fresh clone of the new
   image. Project data is on a separate data disk and survives (below).
+  On the first boot of the new system disk, `wb-guestd` mounts the data
+  volume ("Disks"), then recreates every project user of the VM from
+  the host state below, before any session starts, and leaves the
+  homes as they are (X08-data-disk). To recreate them, `wb-hostd` keeps
+  per project user of a VM:
+  - the user name, UID and GID, and the user's own group's name;
+  - the user's and the group's `GeneratedUID`, the UUID that ACL
+    entries name. With a new one, the ACL entries in the home stop
+    applying, and a deny entry then allows;
+  - the home path.
+
+  Project users have no password to keep. `wb-hostd`
+  never gives a UID, GID or `GeneratedUID` that one project user had on
+  a data disk to another project, so a recreated user can't own another
+  project's home (SEC08-proj-isolation). `wb-guestd` makes the record
+  with `GeneratedUID` as its first attribute: once a record has a UID
+  and a primary group, macOS refuses to change its `GeneratedUID` or
+  home path. A guest root that wrote to the data disk keeps what it
+  wrote after the swap, because only the system disk is replaced.
 - **One guest admin password per VM.** At first contact in each fresh
   clone of an image, before any project code, `wbadmin`'s password is
   rotated to one that is generated for that VM and kept in the secret
@@ -350,6 +369,30 @@ in S12-platforms.
   With these settings, `npm ci` on the data disk ran at about 71% of
   the host on a loaded host, under the 80% goal of NFR02-fs-speed. The
   goal is not a release gate.
+
+  The host formats a new data disk before the first boot that attaches
+  it: `wb-hostd`, which also clones the system disk into the bundle,
+  creates the sparse file, attaches it as the user without mounting
+  it, checks that the device it got is that image, makes one APFS
+  volume on it, and detaches it. The host never attaches the image
+  again. A volume the guest formats APFS is encrypted at rest with a key
+  that needs the system disk it was made on, so it doesn't mount after a
+  system disk swap. The host-made volume has no such key (X08-data-disk).
+  A USB data disk is not an option: TCC denies every guest process
+  access to it.
+
+  `wb-guestd` mounts the data volume at boot, before it starts anything
+  as a project user, at a fixed path outside `/Volumes` that holds the
+  homes, with `nobrowse`, `nosuid`, `nodev` and ownership on. Disk
+  Arbitration has mounted it at `/Volumes/<name>` without `nosuid` by
+  then, so `wb-guestd` unmounts it and mounts it again with these
+  options. It then checks the flags of the mount, and when one is
+  missing it doesn't start a session, and logs the mount it found and the rule
+  (SEC08-proj-isolation). Without `nosuid`, a setuid-root file that guest
+  root left in a home gives a project user root, also after a swap. The
+  mount isn't repeated while the guest runs: once a process has run as a
+  user whose home is under the mount point, macOS refuses another mount
+  there until the next boot.
 - **Devices.** One virtio network device whose packet transport leads
   to `wb-netd` (on macOS a file-handle attachment; S07-egress-gateway, S12-platforms);
   one host-guest socket device (vsock); storage: the system disk, the
@@ -535,6 +578,9 @@ slot. Guests of other operating systems are limited only by resources
   `wb-guestd`; its home on the data disk holds the project clone, Claude
   Code state (FR13-claude-state), and tool caches. Guest users cannot read each other's
   homes (SEC08-proj-isolation). No host user accounts are created (SEC12-least-privilege).
+  A home is mode 700, under the data volume's mount point ("Disks"),
+  and its path is set when the user is created and never changes,
+  because macOS refuses to change it in the record (X08-data-disk).
 - A project user is a standard account, outside the `admin` and
   `wheel` groups, with no sudoers rule. Guest root can bind
   the host-guest socket port of `wb-guestd`, so a project user must not
