@@ -128,7 +128,7 @@
 		"kind": "issue",
 		"state": "closed",
 		"title": "X07-git-round-trip: Git round trip",
-		"summary": "Does the git round trip work as S08-workspace-and-git describes: a remote helper over vsock, read-only upload-pack against the user's repository, restricted receive-pack into the landing repository, and flagging of ri…",
+		"summary": "Does the git round trip work as S08-workspace-and-git describes: a remote helper over vsock, read-only upload-pack against the user's repository, restricted receive-pack into the landing repository, and flagging of…",
 		"brief": "B21-git-round-trip"
 	},
 	"22": {
@@ -274,7 +274,7 @@
 	},
 	"43": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: VM slot admission for image builds, updates and GUI work (NFR05-two-macos-vms)",
 		"summary": "NFR05-two-macos-vms allows two running macOS guests per host, and S06-vm-lifecycle uses both: the work VM and the isolated VM.",
 		"brief": "B43-vm-slot-admission"
@@ -531,7 +531,7 @@
 	},
 	"83": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Guest terminfo for the host TERM passed into the session",
 		"summary": "S05-cli (\"Terminal stream\", #81) passes the host's TERM into the guest session, because Claude Code picks its sequences from it."
 	},
@@ -691,7 +691,7 @@
 	},
 	"109": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit: audit mode can never pass the boundary check",
 		"summary": "S09-policy-credentials-audit says the prover answers unsupported for an endpoint in audit mode, and the boundary check refuses on unsupported."
 	},
@@ -839,7 +839,7 @@
 		"kind": "issue",
 		"state": "closed",
 		"title": "Record blocks only as issue relationships and drop the blocked label",
-		"summary": "Whether an issue is blocked is recorded in two places that nothing keeps in sync: the GitHub blockedBy relationship, which clears itself when the blocker closes, and the blocked label, which stays until someone remove…"
+		"summary": "Whether an issue is blocked is recorded in two places that nothing keeps in sync: the GitHub blockedBy relationship, which clears itself when the blocker closes, and the blocked label, which stays until someone…"
 	},
 	"134": {
 		"kind": "pr",
@@ -857,7 +857,7 @@
 		"kind": "pr",
 		"state": "merged",
 		"title": "docs(spec): session lifecycle, closing the terminal ends the session",
-		"summary": "Writes the maintainer's decision of 2026-10-04 on #46 (option B: closing the terminal ends the session, no detach or wb attach in V1, wb claude --continue resumes from the host's HEAD) into the four specs it names, an…",
+		"summary": "Writes the maintainer's decision of 2026-10-04 on #46 (option B: closing the terminal ends the session, no detach or wb attach in V1, wb claude --continue resumes from the host's HEAD) into the four specs it names,…",
 		"brief": "B46-session-lifecycle"
 	},
 	"137": {
@@ -912,7 +912,7 @@
 		"kind": "issue",
 		"state": "closed",
 		"title": "SEC12-least-privilege: who holds the image build provisioning password (X17)",
-		"summary": "X17-image-build (PR #141, #28) found that the image build needs a provisioning password: - wb-vmd sets it on VZMacGuestProvisioningOptions; - the build's one SSH session uses it; - wb-guestd's disable step needs the o…",
+		"summary": "X17-image-build (PR #141, #28) found that the image build needs a provisioning password: - wb-vmd sets it on VZMacGuestProvisioningOptions; - the build's one SSH session uses it; - wb-guestd's disable step needs the…",
 		"brief": "B145-least-privilege"
 	},
 	"146": {
@@ -985,13 +985,13 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "Move review blocks and open questions out of the specs into briefs and issues",
-		"summary": "PR #149 changes S01-spec-based-development, \"Spec template\": a spec states the design, and review material (what approving commits to, the controls touched, assumptions, open decisions) lives in the review brief and t…"
+		"summary": "PR #149 changes S01-spec-based-development, \"Spec template\": a spec states the design, and review material (what approving commits to, the controls touched, assumptions, open decisions) lives in the review brief and…"
 	},
 	"158": {
 		"kind": "issue",
 		"state": "open",
 		"title": "S15-least-privilege: developer break-glass through recoveryOS with a disabled wbadmin",
-		"summary": "Can the host boot a macOS VM into recoveryOS (VZMacOSVirtualMachineStartOptions, startUpFromMacOSRecovery), authenticate there as the volume owner wbadmin with its host-held password, and get a root Terminal on the st…"
+		"summary": "Can the host boot a macOS VM into recoveryOS (VZMacOSVirtualMachineStartOptions, startUpFromMacOSRecovery), authenticate there as the volume owner wbadmin with its host-held password, and get a root Terminal on the…"
 	},
 	"159": {
 		"kind": "issue",
@@ -1063,7 +1063,7 @@
 		"kind": "pr",
 		"state": "merged",
 		"title": "docs(spec): bind wb-proxyd stream identity to the hand-off socket",
-		"summary": "Writes the #68 decision into the specs: wb-proxyd takes a stream's VM from the per-VM hand-off socket that wb-hostd creates and labels, re-checks the name against its own copy of the name mapping, the VM's effective p…",
+		"summary": "Writes the #68 decision into the specs: wb-proxyd takes a stream's VM from the per-VM hand-off socket that wb-hostd creates and labels, re-checks the name against its own copy of the name mapping, the VM's effective…",
 		"brief": "B68-proxyd-stream-identity"
 	},
 	"171": {
@@ -1173,7 +1173,7 @@
 	},
 	"188": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X01-model-credential: set up the test account and Keychain item for API key mode",
 		"summary": "1."
 	},
@@ -1246,19 +1246,19 @@
 	},
 	"200": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Allow ad-hoc signing of the X08-data-disk spike's VM tool",
 		"summary": "X08-data-disk (#22) can't start a guest."
 	},
 	"201": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): project an audit endpoint as the whole host for the boundary check",
-		"summary": "The prover answers unsupported for an endpoint in audit mode, so any union with an audit host refused the session start, and the \"enforce over audit\" merge rules could never run."
+		"summary": "The prover answers unsupported for an endpoint in audit mode."
 	},
 	"202": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): add VM slot admission to S06-vm-lifecycle",
 		"summary": "Adds a \"Slot admission\" section to S06-vm-lifecycle and applies the X06-guest-xcode answer to where Xcode work runs."
 	},
@@ -1267,5 +1267,77 @@
 		"state": "open",
 		"title": "Guest terminfo: xterm-kitty unreadable by macOS's own ncurses",
 		"summary": "So a kitty user running less or vim from /usr/bin in wb shell still gets no terminfo entry."
+	},
+	"204": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): describe the guest terminfo for the host TERM",
+		"summary": "Writes the Decision (2026-10-08) on #83 into the specs."
+	},
+	"205": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S09-policy-credentials-audit: risk check reads an audit host as every method on every path",
+		"summary": "Follow-up from the security review of #201 (finding 4)."
+	},
+	"206": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: make what audit mode relaxes a closed list, and name the rule for an allowed violation",
+		"summary": "Follow-up from the security review of #201 (finding 5)."
+	},
+	"207": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S09-policy-credentials-audit: show and assert the audit projection in wb policy explain and the extension check",
+		"summary": "Follow-up from the security review of #201 (findings 6 and 7)."
+	},
+	"208": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: a confirmed remote change is a widening policy change",
+		"summary": "Follow-up from the security re-review of #201."
+	},
+	"209": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(spikes): allow ad-hoc signing by agents",
+		"summary": ""
+	},
+	"210": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump jdx/mise-action from 4.3.0 to 5.0.1",
+		"summary": "Bumps jdx/mise-action from 4.3.0 to 5.0.1."
+	},
+	"211": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump @astrojs/starlight from 0.42.4 to 0.42.5 in /packages/wraithbox-doc",
+		"summary": "Bumps @astrojs/starlight from 0.42.4 to 0.42.5."
+	},
+	"212": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps-dev): Bump cspell from 10.3.4 to 10.3.6 in /packages/wraithbox-doc",
+		"summary": "Bumps cspell from 10.3.4 to 10.3.6."
+	},
+	"213": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Attended guest setup: let the maintainer confirm CA trust in the guest UI",
+		"summary": "Follow-up to the decision on #185 (option A, accept that URLSession and pip's truststore reject inspected hosts)."
+	},
+	"214": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "X01-model-credential: run the API key spike as wbtest",
+		"summary": "The spike code is ready on spike/x01-model-credential (eed5dd0): a TLS-inspecting proxy that reads the key from wraithbox-secret and swaps it in for a placeholder, and run.sh, which runs -p, -p --resume, an…"
+	},
+	"215": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Model API profile and token binding from X01-model-credential",
+		"summary": "The X01-model-credential result for a long-lived subscription token (#60, docs/spikes/X01-model-credential.md) changes the specs below."
 	}
 }

@@ -39,7 +39,8 @@ function summarize(/** @type {string} */ body) {
 		.replace(/\s+/g, ' ')
 		.trim();
 	const sentence = text.match(/^(.+?[.?!])(\s|$)/)?.[1] ?? text;
-	return sentence.length > 220 ? `${sentence.slice(0, 217).trimEnd()}…` : sentence;
+	// Cut at a word boundary: a word cut in half fails the spell check.
+	return sentence.length > 220 ? `${sentence.slice(0, 218).replace(/\s+\S*$/, '')}…` : sentence;
 }
 
 /** @type {Record<string, { kind: string, state: string, title: string, summary: string, brief?: string }>} */
