@@ -1,0 +1,198 @@
+--- snap 4.3s {'exit': 0, 'ms': 4308.001, 'op': 'run'}
+wbp1 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp1/.CFUserTextEncoding 601 601 -rw------- compressed 3 ac72368a586a18c1
+wbp1/.claude 601 601 drwxr-xr-x - -
+wbp1/.claude.json 601 601 -rw------- - 105 2d64223173f47915
+wbp1/.claude/projects 601 601 drwxr-xr-x - -
+wbp1/.claude/projects/-Volumes-wbhomes-wbp1-sessions-s1 601 601 lrwxr-xr-x - -> ../../.claude/projects/wb-project
+wbp1/.claude/projects/wb-project 601 601 drwxr-xr-x - -
+wbp1/.claude/projects/wb-project/c1.jsonl 601 601 -rw-r--r-- - 44 b93d4289c54c3912
+wbp1/.claude/settings.json 601 601 -rw------- - 30 edf8f0fa1ef872e3
+wbp1/Desktop 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+    xattr com.apple.macl
+wbp1/Desktop/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Documents 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+    xattr com.apple.macl
+wbp1/Documents/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Downloads 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+    xattr com.apple.macl
+wbp1/Downloads/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Library 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp1/Library/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Library/Compositions 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp1/Library/Compositions/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Library/Favorites 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp1/Library/Favorites/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Library/FontCollections 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp1/Library/FontCollections/Fixed Width.collection 601 601 -rw------- compressed 2396 60a9708efeffefaa
+wbp1/Library/FontCollections/Fun.collection 601 601 -rw------- compressed 872 a76d5ceef254cf00
+wbp1/Library/FontCollections/Modern.collection 601 601 -rw------- compressed 815 d028053f7710d39b
+wbp1/Library/FontCollections/PDF.collection 601 601 -rw------- compressed 856 fb6cd4132525281e
+wbp1/Library/FontCollections/Traditional.collection 601 601 -rw------- compressed 1055 44ae0b8031154f78
+wbp1/Library/FontCollections/Web.collection 601 601 -rw------- compressed 1164 ca0b5d0ae4d834bd
+wbp1/Library/Input Methods 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp1/Library/Input Methods/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Library/Keychains 601 601 drwxr-xr-x - -
+wbp1/Library/Keychains/.fl6CFB90D1 601 601 -r--r--r-- - 0 e3b0c44298fc1c14
+wbp1/Library/Keychains/x08.keychain-db 601 601 -rw-r--r-- - 23980 db56b21adc82d242
+wbp1/Library/Preferences 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp1/Library/Preferences/.GlobalPreferences.plist 601 601 -rw------- - 136 5b50c0ac39b83587
+    xattr com.apple.macl
+    xattr com.apple.quarantine
+wbp1/Library/Preferences/.GlobalPreferences_m.plist 601 601 -rw------- - 135 5c782fe762b6490c
+    xattr com.apple.macl
+    xattr com.apple.quarantine
+wbp1/Library/Preferences/ByHost 601 601 drwx------ - -
+wbp1/Library/Preferences/ByHost/com.apple.HIToolbox.C95E103B-7CE1-5DC9-9BE5-8BBDF2D87E04.plist 601 601 -rw------- - 124 c5d4c1d8878cbb1a
+    xattr com.apple.macl
+    xattr com.apple.quarantine
+wbp1/Library/Preferences/com.apple.HIToolbox.plist 601 601 -rw------- - 124 c5d4c1d8878cbb1a
+    xattr com.apple.macl
+    xattr com.apple.quarantine
+wbp1/Library/Preferences/com.apple.scheduler.plist 601 601 -rw------- - 326 1ef55cc1c3f0e92c
+wbp1/Library/Preferences/com.apple.screensaver.plist 601 601 -rw------- - 125 7a81464e1675a713
+wbp1/Library/Preferences/com.apple.symbolichotkeys.plist 601 601 -rw------- - 438 e3acf1b2cf167d47
+wbp1/Movies 601 601 drwx------ - -
+    xattr com.apple.macl
+wbp1/Movies/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Music 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+    xattr com.apple.macl
+wbp1/Music/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Pictures 601 601 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp1/Pictures/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Public 601 601 drwxr-xr-x - -
+    acl 0: group:everyone deny delete
+wbp1/Public/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/Public/Drop Box 601 601 drwx-wx-wx - -
+    acl 0: group:everyone deny delete
+    acl 1: user:wbp1 allow list,add_file,search,delete,add_subdirectory,delete_child,readattr,writeattr,readextattr,writeextattr,readsecurity,writesecurity,chown,file_inherit,directory_inherit
+wbp1/Public/Drop Box/.localized 601 601 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp1/acl-deny 601 601 -rw-r--r-- - 5 55cf1f4b42b8221f
+    acl 0: user:wbp1 deny write,delete,append,writeattr,writeextattr
+wbp1/acl-file 601 601 -rw-r--r-- - 6 0f04d8b14d1dec7e
+    acl 0: user:wbp1 deny write
+    acl 1: group:wbp1 allow read
+wbp1/big.bin 601 601 -rw-r--r-- - 67108864 4bbfee2047907354
+wbp1/d750 601 601 drwxr-x--- - -
+wbp1/link-to-m644 601 601 lrwxr-xr-x - 4 -> m644
+    xattr org.wraithbox.x08
+wbp1/m400 601 601 -r-------- - 3 ecd8a0e06e165df4
+wbp1/m600 601 601 -rw------- - 11 34501b714bb1e5e6
+wbp1/m644 601 601 -rw-r--r-- - 7 cde1925e8f892f5d
+    xattr org.wraithbox.x08
+wbp1/m755 601 601 -rwxr-xr-x - 19 a4e0317eafab5cf1
+    xattr com.apple.quarantine
+wbp1/sessions 601 601 drwxr-xr-x - -
+wbp1/sessions/s1 601 601 drwxr-xr-x - -
+wbp1/uchg-file 601 601 -rw-r--r-- uchg 8 d04e329df10a3760
+wbp2 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp2/.CFUserTextEncoding 602 602 -rw------- compressed 3 ac72368a586a18c1
+wbp2/.claude 602 602 drwxr-xr-x - -
+wbp2/.claude.json 602 602 -rw------- - 105 9026c7cdeef96d86
+wbp2/.claude/projects 602 602 drwxr-xr-x - -
+wbp2/.claude/projects/-Volumes-wbhomes-wbp2-sessions-s1 602 602 lrwxr-xr-x - -> ../../.claude/projects/wb-project
+wbp2/.claude/projects/wb-project 602 602 drwxr-xr-x - -
+wbp2/.claude/projects/wb-project/c1.jsonl 602 602 -rw-r--r-- - 44 6c5537d500d92287
+wbp2/.claude/settings.json 602 602 -rw------- - 30 4d52f022fba006b1
+wbp2/Desktop 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+    xattr com.apple.macl
+wbp2/Desktop/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Documents 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+    xattr com.apple.macl
+wbp2/Documents/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Downloads 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+    xattr com.apple.macl
+wbp2/Downloads/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Library 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp2/Library/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Library/Compositions 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp2/Library/Compositions/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Library/Favorites 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp2/Library/Favorites/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Library/FontCollections 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp2/Library/FontCollections/Fixed Width.collection 602 602 -rw------- compressed 2396 60a9708efeffefaa
+wbp2/Library/FontCollections/Fun.collection 602 602 -rw------- compressed 872 a76d5ceef254cf00
+wbp2/Library/FontCollections/Modern.collection 602 602 -rw------- compressed 815 d028053f7710d39b
+wbp2/Library/FontCollections/PDF.collection 602 602 -rw------- compressed 856 fb6cd4132525281e
+wbp2/Library/FontCollections/Traditional.collection 602 602 -rw------- compressed 1055 44ae0b8031154f78
+wbp2/Library/FontCollections/Web.collection 602 602 -rw------- compressed 1164 ca0b5d0ae4d834bd
+wbp2/Library/Input Methods 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp2/Library/Input Methods/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Library/Keychains 602 602 drwxr-xr-x - -
+wbp2/Library/Keychains/.fl6CFB90D1 602 602 -r--r--r-- - 0 e3b0c44298fc1c14
+wbp2/Library/Keychains/x08.keychain-db 602 602 -rw-r--r-- - 23980 5ea4c2f6a251f27a
+wbp2/Library/Preferences 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp2/Library/Preferences/.GlobalPreferences.plist 602 602 -rw------- - 136 5b50c0ac39b83587
+    xattr com.apple.macl
+    xattr com.apple.quarantine
+wbp2/Library/Preferences/.GlobalPreferences_m.plist 602 602 -rw------- - 135 66b5a6da9936d3b2
+    xattr com.apple.macl
+    xattr com.apple.quarantine
+wbp2/Library/Preferences/ByHost 602 602 drwx------ - -
+wbp2/Library/Preferences/ByHost/com.apple.HIToolbox.C95E103B-7CE1-5DC9-9BE5-8BBDF2D87E04.plist 602 602 -rw------- - 124 c5d4c1d8878cbb1a
+    xattr com.apple.macl
+    xattr com.apple.quarantine
+wbp2/Library/Preferences/com.apple.HIToolbox.plist 602 602 -rw------- - 124 c5d4c1d8878cbb1a
+    xattr com.apple.macl
+    xattr com.apple.quarantine
+wbp2/Library/Preferences/com.apple.scheduler.plist 602 602 -rw------- - 326 1ef55cc1c3f0e92c
+wbp2/Library/Preferences/com.apple.screensaver.plist 602 602 -rw------- - 125 7a81464e1675a713
+wbp2/Library/Preferences/com.apple.symbolichotkeys.plist 602 602 -rw------- - 438 e3acf1b2cf167d47
+wbp2/Movies 602 602 drwx------ - -
+    xattr com.apple.macl
+wbp2/Movies/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Music 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+    xattr com.apple.macl
+wbp2/Music/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Pictures 602 602 drwx------ - -
+    acl 0: group:everyone deny delete
+wbp2/Pictures/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Public 602 602 drwxr-xr-x - -
+    acl 0: group:everyone deny delete
+wbp2/Public/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/Public/Drop Box 602 602 drwx-wx-wx - -
+    acl 0: group:everyone deny delete
+    acl 1: user:wbp2 allow list,add_file,search,delete,add_subdirectory,delete_child,readattr,writeattr,readextattr,writeextattr,readsecurity,writesecurity,chown,file_inherit,directory_inherit
+wbp2/Public/Drop Box/.localized 602 602 -rw-r--r-- - 0 e3b0c44298fc1c14
+wbp2/acl-deny 602 602 -rw-r--r-- - 5 55cf1f4b42b8221f
+    acl 0: user:wbp2 deny write,delete,append,writeattr,writeextattr
+wbp2/acl-file 602 602 -rw-r--r-- - 6 0f04d8b14d1dec7e
+    acl 0: user:wbp2 deny write
+    acl 1: group:wbp2 allow read
+wbp2/big.bin 602 602 -rw-r--r-- - 67108864 bdeb7b104eb5edc7
+wbp2/d750 602 602 drwxr-x--- - -
+wbp2/link-to-m644 602 602 lrwxr-xr-x - 4 -> m644
+    xattr org.wraithbox.x08
+wbp2/m400 602 602 -r-------- - 3 ecd8a0e06e165df4
+wbp2/m600 602 602 -rw------- - 11 34501b714bb1e5e6
+wbp2/m644 602 602 -rw-r--r-- - 7 cde1925e8f892f5d
+    xattr org.wraithbox.x08
+wbp2/m755 602 602 -rwxr-xr-x - 19 a4e0317eafab5cf1
+    xattr com.apple.quarantine
+wbp2/sessions 602 602 drwxr-xr-x - -
+wbp2/sessions/s1 602 602 drwxr-xr-x - -
+wbp2/suid-euid 0 0 -rwsr-xr-x - 33512 1ca06c8bbf9dc2d3
+wbp2/uchg-file 602 602 -rw-r--r-- uchg 8 d04e329df10a3760
