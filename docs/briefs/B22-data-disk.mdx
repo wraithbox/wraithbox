@@ -1,0 +1,135 @@
+---
+title: Can project homes on a data disk survive a new system disk?
+description: Yes, with conditions. A volume the guest formats APFS is lost with its system disk, so the host formats each new data disk APFS before the first boot, and the users are recreated with the same IDs from host state.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-12: yes, with conditions. Awaiting decision.** Source: X08-data-disk (I22). Changes S06-vm-lifecycle ("Updates", "Disks", "Projects and sessions inside a VM"). Related: I44 (the host-mount control), I138 (deleting a project user's record), I135 (Claude Code's state layout in a guest).
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** Recreated with the same UID, GID and `GeneratedUID` on a fresh system disk, every file in the homes compared equal, and every check passed: Claude Code state, keychain, ACLs, and one project user unable to read another's home. But the data disk S06-vm-lifecycle described doesn't survive: a volume the guest formats APFS is encrypted at rest with a key that only the old system disk can unwrap. You are deciding who formats the data disk instead. Recommended: the host, APFS, before the first boot.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="A guest formats an APFS volume on the data disk, and its key needs the old system disk, so a new system disk can't mount it. If the host formats the blank data disk before the first boot, the volume has no such key, and the new system disk mounts it. wb-hostd keeps the user IDs to recreate the users.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="20" y="40" width="200" height="60" rx="10" />
+  <text class="label" x="120" y="66" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="120" y="86" text-anchor="middle">formats a blank image</text>
+  <rect class="box host" x="20" y="200" width="200" height="60" rx="10" />
+  <text class="label" x="120" y="226" text-anchor="middle">host state per user</text>
+  <text class="note" x="120" y="246" text-anchor="middle">UID, GID, GeneratedUID</text>
+
+  <rect class="boundary" x="300" y="15" width="445" height="300" rx="12" />
+  <text class="boundary-label" x="312" y="35">guest (untrusted)</text>
+  <rect class="box guest" x="320" y="50" width="190" height="55" rx="10" />
+  <text class="label" x="415" y="74" text-anchor="middle">old system disk</text>
+  <text class="note" x="415" y="93" text-anchor="middle">holds the guest's key</text>
+  <rect class="box guest" x="535" y="50" width="190" height="55" rx="10" />
+  <text class="label" x="630" y="74" text-anchor="middle">new system disk</text>
+  <text class="note" x="630" y="93" text-anchor="middle">wb-guestd recreates users</text>
+  <rect class="box guest" x="420" y="215" width="210" height="60" rx="10" />
+  <text class="label" x="525" y="240" text-anchor="middle">data disk: homes</text>
+  <text class="note" x="525" y="260" text-anchor="middle">nosuid, nodev, owners</text>
+
+  <line class="edge" x1="222" y1="70" x2="420" y2="225" marker-end="url(#f1-arrow)" />
+  <text class="note" x="160" y="140">before the first boot</text>
+  <path class="edge-bad" d="M415,107 C415,160 440,190 470,213" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="330" y="190">guest APFS: key here</text>
+  <line class="edge" x1="630" y1="107" x2="580" y2="213" marker-end="url(#f1-arrow)" />
+  <text class="note" x="620" y="170">mounts host APFS</text>
+  <line class="edge" x1="222" y1="230" x2="418" y2="245" marker-end="url(#f1-arrow)" />
+</svg>
+<figcaption>
+Figure 1. The guest's own APFS volume needs a key that only the old system disk can unwrap. The host-made volume on the blank image has no such key. The new system disk mounts it, and `wb-guestd` recreates the users from the IDs `wb-hostd` kept (X08-data-disk, S06-vm-lifecycle, "Updates").
+</figcaption>
+</figure>
+
+## Decision: who formats the data disk?
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. The host, APFS, before the first boot
+
+`wb-hostd` creates the sparse file, attaches it without mounting, checks the device is that image, makes one APFS volume, and detaches it. It never attaches the image again.
+
+- **Cost:** host code that runs `diskutil` on a disk device, which must never pick the wrong one. About 1.2 s per new disk.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="caution" /> with the mount options and host-kept IDs. The I44 host-mount control needs to name this exception next to image building.
+
+</div>
+<div class="wb-option">
+
+### B. The guest, HFS+
+
+`wb-guestd` formats the blank disk Mac OS Extended. HFS+ has no encryption at rest, and survived the swap the same way.
+
+- **Cost:** no clones or snapshots on the data disk, and its speed against NFR02-fs-speed isn't measured (X05-fs-benchmark measured APFS).
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="caution" /> as A. The host never touches a disk.
+
+</div>
+<div class="wb-option">
+
+### C. The guest, APFS (as S06 said)
+
+What S06-vm-lifecycle described before this spike.
+
+- **Cost:** not viable. Every system disk swap loses every home, so FR13-claude-state fails on each update. A passphrase volume failed the same way, and a USB disk is refused by TCC.
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Host APFS</th><th>B. Guest HFS+</th><th>C. Guest APFS</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>FR13-claude-state</strong> Claude Code state persists per project</td><td class="yes">kept after a swap</td><td class="yes">kept after a swap</td><td class="no">lost at each swap</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> one project can't persist into another</td><td class="partial">with nosuid, nodev, owners and IDs never reused</td><td class="partial">same</td><td class="na">nothing survives</td></tr>
+<tr><td><strong>SEC11-root-gains-nothing</strong> guest root gets nothing from the host</td><td class="partial">what guest root wrote to the data disk stays after a swap</td><td class="partial">same</td><td class="yes">nothing stays</td></tr>
+<tr><td><strong>NFR02-fs-speed</strong> filesystem speed goal</td><td class="partial">APFS, as measured in X05</td><td class="partial">not measured</td><td class="partial">as measured in X05</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> A guest-formatted APFS volume reported "Encrypted at rest", and on a fresh clone of the image it failed to mount at boot and by hand (`failed to unwrap volume key`). Its own system disk mounted it again. Source: X08-data-disk, "Answer" part 1, `results/boot2.jsonl`.
+- <Badge text="verified" variant="success" /> A passphrase APFS volume failed to unlock on the fresh system disk (`xart error: -3`). Source: "Answer" part 2, `results/boot4.jsonl`.
+- <Badge text="verified" variant="success" /> A USB data disk is refused to every guest process by TCC, including root and a launchd job. Source: "Answer" part 3, `results/boot3.jsonl`.
+- <Badge text="verified" variant="success" /> A host-made APFS volume and a guest-made HFS+ volume mounted on three system disks, and after recreating the users with the same IDs, a snapshot of every file and every behavior check were identical. Source: "Answer" parts 4 to 6, `results/snap-boot5-*.txt`, `results/snap-boot6-*.txt`.
+- <Badge text="verified" variant="success" /> With a new `GeneratedUID`, ACL entries that name the user stop applying, and a deny entry then allows. Source: "Answer" part 9, `results/check-boot8-c3a.txt`.
+- <Badge text="verified" variant="success" /> Without `nosuid`, a setuid-root file in a home gave a project user root, also after the swap. Source: "Answer" part 10, `results/boot7.jsonl`.
+- <Badge text="verified" variant="success" /> macOS refuses to change a user's `GeneratedUID` or home path once the record has a UID and a group, and setting `GeneratedUID` first works. Source: "Answer" part 11, `results/boot1.jsonl`.
+- <Badge text="inferred" variant="note" /> The guest-made volume's key needs the old system disk, not only the auxiliary storage: the log names xART, which is on the system disk. Not isolated by experiment.
+- <Badge text="assumed" variant="caution" /> That the guest never turns encryption on for a volume the host made. It held for four boots. Option A rests on it.
+- <Badge text="assumed" variant="caution" /> That the host-made volume gives freed space back to the host like a guest-made one. X05-fs-benchmark measured only the guest-made one.
+
+## What it unblocks
+
+I44 (the data disk settings and the host-mount control), the update path in S06-vm-lifecycle, and the project user code of `wb-guestd` in V1-M2-walking-skeleton.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the guest's own volume is lost.** On Apple Silicon, macOS encrypts every APFS volume on an internal disk, even with FileVault off, using keys the Secure Enclave guards. In a VM the Secure Enclave is virtual, and the kernel log points at state on the system disk. The data disk looks internal to the guest, so its volume gets such a key. A fresh clone of the image has its own state, and can't open the old volume.
+
+**Why the host's volume is different.** On the host, a disk image is not internal storage, so the APFS volume `diskutil` makes on it isn't encrypted at rest. The guest mounts it as it is.
+
+**Why the IDs matter.** Files belong to a numeric UID and GID, so a recreated user with the same numbers owns its home again. ACL entries name a user by its `GeneratedUID` instead, so that has to match too. If another project's user got the same numbers, it would own the old home, so `wb-hostd` never reuses them.
+
+**Why the mount options.** Guest root can leave a setuid-root program in a home. If the data volume allowed setuid, the project user could run it and become root, also on a new system disk. `nosuid` stops that, `nodev` stops device files, and ownership on makes the guest honor the owners on the volume.
+
+- **GeneratedUID:** the UUID macOS gives each user and group, used in ACLs.
+- **ACL:** access control list, extra allow and deny rules on a file beyond its mode.
+- **Disk Arbitration:** the macOS service that mounts disks at boot.
+- **TCC:** macOS's privacy controls, which ask a person or MDM before a process can use protected data such as external disks.
+- **HFS+:** the macOS filesystem before APFS, still supported.
+
+</details>
