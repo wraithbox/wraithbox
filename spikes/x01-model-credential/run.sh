@@ -29,6 +29,11 @@ case $MODE in
 esac
 mkdir -p "$OUT"
 [[ $(id -un) == wbtest ]] || { echo "run as wbtest, not $(id -un)"; exit 1; }
+if /usr/bin/nc -z 127.0.0.1 18080 2>/dev/null; then
+  echo "Port 127.0.0.1:18080 is in use, likely a proxy left by an interrupted run."
+  echo "Find it with: lsof -nP -iTCP:18080 -sTCP:LISTEN, stop it, and run again."
+  exit 1
+fi
 echo "== mode $MODE, placeholder ${#PLACEHOLDER} chars, inject on $INJECT" | tee "$OUT/mode.txt"
 
 "$DIR/x01-proxy" -listen 127.0.0.1:18080 -ca-out "$OUT/ca.pem" \
@@ -37,7 +42,13 @@ echo "== mode $MODE, placeholder ${#PLACEHOLDER} chars, inject on $INJECT" | tee
 PROXY=$!
 trap 'kill $PROXY' EXIT
 sleep 2
-kill -0 $PROXY || { cat "$OUT/proxy.log"; exit 1; }
+if ! kill -0 $PROXY 2>/dev/null; then
+  echo "x01-proxy exited at start. Its log, $OUT/proxy.log:"
+  if [[ -s $OUT/proxy.log ]]; then cat "$OUT/proxy.log"; else echo "(empty)"; fi
+  echo "An empty log with exit 137 often means a binary overwritten in place: rm it, then cp it again."
+  trap - EXIT
+  exit 1
+fi
 
 export HTTPS_PROXY=http://127.0.0.1:18080 HTTP_PROXY=http://127.0.0.1:18080
 export NODE_EXTRA_CA_CERTS=$OUT/ca.pem

@@ -56,7 +56,10 @@ can't switch to `wbtest` without a password.
   every `api.anthropic.com` request. Claude Code failed with
   `Malformed_HTTP_Response`, because the proxy wrote HTTP/2 status lines
   (`HTTP/2.0 401`) to its HTTP/1.1 client. A later commit fixed that.
-- The OAuth mode run is pending.
+- The OAuth mode run on 2026-10-12 succeeded: `-p` and `-p --resume`
+  answered, the interactive session answered, and the interactive
+  `--resume` opened. The result is in
+  `docs/spikes/X01-model-credential.md` on `main`.
 
 The Keychain read needs the item created with `-T /usr/bin/security`.
 With the default access list, `security find-generic-password -w`
@@ -78,11 +81,18 @@ cd /Users/Shared/x01/src/spikes/x01-model-credential/proxy &&
   GOWORK=off go build -o /Users/Shared/x01/x01-proxy .
 # as wbtest
 mkdir -p ~/x01
+# rm first: a signed binary overwritten in place is killed at launch
+# (exit 137, no output)
+rm -f ~/x01/x01-proxy ~/x01/run.sh
 cp /Users/Shared/x01/x01-proxy /Users/Shared/x01/src/spikes/x01-model-credential/run.sh ~/x01/
 cp "$(readlink ~lsimons/.local/bin/claude)" ~/x01/claude   # once, or install Claude Code as wbtest
 ~/x01/run.sh                 # oauth mode
 MODE=apikey ~/x01/run.sh     # needs an API key in the item
 ```
+
+`run.sh` refuses to start when 127.0.0.1:18080 is in use, which an
+interrupted run can leave behind. It prints the proxy's log, or
+`(empty)`, when the proxy exits at start.
 
 When the API errors, `run.sh` can sit for minutes on one step with
 no output: Claude Code retries before it gives up (the first run took
