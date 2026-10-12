@@ -24,7 +24,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B19-fs-benchmark | Is the data disk fast enough, and which disk settings does it use? | Answered 2026-10-05: no. Decided 2026-10-06: D, NFR02-fs-speed becomes a goal outside the release gate |
 | B20-guest-xcode | Can Xcode builds, tests and simulators run for a project user without a GUI login? | Answered 2026-10-08: yes, with conditions. Decided 2026-10-12: 1A and 2A |
 | B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04. Decided 2026-10-04: A, Go filter plus `receive.hideRefs` |
-| B22-data-disk | Can project homes on a data disk survive a new system disk? | Answered 2026-10-12: yes, with conditions. Awaiting two decisions |
+| B22-data-disk | Can project homes on a data disk survive a new system disk? | Answered 2026-10-12: yes, with conditions. Decided 2026-10-12: 1A and 2A |
 | B28-image-build | Can an unprivileged host build a macOS guest image without SSH or clicks? | Answered 2026-10-07: no. Decided 2026-10-07: 1A, changed, 2A, the build VM's own network, 3A, macOS 27 hosts, and 4, the secret store through `wb-guestadmin` |
 | B29-vsock-handoff | Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, the host opens every connection |
 | B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04. Decided 2026-10-04: A, allowlist as measured, and H1 plus a URL list for hyperlinks |
