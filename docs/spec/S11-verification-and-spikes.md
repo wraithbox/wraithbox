@@ -479,9 +479,12 @@ be tested before building on them.
     - send requests to `/mcp-registry/v0/servers` and `/api/hello`, and
       see them allowed with nothing injected;
   - with a global policy that allows `api.anthropic.com`
-    `/api/event_logging/`, send a request there and one to
-    `/api%2Fevent_logging/`, and see both refused with the rule
-    `model-event-log` (S07-egress-gateway, "model API");
+    `/api/event_logging/`, and with one that allows `/api/`, send a
+    request to `/api/event_logging/` and see it refused with the rule
+    `model-event-log`. Send `/api/%65vent_logging/`,
+    `/api%2Fevent_logging/` and `/api%2fevent_logging/`, and see each
+    refused with the rule `model-path-escape` (S07-egress-gateway,
+    "model API");
   - run `wb claude -p`, `wb claude -p --resume` and an interactive
     `wb claude` with the model API profile, and see each answer.
     Check in the audit log that no request went to
