@@ -388,7 +388,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X01-model-credential: API key mode via the proxy",
-		"summary": "Split from #15 (X01-model-credential) during triage on 2026-10-04."
+		"summary": "Split from #15 (X01-model-credential) during triage on 2026-10-04.",
+		"brief": "B60-model-credential"
 	},
 	"61": {
 		"kind": "issue",
