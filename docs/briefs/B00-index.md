@@ -20,11 +20,11 @@ issue, the spike result, or the spec). A brief explains it.
 |----|-------------|--------|
 | B16-warm-start | How fast does a suspended VM come back, and can one saved state be restored more than once? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, keep running while locked and save after unlock |
 | B17-network-path | Does a macOS guest work on our userspace network stack, reaching only the proxy, and how fast? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: 1A, link MTU 65535, and 2A, refuse the guest OS's own lookups quietly |
-| B18-tls-inspection | Do the guest's tools accept the inspection CA? | Answered 2026-10-08: no. Awaiting decision |
+| B18-tls-inspection | Do the guest's tools accept the inspection CA? | Answered 2026-10-08: no. Decided 2026-10-10: A, accept it |
 | B19-fs-benchmark | Is the data disk fast enough, and which disk settings does it use? | Answered 2026-10-05: no. Decided 2026-10-06: D, NFR02-fs-speed becomes a goal outside the release gate |
-| B20-guest-xcode | Can Xcode builds, tests and simulators run for a project user without a GUI login? | Answered 2026-10-08: yes, with conditions. Awaiting decision |
+| B20-guest-xcode | Can Xcode builds, tests and simulators run for a project user without a GUI login? | Answered 2026-10-08: yes, with conditions. Decided 2026-10-12: 1A and 2A |
 | B21-git-round-trip | Does the git round trip work, and what keeps the guest's pushes on its own branches? | Answered 2026-10-04. Decided 2026-10-04: A, Go filter plus `receive.hideRefs` |
-| B28-image-build | Can an unprivileged host build a macOS guest image without SSH or clicks? | Answered 2026-10-07: no. Awaiting decision |
+| B28-image-build | Can an unprivileged host build a macOS guest image without SSH or clicks? | Answered 2026-10-07: no. Decided 2026-10-07: 1A, changed, 2A, the build VM's own network, 3A, macOS 27 hosts, and 4, the secret store through `wb-guestadmin` |
 | B29-vsock-handoff | Can wb-vmd hand guest connections to our Go daemons as descriptors, also across a restore? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: A, the host opens every connection |
 | B30-terminal-filter | Can wb filter Claude Code's terminal output without breaking it? | Answered 2026-10-04. Decided 2026-10-04: A, allowlist as measured, and H1 plus a URL list for hyperlinks |
 | B31-shared-homebrew | Can projects in one guest share Homebrew without being able to change each other's tools? | Answered 2026-10-07: yes, with conditions. Decided 2026-10-08: no per-project prefix in v1 (A), and bottles only (A) |
@@ -53,10 +53,10 @@ issue, the spike result, or the spec). A brief explains it.
 | B64-vmd-sandbox | Can wb-vmd confine itself and still run a macOS VM? | Answered 2026-10-06. Awaiting decision on two points |
 | B68-proxyd-stream-identity | How does wb-proxyd know which VM and name a stream belongs to, when wb-netd may be compromised? | Decided 2026-10-08: A |
 | B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps |
-| B76-gosumdb-clock | Does the checksum database work as Go's clock for the dependency gate? | Answered 2026-10-08: yes. Awaiting decision |
+| B76-gosumdb-clock | Does the checksum database work as Go's clock for the dependency gate? | Answered 2026-10-08: yes. Decided 2026-10-12: A, with the values as written |
 | B101-vsock-confinement | Can a project user take wb-guestd's place on the host-guest socket? | Answered 2026-10-06: yes, with conditions |
 | B102-git-alloc-limit | Can git itself refuse a push that asks for too much memory, so the pack scanner gets simpler? | Answered 2026-10-06 |
-| B145-least-privilege | Where are credentials held on the host, and who may reach them? | Awaiting decision |
+| B145-least-privilege | Where are credentials held on the host, and who may reach them? | Decided 2026-10-07: A, the store, with declared access per process |
 
 ## Order to decide
 

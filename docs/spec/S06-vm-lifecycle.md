@@ -285,10 +285,13 @@ in S12-platforms.
   a SwiftPM package's included, and launching a macOS app need a GUI
   login session (X06-guest-xcode). Neither VM gives a project user
   one: sealing refuses an image with automatic login or an
-  `/etc/kcpassword` ("Sealing"). Whether v1 offers that work, and in
-  which VM a project user would get a console session, is I195, and
-  the isolated VM isn't assumed. Until I195 is decided, "Slot
-  admission" has no rule for it.
+  `/etc/kcpassword` ("Sealing"). v1 doesn't offer macOS tests through
+  `xcodebuild` or launching a macOS app (B20-guest-xcode decision 1A,
+  I20). `swift test` is unaffected. When such a test fails because
+  `testmanagerd` can't reach a GUI session, `wb` replaces the error
+  with a message that names this limit (NFR06-explained-refusals). No
+  v1 work needs a console session, so "Slot admission" has no rule
+  for one. I195 holds the console session design for after v1.
 - **Placement and configuration trust.** `placement` (`work` or
   `isolated`) is a project setting (S09-policy-credentials-audit,
   "Settings contents"),
