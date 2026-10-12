@@ -48,7 +48,8 @@ same name.
   `wb-vmd` boots it, `wb-guestd` answers over vsock, and `wb shell`
   opens a PTY as a project user. The guest has no network device yet.
   Covers SEC01-separate-kernel, SEC02-no-host-fs-share,
-  SEC04-no-guest-secrets (image seal), SEC08-proj-isolation (users), FR02-any-repo.
+  SEC04-no-guest-secrets (image seal), SEC08-proj-isolation (users),
+  SEC15-no-guest-disk-mount (data disk), FR02-any-repo.
 - **V1-M3-network-floor: The network floor.** `wb-netd` and `wb-proxyd` in inspect
   mode with a static policy, the audit log, and the conformance cases
   for egress. Covers SEC05-default-deny, SEC10-audit,

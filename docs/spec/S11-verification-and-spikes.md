@@ -55,6 +55,14 @@ be tested before building on them.
   drops the free space below the floor and sees the VM whose data disk
   grew stopped before any write fails, and the reserve allocated again
   once space returns.
+  The data disk steps (S06-vm-lifecycle, "Disks") have tests, with a
+  fake `diskutil`, that give `wb-hostd` a file at the final name that
+  `state.db` doesn't record as formatted and see the VM start refused
+  with the file kept, that leave a temporary file and see it deleted,
+  and that report another backing image path to `wb-diskfmt` before the
+  attach check and before the format, and see it fail with the rule.
+  In each, the fake `diskutil` is never asked to attach a file at the
+  final name (SEC15-no-guest-disk-mount).
   Leaf issuance in `wb-proxyd` (S09-policy-credentials-audit, "TLS
   inspection certificate authority") has a test that asks for a leaf
   for a host the policy doesn't inspect, a host in pass mode, a stream
@@ -397,7 +405,7 @@ be tested before building on them.
     - on macOS, start sessions in one repository as `~/git/foo` and
       `~/Git/foo` and through a symbolic link, and see one project;
     - run `wb project place isolated` for a project that has a home on
-      a data disk and see it refused with I44 named, and while the
+      a data disk and see it refused with I232 named, and while the
       project has a session and see it refused with the session named;
       run it in a new clone before its first session and see the first
       session start in the isolated VM;

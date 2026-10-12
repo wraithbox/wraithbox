@@ -133,7 +133,7 @@
 	},
 	"22": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X08-data-disk: Data disk for homes",
 		"summary": "Can guest user homes live on a second disk and survive a replacement of the system disk?",
 		"brief": "B22-data-disk"
@@ -1410,7 +1410,7 @@
 	},
 	"227": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X08-data-disk result, homes on a host-formatted data disk",
 		"summary": "The result of X08-data-disk: yes, with conditions.",
 		"brief": "B22-data-disk"
@@ -1426,5 +1426,23 @@
 		"state": "open",
 		"title": "S05-cli: a command that gives a VM a new data disk",
 		"summary": "Found in the review of #227 (X08-data-disk)."
+	},
+	"230": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(review): record the B145 decision on one spec per SEC requirement",
+		"summary": "The maintainer decided B, not now, on #223 (2026-10-12): specs stay organized by component, and a SEC requirement gets its own spec page only where one is needed."
+	},
+	"231": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: make git and Claude Code state in the guest flush to the data disk",
+		"summary": "- git in the guest."
+	},
+	"232": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: move a project's home between VM data disks on wb project place",
+		"summary": "S06-vm-lifecycle, \"Changing placement\", refuses wb project place for a project that has a home on a VM's data disk, because moving the home to the other VM's data disk \"needs the data-disk design of I44\"."
 	}
 }

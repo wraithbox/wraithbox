@@ -3,7 +3,7 @@
 **Purpose:** How guest images are built, how VMs are kept warm, how
 projects and sessions map onto guests, and what `wb-guestd` does.
 
-**Requirements:** FR02-any-repo, FR05-parallel-sessions to FR07-toolchain-manifest, FR11-port-forward to FR14-ephemeral, SEC01-separate-kernel, SEC02-no-host-fs-share, SEC08-proj-isolation, SEC11-root-gains-nothing, SEC13-bounded-resources, NFR01-startup to NFR05-two-macos-vms.
+**Requirements:** FR02-any-repo, FR05-parallel-sessions to FR07-toolchain-manifest, FR11-port-forward to FR14-ephemeral, SEC01-separate-kernel, SEC02-no-host-fs-share, SEC08-proj-isolation, SEC11-root-gains-nothing, SEC13-bounded-resources, SEC15-no-guest-disk-mount, NFR01-startup to NFR05-two-macos-vms.
 
 This spec describes macOS guests on a macOS host, the v1 target. The
 structure (image layers, sealing, work and isolated VMs, one guest user
@@ -151,7 +151,8 @@ in S12-platforms.
      and deletes its keychains. Then the base layer is installed
      through `wb-guestd`, and the image is sealed.
 
-  The host never mounts a guest disk to build an image. An
+  The host never mounts a guest disk to build an image
+  (SEC15-no-guest-disk-mount). An
   unprivileged host process can't create a root-owned file on it, so
   launchd refuses anything the host would write there, and root on the
   host is ruled out by SEC12-least-privilege (X17-image-build).
@@ -212,7 +213,7 @@ in S12-platforms.
     decides whether `xterm-kitty` gets an entry macOS can read.
 - **Sealing.** Before an image is usable, `wb-guestd` scans it as root,
   before any project code has run. The host parses no guest
-  filesystem. Any finding fails the build:
+  filesystem (SEC15-no-guest-disk-mount). Any finding fails the build:
   - anything that looks like a secret (keychain items, tokens in
     dotfiles, SSH keys, shell history) and `/etc/kcpassword`
     (SEC04-no-guest-secrets);
@@ -347,11 +348,12 @@ in S12-platforms.
   session start. `wb project place` is refused while the project has a
   session, and the refusal names the session. A project user's home,
   with its Claude Code state (FR13-claude-state) and commits not yet
-  pushed, is on the data disk of the VM it ran in ("Disks"). Moving a
-  home to the other VM's data disk needs the data-disk design of I44.
-  Until I44 is decided and built, `wb project place` is refused for a
-  project that has a home on any VM's data disk. The refusal names I44
-  and today's way to isolate such a project: `wb project rm`, then
+  pushed, is on the data disk of the VM it ran in ("Disks"). The host
+  can't move it by mounting either data disk
+  (SEC15-no-guest-disk-mount), and I232 decides whether and how a home
+  moves. Until I232 is decided and built, `wb project place` is refused
+  for a project that has a home on any VM's data disk. The refusal
+  names I232 and today's way to isolate such a project: `wb project rm`, then
   `wb project place isolated` in the repository, which registers it
   again with no home, at the cost of its Claude Code state and
   approvals (NFR06-explained-refusals). So no home is left on the old VM,
@@ -387,6 +389,28 @@ in S12-platforms.
   With these settings, `npm ci` on the data disk ran at about 71% of
   the host on a loaded host, under the 80% goal of NFR02-fs-speed. The
   goal is not a release gate.
+
+  Claude Code state and commits not yet pushed on the data disk must be
+  kept through a host crash or power loss, and tool caches may be lost
+  (decided on I44). Full synchronization keeps every write the guest
+  has flushed, and X05-fs-benchmark found it costs the NFR02-fs-speed
+  workloads nothing measurable, so caches stay on the one data disk and
+  no second, relaxed disk is used. A write the guest
+  hasn't flushed yet can be lost in a host crash. When only the VM's
+  processes die, X05-fs-benchmark lost nothing the guest had flushed.
+  With its macOS defaults, git in the guest doesn't flush a commit to
+  permanent storage (`core.fsyncMethod` is `writeout-only`,
+  `git-config(1)`), and whether Claude Code flushes its state isn't
+  measured. I231 decides how the guest flushes both. The system disk
+  doesn't need to keep anything through a crash, because a fresh clone
+  of the image can replace it ("Updates").
+
+  The host never checks, repairs or reads a data disk after a crash, or
+  at any other time after a guest has run with it
+  (SEC15-no-guest-disk-mount). Only a booted guest can recover data
+  from it. `wb-guestd` refuses a data disk that it can't mount, as it
+  refuses a missing one (below). The command that gives the VM a new
+  data disk (I229) then replaces it, and what was on it is lost.
 
   The host formats a new data disk before any guest has booted with it.
   A volume the guest formats APFS is encrypted at rest, and a fresh
@@ -429,9 +453,12 @@ in S12-platforms.
   a double click doesn't mount it. A data disk is unencrypted at rest
   except by the host's own FileVault, and a user who mounts it by hand
   gives the host kernel a guest-written filesystem. Formatting a blank
-  image that no guest has booted with is outside the scope of the I44
-  rule that the host never mounts a disk after a guest has booted from
-  it.
+  image that no guest has run with is the one exception
+  SEC15-no-guest-disk-mount makes, for a new image. The steps above
+  keep it to that blank file: the shim attaches only the file it just
+  created under its temporary name, and a VM starts only with a disk
+  that `state.db` records as formatted. The exception ends when the VM
+  first starts with the disk.
 
   `wb-guestd` mounts the data volume after first contact with
   `wb-hostd`, when the volume UUID arrives, and before it starts
