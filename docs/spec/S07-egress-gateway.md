@@ -1071,7 +1071,9 @@ session start in the VM to the end of the last session running in it.
   - *What the scan reads.* On every inspected host, `wb-proxyd` scans
     the request target, each header line, name and value, as it decodes
     them, and the body with its chunked framing removed ("Request
-    form", "Transfer coding"). It looks for
+    form", "Transfer coding"). It reads only the bytes the guest sent,
+    never the request after credential injection. A refusal then says
+    nothing about an injected credential. It looks for
     every placeholder of the VM in two forms: the exact bytes, and the
     percent-encoded form, in which any byte may be written as `%XX`
     with either hex case.

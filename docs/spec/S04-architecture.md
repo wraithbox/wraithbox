@@ -649,7 +649,13 @@ it didn't ask for:
   for one name could go to another, and a raw or pass-mode stream
   meant for the first would reach the second.
 - A new `wb-proxyd` has no streams. It fetches binding secrets again
-  when proxying needs them (S15-least-privilege).
+  when proxying needs them (S15-least-privilege). `wb-hostd` hands it
+  each running VM's placeholder set on its control channel before it
+  creates that VM's new hand-off socket, so the placeholder scan has
+  every placeholder before the first stream arrives
+  (S09-policy-credentials-audit, "Model credential"). At each restore
+  of a suspended VM, `wb-hostd` hands back the VM's set the same way,
+  before it creates the VM's hand-off socket.
 - When a VM's `wb-netd` restarts within a VM generation, `wb-hostd`
   creates a new hand-off socket between it and `wb-proxyd`, for the
   same VM and generation, and closes the old one. `wb-proxyd` serves
@@ -728,6 +734,22 @@ restart limit.
   a mapping that differs from the one `wb-hostd` keeps. `wb-hostd`
   stamps each entry with its own receipt time and never uses a time
   from `wb-netd`.
+- **Placeholder records** carry a VM, a binding, and one placeholder
+  that `wb-proxyd` generated (S09-policy-credentials-audit, "Model
+  credential"). At a session start that needs a binding with a
+  placeholder, `wb-hostd` asks `wb-proxyd` for the VM's placeholder
+  on its control channel. `wb-proxyd` fetches the binding, generates a
+  placeholder if the VM has none for it, and answers with a
+  placeholder record. The session start waits for that record before
+  `wb-guestd` starts `claude` (S06-vm-lifecycle, "Claude Code in the
+  guest"), as it waits for a locked secret store (S15-least-privilege).
+  `wb-proxyd` also sends a record for each placeholder it draws after
+  a failed check. `wb-hostd` checks the form of each record before it
+  keeps the placeholder or puts it in a guest's environment: letters,
+  digits and `-` only, 32 to 256 characters, and at most 8 kept per
+  binding per VM, the oldest dropped past that. A record that fails
+  the check is a malformed record, and the session start that waits
+  for it is refused with the rule `placeholder-record-invalid`.
 - **Event records** carry what goes to the audit log
   (S09-policy-credentials-audit, "Audit"). When an event write blocks
   for more than 100 ms, or fails without blocking (`ENOBUFS` or
@@ -803,7 +825,7 @@ gets its limits before it merges.
 | Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-egress-gateway, "Packet path", DNS, "Hold limits" |
 | Connections and streams | `wb-netd`, `wb-proxyd` | connections in flight, stream resets and refusals per rule | S07-egress-gateway |
 | Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | 4 requests in flight, lookups and their tile fetches, and 6,000 uncached lookups a minute per VM, 8 requests in flight per `wb-proxyd` with one kept for the timer's calibration and its tiles, a queue of 2,000 per VM, one retry, 10 s per upstream request, requests served first in, first out, a deadline per request of 42 s plus 125 ms per uncached lookup and per lookup queued ahead, counted at admission and at most 5 minutes, 2,000 versions per `@v/list`, 100,000 cached records and 16 MiB of cached tiles per VM, 1 MiB of calibration tiles, calibration on its own timer only, over a cap refused with `go-clock-lookup-rate`, `go-clock-deadline` or `go-list-too-long`; stored heads, points and findings checked by `wb-hostd`, at most 192 heads of 1 KiB | S07-egress-gateway, "Dependency gate", "Publish time" |
-| Placeholder scan of requests on inspected hosts | `wb-proxyd` | a 64 KiB cap on the request head (`http-header-size`); per request, a held-back window three times the length of the VM's longest placeholder | S07-egress-gateway, "Request form", "Header cap", "Placeholder binding", "Bounds" |
+| Placeholder scan of requests on inspected hosts | `wb-proxyd` | a 64 KiB cap on the request head (`http-header-size`); per request, a held-back window three times the length of the VM's longest placeholder, at most 768 bytes with the 256-character cap; at most 8 placeholders per binding per VM | S07-egress-gateway, "Request form", "Header cap", "Placeholder binding", "Bounds" |
 | Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-egress-gateway, "Stream path" |
 | Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-policy-credentials-audit, "TLS inspection certificate authority" |
 | Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-workspace-and-git, "Pack scanner", "Bounds" |
@@ -849,7 +871,7 @@ layout is the same everywhere:
   vms/<guest-os>-{work,isolated}/     VM bundles: disks, machine identity, saved state
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
-  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway)
+  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit)
   run/                                user-only directory for local IPC endpoints
 <logs>/                               audit JSONL and daemon logs
 ```
