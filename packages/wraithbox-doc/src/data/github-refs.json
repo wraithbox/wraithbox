@@ -1346,5 +1346,23 @@
 		"state": "open",
 		"title": "docs(spikes): X01-model-credential result for a long-lived subscription token",
 		"summary": "- docs/spikes/X01-model-credential.md: the answer is yes for a long-lived token from claude setup-token."
+	},
+	"219": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Briefs: record decided status lines, and B20-guest-xcode decision 1 in S06-vm-lifecycle",
+		"summary": "Several review briefs still say \"Awaiting decision\" although the maintainer has decided them."
+	},
+	"223": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S01-spec-based-development: one spec per security requirement, now or later (B145 open question)",
+		"summary": "B145-least-privilege asked, among its \"Questions for you\", whether S01-spec-based-development should record \"one spec per security requirement\" now or later."
+	},
+	"224": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle: which process explains the testmanagerd failure in the guest (B20 decision 1A)",
+		"summary": "S06-vm-lifecycle, \"No GUI login session\" (B20-guest-xcode decision 1A, #20, PR #221) says wb replaces the testmanagerd error from xcodebuild with a message that names the v1 limit (NFR06-explained-refusals)."
 	}
 }
