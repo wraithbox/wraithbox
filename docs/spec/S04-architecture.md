@@ -281,7 +281,8 @@ nothing themselves (S12-platforms).
     its result pipe) and denies files, the network, the secret store
     and starting programs. Then it reads the requested version from the
     pipe, runs the checks, and writes one fixed-format record to the
-    pipe: `pass` with the binary's SHA-256, or the rule of the check
+    pipe: `pass` with the manifest's signed SHA-256 checksum for the
+    guest's platform, or the rule of the check
     that failed. It exits after one check.
   - `wb-guestadmin` confines itself at start the same way, from a
     compiled-in profile (X23-sandboxed-daemons, X25-vmd-sandbox). The
