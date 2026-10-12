@@ -490,11 +490,12 @@ be tested before building on them.
       `api.anthropic.com`, and see a `403` with
       `model-placeholder-in-body` whose message says the placeholder is
       in the conversation and to clear the conversation (`/clear`) or
-      start a new session, and no byte of the placeholder upstream; in
-      Claude Code, print the placeholder into the conversation, see the
-      next turn and a `/compact` get the same `403`, and see a turn
-      after `/clear` pass; send it in a body to another path of the
-      binding, such as `/api/eval/`, and see `placeholder-outside-binding`;
+      start a new session, and no byte of the placeholder upstream;
+    - send it in a body to another path of the binding, such as
+      `/api/eval/`, and see `placeholder-outside-binding`;
+    - in Claude Code, print the placeholder into the conversation, and
+      see the next turn and a `/compact` get the same `403` and a turn
+      after `/clear` pass;
     - send it in a chunked body split across two chunks, and across two
       HTTP/2 `DATA` frames, at every offset in the placeholder, exact
       and percent-encoded, and see each request refused with no byte
@@ -525,12 +526,14 @@ be tested before building on them.
     - create two VMs with the same stored credential, and see two
       different placeholders, each with the credential's length and
       prefix; store a credential with a prefix outside the fixed
-      pattern, and see a placeholder random throughout; store one shorter than
-      32 characters, and see a placeholder with at least 32 random
-      characters; store a new value
-      with `wb cred set`, and see a new placeholder in the next session
-      and the old one still refused (S09-policy-credentials-audit,
-      "Model credential");
+      pattern, and see a placeholder random throughout; store one
+      shorter than 32 characters, and see a placeholder with at least
+      32 random characters (S09-policy-credentials-audit, "Model
+      credential");
+    - store a new value with `wb cred set`, and see a new placeholder
+      in the next session and the old one still refused; suspend and
+      resume the VM, and restart `wb-proxyd`, and see the placeholder
+      unchanged and still refused outside its binding;
     - with a long-lived token stored, send a request to each path of
       the binding on `api.anthropic.com`, and see the token injected
       only as `Authorization: Bearer`;

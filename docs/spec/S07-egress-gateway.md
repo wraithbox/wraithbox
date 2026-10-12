@@ -1095,7 +1095,7 @@ session start in the VM to the end of the last session running in it.
     WebSocket frames, JSON `\u` escapes, or any other encoding. A
     placeholder sent in one of them goes upstream unchanged. This is
     acceptable because the placeholder isn't a secret and doesn't open
-    anything. The model credential's placeholder also identifies its VM
+    anything. The model credential's placeholder is also unique to its VM
     (S09-policy-credentials-audit, "Model credential").
   - *Compressed requests to the model API.* On the model API profile's
     hosts, `api.anthropic.com` and `platform.claude.com`, a request

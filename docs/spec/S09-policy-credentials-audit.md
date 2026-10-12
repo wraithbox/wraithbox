@@ -379,9 +379,12 @@ inspection is trusted, and what is recorded.
     - *Made by `wb-proxyd`.* `wb-proxyd` generates the placeholder
       when it first fetches the binding for a VM, the only process
       that reads the binding (S15-least-privilege, "Declared access").
-      It keeps the record of which VM each placeholder was issued to,
-      and hands `wb-hostd` only the placeholder, for the guest
-      environment.
+      It hands `wb-hostd` only the placeholder. `wb-hostd` keeps it
+      with the VM's state for the guest environment, and hands it back
+      to `wb-proxyd` for the scan when `wb-proxyd` fetches the binding
+      again after a suspend or restart. `wb-proxyd` drops the binding
+      at suspend as before, and doesn't keep placeholder state of its
+      own past it.
     - *Random.* The random part comes from the OS's cryptographic
       random source (S15-least-privilege, rule 8) and is independent
       of the credential. It has at least 32 letters and digits, even
@@ -393,16 +396,18 @@ inspection is trusted, and what is recorded.
       The placeholder then looks like the credential to Claude Code.
       Any other credential gets a placeholder that is random
       throughout.
-    - *Never reused.* No other VM gets the same placeholder, not even
-      after its VM is deleted. `wb-proxyd` keeps its record after a VM
-      is deleted, and draws again when a new placeholder is already in
-      it. `wb cred set` with a new value gives the
-      VM a new placeholder, for its next session, and the old one stays
-      in the VM's scan set.
+    - *Never reused, by chance.* Every record of a placeholder is
+      deleted with its VM. A random part of at least 32 letters and digits holds
+      about 190 bits, so two VMs drawing the same placeholder, or one
+      drawing an earlier one, won't happen in practice. `wb cred set`
+      with a new value gives the VM a new placeholder for its next
+      session. The old one stays in the VM's scan set for the rest of
+      that VM's lifetime, and goes with the VM's state when the VM is
+      deleted.
 
     Ordinary text then can't match a placeholder by chance, and a
-    placeholder seen in a refusal or a leak names the one VM it belongs
-    to (S07-egress-gateway, "Placeholder binding").
+    placeholder seen in a refusal names its VM (S07-egress-gateway,
+    "Placeholder binding").
   - *Long-lived token.* A Claude subscription user runs
     `claude setup-token` on the host and stores the token it prints
     with `wb cred set`. The guest's placeholder goes in
