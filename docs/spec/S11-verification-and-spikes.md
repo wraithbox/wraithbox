@@ -457,22 +457,39 @@ be tested before building on them.
   - send a credential placeholder outside its binding (another host, a
     query string, a body) and get a `403`;
   - scan whole requests for the model credential's placeholder
-    (S07-egress-gateway, "Placeholder binding"): send it in every
-    header other than the binding's, in a query string, and in a
-    form-encoded, `multipart/form-data` and JSON body, to
-    `api.anthropic.com`, to `platform.claude.com` and to another
-    inspected host, and see each request get a `403` that names the
-    binding, an audit event, and nothing sent upstream. Send it as
-    `Authorization: Bearer` and as `x-api-key` to `api.anthropic.com`,
-    and see it replaced there and nowhere else (X01-model-credential
-    looked only in those two headers);
+    (S07-egress-gateway, "Credential replacement" and "Placeholder
+    binding"; X01-model-credential looked only in `Authorization` and
+    `x-api-key`):
+    - send it in `Authorization`, `Proxy-Authorization` or `Cookie` to
+      any inspected host, or in `x-api-key` to a host in the model API
+      profile, and see the header removed before policy runs, logged
+      with its name and rule, and the request not refused for it;
+    - send it in any header that isn't removed there, or in a query
+      string, to `api.anthropic.com`, to `platform.claude.com` and to
+      another inspected host, and see each request get a `403` that
+      names the binding, an audit event, and nothing sent upstream;
+    - send it in a form-encoded, `multipart/form-data` and JSON body to
+      `platform.claude.com` and to another inspected host, and see the
+      same `403`. The body case on `api.anthropic.com` waits on I225;
+    - with a long-lived token stored, send a request to each path of
+      the binding on `api.anthropic.com`, and see the token injected
+      only as `Authorization: Bearer`;
+    - with an API key stored, send the same requests, and see the key
+      injected only as `x-api-key`;
+    - send requests to `/mcp-registry/v0/servers` and `/api/hello`, and
+      see them allowed with nothing injected;
+  - with a global policy that allows `api.anthropic.com`
+    `/api/event_logging/`, send a request there and one to
+    `/api%2Fevent_logging/`, and see both refused with the rule
+    `model-event-log` (S07-egress-gateway, "model API");
   - run `wb claude -p`, `wb claude -p --resume` and an interactive
     `wb claude` with the model API profile, and see each answer.
     Check in the audit log that no request went to
-    `/api/event_logging/`, Datadog's log intake, `downloads.claude.ai`
-    or `raw.githubusercontent.com`. That shows the guest's variables
-    stopped them (S06-vm-lifecycle, "Claude Code in the guest"). Run them again
-    with `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and
+    `/api/event_logging/`, and that Datadog's log intake,
+    `downloads.claude.ai` and `raw.githubusercontent.com` had no DNS
+    lookup and no approval request. That shows the guest's variables
+    stopped them (S06-vm-lifecycle, "Claude Code in the guest"). Run
+    them again with `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and
     `DISABLE_UPDATES` unset and every approval request denied. See the
     event log refused with the rule `model-event-log`, the hosts
     outside the profile refused as unknown destinations, and Claude

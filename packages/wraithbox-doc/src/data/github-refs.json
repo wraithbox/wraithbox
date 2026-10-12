@@ -1353,6 +1353,12 @@
 		"title": "Briefs: record decided status lines, and B20-guest-xcode decision 1 in S06-vm-lifecycle",
 		"summary": "Several review briefs still say \"Awaiting decision\" although the maintainer has decided them."
 	},
+	"220": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Cheap image rebuild for a new Claude Code version",
+		"summary": "- Which stage a Claude Code-only rebuild starts from (a sealed earlier stage, a clone of the image before sealing, or another layer), and how that fits sealing and \"never updated in place\"."
+	},
 	"223": {
 		"kind": "issue",
 		"state": "open",
@@ -1364,5 +1370,11 @@
 		"state": "open",
 		"title": "S06-vm-lifecycle: which process explains the testmanagerd failure in the guest (B20 decision 1A)",
 		"summary": "S06-vm-lifecycle, \"No GUI login session\" (B20-guest-xcode decision 1A, #20, PR #221) says wb replaces the testmanagerd error from xcodebuild with a message that names the v1 limit (NFR06-explained-refusals)."
+	},
+	"225": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: bound and scope the placeholder scan, and decide the bound-host body rule",
+		"summary": "S07-egress-gateway, \"Placeholder binding\", says wb-proxyd refuses a request that carries a placeholder anywhere except the binding's header."
 	}
 }

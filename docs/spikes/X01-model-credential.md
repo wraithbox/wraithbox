@@ -212,20 +212,31 @@ decided the open points on I60 on 2026-10-12, and I215 made these
 changes:
 
 - S07-egress-gateway, model API profile: `api.anthropic.com` with the
-  paths above, and `platform.claude.com` `/v1/oauth/hello`. "Named
-  places" gains `Authorization` for the model API, which every
-  inspected host already removes. The binding injects
-  `Authorization: Bearer <token>` for a token, or `x-api-key` for an
-  API key, on `api.anthropic.com` only. Datadog, the event log path,
-  `downloads.claude.ai` and `raw.githubusercontent.com` per decisions 1
-  to 3.
-- S09-policy-credentials-audit, "Model credential": per decision 4.
-  If the long-lived token is supported, the placeholder goes in
-  `CLAUDE_CODE_OAUTH_TOKEN`, and the text says how the user rotates
-  the token.
+  paths above except the event log, and `platform.claude.com`
+  `/v1/oauth/hello`. `/api/event_logging/` is a built-in deny.
+  Datadog, `downloads.claude.ai` and `raw.githubusercontent.com` are
+  outside the profile. "Named places" gains `Authorization` for the
+  model API, which every inspected host already removes. The binding
+  injects `Authorization: Bearer <token>` for a token, or `x-api-key`
+  for an API key, on the four paths of `api.anthropic.com` where
+  Claude Code sent the token.
+- S09-policy-credentials-audit, "Model credential": the long-lived
+  token is a supported mode in V1. The placeholder goes in
+  `CLAUDE_CODE_OAUTH_TOKEN`, and the text says how the user revokes
+  and replaces the token.
+- S06-vm-lifecycle, "Claude Code in the guest": the guest sets
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` and `DISABLE_UPDATES=1`,
+  and the image sets the Claude Code version. A new version needs a
+  cheap image rebuild (I220), and marketplace plugins are unavailable
+  in V1.
+- FR01-drop-in names those V1 gaps: the updater, the changelog notice
+  and marketplace plugins are missing in the guest.
+- S15-least-privilege, "Out of scope": the browser login (I15), in
+  place of the subscription login.
 - S11-verification-and-spikes: X01-model-credential in its list of
-  result pages. Its conformance cases already cover a replaced model
-  credential and a placeholder outside its binding.
+  result pages. New conformance cases cover the full-request
+  placeholder scan, the event log deny, and a run of Claude Code with
+  the left-out hosts refused.
 
 ## Spike code
 
