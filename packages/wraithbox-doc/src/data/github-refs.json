@@ -1340,5 +1340,11 @@
 		"state": "open",
 		"title": "Model API profile and token binding from X01-model-credential",
 		"summary": "The X01-model-credential result for a long-lived subscription token (#60, docs/spikes/X01-model-credential.md) changes the specs below."
+	},
+	"216": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X01-model-credential result for a long-lived subscription token",
+		"summary": "- docs/spikes/X01-model-credential.md: the answer is yes for a long-lived token from claude setup-token."
 	}
 }
