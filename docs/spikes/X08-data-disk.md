@@ -55,12 +55,14 @@ Brief: B22-data-disk
   2. Which host process runs `diskutil`. `wb-hostd` can't: under its
      self-sandbox it starts only fixed `wb-launcher` entries, with no
      arguments (S04-architecture). Recommended: a fixed `wb-launcher`
-     entry for a small shim, `wb-diskfmt`, that confines itself to one
-     VM bundle, takes the path from configuration, never from the
-     request, and runs the steps of "Disks". S06-vm-lifecycle is
-     written for it. If it is chosen, the process and launcher tables
-     of S04-architecture change in a follow-up, which I218 (one
-     `wb-vmd` per VM, its launcher entries) also edits.
+     entry per VM slot for a small shim, `wb-diskfmt`
+     (`wb-diskfmt-work`, `wb-diskfmt-isolated`), each with its VM's
+     bundle as the profile parameter, never a path from the request,
+     which runs the steps of "Disks". S04-architecture and
+     S06-vm-lifecycle are written for decision 2's recommendation.
+     I218 (one `wb-vmd` per VM, its launcher entries) also edits
+     S04-architecture and rebases onto this. A confined `diskutil` run
+     isn't measured yet, and I228 measures it.
 - **Brief:** B22-data-disk
 
 ## Question
@@ -252,7 +254,7 @@ changed between boots with the checks, not with the swap.
 - **The formatting steps of S06-vm-lifecycle.** The spike's script
   checked the device by protocol and size, used the deprecated
   `hdiutil attach`, and didn't rename the file or check its backing
-  path.
+  path, and didn't run `diskutil` under a profile (I228).
 - **A different macOS version** on the new system disk. All three were
   clones of one image.
 
@@ -265,9 +267,10 @@ changed between boots with the checks, not with the swap.
   rules of condition 4. "Projects and sessions inside a VM": the home
   path is fixed at creation, and who removes the home of a removed
   user (changed in this pull request).
-- **S04-architecture**: with open decision 2 as recommended, its process
-  and `wb-launcher` tables gain `wb-diskfmt`. Left to a follow-up after
-  the decision, because I218 also edits those tables.
+- **S04-architecture**: written for decision 2's recommendation. The
+  process table gains `wb-diskfmt`, and "Each host daemon is
+  self-sandboxed" its two `wb-launcher` entries and its profile
+  (changed in this pull request).
 - **S05-cli** has no command that gives a VM a new data disk, which the
   refusals of "Disks" name (I229).
 - **SEC00-index**: the host-mount control decided on I44 isn't written

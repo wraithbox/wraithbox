@@ -27,6 +27,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-proxyd` | Go | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | the binding secrets of the VM's sessions, fetched just in time, and the use of the CA signing key (S15-least-privilege) | streams from `wb-netd` | HTTP policy, credential replacement, dependency gate, upstream connections (S07-egress-gateway, S09-policy-credentials-audit) |
 | `wb-guestadmin` | Go | user, one run per image build, `wbadmin` rotation or cleanup, started through `wb-launcher` (on macOS), then exits | the `wbadmin/*` secret store items it writes and fetches, and nothing else | one write-only host-guest connection to `wb-guestd`; pipes to the build's `wb-vmd` and `wb-build-ssh` | The admin side of the image build, `wbadmin` rotation at each VM's first contact, and removing the items of images and system disks that are gone (S15-least-privilege) |
 | `wb-build-ssh` | Go | user, one per image build, started through `wb-launcher` (on macOS) | the build password on its standard input, for one session | one SSH session to the build guest, on the build VM's own network | Confine itself, then run the system `ssh` with compiled-in arguments and environment for the build's one install session (S15-least-privilege) |
+| `wb-diskfmt` | Go | user, one run per new data disk, started through `wb-launcher` (on macOS) as `wb-diskfmt-work` or `wb-diskfmt-isolated`, then exits | nothing | none: it runs before any guest has booted with the disk | Confine itself to its VM's bundle, then create, attach, format and detach that VM's new data disk (S06-vm-lifecycle, "Disks") |
 | `wb-askpass` | Go | user, started by `ssh` for the login prompt | one line of `ssh`'s standard input, until it prints it | none | Print the first line of its standard input to `ssh` (S15-least-privilege) |
 | `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | n/a (runs in the guest) | Users, PTY exec, git transport (S06-vm-lifecycle) |
 
@@ -257,6 +258,17 @@ nothing themselves (S12-platforms).
     `wb-launcher` entry, `wb-vmd-install`, whose compiled-in profile
     adds them, with the restore image at a fixed path under
     `<data>/images/`. The request doesn't choose the mode or a path.
+  - `wb-diskfmt` formats a VM's new data disk (S06-vm-lifecycle,
+    "Disks", X08-data-disk). `wb-launcher` has two fixed entries,
+    `wb-diskfmt-work` and `wb-diskfmt-isolated`, each with that VM's
+    bundle as its profile parameter, so the shim learns which bundle
+    to format without arguments.
+    The disk's size comes from configuration `wb-hostd` read
+    before it confined itself. The compiled-in profile allows reading
+    and writing that one bundle path, starting `diskutil` and nothing
+    else, and the DiskImages, Disk Arbitration and disk management
+    services `diskutil` uses. It denies the network and every other
+    file. `wb-diskfmt` exits after one format, and is never restarted.
   - `wb-guestadmin` confines itself at start the same way, from a
     compiled-in profile (X23-sandboxed-daemons, X25-vmd-sandbox). The
     profile allows the secret store service for its `wbadmin/*` items
@@ -272,8 +284,8 @@ nothing themselves (S12-platforms).
     descriptor on any file in `<logs>` or `<data>` for its log.
   - On macOS a confined process can't confine itself again, and its
     children inherit its profile. So `wb-hostd` starts `wb-vmd`,
-    `wb-netd`, `wb-proxyd`, `wb-git`, `wb-prover`, `wb-guestadmin` and
-    `wb-build-ssh` through `wb-launcher`, which has no profile. On Linux, Landlock and seccomp restrictions stack, so a
+    `wb-netd`, `wb-proxyd`, `wb-git`, `wb-prover`, `wb-guestadmin`,
+    `wb-build-ssh` and `wb-diskfmt` through `wb-launcher`, which has no profile. On Linux, Landlock and seccomp restrictions stack, so a
     child can confine itself further and needs no launcher (assumed from
     their documentation, not tested; to be confirmed when Linux
     self-sandboxing is built).
@@ -503,7 +515,7 @@ decided the VM behavior on I48 (B48-process-supervision).
   entry, the instance ID it returned when it started the process, and
   the exit code or the signal. It never restarts anything itself.
 - The programs started for one run (`wb-git`, `wb-prover`,
-  `wb-guestadmin`, `wb-build-ssh`) are never restarted. A run whose
+  `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`) are never restarted. A run whose
   program exits before it reports a result fails, and the caller gets
   the exit reason (S08-workspace-and-git, S09-policy-credentials-audit,
   S15-least-privilege).
