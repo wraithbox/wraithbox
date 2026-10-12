@@ -385,34 +385,39 @@ in S12-platforms.
   NFR02-fs-speed workloads, and Apple's header says an image without
   synchronization "cannot safely be reused" after a host crash or
   power loss. A raw image gives the host back the space of data the
-  guest deletes, and an ASIF image does not (X05-fs-benchmark).
+  guest deletes, and an ASIF image does not (X05-fs-benchmark). The
+  space a data disk takes on the host, for SEC13-bounded-resources and
+  the free-space check of S09-policy-credentials-audit, comes from the
+  file's `st_blocks`, never from an image tool
+  (SEC15-no-guest-disk-mount). Each VM bundle is a directory whose name
+  ends in `.noindex`, so Spotlight doesn't index the disks in it.
   With these settings, `npm ci` on the data disk ran at about 71% of
   the host on a loaded host, under the 80% goal of NFR02-fs-speed. The
   goal is not a release gate.
 
-  Claude Code state and commits not yet pushed on the data disk must be
+  Claude Code state and commits not yet pushed on the data disk are
   kept through a host crash or power loss, and tool caches may be lost
-  (decided on I44). Full synchronization keeps every write the guest
-  has flushed, and X05-fs-benchmark found it costs the NFR02-fs-speed
-  workloads nothing measurable, so caches stay on the one data disk and
-  no second, relaxed disk is used. A write the guest
-  hasn't flushed yet can be lost in a host crash. When only the VM's
-  processes die, X05-fs-benchmark lost nothing the guest had flushed.
-  With its macOS defaults, git in the guest doesn't flush a commit to
-  permanent storage (`core.fsyncMethod` is `writeout-only`,
+  (decided on I44). Caches share the one data disk, because full
+  synchronization costs the NFR02-fs-speed workloads nothing
+  measurable. That it keeps every write the guest flushed through a
+  host crash rests on Apple's headers. X05-fs-benchmark killed only the
+  VM's processes, and lost nothing the guest had flushed. So the target
+  holds for what the guest flushes. With its macOS defaults, git in the
+  guest doesn't flush a commit (`core.fsyncMethod` is `writeout-only`,
   `git-config(1)`), and whether Claude Code flushes its state isn't
-  measured. I231 decides how the guest flushes both. The system disk
-  doesn't need to keep anything through a crash, because a fresh clone
-  of the image can replace it ("Updates").
+  measured. I231 makes both flush, in V1-M2-walking-skeleton. The
+  system disk doesn't need to keep anything through a crash, because a
+  fresh clone of the image can replace it ("Updates").
 
-  The host never checks, repairs or reads a data disk after a crash, or
-  at any other time after a guest has run with it
-  (SEC15-no-guest-disk-mount). Only a booted guest can recover data
-  from it. `wb-guestd` refuses a data disk that it can't mount, as it
-  refuses a missing one (below). The command that gives the VM a new
-  data disk (I229) then replaces it, and what was on it is lost.
+  After a crash, the host doesn't check or repair a data disk
+  (SEC15-no-guest-disk-mount). `wb-guestd` refuses a data disk that it
+  can't mount, as it refuses a missing one (below). What was on that
+  disk is lost, a loss decided on I44. `wb-hostd` never deletes a data
+  disk on its own. The command that gives the VM a new data disk
+  (I229), which the user runs, deletes the old file and has
+  `wb-diskfmt` make a new one.
 
-  The host formats a new data disk before any guest has booted with it.
+  The host formats a new data disk before any guest has run with it.
   A volume the guest formats APFS is encrypted at rest, and a fresh
   system disk with fresh auxiliary storage couldn't unwrap its key, so
   it doesn't mount after a swap. A volume the host makes on the image
@@ -427,21 +432,25 @@ in S12-platforms.
   is that VM's bundle (S04-architecture). It never takes a path from
   the request. It confines itself to that bundle, and then:
   1. creates the image under a temporary name in the bundle with
-     `O_CREAT|O_EXCL`, mode 0600, and makes it sparse at the data disk's
-     size;
-  2. attaches it with `diskutil image attach --noMount` and checks that
-     the backing image path of the device it got is that file. When it
-     isn't, the shim fails with the rule, and detaches only a device it
+     `O_CREAT|O_EXCL`, mode 0600, makes it sparse at the data disk's
+     size, and keeps that descriptor open;
+  2. checks the file's identity: `lstat` on the temporary name and
+     `fstat` on the descriptor give the same `st_dev` and `st_ino`, with
+     `st_nlink` 1 and `st_blocks` 0. It then attaches the file with
+     `diskutil image attach --noMount`, and checks that the backing
+     image path of the device it got is the temporary name. When a check
+     fails, the shim fails with the rule, and detaches only a device it
      attached;
-  3. checks the backing image path again immediately before it runs
-     `diskutil eraseDisk APFS` on that device, and fails the same way on
-     a mismatch. The format mounts the new, empty volume on the host
-     once. It is a volume the host just made, not one a guest wrote.
-     `wb-diskfmt` reports the volume's UUID, unmounts the volume, and
-     detaches the image;
+  3. repeats the identity check and the backing image path check
+     immediately before it runs `diskutil eraseDisk APFS` on that
+     device, and fails the same way on a mismatch. The format mounts the
+     new, empty volume on the host once. It is a volume the host just
+     made, not one a guest wrote. `wb-diskfmt` reports the volume's
+     UUID, unmounts the volume, and detaches the image;
   4. `wb-hostd` records the volume UUID and the temporary name in
-     `state.db`, then the shim renames the file to its final name, and
-     `wb-hostd` records the disk as formatted.
+     `state.db`. The shim then renames the file to its final name with
+     `renamex_np` and `RENAME_EXCL`, which fails with the rule when a
+     file has that name, and `wb-hostd` records the disk as formatted.
 
   The host never attaches a file at the final name. A leftover
   temporary file is deleted, never attached. When a file has its final
@@ -453,12 +462,14 @@ in S12-platforms.
   a double click doesn't mount it. A data disk is unencrypted at rest
   except by the host's own FileVault, and a user who mounts it by hand
   gives the host kernel a guest-written filesystem. Formatting a blank
-  image that no guest has run with is the one exception
-  SEC15-no-guest-disk-mount makes, for a new image. The steps above
-  keep it to that blank file: the shim attaches only the file it just
-  created under its temporary name, and a VM starts only with a disk
-  that `state.db` records as formatted. The exception ends when the VM
-  first starts with the disk.
+  image the host itself created, before any guest has run with it, is
+  the one exception SEC15-no-guest-disk-mount makes. The steps above
+  keep it to that file: the shim attaches only the file it just created
+  under its temporary name, and a VM starts only with a disk that
+  `state.db` records as formatted. The exception ends when the VM first
+  starts with the disk. The VM's saved state and auxiliary storage are
+  guest-written too. The Virtualization API in `wb-vmd` is the one host
+  code that opens them.
 
   `wb-guestd` mounts the data volume after first contact with
   `wb-hostd`, when the volume UUID arrives, and before it starts
@@ -652,8 +663,8 @@ slot. Guests of other operating systems are limited only by resources
   `wb vm start`. The return restore is the one start the lend allows. So a refusal names the build, never a VM outside
   Wraith Box ("Other software").
 - **A maintenance VM gets nothing of a session VM.** It never gets the
-  data disk, saved state, auxiliary storage, machine identifier or MAC
-  address of the work VM or the isolated VM, and no network grant or
+  system disk, data disk, saved state, auxiliary storage, machine
+  identifier or MAC address of the work VM or the isolated VM, and no network grant or
   credential binding of a project (SEC08-proj-isolation). The build
   makes a new VM with its own network ("Built by Wraith Box"). Lending moves
   a slot, never a VM's disks or identity.

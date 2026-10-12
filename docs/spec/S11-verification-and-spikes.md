@@ -59,8 +59,13 @@ be tested before building on them.
   fake `diskutil`, that give `wb-hostd` a file at the final name that
   `state.db` doesn't record as formatted and see the VM start refused
   with the file kept, that leave a temporary file and see it deleted,
-  and that report another backing image path to `wb-diskfmt` before the
-  attach check and before the format, and see it fail with the rule.
+  that have the fake `diskutil` report another backing image path at
+  the check after the attach and at the check before `eraseDisk`, that
+  replace the temporary file with another file at the same path, or
+  add a hard link to it, before the attach and before the format, and
+  that put a file at the final name before the rename, and see
+  `wb-diskfmt` fail with the rule each time and the file at the final
+  name kept.
   In each, the fake `diskutil` is never asked to attach a file at the
   final name (SEC15-no-guest-disk-mount).
   Leaf issuance in `wb-proxyd` (S09-policy-credentials-audit, "TLS
