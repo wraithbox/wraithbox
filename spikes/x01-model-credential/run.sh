@@ -81,11 +81,39 @@ grep -E ' (GET|POST|PUT|PATCH|DELETE|HEAD) https' "$OUT/proxy.log" | sed 's/^.*x
 echo "== OAuth and token paths"
 grep 'TOKEN-PATH' "$OUT/proxy.log" | sed 's/^.*x01: //' | sort | uniq -c | tee "$OUT/token-paths.txt"
 echo "== files holding the real credential (names only; empty is good)"
-/usr/bin/security find-generic-password -s wraithbox-secret -w |
-  grep -rlF -f /dev/stdin "$HOME" 2>/dev/null | grep -v '/Library/Keychains/' | tee "$OUT/key-on-disk.txt"
+# Fail rather than report "not found" when the credential can't be read:
+# an empty pattern list makes grep -f match nothing.
+if /usr/bin/security find-generic-password -s wraithbox-secret -w >/dev/null 2>"$OUT/key-read-errors.txt"; then
+  LEN=$(/usr/bin/security find-generic-password -s wraithbox-secret -w | tr -d '\n' | wc -c)
+else
+  LEN=0
+fi
+if (( LEN == 0 )); then
+  echo "FAILED: security find-generic-password -w failed or returned an empty value; the disk search did not run" |
+    tee "$OUT/key-on-disk.txt"
+  exit 1
+fi
+/usr/bin/security find-generic-password -s wraithbox-secret -w | tr -d '\n' |
+  grep -rlF -f /dev/stdin "$HOME" 2>"$OUT/key-search-errors.txt" |
+  grep -v '/Library/Keychains/' | tee "$OUT/key-on-disk.txt"
+SEARCH=($pipestatus)
+if (( SEARCH[1] != 0 )); then
+  echo "FAILED: security failed during the disk search; key-on-disk.txt means nothing"
+  exit 1
+fi
+if (( SEARCH[3] > 1 )); then
+  # grep exits 2 when some files can't be read, even after a full search.
+  echo "NOTE: grep could not read $(wc -l <"$OUT/key-search-errors.txt") paths; see key-search-errors.txt"
+fi
 echo "== claude files"
 ls -la "$HOME/.claude" "$HOME/.claude.json" 2>&1 | tee "$OUT/claude-files.txt"
 echo "== keychain items naming claude or anthropic (service and account only)"
-/usr/bin/security dump-keychain 2>/dev/null | grep -E '"(svce|acct)"' |
-  grep -i -E 'claude|anthropic' | tee "$OUT/keychain-items.txt"
+/usr/bin/security dump-keychain >"$OUT/.dump" 2>"$OUT/keychain-errors.txt"
+DUMP=$?
+grep -E '"(svce|acct)"' "$OUT/.dump" | grep -i -E 'claude|anthropic' | tee "$OUT/keychain-items.txt"
+rm -f "$OUT/.dump"
+if (( DUMP != 0 )); then
+  echo "FAILED: security dump-keychain exited $DUMP; see keychain-errors.txt"
+  exit 1
+fi
 echo "== done; logs in $OUT"

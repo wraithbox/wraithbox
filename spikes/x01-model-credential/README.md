@@ -90,6 +90,12 @@ cp "$(readlink ~lsimons/.local/bin/claude)" ~/x01/claude   # once, or install Cl
 MODE=apikey ~/x01/run.sh     # needs an API key in the item
 ```
 
+After the sessions, `run.sh` fails, rather than report an empty search,
+when `security find-generic-password -w` fails or returns an empty
+value, because `grep -f` with no pattern matches nothing. It fails too
+when `security dump-keychain` fails, and keeps that command's errors in
+`keychain-errors.txt`. The 2026-10-12 run predates these checks.
+
 `run.sh` refuses to start when 127.0.0.1:18080 is in use, which an
 interrupted run can leave behind. It prints the proxy's log, or
 `(empty)`, when the proxy exits at start.
