@@ -135,7 +135,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X08-data-disk: Data disk for homes",
-		"summary": "Can guest user homes live on a second disk and survive a replacement of the system disk?"
+		"summary": "Can guest user homes live on a second disk and survive a replacement of the system disk?",
+		"brief": "B22-data-disk"
 	},
 	"23": {
 		"kind": "issue",
@@ -386,7 +387,7 @@
 	},
 	"60": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X01-model-credential: API key mode via the proxy",
 		"summary": "Split from #15 (X01-model-credential) during triage on 2026-10-04.",
 		"brief": "B60-model-credential"
@@ -1337,19 +1338,31 @@
 	},
 	"215": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Model API profile and token binding from X01-model-credential",
 		"summary": "The X01-model-credential result for a long-lived subscription token (#60, docs/spikes/X01-model-credential.md) changes the specs below."
 	},
 	"216": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X01-model-credential result for a long-lived subscription token",
 		"summary": "- docs/spikes/X01-model-credential.md: the answer is yes for a long-lived token from claude setup-token."
 	},
-	"219": {
+	"217": {
 		"kind": "issue",
 		"state": "open",
+		"title": "go:test flakes on Linux: go tool covdata text file busy",
+		"summary": "go test -race -cover ./..."
+	},
+	"218": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S04-architecture, S06-vm-lifecycle: one wb-vmd per VM and a fixed install entry, from B64-vmd-sandbox",
+		"summary": "The maintainer decided the two points of B64-vmd-sandbox on 2026-10-12, in the #64 comment that starts Decision (2026-10-12):."
+	},
+	"219": {
+		"kind": "issue",
+		"state": "closed",
 		"title": "Briefs: record decided status lines, and B20-guest-xcode decision 1 in S06-vm-lifecycle",
 		"summary": "Several review briefs still say \"Awaiting decision\" although the maintainer has decided them."
 	},
@@ -1358,6 +1371,18 @@
 		"state": "open",
 		"title": "Cheap image rebuild for a new Claude Code version",
 		"summary": "- Which stage a Claude Code-only rebuild starts from (a sealed earlier stage, a clone of the image before sealing, or another layer), and how that fits sealing and \"never updated in place\"."
+	},
+	"221": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(briefs): record decided status lines, and B20 decision 1 in S06",
+		"summary": "Updates the status lines of five briefs whose decisions are recorded, and writes B20-guest-xcode decision 1A into S06-vm-lifecycle."
+	},
+	"222": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): model API profile and token binding from X01-model-credential",
+		"summary": "Writes the four B60-model-credential decisions from #60 (Decision (2026-10-12): the four decisions in B60-model-credential.) into the specs."
 	},
 	"223": {
 		"kind": "issue",
@@ -1376,5 +1401,30 @@
 		"state": "open",
 		"title": "S07-egress-gateway: bound and scope the placeholder scan, and decide the bound-host body rule",
 		"summary": "S07-egress-gateway, \"Placeholder binding\", says wb-proxyd refuses a request that carries a placeholder anywhere except the binding's header."
+	},
+	"226": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: methods and exactness for the model API profile entries",
+		"summary": "The model API profile in S07-egress-gateway (PR #222, #215) lists paths without methods, and doesn't say whether each is exact or a prefix."
+	},
+	"227": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X08-data-disk result, homes on a host-formatted data disk",
+		"summary": "The result of X08-data-disk: yes, with conditions.",
+		"brief": "B22-data-disk"
+	},
+	"228": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X08-data-disk follow-up: measure that a host-made data volume stays unencrypted and returns freed space",
+		"summary": "X08-data-disk (PR #227) recommends option A: the host formats the data disk as APFS."
+	},
+	"229": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S05-cli: a command that gives a VM a new data disk",
+		"summary": "Found in the review of #227 (X08-data-disk)."
 	}
 }
