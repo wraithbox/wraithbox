@@ -18,6 +18,7 @@ Wraith Box works and why.
 | S11-verification-and-spikes | Verification and Open Questions | Draft |
 | S12-platforms | Platforms | Draft |
 | S13-guest-confinement | Guest Confinement | Draft |
+| S14-claude-in-guest | Claude Code in the Guest | Draft |
 | S15-least-privilege | Least Privilege on the Host | Draft |
 | S16-terminal-stream | Terminal Stream | Draft |
 
