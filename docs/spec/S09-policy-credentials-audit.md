@@ -379,31 +379,49 @@ inspection is trusted, and what is recorded.
     - *Made by `wb-proxyd`.* `wb-proxyd` generates the placeholder
       when it first fetches the binding for a VM, the only process
       that reads the binding (S15-least-privilege, "Declared access").
-      It hands `wb-hostd` only the placeholder. `wb-hostd` keeps it
-      with the VM's state for the guest environment, and hands it back
-      to `wb-proxyd` for the scan when `wb-proxyd` fetches the binding
-      again after a suspend or restart. `wb-proxyd` drops the binding
+      It sends `wb-hostd` only the placeholder, in a placeholder record.
+      `wb-hostd` keeps the VM's placeholder set, every placeholder of
+      each binding, with the VM's state, puts the newest in the guest
+      environment, and hands the whole set back to `wb-proxyd` after a
+      suspend or a restart (S04-architecture, "Accounting and event
+      channels", "Restarting a daemon"). `wb-proxyd` drops the binding
       at suspend as before, and doesn't keep placeholder state of its
       own past it.
+    - *Checked when handed back.* A handed-back placeholder is only a
+      string to scan for, because injection never depends on it, but
+      `wb-proxyd` checks it before it scans for it:
+      - its form: letters, digits and `-` only, 32 to 256 characters
+        (a cap fixed in code), either random throughout or the fixed
+        prefix below followed by at least 32 random characters;
+      - neither it nor any of the VM's binding credentials is a
+        substring of the other, checked when `wb-proxyd` has the
+        binding;
+      - at most 8 placeholders per binding per VM, and the oldest is
+        dropped past that.
+
+      A placeholder that fails a check is discarded. `wb-proxyd` draws
+      a fresh one, sends `wb-hostd` its record, and logs a Device
+      Config State Change (5019) event that names the VM and the
+      binding, with the rule `placeholder-invalid` (SEC10-audit).
     - *Random.* The random part comes from the OS's cryptographic
       random source (S15-least-privilege, rule 8) and is independent
       of the credential. It has at least 32 letters and digits, even
       when the stored credential is shorter.
     - *Shape.* The placeholder has the stored credential's length, or
-      more when the random part needs it. It keeps the credential's
+      more when the random part needs it, and at most 256 characters. It keeps the credential's
       prefix only when the prefix matches a pattern fixed in code:
       `sk-ant-`, then 1 to 8 lowercase letters or digits, then `-`.
       The placeholder then looks like the credential to Claude Code.
       Any other credential gets a placeholder that is random
       throughout.
     - *Never reused, by chance.* Every record of a placeholder is
-      deleted with its VM. A random part of at least 32 letters and digits holds
-      about 190 bits, so two VMs drawing the same placeholder, or one
-      drawing an earlier one, won't happen in practice. `wb cred set`
-      with a new value gives the VM a new placeholder for its next
-      session. The old one stays in the VM's scan set for the rest of
-      that VM's lifetime, and goes with the VM's state when the VM is
-      deleted.
+      deleted with its VM. A random part of at least 32 letters and
+      digits holds about 190 bits, so two VMs drawing the same
+      placeholder, or one drawing an earlier one, won't happen in
+      practice. `wb cred set` with a new value gives the VM a new
+      placeholder for its next session. The old one stays in the VM's
+      scan set for the rest of that VM's lifetime, up to the cap of 8,
+      and goes with the VM's state when the VM is deleted.
 
     Ordinary text then can't match a placeholder by chance, and a
     placeholder seen in a refusal names its VM (S07-egress-gateway,

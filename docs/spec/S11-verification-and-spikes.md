@@ -532,8 +532,19 @@ be tested before building on them.
       credential");
     - store a new value with `wb cred set`, and see a new placeholder
       in the next session and the old one still refused; suspend and
-      resume the VM, and restart `wb-proxyd`, and see the placeholder
-      unchanged and still refused outside its binding;
+      resume the VM, and restart `wb-proxyd`, and see both placeholders
+      unchanged and both still refused outside their binding; store
+      nine values in turn, and see the oldest placeholder dropped from
+      the set;
+    - hand `wb-proxyd` a placeholder set holding one placeholder that is
+      too short, one with a character outside letters, digits and `-`,
+      and one that is a substring of the stored credential, and see each
+      discarded, a fresh one drawn and sent to `wb-hostd`, and a 5019
+      event with `placeholder-invalid` naming the VM and the binding;
+      send `wb-hostd` a placeholder record that fails its form check,
+      and see the waiting session start refused with
+      `placeholder-record-invalid` (S04-architecture, "Accounting and
+      event channels");
     - with a long-lived token stored, send a request to each path of
       the binding on `api.anthropic.com`, and see the token injected
       only as `Authorization: Bearer`;
