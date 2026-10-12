@@ -49,8 +49,11 @@ function summarize(/** @type {string} */ body) {
  * than a third of `max` (a long URL or path) gives the hard cut instead.
  */
 function cut(/** @type {string} */ text, /** @type {number} */ max) {
-	const hard = text.slice(0, max);
-	if (/\s/.test(text[max] ?? ' ')) return hard.trimEnd();
+	// Don't split a surrogate pair: a lone high surrogate is not valid text.
+	const high = text.charCodeAt(max - 1);
+	const end = high >= 0xd800 && high <= 0xdbff ? max - 1 : max;
+	const hard = text.slice(0, end);
+	if (/\s/.test(text[end] ?? ' ')) return hard.trimEnd();
 	const atWord = hard.replace(/\s+\S*$/, '');
 	return atWord.length >= (max * 2) / 3 ? atWord : hard.trimEnd();
 }

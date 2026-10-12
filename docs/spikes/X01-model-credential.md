@@ -58,8 +58,10 @@ SEC10-audit, FR01-drop-in, FR13-claude-state
   1. Telemetry to Datadog, and Anthropic's own event log on
      `api.anthropic.com`, which receives the token. Recommended: Datadog
      stays outside the profile, as S07-egress-gateway says today, and
-     the guest turns telemetry off. A sub-choice is whether the profile
-     also leaves out the event log path. The host then enforces it.
+     the guest turns telemetry off. Sub-choice: A1 keeps the event log
+     path `/api/event_logging/` in the profile, and A2 leaves it out.
+     With A2 the host enforces it. Recommended: A2. `/api/eval/` stays in
+     (recommended), or is left out the same way.
   2. Updates from `downloads.claude.ai`. Recommended: outside the
      profile, with the updater off in the guest. The image then sets
      the version.
@@ -167,8 +169,8 @@ token went to `grep -f` through a pipe from `security -w`, and if that
 had failed, `grep` would have had no pattern and wouldn't have matched anything. The
 Keychain listing hid the errors of `security dump-keychain`. The proxy
 read the same item at start, which makes a failed read unlikely, but
-the run didn't check it. `run.sh` now fails in both cases (commit
-`2a83a3a`).
+the run didn't check it. `run.sh` now fails in both cases (commits
+`2a83a3a` and `2801f5f`).
 
 ### First run
 
@@ -227,7 +229,7 @@ and I215 tracks the change:
 ## Spike code
 
 Branch `spike/x01-model-credential`, commit
-[`2a83a3a`](https://github.com/wraithbox/wraithbox/tree/2a83a3a73d1bf74ccf9a5d75c15d3ec038fb040a/spikes/x01-model-credential):
+[`2801f5f`](https://github.com/wraithbox/wraithbox/tree/2801f5fdd70c484f49b24e8b73f6923159060fcb/spikes/x01-model-credential):
 the proxy, its tests, and `run.sh`. The run on 2026-10-12 used
 `run.sh` as of `768cc28`, before the search checks. The logs stay on the maintainer's
 Mac. They don't hold a credential.
