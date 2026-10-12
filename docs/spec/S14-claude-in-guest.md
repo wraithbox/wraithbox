@@ -57,7 +57,8 @@ the guest gets (S07-egress-gateway, model API, "Outside the profile").
 - **Check.** `wb-release-check` (S04-architecture), a per-run program
   that `wb-hostd` starts through `wb-launcher`, checks the files on
   inherited descriptors and writes a fixed-format record to a pipe:
-  `pass` with the binary's SHA-256, or the rule of the failed check. `wb-hostd`
+  `pass` with the manifest's signed SHA-256 checksum for the guest's
+  platform, or the rule of the failed check. `wb-hostd`
   doesn't parse the signature or the manifest. They are bytes from the
   network, and the process that faces the guest doesn't run a third
   party parser over them (SEC12-least-privilege). The check follows
@@ -82,9 +83,12 @@ the guest gets (S07-egress-gateway, model API, "Outside the profile").
   Any failed check fails the build, and the build logs the check that
   failed. The manifest parser has a fuzz target.
 - **The checked bytes.** `wb-hostd` opens the binary once and keeps
-  that descriptor. It passes a duplicate to `wb-release-check`, and
-  after a `pass` it reads the file again from offset 0 and streams it
-  to `wb-guestd`, hashing it as it sends. It sends the SHA-256 from the
+  that descriptor. It first `fstat`s it, and refuses a file that isn't
+  a regular file with the rule `claude-release-bytes-changed`. It
+  passes a duplicate to `wb-release-check`, and after a `pass` it reads
+  the file with `pread` from offset 0, because the duplicate shares the
+  child's file offset, and streams it to `wb-guestd`, hashing it as it
+  sends. It sends the SHA-256 from the
   record only after the last byte. `wb-guestd` writes the stream to a
   temporary file that only root can write, and installs it only when
   the SHA-256 of what it received equals the one `wb-hostd` sent and
