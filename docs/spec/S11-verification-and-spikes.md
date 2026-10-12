@@ -489,8 +489,12 @@ be tested before building on them.
     - send it in the JSON body of a `/v1/messages` request to
       `api.anthropic.com`, and see a `403` with
       `model-placeholder-in-body` whose message says the placeholder is
-      in the conversation and to compact the context or start a new
-      session, and no byte of the placeholder upstream;
+      in the conversation and to clear the conversation (`/clear`) or
+      start a new session, and no byte of the placeholder upstream; in
+      Claude Code, print the placeholder into the conversation, see the
+      next turn and a `/compact` get the same `403`, and see a turn
+      after `/clear` pass; send it in a body to another path of the
+      binding, such as `/api/eval/`, and see `placeholder-outside-binding`;
     - send it in a chunked body split across two chunks, and across two
       HTTP/2 `DATA` frames, at every offset in the placeholder, exact
       and percent-encoded, and see each request refused with no byte
@@ -498,13 +502,35 @@ be tested before building on them.
       placeholder's last character changed, and see them forwarded
       unchanged, with `wb-proxyd` holding back no more than the window
       (S07-egress-gateway, "Placeholder binding", "Bounds");
+    - send it late in a body to a stand-in upstream that answers before
+      the body ends, and see the guest get a reset stream over HTTP/2
+      and a closed connection over HTTP/1.1; send it in a body over
+      HTTP/1.1 to an upstream that waits, and see the `403` and then the
+      guest connection closed;
+    - on an inspected host, send `Transfer-Encoding: gzip, chunked`,
+      `chunked, chunked`, `identity`, two `Transfer-Encoding` lines,
+      `Transfer-Encoding` with `Content-Length`, and any
+      `Transfer-Encoding` over HTTP/2, and see each get a `400` with
+      `http-transfer-coding` and nothing sent upstream; send a chunked
+      body with a bad chunk size, and see the request end with the
+      same rule and the upstream request aborted (S07-egress-gateway,
+      "Request form");
+    - send a request head over 64 KiB over HTTP/1.1, and a header list
+      over the announced `SETTINGS_MAX_HEADER_LIST_SIZE` over HTTP/2,
+      and see a `431` with `http-header-size` and nothing sent upstream;
     - send a request with `Content-Encoding: gzip` to
       `api.anthropic.com` and to `platform.claude.com`, and see each
       get a `403` with `model-content-encoding` and nothing sent
       upstream;
     - create two VMs with the same stored credential, and see two
       different placeholders, each with the credential's length and
-      prefix (S09-policy-credentials-audit, "Model credential");
+      prefix; store a credential with a prefix outside the fixed
+      pattern, and see a placeholder random throughout; store one shorter than
+      32 characters, and see a placeholder with at least 32 random
+      characters; store a new value
+      with `wb cred set`, and see a new placeholder in the next session
+      and the old one still refused (S09-policy-credentials-audit,
+      "Model credential");
     - with a long-lived token stored, send a request to each path of
       the binding on `api.anthropic.com`, and see the token injected
       only as `Authorization: Bearer`;

@@ -890,9 +890,28 @@ session start in the VM to the end of the last session running in it.
   GitLab, Codeberg, npm and PyPI treat `%2F` as data, so a deny under
   an allowed prefix holds on them, such as the git hosting profile's
   archive deny.
+  - *Header cap* (SEC13-bounded-resources). The request head, the
+    request line and header bytes over HTTP/1.1 or the decoded header
+    list over HTTP/2, is capped at 64 KiB, fixed in code. Over HTTP/2,
+    `wb-proxyd` announces the cap as `SETTINGS_MAX_HEADER_LIST_SIZE`.
+    A request over the cap gets a `431` with the rule
+    `http-header-size`, and nothing goes upstream.
+  - *Transfer coding.* On every inspected host, a request is refused
+    on its headers with a `400` and the rule `http-transfer-coding`
+    when its `Transfer-Encoding` is anything but one `chunked`,
+    when it has a `Transfer-Encoding` over HTTP/2, or when it has both
+    `Transfer-Encoding` and `Content-Length`. Such a request doesn't
+    reach the upstream. A
+    chunked body whose framing fails to decode ends the request with
+    the same rule, and `wb-proxyd` aborts the upstream request as for
+    a placeholder in the body ("Placeholder binding", "Bounds").
+
   Each request then goes through these steps in order: canonicalize,
-  classify and remove guest credentials (audited), HTTP policy, the
-  dependency gate, and credential injection.
+  classify and remove guest credentials (audited), the checks on the
+  request head (the placeholder scan of the target and the remaining
+  headers, `http-transfer-coding` and `model-content-encoding`), HTTP
+  policy, the dependency gate, credential injection, and the streaming
+  placeholder scan of the body as it goes upstream.
 - **Credential replacement** (SEC04-no-guest-secrets). `wb-proxyd`
   removes the credentials the guest sends, whatever the method:
   `Authorization`, `Proxy-Authorization` and `Cookie` on every
@@ -1019,9 +1038,9 @@ session start in the VM to the end of the last session running in it.
     unknown destination like any other.
 - **Placeholder binding** (SEC04-no-guest-secrets). Each placeholder
   is bound to the hosts, ports, and paths of its binding, following
-  OpenShell's provider model. `wb-proxyd` replaces a placeholder only
-  in the header its binding injects, never anywhere else. The
-  placeholder itself is never sent upstream. For AWS, `wb-proxyd`
+  OpenShell's provider model. The real credential goes only in the
+  header its binding injects. The placeholder itself is never sent
+  upstream. For AWS, `wb-proxyd`
   signs requests (SigV4) rather than injecting a key. The maintainer
   decided the scan's bounds and scope, and the body rule on the bound
   host, on I225.
@@ -1034,19 +1053,25 @@ session start in the VM to the end of the last session running in it.
     API profile's hosts). `wb-proxyd` removes such a header with an
     audit event of its own and doesn't refuse the request for it.
   - *A body on the bound host.* A request body is outside the binding
-    on every host, `/v1/messages` on `api.anthropic.com` included. A
-    placeholder in a body there means it reached the conversation, for
-    example when the agent printed its environment. Such a request gets
-    a `403` with the rule `model-placeholder-in-body`, and the response
-    says so: the placeholder is in the conversation, and the fix is to
-    compact the context or start a new session (NFR06-explained-refusals).
-    Each later turn of that conversation gets the same `403` until
-    then. Forwarding such a body without replacement and logging a
+    on every host, `/v1/messages` on `api.anthropic.com` included.
+    `/v1/messages` is the one path of the model API profile whose
+    request body holds the conversation. A placeholder in its request body means
+    the placeholder reached the conversation, for example when the
+    agent printed its environment. Such a request gets a `403` with the
+    rule `model-placeholder-in-body`, and the response says so: the
+    placeholder is in the conversation, and the fix is to clear the
+    conversation (`/clear`) or start a new session
+    (NFR06-explained-refusals). Each later turn of that conversation
+    gets the same `403` until then. Compacting doesn't help, because
+    Claude Code sends the whole conversation in a `/v1/messages` body
+    to compact it. A placeholder in any other body, on
+    `api.anthropic.com` too, gets `placeholder-outside-binding`. Forwarding such a body without replacement and logging a
     finding was rejected: the strict rule fails closed, and its cost
     stays within that one conversation.
   - *What the scan reads.* On every inspected host, `wb-proxyd` scans
     the request target, each header line, name and value, as it decodes
-    them, and the body with its transfer coding removed. It looks for
+    them, and the body with its chunked framing removed ("Request
+    form", "Transfer coding"). It looks for
     every placeholder of the VM in two forms: the exact bytes, and the
     percent-encoded form, in which any byte may be written as `%XX`
     with either hex case.
@@ -1063,7 +1088,9 @@ session start in the VM to the end of the last session running in it.
     request: it resets the HTTP/2 stream or closes the HTTP/1.1
     connection. The upstream never gets a complete request or any byte
     of the placeholder. The guest gets the `403`, or a reset stream if
-    the response had already started.
+    the response had already started. Over HTTP/1.1, `wb-proxyd` then
+    closes the guest connection, since the rest of the body is still
+    on it.
   - *Stated gaps.* The scan doesn't decode base64, a compressed body,
     WebSocket frames, JSON `\u` escapes, or any other encoding. A
     placeholder sent in one of them goes upstream unchanged. This is
@@ -1747,7 +1774,9 @@ as written.
   tool needs proxy settings (FR08-no-proxy-config).
 - **Not relaxed by audit mode or approvals.** The `http-tunnel`
   refusal, the `tls-*` refusals, the `stream-*` resets,
-  `http-header-timeout` and
+  `http-header-timeout`, `http-header-size`, `http-transfer-coding`,
+  the placeholder refusals `placeholder-outside-binding`,
+  `model-placeholder-in-body` and `model-content-encoding`, and
   `upstream-address-refused` apply on a host in `audit` mode too
   ("HTTP policy"). A `CONNECT` request or an `Upgrade` other than
   WebSocket never raises an approval request.
