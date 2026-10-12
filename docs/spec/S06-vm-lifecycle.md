@@ -281,8 +281,8 @@ in S12-platforms.
   - *Attaching a home.* A home on the data disk is given only to a
     record with every ID the host kept for it. When the host has no
     state for a home, `wb-guestd` attaches it to nobody, and the session
-    start is refused with a rule that names `wb project rm`, or a new
-    data disk for the VM, which S05-cli doesn't have yet (I229,
+    start is refused with a rule that names `wb project rm`, or the
+    command that gives the VM a new data disk (I229,
     NFR06-explained-refusals).
 
   A guest root that wrote to the data disk keeps what it wrote after
@@ -394,55 +394,61 @@ in S12-platforms.
   it doesn't mount after a swap. A volume the host makes on the image
   isn't encrypted at rest. A USB data disk is not an option: without a
   grant, TCC denies every guest process access to it (X08-data-disk).
-  That a host-made volume gives the space the guest frees back to the
-  host, as X05-fs-benchmark measured for a guest-made one, is assumed
-  until I228 measures it.
+  I228 measures that a host-made volume stays unencrypted, gives the
+  space the guest frees back to the host, and can be formatted by a
+  confined `diskutil`.
   The formatting runs in `wb-diskfmt`, a shim that `wb-hostd` starts
-  through a fixed `wb-launcher` entry (pending the decision in
-  B22-data-disk; S04-architecture lists it once decided). `wb-diskfmt`
-  takes the VM's bundle path from configuration `wb-hostd` read before
-  it confined itself, never from the request, confines itself to that
-  path, and then:
+  through the fixed `wb-launcher` entry of the VM's slot
+  (`wb-diskfmt-work` or `wb-diskfmt-isolated`), whose profile parameter
+  is that VM's bundle (S04-architecture). It never takes a path from
+  the request. It confines itself to that bundle, and then:
   1. creates the image under a temporary name in the bundle with
      `O_CREAT|O_EXCL`, mode 0600, and makes it sparse at the data disk's
      size;
   2. attaches it with `diskutil image attach --noMount` and checks that
-     the backing image path of the device it got is that file. Any other
-     device is detached untouched, and the run fails with the rule;
-  3. runs `diskutil eraseDisk APFS` on that device. This mounts the new,
-     empty volume on the host once. It is a volume the host just made,
-     not one a guest wrote. `wb-diskfmt` records the volume's UUID,
-     unmounts it, and detaches the image;
-  4. renames the file to its final name, and `wb-hostd` records it as
-     formatted, with the volume UUID, in `state.db`.
+     the backing image path of the device it got is that file. When it
+     isn't, the shim fails with the rule, and detaches only a device it
+     attached;
+  3. checks the backing image path again immediately before it runs
+     `diskutil eraseDisk APFS` on that device, and fails the same way on
+     a mismatch. The format mounts the new, empty volume on the host
+     once. It is a volume the host just made, not one a guest wrote.
+     `wb-diskfmt` reports the volume's UUID, unmounts the volume, and
+     detaches the image;
+  4. `wb-hostd` records the volume UUID and the temporary name in
+     `state.db`, then the shim renames the file to its final name, and
+     `wb-hostd` records the disk as formatted.
 
   The host never attaches a file at the final name. A leftover
-  temporary file is deleted, never attached. The final name has no
-  extension that Launch Services opens as a disk image (no `.img` or
-  `.dmg`), so a double click doesn't mount it. A data disk is
-  unencrypted at rest except by the host's own FileVault, and a user
-  who mounts it by hand gives the host kernel a guest-written
-  filesystem. Formatting a blank image that no guest has booted with
-  is outside the scope of the I44 rule that the host never mounts a
-  disk after a guest has booted from it.
+  temporary file is deleted, never attached. When a file has its final
+  name but `state.db` doesn't record it as formatted, as after a crash
+  between the rename and the record, `wb-hostd` refuses to start the
+  VM with the rule, names the command that gives the VM a new data disk
+  (I229), and never deletes the file. The final name has no extension
+  that Launch Services opens as a disk image (no `.img` or `.dmg`), so
+  a double click doesn't mount it. A data disk is unencrypted at rest
+  except by the host's own FileVault, and a user who mounts it by hand
+  gives the host kernel a guest-written filesystem. Formatting a blank
+  image that no guest has booted with is outside the scope of the I44
+  rule that the host never mounts a disk after a guest has booted from
+  it.
 
-  `wb-guestd` mounts the data volume at boot, before it starts anything
-  as a project user, at a fixed path outside `/Volumes` that holds the
-  homes:
+  `wb-guestd` mounts the data volume after first contact with
+  `wb-hostd`, when the volume UUID arrives, and before it starts
+  anything as a project user, at a fixed path outside `/Volumes` that
+  holds the homes:
   - It waits up to 30 s for the volume with the UUID the host recorded
-    at format time, which `wb-hostd` sends it, and identifies it only
-    by that UUID. Disk Arbitration has mounted it at `/Volumes/<name>`
-    without `nosuid` by then, so `wb-guestd` unmounts it and mounts it
-    at the home path with `nobrowse`, `nosuid`, `nodev` and ownership
-    on. The mount isn't repeated while the guest runs: once a process
-    has run as a user whose home is under the mount point, macOS
-    refuses another mount there until the next boot.
+    at format time, and identifies it only by that UUID. Disk
+    Arbitration has mounted it at `/Volumes/<name>` without `nosuid` by
+    then, so `wb-guestd` unmounts it and mounts it at the home path
+    with `nobrowse`, `nosuid`, `nodev` and ownership on. The mount isn't
+    repeated while the guest runs: once a process has run as a user
+    whose home is under the mount point, macOS refuses another mount
+    there until the next boot.
   - It checks that `diskutil` reports the volume "Encrypted: No". An
     encrypted or reformatted volume, or a missing one, is refused with
     the rule, and the refusal names the command that gives the VM a
-    new data disk (I229, NFR06-explained-refusals). That the guest
-    never turns encryption on for a volume the host made is assumed
-    until I228 measures it.
+    new data disk (I229, NFR06-explained-refusals).
   - Before every session start it reads the mount's flags again with
     `statfs`. Guest root can change them in place with `mount -u`, and
     gains nothing by it, because guest root is already root. No
@@ -457,10 +463,15 @@ in S12-platforms.
     with mode 700. A home that fails is refused to its user, with the
     rule logged, and the other users go on. A new home is made with
     `mkdir` on a path that doesn't exist yet, never by `createhomedir`
-    into an existing path. The root-owned directory on the data disk
-    where `wb-guestd` keeps session records ("Session lifecycle") is
-    checked the same way, and its contents are parsed as untrusted
-    input, because guest root may have written them.
+    into an existing path, and is then given to its user with `fchown`
+    on the descriptor of the new directory, or `lchown`, so a link put
+    in its place is never followed. When it creates a user,
+    `wb-guestd` refuses a UID or GID that owns any top-level entry on
+    the volume other than that user's own home, and logs the rule. The
+    root-owned directory on the data disk where `wb-guestd` keeps
+    session records ("Session lifecycle") is checked the same way, and
+    its contents are parsed as untrusted input, because guest root may
+    have written them.
 - **Devices.** One virtio network device whose packet transport leads
   to `wb-netd` (on macOS a file-handle attachment; S07-egress-gateway, S12-platforms);
   one host-guest socket device (vsock); storage: the system disk, the
