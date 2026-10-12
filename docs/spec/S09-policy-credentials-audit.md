@@ -371,7 +371,9 @@ inspection is trusted, and what is recorded.
 - **Model credential.** Claude Code in the guest is configured with a
   placeholder, and the model API profile's binding injects the real
   credential on `api.anthropic.com` alone (S07-egress-gateway, "Named
-  places").
+  places"). The kind of credential stored for the binding decides both
+  the guest variable that holds the placeholder and the header the
+  binding injects.
   - *Long-lived token.* A Claude subscription user runs
     `claude setup-token` on the host and stores the token it prints
     with `wb cred set`. The guest's placeholder goes in
@@ -380,7 +382,7 @@ inspection is trusted, and what is recorded.
     mode, and the maintainer made it a supported mode for V1 on I60
     (B60-model-credential). `claude setup-token` says the token is
     valid for one year. Nothing in Wraith Box renews it. At expiry, or
-    after a leak of the host's secret store, the user revokes the token
+    after a leak, the user revokes the token
     at claude.ai/settings/claude-code, under "Authorization tokens",
     runs `claude setup-token` on the host again, and stores the new
     token with `wb cred set`.

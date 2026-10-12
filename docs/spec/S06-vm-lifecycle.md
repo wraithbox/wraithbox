@@ -585,7 +585,12 @@ slot. Guests of other operating systems are limited only by resources
   and paths the model API profile leaves out, which is assumed, and
   S11-verification-and-spikes checks it. They aren't the control:
   `wb-proxyd` refuses the event log and every host outside the profile
-  whatever the guest sets (S07-egress-gateway, "model API"). A new
+  whatever the guest sets (S07-egress-gateway, "model API"). With the
+  variable set, Claude Code doesn't fetch feature flags, so it reaches
+  `/api/eval/` only when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is
+  unset, as in the second pass of the S11-verification-and-spikes run.
+  The profile's allow of `/api/eval/` stays, because the variable isn't
+  the control. A new
   Claude Code version needs a new image. Building an image for a new
   Claude Code version must be cheap next to a full `wb image build`,
   and how is open (I220). Plugins from the marketplace are unavailable

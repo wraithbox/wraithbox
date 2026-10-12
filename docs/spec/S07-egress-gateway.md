@@ -945,11 +945,13 @@ session start in the VM to the end of the last session running in it.
     the value (SEC10-audit).
   - *Named places.* The model API profile names `Authorization` and
     `x-api-key`. Its binding injects the model credential on
-    `api.anthropic.com` alone: `Authorization: Bearer <token>` for a
-    long-lived token from `claude setup-token`, or `x-api-key` for an
-    API key (S09-policy-credentials-audit, "Model credential",
-    X01-model-credential). The git
-    hosting profile names, per kind of host: GitHub, `Authorization`
+    `api.anthropic.com` alone, and there only on the paths where
+    X01-model-credential saw Claude Code send it: `/v1/messages`,
+    `/api/claude_code/`, `/api/claude_cli/bootstrap` and `/api/eval/`.
+    A long-lived token from `claude setup-token` is injected only as
+    `Authorization: Bearer <token>`, and an API key only as
+    `x-api-key` (S09-policy-credentials-audit, "Model credential").
+    The git hosting profile names, per kind of host: GitHub, `Authorization`
     only (GitHub itself refuses `?access_token=`). GitLab, the headers
     `PRIVATE-TOKEN`, `JOB-TOKEN` and `Deploy-Token`, and the parameters
     `private_token`, `access_token`, `job_token` and `bearer_token`, compared
@@ -1053,25 +1055,33 @@ session start in the VM to the end of the last session running in it.
     pass hosts or have a raw TCP entry, so SSH to them always meets the
     first-byte check ("Non-HTTP streams", "SSH").
   - *model API*: the paths Claude Code 2.1.289 reached on two hosts in
-    X01-model-credential, with the model credential binding on
-    `api.anthropic.com` alone ("Named places"). The maintainer decided
-    the list on I60 (B60-model-credential).
+    X01-model-credential, with the model credential binding on four
+    paths of `api.anthropic.com` ("Named places"). The maintainer
+    decided the list on I60 (B60-model-credential).
     - `api.anthropic.com`: `/v1/messages` (the model),
       `/api/claude_code/policy_limits` (the organization's limits),
       `/api/claude_code/settings` (remote managed settings),
       `/api/claude_cli/bootstrap`, `/api/eval/` (feature flag
       evaluation), `/mcp-registry/v0/servers` (the public MCP server
-      registry) and `/api/hello` (a reachability check). `/api/eval/`
-      is in because feature flags may change what Claude Code does, and
-      what it does without them wasn't measured.
+      registry) and `/api/hello` (a reachability check). The last two
+      are allowed without injection, because Claude Code sent them no
+      credential. Claude Code reaches `/api/eval/` only when
+      `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is unset in the guest
+      (S06-vm-lifecycle, "Claude Code in the guest"), as in the second
+      pass of the S11-verification-and-spikes run. Its allow stays,
+      because that variable isn't the control: feature flags may change
+      what Claude Code does, and what it does without them wasn't
+      measured.
     - `platform.claude.com`: `/v1/oauth/hello`, a reachability check
       of the login host. The binding doesn't cover it.
     - *Event log denied.* `/api/event_logging/` on `api.anthropic.com`,
       Anthropic's event log, which receives the model credential and
       usage data, is a built-in deny of the profile, logged with the
-      rule `model-event-log`. Like the archive deny, it applies
-      whatever the source of an allow, so `wb-proxyd` refuses the event
-      log whatever the guest sets.
+      rule `model-event-log`. Like the archive deny, it holds whatever
+      the guest sets and whatever a policy file allows. It matches the
+      canonical path and also that path with each `%2F` decoded to `/`,
+      so `/api%2Fevent_logging/` is refused as well, even under a user's
+      allow of `/api/`.
     - *Outside the profile.* Datadog's log intake
       (`http-intake.logs.us5.datadoghq.com`, "Accepted gaps"),
       `downloads.claude.ai` (the updater and the plugin marketplace)
