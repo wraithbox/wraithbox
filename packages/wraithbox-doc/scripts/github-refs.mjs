@@ -39,8 +39,20 @@ function summarize(/** @type {string} */ body) {
 		.replace(/\s+/g, ' ')
 		.trim();
 	const sentence = text.match(/^(.+?[.?!])(\s|$)/)?.[1] ?? text;
-	// Cut at a word boundary: a word cut in half fails the spell check.
-	return sentence.length > 220 ? `${sentence.slice(0, 218).replace(/\s+\S*$/, '')}…` : sentence;
+	if (sentence.length <= 220) return sentence;
+	return `${cut(sentence, 217)}…`;
+}
+
+/**
+ * The first `max` characters of `text`, ending at a word boundary, because
+ * a word cut in half fails the spell check. A boundary that would drop more
+ * than a third of `max` (a long URL or path) gives the hard cut instead.
+ */
+function cut(/** @type {string} */ text, /** @type {number} */ max) {
+	const hard = text.slice(0, max);
+	if (/\s/.test(text[max] ?? ' ')) return hard.trimEnd();
+	const atWord = hard.replace(/\s+\S*$/, '');
+	return atWord.length >= (max * 2) / 3 ? atWord : hard.trimEnd();
 }
 
 /** @type {Record<string, { kind: string, state: string, title: string, summary: string, brief?: string }>} */

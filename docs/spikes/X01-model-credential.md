@@ -14,8 +14,10 @@ SEC10-audit, FR01-drop-in, FR13-claude-state
 ## For review
 
 - **Decides:** the answer for a long-lived subscription token, the
-  host list for the model API profile, and three questions about the
-  hosts outside it. The spec changes wait for those decisions (I215).
+  host list for the model API profile, three questions about what
+  Claude Code may reach besides the model, and whether the long-lived
+  token becomes a supported mode. The spec changes wait for those
+  decisions (I215).
 - **You are approving:** the answer "yes" for a long-lived token from
   `claude setup-token`, given to Claude Code as
   `CLAUDE_CODE_OAUTH_TOKEN`. With a placeholder there and the proxy
@@ -42,18 +44,31 @@ SEC10-audit, FR01-drop-in, FR13-claude-state
     they hold different credentials. Inferred: `setup-token` makes a
     separate token, and nothing in the guest refreshes it.
   - That Claude Code's switches for nonessential traffic stop the
-    Datadog, update, and changelog requests. The variables are in the
-    binary, but the spike didn't run with them set.
+    Datadog, event log, update, and changelog requests. The variables
+    are in the binary, but the spike didn't run with them set.
+  - That the placeholder went nowhere but `api.anthropic.com`. The
+    proxy looked for it only in `Authorization` and `x-api-key`, not
+    in other headers, query strings or bodies, which is where
+    S07-egress-gateway, "Placeholder binding", also looks for a leak.
+  - That the main-loop and side calls to `/v1/messages` are what the
+    host table says. Inferred from their timing and `anthropic-beta`
+    values.
 - **Open decisions:** each has a recommendation in
   B60-model-credential.
-  1. Telemetry to Datadog, and Anthropic's own event logging.
-     Recommended: Datadog stays outside the profile, as
-     S07-egress-gateway says today, and the guest turns telemetry off.
+  1. Telemetry to Datadog, and Anthropic's own event log on
+     `api.anthropic.com`, which receives the token. Recommended: Datadog
+     stays outside the profile, as S07-egress-gateway says today, and
+     the guest turns telemetry off. A sub-choice is whether the profile
+     also leaves out the event log path. The host then enforces it.
   2. Updates from `downloads.claude.ai`. Recommended: outside the
      profile, with the updater off in the guest. The image then sets
      the version.
   3. The changelog from `raw.githubusercontent.com`. Recommended:
      outside the profile.
+  4. Whether the long-lived token becomes a supported subscription
+     mode, with its unknown lifetime, its rotation when the host's
+     secret store leaks, and its binding to `api.anthropic.com` alone.
+     Recommended: yes, for V1, until I15 settles the browser login.
 - **Brief:** B60-model-credential
 
 ## Question
@@ -97,6 +112,15 @@ trusted. The proxy read the token from the Keychain item
 placeholder are both 108 characters. The proxy logged method, host,
 path, header names and its verdict per request, never a value.
 
+The proxy was set to inject the token on `api.anthropic.com`,
+`console.anthropic.com`, `platform.claude.com` and `claude.ai`, to
+learn which hosts take it. Only `api.anthropic.com` received it.
+
+`claude setup-token --help`, run by the builder on the host as its own
+user with the same Claude Code 2.1.289, prints "Set up a long-lived
+authentication token (requires Claude subscription)". It doesn't give a
+lifetime.
+
 ### Hosts
 
 70 TLS connections, 72 requests. The proxy inspected the connections
@@ -104,7 +128,7 @@ to all five hosts. Counts are requests.
 
 | Host | Path | Requests | Token sent | Answer | What it is |
 |---|---|---|---|---|---|
-| `api.anthropic.com` | `/v1/messages` | 5 | yes | 200 | the model. 3 main-loop calls (one per answered prompt) and 2 side calls |
+| `api.anthropic.com` | `/v1/messages` | 5 | yes | 200 | the model. Inferred from timing and `anthropic-beta`: 3 main-loop calls, one per answered prompt, and 2 side calls |
 | | `/api/event_logging/v2/batch` | 10 | yes | 200 | Anthropic's own telemetry |
 | | `/api/eval/sdk-zAZezfDKGoZuXXKe` | 4 | yes | 200 | feature flag evaluation (inferred from the path) |
 | | `/api/claude_code/policy_limits` | 5 | yes | 200, 304 | the organization's limits |
@@ -121,20 +145,30 @@ to all five hosts. Counts are requests.
 `-p` alone reached `api.anthropic.com` and Datadog. The updater,
 the plugin marketplace, the changelog, and the two reachability checks
 came only with an interactive session. The proxy didn't see a cookie
-in any request, or the placeholder in a request to a host other than
-`api.anthropic.com`.
+in any request. It didn't see the placeholder in the `Authorization`
+or `x-api-key` header of a request to a host other than
+`api.anthropic.com`. It didn't look anywhere else in a request
+("Limits").
 
 ### What Claude Code stored
 
 - **Keychain:** no item with `claude` or `anthropic` in its service or
   account name. With the token in the environment, Claude Code didn't make
   a credential item.
-- **Files:** `~/.claude.json` (52 KiB) and, under `~/.claude/`,
+- **Files:** `~/.claude.json` (51.4 KiB) and, under `~/.claude/`,
   `settings.json`, `history.jsonl`, `policy-limits.json`, an empty
   `remote-settings.json`, and the `projects`, `sessions`, `plugins`,
   `backups` and `cache` directories. No `.credentials.json`.
 - **The real token on disk:** a fixed-string search of `wbtest`'s home,
   skipping `~/Library/Keychains`, didn't find a file holding it.
+
+Neither search can be told apart from a failed one in this run. The
+token went to `grep -f` through a pipe from `security -w`, and if that
+had failed, `grep` would have had no pattern and wouldn't have matched anything. The
+Keychain listing hid the errors of `security dump-keychain`. The proxy
+read the same item at start, which makes a failed read unlikely, but
+the run didn't check it. `run.sh` now fails in both cases (commit
+`2a83a3a`).
 
 ### First run
 
@@ -155,7 +189,13 @@ The item didn't hold an API key, so `/v1/messages` answered 401.
   unknown.
 - The disk search covered `wbtest`'s home only, not `/tmp` or
   `/var/folders`. It searched for the real token, not the
-  placeholder.
+  placeholder, and didn't check that the token was read ("What Claude
+  Code stored").
+- The proxy looked for the placeholder in `Authorization` and
+  `x-api-key` only. A scan of every header, the query string, and the
+  body, as S07-egress-gateway, "Placeholder binding", does, is still to
+  do, in the next run with the maintainer or in the conformance tests
+  of `wb-proxyd`.
 - The run was on the host, not in a guest, and nothing denied a host:
   what Claude Code does when Datadog, the updater, or the changelog is
   unreachable wasn't measured.
@@ -173,11 +213,13 @@ and I215 tracks the change:
   places" gains `Authorization` for the model API, which every
   inspected host already removes. The binding injects
   `Authorization: Bearer <token>` for a token, or `x-api-key` for an
-  API key, on `api.anthropic.com` only. Datadog, `downloads.claude.ai`
-  and `raw.githubusercontent.com` per decisions 1 to 3.
-- S09-policy-credentials-audit, "Model credential": the long-lived
-  token is a supported mode, and the placeholder goes in
-  `CLAUDE_CODE_OAUTH_TOKEN`.
+  API key, on `api.anthropic.com` only. Datadog, the event log path,
+  `downloads.claude.ai` and `raw.githubusercontent.com` per decisions 1
+  to 3.
+- S09-policy-credentials-audit, "Model credential": per decision 4.
+  If the long-lived token is supported, the placeholder goes in
+  `CLAUDE_CODE_OAUTH_TOKEN`, and the text says how the user rotates
+  the token.
 - S11-verification-and-spikes: X01-model-credential in its list of
   result pages. Its conformance cases already cover a replaced model
   credential and a placeholder outside its binding.
@@ -185,8 +227,9 @@ and I215 tracks the change:
 ## Spike code
 
 Branch `spike/x01-model-credential`, commit
-[`21d5892`](https://github.com/wraithbox/wraithbox/tree/21d5892e957c5b922a3296297c0f6fc13bf3c1f1/spikes/x01-model-credential):
-the proxy, its tests, and `run.sh`. The logs stay on the maintainer's
+[`2a83a3a`](https://github.com/wraithbox/wraithbox/tree/2a83a3a73d1bf74ccf9a5d75c15d3ec038fb040a/spikes/x01-model-credential):
+the proxy, its tests, and `run.sh`. The run on 2026-10-12 used
+`run.sh` as of `768cc28`, before the search checks. The logs stay on the maintainer's
 Mac. They don't hold a credential.
 
-**Status:** Partly answered 2026-10-12: yes for a long-lived subscription token. API key mode and the browser login are open (I15)
+**Status:** Answered 2026-10-12: yes for a long-lived token. Awaiting decision on four points

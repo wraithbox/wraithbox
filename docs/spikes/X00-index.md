@@ -15,7 +15,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 
 | ID | Description | Status |
 |----|-------------|--------|
-| X01-model-credential | Model credential via the proxy | Partly answered 2026-10-12: yes for a long-lived subscription token. API key mode and the browser login are open (I15) |
+| X01-model-credential | Model credential via the proxy | Answered 2026-10-12: yes for a long-lived token. Awaiting decision on four points |
 | X02-warm-start | Warm start | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04 (I16): an idle VM keeps running while the host is locked and is saved after unlock |
 | X03-network-path | Network path | Answered 2026-10-05: yes, with conditions |
 | X04-tls-inspection | Inspection compatibility | Answered 2026-10-08: no |
@@ -58,10 +58,11 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   tools ([OpenShell issue 3331](https://github.com/NVIDIA/OpenShell/issues/3331)), and a login shared with the host's
   Claude Code would race it on token refresh. The answer must say
   which login Wraith Box owns and how it is refreshed.
-  Partly answered 2026-10-12 in the result page X01-model-credential:
-  yes for a long-lived token from `claude setup-token`, given to Claude
-  Code as a placeholder in `CLAUDE_CODE_OAUTH_TOKEN`. API key mode
-  wasn't run, and the browser login and its refresh are open (I15).
+  Answered 2026-10-12 in the result page X01-model-credential: yes
+  for a long-lived token from `claude setup-token`, given to Claude
+  Code as a placeholder in `CLAUDE_CODE_OAUTH_TOKEN`, and awaiting
+  decision on four points. API key mode wasn't run, and the browser
+  login and its refresh are open (I15).
 - **X02-warm-start: Warm start.** Measure time to restore a macOS guest from saved
   state with a vsock device and a file-handle network attachment.
   Can a saved state be reused (cloned with its disks) more than once?
