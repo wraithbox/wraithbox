@@ -482,8 +482,29 @@ be tested before building on them.
       another inspected host, and see each request get a `403` that
       names the binding, an audit event, and nothing sent upstream;
     - send it in a form-encoded, `multipart/form-data` and JSON body to
-      `platform.claude.com` and to another inspected host, and see the
-      same `403`. The body case on `api.anthropic.com` waits on I225;
+      `platform.claude.com` and to another inspected host, exact and
+      percent-encoded, and see the same `403` with
+      `placeholder-outside-binding`, the upstream request aborted, and
+      no byte of the placeholder upstream;
+    - send it in the JSON body of a `/v1/messages` request to
+      `api.anthropic.com`, and see a `403` with
+      `model-placeholder-in-body` whose message says the placeholder is
+      in the conversation and to compact the context or start a new
+      session, and no byte of the placeholder upstream;
+    - send it in a chunked body split across two chunks, and across two
+      HTTP/2 `DATA` frames, at every offset in the placeholder, exact
+      and percent-encoded, and see each request refused with no byte
+      of the placeholder upstream; send the same bodies with the
+      placeholder's last character changed, and see them forwarded
+      unchanged, with `wb-proxyd` holding back no more than the window
+      (S07-egress-gateway, "Placeholder binding", "Bounds");
+    - send a request with `Content-Encoding: gzip` to
+      `api.anthropic.com` and to `platform.claude.com`, and see each
+      get a `403` with `model-content-encoding` and nothing sent
+      upstream;
+    - create two VMs with the same stored credential, and see two
+      different placeholders, each with the credential's length and
+      prefix (S09-policy-credentials-audit, "Model credential");
     - with a long-lived token stored, send a request to each path of
       the binding on `api.anthropic.com`, and see the token injected
       only as `Authorization: Bearer`;
