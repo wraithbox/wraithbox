@@ -16,8 +16,9 @@ in S12-platforms.
 - **Layers.** (1) *Base*: macOS installed from an Apple restore image,
   plus `wb-guestd`, Homebrew, Xcode command line tools, and Claude Code
   (S14-claude-in-guest, "Install"). An Xcode variant adds full Xcode.
-  (2) *Org layer* (optional): a shared Brewfile and settings. (3) *Project layer*: the formulae the project declares,
-  installed by `wb-guestd` as the toolchain user into the toolchain
+  (2) *Org layer* (optional): a shared Brewfile and settings.
+  (3) *Project layer*: the formulae the project declares, installed by
+  `wb-guestd` as the toolchain user into the toolchain
   prefix before the session starts (FR07-toolchain-manifest, "Toolchain
   prefix" below).
   The image doesn't contain a Wraith Box CA. `wb-guestd` installs the

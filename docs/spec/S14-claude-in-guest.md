@@ -56,7 +56,8 @@ the guest gets (S07-egress-gateway, model API, "Outside the profile").
   and this fetch depends on the spec that I49 asks for.
 - **Check.** `wb-release-check` (S04-architecture), a per-run program
   that `wb-hostd` starts through `wb-launcher`, checks the files on
-  inherited descriptors and writes the result to a pipe. `wb-hostd`
+  inherited descriptors and writes a fixed-format record to a pipe:
+  `pass` with the binary's SHA-256, or the rule of the failed check. `wb-hostd`
   doesn't parse the signature or the manifest. They are bytes from the
   network, and the process that faces the guest doesn't run a third
   party parser over them (SEC12-least-privilege). The check follows
@@ -80,6 +81,16 @@ the guest gets (S07-egress-gateway, model API, "Outside the profile").
 
   Any failed check fails the build, and the build logs the check that
   failed. The manifest parser has a fuzz target.
+- **The checked bytes.** `wb-hostd` opens the binary once and keeps
+  that descriptor. It passes a duplicate to `wb-release-check`, and
+  after a `pass` it reads the file again from offset 0 and streams it
+  to `wb-guestd`, hashing it as it sends. It sends the SHA-256 from the
+  record only after the last byte. `wb-guestd` writes the stream to a
+  temporary file that only root can write, and installs it only when
+  the SHA-256 of what it received equals the one `wb-hostd` sent and
+  `wb-hostd` reports that its own hash of the sent bytes matched too.
+  A file changed between the check and the send fails the build with
+  the rule `claude-release-bytes-changed`.
 - **Into the image.** `wb-guestd` installs the binary through a named
   operation of the base layer, before sealing (S06-vm-lifecycle,
   "Built by Wraith Box"), as `/usr/local/bin/claude`, owned by root
@@ -144,8 +155,15 @@ targets.
     read the target.
   - *Never `.claude.json`.* A root or a link that resolves to
     `.claude.json` in the home or in `CLAUDE_CONFIG_DIR` is skipped with
-    the rule `claude-config-link-claude-json`, unread. So is a root that
-    resolves to the home directory or to one of its ancestors.
+    the rule `claude-config-link-claude-json`, unread.
+  - *Roots `wb` refuses.* A root is skipped unread, with the rule
+    `claude-config-root-refused`, when its resolved path is the home
+    directory or one of its ancestors, has a component outside the
+    config root that starts with `.` (such as `~/.ssh` or
+    `~/.config/gh`), or lies under the platform's user data directory
+    (`~/Library` on macOS, `%APPDATA%` and `%LOCALAPPDATA%` on
+    Windows). Those hold credentials and application data, not Claude
+    Code configuration.
   - *Why this differs from S08.* The working tree carry-in sends a link
     as a link and never reads its target (S08-workspace-and-git,
     "Carry-in scan"), because the guest gets the same repository and
@@ -160,14 +178,20 @@ targets.
     secret scan stands between that file and the guest.
   - Anything other than a regular file, a directory, or a link is
     skipped. A link loop is skipped.
+  - *Hidden entries.* Inside a root, `wb` skips each entry whose name
+    starts with `.`, such as `.git` or `.env`, and doesn't read it. The
+    one exception is `.claude-plugin/`, which skips its whole unit
+    ("Plugin and hook files").
 - **Units.** `CLAUDE.md`, `settings.json`, each file in `commands/`,
   and each entry of `agents/` and of `skills/` (a file, or a directory
   with everything in it) is one unit. Every skip below skips the whole
   unit, so a skill or agent never reaches the guest in part.
-- **Walk bounds.** `wb` reads at most 10,000 entries, 16 levels deep,
-  and 64 MiB in all. It checks a file's size before it reads it, and a
-  file over 1 MiB is skipped unread. When a bound is reached, the units
-  not yet read are skipped with the rule `claude-config-walk-bound`.
+- **Walk bounds.** `wb` walks each root in byte order of the paths,
+  and reads at most 10,000 entries, 16 levels deep, and 64 MiB in all.
+  It checks a file's size before it reads it, and a file over 1 MiB is
+  skipped unread. When a bound is reached, the unit being read and the
+  units not yet read are skipped with the rule
+  `claude-config-walk-bound`, so a unit is never cut short.
 - **Settings filter.** `settings.json` keeps only these top-level keys:
   `permissions`, `model`, `effortLevel`, `alwaysThinkingEnabled`,
   `outputStyle`, `language`, `theme`, `editorMode`, `attribution`,

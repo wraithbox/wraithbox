@@ -282,7 +282,7 @@
 	},
 	"44": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: data disk durability, and never mount a guest-written disk",
 		"summary": "S06-vm-lifecycle says the data disk \"can be rebuilt from host state plus git, so it may use relaxed write-through settings for speed\".",
 		"brief": "B44-data-disk-durability"
@@ -1386,7 +1386,7 @@
 	},
 	"223": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S01-spec-based-development: one spec per security requirement, now or later (B145 open question)",
 		"summary": "B145-least-privilege asked, among its \"Questions for you\", whether S01-spec-based-development should record \"one spec per security requirement\" now or later."
 	},
@@ -1429,7 +1429,7 @@
 	},
 	"230": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(review): record the B145 decision on one spec per SEC requirement",
 		"summary": "The maintainer decided B, not now, on #223 (2026-10-12): specs stay organized by component, and a SEC requirement gets its own spec page only where one is needed."
 	},
@@ -1444,5 +1444,29 @@
 		"state": "open",
 		"title": "S06-vm-lifecycle: move a project's home between VM data disks on wb project place",
 		"summary": "S06-vm-lifecycle, \"Changing placement\", refuses wb project place for a project that has a home on a VM's data disk, because moving the home to the other VM's data disk \"needs the data-disk design of I44\"."
+	},
+	"233": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): bound and scope the placeholder scan, refuse it in model bodies",
+		"summary": "Records the maintainer's decision on #225 (2026-10-12) and its amendment in the specs, with the code and security reviews applied."
+	},
+	"234": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): SEC15 never mounts a guest-written disk, data disk durability",
+		"summary": "Writes the maintainer's Decision (2026-10-04): on #44, with the disk settings from X05-fs-benchmark (#19) and X08-data-disk (#22) and the B22-data-disk decisions already on main."
+	},
+	"235": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): S14-claude-in-guest, Claude Code in the guest",
+		"summary": "New spec docs/spec/S14-claude-in-guest.md, with a diagram."
+	},
+	"236": {
+		"kind": "issue",
+		"state": "open",
+		"title": "T00-index: guest root persists on the data disk across system disk swaps and break-glass",
+		"summary": "A guest root that wrote to the data disk keeps what it wrote after a system disk swap, because only the system disk is replaced (S06-vm-lifecycle, \"Updates\")."
 	}
 }
