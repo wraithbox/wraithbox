@@ -262,13 +262,16 @@ nothing themselves (S12-platforms).
     "Disks", X08-data-disk). `wb-launcher` has two fixed entries,
     `wb-diskfmt-work` and `wb-diskfmt-isolated`, each with that VM's
     bundle as its profile parameter, so the shim learns which bundle
-    to format without arguments.
-    The disk's size comes from configuration `wb-hostd` read
-    before it confined itself. The compiled-in profile allows reading
-    and writing that one bundle path, starting `diskutil` and nothing
-    else, and the DiskImages, Disk Arbitration and disk management
-    services `diskutil` uses. It denies the network and every other
-    file. `wb-diskfmt` exits after one format, and is never restarted.
+    to format without arguments. As `wb-vmd` does, it resolves the
+    bundle path with `realpath` to get its profile parameter, and reads
+    nothing from `wb-hostd` before it confines itself. After that, it
+    receives the disk's size from `wb-hostd` over its inherited pipe,
+    and sends the volume UUID back over the same pipe. The compiled-in
+    profile allows reading and writing that one bundle path, that one
+    inherited descriptor, starting `diskutil` and nothing else, and
+    the DiskImages, Disk Arbitration and disk management services
+    `diskutil` uses. It denies the network and every other file.
+    `wb-diskfmt` exits after one format, and is never restarted.
   - `wb-guestadmin` confines itself at start the same way, from a
     compiled-in profile (X23-sandboxed-daemons, X25-vmd-sandbox). The
     profile allows the secret store service for its `wbadmin/*` items
@@ -278,7 +281,7 @@ nothing themselves (S12-platforms).
     and `wb-guestadmin-cleanup`, which removes the items of images and
     system disks that are gone), so a request
     never chooses what it does.
-  - `wb-netd`, `wb-vmd`, `wb-guestadmin` and `wb-build-ssh` write
+  - `wb-netd`, `wb-vmd`, `wb-guestadmin`, `wb-build-ssh` and `wb-diskfmt` write
     their logs to an inherited pipe or socket to `wb-hostd`, which
     frames, attributes and rate-limits each line. None of them holds a
     descriptor on any file in `<logs>` or `<data>` for its log.
