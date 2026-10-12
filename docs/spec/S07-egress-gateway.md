@@ -1017,17 +1017,65 @@ session start in the VM to the end of the last session running in it.
     Claude Code sends a built-in `DD-API-KEY` header to Datadog's log
     intake. That host stays out of the model API profile and is an
     unknown destination like any other.
-- **Placeholder binding.** Each placeholder is bound to the hosts,
-  ports, and paths of its binding, following OpenShell's provider
-  model. A placeholder found anywhere else in a request (another host,
-  a query string, a body) gets a `403` naming the binding, and an audit
-  event. The exception is a header that "Credential replacement"
-  removes (`Authorization`, `Proxy-Authorization` and `Cookie`, plus
-  `x-api-key` on the model API profile's hosts). `wb-proxyd` removes
-  such a header with an audit event of its own and doesn't refuse the
-  request for it. The
-  placeholder itself is never sent upstream. For AWS,
-  `wb-proxyd` signs requests (SigV4) rather than injecting a key.
+- **Placeholder binding** (SEC04-no-guest-secrets). Each placeholder
+  is bound to the hosts, ports, and paths of its binding, following
+  OpenShell's provider model. `wb-proxyd` replaces a placeholder only
+  in the header its binding injects, never anywhere else. The
+  placeholder itself is never sent upstream. For AWS, `wb-proxyd`
+  signs requests (SigV4) rather than injecting a key. The maintainer
+  decided the scan's bounds and scope, and the body rule on the bound
+  host, on I225.
+  - *Outside the binding.* A placeholder found anywhere else in a
+    request (another host, another header, a query string, a body)
+    gets a `403` naming the binding, and an audit event with the rule
+    `placeholder-outside-binding`. The exception is a header that
+    "Credential replacement" removes (`Authorization`,
+    `Proxy-Authorization` and `Cookie`, plus `x-api-key` on the model
+    API profile's hosts). `wb-proxyd` removes such a header with an
+    audit event of its own and doesn't refuse the request for it.
+  - *A body on the bound host.* A request body is outside the binding
+    on every host, `/v1/messages` on `api.anthropic.com` included. A
+    placeholder in a body there means it reached the conversation, for
+    example when the agent printed its environment. Such a request gets
+    a `403` with the rule `model-placeholder-in-body`, and the response
+    says so: the placeholder is in the conversation, and the fix is to
+    compact the context or start a new session (NFR06-explained-refusals).
+    Each later turn of that conversation gets the same `403` until
+    then. Forwarding such a body without replacement and logging a
+    finding was rejected: the strict rule fails closed, and its cost
+    stays within that one conversation.
+  - *What the scan reads.* On every inspected host, `wb-proxyd` scans
+    the request target, each header line, name and value, as it decodes
+    them, and the body with its transfer coding removed. It looks for
+    every placeholder of the VM in two forms: the exact bytes, and the
+    percent-encoded form, in which any byte may be written as `%XX`
+    with either hex case.
+  - *Bounds* (SEC13-bounded-resources). The scan streams. A byte goes
+    upstream once the bytes after it can no longer complete a match.
+    `wb-proxyd` holds back at most one window per request: the length
+    of the longest form of the VM's longest placeholder, three times
+    its length in bytes. It buffers nothing else for the scan. A
+    placeholder split across chunks, HTTP/2 frames or reads is found
+    like one that isn't. The request target and headers are read whole
+    before anything goes upstream, and a match there doesn't send any
+    of the request. A match in the body ends a request whose earlier
+    bytes may already be upstream. `wb-proxyd` then aborts the upstream
+    request: it resets the HTTP/2 stream or closes the HTTP/1.1
+    connection. The upstream never gets a complete request or any byte
+    of the placeholder. The guest gets the `403`, or a reset stream if
+    the response had already started.
+  - *Stated gaps.* The scan doesn't decode base64, a compressed body,
+    WebSocket frames, JSON `\u` escapes, or any other encoding. A
+    placeholder sent in one of them goes upstream unchanged. This is
+    acceptable because the placeholder isn't a secret and doesn't open
+    anything. The model credential's placeholder also identifies its VM
+    (S09-policy-credentials-audit, "Model credential").
+  - *Compressed requests to the model API.* On the model API profile's
+    hosts, `api.anthropic.com` and `platform.claude.com`, a request
+    with a `Content-Encoding` other than `identity` is refused with a
+    `403` and the rule `model-content-encoding`. The scan then sees
+    every body sent there. The check runs on the headers, before
+    anything goes upstream.
 - **HTTP policy** (SEC06-repo-writes). Rules match method and path per host, GraphQL
   operation type and name, and WebSocket messages, in the OpenShell
   policy schema (S09-policy-credentials-audit). Each inspected host enforces its rules by

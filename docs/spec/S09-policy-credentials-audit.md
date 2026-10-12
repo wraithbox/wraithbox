@@ -374,6 +374,16 @@ inspection is trusted, and what is recorded.
   places"). The kind of credential stored for the binding decides both
   the guest variable that holds the placeholder and the header the
   binding injects.
+  - *Placeholder form* (I225). Each VM gets its own placeholder for
+    the model credential. No other VM ever gets the same one, not even
+    after its VM is deleted. It has the stored credential's length and
+    keeps its prefix, the characters up to and including the third `-`
+    (`sk-ant-…-`), so it looks like the credential to Claude Code. The
+    rest is random letters and digits from a cryptographic random
+    source. A stored value with fewer than three `-` gets a placeholder
+    that is random throughout. Ordinary text then can't match it by
+    chance, and a placeholder seen in a refusal or a leak names the one
+    VM it belongs to (S07-egress-gateway, "Placeholder binding").
   - *Long-lived token.* A Claude subscription user runs
     `claude setup-token` on the host and stores the token it prints
     with `wb cred set`. The guest's placeholder goes in
