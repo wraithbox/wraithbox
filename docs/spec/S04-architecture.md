@@ -28,7 +28,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-guestadmin` | Go | user, one run per image build, `wbadmin` rotation or cleanup, started through `wb-launcher` (on macOS), then exits | the `wbadmin/*` secret store items it writes and fetches, and nothing else | one write-only host-guest connection to `wb-guestd`; pipes to the build's `wb-vmd` and `wb-build-ssh` | The admin side of the image build, `wbadmin` rotation at each VM's first contact, and removing the items of images and system disks that are gone (S15-least-privilege) |
 | `wb-build-ssh` | Go | user, one per image build, started through `wb-launcher` (on macOS) | the build password on its standard input, for one session | one SSH session to the build guest, on the build VM's own network | Confine itself, then run the system `ssh` with compiled-in arguments and environment for the build's one install session (S15-least-privilege) |
 | `wb-diskfmt` | Go | user, one run per new data disk, started through `wb-launcher` (on macOS) as `wb-diskfmt-work` or `wb-diskfmt-isolated`, then exits | nothing | none: it runs before any guest has run with the disk (SEC15-no-guest-disk-mount) | Confine itself to its VM's bundle, then create, attach, format and detach that VM's new data disk (S06-vm-lifecycle, "Disks") |
-| `wb-release-check` | Go | user, one run per image build, started through `wb-launcher` (on macOS), then exits | nothing | none: it reads bytes from `downloads.claude.ai` that the download program fetched, on inherited descriptors | Confine itself to its inherited descriptors, check a Claude Code release's manifest signature, version, platform entry, size and SHA-256, and write the result to its pipe (S14-claude-in-guest, "Install") |
+| `wb-release-check` | Go | user, one run per image build, started through `wb-launcher` (on macOS); instance cap one per build, then exits | nothing | none: it reads bytes from `downloads.claude.ai` that the download program fetched, on inherited descriptors | Confine itself to its inherited descriptors, check a Claude Code release's manifest signature, version, platform entry, size and SHA-256, and write the result to its pipe (S14-claude-in-guest, "Install") |
 | `wb-askpass` | Go | user, started by `ssh` for the login prompt | one line of `ssh`'s standard input, until it prints it | none | Print the first line of its standard input to `ssh` (S15-least-privilege) |
 | `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | n/a (runs in the guest) | Users, PTY exec, git transport (S06-vm-lifecycle) |
 
@@ -273,6 +273,16 @@ nothing themselves (S12-platforms).
     the DiskImages, Disk Arbitration and disk management services
     `diskutil` uses. It denies the network and every other file.
     `wb-diskfmt` exits after one format, and is never restarted.
+  - `wb-release-check` checks a Claude Code release for an image build
+    (S14-claude-in-guest, "Install"). `wb-launcher` has one fixed
+    entry, `wb-release-check`, with no profile parameter. It confines
+    itself first thing, from a compiled-in profile that allows its
+    inherited descriptors (the manifest, the signature, the binary and
+    its result pipe) and denies files, the network, the secret store
+    and starting programs. Then it reads the requested version from the
+    pipe, runs the checks, and writes one fixed-format record to the
+    pipe: `pass` with the binary's SHA-256, or the rule of the check
+    that failed. It exits after one check.
   - `wb-guestadmin` confines itself at start the same way, from a
     compiled-in profile (X23-sandboxed-daemons, X25-vmd-sandbox). The
     profile allows the secret store service for its `wbadmin/*` items
@@ -282,14 +292,15 @@ nothing themselves (S12-platforms).
     and `wb-guestadmin-cleanup`, which removes the items of images and
     system disks that are gone), so a request
     never chooses what it does.
-  - `wb-netd`, `wb-vmd`, `wb-guestadmin`, `wb-build-ssh` and `wb-diskfmt` write
-    their logs to an inherited pipe or socket to `wb-hostd`, which
+  - `wb-netd`, `wb-vmd`, `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`
+    and `wb-release-check` write their logs to an inherited pipe or socket to `wb-hostd`, which
     frames, attributes and rate-limits each line. None of them holds a
     descriptor on any file in `<logs>` or `<data>` for its log.
   - On macOS a confined process can't confine itself again, and its
     children inherit its profile. So `wb-hostd` starts `wb-vmd`,
     `wb-netd`, `wb-proxyd`, `wb-git`, `wb-prover`, `wb-guestadmin`,
-    `wb-build-ssh` and `wb-diskfmt` through `wb-launcher`, which has no profile. On Linux, Landlock and seccomp restrictions stack, so a
+    `wb-build-ssh`, `wb-diskfmt` and `wb-release-check` through
+    `wb-launcher`, which has no profile. On Linux, Landlock and seccomp restrictions stack, so a
     child can confine itself further and needs no launcher (assumed from
     their documentation, not tested; to be confirmed when Linux
     self-sandboxing is built).
@@ -519,7 +530,9 @@ decided the VM behavior on I48 (B48-process-supervision).
   entry, the instance ID it returned when it started the process, and
   the exit code or the signal. It never restarts anything itself.
 - The programs started for one run (`wb-git`, `wb-prover`,
-  `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`) are never restarted. A run whose
+  `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`, `wb-release-check`)
+  are never restarted. `wb-release-check` has an instance cap of one
+  per build. A run whose
   program exits before it reports a result fails, and the caller gets
   the exit reason (S08-workspace-and-git, S09-policy-credentials-audit,
   S15-least-privilege).

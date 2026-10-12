@@ -32,6 +32,11 @@ Brief: B145-least-privilege
   store gets the Keychain access group of its role once a signing
   identity exists. A new entitlement needs a change here first. Other
   hosts use the equivalents in S12-platforms.
+- **The release check.** `wb-release-check` (S04-architecture,
+  S14-claude-in-guest) doesn't declare a store item or an entitlement.
+  Its compiled-in profile allows only its inherited descriptors, and
+  denies files, the network, the secret store, and starting programs.
+  The Claude Code release key compiled into it is public.
 - **One-time prerequisites.** `wb setup` checks the prerequisites of
   S12-platforms, explains each missing one, and says who can fix it.
   The user makes each change, and `wb setup` doesn't ask for an
