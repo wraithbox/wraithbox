@@ -46,20 +46,22 @@ Brief: B22-data-disk
   measures both. That the key of a guest-made volume needs the old
   system disk is inferred from the kernel log: the clones also replaced
   the auxiliary storage, and the spike didn't separate the two.
-- **Open decisions:**
-  1. Who formats the data disk. Recommended: the host, APFS, before the
+- **Decisions:** decided 2026-10-12, as recommended, in the I22
+  comment that starts `Decision (2026-10-12):`. The assumptions above
+  stay with I228.
+  1. Who formats the data disk. Decided: the host, APFS, before the
      first boot, as above. The alternative is the guest formatting it
      HFS+ (Mac OS Extended), which the spike showed is kept across the
      swap as well, and which keeps the host out of formatting. HFS+ has
      no clones and no snapshots, and X05-fs-benchmark didn't measure it.
   2. Which host process runs `diskutil`. `wb-hostd` can't: under its
      self-sandbox it starts only fixed `wb-launcher` entries, with no
-     arguments (S04-architecture). Recommended: a fixed `wb-launcher`
+     arguments (S04-architecture). Decided: a fixed `wb-launcher`
      entry per VM slot for a small shim, `wb-diskfmt`
      (`wb-diskfmt-work`, `wb-diskfmt-isolated`), each with its VM's
      bundle as the profile parameter, never a path from the request,
      which runs the steps of "Disks". S04-architecture and
-     S06-vm-lifecycle are written for decision 2's recommendation.
+     S06-vm-lifecycle are written for decision 2A.
      I218 (one `wb-vmd` per VM, its launcher entries) also edits
      S04-architecture and rebases onto this. A confined `diskutil` run
      isn't measured yet, and I228 measures it.
@@ -267,7 +269,7 @@ changed between boots with the checks, not with the swap.
   rules of condition 4. "Projects and sessions inside a VM": the home
   path is fixed at creation, and who removes the home of a removed
   user (changed in this pull request).
-- **S04-architecture**: written for decision 2's recommendation. The
+- **S04-architecture**: written for decision 2A. The
   process table gains `wb-diskfmt`, and "Each host daemon is
   self-sandboxed" its two `wb-launcher` entries and its profile
   (changed in this pull request).
@@ -287,4 +289,4 @@ the Swift `wb-vmd` stand-in with read-write and USB data disks, the
 request client, the host-side format script, the guest scripts, the
 host state of each cycle, and the raw results in `results/`.
 
-**Status:** Answered 2026-10-12: yes, with conditions
+**Status:** Answered 2026-10-12: yes, with conditions. Decided 2026-10-12 (I22): 1A, the host formats the data disk APFS, and 2A, in the `wb-diskfmt` shim
