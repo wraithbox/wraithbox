@@ -1,5 +1,5 @@
 # X08 boot 1: the setuid probe with and without nosuid, at a mount point
-# outside /Volumes (b1-15: /Volumes/wbhomes can't be mounted on again).
+# outside /Volumes (b1-15: /Volumes/wbhomes refused another mount; see README).
 # Throwaway.
 set -u
 v=disk5s1; mp=/private/var/wbhomes

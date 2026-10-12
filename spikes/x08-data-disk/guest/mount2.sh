@@ -1,7 +1,7 @@
 # X08 cycle 2: what wb-guestd would do at start. Find the data volume by
 # its name ($VOLNAME), move it from wherever Disk Arbitration put it to the
-# fixed mount point $H outside /Volumes (cycle 1: a /Volumes point can't be
-# mounted on again), with nobrowse, nosuid and nodev unless SUID=1, and
+# fixed mount point $H outside /Volumes, which Disk Arbitration manages
+# (cycle 1 could not mount on /Volumes/wbhomes again, see README), with nobrowse, nosuid and nodev unless SUID=1, and
 # with ownership on: the owners mount option, then diskutil enableOwnership,
 # which an external volume needs again on a new system disk. Throwaway.
 set -u

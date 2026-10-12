@@ -72,6 +72,9 @@ System disks: three APFS clones of X17's `e5` that the maintainer made
   user root, also after the swap.
 - Once a process has run as a user whose home is under the mount point,
   the kernel's System Policy denies another mount on that point
-  (`deny(1) file-mount`) until the next boot.
+  (`deny(1) file-mount`) until the next boot. This also explains the
+  failed remount on `/Volumes/wbhomes` in boot 1, which came after the
+  checks had run as wbp1 and wbp2. The comments in `mount2.sh` and
+  `b1-16-suid-on.sh` were written before that was found.
 - `/etc/fstab` can't be written by the root daemon (`Operation not
   permitted`).
