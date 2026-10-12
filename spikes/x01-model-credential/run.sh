@@ -98,7 +98,8 @@ fi
   grep -v '/Library/Keychains/' | tee "$OUT/key-on-disk.txt"
 SEARCH=($pipestatus)
 if (( SEARCH[1] != 0 )); then
-  echo "FAILED: security failed during the disk search; key-on-disk.txt means nothing"
+  echo "FAILED: security failed during the disk search; the search result means nothing" |
+    tee "$OUT/key-on-disk.txt"
   exit 1
 fi
 if (( SEARCH[3] > 1 )); then
