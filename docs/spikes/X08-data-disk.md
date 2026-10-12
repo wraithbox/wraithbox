@@ -224,7 +224,7 @@ changed between boots with the checks, not with the swap.
 ## Spike code
 
 Branch `spike/x08-data-disk`, at
-[c37c09a](https://github.com/wraithbox/wraithbox/tree/c37c09a2c21fa9327ff859b56d915b397d075d80/spikes/x08-data-disk):
+[0111c2b](https://github.com/wraithbox/wraithbox/tree/0111c2bab24fe3fc145d4ba1679f7b4663f53487/spikes/x08-data-disk):
 the Swift `wb-vmd` stand-in with read-write and USB data disks, the
 request client, the host-side format script, the guest scripts, the
 host state of each cycle, and the raw results in `results/`.
