@@ -8,38 +8,59 @@ Brief: B22-data-disk
 
 ## For review
 
-- **Decides:** the answer to X08-data-disk (I22), and how the data disk
-  gets its filesystem, which S06-vm-lifecycle, "Disks", now states, with
-  the steps of "Updates" that recreate the project users.
+- **Decides:** the answer to X08-data-disk (I22), how the data disk
+  gets its filesystem, and which process formats it, which
+  S06-vm-lifecycle, "Disks", now states, with the steps of "Updates"
+  that recreate the project users.
 - **You are approving:** the answer "yes, with conditions", and the
   change to how a data disk is made. A volume the guest formats APFS on
-  its data disk is lost with the system disk: the guest encrypts it at
-  rest with a key it keeps on the system disk, and a fresh system disk
-  can't unwrap it. Instead, the host formats each new data disk APFS
-  before any guest has seen it, which gives a volume without that key.
-  The host never attaches the disk again. The users are recreated from
-  host state with the same UID, GID and `GeneratedUID`.
-- **Controls touched:** SEC08-proj-isolation is kept on two conditions:
-  the data volume is mounted `nosuid` and `nodev` with ownership on,
-  because a setuid-root file planted there gives a project user root
-  after a swap, and the host never gives a UID or `GeneratedUID` to a
-  second project. SEC11-root-gains-nothing: a guest root that wrote to
-  the data disk keeps what it wrote after a swap, because the swap
-  replaces only the system disk. The host's new step, formatting a blank
-  image, falls under the I44 decision that the host never mounts a disk
-  after a guest has booted from it.
+  its data disk is encrypted at rest, and a fresh system disk with fresh
+  auxiliary storage couldn't unwrap its key. Instead, the host formats
+  each new data disk APFS before any guest has booted with it, which
+  gives a volume without that key. `diskutil` mounts that new, empty
+  volume on the host once while formatting, and the host never attaches
+  the disk again. The users are recreated from host state with the same
+  UID, GID and `GeneratedUID`.
+- **Controls touched:** SEC08-proj-isolation is kept on these
+  conditions, which hold for both options of decision 1:
+  - `wb-guestd` mounts the volume `nosuid` and `nodev` with ownership
+    on, and checks the flags before every session, because a
+    setuid-root file planted there gives a project user root after a
+    swap;
+  - a UID, GID or `GeneratedUID` is never reused for any project on
+    any data disk of this host;
+  - `wb-guestd` checks the homes with `lstat` and never follows a link
+    in them with root's rights.
+
+  SEC11-root-gains-nothing: a guest root that wrote to the data disk
+  keeps what it wrote after a swap, because the swap replaces only the
+  system disk. Formatting a blank image that no guest has booted with
+  is outside the scope of the I44 rule that the host never mounts a
+  disk after a guest has booted from it, given the steps of
+  S06-vm-lifecycle, "Disks", that make sure the image is that blank
+  file. SEC12-least-privilege: decision 2, below.
 - **Assumed:** that a guest never turns encryption on for a volume it
-  didn't format, which held for four boots here. That the space a guest
-  frees on the host-made volume goes back to the host as on a
-  guest-made one (X05-fs-benchmark measured the guest-made one).
+  didn't format, which held for four boots here, and that the space a
+  guest frees on the host-made volume goes back to the host as on a
+  guest-made one (X05-fs-benchmark measured the guest-made one). I228
+  measures both. That the key of a guest-made volume needs the old
+  system disk is inferred from the kernel log: the clones also replaced
+  the auxiliary storage, and the spike didn't separate the two.
 - **Open decisions:**
   1. Who formats the data disk. Recommended: the host, APFS, before the
      first boot, as above. The alternative is the guest formatting it
-     HFS+ (Mac OS Extended), which the spike showed survives the swap
-     as well, and which keeps the host out of formatting. HFS+ has no
-     clones and no snapshots, and X05-fs-benchmark didn't measure it.
-     I44 writes the SEC control for host mounts, and with option A its
-     text names this exception.
+     HFS+ (Mac OS Extended), which the spike showed is kept across the
+     swap as well, and which keeps the host out of formatting. HFS+ has
+     no clones and no snapshots, and X05-fs-benchmark didn't measure it.
+  2. Which host process runs `diskutil`. `wb-hostd` can't: under its
+     self-sandbox it starts only fixed `wb-launcher` entries, with no
+     arguments (S04-architecture). Recommended: a fixed `wb-launcher`
+     entry for a small shim, `wb-diskfmt`, that confines itself to one
+     VM bundle, takes the path from configuration, never from the
+     request, and runs the steps of "Disks". S06-vm-lifecycle is
+     written for it. If it is chosen, the process and launcher tables
+     of S04-architecture change in a follow-up, which I218 (one
+     `wb-vmd` per VM, its launcher entries) also edits.
 - **Brief:** B22-data-disk
 
 ## Question
@@ -62,27 +83,37 @@ described. Each part, with the evidence in "Measurements":
    Apple Silicon, every APFS volume on an internal disk is encrypted at
    rest. The guest sees the virtio data disk as internal, and
    `diskutil` reported the new volume "FileVault: No (Encrypted at
-   rest)". On a fresh clone of the image, Disk Arbitration failed to
+   rest)". On a fresh clone of the image, which replaced both the
+   system disk and the auxiliary storage, Disk Arbitration failed to
    mount it at boot, and by hand the kernel logged `AppleVPKeyStore:
    volume ... unlock failed (-25)` and `failed to unwrap volume key`.
-   The system disk it was made on still mounted it at the next boot.
+   The system disk and auxiliary storage it was made with still
+   mounted it at the next boot. So the key needs one of the two, or
+   both. The spike didn't separate them.
 2. **A passphrase volume doesn't survive it either: no.** An APFS
    volume added with `diskutil apfs addVolume -passphrase` failed to
-   unlock with its passphrase on the fresh system disk
+   unlock with its passphrase on another system disk and auxiliary
+   storage (g2, which had never unlocked it)
    (`AppleVPKeyStore: xart error: -3`, `failed to decode vek`). So the
    key needs more than the passphrase. The log points at xART, the
-   anti-replay store, which is on the system disk. The spike didn't
-   find out whether the auxiliary storage plays a part.
+   anti-replay store, which is on the system disk. That points at the
+   system disk, but is inferred: the auxiliary storage changed too.
 3. **A USB data disk can't be used: no.** Attached as USB mass storage,
    the disk is external to the guest, and its APFS volume isn't
-   encrypted. TCC refuses every process in the guest access to it
+   encrypted. Without a grant, TCC refuses every process in the guest
+   access to it
    (`kTCCServiceSystemPolicyRemovableVolumes`), root included, and a
    job launchd starts directly. The spike didn't try a grant, which on
    macOS comes from MDM or from a person at the guest's screen.
 4. **A host-formatted APFS volume survives: yes.** The host creates a
    sparse raw file, attaches it as the user without mounting
-   (`hdiutil attach -nomount`, as in X17-image-build), runs
-   `diskutil eraseDisk APFS`, and detaches it. On the host, the image
+   (`hdiutil attach -nomount`, as in X17-image-build, which prints that
+   it is deprecated for `diskutil image attach --noMount`), and runs
+   `diskutil eraseDisk APFS`. That mounts the new, empty volume on the
+   host once, at `/Volumes/<name>`. Then it detaches the image, which
+   unmounts it. The spike's script checked the device by its protocol
+   ("Disk Image") and size before formatting; S06-vm-lifecycle checks
+   the backing image path instead. On the host, the image
    is not internal storage, so the volume isn't encrypted at rest. The
    guest sees it as internal, "Encrypted: No", owners enabled, and
    Disk Arbitration mounts it at boot on every system disk tried. It
@@ -112,15 +143,17 @@ described. Each part, with the evidence in "Measurements":
    existing account with another UID couldn't list the homes before the
    users existed on the new system disk.
 9. **A new `GeneratedUID` breaks ACLs: verified.** Recreated with the
-   same UID and GID but new `GeneratedUID`s, owners and modes still
+   same UID and GID but new `GeneratedUID`s on g1, a system disk that
+   had never had these users (not a fresh clone: it had the users of
+   the earlier cycles), owners and modes still
    matched, and every check passed except one: the ACL entries naming
    the user or its group now show the old UUID unresolved, and the file
    whose ACL denied the user write took the write. A deny entry fails
    open, and an allow entry stops granting.
 10. **`nosuid` is needed: verified.** A setuid-root probe that guest
     root put in a home gave the project user effective uid 0 when the
-    volume was mounted without `nosuid`, both before and after the swap
-    (the HFS+ volume, boot 7). With `nosuid` it ran with the user's own
+    volume was mounted without `nosuid`, both before the swap (the
+    guest APFS volume, boot 1) and after it (the HFS+ volume, boot 7). With `nosuid` it ran with the user's own
     uid. A copy of `/usr/bin/id` doesn't work as a probe: macOS kills
     it outside the system volume, setuid or not.
 11. **The user record takes the `GeneratedUID` only first: verified.**
@@ -145,22 +178,31 @@ described. Each part, with the evidence in "Measurements":
     write `/etc/fstab` ("Operation not permitted"), so the mount options
     can't come from Disk Arbitration at boot.
 
-The conditions:
+The conditions, which S06-vm-lifecycle states in full ("Disks",
+"Updates"):
 
-1. **The host formats a new data disk** APFS before the first boot that
-   attaches it (or the guest formats it HFS+, open decision 1). The host
-   checks that the device it formats is the image it just attached, and
-   never attaches the image again.
+1. **The host formats a new data disk** APFS before any guest has
+   booted with it (or the guest formats it HFS+, open decision 1). The
+   formatting process creates the image itself under a temporary name,
+   checks that the device it attached is backed by that file, records
+   the volume UUID, unmounts and detaches it, and only then gives it its
+   final name. The host never attaches a file at the final name (open
+   decision 2 for which process).
 2. **`wb-guestd` mounts the data volume before it starts anything as a
-   project user**, at a fixed path outside `/Volumes`, with `nobrowse`,
-   `nosuid`, `nodev` and ownership on, and checks the mount's flags.
-   Without them, it doesn't start a session, and logs the mount it found and
-   the rule.
-3. **`wb-hostd` keeps, per project user of a VM, the name, UID, GID,
-   user and group `GeneratedUID`, and home path**, and gives none of the
-   numbers to another project on that data disk. `wb-guestd` creates
-   the user record with `GeneratedUID` first.
-4. **On a new system disk, the users are recreated before any session**,
+   project user**, identified by the volume UUID the host recorded, at
+   a fixed path outside `/Volumes`, with `nobrowse`, `nosuid`, `nodev`
+   and ownership on. It refuses an encrypted volume. It reads the flags
+   again with `statfs` before every session start, and starts no
+   session without them, logging the mount it found and the rule.
+3. **`wb-guestd` checks the volume root and every home with `lstat`**:
+   real directories, root-owned with mode 755 for the root, and owned
+   by the kept UID and GID with mode 700 for a home.
+4. **`wb-hostd` keeps, per project user of a VM, the name, UID, GID,
+   user and group `GeneratedUID`, and home path.** It allocates them
+   itself, and never reuses one for any project on any data disk of
+   this host. `wb-guestd` creates the user record with `GeneratedUID`
+   first, and refuses a name, UID or GID that already exists.
+5. **On a new system disk, the users are recreated before any session**,
    after the mount, and the homes are left as they are.
 
 ## Measurements
@@ -200,24 +242,37 @@ changed between boots with the checks, not with the swap.
 - **A real Claude Code.** The image has no `claude`. The spike wrote the
   state layout of S06-vm-lifecycle ("Projects and sessions inside a VM")
   and read it back. I135 checks the layout with Claude Code.
-- **Whether the auxiliary storage holds part of the key** of a
-  guest-made volume. The log names xART on the system disk, and the
-  product replaces that disk, so the answer wouldn't change.
+- **Whether the system disk or the auxiliary storage holds the key** of
+  a guest-made volume. Every swap here replaced both. The log names
+  xART, which is on the system disk. S06-vm-lifecycle replaces both on
+  an update, so the answer wouldn't change the design.
 - **HFS+ against NFR02-fs-speed.** X05-fs-benchmark measured APFS.
-- **Space given back to the host** on the host-made APFS volume.
+- **Space given back to the host** on the host-made APFS volume, and
+  whether a guest ever turns encryption on for it. I228 measures both.
+- **The formatting steps of S06-vm-lifecycle.** The spike's script
+  checked the device by protocol and size, used the deprecated
+  `hdiutil attach`, and didn't rename the file or check its backing
+  path.
 - **A different macOS version** on the new system disk. All three were
   clones of one image.
 
 ## What it means for the specs
 
-- **S06-vm-lifecycle**, "Disks": the host formats a new data disk before
-  the first boot, and `wb-guestd` mounts it with the options of condition
-  2. "Updates": the order of a system disk swap and the host state of
-  condition 3. "Projects and sessions inside a VM": the home path is
-  fixed at creation (changed in this pull request).
+- **S06-vm-lifecycle**, "Disks": how the host formats a new data disk,
+  and how `wb-guestd` mounts and checks it, with conditions 1 to 3.
+  "Updates": the auxiliary storage is replaced with the system disk,
+  the order of a swap, and the host state, allocation and creation
+  rules of condition 4. "Projects and sessions inside a VM": the home
+  path is fixed at creation, and who removes the home of a removed
+  user (changed in this pull request).
+- **S04-architecture**: with open decision 2 as recommended, its process
+  and `wb-launcher` tables gain `wb-diskfmt`. Left to a follow-up after
+  the decision, because I218 also edits those tables.
+- **S05-cli** has no command that gives a VM a new data disk, which the
+  refusals of "Disks" name (I229).
 - **SEC00-index**: the host-mount control decided on I44 isn't written
-  yet. With open decision 1A, its exception for image building also
-  covers formatting a new data disk. Left to I44.
+  yet. Formatting a blank image that no guest has booted with is outside
+  its scope, given condition 1.
 - **S11-verification-and-spikes**, "Spikes": the list of answered spikes
   names X08-data-disk (changed in this pull request).
 

@@ -188,3 +188,4 @@ nodev
 xattrs
 opendirectoryd
 covdata
+diskfmt
