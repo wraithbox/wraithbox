@@ -1,63 +1,77 @@
-# X08-data-disk spike (throwaway, unfinished)
+# X08-data-disk spike (throwaway)
 
-Throwaway code for X08-data-disk (#22), never merged. Not run yet: the
-host tool needs an ad-hoc signature with the
-`com.apple.security.virtualization` entitlement before it can start a VM.
-Agents may sign it since #200 (#209), with the shared
-`spikes/vm.entitlements` from `main`. Nothing below has been measured.
-
-Status 2026-10-10: the build and the signing below work for an agent
-(`codesign -d` lists `com.apple.security.virtualization`). The next
-step, an APFS clone (`cp -c`) of `e5` into `.scratch/g1`, was refused by
-the agent's permission check, so no guest has booted yet. Someone with
-that permission makes the clone, or the permission rule allows it.
+Throwaway code for X08-data-disk (#22), never merged. Measured on
+2026-10-12. The result is `docs/spikes/X08-data-disk-homes.md` on `main`.
 
 ## Parts
 
-- `host-vmd/`: Swift `wb-vmd` stand-in, copied from X06-guest-xcode's
-  `x06 serve`, plus `--data <raw image>`: a read-write data disk attached
-  with automatic caching and full synchronization (S06-vm-lifecycle,
-  "Disks").
-- `req.py`: X06-guest-xcode's request client. The guest daemon is the
-  `x17-guestd` already in X17-image-build's sealed bundle `e5`
-  (`hello`, `run` as root, `put`, `shutdown`), so no daemon swap.
+- `host-vmd/`: Swift `wb-vmd` stand-in, from X06-guest-xcode's
+  `x06 serve`. `--data <raw image>` (repeatable) adds a read-write virtio
+  data disk with automatic caching and full synchronization
+  (S06-vm-lifecycle, "Disks"). `--usb <raw image>` adds the same disk as
+  USB mass storage, which the guest sees as external. `--aux` overrides
+  the auxiliary storage (built, not used).
+- `req.py`: X06-guest-xcode's request client for the `x17-guestd` in
+  X17-image-build's sealed bundle `e5` (`run` as root, `put`, `shutdown`).
+- `r.sh`: one guest script as root through `req.py`, logged to
+  `results/<stem>.jsonl`.
+- `host-state-*.sh`: the per-user host state of each cycle (name, UID,
+  GID, user and group `GeneratedUID`, home path), prepended to the guest
+  scripts by `assemble.sh`.
+- `host-format.sh`: the host makes a blank raw image with an APFS volume,
+  as the user, before any guest has seen it.
+- `euid.c`: prints the real and effective uid. A copy of `/usr/bin/id`
+  is killed outside the system volume, so this is the setuid probe.
+- `guest/`: the guest scripts. `mkusers.sh`, `fill2.sh`, `mount2.sh`,
+  `check.sh` and `snap.sh` are the generic steps. `b1-*`, `b2-*`, `b4-*`,
+  `c2-*` and `c3-*` are the per-boot probes.
 
 ## Build
-
-Merge `main` into this branch first if `spikes/vm.entitlements` is
-missing. Write the paths literally: the permission rule matches the
-command text, so `$S/x08` does not match.
 
 ```sh
 swift build -c release --package-path spikes/x08-data-disk/host-vmd --scratch-path .scratch/x08-build
 cp .scratch/x08-build/release/x08 .scratch/x08
 codesign -f -s - --entitlements spikes/vm.entitlements .scratch/x08
-codesign -d --entitlements - .scratch/x08   # lists com.apple.security.virtualization
+cc -O2 -o .scratch/euid spikes/x08-data-disk/euid.c
 ```
 
-## Plan
+## Boots
 
-Bundle: an APFS clone of `~/Library/Caches/wraithbox-spikes/x17/e5`.
-Data disk: a new sparse raw file the host creates and never reads.
+System disks: three APFS clones of X17's `e5` that the maintainer made
+(`g1`, `g2`, `g3`), one guest at a time.
 
-1. Boot 1 (`x08 serve g1 sock --data data.img`): find the blank data
-   disk, format it APFS in the guest, record `diskutil info` (owners on
-   or off, internal or external, automount at boot), mount it with
-   `nobrowse`, then with and without `nosuid`.
-2. Create two project users with fixed UID, GID, `GeneratedUID` and a
-   home on the data volume (`dscl` and `sysadminctl -UID`), home mode
-   700. Fill each home as the user: Claude Code state (`~/.claude`,
-   `~/.claude.json`), files with several modes, xattrs, an ACL, a
-   symbolic link, and a keychain made with `security create-keychain`.
-   Record checksums and `ls -lane`. Check the second user can't read the
-   first one's home. As root, plant a setuid-root copy of `/usr/bin/id`
-   in the second user's home.
-3. Replace the system disk: fresh clones of `e5/sys.img` and
-   `e5/aux.img`, same data disk.
-4. Boot 2: what the data volume looks like before users exist (mounted,
-   owners, numeric IDs). Recreate the users from the recorded host state,
-   once with the same `GeneratedUID` and once with a new one, and compare
-   ownership, modes, ACLs, xattrs, checksums, keychain unlock, Claude Code
-   state, the cross-user read check, and the planted setuid binary with
-   and without `nosuid`.
-5. Time the format, the mount at boot, and the user recreation.
+| Boot | System disk | Data disks | What |
+|---|---|---|---|
+| 1 | g1 | data.img (guest APFS) | cycle 1: format, users wbp1/wbp2, fill, checks, setuid |
+| 2 | g2 | data.img | the swap: the volume doesn't unlock |
+| 3 | g1 | data.img, data2.img (USB) | cycle 2: USB volume, passphrase volume WBPass, users wbq1/wbq2 |
+| 4 | g2 | data.img | the swap: WBPass doesn't unlock either |
+| 5 | g2 | data3.img (host APFS), data4.img (guest HFS+) | cycle 3: users wbr1/wbr2 and wbs1/wbs2 |
+| 6 | g3 | data3.img, data4.img | swap, same GeneratedUID; remount policy |
+| 7 | g3 | data3.img, data4.img | reboot: mount before any user process; setuid without nosuid |
+| 8 | g1 | data3.img, data4.img | swap, new GeneratedUID |
+
+## Findings in short
+
+- A volume the guest formats APFS on its internal data disk is encrypted
+  at rest with a key the new system disk can't unwrap (kernel:
+  `AppleVPKeyStore ... xart error: -3`, `failed to unwrap volume key`).
+  A passphrase volume fails the same way. A USB data disk isn't
+  encrypted, but TCC (`kTCCServiceSystemPolicyRemovableVolumes`)
+  refuses every process in the guest access to it.
+- An APFS volume the host makes on the blank image, and an HFS+ volume
+  the guest makes, aren't encrypted at rest and mount on any system
+  disk. Recreated with the same UID, GID and GeneratedUID, everything
+  compared equal. With a new GeneratedUID, the ACL entries naming the
+  user stop applying, and a deny entry then allows.
+- opendirectoryd, asked by root through `dscl`, refuses to change or
+  delete a user's `GeneratedUID` and `NFSHomeDirectory` once the record
+  has `UniqueID` and `PrimaryGroupID`. Setting `GeneratedUID` first
+  works.
+- Without `nosuid`, a setuid-root file on the data disk gives a project
+  user root, also after the swap.
+- Once a process has run as a user whose home is under the mount point,
+  the kernel's System Policy denies another mount on that point
+  (`deny(1) file-mount`) until the next boot.
+- `/etc/fstab` can't be written by the root daemon (`Operation not
+  permitted`).

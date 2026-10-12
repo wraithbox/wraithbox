@@ -1,0 +1,44 @@
+--- c3a-check 0.7s {'exit': 0, 'ms': 717.46, 'op': 'run'}
+mount: /dev/disk4s1 on /private/var/wbhomes (apfs, local, nodev, nosuid, journaled, nobrowse)
+== wbr1: uid=621(wbr1) gid=621(wbr1) groups=621(wbr1),12(everyone),61(localaccounts),701(com.apple.sharepoint.group.1),100(_lpoperator)
+   GeneratedUID 97432B56-D717-4489-B514-BDC4DDE9828A
+  HOME=/private/var/wbhomes/wbr1
+  claude settings: {"theme":"dark","x08":"wbr1"}
+  claude.json: {"numStartups":3,"projects":{"/private/var/wbhomes/wbr1/sessions/s1":{"allowedTo
+  conversation via the session link: {"type":"user","message":"hello from wbr1"}
+  write in home: ok
+  write in .claude: ok
+  append to acl-deny (ACL denies the user): ALLOWED
+  write m400: refused
+  rm uchg-file: refused
+  run m755: run
+  keychain unlock: ok
+  keychain item: item-wbr1
+  keychain new item: ok
+  login keychain:     "/Library/Keychains/System.keychain"
+== wbr2: uid=622(wbr2) gid=622(wbr2) groups=622(wbr2),12(everyone),61(localaccounts),701(com.apple.sharepoint.group.1),100(_lpoperator)
+   GeneratedUID DBD253F2-DD49-4505-B5FA-1935D6346E8E
+  HOME=/private/var/wbhomes/wbr2
+  claude settings: {"theme":"dark","x08":"wbr2"}
+  claude.json: {"numStartups":3,"projects":{"/private/var/wbhomes/wbr2/sessions/s1":{"allowedTo
+  conversation via the session link: {"type":"user","message":"hello from wbr2"}
+  write in home: ok
+  write in .claude: ok
+  append to acl-deny (ACL denies the user): ALLOWED
+  write m400: refused
+  rm uchg-file: refused
+  run m755: run
+  keychain unlock: ok
+  keychain item: item-wbr2
+  keychain new item: ok
+  login keychain:     "/Library/Keychains/System.keychain"
+== cross-user
+  wbr2 ls wbr1 home: ls: /private/var/wbhomes/wbr1: Permission denied
+  wbr2 read wbr1 .claude.json: cat: /private/var/wbhomes/wbr1/.claude.json: Permission denied
+  wbr2 read wbr1 keychain: head: /private/var/wbhomes/wbr1/Library/Keychains/x08.keychain-db: Permission denied
+  wbr2 write in data volume root: /bin/sh: line 4: /private/var/wbhomes/x: Permission denied
+  wbr1 ls wbr2 home: ls: /private/var/wbhomes/wbr2: Permission denied
+  wbr1 run wbr2 suid-euid: /bin/sh: line 2: /private/var/wbhomes/wbr2/suid-euid: Permission denied
+== setuid binary, as wbr2
+-rwsr-xr-x  1 root  wheel  33512 Oct 12 11:51 /private/var/wbhomes/wbr2/suid-euid
+  euid via suid-euid: ruid=622 euid=622

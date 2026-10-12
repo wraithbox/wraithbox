@@ -1,0 +1,44 @@
+--- c3b-check 0.4s {'exit': 0, 'ms': 400.196, 'op': 'run'}
+mount: /dev/disk0s2 on /private/var/wbhfs (hfs, local, nodev, nosuid, journaled, nobrowse)
+== wbs1: uid=631(wbs1) gid=631(wbs1) groups=631(wbs1),12(everyone),61(localaccounts),701(com.apple.sharepoint.group.1),100(_lpoperator)
+   GeneratedUID 8209290E-5507-4660-AD8C-64D9066EAE64
+  HOME=/private/var/wbhfs/wbs1
+  claude settings: {"theme":"dark","x08":"wbs1"}
+  claude.json: {"numStartups":3,"projects":{"/private/var/wbhfs/wbs1/sessions/s1":{"allowedTool
+  conversation via the session link: {"type":"user","message":"hello from wbs1"}
+  write in home: ok
+  write in .claude: ok
+  append to acl-deny (ACL denies the user): ALLOWED
+  write m400: refused
+  rm uchg-file: refused
+  run m755: run
+  keychain unlock: ok
+  keychain item: item-wbs1
+  keychain new item: ok
+  login keychain:     "/Library/Keychains/System.keychain"
+== wbs2: uid=632(wbs2) gid=632(wbs2) groups=632(wbs2),12(everyone),61(localaccounts),701(com.apple.sharepoint.group.1),100(_lpoperator)
+   GeneratedUID 1A829D10-93F5-44D3-AE3E-755C545AF8FB
+  HOME=/private/var/wbhfs/wbs2
+  claude settings: {"theme":"dark","x08":"wbs2"}
+  claude.json: {"numStartups":3,"projects":{"/private/var/wbhfs/wbs2/sessions/s1":{"allowedTool
+  conversation via the session link: {"type":"user","message":"hello from wbs2"}
+  write in home: ok
+  write in .claude: ok
+  append to acl-deny (ACL denies the user): ALLOWED
+  write m400: refused
+  rm uchg-file: refused
+  run m755: run
+  keychain unlock: ok
+  keychain item: item-wbs2
+  keychain new item: ok
+  login keychain:     "/Library/Keychains/System.keychain"
+== cross-user
+  wbs2 ls wbs1 home: ls: /private/var/wbhfs/wbs1: Permission denied
+  wbs2 read wbs1 .claude.json: cat: /private/var/wbhfs/wbs1/.claude.json: Permission denied
+  wbs2 read wbs1 keychain: head: /private/var/wbhfs/wbs1/Library/Keychains/x08.keychain-db: Permission denied
+  wbs2 write in data volume root: /bin/sh: line 4: /private/var/wbhfs/x: Permission denied
+  wbs1 ls wbs2 home: ls: /private/var/wbhfs/wbs2: Permission denied
+  wbs1 run wbs2 suid-euid: /bin/sh: line 2: /private/var/wbhfs/wbs2/suid-euid: Permission denied
+== setuid binary, as wbs2
+-rwsr-xr-x  1 root  wheel  33512 Oct 12 11:51 /private/var/wbhfs/wbs2/suid-euid
+  euid via suid-euid: ruid=632 euid=632
