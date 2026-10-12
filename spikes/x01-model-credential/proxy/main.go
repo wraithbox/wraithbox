@@ -202,7 +202,9 @@ func (p *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // relay reads HTTP/1.1 requests from the client, rewrites the key on
 // inject hosts, and forwards each to the real upstream.
 func (p *proxy) relay(client *tls.Conn, hostport, host string) {
-	tr := &http.Transport{TLSClientConfig: p.upstream.Clone(), ForceAttemptHTTP2: true}
+	// DisableCompression: pass the client's Accept-Encoding and the
+	// upstream's encoded body through untouched, so lengths stay true.
+	tr := &http.Transport{TLSClientConfig: p.upstream.Clone(), ForceAttemptHTTP2: true, DisableCompression: true}
 	defer tr.CloseIdleConnections()
 	br := bufio.NewReader(client)
 	for {
@@ -227,12 +229,33 @@ func (p *proxy) relay(client *tls.Conn, hostport, host string) {
 				Header: http.Header{}, Body: io.NopCloser(strings.NewReader("x01: upstream error\n")),
 			}
 		}
-		log.Printf("x01: %s https://%s%s -> %d", req.Method, host, req.URL.Path, resp.StatusCode)
+		log.Printf("x01: %s https://%s%s -> %s %d", req.Method, host, req.URL.Path, resp.Proto, resp.StatusCode)
+		toHTTP11(resp)
 		err = resp.Write(client)
 		resp.Body.Close()
-		if err != nil {
+		if err != nil || resp.Close || req.Close {
 			return
 		}
+	}
+}
+
+// toHTTP11 makes an upstream response, often HTTP/2, writable to the
+// HTTP/1.1 client. Response.Write takes the status line from ProtoMajor
+// and ProtoMinor, so an h2 response would go out as "HTTP/2.0 200".
+// An h2 body of unknown length (SSE from /v1/messages) has
+// ContentLength -1 and no Transfer-Encoding, which Response.Write sends
+// unframed with a connection close; chunked keeps the connection and
+// streams each read as a chunk. Trailers ride on the chunked encoding.
+func toHTTP11(resp *http.Response) {
+	resp.Proto, resp.ProtoMajor, resp.ProtoMinor = "HTTP/1.1", 1, 1
+	if resp.ContentLength < 0 && resp.Request != nil && resp.Request.Method != http.MethodHead &&
+		resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotModified {
+		resp.TransferEncoding = []string{"chunked"}
+	}
+	if len(resp.Trailer) > 0 && resp.ContentLength >= 0 {
+		resp.ContentLength = -1
+		resp.Header.Del("Content-Length")
+		resp.TransferEncoding = []string{"chunked"}
 	}
 }
 
