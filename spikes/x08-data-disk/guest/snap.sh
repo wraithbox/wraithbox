@@ -4,7 +4,7 @@
 set -u
 H=${H:-/Volumes/wbhomes}
 cd $H || exit 1
-find wbp1 wbp2 -print | LC_ALL=C sort | while IFS= read -r p; do
+find ${U1:-wbp1} ${U2:-wbp2} -print | LC_ALL=C sort | while IFS= read -r p; do
   st=$(stat -f '%u %g %Sp %Sf %z' "$p")
   case $(stat -f '%HT' "$p") in
     "Regular File") sum=$(shasum -a 256 "$p" | cut -c1-16) ;;

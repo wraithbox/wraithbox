@@ -1,0 +1,4 @@
+{"cmd":"serve","data":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-ab43d5d3133ebbbde\/.scratch\/data.img","disks":[],"event":"started","nat":false,"seconds":0.30179579101968557}
+{"cmd":"serve","event":"connected","seconds":16.595568916003685,"tries":284}
+{"cmd":"serve","event":"listening","socket":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-aca8cd8fbcd509d15\/.scratch\/g.sock"}
+{"cmd":"serve","event":"guest stopped","seconds":104.41665354097495}

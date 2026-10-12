@@ -17,6 +17,9 @@
 //       bytes both ways until the client closes. Exits when the guest stops.
 //       --data adds the read-write data disk, the second virtio block device.
 //       --disk adds a read-only virtio block device after it.
+//       --usb adds a read-write USB mass storage device (an external disk to
+//       the guest) on an XHCI controller, with the same caching and sync.
+//       --aux uses that auxiliary storage file instead of the bundle's.
 //       --nat replaces the network with nothing behind it by a NAT network.
 import Darwin
 import Foundation
@@ -72,6 +75,8 @@ final class NetPair {
 struct Opts {
     var disks: [String] = []
     var data: String?
+    var usb: String?
+    var aux: String?
     var nat = false
     var memGiB: Int?
     var cpus: Int?
@@ -84,7 +89,7 @@ func makeConfig(_ b: Bundle, nic: VZNetworkDeviceAttachment, o: Opts) throws -> 
     plat.hardwareModel = hw
     guard let mid = VZMacMachineIdentifier(dataRepresentation: try Data(contentsOf: b.mid)) else { throw err("machine id") }
     plat.machineIdentifier = mid
-    plat.auxiliaryStorage = VZMacAuxiliaryStorage(url: b.aux)
+    plat.auxiliaryStorage = VZMacAuxiliaryStorage(url: o.aux.map { URL(fileURLWithPath: $0) } ?? b.aux)
 
     let c = VZVirtualMachineConfiguration()
     c.platform = plat
@@ -108,6 +113,12 @@ func makeConfig(_ b: Bundle, nic: VZNetworkDeviceAttachment, o: Opts) throws -> 
         devs.append(VZVirtioBlockDeviceConfiguration(attachment: da))
     }
     c.storageDevices = devs
+    if let u = o.usb {
+        let ua = try VZDiskImageStorageDeviceAttachment(url: URL(fileURLWithPath: u), readOnly: false, cachingMode: .automatic, synchronizationMode: .full)
+        let xhci = VZXHCIControllerConfiguration()
+        xhci.usbDevices = [VZUSBMassStorageDeviceConfiguration(attachment: ua)]
+        c.usbControllers = [xhci]
+    }
 
     let n = VZVirtioNetworkDeviceConfiguration()
     n.attachment = nic
@@ -236,7 +247,7 @@ func serve(_ b: Bundle, sock: String, o: Opts) async throws {
     let m = try Machine(b, o: o)
     let t0 = now()
     try await m.vm.start()
-    result(["cmd": "serve", "event": "started", "seconds": now() - t0, "nat": o.nat, "disks": o.disks, "data": o.data ?? ""])
+    result(["cmd": "serve", "event": "started", "seconds": now() - t0, "nat": o.nat, "disks": o.disks, "data": o.data ?? "", "usb": o.usb ?? "", "aux": o.aux ?? ""])
     guard let (c, at, tries) = await m.connectUntil(port: guestPort, deadline: t0 + 300) else {
         result(["cmd": "serve", "event": "no answer", "seconds": now() - t0, "stopped": m.delegate.stopped])
         await m.hardStop()
@@ -274,6 +285,8 @@ func main() async {
             switch args[i] {
             case "--disk": o.disks.append(args[i + 1]); i += 2
             case "--data": o.data = args[i + 1]; i += 2
+            case "--usb": o.usb = args[i + 1]; i += 2
+            case "--aux": o.aux = args[i + 1]; i += 2
             case "--nat": o.nat = true; i += 1
             case "--mem": o.memGiB = Int(args[i + 1])!; i += 2
             case "--cpus": o.cpus = Int(args[i + 1])!; i += 2
