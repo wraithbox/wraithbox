@@ -20,6 +20,7 @@ against the adversary of T00-index.
 | SEC12-least-privilege | Least privilege on the host | V1-M6-release-gate |
 | SEC13-bounded-resources | Bounded resources | V1-M6-release-gate |
 | SEC14-no-fake-approvals | Approvals cannot be spoofed by the guest | V1-M5-approvals |
+| SEC15-no-guest-disk-mount | The host never mounts a guest-written disk | V1-M2-walking-skeleton |
 
 ## Requirements
 
@@ -93,3 +94,14 @@ against the adversary of T00-index.
   (S04-architecture, "Host work the guest can cause").
 - **SEC14-no-fake-approvals: Approvals cannot be spoofed by the guest.** Approval prompts are
   never rendered in the agent's terminal stream.
+- **SEC15-no-guest-disk-mount: The host never mounts a guest-written disk.** Once a
+  guest has run with a disk image attached, no host process mounts
+  that image, attaches it to the host as a device, or reads the
+  filesystem on it. The guest may have written any bytes there, and the
+  host kernel or tool would parse them. Copying, cloning, deleting and
+  attaching the image to a VM handle its bytes without interpreting
+  them and are allowed. The one exception is making a new image: the
+  host may format or write to an image that no guest has run with, and
+  the exception ends when a guest first runs with it
+  (S06-vm-lifecycle, "Disks"). Recovering data from such an image
+  needs a booted guest.
