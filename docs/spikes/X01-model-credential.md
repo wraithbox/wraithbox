@@ -207,8 +207,9 @@ The item didn't hold an API key, so `/v1/messages` answered 401.
 
 ## What it means for the specs
 
-Not changed in this pull request. They wait for the open decisions,
-and I215 tracks the change:
+The pull request with this result didn't change them. The maintainer
+decided the open points on I60 on 2026-10-12, and I215 made these
+changes:
 
 - S07-egress-gateway, model API profile: `api.anthropic.com` with the
   paths above, and `platform.claude.com` `/v1/oauth/hello`. "Named
@@ -234,4 +235,4 @@ the proxy, its tests, and `run.sh`. The run on 2026-10-12 used
 `run.sh` as of `768cc28`, before the search checks. The logs stay on the maintainer's
 Mac. They don't hold a credential.
 
-**Status:** Answered 2026-10-12: yes for a long-lived token. Awaiting decision on four points
+**Status:** Answered 2026-10-12: yes for a long-lived token. Decided 2026-10-12 (I60): A2, the model only with the event log denied by the host, and the long-lived token as a supported mode for V1
