@@ -289,7 +289,8 @@ in S12-platforms.
   `xcodebuild` or launching a macOS app (B20-guest-xcode decision 1A,
   I20). `swift test` is unaffected. When such a test fails because
   `testmanagerd` can't reach a GUI session, `wb` replaces the error
-  with a message that names this limit (NFR06-explained-refusals). No
+  with a message that names this limit (NFR06-explained-refusals).
+  How `wb` detects the failure, and which process does it, is I224. No
   v1 work needs a console session, so "Slot admission" has no rule
   for one. I195 holds the console session design for after v1.
 - **Placement and configuration trust.** `placement` (`work` or
