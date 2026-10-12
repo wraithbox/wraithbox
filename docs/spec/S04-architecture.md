@@ -739,17 +739,20 @@ restart limit.
   credential"). At a session start that needs a binding with a
   placeholder, `wb-hostd` asks `wb-proxyd` for the VM's placeholder
   on its control channel. `wb-proxyd` fetches the binding, generates a
-  placeholder if the VM has none for it, and answers with a
-  placeholder record. The session start waits for that record before
+  placeholder if the VM has none for it, and replies with a
+  placeholder record on the same control channel, not on the one-way
+  accounting socket. The record has the size limit and fixed format of
+  the records above. The session start waits for that reply before
   `wb-guestd` starts `claude` (S06-vm-lifecycle, "Claude Code in the
   guest"), as it waits for a locked secret store (S15-least-privilege).
-  `wb-proxyd` also sends a record for each placeholder it draws after
-  a failed check. `wb-hostd` checks the form of each record before it
+  `wb-proxyd` also sends a record on the control channel for each
+  placeholder it draws after a failed check. `wb-hostd` checks the form of each record before it
   keeps the placeholder or puts it in a guest's environment: letters,
   digits and `-` only, 32 to 256 characters, and at most 8 kept per
   binding per VM, the oldest dropped past that. A record that fails
-  the check is a malformed record, and the session start that waits
-  for it is refused with the rule `placeholder-record-invalid`.
+  the check is a malformed record. `wb-hostd` ends `wb-proxyd` and
+  counts the exit toward the restart limit, and refuses the waiting
+  session start with the rule `placeholder-record-invalid`.
 - **Event records** carry what goes to the audit log
   (S09-policy-credentials-audit, "Audit"). When an event write blocks
   for more than 100 ms, or fails without blocking (`ENOBUFS` or

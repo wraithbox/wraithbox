@@ -543,7 +543,8 @@ be tested before building on them.
       event with `placeholder-invalid` naming the VM and the binding;
       send `wb-hostd` a placeholder record that fails its form check,
       and see the waiting session start refused with
-      `placeholder-record-invalid` (S04-architecture, "Accounting and
+      `placeholder-record-invalid`, and `wb-proxyd` ended, counted
+      toward the restart limit and restarted (S04-architecture, "Accounting and
       event channels");
     - with a long-lived token stored, send a request to each path of
       the binding on `api.anthropic.com`, and see the token injected
