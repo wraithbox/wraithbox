@@ -14,8 +14,8 @@ in S12-platforms.
 ## Images
 
 - **Layers.** (1) *Base*: macOS installed from an Apple restore image,
-  plus `wb-guestd`, Homebrew, and Xcode command line tools; an Xcode
-  variant adds full Xcode. (2) *Org layer* (optional): a shared Brewfile
+  plus `wb-guestd`, Homebrew, Xcode command line tools, and Claude Code
+  (S14-claude-in-guest, "Install"); an Xcode variant adds full Xcode. (2) *Org layer* (optional): a shared Brewfile
   and settings. (3) *Project layer*: the formulae the project declares,
   installed by `wb-guestd` as the toolchain user into the toolchain
   prefix before the session starts (FR07-toolchain-manifest, "Toolchain
@@ -739,7 +739,9 @@ slot. Guests of other operating systems are limited only by resources
   Rejected: one worktree path for every session, which a parallel
   session, or an ended session that isn't discarded yet, still holds.
 - **Claude Code in the guest** (X01-model-credential,
-  B60-model-credential). The image sets the Claude Code version, and
+  B60-model-credential). S14-claude-in-guest specifies its install, the
+  carry-in of the user's configuration, and its permission mode. The
+  image sets the Claude Code version, and
   the updater is off in the guest. `wb-guestd` starts `claude` with these
   variables in its environment allowlist:
   - the model credential's placeholder, in `CLAUDE_CODE_OAUTH_TOKEN`
