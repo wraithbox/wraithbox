@@ -294,7 +294,7 @@ inspection is trusted, and what is recorded.
     rule name, so a later source adds rules and never replaces one. A
     rule in user or repository policy with the name of a built-in
     profile's rule is a load error. Built-in denies apply whatever the
-    source of the allow. User and repository policy can't change a
+    source of the allow, and are evaluated before any allow. User and repository policy can't change a
     built-in host's kind, mode or rules. A user or repository rule on
     a built-in host is a load error when its method and path pattern
     can match a request to that host's GraphQL path after

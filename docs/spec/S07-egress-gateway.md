@@ -1021,7 +1021,12 @@ session start in the VM to the end of the last session running in it.
   ports, and paths of its binding, following OpenShell's provider
   model. A placeholder found anywhere else in a request (another host,
   a query string, a body) gets a `403` naming the binding, and an audit
-  event. The placeholder itself is never sent upstream. For AWS,
+  event. The exception is a header that "Credential replacement"
+  removes (`Authorization`, `Proxy-Authorization` and `Cookie`, plus
+  `x-api-key` on the model API profile's hosts). `wb-proxyd` removes
+  such a header with an audit event of its own and doesn't refuse the
+  request for it. The
+  placeholder itself is never sent upstream. For AWS,
   `wb-proxyd` signs requests (SigV4) rather than injecting a key.
 - **HTTP policy** (SEC06-repo-writes). Rules match method and path per host, GraphQL
   operation type and name, and WebSocket messages, in the OpenShell
@@ -1079,9 +1084,15 @@ session start in the VM to the end of the last session running in it.
       usage data, is a built-in deny of the profile, logged with the
       rule `model-event-log`. Like the archive deny, it holds whatever
       the guest sets and whatever a policy file allows. It matches the
-      canonical path and also that path with each `%2F` decoded to `/`,
-      so `/api%2Fevent_logging/` is refused as well, even under a user's
-      allow of `/api/`.
+      canonical path. Built-in denies, this one included, are evaluated
+      before any allow.
+    - *No percent-escapes.* On the profile's hosts,
+      `api.anthropic.com` and `platform.claude.com`, `wb-proxyd`
+      refuses a request whose path holds any percent-escape, logged
+      with the rule `model-path-escape`. None of the paths Claude Code
+      sent in X01-model-credential has one, and this one rule closes
+      encoded letters, either hex case, `%2F` and double encoding
+      around the event log deny.
     - *Outside the profile.* Datadog's log intake
       (`http-intake.logs.us5.datadoghq.com`, "Accepted gaps"),
       `downloads.claude.ai` (the updater and the plugin marketplace)
