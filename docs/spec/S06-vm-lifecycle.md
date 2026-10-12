@@ -249,26 +249,44 @@ in S12-platforms.
   Sharing images between machines as OCI artifacts in a registry is a
   later addition.
 - **Updates.** A VM's system disk is replaced by a fresh clone of the new
-  image. Project data is on a separate data disk and survives (below).
-  On the first boot of the new system disk, `wb-guestd` mounts the data
-  volume ("Disks"), then recreates every project user of the VM from
-  the host state below, before any session starts, and leaves the
-  homes as they are (X08-data-disk). To recreate them, `wb-hostd` keeps
-  per project user of a VM:
+  image, and its auxiliary storage by the new image's, so nothing on
+  the data disk may depend on either. Project data is on a separate
+  data disk and survives (below). On the first boot of the new system
+  disk, `wb-guestd` mounts the data volume
+  ("Disks"), then recreates every project user of the VM from the host
+  state below, before any session starts, and leaves the homes as they
+  are (X08-data-disk). To recreate them, `wb-hostd` keeps per project
+  user of a VM, in `state.db`:
   - the user name, UID and GID, and the user's own group's name;
   - the user's and the group's `GeneratedUID`, the UUID that ACL
     entries name. With a new one, the ACL entries in the home stop
     applying, and a deny entry then allows;
   - the home path.
 
-  Project users have no password to keep. `wb-hostd`
-  never gives a UID, GID or `GeneratedUID` that one project user had on
-  a data disk to another project, so a recreated user can't own another
-  project's home (SEC08-proj-isolation). `wb-guestd` makes the record
-  with `GeneratedUID` as its first attribute: once a record has a UID
-  and a primary group, macOS refuses to change its `GeneratedUID` or
-  home path. A guest root that wrote to the data disk keeps what it
-  wrote after the swap, because only the system disk is replaced.
+  Project users have no password to keep.
+  - *Allocation.* `wb-hostd` allocates every UID and GID from a counter
+    in `state.db`, from 10000 up, a range the image never uses. It
+    commits the counter before the record goes to the guest. It
+    generates every `GeneratedUID` itself and never records one the
+    guest reports. A UID, GID or `GeneratedUID` is never reused for any
+    project on any data disk of this host, so a recreated user can't
+    own another project's home (SEC08-proj-isolation).
+  - *Creation.* `wb-guestd` refuses to create a record whose name, UID
+    or GID already exists, because `dscl . -create` on an existing
+    record changes it instead, and refuses a home that exists and is
+    owned by another UID. It logs the refusal and the rule (I138). It
+    makes the record with `GeneratedUID` as its first attribute: once a
+    record has a UID and a primary group, macOS refuses to change its
+    `GeneratedUID` or home path.
+  - *Attaching a home.* A home on the data disk is given only to a
+    record with every ID the host kept for it. When the host has no
+    state for a home, `wb-guestd` attaches it to nobody, and the session
+    start is refused with a rule that names `wb project rm`, or a new
+    data disk for the VM, which S05-cli doesn't have yet (I229,
+    NFR06-explained-refusals).
+
+  A guest root that wrote to the data disk keeps what it wrote after
+  the swap, because only the system disk is replaced.
 - **One guest admin password per VM.** At first contact in each fresh
   clone of an image, before any project code, `wbadmin`'s password is
   rotated to one that is generated for that VM and kept in the secret
@@ -370,29 +388,79 @@ in S12-platforms.
   the host on a loaded host, under the 80% goal of NFR02-fs-speed. The
   goal is not a release gate.
 
-  The host formats a new data disk before the first boot that attaches
-  it: `wb-hostd`, which also clones the system disk into the bundle,
-  creates the sparse file, attaches it as the user without mounting
-  it, checks that the device it got is that image, makes one APFS
-  volume on it, and detaches it. The host never attaches the image
-  again. A volume the guest formats APFS is encrypted at rest with a key
-  that needs the system disk it was made on, so it doesn't mount after a
-  system disk swap. The host-made volume has no such key (X08-data-disk).
-  A USB data disk is not an option: TCC denies every guest process
-  access to it.
+  The host formats a new data disk before any guest has booted with it.
+  A volume the guest formats APFS is encrypted at rest, and a fresh
+  system disk with fresh auxiliary storage couldn't unwrap its key, so
+  it doesn't mount after a swap. A volume the host makes on the image
+  isn't encrypted at rest. A USB data disk is not an option: without a
+  grant, TCC denies every guest process access to it (X08-data-disk).
+  That a host-made volume gives the space the guest frees back to the
+  host, as X05-fs-benchmark measured for a guest-made one, is assumed
+  until I228 measures it.
+  The formatting runs in `wb-diskfmt`, a shim that `wb-hostd` starts
+  through a fixed `wb-launcher` entry (pending the decision in
+  B22-data-disk; S04-architecture lists it once decided). `wb-diskfmt`
+  takes the VM's bundle path from configuration `wb-hostd` read before
+  it confined itself, never from the request, confines itself to that
+  path, and then:
+  1. creates the image under a temporary name in the bundle with
+     `O_CREAT|O_EXCL`, mode 0600, and makes it sparse at the data disk's
+     size;
+  2. attaches it with `diskutil image attach --noMount` and checks that
+     the backing image path of the device it got is that file. Any other
+     device is detached untouched, and the run fails with the rule;
+  3. runs `diskutil eraseDisk APFS` on that device. This mounts the new,
+     empty volume on the host once. It is a volume the host just made,
+     not one a guest wrote. `wb-diskfmt` records the volume's UUID,
+     unmounts it, and detaches the image;
+  4. renames the file to its final name, and `wb-hostd` records it as
+     formatted, with the volume UUID, in `state.db`.
+
+  The host never attaches a file at the final name. A leftover
+  temporary file is deleted, never attached. The final name has no
+  extension that Launch Services opens as a disk image (no `.img` or
+  `.dmg`), so a double click doesn't mount it. A data disk is
+  unencrypted at rest except by the host's own FileVault, and a user
+  who mounts it by hand gives the host kernel a guest-written
+  filesystem. Formatting a blank image that no guest has booted with
+  is outside the scope of the I44 rule that the host never mounts a
+  disk after a guest has booted from it.
 
   `wb-guestd` mounts the data volume at boot, before it starts anything
   as a project user, at a fixed path outside `/Volumes` that holds the
-  homes, with `nobrowse`, `nosuid`, `nodev` and ownership on. Disk
-  Arbitration has mounted it at `/Volumes/<name>` without `nosuid` by
-  then, so `wb-guestd` unmounts it and mounts it again with these
-  options. It then checks the flags of the mount, and when one is
-  missing it doesn't start a session, and logs the mount it found and the rule
-  (SEC08-proj-isolation). Without `nosuid`, a setuid-root file that guest
-  root left in a home gives a project user root, also after a swap. The
-  mount isn't repeated while the guest runs: once a process has run as a
-  user whose home is under the mount point, macOS refuses another mount
-  there until the next boot.
+  homes:
+  - It waits up to 30 s for the volume with the UUID the host recorded
+    at format time, which `wb-hostd` sends it, and identifies it only
+    by that UUID. Disk Arbitration has mounted it at `/Volumes/<name>`
+    without `nosuid` by then, so `wb-guestd` unmounts it and mounts it
+    at the home path with `nobrowse`, `nosuid`, `nodev` and ownership
+    on. The mount isn't repeated while the guest runs: once a process
+    has run as a user whose home is under the mount point, macOS
+    refuses another mount there until the next boot.
+  - It checks that `diskutil` reports the volume "Encrypted: No". An
+    encrypted or reformatted volume, or a missing one, is refused with
+    the rule, and the refusal names the command that gives the VM a
+    new data disk (I229, NFR06-explained-refusals). That the guest
+    never turns encryption on for a volume the host made is assumed
+    until I228 measures it.
+  - Before every session start it reads the mount's flags again with
+    `statfs`. Guest root can change them in place with `mount -u`, and
+    gains nothing by it, because guest root is already root. No
+    session starts unless that exact volume is mounted at the home path
+    with every flag. The refusal is logged with the mount found and
+    the rule (SEC08-proj-isolation). Without `nosuid`, a setuid-root
+    file that guest root left in a home gives a project user root, also
+    after a swap.
+  - It checks with `lstat`, never following a link, that the mount root
+    is a real directory owned by `root:wheel` with mode 755, and that
+    each home is a real directory owned by its user's kept UID and GID
+    with mode 700. A home that fails is refused to its user, with the
+    rule logged, and the other users go on. A new home is made with
+    `mkdir` on a path that doesn't exist yet, never by `createhomedir`
+    into an existing path. The root-owned directory on the data disk
+    where `wb-guestd` keeps session records ("Session lifecycle") is
+    checked the same way, and its contents are parsed as untrusted
+    input, because guest root may have written them.
 - **Devices.** One virtio network device whose packet transport leads
   to `wb-netd` (on macOS a file-handle attachment; S07-egress-gateway, S12-platforms);
   one host-guest socket device (vsock); storage: the system disk, the
@@ -581,6 +649,13 @@ slot. Guests of other operating systems are limited only by resources
   A home is mode 700, under the data volume's mount point ("Disks"),
   and its path is set when the user is created and never changes,
   because macOS refuses to change it in the record (X08-data-disk).
+  When a project is removed (`wb project rm`), or an ephemeral user's
+  session ends, `wb-guestd` removes that user's home in a child process
+  running as that user, so it never follows a link the user left with
+  root's rights. What that user can't remove, such as a file guest root
+  left there, stays, in a directory no later user gets, because the
+  user's IDs are never reused ("Updates"). Removing the record itself
+  is I138.
 - A project user is a standard account, outside the `admin` and
   `wheel` groups, with no sudoers rule. Guest root can bind
   the host-guest socket port of `wb-guestd`, so a project user must not
