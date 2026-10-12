@@ -369,11 +369,28 @@ inspection is trusted, and what is recorded.
   (T11-shared-vm-grants). `wb policy explain` shows who can reach it
   ("Precedence").
 - **Model credential.** Claude Code in the guest is configured with a
-  placeholder and a binding for the model API host. Whether every Claude
-  Code authentication mode works with host-side replacement (including
-  token refresh) is the first spike in X00-index. OpenShell has shown
-  that an API key works this way. A Claude subscription login is the
-  open part (spike X01-model-credential).
+  placeholder, and the model API profile's binding injects the real
+  credential on `api.anthropic.com` alone (S07-egress-gateway, "Named
+  places").
+  - *Long-lived token.* A Claude subscription user runs
+    `claude setup-token` on the host and stores the token it prints
+    with `wb cred set`. The guest's placeholder goes in
+    `CLAUDE_CODE_OAUTH_TOKEN`, and the binding injects
+    `Authorization: Bearer <token>`. X01-model-credential measured this
+    mode, and the maintainer made it a supported mode for V1 on I60
+    (B60-model-credential). `claude setup-token` says the token is
+    valid for one year. Nothing in Wraith Box renews it. At expiry, or
+    after a leak of the host's secret store, the user revokes the token
+    at claude.ai/settings/claude-code, under "Authorization tokens",
+    runs `claude setup-token` on the host again, and stores the new
+    token with `wb cred set`.
+  - *API key.* The guest's placeholder goes in `ANTHROPIC_API_KEY`,
+    and the binding injects `x-api-key`. OpenShell has shown that an
+    API key works this way, and X01-model-credential saw the
+    placeholder go out as `x-api-key` and be replaced. A run of this
+    mode end to end is still open in I15.
+  - *Browser login.* The subscription login through a browser
+    (`/login`, SSO) and its token refresh are the open part (I15).
 - **Never in the guest.** Images are scanned for secrets at seal time;
   the environment of every guest process is built from an allowlist.
 

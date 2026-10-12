@@ -30,6 +30,11 @@ answer is in S03-requirements.
   drop-in replacement for `claude [args]` in the current directory: every
   argument after `claude` reaches Claude Code unchanged, with interactive
   TTY, piped/non-interactive use, and exit code preserved.
+  Known gaps in V1, from the model API profile
+  (S07-egress-gateway, B60-model-credential): no auto-update, since the
+  image sets the Claude Code version (S06-vm-lifecycle, "Claude Code in
+  the guest"); no changelog notice at interactive start; and no
+  plugins from the marketplace.
 - **FR02-any-repo: Any git repository.** Works in any git repository. The first run in a repository
   registers the project automatically. No setup step is needed per
   project.

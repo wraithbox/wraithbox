@@ -943,7 +943,12 @@ session start in the VM to the end of the last session running in it.
     the cookie's name, with the rule `set-cookie-bound-host` for
     cookies and `credential-header-bound-host` for the others, never
     the value (SEC10-audit).
-  - *Named places.* The model API profile names `x-api-key`. The git
+  - *Named places.* The model API profile names `Authorization` and
+    `x-api-key`. Its binding injects the model credential on
+    `api.anthropic.com` alone: `Authorization: Bearer <token>` for a
+    long-lived token from `claude setup-token`, or `x-api-key` for an
+    API key (S09-policy-credentials-audit, "Model credential",
+    X01-model-credential). The git
     hosting profile names, per kind of host: GitHub, `Authorization`
     only (GitHub itself refuses `?access_token=`). GitLab, the headers
     `PRIVATE-TOKEN`, `JOB-TOKEN` and `Deploy-Token`, and the parameters
@@ -1047,8 +1052,38 @@ session start in the VM to the end of the last session running in it.
     them, so they are guarded hosts ("Modes, per host", pass). They can't be
     pass hosts or have a raw TCP entry, so SSH to them always meets the
     first-byte check ("Non-HTTP streams", "SSH").
-  - *model API*: the endpoints Claude Code needs, with the model
-    credential binding.
+  - *model API*: the paths Claude Code 2.1.289 reached on two hosts in
+    X01-model-credential, with the model credential binding on
+    `api.anthropic.com` alone ("Named places"). The maintainer decided
+    the list on I60 (B60-model-credential).
+    - `api.anthropic.com`: `/v1/messages` (the model),
+      `/api/claude_code/policy_limits` (the organization's limits),
+      `/api/claude_code/settings` (remote managed settings),
+      `/api/claude_cli/bootstrap`, `/api/eval/` (feature flag
+      evaluation), `/mcp-registry/v0/servers` (the public MCP server
+      registry) and `/api/hello` (a reachability check). `/api/eval/`
+      is in because feature flags may change what Claude Code does, and
+      what it does without them wasn't measured.
+    - `platform.claude.com`: `/v1/oauth/hello`, a reachability check
+      of the login host. The binding doesn't cover it.
+    - *Event log denied.* `/api/event_logging/` on `api.anthropic.com`,
+      Anthropic's event log, which receives the model credential and
+      usage data, is a built-in deny of the profile, logged with the
+      rule `model-event-log`. Like the archive deny, it applies
+      whatever the source of an allow, so `wb-proxyd` refuses the event
+      log whatever the guest sets.
+    - *Outside the profile.* Datadog's log intake
+      (`http-intake.logs.us5.datadoghq.com`, "Accepted gaps"),
+      `downloads.claude.ai` (the updater and the plugin marketplace)
+      and `raw.githubusercontent.com` (the changelog), with no
+      exact-path entry for any of them. Each is an unknown destination
+      like any other host. The guest's Claude Code is set not to ask
+      for them (S06-vm-lifecycle, "Claude Code in the guest"), but the
+      profile is the control. The updater would fetch and run a binary
+      past SEC07-dep-gate, and `raw.githubusercontent.com` serves any
+      file of any public repository.
+    - *Parts.* The profile has one part, `model`, with every allow rule
+      above.
   - *package registries*: metadata and downloads only, publish and
     upload endpoints denied. npm, PyPI, crates.io and the Go module
     proxy, plus `sum.golang.org` read-only (`/lookup/`, `/latest`,

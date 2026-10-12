@@ -568,6 +568,29 @@ slot. Guests of other operating systems are limited only by resources
   bring up at every session start, unlike `claude` (FR01-drop-in).
   Rejected: one worktree path for every session, which a parallel
   session, or an ended session that isn't discarded yet, still holds.
+- **Claude Code in the guest** (X01-model-credential,
+  B60-model-credential). The image sets the Claude Code version, and
+  the updater is off in the guest. `wb-guestd` starts `claude` with these
+  variables in its environment allowlist:
+  - the model credential's placeholder, in `CLAUDE_CODE_OAUTH_TOKEN`
+    for a long-lived token or `ANTHROPIC_API_KEY` for an API key
+    (S09-policy-credentials-audit, "Model credential");
+  - `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, which Claude Code's
+    documentation says turns off updates, telemetry, error reporting
+    and feature flag fetching (B45-claude-in-guest, "Evidence");
+  - `DISABLE_UPDATES=1`, which blocks every update path, `claude update`
+    included (I45).
+
+  The variables are meant to keep Claude Code from asking for the hosts
+  and paths the model API profile leaves out, which is assumed, and
+  S11-verification-and-spikes checks it. They aren't the control:
+  `wb-proxyd` refuses the event log and every host outside the profile
+  whatever the guest sets (S07-egress-gateway, "model API"). A new
+  Claude Code version needs a new image. Building an image for a new
+  Claude Code version must be cheap next to a full `wb image build`,
+  and how is open (I220). Plugins from the marketplace are unavailable
+  in the guest in V1, because `downloads.claude.ai` is outside the
+  profile.
 - Ephemeral sessions use a throwaway guest user removed at session end
   (FR14-ephemeral).
 

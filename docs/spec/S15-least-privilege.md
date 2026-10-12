@@ -221,8 +221,8 @@ build deletes `wbadmin`'s keychains before sealing. `wb-guestadmin`
 
 ## Out of scope
 
-- Which login Wraith Box owns for a Claude subscription
-  (X01-model-credential).
+- The browser login for a Claude subscription (I15). The long-lived
+  token is in S09-policy-credentials-audit, "Model credential".
 - Project users' accounts in the guest, which have no password the host
   keeps.
 - The other `SEC*` controls.

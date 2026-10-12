@@ -456,6 +456,27 @@ be tested before building on them.
     is replaced;
   - send a credential placeholder outside its binding (another host, a
     query string, a body) and get a `403`;
+  - scan whole requests for the model credential's placeholder
+    (S07-egress-gateway, "Placeholder binding"): send it in every
+    header other than the binding's, in a query string, and in a
+    form-encoded, `multipart/form-data` and JSON body, to
+    `api.anthropic.com`, to `platform.claude.com` and to another
+    inspected host, and see each request get a `403` that names the
+    binding, an audit event, and nothing sent upstream. Send it as
+    `Authorization: Bearer` and as `x-api-key` to `api.anthropic.com`,
+    and see it replaced there and nowhere else (X01-model-credential
+    looked only in those two headers);
+  - run `wb claude -p`, `wb claude -p --resume` and an interactive
+    `wb claude` with the model API profile, and see each answer.
+    Check in the audit log that no request went to
+    `/api/event_logging/`, Datadog's log intake, `downloads.claude.ai`
+    or `raw.githubusercontent.com`. That shows the guest's variables
+    stopped them (S06-vm-lifecycle, "Claude Code in the guest"). Run them again
+    with `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and
+    `DISABLE_UPDATES` unset and every approval request denied. See the
+    event log refused with the rule `model-event-log`, the hosts
+    outside the profile refused as unknown destinations, and Claude
+    Code still answer (B60-model-credential);
   - look up a burst of unknown hostnames from the guest, and see the
     approval limits deny the requests past the limit and log each with
     the rule `approval-pending-cap` or `approval-rate`, `wb status`
@@ -748,6 +769,7 @@ be tested before building on them.
 
 The open questions to answer before building on them are in X00-index.
 Each answered spike has a result page next to it, which X00-index links:
+X01-model-credential (Claude Code with a placeholder model credential),
 X02-warm-start (restoring a macOS guest from saved state),
 X03-network-path (the guest network on gVisor's stack),
 X04-tls-inspection (guest clients and the inspection CA),
