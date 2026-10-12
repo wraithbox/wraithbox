@@ -15,7 +15,8 @@
 //       cold boot; wait until vsock port 1000 answers; then, for each client
 //       of the Unix socket, open a new vsock connection to port 1000 and copy
 //       bytes both ways until the client closes. Exits when the guest stops.
-//       --data adds the read-write data disk, the second virtio block device.
+//       --data adds a read-write data disk, a virtio block device after the
+//       system disk; repeatable.
 //       --disk adds a read-only virtio block device after it.
 //       --usb adds a read-write USB mass storage device (an external disk to
 //       the guest) on an XHCI controller, with the same caching and sync.
@@ -74,7 +75,7 @@ final class NetPair {
 
 struct Opts {
     var disks: [String] = []
-    var data: String?
+    var data: [String] = []
     var usb: String?
     var aux: String?
     var nat = false
@@ -104,7 +105,7 @@ func makeConfig(_ b: Bundle, nic: VZNetworkDeviceAttachment, o: Opts) throws -> 
     var devs: [VZStorageDeviceConfiguration] = []
     let a = try VZDiskImageStorageDeviceAttachment(url: b.sys, readOnly: false, cachingMode: .automatic, synchronizationMode: .full)
     devs.append(VZVirtioBlockDeviceConfiguration(attachment: a))
-    if let d = o.data {
+    for d in o.data {
         let da = try VZDiskImageStorageDeviceAttachment(url: URL(fileURLWithPath: d), readOnly: false, cachingMode: .automatic, synchronizationMode: .full)
         devs.append(VZVirtioBlockDeviceConfiguration(attachment: da))
     }
@@ -247,7 +248,7 @@ func serve(_ b: Bundle, sock: String, o: Opts) async throws {
     let m = try Machine(b, o: o)
     let t0 = now()
     try await m.vm.start()
-    result(["cmd": "serve", "event": "started", "seconds": now() - t0, "nat": o.nat, "disks": o.disks, "data": o.data ?? "", "usb": o.usb ?? "", "aux": o.aux ?? ""])
+    result(["cmd": "serve", "event": "started", "seconds": now() - t0, "nat": o.nat, "disks": o.disks, "data": o.data, "usb": o.usb ?? "", "aux": o.aux ?? ""])
     guard let (c, at, tries) = await m.connectUntil(port: guestPort, deadline: t0 + 300) else {
         result(["cmd": "serve", "event": "no answer", "seconds": now() - t0, "stopped": m.delegate.stopped])
         await m.hardStop()
@@ -284,7 +285,7 @@ func main() async {
         while i < args.count {
             switch args[i] {
             case "--disk": o.disks.append(args[i + 1]); i += 2
-            case "--data": o.data = args[i + 1]; i += 2
+            case "--data": o.data.append(args[i + 1]); i += 2
             case "--usb": o.usb = args[i + 1]; i += 2
             case "--aux": o.aux = args[i + 1]; i += 2
             case "--nat": o.nat = true; i += 1

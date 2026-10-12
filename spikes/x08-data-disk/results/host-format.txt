@@ -1,0 +1,22 @@
+hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.
+attached as /dev/disk4
+   Device / Media Name:       Disk Image
+   Protocol:                  Disk Image
+   Disk Size:                 21.5 GB (21474836480 Bytes) (exactly 41943040 512-Byte-Units)
+Started erase on disk4
+Unmounting disk
+Creating the partition map
+Waiting for partitions to activate
+Formatting disk4s2 as APFS with name WBHost
+Mounting disk
+Finished erase on disk4
+TIME host format 1.224 s
+   Owners:                    Disabled
+   Volume UUID:               4FDF9053-DAC4-433E-A067-D69792594B7E
+   Device Location:           External
+   Encrypted:                 No
+   FileVault:                 No
+        FileVault:                 No
+hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.
+"disk4" ejected.
+15360 -rw-------@ 1 lsimons  staff  21474836480 Oct 12 20:49 .scratch/data3.img
