@@ -63,8 +63,11 @@ answer is in S03-requirements.
 - **FR11-port-forward: Port forwarding.** Dev servers listening in the guest are reachable on host
   loopback.
 - **FR12-clipboard: Opt-in clipboard.** Text clipboard sharing is opt-in, per direction, with approval.
-- **FR13-claude-state: Claude Code state per project.** Claude Code state (conversation history, settings) persists per
-  project, so `--resume`/`--continue` work within a project.
+- **FR13-claude-state: Claude Code state per project.** Claude Code's conversation history, and the state it keeps only in
+  the guest, persist per project, so `--resume`/`--continue` work within
+  a project. The settings carried in from the user's `~/.claude/` come
+  from the host at each session start (S14-claude-in-guest), so a
+  change made to them in the guest lasts one session.
 - **FR14-ephemeral: Ephemeral sessions.** An ephemeral mode runs a session with no persisted state.
 - **FR15-inspect: Inspect what happened.** The user can inspect what happened: per-session audit log,
   policy explanation, diff of returned work with risky changes flagged.
