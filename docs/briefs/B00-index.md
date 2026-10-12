@@ -49,6 +49,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B50-vm-test-infra | How do agents share the two macOS VM slots, and where do VM tests run? | Decided 2026-10-04: C. By hand for now, with VM builders run one at a time |
 | B51-approval-flow | What happens between a blocked lookup and the user's answer? | Decided 2026-10-04: A. Hold the answer, then refuse uncached |
 | B52-proto-contracts | How are the gRPC contracts between the processes written, generated, and checked? | Decided 2026-10-04: A. Commit generated code |
+| B60-model-credential | Can Claude Code in the guest hold only a placeholder while the proxy adds the real subscription token? | Partly answered 2026-10-12: yes for a long-lived subscription token |
 | B64-vmd-sandbox | Can wb-vmd confine itself and still run a macOS VM? | Answered 2026-10-06. Awaiting decision on two points |
 | B68-proxyd-stream-identity | How does wb-proxyd know which VM and name a stream belongs to, when wb-netd may be compromised? | Decided 2026-10-08: A |
 | B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps |

@@ -16,6 +16,7 @@ myrepo
 wbadmin
 guestadmin
 wbprov
+wbtest
 
 # Virtualization, networking and OS facilities
 pidinfo
@@ -24,6 +25,7 @@ testmanagerd
 authd
 authorizationdb
 trustd
+truststore
 userspace
 vsock
 hvsock
