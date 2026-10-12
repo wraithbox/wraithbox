@@ -66,8 +66,8 @@ func main() {
 	if err := os.WriteFile(*caOut, pemCA, 0o644); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("x01: listening on %s, CA in %s, key from %s (%d bytes), inject on %s",
-		*listen, *caOut, *keySource, len(realKey), *inject)
+	log.Printf("x01: listening on %s, CA in %s, key from %s (%d bytes, placeholder %d), inject on %s",
+		*listen, *caOut, *keySource, len(realKey), len(*placeholder), *inject)
 	log.Fatal(http.ListenAndServe(*listen, p))
 }
 
@@ -219,8 +219,11 @@ func (p *proxy) relay(client *tls.Conn, hostport, host string) {
 		req.URL.Host = hostport
 		req.RequestURI = ""
 		verdict := p.rewrite(req, host)
-		log.Printf("x01: %s https://%s%s headers=[%s] key=%s",
-			req.Method, host, req.URL.Path, headerNames(req.Header), verdict)
+		log.Printf("x01: %s https://%s%s headers=[%s] anthropic-beta=%q key=%s",
+			req.Method, host, req.URL.Path, headerNames(req.Header), req.Header.Get("Anthropic-Beta"), verdict)
+		if tokenPath(req.URL.Path) {
+			log.Printf("x01: TOKEN-PATH %s https://%s%s (OAuth or token refresh; body not logged)", req.Method, host, req.URL.Path)
+		}
 		resp, err := tr.RoundTrip(req)
 		if err != nil {
 			log.Printf("x01: upstream %s: %v", host, err)
@@ -260,32 +263,47 @@ func toHTTP11(resp *http.Response) {
 }
 
 // rewrite replaces the placeholder in x-api-key and Authorization on
-// inject hosts. It reports what it did without the key itself.
+// inject hosts, as a bare value or inside "Bearer <placeholder>". It
+// reports each header and scheme it saw, never a value.
 func (p *proxy) rewrite(req *http.Request, host string) string {
-	found := ""
+	var found []string
 	for _, h := range []string{"X-Api-Key", "Authorization"} {
 		v := req.Header.Get(h)
-		if v == "" || !strings.Contains(v, p.placeholder) {
+		if v == "" {
 			continue
 		}
-		if !p.inject[host] {
+		what := h + scheme(v)
+		switch {
+		case !strings.Contains(v, p.placeholder):
+			found = append(found, what+":other-credential")
+		case !p.inject[host]:
 			// Placeholder sent to a host that gets no key: leave it, flag it.
-			found += h + ":placeholder-not-injected "
-			continue
-		}
-		req.Header.Set(h, strings.ReplaceAll(v, p.placeholder, p.realKey))
-		found += h + ":injected "
-	}
-	for _, h := range []string{"X-Api-Key", "Authorization"} {
-		v := req.Header.Get(h)
-		if v != "" && !strings.Contains(v, p.realKey) && !strings.Contains(v, p.placeholder) {
-			found += h + ":other-credential "
+			found = append(found, what+":placeholder-not-injected")
+		default:
+			req.Header.Set(h, strings.ReplaceAll(v, p.placeholder, p.realKey))
+			found = append(found, what+":injected")
 		}
 	}
-	if found == "" {
+	if len(found) == 0 {
 		return "none"
 	}
-	return strings.TrimSpace(found)
+	return strings.Join(found, " ")
+}
+
+// scheme names the auth scheme of a header value ("Bearer <x>" gives
+// ":Bearer"), or "" for a bare value. Only the first word is kept.
+func scheme(v string) string {
+	if word, _, ok := strings.Cut(v, " "); ok && word != "" && len(word) < 20 {
+		return ":" + word
+	}
+	return ""
+}
+
+// tokenPath reports whether a request looks like an OAuth flow or a
+// token refresh, so the log marks it.
+func tokenPath(path string) bool {
+	l := strings.ToLower(path)
+	return strings.Contains(l, "oauth") || strings.Contains(l, "token")
 }
 
 func headerNames(h http.Header) string {
