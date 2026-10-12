@@ -171,7 +171,7 @@ Answered before X10-linux-hypervisor, because a yes may make X10-linux-hyperviso
 - **X16-openshell-linux: OpenShell for Linux guests.** Could OpenShell's VM driver
   (libkrun, guest without a network device, egress over vsock) run
   Linux guests for Wraith Box on macOS and Linux hosts instead of a
-  VMM chosen in X10-linux-hypervisor? The check covers SEC01-separate-kernel to SEC14-no-fake-approvals, a policy shared with
+  VMM chosen in X10-linux-hypervisor? The check covers SEC01-separate-kernel to SEC15-no-guest-disk-mount, a policy shared with
   macOS guests (S09-policy-credentials-audit), and NFR01-startup. It has no git round trip and no
   saved-state restore, so those are Wraith Box's to add. Its other drivers share a kernel between
   sandboxes (SEC01-separate-kernel) and are out of the question.

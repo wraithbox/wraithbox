@@ -94,14 +94,19 @@ against the adversary of T00-index.
   (S04-architecture, "Host work the guest can cause").
 - **SEC14-no-fake-approvals: Approvals cannot be spoofed by the guest.** Approval prompts are
   never rendered in the agent's terminal stream.
-- **SEC15-no-guest-disk-mount: The host never mounts a guest-written disk.** Once a
-  guest has run with a disk image attached, no host process mounts
-  that image, attaches it to the host as a device, or reads the
-  filesystem on it. The guest may have written any bytes there, and the
-  host kernel or tool would parse them. Copying, cloning, deleting and
-  attaching the image to a VM handle its bytes without interpreting
-  them and are allowed. The one exception is making a new image: the
-  host may format or write to an image that no guest has run with, and
-  the exception ends when a guest first runs with it
-  (S06-vm-lifecycle, "Disks"). Recovering data from such an image
-  needs a booted guest.
+- **SEC15-no-guest-disk-mount: The host never mounts a guest-written disk.** A disk
+  image is guest-written once a guest has run with it attached, and
+  every copy or clone of a guest-written image is guest-written too. No
+  host process attaches, mounts, probes or parses any bytes of a
+  guest-written image, the partition map and image container included.
+  The only reads are byte copies. The guest may have written any bytes
+  there, and a host kernel or tool that parsed them would take the
+  guest's input. Copying, cloning and deleting the file, and attaching
+  it to a VM, are allowed. A data disk is attached only to the VM slot
+  whose `state.db` record names it, from that VM's bundle, and never to
+  a maintenance VM or the other slot. A copy or clone of a data disk is
+  never attached to any VM. The one exception is a blank image the host
+  itself created: the host may format it before any guest has run with
+  it, and the exception ends when a guest first runs with it
+  (S06-vm-lifecycle, "Disks"). Recovering data from a guest-written
+  image needs a booted guest.
