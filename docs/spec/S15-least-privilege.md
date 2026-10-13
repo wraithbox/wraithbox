@@ -67,7 +67,7 @@ A backend must give these guarantees:
 | Guarantee | Keychain, signed | Keychain, ad-hoc signed | 1Password |
 |---|---|---|---|
 | G1. A container of Wraith Box items only | yes | yes | yes, a vault |
-| G2. Each item reachable only by its declared processes | yes, by code signature | enforced by our code only. A compromised declared reader reaches every item. Each update prompts again (X09-keychain-unsigned) | enforced by our code only. A compromised declared reader reaches every item in the vaults the session has open. A vault per role narrows it |
+| G2. Each item reachable only by its declared processes | yes, by code signature | enforced by our code only. A compromised declared reader reaches every item. After each update every item asks for the keychain file's password, which the user doesn't know (X09-keychain-unsigned) | enforced by our code only. A compromised declared reader reaches every item in the vaults the session has open. A vault per role narrows it |
 | G3. Locked or unreachable fails, with no fallback | yes | yes | yes |
 | G4. Values never written outside the store | yes | yes | yes |
 
@@ -94,8 +94,9 @@ and for an ad-hoc signed build. A fallback is never silent.
    batch, so a 1Password unlock asks at most once. `wb-proxyd` doesn't
    fetch per request. A store prompt is never an approval, and is never shown in
    the agent's terminal (SEC14-no-fake-approvals, I51). With ad-hoc
-   signed builds the Keychain asks once per item after each update.
-   Signed builds remove that.
+   signed builds the Keychain asks once per item after each update, for
+   the keychain file's password (X09-keychain-unsigned). Signed builds
+   remove that.
 5. **Consumers that can't read the store.** A program that can't read
    the store itself, such as `wb-vmd` or the system `ssh`, gets the value
    from a declared reader on a pipe or on standard input. Never in
