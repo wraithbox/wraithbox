@@ -1,0 +1,178 @@
+---
+title: How do development builds without a signing identity keep their Keychain items and their CA key?
+description: Between updates the access-control list works, but after each update every item asks for a password nobody knows. A permanent Secure Enclave key needs an entitlement, and a wrapped key in a store item works without one. Recommended - sign development builds with the developer's own certificate (after a spike), and keep the CA key as a wrapped Secure Enclave key.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-13: yes between updates, no across an update, and no permanent Secure Enclave key. Awaiting decision.** Source: I23, X09-keychain-unsigned. Touches S09-policy-credentials-audit, S15-least-privilege and S10-tech-stack.
+
+<Aside type="tip" title="What we learned">
+**No across an update, yes for the CA key.** After an update every Keychain item of an ad-hoc build asks for a password nobody knows. A wrapped Secure Enclave key works without an entitlement. Recommended: **D** for updates (a spike first, A until then), and **A** for the CA key.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="Left: after an update, wb-proxyd's new build hash isn't on the keychain file item's list, so the Keychain shows a dialog asking for the keychain file's password, which the user doesn't know. Right: for the CA key, wb-proxyd fetches a wrapped key from a store item and the Secure Enclave of this Mac unwraps it and signs.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <text class="label" x="20" y="24">1. After an update (ad-hoc build)</text>
+  <rect class="box host" x="20" y="50" width="160" height="60" rx="10" />
+  <text class="label" x="100" y="76" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="100" y="96" text-anchor="middle">new build hash</text>
+  <rect class="box host" x="240" y="50" width="170" height="60" rx="10" />
+  <text class="label" x="325" y="76" text-anchor="middle">keychain file item</text>
+  <text class="note" x="325" y="96" text-anchor="middle">list: old build hashes</text>
+  <line class="edge-bad" x1="182" y1="80" x2="238" y2="80" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="210" y="130" text-anchor="middle">not on the list</text>
+  <rect class="box host" x="110" y="176" width="230" height="84" rx="10" />
+  <text class="label" x="225" y="206" text-anchor="middle">dialog: keychain file</text>
+  <text class="label" x="225" y="224" text-anchor="middle">password</text>
+  <text class="note" x="225" y="248" text-anchor="middle">the user doesn't know it</text>
+  <line class="edge-bad" x1="325" y1="112" x2="260" y2="178" marker-end="url(#f1-arrow-bad)" />
+
+  <rect class="boundary" x="440" y="36" width="305" height="250" rx="12" />
+  <text class="boundary-label" x="452" y="56">2. CA key, this Mac only</text>
+  <rect class="box host" x="460" y="70" width="120" height="60" rx="10" />
+  <text class="label" x="520" y="104" text-anchor="middle">wb-proxyd</text>
+  <rect class="box host" x="600" y="70" width="130" height="60" rx="10" />
+  <text class="label" x="665" y="96" text-anchor="middle">store item</text>
+  <text class="note" x="665" y="116" text-anchor="middle">wrapped key</text>
+  <rect class="box host" x="500" y="200" width="190" height="60" rx="10" />
+  <text class="label" x="595" y="226" text-anchor="middle">Secure Enclave</text>
+  <text class="note" x="595" y="246" text-anchor="middle">unwraps and signs</text>
+  <line class="edge" x1="598" y1="100" x2="582" y2="100" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="530" y1="132" x2="570" y2="198" marker-end="url(#f1-arrow)" />
+</svg>
+<figcaption>
+Figure 1. Left: the first decision. An ad-hoc signed binary is on an item's list by its build hash (cdhash), so after an update no Wraith Box binary is on it and the Keychain asks for a password only Wraith Box knows (X09-keychain-unsigned). Right: the second decision. The wrapped key is useless on another Mac, but any process of the user on this Mac that has it can sign.
+</figcaption>
+</figure>
+
+## Decision 1: keeping items across an update
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### D. Sign development builds with the developer's certificate
+
+Drop the keychain file. Development builds are signed with the developer's own Apple Development certificate and a profile with a Keychain access group, as Secretive does, and use the same data protection keychain as release builds.
+
+- **Cost:** a spike first: whether a free personal team can grant `keychain-access-groups` to the helpers in `Wraith Box.app`. Each developer needs an Apple ID in Xcode.
+- **Gives:** one Keychain model for all builds, no dialogs after an update, and G2 by code signature.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### A. Fail closed
+
+After an update, the binaries read with dialogs turned off, and a read fails at once. `wb` says the store must be set up again, and the user enters each binding again.
+
+- **Cost:** every binding typed again after each update. Generated items are lost, such as `wbadmin/vm/<vm>/<disk>`, which S15-least-privilege keeps for the secure token.
+- **Gives:** no dialog, and the strict default. Recommended as the behavior until D is answered.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. The old build copies the items over
+
+Before an update replaces the binaries, the old ones copy every item into a new keychain file whose lists name the new binaries, already on disk.
+
+- **Cost:** an update step that reads every secret into one process. Not run end to end.
+- **Gap:** the copying process must be on every item's list, so one binary can read every item.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="caution" /> one reader of every item during an update <Badge text="SEC14-no-fake-approvals" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. A keychain password the user knows
+
+The user picks the keychain file's password and answers one dialog per item and binary after each update.
+
+- **Cost:** many dialogs after each update, about one for each pair of item and reader.
+- **Gap:** the user learns to type a password into a dialog that a process asks for, and any process of the user can then ask for any item.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="caution" /> any process can ask for an item <Badge text="SEC14-no-fake-approvals" variant="caution" /> routine store dialogs
+
+</div>
+</div>
+
+## Impact of decision 1
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>D. Developer signed</th><th>A. Fail closed</th><th>B. Copy over</th><th>C. Known password</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC12-least-privilege</strong> each item reachable only by its declared processes</td><td class="yes">by code signature</td><td class="yes">by build hash</td><td class="partial">one reader of all during an update</td><td class="partial">any process can ask</td></tr>
+<tr><td><strong>SEC14-no-fake-approvals</strong> a prompt is never an approval</td><td class="yes">no dialogs</td><td class="yes">no dialogs</td><td class="yes">no dialogs</td><td class="partial">routine dialogs</td></tr>
+<tr><td>Work for the developer after an update</td><td class="yes">none</td><td class="no">all bindings again</td><td class="yes">none</td><td class="partial">one dialog per item</td></tr>
+<tr><td>Generated items survive</td><td class="yes">kept</td><td class="no">lost</td><td class="yes">copied</td><td class="yes">kept</td></tr>
+</tbody>
+</table>
+
+## Decision 2: where the CA signing key is kept
+
+S09-policy-credentials-audit keeps the CA key in the Secure Enclave, with a software key in the store as the fallback. A permanent Secure Enclave key needs an entitlement, so it isn't there for an ad-hoc build.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. A wrapped Secure Enclave key in a store item, for every build
+
+`wb-proxyd` makes a Secure Enclave key that isn't stored in the Keychain, and stores its wrapped form (the token object ID) as the item `ca/<vm>/<ca>`. Later it hands the wrapped key back to the Secure Enclave to sign.
+
+- **Cost:** one symbol, `kSecAttrTokenOID`, that Security.framework exports but its headers don't declare. 5 ms per new leaf certificate.
+- **Gives:** one code path for signed and ad-hoc builds. A copied item is useless on another Mac.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> the item is declared for `wb-proxyd` only
+
+</div>
+<div class="wb-option">
+
+### B. Software key for ad-hoc, permanent key for signed
+
+Ad-hoc builds use the software fallback key of S09-policy-credentials-audit. Signed builds make a permanent Secure Enclave key.
+
+- **Cost:** two code paths.
+- **Gap:** in ad-hoc builds a copied item is a working CA key anywhere.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="caution" /> an exportable key in ad-hoc builds
+
+</div>
+</div>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The list pins an ad-hoc signed binary by cdhash. A rebuilt binary, another binary and `security find-generic-password` each got a dialog for the keychain file's password. The maintainer saw each one. Source: X09-keychain-unsigned, "Keychain file".
+- <Badge text="verified" variant="success" /> No call repaired a list without the dialog: `SecKeychainItemSetAccessWithPassword` with the right password returned -25293. Source: X09-keychain-unsigned, "Keychain file".
+- <Badge text="verified" variant="success" /> `SecKeychainSetUserInteractionAllowed(false)` turns the dialog into error -25293, and `kSecUseAuthenticationUIFail` doesn't. Option A depends on the first. Source: X09-keychain-unsigned.
+- <Badge text="verified" variant="success" /> A permanent Secure Enclave key fails with -34018 without an entitlement. A wrapped key restores the same key in another process, another binary and a rebuilt binary, and CryptoKit loads it too. Source: X09-keychain-unsigned, "Secure Enclave".
+- <Badge text="verified" variant="success" /> Secretive keeps CryptoKit wrapped keys in the data protection keychain behind an access group, and its debug builds are signed with the developer's team. Source: `secretive` `SecureEnclaveStore.swift` (`saveKey`), `CryptoKitMigrator.swift:17`, `Config.xcconfig`.
+- <Badge text="assumed" variant="caution" /> That a free personal team can sign the helpers of an app bundle with `keychain-access-groups`. Option D depends on it, and a follow-up spike would settle it.
+- <Badge text="assumed" variant="caution" /> That `kSecAttrTokenOID` keeps working. Apple doesn't document it. Secretive reads the same attribute, and CryptoKit's own format matched on macOS 27.0.1.
+- <Badge text="inferred" variant="note" /> That option B works: adding an item whose list names other binaries didn't raise a dialog, but the whole copy wasn't run.
+
+## What this unblocks
+
+- I61: the `wb-proxyd` sandbox rules for the Keychain and the Secure Enclave, in X23-sandboxed-daemons.
+- The spec text of S15-least-privilege ("Keychain", G2) and S09-policy-credentials-audit ("Key").
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the dialog asks for a password nobody knows.** A Keychain file has its own password. S15-least-privilege gives the file a random one and keeps it in the login keychain, so Wraith Box can unlock the file without asking. When a binary that isn't on an item's list asks for the item, macOS asks the user to confirm with that file's password, not the login password. The user never saw it.
+
+**Why signed builds don't have the problem.** With a Developer ID or Apple Development certificate, items go into the data protection keychain and are shared by an access group, which names the team, not a build. An update signed by the same team keeps access.
+
+**Glossary**
+
+- **Ad-hoc signed:** signed without a certificate. The signature only records the binary's hash.
+- **cdhash:** the hash of a binary's code, which changes with every build.
+- **Access-control list:** the list of binaries that an item in a keychain file lets in without a dialog.
+- **Access group:** an entitlement that lets every binary of one team share Keychain items.
+- **Secure Enclave:** the Mac's key hardware. Its keys can't be read out.
+- **Wrapped key (token object ID):** a Secure Enclave key encrypted by this Mac's Secure Enclave, which only that Secure Enclave can use.
+
+</details>

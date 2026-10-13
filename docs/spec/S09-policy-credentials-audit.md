@@ -345,7 +345,11 @@ inspection is trusted, and what is recorded.
   S15-least-privilege declares for it: `wb-proxyd` for bindings. On macOS: a Keychain
   item in an access group bound to Wraith Box's code-signing identity
   once that identity exists; until then, an access-control list naming
-  the declared binaries, which is weaker and documented as such. Other
+  the declared binaries, which is weaker and documented as such. That
+  list pins each ad-hoc signed binary by its cdhash. Any other reader,
+  and each binary after an update, gets a dialog that asks for the
+  password of the keychain file, and no call repairs the list without
+  it (X09-keychain-unsigned). Other
   platforms scope items as narrowly as their store allows; the limits
   are documented per platform in S12-platforms.
 - **Bindings.** A binding names the hosts, ports, and paths it applies
