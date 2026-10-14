@@ -11,3 +11,4 @@ new one here.
 
 | ID | Description | Status |
 |----|-------------|--------|
+| R01-defenseclaw | DefenseClaw | Read 2026-10-14, re-review after V1 (I240) |

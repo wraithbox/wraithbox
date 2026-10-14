@@ -190,3 +190,7 @@ opendirectoryd
 covdata
 diskfmt
 PKCE
+blocklist
+defenseclaw
+exfiltration
+Rego
