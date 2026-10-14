@@ -38,7 +38,7 @@ Most of the threat model work is about the `managed_enterprise`
 deployment: keeping DefenseClaw's own services, hooks and policy intact
 on a fleet machine against a standard user, the agent running as that
 user, and a compromised gateway (`docs/ENTERPRISE-THREAT-MODEL.md`,
-rows B1 to B21, residual risks R1 to R34). It doesn't model prompt
+rows `B1` to `B21`, residual risks `R1` to `R34`). It doesn't model prompt
 injection as a threat. Prompt injection detection is a guardrail
 feature with published benchmarks instead.
 
@@ -138,7 +138,7 @@ DefenseClaw's other threats don't apply to Wraith Box:
 
 - Most are about hook integrity: an agent or user that removes or
   kills a hook, or starts the agent with another configuration root
-  (R1, R18). Wraith Box doesn't enforce anything inside the guest.
+  (`R1`, `R18`). Wraith Box doesn't enforce anything inside the guest.
 - Others are about fleet administration: MDM precedence, enrollment,
   and the administrator's lifecycle. Wraith Box has one user, who is
   trusted (T00-index).
@@ -157,7 +157,7 @@ blocks and SIEM exports. Its Protect is weak where it has no sandbox.
 
 Wraith Box assumes the guest is compromised, so a detector inside the
 guest can never be a control: the agent that a prompt injection steers
-can turn it off. DefenseClaw's own residual risks R1 and R18 show this
+can turn it off. DefenseClaw's own residual risks `R1` and `R18` show this
 for hooks on the host. A detector is still useful as defense in depth
 if nothing depends on it. It can stop an attack before the attacker
 reaches the boundary, and it tells the user what was attempted.
