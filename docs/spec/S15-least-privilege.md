@@ -102,10 +102,12 @@ without a dialog that asks for the keychain file's password
 closed:
 
 - **Status codes.** These apply to the read of `unlock`, the unlock of
-  the file, and the read of an item that a record says exists: a CA in
-  `wb-hostd`'s record. A binding that isn't in the store gets the
-  refusal of the table below instead. Each log line names the call that
-  failed, the item, the status, and the rule.
+  the file, and the read of a CA item in `wb-hostd`'s record. A binding
+  that isn't in the store gets the refusal of the table below instead.
+  For a CA item only -25293 and -25308 apply, and every other status,
+  -25300 included, is `ca-key-restore` (S09-policy-credentials-audit,
+  "Valid CA"). Each log line names the call that failed, the item, the
+  status, and the rule.
   - -25293 (`errSecAuthFailed`, what X09-keychain-unsigned measured
     for a binary the list doesn't name): `store-needs-setup`.
   - -25300 (`errSecItemNotFound`) for `unlock` while the record names a
@@ -114,7 +116,7 @@ closed:
   - -25308 (`errSecInteractionNotAllowed`, a locked keychain): rule 7.
     The work waits for the user to unlock it, and `wb` names the
     keychain it waits for.
-  - Any other status: `store-read-failed`.
+  - Any other status for `unlock` or the file: `store-read-failed`.
 
   Only `store-needs-setup` leads to setting the store up again.
 - **Refused.** Session starts, warm starts, builds, and rotation are
@@ -152,11 +154,13 @@ closed:
      the 5019 event of S09-policy-credentials-audit, "Recovery".
   4. `wb setup` deletes the old file.
 - **Unrecorded files.** Every `wb setup` run, also one that finds the
-  store readable, deletes each file in `<data>/keychains/` whose name
-  has the form above and that the record doesn't name. It checks each
-  with `lstat` first and deletes only a regular file, never what a
-  symbolic link points to, and logs each deletion. It leaves every
-  other entry, and logs each one it leaves.
+  store readable, deletes each regular file in `<data>/keychains/`
+  whose name has the form above and that the record doesn't name. Such
+  a file is Wraith Box's. It checks each entry with `lstat` first. A
+  symbolic link, a directory, or any other entry that isn't a regular
+  file is foreign, and so is a file with another name. `wb setup`
+  leaves each foreign entry, and a link's target, and logs it. It logs
+  each deletion.
 
 Every value in the old file is lost. The user enters the bindings
 again. The generated items can't be entered again, and `wb setup` says
@@ -246,13 +250,21 @@ its CA keys, the items or on Windows the named keys, to a removal list
 in `state.db`. `wb-proxyd` deletes each
 listed item when it runs, and at its next start when it doesn't, and
 `wb-hostd` drops an entry once `wb-proxyd` reports it deleted. An item
-that is already gone counts as deleted. `wb-hostd` faces the guest
-(T16-hostd-landing), so `wb-proxyd` checks each batch before it deletes
-anything. Every entry must have the form `ca/<vm>/<ca>` with the parts
-of "Declared access", and its CA must not be in `wb-hostd`'s record.
-Otherwise `wb-proxyd` refuses the batch with the rule
-`ca-removal-refused`, logs each entry that failed, and deletes nothing
-from that batch. A
+that is already gone counts as deleted. On Windows the named key's
+name in the platform crypto provider is the item name `ca/<vm>/<ca>`.
+`wb-proxyd` checks each batch before it deletes anything. Every entry
+must have the form `ca/<vm>/<ca>` with the parts of "Declared access",
+and its CA must not be in `wb-hostd`'s record. Otherwise `wb-proxyd`
+refuses the batch with the rule `ca-removal-refused`, logs each entry
+that failed, and deletes nothing from that batch. `wb-hostd` then
+removes the refused entries from the list, logs that, and sends the
+others in the next batch, so one refused entry doesn't hold back the
+rest. The form
+check is what limits a compromised `wb-hostd` (T16-hostd-landing),
+which faces the guest. The record check uses `wb-hostd`'s own record,
+so it catches bugs. Through the list, a compromised `wb-hostd` can at
+worst delete live CA key items, which costs availability: the VM's
+start is then refused with `ca-key-restore`. A
 dropped CA's items go on the same list. After an update of an ad-hoc
 build, the old keychain file goes with its items instead.
 

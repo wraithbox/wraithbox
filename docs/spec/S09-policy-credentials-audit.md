@@ -496,7 +496,8 @@ inspection is trusted, and what is recorded.
     time `wb-proxyd` restores a key, it checks that the key's public
     key equals the one in the CA certificate before it signs.
   - *Windows.* A TPM key through the CNG platform crypto provider,
-    which `wb-proxyd` opens by its name. Windows 11 requires a TPM 2.0,
+    which `wb-proxyd` opens by its name, the item name `ca/<vm>/<ca>`.
+    Windows 11 requires a TPM 2.0,
     and `wb setup` refuses a host whose platform crypto provider isn't
     available, with no software fallback.
   - *Linux.* `wb setup` decides once whether the host has a usable TPM
@@ -526,9 +527,10 @@ inspection is trusted, and what is recorded.
     Only after that round trip does `wb-hostd` record the CA. A failed
     step deletes the item, leaves the record unchanged, and fails the issue with
     `ca-key-restore`.
-  - *Restore.* An item that can't be read after an update of an
-    ad-hoc build follows S15-least-privilege, "After an update". Any
-    other failure is `ca-key-restore`: a missing item, a store error,
+  - *Restore.* In an ad-hoc build, a read of the item that fails with
+    -25293 follows S15-least-privilege, "After an update", and one that
+    fails with -25308, a locked keychain, waits for the unlock (rule 7
+    there). Any other failure is `ca-key-restore`: a missing item, a store error,
     an error from the restore, or a public key that differs. Then
     `wb-proxyd` serves none of the VM's streams, and the VM's start or
     restore is refused with that rule.
