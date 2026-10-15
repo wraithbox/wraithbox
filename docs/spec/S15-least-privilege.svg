@@ -72,7 +72,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <path class="edge" d="M280,100 C230,110 180,170 150,228" marker-end="url(#f015-arrow)" />
 <text class="note" x="160" y="150">write</text>
 <path class="edge" d="M120,228 C120,20 560,10 580,68" marker-end="url(#f015-arrow)" />
-<text class="note" x="290" y="22">fetch: bindings · use: CA key</text>
+<text class="note" x="290" y="22">fetch: bindings · wrapped CA key</text>
 <polyline class="edge" points="222,330 580,330 600,292" marker-start="url(#f015-arrow)" marker-end="url(#f015-arrow)" />
 <text class="note" x="236" y="352">write, fetch: wbadmin items</text>
 

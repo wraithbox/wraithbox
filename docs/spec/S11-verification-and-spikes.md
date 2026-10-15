@@ -101,16 +101,28 @@ be tested before building on them.
   on day 40 and a restore on day 45 keep signing with the old CA, and
   a host that sleeps from day 50 to day 61 removes the old CA before
   it accepts a stream. Each step checks its 5019
-  event. The CA key restore (S09-policy-credentials-audit, "Key") has
-  a test that hands `wb-proxyd` a token object ID of another key, random
-  bytes, and a restore that returns an error, and sees each VM start
-  refused with `ca-key-restore` and no new CA issued.
+  event. The CA key restore (S09-policy-credentials-audit, "Valid CA")
+  has a test that hands `wb-proxyd` a token object ID of another key,
+  random bytes, a missing item, and a restore that returns an error,
+  and sees each VM start refused with `ca-key-restore` and no new CA
+  issued until `wb vm reset-ca`. An issue whose read-back or restore
+  fails leaves the record unchanged and deletes its item. A test on the cgo shim reads
+  back a new CA key and its item, and checks `kSecAttrIsPermanent`
+  false, `kSecAccessControlPrivateKeyUsage` as the only access control
+  flag, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and
+  `kSecAttrSynchronizable` false.
   The secret store (S15-least-privilege) has a test that makes the call
   that turns Keychain dialogs off fail, and sees the process refuse
   every store access with `store-dialogs-on`. A test with a fake store
-  that refuses every read sees session starts refused with
-  `store-needs-setup`, and sees `wb setup` replace the keychain file
-  only when the recorded build version differs from the running one.
+  returns -25293 and sees session starts refused with
+  `store-needs-setup`, returns -25308 and sees them wait for the unlock
+  and name the keychain, and returns another status and sees
+  `store-read-failed`. It sees `wb setup` set the store up again only
+  for `store-needs-setup` and a recorded build version that differs
+  from the running one, refuse a keychain file with no record, and
+  accept `--reset-store` only after confirmation on a terminal. An
+  interrupted set-up, stopped after each of its steps, ends with one
+  keychain file and one `unlock` item after the next `wb setup`.
   The stream hand-off in `wb-proxyd` (S07-egress-gateway, "Stream
   hand-off") has a test with two VMs at different generations. On VM
   A's hand-off socket it sends these streams:

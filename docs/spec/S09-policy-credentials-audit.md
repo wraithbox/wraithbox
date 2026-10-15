@@ -350,13 +350,14 @@ inspection is trusted, and what is recorded.
   B23-keychain-unsigned), once X29-dev-signing shows that a personal
   team can grant the access group. Until then, development builds are
   ad-hoc signed and use a keychain file whose access-control lists name
-  the declared binaries, which is weaker and documented as such. A list
-  pins each binary by its cdhash. Any other reader, and each binary
-  after an update, would get a dialog that asks for the password of
-  the keychain file, and no call repairs the list without it
-  (X09-keychain-unsigned). The binaries turn Keychain dialogs off, so
-  such a read fails at once, and after an update the store fails closed
-  until it is set up again (S15-least-privilege, "After an update"). Other
+  the declared binaries. That is weaker, and S15-least-privilege
+  documents it. A list pins each binary by its cdhash. Any other
+  reader, and each binary after an update, would get a dialog that asks
+  for the password of the keychain file, and no call repairs the list
+  without it (X09-keychain-unsigned). The binaries turn Keychain
+  dialogs off, so such a read fails at once. After an update the store
+  fails closed until `wb setup` sets it up again (S15-least-privilege,
+  "After an update"). Other
   platforms scope items as narrowly as their store allows; the limits
   are documented per platform in S12-platforms.
 - **Bindings.** A binding names the hosts, ports, and paths it applies
@@ -465,39 +466,72 @@ inspection is trusted, and what is recorded.
   the platform's hardware key store (S12-platforms), non-exportable,
   self-signs the CA certificate with it, and uses it to sign leaf
   certificates (Go's certificate creation accepts any signer). Only
-  `wb-proxyd` writes, fetches or uses the key and its store item
-  `wraithbox/ca/<vm>/<ca>` (S15-least-privilege, "Declared access").
-  `wb-hostd` gets the public certificate over local IPC and hands it to
-  `wb-guestd`. Per host:
+  `wb-proxyd` writes, fetches, deletes, or uses the key and its store
+  item `wraithbox/ca/<vm>/<ca>` (S15-least-privilege, "Declared
+  access"). `wb-hostd` gets the public certificate over local IPC and
+  hands it to `wb-guestd`. Per host:
   - *macOS, every build.* A Secure Enclave key that isn't stored in the
-    Keychain (`kSecAttrIsPermanent` false), whose wrapped form, the
-    token object ID, is the store item. To sign, `wb-proxyd` fetches
-    the item and passes it to Security.framework in `kSecAttrTokenOID`,
-    which restores the same key in this or a later process, also after
-    a rebuild (X09-keychain-unsigned). Only this Mac's Secure Enclave
-    can unwrap it, so a copied item is useless on another Mac. On this
-    Mac any process of the user that has the value can sign with the
-    key, and the store's G2 is what keeps it to `wb-proxyd`
+    Keychain, whose wrapped form, the token object ID, is the store
+    item. To sign, `wb-proxyd` fetches the item and passes it to
+    Security.framework in `kSecAttrTokenOID`, which restores the same
+    key in this or a later process, also after a rebuild
+    (X09-keychain-unsigned). Only this Mac's Secure Enclave can unwrap
+    it, so a copied item is useless on another Mac. On this Mac any
+    process of the user that has the value can sign with the key, and
+    the store's G2 is what keeps it to `wb-proxyd`
     (S15-least-privilege). A key stored in the Keychain needs an
     entitlement an ad-hoc build doesn't have, and this way signed and
     ad-hoc builds share one code path (decided on I23,
     B23-keychain-unsigned).
+  - *Attributes.* The ones X09-keychain-unsigned measured, and no
+    others: the key has `kSecAttrIsPermanent` false, an access control
+    with `kSecAccessControlPrivateKeyUsage` as its only flag, so no
+    signature asks for user presence or biometry, and the protection
+    `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. The store item has
+    `kSecAttrSynchronizable` false, so it never leaves the Mac.
   - *`kSecAttrTokenOID` is undocumented.* Security.framework exports
     the symbol, but the SDK headers don't declare it, so the cgo shim
     (S10-tech-stack) declares it. Passed without that attribute, the ID
     gives a new key without an error (X09-keychain-unsigned). So each
     time `wb-proxyd` restores a key, it checks that the key's public
-    key equals the one in the CA certificate before it signs. On an
-    error or a mismatch it serves none of the VM's streams, the VM's
-    start or restore is refused with the rule `ca-key-restore`, and
-    `wb-proxyd` doesn't issue a new CA in its place. Issuing fails the
-    same way when the new key has no token object ID.
-  - *Windows.* A TPM key through the CNG platform crypto provider.
-    Windows 11 requires a TPM 2.0, so every supported host has one.
-  - *Linux.* A TPM 2.0 key where the host has one. On a host without a
-    TPM, the fallback: a software key held in the secret store as the
-    item, which `wb-proxyd` fetches and signs with in its own memory.
-    `wb setup` and the audit record of each CA issue say so.
+    key equals the one in the CA certificate before it signs.
+  - *Windows.* A TPM key through the CNG platform crypto provider,
+    which `wb-proxyd` opens by its name. Windows 11 requires a TPM 2.0,
+    and `wb setup` refuses a host whose platform crypto provider isn't
+    available, with no software fallback.
+  - *Linux.* `wb setup` decides once whether the host has a usable TPM
+    2.0, records the choice in `state.db`, and says it. With a TPM, the
+    key's wrapped blob is the store item, which `wb-proxyd` loads into
+    the TPM to sign. Without one, the fallback: a software key held in
+    the secret store as the item, which `wb-proxyd` fetches and signs
+    with in its own memory, and the audit record of each CA issue says
+    so. A host recorded with a TPM that later has none fails each CA
+    issue and restore with `ca-key-restore`, and never moves to a
+    software key on its own.
+- **Valid CA.** A valid CA is in `wb-hostd`'s record, hasn't
+  expired, and `wb-proxyd` has fetched its item and restored a key
+  whose public key equals the certificate's. `wb-proxyd` signs only
+  with a valid CA.
+  - *Issue.* `wb-proxyd` makes the key, writes the item, reads it back,
+    restores the key from what it read, and compares the public key.
+    Only after that round trip does `wb-hostd` record the CA. A failed
+    step deletes the item, leaves the record unchanged, and fails the issue with
+    `ca-key-restore`.
+  - *Restore.* An item that can't be read after an update of an
+    ad-hoc build follows S15-least-privilege, "After an update". Any
+    other failure is `ca-key-restore`: a missing item, a store error,
+    an error from the restore, or a public key that differs. Then
+    `wb-proxyd` serves none of the VM's streams, and the VM's start or
+    restore is refused with that rule.
+  - *Recovery.* `wb vm reset-ca <vm>` (S05-cli) drops the VM's CAs from
+    `wb-hostd`'s record, puts their items on the removal list
+    (S15-least-privilege, "Declared access"), and deletes the VM's
+    saved state. The VM then cold boots. At that start the record
+    lacks a valid CA, `wb-proxyd` issues a new one, and the install rewrites the
+    guest's trust files whole ("Guest trust"). Only this command and
+    `wb setup` after an update ("After an update") drop a CA that
+    hasn't expired. Neither rotation nor a restart issues a new CA in
+    place of one that failed.
 - **CA profile.** `basicConstraints` critical with `CA:TRUE` and
   `pathLen:0`, `keyUsage` `keyCertSign` only, and no extended key
   usage.
@@ -533,7 +567,7 @@ inspection is trusted, and what is recorded.
 - **Lifetimes.** Leaf certificates: 24 hours, cut to the signing CA's
   end, cached in memory. CA: 60 days, rotated with an overlap.
   `wb-hostd` schedules each step, and `wb-proxyd` issues, switches and
-  destroys. Days count from the current CA's issue:
+  deletes key items. Days count from the current CA's issue:
   - *Day 30.* `wb-proxyd` issues the successor with a new key, and
     `wb-guestd` installs it next to the current CA. `wb-hostd` records
     the install when `wb-guestd` reports it.
@@ -543,7 +577,9 @@ inspection is trusted, and what is recorded.
     report the install only cuts off its own traffic.
   - *Day 60.* The old CA expires. `wb-guestd` removes it from the trust
     files, and from the system trust store where the guest has one
-    (S12-platforms), and `wb-proxyd` destroys its key. `wb-proxyd`
+    (S12-platforms), and its key goes on the removal list
+    (S15-least-privilege, "Declared access"): the item, or on Windows
+    the named key, which `wb-proxyd` deletes. `wb-proxyd`
     never signs with an expired CA. That is what revokes the CA: a
     guest that keeps trusting it gets no leaf signed by it.
   - *Overlap.* A process that started before the successor was
@@ -554,25 +590,28 @@ inspection is trusted, and what is recorded.
   - *Boot, restore and host wake.* On every boot, every restore from
     saved state and every host wake, in this order: `wb-guestd` sets
     the guest clock from `wb-hostd` (S06-vm-lifecycle, "Time and
-    sleep"), a CA that has expired is removed and its key destroyed, a
+    sleep"), a CA that has expired is removed and its key item goes on
+    the removal list, a
     step of the schedule that came due while the VM was off or the host
-    slept runs, and if no valid CA remains, `wb-proxyd` issues a new
-    one. Then `wb-guestd` installs the VM's current CAs from
+    slept runs, and if every CA in the record has expired,
+    `wb-proxyd` issues a new one. A recorded CA whose key doesn't
+    restore is refused with `ca-key-restore` ("Valid CA"), and doesn't
+    lead to a new one. Then `wb-guestd` installs the VM's current CAs from
     `wb-hostd`'s own record, never from what the guest reports it has,
     and `wb-hostd` records the install. Only then does `wb-proxyd`
     accept the VM's streams. After a restore or a host wake,
     `wb-proxyd` keeps signing with the CA it signed with before the
     save or the sleep, also past day 58, while that CA is valid,
     because resumed processes loaded their trust before it.
-  - *Why rotate.* The hardware key can't be read out. Rotation bounds
-    how long a copied key item is useful, now up to 60 days: the wrapped
-    key, which still signs on the same Mac after `wb-proxyd` removes the
-    item, and the software fallback key on Linux. Only that VM's guest
-    trusts it. The thief also needs a position in that guest's traffic,
-    which runs only through the host. For a TPM key, which no process
-    can copy, whoever can use it controls `wb-proxyd` on the host, a new
-    certificate doesn't change that, and rotation adds little. The
-    overlap keeps rotation from breaking running tools. Of the clients X04-tls-inspection tried, only
+  - *Why rotate.* The hardware key can't be read out, but on every
+    host another process of the user can sign with it, or with a copy:
+    the wrapped key on macOS, which still signs on the same Mac after
+    `wb-proxyd` removes the item, the CNG key on Windows, which opens by
+    its name, and the TPM blob or the software fallback key on Linux.
+    Rotation bounds how long that is useful, now up to 60 days. Only
+    that VM's guest trusts the CA. The thief also needs a position in
+    that guest's traffic, which runs only through the host. The overlap
+    keeps rotation from breaking running tools. Of the clients X04-tls-inspection tried, only
     Python's `requests` rereads its CA file while it runs. Go, Node,
     Python's `urllib`, Ruby and Java keep the trust they read at start,
     and the clients it didn't test are assumed to do the same. So the

@@ -17,7 +17,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 
 | Process | Lang | Runs as | Holds | Faces the guest via | Purpose |
 |---|---|---|---|---|---|
-| `wb` | Go | user, per invocation | nothing; writes binding secrets to the secret store (`wb cred set`, S15-least-privilege) | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
+| `wb` | Go | user, per invocation | nothing; writes binding secrets to the secret store (`wb cred set`, S15-least-privilege), and in an ad-hoc signed build writes and deletes the `unlock` item (`wb setup`, S15-least-privilege, "After an update") | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
 | `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository (for a push, also reading the `export.git` it borrows from), then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
@@ -757,6 +757,9 @@ it didn't ask for:
 `wb-netd` or `wb-proxyd`. It says which process is down, for which VM,
 and why, how many secret store accesses the restarts caused
 (S15-least-privilege), and asks for nothing (SEC14-no-fake-approvals).
+Only the 1Password backend can prompt for those accesses, because the
+Keychain doesn't show a dialog in any build (S15-least-privilege, access
+rule 4).
 `wb` in non-interactive use prints the same as one `wraith box:` line
 on its standard error. In interactive use `wb` doesn't write into the
 agent's terminal, and the session's summary says that its network was
@@ -766,7 +769,7 @@ the outage while it lasts.
 One `wb-proxyd` serves both VMs. A crash that a guest finds in it takes
 the network of the other VM down too, until the restart, and so do its
 given-up state, a blocked event channel (`event-channel-blocked`), and
-the secret store prompts its restarts cause. That is a residual risk to
+the 1Password prompts its restarts cause. That is a residual risk to
 availability, not to egress (T14-shared-proxyd).
 
 ### Accounting and event channels
@@ -951,7 +954,7 @@ layout is the same everywhere:
   vms/<guest-os>-{work,isolated}.noindex/  VM bundles: disks, machine identity, saved state
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
-  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit)
+  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit), each VM's CA records, the removal list of CA keys, and on Linux whether the CA key is in a TPM (S09-policy-credentials-audit, S15-least-privilege), and for an ad-hoc signed build the keychain file's name and the build version that made it, and the disks whose `wbadmin` password was lost (S15-least-privilege, "After an update")
   run/                                user-only directory for local IPC endpoints
 <logs>/                               audit JSONL and daemon logs
 ```
