@@ -242,8 +242,8 @@ the image is sealed.
 
 The sealing scan accepts `wbadmin` only if all of these hold:
 
-- It is the volume's only crypto user: `diskutil apfs
-  listCryptoUsers` lists one.
+- It is the volume's only crypto user:
+  `diskutil apfs listCryptoUsers` lists one.
 - Its `AuthenticationAuthority` has `;SecureToken;`.
 - It is disabled, hidden (`IsHidden`), and without a shell.
 - It is in no groups but `staff`, `everyone`, `localaccounts`,
