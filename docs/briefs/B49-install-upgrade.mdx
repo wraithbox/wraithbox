@@ -5,7 +5,7 @@ description: Recommended - approve S17-install-and-upgrade. A new per-run progra
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision: approval of the spec change.** Source: I49, S17-install-and-upgrade. Follows the I49 decision of 2026-10-04 (a dedicated download program that wb-hostd invokes), the 2026-10-12 comment (it also fetches Claude Code) and the triage of 2026-10-15 (signing as in X29-dev-signing, B248-dev-signing). Touches S04-architecture, S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit, S10-tech-stack, S14-claude-in-guest and S15-least-privilege.
+**Awaiting decision: approval of the spec change.** Source: I49, S17-install-and-upgrade. Follows the I49 decision of 2026-10-04 (a dedicated download program that wb-hostd invokes), the 2026-10-12 comment (it also fetches Claude Code) and the triage of 2026-10-15 (signing as in X29-dev-signing, B248-dev-signing). Touches S04-architecture, S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit, S10-tech-stack, S11-verification-and-spikes, S12-platforms, S14-claude-in-guest, S15-least-privilege and T00-index.
 
 <Aside type="tip" title="You are deciding">
 Whether to approve S17-install-and-upgrade as the design for building, installing, upgrading and migrating Wraith Box, and for its downloads. Recommended: approve it with option **A** below for trusting the restore image. Then the `mise` tasks, `wb setup`, `wb-download` and the migrations can be filed as build issues.
@@ -86,17 +86,19 @@ Figure 1. The downloads of an image build. Only <code>wb-download</code> connect
 
 ## What approving commits to
 
-- **A new process, `wb-download`.** One run per download, started through `wb-launcher` from two fixed entries: `wb-download-restore` (Apple's `mesu.apple.com` and `updates.cdn-apple.com`) and `wb-download-claude` (`downloads.claude.ai`). It writes only to files `wb-hostd` opened and doesn't follow redirects or read a proxy setting. Its profile denies files, the secret store and starting programs.
-- **The restore image** is the newest in Apple's catalog that isn't newer than the host's macOS. `wb-hostd` checks its size and SHA-1, resumes a partial download, refuses one without room, and deletes the image once a build has sealed its image.
+- **A new process, `wb-download`.** One run per download, started through `wb-launcher` from two fixed entries: `wb-download-restore` (Apple's `mesu.apple.com` and `updates.cdn-apple.com`) and `wb-download-claude` (`downloads.claude.ai`). Its profile is the network part of the `wb-proxyd` profile that X23-sandboxed-daemons measured for I61, limited to port 443, so it can't open files, reach the secret store or start programs. It writes only to files `wb-hostd` opened, under a file size limit `wb-launcher` sets. It doesn't follow redirects or read a proxy setting, and has deadlines to connect, between bytes and per request. Each request and each refusal is an audit record that is never dropped.
+- **The restore image** is the newest in Apple's catalog that isn't newer than the host's macOS, and not older than a compiled-in minimum (27.0.1) or than the last image a build sealed, unless the user passes `--allow-older-macos`. `wb-hostd` checks every field `wb-download` reports, resumes a partial download with an exact `Range` and `Content-Range`, refuses one without room, checks size and SHA-1 from its own descriptor, and deletes the image once a build has sealed its image.
 - **Claude Code** comes from a path fixed per guest platform (`<version>/darwin-arm64/claude`), so `wb-download` parses nothing, and `wb-release-check` now also checks the manifest's `binary` field.
 - **The build order** of `mise run build` on macOS: version stamp, Go, Swift, `xcodebuild` of a committed app project (`packages/wraithbox-swift/WraithBox.xcodeproj`), the guest tools disk, assembly, signing from the inside out, checks. CI builds the ad-hoc bundle on every pull request.
-- **`wb setup`** writes `~/Library/LaunchAgents/nl.wraithbox.hostd.plist` and links `~/.local/bin/wb`. `wb setup --remove` deletes both and keeps data and store items.
+- **`wb setup`** writes `~/Library/LaunchAgents/nl.wraithbox.hostd.plist` and links `~/.local/bin/wb`, only for a bundle in `~/Applications` or `/Applications`. It leaves an unchanged agent running, and refuses to replace a changed one while a VM runs. `wb setup --remove` deletes both and keeps data and store items.
 - **Upgrades** replace the bundle by rename, never by copying over it. Then S04-architecture's restart applies.
-- **Migrations** run in `wb-hostd` only, forward only, after a backup. A failed migration or a newer database puts `wb-hostd` in a refusing mode instead of a restart loop.
+- **Migrations** run in `wb-hostd` only, forward only, after a backup that never overwrites an older one. A failed backup or migration, a newer database, or a refused configuration key puts `wb-hostd` in a refusing mode. It doesn't start a daemon or a VM, and launchd doesn't restart it in a loop.
 
 ## Options for trusting the restore image
 
 Apple's catalog lists only a SHA-1 per image, and isn't signed. The hash check catches a damaged or swapped file. A compromised `wb-download` that reports its own URL and hash gets past it.
+
+The choice also decides how I263, a restore image from a local file, could be checked. Under A, an offline host has no catalog to check a local file against, so I263 would need the user to supply the hash or to trust the file. Under B, the pinned SHA-256 checks a local file offline as well as a downloaded one.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
@@ -145,6 +147,10 @@ Each has a recommendation, which the spec states. Approving the spec accepts the
 | The app's main executable | The notification helper. | A stub, until the helper exists. |
 | The ad-hoc bundle identifier | `nl.wraithbox.dev.adhoc`, or `WB_BUNDLE_ID`. | none proposed |
 | A failed migration | `wb-hostd` keeps running and refuses everything but `wb status`. | Exit, which launchd restarts in a loop. |
+| The rollback floor | A compiled-in minimum of 27.0.1, and no image older than the last sealed one without `--allow-older-macos`. | No floor: the catalog decides. |
+| Where the bundle may be installed | `~/Applications` or `/Applications`, else `wb setup` refuses. | Anywhere, with a warning. |
+| `wb setup` while VMs run | Refused when the agent would change, so no session is stopped by surprise. An unchanged agent is left running. | Stop the VMs and reload. |
+| Download deadlines | 30 s to connect, 60 s without a byte, 2 minutes for small files, 30 minutes for Claude Code, 12 hours for the restore image. | Other values. They aren't measured, only sized to the 27 GB image on a slow line. |
 
 ## Impact
 
@@ -166,7 +172,8 @@ Each has a recommendation, which the spec states. Approving the spec accepts the
 - <Badge text="verified" variant="success" /> Apple's catalog (`https://mesu.apple.com/assets/macos/com_apple_macOSIPSW/com_apple_macOSIPSW.xml`, 99,450 bytes on 2026-10-15) is an XML property list. Each restore entry has `FirmwareURL`, `FirmwareSHA1`, `ProductVersion` and `BuildVersion`, and no other hash. It lists one image, 27.0.1 (26A434), at `updates.cdn-apple.com`. Probe: `curl` and `plutil -convert json`.
 - <Badge text="verified" variant="success" /> The download host answers with `Content-Length: 26637307067`, `Accept-Ranges: bytes` and a `206` for a range request, so a download can resume. It also sends `x-amz-meta-digest-sha256`. Probe: `curl -I` and `curl -r 0-15`.
 - <Badge text="verified" variant="success" /> Apple's hosts served the catalog and the image without a redirect, and `downloads.claude.ai` served `manifest.json` (1,897 bytes), `manifest.json.sig` (833 bytes) and `darwin-arm64/claude` (249,556,880 bytes) for 2.1.300 without a redirect. The manifest's `binary` field is `claude`. So "no redirects" and the size caps fit. Probe: `curl -I`.
-- <Badge text="verified" variant="success" /> A confined Go program reaches TLS hosts only when its profile allows the certificate check services. Source: X23-sandboxed-daemons, "wb-proxyd: the network part".
+- <Badge text="verified" variant="success" /> A confined helper bundle completes TLS checks against the system roots with only `com.apple.trustd.agent` and the metadata of its own bundle directory beyond the network rules. Source: X23-sandboxed-daemons, "wb-proxyd with the Keychain and the Secure Enclave (I61)".
+- <Badge text="assumed" variant="caution" /> The same rules work for `wb-download`, a plain program in `Contents/MacOS`, with the app bundle's directory in place of a helper bundle's. The self-check test of S11-verification-and-spikes checks a TLS fetch under the profile.
 - <Badge text="verified" variant="success" /> A team-signed helper must be its own bundle, and the build gets the profile from an Xcode project. Source: X29-dev-signing.
 - <Badge text="verified" variant="success" /> X17-image-build installed macOS from a local restore image in 271.6 s, with no download in `wb-vmd`.
 - <Badge text="inferred" variant="note" /> Seatbelt's network rules can name a port but not a remote host, so the host allowlist is in `wb-download`'s code. Source: the profiles of X23-sandboxed-daemons, which allow outbound TCP by port.

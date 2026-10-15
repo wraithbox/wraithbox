@@ -13,7 +13,7 @@ Brief: B45-claude-in-guest
 
 ## Design
 
-![Claude Code in the guest. wb reads an allowlist of the user's ~/.claude/, filters and scans it, and wb-hostd hands the copy to wb-guestd, which writes it as the project user. ~/.claude.json never reaches the guest. The download program fetches a Claude Code build on the host, wb-release-check checks it for wb-hostd, and wb-guestd installs it root-owned during the image build. Claude Code reaches Anthropic only through wb-proxyd, which injects the model credential.](S14-claude-in-guest.svg)
+![Claude Code in the guest. wb reads an allowlist of the user's ~/.claude/, filters and scans it, and wb-hostd hands the copy to wb-guestd, which writes it as the project user. ~/.claude.json never reaches the guest. wb-download fetches a Claude Code build on the host, wb-release-check checks it for wb-hostd, and wb-guestd installs it root-owned during the image build. Claude Code reaches Anthropic only through wb-proxyd, which injects the model credential.](S14-claude-in-guest.svg)
 
 ### Agent interface
 

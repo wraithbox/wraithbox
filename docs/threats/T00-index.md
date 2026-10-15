@@ -39,7 +39,11 @@ API (S12-platforms); the host user account, including the user's WSL
 distributions on Windows; Wraith Box host binaries; the platform's
 credential store and hardware key store (Keychain and Secure Enclave on
 macOS); the operators of allowlisted services (as services, not their
-content).
+content); Apple's macOS restore images, as the system trust store and
+the Virtualization installer's signature check accept them, and
+Claude Code releases, as Anthropic's release key signs them
+(S17-install-and-upgrade, "Downloads", and I262 for the installer's
+check).
 
 **Boundaries.** (1) the VM; (2) the host-guest socket RPC surface to
 `wb-guestd` (vsock or the platform equivalent); (3) the virtual NIC

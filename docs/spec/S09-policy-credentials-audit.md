@@ -952,8 +952,10 @@ VM", I36).
   would let a guest push older records out by flooding events.
 - No record of these classes is ever dropped: Device Config State
   Change (5019), Detection Finding (2004), approvals, returned work,
-  recovery pushes, secret store accesses, and the records of VM starts
-  and stops and of sessions. Their sources bound them already
+  recovery pushes, secret store accesses, the records of VM starts
+  and stops and of sessions, and the records of `wb-download`, which
+  belong to no VM and count against no VM's budget
+  (S17-install-and-upgrade, "Downloads"). Their sources bound them already
   (approval limits, push limits, session limits, and the terminal
   filter's records per session, "Terminal filter" below).
 - The high-volume classes, Network Activity (4001) and HTTP Activity
