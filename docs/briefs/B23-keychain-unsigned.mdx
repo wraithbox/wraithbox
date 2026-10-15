@@ -5,7 +5,7 @@ description: Between updates the access-control list works, but after each updat
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-13: yes between updates, no across an update, and no permanent Secure Enclave key. Awaiting decision.** Source: I23, X09-keychain-unsigned. Touches S09-policy-credentials-audit, S15-least-privilege and S10-tech-stack.
+**Answered 2026-10-13: yes between updates, no across an update, and no permanent Secure Enclave key. Decided 2026-10-15: 1D (1A until X29-dev-signing) and 2A.** The decisions are in the I23 comment that starts `Decision (2026-10-15):`. The spec changes are I249, and the follow-up spike is X29-dev-signing (I248). Source: I23, X09-keychain-unsigned. Touches S09-policy-credentials-audit, S15-least-privilege, S10-tech-stack and S12-platforms.
 
 <Aside type="tip" title="What we learned">
 **No across an update, yes for the CA key.** After an update every Keychain item of an ad-hoc build asks for a password nobody knows. A wrapped Secure Enclave key works without an entitlement. Recommended: **D** for updates (a spike first, A until then), and **A** for the CA key.
@@ -157,7 +157,8 @@ Ad-hoc builds use the software fallback key of S09-policy-credentials-audit. Sig
 ## What this unblocks
 
 - I61: the `wb-proxyd` sandbox rules for the Keychain and the Secure Enclave, in X23-sandboxed-daemons.
-- The spec text of S15-least-privilege ("Keychain", G2) and S09-policy-credentials-audit ("Key").
+- The spec text of S15-least-privilege ("Keychain", G2) and S09-policy-credentials-audit ("Key"), in I249.
+- I248, X29-dev-signing: whether a free personal team can grant `keychain-access-groups` to the helpers in `Wraith Box.app`. Option D waits for it, and A applies until it answers yes.
 
 <details>
 <summary>Details and glossary</summary>

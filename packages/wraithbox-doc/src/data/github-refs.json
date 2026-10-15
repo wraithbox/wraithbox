@@ -140,7 +140,7 @@
 	},
 	"23": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X09-keychain-unsigned: Keychain access without a signing identity",
 		"summary": "Does the fallback Keychain access model from S09-policy-credentials-audit work for an ad-hoc signed binary, and can such a binary create a Secure Enclave key?",
 		"brief": "B23-keychain-unsigned"
@@ -1156,7 +1156,7 @@
 	},
 	"185": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Decide how wb-guestd makes a macOS guest trust the per-VM CA",
 		"summary": "X04-tls-inspection (#18) found that a root daemon in a macOS 27 guest can't make the system trust a CA without a user to confirm:",
 		"brief": "B18-tls-inspection"
@@ -1357,7 +1357,7 @@
 	},
 	"218": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S04-architecture, S06-vm-lifecycle: one wb-vmd per VM and a fixed install entry, from B64-vmd-sandbox",
 		"summary": "The maintainer decided the two points of B64-vmd-sandbox on 2026-10-12, in the #64 comment that starts Decision (2026-10-12):."
 	},
@@ -1481,5 +1481,72 @@
 		"state": "open",
 		"title": "B145-least-privilege: two unanswered questions (other specs, #142/#146)",
 		"summary": "B145-least-privilege, \"Questions for you\", still has two questions that no trusted decision answers."
+	},
+	"239": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spike): X09-keychain-unsigned result and brief B23",
+		"summary": "Result of the spike for #23 (X09-keychain-unsigned), run attended on the host with the maintainer answering each Keychain dialog.",
+		"brief": "B23-keychain-unsigned"
+	},
+	"240": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Re-review DefenseClaw after V1 and update R01-defenseclaw",
+		"summary": "After V1 ships, read DefenseClaw (cisco-ai-defense/defenseclaw) again and update docs/research/R01-defenseclaw.md (R01-defenseclaw)."
+	},
+	"241": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(research): R01-defenseclaw, a reading note on DefenseClaw",
+		"summary": "Adds R01-defenseclaw, the first research note: what Cisco's DefenseClaw is, where it overlaps with Wraith Box, the threats it covers that Wraith Box doesn't, and the NIST CSF view (Wraith Box V1 is Protect,…"
+	},
+	"242": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(doc): code-span DefenseClaw row names in R01-defenseclaw",
+		"summary": "The Pages deploy after #241 failed: the docs site read DefenseClaw's threat model rows (B1, R1, R18) in R01-defenseclaw as Wraith Box IDs and stopped with \"B1\": write the ID of S01-spec-based-development, with two…"
+	},
+	"243": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Docs PR check passes content errors that fail the Pages deploy",
+		"summary": "PR #241 passed its Docs check, and the Pages deploy of the same commit on main failed (run 38502805294)."
+	},
+	"244": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): accept that a macOS guest's system store refuses the CA",
+		"summary": "Records the maintainer's decision on #185, option A: accept that wb-guestd can't make a macOS guest's system trust store trust the per-VM CA."
+	},
+	"245": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): one wb-vmd per VM and a fixed install entry",
+		"summary": "Records the two decisions of B64-vmd-sandbox (the #64 comment that starts Decision (2026-10-12):) in the specs."
+	},
+	"246": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-egress-gateway: audit rule for a client that rejects the inspected leaf",
+		"summary": "From the security review of PR #244 (#185, decision A)."
+	},
+	"247": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Shared Metal/paravirtualized-graphics cache between the two session wb-vmd profiles",
+		"summary": "From the security review of PR #245 (#218, one wb-vmd per VM)."
+	},
+	"248": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X29-dev-signing: Keychain access group for development builds signed by a personal team",
+		"summary": "Can a developer's free personal team (an Apple ID signed in to Xcode, no paid membership) sign the helper binaries inside Wraith Box.app (wb-proxyd, wb-hostd, wb-vmd) with a keychain-access-groups entitlement and a…"
+	},
+	"249": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S09-policy-credentials-audit, S15-least-privilege: developer-signed builds and a wrapped Secure Enclave CA key, from B23-keychain-unsigned",
+		"summary": "The maintainer decided the two points of B23-keychain-unsigned on 2026-10-15, in the #23 comment that starts Decision (2026-10-15):."
 	}
 }

@@ -13,8 +13,7 @@ SEC14-no-fake-approvals
 ## For review
 
 - **Decides:** how ad-hoc signed builds keep their store items across
-  an update, and where the CA signing key is kept. The spec changes for
-  both wait for these decisions.
+  an update, and where the CA signing key is kept.
 - **You are approving:** the answers below, and the S09 and S15 text
   in this pull request that states what the measured fallback does
   today:
@@ -41,7 +40,12 @@ SEC14-no-fake-approvals
     the SDK headers. Secretive reads the same attribute;
   - that a CryptoKit `dataRepresentation` and the token object ID stay
     the same format. They were on macOS 27.0.1.
-- **Open decisions:**
+- **Decisions:** decided 2026-10-15, as recommended, in the I23
+  comment that starts `Decision (2026-10-15):`. The specs have them
+  (I249): S15-least-privilege ("Keychain", "After an update", access
+  rule 4, "Declared access"), S09-policy-credentials-audit ("Storage",
+  "Key"), S10-tech-stack ("Packaging and signing") and S12-platforms
+  ("Hardware key").
   1. How ad-hoc signed builds keep their items across an update.
      - A. Fail closed: after an update, `wb` says the store must be set
        up again, and the user enters each binding again. Generated
@@ -61,7 +65,8 @@ SEC14-no-fake-approvals
      Recommended: D, with a spike first, and A until that spike answers.
      A gives the fail-closed behavior S15 already asks for, with no
      dialog. B and C keep a model that only exists for development
-     builds.
+     builds. Decided: D, after X29-dev-signing (I248), and A until that
+     spike answers yes.
   2. Where the CA signing key is kept. A permanent Secure Enclave key
      needs an entitlement, so the spec's "key handle" isn't available to
      an ad-hoc build.
@@ -74,7 +79,8 @@ SEC14-no-fake-approvals
 
      Recommended: A. Signed and ad-hoc builds share the code path, and a copied item is
      useless on another Mac. Secretive keeps its keys the same way. A
-     needs one SPI symbol in the cgo shim.
+     needs one SPI symbol in the cgo shim. Decided: A. A Linux host
+     without a TPM keeps the software key, which no macOS build uses.
 - **Brief:** B23-keychain-unsigned
 
 ## Question
@@ -202,14 +208,16 @@ binaries, and neither restores a key through Security.framework.
 
 ## What it means for the specs
 
-- S15-least-privilege: the G2 cell for ad-hoc builds says what an
-  update does (this pull request). The update path waits for the first
-  decision.
-- S09-policy-credentials-audit: "Storage" states the fallback and what
-  an update does to it (this pull request). "Key" waits for the second
-  decision.
-- S10-tech-stack: the cgo shim's use of `kSecAttrTokenOID`, if the
-  second decision is A.
+- S15-least-privilege: development builds signed by the developer's
+  team, the ad-hoc keychain file until X29-dev-signing, what an update
+  does to it ("After an update"), no Keychain dialog in any build, and
+  the wrapped CA key in "Declared access" (I249).
+- S09-policy-credentials-audit: "Storage" for both kinds of build, and
+  "Key" for the wrapped Secure Enclave key, the check that catches a
+  break of `kSecAttrTokenOID`, and the key on each host (I249).
+- S10-tech-stack: the signing of development builds (I249). The cgo
+  shim declares `kSecAttrTokenOID`, which S09-policy-credentials-audit
+  states.
 
 ## Spike code
 
@@ -218,4 +226,4 @@ Throwaway code on branch `spike/x09-keychain-unsigned`, commit
 a cgo shim over Security.framework (`shim.c`), the `x9` commands
 (`main.go`), a CryptoKit reference (`ckref.swift`), and `build.sh`.
 
-**Status:** Answered 2026-10-13: yes between updates, no across an update, and no permanent Secure Enclave key
+**Status:** Answered 2026-10-13: yes between updates, no across an update, and no permanent Secure Enclave key. Decided 2026-10-15 (I23): 1D, with 1A until X29-dev-signing, and 2A

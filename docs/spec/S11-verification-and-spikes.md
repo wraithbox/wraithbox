@@ -101,7 +101,16 @@ be tested before building on them.
   on day 40 and a restore on day 45 keep signing with the old CA, and
   a host that sleeps from day 50 to day 61 removes the old CA before
   it accepts a stream. Each step checks its 5019
-  event.
+  event. The CA key restore (S09-policy-credentials-audit, "Key") has
+  a test that hands `wb-proxyd` a token object ID of another key, random
+  bytes, and a restore that returns an error, and sees each VM start
+  refused with `ca-key-restore` and no new CA issued.
+  The secret store (S15-least-privilege) has a test that makes the call
+  that turns Keychain dialogs off fail, and sees the process refuse
+  every store access with `store-dialogs-on`. A test with a fake store
+  that refuses every read sees session starts refused with
+  `store-needs-setup`, and sees `wb setup` replace the keychain file
+  only when the recorded build version differs from the running one.
   The stream hand-off in `wb-proxyd` (S07-egress-gateway, "Stream
   hand-off") has a test with two VMs at different generations. On VM
   A's hand-off socket it sends these streams:
