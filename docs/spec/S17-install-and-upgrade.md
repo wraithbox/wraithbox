@@ -9,6 +9,8 @@ what it needs), SEC10-audit (every egress decision recorded),
 SEC13-bounded-resources (what the host spends is capped),
 NFR06-explained-refusals (each refusal names its rule and the fix).
 
+**Tests:** C12-install-and-downloads
+
 Brief: B49-install-upgrade
 
 ## Design
@@ -167,7 +169,7 @@ platform's mechanism (S12-platforms), with the same rules in its code.
   with `getifaddrs`, and a failure to list them refuses the connection
   with `upstream-address-refused` as well. The profile also allows the
   `sysctl` read that `getifaddrs` makes, and the self-check test of
-  S11-verification-and-spikes measures that rule. TLS is checked
+  C12-install-and-downloads measures that rule. TLS is checked
   against the system roots. Its HTTP client's `Transport.Proxy` is nil, so `HTTPS_PROXY`
   and the system's proxy settings don't apply.
 - **Deadlines.** A connection that isn't up in 30 s fails with
