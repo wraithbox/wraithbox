@@ -59,6 +59,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B101-vsock-confinement | Can a project user take wb-guestd's place on the host-guest socket? | Answered 2026-10-06: yes, with conditions |
 | B102-git-alloc-limit | Can git itself refuse a push that asks for too much memory, so the pack scanner gets simpler? | Answered 2026-10-06 |
 | B145-least-privilege | Where are credentials held on the host, and who may reach them? | Decided 2026-10-07: A, the store, with declared access per process |
+| B248-dev-signing | Can development builds signed by the developer's own team share Keychain items across an update? | Answered 2026-10-15: yes, with conditions. Awaiting decision |
 
 ## Order to decide
 
@@ -76,3 +77,8 @@ B37-terminal-boundary and B74-pre-receive-check on 2026-10-06.
    Decided late, the scanner gets built to the larger design of
    B74-pre-receive-check. Decided badly, a push of many small deltas
    keeps git busy until the watchdog stops it.
+2. B248-dev-signing: blocks the Keychain spec change for development
+   builds, I61 and I49. Decided late, development builds keep the
+   keychain file, which locks after every update. Decided badly, the
+   spec keeps two Keychain models, or contributors without an Apple ID
+   have no Keychain store.

@@ -43,7 +43,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
 | X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |
-| X29-dev-signing | Keychain access group for development builds | Open |
+| X29-dev-signing | Keychain access group for development builds | Answered 2026-10-15: yes, with conditions |
 
 ## Spikes
 
@@ -313,3 +313,6 @@ assumption that v1 work would otherwise build on. They block v1.
   team, with no dialog? Found while deciding B23-keychain-unsigned
   (I23). Until it answers yes, development builds fail closed after an
   update (S15-least-privilege, "After an update"). Tracked in I248.
+  Answered yes, with conditions, in the result page X29-dev-signing:
+  each helper that holds an access group is a bundle of its own, and
+  the developer builds once in the Xcode app.
