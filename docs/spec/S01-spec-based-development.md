@@ -14,7 +14,7 @@ out how to implement it.
 | ID | Kind | Where | Index |
 |---|---|---|---|
 | `S<NN>-<slug>` | Spec | `docs/spec/` | S00-index |
-| `S<NN>-<MM>-<slug>` | Page of a spec | `docs/spec/S<NN>-<slug>/` | S00-index |
+| `S<NN>-<MM>-<slug>` | Page of a spec; `00` is its overview | `docs/spec/S<NN>-<slug>/` | S00-index |
 | `C<NN>-<slug>` | Test cases of one area | `docs/tests/` | C00-index |
 | `FR<NN>-<slug>` | Functional requirement | `docs/requirements/` | FR00-index |
 | `NFR<NN>-<slug>` | Non-functional requirement | `docs/requirements/` | NFR00-index |
@@ -59,21 +59,24 @@ out how to implement it.
 ## Spec tree
 
 A spec that grows past one page of the size limits below becomes a
-tree. The spec keeps its file and ID, and becomes the overview. Its
-pages go in a directory named after it:
+tree. The spec moves into a directory named after it, as the overview,
+page `00`. Its pages go next to it:
 
 ```text
-docs/spec/S07-egress-gateway.md              overview
-docs/spec/S07-egress-gateway.svg             its diagram
 docs/spec/S07-egress-gateway/
+  S07-00-egress-gateway.md                   the overview
+  S07-00-egress-gateway.svg                  its diagram
   S07-01-per-vm-policy.md                    a page
   S07-02-packet-path.md
   S07-02-packet-path.svg                     a page's diagram
 ```
 
-- **The overview** has the spec's purpose, requirements, tests and
-  briefs, one diagram, and a table of its pages with one line each. It
-  also holds what applies to every page. It aims for under 100 lines.
+- **The overview** is the spec, and keeps its ID: text refers to it as
+  S07-egress-gateway, not `S07-00`. Number `00` sorts it first in a
+  file browser, and its old path on the docs site redirects to it.
+- **Its content** is the spec's purpose, requirements, tests and briefs,
+  one diagram, and a table of its pages with one line each. It also
+  holds what applies to every page. It aims for under 100 lines.
 - **A page** covers one topic that a builder builds or a reviewer checks
   as a whole. It follows the spec template, with its own `**Purpose:**`
   and `**Status:**` lines.

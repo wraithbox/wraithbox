@@ -16,7 +16,7 @@
 // without its row.
 import fs from 'node:fs';
 import path from 'node:path';
-import { DEFINITION, DESIGN_ID, SLUG, loadGithub } from './remark-refs.mjs';
+import { DEFINITION, SLUG, loadGithub, nameOf } from './remark-refs.mjs';
 import { designFiles, docsDir } from './specs.mjs';
 
 const HEADER = '| ID | Description | Status |';
@@ -106,17 +106,14 @@ function rowsOf(indexRel, docs, github, covers) {
 	/** @type {Map<string, { rel: string, source: string }>} */
 	const pages = new Map();
 	for (const doc of docs) {
-		// A spec's pages are in a directory of their own next to it.
+		// A spec with pages is a directory of its own (S01, "Spec tree").
 		if (path.dirname(doc.rel) !== dir && !path.dirname(doc.rel).startsWith(`${dir}${path.sep}`)) continue;
-		const m = path
-			.basename(doc.rel)
-			.replace(/\.mdx?$/, '')
-			.match(new RegExp(`^(${DESIGN_ID})-(${SLUG})$`));
-		if (!m || !own.test(m[1]) || numberOf(m[1]) === 0) continue;
-		pages.set(m[1], doc);
-		rows.set(m[1], {
-			id: m[1],
-			full: m[0],
+		const name = nameOf(doc.rel);
+		if (!name || !own.test(name.id) || numberOf(name.id) === 0) continue;
+		pages.set(name.id, doc);
+		rows.set(name.id, {
+			id: name.id,
+			full: name.full,
 			description: titleOf(doc.rel, doc.source),
 			status: statusOf(doc.rel, doc.source),
 		});

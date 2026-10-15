@@ -125,29 +125,44 @@ function inlineFigures(/** @type {string} */ rel, /** @type {string} */ body) {
 	});
 }
 
+/** A spec's overview, which is the spec itself: `spec/S07-egress-gateway/S07-00-egress-gateway.md`. */
+const isOverview = (/** @type {string} */ rel) => /^S\d{2,}-00-/.test(path.basename(rel));
+
 /**
  * The sidebar entries of the specs. A spec with pages of its own
  * (`docs/spec/S07-egress-gateway/`, S01-spec-based-development, "Spec
- * tree") is a group: the spec itself as "Overview", then its pages in
- * order. Starlight's own `autogenerate` would label that group with the
- * directory name.
+ * tree") is a group: its overview, then its pages in order. Starlight's
+ * own `autogenerate` would label that group with the directory name.
  * @returns {any[]}
  */
 export function specSidebar() {
 	const slug = (/** @type {string} */ rel) => designUrl(rel).slice(1, -1);
 	const files = designFiles().filter((rel) => rel.startsWith(`spec${path.sep}`));
-	const top = files.filter((rel) => path.dirname(rel) === 'spec');
-	return top.map((rel) => {
-		const dir = rel.replace(/\.mdx?$/, '');
-		const pages = files.filter((other) => path.dirname(other) === dir);
-		if (pages.length === 0) return { slug: slug(rel) };
-		const heading = fs.readFileSync(path.join(docsDir, rel), 'utf8').match(/^# (.+)$/m)?.[1] ?? path.basename(dir);
+	const specs = files.filter((rel) => path.dirname(rel) === 'spec' || isOverview(rel));
+	return specs.map((rel) => {
+		if (!isOverview(rel)) return { slug: slug(rel) };
+		const pages = files.filter((other) => path.dirname(other) === path.dirname(rel) && other !== rel);
+		const heading = fs.readFileSync(path.join(docsDir, rel), 'utf8').match(/^# (.+)$/m)?.[1] ?? path.dirname(rel);
 		return {
 			label: heading,
 			collapsed: true,
 			items: [{ slug: slug(rel), label: 'Overview' }, ...pages.map((page) => ({ slug: slug(page) }))],
 		};
 	});
+}
+
+/**
+ * Redirects from the site path a spec had before it became a tree
+ * (`/spec/s07-egress-gateway/`) to its overview, so older links keep
+ * working.
+ * @returns {Record<string, string>}
+ */
+export function specRedirects() {
+	return Object.fromEntries(
+		designFiles()
+			.filter((rel) => rel.startsWith(`spec${path.sep}`) && isOverview(rel))
+			.map((rel) => [designUrl(path.dirname(rel)).slice(0, -1), designUrl(rel)]),
+	);
 }
 
 /** Markdown inline text to plain text, on one line. */

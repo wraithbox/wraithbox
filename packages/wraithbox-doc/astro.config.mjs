@@ -3,7 +3,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import { unified } from '@astrojs/markdown-remark';
 import { refsDigest, remarkRefs } from './src/plugins/remark-refs.mjs';
-import { specSidebar, specsIntegration } from './src/plugins/specs.mjs';
+import { specRedirects, specSidebar, specsIntegration } from './src/plugins/specs.mjs';
 
 // The site is served from the root of its own domain, https://wraithbox.nl
 // (GitHub Pages with a custom domain), so there is no `base` path and
@@ -12,6 +12,8 @@ import { specSidebar, specsIntegration } from './src/plugins/specs.mjs';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://wraithbox.nl',
+	// A spec that became a tree keeps its old path (src/plugins/specs.mjs).
+	redirects: specRedirects(),
 	// IDs in page text (S07-egress-gateway, SEC06-repo-writes, I36) become
 	// links with a hover card (src/plugins/remark-refs.mjs).
 	markdown: { processor: unified({ remarkPlugins: [[remarkRefs, { digest: refsDigest() }]] }) },

@@ -10,7 +10,7 @@ back out, without sharing the host filesystem.
 Briefs: B21-git-round-trip, B41-git-data-scope, B74-pre-receive-check,
 B102-git-alloc-limit
 
-![The git round trip. The guest reaches only wb-hostd, which serves export.git read-only and passes pushes through the ref filter and the pack scanner into landing.git. wb, not wb-hostd, moves refs between your repository and the two repositories. A fetch by ID from your repository has nothing to reach, and a push to main stops at the ref filter.](S08-workspace-and-git.svg)
+![The git round trip. The guest reaches only wb-hostd, which serves export.git read-only and passes pushes through the ref filter and the pack scanner into landing.git. wb, not wb-hostd, moves refs between your repository and the two repositories. A fetch by ID from your repository has nothing to reach, and a push to main stops at the ref filter.](S08-00-workspace-and-git.svg)
 
 ## Design
 

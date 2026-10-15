@@ -67,7 +67,7 @@ explains the IDs.
 | [S05](docs/spec/S05-cli.md) | The `wb` command |
 | [S06](docs/spec/S06-vm-lifecycle.md) | Images, VMs, guest users, guest agent |
 | [S07](docs/spec/S07-egress-gateway.md) | Network stack, DNS, proxy, dependency gate |
-| [S08](docs/spec/S08-workspace-and-git.md) | Workspace and the git round trip |
+| [S08](docs/spec/S08-workspace-and-git/S08-00-workspace-and-git.md) | Workspace and the git round trip |
 | [S09](docs/spec/S09-policy-credentials-audit.md) | Policy, credentials, certificates, audit |
 | [S10](docs/spec/S10-tech-stack.md) | Languages, libraries, packaging |
 | [S11](docs/spec/S11-verification-and-spikes.md) | Verification: test layers, release gate, CI |

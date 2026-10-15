@@ -14,7 +14,7 @@
 // reference behind that points at nothing.
 import fs from 'node:fs';
 import path from 'node:path';
-import { DESIGN_ID, SLUG } from './remark-refs.mjs';
+import { DESIGN_ID, SLUG, nameOf } from './remark-refs.mjs';
 import { designFiles, docsDir } from './specs.mjs';
 
 /** A section name in comparable form. */
@@ -108,7 +108,7 @@ export function checkSections() {
 	/** @type {Map<string, Set<string>>} ID to its page's sections */
 	const byId = new Map();
 	for (const { rel, source } of docs) {
-		const id = path.basename(rel).match(new RegExp(`^(${DESIGN_ID})-${SLUG}\\.mdx?$`))?.[1];
+		const id = nameOf(rel)?.id;
 		if (id) byId.set(id, sectionsOf(source));
 	}
 	const { cross, local, crossBefore } = patterns();
