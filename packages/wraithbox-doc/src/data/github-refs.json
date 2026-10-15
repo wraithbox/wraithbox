@@ -396,7 +396,7 @@
 	},
 	"61": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X23-sandboxed-daemons: wb-proxyd profile with Keychain and Secure Enclave",
 		"summary": "Split from #34 (X23-sandboxed-daemons) during triage on 2026-10-04.",
 		"brief": "B61-proxyd-keychain"
@@ -1644,8 +1644,14 @@
 	},
 	"265": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spike): X23 I61 result, wb-proxyd with Keychain and Secure Enclave",
 		"summary": "Result of #61: the wb-proxyd Seatbelt profile with the Keychain and the Secure Enclave, measured on a team-signed helper bundle (the B23/B248 setup, not the throwaway keychain file the issue asked for, which those…"
+	},
+	"266": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): S17-install-and-upgrade, with wb-download for image builds",
+		"summary": "- Approving commits to: S17-install-and-upgrade as the design for building the macOS bundle (mise run build runs app:bundle: version stamp, Go, Swift, xcodebuild of a committed app project with WBTEAMID, guest tools…"
 	}
 }

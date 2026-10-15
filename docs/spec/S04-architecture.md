@@ -31,7 +31,8 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-guestadmin` | Go | user, one run per image build, `wbadmin` rotation or cleanup, started through `wb-launcher` (on macOS), then exits | the `wbadmin/*` secret store items it writes and fetches, and nothing else | one write-only host-guest connection to `wb-guestd`; pipes to the build's `wb-vmd` and `wb-build-ssh` | The admin side of the image build, `wbadmin` rotation at each VM's first contact, and removing the items of images and system disks that are gone (S15-least-privilege) |
 | `wb-build-ssh` | Go | user, one per image build, started through `wb-launcher` (on macOS) | the build password on its standard input, for one session | one SSH session to the build guest, on the build VM's own network | Confine itself, then run the system `ssh` with compiled-in arguments and environment for the build's one install session (S15-least-privilege) |
 | `wb-diskfmt` | Go | user, one run per new data disk, started through `wb-launcher` (on macOS) as `wb-diskfmt-work` or `wb-diskfmt-isolated`, then exits | nothing | none: it runs before any guest has run with the disk (SEC15-no-guest-disk-mount) | Confine itself to its VM's bundle, then create, attach, format and detach that VM's new data disk (S06-vm-lifecycle, "Disks") |
-| `wb-release-check` | Go | user, one run per image build, started through `wb-launcher` (on macOS); instance cap one per build, then exits | nothing | none: it reads bytes from `downloads.claude.ai` that the download program fetched, on inherited descriptors | Confine itself to its inherited descriptors, check a Claude Code release's manifest signature, version, platform entry, size and SHA-256, and write the result to its pipe (S14-claude-in-guest, "Install") |
+| `wb-release-check` | Go | user, one run per image build, started through `wb-launcher` (on macOS); instance cap one per build, then exits | nothing | none: it reads bytes from `downloads.claude.ai` that `wb-download` fetched, on inherited descriptors | Confine itself to its inherited descriptors, check a Claude Code release's manifest signature, version, platform entry, size and SHA-256, and write the result to its pipe (S14-claude-in-guest, "Install") |
+| `wb-download` | Go | user, one run per download for an image build, started through `wb-launcher` (on macOS); instance cap one per entry, then exits | nothing | none | Confine itself, then fetch over HTTPS, from the hosts compiled into its entry only, a macOS restore image or a Claude Code release into files `wb-hostd` opened for it (S17-install-and-upgrade, "Downloads") |
 | `wb-askpass` | Go | user, started by `ssh` for the login prompt | one line of `ssh`'s standard input, until it prints it | none | Print the first line of its standard input to `ssh` (S15-least-privilege) |
 | `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | n/a (runs in the guest) | Users, PTY exec, git transport (S06-vm-lifecycle) |
 
@@ -203,7 +204,8 @@ nothing themselves (S12-platforms).
   themselves at startup with the platform's mechanism (S12-platforms) so that
   each gets only what it needs: `wb-netd` no filesystem and no network
   beyond inherited descriptors; `wb-proxyd` outbound network and its
-  credential store items; `wb-guestadmin` its `wbadmin/*` store items
+  credential store items; `wb-download` outbound HTTPS and its
+  inherited descriptors; `wb-guestadmin` its `wbadmin/*` store items
   and inherited descriptors; `wb-credset` its `binding/*` store items
   and its standard streams (S15-least-privilege, "Keychain"); `wb-hostd` its state directories, and on
   macOS read access to the installed bundle's `Info.plist` ("Upgrades")
@@ -301,9 +303,9 @@ nothing themselves (S12-platforms).
     session VMs' `wb-vmd` instances don't have them
     (SEC12-least-privilege).
     - The install reads the restore image only at the fixed path
-      `<data>/images/macos-restore.ipsw`. I49 (B49-install-upgrade)
-      decided how the file gets there: a download program fetches it, and
-      `wb-hostd` checks its hash before it starts `wb-vmd-install`.
+      `<data>/images/macos-restore.ipsw`. `wb-download` fetches it,
+      and `wb-hostd` checks its hash before it starts `wb-vmd-install`
+      (S17-install-and-upgrade, "Downloads").
       Before it confines itself, `wb-vmd-install` also refuses to
       start, logs the rule and exits unless the real path of the
       restore image is `images/macos-restore.ipsw` under the real path
@@ -347,6 +349,14 @@ nothing themselves (S12-platforms).
     pipe: `pass` with the manifest's signed SHA-256 checksum for the
     guest's platform, or the rule of the check
     that failed. It exits after one check.
+  - `wb-download` fetches what an image build needs
+    (S17-install-and-upgrade, "Downloads"). `wb-launcher` has two fixed
+    entries, `wb-download-restore` and `wb-download-claude`, each with
+    its hosts compiled into the program, so a request never names a
+    host or a URL. Its compiled-in profile allows outbound TCP to
+    port 443, name lookups, the certificate check services and its
+    inherited descriptors, and denies files, the secret store and
+    starting programs.
   - `wb-guestadmin` confines itself at start the same way, from a
     compiled-in profile (X23-sandboxed-daemons, X25-vmd-sandbox). The
     profile allows the secret store service for its `wbadmin/*` items
@@ -357,13 +367,13 @@ nothing themselves (S12-platforms).
     system disks that are gone), so a request
     never chooses what it does.
   - `wb-netd`, `wb-vmd`, `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`
-    and `wb-release-check` write their logs to an inherited pipe or socket to `wb-hostd`, which
+    `wb-release-check` and `wb-download` write their logs to an inherited pipe or socket to `wb-hostd`, which
     frames, attributes and rate-limits each line. None of them holds a
     descriptor on any file in `<logs>` or `<data>` for its log.
   - On macOS a confined process can't confine itself again, and its
     children inherit its profile. So `wb-hostd` starts `wb-vmd`,
     `wb-netd`, `wb-proxyd`, `wb-git`, `wb-prover`, `wb-guestadmin`,
-    `wb-build-ssh`, `wb-diskfmt` and `wb-release-check` through
+    `wb-build-ssh`, `wb-diskfmt`, `wb-release-check` and `wb-download` through
     `wb-launcher`, which has no profile. On Linux, Landlock and seccomp restrictions stack, so a
     child can confine itself further and needs no launcher (assumed from
     their documentation, not tested; to be confirmed when Linux
@@ -602,7 +612,8 @@ decided the VM behavior on I48 (B48-process-supervision).
   entry, the instance ID it returned when it started the process, and
   the exit code or the signal. It never restarts anything itself.
 - The programs started for one run (`wb-git`, `wb-prover`,
-  `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`, `wb-release-check`)
+  `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`, `wb-release-check`,
+  `wb-download`)
   are never restarted. `wb-release-check` has an instance cap of one
   per build. A run whose
   program exits before it reports a result fails, and the caller gets
@@ -651,12 +662,13 @@ as for a restore.
 ### Upgrades
 
 An upgrade takes the same path as a crash. The installer replaces the
-bundle (I49), the running `wb-hostd` exits, the service manager starts
+bundle (S17-install-and-upgrade, "Upgrades"), the running `wb-hostd` exits, the service manager starts
 the new one, and the running VMs stop with their sessions lost.
 
 `wb-hostd` notices a replaced bundle itself and restarts. It reads the installed bundle's
-build version (on macOS from the app bundle's `Info.plist`, elsewhere
-from a version file next to the programs, I49) when a host peer
+build version (on macOS from the `WBBuildVersion` key of the app
+bundle's `Info.plist`, elsewhere from the file `wraithbox-version` next
+to the programs, S17-install-and-upgrade) when a host peer
 reports a build version other than its own ("Version skew"), and
 before it starts a daemon. When the installed version isn't its own,
 it logs the rule `bundle-replaced` with both versions and exits, and
@@ -964,12 +976,14 @@ layout is the same everywhere:
   projects/<project-id>.policy.yaml   per-project network policy
 <data>/
   images/                             base images (copy-on-write clones)
-  images/macos-restore.ipsw           the restore image a macOS image build installs from
+  images/macos-restore.ipsw           the restore image a macOS image build installs from, fetched by wb-download (S17-install-and-upgrade)
+  images/macos-restore.ipsw.partial   the restore image while it downloads
+  downloads/                          a Claude Code release during an image build (S14-claude-in-guest)
   images/macos-build.noindex/         the build VM's bundle, new for each image build, never listed as an image (S06-vm-lifecycle)
   vms/<guest-os>-{work,isolated}.noindex/  VM bundles: disks, machine identity, saved state
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
-  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit), each VM's CA records, the removal list of CA keys, and on Linux whether the CA key is in a TPM (S09-policy-credentials-audit, S15-least-privilege)
+  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit), each VM's CA records, the removal list of CA keys, on Linux whether the CA key is in a TPM (S09-policy-credentials-audit, S15-least-privilege), and the catalog entry of the restore image (S17-install-and-upgrade). Migrated by wb-hostd only, with its backups next to it as state.db.v<N>.bak
   run/                                user-only directory for local IPC endpoints
 <logs>/                               audit JSONL and daemon logs
 ```

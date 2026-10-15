@@ -942,7 +942,8 @@ VM", I36).
 
 - JSONL in `<logs>` (S12-platforms; `~/Library/Logs/WraithBox/` on macOS),
   written by `wb-hostd` from events
-  sent by `wb`, `wb-netd`, `wb-proxyd` and `wb-guestadmin`, including
+  sent by `wb`, `wb-netd`, `wb-proxyd`, `wb-guestadmin` and
+  `wb-download` (S17-install-and-upgrade), including
   each secret store access without its value (S15-least-privilege).
 - Rotation deletes records by age only, never to make room. A file is
   deleted once its newest record is older than `audit_retention_days`

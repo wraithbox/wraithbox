@@ -60,6 +60,7 @@ machdep
 dirhelper
 vmnet
 paravirtualized
+mesu
 paravirtualizedgraphics
 videotoolbox
 terminfo

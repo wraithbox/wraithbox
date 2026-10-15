@@ -74,8 +74,10 @@ binary of that name comes from the Swift package.
 - **macOS:** an app bundle, `Wraith Box.app`, contains `wb-hostd`,
   `wb-launcher`, `wb-vmd`, `wb-netd`, `wb-proxyd`, `wb-git`,
   `wb-prover`, `openshell-prover`, `wb-guestadmin`, `wb-credset`,
-  `wb-build-ssh`, `wb-askpass`, the
-  notification helper, the guest tools disk image, and `wb`, which the installer links onto `PATH`. A
+  `wb-build-ssh`, `wb-askpass`, `wb-diskfmt`, `wb-release-check`,
+  `wb-download`, the
+  notification helper, the guest tools disk image, and `wb`, which the installer links onto `PATH`. How it
+  is built, installed and upgraded is in S17-install-and-upgrade. A
   bundle is needed for notifications, Keychain access groups, and
   launch-agent registration. Hardened runtime; only `wb-vmd` has the
   virtualization entitlement.
@@ -123,7 +125,8 @@ binary of that name comes from the Swift package.
     (decided on I248, B248-dev-signing). A build with `WB_TEAM_ID` set
     fails when Xcode gives it no profile, and names the one-time setup
     in S12-platforms, "Development builds on macOS". Without the
-    setting the build is ad-hoc signed, doesn't give any program an
+    setting the build is ad-hoc signed, has the bundle identifier
+    `nl.wraithbox.dev.adhoc` or `WB_BUNDLE_ID`, doesn't give any program an
     access group, and has no Keychain backend (S15-least-privilege).
     That a Developer ID build also needs a profile in each helper bundle
     for its groups is assumed until the first release build. Where a
