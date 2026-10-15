@@ -26,7 +26,7 @@ denied. GraphQL mutations are denied unless the operation name is
 allowlisted, and this operation filter applies to every request
 to the GraphQL endpoint of a built-in host, whatever the source of
 the rule that allows it. A user or repository rule on that
-endpoint is a load error (S09-01-policy-files, "Precedence"). The prover can't model GraphQL rules. The boundary
+endpoint is a load error (S09-11-precedence). The prover can't model GraphQL rules. The boundary
 check sees each one as `POST` to its GraphQL path on its host, and
 the boundary then limits whether that endpoint is reachable, not
 which operations are allowed (S09-03-boundary-check, "Built-in profiles in the check"). Git LFS isn't in the profile and
@@ -126,7 +126,7 @@ can't remove a deny. All parts are on by default.
 - *What parts don't change.* The removal of guest credentials in
   the places a profile names (S07-06-requests-and-credentials, "Credential replacement") and the lock
   on a built-in host's kind, mode and rules
-  (S09-01-policy-files, "Precedence") hold whatever parts
+  (S09-11-precedence) hold whatever parts
   are on.
 - *Per VM.* A part is off in a VM when the global policy or any
   project with a session in the VM turns it off. Turning a part off

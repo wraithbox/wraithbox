@@ -18,7 +18,7 @@ included.
 A VM's effective policy is the built-in
 profiles, the global policy, and the network policy, credential
 bindings and dependency-gate overrides of every project that has a
-session in the VM, merged as a union (S09-01-policy-files, "Precedence"), plus the approvals held for the VM (S07-11-approvals-and-learning). `wb-hostd` recomputes it whenever a session starts or
+session in the VM, merged as a union (S09-11-precedence), plus the approvals held for the VM (S07-11-approvals-and-learning). `wb-hostd` recomputes it whenever a session starts or
 ends. A project's allow rules and bindings leave the effective
 policy when its last session in the VM ends, and its denies, limits
 and modes leave under the rules of "Session end".
@@ -84,7 +84,7 @@ entry, loosening a limit, and weakening a mode (pass over inspect,
 `audit` over `enforce`) widen. A change that moves a host and port
 from `enforce` to `audit` widens, whatever removal caused it, such
 as removing the last `enforce` endpoint on it while an `audit`
-endpoint stays (S09-01-policy-files, "Mode per host and port"). Adding a raw TCP entry widens, and removing one narrows. A change that narrows
+endpoint stays (S09-11-precedence, "Mode per host and port"). Adding a raw TCP entry widens, and removing one narrows. A change that narrows
 applies at once, without the union checks, because a subset of a
 union inside the boundary is inside it too and doesn't add reach. If it
 leaves a host in pass mode for one project and inspected for

@@ -42,7 +42,7 @@ No record of these classes is ever dropped:
 - secret store accesses;
 - the records of VM starts and stops, and of sessions;
 - the records of `wb-download`, which belong to no VM, and count
-  against no VM's budget (S17-install-and-upgrade, "Downloads").
+  against no VM's budget (S17-03-downloads).
 
 Their sources bound them already: approval limits, push limits, session
 limits, and the terminal filter's records per session
@@ -152,7 +152,7 @@ A SIEM can read the log without a custom parser.
 `wb trust`, `wb untrust`, and the `wb project` commands that change a
 project write a 5019 event. It has the values before and after:
 `config_trust`, `placement`, the location, the name, or the recorded
-remote URLs and root commits (S05-cli, "Management commands").
+remote URLs and root commits (S05-03-management-commands).
 
 #### Fields
 

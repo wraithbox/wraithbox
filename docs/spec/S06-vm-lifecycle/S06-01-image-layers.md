@@ -11,7 +11,7 @@ A guest image has three layers:
 
 1. *Base*: macOS installed from an Apple restore image, plus
    `wb-guestd`, Homebrew, the Xcode command line tools, and Claude Code
-   (S14-claude-in-guest, "Install"). An Xcode variant adds full Xcode.
+   (S14-01-install). An Xcode variant adds full Xcode.
 2. *Org layer*, optional: a shared Brewfile and settings.
 3. *Project layer*: the formulae the project declares
    (FR07-toolchain-manifest). `wb-guestd` installs them as the

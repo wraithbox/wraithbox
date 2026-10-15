@@ -55,8 +55,7 @@ holds for what the guest flushes.
 - I231 makes both flush, in V1-M2-walking-skeleton.
 
 The system disk doesn't need to keep anything through a crash, because
-a fresh clone of the image can replace it (S06-03-image-updates,
-"Updates").
+a fresh clone of the image can replace it (S06-03-image-updates, "Updates").
 
 #### After a crash
 

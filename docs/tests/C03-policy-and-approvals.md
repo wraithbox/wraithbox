@@ -4,9 +4,8 @@
 the policies of the projects in one VM, modes per host, profile parts,
 learn mode, and the approval flow.
 
-**Verifies:** S07-01-per-vm-policy ("Session end"), S07-05-hosts-and-modes
-("Modes, per host"), S07-07-http-policy ("Profile parts"),
-S07-11-approvals-and-learning, S07-03-dns ("Deny duration"), S09-01-policy-files ("Mode per host and port"),
+**Verifies:** S07-01-per-vm-policy ("Session end"), S07-05-hosts-and-modes ("Modes, per host"), S07-07-http-policy ("Profile parts"),
+S07-11-approvals-and-learning, S07-03-dns ("Deny duration"), S09-11-precedence ("Mode per host and port"),
 S09-03-boundary-check ("Built-in profiles in the check"),
 S09-09-approval-flow,
 S13-guest-confinement
@@ -70,7 +69,7 @@ Spec: S07-01-per-vm-policy.
   reached before the second one joined.
 - For every host and port of a union, see the mode `wb-proxyd` applies
   equal the mode the boundary check projected
-  (S09-01-policy-files, "Mode per host and port"). With a
+  (S09-11-precedence, "Mode per host and port"). With a
   boundary that allows only `GET` on a host:
   - put the host's port 443 in `audit` with a `GET` rule in one
     project, and add an `enforce` endpoint with a `GET` rule on the

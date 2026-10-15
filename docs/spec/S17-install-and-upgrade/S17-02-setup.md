@@ -78,8 +78,7 @@ the link.
 `wb setup --remove` refuses with `setup-vms-running` in the same way.
 Then it:
 
-1. unloads the agent, which stops `wb-hostd` (S04-07-supervision,
-   "When `wb-hostd` stops");
+1. unloads the agent, which stops `wb-hostd` (S04-07-supervision, "When `wb-hostd` stops");
 2. deletes the plist and the link.
 
 It keeps `<config>`, `<data>`, `<logs>` and the secret store items. It

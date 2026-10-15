@@ -59,7 +59,7 @@ A learn period stays attributable to one project for another reason:
 
 - It is off for a new project.
 - Only `wb trust` sets it, after the boundary check.
-- `wb untrust` and `wb project confirm` clear it (S05-cli, "Naming").
+- `wb untrust` and `wb project confirm` clear it (S05-04-naming).
 - Learn mode doesn't look at it.
 
 The word "trusted" alone names neither `placement` nor `config_trust`.

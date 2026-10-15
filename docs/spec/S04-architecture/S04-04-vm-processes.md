@@ -104,8 +104,7 @@ into the work VM's or the isolated VM's bundle. The request doesn't
 choose the mode, the image, or a path.
 
 The same instance then runs the build VM's provisioning boot and the
-rest of the build in that bundle, confined to it (S06-02-image-build,
-"Built by Wraith Box"). It exits when the build ends. Its instance cap
+rest of the build in that bundle, confined to it (S06-02-image-build, "Built by Wraith Box"). It exits when the build ends. Its instance cap
 is one, because one maintenance VM runs at a time
 (S06-07-slot-admission).
 

@@ -41,8 +41,7 @@ These need a GUI login session (X06-guest-xcode):
 - launching a macOS app.
 
 Neither VM gives a project user one. Sealing refuses an image with
-automatic login or an `/etc/kcpassword` (S06-02-image-build,
-"Sealing"). So V1 doesn't offer macOS tests through `xcodebuild`, or
+automatic login or an `/etc/kcpassword` (S06-02-image-build, "Sealing"). So V1 doesn't offer macOS tests through `xcodebuild`, or
 launching a macOS app. `swift test` is unaffected.
 
 When such a test fails because `testmanagerd` can't reach a GUI
@@ -107,8 +106,7 @@ first session.
 Projects in one VM share its network grants and credential bindings
 (S07-01-per-vm-policy, T11-shared-vm-grants). A project whose
 `placement` is `isolated` gets the isolated VM to itself, unless its
-settings mark it shared (S09-02-project-settings, "Settings
-contents").
+settings mark it shared (S09-02-project-settings, "Settings contents").
 
 While such a project has a session in the isolated VM, `wb-hostd`
 refuses a session start that would put another project there, or an

@@ -87,8 +87,7 @@ reach (S07-07-http-policy, "model API").
 - Datadog, the updater and the changelog are outside the profile.
 
 The guest sets `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` and
-`DISABLE_UPDATES=1` (S06-08-projects-and-sessions, "Claude Code in the
-guest"). The profile is the control, not the guest's environment.
+`DISABLE_UPDATES=1` (S06-08-projects-and-sessions, "Claude Code in the guest"). The profile is the control, not the guest's environment.
 
 ## Decisions
 

@@ -137,15 +137,13 @@ sent, so every pass host is a residual channel
 inspect, with the HTTP policy of the host and port
 logging a violation and letting the request through (S07-07-http-policy). The mode is per host and port, resolved over the whole
 union, and `enforce` wins when any source has an `enforce`
-endpoint on that host and port (S09-01-policy-files, "Mode per host and port"). The boundary check sees an `audit` host
+endpoint on that host and port (S09-11-precedence, "Mode per host and port"). The boundary check sees an `audit` host
 and port as every method and path on it
 (S09-01-policy-files, "Audit as the whole host"). The
 maintainer decided its rules on I109:
 - *Only the user sets it.* Only the global policy and a project's
   network policy can put a host and port in `audit`. Repository
-  configuration and approvals can't (S09-02-project-settings,
-  "Repository-supplied configuration", and S09-08-approvals,
-  "Approved rule").
+  configuration and approvals can't (S09-02-project-settings, "Repository-supplied configuration", and S09-08-approvals, "Approved rule").
 - *Never on a guarded host.* A host with a credential binding, or a
   host a built-in profile covers (as for pass above, by name or
   through a project's remotes), can't be in `audit`. With policy

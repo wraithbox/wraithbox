@@ -20,8 +20,7 @@ NFR06-explained-refusals).
 - **`wb-hostd`** supervises every other host process. It decides when
   `wb-proxyd` and each VM's `wb-vmd` and `wb-netd` start, and whether
   one starts again after it exits. On macOS it starts them through
-  `wb-launcher` (S04-03-self-sandboxing, "Each host daemon is
-  self-sandboxed"). Elsewhere it starts them itself.
+  `wb-launcher` (S04-03-self-sandboxing, "Each host daemon is self-sandboxed"). Elsewhere it starts them itself.
 - **`wb-launcher`** is the parent of the programs it starts, so only it
   sees their wait status. It reports each exit to `wb-hostd` on its
   request channel, in one fixed-format message. The message holds the
@@ -179,8 +178,7 @@ last record.
   no clock of its own for it. `wb-netd` decides when to release an
   address (S07-03-dns, "Synthetic pool").
 - It learns the mapping the way it learns the wildcard debits, from
-  accounting records (S04-08-records-and-bounds, "Accounting and event
-  channels").
+  accounting records (S04-08-records-and-bounds, "Accounting and event channels").
 - `wb-netd` sends each new or renewed entry before the DNS answer that
   uses it. It refuses the lookup when the write fails.
 - `wb-netd` sends each release before it gives the address to another

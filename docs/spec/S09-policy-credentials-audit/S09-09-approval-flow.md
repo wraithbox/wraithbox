@@ -15,8 +15,7 @@ session looked a name up (S07-01-per-vm-policy, I36).
 
 - When the user approves within the hold, the waiting lookup gets the
   allowed answer. The tool works on its first try.
-- Otherwise it gets `NXDOMAIN` with a negative TTL of 0 (S07-03-dns,
-  "Negative answers"), and the tool fails. After a later approval, the
+- Otherwise it gets `NXDOMAIN` with a negative TTL of 0 (S07-03-dns, "Negative answers"), and the tool fails. After a later approval, the
   next lookup reaches `wb-netd` and succeeds. So the agent must retry.
 
 ### Kept out of notifications
@@ -106,18 +105,15 @@ the limits allow.
 
 `wb-netd` checks both limits when the query arrives, only to decide the
 answer and the hold. It checks them under the lock of the
-one-open-event-per-name check (S07-03-dns, "Same answer for every
-refusal").
+one-open-event-per-name check (S07-03-dns, "Same answer for every refusal").
 
 - `wb-hostd` tells it when a request closes.
 - A new `wb-netd` gets the VM's pending count and recent rate from
-  `wb-hostd` at start, with the policy (S04-07-supervision, "Restarting
-  a daemon").
+  `wb-hostd` at start, with the policy (S04-07-supervision, "Restarting a daemon").
 
 A name over either limit is refused at DNS, with the same answer and
 hold as any unknown name, without a request. It is logged with the same
-rule. These refusals are aggregated per rule (S07-02-packet-path,
-"Events and rate limits").
+rule. These refusals are aggregated per rule (S07-02-packet-path, "Events and rate limits").
 
 `wb status` shows the VM's pending requests, and the count of names
 refused under each limit since the VM started.
@@ -128,8 +124,7 @@ A request has no wall-clock timeout. It stays pending, in `wb status`
 and as a notification, until:
 
 - the user answers it; or
-- every session in the set it records has ended (S07-03-dns, "Session
-  set at the answer").
+- every session in the set it records has ended (S07-03-dns, "Session set at the answer").
 
 A replaced request's set is the one it was replaced with. So a request
 replaced with sessions A and B doesn't expire when A ends.
@@ -183,8 +178,7 @@ have a fuzz target (C03-policy-and-approvals).
 ### Allow for this session
 
 "Allow for this session" is shown as "for this VM until these sessions
-end", with the sessions listed (S07-11-approvals-and-learning, "Who an
-approval reaches").
+end", with the sessions listed (S07-11-approvals-and-learning, "Who an approval reaches").
 
 ## Decisions
 

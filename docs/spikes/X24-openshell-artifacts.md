@@ -29,7 +29,7 @@ permissive license, at a version that can be pinned?
     credential binding put into pass mode or given an L4-only endpoint.
     OpenShell's version never fires for a `/**` rule.
 - **You are approving:** the changes to S09-01-policy-files
-  ("Network policy schema", "Program narrowing", "Precedence"),
+  ("Network policy schema", "Program narrowing"), S09-11-precedence,
   S09-02-project-settings ("Repository-supplied configuration"),
   S09-03-boundary-check, S09-08-approvals, S09-10-audit,
   S07-08-dependency-gate, one line in "Approvals and

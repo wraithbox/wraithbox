@@ -29,8 +29,7 @@ S06-03-image-updates has no boot that checks a new image before it
 replaces a system disk. Such a boot would be a maintenance VM too.
 
 Once its state is saved and it has stopped, a VM doesn't hold a slot.
-Xcode work takes no slot of its own (S06-04-vms-and-placement, "Xcode
-in the session's VM").
+Xcode work takes no slot of its own (S06-04-vms-and-placement, "Xcode in the session's VM").
 
 ### The work VM is never moved
 

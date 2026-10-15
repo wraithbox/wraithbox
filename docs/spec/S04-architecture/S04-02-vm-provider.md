@@ -31,8 +31,7 @@ On macOS (X18-vsock-handoff):
   sends them along.
 - The hand-off channel is a socketpair that `wb-hostd` passes to
   `wb-vmd` at spawn (`SOCK_SEQPACKET` or `SOCK_DGRAM`, no path). There
-  is one for each VM's `wb-vmd` (S04-03-self-sandboxing, "Each host
-  daemon is self-sandboxed").
+  is one for each VM's `wb-vmd` (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
 - Each message carries exactly one descriptor, and these fields:
   request id, VM generation, direction, source port and destination
   port. The full contract is in I52.
@@ -130,8 +129,7 @@ entries carry it, and a message from an older generation is refused.
 
 ### The device set is fixed and checked
 
-A VM's devices are the ones in S06-06-devices-and-warm-start,
-"Devices", fixed in `wb-vmd`'s code (X25-vmd-sandbox,
+A VM's devices are the ones in S06-06-devices-and-warm-start, "Devices", fixed in `wb-vmd`'s code (X25-vmd-sandbox,
 SEC02-no-host-fs-share, SEC05-default-deny).
 
 - **Check before start.** Before every start and restore, `wb-vmd`
@@ -181,8 +179,7 @@ Three checks verify the parts the profile doesn't enforce:
 This serves SEC04-no-guest-secrets and SEC08-proj-isolation.
 
 `wb-hostd` creates a hand-off socket for each VM at each start and
-restore, and at the restarts of S04-07-supervision, "Restarting a
-daemon". It passes one end to `wb-proxyd`, naming the VM, and the
+restore, and at the restarts of S04-07-supervision, "Restarting a daemon". It passes one end to `wb-proxyd`, naming the VM, and the
 other to that VM's `wb-netd`.
 
 - A stream's VM comes from the socket it arrived on. So do its policy,

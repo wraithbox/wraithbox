@@ -76,8 +76,7 @@ Each session has a new worktree path. So before it starts `claude`,
 `--continue` and `--resume` then find the conversations of the
 project's earlier sessions (FR13-claude-state).
 
-The link is made as the project user (S06-09-session-lifecycle, "As the
-project user"). So `wb-guestd` never follows a link the project user
+The link is made as the project user (S06-09-session-lifecycle, "As the project user"). So `wb-guestd` never follows a link the project user
 made with root's rights.
 
 `wb discard` removes the session's link with its worktree. It leaves
@@ -111,8 +110,7 @@ build`. How is open (I220).
 `wb-guestd` starts `claude` with these variables in its environment
 allowlist:
 
-- the model credential's placeholder (S09-04-credentials, "Model
-  credential"). It is in `CLAUDE_CODE_OAUTH_TOKEN` for a long-lived
+- the model credential's placeholder (S09-04-credentials, "Model credential"). It is in `CLAUDE_CODE_OAUTH_TOKEN` for a long-lived
   token, or in `ANTHROPIC_API_KEY` for an API key;
 - `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`. Claude Code's
   documentation says it turns off updates, telemetry, error reporting
@@ -127,8 +125,7 @@ and paths that the model API profile leaves out. That is assumed, and
 C06-model-api checks it.
 
 The control is `wb-proxyd`. It refuses the event log, and every host
-outside the profile, whatever the guest sets (S07-07-http-policy,
-"model API").
+outside the profile, whatever the guest sets (S07-07-http-policy, "model API").
 
 With the variable set, Claude Code doesn't fetch feature flags. So it
 reaches `/api/eval/` only when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`

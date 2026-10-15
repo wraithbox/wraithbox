@@ -253,8 +253,7 @@ so no later project gets this one's id.
 wasn't landed or discarded. The refusal lists them.
 
 A lost session doesn't count as a session here. `rm` ends it with no
-recovery push (S06-11-reconnect-and-recovery, "Discarding a lost
-session").
+recovery push (S06-11-reconnect-and-recovery, "Discarding a lost session").
 
 Branches already landed in the user's repository stay.
 

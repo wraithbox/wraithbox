@@ -136,8 +136,7 @@ The answer is a Device Config State Change (5019) event. It records:
 - the findings;
 - the decision;
 - the SHA-256 of the joining project's policy and of the union, without
-  a held source if the VM has one (S07-01-per-vm-policy, "Session
-  end").
+  a held source if the VM has one (S07-01-per-vm-policy, "Session end").
 
 An approval is cached on that pair. So the next start with the same
 policy and the same union doesn't ask again. Any change to either asks

@@ -90,8 +90,7 @@ used on its behalf, though none can read it (T11-shared-vm-grants).
 
 Claude Code in the guest is configured with a placeholder. The model
 API profile's binding injects the real credential on
-`api.anthropic.com` alone (S07-06-requests-and-credentials, "Named
-places").
+`api.anthropic.com` alone (S07-06-requests-and-credentials, "Named places").
 
 The kind of credential stored for the binding decides both:
 
@@ -175,8 +174,7 @@ when the VM is deleted.
 ##### What this gives
 
 Ordinary text then can't match a placeholder by chance. A placeholder
-seen in a refusal names its VM (S07-06-requests-and-credentials,
-"Placeholder binding").
+seen in a refusal names its VM (S07-06-requests-and-credentials, "Placeholder binding").
 
 #### Credential kinds
 
@@ -217,7 +215,7 @@ browser (`/login`, SSO) and its token refresh need two things
 - only the host refreshes.
 
 The host-side login is in I257. A guest's own login fails at the code
-exchange (S14-claude-in-guest, "Commands that don't fit a guest").
+exchange (S14-04-commands-and-endpoints, "Commands that don't fit a guest").
 
 ### Never in the guest
 

@@ -11,7 +11,7 @@ and the audit records `wb-hostd` writes from it.
 
 `wb` filters the guest's terminal stream. It sends `wb-hostd`, over its
 connection for the session, what the filter counted and the dropped
-links it keeps (S16-terminal-stream, "Drop rules" and "Links").
+links it keeps (S16-02-drops-and-links, "Drop rules" and "Links").
 
 #### Reports
 
@@ -33,8 +33,7 @@ UTF-8, and the URL is raw guest bytes.
 
 `wb-hostd` keeps the last counts and the kept links with the session's
 record in `state.db`. So `wb sessions` shows the same summary, links
-included, for a session whose `wb` is gone (S05-cli, "Session
-behavior").
+included, for a session whose `wb` is gone (S05-01-agent-commands, "Session behavior").
 
 #### Form
 
@@ -137,8 +136,7 @@ A link's URL and text are guest bytes. The record holds:
 
 - each backslash as `\\`;
 - each byte that isn't valid UTF-8 as `\xNN`, in uppercase hex;
-- each code point in the escaped set of S16-terminal-stream ("Guest
-  text elsewhere") as `\u{H…}`: the code point in 1 to 6 uppercase hex
+- each code point in the escaped set of S16-03-around-the-stream ("Guest text elsewhere") as `\u{H…}`: the code point in 1 to 6 uppercase hex
   digits, without leading zeros, such as `\u{7F}`, `\u{202E}` or
   `\u{E0041}`.
 

@@ -7,7 +7,7 @@ accepts them, and what it does when processes are left.
 
 ### Leftover processes
 
-The kill loop of S13-guest-confinement ("Layer 1") ends clean, or with
+The kill loop of S13-01-process-hardening ends clean, or with
 a count of processes left.
 
 #### Kill IDs and records
@@ -40,13 +40,11 @@ session's report (S06-09-session-lifecycle, "Ending").
 
 `wb-hostd` accepts a result only when all of these hold:
 
-- The project ID passes the project ID format check of S05-cli
-  ("Naming").
+- The project ID passes the project ID format check of S05-04-naming.
 - The record's kill ID is exactly one that `wb-hostd` sent for that
   project, in this VM and this VM generation. Or the report is that of
   the session whose end led to the kill.
-- It arrives before the kill's deadline (S06-09-session-lifecycle,
-  "Deadlines"), in the VM generation the kill was sent to.
+- It arrives before the kill's deadline (S06-09-session-lifecycle, "Deadlines"), in the VM generation the kill was sent to.
 
 Anything else is dropped, and logged with its rule.
 

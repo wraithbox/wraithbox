@@ -76,10 +76,8 @@ opens nothing in another.
 
 Rotation comes before any other request:
 
-- before `wb-hostd` sends the time (S06-06-devices-and-warm-start,
-  "Time and sleep");
-- before `wb-guestd` lists its sessions (S06-11-reconnect-and-recovery,
-  "Reconnect").
+- before `wb-hostd` sends the time (S06-06-devices-and-warm-start, "Time and sleep");
+- before `wb-guestd` lists its sessions (S06-11-reconnect-and-recovery, "Reconnect").
 
 For the reset, `wb-guestd`:
 

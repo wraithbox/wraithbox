@@ -134,8 +134,7 @@ This command follows a `ca-key-restore` refusal.
    - puts their keys on the removal list;
    - deletes the VM's saved state.
 
-The next start then cold boots with a new CA (S09-05-ca-keys, "Valid
-CA").
+The next start then cold boots with a new CA (S09-05-ca-keys, "Valid CA").
 
 The command is refused while the VM runs. It is refused without a
 terminal, because a person has to confirm. It is never part of a guest
@@ -175,8 +174,7 @@ borrowed its slot. The refusal names the build (S06-07-slot-admission).
 1. checks the host prerequisites (S12-platforms), and the minimum git
    version (S08-workspace-and-git);
 2. creates the projects root `<data>/projects`, and its probe
-   directory. `wb-hostd` can't write them (S04-03-self-sandboxing,
-   "Each host daemon is self-sandboxed");
+   directory. `wb-hostd` can't write them (S04-03-self-sandboxing, "Each host daemon is self-sandboxed");
 3. installs and starts the per-user services. On macOS those are the
    `wb-hostd` LaunchAgent and the `~/.local/bin/wb` link
    (S17-02-setup).
@@ -184,8 +182,7 @@ borrowed its slot. The refusal names the build (S06-07-slot-admission).
 Per platform:
 
 - On Windows, it refuses a host without the platform crypto provider.
-- On Linux, it records whether the CA key is in a TPM (S09-05-ca-keys,
-  "Key"). `--ca-key-store tpm|software` changes the recorded choice.
+- On Linux, it records whether the CA key is in a TPM (S09-05-ca-keys, "Key"). `--ca-key-store tpm|software` changes the recorded choice.
 - On macOS, in an ad-hoc signed build, it refuses the Keychain backend
   with `keychain-needs-team`, and says how to sign the build. It still
   installs and starts the services, and exits with a nonzero status.

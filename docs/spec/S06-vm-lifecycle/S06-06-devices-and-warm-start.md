@@ -20,8 +20,7 @@ A VM has these devices:
 V1 has no shared directories, no host audio input, and no USB or
 serial passthrough (SEC02-no-host-fs-share).
 
-`wb-vmd` refuses any device not in this list (S04-02-vm-provider, "The
-device set is fixed and checked").
+`wb-vmd` refuses any device not in this list (S04-02-vm-provider, "The device set is fixed and checked").
 
 #### The graphics device
 
@@ -168,8 +167,7 @@ by the time it spent saved (X18-vsock-handoff). The periodic update
 corrects drift and a change of the host clock within a minute.
 
 `wb-hostd` never reads or uses a time value from the guest. The guest
-has no message that asks for the time (S04-01-design-principles,
-"Everything in the guest is untrusted"). So the guest can't make
+has no message that asks for the time (S04-01-design-principles, "Everything in the guest is untrusted"). So the guest can't make
 `wb-hostd` send more updates than this schedule.
 
 #### Step or slew

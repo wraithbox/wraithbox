@@ -10,8 +10,7 @@ discarded.
 
 When the host-guest link drops:
 
-- `wb-guestd` stops the project processes (S13-guest-confinement,
-  "Layer 1");
+- `wb-guestd` stops the project processes (S13-01-process-hardening);
 - `wb-hostd` connects to it again (S04-architecture).
 
 `wb-hostd` waits 0.1 s before the first try, and doubles the wait
@@ -24,8 +23,7 @@ After it connects, `wb-guestd` lists what `wb-hostd` hasn't
 acknowledged:
 
 - the sessions it holds;
-- the reports of finished sessions (S06-09-session-lifecycle,
-  "Ending");
+- the reports of finished sessions (S06-09-session-lifecycle, "Ending");
 - the cleanup records, each with its kill ID
   (S06-10-leftover-processes).
 
@@ -47,7 +45,7 @@ failed try.
 #### Answers to sessions and reports
 
 For each entry, `wb-hostd` first checks the session ID format of
-S05-cli ("Naming"). Then it looks for a session of this VM and this VM
+S05-04-naming. Then it looks for a session of this VM and this VM
 generation only, and answers:
 
 - "resume" for a running or paused session whose `wb` is still
@@ -57,7 +55,7 @@ generation only, and answers:
 - "acknowledged" for a report of a session of this VM and this VM
   generation that `wb-hostd` has as running, paused, ending, or lost.
   The session ends with that report as at a normal end. The checks of
-  S06-09-session-lifecycle ("Ending", "Returned work comes from the
+  S06-09-session-lifecycle (S06-09-session-lifecycle, "Ending", "Returned work comes from the
   host") apply.
 - "acknowledged" again for a report of a session that `wb-hostd`
   already has as ended. It logs that, and doesn't change the session.
@@ -68,8 +66,7 @@ below).
 
 On "finish", `wb-guestd`:
 
-1. hangs up as in S06-09-session-lifecycle, "Closing the terminal ends
-   the session", if `claude` still runs;
+1. hangs up as in S06-09-session-lifecycle, "Closing the terminal ends the session", if `claude` still runs;
 2. kills every process left in the session, a stopped WIP commit or
    push included;
 3. removes the stale `index.lock` that a killed commit left
@@ -154,7 +151,7 @@ A lost session counts as ended for these:
 - `wb vm stop` and `wb vm suspend`.
 
 A lost session still counts as a session for the lock and the kill of
-a project's last session (S13-guest-confinement, "Layer 1"). So the
+a project's last session (S13-01-process-hardening). So the
 project user is locked only after its lost sessions have ended. They
 end by recovery, `wb discard`, `wb project rm` or the deadline.
 
@@ -180,7 +177,7 @@ During recovery, `wb-hostd`:
 The session is then ended, with "lost" as its exit status in `wb
 sessions`. When this was the project's last session in the VM, the
 project user is then locked and its processes killed
-(S13-guest-confinement, "Layer 1").
+(S13-01-process-hardening).
 
 A lost session stays live for `export.git` until it ends
 (S08-02-export-repository). So its WIP push still has its base.

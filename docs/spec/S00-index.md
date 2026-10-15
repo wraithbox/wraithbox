@@ -69,6 +69,8 @@ Wraith Box works and why.
 | S09-08-approvals | Approvals | Draft |
 | S09-09-approval-flow | Approval Flow | Draft |
 | S09-10-audit | Audit | Draft |
+| S09-11-precedence | Precedence | Draft |
+| S09-12-terminal-filter | Terminal Filter Records | Draft |
 | S10-tech-stack | Technology Choices | Draft |
 | S11-verification-and-spikes | Verification | Draft |
 | S12-platforms | Platforms | Draft |

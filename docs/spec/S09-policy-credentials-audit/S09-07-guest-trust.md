@@ -6,10 +6,9 @@
 
 ### Guest trust
 
-The sealed image doesn't contain a Wraith Box CA (S06-01-image-layers,
-"Layers"). At runtime `wb-guestd`:
+The sealed image doesn't contain a Wraith Box CA (S06-01-image-layers, "Layers"). At runtime `wb-guestd`:
 
-- writes the VM's current CAs to the trust files ("Files");
+- writes the VM's current CAs to the trust files (S09-01-policy-files, "Files");
 - sets the toolchain trust variables that point clients at them
   ("Variables").
 
@@ -38,8 +37,7 @@ the guest at its next install.
 - The path holds no whitespace, and no character a shell treats
   specially.
 
-Project users read the directory under S13-guest-confinement,
-"Profile".
+Project users read the directory under S13-02-filesystem-profile, "Profile".
 
 The files:
 
@@ -63,8 +61,7 @@ records it when the code is merged.
 `wb-guestd` sets the variables in the environment of:
 
 - every project user's processes;
-- the toolchain user, for a toolchain reconcile (S06-01-image-layers,
-  "The environment"). On a macOS guest, Homebrew's downloads from
+- the toolchain user, for a toolchain reconcile (S06-01-image-layers, "The environment"). On a macOS guest, Homebrew's downloads from
   inspected hosts such as `ghcr.io` have no other way to trust the CA.
 
 Each value is built from constants. The value of `JAVA_TOOL_OPTIONS` is

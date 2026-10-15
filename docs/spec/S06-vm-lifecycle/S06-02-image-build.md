@@ -29,7 +29,7 @@ The install reads only the restore image at the fixed path
 
 - `wb-download` fetches it from Apple's catalog.
 - `wb-hostd` checks its hash before it starts `wb-vmd-install`
-  (S17-install-and-upgrade, "Downloads").
+  (S17-03-downloads).
 - `wb-vmd-install` checks the path again itself (S04-architecture).
 
 A build that seals its image deletes the restore image.
@@ -153,8 +153,7 @@ X14-flow-attribution allows it.
 
 ### Terminfo
 
-Sessions get the host's `TERM` unchanged (S16-terminal-stream,
-"Terminfo"). The image describes it with a terminfo database that the
+Sessions get the host's `TERM` unchanged (S16-03-around-the-stream, "Terminfo"). The image describes it with a terminfo database that the
 build compiles into `/usr/local/share/terminfo`. Root owns it, and no
 other user can write to it.
 

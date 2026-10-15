@@ -34,8 +34,7 @@ S04-07-supervision ("What a restart keeps", "The kept name mapping"):
 From `wb-proxyd` they carry the Go clock's accepted calibration point,
 each new verified tree head, and a `go-sumdb-inconsistent` finding.
 `wb-hostd` checks each of those, stamps it with its receipt time, keeps
-it in `state.db`, and passes it back at start (S07-09-publish-time,
-"Persisted state").
+it in `state.db`, and passes it back at start (S07-09-publish-time, "Persisted state").
 
 They aren't audit events. Nothing rate-limits, suppresses or drops
 them.

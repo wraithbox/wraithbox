@@ -53,8 +53,7 @@ ends the session as a hangup does.
 ### Job control
 
 `claude` can stop itself in interactive use, as it does on `Ctrl-Z`.
-The session helper in the guest sees that (S06-09-session-lifecycle,
-"Session helper"), and `wb-guestd` reports it. The report is guest
+The session helper in the guest sees that (S06-09-session-lifecycle, "Session helper"), and `wb-guestd` reports it. The report is guest
 input, and it can only make `wb` give the terminal back early. `wb`
 then:
 

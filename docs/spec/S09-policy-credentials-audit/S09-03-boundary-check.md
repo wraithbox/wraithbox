@@ -105,8 +105,7 @@ These widen:
 
 A change that widens and fails the check, or can't be checked, is
 refused. The VM then keeps its last policy that passed, and
-`wb policy explain` shows the change as pending (S07-01-per-vm-policy,
-"Policy changes while sessions run").
+`wb policy explain` shows the change as pending (S07-01-per-vm-policy, "Policy changes while sessions run").
 
 A recompute when a session ends goes through the same check when it
 widens the union. On failure, the departing project's denies, limits,
@@ -135,8 +134,7 @@ It answers `unsupported` for:
 - an endpoint in `audit` mode.
 
 The candidate never holds an endpoint in `audit` mode. Wraith Box
-writes it as the whole host in `enforce` mode (S09-01-policy-files,
-"Audit as the whole host").
+writes it as the whole host in `enforce` mode (S09-01-policy-files, "Audit as the whole host").
 
 #### Built-in profiles in the check
 

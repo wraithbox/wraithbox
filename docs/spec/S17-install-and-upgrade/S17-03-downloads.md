@@ -69,8 +69,7 @@ refuses:
 - a host outside its entry, with `download-host-refused`;
 - a URL that isn't HTTPS on port 443;
 - every redirect, with `download-redirect-refused`;
-- an address under the rule of S07-05-hosts-and-modes, "Upstream
-  address", with `upstream-address-refused`.
+- an address under the rule of S07-05-hosts-and-modes, "Upstream address", with `upstream-address-refused`.
 
 That rule lists the host's interfaces with `getifaddrs`. A failure to
 list them refuses the connection with `upstream-address-refused` as
