@@ -18,8 +18,10 @@ building:
 | CA trust (S09-policy-credentials-audit) | trust files + toolchain variables. Not the system keychain, which refuses the CA without a user (X04-tls-inspection, I185) | system trust store + toolchain variables | machine certificate store + toolchain variables |
 | Guest confinement (S13-guest-confinement) | Seatbelt profiles; Network Extension flow labels (X14-flow-attribution); Endpoint Security (X15-endpoint-security) | Landlock and seccomp, as in OpenShell's sandbox runtime (X16-openshell-linux) | to be decided |
 
-Windows 11 requires a TPM 2.0 and Secure Boot. A host that cannot
-provide a virtual TPM to the guest cannot run Windows guests (spikes X11-windows-host,
-X13-windows-guests).
+### Windows guests need a virtual TPM
+
+Windows 11 requires a TPM 2.0 and Secure Boot. A host that can't
+provide a virtual TPM to the guest can't run Windows guests (spikes
+X11-windows-host, X13-windows-guests).
 
 **Status:** Draft

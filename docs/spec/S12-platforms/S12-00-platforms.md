@@ -20,19 +20,23 @@ Briefs: B29-vsock-handoff
 | **Windows 11 Home / Pro** | not possible | later | later, blocked on spike X11-windows-host |
 | **Linux, Ubuntu LTS first** | not possible | later | later |
 
-- macOS guests need Apple hardware, technically and by license.
-- Guests use the host's CPU architecture: arm64 on Apple Silicon; x86-64
-  or arm64 on Windows and Linux. No instruction-set emulation.
-- Windows guests need a Windows license supplied by the user. Wraith Box
-  never ships or downloads a Windows image itself.
-- "Windows 11" means current Home and Pro editions. Features available
-  only on Pro or Enterprise (the Hyper-V management stack, Windows
-  Sandbox) are not relied on.
-- Linux distributions other than Ubuntu LTS, as host or guest, are
-  considered after Ubuntu works; the Linux code avoids Ubuntu-only
-  assumptions where that is free.
-
 The code encodes this matrix in `internal/platform` and tests it.
+
+### What the matrix assumes
+
+- macOS guests need Apple hardware, technically and by license.
+- Guests use the host's CPU architecture, with no instruction-set
+  emulation:
+  - arm64 on Apple Silicon;
+  - x86-64 or arm64 on Windows and Linux.
+- Windows guests need a Windows license that the user supplies. Wraith
+  Box never ships or downloads a Windows image itself.
+- "Windows 11" means the current Home and Pro editions. Wraith Box
+  doesn't rely on features that only Pro or Enterprise have, such as the
+  Hyper-V management stack or Windows Sandbox.
+- Linux distributions other than Ubuntu LTS, as host or guest, are
+  considered after Ubuntu works. The Linux code avoids Ubuntu-only
+  assumptions where that is free.
 
 ### Pages
 
