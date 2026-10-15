@@ -11,9 +11,9 @@ agent interface that keeps Claude Code's specifics in one place
 
 Brief: B45-claude-in-guest
 
-## Design
-
 ![Claude Code in the guest. wb reads an allowlist of the user's ~/.claude/, filters and scans it, and wb-hostd hands the copy to wb-guestd, which writes it as the project user. ~/.claude.json never reaches the guest. wb-download fetches a Claude Code build on the host, wb-release-check checks it for wb-hostd, and wb-guestd installs it root-owned during the image build. Claude Code reaches Anthropic only through wb-proxyd, which injects the model credential.](S14-00-claude-in-guest.svg)
+
+## Design
 
 ### Pages
 
@@ -26,14 +26,15 @@ Brief: B45-claude-in-guest
 
 ### Agent interface
 
-Claude Code is the only agent in V1, and the interface is what Claude
-Code needs, with no general design before a second agent exists
-(decided on I45, row 6). Agent-specific code is in one Go package per
-agent, `internal/agent/claude`, and `wb`, `wb-hostd` and `wb-guestd`
-call it only through the interface in `internal/agent`. An agent supplies:
+Claude Code is the only agent in V1. The interface is what Claude Code
+needs, with no general design before a second agent exists.
+
+Agent-specific code is in one Go package per agent,
+`internal/agent/claude`. `wb`, `wb-hostd` and `wb-guestd` call it only
+through the interface in `internal/agent`. An agent supplies:
 
 - **Command.** The agent command name for `wb` (`claude`, S05-cli,
-  "Agent commands") and the program `wb-guestd` starts.
+  "Agent commands"), and the program `wb-guestd` starts.
 - **Install.** How the image build gets and checks the agent's build
   (S14-01-install).
 - **Configuration carry-in.** Which of the user's files reach the
@@ -44,8 +45,17 @@ call it only through the interface in `internal/agent`. An agent supplies:
 - **Credential bindings.** The kinds of model credential, the guest
   variable that holds each placeholder, and the header each binding
   injects (S09-04-credentials, "Model credential").
-- **Endpoint profile.** The built-in HTTP profile the agent needs, the
-  model API profile for Claude Code (S07-07-http-policy).
+- **Endpoint profile.** The built-in HTTP profile the agent needs. For
+  Claude Code that is the model API profile (S07-07-http-policy).
+
+## Decisions
+
+### An interface shaped by Claude Code alone
+
+The agent interface holds what Claude Code needs. It has no general
+design for agents that don't exist yet.
+
+- **Decided:** I45, row 6.
 
 ## Out of scope
 
