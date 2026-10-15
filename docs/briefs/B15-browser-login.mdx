@@ -1,11 +1,11 @@
 ---
 title: Can Claude Code in the guest run on a browser login while the host keeps the real tokens?
-description: Yes, with conditions. The host holds the real pair and makes every refresh, which rotates the refresh token each time. The user signs in again about every 30 days. Recommended not to build it for V1 and to keep the long-lived token as the subscription mode.
+description: "Yes, with conditions. The host holds the real pair and makes every refresh, which rotates the refresh token each time. The user signs in again about every 30 days. Decided 2026-10-15: not in V1, with the long-lived token as the subscription mode, and no filter for the authorize URL."
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-15: yes, with conditions. Awaiting decision.** Source: I15, X01-model-credential, "Browser login (I15)". Touches S09-policy-credentials-audit, S14-claude-in-guest and S15-least-privilege. API key mode moved to I253.
+**Answered 2026-10-15: yes, with conditions. Decided 2026-10-15: 1A, not in V1, and 2A, the warning stays.** The decisions are in the I15 comment that starts `Decision (2026-10-15)`. Spec changes in I256, the deferred design in I257. Source: I15, X01-model-credential, "Browser login (I15)". Touches S09-policy-credentials-audit, S14-claude-in-guest and S15-least-privilege. API key mode moved to I253.
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions:** Claude Code ran on placeholder tokens while the proxy held the real login and made every refresh. **No:** refusing `/v1/oauth/hello` doesn't hide the login URL in a guest. Recommended: **not in V1** (decision 1) and **no filter** (decision 2).
@@ -155,7 +155,8 @@ S16-terminal-stream removes `claude.com/cai/oauth/authorize` URLs from the guest
 ## What this unblocks
 
 - I15 closes with the decisions. Nothing else is blocked by it.
-- With option B: an issue for the host-side login, in V1. With A, the same issue, for after V1.
+- I256 writes the decisions into S14-claude-in-guest, S09-policy-credentials-audit and S15-least-privilege.
+- I257 keeps the host-side login for after V1.
 - I253 keeps API key mode.
 
 <details>

@@ -1580,5 +1580,23 @@
 		"state": "open",
 		"title": "docs(spec): team-signed development builds and no ad-hoc Keychain",
 		"summary": "Records the B248-dev-signing decision (#248, option A) in the specs."
+	},
+	"255": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X01-model-credential browser login result and brief B15",
+		"summary": "Result of the attended I15 run (2026-10-15) in docs/spikes/X01-model-credential.md, section \"Browser login (I15)\", and brief B15-browser-login."
+	},
+	"256": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S14-claude-in-guest, S09-policy-credentials-audit: browser login decisions from B15-browser-login",
+		"summary": "Spec changes from the B15-browser-login decisions on #15 (2026-10-15)."
+	},
+	"257": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Host-side browser login for the model credential (after V1)",
+		"summary": "A host-side browser login for the model credential, deferred past V1 by the B15-browser-login decision on #15 (2026-10-15, option B not chosen for V1)."
 	}
 }
