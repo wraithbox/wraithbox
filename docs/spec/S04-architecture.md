@@ -282,9 +282,9 @@ nothing themselves (S12-platforms).
       request names a VM, a slot, or a path. While both VMs run, two
       `wb-vmd` instances run.
     - `wb-hostd` treats the contents of every VM bundle as written by
-      a possibly compromised `wb-vmd`. It opens, moves, clones and
-      deletes files in a bundle without following symbolic links, and
-      checks a file's identity before it uses one, as for the sealed
+      a possibly compromised `wb-vmd`. It opens, clones and deletes
+      files in a bundle without following symbolic links, and checks a
+      file's identity before it uses one, as for the sealed
       disk of an image build (S06-vm-lifecycle, "Built by Wraith Box").
   - An image build installs macOS through a third fixed entry,
     `wb-vmd-install` (decided on I64, B64-vmd-sandbox). Its compiled-in

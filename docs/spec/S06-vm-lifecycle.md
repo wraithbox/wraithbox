@@ -136,20 +136,25 @@ in S12-platforms.
   build's SSH session"), and nothing restarts.
 
   `wb-hostd` treats what is in the build bundle as written by a
-  possibly compromised `wb-vmd` (S04-architecture). To keep a sealed
-  image, it takes the system disk and the auxiliary storage, each at
-  its fixed name in the bundle, and for each:
+  possibly compromised `wb-vmd` (S04-architecture). It takes a sealed
+  image only after `wb-launcher` reports that `wb-vmd-install` has
+  exited, so no process of the build can still change the bundle. It
+  takes the system disk and the auxiliary storage, each at its fixed
+  name in the bundle, and for each:
   - `lstat`s the name and requires a regular file with `st_nlink` 1,
     opens it with `O_NOFOLLOW`, and requires that `fstat` on the
     descriptor gives the same `st_dev` and `st_ino`, as `wb-diskfmt`
     checks its file ("Disks");
-  - moves it into `<data>/images/` with `renamex_np` and
-    `RENAME_EXCL`, or clones it from that descriptor with
-    `CLONE_NOFOLLOW`;
-  - deletes the rest of the bundle without following symbolic links.
+  - clones it into `<data>/images/` from that checked descriptor, with
+    `fclonefileat` and `CLONE_NOFOLLOW`, and never acts on the path
+    again.
 
+  It then deletes the build bundle without following symbolic links.
   Any other result fails the build, and `wb-hostd` logs the rule
-  `build-bundle-not-regular`.
+  `build-bundle-not-regular`. A clone of a stored image from
+  `<data>/images/` into a VM bundle ("Storage and distribution",
+  "Updates") uses the same identity check, and clones from the checked
+  descriptor with `CLONE_NOFOLLOW`.
   1. *Provisioning boot.* The first boot sets the macOS provisioning
      options, which are new in macOS 27, so `wb image build` runs on a
      macOS 27 host. The options create the user `wbadmin` and turn

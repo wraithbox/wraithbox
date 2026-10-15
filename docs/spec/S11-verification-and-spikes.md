@@ -27,8 +27,8 @@ be tested before building on them.
   value and its bundle parameter belong to the same slot. The image
   build has tests that leave a symbolic link, a hard-linked file, or a
   directory at the sealed disk's name in the build bundle, and see the
-  build fail with `build-bundle-not-regular` and nothing outside the
-  bundle moved, cloned, or deleted.
+  build fail with `build-bundle-not-regular`, nothing cloned into
+  `<data>/images/`, and nothing outside the bundle deleted.
   Supervision (S04-architecture, "Supervision and failure") has tests
   that close each daemon's control channel and see `wb-netd` and
   `wb-proxyd` exit, `wb-launcher` end what it started and exit, and a
