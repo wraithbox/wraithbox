@@ -198,3 +198,8 @@ blocklist
 defenseclaw
 exfiltration
 Rego
+ctkd
+mesu
+sandboxd
+resolv
+securityd
