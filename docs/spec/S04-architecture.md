@@ -22,7 +22,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
 | `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository (for a push, also reading the `export.git` it borrows from), then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
 | `wb-prover` | Go | user, per boundary check (at `wb trust` and for an approval request whose result isn't cached), started through `wb-launcher` (on macOS); instance cap one per VM plus one for `wb trust` | nothing | repository policy, and a host name the guest asked for in an approval request, both through `wb-hostd` | Set its memory cap, confine itself to its inherited descriptors (the two documents and the result pipe), check the prover binary's hash, then run `openshell-prover check` with fixed arguments (S09-policy-credentials-audit) |
-| `wb-vmd` | platform-native | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | VM handles; during an image build, the provisioning password on a pipe until the start call returns (S15-least-privilege) | none (devices only) | Create, start, stop, save, and restore VMs; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
+| `wb-vmd` | platform-native | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS, as `wb-vmd-work`, `wb-vmd-isolated`, or `wb-vmd-install` for an image build) | its VM's handles; during an image build, the provisioning password on a pipe until the start call returns (S15-least-privilege) | none (devices only) | Create, start, stop, save, and restore its VM; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
 | `wb-netd` | Go | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS) | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (S07-egress-gateway) |
 | `wb-proxyd` | Go | user, spawned for `wb-hostd` (through `wb-launcher` on macOS) | the binding secrets of the VM's sessions, fetched just in time, and the use of the CA signing key (S15-least-privilege) | streams from `wb-netd` | HTTP policy, credential replacement, dependency gate, upstream connections (S07-egress-gateway, S09-policy-credentials-audit) |
 | `wb-guestadmin` | Go | user, one run per image build, `wbadmin` rotation or cleanup, started through `wb-launcher` (on macOS), then exits | the `wbadmin/*` secret store items it writes and fetches, and nothing else | one write-only host-guest connection to `wb-guestd`; pipes to the build's `wb-vmd` and `wb-build-ssh` | The admin side of the image build, `wbadmin` rotation at each VM's first contact, and removing the items of images and system disks that are gone (S15-least-privilege) |
@@ -100,7 +100,8 @@ nothing themselves (S12-platforms).
     the device. The receiver can't read the vsock ports from it, so
     `wb-vmd` sends them along.
   - The hand-off channel is a socketpair that `wb-hostd` passes to
-    `wb-vmd` at spawn (`SOCK_SEQPACKET` or `SOCK_DGRAM`, no path). Each
+    `wb-vmd` at spawn (`SOCK_SEQPACKET` or `SOCK_DGRAM`, no path), one
+    for each VM's `wb-vmd` ("Each host daemon is self-sandboxed"). Each
     message carries exactly one descriptor and the fields request id,
     VM generation, direction, source port and destination port. The
     receiver refuses the message, closes any descriptor in it, and logs
@@ -201,7 +202,7 @@ nothing themselves (S12-platforms).
   beyond inherited descriptors; `wb-proxyd` outbound network and its
   credential store items; `wb-guestadmin` its `wbadmin/*` store items
   and inherited descriptors; `wb-hostd` its state directories; `wb-vmd` the
-  hypervisor and the VM bundles. This hardens our own code; it is not how
+  hypervisor and its VM's bundle. This hardens our own code; it is not how
   the agent is contained (the VM is). How it is done (X23-sandboxed-daemons,
   SEC12-least-privilege):
   - A daemon confines itself first thing in `main`, from a profile
@@ -221,44 +222,78 @@ nothing themselves (S12-platforms).
     itself, it calls `confstr(_CS_DARWIN_USER_CACHE_DIR)` once, because
     the framework needs the per-user cache directory and the lookup
     goes to a system service the profile denies. libSystem keeps the
-    answer. It also looks up the user's home directory and resolves the
-    bundle path with `realpath`, to get its profile parameter. It
-    doesn't read anything from the guest or `wb-hostd` before it
-    confines itself.
+    answer. It also reads its slot from the `WB_VMD_SLOT` environment
+    variable that its launcher entry sets (below), looks up the user's
+    home directory, and resolves its slot's bundle path with
+    `realpath`, to get its profile parameter. It doesn't read anything
+    from the guest or `wb-hostd` before it confines itself.
     The profile's parameters are the bundle path, from the fixed
     platform path (S12-platforms, "Paths") resolved to its real path,
     and the cache directory from `confstr`. The gRPC contract carries
-    no path. The profile allows reading and writing the bundles, the
-    Virtualization service, the `sysctl` values and system files the
-    framework checks (the CPU name among them, without which saved
+    no path. The profile allows reading and writing that one bundle,
+    the Virtualization service, the `sysctl` values and system files
+    the framework checks (the CPU name among them, without which saved
     states don't restore across profiles), and the sandbox extensions
     the framework hands to its service process, with the cache
     directory extension limited to its `com.apple.metal-` and
     `com.apple.paravirtualizedgraphics-` entries. It denies the user's
-    other files, the network, starting programs, and other services
-    (X25-vmd-sandbox). The extension classes were measured with the
-    X18-vsock-handoff configuration, which also had a Mac graphics
-    device with one display and a USB keyboard and pointer. They are
-    ablated again against the final device set of S06-vm-lifecycle.
-  - Open (X25-vmd-sandbox, decision 1): one `wb-vmd` serves both VMs
-    and can read and write all of `<data>/vms`. A compromise of
-    `wb-vmd` that starts in the isolated VM, through framework code
-    that runs in `wb-vmd`'s process, then reaches the work VM's disks
-    and saved state, which breaks the separation SEC08-proj-isolation
-    puts the isolated VM there for. Recommended: one `wb-vmd` per VM,
-    with two fixed `wb-launcher` entries (`wb-vmd-work`,
-    `wb-vmd-isolated`), each with that VM's bundle as its profile
-    parameter. Each instance learns its slot without arguments, from
-    its program path (two installed names for one binary) or from a
-    fixed environment variable in its launcher entry. Which of the two
-    is part of this decision. If the maintainer keeps one `wb-vmd`, T00-index records
-    the residual risk.
-  - Open (X25-vmd-sandbox, decision 2): installing from a restore image
-    needs three more rules (reading the image, a read extension for
-    it, and the installation service). Recommended: a fixed
-    `wb-launcher` entry, `wb-vmd-install`, whose compiled-in profile
-    adds them, with the restore image at a fixed path under
-    `<data>/images/`. The request doesn't choose the mode or a path.
+    other files, the other VMs' bundles among them, the network,
+    starting programs, and other services (X25-vmd-sandbox). The
+    extension classes were measured with the X18-vsock-handoff
+    configuration, which also had a Mac graphics device with one
+    display and a USB keyboard and pointer. They are ablated again
+    against the final device set of S06-vm-lifecycle.
+  - Each VM has its own `wb-vmd` (decided on I64, B64-vmd-sandbox).
+    One `wb-vmd` for both VMs would let a compromise that starts in the
+    isolated VM, through framework code that runs in `wb-vmd`'s
+    process, reach the work VM's disks and saved state, which breaks
+    the separation SEC08-proj-isolation puts the isolated VM there for.
+    `wb-launcher` has two fixed entries, `wb-vmd-work` and
+    `wb-vmd-isolated`, each with that VM's bundle
+    (`<data>/vms/macos-work.noindex` or
+    `<data>/vms/macos-isolated.noindex`) as its profile parameter, and
+    each with an instance cap of one.
+    - Each instance learns its slot from the `WB_VMD_SLOT` environment
+      variable, which is part of its launcher entry's fixed
+      environment: `work` for `wb-vmd-work`, `isolated` for
+      `wb-vmd-isolated`, and `build` for `wb-vmd-install` (below). The
+      slot never comes from the program path or a request, so the slot
+      and the bundle come from the same table entry.
+    - Before it confines itself, `wb-vmd` refuses to start, logs the
+      rule and exits when the variable is missing
+      (`vmd-slot-missing`), when it holds any other value
+      (`vmd-slot-unknown`), or when the bundle path it resolves isn't
+      that slot's bundle under the real path of `<data>`, as when the
+      bundle is a symbolic link to another VM's bundle
+      (`vmd-slot-bundle-mismatch`). So it never confines itself to a
+      bundle its slot doesn't own (SEC08-proj-isolation).
+    - `wb-hostd` reaches each instance only over the channels it handed
+      that instance at spawn, its control channel and its hand-off
+      socketpair ("The VM provider passes descriptors, not bytes"). The
+      channel a message arrives on says which VM it's about, and no
+      request names a VM, a slot, or a path. While both VMs run, two
+      `wb-vmd` instances run.
+  - An image build installs macOS through a third fixed entry,
+    `wb-vmd-install` (decided on I64, B64-vmd-sandbox). Its compiled-in
+    profile is the `wb-vmd` profile plus the three rules an install
+    needs: reading the restore image, a read extension for it, and the
+    installation service. Only the image build needs those rules. The
+    session VMs' `wb-vmd` instances don't have them
+    (SEC12-least-privilege).
+    - The restore image is at the fixed path
+      `<data>/images/macos-restore.ipsw`. The install target is the
+      fixed build bundle `<data>/images/macos-build.noindex`, the
+      entry's profile parameter, never a path from the request. So the
+      install can't write into the work VM's or the isolated VM's
+      bundle. The request doesn't choose the mode, the image, or a path.
+    - The same instance then runs the build VM's provisioning boot and
+      the rest of the build in that bundle, confined to it
+      (S06-vm-lifecycle, "Built by Wraith Box"), and exits when the
+      build ends. Its instance cap is one, because one maintenance VM
+      runs at a time (S06-vm-lifecycle, "Slot admission").
+    - Only this entry accepts provisioning options.
+      `wb-vmd-work` and `wb-vmd-isolated` refuse them and log the rule
+      (S15-least-privilege, "Refused outside the path").
   - `wb-diskfmt` formats a VM's new data disk (S06-vm-lifecycle,
     "Disks", X08-data-disk). `wb-launcher` has two fixed entries,
     `wb-diskfmt-work` and `wb-diskfmt-isolated`, each with that VM's
@@ -521,8 +556,8 @@ decided the VM behavior on I48 (B48-process-supervision).
   login and again whenever it exits. On macOS the LaunchAgent sets
   `KeepAlive` and doesn't set `AbandonProcessGroup`.
 - `wb-hostd` supervises every other host process. It decides when
-  `wb-vmd`, each VM's `wb-netd` and `wb-proxyd` start, and whether one
-  starts again after it exits. On macOS it starts them through
+  each VM's `wb-vmd` and `wb-netd`, and `wb-proxyd`, start, and
+  whether one starts again after it exits. On macOS it starts them through
   `wb-launcher` ("Each host daemon is self-sandboxed"). Elsewhere it
   starts them itself.
 - `wb-launcher` is the parent of the programs it starts, so only it
@@ -545,9 +580,9 @@ VMs stop with `wb-hostd`, for V1 (decided on I48). `wb-launcher`,
 `wb-hostd`, a socket and never a path. End of file or an error on that
 channel means `wb-hostd` is gone, and each of them acts on its own:
 
-- `wb-vmd` stops every VM it runs at once and exits. It doesn't ask
-  the guest to shut down, and it doesn't save the VM. The sessions in those
-  VMs are lost, and their worktrees stay on the data disk until
+- Each `wb-vmd` stops its VM at once and exits. It doesn't ask
+  the guest to shut down, and it doesn't save the VM. The sessions in
+  that VM are lost, and their worktrees stay on the data disk until
   recovery at the next connection to the VM (S06-vm-lifecycle,
   "Session lifecycle"). Writes the guest flushed are on the disk
   (S06-vm-lifecycle, "Disks").
@@ -607,7 +642,7 @@ Rejected for V1:
   (X02-warm-start), and needs a bounded save on every exit path. A
   later version may move to it. The guest version rule below then
   becomes a range.
-- `wb-vmd` keeps its VMs running without `wb-hostd`, and a new
+- Each `wb-vmd` keeps its VM running without `wb-hostd`, and a new
   `wb-hostd` takes them over (option B). That needs a takeover
   protocol and a `wb-vmd` outside `wb-hostd`'s process group. An
   upgrade replaces `wb-vmd` as well, so it would stop the VMs anyway.
@@ -688,10 +723,10 @@ it didn't ask for:
   replay is the same set either way: the entries `wb-hostd` kept, which
   a new `wb-netd` got at start and a running one sent `wb-hostd` entry
   by entry, with every release.
-- `wb-vmd` isn't restarted in a loop. When it exits, its VMs have
-  stopped with it, and their sessions are lost. `wb-hostd` starts a
-  new `wb-vmd` when a VM is next needed, with the same backoff and the
-  same limit.
+- A VM's `wb-vmd` isn't restarted in a loop. When it exits, its VM
+  has stopped with it, and the VM's sessions are lost. `wb-hostd`
+  starts a new `wb-vmd` for that VM when the VM is next needed, with
+  the same backoff and the same limit.
 
 `wb-hostd` shows a native notification once per outage of a VM's
 `wb-netd` or `wb-proxyd`. It says which process is down, for which VM,
@@ -886,7 +921,9 @@ layout is the same everywhere:
   projects/<project-id>.policy.yaml   per-project network policy
 <data>/
   images/                             base images (copy-on-write clones)
-  vms/<guest-os>-{work,isolated}/     VM bundles: disks, machine identity, saved state
+  images/macos-restore.ipsw           the restore image a macOS image build installs from
+  images/macos-build.noindex/         the build VM's bundle, new for each image build (S06-vm-lifecycle)
+  vms/<guest-os>-{work,isolated}.noindex/  VM bundles: disks, machine identity, saved state
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
   state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit)

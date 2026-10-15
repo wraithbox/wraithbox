@@ -5,7 +5,7 @@ description: Yes, with conditions. A Seatbelt profile with the VM bundles, the V
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-06. Awaiting decision on two points.** Source: X25-vmd-sandbox, I64. Affects S04-architecture, S06-vm-lifecycle, S07-egress-gateway, S11-verification-and-spikes and S12-platforms.
+**Answered 2026-10-06. Decided 2026-10-12: 1A and 2A.** The decisions are in the I64 comment that starts `Decision (2026-10-12):`, which also makes the install target a fixed build bundle. The spec changes are I218. Source: X25-vmd-sandbox, I64. Affects S04-architecture, S06-vm-lifecycle, S07-egress-gateway, S11-verification-and-spikes and S12-platforms.
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions.** `wb-vmd` confines itself the way the Go daemons do (X23-sandboxed-daemons), and a macOS VM installs, boots, saves and restores under the profile at the same speed. The profile also stops `wb-vmd` from sharing a host directory with the guest. It can't stop a NAT network, which would bypass the egress gateway, so that stays a check in `wb-vmd`'s code, which a unit test, an in-guest check and a static check in CI verify. You decide two things. First, whether each VM gets its own `wb-vmd` (recommended), so a compromise from the isolated VM can't reach the work VM. Second, how `wb-vmd` is started to install an image (recommended: a fixed launcher entry). Accepting merges the spec changes in this pull request with both recommendations.

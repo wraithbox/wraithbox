@@ -114,6 +114,21 @@ in S12-platforms.
   VM from a restore image in a local file, then provisions it in two
   stages (X17-image-build). Builds are scripted and repeatable, and
   nobody configures an image by hand.
+
+  The build VM runs in the fixed build bundle
+  `<data>/images/macos-build.noindex`, never in a session VM's bundle
+  and never in a path from a request. Its `wb-vmd` is started through
+  the fixed `wb-launcher` entry `wb-vmd-install`, which is confined to
+  that bundle and is the only `wb-vmd` with the install rules
+  (S04-architecture, decided on I64). The same instance installs macOS,
+  runs the provisioning boot and the boots of the second stage, and
+  exits when the build ends.
+  `wb image build` copies the restore image the user names to the
+  fixed path `<data>/images/macos-restore.ipsw`, and the install reads
+  only that file. Each build starts with a new, empty build bundle:
+  `wb-hostd` deletes what an earlier build left there before it starts
+  `wb-vmd-install`, and moves a sealed image out of the build bundle
+  into `<data>/images/`.
   1. *Provisioning boot.* The first boot sets the macOS provisioning
      options, which are new in macOS 27, so `wb image build` runs on a
      macOS 27 host. The options create the user `wbadmin` and turn
@@ -624,8 +639,10 @@ slot. Guests of other operating systems are limited only by resources
 
 - **What takes a slot.** The work VM, the isolated VM, and a
   *maintenance VM*: one that `wb-hostd` starts for an image rather than
-  for a session. Today that is the build VM of `wb image build`
-  ("Built by Wraith Box"). "Updates" has no boot that checks a new
+  for a session. Today that is the build VM of `wb image build`, which
+  runs in the build bundle `<data>/images/macos-build.noindex` under
+  the `wb-vmd` of the `wb-launcher` entry `wb-vmd-install` ("Built by
+  Wraith Box", S04-architecture). "Updates" has no boot that checks a new
   image before it replaces a system disk, and such a boot would be a
   maintenance VM too. Once its state is saved and it has stopped, a
   VM doesn't hold a slot. Xcode work takes no slot of its own
@@ -668,8 +685,11 @@ slot. Guests of other operating systems are limited only by resources
   system disk, data disk, saved state, auxiliary storage, machine
   identifier or MAC address of the work VM or the isolated VM, and no network grant or
   credential binding of a project (SEC08-proj-isolation). The build
-  makes a new VM with its own network ("Built by Wraith Box"). Lending moves
-  a slot, never a VM's disks or identity.
+  makes a new VM with its own network ("Built by Wraith Box"). Its
+  `wb-vmd` is confined to the build bundle, so it can't open the work
+  VM's or the isolated VM's bundle either (S04-architecture). Lending
+  moves a slot, never a VM's disks or identity, and the isolated VM's
+  `wb-vmd` (`wb-vmd-isolated`) never runs the build VM.
 - **Refusals** (NFR06-explained-refusals). Each one names the rule, what
   holds the slots, and how to free one:
   - a maintenance VM, while the isolated VM has a session that is

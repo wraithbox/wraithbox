@@ -49,7 +49,9 @@ decision of S04-architecture
   they were measured with the X18-vsock-handoff configuration, which
   had a Mac graphics device and a USB keyboard and pointer, and are
   ablated again once S06-vm-lifecycle fixes the set.
-- **Open decisions:**
+- **Decisions:** decided 2026-10-12, as recommended, in the I64
+  comment that starts `Decision (2026-10-12):`. S04-architecture has
+  them (I218).
   1. One `wb-vmd` for both VMs, or one per VM. One `wb-vmd` reads and
      writes all of `<data>/vms`, so a compromise that starts in the
      isolated VM, through framework code in `wb-vmd`'s process, reaches
@@ -57,13 +59,17 @@ decision of S04-architecture
      Recommended: one `wb-vmd` per VM, started from two fixed
      `wb-launcher` entries, each with that VM's bundle as its profile
      parameter. Every boot, save and restore of the spike already ran
-     one VM per process. Keeping one `wb-vmd` needs a
-     T00-index entry for the residual risk.
+     one VM per process. Keeping one `wb-vmd` needed a
+     T00-index entry for the residual risk. Decided: one `wb-vmd` per
+     VM, which learns its slot from a fixed environment variable in
+     its launcher entry.
   2. How `wb-vmd` is started to install from a restore image, given
      that `wb-launcher` passes no arguments. Recommended: a fixed
      launcher entry, `wb-vmd-install`, whose compiled-in profile adds
      the three install rules, with the restore image at a fixed path
      under `<data>/images/`, so no request chooses the mode or a path.
+     Decided: that entry, with a fixed build bundle as the install
+     target, so the install can't write into a session VM's bundle.
 - **Brief:** B64-vmd-sandbox
 
 ## Question
@@ -321,4 +327,4 @@ wasn't booted: it had no guest daemon to answer.
   apply), Rosetta directory shares (a directory share, so the `fuse`
   extension applies, untested), and network block devices.
 
-**Status:** Answered 2026-10-06: yes, with conditions. Only `wb-vmd`'s code keeps a NAT network from the guest
+**Status:** Answered 2026-10-06: yes, with conditions. Only `wb-vmd`'s code keeps a NAT network from the guest. Decided 2026-10-12 (I64): 1A, one `wb-vmd` per VM, and 2A, the `wb-vmd-install` entry
