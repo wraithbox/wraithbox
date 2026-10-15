@@ -81,6 +81,6 @@ the system `ssh` at its fixed platform path, with arguments and
 environment compiled into the shim (S15-least-privilege, "The
 build's SSH session"). Its only connection is to the build guest's
 port 22, through `wb-netd` on the build VM's own network
-(S06-vm-lifecycle, "Images").
+(S06-vm-lifecycle).
 
 **Status:** Draft

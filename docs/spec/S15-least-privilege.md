@@ -66,7 +66,7 @@ that must never leave hardware (the CA signing key) are in the
 platform's hardware key store whatever the backend, on every host
 that has one (S12-platforms). On
 macOS the store holds only the key's wrapped form, which no other Mac
-can use (S09-policy-credentials-audit, "Key").
+can use (S09-05-ca-keys, "Key").
 
 - **Keychain.** The data protection keychain, in every build that a
   team signs, with one access group per role, so each item is reachable
@@ -136,8 +136,7 @@ can use (S09-policy-credentials-audit, "Key").
   code signature at start. With none, it refuses every Keychain access
   with the rule `keychain-needs-team` and logs it. So in such a build
   these are refused with that rule: a session that needs a binding,
-  each VM start, because it needs a CA item (S09-policy-credentials-audit,
-  "Valid CA"), `wb cred set` through `wb-credset`, and `wb image build` and the `wbadmin`
+  each VM start, because it needs a CA item (S09-05-ca-keys, "Valid CA"), `wb cred set` through `wb-credset`, and `wb image build` and the `wbadmin`
   rotation at first contact, because they need `wbadmin/*` items. `wb
   setup` refuses to set up the Keychain backend in such a build with
   the same rule, says that the 1Password backend still works, and says
@@ -173,12 +172,12 @@ and the rule, in every build and on every backend:
   the Keychain, refuses a session start that needs it, and `wb` names
   the binding and says to set it with `wb cred set`.
 - A locked store, -25308 on the Keychain, is rule 7, below.
-- A CA item follows S09-policy-credentials-audit, "Valid CA".
+- A CA item follows S09-05-ca-keys, "Valid CA".
 - Any other failure of a binding or `wbadmin/*` read, such as -34018
   (`errSecMissingEntitlement`), is `store-read-failed`, and the work
   that needed the item is refused with it.
 - A failed write or delete of any item, outside the cases above and
-  the CA issue of S09-policy-credentials-audit, "Valid CA", is
+  the CA issue of S09-05-ca-keys, "Valid CA", is
   `store-write-failed`, and the command or work that made it is
   refused with it.
 
@@ -194,7 +193,7 @@ and the rule, in every build and on every backend:
    process doesn't fetch it, as with 1Password's SSH agent signing. For
    the CA key, `wb-proxyd` fetches only the key's wrapped form, and the
    Secure Enclave or the TPM signs with it, so the key itself never
-   enters the process (S09-policy-credentials-audit, "Key").
+   enters the process (S09-05-ca-keys, "Key").
 3. **Just in time, sized to the need.** A process fetches when the work
    starts, keeps the value in memory only, and drops it when the work
    ends. Go and Swift can't reliably wipe memory, so the bound is the
@@ -227,7 +226,7 @@ and the rule, in every build and on every backend:
    store they wait for. Nothing falls back to another place. In every
    build and on every backend, a read that fails because the store is
    locked, -25308 on the Keychain or a locked 1Password, is this
-   case, also for a CA item (S09-policy-credentials-audit, "Valid CA").
+   case, also for a CA item (S09-05-ca-keys, "Valid CA").
 8. **Generated items are named and removed.** A secret Wraith Box
    generates is random, from the OS's cryptographic random source,
    named for what it belongs to, and removed with it. At start, and
@@ -251,7 +250,7 @@ Item names start with `wraithbox/`. Each `<…>` part is 1 to 64 characters of `
 | `binding/<name>` | `wb-credset`, list (`wb cred list`): names only, no value is fetched | the names, on its standard output to `wb` | one run |
 | `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend |
 | `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the token endpoint the binding names, over TLS | per exchange. Access tokens stay in memory |
-| `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build, and Linux with a TPM) | `wb-proxyd`, write when it issues the CA, fetch, delete | to the Secure Enclave as the key's token object ID, or to the TPM as its key blob. The value is useless on another host | the CA's life. `wb-proxyd` deletes it when the CA expires or is dropped (S09-policy-credentials-audit, "Lifetimes") |
+| `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build, and Linux with a TPM) | `wb-proxyd`, write when it issues the CA, fetch, delete | to the Secure Enclave as the key's token object ID, or to the TPM as its key blob. The value is useless on another host | the CA's life. `wb-proxyd` deletes it when the CA expires or is dropped (S09-06-ca-certificates, "Lifetimes") |
 | CA signing key (macOS, Windows, and Linux with a TPM) | `wb-proxyd`, use: through the wrapped key, or on Windows by its name in the platform crypto provider. On Windows also delete, of the named key, from the removal list below | none: the key stays in the Secure Enclave or the TPM | the CA's life |
 | `ca/<vm>/<ca>`, the software key (Linux hosts without a TPM only) | `wb-proxyd`, write when it issues the CA, fetch, delete | none: it signs in `wb-proxyd` | the CA's life, deleted as above |
 | `wbadmin/build/<build>` | `wb-guestadmin-build`, write, then fetch. `wb-guestadmin-rotate`, fetch at the build VM's first contact | a pipe to the build's `wb-vmd` (until the start call returns), `ssh`'s standard input (one session), the guest connection below | removed when the build ends |
@@ -293,8 +292,7 @@ included, before the URL goes anywhere, the audit log among them
 The provisioning options create the user `wbadmin`, the volume's only
 secure-token holder, which macOS refuses to delete (X17-image-build).
 It stays in the image as a host-administered account: disabled,
-hidden, without a shell and out of `admin` (S06-vm-lifecycle,
-"Sealing"). The host keeps its password in the store, and the secure
+hidden, without a shell and out of `admin` (S06-02-image-build, "Sealing"). The host keeps its password in the store, and the secure
 token keeps working. That keeps SEC11-root-gains-nothing (guest root
 gains no control over the host), because the asset never leaves its
 VM. The password and the token unlock only that VM's disk, nothing
@@ -322,8 +320,7 @@ build deletes `wbadmin`'s keychains before sealing. `wb-guestadmin`
   terminal, because the password then never passes through a terminal
   stream. The session runs only on the build VM's own file-handle
   network through the host's userspace stack, which no third party can
-  join, so the channel authenticates the guest (S06-vm-lifecycle,
-  "Images"). A session that doesn't complete burns the build password.
+  join, so the channel authenticates the guest (S06-vm-lifecycle). A session that doesn't complete burns the build password.
   The build then fails, its bundle is deleted, and cleanup removes its
   items. The build never writes the password into the build bundle, and
   its test searches the bundle for it.
@@ -373,7 +370,7 @@ build deletes `wbadmin`'s keychains before sealing. `wb-guestadmin`
 ## Out of scope
 
 - The browser login for a Claude subscription (I257). The long-lived
-  token is in S09-policy-credentials-audit, "Model credential".
+  token is in S09-04-credentials, "Model credential".
 - Project users' accounts in the guest, which have no password the host
   keeps.
 - The other `SEC*` controls.

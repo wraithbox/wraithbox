@@ -116,7 +116,7 @@ S06-vm-lifecycle says `wb-hostd` "performs admission control and reports a clear
 </div>
 
 <Aside type="note" title="Missing from the issue">
-**GUI work next to untrusted repositories is already in the spec.** S06-vm-lifecycle ("VMs") puts "work that needs a GUI login session" in the isolated VM today. For a trusted project that puts its code in the same VM as untrusted repositories, where guest root can read other projects' clones (T05-cross-proj-clones). The isolated VM exists to avoid exactly that. Until X06-guest-xcode answers, that sentence should read as open, not decided. If a GUI login is needed, the choices are: the isolated VM's console user (accepting T05-cross-proj-clones for those projects), a console login for one project user at a time in the work VM, or giving a GUI project the isolated slot alone while untrusted sessions wait.
+**GUI work next to untrusted repositories is already in the spec.** S06-04-vms-and-placement puts "work that needs a GUI login session" in the isolated VM today. For a trusted project that puts its code in the same VM as untrusted repositories, where guest root can read other projects' clones (T05-cross-proj-clones). The isolated VM exists to avoid exactly that. Until X06-guest-xcode answers, that sentence should read as open, not decided. If a GUI login is needed, the choices are: the isolated VM's console user (accepting T05-cross-proj-clones for those projects), a console login for one project user at a time in the work VM, or giving a GUI project the isolated slot alone while untrusted sessions wait.
 
 **`wb-hostd` can't count other programs' VMs.** It learns about them when a start fails with the framework's limit error. Admission for those is "try, then explain", not a check ahead of time.
 
@@ -141,9 +141,9 @@ S06-vm-lifecycle says `wb-hostd` "performs admission control and reports a clear
 ## Evidence
 
 - <Badge text="verified" variant="success" /> The Virtualization framework has an error for "an attempt to start a virtual machine (VM) exceeded the limit of the number of running VMs the framework allows", `VZErrorVirtualMachineLimitExceeded` (`VZError.h`, macOS 27 SDK).
-- <Badge text="verified" variant="success" /> S06-vm-lifecycle ("VMs") gives the two slots to the work VM and the isolated VM, counts VMs "started by other software", and has `wb-hostd` perform admission control. S04-architecture lists admission control under `wb-hostd`.
+- <Badge text="verified" variant="success" /> S06-04-vms-and-placement gives the two slots to the work VM and the isolated VM, counts VMs "started by other software", and has `wb-hostd` perform admission control. S04-architecture lists admission control under `wb-hostd`.
 - <Badge text="verified" variant="success" /> Images are built locally on each host (V1-07-local-images). Every image build therefore takes a slot on the user's own Mac.
-- <Badge text="verified" variant="success" /> Image updates swap the system disk for a fresh clone (S06-vm-lifecycle, "Images"). A test boot before the swap is the issue's idea, and S06-vm-lifecycle doesn't have it yet.
+- <Badge text="verified" variant="success" /> Image updates swap the system disk for a fresh clone (S06-vm-lifecycle). A test boot before the swap is the issue's idea, and S06-vm-lifecycle doesn't have it yet.
 - <Badge text="verified" variant="success" /> Whether a saved state can be restored reliably, and reused, is X02-warm-start (I16).
 - <Badge text="assumed" variant="caution" /> That a VM whose state is saved and which is stopped no longer counts against the limit. Option A depends on it. X02-warm-start can confirm it in passing.
 - <Badge text="assumed" variant="caution" /> That no public API lists macOS VMs other programs run. If one exists, `wb` can name them in the refusal.

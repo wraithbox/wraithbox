@@ -7,8 +7,7 @@ Brief: B18-tls-inspection
 ## For review
 
 - **Decides:** the answer to X04-tls-inspection (I18), the trust
-  variables `wb-guestd` sets (S09-policy-credentials-audit, "Guest
-  trust"), and the hosts S07-egress-gateway names as known to break
+  variables `wb-guestd` sets (S09-07-guest-trust), and the hosts S07-egress-gateway names as known to break
   under inspection.
 - **You are approving:** the answer "no". Each client that reads a CA
   file or a variable accepted the CA, and none of the clients that
@@ -67,7 +66,7 @@ Brief: B18-tls-inspection
 From X00-index: do Go-based, Swift-based and Xcode clients accept a CA
 that only the guest trusts? Which clients pin certificates, and which
 reread trust without a restart, which sets the CA overlap
-(S09-policy-credentials-audit, "Lifetimes")? The CA has no name
+(S09-06-ca-certificates, "Lifetimes")? The CA has no name
 constraints since I39, so the issue's checks of name constraints fall
 away. I18 lists the clients: `curl`, Apple `git`, Homebrew `git`, `gh`,
 a Go program, URLSession, SwiftPM resolve through `xcodebuild`, Node,

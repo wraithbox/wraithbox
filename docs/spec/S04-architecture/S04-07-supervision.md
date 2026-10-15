@@ -47,9 +47,8 @@ channel means `wb-hostd` is gone, and each of them acts on its own:
 - Each `wb-vmd` stops its VM at once and exits. It doesn't ask
   the guest to shut down, and it doesn't save the VM. The sessions in
   that VM are lost, and their worktrees stay on the data disk until
-  recovery at the next connection to the VM (S06-vm-lifecycle,
-  "Session lifecycle"). Writes the guest flushed are on the disk
-  (S06-vm-lifecycle, "Disks").
+  recovery at the next connection to the VM (S06-09-session-lifecycle). Writes the guest flushed are on the disk
+  (S06-05-disks).
 - `wb-netd` and `wb-proxyd` close every stream and exit. The guest's
   only network path is gone, so egress stops (SEC05-default-deny).
 - `wb-launcher` sends `SIGTERM` to every program it started that still
@@ -70,9 +69,8 @@ the rule on every host.
 
 A new `wb-hostd` takes over nothing. It starts a new `wb-launcher` and
 new daemons, marks the sessions it has as starting, running, paused or
-ending as lost (S06-vm-lifecycle, "Lost"), and starts a VM again only
-when a session or warm start asks for one (S06-vm-lifecycle, "Warm
-start"). A start that fails because the old VM is still stopping is a
+ending as lost (S06-11-reconnect-and-recovery, "Lost"), and starts a VM again only
+when a session or warm start asks for one (S06-06-devices-and-warm-start, "Warm start"). A start that fails because the old VM is still stopping is a
 temporary failure, which `wb-hostd` retries a bounded number of times,
 as for a restore.
 
@@ -151,7 +149,7 @@ it didn't ask for:
   `wb-proxyd` keep for the active period. `wb-hostd` keeps the
   authoritative count of pending approval requests and the rate of new
   ones, and a new `wb-netd` gets both at start, with the policy
-  (S09-policy-credentials-audit, "Approval flow").
+  (S09-09-approval-flow).
 - `wb-hostd` keeps each VM's synthetic name mapping too: every live
   entry, with its name, its address, and the time `wb-hostd` received
   its last record. It keeps an entry until the entry's release record
@@ -171,7 +169,7 @@ it didn't ask for:
   each running VM's placeholder set on its control channel before it
   creates that VM's new hand-off socket, so the placeholder scan has
   every placeholder before the first stream arrives
-  (S09-policy-credentials-audit, "Model credential"). At each restore
+  (S09-04-credentials, "Model credential"). At each restore
   of a suspended VM, `wb-hostd` hands back the VM's set the same way,
   before it creates the VM's hand-off socket.
 - When a VM's `wb-netd` restarts within a VM generation, `wb-hostd`

@@ -6,8 +6,9 @@ learn mode, and the approval flow.
 
 **Verifies:** S07-egress-gateway ("Enforced per VM", "Modes, per
 host", "Profile parts", "Approvals and learning", "Session end", "Deny
-duration"), S09-policy-credentials-audit ("Mode per host and port",
-"Built-in profiles in the check", "Approval flow"),
+duration"), S09-01-policy-files ("Mode per host and port"),
+S09-03-boundary-check ("Built-in profiles in the check"),
+S09-09-approval-flow,
 S13-guest-confinement
 
 ## Unit tests
@@ -33,7 +34,7 @@ Spec: S07-egress-gateway, "Modes, per host".
 - Policy matching, and network policy YAML.
 - The guest flow labels of S13-guest-confinement.
 - The decoder and the script check that show internationalized names in
-  approval requests (S09-policy-credentials-audit, "Approval flow").
+  approval requests (S09-09-approval-flow).
 
 ## Conformance
 
@@ -71,7 +72,7 @@ Spec: S07-egress-gateway, "Enforced per VM".
   reached before the second one joined.
 - For every host and port of a union, see the mode `wb-proxyd` applies
   equal the mode the boundary check projected
-  (S09-policy-credentials-audit, "Mode per host and port"). With a
+  (S09-01-policy-files, "Mode per host and port"). With a
   boundary that allows only `GET` on a host:
   - put the host's port 443 in `audit` with a `GET` rule in one
     project, and add an `enforce` endpoint with a `GET` rule on the
@@ -145,11 +146,11 @@ Spec: S07-egress-gateway, "Profile parts".
   error.
 - With a boundary that forbids `api.github.com` and only the GitHub
   `graphql` part on, see the prover refuse the session start
-  (S09-policy-credentials-audit, "Built-in profiles in the check").
+  (S09-03-boundary-check, "Built-in profiles in the check").
 
 ### Approvals
 
-Spec: S09-policy-credentials-audit, "Approval flow".
+Spec: S09-09-approval-flow.
 
 - Look up a burst of unknown hostnames from the guest, and see the
   approval limits deny the requests past the limit and log each with

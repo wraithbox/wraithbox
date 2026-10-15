@@ -23,7 +23,7 @@ On macOS the bundle is `Wraith Box.app`, with the programs and helper
 bundles of S10-tech-stack, "Packaging and signing". The programs
 without a Keychain access group, `wb-download` and `wb-diskfmt`
 included, are in `Contents/MacOS`. The guest tools disk
-(S06-vm-lifecycle, "`wb-guestd`") is `Contents/Resources/wb-guest-tools.img`.
+(S06-12-guest-agent, "`wb-guestd`") is `Contents/Resources/wb-guest-tools.img`.
 The app's main executable is the notification helper, because macOS
 shows a notification under the bundle of the process that posts it.
 `Info.plist` holds the bundle identifier and, under the key
@@ -204,7 +204,7 @@ platform's mechanism (S12-platforms), with the same rules in its code.
   rule. `wb-hostd` writes each as an HTTP Activity (4002) record, a
   refusal as a refused one with its rule (SEC10-audit). These records
   belong to no VM, so they don't count against any VM's audit budget
-  (S09-policy-credentials-audit, "Audit"), and they're never dropped.
+  (S09-10-audit), and they're never dropped.
   When one can't be written, `wb-hostd` cancels the run with
   `download-audit-failed`, and the rule of S09-policy-credentials-audit
   for a record that can't be written applies.

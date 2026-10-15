@@ -65,7 +65,7 @@ against the adversary of T00-index.
   `--isolated` or `placement = isolated`. New projects start in the
   work VM (T13-new-project-grants). A project whose grants must stay
   apart is set to `placement = isolated`, and `wb-hostd` refuses to
-  start another project next to it (S06-vm-lifecycle, "VMs").
+  start another project next to it (S06-04-vms-and-placement).
 - **SEC09-host-policy: Policy is held on the host.** The guest cannot read or change policy.
   Repository-supplied configuration is ignored unless the user turns on
   the project's `config_trust` (`wb trust`), and can never add
@@ -108,5 +108,5 @@ against the adversary of T00-index.
   never attached to any VM. The one exception is a blank image the host
   itself created: the host may format it before any guest has run with
   it, and the exception ends when a guest first runs with it
-  (S06-vm-lifecycle, "Disks"). Recovering data from a guest-written
+  (S06-05-disks). Recovering data from a guest-written
   image needs a booted guest.

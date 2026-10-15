@@ -28,9 +28,10 @@ permissive license, at a version that can be pinned?
   - what `l7_bypass_credentialed` means in Wraith Box: a host with a
     credential binding put into pass mode or given an L4-only endpoint.
     OpenShell's version never fires for a `/**` rule.
-- **You are approving:** the changes to S09-policy-credentials-audit
-  ("Network policy schema", "Program narrowing", "Repository-supplied
-  configuration", "Boundary check", "Precedence", "Approvals", "Audit"),
+- **You are approving:** the changes to S09-01-policy-files
+  ("Network policy schema", "Program narrowing", "Precedence"),
+  S09-02-project-settings ("Repository-supplied configuration"),
+  S09-03-boundary-check, S09-08-approvals, S09-10-audit,
   S07-egress-gateway ("Dependency gate", one line in "Approvals and
   learning"), S10-tech-stack (the OpenShell rows), S04-architecture (a
   `wb-prover` row), S08-workspace-and-git (`.wraithbox/` is flagged) and

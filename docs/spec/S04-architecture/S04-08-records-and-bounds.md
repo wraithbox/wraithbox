@@ -46,16 +46,14 @@ restart limit.
   stamps each entry with its own receipt time and never uses a time
   from `wb-netd`.
 - **Placeholder records** carry a VM, a binding, and one placeholder
-  that `wb-proxyd` generated (S09-policy-credentials-audit, "Model
-  credential"). At a session start that needs a binding with a
+  that `wb-proxyd` generated (S09-04-credentials, "Model credential"). At a session start that needs a binding with a
   placeholder, `wb-hostd` asks `wb-proxyd` for the VM's placeholder
   on its control channel. `wb-proxyd` fetches the binding, generates a
   placeholder if the VM has none for it, and replies with a
   placeholder record on the same control channel, not on the one-way
   accounting socket. The record has the size limit and fixed format of
   the records above. The session start waits for that reply before
-  `wb-guestd` starts `claude` (S06-vm-lifecycle, "Claude Code in the
-  guest"), as it waits for a locked secret store (S15-least-privilege).
+  `wb-guestd` starts `claude` (S06-08-projects-and-sessions, "Claude Code in the guest"), as it waits for a locked secret store (S15-least-privilege).
   `wb-proxyd` also sends a record on the control channel for each
   placeholder it draws after a failed check. `wb-hostd` checks the form of each record before it
   keeps the placeholder or puts it in a guest's environment: letters,
@@ -65,7 +63,7 @@ restart limit.
   counts the exit toward the restart limit, and refuses the waiting
   session start with the rule `placeholder-record-invalid`.
 - **Event records** carry what goes to the audit log
-  (S09-policy-credentials-audit, "Audit"). When an event write blocks
+  (S09-10-audit). When an event write blocks
   for more than 100 ms, or fails without blocking (`ENOBUFS` or
   `EAGAIN` on a `SOCK_DGRAM` socket), `wb-netd` refuses new lookups and
   connections, and `wb-proxyd` new streams and requests, with the rule
@@ -102,8 +100,7 @@ from that bundle as well.
   version of each package it serves. In V1 `wb-hostd` accepts only its
   own build version. The running bundle started each running VM,
   because VMs stop with `wb-hostd`, and `wb-guestd` updates itself at
-  start from that bundle's guest tools disk (S06-vm-lifecycle,
-  "`wb-guestd`"). A `wb-guestd` that reports another version is
+  start from that bundle's guest tools disk (S06-12-guest-agent, "`wb-guestd`"). A `wb-guestd` that reports another version is
   refused before any session request. `wb-hostd` logs both versions,
   and a session start in that VM is refused with a message that names
   both and says to stop and start the VM, and to rebuild the image with
@@ -132,8 +129,8 @@ gets its limits before it merges.
 
 | Guest input | Process | Limits | Where |
 |---|---|---|---|
-| Host-guest socket connections | `wb-vmd`, `wb-hostd` | connections opened and not yet passed, connections per VM and per project, reconnects per minute | "The VM provider passes descriptors, not bytes", S06-vm-lifecycle, "Reconnect" |
-| RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on the server and never left at the library default, requests per second per VM, entries in the reconnect session list | I52 for the values, S06-vm-lifecycle, "Reconnect" |
+| Host-guest socket connections | `wb-vmd`, `wb-hostd` | connections opened and not yet passed, connections per VM and per project, reconnects per minute | "The VM provider passes descriptors, not bytes", S06-11-reconnect-and-recovery, "Reconnect" |
+| RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on the server and never left at the library default, requests per second per VM, entries in the reconnect session list | I52 for the values, S06-11-reconnect-and-recovery, "Reconnect" |
 | The version `wb-guestd` reports | `wb-hostd` | 64 bytes, fixed form | "Version skew" |
 | Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-egress-gateway, "Packet path" |
 | Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-egress-gateway, "Packet path", DNS, "Hold limits" |
@@ -141,13 +138,13 @@ gets its limits before it merges.
 | Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | 4 requests in flight, lookups and their tile fetches, and 6,000 uncached lookups a minute per VM, 8 requests in flight per `wb-proxyd` with one kept for the timer's calibration and its tiles, a queue of 2,000 per VM, one retry, 10 s per upstream request, requests served first in, first out, a deadline per request of 42 s plus 125 ms per uncached lookup and per lookup queued ahead, counted at admission and at most 5 minutes, 2,000 versions per `@v/list`, 100,000 cached records and 16 MiB of cached tiles per VM, 1 MiB of calibration tiles, calibration on its own timer only, over a cap refused with `go-clock-lookup-rate`, `go-clock-deadline` or `go-list-too-long`; stored heads, points and findings checked by `wb-hostd`, at most 192 heads of 1 KiB | S07-egress-gateway, "Dependency gate", "Publish time" |
 | Placeholder scan of requests on inspected hosts | `wb-proxyd` | a 64 KiB cap on the request head (`http-header-size`); per request, a held-back window three times the length of the VM's longest placeholder, at most 768 bytes with the 256-character cap; at most 8 placeholders per binding per VM | S07-egress-gateway, "Request form", "Header cap", "Placeholder binding", "Bounds" |
 | Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-egress-gateway, "Stream path" |
-| Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-policy-credentials-audit, "TLS inspection certificate authority" |
+| Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-05-ca-keys |
 | Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-04-push-checks, "Pack scanner", and S08-05-push-limits, "Bounds" |
-| Leftover-process results | `wb-hostd` | one per kill loop, kept until acknowledged, in a session report or a cleanup record; at most one record per project user in the VM, apart from the 64 session entries; accepted only on an exact kill ID `wb-hostd` sent, before the kill's 7-minute deadline, and none by then counts as processes left | S06-vm-lifecycle, "Leftover processes", "Reconnect", "Deadlines" |
-| Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-vm-lifecycle, "Recovery" |
-| Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-policy-credentials-audit, "Approval flow", "Approvals" |
-| Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | "Restarting a daemon", and S09-policy-credentials-audit, "Approvals" |
-| Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-policy-credentials-audit, "Audit" |
+| Leftover-process results | `wb-hostd` | one per kill loop, kept until acknowledged, in a session report or a cleanup record; at most one record per project user in the VM, apart from the 64 session entries; accepted only on an exact kill ID `wb-hostd` sent, before the kill's 7-minute deadline, and none by then counts as processes left | S06-10-leftover-processes, S06-11-reconnect-and-recovery ("Reconnect") and S06-09-session-lifecycle ("Deadlines") |
+| Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-11-reconnect-and-recovery, "Recovery" |
+| Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-09-approval-flow, and S09-08-approvals |
+| Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | "Restarting a daemon", and S09-08-approvals |
+| Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-10-audit |
 | Accounting and event records | `wb-hostd` | 4 KiB per record, fixed format, a malformed record ends the sender | "Accounting and event channels" |
 | Daemon log lines | `wb-hostd` | 100 lines per second per process, 4 KiB per line | "Logs and health" |
 
@@ -170,7 +167,7 @@ are in S17-install-and-upgrade, "Downloads":
   with a truncation marker, and writes one record with the count of
   lines it dropped over the rate. Each file is rotated at 10 MiB, and
   the last 5 are kept. A daemon log isn't the record of a decision. The
-  audit log is (S09-policy-credentials-audit, "Audit").
+  audit log is (S09-10-audit).
 - For each host process `wb-hostd` keeps its state (running, waiting
   to restart, given up, stopped), its version, when it started, its
   restarts in the last 10 minutes, and its last exit reason (the exit

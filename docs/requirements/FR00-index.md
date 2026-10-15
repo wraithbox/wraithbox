@@ -32,8 +32,7 @@ answer is in S03-requirements.
   TTY, piped/non-interactive use, and exit code preserved.
   Known gaps in V1, from the model API profile
   (S07-egress-gateway, B60-model-credential): no auto-update, since the
-  image sets the Claude Code version (S06-vm-lifecycle, "Claude Code in
-  the guest"); no changelog notice at interactive start; and no
+  image sets the Claude Code version (S06-08-projects-and-sessions, "Claude Code in the guest"); no changelog notice at interactive start; and no
   plugins from the marketplace.
 - **FR02-any-repo: Any git repository.** Works in any git repository. The first run in a repository
   registers the project automatically. No setup step is needed per
@@ -54,7 +53,7 @@ answer is in S03-requirements.
 - **FR08-no-proxy-config: No per-tool proxy settings.** Allowlisted network destinations work for every tool without
   per-tool proxy configuration.
   Known gap on macOS guests (decided on I185): clients that read only the guest's system trust store, such as
-  URLSession, don't trust the VM's CA and never reach a guarded host. S09-policy-credentials-audit, "Guest trust", lists
+  URLSession, don't trust the VM's CA and never reach a guarded host. S09-07-guest-trust, lists
   them and what they reach.
 - **FR09-approve-unknown: Approve unknown destinations.** A request to an unknown destination is blocked and offered to the
   user for approval out-of-band (allow once, allow for project, deny). A name on the host-held list of the guest OS's own

@@ -6,8 +6,7 @@ the model API, the event log, and Claude Code end to end.
 
 **Verifies:** S07-egress-gateway ("Credential replacement",
 "Placeholder binding", "Bounds", "model API"),
-S09-policy-credentials-audit ("Model credential"), S06-vm-lifecycle
-("Claude Code in the guest"), S04-08-records-and-bounds ("Accounting and event channels")
+S09-04-credentials ("Model credential"), S06-08-projects-and-sessions ("Claude Code in the guest"), S04-08-records-and-bounds ("Accounting and event channels")
 
 ## Conformance
 
@@ -69,7 +68,7 @@ Spec: S07-egress-gateway, "Bounds".
 
 ### Placeholders
 
-Spec: S09-policy-credentials-audit, "Model credential".
+Spec: S09-04-credentials, "Model credential".
 
 - Create two VMs with the same stored credential, and see two different
   placeholders, each with the credential's length and prefix.
@@ -121,7 +120,7 @@ Spec: S07-egress-gateway, "model API".
   log, see no request to `/api/event_logging/`, and no DNS lookup and
   no approval request for Datadog's log intake, `downloads.claude.ai`
   and `raw.githubusercontent.com`. That shows the guest's variables
-  stopped them (S06-vm-lifecycle, "Claude Code in the guest").
+  stopped them (S06-08-projects-and-sessions, "Claude Code in the guest").
 - Run them again with `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and
   `DISABLE_UPDATES` unset and every approval request denied. See the
   event log refused with the rule `model-event-log`, the hosts outside

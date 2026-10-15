@@ -21,8 +21,7 @@ included.
 - **Effective policy.** A VM's effective policy is the built-in
   profiles, the global policy, and the network policy, credential
   bindings and dependency-gate overrides of every project that has a
-  session in the VM, merged as a union (S09-policy-credentials-audit,
-  "Precedence"), plus the approvals held for the VM ("Approvals and
+  session in the VM, merged as a union (S09-01-policy-files, "Precedence"), plus the approvals held for the VM ("Approvals and
   learning"). `wb-hostd` recomputes it whenever a session starts or
   ends. A project's allow rules and bindings leave the effective
   policy when its last session in the VM ends, and its denies, limits
@@ -57,15 +56,15 @@ included.
   - two projects bind the same host and port, with overlapping paths,
     to different secret store items;
   - the union fails the extension check or the boundary check
-    (S09-policy-credentials-audit, "Boundary check");
-  - the risk check (S09-policy-credentials-audit, "Approvals") finds
+    (S09-03-boundary-check);
+  - the risk check (S09-08-approvals) finds
     something in the joining project's rules and bindings compared
     with the current union, such as a binding on a host another project
     was approved to write to (`capability_expansion`), or an approved
     rule that gives another project's binding new reach
     (`credential_reach_expansion`). The start is refused, and the
     findings go to the user as a join approval
-    (S09-policy-credentials-audit, "Approvals"). Once the user
+    (S09-08-approvals). Once the user
     approves it, the start can go ahead.
 
   `wb-hostd` never settles a conflict by weakening a mode or picking
@@ -81,8 +80,7 @@ included.
   `audit` over `enforce`) widen. A change that moves a host and port
   from `enforce` to `audit` widens, whatever removal caused it, such
   as removing the last `enforce` endpoint on it while an `audit`
-  endpoint stays (S09-policy-credentials-audit, "Mode per host and
-  port"). Adding a raw TCP entry widens, and removing one narrows. A change that narrows
+  endpoint stays (S09-01-policy-files, "Mode per host and port"). Adding a raw TCP entry widens, and removing one narrows. A change that narrows
   applies at once, without the union checks, because a subset of a
   union inside the boundary is inside it too and doesn't add reach. If it
   leaves a host in pass mode for one project and inspected for
@@ -147,7 +145,7 @@ included.
   three pass. Otherwise the held source stays through the join, and
   the risk check runs on the union with it. The join approval is
   cached on the union without the held source
-  (S09-policy-credentials-audit, "Join approval").
+  (S09-08-approvals, "Join approval").
 - **Open streams.** After each recompute, `wb-proxyd` checks every
   open stream of the VM against the new effective policy: a WebSocket,
   an HTTP/2 connection, a pass relay, a raw TCP relay ("Non-HTTP
@@ -177,7 +175,7 @@ included.
   overrides and their approvals. The projects also share the VM's
   limits (T11-shared-vm-grants). A project whose grants must stay
   apart is set to `placement = isolated`, and `wb-hostd` then gives it the
-  isolated VM to itself (S06-vm-lifecycle, "VMs").
+  isolated VM to itself (S06-04-vms-and-placement).
 
 The wildcard budget is counted per *active period*: from the first
 session start in the VM to the end of the last session running in it.
@@ -355,8 +353,7 @@ session start in the VM to the end of the last session running in it.
     rules on I36 (B36-flow-attribution). Over the VM's limits on
     pending requests and on new requests, a name is refused the same
     way with the rule `approval-pending-cap` or `approval-rate`, and
-    doesn't raise an approval event (S09-policy-credentials-audit,
-    "Approval flow").
+    doesn't raise an approval event (S09-09-approval-flow).
   - *Hold.* `wb-netd` sends the answer to a refused query 4 seconds
     after the query arrived, not before, whatever the reason in the
     list under "Same answer for every refusal". Every step that
@@ -440,7 +437,7 @@ session start in the VM to the end of the last session running in it.
     event.
   - *Session set at the answer.* An approval event records the
     sessions running in the VM when it was raised, and has a request
-    id (S09-policy-credentials-audit, "Approval flow"). If that set
+    id (S09-09-approval-flow). If that set
     has changed when the user answers, the answer is refused with the
     rule `approval-sessions-changed`. The request closes, and a new
     request with a new id and the current sessions replaces it.
@@ -479,13 +476,13 @@ session start in the VM to the end of the last session running in it.
     Each of them can be held, because a held query costs only an entry
     in the held-query table, whose cap drops what doesn't fit ("Hold
     limits"). The last three come from the host's own
-    state, not from the name (S04-08-records-and-bounds, "Accounting and event channels", S09-policy-credentials-audit, "Audit"). They don't raise
+    state, not from the name (S04-08-records-and-bounds, "Accounting and event channels", S09-10-audit). They don't raise
     an approval event or debit the wildcard budget. When the query
     arrives, `wb-netd` checks the query rate (`dns-query-rate`) before
     anything else that can debit, then debits the wildcard budget, writes the debit's
     accounting record to `wb-hostd`, and takes the
     one-open-event-per-name check and the checks of the request limits
-    (S09-policy-credentials-audit, "Approval flow") under one lock,
+    (S09-09-approval-flow) under one lock,
     and does no other work that depends on the reason. When that
     write fails, the name is refused with the rule
     `accounting-write-failed` (S04-08-records-and-bounds, "Accounting and event channels"). An answered name's accounting record, with its address,
@@ -590,7 +587,7 @@ session start in the VM to the end of the last session running in it.
     `handoff-socket-refused` and the check that failed when the message
     form is wrong, the descriptor isn't a Unix domain socket of the
     platform's hand-off type, the VM isn't a VM slot of
-    S06-vm-lifecycle ("VMs") or the build VM of a running image build,
+    S06-04-vms-and-placement or the build VM of a running image build,
     or the generation is older than the one it holds for the VM. A
     message with the generation it holds is a replacement, the new
     socket for the same VM and generation that `wb-hostd` sends at a
@@ -701,7 +698,7 @@ session start in the VM to the end of the last session running in it.
     slow its own VM's traffic, or send approval events. `wb-hostd`
     applies the request limits to every event it receives, whatever
     `wb-netd` checked, so those events can't raise more requests than
-    the limits allow (S09-policy-credentials-audit, "Approval flow").
+    the limits allow (S09-09-approval-flow).
     None of them lets a stream reach a name or
     port the VM's effective policy refuses.
   - *Policy order.* Every change to the effective policy (a session
@@ -824,20 +821,18 @@ session start in the VM to the end of the last session running in it.
       nor removes (T10-unnamed-credentials). On a macOS guest, clients
       that read only the system trust store, such as URLSession, also
       reject inspection, a known gap of FR08-no-proxy-config that
-      S09-policy-credentials-audit, "Guest trust", lists.
+      S09-07-guest-trust, lists.
   - **audit**: inspect, with the HTTP policy of the host and port
     logging a violation and letting the request through ("HTTP
     policy"). The mode is per host and port, resolved over the whole
     union, and `enforce` wins when any source has an `enforce`
-    endpoint on that host and port (S09-policy-credentials-audit,
-    "Mode per host and port"). The boundary check sees an `audit` host
+    endpoint on that host and port (S09-01-policy-files, "Mode per host and port"). The boundary check sees an `audit` host
     and port as every method and path on it
-    (S09-policy-credentials-audit, "Audit as the whole host"). The
+    (S09-01-policy-files, "Audit as the whole host"). The
     maintainer decided its rules on I109:
     - *Only the user sets it.* Only the global policy and a project's
       network policy can put a host and port in `audit`. Repository
-      configuration and approvals can't (S09-policy-credentials-audit,
-      "Repository-supplied configuration", "Approved rule").
+      configuration and approvals can't (S09-02-project-settings, "Repository-supplied configuration", and S09-08-approvals, "Approved rule").
     - *Never on a guarded host.* A host with a credential binding, or a
       host a built-in profile covers (as for pass above, by name or
       through a project's remotes), can't be in `audit`. With policy
@@ -965,7 +960,7 @@ session start in the VM to the end of the last session running in it.
     `/api/claude_code/`, `/api/claude_cli/bootstrap` and `/api/eval/`.
     A long-lived token from `claude setup-token` is injected only as
     `Authorization: Bearer <token>`, and an API key only as
-    `x-api-key` (S09-policy-credentials-audit, "Model credential").
+    `x-api-key` (S09-04-credentials, "Model credential").
     The git hosting profile names, per kind of host: GitHub, `Authorization`
     only (GitHub itself refuses `?access_token=`). GitLab, the headers
     `PRIVATE-TOKEN`, `JOB-TOKEN` and `Deploy-Token`, and the parameters
@@ -1094,7 +1089,7 @@ session start in the VM to the end of the last session running in it.
     placeholder sent in one of them goes upstream unchanged. This is
     acceptable because the placeholder isn't a secret and doesn't open
     anything. The model credential's placeholder is also unique to its VM
-    (S09-policy-credentials-audit, "Model credential").
+    (S09-04-credentials, "Model credential").
   - *Compressed requests to the model API.* On the model API profile's
     hosts, `api.anthropic.com` and `platform.claude.com`, a request
     with a `Content-Encoding` other than `identity` is refused with a
@@ -1108,8 +1103,7 @@ session start in the VM to the end of the last session running in it.
   tried out: violations are then logged but allowed ("Modes, per
   host"). The boundary check sees a host and port in `audit` as the
   whole host on that port, every method and path, so it passes only
-  when the boundary allows every one (S09-policy-credentials-audit,
-  "Audit as the whole host"). Built-in profiles:
+  when the boundary allows every one (S09-01-policy-files, "Audit as the whole host"). Built-in profiles:
   - *git hosting*: reads allowed; `git-receive-pack` and mutating API
     calls only for the repositories of the projects with a session in
     the VM (derived from each project's host repository remotes, plus
@@ -1119,12 +1113,10 @@ session start in the VM to the end of the last session running in it.
     allowlisted, and this operation filter applies to every request
     to the GraphQL endpoint of a built-in host, whatever the source of
     the rule that allows it. A user or repository rule on that
-    endpoint is a load error (S09-policy-credentials-audit,
-    "Precedence"). The prover can't model GraphQL rules. The boundary
+    endpoint is a load error (S09-01-policy-files, "Precedence"). The prover can't model GraphQL rules. The boundary
     check sees each one as `POST` to its GraphQL path on its host, and
     the boundary then limits whether that endpoint is reachable, not
-    which operations are allowed (S09-policy-credentials-audit,
-    "Built-in profiles in the check"). Git LFS isn't in the profile and
+    which operations are allowed (S09-03-boundary-check, "Built-in profiles in the check"). Git LFS isn't in the profile and
     fails in V1 (S08-workspace-and-git, "Out of scope"). The built-in
     kinds also name the hosts on which their forges serve SSH on port
     443: `ssh.github.com` for GitHub and `altssh.gitlab.com` for
@@ -1145,7 +1137,7 @@ session start in the VM to the end of the last session running in it.
       are allowed without injection, because Claude Code sent them no
       credential. Claude Code reaches `/api/eval/` only when
       `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is unset in the guest
-      (S06-vm-lifecycle, "Claude Code in the guest"), as in the second
+      (S06-08-projects-and-sessions, "Claude Code in the guest"), as in the second
       pass of the C06-model-api run. Its allow stays,
       because that variable isn't the control: feature flags may change
       what Claude Code does, and what it does without them wasn't
@@ -1172,7 +1164,7 @@ session start in the VM to the end of the last session running in it.
       and `raw.githubusercontent.com` (the changelog), with no
       exact-path entry for any of them. Each is an unknown destination
       like any other host. The guest's Claude Code is set not to ask
-      for them (S06-vm-lifecycle, "Claude Code in the guest"), but the
+      for them (S06-08-projects-and-sessions, "Claude Code in the guest"), but the
       profile is the control. The updater would fetch and run a binary
       past SEC07-dep-gate, and `raw.githubusercontent.com` serves any
       file of any public repository.
@@ -1213,7 +1205,7 @@ session start in the VM to the end of the last session running in it.
   - *What parts don't change.* The removal of guest credentials in
     the places a profile names ("Credential replacement") and the lock
     on a built-in host's kind, mode and rules
-    (S09-policy-credentials-audit, "Precedence") hold whatever parts
+    (S09-01-policy-files, "Precedence") hold whatever parts
     are on.
   - *Per VM.* A part is off in a VM when the global policy or any
     project with a session in the VM turns it off. Turning a part off
@@ -1787,8 +1779,7 @@ as written.
   such as new reach for a credential or a new write method. Policy
   changes take effect without restarting anything. An approval that
   adds an inspected host doesn't need a new CA, because the CA has no name
-  constraints (S09-policy-credentials-audit, "TLS inspection
-  certificate authority").
+  constraints (S09-05-ca-keys).
 - **Who an approval reaches.** The host can't tell which session looked
   up a name ("Enforced per VM"). A request names the VM and the
   sessions running in it. A project or session the guest reported is
@@ -1817,7 +1808,7 @@ as written.
   separate request, which the risk check flags as a new write method
   (fail closed, SEC06-repo-writes). The maintainer decided this on I33
   (B33-no-guest-credentials). An approval is bound by the boundary
-  (S09-policy-credentials-audit, "Approvals"): a rule outside it
+  (S09-08-approvals): a rule outside it
   isn't shown as a request.
 - **Learn mode** (projects with `placement = work` only, not in an
   `--isolated` session, FR10-learn-mode). Learn mode
@@ -1863,7 +1854,7 @@ as written.
     `wb learn report` also say how many names were dropped past the
     cap. Both follow S16-terminal-stream, "Guest text elsewhere". The
     report shows each name with its risk-check findings and its boundary result
-    (S09-policy-credentials-audit, "Approvals"). The user allows the
+    (S09-08-approvals). The user allows the
     names they accept with `wb allow`, or approves a selection from
     the report in one batch. A name with any finding, or whose rule
     would leave the boundary, is left out of the batch, and the user
@@ -1894,8 +1885,7 @@ as written.
     project is meant to run during a learn-mode session, but a process
     can still be left running, by guest root or by launchd. When
     `wb-guestd` reports one, `wb-hostd` refuses learn mode in that VM
-    until the VM is cold-booted (S06-vm-lifecycle, "Leftover
-    processes"). Its
+    until the VM is cold-booted (S06-10-leftover-processes). Its
     names then reach the list, which the user reviews before any name
     is allowed.
 

@@ -6,8 +6,7 @@ the credential checks `wb-proxyd` makes on guest requests and server
 responses.
 
 **Verifies:** S15-least-privilege ("The store holds credentials",
-"Keychain", "Declared access"), S09-policy-credentials-audit
-("Credentials"), S12-platforms ("Development builds on macOS"),
+"Keychain", "Declared access"), S09-04-credentials, S12-platforms ("Development builds on macOS"),
 S10-tech-stack ("Packaging and signing"), S07-egress-gateway
 ("Credential replacement")
 

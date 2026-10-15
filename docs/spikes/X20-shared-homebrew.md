@@ -7,7 +7,7 @@ Brief: B31-shared-homebrew
 ## For review
 
 - **Decides:** the answer to X20-shared-homebrew (I31), and how
-  S06-vm-lifecycle, "Images", now describes the toolchain prefix and
+  S06-vm-lifecycle, now describes the toolchain prefix and
   the project layer. It confirms the I144 decision (the shared prefix
   belongs to a toolchain user) for how projects add packages.
 - **You are approving:** the answer "yes, with conditions", and the
@@ -161,8 +161,7 @@ at a path no longer than `/opt/homebrew` pours every bottle.
    Homebrew followed it, saw a 16-character prefix, and started
    building from source.
 
-The conditions of the shared prefix (S06-vm-lifecycle, "Toolchain
-prefix"). The first three are the integrity control. The others keep
+The conditions of the shared prefix (S06-01-image-layers, "Toolchain prefix"). The first three are the integrity control. The others keep
 sessions reproducible.
 
 1. **Only the toolchain user writes the prefix**, and its group is its

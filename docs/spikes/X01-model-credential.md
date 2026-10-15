@@ -128,7 +128,7 @@ from `claude setup-token`.
 | Mode | Answer | Evidence |
 |---|---|---|
 | Long-lived subscription token (`claude setup-token`, `CLAUDE_CODE_OAUTH_TOKEN`) | **yes** | measured, below |
-| API key (`ANTHROPIC_API_KEY`) | open | not run: no API key. Moved to I253. OpenShell's Claude Code provider shows an API key works this way (X00-index, S09-policy-credentials-audit, "Model credential") |
+| API key (`ANTHROPIC_API_KEY`) | open | not run: no API key. Moved to I253. OpenShell's Claude Code provider shows an API key works this way (X00-index, S09-04-credentials, "Model credential") |
 | Browser login (`/login`, SSO) and its token refresh | **yes, with conditions** | measured 2026-10-15, "Browser login (I15)" |
 
 **Yes for the long-lived token.** Claude Code 2.1.289 sends the
@@ -261,11 +261,11 @@ changes:
   injects `Authorization: Bearer <token>` for a token, or `x-api-key`
   for an API key, on the four paths of `api.anthropic.com` where
   Claude Code sent the token.
-- S09-policy-credentials-audit, "Model credential": the long-lived
+- S09-04-credentials, "Model credential": the long-lived
   token is a supported mode in V1. The placeholder goes in
   `CLAUDE_CODE_OAUTH_TOKEN`, and the text says how the user revokes
   and replaces the token.
-- S06-vm-lifecycle, "Claude Code in the guest": the guest sets
+- S06-08-projects-and-sessions, "Claude Code in the guest": the guest sets
   `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` and `DISABLE_UPDATES=1`,
   and the image sets the Claude Code version. A new version needs a
   cheap image rebuild (I220), and marketplace plugins are unavailable
@@ -452,7 +452,7 @@ these changes:
 - S14-claude-in-guest, "Commands that don't fit a guest": the answer
   to its measurement, the authorize host `claude.com`, and that a
   guest's login fails at the exchange, not before the URL.
-- S09-policy-credentials-audit, "Model credential": API key mode is
+- S09-04-credentials, "Model credential": API key mode is
   open in I253, and the browser login isn't a V1 mode.
 - S15-least-privilege, "Out of scope": the browser login points to
   I257.

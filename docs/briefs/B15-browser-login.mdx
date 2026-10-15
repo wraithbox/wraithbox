@@ -66,7 +66,7 @@ Figure 1. The measured mode, drawn as it would be with a guest. Claude Code hold
 
 ### A. Not in V1
 
-The long-lived token from `claude setup-token` stays the subscription mode (S09-policy-credentials-audit, "Model credential"). A `/login` in the guest can't finish. The profile doesn't allow the token endpoint, and `wb-proxyd` refuses the code exchange. An issue keeps the measured design for after V1.
+The long-lived token from `claude setup-token` stays the subscription mode (S09-04-credentials, "Model credential"). A `/login` in the guest can't finish. The profile doesn't allow the token endpoint, and `wb-proxyd` refuses the code exchange. An issue keeps the measured design for after V1.
 
 - **Cost:** nothing new to build. The user runs `claude setup-token` on the host about once a year.
 - **Gap:** an organization whose admin turns off `setup-token` has no subscription mode in V1. Whether an admin can do that wasn't checked.

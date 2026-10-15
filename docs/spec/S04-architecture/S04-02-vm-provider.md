@@ -88,7 +88,7 @@ contract ("The device set is fixed and checked", below). On macOS
 ### The device set is fixed and checked
 
 A VM's devices are the ones
-in S06-vm-lifecycle, "Devices", fixed in `wb-vmd`'s code
+in S06-06-devices-and-warm-start, "Devices", fixed in `wb-vmd`'s code
 (X25-vmd-sandbox, SEC02-no-host-fs-share, SEC05-default-deny):
 - Before every start and restore, `wb-vmd` checks its own description
   of the configuration against that set, before it creates any

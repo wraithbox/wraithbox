@@ -8,7 +8,7 @@ Brief: B20-guest-xcode
 
 - **Decides:** the answer to X06-guest-xcode (I20), which says what
   FR06-native-tools can offer with full Xcode, and which work needs a
-  GUI login session (S06-vm-lifecycle, "VMs").
+  GUI login session (S06-04-vms-and-placement).
 - **You are approving:** the answer "yes, with conditions". Without a
   GUI login, a project user can build macOS and iOS apps, build and
   test SwiftPM packages, sign to run locally, boot simulators, and run

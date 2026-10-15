@@ -105,15 +105,14 @@ can also push mid-session.
 
 - The same happens whether `claude` exited by itself or after a
   hangup, because closing the terminal ends the session
-  (S06-vm-lifecycle, "Session lifecycle").
+  (S06-09-session-lifecycle).
 - `wb-guestd` commits only after `claude` has exited or was killed,
   and after the session's processes were killed
   (S13-guest-confinement, "Layer 1").
 - A process that left the session while another session of the
   project runs can still write during the commit
   (S13-guest-confinement, "Known gaps").
-- The commit and the push run as the project user (S06-vm-lifecycle,
-  "As the project user").
+- The commit and the push run as the project user (S06-09-session-lifecycle, "As the project user").
 - A session that was lost gets the same commit and push at the next
   connection to its VM, unless it was discarded first.
 
@@ -157,6 +156,6 @@ carries the files in by hand (FR04-carry-in).
 A hangup ends the session like an exit of `claude`. The same WIP
 commit and push follow.
 
-- **Decided:** I46, recorded in S06-vm-lifecycle, "Session lifecycle".
+- **Decided:** I46, recorded in S06-09-session-lifecycle.
 
 **Status:** Draft

@@ -5,7 +5,7 @@ description: Yes, with conditions. One prefix owned by the toolchain user, which
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-07: yes, with conditions. Decided 2026-10-08: no per-project prefix in v1 (A), and bottles only (A).** The decision is in the I31 comment that starts `Decision (2026-10-08):`. Source: X20-shared-homebrew (I31). Changes S06-vm-lifecycle ("Images" only), S11-verification-and-spikes and T00-index (T15-shared-toolchain). Confirms I144 for how projects add packages, and builds on I150. Follow-up: I180 (the untested conditions, in a guest).
+**Answered 2026-10-07: yes, with conditions. Decided 2026-10-08: no per-project prefix in v1 (A), and bottles only (A).** The decision is in the I31 comment that starts `Decision (2026-10-08):`. Source: X20-shared-homebrew (I31). Changes S06-vm-lifecycle ( only), S11-verification-and-spikes and T00-index (T15-shared-toolchain). Confirms I144 for how projects add packages, and builds on I150. Follow-up: I180 (the untested conditions, in a guest).
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions.** One Homebrew prefix, `/opt/homebrew`, that belongs to the toolchain user works. `wb-guestd` installs every project's declared packages into it as that user. A project user can run them but couldn't change any file or install anything, and the agent runs as that project user. The catch is the Brewfile, which is a Ruby program. Run by `brew bundle` as the toolchain user, a Brewfile planted a file in the prefix every project runs from. So the host reads the manifest as a list of package names and refuses anything else. Installing a realistic project took 3 minutes. A prefix in each project's home doesn't work in practice: Homebrew set out to build nine of the project's packages and LLVM from source there, and was still going after 51 minutes. The maintainer decided that a project gets no prefix of its own in v1, and that packages without a prebuilt bottle are refused.
@@ -49,7 +49,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
   <text class="note" x="40" y="200">a Brewfile run as code</text>
 </svg>
 <figcaption>
-Figure 1. Only `wb-guestd`, as the toolchain user, writes the shared prefix, and only from a list of package names. Project users read and run it. The red flows are what the spike showed would let project A change project B's tools, and what the conditions stop (S06-vm-lifecycle, "Toolchain prefix").
+Figure 1. Only `wb-guestd`, as the toolchain user, writes the shared prefix, and only from a list of package names. Project users read and run it. The red flows are what the spike showed would let project A change project B's tools, and what the conditions stop (S06-01-image-layers, "Toolchain prefix").
 </figcaption>
 </figure>
 
@@ -148,7 +148,7 @@ Not adopted: `HOMEBREW_VERIFY_ATTESTATIONS`, which has Homebrew check GitHub's b
 
 ## What it unblocks
 
-I144 and I150 can write the toolchain user and the derived images into S06-vm-lifecycle with the shared prefix confirmed. The `wb-guestd` user and package work of the walking skeleton (V1-M2-walking-skeleton) can build on S06-vm-lifecycle, "Toolchain prefix".
+I144 and I150 can write the toolchain user and the derived images into S06-vm-lifecycle with the shared prefix confirmed. The `wb-guestd` user and package work of the walking skeleton (V1-M2-walking-skeleton) can build on S06-01-image-layers, "Toolchain prefix".
 
 <details>
 <summary>Details and glossary</summary>

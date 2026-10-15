@@ -82,7 +82,7 @@ into its input, which would reach the user's shell after `wb` exits.
 
 **Drop rules.** The counts are by these rules. They are a fixed list,
 so a guest can't make up new ones, and the audit log records the
-counts by these names (S09-policy-credentials-audit, "Audit").
+counts by these names (S09-10-audit).
 
 | Rule | Counts |
 |---|---|
@@ -121,7 +121,7 @@ dropped link's URL (its first 2048 bytes, as the guest sent them,
 an invalid byte counting as one) and text (its first 256 code points
 after the text filter, an invalid byte counting as the one U+FFFD that
 replaces it), and notes when it cut either. It records them in the
-audit log through `wb-hostd` (S09-policy-credentials-audit, "Audit"),
+audit log through `wb-hostd` (S09-10-audit),
 and lists them, without repeats, in the session summary. It keeps at
 most 100 entries. Past that it counts the rest by mark, the ones
 without a mark as `unmarked`. The summary then says "and N more". An
@@ -192,10 +192,10 @@ its output still passes the filter ("Where").
   session such as `less`, `vim` and `top` look `TERM` up in it.
   `TERMINFO` names a path on the host and doesn't cross. The guest
   looks `TERM` up in the terminfo database of its image
-  (S06-vm-lifecycle, "Terminfo"). That database has ncurses' entries
+  (S06-02-image-build, "Terminfo"). That database has ncurses' entries
   and the names Ghostty and kitty set, `xterm-ghostty` and
   `xterm-kitty`. The `less`, `vim` and `top` that macOS ships can't
-  read the kitty entries yet (S06-vm-lifecycle, "Terminfo", I203).
+  read the kitty entries yet (S06-02-image-build, "Terminfo", I203).
   When the guest has no entry for `TERM`, those programs
   report an unknown terminal, and `TERM` still isn't changed (I83).
 
@@ -209,7 +209,7 @@ and the zero-width characters), a line or paragraph separator (Zl,
 Zp), or a `Default_Ignorable_Code_Point` (such as the tag characters,
 the variation selectors and the Hangul fillers). `wb diff`, logs and
 audit records show them escaped, where a reviewer sees them, and
-S09-policy-credentials-audit ("Audit") gives the form for audit
+S09-10-audit gives the form for audit
 records. Other
 output removes them (SEC10-audit, SEC14-no-fake-approvals).
 

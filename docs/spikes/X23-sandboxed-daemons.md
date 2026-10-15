@@ -404,8 +404,7 @@ added the rest, in "wb-proxyd with the Keychain and the Secure Enclave
 
 ## What it means for the specs
 
-- S04-architecture, "Processes", and S04-03-self-sandboxing, "Each host
-  daemon is self-sandboxed": the launcher under option A with its conditions, the
+- S04-architecture, "Processes", and S04-03-self-sandboxing, "Each host daemon is self-sandboxed": the launcher under option A with its conditions, the
   self-check, `wb-hostd` as the exception, and the `wb-netd` log
   descriptor.
 - S12-platforms, "Self-sandbox" row for macOS: a Seatbelt profile

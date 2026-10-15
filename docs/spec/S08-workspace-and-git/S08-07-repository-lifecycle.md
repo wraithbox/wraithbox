@@ -24,8 +24,7 @@ another `wb land --branch` still work. No cleanup follows `wb land`.
 `wb discard <session>`:
 
 1. On a lost session, first ends the session with no recovery push,
-   under the landing lock (S06-vm-lifecycle, "Discarding a lost
-   session").
+   under the landing lock (S06-11-reconnect-and-recovery, "Discarding a lost session").
 2. Deletes the session's refs under `refs/heads/wb/<session-id>/` from
    `landing.git`.
 3. Has `wb-guestd` delete the session's guest worktree and its history

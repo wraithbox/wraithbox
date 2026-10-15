@@ -4,14 +4,14 @@
 the guest, the shared toolchain prefix, the guest admin password, and
 the session lifecycle.
 
-**Verifies:** S06-vm-lifecycle ("Toolchain prefix", "Session
-lifecycle"), S13-guest-confinement, S15-least-privilege (the guest
+**Verifies:** S06-01-image-layers ("Toolchain prefix"),
+S06-09-session-lifecycle, S13-guest-confinement, S15-least-privilege (the guest
 admin password)
 
 ## Fuzzing
 
 - The toolchain manifest parser in `wb-hostd`, and the name check in
-  `wb-guestd` (S06-vm-lifecycle, "Toolchain prefix").
+  `wb-guestd` (S06-01-image-layers, "Toolchain prefix").
 
 ## Conformance
 
@@ -32,7 +32,7 @@ admin password)
 
 ### The toolchain prefix
 
-Spec: S06-vm-lifecycle, "Toolchain prefix", X20-shared-homebrew.
+Spec: S06-01-image-layers, "Toolchain prefix", X20-shared-homebrew.
 
 - As a project user, replace a link in the prefix's `bin`, write to a
   binary in its `Cellar`, and run `brew install`, and see each refused.
@@ -73,7 +73,7 @@ LaunchAgent and a login item:
 
 ### Session lifecycle
 
-Spec: S06-vm-lifecycle, "Session lifecycle".
+Spec: S06-09-session-lifecycle.
 
 With a `wb-guestd` that the test drives as guest root. Each case checks
 the audit entry with its rule.

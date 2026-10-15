@@ -52,7 +52,7 @@ Applied by `wb-guestd` to every process it starts for a project user:
   carry-in and the WIP commit and push included, runs in a child
   process as that user with the session's environment allowlist.
   `wb-guestd`, running as root, never opens a path there
-  (S06-vm-lifecycle, "Session lifecycle");
+  (S06-09-session-lifecycle);
 - when the host-guest socket drops, `wb-guestd` stops every process of
   every project user in the VM, in a loop until none is left running,
   so no session runs on without host session control. It records
@@ -60,7 +60,7 @@ Applied by `wb-guestd` to every process it starts for a project user:
   with job control. When the link returns, it resumes a session only
   when `wb-hostd` answers "resume", and then sends `SIGCONT` only to
   the processes it stopped itself. On "finish" or "end" it hangs up or
-  kills the session (S06-vm-lifecycle, "Session lifecycle"). A
+  kills the session (S06-09-session-lifecycle). A
   project user's processes that it stopped and that no resumed
   session holds stay stopped until that user's processes are killed.
   A new `wb-guestd` process never takes over the sessions of an
@@ -69,7 +69,7 @@ Applied by `wb-guestd` to every process it starts for a project user:
 - when a session's client goes (its terminal closed, or `wb` was
   killed), `wb-guestd` hangs up `claude`. When it hasn't exited 10
   seconds later, `wb-guestd` sends `SIGKILL` to every process in the
-  session's POSIX session (S06-vm-lifecycle, "Session helper"), and
+  session's POSIX session (S06-09-session-lifecycle, "Session helper"), and
   only to those whose user ID is the session's project user. When
   the project user has no other session in the VM, a lost one
   included, it then kills every
@@ -80,8 +80,7 @@ Applied by `wb-guestd` to every process it starts for a project user:
   shells included, `wb-guestd` locks that project user, so nothing new
   starts as it, and kills its processes in a loop until none remain.
   A lost session counts here until recovery, `wb discard`,
-  `wb project rm` or its deadline ends it (S06-vm-lifecycle,
-  "Lost"), so recovery can still commit and push as that user. Until
+  `wb project rm` or its deadline ends it (S06-11-reconnect-and-recovery, "Lost"), so recovery can still commit and push as that user. Until
   then the user's remaining processes stay stopped: `wb-guestd` stops
   them at the link drop, and a new `wb-guestd` process stops every
   project user's processes when it starts, before it serves the host.
@@ -107,8 +106,7 @@ Applied by `wb-guestd` to every process it starts for a project user:
   logs the failure with its rule and the processes left, at most 5
   of them plus a count, each name escaped and cut as S04-08-records-and-bounds ("Version skew") does with guest strings (SEC10-audit,
   SEC13-bounded-resources), leaves the user locked, and
-  reports the result to `wb-hostd` (S06-vm-lifecycle, "Leftover
-  processes"). It
+  reports the result to `wb-hostd` (S06-10-leftover-processes). It
   never boots out a domain where it only stops processes, such as at
   the link drop, so a resumed session keeps its services. `wb-guestd`
   never runs `launchctl print` or `launchctl asuser` against a locked
@@ -122,9 +120,8 @@ process cannot remove it, much like Landlock.
 
 - **Profile.** Reads are denied by default, with an allowlist for the
   system, Homebrew, Xcode, the trust files in `/etc/wraithbox/trust/`
-  (S09-policy-credentials-audit, "Guest trust"), the terminfo database
-  in `/usr/local/share/terminfo`, read-only (S06-vm-lifecycle,
-  "Terminfo"), and the user's own home. Writes are allowed
+  (S09-07-guest-trust), the terminfo database
+  in `/usr/local/share/terminfo`, read-only (S06-02-image-build, "Terminfo"), and the user's own home. Writes are allowed
   only in the user's home, the session worktree, and temporary
   directories. No profile of this layer runs simulators ("Xcode build
   profile" and "Known gaps" below). The profile is generated from policy on the host and

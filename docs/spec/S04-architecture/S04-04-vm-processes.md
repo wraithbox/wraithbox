@@ -48,7 +48,7 @@ each with an instance cap of one.
   a possibly compromised `wb-vmd`. It opens, clones and deletes
   files in a bundle without following symbolic links, and checks a
   file's identity before it uses one, as for the sealed
-  disk of an image build (S06-vm-lifecycle, "Built by Wraith Box").
+  disk of an image build (S06-02-image-build, "Built by Wraith Box").
 
 ### `wb-vmd-install`
 
@@ -75,17 +75,16 @@ session VMs' `wb-vmd` instances don't have them
   doesn't choose the mode, the image, or a path.
 - The same instance then runs the build VM's provisioning boot and
   the rest of the build in that bundle, confined to it
-  (S06-vm-lifecycle, "Built by Wraith Box"), and exits when the
+  (S06-02-image-build, "Built by Wraith Box"), and exits when the
   build ends. Its instance cap is one, because one maintenance VM
-  runs at a time (S06-vm-lifecycle, "Slot admission").
+  runs at a time (S06-07-slot-admission).
 - Only this entry accepts provisioning options. An instance whose
   slot isn't `build` refuses them and logs `vmd-provisioning-refused`
   (S15-least-privilege, "Refused outside the path").
 
 ### `wb-diskfmt`
 
-`wb-diskfmt` formats a VM's new data disk (S06-vm-lifecycle,
-"Disks", X08-data-disk). `wb-launcher` has two fixed entries,
+`wb-diskfmt` formats a VM's new data disk (S06-05-disks, X08-data-disk). `wb-launcher` has two fixed entries,
 `wb-diskfmt-work` and `wb-diskfmt-isolated`, each with that VM's
 bundle as its profile parameter, so the shim learns which bundle
 to format without arguments. As `wb-vmd` does, it resolves the

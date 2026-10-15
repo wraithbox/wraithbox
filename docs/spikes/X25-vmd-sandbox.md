@@ -295,7 +295,7 @@ wasn't booted: it had no guest daemon to answer.
   profile enforces, that NAT and the other devices in the table are
   only enforced by `wb-vmd`'s code, and the three checks that verify
   it (changed in this pull request).
-- **S06-vm-lifecycle, "Devices":** the graphics and USB devices the
+- **S06-06-devices-and-warm-start, "Devices":** the graphics and USB devices the
   spikes used are open, and the profile is ablated again against the
   final set (changed in this pull request).
 - **S07-egress-gateway, "Packet transport":** "no other network path"
@@ -303,7 +303,7 @@ wasn't booted: it had no guest daemon to answer.
 - **S11-verification-and-spikes**: the unit test of the device-set
   check and the in-guest interface check (changed in this pull
   request).
-- **S06-vm-lifecycle, "Warm start":** "invalid argument" also comes
+- **S06-06-devices-and-warm-start, "Warm start":** "invalid argument" also comes
   from a state saved under a `wb-vmd` profile that read different host
   facts, which the existing rules already treat as permanent (changed
   in this pull request).

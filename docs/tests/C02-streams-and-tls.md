@@ -6,8 +6,8 @@ addresses, the HTTP request form, and the inspection CA's leaves,
 rotation, and keys.
 
 **Verifies:** S07-egress-gateway ("Stream hand-off", "Non-HTTP
-streams", "Request form"), S09-policy-credentials-audit ("TLS
-inspection certificate authority", "Valid CA", "Lifetimes")
+streams", "Request form"), S09-05-ca-keys ("Valid CA"),
+S09-06-ca-certificates ("Lifetimes"), S09-07-guest-trust
 
 ## Unit tests
 
@@ -62,7 +62,7 @@ address outside the range, also close VM A's hand-off socket, and
 
 ### Leaf issuance
 
-Spec: S09-policy-credentials-audit, "TLS inspection certificate authority".
+Spec: S09-05-ca-keys.
 
 - Ask `wb-proxyd` for a leaf for a host the policy doesn't inspect, a
   host in pass mode, a stream whose SNI differs from its hostname, a
@@ -90,7 +90,7 @@ On a fake clock, with each step checking its 5019 event:
 
 ### CA key
 
-Spec: S09-policy-credentials-audit, "Valid CA".
+Spec: S09-05-ca-keys, "Valid CA".
 
 - Hand `wb-proxyd` a token object ID of another key, random bytes, a
   missing item, and a restore that returns an error. See each VM start
@@ -112,7 +112,7 @@ Spec: S09-policy-credentials-audit, "Valid CA".
 
 ### CA removal list
 
-Spec: S09-policy-credentials-audit, "Lifetimes".
+Spec: S09-06-ca-certificates, "Lifetimes".
 
 - Hand `wb-proxyd` batches with `binding/x`, `wbadmin/build/x`, a name
   with a part outside the fixed form, and an entry whose CA is still in

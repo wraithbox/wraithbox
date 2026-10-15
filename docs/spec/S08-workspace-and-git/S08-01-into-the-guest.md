@@ -80,8 +80,7 @@ the project key (S05-cli, "Naming").
 ### Session start
 
 `wb-guestd` creates a worktree for the session at
-`<home>/sessions/<session-id>` (S06-vm-lifecycle, "Projects and
-sessions inside a VM"). The worktree is checked out at the session's
+`<home>/sessions/<session-id>` (S06-08-projects-and-sessions). The worktree is checked out at the session's
 `HEAD` in `export.git`. Then `wb-guestd` applies the carry-in
 (FR04-carry-in):
 
@@ -107,7 +106,7 @@ any of it on (SEC04-no-guest-secrets):
 - `wb` scans the new content of each changed file, both its version in
   the index and its version in the working tree. It also scans each
   untracked file. It uses the secret scanner of the image seal
-  (S06-vm-lifecycle, "Sealing").
+  (S06-02-image-build, "Sealing").
 - It scans the content, not the diff text, which for a binary file is
   compressed.
 - A file `wb` can't read, or that the scanner can't decode, is skipped.
@@ -130,7 +129,7 @@ branch is the user's choice to send it.
 
 ### No scanner yet
 
-No secret scanner is chosen yet (S06-vm-lifecycle, "Sealing"), so
+No secret scanner is chosen yet (S06-02-image-build, "Sealing"), so
 carry-in is off until one is. The carry-in scan assumes the scanner is
 precise enough on working trees that it skips few files by mistake.
 That isn't measured.

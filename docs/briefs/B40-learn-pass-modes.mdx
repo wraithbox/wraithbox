@@ -138,7 +138,7 @@ The pass-mode rules are the same under every option. They touch SEC09-host-polic
 - <Badge text="verified" variant="success" /> SEC05-default-deny: "Only allowlisted hostnames are reachable", with no exception in SEC00-index. AGENTS.md: a security control is never weakened to make something work.
 - <Badge text="verified" variant="success" /> Pass mode relays TLS bytes unchanged and is "a documented residual channel" (S07-egress-gateway, "Modes, per host"). T01-allowed-channels doesn't mention pass hosts, and no spec lists them.
 - <Badge text="verified" variant="success" /> Credential replacement and HTTP policy run only on inspected hosts (S07-egress-gateway, "Credential replacement" and "HTTP policy").
-- <Badge text="verified" variant="success" /> Repository configuration can never switch a host to pass (S09-policy-credentials-audit, "Repository-supplied configuration").
+- <Badge text="verified" variant="success" /> Repository configuration can never switch a host to pass (S09-02-project-settings, "Repository-supplied configuration").
 - <Badge text="verified" variant="success" /> The threat model assumes prompt injection in content a trusted project reads (S03-requirements, "Problem"), so trusting the repository doesn't make an open learn session safe.
 - <Badge text="inferred" variant="note" /> A host can't be both pass and credential-bound in a useful way: pass never terminates TLS, so `wb-proxyd` has nowhere to inject the credential.
 - <Badge text="assumed" variant="caution" /> That option A finds a project's hosts in two or three runs. It depends on how deep the chain of hosts behind a refused one goes. A trial on real projects during V1-M5-approvals would show it. The decision can go ahead without a spike.

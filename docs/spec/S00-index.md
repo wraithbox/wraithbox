@@ -19,6 +19,18 @@ Wraith Box works and why.
 | S04-08-records-and-bounds | Records, Versions and Bounds | Draft |
 | S05-cli | Command Line Interface | Draft |
 | S06-vm-lifecycle | VM Lifecycle, Images and the Guest Agent | Draft |
+| S06-01-image-layers | Image Layers and the Toolchain Prefix | Draft |
+| S06-02-image-build | Image Build | Draft |
+| S06-03-image-updates | Image Updates | Draft |
+| S06-04-vms-and-placement | VMs and Placement | Draft |
+| S06-05-disks | Disks | Draft |
+| S06-06-devices-and-warm-start | Devices, Warm Start and Time | Draft |
+| S06-07-slot-admission | Slot Admission | Draft |
+| S06-08-projects-and-sessions | Projects and Sessions Inside a VM | Draft |
+| S06-09-session-lifecycle | Session Lifecycle | Draft |
+| S06-10-leftover-processes | Leftover Processes | Draft |
+| S06-11-reconnect-and-recovery | Reconnect, Loss and Recovery | Draft |
+| S06-12-guest-agent | Guest Agent | Draft |
 | S07-egress-gateway | Egress Gateway | Draft |
 | S08-workspace-and-git | Workspace and Git Round Trip | Draft |
 | S08-01-into-the-guest | Into the Guest | Draft |
@@ -32,6 +44,16 @@ Wraith Box works and why.
 | S08-09-risky-changes | Flagging Risky Changes | Draft |
 | S08-10-wsl | WSL | Draft |
 | S09-policy-credentials-audit | Policy, Credentials, Certificates and Audit | Draft |
+| S09-01-policy-files | Policy Files | Draft |
+| S09-02-project-settings | Project Settings | Draft |
+| S09-03-boundary-check | Boundary Check | Draft |
+| S09-04-credentials | Credentials | Draft |
+| S09-05-ca-keys | CA Keys | Draft |
+| S09-06-ca-certificates | CA Certificates | Draft |
+| S09-07-guest-trust | Guest Trust | Draft |
+| S09-08-approvals | Approvals | Draft |
+| S09-09-approval-flow | Approval Flow | Draft |
+| S09-10-audit | Audit | Draft |
 | S10-tech-stack | Technology Choices | Draft |
 | S11-verification-and-spikes | Verification | Draft |
 | S12-platforms | Platforms | Draft |

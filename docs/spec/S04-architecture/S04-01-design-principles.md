@@ -46,7 +46,7 @@
   rest.** The work VM hosts every project placed there for its guest
   OS, new projects included, separated by guest user accounts. An
   isolated VM takes projects placed there and `--isolated` sessions
-  (S06-vm-lifecycle, "VMs"). For macOS guests this fits Apple's two-VM limit (SEC08-proj-isolation, NFR05-two-macos-vms).
+  (S06-04-vms-and-placement). For macOS guests this fits Apple's two-VM limit (SEC08-proj-isolation, NFR05-two-macos-vms).
   The accounts keep the projects' files apart. The host can't tell
   their connections apart, so it enforces the policy and the
   credential bindings of a VM's projects for the whole VM

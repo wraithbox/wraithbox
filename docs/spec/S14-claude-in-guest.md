@@ -31,11 +31,11 @@ call it only through the interface in `internal/agent`. An agent supplies:
   guest, and the filter they pass ("User configuration" below).
 - **Launch.** The environment variables `wb-guestd` adds to the
   session's allowlist, and the state the agent keeps per project
-  (S06-vm-lifecycle, "Claude Code in the guest" and "Projects and
-  sessions inside a VM").
+  (S06-08-projects-and-sessions, "Claude Code in the
+  guest").
 - **Credential bindings.** The kinds of model credential, the guest
   variable that holds each placeholder, and the header each binding
-  injects (S09-policy-credentials-audit, "Model credential").
+  injects (S09-04-credentials, "Model credential").
 - **Endpoint profile.** The built-in HTTP profile the agent needs, the
   model API profile for Claude Code (S07-egress-gateway, "HTTP
   policy").
@@ -100,16 +100,14 @@ the guest gets (S07-egress-gateway, model API, "Outside the profile").
   A file changed between the check and the send fails the build with
   the rule `claude-release-bytes-changed`.
 - **Into the image.** `wb-guestd` installs the binary through a named
-  operation of the base layer, before sealing (S06-vm-lifecycle,
-  "Built by Wraith Box"), as `/usr/local/bin/claude`, owned by root
+  operation of the base layer, before sealing (S06-02-image-build, "Built by Wraith Box"), as `/usr/local/bin/claude`, owned by root
   with mode 755, in a directory that project users can't write to. The
   toolchain user can't write it either, so a project's formulae can't
-  replace it (S06-vm-lifecycle, "Toolchain prefix"). `wb-guestd`
+  replace it (S06-01-image-layers, "Toolchain prefix"). `wb-guestd`
   starts it by that absolute path, never through `PATH`.
 - **Version.** The image sets the Claude Code version, and the
   installed binary can't change: project users can't write it, and
-  `DISABLE_UPDATES=1` blocks every update path (S06-vm-lifecycle,
-  "Claude Code in the guest"). The profile is the control. An agent
+  `DISABLE_UPDATES=1` blocks every update path (S06-08-projects-and-sessions, "Claude Code in the guest"). The profile is the control. An agent
   can still install another Claude Code in its own home, for example
   with `npm`, and `wb-guestd` doesn't start that one. An updater would
   fetch and run a binary past SEC07-dep-gate. A new version arrives
@@ -233,7 +231,7 @@ targets.
   carries in none (Out of scope).
 - **Secret scan.** `wb` scans each file it would send, the filtered
   `settings.json` included, with the secret scanner of the image seal
-  (S06-vm-lifecycle, "Sealing"), as it scans the working tree carry-in
+  (S06-02-image-build, "Sealing"), as it scans the working tree carry-in
   (S08-01-into-the-guest, "Carry-in scan"). A match, or a file the
   scanner can't decode, skips its unit. When no scanner is configured
   or chosen, or the scanner fails or times out, no configuration
@@ -280,8 +278,7 @@ The decisions on I60 and SEC05-default-deny settle these:
   `DISABLE_UPDATES` blocks them and `downloads.claude.ai` is outside
   the profile. The version comes with the image ("Install").
 - **`/plugin install` and the plugin marketplace** fail for the same
-  reason, a known FR01-drop-in gap in V1 (S06-vm-lifecycle, "Claude
-  Code in the guest").
+  reason, a known FR01-drop-in gap in V1 (S06-08-projects-and-sessions, "Claude Code in the guest").
 - **`/ide`** can't reach an editor on the host, because the guest has
   no route to the host or the LAN (SEC05-default-deny), and V1 has no
   port forwarding (V1-08-no-forward-clipboard).
@@ -290,7 +287,7 @@ The browser login isn't a V1 model credential (B15-browser-login).
 `/login`, `claude login`, `/logout` and `claude setup-token` start in
 the guest, and each fails at its token request. The model credential
 in V1 is a placeholder in the session's environment
-(S09-policy-credentials-audit, "Model credential"). The model API
+(S09-04-credentials, "Model credential"). The model API
 profile allows the reachability check `/v1/oauth/hello` on
 `platform.claude.com` and no login or token path (S07-egress-gateway,
 model API). `wb-proxyd` refuses the code exchange,
@@ -326,7 +323,7 @@ what Claude Code in the guest may reach (S07-egress-gateway, model
 API). Anthropic's event log is a built-in deny, and Datadog, the
 updater and the changelog are outside the profile. The guest sets
 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` and `DISABLE_UPDATES=1`
-(S06-vm-lifecycle, "Claude Code in the guest"), and the profile, not
+(S06-08-projects-and-sessions, "Claude Code in the guest"), and the profile, not
 the guest's environment, is the control.
 
 Deferred to I253: the endpoints of API key mode beyond the placeholder

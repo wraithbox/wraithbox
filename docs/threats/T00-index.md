@@ -92,7 +92,7 @@ print about returned work after `wb land` is outside it
   limits on pending and new requests per VM bound that. A request for
   an internationalized name whose Unicode form mixes scripts or uses
   confusable characters shows a warning
-  (S09-policy-credentials-audit, "Approval flow"). An ASCII name that
+  (S09-09-approval-flow). An ASCII name that
   looks like another, such as `github.corn`, doesn't get a warning.
 - **T05-cross-proj-clones: Other projects' clones after guest root.** After a guest root escalation inside the shared work VM, read or
   write access to other projects' guest clones (code only; no secrets are
@@ -106,7 +106,7 @@ print about returned work after `wb land` is outside it
   their clones after guest root in the same way, and their network
   grants even without it (T11-shared-vm-grants). Only a project with
   `placement = isolated` that isn't marked shared has the VM to itself
-  (S06-vm-lifecycle, "VMs"). The maintainer accepted this co-tenancy
+  (S06-04-vms-and-placement). The maintainer accepted this co-tenancy
   on I42 (2026-10-06, B42-trust-placement).
 - **T06-forged-labels: Forged program labels after guest root.** After a guest root escalation, forged program identities in the
   guest confinement layer (S13-guest-confinement). Rules narrowed to named
@@ -170,7 +170,7 @@ print about returned work after `wb land` is outside it
   strictest limit any of them sets applies to all. Guest root can
   also fake a leftover-process result, which locks the VM against new
   sessions until the user ends the running ones and stops and starts
-  the VM (S06-vm-lifecycle, "Leftover processes"). That cost stays in
+  the VM (S06-10-leftover-processes). That cost stays in
   the VM, and the user can recover from it. Per-project and
   per-session rules narrow the union only by a label the guest
   reports, which guest root can forge (T06-forged-labels), and until
@@ -181,7 +181,7 @@ print about returned work after `wb land` is outside it
   modes and bindings refuse the joining session, and the join notice
   says what becomes reachable. A project whose grants must stay apart
   is set to `placement = isolated`, and `wb-hostd` gives it the
-  isolated VM to itself (S06-vm-lifecycle, "VMs"). With
+  isolated VM to itself (S06-04-vms-and-placement). With
   NFR05-two-macos-vms, one such project runs at a time, and
   `--isolated` sessions wait meanwhile. The maintainer accepted this
   on I36.
@@ -203,7 +203,7 @@ print about returned work after `wb land` is outside it
   in PR123 (B41-git-data-scope).
 - **T13-new-project-grants: New projects share the work VM's grants.**
   A newly registered project has `placement = work`
-  (S06-vm-lifecycle, "VMs"). So the first session in a freshly cloned
+  (S06-04-vms-and-placement). So the first session in a freshly cloned
   repository, the likeliest place for a prompt injection, runs in the
   work VM. Any process in it can use the network grants, credential
   bindings and approvals of every work-VM project with a session
@@ -227,7 +227,7 @@ print about returned work after `wb land` is outside it
   down or blocked, both guests get resets and refusals. Proposed in PR171 (B48-process-supervision).
 - **T15-shared-toolchain: Projects in one guest share the toolchain
   prefix.** Every project user runs tools from the one prefix that
-  the toolchain user owns (S06-vm-lifecycle, "Toolchain prefix"). So
+  the toolchain user owns (S06-01-image-layers, "Toolchain prefix"). So
   the integrity of every project's tools rests on `homebrew/core`: its
   bottles, the Ruby of its formulae, and the `post_install` steps that
   run as the toolchain user when any project declares a formula. A
@@ -242,7 +242,7 @@ print about returned work after `wb land` is outside it
   formulae also use the guest's disk for every project, an
   availability cost that the manifest's caps bound. A project with
   `placement = isolated` that isn't marked shared has a guest, and so
-  a prefix, of its own (S06-vm-lifecycle, "VMs"). Proposed in PR178
+  a prefix, of its own (S06-04-vms-and-placement). Proposed in PR178
   (X20-shared-homebrew, B31-shared-homebrew).
 - **T16-hostd-landing: A compromised `wb-hostd` decides what
   `wb land` brings in.** `wb-hostd` faces the guest, and it may read

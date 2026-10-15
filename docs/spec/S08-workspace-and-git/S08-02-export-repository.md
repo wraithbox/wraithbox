@@ -22,7 +22,7 @@ the guest can write it.
 
 A session is live from its start until it ends.
 
-- A lost session (S06-vm-lifecycle, "Session lifecycle") stays live
+- A lost session (S06-09-session-lifecycle) stays live
   until its recovery, `wb discard` or `wb project rm` ends it. Its WIP
   push then still has its base.
 - A session that has ended but isn't discarded yet isn't live. Its
