@@ -44,7 +44,8 @@ Brief: B145-least-privilege
   the network part of the `wb-proxyd` profile that
   X23-sandboxed-daemons measured for I61, limited to TCP port 443:
   name lookups, `com.apple.trustd.agent` and the metadata of the app
-  bundle's directory for certificate checks, and its inherited
+  bundle's directory for certificate checks, the routing table
+  `sysctl` read that `getifaddrs` makes, and its inherited
   descriptors. It denies files, the secret store and starting
   programs. `wb-launcher` caps the size of the files it writes.
   `wb-hostd` keeps no network.

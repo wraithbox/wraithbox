@@ -74,6 +74,7 @@ test layer:
 - C09-guest-and-sessions
 - C10-terminal
 - C11-host-daemons
+- C12-install-and-downloads
 
 A spec names the pages that verify it in a `**Tests:**` line under its
 `**Requirements:**` line (S01-spec-based-development). A change to a

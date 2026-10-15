@@ -155,10 +155,15 @@ platform's mechanism (S12-platforms), with the same rules in its code.
     (literal "/private/var/run/resolv.conf") (literal "/private/etc/hosts"))
   (allow mach-lookup (global-name "com.apple.trustd.agent"))
   (allow file-read-metadata (literal (param "BUNDLE")))
+  (allow sysctl-read (sysctl-name-prefix "net.routetable"))
   ```
 
   `BUNDLE` is the real path of `Wraith Box.app`, the bundle whose
-  program it is, worked out before it confines itself. Files, the
+  program it is, worked out before it confines itself. The last line
+  is for `getifaddrs`, which reads the interface list from the routing
+  table through `sysctl`. It is assumed: X23-sandboxed-daemons didn't
+  measure it, and the self-check test of C12-install-and-downloads
+  measures the exact name. Files, the
   secret store and starting programs are denied. It can still use its
   inherited descriptors.
 - **Hosts.** Seatbelt can't name hosts. The code refuses a host
@@ -167,9 +172,7 @@ platform's mechanism (S12-platforms), with the same rules in its code.
   an address under the "Upstream address" rule of S07-egress-gateway
   (`upstream-address-refused`). That rule lists the host's interfaces
   with `getifaddrs`, and a failure to list them refuses the connection
-  with `upstream-address-refused` as well. The profile also allows the
-  `sysctl` read that `getifaddrs` makes, and the self-check test of
-  C12-install-and-downloads measures that rule. TLS is checked
+  with `upstream-address-refused` as well. TLS is checked
   against the system roots. Its HTTP client's `Transport.Proxy` is nil, so `HTTPS_PROXY`
   and the system's proxy settings don't apply.
 - **Deadlines.** A connection that isn't up in 30 s fails with
