@@ -33,7 +33,7 @@ peer is Virtualization's service process. It refuses any other
 descriptor.
 
 It doesn't talk to `wb-proxyd`. Its requests carry only item names, in
-the fixed format of S15-least-privilege. `wb-launcher` and
+the fixed format of S15-03-access-rules. `wb-launcher` and
 `wb-guestadmin` both check that format.
 
 A compromised `wb-hostd` can still keep a read end of a build pipe, and
@@ -114,7 +114,7 @@ shim in the bundle that takes no request field.
 It confines itself. Then it runs the one program outside the bundle
 that the launcher allows: the system `ssh` at its fixed platform path,
 with arguments and environment compiled into the shim
-(S15-least-privilege, "The build's SSH session").
+(S15-04-guest-admin, "The build's SSH session").
 
 Its only connection is to the build guest's port 22, through `wb-netd`
 on the build VM's own network (S06-vm-lifecycle).

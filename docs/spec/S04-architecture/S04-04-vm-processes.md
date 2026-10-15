@@ -110,7 +110,7 @@ is one, because one maintenance VM runs at a time
 
 Only this entry accepts provisioning options. An instance whose slot
 isn't `build` refuses them and logs `vmd-provisioning-refused`
-(S15-least-privilege, "Refused outside the path").
+(S15-04-guest-admin, "Refused outside the path").
 
 ### `wb-diskfmt`
 

@@ -152,7 +152,7 @@ Each option leaves the `SEC*` controls unchanged. The contracts themselves serve
 - <Badge text="verified" variant="success" /> mise resolves `buf` to `aqua:bufbuild/buf` (`mise registry buf`), and `go get -tool` adds a `tool` line to `go.mod` (`go help get`, Go 1.27.1).
 - <Badge text="verified" variant="success" /> The grpc-swift 2 quick start uses `swift-tools-version: 6.1` and `.macOS("15.0")` ([grpc-swift-2 README](https://github.com/grpc/grpc-swift-2)).
 - <Badge text="verified" variant="success" /> cspell runs over every tracked file, and `cspell.json` excludes no generated paths. SwiftLint checks every file under `packages/wraithbox-swift/Sources` for size (`.swiftlint.yml`).
-- <Badge text="verified" variant="success" /> The Go tasks CI runs on Windows are single plain commands (S02-toolchain, "Design Approach").
+- <Badge text="verified" variant="success" /> The Go tasks CI runs on Windows are single plain commands (S02-toolchain, "Design").
 - <Badge text="inferred" variant="note" /> gRPC sends messages over HTTP/2 and has no way to pass a file descriptor, so `SCM_RIGHTS` needs its own socket.
 - <Badge text="assumed" variant="caution" /> That golangci-lint skips files marked `Code generated … DO NOT EDIT.` by default. Checked when the first generated file is merged.
 - <Badge text="assumed" variant="caution" /> That `grpc-swift-protobuf` ships a plugin that SwiftPM can build and `buf` can run. Checked when the Swift side is wired up.

@@ -5,8 +5,7 @@ the guest, the shared toolchain prefix, the guest admin password, and
 the session lifecycle.
 
 **Verifies:** S06-01-image-layers ("Toolchain prefix"),
-S06-09-session-lifecycle, S13-guest-confinement, S15-least-privilege (the guest
-admin password)
+S06-09-session-lifecycle, S13-guest-confinement, S15-04-guest-admin
 
 ## Fuzzing
 

@@ -27,7 +27,7 @@ build.
 
 `wb-credset` and `wb-proxyd` both hold that group. So the Keychain
 would let `wb-credset` read a binding too. Our code is what keeps it
-from fetching one (S15-least-privilege, "Keychain").
+from fetching one (S15-02-secret-store, "Keychain").
 
 Signing:
 
@@ -39,8 +39,7 @@ Signing:
   S15-least-privilege documents.
 - An ad-hoc signed build has no Keychain backend. `wb setup` refuses
   it with the rule `keychain-needs-team`, and says how to sign the
-  build. The 1Password backend still works (S15-least-privilege, "The
-  store holds credentials").
+  build. The 1Password backend still works (S15-02-secret-store).
 
 ### Bindings
 
@@ -105,7 +104,7 @@ Each VM gets its own placeholder for the model credential.
 
 `wb-proxyd` generates the placeholder when it first fetches the binding
 for a VM. It is the only process that reads the binding
-(S15-least-privilege, "Declared access"). It sends `wb-hostd` only the
+(S15-03-access-rules, "Declared access"). It sends `wb-hostd` only the
 placeholder, in a placeholder record.
 
 `wb-hostd` keeps the VM's placeholder set, every placeholder of each
@@ -143,7 +142,7 @@ A placeholder that fails a check is discarded. `wb-proxyd` then:
 ##### Random
 
 The random part comes from the OS's cryptographic random source
-(S15-least-privilege, rule 8). It is independent of the credential. It
+(S15-03-access-rules, rule 8). It is independent of the credential. It
 has at least 32 letters and digits, even when the stored credential is
 shorter.
 

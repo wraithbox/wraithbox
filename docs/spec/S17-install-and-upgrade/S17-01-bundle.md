@@ -8,7 +8,7 @@ builds and signs it.
 ### The bundle
 
 On macOS the bundle is `Wraith Box.app`. It holds the programs and
-helper bundles of S10-tech-stack, "Packaging and signing":
+helper bundles of S10-02-packaging-and-signing:
 
 - The programs without a Keychain access group are in
   `Contents/MacOS`, `wb-download` and `wb-diskfmt` included.
@@ -19,7 +19,7 @@ helper bundles of S10-tech-stack, "Packaging and signing":
 
 `Info.plist` holds the bundle identifier. It also holds the build
 version that every program is stamped with, under the key
-`WBBuildVersion` (S10-tech-stack, "One build version"). `wb-hostd`
+`WBBuildVersion` (S10-02-packaging-and-signing, "One build version"). `wb-hostd`
 reads that key to notice an upgrade (S04-07-supervision, "Upgrades").
 
 ### Building a bundle

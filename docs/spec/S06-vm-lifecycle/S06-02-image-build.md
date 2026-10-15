@@ -44,8 +44,7 @@ Each build starts with a new, empty build bundle. Before it starts
 2. creates the bundle directory.
 
 When `wb-vmd-install` exits during a build, the build fails.
-`wb-hostd` deletes the build bundle (S15-least-privilege, "The build's
-SSH session"), and nothing restarts.
+`wb-hostd` deletes the build bundle (S15-04-guest-admin, "The build's SSH session"), and nothing restarts.
 
 #### Taking the sealed image
 

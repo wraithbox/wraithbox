@@ -16,7 +16,7 @@ Each CA has its own P-256 key. `wb-proxyd`:
    accepts any signer.
 
 Only `wb-proxyd` writes, fetches, deletes or uses the key and its store
-item `wraithbox/ca/<vm>/<ca>` (S15-least-privilege, "Declared access").
+item `wraithbox/ca/<vm>/<ca>` (S15-03-access-rules, "Declared access").
 `wb-hostd` gets the public certificate over local IPC, and hands it to
 `wb-guestd`.
 
@@ -131,7 +131,7 @@ with `ca-key-restore`.
 #### Restore
 
 In every build and on every backend, a read that fails because the
-store is locked waits for the unlock (S15-least-privilege, rule 7).
+store is locked waits for the unlock (S15-03-access-rules, rule 7).
 That is -25308 on the Keychain, or a locked 1Password.
 
 Any other failure is `ca-key-restore`:
@@ -147,8 +147,7 @@ restore is refused with that rule.
 #### Ad-hoc signed builds
 
 In an ad-hoc signed build, the Keychain backend refuses every access
-with `keychain-needs-team` (S15-least-privilege, "The store holds
-credentials"). An issue or a restore on that backend fails with that
+with `keychain-needs-team` (S15-02-secret-store). An issue or a restore on that backend fails with that
 rule in place of `ca-key-restore`. So does the VM's start or restore.
 
 #### Recovery
@@ -156,8 +155,7 @@ rule in place of `ca-key-restore`. So does the VM's start or restore.
 `wb vm reset-ca <vm>` (S05-cli):
 
 1. drops the VM's CAs from `wb-hostd`'s record;
-2. puts their items on the removal list (S15-least-privilege,
-   "Declared access");
+2. puts their items on the removal list (S15-03-access-rules, "Declared access");
 3. deletes the VM's saved state.
 
 The VM then cold boots. At that start the record has no CA, or every CA

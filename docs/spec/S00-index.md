@@ -72,6 +72,8 @@ Wraith Box works and why.
 | S09-11-precedence | Precedence | Draft |
 | S09-12-terminal-filter | Terminal Filter Records | Draft |
 | S10-tech-stack | Technology Choices | Draft |
+| S10-01-libraries | Libraries | Draft |
+| S10-02-packaging-and-signing | Packaging and Signing | Draft |
 | S11-verification-and-spikes | Verification | Draft |
 | S12-platforms | Platforms | Draft |
 | S12-01-platform-interfaces | Platform Interfaces | Draft |
@@ -90,6 +92,10 @@ Wraith Box works and why.
 | S14-03-configuration-filter | Configuration Filter | Draft |
 | S14-04-commands-and-endpoints | Commands and Endpoints | Draft |
 | S15-least-privilege | Least Privilege on the Host | Draft |
+| S15-01-rights | Rights | Draft |
+| S15-02-secret-store | The Secret Store | Draft |
+| S15-03-access-rules | Access Rules | Draft |
+| S15-04-guest-admin | The Guest Admin User | Draft |
 | S16-terminal-stream | Terminal Stream | Draft |
 | S16-01-filter | Filter | Draft |
 | S16-02-drops-and-links | Drops and Links | Draft |

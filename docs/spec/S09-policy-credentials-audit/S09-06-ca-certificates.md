@@ -73,8 +73,7 @@ Days count from the current CA's issue.
 3. *Day 60.* The old CA expires.
    - `wb-guestd` removes it from the trust files, and from the system
      trust store where the guest has one (S12-platforms).
-   - Its key goes on the removal list (S15-least-privilege, "Declared
-     access"): the item, or on Windows the named key. `wb-proxyd`
+   - Its key goes on the removal list (S15-03-access-rules, "Declared access"): the item, or on Windows the named key. `wb-proxyd`
      deletes it.
 
 `wb-proxyd` never signs with an expired CA. That is what revokes the

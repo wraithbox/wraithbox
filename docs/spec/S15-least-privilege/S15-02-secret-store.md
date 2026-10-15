@@ -32,8 +32,8 @@ unlock.
 Release builds are signed with Wraith Box's Developer ID. Development
 builds are signed with the developer's own Apple Development
 certificate. They use the provisioning profile that Xcode makes for
-the developer's team (S10-tech-stack, "Packaging and signing",
-S12-platforms, "Development builds on macOS").
+the developer's team (S10-02-packaging-and-signing,
+S12-03-host-prerequisites, "Development builds on macOS").
 
 The groups are named `<TEAMID>.nl.wraithbox.<role>`, where `<TEAMID>`
 is the team that signed the build. So a development build's groups
@@ -133,8 +133,7 @@ and says what to do:
 
 1. Sign in to Xcode with an Apple ID.
 2. Build once in the Xcode app.
-3. Build Wraith Box with the team set (S12-platforms, "Development
-   builds on macOS").
+3. Build Wraith Box with the team set (S12-03-host-prerequisites, "Development builds on macOS").
 
 `wb setup` still does the rest of its work, the per-user services
 included. Then it exits with a nonzero status.

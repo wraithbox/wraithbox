@@ -99,7 +99,7 @@ secret store. `wb-proxyd` fetches them when proxying needs them
 - `wb` itself doesn't have store access.
 - Each command runs `wb-credset` for one operation.
 - `set` passes the value on `wb-credset`'s standard input
-  (S15-least-privilege, "Keychain").
+  (S15-02-secret-store, "Keychain").
 
 ### `wb gate reset go-clock`
 
@@ -188,7 +188,7 @@ Per platform:
   installs and starts the services, and exits with a nonzero status.
 - On macOS, in a development build, it names the signing team. It says
   that every program the team signs can reach Wraith Box's Keychain
-  groups (S15-least-privilege, "The store holds credentials"). It says
+  groups (S15-02-secret-store). It says
   when the signing profile expires, once that is 30 days away or less,
   or after it (S12-03-host-prerequisites, "Development builds on macOS").
 

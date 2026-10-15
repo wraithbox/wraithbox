@@ -69,7 +69,7 @@ explains the IDs.
 | [S07](docs/spec/S07-egress-gateway/S07-00-egress-gateway.md) | Network stack, DNS, proxy, dependency gate |
 | [S08](docs/spec/S08-workspace-and-git/S08-00-workspace-and-git.md) | Workspace and the git round trip |
 | [S09](docs/spec/S09-policy-credentials-audit/S09-00-policy-credentials-audit.md) | Policy, credentials, certificates, audit |
-| [S10](docs/spec/S10-tech-stack.md) | Languages, libraries, packaging |
+| [S10](docs/spec/S10-tech-stack/S10-00-tech-stack.md) | Languages, libraries, packaging |
 | [S11](docs/spec/S11-verification-and-spikes.md) | Verification: test layers, release gate, CI |
 | [S12](docs/spec/S12-platforms/S12-00-platforms.md) | Host and guest platforms, WSL |
 | [S13](docs/spec/S13-guest-confinement/S13-00-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |

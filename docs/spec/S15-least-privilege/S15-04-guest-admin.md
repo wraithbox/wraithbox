@@ -134,8 +134,7 @@ bundle under `<data>/images/`. It logs `vmd-provisioning-refused`
 (S04-architecture).
 
 `wb-launcher` and `wb-guestadmin` accept only requests whose fields
-are item names in the fixed format of S15-03-access-rules, "Declared
-access". Each refusal is logged with its rule.
+are item names in the fixed format of S15-03-access-rules, "Declared access". Each refusal is logged with its rule.
 
 ### Not readable in the image
 

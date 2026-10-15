@@ -25,8 +25,8 @@ requires a spec change, not a workaround.
 ### Development builds on macOS
 
 A development build has the Keychain backend only when the developer's
-own team signs it (S15-least-privilege, "The store holds credentials";
-S10-tech-stack, "Packaging and signing"). The developer sets that up
+own team signs it (S15-02-secret-store;
+S10-02-packaging-and-signing). The developer sets that up
 once per Mac, without a paid membership (X29-dev-signing):
 
 1. Sign in to Xcode with an Apple ID (Xcode, Settings, Accounts). Xcode
@@ -70,7 +70,7 @@ start (S10-tech-stack).
 
 A bundle without a profile, such as an ad-hoc one, gets none of these
 checks. Whether a release build has a profile is the assumption in
-S10-tech-stack, "Packaging and signing", "Signing".
+S10-02-packaging-and-signing, "Signing".
 
 #### Expired profile
 

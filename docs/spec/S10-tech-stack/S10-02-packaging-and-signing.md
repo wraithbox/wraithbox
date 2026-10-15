@@ -25,8 +25,8 @@ Homebrew cask, once signed builds exist.
 
 ### Helper bundles
 
-Each program that holds a Keychain access group (S15-least-privilege,
-"The store holds credentials" and "Declared access") is the main
+Each program that holds a Keychain access group (S15-02-secret-store,
+and S15-03-access-rules, "Declared access") is the main
 executable of its own bundle, `Contents/Helpers/<name>.app`. The
 executable is at `Contents/MacOS/<name>` inside it. The app's
 provisioning profile is copied to its
@@ -45,7 +45,7 @@ that claims a group at launch (-413, "No matching profile found").
 
 Each helper bundle has the app's bundle identifier and `LSUIElement`.
 Its entitlements hold the groups of its items, from the table in
-S15-least-privilege, "Keychain", and no others. The build fails unless:
+S15-02-secret-store, "Keychain", and no others. The build fails unless:
 
 - each helper's signed entitlements equal its row's groups exactly;
 - every other program, `wb` included, has no `keychain-access-groups`
@@ -81,8 +81,7 @@ The build gets the profile from Xcode, as X29-dev-signing did:
 3. It signs from the inside out.
 
 A build with `WB_TEAM_ID` set fails when Xcode gives it no profile. Its
-message names the one-time setup in S12-platforms, "Development builds
-on macOS".
+message names the one-time setup in S12-03-host-prerequisites, "Development builds on macOS".
 
 Without the setting, the build:
 
@@ -92,8 +91,7 @@ Without the setting, the build:
 - doesn't give any program an access group;
 - has no Keychain backend (S15-least-privilege).
 
-Where a bundle has no profile, the profile checks of S12-platforms,
-"Development builds on macOS", don't apply.
+Where a bundle has no profile, the profile checks of S12-03-host-prerequisites, "Development builds on macOS", don't apply.
 
 These are assumptions:
 

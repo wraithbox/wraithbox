@@ -185,7 +185,7 @@ The spike didn't confine the helpers, which is I61.
 
 ## What it means for the specs
 
-- S10-tech-stack, "Packaging and signing": each program that holds an
+- S10-02-packaging-and-signing: each program that holds an
   access group is a bundle under `Contents/Helpers`, with the profile
   embedded. Development builds sign with the developer's team, which
   the build takes as a setting.

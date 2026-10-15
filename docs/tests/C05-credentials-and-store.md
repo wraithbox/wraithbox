@@ -5,9 +5,9 @@ signing setup that gives development builds their Keychain groups, and
 the credential checks `wb-proxyd` makes on guest requests and server
 responses.
 
-**Verifies:** S15-least-privilege ("The store holds credentials",
-"Keychain", "Declared access"), S09-04-credentials, S12-03-host-prerequisites ("Development builds on macOS"),
-S10-tech-stack ("Packaging and signing"), S07-06-requests-and-credentials ("Credential replacement")
+**Verifies:** S15-02-secret-store ("Keychain"),
+S15-03-access-rules ("Declared access"), S09-04-credentials, S12-03-host-prerequisites ("Development builds on macOS"),
+S10-02-packaging-and-signing, S07-06-requests-and-credentials ("Credential replacement")
 
 ## Unit tests
 
@@ -33,7 +33,7 @@ Spec: S15-least-privilege.
 
 ### Access groups
 
-Spec: S15-least-privilege, "Keychain".
+Spec: S15-02-secret-store, "Keychain".
 
 - A table test maps each item name form of "Declared access" to its
   group, `<TEAMID>.nl.wraithbox.<role>`, with the team from the
@@ -44,7 +44,7 @@ Spec: S15-least-privilege, "Keychain".
 - A shim whose own entitlements can't be read refuses every call with
   `store-group-mismatch`.
 - The build check of S10-tech-stack fails a bundle whose helper has a
-  group more or less than its row in S15-least-privilege, "Keychain",
+  group more or less than its row in S15-02-secret-store, "Keychain",
   and one where `wb` or any other program outside the table has a
   `keychain-access-groups` entitlement.
 

@@ -460,7 +460,7 @@ confines itself (condition 5).
 - `com.apple.securityd.xpc` is the data protection keychain, and
   `com.apple.ctkd.token-client` the Secure Enclave token. They are
   enough for every store call `wb-proxyd` makes
-  (S15-least-privilege, "Declared access"), without a file rule.
+  (S15-03-access-rules, "Declared access"), without a file rule.
 - Certificate checks against the system roots need
   `com.apple.trustd.agent` and the metadata of the helper's own bundle
   directory. `com.apple.trustd`, `SecurityServer`,

@@ -146,7 +146,7 @@ VM tests run only when the maintainer runs them, on the maintainer's Mac. Agents
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> Tests that need guest VMs can't run on hosted runners and aren't part of `ci` until self-hosted runners exist (S02-toolchain, "Design Approach", and S11-verification-and-spikes, "CI").
+- <Badge text="verified" variant="success" /> Tests that need guest VMs can't run on hosted runners and aren't part of `ci` until self-hosted runners exist (S02-toolchain, "Design", and S11-verification-and-spikes, "CI").
 - <Badge text="verified" variant="success" /> V1-M3-network-floor includes "the conformance cases for egress" (V1-initial).
 - <Badge text="verified" variant="success" /> The VM spikes are X02-warm-start, X03-network-path, X05-fs-benchmark to X08-data-disk, X17-image-build, X18-vsock-handoff and X20-shared-homebrew, and only one or two run at once per machine (`docs/implementation-plan.md`, "Critical path").
 - <Badge text="verified" variant="success" /> `/wave` orders spikes first and fills up to six issues, default four (`.claude/skills/wave/SKILL.md`). No `needs-vm` label exists in `.github/labels.yml`, and `planning.md` says to add such a label when the first issue needs it.

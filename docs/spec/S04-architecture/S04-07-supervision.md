@@ -233,7 +233,7 @@ entry, with every release.
   backoff and the same limit.
 - `wb-vmd-install` is never restarted. When it exits during a build,
   the build fails and `wb-hostd` deletes the build bundle
-  (S15-least-privilege, "The build's SSH session"). Nothing starts
+  (S15-04-guest-admin, "The build's SSH session"). Nothing starts
   again until the user runs the next build.
 
 ### Outages
@@ -247,7 +247,7 @@ It says:
   (S15-least-privilege).
 
 Only the 1Password backend can prompt for those accesses. The Keychain
-doesn't show a dialog in any build (S15-least-privilege, access rule
+doesn't show a dialog in any build (S15-03-access-rules, access rule
 4).
 
 - `wb` in non-interactive use prints the same as one `wraith box:` line

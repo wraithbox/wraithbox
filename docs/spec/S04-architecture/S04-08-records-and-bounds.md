@@ -118,7 +118,7 @@ not run without records.
 
 Every host program comes from one bundle with one build version. Every
 build task sets it in the Go and the Swift code alike, the dev build
-and CI included (S10-tech-stack, "Packaging and signing"). `wb` is
+and CI included (S10-02-packaging-and-signing). `wb` is
 linked from that bundle as well.
 
 - The version includes the VCS revision, and marks a modified working

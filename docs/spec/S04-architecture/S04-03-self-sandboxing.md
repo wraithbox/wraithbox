@@ -16,7 +16,7 @@ mechanism (S12-platforms). Each then gets only what it needs:
 | `wb-proxyd` | outbound network and its credential store items |
 | `wb-download` | outbound HTTPS and its inherited descriptors |
 | `wb-guestadmin` | its `wbadmin/*` store items and inherited descriptors |
-| `wb-credset` | its `binding/*` store items and its standard streams (S15-least-privilege, "Keychain") |
+| `wb-credset` | its `binding/*` store items and its standard streams (S15-02-secret-store, "Keychain") |
 | `wb-hostd` | its state directories; on macOS also read access to the installed bundle's `Info.plist` (S04-07-supervision, "Upgrades") and to each helper bundle's `embedded.provisionprofile` (S12-03-host-prerequisites, "Development builds on macOS") |
 | `wb-vmd` | the hypervisor and its VM's bundle |
 
@@ -144,7 +144,7 @@ while all of these hold:
   size limit.
 
 A program that holds a Keychain access group is the main executable of
-its own helper bundle (S10-tech-stack, "Packaging and signing"):
+its own helper bundle (S10-02-packaging-and-signing):
 
 - the `wb-proxyd` entry names
   `Contents/Helpers/wb-proxyd.app/Contents/MacOS/wb-proxyd`;
