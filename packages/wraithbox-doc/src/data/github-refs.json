@@ -398,7 +398,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X23-sandboxed-daemons: wb-proxyd profile with Keychain and Secure Enclave",
-		"summary": "Split from #34 (X23-sandboxed-daemons) during triage on 2026-10-04."
+		"summary": "Split from #34 (X23-sandboxed-daemons) during triage on 2026-10-04.",
+		"brief": "B61-proxyd-keychain"
 	},
 	"62": {
 		"kind": "issue",
@@ -1640,5 +1641,11 @@
 		"state": "open",
 		"title": "S17-install-and-upgrade: wb setup --remove --purge",
 		"summary": "wb setup --remove (S17-install-and-upgrade, #49) unloads the LaunchAgent and deletes the plist and the wb link, and keeps <config, <data, <logs and the secret store items."
+	},
+	"265": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spike): X23 I61 result, wb-proxyd with Keychain and Secure Enclave",
+		"summary": "Result of #61: the wb-proxyd Seatbelt profile with the Keychain and the Secure Enclave, measured on a team-signed helper bundle (the B23/B248 setup, not the throwaway keychain file the issue asked for, which those…"
 	}
 }
