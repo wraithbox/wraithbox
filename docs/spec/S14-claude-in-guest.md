@@ -285,13 +285,21 @@ The decisions on I60 and SEC05-default-deny settle these:
   no route to the host or the LAN (SEC05-default-deny), and V1 has no
   port forwarding (V1-08-no-forward-clipboard).
 
-Deferred to I15: `/login`, `claude login`, `/logout` and
-`claude setup-token` run inside the guest. The model credential in V1
-is a placeholder in the session's environment
-(S09-policy-credentials-audit, "Model credential"). The model API
-profile allows the reachability check `/v1/oauth/hello` on
-`platform.claude.com` and no login or token path, so the guest's
-request to redeem a login code fails at `wb-proxyd`.
+The browser login isn't a V1 model credential (B15-browser-login).
+`/login`, `claude login`, `/logout` and `claude setup-token` still run
+inside the guest. The model credential in V1 is a placeholder in the
+session's environment (S09-policy-credentials-audit, "Model
+credential"). The model API profile allows the reachability check
+`/v1/oauth/hello` on `platform.claude.com` and no login or token path
+(S07-egress-gateway, model API). A login started in the guest fails at
+the code exchange, `POST platform.claude.com/v1/oauth/token`, which
+`wb-proxyd` refuses.
+
+Refusing `/v1/oauth/hello` wouldn't stop the login prompt
+(X01-model-credential, "Browser login (I15)"). Claude Code builds the
+authorize URL on `claude.com` (`/cai/oauth/authorize`) without a
+request, and calls `/v1/oauth/hello` only after the code is pasted,
+before the exchange.
 
 - **Residual.** Claude Code in the guest can still print a real
   authorize URL, with its PKCE challenge. A user who opens it, signs in
@@ -301,11 +309,11 @@ request to redeem a login code fails at `wb-proxyd`.
   they can be redeemed elsewhere.
 - **Warning.** `wb` tells the user never to paste a login or
   `setup-token` code into a guest, at a project's first session and in
-  `wb help`. I15 measures whether refusing `/v1/oauth/hello` stops the
-  login prompt.
+  `wb help`. The terminal stream doesn't filter the authorize URL
+  (B15-browser-login).
 
-What `wb` says when a login fails, and whether the browser login gets
-a host-side flow, is part of I15.
+A host-side browser login, in which `wb-proxyd` holds the real tokens
+and answers Claude Code's refresh, comes after V1 (I257).
 
 ### Telemetry and other endpoints
 
@@ -317,9 +325,9 @@ updater and the changelog are outside the profile. The guest sets
 (S06-vm-lifecycle, "Claude Code in the guest"), and the profile, not
 the guest's environment, is the control.
 
-Deferred to I15: the endpoints of API key mode beyond the placeholder
-on `api.anthropic.com`, and those of the browser login and its token
-refresh, which X01-model-credential didn't measure.
+Deferred to I253: the endpoints of API key mode beyond the placeholder
+on `api.anthropic.com`. The profile allows none of the browser login's
+token paths, because that login isn't in V1.
 
 ## Out of scope
 

@@ -459,9 +459,14 @@ inspection is trusted, and what is recorded.
     and the binding injects `x-api-key`. OpenShell has shown that an
     API key works this way, and X01-model-credential saw the
     placeholder go out as `x-api-key` and be replaced. A run of this
-    mode end to end is still open in I15.
-  - *Browser login.* The subscription login through a browser
-    (`/login`, SSO) and its token refresh are the open part (I15).
+    mode end to end is still open in I253.
+  - *Browser login.* Not a V1 mode. The subscription login through a
+    browser (`/login`, SSO) and its token refresh need the login to
+    happen outside the guest and only the host to refresh
+    (X01-model-credential, "Browser login (I15)"). The maintainer kept
+    it out of V1 on I15 (B15-browser-login), and the host-side login
+    is in I257. A guest's own login fails at the code exchange
+    (S14-claude-in-guest, "Commands that don't fit a guest").
 - **Never in the guest.** Images are scanned for secrets at seal time;
   the environment of every guest process is built from an allowlist.
 
