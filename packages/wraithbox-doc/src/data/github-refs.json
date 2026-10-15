@@ -87,7 +87,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X01-model-credential: Model credential via the proxy",
-		"summary": "Does Claude Code work with a placeholder credential while wb-proxyd injects the real one, for each supported authentication mode, including token refresh?"
+		"summary": "Does Claude Code work with a placeholder credential while wb-proxyd injects the real one, for each supported authentication mode, including token refresh?",
+		"brief": "B15-browser-login"
 	},
 	"16": {
 		"kind": "issue",
@@ -1539,7 +1540,7 @@
 	},
 	"248": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X29-dev-signing: Keychain access group for development builds signed by a personal team",
 		"summary": "Can a developer's free personal team (an Apple ID signed in to Xcode, no paid membership) sign the helper binaries inside Wraith Box.app (wb-proxyd, wb-hostd, wb-vmd) with a keychain-access-groups entitlement and a…",
 		"brief": "B248-dev-signing"
@@ -1558,7 +1559,7 @@
 	},
 	"251": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X29-dev-signing result and brief B248",
 		"summary": "Result of the X29-dev-signing spike (#248), measured with the maintainer watching the screen, and brief B248-dev-signing."
 	},
@@ -1567,5 +1568,17 @@
 		"state": "open",
 		"title": "S15-least-privilege, S09-policy-credentials-audit, S10-tech-stack: team-signed development builds and no ad-hoc Keychain, from B248-dev-signing",
 		"summary": "The maintainer decided B248-dev-signing on 2026-10-15, in the #248 comment that starts Decision (2026-10-15):: option A."
+	},
+	"253": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X01-model-credential: API key mode end to end via the proxy",
+		"summary": "Does Claude Code work end to end in API key mode with a placeholder API key while wb-proxyd injects the real key in x-api-key?"
+	},
+	"254": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): team-signed development builds and no ad-hoc Keychain",
+		"summary": "Records the B248-dev-signing decision (#248, option A) in the specs."
 	}
 }
