@@ -286,20 +286,23 @@ The decisions on I60 and SEC05-default-deny settle these:
   port forwarding (V1-08-no-forward-clipboard).
 
 The browser login isn't a V1 model credential (B15-browser-login).
-`/login`, `claude login`, `/logout` and `claude setup-token` still run
-inside the guest. The model credential in V1 is a placeholder in the
-session's environment (S09-policy-credentials-audit, "Model
-credential"). The model API profile allows the reachability check
-`/v1/oauth/hello` on `platform.claude.com` and no login or token path
-(S07-egress-gateway, model API). A login started in the guest fails at
-the code exchange, `POST platform.claude.com/v1/oauth/token`, which
-`wb-proxyd` refuses.
+`/login`, `claude login`, `/logout` and `claude setup-token` start in
+the guest, and each fails at its token request. The model credential
+in V1 is a placeholder in the session's environment
+(S09-policy-credentials-audit, "Model credential"). The model API
+profile allows the reachability check `/v1/oauth/hello` on
+`platform.claude.com` and no login or token path (S07-egress-gateway,
+model API). `wb-proxyd` refuses the code exchange,
+`POST platform.claude.com/v1/oauth/token`, where `/login`,
+`claude login` and `claude setup-token` fail, and the revocation,
+`POST platform.claude.com/v1/oauth/token/revoke`, where `/logout`
+fails.
 
 Refusing `/v1/oauth/hello` wouldn't stop the login prompt
 (X01-model-credential, "Browser login (I15)"). Claude Code builds the
 authorize URL on `claude.com` (`/cai/oauth/authorize`) without a
-request, and calls `/v1/oauth/hello` only after the code is pasted,
-before the exchange.
+request. X01-model-credential saw `/v1/oauth/hello` in one login of
+two, and there the call came between the pasted code and the exchange.
 
 - **Residual.** Claude Code in the guest can still print a real
   authorize URL, with its PKCE challenge. A user who opens it, signs in
@@ -326,8 +329,7 @@ updater and the changelog are outside the profile. The guest sets
 the guest's environment, is the control.
 
 Deferred to I253: the endpoints of API key mode beyond the placeholder
-on `api.anthropic.com`. The profile allows none of the browser login's
-token paths, because that login isn't in V1.
+on `api.anthropic.com`.
 
 ## Out of scope
 
