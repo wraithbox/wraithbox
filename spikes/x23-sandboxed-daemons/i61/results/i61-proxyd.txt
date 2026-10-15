@@ -1,0 +1,24 @@
+i61 team=G7BF23LV79 mech=pure profile=profiles/proxyd.sb apply=5.63ms pid=38963
+kc binding put               ok      as expected   5.117ms
+kc binding get               ok      as expected     873µs
+kc binding del               ok      as expected     385µs
+kc ca se-new+put             ok      as expected  23.365ms
+kc ca get+restore+sign       ok      as expected   5.344ms
+kc ca del                    ok      as expected     347µs
+kc other group (store)       denied  as expected     314µs  SecItemCopyMatching: OSStatus -34018: OSStatus -34018 (status -34018)
+kc file keychains (login)    denied  as expected     614µs  SecItemCopyMatching(file keychains): OSStatus -50: OSStatus -50 (status -50)
+dns lookup                   ok      as expected   2.629ms
+  https://api.anthropic.com/: HTTP 404, api.anthropic.com
+tls get, system roots        ok      as expected  128.418ms
+file read /etc/shells        denied  as expected      82µs  open /etc/shells: operation not permitted
+file read home dir           denied  as expected      35µs  open /Users/lsimons: operation not permitted
+file read login keychain     denied  as expected      65µs  open /Users/lsimons/Library/Keychains/login.keychain-db: operation not permitted
+file write /tmp              denied  as expected      13µs  open /tmp/i61-probe: operation not permitted
+listen tcp loopback          denied  as expected      79µs  listen tcp 127.0.0.1:0: bind: operation not permitted
+listen unix /tmp             denied  as expected      35µs  listen unix /tmp/i61-probe.sock: bind: operation not permitted
+udp to 8.8.8.8:123           denied  as expected      54µs  dial udp 8.8.8.8:123: connect: operation not permitted
+exec /bin/echo               denied  as expected     165µs  open /dev/null: operation not permitted
+unexpected: 0
+exit: 0
+--- sandbox denials (sandboxd violation reports for i61)
+   1 Sandbox: i61 deny(1) mach-lookup com.apple.analyticsd

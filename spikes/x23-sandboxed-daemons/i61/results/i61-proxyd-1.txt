@@ -1,0 +1,5 @@
+i61 team=G7BF23LV79 mech=pure profile=profiles/proxyd-1.sb apply=8.377ms pid=36924
+tls get, system roots        denied  UNEXPECTED   27.831ms  Get "https://api.anthropic.com/": tls: failed to verify certificate: SecPolicyCreateSSL error: 0
+unexpected: 1
+exit: 1
+--- sandbox denials (sandboxd violation reports for i61)

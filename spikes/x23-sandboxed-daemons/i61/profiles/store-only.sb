@@ -1,0 +1,6 @@
+(version 1)
+; I61: the store part alone, for wb-credset and wb-guestadmin
+; (S04-architecture): the data protection keychain and the Secure Enclave
+; token, and nothing else. DNS and TLS are expected to fail here.
+(deny default)
+(allow mach-lookup (global-name "com.apple.securityd.xpc" "com.apple.ctkd.token-client"))

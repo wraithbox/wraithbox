@@ -1,0 +1,20 @@
+(version 1)
+; I61: the smallest wb-proxyd profile found. Outbound TCP, DNS, chain
+; checks against the system roots, and its Keychain items and Secure
+; Enclave keys. The daemon sets GOMAXPROCS before it confines itself
+; (X23 condition 2), so hw.ncpu isn't allowed.
+(deny default)
+(allow network-outbound (remote tcp))
+; DNS: Go's resolver reads resolv.conf and hosts and sends UDP to port 53,
+; and libSystem's res_search asks mDNSResponder.
+(allow file-read-metadata (literal "/etc") (literal "/var"))
+(allow file-read* (literal "/private/etc/resolv.conf") (literal "/private/var/run/resolv.conf") (literal "/private/etc/hosts"))
+(allow network-outbound (remote udp "*:53"))
+(allow network-outbound (literal "/private/var/run/mDNSResponder"))
+; crypto/x509 verifies chains through trustd, and Security.framework stats
+; the caller's own bundle directory first (BUNDLE, the helper's .app).
+(allow mach-lookup (global-name "com.apple.trustd.agent"))
+(allow file-read-metadata (literal (param "BUNDLE")))
+; The data protection keychain (secd) and the Secure Enclave token (ctkd).
+; Which items: the access groups in the code signature, not the profile.
+(allow mach-lookup (global-name "com.apple.securityd.xpc" "com.apple.ctkd.token-client"))

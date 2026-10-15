@@ -37,3 +37,22 @@ The answer is in `docs/spikes/X23-sandboxed-daemons.md` on `main`.
 ./hostd.sh pure profiles/hostd.sb /opt/homebrew/bin/git /opt/homebrew hostd-nocgo -spawner
 ./denials.sh 60 netd                               # kernel sandbox log
 ```
+
+## wb-proxyd with Keychain and Secure Enclave (issue #61)
+
+`i61/` holds a `wb-proxyd` stand-in that confines itself (the no-cgo
+trampoline in `sbxpure`, inside a cgo binary) and then probes what
+`wb-proxyd` needs: a `binding/` item, a wrapped Secure Enclave key whose
+token object ID is kept in a `ca/` item, DNS and a TLS GET checked against
+the system roots, and what must stay denied.
+
+- `i61/build.sh` builds X29-dev-signing's Xcode project for its profile
+  and puts the helper in `Contents/Helpers/i61.app`, signed by the
+  personal team with the `binding` and `ca` access groups.
+- `i61/run.sh <profile>` runs it under `i61/profiles/<profile>.sb` and
+  appends the sandboxd violation reports (`results/`).
+- `i61/minimize.sh <base> <rules>` drops each rule whose removal still
+  lets the TLS probe pass. sandboxd reports only some denials, so this
+  found the TLS rules, not the log.
+- `i61/profiles/proxyd.sb` is the result. `i61/profiles/store-only.sb` is the
+  store part alone, for `wb-credset` and `wb-guestadmin`.

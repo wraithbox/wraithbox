@@ -1,0 +1,27 @@
+i61 team=G7BF23LV79 mech=pure profile=profiles/proxyd-0.sb apply=7.666ms pid=34983
+kc binding put               denied  UNEXPECTED    1.801ms  SecItemAdd: OSStatus -25291: OSStatus -25291 (status -25291)
+kc binding get               denied  UNEXPECTED       94µs  SecItemCopyMatching: OSStatus -25291: OSStatus -25291 (status -25291)
+kc binding del               denied  UNEXPECTED       65µs  SecItemDelete: OSStatus -25291: OSStatus -25291 (status -25291)
+kc ca se-new+put             denied  UNEXPECTED    7.937ms  SecKeyCreateRandomKey: error -26276: The operation couldn\U2019t be completed. (NSOSStatusErrorDomain error -26276 - Failed to generate keypair) (status -26276)
+kc ca get+restore+sign       denied  UNEXPECTED       58µs  SecItemCopyMatching: OSStatus -25291: OSStatus -25291 (status -25291)
+kc ca del                    denied  UNEXPECTED       35µs  SecItemDelete: OSStatus -25291: OSStatus -25291 (status -25291)
+kc other group (store)       denied  as expected      39µs  SecItemCopyMatching: OSStatus -25291: OSStatus -25291 (status -25291)
+kc file keychains (login)    denied  as expected     676µs  SecItemCopyMatching(file keychains): OSStatus -50: OSStatus -50 (status -50)
+dns lookup                   ok      as expected   2.321ms
+tls get, system roots        denied  UNEXPECTED   101.167ms  Get "https://api.anthropic.com/": tls: failed to verify certificate: SecPolicyCreateSSL error: 0
+file read /etc/shells        denied  as expected     156µs  open /etc/shells: operation not permitted
+file read home dir           denied  as expected     143µs  open /Users/lsimons: operation not permitted
+file read login keychain     denied  as expected     193µs  open /Users/lsimons/Library/Keychains/login.keychain-db: operation not permitted
+file write /tmp              denied  as expected      14µs  open /tmp/i61-probe: operation not permitted
+listen tcp loopback          denied  as expected      62µs  listen tcp 127.0.0.1:0: bind: operation not permitted
+listen unix /tmp             denied  as expected      40µs  listen unix /tmp/i61-probe.sock: bind: operation not permitted
+udp to 8.8.8.8:123           denied  as expected      49µs  dial udp 8.8.8.8:123: connect: operation not permitted
+exec /bin/echo               denied  as expected     130µs  open /dev/null: operation not permitted
+unexpected: 7
+exit: 1
+--- sandbox denials (log show, process i61)
+--- sandboxd violation reports, pulled by hand after the run (run.sh then
+--- queried the kernel's Sandbox sender, which logs none on macOS 27)
+   1 Sandbox: i61 deny(1) mach-lookup com.apple.securityd.xpc
+   1 Sandbox: i61 deny(1) mach-lookup com.apple.ctkd.token-client
+   1 Sandbox: i61 deny(1) mach-lookup com.apple.analyticsd

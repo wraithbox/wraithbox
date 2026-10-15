@@ -1,0 +1,22 @@
+i61 team=G7BF23LV79 mech=none profile= apply=0s pid=34477
+kc binding put               ok      as expected   7.571ms
+kc binding get               ok      as expected   1.174ms
+kc binding del               ok      as expected     350µs
+kc ca se-new+put             ok      as expected  15.329ms
+kc ca get+restore+sign       ok      as expected   5.742ms
+kc ca del                    ok      as expected     524µs
+kc other group (store)       denied  as expected   4.019ms  SecItemCopyMatching: OSStatus -34018: A required entitlement is not present. (status -34018)
+  file keychains: 166 generic password items visible
+kc file keychains (login)    ok      UNEXPECTED    9.156ms
+dns lookup                   ok      as expected  15.056ms
+  https://api.anthropic.com/: HTTP 404, api.anthropic.com
+tls get, system roots        ok      as expected  131.251ms
+file read /etc/hosts         ok      UNEXPECTED      118µs
+file read home dir           ok      UNEXPECTED      234µs
+file read login keychain     ok      UNEXPECTED       37µs
+file write /tmp              ok      UNEXPECTED      124µs
+listen tcp loopback          ok      UNEXPECTED       62µs
+listen unix /tmp             ok      UNEXPECTED      176µs
+udp to 8.8.8.8:123           ok      UNEXPECTED      179µs
+exec /bin/echo               ok      UNEXPECTED    4.259ms
+unexpected: 9

@@ -1,0 +1,22 @@
+i61 team=G7BF23LV79 mech=pure profile=profiles/store-only.sb apply=5.257ms pid=38990
+kc binding put               ok      as expected   5.049ms
+kc binding get               ok      as expected     740µs
+kc binding del               ok      as expected     331µs
+kc ca se-new+put             ok      as expected  10.627ms
+kc ca get+restore+sign       ok      as expected   5.341ms
+kc ca del                    ok      as expected     324µs
+kc other group (store)       denied  as expected     250µs  SecItemCopyMatching: OSStatus -34018: OSStatus -34018 (status -34018)
+kc file keychains (login)    denied  as expected     560µs  SecItemCopyMatching(file keychains): OSStatus -50: OSStatus -50 (status -50)
+dns lookup                   denied  UNEXPECTED      990µs  lookup api.anthropic.com: no such host
+tls get, system roots        denied  UNEXPECTED      251µs  Get "https://api.anthropic.com/": dial tcp: lookup api.anthropic.com: no such host
+file read /etc/shells        denied  as expected       4µs  open /etc/shells: operation not permitted
+file read home dir           denied  as expected      19µs  open /Users/lsimons: operation not permitted
+file read login keychain     denied  as expected      21µs  open /Users/lsimons/Library/Keychains/login.keychain-db: operation not permitted
+file write /tmp              denied  as expected       4µs  open /tmp/i61-probe: operation not permitted
+listen tcp loopback          denied  as expected      35µs  listen tcp 127.0.0.1:0: bind: operation not permitted
+listen unix /tmp             denied  as expected      14µs  listen unix /tmp/i61-probe.sock: bind: operation not permitted
+udp to 8.8.8.8:123           denied  as expected      18µs  dial udp 8.8.8.8:123: connect: operation not permitted
+exec /bin/echo               denied  as expected      43µs  open /dev/null: operation not permitted
+unexpected: 2
+exit: 1
+--- sandbox denials (sandboxd violation reports for i61)
