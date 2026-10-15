@@ -5,7 +5,7 @@ description: Recommended that wb-proxyd downloads restore images from Apple only
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Decided 2026-10-04: a dedicated download program that wb-hostd invokes.** The decision and its reasons are in the I49 comment that starts `Decision (2026-10-04):`. Source: I49. Affects S04-architecture, S05-cli, S06-vm-lifecycle, S10-tech-stack and S12-platforms.
+**Decided 2026-10-04: a dedicated download program that wb-hostd invokes.** The decision and its reasons are in the I49 comment that starts `Decision (2026-10-04):`. Source: I49. Affects S04-architecture, S05-cli, S06-vm-lifecycle, S10-tech-stack and S12-platforms. Signing and the Keychain after an upgrade were settled later by X29-dev-signing (decided on I248, B248-dev-signing).
 
 <Aside type="tip" title="You are deciding">
 Which process downloads macOS restore images. Recommended: **A**, `wb-proxyd`, under a built-in rule for Apple's hosts only, writing into a file `wb-hostd` opens for it. The issue proposes **B**, `wb-hostd`. The sub-decisions on install, upgrade and migration can be decided now as well. Signing, Keychain access after an upgrade, and the guest tools image wait on X09-keychain-unsigned and X17-image-build.
@@ -124,8 +124,8 @@ A fourth choice, `wb-vmd` downloading through the Virtualization framework's own
 | Upgrades | Replace the whole bundle, then I48's sequence: save VMs, restart, restore. No in-place update of a running bundle. | I48 |
 | Migrations | `wb-hostd` at start, never `wb`. Back up `state.db` first, apply numbered migrations forward only, and refuse to start on a database newer than it knows, with a message saying why (NFR06-explained-refusals). User-edited configuration files are never rewritten: a renamed key is an error naming the new key. | nothing |
 | Guest tools disk image | Built with the bundle from `wb-guestd` and `git-remote-wb`, with the bundle's version, attached read-only (S06-vm-lifecycle). | X17-image-build, for signing inside the guest |
-| Keychain after an upgrade | Whatever X09-keychain-unsigned shows. If an ad-hoc signed `wb-proxyd` loses its access-list entry at each upgrade, `wb setup` must say so and offer to grant it again. | X09-keychain-unsigned |
-| Build order in `mise` | `go build`, then `swift build`, then the guest tools image, then the bundle, then ad-hoc signing from the inside out (`codesign -s -`), with the virtualization entitlement on `wb-vmd` only (S10-tech-stack). | nothing |
+| Keychain after an upgrade | Nothing to grant again. A build that a team signs keeps its items across an upgrade through its access groups, and an ad-hoc signed build has no Keychain backend (S15-least-privilege, decided on I248). | nothing |
+| Build order in `mise` | `go build`, then `swift build`, then the guest tools image, then the bundle, with a helper bundle under `Contents/Helpers` for each program that holds an access group, then signing from the inside out: with the developer's team and Xcode's profile when `WB_TEAM_ID` is set, ad-hoc (`codesign -s -`) otherwise. The virtualization entitlement is on `wb-vmd` only (S10-tech-stack). | nothing |
 
 ## Impact
 
@@ -154,12 +154,12 @@ A fourth choice, `wb-vmd` downloading through the Virtualization framework's own
 - <Badge text="verified" variant="success" /> Go and Swift set their versions separately (`internal/version/version.go`, `WraithBoxVM/Version.swift`), so the bundle task must stamp both with one value.
 - <Badge text="assumed" variant="caution" /> That installing macOS into a VM needs Apple's servers for personalization. X17-image-build.
 - <Badge text="assumed" variant="caution" /> That Apple's restore image catalog can be read without the Virtualization framework and lists a hash per image. X17-image-build.
-- <Badge text="assumed" variant="caution" /> That an ad-hoc signed `wb-proxyd` loses its Keychain access-list entry when the binary changes. X09-keychain-unsigned.
+- <Badge text="verified" variant="success" /> An ad-hoc signed binary is on a keychain file item's access-control list by its cdhash, so a rebuilt one isn't, and gets a dialog. Source: X09-keychain-unsigned. Helpers signed by a team keep reading their access group's items after a rebuild. Source: X29-dev-signing.
 
 ## What this unblocks
 
 - The spec section in S10-tech-stack (or a new spec) on install, upgrade and migration, and the `mise` tasks for a local bundle.
-- Still open: signing and Keychain access after upgrades (X09-keychain-unsigned, I23), the image source and guest tools image (X17-image-build, I28), and the upgrade sequence (I48).
+- Still open at the time: signing and Keychain access after upgrades, since settled by X09-keychain-unsigned (I23) and X29-dev-signing (I248), the image source and guest tools image (X17-image-build, I28), and the upgrade sequence (I48).
 
 <details>
 <summary>Details and glossary</summary>

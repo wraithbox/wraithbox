@@ -343,21 +343,19 @@ inspection is trusted, and what is recorded.
 - **Storage.** Each credential is an item in the platform's secret
   store (S12-platforms), readable only by the processes that
   S15-least-privilege declares for it: `wb-proxyd` for bindings. On
-  macOS: an item in the data protection keychain, in an access group
-  bound to the team that signed the build. Release builds are signed
-  with Wraith Box's Developer ID, and development builds with the
-  developer's own Apple Development certificate (decided on I23,
-  B23-keychain-unsigned), once X29-dev-signing shows that a personal
-  team can grant the access group. Until then, development builds are
-  ad-hoc signed and use a keychain file whose access-control lists name
-  the declared binaries. That is weaker, and S15-least-privilege
-  documents it. A list pins each binary by its cdhash. Any other
-  reader, and each binary after an update, would get a dialog that asks
-  for the password of the keychain file, and no call repairs the list
-  without it (X09-keychain-unsigned). The binaries turn Keychain
-  dialogs off, so such a read fails at once. After an update the store
-  fails closed until `wb setup` sets it up again (S15-least-privilege,
-  "After an update"). Other
+  macOS: an item in the data protection keychain, in the access group
+  `<TEAMID>.nl.wraithbox.binding` of the team that signed the build.
+  Release builds are signed with Wraith Box's Developer ID, and
+  development builds with the developer's own Apple Development
+  certificate and team. A rebuild keeps reading the items with no
+  dialog (X29-dev-signing). In a development build any other program
+  the developer's team signs can claim the group, which
+  S15-least-privilege documents. An ad-hoc signed build has no
+  Keychain backend: `wb setup` refuses it
+  with the rule `keychain-needs-team` and says how to sign the build,
+  and the 1Password backend still works (decided on I248,
+  B248-dev-signing, S15-least-privilege, "The store holds
+  credentials"). Other
   platforms scope items as narrowly as their store allows; the limits
   are documented per platform in S12-platforms.
 - **Bindings.** A binding names the hosts, ports, and paths it applies
@@ -479,10 +477,11 @@ inspection is trusted, and what is recorded.
     it, so a copied item is useless on another Mac. On this Mac any
     process of the user that has the value can sign with the key, and
     the store's G2 is what keeps it to `wb-proxyd`
-    (S15-least-privilege). A key stored in the Keychain needs an
-    entitlement an ad-hoc build doesn't have, and this way signed and
-    ad-hoc builds share one code path (decided on I23,
-    B23-keychain-unsigned).
+    (S15-least-privilege). The same wrapped key is used in every
+    build, on the Keychain and the 1Password backends alike (decided on
+    I23, B23-keychain-unsigned, decision 2A). A permanent Secure Enclave
+    key in the access group also works in a team-signed build
+    (X29-dev-signing), and Wraith Box doesn't use one.
   - *Attributes.* The ones X09-keychain-unsigned measured, and no
     others: the key has `kSecAttrIsPermanent` false, an access control
     with `kSecAccessControlPrivateKeyUsage` as its only flag, so no
@@ -527,21 +526,23 @@ inspection is trusted, and what is recorded.
     Only after that round trip does `wb-hostd` record the CA. A failed
     step deletes the item, leaves the record unchanged, and fails the issue with
     `ca-key-restore`.
-  - *Restore.* In an ad-hoc build, a read of the item that fails with
-    -25293 follows S15-least-privilege, "After an update". In every
-    build and on every backend, a read that fails because the store is
+  - *Restore.* In every build and on every backend, a read that fails because the store is
     locked, -25308 on the Keychain or a locked 1Password, waits
     for the unlock (S15-least-privilege, rule 7). Any other failure is `ca-key-restore`: a missing item, a store error,
     an error from the restore, or a public key that differs. Then
     `wb-proxyd` serves none of the VM's streams, and the VM's start or
     restore is refused with that rule.
+  - *Ad-hoc signed builds.* In an ad-hoc signed build, the Keychain
+    backend refuses every access with `keychain-needs-team`
+    (S15-least-privilege, "The store holds credentials"). An issue or
+    a restore on that backend fails with that rule in place of
+    `ca-key-restore`, and so does the VM's start or restore.
   - *Recovery.* `wb vm reset-ca <vm>` (S05-cli) drops the VM's CAs from
     `wb-hostd`'s record, puts their items on the removal list
     (S15-least-privilege, "Declared access"), and deletes the VM's
     saved state. The VM then cold boots. At that start the record has no CA, or every CA in it has expired,
     so `wb-proxyd` issues a new CA, and the install rewrites the
-    guest's trust files whole ("Guest trust"). Only this command,
-    `wb setup` after an update (S15-least-privilege, "After an update")
+    guest's trust files whole ("Guest trust"). Only this command
     and `wb setup --ca-key-store` drop a CA that hasn't expired. Each
     drop is a Device Config State Change (5019) event with the command
     and the SHA-256 fingerprint of each dropped CA certificate. Neither
