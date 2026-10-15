@@ -73,8 +73,8 @@ administrator rights (SEC12-least-privilege). On macOS:
   refuses with `setup-not-in-bundle` unless that is `Contents/MacOS/wb`
   of a bundle whose `Info.plist` has the same `WBBuildVersion` as `wb`. It
   refuses with `setup-bundle-location` a bundle that isn't directly in
-  `~/Applications` or `/Applications`, so the agent never points into a
-  build directory that a cleanup or a removed worktree deletes.
+  `~/Applications` or `/Applications`. The agent then never points into
+  a build directory that a cleanup or a removed worktree deletes.
 - **The agent.** It writes `~/Library/LaunchAgents/nl.wraithbox.hostd.plist`,
   mode 644, to a new file that it renames over the old one. The agent
   runs the bundle's `Contents/MacOS/wb-hostd` by absolute path, with
@@ -84,6 +84,13 @@ administrator rights (SEC12-least-privilege). On macOS:
   leaves the agent running. Otherwise replacing it stops `wb-hostd` and
   its VMs, so it asks `wb-hostd` first and refuses with
   `setup-vms-running`, naming each VM and its sessions, while one runs.
+  A `wb-hostd` of another build version refuses `wb`
+  (S04-architecture, "Version skew"), so `wb setup` can't read its VMs.
+  It then refuses with `setup-vms-running` as well, names both
+  versions, and says to stop the VMs with the `wb` of the running
+  build. When no `wb-hostd` answers, no VM runs, because VMs stop with
+  `wb-hostd` (S04-architecture, "When `wb-hostd` stops"), and it goes
+  on.
   Then it runs `launchctl bootout` and `launchctl bootstrap gui/<uid>`.
   It runs `/bin/launchctl` by absolute path, with the environment
   `PATH=/usr/bin:/bin` and nothing else.
@@ -124,7 +131,7 @@ compiled into the program, and a file size limit (`RLIMIT_FSIZE`) that
 
 | Entry | Hosts | Fetches | File size limit |
 |---|---|---|---|
-| `wb-download-restore` | `mesu.apple.com`, `updates.cdn-apple.com` | Apple's restore image catalog and one restore image | 64 GiB |
+| `wb-download-restore` | `mesu.apple.com`, `updates.cdn-apple.com` | Apple's restore image catalog and one restore image | 40 GiB |
 | `wb-download-claude` | `downloads.claude.ai` | one Claude Code release (S14-claude-in-guest, "Install") | 1 GiB |
 
 On Windows and Linux, `wb-download` confines itself with that
@@ -156,8 +163,12 @@ platform's mechanism (S12-platforms), with the same rules in its code.
   outside its entry with `download-host-refused`, a URL that isn't
   HTTPS on port 443, every redirect (`download-redirect-refused`), and
   an address under the "Upstream address" rule of S07-egress-gateway
-  (`upstream-address-refused`). TLS is checked against the system
-  roots. Its HTTP client's `Transport.Proxy` is nil, so `HTTPS_PROXY`
+  (`upstream-address-refused`). That rule lists the host's interfaces
+  with `getifaddrs`, and a failure to list them refuses the connection
+  with `upstream-address-refused` as well. The profile also allows the
+  `sysctl` read that `getifaddrs` makes, and the self-check test of
+  S11-verification-and-spikes measures that rule. TLS is checked
+  against the system roots. Its HTTP client's `Transport.Proxy` is nil, so `HTTPS_PROXY`
   and the system's proxy settings don't apply.
 - **Deadlines.** A connection that isn't up in 30 s fails with
   `download-connect-timeout`, and a response with no byte for 60 s with
@@ -174,10 +185,12 @@ platform's mechanism (S12-platforms), with the same rules in its code.
   |---|---|
   | macOS version | `^[0-9]{1,3}(\.[0-9]{1,3}){1,2}$` |
   | macOS build | `^[0-9]{2}[A-Z][0-9]{1,5}[a-z]?$` |
-  | URL | `https://updates.cdn-apple.com/` and a path of 1 to 512 characters of `A-Z a-z 0-9 . _ / -` ending in `.ipsw`, with no port, user, query or fragment |
+  | URL | `https://updates.cdn-apple.com/` and a path of 1 to 512 characters of `A-Z a-z 0-9 . _ / -` ending in `.ipsw`, with no empty segment, no `.` or `..` segment, and no port, user, query or fragment |
   | SHA-1 | 40 lowercase hexadecimal digits |
-  | size | a decimal number from 1 to 68,719,476,736 (64 GiB) |
+  | size | a decimal number from 1 to 42,949,672,960 (40 GiB) |
   | host, rule, status, bytes | one of the entry's hosts, a rule name of this section, a three-digit status, a decimal count |
+  | path | the catalog's path, the path of the URL above, or `/claude-code-releases/<version>/` followed by `manifest.json`, `manifest.json.sig` or `darwin-arm64/claude`, with the version's form below |
+  | address | an IPv4 address in dotted decimal, or an IPv6 address in the form Go's `netip.Addr.String` writes, without a zone |
 
   A field outside its form, or a run that reports more than 16 requests,
   ends the run with `download-record-form`. The record parser has a
@@ -189,12 +202,16 @@ platform's mechanism (S12-platforms), with the same rules in its code.
   belong to no VM, so they don't count against any VM's audit budget
   (S09-policy-credentials-audit, "Audit"), and they're never dropped.
   When one can't be written, `wb-hostd` cancels the run with
-  `download-audit-failed`.
+  `download-audit-failed`, and the rule of S09-policy-credentials-audit
+  for a record that can't be written applies.
 - **Space.** Before it starts either entry, `wb-hostd` refuses with
   `download-no-space` when the volume of `<data>` has less free space
-  than the bytes still to fetch plus `audit_free_space_floor`
-  (S09-policy-credentials-audit). For a Claude Code release, the bytes
-  to fetch are the sum of its three caps.
+  than the entry's file size limit, less what the partial restore
+  image already holds, plus `audit_free_space_floor`
+  (S09-policy-credentials-audit). For a Claude Code release, the limit
+  counts once for each of its three files. The check uses only numbers
+  the host knows before the run, and the file size limit holds what a
+  run writes to them.
 
 Any exit other than success fails the build with its rule, and nothing
 restarts `wb-download`. The next `wb image build` resumes the restore
@@ -241,10 +258,7 @@ image.
    entry. The catalog isn't signed, so a compromised `wb-download` can
    report any entry. Against that, the design relies on Virtualization's
    installer refusing a restore image that Apple didn't sign. That
-   property is unmeasured (I262). If I262 finds that the installer
-   accepts a changed image, the catalog only says where to fetch, and
-   `wb-hostd` accepts only a restore image whose SHA-256 is compiled
-   into the release.
+   property is unmeasured (I262).
 
 #### A Claude Code release
 
