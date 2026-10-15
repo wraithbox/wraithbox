@@ -96,9 +96,13 @@ can use (S09-policy-credentials-audit, "Key").
   programs (S04-architecture, "Each host daemon is self-sandboxed").
   It does one operation and exits: *write* reads the value from its
   standard input, *delete* removes the item, and *list* prints the
-  names of the `binding/` items, never a value. It refuses a value in
-  its arguments or environment, and an operation or name outside the
-  fixed forms of "Declared access", with the rule `credset-refused`,
+  names of the `binding/` items, never a value. It takes exactly two
+  arguments, the operation and the binding name, and an environment
+  of only the variable names on a fixed list compiled into it, which
+  `wb` also uses when it starts it. It refuses any other argument
+  count, any variable not on that list, and an operation or name
+  outside the fixed forms of "Declared access", with the rule
+  `credset-refused`,
   before any store call.
 
   Each Keychain call names its group. The cgo shim (S12-platforms)

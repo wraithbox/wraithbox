@@ -146,9 +146,9 @@ be tested before building on them.
   than its row in S15-least-privilege, "Keychain", and one where `wb`
   or any other program outside the table has a
   `keychain-access-groups` entitlement.
-  `wb-credset` has a test that passes a value in its arguments and in
-  its environment, an unknown operation, and a binding name outside
-  the fixed form, and sees each refused with `credset-refused` before
+  `wb-credset` has a test that passes a third argument, one argument,
+  an environment variable not on its fixed list, an unknown operation,
+  and a binding name outside the fixed form, and sees each refused with `credset-refused` before
   any store call. A `wb cred set` test sees `wb-credset` get the
   value on its standard input only, never in its arguments or
   environment, and `wb cred list` print names and no value.
