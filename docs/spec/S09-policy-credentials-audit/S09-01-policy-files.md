@@ -64,19 +64,18 @@ separate top-level keys.
   credential binding or one a built-in profile covers, is refused at
   load, and adding a pass host is a Device Config State Change (5019)
   event. The maintainer decided this
-  on I40 (B40-learn-pass-modes), and S07-egress-gateway, "Modes, per
-  host", has the rules.
+  on I40 (B40-learn-pass-modes), and S07-05-hosts-and-modes, "Modes, per host", has the rules.
 - *Raw TCP entries.* A raw TCP entry names one exact host and one
   port for a stream that is neither TLS nor HTTP. The rules of a
   pass host above apply to it, on its host and port. The
   maintainer decided this on I47 (B47-non-http-streams), and
-  S07-egress-gateway, "Non-HTTP streams", has the rules.
+  S07-10-non-http-streams, has the rules.
 - *Audit hosts.* Only the global and project network policy files
   can put a host and port in `audit`. An `audit` endpoint on a host
   with a credential binding, or on one a built-in profile covers, is
   refused at load, at every recompute, and when a binding is added
   later (SEC06-repo-writes). The maintainer decided this on I109, and
-  S07-egress-gateway, "Modes, per host", has the rules.
+  S07-05-hosts-and-modes, "Modes, per host", has the rules.
 
 ### Policy as the prover sees it
 
@@ -96,7 +95,7 @@ separate top-level keys.
   boundary, dependency-gate thresholds can't be looser, and the
   wildcard budget can't be larger. Any mismatch refuses the policy.
 - *Audit as the whole host.* `audit` lets every request through and
-  only logs a violation (S07-egress-gateway, "Modes, per host"), so
+  only logs a violation (S07-05-hosts-and-modes, "Modes, per host"), so
   a host and port whose mode resolves to `audit` ("Precedence",
   "Mode per host and port") is written as the whole host on that
   port. The projected endpoint is built from the host and the port
@@ -131,8 +130,7 @@ and without binary identity, and with it reads `/**` as every program
 ### Project narrowing
 
 A project's rules and bindings apply to the
-whole VM while the project has a session in it (S07-egress-gateway,
-"Enforced per VM"). Once X14-flow-attribution delivers labels that
+whole VM while the project has a session in it (S07-01-per-vm-policy). Once X14-flow-attribution delivers labels that
 name the project user (S13-guest-confinement), those labels may
 narrow a project's rules to its own flows. The rules of program
 narrowing apply: a missing or malformed label matches no narrowed
@@ -156,7 +154,7 @@ value and its source.
   GraphQL operation filter applies whatever the source of the allow.
   The one change the global and
   project policy can make to a built-in profile is to turn a part of
-  it off (S07-egress-gateway, "Profile parts"). This lock, and the
+  it off (S07-07-http-policy, "Profile parts"). This lock, and the
   removal of guest credentials in the places a profile names, hold
   whatever parts are on.
 - *Mode per host and port.* `enforcement` is resolved for each host
@@ -176,16 +174,15 @@ value and its source.
   and the boundary check projects the same mode ("Audit as the
   whole host"). A change that moves a host and port from `enforce`
   to `audit`, whatever removal caused it, widens
-  (S07-egress-gateway, "Policy changes while sessions run",
-  "Session end"). The maintainer decided this on I109.
+  (S07-01-per-vm-policy, "Policy changes while sessions
+  run", "Session end"). The maintainer decided this on I109.
 - *Per VM.* The host enforces the merge for a VM, not for a project:
   the project sources are those of every project with a session in
   the VM. Limits take the strictest value among them, and the mode
   of a host and port resolves over every source, so `enforce` wins
   over `audit` ("Mode per host and port"). A conflict between projects, such as a host
   in pass mode for one and inspected or bound for another, or two
-  bindings for one host and path, refuses the joining session (S07-egress-gateway, "Enforced per
-  VM"). The extension check above runs over the union at each
+  bindings for one host and path, refuses the joining session (S07-01-per-vm-policy). The extension check above runs over the union at each
   recompute. `wb policy explain` shows for each rule and each
   credential binding the project it comes from and the projects
   whose sessions can reach it now, which are all the projects with a

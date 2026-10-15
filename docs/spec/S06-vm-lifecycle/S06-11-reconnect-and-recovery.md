@@ -39,7 +39,7 @@ answers:
 - "acknowledged" for a report of a session of this VM and this VM
   generation that `wb-hostd` has as running, paused, ending or
   lost. The session ends with that report as at a normal end, under
-  the checks of S06-09-session-lifecycle ("Ending", "Returned work
+  the checks of S06-09-session-lifecycle (S06-09-session-lifecycle, "Ending", "Returned work
   comes from the host").
 - "acknowledged" again for a report of a session `wb-hostd` already
   has as ended, which it logs and doesn't change.

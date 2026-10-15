@@ -100,7 +100,7 @@ Restart `wb-proxyd` with records in `state.db`, and see:
 
 ### Homebrew bottles
 
-Spec: S07-egress-gateway, "Token fallback".
+Spec: S07-06-requests-and-credentials, "Token fallback".
 
 - Download a Homebrew bottle from `ghcr.io` with the guest's
   `Authorization` removed and the anonymous binding injected, through

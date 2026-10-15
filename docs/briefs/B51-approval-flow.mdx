@@ -145,7 +145,7 @@ NXDOMAIN at once, with whatever negative TTL the code picks. If it caches, "the 
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> Unknown names get NXDOMAIN and raise an approval, and "after approval, the next lookup succeeds" (S07-egress-gateway, "DNS").
+- <Badge text="verified" variant="success" /> Unknown names get NXDOMAIN and raise an approval, and "after approval, the next lookup succeeds" (S07-03-dns).
 - <Badge text="verified" variant="success" /> A negative answer is cached for the smaller of the SOA record's TTL and its MINIMUM field. Negative answers without an SOA record "SHOULD NOT be cached" ([RFC 2308](https://www.rfc-editor.org/rfc/rfc2308.html), sections 3 and 5).
 - <Badge text="verified" variant="success" /> The macOS resolver library waits `RES_TIMEOUT` = 5 seconds between retries and tries `RES_DFLRETRY` = 2 times (`resolv.h` in the macOS SDK, `man 5 resolver`).
 - <Badge text="verified" variant="success" /> macOS waits 75 seconds for a TCP handshake by default (`sysctl net.inet.tcp.keepinit` = 75000 on the host). The guest default is assumed to match.

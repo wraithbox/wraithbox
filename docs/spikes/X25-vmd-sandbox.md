@@ -298,7 +298,7 @@ wasn't booted: it had no guest daemon to answer.
 - **S06-06-devices-and-warm-start, "Devices":** the graphics and USB devices the
   spikes used are open, and the profile is ablated again against the
   final set (changed in this pull request).
-- **S07-egress-gateway, "Packet transport":** "no other network path"
+- **S07-02-packet-path, "Packet transport":** "no other network path"
   points to the device-set check (changed in this pull request).
 - **S11-verification-and-spikes**: the unit test of the device-set
   check and the in-guest interface check (changed in this pull

@@ -17,16 +17,15 @@ Each VM has its own CA, and two from day 30 of each CA on
 ("Lifetimes"), so a leaf signed for one VM isn't trusted in another.
 A CA is trusted **only inside guests**, never on the host. The CA
 certificate has no name constraints. The set of inspected hosts
-changes with every approval (S07-egress-gateway, "Approvals and
-learning"), and a constraint that followed it would need a new CA
+changes with every approval (S07-11-approvals-and-learning), and a constraint that followed it would need a new CA
 each time. Clients that read trust once per process would then
 reject every leaf from the new CA until they restart. The maintainer
 decided this on I39 (B39-ca-rotation).
 - *Leaf issuance.* What limits the names a CA vouches for is
   `wb-proxyd`. It signs a leaf only for the hostname of the stream,
   after the SNI check, and only when the VM's effective policy
-  inspects that host (S07-egress-gateway, "Stream path", "Name
-  binding" and "Modes"). It signs with the CA of the stream's VM,
+  inspects that host (S07-04-stream-hand-off, and S07-05-hosts-and-modes,
+  "Name binding" and "Modes, per host"). It signs with the CA of the stream's VM,
   and keys its leaf cache on VM, CA, and hostname. A pass-mode
   stream is relayed unchanged, and `wb-proxyd` doesn't sign a leaf
   for it. Any other stream that fails this rule is reset and logged

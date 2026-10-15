@@ -42,7 +42,7 @@ the records of the terminal filter.
   refusals under that rule are written as one record per minute with
   their count. A minute is a calendar minute of UTC.
 - Only the refusal classes that S07-egress-gateway aggregates per rule
-  (S07-egress-gateway, "Events and rate limits") are written as runs with a count. Each
+  (S07-02-packet-path, "Events and rate limits") are written as runs with a count. Each
   open run's count is written when its window ends and in the VM's stop
   record, so no count is lost with the VM.
 - Each VM has a byte budget per day, `audit_vm_bytes_per_day` (default
@@ -52,7 +52,7 @@ the records of the terminal filter.
   dropped are still written. So the high-volume classes of two VMs add
   at most 2 × 64 MiB to the log a day, at the defaults.
 - Both budgets are per VM, because the host can't tell the projects in
-  a VM apart (S07-egress-gateway, "Enforced per VM"). In the work VM,
+  a VM apart (S07-01-per-vm-policy). In the work VM,
   one project's traffic can use up the budget, and the other projects'
   new work is refused with it (T11-shared-vm-grants). The defaults are
   not measured yet (I175).
@@ -111,8 +111,7 @@ the records of the terminal filter.
 - Attribution of network events. `wb-netd` and `wb-proxyd` know the VM,
   and `wb-hostd` adds the projects and sessions running in it. The
   project, session, guest user and program of each connection come
-  only from the guest's label, stored as untrusted (S07-egress-gateway,
-  "Enforced per VM"). The per-session audit log of FR15-inspect holds
+  only from the guest's label, stored as untrusted (S07-01-per-vm-policy). The per-session audit log of FR15-inspect holds
   returned work and approvals by the host's attribution, and network
   events by the guest's label, shown as reported by the guest.
   Returned work keeps the project and session of its git transport

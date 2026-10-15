@@ -32,6 +32,17 @@ Wraith Box works and why.
 | S06-11-reconnect-and-recovery | Reconnect, Loss and Recovery | Draft |
 | S06-12-guest-agent | Guest Agent | Draft |
 | S07-egress-gateway | Egress Gateway | Draft |
+| S07-01-per-vm-policy | Enforced per VM | Draft |
+| S07-02-packet-path | Packet Path | Draft |
+| S07-03-dns | DNS | Draft |
+| S07-04-stream-hand-off | Stream Hand-off | Draft |
+| S07-05-hosts-and-modes | Hosts and Modes | Draft |
+| S07-06-requests-and-credentials | Requests and Credentials | Draft |
+| S07-07-http-policy | HTTP Policy | Draft |
+| S07-08-dependency-gate | Dependency Gate | Draft |
+| S07-09-publish-time | Publish Time | Draft |
+| S07-10-non-http-streams | Non-HTTP Streams | Draft |
+| S07-11-approvals-and-learning | Approvals and Learning | Draft |
 | S08-workspace-and-git | Workspace and Git Round Trip | Draft |
 | S08-01-into-the-guest | Into the Guest | Draft |
 | S08-02-export-repository | Export Repository | Draft |

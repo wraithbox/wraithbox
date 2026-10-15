@@ -128,7 +128,7 @@ SEC04-no-guest-secrets (no secrets in the guest), SEC05-default-deny (default-de
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> `wb-netd` leases one IPv4 address per VM and accepts only that VM's MAC address (S07-egress-gateway, "Addressing").
+- <Badge text="verified" variant="success" /> `wb-netd` leases one IPv4 address per VM and accepts only that VM's MAC address (S07-02-packet-path, "Addressing").
 - <Badge text="verified" variant="success" /> S07-egress-gateway still says each stream is "tagged with VM, project, session, hostname, and port" ("Connections"), with no source for the project and session.
 - <Badge text="verified" variant="success" /> All trusted projects share the work VM, each as its own guest user (S06-04-vms-and-placement and S06-08-projects-and-sessions).
 - <Badge text="inferred" variant="note" /> So before any label exists, project B's agent can use project A's credential binding without guest root. S07-egress-gateway and S09-policy-credentials-audit don't say how the host would tell the two users' connections apart.
@@ -142,7 +142,7 @@ SEC04-no-guest-secrets (no secrets in the guest), SEC05-default-deny (default-de
 ## What this unblocks
 
 - I51, the approval flow, which is blocked by this issue.
-- The spec pull request that rewrites T00-index (a new accepted threat), S07-egress-gateway ("Connections") and S09-policy-credentials-audit (effective policy per VM).
+- The spec pull request that rewrites T00-index (a new accepted threat), S07-02-packet-path ("Connections") and S09-policy-credentials-audit (effective policy per VM).
 - The priority of X14-flow-attribution (I10): under option A it decides whether v1 has any per-project narrowing at all.
 
 <details>

@@ -143,7 +143,7 @@ it didn't ask for:
 ### What a restart keeps
 
 - A restart doesn't reset what bounds the guest. `wb-netd` checks and
-  debits the VM's wildcard budget (S07-egress-gateway, "Packet path",
+  debits the VM's wildcard budget (S07-02-packet-path,
   DNS). `wb-hostd` only keeps the count across restarts. It also keeps
   every other count S07-egress-gateway has `wb-netd` or
   `wb-proxyd` keep for the active period. `wb-hostd` keeps the
@@ -154,7 +154,7 @@ it didn't ask for:
   entry, with its name, its address, and the time `wb-hostd` received
   its last record. It keeps an entry until the entry's release record
   arrives, and has no clock of its own for it. `wb-netd` decides when
-  to release an address (S07-egress-gateway, "Synthetic pool"). It
+  to release an address (S07-03-dns, "Synthetic pool"). It
   learns the mapping the way it learns the wildcard debits, from
   accounting records (S04-08-records-and-bounds, "Accounting and event channels"). `wb-netd`
   sends each new or renewed entry before the DNS answer that uses it,

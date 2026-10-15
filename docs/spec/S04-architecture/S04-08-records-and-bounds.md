@@ -23,14 +23,12 @@ restart limit.
   From `wb-proxyd` they carry the Go clock's accepted calibration point,
   each new verified tree head, and a `go-sumdb-inconsistent` finding,
   which `wb-hostd` checks, stamps with its receipt time, keeps in
-  `state.db` and passes back at start (S07-egress-gateway, "Persisted
-  state").
+  `state.db` and passes back at start (S07-09-publish-time, "Persisted state").
   They aren't audit events. Nothing rate-limits, suppresses or drops
   them, and `wb-netd` writes one before any drop or suppression
   decision about the event that goes with it, and before it sends the
   DNS answer. A write that fails, or that blocks for more than 100 ms,
-  counts as failed, and the lookup is refused (S07-egress-gateway,
-  "Packet path", DNS). `wb-hostd` reads what is left in the socket
+  counts as failed, and the lookup is refused (S07-02-packet-path, DNS). `wb-hostd` reads what is left in the socket
   after `wb-netd` exits before it starts a new one.
 - **Mapping entries are checked.** `wb-netd` derives the names from
   guest queries, so `wb-hostd` checks each entry before it keeps it:
@@ -123,7 +121,7 @@ can cause. Every host handler that takes input from a guest has a per-VM
 rate limit, a size limit on each input, and a bound on the work it runs
 at once. A request over a limit is refused or dropped, never queued
 without bound, and logged with the limit's rule. For the refusal
-classes that S07-egress-gateway, "Events and rate limits", aggregates, a
+classes that S07-02-packet-path, "Events and rate limits", aggregates, a
 run of refusals is logged as one record with its count. A new handler
 gets its limits before it merges.
 
@@ -132,12 +130,12 @@ gets its limits before it merges.
 | Host-guest socket connections | `wb-vmd`, `wb-hostd` | connections opened and not yet passed, connections per VM and per project, reconnects per minute | "The VM provider passes descriptors, not bytes", S06-11-reconnect-and-recovery, "Reconnect" |
 | RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on the server and never left at the library default, requests per second per VM, entries in the reconnect session list | I52 for the values, S06-11-reconnect-and-recovery, "Reconnect" |
 | The version `wb-guestd` reports | `wb-hostd` | 64 bytes, fixed form | "Version skew" |
-| Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-egress-gateway, "Packet path" |
-| Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-egress-gateway, "Packet path", DNS, "Hold limits" |
+| Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-02-packet-path |
+| Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-02-packet-path, DNS, "Hold limits" |
 | Connections and streams | `wb-netd`, `wb-proxyd` | connections in flight, stream resets and refusals per rule | S07-egress-gateway |
-| Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | 4 requests in flight, lookups and their tile fetches, and 6,000 uncached lookups a minute per VM, 8 requests in flight per `wb-proxyd` with one kept for the timer's calibration and its tiles, a queue of 2,000 per VM, one retry, 10 s per upstream request, requests served first in, first out, a deadline per request of 42 s plus 125 ms per uncached lookup and per lookup queued ahead, counted at admission and at most 5 minutes, 2,000 versions per `@v/list`, 100,000 cached records and 16 MiB of cached tiles per VM, 1 MiB of calibration tiles, calibration on its own timer only, over a cap refused with `go-clock-lookup-rate`, `go-clock-deadline` or `go-list-too-long`; stored heads, points and findings checked by `wb-hostd`, at most 192 heads of 1 KiB | S07-egress-gateway, "Dependency gate", "Publish time" |
-| Placeholder scan of requests on inspected hosts | `wb-proxyd` | a 64 KiB cap on the request head (`http-header-size`); per request, a held-back window three times the length of the VM's longest placeholder, at most 768 bytes with the 256-character cap; at most 8 placeholders per binding per VM | S07-egress-gateway, "Request form", "Header cap", "Placeholder binding", "Bounds" |
-| Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-egress-gateway, "Stream path" |
+| Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | 4 requests in flight, lookups and their tile fetches, and 6,000 uncached lookups a minute per VM, 8 requests in flight per `wb-proxyd` with one kept for the timer's calibration and its tiles, a queue of 2,000 per VM, one retry, 10 s per upstream request, requests served first in, first out, a deadline per request of 42 s plus 125 ms per uncached lookup and per lookup queued ahead, counted at admission and at most 5 minutes, 2,000 versions per `@v/list`, 100,000 cached records and 16 MiB of cached tiles per VM, 1 MiB of calibration tiles, calibration on its own timer only, over a cap refused with `go-clock-lookup-rate`, `go-clock-deadline` or `go-list-too-long`; stored heads, points and findings checked by `wb-hostd`, at most 192 heads of 1 KiB | S07-08-dependency-gate, S07-09-publish-time |
+| Placeholder scan of requests on inspected hosts | `wb-proxyd` | a 64 KiB cap on the request head (`http-header-size`); per request, a held-back window three times the length of the VM's longest placeholder, at most 768 bytes with the 256-character cap; at most 8 placeholders per binding per VM | S07-06-requests-and-credentials ("Request form", "Header cap", "Placeholder binding", "Bounds") |
+| Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-04-stream-hand-off |
 | Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-05-ca-keys |
 | Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-04-push-checks, "Pack scanner", and S08-05-push-limits, "Bounds" |
 | Leftover-process results | `wb-hostd` | one per kill loop, kept until acknowledged, in a session report or a cleanup record; at most one record per project user in the VM, apart from the 64 session entries; accepted only on an exact kill ID `wb-hostd` sent, before the kill's 7-minute deadline, and none by then counts as processes left | S06-10-leftover-processes, S06-11-reconnect-and-recovery ("Reconnect") and S06-09-session-lifecycle ("Deadlines") |

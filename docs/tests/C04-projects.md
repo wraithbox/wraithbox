@@ -4,8 +4,7 @@
 session belongs to, what happens when a repository moves, is cloned
 again or changes its remote, and the project commands.
 
-**Verifies:** S05-cli ("Naming"), S07-egress-gateway ("Enforced per
-VM")
+**Verifies:** S05-cli ("Naming"), S07-01-per-vm-policy
 
 ## Conformance
 

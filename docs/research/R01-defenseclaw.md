@@ -97,7 +97,7 @@ its controls.
   (`policies/guardrail-use-cases/`). Wraith Box's equivalent is the
   write grant of SEC06-repo-writes. The git hosting profile allows any
   `git-receive-pack` request to the repositories of the projects in the
-  VM (S07-egress-gateway, "Modes, per host"). A guest with that grant
+  VM (S07-05-hosts-and-modes, "Modes, per host"). A guest with that grant
   can force-push over the default branch, and delete branches and tags,
   limited only by the hosting service's own branch protection. T00-index
   lists the user's repositories as an asset, and no accepted risk covers

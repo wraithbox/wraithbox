@@ -134,6 +134,6 @@ and CA, comes from the socket it arrived on. Its name comes from the
 name reports `wb-proxyd` checked and kept, and what `wb-netd` writes
 with a stream can only narrow. So a compromised `wb-netd` can't label
 a stream as another VM's, or as a project's that has no session in
-the VM (S07-egress-gateway, "Stream hand-off").
+the VM (S07-04-stream-hand-off).
 
 **Status:** Draft

@@ -33,8 +33,7 @@ Guest root can forge identities, which collapses per-program and
 per-project rules into the union of the VM's grants. That is residual
 risk T06-forged-labels.
 
-The host floor is per VM, not per project (S07-egress-gateway,
-"Enforced per VM"). Any process in a VM can use the network grants and
+The host floor is per VM, not per project (S07-01-per-vm-policy). Any process in a VM can use the network grants and
 credential bindings of every project with a session in it, without
 guest root (T11-shared-vm-grants). Only a label from this layer
 (Layer 3) can tell projects apart on the network, and only against a
@@ -90,8 +89,7 @@ Applied by `wb-guestd` to every process it starts for a project user:
   A stopped VM leaves none.
   This holds against a process without guest root only. None is meant
   to keep running after its project leaves the VM's
-  effective policy or during another project's learn-mode session (S07-egress-gateway, "Approvals and
-  learning");
+  effective policy or during another project's learn-mode session (S07-11-approvals-and-learning);
 - launchd starts a project user's per-user agents and services, such
   as a simulator's, in that user's launchd domain (`user/<uid>`),
   outside every session, where killing the session's processes

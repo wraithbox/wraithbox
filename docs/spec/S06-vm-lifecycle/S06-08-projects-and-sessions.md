@@ -83,7 +83,7 @@ The variables are meant to keep Claude Code from asking for the hosts
 and paths the model API profile leaves out, which is assumed, and
 C06-model-api checks it. They aren't the control:
 `wb-proxyd` refuses the event log and every host outside the profile
-whatever the guest sets (S07-egress-gateway, "model API"). With the
+whatever the guest sets (S07-07-http-policy, "model API"). With the
 variable set, Claude Code doesn't fetch feature flags, so it reaches
 `/api/eval/` only when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is
 unset, as in the second pass of the C06-model-api run.

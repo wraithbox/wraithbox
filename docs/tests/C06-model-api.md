@@ -4,8 +4,8 @@
 the scan for the placeholder in whole requests, what is injected on
 the model API, the event log, and Claude Code end to end.
 
-**Verifies:** S07-egress-gateway ("Credential replacement",
-"Placeholder binding", "Bounds", "model API"),
+**Verifies:** S07-06-requests-and-credentials ("Credential replacement",
+"Placeholder binding", "Bounds"), S07-07-http-policy ("model API"),
 S09-04-credentials ("Model credential"), S06-08-projects-and-sessions ("Claude Code in the guest"), S04-08-records-and-bounds ("Accounting and event channels")
 
 ## Conformance
@@ -17,7 +17,8 @@ S09-04-credentials ("Model credential"), S06-08-projects-and-sessions ("Claude C
 
 ### The placeholder in a request
 
-S07-egress-gateway, "Credential replacement" and "Placeholder binding".
+S07-06-requests-and-credentials, "Credential replacement" and
+"Placeholder binding".
 The scan covers whole requests, not only `Authorization` and
 `x-api-key`.
 
@@ -48,7 +49,7 @@ The scan covers whole requests, not only `Authorization` and
 
 ### Bodies split across reads
 
-Spec: S07-egress-gateway, "Bounds".
+Spec: S07-06-requests-and-credentials, "Bounds".
 
 - Send it in a chunked body split across two chunks, and across two
   HTTP/2 `DATA` frames, at every offset in the placeholder, exact and
@@ -103,7 +104,7 @@ Spec: S09-04-credentials, "Model credential".
 
 ### The event log
 
-Spec: S07-egress-gateway, "model API".
+Spec: S07-07-http-policy, "model API".
 
 - With a global policy that allows `api.anthropic.com`
   `/api/event_logging/`, and with one that allows `/api/`, send a

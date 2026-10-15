@@ -30,8 +30,7 @@ port-forwarding switches come after V1 (V1-08-no-forward-clipboard).
   where the project's sessions run and its learned allowlist
   applies, and out of sessions the user isolated. What keeps a learn
   period attributable to one project is that `wb-hostd` runs it only
-  while no other project has a session in the VM (S07-egress-gateway,
-  "Approvals and learning").
+  while no other project has a session in the VM (S07-11-approvals-and-learning).
 - *`config_trust`.* Whether the repository's `.wraithbox/` is read
   ("Repository-supplied configuration"). Off for a new project. Only
   `wb trust` sets it, after the boundary check. `wb untrust` and
@@ -55,8 +54,7 @@ rule can't be in `audit` either (S09-08-approvals, "Approved rule"). The maintai
 - *Closed keys.* It is parsed against a closed list of those keys, and
   any other key is a load error, so it can't set `placement` or
   `config_trust`. A rule on a built-in host whose
-  profile part is off is a load error too (S07-egress-gateway,
-  "Profile parts").
+  profile part is off is a load error too (S07-07-http-policy, "Profile parts").
 - *Which commit.* It is read only from the host repository's
   checked-out `HEAD`, never from the landing, quarantine or export
   repository (S08-workspace-and-git), so the guest can't change it by

@@ -7,8 +7,7 @@ responses.
 
 **Verifies:** S15-least-privilege ("The store holds credentials",
 "Keychain", "Declared access"), S09-04-credentials, S12-platforms ("Development builds on macOS"),
-S10-tech-stack ("Packaging and signing"), S07-egress-gateway
-("Credential replacement")
+S10-tech-stack ("Packaging and signing"), S07-06-requests-and-credentials ("Credential replacement")
 
 ## Unit tests
 

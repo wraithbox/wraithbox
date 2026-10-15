@@ -49,7 +49,7 @@ and an organization may supply its own.
   they change, also for a project without `config_trust`. The
   candidate is the global rules and the rules of every project with
   a session in the VM, with the built-in profiles, which is what the
-  VM enforces (S07-egress-gateway, "Enforced per VM"), projected as
+  VM enforces (S07-01-per-vm-policy), projected as
   above ("Built-in profiles in the check" below). A failing check
   refuses the session
   start, with the reason, the project and the rule that caused it
@@ -61,11 +61,10 @@ and an organization may supply its own.
   as removing the last `enforce` endpoint on it (S09-01-policy-files, "Mode per host and port"). A change that widens
   and fails the check, or can't be checked, is refused, the VM keeps its
   last policy that passed, and `wb policy explain` shows the change
-  as pending (S07-egress-gateway, "Policy changes while sessions
-  run"). A recompute when a session ends goes through the same check
+  as pending (S07-01-per-vm-policy, "Policy changes while sessions run"). A recompute when a session ends goes through the same check
   when it widens the union, and on failure the departing project's
   denies, limits, modes and parts that are off stay as a held source
-  (S07-egress-gateway, "Session end"). The
+  (S07-01-per-vm-policy, "Session end"). The
   result is cached on the SHA-256
   of the candidate and of the boundary, so an unchanged policy adds
   no prover run to session start (NFR01-startup). The maintainer
@@ -84,8 +83,7 @@ and an organization may supply its own.
   candidate never holds one, because Wraith Box writes it as the
   whole host in `enforce` mode (S09-01-policy-files, "Audit as the whole host").
 - *Built-in profiles in the check.* The candidate holds the parts of
-  the built-in profiles that are on (S07-egress-gateway, "Profile
-  parts"), and no built-in rule is left out. The candidate holds the
+  the built-in profiles that are on (S07-07-http-policy, "Profile parts"), and no built-in rule is left out. The candidate holds the
   git hosting profile on every host that a project's remotes name,
   with the GraphQL path of that host's kind. A host whose kind isn't
   known doesn't add an allow rule until the user sets its kind. An

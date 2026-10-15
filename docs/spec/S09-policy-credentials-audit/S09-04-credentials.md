@@ -47,7 +47,7 @@ with a token. Built-in profiles ship these, such as the anonymous
 X22-no-guest-credentials). Such a value isn't a secret, and the
 guest doesn't get a placeholder for it. A binding on a host that a
 built-in profile covers applies only to the hosts and paths of the
-profile's parts that are on (S07-egress-gateway, "Profile parts").
+profile's parts that are on (S07-07-http-policy, "Profile parts").
 
 ### Reach
 
@@ -61,8 +61,7 @@ can have it used on its behalf, though none can read it
 
 Claude Code in the guest is configured with a
 placeholder, and the model API profile's binding injects the real
-credential on `api.anthropic.com` alone (S07-egress-gateway, "Named
-places"). The kind of credential stored for the binding decides both
+credential on `api.anthropic.com` alone (S07-06-requests-and-credentials, "Named places"). The kind of credential stored for the binding decides both
 the guest variable that holds the placeholder and the header the
 binding injects.
 
@@ -117,8 +116,7 @@ the model credential:
   and goes with the VM's state when the VM is deleted.
 
 Ordinary text then can't match a placeholder by chance, and a
-placeholder seen in a refusal names its VM (S07-egress-gateway,
-"Placeholder binding").
+placeholder seen in a refusal names its VM (S07-06-requests-and-credentials, "Placeholder binding").
 
 #### Credential kinds
 

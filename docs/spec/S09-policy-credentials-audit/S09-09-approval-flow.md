@@ -9,13 +9,12 @@ How an approval request for a name behaves, from the lookup that
 raises it to its answer or its expiry. The maintainer decided this on
 I51 (B51-approval-flow, option A with its recommended sub-decisions).
 The VM is the unit for each rule here, because the host can't tell
-which session looked a name up (S07-egress-gateway, "Enforced per
-VM", I36).
+which session looked a name up (S07-01-per-vm-policy, I36).
 
 ### What the blocked client sees
 
 `wb-netd` holds the answer to a
-refused lookup for 4 seconds (S07-egress-gateway, "Packet path",
+refused lookup for 4 seconds (S07-02-packet-path,
 DNS, "Hold"). When the user approves within the hold, the waiting
 lookup gets the allowed answer, and the tool works on its first try.
 Otherwise it gets `NXDOMAIN` with a negative TTL of 0 ("Negative
@@ -50,8 +49,7 @@ with that id.
   to a newer request for the same name, which may have other
   sessions or other risk-check findings.
 - *Replaced requests.* When an answer is refused because the VM's
-  sessions changed (S07-egress-gateway, "Session set at the
-  answer"), the request closes and its notification is withdrawn. A
+  sessions changed (S07-03-dns, "Session set at the answer"), the request closes and its notification is withdrawn. A
   new request with a new id and the current set of sessions
   replaces it, and the risk check runs again against the VM's
   current union. The new request's 5019 event names the old id. The
@@ -76,7 +74,7 @@ requests, and 10 new requests a minute.
   the limits allow.
 - *Mirrored in `wb-netd`.* `wb-netd` checks both limits when the
   query arrives, under the lock of the one-open-event-per-name
-  check (S07-egress-gateway, "Same answer for every refusal"), only
+  check (S07-03-dns, "Same answer for every refusal"), only
   to decide the answer and the hold. `wb-hostd` tells it when a
   request closes, and a new `wb-netd` gets the VM's pending count
   and recent rate from `wb-hostd` at start, with the policy
@@ -84,7 +82,7 @@ requests, and 10 new requests a minute.
   limit is refused at DNS with the same answer and hold as any
   unknown name, without a request, and is logged with the same
   rule. These refusals are aggregated per rule
-(S07-egress-gateway, "Events and rate limits"). `wb status` shows
+(S07-02-packet-path, "Events and rate limits"). `wb status` shows
 the VM's pending requests and the count of names refused under each
 limit since the VM started. The guest chooses which names it looks
 up, so it could raise requests to wear down the user's attention
@@ -96,7 +94,7 @@ and they bound the prover runs too (SEC13-bounded-resources).
 A request has no wall-clock timeout. It stays pending, in
 `wb status` and as a notification, until the user answers it or
 until every session in the set it records has ended
-(S07-egress-gateway, "Session set at the answer"). A replaced
+(S07-03-dns, "Session set at the answer"). A replaced
 request's set is the one it was replaced with, so a request
 replaced with sessions A and B doesn't expire when A ends. A
 request that expires has its notification withdrawn, and the expiry
@@ -137,7 +135,6 @@ with `xn--`, and is shown in that form.
 ### Allow for this session
 
 Shown as "for this VM until these
-sessions end", with the sessions listed (S07-egress-gateway, "Who an
-approval reaches").
+sessions end", with the sessions listed (S07-11-approvals-and-learning, "Who an approval reaches").
 
 **Status:** Draft

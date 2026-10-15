@@ -32,7 +32,7 @@ permissive license, at a version that can be pinned?
   ("Network policy schema", "Program narrowing", "Precedence"),
   S09-02-project-settings ("Repository-supplied configuration"),
   S09-03-boundary-check, S09-08-approvals, S09-10-audit,
-  S07-egress-gateway ("Dependency gate", one line in "Approvals and
+  S07-08-dependency-gate, one line in "Approvals and
   learning"), S10-tech-stack (the OpenShell rows), S04-architecture (a
   `wb-prover` row), S08-workspace-and-git (`.wraithbox/` is flagged) and
   S13-guest-confinement ("Source"). Every part exists under Apache-2.0

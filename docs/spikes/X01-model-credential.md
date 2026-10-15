@@ -90,7 +90,7 @@ SEC10-audit, FR01-drop-in, FR13-claude-state
   - That the placeholder went nowhere but `api.anthropic.com`. The
     proxy looked for it only in `Authorization` and `x-api-key`, not
     in other headers, query strings or bodies, which is where
-    S07-egress-gateway, "Placeholder binding", also looks for a leak.
+    S07-06-requests-and-credentials, "Placeholder binding", also looks for a leak.
   - That the main-loop and side calls to `/v1/messages` are what the
     host table says. Inferred from their timing and `anthropic-beta`
     values.
@@ -236,7 +236,7 @@ The item didn't hold an API key, so `/v1/messages` answered 401.
   Code stored").
 - The proxy looked for the placeholder in `Authorization` and
   `x-api-key` only. A scan of every header, the query string, and the
-  body, as S07-egress-gateway, "Placeholder binding", does, is still to
+  body, as S07-06-requests-and-credentials, "Placeholder binding", does, is still to
   do, in the next run with the maintainer or in the conformance tests
   of `wb-proxyd`.
 - The run was on the host, not in a guest, and nothing denied a host:

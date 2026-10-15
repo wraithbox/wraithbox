@@ -31,14 +31,12 @@ call it only through the interface in `internal/agent`. An agent supplies:
   guest, and the filter they pass ("User configuration" below).
 - **Launch.** The environment variables `wb-guestd` adds to the
   session's allowlist, and the state the agent keeps per project
-  (S06-08-projects-and-sessions, "Claude Code in the
-  guest").
+  (S06-08-projects-and-sessions, "Claude Code in the guest").
 - **Credential bindings.** The kinds of model credential, the guest
   variable that holds each placeholder, and the header each binding
   injects (S09-04-credentials, "Model credential").
 - **Endpoint profile.** The built-in HTTP profile the agent needs, the
-  model API profile for Claude Code (S07-egress-gateway, "HTTP
-  policy").
+  model API profile for Claude Code (S07-07-http-policy).
 
 ### Install
 

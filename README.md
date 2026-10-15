@@ -66,7 +66,7 @@ explains the IDs.
 | [S04](docs/spec/S04-architecture/S04-00-architecture.md) | Architecture: processes and boundaries |
 | [S05](docs/spec/S05-cli.md) | The `wb` command |
 | [S06](docs/spec/S06-vm-lifecycle/S06-00-vm-lifecycle.md) | Images, VMs, guest users, guest agent |
-| [S07](docs/spec/S07-egress-gateway.md) | Network stack, DNS, proxy, dependency gate |
+| [S07](docs/spec/S07-egress-gateway/S07-00-egress-gateway.md) | Network stack, DNS, proxy, dependency gate |
 | [S08](docs/spec/S08-workspace-and-git/S08-00-workspace-and-git.md) | Workspace and the git round trip |
 | [S09](docs/spec/S09-policy-credentials-audit/S09-00-policy-credentials-audit.md) | Policy, credentials, certificates, audit |
 | [S10](docs/spec/S10-tech-stack.md) | Languages, libraries, packaging |

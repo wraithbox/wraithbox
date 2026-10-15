@@ -82,8 +82,7 @@ which has no home yet, can still be placed before its first session.
 ### Isolated slot to itself
 
 Projects in one VM share its network
-grants and credential bindings (S07-egress-gateway, "Enforced per
-VM", T11-shared-vm-grants). A project whose `placement` is
+grants and credential bindings (S07-01-per-vm-policy, T11-shared-vm-grants). A project whose `placement` is
 `isolated` gets the isolated VM to itself, unless its settings mark
 it shared (S09-02-project-settings, "Settings contents").
 `wb-hostd` refuses a session start that would put another project,

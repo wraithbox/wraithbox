@@ -79,7 +79,7 @@ For a result of processes left, `wb-hostd`:
 Guest root can fake a result or hold it back. A faked count, a
 withheld result or a late one only makes `wb-hostd` stricter, a
 cost T11-shared-vm-grants records. A faked clean result leaves the
-residual of S07-egress-gateway, "Leftover processes", which a cold
+residual of S07-11-approvals-and-learning, "Leftover processes", which a cold
 boot and the review of the learn list cover.
 
 **Status:** Draft

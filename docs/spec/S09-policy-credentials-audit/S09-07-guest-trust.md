@@ -33,7 +33,7 @@ directory under S13-guest-confinement, "Profile".
   macOS) and every current CA. `wb-guestd` rebuilds it from the
   current public roots on every write. A variable that replaces a
   client's roots points here, because pass hosts and raw TCP relays
-  present public certificates (S07-egress-gateway, "Modes");
+  present public certificates (S07-05-hosts-and-modes, "Modes, per host");
 - the Java trust store: a PKCS12 file without a password, with
   the same certificates as the bundle. `wb-guestd` builds it
   itself, in Go. Neither the standard library nor
@@ -84,8 +84,8 @@ Virtualization framework VMs can't enroll in MDM.
   bundle, and it uses the system store by default.
   X04-tls-inspection saw each of them reject the inspected leaf.
 - *Fails closed.* Over TLS, they reach only pass hosts and raw TCP
-  entries, never a guarded host (S07-egress-gateway, "Modes" and
-  "Non-HTTP streams"). Plain HTTP doesn't need the CA.
+  entries, never a guarded host (S07-05-hosts-and-modes, "Modes, per
+  host", and S07-10-non-http-streams). Plain HTTP doesn't need the CA.
   FR08-no-proxy-config names this gap. An attended step, in which
   the maintainer confirms trust in the guest's UI, is I213.
 

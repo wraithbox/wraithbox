@@ -195,7 +195,7 @@ SEC11-root-gains-nothing (guest root doesn't control enforcement) and SEC05-defa
 - <Badge text="verified" variant="success" /> When the host-guest socket drops, `wb-guestd` stops the session's process group and resumes it when the link returns (S13-guest-confinement, "Layer 1").
 - <Badge text="verified" variant="success" /> The specs already plan to save VM state on idle and restore it (S06-06-devices-and-warm-start, "Warm start"), so A reuses that path.
 - <Badge text="verified" variant="success" /> SEC13-bounded-resources reads "CPU, memory and disk of each VM are capped", and nothing bounds the host processes serving a VM (SEC00-index).
-- <Badge text="verified" variant="success" /> The audit log is "rotated and size-capped" (S09-10-audit), and the wildcard DNS budget is per session (S07-egress-gateway, "DNS").
+- <Badge text="verified" variant="success" /> The audit log is "rotated and size-capped" (S09-10-audit), and the wildcard DNS budget is per session (S07-03-dns).
 - <Badge text="verified" variant="success" /> The code has no supervision yet: every daemon under `packages/wraithbox-go/cmd/` and `wb-vmd` prints its version and exits 2. Go and Swift each define their own version string (`internal/version/version.go`, `WraithBoxVM/Version.swift`), so the release build must set both to the same value.
 - <Badge text="assumed" variant="caution" /> That a Virtualization framework VM stops when the process that owns it exits. Probable, and a VM run takes minutes to check: add it to X18-vsock-handoff.
 - <Badge text="assumed" variant="caution" /> That a macOS guest with a vsock device and a file-handle network attachment can be saved and restored. That is X02-warm-start. If it can't, A falls back to C.

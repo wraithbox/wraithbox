@@ -22,8 +22,7 @@ adds a rule of the same fixed form with one named method and the
 exact path, or path prefix, the request used in place of
 `access: read-only`. Both forms only allow: no denies, no `audit`
 mode, no extension keys. `wb allow` adds only a rule of the first
-form, never a pass host or a raw TCP entry (S07-egress-gateway,
-"Non-HTTP streams").
+form, never a pass host or a raw TCP entry (S07-10-non-http-streams).
 
 ### Host name
 
@@ -50,12 +49,12 @@ their names from OpenShell's proposal risk check:
   this check on its list of known programs, and it never fires for a
   `/**` rule (X24-openshell-artifacts).
 - Wraith Box only: a first write method on a host without a
-  credential (S07-egress-gateway, "What an approval grants").
+  credential (S07-11-approvals-and-learning, "What an approval grants").
 - Wraith Box only: a shared object-storage host or a wildcard over
   one, and signature parameters on a write method (S07-egress-gateway,
   X22-no-guest-credentials).
 - Wraith Box only: a host that mirrors a gated registry
-  (S07-egress-gateway, "Dependency gate", the condition on which
+  (S07-08-dependency-gate, the condition on which
   T07-ungated-sources was accepted).
 
 ### Source
@@ -84,14 +83,14 @@ approvals are bound by the boundary (B35-openshell-artifacts).
 
 The guest triggers approval requests, one per unknown
 name it looks up outside the guest OS's background list and the
-hosts of parts that are off (S07-egress-gateway, "Packet path",
+hosts of parts that are off (S07-02-packet-path,
 DNS), so prover runs are bounded (SEC13-bounded-resources).
 Requests are deduplicated by host, and each VM has limits on
 pending and new requests (S09-09-approval-flow). A deny holds
 until the sessions running at the deny have ended, and an answer
 given after the VM's sessions changed is refused and the request
-shown again as a new request (S09-09-approval-flow, S07-egress-gateway, "Deny duration", "Session set at
-the answer"). Each VM has a cap on concurrent
+shown again as a new request (S09-09-approval-flow, and S07-03-dns, "Deny duration", "Session
+set at the answer"). Each VM has a cap on concurrent
 prover runs (S04-architecture). Boundary results are cached per host,
 port and rule form, keyed on the SHA-256 of the boundary document, so
 a changed boundary is checked again. A request over a limit stays
@@ -107,13 +106,13 @@ failure is logged.
 
 When the risk check finds something in a joining
 project's rules and bindings compared with the VM's current union
-(S07-egress-gateway, "Enforced per VM"), the session start waits on
+(S07-01-per-vm-policy), the session start waits on
 a join approval. It is delivered like any approval request and lists
 the joining project, the projects already in the VM and each
 finding. The answer is a Device Config State Change (5019) event
 that records the projects, the findings, the decision, and the
 SHA-256 of the joining project's policy and of the union, without a
-held source if the VM has one (S07-egress-gateway, "Session end").
+held source if the VM has one (S07-01-per-vm-policy, "Session end").
 An approval is cached on that pair, so the next start with the same
 policy and the same union doesn't ask again, and any change to
 either asks again. A denial, or no answer before the request
