@@ -92,7 +92,7 @@ binary of that name comes from the Swift package.
     app's bundle identifier and `LSUIElement`, and its entitlements
     hold the groups of its items and no others. The installer's `wb`
     link on `PATH` points to `Contents/Helpers/wb.app/Contents/MacOS/wb`.
-    The other programs are plain executables in `Contents/MacOS`
+    A program without a group doesn't need a bundle of its own
     (X29-dev-signing).
   - *Signing.* Release builds get Developer ID signing and
     notarization later. Development builds (`mise run build`) are

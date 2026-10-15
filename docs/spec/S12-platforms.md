@@ -153,10 +153,11 @@ whose profile is valid. The cases:
 - **Expired profile.** AMFI refuses to start a program whose profile
   has expired, as it refuses one with no profile (assumed in
   X29-dev-signing). That includes `wb`. The shell reports the killed
-  process, and `wb` reports nothing. `wb-hostd` doesn't hold a group and keeps
-  running. When `wb-launcher` reports that a program with a group was
-  killed at start, `wb-hostd` reads that program's profile, and for an
-  expired one logs the rule `signing-profile-expired` with the date.
+  process, and `wb` reports nothing. `wb-hostd` doesn't hold a group
+  and keeps running. When `wb-launcher` reports that a program with a
+  group exited on `SIGKILL` (S04-architecture, "Who starts whom"),
+  `wb-hostd` reads that program's profile, and for an expired one logs
+  the rule `signing-profile-expired` with the date.
   The fix is the one for a profile near its expiry date.
 
 ## Guest operating systems
