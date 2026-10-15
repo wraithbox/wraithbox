@@ -44,7 +44,7 @@ small set of interfaces, each with one implementation per host OS:
 | **Local IPC** | Host gRPC endpoints, peer identity | Unix sockets, peer credentials | named pipes, user-SID ACL, client process id | Unix sockets, `SO_PEERCRED` |
 | **Secret store** | Holds every credential. Each item is readable only by the processes S15-least-privilege declares for it | Keychain | Credential Manager (DPAPI, per user) | Secret Service (D-Bus); see below |
 | **Hardware key** | Non-exportable CA signing key (S09-policy-credentials-audit, "Key") | Secure Enclave, a key kept as its wrapped form in a store item | TPM via the CNG platform crypto provider | TPM 2.0 where present, else a software key in the secret store |
-| **Service manager** | Run `wb-hostd` per user, at login and again whenever it exits. `wb-hostd` supervises the other daemons (S04-architecture, "Supervision and failure") | LaunchAgent `nl.wraithbox.hostd`, which `wb setup` writes (S17-install-and-upgrade) | per-user logon task | systemd user unit |
+| **Service manager** | Run `wb-hostd` per user, at login and again whenever it exits. `wb-hostd` supervises the other daemons (S04-07-supervision) | LaunchAgent `nl.wraithbox.hostd`, which `wb setup` writes (S17-install-and-upgrade) | per-user logon task | systemd user unit |
 | **Self-sandbox** | Confine our own daemons (S04-architecture) | Seatbelt profile applied in process at start with `sandbox_init_with_parameters`, called without cgo. A confined process can't confine its children further, so `wb-hostd` starts the other daemons through `wb-launcher`, which it starts before it confines itself (X23-sandboxed-daemons). `wb-vmd` confines itself the same way, one per VM, with the Virtualization service, its VM's bundle and the framework's sandbox extensions in its profile (X25-vmd-sandbox) | restricted token, job objects, AppContainer where it fits | Landlock and seccomp (no unprivileged user namespaces needed) |
 | **Image build downloads** | Fetch what an image build needs from the internet: `wb-download` only, never `wb-hostd` (S17-install-and-upgrade, "Downloads") | the restore image from Apple's catalog and Claude Code from `downloads.claude.ai`, with the network part of the `wb-proxyd` Seatbelt profile from X23-sandboxed-daemons (I61), limited to port 443, and a file size limit that `wb-launcher` sets | no Windows image download: the user supplies it (above). The same program and host rules, confined with the Self-sandbox row's mechanism, specified when Windows hosts are built | the same program and host rules, confined with Landlock and seccomp, specified when Linux hosts are built |
 | **Notifications** | Approval prompts with actions | native helper (Swift) | native helper (see languages) | freedesktop notifications over D-Bus from Go |
@@ -168,7 +168,7 @@ are in, and reports each case itself. The cases:
   `wb-credset` exit on `SIGKILL` and its profile has expired, it
   reports the same. `wb-hostd` doesn't hold a group and keeps running,
   and gives a second signal. When `wb-launcher` reports that a program with a
-  group exited on `SIGKILL` (S04-architecture, "Who starts whom"),
+  group exited on `SIGKILL` (S04-07-supervision, "Who starts whom"),
   `wb-hostd` reads that program's `embedded.provisionprofile`. For an
   expired one it logs the rule `signing-profile-expired` with the date.
   A `SIGKILL` of a program whose profile is valid, or that has no

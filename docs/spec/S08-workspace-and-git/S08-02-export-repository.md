@@ -79,7 +79,7 @@ the `wb-git-upload` shim. The shim's profile doesn't allow writing it.
 
 `wb-hostd`'s own profile doesn't allow writing `export.git`, the
 project directory that holds it, or the projects root
-(S04-architecture, "Each host daemon is self-sandboxed"). That denial
+(S04-03-self-sandboxing, "Each host daemon is self-sandboxed"). That denial
 is the control. `wb` runs git in that repository, and git trusts a
 repository's own configuration.
 

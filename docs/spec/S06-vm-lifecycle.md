@@ -240,7 +240,7 @@ in S12-platforms.
   the result as root. The operation returns success or a failure with
   a text. A failure fails the build, and the host cuts that text to
   1024 bytes and escapes it wherever it shows it, as it does the
-  version `wb-guestd` reports (S04-architecture, "Version skew"). The build doesn't use macOS's own `tic`
+  version `wb-guestd` reports (S04-08-records-and-bounds, "Version skew"). The build doesn't use macOS's own `tic`
   (ncurses 6.0): on the raw 6.6 `terminfo.src` it stops with
   `error writing` at `scrt`, and at `kitty` when limited to the
   entries above.
@@ -569,7 +569,7 @@ in S12-platforms.
   (X25-vmd-sandbox). Whether v1 keeps them is open, and
   `wb-vmd`'s profile is ablated again against the set chosen here.
   `wb-vmd` refuses any device not in this list
-  (S04-architecture, "The device set is fixed and checked").
+  (S04-02-vm-provider, "The device set is fixed and checked").
 - **Resources.** CPU, memory, and disk are capped per VM; defaults
   4 vCPU / 8 GB, configurable (SEC13-bounded-resources).
 - **Warm start.** `wb-hostd` can have `wb-vmd` start the work VM at
@@ -647,8 +647,7 @@ in S12-platforms.
     spent saved (X18-vsock-handoff). The periodic update corrects drift
     and a change of the host clock within a minute.
   - `wb-hostd` never reads or uses a time value from the guest, and the
-    guest has no message that asks for the time (S04-architecture,
-    "Everything in the guest is untrusted"). The guest can't make
+    guest has no message that asks for the time (S04-01-design-principles, "Everything in the guest is untrusted"). The guest can't make
     `wb-hostd` send more updates than this schedule.
   - `wb-guestd` steps the clock to the host's time after a cold boot, a
     restore or a host wake, and when the guest is more than 1 second
@@ -826,8 +825,7 @@ slot. Guests of other operating systems are limited only by resources
 ## Session lifecycle
 
 A session runs from `wb claude` to its summary. `wb-hostd` keeps each
-session's record and state in `state.db` (S04-architecture, "Host
-state"), with the VM and the VM generation it runs in. `wb-guestd`
+session's record and state in `state.db` (S04-architecture, "Host state"), with the VM and the VM generation it runs in. `wb-guestd`
 holds the session's processes and, in interactive use, its terminal
 device (PTY). The maintainer decided on I46 (B46-session-lifecycle)
 that closing the terminal ends the session. V1 has no detach and no
@@ -1175,8 +1173,7 @@ scheduled.
 - **Guest tools disk.** The bundle holds a disk image with `wb-guestd`
   and the other programs Wraith Box puts in the guest, built with the
   bundle and stamped with its build version (S10-tech-stack). `wb-vmd`
-  attaches no disk file outside the VM's bundle (S04-architecture,
-  "The device set is fixed and checked"), so before each cold start
+  attaches no disk file outside the VM's bundle (S04-02-vm-provider, "The device set is fixed and checked"), so before each cold start
   `wb-hostd` clones the bundle's image into the VM's bundle (an APFS
   clone on macOS), replacing the copy there. So a change that `wb-vmd`,
   which can write the VM's bundle, made to the copy is gone at the next
@@ -1189,7 +1186,7 @@ scheduled.
   it listens for the host.
 - **The host checks, not the guest.** `wb-hostd` accepts only a
   `wb-guestd` of its own build version and refuses any other before
-  any session request (S04-architecture, "Version skew"). A guest that
+  any session request (S04-08-records-and-bounds, "Version skew"). A guest that
   skips the update doesn't get a session. A saved state written under
   another build version is deleted and the VM cold boots, as after a
   configuration change ("Warm start"), because the restored guest would

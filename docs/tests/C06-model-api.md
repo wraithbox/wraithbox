@@ -7,8 +7,7 @@ the model API, the event log, and Claude Code end to end.
 **Verifies:** S07-egress-gateway ("Credential replacement",
 "Placeholder binding", "Bounds", "model API"),
 S09-policy-credentials-audit ("Model credential"), S06-vm-lifecycle
-("Claude Code in the guest"), S04-architecture ("Accounting and event
-channels")
+("Claude Code in the guest"), S04-08-records-and-bounds ("Accounting and event channels")
 
 ## Conformance
 
@@ -91,8 +90,7 @@ Spec: S09-policy-credentials-audit, "Model credential".
 - Send `wb-hostd` a placeholder record that fails its form check, and
   see the waiting session start refused with
   `placeholder-record-invalid`, and `wb-proxyd` ended, counted toward
-  the restart limit and restarted (S04-architecture, "Accounting and
-  event channels").
+  the restart limit and restarted (S04-08-records-and-bounds, "Accounting and event channels").
 
 ### What is injected
 

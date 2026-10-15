@@ -193,7 +193,7 @@ session start in the VM to the end of the last session running in it.
   frame the guest sends arrives in `wb-netd`; the guest has no other
   network path. A NAT or bridged network device would be one, and
   `wb-vmd`'s device-set check keeps it out, not its sandbox profile
-  (S04-architecture, "The device set is fixed and checked",
+  (S04-02-vm-provider, "The device set is fixed and checked",
   X25-vmd-sandbox). The rest of this spec is the same on every platform.
 - **Stack.** gVisor's userspace TCP/IP stack (`pkg/tcpip`), consumed as a
   Go module from gVisor's `go` branch. Its file-descriptor link endpoint
@@ -260,7 +260,7 @@ session start in the VM to the end of the last session running in it.
   and never opens a connection to the guest. Its only peers are the
   packet transport, `wb-proxyd`, and `wb-hostd` over the control,
   accounting and event channels it inherits at start
-  (S04-architecture, "Supervision and failure"). A path from the host into the
+  (S04-07-supervision). A path from the host into the
   guest, such as port forwarding (FR11-port-forward), needs its own
   spec text, and doesn't go through `wb-netd`.
 - **Addressing.** `wb-netd` runs a DHCP server handing the guest a single
@@ -404,8 +404,7 @@ session start in the VM to the end of the last session running in it.
     - *Over the cap.* A refused query over the cap is dropped without
       an answer. Its wildcard budget debit and accounting record are
       made first, as for every refused query, because accounting
-      records come before any drop decision (S04-architecture,
-      "Accounting and event channels"). It doesn't raise or join an
+      records come before any drop decision (S04-08-records-and-bounds, "Accounting and event channels"). It doesn't raise or join an
       approval event, doesn't go on a learn list, and is counted with
       the rule `dns-hold-full`, in runs per rule ("Events and rate
       limits"). Over UDP the guest's resolver sends it again after its
@@ -480,8 +479,7 @@ session start in the VM to the end of the last session running in it.
     Each of them can be held, because a held query costs only an entry
     in the held-query table, whose cap drops what doesn't fit ("Hold
     limits"). The last three come from the host's own
-    state, not from the name (S04-architecture, "Accounting and event
-    channels", S09-policy-credentials-audit, "Audit"). They don't raise
+    state, not from the name (S04-08-records-and-bounds, "Accounting and event channels", S09-policy-credentials-audit, "Audit"). They don't raise
     an approval event or debit the wildcard budget. When the query
     arrives, `wb-netd` checks the query rate (`dns-query-rate`) before
     anything else that can debit, then debits the wildcard budget, writes the debit's
@@ -490,8 +488,7 @@ session start in the VM to the end of the last session running in it.
     (S09-policy-credentials-audit, "Approval flow") under one lock,
     and does no other work that depends on the reason. When that
     write fails, the name is refused with the rule
-    `accounting-write-failed` (S04-architecture, "Accounting and event
-    channels"). An answered name's accounting record, with its address,
+    `accounting-write-failed` (S04-08-records-and-bounds, "Accounting and event channels"). An answered name's accounting record, with its address,
     is written before its answer too, and a failed write refuses the
     name the same way.
     The emission of the approval event and the notification start
@@ -576,7 +573,7 @@ session start in the VM to the end of the last session running in it.
     isn't refused for a missing entry.
   - *One hand-off socket per VM.* `wb-hostd` creates a hand-off
     socketpair for a VM at each start and restore, and at the restarts
-    of S04-architecture, "Restarting a daemon". It passes one end to
+    of S04-07-supervision, "Restarting a daemon". It passes one end to
     `wb-proxyd` and waits for `wb-proxyd` to acknowledge it. Only then
     does it give the other end to `wb-netd`, as that section says:
     at start to a new `wb-netd`, and on its control channel to a
@@ -597,7 +594,7 @@ session start in the VM to the end of the last session running in it.
     or the generation is older than the one it holds for the VM. A
     message with the generation it holds is a replacement, the new
     socket for the same VM and generation that `wb-hostd` sends at a
-    `wb-netd` restart (S04-architecture, "Restarting a daemon"). It
+    `wb-netd` restart (S04-07-supervision, "Restarting a daemon"). It
     replaces the old socket as above. After a `wb-proxyd` restart,
     `wb-proxyd` holds no socket, and each VM's first message sets its
     generation.
@@ -611,8 +608,8 @@ session start in the VM to the end of the last session running in it.
     synthetic range. After a `wb-proxyd` restart the replay rebuilds
     its copy. After a `wb-netd` restart the new `wb-netd` holds the
     mapping that `wb-hostd` kept from its accounting records
-    (S04-architecture, "Accounting and event channels" and "Restarting
-    a daemon"), and its replay matches the copy `wb-proxyd` kept.
+    (S04-08-records-and-bounds, "Accounting and event channels", and
+    S04-07-supervision, "Restarting a daemon"), and its replay matches the copy `wb-proxyd` kept.
   - *Name reports.* For each `A` answer with a synthetic address,
     `wb-netd` sends the name and the address on the VM's hand-off
     socket before the answer leaves. With the ordering property above,
@@ -637,7 +634,7 @@ session start in the VM to the end of the last session running in it.
     socket and every stream that came on it, and tells `wb-hostd` on
     its control channel. `wb-hostd` ends that `wb-netd` and counts the
     exit toward the restart limit, as for a malformed accounting record
-    (S04-architecture, "Accounting and event channels"). A report whose address the copy holds for
+    (S04-08-records-and-bounds, "Accounting and event channels"). A report whose address the copy holds for
     another name means `wb-netd` gave out an address it hadn't
     released. `wb-proxyd` then removes the old entry too and closes
     every open stream to that address. Streams to it are then refused
@@ -667,8 +664,7 @@ session start in the VM to the end of the last session running in it.
     accepted only under a wildcard entry, per VM and active period. A
     replayed or repeated name isn't counted again. Before it accepts a
     name that adds to the count, `wb-proxyd` writes the name to
-    `wb-hostd` as an accounting record (S04-architecture, "Accounting
-    and event channels"). A write that fails, or that blocks for more
+    `wb-hostd` as an accounting record (S04-08-records-and-bounds, "Accounting and event channels"). A write that fails, or that blocks for more
     than 100 ms, counts as failed, and the report is refused with the
     rule `name-report-refused` and the check `wildcard-budget`. `wb-hostd` keeps the set per VM and active period and gives
     it to a new `wb-proxyd` at start. A `wb-proxyd` restart thus keeps
@@ -1346,14 +1342,13 @@ session start in the VM to the end of the last session running in it.
     first computation that passes. `wb status` shows the point's age at
     all times, and the last rejected point with the bound it exceeded.
   - *Persisted state.* After each accepted computation, `wb-proxyd`
-    sends `wb-hostd` accounting records (S04-architecture, "Accounting
-    and event channels"): one for the accepted point, with its number
+    sends `wb-hostd` accounting records (S04-08-records-and-bounds, "Accounting and event channels"): one for the accepted point, with its number
     and cutoff, and one for each new head. `wb-hostd` owns `state.db`
     and its caches, and `wb-proxyd` doesn't write files, so `wb-hostd`
     stores them there (S04-architecture, "Host state"). It stamps each
     record with its own receipt time, never a time from `wb-proxyd`.
     It checks each record the way it checks mapping entries
-    (S04-architecture, "Mapping entries are checked"): a head is a
+    (S04-08-records-and-bounds, "Mapping entries are checked"): a head is a
     well-formed signed note of at most 1 KiB, at most 192 heads are
     kept, and a point is a non-negative integer whose cutoff is at or
     before the receipt time minus the minimum age. A record that fails
@@ -1425,7 +1420,7 @@ session start in the VM to the end of the last session running in it.
     `wb-proxyd` is added for it. The restart resets every proxied
     stream of both VMs, `claude` API streams included, and starts a new
     wait of up to 30 seconds for the first point. It doesn't count
-    toward the restart limit (S04-architecture, "Restarting a daemon"),
+    toward the restart limit (S04-07-supervision, "Restarting a daemon"),
     because the operator asked for it. The command refuses to run
     without a terminal, because the confirmation has to come from a
     person. The gate's own lookup adds a record
@@ -1450,8 +1445,7 @@ session start in the VM to the end of the last session running in it.
     (SEC08-proj-isolation). A cache holds up to 100,000 entries and
     evicts the least recently used. An evicted entry costs only a new
     lookup.
-  - *Lookup limits* (SEC13-bounded-resources, S04-architecture, "Host
-    work the guest can cause"). A verified lookup takes a `/lookup/`
+  - *Lookup limits* (SEC13-bounded-resources, S04-08-records-and-bounds, "Host work the guest can cause"). A verified lookup takes a `/lookup/`
     request and the tile fetches its proof needs, about two requests
     when the tiles aren't cached. Each VM has at most 4 such requests
     in flight and 6,000 uncached lookups a minute. `wb-proxyd` has at

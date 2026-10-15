@@ -88,7 +88,7 @@ What S06-vm-lifecycle described before this spike.
 
 ## Decision 2: which host process runs the format?
 
-With option A, some host process runs `diskutil`. `wb-hostd` can't under its self-sandbox, which starts only the fixed `wb-launcher` entries, with no arguments (S04-architecture, "Each host daemon is self-sandboxed").
+With option A, some host process runs `diskutil`. `wb-hostd` can't under its self-sandbox, which starts only the fixed `wb-launcher` entries, with no arguments (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>

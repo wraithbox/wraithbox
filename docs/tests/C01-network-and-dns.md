@@ -6,7 +6,7 @@ refusals, and negative answers.
 
 **Verifies:** S07-egress-gateway ("Packet path", "Addressing", "Name
 form", "Hold", "Negative answers", "Widening during the hold"),
-S04-architecture ("The device set is fixed and checked")
+S04-02-vm-provider ("The device set is fixed and checked")
 
 ## Fuzzing
 

@@ -159,7 +159,7 @@ are a usage error:
   `wb shell --project P` to reach it (S06-vm-lifecycle, "Changes left
   in the guest"). When the VM's `wb-netd` or `wb-proxyd` was down
   during the session, the summary says so and for how long
-  (S04-architecture, "Supervision and failure").
+  (S04-07-supervision).
 
 - During an agent session, `wb` never prints approval prompts. That
   terminal shows the agent's output, which the guest controls, so any
@@ -234,7 +234,7 @@ everything else `wb` does at that boundary.
 
 | Command | Purpose |
 |---|---|
-| `wb status` | VMs, their state, running sessions, pending approvals, and each host process with its state, version, restarts and last exit reason (S04-architecture, "Logs and health"). On macOS, within 30 days of the expiry date of the signing profile in the helper bundles, or after it, that date and the fix (S12-platforms, "Development builds on macOS") |
+| `wb status` | VMs, their state, running sessions, pending approvals, and each host process with its state, version, restarts and last exit reason (S04-08-records-and-bounds, "Logs and health"). On macOS, within 30 days of the expiry date of the signing profile in the helper bundles, or after it, that date and the fix (S12-platforms, "Development builds on macOS") |
 | `wb sessions [--project P]` | List sessions and their returned work |
 | `wb diff <session>` | Review returned work with flagged paths highlighted |
 | `wb land <session> [--branch NAME]` | Fetch returned work into the host repo as a branch; never checks out or merges |
@@ -257,7 +257,7 @@ everything else `wb` does at that boundary.
 | `wb vm start/stop/suspend/status` | Explicit VM control. `stop` and `suspend` are refused while the VM has a session that is starting, running, paused or ending, and `suspend` also while a kill of a project user is pending or after a leftover-process result (S06-vm-lifecycle, "Leftover processes"). That refusal says to wait up to 7 minutes for the cleanup result, or to stop and start the VM. The refusal names each one, the process ID of its `wb`, and how it ends: close its terminal, or wait for its deadline, and `wb sessions` lists them (S06-vm-lifecycle, "Idle suspend"). `start` of the isolated VM is refused while `wb image build` has borrowed its slot, and the refusal names the build (S06-vm-lifecycle, "Slot admission") |
 | `wb image build/list/use` | Base image management (S06-vm-lifecycle). `list` shows each image's Claude Code version (S14-claude-in-guest, "Install"). `build` borrows the isolated VM's slot, and is refused while the isolated VM has a session that is starting, running, paused or ending, a debug shell (`wb shell`) included (S06-vm-lifecycle, "Slot admission") |
 | `wb shell [--project P]` | Debug shell as the project user, labeled as a debug shell |
-| `wb setup` | Check host prerequisites (S12-platforms) and the minimum git version (S08-workspace-and-git), create the projects root `<data>/projects` and its probe directory, which `wb-hostd` can't write (S04-architecture, "Each host daemon is self-sandboxed"), then install and start the per-user services: on macOS the `wb-hostd` LaunchAgent and the `~/.local/bin/wb` link (S17-install-and-upgrade, "Install"). `wb setup --remove` refuses while a VM runs, then unloads the services and deletes those files, and keeps the user's data and store items. On Windows it refuses a host without the platform crypto provider, and on Linux it records whether the CA key is in a TPM (S09-policy-credentials-audit, "Key"). On macOS, in an ad-hoc signed build, it refuses the Keychain backend with `keychain-needs-team`, says how to sign the build, still installs and starts the services, and exits with a nonzero status. In a development build it names the signing team, says that every program the team signs can reach Wraith Box's Keychain groups, and says when the signing profile expires once that is 30 days away or less, or after it (S15-least-privilege, "The store holds credentials"; S12-platforms, "Development builds on macOS"). On Linux `--ca-key-store tpm\|software` changes the recorded choice (S09-policy-credentials-audit, "Key") |
+| `wb setup` | Check host prerequisites (S12-platforms) and the minimum git version (S08-workspace-and-git), create the projects root `<data>/projects` and its probe directory, which `wb-hostd` can't write (S04-03-self-sandboxing, "Each host daemon is self-sandboxed"), then install and start the per-user services: on macOS the `wb-hostd` LaunchAgent and the `~/.local/bin/wb` link (S17-install-and-upgrade, "Install"). `wb setup --remove` refuses while a VM runs, then unloads the services and deletes those files, and keeps the user's data and store items. On Windows it refuses a host without the platform crypto provider, and on Linux it records whether the CA key is in a TPM (S09-policy-credentials-audit, "Key"). On macOS, in an ad-hoc signed build, it refuses the Keychain backend with `keychain-needs-team`, says how to sign the build, still installs and starts the services, and exits with a nonzero status. In a development build it names the signing team, says that every program the team signs can reach Wraith Box's Keychain groups, and says when the signing profile expires once that is 30 days away or less, or after it (S15-least-privilege, "The store holds credentials"; S12-platforms, "Development builds on macOS"). On Linux `--ca-key-store tpm\|software` changes the recorded choice (S09-policy-credentials-audit, "Key") |
 | `wb help`, `wb version` | Help and version |
 
 Each command has its own flags after the command name. Names of
@@ -409,8 +409,7 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
   learn list that name it, `export.git` and `landing.git`, and its row
   in `state.db`. `wb` removes the project directory
   `<data>/projects/<project-id>` with both repositories itself, because
-  `wb-hostd` can't remove it (S04-architecture, "Each host daemon is
-  self-sandboxed"). The secret store items behind its bindings stay,
+  `wb-hostd` can't remove it (S04-03-self-sandboxing, "Each host daemon is self-sandboxed"). The secret store items behind its bindings stay,
   because `wb cred` manages them and another project may use the same
   item. `rm` lists them, and `wb cred rm` removes them. It asks
   `wb-guestd` in each VM to remove the project user and its home. The

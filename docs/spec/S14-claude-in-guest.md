@@ -139,7 +139,7 @@ user's settings and breaks FR01-drop-in.
 At each session start, `wb` filters and scans an allowlist of the
 user's `~/.claude/` and copies it into the project user's home
 (decided on I45, row 3, option A). `wb-hostd` can read only its state
-directories (S04-architecture, "Each host daemon is self-sandboxed"),
+directories (S04-03-self-sandboxing, "Each host daemon is self-sandboxed"),
 so `wb`, which runs as the user, reads the files. They can come from a
 repository the user merged the guest's work into, so `wb` treats them as
 untrusted input: its settings and front matter parsers have fuzz

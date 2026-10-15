@@ -9,6 +9,14 @@ Wraith Box works and why.
 | S02-toolchain | Toolchain | Active |
 | S03-requirements | Requirements | Draft |
 | S04-architecture | Architecture | Draft |
+| S04-01-design-principles | Design Principles | Draft |
+| S04-02-vm-provider | VM Provider and Streams | Draft |
+| S04-03-self-sandboxing | Self-Sandboxing | Draft |
+| S04-04-vm-processes | Per-VM Processes | Draft |
+| S04-05-helper-programs | Helper Programs | Draft |
+| S04-06-git-confinement | Git and the `wb-hostd` Profile | Draft |
+| S04-07-supervision | Supervision | Draft |
+| S04-08-records-and-bounds | Records, Versions and Bounds | Draft |
 | S05-cli | Command Line Interface | Draft |
 | S06-vm-lifecycle | VM Lifecycle, Images and the Guest Agent | Draft |
 | S07-egress-gateway | Egress Gateway | Draft |

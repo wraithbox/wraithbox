@@ -29,7 +29,7 @@ shows a notification under the bundle of the process that posts it.
 `Info.plist` holds the bundle identifier and, under the key
 `WBBuildVersion`, the build version that every program is stamped with
 (S10-tech-stack, "One build version"). `wb-hostd` reads that key to
-notice an upgrade (S04-architecture, "Upgrades").
+notice an upgrade (S04-07-supervision, "Upgrades").
 
 ### Building a bundle
 
@@ -81,17 +81,17 @@ administrator rights (SEC12-least-privilege). On macOS:
   mode 644, to a new file that it renames over the old one. The agent
   runs the bundle's `Contents/MacOS/wb-hostd` by absolute path, with
   `RunAtLoad` and `KeepAlive` set and no `AbandonProcessGroup`
-  (S04-architecture, "Who starts whom"). The label is fixed, so a user
+  (S04-07-supervision, "Who starts whom"). The label is fixed, so a user
   has one install. When the loaded agent's plist has the same bytes, it
   leaves the agent running. Otherwise replacing it stops `wb-hostd` and
   its VMs, so it asks `wb-hostd` first and refuses with
   `setup-vms-running`, naming each VM and its sessions, while one runs.
   A `wb-hostd` of another build version refuses `wb`
-  (S04-architecture, "Version skew"), so `wb setup` can't read its VMs.
+  (S04-08-records-and-bounds, "Version skew"), so `wb setup` can't read its VMs.
   It then refuses with `setup-vms-running` as well, names both
   versions, and says to stop the VMs with the `wb` of the running
   build. When no `wb-hostd` answers, no VM runs, because VMs stop with
-  `wb-hostd` (S04-architecture, "When `wb-hostd` stops"), and it goes
+  `wb-hostd` (S04-07-supervision, "When `wb-hostd` stops"), and it goes
   on.
   Then it runs `launchctl bootout` and `launchctl bootstrap gui/<uid>`.
   It runs `/bin/launchctl` by absolute path, with the environment
@@ -112,8 +112,7 @@ link in `/usr/local/bin`, which needs administrator rights on many
 Macs.
 
 `wb setup --remove` refuses with `setup-vms-running` in the same way,
-then unloads the agent, which stops `wb-hostd` (S04-architecture, "When
-`wb-hostd` stops"), and deletes the plist and the link. It keeps
+then unloads the agent, which stops `wb-hostd` (S04-07-supervision, "When `wb-hostd` stops"), and deletes the plist and the link. It keeps
 `<config>`, `<data>`, `<logs>` and the secret store items, and prints
 where they are.
 
@@ -295,7 +294,7 @@ one aside, rename the new one in, and delete the old one. They never
 copy over the files of an installed bundle, so launchd or `wb-launcher`
 never starts a program from a bundle that is half old and half new.
 Running processes keep their open files. Then
-S04-architecture, "Upgrades", applies: `wb-hostd` sees a new
+S04-07-supervision, "Upgrades", applies: `wb-hostd` sees a new
 `WBBuildVersion`, exits, and launchd starts the new one. The guest
 side updates from the guest tools disk at each VM's next cold start
 (S06-vm-lifecycle).

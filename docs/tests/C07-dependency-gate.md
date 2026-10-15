@@ -95,8 +95,7 @@ Restart `wb-proxyd` with records in `state.db`, and see:
 - Run `wb gate reset go-clock` without a terminal, and see it refuse
   and leave the clock as it was.
 - Run it with one, and see that the restart of `wb-proxyd` it causes
-  doesn't count toward the restart limit of S04-architecture,
-  "Restarting a daemon", so five resets in 10 minutes leave `wb-proxyd`
+  doesn't count toward the restart limit of S04-07-supervision, "Restarting a daemon", so five resets in 10 minutes leave `wb-proxyd`
   running.
 
 ### Homebrew bottles

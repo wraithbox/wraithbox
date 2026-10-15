@@ -190,7 +190,7 @@ SEC11-root-gains-nothing (guest root doesn't control enforcement) and SEC05-defa
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> `wb-hostd` spawns `wb-vmd`, one `wb-netd` per VM, and `wb-proxyd`, and `wb-vmd` hands it the guest socket descriptors (S04-architecture, "Processes" and "Design decisions").
+- <Badge text="verified" variant="success" /> `wb-hostd` spawns `wb-vmd`, one `wb-netd` per VM, and `wb-proxyd`, and `wb-vmd` hands it the guest socket descriptors (S04-architecture, "Processes", and S04-02-vm-provider).
 - <Badge text="verified" variant="success" /> When a launchd job exits, "launchd kills any remaining processes with the same process group ID as the job", unless `AbandonProcessGroup` is set (`man launchd.plist`, macOS 27.0.1).
 - <Badge text="verified" variant="success" /> When the host-guest socket drops, `wb-guestd` stops the session's process group and resumes it when the link returns (S13-guest-confinement, "Layer 1").
 - <Badge text="verified" variant="success" /> The specs already plan to save VM state on idle and restore it (S06-vm-lifecycle, "Warm start"), so A reuses that path.

@@ -285,12 +285,12 @@ wasn't booted: it had no guest daemon to answer.
 
 ## What it means for the specs
 
-- **S04-architecture, "Each host daemon is self-sandboxed":** a
+- **S04-03-self-sandboxing, "Each host daemon is self-sandboxed":** a
   `wb-vmd` item with the profile's shape and where its parameters come
   from, condition 1 as a second bounded exception to "confine first",
   `wb-vmd`'s log on an inherited pipe to `wb-hostd`, and open decisions
   1 and 2 (changed in this pull request).
-- **S04-architecture, "The device set is fixed and checked"** (new):
+- **S04-02-vm-provider, "The device set is fixed and checked"** (new):
   the check before any device object is created, which devices the
   profile enforces, that NAT and the other devices in the table are
   only enforced by `wb-vmd`'s code, and the three checks that verify

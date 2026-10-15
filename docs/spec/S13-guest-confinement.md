@@ -105,8 +105,7 @@ Applied by `wb-guestd` to every process it starts for a project user:
   loop is bounded: at most 10 rounds and 30 seconds. When a check
   still finds a process of the user after either bound, `wb-guestd`
   logs the failure with its rule and the processes left, at most 5
-  of them plus a count, each name escaped and cut as S04-architecture
-  ("Version skew") does with guest strings (SEC10-audit,
+  of them plus a count, each name escaped and cut as S04-08-records-and-bounds ("Version skew") does with guest strings (SEC10-audit,
   SEC13-bounded-resources), leaves the user locked, and
   reports the result to `wb-hostd` (S06-vm-lifecycle, "Leftover
   processes"). It

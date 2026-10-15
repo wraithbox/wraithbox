@@ -25,8 +25,7 @@ Brief: B145-least-privilege
   would need root. The image build never writes to a guest disk from
   the host, so it doesn't need root either (X17-image-build).
 - **No extra host user accounts.** Wraith Box's own processes are kept
-  apart by self-sandboxing (S04-architecture, "Each host daemon is
-  self-sandboxed"), and projects by guest users (SEC08-proj-isolation).
+  apart by self-sandboxing (S04-03-self-sandboxing, "Each host daemon is self-sandboxed"), and projects by guest users (SEC08-proj-isolation).
 - **Hardening and entitlements.** Every binary in the bundle is signed
   with the hardened runtime (S10-tech-stack). On macOS, `wb-vmd` alone
   has `com.apple.security.virtualization`, and no process has
@@ -105,7 +104,7 @@ can use (S09-policy-credentials-audit, "Key").
   arguments, never the value. It confines itself first thing, from a
   compiled-in profile that allows the secret store service and its
   standard streams, and denies files, the network and starting
-  programs (S04-architecture, "Each host daemon is self-sandboxed").
+  programs (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
   It does one operation and exits: *write* reads the value from its
   standard input, *delete* removes the item, and *list* prints the
   names of the `binding/` items, never a value. It takes exactly two

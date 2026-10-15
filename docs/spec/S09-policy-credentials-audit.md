@@ -400,8 +400,8 @@ inspection is trusted, and what is recorded.
       `wb-hostd` keeps the VM's placeholder set, every placeholder of
       each binding, with the VM's state, puts the newest in the guest
       environment, and hands the whole set back to `wb-proxyd` after a
-      suspend or a restart (S04-architecture, "Accounting and event
-      channels", "Restarting a daemon"). `wb-proxyd` drops the binding
+      suspend or a restart (S04-08-records-and-bounds, "Accounting and event
+      channels", and S04-07-supervision, "Restarting a daemon"). `wb-proxyd` drops the binding
       at suspend as before, and doesn't keep placeholder state of its
       own past it.
     - *Checked when handed back.* A handed-back placeholder is only a
@@ -887,7 +887,7 @@ VM", I36).
     to decide the answer and the hold. `wb-hostd` tells it when a
     request closes, and a new `wb-netd` gets the VM's pending count
     and recent rate from `wb-hostd` at start, with the policy
-    (S04-architecture, "Restarting a daemon"). A name over either
+    (S04-07-supervision, "Restarting a daemon"). A name over either
     limit is refused at DNS with the same answer and hold as any
     unknown name, without a request, and is logged with the same
     rule. These refusals are aggregated per rule

@@ -404,8 +404,8 @@ added the rest, in "wb-proxyd with the Keychain and the Secure Enclave
 
 ## What it means for the specs
 
-- S04-architecture, "Processes" and "Each host daemon is
-  self-sandboxed": the launcher under option A with its conditions, the
+- S04-architecture, "Processes", and S04-03-self-sandboxing, "Each host
+  daemon is self-sandboxed": the launcher under option A with its conditions, the
   self-check, `wb-hostd` as the exception, and the `wb-netd` log
   descriptor.
 - S12-platforms, "Self-sandbox" row for macOS: a Seatbelt profile
@@ -540,7 +540,7 @@ Then it did the same for the paths under `/Users` that the remaining
 
 ### What it means for the specs
 
-- S04-architecture, "Each host daemon is self-sandboxed": `wb-proxyd`
+- S04-03-self-sandboxing, "Each host daemon is self-sandboxed": `wb-proxyd`
   also reads the metadata of its own bundle directory, and "the secret
   store service" in the `wb-credset` and `wb-guestadmin` profiles is
   the two Mach services above. I261 makes the change.

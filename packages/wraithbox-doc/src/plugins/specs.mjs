@@ -52,7 +52,7 @@ function listFiles(dir, ext, prefix = '') {
 
 /**
  * Every design document (Markdown or MDX), or every file matching `ext`,
- * as a path relative to docs/ (`spec/S04-architecture.md`).
+ * as a path relative to docs/ (`spec/S02-toolchain.md`).
  */
 export function designFiles(ext = /\.mdx?$/) {
 	return designDirs.flatMap((dir) => listFiles(path.join(docsDir, dir), ext, dir)).sort();

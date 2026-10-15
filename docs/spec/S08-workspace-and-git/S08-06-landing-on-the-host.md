@@ -15,8 +15,7 @@ fetch only writes objects and refs.
 
 `landing.git` is only ever the remote of a fetch. `wb` never runs git
 with it as its repository, or with any other directory `wb-hostd` can
-write (S04-architecture, "`wb` takes no path, URL or program from
-`wb-hostd`").
+write (S04-06-git-confinement, "`wb` takes no path, URL or program from `wb-hostd`").
 
 ### The user's repository
 

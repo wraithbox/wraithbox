@@ -52,18 +52,18 @@ every control that matters **outside** the sandbox:
 
 ## How it fits together
 
-![The processes on the host and in the guest. Two channels cross the VM boundary: the host-guest socket, which wb-hostd terminates, and Ethernet frames, which wb-netd terminates.](docs/spec/S04-architecture.svg)
+![The processes on the host and in the guest. Two channels cross the VM boundary: the host-guest socket, which wb-hostd terminates, and Ethernet frames, which wb-netd terminates.](docs/spec/S04-architecture/S04-00-architecture.svg)
 
 Start reading at [S03-requirements](docs/spec/S03-requirements.md), the
 [security requirements](docs/requirements/SEC00-index.md), then
-[S04-architecture](docs/spec/S04-architecture.md). Every spec is listed in
+[S04-architecture](docs/spec/S04-architecture/S04-00-architecture.md). Every spec is listed in
 [S00-index](docs/spec/S00-index.md), and S01-spec-based-development
 explains the IDs.
 
 | Spec | Topic |
 |---|---|
 | [S03](docs/spec/S03-requirements.md) | The problem, and where the requirements are |
-| [S04](docs/spec/S04-architecture.md) | Architecture: processes and boundaries |
+| [S04](docs/spec/S04-architecture/S04-00-architecture.md) | Architecture: processes and boundaries |
 | [S05](docs/spec/S05-cli.md) | The `wb` command |
 | [S06](docs/spec/S06-vm-lifecycle.md) | Images, VMs, guest users, guest agent |
 | [S07](docs/spec/S07-egress-gateway.md) | Network stack, DNS, proxy, dependency gate |

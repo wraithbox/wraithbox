@@ -180,7 +180,7 @@ linked as an image: `![caption](S<NN>-<slug>.svg)`. It uses the same
 classes, plus its own `<style>` block with colors for both light and
 dark, so GitHub shows it too. The site copies the file into the spec
 page, drops that `<style>`, and turns the image's alt text into the
-caption. `docs/spec/S04-architecture.svg` is the example to copy.
+caption. `docs/spec/S04-architecture/S04-00-architecture.svg` is the example to copy.
 
 ## Check
 

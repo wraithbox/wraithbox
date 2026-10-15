@@ -220,7 +220,7 @@ print about returned work after `wb land` is outside it
   (S04-architecture, "Processes"). A guest that finds a way to crash
   it takes the other VM's network down too, until `wb-hostd` restarts
   it, and until the next session start once `wb-hostd` gives up after five exits in ten
-  minutes (S04-architecture, "Restarting a daemon"). The other VM
+  minutes (S04-07-supervision, "Restarting a daemon"). The other VM
   also shares `wb-proxyd`'s blocked event channel
   (`event-channel-blocked`) and the secret store prompts its restarts
   cause. This costs availability, not egress: while `wb-proxyd` is
@@ -247,7 +247,7 @@ print about returned work after `wb land` is outside it
 - **T16-hostd-landing: A compromised `wb-hostd` decides what
   `wb land` brings in.** `wb-hostd` faces the guest, and it may read
   every project's `export.git` and write every project's `landing.git`
-  (S04-architecture, "Each host daemon is self-sandboxed"). A
+  (S04-03-self-sandboxing, "Each host daemon is self-sandboxed"). A
   compromised `wb-hostd` writes `landing.git` directly, past the ref
   filter, the pack scanner, and the pre-receive check, so it can put
   any object of any project into a session's branch. Between `wb`'s

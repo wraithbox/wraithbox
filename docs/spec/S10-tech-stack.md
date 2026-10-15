@@ -156,11 +156,10 @@ binary of that name comes from the Swift package.
   set the version explicitly, and integration tests build through the
   stamping task (I174). Host processes refuse a peer of
   another version, and `wb-hostd` refuses a `wb-guestd` of another
-  version (S04-architecture, "Version skew").
+  version (S04-08-records-and-bounds, "Version skew").
 - **Versioned contracts.** Each `.proto` package name ends in its
   major version (`wraithbox.<area>.v1`). A change an older peer can't
-  read goes into a new major package (S04-architecture, "Version
-  skew").
+  read goes into a new major package (S04-08-records-and-bounds, "Version skew").
 
 ## Platforms
 
