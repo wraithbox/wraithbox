@@ -63,10 +63,12 @@ can use (S09-policy-credentials-audit, "Key").
   profile that Xcode makes for the developer's team (S10-tech-stack,
   "Packaging and signing", S12-platforms, "Development builds on
   macOS"). The groups are named `<TEAMID>.nl.wraithbox.<role>`, where
-  `<TEAMID>` is the team that signed the build, so a development build
-  never reads a release build's items or another developer's
-  (X29-dev-signing). Each program that holds a group is a bundle of its
-  own, with the profile embedded (S10-tech-stack).
+  `<TEAMID>` is the team that signed the build. So a development
+  build's groups differ from a release build's and from another
+  developer's. That a program signed by another team can't name them
+  is assumed: X29-dev-signing had one team, and a profile grants only
+  groups under its own team's prefix. Each program that holds a group
+  is a bundle of its own, with the profile embedded (S10-tech-stack).
 
   | Role | Items | Programs that hold the group |
   |---|---|---|
@@ -77,19 +79,36 @@ can use (S09-policy-credentials-audit, "Key").
   A group lets the programs that hold it read, write and delete its
   items. So an access narrower than that, such as `wb`'s write of
   bindings, is enforced by our code (rule 1).
+
+  Each Keychain call names its group. The cgo shim (S12-platforms)
+  sets `kSecAttrAccessGroup` to `<TEAMID>.nl.wraithbox.<role>`, where
+  `<role>` is the first part of the item name and `<TEAMID>` is the
+  team identifier of the process's own code signature, read once at
+  start and never taken from configuration or a request. Without the
+  attribute, a write by a process with two groups, such as
+  `wb-proxyd`, would go to the first group of its entitlements, so a
+  `ca/` item could end up in `binding`. Each call states the group its
+  caller expects. Before any Keychain call, the shim refuses with the
+  rule `store-group-mismatch`, and logs the item and both groups, when
+  that group isn't the one the item name gives, or when the process's
+  entitlements don't hold it.
 - **Ad-hoc signed builds.** An ad-hoc signed build, such as a CI
   build or the build of a developer without an Apple ID in Xcode, has
   no Keychain backend.
   Each process with store access reads the team identifier of its own
   code signature at start. With none, it refuses every Keychain access
-  with the rule `keychain-needs-team` and logs it. So in such a build a
-  session that needs a binding is refused with that rule, and so is
+  with the rule `keychain-needs-team` and logs it. So in such a build
+  these are refused with that rule: a session that needs a binding,
   each VM start, because it needs a CA item (S09-policy-credentials-audit,
-  "Valid CA"). `wb setup` refuses to set up the Keychain backend in such
-  a build with the same rule, says that the 1Password backend still
-  works, and says what to do: sign in to Xcode with an Apple ID, build
-  once in the Xcode app, and build Wraith Box with the team set
-  (S12-platforms, "Development builds on macOS").
+  "Valid CA"), `wb cred set`, and `wb image build` and the `wbadmin`
+  rotation at first contact, because they need `wbadmin/*` items. `wb
+  setup` refuses to set up the Keychain backend in such a build with
+  the same rule, says that the 1Password backend still works, and says
+  what to do: sign in to Xcode with an Apple ID, build once in the
+  Xcode app, and build Wraith Box with the team set (S12-platforms,
+  "Development builds on macOS"). It still does the rest of its work,
+  the per-user services included, and then exits with a nonzero
+  status.
 - **1Password.** The desktop app integration, with one vault per role,
   and no service account token to store. It runs only after the user
   turns it on by name.
@@ -105,21 +124,30 @@ A backend must give these guarantees:
 
 A backend without G1, G3 or G4 is refused. For a backend where our code
 alone enforces G2, `wb setup`, `wb cred list` and the audit record of
-each session start say so. A fallback is never silent.
+each session start say so. In a development build, one signed by a
+team other than Wraith Box's release team, whose ID the build compiles
+in, they name the signing team and say that every program that team
+signs can reach Wraith Box's groups. A fallback is never silent.
 
 Each failed store call is logged with the call, the item, the status
-and the rule. A binding that isn't in the store, -25300
-(`errSecItemNotFound`) on the Keychain, refuses a session start that
-needs it, and `wb` names the binding and says to set it with `wb cred
-set`. A locked store is rule 7, below. A CA item follows
-S09-policy-credentials-audit, "Valid CA".
+and the rule, in every build and on every backend:
+
+- A binding that isn't in the store, -25300 (`errSecItemNotFound`) on
+  the Keychain, refuses a session start that needs it, and `wb` names
+  the binding and says to set it with `wb cred set`.
+- A locked store, -25308 on the Keychain, is rule 7, below.
+- A CA item follows S09-policy-credentials-audit, "Valid CA".
+- Any other failure of a binding or `wbadmin/*` read, such as -34018
+  (`errSecMissingEntitlement`), is `store-read-failed`, and the work
+  that needed the item is refused with it.
 
 ### Access rules
 
 1. **Declared.** Each process has a declared set of items (the table
    below), each with an access kind: *write*, *delete*, *fetch* (the
-   value comes into the process), or *use* (the store or the hardware
-   key store signs or decrypts in place and keeps the key). Our code refuses an undeclared access where
+   value comes into the process), *list* (item names only, never a
+   value), or *use* (the store or the hardware key store signs or
+   decrypts in place and keeps the key). Our code refuses an undeclared access where
    the backend can't, and logs it with the rule.
 2. **Use over fetch.** Where the store can use a key in place, the
    process doesn't fetch it, as with 1Password's SSH agent signing. For
@@ -174,6 +202,8 @@ Item names start with `wraithbox/`. Each `<…>` part is 1 to 64 characters of `
 | Item | Process, access | Channel to the consumer | Lifetime |
 |---|---|---|---|
 | `binding/<name>` | `wb`, write (`wb cred set`) | the value from a prompt or standard input | one command |
+| `binding/<name>` | `wb`, delete (`wb cred rm`) | none | one command |
+| `binding/<name>` | `wb`, list (`wb cred list`): names only, no value is fetched | none | one command |
 | `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend |
 | `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the token endpoint the binding names, over TLS | per exchange. Access tokens stay in memory |
 | `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build, and Linux with a TPM) | `wb-proxyd`, write when it issues the CA, fetch, delete | to the Secure Enclave as the key's token object ID, or to the TPM as its key blob. The value is useless on another host | the CA's life. `wb-proxyd` deletes it when the CA expires or is dropped (S09-policy-credentials-audit, "Lifetimes") |

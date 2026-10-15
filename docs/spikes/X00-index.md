@@ -113,6 +113,8 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   Decided on I23: development builds signed with the developer's own
   Apple Development certificate, after X29-dev-signing, failing closed
   after an update until then, and the CA key wrapped in a store item.
+  X29-dev-signing then answered yes. I248 dropped the ad-hoc keychain
+  file, and an ad-hoc signed build has no Keychain backend.
 
 ### Other platforms (S12-platforms)
 

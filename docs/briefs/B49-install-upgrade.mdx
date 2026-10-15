@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Decided 2026-10-04: a dedicated download program that wb-hostd invokes.** The decision and its reasons are in the I49 comment that starts `Decision (2026-10-04):`. Source: I49. Affects S04-architecture, S05-cli, S06-vm-lifecycle, S10-tech-stack and S12-platforms. Signing and the Keychain after an upgrade were settled later by X29-dev-signing (decided on I248, B248-dev-signing).
 
 <Aside type="tip" title="You are deciding">
-Which process downloads macOS restore images. Recommended: **A**, `wb-proxyd`, under a built-in rule for Apple's hosts only, writing into a file `wb-hostd` opens for it. The issue proposes **B**, `wb-hostd`. The sub-decisions on install, upgrade and migration can be decided now as well. Signing, Keychain access after an upgrade, and the guest tools image wait on X09-keychain-unsigned and X17-image-build.
+Which process downloads macOS restore images. Recommended: **A**, `wb-proxyd`, under a built-in rule for Apple's hosts only, writing into a file `wb-hostd` opens for it. The issue proposes **B**, `wb-hostd`. The sub-decisions on install, upgrade and migration can be decided now as well. Signing, Keychain access after an upgrade, and the guest tools image wait on X09-keychain-unsigned and X17-image-build. Both have answered since, and X29-dev-signing settled signing (I248).
 </Aside>
 
 ## The problem
