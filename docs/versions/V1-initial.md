@@ -42,8 +42,10 @@ same name.
 - **V1-M1-spikes-closed: Spikes answered and spec gaps closed.** X01-model-credential to
   X09-keychain-unsigned and X17-image-build to X28-git-alloc-limit written up in
   `docs/spikes/`, the spec issues of `docs/implementation-plan.md`
-  decided, and specs updated. Covers no requirement by itself. It makes
-  the rest possible to plan.
+  decided, and specs updated. The specs meet the size limits of
+  S01-spec-based-development ("Size and structure"), so the maintainer
+  can review them. Covers no requirement by itself. It makes the rest
+  possible to plan.
 - **V1-M2-walking-skeleton: Walking skeleton.** `wb image build` makes a sealed image,
   `wb-vmd` boots it, `wb-guestd` answers over vsock, and `wb shell`
   opens a PTY as a project user. The guest has no network device yet.
