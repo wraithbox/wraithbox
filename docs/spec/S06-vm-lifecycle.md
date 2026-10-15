@@ -22,8 +22,8 @@ in S12-platforms.
   prefix before the session starts (FR07-toolchain-manifest, "Toolchain
   prefix" below).
   The image doesn't contain a Wraith Box CA. `wb-guestd` installs the
-  VM's CAs at runtime (S09-policy-credentials-audit, "TLS inspection certificate
-  authority").
+  VM's CAs at runtime in its trust files, not in a macOS guest's system
+  trust store (S09-policy-credentials-audit, "Guest trust").
 - **Toolchain prefix** (X20-shared-homebrew). A guest has one tool
   prefix, `/opt/homebrew` on macOS, owned by the toolchain user (I144).
   That user isn't an admin, has neither a password nor a shell, and
@@ -1104,8 +1104,10 @@ with OS-specific parts behind interfaces as on the host. Responsibilities:
   environment (explicit allowlist; placeholders for credentials),
   per-session resource limits, and the session's Seatbelt profile
   (S13-guest-confinement);
-- install the egress gateway's CA certificate into the guest trust
-  store and toolchain-specific trust settings (S09-policy-credentials-audit);
+- install the VM's CA certificates: write the trust files and set the
+  toolchain trust variables, and on Linux and Windows guests also add
+  them to the system trust store, which a macOS guest refuses without a
+  user (S09-policy-credentials-audit, "Guest trust");
 - act as the guest end of the git transport (S08-workspace-and-git);
 - relay the flow labels of the guest Network Extension, once spike
   X14-flow-attribution allows it (S13-guest-confinement). The host uses them only to narrow rules.

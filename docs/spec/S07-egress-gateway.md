@@ -818,17 +818,19 @@ session start in the VM to the end of the last session running in it.
       `swcdn.apple.com`, `swdist.apple.com`, `swdownload.apple.com`),
       `xcode-cdn.apple.com`, `mesu.apple.com`, `updates.cdn-apple.com`,
       `gdmf.apple.com`, `gs.apple.com`, `gsa.apple.com` and
-      `idmsa.apple.com`. On a macOS guest, every client that reads only
-      the system trust store also rejects inspection, because
-      `wb-guestd` can't add the CA there (S09-policy-credentials-audit,
-      "Guest trust"). Those clients are URLSession and what is built on
-      it, such as SwiftPM's binary target downloads. Wraith Box never
-      puts these hosts in pass mode itself, so the rules above apply to
-      them. A user who does makes each one a T01-allowed-channels
-      channel. The Apple Account hosts (`idmsa.apple.com`,
-      `gsa.apple.com`) then carry whatever Apple credentials the guest
-      holds, which Wraith Box neither gave nor removes
-      (T10-unnamed-credentials).
+      `idmsa.apple.com`. Wraith Box never puts these hosts in pass
+      mode itself, and the rules above apply to them. A user who does
+      makes each one a T01-allowed-channels channel. The Apple Account
+      hosts (`idmsa.apple.com`, `gsa.apple.com`) then carry whatever
+      Apple credentials the guest holds, which Wraith Box neither gave
+      nor removes (T10-unnamed-credentials). On a macOS guest, every
+      client that reads only the system trust store also rejects
+      inspection, because `wb-guestd` doesn't add the CA there
+      (S09-policy-credentials-audit, "Guest trust"). Those clients are
+      URLSession and what is built on it, such as SwiftPM's binary
+      target downloads, and `pip` when `REQUESTS_CA_BUNDLE` is unset.
+      They reach only pass hosts, so never a guarded host, which
+      FR08-no-proxy-config names as a known gap (I185).
   - **audit**: inspect, with the HTTP policy of the host and port
     logging a violation and letting the request through ("HTTP
     policy"). The mode is per host and port, resolved over the whole

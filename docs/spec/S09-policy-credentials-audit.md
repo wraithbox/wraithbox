@@ -546,9 +546,13 @@ inspection is trusted, and what is recorded.
     each a Device Config State Change (5019) event with the VM and the
     CA certificate's SHA-256 fingerprint (SEC10-audit).
 - **Guest trust.** The sealed image doesn't contain a Wraith Box CA
-  (S06-vm-lifecycle, "Layers"). `wb-guestd` installs the VM's current
-  CAs at runtime and sets toolchain trust variables, so that common
-  clients accept them (X04-tls-inspection).
+  (S06-vm-lifecycle, "Layers"). At runtime `wb-guestd` writes the
+  VM's current CAs to the trust files below and sets the toolchain
+  trust variables that point clients at them, so that common clients
+  accept them (X04-tls-inspection). Installing a CA means writing
+  these files, and on Linux and Windows guests also adding it to the
+  system trust store. On a macOS guest it doesn't touch the system
+  trust store ("System trust store" below).
   - *Files.* `wb-guestd` writes three files in a fixed directory that
     root owns, `/etc/wraithbox/trust/` on macOS and Linux guests, with
     mode 0755. Each file has mode 0644. `wb-guestd` writes each one to a
@@ -595,11 +599,30 @@ inspection is trusted, and what is recorded.
     error when it starts.
   - *System trust store.* On Linux and Windows guests `wb-guestd` also
     adds the CAs to the system trust store (S12-platforms). On a macOS
-    guest it can't: macOS 27 refuses every way X04-tls-inspection tried
-    to add a trusted root without a user to confirm it. There, clients
-    that read only the system trust store, URLSession and what is built
-    on it, reject inspected hosts and reach only pass hosts. I185
-    decides whether that changes.
+    guest it doesn't, because macOS 27 refuses every way
+    X04-tls-inspection tried to add a trusted root without a user to
+    confirm it. As root, with no user logged in:
+    `security add-trusted-cert -d` fails with "no user interaction was
+    possible", `security authorizationdb write` on the right
+    `com.apple.trust-settings.admin` is refused with `-60005`, trust
+    settings that the project user sets in its own domain are refused
+    the same way, `profiles install` no longer installs, and trustd ignores a
+    hand-written file of admin trust settings. The maintainer decided on
+    I185 to accept that. Wraith Box doesn't work around the platform's
+    control by editing the guest's authorization database, and a
+    configuration profile through MDM isn't an option, because
+    Virtualization framework VMs can't enroll in MDM.
+    - *Clients left out.* A client that reads only the system trust
+      store doesn't trust the CA: URLSession and what is built on it,
+      so Swift programs, SwiftPM's binary target downloads and Xcode's
+      own requests, and `pip` when `REQUESTS_CA_BUNDLE` is unset and it
+      falls back to its default `truststore`. X04-tls-inspection saw
+      each of them reject the inspected leaf.
+    - *Fails closed.* These clients reach only pass hosts. A host with
+      a credential binding or a built-in profile is never a pass host
+      (S07-egress-gateway, "Modes"), so they can't reach it.
+      FR08-no-proxy-config names this gap. An attended step, in which
+      the maintainer confirms trust in the guest's UI, is I213.
 
 ## Approvals (SEC14-no-fake-approvals)
 
