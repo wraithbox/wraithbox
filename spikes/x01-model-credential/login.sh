@@ -31,6 +31,12 @@ CLAUDE=$DIR/claude
 mkdir -p "$OUT"
 cd "$DIR" || exit 1
 
+# The trap is set here, not in start_proxy: in zsh an EXIT trap set in a
+# function runs when the function returns, which killed the proxy before
+# Claude Code started (the first deny and observe runs, 2026-10-15).
+PROXY=
+trap '[[ -n $PROXY ]] && kill $PROXY 2>/dev/null' EXIT
+
 start_proxy() {
   if /usr/bin/nc -z 127.0.0.1 18080 2>/dev/null; then
     echo "Port 127.0.0.1:18080 is in use: lsof -nP -iTCP:18080 -sTCP:LISTEN, stop it, run again."
@@ -39,16 +45,23 @@ start_proxy() {
   echo "== proxy $*" | tee "$OUT/mode.txt"
   "$PROXY_BIN" -listen 127.0.0.1:18080 -ca-out "$OUT/ca.pem" "$@" >"$OUT/proxy.log" 2>&1 &
   PROXY=$!
-  trap 'kill $PROXY 2>/dev/null' EXIT
   sleep 2
   if ! kill -0 $PROXY 2>/dev/null; then
-    echo "x01-proxy exited at start:"; cat "$OUT/proxy.log"; trap - EXIT; exit 1
+    echo "x01-proxy exited at start:"; cat "$OUT/proxy.log"; PROXY=; exit 1
   fi
   export HTTPS_PROXY=http://127.0.0.1:18080 HTTP_PROXY=http://127.0.0.1:18080
   export NODE_EXTRA_CA_CERTS=$OUT/ca.pem
 }
 
-stop_proxy() { kill $PROXY 2>/dev/null; trap - EXIT; }
+# Fails the step when the proxy died during the session: then Claude Code
+# talked to a closed port and the logs mean nothing.
+stop_proxy() {
+  if ! kill -0 $PROXY 2>/dev/null; then
+    echo "FAILED: x01-proxy was not running at the end of the session. Its log:"
+    cat "$OUT/proxy.log"; PROXY=; exit 1
+  fi
+  kill $PROXY; PROXY=
+}
 
 # Claude Code reads these before its stored login: none may be set.
 unset ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_AUTH_TOKEN
@@ -74,6 +87,16 @@ summary() {
   grep -E 'DENIED|TOKEN-|REFRESH|PLACEHOLDER-IN|REAL-TOKEN' "$OUT/proxy.log" | sed 's/^.*x01: //' |
     tee "$OUT/oauth.txt"
 }
+
+# observe and placeholder need an unlocked login Keychain (in `su - wbtest`
+# run `security unlock-keychain` first). nokeychain needs it locked.
+if /usr/bin/security show-keychain-info >/dev/null 2>&1; then UNLOCKED=1; else UNLOCKED=0; fi
+case $STEP:$UNLOCKED in
+observe:0|placeholder:0|restore:0)
+  echo "The login Keychain is locked: run security unlock-keychain, then this step again."; exit 1 ;;
+nokeychain:1)
+  echo "The login Keychain is unlocked: run security lock-keychain, then this step again."; exit 1 ;;
+esac
 
 case $STEP in
 deny)
