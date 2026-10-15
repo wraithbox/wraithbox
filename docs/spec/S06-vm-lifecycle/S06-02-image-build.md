@@ -121,7 +121,7 @@ of S13-guest-confinement, approved during the build, once spike X14-flow-attribu
 ### Terminfo
 
 (I83). Sessions get the host's `TERM` unchanged
-(S16-terminal-stream, "Terminfo"), and the image describes it with a
+(S16-03-around-the-stream, "Terminfo"), and the image describes it with a
 terminfo database that the build compiles into
 `/usr/local/share/terminfo`. Root owns it, and no other user can
 write to it. The source is `misc/terminfo.src` from an ncurses

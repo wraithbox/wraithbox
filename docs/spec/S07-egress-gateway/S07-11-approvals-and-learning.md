@@ -107,9 +107,9 @@ guest strings in log records are (S07-02-packet-path, "Events and rate limits").
 
 At session end `wb` prints the list in the session
 summary, at most 100 names, then "and N more", as it does for the
-link list (S16-terminal-stream, "Links"). The summary and
+link list (S16-02-drops-and-links, "Links"). The summary and
 `wb learn report` also say how many names were dropped past the
-cap. Both follow S16-terminal-stream, "Guest text elsewhere". The
+cap. Both follow S16-03-around-the-stream, "Guest text elsewhere". The
 report shows each name with its risk-check findings and its boundary result
 (S09-08-approvals). The user allows the
 names they accept with `wb allow`, or approves a selection from

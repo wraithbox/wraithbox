@@ -122,7 +122,7 @@ the records of the terminal filter.
 
 `wb` filters the guest's terminal stream and sends
 `wb-hostd`, over its connection for the session, what the filter
-counted and the dropped links it keeps (S16-terminal-stream, "Drop
+counted and the dropped links it keeps (S16-02-drops-and-links, "Drop
 rules" and "Links").
 - *Reports.* `wb` sends each kept link when it keeps it: its URL, its
   text, whether either was cut, and its mark, if it has one. Every 10
@@ -192,8 +192,7 @@ rules" and "Links").
   each backslash as `\\`, each byte that isn't valid UTF-8 as `\xNN`
   in uppercase hex, and as `\u{H…}` (the code point in 1 to 6 uppercase hex digits,
   without leading zeros, such as `\u{7F}`, `\u{202E}` or `\u{E0041}`)
-  each code point in the escaped set of S16-terminal-stream ("Guest
-  text elsewhere"): controls (Cc), format characters (Cf), line and
+  each code point in the escaped set of S16-03-around-the-stream ("Guest text elsewhere"): controls (Cc), format characters (Cf), line and
   paragraph separators (Zl, Zp), and every
   `Default_Ignorable_Code_Point`. So a reader of the log sees them,
   and no viewer acts on them. JSON's own escaping isn't enough, because a JSON reader turns `\u202e`

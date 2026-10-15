@@ -74,7 +74,7 @@ explains the IDs.
 | [S12](docs/spec/S12-platforms.md) | Host and guest platforms, WSL |
 | [S13](docs/spec/S13-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
 | [S14](docs/spec/S14-claude-in-guest.md) | Claude Code in the guest: install, user configuration, agent interface |
-| [S16](docs/spec/S16-terminal-stream.md) | The filter on guest output to the host terminal |
+| [S16](docs/spec/S16-terminal-stream/S16-00-terminal-stream.md) | The filter on guest output to the host terminal |
 | [S17](docs/spec/S17-install-and-upgrade.md) | Building, installing and upgrading the bundle; downloads for image builds; migrations |
 
 ## Platforms
