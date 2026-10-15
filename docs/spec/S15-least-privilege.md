@@ -363,7 +363,7 @@ build deletes `wbadmin`'s keychains before sealing. `wb-guestadmin`
 
 ## Out of scope
 
-- The browser login for a Claude subscription (I15). The long-lived
+- The browser login for a Claude subscription (I257). The long-lived
   token is in S09-policy-credentials-audit, "Model credential".
 - Project users' accounts in the guest, which have no password the host
   keeps.
