@@ -87,6 +87,7 @@ export default defineConfig({
 				...[
 					['Review briefs', 'briefs'],
 					['Specs', 'spec'],
+					['Test cases', 'tests'],
 					['Requirements', 'requirements'],
 					['Threats', 'threats'],
 					['Spikes', 'spikes'],

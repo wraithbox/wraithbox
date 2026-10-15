@@ -3,6 +3,8 @@
 **Purpose:** Name the processes, the boundaries between them, and which
 requirement each boundary serves.
 
+**Tests:** C11-host-daemons, C01-network-and-dns
+
 ## Overview
 
 ![The processes on the host and in the guest. Two channels cross the VM boundary: the host-guest socket, which wb-hostd terminates, and Ethernet frames, which wb-netd terminates.](S04-architecture.svg)
@@ -125,7 +127,7 @@ nothing themselves (S12-platforms).
     on an existing one, or on a further connection the host opens at
     `wb-guestd`'s request. Each request names the project it came
     from, and the stream framing on that connection is a parser of
-    guest bytes with a fuzz target (S11-verification-and-spikes).
+    guest bytes with a fuzz target (C11-host-daemons).
   - Attribution fails closed (SEC08-proj-isolation, SEC10-audit).
     `wb-guestd` refuses a peer user ID that isn't an active, unlocked
     project user of this VM: root, system accounts, user IDs created
@@ -188,9 +190,9 @@ nothing themselves (S12-platforms).
     `com.apple.vm.networking` entitlement, which `wb-vmd` isn't signed
     with.
   - Three checks verify the parts the profile doesn't enforce: a unit
-    test of the check (S11-verification-and-spikes), an in-guest
+    test of the check (C11-host-daemons), an in-guest
     conformance check that the guest has one network interface with
-    its lease from `wb-netd` (S11-verification-and-spikes), and a
+    its lease from `wb-netd` (C01-network-and-dns), and a
     static check in CI that rejects at least
     `VZNATNetworkDeviceAttachment`, `VZBridgedNetworkDeviceAttachment`,
     `VZSharedDirectory`, `VZVirtioFileSystemDeviceConfiguration`,
@@ -279,7 +281,7 @@ nothing themselves (S12-platforms).
       of `<data>`, as when the bundle is a symbolic link to another
       VM's bundle (`vmd-slot-bundle-mismatch`). So it never confines
       itself to a bundle its slot doesn't own (SEC08-proj-isolation).
-      S11-verification-and-spikes has a test for each rule.
+      C11-host-daemons has a test for each rule.
     - `wb-hostd` reaches each instance only over the channels it handed
       that instance at spawn, its control channel and its hand-off
       socketpair ("The VM provider passes descriptors, not bytes"). The
@@ -792,7 +794,7 @@ inherited sockets of type `SOCK_SEQPACKET` or `SOCK_DGRAM`
 (`SOCK_DGRAM` on macOS, I172), one record per message. A record arrives
 whole or not at all. Each record is at most 4 KiB, in a fixed format.
 `wb-hostd` parses them with a parser that has a fuzz target
-(S11-verification-and-spikes), and treats a malformed or oversized
+(C11-host-daemons), and treats a malformed or oversized
 record, and one received with `MSG_TRUNC`, as a crash of the process
 that sent it: it ends that process and counts the exit toward the
 restart limit.

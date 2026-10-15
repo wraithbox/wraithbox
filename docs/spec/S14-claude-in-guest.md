@@ -7,6 +7,8 @@ agent interface that keeps Claude Code's specifics in one place
 
 **Requirements:** FR01-drop-in, FR13-claude-state, SEC02-no-host-fs-share, SEC03-no-host-exec, SEC04-no-guest-secrets, SEC05-default-deny, SEC07-dep-gate, SEC10-audit, SEC12-least-privilege.
 
+**Tests:** C06-model-api
+
 Brief: B45-claude-in-guest
 
 ## Design

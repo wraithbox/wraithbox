@@ -5,6 +5,8 @@ with the reason for each choice.
 
 **Requirements:** NFR04-host-platforms, NFR07-maintainability, NFR08-licensing, SEC12-least-privilege, FR17-same-everywhere.
 
+**Tests:** C05-credentials-and-store
+
 ## Languages: Go first, native where needed
 
 Most of Wraith Box is Go and the same on every host OS. A platform-native

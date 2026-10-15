@@ -29,7 +29,7 @@ they exist.
    settled means rebuilding.
 2. **Host floor before features.** Boot a guest, then cut its network
    down to the gateway, then return work through git. Each step ends
-   with conformance checks from S11-verification-and-spikes for the controls it brings.
+   with the conformance checks of its test case pages (C00-index) for the controls it brings.
 3. **Pure logic in parallel.** Parsers and policy code that face guest
    bytes need no VM. Builders can write them, with fuzz targets, while
    the VM spikes run, once the spike or decision they depend on is

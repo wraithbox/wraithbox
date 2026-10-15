@@ -5,6 +5,8 @@ inspection is trusted, and what is recorded.
 
 **Requirements:** FR09-approve-unknown, FR10-learn-mode, FR15-inspect, SEC04-no-guest-secrets to SEC06-repo-writes, SEC08-proj-isolation to SEC10-audit, SEC12-least-privilege, SEC14-no-fake-approvals, NFR06-explained-refusals. Residual risk T11-shared-vm-grants.
 
+**Tests:** C02-streams-and-tls, C03-policy-and-approvals, C05-credentials-and-store, C06-model-api, C11-host-daemons
+
 ## Policy
 
 - **Files.** Two kinds, both on the host, outside every repository and
@@ -174,7 +176,7 @@ inspection is trusted, and what is recorded.
     repository (S08-workspace-and-git), so the guest can't change it by
     pushing. Returned work that changes `.wraithbox/` is flagged
     (S08-workspace-and-git). The guest can still propose such a change,
-    so the parser has a fuzz target (S11-verification-and-spikes,
+    so the parser has a fuzz target (C03-policy-and-approvals,
     network policy YAML).
 - **Boundary check.** At `wb trust` and whenever the repository
   configuration of a project with `config_trust` changes, the merged project policy is checked against a
@@ -926,7 +928,7 @@ VM", I36).
       script, or to an ASCII letter or digit. ASCII characters never
       count, so `bücher1.de` doesn't warn.
   - *Parser.* The decoder and the script check read bytes the guest
-    chose, so they have a fuzz target (S11-verification-and-spikes).
+    chose, so they have a fuzz target (C03-policy-and-approvals).
 - **Allow for this session.** Shown as "for this VM until these
   sessions end", with the sessions listed (S07-egress-gateway, "Who an
   approval reaches").

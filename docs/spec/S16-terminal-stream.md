@@ -5,6 +5,8 @@ guest output that `wb` writes to the user's terminal.
 
 **Requirements:** FR01-drop-in, SEC03-no-host-exec, SEC10-audit, SEC14-no-fake-approvals, NFR06-explained-refusals.
 
+**Tests:** C10-terminal
+
 Brief: B37-terminal-boundary
 
 ## Design

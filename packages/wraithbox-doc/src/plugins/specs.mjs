@@ -28,7 +28,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(here, '../../../..');
 export const docsDir = path.join(repoRoot, 'docs');
 /** The directories under docs/ that are published, each under /<dir>/. */
-export const designDirs = ['briefs', 'spec', 'requirements', 'threats', 'spikes', 'research', 'versions'];
+export const designDirs = ['briefs', 'spec', 'tests', 'requirements', 'threats', 'spikes', 'research', 'versions'];
 const contentDir = path.resolve(here, '../content/docs');
 const githubBlob = 'https://github.com/wraithbox/wraithbox/blob/main/';
 const githubEdit = 'https://github.com/wraithbox/wraithbox/edit/main/';

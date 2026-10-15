@@ -27,6 +27,7 @@ design/generated/
 
 # design documents copied from docs/ by src/plugins/specs.mjs
 src/content/docs/spec/
+src/content/docs/tests/
 src/content/docs/requirements/
 src/content/docs/threats/
 src/content/docs/spikes/

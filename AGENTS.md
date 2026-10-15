@@ -22,7 +22,7 @@ before changing anything substantial.
 - Changing a design decision means changing the spec first (or in the same
   pull request), with the reason.
 - IDs are stable: specs `S*`, requirements `FR*`, `NFR*` and `SEC*`,
-  threats `T*`, spikes `X*`, research notes `R*`, review briefs `B*`
+  threats `T*`, test cases `C*`, spikes `X*`, research notes `R*`, review briefs `B*`
   (numbered after their issue), versions `V*`
   (S01-spec-based-development). Reference them in specs, code comments
   where a control is enforced, and commit messages. Write the ID with

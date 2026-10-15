@@ -9,6 +9,8 @@ long as it needs them.
 SEC10-audit and SEC11-root-gains-nothing where a credential crosses a
 boundary.
 
+**Tests:** C05-credentials-and-store, C09-guest-and-sessions
+
 Brief: B145-least-privilege
 
 ## Design
@@ -341,7 +343,7 @@ build deletes `wbadmin`'s keychains before sealing. `wb-guestadmin`
   rotation, because `wb-guestd` starts no project process and no
   session until rotation has succeeded, and no user is logged in.
   `wbadmin` is enabled only during the reset, when nothing else runs
-  that could use it. S11-verification-and-spikes has the conformance
+  that could use it. C09-guest-and-sessions has the conformance
   case.
 - **Break-glass.** When `wb-guestd` is dead or wedged, `wb-hostd`
   replaces the VM's system disk with a fresh clone of the image. The

@@ -5,6 +5,8 @@ back out, without sharing the host filesystem.
 
 **Requirements:** FR02-any-repo to FR05-parallel-sessions, SEC02-no-host-fs-share, SEC03-no-host-exec, SEC04-no-guest-secrets, SEC06-repo-writes, SEC10-audit, SEC13-bounded-resources, NFR01-startup, NFR02-fs-speed.
 
+**Tests:** C08-git
+
 ## Into the guest
 
 - **Project clone.** On first use, the project user's home receives a
@@ -220,7 +222,7 @@ back out, without sharing the host filesystem.
     each allocation above it before making it
     (X28-git-alloc-limit, "Pack scanner" below). The environment
     builder in `wb-hostd` has a unit test that pins this value
-    (S11-verification-and-spikes). Git reads `0` as no limit, so the
+    (C08-git). Git reads `0` as no limit, so the
     value is never computed from a setting that can be zero.
 - **Ref restriction.** A filter in `wb-hostd` reads the push's command
   list before `receive-pack` sees any of it, and refuses the whole push
@@ -240,7 +242,7 @@ back out, without sharing the host filesystem.
   standard error. The filter reads no byte past the flush that ends
   the command list, so the pack scanner gets the pack from its first
   byte. The filter is a parser of guest bytes, so it has a fuzz target
-  (S11-verification-and-spikes), and it logs each ref it allows or
+  (C08-git), and it logs each ref it allows or
   refuses with the rule. `receive.hideRefs` restricts the same refs
   inside git as a second layer, and hides other sessions' branches. It
   can't be the only layer: it accepts `refs/heads/wb/<session-id>`
@@ -354,7 +356,7 @@ back out, without sharing the host filesystem.
   slice of entry sizes, which the object count cap bounds. After the
   pack's checksum it forwards nothing more and closes git's input. A push with an empty command list carries no pack, and
   the scanner doesn't run. The scanner is a parser of guest bytes, so
-  it has a fuzz target (S11-verification-and-spikes). It logs each
+  it has a fuzz target (C08-git). It logs each
   refusal with the rule, and each push it passes with its object count,
   wire bytes and total size. Git's limit is the second layer behind it:
   where the scanner and git read a pack differently, git still can't
@@ -478,7 +480,7 @@ back out, without sharing the host filesystem.
   was 207 MiB for large deltas (X26-pre-receive-check), and 146 MiB for
   a million objects of 3 bytes in 12 MiB (X28-git-alloc-limit). These are
   measurements, and the conformance suite checks them again
-  (S11-verification-and-spikes).
+  (C08-git).
 - **Session end.** If the worktree has uncommitted changes, `wb-guestd`
   commits them to the session branch as a clearly marked WIP commit, then
   pushes. `wb` can also push mid-session. The same happens whether

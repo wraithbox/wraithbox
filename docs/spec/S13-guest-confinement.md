@@ -7,6 +7,8 @@ replace them.
 
 **Requirements:** SEC05-default-deny, SEC06-repo-writes, SEC08-proj-isolation, SEC11-root-gains-nothing, FR15-inspect, NFR06-explained-refusals. Residual risks T06-forged-labels and T11-shared-vm-grants.
 
+**Tests:** C03-policy-and-approvals, C09-guest-and-sessions
+
 This spec describes macOS guests, the v1 target. OpenShell's Linux
 sandbox runtime (Landlock, seccomp, process identity from `/proc`) is
 the model for this layer. Linux and Windows guests get their own
@@ -188,7 +190,7 @@ process cannot remove it, much like Landlock.
   its session's hangup and kill (Layer 1). It keeps the project
   user's rights and the VM's network grants until the project's last
   session ends, and it can still write to the worktree while the WIP
-  commit runs. `wb-guestd` logs it, and S11-verification-and-spikes
+  commit runs. `wb-guestd` logs it, and C09-guest-and-sessions
   checks the log.
 
 ## Layer 3: per-program network attribution (after X14-flow-attribution)
@@ -224,7 +226,7 @@ Rules then match on it (S09-policy-credentials-audit):
 How labels reach the host (a header on each flow, or a side channel
 over the host-guest socket keyed by the connection's addresses and
 ports) is decided by spike X14-flow-attribution. Either way the host parses guest bytes,
-and the parser gets a fuzz target (S11-verification-and-spikes).
+and the parser gets a fuzz target (C03-policy-and-approvals).
 
 **Apple prerequisites.** A Developer ID with the Network Extension
 system extension entitlement. The extension is approved once in the

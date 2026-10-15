@@ -6,6 +6,8 @@ the host.
 
 **Requirements:** FR08-no-proxy-config to FR10-learn-mode, SEC04-no-guest-secrets to SEC08-proj-isolation, SEC10-audit, SEC11-root-gains-nothing, SEC13-bounded-resources, NFR06-explained-refusals. Residual risk T11-shared-vm-grants.
 
+**Tests:** C01-network-and-dns, C02-streams-and-tls, C03-policy-and-approvals, C05-credentials-and-store, C06-model-api, C07-dependency-gate
+
 ## Enforced per VM
 
 A VM has one guest MAC address and one leased IPv4 address
@@ -289,7 +291,7 @@ session start in the VM to the end of the last session running in it.
   bytes. `wb-netd` bounds its frame queues in bytes as well as in
   frames ("Per-VM caps", SEC13-bounded-resources), and the link
   endpoint's fuzz target covers frames of that size
-  (S11-verification-and-spikes).
+  (C01-network-and-dns).
 - **DNS** (UDP and TCP port 53 on the gateway only):
   - `A` queries for allowlisted names are answered with a **synthetic
     address** from a reserved range (198.18.0.0/15), allocated per name
@@ -387,7 +389,7 @@ session start in the VM to the end of the last session running in it.
       `RES_TIMEOUT`) waits 5 seconds before it sends a query again.
       The guest gets its answer before that retry. The guest's system
       resolver is `mDNSResponder`, and B51-approval-flow assumes it
-      waits at least as long. S11-verification-and-spikes checks it.
+      waits at least as long. C01-network-and-dns checks it.
     - *Every reason.* The maintainer decided on I51 to hold the answer
       for up to 4 seconds while a request is open
       (B51-approval-flow). The hold applies to every reason, not only
@@ -1148,7 +1150,7 @@ session start in the VM to the end of the last session running in it.
       credential. Claude Code reaches `/api/eval/` only when
       `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is unset in the guest
       (S06-vm-lifecycle, "Claude Code in the guest"), as in the second
-      pass of the S11-verification-and-spikes run. Its allow stays,
+      pass of the C06-model-api run. Its allow stays,
       because that variable isn't the control: feature flags may change
       what Claude Code does, and what it does without them wasn't
       measured.
@@ -1270,7 +1272,7 @@ session start in the VM to the end of the last session running in it.
     `.mod` are not age-gated, but the path forms ("Mapping a request")
     still apply to them. The clock lookup key and the upstream download
     URL are built from the same parsed module path and version, and the
-    fuzz target of the path mapper (S11-verification-and-spikes) checks
+    fuzz target of the path mapper (C07-dependency-gate) checks
     that they agree.
 
   *Vulnerability threshold.* The default threshold is CRITICAL (I73).

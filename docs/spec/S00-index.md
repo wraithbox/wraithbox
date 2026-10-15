@@ -15,7 +15,7 @@ Wraith Box works and why.
 | S08-workspace-and-git | Workspace and Git Round Trip | Draft |
 | S09-policy-credentials-audit | Policy, Credentials, Certificates and Audit | Draft |
 | S10-tech-stack | Technology Choices | Draft |
-| S11-verification-and-spikes | Verification and Open Questions | Draft |
+| S11-verification-and-spikes | Verification | Draft |
 | S12-platforms | Platforms | Draft |
 | S13-guest-confinement | Guest Confinement | Draft |
 | S14-claude-in-guest | Claude Code in the Guest | Draft |
@@ -23,4 +23,4 @@ Wraith Box works and why.
 | S16-terminal-stream | Terminal Stream | Draft |
 
 The other indexes: FR00-index, NFR00-index, SEC00-index, T00-index,
-X00-index, R00-index and V00-index.
+C00-index, X00-index, R00-index and V00-index.

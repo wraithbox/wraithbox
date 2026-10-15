@@ -6,6 +6,8 @@ how platform-specific code is isolated, what each platform uses, and how
 
 **Requirements:** FR16-wsl, FR17-same-everywhere, SEC01-separate-kernel, SEC02-no-host-fs-share, SEC04-no-guest-secrets, SEC05-default-deny, SEC12-least-privilege, NFR04-host-platforms, NFR05-two-macos-vms, NFR07-maintainability, V1-01-macos-first, V1-03-win-linux-later.
 
+**Tests:** C05-credentials-and-store
+
 ## Platform matrix
 
 | Host ↓ / Guest → | macOS | Linux (Ubuntu LTS first) | Windows 11 |

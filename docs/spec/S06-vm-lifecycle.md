@@ -5,6 +5,8 @@ projects and sessions map onto guests, and what `wb-guestd` does.
 
 **Requirements:** FR02-any-repo, FR05-parallel-sessions to FR07-toolchain-manifest, FR11-port-forward to FR14-ephemeral, SEC01-separate-kernel, SEC02-no-host-fs-share, SEC08-proj-isolation, SEC11-root-gains-nothing, SEC13-bounded-resources, SEC15-no-guest-disk-mount, NFR01-startup to NFR05-two-macos-vms.
 
+**Tests:** C09-guest-and-sessions, C11-host-daemons, C06-model-api
+
 This spec describes macOS guests on a macOS host, the v1 target. The
 structure (image layers, sealing, work and isolated VMs, one guest user
 per project, worktree per session, the duties of `wb-guestd`) is the
@@ -804,12 +806,12 @@ slot. Guests of other operating systems are limited only by resources
 
   The variables are meant to keep Claude Code from asking for the hosts
   and paths the model API profile leaves out, which is assumed, and
-  S11-verification-and-spikes checks it. They aren't the control:
+  C06-model-api checks it. They aren't the control:
   `wb-proxyd` refuses the event log and every host outside the profile
   whatever the guest sets (S07-egress-gateway, "model API"). With the
   variable set, Claude Code doesn't fetch feature flags, so it reaches
   `/api/eval/` only when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is
-  unset, as in the second pass of the S11-verification-and-spikes run.
+  unset, as in the second pass of the C06-model-api run.
   The profile's allow of `/api/eval/` stays, because the variable isn't
   the control. A new
   Claude Code version needs a new image. Building an image for a new
