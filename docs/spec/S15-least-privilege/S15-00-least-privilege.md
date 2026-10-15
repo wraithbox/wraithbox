@@ -22,7 +22,7 @@ B28-image-build
 
 | Page | What it covers |
 |---|---|
-| S15-01-rights | The rights Wraith Box takes on the host: no root, no extra accounts, signing and entitlements |
+| S15-01-rights | The rights Wraith Box takes on the host, and the entitlements of its binaries |
 | S15-02-secret-store | The store that holds every credential, its backends, and what they guarantee |
 | S15-03-access-rules | The rules for store access, and which process may access which item |
 | S15-04-guest-admin | The guest admin user `wbadmin` and its password, from the build to each VM |
