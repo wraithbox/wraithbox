@@ -153,8 +153,9 @@ whose profile is valid. The cases:
   `wb-hostd` reads the same date from the helpers' profiles at start
   and logs a warning with it, and `wb claude` prints one line with the
   date before the session starts. A bundle without a profile, such as
-  an ad-hoc one, gets none of these checks, and so may a release build
-  (S10-tech-stack).
+  an ad-hoc one, gets none of these checks. Whether a release build has
+  a profile is the assumption in S10-tech-stack, "Packaging and
+  signing", "Signing".
 - **Expired profile.** AMFI refuses to start a program whose profile
   has expired, as it refuses one with no profile (assumed in
   X29-dev-signing). That includes `wb`. The shell reports the killed

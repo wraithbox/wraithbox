@@ -117,7 +117,11 @@ be tested before building on them.
   returns -25300 for a binding and sees the binding's own refusal,
   returns -25308 and sees the work wait for the unlock and name the
   store, and returns -34018 and another status for a binding and a
-  `wbadmin/*` item and sees each refused with `store-read-failed`. For a CA item in the record, -25300 and every status other
+  `wbadmin/*` item and sees each refused with `store-read-failed`. It
+  fails a `wb cred set` write, a `wb cred rm` delete and a `wbadmin/*`
+  write with -34018 and sees each refused with `store-write-failed`.
+  A shim whose own entitlements can't be read refuses every call with
+  `store-group-mismatch`. For a CA item in the record, -25300 and every status other
   than -25308 give `ca-key-restore`. A locked store, -25308 or the
   1Password backend's locked state, makes the work wait for the
   unlock, for a CA item as for any other. Each log line names the
