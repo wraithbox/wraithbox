@@ -40,10 +40,14 @@ Brief: B145-least-privilege
   denies files, the network, the secret store, and starting programs.
   The Claude Code release key compiled into it is public.
 - **The downloads.** `wb-download` (S17-install-and-upgrade) doesn't
-  declare a store item or an entitlement. Its compiled-in profile
-  allows outbound TCP to port 443, name lookups, the certificate check
-  services and its inherited descriptors, and denies files, the secret
-  store and starting programs. `wb-hostd` keeps no network.
+  declare a store item or an entitlement. Its compiled-in profile is
+  the network part of the `wb-proxyd` profile that
+  X23-sandboxed-daemons measured for I61, limited to TCP port 443:
+  name lookups, `com.apple.trustd.agent` and the metadata of the app
+  bundle's directory for certificate checks, and its inherited
+  descriptors. It denies files, the secret store and starting
+  programs. `wb-launcher` caps the size of the files it writes.
+  `wb-hostd` keeps no network.
 - **One-time prerequisites.** `wb setup` checks the prerequisites of
   S12-platforms, explains each missing one, and says who can fix it.
   The user makes each change, and `wb setup` doesn't ask for an

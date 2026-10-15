@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-label="Claude Code in the guest. wb reads an allowlist of the user's ~/.claude/, filters and scans it, and wb-hostd hands the copy to wb-guestd, which writes it as the project user. ~/.claude.json never reaches the guest. The download program fetches a Claude Code build on the host, wb-release-check checks it for wb-hostd, and wb-guestd installs it root-owned during the image build. Claude Code reaches Anthropic only through wb-proxyd, which injects the model credential.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-label="Claude Code in the guest. wb reads an allowlist of the user's ~/.claude/, filters and scans it, and wb-hostd hands the copy to wb-guestd, which writes it as the project user. ~/.claude.json never reaches the guest. wb-download fetches a Claude Code build on the host, wb-release-check checks it for wb-hostd, and wb-guestd installs it root-owned during the image build. Claude Code reaches Anthropic only through wb-proxyd, which injects the model credential.">
 <style>
 svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
 .box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
@@ -41,7 +41,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="130" y="205" text-anchor="middle">sign-in, MCP servers</text>
 
 <rect class="box host" x="20" y="280" width="220" height="70" rx="10" />
-<text class="label" x="130" y="306" text-anchor="middle">download program</text>
+<text class="label" x="130" y="306" text-anchor="middle">wb-download</text>
 <text class="note" x="130" y="326" text-anchor="middle">fetches a Claude Code build</text>
 
 <rect class="box" x="20" y="410" width="220" height="70" rx="10" />

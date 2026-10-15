@@ -353,10 +353,14 @@ nothing themselves (S12-platforms).
     (S17-install-and-upgrade, "Downloads"). `wb-launcher` has two fixed
     entries, `wb-download-restore` and `wb-download-claude`, each with
     its hosts compiled into the program, so a request never names a
-    host or a URL. Its compiled-in profile allows outbound TCP to
-    port 443, name lookups, the certificate check services and its
-    inherited descriptors, and denies files, the secret store and
-    starting programs.
+    host or a URL. Its compiled-in profile is the network part of
+    the `wb-proxyd` profile that X23-sandboxed-daemons measured for
+    I61, limited to TCP port 443: name lookups, `com.apple.trustd.agent`
+    and the metadata of the app bundle's directory for certificate
+    checks, and its inherited descriptors. It denies files, the secret
+    store and starting programs. `wb-launcher` sets each entry's file
+    size limit (`RLIMIT_FSIZE`) before it starts the program, so the
+    host bounds what a run writes.
   - `wb-guestadmin` confines itself at start the same way, from a
     compiled-in profile (X23-sandboxed-daemons, X25-vmd-sandbox). The
     profile allows the secret store service for its `wbadmin/*` items
@@ -366,7 +370,7 @@ nothing themselves (S12-platforms).
     and `wb-guestadmin-cleanup`, which removes the items of images and
     system disks that are gone), so a request
     never chooses what it does.
-  - `wb-netd`, `wb-vmd`, `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`
+  - `wb-netd`, `wb-vmd`, `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`,
     `wb-release-check` and `wb-download` write their logs to an inherited pipe or socket to `wb-hostd`, which
     frames, attributes and rate-limits each line. None of them holds a
     descriptor on any file in `<logs>` or `<data>` for its log.
@@ -403,7 +407,8 @@ nothing themselves (S12-platforms).
       `Contents/Helpers/wb-guestadmin.app/Contents/MacOS/wb-guestadmin`.
       The entries of programs without a group name `Contents/MacOS`.
       The paths are the same in every build, ad-hoc included.
-    - Each program has an instance cap (SEC13-bounded-resources).
+    - Each program has an instance cap (SEC13-bounded-resources),
+      and the `wb-download` entries also a file size limit.
   - git, which the git gateway runs on data the guest sends, starts
     through `wb-launcher` as `wb-git`, a shim that applies a profile for
     one repository and then runs git (decided in B34-sandboxed-daemons,
@@ -944,6 +949,17 @@ gets its limits before it merges.
 | Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-policy-credentials-audit, "Audit" |
 | Accounting and event records | `wb-hostd` | 4 KiB per record, fixed format, a malformed record ends the sender | "Accounting and event channels" |
 | Daemon log lines | `wb-hostd` | 100 lines per second per process, 4 KiB per line | "Logs and health" |
+
+The internet is a second source of input, through `wb-download` only.
+It runs during an image build, which the user starts, and its bounds
+are in S17-install-and-upgrade, "Downloads":
+
+| Internet input | Process | Limits |
+|---|---|---|
+| Apple's catalog, a `HEAD`, the manifest and its signature | `wb-download` | 4 MiB for the catalog, 1 MiB and 64 KiB for the manifest and signature, 2 minutes per request, 30 s to connect, 60 s without a byte |
+| The restore image and the Claude Code binary | `wb-download` | the size from the catalog's entry, at most 64 GiB, and 1 GiB; a file size limit set by `wb-launcher`; 12 hours and 30 minutes; free space checked before the run |
+| The result records | `wb-hostd` | a fixed form per field, at most 16 requests per run |
+| Audit records of downloads | `wb-hostd` | one per request or refusal, at most 16 per run, never dropped |
 
 ### Logs and health
 

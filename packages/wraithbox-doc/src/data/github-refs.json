@@ -1652,6 +1652,6 @@
 		"kind": "pr",
 		"state": "open",
 		"title": "docs(spec): S17-install-and-upgrade, with wb-download for image builds",
-		"summary": "- Approving commits to: S17-install-and-upgrade as the design for building the macOS bundle (mise run build runs app:bundle: version stamp, Go, Swift, xcodebuild of a committed app project with WBTEAMID, guest tools…"
+		"summary": "- Approving commits to: S17-install-and-upgrade, a new spec for how the macOS bundle is built, installed, upgraded and migrated, and for wb-download, the program that fetches what an image build needs."
 	}
 }

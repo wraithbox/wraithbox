@@ -66,90 +66,207 @@ the built bundle as `~/Applications/Wraith Box.app` ("Upgrades").
 
 ### Install: `wb setup`
 
-`wb setup` installs from the bundle it runs in. It resolves its own
-executable's real path, and refuses with `setup-not-in-bundle` unless
-that is `Contents/MacOS/wb` of a bundle whose `WBBuildVersion` is its
-own. It doesn't need administrator rights (SEC12-least-privilege):
+`wb setup` installs from the bundle it runs in, and doesn't need
+administrator rights (SEC12-least-privilege). On macOS:
 
-- It writes `~/Library/LaunchAgents/nl.wraithbox.hostd.plist`, by a
-  new file and a rename, mode 644. The agent runs the bundle's
-  `Contents/MacOS/wb-hostd` by absolute path, with `RunAtLoad` and
-  `KeepAlive` set and no `AbandonProcessGroup` (S04-architecture, "Who
-  starts whom"). The label is fixed, so a user has one install.
-- It replaces a loaded agent with `launchctl bootout`, then loads the
-  new one with `launchctl bootstrap gui/<uid>`.
-- It links `~/.local/bin/wb` to the bundle's `Contents/MacOS/wb`. It
-  replaces only a link into a Wraith Box bundle, and refuses any other
-  file there with `setup-link-exists`. When `~/.local/bin` isn't on
-  `PATH`, it prints the line to add, and it never edits a shell file.
+- **The bundle.** It resolves its own executable's real path, and
+  refuses with `setup-not-in-bundle` unless that is `Contents/MacOS/wb`
+  of a bundle whose `Info.plist` has the same `WBBuildVersion` as `wb`. It
+  refuses with `setup-bundle-location` a bundle that isn't directly in
+  `~/Applications` or `/Applications`, so the agent never points into a
+  build directory that a cleanup or a removed worktree deletes.
+- **The agent.** It writes `~/Library/LaunchAgents/nl.wraithbox.hostd.plist`,
+  mode 644, to a new file that it renames over the old one. The agent
+  runs the bundle's `Contents/MacOS/wb-hostd` by absolute path, with
+  `RunAtLoad` and `KeepAlive` set and no `AbandonProcessGroup`
+  (S04-architecture, "Who starts whom"). The label is fixed, so a user
+  has one install. When the loaded agent's plist has the same bytes, it
+  leaves the agent running. Otherwise replacing it stops `wb-hostd` and
+  its VMs, so it asks `wb-hostd` first and refuses with
+  `setup-vms-running`, naming each VM and its sessions, while one runs.
+  Then it runs `launchctl bootout` and `launchctl bootstrap gui/<uid>`.
+  It runs `/bin/launchctl` by absolute path, with the environment
+  `PATH=/usr/bin:/bin` and nothing else.
+- **The link.** It links `~/.local/bin/wb` to the bundle's
+  `Contents/MacOS/wb`. A file there is a link into a Wraith Box bundle
+  when `lstat` shows a symbolic link, its target ends in
+  `/Contents/MacOS/wb`, and the `Contents/Info.plist` of that target's
+  bundle has a `WBBuildVersion` key. It replaces only such a link, and
+  refuses any other file with `setup-link-exists`. When `~/.local/bin`
+  isn't on `PATH`, it prints the line to add, and it never edits a
+  shell file.
 
-Running it again after the bundle moved rewrites both. Rejected:
-`SMAppService`, which needs a Swift or Objective-C call in the
-registering process and
-an approval in System Settings, and a link in `/usr/local/bin`, which
-needs administrator rights on many Macs.
+Running it again after the bundle moved rewrites the agent and the
+link. Rejected: `SMAppService`, which needs a Swift or Objective-C call
+in the registering process and an approval in System Settings, and a
+link in `/usr/local/bin`, which needs administrator rights on many
+Macs.
 
-`wb setup --remove` unloads the agent, which stops `wb-hostd` and its
-VMs (S04-architecture, "When `wb-hostd` stops"), and deletes the plist
-and the link. It keeps `<config>`, `<data>`, `<logs>` and the secret
-store items, and prints where they are.
+`wb setup --remove` refuses with `setup-vms-running` in the same way,
+then unloads the agent, which stops `wb-hostd` (S04-architecture, "When
+`wb-hostd` stops"), and deletes the plist and the link. It keeps
+`<config>`, `<data>`, `<logs>` and the secret store items, and prints
+where they are.
+
+The bundle, location and `launchctl` rules are macOS rules. On Windows
+and Linux the installer and service unit of S10-tech-stack take the
+place of the agent, and a file `wraithbox-version` next to the programs
+holds the build version.
 
 ### Downloads: `wb-download`
 
 Only `wb-download` fetches what an image build needs (decided on I49).
-`wb-hostd` has no network, and `wb-proxyd` serves guests. It is Go, one
-run per download, started through `wb-launcher` from one of two fixed
-entries, each with an instance cap of one and its hosts compiled in:
+`wb-hostd` has no network, and `wb-proxyd` serves guests. `wb-download`
+is Go, one run per download, started through `wb-launcher` from one of
+two fixed entries. Each entry has an instance cap of one, its hosts
+compiled into the program, and a file size limit (`RLIMIT_FSIZE`) that
+`wb-launcher` sets before it starts the program:
 
-| Entry | Hosts | Fetches |
-|---|---|---|
-| `wb-download-restore` | `mesu.apple.com`, `updates.cdn-apple.com` | Apple's restore image catalog and one restore image |
-| `wb-download-claude` | `downloads.claude.ai` | one Claude Code release (S14-claude-in-guest, "Install") |
+| Entry | Hosts | Fetches | File size limit |
+|---|---|---|---|
+| `wb-download-restore` | `mesu.apple.com`, `updates.cdn-apple.com` | Apple's restore image catalog and one restore image | 64 GiB |
+| `wb-download-claude` | `downloads.claude.ai` | one Claude Code release (S14-claude-in-guest, "Install") | 1 GiB |
+
+On Windows and Linux, `wb-download` confines itself with that
+platform's mechanism (S12-platforms), with the same rules in its code.
 
 - **Confinement.** It confines itself first thing, from a compiled-in
-  profile: outbound TCP to port 443, name lookups, and the certificate
-  check services that X23-sandboxed-daemons measured for `wb-proxyd`,
-  and its inherited descriptors. It denies files, the secret store and starting
-  programs. Seatbelt can't name hosts. The code refuses any host
-  outside its entry, plain HTTP, and every redirect
-  (`download-redirect-refused`), and applies the "Upstream address"
-  rule of S07-egress-gateway. TLS is checked against the system roots.
-  It doesn't read a proxy setting.
-- **Channels.** A pipe to `wb-hostd` for fixed-format requests and
-  results, its log pipe, and the descriptors of the files `wb-hostd`
-  opened for it. It reports each request's host, path, status and
-  bytes, and `wb-hostd` writes each as an HTTP Activity (4002) record.
-- **Restore image.** It fetches the catalog from
-  `https://mesu.apple.com/assets/macos/com_apple_macOSIPSW/com_apple_macOSIPSW.xml`
-  (at most 4 MiB), picks the newest restore image not newer than the
-  host's macOS, and reports its version, build, URL, SHA-1 and size.
-  The catalog parser has a fuzz target. `wb-hostd` refuses a URL that
-  isn't HTTPS on `updates.cdn-apple.com`, and a size over 64 GiB. It
-  refuses the download with `download-no-space` when the volume of
-  `<data>` has less free space than the bytes still to fetch plus
-  `audit_free_space_floor` (S09-policy-credentials-audit). It resumes a
-  partial file only when the entry recorded for it in `state.db` is the
-  same, and starts over otherwise. `wb-download` writes to the
-  descriptor of `<data>/images/macos-restore.ipsw.partial`. After
-  `wb-launcher` reports its exit, `wb-hostd` checks the size and the
-  SHA-1 and renames the file to `macos-restore.ipsw`. A mismatch
-  deletes it and fails the build with `restore-image-hash-mismatch`.
-  Before each start of `wb-vmd-install`, `wb-hostd` checks the SHA-1
-  again unless it did in the same build. Apple's catalog lists SHA-1
-  only, and isn't signed. The check catches a damaged or swapped file.
-  Against a compromised `wb-download`, the design relies on
-  Virtualization's installer refusing a restore image that Apple didn't
-  sign (I262). A build that seals its image deletes the restore image.
-- **Claude Code.** It reads the version from the pipe, refuses one
-  outside `^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,6}$`, and fetches
-  `manifest.json` (at most 1 MiB), `manifest.json.sig` (64 KiB) and
-  `darwin-arm64/claude` (1 GiB) of that version into three new files
-  in `<data>/downloads/` that `wb-hostd` opened. A larger file fails
-  with `download-too-large`. It parses none of them. The build deletes
-  them when it ends.
+  profile, the network part of the `wb-proxyd` profile that
+  X23-sandboxed-daemons measured for I61, limited to port 443 and
+  without the secret store services:
 
-Any other exit fails the build with its rule, and nothing restarts it.
-The next `wb image build` resumes the restore image.
+  ```scheme
+  (version 1)
+  (deny default)
+  (allow network-outbound (remote tcp "*:443"))
+  (allow network-outbound (remote udp "*:53"))
+  (allow network-outbound (literal "/private/var/run/mDNSResponder"))
+  (allow file-read-metadata (literal "/etc") (literal "/var"))
+  (allow file-read* (literal "/private/etc/resolv.conf")
+    (literal "/private/var/run/resolv.conf") (literal "/private/etc/hosts"))
+  (allow mach-lookup (global-name "com.apple.trustd.agent"))
+  (allow file-read-metadata (literal (param "BUNDLE")))
+  ```
+
+  `BUNDLE` is the real path of `Wraith Box.app`, the bundle whose
+  program it is, worked out before it confines itself. Files, the
+  secret store and starting programs are denied. It can still use its
+  inherited descriptors.
+- **Hosts.** Seatbelt can't name hosts. The code refuses a host
+  outside its entry with `download-host-refused`, a URL that isn't
+  HTTPS on port 443, every redirect (`download-redirect-refused`), and
+  an address under the "Upstream address" rule of S07-egress-gateway
+  (`upstream-address-refused`). TLS is checked against the system
+  roots. Its HTTP client's `Transport.Proxy` is nil, so `HTTPS_PROXY`
+  and the system's proxy settings don't apply.
+- **Deadlines.** A connection that isn't up in 30 s fails with
+  `download-connect-timeout`, and a response with no byte for 60 s with
+  `download-idle-timeout`. A whole request has 2 minutes for the
+  catalog, a `HEAD`, the manifest or the signature, 30 minutes for the
+  Claude Code binary, and 12 hours for the restore image
+  (`download-deadline`). `wb-hostd` cancels a run by closing its
+  request pipe, and `wb-download` stops at that end of file with
+  `download-cancelled`.
+- **The result record.** `wb-download` writes fixed-format records to
+  its pipe, and `wb-hostd` checks each field's form:
+
+  | Field | Form |
+  |---|---|
+  | macOS version | `^[0-9]{1,3}(\.[0-9]{1,3}){1,2}$` |
+  | macOS build | `^[0-9]{2}[A-Z][0-9]{1,5}[a-z]?$` |
+  | URL | `https://updates.cdn-apple.com/` and a path of 1 to 512 characters of `A-Z a-z 0-9 . _ / -` ending in `.ipsw`, with no port, user, query or fragment |
+  | SHA-1 | 40 lowercase hexadecimal digits |
+  | size | a decimal number from 1 to 68,719,476,736 (64 GiB) |
+  | host, rule, status, bytes | one of the entry's hosts, a rule name of this section, a three-digit status, a decimal count |
+
+  A field outside its form, or a run that reports more than 16 requests,
+  ends the run with `download-record-form`. The record parser has a
+  fuzz target.
+- **Audit.** For each request, and each refusal of one, it reports the
+  host, the address it connected to, the path, and the status or the
+  rule. `wb-hostd` writes each as an HTTP Activity (4002) record, a
+  refusal as a refused one with its rule (SEC10-audit). These records
+  belong to no VM, so they don't count against any VM's audit budget
+  (S09-policy-credentials-audit, "Audit"), and they're never dropped.
+  When one can't be written, `wb-hostd` cancels the run with
+  `download-audit-failed`.
+- **Space.** Before it starts either entry, `wb-hostd` refuses with
+  `download-no-space` when the volume of `<data>` has less free space
+  than the bytes still to fetch plus `audit_free_space_floor`
+  (S09-policy-credentials-audit). For a Claude Code release, the bytes
+  to fetch are the sum of its three caps.
+
+Any exit other than success fails the build with its rule, and nothing
+restarts `wb-download`. The next `wb image build` resumes the restore
+image.
+
+#### The restore image
+
+1. **The entry.** `wb-hostd` sends the host's macOS version.
+   `wb-download` fetches the catalog from
+   `https://mesu.apple.com/assets/macos/com_apple_macOSIPSW/com_apple_macOSIPSW.xml`,
+   at most 4 MiB, and parses it. The catalog parser has a fuzz target.
+   It picks the newest restore image not newer than the host's macOS,
+   sends a `HEAD` for its size, and reports the version, build, URL,
+   SHA-1 and size.
+2. **The floor.** `wb-hostd` refuses an entry older than the minimum
+   compiled into Wraith Box, 27.0.1, which X17-image-build built, with
+   `restore-image-below-minimum`. It refuses an entry older than the
+   macOS version of the last image a build sealed, which `state.db`
+   records, with `restore-image-rollback`, unless the user passed
+   `wb image build --allow-older-macos`.
+3. **Resume or start over.** `wb-hostd` keeps the entry of the partial
+   file `<data>/images/macos-restore.ipsw.partial` in `state.db`. When
+   the new entry is the same, it answers with the partial file's size
+   as the offset. Otherwise it truncates the file and answers 0. It
+   opens the file with `O_NOFOLLOW`, creates it mode 600, requires a
+   regular file from `fstat`, and passes the descriptor.
+4. **The fetch.** At offset 0, `wb-download` sends a plain `GET` and
+   requires a `200` with a `Content-Length` equal to the size. At a
+   larger offset it sends `Range: bytes=<offset>-`, and requires a `206`
+   with exactly `Content-Range: bytes <offset>-<size − 1>/<size>`.
+   Anything else fails with `download-range-refused`. It writes from the
+   offset, and stops reading at the size. A shorter body fails with
+   `download-short`. The `Content-Range` parser has a fuzz target.
+5. **The check.** After `wb-launcher` reports the exit, `wb-hostd`
+   checks the size with `fstat` on its own descriptor, hashes the file
+   with SHA-1 from that descriptor, and renames it to
+   `macos-restore.ipsw`. A mismatch deletes it and fails the build with
+   `restore-image-hash-mismatch`. Before each start of
+   `wb-vmd-install`, `wb-hostd` checks the SHA-1 again unless it did in
+   the same build. A build that seals its image deletes the restore
+   image.
+6. **The trust base.** The SHA-1 comes from a catalog fetched over TLS
+   checked against the system trust store, and binds the file to that
+   entry. The catalog isn't signed, so a compromised `wb-download` can
+   report any entry. Against that, the design relies on Virtualization's
+   installer refusing a restore image that Apple didn't sign. That
+   property is unmeasured (I262). If I262 finds that the installer
+   accepts a changed image, the catalog only says where to fetch, and
+   `wb-hostd` accepts only a restore image whose SHA-256 is compiled
+   into the release.
+
+#### A Claude Code release
+
+1. **The version** is a build input that `wb-hostd` holds, from the
+   user's `wb image build` (I220 decides which release a build picks),
+   never a value from a guest or a repository. `wb-hostd` and
+   `wb-download` both refuse one outside
+   `^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,6}$`.
+2. **The files.** At the build's start `wb-hostd` deletes what an
+   earlier build left in `<data>/downloads/`, without following
+   symbolic links. It creates `manifest.json`, `manifest.json.sig` and
+   `claude` there with `O_CREAT|O_EXCL|O_NOFOLLOW`, mode 600, and
+   passes the three descriptors.
+3. **The fetch.** `wb-download` fetches `<version>/manifest.json`, at
+   most 1 MiB, `<version>/manifest.json.sig`, at most 64 KiB, and
+   `<version>/darwin-arm64/claude`, at most 1 GiB. A larger file fails
+   with `download-too-large`, and after the exit `wb-hostd` checks each
+   size with `fstat` and refuses the same way. It parses none of them.
+4. **Exit before check.** `wb-hostd` gives the files to
+   `wb-release-check` only after `wb-launcher` reports that
+   `wb-download` exited, so nothing writes them after the check. The
+   build deletes them when it ends.
 
 ### Upgrades
 
@@ -176,25 +293,27 @@ it serves a request. `wb` and the other processes never do.
 
 - **`state.db`.** Its schema version is `PRAGMA user_version`. Numbered,
   forward-only migrations are compiled into `wb-hostd`, each in a
-  transaction that also sets the new version. Before the first one,
-  `wb-hostd` writes a copy with `VACUUM INTO` to `state.db.v<N>.bak`,
-  `<N>` the version it had, and keeps the two newest copies.
-- **Refusing mode.** When a migration fails, or the database's version
-  is newer than `wb-hostd` knows, `wb-hostd` keeps running, so launchd
-  doesn't restart it in a loop. It answers `wb status` and refuses
-  every other request with `state-db-migration-failed` or
-  `state-db-newer`, naming both versions and the newest copy.
+  transaction that also sets the new version.
+- **The backup.** Before the first pending migration, `wb-hostd` writes
+  a copy with `VACUUM INTO` to a new temporary name in `<data>`, mode
+  600, and renames it to `state.db.v<N>.bak`, `<N>` the version it had.
+  It never writes over an existing `.bak` file: when that name exists,
+  the copy from an earlier attempt stays. It keeps the two newest
+  copies.
 - **Configuration.** No process rewrites a file in `<config>`.
   `wb-hostd` refuses a file with a key that a release renamed or
   removed, with `config-key-renamed` and the file, the line and the new
   key, and a file with any other unknown key, with `config-key-unknown`.
+- **Refusing mode.** A failed backup (`state-db-backup-failed`), a
+  failed migration (`state-db-migration-failed`), a database newer than
+  `wb-hostd` knows (`state-db-newer`), and a refused configuration file
+  put `wb-hostd` in refusing mode. It keeps running, so launchd doesn't
+  restart it in a loop. It doesn't start a daemon or a VM. It answers
+  `wb status` and refuses every other request with the rule, naming
+  the versions, the file and line, or the newest copy.
 - Secret store item names are fixed (S15-least-privilege), and images
   aren't migrated. A saved state of another build version is deleted
   (S06-vm-lifecycle).
-
-On Windows and Linux the installer and service unit of S10-tech-stack
-take the place of `wb setup`'s files, and a file `wraithbox-version`
-next to the programs holds the build version.
 
 ## Out of scope
 
@@ -202,8 +321,8 @@ next to the programs holds the build version.
   cask (S10-tech-stack).
 - A restore image from a file the user names, for hosts without access
   to Apple's servers (I263).
-- A macOS version other than the newest the host supports, and an
-  upstream proxy for downloads.
+- A macOS version other than the newest the host supports, apart from
+  `--allow-older-macos`, and an upstream proxy for downloads.
 - Deleting data and store items at uninstall (I264), and downgrades:
   an older `wb-hostd` refuses a newer `state.db`.
 
