@@ -91,7 +91,8 @@ can use (S09-policy-credentials-audit, "Key").
   caller expects. Before any Keychain call, the shim refuses with the
   rule `store-group-mismatch`, and logs the item and both groups, when
   that group isn't the one the item name gives, or when the process's
-  entitlements don't hold it.
+  entitlements don't hold it. An entitlement set the shim can't read
+  counts as not holding it.
 - **Ad-hoc signed builds.** An ad-hoc signed build, such as a CI
   build or the build of a developer without an Apple ID in Xcode, has
   no Keychain backend.
@@ -140,6 +141,10 @@ and the rule, in every build and on every backend:
 - Any other failure of a binding or `wbadmin/*` read, such as -34018
   (`errSecMissingEntitlement`), is `store-read-failed`, and the work
   that needed the item is refused with it.
+- A failed write or delete of any item, outside the cases above and
+  the CA issue of S09-policy-credentials-audit, "Valid CA", is
+  `store-write-failed`, and the command or work that made it is
+  refused with it.
 
 ### Access rules
 
@@ -174,7 +179,7 @@ and the rule, in every build and on every backend:
    arguments, the environment, a file, a log line, a gRPC message
    field, an audit record, or an error message. A process that only
    passes the descriptor on never reads it.
-6. **Audited without the value.** Each fetch, use, write and delete is an audit
+6. **Audited without the value.** Each fetch, use, list, write and delete is an audit
    record with the process, the item name, and the access kind
    (SEC10-audit).
 7. **Locked means closed.** Session start, warm start, builds, and

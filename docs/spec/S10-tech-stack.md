@@ -110,8 +110,8 @@ binary of that name comes from the Swift package.
     uses Wraith Box's own identifier. An explicit identifier that one
     team has registered is likely refused to another. That is why each
     developer's team gets its own. That is assumed until a second team
-    builds: X29-dev-signing used one team. It gets the profile from
-    Xcode: it builds
+    builds: X29-dev-signing used one team. The build gets the profile
+    from Xcode: it builds
     the app's Xcode project with `xcodebuild`, automatic signing and
     that team, as X29-dev-signing did, and copies the profile Xcode
     embeds into each helper bundle. Then it signs from the inside out
