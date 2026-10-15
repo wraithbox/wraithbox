@@ -13,6 +13,7 @@ out how to implement it. Aim for under 100 lines.
 | ID | Kind | Where | Index |
 |---|---|---|---|
 | `S<NN>-<slug>` | Spec | `docs/spec/` | S00-index |
+| `C<NN>-<slug>` | Test cases of one area | `docs/tests/` | C00-index |
 | `FR<NN>-<slug>` | Functional requirement | `docs/requirements/` | FR00-index |
 | `NFR<NN>-<slug>` | Non-functional requirement | `docs/requirements/` | NFR00-index |
 | `SEC<NN>-<slug>` | Security requirement | `docs/requirements/` | SEC00-index |
@@ -69,6 +70,8 @@ and the property, and the issue tracks the measurement.
 **Purpose:** One-line description of what this does and why
 
 **Requirements:** The FR, NFR and SEC IDs this spec covers
+
+**Tests:** The C pages with its test cases (S11-verification-and-spikes)
 
 Brief: B<NN>-<slug>, when there is one
 

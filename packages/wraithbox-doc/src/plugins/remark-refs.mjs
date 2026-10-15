@@ -57,8 +57,8 @@ export function purposeOf(/** @type {string} */ source) {
 }
 
 export const SLUG = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*`;
-/** A design ID: S07, SEC06, X14, B36, V1, V1-01, V1-M2. */
-export const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[BSTXR])\d{2,}|V\d+(?:-(?:M\d+|\d{2,}))?`;
+/** A design ID: S07, SEC06, X14, B36, C03, V1, V1-01, V1-M2. */
+export const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[BCSTXR])\d{2,}|V\d+(?:-(?:M\d+|\d{2,}))?`;
 /** A definition list item: `- **SEC06-repo-writes: Name.** text`. */
 export const DEFINITION = new RegExp(
 	String.raw`^- \*\*(${DESIGN_ID})-(${SLUG}):\s*([^*]*?)\.?\*\*([\s\S]*?)(?=\n- \*\*|\n\n|(?![\s\S]))`,
@@ -184,8 +184,9 @@ const REF = new RegExp(
 		String.raw`\b(${DESIGN_ID})(?:-(${SLUG}))?\b`,
 		// 3: an issue or pull request, I36 or PR13
 		String.raw`\b((?:I|PR)\d{2,})\b`,
-		// 4: an ID without its leading zero, or of the old scheme: fails
-		String.raw`\b((?:FR|NFR|SEC|PR|[BSTXRI])\d(?:-${SLUG})?|[FNC]\d{1,2}-${SLUG}|0\d\d-${SLUG})\b`,
+		// 4: an ID without its leading zero, or of the old scheme: fails.
+		// Not C: "C1" is the name of the ANSI control set (S16-terminal-stream).
+		String.raw`\b((?:FR|NFR|SEC|PR|[BSTXRI])\d(?:-${SLUG})?|[FN]\d{1,2}-${SLUG}|0\d\d-${SLUG})\b`,
 		// 5: "spec 007", "issue #36", "PR #12" or a bare "#36": warns
 		String.raw`(\b[Ss]pecs? \d{3}\b|(?:\b(?:issue|Issue|PR|pull request) )?(?<![\w/&])#\d+\b)`,
 	].join('|'),

@@ -70,7 +70,7 @@ explains the IDs.
 | [S08](docs/spec/S08-workspace-and-git.md) | Workspace and the git round trip |
 | [S09](docs/spec/S09-policy-credentials-audit.md) | Policy, credentials, certificates, audit |
 | [S10](docs/spec/S10-tech-stack.md) | Languages, libraries, packaging |
-| [S11](docs/spec/S11-verification-and-spikes.md) | Verification and open questions |
+| [S11](docs/spec/S11-verification-and-spikes.md) | Verification: test layers, release gate, CI |
 | [S12](docs/spec/S12-platforms.md) | Host and guest platforms, WSL |
 | [S13](docs/spec/S13-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
 | [S14](docs/spec/S14-claude-in-guest.md) | Claude Code in the guest: install, user configuration, agent interface |

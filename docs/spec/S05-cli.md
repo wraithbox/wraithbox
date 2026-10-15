@@ -4,6 +4,8 @@
 
 **Requirements:** FR01-drop-in to FR05-parallel-sessions, FR09-approve-unknown, FR12-clipboard, FR13-claude-state to FR17-same-everywhere, SEC03-no-host-exec, SEC10-audit, SEC14-no-fake-approvals, NFR01-startup, NFR06-explained-refusals.
 
+**Tests:** C04-projects
+
 ## For review
 
 - **Decides:** the shape of `wb` and its commands, and, since I37,

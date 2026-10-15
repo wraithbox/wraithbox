@@ -67,12 +67,13 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
 | S08-workspace-and-git | Workspace and the git round trip |
 | S09-policy-credentials-audit | Policy, credentials, certificates, audit |
 | S10-tech-stack | Languages, libraries, packaging |
-| S11-verification-and-spikes | Verification and open questions |
+| S11-verification-and-spikes | Verification: test layers, release gate, CI |
 | S12-platforms | Host and guest platforms, WSL |
 | S13-guest-confinement | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
 | S14-claude-in-guest | Claude Code in the guest: install, user configuration, agent interface |
 | S16-terminal-stream | The filter on guest output to the host terminal |
 
 The requirements and the threat model are in FR00-index, NFR00-index,
-SEC00-index and T00-index. Open questions are spikes, in X00-index.
+SEC00-index and T00-index. The test cases of each area are in
+C00-index. Open questions are spikes, in X00-index.
 What the first version delivers is in V1-initial.
