@@ -147,7 +147,7 @@ The mount rule applies under every option. It supports SEC01-separate-kernel and
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> S06-vm-lifecycle ("Disks") says the data disk "can be rebuilt from host state plus git". The project user's home on that disk holds Claude Code state (S06-vm-lifecycle, "Projects and sessions", and FR13-claude-state).
+- <Badge text="verified" variant="success" /> S06-vm-lifecycle ("Disks") says the data disk "can be rebuilt from host state plus git". The project user's home on that disk holds Claude Code state (S06-vm-lifecycle, "Projects and sessions inside a VM", and FR13-claude-state).
 - <Badge text="verified" variant="success" /> The Virtualization framework offers three sync modes for disk images: full, `fsync`, and none. For none, "In case of failure, the state of blocks on disk and their order is undefined" and the image "cannot safely be reused on failure" (`VZDiskImageStorageDeviceAttachment.h` and `VZDiskSynchronizationMode.h`, macOS 27 SDK, Xcode 27.0).
 - <Badge text="verified" variant="success" /> `VZMacGuestProvisioningOptions` sets a user name, password and automatic login for the first boot after restore, needs macOS 27 in the guest, and has remote login off by default (`VZMacGuestProvisioningOptions.h`, available from macOS 27.0).
 - <Badge text="verified" variant="success" /> The X17-image-build candidate is "writing files to the new guest's data volume from the host at build time, before any untrusted code has run" (X00-index).

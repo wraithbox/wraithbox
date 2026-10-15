@@ -212,7 +212,7 @@ Each option leaves the `SEC*` controls unchanged. `wb attach` shows guest output
 - <Badge text="verified" variant="success" /> `ssh` "exits with the exit status of the remote command or with 255 if an error occurred" (`man ssh`, OpenSSH 10.3). A command killed by signal n returns 128+n (`man bash`).
 - <Badge text="verified" variant="success" /> `git stash create` makes a commit "without storing it anywhere in the ref namespace" (`git help stash`), but includes tracked files only.
 - <Badge text="inferred" variant="note" /> So the snapshot needs a temporary index to include untracked files. Doing it without touching the agent's index is an implementation detail for the M4 work.
-- <Badge text="inferred" variant="note" /> A `wb-guestd` exit closes the terminal device it holds, and `claude` gets a hangup. The PTY rule is standard Unix behavior. That `wb-guestd` holds the PTY follows from S06-vm-lifecycle ("run commands as a project user with a PTY").
+- <Badge text="inferred" variant="note" /> A `wb-guestd` exit closes the terminal device it holds, and `claude` gets a hangup. The PTY rule is standard Unix behavior. That `wb-guestd` holds the PTY follows from S06-vm-lifecycle, where it runs commands as a project user with a PTY.
 - <Badge text="assumed" variant="caution" /> That host-guest socket connections drop on save and restore, so "paused" covers idle suspend. X18-vsock-handoff checks descriptors across save and restore.
 - <Badge text="assumed" variant="caution" /> That `claude` continues cleanly after its processes were stopped for hours, retrying model API calls that timed out. Cheap to check once X02-warm-start has a VM that suspends.
 

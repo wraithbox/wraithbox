@@ -927,7 +927,7 @@ can cause. Every host handler that takes input from a guest has a per-VM
 rate limit, a size limit on each input, and a bound on the work it runs
 at once. A request over a limit is refused or dropped, never queued
 without bound, and logged with the limit's rule. For the refusal
-classes S07-egress-gateway aggregates ("Events and rate limits"), a
+classes that S07-egress-gateway, "Events and rate limits", aggregates, a
 run of refusals is logged as one record with its count. A new handler
 gets its limits before it merges.
 
@@ -947,7 +947,7 @@ gets its limits before it merges.
 | Leftover-process results | `wb-hostd` | one per kill loop, kept until acknowledged, in a session report or a cleanup record; at most one record per project user in the VM, apart from the 64 session entries; accepted only on an exact kill ID `wb-hostd` sent, before the kill's 7-minute deadline, and none by then counts as processes left | S06-vm-lifecycle, "Leftover processes", "Reconnect", "Deadlines" |
 | Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-vm-lifecycle, "Recovery" |
 | Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-policy-credentials-audit, "Approval flow", "Approvals" |
-| Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | S09-policy-credentials-audit, "Approvals", "Restarting a daemon" |
+| Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | "Restarting a daemon", and S09-policy-credentials-audit, "Approvals" |
 | Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-policy-credentials-audit, "Audit" |
 | Accounting and event records | `wb-hostd` | 4 KiB per record, fixed format, a malformed record ends the sender | "Accounting and event channels" |
 | Daemon log lines | `wb-hostd` | 100 lines per second per process, 4 KiB per line | "Logs and health" |

@@ -3,7 +3,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import { unified } from '@astrojs/markdown-remark';
 import { refsDigest, remarkRefs } from './src/plugins/remark-refs.mjs';
-import { specsIntegration } from './src/plugins/specs.mjs';
+import { specSidebar, specsIntegration } from './src/plugins/specs.mjs';
 
 // The site is served from the root of its own domain, https://wraithbox.nl
 // (GitHub Pages with a custom domain), so there is no `base` path and
@@ -96,7 +96,8 @@ export default defineConfig({
 				].map(([label, directory]) => ({
 					label,
 					collapsed: true,
-					items: [{ autogenerate: { directory } }],
+					// A spec's pages are grouped under it (specSidebar).
+					items: directory === 'spec' ? specSidebar() : [{ autogenerate: { directory } }],
 				})),
 				{
 					label: 'Guides',

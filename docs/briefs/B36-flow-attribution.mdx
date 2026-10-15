@@ -130,7 +130,7 @@ SEC04-no-guest-secrets (no secrets in the guest), SEC05-default-deny (default-de
 
 - <Badge text="verified" variant="success" /> `wb-netd` leases one IPv4 address per VM and accepts only that VM's MAC address (S07-egress-gateway, "Addressing").
 - <Badge text="verified" variant="success" /> S07-egress-gateway still says each stream is "tagged with VM, project, session, hostname, and port" ("Connections"), with no source for the project and session.
-- <Badge text="verified" variant="success" /> All trusted projects share the work VM, each as its own guest user (S06-vm-lifecycle, "VMs" and "Projects and sessions").
+- <Badge text="verified" variant="success" /> All trusted projects share the work VM, each as its own guest user (S06-vm-lifecycle, "VMs" and "Projects and sessions inside a VM").
 - <Badge text="inferred" variant="note" /> So before any label exists, project B's agent can use project A's credential binding without guest root. S07-egress-gateway and S09-policy-credentials-audit don't say how the host would tell the two users' connections apart.
 - <Badge text="verified" variant="success" /> Work returned through git is not affected: pushes to the landing repository go over the host-guest socket, not the network (S08-workspace-and-git, "Out of the guest").
 - <Badge text="verified" variant="success" /> Guest labels can only narrow host rules, and guest root can forge them (S13-guest-confinement, "Principle", and risk T06-forged-labels). Program narrowing is off until X14-flow-attribution (S09-policy-credentials-audit, "Program narrowing").

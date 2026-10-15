@@ -967,7 +967,7 @@ VM", I36).
   refusals under that rule are written as one record per minute with
   their count. A minute is a calendar minute of UTC.
 - Only the refusal classes that S07-egress-gateway aggregates per rule
-  ("Events and rate limits") are written as runs with a count. Each
+  (S07-egress-gateway, "Events and rate limits") are written as runs with a count. Each
   open run's count is written when its window ends and in the VM's stop
   record, so no count is lost with the VM.
 - Each VM has a byte budget per day, `audit_vm_bytes_per_day` (default
@@ -1026,7 +1026,7 @@ VM", I36).
   counts by rule and its dropped links, escaped ("Terminal filter").
   Process attribution reported by the guest is stored as an untrusted
   label.
-- Terminal filter. `wb` filters the guest's terminal stream and sends
+- **Terminal filter.** `wb` filters the guest's terminal stream and sends
   `wb-hostd`, over its connection for the session, what the filter
   counted and the dropped links it keeps (S16-terminal-stream, "Drop
   rules" and "Links").

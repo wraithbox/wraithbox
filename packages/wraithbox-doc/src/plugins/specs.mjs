@@ -17,12 +17,16 @@
 // edits the copies.
 //
 // The copy also fails the build when the table of an index (S00-index,
-// X00-index, …) is out of date (indexes.mjs).
+// X00-index, …) is out of date (indexes.mjs), when a reference to a
+// section names no section (sections.mjs), or when a spec breaks a size
+// limit (structure.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { updateIndexes } from './indexes.mjs';
 import { failures, purposeOf, refsSources } from './remark-refs.mjs';
+import { checkSections } from './sections.mjs';
+import { checkStructure } from './structure.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(here, '../../../..');
@@ -121,6 +125,31 @@ function inlineFigures(/** @type {string} */ rel, /** @type {string} */ body) {
 	});
 }
 
+/**
+ * The sidebar entries of the specs. A spec with pages of its own
+ * (`docs/spec/S07-egress-gateway/`, S01-spec-based-development, "Spec
+ * tree") is a group: the spec itself as "Overview", then its pages in
+ * order. Starlight's own `autogenerate` would label that group with the
+ * directory name.
+ * @returns {any[]}
+ */
+export function specSidebar() {
+	const slug = (/** @type {string} */ rel) => designUrl(rel).slice(1, -1);
+	const files = designFiles().filter((rel) => rel.startsWith(`spec${path.sep}`));
+	const top = files.filter((rel) => path.dirname(rel) === 'spec');
+	return top.map((rel) => {
+		const dir = rel.replace(/\.mdx?$/, '');
+		const pages = files.filter((other) => path.dirname(other) === dir);
+		if (pages.length === 0) return { slug: slug(rel) };
+		const heading = fs.readFileSync(path.join(docsDir, rel), 'utf8').match(/^# (.+)$/m)?.[1] ?? path.basename(dir);
+		return {
+			label: heading,
+			collapsed: true,
+			items: [{ slug: slug(rel), label: 'Overview' }, ...pages.map((page) => ({ slug: slug(page) }))],
+		};
+	});
+}
+
 /** Markdown inline text to plain text, on one line. */
 export function plain(/** @type {string} */ text) {
 	return text
@@ -136,6 +165,14 @@ export function syncDesign() {
 	const stale = updateIndexes({ write: false });
 	if (stale.length > 0) {
 		throw new Error(`index tables out of date, run mise run doc:index: ${stale.join(', ')}`);
+	}
+	const broken = checkSections();
+	if (broken.length > 0) {
+		throw new Error(`section references that name no section:\n${broken.join('\n')}`);
+	}
+	const { strict } = checkStructure();
+	if (strict.length > 0) {
+		throw new Error(`specs over the limits of structure.mjs (mise run doc:structure):\n${strict.join('\n')}`);
 	}
 	const wanted = new Set();
 	for (const rel of files) {
