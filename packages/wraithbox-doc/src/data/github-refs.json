@@ -1590,7 +1590,7 @@
 	},
 	"256": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S14-claude-in-guest, S09-policy-credentials-audit: browser login decisions from B15-browser-login",
 		"summary": "Spec changes from the B15-browser-login decisions on #15 (2026-10-15)."
 	},
@@ -1602,7 +1602,7 @@
 	},
 	"258": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): record the browser login decisions from B15",
 		"summary": "Records the decisions made on #15 (B15-browser-login): the browser login isn't a V1 model credential, and the authorize URL gets no terminal filter."
 	},
@@ -1653,5 +1653,11 @@
 		"state": "open",
 		"title": "docs(spec): S17-install-and-upgrade, with wb-download for image builds",
 		"summary": "- Approving commits to: S17-install-and-upgrade, a new spec for how the macOS bundle is built, installed, upgraded and migrated, and for wb-download, the program that fetches what an image build needs."
+	},
+	"267": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): split S11 into strategy and per-area test case pages",
+		"summary": "S11-verification-and-spikes had grown to 979 lines, mostly as two giant run-on bullets: every spec change appended its tests there."
 	}
 }

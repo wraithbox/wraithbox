@@ -357,7 +357,9 @@ nothing themselves (S12-platforms).
     the `wb-proxyd` profile that X23-sandboxed-daemons measured for
     I61, limited to TCP port 443: name lookups, `com.apple.trustd.agent`
     and the metadata of the app bundle's directory for certificate
-    checks, and its inherited descriptors. It denies files, the secret
+    checks, the routing table `sysctl` read that `getifaddrs` makes
+    for the upstream address rule, and its inherited descriptors. It
+    denies files, the secret
     store and starting programs. `wb-launcher` sets each entry's file
     size limit (`RLIMIT_FSIZE`) before it starts the program, so the
     host bounds what a run writes.

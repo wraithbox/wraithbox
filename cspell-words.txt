@@ -60,7 +60,6 @@ machdep
 dirhelper
 vmnet
 paravirtualized
-mesu
 paravirtualizedgraphics
 videotoolbox
 terminfo
@@ -201,6 +200,7 @@ exfiltration
 Rego
 ctkd
 mesu
+routetable
 sandboxd
 resolv
 securityd
