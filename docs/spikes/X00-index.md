@@ -37,7 +37,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X20-shared-homebrew | Homebrew with more than one project user | Answered 2026-10-07: yes, with conditions |
 | X21-dep-gate-registries | Dependency gate on real registries | Answered 2026-10-04: yes, with conditions |
 | X22-no-guest-credentials | Clients without guest credentials | Answered 2026-10-05: yes, with conditions |
-| X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
+| X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions. `wb-proxyd` Keychain part answered 2026-10-15 (I61): yes |
 | X24-openshell-artifacts | OpenShell artifacts | Answered 2026-10-05: yes, with conditions |
 | X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Answered 2026-10-06: yes, with conditions. Only `wb-vmd`'s code keeps a NAT network from the guest. Decided 2026-10-12 (I64): 1A, one `wb-vmd` per VM, and 2A, the `wb-vmd-install` entry |
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |

@@ -11,6 +11,37 @@ self-sandboxed" decision of S04-architecture
 
 ## For review
 
+### wb-proxyd with the Keychain and the Secure Enclave (I61)
+
+- **Decides:** the `wb-proxyd` profile, and with it the store-only
+  profile of `wb-credset` and `wb-guestadmin`.
+- **You are approving:** the answer "yes". A team-signed `wb-proxyd`
+  with the `binding` and `ca` access groups confines itself and still
+  writes, reads and deletes a binding item, makes a wrapped Secure
+  Enclave key, keeps its token object ID in a CA item, restores it and
+  signs, and fetches over TLS checked against the system roots. The
+  profile adds three rules to the network part from I34: two Mach
+  services, `com.apple.securityd.xpc` and `com.apple.ctkd.token-client`,
+  and a metadata read of the helper's own bundle directory, which
+  certificate checks need. Files, listening, starting programs, UDP
+  other than DNS, another access group and the login keychain stay
+  denied. The Keychain and Secure Enclave services alone make the
+  store-only profile.
+- **Controls touched:** SEC12-least-privilege, kept. The profile can't
+  name Keychain items. Which items `wb-proxyd` reaches is set by the
+  access groups in its code signature (S15-least-privilege), and the
+  profile decides only whether it reaches the store at all.
+- **Assumed:** that what sandboxd didn't report doesn't matter. It
+  reported only some denials. The TLS rules came from removing rules
+  one at a time from the wide I34 profile until the check failed, not
+  from the log. A code path the probes didn't run, such as an OCSP
+  answer that `trustd` can't fetch itself, may need more. Only arm64
+  ran, on one macOS version.
+- **Decisions:** none open.
+- **Brief:** B61-proxyd-keychain
+
+### Self-sandboxed daemons (I34)
+
 - **Decides:** how a Go daemon confines itself on macOS, the profiles
   for `wb-netd` and `wb-hostd`, and how `wb-hostd` starts the other
   daemons and git so that each can confine itself.
@@ -50,8 +81,8 @@ inherited descriptors, and Keychain and Secure Enclave access in
 `wb-proxyd` keep working?
 
 This result covers approach steps 1 and 2 of I34. Step 3, the
-`wb-proxyd` profile with Keychain and Secure Enclave access, is I61.
-It adds its own section to this page.
+`wb-proxyd` profile with Keychain and Secure Enclave access, is I61,
+in "wb-proxyd with the Keychain and the Secure Enclave (I61)".
 
 ## Answer
 
@@ -61,7 +92,7 @@ It adds its own section to this page.
 |---|---|---|
 | `wb-netd` | Yes | `(deny default)` and nothing else |
 | `wb-hostd` | Yes, with conditions | its state directories, its Unix socket, and running git |
-| `wb-proxyd` | Network part yes, Keychain and Secure Enclave part open (I61) | outbound TCP, DNS, certificate checks |
+| `wb-proxyd` | Yes (I61) | outbound TCP, DNS, certificate checks, the Keychain and the Secure Enclave |
 
 The conditions:
 
@@ -354,8 +385,9 @@ and a write.
 
 ### wb-proxyd: the network part
 
-This is the part of `wb-proxyd` that doesn't use the Keychain. The full
-answer waits on I61.
+This is the part of `wb-proxyd` that doesn't use the Keychain. I61
+added the rest, in "wb-proxyd with the Keychain and the Secure Enclave
+(I61)".
 
 - Outbound TCP and DNS work under a short profile: `network-outbound`
   to TCP, UDP to port 53, reading `/private/etc/resolv.conf` and
@@ -389,9 +421,140 @@ answer waits on I61.
   can, but its profile for the Virtualization framework was not part of
   this spike (I64).
 
+## wb-proxyd with the Keychain and the Secure Enclave (I61)
+
+### Question
+
+From I61: can `wb-proxyd` run under a profile that allows outbound
+network, its Keychain items and Secure Enclave signing, and denies the
+rest?
+
+I61 was filed before B23-keychain-unsigned and B248-dev-signing were
+decided, and asked for a throwaway keychain file. Since those
+decisions, `wb-proxyd` keeps its items in the data protection keychain
+behind access groups of the team that signed the build
+(S15-least-privilege). The spike measured that setup.
+
+### Answer
+
+**Yes.** The profile:
+
+```scheme
+(version 1)
+(deny default)
+(allow network-outbound (remote tcp))
+(allow file-read-metadata (literal "/etc") (literal "/var"))
+(allow file-read* (literal "/private/etc/resolv.conf")
+  (literal "/private/var/run/resolv.conf") (literal "/private/etc/hosts"))
+(allow network-outbound (remote udp "*:53"))
+(allow network-outbound (literal "/private/var/run/mDNSResponder"))
+(allow mach-lookup (global-name "com.apple.trustd.agent"))
+(allow file-read-metadata (literal (param "BUNDLE")))
+(allow mach-lookup (global-name "com.apple.securityd.xpc"
+  "com.apple.ctkd.token-client"))
+```
+
+`BUNDLE` is the real path of the helper's bundle directory,
+`.../Contents/Helpers/wb-proxyd.app`, worked out before the daemon
+confines itself (condition 5).
+
+- `com.apple.securityd.xpc` is the data protection keychain, and
+  `com.apple.ctkd.token-client` the Secure Enclave token. They are
+  enough for every store call `wb-proxyd` makes
+  (S15-least-privilege, "Declared access"), without a file rule.
+- Certificate checks against the system roots need
+  `com.apple.trustd.agent` and the metadata of the helper's own bundle
+  directory. `com.apple.trustd`, `SecurityServer`,
+  `cfprefsd`, `ocspd`, the Security framework files, the system
+  keychains, every other `stat` and every `sysctl` read in the wide
+  I34 profile could each be removed.
+- The `hw.ncpu` rule of the network part isn't needed, because the
+  daemon sets `GOMAXPROCS` before it confines itself (condition 2).
+- The Keychain and Secure Enclave services alone make the store-only
+  profile: the Keychain and the Secure Enclave work, and DNS and TLS
+  fail. S04-architecture gives that profile to `wb-credset` and
+  `wb-guestadmin`.
+
+### Run
+
+Host: macOS 27.0.1 (26A434), Apple M2, Go 1.27.1, Xcode 27.0. The
+helper was built as in X29-dev-signing: a cgo binary as the main
+executable of `Contents/Helpers/i61.app`, with the profile embedded,
+signed with the hardened runtime by the team `G7BF23LV79` and holding
+the groups `G7BF23LV79.nl.wraithbox.binding` and
+`G7BF23LV79.nl.wraithbox.ca`. It confined itself with the no-cgo call
+from condition 1, which also works inside a cgo binary, then checked
+that `/etc/passwd` couldn't be opened, then ran each probe. No dialog
+appeared at any step.
+
+| Probe | Unconfined | Network part only | Final profile |
+|---|---|---|---|
+| write, read, delete `binding/` item | works | fails: -25291 | works, 0.4 to 5 ms |
+| new Secure Enclave key, token object ID into a `ca/` item | works | fails: -26276 | works, 13 ms |
+| read the `ca/` item, restore the key, sign, verify | works | fails: -25291 | works, 5 ms |
+| delete the `ca/` item | works | fails | works |
+| read an item in the group `nl.wraithbox.store` | -34018 | -25291 | -34018 |
+| list the file-based keychains, attributes only | 166 items | -50 | -50 |
+| DNS lookup | works | works | works |
+| TLS GET of `api.anthropic.com`, system roots | works | fails: `SecPolicyCreateSSL error: 0` | works |
+| open `/etc/shells`, the home directory, `login.keychain-db` | works | denied | denied |
+| write in `/tmp` | works | denied | denied |
+| listen on loopback TCP, or on a Unix socket in `/tmp` | works | denied | denied |
+| UDP to port 123 | works | denied | denied |
+| run `/bin/echo` | works | denied | denied |
+
+The final profile ran four times with the same result. Applying it
+took 5 to 8 ms in the recorded runs.
+
+-34018 is `errSecMissingEntitlement`. The code signature refuses the
+other group, under a profile and without one. The profile, not the
+signature, keeps the login keychain out. Unconfined, the helper saw the
+attributes of its 166 items.
+
+### How the profile was found
+
+sandboxd reported only three violations for the network-part run, the
+two Mach services above and `com.apple.analyticsd`, and none for the
+failed certificate check. On macOS 27 the reports come from sandboxd,
+not from the kernel's `Sandbox` sender that I34 read. With the two
+services added, the store worked. For the certificate check a script
+took the wide I34 TLS rules, one rule per name or path, and dropped
+each one whose removal still let the TLS probe pass twice in a row.
+Then it did the same for the paths under `/Users` that the remaining
+`file-read-metadata` rule needed.
+
+`com.apple.analyticsd` stays denied, and nothing failed for it.
+
+### Limits
+
+- The probes didn't make revocation checks happen. If one needs a
+  service the profile denies, the certificate check fails and
+  `wb-proxyd` refuses the connection, which fails closed.
+- A locked screen wasn't tried. The Secure Enclave key is usable only
+  while the Mac is unlocked, and S09-policy-credentials-audit already
+  says what happens when the store is locked.
+- The helper was started from a shell, not through `wb-launcher`.
+  X29-dev-signing showed that how a helper starts doesn't change its
+  Keychain access.
+- One Mac, arm64, one macOS version.
+
+### What it means for the specs
+
+- S04-architecture, "Each host daemon is self-sandboxed": `wb-proxyd`
+  also reads the metadata of its own bundle directory, and "the secret
+  store service" in the `wb-credset` and `wb-guestadmin` profiles is
+  the two Mach services above. I261 makes the change.
+
+### Spike code
+
+Throwaway code on branch `spike/x23-sandboxed-daemons`, commit
+[`546489c`](https://github.com/wraithbox/wraithbox/tree/546489c352653266ca151f098ef85ffd723eb81f/spikes/x23-sandboxed-daemons/i61),
+tag `spike-x23-sandboxed-daemons-i61`: the helper (`i61/helper`), its
+build and run scripts, the minimizing script, the profiles, and the
+recorded output (`i61/results`).
+
 ## Not covered
 
-- The `wb-proxyd` Keychain and Secure Enclave rules (I61).
 - A profile for `wb-vmd` (I64).
 - **Reading the user's repository.** S08-workspace-and-git has
   `wb-hostd` run `git upload-pack` against the user's repository, or
@@ -405,4 +568,4 @@ answer waits on I61.
 - App Sandbox through entitlements, as an alternative mechanism.
 - Running the amd64 build. It compiles, and this host has no Rosetta.
 
-**Status:** Answered: yes with conditions (`wb-proxyd` Keychain part in I61)
+**Status:** Answered: yes with conditions. `wb-proxyd` Keychain part answered 2026-10-15 (I61): yes

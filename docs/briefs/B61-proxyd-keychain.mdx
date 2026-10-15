@@ -1,0 +1,88 @@
+---
+title: Can a self-sandboxed wb-proxyd still use its Keychain items and Secure Enclave keys?
+description: "Yes. The network profile plus the Keychain and Secure Enclave services, and a metadata read of its own bundle for certificate checks. The profile still denies files, listening, starting programs, and the login keychain."
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-15: yes.** You only approve the answer. Source: I61, X23-sandboxed-daemons, "wb-proxyd with the Keychain and the Secure Enclave (I61)". Touches S04-architecture, through I261.
+
+<Aside type="tip" title="What we learned">
+**Yes:** a team-signed `wb-proxyd` confined itself and still used its `binding` and `ca` items, its Secure Enclave key and TLS, with three rules more than the network part. Approving it lets I261 put the profile into S04-architecture.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="wb-proxyd inside its sandbox profile. Allowed: the data protection keychain service, the Secure Enclave token service, trustd for certificate checks, and outbound TCP and DNS. Denied: files, the home directory and the login keychain, and listening and starting programs.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="70" width="230" height="140" rx="12" />
+  <text class="boundary-label" x="22" y="90">sandbox profile</text>
+  <rect class="box host" x="40" y="110" width="170" height="70" rx="10" />
+  <text class="label" x="125" y="138" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="125" y="156" text-anchor="middle">team-signed, groups</text>
+  <text class="note" x="125" y="171" text-anchor="middle">binding, ca</text>
+
+  <rect class="box host" x="470" y="20" width="270" height="44" rx="10" />
+  <text class="label" x="605" y="40" text-anchor="middle">Keychain service</text>
+  <text class="note" x="605" y="56" text-anchor="middle">only its signed groups</text>
+  <rect class="box host" x="470" y="90" width="270" height="44" rx="10" />
+  <text class="label" x="605" y="110" text-anchor="middle">Secure Enclave token</text>
+  <text class="note" x="605" y="126" text-anchor="middle">wrapped CA key, sign</text>
+  <rect class="box host" x="470" y="160" width="270" height="44" rx="10" />
+  <text class="label" x="605" y="180" text-anchor="middle">trustd</text>
+  <text class="note" x="605" y="196" text-anchor="middle">checks against the system roots</text>
+  <rect class="box host" x="470" y="230" width="270" height="44" rx="10" />
+  <text class="label" x="605" y="250" text-anchor="middle">internet</text>
+  <text class="note" x="605" y="266" text-anchor="middle">outbound TCP, DNS</text>
+
+  <rect class="box host" x="10" y="260" width="170" height="54" rx="10" />
+  <text class="label" x="95" y="283" text-anchor="middle">files</text>
+  <text class="note" x="95" y="300" text-anchor="middle">home, login keychain</text>
+  <rect class="box host" x="200" y="260" width="170" height="54" rx="10" />
+  <text class="label" x="285" y="283" text-anchor="middle">listen, run</text>
+  <text class="note" x="285" y="300" text-anchor="middle">sockets, programs</text>
+
+  <line class="edge" x1="212" y1="125" x2="468" y2="44" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="212" y1="138" x2="468" y2="112" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="212" y1="155" x2="468" y2="182" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="212" y1="170" x2="468" y2="250" marker-end="url(#f1-arrow)" />
+  <line class="edge-bad" x1="95" y1="182" x2="95" y2="258" marker-end="url(#f1-arrow-bad)" />
+  <line class="edge-bad" x1="180" y1="182" x2="270" y2="258" marker-end="url(#f1-arrow-bad)" />
+</svg>
+<figcaption>
+Figure 1. What the measured profile lets `wb-proxyd` reach. The Keychain service returns only items in the access groups of its code signature. The signature refuses another group, before the profile matters. Red: denied by the profile.
+</figcaption>
+</figure>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Under the profile, the helper wrote, read and deleted a `binding/` item, made a Secure Enclave key, kept its token object ID in a `ca/` item, restored it and signed, and fetched `api.anthropic.com` with the chain checked against the system roots. Four runs, the same result. Source: X23-sandboxed-daemons, I61 section, "Run".
+- <Badge text="verified" variant="success" /> The network part alone refused the store and the Secure Enclave, and sandboxd reported the two Mach services. Adding them was enough for every store call. Source: the I61 section, "How the profile was found".
+- <Badge text="verified" variant="success" /> The certificate check needs `com.apple.trustd.agent` and the metadata of the helper's own bundle directory. Every other rule of the wide I34 TLS profile could be removed. Source: the minimizing script in the I61 section.
+- <Badge text="verified" variant="success" /> The profile denies files, the login keychain, listening, UDP other than DNS, and starting programs. Unconfined, the same helper saw the attributes of 166 login keychain items. Source: the I61 section, "Run".
+- <Badge text="verified" variant="success" /> A profile with only the Keychain and Secure Enclave services works as the store-only profile, for `wb-credset` and `wb-guestadmin`. Source: the I61 section, "Answer".
+- <Badge text="assumed" variant="caution" /> That no untested path, such as a revocation check, needs a service the profile denies. sandboxd reported only some denials. The rules came from removing rules one at a time, not from the log. If one is missing, the check fails and `wb-proxyd` refuses the connection, which fails closed.
+
+## What this unblocks
+
+- I61 closes. It blocks nothing else.
+- I261 writes the profile into S04-architecture, after the I49 wave merges.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the helper's own bundle.** Security.framework reads the metadata of the calling program's bundle before `trustd` checks a chain. The real path of `Contents/Helpers/wb-proxyd.app` goes into the profile as a parameter, worked out before the daemon confines itself, so no path is pasted into the profile text.
+
+**Why the issue's keychain file wasn't used.** I61 was filed before B23-keychain-unsigned and B248-dev-signing were decided. Since then a build signed by a team keeps its items in the data protection keychain behind access groups, and an ad-hoc build has no Keychain backend. The spike measured that setup.
+
+**Glossary**
+
+- **Seatbelt profile:** the rules a macOS process applies to itself, in Apple's profile language. Anything not allowed is denied.
+- **Mach service:** a named system service a process talks to, such as the Keychain. A profile allows each by name.
+- **Access group:** the label on a Keychain item that says which signed programs may use it.
+- **Token object ID:** an opaque value that restores a Secure Enclave key on this Mac only.
+
+</details>

@@ -85,7 +85,7 @@
 	},
 	"15": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X01-model-credential: Model credential via the proxy",
 		"summary": "Does Claude Code work with a placeholder credential while wb-proxyd injects the real one, for each supported authentication mode, including token refresh?",
 		"brief": "B15-browser-login"
@@ -1565,7 +1565,7 @@
 	},
 	"252": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S15-least-privilege, S09-policy-credentials-audit, S10-tech-stack: team-signed development builds and no ad-hoc Keychain, from B248-dev-signing",
 		"summary": "The maintainer decided B248-dev-signing on 2026-10-15, in the #248 comment that starts Decision (2026-10-15):: option A."
 	},
@@ -1577,13 +1577,13 @@
 	},
 	"254": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): team-signed development builds and no ad-hoc Keychain",
 		"summary": "Records the B248-dev-signing decision (#248, option A) in the specs."
 	},
 	"255": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X01-model-credential browser login result and brief B15",
 		"summary": "Result of the attended I15 run (2026-10-15) in docs/spikes/X01-model-credential.md, section \"Browser login (I15)\", and brief B15-browser-login."
 	},
@@ -1598,5 +1598,47 @@
 		"state": "open",
 		"title": "Host-side browser login for the model credential (after V1)",
 		"summary": "A host-side browser login for the model credential, deferred past V1 by the B15-browser-login decision on #15 (2026-10-15, option B not chosen for V1)."
+	},
+	"258": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): record the browser login decisions from B15",
+		"summary": "Records the decisions made on #15 (B15-browser-login): the browser login isn't a V1 model credential, and the authorize URL gets no terminal filter."
+	},
+	"259": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S09-policy-credentials-audit: user and repository rules can allow the OAuth token paths",
+		"summary": "Follow-up from the review of PR #258 (#256), finding 1."
+	},
+	"260": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S14-claude-in-guest: explained refusal for a guest login (NFR06-explained-refusals)",
+		"summary": "Follow-up from the review of PR #258 (#256), finding 2."
+	},
+	"261": {
+		"kind": "issue",
+		"state": "open",
+		"title": "docs(spec): wb-proxyd and store-only self-sandbox profiles from X23 I61",
+		"summary": "The result of #61 (X23-sandboxed-daemons, \"wb-proxyd with the Keychain and the Secure Enclave (I61)\") measured the wb-proxyd profile."
+	},
+	"262": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S17-install-and-upgrade: does Virtualization's installer refuse a changed restore image?",
+		"summary": "S17-install-and-upgrade (#49) checks a downloaded macOS restore image against the SHA-1 that Apple's catalog (mesu.apple.com) lists, the only hash it lists."
+	},
+	"263": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S17-install-and-upgrade: build an image from a local restore image file",
+		"summary": "S17-install-and-upgrade (#49) gets the macOS restore image only from Apple's catalog, through wb-download."
+	},
+	"264": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S17-install-and-upgrade: wb setup --remove --purge",
+		"summary": "wb setup --remove (S17-install-and-upgrade, #49) unloads the LaunchAgent and deletes the plist and the wb link, and keeps <config, <data, <logs and the secret store items."
 	}
 }
