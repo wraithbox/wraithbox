@@ -13,7 +13,7 @@ Brief: B145-least-privilege
 
 ## Design
 
-![The secret store is outside every Wraith Box process. wb writes binding secrets to it. wb-proxyd fetches the binding secrets of the VM's sessions and uses the CA key in place. wb-guestadmin writes and fetches the wbadmin passwords, pipes the build password to the build's wb-vmd and to wb-build-ssh, and writes the old and new password to wb-guestd at a VM's first contact. wb-hostd has no store access and passes descriptors on. A VM that runs project code gets placeholders only.](S15-least-privilege.svg)
+![The secret store is outside every Wraith Box process. wb writes binding secrets to it. wb-proxyd fetches the binding secrets of the VM's sessions and the wrapped CA key, which only the host's hardware key store can sign with. wb-guestadmin writes and fetches the wbadmin passwords, pipes the build password to the build's wb-vmd and to wb-build-ssh, and writes the old and new password to wb-guestd at a VM's first contact. wb-hostd has no store access and passes descriptors on. A VM that runs project code gets placeholders only.](S15-least-privilege.svg)
 
 ### Rights
 
@@ -67,7 +67,7 @@ can use (S09-policy-credentials-audit, "Key").
   development builds are ad-hoc signed. They use a dedicated keychain
   file, whose password is the one Wraith Box item outside it,
   `wraithbox/unlock` in the login keychain. Each process with store
-  access fetches it to unlock the file, and it is in "Declared access".
+  access fetches it to unlock the file, and "Declared access" lists it.
   Each item's access-control list pins every declared binary by its
   cdhash. An update changes the cdhash and locks every item ("After an
   update", below).
@@ -99,22 +99,42 @@ without a dialog that asks for the keychain file's password
 `unlock` and of every item in the file fails at once. The store fails
 closed:
 
-- **Refused.** The first refused read is logged with the item and the
-  rule `store-needs-setup`. Session starts, warm starts, builds and
-  rotation are refused with that rule, and none of them falls back to
-  another place (rule 7).
-- **Told.** `wb` says that the update locked the store, that it must be
-  set up again with `wb setup`, and which bindings to enter again with
-  `wb cred set`: each binding that a policy names. `wb-hostd` records in
-  `state.db` the build version that made the keychain file
-  (S10-tech-stack, "One build version"). `wb setup` replaces the file
-  only when the running build's version differs. With the same build, a
-  refused read stays an error with its rule.
-- **Set up again.** `wb setup` makes a new keychain file and a new
-  `unlock` item whose lists name the new binaries, then deletes the old
-  file and the old `unlock` item. If the Keychain refuses to delete
-  that item with dialogs off, `wb setup` stops, names the item, and the
-  user deletes it in Keychain Access.
+- **Status codes.** A read that fails with -25293 (`errSecAuthFailed`,
+  what X09-keychain-unsigned measured for a binary the list doesn't
+  name) is logged with the item and the rule `store-needs-setup`. A
+  read that fails with -25308 (`errSecInteractionNotAllowed`, a locked
+  keychain) follows rule 7: the work waits for the user to unlock it,
+  and `wb` names the keychain it waits for. Any other status is logged
+  with the status and the rule `store-read-failed`. Only
+  `store-needs-setup` leads to setting the store up again.
+- **Refused.** Session starts, warm starts, builds, and rotation are
+  refused with the rule, and none of them falls back to another place
+  (rule 7).
+- **Told.** `wb` says that the update locked the store, that `wb setup`
+  sets it up again, and which bindings to enter again with `wb cred
+  set`: each binding that a policy names.
+- **Version gate.** `wb-hostd` keeps in `state.db` the name of the
+  keychain file and the build version that made it (S10-tech-stack,
+  "One build version"). `wb setup` sets the store up again on its own
+  only when reads fail with `store-needs-setup` and the running
+  build's version differs from the recorded one. A build of the same
+  version with a new cdhash, such as a binary signed again, keeps the
+  refusal, and so does a keychain file with no record. For those,
+  `wb setup --reset-store` prints the table below for this store and
+  asks for confirmation. A person has to confirm, so `wb` refuses
+  `--reset-store` without a terminal. No guest RPC reaches it.
+- **Set up again,** in this order, so that an interrupted run leaves
+  nothing that needs a dialog:
+  1. `wb setup` deletes the old `unlock` item. If the Keychain refuses
+     with dialogs off, `wb setup` stops, names the item, and the user
+     deletes it in Keychain Access and runs `wb setup` again. An item
+     that is already gone counts as deleted.
+  2. It makes a keychain file under a new name and writes the new
+     `unlock` item, both with lists that name the new binaries.
+  3. `wb-hostd` records the new file's name and the running build
+     version, and drops every CA of its record (the table below).
+  4. `wb setup` deletes the old file, and any other Wraith Box keychain
+     file that the record doesn't name.
 
 Every value in the old file is lost. The user enters the bindings
 again. The generated items can't be entered again, and `wb setup` says
@@ -122,22 +142,24 @@ what each loss means:
 
 | Lost item | Effect | What `wb` does |
 |---|---|---|
-| `binding/<name>` | a session start that needs it is refused, and the refusal names the binding | lists each binding to enter again |
-| `ca/<vm>/<ca>` | `wb-proxyd` can't sign with that CA, and refuses the VM's inspected streams with `store-needs-setup` | `wb-hostd` drops the CAs whose items were in the old file from its record, so the VM's next start finds that it has no valid CA, and `wb-proxyd` issues a new one that `wb-guestd` installs (S09-policy-credentials-audit, "Lifetimes"). `wb` lists each running VM to stop and start |
+| `binding/<name>` | `wb` refuses a session start that needs it, and names the binding | lists each binding to enter again |
+| `ca/<vm>/<ca>` | `wb-proxyd` can't sign with that CA, and refuses the VM's inspected streams with `store-needs-setup` | Every item was in the old file, so `wb-hostd` drops every CA from its own record, without reading the store. At each VM's next start `wb-proxyd` issues a new CA, and the install rewrites the guest's trust files whole from the record (S09-policy-credentials-audit, "Guest trust"), which removes the dropped CAs. A VM saved before the drop cold boots: its saved state is deleted, as for any saved state of another build version (S06-vm-lifecycle). `wb` lists each running VM to stop and start |
 | `wbadmin/build/<build>` | the build fails, as when its SSH session doesn't complete | says to run `wb image build` again |
 | `wbadmin/image/<image>` | no new VM passes first contact on that image | lists each image to build again with `wb image build` |
-| `wbadmin/vm/<vm>/<disk>` | `wbadmin`'s secure token keeps working in the guest, but its password is gone, so the later diagnostics path (I158) can't use that disk. `wb-hostd` marks the disk "`wbadmin` password lost" | nothing until the next update replaces the system disk, whose first contact writes a new item |
+| `wbadmin/vm/<vm>/<disk>` | `wbadmin`'s secure token keeps working in the guest, but its password is gone, so the later diagnostics path (I158) can't use that disk. `wb-hostd` marks the disk "`wbadmin` password lost" in `state.db` | nothing until the next update replaces the system disk, whose first contact writes a new item |
 
 ### Access rules
 
 1. **Declared.** Each process has a declared set of items (the table
-   below), each with an access kind: *write*, *fetch* (the value comes
-   into the process), or *use* (the store signs or decrypts in place
-   and keeps the value). Our code refuses an undeclared access where
+   below), each with an access kind: *write*, *delete*, *fetch* (the
+   value comes into the process), or *use* (the store or the hardware
+   key store signs or decrypts in place and keeps the key). Our code refuses an undeclared access where
    the backend can't, and logs it with the rule.
 2. **Use over fetch.** Where the store can use a key in place, the
-   process doesn't fetch it: Secure Enclave signing, and 1Password's SSH
-   agent signing.
+   process doesn't fetch it, as with 1Password's SSH agent signing. For
+   the CA key, `wb-proxyd` fetches only the key's wrapped form, and the
+   Secure Enclave or the TPM signs with it, so the key itself never
+   enters the process (S09-policy-credentials-audit, "Key").
 3. **Just in time, sized to the need.** A process fetches when the work
    starts, keeps the value in memory only, and drops it when the work
    ends. Go and Swift can't reliably wipe memory, so the bound is the
@@ -158,7 +180,7 @@ what each loss means:
    arguments, the environment, a file, a log line, a gRPC message
    field, an audit record, or an error message. A process that only
    passes the descriptor on never reads it.
-6. **Audited without the value.** Each fetch, use and write is an audit
+6. **Audited without the value.** Each fetch, use, write and delete is an audit
    record with the process, the item name, and the access kind
    (SEC10-audit).
 7. **Locked means closed.** Session start, warm start, builds, and
@@ -185,9 +207,10 @@ Item names start with `wraithbox/`. Each `<…>` part is 1 to 64 characters of `
 | `binding/<name>` | `wb`, write (`wb cred set`) | the value from a prompt or standard input | one command |
 | `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend |
 | `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the token endpoint the binding names, over TLS | per exchange. Access tokens stay in memory |
-| `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build) | `wb-proxyd`, write when it issues the CA, fetch | to the Secure Enclave, as the key's token object ID. The value is useless on another Mac | the CA's life, removed when `wb-proxyd` destroys the key |
-| CA signing key (macOS) | `wb-proxyd`, use, through the wrapped key | none: the key stays in the Secure Enclave | the CA's life |
-| `ca/<vm>/<ca>`, the software key (Linux hosts without a TPM only) | `wb-proxyd`, write when it issues the CA, fetch | none: it signs in `wb-proxyd` | the CA's life |
+| `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build, and Linux with a TPM) | `wb-proxyd`, write when it issues the CA, fetch, delete | to the Secure Enclave as the key's token object ID, or to the TPM as its key blob. The value is useless on another host | the CA's life. `wb-proxyd` deletes it when the CA expires or is dropped (S09-policy-credentials-audit, "Lifetimes") |
+| CA signing key (macOS, Windows, and Linux with a TPM) | `wb-proxyd`, use: through the wrapped key, or on Windows by its name in the platform crypto provider | none: the key stays in the Secure Enclave or the TPM | the CA's life |
+| `ca/<vm>/<ca>`, the software key (Linux hosts without a TPM only) | `wb-proxyd`, write when it issues the CA, fetch, delete | none: it signs in `wb-proxyd` | the CA's life, deleted as above |
+| `unlock`, ad-hoc signed builds only | `wb`, write and delete (`wb setup`, "After an update") | none: `wb setup` makes the keychain file with it | until the store is set up again |
 | `unlock`, ad-hoc signed builds only | every process with store access, fetch | none: it unlocks the dedicated keychain file | the process's life |
 | `wbadmin/build/<build>` | `wb-guestadmin-build`, write, then fetch. `wb-guestadmin-rotate`, fetch at the build VM's first contact | a pipe to the build's `wb-vmd` (until the start call returns), `ssh`'s standard input (one session), the guest connection below | removed when the build ends |
 | `wbadmin/image/<image>` | `wb-guestadmin-rotate`, write at the build VM's first contact, fetch at each VM's first contact | the guest connection below | removed with the image |
@@ -195,6 +218,14 @@ Item names start with `wraithbox/`. Each `<…>` part is 1 to 64 characters of `
 
 Which `wbadmin` item is current for a disk isn't secret, so `wb-hostd`
 keeps that marker in `state.db`, and never stores a value.
+
+When a CA expires or a VM is deleted, `wb-hostd` moves the names of
+its CA keys, the items or on Windows the named keys, to a removal list
+in `state.db`. `wb-proxyd` deletes each
+listed item when it runs, and at its next start when it doesn't, and
+`wb-hostd` drops an entry once `wb-proxyd` reports it deleted. A
+dropped CA's items go on the same list. After an update of an ad-hoc
+build, the old keychain file goes with its items instead.
 
 A password in a host remote URL isn't a store item. `wb` removes the
 user name and password from every remote URL it reads, withheld ones
