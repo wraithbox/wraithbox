@@ -599,28 +599,19 @@ inspection is trusted, and what is recorded.
     error when it starts.
   - *System trust store.* On Linux and Windows guests `wb-guestd` also
     adds the CAs to the system trust store (S12-platforms). On a macOS
-    guest it doesn't, because macOS 27 refuses every way
-    X04-tls-inspection tried to add a trusted root without a user to
-    confirm it. As root, with no user logged in:
-    `security add-trusted-cert -d` fails with "no user interaction was
-    possible", `security authorizationdb write` on the right
-    `com.apple.trust-settings.admin` is refused with `-60005`, trust
-    settings that the project user sets in its own domain are refused
-    the same way, `profiles install` no longer installs, and trustd ignores a
-    hand-written file of admin trust settings. The maintainer decided on
-    I185 to accept that. Wraith Box doesn't work around the platform's
-    control by editing the guest's authorization database, and a
-    configuration profile through MDM isn't an option, because
+    guest it doesn't: macOS 27 refuses to add a trusted root without a
+    user to confirm it (X04-tls-inspection, answer 1). Decided on I185.
+    Wraith Box doesn't work around that platform control, and
     Virtualization framework VMs can't enroll in MDM.
     - *Clients left out.* A client that reads only the system trust
       store doesn't trust the CA: URLSession and what is built on it,
       so Swift programs, SwiftPM's binary target downloads and Xcode's
-      own requests, and `pip` when `REQUESTS_CA_BUNDLE` is unset and it
-      falls back to its default `truststore`. X04-tls-inspection saw
-      each of them reject the inspected leaf.
-    - *Fails closed.* These clients reach only pass hosts. A host with
-      a credential binding or a built-in profile is never a pass host
-      (S07-egress-gateway, "Modes"), so they can't reach it.
+      own requests, and `pip` when no CA variable points it at the
+      bundle, and it uses the system store by default.
+      X04-tls-inspection saw each of them reject the inspected leaf.
+    - *Fails closed.* Over TLS, they reach only pass hosts and raw TCP
+      entries, never a guarded host (S07-egress-gateway, "Modes" and
+      "Non-HTTP streams"). Plain HTTP doesn't need the CA.
       FR08-no-proxy-config names this gap. An attended step, in which
       the maintainer confirms trust in the guest's UI, is I213.
 

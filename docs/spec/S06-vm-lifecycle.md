@@ -22,8 +22,9 @@ in S12-platforms.
   prefix before the session starts (FR07-toolchain-manifest, "Toolchain
   prefix" below).
   The image doesn't contain a Wraith Box CA. `wb-guestd` installs the
-  VM's CAs at runtime in its trust files, not in a macOS guest's system
-  trust store (S09-policy-credentials-audit, "Guest trust").
+  VM's CAs at runtime in the guest trust files, and on Linux and
+  Windows guests also in the system store (S09-policy-credentials-audit,
+  "Guest trust").
 - **Toolchain prefix** (X20-shared-homebrew). A guest has one tool
   prefix, `/opt/homebrew` on macOS, owned by the toolchain user (I144).
   That user isn't an admin, has neither a password nor a shell, and
