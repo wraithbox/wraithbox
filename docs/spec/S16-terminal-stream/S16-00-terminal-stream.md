@@ -1,6 +1,6 @@
 # S16 - Terminal Stream
 
-**Purpose:** Specify how `wb` guards boundary 6 of T00-index, the
+**Purpose:** How `wb` guards boundary 6 of T00-index, the
 guest output that `wb` writes to the user's terminal.
 
 **Requirements:** FR01-drop-in, SEC03-no-host-exec, SEC10-audit, SEC14-no-fake-approvals, NFR06-explained-refusals.
@@ -11,12 +11,16 @@ Brief: B37-terminal-boundary
 
 ## Design
 
-The terminal emulator parses the guest's output and acts on some of it
-on the host: OSC 52 writes the clipboard, iTerm2's OSC 1337 saves
-files, kitty graphics can read a file by its path, and every parser
-bug is a path to the host. So guest output is boundary 6 of T00-index,
-and `wb` filters it with an allowlist that fails closed, as `wb-netd`
-filters packets (SEC03-no-host-exec).
+The terminal emulator parses the guest's output, and acts on some of
+it on the host:
+
+- OSC 52 writes the clipboard;
+- iTerm2's OSC 1337 saves files;
+- kitty graphics can read a file by its path.
+
+Every parser bug is a path to the host. So guest output is boundary 6
+of T00-index. `wb` filters it with an allowlist that fails closed, as
+`wb-netd` filters packets (SEC03-no-host-exec).
 
 ### Pages
 
