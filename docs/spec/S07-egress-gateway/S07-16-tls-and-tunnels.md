@@ -1,4 +1,4 @@
-# S07-17 - TLS and Tunnels
+# S07-16 - TLS and Tunnels
 
 **Purpose:** What `wb-proxyd` does with client certificates, encrypted
 ClientHello and tunnels, and which refusals no mode or approval
@@ -6,7 +6,7 @@ relaxes.
 
 ## Design
 
-The protocol check on each stream is on S07-10-non-http-streams.
+The protocol check on each stream is on S07-15-non-http-streams.
 
 ### TLS with a client certificate
 
@@ -29,7 +29,7 @@ certificate needs its private key, and the guest can't hold one
 
 ECH hides the name a client wants inside an encrypted part of the
 ClientHello, under a public outer name. `wb-proxyd` binds every TLS
-stream to the outer SNI (S07-05-hosts-and-modes, "Name binding").
+stream to the outer SNI (S07-07-hosts-and-modes, "Name binding").
 These rules keep the inner name from reaching a host the guest isn't
 allowed.
 
@@ -113,8 +113,7 @@ picks, outside every rule of this spec (SEC05-default-deny).
 
 On HTTP/2, `wb-proxyd` doesn't offer extended `CONNECT` (RFC 8441). A
 client then opens a WebSocket over HTTP/1.1. That is under the host's
-HTTP policy, and S07-11-approvals-and-learning, "What an approval
-grants".
+HTTP policy, and S07-17-approvals-and-learning, "What an approval grants".
 
 A proxy that runs inside the guest doesn't need an exception. The
 connections it opens are ordinary streams to synthetic addresses,
@@ -122,7 +121,7 @@ checked as above. No tool needs proxy settings (FR08-no-proxy-config).
 
 ### Not relaxed by audit mode or approvals
 
-These apply on a host in `audit` mode too (S07-07-http-policy):
+These apply on a host in `audit` mode too (S07-11-http-policy):
 
 - the `http-tunnel` refusal;
 - the `tls-*` refusals;

@@ -372,7 +372,7 @@ the index until it reaches 1 minute before the cutoff.
 
 ## What it means for the specs
 
-- S07-08-dependency-gate: rewritten. Metadata filtering
+- S07-12-dependency-gate: rewritten. Metadata filtering
   in front of the download refusal, the scope of the gate, the
   publish-time source per registry, the Go checksum database as the
   clock, explicit path forms, the Go redirect limited to one hop to its
@@ -388,7 +388,7 @@ the index until it reaches 1 minute before the cutoff.
   with the gate on.
 - S07-egress-gateway keeps the vulnerability threshold at HIGH until
   I73 is decided.
-- I76: S07-09-publish-time, now says how the Go
+- I76: S07-13-publish-time, now says how the Go
   calibration point is found, bounded by the verified tree size
   (`go-clock-implausible`), refreshed on `wb-proxyd`'s own timer, kept
   when a refresh fails (`go-clock-stale`), and shown after a restart

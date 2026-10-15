@@ -106,7 +106,7 @@ Guest root can fake a result or hold it back.
 - A faked count, a withheld result or a late one only makes `wb-hostd`
   stricter. T11-shared-vm-grants records that cost.
 - A faked clean result leaves the residual of
-  S07-11-approvals-and-learning, "Leftover processes". A cold boot and
+  S07-17-approvals-and-learning, "Leftover processes". A cold boot and
   the review of the learn list cover it.
 
 **Status:** Draft

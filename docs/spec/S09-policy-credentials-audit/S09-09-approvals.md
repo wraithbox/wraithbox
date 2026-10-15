@@ -1,4 +1,4 @@
-# S09-08 - Approvals
+# S09-09 - Approvals
 
 **Purpose:** What an approval adds, the checks that each request goes
 through, and approvals for a joining project.
@@ -30,7 +30,7 @@ or path prefix, that the request used, in place of `access: read-only`.
 Both forms only allow: no denies, no `audit` mode, no extension keys.
 
 `wb allow` adds only a rule of the first form. It never adds a pass
-host or a raw TCP entry (S07-10-non-http-streams).
+host or a raw TCP entry (S07-15-non-http-streams).
 
 ### Host name
 
@@ -54,12 +54,12 @@ OpenShell's proposal risk check.
   the rule puts a host with a credential binding into pass mode, or
   gives it an L4-only endpoint.
 - Wraith Box only: a first write method on a host without a credential
-  (S07-11-approvals-and-learning, "What an approval grants").
+  (S07-17-approvals-and-learning, "What an approval grants").
 - Wraith Box only: a shared object-storage host or a wildcard over one,
   and signature parameters on a write method (S07-egress-gateway,
   X22-no-guest-credentials).
 - Wraith Box only: a host that mirrors a gated registry
-  (S07-08-dependency-gate, the condition on which T07-ungated-sources
+  (S07-12-dependency-gate, the condition on which T07-ungated-sources
   was accepted).
 
 #### Why `l7_bypass_credentialed` matters
@@ -87,7 +87,7 @@ A request whose rule would leave the boundary isn't shown.
 The prover checks the rule alone, in the approved form, against the
 boundary. An approved rule only allows. So a rule inside the boundary
 can't take a policy that is inside it outside. The user's own policy is
-checked at session start for that reason (S09-03-boundary-check).
+checked at session start for that reason (S09-04-boundary-check).
 
 A refusal is logged as a Device Config State Change (5019) event.
 
@@ -100,11 +100,11 @@ that are off (S07-03-dns). So prover runs are bounded
 
 - Requests are deduplicated by host.
 - Each VM has limits on pending and new requests
-  (S09-09-approval-flow).
+  (S09-10-approval-flow).
 - A deny holds until the sessions running at the deny have ended.
 - An answer given after the VM's sessions changed is refused. The
-  request is shown again as a new request (S09-09-approval-flow, and
-  S07-03-dns, "Deny duration", "Session set at the answer").
+  request is shown again as a new request (S09-10-approval-flow, and
+  S07-04-dns-refusals, "Deny duration", "Session set at the answer").
 - Each VM has a cap on concurrent prover runs (S04-architecture).
 - Boundary results are cached per host, port and rule form, keyed on
   the SHA-256 of the boundary document. So a changed boundary is

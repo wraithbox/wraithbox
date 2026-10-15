@@ -38,14 +38,14 @@ The decisions on I60 and SEC05-default-deny settle these:
 
 The browser login isn't a V1 model credential (B15-browser-login). The
 model credential in V1 is a placeholder in the session's environment
-(S09-04-credentials, "Model credential").
+(S09-05-credentials, "Model credential").
 
 `/login`, `claude login`, `/logout` and `claude setup-token` start in
 the guest. Each fails at its token request.
 
 The model API profile allows the reachability check `/v1/oauth/hello`
 on `platform.claude.com`. It doesn't allow a login or token path
-(S07-07-http-policy, "model API"). `wb-proxyd` refuses:
+(S07-11-http-policy, "model API"). `wb-proxyd` refuses:
 
 - the code exchange, `POST platform.claude.com/v1/oauth/token`, where
   `/login`, `claude login` and `claude setup-token` fail;
@@ -81,7 +81,7 @@ The terminal stream doesn't filter the authorize URL
 ### Telemetry and other endpoints
 
 The model API profile is the list of what Claude Code in the guest may
-reach (S07-07-http-policy, "model API").
+reach (S07-11-http-policy, "model API").
 
 - Anthropic's event log is a built-in deny.
 - Datadog, the updater and the changelog are outside the profile.

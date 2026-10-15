@@ -43,9 +43,9 @@ through the interface in `internal/agent`. An agent supplies:
   (S06-08-projects-and-sessions, "Claude Code in the guest").
 - **Credential bindings.** The kinds of model credential, the guest
   variable that holds each placeholder, and the header each binding
-  injects (S09-04-credentials, "Model credential").
+  injects (S09-05-credentials, "Model credential").
 - **Endpoint profile.** The built-in HTTP profile the agent needs. For
-  Claude Code that is the model API profile (S07-07-http-policy).
+  Claude Code that is the model API profile (S07-11-http-policy).
 
 ## Decisions
 

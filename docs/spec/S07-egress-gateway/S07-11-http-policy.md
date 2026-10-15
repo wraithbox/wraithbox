@@ -1,4 +1,4 @@
-# S07-07 - HTTP Policy
+# S07-11 - HTTP Policy
 
 **Purpose:** The HTTP rules of inspected hosts, the built-in profiles,
 and the parts a user can turn off.
@@ -16,12 +16,11 @@ policy schema (S09-policy-credentials-audit):
 
 Each inspected host enforces its rules by default. A host and port can
 be set to `audit` while a new rule is tried out. Violations are then
-logged but allowed (S07-05-hosts-and-modes, "Modes, per host").
+logged but allowed (S07-07-hosts-and-modes, "Modes, per host").
 
 The boundary check sees a host and port in `audit` as the whole host
 on that port, every method and path. So it passes only when the
-boundary allows every one (S09-01-policy-files, "Audit as the whole
-host").
+boundary allows every one (S09-01-policy-files, "Audit as the whole host").
 
 The built-in profiles are git hosting, model API and package
 registries.
@@ -40,12 +39,12 @@ GraphQL mutations are denied unless the operation name is allowlisted.
 This operation filter applies to every request to the GraphQL endpoint
 of a built-in host, whatever the source of the rule that allows it. A
 user or repository rule on that endpoint is a load error
-(S09-01-policy-files, "Precedence").
+(S09-02-precedence).
 
 The prover can't model GraphQL rules. The boundary check sees each one
 as `POST` to its GraphQL path on its host. The boundary then limits
 whether that endpoint is reachable, not which operations are allowed
-(S09-03-boundary-check, "Built-in profiles in the check").
+(S09-04-boundary-check, "Built-in profiles in the check").
 
 Git LFS isn't in the profile, and fails in V1 (S08-workspace-and-git,
 "Out of scope").
@@ -55,16 +54,15 @@ SSH on port 443: `ssh.github.com` for GitHub, and `altssh.gitlab.com`
 for GitLab.
 
 - The profile doesn't allow a request to them, but it covers them. So
-  they are guarded hosts (S07-05-hosts-and-modes, "pass").
+  they are guarded hosts (S07-07-hosts-and-modes, "pass").
 - They can't be pass hosts or have a raw TCP entry. So SSH to them
-  always meets the first-byte check (S07-10-non-http-streams, "SSH").
+  always meets the first-byte check (S07-15-non-http-streams, "SSH").
 
 #### model API
 
 The profile holds the paths Claude Code 2.1.289 reached on two hosts
 in X01-model-credential. The model credential binding covers four
-paths of `api.anthropic.com` (S07-06-requests-and-credentials, "Named
-places").
+paths of `api.anthropic.com` (S07-08-requests-and-credentials, "Named places").
 
 On `api.anthropic.com`:
 
@@ -110,7 +108,7 @@ the login host. The binding doesn't cover it.
 - *Outside the profile.* These have no exact-path entry, and each is
   an unknown destination like any other host:
   - Datadog's log intake, `http-intake.logs.us5.datadoghq.com`
-    (S07-15-anonymous-credentials, "Accepted gaps");
+    (S07-10-anonymous-credentials, "Accepted gaps");
   - `downloads.claude.ai`, the updater and the plugin marketplace;
   - `raw.githubusercontent.com`, the changelog.
 
@@ -131,7 +129,7 @@ Metadata and downloads only. Publish and upload endpoints are denied.
   module proxy doesn't serve the checksum database.
 - Homebrew bottles:
   - `ghcr.io` only for GET and HEAD of `/v2/homebrew/core/...`, with
-    the anonymous binding (S07-15-anonymous-credentials), and
+    the anonymous binding (S07-10-anonymous-credentials), and
     `ghcr.io/token` denied;
   - `pkg-containers.githubusercontent.com` GET and HEAD only, because
     each bottle download redirects there with a signed query string
@@ -159,24 +157,23 @@ off therefore can't remove a deny.
     `profile-part-off`.
   - A host whose built-in rules are all in parts that are off is
     refused at DNS with the same rule, and no approval event
-    (S07-12-dns-refusals).
+    (S07-04-dns-refusals).
 - *Bindings.* A credential binding covers the hosts and paths of the
   parts that are on, and nothing of a part that is off. With only
   `git` on, the GitHub binding is injected into git's transport and
   nowhere else.
 - *What parts don't change.* These hold whatever parts are on:
   - the removal of guest credentials in the places a profile names
-    (S07-06-requests-and-credentials, "Credential replacement");
+    (S07-08-requests-and-credentials, "Credential replacement");
   - the lock on a built-in host's kind, mode and rules
-    (S09-01-policy-files, "Precedence").
+    (S09-02-precedence).
 - *Per VM.* A part is off in a VM when the global policy, or any
   project with a session in the VM, turns it off. Turning a part off
   is a limit, and the VM takes the strictest value of a limit
   (S07-01-per-vm-policy). The result doesn't depend on the order in
   which sessions started.
 - *Narrowing.* Turning a part off only narrows. It needs no boundary
-  check to pass (S07-01-per-vm-policy, "Policy changes while sessions
-  run"). Turning a part back on widens. So does a session end that
+  check to pass (S07-01-per-vm-policy, "Policy changes while sessions run"). Turning a part back on widens. So does a session end that
   removes the last project that turned a part off
   (S07-01-per-vm-policy, "Session end").
 

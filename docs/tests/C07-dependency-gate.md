@@ -4,7 +4,7 @@
 minimum age and known vulnerabilities, the Go checksum database clock,
 and Homebrew bottles from `ghcr.io`.
 
-**Verifies:** S07-egress-gateway (the dependency gate, "Token
+**Verifies:** S07-12-dependency-gate, S07-10-anonymous-credentials ("Token
 fallback"), B76-gosumdb-clock
 
 ## Fuzzing
@@ -100,7 +100,7 @@ Restart `wb-proxyd` with records in `state.db`, and see:
 
 ### Homebrew bottles
 
-Spec: S07-06-requests-and-credentials, "Token fallback".
+Spec: S07-10-anonymous-credentials, "Token fallback".
 
 - Download a Homebrew bottle from `ghcr.io` with the guest's
   `Authorization` removed and the anonymous binding injected, through

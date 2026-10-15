@@ -64,7 +64,7 @@ print about returned work after `wb land` is outside it
   so no HTTP policy applies to what the guest sends it. Only the user
   can make a host a pass host, each one is audited, and a host with a
   credential binding or a built-in profile can't be one
-  (S07-05-hosts-and-modes, "Modes, per host", and B40-learn-pass-modes).
+  (S07-07-hosts-and-modes, "Modes, per host", and B40-learn-pass-modes).
   A pass host on a shared front end, such as a CDN, can carry in its
   encrypted bytes the name of any site behind that front end, in the
   inner `Host` header. That channel reaches past `wb-proxyd`'s check
@@ -72,15 +72,15 @@ print about returned work after `wb land` is outside it
   to a pass host until the server's ServerHello, a second one after a
   HelloRetryRequest included. It resets a ClientHello with ECH or
   another SNI, and resets client data sent before that ServerHello.
-  That closes the same channel through ECH (S07-10-non-http-streams). A raw TCP entry is a
+  That closes the same channel through ECH (S07-15-non-http-streams). A raw TCP entry is a
   channel of the same kind: `wb-proxyd` relays its bytes to one named
   host and port without reading them, and it has the rules of a pass
-  host (S07-10-non-http-streams, and
+  host (S07-15-non-http-streams, and
   B47-non-http-streams). A name whose zone someone else controls can
   point any of these channels at a network on public addresses that
   the host reaches through a route other than its own links, such as
   a VPN. `wb-proxyd` refuses only the address ranges, interface
-  addresses and on-link prefixes that S07-05-hosts-and-modes, "Upstream address", lists.
+  addresses and on-link prefixes that S07-07-hosts-and-modes, "Upstream address", lists.
 - **T02-dns-names: Data in DNS names.** Data encoded in DNS names under allowed wildcards, bounded by a
   lookup budget per VM (S07-03-dns).
 - **T03-hypervisor-escape: Hypervisor escape.** Escape from the hypervisor.
@@ -90,7 +90,7 @@ print about returned work after `wb land` is outside it
   limits on pending and new requests per VM bound that. A request for
   an internationalized name whose Unicode form mixes scripts or uses
   confusable characters shows a warning
-  (S09-09-approval-flow). An ASCII name that
+  (S09-10-approval-flow). An ASCII name that
   looks like another, such as `github.corn`, doesn't get a warning.
 - **T05-cross-proj-clones: Other projects' clones after guest root.** After a guest root escalation inside the shared work VM, read or
   write access to other projects' guest clones (code only; no secrets are
@@ -117,7 +117,7 @@ print about returned work after `wb land` is outside it
   minimum age and the vulnerability check: Go with `GOPROXY=direct` or
   `GOPRIVATE` from a git host, `git+https:` and `github:` dependencies,
   archive downloads from a git host, cargo `git` dependencies, and
-  registry mirrors the user approved (S07-08-dependency-gate).
+  registry mirrors the user approved (S07-12-dependency-gate).
 - **T08-homebrew-ungated: Young Homebrew bottles.** Homebrew bottles from
   `homebrew/core` are not age-gated or checked against OSV. Homebrew has
   one version per formula and signed metadata, so the only option would
@@ -142,7 +142,7 @@ print about returned work after `wb land` is outside it
   message, or a signed URL the guest made for its own storage bucket.
   The guest then acts as its own account there, within the methods
   policy allows there. An approval grants read methods only
-  (S07-11-approvals-and-learning, "What an approval grants"). The user's
+  (S07-17-approvals-and-learning, "What an approval grants"). The user's
   credentials are never in the guest (SEC04-no-guest-secrets), and the
   git hosts of SEC06-repo-writes get the git hosting profile, a
   self-hosted one with every kind's names (S07-egress-gateway,

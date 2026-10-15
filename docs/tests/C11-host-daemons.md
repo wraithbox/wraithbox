@@ -8,7 +8,7 @@ the data disk steps.
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed"),
 S04-07-supervision, S04-08-records-and-bounds ("Accounting and event channels"), S06-05-disks,
-S09-10-audit
+S09-11-audit
 
 ## Unit tests
 
@@ -95,7 +95,7 @@ Spec: S04-architecture.
 
 ### Audit writer
 
-Spec: S09-10-audit.
+Spec: S09-11-audit.
 
 - Exceed the per-class budget, and see no 5019, 2004, approval,
   returned-work, store-access, VM or session record dropped, and

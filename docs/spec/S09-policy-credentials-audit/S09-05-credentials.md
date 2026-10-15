@@ -1,4 +1,4 @@
-# S09-04 - Credentials
+# S09-05 - Credentials
 
 **Purpose:** How credentials are stored and bound to requests, and how the model
 credential reaches the model API without entering the guest.
@@ -75,7 +75,7 @@ for it.
 
 A binding on a host that a built-in profile covers applies only to the
 hosts and paths of the profile's parts that are on
-(S07-07-http-policy, "Profile parts").
+(S07-11-http-policy, "Profile parts").
 
 ### Reach
 
@@ -83,13 +83,13 @@ A project's binding is injected for requests from the whole VM while
 the project has a session in it. So any process in that VM can have it
 used on its behalf, though none can read it (T11-shared-vm-grants).
 
-`wb policy explain` shows who can reach it (S09-11-precedence).
+`wb policy explain` shows who can reach it (S09-02-precedence).
 
 ### Model credential
 
 Claude Code in the guest is configured with a placeholder. The model
 API profile's binding injects the real credential on
-`api.anthropic.com` alone (S07-06-requests-and-credentials, "Named places").
+`api.anthropic.com` alone (S07-08-requests-and-credentials, "Named places").
 
 The kind of credential stored for the binding decides both:
 
@@ -173,7 +173,7 @@ when the VM is deleted.
 ##### What this gives
 
 Ordinary text then can't match a placeholder by chance. A placeholder
-seen in a refusal names its VM (S07-06-requests-and-credentials, "Placeholder binding").
+seen in a refusal names its VM (S07-09-placeholder-binding).
 
 #### Credential kinds
 

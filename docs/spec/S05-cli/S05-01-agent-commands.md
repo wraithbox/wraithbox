@@ -74,7 +74,7 @@ command, they are a usage error.
   count;
 - with `--isolated`;
 - by `wb-hostd`, while a session of another project runs in the VM, a
-  debug shell included (S07-11-approvals-and-learning).
+  debug shell included (S07-17-approvals-and-learning).
 
 While a learn-mode session runs, `wb-hostd` also refuses other
 projects' sessions.

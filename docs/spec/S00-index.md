@@ -39,14 +39,20 @@ Wraith Box works and why.
 | S07-01-per-vm-policy | Enforced per VM | Draft |
 | S07-02-packet-path | Packet Path | Draft |
 | S07-03-dns | DNS | Draft |
-| S07-04-stream-hand-off | Stream Hand-off | Draft |
-| S07-05-hosts-and-modes | Hosts and Modes | Draft |
-| S07-06-requests-and-credentials | Requests and Credentials | Draft |
-| S07-07-http-policy | HTTP Policy | Draft |
-| S07-08-dependency-gate | Dependency Gate | Draft |
-| S07-09-publish-time | Publish Time | Draft |
-| S07-10-non-http-streams | Non-HTTP Streams | Draft |
-| S07-11-approvals-and-learning | Approvals and Learning | Draft |
+| S07-04-dns-refusals | DNS Refusals | Draft |
+| S07-05-stream-hand-off | Stream Hand-off | Draft |
+| S07-06-name-mapping | Name Mapping | Draft |
+| S07-07-hosts-and-modes | Hosts and Modes | Draft |
+| S07-08-requests-and-credentials | Requests and Credentials | Draft |
+| S07-09-placeholder-binding | Placeholder Binding | Draft |
+| S07-10-anonymous-credentials | Anonymous Credentials | Draft |
+| S07-11-http-policy | HTTP Policy | Draft |
+| S07-12-dependency-gate | Dependency Gate | Draft |
+| S07-13-publish-time | Publish Time | Draft |
+| S07-14-go-lookups | Go Lookups | Draft |
+| S07-15-non-http-streams | Non-HTTP Streams | Draft |
+| S07-16-tls-and-tunnels | TLS and Tunnels | Draft |
+| S07-17-approvals-and-learning | Approvals and Learning | Draft |
 | S08-workspace-and-git | Workspace and Git Round Trip | Draft |
 | S08-01-into-the-guest | Into the Guest | Draft |
 | S08-02-export-repository | Export Repository | Draft |
@@ -60,16 +66,16 @@ Wraith Box works and why.
 | S08-10-wsl | WSL | Draft |
 | S09-policy-credentials-audit | Policy, Credentials, Certificates and Audit | Draft |
 | S09-01-policy-files | Policy Files | Draft |
-| S09-02-project-settings | Project Settings | Draft |
-| S09-03-boundary-check | Boundary Check | Draft |
-| S09-04-credentials | Credentials | Draft |
-| S09-05-ca-keys | CA Keys | Draft |
-| S09-06-ca-certificates | CA Certificates | Draft |
-| S09-07-guest-trust | Guest Trust | Draft |
-| S09-08-approvals | Approvals | Draft |
-| S09-09-approval-flow | Approval Flow | Draft |
-| S09-10-audit | Audit | Draft |
-| S09-11-precedence | Precedence | Draft |
+| S09-02-precedence | Precedence | Draft |
+| S09-03-project-settings | Project Settings | Draft |
+| S09-04-boundary-check | Boundary Check | Draft |
+| S09-05-credentials | Credentials | Draft |
+| S09-06-ca-keys | CA Keys | Draft |
+| S09-07-ca-certificates | CA Certificates | Draft |
+| S09-08-guest-trust | Guest Trust | Draft |
+| S09-09-approvals | Approvals | Draft |
+| S09-10-approval-flow | Approval Flow | Draft |
+| S09-11-audit | Audit | Draft |
 | S09-12-terminal-filter | Terminal Filter Records | Draft |
 | S10-tech-stack | Technology Choices | Draft |
 | S10-01-libraries | Libraries | Draft |

@@ -1,4 +1,4 @@
-# S07-08 - Dependency Gate
+# S07-12 - Dependency Gate
 
 **Purpose:** How `wb-proxyd` keeps young and vulnerable package
 versions from the guest on the gated registries.
@@ -10,7 +10,7 @@ versions from the guest on the gated registries.
 This page serves SEC07-dep-gate. For npm, PyPI, the Go module proxy
 and crates.io, `wb-proxyd` looks up each version's publish time and
 known vulnerabilities (OSV data). Publish times are on their own page,
-S07-09-publish-time.
+S07-13-publish-time.
 
 The minimum age is 7 days by default. It is applied twice, to metadata
 and to downloads.

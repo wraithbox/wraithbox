@@ -14,7 +14,7 @@ process can't remove it, much like Landlock.
 Reads are denied by default, with an allowlist for:
 
 - the system, Homebrew and Xcode;
-- the trust files in `/etc/wraithbox/trust/` (S09-07-guest-trust);
+- the trust files in `/etc/wraithbox/trust/` (S09-08-guest-trust);
 - the terminfo database in `/usr/local/share/terminfo`, read-only
   (S06-02-image-build, "Terminfo");
 - the user's own home.

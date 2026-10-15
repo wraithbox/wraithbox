@@ -5,15 +5,15 @@ the hand-off from `wb-netd`, the first-byte and TLS checks, upstream
 addresses, the HTTP request form, and the inspection CA's leaves,
 rotation, and keys.
 
-**Verifies:** S07-04-stream-hand-off, S07-10-non-http-streams,
-S07-06-requests-and-credentials ("Request form"), S09-05-ca-keys ("Valid CA"),
-S09-06-ca-certificates ("Lifetimes"), S09-07-guest-trust
+**Verifies:** S07-05-stream-hand-off, S07-15-non-http-streams,
+S07-08-requests-and-credentials ("Request form"), S09-06-ca-keys ("Valid CA"),
+S09-07-ca-certificates ("Lifetimes"), S09-08-guest-trust
 
 ## Unit tests
 
 ### Stream hand-off
 
-Spec: S07-04-stream-hand-off.
+Spec: S07-05-stream-hand-off.
 
 Two VMs at different generations. On VM A's hand-off socket the test
 sends these streams:
@@ -62,7 +62,7 @@ address outside the range, also close VM A's hand-off socket, and
 
 ### Leaf issuance
 
-Spec: S09-05-ca-keys.
+Spec: S09-06-ca-keys.
 
 - Ask `wb-proxyd` for a leaf for a host the policy doesn't inspect, a
   host in pass mode, a stream whose SNI differs from its hostname, a
@@ -90,7 +90,7 @@ On a fake clock, with each step checking its 5019 event:
 
 ### CA key
 
-Spec: S09-05-ca-keys, "Valid CA".
+Spec: S09-06-ca-keys, "Valid CA".
 
 - Hand `wb-proxyd` a token object ID of another key, random bytes, a
   missing item, and a restore that returns an error. See each VM start
@@ -112,7 +112,7 @@ Spec: S09-05-ca-keys, "Valid CA".
 
 ### CA removal list
 
-Spec: S09-06-ca-certificates, "Lifetimes".
+Spec: S09-07-ca-certificates, "Lifetimes".
 
 - Hand `wb-proxyd` batches with `binding/x`, `wbadmin/build/x`, a name
   with a part outside the fixed form, and an entry whose CA is still in
@@ -125,12 +125,12 @@ Spec: S09-06-ca-certificates, "Lifetimes".
 
 - TLS ClientHello parsing, a ClientHello split across TLS records
   included.
-- The first-byte protocol check of S07-10-non-http-streams.
+- The first-byte protocol check of S07-15-non-http-streams.
 - HTTP/1.1 and HTTP/2 request handling, and request path
   canonicalization.
 - The name reports, releases and stream messages `wb-proxyd` reads from
   `wb-netd`, and the hand-off messages it reads from `wb-hostd`
-  (S07-04-stream-hand-off).
+  (S07-05-stream-hand-off).
 
 ## Conformance
 
@@ -142,7 +142,7 @@ Spec: S09-06-ca-certificates, "Lifetimes".
   stream to an allowed port and don't send. Send an HTTP `CONNECT` and
   an `Upgrade: h2c` to an inspected host. Send a ClientHello with an
   `encrypted_client_hello` extension to a pass host. See each reset or
-  refused with its rule from S07-10-non-http-streams,
+  refused with its rule from S07-15-non-http-streams,
   and no connection opened upstream for a stream reset on its first
   bytes.
 - Send a ClientHello with a real ECH configuration to an inspected
@@ -171,7 +171,7 @@ Spec: S09-06-ca-certificates, "Lifetimes".
 
 ### Request form
 
-Spec: S07-06-requests-and-credentials, "Request form".
+Spec: S07-08-requests-and-credentials, "Request form".
 
 - On an inspected host, send `Transfer-Encoding: gzip, chunked`,
   `chunked, chunked`, `identity`, two `Transfer-Encoding` lines,

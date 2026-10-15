@@ -19,8 +19,8 @@ A VM's effective policy is the union of:
 - the global policy;
 - the network policy, credential bindings and dependency-gate
   overrides of every project that has a session in the VM, merged as
-  S09-01-policy-files ("Precedence") says;
-- the approvals held for the VM (S07-11-approvals-and-learning).
+  S09-02-precedence says;
+- the approvals held for the VM (S07-17-approvals-and-learning).
 
 `wb-hostd` recomputes it whenever a session starts or ends. A
 project's allow rules and bindings leave the effective policy when its
@@ -60,23 +60,23 @@ names both projects and the host (NFR06-explained-refusals):
 - **Raw TCP and a binding.** A host with a raw TCP entry from one
   project has a credential binding from another project, or a
   built-in profile. This holds for the host on any port
-  (S07-10-non-http-streams, "Raw TCP entries").
+  (S07-15-non-http-streams, "Raw TCP entries").
 - **Raw TCP and another protocol.** A host and port that one project
   names in a raw TCP entry expects another protocol under another
   project's policy, such as TLS on the same port. Raw TCP on one port
   and TLS on another port of the same host isn't a conflict
-  (S07-10-non-http-streams, "One protocol per host and port").
+  (S07-15-non-http-streams, "One protocol per host and port").
 - **Two bindings.** Two projects bind the same host and port, with
   overlapping paths, to different secret store items.
 - **The boundary.** The union fails the extension check or the
-  boundary check (S09-03-boundary-check).
-- **The risk check.** The risk check (S09-08-approvals) finds
+  boundary check (S09-04-boundary-check).
+- **The risk check.** The risk check (S09-09-approvals) finds
   something in the joining project's rules and bindings, compared with
   the current union. Examples are a binding on a host another project
   was approved to write to (`capability_expansion`), and an approved
   rule that gives another project's binding new reach
   (`credential_reach_expansion`). The findings go to the user as a
-  join approval (S09-08-approvals). Once the user approves it, the
+  join approval (S09-09-approvals). Once the user approves it, the
   start can go ahead.
 
 `wb-hostd` never settles a conflict by weakening a mode or by picking
@@ -107,8 +107,7 @@ These widen:
 - adding a raw TCP entry;
 - moving a host and port from `enforce` to `audit`, whatever removal
   caused it. An example is removing the last `enforce` endpoint on it
-  while an `audit` endpoint stays (S09-01-policy-files, "Mode per host
-  and port").
+  while an `audit` endpoint stays (S09-02-precedence, "Mode per host and port").
 
 Every other change widens, including one that narrows in part.
 
@@ -213,14 +212,14 @@ run") included.
    check runs on the union with it.
 
 The join approval is cached on the union without the held source
-(S09-08-approvals, "Join approval").
+(S09-09-approvals, "Join approval").
 
 ### Open streams
 
 After each recompute, `wb-proxyd` checks every open stream of the VM
 against the new effective policy. An open stream is a WebSocket, an
 HTTP/2 connection, a pass relay, a raw TCP relay
-(S07-10-non-http-streams), a server-sent event stream, or a held
+(S07-15-non-http-streams), a server-sent event stream, or a held
 download.
 
 A stream whose allow rule, mode or binding is gone is closed. It is

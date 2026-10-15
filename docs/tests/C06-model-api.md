@@ -4,9 +4,9 @@
 the scan for the placeholder in whole requests, what is injected on
 the model API, the event log, and Claude Code end to end.
 
-**Verifies:** S07-06-requests-and-credentials ("Credential replacement",
-"Placeholder binding", "Bounds"), S07-07-http-policy ("model API"),
-S09-04-credentials ("Model credential"), S06-08-projects-and-sessions ("Claude Code in the guest"), S04-08-records-and-bounds ("Accounting and event channels")
+**Verifies:** S07-08-requests-and-credentials ("Credential replacement"),
+S07-09-placeholder-binding ("Bounds"), S07-11-http-policy ("model API"),
+S09-05-credentials ("Model credential"), S06-08-projects-and-sessions ("Claude Code in the guest"), S04-08-records-and-bounds ("Accounting and event channels")
 
 ## Conformance
 
@@ -17,8 +17,8 @@ S09-04-credentials ("Model credential"), S06-08-projects-and-sessions ("Claude C
 
 ### The placeholder in a request
 
-S07-06-requests-and-credentials, "Credential replacement" and
-"Placeholder binding".
+S07-08-requests-and-credentials, "Credential replacement", and
+S07-09-placeholder-binding.
 The scan covers whole requests, not only `Authorization` and
 `x-api-key`.
 
@@ -49,7 +49,7 @@ The scan covers whole requests, not only `Authorization` and
 
 ### Bodies split across reads
 
-Spec: S07-06-requests-and-credentials, "Bounds".
+Spec: S07-09-placeholder-binding, "Bounds".
 
 - Send it in a chunked body split across two chunks, and across two
   HTTP/2 `DATA` frames, at every offset in the placeholder, exact and
@@ -69,7 +69,7 @@ Spec: S07-06-requests-and-credentials, "Bounds".
 
 ### Placeholders
 
-Spec: S09-04-credentials, "Model credential".
+Spec: S09-05-credentials, "Model credential".
 
 - Create two VMs with the same stored credential, and see two different
   placeholders, each with the credential's length and prefix.
@@ -104,7 +104,7 @@ Spec: S09-04-credentials, "Model credential".
 
 ### The event log
 
-Spec: S07-07-http-policy, "model API".
+Spec: S07-11-http-policy, "model API".
 
 - With a global policy that allows `api.anthropic.com`
   `/api/event_logging/`, and with one that allows `/api/`, send a

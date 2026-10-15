@@ -161,7 +161,7 @@ from `wb-hostd`. `wb-hostd` sends its own time to `wb-guestd`, and
 - every 60 seconds while the VM runs.
 
 After a boot, restore or wake, it sends the time before the steps that
-depend on it (S09-05-ca-keys). Without that first update, a
+depend on it (S09-06-ca-keys). Without that first update, a
 cold-booted guest starts from the virtual clock. A restored guest lags
 by the time it spent saved (X18-vsock-handoff). The periodic update
 corrects drift and a change of the host clock within a minute.

@@ -30,7 +30,7 @@ B28-image-build
 ## Out of scope
 
 - The browser login for a Claude subscription (I257). The long-lived
-  token is in S09-04-credentials, "Model credential".
+  token is in S09-05-credentials, "Model credential".
 - Project users' accounts in the guest, which have no password the host
   keeps.
 - The other `SEC*` controls.

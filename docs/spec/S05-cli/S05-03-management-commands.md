@@ -41,7 +41,7 @@ commands are reserved: a new agent command may not reuse one.
 project write a Device Config State Change (5019) event. Those
 `wb project` commands are `move`, `rename`, `place`, `confirm` and
 `rm`. The event holds the project, and the values before and after
-(SEC10-audit, S09-10-audit).
+(SEC10-audit, S09-11-audit).
 
 ### `wb status`
 
@@ -65,7 +65,7 @@ request with that id. They are the alternative to the notification.
 - Without an id, they are refused, with an error that lists the pending
   ids.
 - An id that doesn't name an open request is refused with
-  `approval-stale` (S09-09-approval-flow).
+  `approval-stale` (S09-10-approval-flow).
 
 Both print what is being approved. That text includes guest-influenced
 values, such as hostnames and paths. `wb` strips control and escape
@@ -121,7 +121,7 @@ The restart:
 - doesn't count toward the restart limit.
 
 The command is refused without a terminal, because a person has to
-confirm. It is never part of a guest RPC (S07-08-dependency-gate).
+confirm. It is never part of a guest RPC (S07-12-dependency-gate).
 
 ### `wb vm reset-ca`
 
@@ -134,7 +134,7 @@ This command follows a `ca-key-restore` refusal.
    - puts their keys on the removal list;
    - deletes the VM's saved state.
 
-The next start then cold boots with a new CA (S09-05-ca-keys, "Valid CA").
+The next start then cold boots with a new CA (S09-06-ca-keys, "Valid CA").
 
 The command is refused while the VM runs. It is refused without a
 terminal, because a person has to confirm. It is never part of a guest
@@ -182,7 +182,7 @@ borrowed its slot. The refusal names the build (S06-07-slot-admission).
 Per platform:
 
 - On Windows, it refuses a host without the platform crypto provider.
-- On Linux, it records whether the CA key is in a TPM (S09-05-ca-keys, "Key"). `--ca-key-store tpm|software` changes the recorded choice.
+- On Linux, it records whether the CA key is in a TPM (S09-06-ca-keys, "Key"). `--ca-key-store tpm|software` changes the recorded choice.
 - On macOS, in an ad-hoc signed build, it refuses the Keychain backend
   with `keychain-needs-team`, and says how to sign the build. It still
   installs and starts the services, and exits with a nonzero status.

@@ -69,7 +69,7 @@ refuses:
 - a host outside its entry, with `download-host-refused`;
 - a URL that isn't HTTPS on port 443;
 - every redirect, with `download-redirect-refused`;
-- an address under the rule of S07-05-hosts-and-modes, "Upstream address", with `upstream-address-refused`.
+- an address under the rule of S07-07-hosts-and-modes, "Upstream address", with `upstream-address-refused`.
 
 That rule lists the host's interfaces with `getifaddrs`. A failure to
 list them refuses the connection with `upstream-address-refused` as
@@ -124,10 +124,10 @@ For each request, and each refusal of one, `wb-download` reports:
 `wb-hostd` writes each as an HTTP Activity (4002) record, and a
 refusal as a refused one with its rule (SEC10-audit). These records
 belong to no VM. They don't count against any VM's audit budget
-(S09-10-audit), and they're never dropped.
+(S09-11-audit), and they're never dropped.
 
 When one can't be written, `wb-hostd` cancels the run with
-`download-audit-failed`. The rule of S09-10-audit for a record that
+`download-audit-failed`. The rule of S09-11-audit for a record that
 can't be written applies.
 
 ### Space
@@ -138,7 +138,7 @@ is less than:
 
 - the entry's file size limit, less what the partial restore image
   already holds;
-- plus `audit_free_space_floor` (S09-10-audit).
+- plus `audit_free_space_floor` (S09-11-audit).
 
 For a Claude Code release, the limit counts once for each of its three
 files. The check uses only numbers the host knows before the run. The

@@ -190,6 +190,6 @@ other to that VM's `wb-netd`.
 
 So a compromised `wb-netd` can't label a stream as another VM's, or as
 the stream of a project that has no session in the VM
-(S07-04-stream-hand-off).
+(S07-05-stream-hand-off).
 
 **Status:** Draft

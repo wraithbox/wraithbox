@@ -8,7 +8,7 @@ guest runs.
 
 Only the host downloads Claude Code. The guest never fetches it.
 `downloads.claude.ai` is outside every profile the guest gets
-(S07-07-http-policy, "model API", "Outside the profile").
+(S07-11-http-policy, "model API", "Outside the profile").
 
 ### Download
 

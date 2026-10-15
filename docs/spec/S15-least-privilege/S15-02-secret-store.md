@@ -20,7 +20,7 @@ Keys that must never leave hardware, which means the CA signing key,
 are in the platform's hardware key store, whatever the backend. That holds
 on every host that has one (S12-platforms). On macOS the store holds
 only the key's wrapped form, which no other Mac can use
-(S09-05-ca-keys, "Key").
+(S09-06-ca-keys, "Key").
 
 ### Keychain
 
@@ -121,8 +121,7 @@ with the rule `keychain-needs-team`, and logs it. So in such a build
 these are refused with that rule:
 
 - a session that needs a binding;
-- each VM start, because it needs a CA item (S09-05-ca-keys, "Valid
-  CA");
+- each VM start, because it needs a CA item (S09-06-ca-keys, "Valid CA");
 - `wb cred set`, through `wb-credset`;
 - `wb image build` and the `wbadmin` rotation at first contact,
   because they need `wbadmin/*` items.
@@ -190,13 +189,12 @@ and the rule. That holds in every build and on every backend.
   `wb` names the binding and says to set it with `wb cred set`.
 - A locked store is rule 7 of S15-03-access-rules. On the Keychain
   that is -25308.
-- A CA item follows S09-05-ca-keys, "Valid CA".
+- A CA item follows S09-06-ca-keys, "Valid CA".
 - Any other failure of a binding or `wbadmin/*` read is
   `store-read-failed`, -34018 (`errSecMissingEntitlement`) among them.
   The work that needed the item is refused with it.
 - A failed write or delete of any item is `store-write-failed`,
-  outside the cases above and the CA issue of S09-05-ca-keys, "Valid
-  CA". The command or work that made it is refused with it.
+  outside the cases above and the CA issue of S09-06-ca-keys, "Valid CA". The command or work that made it is refused with it.
 
 ## Decisions
 

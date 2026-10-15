@@ -55,7 +55,7 @@ rule for one. I195 holds the console session design for after V1.
 ### Placement and configuration trust
 
 `placement` (`work` or `isolated`) is a project setting
-(S09-02-project-settings, "Settings contents").
+(S09-03-project-settings, "Settings contents").
 
 - `wb project place` changes it (S05-cli).
 - `--isolated` overrides it for one session.
@@ -106,7 +106,7 @@ first session.
 Projects in one VM share its network grants and credential bindings
 (S07-01-per-vm-policy, T11-shared-vm-grants). A project whose
 `placement` is `isolated` gets the isolated VM to itself, unless its
-settings mark it shared (S09-02-project-settings, "Settings contents").
+settings mark it shared (S09-03-project-settings, "Settings contents").
 
 While such a project has a session in the isolated VM, `wb-hostd`
 refuses a session start that would put another project there, or an

@@ -1,4 +1,4 @@
-# S07-10 - Non-HTTP Streams
+# S07-15 - Non-HTTP Streams
 
 **Purpose:** How `wb-proxyd` checks the protocol of each stream, and
 what it does with SSH, other protocols and raw TCP.
@@ -11,7 +11,7 @@ protocol policy expects on that host and port. It resets a stream that
 is neither TLS nor HTTP, unless policy names that host and port for
 raw TCP. SEC05-default-deny and SEC06-repo-writes hold as written.
 
-Client certificates, ECH and tunnels are on S07-17-tls-and-tunnels.
+Client certificates, ECH and tunnels are on S07-16-tls-and-tunnels.
 
 ### One protocol per host and port
 
@@ -20,19 +20,17 @@ Each host and port that the effective policy allows
 
 | Port | Protocol |
 |---|---|
-| 80, when policy names `host:80` | plain HTTP, inspected (S07-05-hosts-and-modes, "Modes, per host") |
+| 80, when policy names `host:80` | plain HTTP, inspected (S07-07-hosts-and-modes, "Modes, per host") |
 | a port that a raw TCP entry names ("Raw TCP entries") | raw TCP |
 | every other allowed port | TLS, inspected or passed by the host's mode |
 
 A policy file whose rules give one host and port two of these is
 refused at load. In the union it is a conflict that refuses the
-joining session (S07-01-per-vm-policy, "Conflicts refuse the joining
-session"). Both errors name the host, the port, and both sources
+joining session (S07-01-per-vm-policy, "Conflicts refuse the joining session"). Both errors name the host, the port, and both sources
 (NFR06-explained-refusals).
 
 TCP to a port that policy doesn't name for the host is reset by
-`wb-netd`, with the rule `port-not-allowed` (S07-02-packet-path,
-"Connections").
+`wb-netd`, with the rule `port-not-allowed` (S07-02-packet-path, "Connections").
 
 ### First bytes
 
@@ -42,11 +40,11 @@ refused stream leaves the host.
 
 - **On a TLS port** the stream must start with a TLS handshake record
   that holds a ClientHello. It is read by the ClientHello parser of
-  S07-05-hosts-and-modes, "Name binding". The parser reassembles a
+  S07-07-hosts-and-modes, "Name binding". The parser reassembles a
   ClientHello split across more than one record.
 - **On port 80** the stream must start with an HTTP/1.1 or HTTP/1.0
   request line. An HTTP/2 connection preface is reset, because
-  S07-06-requests-and-credentials ("Request form") parses HTTP/2 only
+  S07-08-requests-and-credentials (S07-08-requests-and-credentials, "Request form") parses HTTP/2 only
   inside TLS.
 - **The byte cap.** The check reads at most a byte count fixed in code
   (SEC13-bounded-resources). A stream that doesn't match by then, or
@@ -69,8 +67,7 @@ looked like: `ssh`, `tls`, `http`, `http2` or `unknown`. It never
 holds the bytes themselves.
 
 - Resets and refusals are rate-limited per rule, like the other events
-  the guest can trigger (S07-02-packet-path, "Events and rate
-  limits").
+  the guest can trigger (S07-02-packet-path, "Events and rate limits").
 - `wb policy explain` shows the refusal with its rule, and the policy
   change that would allow it, if any (NFR06-explained-refusals).
 - The guest sees a TCP reset.
@@ -105,7 +102,7 @@ entries"):
 
 - a forge that a built-in kind or a project's remote names;
 - the SSH hosts of the built-in kinds, such as `ssh.github.com`
-  (S07-07-http-policy, "git hosting").
+  (S07-11-http-policy, "git hosting").
 
 The guest doesn't need SSH:
 
@@ -138,12 +135,12 @@ host and port by itself.
 - The host doesn't need another rule. Its name resolves for the guest
   once an entry names it.
 - `wb-proxyd` resolves the host itself. It connects to that port under
-  S07-05-hosts-and-modes, "Upstream address".
+  S07-07-hosts-and-modes, "Upstream address".
 - It relays bytes both ways unchanged, with no first-byte check. A
   server-first protocol works there.
 
 An entry is in the same class as a pass host, with the same
-restrictions (S07-05-hosts-and-modes, "pass"):
+restrictions (S07-07-hosts-and-modes, "pass"):
 
 - *One named host.* The entry names one exact host and one port. A
   wildcard host, an IP literal (S07-03-dns, "IP literals") or a port
@@ -152,12 +149,12 @@ restrictions (S07-05-hosts-and-modes, "pass"):
 - *Only the user sets it.* Only the global policy or a project's
   network policy on the host adds one (S09-policy-credentials-audit).
   Repository configuration, an approval, `wb allow`, and learn mode
-  never do (SEC09-host-policy, S07-11-approvals-and-learning).
+  never do (SEC09-host-policy, S07-17-approvals-and-learning).
 - *A reason for each.* An entry without a reason is refused at load.
   `wb policy explain` lists every raw TCP entry with its host, port,
   file and reason.
 - *Never on a guarded host.* A guarded host can't have a raw TCP entry
-  on any port (S07-05-hosts-and-modes, "Guarded hosts"). The same
+  on any port (S07-07-hosts-and-modes, "Guarded hosts"). The same
   checks as for a pass host apply: at load, at every recompute over
   the union, and when a binding is added later. So git hosting, the
   model API and the package registries are reached only over
@@ -170,8 +167,7 @@ restrictions (S07-05-hosts-and-modes, "pass"):
   host is.
 
 S07-01-per-vm-policy lists the raw TCP cases of a conflict, of a
-change while sessions run, and of a session end. S07-01-per-vm-policy,
-"Open streams" closes a raw relay whose entry is gone.
+change while sessions run, and of a session end. S07-01-per-vm-policy, "Open streams" closes a raw relay whose entry is gone.
 
 ## Decisions
 

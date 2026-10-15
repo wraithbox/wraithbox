@@ -82,7 +82,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   clients accept a CA that only the guest trusts. List
   clients that pin certificates, and which clients reread trust
   without a restart, which sets the CA overlap
-  (S09-06-ca-certificates, "Lifetimes"). The CA has no name
+  (S09-07-ca-certificates, "Lifetimes"). The CA has no name
   constraints since I39. Answered no, in the result page
   X04-tls-inspection: every client that takes a CA file or variable
   accepts the CA and none pins, but `wb-guestd` can't add it to a macOS

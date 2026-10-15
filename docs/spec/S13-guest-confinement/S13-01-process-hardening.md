@@ -90,7 +90,7 @@ A stopped VM leaves none.
 This holds against a process without guest root only. No process is
 meant to keep running after its project leaves the VM's effective
 policy. None is meant to keep running during another project's
-learn-mode session either (S07-11-approvals-and-learning).
+learn-mode session either (S07-17-approvals-and-learning).
 
 ### Per-user launchd services
 

@@ -1,4 +1,4 @@
-# S09-03 - Boundary Check
+# S09-04 - Boundary Check
 
 **Purpose:** The check of a project's policy against the boundary policy
 with OpenShell's prover, and which policy it checks when.
@@ -101,7 +101,7 @@ These widen:
 - weakening a mode;
 - any change that moves a host and port from `enforce` to `audit`,
   such as removing the last `enforce` endpoint on it
-  (S09-11-precedence, "Mode per host and port").
+  (S09-02-precedence, "Mode per host and port").
 
 A change that widens and fails the check, or can't be checked, is
 refused. The VM then keeps its last policy that passed, and
@@ -139,7 +139,7 @@ writes it as the whole host in `enforce` mode (S09-01-policy-files, "Audit as th
 #### Built-in profiles in the check
 
 The candidate holds the parts of the built-in profiles that are on
-(S07-07-http-policy, "Profile parts"). No built-in rule is left out.
+(S07-11-http-policy, "Profile parts"). No built-in rule is left out.
 
 - The candidate holds the git hosting profile on every host that a
   project's remotes name, with the GraphQL path of that host's kind.
@@ -167,7 +167,7 @@ The default boundary admits that projection because it comes from a
 built-in rule.
 
 A user or repository rule that can match a request to a built-in
-host's GraphQL endpoint is a load error (S09-11-precedence). So no other source can put a rule of that shape in the
+host's GraphQL endpoint is a load error (S09-02-precedence). So no other source can put a rule of that shape in the
 candidate.
 
 The built-in operation filter applies to every request on that
@@ -193,14 +193,14 @@ policy.
 
 ##### Merge rules
 
-The merge rules still hold (S09-11-precedence). So user
+The merge rules still hold (S09-02-precedence). So user
 or repository policy can't replace or weaken a built-in rule.
 
 ## Decisions
 
 ### Check the user's own policy too
 
-- **Why:** approvals are bound by the boundary (S09-08-approvals).
+- **Why:** approvals are bound by the boundary (S09-09-approvals).
 - **Decided:** I35 (B35-openshell-artifacts).
 
 ### Built-in GraphQL rules are checked as `POST` to their endpoint

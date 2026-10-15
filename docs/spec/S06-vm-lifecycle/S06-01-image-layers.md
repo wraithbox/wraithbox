@@ -20,7 +20,7 @@ A guest image has three layers:
 
 The image doesn't contain a Wraith Box CA. `wb-guestd` installs the
 VM's CAs at runtime in the guest trust files. On Linux and Windows
-guests it also installs them in the system store (S09-07-guest-trust).
+guests it also installs them in the system store (S09-08-guest-trust).
 
 ### Toolchain prefix
 
@@ -121,7 +121,7 @@ environment from an allowlist:
   `HOMEBREW_NO_INSTALL_CLEANUP`, `HOMEBREW_NO_ANALYTICS`,
   `HOMEBREW_NO_ENV_HINTS` and `HOMEBREW_FORBID_PACKAGES_FROM_PATHS=1`;
 - `HOMEBREW_TEMP` and `HOMEBREW_CACHE` in its home;
-- the trust variables of S09-07-guest-trust, with the same constant
+- the trust variables of S09-08-guest-trust, with the same constant
   values project users get, never appended to an inherited value.
 
 It never sets `HOMEBREW_DEVELOPER`.

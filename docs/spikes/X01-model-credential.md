@@ -90,7 +90,7 @@ SEC10-audit, FR01-drop-in, FR13-claude-state
   - That the placeholder went nowhere but `api.anthropic.com`. The
     proxy looked for it only in `Authorization` and `x-api-key`, not
     in other headers, query strings or bodies, which is where
-    S07-06-requests-and-credentials, "Placeholder binding", also looks for a leak.
+    S07-09-placeholder-binding, also looks for a leak.
   - That the main-loop and side calls to `/v1/messages` are what the
     host table says. Inferred from their timing and `anthropic-beta`
     values.
@@ -128,7 +128,7 @@ from `claude setup-token`.
 | Mode | Answer | Evidence |
 |---|---|---|
 | Long-lived subscription token (`claude setup-token`, `CLAUDE_CODE_OAUTH_TOKEN`) | **yes** | measured, below |
-| API key (`ANTHROPIC_API_KEY`) | open | not run: no API key. Moved to I253. OpenShell's Claude Code provider shows an API key works this way (X00-index, S09-04-credentials, "Model credential") |
+| API key (`ANTHROPIC_API_KEY`) | open | not run: no API key. Moved to I253. OpenShell's Claude Code provider shows an API key works this way (X00-index, S09-05-credentials, "Model credential") |
 | Browser login (`/login`, SSO) and its token refresh | **yes, with conditions** | measured 2026-10-15, "Browser login (I15)" |
 
 **Yes for the long-lived token.** Claude Code 2.1.289 sends the
@@ -236,7 +236,7 @@ The item didn't hold an API key, so `/v1/messages` answered 401.
   Code stored").
 - The proxy looked for the placeholder in `Authorization` and
   `x-api-key` only. A scan of every header, the query string, and the
-  body, as S07-06-requests-and-credentials, "Placeholder binding", does, is still to
+  body, as S07-09-placeholder-binding, does, is still to
   do, in the next run with the maintainer or in the conformance tests
   of `wb-proxyd`.
 - The run was on the host, not in a guest, and nothing denied a host:
@@ -252,7 +252,7 @@ The pull request with this result didn't change them. The maintainer
 decided the open points on I60 on 2026-10-12, and I215 made these
 changes:
 
-- S07-egress-gateway, model API profile: `api.anthropic.com` with the
+- S07-11-http-policy, "model API" profile: `api.anthropic.com` with the
   paths above except the event log, and `platform.claude.com`
   `/v1/oauth/hello`. `/api/event_logging/` is a built-in deny.
   Datadog, `downloads.claude.ai` and `raw.githubusercontent.com` are
@@ -261,7 +261,7 @@ changes:
   injects `Authorization: Bearer <token>` for a token, or `x-api-key`
   for an API key, on the four paths of `api.anthropic.com` where
   Claude Code sent the token.
-- S09-04-credentials, "Model credential": the long-lived
+- S09-05-credentials, "Model credential": the long-lived
   token is a supported mode in V1. The placeholder goes in
   `CLAUDE_CODE_OAUTH_TOKEN`, and the text says how the user revokes
   and replaces the token.
@@ -452,7 +452,7 @@ these changes:
 - S14-04-commands-and-endpoints, "Commands that don't fit a guest": the answer
   to its measurement, the authorize host `claude.com`, and that a
   guest's login fails at the exchange, not before the URL.
-- S09-04-credentials, "Model credential": API key mode is
+- S09-05-credentials, "Model credential": API key mode is
   open in I253, and the browser login isn't a V1 mode.
 - S15-least-privilege, "Out of scope": the browser login points to
   I257.

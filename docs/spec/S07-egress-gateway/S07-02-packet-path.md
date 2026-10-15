@@ -104,10 +104,10 @@ In `wb-netd` these are:
 In `wb-proxyd` they are:
 
 - stream resets;
-- HTTP refusals (S07-10-non-http-streams);
+- HTTP refusals (S07-15-non-http-streams);
 - the hand-off refusals `handoff-socket-refused`,
   `name-report-refused` and `stream-handoff-refused`, the `stream-cap`
-  check included (S07-04-stream-hand-off).
+  check included (S07-05-stream-hand-off).
 
 The record that follows a suppressed run holds the count it
 suppressed (SEC10-audit, SEC13-bounded-resources).
@@ -126,7 +126,7 @@ Each VM's `wb-netd` caps:
 
 - TCP connections in flight, half-open and established;
 - DNS-over-TCP connections;
-- held DNS queries (S07-12-dns-refusals, "Hold limits");
+- held DNS queries (S07-04-dns-refusals, "Hold limits");
 - the stack's buffer memory;
 - the bytes in its frame queues, not only their frame counts.
 
@@ -209,7 +209,7 @@ DNS is on its own page, S07-03-dns.
 TCP to a synthetic address on an allowed port is accepted by the
 stack. It is handed to `wb-proxyd` as a byte stream over the VM's
 hand-off socket, with the synthetic address and port
-(S07-04-stream-hand-off).
+(S07-05-stream-hand-off).
 
 Once X14-flow-attribution delivers labels, the hand-off also holds the
 label the guest reported for the flow, marked untrusted
@@ -220,7 +220,7 @@ A port is allowed for a synthetic address when the effective policy
 names it for that address's host:
 
 - in an endpoint's `port` or `ports`;
-- or in a raw TCP entry (S07-10-non-http-streams).
+- or in a raw TCP entry (S07-15-non-http-streams).
 
 TCP to a synthetic address on any other port is reset at the first
 SYN. It is audited with the rule `port-not-allowed`.

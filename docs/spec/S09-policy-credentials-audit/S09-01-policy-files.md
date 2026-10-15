@@ -102,13 +102,13 @@ These are refused at load:
 - an entry for a host a built-in profile covers.
 
 Adding a pass host is a Device Config State Change (5019) event.
-S07-05-hosts-and-modes, "Modes, per host", has the rules.
+S07-07-hosts-and-modes, "Modes, per host", has the rules.
 
 #### Raw TCP entries
 
 A raw TCP entry names one exact host and one port, for a stream that is
 neither TLS nor HTTP. The rules of a pass host apply to it, on its host
-and port. S07-10-non-http-streams has the rules.
+and port. S07-15-non-http-streams has the rules.
 
 #### Audit hosts
 
@@ -122,7 +122,7 @@ built-in profile covers, is refused (SEC06-repo-writes):
 - at every recompute;
 - when a binding is added later.
 
-S07-05-hosts-and-modes, "Modes, per host", has the rules.
+S07-07-hosts-and-modes, "Modes, per host", has the rules.
 
 ### Policy as the prover sees it
 
@@ -133,7 +133,7 @@ The document Wraith Box writes for the prover allows at least what
 
 - A built-in GraphQL rule is written as a REST rule. It allows `POST`
   to its GraphQL path on its host, which is wider than the rule
-  (S09-03-boundary-check, "Built-in profiles in the check").
+  (S09-04-boundary-check, "Built-in profiles in the check").
 - A host in pass mode is written as an L4 endpoint, with no `protocol`
   and no rules, whatever rules the file gives it. So the boundary must
   allow L4 to that host.
@@ -153,8 +153,8 @@ Any mismatch refuses the policy.
 #### Audit as the whole host
 
 `audit` lets every request through, and only logs a violation
-(S07-05-hosts-and-modes, "Modes, per host"). So a host and port whose
-mode resolves to `audit` (S09-11-precedence, "Mode per host and port") is written as the whole host on that port.
+(S07-07-hosts-and-modes, "Modes, per host"). So a host and port whose
+mode resolves to `audit` (S09-02-precedence, "Mode per host and port") is written as the whole host on that port.
 
 The projected endpoint is built from the host and the port only:
 

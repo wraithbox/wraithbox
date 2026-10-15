@@ -1,4 +1,4 @@
-# S09-06 - CA Certificates
+# S09-07 - CA Certificates
 
 **Purpose:** The profile and scope of each TLS inspection CA, the leaf
 certificates it signs, and its rotation.
@@ -27,7 +27,7 @@ only:
 
 - for the hostname of the stream, after the SNI check;
 - when the VM's effective policy inspects that host
-  (S07-04-stream-hand-off, and S07-05-hosts-and-modes, "Name binding"
+  (S07-05-stream-hand-off, and S07-07-hosts-and-modes, "Name binding"
   and "Modes, per host").
 
 It signs with the CA of the stream's VM. It keys its leaf cache on VM,
@@ -105,7 +105,7 @@ these run in this order:
 7. Only then does `wb-proxyd` accept the VM's streams.
 
 A recorded CA whose key doesn't restore is refused with
-`ca-key-restore` (S09-05-ca-keys, "Valid CA"). It doesn't lead to a new
+`ca-key-restore` (S09-06-ca-keys, "Valid CA"). It doesn't lead to a new
 one.
 
 After a restore or a host wake, `wb-proxyd` keeps signing with the CA
@@ -129,7 +129,7 @@ and the CA certificate's SHA-256 fingerprint (SEC10-audit):
 ### No name constraints on the CA
 
 - **Why:** the set of inspected hosts changes with every approval
-  (S07-11-approvals-and-learning). A constraint that followed it would
+  (S07-17-approvals-and-learning). A constraint that followed it would
   need a new CA each time. Clients that read trust once per process
   would then reject every leaf from the new CA until they restart.
 - **Rejected:** a broad constraint that never changes. It limits

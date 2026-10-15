@@ -1,4 +1,4 @@
-# S07-16 - Go Lookups
+# S07-14 - Go Lookups
 
 **Purpose:** How the dependency gate looks up a Go version's record
 number in the checksum database, verifies it, caches it, and bounds the
@@ -7,7 +7,7 @@ work.
 ## Design
 
 The calibration point that a record number is compared with is on
-S07-09-publish-time.
+S07-13-publish-time.
 
 ### Lookup
 
@@ -112,8 +112,7 @@ used. An evicted entry costs only a new lookup.
 
 ### Lookup limits
 
-These limits serve SEC13-bounded-resources (S04-08-records-and-bounds,
-"Host work the guest can cause").
+These limits serve SEC13-bounded-resources (S04-08-records-and-bounds, "Host work the guest can cause").
 
 A verified lookup takes a `/lookup/` request and the tile fetches its
 proof needs. That is about two requests when the tiles aren't cached.

@@ -1,4 +1,4 @@
-# S09-09 - Approval Flow
+# S09-10 - Approval Flow
 
 **Purpose:** How an approval request for a name behaves, from the lookup that
 raises it to its answer or its expiry.
@@ -11,7 +11,7 @@ session looked a name up (S07-01-per-vm-policy, I36).
 ### What the blocked client sees
 
 `wb-netd` holds the answer to a refused lookup for 4 seconds
-(S07-03-dns, "Hold").
+(S07-04-dns-refusals, "Hold").
 
 - When the user approves within the hold, the waiting lookup gets the
   allowed answer. The tool works on its first try.
@@ -21,7 +21,7 @@ session looked a name up (S07-01-per-vm-policy, I36).
 ### Kept out of notifications
 
 These don't raise a request (S07-03-dns, and
-S07-11-approvals-and-learning):
+S07-17-approvals-and-learning):
 
 - a name on the guest OS's background list;
 - a host refused with `profile-part-off`;
@@ -58,7 +58,7 @@ newer one may have other sessions or other risk-check findings.
 #### Replaced requests
 
 An answer can be refused because the VM's sessions changed
-(S07-03-dns, "Session set at the answer"). Then:
+(S07-04-dns-refusals, "Session set at the answer"). Then:
 
 1. the request closes, and its notification is withdrawn;
 2. a new request, with a new id and the current set of sessions,
@@ -105,7 +105,7 @@ the limits allow.
 
 `wb-netd` checks both limits when the query arrives, only to decide the
 answer and the hold. It checks them under the lock of the
-one-open-event-per-name check (S07-03-dns, "Same answer for every refusal").
+one-open-event-per-name check (S07-04-dns-refusals, "Same answer for every refusal").
 
 - `wb-hostd` tells it when a request closes.
 - A new `wb-netd` gets the VM's pending count and recent rate from
@@ -124,7 +124,7 @@ A request has no wall-clock timeout. It stays pending, in `wb status`
 and as a notification, until:
 
 - the user answers it; or
-- every session in the set it records has ended (S07-03-dns, "Session set at the answer").
+- every session in the set it records has ended (S07-04-dns-refusals, "Session set at the answer").
 
 A replaced request's set is the one it was replaced with. So a request
 replaced with sessions A and B doesn't expire when A ends.
@@ -178,7 +178,7 @@ have a fuzz target (C03-policy-and-approvals).
 ### Allow for this session
 
 "Allow for this session" is shown as "for this VM until these sessions
-end", with the sessions listed (S07-11-approvals-and-learning, "Who an approval reaches").
+end", with the sessions listed (S07-17-approvals-and-learning, "Who an approval reaches").
 
 ## Decisions
 

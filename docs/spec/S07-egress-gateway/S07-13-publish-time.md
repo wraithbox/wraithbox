@@ -1,4 +1,4 @@
-# S07-09 - Publish Time
+# S07-13 - Publish Time
 
 **Purpose:** Where the dependency gate gets each version's publish
 time, and how it builds a clock for Go modules from the checksum
@@ -7,7 +7,7 @@ database.
 ## Design
 
 How the gate looks up a Go version against that clock is on
-S07-16-go-lookups.
+S07-14-go-lookups.
 
 ### Publish time
 
@@ -98,15 +98,13 @@ rejected point, with the bound it exceeded.
 ### Persisted state
 
 After each accepted computation, `wb-proxyd` sends `wb-hostd`
-accounting records (S04-08-records-and-bounds, "Accounting and event
-channels"):
+accounting records (S04-08-records-and-bounds, "Accounting and event channels"):
 
 - one for the accepted point, with its number and cutoff;
 - one for each new head.
 
 `wb-hostd` owns `state.db` and its caches, and `wb-proxyd` doesn't
-write files. So `wb-hostd` stores them there (S04-architecture, "Host
-state"). It stamps each record with its own receipt time, never a time
+write files. So `wb-hostd` stores them there (S04-architecture, "Host state"). It stamps each record with its own receipt time, never a time
 from `wb-proxyd`.
 
 It checks each record the way it checks mapping entries
@@ -137,7 +135,7 @@ At start `wb-hostd` passes the stored point and heads back.
   whichever direction applies. The smaller tree must be a consistent
   prefix of the larger, and it keeps the larger. A stored head that
   fails the check is a finding, the same as one within a run
-  (S07-16-go-lookups, "Lookup").
+  (S07-14-go-lookups, "Lookup").
 - **The fresh head** isn't accepted, and calibration doesn't use it,
   until that proof is done. While the proof can't be fetched, the
   computation fails. Requests get `go-clock-uncalibrated` before the
@@ -167,10 +165,9 @@ After each start, a Go download, `@v/list` or `@latest` waits up to 30
 seconds for the first computation.
 
 - A waiting request holds its connection. That counts against the
-  VM's cap on connections in flight (S07-02-packet-path, "Per-VM
-  caps").
+  VM's cap on connections in flight (S07-02-packet-path, "Per-VM caps").
 - This wait doesn't count toward the request's lookup deadline
-  (S07-16-go-lookups, "Lookup limits").
+  (S07-14-go-lookups, "Lookup limits").
 
 If there is no point after that, or the first computation fails, the
 request is refused with the rule `go-clock-uncalibrated` (fail

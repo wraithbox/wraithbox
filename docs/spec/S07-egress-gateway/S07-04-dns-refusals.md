@@ -1,4 +1,4 @@
-# S07-12 - DNS Refusals
+# S07-04 - DNS Refusals
 
 **Purpose:** How `wb-netd` refuses a name: approval events, the hold
 before each refusal, quiet refusals, and the answer that is the same
@@ -13,9 +13,9 @@ S07-03-dns.
 
 Names not on the allowlist get `NXDOMAIN` and raise an approval event
 (FR09-approve-unknown). During a learn period in the VM they go on the
-learn list instead (S07-11-approvals-and-learning).
+learn list instead (S07-17-approvals-and-learning).
 
-The answer is held first ("Hold" below). So a user who approves in
+The answer is held first ("Hold"). So a user who approves in
 time sees the lookup succeed.
 
 A VM has at most one open approval event per name. Later queries for
@@ -25,7 +25,7 @@ can't tell which session looked a name up (S07-01-per-vm-policy).
 Over the VM's limits on pending requests and on new requests, a name
 is refused the same way, with the rule `approval-pending-cap` or
 `approval-rate`. It doesn't raise an approval event
-(S09-09-approval-flow).
+(S09-10-approval-flow).
 
 ### Hold
 
@@ -93,8 +93,7 @@ A refused query over the cap is dropped without an answer.
 
 - Its wildcard budget debit and accounting record are made first, as
   for every refused query. Accounting records come before any drop
-  decision (S04-08-records-and-bounds, "Accounting and event
-  channels").
+  decision (S04-08-records-and-bounds, "Accounting and event channels").
 - It doesn't raise or join an approval event, and doesn't go on a
   learn list.
 - It is counted with the rule `dns-hold-full`, in runs per rule
@@ -126,7 +125,7 @@ After that, a lookup raises a new event.
 ### Session set at the answer
 
 An approval event records the sessions running in the VM when it was
-raised. It has a request id (S09-09-approval-flow).
+raised. It has a request id (S09-10-approval-flow).
 
 If that set has changed when the user answers, the answer is refused
 with the rule `approval-sessions-changed`. The request closes. A new
@@ -165,7 +164,7 @@ The image turns off the services that send these lookups where it can
 ### Parts that are off
 
 A host can have all its built-in rules in profile parts that are off
-(S07-07-http-policy, "Profile parts"). It gets `NXDOMAIN` and an audit
+(S07-11-http-policy, "Profile parts"). It gets `NXDOMAIN` and an audit
 entry with the rule `profile-part-off`, whatever other rule allows it.
 It doesn't raise an approval event. So an approval can't undo the
 user's switch.
@@ -185,7 +184,7 @@ refused, and so is the time of sending ("Hold"). The reasons are:
 - `wildcard-budget`, when the budget is used up;
 - `dns-query-rate`;
 - `accounting-write-failed`;
-- `handoff-send-failed` (S07-04-stream-hand-off);
+- `handoff-send-failed` (S07-05-stream-hand-off);
 - `audit-budget`, `audit-bytes` and `event-channel-blocked`.
 
 Each of them can be held. A held query costs only an entry in the
@@ -193,7 +192,7 @@ held-query table, whose cap drops what doesn't fit ("Hold limits").
 
 The last three come from the host's own state, not from the name
 (S04-08-records-and-bounds, "Accounting and event channels",
-S09-10-audit). They don't raise an approval event or debit the
+S09-11-audit). They don't raise an approval event or debit the
 wildcard budget.
 
 #### Order at arrival
@@ -205,13 +204,12 @@ When the query arrives, `wb-netd`:
 2. debits the wildcard budget;
 3. writes the debit's accounting record to `wb-hostd`;
 4. takes the one-open-event-per-name check and the checks of the
-   request limits (S09-09-approval-flow) under one lock.
+   request limits (S09-10-approval-flow) under one lock.
 
 It does no other work that depends on the reason.
 
 When the write fails, the name is refused with the rule
-`accounting-write-failed` (S04-08-records-and-bounds, "Accounting and
-event channels"). An answered name's accounting record, with its
+`accounting-write-failed` (S04-08-records-and-bounds, "Accounting and event channels"). An answered name's accounting record, with its
 address, is written before its answer too. A failed write refuses the
 name the same way.
 

@@ -1,4 +1,4 @@
-# S09-02 - Project Settings
+# S09-03 - Project Settings
 
 **Purpose:** What a project's settings hold, and what a repository's own
 `.wraithbox/` configuration may add.
@@ -50,7 +50,7 @@ keeps learn mode out of sessions the user isolated.
 
 A learn period stays attributable to one project for another reason:
 `wb-hostd` runs it only while no other project has a session in the VM
-(S07-11-approvals-and-learning).
+(S07-17-approvals-and-learning).
 
 #### `config_trust`
 
@@ -84,7 +84,7 @@ add a raw TCP entry (SEC09-host-policy).
 Repository configuration that sets `enforcement: audit` on an endpoint
 is refused at load, with an error that names the host, like a pass host
 or a raw TCP entry. An approved rule can't be in `audit` either
-(S09-08-approvals, "Approved rule").
+(S09-09-approvals, "Approved rule").
 
 #### Closed keys
 
@@ -92,7 +92,7 @@ It is parsed against a closed list of those keys. Any other key is a
 load error, so it can't set `placement` or `config_trust`.
 
 A rule on a built-in host whose profile part is off is a load error too
-(S07-07-http-policy, "Profile parts").
+(S07-11-http-policy, "Profile parts").
 
 #### Which commit
 

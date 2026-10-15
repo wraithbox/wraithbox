@@ -1,4 +1,4 @@
-# S07-04 - Stream Hand-off
+# S07-05 - Stream Hand-off
 
 **Purpose:** How `wb-netd` hands each stream to `wb-proxyd`, and the
 checks that keep a compromised `wb-netd` from widening what a stream
@@ -18,7 +18,7 @@ from it that widens what a stream may reach:
   creates and labels ("One hand-off socket per VM").
 - `wb-proxyd` re-checks the name against its own copy of the name
   mapping. The copy is built from checked name reports
-  (S07-13-name-mapping).
+  (S07-06-name-mapping).
 - What `wb-netd` writes with a stream can only narrow ("Only
   narrows").
 
@@ -41,7 +41,7 @@ A send that fails, or that blocks for more than 100 ms, counts as
 failed. A sender never retries out of order.
 
 - When a name report fails, `wb-netd` refuses the name with the same
-  answer as every refusal (S07-12-dns-refusals).
+  answer as every refusal (S07-04-dns-refusals).
 - When a stream fails, `wb-netd` resets the TCP connection.
 
 Both are logged with the rule `handoff-send-failed`.
@@ -68,19 +68,17 @@ descriptors. It refuses a message that:
 It closes every descriptor that arrived with a refused message.
 
 The names and labels in hand-off messages are guest strings. A log
-record holds them escaped and cut (S07-02-packet-path, "Events and
-rate limits").
+record holds them escaped and cut (S07-02-packet-path, "Events and rate limits").
 
 `wb-proxyd` decides the messages of one hand-off socket in the order
 it read them. So a stream behind a report that waits on `wb-hostd`
-(the wildcard budget, S07-13-name-mapping) waits too. It isn't refused
+(the wildcard budget, S07-06-name-mapping) waits too. It isn't refused
 for a missing entry.
 
 ### One hand-off socket per VM
 
 `wb-hostd` creates a hand-off socketpair for a VM at each start and
-restore, and at the restarts of S04-07-supervision, "Restarting a
-daemon".
+restore, and at the restarts of S04-07-supervision, "Restarting a daemon".
 
 1. It passes one end to `wb-proxyd`.
 2. It waits for `wb-proxyd` to acknowledge it.
@@ -186,7 +184,7 @@ A compromised `wb-netd` that skips them can refuse or slow its own
 VM's traffic, or send approval events. `wb-hostd` applies the request
 limits to every event it receives, whatever `wb-netd` checked. So
 those events can't raise more requests than the limits allow
-(S09-09-approval-flow).
+(S09-10-approval-flow).
 
 None of them lets a stream reach a name or port the VM's effective
 policy refuses.

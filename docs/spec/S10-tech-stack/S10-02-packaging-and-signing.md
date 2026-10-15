@@ -137,8 +137,7 @@ version explicitly. Integration tests build through the stamping task
 (I174).
 
 Host processes refuse a peer of another version. `wb-hostd` refuses a
-`wb-guestd` of another version (S04-08-records-and-bounds, "Version
-skew").
+`wb-guestd` of another version (S04-08-records-and-bounds, "Version skew").
 
 ### Versioned contracts
 

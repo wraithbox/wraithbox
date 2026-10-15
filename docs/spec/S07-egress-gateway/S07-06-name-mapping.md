@@ -1,4 +1,4 @@
-# S07-13 - Name Mapping
+# S07-06 - Name Mapping
 
 **Purpose:** How `wb-proxyd` keeps its own checked copy of the names
 `wb-netd` gave synthetic addresses: name reports, releases, replay,
@@ -7,14 +7,14 @@ lifetime, and the second count of the wildcard budget.
 ## Design
 
 Each VM's copy of the name mapping arrives over the VM's hand-off
-socket, in the messages of S07-04-stream-hand-off. A stream to an
+socket, in the messages of S07-05-stream-hand-off. A stream to an
 address the copy doesn't hold is refused there.
 
 ### Name reports
 
 For each `A` answer with a synthetic address, `wb-netd` sends the name
 and the address on the VM's hand-off socket before the answer leaves.
-With the ordering property of S07-04-stream-hand-off ("Transport"),
+With the ordering property of S07-05-stream-hand-off ("Transport"),
 the report arrives before any stream to that address. A report doesn't
 hold a descriptor.
 
@@ -132,6 +132,6 @@ new `wb-proxyd` at start. A `wb-proxyd` restart thus keeps the count.
 Refused lookups never reach `wb-proxyd`, so its count is at most
 `wb-netd`'s.
 
-The decision behind this design, I68, is on S07-04-stream-hand-off.
+The decision behind this design, I68, is on S07-05-stream-hand-off.
 
 **Status:** Draft

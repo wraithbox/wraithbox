@@ -6,8 +6,8 @@ the credential checks `wb-proxyd` makes on guest requests and server
 responses.
 
 **Verifies:** S15-02-secret-store ("Keychain"),
-S15-03-access-rules ("Declared access"), S09-04-credentials, S12-03-host-prerequisites ("Development builds on macOS"),
-S10-02-packaging-and-signing, S07-06-requests-and-credentials ("Credential replacement")
+S15-03-access-rules ("Declared access"), S09-05-credentials, S12-03-host-prerequisites ("Development builds on macOS"),
+S10-02-packaging-and-signing, S07-08-requests-and-credentials ("Credential replacement")
 
 ## Unit tests
 

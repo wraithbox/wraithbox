@@ -34,7 +34,7 @@ S04-07-supervision ("What a restart keeps", "The kept name mapping"):
 From `wb-proxyd` they carry the Go clock's accepted calibration point,
 each new verified tree head, and a `go-sumdb-inconsistent` finding.
 `wb-hostd` checks each of those, stamps it with its receipt time, keeps
-it in `state.db`, and passes it back at start (S07-09-publish-time, "Persisted state").
+it in `state.db`, and passes it back at start (S07-13-publish-time, "Persisted state").
 
 They aren't audit events. Nothing rate-limits, suppresses or drops
 them.
@@ -69,7 +69,7 @@ time from `wb-netd`.
 ### Placeholder records
 
 Placeholder records carry a VM, a binding, and one placeholder that
-`wb-proxyd` generated (S09-04-credentials, "Model credential").
+`wb-proxyd` generated (S09-05-credentials, "Model credential").
 
 At a session start that needs a binding with a placeholder:
 
@@ -101,7 +101,7 @@ the waiting session start with the rule `placeholder-record-invalid`.
 
 ### Event records
 
-Event records carry what goes to the audit log (S09-10-audit).
+Event records carry what goes to the audit log (S09-11-audit).
 
 An event write can block for more than 100 ms, or fail without
 blocking (`ENOBUFS` or `EAGAIN` on a `SOCK_DGRAM` socket). Then, with
@@ -204,18 +204,18 @@ its limits before it merges.
 | RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on the server and never left at the library default, requests per second per VM, entries in the reconnect session list | I52 for the values, S06-11-reconnect-and-recovery, "Reconnect" |
 | The version `wb-guestd` reports | `wb-hostd` | 64 bytes, fixed form | "Version skew" |
 | Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-02-packet-path |
-| Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-03-dns, "Hold limits" |
+| Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-04-dns-refusals, "Hold limits" |
 | Connections and streams | `wb-netd`, `wb-proxyd` | connections in flight, stream resets and refusals per rule | S07-egress-gateway |
-| Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | "Clock lookup limits", below | S07-08-dependency-gate, S07-09-publish-time |
-| Placeholder scan of requests on inspected hosts | `wb-proxyd` | a 64 KiB cap on the request head (`http-header-size`); per request, a held-back window three times the length of the VM's longest placeholder, at most 768 bytes with the 256-character cap; at most 8 placeholders per binding per VM | S07-06-requests-and-credentials ("Request form", "Header cap", "Placeholder binding", "Bounds") |
-| Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-04-stream-hand-off |
-| Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-05-ca-keys |
+| Dependency gate clock lookups to `sum.golang.org` | `wb-proxyd` | "Clock lookup limits", below | S07-12-dependency-gate, S07-13-publish-time |
+| Placeholder scan of requests on inspected hosts | `wb-proxyd` | a 64 KiB cap on the request head (`http-header-size`); per request, a held-back window three times the length of the VM's longest placeholder, at most 768 bytes with the 256-character cap; at most 8 placeholders per binding per VM | S07-08-requests-and-credentials ("Request form", "Header cap"), S07-09-placeholder-binding ("Bounds") |
+| Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-05-stream-hand-off |
+| Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-06-ca-keys |
 | Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-04-push-checks, "Pack scanner", and S08-05-push-limits, "Bounds" |
 | Leftover-process results | `wb-hostd` | "Leftover-process limits", below | S06-10-leftover-processes, S06-11-reconnect-and-recovery ("Reconnect") and S06-09-session-lifecycle ("Deadlines") |
 | Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-11-reconnect-and-recovery, "Recovery" |
-| Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-09-approval-flow, and S09-08-approvals |
-| Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | S04-07-supervision, "Restarting a daemon", and S09-08-approvals |
-| Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-10-audit |
+| Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-10-approval-flow, and S09-09-approvals |
+| Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | S04-07-supervision, "Restarting a daemon", and S09-09-approvals |
+| Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-11-audit |
 | Accounting and event records | `wb-hostd` | 4 KiB per record, fixed format, a malformed record ends the sender | "Accounting and event channels" |
 | Daemon log lines | `wb-hostd` | 100 lines per second per process, 4 KiB per line | "Logs and health" |
 
@@ -276,7 +276,7 @@ to `<logs>`, in one file per process, apart from the audit log.
 - Each file is rotated at 10 MiB, and the last 5 are kept.
 
 A daemon log isn't the record of a decision. The audit log is
-(S09-10-audit).
+(S09-11-audit).
 
 For each host process, `wb-hostd` keeps:
 

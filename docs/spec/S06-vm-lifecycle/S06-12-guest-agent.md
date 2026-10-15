@@ -38,7 +38,7 @@ S12-platforms.
     for credentials;
   - per-session resource limits;
   - the session's Seatbelt profile (S13-guest-confinement).
-- It installs the VM's CA certificates (S09-07-guest-trust). It writes
+- It installs the VM's CA certificates (S09-08-guest-trust). It writes
   the trust files and sets the toolchain trust variables. On Linux and
   Windows guests it also adds them to the system trust store. A macOS
   guest refuses that without a user.

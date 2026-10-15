@@ -9,7 +9,7 @@ links the filter drops.
 
 The counts are by these rules. They are a fixed list, so a guest can't
 make up new ones. The audit log records the counts by these names
-(S09-10-audit).
+(S09-11-audit).
 
 The allowlist in the table is the one of S16-01-filter ("Allowlist").
 
@@ -68,7 +68,7 @@ For each dropped link, `wb` keeps:
   invalid byte counting as the one U+FFFD that replaces it;
 - a note when it cut either.
 
-It records them in the audit log through `wb-hostd` (S09-10-audit). It
+It records them in the audit log through `wb-hostd` (S09-11-audit). It
 lists them, without repeats, in the session summary.
 
 It keeps at most 100 entries. Past that it counts the rest by mark, and

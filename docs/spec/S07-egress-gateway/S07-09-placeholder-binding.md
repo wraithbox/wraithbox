@@ -1,4 +1,4 @@
-# S07-14 - Placeholder Binding
+# S07-09 - Placeholder Binding
 
 **Purpose:** Where a credential placeholder may go in a request, how
 `wb-proxyd` scans for it, and what it refuses.
@@ -13,7 +13,7 @@ Each placeholder is bound to the hosts, ports, and paths of its
 binding, following OpenShell's provider model.
 
 - The real credential goes only in the header its binding injects
-  (S07-06-requests-and-credentials).
+  (S07-08-requests-and-credentials).
 - The placeholder itself is never sent upstream.
 - For AWS, `wb-proxyd` signs requests (SigV4) rather than injecting a
   key.
@@ -25,8 +25,7 @@ another header, a query string, a body. The request then gets a `403`
 naming the binding, and an audit event with the rule
 `placeholder-outside-binding`.
 
-The exception is a header that S07-06-requests-and-credentials
-("Credential replacement") removes: `Authorization`,
+The exception is a header that S07-08-requests-and-credentials (S07-08-requests-and-credentials, "Credential replacement") removes: `Authorization`,
 `Proxy-Authorization` and `Cookie`, plus `x-api-key` on the model API
 profile's hosts. `wb-proxyd` removes such a header with an audit event
 of its own. It doesn't refuse the request for it.
@@ -62,7 +61,7 @@ On every inspected host, `wb-proxyd` scans, as it decodes them:
 - the request target;
 - each header line, name and value;
 - the body, with its chunked framing removed
-  (S07-06-requests-and-credentials, "Request form", "Transfer
+  (S07-08-requests-and-credentials, "Request form", "Transfer
   coding").
 
 It reads only the bytes the guest sent, never the request after
@@ -109,7 +108,7 @@ them goes upstream unchanged.
 
 This is acceptable, because the placeholder isn't a secret, and
 doesn't open anything. The model credential's placeholder is also
-unique to its VM (S09-04-credentials, "Model credential").
+unique to its VM (S09-05-credentials, "Model credential").
 
 ### Compressed requests to the model API
 

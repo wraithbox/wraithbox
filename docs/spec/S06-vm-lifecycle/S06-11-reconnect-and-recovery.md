@@ -145,7 +145,7 @@ starting, running, paused or ending.
 
 A lost session counts as ended for these:
 
-- the effective policy of S07-egress-gateway. The project's grants
+- the effective policy of S07-01-per-vm-policy. The project's grants
   leave the VM when no other session of the project is starting,
   running, paused or ending there;
 - `wb vm stop` and `wb vm suspend`.

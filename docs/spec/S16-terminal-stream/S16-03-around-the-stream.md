@@ -127,7 +127,7 @@ There it never passes a code point of the escaped set:
   variation selectors and the Hangul fillers.
 
 `wb diff`, logs and audit records show them escaped, where a reviewer
-sees them. S09-10-audit gives the form for audit records. Other output
+sees them. S09-11-audit gives the form for audit records. Other output
 removes them (SEC10-audit, SEC14-no-fake-approvals).
 
 ## Decisions

@@ -1,4 +1,4 @@
-# S07-15 - Anonymous Credentials
+# S07-10 - Anonymous Credentials
 
 **Purpose:** How `wb-proxyd` answers hosts that want a token even for
 public reads, without forwarding the guest's token.
@@ -10,8 +10,7 @@ public reads, without forwarding the guest's token.
 Some hosts answer public reads only to a request with a token.
 `wb-proxyd` doesn't forward the guest's token for those, not even one
 the host issued in the same session. A host-side binding with a fixed
-public value injects one instead (S07-06-requests-and-credentials,
-"Credential replacement").
+public value injects one instead (S07-08-requests-and-credentials, "Credential replacement").
 
 The package registries profile has one: `Authorization: Bearer QQ==`
 on GET and HEAD of `ghcr.io` `/v2/homebrew/core/`. That is the value

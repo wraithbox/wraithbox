@@ -1,4 +1,4 @@
-# S09-05 - CA Keys
+# S09-06 - CA Keys
 
 **Purpose:** How the key of each TLS inspection certificate authority is made,
 stored and restored, and when a CA is valid.
@@ -160,7 +160,7 @@ rule in place of `ca-key-restore`. So does the VM's start or restore.
 
 The VM then cold boots. At that start the record has no CA, or every CA
 in it has expired. So `wb-proxyd` issues a new CA, and the install
-rewrites the guest's trust files whole (S09-07-guest-trust).
+rewrites the guest's trust files whole (S09-08-guest-trust).
 
 Only this command and `wb setup --ca-key-store` drop a CA that hasn't
 expired. Each drop is a Device Config State Change (5019) event, with

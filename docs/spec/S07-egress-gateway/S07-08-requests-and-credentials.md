@@ -1,12 +1,12 @@
-# S07-06 - Requests and Credentials
+# S07-08 - Requests and Credentials
 
 **Purpose:** The form of each request `wb-proxyd` sends upstream, and
 how it removes the guest's credentials and injects bound ones.
 
 ## Design
 
-S07-14-placeholder-binding says where a
-placeholder may go. S07-15-anonymous-credentials covers hosts that
+S07-09-placeholder-binding says where a
+placeholder may go. S07-10-anonymous-credentials covers hosts that
 want a token for public reads.
 
 ### Request form
@@ -76,7 +76,7 @@ Such a request doesn't reach the upstream.
 
 A chunked body whose framing fails to decode ends the request with the
 same rule. `wb-proxyd` aborts the upstream request as for a
-placeholder in the body (S07-14-placeholder-binding, "Bounds").
+placeholder in the body (S07-09-placeholder-binding, "Bounds").
 
 #### Order of the steps
 
@@ -184,7 +184,7 @@ Claude Code send it:
 
 A long-lived token from `claude setup-token` is injected only as
 `Authorization: Bearer <token>`. An API key is injected only as
-`x-api-key` (S09-04-credentials, "Model credential").
+`x-api-key` (S09-05-credentials, "Model credential").
 
 The git hosting profile names, per kind of host
 (X22-no-guest-credentials):

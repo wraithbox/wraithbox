@@ -166,7 +166,7 @@ A restart doesn't reset what bounds the guest.
   `wb-netd` or `wb-proxyd` keep for the active period.
 - `wb-hostd` keeps the authoritative count of pending approval requests
   and the rate of new ones. A new `wb-netd` gets both at start, with
-  the policy (S09-09-approval-flow).
+  the policy (S09-10-approval-flow).
 
 ### The kept name mapping
 
@@ -198,7 +198,7 @@ proxying needs them (S15-least-privilege).
 `wb-hostd` hands it each running VM's placeholder set on its control
 channel, before it creates that VM's new hand-off socket. So the
 placeholder scan has every placeholder before the first stream arrives
-(S09-04-credentials, "Model credential"). At each restore of a
+(S09-05-credentials, "Model credential"). At each restore of a
 suspended VM, `wb-hostd` hands back the VM's set the same way, before
 it creates the VM's hand-off socket.
 

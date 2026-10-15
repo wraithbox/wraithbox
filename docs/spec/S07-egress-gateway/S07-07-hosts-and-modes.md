@@ -1,4 +1,4 @@
-# S07-05 - Hosts and Modes
+# S07-07 - Hosts and Modes
 
 **Purpose:** How `wb-proxyd` binds a stream to its name, which upstream
 addresses it refuses, and the inspect, pass and audit modes.
@@ -8,7 +8,7 @@ addresses it refuses, and the inspect, pass and audit modes.
 ### Name binding
 
 The hostname of a stream is the name `wb-proxyd`'s copy holds for the
-synthetic address (S07-13-name-mapping).
+synthetic address (S07-06-name-mapping).
 
 - For TLS, the ClientHello SNI must equal that hostname, or the stream
   is reset.
@@ -77,7 +77,7 @@ name (T01-allowed-channels). Wraith Box has no LAN opt-in in V1.
 - Plain HTTP is allowed only when policy names `host:80`. It is always
   inspected.
 - A stream that isn't TLS or HTTP is reset, unless policy names its
-  host and port for raw TCP (S07-10-non-http-streams).
+  host and port for raw TCP (S07-15-non-http-streams).
 
 A TLS host has one of three modes.
 
@@ -111,7 +111,7 @@ The rules for pass:
   global policy, or in a project's network policy on the host
   (S09-policy-credentials-audit). Repository-supplied configuration
   can never switch a host to pass (SEC09-host-policy). An approval or
-  learn mode never does either (S07-11-approvals-and-learning).
+  learn mode never does either (S07-17-approvals-and-learning).
 - *A reason for each.* Each pass entry holds a reason the user writes.
   An entry without one is refused at load. `wb policy explain` lists
   every pass host with its file and its reason.
@@ -144,16 +144,16 @@ credentials the guest holds. Wraith Box neither gave nor removes them
 
 On a macOS guest, clients that read only the system trust store, such
 as URLSession, also reject inspection. That is a known gap of
-FR08-no-proxy-config, which S09-07-guest-trust lists.
+FR08-no-proxy-config, which S09-08-guest-trust lists.
 
 #### audit
 
 `audit` inspects, with the HTTP policy of the host and port logging a
-violation and letting the request through (S07-07-http-policy).
+violation and letting the request through (S07-11-http-policy).
 
 - The mode is per host and port, resolved over the whole union.
 - `enforce` wins when any source has an `enforce` endpoint on that
-  host and port (S09-01-policy-files, "Mode per host and port").
+  host and port (S09-02-precedence, "Mode per host and port").
 - The boundary check sees an `audit` host and port as every method and
   path on it (S09-01-policy-files, "Audit as the whole host").
 
@@ -161,9 +161,7 @@ The rules for audit:
 
 - *Only the user sets it.* Only the global policy and a project's
   network policy can put a host and port in `audit`. Repository
-  configuration and approvals can't (S09-02-project-settings,
-  "Repository-supplied configuration", and S09-08-approvals,
-  "Approved rule").
+  configuration and approvals can't (S09-03-project-settings, "Repository-supplied configuration", and S09-09-approvals, "Approved rule").
 - *Never on a guarded host.* A guarded host can't be in `audit`
   ("Guarded hosts").
 
@@ -175,8 +173,7 @@ profile covers it. A profile covers a host when:
 - any host of a built-in profile (git hosting, model API, package
   registries) matches it;
 - or the remotes of a project's host repository name it, which gives
-  it the git hosting profile (S07-06-requests-and-credentials, "Named
-  places").
+  it the git hosting profile (S07-08-requests-and-credentials, "Named places").
 
 Neither pass nor `audit` is allowed on a guarded host:
 

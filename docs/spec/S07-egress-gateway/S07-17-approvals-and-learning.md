@@ -1,4 +1,4 @@
-# S07-11 - Approvals and Learning
+# S07-17 - Approvals and Learning
 
 **Purpose:** How an unknown destination reaches the user as an
 approval request, what an approval grants, and how learn mode collects
@@ -9,7 +9,7 @@ names.
 ### Approval requests
 
 An unknown destination produces an approval event in `wb-hostd`, except
-for these names (S07-12-dns-refusals):
+for these names (S07-04-dns-refusals):
 
 - a name on the guest OS's background list;
 - a host refused with `profile-part-off`.
@@ -27,7 +27,7 @@ credential, or a new write method.
 
 Policy changes take effect without restarting anything. An approval
 that adds an inspected host doesn't need a new CA, because the CA has
-no name constraints (S09-05-ca-keys).
+no name constraints (S09-06-ca-keys).
 
 ### Who an approval reaches
 
@@ -49,7 +49,7 @@ The answers:
   guest's label. The rule then applies to the whole VM whenever that
   project has a session in it.
 - *Deny* holds for the VM until every session that was running when
-  the user denied has ended (S07-12-dns-refusals, "Deny duration").
+  the user denied has ended (S07-04-dns-refusals, "Deny duration").
 
 Either way, any process in the VM can use an allowed rule
 (T11-shared-vm-grants), and the request says so. The 5019 event of the
@@ -58,7 +58,7 @@ picked.
 
 An answer given after the VM's sessions changed is refused. The
 request is shown again as a new request, with a new id
-(S07-12-dns-refusals, "Session set at the answer").
+(S07-04-dns-refusals, "Session set at the answer").
 
 ### What an approval grants
 
@@ -70,7 +70,7 @@ request (fail closed, SEC06-repo-writes). The risk check flags that
 request as a new write method. A write method is any other method,
 and a GET with `Upgrade: websocket`, which opens a channel both ways.
 
-An approval is bound by the boundary (S09-08-approvals). A rule
+An approval is bound by the boundary (S09-09-approvals). A rule
 outside it isn't shown as a request.
 
 ### Learn mode
@@ -84,7 +84,7 @@ as written during a learn-mode session.
 
 A name that isn't allowlisted gets `NXDOMAIN`. The answer bytes, the
 hold and the wildcard budget are the same as outside learn mode
-(S07-03-dns, S07-12-dns-refusals).
+(S07-03-dns, S07-04-dns-refusals).
 
 The rules of allowed hosts all hold:
 
@@ -142,13 +142,13 @@ are (S07-02-packet-path, "Events and rate limits").
 
 At session end, `wb` prints the list in the session summary: at most
 100 names, then "and N more". It does so as for the link list
-(S16-terminal-stream, "Links").
+(S16-02-drops-and-links, "Links").
 
 - The summary and `wb learn report` also say how many names were
   dropped past the cap.
-- Both follow S16-terminal-stream, "Guest text elsewhere".
+- Both follow S16-03-around-the-stream, "Guest text elsewhere".
 - The report shows each name with its risk-check findings and its
-  boundary result (S09-08-approvals).
+  boundary result (S09-09-approvals).
 
 The user allows the names they accept with `wb allow`, or approves a
 selection from the report in one batch. A name with any finding, or
@@ -191,8 +191,7 @@ same list.
 
 #### Leftover processes
 
-When a project's last session ends, `wb-guestd` (S13-guest-confinement,
-"Layer 1"):
+When a project's last session ends, `wb-guestd` (S13-01-process-hardening):
 
 1. locks that project user;
 2. kills its processes until none remain;

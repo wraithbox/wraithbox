@@ -23,7 +23,7 @@ item.
    process doesn't fetch it, as with 1Password's SSH agent signing.
    For the CA key, `wb-proxyd` fetches only the key's wrapped form. The
    Secure Enclave or the TPM signs with it, so the key itself never
-   enters the process (S09-05-ca-keys, "Key").
+   enters the process (S09-06-ca-keys, "Key").
 3. **Just in time, sized to the need.** A process fetches when the
    work starts. It keeps the value in memory only, and drops it when
    the work ends. Go and Swift can't reliably wipe memory, so the bound
@@ -54,8 +54,7 @@ item.
 
    A read that fails because the store is locked is this case, in
    every build and on every backend. That is -25308 on the Keychain,
-   or a locked 1Password. It holds for a CA item too (S09-05-ca-keys,
-   "Valid CA").
+   or a locked 1Password. It holds for a CA item too (S09-06-ca-keys, "Valid CA").
 8. **Generated items are named and removed.** A secret Wraith Box
    generates is random, from the OS's cryptographic random source. It
    is named for what it belongs to, and removed with it. At start, and
@@ -91,7 +90,7 @@ characters of `a` to `z`, `0` to `9` and `-`.
 | `binding/<name>` | `wb-credset`, list (`wb cred list`): names only, no value is fetched | the names, on its standard output to `wb` | one run |
 | `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend |
 | `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the token endpoint the binding names, over TLS | per exchange. Access tokens stay in memory |
-| `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build, and Linux with a TPM) | `wb-proxyd`, write when it issues the CA, fetch, delete | to the Secure Enclave as the key's token object ID, or to the TPM as its key blob. The value is useless on another host | the CA's life. `wb-proxyd` deletes it when the CA expires or is dropped (S09-06-ca-certificates, "Lifetimes") |
+| `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build, and Linux with a TPM) | `wb-proxyd`, write when it issues the CA, fetch, delete | to the Secure Enclave as the key's token object ID, or to the TPM as its key blob. The value is useless on another host | the CA's life. `wb-proxyd` deletes it when the CA expires or is dropped (S09-07-ca-certificates, "Lifetimes") |
 | CA signing key (macOS, Windows, and Linux with a TPM) | `wb-proxyd`, use: through the wrapped key, or on Windows by its name in the platform crypto provider. On Windows also delete, of the named key, from the removal list below | none: the key stays in the Secure Enclave or the TPM | the CA's life |
 | `ca/<vm>/<ca>`, the software key (Linux hosts without a TPM only) | `wb-proxyd`, write when it issues the CA, fetch, delete | none: it signs in `wb-proxyd` | the CA's life, deleted as above |
 | `wbadmin/build/<build>` | `wb-guestadmin-build`, write, then fetch. `wb-guestadmin-rotate`, fetch at the build VM's first contact | a pipe to the build's `wb-vmd` (until the start call returns), `ssh`'s standard input (one session), the guest connection of S15-04-guest-admin | removed when the build ends |

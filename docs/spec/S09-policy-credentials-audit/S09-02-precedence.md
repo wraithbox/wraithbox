@@ -1,4 +1,4 @@
-# S09-11 - Precedence
+# S09-02 - Precedence
 
 **Purpose:** How the policy sources merge, how the mode of each host and
 port resolves, and how the merge works for a VM with more than one
@@ -41,7 +41,7 @@ The built-in GraphQL operation filter applies whatever the source of
 the allow.
 
 The global and project policy can make one change to a built-in
-profile: turn a part of it off (S07-07-http-policy, "Profile parts").
+profile: turn a part of it off (S07-11-http-policy, "Profile parts").
 This lock holds whatever parts are on. So does the removal of guest
 credentials in the places a profile names.
 
