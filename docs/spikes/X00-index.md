@@ -316,8 +316,9 @@ assumption that v1 work would otherwise build on. They block v1.
   and writes items in the data protection keychain behind one access
   group, and keeps reading them after a rebuild signed by the same
   team, with no dialog? Found while deciding B23-keychain-unsigned
-  (I23). Until it answers yes, development builds fail closed after an
-  update (S15-least-privilege, "After an update"). Tracked in I248.
+  (I23). Tracked in I248.
   Answered yes, with conditions, in the result page X29-dev-signing:
   each helper that holds an access group is a bundle of its own, and
-  the developer builds once in the Xcode app.
+  the developer builds once in the Xcode app. Decided on I248: an
+  ad-hoc signed build has no Keychain backend, and the ad-hoc keychain
+  file left the specs (I252).

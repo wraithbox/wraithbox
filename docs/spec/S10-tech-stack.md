@@ -76,15 +76,38 @@ binary of that name comes from the Swift package.
   notification helper, the guest tools disk image, and `wb`, which the installer links onto `PATH`. A
   bundle is needed for notifications, Keychain access groups, and
   launch-agent registration. Hardened runtime; only `wb-vmd` has the
-  virtualization entitlement. Release builds get Developer ID signing
-  and notarization later. Development builds are signed with the
-  developer's own Apple Development certificate and a provisioning
-  profile that grants the Keychain access groups, once X29-dev-signing
-  answers yes (decided on I23, B23-keychain-unsigned). Until then
-  builds are ad-hoc signed, and the Keychain access model uses the
-  weaker fallback in S09-policy-credentials-audit, which fails closed
-  after each update. Distribution via a Homebrew cask once signed
-  builds exist.
+  virtualization entitlement.
+  - *Helper bundles.* Each program that holds a Keychain access group
+    (S15-least-privilege, "The store holds credentials" and "Declared
+    access") is the main executable of its own bundle,
+    `Contents/Helpers/<name>.app`, with the executable at
+    `Contents/MacOS/<name>` inside it and the app's provisioning
+    profile copied to its `Contents/embedded.provisionprofile`. These
+    are `wb`, `wb-proxyd` and `wb-guestadmin`, which `wb-launcher`'s
+    three `wb-guestadmin-*` entries start. macOS looks for the profile
+    that allows the restricted `keychain-access-groups` entitlement
+    only in the bundle whose main executable starts, so AMFI kills a
+    plain executable in `Contents/MacOS` that claims a group at launch
+    (-413, "No matching profile found"). Each helper bundle has the
+    app's bundle identifier and `LSUIElement`, and its entitlements
+    hold the groups of its items and no others. The installer's `wb`
+    link on `PATH` points to `Contents/Helpers/wb.app/Contents/MacOS/wb`.
+    The other programs are plain executables in `Contents/MacOS`
+    (X29-dev-signing).
+  - *Signing.* Release builds get Developer ID signing and
+    notarization later. Development builds (`mise run build`) are
+    signed with the developer's own Apple Development certificate. The
+    build takes the developer's team ID as a setting, the environment
+    variable `WB_TEAM_ID`. It gets the profile from Xcode: it builds
+    the app's Xcode project with `xcodebuild`, automatic signing and
+    that team, as X29-dev-signing did, and copies the profile Xcode
+    embeds into each helper bundle. Then it signs from the inside out
+    (decided on I248, B248-dev-signing). A build with `WB_TEAM_ID` set
+    fails when Xcode gives it no profile, and names the one-time setup
+    in S12-platforms, "Development builds on macOS". Without the
+    setting the build is ad-hoc signed, doesn't give any program an
+    access group, and has no Keychain backend (S15-least-privilege).
+  - *Distribution* via a Homebrew cask once signed builds exist.
 - **Windows (later):** a per-user installer (no administrator rights)
   with the same set of binaries as `.exe`; code signing when available.
 - **Linux (later):** a tarball and Ubuntu package with the same binaries

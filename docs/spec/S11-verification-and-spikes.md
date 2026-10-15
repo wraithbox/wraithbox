@@ -114,35 +114,29 @@ be tested before building on them.
   The secret store (S15-least-privilege) has a test that makes the call
   that turns Keychain dialogs off fail, and sees the process refuse
   every store access with `store-dialogs-on`. A test with a fake store
-  returns -25293 and sees session starts refused with
-  `store-needs-setup`, returns -25300 for `unlock` with a recorded
-  file and sees `store-needs-setup`, returns -25300 for a binding and
-  sees the binding's own refusal, returns -25308 and sees them wait for
-  the unlock and name the keychain, and returns another status for
-  `unlock` and sees `store-read-failed`. For a CA item in the record,
-  -25300 and every status other than -25293 and -25308 give
-  `ca-key-restore`. A locked store, -25308 or the 1Password backend's
-  locked state, makes the work wait for the unlock in a team-signed
-  build too, for a CA item as for any other. Each log line names the failed call. It sees `wb setup` set the store up again only
-  for `store-needs-setup` and a recorded build version that differs
-  from the running one, refuse a keychain file with no record, and
-  accept `--reset-store` only after confirmation on a terminal. An
-  interrupted set-up, stopped after each of its steps, ends with one
-  keychain file and one `unlock` item after the next `wb setup`. With a
-  symbolic link whose name has the keychain file form, pointing to a
-  file outside the directory, and a regular file with another name,
-  both in `<data>/keychains/`, `wb setup` deletes neither, nor the
-  link's target, and logs both. An unrecorded regular file with the
-  name form is deleted and logged. The removal list has a test that hands `wb-proxyd` a batch
-  with `binding/x`, `unlock`, a name with a part outside the fixed
+  returns -25300 for a binding and sees the binding's own refusal, and
+  returns -25308 and sees the work wait for the unlock and name the
+  store. For a CA item in the record, -25300 and every status other
+  than -25308 give `ca-key-restore`. A locked store, -25308 or the
+  1Password backend's locked state, makes the work wait for the
+  unlock, for a CA item as for any other. Each log line names the
+  failed call. In an ad-hoc signed build, a test sees `wb setup` refuse
+  the Keychain backend with `keychain-needs-team` and name the setup
+  steps of S12-platforms, "Development builds on macOS", and sees
+  `wb-proxyd` refuse a binding fetch and a CA issue with the same rule
+  and log it, before any Keychain call. The 1Password backend works in
+  that build. A test hands `wb setup` a profile that expires in 29
+  days and sees the date and the fix printed, and one that expires in
+  31 days and sees `wb setup` print nothing about the profile. The removal list has a test that hands `wb-proxyd` a batch
+  with `binding/x`, `wbadmin/build/x`, a name with a part outside the fixed
   form, and an entry whose CA is still in the record, each next to a
   valid entry, and sees each batch refused with `ca-removal-refused`
   and nothing deleted. It then sees `wb-hostd` drop the refused entry,
   log it, and the next batch delete the valid one. An entry whose item
   is gone is reported as deleted. On Linux a test records "software" on a host with a TPM, and
   "TPM" on one without, and sees each CA issue and restore refused with
-  `ca-key-store-mismatch`. `wb vm reset-ca` and the drop at a store
-  set-up each write a 5019 event with the command and each dropped
+  `ca-key-store-mismatch`. `wb vm reset-ca` and `wb setup
+  --ca-key-store` each write a 5019 event with the command and each dropped
   CA's fingerprint.
   The stream hand-off in `wb-proxyd` (S07-egress-gateway, "Stream
   hand-off") has a test with two VMs at different generations. On VM
@@ -938,8 +932,9 @@ X21-dep-gate-registries (the dependency gate on real registries),
 X22-no-guest-credentials (clients when guest credentials are removed),
 X23-sandboxed-daemons (Go daemons confining themselves on macOS),
 X24-openshell-artifacts (the OpenShell parts the specs reuse),
-X26-pre-receive-check (push checks before the quarantine lands) and
-X28-git-alloc-limit (git's allocation cap against delta bombs).
+X26-pre-receive-check (push checks before the quarantine lands),
+X28-git-alloc-limit (git's allocation cap against delta bombs) and
+X29-dev-signing (Keychain access groups for development builds).
 What V1 leaves out is in V1-initial.
 
 **Status:** Draft

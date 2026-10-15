@@ -117,6 +117,48 @@ operation, the Windows design needs a narrowly scoped system service.
 That would change SEC12-least-privilege for Windows and requires a spec change, not a
 workaround.
 
+### Development builds on macOS
+
+A development build has the Keychain backend only when the developer's
+own team signs it (S15-least-privilege, "The store holds
+credentials"; S10-tech-stack, "Packaging and signing"). The developer
+does this once per Mac, without a paid membership (X29-dev-signing):
+
+1. Sign in to Xcode with an Apple ID (Xcode, Settings, Accounts). Xcode
+   lists its team as a personal team.
+2. Build a small app project once in the Xcode app, with that team and
+   "My Mac" as the destination. That registers the Mac with the team,
+   and Xcode makes the Apple Development certificate and downloads the
+   profile. `xcodebuild` alone can't register the Mac. The
+   organizational unit (OU) in the certificate's subject is the team
+   ID, the value for `WB_TEAM_ID`.
+
+After that, `mise run build` signs from the command line. The profile
+lasts 365 days (X29-dev-signing, measured on a team with a lapsed
+membership), and a second Mac needs both steps too.
+
+`wb` holds an access group itself, so it starts only from a bundle
+whose profile is valid. The cases:
+
+- **Ad-hoc signed build.** `wb setup` refuses the Keychain backend with
+  the rule `keychain-needs-team`, names both steps and `WB_TEAM_ID`,
+  and says that the 1Password backend works without them.
+- **Missing profile.** A build with `WB_TEAM_ID` set fails before it
+  makes the bundle and names both steps, so macOS never gets a bundle
+  it would refuse to start (S10-tech-stack).
+- **Profile within 30 days of its expiry date.** `wb setup` and
+  `wb status` read the expiry date from the profile in `wb`'s own
+  bundle and print it, with the fix: build the small project in the
+  Xcode app again for a new profile, then build Wraith Box again.
+- **Expired profile.** AMFI refuses to start a program whose profile
+  has expired, as it refuses one with no profile (assumed in
+  X29-dev-signing). That includes `wb`. The shell reports the killed
+  process, and `wb` reports nothing. `wb-hostd` doesn't hold a group and keeps
+  running. When `wb-launcher` reports that a program with a group was
+  killed at start, `wb-hostd` reads that program's profile, and for an
+  expired one logs the rule `signing-profile-expired` with the date.
+  The fix is the one for a profile near its expiry date.
+
 ## Guest operating systems
 
 What differs per guest OS is confined to `wb-guestd` and to image

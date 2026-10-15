@@ -17,7 +17,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 
 | Process | Lang | Runs as | Holds | Faces the guest via | Purpose |
 |---|---|---|---|---|---|
-| `wb` | Go | user, per invocation | nothing; writes binding secrets to the secret store (`wb cred set`, S15-least-privilege), and in an ad-hoc signed build writes and deletes the `unlock` item (`wb setup`, S15-least-privilege, "After an update") | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
+| `wb` | Go | user, per invocation | nothing; writes binding secrets to the secret store (`wb cred set`, S15-least-privilege) | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
 | `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository (for a push, also reading the `export.git` it borrows from), then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
@@ -377,7 +377,14 @@ nothing themselves (S12-platforms).
       itself, never over the request channel.
     - Its program table holds absolute paths in the installed bundle,
       never under `<config>`, `<data>` or `<logs>`, and it checks that
-      when it starts.
+      when it starts. A program that holds a Keychain access group is
+      the main executable of its own helper bundle (S10-tech-stack,
+      "Packaging and signing"). So the `wb-proxyd` entry names
+      `Contents/Helpers/wb-proxyd.app/Contents/MacOS/wb-proxyd`, and
+      the `wb-guestadmin-build`, `wb-guestadmin-rotate` and
+      `wb-guestadmin-cleanup` entries name
+      `Contents/Helpers/wb-guestadmin.app/Contents/MacOS/wb-guestadmin`.
+      The entries of programs without a group name `Contents/MacOS`.
     - Each program has an instance cap (SEC13-bounded-resources).
   - git, which the git gateway runs on data the guest sends, starts
     through `wb-launcher` as `wb-git`, a shim that applies a profile for
@@ -954,8 +961,7 @@ layout is the same everywhere:
   vms/<guest-os>-{work,isolated}.noindex/  VM bundles: disks, machine identity, saved state
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
-  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit), each VM's CA records, the removal list of CA keys, and on Linux whether the CA key is in a TPM (S09-policy-credentials-audit, S15-least-privilege), and for an ad-hoc signed build the keychain file's name and the build version that made it, and the disks whose `wbadmin` password was lost (S15-least-privilege, "After an update")
-  keychains/                          an ad-hoc signed build's keychain file, `store-<id>.keychain-db`, which only `wb setup` creates and deletes (S15-least-privilege, "After an update")
+  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit), each VM's CA records, the removal list of CA keys, and on Linux whether the CA key is in a TPM (S09-policy-credentials-audit, S15-least-privilege)
   run/                                user-only directory for local IPC endpoints
 <logs>/                               audit JSONL and daemon logs
 ```
