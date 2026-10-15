@@ -12,6 +12,7 @@ proxyd
 guestd
 vmd
 lsimons
+Simons
 myrepo
 wbadmin
 guestadmin
@@ -19,6 +20,7 @@ wbprov
 wbtest
 
 # Virtualization, networking and OS facilities
+AMFI
 ipsw
 pidinfo
 sysctls

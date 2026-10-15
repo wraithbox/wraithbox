@@ -1541,12 +1541,19 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X29-dev-signing: Keychain access group for development builds signed by a personal team",
-		"summary": "Can a developer's free personal team (an Apple ID signed in to Xcode, no paid membership) sign the helper binaries inside Wraith Box.app (wb-proxyd, wb-hostd, wb-vmd) with a keychain-access-groups entitlement and a…"
+		"summary": "Can a developer's free personal team (an Apple ID signed in to Xcode, no paid membership) sign the helper binaries inside Wraith Box.app (wb-proxyd, wb-hostd, wb-vmd) with a keychain-access-groups entitlement and a…",
+		"brief": "B248-dev-signing"
 	},
 	"249": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit, S15-least-privilege: developer-signed builds and a wrapped Secure Enclave CA key, from B23-keychain-unsigned",
 		"summary": "The maintainer decided the two points of B23-keychain-unsigned on 2026-10-15, in the #23 comment that starts Decision (2026-10-15):."
+	},
+	"250": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): apply the B23-keychain-unsigned decisions",
+		"summary": "Applies the maintainer's decisions on #23 (Decision (2026-10-15):) to the specs."
 	}
 }
