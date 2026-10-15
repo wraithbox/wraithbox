@@ -22,7 +22,7 @@ export const LIMITS = { page: 300, section: 80, depth: 2, paragraph: 120, senten
  * The specs held to the limits by the build, by ID. A spec's pages
  * (S07-04) are held with it.
  */
-export const STRICT = /** @type {Set<string>} */ (new Set([]));
+export const STRICT = new Set(['S08']);
 
 /** Words in a passage of Markdown, without link targets and markup. */
 function words(/** @type {string} */ text) {

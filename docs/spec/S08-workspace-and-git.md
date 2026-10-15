@@ -10,6 +10,8 @@ back out, without sharing the host filesystem.
 Briefs: B21-git-round-trip, B41-git-data-scope, B74-pre-receive-check,
 B102-git-alloc-limit
 
+![The git round trip. The guest reaches only wb-hostd, which serves export.git read-only and passes pushes through the ref filter and the pack scanner into landing.git. wb, not wb-hostd, moves refs between your repository and the two repositories. A fetch by ID from your repository has nothing to reach, and a push to main stops at the ref filter.](S08-workspace-and-git.svg)
+
 ## Design
 
 Code goes into the guest, and the agent's work comes back out, only
@@ -28,7 +30,7 @@ repositories of its own on the host, next to the user's:
 |---|---|
 | S08-01-into-the-guest | The clone, the transport, remote URLs, session start and the carry-in scan |
 | S08-02-export-repository | Which refs the guest can fetch, and how `wb` keeps `export.git` safe to run git in |
-| S08-03-pushes | The landing repository, the settings of `receive-pack`, the ref filter and session end |
+| S08-03-pushes | The landing repository, the settings of `receive-pack`, the ref filter, and session end |
 | S08-04-push-checks | The pack scanner, git's allocation limit and the pre-receive check |
 | S08-05-push-limits | Cleanup after a failed push, the landing size cap, and time and memory bounds |
 | S08-06-landing-on-the-host | `wb land` and `wb diff`, and the checks before each fetch |
@@ -39,9 +41,10 @@ repositories of its own on the host, next to the user's:
 
 ### Other transfers
 
-Files copied out of the guest by any means other than git (for example a
-future `wb cp`) carry the platform's downloaded-file marker (the
-quarantine attribute on macOS, Mark of the Web on Windows; S12-platforms).
+Files copied out of the guest by any means other than git, such as a
+future `wb cp`, carry the platform's downloaded-file marker
+(S12-platforms). That is the quarantine attribute on macOS, and Mark of
+the Web on Windows.
 
 ## Out of scope
 
