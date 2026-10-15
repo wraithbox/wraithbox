@@ -28,9 +28,9 @@ Brief: B145-least-privilege
 - **Hardening and entitlements.** Every binary in the bundle is signed
   with the hardened runtime (S10-tech-stack). On macOS, `wb-vmd` alone
   has `com.apple.security.virtualization`, and no process has
-  `com.apple.vm.networking` (X25-vmd-sandbox). A process that reads the
-  store gets the Keychain access group of its role once a signing
-  identity exists. A new entitlement needs a change here first. Other
+  `com.apple.vm.networking` (X25-vmd-sandbox). In a build signed by a
+  team, a process that reads the store gets the Keychain access group
+  of its role ("Keychain", below). A new entitlement needs a change here first. Other
   hosts use the equivalents in S12-platforms.
 - **The release check.** `wb-release-check` (S04-architecture,
   S14-claude-in-guest) doesn't declare a store item or an entitlement.
@@ -49,25 +49,38 @@ Every credential is nominally held by the configured secret store, in a
 container that holds only Wraith Box's items. No Wraith Box process is
 the holder for another, and none gets a secret through another. Keys
 that must never leave hardware (the CA signing key) are in the
-platform's hardware key store whatever the backend (S12-platforms).
+platform's hardware key store whatever the backend, on every host
+that has one (S12-platforms). On
+macOS the store holds only the key's wrapped form, which no other Mac
+can use (S09-policy-credentials-audit, "Key").
 
-- **Keychain.** With signed builds, the data protection keychain, with
-  one access group per role, so each item is reachable only by the
-  binaries of its role and there is nothing to unlock. Ad-hoc signed
-  builds are for development only. They use a dedicated keychain file,
-  whose password is the one Wraith Box item outside it, `wraithbox/unlock`
-  in the login keychain. Each process with store access fetches it to
-  unlock the file, and it is in "Declared access".
+- **Keychain.** The data protection keychain, with one access group per
+  role, so each item is reachable only by the binaries of its role and
+  there is nothing to unlock. Release builds are signed with Wraith
+  Box's Developer ID. Development builds are signed with the developer's
+  own Apple Development certificate and a provisioning profile that
+  grants the access groups, and use the same keychain (decided on I23,
+  B23-keychain-unsigned). That waits for X29-dev-signing, which asks
+  whether a free personal team can grant the access groups to the
+  helpers in `Wraith Box.app`.
+- **Keychain, ad-hoc signed.** Until X29-dev-signing answers yes,
+  development builds are ad-hoc signed. They use a dedicated keychain
+  file, whose password is the one Wraith Box item outside it,
+  `wraithbox/unlock` in the login keychain. Each process with store
+  access fetches it to unlock the file, and it is in "Declared access".
+  Each item's access-control list pins every declared binary by its
+  cdhash. An update changes the cdhash and locks every item ("After an
+  update", below).
 - **1Password.** The desktop app integration, with one vault per role,
   and no service account token to store. It runs only after the user
   turns it on by name.
 
 A backend must give these guarantees:
 
-| Guarantee | Keychain, signed | Keychain, ad-hoc signed | 1Password |
+| Guarantee | Keychain, signed by a team | Keychain, ad-hoc signed | 1Password |
 |---|---|---|---|
 | G1. A container of Wraith Box items only | yes | yes | yes, a vault |
-| G2. Each item reachable only by its declared processes | yes, by code signature | enforced by our code only. A compromised declared reader reaches every item. After each update every item asks for the keychain file's password, which the user doesn't know (X09-keychain-unsigned) | enforced by our code only. A compromised declared reader reaches every item in the vaults the session has open. A vault per role narrows it |
+| G2. Each item reachable only by its declared processes | yes, by code signature | enforced by our code only. A compromised declared reader reaches every item. After each update every read fails, with no dialog, until the store is set up again ("After an update") | enforced by our code only. A compromised declared reader reaches every item in the vaults the session has open. A vault per role narrows it |
 | G3. Locked or unreachable fails, with no fallback | yes | yes | yes |
 | G4. Values never written outside the store | yes | yes | yes |
 
@@ -75,6 +88,45 @@ A backend without G1, G3 or G4 is refused. For a backend or build where
 our code alone enforces G2, `wb setup`, `wb cred list` and the audit
 record of each session start say so, in the same words for 1Password
 and for an ad-hoc signed build. A fallback is never silent.
+
+### After an update
+
+This applies to ad-hoc signed builds, until X29-dev-signing answers
+yes (decided on I23, B23-keychain-unsigned). A rebuilt binary has a new
+cdhash, which no access-control list names, and code can't add it
+without a dialog that asks for the keychain file's password
+(X09-keychain-unsigned). With dialogs off (access rule 4), every read of
+`unlock` and of every item in the file fails at once. The store fails
+closed:
+
+- **Refused.** The first refused read is logged with the item and the
+  rule `store-needs-setup`. Session starts, warm starts, builds and
+  rotation are refused with that rule, and none of them falls back to
+  another place (rule 7).
+- **Told.** `wb` says that the update locked the store, that it must be
+  set up again with `wb setup`, and which bindings to enter again with
+  `wb cred set`: each binding that a policy names. `wb-hostd` records in
+  `state.db` the build version that made the keychain file
+  (S10-tech-stack, "One build version"). `wb setup` replaces the file
+  only when the running build's version differs. With the same build, a
+  refused read stays an error with its rule.
+- **Set up again.** `wb setup` makes a new keychain file and a new
+  `unlock` item whose lists name the new binaries, then deletes the old
+  file and the old `unlock` item. If the Keychain refuses to delete
+  that item with dialogs off, `wb setup` stops, names the item, and the
+  user deletes it in Keychain Access.
+
+Every value in the old file is lost. The user enters the bindings
+again. The generated items can't be entered again, and `wb setup` says
+what each loss means:
+
+| Lost item | Effect | What `wb` does |
+|---|---|---|
+| `binding/<name>` | a session start that needs it is refused, and the refusal names the binding | lists each binding to enter again |
+| `ca/<vm>/<ca>` | `wb-proxyd` can't sign with that CA, and refuses the VM's inspected streams with `store-needs-setup` | `wb-hostd` drops the CAs whose items were in the old file from its record, so the VM's next start finds that it has no valid CA, and `wb-proxyd` issues a new one that `wb-guestd` installs (S09-policy-credentials-audit, "Lifetimes"). `wb` lists each running VM to stop and start |
+| `wbadmin/build/<build>` | the build fails, as when its SSH session doesn't complete | says to run `wb image build` again |
+| `wbadmin/image/<image>` | no new VM passes first contact on that image | lists each image to build again with `wb image build` |
+| `wbadmin/vm/<vm>/<disk>` | `wbadmin`'s secure token keeps working in the guest, but its password is gone, so the later diagnostics path (I158) can't use that disk. `wb-hostd` marks the disk "`wbadmin` password lost" | nothing until the next update replaces the system disk, whose first contact writes a new item |
 
 ### Access rules
 
@@ -93,10 +145,13 @@ and for an ad-hoc signed build. A fallback is never silent.
 4. **Few prompts.** A session start fetches every item it needs in one
    batch, so a 1Password unlock asks at most once. `wb-proxyd` doesn't
    fetch per request. A store prompt is never an approval, and is never shown in
-   the agent's terminal (SEC14-no-fake-approvals, I51). With ad-hoc
-   signed builds the Keychain asks once per item after each update, for
-   the keychain file's password (X09-keychain-unsigned). Signed builds
-   remove that.
+   the agent's terminal (SEC14-no-fake-approvals, I51). The Keychain
+   doesn't show a dialog in any build: every process with store access calls
+   `SecKeychainSetUserInteractionAllowed(false)` before its first store
+   call, so a read that would ask fails at once instead
+   (X09-keychain-unsigned). The call is deprecated and applies to the
+   whole process. A process that can't make it doesn't touch the store,
+   and logs the rule `store-dialogs-on`.
 5. **Consumers that can't read the store.** A program that can't read
    the store itself, such as `wb-vmd` or the system `ssh`, gets the value
    from a declared reader on a pipe or on standard input. Never in
@@ -130,8 +185,9 @@ Item names start with `wraithbox/`. Each `<…>` part is 1 to 64 characters of `
 | `binding/<name>` | `wb`, write (`wb cred set`) | the value from a prompt or standard input | one command |
 | `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend |
 | `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the token endpoint the binding names, over TLS | per exchange. Access tokens stay in memory |
-| CA signing key | `wb-proxyd`, use | none: the key stays in the Secure Enclave | the CA's life |
-| `ca/<vm>/<ca>`, the software fallback key | `wb-proxyd`, fetch | none: it signs in `wb-proxyd` | the CA's life |
+| `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build) | `wb-proxyd`, write when it issues the CA, fetch | to the Secure Enclave, as the key's token object ID. The value is useless on another Mac | the CA's life, removed when `wb-proxyd` destroys the key |
+| CA signing key (macOS) | `wb-proxyd`, use, through the wrapped key | none: the key stays in the Secure Enclave | the CA's life |
+| `ca/<vm>/<ca>`, the software key (Linux hosts without a TPM only) | `wb-proxyd`, write when it issues the CA, fetch | none: it signs in `wb-proxyd` | the CA's life |
 | `unlock`, ad-hoc signed builds only | every process with store access, fetch | none: it unlocks the dedicated keychain file | the process's life |
 | `wbadmin/build/<build>` | `wb-guestadmin-build`, write, then fetch. `wb-guestadmin-rotate`, fetch at the build VM's first contact | a pipe to the build's `wb-vmd` (until the start call returns), `ssh`'s standard input (one session), the guest connection below | removed when the build ends |
 | `wbadmin/image/<image>` | `wb-guestadmin-rotate`, write at the build VM's first contact, fetch at each VM's first contact | the guest connection below | removed with the image |

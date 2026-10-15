@@ -76,10 +76,15 @@ binary of that name comes from the Swift package.
   notification helper, the guest tools disk image, and `wb`, which the installer links onto `PATH`. A
   bundle is needed for notifications, Keychain access groups, and
   launch-agent registration. Hardened runtime; only `wb-vmd` has the
-  virtualization entitlement. Developer ID signing and notarization come
-  later; until then builds are ad-hoc signed and the Keychain access
-  model uses the weaker fallback in S09-policy-credentials-audit. Distribution via a
-  Homebrew cask once signed builds exist.
+  virtualization entitlement. Release builds get Developer ID signing
+  and notarization later. Development builds are signed with the
+  developer's own Apple Development certificate and a provisioning
+  profile that grants the Keychain access groups, once X29-dev-signing
+  answers yes (decided on I23, B23-keychain-unsigned). Until then
+  builds are ad-hoc signed, and the Keychain access model uses the
+  weaker fallback in S09-policy-credentials-audit, which fails closed
+  after each update. Distribution via a Homebrew cask once signed
+  builds exist.
 - **Windows (later):** a per-user installer (no administrator rights)
   with the same set of binaries as `.exe`; code signing when available.
 - **Linux (later):** a tarball and Ubuntu package with the same binaries

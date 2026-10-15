@@ -23,7 +23,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X06-guest-xcode | Guest users and Xcode | Answered 2026-10-08: yes, with conditions |
 | X07-git-round-trip | Git round trip | Answered: yes, with conditions |
 | X08-data-disk | Data disk for homes | Answered 2026-10-12: yes, with conditions. Decided 2026-10-12 (I22): 1A, the host formats the data disk APFS, and 2A, in the `wb-diskfmt` shim |
-| X09-keychain-unsigned | Keychain access without a signing identity | Answered 2026-10-13: yes between updates, no across an update, and no permanent Secure Enclave key |
+| X09-keychain-unsigned | Keychain access without a signing identity | Answered 2026-10-13: yes between updates, no across an update, and no permanent Secure Enclave key. Decided 2026-10-15 (I23): 1D, with 1A until X29-dev-signing, and 2A |
 | X10-linux-hypervisor | Linux VMM and packet transport | Open |
 | X11-windows-host | Windows host through HCS | Open |
 | X12-wsl-channel | WSL client channel | Open |
@@ -43,6 +43,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
 | X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |
+| X29-dev-signing | Keychain access group for development builds | Open |
 
 ## Spikes
 
@@ -109,6 +110,9 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   its cdhash, and after an update every item asks for the keychain
   file's password. A permanent Secure Enclave key needs an entitlement,
   and an ephemeral key's token object ID restores it in a later process.
+  Decided on I23: development builds signed with the developer's own
+  Apple Development certificate, after X29-dev-signing, failing closed
+  after an update until then, and the CA key wrapped in a store item.
 
 ### Other platforms (S12-platforms)
 
@@ -299,3 +303,13 @@ assumption that v1 work would otherwise build on. They block v1.
   X28-git-alloc-limit: git refuses each oversized allocation itself,
   and the scanner stays for the per-push total and the object count,
   because deltas under the cap still cost git CPU time.
+- **X29-dev-signing: Keychain access group for development builds.**
+  Can a developer's free personal team, an Apple ID signed in to Xcode
+  without a paid membership, sign the helpers in `Wraith Box.app`
+  (`wb-proxyd`, `wb-hostd`, `wb-vmd`) with a `keychain-access-groups`
+  entitlement and a provisioning profile, so that each helper reads
+  and writes items in the data protection keychain behind one access
+  group, and keeps reading them after a rebuild signed by the same
+  team, with no dialog? Found while deciding B23-keychain-unsigned
+  (I23). Until it answers yes, development builds fail closed after an
+  update (S15-least-privilege, "After an update"). Tracked in I248.

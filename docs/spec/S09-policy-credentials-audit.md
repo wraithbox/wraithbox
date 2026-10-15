@@ -342,14 +342,21 @@ inspection is trusted, and what is recorded.
 
 - **Storage.** Each credential is an item in the platform's secret
   store (S12-platforms), readable only by the processes that
-  S15-least-privilege declares for it: `wb-proxyd` for bindings. On macOS: a Keychain
-  item in an access group bound to Wraith Box's code-signing identity
-  once that identity exists; until then, an access-control list naming
-  the declared binaries, which is weaker and documented as such. That
-  list pins each ad-hoc signed binary by its cdhash. Any other reader,
-  and each binary after an update, gets a dialog that asks for the
-  password of the keychain file, and no call repairs the list without
-  it (X09-keychain-unsigned). Other
+  S15-least-privilege declares for it: `wb-proxyd` for bindings. On
+  macOS: an item in the data protection keychain, in an access group
+  bound to the team that signed the build. Release builds are signed
+  with Wraith Box's Developer ID, and development builds with the
+  developer's own Apple Development certificate (decided on I23,
+  B23-keychain-unsigned), once X29-dev-signing shows that a personal
+  team can grant the access group. Until then, development builds are
+  ad-hoc signed and use a keychain file whose access-control lists name
+  the declared binaries, which is weaker and documented as such. A list
+  pins each binary by its cdhash. Any other reader, and each binary
+  after an update, would get a dialog that asks for the password of
+  the keychain file, and no call repairs the list without it
+  (X09-keychain-unsigned). The binaries turn Keychain dialogs off, so
+  such a read fails at once, and after an update the store fails closed
+  until it is set up again (S15-least-privilege, "After an update"). Other
   platforms scope items as narrowly as their store allows; the limits
   are documented per platform in S12-platforms.
 - **Bindings.** A binding names the hosts, ports, and paths it applies
@@ -455,14 +462,42 @@ inspection is trusted, and what is recorded.
 ## TLS inspection certificate authority
 
 - **Key.** Each CA has its own P-256 key. `wb-proxyd` generates it in
-  the platform's hardware key store (Secure Enclave on macOS, TPM
-  elsewhere; S12-platforms), non-exportable, self-signs the CA
-  certificate with it, and uses it to sign leaf certificates (Go's
-  certificate creation accepts any signer). Fallback if no hardware
-  key store is available: a software key held in the secret store,
-  as the item `wraithbox/ca/<vm>/<ca>`. Only `wb-proxyd` uses the key
-  handle or fetches that item (S15-least-privilege, "Declared access"). `wb-hostd` gets the public certificate over
-  local IPC and hands it to `wb-guestd`.
+  the platform's hardware key store (S12-platforms), non-exportable,
+  self-signs the CA certificate with it, and uses it to sign leaf
+  certificates (Go's certificate creation accepts any signer). Only
+  `wb-proxyd` writes, fetches or uses the key and its store item
+  `wraithbox/ca/<vm>/<ca>` (S15-least-privilege, "Declared access").
+  `wb-hostd` gets the public certificate over local IPC and hands it to
+  `wb-guestd`. Per host:
+  - *macOS, every build.* A Secure Enclave key that isn't stored in the
+    Keychain (`kSecAttrIsPermanent` false), whose wrapped form, the
+    token object ID, is the store item. To sign, `wb-proxyd` fetches
+    the item and passes it to Security.framework in `kSecAttrTokenOID`,
+    which restores the same key in this or a later process, also after
+    a rebuild (X09-keychain-unsigned). Only this Mac's Secure Enclave
+    can unwrap it, so a copied item is useless on another Mac. On this
+    Mac any process of the user that has the value can sign with the
+    key, and the store's G2 is what keeps it to `wb-proxyd`
+    (S15-least-privilege). A key stored in the Keychain needs an
+    entitlement an ad-hoc build doesn't have, and this way signed and
+    ad-hoc builds share one code path (decided on I23,
+    B23-keychain-unsigned).
+  - *`kSecAttrTokenOID` is undocumented.* Security.framework exports
+    the symbol, but the SDK headers don't declare it, so the cgo shim
+    (S10-tech-stack) declares it. Passed without that attribute, the ID
+    gives a new key without an error (X09-keychain-unsigned). So each
+    time `wb-proxyd` restores a key, it checks that the key's public
+    key equals the one in the CA certificate before it signs. On an
+    error or a mismatch it serves none of the VM's streams, the VM's
+    start or restore is refused with the rule `ca-key-restore`, and
+    `wb-proxyd` doesn't issue a new CA in its place. Issuing fails the
+    same way when the new key has no token object ID.
+  - *Windows.* A TPM key through the CNG platform crypto provider.
+    Windows 11 requires a TPM 2.0, so every supported host has one.
+  - *Linux.* A TPM 2.0 key where the host has one. On a host without a
+    TPM, the fallback: a software key held in the secret store as the
+    item, which `wb-proxyd` fetches and signs with in its own memory.
+    `wb setup` and the audit record of each CA issue say so.
 - **CA profile.** `basicConstraints` critical with `CA:TRUE` and
   `pathLen:0`, `keyUsage` `keyCertSign` only, and no extended key
   usage.
@@ -529,14 +564,15 @@ inspection is trusted, and what is recorded.
     `wb-proxyd` keeps signing with the CA it signed with before the
     save or the sleep, also past day 58, while that CA is valid,
     because resumed processes loaded their trust before it.
-  - *Why rotate.* The hardware key can't be read out, so whoever can use
-    it controls `wb-proxyd` on the host, and a new certificate doesn't
-    change that. Rotation bounds how long the software fallback key
-    is useful to someone who copied it, now up to 60 days. Only that
-    VM's guest trusts it. The thief also needs a position in that
-    guest's traffic, which runs only through the host. With a hardware
-    key rotation adds little, and the overlap keeps it from breaking
-    running tools. Of the clients X04-tls-inspection tried, only
+  - *Why rotate.* The hardware key can't be read out. Rotation bounds
+    how long a copied key item is useful, now up to 60 days: the wrapped
+    key, which still signs on the same Mac after `wb-proxyd` removes the
+    item, and the software fallback key on Linux. Only that VM's guest
+    trusts it. The thief also needs a position in that guest's traffic,
+    which runs only through the host. For a TPM key, which no process
+    can copy, whoever can use it controls `wb-proxyd` on the host, a new
+    certificate doesn't change that, and rotation adds little. The
+    overlap keeps rotation from breaking running tools. Of the clients X04-tls-inspection tried, only
     Python's `requests` rereads its CA file while it runs. Go, Node,
     Python's `urllib`, Ruby and Java keep the trust they read at start,
     and the clients it didn't test are assumed to do the same. So the
