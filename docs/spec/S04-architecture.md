@@ -223,9 +223,8 @@ nothing themselves (S12-platforms).
     own configuration, sets `GOMAXPROCS`, loads the local time zone,
     starts `wb-launcher` (on macOS), resolves the git binary from
     `<config>` or the fixed platform path, never from `PATH`, checks
-    its version against the minimum (S08-workspace-and-git, "Host git")
-    and that it honors `GIT_ALLOC_LIMIT` (S08-workspace-and-git, "Pack
-    scanner"), and works out the paths for its profile. None of that reads
+    its version against the minimum (S08-08-host-git)
+    and that it honors `GIT_ALLOC_LIMIT` (S08-04-push-checks, "Pack scanner"), and works out the paths for its profile. None of that reads
     anything the guest sent.
   - `wb-vmd` on macOS is a second, bounded exception. Before it confines
     itself, it calls `confstr(_CS_DARWIN_USER_CACHE_DIR)` once, because
@@ -436,7 +435,7 @@ nothing themselves (S12-platforms).
     `/dev/null`. The only programs they let the shim start are git and
     the programs of its own installation (`libexec/git-core/`), plus,
     for `wb-git-receive`, the pre-receive check in the bundle's hooks
-    directory (S08-workspace-and-git, "Pre-receive check"). Neither
+    directory (S08-04-push-checks, "Pre-receive check"). Neither
     allows a shell. A command that git would run through one, such as
     a `core.alternateRefsCommand` from a repository's own
     configuration, fails. `wb-hostd` writes `landing.git/config` as fixed content
@@ -447,7 +446,7 @@ nothing themselves (S12-platforms).
     the repository it serves (I67). The `wb-git-receive` profile
     allows reading and writing its `landing.git`, and reading, never
     writing, the `export.git` next to it, which `landing.git` borrows
-    objects from (S08-workspace-and-git, "Landing repository").
+    objects from (S08-03-pushes, "Landing repository").
     Instead of a path, `wb-hostd` could hand over an inherited
     directory descriptor that the launcher checks with `F_GETPATH`,
     which keeps the path out of the request. That is the fallback if
@@ -471,7 +470,7 @@ nothing themselves (S12-platforms).
     fetches the selected refs from the user's repository into the
     project's `export.git` and is its only writer. `wb-hostd` only
     serves `export.git` to the guest, through `wb-git-upload`
-    (S08-workspace-and-git, "Export repository", decided on I67).
+    (S08-02-export-repository, decided on I67).
   - `wb-hostd`'s profile allows reading `<config>`, and reading and
     writing `<logs>` and `<data>`, with these exceptions
     (SEC12-least-privilege, SEC03-no-host-exec):
@@ -500,7 +499,7 @@ nothing themselves (S12-platforms).
     symbolic link to anything, because the rule allows every write at
     that path. So `wb` never runs git with `landing.git` as its
     repository, and checks it before every fetch from it
-    (S08-workspace-and-git, "Landing on the host").
+    (S08-06-landing-on-the-host).
 
     On macOS the profile allows writes under `<data>` and `<logs>`,
     then denies writes to the literal path of `<data>` and of each
@@ -548,15 +547,14 @@ nothing themselves (S12-platforms).
   `upload-pack` that a fetch from it starts. The other is, on WSL, the
   `git upload-pack` that `wb.exe landing-upload-pack` runs on
   `landing.git` after its checks, for the fetch of the WSL-side `wb`
-  (S08-workspace-and-git, "WSL"). Neither runs a command from that
+  (S08-10-wsl). Neither runs a command from that
   repository's own configuration (protected configuration,
-  S08-workspace-and-git, "Landing on the host"). It derives
+  S08-06-landing-on-the-host). It derives
   each path under `<data>` itself, from IDs it checks against their
   format, and compares any path `wb-hostd` reports with its own,
   refusing on a mismatch. A directory `wb-hostd` can write, such as
   `landing.git`, is only ever the remote of a fetch that `wb` runs in
-  another repository (S08-workspace-and-git, "Landing on the host",
-  "Host git").
+  another repository (S08-06-landing-on-the-host, S08-08-host-git).
 - **Everything in the guest is untrusted, including `wb-guestd`.** The
   host validates every message from the guest as adversarial input. The
   guest agent is a convenience for the host, not a security component.
@@ -943,7 +941,7 @@ gets its limits before it merges.
 | Placeholder scan of requests on inspected hosts | `wb-proxyd` | a 64 KiB cap on the request head (`http-header-size`); per request, a held-back window three times the length of the VM's longest placeholder, at most 768 bytes with the 256-character cap; at most 8 placeholders per binding per VM | S07-egress-gateway, "Request form", "Header cap", "Placeholder binding", "Bounds" |
 | Upstream name resolution | `wb-proxyd` | one lookup per stream, so bounded by the connections in flight | S07-egress-gateway, "Stream path" |
 | Leaf certificates | `wb-proxyd` | a leaf only for a name the VM resolved, cached per VM, CA and name, so at most the allowlisted names plus the wildcard budget | S09-policy-credentials-audit, "TLS inspection certificate authority" |
-| Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-workspace-and-git, "Pack scanner", "Bounds" |
+| Pushes and fetches | `wb-hostd`, `wb-git` | the pack scanner's caps, git's memory limit, deadlines, one push per project at a time | S08-04-push-checks, "Pack scanner", and S08-05-push-limits, "Bounds" |
 | Leftover-process results | `wb-hostd` | one per kill loop, kept until acknowledged, in a session report or a cleanup record; at most one record per project user in the VM, apart from the 64 session entries; accepted only on an exact kill ID `wb-hostd` sent, before the kill's 7-minute deadline, and none by then counts as processes left | S06-vm-lifecycle, "Leftover processes", "Reconnect", "Deadlines" |
 | Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-vm-lifecycle, "Recovery" |
 | Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-policy-credentials-audit, "Approval flow", "Approvals" |

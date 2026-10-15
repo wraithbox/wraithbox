@@ -13,6 +13,16 @@ Wraith Box works and why.
 | S06-vm-lifecycle | VM Lifecycle, Images and the Guest Agent | Draft |
 | S07-egress-gateway | Egress Gateway | Draft |
 | S08-workspace-and-git | Workspace and Git Round Trip | Draft |
+| S08-01-into-the-guest | Into the Guest | Draft |
+| S08-02-export-repository | Export Repository | Draft |
+| S08-03-pushes | Pushes | Draft |
+| S08-04-push-checks | Push Checks | Draft |
+| S08-05-push-limits | Push Limits | Draft |
+| S08-06-landing-on-the-host | Landing on the Host | Draft |
+| S08-07-repository-lifecycle | Repository Lifecycle | Draft |
+| S08-08-host-git | Host Git | Draft |
+| S08-09-risky-changes | Flagging Risky Changes | Draft |
+| S08-10-wsl | WSL | Draft |
 | S09-policy-credentials-audit | Policy, Credentials, Certificates and Audit | Draft |
 | S10-tech-stack | Technology Choices | Draft |
 | S11-verification-and-spikes | Verification | Draft |

@@ -287,7 +287,7 @@ dropped CA's items go on the same list.
 A password in a host remote URL isn't a store item. `wb` removes the
 user name and password from every remote URL it reads, withheld ones
 included, before the URL goes anywhere, the audit log among them
-(S08-workspace-and-git, "Remote URLs").
+(S08-01-into-the-guest, "Remote URLs").
 
 ### The guest admin user
 

@@ -130,8 +130,7 @@ are a usage error:
   user and clone, then starts the session. Later runs reuse them.
   At registration `wb` creates the project directory
   `<data>/projects/<project-id>` and the `export.git` in it, because
-  `wb-hostd` can't write either (S08-workspace-and-git, "Export
-  repository").
+  `wb-hostd` can't write either (S08-02-export-repository).
 - On macOS, within 30 days of the expiry date of the signing profile in
   the helper bundles, or after it, `wb` prints one line with that date on its standard
   error before the session starts (S12-platforms, "Development builds
@@ -302,10 +301,9 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
     platforms the canonical form comes from `internal/platform`
     (S12-platforms).
 - Resolving the key: `wb` runs git for the key, the remotes and the
-  root commits with the git binary of S08-workspace-and-git ("Host
-  git"), `core.hooksPath=/dev/null` on its command line, and an
+  root commits with the git binary of S08-08-host-git, `core.hooksPath=/dev/null` on its command line, and an
   otherwise scrubbed environment, as `wb-git` runs git
-  (S08-workspace-and-git, "Out of the guest"). It sets only `HOME`,
+  (S08-03-pushes). It sets only `HOME`,
   taken from the user database (the account's home directory), not
   from the environment, `XDG_CONFIG_HOME` from the login environment
   when it is set, `TMPDIR`, and `LC_ALL=C`. Unlike `wb-git` it reads the user's global
@@ -338,7 +336,7 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
     and `wb land` and `wb diff`, which find the user's repository
     only this way, never from a path in `state.db` or from `wb-hostd`.
     `wb land` and `wb diff` refuse a session that isn't the resolved
-    project's (S08-workspace-and-git, "Landing on the host").
+    project's (S08-06-landing-on-the-host).
   - *Wraith Box's own directories.* A key under `<data>`, `<config>`
     or `<logs>` refuses the command, so no command treats a repository
     that `wb-hostd` can write, such as a `landing.git`, as the user's.
@@ -350,7 +348,7 @@ WSL side; VMs, policy, credentials, and audit are on the Windows side.
   each key to one id, and a key has at most one project.
 - Recorded identity: at registration `wb` records every URL of each
   remote as the user's git resolves it, after the cleaning of
-  S08-workspace-and-git ("Remote URLs"). An SSH remote is compared as
+  S08-01-into-the-guest ("Remote URLs"). An SSH remote is compared as
   its `https://host/path` form, without user, port, password, query or
   fragment, so a switch between SSH and HTTPS for the same repository,
   or a rotated token, isn't a difference. A URL the guest doesn't get

@@ -144,7 +144,7 @@ platform starts.
   `wb.exe relay` over interop standard streams: terminal fidelity,
   window resizing, throughput of the git transport, latency to the
   first prompt. Compare with a Hyper-V socket from the WSL VM. For the
-  git fetches of S08-workspace-and-git ("WSL"), also measure how
+  git fetches of S08-10-wsl, also measure how
   `wsl.exe --exec` passes arguments that hold spaces and quotes, and
   whether `GIT_PROTOCOL=version=2` reaches the relayed `upload-pack`
   in both directions. Measure the MSYS path conversion of the Git for

@@ -945,7 +945,7 @@ session start in the VM to the end of the last session running in it.
   value means the guest holds a credential from somewhere else. It is
   a detection finding (S09-policy-credentials-audit) with the scheme
   and the header or parameter name, rate-limited per VM. Git LFS isn't
-  in the git hosting profile (S08-workspace-and-git, "Open points").
+  in the git hosting profile (S08-workspace-and-git, "Out of scope").
   On a host the user allows for it, LFS hands the client a
   server-issued `Authorization` header for each object. An LFS clone
   there raises these findings too.
@@ -1129,7 +1129,7 @@ session start in the VM to the end of the last session running in it.
     the boundary then limits whether that endpoint is reachable, not
     which operations are allowed (S09-policy-credentials-audit,
     "Built-in profiles in the check"). Git LFS isn't in the profile and
-    fails in V1 (S08-workspace-and-git, "Open points"). The built-in
+    fails in V1 (S08-workspace-and-git, "Out of scope"). The built-in
     kinds also name the hosts on which their forges serve SSH on port
     443: `ssh.github.com` for GitHub and `altssh.gitlab.com` for
     GitLab. The profile doesn't allow a request to them, but it covers
@@ -1648,8 +1648,7 @@ as written.
   ("HTTP policy", git hosting). A guarded host can't have a raw TCP
   entry (below). The guest doesn't need SSH. It has no SSH keys
   (SEC04-no-guest-secrets), and the guest's clone gets each SSH remote
-  rewritten to `https://host/path` (S08-workspace-and-git, "Remote
-  URLs"). So every push to a forge that a built-in kind or a project's
+  rewritten to `https://host/path` (S08-01-into-the-guest, "Remote URLs"). So every push to a forge that a built-in kind or a project's
   remote names goes over HTTPS through the git hosting profile, and
   SEC06-repo-writes holds for it. A forge that nothing names, reached
   through a raw TCP entry the user added, is a T01-allowed-channels

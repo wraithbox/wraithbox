@@ -187,7 +187,7 @@ print about returned work after `wb land` is outside it
   on I36.
 - **T12-shared-export: Sessions of a project share what they can
   fetch.** A project's `export.git` holds the refs that any live session
-  of the project selected (S08-workspace-and-git, "Export repository").
+  of the project selected (S08-02-export-repository).
   Over protocol v2 `upload-pack` serves any object it holds to a client
   that names its ID, and `uploadpack.hideRefs` only trims the list of
   refs it offers (X07-git-round-trip). So a session's guest can fetch
@@ -254,7 +254,7 @@ print about returned work after `wb land` is outside it
   checks of `landing.git` and its fetch, it can also swap
   `landing.git` for a link to any repository the user can read, or
   rewrite `objects/info/alternates` and the refs
-  (S08-workspace-and-git, "Landing on the host"). `wb land` then
+  (S08-06-landing-on-the-host). `wb land` then
   brings those objects into a `wb/<session-id>` branch of the user's
   repository, and they leave the host only if the user pushes that
   branch. What still holds: the fetch checks every object it gets.

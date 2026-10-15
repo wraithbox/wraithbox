@@ -219,7 +219,7 @@ the Windows host's `wb-hostd`:
   `wsl.exe`, so `wb-hostd` is never the fetch client. `wb land` and
   `wb diff` fetch in the distribution from a `git upload-pack` on the
   Windows-side landing repository, which `wb.exe` runs after it checks
-  that repository (S08-workspace-and-git, "WSL").
+  that repository (S08-10-wsl).
 - **Project identity** includes the distribution name (S05-cli), so the
   same path in two distributions is two projects.
 - **Requirement.** The Windows side must have Wraith Box installed and

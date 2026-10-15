@@ -173,8 +173,7 @@ targets.
     Windows). Those hold credentials and application data, not Claude
     Code configuration.
   - *Why this differs from S08.* The working tree carry-in sends a link
-    as a link and never reads its target (S08-workspace-and-git,
-    "Carry-in scan"), because the guest gets the same repository and
+    as a link and never reads its target (S08-01-into-the-guest, "Carry-in scan"), because the guest gets the same repository and
     needs only the link. A configuration entry is useless as a dangling
     link in the guest, and users link these entries on purpose, so `wb`
     follows the one link the user made at the top and no link below it
@@ -235,7 +234,7 @@ targets.
 - **Secret scan.** `wb` scans each file it would send, the filtered
   `settings.json` included, with the secret scanner of the image seal
   (S06-vm-lifecycle, "Sealing"), as it scans the working tree carry-in
-  (S08-workspace-and-git, "Carry-in scan"). A match, or a file the
+  (S08-01-into-the-guest, "Carry-in scan"). A match, or a file the
   scanner can't decode, skips its unit. When no scanner is configured
   or chosen, or the scanner fails or times out, no configuration
   reaches the guest, and the session starts without it and says why

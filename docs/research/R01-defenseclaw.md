@@ -126,8 +126,7 @@ its controls.
   connection (SEC10-audit). A finding built on those counts would show
   the user when a guest uses such a channel in bulk.
 - **Risky returned files.** DefenseClaw's end-of-session review flags,
-  with a severity, some paths that the list in S08-workspace-and-git,
-  "Flagging risky changes", doesn't name: dev containers,
+  with a severity, some paths that the list in S08-09-risky-changes, doesn't name: dev containers,
   package-manager configuration that runs code (`.yarnrc.yml` with
   `yarnPath`, `.pnpmfile.cjs`, `.npmrc`), Python tooling (`conftest.py`,
   `setup.py`), version-manager files that define tasks (`mise.toml`),

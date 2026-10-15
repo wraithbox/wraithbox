@@ -841,7 +841,7 @@ started it.
 | starting | `wb-hostd` admits the session, starts or restores the VM, and `wb-guestd` creates the worktree and applies the carry-in (S08-workspace-and-git) | ended, as a failed start | lost | running when `claude` starts. ended, as a failed start, on a refusal, a failure or the deadline |
 | running | `claude` runs, and `wb` relays its terminal or its streams (S05-cli) | paused | lost | ending when `claude` exits or the client goes |
 | paused | the link is down, and the guest's project processes are stopped (S13-guest-confinement, "Layer 1") | stays paused | lost | running or ending when the link returns. lost at the pause limit |
-| ending | `claude` has exited or was killed, and `wb-guestd` commits WIP and pushes (S08-workspace-and-git, "Session end") | stays ending, and finishes again when the link returns | lost | ended when done, or as a failure at the deadline |
+| ending | `claude` has exited or was killed, and `wb-guestd` commits WIP and pushes (S08-03-pushes, "Session end") | stays ending, and finishes again when the link returns | lost | ended when done, or as a failure at the deadline |
 | lost | the session's VM, its `wb-guestd`, or `wb-hostd` stopped under it | | | ended by recovery, `wb discard`, `wb project rm`, or the deadline |
 | ended | the exit status and the summary are in `wb sessions`, and the returned work stays until `wb land` or `wb discard` | | | |
 
@@ -892,8 +892,7 @@ audit log (SEC10-audit).
   inside a VM"). The files the old session left uncommitted are only
   in its WIP commit, on its session branch.
 - **Ending.** The session ends when `claude` exits, or after a hangup.
-  `wb-guestd` commits and pushes WIP (S08-workspace-and-git, "Session
-  end") and reports `claude`'s exit status, an exit code or the signal
+  `wb-guestd` commits and pushes WIP (S08-03-pushes, "Session end") and reports `claude`'s exit status, an exit code or the signal
   that ended it. The report is guest input (SEC11-root-gains-nothing):
   `wb-hostd` accepts an exit code from 0 to 255 or a signal number
   from 1 to 64. Anything else is recorded as a failure with the rule,
@@ -990,7 +989,7 @@ audit log (SEC10-audit).
   admission, which includes the toolchain reconcile (FR07-toolchain-manifest),
   and ending and recovery have 7 minutes each, which hold the 10
   seconds of the hangup, the WIP commit and the 5-minute push
-  watchdog (S08-workspace-and-git, "Bounds"). Past its deadline,
+  watchdog (S08-05-push-limits, "Bounds"). Past its deadline,
   `wb-hostd` has `wb-guestd` end the session (below) and records it
   as ended with a Wraith Box failure, and `wb` exits with 255. The
   worktree keeps its changes until `wb discard`. So a guest that never
@@ -1090,13 +1089,12 @@ audit log (SEC10-audit).
   `wb-guestd` kills what is left of the session's processes, then
   commits and pushes WIP as at a normal end. During recovery
   `wb-hostd` accepts a push for the lost session only to its own
-  branch (S08-workspace-and-git, "Ref restriction"), and gives no
+  branch (S08-03-pushes, "Ref restriction"), and gives no
   network grants on account of the lost session. The session is then
   ended, with "lost" as its exit status in `wb sessions`. When this
   was the project's last session in the VM, the project user is then
   locked and its processes killed (S13-guest-confinement, "Layer 1"). A lost session stays live for
-  `export.git` until it ends (S08-workspace-and-git, "Export
-  repository"), so its WIP push still has its base.
+  `export.git` until it ends (S08-02-export-repository), so its WIP push still has its base.
 - **Discarding a lost session.** `wb discard` on a lost session, and
   `wb project rm` for each lost session of the project, end it with no
   recovery push. `wb-hostd` takes the project's landing lock
