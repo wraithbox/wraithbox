@@ -5,7 +5,7 @@ description: Yes, with conditions. Helpers signed by a team that Xcode lists as 
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-15: yes, with conditions. Awaiting decision.** Source: I248, X29-dev-signing. Follows B23-keychain-unsigned (option D). Touches S10-tech-stack, S15-least-privilege, S09-policy-credentials-audit and S12-platforms.
+**Answered 2026-10-15: yes, with conditions. Decided 2026-10-15: A.** The decision is in the I248 comment that starts `Decision (2026-10-15):`, and the spec change is I252. Source: I248, X29-dev-signing. Follows B23-keychain-unsigned (option D). Touches S10-tech-stack, S15-least-privilege, S09-policy-credentials-audit and S12-platforms.
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions.** Team-signed helpers share Keychain items across rebuilds, with no dialog, if each is a bundle of its own. Recommended: **A**, no Keychain backend for a build without a team signature.
@@ -108,7 +108,7 @@ Approving the answer also accepts the team-wide grant in development builds: the
 
 - I61: the `wb-proxyd` sandbox rules for the data protection keychain, in X23-sandboxed-daemons.
 - I49: install and upgrades, which sign the local bundle.
-- The spec change in S10-tech-stack (helper bundles), S15-least-privilege, S09-policy-credentials-audit and S12-platforms (developer setup), filed as an issue once this is decided.
+- I252: the spec change in S10-tech-stack (helper bundles), S15-least-privilege, S09-policy-credentials-audit and S12-platforms (developer setup).
 
 <details>
 <summary>Details and glossary</summary>

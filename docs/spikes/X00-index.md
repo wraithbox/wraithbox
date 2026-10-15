@@ -43,7 +43,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
 | X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |
-| X29-dev-signing | Keychain access group for development builds | Answered 2026-10-15: yes, with conditions |
+| X29-dev-signing | Keychain access group for development builds | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15 (I248): no Keychain backend for a build without a team signature |
 
 ## Spikes
 

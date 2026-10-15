@@ -49,6 +49,7 @@ SEC14-no-fake-approvals
   1. What a build that isn't signed by a team does with the Keychain
      backend: refuse it (recommended), or keep the ad-hoc keychain
      file next to the signed path. B248-dev-signing has the options.
+     Decided 2026-10-15 (I248): refuse it. The spec change is I252.
 
 ## Question
 
@@ -205,4 +206,4 @@ project (`app/`), the Go helper with a cgo shim over Security.framework
 (`helper/`), and `build.sh`, which puts the helpers into nested bundles
 and signs them.
 
-**Status:** Answered 2026-10-15: yes, with conditions
+**Status:** Answered 2026-10-15: yes, with conditions. Decided 2026-10-15 (I248): no Keychain backend for a build without a team signature
