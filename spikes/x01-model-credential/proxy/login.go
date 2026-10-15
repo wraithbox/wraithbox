@@ -92,6 +92,20 @@ func loadOAuth(store, accessPH, refreshPH string) (*oauthState, error) {
 	return &oauthState{accessPH: accessPH, refreshPH: refreshPH, access: l.Access, refresh: l.Refresh, store: svc}, nil
 }
 
+// putItem replaces the proxy's Keychain item. It deletes and adds:
+// add-generic-password -U exited 45 (errSecDuplicateItem) on the item it
+// had made, in the placeholder run of 2026-10-15, which lost the rotated
+// tokens.
+func putItem(svc, value string) error {
+	_ = exec.Command("/usr/bin/security", "delete-generic-password", "-s", svc, "-a", "x01").Run()
+	out, err := exec.Command("/usr/bin/security", "add-generic-password", "-s", svc,
+		"-a", "x01", "-T", "/usr/bin/security", "-w", value).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // save writes the current login back to the Keychain item. The value
 // goes on security's argv: a spike shortcut on a test account.
 func (o *oauthState) save() error {
@@ -99,8 +113,7 @@ func (o *oauthState) save() error {
 		return nil
 	}
 	b, _ := json.Marshal(storedLogin{Access: o.access, Refresh: o.refresh})
-	return exec.Command("/usr/bin/security", "add-generic-password", "-U", "-s", o.store,
-		"-a", "x01", "-T", "/usr/bin/security", "-w", string(b)).Run()
+	return putItem(o.store, string(b))
 }
 
 func (o *oauthState) currentAccess() string {

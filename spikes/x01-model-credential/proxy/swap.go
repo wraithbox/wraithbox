@@ -82,8 +82,7 @@ func swapMain(args []string) error {
 			return errors.New("the login already holds the placeholders; run with -restore first")
 		}
 		b, _ := json.Marshal(storedLogin{Access: access, Refresh: refresh})
-		if err := exec.Command("/usr/bin/security", "add-generic-password", "-U", "-s", *store,
-			"-a", "x01", "-T", "/usr/bin/security", "-w", string(b)).Run(); err != nil {
+		if err := putItem(*store, string(b)); err != nil {
 			return fmt.Errorf("write %s: %w", *store, err)
 		}
 		fmt.Printf("stored the real login in Keychain item %s (access %d bytes, refresh %d bytes)\n",

@@ -145,7 +145,14 @@ placeholder)
   ;;
 restore)
   "$PROXY_BIN" swap -from "$FROM" -store "$STORE" -restore | tee "$OUT/restore.txt" || exit 1
-  echo "== now run $CLAUDE, /logout, /exit. Then: security delete-generic-password -s $STORE"
+  # Observed, not injected: the refresh with the restored token, and the
+  # revocation /logout makes, both show in oauth.txt.
+  start_proxy -key-source none
+  echo "== claude with the restored login (expired, so it refreshes first). Ask one"
+  echo "   question if it lets you, then /logout, then /exit"
+  script -q "$OUT/claude.typescript" "$CLAUDE"
+  stop_proxy; summary; where_login_landed
+  /usr/bin/security delete-generic-password -s "$STORE" -a x01 >/dev/null && echo "== deleted $STORE"
   ;;
 nokeychain)
   /usr/bin/security show-keychain-info 2>&1 | tee "$OUT/keychain-before.txt"
