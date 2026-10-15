@@ -39,8 +39,8 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="boundary-label" x="274" y="52">Wraith Box processes, as the user</text>
 
 <rect class="box host" x="280" y="70" width="180" height="56" rx="10" />
-<text class="label" x="370" y="95" text-anchor="middle">wb</text>
-<text class="note" x="370" y="114" text-anchor="middle">the CLI: cred set</text>
+<text class="label" x="370" y="95" text-anchor="middle">wb-credset</text>
+<text class="note" x="370" y="114" text-anchor="middle">run by wb cred</text>
 
 <rect class="box host" x="500" y="70" width="200" height="74" rx="10" />
 <text class="label" x="600" y="95" text-anchor="middle">wb-proxyd</text>
@@ -70,7 +70,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="600" y="532" text-anchor="middle">password on stdin</text>
 
 <path class="edge" d="M280,100 C230,110 180,170 150,228" marker-end="url(#f015-arrow)" />
-<text class="note" x="160" y="150">write</text>
+<text class="note" x="160" y="150">write, list, delete</text>
 <path class="edge" d="M120,228 C120,20 560,10 580,68" marker-end="url(#f015-arrow)" />
 <text class="note" x="290" y="22">fetch: bindings · wrapped CA key</text>
 <polyline class="edge" points="222,330 580,330 600,292" marker-start="url(#f015-arrow)" marker-end="url(#f015-arrow)" />

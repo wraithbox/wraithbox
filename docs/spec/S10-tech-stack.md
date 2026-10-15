@@ -71,8 +71,8 @@ binary of that name comes from the Swift package.
 
 - **macOS:** an app bundle, `Wraith Box.app`, contains `wb-hostd`,
   `wb-launcher`, `wb-vmd`, `wb-netd`, `wb-proxyd`, `wb-git`,
-  `wb-prover`, `openshell-prover`, `wb-guestadmin`, `wb-build-ssh`,
-  `wb-askpass`, the
+  `wb-prover`, `openshell-prover`, `wb-guestadmin`, `wb-credset`,
+  `wb-build-ssh`, `wb-askpass`, the
   notification helper, the guest tools disk image, and `wb`, which the installer links onto `PATH`. A
   bundle is needed for notifications, Keychain access groups, and
   launch-agent registration. Hardened runtime; only `wb-vmd` has the
@@ -83,8 +83,10 @@ binary of that name comes from the Swift package.
     `Contents/Helpers/<name>.app`, with the executable at
     `Contents/MacOS/<name>` inside it and the app's provisioning
     profile copied to its `Contents/embedded.provisionprofile`. These
-    are `wb`, `wb-proxyd` and `wb-guestadmin`, which `wb-launcher`'s
-    three `wb-guestadmin-*` entries start. macOS looks for the profile
+    are `wb-credset`, which `wb cred` runs, `wb-proxyd`, and
+    `wb-guestadmin`, which `wb-launcher`'s three `wb-guestadmin-*`
+    entries start. `wb` doesn't hold a group and is a plain executable
+    (decided on I252). macOS looks for the profile
     that allows the restricted `keychain-access-groups` entitlement
     only in the bundle whose main executable starts, so AMFI kills a
     plain executable in `Contents/MacOS` that claims a group at launch
@@ -93,8 +95,9 @@ binary of that name comes from the Swift package.
     hold the groups of its items, from the table in
     S15-least-privilege, "Keychain", and no others. The build checks
     that each helper's signed entitlements equal its row's groups
-    exactly, and fails otherwise. The installer's `wb` link on `PATH`
-    points to `Contents/Helpers/wb.app/Contents/MacOS/wb`. A program
+    exactly, and that every other program, `wb` included, has no
+    `keychain-access-groups` entitlement, and fails otherwise. The
+    installer's `wb` link on `PATH` points to `Contents/MacOS/wb`. A program
     without a group doesn't need a bundle of its own (X29-dev-signing).
     The layout is the same in every build, ad-hoc included, so
     `wb-launcher`'s fixed program table and the installer's link hold

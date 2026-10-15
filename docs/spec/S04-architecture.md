@@ -17,7 +17,8 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 
 | Process | Lang | Runs as | Holds | Faces the guest via | Purpose |
 |---|---|---|---|---|---|
-| `wb` | Go | user, per invocation | nothing; writes binding secrets to the secret store (`wb cred set`, S15-least-privilege) | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
+| `wb` | Go | user, per invocation | nothing, and no store access; for `wb cred set` the value it reads, until it has written it to `wb-credset` (S15-least-privilege) | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
+| `wb-credset` | Go | user, one run per `wb cred set`, `rm` or `list`, started by `wb`, then exits | the `binding/*` secret store items it writes, deletes or lists, and nothing else | none | Confine itself, then do one store operation: write the value from its standard input, delete an item, or list item names (S15-least-privilege) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself ("Each host daemon is self-sandboxed") |
 | `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository (for a push, also reading the `export.git` it borrows from), then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
@@ -201,7 +202,8 @@ nothing themselves (S12-platforms).
   each gets only what it needs: `wb-netd` no filesystem and no network
   beyond inherited descriptors; `wb-proxyd` outbound network and its
   credential store items; `wb-guestadmin` its `wbadmin/*` store items
-  and inherited descriptors; `wb-hostd` its state directories, and on
+  and inherited descriptors; `wb-credset` its `binding/*` store items
+  and its standard streams (S15-least-privilege, "Keychain"); `wb-hostd` its state directories, and on
   macOS read access to the installed bundle's `Info.plist` ("Upgrades")
   and to each helper bundle's `embedded.provisionprofile`
   (S12-platforms, "Development builds on macOS"); `wb-vmd` the

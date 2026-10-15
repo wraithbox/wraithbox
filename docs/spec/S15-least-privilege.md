@@ -13,7 +13,7 @@ Brief: B145-least-privilege
 
 ## Design
 
-![The secret store is outside every Wraith Box process. wb writes binding secrets to it. wb-proxyd fetches the binding secrets of the VM's sessions and the wrapped CA key, which only the host's hardware key store can sign with. wb-guestadmin writes and fetches the wbadmin passwords, pipes the build password to the build's wb-vmd and to wb-build-ssh, and writes the old and new password to wb-guestd at a VM's first contact. wb-hostd has no store access and passes descriptors on. A VM that runs project code gets placeholders only.](S15-least-privilege.svg)
+![The secret store is outside every Wraith Box process. wb-credset, which wb runs for wb cred, writes, lists and deletes binding secrets in it. wb-proxyd fetches the binding secrets of the VM's sessions and the wrapped CA key, which only the host's hardware key store can sign with. wb-guestadmin writes and fetches the wbadmin passwords, pipes the build password to the build's wb-vmd and to wb-build-ssh, and writes the old and new password to wb-guestd at a VM's first contact. wb-hostd has no store access and passes descriptors on. A VM that runs project code gets placeholders only.](S15-least-privilege.svg)
 
 ### Rights
 
@@ -47,7 +47,10 @@ Brief: B145-least-privilege
 
 Every credential is nominally held by the configured secret store, in a
 container that holds only Wraith Box's items. No Wraith Box process is
-the holder for another, and none gets a secret through another. Keys
+the holder for another, and none gets a secret from the store through
+another. One secret passes between two of them before it is written
+to the store: `wb` hands the value the user enters for `wb cred set` to
+`wb-credset` on its standard input (rule 5). Keys
 that must never leave hardware (the CA signing key) are in the
 platform's hardware key store whatever the backend, on every host
 that has one (S12-platforms). On
@@ -72,13 +75,31 @@ can use (S09-policy-credentials-audit, "Key").
 
   | Role | Items | Programs that hold the group |
   |---|---|---|
-  | `binding` | `binding/<name>` | `wb`, `wb-proxyd` |
+  | `binding` | `binding/<name>` | `wb-credset`, `wb-proxyd` |
   | `ca` | `ca/<vm>/<ca>` | `wb-proxyd` |
   | `wbadmin` | `wbadmin/build/<build>`, `wbadmin/image/<image>`, `wbadmin/vm/<vm>/<disk>` | `wb-guestadmin` |
 
   A group lets the programs that hold it read, write and delete its
-  items. So an access narrower than that, such as `wb`'s write of
-  bindings, is enforced by our code (rule 1).
+  items. So an access narrower than that, such as `wb-credset`'s write
+  of bindings, is enforced by our code (rule 1). `wb` doesn't hold a group
+  (decided on I252). It parses guest terminal output
+  (S16-terminal-stream) without a sandbox, so a bug there doesn't reach
+  the store (SEC04-no-guest-secrets), and AMFI never refuses to start
+  `wb` for a profile.
+
+  `wb-credset` is the helper that `wb cred set`, `wb cred rm` and `wb
+  cred list` run as the user. `wb` starts it from the installed bundle
+  (S10-tech-stack), with the operation and the binding name as its
+  arguments, never the value. It confines itself first thing, from a
+  compiled-in profile that allows the secret store service and its
+  standard streams, and denies files, the network and starting
+  programs (S04-architecture, "Each host daemon is self-sandboxed").
+  It does one operation and exits: *write* reads the value from its
+  standard input, *delete* removes the item, and *list* prints the
+  names of the `binding/` items, never a value. It refuses a value in
+  its arguments or environment, and an operation or name outside the
+  fixed forms of "Declared access", with the rule `credset-refused`,
+  before any store call.
 
   Each Keychain call names its group. The cgo shim (S12-platforms)
   sets `kSecAttrAccessGroup` to `<TEAMID>.nl.wraithbox.<role>`, where
@@ -101,7 +122,7 @@ can use (S09-policy-credentials-audit, "Key").
   with the rule `keychain-needs-team` and logs it. So in such a build
   these are refused with that rule: a session that needs a binding,
   each VM start, because it needs a CA item (S09-policy-credentials-audit,
-  "Valid CA"), `wb cred set`, and `wb image build` and the `wbadmin`
+  "Valid CA"), `wb cred set` through `wb-credset`, and `wb image build` and the `wbadmin`
   rotation at first contact, because they need `wbadmin/*` items. `wb
   setup` refuses to set up the Keychain backend in such a build with
   the same rule, says that the 1Password backend still works, and says
@@ -178,7 +199,11 @@ and the rule, in every build and on every backend:
    from a declared reader on a pipe or on standard input. Never in
    arguments, the environment, a file, a log line, a gRPC message
    field, an audit record, or an error message. A process that only
-   passes the descriptor on never reads it.
+   passes the descriptor on never reads it. The same rule applies to a
+   value that is to be written to the store: `wb` reads it from a prompt or its
+   own standard input, writes it to `wb-credset`'s standard input,
+   keeps it in memory only until that write ends, and never fetches
+   it back.
 6. **Audited without the value.** Each fetch, use, list, write and delete is an audit
    record with the process, the item name, and the access kind
    (SEC10-audit).
@@ -206,9 +231,9 @@ Item names start with `wraithbox/`. Each `<…>` part is 1 to 64 characters of `
 
 | Item | Process, access | Channel to the consumer | Lifetime |
 |---|---|---|---|
-| `binding/<name>` | `wb`, write (`wb cred set`) | the value from a prompt or standard input | one command |
-| `binding/<name>` | `wb`, delete (`wb cred rm`) | none | one command |
-| `binding/<name>` | `wb`, list (`wb cred list`): names only, no value is fetched | none | one command |
+| `binding/<name>` | `wb-credset`, write (`wb cred set`) | the value from `wb`, on `wb-credset`'s standard input | one run |
+| `binding/<name>` | `wb-credset`, delete (`wb cred rm`) | none | one run |
+| `binding/<name>` | `wb-credset`, list (`wb cred list`): names only, no value is fetched | the names, on its standard output to `wb` | one run |
 | `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend |
 | `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the token endpoint the binding names, over TLS | per exchange. Access tokens stay in memory |
 | `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build, and Linux with a TPM) | `wb-proxyd`, write when it issues the CA, fetch, delete | to the Secure Enclave as the key's token object ID, or to the TPM as its key blob. The value is useless on another host | the CA's life. `wb-proxyd` deletes it when the CA expires or is dropped (S09-policy-credentials-audit, "Lifetimes") |
