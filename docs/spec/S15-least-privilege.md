@@ -91,22 +91,32 @@ and for an ad-hoc signed build. A fallback is never silent.
 
 ### After an update
 
-This applies to ad-hoc signed builds, until X29-dev-signing answers
-yes (decided on I23, B23-keychain-unsigned). A rebuilt binary has a new
+This applies to ad-hoc signed builds that use the Keychain backend,
+until X29-dev-signing answers yes (decided on I23,
+B23-keychain-unsigned). With 1Password nothing locks at an update, and
+no CA is dropped. A rebuilt binary has a new
 cdhash, which no access-control list names, and code can't add it
 without a dialog that asks for the keychain file's password
 (X09-keychain-unsigned). With dialogs off (access rule 4), every read of
 `unlock` and of every item in the file fails at once. The store fails
 closed:
 
-- **Status codes.** A read that fails with -25293 (`errSecAuthFailed`,
-  what X09-keychain-unsigned measured for a binary the list doesn't
-  name) is logged with the item and the rule `store-needs-setup`. A
-  read that fails with -25308 (`errSecInteractionNotAllowed`, a locked
-  keychain) follows rule 7: the work waits for the user to unlock it,
-  and `wb` names the keychain it waits for. Any other status is logged
-  with the status and the rule `store-read-failed`. Only
-  `store-needs-setup` leads to setting the store up again.
+- **Status codes.** These apply to the read of `unlock`, the unlock of
+  the file, and the read of an item that a record says exists: a CA in
+  `wb-hostd`'s record. A binding that isn't in the store gets the
+  refusal of the table below instead. Each log line names the call that
+  failed, the item, the status, and the rule.
+  - -25293 (`errSecAuthFailed`, what X09-keychain-unsigned measured
+    for a binary the list doesn't name): `store-needs-setup`.
+  - -25300 (`errSecItemNotFound`) for `unlock` while the record names a
+    keychain file: `store-needs-setup`. That is the state a set-up
+    leaves when it stops after its first step.
+  - -25308 (`errSecInteractionNotAllowed`, a locked keychain): rule 7.
+    The work waits for the user to unlock it, and `wb` names the
+    keychain it waits for.
+  - Any other status: `store-read-failed`.
+
+  Only `store-needs-setup` leads to setting the store up again.
 - **Refused.** Session starts, warm starts, builds, and rotation are
   refused with the rule, and none of them falls back to another place
   (rule 7).
@@ -122,9 +132,15 @@ closed:
   refusal, and so does a keychain file with no record. For those,
   `wb setup --reset-store` prints the table below for this store and
   asks for confirmation. A person has to confirm, so `wb` refuses
-  `--reset-store` without a terminal. No guest RPC reaches it.
+  `--reset-store` without a terminal. Only `wb` on the host runs it,
+  never a guest RPC. A `--reset-store` run that stopped needs
+  `--reset-store` again.
+- **Keychain files.** Each one is in `<data>/keychains/`, never in
+  `~/Library/Keychains`, and named `store-<id>.keychain-db`, where
+  `<id>` is 16 lowercase hex digits from the OS's cryptographic random
+  source.
 - **Set up again,** in this order, so that an interrupted run leaves
-  nothing that needs a dialog:
+  nothing that needs a dialog, and the next `wb setup` finishes it:
   1. `wb setup` deletes the old `unlock` item. If the Keychain refuses
      with dialogs off, `wb setup` stops, names the item, and the user
      deletes it in Keychain Access and runs `wb setup` again. An item
@@ -132,9 +148,15 @@ closed:
   2. It makes a keychain file under a new name and writes the new
      `unlock` item, both with lists that name the new binaries.
   3. `wb-hostd` records the new file's name and the running build
-     version, and drops every CA of its record (the table below).
-  4. `wb setup` deletes the old file, and any other Wraith Box keychain
-     file that the record doesn't name.
+     version, and drops every CA of its record (the table below), with
+     the 5019 event of S09-policy-credentials-audit, "Recovery".
+  4. `wb setup` deletes the old file.
+- **Unrecorded files.** Every `wb setup` run, also one that finds the
+  store readable, deletes each file in `<data>/keychains/` whose name
+  has the form above and that the record doesn't name. It checks each
+  with `lstat` first and deletes only a regular file, never what a
+  symbolic link points to, and logs each deletion. It leaves every
+  other entry, and logs each one it leaves.
 
 Every value in the old file is lost. The user enters the bindings
 again. The generated items can't be entered again, and `wb setup` says
@@ -208,7 +230,7 @@ Item names start with `wraithbox/`. Each `<…>` part is 1 to 64 characters of `
 | `binding/<name>` | `wb-proxyd`, fetch, the bindings of the VM's sessions | sent to the binding's hosts over TLS checked against system roots, per request | while a session that needs it runs in the VM, dropped at suspend |
 | `binding/<name>`, OAuth | `wb-proxyd`, fetch, and write the refresh token | the token endpoint the binding names, over TLS | per exchange. Access tokens stay in memory |
 | `ca/<vm>/<ca>`, the wrapped CA key (macOS, every build, and Linux with a TPM) | `wb-proxyd`, write when it issues the CA, fetch, delete | to the Secure Enclave as the key's token object ID, or to the TPM as its key blob. The value is useless on another host | the CA's life. `wb-proxyd` deletes it when the CA expires or is dropped (S09-policy-credentials-audit, "Lifetimes") |
-| CA signing key (macOS, Windows, and Linux with a TPM) | `wb-proxyd`, use: through the wrapped key, or on Windows by its name in the platform crypto provider | none: the key stays in the Secure Enclave or the TPM | the CA's life |
+| CA signing key (macOS, Windows, and Linux with a TPM) | `wb-proxyd`, use: through the wrapped key, or on Windows by its name in the platform crypto provider. On Windows also delete, of the named key, from the removal list below | none: the key stays in the Secure Enclave or the TPM | the CA's life |
 | `ca/<vm>/<ca>`, the software key (Linux hosts without a TPM only) | `wb-proxyd`, write when it issues the CA, fetch, delete | none: it signs in `wb-proxyd` | the CA's life, deleted as above |
 | `unlock`, ad-hoc signed builds only | `wb`, write and delete (`wb setup`, "After an update") | none: `wb setup` makes the keychain file with it | until the store is set up again |
 | `unlock`, ad-hoc signed builds only | every process with store access, fetch | none: it unlocks the dedicated keychain file | the process's life |
@@ -223,7 +245,14 @@ When a CA expires or a VM is deleted, `wb-hostd` moves the names of
 its CA keys, the items or on Windows the named keys, to a removal list
 in `state.db`. `wb-proxyd` deletes each
 listed item when it runs, and at its next start when it doesn't, and
-`wb-hostd` drops an entry once `wb-proxyd` reports it deleted. A
+`wb-hostd` drops an entry once `wb-proxyd` reports it deleted. An item
+that is already gone counts as deleted. `wb-hostd` faces the guest
+(T16-hostd-landing), so `wb-proxyd` checks each batch before it deletes
+anything. Every entry must have the form `ca/<vm>/<ca>` with the parts
+of "Declared access", and its CA must not be in `wb-hostd`'s record.
+Otherwise `wb-proxyd` refuses the batch with the rule
+`ca-removal-refused`, logs each entry that failed, and deletes nothing
+from that batch. A
 dropped CA's items go on the same list. After an update of an ad-hoc
 build, the old keychain file goes with its items instead.
 

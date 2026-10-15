@@ -115,14 +115,29 @@ be tested before building on them.
   that turns Keychain dialogs off fail, and sees the process refuse
   every store access with `store-dialogs-on`. A test with a fake store
   returns -25293 and sees session starts refused with
-  `store-needs-setup`, returns -25308 and sees them wait for the unlock
-  and name the keychain, and returns another status and sees
-  `store-read-failed`. It sees `wb setup` set the store up again only
+  `store-needs-setup`, returns -25300 for `unlock` with a recorded
+  file and sees `store-needs-setup`, returns -25300 for a binding and
+  sees the binding's own refusal, returns -25308 and sees them wait for
+  the unlock and name the keychain, and returns another status and sees
+  `store-read-failed`. Each log line names the failed call. It sees `wb setup` set the store up again only
   for `store-needs-setup` and a recorded build version that differs
   from the running one, refuse a keychain file with no record, and
   accept `--reset-store` only after confirmation on a terminal. An
   interrupted set-up, stopped after each of its steps, ends with one
-  keychain file and one `unlock` item after the next `wb setup`.
+  keychain file and one `unlock` item after the next `wb setup`. With a
+  foreign file and a symbolic link to a file outside the directory,
+  both in `<data>/keychains/` and both with names of the keychain file
+  form, `wb setup` deletes neither, nor the link's target, and logs
+  both. The removal list has a test that hands `wb-proxyd` a batch
+  with `binding/x`, `unlock`, a name with a part outside the fixed
+  form, and an entry whose CA is still in the record, each next to a
+  valid entry, and sees each batch refused with `ca-removal-refused`
+  and nothing deleted, and an entry whose item is gone reported as
+  deleted. On Linux a test records "software" on a host with a TPM, and
+  "TPM" on one without, and sees each CA issue and restore refused with
+  `ca-key-store-mismatch`. `wb vm reset-ca` and the drop at a store
+  set-up each write a 5019 event with the command and each dropped
+  CA's fingerprint.
   The stream hand-off in `wb-proxyd` (S07-egress-gateway, "Stream
   hand-off") has a test with two VMs at different generations. On VM
   A's hand-off socket it sends these streams:
