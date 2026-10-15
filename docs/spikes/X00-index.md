@@ -15,7 +15,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 
 | ID | Description | Status |
 |----|-------------|--------|
-| X01-model-credential | Model credential via the proxy | Answered 2026-10-12: yes for a long-lived token. Decided 2026-10-12 (I60): A2, the model only with the event log denied by the host, and the long-lived token as a supported mode for V1 |
+| X01-model-credential | Model credential via the proxy | Answered 2026-10-12: yes for a long-lived token. Decided 2026-10-12 (I60): A2, the model only with the event log denied by the host, and the long-lived token as a supported mode for V1. Answered 2026-10-15 (I15): yes, with conditions, for the browser login, and awaiting decision |
 | X02-warm-start | Warm start | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04 (I16): an idle VM keeps running while the host is locked and is saved after unlock |
 | X03-network-path | Network path | Answered 2026-10-05: yes, with conditions |
 | X04-tls-inspection | Inspection compatibility | Answered 2026-10-08: no |
@@ -62,8 +62,12 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   Answered 2026-10-12 in the result page X01-model-credential: yes
   for a long-lived token from `claude setup-token`, given to Claude
   Code as a placeholder in `CLAUDE_CODE_OAUTH_TOKEN`, and awaiting
-  decision on four points. API key mode wasn't run, and the browser
-  login and its refresh are open (I15).
+  decision on four points. API key mode wasn't run, and moved to
+  I253. Answered 2026-10-15 for the browser login (I15): yes, with
+  conditions. Claude Code works with placeholder access and refresh
+  tokens when the host holds the real pair and makes every refresh,
+  which rotates the refresh token each time. A login lasts about 30 days.
+  Awaiting decision in B15-browser-login.
 - **X02-warm-start: Warm start.** Measure time to restore a macOS guest from saved
   state with a vsock device and a file-handle network attachment.
   Can a saved state be reused (cloned with its disks) more than once?

@@ -1,7 +1,8 @@
 # X01 - Model credential via the proxy
 
 **Purpose:** The result of the spike for I60, the part of I15 that
-doesn't need a browser login. Does Claude Code work with a placeholder
+doesn't need a browser login, and for the browser login in I15
+("Browser login (I15)"). Does Claude Code work with a placeholder
 credential while a host-side proxy injects the real one, and which
 hosts does it contact, for the model API profile of
 S07-egress-gateway?
@@ -9,9 +10,49 @@ S07-egress-gateway?
 **Requirements:** SEC04-no-guest-secrets, SEC05-default-deny,
 SEC10-audit, FR01-drop-in, FR13-claude-state
 
-**Brief:** B60-model-credential
+**Brief:** B60-model-credential, and B15-browser-login for I15
 
 ## For review
+
+### The browser login (I15)
+
+- **Decides:** whether V1 supports a browser login as a model
+  credential, and whether the terminal filter hides the authorize URL
+  Claude Code prints in a guest.
+- **You are approving:** the answer "yes, with conditions" for a
+  browser login. With placeholder access and refresh tokens in Claude
+  Code's store, and the proxy holding the real pair and answering the
+  refresh, Claude Code answered in `-p`, `-p --resume` and an
+  interactive session, across two forced refreshes. The conditions:
+  only the host refreshes, because each refresh rotates the refresh
+  token, the login comes from outside the guest, and the user
+  signs in again about every 30 days. And the answer "no" to the
+  question from S14-claude-in-guest: refusing `/v1/oauth/hello` doesn't
+  stop `/login` from printing the authorize URL.
+- **Controls touched:** none weakened. SEC04-no-guest-secrets holds for
+  the measured mode: Claude Code had only placeholders. It wouldn't
+  hold for a login made in the guest, which the guest's Claude Code
+  stores in its Keychain, or in plaintext when there is none.
+- **Assumed or inferred:**
+  - That a Pro or Max login behaves like the enterprise SSO login
+    measured here, with the same scopes, lifetimes, and refresh.
+  - That a rotated-away refresh token still works after more than
+    the five minutes measured. A short grace period looks the same.
+  - That `wb` may run the login with Claude Code's public client ID.
+    OpenShell holds back from this until Anthropic approves an OAuth
+    client identity for third-party tools (X00-index).
+  - That the long-lived token didn't reach the organization's plugin
+    and skill paths because of its scope. Inferred: it reached none of
+    them on 2026-10-12, and the scope wasn't logged then.
+- **Open decisions:** each has a recommendation in B15-browser-login.
+  1. The browser login in V1. Recommended: not in V1, with the
+     long-lived token as the subscription mode, and the measured design
+     kept in an issue for later.
+  2. The authorize URL in a guest. Recommended: the warning that
+     S14-claude-in-guest already has, without a terminal filter.
+- **Brief:** B15-browser-login
+
+### The long-lived token (I60, decided 2026-10-12)
 
 - **Decides:** the answer for a long-lived subscription token, the
   host list for the model API profile, three questions about what
@@ -87,8 +128,8 @@ from `claude setup-token`.
 | Mode | Answer | Evidence |
 |---|---|---|
 | Long-lived subscription token (`claude setup-token`, `CLAUDE_CODE_OAUTH_TOKEN`) | **yes** | measured, below |
-| API key (`ANTHROPIC_API_KEY`) | open | not run: no API key. OpenShell's Claude Code provider shows an API key works this way (X00-index, S09-policy-credentials-audit, "Model credential") |
-| Browser login (`/login`, SSO) and its token refresh | open | I15, with the maintainer |
+| API key (`ANTHROPIC_API_KEY`) | open | not run: no API key. Moved to I253. OpenShell's Claude Code provider shows an API key works this way (X00-index, S09-policy-credentials-audit, "Model credential") |
+| Browser login (`/login`, SSO) and its token refresh | **yes, with conditions** | measured 2026-10-15, "Browser login (I15)" |
 
 **Yes for the long-lived token.** Claude Code 2.1.289 sends the
 placeholder as `Authorization: Bearer <placeholder>`, only to
@@ -238,6 +279,181 @@ changes:
   placeholder scan, the event log deny, and a run of Claude Code with
   the left-out hosts refused.
 
+## Browser login (I15)
+
+The run on 2026-10-15, with the maintainer, answers the rest of I15
+except API key mode, which moved to I253 because there is no key
+to run it with.
+
+### Answer (I15)
+
+**Yes, with conditions.** Claude Code 2.1.296 works on a browser login
+when its store holds placeholder access and refresh tokens and a
+host-side proxy holds the real pair. The proxy put the real access
+token into `Authorization: Bearer`, and answered Claude Code's refresh
+itself, so the real refresh token never reached Claude Code.
+
+| Step | Result |
+|---|---|
+| `claude -p`, store expired | refreshed first, then `pong`, `is_error: false` |
+| `claude -p --resume <session>`, store expired again | refreshed with the refresh token the proxy got back, then `I replied with "pong".` |
+| `claude`, interactive | one question asked, and answered |
+
+The conditions:
+
+- **Only the host refreshes.** Every refresh returned a new refresh
+  token. With a second holder of the same login, each would have to
+  learn the other's new token.
+- **The login comes from outside the guest.** In the run it came from
+  a real `/login` on the host's test user, moved out of Claude Code's
+  store by the spike's `swap`.
+- **A login lasts about 30 days.** A refresh doesn't move the refresh
+  token's deadline. The user signs in again when it passes.
+
+For the question from S14-claude-in-guest: **no**, refusing
+`/v1/oauth/hello` doesn't stop the login prompt. Claude Code builds
+the authorize URL, with its PKCE challenge, without a request.
+
+### Run (I15)
+
+On the host as `wbtest`, in a `su - wbtest` terminal, with Claude Code
+2.1.296 and the spike proxy set up as on 2026-10-12. `login.sh` ran
+five steps: `deny`, `observe`, `placeholder`, `restore` and
+`nokeychain`, then a `/logout` through the proxy. The maintainer
+signed in with the enterprise SSO account that made the long-lived
+token of 2026-10-12.
+
+The proxy logged hosts and paths. On a path holding `oauth` or `token`
+it logged the body's field names, with values only for fields that
+aren't secret (`grant_type`, `client_id`, `scope`, `expires_in` and the
+like), and string lengths for the rest. It scanned every header, the
+query and the body of every request for the two placeholders.
+
+The first `deny` and `observe` runs are void. `login.sh` set its
+`EXIT` trap inside a function, and zsh runs such a trap when the
+function returns, so the proxy stopped before Claude Code started.
+Claude Code met a closed port, and the login failed. Commit `7f2d9a1`
+fixed it, and both steps ran again.
+
+### The login
+
+| What | Measured |
+|---|---|
+| Authorize | `https://claude.com/cai/oauth/authorize`, with `code=true`, `response_type=code`, `redirect_uri=https://platform.claude.com/oauth/code/callback`, an S256 PKCE challenge, `state`, and the public client ID `9d1c250a-e61b-44d9-88ed-5944d1962f5e`. The browser shows a code, which the user pastes into Claude Code |
+| Scopes | asked: `org:create_api_key`, `user:profile`, `user:inference`, `user:sessions:claude_code`, `user:mcp_servers`, `user:file_upload`, `user:plugins`. Granted: all but `org:create_api_key` |
+| Reachability check | `GET platform.claude.com/v1/oauth/hello`, 200, after the code was pasted and before the exchange. Seen in one of the two logins (`nokeychain`) |
+| Exchange | `POST platform.claude.com/v1/oauth/token`, a JSON body: `grant_type=authorization_code`, `code` (48 characters), `code_verifier` (43), `state` (43), `client_id` and `redirect_uri`. No client secret |
+| Tokens | 200: `access_token` (108 characters), `expires_in=28800` (8 hours), `refresh_token` (108), `refresh_token_expires_in` (below), `scope`, `token_type=Bearer`, `token_uuid`, and `account` and `organization` objects |
+| After the login | `GET` on `api.anthropic.com`, with the token: `/api/oauth/profile`, `/api/oauth/claude_cli/roles` and `/api/organization/claude_code_first_token_date` |
+| Stored in | the login Keychain, item `Claude Code-credentials`: one JSON value whose field `claudeAiOauth` holds `accessToken`, `refreshToken`, `expiresAt` (milliseconds), `scopes`, `subscriptionType` (`enterprise`), `rateLimitTier` and an empty `refreshTokenExpiresAt`. No `.credentials.json` |
+
+### Refresh
+
+`x01-proxy swap` moved the real pair into the Keychain item
+`wraithbox-oauth`, and wrote placeholders of the same length into
+Claude Code's item, with `expiresAt` an hour in the past.
+
+- **Request.** Claude Code refreshed before its first model call:
+  `POST platform.claude.com/v1/oauth/token`, a JSON body with
+  `grant_type=refresh_token`, `refresh_token`, `client_id`, and
+  `scope` set to the granted list. No client secret.
+- **Swap.** The proxy put the real refresh token into the body, and
+  the placeholders into the answer in place of the new real tokens.
+  Claude Code then stored the placeholders with `expiresAt` 8 hours
+  ahead.
+- **Rotation.** Both refreshes answered 200, with a new access token
+  and a new refresh token each time, and `expires_in=28800`.
+- **Fixed deadline.** `refresh_token_expires_in` fell with the clock
+  across both refreshes and the restore: 2,472,894 s at 19:42,
+  2,472,627 at 19:47 and 2,472,374 at 19:51. The deadline is set at
+  login. A new login at 19:54 got 2,579,568 s, about 29.9 days.
+- **Old refresh tokens still work.** The proxy failed to save the
+  rotated pairs (`security add-generic-password -U` exited 45, a spike
+  bug fixed in `5dabd68`), so its item kept the first pair. The
+  restore step put that pair back, and Claude Code refreshed with the
+  first refresh token at 19:51, about five minutes after it had been
+  rotated twice: 200. Rotation doesn't revoke the old refresh token,
+  at least not within five minutes.
+
+### Placeholders and the real tokens
+
+- The scan found a placeholder in one place only: the body of the
+  refresh request to `platform.claude.com`, where the proxy swaps it.
+  No other header, query string, or body had one.
+- The proxy checks each token answer for a real token it holds before
+  the answer goes to Claude Code, and found none.
+- A fixed-string search of `wbtest`'s home for the first real pair,
+  outside `~/Library/Keychains`, didn't find a file. The pairs from the two
+  refreshes were in the proxy's memory only and weren't searched for.
+
+### Organization plugins and skills
+
+With the browser login, Claude Code also reached these paths on
+`api.anthropic.com`, with the token:
+`/api/oauth/organizations/<org>/marketplaces`, `plugins/list-plugins`,
+`plugins/<id>/download`, `skills/list-skills` and
+`skills/<name>/download`. It downloaded nine skills and one plugin of
+the maintainer's organization, as zip files of 5 to 173 KB, into
+`~/.claude/skills` and `~/.claude/plugins`. The long-lived token of
+2026-10-12 reached none of these paths.
+
+### Without a Keychain
+
+In the `su` terminal with the login Keychain locked, `/login` worked,
+and Claude Code wrote the login in plaintext to
+`~/.claude/.credentials.json` (mode 0600, 528 bytes), without a
+message. With the Keychain unlocked again, Claude Code still read the
+file, and `/logout` deleted it.
+
+### The authorize URL without a network
+
+Logged out, with the proxy refusing all of `platform.claude.com`,
+`claude.ai` and `console.anthropic.com`, `/login` printed the
+authorize URL. The proxy saw 23 connections in that session, to
+`api.anthropic.com`, `downloads.claude.ai` and Datadog, and none to a
+refused host, so it refused no request.
+
+### Logout
+
+`/logout` sent `POST platform.claude.com/v1/oauth/token/revoke`, a
+JSON body with `token` (108 characters), `token_type_hint` (13, the
+length of `refresh_token`) and `client_id`. It answered 200 with an
+empty body. Claude Code then deleted its store and exited. Whether
+revoking the newest refresh token also revokes the older ones of the
+same login wasn't tested.
+
+### The billing banner
+
+With the restored login, and with the login read from
+`.credentials.json`, the banner said "API Usage Billing" where it
+otherwise said "Claude Enterprise". The model answered either way.
+Why wasn't checked.
+
+### Limits (I15)
+
+- One enterprise SSO account, one Mac, one run, Claude Code 2.1.296. A
+  Pro or Max login may differ in scopes, lifetimes, and paths.
+- On the host, not in a guest.
+- One check of an old refresh token, five minutes after the rotation.
+- Claude Code refreshed when `expiresAt` had passed. Whether it also
+  refreshes on a 401, or never does when `expiresAt` lies far ahead,
+  wasn't tested.
+- `/v1/oauth/hello` showed in one login of two.
+- The tokens from the two refreshes stayed in the proxy's memory,
+  weren't searched for on disk and weren't revoked by name.
+
+### What it means for the specs (I15)
+
+The pull request with this result doesn't change them. The decisions
+in B15-browser-login come first. Whatever they are:
+
+- S14-claude-in-guest, "Commands that don't fit a guest": the answer
+  to its measurement, the authorize host `claude.com`, and that a
+  guest's login fails at the exchange, not before the URL.
+- S09-policy-credentials-audit, "Model credential": API key mode is
+  open in I253, and the browser login follows decision 1.
+- X00-index: the I15 answer.
+
 ## Spike code
 
 Branch `spike/x01-model-credential`, commit
@@ -246,4 +462,12 @@ the proxy, its tests, and `run.sh`. The run on 2026-10-12 used
 `run.sh` as of `768cc28`, before the search checks. The logs stay on the maintainer's
 Mac. They don't hold a credential.
 
-**Status:** Answered 2026-10-12: yes for a long-lived token. Decided 2026-10-12 (I60): A2, the model only with the event log denied by the host, and the long-lived token as a supported mode for V1
+For I15, commit
+[`5dabd68`](https://github.com/wraithbox/wraithbox/tree/5dabd68a15ab809a6256ab09471baf11fdcdd2f6/spikes/x01-model-credential):
+`login.sh`, and the proxy's deny rules, field logging, full-request
+scan, OAuth store and `swap`. The runs on 2026-10-15 used the proxy
+as of `e499d3b` and `login.sh` as of `7f2d9a1`, and the restore step
+as of `5dabd68`. Their logs stay on the maintainer's Mac and don't
+hold a token.
+
+**Status:** Answered 2026-10-12: yes for a long-lived token. Decided 2026-10-12 (I60): A2, the model only with the event log denied by the host, and the long-lived token as a supported mode for V1. Answered 2026-10-15 (I15): yes, with conditions, for the browser login, and awaiting decision

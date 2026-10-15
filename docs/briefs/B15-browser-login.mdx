@@ -1,0 +1,178 @@
+---
+title: Can Claude Code in the guest run on a browser login while the host keeps the real tokens?
+description: Yes, with conditions. The host holds the real pair and makes every refresh, which rotates the refresh token each time. The user signs in again about every 30 days. Recommended not to build it for V1 and to keep the long-lived token as the subscription mode.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-15: yes, with conditions. Awaiting decision.** Source: I15, X01-model-credential, "Browser login (I15)". Touches S09-policy-credentials-audit, S14-claude-in-guest and S15-least-privilege. API key mode moved to I253.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions:** Claude Code ran on placeholder tokens while the proxy held the real login and made every refresh. **No:** refusing `/v1/oauth/hello` doesn't hide the login URL in a guest. Recommended: **not in V1** (decision 1) and **no filter** (decision 2).
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="Claude Code in the guest holds a placeholder access token and a placeholder refresh token. wb-proxyd on the host swaps the placeholder access token for the real one on api.anthropic.com, and on a refresh to platform.claude.com swaps the refresh placeholder for the real refresh token from the secret store, and the new real tokens in the answer for placeholders. The login itself happens in a browser on the host. A login code pasted into the guest is the flow the design must stop.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="20" width="190" height="290" rx="12" />
+  <text class="boundary-label" x="22" y="40">guest, untrusted</text>
+  <rect class="box guest" x="30" y="110" width="150" height="70" rx="10" />
+  <text class="label" x="105" y="138" text-anchor="middle">Claude Code</text>
+  <text class="note" x="105" y="156" text-anchor="middle">placeholder access</text>
+  <text class="note" x="105" y="171" text-anchor="middle">and refresh tokens</text>
+
+  <text class="note" x="250" y="40">host</text>
+  <rect class="box host" x="240" y="110" width="160" height="70" rx="10" />
+  <text class="label" x="320" y="138" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="320" y="156" text-anchor="middle">swaps both ways,</text>
+  <text class="note" x="320" y="171" text-anchor="middle">keeps rotated tokens</text>
+  <rect class="box host" x="240" y="220" width="160" height="40" rx="10" />
+  <text class="label" x="320" y="245" text-anchor="middle">secret store</text>
+  <rect class="box host" x="240" y="275" width="160" height="40" rx="10" />
+  <text class="label" x="320" y="300" text-anchor="middle">browser, sign-in</text>
+
+  <text class="note" x="560" y="40">internet</text>
+  <rect class="box host" x="470" y="60" width="270" height="44" rx="10" />
+  <text class="label" x="605" y="80" text-anchor="middle">model API</text>
+  <text class="note" x="605" y="96" text-anchor="middle">real access token</text>
+  <rect class="box host" x="470" y="130" width="270" height="44" rx="10" />
+  <text class="label" x="605" y="150" text-anchor="middle">platform.claude.com token endpoint</text>
+  <text class="note" x="605" y="166" text-anchor="middle">real refresh token, rotates</text>
+  <rect class="box host" x="470" y="270" width="270" height="44" rx="10" />
+  <text class="label" x="605" y="290" text-anchor="middle">claude.com authorize page</text>
+  <text class="note" x="605" y="306" text-anchor="middle">shows a login code</text>
+
+  <line class="edge" x1="182" y1="145" x2="238" y2="145" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="320" y1="218" x2="320" y2="182" marker-end="url(#f1-arrow)" />
+  <path class="edge" d="M402,130 C430,100 440,88 468,84" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="402" y1="150" x2="468" y2="152" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="402" y1="295" x2="468" y2="293" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M238,300 C200,300 140,260 110,182" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="150" y="290" text-anchor="middle">code pasted</text>
+</svg>
+<figcaption>
+Figure 1. The measured mode, drawn as it would be with a guest. Claude Code holds only placeholders. `wb-proxyd` adds the real access token on the model API, and on a refresh sends the real refresh token and hands Claude Code placeholders for the new tokens. The sign-in happens in a browser on the host. Red: a login code pasted into the guest, which decision 2 is about.
+</figcaption>
+</figure>
+
+## Decision 1: the browser login in V1
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Not in V1
+
+The long-lived token from `claude setup-token` stays the subscription mode (S09-policy-credentials-audit, "Model credential"). A `/login` in the guest can't finish. The profile doesn't allow the token endpoint, and `wb-proxyd` refuses the code exchange. An issue keeps the measured design for after V1.
+
+- **Cost:** nothing new to build. The user runs `claude setup-token` on the host about once a year.
+- **Gap:** an organization whose admin turns off `setup-token` has no subscription mode in V1. Whether an admin can do that wasn't checked.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC05-default-deny" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. A host-side login in V1
+
+`wb` signs the user in on the host, either with its own login flow under Claude Code's public client ID, or by running the host's Claude Code and moving the login out of its store, as the spike did. The refresh token goes in the secret store. `wb-proxyd` answers the guest's refresh as in Figure 1, and writes each rotated token back.
+
+- **Cost:** new code in `wb` and `wb-proxyd`: a login command, a binding kind for the pair, and a rewrite of the token endpoint's request and answer bodies. Spec changes in S07-egress-gateway, S09-policy-credentials-audit and S15-least-privilege. A new sign-in about every 30 days.
+- **Gap:** using Claude Code's client ID outside Claude Code is what OpenShell waits for Anthropic to approve (X00-index). A leaked refresh token keeps working after rotation, for up to 30 days. The organization's plugins and skills arrive by download, and the profile has to allow or refuse them.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="success" /> <Badge text="SEC05-default-deny" variant="caution" /> the token endpoint and the organization paths allowed
+
+</div>
+<div class="wb-option">
+
+### C. A login in the guest
+
+The guest's Claude Code signs in itself, and the profile allows the login hosts. Not viable: the guest's Claude Code stores the real pair in its Keychain, or in plaintext in `~/.claude/.credentials.json` when no Keychain is unlocked, which the spike saw. It needs a spec change that weakens a control, so it isn't recommended.
+
+- **Weakens:** <Badge text="SEC04-no-guest-secrets" variant="danger" /> real tokens in the guest
+
+</div>
+</div>
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Not in V1</th><th>B. Host-side login</th><th>C. In the guest</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no secrets in the guest</td><td class="yes">placeholder only</td><td class="yes">placeholders only</td><td class="no">real tokens</td></tr>
+<tr><td><strong>SEC05-default-deny</strong> only allowed hosts and paths are reachable</td><td class="yes">profile unchanged</td><td class="partial">token endpoint, organization paths</td><td class="partial">login hosts</td></tr>
+<tr><td><strong>FR01-drop-in</strong> Claude Code works as on the host</td><td class="partial">no <code>/login</code>, a token instead</td><td class="partial">no <code>/login</code> in the guest</td><td class="yes">as on the host</td></tr>
+</tbody>
+</table>
+
+## Decision 2: the authorize URL in a guest
+
+`/login` in a guest prints a real authorize URL, and refusing `/v1/oauth/hello` doesn't stop it. A user who opens it and pastes the code into the guest gives the guest a code it can't redeem through `wb-proxyd`, but can send out. S14-claude-in-guest has `wb` warn against it.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. The warning stays
+
+The S14-claude-in-guest warning stays as the only control, without a filter, and the text gets the measured answer.
+
+- **Cost:** none.
+- **Gap:** the URL shows, and the warning is the only control against a pasted code.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="caution" /> a pasted code can leave the guest
+
+</div>
+<div class="wb-option">
+
+### B. The terminal filter hides the URL
+
+S16-terminal-stream removes `claude.com/cai/oauth/authorize` URLs from the guest's output.
+
+- **Cost:** a new filter rule. Claude Code redraws and wraps the URL across lines. A rule matches some forms of it and misses others. The recording of the spike held the URL in fragments.
+- **Gap:** the user can still start a login on the host and paste its code.
+- **Keeps:** <Badge text="SEC04-no-guest-secrets" variant="caution" /> as A, with fewer URLs shown
+
+</div>
+</div>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> `-p` answered `pong` after a refresh, `-p --resume` answered `I replied with "pong".` after a second, and the interactive session answered a question, with placeholders in Claude Code's store. Source: X01-model-credential, "Answer (I15)", the run's output.
+- <Badge text="verified" variant="success" /> Each refresh returned a new refresh token, and the access token lives 8 hours. Source: the proxy's `REFRESH` lines, "Refresh".
+- <Badge text="verified" variant="success" /> The refresh token's deadline is fixed at login, about 29 to 30 days, and a refresh doesn't move it. Source: `refresh_token_expires_in` across three answers and a second login, "Refresh".
+- <Badge text="verified" variant="success" /> A refresh token rotated away five minutes before still refreshed. Source: the restore step, "Refresh".
+- <Badge text="verified" variant="success" /> The placeholders appeared only where the proxy swaps them, and no real token went to Claude Code. Source: the full-request scan, "Placeholders and the real tokens".
+- <Badge text="verified" variant="success" /> With the login Keychain locked, Claude Code stored the login in plaintext in `~/.claude/.credentials.json`, without a message. Source: "Without a Keychain".
+- <Badge text="verified" variant="success" /> `/login` printed the authorize URL with every login host refused, and didn't send a request to one. Source: "The authorize URL without a network".
+- <Badge text="verified" variant="success" /> The profile doesn't allow a path on `platform.claude.com` other than `/v1/oauth/hello`, so a guest's code exchange to `/v1/oauth/token` is refused. Source: S07-egress-gateway, model API.
+- <Badge text="inferred" variant="note" /> Claude Code wraps the URL across lines. The recording held it in three fragments of different lengths, which a terminal width cut would give.
+- <Badge text="assumed" variant="caution" /> That a rotated-away refresh token still works after more than five minutes. One check. A rerun of the restore step after a day would show it.
+- <Badge text="assumed" variant="caution" /> That a Pro or Max login behaves like the enterprise login measured. A rerun of `login.sh` with such an account would show it.
+- <Badge text="assumed" variant="caution" /> That Anthropic allows a tool other than Claude Code to run the login under Claude Code's client ID. OpenShell waits for an approved client identity (X00-index). Option B depends on it.
+
+## What this unblocks
+
+- I15 closes with the decisions. Nothing else is blocked by it.
+- With option B: an issue for the host-side login, in V1. With A, the same issue, for after V1.
+- I253 keeps API key mode.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the host must own the refresh.** Each refresh returns a new refresh token. If the guest held the real one, and the host's Claude Code or a second VM had the same login, whichever refreshed second would send a token the other had already used. With the proxy answering every refresh, there is one holder, and Claude Code in the guest only ever sees placeholders.
+
+**A leaked refresh token works for up to 30 days.** Rotation doesn't revoke the old refresh token, at least not within five minutes. A refresh token copied out of the secret store keeps working until the login's deadline, about 30 days, or until someone revokes the login. `/logout` revokes through `platform.claude.com/v1/oauth/token/revoke`.
+
+**What the long-lived token lacks.** The long-lived token from 2026-10-12 reached none of the organization's plugin and skill paths that the browser login reached, so organization plugins and skills aren't in the guest in V1 either way, as S14-claude-in-guest already says for the plugin marketplace.
+
+**Glossary**
+
+- **Access token:** what Claude Code sends with each model request. It lasts 8 hours.
+- **Refresh token:** what Claude Code trades for a new access token when the old one expires. It is the long-lived secret of a login.
+- **Rotation:** a refresh returns a new refresh token as well.
+- **Authorize URL:** the page where the user signs in. It ends with a code that the user pastes back into Claude Code.
+- **PKCE:** a check that ties the code to the program that asked for it. Whoever holds both the code and the program's secret verifier can redeem it.
+
+</details>

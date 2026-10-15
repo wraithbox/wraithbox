@@ -18,6 +18,7 @@ issue, the spike result, or the spec). A brief explains it.
 
 | ID | Description | Status |
 |----|-------------|--------|
+| B15-browser-login | Can Claude Code in the guest run on a browser login while the host keeps the real tokens? | Answered 2026-10-15: yes, with conditions. Awaiting decision |
 | B16-warm-start | How fast does a suspended VM come back, and can one saved state be restored more than once? | Answered 2026-10-04: yes, with conditions. Decided 2026-10-04: A, keep running while locked and save after unlock |
 | B17-network-path | Does a macOS guest work on our userspace network stack, reaching only the proxy, and how fast? | Answered 2026-10-05: yes, with conditions. Decided 2026-10-06: 1A, link MTU 65535, and 2A, refuse the guest OS's own lookups quietly |
 | B18-tls-inspection | Do the guest's tools accept the inspection CA? | Answered 2026-10-08: no. Decided 2026-10-10: A, accept it |
