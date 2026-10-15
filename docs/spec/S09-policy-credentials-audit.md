@@ -528,9 +528,10 @@ inspection is trusted, and what is recorded.
     step deletes the item, leaves the record unchanged, and fails the issue with
     `ca-key-restore`.
   - *Restore.* In an ad-hoc build, a read of the item that fails with
-    -25293 follows S15-least-privilege, "After an update", and one that
-    fails with -25308, a locked keychain, waits for the unlock (rule 7
-    there). Any other failure is `ca-key-restore`: a missing item, a store error,
+    -25293 follows S15-least-privilege, "After an update". In every
+    build and on every backend, a read that fails because the store is
+    locked, -25308 on the Keychain or a locked 1Password, waits
+    for the unlock (S15-least-privilege, rule 7). Any other failure is `ca-key-restore`: a missing item, a store error,
     an error from the restore, or a public key that differs. Then
     `wb-proxyd` serves none of the VM's streams, and the VM's start or
     restore is refused with that rule.
