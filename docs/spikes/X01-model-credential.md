@@ -44,12 +44,12 @@ SEC10-audit, FR01-drop-in, FR13-claude-state
   - That the long-lived token didn't reach the organization's plugin
     and skill paths because of its scope. Inferred: it reached none of
     them on 2026-10-12, and the scope wasn't logged then.
-- **Open decisions:** each has a recommendation in B15-browser-login.
-  1. The browser login in V1. Recommended: not in V1, with the
-     long-lived token as the subscription mode, and the measured design
-     kept in an issue for later.
-  2. The authorize URL in a guest. Recommended: the warning that
-     S14-claude-in-guest already has, without a terminal filter.
+- **Decisions:** made on I15 on 2026-10-15, as B15-browser-login
+  recommended.
+  1. The browser login isn't in V1. The long-lived token stays the
+     subscription mode, and I257 keeps the measured design for later.
+  2. The authorize URL gets no terminal filter. The warning in
+     S14-claude-in-guest stays.
 - **Brief:** B15-browser-login
 
 ### The long-lived token (I60, decided 2026-10-12)
@@ -444,14 +444,18 @@ Why wasn't checked.
 
 ### What it means for the specs (I15)
 
-The pull request with this result doesn't change them. The decisions
-in B15-browser-login come first. Whatever they are:
+The pull request with this result doesn't change them. The maintainer
+decided on I15 on 2026-10-15: the browser login isn't in V1 (I257
+keeps the design), and the authorize URL gets no filter. I256 makes
+these changes:
 
 - S14-claude-in-guest, "Commands that don't fit a guest": the answer
   to its measurement, the authorize host `claude.com`, and that a
   guest's login fails at the exchange, not before the URL.
 - S09-policy-credentials-audit, "Model credential": API key mode is
-  open in I253, and the browser login follows decision 1.
+  open in I253, and the browser login isn't a V1 mode.
+- S15-least-privilege, "Out of scope": the browser login points to
+  I257.
 - X00-index: the I15 answer.
 
 ## Spike code
@@ -470,4 +474,4 @@ as of `e499d3b` and `login.sh` as of `7f2d9a1`, and the restore step
 as of `5dabd68`. Their logs stay on the maintainer's Mac and don't
 hold a token.
 
-**Status:** Answered 2026-10-12: yes for a long-lived token. Decided 2026-10-12 (I60): A2, the model only with the event log denied by the host, and the long-lived token as a supported mode for V1. Answered 2026-10-15 (I15): yes, with conditions, for the browser login, and awaiting decision
+**Status:** Answered 2026-10-12: yes for a long-lived token. Decided 2026-10-12 (I60): A2, the model only with the event log denied by the host, and the long-lived token as a supported mode for V1. Answered 2026-10-15 (I15): yes, with conditions, for the browser login. Decided 2026-10-15 (I15): not in V1, and no filter for the authorize URL
