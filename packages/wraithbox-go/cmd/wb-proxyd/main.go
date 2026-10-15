@@ -1,5 +1,7 @@
 // Command wb-proxyd is the egress proxy: it applies HTTP policy, replaces
-// credentials and is the only Wraith Box process that connects upstream.
+// credentials and makes every upstream connection for the guests.
+// wb-download, which fetches what an image build needs, connects to the
+// internet as well (docs/spec/S17-install-and-upgrade.md).
 // See docs/spec/S07-egress-gateway.md and docs/spec/S09-policy-credentials-audit.md.
 package main
 

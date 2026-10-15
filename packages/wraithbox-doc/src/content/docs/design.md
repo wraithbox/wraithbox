@@ -72,6 +72,7 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
 | S13-guest-confinement | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
 | S14-claude-in-guest | Claude Code in the guest: install, user configuration, agent interface |
 | S16-terminal-stream | The filter on guest output to the host terminal |
+| S17-install-and-upgrade | Building, installing and upgrading the bundle; downloads for image builds; migrations |
 
 The requirements and the threat model are in FR00-index, NFR00-index,
 SEC00-index and T00-index. The test cases of each area are in

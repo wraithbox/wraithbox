@@ -21,6 +21,7 @@ Wraith Box works and why.
 | S14-claude-in-guest | Claude Code in the Guest | Draft |
 | S15-least-privilege | Least Privilege on the Host | Draft |
 | S16-terminal-stream | Terminal Stream | Draft |
+| S17-install-and-upgrade | Install, Downloads and Upgrades | Draft |
 
 The other indexes: FR00-index, NFR00-index, SEC00-index, T00-index,
 C00-index, X00-index, R00-index and V00-index.

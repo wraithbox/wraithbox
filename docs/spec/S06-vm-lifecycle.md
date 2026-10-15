@@ -126,10 +126,11 @@ in S12-platforms.
   runs the provisioning boot and the boots of the second stage, and
   exits when the build ends.
   The install reads only the restore image at the fixed path
-  `<data>/images/macos-restore.ipsw`. I49 (B49-install-upgrade) decided how the
-  file gets there: a download program fetches it, and `wb-hostd`
-  checks its hash before it starts `wb-vmd-install`, which checks the
-  path again itself (S04-architecture).
+  `<data>/images/macos-restore.ipsw`. `wb-download` fetches it from
+  Apple's catalog, and `wb-hostd` checks its hash before it starts
+  `wb-vmd-install` (S17-install-and-upgrade, "Downloads"), which checks
+  the path again itself (S04-architecture). A build that seals its
+  image deletes the restore image.
 
   Each build starts with a new, empty build bundle. `wb-hostd` deletes
   what an earlier build left there, without following symbolic links,

@@ -46,16 +46,17 @@ Only the host downloads Claude Code (decided on I45, row 1). The guest
 never fetches it, and `downloads.claude.ai` is outside every profile
 the guest gets (S07-egress-gateway, model API, "Outside the profile").
 
-- **Download.** During `wb image build`, the download program that the
-  I49 decision adds fetches a release's `manifest.json`, its detached
-  signature `manifest.json.sig`, and the guest's binary from
+- **Download.** During `wb image build`, `wb-download`
+  (S17-install-and-upgrade, "Downloads") fetches a release's
+  `manifest.json`, its detached signature `manifest.json.sig`, and the
+  guest's binary from
   `https://downloads.claude.ai/claude-code-releases/<version>/`. The
-  binary is at `<version>/<platform>/<binary>`, where `<binary>` is the
-  platform entry's `binary` field (`claude` for `darwin-arm64`): one
+  binary is at `<version>/darwin-arm64/claude` for a macOS guest. That
+  path is compiled into Wraith Box for each guest platform, so
+  `wb-download` doesn't read the manifest. The binary is one
   uncompressed Mach-O executable, signed by Anthropic PBC and notarized
-  by Apple. `wb-hostd` itself doesn't open an outbound connection. No
-  spec defines the download program yet (it isn't in S04-architecture),
-  and this fetch depends on the spec that I49 asks for.
+  by Apple.
+  `wb-hostd` itself doesn't open an outbound connection.
 - **Check.** `wb-release-check` (S04-architecture), a per-run program
   that `wb-hostd` starts through `wb-launcher`, checks the files on
   inherited descriptors and writes a fixed-format record to a pipe:
@@ -79,8 +80,9 @@ the guest gets (S07-egress-gateway, model API, "Outside the profile").
     Releases before 2.1.89 have no signature, and this minimum refuses
     them too;
   - the manifest has an entry for the guest's platform (`darwin-arm64`
-    for a macOS guest), and the binary's size and SHA-256 equal that
-    entry's `size` and `checksum`.
+    for a macOS guest), its `binary` field is the file name the
+    download used (`claude`), and the binary's size and SHA-256 equal
+    that entry's `size` and `checksum`.
 
   Any failed check fails the build, and the build logs the check that
   failed. The manifest parser has a fuzz target.

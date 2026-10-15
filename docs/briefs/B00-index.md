@@ -48,7 +48,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B46-session-lifecycle | What happens to a running session when its terminal closes or its VM stops? | Decided 2026-10-04: B. Closing the terminal ends the session |
 | B47-non-http-streams | What does the gateway do with a connection that isn't TLS or HTTP? | Decided 2026-10-04: A. Reset by default, raw TCP as a pass-class entry |
 | B48-process-supervision | Who restarts the host processes, and what happens to running VMs when one fails? | Decided 2026-10-04: C. VMs stop with wb-hostd, for V1 |
-| B49-install-upgrade | Which process downloads macOS restore images, and how are Wraith Box installs upgraded? | Decided 2026-10-04: a dedicated download program that wb-hostd invokes |
+| B49-install-upgrade | How is Wraith Box built, installed and upgraded, and how does an image build get its downloads? | Awaiting decision: approval of the spec change |
 | B50-vm-test-infra | How do agents share the two macOS VM slots, and where do VM tests run? | Decided 2026-10-04: C. By hand for now, with VM builders run one at a time |
 | B51-approval-flow | What happens between a blocked lookup and the user's answer? | Decided 2026-10-04: A. Hold the answer, then refuse uncached |
 | B52-proto-contracts | How are the gRPC contracts between the processes written, generated, and checked? | Decided 2026-10-04: A. Commit generated code |

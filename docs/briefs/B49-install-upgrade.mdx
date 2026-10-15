@@ -1,180 +1,201 @@
 ---
-title: Which process downloads macOS restore images, and how are Wraith Box installs upgraded?
-description: Recommended that wb-proxyd downloads restore images from Apple only, since it already makes the host's outbound connections. Migrations run in wb-hostd at start. Signing and the image build wait on X09-keychain-unsigned and X17-image-build.
+title: How is Wraith Box built, installed and upgraded, and how does an image build get its downloads?
+description: Recommended - approve S17-install-and-upgrade. A new per-run program, wb-download, fetches restore images from Apple and Claude Code from Anthropic. wb setup installs a LaunchAgent and a wb link without administrator rights. wb-hostd alone migrates state.db.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Decided 2026-10-04: a dedicated download program that wb-hostd invokes.** The decision and its reasons are in the I49 comment that starts `Decision (2026-10-04):`. Source: I49. Affects S04-architecture, S05-cli, S06-vm-lifecycle, S10-tech-stack and S12-platforms. Signing and the Keychain after an upgrade were settled later by X29-dev-signing (decided on I248, B248-dev-signing).
+**Awaiting decision: approval of the spec change.** Source: I49, S17-install-and-upgrade. Follows the I49 decision of 2026-10-04 (a dedicated download program that wb-hostd invokes), the 2026-10-12 comment (it also fetches Claude Code) and the triage of 2026-10-15 (signing as in X29-dev-signing, B248-dev-signing). Touches S04-architecture, S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit, S10-tech-stack, S14-claude-in-guest and S15-least-privilege.
 
 <Aside type="tip" title="You are deciding">
-Which process downloads macOS restore images. Recommended: **A**, `wb-proxyd`, under a built-in rule for Apple's hosts only, writing into a file `wb-hostd` opens for it. The issue proposes **B**, `wb-hostd`. The sub-decisions on install, upgrade and migration can be decided now as well. Signing, Keychain access after an upgrade, and the guest tools image wait on X09-keychain-unsigned and X17-image-build. Both have answered since, and X29-dev-signing settled signing (I248).
+Whether to approve S17-install-and-upgrade as the design for building, installing, upgrading and migrating Wraith Box, and for its downloads. Recommended: approve it with option **A** below for trusting the restore image. Then the `mise` tasks, `wb setup`, `wb-download` and the migrations can be filed as build issues.
 </Aside>
 
-## The problem
+## The picture
 
 <figure class="wb-figure">
-<svg viewBox="0 0 760 340" role="img" aria-label="Apple's servers hold the restore images. Under the recommendation wb-proxyd downloads one into a file that wb-hostd opened, wb-hostd checks it, and wb-vmd installs it into a new VM. Whether wb-vmd itself needs Apple's servers during the install is open. The guest gets wb-guestd from a read-only disk image, never from the network.">
-  <defs>
-    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
-    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
-  </defs>
+<svg viewBox="0 0 1000 560" role="img" aria-label="wb-hostd opens the files, then starts wb-download through wb-launcher. wb-download fetches Apple's catalog and a restore image, or a Claude Code release, over HTTPS into those descriptors. wb-hostd checks the restore image's hash, and wb-release-check checks the Claude Code release, before wb-vmd-install or wb-guestd uses them.">
+<defs>
+<marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+</defs>
+<text class="note" x="20" y="24">host: runs as the user, no root</text>
 
-  <rect class="box" x="590" y="30" width="160" height="60" rx="10" />
-  <text class="label" x="670" y="56" text-anchor="middle">Apple</text>
-  <text class="note" x="670" y="75" text-anchor="middle">catalog, restore images</text>
+<rect class="boundary" x="760" y="20" width="225" height="230" rx="12" />
+<text class="boundary-label" x="772" y="40">internet, HTTPS only</text>
+<rect class="box" x="775" y="55" width="195" height="72" rx="10" />
+<text class="label" x="872" y="82" text-anchor="middle">Apple</text>
+<text class="note" x="872" y="101" text-anchor="middle">mesu.apple.com</text>
+<text class="note" x="872" y="117" text-anchor="middle">updates.cdn-apple.com</text>
+<rect class="box" x="775" y="160" width="195" height="72" rx="10" />
+<text class="label" x="872" y="187" text-anchor="middle">Anthropic</text>
+<text class="note" x="872" y="206" text-anchor="middle">downloads.claude.ai</text>
 
-  <text class="note" x="20" y="18">host: trusted</text>
+<rect class="box host" x="20" y="60" width="230" height="110" rx="10" />
+<text class="label" x="135" y="86" text-anchor="middle">wb-hostd</text>
+<text class="note" x="135" y="107" text-anchor="middle">no network</text>
+<text class="note" x="135" y="126" text-anchor="middle">opens the files</text>
+<text class="note" x="135" y="145" text-anchor="middle">checks size and SHA-1</text>
 
-  <rect class="box host" x="330" y="30" width="170" height="60" rx="10" />
-  <text class="label" x="415" y="56" text-anchor="middle">wb-proxyd</text>
-  <text class="note" x="415" y="75" text-anchor="middle">already connects out</text>
+<rect class="box host" x="290" y="60" width="180" height="60" rx="10" />
+<text class="label" x="380" y="86" text-anchor="middle">wb-launcher</text>
+<text class="note" x="380" y="105" text-anchor="middle">fixed entries</text>
 
-  <rect class="box host" x="20" y="30" width="170" height="60" rx="10" />
-  <text class="label" x="105" y="56" text-anchor="middle">wb image build</text>
-  <text class="note" x="105" y="75" text-anchor="middle">user runs it</text>
+<rect class="box host" x="520" y="90" width="200" height="90" rx="10" />
+<text class="label" x="620" y="116" text-anchor="middle">wb-download</text>
+<text class="note" x="620" y="137" text-anchor="middle">one run, confined</text>
+<text class="note" x="620" y="156" text-anchor="middle">hosts compiled in</text>
 
-  <rect class="box host" x="20" y="150" width="170" height="70" rx="10" />
-  <text class="label" x="105" y="176" text-anchor="middle">wb-hostd</text>
-  <text class="note" x="105" y="196" text-anchor="middle">opens file, checks hash,</text>
-  <text class="note" x="105" y="211" text-anchor="middle">runs migrations</text>
+<line class="edge" x1="252" y1="90" x2="288" y2="90" marker-end="url(#f1-arrow)" />
+<path class="edge" d="M472,90 C495,90 505,110 518,118" marker-end="url(#f1-arrow)" />
+<text class="note" x="495" y="78" text-anchor="middle">starts</text>
+<line class="edge" x1="722" y1="120" x2="773" y2="95" marker-end="url(#f1-arrow)" />
+<line class="edge" x1="722" y1="160" x2="773" y2="192" marker-end="url(#f1-arrow)" />
 
-  <rect class="box host" x="330" y="150" width="170" height="70" rx="10" />
-  <text class="label" x="415" y="176" text-anchor="middle">wb-vmd</text>
-  <text class="note" x="415" y="196" text-anchor="middle">installs macOS,</text>
-  <text class="note" x="415" y="211" text-anchor="middle">no network by spec</text>
+<rect class="box host" x="290" y="250" width="300" height="80" rx="10" />
+<text class="label" x="440" y="276" text-anchor="middle">files in &lt;data&gt;</text>
+<text class="note" x="440" y="297" text-anchor="middle">images/macos-restore.ipsw(.partial)</text>
+<text class="note" x="440" y="315" text-anchor="middle">downloads/: a Claude Code release</text>
 
-  <line class="edge" x1="588" y1="60" x2="502" y2="60" marker-end="url(#f1-arrow)" />
-  <line class="edge" x1="105" y1="90" x2="105" y2="148" marker-end="url(#f1-arrow)" />
-  <path class="edge" d="M192,165 C260,140 300,110 335,92" marker-end="url(#f1-arrow)" />
-  <text class="note" x="345" y="135">fetch into this file</text>
-  <line class="edge" x1="192" y1="190" x2="328" y2="190" marker-end="url(#f1-arrow)" />
+<path class="edge" d="M620,182 C620,215 560,235 545,248" marker-end="url(#f1-arrow)" />
+<text class="note" x="605" y="215" text-anchor="end">writes to inherited descriptors</text>
+<path class="edge" d="M150,172 C170,240 230,280 288,288" marker-end="url(#f1-arrow)" />
+<text class="note" x="160" y="240">open, check, rename</text>
 
-  <path class="edge-bad" d="M502,170 C560,150 620,120 650,92" marker-end="url(#f1-arrow-bad)" />
-  <text class="boundary-label" x="545" y="165">personalization? X17</text>
+<rect class="box host" x="20" y="370" width="230" height="64" rx="10" />
+<text class="label" x="135" y="396" text-anchor="middle">wb-release-check</text>
+<text class="note" x="135" y="415" text-anchor="middle">signature, version, SHA-256</text>
+<line class="edge" x1="80" y1="172" x2="80" y2="368" marker-end="url(#f1-arrow)" />
 
-  <rect class="boundary" x="330" y="250" width="420" height="80" rx="12" />
-  <text class="boundary-label" x="342" y="270">new VM: guest, untrusted</text>
-  <rect class="box guest" x="520" y="262" width="210" height="56" rx="10" />
-  <text class="label" x="625" y="286" text-anchor="middle">wb-guestd</text>
-  <text class="note" x="625" y="304" text-anchor="middle">from guest tools image</text>
+<rect class="box host" x="290" y="370" width="230" height="64" rx="10" />
+<text class="label" x="405" y="396" text-anchor="middle">wb-vmd-install</text>
+<text class="note" x="405" y="415" text-anchor="middle">reads the restore image</text>
+<line class="edge" x1="405" y1="332" x2="405" y2="368" marker-end="url(#f1-arrow)" />
 
-  <line class="edge" x1="415" y1="220" x2="415" y2="290" />
-  <line class="edge" x1="415" y1="290" x2="518" y2="290" marker-end="url(#f1-arrow)" />
-  <text class="note" x="20" y="300">read-only disk image, never</text>
-  <text class="note" x="20" y="316">the network (S06-vm-lifecycle)</text>
+<rect class="boundary" x="290" y="460" width="695" height="90" rx="12" />
+<text class="boundary-label" x="302" y="480">build guest: untrusted</text>
+<rect class="box guest" x="600" y="475" width="250" height="60" rx="10" />
+<text class="label" x="725" y="500" text-anchor="middle">wb-guestd</text>
+<text class="note" x="725" y="520" text-anchor="middle">installs the checked binary</text>
+<path class="edge" d="M250,160 L268,160 L268,505 L598,505" marker-end="url(#f1-arrow)" />
+<text class="note" x="302" y="530">the checked bytes, over the host-guest socket</text>
 </svg>
 <figcaption>
-Figure 1. The recommended download path. Only <code>wb-proxyd</code> connects to Apple, and <code>wb-hostd</code> checks the file before <code>wb-vmd</code> uses it. The red arrow is an open question for X17-image-build: if installing a macOS guest needs Apple's servers, <code>wb-vmd</code> needs network during an image build, which S04-architecture rules out today.
+Figure 1. The downloads of an image build. Only <code>wb-download</code> connects to the internet, and only to the hosts compiled into its entry. <code>wb-hostd</code> has no network, opens every file itself, and checks what arrives before anything uses it.
 </figcaption>
 </figure>
 
-## Options
+## What approving commits to
+
+- **A new process, `wb-download`.** One run per download, started through `wb-launcher` from two fixed entries: `wb-download-restore` (Apple's `mesu.apple.com` and `updates.cdn-apple.com`) and `wb-download-claude` (`downloads.claude.ai`). It writes only to files `wb-hostd` opened and doesn't follow redirects or read a proxy setting. Its profile denies files, the secret store and starting programs.
+- **The restore image** is the newest in Apple's catalog that isn't newer than the host's macOS. `wb-hostd` checks its size and SHA-1, resumes a partial download, refuses one without room, and deletes the image once a build has sealed its image.
+- **Claude Code** comes from a path fixed per guest platform (`<version>/darwin-arm64/claude`), so `wb-download` parses nothing, and `wb-release-check` now also checks the manifest's `binary` field.
+- **The build order** of `mise run build` on macOS: version stamp, Go, Swift, `xcodebuild` of a committed app project (`packages/wraithbox-swift/WraithBox.xcodeproj`), the guest tools disk, assembly, signing from the inside out, checks. CI builds the ad-hoc bundle on every pull request.
+- **`wb setup`** writes `~/Library/LaunchAgents/nl.wraithbox.hostd.plist` and links `~/.local/bin/wb`. `wb setup --remove` deletes both and keeps data and store items.
+- **Upgrades** replace the bundle by rename, never by copying over it. Then S04-architecture's restart applies.
+- **Migrations** run in `wb-hostd` only, forward only, after a backup. A failed migration or a newer database puts `wb-hostd` in a refusing mode instead of a restart loop.
+
+## Options for trusting the restore image
+
+Apple's catalog lists only a SHA-1 per image, and isn't signed. The hash check catches a damaged or swapped file. A compromised `wb-download` that reports its own URL and hash gets past it.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
-### A. wb-proxyd downloads
+### A. Catalog SHA-1, plus Apple's check at install
 
-`wb-hostd` opens the target file and asks `wb-proxyd` to fill it. A built-in rule allows only Apple's catalog and download hosts, and the download is audited like any other connection. `wb-hostd` checks the hash before `wb-vmd` may use the file.
+`wb-hostd` checks the file against the catalog's SHA-1. Against a compromised downloader, the design relies on Virtualization's installer refusing an image Apple didn't sign, which I262 measures.
 
-- **Cost:** one RPC and one fixed rule. `wb-proxyd` does more than serve guests, as it already does for vulnerability lookups (SEC07-dep-gate).
-- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC10-audit" variant="success" />
-
-</div>
-<div class="wb-option">
-
-### B. wb-hostd downloads
-
-The issue's proposal. `wb-hostd` fetches from Apple's catalog only and checks the catalog's hash.
-
-- **Cost:** the least code. `wb-hostd`'s self-sandbox gains outbound network (S04-architecture lists only its state directories), and the download needs its own audit and its own upstream proxy settings.
-- **Keeps:** <Badge text="SEC12-least-privilege with a wider sandbox" variant="caution" />
+- **Cost:** none beyond the spec. A new macOS release works the day Apple lists it.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC08-proj-isolation" variant="caution" /> if I262 holds
 
 </div>
 <div class="wb-option">
 
-### C. wb downloads
+### B. Hashes pinned in each Wraith Box release
 
-`wb image build` downloads in the foreground and hands the file to `wb-hostd`. No daemon gains network.
+Each release compiles in the SHA-256 of the restore images it accepts, and refuses any other.
 
-- **Cost:** the download stops when the terminal closes and resumes on the next run. Inside WSL `wb` runs on the wrong side for later Linux images (S12-platforms, "WSL").
+- **Cost:** a new macOS point release can't be used until Wraith Box ships a new build. Apple's catalog lists only the newest image, so an older pinned one may disappear.
+- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC08-proj-isolation" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### C. Also the CDN's SHA-256 header
+
+The download host sends `x-amz-meta-digest-sha256` with the file. `wb-download` would report it, and `wb-hostd` would check it too.
+
+- **Cost:** little, but it comes from the same response and the same process as the file, so it doesn't help against a compromised downloader.
 - **Keeps:** <Badge text="SEC12-least-privilege" variant="success" />
 
 </div>
 </div>
 
-A fourth choice, `wb-vmd` downloading through the Virtualization framework's own catalog call, is ruled out today: S04-architecture gives `wb-vmd` no network. X17-image-build may reopen it if the install needs network anyway.
+## Other open points
 
-<Aside type="note" title="Missing from the issue">
-**B breaks two stated rules.** S04-architecture gives `wb-hostd` "its state directories" and `wb-proxyd` "outbound network". The code comment on `wb-proxyd` says it "is the only Wraith Box process that connects upstream" (`packages/wraithbox-go/cmd/wb-proxyd/main.go`). B changes both, and A keeps both, so this brief recommends A over the issue's proposal.
+Each has a recommendation, which the spec states. Approving the spec accepts them.
 
-**The install itself may need network.** Installing macOS into a new VM may contact Apple to personalize the install. That call would come from `wb-vmd`, which S04-architecture says has no network. X17-image-build should check this, because the answer may force a spec change for `wb-vmd` whichever option is chosen.
-
-**Finding the newest image is a Swift API.** The Virtualization framework's call for the newest supported restore image runs in the calling process. Under A or B, Go must read Apple's catalog directly. That needs a catalog with a stable address and a hash per image. Also X17-image-build.
-</Aside>
-
-## Sub-decisions
-
-| Item | Recommendation | Waits on |
+| Point | Recommended, in the spec | Alternative |
 |---|---|---|
-| Image source | Apple's catalog only, or a local restore image file the user names (for offline and managed machines). | X17-image-build, for the hash |
-| What `wb setup` installs | A LaunchAgent plist for `wb-hostd` in `~/Library/LaunchAgents`, loaded for the user only, and a `wb` link in a per-user directory, with the `PATH` line printed. Nothing that needs administrator rights (SEC12-least-privilege). | X09-keychain-unsigned, for whether a signed bundle can register itself instead |
-| Uninstall | `wb setup --remove` stops the services and removes the plist and the link. It keeps `<config>`, `<data>`, `<logs>` and Keychain items unless `--purge` is given. | nothing |
-| Upgrades | Replace the whole bundle, then I48's sequence: save VMs, restart, restore. No in-place update of a running bundle. | I48 |
-| Migrations | `wb-hostd` at start, never `wb`. Back up `state.db` first, apply numbered migrations forward only, and refuse to start on a database newer than it knows, with a message saying why (NFR06-explained-refusals). User-edited configuration files are never rewritten: a renamed key is an error naming the new key. | nothing |
-| Guest tools disk image | Built with the bundle from `wb-guestd` and `git-remote-wb`, with the bundle's version, attached read-only (S06-vm-lifecycle). | X17-image-build, for signing inside the guest |
-| Keychain after an upgrade | Nothing to grant again. A build that a team signs keeps its items across an upgrade through its access groups, and an ad-hoc signed build has no Keychain backend (S15-least-privilege, decided on I248). | nothing |
-| Build order in `mise` | `go build`, then `swift build`, then the guest tools image, then the bundle, with a helper bundle under `Contents/Helpers` for each program that holds an access group, then signing from the inside out: with the developer's team and Xcode's profile when `WB_TEAM_ID` is set, ad-hoc (`codesign -s -`) otherwise. The virtualization entitlement is on `wb-vmd` only (S10-tech-stack). | nothing |
+| The restore image after a build | Deleted once the build seals its image, freeing about 27 GB. A failed build keeps it for the retry. | Kept for the next build, which then skips the download. |
+| A restore image from a local file | Out of scope for V1 (I263). | `wb image build --restore-image <file>` for offline and managed hosts. |
+| Uninstall | `wb setup --remove` keeps data and store items, and prints where they are (I264 for `--purge`). | A `--purge` that deletes them through their owners. |
+| Where `wb` is linked | `~/.local/bin/wb`, with the `PATH` line printed. `wb setup` leaves shell files alone. | `/usr/local/bin`, which needs administrator rights on many Macs. |
+| The LaunchAgent | A plist `wb setup` writes and loads with `launchctl`. | `SMAppService`, which needs a Swift or Objective-C call and an approval in System Settings. |
+| The app's main executable | The notification helper. | A stub, until the helper exists. |
+| The ad-hoc bundle identifier | `nl.wraithbox.dev.adhoc`, or `WB_BUNDLE_ID`. | none proposed |
+| A failed migration | `wb-hostd` keeps running and refuses everything but `wb status`. | Exit, which launchd restarts in a loop. |
 
 ## Impact
 
 <table class="wb-impact">
 <thead>
-<tr><th>Requirement</th><th>A. wb-proxyd</th><th>B. wb-hostd</th><th>C. wb</th></tr>
+<tr><th>Requirement</th><th>A. catalog SHA-1</th><th>B. pinned</th><th>C. plus header</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>SEC12-least-privilege</strong> least privilege on the host</td><td class="yes">sandboxes as specified</td><td class="partial">network in <code>wb-hostd</code></td><td class="yes">no daemon changes</td></tr>
-<tr><td><strong>SEC10-audit</strong> egress decisions recorded</td><td class="yes">existing audit</td><td class="partial">separate audit</td><td class="partial">separate audit</td></tr>
-<tr><td><strong>NFR04-host-platforms</strong> works on managed machines</td><td class="yes">one upstream config</td><td class="partial">second upstream config</td><td class="partial">second upstream config</td></tr>
-<tr><td><strong>NFR06-explained-refusals</strong> refusals name the rule</td><td class="yes">built-in rule</td><td class="yes">own messages</td><td class="yes">in the terminal</td></tr>
-<tr><td>WSL and later guests (S12-platforms)</td><td class="yes">Windows side</td><td class="yes">Windows side</td><td class="no">WSL side</td></tr>
-<tr><td>Code</td><td class="na">one RPC, one rule</td><td class="na">least</td><td class="na">resumable download</td></tr>
+<tr><td><strong>SEC12-least-privilege</strong> each process gets only what it needs</td><td class="yes">wb-hostd no network</td><td class="yes">wb-hostd no network</td><td class="yes">wb-hostd no network</td></tr>
+<tr><td><strong>SEC10-audit</strong> egress decisions recorded</td><td class="yes">a record per request</td><td class="yes">a record per request</td><td class="yes">a record per request</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> projects can't reach each other</td><td class="partial">if I262 holds</td><td class="yes">pinned image</td><td class="partial">if I262 holds</td></tr>
+<tr><td><strong>NFR06-explained-refusals</strong> refusals name the rule</td><td class="yes">named rules</td><td class="yes">named rules</td><td class="yes">named rules</td></tr>
+<tr><td>New macOS releases</td><td class="yes">the same day</td><td class="no">after a Wraith Box release</td><td class="yes">the same day</td></tr>
 </tbody>
 </table>
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> S04-architecture gives `wb-vmd` no network, `wb-hostd` its state directories, and `wb-proxyd` outbound network ("Processes", "Each host daemon is self-sandboxed").
-- <Badge text="verified" variant="success" /> The `wb-proxyd` command says it "is the only Wraith Box process that connects upstream" (`packages/wraithbox-go/cmd/wb-proxyd/main.go`).
-- <Badge text="verified" variant="success" /> `wb-proxyd` already makes requests of its own: OSV lookups for the dependency gate (S07-egress-gateway, "Dependency gate"; S10-tech-stack, "Libraries").
-- <Badge text="verified" variant="success" /> `wb-guestd` updates only from a read-only disk image attached by `wb-hostd`, never from the network (S06-vm-lifecycle).
-- <Badge text="verified" variant="success" /> S12-platforms puts the service manager on macOS as a LaunchAgent, and SEC12-least-privilege forbids root at run time (SEC00-index).
-- <Badge text="verified" variant="success" /> "If identity is the single letter "-" (dash), ad-hoc signing is performed" (`man codesign`, macOS 27.0.1).
-- <Badge text="verified" variant="success" /> Go and Swift set their versions separately (`internal/version/version.go`, `WraithBoxVM/Version.swift`), so the bundle task must stamp both with one value.
-- <Badge text="assumed" variant="caution" /> That installing macOS into a VM needs Apple's servers for personalization. X17-image-build.
-- <Badge text="assumed" variant="caution" /> That Apple's restore image catalog can be read without the Virtualization framework and lists a hash per image. X17-image-build.
-- <Badge text="verified" variant="success" /> An ad-hoc signed binary is on a keychain file item's access-control list by its cdhash, so a rebuilt one isn't, and gets a dialog. Source: X09-keychain-unsigned. Helpers signed by a team keep reading their access group's items after a rebuild. Source: X29-dev-signing.
+- <Badge text="verified" variant="success" /> Apple's catalog (`https://mesu.apple.com/assets/macos/com_apple_macOSIPSW/com_apple_macOSIPSW.xml`, 99,450 bytes on 2026-10-15) is an XML property list. Each restore entry has `FirmwareURL`, `FirmwareSHA1`, `ProductVersion` and `BuildVersion`, and no other hash. It lists one image, 27.0.1 (26A434), at `updates.cdn-apple.com`. Probe: `curl` and `plutil -convert json`.
+- <Badge text="verified" variant="success" /> The download host answers with `Content-Length: 26637307067`, `Accept-Ranges: bytes` and a `206` for a range request, so a download can resume. It also sends `x-amz-meta-digest-sha256`. Probe: `curl -I` and `curl -r 0-15`.
+- <Badge text="verified" variant="success" /> Apple's hosts served the catalog and the image without a redirect, and `downloads.claude.ai` served `manifest.json` (1,897 bytes), `manifest.json.sig` (833 bytes) and `darwin-arm64/claude` (249,556,880 bytes) for 2.1.300 without a redirect. The manifest's `binary` field is `claude`. So "no redirects" and the size caps fit. Probe: `curl -I`.
+- <Badge text="verified" variant="success" /> A confined Go program reaches TLS hosts only when its profile allows the certificate check services. Source: X23-sandboxed-daemons, "wb-proxyd: the network part".
+- <Badge text="verified" variant="success" /> A team-signed helper must be its own bundle, and the build gets the profile from an Xcode project. Source: X29-dev-signing.
+- <Badge text="verified" variant="success" /> X17-image-build installed macOS from a local restore image in 271.6 s, with no download in `wb-vmd`.
+- <Badge text="inferred" variant="note" /> Seatbelt's network rules can name a port but not a remote host, so the host allowlist is in `wb-download`'s code. Source: the profiles of X23-sandboxed-daemons, which allow outbound TCP by port.
+- <Badge text="inferred" variant="note" /> macOS shows a notification under the bundle of the process that posts it, so the notification helper is the app's main executable.
+- <Badge text="assumed" variant="caution" /> Virtualization's installer refuses a restore image that Apple didn't sign. Option A relies on it against a compromised `wb-download`. I262 measures it, and needs a VM.
+- <Badge text="assumed" variant="caution" /> A raw disk image with one APFS volume, made with `hdiutil`, works as the guest tools disk. Virtualization attaches raw images, and the first `app:bundle` build checks the rest.
 
 ## What this unblocks
 
-- The spec section in S10-tech-stack (or a new spec) on install, upgrade and migration, and the `mise` tasks for a local bundle.
-- Still open at the time: signing and Keychain access after upgrades, since settled by X09-keychain-unsigned (I23) and X29-dev-signing (I248), the image source and guest tools image (X17-image-build, I28), and the upgrade sequence (I48).
+- The build issues for `app:bundle` and `app:install`, `wb setup` and `--remove`, `wb-download` with its fuzz target, and the `state.db` migrations, filed once this merges.
+- The image build of V1-M2-walking-skeleton, which needs a restore image.
+- Follow-ups: I262 (installer signature check), I263 (local restore image), I264 (purge).
 
 <details>
 <summary>Details and glossary</summary>
 
-**The download isn't a security boundary.** T00-index trusts the operators of allowlisted services, Apple included. The danger isn't Apple's content but giving a long-lived daemon a network path it doesn't otherwise need. A keeps the one process that already has that path as the only one.
+**Why a program of its own.** The 2026-10-04 decision on I49 chose a dedicated program over `wb-proxyd` (this brief's earlier recommendation) and `wb-hostd` (the issue's proposal). `wb-hostd` faces the guest, so it stays off the network. `wb-proxyd` faces the guest's traffic and holds credentials, so it doesn't take on more. `wb-download` holds no credential, doesn't face a guest, and runs only during an image build.
 
-**Migrations belong to wb-hostd.** Each terminal runs its own `wb` process, and during an upgrade they may briefly be different versions. `wb-hostd` alone owns `state.db`, so only `wb-hostd` can safely change its layout.
+**Why `wb-hostd` opens the files.** `wb-download`'s profile denies every file path, so it can only write where `wb-hostd` pointed it. It can't touch an image, a VM bundle or a credential.
+
+**Why a refusing mode.** launchd restarts `wb-hostd` whenever it exits (S04-architecture). A `wb-hostd` that exited on a database it can't read would start again at once, forever. Staying up lets `wb status` say why.
 
 **Glossary**
 
-- **Restore image:** Apple's macOS installer file (`.ipsw`, around 15 GB) that the Virtualization framework installs into a new VM.
-- **Catalog:** Apple's list of current restore images and their download addresses.
-- **Personalization:** Apple's servers signing an install for one device, which recent macOS installs require.
-- **Guest tools disk image:** a read-only disk with `wb-guestd` and `git-remote-wb` that `wb-hostd` attaches to a VM to install or update them.
-- **Ad-hoc signing:** signing a binary without a developer identity. macOS on Apple Silicon requires at least this, but it identifies only that exact file.
+- **Restore image:** Apple's macOS installer file (`.ipsw`, about 27 GB) that Virtualization installs into a new VM.
+- **Catalog:** Apple's list of current restore images, with each one's address and SHA-1.
+- **LaunchAgent:** a file in `~/Library/LaunchAgents` that tells macOS to run a program for one user and restart it when it exits.
+- **Ad-hoc signing:** signing without a developer identity (`codesign -s -`). Such a build has no Keychain backend.
 - **Migration:** a step that changes the layout of stored data from one version to the next.
+- **SHA-1:** an older hash. Anyone can now make two files with the same SHA-1, but no known attack makes a file that matches an existing file's SHA-1.
 
 </details>
