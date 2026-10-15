@@ -224,8 +224,9 @@ nothing themselves (S12-platforms).
     goes to a system service the profile denies. libSystem keeps the
     answer. It also reads its slot from the `WB_VMD_SLOT` environment
     variable that its launcher entry sets (below), looks up the user's
-    home directory, and resolves its slot's bundle path with
-    `realpath`, to get its profile parameter. It doesn't read anything
+    home directory with `getpwuid(getuid())`, never from `HOME`, and
+    resolves its slot's bundle path with `realpath`, to get its profile
+    parameter. It doesn't read anything
     from the guest or `wb-hostd` before it confines itself.
     The profile's parameters are the bundle path, from the fixed
     platform path (S12-platforms, "Paths") resolved to its real path,
@@ -258,21 +259,33 @@ nothing themselves (S12-platforms).
       environment: `work` for `wb-vmd-work`, `isolated` for
       `wb-vmd-isolated`, and `build` for `wb-vmd-install` (below). The
       slot never comes from the program path or a request, so the slot
-      and the bundle come from the same table entry.
+      and the bundle come from the same table entry. On hosts without
+      `wb-launcher`, `wb-hostd` sets `WB_VMD_SLOT` when it starts
+      `wb-vmd`, and the same refusals apply.
+    - `wb-hostd` creates each bundle directory, never as a symbolic
+      link, before it asks `wb-launcher` to start the entry, and a new,
+      empty build bundle before each build.
     - Before it confines itself, `wb-vmd` refuses to start, logs the
       rule and exits when the variable is missing
       (`vmd-slot-missing`), when it holds any other value
-      (`vmd-slot-unknown`), or when the bundle path it resolves isn't
-      that slot's bundle under the real path of `<data>`, as when the
-      bundle is a symbolic link to another VM's bundle
-      (`vmd-slot-bundle-mismatch`). So it never confines itself to a
-      bundle its slot doesn't own (SEC08-proj-isolation).
+      (`vmd-slot-unknown`), when its slot's bundle path doesn't exist
+      or isn't a directory (`vmd-bundle-missing`), or when the real
+      path of that bundle isn't that slot's bundle under the real path
+      of `<data>`, as when the bundle is a symbolic link to another
+      VM's bundle (`vmd-slot-bundle-mismatch`). So it never confines
+      itself to a bundle its slot doesn't own (SEC08-proj-isolation).
+      S11-verification-and-spikes has a test for each rule.
     - `wb-hostd` reaches each instance only over the channels it handed
       that instance at spawn, its control channel and its hand-off
       socketpair ("The VM provider passes descriptors, not bytes"). The
       channel a message arrives on says which VM it's about, and no
       request names a VM, a slot, or a path. While both VMs run, two
       `wb-vmd` instances run.
+    - `wb-hostd` treats the contents of every VM bundle as written by
+      a possibly compromised `wb-vmd`. It opens, moves, clones and
+      deletes files in a bundle without following symbolic links, and
+      checks a file's identity before it uses one, as for the sealed
+      disk of an image build (S06-vm-lifecycle, "Built by Wraith Box").
   - An image build installs macOS through a third fixed entry,
     `wb-vmd-install` (decided on I64, B64-vmd-sandbox). Its compiled-in
     profile is the `wb-vmd` profile plus the three rules an install
@@ -280,19 +293,27 @@ nothing themselves (S12-platforms).
     installation service. Only the image build needs those rules. The
     session VMs' `wb-vmd` instances don't have them
     (SEC12-least-privilege).
-    - The restore image is at the fixed path
-      `<data>/images/macos-restore.ipsw`. The install target is the
-      fixed build bundle `<data>/images/macos-build.noindex`, the
-      entry's profile parameter, never a path from the request. So the
-      install can't write into the work VM's or the isolated VM's
-      bundle. The request doesn't choose the mode, the image, or a path.
+    - The install reads the restore image only at the fixed path
+      `<data>/images/macos-restore.ipsw`. I49 (B49-install-upgrade)
+      decided how the file gets there: a download program fetches it, and
+      `wb-hostd` checks its hash before it starts `wb-vmd-install`.
+      Before it confines itself, `wb-vmd-install` also refuses to
+      start, logs the rule and exits unless the real path of the
+      restore image is `images/macos-restore.ipsw` under the real path
+      of `<data>`, and `lstat` shows a regular file
+      (`vmd-restore-image-mismatch`).
+    - The install target is the fixed build bundle
+      `<data>/images/macos-build.noindex`, the entry's profile
+      parameter, never a path from the request. So the install can't
+      write into the work VM's or the isolated VM's bundle. The request
+      doesn't choose the mode, the image, or a path.
     - The same instance then runs the build VM's provisioning boot and
       the rest of the build in that bundle, confined to it
       (S06-vm-lifecycle, "Built by Wraith Box"), and exits when the
       build ends. Its instance cap is one, because one maintenance VM
       runs at a time (S06-vm-lifecycle, "Slot admission").
-    - Only this entry accepts provisioning options.
-      `wb-vmd-work` and `wb-vmd-isolated` refuse them and log the rule
+    - Only this entry accepts provisioning options. An instance whose
+      slot isn't `build` refuses them and logs `vmd-provisioning-refused`
       (S15-least-privilege, "Refused outside the path").
   - `wb-diskfmt` formats a VM's new data disk (S06-vm-lifecycle,
     "Disks", X08-data-disk). `wb-launcher` has two fixed entries,
@@ -556,8 +577,8 @@ decided the VM behavior on I48 (B48-process-supervision).
   login and again whenever it exits. On macOS the LaunchAgent sets
   `KeepAlive` and doesn't set `AbandonProcessGroup`.
 - `wb-hostd` supervises every other host process. It decides when
-  each VM's `wb-vmd` and `wb-netd`, and `wb-proxyd`, start, and
-  whether one starts again after it exits. On macOS it starts them through
+  `wb-proxyd` and each VM's `wb-vmd` and `wb-netd` start, and whether
+  one starts again after it exits. On macOS it starts them through
   `wb-launcher` ("Each host daemon is self-sandboxed"). Elsewhere it
   starts them itself.
 - `wb-launcher` is the parent of the programs it starts, so only it
@@ -635,7 +656,7 @@ doesn't exit, and `wb status` shows it. So a damaged bundle can't make
 
 Rejected for V1:
 
-- `wb-vmd` saves each VM and exits when it loses `wb-hostd`, and the
+- Each `wb-vmd` saves its VM and exits when it loses `wb-hostd`, and the
   new `wb-hostd` restores them, so sessions pause instead of ending
   (B48-process-supervision, option A). It depends on save and restore
   of a VM with its vsock device and network attachment
@@ -727,6 +748,10 @@ it didn't ask for:
   has stopped with it, and the VM's sessions are lost. `wb-hostd`
   starts a new `wb-vmd` for that VM when the VM is next needed, with
   the same backoff and the same limit.
+- `wb-vmd-install` is never restarted. When it exits during a build,
+  the build fails, `wb-hostd` deletes the build bundle
+  (S15-least-privilege, "The build's SSH session"), and nothing
+  starts again until the user runs the next build.
 
 `wb-hostd` shows a native notification once per outage of a VM's
 `wb-netd` or `wb-proxyd`. It says which process is down, for which VM,
@@ -922,7 +947,7 @@ layout is the same everywhere:
 <data>/
   images/                             base images (copy-on-write clones)
   images/macos-restore.ipsw           the restore image a macOS image build installs from
-  images/macos-build.noindex/         the build VM's bundle, new for each image build (S06-vm-lifecycle)
+  images/macos-build.noindex/         the build VM's bundle, new for each image build, never listed as an image (S06-vm-lifecycle)
   vms/<guest-os>-{work,isolated}.noindex/  VM bundles: disks, machine identity, saved state
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)

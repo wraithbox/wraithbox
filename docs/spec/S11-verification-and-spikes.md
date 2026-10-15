@@ -13,6 +13,22 @@ be tested before building on them.
   and a second network device, and sees each refused with its rule,
   and that accepts the fixed set of S06-vm-lifecycle
   (X25-vmd-sandbox).
+  The `wb-vmd` slot check (S04-architecture, "Each host daemon is
+  self-sandboxed") has tests that start `wb-vmd` with `WB_VMD_SLOT`
+  unset, with an unknown value, with its bundle a symbolic link to the
+  other slot's bundle, and with its bundle missing, and see
+  `vmd-slot-missing`, `vmd-slot-unknown`, `vmd-slot-bundle-mismatch`
+  and `vmd-bundle-missing` logged before `sandbox_init`. A
+  `wb-vmd-install` whose restore image is a symbolic link, or not at
+  the fixed path, logs `vmd-restore-image-mismatch` the same way. An
+  instance in the `work` or `isolated` slot refuses provisioning
+  options with `vmd-provisioning-refused`. A table test on the
+  `wb-launcher` entries checks that each `wb-vmd` entry's `WB_VMD_SLOT`
+  value and its bundle parameter belong to the same slot. The image
+  build has tests that leave a symbolic link, a hard-linked file, or a
+  directory at the sealed disk's name in the build bundle, and see the
+  build fail with `build-bundle-not-regular` and nothing outside the
+  bundle moved, cloned, or deleted.
   Supervision (S04-architecture, "Supervision and failure") has tests
   that close each daemon's control channel and see `wb-netd` and
   `wb-proxyd` exit, `wb-launcher` end what it started and exit, and a

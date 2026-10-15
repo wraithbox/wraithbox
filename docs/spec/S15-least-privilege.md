@@ -217,7 +217,9 @@ build deletes `wbadmin`'s keychains before sealing. `wb-guestadmin`
   fetched and nobody logs in. `wb-guestadmin-cleanup` removes the old
   disk's item.
 - **Refused outside the path.** `wb-vmd` refuses provisioning options
-  for any VM that isn't a new build bundle under `<data>/images/`.
+  unless its slot is `build`, the slot of `wb-vmd-install`, whose only
+  bundle is the new build bundle under `<data>/images/`, and logs
+  `vmd-provisioning-refused` (S04-architecture).
   `wb-launcher` and `wb-guestadmin` accept only requests whose fields
   are item names in the fixed format above. Each refusal is logged with
   its rule.
