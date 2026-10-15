@@ -121,7 +121,9 @@ be tested before building on them.
   the unlock and name the keychain, and returns another status for
   `unlock` and sees `store-read-failed`. For a CA item in the record,
   -25300 and every status other than -25293 and -25308 give
-  `ca-key-restore`. Each log line names the failed call. It sees `wb setup` set the store up again only
+  `ca-key-restore`. A locked store, -25308 or the 1Password backend's
+  locked state, makes the work wait for the unlock in a team-signed
+  build too, for a CA item as for any other. Each log line names the failed call. It sees `wb setup` set the store up again only
   for `store-needs-setup` and a recorded build version that differs
   from the running one, refuse a keychain file with no record, and
   accept `--reset-store` only after confirmation on a terminal. An

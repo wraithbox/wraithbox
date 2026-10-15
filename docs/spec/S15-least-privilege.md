@@ -113,7 +113,8 @@ closed:
   - -25300 (`errSecItemNotFound`) for `unlock` while the record names a
     keychain file: `store-needs-setup`. That is the state a set-up
     leaves when it stops after its first step.
-  - -25308 (`errSecInteractionNotAllowed`, a locked keychain): rule 7.
+  - -25308 (`errSecInteractionNotAllowed`, a locked keychain): rule 7,
+    which applies in every build and on every backend, not only here.
     The work waits for the user to unlock it, and `wb` names the
     keychain it waits for.
   - Any other status for `unlock` or the file: `store-read-failed`.
@@ -211,7 +212,10 @@ what each loss means:
    (SEC10-audit).
 7. **Locked means closed.** Session start, warm start, builds, and
    rotation wait for the user to unlock a locked store, and say which
-   store they wait for. Nothing falls back to another place.
+   store they wait for. Nothing falls back to another place. In every
+   build and on every backend, a read that fails because the store is
+   locked, -25308 on the Keychain or a locked 1Password, is this
+   case, also for a CA item (S09-policy-credentials-audit, "Valid CA").
 8. **Generated items are named and removed.** A secret Wraith Box
    generates is random, from the OS's cryptographic random source,
    named for what it belongs to, and removed with it. At start, and
