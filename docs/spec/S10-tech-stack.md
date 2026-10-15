@@ -90,15 +90,28 @@ binary of that name comes from the Swift package.
     plain executable in `Contents/MacOS` that claims a group at launch
     (-413, "No matching profile found"). Each helper bundle has the
     app's bundle identifier and `LSUIElement`, and its entitlements
-    hold the groups of its items and no others. The installer's `wb`
-    link on `PATH` points to `Contents/Helpers/wb.app/Contents/MacOS/wb`.
-    A program without a group doesn't need a bundle of its own
-    (X29-dev-signing).
+    hold the groups of its items, from the table in
+    S15-least-privilege, "Keychain", and no others. The build checks
+    that each helper's signed entitlements equal its row's groups
+    exactly, and fails otherwise. The installer's `wb` link on `PATH`
+    points to `Contents/Helpers/wb.app/Contents/MacOS/wb`. A program
+    without a group doesn't need a bundle of its own (X29-dev-signing).
+    The layout is the same in every build, ad-hoc included, so
+    `wb-launcher`'s fixed program table and the installer's link hold
+    in each. An ad-hoc build's helper bundles have no profile and no
+    group.
   - *Signing.* Release builds get Developer ID signing and
     notarization later. Development builds (`mise run build`) are
     signed with the developer's own Apple Development certificate. The
     build takes the developer's team ID as a setting, the environment
-    variable `WB_TEAM_ID`. It gets the profile from Xcode: it builds
+    variable `WB_TEAM_ID`. The bundle identifier of a development
+    build is `nl.wraithbox.dev.<teamid>`, with the team ID in lowercase,
+    or the value of `WB_BUNDLE_ID` when that is set. A release build
+    uses Wraith Box's own identifier. An explicit identifier that one
+    team has registered is likely refused to another. That is why each
+    developer's team gets its own. That is assumed until a second team
+    builds: X29-dev-signing used one team. It gets the profile from
+    Xcode: it builds
     the app's Xcode project with `xcodebuild`, automatic signing and
     that team, as X29-dev-signing did, and copies the profile Xcode
     embeds into each helper bundle. Then it signs from the inside out
@@ -107,6 +120,10 @@ binary of that name comes from the Swift package.
     in S12-platforms, "Development builds on macOS". Without the
     setting the build is ad-hoc signed, doesn't give any program an
     access group, and has no Keychain backend (S15-least-privilege).
+    That a Developer ID build also needs a profile in each helper bundle
+    for its groups is assumed until the first release build. Where a
+    bundle has no profile, the profile checks of S12-platforms,
+    "Development builds on macOS", don't apply.
   - *Distribution* via a Homebrew cask once signed builds exist.
 - **Windows (later):** a per-user installer (no administrator rights)
   with the same set of binaries as `.exe`; code signing when available.

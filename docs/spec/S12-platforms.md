@@ -150,15 +150,22 @@ whose profile is valid. The cases:
   `wb status` read the expiry date from the profile in `wb`'s own
   bundle and print it, with the fix: build the small project in the
   Xcode app again for a new profile, then build Wraith Box again.
+  `wb-hostd` reads the same date from the helpers' profiles at start
+  and logs a warning with it, and `wb claude` prints one line with the
+  date before the session starts. A bundle without a profile, such as
+  an ad-hoc one, gets none of these checks, and so may a release build
+  (S10-tech-stack).
 - **Expired profile.** AMFI refuses to start a program whose profile
   has expired, as it refuses one with no profile (assumed in
   X29-dev-signing). That includes `wb`. The shell reports the killed
   process, and `wb` reports nothing. `wb-hostd` doesn't hold a group
   and keeps running. When `wb-launcher` reports that a program with a
   group exited on `SIGKILL` (S04-architecture, "Who starts whom"),
-  `wb-hostd` reads that program's profile, and for an expired one logs
-  the rule `signing-profile-expired` with the date.
-  The fix is the one for a profile near its expiry date.
+  `wb-hostd` reads that program's `embedded.provisionprofile`. For an
+  expired one it logs the rule `signing-profile-expired` with the date.
+  A `SIGKILL` of a program whose profile is valid, or that has no
+  profile, is logged as a plain exit with the signal. The fix is the
+  one for a profile near its expiry date.
 
 ## Guest operating systems
 

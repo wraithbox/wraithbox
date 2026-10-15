@@ -201,7 +201,10 @@ nothing themselves (S12-platforms).
   each gets only what it needs: `wb-netd` no filesystem and no network
   beyond inherited descriptors; `wb-proxyd` outbound network and its
   credential store items; `wb-guestadmin` its `wbadmin/*` store items
-  and inherited descriptors; `wb-hostd` its state directories; `wb-vmd` the
+  and inherited descriptors; `wb-hostd` its state directories, and on
+  macOS read access to the installed bundle's `Info.plist` ("Upgrades")
+  and to each helper bundle's `embedded.provisionprofile`
+  (S12-platforms, "Development builds on macOS"); `wb-vmd` the
   hypervisor and its VM's bundle. This hardens our own code; it is not how
   the agent is contained (the VM is). How it is done (X23-sandboxed-daemons,
   SEC12-least-privilege):
@@ -385,6 +388,7 @@ nothing themselves (S12-platforms).
       `wb-guestadmin-cleanup` entries name
       `Contents/Helpers/wb-guestadmin.app/Contents/MacOS/wb-guestadmin`.
       The entries of programs without a group name `Contents/MacOS`.
+      The paths are the same in every build, ad-hoc included.
     - Each program has an instance cap (SEC13-bounded-resources).
   - git, which the git gateway runs on data the guest sends, starts
     through `wb-launcher` as `wb-git`, a shim that applies a profile for

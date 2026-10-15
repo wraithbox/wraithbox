@@ -114,20 +114,44 @@ be tested before building on them.
   The secret store (S15-least-privilege) has a test that makes the call
   that turns Keychain dialogs off fail, and sees the process refuse
   every store access with `store-dialogs-on`. A test with a fake store
-  returns -25300 for a binding and sees the binding's own refusal, and
+  returns -25300 for a binding and sees the binding's own refusal,
   returns -25308 and sees the work wait for the unlock and name the
-  store. For a CA item in the record, -25300 and every status other
+  store, and returns -34018 and another status for a binding and a
+  `wbadmin/*` item and sees each refused with `store-read-failed`. For a CA item in the record, -25300 and every status other
   than -25308 give `ca-key-restore`. A locked store, -25308 or the
   1Password backend's locked state, makes the work wait for the
   unlock, for a CA item as for any other. Each log line names the
   failed call. In an ad-hoc signed build, a test sees `wb setup` refuse
   the Keychain backend with `keychain-needs-team` and name the setup
   steps of S12-platforms, "Development builds on macOS", and sees
-  `wb-proxyd` refuse a binding fetch and a CA issue with the same rule
-  and log it, before any Keychain call. The 1Password backend works in
-  that build. A test hands `wb setup` a profile that expires in 29
-  days and sees the date and the fix printed, and one that expires in
-  31 days and sees `wb setup` print nothing about the profile. The removal list has a test that hands `wb-proxyd` a batch
+  `wb-proxyd` refuse a binding fetch and a CA issue, `wb cred set`
+  refuse a write, and `wb-guestadmin` refuse the items of
+  `wb image build` and of a rotation, each with the same rule and
+  logged, before any Keychain call. `wb setup` still installs the
+  services there and exits nonzero. The 1Password backend works in
+  that build. In a development build, `wb setup`, `wb cred list` and
+  the session-start audit record name the signing team and say the
+  grant is team-wide.
+  The access groups have a table test from each item name form of
+  "Declared access" to its group, `<TEAMID>.nl.wraithbox.<role>`,
+  with the team from the process's own signature. A test asks the shim
+  to write a `ca/` item with the `binding` group, and to use a group
+  the process's entitlements don't hold, and sees each refused with
+  `store-group-mismatch` before any Keychain call. The build check of
+  S10-tech-stack fails a bundle whose helper has a group more or less
+  than its row in S15-least-privilege, "Keychain".
+  The signing profile (S12-platforms, "Development builds on macOS")
+  has these tests. `wb setup` and `wb status` get a profile that
+  expires in 29 days and print the date and the fix, and one that
+  expires in 31 days and print nothing about it. `wb-hostd` logs the
+  warning at start for the first and not the second. A build with
+  `WB_TEAM_ID` set and no profile from Xcode fails before it makes
+  the bundle. A fake `wb-launcher` report of a group helper's exit on
+  `SIGKILL` makes `wb-hostd` log `signing-profile-expired` with an
+  expired profile, and a plain exit with a valid profile and with
+  none. `wb-launcher` accepts a table whose entries name
+  `Contents/Helpers/<name>.app/Contents/MacOS/<name>` in the installed
+  bundle, and still refuses one under `<data>`. The removal list has a test that hands `wb-proxyd` a batch
   with `binding/x`, `wbadmin/build/x`, a name with a part outside the fixed
   form, and an entry whose CA is still in the record, each next to a
   valid entry, and sees each batch refused with `ca-removal-refused`
