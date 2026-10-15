@@ -10,6 +10,7 @@ hostd
 netd
 proxyd
 guestd
+credset
 vmd
 lsimons
 Simons

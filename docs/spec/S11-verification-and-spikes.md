@@ -128,8 +128,8 @@ be tested before building on them.
   failed call. In an ad-hoc signed build, a test sees `wb setup` refuse
   the Keychain backend with `keychain-needs-team` and name the setup
   steps of S12-platforms, "Development builds on macOS", and sees
-  `wb-proxyd` refuse a binding fetch and a CA issue, `wb cred set`
-  refuse a write, and `wb-guestadmin` refuse the items of
+  `wb-proxyd` refuse a binding fetch and a CA issue, `wb-credset`
+  refuse the write of `wb cred set`, and `wb-guestadmin` refuse the items of
   `wb image build` and of a rotation, each with the same rule and
   logged, before any Keychain call. `wb setup` still installs the
   services there and exits nonzero. The 1Password backend works in
@@ -143,7 +143,15 @@ be tested before building on them.
   the process's entitlements don't hold, and sees each refused with
   `store-group-mismatch` before any Keychain call. The build check of
   S10-tech-stack fails a bundle whose helper has a group more or less
-  than its row in S15-least-privilege, "Keychain".
+  than its row in S15-least-privilege, "Keychain", and one where `wb`
+  or any other program outside the table has a
+  `keychain-access-groups` entitlement.
+  `wb-credset` has a test that passes a value in its arguments and in
+  its environment, an unknown operation, and a binding name outside
+  the fixed form, and sees each refused with `credset-refused` before
+  any store call. A `wb cred set` test sees `wb-credset` get the
+  value on its standard input only, never in its arguments or
+  environment, and `wb cred list` print names and no value.
   The signing profile (S12-platforms, "Development builds on macOS")
   has these tests. `wb setup` and `wb status` get a profile that
   expires in 29 days and print the date and the fix, and one that
@@ -153,7 +161,10 @@ be tested before building on them.
   the bundle. A fake `wb-launcher` report of a group helper's exit on
   `SIGKILL` makes `wb-hostd` log `signing-profile-expired` with an
   expired profile, and a plain exit with a valid profile and with
-  none. `wb-launcher` accepts a table whose entries name
+  none. With an expired profile, `wb setup`, `wb status` and
+  `wb claude` print the date and `signing-profile-expired`, and `wb
+  cred set` does the same when `wb-credset` exits on `SIGKILL`.
+  `wb-launcher` accepts a table whose entries name
   `Contents/Helpers/<name>.app/Contents/MacOS/<name>` in the installed
   bundle, and still refuses one under `<data>`. The removal list has a test that hands `wb-proxyd` a batch
   with `binding/x`, `wbadmin/build/x`, a name with a part outside the fixed

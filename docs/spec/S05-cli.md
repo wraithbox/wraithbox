@@ -131,7 +131,7 @@ are a usage error:
   `wb-hostd` can't write either (S08-workspace-and-git, "Export
   repository").
 - On macOS, within 30 days of the expiry date of the signing profile in
-  `wb`'s bundle, `wb` prints one line with that date on its standard
+  the helper bundles, or after it, `wb` prints one line with that date on its standard
   error before the session starts (S12-platforms, "Development builds
   on macOS").
 - On exit, `wb` prints a short summary of the session's returned work
@@ -233,7 +233,7 @@ everything else `wb` does at that boundary.
 
 | Command | Purpose |
 |---|---|
-| `wb status` | VMs, their state, running sessions, pending approvals, and each host process with its state, version, restarts and last exit reason (S04-architecture, "Logs and health"). On macOS, within 30 days of the expiry date of the signing profile in `wb`'s bundle, that date and the fix (S12-platforms, "Development builds on macOS") |
+| `wb status` | VMs, their state, running sessions, pending approvals, and each host process with its state, version, restarts and last exit reason (S04-architecture, "Logs and health"). On macOS, within 30 days of the expiry date of the signing profile in the helper bundles, or after it, that date and the fix (S12-platforms, "Development builds on macOS") |
 | `wb sessions [--project P]` | List sessions and their returned work |
 | `wb diff <session>` | Review returned work with flagged paths highlighted |
 | `wb land <session> [--branch NAME]` | Fetch returned work into the host repo as a branch; never checks out or merges |
@@ -249,7 +249,7 @@ everything else `wb` does at that boundary.
 | `wb project place work\|isolated [--project P]` | Set the project's `placement` (S06-vm-lifecycle, "VMs"). In a repository that isn't a project yet, it registers one first by the rules of "Naming" (moved-project refusal, second-clone placement), so a new clone can start isolated |
 | `wb project confirm [--project P]` | Accept the repository's current remote URLs and root commits as the project's, and clear `config_trust` ("Naming") |
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it ("Naming") |
-| `wb cred set/list/rm <binding>` | Manage the binding credentials in the secret store, which `wb-proxyd` fetches when proxying needs them (S09-policy-credentials-audit, S15-least-privilege) |
+| `wb cred set/list/rm <binding>` | Manage the binding credentials in the secret store, which `wb-proxyd` fetches when proxying needs them (S09-policy-credentials-audit, S15-least-privilege). `wb` itself doesn't have store access. Each command runs `wb-credset` for one operation, and `set` passes the value on its standard input (S15-least-privilege, "Keychain") |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
 | `wb gate reset go-clock` | After a `go-sumdb-inconsistent` finding, print its two tree heads and their receipt times and ask for confirmation. Then `wb-hostd`, asked over local IPC, deletes the finding and the Go clock's stored tree heads, writes a 5019 event naming the command and the finding, and restarts `wb-proxyd`. The dependency gate then allows Go downloads again from a fresh head. The restart resets every proxied stream of both VMs, `claude` API streams included, starts a new wait of up to 30 s for the first point, and doesn't count toward the restart limit. Refused without a terminal, because a person has to confirm. It is never part of a guest RPC (S07-egress-gateway, "Dependency gate") |
 | `wb vm reset-ca <vm>` | After a `ca-key-restore` refusal, print the VM's CAs and ask for confirmation. Then `wb-hostd` drops them from its record, writes a 5019 event with the command and their fingerprints, puts their keys on the removal list and deletes the VM's saved state, so the next start cold boots with a new CA (S09-policy-credentials-audit, "Valid CA"). Refused while the VM runs, refused without a terminal, because a person has to confirm, and never part of a guest RPC |

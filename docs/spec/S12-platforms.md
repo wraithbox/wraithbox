@@ -137,8 +137,8 @@ After that, `mise run build` signs from the command line. The profile
 lasts 365 days (X29-dev-signing, measured on a team with a lapsed
 membership), and a second Mac needs both steps too.
 
-`wb` holds an access group itself, so it starts only from a bundle
-whose profile is valid. The cases:
+`wb` doesn't hold an access group, so it starts whatever state the profiles
+are in, and reports each case itself. The cases:
 
 - **Ad-hoc signed build.** `wb setup` refuses the Keychain backend with
   the rule `keychain-needs-team`, names both steps and `WB_TEAM_ID`,
@@ -147,8 +147,8 @@ whose profile is valid. The cases:
   makes the bundle and names both steps, so macOS never gets a bundle
   it would refuse to start (S10-tech-stack).
 - **Profile within 30 days of its expiry date.** `wb setup` and
-  `wb status` read the expiry date from the profile in `wb`'s own
-  bundle and print it, with the fix: build the small project in the
+  `wb status` read the expiry date from the helper bundles' profiles
+  and print it, with the fix: build the small project in the
   Xcode app again for a new profile, then build Wraith Box again.
   `wb-hostd` reads the same date from the helpers' profiles at start
   and logs a warning with it, and `wb claude` prints one line with the
@@ -158,9 +158,13 @@ whose profile is valid. The cases:
   signing", "Signing".
 - **Expired profile.** AMFI refuses to start a program whose profile
   has expired, as it refuses one with no profile (assumed in
-  X29-dev-signing). That includes `wb`. The shell reports the killed
-  process, and `wb` reports nothing. `wb-hostd` doesn't hold a group
-  and keeps running. When `wb-launcher` reports that a program with a
+  X29-dev-signing): `wb-credset`, `wb-proxyd` and `wb-guestadmin`.
+  `wb setup`, `wb status` and `wb claude` read the helpers' profiles,
+  and for an expired one print the date, the rule
+  `signing-profile-expired` and the fix. When `wb cred` sees
+  `wb-credset` exit on `SIGKILL` and its profile has expired, it
+  reports the same. `wb-hostd` doesn't hold a group and keeps running,
+  and gives a second signal. When `wb-launcher` reports that a program with a
   group exited on `SIGKILL` (S04-architecture, "Who starts whom"),
   `wb-hostd` reads that program's `embedded.provisionprofile`. For an
   expired one it logs the rule `signing-profile-expired` with the date.

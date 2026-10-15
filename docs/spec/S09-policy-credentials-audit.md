@@ -343,12 +343,13 @@ inspection is trusted, and what is recorded.
 - **Storage.** Each credential is an item in the platform's secret
   store (S12-platforms), read only by the processes that
   S15-least-privilege declares for it: `wb-proxyd` fetches bindings,
-  and `wb` writes, lists, and deletes them. On macOS: an item in the
-  data protection keychain, in the access group
+  and `wb-credset`, which `wb cred` runs, writes, lists, and deletes
+  them. `wb` itself doesn't have store access (decided on I252). On macOS:
+  an item in the data protection keychain, in the access group
   `<TEAMID>.nl.wraithbox.binding` of the team that signed the build.
-  `wb` and `wb-proxyd` both hold that group, so the Keychain would let
-  `wb` read a binding too, and our code is what keeps `wb` from
-  fetching one (S15-least-privilege, "Keychain").
+  `wb-credset` and `wb-proxyd` both hold that group, so the Keychain
+  would let `wb-credset` read a binding too, and our code is what keeps
+  it from fetching one (S15-least-privilege, "Keychain").
   Release builds are signed with Wraith Box's Developer ID, and
   development builds with the developer's own Apple Development
   certificate and team. A rebuild keeps reading the items with no
