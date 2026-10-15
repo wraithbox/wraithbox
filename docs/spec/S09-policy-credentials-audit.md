@@ -505,9 +505,18 @@ inspection is trusted, and what is recorded.
     the TPM to sign. Without one, the fallback: a software key held in
     the secret store as the item, which `wb-proxyd` fetches and signs
     with in its own memory, and the audit record of each CA issue says
-    so. A host recorded with a TPM that later has none fails each CA
-    issue and restore with `ca-key-restore`, and never moves to a
-    software key on its own.
+    so.
+  - *Linux, the recorded choice.* `wb-proxyd` probes for a TPM itself at
+    start and compares the result with the record. A record of
+    "software" on a host that has a TPM, and a record of "TPM" on a
+    host that has none, fail each CA issue and restore with the rule
+    `ca-key-store-mismatch`, and `wb-proxyd` never moves to the other
+    kind on its own. `wb setup` changes a recorded choice only with
+    `--ca-key-store tpm` or `--ca-key-store software`, and refuses
+    `software` on a host with a TPM. The change drops every CA from the
+    record, as `wb vm reset-ca` does for each VM ("Recovery"). So the
+    recovery for a host that lost its TPM is `wb setup --ca-key-store
+    software`.
 - **Valid CA.** A valid CA is in `wb-hostd`'s record, hasn't
   expired, and `wb-proxyd` has fetched its item and restored a key
   whose public key equals the certificate's. `wb-proxyd` signs only
@@ -526,12 +535,15 @@ inspection is trusted, and what is recorded.
   - *Recovery.* `wb vm reset-ca <vm>` (S05-cli) drops the VM's CAs from
     `wb-hostd`'s record, puts their items on the removal list
     (S15-least-privilege, "Declared access"), and deletes the VM's
-    saved state. The VM then cold boots. At that start the record
-    lacks a valid CA, `wb-proxyd` issues a new one, and the install rewrites the
-    guest's trust files whole ("Guest trust"). Only this command and
-    `wb setup` after an update ("After an update") drop a CA that
-    hasn't expired. Neither rotation nor a restart issues a new CA in
-    place of one that failed.
+    saved state. The VM then cold boots. At that start the record has no CA, or every CA in it has expired,
+    so `wb-proxyd` issues a new CA, and the install rewrites the
+    guest's trust files whole ("Guest trust"). Only this command,
+    `wb setup` after an update (S15-least-privilege, "After an update")
+    and `wb setup --ca-key-store` drop a CA that hasn't expired. Each
+    drop is a Device Config State Change (5019) event with the command
+    and the SHA-256 fingerprint of each dropped CA certificate. Neither
+    rotation nor a restart issues a new CA in place of one that
+    failed.
 - **CA profile.** `basicConstraints` critical with `CA:TRUE` and
   `pathLen:0`, `keyUsage` `keyCertSign` only, and no extended key
   usage.
@@ -593,7 +605,7 @@ inspection is trusted, and what is recorded.
     sleep"), a CA that has expired is removed and its key item goes on
     the removal list, a
     step of the schedule that came due while the VM was off or the host
-    slept runs, and if every CA in the record has expired,
+    slept runs, and if the record has no CA, or every CA in it has expired,
     `wb-proxyd` issues a new one. A recorded CA whose key doesn't
     restore is refused with `ca-key-restore` ("Valid CA"), and doesn't
     lead to a new one. Then `wb-guestd` installs the VM's current CAs from
@@ -627,7 +639,11 @@ inspection is trusted, and what is recorded.
   accept them (X04-tls-inspection). Installing a CA means writing
   these files, and on Linux and Windows guests also adding it to the
   system trust store. On a macOS guest it doesn't touch the system
-  trust store ("System trust store" below).
+  trust store ("System trust store" below). Each install writes the
+  files whole from `wb-hostd`'s record. On a Linux or Windows guest it
+  also removes from the system trust store every Wraith Box CA that
+  the record doesn't hold. A dropped CA leaves the guest at its next
+  install.
   - *Files.* `wb-guestd` writes three files in a fixed directory that
     root owns, `/etc/wraithbox/trust/` on macOS and Linux guests, with
     mode 0755. Each file has mode 0644. `wb-guestd` writes each one to a

@@ -955,6 +955,7 @@ layout is the same everywhere:
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
   state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit), each VM's CA records, the removal list of CA keys, and on Linux whether the CA key is in a TPM (S09-policy-credentials-audit, S15-least-privilege), and for an ad-hoc signed build the keychain file's name and the build version that made it, and the disks whose `wbadmin` password was lost (S15-least-privilege, "After an update")
+  keychains/                          an ad-hoc signed build's keychain file, `store-<id>.keychain-db`, which only `wb setup` creates and deletes (S15-least-privilege, "After an update")
   run/                                user-only directory for local IPC endpoints
 <logs>/                               audit JSONL and daemon logs
 ```
