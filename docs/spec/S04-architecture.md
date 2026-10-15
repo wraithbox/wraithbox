@@ -957,7 +957,7 @@ are in S17-install-and-upgrade, "Downloads":
 | Internet input | Process | Limits |
 |---|---|---|
 | Apple's catalog, a `HEAD`, the manifest and its signature | `wb-download` | 4 MiB for the catalog, 1 MiB and 64 KiB for the manifest and signature, 2 minutes per request, 30 s to connect, 60 s without a byte |
-| The restore image and the Claude Code binary | `wb-download` | the size from the catalog's entry, at most 64 GiB, and 1 GiB; a file size limit set by `wb-launcher`; 12 hours and 30 minutes; free space checked before the run |
+| The restore image and the Claude Code binary | `wb-download` | the size from the catalog's entry, at most 40 GiB, and 1 GiB; a file size limit set by `wb-launcher`; 12 hours and 30 minutes; free space checked before the run |
 | The result records | `wb-hostd` | a fixed form per field, at most 16 requests per run |
 | Audit records of downloads | `wb-hostd` | one per request or refusal, at most 16 per run, never dropped |
 

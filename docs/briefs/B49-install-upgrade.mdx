@@ -105,7 +105,7 @@ The choice also decides how I263, a restore image from a local file, could be ch
 
 ### A. Catalog SHA-1, plus Apple's check at install
 
-`wb-hostd` checks the file against the catalog's SHA-1. Against a compromised downloader, the design relies on Virtualization's installer refusing an image Apple didn't sign, which I262 measures.
+`wb-hostd` checks the file against the catalog's SHA-1. Against a compromised downloader, the design relies on Virtualization's installer refusing an image Apple didn't sign, which I262 measures. If I262 finds that the installer accepts a changed image, A no longer holds, and B is the fallback: the catalog only says where to fetch, and `wb-hostd` accepts only a restore image whose SHA-256 is compiled into the release.
 
 - **Cost:** none beyond the spec. A new macOS release works the day Apple lists it.
 - **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC08-proj-isolation" variant="caution" /> if I262 holds
@@ -149,6 +149,7 @@ Each has a recommendation, which the spec states. Approving the spec accepts the
 | A failed migration | `wb-hostd` keeps running and refuses everything but `wb status`. | Exit, which launchd restarts in a loop. |
 | The rollback floor | A compiled-in minimum of 27.0.1, and no image older than the last sealed one without `--allow-older-macos`. | No floor: the catalog decides. |
 | Where the bundle may be installed | `~/Applications` or `/Applications`, else `wb setup` refuses. | Anywhere, with a warning. |
+| The restore image's file size limit | 40 GiB, and the free-space check asks for that limit, less the partial file, plus the audit floor, because the host knows it before the run. The image is 26.6 GB today. | Check against the size `wb-download` reports, which a compromised one could understate. |
 | `wb setup` while VMs run | Refused when the agent would change, so no session is stopped by surprise. An unchanged agent is left running. | Stop the VMs and reload. |
 | Download deadlines | 30 s to connect, 60 s without a byte, 2 minutes for small files, 30 minutes for Claude Code, 12 hours for the restore image. | Other values. They aren't measured, only sized to the 27 GB image on a slow line. |
 
