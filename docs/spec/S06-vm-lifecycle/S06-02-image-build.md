@@ -5,6 +5,8 @@ its two provisioning stages, terminfo, sealing, and storage.
 
 ## Design
 
+![The image build. wb-download fetches the restore image, and wb-hostd checks its hash before it starts wb-vmd-install, which installs macOS and runs the build's boots. In the provisioning boot, the provisioning options create wbadmin and turn Remote Login on, and wb-build-ssh's one SSH session, with the password from wb-guestadmin, installs wb-guestd. Everything after goes through wb-guestd over the host-guest socket, from the password rotation to the sealing scan. After wb-vmd-install exits, wb-hostd clones the checked disks into the sealed image. The host never mounts a guest disk.](S06-02-image-build.svg)
+
 ### Built by Wraith Box
 
 `wb image build` installs macOS into a new VM from a restore image in a

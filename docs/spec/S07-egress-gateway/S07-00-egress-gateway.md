@@ -13,6 +13,8 @@ B33-no-guest-credentials, B35-openshell-artifacts,
 B36-flow-attribution, B40-learn-pass-modes, B47-non-http-streams,
 B51-approval-flow, B60-model-credential, B68-proxyd-stream-identity
 
+![The egress gateway. Every frame from the guest's virtual NIC reaches wb-netd, which filters the link, serves DHCP and DNS with synthetic addresses, and accepts TCP only to an allowed name and port. wb-netd hands each stream to wb-proxyd over the VM's own hand-off socket. wb-proxyd re-checks the name, checks the protocol, and applies the host's mode, credential replacement, HTTP policy and the dependency gate before it connects upstream. An unknown name raises an approval event in wb-hostd, which sends policy changes to wb-proxyd first. Raw IP, the LAN, IPv6, and UDP other than DNS are dropped or reset.](S07-00-egress-gateway.svg)
+
 ## Design
 
 Every packet a guest sends reaches `wb-netd`, the packet path. Every

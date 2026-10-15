@@ -9,6 +9,8 @@ guest output that `wb` writes to the user's terminal.
 
 Brief: B37-terminal-boundary
 
+![The terminal stream. Claude Code in the guest can write any bytes. wb-guestd and wb-hostd relay them unchanged to wb, which filters them with an allowlist before the user's terminal emulator. Text, cursor movement, colors, screen and keyboard modes, and queries pass. Titles, links, OSC 52 clipboard writes, iTerm2 file transfers, and DCS and APC sequences such as kitty graphics are dropped whole and counted. Notifications become one BEL. wb writes its own title and resets the terminal on exit. The counts and the dropped links go to the audit log and the session summary.](S16-00-terminal-stream.svg)
+
 ## Design
 
 The terminal emulator parses the guest's output, and acts on some of

@@ -5,6 +5,8 @@ raises it to its answer or its expiry.
 
 ## Design
 
+![The approval flow. The agent's tool and the guest's own daemons look up names in wb-netd. For a name not on the allowlist, wb-netd holds the answer for 4 seconds, then answers NXDOMAIN with a TTL of 0, and raises one event per name. Names on the background list raise none. wb-hostd opens one request per name with a new id, runs the risk check and the boundary check, and notifies the user. The user answers with the request's id. An approval within the hold lets the waiting lookup succeed. An answer with a stale id is refused, and a request expires when its sessions end.](S09-10-approval-flow.svg)
+
 The VM is the unit for each rule here. The host can't tell which
 session looked a name up (S07-01-per-vm-policy, I36).
 

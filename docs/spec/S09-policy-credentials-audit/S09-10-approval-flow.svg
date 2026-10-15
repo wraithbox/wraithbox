@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" role="img" aria-label="The approval flow. The agent's tool and the guest's own daemons look up names in wb-netd. For a name not on the allowlist, wb-netd holds the answer for 4 seconds, then answers NXDOMAIN with a TTL of 0, and raises one event per name. Names on the background list raise none. wb-hostd opens one request per name with a new id, runs the risk check and the boundary check, and notifies the user. The user answers with the request's id. An approval within the hold lets the waiting lookup succeed. An answer with a stale id is refused, and a request expires when its sessions end.">
+<style>
+svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
+.box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
+.guest { fill: #e8eef8; }
+.boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
+.edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
+.edge-bad { fill: none; stroke: #c01c28; stroke-width: 1.5; stroke-dasharray: 3 3; }
+.arrow { fill: #5e5c64; }
+.arrow-bad { fill: #c01c28; }
+.label { fill: #242428; font-weight: 600; }
+.note { fill: #5e5c64; font-size: 12.5px; }
+.boundary-label { fill: #c01c28; font-size: 12.5px; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+.box { fill: #343437; stroke: #9a9996; }
+.guest { fill: #2b3340; }
+.boundary { stroke: #ff7b7b; }
+.edge { stroke: #c0bfbc; }
+.edge-bad { stroke: #ff7b7b; }
+.arrow { fill: #c0bfbc; }
+.arrow-bad { fill: #ff7b7b; }
+.label { fill: #ffffff; }
+.note { fill: #c0bfbc; }
+.boundary-label { fill: #ff7b7b; }
+}
+</style>
+<defs>
+<marker id="f910-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+<marker id="f910-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+</defs>
+<text class="note" x="230" y="18" text-anchor="start">host: trusted</text>
+<rect class="boundary" x="10" y="30" width="200" height="320" rx="12" />
+<text class="boundary-label" x="22" y="50" text-anchor="start">guest: untrusted</text>
+<rect class="box guest" x="30" y="70" width="160" height="80" rx="10" />
+<text class="label" x="110" y="96" text-anchor="middle">agent's tool</text>
+<text class="note" x="110" y="118" text-anchor="middle">looks up a name,</text>
+<text class="note" x="110" y="136" text-anchor="middle">retries if it failed</text>
+<rect class="box guest" x="30" y="220" width="160" height="70" rx="10" />
+<text class="label" x="110" y="246" text-anchor="middle">guest OS daemons</text>
+<text class="note" x="110" y="268" text-anchor="middle">background list</text>
+<rect class="box" x="260" y="100" width="190" height="160" rx="10" />
+<text class="label" x="355" y="126" text-anchor="middle">wb-netd</text>
+<text class="note" x="355" y="148" text-anchor="middle">holds the answer 4 s,</text>
+<text class="note" x="355" y="167" text-anchor="middle">then NXDOMAIN, TTL 0</text>
+<text class="note" x="355" y="186" text-anchor="middle">one event per name</text>
+<text class="note" x="355" y="205" text-anchor="middle">background list:</text>
+<text class="note" x="355" y="224" text-anchor="middle">no event</text>
+<rect class="box" x="510" y="80" width="180" height="200" rx="10" />
+<text class="label" x="600" y="106" text-anchor="middle">wb-hostd</text>
+<text class="note" x="600" y="128" text-anchor="middle">one request per name</text>
+<text class="note" x="600" y="148" text-anchor="middle">a new request id</text>
+<text class="note" x="600" y="168" text-anchor="middle">risk check</text>
+<text class="note" x="600" y="188" text-anchor="middle">boundary check</text>
+<text class="note" x="600" y="208" text-anchor="middle">expires when its</text>
+<text class="note" x="600" y="228" text-anchor="middle">sessions end</text>
+<rect class="box" x="740" y="120" width="120" height="100" rx="10" />
+<text class="label" x="800" y="146" text-anchor="middle">user</text>
+<text class="note" x="800" y="168" text-anchor="middle">notification</text>
+<text class="note" x="800" y="188" text-anchor="middle">wb approve &lt;id&gt;</text>
+<line class="edge" x1="192" y1="115" x2="258" y2="150" marker-end="url(#f910-arrow)" />
+<line class="edge" x1="192" y1="255" x2="258" y2="220" marker-end="url(#f910-arrow)" />
+<line class="edge" x1="452" y1="160" x2="508" y2="160" marker-end="url(#f910-arrow)" />
+<text class="note" x="480" y="150" text-anchor="middle">event</text>
+<line class="edge" x1="692" y1="160" x2="738" y2="160" marker-end="url(#f910-arrow)" />
+<line class="edge" x1="738" y1="195" x2="692" y2="195" marker-end="url(#f910-arrow)" />
+<text class="note" x="715" y="213" text-anchor="middle">answer</text>
+<line class="edge" x1="508" y1="240" x2="452" y2="240" marker-end="url(#f910-arrow)" />
+<text class="note" x="480" y="230" text-anchor="middle">allow</text>
+<text class="note" x="355" y="300" text-anchor="middle">approved within the hold:</text>
+<text class="note" x="355" y="318" text-anchor="middle">the waiting lookup succeeds</text>
+<line class="edge-bad" x1="800" y1="222" x2="800" y2="290" marker-end="url(#f910-arrow-bad)" />
+<text class="boundary-label" x="800" y="310" text-anchor="middle">stale id: refused</text>
+</svg>

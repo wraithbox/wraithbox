@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 465" role="img" aria-label="The image build. wb-download fetches the restore image, and wb-hostd checks its hash before it starts wb-vmd-install, which installs macOS and runs the build's boots. In the provisioning boot, the provisioning options create wbadmin and turn Remote Login on, and wb-build-ssh's one SSH session, with the password from wb-guestadmin, installs wb-guestd. Everything after goes through wb-guestd over the host-guest socket, from the password rotation to the sealing scan. After wb-vmd-install exits, wb-hostd clones the checked disks into the sealed image. The host never mounts a guest disk.">
+<style>
+svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
+.box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
+.guest { fill: #e8eef8; }
+.boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
+.edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
+.edge-bad { fill: none; stroke: #c01c28; stroke-width: 1.5; stroke-dasharray: 3 3; }
+.arrow { fill: #5e5c64; }
+.arrow-bad { fill: #c01c28; }
+.label { fill: #242428; font-weight: 600; }
+.note { fill: #5e5c64; font-size: 12.5px; }
+.boundary-label { fill: #c01c28; font-size: 12.5px; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+.box { fill: #343437; stroke: #9a9996; }
+.guest { fill: #2b3340; }
+.boundary { stroke: #ff7b7b; }
+.edge { stroke: #c0bfbc; }
+.edge-bad { stroke: #ff7b7b; }
+.arrow { fill: #c0bfbc; }
+.arrow-bad { fill: #ff7b7b; }
+.label { fill: #ffffff; }
+.note { fill: #c0bfbc; }
+.boundary-label { fill: #ff7b7b; }
+}
+</style>
+<defs>
+<marker id="f062-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+<marker id="f062-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+</defs>
+<text class="note" x="20" y="18" text-anchor="start">host: trusted</text>
+<rect class="box" x="20" y="30" width="180" height="64" rx="10" />
+<text class="label" x="110" y="56" text-anchor="middle">wb-guestadmin</text>
+<text class="note" x="110" y="78" text-anchor="middle">build password</text>
+<rect class="box" x="240" y="30" width="200" height="64" rx="10" />
+<text class="label" x="340" y="56" text-anchor="middle">wb-build-ssh</text>
+<text class="note" x="340" y="78" text-anchor="middle">one SSH session</text>
+<rect class="box" x="20" y="150" width="180" height="64" rx="10" />
+<text class="label" x="110" y="176" text-anchor="middle">wb-download</text>
+<text class="note" x="110" y="198" text-anchor="middle">restore image</text>
+<rect class="box" x="240" y="150" width="200" height="64" rx="10" />
+<text class="label" x="340" y="176" text-anchor="middle">wb-hostd</text>
+<text class="note" x="340" y="198" text-anchor="middle">checks the hash</text>
+<rect class="box" x="240" y="270" width="200" height="64" rx="10" />
+<text class="label" x="340" y="296" text-anchor="middle">wb-vmd-install</text>
+<text class="note" x="340" y="318" text-anchor="middle">install, boots</text>
+<rect class="box" x="240" y="390" width="200" height="64" rx="10" />
+<text class="label" x="340" y="416" text-anchor="middle">sealed image</text>
+<text class="note" x="340" y="438" text-anchor="middle">&lt;data&gt;/images/</text>
+<rect class="boundary" x="520" y="30" width="350" height="320" rx="12" />
+<text class="boundary-label" x="532" y="50" text-anchor="start">build guest: untrusted</text>
+<rect class="box guest" x="545" y="65" width="310" height="90" rx="10" />
+<text class="label" x="700" y="91" text-anchor="middle">1. provisioning boot</text>
+<text class="note" x="700" y="113" text-anchor="middle">wbadmin, Remote Login on</text>
+<text class="note" x="700" y="133" text-anchor="middle">installs wb-guestd, nothing else</text>
+<rect class="box guest" x="545" y="195" width="310" height="120" rx="10" />
+<text class="label" x="700" y="221" text-anchor="middle">2. through wb-guestd</text>
+<text class="note" x="700" y="243" text-anchor="middle">password rotated, Remote Login off</text>
+<text class="note" x="700" y="263" text-anchor="middle">wbadmin disabled, base layer</text>
+<text class="note" x="700" y="283" text-anchor="middle">sealing scan</text>
+<line class="edge" x1="202" y1="62" x2="238" y2="62" marker-end="url(#f062-arrow)" />
+<line class="edge" x1="442" y1="62" x2="543" y2="105" marker-end="url(#f062-arrow)" />
+<text class="note" x="480" y="70" text-anchor="middle">SSH</text>
+<line class="edge" x1="202" y1="182" x2="238" y2="182" marker-end="url(#f062-arrow)" />
+<line class="edge" x1="442" y1="182" x2="543" y2="240" marker-end="url(#f062-arrow)" marker-start="url(#f062-arrow)" />
+<text class="note" x="450" y="266" text-anchor="start">host-guest</text>
+<text class="note" x="450" y="282" text-anchor="start">socket</text>
+<line class="edge" x1="340" y1="216" x2="340" y2="268" marker-end="url(#f062-arrow)" />
+<text class="note" x="348" y="247" text-anchor="start">starts</text>
+<line class="edge" x1="340" y1="336" x2="340" y2="388" marker-end="url(#f062-arrow)" />
+<text class="note" x="348" y="367" text-anchor="start">checked clone</text>
+<path class="edge-bad" d="M442,422 C560,430 640,400 680,352" marker-end="url(#f062-arrow-bad)" />
+<text class="boundary-label" x="700" y="390" text-anchor="start">the host never</text>
+<text class="boundary-label" x="700" y="408" text-anchor="start">mounts a guest disk</text>
+</svg>

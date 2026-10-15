@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 345" role="img" aria-label="The terminal stream. Claude Code in the guest can write any bytes. wb-guestd and wb-hostd relay them unchanged to wb, which filters them with an allowlist before the user's terminal emulator. Text, cursor movement, colors, screen and keyboard modes, and queries pass. Titles, links, OSC 52 clipboard writes, iTerm2 file transfers, and DCS and APC sequences such as kitty graphics are dropped whole and counted. Notifications become one BEL. wb writes its own title and resets the terminal on exit. The counts and the dropped links go to the audit log and the session summary.">
+<style>
+svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
+.box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
+.guest { fill: #e8eef8; }
+.boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
+.edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
+.edge-bad { fill: none; stroke: #c01c28; stroke-width: 1.5; stroke-dasharray: 3 3; }
+.arrow { fill: #5e5c64; }
+.arrow-bad { fill: #c01c28; }
+.label { fill: #242428; font-weight: 600; }
+.note { fill: #5e5c64; font-size: 12.5px; }
+.boundary-label { fill: #c01c28; font-size: 12.5px; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+.box { fill: #343437; stroke: #9a9996; }
+.guest { fill: #2b3340; }
+.boundary { stroke: #ff7b7b; }
+.edge { stroke: #c0bfbc; }
+.edge-bad { stroke: #ff7b7b; }
+.arrow { fill: #c0bfbc; }
+.arrow-bad { fill: #ff7b7b; }
+.label { fill: #ffffff; }
+.note { fill: #c0bfbc; }
+.boundary-label { fill: #ff7b7b; }
+}
+</style>
+<defs>
+<marker id="f016-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+<marker id="f016-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+</defs>
+<text class="note" x="220" y="18" text-anchor="start">host: trusted</text>
+<rect class="boundary" x="10" y="30" width="172" height="300" rx="12" />
+<text class="boundary-label" x="22" y="50" text-anchor="start">guest: untrusted</text>
+<rect class="box guest" x="25" y="130" width="150" height="70" rx="10" />
+<text class="label" x="100" y="156" text-anchor="middle">Claude Code</text>
+<text class="note" x="100" y="178" text-anchor="middle">writes any bytes</text>
+<rect class="box" x="330" y="100" width="210" height="120" rx="10" />
+<text class="label" x="435" y="126" text-anchor="middle">wb</text>
+<text class="note" x="435" y="148" text-anchor="middle">allowlist filter</text>
+<text class="note" x="435" y="168" text-anchor="middle">notifications: one BEL</text>
+<text class="note" x="435" y="188" text-anchor="middle">its own title, reset on exit</text>
+<rect class="box" x="660" y="120" width="200" height="80" rx="10" />
+<text class="label" x="760" y="146" text-anchor="middle">terminal emulator</text>
+<text class="note" x="760" y="168" text-anchor="middle">the user's terminal</text>
+<line class="edge" x1="177" y1="165" x2="328" y2="165" marker-end="url(#f016-arrow)" />
+<text class="note" x="255" y="150" text-anchor="middle">relayed unchanged</text>
+<text class="note" x="255" y="186" text-anchor="middle">wb-guestd, wb-hostd</text>
+<line class="edge" x1="542" y1="160" x2="658" y2="160" marker-end="url(#f016-arrow)" />
+<text class="note" x="600" y="150" text-anchor="middle">passes</text>
+<text class="note" x="760" y="226" text-anchor="middle">text, cursor, colors,</text>
+<text class="note" x="760" y="244" text-anchor="middle">screen and keyboard modes,</text>
+<text class="note" x="760" y="262" text-anchor="middle">queries</text>
+<line class="edge-bad" x1="435" y1="222" x2="435" y2="262" marker-end="url(#f016-arrow-bad)" />
+<text class="boundary-label" x="435" y="282" text-anchor="middle">dropped whole, counted: titles, links,</text>
+<text class="boundary-label" x="435" y="300" text-anchor="middle">OSC 52 clipboard, iTerm2 files, DCS, APC</text>
+<text class="note" x="435" y="330" text-anchor="middle">counts and dropped links: audit log and session summary</text>
+</svg>

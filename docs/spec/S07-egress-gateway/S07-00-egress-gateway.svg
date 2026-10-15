@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 405" role="img" aria-label="The egress gateway. Every frame from the guest's virtual NIC reaches wb-netd, which filters the link, serves DHCP and DNS with synthetic addresses, and accepts TCP only to an allowed name and port. wb-netd hands each stream to wb-proxyd over the VM's own hand-off socket. wb-proxyd re-checks the name, checks the protocol, and applies the host's mode, credential replacement, HTTP policy and the dependency gate before it connects upstream. An unknown name raises an approval event in wb-hostd, which sends policy changes to wb-proxyd first. Raw IP, the LAN, IPv6, and UDP other than DNS are dropped or reset.">
+<style>
+svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
+.box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
+.guest { fill: #e8eef8; }
+.boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
+.edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
+.edge-bad { fill: none; stroke: #c01c28; stroke-width: 1.5; stroke-dasharray: 3 3; }
+.arrow { fill: #5e5c64; }
+.arrow-bad { fill: #c01c28; }
+.label { fill: #242428; font-weight: 600; }
+.note { fill: #5e5c64; font-size: 12.5px; }
+.boundary-label { fill: #c01c28; font-size: 12.5px; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+.box { fill: #343437; stroke: #9a9996; }
+.guest { fill: #2b3340; }
+.boundary { stroke: #ff7b7b; }
+.edge { stroke: #c0bfbc; }
+.edge-bad { stroke: #ff7b7b; }
+.arrow { fill: #c0bfbc; }
+.arrow-bad { fill: #ff7b7b; }
+.label { fill: #ffffff; }
+.note { fill: #c0bfbc; }
+.boundary-label { fill: #ff7b7b; }
+}
+</style>
+<defs>
+<marker id="f007-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+<marker id="f007-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+</defs>
+<text class="note" x="230" y="18" text-anchor="start">host: trusted</text>
+<rect class="boundary" x="10" y="30" width="182" height="330" rx="12" />
+<text class="boundary-label" x="22" y="50" text-anchor="start">guest: untrusted</text>
+<rect class="box guest" x="25" y="150" width="150" height="70" rx="10" />
+<text class="label" x="100" y="176" text-anchor="middle">agent, tools</text>
+<text class="note" x="100" y="198" text-anchor="middle">virtual NIC</text>
+<rect class="box" x="330" y="30" width="330" height="64" rx="10" />
+<text class="label" x="495" y="56" text-anchor="middle">wb-hostd</text>
+<text class="note" x="495" y="78" text-anchor="middle">approvals · policy changes, wb-proxyd first</text>
+<rect class="box" x="240" y="150" width="210" height="180" rx="10" />
+<text class="label" x="345" y="176" text-anchor="middle">wb-netd</text>
+<text class="note" x="345" y="198" text-anchor="middle">link filter</text>
+<text class="note" x="345" y="218" text-anchor="middle">DHCP</text>
+<text class="note" x="345" y="238" text-anchor="middle">DNS: synthetic addresses</text>
+<text class="note" x="345" y="258" text-anchor="middle">unknown name: NXDOMAIN</text>
+<text class="note" x="345" y="278" text-anchor="middle">TCP to an allowed name</text>
+<text class="note" x="345" y="298" text-anchor="middle">and port only</text>
+<rect class="box" x="530" y="150" width="220" height="180" rx="10" />
+<text class="label" x="640" y="176" text-anchor="middle">wb-proxyd</text>
+<text class="note" x="640" y="198" text-anchor="middle">re-checks the name</text>
+<text class="note" x="640" y="218" text-anchor="middle">protocol check</text>
+<text class="note" x="640" y="238" text-anchor="middle">inspect · pass · audit</text>
+<text class="note" x="640" y="258" text-anchor="middle">credential replacement</text>
+<text class="note" x="640" y="278" text-anchor="middle">HTTP policy</text>
+<text class="note" x="640" y="298" text-anchor="middle">dependency gate</text>
+<rect class="box" x="790" y="205" width="100" height="64" rx="10" />
+<text class="label" x="840" y="231" text-anchor="middle">upstream</text>
+<text class="note" x="840" y="253" text-anchor="middle">allowed host</text>
+<line class="edge" x1="177" y1="185" x2="238" y2="185" marker-end="url(#f007-arrow)" />
+<text class="note" x="216" y="176" text-anchor="middle">frames</text>
+<line class="edge" x1="452" y1="240" x2="528" y2="240" marker-end="url(#f007-arrow)" />
+<text class="note" x="490" y="230" text-anchor="middle">hand-off</text>
+<text class="note" x="490" y="262" text-anchor="middle">per VM</text>
+<line class="edge" x1="752" y1="237" x2="788" y2="237" marker-end="url(#f007-arrow)" />
+<line class="edge" x1="360" y1="148" x2="400" y2="96" marker-end="url(#f007-arrow)" marker-start="url(#f007-arrow)" />
+<text class="note" x="352" y="124" text-anchor="end">approval events</text>
+<line class="edge" x1="600" y1="96" x2="630" y2="148" marker-end="url(#f007-arrow)" marker-start="url(#f007-arrow)" />
+<text class="note" x="622" y="124" text-anchor="start">policy</text>
+<path class="edge-bad" d="M100,222 C100,330 190,345 238,322" marker-end="url(#f007-arrow-bad)" />
+<text class="boundary-label" x="30" y="392" text-anchor="start">raw IP, the LAN, IPv6, UDP other than DNS: dropped or reset</text>
+</svg>
