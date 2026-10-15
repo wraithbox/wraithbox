@@ -8,7 +8,7 @@ lost, and how a lost session's work is recovered or discarded.
 ### Reconnect
 
 When the host-guest link drops, `wb-guestd` stops the
-project processes (S13-guest-confinement, "Layer 1"), and `wb-hostd`
+project processes (S13-01-process-hardening), and `wb-hostd`
 connects to it again (S04-architecture). It waits 0.1 s before the
 first try, doubles the wait after each failed one up to 5 s, and
 opens at most 20 connections to one VM in a minute
@@ -23,7 +23,7 @@ also refuses a list that names one id twice, as a held session and
 as a report or twice as either, or that has two records with one
 kill ID. It logs the refusal and closes the
 connection, which counts as a failed try. It runs at most 64 sessions in one VM. For each
-entry it checks the session ID format of S05-cli ("Naming") first,
+entry it checks the session ID format of S05-04-naming first,
 then looks for a session of this VM and this VM generation only, and
 answers:
 
@@ -94,7 +94,7 @@ S07-egress-gateway, and for `wb vm stop` and `wb vm suspend`, a lost
 session counts as ended: its project's grants leave the VM when no
 other session of the project is starting, running, paused or ending
 there. For the lock and the kill of a project's last session
-(S13-guest-confinement, "Layer 1"), a lost session still counts as
+(S13-01-process-hardening), a lost session still counts as
 a session, so the project user is locked only after its lost
 sessions have ended, by recovery, `wb discard`, `wb project rm` or
 the deadline.
@@ -114,7 +114,7 @@ branch (S08-03-pushes, "Ref restriction"), and gives no
 network grants on account of the lost session. The session is then
 ended, with "lost" as its exit status in `wb sessions`. When this
 was the project's last session in the VM, the project user is then
-locked and its processes killed (S13-guest-confinement, "Layer 1"). A lost session stays live for
+locked and its processes killed (S13-01-process-hardening). A lost session stays live for
 `export.git` until it ends (S08-02-export-repository), so its WIP push still has its base.
 
 ### Discarding a lost session

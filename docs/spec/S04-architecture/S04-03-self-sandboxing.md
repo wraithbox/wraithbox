@@ -17,7 +17,7 @@ mechanism (S12-platforms). Each then gets only what it needs:
 | `wb-download` | outbound HTTPS and its inherited descriptors |
 | `wb-guestadmin` | its `wbadmin/*` store items and inherited descriptors |
 | `wb-credset` | its `binding/*` store items and its standard streams (S15-least-privilege, "Keychain") |
-| `wb-hostd` | its state directories; on macOS also read access to the installed bundle's `Info.plist` (S04-07-supervision, "Upgrades") and to each helper bundle's `embedded.provisionprofile` (S12-platforms, "Development builds on macOS") |
+| `wb-hostd` | its state directories; on macOS also read access to the installed bundle's `Info.plist` (S04-07-supervision, "Upgrades") and to each helper bundle's `embedded.provisionprofile` (S12-03-host-prerequisites, "Development builds on macOS") |
 | `wb-vmd` | the hypervisor and its VM's bundle |
 
 This hardens our own code. It is not how the agent is contained: the
@@ -71,8 +71,7 @@ confines itself.
 
 The profile's parameters are:
 
-- the bundle path, from the fixed platform path (S12-platforms,
-  "Paths") resolved to its real path;
+- the bundle path, from the fixed platform path (S12-01-platform-interfaces, "Paths") resolved to its real path;
 - the cache directory from `confstr`.
 
 The gRPC contract carries no path.

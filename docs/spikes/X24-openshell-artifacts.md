@@ -35,7 +35,7 @@ permissive license, at a version that can be pinned?
   S07-08-dependency-gate, one line in "Approvals and
   learning"), S10-tech-stack (the OpenShell rows), S04-architecture (a
   `wb-prover` row), S08-workspace-and-git (`.wraithbox/` is flagged) and
-  S13-guest-confinement ("Source"). Every part exists under Apache-2.0
+  S13-02-filesystem-profile ("Source"). Every part exists under Apache-2.0
   at OpenShell v0.1.2, with two gaps. A policy file with Wraith Box's
   extension keys isn't a valid OpenShell policy. The proposal risk
   check isn't in the prover binary.

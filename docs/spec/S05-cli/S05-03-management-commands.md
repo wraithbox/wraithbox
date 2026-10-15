@@ -55,7 +55,7 @@ project write a Device Config State Change (5019) event. Those
 
 On macOS it also shows the expiry date of the signing profile in the
 helper bundles, and the fix. It does that when the date is 30 days away
-or less, or after it (S12-platforms, "Development builds on macOS").
+or less, or after it (S12-03-host-prerequisites, "Development builds on macOS").
 
 ### `wb approve` and `wb deny`
 
@@ -163,8 +163,7 @@ borrowed its slot. The refusal names the build (S06-07-slot-admission).
 
 `wb image build/list/use` manages base images (S06-vm-lifecycle).
 
-- `list` shows each image's Claude Code version (S14-claude-in-guest,
-  "Install").
+- `list` shows each image's Claude Code version (S14-01-install).
 - `build` borrows the isolated VM's slot. It is refused while the
   isolated VM has a session that is starting, running, paused or
   ending, a debug shell (`wb shell`) included (S06-07-slot-admission).
@@ -180,7 +179,7 @@ borrowed its slot. The refusal names the build (S06-07-slot-admission).
    "Each host daemon is self-sandboxed");
 3. installs and starts the per-user services. On macOS those are the
    `wb-hostd` LaunchAgent and the `~/.local/bin/wb` link
-   (S17-install-and-upgrade, "Install").
+   (S17-02-setup).
 
 Per platform:
 
@@ -194,7 +193,7 @@ Per platform:
   that every program the team signs can reach Wraith Box's Keychain
   groups (S15-least-privilege, "The store holds credentials"). It says
   when the signing profile expires, once that is 30 days away or less,
-  or after it (S12-platforms, "Development builds on macOS").
+  or after it (S12-03-host-prerequisites, "Development builds on macOS").
 
 `wb setup --remove` refuses while a VM runs. Otherwise it unloads the
 services and deletes those files. It keeps the user's data and store

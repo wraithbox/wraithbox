@@ -44,8 +44,7 @@ SEC14-no-fake-approvals
   comment that starts `Decision (2026-10-15):`. The specs have them
   (I249): S15-least-privilege ("Keychain", access rule 4, "Declared
   access", and a section on updates that was removed later), S09-04-credentials ("Storage"),
-  S09-05-ca-keys ("Key"), S10-tech-stack ("Packaging and signing") and S12-platforms
-  ("Hardware key").
+  S09-05-ca-keys ("Key"), S10-tech-stack ("Packaging and signing") and S12-01-platform-interfaces ("Hardware key").
   1. How ad-hoc signed builds keep their items across an update.
      - A. Fail closed: after an update, `wb` says the store must be set
        up again, and the user enters each binding again. Generated

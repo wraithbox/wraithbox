@@ -143,7 +143,7 @@ placeholder seen in a refusal names its VM (S07-06-requests-and-credentials, "Pl
   (X01-model-credential, "Browser login (I15)"). The maintainer kept
   it out of V1 on I15 (B15-browser-login), and the host-side login
   is in I257. A guest's own login fails at the code exchange
-  (S14-claude-in-guest, "Commands that don't fit a guest").
+  (S14-04-commands-and-endpoints, "Commands that don't fit a guest").
 
 ### Never in the guest
 

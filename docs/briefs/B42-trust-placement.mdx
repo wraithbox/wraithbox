@@ -131,10 +131,10 @@ The issue's recommendation. The user adds `--isolated`, or sets `placement`, for
 ## Evidence
 
 - <Badge text="verified" variant="success" /> S06-vm-lifecycle sends "untrusted repositories" to the isolated VM, by `--isolated` or "a project marked untrusted" ("VMs"). S05-cli has `wb trust` and `wb untrust` for repository configuration only, and no command that marks a project untrusted ("Management commands").
-- <Badge text="verified" variant="success" /> `--learn` is "refused unless the project is trusted" (S05-cli, "Session flags"), and FR10-learn-mode says "trusted repositories", without saying which trust.
+- <Badge text="verified" variant="success" /> `--learn` is "refused unless the project is trusted" (S05-01-agent-commands, "Session flags"), and FR10-learn-mode says "trusted repositories", without saying which trust.
 - <Badge text="verified" variant="success" /> S09-policy-credentials-audit already lists the VM slot (work or isolated) among the project settings ("Settings contents").
 - <Badge text="verified" variant="success" /> T05-cross-proj-clones accepts cross-project access in the work VM because "untrusted repositories use the isolated VM", and says nothing about projects sharing the isolated VM (T00-index).
-- <Badge text="verified" variant="success" /> Project identity is a hash of the repository's location and the URL of its first remote (S05-cli, "Naming"). `git remote` lists remotes alphabetically (local test, git 2.56.0).
+- <Badge text="verified" variant="success" /> Project identity is a hash of the repository's location and the URL of its first remote (S05-04-naming). `git remote` lists remotes alphabetically (local test, git 2.56.0).
 - <Badge text="verified" variant="success" /> In a `git worktree`, `git rev-parse --git-common-dir` returns the main repository's `.git` directory, while `--show-toplevel` returns the worktree's own path (local test).
 - <Badge text="inferred" variant="note" /> So today each worktree of one repository is its own project, and keying on the common directory makes them one.
 - <Badge text="assumed" variant="caution" /> That I36 is decided as its brief recommends (B36-flow-attribution). The case for A over B rests on it.

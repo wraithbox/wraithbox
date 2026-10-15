@@ -449,7 +449,7 @@ decided on I15 on 2026-10-15: the browser login isn't in V1 (I257
 keeps the design), and the authorize URL gets no filter. I256 makes
 these changes:
 
-- S14-claude-in-guest, "Commands that don't fit a guest": the answer
+- S14-04-commands-and-endpoints, "Commands that don't fit a guest": the answer
   to its measurement, the authorize host `claude.com`, and that a
   guest's login fails at the exchange, not before the URL.
 - S09-04-credentials, "Model credential": API key mode is

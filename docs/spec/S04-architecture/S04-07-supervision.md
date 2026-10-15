@@ -13,7 +13,7 @@ NFR06-explained-refusals).
 
 ### Who starts whom
 
-- **The service manager** (S12-platforms, "Service manager") runs
+- **The service manager** (S12-01-platform-interfaces, "Service manager") runs
   `wb-hostd` and no other Wraith Box process. It starts `wb-hostd` at
   login, and again whenever it exits. On macOS the LaunchAgent sets
   `KeepAlive` and doesn't set `AbandonProcessGroup`.
@@ -87,8 +87,7 @@ restore.
 
 An upgrade takes the same path as a crash:
 
-1. the installer replaces the bundle (S17-install-and-upgrade,
-   "Upgrades");
+1. the installer replaces the bundle (S17-05-upgrades-and-migrations, "Upgrades");
 2. the running `wb-hostd` exits;
 3. the service manager starts the new one;
 4. the running VMs stop, with their sessions lost.
@@ -257,7 +256,7 @@ doesn't show a dialog in any build (S15-least-privilege, access rule
   on its standard error.
 - In interactive use, `wb` doesn't write into the agent's terminal. The
   session's summary says that its network was down, and for how long
-  (S05-cli, "Session behavior").
+  (S05-01-agent-commands, "Session behavior").
 - `wb status` shows the outage while it lasts.
 
 ### One `wb-proxyd` for both VMs

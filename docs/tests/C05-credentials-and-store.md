@@ -6,7 +6,7 @@ the credential checks `wb-proxyd` makes on guest requests and server
 responses.
 
 **Verifies:** S15-least-privilege ("The store holds credentials",
-"Keychain", "Declared access"), S09-04-credentials, S12-platforms ("Development builds on macOS"),
+"Keychain", "Declared access"), S09-04-credentials, S12-03-host-prerequisites ("Development builds on macOS"),
 S10-tech-stack ("Packaging and signing"), S07-06-requests-and-credentials ("Credential replacement")
 
 ## Unit tests
@@ -52,8 +52,7 @@ Spec: S15-least-privilege, "Keychain".
 
 - In an ad-hoc signed build:
   - see `wb setup` refuse the Keychain backend with
-    `keychain-needs-team` and name the setup steps of S12-platforms,
-    "Development builds on macOS";
+    `keychain-needs-team` and name the setup steps of S12-03-host-prerequisites, "Development builds on macOS";
   - see `wb-proxyd` refuse a binding fetch and a CA issue, `wb-credset`
     refuse the write of `wb cred set`, and `wb-guestadmin` refuse the
     items of `wb image build` and of a rotation, each with the same
@@ -76,7 +75,7 @@ Spec: S15-least-privilege, "Keychain".
 
 ### Signing profile
 
-Spec: S12-platforms, "Development builds on macOS".
+Spec: S12-03-host-prerequisites, "Development builds on macOS".
 
 - Give `wb setup` and `wb status` a profile that expires in 29 days,
   and see them print the date and the fix. Give them one that expires

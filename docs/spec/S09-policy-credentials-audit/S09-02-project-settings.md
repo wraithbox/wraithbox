@@ -34,7 +34,7 @@ port-forwarding switches come after V1 (V1-08-no-forward-clipboard).
 - *`config_trust`.* Whether the repository's `.wraithbox/` is read
   ("Repository-supplied configuration"). Off for a new project. Only
   `wb trust` sets it, after the boundary check. `wb untrust` and
-  `wb project confirm` clear it (S05-cli, "Naming"). Learn mode
+  `wb project confirm` clear it (S05-04-naming). Learn mode
   doesn't look at it.
 - The maintainer split the two on I42 (B42-trust-placement). The
   word "trusted" alone names neither.

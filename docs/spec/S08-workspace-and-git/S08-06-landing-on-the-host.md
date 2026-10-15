@@ -20,7 +20,7 @@ write (S04-06-git-confinement, "`wb` takes no path, URL or program from `wb-host
 ### The user's repository
 
 `wb land` and `wb diff` resolve the user's repository from the current
-directory, by the rules `wb claude` uses (S05-cli, "Naming"). They
+directory, by the rules `wb claude` uses (S05-04-naming). They
 never take it from a path in `state.db` or from `wb-hostd`. They
 refuse:
 

@@ -163,7 +163,7 @@ message that says to run `wb setup`, which creates it again
 
 These probes check the macOS profile. They don't carry over to Windows
 as they are, because there `<logs>` is inside `<data>`
-(S12-platforms, "Paths"). I190 covers Linux and Windows.
+(S12-01-platform-interfaces, "Paths"). I190 covers Linux and Windows.
 
 ### `wb` takes no path, URL or program from `wb-hostd`
 

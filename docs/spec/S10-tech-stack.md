@@ -124,14 +124,13 @@ binary of that name comes from the Swift package.
     embeds into each helper bundle. Then it signs from the inside out
     (decided on I248, B248-dev-signing). A build with `WB_TEAM_ID` set
     fails when Xcode gives it no profile, and names the one-time setup
-    in S12-platforms, "Development builds on macOS". Without the
+    in S12-03-host-prerequisites, "Development builds on macOS". Without the
     setting the build is ad-hoc signed, has the bundle identifier
     `nl.wraithbox.dev.adhoc` or `WB_BUNDLE_ID`, doesn't give any program an
     access group, and has no Keychain backend (S15-least-privilege).
     That a Developer ID build also needs a profile in each helper bundle
     for its groups is assumed until the first release build. Where a
-    bundle has no profile, the profile checks of S12-platforms,
-    "Development builds on macOS", don't apply.
+    bundle has no profile, the profile checks of S12-03-host-prerequisites, "Development builds on macOS", don't apply.
   - *Distribution* via a Homebrew cask once signed builds exist.
 - **Windows (later):** a per-user installer (no administrator rights)
   with the same set of binaries as `.exe`; code signing when available.

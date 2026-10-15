@@ -4,7 +4,7 @@
 session belongs to, what happens when a repository moves, is cloned
 again or changes its remote, and the project commands.
 
-**Verifies:** S05-cli ("Naming"), S07-01-per-vm-policy
+**Verifies:** S05-04-naming, S07-01-per-vm-policy
 
 ## Conformance
 
@@ -17,7 +17,7 @@ again or changes its remote, and the project commands.
 - Switch the remote between its SSH and HTTPS forms, and see the start
   pass.
 - Start a session in a second `git worktree` of the repository, and see
-  it use the same project (S05-cli, "Naming").
+  it use the same project (S05-04-naming).
 - In a repository without a remote, replace it at the same path with
   another repository without a remote, and see the start refused with
   both root commit sets named.

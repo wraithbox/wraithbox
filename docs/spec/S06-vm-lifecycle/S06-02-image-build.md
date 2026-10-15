@@ -23,7 +23,7 @@ exits when the build ends.
 The install reads only the restore image at the fixed path
 `<data>/images/macos-restore.ipsw`. `wb-download` fetches it from
 Apple's catalog, and `wb-hostd` checks its hash before it starts
-`wb-vmd-install` (S17-install-and-upgrade, "Downloads"), which checks
+`wb-vmd-install` (S17-03-downloads), which checks
 the path again itself (S04-architecture). A build that seals its
 image deletes the restore image.
 

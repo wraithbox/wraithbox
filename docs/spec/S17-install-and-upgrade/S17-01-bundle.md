@@ -54,8 +54,7 @@ With `WB_TEAM_ID` set:
 - `xcodebuild` builds with automatic signing for that team.
 - The bundle identifier is `nl.wraithbox.dev.<teamid>`, or
   `WB_BUNDLE_ID` when that is set.
-- The build fails when Xcode gives it no profile (S12-platforms,
-  "Development builds on macOS").
+- The build fails when Xcode gives it no profile (S12-03-host-prerequisites, "Development builds on macOS").
 - Step 7 signs with the team's Apple Development certificate.
 
 Without `WB_TEAM_ID`:
@@ -74,7 +73,6 @@ CI runs `app:bundle` without `WB_TEAM_ID`. Every pull request builds
 the ad-hoc bundle and runs its checks.
 
 `mise run app:install` installs the built bundle as
-`~/Applications/Wraith Box.app` (S17-05-upgrades-and-migrations,
-"Upgrades").
+`~/Applications/Wraith Box.app` (S17-05-upgrades-and-migrations, "Upgrades").
 
 **Status:** Draft

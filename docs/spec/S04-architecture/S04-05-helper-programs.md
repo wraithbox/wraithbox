@@ -61,7 +61,7 @@ chooses what it does. The entries are:
 ### `wb-release-check`
 
 `wb-release-check` checks a Claude Code release for an image build
-(S14-claude-in-guest, "Install"). `wb-launcher` has one fixed entry,
+(S14-01-install). `wb-launcher` has one fixed entry,
 `wb-release-check`, with no profile parameter.
 
 It confines itself first thing, from a compiled-in profile:
@@ -84,7 +84,7 @@ It exits after one check.
 ### `wb-download`
 
 `wb-download` fetches what an image build needs
-(S17-install-and-upgrade, "Downloads"). `wb-launcher` has two fixed
+(S17-03-downloads). `wb-launcher` has two fixed
 entries, `wb-download-restore` and `wb-download-claude`. Each has its
 hosts compiled into the program. A request then never names a host or
 a URL.

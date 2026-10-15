@@ -33,8 +33,7 @@ Agent-specific code is in one Go package per agent,
 `internal/agent/claude`. `wb`, `wb-hostd` and `wb-guestd` call it only
 through the interface in `internal/agent`. An agent supplies:
 
-- **Command.** The agent command name for `wb` (`claude`, S05-cli,
-  "Agent commands"), and the program `wb-guestd` starts.
+- **Command.** The agent command name for `wb` (`claude`, S05-01-agent-commands), and the program `wb-guestd` starts.
 - **Install.** How the image build gets and checks the agent's build
   (S14-01-install).
 - **Configuration carry-in.** Which of the user's files reach the

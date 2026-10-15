@@ -256,7 +256,7 @@ Leftover-process results, in `wb-hostd`:
 
 The internet is a second source of input, through `wb-download` only.
 It runs during an image build, which the user starts. Its bounds are
-in S17-install-and-upgrade, "Downloads":
+in S17-03-downloads:
 
 | Internet input | Process | Limits |
 |---|---|---|
@@ -290,7 +290,6 @@ For each host process, `wb-hostd` keeps:
 process is down and why (NFR06-explained-refusals).
 
 When `wb` can't reach `wb-hostd`, `wb status` says so. It says to run
-`wb setup`, which installs and starts the service (S05-cli,
-"Management commands").
+`wb setup`, which installs and starts the service (S05-03-management-commands).
 
 **Status:** Draft

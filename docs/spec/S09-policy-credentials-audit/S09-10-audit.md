@@ -30,7 +30,7 @@ the records of the terminal filter.
   recovery pushes, secret store accesses, the records of VM starts
   and stops and of sessions, and the records of `wb-download`, which
   belong to no VM and count against no VM's budget
-  (S17-install-and-upgrade, "Downloads"). Their sources bound them already
+  (S17-03-downloads). Their sources bound them already
   (approval limits, push limits, session limits, and the terminal
   filter's records per session, "Terminal filter" below).
 - The high-volume classes, Network Activity (4001) and HTTP Activity
@@ -97,8 +97,7 @@ the records of the terminal filter.
 - Project settings. `wb trust`, `wb untrust`, and the `wb project`
   commands that change a project write a 5019 event with the values
   before and after: `config_trust`, `placement`, the location, the
-  name, or the recorded remote URLs and root commits (S05-cli,
-  "Management commands").
+  name, or the recorded remote URLs and root commits (S05-03-management-commands).
 - Records: timestamp; VM; project, session and guest user (for
   network events, derived from the guest's label, see below);
   destination host and port; decision and the rule that made it; HTTP
@@ -135,7 +134,7 @@ rules" and "Links").
 - *State.* `wb-hostd` keeps the last counts and the kept links with
   the session's record in `state.db`. So `wb sessions` shows the
   same summary, links included, for a session whose `wb` is gone
-  (S05-cli, "Session behavior").
+  (S05-01-agent-commands, "Session behavior").
 - *Form.* `wb-hostd` takes these reports only from the `wb` of the
   session, and checks them: rule names and marks from
   S16-terminal-stream's lists, mark counts under those names or

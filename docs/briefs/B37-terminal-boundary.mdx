@@ -206,7 +206,7 @@ Write it down as an accepted threat in T00-index and point users at their emulat
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> Interactive `wb claude` is a raw-mode TTY relay, and S05-cli strips control and escape sequences only from the text of `wb approve` and `wb deny` (S05-cli, "Agent commands" and "Management commands").
+- <Badge text="verified" variant="success" /> Interactive `wb claude` is a raw-mode TTY relay, and S05-cli strips control and escape sequences only from the text of `wb approve` and `wb deny` (S05-01-agent-commands and S05-03-management-commands).
 - <Badge text="verified" variant="success" /> T00-index lists five boundaries, and the host terminal is not one ("Model").
 - <Badge text="verified" variant="success" /> iTerm2 saves a file sent with `OSC 1337 ; File=` and no `inline=1` to the Downloads folder, and copies text to the pasteboard with `OSC 1337 ; Copy=` ([iTerm2 escape codes](https://iterm2.com/documentation-escape-codes.html), [iTerm2 images](https://iterm2.com/documentation-images.html)).
 - <Badge text="verified" variant="success" /> `git log --format=%s` writes a commit subject containing `ESC ] 52 ; c ; …` unchanged to its output (git 2.56.0, local test).

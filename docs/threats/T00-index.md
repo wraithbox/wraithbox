@@ -42,7 +42,7 @@ macOS); the operators of allowlisted services (as services, not their
 content); Apple's macOS restore images, as the system trust store and
 the Virtualization installer's signature check accept them, and
 Claude Code releases, as Anthropic's release key signs them
-(S17-install-and-upgrade, "Downloads", and I262 for the installer's
+(S17-03-downloads, and I262 for the installer's
 check).
 
 **Boundaries.** (1) the VM; (2) the host-guest socket RPC surface to

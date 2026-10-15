@@ -75,7 +75,7 @@ push then fails at the egress gateway, which refuses the unknown host
 A `.gitmodules` URL is tracked content and isn't rewritten. Submodules
 are out of scope (S08-workspace-and-git, "Out of scope"). Project
 identity records the URLs after this cleaning, but they aren't part of
-the project key (S05-cli, "Naming").
+the project key (S05-04-naming).
 
 ### Session start
 

@@ -18,7 +18,7 @@ passes it unchanged (S05-cli).
 
 A user who runs `bypassPermissions` on the host gets it in the guest.
 Claude Code refuses that mode as root, and project users are never
-root (S13-guest-confinement, "Layer 1").
+root (S13-01-process-hardening).
 
 ### Commands that don't fit a guest
 

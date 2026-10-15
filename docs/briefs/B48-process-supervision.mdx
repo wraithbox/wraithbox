@@ -85,7 +85,7 @@ These cover the one real fork: what running VMs do when `wb-hostd` stops, crashe
 
 ### A. VMs follow wb-hostd, through saved state
 
-When `wb-vmd` loses its connection to `wb-hostd`, it saves each running VM's state and exits. When `wb-hostd` starts, it restores them. The host-guest socket drops meanwhile, so `wb-guestd` pauses the session's processes and resumes them on restore (S13-guest-confinement, "Layer 1"). A crash and an upgrade take the same path.
+When `wb-vmd` loses its connection to `wb-hostd`, it saves each running VM's state and exits. When `wb-hostd` starts, it restores them. The host-guest socket drops meanwhile, so `wb-guestd` pauses the session's processes and resumes them on restore (S13-01-process-hardening). A crash and an upgrade take the same path.
 
 - **Cost:** a restore after every `wb-hostd` restart, inside the NFR01-startup budget for a suspended VM (7 s). No protocol for taking over a running VM. Falls back to a hard stop if saving fails.
 - **Depends on:** save and restore working with the vsock device and the file-handle network attachment (X02-warm-start).
@@ -128,7 +128,7 @@ The issue's proposal. `wb-vmd` keeps running when `wb-hostd` dies, and a new `wb
 
 | Item | Recommendation |
 |---|---|
-| Supervisor | `wb-hostd` runs under the service manager with keep-alive (S12-platforms, "Service manager"). It starts and restarts `wb-netd` and `wb-proxyd` with backoff. A VM whose `wb-netd` keeps failing has no network until the VM stops, and `wb status` says why. |
+| Supervisor | `wb-hostd` runs under the service manager with keep-alive (S12-01-platform-interfaces, "Service manager"). It starts and restarts `wb-netd` and `wb-proxyd` with backoff. A VM whose `wb-netd` keeps failing has no network until the VM stops, and `wb status` says why. |
 | Fail closed, visibly | When `wb-netd` or `wb-proxyd` is down, the guest gets resets and refusals, never a path around them. `wb` prints one `wraith box:` line on stderr and `wb status` shows the process state. That line never asks for input, so SEC14-no-fake-approvals is untouched. |
 | Skew between host processes | They ship in one bundle at one version. Each refuses a host peer of a different build version at connect, so there are no host-to-host compatibility rules to keep. |
 | Skew with `wb-guestd` | Each `.proto` package name ends in a major version (`v1`). `wb-guestd` reports its version at connect. The host refuses a version outside its supported range and updates the guest from the guest tools disk image (S06-vm-lifecycle). The reported version is a guest label: the host uses it only to refuse, never to allow. |
@@ -192,7 +192,7 @@ SEC11-root-gains-nothing (guest root doesn't control enforcement) and SEC05-defa
 
 - <Badge text="verified" variant="success" /> `wb-hostd` spawns `wb-vmd`, one `wb-netd` per VM, and `wb-proxyd`, and `wb-vmd` hands it the guest socket descriptors (S04-architecture, "Processes", and S04-02-vm-provider).
 - <Badge text="verified" variant="success" /> When a launchd job exits, "launchd kills any remaining processes with the same process group ID as the job", unless `AbandonProcessGroup` is set (`man launchd.plist`, macOS 27.0.1).
-- <Badge text="verified" variant="success" /> When the host-guest socket drops, `wb-guestd` stops the session's process group and resumes it when the link returns (S13-guest-confinement, "Layer 1").
+- <Badge text="verified" variant="success" /> When the host-guest socket drops, `wb-guestd` stops the session's process group and resumes it when the link returns (S13-01-process-hardening).
 - <Badge text="verified" variant="success" /> The specs already plan to save VM state on idle and restore it (S06-06-devices-and-warm-start, "Warm start"), so A reuses that path.
 - <Badge text="verified" variant="success" /> SEC13-bounded-resources reads "CPU, memory and disk of each VM are capped", and nothing bounds the host processes serving a VM (SEC00-index).
 - <Badge text="verified" variant="success" /> The audit log is "rotated and size-capped" (S09-10-audit), and the wildcard DNS budget is per session (S07-03-dns).

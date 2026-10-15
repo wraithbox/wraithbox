@@ -150,7 +150,7 @@ during the learn period go on the same list.
 When a project's last session ends,
 `wb-guestd` locks that project user, kills its processes until
 none remain, and boots out its per-user launchd domain
-(S13-guest-confinement, "Layer 1"). So no process of another
+(S13-01-process-hardening). So no process of another
 project is meant to run during a learn-mode session, but a process
 can still be left running, by guest root or by launchd. When
 `wb-guestd` reports one, `wb-hostd` refuses learn mode in that VM

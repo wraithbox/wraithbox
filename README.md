@@ -64,18 +64,18 @@ explains the IDs.
 |---|---|
 | [S03](docs/spec/S03-requirements.md) | The problem, and where the requirements are |
 | [S04](docs/spec/S04-architecture/S04-00-architecture.md) | Architecture: processes and boundaries |
-| [S05](docs/spec/S05-cli.md) | The `wb` command |
+| [S05](docs/spec/S05-cli/S05-00-cli.md) | The `wb` command |
 | [S06](docs/spec/S06-vm-lifecycle/S06-00-vm-lifecycle.md) | Images, VMs, guest users, guest agent |
 | [S07](docs/spec/S07-egress-gateway/S07-00-egress-gateway.md) | Network stack, DNS, proxy, dependency gate |
 | [S08](docs/spec/S08-workspace-and-git/S08-00-workspace-and-git.md) | Workspace and the git round trip |
 | [S09](docs/spec/S09-policy-credentials-audit/S09-00-policy-credentials-audit.md) | Policy, credentials, certificates, audit |
 | [S10](docs/spec/S10-tech-stack.md) | Languages, libraries, packaging |
 | [S11](docs/spec/S11-verification-and-spikes.md) | Verification: test layers, release gate, CI |
-| [S12](docs/spec/S12-platforms.md) | Host and guest platforms, WSL |
-| [S13](docs/spec/S13-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
-| [S14](docs/spec/S14-claude-in-guest.md) | Claude Code in the guest: install, user configuration, agent interface |
+| [S12](docs/spec/S12-platforms/S12-00-platforms.md) | Host and guest platforms, WSL |
+| [S13](docs/spec/S13-guest-confinement/S13-00-guest-confinement.md) | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
+| [S14](docs/spec/S14-claude-in-guest/S14-00-claude-in-guest.md) | Claude Code in the guest: install, user configuration, agent interface |
 | [S16](docs/spec/S16-terminal-stream/S16-00-terminal-stream.md) | The filter on guest output to the host terminal |
-| [S17](docs/spec/S17-install-and-upgrade.md) | Building, installing and upgrading the bundle; downloads for image builds; migrations |
+| [S17](docs/spec/S17-install-and-upgrade/S17-00-install-and-upgrade.md) | Building, installing and upgrading the bundle; downloads for image builds; migrations |
 
 ## Platforms
 
@@ -88,7 +88,7 @@ explains the IDs.
 No root or administrator rights and no extra user accounts on the host
 at run time. Most code is cross-platform Go; platform-native code (Swift
 on macOS) is kept to small, separate components. See
-[S12-platforms](docs/spec/S12-platforms.md).
+[S12-platforms](docs/spec/S12-platforms/S12-00-platforms.md).
 
 ## Development
 

@@ -307,7 +307,7 @@ wasn't booted: it had no guest daemon to answer.
   from a state saved under a `wb-vmd` profile that read different host
   facts, which the existing rules already treat as permanent (changed
   in this pull request).
-- **S12-platforms, "Self-sandbox" row:** names X25-vmd-sandbox next to
+- **S12-01-platform-interfaces, "Self-sandbox" row:** names X25-vmd-sandbox next to
   X23-sandboxed-daemons for macOS (changed in this pull request).
 - Cloning a base image from `<data>/images` into a bundle isn't in this
   profile. If `wb-vmd` does it, the profile also reads

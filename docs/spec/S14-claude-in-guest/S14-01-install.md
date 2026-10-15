@@ -12,8 +12,7 @@ Only the host downloads Claude Code. The guest never fetches it.
 
 ### Download
 
-During `wb image build`, `wb-download` (S17-install-and-upgrade,
-"Downloads") fetches three files from
+During `wb image build`, `wb-download` (S17-03-downloads) fetches three files from
 `https://downloads.claude.ai/claude-code-releases/<version>/`:
 
 - the release's `manifest.json`;

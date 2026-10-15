@@ -21,7 +21,7 @@ started it.
 |---|---|---|---|---|
 | starting | `wb-hostd` admits the session, starts or restores the VM, and `wb-guestd` creates the worktree and applies the carry-in (S08-workspace-and-git) | ended, as a failed start | lost | running when `claude` starts. ended, as a failed start, on a refusal, a failure or the deadline |
 | running | `claude` runs, and `wb` relays its terminal or its streams (S05-cli) | paused | lost | ending when `claude` exits or the client goes |
-| paused | the link is down, and the guest's project processes are stopped (S13-guest-confinement, "Layer 1") | stays paused | lost | running or ending when the link returns. lost at the pause limit |
+| paused | the link is down, and the guest's project processes are stopped (S13-01-process-hardening) | stays paused | lost | running or ending when the link returns. lost at the pause limit |
 | ending | `claude` has exited or was killed, and `wb-guestd` commits WIP and pushes (S08-03-pushes, "Session end") | stays ending, and finishes again when the link returns | lost | ended when done, or as a failure at the deadline |
 | lost | the session's VM, its `wb-guestd`, or `wb-hostd` stopped under it | | | ended by recovery, `wb discard`, `wb project rm`, or the deadline |
 | ended | the exit status and the summary are in `wb sessions`, and the returned work stays until `wb land` or `wb discard` | | | |
@@ -57,8 +57,7 @@ the processes in the helper's POSIX session. `wb-guestd` records
 that POSIX session id in a root-owned directory on the data disk,
 outside every project user's home, and uses a recorded id only for
 processes whose user ID is this session's project user. A process
-that leaves it with `setsid` is out of the session (S13-guest-confinement,
-"Known gaps"). That job control works through this helper is not
+that leaves it with `setsid` is out of the session (S13-02-filesystem-profile, "Known gaps"). That job control works through this helper is not
 checked yet (I135).
 
 ### Closing the terminal ends the session
@@ -74,7 +73,7 @@ Otherwise the helper sends `SIGHUP` to `claude`'s process group and
 closes its standard input. A stopped group also gets `SIGCONT`, so
 the hangup is delivered. When `claude` hasn't exited 10 seconds
 later, `wb-guestd` kills the session's processes, and the project
-user's other processes as S13-guest-confinement ("Layer 1") says.
+user's other processes as S13-01-process-hardening says.
 Either way the session goes on to ending, as on a normal exit.
 `wb claude --continue` then starts a new session at the host's
 `HEAD`, which resumes the conversation ("Projects and sessions
@@ -88,8 +87,7 @@ The session ends when `claude` exits, or after a hangup.
 that ended it. The report is guest input (SEC11-root-gains-nothing):
 `wb-hostd` accepts an exit code from 0 to 255 or a signal number
 from 1 to 64. Anything else is recorded as a failure with the rule,
-and `wb` exits as for a Wraith Box failure (S05-cli, "Exit status
-and signals"). When `wb` is still connected, it prints the summary
+and `wb` exits as for a Wraith Box failure (S05-02-exit-status-and-signals). When `wb` is still connected, it prints the summary
 and exits. `wb-guestd` keeps each finished session's report (its
 exit status and whether the WIP commit and push succeeded) in its
 root-owned directory until `wb-hostd` acknowledges it, and sends it
@@ -174,6 +172,6 @@ Each session has its own id, worktree, client,
 exit status and summary (FR05-parallel-sessions). Ending one session
 doesn't touch the others, except that the project user's processes
 are all killed and the user is locked when its project's last
-session ends (S13-guest-confinement, "Layer 1").
+session ends (S13-01-process-hardening).
 
 **Status:** Draft

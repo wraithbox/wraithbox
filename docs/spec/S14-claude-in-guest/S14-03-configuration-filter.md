@@ -102,7 +102,7 @@ writer, a skip with its rule (SEC10-audit).
 ### Writing
 
 `wb-hostd` passes the copy to `wb-guestd`. `wb-guestd` writes it in a
-child process as the project user (S13-guest-confinement, "Layer 1").
+child process as the project user (S13-01-process-hardening).
 
 - It replaces each entry in the project user's `~/.claude/` with the
   host's version.

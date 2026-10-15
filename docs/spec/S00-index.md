@@ -18,6 +18,10 @@ Wraith Box works and why.
 | S04-07-supervision | Supervision | Draft |
 | S04-08-records-and-bounds | Records, Versions and Bounds | Draft |
 | S05-cli | Command Line Interface | Draft |
+| S05-01-agent-commands | Agent Commands | Draft |
+| S05-02-exit-status-and-signals | Exit Status and Signals | Draft |
+| S05-03-management-commands | Management Commands | Draft |
+| S05-04-naming | Naming | Draft |
 | S06-vm-lifecycle | VM Lifecycle, Images and the Guest Agent | Draft |
 | S06-01-image-layers | Image Layers and the Toolchain Prefix | Draft |
 | S06-02-image-build | Image Build | Draft |
@@ -68,14 +72,32 @@ Wraith Box works and why.
 | S10-tech-stack | Technology Choices | Draft |
 | S11-verification-and-spikes | Verification | Draft |
 | S12-platforms | Platforms | Draft |
+| S12-01-platform-interfaces | Platform Interfaces | Draft |
+| S12-02-languages-and-ci | Languages and CI | Draft |
+| S12-03-host-prerequisites | Host Prerequisites | Draft |
+| S12-04-guest-operating-systems | Guest Operating Systems | Draft |
+| S12-05-wsl | WSL | Draft |
 | S13-guest-confinement | Guest Confinement | Draft |
+| S13-01-process-hardening | Layer 1: Process Hardening (v1) | Draft |
+| S13-02-filesystem-profile | Layer 2: Seatbelt Filesystem Profile (v1) | Draft |
+| S13-03-network-attribution | Layer 3: Per-Program Network Attribution (after X14-flow-attribution) | Draft |
+| S13-04-endpoint-security | Layer 4: Endpoint Security (optional, after X15-endpoint-security) | Draft |
 | S14-claude-in-guest | Claude Code in the Guest | Draft |
+| S14-01-install | Install | Draft |
+| S14-02-user-configuration | User Configuration | Draft |
+| S14-03-configuration-filter | Configuration Filter | Draft |
+| S14-04-commands-and-endpoints | Commands and Endpoints | Draft |
 | S15-least-privilege | Least Privilege on the Host | Draft |
 | S16-terminal-stream | Terminal Stream | Draft |
 | S16-01-filter | Filter | Draft |
 | S16-02-drops-and-links | Drops and Links | Draft |
 | S16-03-around-the-stream | Around the Stream | Draft |
 | S17-install-and-upgrade | Install, Downloads and Upgrades | Draft |
+| S17-01-bundle | The Bundle | Draft |
+| S17-02-setup | Install | Draft |
+| S17-03-downloads | Downloads | Draft |
+| S17-04-restore-and-release | Restore Image and Release | Draft |
+| S17-05-upgrades-and-migrations | Upgrades and Migrations | Draft |
 
 The other indexes: FR00-index, NFR00-index, SEC00-index, T00-index,
 C00-index, X00-index, R00-index and V00-index.

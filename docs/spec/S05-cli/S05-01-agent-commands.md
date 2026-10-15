@@ -48,8 +48,7 @@ terminal. The exit status is in S05-02-exit-status-and-signals.
 ### Further agents
 
 Further agents are further agent commands (`wb <agent> …`), behind the
-same agent interface (V1-02-claude-only, S14-claude-in-guest, "Agent
-interface"). `claude` is the only one in v1.
+same agent interface (V1-02-claude-only, S14-claude-in-guest, "Agent interface"). `claude` is the only one in v1.
 
 S14-claude-in-guest says:
 
@@ -120,8 +119,7 @@ session starts:
   30 days away or less;
 - or after that date.
 
-The line gives the date (S12-platforms, "Development builds on
-macOS").
+The line gives the date (S12-03-host-prerequisites, "Development builds on macOS").
 
 #### Summary on exit
 

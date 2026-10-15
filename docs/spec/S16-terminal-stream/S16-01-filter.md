@@ -55,8 +55,7 @@ never shows as text.
 
 Each drop is counted by rule, and the session summary reports the
 counts (NFR06-explained-refusals). A sequence that a new Claude Code
-version starts to use shows up there (S16-02-drops-and-links, "Drop
-rules").
+version starts to use shows up there (S16-02-drops-and-links, "Drop rules").
 
 ### Allowlist
 

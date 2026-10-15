@@ -166,7 +166,7 @@ Layers that could detect, from inside the guest outward:
 - **Claude Code itself.** Its permission modes, `allow` and `deny`
   rules, and its own classifiers already stand between a prompt and a
   tool call. Wraith Box passes the user's permission mode through
-  unchanged (S14-claude-in-guest, "Permission mode").
+  unchanged (S14-04-commands-and-endpoints, "Permission mode").
 - **Hooks in the guest**, such as DefenseClaw's. They see the prompt,
   the tool call and its arguments, which no host component sees. Guest
   root can turn them off.

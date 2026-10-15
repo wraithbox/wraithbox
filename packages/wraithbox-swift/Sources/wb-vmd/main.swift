@@ -1,6 +1,6 @@
 // wb-vmd: the macOS VM provider. Runs guest VMs with the Virtualization
 // framework on behalf of wb-hostd and hands it the VM's vsock and network
-// file descriptors. See docs/spec/S04-architecture/S04-00-architecture.md and docs/spec/S12-platforms.md.
+// file descriptors. See docs/spec/S04-architecture/S04-00-architecture.md and docs/spec/S12-platforms/S12-00-platforms.md.
 import Foundation
 import WraithBoxVM
 

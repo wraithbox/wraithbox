@@ -33,6 +33,6 @@ of T00-index. `wb` filters it with an allowlist that fails closed, as
 ## Out of scope
 
 - The TTY relay itself, and the exit status and signals of `wb claude`,
-  are in S05-cli ("Agent commands", "Exit status and signals").
+  are in S05-01-agent-commands and S05-02-exit-status-and-signals.
 
 **Status:** Draft

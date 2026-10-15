@@ -85,7 +85,7 @@ instances don't have them (SEC12-least-privilege).
 The install reads the restore image only at the fixed path
 `<data>/images/macos-restore.ipsw`. `wb-download` fetches it, and
 `wb-hostd` checks its hash before it starts `wb-vmd-install`
-(S17-install-and-upgrade, "Downloads").
+(S17-03-downloads).
 
 Before it confines itself, `wb-vmd-install` also refuses to start,
 logs the rule and exits unless both hold

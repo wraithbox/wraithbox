@@ -7,8 +7,7 @@ them, and what it does when processes are left.
 
 ### Leftover processes
 
-The kill loop of S13-guest-confinement
-("Layer 1") ends clean or with a count of processes left.
+The kill loop of S13-01-process-hardening ends clean or with a count of processes left.
 
 #### Kill IDs and records
 
@@ -32,7 +31,7 @@ left, the result is the cleanup field of that session's report
 #### Acceptance
 
 `wb-hostd` accepts a result only when the project ID
-passes the project ID format check of S05-cli ("Naming"), and the
+passes the project ID format check of S05-04-naming, and the
 record's kill ID is exactly one that `wb-hostd` sent for that
 project in this VM and this VM generation, or the report is that
 of the session whose end led to the kill. It must arrive before

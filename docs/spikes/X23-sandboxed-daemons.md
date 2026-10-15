@@ -407,7 +407,7 @@ added the rest, in "wb-proxyd with the Keychain and the Secure Enclave
 - S04-architecture, "Processes", and S04-03-self-sandboxing, "Each host daemon is self-sandboxed": the launcher under option A with its conditions, the
   self-check, `wb-hostd` as the exception, and the `wb-netd` log
   descriptor.
-- S12-platforms, "Self-sandbox" row for macOS: a Seatbelt profile
+- S12-01-platform-interfaces, "Self-sandbox" row for macOS: a Seatbelt profile
   applied in process with `sandbox_init_with_parameters`, without cgo,
   and the launcher.
 - A proposal for I48's supervision section in S04-architecture: the

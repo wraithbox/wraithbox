@@ -32,8 +32,7 @@ becomes a resize message.
 
 ### Hangup
 
-`SIGHUP` to `wb` ends the session (S05-01-agent-commands, "Session
-behavior"). `wb` then:
+`SIGHUP` to `wb` ends the session (S05-01-agent-commands, "Session behavior"). `wb` then:
 
 - still waits for the end;
 - writes nothing more to the terminal;
@@ -60,7 +59,7 @@ input, and it can only make `wb` give the terminal back early. `wb`
 then:
 
 1. resets the terminal and drains its input as on exit
-   (S16-terminal-stream, "Around the stream");
+   (S16-03-around-the-stream, "Around the stream");
 2. restores the user's window title;
 3. stops itself with `SIGSTOP`, so the user's shell has the terminal
    again.

@@ -75,8 +75,7 @@ can use (S09-05-ca-keys, "Key").
   Wraith Box's Developer ID. Development builds are signed with the
   developer's own Apple Development certificate and the provisioning
   profile that Xcode makes for the developer's team (S10-tech-stack,
-  "Packaging and signing", S12-platforms, "Development builds on
-  macOS"). The groups are named `<TEAMID>.nl.wraithbox.<role>`, where
+  "Packaging and signing", S12-03-host-prerequisites, "Development builds on macOS"). The groups are named `<TEAMID>.nl.wraithbox.<role>`, where
   `<TEAMID>` is the team that signed the build. So a development
   build's groups differ from a release build's and from another
   developer's. That a program signed by another team can't name them
@@ -141,8 +140,7 @@ can use (S09-05-ca-keys, "Key").
   setup` refuses to set up the Keychain backend in such a build with
   the same rule, says that the 1Password backend still works, and says
   what to do: sign in to Xcode with an Apple ID, build once in the
-  Xcode app, and build Wraith Box with the team set (S12-platforms,
-  "Development builds on macOS"). It still does the rest of its work,
+  Xcode app, and build Wraith Box with the team set (S12-03-host-prerequisites, "Development builds on macOS"). It still does the rest of its work,
   the per-user services included, and then exits with a nonzero
   status.
 - **1Password.** The desktop app integration, with one vault per role,

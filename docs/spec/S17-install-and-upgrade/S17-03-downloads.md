@@ -23,7 +23,7 @@ no network, and `wb-proxyd` serves guests.
 | Entry | Hosts | Fetches | File size limit |
 |---|---|---|---|
 | `wb-download-restore` | `mesu.apple.com`, `updates.cdn-apple.com` | Apple's restore image catalog and one restore image | 40 GiB |
-| `wb-download-claude` | `downloads.claude.ai` | one Claude Code release (S14-claude-in-guest, "Install") | 1 GiB |
+| `wb-download-claude` | `downloads.claude.ai` | one Claude Code release (S14-01-install) | 1 GiB |
 
 S17-04-restore-and-release has the steps of each entry.
 

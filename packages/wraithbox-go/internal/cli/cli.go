@@ -1,5 +1,5 @@
 // Package cli parses the wb command line: wb [global flags] <command> [args].
-// See docs/spec/S05-cli.md.
+// See docs/spec/S05-cli/S05-00-cli.md.
 package cli
 
 import (

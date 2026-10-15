@@ -27,7 +27,7 @@ mode 0755. Each file has mode 0644. `wb-guestd` writes each one to a
 temporary file in the same directory and renames it into place, so
 a client never reads half a file. The path holds no whitespace and
 no character a shell treats specially. Project users read the
-directory under S13-guest-confinement, "Profile".
+directory under S13-02-filesystem-profile, "Profile".
 - the CA file: every current CA of the VM;
 - the bundle: the guest's public roots (`/etc/ssl/cert.pem` on
   macOS) and every current CA. `wb-guestd` rebuilds it from the

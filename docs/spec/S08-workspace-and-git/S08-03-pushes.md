@@ -108,10 +108,10 @@ can also push mid-session.
   (S06-09-session-lifecycle).
 - `wb-guestd` commits only after `claude` has exited or was killed,
   and after the session's processes were killed
-  (S13-guest-confinement, "Layer 1").
+  (S13-01-process-hardening).
 - A process that left the session while another session of the
   project runs can still write during the commit
-  (S13-guest-confinement, "Known gaps").
+  (S13-02-filesystem-profile, "Known gaps").
 - The commit and the push run as the project user (S06-09-session-lifecycle, "As the project user").
 - A session that was lost gets the same commit and push at the next
   connection to its VM, unless it was discarded first.
@@ -120,7 +120,7 @@ When the commit or the push fails:
 
 - the worktree keeps the changes;
 - the summary says what failed;
-- `wb` exits with 255 (S05-cli, "Exit status and signals").
+- `wb` exits with 255 (S05-02-exit-status-and-signals).
 
 A later `wb claude --continue` starts from the host's `HEAD`
 (S08-01-into-the-guest). The old session's uncommitted files reach a
