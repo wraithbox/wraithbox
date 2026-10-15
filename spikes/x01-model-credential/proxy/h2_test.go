@@ -19,6 +19,13 @@ import (
 // front of it, and returns an HTTP/1.1 client that goes through the proxy.
 func h2Setup(t *testing.T, h http.HandlerFunc) (*httptest.Server, *http.Client) {
 	t.Helper()
+	api, c, _ := h2SetupProxy(t, h)
+	return api, c
+}
+
+// h2SetupProxy is h2Setup that also returns the proxy, to configure it.
+func h2SetupProxy(t *testing.T, h http.HandlerFunc) (*httptest.Server, *http.Client, *proxy) {
+	t.Helper()
 	api := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor != 2 {
 			t.Errorf("upstream got %s, want HTTP/2", r.Proto)
@@ -44,7 +51,7 @@ func h2Setup(t *testing.T, h http.HandlerFunc) (*httptest.Server, *http.Client) 
 	return api, &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{
 		Proxy:           http.ProxyURL(pu),
 		TLSClientConfig: &tls.Config{RootCAs: clientRoots},
-	}}
+	}}, p
 }
 
 // TestH2UpstreamFixedLength is the Claude Code failure: an h2 401 with a

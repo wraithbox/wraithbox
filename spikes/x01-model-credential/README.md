@@ -66,6 +66,40 @@ With the default access list, `security find-generic-password -w`
 exits 36 when no GUI can ask. A `sudo -u wbtest` session also needs
 `security unlock-keychain` first.
 
+## Browser login (issue #15)
+
+`login.sh` runs the browser login part, one `STEP` at a time, as
+`wbtest`, in the order `deny`, `observe`, `placeholder`, `restore`,
+then `nokeychain`. Its header says what each step does. The proxy
+gained what those steps need:
+
+- `-key-source none` observes only: nothing injected.
+- `-deny host[/path-prefix],...` answers 403 and logs `DENIED`.
+- On a path holding `oauth` or `token` the log has the query and body
+  field names, with values only for fields that aren't secret
+  (`grant_type`, `client_id`, `scope`, `expires_in` and the like), and
+  the same for the response (`TOKEN-PATH`, `TOKEN-RESPONSE`).
+- Every request is scanned for a placeholder in any header, the query
+  and the body, besides the header the proxy injects
+  (`PLACEHOLDER-IN`).
+- `-oauth-store keychain:wraithbox-oauth` with `-refresh-placeholder`
+  injects the current real access token, and on a refresh request
+  holding the refresh placeholder sends the real refresh token, keeps
+  the new tokens in the item, and gives Claude Code the placeholders
+  (`REFRESH #n ... refresh-rotated=... expires_in=...`).
+- `x01-proxy swap` moves the login out of Claude Code's store
+  (`-from`, default `keychain:Claude Code-credentials`) into
+  `wraithbox-oauth`. `-show` prints its fields, `-expire-only` forces
+  the next refresh, and `-restore` puts the real login back so
+  `/logout` can revoke it. `x01-proxy patterns` feeds the disk search.
+
+Spike shortcuts: `security add-generic-password -w` puts the value on
+argv, briefly visible to `ps` on the test account. The `.typescript`
+recordings can hold a spent login code, and stay on the Mac.
+
+Clean up after the run: `STEP=restore`, then `claude`, `/logout`, and
+`security delete-generic-password -s wraithbox-oauth`.
+
 ## Run it
 
 As the maintainer, in a terminal logged in as `wbtest` (Fast User
@@ -84,7 +118,8 @@ mkdir -p ~/x01
 # rm first: a signed binary overwritten in place is killed at launch
 # (exit 137, no output)
 rm -f ~/x01/x01-proxy ~/x01/run.sh
-cp /Users/Shared/x01/x01-proxy /Users/Shared/x01/src/spikes/x01-model-credential/run.sh ~/x01/
+rm -f ~/x01/login.sh
+cp /Users/Shared/x01/x01-proxy /Users/Shared/x01/src/spikes/x01-model-credential/{run,login}.sh ~/x01/
 cp "$(readlink ~lsimons/.local/bin/claude)" ~/x01/claude   # once, or install Claude Code as wbtest
 ~/x01/run.sh                 # oauth mode
 MODE=apikey ~/x01/run.sh     # needs an API key in the item

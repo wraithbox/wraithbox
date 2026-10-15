@@ -24,8 +24,10 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -38,36 +40,71 @@ type proxy struct {
 	realKey     string
 	inject      map[string]bool
 	upstream    *tls.Config
+	deny        []denyRule
+	oauth       *oauthState // browser login mode (#15), nil otherwise
 
 	mu     sync.Mutex
 	leaves map[string]*tls.Certificate
 }
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "swap" || os.Args[1] == "patterns") {
+		run := swapMain
+		if os.Args[1] == "patterns" {
+			run = patternsMain
+		}
+		if err := run(os.Args[2:]); err != nil {
+			log.Fatalf("x01 %s: %v", os.Args[1], err)
+		}
+		return
+	}
 	listen := flag.String("listen", "127.0.0.1:18080", "address to listen on")
 	caOut := flag.String("ca-out", "x01-ca.pem", "where to write the CA certificate (PEM)")
 	placeholder := flag.String("placeholder", "", "placeholder key the client sends")
-	keySource := flag.String("key-source", "keychain:wraithbox-secret", "keychain:<service> or file:<path>")
+	keySource := flag.String("key-source", "keychain:wraithbox-secret", "keychain:<service>, file:<path>, or none to only observe")
 	inject := flag.String("inject", "api.anthropic.com", "comma-separated hosts to inject the key on")
+	deny := flag.String("deny", "", "comma-separated host or host/path-prefix to refuse with 403")
+	oauthStore := flag.String("oauth-store", "", "keychain:<service> holding a browser login as {access,refresh}; replaces -key-source")
+	refreshPH := flag.String("refresh-placeholder", "", "placeholder refresh token the client sends, with -oauth-store")
 	flag.Parse()
 
-	if *placeholder == "" {
-		log.Fatal("x01: -placeholder is required")
-	}
-	realKey, err := readKey(*keySource)
-	if err != nil {
-		log.Fatalf("x01: read key: %v", err)
+	var realKey string
+	var err error
+	switch {
+	case *oauthStore != "":
+		if *placeholder == "" || *refreshPH == "" {
+			log.Fatal("x01: -oauth-store needs -placeholder and -refresh-placeholder")
+		}
+	case *keySource == "none":
+		// Observe only: no credential, so nothing to inject.
+		*inject = ""
+	default:
+		if *placeholder == "" {
+			log.Fatal("x01: -placeholder is required")
+		}
+		if realKey, err = readKey(*keySource); err != nil {
+			log.Fatalf("x01: read key: %v", err)
+		}
 	}
 	p, err := newProxy(*placeholder, realKey, strings.Split(*inject, ","), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
+	p.deny = parseDeny(*deny)
+	if *oauthStore != "" {
+		if p.oauth, err = loadOAuth(*oauthStore, *placeholder, *refreshPH); err != nil {
+			log.Fatalf("x01: %v", err)
+		}
+		realKey = p.oauth.access
+		log.Printf("x01: browser login from %s: access %d bytes, refresh %d bytes, refresh placeholder %d",
+			*oauthStore, len(p.oauth.access), len(p.oauth.refresh), len(*refreshPH))
+	}
 	pemCA := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: p.caCert.Raw})
 	if err := os.WriteFile(*caOut, pemCA, 0o644); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("x01: listening on %s, CA in %s, key from %s (%d bytes, placeholder %d), inject on %s",
-		*listen, *caOut, *keySource, len(realKey), len(*placeholder), *inject)
+	log.Printf("x01: listening on %s, CA in %s, key from %s (%d bytes, placeholder %d), inject on %q, deny %q",
+		*listen, *caOut, *keySource, len(realKey), len(*placeholder), *inject, *deny)
 	log.Fatal(http.ListenAndServe(*listen, p))
 }
 
@@ -218,12 +255,46 @@ func (p *proxy) relay(client *tls.Conn, hostport, host string) {
 		req.URL.Scheme = "https"
 		req.URL.Host = hostport
 		req.RequestURI = ""
-		verdict := p.rewrite(req, host)
-		log.Printf("x01: %s https://%s%s headers=[%s] anthropic-beta=%q key=%s",
-			req.Method, host, req.URL.Path, headerNames(req.Header), req.Header.Get("Anthropic-Beta"), verdict)
-		if tokenPath(req.URL.Path) {
-			log.Printf("x01: TOKEN-PATH %s https://%s%s (OAuth or token refresh; body not logged)", req.Method, host, req.URL.Path)
+		label := req.Method + " https://" + host + req.URL.Path
+		if p.denied(host, req.URL.Path) {
+			log.Printf("x01: DENIED %s (403, -deny rule)", label)
+			req.Body.Close()
+			const msg = "x01: denied by -deny"
+			resp := &http.Response{
+				StatusCode: http.StatusForbidden, ProtoMajor: 1, ProtoMinor: 1, Request: req,
+				Header: http.Header{"Content-Type": {"text/plain"}}, ContentLength: int64(len(msg)),
+				Body: io.NopCloser(strings.NewReader(msg)),
+			}
+			if resp.Write(client) != nil || req.Close {
+				return
+			}
+			continue
 		}
+		body, err := readBody(req)
+		if err != nil {
+			log.Printf("x01: read body %s: %v", label, err)
+			return
+		}
+		if spots := p.placeholderSpots(req, host, body); len(spots) > 0 {
+			log.Printf("x01: PLACEHOLDER-IN %s at [%s]", label, strings.Join(spots, " "))
+		}
+		isToken := tokenPath(req.URL.Path)
+		refreshed := false
+		if isToken {
+			log.Printf("x01: TOKEN-PATH %s query=[%s] fields=[%s]", label,
+				queryNames(req.URL.Query()), fields(body, req.Header.Get("Content-Type")))
+			body, refreshed = p.swapRefresh(req, host, body)
+			// A plain response, so the token fields can be read and replaced.
+			req.Header.Del("Accept-Encoding")
+		}
+		if len(body) == 0 {
+			req.Body, req.ContentLength = http.NoBody, 0
+		} else {
+			setBody(req, body)
+		}
+		verdict := p.rewrite(req, host)
+		log.Printf("x01: %s headers=[%s] anthropic-beta=%q key=%s refresh-swapped=%v",
+			label, headerNames(req.Header), req.Header.Get("Anthropic-Beta"), verdict, refreshed)
 		resp, err := tr.RoundTrip(req)
 		if err != nil {
 			log.Printf("x01: upstream %s: %v", host, err)
@@ -232,7 +303,10 @@ func (p *proxy) relay(client *tls.Conn, hostport, host string) {
 				Header: http.Header{}, Body: io.NopCloser(strings.NewReader("x01: upstream error\n")),
 			}
 		}
-		log.Printf("x01: %s https://%s%s -> %s %d", req.Method, host, req.URL.Path, resp.Proto, resp.StatusCode)
+		log.Printf("x01: %s -> %s %d", label, resp.Proto, resp.StatusCode)
+		if isToken {
+			p.tokenResponse(resp, label, refreshed)
+		}
 		toHTTP11(resp)
 		err = resp.Write(client)
 		resp.Body.Close()
@@ -266,6 +340,10 @@ func toHTTP11(resp *http.Response) {
 // inject hosts, as a bare value or inside "Bearer <placeholder>". It
 // reports each header and scheme it saw, never a value.
 func (p *proxy) rewrite(req *http.Request, host string) string {
+	key := p.realKey
+	if p.oauth != nil {
+		key = p.oauth.currentAccess()
+	}
 	var found []string
 	for _, h := range []string{"X-Api-Key", "Authorization"} {
 		v := req.Header.Get(h)
@@ -274,13 +352,13 @@ func (p *proxy) rewrite(req *http.Request, host string) string {
 		}
 		what := h + scheme(v)
 		switch {
-		case !strings.Contains(v, p.placeholder):
+		case p.placeholder == "" || !strings.Contains(v, p.placeholder):
 			found = append(found, what+":other-credential")
 		case !p.inject[host]:
 			// Placeholder sent to a host that gets no key: leave it, flag it.
 			found = append(found, what+":placeholder-not-injected")
 		default:
-			req.Header.Set(h, strings.ReplaceAll(v, p.placeholder, p.realKey))
+			req.Header.Set(h, strings.ReplaceAll(v, p.placeholder, key))
 			found = append(found, what+":injected")
 		}
 	}
@@ -312,4 +390,14 @@ func headerNames(h http.Header) string {
 		names = append(names, strings.ToLower(k))
 	}
 	return strings.Join(names, ",")
+}
+
+// queryNames lists query parameter names, with values for publicFields.
+func queryNames(q url.Values) string {
+	parts := make([]string, 0, len(q))
+	for k, v := range q {
+		parts = append(parts, k+"="+describe(k, strings.Join(v, ",")))
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, " ")
 }
