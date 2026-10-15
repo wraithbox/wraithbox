@@ -55,7 +55,7 @@ them can run at once per machine (I50).
 | `wb-guestd` | user and PTY logic behind interfaces | X18-vsock-handoff (I29), X06-guest-xcode (I20), X08-data-disk (I22), X20-shared-homebrew (I31) |
 | network policy | OpenShell schema parser with a bounded YAML decoder | X24-openshell-artifacts (I35) |
 | `internal/platform` | paths, local IPC with peer checks | none |
-| Claude Code in the guest | none | X01-model-credential (I15), I45 |
+| Claude Code in the guest | none | X01-model-credential (I253), I45 |
 
 ## Milestones
 
