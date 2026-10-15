@@ -19,6 +19,7 @@ wbprov
 wbtest
 
 # Virtualization, networking and OS facilities
+ipsw
 pidinfo
 sysctls
 testmanagerd

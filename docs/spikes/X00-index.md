@@ -39,7 +39,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X22-no-guest-credentials | Clients without guest credentials | Answered 2026-10-05: yes, with conditions |
 | X23-sandboxed-daemons | Self-sandboxed Go daemons on macOS | Answered: yes with conditions (`wb-proxyd` Keychain part in I61) |
 | X24-openshell-artifacts | OpenShell artifacts | Answered 2026-10-05: yes, with conditions |
-| X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Answered 2026-10-06: yes, with conditions. Only `wb-vmd`'s code keeps a NAT network from the guest |
+| X25-vmd-sandbox | Self-sandboxed `wb-vmd` | Answered 2026-10-06: yes, with conditions. Only `wb-vmd`'s code keeps a NAT network from the guest. Decided 2026-10-12 (I64): 1A, one `wb-vmd` per VM, and 2A, the `wb-vmd-install` entry |
 | X26-pre-receive-check | Push checks before the quarantine lands | Answered 2026-10-05: yes, with conditions |
 | X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |

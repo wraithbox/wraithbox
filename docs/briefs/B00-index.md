@@ -52,7 +52,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B51-approval-flow | What happens between a blocked lookup and the user's answer? | Decided 2026-10-04: A. Hold the answer, then refuse uncached |
 | B52-proto-contracts | How are the gRPC contracts between the processes written, generated, and checked? | Decided 2026-10-04: A. Commit generated code |
 | B60-model-credential | Can Claude Code in the guest hold only a placeholder while the proxy adds the real subscription token? | Answered 2026-10-12: yes for a long-lived token. Decided 2026-10-12: A2, the model only with the event log denied by the host, and the long-lived token as a supported mode for V1 |
-| B64-vmd-sandbox | Can wb-vmd confine itself and still run a macOS VM? | Answered 2026-10-06. Awaiting decision on two points |
+| B64-vmd-sandbox | Can wb-vmd confine itself and still run a macOS VM? | Answered 2026-10-06. Decided 2026-10-12: 1A and 2A |
 | B68-proxyd-stream-identity | How does wb-proxyd know which VM and name a stream belongs to, when wb-netd may be compromised? | Decided 2026-10-08: A |
 | B74-pre-receive-check | Can Wraith Box refuse a bad push before any of it reaches the landing repository, and before it uses up the host's memory? | Answered 2026-10-05. Decided 2026-10-06: A, scanner and check, with fixed caps |
 | B76-gosumdb-clock | Does the checksum database work as Go's clock for the dependency gate? | Answered 2026-10-08: yes. Decided 2026-10-12: A, with the values as written |
