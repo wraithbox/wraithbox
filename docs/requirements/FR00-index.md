@@ -53,6 +53,13 @@ answer is in S03-requirements.
   Brewfile) and reconciled automatically before a session starts.
 - **FR08-no-proxy-config: No per-tool proxy settings.** Allowlisted network destinations work for every tool without
   per-tool proxy configuration.
+  Known gap on macOS guests (decided on I185): a client that reads only the guest's system trust store doesn't trust
+  the VM's CA, because macOS refuses to add a trusted root there without a user to confirm it (X04-tls-inspection).
+  Those clients are URLSession and what is built on it, so Swift programs, SwiftPM's binary target downloads and
+  Xcode's own requests, and `pip` when `REQUESTS_CA_BUNDLE` is unset and it falls back to its default `truststore`.
+  They reach only pass hosts. A host with a credential binding or a built-in profile is never a pass host
+  (S07-egress-gateway, "Modes"), so they can't reach it, and the gap fails closed (S09-policy-credentials-audit,
+  "Guest trust").
 - **FR09-approve-unknown: Approve unknown destinations.** A request to an unknown destination is blocked and offered to the
   user for approval out-of-band (allow once, allow for project, deny). A name on the host-held list of the guest OS's own
   background lookups is refused and logged without a prompt, and so is a host whose only rules are in a built-in
