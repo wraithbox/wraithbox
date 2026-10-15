@@ -1555,5 +1555,17 @@
 		"state": "merged",
 		"title": "docs(spec): apply the B23-keychain-unsigned decisions",
 		"summary": "Applies the maintainer's decisions on #23 (Decision (2026-10-15):) to the specs."
+	},
+	"251": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X29-dev-signing result and brief B248",
+		"summary": "Result of the X29-dev-signing spike (#248), measured with the maintainer watching the screen, and brief B248-dev-signing."
+	},
+	"252": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S15-least-privilege, S09-policy-credentials-audit, S10-tech-stack: team-signed development builds and no ad-hoc Keychain, from B248-dev-signing",
+		"summary": "The maintainer decided B248-dev-signing on 2026-10-15, in the #248 comment that starts Decision (2026-10-15):: option A."
 	}
 }
