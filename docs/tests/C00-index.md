@@ -22,3 +22,4 @@ one here.
 | C09-guest-and-sessions | Guest and Sessions | Draft |
 | C10-terminal | Terminal | Draft |
 | C11-host-daemons | Host Daemons, Audit, and Disks | Draft |
+| C12-install-and-downloads | Install and Downloads | Draft |
