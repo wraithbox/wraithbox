@@ -118,22 +118,26 @@ be tested before building on them.
   `store-needs-setup`, returns -25300 for `unlock` with a recorded
   file and sees `store-needs-setup`, returns -25300 for a binding and
   sees the binding's own refusal, returns -25308 and sees them wait for
-  the unlock and name the keychain, and returns another status and sees
-  `store-read-failed`. Each log line names the failed call. It sees `wb setup` set the store up again only
+  the unlock and name the keychain, and returns another status for
+  `unlock` and sees `store-read-failed`. For a CA item in the record,
+  -25300 and every status other than -25293 and -25308 give
+  `ca-key-restore`. Each log line names the failed call. It sees `wb setup` set the store up again only
   for `store-needs-setup` and a recorded build version that differs
   from the running one, refuse a keychain file with no record, and
   accept `--reset-store` only after confirmation on a terminal. An
   interrupted set-up, stopped after each of its steps, ends with one
   keychain file and one `unlock` item after the next `wb setup`. With a
-  foreign file and a symbolic link to a file outside the directory,
-  both in `<data>/keychains/` and both with names of the keychain file
-  form, `wb setup` deletes neither, nor the link's target, and logs
-  both. The removal list has a test that hands `wb-proxyd` a batch
+  symbolic link whose name has the keychain file form, pointing to a
+  file outside the directory, and a regular file with another name,
+  both in `<data>/keychains/`, `wb setup` deletes neither, nor the
+  link's target, and logs both. An unrecorded regular file with the
+  name form is deleted and logged. The removal list has a test that hands `wb-proxyd` a batch
   with `binding/x`, `unlock`, a name with a part outside the fixed
   form, and an entry whose CA is still in the record, each next to a
   valid entry, and sees each batch refused with `ca-removal-refused`
-  and nothing deleted, and an entry whose item is gone reported as
-  deleted. On Linux a test records "software" on a host with a TPM, and
+  and nothing deleted. It then sees `wb-hostd` drop the refused entry,
+  log it, and the next batch delete the valid one. An entry whose item
+  is gone is reported as deleted. On Linux a test records "software" on a host with a TPM, and
   "TPM" on one without, and sees each CA issue and restore refused with
   `ca-key-store-mismatch`. `wb vm reset-ca` and the drop at a store
   set-up each write a 5019 event with the command and each dropped
