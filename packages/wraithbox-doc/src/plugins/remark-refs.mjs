@@ -412,7 +412,9 @@ export function refsSources() {
  * A hash of `refsSources`. Passed to the plugin as an option, it becomes
  * part of Astro's config, and Astro clears its content cache when the
  * config changes. Without it, a page that cites SEC06 would keep a stale
- * card after SEC00-index changes.
+ * card after SEC00-index changes. The digest matters for `astro dev` and
+ * `astro check`. The build doesn't depend on it: `bun run build` always
+ * clears the content cache with `--force` (package.json, #243).
  */
 export function refsDigest() {
 	const hash = createHash('sha256');
