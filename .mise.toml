@@ -107,7 +107,7 @@ depends = ["go:vet", "doc:check"]
 
 [tasks.test]
 description = "Run all tests"
-depends = ["go:test", "swift:test"]
+depends = ["go:test", "go:fuzz", "swift:test"]
 
 [tasks.build]
 description = "Build all buildable targets"
@@ -162,6 +162,16 @@ run = "go vet ./..."
 dir = "packages/wraithbox-go"
 run = ["go tool -n covdata", "go test -race -cover ./..."]
 run_windows = ["go tool -n covdata", "go test -cover ./..."]
+
+# Runs every Go fuzz target for 10s, the fuzz smoke run of
+# S11-verification-and-spikes. internal/tools/fuzzsmoke finds the targets
+# with `go test -list`, so a new target needs no change here. It is a Go
+# program rather than a shell loop so that it runs under cmd.exe
+# (S02-toolchain). CI runs it on Linux only.
+[tasks."go:fuzz"]
+description = "Run every Go fuzz target for 10s each (fuzz smoke run)"
+dir = "packages/wraithbox-go"
+run = "go run ./internal/tools/fuzzsmoke"
 
 [tasks."go:build"]
 dir = "packages/wraithbox-go"

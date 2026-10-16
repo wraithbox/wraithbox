@@ -18,7 +18,8 @@ take its place.
 
 Where an area page names properties for a target, the target checks
 them, not only that the parser doesn't crash. `ci` runs each target
-briefly as a smoke run.
+briefly as a smoke run (`go:fuzz`). The task finds the targets itself,
+and a new target doesn't need a change to it.
 
 ### Conformance suite
 
@@ -101,7 +102,7 @@ These run on hosted runners:
 
 - Go unit tests, lint, and vet, natively on macOS, Linux, and Windows;
 - Swift, on macOS;
-- the fuzz smoke runs.
+- the fuzz smoke runs, on Linux.
 
 The conformance suite and the benchmarks need machines that can run
 the guest VMs. Those are Apple Silicon for macOS guests, and nested

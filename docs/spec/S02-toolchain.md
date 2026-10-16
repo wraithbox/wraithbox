@@ -72,6 +72,10 @@ cross-platform Go (S12-platforms).
   because some pinned tools have no Windows build.
 - Locally, `mise run go:cross` vets, lints, and builds for all three
   GOOS values from one machine. It is part of `ci`.
+- `go:fuzz` runs every fuzz target briefly
+  (S11-verification-and-spikes). `test` depends on it, and CI runs it in
+  the Go job on Linux only. The task runs a Go program, which works on
+  all three.
 - `go:vulncheck` analyzes each GOOS.
 
 Swift runs on macOS runners only. Docs, workflow linting, and the
