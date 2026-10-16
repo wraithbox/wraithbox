@@ -97,14 +97,8 @@ jobs of `ci.yml`, other than `vuln` and `result`, or the `needs:` of
 `CI result` differ from `GATED`. The verdict also fails a run when a
 job of `GATED` is missing from `needs:`.
 
-The `CI result` requirement takes effect when the JSON below is applied.
-Apply it right after the pull request that added the `CI result` job
-(I58) merges. Both wrong orders fail closed. Before the JSON is applied,
-a pull request that skips Go waits on the `Go (…)` checks that the
-ruleset still requires and never gets, so it can't merge. Applied
-before that pull request merges, every open pull request lacks a
-`CI result` check, so none can merge until a rebase brings in the
-job.
+The `CI result` requirement was applied on 2026-10-16, right after the
+pull request that added the `CI result` job (I58) merged.
 
 `Dependency vulnerability scan` is **not** required yet. The ruleset left it out
 while it failed on `main` because of
@@ -126,9 +120,12 @@ that dependency to the fixed 4.3.0, and the scan passes. Adding it to
     {"type": "pull_request", "parameters": {
       "required_approving_review_count": 0,
       "dismiss_stale_reviews_on_push": false,
+      "required_reviewers": [],
       "require_code_owner_review": false,
+      "dismissal_restriction": {"enabled": false, "allowed_actors": []},
       "require_last_push_approval": false,
       "required_review_thread_resolution": false,
+      "require_extra_approval_for_unattributed_changes": true,
       "allowed_merge_methods": ["rebase", "merge"]}},
     {"type": "required_status_checks", "parameters": {
       "strict_required_status_checks_policy": false,
@@ -141,7 +138,11 @@ that dependency to the fixed 4.3.0, and the scan passes. Adding it to
 
 Save as `ruleset.json`, then update the existing ruleset with
 `gh api -X PUT repos/wraithbox/wraithbox/rulesets/24412616 --input ruleset.json`
-(or create it with `POST .../rulesets`). The check name is the `name:`
+(or create it with `POST .../rulesets`). A `PUT` replaces the whole
+ruleset. A setting left out of the JSON changes on the next `PUT`, and
+the JSON above lists every setting the live ruleset has. Compare it
+with `gh api repos/wraithbox/wraithbox/rulesets/24412616` before you
+apply it. The check name is the `name:`
 of the `result` job in `.github/workflows/ci.yml`. Check it against a
 recent CI run on `main` with
 `gh api repos/wraithbox/wraithbox/commits/main/check-runs --jq '.check_runs[].name'`.
