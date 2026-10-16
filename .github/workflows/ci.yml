@@ -99,7 +99,6 @@ jobs:
       # the targets parse bytes the same way on every OS, and fuzzing on
       # three runners would triple the time.
       - name: Fuzz smoke run
-        if: ${{ runner.os == 'Linux' }}
         run: mise run go:fuzz
 
       - name: Build
