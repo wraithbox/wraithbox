@@ -151,7 +151,7 @@ the fixture bundle, before the git packages.
 | # | Package | Specs and IDs | Lane | Issues |
 |---|---|---|---|---|
 | M6.1 | `wb-hostd` profile, rules and probes | S04-06; SEC12 | mac | |
-| M6.2 | Confinement self-checks for every program, `wb-vmd` ablation of graphics and input | S04-03, S06-06 | mac, vm | #247 (ablation) |
+| M6.2 | Confinement self-checks for every program, `wb-vmd` ablation of graphics and input | S04-03, S06-06 | mac, vm | #318 (ablation) |
 | M6.3 | Session Seatbelt profiles, the Xcode and simulator profile, safehouse manifest | S13-02 | vm | #90, #196 (simulator profile) |
 | M6.4 | Warm start and suspend: clones, permanence, idle; reconcile SEC15-no-guest-disk-mount's rule on clones with S06-06's restore from clones | S06-06, S06-09; NFR03 | vm | |
 | M6.5 | Bounds sweep against the S04-08 table, per-VM caps | SEC13 | any | |
