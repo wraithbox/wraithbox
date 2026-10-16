@@ -47,12 +47,27 @@ files, each at its fixed name:
 |---|---|
 | `hw.bin` | the hardware model |
 | `mid.bin` | the machine identifier |
-| `aux.img` | the auxiliary storage |
-| `sys.img` | the system disk |
-| `data.wbdisk` | the data disk ("Names on the host" below) |
+| `aux.wbstore` | the auxiliary storage |
+| `sys.wbdisk` | the system disk |
+| `data.wbdisk` | the data disk |
 | `tools.img` | the copy of the guest tools disk |
 
-A spike puts an APFS clone of its own bundle at the bundle path.
+A spike puts an APFS clone of its own bundle at the bundle path. A
+spike bundle names its guest-written files `aux.img`, `sys.img` and,
+when it has a data disk, `data.img` ("Names on the host" below). Whoever
+makes the clone renames those files in the clone to the names above,
+before `wb-vmd` opens it:
+
+```sh
+cd <data>/vms/macos-work.noindex
+mv aux.img aux.wbstore
+mv sys.img sys.wbdisk
+mv data.img data.wbdisk   # only when the spike bundle has a data disk
+```
+
+Each file of an APFS clone is a separate file, so the rename doesn't
+touch the spike bundle. A clone with the spike's names is refused with
+`bundle-file-missing`.
 
 Before it opens any of them, `wb-vmd` checks each one
 (S04-02-vm-provider, "The device set is fixed and checked"):
@@ -64,6 +79,17 @@ Before it opens any of them, `wb-vmd` checks each one
 
 Any other file in the bundle is ignored. Device configuration never
 comes from the bundle.
+
+#### Names on the host
+
+The system disk, the auxiliary storage, the data disk and the saved
+state are guest-written once the guest has run. A file in the bundle
+that a guest writes has no extension that Launch Services opens as a
+disk image, no `.img` or `.dmg`, so a double click doesn't make the
+host attach a guest-written image (SEC15-no-guest-disk-mount).
+
+The guest tools disk keeps `.img`. The host writes it, and the guest
+gets it read-only (S06-12-guest-agent, "Guest tools disk").
 
 ### Durability
 
@@ -141,7 +167,7 @@ a path from the request. It confines itself to that bundle, and then:
 When a check fails, the shim fails with the rule. It detaches only a
 device it attached.
 
-#### Names on the host
+#### The temporary and final names
 
 - The host never attaches a file at the final name.
 - A leftover temporary file is deleted, never attached.
@@ -151,7 +177,8 @@ device it attached.
   names the command that gives the VM a new data disk (I229).
   `wb-hostd` never deletes the file.
 - The final name has no extension that Launch Services opens as a disk
-  image, no `.img` or `.dmg`. So a double click doesn't mount it.
+  image ("Names on the host" above). So a double click doesn't mount
+  it.
 
 A data disk is unencrypted at rest, except by the host's own
 FileVault. A user who mounts it by hand gives the host kernel a
@@ -169,8 +196,9 @@ steps above keep it to that file:
 
 The exception ends when the VM first starts with the disk.
 
-The VM's saved state and auxiliary storage are guest-written too. The
-Virtualization API in `wb-vmd` is the one host code that opens them.
+The VM's system disk, auxiliary storage and saved state are
+guest-written too. The Virtualization API in `wb-vmd` is the one host
+code that opens them.
 
 ### Mounting the data volume
 
@@ -258,5 +286,12 @@ be lost. A data disk the guest can't mount after a crash is lost.
   after a swap.
 - **Rejected:** a USB data disk. Without a grant, TCC denies every
   guest process access to it (X08-data-disk).
+
+### Bundle names that a double click doesn't mount
+
+- **Rejected:** the spike bundles' `sys.img` and `aux.img`, which let a
+  spike bundle work without a rename. A double click on either one
+  attaches a guest-written image on the host.
+- **Decided:** I312.
 
 **Status:** Draft

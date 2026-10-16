@@ -64,6 +64,7 @@ strerror
 realpath
 nlink
 wbdisk
+wbstore
 VZNAT
 VZUSB
 vmnet

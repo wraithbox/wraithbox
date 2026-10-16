@@ -7,13 +7,29 @@ import Darwin
 
 /// A file at a fixed name in a VM bundle (S06-05-disks, "Bundle files").
 /// Any other file in the bundle is ignored.
+///
+/// A file the guest writes has no extension that Launch Services opens as
+/// a disk image. So a double click on it doesn't make the host attach a
+/// guest-written image (SEC15-no-guest-disk-mount, S06-05-disks, "Names
+/// on the host").
 public enum BundleFile: String, Sendable, Equatable, CaseIterable {
     case hardwareModel = "hw.bin"
     case machineIdentifier = "mid.bin"
-    case auxiliaryStorage = "aux.img"
-    case systemDisk = "sys.img"
+    case auxiliaryStorage = "aux.wbstore"
+    case systemDisk = "sys.wbdisk"
     case dataDisk = "data.wbdisk"
     case toolsDisk = "tools.img"
+
+    /// Whether the guest writes the file once it has run. The guest tools
+    /// disk is attached read-only (`DiskRole.readOnly`).
+    public var isGuestWritten: Bool {
+        switch self {
+        case .auxiliaryStorage, .systemDisk, .dataDisk:
+            true
+        case .hardwareModel, .machineIdentifier, .toolsDisk:
+            false
+        }
+    }
 }
 
 /// A VM bundle directory, at the path `wb-vmd` got from its slot.
