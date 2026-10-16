@@ -72,8 +72,20 @@ struct VersionRecordTests {
         }
     }
 
+    @Test("a peer version outside the form is refused with guest-version-form, as in Go")
+    func checkForm() {
+        for peer in ["dev", "1.0", "v1.0.0", "1.0.0+", "1.0.0 x"] {
+            #expect(throws: ConnectionRefusal(.versionForm, "peer \(peer), own 1.0.0")) {
+                try VersionRecord.check(peer: peer, own: "1.0.0")
+            }
+        }
+        #expect(throws: ConnectionRefusal(.versionUnstamped, "peer dev, own dev")) {
+            try VersionRecord.check(peer: "dev", own: "dev")
+        }
+    }
+
     @Test(
-        "arbitrary bytes never yield a version outside the form, and the parser reads no more than the bound"
+        "arbitrary bytes never yield a version that isn't 1 to 64 printable ASCII bytes, and the parser reads no more than the bound"
     )
     func arbitraryBytes() {
         var generator = SystemRandomNumberGenerator()
@@ -289,6 +301,17 @@ struct HostConnectionTests {
         }
         try await server.waitForEvent("connection-refused")
         #expect(server.recorded.rules == ["peer-version-unstamped"])
+    }
+
+    @Test("a peer whose version is outside the form is refused with guest-version-form")
+    func peerOutsideForm() async throws {
+        let server = try await ServerFixture()
+        await #expect(throws: RPCError.self) {
+            _ = try await server.getState(version: "dev")
+        }
+        try await server.waitForEvent("connection-refused")
+        #expect(server.recorded.rules == ["guest-version-form"])
+        #expect(server.recorded.events("connection-accepted").isEmpty)
     }
 
     @Test(

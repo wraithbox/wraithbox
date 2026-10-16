@@ -52,6 +52,10 @@ public enum ConnectionRule: String, Sendable, Equatable, CaseIterable {
     case versionMalformed = "peer-version-malformed"
     /// The peer's version or wb-vmd's own is empty: an unstamped build.
     case versionUnstamped = "peer-version-unstamped"
+    /// The peer's version is printable ASCII but not in the version form
+    /// (S04-08-records-and-bounds, "The guest's version is a label"). Go's
+    /// `version.Check` names the same rule.
+    case versionForm = "guest-version-form"
     /// The versions differ.
     case versionMismatch = "peer-version-mismatch"
 }
