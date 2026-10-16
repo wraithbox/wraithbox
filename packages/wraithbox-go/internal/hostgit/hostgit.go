@@ -91,7 +91,7 @@ func pathNotAbsolute(path string) *Refusal {
 	return &Refusal{
 		Binary: path,
 		Rule:   RulePathNotAbsolute,
-		msg: fmt.Sprintf("the git binary %q is not an absolute path. Set git in config.toml to an absolute path, such as %s",
+		msg: fmt.Sprintf("the git binary %s is not an absolute path. Set git in config.toml to an absolute path, such as %s",
 			path, platform.DefaultGitPath()),
 	}
 }
