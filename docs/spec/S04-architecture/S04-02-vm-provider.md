@@ -137,7 +137,8 @@ SEC02-no-host-fs-share, SEC05-default-deny).
   does that before it creates any Virtualization device or attachment
   object. It refuses any other device, any other attachment, a second
   network device, and a disk or serial port file outside the VM's
-  bundle. Each refusal is logged with its rule, and returns the rule in
+  bundle. Until V1-M3-network-floor it refuses every network device
+  (S06-06-devices-and-warm-start, "No network device yet"). Each refusal is logged with its rule, and returns the rule in
   the gRPC error.
 - **Why first.** Creating a disk attachment on a path the profile
   denies ends the confined process in an uncaught exception
@@ -166,13 +167,14 @@ Three checks verify the parts the profile doesn't enforce:
 1. a unit test of the check (C11-host-daemons);
 2. an in-guest conformance check that the guest has one network
    interface, with its lease from `wb-netd` (C01-network-and-dns);
-3. a static check in CI (a grep or a SwiftLint custom rule, not yet
-   built). It rejects at least these in `wb-vmd`'s sources outside its
-   tests: `VZNATNetworkDeviceAttachment`,
-   `VZBridgedNetworkDeviceAttachment`, `VZSharedDirectory`,
-   `VZVirtioFileSystemDeviceConfiguration`,
+3. a static check in CI, the SwiftLint custom rule
+   `vmd_refused_device_class` in `.swiftlint.yml`. It rejects at least
+   these in the Swift package's sources outside its tests:
+   `VZNATNetworkDeviceAttachment`, `VZBridgedNetworkDeviceAttachment`,
+   `VZSharedDirectory`, `VZVirtioFileSystemDeviceConfiguration`,
    `VZHostAudioInputStreamSource`, `VZSpiceAgentPortAttachment` and
-   `VZVirtioSoundDeviceInputStreamConfiguration`.
+   `VZVirtioSoundDeviceInputStreamConfiguration`. It names the classes
+   of the other kinds the check refuses as well.
 
 ### `wb-proxyd` takes a stream's identity from the connection, not from `wb-netd`
 

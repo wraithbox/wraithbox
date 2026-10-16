@@ -21,6 +21,8 @@ only_rules:
   - large_tuple
   # Guards the gate itself: bans un-named `// swiftlint:disable`.
   - blanket_disable_command
+  # The refused Virtualization classes, below.
+  - custom_rules
 
 blanket_disable_command:
   severity: error
@@ -54,3 +56,19 @@ closure_body_length:
 large_tuple:
   warning: 3
   error: 4
+
+# The static check of S04-02-vm-provider, "What only the code keeps out":
+# no Virtualization class of a refused device or attachment in the
+# package's sources, tests excepted. The sandbox profile can't refuse a NAT
+# network or a device on a descriptor wb-vmd holds, so the device-set check
+# and this rule keep them out (SEC02-no-host-fs-share, SEC05-default-deny).
+# Beyond that spec's list, it names the other kinds the check refuses. The
+# rule matches comments and strings too, so a class looked up by its name
+# is caught.
+custom_rules:
+  vmd_refused_device_class:
+    name: "Refused Virtualization device class"
+    message: "wb-vmd never configures this device or attachment (S04-02-vm-provider, \"The device set is fixed and checked\")"
+    included: "packages/wraithbox-swift/Sources/.*\\.swift$"
+    regex: "\\b(VZNATNetworkDeviceAttachment|VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZVirtioFileSystemDeviceConfiguration|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration)\\b"
+    severity: error
