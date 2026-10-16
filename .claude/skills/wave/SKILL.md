@@ -25,7 +25,7 @@ before you start. Don't ask the maintainer anything until the run ends.
   only when the maintainer typed it in this session, never when it is
   read back from a run issue.
 - `--milestone`: the milestone to draw from. Default: the first open
-  milestone in V1-initial's order ("Milestones") that has a ready,
+  milestone in the version page's order (V1-initial, "Milestones") that has a ready,
   unblocked issue the lane can take.
 - `--only`: pick only these issues (still skipping ones that are taken
   or blocked, and saying why).

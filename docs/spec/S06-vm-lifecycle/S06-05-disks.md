@@ -52,7 +52,7 @@ holds for what the guest flushes.
 - With its macOS defaults, git in the guest doesn't flush a commit
   (`core.fsyncMethod` is `writeout-only`, `git-config(1)`).
 - Whether Claude Code flushes its state isn't measured.
-- I231 makes both flush, in V1-M2-walking-skeleton.
+- I231 makes both flush, in V1-M4-claude-end-to-end.
 
 The system disk doesn't need to keep anything through a crash, because
 a fresh clone of the image can replace it (S06-03-image-updates, "Updates").

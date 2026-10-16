@@ -36,8 +36,8 @@ useless on another Mac. On this Mac, any process of the user that has
 the value can sign with the key. The store's G2 is what keeps it to
 `wb-proxyd` (S15-least-privilege).
 
-The same wrapped key is used in every build, on the Keychain and the
-1Password backends alike.
+The same wrapped key is used in every build, on the Keychain backend
+and on the 1Password backend after V1 (S15-02-secret-store).
 
 A permanent Secure Enclave key in the access group also works in a
 team-signed build (X29-dev-signing). Wraith Box doesn't use one.
@@ -132,7 +132,7 @@ with `ca-key-restore`.
 
 In every build and on every backend, a read that fails because the
 store is locked waits for the unlock (S15-03-access-rules, rule 7).
-That is -25308 on the Keychain, or a locked 1Password.
+That is -25308 on the Keychain, or a locked 1Password after V1.
 
 Any other failure is `ca-key-restore`:
 
@@ -173,8 +173,8 @@ failed.
 
 ### One wrapped Secure Enclave key in every build
 
-The same wrapped key is used in every build, on the Keychain and the
-1Password backends alike.
+The same wrapped key is used in every build, on the Keychain backend
+and on the 1Password backend after V1 (S15-02-secret-store).
 
 - **Decided:** I23 (B23-keychain-unsigned, decision 2A).
 

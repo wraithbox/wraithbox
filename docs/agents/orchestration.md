@@ -34,7 +34,7 @@ other; the coordinator relays.
    that has ready work for the lane (`planning.md`, "Milestones"):
 
    ```bash
-   gh api repos/wraithbox/wraithbox/milestones -q '.[].title'   # open ones; order them as V1-initial lists them
+   gh api repos/wraithbox/wraithbox/milestones -q '.[].title'   # open ones; order them as the version page lists them
    gh issue list --milestone '<M…>' --label ready-for-agent --state open \
      --json number,title,labels,assignees
    ```

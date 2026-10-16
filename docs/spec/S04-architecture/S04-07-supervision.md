@@ -246,9 +246,9 @@ It says:
 - how many secret store accesses the restarts caused
   (S15-least-privilege).
 
-Only the 1Password backend can prompt for those accesses. The Keychain
-doesn't show a dialog in any build (S15-03-access-rules, access rule
-4).
+Only the 1Password backend, after V1 (S15-02-secret-store), can
+prompt for those accesses. The Keychain doesn't show a dialog in any
+build (S15-03-access-rules, access rule 4).
 
 - `wb` in non-interactive use prints the same as one `wraith box:` line
   on its standard error.
@@ -265,7 +265,7 @@ down too:
 - a crash that a guest finds in it, until the restart;
 - its given-up state;
 - a blocked event channel (`event-channel-blocked`);
-- the 1Password prompts its restarts cause.
+- the 1Password prompts its restarts cause, after V1.
 
 That is a residual risk to availability, not to egress
 (T14-shared-proxyd).

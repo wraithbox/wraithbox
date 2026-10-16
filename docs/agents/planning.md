@@ -167,7 +167,8 @@ and is a GitHub milestone of the same name, not a label.
 - **Membership:** every `ready-for-agent` issue is in exactly one
   milestone. An issue without one is not picked. Follow-ups found during
   a milestone go into it if they block its exit criterion, otherwise
-  into the next one or none (`needs-triage`).
+  into the next one in the version page's order, or none
+  (`needs-triage`).
 - **`post-V1`:** a GitHub milestone for work deferred past the version,
   not a milestone of the version page. Its issues have no triage
   status label, and no run picks from it. They are triaged again when
