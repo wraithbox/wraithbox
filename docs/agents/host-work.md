@@ -63,10 +63,9 @@ attended step written out.
 
 Outside a `needs-host` issue, in an attended session:
 
-- No host `xcodebuild`, `xcrun simctl`, or `xcode-select`. On
-  2026-10-08 an `xcodebuild -showsdks` waited two hours on a signing
-  dialog. Host Xcode setup (`sudo xcodebuild -runFirstLaunch`) is the
-  maintainer's.
+- No host `xcodebuild`, `xcrun simctl`, or `xcode-select`. They can
+  wait for hours on a signing or Keychain dialog. Host Xcode setup
+  (`sudo xcodebuild -runFirstLaunch`) is the maintainer's.
 - No `security` command, no signing with an identity, no Keychain reads
   or writes. Ad-hoc signing of a spike binary with
   `codesign -f -s - --entitlements spikes/vm.entitlements .scratch/<path>`

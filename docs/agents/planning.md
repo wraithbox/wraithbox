@@ -109,7 +109,7 @@ first-class issues, and the first milestone is mostly spikes.
   example `spike/x3-network-path`), with its throwaway code under
   `spikes/x<NN>-<slug>/` on that branch. That code is not held to the
   project gates, is never merged to `main`, and the branch is kept as
-  the record. The user-level `spike` skill follows this convention.
+  the record.
 - **Tag.** When the result pull request merges, the coordinator tags
   the spike commit that the result page links to with an annotated tag
   `spike-x<NN>-<slug>` (for example `spike-x19-terminal-filter`) and
@@ -208,9 +208,7 @@ closing comment with the reason, and the list issue closes.
 
 ## Follow-ups
 
-In V1-M1, nine in ten pull requests came back from their first review
-with changes asked, and each closed issue left more than one new
-issue. Most of those were small. These rules keep the backlog to work
+Most review findings are small. These rules keep the backlog to work
 that needs its own issue.
 
 - **Reviewers rate each finding** `must-fix`, `fold` or `drop`. Only a
