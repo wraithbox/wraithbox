@@ -120,13 +120,20 @@ struct StartInterfaceTests {
         }
     }
 
-    @Test("the deny probe refuses when the probe file can be read")
+    @Test("the deny probe passes only on EPERM, the sandbox's denial")
     func probe() throws {
         // Unconfined, the probe file can be read, so the probe refuses.
         try expectRefusal(.sandboxProbe) {
             try Confinement.probe()
         }
-        try Confinement.probe(path: "/nonexistent/probe")
+        // A missing file fails with ENOENT, which shows nothing.
+        try expectRefusal(.sandboxProbe) {
+            try Confinement.probe(path: "/nonexistent/probe")
+        }
+        try expectRefusal(.sandboxProbe) {
+            try Confinement.checkProbe(path: "/p", opened: false, error: EACCES)
+        }
+        try Confinement.checkProbe(path: "/p", opened: false, error: EPERM)
     }
 
     @Test("the right descriptor kinds are accepted")
@@ -148,13 +155,17 @@ struct StartInterfaceTests {
         let stream = try makeSocketPair(SOCK_STREAM)
         let datagram = try makeSocketPair(SOCK_DGRAM)
         let file = open("/dev/null", O_RDONLY)
+        let nonBlocking = try makePipe()
+        _ = fcntl(nonBlocking.0, F_SETFL, fcntl(nonBlocking.0, F_GETFL) | O_NONBLOCK)
         // Far above any descriptor the test process opens.
         let unused: Int32 = 9999
         defer {
             closeAll([pipeEnds.0, pipeEnds.1, stream.0, stream.1, datagram.0, datagram.1, file])
+            closeAll([nonBlocking.0, nonBlocking.1])
         }
         let cases: [(InheritedDescriptor, Int32)] = [
-            (.lifeline, file), (.lifeline, unused), (.log, unused),
+            (.lifeline, file), (.lifeline, unused), (.lifeline, nonBlocking.0),
+            (.log, unused), (.log, file),
             (.grpc, pipeEnds.0), (.grpc, datagram.0), (.grpc, stream.0),
             (.handoff, stream.0), (.handoff, pipeEnds.1), (.handoff, unused),
         ]
@@ -163,6 +174,25 @@ struct StartInterfaceTests {
                 try StartInterface.check(descriptor, fd: fd)
             }
         }
+    }
+
+    @Test("a lifeline made non-blocking waits for its writer instead of ending")
+    func nonBlockingLifeline() async throws {
+        let pipeEnds = try makePipe()
+        defer { close(pipeEnds.0) }
+        _ = fcntl(pipeEnds.0, F_SETFL, fcntl(pipeEnds.0, F_GETFL) | O_NONBLOCK)
+        let (stream, continuation) = AsyncStream.makeStream(of: String.self)
+        Lifeline.watch(fd: pipeEnds.0) { reason in
+            continuation.yield(reason)
+            continuation.finish()
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        close(pipeEnds.1)
+        var reasons: [String] = []
+        for await reason in stream {
+            reasons.append(reason)
+        }
+        #expect(reasons == ["end of file"])
     }
 
     @Test("the lifeline reports end of file once its writer closes")

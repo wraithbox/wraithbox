@@ -106,14 +106,27 @@ public enum Confinement {
         }
     }
 
-    /// Tries one operation the profile denies, and refuses when it
-    /// succeeds (S04-03-self-sandboxing, "Confined first thing in
+    /// Tries one operation the profile denies, and refuses unless the
+    /// sandbox denied it (S04-03-self-sandboxing, "Confined first thing in
     /// `main`").
     public static func probe(path: String = probePath) throws(StartupRefusal) {
         let fd = open(path, O_RDONLY | O_CLOEXEC)
-        guard fd < 0 else {
+        let error = errno
+        if fd >= 0 {
             close(fd)
+        }
+        try checkProbe(path: path, opened: fd >= 0, error: error)
+    }
+
+    /// A sandbox denial fails with EPERM. Success, or any other error,
+    /// such as a missing file, doesn't show that the profile holds.
+    static func checkProbe(path: String, opened: Bool, error: Int32) throws(StartupRefusal) {
+        guard !opened else {
             throw StartupRefusal(.sandboxProbe, "opened \(path) after confinement")
+        }
+        guard error == EPERM else {
+            let text = String(cString: strerror(error))
+            throw StartupRefusal(.sandboxProbe, "open \(path) failed with \(text), not EPERM")
         }
     }
 }

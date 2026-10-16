@@ -107,7 +107,7 @@ public enum VMDaemon {
         _ supervisor: VMSupervisor, log: EventLog, event: String, reason: String, status: Int32
     ) {
         DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(exitDeadlineSeconds)) {
-            log.error("exit-deadline", ["event": .string(event)])
+            log.error("exit-deadline", ["cause": .string(event)])
             exit(status)
         }
         Task { @MainActor in

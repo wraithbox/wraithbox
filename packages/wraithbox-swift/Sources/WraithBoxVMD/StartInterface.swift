@@ -51,11 +51,9 @@ public enum StartInterface {
         guard fcntl(fd, F_GETFD) != -1 else {
             throw refusal(descriptor, fd, "is not open")
         }
-        // The log may be any descriptor wb-vmd can write. The profile
-        // denies fstat on a file outside the bundle, so it gets no fstat.
-        guard descriptor != .log else {
-            return
-        }
+        // The profile denies fstat on a file outside the bundle, so a log
+        // that is a file fails here, as S04-03-self-sandboxing, "Daemon
+        // logs", wants: the log is a pipe or socket to wb-hostd.
         var info = stat()
         guard fstat(fd, &info) == 0 else {
             throw refusal(descriptor, fd, "can't be read with fstat")
@@ -63,11 +61,13 @@ public enum StartInterface {
         let kind = info.st_mode & S_IFMT
         switch descriptor {
         case .lifeline:
-            guard kind == S_IFIFO || kind == S_IFSOCK else {
-                throw refusal(descriptor, fd, "is not a pipe or socket")
+            try checkPipeOrSocket(descriptor, fd: fd, kind: kind)
+            // A non-blocking read would end the lifeline at once.
+            guard fcntl(fd, F_GETFL) & O_NONBLOCK == 0 else {
+                throw refusal(descriptor, fd, "is non-blocking")
             }
         case .log:
-            return
+            try checkPipeOrSocket(descriptor, fd: fd, kind: kind)
         case .grpc:
             try checkSocket(descriptor, fd: fd, kind: kind, type: SOCK_STREAM)
             // macOS doesn't answer SO_ACCEPTCONN. A bound socket without a
@@ -78,6 +78,14 @@ public enum StartInterface {
             }
         case .handoff:
             try checkSocket(descriptor, fd: fd, kind: kind, type: SOCK_DGRAM)
+        }
+    }
+
+    private static func checkPipeOrSocket(
+        _ descriptor: InheritedDescriptor, fd: Int32, kind: mode_t
+    ) throws(StartupRefusal) {
+        guard kind == S_IFIFO || kind == S_IFSOCK else {
+            throw refusal(descriptor, fd, "is not a pipe or socket")
         }
     }
 

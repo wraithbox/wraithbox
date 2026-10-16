@@ -29,8 +29,10 @@ public enum LogValue: Sendable, Equatable {
 
 /// Writes log records as JSON lines.
 public struct EventLog: Sendable {
-    /// Each string field is cut to this many bytes, so that one record
-    /// stays under the 4 KiB line limit wb-hostd applies.
+    /// Each string field is cut to this many bytes. That keeps the records
+    /// wb-vmd writes short, but doesn't bound a record with many fields.
+    /// wb-hostd cuts any line over 4 KiB (S04-08-records-and-bounds, "Logs
+    /// and health").
     static let maxFieldBytes = 512
 
     private let sink: @Sendable (String) -> Void

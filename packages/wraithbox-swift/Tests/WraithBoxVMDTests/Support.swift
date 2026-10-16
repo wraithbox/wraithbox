@@ -51,6 +51,8 @@ final class FakeEngine: VMEngine {
     var limits = ResourceLimits(cpuCount: 1...8, memoryBytes: (512 << 20)...(16 << 30))
     var configFailure: VMFailure?
     var startFailure: VMFailure?
+    /// When set, each start suspends until `releaseStart` is called.
+    var holdStart = false
     private(set) var requests: [BootRequest] = []
     private(set) var machines: [FakeVM] = []
 
@@ -61,7 +63,7 @@ final class FakeEngine: VMEngine {
             throw configFailure
         }
         requests.append(request)
-        let machine = FakeVM(onState: onState, startFailure: startFailure)
+        let machine = FakeVM(onState: onState, startFailure: startFailure, hold: holdStart)
         machines.append(machine)
         return machine
     }
@@ -72,18 +74,36 @@ final class FakeEngine: VMEngine {
 final class FakeVM: EngineVM {
     private let onState: VMStateHandler
     private let startFailure: VMFailure?
+    private var hold: Bool
+    private var held: CheckedContinuation<Void, Never>?
     private(set) var stops: [String] = []
 
-    init(onState: @escaping VMStateHandler, startFailure: VMFailure?) {
+    init(onState: @escaping VMStateHandler, startFailure: VMFailure?, hold: Bool) {
         self.onState = onState
         self.startFailure = startFailure
+        self.hold = hold
     }
 
     func start() async throws(VMFailure) {
         if let startFailure {
             throw startFailure
         }
+        if hold {
+            await withCheckedContinuation { held = $0 }
+        }
         onState(.running, nil)
+    }
+
+    /// Whether a held start is waiting.
+    var isHeld: Bool {
+        held != nil
+    }
+
+    /// Lets a held start finish.
+    func releaseStart() {
+        hold = false
+        held?.resume()
+        held = nil
     }
 
     func requestStop() throws(VMFailure) {
