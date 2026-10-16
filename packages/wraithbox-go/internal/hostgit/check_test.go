@@ -23,11 +23,11 @@ func TestCheckVersionFakes(t *testing.T) {
 		version     string
 		wantInError []string
 	}{
-		{"ok", RuleVersionAccepted, "2.54.0 (Apple Git-157)", nil},
+		{"ok", RuleVersionAccepted, "2.54.0", nil},
 		{"old", RuleVersionTooOld, "2.53.9", []string{"2.53.9", MinVersion}},
-		{"rc", RuleVersionUnreadable, "git version 2.54.0.rc1", []string{"2.54.0.rc1", MinVersion}},
-		{"fail", RuleRunFailed, "", []string{"exit status 1", MinVersion}},
-		{"flood", RuleVersionUnreadable, strings.Repeat("v", maxShown), []string{MinVersion}},
+		{"rc", RuleVersionUnreadable, "", []string{"2.54.0.rc1", MinVersion}},
+		{"fail", RuleRunFailed, "", []string{"exit status 1", "invalid active developer path", MinVersion}},
+		{"flood", RuleVersionUnreadable, "", []string{strings.Repeat("v", maxShown), MinVersion}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.mode, func(t *testing.T) {
@@ -61,7 +61,7 @@ func TestCheckVersionDeadline(t *testing.T) {
 	if res.Rule != RuleRunFailed {
 		t.Errorf("rule = %s, want %s", res.Rule, RuleRunFailed)
 	}
-	checkRefusal(t, err, RuleRunFailed, []string{bin, "deadline", MinVersion})
+	checkRefusal(t, err, RuleRunFailed, []string{bin, "timed out", MinVersion})
 }
 
 // TestCheckVersionMissing: a binary that doesn't exist is refused with
@@ -74,15 +74,67 @@ func TestCheckVersionMissing(t *testing.T) {
 		t.Errorf("hint for a path that is not the default: %v", err)
 	}
 
-	r := runFailed(t.Context(), platform.DefaultGitPath(), errors.New("no such file"))
+	r := runFailed(t.Context(), platform.DefaultGitPath(), errors.New("no such file"), nil)
 	if !strings.Contains(r.Error(), platform.GitInstallHint()) {
 		t.Errorf("no hint at the default path: %v", r)
 	}
 }
 
+// TestCheckVersionContextEnded: a check the caller's context ended says
+// so, and gives no install hint, even at the default path.
+func TestCheckVersionContextEnded(t *testing.T) {
+	bin := fakeGit(t, "hang")
+	ctx, cancel := context.WithCancel(t.Context())
+	timer := time.AfterFunc(time.Second, cancel)
+	defer timer.Stop()
+	_, err := CheckVersion(ctx, bin)
+	checkRefusal(t, err, RuleRunFailed, []string{bin, "canceled", MinVersion})
+
+	expired, stop := context.WithTimeout(t.Context(), 0)
+	defer stop()
+	<-expired.Done()
+	r := runFailed(expired, platform.DefaultGitPath(), errors.New("signal: killed"), nil)
+	if !strings.Contains(r.Error(), "timed out") || strings.Contains(r.Error(), platform.GitInstallHint()) {
+		t.Errorf("message %q: want a timeout and no install hint", r)
+	}
+}
+
 func TestCheckVersionRelativePath(t *testing.T) {
 	_, err := CheckVersion(t.Context(), "git")
-	checkRefusal(t, err, RulePathNotAbsolute, []string{"git"})
+	checkRefusal(t, err, RulePathNotAbsolute, []string{"git", MinVersion})
+}
+
+// TestLoginLookupFailure: when the login environment can't be read, as
+// when launchctl exits nonzero or prints too much (platform's
+// TestLoginEnvFailures), git doesn't run, and Command and CheckVersion
+// refuse with git-env-unavailable. Never a fallback to the caller's
+// XDG_CONFIG_HOME (SEC12-least-privilege).
+func TestLoginLookupFailure(t *testing.T) {
+	for _, cause := range []error{
+		errors.New("/bin/launchctl getenv XDG_CONFIG_HOME: exit status 3"),
+		errors.New("/bin/launchctl getenv XDG_CONFIG_HOME: output longer than 4096 bytes"),
+	} {
+		t.Run(cause.Error(), func(t *testing.T) {
+			saved := loginXDGConfigHome
+			t.Cleanup(func() { loginXDGConfigHome = saved })
+			loginXDGConfigHome = func(context.Context) (string, error) { return "", cause }
+
+			bin := fakeGit(t, "spy")
+			_, err := Command(t.Context(), bin, "", "version")
+			checkRefusal(t, err, RuleEnvUnavailable, []string{bin, "XDG_CONFIG_HOME", MinVersion})
+			if !errors.Is(err, cause) {
+				t.Errorf("err = %v, want it to wrap %v", err, cause)
+			}
+			res, err := CheckVersion(t.Context(), bin)
+			checkRefusal(t, err, RuleEnvUnavailable, []string{bin, MinVersion})
+			if res.Rule != RuleEnvUnavailable {
+				t.Errorf("rule = %s, want %s", res.Rule, RuleEnvUnavailable)
+			}
+			if _, err := os.Stat(filepath.Join(filepath.Dir(bin), "ran")); err == nil {
+				t.Error("git ran without its environment")
+			}
+		})
+	}
 }
 
 func checkRefusal(t *testing.T, err error, rule Rule, inMessage []string) {
@@ -129,7 +181,7 @@ func TestResolve(t *testing.T) {
 				}
 				return
 			}
-			checkRefusal(t, err, RulePathNotAbsolute, []string{tt.setting, platform.DefaultGitPath()})
+			checkRefusal(t, err, RulePathNotAbsolute, []string{tt.setting, MinVersion, platform.DefaultGitPath()})
 		})
 	}
 }

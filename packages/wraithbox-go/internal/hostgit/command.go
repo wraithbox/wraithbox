@@ -15,13 +15,13 @@ import (
 // through a child that inherited them, before Wait returns.
 const waitDelay = time.Second
 
-// Command returns a command that runs `<path> -c core.hooksPath=/dev/null
-// <args>` in dir, in a scrubbed environment (S05-04-naming, "Resolving
-// the key"). The environment holds exactly:
+// Command returns a command that runs `<path> -c core.hooksPath=<null>
+// <args>` in dir, where <null> is os.DevNull, in a scrubbed environment
+// (S05-04-naming, "Resolving the key"). The environment holds exactly:
 //
 //   - HOME, from the user database, never from $HOME;
 //   - XDG_CONFIG_HOME, from the login environment, when it is set there
-//     and is an absolute path;
+//     to a value platform.LoginXDGConfigHome accepts;
 //   - TMPDIR, the caller's temporary directory, which must be an
 //     absolute path;
 //   - LC_ALL=C.
@@ -54,12 +54,14 @@ func command(ctx context.Context, path, dir string, args []string) (*exec.Cmd, *
 		return nil, &Refusal{
 			Binary: path,
 			Rule:   RuleEnvUnavailable,
-			msg:    fmt.Sprintf("git at %s does not run: %v", path, err),
-			err:    err,
+			msg: fmt.Sprintf("git at %s does not run, because its environment can't be built: %v. Wraith Box needs git %s or later",
+				path, err, MinVersion),
+			err: err,
 		}
 	}
-	// An absolute path makes os/exec skip its PATH lookup.
-	gitArgs := append([]string{"-c", "core.hooksPath=/dev/null"}, args...)
+	// An absolute path makes os/exec skip its PATH lookup. os.DevNull is
+	// /dev/null on Unix and NUL on Windows.
+	gitArgs := append([]string{"-c", "core.hooksPath=" + os.DevNull}, args...)
 	cmd := exec.CommandContext(ctx, path, gitArgs...)
 	cmd.Dir = dir
 	// A non-nil Env replaces the caller's environment. os/exec then adds
@@ -68,6 +70,10 @@ func command(ctx context.Context, path, dir string, args []string) (*exec.Cmd, *
 	cmd.WaitDelay = waitDelay
 	return cmd, nil
 }
+
+// loginXDGConfigHome is platform.LoginXDGConfigHome. Tests replace it to
+// make the lookup fail.
+var loginXDGConfigHome = platform.LoginXDGConfigHome
 
 // environment builds the variables of Command. A variable that can't be
 // worked out is an error, never a fallback to the caller's value
@@ -82,7 +88,7 @@ func environment(ctx context.Context) ([]string, error) {
 	if !filepath.IsAbs(tmp) {
 		return nil, fmt.Errorf("TMPDIR: %q is not an absolute path", tmp)
 	}
-	xdg, err := platform.LoginXDGConfigHome(ctx)
+	xdg, err := loginXDGConfigHome(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("XDG_CONFIG_HOME from the login environment: %w", err)
 	}

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,49 +44,79 @@ const (
 	// loginEnvMaxOutput bounds what is read from launchctl: a path of
 	// PATH_MAX (1024 on macOS) and its newline fit.
 	loginEnvMaxOutput = 4096
+	// ruleLoginValueRejected names the rule that ignores a login value
+	// that is not a clean absolute path.
+	ruleLoginValueRejected = "login-env-value-rejected"
 )
 
 // LoginXDGConfigHome returns XDG_CONFIG_HOME from the login environment,
-// or "" when it is not set there or is not an absolute path
-// (S05-04-naming, "Resolving the key"). The login environment is
-// launchd's environment for the user's session. A variable exported in a
-// shell, or set by a .envrc, doesn't reach it. A failed lookup is an
-// error, not "not set".
+// or "" when it is not set there (S05-04-naming, "Resolving the key").
+// The login environment is launchd's environment for the user's
+// session. A variable exported in a shell, or set by a .envrc, doesn't
+// reach it. A failed lookup is an error, not "not set". A value that
+// loginValue rejects counts as not set, with a warning in the log.
 func LoginXDGConfigHome(ctx context.Context) (string, error) {
-	return loginEnv(ctx, "XDG_CONFIG_HOME")
+	return loginEnv(ctx, launchctlPath, "XDG_CONFIG_HOME")
 }
 
-// loginEnv runs `launchctl getenv <name>` with an empty environment, so
-// nothing from the caller's environment reaches it (SEC12-least-privilege).
-func loginEnv(ctx context.Context, name string) (string, error) {
+// loginEnv runs `<launchctl> getenv <name>` with an empty environment, so
+// nothing from the caller's environment reaches it
+// (SEC12-least-privilege). A run that fails, times out, or prints more
+// than loginEnvMaxOutput bytes is an error.
+func loginEnv(ctx context.Context, launchctl, name string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, loginEnvTimeout)
 	defer cancel()
 
 	out := &cappedBuffer{limit: loginEnvMaxOutput}
-	cmd := exec.CommandContext(ctx, launchctlPath, "getenv", name)
+	cmd := exec.CommandContext(ctx, launchctl, "getenv", name)
 	cmd.Env = []string{}
 	cmd.Stdout = out
 	cmd.WaitDelay = time.Second
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%s getenv %s: %w", launchctlPath, name, err)
+		return "", fmt.Errorf("%s getenv %s: %w", launchctl, name, err)
 	}
 	if out.over {
-		return "", fmt.Errorf("%s getenv %s: %w", launchctlPath, name, errLoginEnvTooLong)
+		return "", fmt.Errorf("%s getenv %s: %w", launchctl, name, errLoginEnvTooLong)
 	}
-	return loginValue(string(out.buf)), nil
+	v, reason := loginValue(string(out.buf))
+	if reason != "" {
+		slog.Default().LogAttrs(ctx, slog.LevelWarn, "login environment value ignored",
+			slog.String("rule", ruleLoginValueRejected),
+			slog.String("variable", name),
+			slog.String("reason", reason),
+			slog.String("value", strconv.QuoteToASCII(string(out.buf))))
+	}
+	return v, nil
 }
 
 var errLoginEnvTooLong = errors.New("output longer than " + strconv.Itoa(loginEnvMaxOutput) + " bytes")
 
 // loginValue reads launchctl's output: the value and a newline, or
-// nothing when the variable is not set. A value that is not a single
-// absolute path counts as not set.
-func loginValue(out string) string {
+// nothing when the variable is not set. It accepts only an absolute path
+// of printable ASCII with no `..` component. Otherwise it returns "" and
+// the reason.
+func loginValue(out string) (value, reason string) {
 	v := strings.TrimSuffix(out, "\n")
-	if strings.ContainsAny(v, "\n\x00") || !filepath.IsAbs(v) {
-		return ""
+	switch {
+	case v == "":
+		return "", ""
+	case !printableASCII(v):
+		return "", "not printable ASCII"
+	case !filepath.IsAbs(v):
+		return "", "not an absolute path"
+	case slices.Contains(strings.Split(v, "/"), ".."):
+		return "", "has a .. component"
 	}
-	return v
+	return v, ""
+}
+
+func printableASCII(s string) bool {
+	for i := range len(s) {
+		if s[i] < 0x20 || s[i] > 0x7e {
+			return false
+		}
+	}
+	return true
 }
 
 // cappedBuffer keeps the first limit bytes written to it and drops the

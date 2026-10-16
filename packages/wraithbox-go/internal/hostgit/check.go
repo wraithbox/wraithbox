@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform"
@@ -45,9 +44,11 @@ func checkVersion(ctx context.Context, path string) (Result, *Refusal) {
 		return Result{}, r
 	}
 	out := &cappedBuffer{limit: versionMaxOutput}
+	stderr := &cappedBuffer{limit: maxShown}
 	cmd.Stdout = out
+	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
-		return Result{}, runFailed(ctx, path, err)
+		return Result{}, runFailed(ctx, path, err, stderr.buf)
 	}
 
 	line, ok := firstLine(out.buf, out.over)
@@ -55,47 +56,58 @@ func checkVersion(ctx context.Context, path string) (Result, *Refusal) {
 	if !ok || !readable {
 		return Result{}, unreadable(path, line)
 	}
-	text := strings.TrimPrefix(line, "git version ")
 	if v.less(minimum) {
 		return Result{}, &Refusal{
 			Binary:  path,
-			Version: text,
+			Version: v.String(),
 			Rule:    RuleVersionTooOld,
-			msg:     fmt.Sprintf("git at %s is version %s, older than the minimum %s", path, text, MinVersion),
+			msg:     fmt.Sprintf("git at %s is version %s, older than the minimum %s", path, v, MinVersion),
 		}
 	}
-	return Result{Binary: path, Version: text, Rule: RuleVersionAccepted}, nil
+	return Result{Binary: path, Version: v.String(), Rule: RuleVersionAccepted}, nil
 }
 
-// runFailed explains a run that failed or timed out. When the binary is
-// the platform default, it adds how to install git or pick another one
-// (S08-08-host-git, "Which git").
-func runFailed(ctx context.Context, path string, err error) *Refusal {
-	cause := err.Error()
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		cause = "it did not finish before the deadline"
-	}
-	msg := fmt.Sprintf("git at %s did not run `git version` (%s). Wraith Box needs git %s or later", path, cause, MinVersion)
-	if path == platform.DefaultGitPath() {
-		msg += ". To fix this, " + platform.GitInstallHint()
-	}
-	return &Refusal{
+// runFailed explains a run that failed, with an excerpt of what git
+// wrote to stderr (NFR06-explained-refusals). When the binary is the
+// platform default and it failed on its own, it adds how to install git
+// or pick another one (S08-08-host-git, "Which git"). A run the context
+// ended says so, without the hint.
+func runFailed(ctx context.Context, path string, err error, stderr []byte) *Refusal {
+	r := &Refusal{
 		Binary: path,
 		Rule:   RuleRunFailed,
-		msg:    msg,
 		err:    err,
 	}
+	switch {
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		r.msg = fmt.Sprintf("the check of git at %s timed out before `git version` finished. Wraith Box needs git %s or later",
+			path, MinVersion)
+		return r
+	case ctx.Err() != nil:
+		r.msg = fmt.Sprintf("the check of git at %s was canceled before `git version` finished. Wraith Box needs git %s or later",
+			path, MinVersion)
+		return r
+	}
+	r.msg = fmt.Sprintf("git at %s did not run `git version` (%v). Wraith Box needs git %s or later", path, err, MinVersion)
+	if len(stderr) > 0 {
+		r.msg += fmt.Sprintf(". It printed %q", stderr)
+	}
+	if path == platform.DefaultGitPath() {
+		r.msg += ". To fix this, " + platform.GitInstallHint()
+	}
+	return r
 }
 
+// unreadable quotes the start of the line in the message only. %q
+// escapes its control bytes.
 func unreadable(path, line string) *Refusal {
 	shown := line
 	if len(shown) > maxShown {
 		shown = shown[:maxShown]
 	}
 	return &Refusal{
-		Binary:  path,
-		Version: shown,
-		Rule:    RuleVersionUnreadable,
+		Binary: path,
+		Rule:   RuleVersionUnreadable,
 		msg: fmt.Sprintf("git at %s printed a version that can't be read: %q. Wraith Box needs git %s or later",
 			path, shown, MinVersion),
 	}

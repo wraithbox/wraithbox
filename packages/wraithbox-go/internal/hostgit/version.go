@@ -18,6 +18,10 @@ type version struct {
 // minimum is MinVersion, parsed once.
 var minimum = mustParseTriple(MinVersion)
 
+func (v version) String() string {
+	return strconv.Itoa(v.major) + "." + strconv.Itoa(v.minor) + "." + strconv.Itoa(v.patch)
+}
+
 func (v version) less(w version) bool {
 	if v.major != w.major {
 		return v.major < w.major
