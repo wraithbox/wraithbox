@@ -7,8 +7,8 @@ A version page holds two kinds of entries. A **decision**
 (`V<N>-<NN>-<slug>`) says what the version does or leaves out, and why.
 A **milestone** (`V<N>-M<N>-<slug>`) is a deliverable step with an exit
 criterion, and is also a GitHub milestone of the same name. Work is
-taken up in milestone order, lowest open one first
-(`docs/agents/planning.md`).
+taken up in the order the version page lists the milestones, which can
+differ from their numbers (`docs/agents/planning.md`).
 
 | ID | Description | Status |
 |----|-------------|--------|

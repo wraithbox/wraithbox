@@ -201,7 +201,7 @@ See `docs/agents/issue-tracker.md`.
 
 ### Planning and orchestration
 
-Work is ordered by milestone (`V<N>-M<N>-<slug>`, lowest open first), spikes
+Work is ordered by milestone (`V<N>-M<N>-<slug>`, in the order its version page lists them), spikes
 before the work they unblock. Besides the labels above, issues carry
 `area:*` labels (where the change lands) and optional `comp:*` labels
 (which process from S04-architecture), recorded in `.github/labels-areas.yml`.

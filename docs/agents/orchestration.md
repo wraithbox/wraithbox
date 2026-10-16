@@ -30,10 +30,11 @@ other; the coordinator relays.
 
 ## Picking up an issue (any agent, alone or in a wave)
 
-1. **Find work.** Lowest open milestone first (`planning.md`):
+1. **Find work.** The first open milestone in the version page's order
+   that has ready work for the lane (`planning.md`, "Milestones"):
 
    ```bash
-   gh api repos/wraithbox/wraithbox/milestones -q '.[].title'   # open ones; take the lowest M<n>
+   gh api repos/wraithbox/wraithbox/milestones -q '.[].title'   # open ones; order them as V1-initial lists them
    gh issue list --milestone '<M…>' --label ready-for-agent --state open \
      --json number,title,labels,assignees
    ```
