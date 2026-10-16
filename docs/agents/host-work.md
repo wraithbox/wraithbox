@@ -91,8 +91,10 @@ Outside a `needs-host` issue, in an attended session:
 - **VM bundles:** spike bundles are under
   `~/Library/Caches/wraithbox-spikes/x<NN>/` (`planning.md`, "Spikes",
   "VM bundles"). The maintainer makes APFS clones (`cp -c`) of a
-  bundle. A clone at a slot's bundle path gets its guest-written files
-  renamed (S06-05-disks, "Bundle files"). An agent asks for a clone, with the target path, and never
-  clones a bundle itself. It removes bundles only with
+  bundle. When the clone goes to a slot's bundle path, the maintainer
+  also renames its guest-written files (S06-05-disks, "Bundle files").
+  An agent asks for a clone with the target path, and names that
+  rename in the request when the target is a slot's bundle path. It
+  never clones a bundle itself. It removes bundles only with
   `mise run spike:clean x<NN>`, never with `rm`. Hand the builder the
   clone's literal path.

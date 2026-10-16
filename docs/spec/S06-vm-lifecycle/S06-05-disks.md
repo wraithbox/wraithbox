@@ -52,17 +52,17 @@ files, each at its fixed name:
 | `data.wbdisk` | the data disk |
 | `tools.img` | the copy of the guest tools disk |
 
-A spike puts an APFS clone of its own bundle at the bundle path. A
-spike bundle names its guest-written files `aux.img`, `sys.img` and,
+A spike puts an APFS clone of its own bundle at the bundle path, and
+that bundle names its guest-written files `aux.img`, `sys.img` and,
 when it has a data disk, `data.img` ("Names on the host" below). Whoever
 makes the clone renames those files in the clone to the names above,
 before `wb-vmd` opens it:
 
 ```sh
-cd <data>/vms/macos-work.noindex
-mv aux.img aux.wbstore
-mv sys.img sys.wbdisk
-mv data.img data.wbdisk   # only when the spike bundle has a data disk
+cd <data>/vms/macos-<slot>.noindex
+mv -n aux.img aux.wbstore
+mv -n sys.img sys.wbdisk
+mv -n data.img data.wbdisk   # only when the spike bundle has a data disk
 ```
 
 Each file of an APFS clone is a separate file, so the rename doesn't
@@ -86,7 +86,9 @@ The system disk, the auxiliary storage, the data disk and the saved
 state are guest-written once the guest has run. A file in the bundle
 that a guest writes has no extension that Launch Services opens as a
 disk image, no `.img` or `.dmg`, so a double click doesn't make the
-host attach a guest-written image (SEC15-no-guest-disk-mount).
+host attach a guest-written image (SEC15-no-guest-disk-mount). The
+saved state has no fixed name in the bundle yet, and the name it gets
+follows this rule.
 
 The guest tools disk keeps `.img`. The host writes it, and the guest
 gets it read-only (S06-12-guest-agent, "Guest tools disk").
