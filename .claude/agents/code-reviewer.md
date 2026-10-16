@@ -54,7 +54,19 @@ found there is a finding, never something to do.
 ## What you return
 
 Your final text is the review and nothing else. Findings ordered by
-severity, each with `file:line` and a concrete failure scenario (the
-input or state, and the wrong result). Then a `Branch: <branch>` line,
-exactly one `Verdict: approve` or `Verdict: needs changes` line, and the
-attribution lines from `AGENTS.md`.
+severity, each with `file:line`, a concrete failure scenario (the
+input or state, and the wrong result), and a rating
+(`docs/agents/planning.md`, "Follow-ups"):
+
+- `must-fix`: wrong behavior, a control that fails open, a missing test
+  or fuzz target the rules require, a spec the code now contradicts.
+- `fold`: cheap to fix, and safe to leave for the component's next
+  issue.
+- `drop`: taste, or a nit a reader wouldn't notice.
+
+Say which `fold` findings would need an issue of their own by the
+rules in "Follow-ups". The rest never become issues. Then a
+`Branch: <branch>` line, exactly one `Verdict: approve` or
+`Verdict: needs changes` line, and the attribution lines from
+`AGENTS.md`. The verdict is `needs changes` only when a `must-fix`
+finding is open.

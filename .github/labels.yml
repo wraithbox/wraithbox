@@ -71,3 +71,12 @@
 - name: needs-vm
   color: "fef2c0"
   description: Needs a running macOS guest on the maintainer's Mac (one builder at a time)
+# Attended work on the maintainer's Mac (docs/agents/host-work.md).
+# /wave never picks it.
+- name: needs-host
+  color: "f9d0c4"
+  description: Needs the maintainer's Mac itself (Keychain, signing, wbtest, sudo); attended
+# The run issue of a /wave run (docs/agents/orchestration.md, "Runs").
+- name: run
+  color: "d4c5f9"
+  description: Run issue of a /wave run; holds the run's state

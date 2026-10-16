@@ -39,6 +39,8 @@ The argument names the source:
 3. **Find the options.** Take the options from the issue. If an
    obvious option is missing, or one is not viable, say so in the brief
    rather than silently adding or dropping it. Keep at most four.
+   Then argue for the runner-up as well as you can, in one paragraph
+   (`review-briefs.md`, "Options").
 4. **Draw the picture** first, before writing prose: the one diagram
    that shows the problem, and a before/after pair if the structure
    changes.

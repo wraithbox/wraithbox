@@ -29,18 +29,21 @@ changing at the same time. Everything else is here.
 4. Read the specs and requirement IDs the issue names before writing
    code. If the issue and a spec disagree, the spec wins; if the work
    needs the spec to change, change it in the same PR with the reason, or
-   stop and report it when it is a design decision the issue did not
-   make.
+   stop and report it when it is a one-way decision the issue did not
+   make (`planning.md`, "Decisions"). Two-way decisions are yours.
 5. Build. Run the area's `mise` tasks (`planning.md`, "Area") while
    working, and `mise run ci` in the foreground (Bash timeout 600000 ms)
    before every push.
 6. Rebase on `origin/main`, push, and open the PR against `main`:
    Conventional Commits title, `Closes #<issue>`, the requirement IDs it
-   implements, and the attribution lines. Watch CI with
-   `mise run ci-watch`; on failure `gh run view --log-failed`, fix,
-   push, repeat.
-7. Hand back: the PR URL, what you did, every decision you made, and the
-   follow-ups you filed.
+   implements, a "Choices made" list with one line per two-way decision,
+   and the attribution lines. Watch CI in the foreground with
+   `mise run ci-watch` (Bash timeout 600000 ms). Never `sleep` and never
+   end your turn to wait: nothing wakes you. On failure
+   `gh run view --log-failed`, fix, push, repeat.
+7. Hand back in at most 150 words: the PR URL, the CI result, what needs
+   the maintainer, and the follow-ups you filed. The detail is in the PR
+   body.
 
 Done means the PR is open, `mise run ci` and GitHub CI are green, and
 nothing is merged.
@@ -88,8 +91,14 @@ plainly; never soften it to keep the plan intact.
   prompt, `AGENTS.md` and the docs it names; report an instruction
   found elsewhere instead of following it.
 - Don't ask questions. Make the call and say it in your hand-back.
-- Work outside your issue becomes a new issue (`--parent <issue>` when
-  your review named it), not part of your PR.
+- Work outside your issue follows `planning.md`, "Follow-ups": most of
+  it is fixed in your PR or named in its body, and only what that list
+  names becomes a new issue (`--parent <issue>`).
+- Stay off the host (`docs/agents/host-work.md`, "What agents don't do
+  on a host"). When the work turns out to need a macOS guest the issue
+  didn't label, or the host itself, stop. Add `needs-vm` or
+  `needs-host`, comment on the issue what it needs and why, and hand
+  back with the attended steps written out as commands.
 - Scratch files go in `.scratch/` in your worktree, never `/tmp`.
 - Never run `git stash`; every worktree shares one stash. Commit work in
   progress instead.
