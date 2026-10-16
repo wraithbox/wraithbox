@@ -80,16 +80,16 @@ forbid the merge commits that stacked branches need.
 
 `CI result` is the only required check. On a pull request, the
 `changes` job of `.github/workflows/ci.yml` runs `scripts/ci-changes.mjs`
-to decide which jobs the changed files need, and the workflow skips
-`Go` and `Swift`, and the site check and build steps of `Docs`, when
-their inputs did not change. A push to `main` and `workflow_dispatch`
-run everything. A skipped matrix job doesn't report the per-OS
-`Go (…)` check names, so a ruleset that required them would block every
-pull request that skipped Go. A skipped job counts as passed for a
-required check, so requiring `Swift` alone would let a wrongly skipped
-job through. `CI result` runs on every run, even a cancelled one, and
-fails unless each job it lists passed or was skipped because its inputs
-did not change. It also fails when change detection failed, after the
+to list the jobs the changed files need. The workflow skips `Go`,
+`Swift`, and the site check and build steps of `Docs` when that list
+leaves them out. A push to `main` and `workflow_dispatch` run
+everything. A skipped matrix job doesn't report the per-OS `Go (…)`
+check names, so a ruleset that required them would block every pull
+request that skipped Go. A skipped job counts as passed for a required
+check, so requiring `Swift` directly would pass a run that skipped it by
+mistake. `CI result` runs on every run, even a cancelled one, and fails
+unless each job it lists passed or was skipped because its inputs did
+not change. It also fails when change detection failed, after the
 jobs ran as if every file had changed. A job added to `ci.yml` goes into
 the `needs:` list of `CI result` and into `GATED` in
 `scripts/ci-changes.mjs`, which the verdict checks against `needs:`.
