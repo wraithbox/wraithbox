@@ -68,6 +68,10 @@ every OS.
 - Every plugin is local, never `remote:`. The Go plugins are `tool`
   lines in `go.mod`. The Swift plugins are built from the Swift
   package's pinned dependencies.
+- The generated files record the plugin versions. So a bump of
+  `protoc-gen-go`, `protoc-gen-go-grpc` or the Swift plugins' packages
+  needs `mise run proto:generate` or `proto:generate-swift` in the same
+  change, or the drift check fails.
 - cspell and SwiftLint skip the generated paths. `swift format` skips
   the generated files, which say `swift-format-ignore-file`.
   golangci-lint skips generated Go files.

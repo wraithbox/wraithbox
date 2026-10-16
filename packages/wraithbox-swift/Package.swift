@@ -17,7 +17,7 @@ let package = Package(
     ],
     // Exact versions: Package.resolved pins the rest of the tree, and
     // dependabot proposes the bumps (AGENTS.md, "Supply chain"). The two
-    // protoc plugins that `mise run proto:generate` runs,
+    // protoc plugins that `mise run proto:generate-swift` runs,
     // protoc-gen-swift and protoc-gen-grpc-swift-2, are built from these
     // same packages (B52-proto-contracts).
     dependencies: [
@@ -28,8 +28,8 @@ let package = Package(
     targets: [
         .target(name: "WraithBoxVM"),
         // Generated code only, from proto/wraithbox/vmd/v1/vmd.proto by
-        // `mise run proto:generate`. Never edited by hand: `proto:check`
-        // fails on any difference (B52-proto-contracts).
+        // `mise run proto:generate-swift`. Never edited by hand:
+        // `proto:check-swift` fails on any difference (B52-proto-contracts).
         .target(
             name: "WraithBoxRPC",
             dependencies: [
