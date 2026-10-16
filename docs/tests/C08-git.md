@@ -75,7 +75,7 @@ with the memory of the git child and of `wb-hostd` measured
 - a pack header that declares more objects than the count cap, with no
   entries after it;
 - an entry that declares a size of 1 byte, followed by empty zlib
-  stored blocks until the pack is one byte over the 1 GiB wire-byte
+  stored blocks until the pack is one byte over the 256 MiB wire-byte
   cap, which the scanner refuses on that cap while its memory doesn't
   grow.
 
@@ -93,7 +93,7 @@ X26-pre-receive-check and X28-git-alloc-limit measured, 207 MiB at a
 With the scanner off and `receive.unpackLimit=1`, as
 S08-workspace-and-git sets it:
 
-- push a pack one byte over 1 GiB, and see git refuse it on
+- push a pack one byte over 256 MiB, and see git refuse it on
   `receive.maxInputSize`;
 - push the scanner's packs, and see git refuse each one that asks for
   more than the per-object cap in one allocation, with the git child
@@ -110,8 +110,8 @@ S08-workspace-and-git sets it:
 ### Time and the git binary
 
 - Record the wall-clock time of the slowest pushes the caps allow,
-  against the 5 minute watchdog: 1 GiB of empty zlib stored blocks
-  behind one entry, 1 GiB of trees under `--strict`, and 1 GiB of bases
+  against the 5 minute watchdog: 256 MiB of empty zlib stored blocks
+  behind one entry, 256 MiB of trees under `--strict`, and 256 MiB of bases
   that `--fix-thin` copies in from `export.git`, each just under its
   cap. Each one must finish well inside the watchdog.
 - Start `wb-hostd` with a stand-in git that ignores `GIT_ALLOC_LIMIT`
