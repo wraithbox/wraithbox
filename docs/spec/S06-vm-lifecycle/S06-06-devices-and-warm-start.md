@@ -26,9 +26,13 @@ serial passthrough (SEC02-no-host-fs-share).
 
 #### The graphics device
 
-Some of the sandbox extensions in `wb-vmd`'s profile serve the graphics
-device, keyboard and pointer (X25-vmd-sandbox). Dropping them is I247.
-`wb-vmd`'s profile is then ablated again (S04-03-self-sandboxing).
+The graphics device, keyboard and pointer stay in the set for now
+(I160). X02-warm-start, X18-vsock-handoff and X25-vmd-sandbox measured
+that configuration, and no macOS guest has booted without them. Some
+of the sandbox extensions in `wb-vmd`'s profile serve these devices
+(X25-vmd-sandbox), and they give the two VMs a shared graphics cache
+(I247). If a later check drops the devices, `wb-vmd`'s profile is
+ablated again (S04-03-self-sandboxing).
 
 ### Resources
 

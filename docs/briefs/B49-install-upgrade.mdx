@@ -5,7 +5,7 @@ description: Recommended - approve S17-install-and-upgrade. A new per-run progra
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision: approval of the spec change.** Source: I49, S17-install-and-upgrade. Follows the I49 decision of 2026-10-04 (a dedicated download program that wb-hostd invokes), the 2026-10-12 comment (it also fetches Claude Code) and the triage of 2026-10-15 (signing as in X29-dev-signing, B248-dev-signing). Touches S04-architecture, S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit, S10-tech-stack, S12-platforms, S14-claude-in-guest, S15-least-privilege and T00-index, and adds the test cases C12-install-and-downloads.
+**Decided 2026-10-15: approved, with A for trusting the restore image and the other choices as written.** The maintainer merged PR266 with the recommendations of this brief, and the I49 comment that starts `Decision (2026-10-15):` records it. Source: I49, S17-install-and-upgrade. Follows the I49 decision of 2026-10-04 (a dedicated download program that wb-hostd invokes), the 2026-10-12 comment (it also fetches Claude Code) and the triage of 2026-10-15 (signing as in X29-dev-signing, B248-dev-signing). Touches S04-architecture, S05-cli, S06-vm-lifecycle, S09-policy-credentials-audit, S10-tech-stack, S12-platforms, S14-claude-in-guest, S15-least-privilege and T00-index, and adds the test cases C12-install-and-downloads.
 
 <Aside type="tip" title="You are deciding">
 Whether to approve S17-install-and-upgrade as the design for building, installing, upgrading and migrating Wraith Box, and for its downloads. Recommended: approve it with option **A** below for trusting the restore image. Then the `mise` tasks, `wb setup`, `wb-download` and the migrations can be filed as build issues.
