@@ -13,6 +13,7 @@ guestd
 credset
 vmd
 hostgit
+logpipe
 lsimons
 Simons
 myrepo
@@ -170,6 +171,16 @@ toplevel
 GOEXE
 NOSYSTEM
 buildversion
+modernc
+mattn
+isatty
+ncruces
+strftime
+remyoudompheng
+bigfft
+libc
+mathutil
+txlock
 
 # Docs site (Astro Starlight)
 frontmatter

@@ -57,15 +57,23 @@ Before the first pending migration, `wb-hostd` backs up `state.db`:
 
 It never writes over an existing `.bak` file. When that name exists,
 the copy from an earlier attempt stays. It keeps the two newest
-copies.
+copies. A database that this start created has nothing to back up, and
+`wb-hostd` doesn't copy it.
 
 #### Configuration
 
-No process rewrites a file in `<config>`. `wb-hostd` refuses:
+No process rewrites a file in `<config>`. A missing `config.toml` means
+every default. `wb-hostd` refuses:
 
 - a file with a key that a release renamed or removed, with
   `config-key-renamed`, naming the file, the line and the new key;
-- a file with any other unknown key, with `config-key-unknown`.
+- a file with any other unknown key, at any level, with
+  `config-key-unknown`, naming the file, the line and the key;
+- a known key with a value of the wrong type or out of range, with
+  `config-value-invalid`;
+- a file that isn't valid TOML, with `config-syntax-invalid`;
+- a file it can't read, that isn't a regular file, or that is too
+  large, with `config-file-unreadable`.
 
 #### Refusing mode
 
@@ -74,6 +82,8 @@ These put `wb-hostd` in refusing mode:
 - a failed backup (`state-db-backup-failed`);
 - a failed migration (`state-db-migration-failed`);
 - a database newer than `wb-hostd` knows (`state-db-newer`);
+- a database it can't open or read the version of
+  (`state-db-open-failed`);
 - a refused configuration file.
 
 In refusing mode, `wb-hostd` keeps running, so launchd doesn't restart

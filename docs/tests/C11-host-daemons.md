@@ -2,12 +2,12 @@
 
 **Purpose:** The test cases for the host daemons' own checks:
 `wb-vmd`'s device set and slots, the image build bundle, supervision,
-the accounting and event channels, the audit writer, free space, and
-the data disk steps.
+the accounting and event channels, the daemon log pipes, the audit
+writer, free space, and the data disk steps.
 
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
-S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels"), S06-05-disks,
+S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks,
 S09-11-audit
 
 ## Unit tests
@@ -97,6 +97,21 @@ Spec: S04-architecture.
 - Block an accounting write past 100 ms, and see the lookup refused
   with `accounting-write-failed`.
 
+### Daemon log pipes
+
+Spec: S04-08-records-and-bounds, "Logs and health". Tests in
+`internal/hostd/logpipe`, on a fake clock:
+
+- 101 lines in one second write 100 lines and one `daemon-log-rate`
+  record with the count 1.
+- A 5 KiB line is cut at 4 KiB with the truncation marker, and the next
+  line is intact.
+- A line with a quote, a control byte and invalid UTF-8 becomes one
+  well-formed JSON record of the spawn's process.
+- Rotation at 10 MiB keeps 5 files.
+- A blocked file write doesn't stop the reader from draining the pipe.
+  The lines it drops are counted in `daemon-log-backlog` records.
+
 ### Build versions
 
 - Have `wb-guestd` report another build version, a version string that
@@ -150,6 +165,10 @@ and the file at the final name kept.
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
   (S04-08-records-and-bounds, "Accounting and event channels").
+- The daemon log pipes, `FuzzLogPipe`: arbitrary bytes in arbitrary
+  chunks. Every record is one JSON line, no line is longer than 4 KiB,
+  and the reader's buffer never grows past its bound (S04-08-records-and-bounds,
+  "Logs and health").
 - Every vsock RPC handler in `wb-hostd`.
 - The stream framing that multiplexes guest requests on a host-opened
   connection, with the project each request is attributed to

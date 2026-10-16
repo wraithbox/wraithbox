@@ -80,9 +80,9 @@ layout is the same everywhere:
   vms/<guest-os>-{work,isolated}.noindex/  VM bundles: disks, machine identity, saved state
   projects/<project-id>/export.git    bare repo the guest fetches from: selected refs only, written only by wb (S08-workspace-and-git)
   projects/<project-id>/landing.git   bare repo receiving session branches (S08-workspace-and-git)
-  state.db                            SQLite: projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit), each VM's CA records, the removal list of CA keys, on Linux whether the CA key is in a TPM (S09-policy-credentials-audit, S15-least-privilege), and the catalog entry of the restore image (S17-install-and-upgrade). Migrated by wb-hostd only, with its backups next to it as state.db.v<N>.bak
+  state.db                            SQLite: the last VM generation of each slot (S04-02-vm-provider), projects, sessions, approvals, caches, the Go clock's point and tree heads (S07-egress-gateway), each VM's placeholder set until the VM is deleted (S09-policy-credentials-audit), each VM's CA records, the removal list of CA keys, on Linux whether the CA key is in a TPM (S09-policy-credentials-audit, S15-least-privilege), and the catalog entry of the restore image (S17-install-and-upgrade). Migrated by wb-hostd only, with its backups next to it as state.db.v<N>.bak (S17-install-and-upgrade). Mode 600
   run/                                user-only directory for local IPC endpoints
-<logs>/                               audit JSONL and daemon logs
+<logs>/                               audit JSONL, and one log per host process, <process>.log and its rotated files, all written by wb-hostd (S04-08-records-and-bounds)
 ```
 
 ## Inter-process contracts
