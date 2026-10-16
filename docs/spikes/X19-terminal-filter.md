@@ -8,7 +8,7 @@ transfer, terminal multiplexer control sequences) without visible damage
 in the common macOS terminals? (I30)
 
 **Answer:** Yes, with conditions, for Ghostty and Terminal.app as far
-as a headless emulator shows, and pending the check by eye in I62. In
+as a headless emulator shows, and as the check by eye in I62 confirmed. In
 seven recorded sessions Claude Code 2.1.289 emitted 56 distinct controls
 and sequences. A short allowlist passes them unchanged except four kinds, plus
 `file://` links within OSC 8: OSC 52 (clipboard), two kinds of desktop
@@ -16,8 +16,10 @@ notification, and a kitty graphics query. With those dropped or rewritten, every
 is unchanged on replay in a headless terminal emulator, except that the
 `file://` links are no longer links. The recordings imitated each
 terminal's answers to Claude Code's queries. The iTerm2 and VS Code
-profiles stay unchecked in the real terminals, because I62 covers only
-Ghostty and Terminal.app. The filter spends about 12 ms of CPU per MB
+profiles stay unchecked in the real terminals, because I62 covered only
+Ghostty and Terminal.app. In those two, by eye, the filter caused only
+the losses listed below. Ghostty makes a bare path
+clickable by itself, which the filter cannot stop. The filter spends about 12 ms of CPU per MB
 of Claude Code output. The conditions are below.
 
 ## For review
@@ -47,7 +49,8 @@ of Claude Code output. The conditions are below.
   FR01-drop-in (`wb claude` behaves as `claude`) holds with the losses
   above.
 - **Assumed:** that a headless emulator (`charmbracelet/x/vt`) shows
-  what Ghostty and Terminal.app would show. I62 checks that by eye. That
+  what Ghostty and Terminal.app would show. I62 checked that by eye
+  and saw only the differences listed. That
   Claude Code chooses its sequences from `TERM_PROGRAM` and from the
   answers to its queries, which the recorder imitated per terminal. The
   iTerm2 and VS Code profiles stay unchecked after I62.
@@ -274,19 +277,82 @@ and it is fixed in the spike.
 
 ## Check by eye
 
-The headless emulator is not the user's terminal. I62 runs the relay in
-Ghostty and Terminal.app, the two terminals installed on the
-maintainer's Mac (iTerm2 and VS Code are not), and compares it with an
-unfiltered run. The iTerm2 and VS Code profiles stay unchecked after
-I62. From `spikes/x19-terminal-filter` on the spike branch:
+The headless emulator is not the user's terminal. In I62, on
+2026-10-16, the maintainer ran the relay from the spike branch in
+Ghostty 1.3.1 and Terminal.app on macOS 27, with Claude Code 2.1.296
+and Haiku 5.5, in a scratch repository. iTerm2 and VS Code are not
+installed, and their profiles remain unchecked. Each terminal ran the
+hostile script through the filter, then the same Claude Code session
+twice, unfiltered (`-raw`) and filtered. Ghostty also ran the
+full-screen renderer (`CLAUDE_CODE_NO_FLICKER=1`), filtered.
 
 ```sh
 GOWORK=off go run ./cmd/relay -log drops.txt -- claude
 ```
 
-`-raw` instead of `-log drops.txt` gives the unfiltered baseline, and
-`./scripts/hostile.sh` instead of `claude` prints each sequence the
-filter must stop, between markers. The things to look at are in I62.
+The session covered the folder trust dialog, a Markdown answer with a
+table, code block and link, an Edit with its permission prompt and
+diff while the window was in the background, a Bash tool call, Shift+Enter
+in the prompt, a multi-line paste, mode cycling with Shift+Tab, a
+300-line answer while resizing the window, `/copy`, focus out and in,
+`/cost`, and the terminal state after exit.
+
+### What looked the same
+
+Colors, the Markdown table, code highlighting, the diff, the permission
+dialogs, Shift+Enter, the pasted-text placeholder, mode cycling,
+redraw during resize, focus, and the terminal after exit looked and
+behaved the same filtered as unfiltered in both terminals. The
+full-screen renderer in Ghostty worked too, mouse scrolling
+included.
+
+### What the filter changed
+
+- **Hostile script.** Filtered, both terminals showed only the text,
+  the red color and the `https://` link, and rang two bells. Unfiltered,
+  Terminal.app printed the kitty graphics payload and the tmux
+  pass-through as text (`Ga=T,t=f;L2V0Yy9ob3N0cw==`, `tmux;`), because
+  it does not parse APC or DCS. So the filter also removes garbage that
+  Terminal.app would show.
+- **Notifications.** In Ghostty, the filtered permission prompt showed
+  as a badge on the Dock icon (the BEL), not as a desktop notification
+  with text. Terminal.app showed nothing in either run, because Claude
+  Code sends it no notification.
+- **Links.** The `file://` link to `calc.py` that Claude Code printed
+  was dropped (`osc8-scheme`).
+
+### What it found
+
+- **Ghostty makes a bare path a link.** In the filtered run in Ghostty,
+  the workspace path in the status line was still a link. The status
+  line there was the maintainer's own script, which prints the path as
+  plain text without OSC 8, so Ghostty made it a link by itself. The
+  filter cannot stop that. A path that guest output prints names a
+  host file in a host terminal, and Ghostty opens it on a click. Only
+  OSC 8 is in this spike's scope (I270). S16-terminal-stream says that
+  terminals still make a bare URL clickable. Ghostty does that for
+  paths too.
+- **Claude Code 2.1.295 added a query, OSC 7501.** Claude Code now asks
+  for the Program Status Protocol (`OSC 7501 ; ?`) at start. The filter
+  drops it as an unknown OSC, Claude Code takes no reply as no support,
+  and nothing visible changes. Because the filter dropped it in every
+  Claude Code run, every session summary counts one `terminal-osc` drop
+  unless the list learns it. A new version started using a sequence, the
+  filter failed closed, and the drop count showed it, as "Limits"
+  expects. I270 decides what to do with it.
+- **`/copy` still reached the clipboard.** In both terminals, filtered,
+  `/copy` put the text on the clipboard. The relay ran Claude Code on
+  the host, so its `pbcopy` reached the host pasteboard. The drop log
+  shows the OSC 52 copy dropped. In a guest, `pbcopy` reaches only the
+  guest's pasteboard, as "Findings beyond the list" says.
+- **Unrelated to the filter.** In the unfiltered Terminal.app run,
+  macOS showed "Data Access Blocked: Terminal tried to access your data
+  from other apps". That is Claude Code on the host touching protected
+  folders, not a sequence. Terminal.app had no bell or other sign of a
+  waiting permission prompt in either run.
+
+The drop logs, notes, and screenshots are not in the repository. The
+screenshots show the maintainer's desktop.
 
 ## What it means for the specs
 
@@ -384,8 +450,9 @@ Elsewhere:
   in the session summary are how a missing rule shows up.
 - The terminals' answers to queries were imitated, not taken from the
   real terminals. A real Terminal.app may answer differently and change
-  what Claude Code emits. I62 covers Ghostty and Terminal.app. The
-  iTerm2 and VS Code profiles stay unchecked.
+  what Claude Code emits. I62 ran Claude Code in the real Ghostty and
+  Terminal.app, and the filter caused only these losses there.
+  The iTerm2 and VS Code profiles stay unchecked.
 - The input direction (keys and query replies from the terminal to the
   guest) was not filtered and is out of scope here.
 - The recordings ran with the maintainer's Claude Code settings, which
