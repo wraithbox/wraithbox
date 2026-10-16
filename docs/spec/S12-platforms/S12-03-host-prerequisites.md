@@ -14,7 +14,7 @@ them silently.
 |---|---|---|
 | macOS | Apple Silicon, macOS 15+ | n/a (hardware and OS version) |
 | Windows | Virtual Machine Platform optional feature enabled (it is if WSL 2 is installed) | administrator, once |
-| Windows | Permission to create VMs through HCS as a standard user (spike X11-windows-host) | open |
+| Windows | Permission to create VMs through HCS as a standard user | decided by spike X11-windows-host |
 | Linux | Read-write access to `/dev/kvm` (desktop sessions usually have it; otherwise the `kvm` group) | administrator, once |
 
 Spike X11-windows-host may show that HCS needs administrator rights for

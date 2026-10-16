@@ -102,7 +102,8 @@ On a failed report or no answer:
 
 - both items stay;
 - `wb-hostd` marks the disk "rotation unknown";
-- every session start in that VM is refused with the rule.
+- every session start in that VM is refused with the rule
+  `admin-rotation-unknown`.
 
 Recovery replaces the system disk, and cleanup removes the disk's
 item.

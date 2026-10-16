@@ -74,8 +74,7 @@ In non-interactive use, `wb` forwards `SIGTSTP` to `claude` before it
 stops itself, and `SIGCONT` after it continues.
 
 A stopped `wb` keeps its connection to `wb-hostd`. The session then
-stays. That job control works through the helper isn't checked yet
-(I135).
+stays.
 
 ### A closed output
 

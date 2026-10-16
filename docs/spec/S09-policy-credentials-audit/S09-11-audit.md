@@ -92,8 +92,6 @@ VM apart (S07-01-per-vm-policy). In the work VM, one project's traffic
 can use up the budget. The other projects' new work is then refused
 with it (T11-shared-vm-grants).
 
-The defaults are not measured yet (I175).
-
 ### Free space and failed writes
 
 #### Free space

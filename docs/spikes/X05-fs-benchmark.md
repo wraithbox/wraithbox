@@ -12,10 +12,10 @@ host, on the NFR02-fs-speed workloads?
   image, attached with automatic host caching and full synchronization,
   the setting that keeps every flushed write through a host crash. The
   relaxed settings gave the NFR02-fs-speed workloads nothing that the
-  run-to-run spread doesn't cover, so S06-vm-lifecycle "Disks" no longer
+  run-to-run spread doesn't cover, so S06-05-disks no longer
   allows them.
 - **You are approving:** the answer "no", the measurements, and the
-  S06-vm-lifecycle "Disks" text. `git status` on a large repository runs
+  S06-05-disks text. `git status` on a large repository runs
   faster in the guest than on the host, and the Go incremental build is
   at the 80% line. `npm ci` reaches 71% of host throughput with the
   chosen setting, and 75% with the most relaxed one. On a RAM disk in
@@ -206,7 +206,7 @@ swap are X08-data-disk.
 
 ## What it means for the specs
 
-- **S06-vm-lifecycle "Disks"** now names the setting: a raw sparse image,
+- **S06-05-disks** now names the setting: a raw sparse image,
   automatic caching, full sync. It drops "can be rebuilt from host state
   plus git, so it may use relaxed write-through settings", which I44
   overturned (changed in this pull request).

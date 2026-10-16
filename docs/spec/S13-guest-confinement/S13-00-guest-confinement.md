@@ -5,7 +5,7 @@ processes can do, and tell the host which program opened each
 connection. They add a layer on top of the host-side controls and never
 replace them.
 
-**Requirements:** SEC05-default-deny, SEC06-repo-writes, SEC08-proj-isolation, SEC11-root-gains-nothing, FR15-inspect, NFR06-explained-refusals. Residual risks T06-forged-labels and T11-shared-vm-grants.
+**Requirements:** SEC05-default-deny, SEC06-repo-writes, SEC08-proj-isolation, SEC11-root-gains-nothing, FR15-inspect, NFR06-explained-refusals.
 
 **Tests:** C03-policy-and-approvals, C09-guest-and-sessions
 

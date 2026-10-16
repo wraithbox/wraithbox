@@ -92,9 +92,9 @@ It also denies the network, starting programs, and other services
 (X25-vmd-sandbox).
 
 The extension classes were measured with the X18-vsock-handoff
-configuration. That one also had a Mac graphics device with one
-display, and a USB keyboard and pointer. They are ablated again against
-the final device set of S06-vm-lifecycle.
+configuration, which has the device set of S06-06-devices-and-warm-start.
+When that set drops the graphics device (I247), the profile is ablated
+again.
 
 ### Daemon logs
 

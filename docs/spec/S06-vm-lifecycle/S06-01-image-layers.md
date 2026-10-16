@@ -79,8 +79,6 @@ a project wrote.
 
 #### The install
 
-This is untested (I180).
-
 1. `wb-guestd` resolves the whole runtime closure of the names over the
    formula data snapshot, as the toolchain user: `brew deps --formula
    -n --union -- <names>`.
@@ -103,14 +101,14 @@ Nothing is built from source.
 
 When the formula data snapshot is missing or empty, `wb-guestd`
 refuses the reconcile, because Homebrew would download new data
-(untested, I180).
+.
 
 At the start deadline (S06-09-session-lifecycle), `wb-guestd` kills
 the reconcile's process group.
 
 #### The environment
 
-This is untested (I180). `wb-guestd` builds the toolchain user's
+`wb-guestd` builds the toolchain user's
 environment from an allowlist:
 
 - `HOME`, and the working directory in its home;
@@ -128,7 +126,7 @@ It never sets `HOMEBREW_DEVELOPER`.
 
 #### A reconcile only adds
 
-This is untested (I180). Homebrew upgrades an outdated dependency of a
+Homebrew upgrades an outdated dependency of a
 formula it installs, whatever `HOMEBREW_NO_INSTALL_UPGRADE` says,
 unless that dependency is named on the command line. "The install"
 makes sure it is.
@@ -144,7 +142,7 @@ Then nothing installed is outdated, and a reconcile only adds kegs.
 
 #### The session's `PATH`
 
-This is untested (I180). Which version a name like `python3` runs in
+Which version a name like `python3` runs in
 the prefix's shared `bin` depends on every project's formulae.
 
 The session's `PATH` has `opt/<formula>/bin`, and Python's

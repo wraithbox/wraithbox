@@ -50,7 +50,7 @@ a drop, and has no rule, because the text around it stays.
 
 ### Links
 
-OSC 8 is dropped, and its text stays as plain text (H1, I30).
+OSC 8 is dropped, and its text stays as plain text (B30-terminal-filter, option H1).
 
 - A link's text can differ from its target.
 - A link to `localhost` or a private address names a service on the

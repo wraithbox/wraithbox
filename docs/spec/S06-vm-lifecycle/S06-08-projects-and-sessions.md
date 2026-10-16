@@ -82,18 +82,6 @@ made with root's rights.
 `wb discard` removes the session's link with its worktree. It leaves
 the per-project directory.
 
-#### Open points
-
-- Parallel sessions share the per-project directory. So `--continue`
-  in one can pick the conversation another session is running, and two
-  sessions can then write one conversation. Whether Claude Code allows
-  that is open.
-- The layout was read on a macOS host, not checked in a guest. I135
-  checks it there.
-- I135 also checks Claude Code's prompt to trust a folder. A new
-  worktree path per session may bring it up at every session start,
-  unlike `claude` (FR01-drop-in).
-
 ### Claude Code in the guest
 
 S14-claude-in-guest specifies its install, the carry-in of the user's
@@ -103,7 +91,7 @@ B60-model-credential).
 The image sets the Claude Code version, and the updater is off in the
 guest. A new Claude Code version needs a new image. Building an image
 for a new Claude Code version must be cheap next to a full `wb image
-build`. How is open (I220).
+build` (I220).
 
 #### The environment
 

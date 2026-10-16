@@ -15,7 +15,9 @@ A VM has these devices:
 - one host-guest socket device (vsock);
 - storage: the system disk, the data disk, and the guest tools disk,
   read-only (S06-12-guest-agent, "`wb-guestd`");
-- entropy.
+- entropy;
+- a Mac graphics device with one display, and a USB keyboard and
+  pointer.
 
 V1 has no shared directories, no host audio input, and no USB or
 serial passthrough (SEC02-no-host-fs-share).
@@ -24,13 +26,9 @@ serial passthrough (SEC02-no-host-fs-share).
 
 #### The graphics device
 
-The spikes so far also gave each VM a Mac graphics device with one
-display, and a USB keyboard and pointer (X02-warm-start,
-X18-vsock-handoff). Some of the sandbox extensions in `wb-vmd`'s
-profile serve them (X25-vmd-sandbox).
-
-Whether V1 keeps them is open. `wb-vmd`'s profile is ablated again
-against the set chosen here.
+Some of the sandbox extensions in `wb-vmd`'s profile serve the graphics
+device, keyboard and pointer (X25-vmd-sandbox). Dropping them is I247.
+`wb-vmd`'s profile is then ablated again (S04-03-self-sandboxing).
 
 ### Resources
 

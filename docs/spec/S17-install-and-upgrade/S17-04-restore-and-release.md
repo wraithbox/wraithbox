@@ -77,8 +77,7 @@ system trust store. It binds the file to that entry.
 
 The catalog isn't signed, so a compromised `wb-download` can report
 any entry. Against that, the design relies on Virtualization's
-installer refusing a restore image that Apple didn't sign. That
-property is unmeasured (I262).
+installer refusing a restore image that Apple didn't sign (I262).
 
 ### A Claude Code release
 

@@ -45,7 +45,7 @@ S04-02-vm-provider ("The device set is fixed and checked")
   it, and see an approval event.
 - See the same answer bytes for a name that isn't allowlisted, one that
   is denied, one on the background list, and one in a part that is off
-  (S07-egress-gateway, quiet refusals).
+  (S07-04-dns-refusals, "Quiet refusals").
 - Send UDP other than DNS, resolve a name that isn't allowlisted,
   exceed the wildcard budget, and use a DNS server other than the
   gateway.

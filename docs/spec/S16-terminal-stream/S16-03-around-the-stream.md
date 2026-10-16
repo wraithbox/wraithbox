@@ -103,7 +103,7 @@ The guest looks `TERM` up in the terminfo database of its image
 (S06-02-image-build, "Terminfo"). That database has ncurses' entries,
 and the names Ghostty and kitty set: `xterm-ghostty` and `xterm-kitty`.
 The `less`, `vim` and `top` that macOS ships can't read the kitty
-entries yet (S06-02-image-build, "Terminfo", I203).
+entries (S06-02-image-build, "macOS's ncurses").
 
 When the guest has no entry for `TERM`, those programs report an
 unknown terminal. `TERM` still isn't changed (I83).

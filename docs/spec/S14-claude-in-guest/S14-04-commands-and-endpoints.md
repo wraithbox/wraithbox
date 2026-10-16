@@ -22,7 +22,7 @@ root (S13-01-process-hardening).
 
 ### Commands that don't fit a guest
 
-The decisions on I60 and SEC05-default-deny settle these:
+These fail in the guest, by I60 and SEC05-default-deny:
 
 - **`claude update` and `claude install`** fail. `DISABLE_UPDATES`
   blocks them, and `downloads.claude.ai` is outside the profile. The

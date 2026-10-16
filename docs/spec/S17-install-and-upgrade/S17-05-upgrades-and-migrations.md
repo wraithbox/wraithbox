@@ -22,7 +22,7 @@ and half new. Running processes keep their open files.
 Then S04-07-supervision, "Upgrades", applies. `wb-hostd` sees a new
 `WBBuildVersion` and exits, and launchd starts the new one. The guest
 side updates from the guest tools disk at each VM's next cold start
-(S06-vm-lifecycle).
+(S06-12-guest-agent, "Update at start").
 
 ### Another signing team
 
@@ -86,6 +86,6 @@ names the versions, the file and line, or the newest copy.
 - Secret store item names are fixed (S15-least-privilege).
 - Images aren't migrated.
 - A saved state of another build version is deleted
-  (S06-vm-lifecycle).
+  (S06-12-guest-agent, "The host checks, not the guest").
 
 **Status:** Draft

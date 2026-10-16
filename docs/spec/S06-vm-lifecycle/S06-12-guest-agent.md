@@ -25,9 +25,10 @@ port below 1024.
 So a project user can't take the port while the service manager
 restarts `wb-guestd` (S04-architecture, X27-vsock-confinement).
 
-How a Windows guest's vsock driver, and Hyper-V sockets on a Windows
-host, keep a project user from posing as `wb-guestd` is open in
-S12-platforms.
+On a Windows guest or a Windows host, the spikes of
+S12-01-platform-interfaces ("Host-guest socket: keeping `wb-guestd`'s
+endpoint") decide how a project user is kept from posing as
+`wb-guestd`.
 
 #### What it does
 
