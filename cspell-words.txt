@@ -23,6 +23,7 @@ wbtest
 vmdv
 guestv
 contracttest
+fuzzsmoke
 
 # Virtualization, networking and OS facilities
 datavol
@@ -113,6 +114,7 @@ recvcheck
 sloglint
 usetesting
 govulncheck
+fuzztime
 vulncheck
 swiftlint
 swiftpm
@@ -129,6 +131,7 @@ bodyclose
 errorlint
 gocritic
 gosec
+nolint
 nolintlint
 unconvert
 unparam

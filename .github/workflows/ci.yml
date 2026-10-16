@@ -95,6 +95,13 @@ jobs:
       - name: Test
         run: mise run go:test
 
+      # The fuzz smoke run (S11-verification-and-spikes). One OS is enough:
+      # the targets parse bytes the same way on every OS, and fuzzing on
+      # three runners would triple the time.
+      - name: Fuzz smoke run
+        if: ${{ runner.os == 'Linux' }}
+        run: mise run go:fuzz
+
       - name: Build
         run: mise run go:build
 
