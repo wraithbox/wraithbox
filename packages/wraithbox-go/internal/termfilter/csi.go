@@ -79,7 +79,11 @@ var csiRules = func() map[csiKey]csiCheck {
 		{prefix: '>', final: 'q'}: oneOf("", "0"),
 		{final: 't'}:              oneOf("14", "16", "18"),
 	}
-	for _, b := range []byte("ABCDEFGHf`ade@LMPXbSTrIZgm") {
+	// Scroll up and down take one number at most. With more,
+	// `CSI … T` is xterm's mouse highlight tracking (XTHIMOUSE).
+	m[csiKey{final: 'S'}] = oneNumber
+	m[csiKey{final: 'T'}] = oneNumber
+	for _, b := range []byte("ABCDEFGHf`ade@LMPXbrIZgm") {
 		m[csiKey{final: b}] = anyParams
 	}
 	return m
@@ -159,6 +163,11 @@ func number(s string) (int, bool) {
 func anyParams(*Filter, string) bool { return true }
 
 func noParams(_ *Filter, params string) bool { return params == "" }
+
+// oneNumber passes no parameter or one number.
+func oneNumber(_ *Filter, params string) bool {
+	return params == "" || isDigits(params)
+}
 
 func oneOf(allowed ...string) csiCheck {
 	return func(_ *Filter, params string) bool {

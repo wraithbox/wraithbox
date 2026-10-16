@@ -23,7 +23,9 @@ The filter passes text, Markdown and JSON unchanged when they:
   `DEL`, or a C0 control other than the ones it passes.
 
 Invalid bytes become U+FFFD, so binary output through standard output
-isn't supported. If moving files out of the guest is ever needed, it
+isn't supported. The filter's output is for a terminal that reads
+UTF-8. On a terminal that reads 8-bit bytes, some bytes inside a valid
+character act as C1 controls, 0x9B among them. If moving files out of the guest is ever needed, it
 gets its own command, not an unfiltered stream.
 
 ### How
