@@ -24,6 +24,8 @@ vmdv
 guestv
 contracttest
 fuzzsmoke
+fdchan
+selfsandbox
 
 # Virtualization, networking and OS facilities
 datavol
@@ -93,9 +95,24 @@ PATHEXT
 USERPROFILE
 xcrun
 envrc
+libc
+libsandbox
+errbuf
+cmsg
+ctrunc
+cloexec
+firsthdr
+nxthdr
+getsockopt
+maxdgram
+socketpairs
 terminfo
 
 # Tools and their names in configs
+globl
+nosplit
+rodata
+textflag
 getent
 simctl
 sysadminctl

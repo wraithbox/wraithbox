@@ -29,7 +29,7 @@ func New(f *os.File, _ int) (*Channel, error) {
 }
 
 // SocketType isn't built on linux.
-func SocketType(syscall.Conn) (family, sotype int, err error) { return 0, 0, errUnsupported }
+func SocketType(syscall.Conn) (family, sockType int, err error) { return 0, 0, errUnsupported }
 
 // Send isn't built on linux.
 func (*Channel) Send([]byte, syscall.Conn) error { return errUnsupported }

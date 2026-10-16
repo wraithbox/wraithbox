@@ -46,7 +46,9 @@ The network attachment uses a datagram socketpair (X18-vsock-handoff).
 ### Self-sandbox on macOS
 
 Each daemon applies a Seatbelt profile in its own process at start,
-with `sandbox_init_with_parameters`, called without cgo.
+with `sandbox_init_with_parameters`, called without cgo. The call and
+its deny probe are in `internal/platform/selfsandbox`
+(S04-03-self-sandboxing, "Confined first thing in `main`").
 
 A confined process can't confine its children further. So `wb-hostd`
 starts the other daemons through `wb-launcher`, which it starts before
@@ -81,6 +83,13 @@ file size limit for it.
 - **Go interfaces in `internal/platform`**, implemented in files with
   `_darwin.go`, `_windows.go`, and `_linux.go` suffixes. Shared code
   never branches on `runtime.GOOS`.
+- **One package for the descriptor channels.** The `wb-vmd` hand-off,
+  the `wb-launcher` request channel, the stream hand-off and the
+  accounting and event channels use `internal/platform/fdchan`. Each
+  message holds one record and at most one descriptor. The package
+  refuses any other message and closes its descriptors
+  (S07-05-stream-hand-off, "Message form"). On macOS the socketpair is
+  `SOCK_DGRAM`.
 - **A native component is a separate process** with a gRPC contract. It
   is used only where Go can't reasonably call the platform API. It
   doesn't make policy decisions or hold secrets. The one exception:
