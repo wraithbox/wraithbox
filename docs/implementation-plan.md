@@ -64,7 +64,7 @@ has no profile before M6.1, so no control is weaker in the meantime.
 | M2.1 | Contracts and buf code generation: `vmd.v1`, `guest.v1` hello | S04-00, S10-01; NFR07 | | any | #159 |
 | M2.2 | Stamped build version, `Wraith Box.app`, helper bundles, entitlement check, `wb setup` install | S10-02, S17-01, S17-02, S04-08 "Version skew"; C12 | M2.1 | mac, H1 | #174, #278, #279, #280 |
 | M2.3 | Host plumbing: paths, peer-checked local IPC with a version handshake, one-descriptor channels, Seatbelt trampoline and deny probe | S12-01, S04-02, S04-03; SEC12 | M2.1 | mac | #281, #282 |
-| M2.4 | `wb-vmd` device-set check, with the guest tools disk | S04-02, S06-06 "Devices"; SEC02, SEC05; C11 | M2.1 | any | #160 |
+| M2.4 | `wb-vmd` device-set check, with the guest tools disk | S04-02, S06-06 "Devices"; SEC02, SEC05; C11 | M2.1 | mac | #160 |
 | M2.5 | `wb-vmd` confined boot and stop, slot checks, ConnectGuest, descriptor hand-off | S04-02, S04-03, S04-04; SEC01, SEC02, SEC08; C11 | M2.3, M2.4, H3 | vm | #161, #164 |
 | M2.6 | `wb-guestd` core: vsock below 1024, hello and version form, tools-disk update, clock | S06-12, S06-06 "Time", S04-08; SEC11; C09, C11 | M2.1 | vm | #163 |
 | M2.7 | `wb-hostd` core: `state.db`, config, VM supervision, port routing, caps, reconnect, generations, tools-disk clone, log pipes, `wb vm` | S04-02, S04-08, S06-07, S06-11, S06-12; SEC13; C11 | M2.5, M2.6 | any with a fake provider, mac, vm | #283 to #288 |
@@ -127,7 +127,7 @@ the fixture bundle, before the git packages.
 | M4.9 | `~/.claude` carry-in: filter, caps, write as the user | S14-02, S14-03; FR13 | secret scanner | any, vm | |
 | M4.10 | Bindings and model credential: placeholders, injection, streaming scan, `wb cred`; long-lived token and API key | S09-05, S07-08, S07-09; SEC04; C05, C06 | M3.6 to M3.9, #253 | any, H4 | #253 (folded: #226) |
 | M4.11 | Terminal records and session summary | S09-12, S16-03, S05-01; SEC10 | M2.11, M3.10 | any | folded: #199 (escaper and report parser fuzz targets) |
-| M4.12 | `wb claude`: agent interface, environment, history link, job control; C06 end to end | S14-00, S06-08, S05-01, S05-02; FR01, FR13 | V1-M4, IMG.7, H4 | vm, host | #135, #231 (Claude Code part) |
+| M4.12 | `wb claude`: agent interface, environment, history link, job control; C06 end to end | S14-00, S06-08, S05-01, S05-02; FR01, FR13 | M4.10, M2.12, H4 for the first prompt; the rest of V1-M4 and IMG.7 for C06 | vm, host | #135, #231 (Claude Code part) |
 
 ## V1-M5-approvals
 
@@ -144,7 +144,7 @@ the fixture bundle, before the git packages.
 | M5.9 | General bindings, anonymous credentials, part switches, policy changes while running | S07-10, S07-11, S07-01; SEC06 | M4.10 | any | folded: #153 (a binding names its token endpoint), #208 (a confirmed remote change widens policy) |
 | M5.10 | `wb policy`, `wb allow`, `wb audit` | S05-03, S09-02, S09-11; FR15, NFR06 | M5.2, M5.3 | any | folded: #207 (`wb policy explain` shows the audit projection) |
 | M5.11 | Toolchain reconcile | S06-01, X20-shared-homebrew; FR07; C09 | IMG.6, M3.12 | any, vm | #180 (folded: #181) |
-| M5.12 | Approval and gate conformance | C03, C07 | V1-M5 | vm, host | |
+| M5.12 | Approval and gate conformance | C03, C07 | the rest of V1-M5 | vm, host | |
 
 ## V1-M6-release-gate
 
@@ -165,8 +165,11 @@ The `vm` lane, about 21 packages in series, with one VM builder at a
 time:
 
 H3, M2.5, M2.6, M2.7, M2.8, M2.10, M2.12, M3.12 (H1), IMG.2 (H2),
-IMG.3, IMG.4, IMG.5, IMG.6, IMG.7, M4.2, M4.7, M4.12 (H4), M5.12,
+IMG.3, IMG.4, IMG.5, IMG.6, IMG.7, IMG.8, M4.2, M4.7, M4.12 (H4), M5.12,
 M6.3 and M6.4, M6.7, M6.8.
+
+The VM parts of M3.9, M4.8, M4.9, M5.11 and M6.2 run in the same lane,
+between the packages they depend on.
 
 The maintainer's decisions reach the lane before it does: the spec
 changes of IMG.0 come first in V1-M7-image-build, and the

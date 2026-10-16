@@ -20,7 +20,7 @@ item.
    Our code refuses an undeclared access where the backend can't, and
    logs it with the rule.
 2. **Use over fetch.** Where the store can use a key in place, the
-   process doesn't fetch it, as with 1Password's SSH agent signing.
+   process doesn't fetch it, as with 1Password's SSH agent signing after V1.
    For the CA key, `wb-proxyd` fetches only the key's wrapped form. The
    Secure Enclave or the TPM signs with it, so the key itself never
    enters the process (S09-06-ca-keys, "Key").
@@ -29,7 +29,7 @@ item.
    the work ends. Go and Swift can't reliably wipe memory, so the bound
    is the work's end, or the process's exit.
 4. **Few prompts.** A session start fetches every item it needs in one
-   batch, so a 1Password unlock asks at most once. `wb-proxyd` doesn't
+   batch, so a 1Password unlock after V1 asks at most once. `wb-proxyd` doesn't
    fetch per request. A store prompt is never an approval, and is never
    shown in the agent's terminal (SEC14-no-fake-approvals, I51). The
    Keychain doesn't show a dialog in any build ("No Keychain dialogs"
@@ -54,7 +54,7 @@ item.
 
    A read that fails because the store is locked is this case, in
    every build and on every backend. That is -25308 on the Keychain,
-   or a locked 1Password. It holds for a CA item too (S09-06-ca-keys, "Valid CA").
+   or a locked 1Password after V1. It holds for a CA item too (S09-06-ca-keys, "Valid CA").
 8. **Generated items are named and removed.** A secret Wraith Box
    generates is random, from the OS's cryptographic random source. It
    is named for what it belongs to, and removed with it. At start, and
