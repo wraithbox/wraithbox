@@ -91,16 +91,15 @@ file size limit for it.
 
 On macOS and Linux guests, `wb-guestd` listens on a vsock port below
 1024, which a project user can't bind (S06-vm-lifecycle,
-X27-vsock-confinement). Other guests and hosts are open:
+X27-vsock-confinement). For other guests and hosts, spikes decide it:
 
 - **A Windows guest on a macOS or Linux host** reaches the host over
-  virtio-vsock through a Windows guest driver. Whether that driver
-  keeps low ports for privileged processes is unknown
-  (X13-windows-guests).
+  virtio-vsock through a Windows guest driver. X13-windows-guests
+  checks whether that driver keeps low ports for privileged processes.
 - **Any guest on a Windows host** uses Hyper-V sockets. They name a
-  service by GUID instead of a port number. How the guest stops a
-  project user from registering `wb-guestd`'s service while
-  `wb-guestd` restarts is undecided (X11-windows-host).
+  service by GUID instead of a port number. X11-windows-host decides
+  how the guest stops a project user from registering `wb-guestd`'s
+  service while `wb-guestd` restarts.
 
 ### Secret store on Linux without a desktop session
 

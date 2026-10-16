@@ -23,7 +23,8 @@ An approval adds one rule of a fixed form:
 - `access: read-only` (GET, HEAD and OPTIONS);
 - `binaries: /**`.
 
-A write method needs a separate request (S07-egress-gateway). It adds a
+A write method needs a separate request (S07-17-approvals-and-learning,
+"What an approval grants"). It adds a
 rule of the same fixed form, with one named method and the exact path,
 or path prefix, that the request used, in place of `access: read-only`.
 
@@ -56,8 +57,8 @@ OpenShell's proposal risk check.
 - Wraith Box only: a first write method on a host without a credential
   (S07-17-approvals-and-learning, "What an approval grants").
 - Wraith Box only: a shared object-storage host or a wildcard over one,
-  and signature parameters on a write method (S07-egress-gateway,
-  X22-no-guest-credentials).
+  and signature parameters on a write method (X22-no-guest-credentials,
+  and S07-08-requests-and-credentials, "Signed URLs").
 - Wraith Box only: a host that mirrors a gated registry
   (S07-12-dependency-gate, the condition on which T07-ungated-sources
   was accepted).

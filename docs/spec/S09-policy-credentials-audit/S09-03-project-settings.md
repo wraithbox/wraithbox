@@ -97,8 +97,8 @@ A rule on a built-in host whose profile part is off is a load error too
 #### Which commit
 
 It is read only from the host repository's checked-out `HEAD`. It is
-never read from the landing, quarantine or export repository
-(S08-workspace-and-git). So the guest can't change it by pushing.
+never read from the landing or export repository, or from a push's
+quarantine (S08-04-push-checks). So the guest can't change it by pushing.
 
 Returned work that changes `.wraithbox/` is flagged
 (S08-workspace-and-git). The guest can still propose such a change. So

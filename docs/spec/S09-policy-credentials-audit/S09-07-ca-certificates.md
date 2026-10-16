@@ -147,7 +147,7 @@ and the CA certificate's SHA-256 fingerprint (SEC10-audit):
   - the CNG key on Windows, which opens by its name;
   - the TPM blob or the software fallback key on Linux.
 
-  Rotation bounds how long that is useful, now up to 60 days. Only
+  Rotation bounds how long that is useful, to at most 60 days. Only
   that VM's guest trusts the CA. The thief also needs a position in
   that guest's traffic, which runs only through the host.
 - **Overlap:** it keeps rotation from breaking running tools.

@@ -74,8 +74,6 @@ a recorded ID only for processes whose user ID is this session's
 project user. A process that leaves the POSIX session with `setsid` is
 out of the session (S13-02-filesystem-profile, "Known gaps").
 
-That job control works through this helper isn't checked yet (I135).
-
 ### Closing the terminal ends the session
 
 `wb-hostd` has `wb-guestd` hang up the session when:

@@ -121,7 +121,9 @@ The restart:
 - doesn't count toward the restart limit.
 
 The command is refused without a terminal, because a person has to
-confirm. It is never part of a guest RPC (S07-12-dependency-gate).
+confirm. It asks in its own terminal, never in a session's stream
+(SEC14-no-fake-approvals). It is never part of a guest RPC
+(S07-12-dependency-gate).
 
 ### `wb vm reset-ca`
 
@@ -137,8 +139,9 @@ This command follows a `ca-key-restore` refusal.
 The next start then cold boots with a new CA (S09-06-ca-keys, "Valid CA").
 
 The command is refused while the VM runs. It is refused without a
-terminal, because a person has to confirm. It is never part of a guest
-RPC.
+terminal, because a person has to confirm. It asks in its own terminal,
+never in a session's stream (SEC14-no-fake-approvals). It is never
+part of a guest RPC.
 
 ### `wb vm`
 

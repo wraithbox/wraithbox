@@ -9,7 +9,7 @@ lets it write, and what `wb` takes from `wb-hostd`.
 
 The git gateway runs git on data the guest sends. That git starts
 through `wb-launcher` as `wb-git`: a shim that applies a profile for
-one repository and then runs git (not yet built).
+one repository and then runs git.
 
 The launcher table has two fixed entries, so the subcommand is never a
 free string:

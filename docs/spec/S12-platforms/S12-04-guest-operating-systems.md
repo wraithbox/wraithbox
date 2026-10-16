@@ -16,7 +16,7 @@ building:
 | PTY | Unix PTY | Unix PTY | ConPTY |
 | Toolchain manifest (FR07-toolchain-manifest) | Brewfile | package list (apt) | package list (winget) |
 | CA trust (S09-policy-credentials-audit) | trust files + toolchain variables. Not the system keychain, which refuses the CA without a user (X04-tls-inspection, I185) | system trust store + toolchain variables | machine certificate store + toolchain variables |
-| Guest confinement (S13-guest-confinement) | Seatbelt profiles; Network Extension flow labels (X14-flow-attribution); Endpoint Security (X15-endpoint-security) | Landlock and seccomp, as in OpenShell's sandbox runtime (X16-openshell-linux) | to be decided |
+| Guest confinement (S13-guest-confinement) | Seatbelt profiles; Network Extension flow labels (X14-flow-attribution); Endpoint Security (X15-endpoint-security) | Landlock and seccomp, as in OpenShell's sandbox runtime (X16-openshell-linux) | not designed in V1 |
 
 ### Windows guests need a virtual TPM
 

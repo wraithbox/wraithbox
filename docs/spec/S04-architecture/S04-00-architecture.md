@@ -3,6 +3,9 @@
 **Purpose:** Name the processes, the boundaries between them, and which
 requirement each boundary serves.
 
+**Requirements:** SEC01-separate-kernel, SEC02-no-host-fs-share,
+SEC05-default-deny, SEC15-no-guest-disk-mount
+
 **Tests:** C11-host-daemons, C01-network-and-dns
 
 Briefs: B29-vsock-handoff, B34-sandboxed-daemons,
@@ -39,7 +42,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-credset` | Go | user, one run per `wb cred set`, `rm` or `list`, started by `wb`, then exits | the `binding/*` secret store items it writes, deletes or lists, and nothing else | none | Confine itself, then do one store operation: write the value from its standard input, delete an item, or list item names (S15-least-privilege) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself (S04-03-self-sandboxing, "Each host daemon is self-sandboxed") |
-| `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (decided in B34-sandboxed-daemons, not yet built) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository (for a push, also reading the `export.git` it borrows from), then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
+| `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (B34-sandboxed-daemons) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository (for a push, also reading the `export.git` it borrows from), then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |
 | `wb-prover` | Go | user, per boundary check (at `wb trust` and for an approval request whose result isn't cached), started through `wb-launcher` (on macOS); instance cap one per VM plus one for `wb trust` | nothing | repository policy, and a host name the guest asked for in an approval request, both through `wb-hostd` | Set its memory cap, confine itself to its inherited descriptors (the two documents and the result pipe), check the prover binary's hash, then run `openshell-prover check` with fixed arguments (S09-policy-credentials-audit) |
 | `wb-vmd` | platform-native | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS, as `wb-vmd-work`, `wb-vmd-isolated`, or `wb-vmd-install` for an image build) | its VM's handles; during an image build, the provisioning password on a pipe until the start call returns (S15-least-privilege) | none (devices only) | Create, start, stop, save, and restore its VM; hand guest socket connections and the NIC endpoint to other processes (S12-platforms) |
 | `wb-netd` | Go | user, one per VM, spawned for `wb-hostd` (through `wb-launcher` on macOS) | nothing | Ethernet frames | Network stack, DHCP, DNS, stream hand-off (S07-egress-gateway) |

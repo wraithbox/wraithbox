@@ -202,7 +202,7 @@ Wraith Box renews it. At expiry, or after a leak, the user:
 
 OpenShell has shown that an API key works this way.
 X01-model-credential saw the placeholder go out as `x-api-key` and be
-replaced. A run of this mode end to end is still open in I253.
+replaced.
 
 ##### Browser login
 

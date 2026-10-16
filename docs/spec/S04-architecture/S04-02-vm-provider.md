@@ -145,7 +145,7 @@ SEC02-no-host-fs-share, SEC05-default-deny).
 - **Profile.** On macOS, `wb-vmd`'s sandbox profile also refuses a
   shared directory, host audio input, and a disk or serial port file
   outside the bundle. It denies the lookup of the host clipboard
-  service (the effect in the guest is untested).
+  service.
 
 ### What only the code keeps out
 

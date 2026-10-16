@@ -37,7 +37,8 @@ processes then can't open, bind, or listen on vsock and pose as
 
 A second control backs it: `wb-guestd`'s port is below 1024, which the
 guest kernel lets only root bind. That also holds for project processes
-outside the profile (S04-architecture, and "Known gaps" below).
+outside the profile (S06-12-guest-agent, "The port", and "Known
+gaps" below).
 
 The host doesn't rely on either to keep the guest from dialing in. It
 doesn't register a vsock listener, and it opens every connection itself

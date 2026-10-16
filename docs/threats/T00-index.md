@@ -145,8 +145,8 @@ print about returned work after `wb land` is outside it
   (S07-17-approvals-and-learning, "What an approval grants"). The user's
   credentials are never in the guest (SEC04-no-guest-secrets), and the
   git hosts of SEC06-repo-writes get the git hosting profile, a
-  self-hosted one with every kind's names (S07-egress-gateway,
-  X22-no-guest-credentials).
+  self-hosted one with every kind's names (X22-no-guest-credentials,
+  and S07-08-requests-and-credentials, "Named places").
 - **T11-shared-vm-grants: Projects in one VM share network grants.**
   The host sees one guest address per VM, and can't tell which
   project user, session or program opened a connection. So it enforces

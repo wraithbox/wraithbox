@@ -93,14 +93,10 @@ Without the setting, the build:
 
 Where a bundle has no profile, the profile checks of S12-03-host-prerequisites, "Development builds on macOS", don't apply.
 
-These are assumptions:
-
-- An explicit identifier that one team has registered is likely
-  refused to another. So each developer's team gets its own.
-  It is assumed until a second team builds, because X29-dev-signing
-  used one team.
-- A Developer ID build also needs a profile in each helper bundle for
-  its groups. That is assumed until the first release build.
+Each developer's team gets its own explicit identifier, because Apple
+may refuse one team's registered identifier to another
+(X29-dev-signing used one team). A Developer ID build has a profile in
+each helper bundle for its groups.
 
 ### Other hosts
 

@@ -9,7 +9,7 @@ Brief: B16-warm-start
 - **Decides:** a saved state restores in about 4 s and can be restored
   any number of times, each time from a fresh APFS clone of the state,
   both disks and the auxiliary storage, under the conditions below,
-  which S06-vm-lifecycle "Warm start" now states.
+  which S06-06-devices-and-warm-start, "Warm start", now states.
 - **You are approving:** the answer "yes, with conditions", the
   measurements, and the S06-vm-lifecycle text. NFR01-startup fits for
   an idle guest. Whether it fits for a working guest waits on
@@ -165,7 +165,7 @@ memory in use, restores more slowly.
 
 ## What it means for the specs
 
-- **S06-vm-lifecycle "Warm start"** now states the conditions above,
+- **S06-06-devices-and-warm-start, "Warm start",** now states the conditions above,
   and what a failed restore does: a permanent failure (another host, a
   host update) deletes the state and cold boots, and a temporary one
   (identifier in use, locked host) keeps the state (changed in this

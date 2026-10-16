@@ -109,8 +109,7 @@ child process as the project user (S13-01-process-hardening).
 - It removes each entry, or each unit inside one, that the copy
   doesn't have.
 
-So the host is the one source (FR13-claude-state, as narrowed on I45
-on 2026-10-12). A unit skipped this time is gone from the guest,
+So the host is the one source (FR13-claude-state, as narrowed on I45). A unit skipped this time is gone from the guest,
 instead of left as an older copy. So is every entry after a scanner
 failure.
 
