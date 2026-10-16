@@ -146,6 +146,7 @@ Merged: #a #b ...
 Waiting for you: #c (<reason>) ...
 Attended queue: <count, see run issue>
 Filed: <count> follow-ups
+Spike cache: <each entry and size from `mise run spike:clean`>
 Stopped because: <reason>
 ```
 
@@ -153,4 +154,6 @@ Then ask for the merge approvals and decisions on the `For the
 maintainer` list, up to four per question dialog. Merge an approved pull
 request with `gh pr merge <n> --rebase` only after the maintainer says
 so. After a spike result merges, tag its spike commit `spike-x<NN>-<slug>`
-(`planning.md`, "Spikes", "Tag").
+(`planning.md`, "Spikes", "Tag"), and run `mise run spike:clean x<NN>`
+unless an open issue still needs its VM bundles (`planning.md`, "Spikes",
+"VM bundles").
