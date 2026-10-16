@@ -134,11 +134,14 @@ jobs:
       - name: Contracts (Swift drift)
         run: mise run proto:check-swift
 
-      - name: Build
-        run: mise run swift:build
-
+      # Test before Build, as `mise run ci` orders them: `swift test`
+      # relinks the programs without the version stamp, so the stamped
+      # build goes last.
       - name: Test
         run: mise run swift:test
+
+      - name: Build
+        run: mise run swift:build
 
   docs:
     name: Docs

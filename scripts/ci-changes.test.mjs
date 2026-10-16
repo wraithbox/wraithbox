@@ -31,9 +31,13 @@ describe('decide', () => {
 		['a Swift-only change does not run Go', ['packages/wraithbox-swift/Sources/A.swift'], ['swift']],
 		['a proto change runs both sides', ['proto/wb/v1/vm.proto'], ['go', 'swift']],
 		['the release number runs both sides', ['VERSION'], ['go', 'swift']],
+		['the stamping tool runs both sides', ['packages/wraithbox-go/internal/tools/buildversion/main.go'], ['go', 'swift']],
+		['the version package runs both sides', ['packages/wraithbox-go/internal/version/version.go'], ['go', 'swift']],
+		['the Go module runs both sides', ['packages/wraithbox-go/go.mod'], ['go', 'swift']],
+		['the Go workspace runs both sides', ['go.work'], ['go', 'swift']],
 		['a harness change runs nothing filtered', ['.claude/settings.json'], []],
 		['an agent file is Markdown', ['.claude/agents/builder.md'], ['docs']],
-		['Go and docs together', ['go.work', 'docs/a.md'], ['docs', 'go']],
+		['Go and docs together', ['.golangci.yml', 'docs/a.md'], ['docs', 'go']],
 	])('%s', (_name, files, want) => {
 		expect(jobsFor(files)).toEqual(want);
 	});
@@ -61,7 +65,7 @@ describe('decide', () => {
 	});
 
 	test('the log names the file and the rule', () => {
-		expect(decide(['go.work']).log).toEqual(['go.work: go (go.work)']);
+		expect(decide(['.golangci.yml']).log).toEqual(['.golangci.yml: go (.golangci.yml)']);
 		expect(decide(['.claude/settings.json']).log).toEqual(['.claude/settings.json: none (.claude/**)']);
 		expect(classify('LICENSE').rules).toEqual(['no rule matches: every job']);
 	});

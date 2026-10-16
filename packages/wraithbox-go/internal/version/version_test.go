@@ -119,7 +119,9 @@ func TestCheckRefuses(t *testing.T) {
 		{name: "unstamped peer", own: v, peer: "", wantRule: RuleUnstamped},
 		{name: "unstamped self", own: "", peer: v, wantRule: RuleUnstamped},
 		{name: "two equal versions outside the form", own: "dev", peer: "dev", wantRule: RuleUnstamped},
-		{name: "peer outside the form", own: v, peer: v + "\n", wantRule: RuleUnstamped},
+		{name: "peer outside the form", own: v, peer: v + "\n", wantRule: RuleForm},
+		{name: "peer outside the form, self unstamped", own: "", peer: "\x1b[31m", wantRule: RuleUnstamped},
+		{name: "terminal escape as the peer version", own: v, peer: "\x1b]0;x\x07", wantRule: RuleForm},
 		{name: "another revision", own: v, peer: "0.1.0+g0123456789abcde0", wantRule: RuleMismatch},
 		{name: "another modified tree", own: v + ".dirty.01", peer: v + ".dirty.02", wantRule: RuleMismatch},
 		{name: "clean and modified tree", own: v, peer: v + ".dirty.01", wantRule: RuleMismatch},
@@ -132,8 +134,8 @@ func TestCheckRefuses(t *testing.T) {
 			if !errors.As(err, &r) {
 				t.Fatalf("Check(%q, %q) = %v, want a *Refusal", tt.own, tt.peer, err)
 			}
-			if r.Rule != tt.wantRule || r.Own != tt.own || r.Peer != tt.peer {
-				t.Errorf("Check(%q, %q) = %+v, want rule %s with both versions", tt.own, tt.peer, r, tt.wantRule)
+			if r.Rule != tt.wantRule || r.OwnLabel() != Label(tt.own) || r.PeerLabel() != Label(tt.peer) {
+				t.Errorf("Check(%q, %q) = %v, want rule %s with both labels", tt.own, tt.peer, r, tt.wantRule)
 			}
 			if !strings.Contains(err.Error(), tt.wantRule) {
 				t.Errorf("Error() = %q, want it to name the rule %s", err.Error(), tt.wantRule)
@@ -180,12 +182,22 @@ func FuzzCheck(f *testing.F) {
 		if len(label) > 4*MaxLen+2 {
 			t.Fatalf("Label(%q) is %d bytes", peer, len(label))
 		}
-		for i := range len(label) {
-			if label[i] < 0x20 || label[i] > 0x7e {
-				t.Fatalf("Label(%q) = %q holds byte %#x", peer, label, label[i])
-			}
+		assertPrintable(t, label)
+		if err != nil {
+			assertPrintable(t, err.Error())
 		}
 	})
+}
+
+// assertPrintable fails unless every byte of s is printable ASCII, so s
+// is safe in a log record or a terminal.
+func assertPrintable(t *testing.T, s string) {
+	t.Helper()
+	for i := range len(s) {
+		if s[i] < 0x20 || s[i] > 0x7e {
+			t.Fatalf("%q holds byte %#x", s, s[i])
+		}
+	}
 }
 
 // assertForm fails unless s is printable ASCII of at most MaxLen bytes.
