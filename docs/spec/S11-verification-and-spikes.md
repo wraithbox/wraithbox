@@ -19,7 +19,9 @@ take its place.
 Where an area page names properties for a target, the target checks
 them, not only that the parser doesn't crash. `ci` runs each target
 briefly as a smoke run (`go:fuzz`). The task finds the targets itself,
-and a new target doesn't need a change to it.
+and a new target doesn't need a change to it. CI lists the targets on
+Linux with the default build tags. A fuzz target belongs in a file
+without a GOOS suffix or build constraint, or CI never finds it.
 
 ### Conformance suite
 

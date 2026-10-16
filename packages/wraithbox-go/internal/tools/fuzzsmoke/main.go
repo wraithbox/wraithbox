@@ -6,7 +6,12 @@
 // target is covered without a change here, and runs each one in its own
 // `go test -run '^$' -fuzz '^<name>$'` for -fuzztime. It stops at the
 // first failure and exits 1. `go test` has then written the failing input
-// under the package's testdata/fuzz, where it stays.
+// under the package's testdata/fuzz, where it stays, and fuzzsmoke prints
+// it too, so a CI log keeps it after the runner is gone.
+//
+// CI lists the targets on Linux with the default build tags, so a fuzz
+// target goes in a file without a GOOS suffix or build constraint
+// (S11-verification-and-spikes, "Fuzzing").
 //
 // It is a Go program, not a shell loop, so the task runs under Windows
 // cmd.exe as S02-toolchain requires.
@@ -23,9 +28,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 )
 
 // rule names the requirement in every decision fuzzsmoke prints.
@@ -36,6 +43,9 @@ type target struct {
 	pkg  string
 	name string
 }
+
+// maxInputBytes caps how much of one failing input fuzzsmoke prints.
+const maxInputBytes = 64 << 10
 
 // fuzzName matches a line of `go test -list` output that names a fuzz
 // target. `-list '^Fuzz'` prints the matching names one per line, among
@@ -66,8 +76,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	for _, t := range targets {
 		fmt.Fprintf(stdout, "fuzzsmoke: run %s %s for %s\n", t.pkg, t.name, *fuzztime)
+		// Whole seconds: some file systems keep coarse modification times.
+		start := time.Now().Truncate(time.Second)
 		if err := fuzz(ctx, *dir, t, *fuzztime, stdout, stderr); err != nil {
 			fmt.Fprintf(stderr, "fuzzsmoke: FAIL %s %s: %v (%s)\n", t.pkg, t.name, err, rule)
+			printNewInputs(ctx, *dir, t, start, stderr)
 			return 1
 		}
 		fmt.Fprintf(stdout, "fuzzsmoke: ok %s %s\n", t.pkg, t.name)
@@ -145,4 +158,69 @@ func fuzz(ctx context.Context, dir string, t target, fuzztime string, stdout, st
 		return fmt.Errorf("go test -fuzz: %w", err)
 	}
 	return nil
+}
+
+// printNewInputs prints each input that go test wrote under the package's
+// testdata/fuzz/<name> since start, with its path. An older file there is
+// part of the committed corpus and is left out.
+func printNewInputs(ctx context.Context, dir string, t target, since time.Time, w io.Writer) {
+	dirs, err := packageDirs(ctx, dir)
+	if err != nil {
+		fmt.Fprintf(w, "fuzzsmoke: cannot find the failing input: %v\n", err)
+		return
+	}
+	corpus := filepath.Join(dirs[t.pkg], "testdata", "fuzz", t.name)
+	entries, err := os.ReadDir(corpus)
+	if err != nil {
+		fmt.Fprintf(w, "fuzzsmoke: no failing input in %s: %v\n", corpus, err)
+		return
+	}
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil || !info.Mode().IsRegular() || info.ModTime().Before(since) {
+			continue
+		}
+		printInput(filepath.Join(corpus, e.Name()), w)
+	}
+}
+
+// packageDirs maps the import path of each package of the module in dir
+// to its directory.
+func packageDirs(ctx context.Context, dir string) (map[string]string, error) {
+	cmd := exec.CommandContext(ctx, "go", "list", "-f", "{{.ImportPath}} {{.Dir}}", "./...")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go list: %w", err)
+	}
+	dirs := map[string]string{}
+	for line := range strings.Lines(string(out)) {
+		// An import path has no space, and a directory may.
+		pkg, pkgDir, ok := strings.Cut(strings.TrimRight(line, "\r\n"), " ")
+		if ok {
+			dirs[pkg] = pkgDir
+		}
+	}
+	return dirs, nil
+}
+
+// printInput prints the path and contents of one failing input, cut at
+// maxInputBytes.
+func printInput(path string, w io.Writer) {
+	f, err := os.Open(path)
+	if err != nil {
+		fmt.Fprintf(w, "fuzzsmoke: cannot read the failing input: %v\n", err)
+		return
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, maxInputBytes+1))
+	if err != nil {
+		fmt.Fprintf(w, "fuzzsmoke: cannot read the failing input: %v\n", err)
+		return
+	}
+	fmt.Fprintf(w, "fuzzsmoke: failing input %s:\n", path)
+	_, _ = w.Write(data[:min(len(data), maxInputBytes)])
+	if len(data) > maxInputBytes {
+		fmt.Fprintf(w, "\nfuzzsmoke: cut at %d bytes\n", maxInputBytes)
+	}
 }
