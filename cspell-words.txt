@@ -20,6 +20,9 @@ wbadmin
 guestadmin
 wbprov
 wbtest
+vmdv
+guestv
+contracttest
 
 # Virtualization, networking and OS facilities
 datavol
@@ -135,6 +138,8 @@ Gitea
 Forgejo
 Codeberg
 codesign
+protoc
+protoreflect
 
 # Docs site (Astro Starlight)
 frontmatter

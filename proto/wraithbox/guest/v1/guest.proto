@@ -1,0 +1,48 @@
+// The contract between wb-hostd and wb-guestd, the agent in the guest.
+// wb-hostd is the client: it opens every connection, through wb-vmd's
+// ConnectGuest (S04-02-vm-provider, "The host opens every connection"),
+// and wb-guestd serves it.
+//
+// wb-guestd runs as root in the guest, which the threat model takes as
+// the adversary. Every field of every message from wb-guestd is guest
+// input. The host checks each one against the bounds written next to it
+// before it uses it, and gives each message the same checks whatever
+// version the guest reported (SEC11-root-gains-nothing).
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.guest.v1;
+
+// GuestService is what wb-guestd serves. The session messages of
+// S06-11-reconnect-and-recovery and S06-09-session-lifecycle join it
+// later as RPCs of their own, each with its own caps and checks.
+service GuestService {
+  // Hello is the first call on every connection the host opens
+  // (S04-08-records-and-bounds, "With `wb-guestd`"). wb-hostd refuses a
+  // wb-guestd whose answer fails a check below, or that reports another
+  // build version than its own, before any other request.
+  rpc Hello(HelloRequest) returns (HelloResponse);
+}
+
+message HelloRequest {}
+
+message HelloResponse {
+  // wb-guestd's build version. The host refuses it with the rule
+  // `guest-version-form` unless it is printable ASCII, at most 64 bytes,
+  // in the form MAJOR.MINOR.PATCH with an optional `-` prerelease part
+  // and `+` build part of letters, digits, dots and hyphens. Wherever the
+  // host shows it, it is escaped and cut to 64 bytes. The host uses it
+  // only to refuse, never to allow something or to pick how a message is
+  // parsed (S04-08-records-and-bounds, "The guest's version is a label").
+  string guestd_version = 1;
+
+  // The full name of each package wb-guestd serves, which ends in the
+  // package's major version, for example `wraithbox.guest.v1`
+  // (S04-08-records-and-bounds, "With `wb-guestd`"). The host refuses a
+  // list of more than 16 names, and a name over 64 bytes or not of the
+  // form `wraithbox.<lowercase letters>.v<number>`.
+  repeated string served_packages = 2;
+}

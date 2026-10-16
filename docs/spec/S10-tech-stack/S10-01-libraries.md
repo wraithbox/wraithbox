@@ -13,7 +13,7 @@ or downloads and runs, such as a VMM on Linux.
 | Need | Choice |
 |---|---|
 | Userspace TCP/IP | gVisor `pkg/tcpip`, from gVisor's `go` branch (Apache-2.0) |
-| RPC | protobuf + gRPC (`grpc-go`, `grpc-swift`, `swift-protobuf`; `Grpc.Net` when .NET arrives); code generated with `buf` |
+| RPC | protobuf + gRPC: `google.golang.org/grpc` (Apache-2.0) and `google.golang.org/protobuf` (BSD-3-Clause) in Go, grpc-swift 2 with `grpc-swift-protobuf` and `swift-protobuf` (all Apache-2.0) in Swift, `Grpc.Net` when .NET arrives. Code generated with `buf` (Apache-2.0) |
 | DNS server | a mature Go DNS library (for example `miekg/dns`) |
 | TLS/HTTP proxying | Go standard library (`crypto/tls`, `net/http`, `httputil`), `golang.org/x/net/http2` |
 | PTY | `creack/pty` (Unix), ConPTY through `golang.org/x/sys/windows`; `golang.org/x/term` |

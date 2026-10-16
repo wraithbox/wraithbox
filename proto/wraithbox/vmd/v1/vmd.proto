@@ -1,0 +1,185 @@
+// The contract between wb-hostd and wb-vmd, the VM provider
+// (S04-02-vm-provider). wb-hostd is the client and wb-vmd serves it,
+// over a local IPC endpoint only the user can open (S04-architecture,
+// "Inter-process contracts").
+//
+// The contract never names a path, a slot or a device type. wb-vmd's
+// device set is fixed in its code and checked before every start
+// (S04-02-vm-provider, "The device set is fixed and checked").
+//
+// Refusals use gRPC's rich error model: status FAILED_PRECONDITION or
+// INVALID_ARGUMENT, with a google.rpc.ErrorInfo detail whose `reason` is
+// the name of the rule that refused. The caller reads the rule as data
+// and never parses the message text (S04-02-vm-provider).
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.vmd.v1;
+
+// VMService runs one VM: there is one wb-vmd per VM
+// (S04-04-vm-processes, "One `wb-vmd` per VM").
+service VMService {
+  // Start boots the VM. wb-vmd checks its own description of the
+  // configuration against the fixed device set first, and refuses with
+  // the rule when it doesn't match.
+  rpc Start(StartRequest) returns (StartResponse);
+
+  // Stop stops the VM in the way `mode` names.
+  rpc Stop(StopRequest) returns (StopResponse);
+
+  // GetState returns the VM's current state.
+  rpc GetState(GetStateRequest) returns (GetStateResponse);
+
+  // WatchState sends the current state, then each change. wb-hostd
+  // learns from it that a VM stopped on its own
+  // (S06-11-reconnect-and-recovery, "Lost").
+  rpc WatchState(WatchStateRequest) returns (stream WatchStateResponse);
+
+  // ConnectGuest opens a host-guest socket connection to `guest_port` in
+  // the guest. gRPC can't pass a descriptor, so the answer holds none:
+  // wb-vmd sends the connection's descriptor on the hand-off channel in a
+  // HandoffMessage with the same `request_id` (S04-02-vm-provider, "Hand-off
+  // on macOS").
+  rpc ConnectGuest(ConnectGuestRequest) returns (ConnectGuestResponse);
+}
+
+message StartRequest {
+  // The VM generation, chosen by wb-hostd, which owns generations. Each
+  // start and each restore begins a new one (S04-02-vm-provider,
+  // "Restore").
+  uint64 generation = 1;
+  // Number of virtual CPUs (S06-06-devices-and-warm-start, "Resources").
+  uint32 cpu_count = 2;
+  // Guest memory in MiB (S06-06-devices-and-warm-start, "Resources").
+  uint64 memory_mib = 3;
+}
+
+message StartResponse {}
+
+// StopMode says how Stop stops the VM. The caller decides how long to
+// wait for a requested stop before it asks for a forced one.
+enum StopMode {
+  // Refused: a stop names its mode.
+  STOP_MODE_UNSPECIFIED = 0;
+  // Ask the guest to shut down, and return without waiting for it.
+  STOP_MODE_REQUEST = 1;
+  // Stop the VM at once.
+  STOP_MODE_FORCE = 2;
+}
+
+message StopRequest {
+  // The generation the caller means. wb-vmd refuses a stop for any
+  // other generation.
+  uint64 generation = 1;
+  StopMode mode = 2;
+}
+
+message StopResponse {}
+
+message GetStateRequest {}
+
+message GetStateResponse {
+  VMState state = 1;
+}
+
+message WatchStateRequest {}
+
+message WatchStateResponse {
+  VMState state = 1;
+}
+
+// State mirrors the states of the Virtualization framework's
+// VZVirtualMachine.State.
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_STOPPED = 1;
+  STATE_STARTING = 2;
+  STATE_RUNNING = 3;
+  STATE_PAUSED = 4;
+  STATE_ERROR = 5;
+  STATE_PAUSING = 6;
+  STATE_RESUMING = 7;
+  STATE_STOPPING = 8;
+  STATE_SAVING = 9;
+  STATE_RESTORING = 10;
+}
+
+message VMState {
+  // The generation this state belongs to.
+  uint64 generation = 1;
+  State state = 2;
+  // Set when the VM failed: the error that stopped it or made a start or
+  // restore fail.
+  VMError error = 3;
+}
+
+// VMError carries the four parts of a framework error that
+// S06-06-devices-and-warm-start ("Deciding permanence") asks wb-vmd to
+// pass on. wb-hostd logs them with its classification.
+message VMError {
+  // The error code, a VZError.Code value.
+  int64 code = 1;
+  // The error's localized failure reason, empty when it has none.
+  string failure_reason = 2;
+  // The errno of the underlying POSIX error, 0 when there is none.
+  int32 errno = 3;
+  // The error's localized description.
+  string description = 4;
+}
+
+message ConnectGuestRequest {
+  // The generation the caller means. wb-vmd refuses any other.
+  uint64 generation = 1;
+  // Chosen by the caller, and unique among its open requests. The
+  // HandoffMessage that carries the connection repeats it.
+  uint64 request_id = 2;
+  // The guest port to connect to. Every guest port wb-hostd connects to
+  // is below 1024 (S04-02-vm-provider, "Guest ports below 1024").
+  uint32 guest_port = 3;
+}
+
+message ConnectGuestResponse {}
+
+// Direction says which side opened a handed-off connection.
+enum Direction {
+  // Refused.
+  DIRECTION_UNSPECIFIED = 0;
+  // The host opened it. The host opens every host-guest connection
+  // (S04-02-vm-provider, "The host opens every connection").
+  DIRECTION_HOST_TO_GUEST = 1;
+}
+
+// HandoffMessage is not part of any RPC. wb-vmd sends one for each
+// connection it hands to wb-hostd, as one record on the hand-off
+// channel: an AF_UNIX SOCK_DGRAM socketpair with no path that wb-hostd
+// passes to wb-vmd at spawn (S04-02-vm-provider, "Hand-off on macOS").
+// The record is this message's protobuf encoding, with exactly one
+// descriptor attached by SCM_RIGHTS: the connection.
+//
+// The receiver refuses the record, closes every descriptor that came
+// with it, and logs the refusal with its rule, when:
+//
+// - the record is over 256 bytes, or arrived truncated (MSG_TRUNC or
+//   MSG_CTRUNC);
+// - it doesn't decode as a HandoffMessage;
+// - it carries other than exactly one descriptor;
+// - the descriptor isn't a socket of the expected type;
+// - `generation` isn't the VM's current generation;
+// - `request_id` doesn't name an open ConnectGuest request of that
+//   generation;
+// - `direction` isn't DIRECTION_HOST_TO_GUEST;
+// - `destination_port` isn't the guest port that request asked for.
+message HandoffMessage {
+  // The ConnectGuest request this connection answers.
+  uint64 request_id = 1;
+  // The VM generation the connection belongs to.
+  uint64 generation = 2;
+  Direction direction = 3;
+  // The vsock port on the side that opened the connection.
+  uint32 source_port = 4;
+  // The vsock port on the side that accepted it.
+  uint32 destination_port = 5;
+}

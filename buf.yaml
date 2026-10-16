@@ -1,0 +1,13 @@
+# buf configuration for the .proto contracts in proto/ (B52-proto-contracts,
+# S10-01-libraries). `mise run proto:check` runs `buf lint` with the
+# default rules and `buf breaking` against main. No dependency on the
+# Buf Schema Registry, so the checks run offline.
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

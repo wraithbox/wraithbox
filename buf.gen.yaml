@@ -1,0 +1,24 @@
+# Go code for every package in proto/, committed under
+# packages/wraithbox-go/internal/gen/ (B52-proto-contracts, decision A).
+# Run `mise run proto:generate`, never edit the output by hand:
+# `mise run proto:check` fails on any difference.
+#
+# The plugins are local, never `remote:`. Both are `tool` lines in
+# packages/wraithbox-go/go.mod, so go.sum pins them and dependabot bumps
+# them. `go tool` resolves them through go.work from the repository root.
+version: v2
+clean: true
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen
+plugins:
+  - local: ["go", "tool", "protoc-gen-go"]
+    out: packages/wraithbox-go/internal/gen
+    opt: paths=source_relative
+  - local: ["go", "tool", "protoc-gen-go-grpc"]
+    out: packages/wraithbox-go/internal/gen
+    opt: paths=source_relative
+inputs:
+  - directory: proto

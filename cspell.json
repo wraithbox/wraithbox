@@ -25,7 +25,13 @@
     "CODE_OF_CONDUCT.md",
     "*.svg",
     "*.png",
-    "*.ico"
+    "*.ico",
+    // Generated contract code, never edited by hand: `mise run
+    // proto:check` and `proto:check-swift` fail on any difference from
+    // what the generators make (B52-proto-contracts, decision A on I52).
+    // The .proto files they come from are checked.
+    "packages/wraithbox-go/internal/gen",
+    "packages/wraithbox-swift/Sources/WraithBoxRPC"
   ],
   "ignoreRegExpList": ["/GHSA(-[a-z0-9]{4}){3}/g", "/\\b(?=[0-9a-f]*[0-9])[0-9a-f]{6}\\b/gi"],
   "languageSettings": [

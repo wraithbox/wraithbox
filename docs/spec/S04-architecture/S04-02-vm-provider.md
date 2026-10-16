@@ -30,14 +30,19 @@ On macOS (X18-vsock-handoff):
   device. The receiver can't read the vsock ports from it, so `wb-vmd`
   sends them along.
 - The hand-off channel is a socketpair that `wb-hostd` passes to
-  `wb-vmd` at spawn (`SOCK_SEQPACKET` or `SOCK_DGRAM`, no path). There
-  is one for each VM's `wb-vmd` (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
+  `wb-vmd` at spawn, with no path. Its type is `SOCK_DGRAM`, because macOS
+  has no `SOCK_SEQPACKET` for Unix domain sockets
+  (S07-05-stream-hand-off, "Transport"). There is one for each VM's
+  `wb-vmd` (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
 - Each message carries exactly one descriptor, and these fields:
   request id, VM generation, direction, source port and destination
-  port, in a `.proto` contract (S04-08-records-and-bounds, "`.proto` packages").
+  port. The message is `HandoffMessage` in
+  `proto/wraithbox/vmd/v1/vmd.proto` (S04-08-records-and-bounds,
+  "`.proto` packages").
 - The receiver refuses the message when the descriptor count is not
   one, the socket type is wrong, or the destination port is not one it
-  asked for. It closes any descriptor in it, and logs the refusal.
+  asked for. It closes any descriptor in it, and logs the refusal. The
+  comments on `HandoffMessage` list every refusal rule.
 
 ### The host opens every connection
 

@@ -1,0 +1,23 @@
+# Swift code for wraithbox.vmd.v1, the one package a Swift process
+# serves (wb-vmd on macOS), committed as the WraithBoxRPC target
+# (B52-proto-contracts, decision A). Run `mise run proto:generate-swift`
+# on macOS, never edit the output by hand: `mise run proto:check-swift`
+# fails on any difference.
+#
+# The plugins are local, never `remote:`. The task builds both from the
+# SwiftPM dependencies that packages/wraithbox-swift/Package.resolved
+# pins: protoc-gen-swift from swift-protobuf, protoc-gen-grpc-swift-2
+# from grpc-swift-protobuf.
+version: v2
+clean: true
+plugins:
+  - local: packages/wraithbox-swift/.build/debug/protoc-gen-swift
+    out: packages/wraithbox-swift/Sources/WraithBoxRPC
+    opt: Visibility=Public
+  - local: packages/wraithbox-swift/.build/debug/protoc-gen-grpc-swift-2
+    out: packages/wraithbox-swift/Sources/WraithBoxRPC
+    opt: Visibility=Public
+inputs:
+  - directory: proto
+    paths:
+      - proto/wraithbox/vmd

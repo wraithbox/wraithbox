@@ -87,11 +87,27 @@ layout is the same everywhere:
 
 ## Inter-process contracts
 
-All IPC is protobuf over gRPC. On the host it runs over a local IPC
-endpoint only the user can open: Unix sockets in a `0700` directory on
-macOS and Linux, named pipes with an ACL for the user's SID on Windows.
-The peer's identity is checked on every connection. To the guest it runs
-over the host-guest socket. The `.proto` files are the single contract
-for every language (S10-tech-stack).
+Every message between processes is protobuf. A request with a reply
+goes over gRPC. On the host it runs over a local IPC endpoint only the
+user can open: Unix sockets in a `0700` directory on macOS and Linux,
+named pipes with an ACL for the user's SID on Windows. The peer's
+identity is checked on every connection. To the guest it runs over the
+host-guest socket.
+
+gRPC can't pass a descriptor. So a hand-off of descriptors is one
+record per message on a socketpair inherited at spawn
+(S04-02-vm-provider, "Hand-off on macOS").
+
+The `.proto` files in `proto/` are the one contract for every language
+(S10-tech-stack):
+
+| File | Package | Holds |
+|---|---|---|
+| `proto/wraithbox/vmd/v1/vmd.proto` | `wraithbox.vmd.v1` | `VMService`, served by `wb-vmd` and called by `wb-hostd`, and `HandoffMessage`, the record of the hand-off channel |
+| `proto/wraithbox/guest/v1/guest.proto` | `wraithbox.guest.v1` | `GuestService`, served by `wb-guestd` and called by `wb-hostd` |
+
+A refusal over gRPC names its rule in a `google.rpc.ErrorInfo` detail,
+as the `reason`, so the caller needn't parse the message text. The comments in each file
+state the bounds the receiver checks.
 
 **Status:** Draft
