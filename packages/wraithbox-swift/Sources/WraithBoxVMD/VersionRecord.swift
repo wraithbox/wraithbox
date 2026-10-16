@@ -6,6 +6,8 @@
 // its record first, then reads the peer's, and refuses a peer of another
 // version. The parser reads at most `maxLength` bytes.
 
+import WraithBoxVM
+
 /// The version record's form and checks.
 public enum VersionRecord {
     public static let magic: [UInt8] = Array("WBV1".utf8)
@@ -64,13 +66,17 @@ public enum VersionRecord {
         return .version(String(decoding: version, as: UTF8.self), length: start + length)
     }
 
-    /// Compares the peer's version with wb-vmd's own. They compare as
-    /// exact bytes: host processes have no compatibility rules.
+    /// Compares the peer's version with wb-vmd's own, in the order and
+    /// with the rules of Go's `version.Check`. They compare as exact
+    /// bytes: host processes have no compatibility rules.
     public static func check(peer: String?, own: String) throws(ConnectionRefusal) {
-        guard let peer, !own.isEmpty else {
+        guard let peer, WraithBoxVersion.isVersionForm(Array(own.utf8)) else {
             throw ConnectionRefusal(
                 .versionUnstamped,
                 "peer \(peer ?? "unstamped"), own \(own.isEmpty ? "unstamped" : own)")
+        }
+        guard WraithBoxVersion.isVersionForm(Array(peer.utf8)) else {
+            throw ConnectionRefusal(.versionForm, "peer \(peer), own \(own)")
         }
         guard peer == own else {
             throw ConnectionRefusal(.versionMismatch, "peer \(peer), own \(own)")

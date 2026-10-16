@@ -40,9 +40,10 @@ S09-11-audit
   record"). A peer of another user ID is closed with
   `ipc-peer-uid` and doesn't get a byte, and the next connection is
   served.
-  A peer of another version, an unstamped one, a silent one and one
-  that sends a wrong magic each get their rule, and no handler runs.
-  Arbitrary bytes never parse to a version outside the form.
+  A peer of another version, an unstamped one, one outside the version
+  form, a silent one and one that sends a wrong magic each get their
+  rule, and no handler runs. Arbitrary bytes never parse to a version
+  that isn't 1 to 64 bytes of printable ASCII.
 - **VMService.** With a fake VM, each refusal comes back with its rule
   as the `ErrorInfo` reason: `vm-resources`, `vm-already-running`,
   `vm-generation`, `vm-stop-mode`, `vm-starting`, `vm-config`,

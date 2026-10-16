@@ -52,7 +52,7 @@ public enum WraithBoxVersion {
     /// optional `-` prerelease part and an optional `+` build part, each
     /// of letters, digits, dots and hyphens. The Go side's
     /// `version.Valid` is the same check.
-    static func isVersionForm(_ bytes: [UInt8]) -> Bool {
+    public static func isVersionForm(_ bytes: [UInt8]) -> Bool {
         guard !bytes.isEmpty, bytes.count <= maxLength,
             var index = numbersEnd(bytes)
         else {
