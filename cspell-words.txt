@@ -22,6 +22,7 @@ wbprov
 wbtest
 
 # Virtualization, networking and OS facilities
+datavol
 AMFI
 ipsw
 pidinfo
@@ -90,6 +91,7 @@ envrc
 terminfo
 
 # Tools and their names in configs
+getent
 simctl
 sysadminctl
 msys
