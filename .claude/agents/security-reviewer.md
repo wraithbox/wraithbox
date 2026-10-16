@@ -48,9 +48,12 @@ Your final text is the report and nothing else. Start with the threat
 model. Then the findings, ordered by severity, each with: the boundary,
 the STRIDE letter, the severity (`critical`, `high`, `medium`, `low`),
 `file:line`, the abuse case (input or state, and what goes wrong),
-whether and how you reproduced it, the requirement ID it violates, and
-the proposed hardening. Mark each finding that is an exploitable
-vulnerability: the coordinator writes those up as draft security
-advisories, never public issues. Then the parts of the scope you did not
+whether and how you reproduced it, the requirement ID it violates, the
+proposed hardening, and a rating of `must-fix`, `fold` or `drop`
+(`docs/agents/planning.md`, "Follow-ups"). A weakened `SEC*` control
+or a check that fails open is always `must-fix`. Mark each finding
+that is an exploitable vulnerability: the coordinator writes those up
+as draft security advisories, never public issues. Then the parts of the scope you did not
 cover and why. End with a `Verdict: approve` or `Verdict: needs changes`
-line (for a pull request) and the attribution lines from `AGENTS.md`.
+line (for a pull request; `needs changes` only for an open `must-fix`
+finding) and the attribution lines from `AGENTS.md`.

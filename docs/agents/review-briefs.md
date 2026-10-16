@@ -10,6 +10,10 @@ technical detail one click away.
 The `brief` skill writes briefs and the `spec-draft` skill calls it.
 Builders write one for a spike result (`planning.md`, "Spikes").
 
+Briefs are for spike results and one-way decisions (`planning.md`,
+"Decisions"). A two-way decision is listed under "Choices made" in its
+pull request, without a brief.
+
 ## What a brief is not
 
 A brief explains, it does not decide. The record stays where it is:
@@ -80,6 +84,13 @@ order.
    `variant="caution"` when kept with a condition, `variant="danger"`
    when weakened. AGENTS.md forbids weakening a `SEC*` control, so an
    option that does needs a spec change, and the card says so.
+
+   After the cards, a short paragraph headed "The case for <runner-up>"
+   argues for the second-best option as well as it can be argued. Then
+   one line on how confident the recommendation is, and what finding
+   would change it. When a security trade-off is unclear, recommend the
+   strict option, and name the likely breakage and its later fix
+   without designing the fix.
 6. **Impact.** A `wb-impact` table: one row per requirement or control
    affected, columns per option. Write the ID with its slug and a few
    words of meaning ("SEC05-default-deny: only allowlisted hostnames are

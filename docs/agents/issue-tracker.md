@@ -38,7 +38,7 @@ deleted with `gh label delete <name>`.
 | Type     | `bug`, `enhancement`, `spike`, `documentation`, `chore` (one per issue)           |
 | Priority | `priority: critical`, `priority: high`, `priority: medium`, `priority: low`       |
 | Status   | `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human` (at most one)  |
-| Other    | `wontfix`, `needs-vm`                                                             |
+| Other    | `wontfix`, `needs-vm`, `needs-host`, `run`                                        |
 
 - `needs-triage`: a maintainer needs to evaluate the issue. New issues
   start here.
@@ -53,6 +53,12 @@ deleted with `gh label delete <name>`.
   Mac. A wave runs at most one such builder at a time
   ([`orchestration.md`](orchestration.md), "A wave"). Triage adds it
   when the issue says it needs a macOS guest.
+- `needs-host`: the work needs the maintainer's Mac itself: Keychain
+  items, signing with an identity, the `wbtest` user, `sudo`, or a
+  dialog. It is done in a session the maintainer attends, never by
+  `/wave` ([`host-work.md`](host-work.md)).
+- `run`: the run issue of a `/wave` run, which holds its state
+  ([`orchestration.md`](orchestration.md), "Runs"). Not a work issue.
 
 Area labels (`area:go`, `area:spec`, ...) and component labels
 (`comp:wb-netd`, ...) are recorded in
