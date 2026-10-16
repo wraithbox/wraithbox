@@ -36,7 +36,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Every failure of this build, as "file: message". Starlight logs a page
  * that fails to render and carries on, so the build itself would pass.
- * `specsIntegration` fails it at the end instead (specs.mjs).
+ * `specsIntegration` fails it at the end instead (specs.mjs). The list
+ * only holds the pages this process rendered, so `bun run build` clears
+ * the content cache (`--force`, package.json) to render every page.
+ * `astro check` renders them too, logs each failure, and still exits 0.
  * @type {string[]}
  */
 export const failures = [];
