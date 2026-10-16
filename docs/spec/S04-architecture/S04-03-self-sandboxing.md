@@ -93,8 +93,8 @@ It also denies the network, starting programs, and other services
 
 The extension classes were measured with the X18-vsock-handoff
 configuration, which has the device set of S06-06-devices-and-warm-start.
-When that set drops the graphics device (I247), the profile is ablated
-again.
+If that set drops the graphics device (S06-06-devices-and-warm-start,
+"The graphics device"), the profile is ablated again.
 
 ### `wb-proxyd` and the secret store on macOS
 
