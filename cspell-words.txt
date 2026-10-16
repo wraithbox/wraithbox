@@ -12,6 +12,7 @@ proxyd
 guestd
 credset
 vmd
+hostgit
 lsimons
 Simons
 myrepo
