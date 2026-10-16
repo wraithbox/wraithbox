@@ -41,7 +41,9 @@ process and runs the probe, so no daemon can leave the probe out:
   daemon exits.
 - The probe reads `/etc/passwd`, which every profile denies. The read
   has to fail with `EPERM`. Success, or any other error, makes the
-  daemon exit.
+  daemon exit. The probe shows that the profile applied. It doesn't
+  show that the profile denies all it should: each daemon's own
+  self-checks and the profile's review do that.
 
 ### `wb-hostd` before it confines itself
 

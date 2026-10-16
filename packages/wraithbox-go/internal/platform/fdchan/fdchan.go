@@ -7,9 +7,14 @@
 // (S04-03-self-sandboxing, "What keeps wb-launcher narrow"), the stream
 // hand-off (S07-05-stream-hand-off, "Transport" and "Message form") and
 // the accounting and event channels (S04-08-records-and-bounds) as those
-// are built. The record bytes are the caller's:
-// fdchan has no message format, and whether a kind of message may carry
-// a descriptor is the caller's check.
+// are built. The record bytes are the caller's: fdchan has no message
+// format, and whether a kind of message may carry a descriptor is the
+// caller's check. A caller refuses a record whose kind needs a
+// descriptor when Message.File is nil, and calls Message.Close on a
+// record whose kind allows none. A message can arrive without the
+// descriptor its sender attached: the kernel discards descriptors that
+// don't fit in the receiver's descriptor table, and Recv then refuses
+// and drops the message, but a caller doesn't count on that.
 //
 // It is in internal/platform because the mechanism is per OS
 // (S12-01-platform-interfaces, "Rules"). macOS has no SOCK_SEQPACKET for
@@ -52,6 +57,12 @@ const (
 	RuleControlMalformed Rule = "fdchan-control-malformed"
 	// RuleSocketType: an inherited end isn't an AF_UNIX SOCK_DGRAM socket.
 	RuleSocketType Rule = "fdchan-socket-type"
+	// RuleSocketUnconnected: an inherited end has no peer.
+	RuleSocketUnconnected Rule = "fdchan-socket-unconnected"
+	// RuleFDTableFull: the descriptors of a message didn't fit in the
+	// receiver's descriptor table. The kernel discards them, and Recv
+	// drops the message.
+	RuleFDTableFull Rule = "fdchan-fd-table-full"
 )
 
 // Refusal is the error of every refusal in this package.

@@ -29,9 +29,9 @@ var (
 // Confine applies the Seatbelt profile p to the calling process, with
 // params as its parameters, and then runs the deny probe. In order it:
 //
-//  1. checks the profile and the parameters (checkProfile), so a bad set
-//     leaves the process unconfined, and refuses a second call with
-//     RuleInitFailed once a profile applied;
+//  1. refuses a second call with RuleInitFailed once a profile applied,
+//     and checks the profile and the parameters (checkProfile), so a bad
+//     set leaves the process unconfined;
 //  2. sets GOMAXPROCS to the CPU count, which stops the runtime from
 //     reading the CPU count again, a read the profile denies
 //     (X23-sandboxed-daemons, condition 2);
@@ -47,11 +47,11 @@ var (
 func Confine(p Profile, params map[string]string) error {
 	confineMu.Lock()
 	defer confineMu.Unlock()
-	if r := checkProfile(p, params); r != nil {
-		return logged(r)
-	}
 	if confined {
 		return logged(&Refusal{Rule: RuleInitFailed, Profile: p.Name, msg: "the process is already confined by profile " + strconv.Quote(confinedBy)})
+	}
+	if r := checkProfile(p, params); r != nil {
+		return logged(r)
 	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	if msg, ok := sandboxInit(p.Text, params); !ok {

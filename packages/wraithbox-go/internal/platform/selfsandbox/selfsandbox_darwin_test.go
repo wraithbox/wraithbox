@@ -284,9 +284,10 @@ func caseRefused(name string) []string {
 	return append(wantRule("Confine", err, c.rule), unconfined()...)
 }
 
-// TestConfineDenyDefault confines a child under (deny default). Files,
-// the network and running programs are denied on every thread, and
-// inherited descriptors still work.
+// TestConfineDenyDefault is the C11-host-daemons case "Self-sandbox",
+// with the tests after it: it confines a child under (deny default).
+// Files, the network and running programs are denied on every thread,
+// and inherited descriptors still work.
 func TestConfineDenyDefault(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {

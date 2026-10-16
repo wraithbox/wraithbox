@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"syscall"
@@ -39,6 +41,31 @@ func TestDarwinControlLayout(t *testing.T) {
 	}
 	if !bytes.Equal(rights(7, 8), syscall.UnixRights(7, 8)) {
 		t.Errorf("rights(7, 8) = %v, want %v", rights(7, 8), syscall.UnixRights(7, 8))
+	}
+}
+
+// childCase names the case a child runs: the test binary again, for a
+// case that changes the process. TestMain runs it instead of the tests,
+// and the child prints resultOK when it passed.
+const (
+	childCase = "WB_FDCHAN_TEST_CASE"
+	resultOK  = "RESULT ok"
+)
+
+func TestMain(m *testing.M) {
+	switch os.Getenv(childCase) {
+	case "":
+		os.Exit(m.Run())
+	case "fd-table-full":
+		if err := fdTableFullChild(); err != nil {
+			fmt.Println("FAIL", err)
+			os.Exit(1)
+		}
+		fmt.Println(resultOK)
+		os.Exit(0)
+	default:
+		fmt.Println("unknown case")
+		os.Exit(2)
 	}
 }
 
@@ -139,8 +166,9 @@ func wantRefusal(t *testing.T, err error, rule Rule) {
 	}
 }
 
-// TestRoundTrip sends a record without and with a descriptor. The
-// received descriptor works and is close-on-exec.
+// TestRoundTrip is the C11-host-daemons case "One descriptor per
+// message", with the tests after it: it sends a record without and with
+// a descriptor. The received descriptor works and is close-on-exec.
 func TestRoundTrip(t *testing.T) {
 	a, b := pair(t)
 	if err := a.Send([]byte("no descriptor"), nil); err != nil {
@@ -289,6 +317,114 @@ func TestMostDescriptors(t *testing.T) {
 	if err := syscall.Sendmsg(raw, []byte("too many"), syscall.UnixRights(more...), nil, 0); !errors.Is(err, syscall.EINVAL) {
 		t.Errorf("send of %d descriptors: %v, want EINVAL: the control buffer may no longer hold every descriptor", len(more), err)
 	}
+	two := slices.Concat(syscall.UnixRights(int(w.Fd())), syscall.UnixRights(int(w.Fd())))
+	if err := syscall.Sendmsg(raw, []byte("two headers"), two, nil, 0); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("send of two SCM_RIGHTS messages: %v, want EINVAL", err)
+	}
+}
+
+// TestControlTruncatedEndsChannel sees a refusal with
+// RuleControlTruncated close the channel, and every later Recv return
+// it: the kernel may have left descriptors in the process that no one
+// can name.
+func TestControlTruncatedEndsChannel(t *testing.T) {
+	a, b := pair(t)
+	err := b.refuse(received{n: 10, flags: darwinControl.msgCtrunc}, decision{rule: RuleControlTruncated, keep: -1, lost: 1})
+	wantRefusal(t, err, RuleControlTruncated)
+	_, err = b.Recv()
+	wantRefusal(t, err, RuleControlTruncated)
+	if err := a.Send([]byte("after"), nil); err == nil {
+		t.Error("send to an ended channel succeeded")
+	}
+}
+
+// TestFDTableFull runs fdTableFullChild in a child, whose descriptor
+// table it fills: a process can't undo that safely.
+func TestFDTableFull(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^$")
+	cmd.Env = append(os.Environ(), childCase+"=fd-table-full")
+	out, err := cmd.CombinedOutput()
+	if err != nil || !bytes.Contains(out, []byte(resultOK)) {
+		t.Fatalf("child: %v\n%s", err, out)
+	}
+	if !bytes.Contains(out, []byte("rule="+string(RuleFDTableFull))) {
+		t.Errorf("no %s in the child's log:\n%s", RuleFDTableFull, out)
+	}
+}
+
+// fdTableFullChild sends a message with a descriptor and one without,
+// fills the descriptor table, and receives. The first message is
+// refused with RuleFDTableFull and dropped, so the next Recv returns the
+// second one, never the first without its descriptor.
+func fdTableFullChild() error {
+	fa, fb, err := Socketpair(testMax)
+	if err != nil {
+		return err
+	}
+	a, errA := New(fa, testMax)
+	b, errB := New(fb, testMax)
+	if err := errors.Join(errA, errB); err != nil {
+		return err
+	}
+	_, w, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+	if err := errors.Join(a.Send([]byte("first"), w), a.Send([]byte("second"), nil)); err != nil {
+		return err
+	}
+	held, err := fillFDTable()
+	defer func() {
+		for _, fd := range held {
+			_ = syscall.Close(fd)
+		}
+	}()
+	if err != nil {
+		return err
+	}
+	var r *Refusal
+	if _, err := b.Recv(); !errors.As(err, &r) || r.Rule != RuleFDTableFull {
+		return fmt.Errorf("Recv with the table full: %w, want %s", err, RuleFDTableFull)
+	}
+	m, err := b.Recv()
+	if err != nil || string(m.Record) != "second" || m.File != nil {
+		return fmt.Errorf("Recv after the refusal: %v, %w, want the second record", m, err)
+	}
+	return nil
+}
+
+// fillFDTable lowers the descriptor limit and opens descriptors until
+// none is left. It returns them.
+func fillFDTable() ([]int, error) {
+	var lim syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
+		return nil, err
+	}
+	lim.Cur = 256
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
+		return nil, err
+	}
+	var held []int
+	for {
+		fd, err := syscall.Dup(0)
+		if errors.Is(err, syscall.EMFILE) {
+			return held, nil
+		}
+		if err != nil {
+			return held, err
+		}
+		held = append(held, fd)
+	}
+}
+
+// TestNewRefusesUnconnected refuses a datagram socket without a peer.
+func TestNewRefusesUnconnected(t *testing.T) {
+	fd, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = New(os.NewFile(uintptr(fd), "unconnected"), testMax)
+	wantRefusal(t, err, RuleSocketUnconnected)
 }
 
 // TestNewRefusesOtherSockets refuses a stream socket and a pipe as an
