@@ -10,8 +10,8 @@ answer is in S03-requirements.
 | FR03-work-as-branch | Work returns as a branch | V1-M4-claude-end-to-end |
 | FR04-carry-in | Uncommitted changes carried in | V1-M4-claude-end-to-end |
 | FR05-parallel-sessions | Parallel sessions | V1-M4-claude-end-to-end |
-| FR06-native-tools | Native guest tools | No milestone |
-| FR07-toolchain-manifest | Declared toolchain | No milestone |
+| FR06-native-tools | Native guest tools | V1-M7-image-build |
+| FR07-toolchain-manifest | Declared toolchain | V1-M5-approvals |
 | FR08-no-proxy-config | No per-tool proxy settings | V1-M3-network-floor |
 | FR09-approve-unknown | Approve unknown destinations | V1-M5-approvals |
 | FR10-learn-mode | Learn mode | V1-M5-approvals |

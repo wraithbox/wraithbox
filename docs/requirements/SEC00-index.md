@@ -9,7 +9,7 @@ against the adversary of T00-index.
 | SEC01-separate-kernel | Separate kernel | V1-M2-walking-skeleton |
 | SEC02-no-host-fs-share | No host filesystem sharing | V1-M2-walking-skeleton |
 | SEC03-no-host-exec | No host code execution via returned work | V1-M4-claude-end-to-end |
-| SEC04-no-guest-secrets | No secrets in the guest | V1-M2-walking-skeleton, V1-M4-claude-end-to-end |
+| SEC04-no-guest-secrets | No secrets in the guest | V1-M7-image-build, V1-M4-claude-end-to-end |
 | SEC05-default-deny | Default-deny egress, enforced on the host | V1-M3-network-floor |
 | SEC06-repo-writes | Repository-scoped writes | V1-M4-claude-end-to-end |
 | SEC07-dep-gate | Dependency gate | V1-M5-approvals |

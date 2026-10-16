@@ -319,7 +319,7 @@
 	},
 	"49": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S10-tech-stack: installation, restore image download, upgrades and migrations",
 		"summary": "S10-tech-stack \"Packaging and signing\" gives the shape of the macOS app bundle.",
 		"brief": "B49-install-upgrade"
@@ -403,7 +403,7 @@
 	},
 	"62": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X19-terminal-filter: visual check in real terminals",
 		"summary": "Split from #30 (X19-terminal-filter) during triage on 2026-10-04."
 	},
@@ -1620,14 +1620,14 @@
 	},
 	"261": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "docs(spec): wb-proxyd and store-only self-sandbox profiles from X23 I61",
 		"summary": "The result of #61 (X23-sandboxed-daemons, \"wb-proxyd with the Keychain and the Secure Enclave (I61)\") measured the wb-proxyd profile."
 	},
 	"262": {
 		"kind": "issue",
 		"state": "open",
-		"title": "S17-install-and-upgrade: does Virtualization's installer refuse a changed restore image?",
+		"title": "X30-installer-trust: Installer refusal of a changed restore image",
 		"summary": "S17-install-and-upgrade (#49) checks a downloaded macOS restore image against the SHA-1 that Apple's catalog (mesu.apple.com) lists, the only hash it lists."
 	},
 	"263": {
@@ -1650,7 +1650,7 @@
 	},
 	"266": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): S17-install-and-upgrade, with wb-download for image builds",
 		"summary": "- Approving commits to: S17-install-and-upgrade, a new spec for how the macOS bundle is built, installed, upgraded and migrated, and for wb-download, the program that fetches what an image build needs."
 	},
@@ -1659,5 +1659,227 @@
 		"state": "merged",
 		"title": "docs(spec): split S11 into strategy and per-area test case pages",
 		"summary": "S11-verification-and-spikes had grown to 979 lines, mostly as two giant run-on bullets: every spec change appended its tests there."
+	},
+	"268": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): split the specs into trees of short pages",
+		"summary": "Restructures every spec into a tree of short pages, so the specs can be reviewed and maintained by a person."
+	},
+	"269": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): settle the findings of the spec tree refactor",
+		"summary": "Settles the findings list of #268."
+	},
+	"270": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "S16-terminal-stream: bare guest paths become host links in Ghostty, and the OSC 7501 probe counts as a drop",
+		"summary": "Found in the check by eye for #62 (X19-terminal-filter), 2026-10-16."
+	},
+	"271": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spike): X19-terminal-filter check by eye (#62)",
+		"summary": "Adds the result of the check by eye (#62) to docs/spikes/X19-terminal-filter.md."
+	},
+	"272": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): pass OSC 7501 without its text, accept terminal auto-links (#270)",
+		"summary": "Spec change for the decisions on #270 (found in the #62 check by eye)."
+	},
+	"273": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): wb-proxyd and store-only profiles from X23 (#261)",
+		"summary": "The spec changes from the I61 result of X23-sandboxed-daemons (#61)."
+	},
+	"274": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: close V1-M1 loose ends in B49, B31, S06-06 and S04-03",
+		"summary": "- Approving commits to: status and reference fixes found by the V1-M1 review, no design change."
+	},
+	"275": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(agents): runs with a wave lead, follow-up and decision rules, host work",
+		"summary": "The harness changes agreed in the V1-M1 review (2026-10-16)."
+	},
+	"276": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Host setup H1: team-signed development build on the maintainer's Mac",
+		"summary": "A maintainer action on the personal Mac, so that the team-signed path of the app bundle (M2.2c (#280)) and later the Keychain backend (M3.8) can be built and checked there."
+	},
+	"277": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Host setup H3: fixture VM bundle for the V1-M2 tests",
+		"summary": "V1-M2-walking-skeleton boots a fixture VM bundle instead of a built image, because wb image build moved to V1-M7-image-build (V1-initial)."
+	},
+	"278": {
+		"kind": "issue",
+		"state": "open",
+		"title": "build(app): ad-hoc `Wraith Box.app` with helper bundles, guest tools disk and the entitlement check",
+		"summary": "S17-01-bundle says what mise run build makes on macOS: one Wraith Box.app with every program, helper bundles for the programs that hold a Keychain access group, and the guest tools disk."
+	},
+	"279": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb setup: bundle check, LaunchAgent and `wb` link install, ad-hoc Keychain refusal",
+		"summary": "wb setup is how a user installs Wraith Box: a per-user LaunchAgent that runs wb-hostd, and a wb link on PATH (S17-02-setup)."
+	},
+	"280": {
+		"kind": "issue",
+		"state": "open",
+		"title": "build(app): team-signed `Wraith Box.app` with `WB_TEAM_ID`, and the team report in `wb setup`",
+		"summary": "S10-02-packaging-and-signing and S17-01-bundle say a development build signed by the developer's own team gets a profile from Xcode, copies it into each helper bundle, and signs with the team's Apple Development…"
+	},
+	"281": {
+		"kind": "issue",
+		"state": "open",
+		"title": "platform: one-descriptor socket channels and the Seatbelt trampoline with its deny probe",
+		"summary": "Every daemon after this one needs two host mechanisms that no code has yet:"
+	},
+	"282": {
+		"kind": "issue",
+		"state": "open",
+		"title": "platform: host paths and peer-checked local IPC with the build version exchange",
+		"summary": "wb-hostd, wb, wb-launcher and the daemons need to agree on where <config, <data and <logs are, and to talk over a local endpoint only the user can open, where each side checks the other's user ID and build version…"
+	},
+	"283": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: state.db with migrations, config.toml with closed keys, refusing mode, daemon log pipes",
+		"summary": "wb-hostd is a stub."
+	},
+	"284": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: VM manager for the work and isolated VMs, with generations, the guest tools disk step and a fake VM provider",
+		"summary": "Nothing on the host starts a VM for the user yet."
+	},
+	"285": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: guest link with port routing, connection caps, reconnect, build version match and gRPC limits",
+		"summary": "Once a VM boots, wb-hostd must reach wb-guestd, check it, keep the link, and get it back after a drop, within the bounds of SEC13-bounded-resources."
+	},
+	"286": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb vm start, stop and status over a first wraithbox.hostd.v1 contract",
+		"summary": "The user can't start or stop a VM."
+	},
+	"287": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd on macOS: spawn wb-vmd with its descriptors, the vmd provider, APFS clone of the guest tools disk, and the daemon's main",
+		"summary": "M2.7b (#284) and M2.7c (#285) run against a fake provider."
+	},
+	"288": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd on a VM: wb vm start boots the fixture bundle, links to wb-guestd, sends the time, reconnects and stops",
+		"summary": "M2.7a (#283) to M2.7e (#287) are tested with fakes."
+	},
+	"289": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-diskfmt: format a VM's new data disk on the host, data disk records, and `wb vm reset-data`",
+		"summary": "A VM needs a data disk before it first boots."
+	},
+	"290": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: mount the data volume by its UUID and check the mount before each session",
+		"summary": "After M2.8a (#289), each VM has a host-formatted data disk, and state.db holds its volume UUID."
+	},
+	"291": {
+		"kind": "issue",
+		"state": "open",
+		"title": "hostgit: resolve the host git binary, check its version, and run it in a scrubbed environment",
+		"summary": "wb and wb-hostd both run the host's git, and never the one in PATH (S08-08-host-git)."
+	},
+	"292": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: resolve a directory to its project key and recorded identity",
+		"summary": "Every project command starts from a directory."
+	},
+	"293": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: project records, identity check, registration and placement over local IPC",
+		"summary": "wb-hostd owns state.db (S04-architecture, \"Host state\"), so the projects table, and each change to a project, go through it."
+	},
+	"294": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: `wb project` commands, project resolution at session start, and the host git checks in `wb`",
+		"summary": "FR02-any-repo: the first run in a repository registers the project, with no setup step."
+	},
+	"295": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: project user IDs, records and the removal queue",
+		"summary": "Each project gets its own guest user in each VM (S06-08-projects-and-sessions, \"Guest users\", SEC08-proj-isolation)."
+	},
+	"296": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: create and recreate project users with their homes",
+		"summary": "wb-guestd must create each project user from the IDs the host kept, recreate the users on a fresh system disk, and give each home on the data disk only to the record with every kept ID (S06-03-image-updates,…"
+	},
+	"297": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: lock, kill loop and removal of project users",
+		"summary": "S13-01-process-hardening has wb-guestd lock a project user, kill its processes in a bounded loop that also boots out its launchd domain, and stop every project user's processes when the link drops or a new wb-guestd…"
+	},
+	"298": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: kill IDs and leftover-process results",
+		"summary": "wb-guestd kills a project user's processes in a bounded loop and reports clean or a count of processes left (S13-01-process-hardening, M2.10c (#297))."
+	},
+	"299": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: terminal filter for guest output, with drop counts and fuzz properties",
+		"summary": "wb shell (M2.12) and later wb claude write guest bytes to the user's terminal."
+	},
+	"300": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: keep the links the terminal filter drops, with their marks",
+		"summary": "The terminal filter (M2.11a (#299)) drops every OSC 8 hyperlink, and its text stays as plain text (S16-02-drops-and-links, \"Links\")."
+	},
+	"301": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: terminal reset on exit, checked against a terminal state model",
+		"summary": "The guest can leave the user's terminal in a state that hides what wb prints next."
+	},
+	"302": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: terminal-stream contract and the wb end of the shell relay",
+		"summary": "V1-M2-walking-skeleton ends when \"wb shell opens a PTY as a project user\"."
+	},
+	"303": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: session helper, PTY and the guest end of wb shell",
+		"summary": "wb shell needs a program running as the project user on a PTY in the guest, with its exit and stops reported to the host, and hung up and killed when the host says so."
+	},
+	"304": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb shell end to end: the wb-hostd relay, the command and the VM run",
+		"summary": "After M2.12a (#302) and M2.12b (#303), wb and wb-guestd each have their end of the terminal stream, and nothing joins them."
 	}
 }
