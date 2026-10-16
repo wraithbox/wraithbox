@@ -1,9 +1,10 @@
 // Package platform describes the host Wraith Box runs on and which guest
 // operating systems each host supports. See docs/spec/S12-platforms/S12-00-platforms.md.
 //
-// Platform-specific behavior is behind interfaces in this package's
-// subpackages, implemented in files with GOOS suffixes; shared code never
-// switches on runtime.GOOS itself.
+// Platform-specific behavior is in files with GOOS suffixes, in this
+// package (such as the host git defaults in git_<goos>.go) and behind
+// interfaces in its subpackages. Shared code never switches on
+// runtime.GOOS itself.
 package platform
 
 import (

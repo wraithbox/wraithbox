@@ -82,6 +82,11 @@ ALPN
 middleboxes
 ASIF
 libuv
+SYSTEMROOT
+PATHEXT
+USERPROFILE
+xcrun
+envrc
 terminfo
 
 # Tools and their names in configs

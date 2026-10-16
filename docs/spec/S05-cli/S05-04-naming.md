@@ -44,12 +44,25 @@ It sets only these variables:
 
 - `HOME`, taken from the user database (the account's home directory),
   not from the environment;
-- `XDG_CONFIG_HOME` from the login environment, when it is set;
-- `TMPDIR`;
+- `XDG_CONFIG_HOME` from the login environment, when it is set there
+  and is an absolute path;
+- `TMPDIR`, the caller's temporary directory, which must be an
+  absolute path;
 - `LC_ALL=C`.
 
 So no `GIT_*` variable, from the user's shell or a `.envrc`, can point
 the directory at another repository or add configuration.
+
+The login environment is the environment of the user's login session.
+A variable exported in a shell, or set by a `.envrc`, doesn't reach it. On macOS, that is
+launchd's: `wb` reads it with `/bin/launchctl getenv XDG_CONFIG_HOME`,
+run with an empty environment. Linux and Windows hosts come later
+(S12-platforms).
+
+When a variable can't be worked out, the command is refused, and the
+value is never taken from the caller's environment instead. That
+happens on a failed user database or `launchctl` lookup, and on a
+temporary directory that isn't an absolute path.
 
 Unlike `wb-git`, it reads the user's global git configuration. So remote
 URLs resolve as the user's git resolves them (`url.<base>.insteadOf`).
