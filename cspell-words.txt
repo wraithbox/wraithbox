@@ -140,6 +140,8 @@ Codeberg
 codesign
 protoc
 protoreflect
+genproto
+mktemp
 
 # Docs site (Astro Starlight)
 frontmatter

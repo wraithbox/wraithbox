@@ -154,8 +154,8 @@ Each option leaves the `SEC*` controls unchanged. The contracts themselves serve
 - <Badge text="verified" variant="success" /> cspell runs over every tracked file, and `cspell.json` excludes no generated paths. SwiftLint checks every file under `packages/wraithbox-swift/Sources` for size (`.swiftlint.yml`).
 - <Badge text="verified" variant="success" /> The Go tasks CI runs on Windows are single plain commands (S02-toolchain, "Design").
 - <Badge text="inferred" variant="note" /> gRPC sends messages over HTTP/2 and has no way to pass a file descriptor, so `SCM_RIGHTS` needs its own socket.
-- <Badge text="assumed" variant="caution" /> That golangci-lint skips files marked `Code generated … DO NOT EDIT.` by default. Checked when the first generated file is merged.
-- <Badge text="assumed" variant="caution" /> That `grpc-swift-protobuf` ships a plugin that SwiftPM can build and `buf` can run. Checked when the Swift side is wired up.
+- <Badge text="verified" variant="success" /> golangci-lint skips files marked `Code generated … DO NOT EDIT.` by default: it reports 0 issues on the generated Go code of I159.
+- <Badge text="verified" variant="success" /> `grpc-swift-protobuf` ships `protoc-gen-grpc-swift-2`, which SwiftPM builds and `buf` runs as a local plugin (I159).
 - <Badge text="assumed" variant="caution" /> That descriptors from `wb-vmd` keep working in another process. That is X18-vsock-handoff.
 
 ## What this unblocks
