@@ -100,8 +100,7 @@ the session is refused with its name, before anything is installed.
 Nothing is built from source.
 
 When the formula data snapshot is missing or empty, `wb-guestd`
-refuses the reconcile, because Homebrew would download new data
-.
+refuses the reconcile, because Homebrew would download new data.
 
 At the start deadline (S06-09-session-lifecycle), `wb-guestd` kills
 the reconcile's process group.

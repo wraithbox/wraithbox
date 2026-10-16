@@ -34,7 +34,7 @@ On macOS (X18-vsock-handoff):
   is one for each VM's `wb-vmd` (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
 - Each message carries exactly one descriptor, and these fields:
   request id, VM generation, direction, source port and destination
-  port. The full contract is in I52.
+  port, in a `.proto` contract (S04-08-records-and-bounds, "`.proto` packages").
 - The receiver refuses the message when the descriptor count is not
   one, the socket type is wrong, or the destination port is not one it
   asked for. It closes any descriptor in it, and logs the refusal.

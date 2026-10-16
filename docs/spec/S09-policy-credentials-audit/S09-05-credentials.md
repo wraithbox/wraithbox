@@ -39,7 +39,7 @@ Signing:
   S15-least-privilege documents.
 - An ad-hoc signed build has no Keychain backend. `wb setup` refuses
   it with the rule `keychain-needs-team`, and says how to sign the
-  build. The 1Password backend still works (S15-02-secret-store).
+  build. V1 has no other backend (S15-02-secret-store, "1Password").
 
 ### Bindings
 
