@@ -451,8 +451,8 @@ func TestSocketType(t *testing.T) {
 	r, _ := pipe(t)
 
 	for _, c := range []struct {
-		name           string
-		conn           syscall.Conn
+		name             string
+		conn             syscall.Conn
 		family, sockType int
 	}{
 		{"tcp listener", tl, syscall.AF_INET, syscall.SOCK_STREAM},
