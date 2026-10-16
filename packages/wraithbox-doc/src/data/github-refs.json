@@ -340,7 +340,7 @@
 	},
 	"52": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S04-architecture, S09-policy-credentials-audit, S10-tech-stack: first .proto contracts and settings schema",
 		"summary": "S04-architecture says all IPC is protobuf over gRPC and S10-tech-stack adds proto/ \"with the first RPC\".",
 		"brief": "B52-proto-contracts"
@@ -377,7 +377,7 @@
 	},
 	"58": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "CI: run the go, swift and docs jobs only when their inputs changed",
 		"summary": "Every push and pull request runs all jobs in .github/workflows/ci.yml: go (a matrix over three OSes), swift (macos-26), docs, vuln and actions."
 	},
@@ -733,7 +733,7 @@
 	},
 	"115": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S04-architecture, S06-vm-lifecycle: wb-guestd vsock listener under connect floods and bind failures",
 		"summary": "Follow-up from the security review of #114 (the X27-vsock-confinement result, #101)."
 	},
@@ -758,13 +758,13 @@
 	},
 	"119": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle, S11-verification-and-spikes: wb-vmd entitlement gate and profile identity on saved state",
 		"summary": "Follow-up from the security review of #117 (the X25-vmd-sandbox result, #64)."
 	},
 	"120": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Clean up spike VM bundles under ~/Library/Caches/wraithbox-spikes after each spike",
 		"summary": "Spikes that need a macOS guest keep VM bundles under ~/Library/Caches/wraithbox-spikes/<spike/, and nothing removes them."
 	},
@@ -788,7 +788,7 @@
 	},
 	"124": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: restrict DNS query names to lower-case LDH labels",
 		"summary": "From the security review of PR #122 (#39), finding 2e."
 	},
@@ -824,7 +824,7 @@
 	},
 	"130": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S08-workspace-and-git: run the fetch into export.git in a scrubbed git environment",
 		"summary": "From the security re-check of PR #129 (#42), note N1."
 	},
@@ -873,7 +873,7 @@
 	},
 	"138": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: wb-guestd can't delete a macOS user record (eDSPermissionError)",
 		"summary": "S06-vm-lifecycle says wb-guestd creates, locks and removes project users."
 	},
@@ -885,7 +885,7 @@
 	},
 	"140": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S11-verification-and-spikes: list the X17-image-build result",
 		"summary": "The done-when of #28 asks S11-verification-and-spikes, \"Spikes\", to point to the X17-image-build result."
 	},
@@ -897,7 +897,7 @@
 	},
 	"142": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X17-image-build: measure whether guest root can revive the disabled provisioning user secure token",
 		"summary": "From the security review of PR #141 (X17-image-build, #28), finding 2."
 	},
@@ -909,7 +909,7 @@
 	},
 	"144": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: which user installs the base layer before sealing",
 		"summary": "From the security review of PR #141 (X17-image-build, #28), finding 3."
 	},
@@ -928,7 +928,7 @@
 	},
 	"147": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X17-image-build: try installing wb-guestd by renaming a root-owned file on the host mount (needs maintainer permission)",
 		"summary": "During X17-image-build (#28), the builder planned one more variant of \"write wb-guestd into the guest disk from the host\"."
 	},
@@ -958,25 +958,25 @@
 	},
 	"152": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S08-workspace-and-git: remove credentials from withheld remote URLs before the audit record",
 		"summary": "S08-workspace-and-git \"Remote URLs\" removes the user name and password from each remote URL that wb gives the guest, and sends each withheld URL to wb-hostd's audit writer with its reason."
 	},
 	"153": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit: an OAuth binding names its token endpoint",
 		"summary": "S09-policy-credentials-audit lets a binding hold an OAuth 2 refresh token or client credentials, which wb-proxyd exchanges for short-lived access tokens."
 	},
 	"154": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S15-least-privilege: check that wbadmin rotation works with both passwords on standard input",
 		"summary": "S15-least-privilege (PR #149) rotates wbadmin's password at each VM's first contact."
 	},
 	"155": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S15-least-privilege: check that Virtualization doesn't write the provisioning password into the build bundle",
 		"summary": "S15-least-privilege (PR #149) never writes the image build's provisioning password to disk outside the secret store."
 	},
@@ -988,7 +988,7 @@
 	},
 	"157": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Move review blocks and open questions out of the specs into briefs and issues",
 		"summary": "PR #149 changes S01-spec-based-development, \"Spec template\": a spec states the design, and review material (what approving commits to, the controls touched, assumptions, open decisions) lives in the review brief and…"
 	},
@@ -1000,13 +1000,13 @@
 	},
 	"159": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "proto: first contracts, wb-vmd boot, state and guest connections, wb-guestd hello",
 		"summary": "The first production code for wb-vmd and wb-guestd needs a contract to build against."
 	},
 	"160": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-vmd: the device-set check, refusing any network or sharing device",
 		"summary": "S04-architecture has wb-vmd check its own description of every VM configuration against a fixed device set, before it creates any Virtualization object, and refuse everything else with a named rule."
 	},
@@ -1018,7 +1018,7 @@
 	},
 	"162": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "ci: go:fuzz task that runs every Go fuzz target briefly",
 		"summary": "S11-verification-and-spikes asks for \"fuzz smoke runs\" in CI and a fuzz target for every parser of guest bytes."
 	},
@@ -1060,7 +1060,7 @@
 	},
 	"169": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "README and docs site spec tables miss S15-least-privilege",
 		"summary": "The spec tables in README.md (\"Spec | Topic\") and packages/wraithbox-doc/src/content/docs/design.md (\"Specifications\") list S03 to S13, and S16-terminal-stream once #168 merges."
 	},
@@ -1080,19 +1080,19 @@
 	},
 	"172": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Measure the hand-off socket ordering and no-silent-drop properties on each host platform",
 		"summary": "Follow-up from the code review of #170 (#68)."
 	},
 	"173": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Measure the delay of delivering an effective policy change to wb-proxyd before wb-netd",
 		"summary": "Follow-up from the code review of #170 (#68)."
 	},
 	"174": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Stamp the VCS revision into the build version, and treat an unstamped build as no version",
 		"summary": "Follow-up from the security review of #171 (#48, finding L5)."
 	},
@@ -1110,7 +1110,7 @@
 	},
 	"177": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S04-architecture: state the bound on the event retry queue in wb-netd and wb-proxyd",
 		"summary": "From the final code re-check of #171 (#48)."
 	},
@@ -1122,7 +1122,7 @@
 	},
 	"179": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: small clarifications to the stream hand-off",
 		"summary": "Low-severity follow-ups from the final code and security re-checks of #170 (#68)."
 	},
@@ -1134,7 +1134,7 @@
 	},
 	"181": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: toolchain prefix follow-ups from the X20 reviews",
 		"summary": "Low-severity follow-ups from the final code and security re-checks of #178 (X20-shared-homebrew)."
 	},
@@ -1245,7 +1245,7 @@
 	},
 	"199": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S11-verification-and-spikes: verify escaping in the terminal filter's audit records",
 		"summary": "PR #198 (#82) adds the terminal filter's records to S09-policy-credentials-audit (\"Audit\", \"Terminal filter\"): dropped links and drop counts as Detection Findings (2004), with each control and Unicode format character…"
 	},
@@ -1269,7 +1269,7 @@
 	},
 	"203": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Guest terminfo: xterm-kitty unreadable by macOS's own ncurses",
 		"summary": "So a kitty user running less or vim from /usr/bin in wb shell still gets no terminfo entry."
 	},
@@ -1281,25 +1281,25 @@
 	},
 	"205": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit: risk check reads an audit host as every method on every path",
 		"summary": "Follow-up from the security review of #201 (finding 4)."
 	},
 	"206": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: make what audit mode relaxes a closed list, and name the rule for an allowed violation",
 		"summary": "Follow-up from the security review of #201 (finding 5)."
 	},
 	"207": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S09-policy-credentials-audit: show and assert the audit projection in wb policy explain and the extension check",
 		"summary": "Follow-up from the security review of #201 (findings 6 and 7)."
 	},
 	"208": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: a confirmed remote change is a widening policy change",
 		"summary": "Follow-up from the security re-review of #201."
 	},
@@ -1312,8 +1312,8 @@
 	"210": {
 		"kind": "pr",
 		"state": "open",
-		"title": "chore(deps): Bump jdx/mise-action from 4.3.0 to 5.0.1",
-		"summary": "Bumps jdx/mise-action from 4.3.0 to 5.0.1."
+		"title": "build(deps): Bump jdx/mise-action from 4.3.0 to 5.1.1",
+		"summary": "Bumps jdx/mise-action from 4.3.0 to 5.1.1."
 	},
 	"211": {
 		"kind": "pr",
@@ -1353,7 +1353,7 @@
 	},
 	"217": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "go:test flakes on Linux: go tool covdata text file busy",
 		"summary": "go test -race -cover ./..."
 	},
@@ -1407,7 +1407,7 @@
 	},
 	"226": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: methods and exactness for the model API profile entries",
 		"summary": "The model API profile in S07-egress-gateway (PR #222, #215) lists paths without methods, and doesn't say whether each is exact or a prefix."
 	},
@@ -1426,7 +1426,7 @@
 	},
 	"229": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S05-cli: a command that gives a VM a new data disk",
 		"summary": "Found in the review of #227 (X08-data-disk)."
 	},
@@ -1468,19 +1468,19 @@
 	},
 	"236": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "T00-index: guest root persists on the data disk across system disk swaps and break-glass",
 		"summary": "A guest root that wrote to the data disk keeps what it wrote after a system disk swap, because only the system disk is replaced (S06-vm-lifecycle, \"Updates\")."
 	},
 	"237": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "T00-index: record the login-code and in-root-link residuals of S14-claude-in-guest",
 		"summary": "The reviews of #235 (S14-claude-in-guest) found two residual risks."
 	},
 	"238": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "B145-least-privilege: two unanswered questions (other specs, #142/#146)",
 		"summary": "B145-least-privilege, \"Questions for you\", still has two questions that no trusted decision answers."
 	},
@@ -1511,7 +1511,7 @@
 	},
 	"243": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Docs PR check passes content errors that fail the Pages deploy",
 		"summary": "PR #241 passed its Docs check, and the Pages deploy of the same commit on main failed (run 38502805294)."
 	},
@@ -1529,13 +1529,13 @@
 	},
 	"246": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-egress-gateway: audit rule for a client that rejects the inspected leaf",
 		"summary": "From the security review of PR #244 (#185, decision A)."
 	},
 	"247": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Shared Metal/paravirtualized-graphics cache between the two session wb-vmd profiles",
 		"summary": "From the security review of PR #245 (#218, one wb-vmd per VM)."
 	},
@@ -1614,7 +1614,7 @@
 	},
 	"260": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S14-claude-in-guest: explained refusal for a guest login (NFR06-explained-refusals)",
 		"summary": "Follow-up from the review of PR #258 (#256), finding 2."
 	},
@@ -1710,7 +1710,7 @@
 	},
 	"276": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Host setup H1: team-signed development build on the maintainer's Mac",
 		"summary": "A maintainer action on the personal Mac, so that the team-signed path of the app bundle (M2.2c (#280)) and later the Keychain backend (M3.8) can be built and checked there."
 	},
@@ -1740,7 +1740,7 @@
 	},
 	"281": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "platform: one-descriptor socket channels and the Seatbelt trampoline with its deny probe",
 		"summary": "Every daemon after this one needs two host mechanisms that no code has yet:"
 	},
@@ -1800,7 +1800,7 @@
 	},
 	"291": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "hostgit: resolve the host git binary, check its version, and run it in a scrubbed environment",
 		"summary": "wb and wb-hostd both run the host's git, and never the one in PATH (S08-08-host-git)."
 	},
@@ -1881,5 +1881,179 @@
 		"state": "open",
 		"title": "wb shell end to end: the wb-hostd relay, the command and the VM run",
 		"summary": "After M2.12a (#302) and M2.12b (#303), wb and wb-guestd each have their end of the terminal stream, and nothing joins them."
+	},
+	"305": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: V1 milestone cut, package plan and ordering rules after V1-M1",
+		"summary": "Backlog reset after V1-M1 (step 2 of the reset), so that milestones and issues can follow."
+	},
+	"306": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-vm-lifecycle, S08-workspace-and-git, S14-claude-in-guest: the secret scanner",
+		"summary": "Three places scan for secrets with \"the secret scanner of the image seal\", and no spec says what that scanner is:"
+	},
+	"307": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Run 2026-10-16 (V1-M2-walking-skeleton, lane any)",
+		"summary": "Size 4, 1 wave, lane any, milestone V1-M2-walking-skeleton (default: first open milestone in the version page's order with ready work for the lane)."
+	},
+	"308": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: list S15-least-privilege in the README and docs site spec tables",
+		"summary": "Adds the S15-least-privilege row to the spec table in README.md and in the docs site's design.md."
+	},
+	"309": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(ci): build covdata before go:test to stop text-file-busy flake",
+		"summary": "go:test now runs go tool -n covdata before go test -cover, on every OS."
+	},
+	"310": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(doc): render every page in the docs build so reference errors fail it",
+		"summary": "The CI Docs job runs doc:check before doc:build."
+	},
+	"311": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(swift): wb-vmd device-set check and the refused-class lint rule",
+		"summary": "- WraithBoxVM gets VMDescription (VMDevice and its kinds), wb-vmd's own description of a VM configuration."
+	},
+	"312": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Bundle file names: sys.img and aux.img against S06-05 \"Names on the host\"",
+		"summary": "Review of #311 (#160) found a conflict between two rules for the file names in a VM bundle."
+	},
+	"313": {
+		"kind": "issue",
+		"state": "open",
+		"title": "docs: regression test that a content error fails doc:check plus doc:build and doc:build alone",
+		"summary": "A regression test: a page with a bare B1 must fail both mise run doc:check followed by doc:build, and doc:build alone."
+	},
+	"314": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Run 2026-10-16 (V1-M2-walking-skeleton, lane any)",
+		"summary": "Size 4, 1 wave, lane any, milestone V1-M2-walking-skeleton (default: first open milestone in the version page's order with ready work for the lane)."
+	},
+	"315": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "chore(agents): add spike:clean for spike VM bundles",
+		"summary": "Spikes that boot a macOS guest leave VM bundles in ~/Library/Caches/wraithbox-spikes/, and nothing removed them."
+	},
+	"316": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(threats): record the data disk, login code, config link and graphics cache residuals",
+		"summary": "Records four accepted residual risks in T00-index and points the specs that state each one at its entry."
+	},
+	"317": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "ci: run the go and swift jobs and the docs site steps only when their inputs changed",
+		"summary": "On a pull request, CI now skips the go and swift jobs and the docs site check and build steps when no file they read changed."
+	},
+	"318": {
+		"kind": "issue",
+		"state": "open",
+		"title": "M6.2: wb-vmd graphics and input device ablation on the release gate",
+		"summary": "Follow-up from the review of #316 (which closes #247)."
+	},
+	"319": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(go): hostgit, resolve and check the host git, run it scrubbed",
+		"summary": "Adds internal/hostgit, the library wb and wb-hostd will use to run the host's git."
+	},
+	"320": {
+		"kind": "issue",
+		"state": "open",
+		"title": "CI: run scripts:test in mise run ci and the CI workflow",
+		"summary": "Follow-up from the review of #315 (#120)."
+	},
+	"321": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Agent permissions: mise run <task> * allow rules also match ::: task chaining",
+		"summary": "Follow-up from the review of #315 (#120)."
+	},
+	"322": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: match the ruleset JSON in github-settings to the live ruleset",
+		"summary": "- The ruleset JSON in docs/github-settings.md now equals the live ruleset main (ID 24412616)."
+	},
+	"323": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Run 2026-10-16 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "Size 4, 5 waves, lane mac, milestone V1-M2-walking-skeleton (default: first open milestone in the version page's order with ready work for the lane)."
+	},
+	"324": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(swift): name guest-written bundle files so a double click doesn't mount them",
+		"summary": "The 2026-10-16 decision on #312 renames the guest-written disk images, so a double click on one doesn't make Launch Services attach a guest-written image on the host."
+	},
+	"325": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(proto): first contracts for wb-vmd and wb-guestd, with buf checks",
+		"summary": "The first .proto contracts, the buf tooling, and committed generated code for Go and Swift (B52-proto-contracts, decision A)."
+	},
+	"326": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(swift): wb-vmd boots and stops its slot's VM, confined",
+		"summary": "wb-vmd boots and stops the VM in its slot's bundle, confined to that bundle, behind the device-set check of #160."
+	},
+	"327": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "ci: add go:fuzz, which runs every Go fuzz target for 10s",
+		"summary": "Adds mise run go:fuzz, the fuzz smoke run that S11-verification-and-spikes (\"Fuzzing\", \"CI\") asks for."
+	},
+	"328": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(go): stamp the VCS revision into the build version, and treat an unstamped build as no version",
+		"summary": "Stamps one build version into every Go and Swift program, and makes an unstamped build \"no version\" that every peer refuses, an unstamped peer included (sec L5 of #171)."
+	},
+	"329": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(go): terminal filter for guest output, with drop counts and fuzz properties",
+		"summary": "Adds packages/wraithbox-go/internal/termfilter, the allowlist filter of S16-01-filter for the host terminal stream (boundary 6 of T00-index)."
+	},
+	"330": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(go): wb-hostd state.db with migrations, closed config keys, refusing mode, daemon log pipes",
+		"summary": "Part M2.7a of wb-hostd core: libraries with unit tests, not wired into cmd/wb-hostd (that is #287)."
+	},
+	"331": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(platform): one-descriptor socket channels and the Seatbelt trampoline with its deny probe",
+		"summary": "Two shared platform mechanisms that every later daemon needs."
+	},
+	"332": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: a stale state.db backup is kept across a downgrade, so a restore can repeat VM generations",
+		"summary": "Review of #330 (#283) found that the \"never write over an existing state.db.v<N.bak\" rule in S17-05-upgrades-and-migrations can leave a stale backup in place, and restoring it would repeat VM generations."
+	},
+	"333": {
+		"kind": "issue",
+		"state": "open",
+		"title": "go:fuzz: the default fuzz minimize time can use up each target's 10 s budget",
+		"summary": "The security review of #330 (#283) saw the Go fuzz minimizer stall FuzzLogPipe."
 	}
 }
