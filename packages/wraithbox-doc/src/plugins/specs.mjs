@@ -197,8 +197,10 @@ export function syncDesign() {
 		fs.mkdirSync(path.dirname(target), { recursive: true });
 		const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
 		if (current !== page) {
-			// Write and rename, so `astro check` and `astro build` running at
-			// the same time (mise run ci) never read a half-written page.
+			// Write and rename, so another Astro process that reads the
+			// pages (the dev server, or a check and a build started by hand)
+			// never reads a half-written one. `mise run ci` runs check and
+			// build one after the other (`wait_for` in .mise.toml).
 			const temp = `${target}.${process.pid}.tmp`;
 			fs.writeFileSync(temp, page);
 			fs.renameSync(temp, target);
