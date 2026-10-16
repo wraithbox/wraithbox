@@ -1,8 +1,8 @@
 # Completing work
 
-The global `complete` skill reads this file and follows it in place of
-its own steps. A builder follows `.claude/agents/builder.md` instead,
-and a run follows `orchestration.md`, "Runs".
+How a session finishes its work. A builder follows
+`.claude/agents/builder.md` instead, and a run follows
+`orchestration.md`, "Runs".
 
 ## Interactive session
 

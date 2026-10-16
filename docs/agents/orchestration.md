@@ -5,11 +5,9 @@ parallel against the GitHub issues, and how a single agent picks up,
 claims, and finishes one issue. How issues are cut, labeled, and ordered
 is in `planning.md`.
 
-Ported from the setup of `lsimons/ai-training` and cut down: no lesson
-or content workflow, no integration branches, and no hooks that enforce
-the rules below. "Runs" ports its run issue and wave lead, so several
-waves can run without the maintainer. "Later" at the end lists what was
-left out and when to bring it back.
+No hooks enforce the rules below. "Runs" says how several waves run
+without the maintainer, and "Later" at the end lists what this setup
+leaves out and when to add it.
 
 ## Roles
 
@@ -138,8 +136,7 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    green, not merged), and what sibling builders are doing that could
    collide, including files they also edit. Set the builder's effort as
    "Effort" below says. Before you give a builder design direction,
-   check it against the flows the specs already define: reviewers have
-   traced findings back to a coordinator's instruction. When two issues
+   check it against the flows the specs already define. When two issues
    change one mechanism, set one rule, send each builder its half, and
    merge the pull request that defines the rule first.
 4. **Spawn a reviewer when a pull request opens.** `code-reviewer`
@@ -361,20 +358,16 @@ without the maintainer's approval. Spike branches are kept.
 
 Left out on purpose, to add when the need shows:
 
-- **Guardrail hooks.** ai-training enforces much of this page with
-  `PreToolUse` hooks: a Bash guard (no force push, no push to `main`,
-  no `git stash`, merge only by the coordinator role, no long `sleep`
-  or `gh` polling), read-only Bash for reviewers, a trusted-comments
-  issue reader, a deny rule on editing `.claude/settings.json`, and an
-  auto-formatter after edits. About a third of ai-training's harness
-  issues fixed its own machinery. Port a hook only when a run breaks
-  the rule it enforces.
-- **Integration branches**, which batch many small approved branches into
-  one PR. They paid off for content waves with per-PR deploys; this
-  project merges code PRs individually.
-- **Periodic harness review** of transcripts and token use. Instead, each
-  milestone gets one review when it closes: pull requests merged, first
-  review approve rate, rounds per pull request, follow-ups filed per
-  issue closed, `ready-for-human` count and age, and tokens by role
-  (ai-training's `scripts/harness_metrics.py`, run where it is). It
-  files at most five issues.
+- **Guardrail hooks** that enforce this page with `PreToolUse` hooks:
+  a Bash guard (no force push, no push to `main`, no `git stash`, merge
+  only by the dispatcher, no long `sleep` or `gh` polling), read-only
+  Bash for reviewers, a trusted-comments issue reader, a deny rule on
+  editing `.claude/settings.json`, and an auto-formatter after edits.
+  Add a hook only when a run breaks the rule it would enforce.
+- **Integration branches**, which batch many small approved branches
+  into one pull request. Pull requests here merge one by one.
+- **Periodic harness reviews.** Instead, each milestone gets one review
+  when it closes: pull requests merged, first-review approve rate,
+  rounds per pull request, follow-ups filed per issue closed,
+  `ready-for-human` count and age, and tokens by role from the session
+  transcripts. It files at most five issues.
