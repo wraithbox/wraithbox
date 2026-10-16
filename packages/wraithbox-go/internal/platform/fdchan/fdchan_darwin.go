@@ -109,11 +109,11 @@ func New(f *os.File, maxRecord int) (*Channel, error) {
 	if err := checkMax(maxRecord); err != nil {
 		return nil, err
 	}
-	family, sotype, err := SocketType(f)
-	if err != nil || family != syscall.AF_UNIX || sotype != syscall.SOCK_DGRAM {
+	family, sockType, err := SocketType(f)
+	if err != nil || family != syscall.AF_UNIX || sockType != syscall.SOCK_DGRAM {
 		r := &Refusal{
 			Rule: RuleSocketType,
-			msg:  fmt.Sprintf("%s is not an AF_UNIX SOCK_DGRAM socket (family %d, type %d)", f.Name(), family, sotype),
+			msg:  fmt.Sprintf("%s is not an AF_UNIX SOCK_DGRAM socket (family %d, type %d)", f.Name(), family, sockType),
 			err:  err,
 		}
 		logRefusal(r, slog.String("file", f.Name()))
@@ -141,14 +141,14 @@ func New(f *os.File, maxRecord int) (*Channel, error) {
 // received descriptor (S04-02-vm-provider, "Hand-off on macOS": "the
 // socket type is wrong"). A descriptor that isn't a socket, or whose
 // family the syscall package doesn't know, is an error.
-func SocketType(c syscall.Conn) (family, sotype int, err error) {
+func SocketType(c syscall.Conn) (family, sockType int, err error) {
 	rc, err := c.SyscallConn()
 	if err != nil {
 		return 0, 0, fmt.Errorf("fdchan: %w", err)
 	}
 	var opErr error
 	err = rc.Control(func(fd uintptr) {
-		sotype, opErr = syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_TYPE)
+		sockType, opErr = syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_TYPE)
 		if opErr != nil {
 			opErr = fmt.Errorf("getsockopt SO_TYPE: %w", opErr)
 			return
@@ -167,7 +167,7 @@ func SocketType(c syscall.Conn) (family, sotype int, err error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("fdchan: socket type: %w", err)
 	}
-	return family, sotype, nil
+	return family, sockType, nil
 }
 
 func sockaddrFamily(sa syscall.Sockaddr) int {
@@ -289,7 +289,7 @@ func (c *Channel) armReadDeadline(peerClosed bool) time.Time {
 // disconnects the survivor of a datagram socketpair.
 func (c *Channel) peerClosed() bool {
 	var err error
-	if cerr := c.raw.Control(func(fd uintptr) { _, err = syscall.Getpeername(int(fd)) }); cerr != nil {
+	if ctlErr := c.raw.Control(func(fd uintptr) { _, err = syscall.Getpeername(int(fd)) }); ctlErr != nil {
 		return false
 	}
 	return errors.Is(err, syscall.ENOTCONN)
@@ -310,8 +310,8 @@ func (c *Channel) recvOnce(peerClosed bool) (*Message, error) {
 	err := c.raw.Read(func(fd uintptr) bool {
 		syscall.ForkLock.RLock()
 		defer syscall.ForkLock.RUnlock()
-		var oobn int
-		r.n, oobn, r.flags, _, recvErr = syscall.Recvmsg(int(fd), buf, oob, 0)
+		var controlLen int
+		r.n, controlLen, r.flags, _, recvErr = syscall.Recvmsg(int(fd), buf, oob, 0)
 		switch {
 		case errors.Is(recvErr, syscall.EAGAIN) && peerClosed:
 			recvErr = syscall.ECONNRESET
@@ -321,7 +321,7 @@ func (c *Channel) recvOnce(peerClosed bool) (*Message, error) {
 		case recvErr != nil:
 			return true
 		}
-		r.control = oob[:oobn]
+		r.control = oob[:controlLen]
 		d = decide(darwinControl, r, c.maxRecord)
 		for _, rfd := range d.closeFDs {
 			syscall.CloseOnExec(rfd)

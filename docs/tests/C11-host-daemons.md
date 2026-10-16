@@ -6,8 +6,8 @@ the accounting and event channels, the audit writer, free space, and
 the data disk steps.
 
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked"),
-S04-03-self-sandboxing ("Each host daemon is self-sandboxed"),
-S04-07-supervision, S04-08-records-and-bounds ("Accounting and event channels"), S06-05-disks,
+S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
+S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels"), S06-05-disks,
 S09-11-audit
 
 ## Unit tests
@@ -46,6 +46,14 @@ S09-11-audit
   sealed disk's name in the build bundle, and see the build fail with
   `build-bundle-not-regular`, nothing cloned into `<data>/images/`,
   and nothing outside the bundle deleted.
+
+### Confinement
+
+- **Self-sandbox** (S04-03-self-sandboxing, "Confined first thing in `main`"). In a child, `(deny default)` denies files, connects and running programs on 32 threads and keeps inherited descriptors working. `(allow default)`, a syntax error, a second call and each bad parameter fail with their rule.
+
+### Descriptor channels
+
+- **One descriptor per message** (S07-05-stream-hand-off, "Message form"). Over real socketpairs, records with and without a descriptor round-trip. An oversized record, two, three and 254 descriptors are each refused with every descriptor closed, and a send to a full peer fails at once.
 
 ### Supervision
 
@@ -138,6 +146,7 @@ and the file at the final name kept.
 
 ## Fuzzing
 
+- The receive decision of the descriptor channels, `FuzzRecvDecision`: at most one descriptor kept, and every other one closed (S07-05-stream-hand-off, "Message form").
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
   (S04-08-records-and-bounds, "Accounting and event channels").

@@ -453,14 +453,14 @@ func TestSocketType(t *testing.T) {
 	for _, c := range []struct {
 		name           string
 		conn           syscall.Conn
-		family, sotype int
+		family, sockType int
 	}{
 		{"tcp listener", tl, syscall.AF_INET, syscall.SOCK_STREAM},
 		{"unix stream", stream, syscall.AF_UNIX, syscall.SOCK_STREAM},
 	} {
-		family, sotype, err := SocketType(c.conn)
-		if err != nil || family != c.family || sotype != c.sotype {
-			t.Errorf("%s: %d, %d, %v, want %d, %d", c.name, family, sotype, err, c.family, c.sotype)
+		family, sockType, err := SocketType(c.conn)
+		if err != nil || family != c.family || sockType != c.sockType {
+			t.Errorf("%s: %d, %d, %v, want %d, %d", c.name, family, sockType, err, c.family, c.sockType)
 		}
 	}
 	if _, _, err := SocketType(r); !errors.Is(err, syscall.ENOTSOCK) {

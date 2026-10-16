@@ -32,6 +32,17 @@ an inherited descriptor, the arguments or the environment. Right
 after, it tries one operation its profile denies, and exits if that
 succeeds.
 
+One shared call in `internal/platform/selfsandbox` confines the
+process and runs the probe, so no daemon can leave the probe out:
+
+- Before it confines, it refuses a profile whose parameter names don't
+  equal the names of the values given, and a value that is empty or
+  holds a NUL byte. The process is then still unconfined, and the
+  daemon exits.
+- The probe reads `/etc/passwd`, which every profile denies. The read
+  has to fail with `EPERM`. Success, or any other error, makes the
+  daemon exit.
+
 ### `wb-hostd` before it confines itself
 
 `wb-hostd` is one exception. Before it confines itself, it:
@@ -161,8 +172,9 @@ while all of these hold:
 - **A small program of its own.** It uses only the Go standard
   library. It is not `wb-hostd` started in another mode.
 - **A fixed request channel.** The channel is a `SOCK_SEQPACKET` or
-  `SOCK_DGRAM` socketpair inherited at start, never a path. Each
-  message is one fixed-format request. A request with unexpected
+  `SOCK_DGRAM` socketpair inherited at start, never a path. macOS has
+  no `SOCK_SEQPACKET` for Unix domain sockets, so it uses `SOCK_DGRAM`.
+  Each message is one fixed-format request. A request with unexpected
   descriptors has them closed and is refused.
 - **Fixed starts.** It starts each program with no arguments and a
   fixed environment. It passes only the descriptors `wb-hostd` hands
