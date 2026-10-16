@@ -27,6 +27,7 @@ contracttest
 fuzzsmoke
 fdchan
 selfsandbox
+termfilter
 
 # Virtualization, networking and OS facilities
 datavol
@@ -234,6 +235,10 @@ asciicast
 iconify
 DECRQM
 DECRQSS
+DECSCA
+XTVERSION
+XTGETTCAP
+truecolor
 
 # Package registries, and projects measured by spikes
 packument
