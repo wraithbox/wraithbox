@@ -143,6 +143,9 @@ jobs:
       - name: Build
         run: mise run swift:build
 
+      - name: Sign wb-vmd (ad-hoc, hardened runtime)
+        run: mise run swift:sign
+
   docs:
     name: Docs
     # Runs on every pull request: cspell checks every tracked file, code

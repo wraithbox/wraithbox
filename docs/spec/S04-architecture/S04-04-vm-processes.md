@@ -53,6 +53,11 @@ and exits:
 So it never confines itself to a bundle its slot doesn't own
 (SEC08-proj-isolation). C11-host-daemons has a test for each rule.
 
+Until the image build is built (V1-M7-image-build), `wb-vmd` also
+refuses the `build` slot, with `vmd-slot-build-unsupported`. Only
+`wb-vmd-install` serves that slot, with its install rules and its
+restore image check ("`wb-vmd-install`", below).
+
 ### Reaching an instance
 
 `wb-hostd` reaches each instance only over the channels it handed that

@@ -107,6 +107,36 @@ nxthdr
 getsockopt
 maxdgram
 socketpairs
+adddup
+clonefile
+CLOEXEC
+confstr
+dladdr
+dlsym
+getsockopt
+setsockopt
+gettime
+gmtime
+mday
+MAXPATHLEN
+nsec
+usec
+PEERCRED
+PEERPID
+xucred
+plutil
+renamex
+setflags
+socklen
+spawnattr
+strdup
+usleep
+vnode
+waitpid
+GRPCNIO
+NIOBSD
+NSPOSIX
+terminfo
 
 # Tools and their names in configs
 globl
