@@ -401,7 +401,7 @@ func (c *Channel) recvOnce(buf, oob []byte, peerClosed bool) (*Message, error) {
 }
 
 // recvmsg reads one datagram, again when a signal interrupts it: the
-// netpoller's kqueue is edge-triggered and doesn't report a datagram
+// kqueue of the Go network poller is edge-triggered and doesn't report a datagram
 // that was already queued again.
 func recvmsg(fd int, buf, oob []byte) (received, error) {
 	for {
