@@ -176,11 +176,11 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    `github-refs.json`, B00-index and the other indexes) and rerun
    `mise run doc:index` and `doc:refs`: a rebase has duplicated lines
    there without a conflict. When a spike result merges, tag its
-   spike commit (`planning.md`, "Spikes", "Tag"). Then remove the
-   spike's leftover VM bundles with `mise run spike:clean x<NN>`,
-   unless a `Keeping x<NN>/ for #<n>` comment on the spike's issue
-   names an open issue that still needs them (`planning.md`,
-   "Spikes", "VM bundles").
+   spike commit (`planning.md`, "Spikes", "Tag"). Then, on the
+   personal Mac, remove the spike's leftover VM bundles with
+   `mise run spike:clean x<NN>`, unless a `Keeping x<NN>/ for #<n>`
+   comment on the spike's issue names an open issue that still needs
+   them (`planning.md`, "Spikes", "VM bundles").
 7. **Finish.** Report what merged, what review caught, what is left and
    which follow-ups were filed. On the personal Mac, the report also
    lists what is still in the spike cache, from `mise run spike:clean`
