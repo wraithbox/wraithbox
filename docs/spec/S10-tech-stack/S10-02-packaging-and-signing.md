@@ -122,14 +122,17 @@ CI.
 - The version is the release number in `VERSION`, with the VCS
   revision as its build part.
 - A build of a modified working tree adds a modified flag and a nonce.
-  So two different uncommitted trees never match.
+  So builds of a modified tree from two runs never match.
 - The nonce is made once per `mise run build` invocation, and shared
   by every language task in it. So a partial rebuild of a modified tree
   needs a full build.
 
 The task `version:stamp` makes the version and writes it to
-`build/version`. Every build task reads it from that file, and refuses
-it when the tree has changed since. Go links it into a variable, and
+`build/version`. Every build task reads it from that file. It refuses a
+stamp that names another commit, and a clean stamp once the tree has
+changes. A modified tree's stamp can't be checked against later
+edits, so a modified tree needs a full build in one run, with no edits
+while it runs. Go links it into a variable, and
 Swift has the linker copy it into a section of each program. The guest
 tools disk gets it as its `VERSION` file (S17-01-bundle).
 

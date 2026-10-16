@@ -52,15 +52,21 @@ export const RULES = [
 	{ glob: 'scripts/**', jobs: ALL },
 
 	{ glob: 'packages/wraithbox-go/**', jobs: ['go'] },
-	{ glob: 'go.work', jobs: ['go'] },
-	{ glob: 'go.work.sum', jobs: ['go'] },
 	{ glob: '.golangci.yml', jobs: ['go'] },
 	// The gRPC contracts have a Go and a Swift side.
 	{ glob: '**/*.proto', jobs: ['go', 'swift'] },
 	{ glob: '**/buf*.yaml', jobs: ['go', 'swift'] },
 
 	// The release number goes into every Go and Swift build's version.
+	// swift:build runs the Go stamping tool, so the tool, the package it
+	// imports and the Go module and workspace files run the Swift job too.
 	{ glob: 'VERSION', jobs: ['go', 'swift'] },
+	{ glob: 'packages/wraithbox-go/internal/tools/buildversion/**', jobs: ['go', 'swift'] },
+	{ glob: 'packages/wraithbox-go/internal/version/**', jobs: ['go', 'swift'] },
+	{ glob: 'packages/wraithbox-go/go.mod', jobs: ['go', 'swift'] },
+	{ glob: 'packages/wraithbox-go/go.sum', jobs: ['go', 'swift'] },
+	{ glob: 'go.work', jobs: ['go', 'swift'] },
+	{ glob: 'go.work.sum', jobs: ['go', 'swift'] },
 
 	{ glob: 'packages/wraithbox-swift/**', jobs: ['swift'] },
 	{ glob: '.swiftlint.yml', jobs: ['swift'] },

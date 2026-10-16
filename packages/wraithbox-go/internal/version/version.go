@@ -115,23 +115,34 @@ func isPartByte(b byte) bool {
 
 // The rules a Refusal names, for the caller's log record.
 const (
-	// RuleUnstamped: this side's version or the peer's is empty or not
-	// in the version form, so there is no version to match.
+	// RuleUnstamped: this side has no version (empty, or its stamp is
+	// outside the version form), or the peer's version is empty.
 	RuleUnstamped = "peer-version-unstamped"
+	// RuleForm: the peer sent a version that isn't empty and isn't in
+	// the version form (S04-08-records-and-bounds, "The guest's version
+	// is a label").
+	RuleForm = "guest-version-form"
 	// RuleMismatch: both sides have a version, and they differ as bytes.
 	RuleMismatch = "peer-version-mismatch"
 )
 
-// Refusal is the error Check returns. Own and Peer are the raw strings,
-// so the caller can log both. Error shows each through Label.
+// Refusal is the error Check returns. It keeps the raw versions to
+// itself: a peer's version is adversarial input, so OwnLabel, PeerLabel
+// and Error show each one only through Label.
 type Refusal struct {
 	Rule string
-	Own  string
-	Peer string
+	own  string
+	peer string
 }
 
+// OwnLabel is this side's version, as Label shows it.
+func (r *Refusal) OwnLabel() string { return Label(r.own) }
+
+// PeerLabel is the peer's version, as Label shows it.
+func (r *Refusal) PeerLabel() string { return Label(r.peer) }
+
 func (r *Refusal) Error() string {
-	return fmt.Sprintf("version refused (%s): own %s, peer %s", r.Rule, Label(r.Own), Label(r.Peer))
+	return fmt.Sprintf("version refused (%s): own %s, peer %s", r.Rule, r.OwnLabel(), r.PeerLabel())
 }
 
 // Check compares a peer's build version with this side's own, and
@@ -141,13 +152,15 @@ func (r *Refusal) Error() string {
 // skew"). An unstamped side has no version: two unstamped peers refuse
 // each other (S10-02-packaging-and-signing, "One build version"). The
 // caller passes own explicitly, normally Build(), and logs the refusal
-// with its rule and both versions.
+// with its rule and both labels.
 func Check(own, peer string) error {
-	if !Valid(own) || !Valid(peer) {
-		return &Refusal{Rule: RuleUnstamped, Own: own, Peer: peer}
-	}
-	if own != peer {
-		return &Refusal{Rule: RuleMismatch, Own: own, Peer: peer}
+	switch {
+	case !Valid(own), peer == "":
+		return &Refusal{Rule: RuleUnstamped, own: own, peer: peer}
+	case !Valid(peer):
+		return &Refusal{Rule: RuleForm, own: own, peer: peer}
+	case own != peer:
+		return &Refusal{Rule: RuleMismatch, own: own, peer: peer}
 	}
 	return nil
 }

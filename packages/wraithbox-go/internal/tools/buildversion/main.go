@@ -9,9 +9,10 @@
 // The version is the release number in VERSION at the repository root,
 // then `+g` and the first 16 hex digits of the commit. A working tree
 // with any change git sees, an untracked file included, adds `.dirty.`
-// and a random nonce, so two builds of different uncommitted trees never
+// and a random nonce, so builds of a modified tree from two runs never
 // match. `stamp` runs once per `mise run`, and every language's build
-// task reads the same file, so Go and Swift share the nonce.
+// task reads the same file, so Go and Swift share the nonce. Edits to a
+// modified tree after the stamp aren't caught: see matchTree.
 //
 // A build without this stamp is unstamped and has no version
 // (internal/version). So every step here fails rather than write or
