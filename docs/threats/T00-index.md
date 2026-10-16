@@ -21,6 +21,7 @@ trusts, and which risks it accepts rather than solves.
 | T14-shared-proxyd | One proxy process serves both VMs | Accepted |
 | T15-shared-toolchain | Projects in one guest share the toolchain prefix | Accepted |
 | T16-hostd-landing | A compromised `wb-hostd` decides what `wb land` brings in | Accepted |
+| T17-terminal-auto-links | Terminals make guest text into links | Accepted |
 
 ## Model
 
@@ -125,7 +126,8 @@ print about returned work after `wb land` is outside it
   formulae (X21-dep-gate-registries).
 - **T09-terminal-fingerprint: Host terminal facts in the guest.** The
   guest learns the host terminal's name and version, its colors, the
-  window size in cells and pixels, and the state of its modes, from the
+  window size in cells and pixels, the state of its modes, and which
+  program states it shows, from the
   replies to the queries S16-terminal-stream passes, and from the `TERM`,
   `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `COLORTERM`, `LANG`, `LC_ALL`,
   and `LC_CTYPE` variables that cross into the guest session. Claude Code needs them
@@ -260,3 +262,11 @@ print about returned work after `wb land` is outside it
   `wb land` never checks out or merges (SEC03-no-host-exec). Neither
   `export.git` nor the user's repository is ever a repository that
   `wb-hostd` can write. Proposed in PR191 (I67).
+- **T17-terminal-auto-links: Terminals make guest text into links.**
+  The filter drops OSC 8, but terminals find URLs in plain text and
+  make them links, and Ghostty 1.3 does that for paths too. A URL or
+  path the guest prints opens on the host when the user clicks it, and
+  a path names a host file, not the guest's. `wb` can't tell that text
+  from other output without following the screen. A link opens only
+  when the user clicks it (SEC03-no-host-exec). Seen in I62, accepted
+  in I270.

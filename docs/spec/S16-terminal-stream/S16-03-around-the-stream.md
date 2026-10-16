@@ -46,7 +46,9 @@ the guest may have changed:
   screen's before leaving it;
 - `modifyOtherKeys` (`CSI > 4 m`) and the keypad mode (`ESC >`);
 - tab stops (`CSI ? 5 W`);
-- the progress indicator.
+- the progress indicator;
+- the program status records, with `OSC 7501 ; state=clear`, when the
+  guest sent a report (S16-01-filter, "Program status").
 
 Then it starts a new line. It doesn't send `ESC c`, which can clear
 the scroll-back.
