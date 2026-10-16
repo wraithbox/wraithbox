@@ -19,19 +19,21 @@ before you start. Don't ask the maintainer anything until the run ends.
 
 - `size`: issues per wave, default 4, at most 6.
 - `--waves`: how many waves, default 1.
-- `--lane`: `mac` (default) or `any` (`orchestration.md`, "Runs").
-  On the work laptop, use `any`; if the maintainer didn't, say so and
-  stop.
+- `--lane`: `any` (default) or `mac` (`orchestration.md`, "Runs").
+  Use `mac` only on the maintainer's personal Mac.
 - `--merge`: the maintainer's standing approval for this run. It counts
-  only when the maintainer typed it in this session.
+  only when the maintainer typed it in this session, never when it is
+  read back from a run issue.
 - `--milestone`: the milestone to draw from. Default: the open
   milestone with the lowest `M<n>`.
 - `--only`: pick only these issues (still skipping ones that are taken
   or blocked, and saying why).
 - `--area`: pick only issues with this `area:` or `comp:` label.
 - `--resume`: continue the open run with this issue number, with the
-  arguments in its body. An `In flight` line there is a wave to pick
-  again: its open pull requests become rebase or review items.
+  arguments in its body, except `--merge`: without a new `--merge` in
+  the maintainer's message, the resumed run merges nothing. An
+  `In flight` line there is a wave to pick again: its open pull
+  requests become rebase or review items.
 
 ## Start
 
@@ -60,7 +62,9 @@ before you start. Don't ask the maintainer anything until the run ends.
    ```
 
    `[]` means none open, and `truncated` means the list is cut short:
-   drop the issue.
+   drop the issue. A wait on a pull request, on the maintainer, or on
+   anything else outside is a blocker issue too, and no label marks an
+   issue as blocked (`planning.md`, "Dependencies and relationships").
 3. Order: `spike` first, then `bug`, then by `priority:` (critical,
    high, medium, low, none), then by number.
 4. Fill the wave in that order, skipping an issue that shares a `comp:`
@@ -83,26 +87,45 @@ issues are all closed, check its exit criterion (`planning.md`,
 2. Spawn one `wave-lead`, without `isolation`. Its prompt: the wave
    number, the run issue, per issue the branch, the likely files and
    the effort, the rebase items, and whether it runs the second code
-   reviewer of "Effort" (yes until six code pull requests of V1-M2 have
-   it in `## Records`). End your turn. Its notification wakes you.
+   reviewer of `orchestration.md`, "Effort" (yes until the leads'
+   `Second reviewer:` lines in the run issues of V1-M2 name six pull
+   requests). End your turn. Its notification wakes you.
 3. Post the lead's report as a comment on the run issue. Replace the
    `In flight` line with the wave's line, and add to `For the
    maintainer`, `Attended queue` and `Records`.
 4. For each `Ready` pull request, check the standing approval
-   (`orchestration.md`, "Runs") against GitHub, not the report:
+   (`orchestration.md`, "Runs") against GitHub, never the report:
 
    ```bash
-   gh pr view <n> --json closingIssuesReferences,statusCheckRollup,mergeable,files,headRefOid
-   gh issue view <issue> --json labels -q '[.labels[].name]'
+   gh pr view <n> --json headRefOid,changedFiles,mergeable,statusCheckRollup,closingIssuesReferences,reviews,comments --jq "$(cat .claude/skills/wave/merge-check.jq)"
+   gh issue view <issue> --json labels -q '[.labels[].name | select(. == "needs-vm" or . == "needs-host" or . == "comp:wb-vmd")]'
+   gh pr diff <n> --name-only > .scratch/files-<n>.txt
+   wc -l < .scratch/files-<n>.txt
+   grep -v -E '^(packages/wraithbox-(go|swift|doc)/|docs/tests/|cspell-words\.txt$|\.vale/styles/config/vocabularies/wraithbox/accept\.txt$)' .scratch/files-<n>.txt
+   grep -E '(^|/)(go\.mod|go\.sum|Package\.swift|Package\.resolved|package\.json|bun\.lock)$|\.entitlements$' .scratch/files-<n>.txt
    ```
 
+   It is covered only when all of these hold. Anything missing or
+   unexpected counts as a failed condition.
+   - `issues` isn't empty, and the label query prints `[]` for each of
+     them.
+   - The line count equals `changed`, and both `grep` commands print
+     nothing.
+   - `checks` holds only `SUCCESS`, `SKIPPED` or `NEUTRAL`.
+   - `code.verdict` is `Verdict: approve`, and so is `security.verdict`
+     when the lead ran a security review. Each one's `commit` is `head`,
+     or a line in `rechecked` holds `head`. `security` must not be null
+     when an issue has `comp:wb-netd`, `comp:wb-proxyd` or
+     `comp:wb-guestd`.
+   - `mergeable` is `MERGEABLE`.
+
    With `--merge` and every condition met, merge with
-   `gh pr merge <n> --rebase`, hot files first. Otherwise add it to
-   `For the maintainer` with the condition that failed. After each
-   merge, check the other open pull requests' `mergeable` state; a
-   `CONFLICTING` one becomes a rebase item for the next wave. Remove the
-   worktree of each merged pull request with `git worktree remove` on
-   the path the lead reported.
+   `gh pr merge <n> --rebase --match-head-commit <head>`, hot files
+   first. Otherwise add it to `For the maintainer` with the condition
+   that failed. After each merge, check the other open pull requests'
+   `mergeable` state. A `CONFLICTING` one becomes a rebase item for the
+   next wave. Remove the worktree of each merged pull request with
+   `git worktree remove` on the path the lead reported.
 5. After the wave's merges, watch the newest run on `main` with
    `gh run watch --exit-status`. A failure stops the run.
 6. Stop or pick the next wave (`orchestration.md`, "Runs", "Stop").

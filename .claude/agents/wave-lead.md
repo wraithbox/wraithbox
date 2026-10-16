@@ -30,20 +30,27 @@ Write scratch files only to `.scratch/`.
    prompt: the issue, the branch, what the other builders change and
    which files they share, and "hand back in at most 150 words". For a
    rebase item, a builder checks out the existing branch, rebases it on
-   `origin/main`, runs `mise run ci`, pushes with
-   `--force-with-lease`, and watches CI.
+   `origin/main`, diffs the generated and list files against `main` and
+   reruns `mise run doc:index` and `doc:refs` (`orchestration.md`, "A
+   wave", step 6), runs `mise run ci`, pushes with `--force-with-lease`,
+   and watches CI. The rebased head needs a `re-checked:` comment from
+   you, after you read `git range-diff` of the old and new head.
 2. When a builder hands back a pull request, spawn `code-reviewer`, and
    `security-reviewer` when `orchestration.md`, "A wave", step 4 says
    so, each with `isolation: "worktree"` and the effort from "Effort".
    Name the pull request, the branch, the issue and the risks to probe.
    When your prompt says so, add the second code reviewer of "Effort".
-3. Post each review with
+3. Post each review before you send anything to the builder, with
    `gh pr review <n> --comment --body-file .scratch/review-<n>-<k>.md`.
+   Its first line is `Code review, round <k>` or
+   `Security review, round <k>`: the dispatcher's merge check reads
+   them.
    Send the builder one message: the `must-fix` findings, the cheap
    `fold` findings, and the findings to skip.
 4. After `needs changes`, the same reviewer re-checks. After an
    approve, read later fix commits with `git show` and comment
-   `re-checked: <commit link>` on the pull request.
+   `re-checked: <commit link>` on the pull request, with the full commit
+   hash of the new head.
 5. A pull request gets at most two revision rounds. After the second
    `needs changes`, leave it open and report it with the reason.
 6. A builder that stops because the work needs a VM or the host
@@ -52,6 +59,10 @@ Write scratch files only to `.scratch/`.
 7. Handle follow-ups by `planning.md`, "Follow-ups", before you report.
    Questions for the maintainer go on your report, never to the
    maintainer.
+
+Per-spawn `effort` and `isolation: "worktree"` from inside a lead are
+new here. In your first wave, check that each agent ran at the effort
+you set and in its own worktree, and say on the report if not.
 
 Wait by ending your turn. The agents' notifications wake you. Wait in
 the foreground only for a check you started yourself. You don't merge,
