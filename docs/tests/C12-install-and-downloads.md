@@ -83,7 +83,8 @@ With an unchanged plist, it leaves the agent running. With no
 A failed backup, a failed migration, a newer database, and a renamed
 and an unknown configuration key each put `wb-hostd` in refusing mode
 with their rule, and it starts no daemon. An existing `.bak` name is
-kept. A backup file is mode 600.
+kept. A backup file is mode 600. The tests are the `TestC12` ones in
+`internal/hostd/state`, `internal/config` and `internal/hostd/startup`.
 
 ## Fuzzing
 
