@@ -192,6 +192,11 @@ func (d *DB) migrate(ctx context.Context, dataDir string, created bool, o option
 		return openFailed(d.path, err)
 	}
 	latest := len(o.migrations)
+	if version < 0 {
+		r := openFailed(d.path, fmt.Errorf("user_version is %d, below 0", version))
+		r.Version = version
+		return r
+	}
 	if version > latest {
 		return &Refusal{
 			Rule:    RuleNewer,
@@ -236,13 +241,28 @@ func (d *DB) userVersion(ctx context.Context) (int, error) {
 
 // apply runs one migration and sets user_version to to, in one
 // transaction. On any error the transaction rolls back, and the version
-// stays as it was.
+// stays as it was. The transaction begins IMMEDIATE, so it holds the
+// write lock from its first statement. It reads the version again under
+// that lock, and skips a migration that a second wb-hostd ran in the
+// meantime.
 func (d *DB) apply(ctx context.Context, to int, m migration) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	var current int
+	if err := tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&current); err != nil {
+		return err
+	}
+	if current >= to {
+		slog.Default().LogAttrs(ctx, slog.LevelInfo, "state database migration already run",
+			slog.String("path", d.path), slog.String("migration", m.name), slog.Int("version", current))
+		return nil
+	}
+	if current != to-1 {
+		return fmt.Errorf("the version changed to %d before migration %s", current, m.name)
+	}
 	if err := m.apply(ctx, tx); err != nil {
 		return err
 	}

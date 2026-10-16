@@ -74,7 +74,7 @@ func TestC12Refused(t *testing.T) {
 	}{
 		{"unknown top-level key", "vm_cpu_count = 2\nvm_disk_gib = 64\n", RuleKeyUnknown, 2, "vm_disk_gib"},
 		{"unknown table", "\n[git]\npath = \"/usr/bin/git\"\n", RuleKeyUnknown, 2, "git"},
-		{"unknown dotted key", "vm.cpu = 2\n", RuleKeyUnknown, 1, "vm.cpu"},
+		{"unknown dotted key", "vm.cpu = 2\n", RuleKeyUnknown, 1, "vm"},
 		{"first of two unknown keys", "a = 1\nvm_cpu_count = 2\nb = 2\n", RuleKeyUnknown, 1, "a"},
 		{"zero", "vm_cpu_count = 0\n", RuleValueInvalid, 0, "vm_cpu_count"},
 		{"negative", "vm_memory_mib = -1\n", RuleValueInvalid, 0, "vm_memory_mib"},
@@ -82,7 +82,13 @@ func TestC12Refused(t *testing.T) {
 		{"float", "\nvm_memory_mib = 8192.0\n", RuleValueInvalid, 2, "vm_memory_mib"},
 		{"over uint32", "vm_cpu_count = 4294967296\n", RuleValueInvalid, 0, "vm_cpu_count"},
 		{"over int64", "vm_memory_mib = 9223372036854775808\n", RuleValueInvalid, 1, "vm_memory_mib"},
-		{"duplicate key", "vm_cpu_count = 2\nvm_cpu_count = 3\n", RuleValueInvalid, 2, "vm_cpu_count"},
+		{"upper-case key", "VM_CPU_COUNT = 2\n", RuleKeyUnknown, 1, "VM_CPU_COUNT"},
+		{"mixed-case key", "\nVm_Cpu_Count = 2\n", RuleKeyUnknown, 2, "Vm_Cpu_Count"},
+		{"case-variant duplicate", "vm_cpu_count = 2\nVM_CPU_COUNT = 3\n", RuleKeyUnknown, 2, "VM_CPU_COUNT"},
+		{"quoted upper-case key", "\"VM_MEMORY_MIB\" = 2\n", RuleKeyUnknown, 1, "VM_MEMORY_MIB"},
+		{"upper-case key in an inline table", "x = { VM_CPU_COUNT = 2 }\n", RuleKeyUnknown, 1, "x"},
+		{"duplicate key", "vm_cpu_count = 2\nvm_cpu_count = 3\n", RuleSyntaxInvalid, 2, "vm_cpu_count"},
+		{"key then table", "vm_cpu_count = 2\n[vm_cpu_count]\n", RuleSyntaxInvalid, 2, "vm_cpu_count"},
 		{"table for a number", "[vm_cpu_count]\n", RuleValueInvalid, 1, "vm_cpu_count"},
 		{"syntax", "vm_cpu_count =\n", RuleSyntaxInvalid, 1, ""},
 		{"not toml", "\x00\x01", RuleSyntaxInvalid, 1, ""},
@@ -106,19 +112,51 @@ func TestC12Refused(t *testing.T) {
 	}
 }
 
-// TestUnknownNestedKey: a key unknown inside a known table is refused
-// as well. V1 has no table, so the test decodes into one of its own.
-func TestUnknownNestedKey(t *testing.T) {
-	var target struct {
-		Audit struct {
-			RetentionDays int `toml:"retention_days"`
-		} `toml:"audit"`
+// auditTarget has a nested table, which V1's settings don't.
+type auditTarget struct {
+	Audit struct {
+		RetentionDays int `toml:"retention_days"`
+	} `toml:"audit"`
+}
+
+// TestNestedKeys: inside a known table, a key must match exactly too,
+// and a key or table defined twice is refused. V1 has no table, so the
+// test decodes into one of its own.
+func TestNestedKeys(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		rule Rule
+		line int
+		key  string
+	}{
+		{"unknown nested key", "[audit]\nretention_days = 30\nretention_weeks = 4\n", RuleKeyUnknown, 3, "audit.retention_weeks"},
+		{"upper-case nested key", "[audit]\nRETENTION_DAYS = 30\n", RuleKeyUnknown, 2, "audit.RETENTION_DAYS"},
+		{"upper-case table", "[AUDIT]\nretention_days = 30\n", RuleKeyUnknown, 1, "AUDIT"},
+		{"dotted upper-case key", "audit.Retention_Days = 30\n", RuleKeyUnknown, 1, "audit.Retention_Days"},
+		{"inline table", "audit = { retention_days = 1, x = 2 }\n", RuleKeyUnknown, 1, "audit.x"},
+		{"table twice", "[audit]\n[audit]\n", RuleSyntaxInvalid, 2, "audit"},
+		{"nested key twice", "[audit]\nretention_days = 1\nretention_days = 2\n", RuleSyntaxInvalid, 3, "audit.retention_days"},
+		{"dotted and table key twice", "audit.retention_days = 1\n[audit]\nretention_days = 2\n", RuleSyntaxInvalid, 3, "audit.retention_days"},
 	}
-	body := "[audit]\nretention_days = 30\nretention_weeks = 4\n"
-	r := decode("config.toml", []byte(body), &target, nil)
-	if r == nil || r.Rule != RuleKeyUnknown || r.Line != 3 || r.Key != "audit.retention_weeks" {
-		t.Fatalf("refusal = %+v, want %s at line 3 for audit.retention_weeks", r, RuleKeyUnknown)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var target auditTarget
+			r := decode("config.toml", []byte(tt.body), &target, nil)
+			if r == nil || r.Rule != tt.rule || r.Line != tt.line || r.Key != tt.key {
+				t.Fatalf("refusal = %+v, want %s at line %d for %s", r, tt.rule, tt.line, tt.key)
+			}
+		})
 	}
+	t.Run("accepted", func(t *testing.T) {
+		var target auditTarget
+		for _, body := range []string{"[audit]\nretention_days = 3\n", "audit.retention_days = 3\n", "audit = { retention_days = 3 }\n"} {
+			target.Audit.RetentionDays = 0
+			if r := decode("config.toml", []byte(body), &target, nil); r != nil || target.Audit.RetentionDays != 3 {
+				t.Errorf("%q: %v, %d", body, r, target.Audit.RetentionDays)
+			}
+		}
+	})
 }
 
 // C12-install-and-downloads, "Migrations": a renamed key, from a table

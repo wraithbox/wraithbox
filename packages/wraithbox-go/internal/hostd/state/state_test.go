@@ -288,6 +288,42 @@ func TestC12ExistingBackupKept(t *testing.T) {
 	}
 }
 
+// Anything but a regular file at the backup's name doesn't count as a
+// kept backup: the backup fails, and no migration runs.
+func TestBackupNameNotARegularFile(t *testing.T) {
+	dir := t.TempDir()
+	path := fixture(t, dir, 0, "CREATE TABLE legacy (x)")
+	if err := os.Mkdir(filepath.Join(dir, BackupName(0)), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	_, err := open(t.Context(), dir, opts(migrations))
+	refusal(t, err, RuleBackupFailed)
+	if v := version(t, path); v != 0 {
+		t.Errorf("version = %d after the failed backup, want 0", v)
+	}
+}
+
+// A migration that a second wb-hostd ran between this one's version
+// read and its transaction is skipped, not run twice.
+func TestMigrationRunByAnotherStartSkipped(t *testing.T) {
+	dir := t.TempDir()
+	path := fixture(t, dir, 0, "CREATE TABLE legacy (x)")
+	m := testMigrations()
+	o := opts(m)
+	o.vacuumInto = func(ctx context.Context, db *sql.DB, dst string) error {
+		if err := vacuumInto(ctx, db, dst); err != nil {
+			return err
+		}
+		// The other wb-hostd runs migration 1 while this one backs up.
+		exec(t, rawDB(t, path), "CREATE TABLE t (a INTEGER)", "PRAGMA user_version = 1")
+		return nil
+	}
+	mustOpen(t, dir, o)
+	if v := version(t, path); v != 2 {
+		t.Errorf("version = %d, want 2", v)
+	}
+}
+
 // Only the two newest backups stay. Other files are never deleted.
 func TestOnlyTwoNewestBackupsKept(t *testing.T) {
 	dir := t.TempDir()
@@ -346,6 +382,20 @@ func TestOpenRefused(t *testing.T) {
 		}
 		_, err := Open(t.Context(), dir)
 		refusal(t, err, RuleOpenFailed)
+	})
+	t.Run("negative version", func(t *testing.T) {
+		dir := t.TempDir()
+		path := fixture(t, dir, -1, "CREATE TABLE legacy (x)")
+		_, err := Open(t.Context(), dir)
+		if r := refusal(t, err, RuleOpenFailed); r.Version != -1 {
+			t.Errorf("refusal version = %d, want -1", r.Version)
+		}
+		if b := bakFiles(t, dir); len(b) != 0 {
+			t.Errorf("backups = %v, want none", b)
+		}
+		if v := version(t, path); v != -1 || hasTable(t, path, "vm_slots") {
+			t.Errorf("the database was migrated (version %d)", v)
+		}
 	})
 	t.Run("not a database", func(t *testing.T) {
 		dir := t.TempDir()
