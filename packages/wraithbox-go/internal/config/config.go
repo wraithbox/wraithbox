@@ -242,29 +242,20 @@ func decode(path string, data []byte, target any, renamed map[string]string) *Re
 	}
 }
 
-// unknownKey refuses the first unknown key in the file. A key in the
-// renamed table gives config-key-renamed with the key that replaces it.
+// unknownKey refuses the first unknown key the decoder found. checkKeys
+// refuses every unknown key before the decoder runs, so this is a second
+// layer: the decoder's strict mode stays on, and its refusal is built as
+// checkKeys builds one (refuseKey).
 func unknownKey(path string, sm *toml.StrictMissingError, renamed map[string]string) *Refusal {
-	errs := slices.Clone(sm.Errors)
-	slices.SortStableFunc(errs, func(a, b toml.DecodeError) int {
+	first := slices.MinFunc(sm.Errors, func(a, b toml.DecodeError) int {
 		la, _ := a.Position()
 		lb, _ := b.Position()
 		return la - lb
 	})
-	first := errs[0]
 	line, _ := first.Position()
-	key := strings.Join(first.Key(), ".")
-	if newKey, ok := renamed[key]; ok {
-		return &Refusal{
-			Rule: RuleKeyRenamed, File: path, Line: line, Key: key, NewKey: newKey, err: sm,
-			msg: fmt.Sprintf("the settings file %s has the key %s at line %d, which a release renamed or removed: use %s",
-				path, key, line, newKey),
-		}
-	}
-	return &Refusal{
-		Rule: RuleKeyUnknown, File: path, Line: line, Key: key, err: sm,
-		msg: fmt.Sprintf("the settings file %s has the unknown key %s at line %d", path, key, line),
-	}
+	r := refuseKey(path, line, []string{strings.Join(first.Key(), ".")}, renamed)
+	r.err = sm
+	return r
 }
 
 // check applies the ranges and the defaults. Each count must be a

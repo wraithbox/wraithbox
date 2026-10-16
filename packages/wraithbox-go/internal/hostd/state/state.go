@@ -198,13 +198,7 @@ func (d *DB) migrate(ctx context.Context, dataDir string, created bool, o option
 		return r
 	}
 	if version > latest {
-		return &Refusal{
-			Rule:    RuleNewer,
-			Version: version,
-			Backup:  newestBackup(dataDir),
-			msg: fmt.Sprintf("the state database %s is version %d, newer than version %d that this wb-hostd knows: install the newer Wraith Box again",
-				d.path, version, latest),
-		}
+		return d.newer(dataDir, version, latest)
 	}
 	if version == latest {
 		logMigrated(ctx, d.path, version, version, "")
@@ -218,7 +212,11 @@ func (d *DB) migrate(ctx context.Context, dataDir string, created bool, o option
 		}
 	}
 	for v := version; v < latest; v++ {
-		if err := d.apply(ctx, v+1, o.migrations[v]); err != nil {
+		err := d.apply(ctx, v+1, latest, o.migrations[v])
+		if n, ok := errors.AsType[*newerError](err); ok {
+			return d.newer(dataDir, n.version, latest)
+		}
+		if err != nil {
 			return &Refusal{
 				Rule:    RuleMigrationFailed,
 				Version: v,
@@ -233,6 +231,25 @@ func (d *DB) migrate(ctx context.Context, dataDir string, created bool, o option
 	return nil
 }
 
+// newer refuses a database at version, above latest.
+func (d *DB) newer(dataDir string, version, latest int) *Refusal {
+	return &Refusal{
+		Rule:    RuleNewer,
+		Version: version,
+		Backup:  newestBackup(dataDir),
+		msg: fmt.Sprintf("the state database %s is version %d, newer than version %d that this wb-hostd knows: install the newer Wraith Box again",
+			d.path, version, latest),
+	}
+}
+
+// newerError is apply's error for a version that a newer wb-hostd moved
+// past latest while this one started.
+type newerError struct{ version int }
+
+func (e *newerError) Error() string {
+	return fmt.Sprintf("the version is %d, newer than this wb-hostd knows", e.version)
+}
+
 func (d *DB) userVersion(ctx context.Context) (int, error) {
 	var v int
 	err := d.db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&v)
@@ -244,8 +261,8 @@ func (d *DB) userVersion(ctx context.Context) (int, error) {
 // stays as it was. The transaction begins IMMEDIATE, so it holds the
 // write lock from its first statement. It reads the version again under
 // that lock, and skips a migration that a second wb-hostd ran in the
-// meantime.
-func (d *DB) apply(ctx context.Context, to int, m migration) error {
+// meantime. A version above latest is a *newerError.
+func (d *DB) apply(ctx context.Context, to, latest int, m migration) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -254,6 +271,9 @@ func (d *DB) apply(ctx context.Context, to int, m migration) error {
 	var current int
 	if err := tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&current); err != nil {
 		return err
+	}
+	if current > latest {
+		return &newerError{version: current}
 	}
 	if current >= to {
 		slog.Default().LogAttrs(ctx, slog.LevelInfo, "state database migration already run",

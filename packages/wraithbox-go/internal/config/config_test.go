@@ -74,7 +74,7 @@ func TestC12Refused(t *testing.T) {
 	}{
 		{"unknown top-level key", "vm_cpu_count = 2\nvm_disk_gib = 64\n", RuleKeyUnknown, 2, "vm_disk_gib"},
 		{"unknown table", "\n[git]\npath = \"/usr/bin/git\"\n", RuleKeyUnknown, 2, "git"},
-		{"unknown dotted key", "vm.cpu = 2\n", RuleKeyUnknown, 1, "vm"},
+		{"unknown dotted key", "vm.cpu = 2\n", RuleKeyUnknown, 1, "vm.cpu"},
 		{"first of two unknown keys", "a = 1\nvm_cpu_count = 2\nb = 2\n", RuleKeyUnknown, 1, "a"},
 		{"zero", "vm_cpu_count = 0\n", RuleValueInvalid, 0, "vm_cpu_count"},
 		{"negative", "vm_memory_mib = -1\n", RuleValueInvalid, 0, "vm_memory_mib"},
@@ -90,6 +90,7 @@ func TestC12Refused(t *testing.T) {
 		{"duplicate key", "vm_cpu_count = 2\nvm_cpu_count = 3\n", RuleSyntaxInvalid, 2, "vm_cpu_count"},
 		{"key then table", "vm_cpu_count = 2\n[vm_cpu_count]\n", RuleSyntaxInvalid, 2, "vm_cpu_count"},
 		{"table for a number", "[vm_cpu_count]\n", RuleValueInvalid, 1, "vm_cpu_count"},
+		{"two keys below a number", "vm_cpu_count.a = 1\nvm_cpu_count.b = 2\n", RuleValueInvalid, 1, "vm_cpu_count.a"},
 		{"syntax", "vm_cpu_count =\n", RuleSyntaxInvalid, 1, ""},
 		{"not toml", "\x00\x01", RuleSyntaxInvalid, 1, ""},
 	}
@@ -172,6 +173,84 @@ func TestC12RenamedKey(t *testing.T) {
 	}
 	if !strings.Contains(r.Error(), "vm_cpu_count") {
 		t.Errorf("message %q doesn't name the new key", r)
+	}
+}
+
+// A renamed dotted key matches on the whole key, and a renamed table on
+// its prefix.
+func TestRenamedDottedKey(t *testing.T) {
+	renamed := map[string]string{"vm.cores": "vm_cpu_count", "old": "audit"}
+	tests := []struct{ body, key, newKey string }{
+		{"vm.cores = 2\n", "vm.cores", "vm_cpu_count"},
+		{"old.retention_days = 2\n", "old", "audit"},
+		{"[old]\nretention_days = 2\n", "old", "audit"},
+	}
+	for _, tt := range tests {
+		var target auditTarget
+		r := decode("config.toml", []byte(tt.body), &target, renamed)
+		if r == nil || r.Rule != RuleKeyRenamed || r.Key != tt.key || r.NewKey != tt.newKey {
+			t.Errorf("%q: refusal = %+v, want %s for %s naming %s", tt.body, r, RuleKeyRenamed, tt.key, tt.newKey)
+		}
+	}
+}
+
+// gitTarget has an array of tables, which V1's settings don't.
+type gitTarget struct {
+	Git []struct {
+		Path string `toml:"path"`
+	} `toml:"git"`
+}
+
+// TestArrayOfTables: keys below an array of tables match exactly, and a
+// key defined twice in one element is refused, while each element has
+// its own keys.
+func TestArrayOfTables(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		rule Rule
+		line int
+		key  string
+	}{
+		{"upper-case key", "[[git]]\nPATH = \"a\"\n", RuleKeyUnknown, 2, "git.PATH"},
+		{"upper-case header", "[[GIT]]\npath = \"a\"\n", RuleKeyUnknown, 1, "GIT"},
+		{"case-variant in a later element", "[[git]]\npath = \"a\"\n[[git]]\nPath = \"b\"\n", RuleKeyUnknown, 4, "git.Path"},
+		{"upper-case key inline", "git = [{ PATH = \"b\" }]\n", RuleKeyUnknown, 1, "git.PATH"},
+		{"key twice in an element", "[[git]]\npath = \"a\"\npath = \"b\"\n", RuleSyntaxInvalid, 3, "git.path"},
+		{"key twice inline", "git = [{ path = \"a\", path = \"b\" }]\n", RuleSyntaxInvalid, 1, "git.path"},
+		{"table after array", "[[git]]\npath = \"a\"\n[git]\n", RuleSyntaxInvalid, 3, "git"},
+		{"array after key", "git = []\n[[git]]\n", RuleSyntaxInvalid, 2, "git"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var target gitTarget
+			r := decode("config.toml", []byte(tt.body), &target, nil)
+			if r == nil || r.Rule != tt.rule || r.Line != tt.line || r.Key != tt.key {
+				t.Fatalf("refusal = %+v, want %s at line %d for %s", r, tt.rule, tt.line, tt.key)
+			}
+		})
+	}
+	t.Run("accepted", func(t *testing.T) {
+		for _, body := range []string{
+			"[[git]]\npath = \"a\"\n[[git]]\npath = \"b\"\n",
+			"git = [{ path = \"a\" }, { path = \"b\" }]\n",
+		} {
+			var target gitTarget
+			if r := decode("config.toml", []byte(body), &target, nil); r != nil || len(target.Git) != 2 || target.Git[1].Path != "b" {
+				t.Errorf("%q: %v, %+v", body, r, target.Git)
+			}
+		}
+	})
+}
+
+// A map's keys are data, kept as written, so they aren't checked
+// against tags.
+func TestMapKeysOpen(t *testing.T) {
+	var target struct {
+		Hosts map[string]int `toml:"hosts"`
+	}
+	if r := decode("config.toml", []byte("[hosts]\nExample_Host = 1\n"), &target, nil); r != nil || target.Hosts["Example_Host"] != 1 {
+		t.Errorf("map: %v, %v", r, target.Hosts)
 	}
 }
 

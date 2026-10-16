@@ -324,6 +324,51 @@ func TestMigrationRunByAnotherStartSkipped(t *testing.T) {
 	}
 }
 
+// A second wb-hostd that migrates before the copy: the copy is named
+// after the version it holds, so v0 never holds version 1's schema.
+func TestBackupNamedAfterTheCopiedVersion(t *testing.T) {
+	dir := t.TempDir()
+	path := fixture(t, dir, 0, "CREATE TABLE legacy (x)")
+	o := opts(testMigrations())
+	o.vacuumInto = func(ctx context.Context, db *sql.DB, dst string) error {
+		exec(t, rawDB(t, path), "CREATE TABLE t (a INTEGER)", "PRAGMA user_version = 1")
+		return vacuumInto(ctx, db, dst)
+	}
+	mustOpen(t, dir, o)
+	if got := bakFiles(t, dir); !slices.Equal(got, []string{BackupName(1)}) {
+		t.Errorf("backups = %v, want %s", got, BackupName(1))
+	}
+	if v := version(t, filepath.Join(dir, BackupName(1))); v != 1 {
+		t.Errorf("backup version = %d, want 1", v)
+	}
+	if v := version(t, path); v != 2 {
+		t.Errorf("version = %d, want 2", v)
+	}
+}
+
+// A newer wb-hostd that moves the version past this build's latest
+// while this one backs up: the migration refuses with state-db-newer
+// instead of skipping as already run.
+func TestNewerDuringMigrationRefused(t *testing.T) {
+	dir := t.TempDir()
+	path := fixture(t, dir, 0, "CREATE TABLE legacy (x)")
+	o := opts(testMigrations())
+	o.vacuumInto = func(ctx context.Context, db *sql.DB, dst string) error {
+		if err := vacuumInto(ctx, db, dst); err != nil {
+			return err
+		}
+		exec(t, rawDB(t, path), "PRAGMA user_version = 5")
+		return nil
+	}
+	_, err := open(t.Context(), dir, o)
+	if r := refusal(t, err, RuleNewer); r.Version != 5 || r.Latest != 2 {
+		t.Errorf("refusal versions = %d and %d, want 5 and 2", r.Version, r.Latest)
+	}
+	if hasTable(t, path, "t") {
+		t.Error("a migration ran on the newer database")
+	}
+}
+
 // Only the two newest backups stay. Other files are never deleted.
 func TestOnlyTwoNewestBackupsKept(t *testing.T) {
 	dir := t.TempDir()

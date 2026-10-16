@@ -40,7 +40,11 @@ func BackupName(version int) string {
 //     nothing is written.
 //  2. VACUUM INTO writes a copy to a new temporary name, created
 //     exclusively with mode 600.
-//  3. The copy is linked to the backup name. A link fails on an existing
+//  3. The copy's own version is read again. A second wb-hostd can
+//     migrate between this one's version read and the copy, so the copy
+//     is named after the version it holds, and a name never holds a
+//     later schema.
+//  4. The copy is linked to the backup name. A link fails on an existing
 //     name, so it never writes over a backup.
 //
 // Then only the two newest backups are kept.
@@ -56,43 +60,76 @@ func writeBackup(ctx context.Context, db *sql.DB, dataDir string, version int,
 	if kept {
 		slog.Default().LogAttrs(ctx, slog.LevelInfo, "state database backup kept from an earlier attempt",
 			slog.String("backup", final), slog.Int("version", version))
-	} else if err := copyTo(ctx, db, dataDir, final, vacuum); err != nil {
+	} else if final, err = copyTo(ctx, db, dataDir, version, vacuum); err != nil {
 		return "", backupFailed(dataDir, version, err)
 	}
 	prune(ctx, dataDir)
 	return final, nil
 }
 
-func copyTo(ctx context.Context, db *sql.DB, dataDir, final string,
+// copyTo writes the copy and returns the backup's path, named after
+// the version the copy holds.
+func copyTo(ctx context.Context, db *sql.DB, dataDir string, version int,
 	vacuum func(context.Context, *sql.DB, string) error,
-) error {
+) (string, error) {
 	// CreateTemp opens with O_EXCL and mode 600. VACUUM INTO accepts an
 	// empty file, and keeps its mode.
 	f, err := os.CreateTemp(dataDir, tmpPattern)
 	if err != nil {
-		return err
+		return "", err
 	}
 	tmp := f.Name()
 	defer func() { _ = os.Remove(tmp) }()
 	if err := f.Close(); err != nil {
-		return err
+		return "", err
 	}
 	if err := vacuum(ctx, db, tmp); err != nil {
-		return fmt.Errorf("VACUUM INTO: %w", err)
+		return "", fmt.Errorf("VACUUM INTO: %w", err)
 	}
 	if err := syncFile(tmp); err != nil {
-		return err
+		return "", err
+	}
+	copied, err := fileVersion(ctx, tmp)
+	if err != nil {
+		return "", fmt.Errorf("reading the copy's version: %w", err)
+	}
+	final := filepath.Join(dataDir, BackupName(copied))
+	if copied != version {
+		slog.Default().LogAttrs(ctx, slog.LevelWarn, "state database changed during the backup",
+			slog.Int("version", version), slog.Int("copied", copied), slog.String("backup", final))
+		kept, err := exists(final)
+		if err != nil || kept {
+			return final, err
+		}
 	}
 	if err := os.Link(tmp, final); err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			slog.Default().LogAttrs(ctx, slog.LevelInfo, "state database backup kept from an earlier attempt",
 				slog.String("backup", final))
-			return nil
+			return final, nil
 		}
-		return err
+		return "", err
 	}
 	slog.Default().LogAttrs(ctx, slog.LevelInfo, "state database backup written", slog.String("backup", final))
-	return nil
+	return final, nil
+}
+
+// fileVersion reads the user_version of the database at path, which
+// must be 0 or more.
+func fileVersion(ctx context.Context, path string) (int, error) {
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = db.Close() }()
+	var v int
+	if err := db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&v); err != nil {
+		return 0, err
+	}
+	if v < 0 {
+		return 0, fmt.Errorf("user_version is %d, below 0", v)
+	}
+	return v, nil
 }
 
 // vacuumInto is the backup copy of S17-05-upgrades-and-migrations, "The
