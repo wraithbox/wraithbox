@@ -93,8 +93,13 @@ It also denies the network, starting programs, and other services
 
 The extension classes were measured with the X18-vsock-handoff
 configuration, which has the device set of S06-06-devices-and-warm-start.
-If that set drops the graphics device (S06-06-devices-and-warm-start,
-"The graphics device"), the profile is ablated again.
+Both VMs' profiles allow the same two cache entries. The two VMs
+share a graphics cache through them (T21-shared-graphics-cache).
+
+V1-M6-release-gate checks whether the set can drop the graphics
+device, keyboard and pointer (S06-06-devices-and-warm-start, "The
+graphics device"). If it drops them, the profile is ablated again
+against the new set.
 
 ### `wb-proxyd` and the secret store on macOS
 

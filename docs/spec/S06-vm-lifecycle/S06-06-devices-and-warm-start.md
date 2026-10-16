@@ -40,8 +40,11 @@ The graphics device, keyboard and pointer stay in the set for now
 that configuration, and no macOS guest has booted without them. Some
 of the sandbox extensions in `wb-vmd`'s profile serve these devices
 (X25-vmd-sandbox), and they give the two VMs a shared graphics cache
-(I247). If a later check drops the devices, `wb-vmd`'s profile is
-ablated again (S04-03-self-sandboxing).
+(T21-shared-graphics-cache).
+
+V1-M6-release-gate checks whether a guest boots and works without
+these devices. If they leave the set, `wb-vmd`'s profile is ablated
+again against it (S04-03-self-sandboxing).
 
 ### Resources
 
