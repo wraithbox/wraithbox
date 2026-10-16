@@ -36,7 +36,7 @@ The parts of the key:
 `wb` runs git for the key, the remotes and the root commits:
 
 - with the git binary of S08-08-host-git;
-- with `core.hooksPath=/dev/null` on its command line;
+- with `core.hooksPath` set to `/dev/null` (`NUL` on Windows);
 - with an otherwise scrubbed environment, as `wb-git` runs git
   (S08-03-pushes).
 
