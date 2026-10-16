@@ -166,9 +166,9 @@ and the file at the final name kept.
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
   (S04-08-records-and-bounds, "Accounting and event channels").
 - The daemon log pipes, `FuzzLogPipe`: arbitrary bytes in arbitrary
-  chunks. Every record is one JSON line, no line is longer than 4 KiB,
-  and the reader's buffer never grows past its bound (S04-08-records-and-bounds,
-  "Logs and health").
+  chunks. Each record is one JSON line with at most 4 KiB of input in
+  its line field. The reader's buffer doesn't grow past its bound
+  (S04-08-records-and-bounds, "Logs and health").
 - Every vsock RPC handler in `wb-hostd`.
 - The stream framing that multiplexes guest requests on a host-opened
   connection, with the project each request is attributed to

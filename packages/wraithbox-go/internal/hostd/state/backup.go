@@ -114,12 +114,22 @@ func syncFile(path string) error {
 	return f.Close()
 }
 
+// exists reports whether a backup is at path. Only a regular file
+// counts as one. Anything else at the name, such as a directory or a
+// symbolic link, is an error: it would stand in for a backup that
+// doesn't exist.
 func exists(path string) (bool, error) {
-	_, err := os.Lstat(path)
+	info, err := os.Lstat(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	if !info.Mode().IsRegular() {
+		return false, fmt.Errorf("%s is not a regular file (%s)", path, info.Mode().Type())
+	}
+	return true, nil
 }
 
 func backupFailed(dataDir string, version int, err error) *Refusal {

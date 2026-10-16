@@ -81,6 +81,9 @@ func TestRefusingKeepsTheRule(t *testing.T) {
 		{&config.Refusal{Rule: config.RuleKeyRenamed}, "config-key-renamed"},
 		{&config.Refusal{Rule: config.RuleKeyUnknown}, "config-key-unknown"},
 		{&config.Refusal{Rule: config.RuleValueInvalid}, "config-value-invalid"},
+		{&state.Refusal{Rule: state.RuleOpenFailed}, "state-db-open-failed"},
+		{&config.Refusal{Rule: config.RuleSyntaxInvalid}, "config-syntax-invalid"},
+		{&config.Refusal{Rule: config.RuleFileUnreadable}, "config-file-unreadable"},
 		{errors.New("other"), ruleStartFailed},
 	}
 	for _, tt := range tests {

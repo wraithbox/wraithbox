@@ -8,6 +8,26 @@ import (
 	"testing"
 )
 
+// A symbolic link at a log file's name is refused, not followed.
+// Symbolic links need a privilege on Windows, so this runs on Unix hosts
+// only.
+func TestSymlinkRefused(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(t.TempDir(), "elsewhere")
+	if err := os.WriteFile(target, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(dir, "wb-netd.log")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := OpenFile(dir, "wb-netd"); err == nil {
+		t.Error("OpenFile followed a symbolic link")
+	}
+	if got, _ := os.ReadFile(target); len(got) != 0 {
+		t.Errorf("the link's target was written: %q", got)
+	}
+}
+
 // Log files are mode 600, the rotated ones too. Windows has no mode
 // bits, so this runs on Unix hosts only.
 func TestLogFileMode(t *testing.T) {

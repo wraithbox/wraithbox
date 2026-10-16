@@ -21,6 +21,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -156,17 +157,26 @@ func read(path string, renamed map[string]string) (Config, *Refusal) {
 }
 
 // readFile returns nil, nil for a missing file. It follows a symbolic
-// link, because users keep dotfiles in a repository and link them.
+// link, because users keep dotfiles in a repository and link them. It
+// checks for a regular file before it opens one, because opening a FIFO
+// blocks until a writer comes, and again on the open file.
 func readFile(path string) ([]byte, *Refusal) {
-	f, err := os.Open(path)
+	info, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
 	if err != nil {
+		return nil, unreadable(path, "can't be read", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, unreadable(path, "isn't a regular file", nil)
+	}
+	f, err := os.Open(path)
+	if err != nil {
 		return nil, unreadable(path, "can't be opened", err)
 	}
 	defer func() { _ = f.Close() }()
-	info, err := f.Stat()
+	info, err = f.Stat()
 	if err != nil {
 		return nil, unreadable(path, "can't be read", err)
 	}
@@ -194,10 +204,14 @@ func unreadable(path, what string, err error) *Refusal {
 	return &Refusal{Rule: RuleFileUnreadable, File: path, msg: msg, err: err}
 }
 
-// decode decodes data into target with unknown keys disallowed, and
-// turns the decoder's errors into refusals. It takes the target so a
-// test can give it a struct with a nested table.
+// decode checks every key against target's tags exactly (checkKeys),
+// then decodes data into target with unknown keys disallowed, and turns
+// the decoder's errors into refusals. It takes the target so a test can
+// give it a struct with a nested table.
 func decode(path string, data []byte, target any, renamed map[string]string) *Refusal {
+	if r := checkKeys(path, data, schemaOf(reflect.TypeOf(target)), renamed); r != nil {
+		return r
+	}
 	dec := toml.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	err := dec.Decode(target)

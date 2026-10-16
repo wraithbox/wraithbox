@@ -45,7 +45,13 @@ func OpenFile(dir, process string) (*File, error) {
 	return lf, nil
 }
 
+// open opens the log file, creating it mode 600. A symbolic link or any
+// other file that isn't regular at the name is refused, not followed, so
+// the log can't be pointed at another file.
 func (lf *File) open() error {
+	if info, err := os.Lstat(lf.path); err == nil && !info.Mode().IsRegular() {
+		return fmt.Errorf("logpipe: %s is not a regular file (%s)", lf.path, info.Mode().Type())
+	}
 	f, err := os.OpenFile(lf.path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
@@ -54,6 +60,10 @@ func (lf *File) open() error {
 	if err != nil {
 		_ = f.Close()
 		return err
+	}
+	if !info.Mode().IsRegular() {
+		_ = f.Close()
+		return fmt.Errorf("logpipe: %s is not a regular file (%s)", lf.path, info.Mode().Type())
 	}
 	lf.f, lf.size = f, info.Size()
 	return nil

@@ -52,8 +52,9 @@ Before the first pending migration, `wb-hostd` backs up `state.db`:
 
 1. It writes a copy with `VACUUM INTO` to a new temporary name in
    `<data>`, mode 600.
-2. It renames the copy to `state.db.v<N>.bak`, where `<N>` is the
-   version the database had.
+2. It links the copy to the name `state.db.v<N>.bak`, where `<N>` is
+   the version the database had, and removes the temporary name. A link
+   fails on an existing name, where a rename would replace the file.
 
 It never writes over an existing `.bak` file. When that name exists,
 the copy from an earlier attempt stays. It keeps the two newest
@@ -68,10 +69,12 @@ every default. `wb-hostd` refuses:
 - a file with a key that a release renamed or removed, with
   `config-key-renamed`, naming the file, the line and the new key;
 - a file with any other unknown key, at any level, with
-  `config-key-unknown`, naming the file, the line and the key;
+  `config-key-unknown`, naming the file, the line and the key. A key
+  matches only when spelled exactly, case included;
 - a known key with a value of the wrong type or out of range, with
   `config-value-invalid`;
-- a file that isn't valid TOML, with `config-syntax-invalid`;
+- a file that isn't valid TOML, or that defines a key or table twice,
+  with `config-syntax-invalid`;
 - a file it can't read, that isn't a regular file, or that is too
   large, with `config-file-unreadable`.
 
