@@ -23,8 +23,13 @@ const (
 	// and the ones cut off can't be closed. So the control buffer has
 	// room for all of them, more than the two that S07-05-stream-hand-off
 	// ("Message form") asks for, and Recv closes each one of a refused
-	// message.
+	// message. A test fails when the limit changes.
 	kernelMaxFDs = 254
+
+	// controlRoomFDs is how many descriptors the control buffer holds:
+	// four times kernelMaxFDs, so a later macOS that raises the limit
+	// still fits, or at least ends the channel instead of leaking quietly.
+	controlRoomFDs = 4 * kernelMaxFDs
 
 	// bufferSlack is what a message needs in the socket buffers beside
 	// its record: the control data of one descriptor and the sender's
@@ -41,8 +46,8 @@ const (
 	peerCheckInterval = 500 * time.Millisecond
 )
 
-// controlSpace is CMSG_SPACE for kernelMaxFDs descriptors.
-var controlSpace = syscall.CmsgSpace(kernelMaxFDs * fdSize)
+// controlSpace is CMSG_SPACE for controlRoomFDs descriptors.
+var controlSpace = syscall.CmsgSpace(controlRoomFDs * fdSize)
 
 // Channel is one end of a descriptor channel. Send and Recv may run at
 // the same time from different goroutines.
@@ -52,8 +57,9 @@ type Channel struct {
 	maxRecord int
 	eof       atomic.Bool
 
-	mu           sync.Mutex // guards readDeadline and the socket's read deadline
+	mu           sync.Mutex // guards readDeadline, the socket's read deadline, and failed
 	readDeadline time.Time
+	failed       error // the refusal that ended the channel
 }
 
 // Socketpair makes an AF_UNIX SOCK_DGRAM socketpair for records of up to
@@ -103,7 +109,8 @@ func setBuffers(fd, maxRecord int) error {
 // from the parent, for records of up to maxRecord bytes. It takes f and
 // closes it, also when it fails: the channel holds its own close-on-exec
 // copy, in non-blocking mode so that deadlines work. An end that isn't
-// an AF_UNIX SOCK_DGRAM socket is refused with RuleSocketType.
+// an AF_UNIX SOCK_DGRAM socket is refused with RuleSocketType, and one
+// without a peer with RuleSocketUnconnected.
 func New(f *os.File, maxRecord int) (*Channel, error) {
 	if f == nil {
 		return nil, errors.New("fdchan: no file")
@@ -119,6 +126,11 @@ func New(f *os.File, maxRecord int) (*Channel, error) {
 			msg:  fmt.Sprintf("%s is not an AF_UNIX SOCK_DGRAM socket (family %d, type %d)", f.Name(), family, sockType),
 			err:  err,
 		}
+		logRefusal(r, slog.String("file", f.Name()))
+		return nil, r
+	}
+	if err := connected(f); err != nil {
+		r := &Refusal{Rule: RuleSocketUnconnected, msg: f.Name() + " has no peer", err: err}
 		logRefusal(r, slog.String("file", f.Name()))
 		return nil, r
 	}
@@ -171,6 +183,23 @@ func SocketType(c syscall.Conn) (family, sockType int, err error) {
 		return 0, 0, fmt.Errorf("fdchan: socket type: %w", err)
 	}
 	return family, sockType, nil
+}
+
+// connected checks that the socket has a peer: a socketpair end does,
+// until the peer closes.
+func connected(c syscall.Conn) error {
+	rc, err := c.SyscallConn()
+	if err != nil {
+		return err
+	}
+	var peerErr error
+	if err := rc.Control(func(fd uintptr) { _, peerErr = syscall.Getpeername(int(fd)) }); err != nil {
+		return err
+	}
+	if peerErr != nil {
+		return fmt.Errorf("getpeername: %w", peerErr)
+	}
+	return nil
 }
 
 func sockaddrFamily(sa syscall.Sockaddr) int {
@@ -244,21 +273,27 @@ func (c *Channel) sendmsg(record, oob []byte) error {
 // one message can carry, and refuses a message as decide says, after
 // closing every descriptor in it (S07-05-stream-hand-off, "Message
 // form"). Each refusal is logged with its rule and returned as a
-// *Refusal. The channel stays usable after one. A closed peer reads as
-// io.EOF once the records it sent are read, and so does every Recv
-// after it.
+// *Refusal. A closed peer reads as io.EOF once the records it sent are
+// read, and so does every Recv after it.
+//
+// The channel stays usable after a refusal, except after one with
+// RuleControlTruncated: the kernel may then have put descriptors in this
+// process that no one can name, so Recv closes the channel, and every
+// later Recv returns that refusal again.
 //
 // darwin doesn't wake a waiting reader when a datagram peer closes. So
 // while it waits, Recv checks every peerCheckInterval whether the peer
 // is still connected.
 func (c *Channel) Recv() (*Message, error) {
+	buf := make([]byte, c.maxRecord+1)
+	oob := make([]byte, controlSpace)
 	peerClosed := false
 	for {
-		if c.eof.Load() {
-			return nil, io.EOF
+		if err := c.ended(); err != nil {
+			return nil, err
 		}
 		user := c.armReadDeadline(peerClosed)
-		m, err := c.recvOnce(peerClosed)
+		m, err := c.recvOnce(buf, oob, peerClosed)
 		if !errors.Is(err, os.ErrDeadlineExceeded) {
 			return m, err
 		}
@@ -267,6 +302,17 @@ func (c *Channel) Recv() (*Message, error) {
 		}
 		peerClosed = c.peerClosed()
 	}
+}
+
+// ended returns io.EOF after the peer closed, the refusal that ended
+// the channel after one did, and nil otherwise.
+func (c *Channel) ended() error {
+	if c.eof.Load() {
+		return io.EOF
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.failed
 }
 
 // armReadDeadline sets the socket's read deadline for one wait of Recv:
@@ -304,27 +350,26 @@ func (c *Channel) peerClosed() bool {
 // darwin has no MSG_CMSG_CLOEXEC, so it holds ForkLock across recvmsg
 // and setting close-on-exec on each descriptor that arrived: a fork in
 // another goroutine never inherits one.
-func (c *Channel) recvOnce(peerClosed bool) (*Message, error) {
-	buf := make([]byte, c.maxRecord+1)
-	oob := make([]byte, controlSpace)
+func (c *Channel) recvOnce(buf, oob []byte, peerClosed bool) (*Message, error) {
 	var r received
 	var d decision
-	var recvErr error
+	var recvErr, dropErr error
 	err := c.raw.Read(func(fd uintptr) bool {
 		syscall.ForkLock.RLock()
 		defer syscall.ForkLock.RUnlock()
-		var controlLen int
-		r.n, controlLen, r.flags, _, recvErr = syscall.Recvmsg(int(fd), buf, oob, 0)
+		r, recvErr = recvmsg(int(fd), buf, oob)
 		switch {
 		case errors.Is(recvErr, syscall.EAGAIN) && peerClosed:
 			recvErr = syscall.ECONNRESET
 			return true
-		case errors.Is(recvErr, syscall.EAGAIN) || errors.Is(recvErr, syscall.EINTR):
+		case errors.Is(recvErr, syscall.EAGAIN):
 			return false
+		case fdTableFull(recvErr):
+			dropErr = dropRedelivered(int(fd), buf, oob, c.maxRecord)
+			return true
 		case recvErr != nil:
 			return true
 		}
-		r.control = oob[:controlLen]
 		d = decide(darwinControl, r, c.maxRecord)
 		for _, rfd := range d.closeFDs {
 			syscall.CloseOnExec(rfd)
@@ -341,16 +386,93 @@ func (c *Channel) recvOnce(peerClosed bool) (*Message, error) {
 		// darwin reports a closed datagram peer once, as ECONNRESET.
 		c.eof.Store(true)
 		return nil, io.EOF
+	case fdTableFull(recvErr):
+		return nil, c.refuseFDTableFull(recvErr, dropErr)
 	case recvErr != nil:
 		return nil, fmt.Errorf("fdchan: recv: %w", recvErr)
 	case d.rule != "":
 		return nil, c.refuse(r, d)
 	}
-	m := &Message{Record: buf[:r.n]}
+	m := &Message{Record: buf[:r.n:r.n]}
 	if d.keep >= 0 {
 		m.File = os.NewFile(uintptr(d.keep), "fdchan-received")
 	}
 	return m, nil
+}
+
+// recvmsg reads one datagram, again when a signal interrupts it: the
+// netpoller's kqueue is edge-triggered and doesn't report a datagram
+// that was already queued again.
+func recvmsg(fd int, buf, oob []byte) (received, error) {
+	for {
+		n, controlLen, flags, _, err := syscall.Recvmsg(fd, buf, oob, 0)
+		if errors.Is(err, syscall.EINTR) {
+			continue
+		}
+		if err != nil {
+			return received{}, err
+		}
+		return received{n: n, control: oob[:controlLen], flags: flags}, nil
+	}
+}
+
+// fdTableFull reports a recvmsg that failed because the descriptors of
+// the message don't fit in the descriptor table. darwin then returns
+// EMSGSIZE (measured on macOS 27) and EMFILE elsewhere.
+func fdTableFull(err error) bool {
+	return errors.Is(err, syscall.EMSGSIZE) || errors.Is(err, syscall.EMFILE)
+}
+
+// dropRedelivered reads and drops the message whose descriptors didn't
+// fit. darwin discards the descriptors and leaves the datagram at the
+// head of the queue, where the next recvmsg would return it without
+// them. Any descriptor it does carry is closed.
+func dropRedelivered(fd int, buf, oob []byte, maxRecord int) error {
+	r, err := recvmsg(fd, buf, oob)
+	if err != nil {
+		return err
+	}
+	d := decide(darwinControl, r, maxRecord)
+	for _, rfd := range d.closeFDs {
+		_ = syscall.Close(rfd)
+	}
+	if d.keep >= 0 {
+		_ = syscall.Close(d.keep)
+	}
+	return nil
+}
+
+// refuseFDTableFull logs and returns the refusal of a message whose
+// descriptors didn't fit in the descriptor table. When the message
+// couldn't be dropped, the channel ends, so that it is never delivered
+// without its descriptor.
+func (c *Channel) refuseFDTableFull(recvErr, dropErr error) error {
+	ref := &Refusal{
+		Rule: RuleFDTableFull,
+		msg:  "the descriptors of a message don't fit in the descriptor table, so it is dropped",
+		err:  recvErr,
+	}
+	attrs := []slog.Attr{slog.String("direction", "recv"), slog.String("error", recvErr.Error())}
+	if dropErr != nil {
+		ref.msg = "the descriptors of a message don't fit in the descriptor table, and it can't be dropped: " + dropErr.Error()
+		attrs = append(attrs, slog.Bool("channel_closed", true))
+		logRefusal(ref, attrs...)
+		return c.fail(ref)
+	}
+	logRefusal(ref, attrs...)
+	return ref
+}
+
+// fail ends the channel with err: it closes the socket, and every later
+// Recv returns err.
+func (c *Channel) fail(err error) error {
+	c.mu.Lock()
+	if c.failed == nil {
+		c.failed = err
+	}
+	c.mu.Unlock()
+	_ = c.conn.Close()
+	return err
 }
 
 // refuse closes every descriptor of a refused message, and logs and
@@ -372,13 +494,17 @@ func (c *Channel) refuse(r received, d decision) error {
 		slog.Int("flags", r.flags),
 		slog.Int("closed", len(d.closeFDs)),
 	}
-	if d.lost > 0 {
-		// Never expected: the control buffer holds every descriptor the
-		// kernel lets one message carry.
-		attrs = append(attrs, slog.Int("lost", d.lost))
+	if d.rule != RuleControlTruncated {
+		logRefusal(ref, attrs...)
+		return ref
 	}
+	// Never expected: the control buffer holds every descriptor the
+	// kernel lets one message carry. The kernel may have put descriptors
+	// in this process that the cut control data doesn't name, so the
+	// channel ends instead of going on with them.
+	attrs = append(attrs, slog.Int("lost", d.lost), slog.Bool("channel_closed", true))
 	logRefusal(ref, attrs...)
-	return ref
+	return c.fail(ref)
 }
 
 // SetReadDeadline sets the deadline for Recv, as net.Conn does. A Recv
