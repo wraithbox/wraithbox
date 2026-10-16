@@ -30,6 +30,7 @@ describe('decide', () => {
 		['a Go-only change does not run Swift', ['packages/wraithbox-go/internal/x/x.go'], ['go']],
 		['a Swift-only change does not run Go', ['packages/wraithbox-swift/Sources/A.swift'], ['swift']],
 		['a proto change runs both sides', ['proto/wb/v1/vm.proto'], ['go', 'swift']],
+		['the release number runs both sides', ['VERSION'], ['go', 'swift']],
 		['a harness change runs nothing filtered', ['.claude/settings.json'], []],
 		['an agent file is Markdown', ['.claude/agents/builder.md'], ['docs']],
 		['Go and docs together', ['go.work', 'docs/a.md'], ['docs', 'go']],

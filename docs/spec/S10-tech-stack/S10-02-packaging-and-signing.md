@@ -119,18 +119,26 @@ Go and Swift alike, and into the guest tools disk image. The files are
 build tasks are the release build, the dev build (`mise run build`) and
 CI.
 
-- The version includes the VCS revision.
+- The version is the release number in `VERSION`, with the VCS
+  revision as its build part.
 - A build of a modified working tree adds a modified flag and a nonce.
   So two different uncommitted trees never match.
 - The nonce is made once per `mise run build` invocation, and shared
   by every language task in it. So a partial rebuild of a modified tree
   needs a full build.
 
+The task `version:stamp` makes the version and writes it to
+`build/version`. Every build task reads it from that file, and refuses
+it when the tree has changed since. Go links it into a variable, and
+Swift has the linker copy it into a section of each program. The guest
+tools disk gets it as its `VERSION` file (S17-01-bundle).
+
 Only a bare toolchain build (`go build`, `go run`, `swift build`) is
 unstamped. It has no version, and every peer refuses it, an unstamped
-peer included. Tests that exercise the version exchange set the
-version explicitly. Integration tests build through the stamping task
-(I174).
+peer included. A stamp outside the version form
+(S04-08-records-and-bounds, "The guest's version is a label") counts as
+none. Tests that exercise the version exchange set the version
+explicitly. Integration tests build through the stamping task (I174).
 
 Host processes refuse a peer of another version. `wb-hostd` refuses a
 `wb-guestd` of another version (S04-08-records-and-bounds, "Version skew").

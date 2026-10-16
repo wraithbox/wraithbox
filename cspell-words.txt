@@ -146,6 +146,13 @@ protoc
 protoreflect
 genproto
 mktemp
+Xlinker
+sectcreate
+getsectiondata
+toplevel
+GOEXE
+NOSYSTEM
+buildversion
 
 # Docs site (Astro Starlight)
 frontmatter
@@ -169,6 +176,8 @@ esac
 ehthumbs
 OCSF
 SIEM
+relinks
+recompiles
 
 # Vale rule names quoted in .vale.ini
 Cataphoric
