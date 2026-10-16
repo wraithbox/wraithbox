@@ -98,25 +98,28 @@ issues are all closed, check its exit criterion (`planning.md`,
 
    ```bash
    gh pr view <n> --json headRefOid,changedFiles,mergeable,statusCheckRollup,closingIssuesReferences,reviews,comments --jq "$(cat .claude/skills/wave/merge-check.jq)"
-   gh issue view <issue> --json labels -q '[.labels[].name | select(. == "needs-vm" or . == "needs-host" or . == "comp:wb-vmd")]'
-   gh pr diff <n> --name-only > .scratch/files-<n>.txt
-   wc -l < .scratch/files-<n>.txt
-   grep -v -E '^(packages/wraithbox-(go|swift|doc)/|docs/tests/|cspell-words\.txt$|\.vale/styles/config/vocabularies/wraithbox/accept\.txt$)' .scratch/files-<n>.txt
-   grep -E '(^|/)(go\.mod|go\.sum|Package\.swift|Package\.resolved|package\.json|bun\.lock)$|\.entitlements$' .scratch/files-<n>.txt
+   gh issue view <issue> --json labels -q '[.labels[].name | select(. == "needs-vm" or . == "needs-host" or startswith("comp:"))]'
+   gh api --paginate repos/wraithbox/wraithbox/pulls/<n>/files --jq '.[].filename' | wc -l
+   gh api --paginate repos/wraithbox/wraithbox/pulls/<n>/files --jq '.[] | .filename, (.previous_filename // empty)' > .scratch/files-<n>.txt
+   grep -v -E '^(packages/wraithbox-(go|swift)/|docs/tests/|cspell-words\.txt$|\.vale/styles/config/vocabularies/wraithbox/accept\.txt$)' .scratch/files-<n>.txt
+   grep -E '(^|/)(go\.mod|go\.sum|Package\.swift|Package\.resolved)$|\.entitlements$' .scratch/files-<n>.txt
    ```
 
    It is covered only when all of these hold. Anything missing or
    unexpected counts as a failed condition.
-   - `issues` isn't empty, and the label query prints `[]` for each of
-     them.
-   - The line count equals `changed`, and both `grep` commands print
-     nothing.
+   - `issues` isn't empty. No issue's labels include `needs-vm`,
+     `needs-host` or `comp:wb-vmd`.
+   - The first count equals `changed`, and both `grep` commands print
+     nothing. The file list holds the old path of every renamed file.
    - `checks` holds only `SUCCESS`, `SKIPPED` or `NEUTRAL`.
    - `code.verdict` is `Verdict: approve`, and so is `security.verdict`
-     when the lead ran a security review. Each one's `commit` is `head`,
-     or a line in `rechecked` holds `head`. `security` must not be null
-     when an issue has `comp:wb-netd`, `comp:wb-proxyd` or
-     `comp:wb-guestd`.
+     when `security` isn't null. `security` must not be null when an
+     issue has `comp:wb-netd`, `comp:wb-proxyd`, `comp:wb-guestd` or
+     `comp:wb-hostd`.
+   - `lastCommitAllApprove` is `true`: no review on the last reviewed
+     commit asked for changes.
+   - Each of `code.commit` and `security.commit` is `head`, or a line
+     in `rechecked` holds `head`.
    - `mergeable` is `MERGEABLE`.
 
    With `--merge` and every condition met, merge with

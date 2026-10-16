@@ -227,22 +227,25 @@ machine, can see it and resume it.
   merges (the `/wave` skill has the commands):
   - it closes at least one issue, and none of the issues it closes has
     `needs-vm`, `needs-host` or `comp:wb-vmd`;
+  - it got a security review when an issue it closes has
+    `comp:wb-netd`, `comp:wb-proxyd`, `comp:wb-guestd` or
+    `comp:wb-hostd`;
   - every changed file is on this list, and the list of changed files
     is complete:
     - `packages/wraithbox-go/`, except `go.mod` and `go.sum`;
     - `packages/wraithbox-swift/`, except `Package.swift`,
       `Package.resolved` and any `.entitlements` file;
-    - `packages/wraithbox-doc/`, except `package.json` and `bun.lock`;
     - `docs/tests/`, `cspell-words.txt`, and
       `.vale/styles/config/vocabularies/wraithbox/accept.txt`;
   - every check on its head commit passed, and none is pending;
   - the latest code review, and the latest security review when it got
-    one, say `Verdict: approve`, and either were posted on the head
-    commit or a `re-checked:` comment names the head commit.
+    one, say `Verdict: approve`, no other review on that commit asked
+    for changes, and either the reviews were posted on the head commit
+    or a `re-checked:` comment names the head commit.
 
   Everything else goes on the `For the maintainer` list and waits:
-  specs, briefs, spike results, the harness, CI, gates and lint
-  settings, dependencies, and VM, image and Keychain work. Those can do
+  specs, briefs, spike results, the docs site, the harness, CI, gates
+  and lint settings, dependencies, and VM, image and Keychain work. Those can do
   damage that a review doesn't catch, so they stay attended. The dispatcher merges, never the lead,
   so the approval is in the transcript that the auto-mode classifier
   reads.

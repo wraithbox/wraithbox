@@ -134,6 +134,7 @@ smol
 
 # Engineering jargon the dictionaries lack
 stdlib
+startswith
 subpackages
 lockfiles
 worktrees
