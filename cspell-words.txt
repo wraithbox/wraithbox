@@ -59,6 +59,12 @@ physicalcpu
 memsize
 machdep
 dirhelper
+strerror
+realpath
+nlink
+wbdisk
+VZNAT
+VZUSB
 vmnet
 paravirtualized
 paravirtualizedgraphics

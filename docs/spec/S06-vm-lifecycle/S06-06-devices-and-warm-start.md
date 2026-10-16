@@ -24,6 +24,15 @@ serial passthrough (SEC02-no-host-fs-share).
 
 `wb-vmd` refuses any device not in this list (S04-02-vm-provider, "The device set is fixed and checked").
 
+#### No network device yet
+
+Until V1-M3-network-floor, the set has no network device, and `wb-vmd`
+refuses every one, a file-handle one included (I160). The set is fixed
+per `wb-vmd` slot (S04-04-vm-processes, "The slot"). The work and
+isolated VMs get the network device with V1-M3-network-floor, and the
+build VM its build network with V1-M7-image-build. Each other kind of
+network attachment stays refused in every slot.
+
 #### The graphics device
 
 The graphics device, keyboard and pointer stay in the set for now

@@ -8,7 +8,7 @@ mounts it.
 
 ### Disks
 
-A VM has two disks:
+A VM has two writable disks:
 
 - a system disk, a clone of the image;
 - a data disk, which holds the project users' homes and workspaces.
@@ -32,6 +32,34 @@ check of S09-policy-credentials-audit.
 
 Each VM bundle is a directory whose name ends in `.noindex`. So
 Spotlight doesn't index the disks in it.
+
+### Bundle files
+
+A VM's third disk is the read-only guest tools disk
+(S06-12-guest-agent, "Guest tools disk"). A VM bundle holds these
+files, each at its fixed name:
+
+| File | What it holds |
+|---|---|
+| `hw.bin` | the hardware model |
+| `mid.bin` | the machine identifier |
+| `aux.img` | the auxiliary storage |
+| `sys.img` | the system disk |
+| `data.wbdisk` | the data disk ("Names on the host" below) |
+| `tools.img` | the copy of the guest tools disk |
+
+A spike puts an APFS clone of its own bundle at the bundle path.
+
+Before it opens any of them, `wb-vmd` checks each one
+(S04-02-vm-provider, "The device set is fixed and checked"):
+
+- a missing file is refused with `bundle-file-missing`;
+- a file that isn't a regular file with one link, such as a symbolic
+  link, or whose real path isn't inside the bundle's real path, is
+  refused with `device-set-file-outside-bundle`.
+
+Any other file in the bundle is ignored. Device configuration never
+comes from the bundle.
 
 With these settings, `npm ci` on the data disk ran at about 71% of the
 host on a loaded host. That is under the 80% goal of NFR02-fs-speed.
