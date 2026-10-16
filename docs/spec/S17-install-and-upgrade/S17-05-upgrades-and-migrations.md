@@ -53,8 +53,9 @@ Before the first pending migration, `wb-hostd` backs up `state.db`:
 1. It writes a copy with `VACUUM INTO` to a new temporary name in
    `<data>`, mode 600.
 2. It links the copy to the name `state.db.v<N>.bak`, where `<N>` is
-   the version the database had, and removes the temporary name. A link
-   fails on an existing name, where a rename would replace the file.
+   the version the copy holds, read from the copy, and removes the
+   temporary name. A link fails on an existing name, where a rename
+   would replace the file.
 
 It never writes over an existing `.bak` file. When that name exists,
 the copy from an earlier attempt stays. It keeps the two newest
