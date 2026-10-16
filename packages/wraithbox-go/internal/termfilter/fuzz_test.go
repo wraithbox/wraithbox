@@ -21,9 +21,10 @@ const modeAlt = "(?:25|1000|1002|1003|1004|1006|1016|1049|2004|2026|2031)"
 
 // allowedCSI matches every CSI the allowlist passes, before the caps.
 var allowedCSI = regexp.MustCompile("^\x1b\\[(?:" + strings.Join([]string{
-	"[0-9;:]*[ABCDEFGHf`ade@LMPXbSTrIZgm]", // screen
-	"0*[0-2]?[JK]",                         // erase 0 to 2
-	"[su]",                                 // save and restore without parameters
+	"[0-9;:]*[ABCDEFGHf`ade@LMPXbrIZgm]", // screen
+	"[0-9]*[ST]",                         // scroll, one number at most
+	"0*[0-2]?[JK]",                       // erase 0 to 2
+	"[su]",                               // save and restore without parameters
 	"\\?" + modeAlt + "(?:;" + modeAlt + ")*[hl]", // modes
 	"\\?" + modeAlt + "\\$p",                      // mode query
 	">[0-9]*u", "<(?:[1-9][0-9]*)?u", "\\?u",      // kitty keyboard
@@ -97,7 +98,7 @@ func (c *checker) token(tk token) {
 	ok := false
 	switch tk.kind {
 	case kText:
-		ok = true
+		ok = !bytes.ContainsFunc(tk.raw, func(r rune) bool { return r < 0x20 || r == 0x7f })
 	case kControl:
 		ok = strings.IndexByte("\a\b\t\n\r\x0f", tk.raw[0]) >= 0
 	case kESC:
@@ -171,13 +172,31 @@ func (c *checker) osc(tk token) bool {
 		return false
 	}
 	num, _, _ := strings.Cut(s[2:], ";")
-	if slices.Contains([]string{"0", "1", "2", "8", "52", "1337"}, strings.TrimLeft(num, "0")) {
+	sig := strings.TrimLeft(num, "0")
+	if sig == "" && num != "" {
+		sig = "0"
+	}
+	if slices.Contains([]string{"0", "1", "2", "8", "52", "1337"}, sig) {
 		return false
 	}
-	if strings.HasPrefix(s, "\x1b]7501;") && len(s) > 4096 {
+	if strings.HasPrefix(s, "\x1b]7501;") && !statusWithinCaps(s) {
 		return false
 	}
 	return allowedOSC.MatchString(s)
+}
+
+// statusWithinCaps checks the length caps of an OSC 7501 report that
+// the pattern doesn't: 4096 bytes in all, and 128 bytes of id.
+func statusWithinCaps(s string) bool {
+	if len(s) > 4096 {
+		return false
+	}
+	for pair := range strings.SplitSeq(s, ";") {
+		if id, ok := strings.CutPrefix(pair, "id="); ok && len(id) > 128 {
+			return false
+		}
+	}
+	return true
 }
 
 // filterChunks filters the chunks with one Write each and a Close, with
@@ -311,6 +330,10 @@ func TestCheckerRefuses(t *testing.T) {
 		"\x1bc",
 		"\x1b[3J",
 		"\x1b[3K",
+		"\x1b[1;1;1;1;24T",
+		"\x1b[1;2S",
+		"\x1b]00;x\x07",
+		"\x1b]7501;state=idle;id=" + strings.Repeat(strings.Repeat("a", 32)+"/", 4) + "a\x1b\\",
 		"\x1b[123456C",
 		"\x1b[" + strings.Repeat("1;", 16) + "1m",
 		"\x1b[" + strings.Repeat("1", 63) + "m",

@@ -230,6 +230,7 @@ DECRQSS
 DECSCA
 XTVERSION
 XTGETTCAP
+XTHIMOUSE
 truecolor
 
 # Package registries, and projects measured by spikes

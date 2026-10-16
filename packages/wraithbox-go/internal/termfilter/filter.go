@@ -55,12 +55,6 @@ func WithClock(now func() time.Time) Option {
 	return func(f *Filter) { f.now = now }
 }
 
-// WithoutBELLimit turns the BEL rate limit off. The fuzz target uses it
-// (C10-terminal, "Fuzzing"), and `wb` doesn't.
-func WithoutBELLimit() Option {
-	return func(f *Filter) { f.belLimit = false }
-}
-
 // New returns a Filter that writes what it passes to w.
 func New(w io.Writer, opts ...Option) *Filter {
 	f := &Filter{
