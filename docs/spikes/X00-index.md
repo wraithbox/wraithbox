@@ -44,6 +44,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
 | X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |
 | X29-dev-signing | Keychain access group for development builds | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15 (I248): no Keychain backend for a build without a team signature |
+| X30-installer-trust | Installer refusal of a changed restore image | Open |
 
 ## Spikes
 
@@ -324,3 +325,14 @@ assumption that v1 work would otherwise build on. They block v1.
   the developer builds once in the Xcode app. Decided on I248: an
   ad-hoc signed build has no Keychain backend, and the ad-hoc keychain
   file left the specs (I252).
+- **X30-installer-trust: Installer refusal of a changed restore image.**
+  Does the Virtualization framework's macOS installer, run by
+  `wb-vmd-install`, refuse a restore image that Apple didn't sign, or
+  one with a changed or replaced component, and does the install
+  contact Apple while `wb-vmd-install`'s profile denies the network?
+  S17-04-restore-and-release checks a restore image only against the catalog's
+  SHA-1, which guards against a damaged file, not against a
+  compromised `wb-download`. The trust base of T00-index and
+  S17-04-restore-and-release rests on the installer's own check
+  (SEC12-least-privilege, SEC08-proj-isolation). Found while deciding
+  B49-install-upgrade. Tracked in I262.

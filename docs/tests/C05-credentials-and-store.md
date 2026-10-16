@@ -27,8 +27,8 @@ Spec: S15-least-privilege.
     write with -34018, and see each refused with `store-write-failed`;
   - for a CA item in the record, see -25300 and every status other than
     -25308 give `ca-key-restore`.
-- A locked store, -25308 or the 1Password backend's locked state, makes
-  the work wait for the unlock, for a CA item as for any other.
+- A locked store, -25308 on the Keychain, makes the work wait for the
+  unlock, for a CA item as for any other.
 - Each log line names the failed call.
 
 ### Access groups
@@ -57,8 +57,7 @@ Spec: S15-02-secret-store, "Keychain".
     refuse the write of `wb cred set`, and `wb-guestadmin` refuse the
     items of `wb image build` and of a rotation, each with the same
     rule and logged, before any Keychain call;
-  - see `wb setup` still install the services and exit nonzero;
-  - see the 1Password backend work.
+  - see `wb setup` still install the services and exit nonzero.
 - In a development build, see `wb setup`, `wb cred list` and the
   session-start audit record name the signing team and say the grant is
   team-wide.

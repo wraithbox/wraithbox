@@ -127,8 +127,7 @@ these are refused with that rule:
   because they need `wbadmin/*` items.
 
 `wb setup` refuses to set up the Keychain backend in such a build,
-with the same rule. It says that the 1Password backend still works,
-and says what to do:
+with the same rule, and says what to do:
 
 1. Sign in to Xcode with an Apple ID.
 2. Build once in the Xcode app.
@@ -139,7 +138,8 @@ included. Then it exits with a nonzero status.
 
 ### 1Password
 
-The 1Password backend is the desktop app integration, with one vault
+The 1Password backend comes after V1 (I151), so the Keychain is
+V1's only backend. It is the desktop app integration, with one vault
 per role. It doesn't need a service account token in the store. It
 runs only after the user turns it on by name.
 

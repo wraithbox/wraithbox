@@ -49,8 +49,7 @@ profiles are in, and reports each case itself.
 #### Ad-hoc signed build
 
 `wb setup` refuses the Keychain backend with the rule
-`keychain-needs-team`. It names both steps and `WB_TEAM_ID`. It says
-that the 1Password backend works without them.
+`keychain-needs-team`. It names both steps and `WB_TEAM_ID`.
 
 #### Missing profile
 
