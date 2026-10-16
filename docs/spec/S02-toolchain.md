@@ -53,6 +53,14 @@ CI keeps independent parallel jobs per language. Each job re-installs
 the toolchain. The mise cache makes this cheap, and the logs stay
 readable.
 
+On a pull request, CI skips a job whose inputs did not change, and a
+push to `main` runs every job. `scripts/ci-changes.mjs` maps the changed
+files to jobs and runs every job when in doubt. `mise run ci` always
+runs every check. The `CI result` job is the one required check
+(`docs/github-settings.md`). It needs every job but the vulnerability
+scan, and fails unless each passed or was skipped because its inputs
+did not change.
+
 ### Go on three operating systems
 
 Go runs on macOS, Linux, and Windows from the start. Most code is
