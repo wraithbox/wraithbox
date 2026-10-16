@@ -59,11 +59,12 @@ head of the spike branch, update the specs the answer affects, run
 `mise run ci`, and open that PR with `Closes #<issue>`. If you push
 another spike commit later, move the permalink to it in the same round.
 The coordinator tags that commit when the result merges; don't tag it
-yourself. A spike that booted a macOS guest stops the VM and runs
-`mise run spike:clean x<NN>` before the hand-back, unless review or an open
-issue still needs the bundles (`planning.md`,
-"Spikes", "VM bundles"). The hand-back gives the space freed, or who
-needs the bundles kept. The answer is yes, no, or yes
+yourself. A spike that booted a macOS guest stops the VM, detaches
+any volume mounted from a bundle, and runs `mise run spike:clean x<NN>`
+before the hand-back. When review or an open issue still needs the
+bundles, keep them: comment on the spike's issue and write a `KEEP` file
+(`planning.md`, "Spikes", "VM bundles"). The hand-back gives the space
+freed, or which issue needs the bundles kept. The answer is yes, no, or yes
 with conditions, and it is backed by what you measured. Report a "no"
 plainly; never soften it to keep the plan intact.
 

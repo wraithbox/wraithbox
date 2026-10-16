@@ -146,7 +146,7 @@ Merged: #a #b ...
 Waiting for you: #c (<reason>) ...
 Attended queue: <count, see run issue>
 Filed: <count> follow-ups
-Spike cache: <each entry and size from `mise run spike:clean`>
+Spike cache: <on the personal Mac, each entry and size from `mise run spike:clean`>
 Stopped because: <reason>
 ```
 
