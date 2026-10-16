@@ -127,6 +127,9 @@ system disk with a fresh clone of the image. The data disk stays, and
 first contact rotates again. No password is fetched and nobody logs
 in. `wb-guestadmin-cleanup` removes the old disk's item.
 
+What guest root wrote to the data disk stays through break-glass
+(T18-data-disk-persistence).
+
 ### Refused outside the path
 
 `wb-vmd` refuses provisioning options unless its slot is `build`. That

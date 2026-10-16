@@ -22,6 +22,10 @@ trusts, and which risks it accepts rather than solves.
 | T15-shared-toolchain | Projects in one guest share the toolchain prefix | Accepted |
 | T16-hostd-landing | A compromised `wb-hostd` decides what `wb land` brings in | Accepted |
 | T17-terminal-auto-links | Terminals make guest text into links | Accepted |
+| T18-data-disk-persistence | Guest root persists on the data disk | Accepted |
+| T19-pasted-login-code | A login code pasted into a guest | Accepted |
+| T20-config-root-links | Links inside a configuration root | Accepted |
+| T21-shared-graphics-cache | The two VMs share a graphics cache | Accepted |
 
 ## Model
 
@@ -270,3 +274,68 @@ print about returned work after `wb land` is outside it
   from other output without following the screen. A link opens only
   when the user clicks it (SEC03-no-host-exec). Seen in I62, accepted
   in I270.
+- **T18-data-disk-persistence: Guest root persists on the data disk.**
+  An update and break-glass replace a VM's system disk and auxiliary
+  storage, and keep its data disk (S06-03-image-updates, "Updates", and
+  S15-04-guest-admin, "Break-glass"). So what guest root wrote to the
+  data disk is still there next to the fresh system disk. That
+  includes any file in a project user's home or clone, such as a git
+  hook, and the session records. A planted file runs again when a
+  project user's tools use it. The way out is the command that gives
+  the VM a new data disk (I289), at the cost of everything on it: each
+  project's Claude Code state and commits not yet pushed. What still
+  holds: the volume is mounted `nosuid` and `nodev`, so a setuid file
+  left on it doesn't make a project user root (S06-05-disks, "Mounting
+  the data volume"). `wb-guestd` checks the mount root and each home
+  with `lstat`, refuses a home with the wrong owner or mode, and parses
+  the session records as untrusted input. Users are recreated with the
+  IDs the host kept for them, and the host hands out each ID once, so
+  a recreated user can't own another project's home
+  (SEC08-proj-isolation). Nothing from the data disk runs before the
+  admin password rotates (S15-04-guest-admin, "What first contact
+  relies on"). The persistence stays on that VM's data disk, and guest
+  root still doesn't control enforcement, secrets, or policy
+  (SEC11-root-gains-nothing). Proposed in I236.
+- **T19-pasted-login-code: A login code pasted into a guest.** Claude
+  Code in the guest can print a real authorize URL with its PKCE
+  challenge. It builds that URL without a request, so refusing
+  `/v1/oauth/hello` wouldn't stop the prompt
+  (S14-04-commands-and-endpoints, "Browser login"). A user who opens
+  it, signs in on the host, and pastes the code into the guest gives
+  the guest a code and its verifier. `wb-proxyd` refuses the code
+  exchange, so the guest can't redeem them through it. It can send
+  them out through a channel that policy allows (T01-allowed-channels),
+  and they can be redeemed elsewhere. `wb` tells the user never to
+  paste a login or `setup-token` code into a guest, at a project's
+  first session and in `wb help`. The terminal stream doesn't filter
+  the authorize URL (B15-browser-login). Proposed in I237.
+- **T20-config-root-links: Links inside a configuration root.** `wb`
+  resolves each allowlisted entry of the user's `~/.claude/` once,
+  following links, to get its root. Inside that root it follows a link
+  only when the link's target stays in the root
+  (S14-02-user-configuration, "Symbolic links"). The root can be in a
+  repository the user merged the guest's work into. A link the agent
+  committed there can name a file of that repository that the guest
+  never got, such as an ignored `.env`. Only the secret scan stands
+  between that file and the guest (S14-03-configuration-filter,
+  "Secret scan"). A link whose target leaves the root, a root that
+  `wb` refuses, and `.claude.json` are still skipped unread. Proposed
+  in I237.
+- **T21-shared-graphics-cache: The two VMs share a graphics cache.**
+  The graphics device, keyboard and pointer stay in the device set for
+  now (S06-06-devices-and-warm-start, "The graphics device"). For them,
+  the profiles of the work VM's and the isolated VM's `wb-vmd` both
+  allow read and write on the same per-user cache entries,
+  `com.apple.metal-*` and `com.apple.paravirtualizedgraphics-*`
+  (S04-03-self-sandboxing, "The `wb-vmd` profile"). So the
+  Virtualization service processes of the two VMs read and write one
+  directory, which Wraith Box neither controls nor reads. A guest that
+  can steer what its service process caches there can pass data to
+  the other VM, through an entry's contents or whether it exists. A
+  flaw in the code that reads an entry would let one VM reach the
+  other VM's service process (SEC08-proj-isolation). What the entries
+  hold, and how much of it a guest chooses, isn't measured. Neither VM
+  gets the other's disks, bundle, or network through it.
+  V1-M6-release-gate checks whether a guest works without the
+  devices. If they leave the set, the profile is ablated again, and
+  the channel closes when these entries go. Proposed in I247.

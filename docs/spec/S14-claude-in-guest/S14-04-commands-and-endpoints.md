@@ -68,7 +68,8 @@ its PKCE challenge.
 A user can open it, sign in on the host, and paste the code into the
 guest. That gives the guest a code and its verifier. The guest can't
 redeem them through `wb-proxyd`. But it can send them out through a
-channel that policy allows, and they can be redeemed elsewhere.
+channel that policy allows, and they can be redeemed elsewhere
+(T19-pasted-login-code).
 
 #### Warning
 

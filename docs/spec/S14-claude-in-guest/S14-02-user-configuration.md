@@ -87,7 +87,7 @@ Inside a root, a link to another file of the same root is followed.
 The root can be in a repository the user merged the guest's work into.
 A link the agent committed there can name a file of that repository
 the guest never got, such as an ignored `.env`. Only the secret scan
-stands between that file and the guest.
+stands between that file and the guest (T20-config-root-links).
 
 ## Decisions
 

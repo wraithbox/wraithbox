@@ -20,7 +20,8 @@ On the first boot of the new system disk, `wb-guestd`:
 3. leaves the homes as they are (X08-data-disk).
 
 A guest root that wrote to the data disk keeps what it wrote after the
-swap, because only the system disk is replaced.
+swap, because only the system disk is replaced
+(T18-data-disk-persistence).
 
 ### Host state per project user
 
