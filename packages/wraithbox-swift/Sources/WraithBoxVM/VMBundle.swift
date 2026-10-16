@@ -37,6 +37,13 @@ public struct VMBundle: Sendable, Equatable {
     /// Checks every bundle file: each must be present, a regular file with
     /// one link, and have its real path inside the bundle's real path.
     /// Returns the bundle's real path.
+    ///
+    /// The check is by path, because the disk image attachment opens its
+    /// file by path. The attachment that takes a descriptor is for host
+    /// block devices, a refused kind. So a file can change between this
+    /// check and the open: the caller runs the check right before it
+    /// builds the attachments, and the sandbox profile is the second
+    /// layer (S04-02-vm-provider, "Profile").
     func checkFiles() throws(DeviceSetRefusal) -> String {
         guard let realBundle = realPath(path) else {
             throw DeviceSetRefusal(.bundleFileMissing, "bundle \(path): \(errnoText())")

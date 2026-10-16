@@ -1,6 +1,8 @@
-# SwiftLint is used here ONLY as a maintainability gate: cyclomatic complexity
-# and structural size/nesting limits. Formatting and style are owned by
-# swift-format (.swift-format); `only_rules` keeps SwiftLint from fighting it.
+# SwiftLint is used here as a maintainability gate, cyclomatic complexity
+# and structural size/nesting limits, and for the static check of
+# S04-02-vm-provider in `custom_rules`, which must stay in `only_rules`.
+# Formatting and style are owned by swift-format (.swift-format), and
+# `only_rules` keeps SwiftLint from fighting it.
 #
 # Thresholds are hard errors in `mise run swift:lint` (`--strict`).
 # Rule for humans and agents alike: refactor to pass. Do not raise a threshold
@@ -62,13 +64,15 @@ large_tuple:
 # package's sources, tests excepted. The sandbox profile can't refuse a NAT
 # network or a device on a descriptor wb-vmd holds, so the device-set check
 # and this rule keep them out (SEC02-no-host-fs-share, SEC05-default-deny).
-# Beyond that spec's list, it names the other kinds the check refuses. The
-# rule matches comments and strings too, so a class looked up by its name
-# is caught.
+# Beyond that spec's list, it names every configuration and attachment
+# class, and each base class that no allowed device uses, of the kinds the
+# check refuses with a rule of their own (network, share, audio input, console, storage), and of USB
+# passthrough and custom virtio devices. The rule matches comments and
+# strings too, so a class looked up by its name is caught.
 custom_rules:
   vmd_refused_device_class:
     name: "Refused Virtualization device class"
     message: "wb-vmd never configures this device or attachment (S04-02-vm-provider, \"The device set is fixed and checked\")"
     included: "packages/wraithbox-swift/Sources/.*\\.swift$"
-    regex: "\\b(VZNATNetworkDeviceAttachment|VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZVirtioFileSystemDeviceConfiguration|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration)\\b"
+    regex: "\\b(VZNATNetworkDeviceAttachment|VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZDirectoryShare|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZDirectorySharingDeviceConfiguration|VZVirtioFileSystemDeviceConfiguration|VZAudioDeviceConfiguration|VZVirtioSoundDeviceConfiguration|VZVirtioSoundDeviceStreamConfiguration|VZAudioInputStreamSource|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZConsoleDeviceConfiguration|VZConsolePortConfiguration|VZVirtioConsoleDeviceConfiguration|VZVirtioConsolePortConfiguration|VZVirtioConsoleDeviceSerialPortConfiguration|VZSerialPortConfiguration|VZSerialPortAttachment|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration)\\b"
     severity: error

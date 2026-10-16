@@ -129,7 +129,8 @@ entries carry it, and a message from an older generation is refused.
 
 ### The device set is fixed and checked
 
-A VM's devices are the ones in S06-06-devices-and-warm-start, "Devices", fixed in `wb-vmd`'s code (X25-vmd-sandbox,
+A VM's devices are the ones in S06-06-devices-and-warm-start,
+"Devices", fixed in `wb-vmd`'s code (X25-vmd-sandbox,
 SEC02-no-host-fs-share, SEC05-default-deny).
 
 - **Check before start.** Before every start and restore, `wb-vmd`
@@ -138,8 +139,9 @@ SEC02-no-host-fs-share, SEC05-default-deny).
   object. It refuses any other device, any other attachment, a second
   network device, and a disk or serial port file outside the VM's
   bundle. Until V1-M3-network-floor it refuses every network device
-  (S06-06-devices-and-warm-start, "No network device yet"). Each refusal is logged with its rule, and returns the rule in
-  the gRPC error.
+  (S06-06-devices-and-warm-start, "No network device yet"). Each
+  refusal is logged with its rule, and returns the rule in the gRPC
+  error.
 - **Why first.** Creating a disk attachment on a path the profile
   denies ends the confined process in an uncaught exception
   (X25-vmd-sandbox).
@@ -173,8 +175,10 @@ Three checks verify the parts the profile doesn't enforce:
    `VZNATNetworkDeviceAttachment`, `VZBridgedNetworkDeviceAttachment`,
    `VZSharedDirectory`, `VZVirtioFileSystemDeviceConfiguration`,
    `VZHostAudioInputStreamSource`, `VZSpiceAgentPortAttachment` and
-   `VZVirtioSoundDeviceInputStreamConfiguration`. It names the classes
-   of the other kinds the check refuses as well.
+   `VZVirtioSoundDeviceInputStreamConfiguration`. It also names the
+   classes of the other kinds the check refuses with a rule of their
+   own (network, share, audio input, console and storage), and of USB
+   passthrough and custom virtio devices.
 
 ### `wb-proxyd` takes a stream's identity from the connection, not from `wb-netd`
 

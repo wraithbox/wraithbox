@@ -33,6 +33,10 @@ check of S09-policy-credentials-audit.
 Each VM bundle is a directory whose name ends in `.noindex`. So
 Spotlight doesn't index the disks in it.
 
+With these settings, `npm ci` on the data disk ran at about 71% of the
+host on a loaded host. That is under the 80% goal of NFR02-fs-speed.
+The goal is not a release gate.
+
 ### Bundle files
 
 A VM's third disk is the read-only guest tools disk
@@ -60,10 +64,6 @@ Before it opens any of them, `wb-vmd` checks each one
 
 Any other file in the bundle is ignored. Device configuration never
 comes from the bundle.
-
-With these settings, `npm ci` on the data disk ran at about 71% of the
-host on a loaded host. That is under the 80% goal of NFR02-fs-speed.
-The goal is not a release gate.
 
 ### Durability
 
