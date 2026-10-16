@@ -178,7 +178,6 @@ ncruces
 strftime
 remyoudompheng
 bigfft
-libc
 mathutil
 txlock
 
