@@ -83,7 +83,6 @@ osrelease
 osversion
 libkrun
 NXDOMAIN
-terminfo
 SVCB
 WPAD
 CGNAT
@@ -107,7 +106,6 @@ nxthdr
 getsockopt
 maxdgram
 socketpairs
-terminfo
 
 # Tools and their names in configs
 globl
