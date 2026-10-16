@@ -86,7 +86,12 @@ type HelloResponse struct {
 	// package's major version, for example `wraithbox.guest.v1`
 	// (S04-08-records-and-bounds, "With `wb-guestd`"). The host refuses a
 	// list of more than 16 names, and a name over 64 bytes or not of the
-	// form `wraithbox.<lowercase letters>.v<number>`.
+	// form `wraithbox.<lowercase letters>.v<number>`. The connection's
+	// receive cap bounds the message before it is decoded, so the count is
+	// never checked by counting a list of any length afterwards. The host
+	// uses the list only to refuse: with a matching build version it must
+	// equal the host's own list, and it never picks which package the host
+	// speaks.
 	ServedPackages []string `protobuf:"bytes,2,rep,name=served_packages,json=servedPackages,proto3" json:"served_packages,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache

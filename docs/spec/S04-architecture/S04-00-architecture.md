@@ -107,7 +107,8 @@ The `.proto` files in `proto/` are the one contract for every language
 | `proto/wraithbox/guest/v1/guest.proto` | `wraithbox.guest.v1` | `GuestService`, served by `wb-guestd` and called by `wb-hostd` |
 
 A refusal over gRPC names its rule in a `google.rpc.ErrorInfo` detail,
-as the `reason`, so the caller needn't parse the message text. The comments in each file
-state the bounds the receiver checks.
+as the `reason`, so the caller needn't parse the message text. The
+comments on each message from the guest, and on `HandoffMessage`, state
+the bounds the receiver checks.
 
 **Status:** Draft

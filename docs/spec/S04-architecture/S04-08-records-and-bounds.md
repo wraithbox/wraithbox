@@ -160,6 +160,10 @@ In V1, `wb-hostd` accepts only its own build version:
 - `wb-guestd` updates itself at start from that bundle's guest tools
   disk (S06-12-guest-agent, "`wb-guestd`").
 
+The package list is refused unless it holds at most 16 names of at
+most 64 bytes, each `wraithbox.<lowercase letters>.v<number>`, and
+equals the host's own list. The host uses it only to refuse.
+
 A `wb-guestd` that reports another version is refused before any
 session request. `wb-hostd` logs both versions. A session start in
 that VM is refused with a message that names both versions
@@ -201,8 +205,9 @@ its limits before it merges.
 | Guest input | Process | Limits | Where |
 |---|---|---|---|
 | Host-guest socket connections | `wb-vmd`, `wb-hostd` | connections opened and not yet passed, connections per VM and per project, reconnects per minute | S04-02-vm-provider, "The VM provider passes descriptors, not bytes", S06-11-reconnect-and-recovery, "Reconnect" |
-| RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on the server and never left at the library default, requests per second per VM, entries in the reconnect session list | values in code, S06-11-reconnect-and-recovery, "Reconnect" |
+| RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on whichever side `wb-hostd` is, client or server, and never left at the library default, requests per second per VM, entries in the reconnect session list | values in code, S06-11-reconnect-and-recovery, "Reconnect" |
 | The version `wb-guestd` reports | `wb-hostd` | 64 bytes, fixed form | "Version skew" |
+| The package list `wb-guestd` reports | `wb-hostd` | 16 names of at most 64 bytes, fixed form | "With `wb-guestd`" |
 | Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-02-packet-path |
 | Held DNS queries | `wb-netd` | 1,024 held queries per VM by default (configuration), each sent after 4 seconds, over the cap dropped with `dns-hold-full` | S07-04-dns-refusals, "Hold limits" |
 | Connections and streams | `wb-netd`, `wb-proxyd` | connections in flight, stream resets and refusals per rule | S07-egress-gateway |

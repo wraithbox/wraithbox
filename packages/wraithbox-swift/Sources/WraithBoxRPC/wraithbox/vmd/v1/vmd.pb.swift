@@ -203,7 +203,7 @@ public nonisolated struct Wraithbox_Vmd_V1_StartRequest: Sendable {
 
   /// The VM generation, chosen by wb-hostd, which owns generations. Each
   /// start and each restore begins a new one (S04-02-vm-provider,
-  /// "Restore").
+  /// "Restore"). Generations start at 1, and wb-vmd refuses 0.
   public var generation: UInt64 = 0
 
   /// Number of virtual CPUs (S06-06-devices-and-warm-start, "Resources").
@@ -232,8 +232,8 @@ public nonisolated struct Wraithbox_Vmd_V1_StopRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The generation the caller means. wb-vmd refuses a stop for any
-  /// other generation.
+  /// The generation the caller means. wb-vmd refuses 0, and a stop for
+  /// any generation but the current one.
   public var generation: UInt64 = 0
 
   public var mode: Wraithbox_Vmd_V1_StopMode = .unspecified
@@ -320,7 +320,7 @@ public nonisolated struct Wraithbox_Vmd_V1_VMState: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The generation this state belongs to.
+  /// The generation this state belongs to, 0 before the first start.
   public var generation: UInt64 = 0
 
   public var state: Wraithbox_Vmd_V1_State = .unspecified
@@ -373,11 +373,13 @@ public nonisolated struct Wraithbox_Vmd_V1_ConnectGuestRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The generation the caller means. wb-vmd refuses any other.
+  /// The generation the caller means. wb-vmd refuses 0 and any but the
+  /// current one.
   public var generation: UInt64 = 0
 
-  /// Chosen by the caller, and unique among its open requests. The
-  /// HandoffMessage that carries the connection repeats it.
+  /// Chosen by the caller, unique among its open requests, and at least 1:
+  /// wb-vmd refuses 0. The HandoffMessage that carries the connection
+  /// repeats it.
   public var requestID: UInt64 = 0
 
   /// The guest port to connect to. Every guest port wb-hostd connects to
@@ -414,9 +416,9 @@ public nonisolated struct Wraithbox_Vmd_V1_ConnectGuestResponse: Sendable {
 /// - it doesn't decode as a HandoffMessage;
 /// - it carries other than exactly one descriptor;
 /// - the descriptor isn't a socket of the expected type;
-/// - `generation` isn't the VM's current generation;
-/// - `request_id` doesn't name an open ConnectGuest request of that
-///   generation;
+/// - `generation` is 0, or isn't the VM's current generation;
+/// - `request_id` is 0, or doesn't name an open ConnectGuest request of
+///   that generation;
 /// - `direction` isn't DIRECTION_HOST_TO_GUEST;
 /// - `destination_port` isn't the guest port that request asked for.
 public nonisolated struct Wraithbox_Vmd_V1_HandoffMessage: Sendable {
@@ -424,10 +426,10 @@ public nonisolated struct Wraithbox_Vmd_V1_HandoffMessage: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The ConnectGuest request this connection answers.
+  /// The ConnectGuest request this connection answers, at least 1.
   public var requestID: UInt64 = 0
 
-  /// The VM generation the connection belongs to.
+  /// The VM generation the connection belongs to, at least 1.
   public var generation: UInt64 = 0
 
   public var direction: Wraithbox_Vmd_V1_Direction = .unspecified

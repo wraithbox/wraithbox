@@ -222,7 +222,7 @@ type StartRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The VM generation, chosen by wb-hostd, which owns generations. Each
 	// start and each restore begins a new one (S04-02-vm-provider,
-	// "Restore").
+	// "Restore"). Generations start at 1, and wb-vmd refuses 0.
 	Generation uint64 `protobuf:"varint,1,opt,name=generation,proto3" json:"generation,omitempty"`
 	// Number of virtual CPUs (S06-06-devices-and-warm-start, "Resources").
 	CpuCount uint32 `protobuf:"varint,2,opt,name=cpu_count,json=cpuCount,proto3" json:"cpu_count,omitempty"`
@@ -321,8 +321,8 @@ func (*StartResponse) Descriptor() ([]byte, []int) {
 
 type StopRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The generation the caller means. wb-vmd refuses a stop for any
-	// other generation.
+	// The generation the caller means. wb-vmd refuses 0, and a stop for
+	// any generation but the current one.
 	Generation    uint64   `protobuf:"varint,1,opt,name=generation,proto3" json:"generation,omitempty"`
 	Mode          StopMode `protobuf:"varint,2,opt,name=mode,proto3,enum=wraithbox.vmd.v1.StopMode" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -571,7 +571,7 @@ func (x *WatchStateResponse) GetState() *VMState {
 
 type VMState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The generation this state belongs to.
+	// The generation this state belongs to, 0 before the first start.
 	Generation uint64 `protobuf:"varint,1,opt,name=generation,proto3" json:"generation,omitempty"`
 	State      State  `protobuf:"varint,2,opt,name=state,proto3,enum=wraithbox.vmd.v1.State" json:"state,omitempty"`
 	// Set when the VM failed: the error that stopped it or made a start or
@@ -709,10 +709,12 @@ func (x *VMError) GetDescription() string {
 
 type ConnectGuestRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The generation the caller means. wb-vmd refuses any other.
+	// The generation the caller means. wb-vmd refuses 0 and any but the
+	// current one.
 	Generation uint64 `protobuf:"varint,1,opt,name=generation,proto3" json:"generation,omitempty"`
-	// Chosen by the caller, and unique among its open requests. The
-	// HandoffMessage that carries the connection repeats it.
+	// Chosen by the caller, unique among its open requests, and at least 1:
+	// wb-vmd refuses 0. The HandoffMessage that carries the connection
+	// repeats it.
 	RequestId uint64 `protobuf:"varint,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// The guest port to connect to. Every guest port wb-hostd connects to
 	// is below 1024 (S04-02-vm-provider, "Guest ports below 1024").
@@ -823,16 +825,16 @@ func (*ConnectGuestResponse) Descriptor() ([]byte, []int) {
 //   - it doesn't decode as a HandoffMessage;
 //   - it carries other than exactly one descriptor;
 //   - the descriptor isn't a socket of the expected type;
-//   - `generation` isn't the VM's current generation;
-//   - `request_id` doesn't name an open ConnectGuest request of that
-//     generation;
+//   - `generation` is 0, or isn't the VM's current generation;
+//   - `request_id` is 0, or doesn't name an open ConnectGuest request of
+//     that generation;
 //   - `direction` isn't DIRECTION_HOST_TO_GUEST;
 //   - `destination_port` isn't the guest port that request asked for.
 type HandoffMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The ConnectGuest request this connection answers.
+	// The ConnectGuest request this connection answers, at least 1.
 	RequestId uint64 `protobuf:"varint,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// The VM generation the connection belongs to.
+	// The VM generation the connection belongs to, at least 1.
 	Generation uint64    `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
 	Direction  Direction `protobuf:"varint,3,opt,name=direction,proto3,enum=wraithbox.vmd.v1.Direction" json:"direction,omitempty"`
 	// The vsock port on the side that opened the connection.
