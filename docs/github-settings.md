@@ -92,7 +92,19 @@ unless each job it lists passed or was skipped because its inputs did
 not change. It also fails when change detection failed, after the
 jobs ran as if every file had changed. A job added to `ci.yml` goes into
 the `needs:` list of `CI result` and into `GATED` in
-`scripts/ci-changes.mjs`, which the verdict checks against `needs:`.
+`scripts/ci-changes.mjs`. `scripts/ci-changes.test.mjs` fails when the
+jobs of `ci.yml`, other than `vuln` and `result`, or the `needs:` of
+`CI result` differ from `GATED`. The verdict also fails a run when a
+job of `GATED` is missing from `needs:`.
+
+The `CI result` requirement takes effect when the JSON below is applied.
+Apply it right after the pull request that added the `CI result` job
+(I58) merges. Both wrong orders fail closed. Before the JSON is applied,
+a pull request that skips Go waits on the `Go (…)` checks that the
+ruleset still requires and never gets, so it can't merge. Applied
+before that pull request merges, every open pull request lacks a
+`CI result` check, so none can merge until a rebase brings in the
+job.
 
 `Dependency vulnerability scan` is **not** required yet. The ruleset left it out
 while it failed on `main` because of

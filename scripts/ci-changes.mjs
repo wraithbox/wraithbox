@@ -164,30 +164,44 @@ export function verdict(needs) {
 	return found;
 }
 
+/** @typedef {(...args: string[]) => string} Git runs git with the arguments and returns its stdout */
+
+/** @type {Git} */
+const runGit = (...args) => execFileSync('git', args, { encoding: 'utf8' });
+
 /**
  * The paths a pull request changes: its merge commit against the base
  * branch, both sides of a rename. Throws unless HEAD is a merge commit.
+ * @param {Git} git
+ * @returns {string[]}
  */
-function changedFiles() {
-	const git = (/** @type {string[]} */ ...args) => execFileSync('git', args, { encoding: 'utf8' });
+export function changedFiles(git) {
 	const parents = git('rev-list', '--parents', '-n', '1', 'HEAD').trim().split(' ');
 	if (parents.length !== 3) throw new Error(`HEAD has ${parents.length - 1} parents, not the 2 of a pull request merge commit`);
 	return git('diff', '--name-only', '--no-renames', '-z', 'HEAD^1', 'HEAD').split('\0').filter(Boolean);
 }
 
-function detect() {
-	const event = process.env.GITHUB_EVENT_NAME ?? '';
+/**
+ * The log lines and the `name=value` output lines for one run. Only a
+ * pull_request event lists the changed files; every other event turns on
+ * every output.
+ * @param {Record<string, string | undefined>} env the environment, for GITHUB_EVENT_NAME
+ * @param {() => string[]} listFiles the changed paths of a pull request
+ * @returns {{log: string[], outputs: string[]}}
+ */
+export function detect(env, listFiles) {
+	const event = env.GITHUB_EVENT_NAME ?? '';
 	let jobs = new Set(ALL);
-	if (event === 'pull_request') {
-		const decided = decide(changedFiles());
-		for (const line of decided.log) console.log(line);
-		jobs = decided.jobs;
-	} else {
-		console.log(`event ${JSON.stringify(event)} is not pull_request: every job`);
-	}
-	const lines = OUTPUTS.map((output) => `${output}=${jobs.has(output)}`);
-	for (const line of lines) console.log(line);
-	if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
+	/** @type {string[]} */
+	let log = [`event ${JSON.stringify(event)} is not pull_request: every job`];
+	if (event === 'pull_request') ({ jobs, log } = decide(listFiles()));
+	return { log, outputs: OUTPUTS.map((output) => `${output}=${jobs.has(output)}`) };
+}
+
+function runDetect() {
+	const { log, outputs } = detect(process.env, () => changedFiles(runGit));
+	for (const line of [...log, ...outputs]) console.log(line);
+	if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `${outputs.join('\n')}\n`);
 }
 
 function check() {
@@ -199,7 +213,7 @@ function check() {
 
 if (import.meta.main) {
 	const mode = process.argv[2];
-	if (mode === 'detect') detect();
+	if (mode === 'detect') runDetect();
 	else if (mode === 'verdict') check();
 	else {
 		console.error('usage: bun scripts/ci-changes.mjs detect|verdict');

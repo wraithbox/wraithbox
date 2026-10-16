@@ -1,7 +1,9 @@
 // @ts-check
 // Run with `bun test scripts/ci-changes.test.mjs`.
 import { describe, expect, test } from 'bun:test';
-import { classify, decide, GATED, globToRegExp, verdict } from './ci-changes.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { changedFiles, classify, decide, detect, GATED, globToRegExp, verdict } from './ci-changes.mjs';
 
 /** @param {string[]} files */
 const jobsFor = (files) => [...decide(files).jobs].sort();
@@ -127,5 +129,75 @@ describe('verdict', () => {
 
 	test('an empty needs context fails', () => {
 		expect(verdict({})).toHaveLength(GATED.length);
+	});
+});
+
+describe('detect', () => {
+	const prFiles = () => ['packages/wraithbox-go/a.go'];
+
+	test('a pull request turns on the jobs its files need', () => {
+		const { log, outputs } = detect({ GITHUB_EVENT_NAME: 'pull_request' }, prFiles);
+		expect(outputs).toEqual(['go=true', 'swift=false', 'docs=false']);
+		expect(log).toEqual(['packages/wraithbox-go/a.go: go (packages/wraithbox-go/**)']);
+	});
+
+	test.each(['push', 'workflow_dispatch', undefined])('event %p runs every job without listing files', (event) => {
+		const { log, outputs } = detect({ GITHUB_EVENT_NAME: event }, () => {
+			throw new Error('listed files for an event other than pull_request');
+		});
+		expect(outputs).toEqual(['go=true', 'swift=true', 'docs=true']);
+		expect(log[0]).toEndWith('is not pull_request: every job');
+	});
+
+	test('an error listing the files fails the run', () => {
+		const failing = () => {
+			throw new Error('no merge commit');
+		};
+		expect(() => detect({ GITHUB_EVENT_NAME: 'pull_request' }, failing)).toThrow('no merge commit');
+	});
+});
+
+describe('changedFiles', () => {
+	/**
+	 * A stand-in for git that answers rev-list with the given parent line.
+	 * @param {string} revList
+	 * @param {string[]} calls
+	 */
+	const stubGit =
+		(revList, calls = []) =>
+		(/** @type {string[]} */ ...args) => {
+			calls.push(args.join(' '));
+			if (args[0] === 'rev-list') return `${revList}\n`;
+			return 'docs/a.md\0packages/wraithbox-go/old.go\0';
+		};
+
+	test('a merge commit diffs against its first parent, without rename detection', () => {
+		/** @type {string[]} */
+		const calls = [];
+		expect(changedFiles(stubGit('m p1 p2', calls))).toEqual(['docs/a.md', 'packages/wraithbox-go/old.go']);
+		expect(calls[1]).toBe('diff --name-only --no-renames -z HEAD^1 HEAD');
+	});
+
+	test.each([
+		['a commit with one parent', 'c p1'],
+		['a root commit', 'c'],
+		['an octopus merge', 'm p1 p2 p3'],
+	])('%s throws', (_name, revList) => {
+		expect(() => changedFiles(stubGit(revList))).toThrow('not the 2 of a pull request merge commit');
+	});
+});
+
+describe('ci.yml', () => {
+	const file = path.join(import.meta.dir, '../.github/workflows/ci.yml');
+	const workflow = Bun.YAML.parse(fs.readFileSync(file, 'utf8'));
+
+	test('CI result gates every job except vuln and itself', () => {
+		expect(Object.keys(workflow.jobs).sort()).toEqual([...GATED, 'vuln', 'result'].sort());
+	});
+
+	test('CI result needs exactly the gated jobs and always runs', () => {
+		expect([...workflow.jobs.result.needs].sort()).toEqual([...GATED].sort());
+		expect(workflow.jobs.result.if).toBe('${{ always() }}');
+		expect(workflow.jobs.result.name).toBe('CI result');
 	});
 });
