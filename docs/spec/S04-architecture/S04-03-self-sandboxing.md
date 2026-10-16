@@ -93,8 +93,13 @@ It also denies the network, starting programs, and other services
 
 The extension classes were measured with the X18-vsock-handoff
 configuration, which has the device set of S06-06-devices-and-warm-start.
-Both VMs' profiles allow the same two cache entries. The two VMs
-share a graphics cache through them (T21-shared-graphics-cache).
+Both session VMs' profiles allow the same two cache entry prefixes.
+So does the build VM's, because the `wb-vmd-install` profile is this
+profile plus the install rules (S04-04-vm-processes). The entries stay
+on the host's disk between runs. The VMs share a graphics cache
+through them, and a session VM can leave entries that a later image
+build may read in the service process of the build VM
+(T21-shared-graphics-cache).
 
 V1-M6-release-gate checks whether the set can drop the graphics
 device, keyboard and pointer (S06-06-devices-and-warm-start, "The

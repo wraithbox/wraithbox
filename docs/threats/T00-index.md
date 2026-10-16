@@ -25,7 +25,7 @@ trusts, and which risks it accepts rather than solves.
 | T18-data-disk-persistence | Guest root persists on the data disk | Accepted |
 | T19-pasted-login-code | A login code pasted into a guest | Accepted |
 | T20-config-root-links | Links inside a configuration root | Accepted |
-| T21-shared-graphics-cache | The two VMs share a graphics cache | Accepted |
+| T21-shared-graphics-cache | The VMs share a graphics cache | Accepted |
 
 ## Model
 
@@ -275,14 +275,15 @@ print about returned work after `wb land` is outside it
   when the user clicks it (SEC03-no-host-exec). Seen in I62, accepted
   in I270.
 - **T18-data-disk-persistence: Guest root persists on the data disk.**
-  An update and break-glass replace a VM's system disk and auxiliary
-  storage, and keep its data disk (S06-03-image-updates, "Updates", and
+  An update and break-glass replace a VM's system disk (and, for an
+  update, its auxiliary storage), and keep its data disk
+  (S06-03-image-updates, "Updates", and
   S15-04-guest-admin, "Break-glass"). So what guest root wrote to the
   data disk is still there next to the fresh system disk. That
   includes any file in a project user's home or clone, such as a git
   hook, and the session records. A planted file runs again when a
   project user's tools use it. The way out is the command that gives
-  the VM a new data disk (I289), at the cost of everything on it: each
+  the VM a new data disk, `wb vm reset-data` (I289), at the cost of everything on it: each
   project's Claude Code state and commits not yet pushed. What still
   holds: the volume is mounted `nosuid` and `nodev`, so a setuid file
   left on it doesn't make a project user root (S06-05-disks, "Mounting
@@ -321,13 +322,13 @@ print about returned work after `wb land` is outside it
   "Secret scan"). A link whose target leaves the root, a root that
   `wb` refuses, and `.claude.json` are still skipped unread. Proposed
   in I237.
-- **T21-shared-graphics-cache: The two VMs share a graphics cache.**
+- **T21-shared-graphics-cache: The VMs share a graphics cache.**
   The graphics device, keyboard and pointer stay in the device set for
   now (S06-06-devices-and-warm-start, "The graphics device"). For them,
   the profiles of the work VM's and the isolated VM's `wb-vmd` both
-  allow read and write on the same per-user cache entries,
-  `com.apple.metal-*` and `com.apple.paravirtualizedgraphics-*`
-  (S04-03-self-sandboxing, "The `wb-vmd` profile"). So the
+  allow read and write on the same entries of the per-user cache, the
+  ones whose names start with `com.apple.metal-` and
+  `com.apple.paravirtualizedgraphics-` (S04-03-self-sandboxing, "The `wb-vmd` profile"). So the
   Virtualization service processes of the two VMs read and write one
   directory, which Wraith Box neither controls nor reads. A guest that
   can steer what its service process caches there can pass data to
@@ -336,6 +337,19 @@ print about returned work after `wb land` is outside it
   other VM's service process (SEC08-proj-isolation). What the entries
   hold, and how much of it a guest chooses, isn't measured. Neither VM
   gets the other's disks, bundle, or network through it.
+
+  The build VM shares the cache too. The `wb-vmd-install` profile is
+  the `wb-vmd` profile plus the install rules
+  (S04-04-vm-processes, "`wb-vmd-install`"), and the entries stay on
+  the host's disk between runs. So a work or isolated VM can leave
+  entries that a later `wb image build` may read, in the service process
+  of the build VM. The disks of that VM become the sealed image that
+  every later VM is cloned from (S06-02-image-build). A flaw in the
+  code that reads an entry could reach that process, and so change
+  the image before sealing. The sealing scan checks the image
+  for what it lists, not for every change (S06-02-image-build,
+  "Sealing").
+
   V1-M6-release-gate checks whether a guest works without the
-  devices. If they leave the set, the profile is ablated again, and
+  devices. If they leave the set, the profiles are ablated again, and
   the channel closes when these entries go. Proposed in I247.
