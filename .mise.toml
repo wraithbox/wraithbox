@@ -64,6 +64,13 @@ osv-scanner = "2.5.1"
 # Prose lint (`mise run prose:lint`). Its style packages are vendored
 # under .vale/styles/ (see .vale.ini), so the lint needs no network.
 vale = "3.23.0"
+# Used by `mise run proto:check` and `proto:generate`: lints the .proto
+# contracts, checks them for breaking changes against main, and runs the
+# code generators (B52-proto-contracts). Every plugin it runs is local:
+# the Go ones are `tool` lines in packages/wraithbox-go/go.mod, the Swift
+# ones are built from the pinned SwiftPM dependencies. No `remote:`
+# plugin, so `ci` stays offline.
+buf = "1.73.0"
 # cspell is deliberately not here. mise's `npm:` backend records no
 # checksum in mise.lock and resolves the package's dependency tree from
 # the registry at install time. It is an exact-pinned devDependency of
@@ -88,7 +95,7 @@ depends = ["doc:install-frozen"]
 
 [tasks.lint]
 description = "Run all linters"
-depends = ["go:lint", "swift:lint", "gha:lint", "prose:lint", "prose:spell"]
+depends = ["go:lint", "proto:check", "swift:lint", "proto:check-swift", "gha:lint", "prose:lint", "prose:spell"]
 
 [tasks.format]
 description = "Auto-format all languages"
@@ -242,6 +249,85 @@ for p in packages/*-swift; do
   echo "--- swift test $p"
   swift test --package-path "$p"
 done
+"""
+
+# ---------- Contracts (.proto) ----------
+# The .proto files in proto/ are the one contract for every language, and
+# the code generated from them is committed (B52-proto-contracts, decision
+# A on I52): Go for every package under packages/wraithbox-go/internal/gen,
+# Swift for wraithbox.vmd.v1 in the WraithBoxRPC target. Every plugin is
+# local (buf.gen.yaml, buf.gen.swift.yaml), so these tasks need no network.
+# Unix shell only, like go:cross: the Windows Go job doesn't run them.
+[tasks."proto:generate"]
+description = "Regenerate the Go code for every .proto package (buf generate)"
+run = "buf generate"
+
+# The Swift plugins are built from the pinned SwiftPM dependencies into
+# .build/debug, where buf.gen.swift.yaml runs them. SwiftPM locks .build,
+# so under `ci` this waits for the Swift build and tests.
+[tasks."proto:swift-plugins"]
+description = "Build protoc-gen-swift and protoc-gen-grpc-swift-2 from the Swift package's pinned dependencies (macOS)"
+wait_for = ["swift:build", "swift:test"]
+run = """
+set -e
+swift build --package-path packages/wraithbox-swift --product protoc-gen-swift
+swift build --package-path packages/wraithbox-swift --product protoc-gen-grpc-swift-2
+"""
+
+[tasks."proto:generate-swift"]
+description = "Regenerate the Swift code for wraithbox.vmd.v1 in WraithBoxRPC (macOS)"
+depends = ["proto:swift-plugins"]
+run = "buf generate --template buf.gen.swift.yaml"
+
+# `buf lint`, then `buf breaking` against main, then Go drift. The
+# baseline is origin/main, or WB_PROTO_AGAINST when set (a commit or
+# ref). With no baseline the task fails: run `git fetch origin main`.
+# Before the first contract landed, main had no .proto file and so no
+# baseline to compare with. That case is checked and said, not skipped
+# silently. Generation goes to a temporary directory and is compared with
+# the committed tree, so the check never rewrites files that go:lint and
+# go:test read while `ci` runs them in parallel.
+[tasks."proto:check"]
+description = "buf lint, buf breaking against main, and a drift check of the generated Go code"
+run = """
+set -eu
+buf lint
+base="${WB_PROTO_AGAINST:-origin/main}"
+if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
+  echo "proto:check: no $base to compare with. Run git fetch origin main, or set WB_PROTO_AGAINST." >&2
+  exit 1
+fi
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+if git ls-tree -r --name-only "$base" -- proto | grep -q '[.]proto$'; then
+  mkdir "$tmp/base"
+  git archive "$base" buf.yaml proto | tar -x -C "$tmp/base"
+  buf breaking --against "$tmp/base"
+  echo "buf breaking: no breaking change against $base"
+else
+  echo "buf breaking: $base has no .proto file, so there is nothing to compare with"
+fi
+buf generate -o "$tmp/gen"
+if ! diff -r packages/wraithbox-go/internal/gen "$tmp/gen/packages/wraithbox-go/internal/gen"; then
+  echo "proto:check: the generated Go code differs from the .proto files. Run mise run proto:generate, and never edit generated files by hand." >&2
+  exit 1
+fi
+"""
+
+# The Swift half of the drift check. It needs macOS, so CI runs it in the
+# Swift job.
+[tasks."proto:check-swift"]
+description = "Drift check of the generated Swift code in WraithBoxRPC (macOS)"
+depends = ["proto:swift-plugins"]
+run = """
+set -eu
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+buf generate --template buf.gen.swift.yaml -o "$tmp"
+if ! diff -r packages/wraithbox-swift/Sources/WraithBoxRPC "$tmp/packages/wraithbox-swift/Sources/WraithBoxRPC"; then
+  echo "proto:check-swift: the generated Swift code differs from the .proto files. Run mise run proto:generate-swift, and never edit generated files by hand." >&2
+  exit 1
+fi
 """
 
 # ---------- GitHub Actions ----------

@@ -41,12 +41,38 @@ No other language is added without a spec change.
 packages/
   wraithbox-go/      Go module: cmd/{wb,wb-hostd,wb-netd,wb-proxyd,wb-guestd,wb-vmd}, internal/…
                      internal/platform: host/guest matrix and per-OS interfaces (S12-platforms)
+                     internal/gen/wraithbox/<area>/v1: generated code for every .proto package
   wraithbox-swift/   SwiftPM package: WraithBoxVM library, wb-vmd executable (macOS)
+                     Sources/WraithBoxRPC: generated code for wraithbox.vmd.v1 only
   wraithbox-dotnet/  .NET solution for Windows-native helpers (when the first one is built)
   wraithbox-doc/     documentation site
-proto/               .proto contracts shared by every language (added with the first RPC)
+proto/               .proto contracts shared by every language: wraithbox/<area>/v1/<area>.proto
+buf.yaml             buf module and lint and breaking rules for proto/
+buf.gen.yaml         Go generation; buf.gen.swift.yaml: Swift generation
 docs/spec/           specifications (this directory)
 ```
+
+### Generated contract code
+
+The code generated from `proto/` is committed (B52-proto-contracts).
+So a fresh clone builds with `go build` and `swift build` alone, on
+every OS.
+
+- `mise run proto:generate` writes the Go code, and
+  `proto:generate-swift` the Swift code on macOS. Nobody edits it by
+  hand.
+- `mise run proto:check` runs `buf lint` and `buf breaking` against
+  `main`, and fails when the Go code differs from what `buf generate`
+  makes. `proto:check-swift` does the same for the Swift code. Both
+  are part of `lint`.
+- Every plugin is local, never `remote:`. The Go plugins are `tool`
+  lines in `go.mod`. The Swift plugins are built from the Swift
+  package's pinned dependencies.
+- cspell and SwiftLint skip the generated paths. `swift format` skips
+  the generated files, which say `swift-format-ignore-file`.
+  golangci-lint skips generated Go files.
+- Only `wraithbox.vmd.v1` has Swift code, because `wb-vmd` is the only
+  Swift process that serves or calls a contract.
 
 `cmd/wb-vmd` in the Go module builds for Windows and Linux. On macOS,
 the binary of that name comes from the Swift package.

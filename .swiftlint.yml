@@ -12,6 +12,14 @@ included:
   - packages/wraithbox-swift/Sources
   - packages/wraithbox-swift/Tests
 
+# Generated contract code, never edited by hand: `mise run
+# proto:check-swift` fails on any difference from what the generators
+# make (B52-proto-contracts, decision A on I52). The generators also write
+# `swiftlint:disable all` into each file, which the blanket_disable_command
+# rule below would refuse. The .proto file it comes from is checked.
+excluded:
+  - packages/wraithbox-swift/Sources/WraithBoxRPC
+
 only_rules:
   - cyclomatic_complexity
   - function_body_length

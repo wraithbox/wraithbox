@@ -68,8 +68,8 @@ cross-platform Go (S12-platforms).
 
 - CI lints, vets, tests, and builds it natively on all three, in a job
   matrix.
-- Those jobs install only the Go tools (`install_args`), because some
-  pinned tools have no Windows build.
+- Those jobs install only the Go tools and `buf` (`install_args`),
+  because some pinned tools have no Windows build.
 - Locally, `mise run go:cross` vets, lints, and builds for all three
   GOOS values from one machine. It is part of `ci`.
 - `go:vulncheck` analyzes each GOOS.
@@ -88,12 +88,23 @@ calls on Windows are single plain commands in the module directory
 - There is one Go module. Adding a second means extending the Go tasks
   deliberately.
 - Tasks that only run on macOS or Linux may use shell scripts:
-  `go:cross`, `go:vulncheck`, Swift and docs.
+  `go:cross`, `go:vulncheck`, the `proto:` tasks, Swift and docs.
 
 ### Swift tasks
 
 Swift tasks iterate `packages/*-swift` in-shell. So the tasks pick up a
 new package without changes.
+
+### Contracts
+
+`buf` is pinned in `.mise.toml` like every other tool. The plugins it
+runs are pinned where their language pins dependencies: `tool` lines in
+`go.mod`, and the Swift package's `Package.resolved`
+(S10-tech-stack, "Generated contract code").
+
+- `proto:check` runs in the Go job on Linux. Its `buf breaking` step
+  compares with `origin/main`, so that job checks out the full history.
+- `proto:check-swift` runs in the Swift job.
 
 ### .NET
 
