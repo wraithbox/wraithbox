@@ -4,8 +4,8 @@
 pack scanner and the pre-receive check, git's own limits behind them,
 and the data scope of what a session gets from the host repository.
 
-**Verifies:** S08-workspace-and-git ("Bounds", and the data scope of
-B41-git-data-scope),
+**Verifies:** S08-workspace-and-git (the data scope of
+B41-git-data-scope), S08-05-push-limits ("Bounds"),
 X07-git-round-trip, X26-pre-receive-check, X28-git-alloc-limit
 
 ## Unit tests
@@ -86,7 +86,7 @@ X26-pre-receive-check and X28-git-alloc-limit measured, 207 MiB at a
 - Push one tree of 100 MiB, and one commit with 100 MiB of `parent`
   lines, each under the caps, and record the git child's peak memory
   when the conformance suite is built. These cases have no measured
-  value yet (S08-workspace-and-git, "Bounds").
+  value yet (S08-05-push-limits, "Bounds").
 
 ### Git's own limits, with the scanner off
 
@@ -105,8 +105,7 @@ S08-workspace-and-git sets it:
   (X28-git-alloc-limit);
 - push a pack that names more than 4.2 million distinct object IDs (for
   example trees that name many blobs), and see git fail when its object
-  hash table would grow past `GIT_ALLOC_LIMIT` (S08-workspace-and-git,
-  "Bounds").
+  hash table would grow past `GIT_ALLOC_LIMIT` (S08-05-push-limits, "Bounds").
 
 ### Time and the git binary
 

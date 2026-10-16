@@ -240,9 +240,9 @@ object-storage hosts instead.
 
 ## What it means for the specs
 
-- S07-egress-gateway, "Request form": new. Origin form, no trailers,
+- S07-08-requests-and-credentials, "Request form": new. Origin form, no trailers,
   `Host` checked, canonical paths, and the order of the steps.
-- S07-egress-gateway, "Credential replacement": rewritten. Always
+- S07-08-requests-and-credentials, "Credential replacement": rewritten. Always
   removed on inspected hosts: `Authorization`, `Proxy-Authorization`,
   `Cookie`, and the headers each built-in profile names. A request with
   a credential parameter that the profile names, in the query string or
@@ -252,7 +252,7 @@ object-storage hosts instead.
   `ghcr.io/token` denied and `pkg-containers.githubusercontent.com`
   added to the package registries profile. Signed URLs and what isn't
   covered.
-- S07-egress-gateway, "What an approval grants": new, read methods only
+- S07-17-approvals-and-learning, "What an approval grants": new, read methods only
   (open decision 3).
 - S09-policy-credentials-audit: a binding can hold a fixed public
   value, a foreign credential is a detection finding, and the risk

@@ -117,9 +117,9 @@ No `SEC*` control depends on the name constraints. The CA is trusted only inside
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> "Policy changes take effect without restarting anything" (S07-egress-gateway, "Approvals and learning").
-- <Badge text="verified" variant="success" /> The CA is name-constrained to the inspected hosts and lives 30 days. A new CA is issued when that set changes (S09-policy-credentials-audit, "Scope" and "Lifetimes").
-- <Badge text="verified" variant="success" /> The CA key is non-exportable in the Secure Enclave, and the CA is trusted only inside guests (S09-policy-credentials-audit, "Key" and "Scope").
+- <Badge text="verified" variant="success" /> "Policy changes take effect without restarting anything" (S07-17-approvals-and-learning).
+- <Badge text="verified" variant="success" /> The CA is name-constrained to the inspected hosts and lives 30 days. A new CA is issued when that set changes (S09-07-ca-certificates, "Scope" and "Lifetimes").
+- <Badge text="verified" variant="success" /> The CA key is non-exportable in the Secure Enclave, and the CA is trusted only inside guests (S09-06-ca-keys, "Key", and S09-07-ca-certificates, "Scope").
 - <Badge text="verified" variant="success" /> Node reads `NODE_EXTRA_CA_CERTS` only when the process starts ([Node.js CLI docs](https://raw.githubusercontent.com/nodejs/node/main/doc/api/cli.md), `NODE_EXTRA_CA_CERTS`).
 - <Badge text="verified" variant="success" /> Go loads the system roots once per process (`sync.Once` in `crypto/x509/root.go`, Go 1.27.1), and enforces name constraints when it verifies (`crypto/x509/verify.go`).
 - <Badge text="verified" variant="success" /> Conforming CAs must mark name constraints critical, and a client must reject a certificate with a critical extension it doesn't recognize ([RFC 5280](https://www.rfc-editor.org/rfc/rfc5280.html), 4.2.1.10).

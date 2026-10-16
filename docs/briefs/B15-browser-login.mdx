@@ -66,7 +66,7 @@ Figure 1. The measured mode, drawn as it would be with a guest. Claude Code hold
 
 ### A. Not in V1
 
-The long-lived token from `claude setup-token` stays the subscription mode (S09-policy-credentials-audit, "Model credential"). A `/login` in the guest can't finish. The profile doesn't allow the token endpoint, and `wb-proxyd` refuses the code exchange. An issue keeps the measured design for after V1.
+The long-lived token from `claude setup-token` stays the subscription mode (S09-05-credentials, "Model credential"). A `/login` in the guest can't finish. The profile doesn't allow the token endpoint, and `wb-proxyd` refuses the code exchange. An issue keeps the measured design for after V1.
 
 - **Cost:** nothing new to build. The user runs `claude setup-token` on the host about once a year.
 - **Gap:** an organization whose admin turns off `setup-token` has no subscription mode in V1. Whether an admin can do that wasn't checked.
@@ -146,7 +146,7 @@ S16-terminal-stream removes `claude.com/cai/oauth/authorize` URLs from the guest
 - <Badge text="verified" variant="success" /> The placeholders appeared only where the proxy swaps them, and no real token went to Claude Code. Source: the full-request scan, "Placeholders and the real tokens".
 - <Badge text="verified" variant="success" /> With the login Keychain locked, Claude Code stored the login in plaintext in `~/.claude/.credentials.json`, without a message. Source: "Without a Keychain".
 - <Badge text="verified" variant="success" /> `/login` printed the authorize URL with every login host refused, and didn't send a request to one. Source: "The authorize URL without a network".
-- <Badge text="verified" variant="success" /> The profile doesn't allow a path on `platform.claude.com` other than `/v1/oauth/hello`, so a guest's code exchange to `/v1/oauth/token` is refused. Source: S07-egress-gateway, model API.
+- <Badge text="verified" variant="success" /> The profile doesn't allow a path on `platform.claude.com` other than `/v1/oauth/hello`, so a guest's code exchange to `/v1/oauth/token` is refused. Source: S07-11-http-policy, "model API".
 - <Badge text="inferred" variant="note" /> Claude Code wraps the URL across lines. The recording held it in three fragments of different lengths, which a terminal width cut would give.
 - <Badge text="assumed" variant="caution" /> That a rotated-away refresh token still works after more than five minutes. One check. A rerun of the restore step after a day would show it.
 - <Badge text="assumed" variant="caution" /> That a Pro or Max login behaves like the enterprise login measured. A rerun of `login.sh` with such an account would show it.

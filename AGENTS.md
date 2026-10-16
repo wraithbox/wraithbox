@@ -14,7 +14,7 @@ platform-specific code is kept behind the interfaces defined there.
 
 The design is in `docs/` (S01-spec-based-development lists what goes
 where). Read `docs/spec/S03-requirements.md`,
-`docs/requirements/SEC00-index.md` and `docs/spec/S04-architecture.md`
+`docs/requirements/SEC00-index.md` and `docs/spec/S04-architecture/S04-00-architecture.md`
 before changing anything substantial.
 
 - Specs are authoritative. If code and spec disagree, fix one of them in

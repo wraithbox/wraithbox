@@ -285,29 +285,29 @@ wasn't booted: it had no guest daemon to answer.
 
 ## What it means for the specs
 
-- **S04-architecture, "Each host daemon is self-sandboxed":** a
+- **S04-03-self-sandboxing, "Each host daemon is self-sandboxed":** a
   `wb-vmd` item with the profile's shape and where its parameters come
   from, condition 1 as a second bounded exception to "confine first",
   `wb-vmd`'s log on an inherited pipe to `wb-hostd`, and open decisions
   1 and 2 (changed in this pull request).
-- **S04-architecture, "The device set is fixed and checked"** (new):
+- **S04-02-vm-provider, "The device set is fixed and checked"** (new):
   the check before any device object is created, which devices the
   profile enforces, that NAT and the other devices in the table are
   only enforced by `wb-vmd`'s code, and the three checks that verify
   it (changed in this pull request).
-- **S06-vm-lifecycle, "Devices":** the graphics and USB devices the
+- **S06-06-devices-and-warm-start, "Devices":** the graphics and USB devices the
   spikes used are open, and the profile is ablated again against the
   final set (changed in this pull request).
-- **S07-egress-gateway, "Packet transport":** "no other network path"
+- **S07-02-packet-path, "Packet transport":** "no other network path"
   points to the device-set check (changed in this pull request).
 - **S11-verification-and-spikes**: the unit test of the device-set
   check and the in-guest interface check (changed in this pull
   request).
-- **S06-vm-lifecycle, "Warm start":** "invalid argument" also comes
+- **S06-06-devices-and-warm-start, "Warm start":** "invalid argument" also comes
   from a state saved under a `wb-vmd` profile that read different host
   facts, which the existing rules already treat as permanent (changed
   in this pull request).
-- **S12-platforms, "Self-sandbox" row:** names X25-vmd-sandbox next to
+- **S12-01-platform-interfaces, "Self-sandbox" row:** names X25-vmd-sandbox next to
   X23-sandboxed-daemons for macOS (changed in this pull request).
 - Cloning a base image from `<data>/images` into a bundle isn't in this
   profile. If `wb-vmd` does it, the profile also reads

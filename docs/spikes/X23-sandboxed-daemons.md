@@ -404,11 +404,10 @@ added the rest, in "wb-proxyd with the Keychain and the Secure Enclave
 
 ## What it means for the specs
 
-- S04-architecture, "Processes" and "Each host daemon is
-  self-sandboxed": the launcher under option A with its conditions, the
+- S04-architecture, "Processes", and S04-03-self-sandboxing, "Each host daemon is self-sandboxed": the launcher under option A with its conditions, the
   self-check, `wb-hostd` as the exception, and the `wb-netd` log
   descriptor.
-- S12-platforms, "Self-sandbox" row for macOS: a Seatbelt profile
+- S12-01-platform-interfaces, "Self-sandbox" row for macOS: a Seatbelt profile
   applied in process with `sandbox_init_with_parameters`, without cgo,
   and the launcher.
 - A proposal for I48's supervision section in S04-architecture: the
@@ -461,7 +460,7 @@ confines itself (condition 5).
 - `com.apple.securityd.xpc` is the data protection keychain, and
   `com.apple.ctkd.token-client` the Secure Enclave token. They are
   enough for every store call `wb-proxyd` makes
-  (S15-least-privilege, "Declared access"), without a file rule.
+  (S15-03-access-rules, "Declared access"), without a file rule.
 - Certificate checks against the system roots need
   `com.apple.trustd.agent` and the metadata of the helper's own bundle
   directory. `com.apple.trustd`, `SecurityServer`,
@@ -540,7 +539,7 @@ Then it did the same for the paths under `/Users` that the remaining
 
 ### What it means for the specs
 
-- S04-architecture, "Each host daemon is self-sandboxed": `wb-proxyd`
+- S04-03-self-sandboxing, "Each host daemon is self-sandboxed": `wb-proxyd`
   also reads the metadata of its own bundle directory, and "the secret
   store service" in the `wb-credset` and `wb-guestadmin` profiles is
   the two Mach services above. I261 makes the change.

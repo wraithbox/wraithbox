@@ -5,17 +5,16 @@
 the accounting and event channels, the audit writer, free space, and
 the data disk steps.
 
-**Verifies:** S04-architecture ("The device set is fixed and checked",
-"Each host daemon is self-sandboxed", "Supervision and failure",
-"Accounting and event channels"), S06-vm-lifecycle ("Disks"),
-S09-policy-credentials-audit ("Audit")
+**Verifies:** S04-02-vm-provider ("The device set is fixed and checked"),
+S04-03-self-sandboxing ("Each host daemon is self-sandboxed"),
+S04-07-supervision, S04-08-records-and-bounds ("Accounting and event channels"), S06-05-disks,
+S09-11-audit
 
 ## Unit tests
 
 ### wb-vmd
 
-- **Device set** (S04-architecture, "The device set is fixed and
-  checked", X25-vmd-sandbox). Pass the check each of these, and see
+- **Device set** (S04-02-vm-provider, "The device set is fixed and checked", X25-vmd-sandbox). Pass the check each of these, and see
   each refused with its rule: a NAT network, a bridged network, a
   shared directory, a console or SPICE device, an audio device, a disk
   or serial port file outside the VM's bundle, and a second network
@@ -43,7 +42,7 @@ S09-policy-credentials-audit ("Audit")
 
 ### Supervision
 
-Spec: S04-architecture, "Supervision and failure".
+Spec: S04-07-supervision.
 
 - Close each daemon's control channel, and see `wb-netd` and
   `wb-proxyd` exit, `wb-launcher` end what it started and exit, and a
@@ -96,7 +95,7 @@ Spec: S04-architecture.
 
 ### Audit writer
 
-Spec: S09-policy-credentials-audit, "Audit".
+Spec: S09-11-audit.
 
 - Exceed the per-class budget, and see no 5019, 2004, approval,
   returned-work, store-access, VM or session record dropped, and
@@ -113,7 +112,7 @@ Spec: S09-policy-credentials-audit, "Audit".
 
 ### Data disk steps
 
-Spec: S06-vm-lifecycle, "Disks".
+Spec: S06-05-disks.
 
 With a fake `diskutil`. In each case the fake `diskutil` is never asked
 to attach a file at the final name (SEC15-no-guest-disk-mount).
@@ -134,7 +133,7 @@ and the file at the final name kept.
 
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
-  (S04-architecture, "Accounting and event channels").
+  (S04-08-records-and-bounds, "Accounting and event channels").
 - Every vsock RPC handler in `wb-hostd`.
 - The stream framing that multiplexes guest requests on a host-opened
   connection, with the project each request is attributed to

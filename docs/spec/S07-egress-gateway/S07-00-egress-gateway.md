@@ -1,0 +1,48 @@
+# S07 - Egress Gateway
+
+**Purpose:** The only path from a guest to any network: a userspace
+network stack (`wb-netd`) and a policy-enforcing proxy (`wb-proxyd`) on
+the host.
+
+**Requirements:** FR08-no-proxy-config to FR10-learn-mode, SEC04-no-guest-secrets to SEC08-proj-isolation, SEC10-audit, SEC11-root-gains-nothing, SEC13-bounded-resources, NFR06-explained-refusals. Residual risk T11-shared-vm-grants.
+
+**Tests:** C01-network-and-dns, C02-streams-and-tls, C03-policy-and-approvals, C05-credentials-and-store, C06-model-api, C07-dependency-gate
+
+Briefs: B17-network-path, B32-dep-gate-registries,
+B33-no-guest-credentials, B35-openshell-artifacts,
+B36-flow-attribution, B40-learn-pass-modes, B47-non-http-streams,
+B51-approval-flow, B60-model-credential, B68-proxyd-stream-identity
+
+![The egress gateway. Every frame from the guest's virtual NIC reaches wb-netd, which filters the link, serves DHCP and DNS with synthetic addresses, and accepts TCP only to an allowed name and port. wb-netd hands each stream to wb-proxyd over the VM's own hand-off socket. wb-proxyd re-checks the name, checks the protocol, and applies the host's mode, credential replacement, HTTP policy and the dependency gate before it connects upstream. An unknown name raises an approval event in wb-hostd, which sends policy changes to wb-proxyd first. Raw IP, the LAN, IPv6, and UDP other than DNS are dropped or reset.](S07-00-egress-gateway.svg)
+
+## Design
+
+Every packet a guest sends reaches `wb-netd`, the packet path. Every
+TCP stream to an allowed name goes on to `wb-proxyd`, the stream path.
+
+### Pages
+
+| Page | What it covers |
+|---|---|
+| S07-01-per-vm-policy | The VM as the unit of policy: the union of its projects, conflicts, changes while sessions run, and session end |
+| S07-02-packet-path | `wb-netd`: the packet transport, the link filter, caps, DHCP, the MTU, connections, and performance |
+| S07-03-dns | The DNS server of `wb-netd`: synthetic addresses, the name form, negative answers and the wildcard budget |
+| S07-04-dns-refusals | How `wb-netd` refuses a name: approval events, the hold, quiet refusals, and the same answer for every reason |
+| S07-05-stream-hand-off | How a stream passes from `wb-netd` to `wb-proxyd`, and why `wb-netd` can only narrow |
+| S07-06-name-mapping | `wb-proxyd`'s checked copy of the name mapping: reports, releases, replay and the second wildcard count |
+| S07-07-hosts-and-modes | Name binding, the upstream address rule, the inspect, pass and audit modes, and guarded hosts |
+| S07-08-requests-and-credentials | The request form, and credential replacement |
+| S07-09-placeholder-binding | Where a placeholder may go, and the scan that enforces it |
+| S07-10-anonymous-credentials | Fixed public tokens for anonymous reads, and the `ghcr.io` token fallback |
+| S07-11-http-policy | HTTP rules, the built-in profiles, and profile parts |
+| S07-12-dependency-gate | The dependency gate on package registries |
+| S07-13-publish-time | Publish times, and the Go module clock from the checksum database |
+| S07-14-go-lookups | Verified lookups in the checksum database, their caches and limits |
+| S07-15-non-http-streams | The protocol check on each stream, SSH, and raw TCP entries |
+| S07-16-tls-and-tunnels | Client certificates, encrypted ClientHello, tunnels, and refusals audit mode doesn't relax |
+| S07-17-approvals-and-learning | Approvals of unknown destinations, and learn mode |
+
+The table is in reading order. Pages 12 to 17 continue the page above
+them.
+
+**Status:** Draft

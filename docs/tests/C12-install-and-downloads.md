@@ -10,7 +10,7 @@
 
 ### wb-download
 
-- **Self-check** (S17-install-and-upgrade, "Downloads"). Confined,
+- **Self-check** (S17-03-downloads). Confined,
   `wb-download` fails to open a file under the home directory, to
   connect to TCP port 80 and to UDP port 123, to reach the Keychain
   services, and to run `/bin/echo`. It lists the host's interfaces with

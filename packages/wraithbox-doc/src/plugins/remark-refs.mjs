@@ -4,6 +4,8 @@
 // of S01-spec-based-development:
 //
 //   S07-egress-gateway, X00-index, V1-initial  a design document's page
+//   S07-04-dns                                 a page of a spec
+//                                              (S07-00-… is S07 itself)
 //   B36-flow-attribution                       a review brief (for I36)
 //   SEC06-repo-writes, FR01-drop-in, NFR01-…,  a definition in an index
 //   T05-…, X14-…, V1-01-…, V1-M2-…             (or the item's own page)
@@ -57,13 +59,33 @@ export function purposeOf(/** @type {string} */ source) {
 }
 
 export const SLUG = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*`;
-/** A design ID: S07, SEC06, X14, B36, C03, V1, V1-01, V1-M2. */
-export const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[BCSTXR])\d{2,}|V\d+(?:-(?:M\d+|\d{2,}))?`;
+/**
+ * A design ID: S07, SEC06, X14, B36, C03, V1, V1-01, V1-M2, and a page
+ * of a spec, S07-04 (S01-spec-based-development, "Spec tree").
+ */
+export const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[BCTXR])\d{2,}|S\d{2,}(?:-\d{2})?|V\d+(?:-(?:M\d+|\d{2,}))?`;
 /** A definition list item: `- **SEC06-repo-writes: Name.** text`. */
 export const DEFINITION = new RegExp(
 	String.raw`^- \*\*(${DESIGN_ID})-(${SLUG}):\s*([^*]*?)\.?\*\*([\s\S]*?)(?=\n- \*\*|\n\n|(?![\s\S]))`,
 	'gm',
 );
+
+/**
+ * The ID, slug and full name that a document's file name gives it. A
+ * spec's overview, `spec/S07-egress-gateway/S07-00-egress-gateway.md`, is
+ * the spec itself: S07, S07-egress-gateway (S01-spec-based-development,
+ * "Spec tree").
+ * @returns {{ id: string, slug: string, full: string } | undefined}
+ */
+export function nameOf(/** @type {string} */ rel) {
+	const m = path
+		.basename(rel)
+		.replace(/\.mdx?$/, '')
+		.match(new RegExp(`^(${DESIGN_ID})-(${SLUG})$`));
+	if (!m) return undefined;
+	const id = m[1].replace(/^(S\d{2,})-00$/, '$1');
+	return { id, slug: m[2], full: `${id}-${m[2]}` };
+}
 
 /** Every design ID: documents by file name, and the definitions in them. */
 function loadDesign() {
@@ -76,9 +98,9 @@ function loadDesign() {
 		source: fs.readFileSync(path.join(docsDir, rel), 'utf8'),
 	}));
 	for (const { rel, source } of sources) {
-		const m = path.basename(rel).replace(/\.mdx?$/, '').match(new RegExp(`^(${DESIGN_ID})-(${SLUG})$`));
-		if (!m) continue;
-		const [full, id, slug] = m;
+		const name = nameOf(rel);
+		if (!name) continue;
+		const { id, slug, full } = name;
 		if (pages.has(id)) throw new Error(`remark-refs: ${id} is both docs/${rel} and docs/${pages.get(id)}`);
 		pages.set(id, rel);
 		// A Markdown document's title is its heading, without the ID in

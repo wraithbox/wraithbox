@@ -155,12 +155,12 @@ SEC05-default-deny (only allowlisted hosts are reachable) holds under every opti
 - <Badge text="verified" variant="success" /> `~/.claude.json` holds "your sign-in session, MCP server configurations, per-project state such as trust decisions" ([Claude Code settings](https://code.claude.com/docs/en/settings)).
 - <Badge text="verified" variant="success" /> Settings precedence is managed, command line, project local, shared project, user. A `--permission-mode` flag takes precedence over a mode set in user settings, and `bypassPermissions` takes effect from user, `--settings` or managed settings, not from project files (same page).
 - <Badge text="verified" variant="success" /> `wb claude` passes its arguments to Claude Code unchanged (FR01-drop-in, S05-cli "Agent commands"), so the user's `--permission-mode` reaches it.
-- <Badge text="verified" variant="success" /> Claude Code's documentation recommends `bypassPermissions` for "isolated containers and VMs only", and refuses it as root or under `sudo` ([permission modes](https://code.claude.com/docs/en/permission-modes)). Project users are never root (S13-guest-confinement, "Layer 1").
+- <Badge text="verified" variant="success" /> Claude Code's documentation recommends `bypassPermissions` for "isolated containers and VMs only", and refuses it as root or under `sudo` ([permission modes](https://code.claude.com/docs/en/permission-modes)). Project users are never root (S13-01-process-hardening).
 - <Badge text="verified" variant="success" /> Auto mode is the built-in starting mode from Claude Code 2.1.283. Its classifier checks count toward token use on API accounts (same page). `claude --version` on this host prints 2.1.289.
 - <Badge text="verified" variant="success" /> `DISABLE_AUTOUPDATER` stops only the background check. `DISABLE_UPDATES` blocks every update path, `claude update` included ([advanced setup](https://code.claude.com/docs/en/setup), "Disable auto-updates").
 - <Badge text="verified" variant="success" /> Each release has a GPG-signed `manifest.json` with a SHA-256 checksum per binary, and the macOS binary is signed by Anthropic and notarized (same page, "Binary integrity"). The native installer puts versions under the user's home, so a per-machine install in the image needs another route.
 - <Badge text="verified" variant="success" /> `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` turns off updates, telemetry and error reporting, and also feature-flag fetching, which some features need ([environment variables](https://code.claude.com/docs/en/env-vars)).
-- <Badge text="verified" variant="success" /> The image seal scans for secrets and fails the build on a find (S06-vm-lifecycle, "Images"). The guest environment is built from an allowlist (S09-policy-credentials-audit, "Never in the guest").
+- <Badge text="verified" variant="success" /> The image seal scans for secrets and fails the build on a find (S06-vm-lifecycle). The guest environment is built from an allowlist (S09-05-credentials, "Never in the guest").
 - <Badge text="inferred" variant="note" /> With the download host not allowlisted, a guest that turns updates back on can't download a new binary (SEC05-default-deny). `DISABLE_UPDATES` stops the attempt and its error messages. It isn't the control.
 - <Badge text="assumed" variant="caution" /> That the image seal's scanner catches the tokens users put in `CLAUDE.md`, skills, and agent files. The scanner isn't written yet. The implementation of the seal (V1-M2-walking-skeleton) should test it on real `~/.claude/` directories.
 - <Badge text="assumed" variant="caution" /> That Claude Code works with a placeholder credential, and which login Wraith Box owns. That is X01-model-credential (I15).
@@ -169,7 +169,7 @@ SEC05-default-deny (only allowlisted hosts are reachable) holds under every opti
 
 - Drafting the agent spec, which I45 asks for. The draft waits on X01-model-credential (I15) for the login, `/login`, and the endpoint list of the *model API* profile.
 - The "Claude Code in the guest" lane of `docs/implementation-plan.md`, and with it V1-M4-claude-end-to-end (FR01-drop-in, FR13-claude-state).
-- The base image contents in S06-vm-lifecycle ("Images"), which then list the pinned Claude Code build.
+- The base image contents in S06-vm-lifecycle (), which then list the pinned Claude Code build.
 
 <details>
 <summary>Details and glossary</summary>

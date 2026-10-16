@@ -4,11 +4,9 @@
 the scan for the placeholder in whole requests, what is injected on
 the model API, the event log, and Claude Code end to end.
 
-**Verifies:** S07-egress-gateway ("Credential replacement",
-"Placeholder binding", "Bounds", "model API"),
-S09-policy-credentials-audit ("Model credential"), S06-vm-lifecycle
-("Claude Code in the guest"), S04-architecture ("Accounting and event
-channels")
+**Verifies:** S07-08-requests-and-credentials ("Credential replacement"),
+S07-09-placeholder-binding ("Bounds"), S07-11-http-policy ("model API"),
+S09-05-credentials ("Model credential"), S06-08-projects-and-sessions ("Claude Code in the guest"), S04-08-records-and-bounds ("Accounting and event channels")
 
 ## Conformance
 
@@ -19,7 +17,8 @@ channels")
 
 ### The placeholder in a request
 
-S07-egress-gateway, "Credential replacement" and "Placeholder binding".
+S07-08-requests-and-credentials, "Credential replacement", and
+S07-09-placeholder-binding.
 The scan covers whole requests, not only `Authorization` and
 `x-api-key`.
 
@@ -50,7 +49,7 @@ The scan covers whole requests, not only `Authorization` and
 
 ### Bodies split across reads
 
-Spec: S07-egress-gateway, "Bounds".
+Spec: S07-09-placeholder-binding, "Bounds".
 
 - Send it in a chunked body split across two chunks, and across two
   HTTP/2 `DATA` frames, at every offset in the placeholder, exact and
@@ -70,7 +69,7 @@ Spec: S07-egress-gateway, "Bounds".
 
 ### Placeholders
 
-Spec: S09-policy-credentials-audit, "Model credential".
+Spec: S09-05-credentials, "Model credential".
 
 - Create two VMs with the same stored credential, and see two different
   placeholders, each with the credential's length and prefix.
@@ -91,8 +90,7 @@ Spec: S09-policy-credentials-audit, "Model credential".
 - Send `wb-hostd` a placeholder record that fails its form check, and
   see the waiting session start refused with
   `placeholder-record-invalid`, and `wb-proxyd` ended, counted toward
-  the restart limit and restarted (S04-architecture, "Accounting and
-  event channels").
+  the restart limit and restarted (S04-08-records-and-bounds, "Accounting and event channels").
 
 ### What is injected
 
@@ -106,7 +104,7 @@ Spec: S09-policy-credentials-audit, "Model credential".
 
 ### The event log
 
-Spec: S07-egress-gateway, "model API".
+Spec: S07-11-http-policy, "model API".
 
 - With a global policy that allows `api.anthropic.com`
   `/api/event_logging/`, and with one that allows `/api/`, send a
@@ -123,7 +121,7 @@ Spec: S07-egress-gateway, "model API".
   log, see no request to `/api/event_logging/`, and no DNS lookup and
   no approval request for Datadog's log intake, `downloads.claude.ai`
   and `raw.githubusercontent.com`. That shows the guest's variables
-  stopped them (S06-vm-lifecycle, "Claude Code in the guest").
+  stopped them (S06-08-projects-and-sessions, "Claude Code in the guest").
 - Run them again with `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and
   `DISABLE_UPDATES` unset and every approval request denied. See the
   event log refused with the rule `model-event-log`, the hosts outside

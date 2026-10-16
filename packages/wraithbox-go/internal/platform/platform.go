@@ -1,5 +1,5 @@
 // Package platform describes the host Wraith Box runs on and which guest
-// operating systems each host supports. See docs/spec/S12-platforms.md.
+// operating systems each host supports. See docs/spec/S12-platforms/S12-00-platforms.md.
 //
 // Platform-specific behavior is behind interfaces in this package's
 // subpackages, implemented in files with GOOS suffixes; shared code never

@@ -82,7 +82,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/pl
   clients accept a CA that only the guest trusts. List
   clients that pin certificates, and which clients reread trust
   without a restart, which sets the CA overlap
-  (S09-policy-credentials-audit, "Lifetimes"). The CA has no name
+  (S09-07-ca-certificates, "Lifetimes"). The CA has no name
   constraints since I39. Answered no, in the result page
   X04-tls-inspection: every client that takes a CA file or variable
   accepts the CA and none pins, but `wb-guestd` can't add it to a macOS
@@ -144,7 +144,7 @@ platform starts.
   `wb.exe relay` over interop standard streams: terminal fidelity,
   window resizing, throughput of the git transport, latency to the
   first prompt. Compare with a Hyper-V socket from the WSL VM. For the
-  git fetches of S08-workspace-and-git ("WSL"), also measure how
+  git fetches of S08-10-wsl, also measure how
   `wsl.exe --exec` passes arguments that hold spaces and quotes, and
   whether `GIT_PROTOCOL=version=2` reaches the relayed `upload-pack`
   in both directions. Measure the MSYS path conversion of the Git for

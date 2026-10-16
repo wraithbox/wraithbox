@@ -6,6 +6,7 @@
 //
 //   item                          Description         Status
 //   a page (S07, B36, V1, R01)    its title           its status line
+//   a spec's page (S07-04)        its title           its status line
 //   a definition (FR01, SEC06,    its bold name       see `definitionStatus`
 //   T01, X03) in the index
 //
@@ -15,7 +16,7 @@
 // without its row.
 import fs from 'node:fs';
 import path from 'node:path';
-import { DEFINITION, DESIGN_ID, SLUG, loadGithub } from './remark-refs.mjs';
+import { DEFINITION, SLUG, loadGithub, nameOf } from './remark-refs.mjs';
 import { designFiles, docsDir } from './specs.mjs';
 
 const HEADER = '| ID | Description | Status |';
@@ -30,6 +31,12 @@ function cell(/** @type {string} */ text) {
 /** The number in an ID, for sorting: S07 is 7, V1-initial is 1. */
 function numberOf(/** @type {string} */ id) {
 	return Number(id.match(/\d+/)?.[0] ?? 0);
+}
+
+/** The order of two IDs: by number, then a spec's pages (S07-04) after it. */
+function byNumber(/** @type {string} */ a, /** @type {string} */ b) {
+	const sub = (/** @type {string} */ id) => Number(id.match(/^S\d+-(\d+)$/)?.[1] ?? 0);
+	return numberOf(a) - numberOf(b) || sub(a) - sub(b);
 }
 
 /** @param {string} source */
@@ -99,16 +106,14 @@ function rowsOf(indexRel, docs, github, covers) {
 	/** @type {Map<string, { rel: string, source: string }>} */
 	const pages = new Map();
 	for (const doc of docs) {
-		if (path.dirname(doc.rel) !== dir) continue;
-		const m = path
-			.basename(doc.rel)
-			.replace(/\.mdx?$/, '')
-			.match(new RegExp(`^(${DESIGN_ID})-(${SLUG})$`));
-		if (!m || !own.test(m[1]) || numberOf(m[1]) === 0) continue;
-		pages.set(m[1], doc);
-		rows.set(m[1], {
-			id: m[1],
-			full: m[0],
+		// A spec with pages is a directory of its own (S01, "Spec tree").
+		if (path.dirname(doc.rel) !== dir && !path.dirname(doc.rel).startsWith(`${dir}${path.sep}`)) continue;
+		const name = nameOf(doc.rel);
+		if (!name || !own.test(name.id) || numberOf(name.id) === 0) continue;
+		pages.set(name.id, doc);
+		rows.set(name.id, {
+			id: name.id,
+			full: name.full,
 			description: titleOf(doc.rel, doc.source),
 			status: statusOf(doc.rel, doc.source),
 		});
@@ -126,7 +131,7 @@ function rowsOf(indexRel, docs, github, covers) {
 			status: definitionStatus(kind, id, full, page, github, covers),
 		});
 	}
-	return [...rows.values()].sort((a, b) => numberOf(a.id) - numberOf(b.id));
+	return [...rows.values()].sort((a, b) => byNumber(a.id, b.id));
 }
 
 /**

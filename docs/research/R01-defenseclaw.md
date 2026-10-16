@@ -97,7 +97,7 @@ its controls.
   (`policies/guardrail-use-cases/`). Wraith Box's equivalent is the
   write grant of SEC06-repo-writes. The git hosting profile allows any
   `git-receive-pack` request to the repositories of the projects in the
-  VM (S07-egress-gateway, "Modes, per host"). A guest with that grant
+  VM (S07-07-hosts-and-modes, "Modes, per host"). A guest with that grant
   can force-push over the default branch, and delete branches and tags,
   limited only by the hosting service's own branch protection. T00-index
   lists the user's repositories as an asset, and no accepted risk covers
@@ -126,8 +126,7 @@ its controls.
   connection (SEC10-audit). A finding built on those counts would show
   the user when a guest uses such a channel in bulk.
 - **Risky returned files.** DefenseClaw's end-of-session review flags,
-  with a severity, some paths that the list in S08-workspace-and-git,
-  "Flagging risky changes", doesn't name: dev containers,
+  with a severity, some paths that the list in S08-09-risky-changes, doesn't name: dev containers,
   package-manager configuration that runs code (`.yarnrc.yml` with
   `yarnPath`, `.pnpmfile.cjs`, `.npmrc`), Python tooling (`conftest.py`,
   `setup.py`), version-manager files that define tasks (`mise.toml`),
@@ -167,7 +166,7 @@ Layers that could detect, from inside the guest outward:
 - **Claude Code itself.** Its permission modes, `allow` and `deny`
   rules, and its own classifiers already stand between a prompt and a
   tool call. Wraith Box passes the user's permission mode through
-  unchanged (S14-claude-in-guest, "Permission mode").
+  unchanged (S14-04-commands-and-endpoints, "Permission mode").
 - **Hooks in the guest**, such as DefenseClaw's. They see the prompt,
   the tool call and its arguments, which no host component sees. Guest
   root can turn them off.

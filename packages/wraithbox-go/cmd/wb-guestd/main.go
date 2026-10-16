@@ -1,4 +1,4 @@
-// Command wb-guestd is the agent that runs inside the guest VM. See docs/spec/S06-vm-lifecycle.md.
+// Command wb-guestd is the agent that runs inside the guest VM. See docs/spec/S06-vm-lifecycle/S06-00-vm-lifecycle.md.
 package main
 
 import (

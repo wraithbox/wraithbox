@@ -8,7 +8,7 @@ Brief: B28-image-build
 
 - **Decides:** the answer to X17-image-build (I28), and how
   `wb image build` gets `wb-guestd` into a new guest, which
-  S06-vm-lifecycle, "Images", now states.
+  S06-vm-lifecycle, now states.
 - **You are approving:** the answer "no", and the build that replaces
   the one S06-vm-lifecycle described. The first boot uses the macOS 27
   provisioning options, which create a provisioning user and turn
@@ -188,8 +188,7 @@ The conditions of the build that works:
    a non-system uid other than that user's temporary folders; launchd
    jobs outside an allowlist of what macOS ships (`com.apple.*` and
    `amsdstat.plist` in `/Library/LaunchDaemons`) plus `wb-guestd`'s; and
-   the secrets the scan already looked for. S06-vm-lifecycle,
-   "Sealing", adds checks the spike's scan didn't have: membership
+   the secrets the scan already looked for. S06-02-image-build, "Sealing", adds checks the spike's scan didn't have: membership
    through `dsmemberutil`, `authorized_keys`, `sshd_config`, SSH host
    keys, the kept user's LaunchAgents, its secure token, and `IsHidden`.
 

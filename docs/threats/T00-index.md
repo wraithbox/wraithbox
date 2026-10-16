@@ -42,7 +42,7 @@ macOS); the operators of allowlisted services (as services, not their
 content); Apple's macOS restore images, as the system trust store and
 the Virtualization installer's signature check accept them, and
 Claude Code releases, as Anthropic's release key signs them
-(S17-install-and-upgrade, "Downloads", and I262 for the installer's
+(S17-03-downloads, and I262 for the installer's
 check).
 
 **Boundaries.** (1) the VM; (2) the host-guest socket RPC surface to
@@ -64,7 +64,7 @@ print about returned work after `wb land` is outside it
   so no HTTP policy applies to what the guest sends it. Only the user
   can make a host a pass host, each one is audited, and a host with a
   credential binding or a built-in profile can't be one
-  (S07-egress-gateway, "Modes, per host", and B40-learn-pass-modes).
+  (S07-07-hosts-and-modes, "Modes, per host", and B40-learn-pass-modes).
   A pass host on a shared front end, such as a CDN, can carry in its
   encrypted bytes the name of any site behind that front end, in the
   inner `Host` header. That channel reaches past `wb-proxyd`'s check
@@ -72,19 +72,17 @@ print about returned work after `wb land` is outside it
   to a pass host until the server's ServerHello, a second one after a
   HelloRetryRequest included. It resets a ClientHello with ECH or
   another SNI, and resets client data sent before that ServerHello.
-  That closes the same channel through ECH (S07-egress-gateway,
-  "Non-HTTP streams"). A raw TCP entry is a
+  That closes the same channel through ECH (S07-15-non-http-streams). A raw TCP entry is a
   channel of the same kind: `wb-proxyd` relays its bytes to one named
   host and port without reading them, and it has the rules of a pass
-  host (S07-egress-gateway, "Non-HTTP streams", and
+  host (S07-15-non-http-streams, and
   B47-non-http-streams). A name whose zone someone else controls can
   point any of these channels at a network on public addresses that
   the host reaches through a route other than its own links, such as
   a VPN. `wb-proxyd` refuses only the address ranges, interface
-  addresses and on-link prefixes that S07-egress-gateway, "Upstream
-  address", lists.
+  addresses and on-link prefixes that S07-07-hosts-and-modes, "Upstream address", lists.
 - **T02-dns-names: Data in DNS names.** Data encoded in DNS names under allowed wildcards, bounded by a
-  lookup budget per VM (S07-egress-gateway, "DNS").
+  lookup budget per VM (S07-03-dns).
 - **T03-hypervisor-escape: Hypervisor escape.** Escape from the hypervisor.
 - **T04-bad-approvals: Bad approvals.** A user approving a malicious request or merging a malicious
   change despite the flags. The guest chooses which names it looks up,
@@ -92,7 +90,7 @@ print about returned work after `wb land` is outside it
   limits on pending and new requests per VM bound that. A request for
   an internationalized name whose Unicode form mixes scripts or uses
   confusable characters shows a warning
-  (S09-policy-credentials-audit, "Approval flow"). An ASCII name that
+  (S09-10-approval-flow). An ASCII name that
   looks like another, such as `github.corn`, doesn't get a warning.
 - **T05-cross-proj-clones: Other projects' clones after guest root.** After a guest root escalation inside the shared work VM, read or
   write access to other projects' guest clones (code only; no secrets are
@@ -106,7 +104,7 @@ print about returned work after `wb land` is outside it
   their clones after guest root in the same way, and their network
   grants even without it (T11-shared-vm-grants). Only a project with
   `placement = isolated` that isn't marked shared has the VM to itself
-  (S06-vm-lifecycle, "VMs"). The maintainer accepted this co-tenancy
+  (S06-04-vms-and-placement). The maintainer accepted this co-tenancy
   on I42 (2026-10-06, B42-trust-placement).
 - **T06-forged-labels: Forged program labels after guest root.** After a guest root escalation, forged program identities in the
   guest confinement layer (S13-guest-confinement). Rules narrowed to named
@@ -119,8 +117,7 @@ print about returned work after `wb land` is outside it
   minimum age and the vulnerability check: Go with `GOPROXY=direct` or
   `GOPRIVATE` from a git host, `git+https:` and `github:` dependencies,
   archive downloads from a git host, cargo `git` dependencies, and
-  registry mirrors the user approved (S07-egress-gateway, "Dependency
-  gate").
+  registry mirrors the user approved (S07-12-dependency-gate).
 - **T08-homebrew-ungated: Young Homebrew bottles.** Homebrew bottles from
   `homebrew/core` are not age-gated or checked against OSV. Homebrew has
   one version per formula and signed metadata, so the only option would
@@ -145,7 +142,7 @@ print about returned work after `wb land` is outside it
   message, or a signed URL the guest made for its own storage bucket.
   The guest then acts as its own account there, within the methods
   policy allows there. An approval grants read methods only
-  (S07-egress-gateway, "What an approval grants"). The user's
+  (S07-17-approvals-and-learning, "What an approval grants"). The user's
   credentials are never in the guest (SEC04-no-guest-secrets), and the
   git hosts of SEC06-repo-writes get the git hosting profile, a
   self-hosted one with every kind's names (S07-egress-gateway,
@@ -155,7 +152,7 @@ print about returned work after `wb land` is outside it
   project user, session or program opened a connection. So it enforces
   network policy, credential bindings and approvals per VM, as the
   union of those of the projects with a session in the VM
-  (S07-egress-gateway, "Enforced per VM"). This holds in any VM: the
+  (S07-01-per-vm-policy). This holds in any VM: the
   work VM, and the isolated VM when `--isolated` sessions or shared
   projects run there together. Any process in the VM, without guest
   root, can use what every project with a session there was granted:
@@ -170,7 +167,7 @@ print about returned work after `wb land` is outside it
   strictest limit any of them sets applies to all. Guest root can
   also fake a leftover-process result, which locks the VM against new
   sessions until the user ends the running ones and stops and starts
-  the VM (S06-vm-lifecycle, "Leftover processes"). That cost stays in
+  the VM (S06-10-leftover-processes). That cost stays in
   the VM, and the user can recover from it. Per-project and
   per-session rules narrow the union only by a label the guest
   reports, which guest root can forge (T06-forged-labels), and until
@@ -181,13 +178,13 @@ print about returned work after `wb land` is outside it
   modes and bindings refuse the joining session, and the join notice
   says what becomes reachable. A project whose grants must stay apart
   is set to `placement = isolated`, and `wb-hostd` gives it the
-  isolated VM to itself (S06-vm-lifecycle, "VMs"). With
+  isolated VM to itself (S06-04-vms-and-placement). With
   NFR05-two-macos-vms, one such project runs at a time, and
   `--isolated` sessions wait meanwhile. The maintainer accepted this
   on I36.
 - **T12-shared-export: Sessions of a project share what they can
   fetch.** A project's `export.git` holds the refs that any live session
-  of the project selected (S08-workspace-and-git, "Export repository").
+  of the project selected (S08-02-export-repository).
   Over protocol v2 `upload-pack` serves any object it holds to a client
   that names its ID, and `uploadpack.hideRefs` only trims the list of
   refs it offers (X07-git-round-trip). So a session's guest can fetch
@@ -203,7 +200,7 @@ print about returned work after `wb land` is outside it
   in PR123 (B41-git-data-scope).
 - **T13-new-project-grants: New projects share the work VM's grants.**
   A newly registered project has `placement = work`
-  (S06-vm-lifecycle, "VMs"). So the first session in a freshly cloned
+  (S06-04-vms-and-placement). So the first session in a freshly cloned
   repository, the likeliest place for a prompt injection, runs in the
   work VM. Any process in it can use the network grants, credential
   bindings and approvals of every work-VM project with a session
@@ -220,14 +217,14 @@ print about returned work after `wb land` is outside it
   (S04-architecture, "Processes"). A guest that finds a way to crash
   it takes the other VM's network down too, until `wb-hostd` restarts
   it, and until the next session start once `wb-hostd` gives up after five exits in ten
-  minutes (S04-architecture, "Restarting a daemon"). The other VM
+  minutes (S04-07-supervision, "Restarting a daemon"). The other VM
   also shares `wb-proxyd`'s blocked event channel
   (`event-channel-blocked`) and the secret store prompts its restarts
   cause. This costs availability, not egress: while `wb-proxyd` is
   down or blocked, both guests get resets and refusals. Proposed in PR171 (B48-process-supervision).
 - **T15-shared-toolchain: Projects in one guest share the toolchain
   prefix.** Every project user runs tools from the one prefix that
-  the toolchain user owns (S06-vm-lifecycle, "Toolchain prefix"). So
+  the toolchain user owns (S06-01-image-layers, "Toolchain prefix"). So
   the integrity of every project's tools rests on `homebrew/core`: its
   bottles, the Ruby of its formulae, and the `post_install` steps that
   run as the toolchain user when any project declares a formula. A
@@ -242,19 +239,19 @@ print about returned work after `wb land` is outside it
   formulae also use the guest's disk for every project, an
   availability cost that the manifest's caps bound. A project with
   `placement = isolated` that isn't marked shared has a guest, and so
-  a prefix, of its own (S06-vm-lifecycle, "VMs"). Proposed in PR178
+  a prefix, of its own (S06-04-vms-and-placement). Proposed in PR178
   (X20-shared-homebrew, B31-shared-homebrew).
 - **T16-hostd-landing: A compromised `wb-hostd` decides what
   `wb land` brings in.** `wb-hostd` faces the guest, and it may read
   every project's `export.git` and write every project's `landing.git`
-  (S04-architecture, "Each host daemon is self-sandboxed"). A
+  (S04-03-self-sandboxing, "Each host daemon is self-sandboxed"). A
   compromised `wb-hostd` writes `landing.git` directly, past the ref
   filter, the pack scanner, and the pre-receive check, so it can put
   any object of any project into a session's branch. Between `wb`'s
   checks of `landing.git` and its fetch, it can also swap
   `landing.git` for a link to any repository the user can read, or
   rewrite `objects/info/alternates` and the refs
-  (S08-workspace-and-git, "Landing on the host"). `wb land` then
+  (S08-06-landing-on-the-host). `wb land` then
   brings those objects into a `wb/<session-id>` branch of the user's
   repository, and they leave the host only if the user pushes that
   branch. What still holds: the fetch checks every object it gets.

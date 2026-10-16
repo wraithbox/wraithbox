@@ -10,7 +10,7 @@ Brief: B22-data-disk
 
 - **Decides:** the answer to X08-data-disk (I22), how the data disk
   gets its filesystem, and which process formats it, which
-  S06-vm-lifecycle, "Disks", now states, with the steps of "Updates"
+  S06-05-disks, now states, with the steps of "Updates"
   that recreate the project users.
 - **You are approving:** the answer "yes, with conditions", and the
   change to how a data disk is made. A volume the guest formats APFS on
@@ -37,7 +37,7 @@ Brief: B22-data-disk
   system disk. Formatting a blank image that no guest has booted with
   is outside the scope of the I44 rule that the host never mounts a
   disk after a guest has booted from it, given the steps of
-  S06-vm-lifecycle, "Disks", that make sure the image is that blank
+  S06-05-disks, that make sure the image is that blank
   file. SEC12-least-privilege: decision 2, below.
 - **Assumed:** that a guest never turns encryption on for a volume it
   didn't format, which held for four boots here, and that the space a
@@ -215,7 +215,7 @@ Host: Apple M2, 8 cores, 16 GB, macOS 27.0.1 (26A434), no `sudo`.
 Guest: macOS 27.0.1 from X17-image-build's sealed bundle `e5`, 4 vCPU,
 4 GiB, a file-handle network with nothing behind it, and the data disks
 as virtio block devices (automatic caching, full synchronization, as
-S06-vm-lifecycle, "Disks") or one as USB mass storage. Three APFS clones
+S06-05-disks) or one as USB mass storage. Three APFS clones
 of `e5` (`g1`, `g2`, `g3`) were the system disks, one guest at a time.
 Each data disk was a new 20 GiB sparse raw file.
 
@@ -244,7 +244,7 @@ changed between boots with the checks, not with the swap.
 ## What was not measured
 
 - **A real Claude Code.** The image has no `claude`. The spike wrote the
-  state layout of S06-vm-lifecycle ("Projects and sessions inside a VM")
+  state layout of S06-08-projects-and-sessions
   and read it back. I135 checks the layout with Claude Code.
 - **Whether the system disk or the auxiliary storage holds the key** of
   a guest-made volume. Every swap here replaced both. The log names

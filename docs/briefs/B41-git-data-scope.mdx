@@ -163,7 +163,7 @@ Items 2 to 6 strengthen SEC03-no-host-exec, SEC04-no-guest-secrets, SEC06-repo-w
 - <Badge text="verified" variant="success" /> git is GPL-2.0 (`COPYING` in the Homebrew git package), so shipping it with Wraith Box conflicts with S10-tech-stack.
 - <Badge text="verified" variant="success" /> `git remote` lists remotes alphabetically, not in the order they were added (local test).
 - <Badge text="verified" variant="success" /> The same git behavior holds through `git-remote-wb` over a socketpair standing in for the host-guest socket, and with Apple git 2.54.0, except that `receive.hideRefs` alone also accepts the bare session ref (X07-git-round-trip, B21-git-round-trip).
-- <Badge text="assumed" variant="caution" /> That the image-seal scanner is precise enough for working trees without too many false hits. No scanner is chosen yet (S06-vm-lifecycle, "Sealing").
+- <Badge text="assumed" variant="caution" /> That the image-seal scanner is precise enough for working trees without too many false hits. No scanner is chosen yet (S06-02-image-build, "Sealing").
 
 ## What this unblocks
 

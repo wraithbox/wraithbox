@@ -4,17 +4,17 @@
 the policies of the projects in one VM, modes per host, profile parts,
 learn mode, and the approval flow.
 
-**Verifies:** S07-egress-gateway ("Enforced per VM", "Modes, per
-host", "Profile parts", "Approvals and learning", "Session end", "Deny
-duration"), S09-policy-credentials-audit ("Mode per host and port",
-"Built-in profiles in the check", "Approval flow"),
+**Verifies:** S07-01-per-vm-policy ("Session end"), S07-07-hosts-and-modes ("Modes, per host"), S07-11-http-policy ("Profile parts"),
+S07-17-approvals-and-learning, S07-04-dns-refusals ("Deny duration"), S09-02-precedence ("Mode per host and port"),
+S09-04-boundary-check ("Built-in profiles in the check"),
+S09-10-approval-flow,
 S13-guest-confinement
 
 ## Unit tests
 
 ### Policy loader
 
-Spec: S07-egress-gateway, "Modes, per host".
+Spec: S07-07-hosts-and-modes, "Modes, per host".
 
 - Put a host in pass mode from a repository's `.wraithbox/policy.yaml`
   with `config_trust` on, on a host with a credential binding, on a
@@ -23,7 +23,7 @@ Spec: S07-egress-gateway, "Modes, per host".
   with an error that names the host and the rule.
 - Load a policy with a host that has `_` or a non-ASCII byte in its
   name, and run `wb allow` on such a host, and see both refused with
-  the rule `dns-name-form` (S07-egress-gateway, "Packet path", DNS).
+  the rule `dns-name-form` (S07-02-packet-path, DNS).
 - Add a global pass entry on a host that a joining project's remote
   names, and see that project's session start refused, with the project
   named.
@@ -33,7 +33,7 @@ Spec: S07-egress-gateway, "Modes, per host".
 - Policy matching, and network policy YAML.
 - The guest flow labels of S13-guest-confinement.
 - The decoder and the script check that show internationalized names in
-  approval requests (S09-policy-credentials-audit, "Approval flow").
+  approval requests (S09-10-approval-flow).
 
 ## Conformance
 
@@ -42,10 +42,8 @@ Spec: S07-egress-gateway, "Modes, per host".
 - Push to a repository outside the project set, with and without an
   attacker-supplied token. Create a gist or a repository. Publish a
   package. The project set is the VM's: the repositories of every
-  project with a session in the VM (S07-egress-gateway, "Enforced per
-  VM").
-- In a learn-mode session (S07-egress-gateway, "Approvals and
-  learning"):
+  project with a session in the VM (S07-01-per-vm-policy).
+- In a learn-mode session (S07-17-approvals-and-learning):
   - resolve a name that isn't allowlisted, and see `NXDOMAIN` with the
     same answer bytes as outside learn mode, no approval event, and the
     name in `wb learn report`;
@@ -61,7 +59,7 @@ Spec: S07-egress-gateway, "Modes, per host".
 
 ### Per-VM enforcement
 
-Spec: S07-egress-gateway, "Enforced per VM".
+Spec: S07-01-per-vm-policy.
 
 - End a project's last session, and see its binding no longer injected,
   its open streams closed with the rule `policy-recomputed`, and its
@@ -71,7 +69,7 @@ Spec: S07-egress-gateway, "Enforced per VM".
   reached before the second one joined.
 - For every host and port of a union, see the mode `wb-proxyd` applies
   equal the mode the boundary check projected
-  (S09-policy-credentials-audit, "Mode per host and port"). With a
+  (S09-02-precedence, "Mode per host and port"). With a
   boundary that allows only `GET` on a host:
   - put the host's port 443 in `audit` with a `GET` rule in one
     project, and add an `enforce` endpoint with a `GET` rule on the
@@ -93,7 +91,7 @@ Spec: S07-egress-gateway, "Enforced per VM".
   loaded before a project names the host. Add a binding on a host in
   `audit` with `wb cred set`. See each refused with the host and the
   rule. Load repository configuration with `enforcement: audit`, and
-  see a load error (S07-egress-gateway, "Modes, per host", audit).
+  see a load error (S07-07-hosts-and-modes, "Modes, per host", audit).
 - With the prover unavailable, remove a binding while sessions run, and
   see it no longer injected and its streams closed. Then add a rule,
   and separately remove a `deny_rules` entry, and see each change
@@ -108,10 +106,10 @@ Spec: S07-egress-gateway, "Enforced per VM".
   host the other project passes, or had a `deny_rules` entry. See each
   kept as a held source, a 5019 event that names the project, and the
   widening shown as pending, while the project's binding is no longer
-  injected (S07-egress-gateway, "Session end").
+  injected (S07-01-per-vm-policy, "Session end").
 - Deny a name, start and end another session, and see the name still
   refused with no new approval event until every session running at
-  the deny has ended (S07-egress-gateway, "Deny duration").
+  the deny has ended (S07-04-dns-refusals, "Deny duration").
 - Answer an approval after a session started or ended, and see the
   answer refused with `approval-sessions-changed` and the request shown
   again with a new id.
@@ -131,7 +129,7 @@ Spec: S07-egress-gateway, "Enforced per VM".
 
 ### Profile parts
 
-Spec: S07-egress-gateway, "Profile parts".
+Spec: S07-11-http-policy, "Profile parts".
 
 - Turn off every GitHub part but `git`, and see:
   - fetch and push to `github.com` pass;
@@ -145,11 +143,11 @@ Spec: S07-egress-gateway, "Profile parts".
   error.
 - With a boundary that forbids `api.github.com` and only the GitHub
   `graphql` part on, see the prover refuse the session start
-  (S09-policy-credentials-audit, "Built-in profiles in the check").
+  (S09-04-boundary-check, "Built-in profiles in the check").
 
 ### Approvals
 
-Spec: S09-policy-credentials-audit, "Approval flow".
+Spec: S09-10-approval-flow.
 
 - Look up a burst of unknown hostnames from the guest, and see the
   approval limits deny the requests past the limit and log each with

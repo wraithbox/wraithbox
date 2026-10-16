@@ -4,9 +4,9 @@
 endpoint, addressing, and the DNS gateway with its hold, quiet
 refusals, and negative answers.
 
-**Verifies:** S07-egress-gateway ("Packet path", "Addressing", "Name
-form", "Hold", "Negative answers", "Widening during the hold"),
-S04-architecture ("The device set is fixed and checked")
+**Verifies:** S07-02-packet-path ("Addressing"), S07-03-dns ("Name form", "Negative answers"),
+S07-04-dns-refusals ("Hold", "Widening during the hold"),
+S04-02-vm-provider ("The device set is fixed and checked")
 
 ## Fuzzing
 
@@ -15,8 +15,7 @@ S04-architecture ("The device set is fixed and checked")
   corpus of frames from 0 to 65535 + 14 bytes, and seeds of truncated
   reads that fill the MTU + 15 byte buffer, which must be dropped.
 - DNS, with a corpus that holds a dot byte inside a wire label, a label
-  of 0 and of 64 bytes, and a name of 254 bytes (S07-egress-gateway,
-  "Name form").
+  of 0 and of 64 bytes, and a name of 254 bytes (S07-03-dns, "Name form").
 
 ## Conformance
 
@@ -61,7 +60,7 @@ S04-architecture ("The device set is fixed and checked")
   so the guest didn't cache the refusal. A guest resolver that keeps a
   minimum negative cache time despite the zero TTL fails this check,
   and the delay it adds after a late approval is then written into
-  S07-egress-gateway, "Negative answers".
+  S07-03-dns, "Negative answers".
 - See that an empty `AAAA` answer for an allowed name has the TTL of
   its `A` answer.
 
@@ -72,12 +71,12 @@ S04-architecture ("The device set is fixed and checked")
   once with the accounting channel answering at once and once with it
   blocking for just under its 100 ms limit. See the same hold for each.
 - See the guest's resolver (`mDNSResponder` on macOS) wait for a held
-  answer and not fail the lookup sooner (S07-egress-gateway, "Hold",
+  answer and not fail the lookup sooner (S07-04-dns-refusals, "Hold",
   B51-approval-flow).
 - With the VM over its audit budget, resolve a name that isn't
   allowlisted, approve it during the hold, and see the lookup still
   refused at the end of the hold with `audit-budget`
-  (S07-egress-gateway, "Widening during the hold").
+  (S07-04-dns-refusals, "Widening during the hold").
 - Send more refused queries at once than the hold limit, and see the
   rest dropped and counted with `dns-hold-full`, with no approval event
   for them. Send one over DNS over TCP, and see the connection closed.
@@ -86,6 +85,6 @@ S04-architecture ("The device set is fixed and checked")
   `dns-query-rate` at the end of their holds, with no new requests,
   learn entries or lookup counts.
 - Close a DNS-over-TCP connection for `dns-hold-full` while it has held
-  queries, and see their timers not fire (S07-egress-gateway, "Hold").
+  queries, and see their timers not fire (S07-04-dns-refusals, "Hold").
 
 **Status:** Draft
