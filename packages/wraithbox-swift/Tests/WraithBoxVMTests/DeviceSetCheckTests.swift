@@ -316,10 +316,11 @@ struct DeviceSetBundleTests {
     @Test("a hard link to a file outside the bundle is refused")
     func hardLink() throws {
         let bundle = try BundleFixture()
-        try bundle.write("sys.img", in: bundle.outside)
+        try bundle.write(BundleFile.systemDisk.rawValue, in: bundle.outside)
         try bundle.remove(.systemDisk)
         try FileManager.default.linkItem(
-            atPath: bundle.outside + "/sys.img", toPath: bundle.filePath(.systemDisk))
+            atPath: bundle.outside + "/" + BundleFile.systemDisk.rawValue,
+            toPath: bundle.filePath(.systemDisk))
         let error = #expect(throws: DeviceSetRefusal.self) {
             try bundle.check()
         }
@@ -354,8 +355,10 @@ struct DeviceSetDiskTests {
     @Test("a disk path that leaves the bundle through .. is refused")
     func diskDotDot() throws {
         let bundle = try BundleFixture()
-        try bundle.write("sys.img", in: bundle.outside)
-        let disk = VMDisk(role: .system, path: bundle.path + "/../outside/sys.img", readOnly: false)
+        try bundle.write(BundleFile.systemDisk.rawValue, in: bundle.outside)
+        let disk = VMDisk(
+            role: .system, path: bundle.path + "/../outside/" + BundleFile.systemDisk.rawValue,
+            readOnly: false)
         let error = #expect(throws: DeviceSetRefusal.self) {
             try bundle.check(fixedSet(bundle, replacing: .system, with: disk))
         }

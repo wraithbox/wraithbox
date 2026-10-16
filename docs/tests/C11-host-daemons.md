@@ -21,6 +21,11 @@ S09-11-audit
   outside the VM's bundle, a second network device, a symbolic link at
   a bundle file's name, and a missing bundle file. The fixed set of
   S06-vm-lifecycle is accepted.
+- **Bundle file names** (S06-05-disks, "Names on the host"). Each
+  guest-written bundle file has an extension that maps to a dynamic
+  type, so Launch Services doesn't open it as a disk image. A clone of a spike
+  bundle that kept `aux.img`, `sys.img` and `data.img` is refused with
+  `bundle-file-missing`.
 - **Slot.** Start `wb-vmd` with `WB_VMD_SLOT` unset, with an unknown
   value, with its bundle a symbolic link to the other slot's bundle,
   and with its bundle missing. See `vmd-slot-missing`,
