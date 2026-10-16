@@ -176,9 +176,14 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    `github-refs.json`, B00-index and the other indexes) and rerun
    `mise run doc:index` and `doc:refs`: a rebase has duplicated lines
    there without a conflict. When a spike result merges, tag its
-   spike commit (`planning.md`, "Spikes", "Tag").
+   spike commit (`planning.md`, "Spikes", "Tag"). Then remove the
+   spike's leftover VM bundles with `mise run spike:clean x<NN>`,
+   unless an open issue still needs them (`planning.md`, "Spikes",
+   "VM bundles").
 7. **Finish.** Report what merged, what review caught, what is left and
-   which follow-ups were filed. Close the milestone if its exit criterion
+   which follow-ups were filed. On the personal Mac, the report also
+   lists what is still in the spike cache, from `mise run spike:clean`
+   without an argument. Close the milestone if its exit criterion
    holds (`planning.md`). Stop finished agents with `TaskStop`.
 
 Follow-ups that review or a wave names are handled before the session

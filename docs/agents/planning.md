@@ -112,6 +112,25 @@ first-class issues, and the first milestone is mostly spikes.
   `spikes/x<NN>-<slug>/` on that branch. That code is not held to the
   project gates, is never merged to `main`, and the branch is kept as
   the record.
+- **VM bundles.** A spike that boots a macOS guest keeps its bundles
+  outside the worktree, in `~/Library/Caches/wraithbox-spikes/`:
+  - `restore-images/` holds the shared restore images, which stay.
+  - `x<NN>/` and `x<NN>-<anything>/` hold the bundles of spike
+    `X<NN>`. They are throwaway once the result is written up and its
+    numbers are committed to the spike branch.
+
+  `mise run spike:clean x<NN>` removes those directories and prints
+  what it removed and the space freed. It doesn't check for a running
+  VM, so stop the VM first. It refuses `restore-images/`, a symbolic
+  link, and any path outside the cache. Without an argument it lists
+  the cache with sizes and doesn't remove anything. Agents may run it
+  without asking.
+
+  The builder runs it before it hands back a spike, and reports the
+  space freed. When review or an open issue still needs the bundles,
+  the builder keeps them and names who needs them. When a result merges, the coordinator runs it for the
+  spike's leftover bundles that no open issue needs
+  (`orchestration.md`, "A wave", step 6).
 - **Tag.** When the result pull request merges, the coordinator tags
   the spike commit that the result page links to with an annotated tag
   `spike-x<NN>-<slug>` (for example `spike-x19-terminal-filter`) and

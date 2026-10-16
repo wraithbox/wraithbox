@@ -46,7 +46,9 @@ before Wraith Box works end to end.
   Keychain items, team or identity signing, the `wbtest` user, `sudo`,
   TCC or signing dialogs, host Xcode tools, or a VM bundle or image
   outside `.scratch/`. It runs on the personal Mac in a session the
-  maintainer attends. `/wave` never picks it.
+  maintainer attends. `/wave` never picks it. Removing a spike's
+  bundles with `mise run spike:clean` doesn't make work `needs-host`
+  (`planning.md`, "Spikes", "VM bundles").
 
 A run merges an issue's pull request without the maintainer only when
 the issue has neither label, nor `comp:wb-vmd` (`orchestration.md`,
@@ -87,7 +89,9 @@ Outside a `needs-host` issue, in an attended session:
   (`eventMessage CONTAINS "Sandbox: <process>("`), and only some are
   reported.
 - **VM bundles:** spike bundles are under
-  `~/Library/Caches/wraithbox-spikes/<spike>/` (I120). The maintainer
-  makes APFS clones (`cp -c`) of a bundle. An agent asks for a clone,
-  with the target path, and never clones or deletes a bundle itself.
-  Hand the builder the clone's literal path.
+  `~/Library/Caches/wraithbox-spikes/x<NN>/` (`planning.md`, "Spikes",
+  "VM bundles"). The maintainer makes APFS clones (`cp -c`) of a
+  bundle. An agent asks for a clone, with the target path, and never
+  clones a bundle itself. It removes bundles only with
+  `mise run spike:clean x<NN>`, never with `rm`. Hand the builder the
+  clone's literal path.

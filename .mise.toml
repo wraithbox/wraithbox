@@ -469,6 +469,22 @@ if [ -z "$run_id" ]; then echo "No run found for current branch on $repo" >&2; e
 gh run watch --repo "$repo" --exit-status "$run_id"
 """
 
+# ---------- Spike VM bundles ----------
+# Spikes keep macOS VM bundles in ~/Library/Caches/wraithbox-spikes/
+# (docs/agents/planning.md, "Spikes"). Agents may run this task, so the
+# script refuses anything but a spike's own directories: never
+# restore-images/, never a symbolic link, never a path outside the cache.
+# The arguments mise passes after the task name go to the script.
+[tasks."spike:clean"]
+description = "Remove a spike's VM bundles from the spike cache (args: x<NN>...); without arguments, list the cache"
+run = "bun scripts/spike-clean.mjs"
+
+# Tests for the scripts in scripts/. Not in `test` yet: the CI workflow
+# runs each task by name, and both lists must name the same checks.
+[tasks."scripts:test"]
+description = "bun test for the scripts in scripts/"
+run = "bun test ./scripts"
+
 [tasks."gh:labels"]
 description = "Create or update the GitHub issue labels in .github/labels.yml and labels-areas.yml (network; needs `gh auth login`)"
 run = "bun .github/sync-labels.ts .github/labels.yml .github/labels-areas.yml"

@@ -47,6 +47,10 @@
       "Bash(mise run ci-watch *)",
       "Bash(mise run go:cross)",
       "Bash(mise run go:cross *)",
+      "Bash(mise run scripts:test)",
+      "Bash(mise run scripts:test *)",
+      "Bash(mise run spike:clean)",
+      "Bash(mise run spike:clean *)",
       "Bash(codesign -f -s - --entitlements spikes/vm.entitlements .scratch/*)"
     ],
     "ask": [
