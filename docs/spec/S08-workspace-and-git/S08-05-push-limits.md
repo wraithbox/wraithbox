@@ -87,8 +87,8 @@ on the side band every `receive.keepAlive` seconds, git's default of
 
 The largest push measured took 33 to 56 s in `receive-pack`
 (X28-git-alloc-limit). That was the Go repository's whole history, with
-the size limit raised to 1 GiB. A push under the scanner's caps
-resolves at most 1 GiB.
+the size limit raised to 1 GiB for the measurement. A push under the
+scanner's caps resolves at most 256 MiB.
 
 The git gateway work sets the values for `upload-pack`.
 
@@ -96,11 +96,11 @@ The git gateway work sets the values for `upload-pack`.
 
 The quarantine of one push holds at most:
 
-- the pack, 1 GiB on the wire;
-- the bases `--fix-thin` copies in, counted in the 1 GiB per-push
+- the pack, 256 MiB on the wire;
+- the bases `--fix-thin` copies in, counted in the 256 MiB per-push
   total.
 
-That is about 2 GiB of disk. With one `receive-pack` per project at a
+That is about 512 MiB of disk. With one `receive-pack` per project at a
 time, it is per project.
 
 #### Memory
@@ -144,9 +144,9 @@ The conformance suite checks these measurements again (C08-git).
 
 ### 4 GiB
 
-The cap is twice the worst case of one push.
+The cap is eight times the worst case of one push.
 
-- **Why:** the worst case follows from the 1 GiB wire-byte and per-push
-  caps, which X28-git-alloc-limit still has open.
+- **Why:** the worst case follows from the 256 MiB wire-byte and
+  per-push caps (B102-git-alloc-limit).
 
 **Status:** Draft

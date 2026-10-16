@@ -92,9 +92,9 @@ caps are fixed, not configurable.
 
 | Cap | Value | Counts |
 |---|---|---|
-| Wire bytes | 1 GiB | the whole pack, while the scanner reads it |
+| Wire bytes | 256 MiB | the whole pack, while the scanner reads it |
 | Per object | 100 MiB | an object's or a delta's sizes |
-| Per push | 1 GiB | the sum of all resolved sizes |
+| Per push | 256 MiB | the sum of all resolved sizes |
 | REF_DELTA entries | 10,000 | REF_DELTA entries in one pack |
 | Object count | 1,000,000 | the count in the pack header |
 
@@ -108,14 +108,14 @@ refusal names the rule (NFR06-explained-refusals).
   its memory. The scanner doesn't hold an entry.
 - There is no per-entry wire bound.
 - A pack that passes the per-push cap compresses to less than about
-  1.15 GiB, zlib's bound for 1 GiB. So the wire cap refuses little that
-  the per-push cap would pass.
+  295 MiB, zlib's bound for 256 MiB. So the wire cap refuses little
+  that the per-push cap would pass.
 
 A session's pushes are much smaller, because `landing.git` borrows from
 `export.git`. One new commit was under 1 KiB (X07-git-round-trip). The
 largest push measured, the Go repository's whole history, is 439 MiB on
-the wire and passes this cap (X28-git-alloc-limit). At about 9 GiB
-inflated (X26-pre-receive-check), the per-push cap refuses it.
+the wire (X28-git-alloc-limit), so the wire cap refuses it. A session
+never pushes a whole history, because `landing.git` borrows it.
 
 #### Per object
 
@@ -167,8 +167,8 @@ comes from `export.git`.
 This cap bounds how many bases `index-pack --fix-thin` reads from
 `export.git`, however small each one is. Without it, each 34 bytes of a
 pack could name another base (security review of PR116). A pack under
-the 1 GiB wire-byte cap could then name as many as the object count cap
-allows, 1,000,000.
+the 256 MiB wire-byte cap could then name as many as the object count
+cap allows, 1,000,000.
 
 #### Object count
 

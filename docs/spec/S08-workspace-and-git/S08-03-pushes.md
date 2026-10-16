@@ -31,7 +31,7 @@ fetches (S08-01-into-the-guest).
 - Deletes, push options and signed pushes (`push-cert`) are refused.
 - `receive.unpackLimit=1`, so every push goes through `index-pack`.
 - `pack.threads=1`.
-- A size limit, `receive.maxInputSize`, of 1 GiB. That is the same
+- A size limit, `receive.maxInputSize`, of 256 MiB. That is the same
   value as the pack scanner's wire-byte cap (S08-04-push-checks).
 - `GIT_ALLOC_LIMIT` in its environment, at the per-object cap plus one
   byte (104857601). Its children inherit it. Git then refuses each
