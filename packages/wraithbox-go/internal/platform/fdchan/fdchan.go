@@ -2,11 +2,12 @@
 // that carries one record and at most one descriptor per message, and
 // refuses anything else, closing every descriptor of a refused message.
 //
-// The wb-vmd hand-off (S04-02-vm-provider, "Hand-off on macOS"), the
-// wb-launcher request channel (S04-03-self-sandboxing, "What keeps
-// wb-launcher narrow"), the stream hand-off (S07-05-stream-hand-off,
-// "Transport" and "Message form") and the accounting and event channels
-// (S04-08-records-and-bounds) use it. The record bytes are the caller's:
+// It is the transport of the wb-vmd hand-off (S04-02-vm-provider,
+// "Hand-off on macOS"), the wb-launcher request channel
+// (S04-03-self-sandboxing, "What keeps wb-launcher narrow"), the stream
+// hand-off (S07-05-stream-hand-off, "Transport" and "Message form") and
+// the accounting and event channels (S04-08-records-and-bounds) as those
+// are built. The record bytes are the caller's:
 // fdchan has no message format, and whether a kind of message may carry
 // a descriptor is the caller's check.
 //
