@@ -143,10 +143,18 @@ run = "go vet ./..."
 
 # -race needs cgo and a C compiler, which hosted Windows runners do not
 # guarantee; Windows runs without it rather than failing on the toolchain.
+#
+# The Go distribution ships no prebuilt covdata: `go tool covdata` builds
+# it into the build cache on first use. `go test -cover` runs one
+# `go tool covdata` per package without test files, in parallel, so on a
+# cold cache one of them can exec the binary while another is still
+# writing it, and Linux refuses with "text file busy" (ETXTBSY, #217).
+# `go tool -n covdata` builds it once, before the tests, and prints its
+# path.
 [tasks."go:test"]
 dir = "packages/wraithbox-go"
-run = "go test -race -cover ./..."
-run_windows = "go test -cover ./..."
+run = ["go tool -n covdata", "go test -race -cover ./..."]
+run_windows = ["go tool -n covdata", "go test -cover ./..."]
 
 [tasks."go:build"]
 dir = "packages/wraithbox-go"
