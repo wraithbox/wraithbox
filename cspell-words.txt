@@ -113,7 +113,6 @@ CLOEXEC
 confstr
 dladdr
 dlsym
-getsockopt
 setsockopt
 gettime
 gmtime
@@ -305,3 +304,4 @@ resolv
 securityd
 BCSTXR
 BCTXR
+termfilter
