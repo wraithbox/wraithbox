@@ -59,6 +59,9 @@ export const RULES = [
 	{ glob: '**/*.proto', jobs: ['go', 'swift'] },
 	{ glob: '**/buf*.yaml', jobs: ['go', 'swift'] },
 
+	// The release number goes into every Go and Swift build's version.
+	{ glob: 'VERSION', jobs: ['go', 'swift'] },
+
 	{ glob: 'packages/wraithbox-swift/**', jobs: ['swift'] },
 	{ glob: '.swiftlint.yml', jobs: ['swift'] },
 	{ glob: '.swift-format', jobs: ['swift'] },

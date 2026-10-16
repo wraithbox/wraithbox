@@ -124,8 +124,8 @@ linked from that bundle as well.
 - The version includes the VCS revision, and marks a modified working
   tree.
 - Only a bare toolchain build (`go build`, `go run`, `swift build`) is
-  unstamped. It has no version, and every peer counts it as another
-  version. Two unstamped builds refuse each other.
+  unstamped. It has no version, and two unstamped builds refuse each
+  other. Versions match only when they are equal as bytes.
 
 ### Between host processes
 

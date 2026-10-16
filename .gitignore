@@ -9,6 +9,7 @@ xcuserdata/
 
 # Go
 /bin/
+/packages/wraithbox-go/bin/
 /out/
 
 # Docs site (Astro Starlight)

@@ -125,7 +125,20 @@ rm -rf packages/*-swift/.build packages/*-swift/.swiftpm
 rm -rf packages/wraithbox-doc/.astro
 find packages -name 'bin' -maxdepth 2 -type d -exec rm -rf {} +
 find packages -name 'dist' -maxdepth 2 -type d -exec rm -rf {} +
+rm -rf build
 """
+
+# ---------- Build version ----------
+# One version for the whole run (S10-02-packaging-and-signing, "One build
+# version"): VERSION, the commit, and for a modified tree a nonce.
+# go:build and swift:build depend on this task, so `mise run build` runs
+# it once and both read the same build/version. A build task run alone
+# makes a new nonce, so a partial rebuild of a modified tree needs a full
+# build. A Go program, so it runs under cmd.exe (S02-toolchain).
+[tasks."version:stamp"]
+description = "Write this run's build version to build/version"
+dir = "packages/wraithbox-go"
+run = "go run ./internal/tools/buildversion stamp"
 
 # ---------- Go ----------
 # One Go module, packages/wraithbox-go. The tasks run there with plain
@@ -178,9 +191,13 @@ dir = "packages/wraithbox-go"
 wait_for = ["go:test"]
 run = "go run ./internal/tools/fuzzsmoke"
 
+# `go build ./...` builds every package and keeps nothing. The second
+# command builds the programs into bin/, stamped with the run's version
+# (internal/tools/buildversion).
 [tasks."go:build"]
 dir = "packages/wraithbox-go"
-run = "go build ./..."
+depends = ["version:stamp"]
+run = ["go build ./...", "go run ./internal/tools/buildversion go-build"]
 
 # Vet, lint and build for every host OS from one machine, so files with
 # GOOS suffixes cannot rot on the OSes a developer does not use. CI runs
@@ -243,20 +260,29 @@ for p in packages/*-swift; do
 done
 """
 
+# The linker copies build/version, the run's version, into the section
+# __TEXT,__wb_version of each program, where WraithBoxVM/Version.swift
+# reads it. Changing the flag relinks, and recompiles nothing. `check`
+# fails first when the tree changed after the stamp was made.
+#
+# SwiftPM locks .build, and `swift test` relinks the programs without the
+# stamp. So under `ci` this waits for swift:test, and the stamped
+# programs are the last ones built.
 [tasks."swift:build"]
+depends = ["version:stamp"]
+wait_for = ["swift:test"]
 run = """
 set -e
+go -C packages/wraithbox-go run ./internal/tools/buildversion check
+stamp="$PWD/build/version"
 for p in packages/*-swift; do
   [ -d "$p" ] || continue
   echo "--- swift build $p"
-  swift build --package-path "$p"
+  swift build --package-path "$p" -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __wb_version -Xlinker "$stamp"
 done
 """
 
-# SwiftPM locks .build, so under `ci` test waits for build instead of
-# blocking on the lock.
 [tasks."swift:test"]
-wait_for = ["swift:build"]
 run = """
 set -e
 for p in packages/*-swift; do
