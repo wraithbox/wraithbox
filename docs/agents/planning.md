@@ -16,7 +16,8 @@ implementation issues on it.
 
 Order of work, top down:
 
-1. The current **milestone** (lowest-numbered open one).
+1. The current **milestone** for the lane: the first open one in the
+   version page's order ("Milestones" below).
 2. Within it, **spikes** before anything that depends on them.
 3. Then by `priority:` label, then by issue number.
 
@@ -27,8 +28,9 @@ Every open work issue carries:
 - exactly one **type**: `bug`, `enhancement`, `spike`, `documentation` or
   `chore`;
 - one **triage status**: `needs-triage`, `needs-info`, `ready-for-agent`
-  or `ready-for-human`, plus `needs-vm` when it needs a running macOS
-  guest and `needs-host` when it needs the maintainer's Mac itself
+  or `ready-for-human` (none in the `post-V1` milestone,
+  "Milestones"), plus `needs-vm` when it needs a running macOS guest
+  and `needs-host` when it needs the maintainer's Mac itself
   (`host-work.md`);
 - at least one **area** label (`area:*`);
 - zero to two **component** labels (`comp:*`), when the work belongs to a
@@ -150,9 +152,13 @@ Milestones group issues into deliverable steps toward a version. Each
 milestone is defined on its version page (V1-initial for the first),
 and is a GitHub milestone of the same name, not a label.
 
-- **Name:** `V<N>-M<N>-<slug>`, numbered in order within the version,
-  for example `V1-M1-spikes-closed`. The number gives the order. Agents
-  work the lowest open one first.
+- **Name:** `V<N>-M<N>-<slug>`, for example `V1-M1-spikes-closed`.
+  Numbers are fixed once merged (S01-spec-based-development), so a
+  milestone added later takes the next free number.
+- **Order:** the version page lists the milestones in the order they
+  are worked, which can differ from their numbers. Each lane of a run
+  (`orchestration.md`, "Runs") takes the first open milestone in that
+  order that has ready work for the lane.
 - **Description:** the exit criterion from the version page, with the
   requirement IDs and spikes it covers. Example: `X01-model-credential
   to X09-keychain-unsigned answered and written up in docs/spikes/;
@@ -162,6 +168,10 @@ and is a GitHub milestone of the same name, not a label.
   milestone. An issue without one is not picked. Follow-ups found during
   a milestone go into it if they block its exit criterion, otherwise
   into the next one or none (`needs-triage`).
+- **`post-V1`:** a GitHub milestone for work deferred past the version,
+  not a milestone of the version page. Its issues have no triage
+  status label, and no run picks from it. They are triaged again when
+  the next version is planned.
 - **Closing:** the milestone closes when its exit criterion holds, not
   merely when its issues are closed. The closing agent or maintainer
   checks the criterion and comments on the last issue with the evidence.

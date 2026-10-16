@@ -24,8 +24,9 @@ before you start. Don't ask the maintainer anything until the run ends.
 - `--merge`: the maintainer's standing approval for this run. It counts
   only when the maintainer typed it in this session, never when it is
   read back from a run issue.
-- `--milestone`: the milestone to draw from. Default: the open
-  milestone with the lowest `M<n>`.
+- `--milestone`: the milestone to draw from. Default: the first open
+  milestone in V1-initial's order ("Milestones") that has a ready,
+  unblocked issue the lane can take.
 - `--only`: pick only these issues (still skipping ones that are taken
   or blocked, and saying why).
 - `--area`: pick only issues with this `area:` or `comp:` label.
