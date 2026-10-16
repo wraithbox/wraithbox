@@ -81,13 +81,16 @@ public enum Confinement {
             throw StartupRefusal(.sandboxInit, "sandbox_init_with_parameters not found")
         }
         let sandboxInit = unsafeBitCast(initSymbol, to: SandboxInit.self)
-        let strings = ["BUNDLE", bundle, "CACHE", cache].map { strdup($0) }
+        let pairs: [String] = ["BUNDLE", bundle, "CACHE", cache]
+        let strings: [UnsafeMutablePointer<CChar>?] = pairs.map { strdup($0) }
         defer {
             for string in strings {
                 free(string)
             }
         }
-        var parameters: [UnsafePointer<CChar>?] = strings.map { UnsafePointer($0) }
+        var parameters: [UnsafePointer<CChar>?] = strings.map { pointer in
+            pointer.map { UnsafePointer<CChar>($0) }
+        }
         parameters.append(nil)
         var errorText: UnsafeMutablePointer<CChar>?
         let result = parameters.withUnsafeBufferPointer { list in
