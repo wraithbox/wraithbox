@@ -136,6 +136,7 @@ func caseDenyDefault() []string {
 		failed = append(failed, fmt.Sprintf("write to the inherited pipe: %v", err))
 	}
 	failed = append(failed, sendOnInherited(sock, pipe)...)
+	failed = append(failed, channelInside(pipe)...)
 	failed = append(failed, deniedOnEveryThread(temp)...)
 	time.Sleep(2 * time.Second)
 	if got, want := runtime.GOMAXPROCS(0), runtime.NumCPU(); got != want {
@@ -153,6 +154,38 @@ func sendOnInherited(sock, pipe *os.File) []string {
 	defer ch.Close()
 	if err := ch.Send([]byte("descriptor"), pipe); err != nil {
 		return []string{fmt.Sprintf("send a descriptor on the inherited socket: %v", err)}
+	}
+	return nil
+}
+
+// channelInside makes a descriptor channel in the confined process, as
+// wb-netd and wb-proxyd will use theirs: a descriptor round-trips, and a
+// Recv that waits sees the peer close, which takes a getpeername.
+func channelInside(pipe *os.File) []string {
+	fa, fb, err := fdchan.Socketpair(4096)
+	if err != nil {
+		return []string{fmt.Sprintf("fdchan.Socketpair: %v", err)}
+	}
+	a, errA := fdchan.New(fa, 4096)
+	b, errB := fdchan.New(fb, 4096)
+	if err := errors.Join(errA, errB); err != nil {
+		return []string{fmt.Sprintf("fdchan.New: %v", err)}
+	}
+	defer b.Close()
+	if err := a.Send([]byte("inside"), pipe); err != nil {
+		return []string{fmt.Sprintf("send inside: %v", err)}
+	}
+	m, err := b.Recv()
+	if err != nil || string(m.Record) != "inside" || m.File == nil {
+		return []string{fmt.Sprintf("receive inside: %v, %v", m, err)}
+	}
+	_ = m.Close()
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		_ = a.Close()
+	}()
+	if _, err := b.Recv(); !errors.Is(err, io.EOF) {
+		return []string{fmt.Sprintf("receive after the peer closed: %v, want io.EOF", err)}
 	}
 	return nil
 }

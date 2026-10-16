@@ -105,6 +105,9 @@ func setBuffers(fd, maxRecord int) error {
 // copy, in non-blocking mode so that deadlines work. An end that isn't
 // an AF_UNIX SOCK_DGRAM socket is refused with RuleSocketType.
 func New(f *os.File, maxRecord int) (*Channel, error) {
+	if f == nil {
+		return nil, errors.New("fdchan: no file")
+	}
 	defer func() { _ = f.Close() }()
 	if err := checkMax(maxRecord); err != nil {
 		return nil, err
