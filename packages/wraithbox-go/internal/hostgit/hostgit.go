@@ -7,6 +7,11 @@
 // (SEC03-no-host-exec), and no variable of the caller's environment
 // reaches git except TMPDIR, and on Windows the SYSTEMROOT that os/exec
 // adds (SEC12-least-privilege).
+//
+// Command's git reads the user's global git configuration, as S05-04-naming
+// requires for the project key. So it must never run wb-git's
+// receive-pack or anything else that parses what the guest pushed: that
+// git has its own environment (S08-03-pushes).
 package hostgit
 
 import (
@@ -47,8 +52,10 @@ const (
 	RuleVersionTooOld Rule = "git-version-too-old"
 )
 
-// Result is the outcome of a check: the binary, the version it printed
-// (empty when none was read), and the rule that decided.
+// Result is the outcome of a check: the binary, the version it read as
+// major.minor.patch (empty when none could be read), and the rule that
+// decided. Raw output is only in a Refusal's message, quoted, so a log
+// of the Result never carries git's bytes.
 type Result struct {
 	Binary  string
 	Version string
@@ -91,8 +98,8 @@ func pathNotAbsolute(path string) *Refusal {
 	return &Refusal{
 		Binary: path,
 		Rule:   RulePathNotAbsolute,
-		msg: fmt.Sprintf("the git binary %s is not an absolute path. Set git in config.toml to an absolute path, such as %s",
-			path, platform.DefaultGitPath()),
+		msg: fmt.Sprintf("the git binary %s is not an absolute path. Set git in config.toml to the absolute path of git %s or later, such as %s",
+			path, MinVersion, platform.DefaultGitPath()),
 	}
 }
 

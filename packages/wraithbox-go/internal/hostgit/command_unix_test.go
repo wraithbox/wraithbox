@@ -4,6 +4,7 @@ package hostgit
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -64,7 +65,7 @@ func TestCommandEnvironment(t *testing.T) {
 		t.Errorf("environment = %q, want %q", got.Env, want)
 	}
 
-	wantArgs := []string{"-c", "core.hooksPath=/dev/null", "rev-parse", "--git-common-dir"}
+	wantArgs := []string{"-c", "core.hooksPath=" + os.DevNull, "rev-parse", "--git-common-dir"}
 	if !slices.Equal(got.Args, wantArgs) {
 		t.Errorf("args = %q, want %q", got.Args, wantArgs)
 	}
