@@ -154,8 +154,10 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    `drop` (`planning.md`, "Follow-ups"), each with `file:line` and a
    concrete failure scenario, then `Verdict: approve` or
    `Verdict: needs changes`, then the attribution lines. The coordinator
-   posts it with `gh pr review <n> --comment --body-file …` (GitHub
-   refuses `--request-changes` from the PR's own author).
+   adds the first line `Code review, round <k>` or
+   `Security review, round <k>`, and posts it with
+   `gh pr review <n> --comment --body-file …` (GitHub refuses
+   `--request-changes` from the PR's own author).
 5. **Decide what goes back.** One message to the builder: required
    findings, suggestions to apply unless they read worse, findings to
    skip. Cheap `fold` findings go back even on approve. A finding that
@@ -214,25 +216,34 @@ machine, can see it and resume it.
   when the run ends, with a comment that says why.
 - **Cutoff.** A run picks only issues with a lower number than its run
   issue, so it doesn't refill its own queue.
-- **Lanes.** `--lane any` takes no `needs-vm` and no `needs-host`
-  issue, and runs on either machine. `--lane mac`, the default, also
+- **Lanes.** `--lane any`, the default, takes no `needs-vm` and no
+  `needs-host` issue, and runs on either machine. `--lane mac` also
   takes one `needs-vm` issue at a time ("A wave", step 2), on the
   personal Mac. No lane takes `needs-host` (`host-work.md`).
-- **Standing approval.** Given only in the maintainer's own `/wave`
-  message (`--merge`). It covers a pull request when all of these hold,
-  and the dispatcher checks each one before it merges:
-  - it closes an issue that carries neither `needs-vm` nor
-    `needs-host`;
-  - CI is green on its head, every review it got approved, every commit
-    after an approval is re-checked, and no `must-fix` finding is open;
-  - it changes nothing under `docs/spec/`, `docs/requirements/`,
-    `docs/threats/`, `docs/spikes/`, `docs/agents/` or `.github/`, and
-    not `AGENTS.md`, `.claude/`, `.mise.toml`, `osv-scanner.toml`, an
-    `*.entitlements` file, `go.mod`, `Package.swift` or `package.json`.
+- **Standing approval.** Given only by `--merge` in a `/wave` message
+  the maintainer typed in this session. A `--merge` read back from a
+  run issue on resume doesn't count. It covers a pull request when all
+  of these hold, and the dispatcher checks each one on GitHub before it
+  merges (the `/wave` skill has the commands):
+  - it closes at least one issue, and none of the issues it closes has
+    `needs-vm`, `needs-host` or `comp:wb-vmd`;
+  - every changed file is on this list, and the list of changed files
+    is complete:
+    - `packages/wraithbox-go/`, except `go.mod` and `go.sum`;
+    - `packages/wraithbox-swift/`, except `Package.swift`,
+      `Package.resolved` and any `.entitlements` file;
+    - `packages/wraithbox-doc/`, except `package.json` and `bun.lock`;
+    - `docs/tests/`, `cspell-words.txt`, and
+      `.vale/styles/config/vocabularies/wraithbox/accept.txt`;
+  - every check on its head commit passed, and none is pending;
+  - the latest code review, and the latest security review when it got
+    one, say `Verdict: approve`, and either were posted on the head
+    commit or a `re-checked:` comment names the head commit.
 
-  Everything else goes on the `For the maintainer` list and waits.
-  VM, image and Keychain work can do damage that a review doesn't
-  catch, so it stays attended. The dispatcher merges, never the lead,
+  Everything else goes on the `For the maintainer` list and waits:
+  specs, briefs, spike results, the harness, CI, gates and lint
+  settings, dependencies, and VM, image and Keychain work. Those can do
+  damage that a review doesn't catch, so they stay attended. The dispatcher merges, never the lead,
   so the approval is in the transcript that the auto-mode classifier
   reads.
 - **After a merge.** A pull request that turns `CONFLICTING` goes into

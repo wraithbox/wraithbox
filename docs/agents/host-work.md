@@ -48,6 +48,10 @@ before Wraith Box works end to end.
   outside `.scratch/`. It runs on the personal Mac in a session the
   maintainer attends. `/wave` never picks it.
 
+A run merges an issue's pull request without the maintainer only when
+the issue has neither label, nor `comp:wb-vmd` (`orchestration.md`,
+"Runs").
+
 An issue can have both. Triage sets them ("Triage" in `planning.md`).
 They decide what a run may merge without asking (`orchestration.md`,
 "Runs"), so a missing label has to fail closed. A builder that finds

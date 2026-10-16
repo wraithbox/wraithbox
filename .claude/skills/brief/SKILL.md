@@ -40,7 +40,7 @@ The argument names the source:
    obvious option is missing, or one is not viable, say so in the brief
    rather than silently adding or dropping it. Keep at most four.
    Then argue for the runner-up as well as you can, in one paragraph
-   (`review-briefs.md`, "Options").
+   (`review-briefs.md`, "Layout", step 5).
 4. **Draw the picture** first, before writing prose: the one diagram
    that shows the problem, and a before/after pair if the structure
    changes.
