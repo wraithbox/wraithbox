@@ -12,10 +12,10 @@ describe('globToRegExp', () => {
 		['**/*.proto', 'proto/wb/v1/vm.proto', true],
 		['**/*.proto', 'vm.proto.txt', false],
 		['docs/**', 'docs/spec/S01.md', true],
-		['docs/**', 'docsx/a', false],
+		['docs/**', 'docs-old/a', false],
 		['cspell*', 'cspell.json', true],
 		['cspell*', 'packages/cspell.json', false],
-		['.mise.toml', 'xmise.toml', false],
+		['.mise.toml', '_mise.toml', false],
 		['.github/labels*.yml', '.github/labels-areas.yml', true],
 	])('%s on %s is %p', (glob, file, want) => {
 		expect(globToRegExp(glob).test(file)).toBe(want);
