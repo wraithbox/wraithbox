@@ -71,6 +71,7 @@ to `wb-hostd`, and Ethernet frames to `wb-netd`.
 | S12-platforms | Host and guest platforms, WSL |
 | S13-guest-confinement | Guest confinement: Seatbelt, Network Extension, Endpoint Security |
 | S14-claude-in-guest | Claude Code in the guest: install, user configuration, agent interface |
+| S15-least-privilege | Least privilege on the host: rights, the secret store, the guest admin user |
 | S16-terminal-stream | The filter on guest output to the host terminal |
 | S17-install-and-upgrade | Building, installing and upgrading the bundle; downloads for image builds; migrations |
 
