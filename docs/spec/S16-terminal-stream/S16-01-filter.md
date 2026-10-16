@@ -69,7 +69,7 @@ version starts to use shows up there (S16-02-drops-and-links, "Drop rules").
 | CSI modes | `? h/l` for 25, 1000, 1002, 1003, 1004, 1006, 1016, 1049, 2004, 2026, 2031; `? … $ p` (mode query) | other modes |
 | CSI keyboard | kitty keyboard `> u` (push, at most 4 deep per screen), `< u` (pop, only entries the guest pushed on that screen), `? u`; `> 4 ; 2 m` and `> 4 m`; `SP q`; `! p` | `= u`, which changes the current entry in place; other `> m` |
 | CSI queries | `c`, `> c`, `5 n`, `6 n`, `> q`, `14 t`, `16 t`, `18 t` | other `t`: window moves, title reports, the title stack |
-| OSC | 9 ; 4 (progress) with numeric parameters; 10, 11, 12 with `?` only; 9, 99 and 777 (notifications) become one BEL | the rest: 0 to 2 (title), 8 (links), 52, 1337, 7, 133, … |
+| OSC | 9 ; 4 (progress) with numeric parameters; 10, 11, 12 with `?` only; 7501 (program status) as "Program status" says; 9, 99 and 777 (notifications) become one BEL | the rest: 0 to 2 (title), 8 (links), 52, 1337, 7, 133, … |
 | DCS, APC, PM, SOS | | all, whole |
 
 ### Where the list comes from
@@ -83,6 +83,9 @@ The list is the one X19-terminal-filter measured with Claude Code
 OSC 10 to 12 queries stay, because the Claude Code binary holds the
 background color query.
 
+OSC 7501 joined after I62 saw Claude Code 2.1.296 send its query at
+every start (I270).
+
 Queries pass because the reply goes to the guest. Claude Code uses
 them to learn what the terminal supports. What a reply tells the guest
 is T09-terminal-fingerprint.
@@ -92,6 +95,37 @@ is T09-terminal-fingerprint.
 The kitty keyboard protocol keeps one stack per screen. So `wb` counts
 the guest's pushes on the main and the alternate screen apart. It drops
 a pop that would reach an entry the user's shell pushed.
+
+### Program status
+
+OSC 7501 is the Program Status Protocol. A program reports whether it
+is working, waiting on the user, or done, and the terminal may show
+that outside the window, for example as a notification. Claude Code
+2.1.295 and later ask `OSC 7501 ; ?` at start, and send reports only
+when the terminal answers.
+
+The filter passes the query `?` as it is. It rebuilds a report from
+these pairs only:
+
+| Key | Value |
+|---|---|
+| `state` | `idle`, `working`, `done`, `blocked`, `error` or `clear`; required |
+| `id` | 1 to 8 segments of 1 to 32 characters from `A-Z`, `a-z`, `0-9`, `_ . + -`, joined by `/`; at most 128 bytes |
+| `kind` | `permission`, `question` or `auth` |
+| `progress` | an integer from 0 to 100 |
+| `app` | 1 to 32 characters from `A-Z`, `a-z`, `0-9`, `_ . + -` |
+
+- It removes `title`, `msg` and every other key, and counts a report
+  it shortens that way under `terminal-osc-status-text`
+  (S16-02-drops-and-links).
+- It drops the whole report when `state` is missing, a kept key has a
+  value outside its form, a key repeats, or the sequence is longer than
+  4096 bytes. That counts under `terminal-osc`.
+- The rebuilt report ends with `ESC \`.
+
+The terminal's answer to the query names the states and kinds it
+supports, and goes to the guest (T09-terminal-fingerprint). The
+protocol has no other reply.
 
 ### Never on the list
 
@@ -117,5 +151,25 @@ terminal output.
   SEC03-no-host-exec; dropping only `ESC`-introduced sequences, which
   is a second filter to keep and fuzz.
 - **Decided:** I37, 2026-10-06.
+
+### Pass program status without its text
+
+OSC 7501 passes with `state`, `id`, `kind`, `progress` and `app`, and
+without `title` and `msg`.
+
+- **Why:** the state tells the user that Claude Code waits for them,
+  which a terminal can show in its tab. `title` and `msg` are text the
+  guest writes, and a terminal may show them in a desktop
+  notification. A `blocked` report with a `msg` that asks for an
+  approval is the forgery SEC14-no-fake-approvals is about. The other
+  keys are short, fixed-form values.
+- **Rejected:**
+  - dropping OSC 7501, which counts a drop in every session and so
+    teaches the user to ignore the counts (NFR06-explained-refusals);
+  - passing reports whole, and relying on the terminal to keep
+    controls out of the text, which doesn't stop a plain sentence;
+  - removing `app` too. A guest can name itself `wb`, but 32
+    characters without spaces can't ask the user a question.
+- **Decided:** I270, 2026-10-16.
 
 **Status:** Draft

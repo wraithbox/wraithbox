@@ -96,10 +96,11 @@ repeat as one record.
 #### Findings per rule
 
 Each rule with drops is also a Detection Finding, with its count. The
-exceptions are `terminal-osc-title` and `terminal-osc-notify`, whose
-counts are only in the session's end record. Claude Code writes titles
-and notifications in nearly every session. A notification becomes a
-BEL rather than a drop.
+exceptions are `terminal-osc-title`, `terminal-osc-notify` and
+`terminal-osc-status-text`, whose counts are only in the session's end
+record. Claude Code writes titles, notifications and program status in
+nearly every session. A notification becomes a BEL, and a status report
+passes without its text, rather than being dropped.
 
 When links went past the 100 kept, their counts by mark are one more
 Detection Finding.

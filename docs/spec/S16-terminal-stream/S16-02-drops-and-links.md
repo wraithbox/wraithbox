@@ -26,6 +26,7 @@ The allowlist in the table is the one of S16-01-filter ("Allowlist").
 | `terminal-osc-file` | OSC 7 (current directory), 1337 (iTerm2 files and clipboard) and 5113 (kitty file transfer) |
 | `terminal-osc` | the other OSC sequences the allowlist drops |
 | `terminal-osc-notify` | OSC 9, 99 and 777, which the filter turns into a BEL rather than drop |
+| `terminal-osc-status-text` | OSC 7501 reports the filter passes without their `title`, `msg` or other keys, rather than drop |
 | `terminal-dcs` | DCS |
 | `terminal-apc` | APC, the kitty graphics protocol among them |
 | `terminal-pm-sos` | PM and SOS |
@@ -56,7 +57,8 @@ OSC 8 is dropped, and its text stays as plain text (B30-terminal-filter, option 
 - A link to `localhost` or a private address names a service on the
   host, not in the guest.
 
-Terminals still make a bare URL clickable.
+Terminals still make a bare URL clickable, and Ghostty a bare path
+too (T17-terminal-auto-links).
 
 ### What `wb` keeps of a link
 
