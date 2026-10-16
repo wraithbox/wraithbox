@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -111,7 +112,7 @@ func TestRun(t *testing.T) {
 		fuzztime   string
 		wantCode   int
 		wantStdout string
-		wantStderr string
+		wantStderr string // a regular expression
 		wantFile   string
 	}{
 		{
@@ -131,9 +132,9 @@ func TestRun(t *testing.T) {
 		{
 			name:       "failing target fails and names the target",
 			files:      map[string]string{"a/a_test.go": failingTarget},
-			fuzztime:   "60s",
+			fuzztime:   "20s",
 			wantCode:   1,
-			wantStderr: "fuzzsmoke: FAIL example.com/m/a FuzzFail",
+			wantStderr: `(?s)fuzzsmoke: FAIL example\.com/m/a FuzzFail: .*\nfuzzsmoke: failing input \S+FuzzFail.\w+:\ngo test fuzz v1\n`,
 			wantFile:   "a/testdata/fuzz/FuzzFail",
 		},
 		{
@@ -160,8 +161,8 @@ func TestRun(t *testing.T) {
 			if !strings.Contains(stdout.String(), tt.wantStdout) {
 				t.Errorf("stdout does not contain %q:\n%s", tt.wantStdout, &stdout)
 			}
-			if !strings.Contains(stderr.String(), tt.wantStderr) {
-				t.Errorf("stderr does not contain %q:\n%s", tt.wantStderr, &stderr)
+			if !regexp.MustCompile(tt.wantStderr).MatchString(stderr.String()) {
+				t.Errorf("stderr does not match %q:\n%s", tt.wantStderr, &stderr)
 			}
 			if tt.wantFile != "" && countFiles(dir, tt.wantFile) == 0 {
 				t.Errorf("no failing input kept in %s", tt.wantFile)
