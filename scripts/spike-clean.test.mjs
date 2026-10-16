@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { defaultRoot, KEEP, run, selects } from './spike-clean.mjs';
+import { defaultRoot, KEEP_FILE, run, SHARED, selects } from './spike-clean.mjs';
 
 const scratch = path.join(import.meta.dir, '..', '.scratch');
 
@@ -31,6 +31,20 @@ function touch(file) {
 	fs.writeFileSync(file, 'x'.repeat(8192));
 }
 
+/**
+ * File system calls with one change: entries under a directory named
+ * `datavol` report another device, as a mounted volume does.
+ * @type {import('./spike-clean.mjs').Fs}
+ */
+const mounted = {
+	lstat: (target) => {
+		const stat = fs.lstatSync(target);
+		if (!target.split(path.sep).includes('datavol')) return stat;
+		return Object.assign(Object.create(Object.getPrototypeOf(stat)), stat, { dev: stat.dev + 1 });
+	},
+	remove: (target) => fs.rmSync(target, { recursive: true }),
+};
+
 /** @param {string} name */
 const inRoot = (name) => fs.existsSync(path.join(root, name));
 
@@ -39,7 +53,7 @@ beforeEach(() => {
 	base = fs.mkdtempSync(path.join(scratch, 'spike-clean-'));
 	root = path.join(base, 'wraithbox-spikes');
 	lines = { log: [], error: [] };
-	touch(path.join(root, KEEP, 'Restore.ipsw'));
+	touch(path.join(root, SHARED, 'Restore.ipsw'));
 	touch(path.join(root, 'x25', 'disk.img'));
 	touch(path.join(root, 'x25-outside', 'disk.img'));
 	touch(path.join(root, 'x250', 'disk.img'));
@@ -60,7 +74,7 @@ describe('selects', () => {
 		['x250', 25, false],
 		['x2', 25, false],
 		['x25-', 25, false],
-		[KEEP, 25, false],
+		[SHARED, 25, false],
 		['y25', 25, false],
 	])('%s for spike %d is %p', (name, id, want) => {
 		expect(selects(name, id)).toBe(want);
@@ -71,16 +85,16 @@ describe('run', () => {
 	test('without arguments it lists the cache and removes nothing', () => {
 		expect(run(root, [], out)).toBe(0);
 		const text = lines.log.join('\n');
-		expect(text).toContain(`${KEEP}, kept`);
+		expect(text).toContain(`${SHARED}, kept`);
 		expect(text).toContain('x25-outside');
-		for (const name of [KEEP, 'x25', 'x25-outside', 'x250', 'x26', 'x08']) expect(inRoot(name)).toBe(true);
+		for (const name of [SHARED, 'x25', 'x25-outside', 'x250', 'x26', 'x08']) expect(inRoot(name)).toBe(true);
 	});
 
 	test('removes the spike and its suffixed siblings, and nothing else', () => {
 		expect(run(root, ['x25'], out)).toBe(0);
 		expect(inRoot('x25')).toBe(false);
 		expect(inRoot('x25-outside')).toBe(false);
-		for (const name of [KEEP, 'x250', 'x26', 'x08']) expect(inRoot(name)).toBe(true);
+		for (const name of [SHARED, 'x250', 'x26', 'x08']) expect(inRoot(name)).toBe(true);
 		expect(lines.log.filter((line) => line.startsWith('removed '))).toHaveLength(2);
 		expect(lines.log.at(-1)).toMatch(/^freed \d/);
 	});
@@ -102,7 +116,7 @@ describe('run', () => {
 	});
 
 	test.each([
-		[KEEP],
+		[SHARED],
 		['..'],
 		['.'],
 		[''],
@@ -117,7 +131,7 @@ describe('run', () => {
 	])('refuses the argument %p and removes nothing', (arg) => {
 		expect(run(root, ['x26', arg], out)).toBe(1);
 		expect(lines.error.join('\n')).toContain('rule: arguments are spike IDs');
-		for (const name of [KEEP, 'x25', 'x25-outside', 'x26']) expect(inRoot(name)).toBe(true);
+		for (const name of [SHARED, 'x25', 'x25-outside', 'x26']) expect(inRoot(name)).toBe(true);
 		expect(fs.existsSync(path.join(base, 'outside', 'precious.txt'))).toBe(true);
 	});
 
@@ -130,9 +144,9 @@ describe('run', () => {
 	});
 
 	test('refuses an entry that links to the image cache', () => {
-		fs.symlinkSync(path.join(root, KEEP), path.join(root, 'x31'));
+		fs.symlinkSync(path.join(root, SHARED), path.join(root, 'x31'));
 		expect(run(root, ['x31'], out)).toBe(1);
-		expect(fs.existsSync(path.join(root, KEEP, 'Restore.ipsw'))).toBe(true);
+		expect(fs.existsSync(path.join(root, SHARED, 'Restore.ipsw'))).toBe(true);
 	});
 
 	test('refuses an entry that is a file', () => {
@@ -157,17 +171,75 @@ describe('run', () => {
 		expect(inRoot('x25')).toBe(false);
 		expect(fs.existsSync(path.join(base, 'outside', 'precious.txt'))).toBe(true);
 	});
+
+	test('names each spike once, so a repeated ID is not an error', () => {
+		expect(run(root, ['x8', 'x08', 'x25', 'x25'], out)).toBe(0);
+		expect(inRoot('x08')).toBe(false);
+		expect(inRoot('x25')).toBe(false);
+		expect(lines.log.filter((line) => line.startsWith('removed '))).toHaveLength(3);
+	});
+
+	test('refuses a spike with a volume mounted inside it, and removes nothing', () => {
+		touch(path.join(root, 'x17', 'datavol', 'data.img'));
+		expect(run(root, ['x26', 'x17'], out, mounted)).toBe(1);
+		expect(lines.error.join('\n')).toContain('is on another device (rule: detach mounted volumes first');
+		expect(inRoot(path.join('x17', 'datavol', 'data.img'))).toBe(true);
+		expect(inRoot('x26')).toBe(true);
+	});
+
+	test('the list names a mounted volume', () => {
+		touch(path.join(root, 'x17', 'datavol', 'data.img'));
+		expect(run(root, [], out, mounted)).toBe(0);
+		expect(lines.log.join('\n')).toContain('holds a mounted volume at');
+	});
+
+	test('refuses a spike directory with a KEEP file, and removes nothing', () => {
+		fs.writeFileSync(path.join(root, 'x08', KEEP_FILE), '#228: the data disk follow-up needs run1\n');
+		expect(run(root, ['x26', 'x8'], out)).toBe(1);
+		expect(lines.error.join('\n')).toContain('#228: the data disk follow-up needs run1');
+		expect(inRoot('x08')).toBe(true);
+		expect(inRoot('x26')).toBe(true);
+		lines = { log: [], error: [] };
+		expect(run(root, [], out)).toBe(0);
+		expect(lines.log.join('\n')).toContain(`${KEEP_FILE}: #228`);
+	});
+
+	test('a KEEP link counts as a KEEP file and is not read', () => {
+		fs.symlinkSync(path.join(base, 'outside', 'precious.txt'), path.join(root, 'x08', KEEP_FILE));
+		expect(run(root, ['x8'], out)).toBe(1);
+		expect(lines.error.join('\n')).toContain('is not a regular file');
+		expect(inRoot('x08')).toBe(true);
+	});
+
+	test('stops at a failed removal and reports what it removed', () => {
+		/** @type {import('./spike-clean.mjs').Fs} */
+		const failing = {
+			lstat: (target) => fs.lstatSync(target),
+			remove: (target) => {
+				if (target.endsWith('x25-outside')) throw new Error('operation not permitted');
+				fs.rmSync(target, { recursive: true });
+			},
+		};
+		expect(run(root, ['x25', 'x26'], out, failing)).toBe(1);
+		expect(lines.log.join('\n')).toContain(`removed ${fs.realpathSync(root)}${path.sep}x25 (`);
+		expect(lines.error.join('\n')).toContain('x25-outside: removal failed, part of it can be left: operation not permitted');
+		expect(lines.error.at(-1)).toMatch(/^Stopped\. Freed \d/);
+		expect(inRoot('x25-outside')).toBe(true);
+		expect(inRoot('x26')).toBe(true);
+	});
 });
 
-test('the cache path does not follow $HOME', () => {
-	const saved = process.env.HOME;
-	const before = defaultRoot();
-	try {
-		process.env.HOME = base;
-		expect(defaultRoot()).toBe(before);
-		expect(defaultRoot().startsWith(base)).toBe(false);
-	} finally {
-		process.env.HOME = saved;
-	}
-	expect(before.endsWith(path.join('Library', 'Caches', 'wraithbox-spikes'))).toBe(true);
+test('the cache path comes from the account database, not $HOME', () => {
+	const script = "import os from 'node:os'; import { defaultRoot } from './spike-clean.mjs'; console.log(os.homedir()); console.log(defaultRoot());";
+	const child = Bun.spawnSync([process.execPath, '-e', script], {
+		cwd: import.meta.dir,
+		env: { ...process.env, HOME: base },
+	});
+	expect(child.exitCode).toBe(0);
+	const [childHome, childRoot] = child.stdout.toString().trim().split('\n');
+	// The child did see the other $HOME, so the check below means something.
+	expect(childHome).toBe(base);
+	expect(childRoot.startsWith(base)).toBe(false);
+	expect(childRoot).toBe(defaultRoot());
+	expect(childRoot.endsWith(path.join('Library', 'Caches', 'wraithbox-spikes'))).toBe(true);
 });

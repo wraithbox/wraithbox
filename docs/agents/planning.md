@@ -121,16 +121,22 @@ first-class issues, and the first milestone is mostly spikes.
 
   `mise run spike:clean x<NN>` removes those directories and prints
   what it removed and the space freed. It doesn't check for a running
-  VM, so stop the VM first. It refuses `restore-images/`, a symbolic
-  link, and any path outside the cache. Without an argument it lists
-  the cache with sizes and doesn't remove anything. Agents may run it
-  without asking.
+  VM, so stop the VM and detach any volume mounted from a bundle first.
+  It refuses `restore-images/`, a symbolic link, any path outside the
+  cache, a directory with a volume mounted in it, and a directory that
+  holds a `KEEP` file. Without an argument it lists the cache with
+  sizes and doesn't remove anything. Agents may run it without asking.
 
   The builder runs it before it hands back a spike, and reports the
   space freed. When review or an open issue still needs the bundles,
-  the builder keeps them and names who needs them. When a result merges, the coordinator runs it for the
-  spike's leftover bundles that no open issue needs
-  (`orchestration.md`, "A wave", step 6).
+  the builder keeps them. It comments `Keeping x<NN>/ for #<n>` on the
+  spike's issue, naming the issue that needs them, and writes a `KEEP`
+  file into `x<NN>/` whose first line names that issue
+  (`#228: X08 data disk follow-up`). The maintainer removes the `KEEP`
+  file once that issue closes. When a result merges, the coordinator
+  reads the spike's issue for such a comment. It runs the task unless
+  that comment's issue is still open (`orchestration.md`, "A wave",
+  step 6).
 - **Tag.** When the result pull request merges, the coordinator tags
   the spike commit that the result page links to with an annotated tag
   `spike-x<NN>-<slug>` (for example `spike-x19-terminal-filter`) and

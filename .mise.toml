@@ -473,7 +473,8 @@ gh run watch --repo "$repo" --exit-status "$run_id"
 # Spikes keep macOS VM bundles in ~/Library/Caches/wraithbox-spikes/
 # (docs/agents/planning.md, "Spikes"). Agents may run this task, so the
 # script refuses anything but a spike's own directories: never
-# restore-images/, never a symbolic link, never a path outside the cache.
+# restore-images/, a symbolic link, a path outside the cache, a mounted
+# volume, or a directory with a KEEP file.
 # The arguments mise passes after the task name go to the script.
 [tasks."spike:clean"]
 description = "Remove a spike's VM bundles from the spike cache (args: x<NN>...); without arguments, list the cache"
