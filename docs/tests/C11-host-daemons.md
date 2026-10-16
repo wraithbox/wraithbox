@@ -45,8 +45,9 @@ S09-11-audit
   Arbitrary bytes never parse to a version outside the form.
 - **VMService.** With a fake VM, each refusal comes back with its rule
   as the `ErrorInfo` reason: `vm-resources`, `vm-already-running`,
-  `vm-generation`, `vm-stop-mode`, `vm-config`, `vm-watch-limit`, and a
-  device-set refusal passed through.
+  `vm-generation`, `vm-stop-mode`, `vm-starting`, `vm-config`,
+  `vm-watch-limit`, and a device-set refusal passed through. A stop for
+  `wb-vmd`'s exit during a start waits for it, then stops the VM.
 
 ### VM boot (needs-vm)
 

@@ -109,6 +109,17 @@ final class WorkSlot {
         outside = data + "/vms/vmd-test-outside.wbdisk"
         // Never touch a slot that is already there.
         try #require(!FileManager.default.fileExists(atPath: path), "\(path) already exists")
+        // From here on the slot is this test's: a failure removes what it
+        // made, so no half-made clone stays in the real <data>.
+        do {
+            try makeSlot(cloning: spike, data: data)
+        } catch {
+            remove()
+            throw error
+        }
+    }
+
+    private func makeSlot(cloning spike: String, data: String) throws {
         for directory in [data, data + "/vms"]
         where !FileManager.default.fileExists(atPath: directory) {
             try FileManager.default.createDirectory(

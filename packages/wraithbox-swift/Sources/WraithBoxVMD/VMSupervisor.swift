@@ -24,6 +24,8 @@ public enum VMRule: String, Sendable, CaseIterable {
     case generation = "vm-generation"
     /// A Stop without a mode.
     case stopMode = "vm-stop-mode"
+    /// A Stop while the framework is still starting the VM.
+    case starting = "vm-starting"
     /// The framework refused the configuration.
     case config = "vm-config"
     /// The framework failed to start the VM.
@@ -154,6 +156,11 @@ public final class VMSupervisor {
         guard let mode else {
             throw VMRefusal(.stopMode, .invalidArgument, "a stop names its mode")
         }
+        // A stop of a VM the framework is still starting fails, or leaves
+        // it running, so the caller asks again once it runs.
+        guard !starting else {
+            throw VMRefusal(.starting, .failedPrecondition, "the VM is starting")
+        }
         guard let vm, status.state.isActive else {
             log.info(
                 "vm-stop-not-running",
@@ -198,6 +205,11 @@ public final class VMSupervisor {
 
     /// Stops the VM at once for wb-vmd's exit, whatever its generation.
     public func stopForExit() async {
+        // A start in progress finishes first, so the stop reaches the VM.
+        // wb-vmd's exit deadline bounds the wait.
+        while starting {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
         guard let vm, status.state.isActive else {
             return
         }

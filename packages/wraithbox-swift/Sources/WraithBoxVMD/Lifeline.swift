@@ -34,6 +34,13 @@ public enum Lifeline {
             if errno == EINTR {
                 continue
             }
+            // The start interface refuses a non-blocking fd 0, but its flag
+            // is shared with the spawner's copy, which could set it later.
+            if errno == EAGAIN {
+                var ready = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+                _ = poll(&ready, 1, -1)
+                continue
+            }
             return "read error: " + String(cString: strerror(errno))
         }
     }

@@ -98,8 +98,9 @@ socket. The spawner binds it in `<data>/run/` (S04-architecture,
 spawner is `wb-hostd` through `wb-launcher`, or a test.
 
 Right after the deny probe, `wb-vmd` checks each descriptor: open, and
-of the kind in the table. Descriptor 3 must have a path of its own and
-no peer. Anything else is refused with `vmd-descriptor-invalid`. So it
+of the kind in the table. Descriptors 0 and 2 must be a pipe or a
+socket, and descriptor 0 must block. Descriptor 3 must have a path of
+its own and no peer. Anything else is refused with `vmd-descriptor-invalid`. So it
 never serves on a descriptor its spawner didn't mean.
 
 - **The lifeline.** End of file or an error on descriptor 0 means its
@@ -134,6 +135,12 @@ The profile allows:
 - the sandbox extensions the framework hands to its service process.
   The cache directory extension is limited to its `com.apple.metal-`
   and `com.apple.paravirtualizedgraphics-` entries.
+- reading `Virtualization.framework`. Without it, a configuration
+  error can't load its message text, and the process ends in an
+  uncaught exception instead of returning the error.
+- the metadata of `/var` and `/private/var/folders`, where the
+  framework finds the cache directory whose path `confstr` gave before
+  confinement.
 
 It denies the user's other files, the other VMs' bundles among them.
 It also denies the network, starting programs, and other services

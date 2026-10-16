@@ -1,4 +1,4 @@
-// C11-host-daemons, "Build versions" and "Peer check": the version
+// C11-host-daemons, "Peer check and version record": the version
 // record, the peer user ID check on a socketpair, and both on wb-vmd's
 // gRPC socket, where a refused peer never reaches a handler and the next
 // connection is still served.

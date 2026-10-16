@@ -136,6 +136,7 @@ final class VersionExchangeHandler: ChannelDuplexHandler, RemovableChannelHandle
 
     func handlerRemoved(context: ChannelHandlerContext) {
         timer?.cancel()
+        failHeldWrites()
     }
 
     func channelActive(context: ChannelHandlerContext) {
@@ -145,6 +146,7 @@ final class VersionExchangeHandler: ChannelDuplexHandler, RemovableChannelHandle
 
     func channelInactive(context: ChannelHandlerContext) {
         timer?.cancel()
+        failHeldWrites()
         context.fireChannelInactive()
     }
 
@@ -224,6 +226,16 @@ final class VersionExchangeHandler: ChannelDuplexHandler, RemovableChannelHandle
         context.pipeline.syncOperations.removeHandler(context: context, promise: nil)
     }
 
+    /// Fails every write held for a peer that was never accepted, so no
+    /// promise is left uncompleted.
+    private func failHeldWrites() {
+        let writes = heldWrites
+        heldWrites = []
+        for (_, promise) in writes {
+            promise?.fail(ChannelError.ioOnClosedChannel)
+        }
+    }
+
     private func refuse(context: ChannelHandlerContext, _ refusal: ConnectionRefusal) {
         guard state == .waiting else {
             return
@@ -231,11 +243,7 @@ final class VersionExchangeHandler: ChannelDuplexHandler, RemovableChannelHandle
         state = .refused
         timer?.cancel()
         received = []
-        let writes = heldWrites
-        heldWrites = []
-        for (_, promise) in writes {
-            promise?.fail(ChannelError.ioOnClosedChannel)
-        }
+        failHeldWrites()
         log.refusal(
             "connection-refused", rule: refusal.rule.rawValue,
             peerFields(peer).merging([

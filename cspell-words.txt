@@ -133,6 +133,9 @@ strdup
 usleep
 vnode
 waitpid
+pollfd
+POLLIN
+revents
 GRPCNIO
 NIOBSD
 NSPOSIX

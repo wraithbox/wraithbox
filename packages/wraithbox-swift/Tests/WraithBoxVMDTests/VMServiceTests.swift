@@ -281,6 +281,49 @@ struct VMServiceTests {
         Issue.record("the ended stream's slot was not freed")
     }
 
+    @Test("a Stop while the VM starts is refused with vm-starting, and the start completes")
+    func stopWhileStarting() async throws {
+        let fixture = try await ServiceFixture()
+        let supervisor = fixture.supervisor
+        await MainActor.run { fixture.engine.holdStart = true }
+        let start = Task { try await supervisor.start(generation: 1, cpuCount: 2, memoryMiB: 1024) }
+        let machine = try await heldMachine(fixture)
+        await #expect(throws: VMRefusal(.starting, .failedPrecondition, "the VM is starting")) {
+            try await supervisor.stop(generation: 1, mode: .force)
+        }
+        await machine.releaseStart()
+        try await start.value
+        #expect(await supervisor.status.state == .running)
+        #expect(await machine.stops.isEmpty)
+    }
+
+    @Test("the lifeline's stop during a start waits for it, then forces the VM off")
+    func stopForExitWhileStarting() async throws {
+        let fixture = try await ServiceFixture()
+        let supervisor = fixture.supervisor
+        await MainActor.run { fixture.engine.holdStart = true }
+        let start = Task { try await supervisor.start(generation: 1, cpuCount: 2, memoryMiB: 1024) }
+        let machine = try await heldMachine(fixture)
+        let exit = Task { await supervisor.stopForExit() }
+        try await Task.sleep(for: .milliseconds(100))
+        await machine.releaseStart()
+        try await start.value
+        await exit.value
+        #expect(await machine.stops == ["force"])
+        #expect(await supervisor.status.state == .stopped)
+    }
+
+    /// The fake VM once its start is held.
+    private func heldMachine(_ fixture: ServiceFixture) async throws -> FakeVM {
+        for _ in 0..<200 {
+            if let machine = await fixture.engine.machines.first, await machine.isHeld {
+                return machine
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        throw POSIXError(.ETIMEDOUT)
+    }
+
     @Test("the lifeline's stop forces the running VM off")
     func stopForExit() async throws {
         let fixture = try await ServiceFixture()
