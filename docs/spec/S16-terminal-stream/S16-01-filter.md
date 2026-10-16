@@ -40,11 +40,20 @@ move what the TUI drew.
 ### Ends of a sequence
 
 - A CSI ends at its final byte (`@` to `~`).
+- Any byte that isn't a parameter, intermediate, or final byte ends a
+  CSI early. The CSI is dropped, counted as `terminal-csi`, and the
+  byte begins the next token, unless that byte is CAN or SUB. So no
+  token the filter passes holds a control inside a CSI.
 - A string sequence (OSC, DCS, APC, PM, SOS) ends at ST, written as
   `ESC \` or as U+009C. An OSC also ends at BEL.
-- CAN and SUB end any sequence.
+- CAN and SUB end any sequence, and are dropped with it.
 - An `ESC` inside a string sequence that doesn't start ST also ends
   it, and then begins the next token.
+
+An OSC the filter passes keeps its terminator when that is BEL or
+`ESC \`. One that ended with U+009C is written with `ESC \` instead,
+because a terminal that doesn't read U+009C as ST would take the bytes
+after it as the payload.
 
 The filter buffers at most 64 bytes of an unfinished CSI, and 16 KB of
 an unfinished string sequence. Past that it discards everything up to
@@ -66,7 +75,7 @@ version starts to use shows up there (S16-02-drops-and-links, "Drop rules").
 | `ESC` | `7`, `8`, `M`, `D`, `E`, `=`, `>`, `( B`, `( 0`, `) B`, `) 0` | the rest, `ESC c` included |
 | CSI parameters | digits, `;` and `:`, at most 16 values of at most 5 digits, 64 bytes in all | any other |
 | CSI screen | `A` to `H`, `f`, `` ` ``, `a`, `d`, `e`, `@`, `L`, `M`, `P`, `X`, `b`, `S`, `T`, `r`, `I`, `Z`, `g`, `m`; `J` and `K` with 0 to 2; `s` and `u` without parameters | `CSI 3 J`, which erases the host's scroll-back |
-| CSI modes | `? h/l` for 25, 1000, 1002, 1003, 1004, 1006, 1016, 1049, 2004, 2026, 2031; `? … $ p` (mode query) | other modes |
+| CSI modes | `? h/l` for 25, 1000, 1002, 1003, 1004, 1006, 1016, 1049, 2004, 2026, 2031; `? … $ p` (mode query) for those modes | other modes |
 | CSI keyboard | kitty keyboard `> u` (push, at most 4 deep per screen), `< u` (pop, only entries the guest pushed on that screen), `? u`; `> 4 ; 2 m` and `> 4 m`; `SP q`; `! p` | `= u`, which changes the current entry in place; other `> m` |
 | CSI queries | `c`, `> c`, `5 n`, `6 n`, `> q`, `14 t`, `16 t`, `18 t` | other `t`: window moves, title reports, the title stack |
 | OSC | 9 ; 4 (progress) with numeric parameters; 10, 11, 12 with `?` only; 7501 (program status) as "Program status" says; 9, 99 and 777 (notifications) become one BEL | the rest: 0 to 2 (title), 8 (links), 52, 1337, 7, 133, … |
