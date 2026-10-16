@@ -59,9 +59,9 @@ A message from `wb-netd` is one of three kinds:
 A hand-off message is at most 4 KiB, fixed in code. `wb-proxyd` reads
 with a buffer one byte larger, and a control buffer with room for at
 least two descriptors. On macOS the control buffer holds every
-descriptor that one message can hold, with room to spare. macOS puts
-each descriptor of a message in the receiving process even when the
-control buffer cuts it off, and one cut off can't be closed. `wb-proxyd`
+descriptor that one message can hold, with room to spare. Its kernel
+puts each descriptor of a message in the receiving process even when
+the control buffer cuts it off, and one cut off can't be closed. `wb-proxyd`
 refuses a message that:
 
 - is over the size;
