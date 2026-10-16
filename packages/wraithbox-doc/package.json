@@ -3,10 +3,18 @@
   "type": "module",
   "version": "0.0.1",
   "private": true,
+  "comment:scripts": [
+    "build runs with --force, which clears the content layer cache first, so",
+    "every page is rendered again and the reference check of",
+    "src/plugins/remark-refs.mjs sees each one. Without it, a build after",
+    "`astro check` (mise run ci, the CI Docs job) reuses the pages that the",
+    "check rendered, records no failures, and passes content that fails the",
+    "fresh build of the Pages deploy."
+  ],
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "astro build --force",
     "preview": "astro preview",
     "astro": "astro"
   },
