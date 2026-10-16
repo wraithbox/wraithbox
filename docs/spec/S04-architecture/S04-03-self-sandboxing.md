@@ -13,7 +13,7 @@ mechanism (S12-platforms). Each then gets only what it needs:
 | Process | What it keeps |
 |---|---|
 | `wb-netd` | no filesystem, and no network beyond inherited descriptors |
-| `wb-proxyd` | outbound network and its credential store items |
+| `wb-proxyd` | outbound network, certificate checks, and its credential store items ("`wb-proxyd` and the secret store on macOS") |
 | `wb-download` | outbound HTTPS and its inherited descriptors |
 | `wb-guestadmin` | its `wbadmin/*` store items and inherited descriptors |
 | `wb-credset` | its `binding/*` store items and its standard streams (S15-02-secret-store, "Keychain") |
@@ -95,6 +95,32 @@ The extension classes were measured with the X18-vsock-handoff
 configuration, which has the device set of S06-06-devices-and-warm-start.
 When that set drops the graphics device (I247), the profile is ablated
 again.
+
+### `wb-proxyd` and the secret store on macOS
+
+On macOS, "the secret store service" in a profile is two Mach
+services:
+
+- `com.apple.securityd.xpc`, the data protection keychain;
+- `com.apple.ctkd.token-client`, the Secure Enclave token.
+
+Those two alone make the store-only profile of `wb-credset` and
+`wb-guestadmin`. The profile can't name Keychain items. The access
+groups in the program's code signature decide which items it reaches
+(S15-02-secret-store). The profile decides only whether it reaches the
+store at all.
+
+The `wb-proxyd` profile allows outbound TCP to any port, DNS, the
+resolver files and `mDNSResponder` as in S17-03-downloads
+("Confinement"), certificate checks, and the two store services. Its
+`BUNDLE` parameter is the real path of its own helper bundle,
+`Contents/Helpers/wb-proxyd.app`. Certificate checks against the
+system roots need the metadata read of that directory, with
+`com.apple.trustd.agent`. `wb-proxyd` works the path out before it
+confines itself.
+
+The profile denies files, listening, starting programs, UDP other than
+DNS, and the login keychain (X23-sandboxed-daemons, I61).
 
 ### Daemon logs
 

@@ -52,6 +52,12 @@ A confined process can't confine its children further. So `wb-hostd`
 starts the other daemons through `wb-launcher`, which it starts before
 it confines itself (X23-sandboxed-daemons).
 
+A profile that reaches the Keychain allows two Mach services,
+`com.apple.securityd.xpc` and `com.apple.ctkd.token-client`. One that
+checks certificates allows `com.apple.trustd.agent` and the metadata of
+its own bundle directory (S04-03-self-sandboxing, "`wb-proxyd` and the
+secret store on macOS").
+
 `wb-vmd` confines itself the same way, one per VM (X25-vmd-sandbox).
 Its profile has:
 
