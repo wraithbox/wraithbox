@@ -1,8 +1,8 @@
 // The files of a VM bundle, and the check that runs before anything opens
 // one. A confined `wb-vmd` that opens a path its profile denies ends in an
 // uncaught exception (X25-vmd-sandbox), so each file is checked with
-// lstat and realpath first (S04-02-vm-provider, "The device set is fixed
-// and checked").
+// lstat and its real path first (S04-02-vm-provider, "The device set is
+// fixed and checked").
 import Darwin
 
 /// A file at a fixed name in a VM bundle (S06-05-disks, "Bundle files").
@@ -80,7 +80,7 @@ public struct VMBundle: Sendable, Equatable {
             let kind = info.st_mode & S_IFMT == S_IFLNK ? "a symbolic link" : "not a regular file"
             throw DeviceSetRefusal(.fileOutsideBundle, "\(file.rawValue) is \(kind)")
         }
-        // A hard link can name a file outside the bundle, and realpath
+        // A hard link can name a file outside the bundle, and its real path
         // can't tell, so a bundle file has exactly one link.
         guard info.st_nlink == 1 else {
             throw DeviceSetRefusal(
@@ -94,13 +94,23 @@ public struct VMBundle: Sendable, Equatable {
     }
 }
 
-/// realpath(3), or nil when it fails.
+/// The real path of a file or directory, as the kernel names the vnode a
+/// descriptor on it holds (F_GETPATH), or nil when it can't be opened.
+/// Symbolic links are followed, as realpath(3) follows them. realpath(3)
+/// itself reads the metadata of every parent directory, which wb-vmd's
+/// profile denies outside the bundle, so it fails once wb-vmd is
+/// confined. The open doesn't read the file.
 func realPath(_ path: String) -> String? {
-    guard let resolved = realpath(path, nil) else {
+    let fd = open(path, O_RDONLY | O_CLOEXEC | O_NONBLOCK)
+    guard fd >= 0 else {
         return nil
     }
-    defer { free(resolved) }
-    return String(cString: resolved)
+    defer { close(fd) }
+    var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+    guard fcntl(fd, F_GETPATH, &buffer) == 0 else {
+        return nil
+    }
+    return String(cString: buffer)
 }
 
 private func errnoText() -> String {

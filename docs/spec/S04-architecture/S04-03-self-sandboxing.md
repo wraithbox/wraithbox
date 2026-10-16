@@ -80,6 +80,41 @@ itself, it:
 It doesn't read anything from the guest or `wb-hostd` before it
 confines itself.
 
+### How `wb-vmd` is started
+
+`wb-vmd` takes no arguments, and refuses any with `vmd-arguments`. It
+inherits four descriptors:
+
+| Descriptor | What it is |
+|---|---|
+| 0 | the lifeline: a pipe or socket from its spawner that it only reads |
+| 2 | the log pipe ("Daemon logs") |
+| 3 | a listening `AF_UNIX` stream socket for gRPC |
+| 4 | the hand-off socket: `AF_UNIX`, `SOCK_DGRAM` (S04-02-vm-provider, "Hand-off on macOS") |
+
+Its profile allows no path outside its bundle, so it can't bind a
+socket. The spawner binds it in `<data>/run/` (S04-architecture,
+"Inter-process contracts") and passes the listening descriptor. The
+spawner is `wb-hostd` through `wb-launcher`, or a test.
+
+Right after the deny probe, `wb-vmd` checks each descriptor: open, and
+of the kind in the table. Descriptor 3 must have a path of its own and
+no peer. Anything else is refused with `vmd-descriptor-invalid`. So it
+never serves on a descriptor its spawner didn't mean.
+
+- **The lifeline.** End of file or an error on descriptor 0 means its
+  spawner is gone. `wb-vmd` then stops its VM at once, logs
+  `lifeline-closed`, and exits 0. That is its control channel of
+  S04-07-supervision, "When `wb-hostd` stops", so a VM never outlives
+  the process that asked for it.
+- **Each connection.** On every accepted connection, `wb-vmd` first
+  reads the peer's user ID with `LOCAL_PEERCRED`. A peer of another
+  user ID, or one whose credential can't be read, is closed with
+  `ipc-peer-uid` before a byte is read or written. Then comes the
+  version exchange of S04-08-records-and-bounds, "Between host
+  processes". gRPC reads nothing until both pass, and the peer gets
+  nothing but the version record until then.
+
 ### The `wb-vmd` profile
 
 The profile's parameters are:
@@ -103,6 +138,12 @@ The profile allows:
 It denies the user's other files, the other VMs' bundles among them.
 It also denies the network, starting programs, and other services
 (X25-vmd-sandbox).
+
+It doesn't allow reading the metadata of the bundle's parent
+directories. So `realpath` of a bundle file fails once `wb-vmd` is
+confined, and the bundle file checks take a file's real path from a
+descriptor on it instead (S04-02-vm-provider, "The device set is fixed
+and checked").
 
 The extension classes were measured with the X18-vsock-handoff
 configuration, which has the device set of S06-06-devices-and-warm-start.

@@ -61,7 +61,8 @@ its own bundle directory (S04-03-self-sandboxing, "`wb-proxyd` and the
 secret store on macOS").
 
 `wb-vmd` confines itself the same way, one per VM (X25-vmd-sandbox).
-Its profile has:
+The function has no public header. The Swift code looks it up with
+`dlsym` and calls it with the C calling convention. Its profile has:
 
 - the Virtualization service;
 - its VM's bundle;

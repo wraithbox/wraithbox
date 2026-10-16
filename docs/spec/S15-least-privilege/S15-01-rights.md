@@ -35,6 +35,12 @@ Every binary in the bundle is signed with the hardened runtime
 A new entitlement needs a change here first. Other hosts use the
 equivalents in S12-platforms.
 
+Dev and CI builds sign a copy of `wb-vmd` ad hoc, with the hardened
+runtime and that one entitlement, from `wb-vmd.entitlements` in the
+Swift package. The signing task fails when the signed binary holds any
+other set. Signing with a Developer ID, and checking the profile under
+it, is I118.
+
 ### The release check
 
 `wb-release-check` (S04-architecture, S14-claude-in-guest) doesn't

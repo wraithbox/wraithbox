@@ -111,4 +111,28 @@ as the `reason`, so the caller needn't parse the message text. The
 comments on each message from the guest, and on `HandoffMessage`, state
 the bounds the receiver checks.
 
+### The version record
+
+On a host stream connection, gRPC included, each side sends its version
+record first, then reads the peer's (S04-08-records-and-bounds,
+"Between host processes"). Go and Swift write the same bytes:
+
+- the four bytes `WBV1`;
+- one length byte;
+- that many bytes of the build version, 1 to 64 bytes of printable
+  ASCII. A length of 0 is an unstamped build, which has no version.
+
+The reader takes at most 69 bytes, under a deadline of a few seconds
+(the value is in code). Until the peer's record has passed, it hands
+nothing the peer sent to gRPC, and sends the peer nothing but its own
+record. Each refusal closes the connection and logs both versions, with
+its rule:
+
+| Rule | When |
+|---|---|
+| `peer-version-timeout` | no whole record before the deadline |
+| `peer-version-malformed` | another magic, a length over 64, or a version byte that isn't printable ASCII |
+| `peer-version-unstamped` | the peer's version or its own is empty |
+| `peer-version-mismatch` | the versions differ as bytes |
+
 **Status:** Draft

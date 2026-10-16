@@ -111,7 +111,7 @@ depends = ["go:test", "go:fuzz", "swift:test"]
 
 [tasks.build]
 description = "Build all buildable targets"
-depends = ["go:build", "swift:build", "doc:build"]
+depends = ["go:build", "swift:build", "swift:sign", "doc:build"]
 
 [tasks.ci]
 description = "Full CI gate: lint + typecheck + test + build (+ Go cross-OS check)"
@@ -238,7 +238,9 @@ done
 # ---------- Swift ----------
 # Each packages/*-swift directory is a standalone SwiftPM package. The
 # compiler and swift-format come from the selected Xcode (`xcode-select
-# -p`); see docs/spec/S02-toolchain.md for which Xcode.
+# -p`); see docs/spec/S02-toolchain.md for which Xcode. Every task that
+# builds passes --force-resolved-versions, so a stale Package.resolved
+# fails instead of resolving again.
 [tasks."swift:lint"]
 description = "swift-format lint (strict) + SwiftLint maintainability gate"
 run = """
@@ -278,7 +280,7 @@ stamp="$PWD/build/version"
 for p in packages/*-swift; do
   [ -d "$p" ] || continue
   echo "--- swift build $p"
-  swift build --package-path "$p" -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __wb_version -Xlinker "$stamp"
+  swift build --package-path "$p" --force-resolved-versions -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __wb_version -Xlinker "$stamp"
 done
 """
 
@@ -288,8 +290,45 @@ set -e
 for p in packages/*-swift; do
   [ -d "$p" ] || continue
   echo "--- swift test $p"
-  swift test --package-path "$p"
+  swift test --package-path "$p" --force-resolved-versions
 done
+"""
+
+# A copy of wb-vmd in .build/signed, ad-hoc signed with the hardened
+# runtime and exactly the entitlement in wb-vmd.entitlements
+# (S15-01-rights, "Hardening and entitlements"). A copy, so a later build
+# doesn't relink over the signature. Developer ID signing is the
+# maintainer's (I118).
+[tasks."swift:sign"]
+description = "Ad-hoc sign a copy of wb-vmd with the hardened runtime and its entitlement (macOS)"
+depends = ["swift:build"]
+wait_for = ["swift:test"]
+run = """
+set -e
+p=packages/wraithbox-swift
+out="$p/.build/signed"
+bin="$(swift build --package-path "$p" --force-resolved-versions --show-bin-path)/wb-vmd"
+mkdir -p "$out"
+rm -f "$out/wb-vmd" "$out/entitlements.plist"
+cp "$bin" "$out/wb-vmd"
+codesign --force --sign - --options runtime --entitlements "$p/wb-vmd.entitlements" "$out/wb-vmd"
+codesign --verify --strict "$out/wb-vmd"
+codesign --display --verbose "$out/wb-vmd" 2>&1 | grep -q 'flags=.*runtime'
+codesign --display --entitlements "$out/entitlements.plist" --xml "$out/wb-vmd"
+test "$(plutil -convert json -o - "$out/entitlements.plist")" = "$(plutil -convert json -o - "$p/wb-vmd.entitlements")"
+echo "signed $out/wb-vmd"
+"""
+
+# needs-vm, attended (docs/agents/host-work.md): clones the spike bundle
+# WB_VM_TEST_BUNDLE names into the work slot's bundle under <data>, boots
+# it with the signed wb-vmd, and deletes the slot (VMBootTests).
+[tasks."swift:test-vm"]
+description = "Boot a macOS guest from WB_VM_TEST_BUNDLE with the signed wb-vmd (needs-vm, macOS)"
+depends = ["swift:sign"]
+run = """
+set -e
+test -n "$WB_VM_TEST_BUNDLE" || { echo "set WB_VM_TEST_BUNDLE to a spike bundle" >&2; exit 2; }
+swift test --package-path packages/wraithbox-swift --force-resolved-versions --filter VMBootTests
 """
 
 # ---------- Contracts (.proto) ----------
@@ -311,8 +350,8 @@ description = "Build protoc-gen-swift and protoc-gen-grpc-swift-2 from the Swift
 wait_for = ["swift:build", "swift:test"]
 run = """
 set -e
-swift build --package-path packages/wraithbox-swift --product protoc-gen-swift
-swift build --package-path packages/wraithbox-swift --product protoc-gen-grpc-swift-2
+swift build --package-path packages/wraithbox-swift --force-resolved-versions --product protoc-gen-swift
+swift build --package-path packages/wraithbox-swift --force-resolved-versions --product protoc-gen-grpc-swift-2
 """
 
 [tasks."proto:generate-swift"]

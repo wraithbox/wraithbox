@@ -27,10 +27,37 @@ S09-11-audit
   bundle that kept `aux.img`, `sys.img` and `data.img` is refused with
   `bundle-file-missing`.
 - **Slot.** Start `wb-vmd` with `WB_VMD_SLOT` unset, with an unknown
-  value, with its bundle a symbolic link to the other slot's bundle,
-  and with its bundle missing. See `vmd-slot-missing`,
-  `vmd-slot-unknown`, `vmd-slot-bundle-mismatch` and
-  `vmd-bundle-missing` logged before `sandbox_init`.
+  value, with the `build` slot, with its bundle a symbolic link to the
+  other slot's bundle, and with its bundle missing. See
+  `vmd-slot-missing`, `vmd-slot-unknown`, `vmd-slot-build-unsupported`,
+  `vmd-slot-bundle-mismatch` and `vmd-bundle-missing` logged before
+  `sandbox_init`.
+- **Start interface** (S04-03-self-sandboxing, "How `wb-vmd` is
+  started"). An argument is refused with `vmd-arguments`, and a missing
+  descriptor or one of the wrong kind with `vmd-descriptor-invalid`.
+  Closing the lifeline stops the VM. Unconfined, the deny probe refuses.
+- **Peer check and version record** (S04-architecture, "The version
+  record"). A peer of another user ID is closed with
+  `ipc-peer-uid` and doesn't get a byte, and the next connection is
+  served.
+  A peer of another version, an unstamped one, a silent one and one
+  that sends a wrong magic each get their rule, and no handler runs.
+  Arbitrary bytes never parse to a version outside the form.
+- **VMService.** With a fake VM, each refusal comes back with its rule
+  as the `ErrorInfo` reason: `vm-resources`, `vm-already-running`,
+  `vm-generation`, `vm-stop-mode`, `vm-config`, `vm-watch-limit`, and a
+  device-set refusal passed through.
+
+### VM boot (needs-vm)
+
+- With `WB_VM_TEST_BUNDLE` naming a spike bundle, `mise run
+  swift:test-vm` clones it into the work slot and starts the signed
+  `wb-vmd` with its start interface. See `RUNNING` through
+  `WatchState`, the logged device list equal to the fixed set, a forced
+  stop reach `STOPPED`, a data disk linked out of the bundle refused
+  with `device-set-file-outside-bundle` and `wb-vmd` still answering,
+  and a closed lifeline end the process with status 0. The slot is
+  deleted afterwards.
 - **Restore image.** A `wb-vmd-install` whose restore image is a
   symbolic link, or not at the fixed path, logs
   `vmd-restore-image-mismatch` before `sandbox_init`.

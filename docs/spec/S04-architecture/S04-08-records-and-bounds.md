@@ -129,11 +129,11 @@ linked from that bundle as well.
 
 ### Between host processes
 
-The first message on every host connection, gRPC or not, gives the
-sender's build version. A peer of another build version is refused, and
-the connection closed. Both versions are logged, and the installed
-bundle is checked (S04-07-supervision, "Upgrades"). So there are no
-compatibility rules between host processes.
+The first message on every host connection, gRPC or not, is the
+sender's version record (S04-architecture). A peer of another build
+version is refused, and the connection closed. Both versions are logged,
+and the installed bundle is checked (S04-07-supervision, "Upgrades").
+So there are no compatibility rules between host processes.
 
 - When `wb-hostd` refuses `wb`, `wb` prints a `wraith box:` line that
   names both versions, and exits with 255.
