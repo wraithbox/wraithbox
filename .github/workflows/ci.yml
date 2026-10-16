@@ -17,11 +17,46 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Decides which of the go and swift jobs and the docs site steps a pull
+  # request needs, from the files it changes (scripts/ci-changes.mjs).
+  # A push to main and workflow_dispatch run everything. When this job
+  # fails, the others run as if every file changed, and `CI result` fails.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-24.04
+    outputs:
+      go: ${{ steps.detect.outputs.go }}
+      swift: ${{ steps.detect.outputs.swift }}
+      docs: ${{ steps.detect.outputs.docs }}
+    steps:
+      # Depth 2: a pull request checks out its merge commit, and the diff
+      # is against the merge commit's first parent, the base branch.
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          install_args: bun
+          cache: true
+
+      - name: Detect changed inputs
+        id: detect
+        run: bun scripts/ci-changes.mjs detect
+
   go:
     name: Go (${{ matrix.os }})
     # Most Wraith Box code is cross-platform Go (S12-platforms), so it is
     # linted, vetted, tested and built natively on every host OS from the
     # start. See docs/spec/S02-toolchain.md.
+    #
+    # Skipped only when detection succeeded and found no Go input changed.
+    needs: changes
+    if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.go == 'false') }}
     strategy:
       fail-fast: false
       matrix:
@@ -58,6 +93,11 @@ jobs:
     name: Swift
     # Swift comes from the runner image's default Xcode; Package.swift's
     # tools version (6.2) is the floor. See docs/spec/S02-toolchain.md.
+    #
+    # Skipped only when detection succeeded and found no Swift input
+    # changed.
+    needs: changes
+    if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false') }}
     runs-on: macos-26
     steps:
       - name: Checkout code
@@ -83,6 +123,11 @@ jobs:
 
   docs:
     name: Docs
+    # Runs on every pull request: cspell checks every tracked file, code
+    # included. Only the site check and build steps are skipped when
+    # detection found no docs input changed.
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -119,9 +164,11 @@ jobs:
         run: mise run prose:spell
 
       - name: Check (Astro type/content check)
+        if: ${{ !(needs.changes.result == 'success' && needs.changes.outputs.docs == 'false') }}
         run: mise run doc:check
 
       - name: Build
+        if: ${{ !(needs.changes.result == 'success' && needs.changes.outputs.docs == 'false') }}
         run: mise run doc:build
 
   vuln:
@@ -197,3 +244,32 @@ jobs:
           version: "1.30.1"
           collect: all
           inputs: .github
+
+  # The one required check (docs/github-settings.md). A skipped matrix job
+  # never reports its per-OS check names, so the ruleset cannot require
+  # those. This job fails unless every job passed or was skipped because
+  # `changes` found its inputs unchanged. always(), not !cancelled(): a
+  # skipped required check counts as passed, so this job has to run, and
+  # fail, when the run is cancelled.
+  result:
+    name: CI result
+    needs: [changes, go, swift, docs, actions]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          install_args: bun
+          cache: true
+
+      - name: Check every job passed or was skipped by detection
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: bun scripts/ci-changes.mjs verdict

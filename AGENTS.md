@@ -145,7 +145,9 @@ ai-tells rules flag them:
 - Never weaken a control to make a check pass: no lowered thresholds, no
   unpinned actions or tools, no deleted tests.
 - `mise run ci` and the CI workflow must run the same checks. Put shared
-  environment on the mise task, not the workflow.
+  environment on the mise task, not the workflow. On a pull request the
+  workflow skips a check whose inputs did not change
+  (`scripts/ci-changes.mjs`). `mise run ci` always runs all of them.
 - **No `.editorconfig`**, deliberately: formatters own formatting.
 
 **Supply chain:**

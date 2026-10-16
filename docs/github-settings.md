@@ -70,13 +70,29 @@ pushing feature branches and opening pull requests are unaffected. It:
   maintainer cannot approve their own pull request; the CI status
   checks are the gate;
 - allows the rebase and merge methods, matching the repository;
-- requires the CI checks below, from GitHub Actions (integration ID
+- requires the `CI result` check, from GitHub Actions (integration ID
   15368);
 - lets the repository Admin role (actor ID 5) bypass it, so the owner can
   still repair `main` in an emergency.
 
 The ruleset deliberately leaves out `required_linear_history`: it would
 forbid the merge commits that stacked branches need.
+
+`CI result` is the only required check. On a pull request, the
+`changes` job of `.github/workflows/ci.yml` runs `scripts/ci-changes.mjs`
+to decide which jobs the changed files need, and the workflow skips
+`Go` and `Swift`, and the site check and build steps of `Docs`, when
+their inputs did not change. A push to `main` and `workflow_dispatch`
+run everything. A skipped matrix job doesn't report the per-OS
+`Go (…)` check names, so a ruleset that required them would block every
+pull request that skipped Go. A skipped job counts as passed for a
+required check, so requiring `Swift` alone would let a wrongly skipped
+job through. `CI result` runs on every run, even a cancelled one, and
+fails unless each job it lists passed or was skipped because its inputs
+did not change. It also fails when change detection failed, after the
+jobs ran as if every file had changed. A job added to `ci.yml` goes into
+the `needs:` list of `CI result` and into `GATED` in
+`scripts/ci-changes.mjs`, which the verdict checks against `needs:`.
 
 `Dependency vulnerability scan` is **not** required yet. The ruleset left it out
 while it failed on `main` because of
@@ -106,21 +122,16 @@ that dependency to the fixed 4.3.0, and the scan passes. Adding it to
       "strict_required_status_checks_policy": false,
       "do_not_enforce_on_create": false,
       "required_status_checks": [
-        {"context": "Go (ubuntu-24.04)", "integration_id": 15368},
-        {"context": "Go (macos-26)", "integration_id": 15368},
-        {"context": "Go (windows-2025)", "integration_id": 15368},
-        {"context": "Swift", "integration_id": 15368},
-        {"context": "Docs", "integration_id": 15368},
-        {"context": "GitHub Actions (lint + audit)", "integration_id": 15368}]}}
+        {"context": "CI result", "integration_id": 15368}]}}
   ]
 }
 ```
 
 Save as `ruleset.json`, then update the existing ruleset with
 `gh api -X PUT repos/wraithbox/wraithbox/rulesets/24412616 --input ruleset.json`
-(or create it with `POST .../rulesets`). The check names are the job
-names from `.github/workflows/ci.yml` and change when the runner matrix
-does. Check them against a recent CI run on `main` with
+(or create it with `POST .../rulesets`). The check name is the `name:`
+of the `result` job in `.github/workflows/ci.yml`. Check it against a
+recent CI run on `main` with
 `gh api repos/wraithbox/wraithbox/commits/main/check-runs --jq '.check_runs[].name'`.
 
 ## Organization: applied
