@@ -147,22 +147,22 @@ func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error 
 // vm-start-timeout. The call ends at the latest when startFailed closes
 // the instance.
 func (m *Manager) startVM(ctx context.Context, r *run, req *vmdv1.StartRequest) *Refusal {
-	sctx, cancel := context.WithTimeout(ctx, m.cfg.StartTimeout)
+	callCtx, cancel := context.WithTimeout(ctx, m.cfg.StartTimeout)
 	defer cancel()
 	answer := make(chan error, 1)
-	go func() { answer <- r.inst.Start(sctx, req) }()
+	go func() { answer <- r.inst.Start(callCtx, req) }()
 	select {
 	case err := <-answer:
 		if err != nil {
 			return providerRefusal(r.slot, r.generation, "start", err)
 		}
 		return nil
-	case <-sctx.Done():
+	case <-callCtx.Done():
 		if err := ctx.Err(); err != nil {
 			return providerRefusal(r.slot, r.generation, "start", err)
 		}
 		return &Refusal{
-			Rule: RuleStartTimeout, Slot: r.slot, Generation: r.generation, err: sctx.Err(),
+			Rule: RuleStartTimeout, Slot: r.slot, Generation: r.generation, err: callCtx.Err(),
 			Message: fmt.Sprintf("the %s VM didn't start: wb-vmd didn't answer within %s", r.slot, m.cfg.StartTimeout),
 		}
 	}

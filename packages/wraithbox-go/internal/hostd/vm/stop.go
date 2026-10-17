@@ -140,10 +140,10 @@ func (m *Manager) stopWith(ctx context.Context, r *run, req *vmdv1.StopRequest, 
 		slog.String("slot", string(r.slot)), slog.Uint64("generation", req.GetGeneration()),
 		slog.String("mode", req.GetMode().String()),
 	}
-	sctx, cancel := context.WithTimeout(ctx, timeout)
+	callCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	answer := make(chan error, 1)
-	go func() { answer <- r.inst.Stop(sctx, req) }()
+	go func() { answer <- r.inst.Stop(callCtx, req) }()
 	for {
 		select {
 		case <-r.ended:
@@ -158,7 +158,7 @@ func (m *Manager) stopWith(ctx context.Context, r *run, req *vmdv1.StopRequest, 
 			attrs = append(attrs, slog.String("rule", string(ref.Rule)), slog.String("reason", ref.Message))
 			m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop failed", attrs...)
 			return isClosed(r.ended)
-		case <-sctx.Done():
+		case <-callCtx.Done():
 			attrs = append(attrs, slog.Duration("timeout", timeout))
 			m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop deadline passed", attrs...)
 			return isClosed(r.ended)
