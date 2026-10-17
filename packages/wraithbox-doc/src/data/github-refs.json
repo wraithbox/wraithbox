@@ -1012,7 +1012,7 @@
 	},
 	"161": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-vmd: confined process that boots and stops the work VM's bundle",
 		"summary": "The remaining VM spikes (X06-guest-xcode, X08-data-disk, X20-shared-homebrew, X04-tls-inspection, #142, #154, #155, #158) each rebuild boot code on a throwaway branch."
 	},
@@ -1324,7 +1324,7 @@
 	"212": {
 		"kind": "pr",
 		"state": "open",
-		"title": "chore(deps-dev): Bump cspell from 10.3.4 to 10.3.6 in /packages/wraithbox-doc",
+		"title": "build(deps-dev): Bump cspell from 10.3.4 to 10.3.6 in /packages/wraithbox-doc",
 		"summary": "Bumps cspell from 10.3.4 to 10.3.6."
 	},
 	"213": {
@@ -1722,7 +1722,7 @@
 	},
 	"278": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "build(app): ad-hoc `Wraith Box.app` with helper bundles, guest tools disk and the entitlement check",
 		"summary": "S17-01-bundle says what mise run build makes on macOS: one Wraith Box.app with every program, helper bundles for the programs that hold a Keychain access group, and the guest tools disk."
 	},
@@ -1854,7 +1854,7 @@
 	},
 	"300": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb: keep the links the terminal filter drops, with their marks",
 		"summary": "The terminal filter (M2.11a (#299)) drops every OSC 8 hyperlink, and its text stays as plain text (S16-02-drops-and-links, \"Links\")."
 	},
@@ -2010,7 +2010,7 @@
 	},
 	"326": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(swift): wb-vmd boots and stops its slot's VM, confined",
 		"summary": "wb-vmd boots and stops the VM in its slot's bundle, confined to that bundle, behind the device-set check of #160."
 	},
@@ -2058,13 +2058,13 @@
 	},
 	"334": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "build(deps-dev): Bump playwright from 1.63.0 to 1.64.0 in /packages/wraithbox-doc",
 		"summary": "Bumps playwright from 1.63.0 to 1.64.0."
 	},
 	"335": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "build(deps): Bump jdx/mise-action from 4.3.0 to 5.1.1",
 		"summary": "Bumps jdx/mise-action from 4.3.0 to 5.1.1."
 	},
@@ -2082,8 +2082,44 @@
 	},
 	"338": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "build(deps): Bump @astrojs/markdown-remark from 7.3.1 to 7.3.2 in /packages/wraithbox-doc",
 		"summary": "Bumps @astrojs/markdown-remark from 7.3.1 to 7.3.2."
+	},
+	"339": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): allow public domain dependencies such as SQLite",
+		"summary": "Adds a public domain dedication to the licenses a dependency may have, in S10-01-libraries and in AGENTS.md \"Supply chain\"."
+	},
+	"340": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Run 2026-10-17 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "Approval: the maintainer typed /wave --waves 5 --lane mac --merge in this session (2026-10-17)."
+	},
+	"341": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: refuse or warn when the host terminal's charset isn't UTF-8",
+		"summary": "The terminal filter writes UTF-8 for a terminal that reads UTF-8 (S16-01-filter, \"Where\")."
+	},
+	"342": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(wb): keep the links the terminal filter drops, with their marks",
+		"summary": "The terminal filter keeps each OSC 8 link it drops, with a mark, for M4.11 to record and list."
+	},
+	"343": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(guestd): vsock listener on port 1023 and the checked hello",
+		"summary": "wb-guestd now listens on vsock port 1023 and serves GuestService.Hello."
+	},
+	"344": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(app): ad-hoc Wraith Box.app with helper bundles, guest tools disk and the entitlement check",
+		"summary": "mise run build on macOS now runs app:bundle and writes packages/wraithbox-swift/.build/Wraith Box.app."
 	}
 }
