@@ -14,6 +14,7 @@ package guestlink
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"regexp"
@@ -106,7 +107,8 @@ func (l *Link) Close() error { return l.cc.Close() }
 // answer against own, the host's build version (normally
 // version.Build()). On success the returned Link owns conn. On a refusal
 // conn is closed, the refusal is logged with its rule, and the error is
-// a *Refusal.
+// a *Refusal. When the host cancels ctx first, conn is closed and the
+// error wraps context.Canceled: the host gave up, the guest wasn't refused.
 func Hello(ctx context.Context, conn net.Conn, own string, log *slog.Logger) (*Link, error) {
 	cc, err := newClient(conn)
 	if err != nil {
@@ -118,6 +120,10 @@ func Hello(ctx context.Context, conn net.Conn, own string, log *slog.Logger) (*L
 	resp, err := guestv1.NewGuestServiceClient(cc).Hello(callCtx, &guestv1.HelloRequest{})
 	if err != nil {
 		closeBoth(cc, conn)
+		if errors.Is(callCtx.Err(), context.Canceled) {
+			log.LogAttrs(ctx, slog.LevelInfo, "guest hello abandoned", slog.String("decision", "close"))
+			return nil, fmt.Errorf("guestlink: hello abandoned by the host: %w", callCtx.Err())
+		}
 		return nil, refuse(ctx, log, own, callRefusal(callCtx, err))
 	}
 	v, r := check(own, resp)
@@ -145,6 +151,9 @@ func newClient(conn net.Conn) (*grpc.ClientConn, error) {
 		grpc.WithContextDialer(dial),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDisableRetry(),
+		// A Link stays open for later calls. Going idle would close conn,
+		// and the dialer can't open it again.
+		grpc.WithIdleTimeout(0),
 		grpc.WithMaxHeaderListSize(maxHeaderListSize),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(MaxRecvMsgSize),
@@ -157,13 +166,13 @@ func closeBoth(cc *grpc.ClientConn, conn net.Conn) {
 	_ = conn.Close()
 }
 
-// callRefusal names the rule of a failed call. Only the call's own
-// deadline or the caller's context makes it a timeout: a status code the
-// guest sent is guest input, whichever code it is.
+// callRefusal names the rule of a failed call. Only a deadline of the
+// host's, the call's own or the caller's, makes it a timeout: a status
+// code the guest sent is guest input, whichever code it is.
 func callRefusal(ctx context.Context, err error) *Refusal {
 	st := status.Convert(err)
 	msg := st.Code().String() + ": " + guestText(st.Message())
-	if ctx.Err() != nil {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return &Refusal{Rule: RuleTimeout, msg: msg, err: ctx.Err()}
 	}
 	return &Refusal{Rule: RuleInvalid, msg: msg}
