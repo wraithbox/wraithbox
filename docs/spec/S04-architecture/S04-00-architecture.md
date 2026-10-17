@@ -132,7 +132,7 @@ its rule:
 |---|---|
 | `peer-version-timeout` | no whole record before the deadline |
 | `peer-version-malformed` | another magic, a length over 64, or a version byte outside 0x20 to 0x7E |
-| `peer-version-unstamped` | the peer's version or its own is empty |
+| `peer-version-unstamped` | the peer's version is empty, or its own is empty or outside the form |
 | `guest-version-form` | the peer's version is not in the version form of S04-08-records-and-bounds, "The guest's version is a label" (the rule Go's version check names) |
 | `peer-version-mismatch` | the versions differ as bytes |
 

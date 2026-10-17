@@ -103,6 +103,12 @@ struct VersionRecordTests {
                 #expect(
                     VersionRecord.parse(Array(bytes.prefix(length)))
                         == .version(version, length: length))
+                // Accepted only when equal to the own version and in the form.
+                let inForm = WraithBoxVersion.isVersionForm(Array(version.utf8))
+                for own in ["1.0.0", version] {
+                    let accepted = (try? VersionRecord.check(peer: version, own: own)) != nil
+                    #expect(accepted == (version == own && inForm))
+                }
             case .unstamped(let length):
                 #expect(length == 5)
             case .needMore:
