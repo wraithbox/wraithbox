@@ -30,6 +30,9 @@ const stateBuffer = 64
 type Provider struct {
 	// OpenErr, when set, is Open's error.
 	OpenErr error
+	// OnOpen, when set, runs at the start of each Open, and its error is
+	// Open's.
+	OnOpen func(context.Context, vm.Slot) error
 	// OnStart, OnStop and OnConnect replace the defaults.
 	// Each gets the call's context. They run after the instance's own
 	// checks: a call after the instance ended, or for a generation other
@@ -43,9 +46,14 @@ type Provider struct {
 }
 
 // Open implements vm.Provider.
-func (p *Provider) Open(_ context.Context, slot vm.Slot) (vm.Instance, error) {
+func (p *Provider) Open(ctx context.Context, slot vm.Slot) (vm.Instance, error) {
 	if p.OpenErr != nil {
 		return nil, p.OpenErr
+	}
+	if p.OnOpen != nil {
+		if err := p.OnOpen(ctx, slot); err != nil {
+			return nil, err
+		}
 	}
 	i := &Instance{slot: slot, p: p, states: make(chan *vmdv1.VMState, stateBuffer)}
 	i.Publish(0, vmdv1.State_STATE_STOPPED, nil)

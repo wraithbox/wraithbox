@@ -84,10 +84,11 @@ const (
 	DefaultForceStopTimeout   = 10 * time.Second
 )
 
-// DefaultStartTimeout bounds the provider's start, used when Config
-// leaves it 0. wb-vmd answers once the framework has started the VM. A
-// cold boot to wb-guestd's listener takes 10.9 s at the median and 13.5 s
-// at p95 (S06-06-devices-and-warm-start, "Warm start"), so a start without an
+// DefaultStartTimeout bounds the provider's open and its start, each,
+// used when Config leaves it 0 (S05-03-management-commands, "`wb vm`").
+// wb-vmd answers once the framework has started the VM. A cold boot to
+// wb-guestd's listener takes 10.9 s at the median and 13.5 s at p95
+// (S06-06-devices-and-warm-start, "Warm start"), so a start without an
 // answer after 60 s is a wb-vmd that hangs. The start is then refused
 // with vm-start-timeout and the instance closed.
 const DefaultStartTimeout = 60 * time.Second

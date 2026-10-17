@@ -68,6 +68,9 @@ instance at spawn: its control channel and its hand-off socketpair
 The channel a message arrives on says which VM it's about. No request
 names a VM, a slot, or a path.
 
+`wb-hostd` cuts each text a `wb-vmd` returns, in a refusal or a
+framework error, to a fixed bound before it logs it or passes it on.
+
 `wb-hostd` treats the contents of every VM bundle as written by a
 possibly compromised `wb-vmd`. It opens, clones and deletes files in a
 bundle without following symbolic links. It checks a file's identity
