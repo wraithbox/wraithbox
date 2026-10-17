@@ -72,6 +72,10 @@ S09-11-audit
   that each `wb-vmd` entry's `WB_VMD_SLOT` value and its bundle
   parameter belong to the same slot.
 
+### Local IPC
+
+- **Endpoints, peers and versions** (S04-architecture, "Inter-process contracts", "The version record"). Tests in `internal/platform/paths`, `internal/platform/localipc` and `internal/hostversion`: `HOME` doesn't change the paths, an unsafe run directory or endpoint file is refused and left in place, a peer of another user ID is closed with `ipc-peer-uid` and the next one served, each bad version record gets its rule on both sides, and over gRPC no handler runs for a refused version.
+
 ### Image build
 
 - Leave a symbolic link, a hard-linked file, or a directory at the
@@ -197,6 +201,7 @@ and the file at the final name kept.
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
   (S04-08-records-and-bounds, "Accounting and event channels").
+- The host version record, `FuzzVersionRecord`: no more than 69 bytes read, and an accepted record holds 1 to 64 printable ASCII bytes equal to the reader's own version (S04-architecture, "The version record").
 - The daemon log pipes, `FuzzLogPipe`: arbitrary bytes in arbitrary
   chunks. Each record is one JSON line with at most 4 KiB of input in
   its line field. The reader's buffer doesn't grow past its bound

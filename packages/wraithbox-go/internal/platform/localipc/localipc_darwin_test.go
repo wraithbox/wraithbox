@@ -44,7 +44,7 @@ func testLog() (*slog.Logger, *syncBuffer) {
 // long.
 func shortDir(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "lipc") //nolint:usetesting // t.TempDir's path holds the test name, which pushes run/<name>.sock past sun_path's 104 bytes
+	dir, err := os.MkdirTemp("", "ipc") //nolint:usetesting // t.TempDir's path holds the test name, which pushes run/<name>.sock past sun_path's 104 bytes
 	if err != nil {
 		t.Fatal(err)
 	}

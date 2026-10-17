@@ -130,8 +130,9 @@ linked from that bundle as well.
 ### Between host processes
 
 The first message on every host connection, gRPC or not, is the
-sender's version record (S04-architecture). A peer of another build
-version is refused, and the connection closed. Both versions are logged,
+sender's version record (S04-architecture, "The version record", which
+gives the form, the 69-byte bound and the refusal rules). A peer of
+another build version is refused, and the connection closed. Both versions are logged,
 and the installed bundle is checked (S04-07-supervision, "Upgrades").
 So there are no compatibility rules between host processes.
 
