@@ -200,11 +200,24 @@ run = "go run ./internal/tools/fuzzsmoke"
 
 # `go build ./...` builds every package and keeps nothing. The second
 # command builds the programs into bin/, stamped with the run's version
-# (internal/tools/buildversion).
+# (internal/tools/buildversion). It pulls in conformance:build, so CI's
+# Go build step compiles the conformance checks too.
 [tasks."go:build"]
 dir = "packages/wraithbox-go"
-depends = ["version:stamp"]
+depends = ["version:stamp", "conformance:build"]
 run = ["go build ./...", "go run ./internal/tools/buildversion go-build"]
+
+# Compiles every in-guest conformance package (packages/wraithbox-go/
+# conformance/, build tag `conformance`) for darwin/arm64, on any host OS,
+# into packages/wraithbox-go/.build/conformance/<package>.test. The
+# binaries are copied into a test guest and run there by hand; CI only
+# builds them, so the checks always compile (S11-verification-and-spikes,
+# "Conformance suite").
+[tasks."conformance:build"]
+description = "Compile the in-guest conformance checks for darwin/arm64"
+dir = "packages/wraithbox-go"
+env = { GOOS = "darwin", GOARCH = "arm64" }
+run = "go test -c -tags conformance -o .build/conformance/ ./conformance/..."
 
 # Vet, lint and build for every host OS from one machine, so files with
 # GOOS suffixes cannot rot on the OSes a developer does not use. CI runs
