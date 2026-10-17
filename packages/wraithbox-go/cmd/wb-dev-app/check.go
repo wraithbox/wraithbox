@@ -38,10 +38,11 @@ func checkCommand(ctx context.Context, args []string, stdout, stderr io.Writer) 
 	disk := fs.String("disk", "", "where the bundle's tools disk is mounted")
 	stampFile := fs.String("stamp", "", "the file that holds the run's build version")
 	team := fs.String("team", "", "the team that signed the bundle; empty for an ad-hoc build")
+	bundleID := fs.String("bundle-id", "", "the bundle identifier the build chose")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if *app == "" || *disk == "" || *stampFile == "" || fs.NArg() != 0 {
+	if *app == "" || *disk == "" || *stampFile == "" || *bundleID == "" || fs.NArg() != 0 {
 		return errUsage
 	}
 	stamp, err := readStamp(*stampFile)
@@ -52,7 +53,7 @@ func checkCommand(ctx context.Context, args []string, stdout, stderr io.Writer) 
 	if err != nil {
 		return err
 	}
-	mode := appbundle.Mode{Stamp: stamp, Team: *team}
+	mode := appbundle.Mode{Stamp: stamp, Team: *team, BundleID: *bundleID}
 	violations := appbundle.Check(b, appbundle.Programs, mode)
 	if out, err := run1(ctx, codesignPath, "--verify", "--deep", "--strict", *app); err != nil {
 		violations = append(violations, appbundle.Violation{
@@ -123,8 +124,8 @@ func inspect(ctx context.Context, app, disk string) (appbundle.Bundle, error) {
 	return b, nil
 }
 
-// readPrograms reads the signature, entitlements and stamp of each
-// Mach-O file, by its path relative to root.
+// readPrograms reads the signature, entitlements, stamp and Go main
+// package of each Mach-O file, by its path relative to root.
 func readPrograms(ctx context.Context, root string, paths []string) ([]appbundle.Found, error) {
 	found := make([]appbundle.Found, 0, len(paths))
 	for _, rel := range paths {
@@ -139,9 +140,11 @@ func readPrograms(ctx context.Context, root string, paths []string) ([]appbundle
 				return nil, fmt.Errorf("%s: %w", rel, err)
 			}
 		}
-		if f.Stamp, err = appbundle.ReadStamp(path); err != nil {
+		linked, err := appbundle.ReadLinked(path)
+		if err != nil {
 			return nil, fmt.Errorf("%s: %w", rel, err)
 		}
+		f.Stamp, f.GoMain = linked.Stamp, linked.GoMain
 		found = append(found, f)
 	}
 	return found, nil

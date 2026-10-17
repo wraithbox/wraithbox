@@ -2,6 +2,7 @@ package appbundle
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -48,7 +49,7 @@ func TestC12BundleInstallSwap(t *testing.T) {
 	dest := filepath.Join(apps, AppName)
 
 	var log bytes.Buffer
-	if err := Install(first, dest, &log); err != nil {
+	if err := Install(first, dest, verifyOK, &log); err != nil {
 		t.Fatal(err)
 	}
 	assertFile(t, dest, "Contents/MacOS/wb", "program first")
@@ -57,7 +58,7 @@ func TestC12BundleInstallSwap(t *testing.T) {
 	}
 
 	log.Reset()
-	if err := Install(second, dest, &log); err != nil {
+	if err := Install(second, dest, verifyOK, &log); err != nil {
 		t.Fatal(err)
 	}
 	assertFile(t, dest, "Contents/MacOS/wb", "program second")
@@ -87,20 +88,58 @@ func TestC12BundleInstallSwap(t *testing.T) {
 	}
 }
 
+func verifyOK(string) error { return nil }
+
+// TestInstallRefuses sees each wrong source or destination refused, and
+// a destination that isn't a bundle left as it was.
 func TestInstallRefuses(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "src.app")
 	writeBundle(t, src, "x")
 	file := filepath.Join(src, "Contents", "Info.plist")
+	notBundle := filepath.Join(t.TempDir(), AppName)
+	if err := os.MkdirAll(filepath.Join(notBundle, "Documents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for name, args := range map[string][2]string{
-		"a missing bundle":  {filepath.Join(src, "missing"), filepath.Join(t.TempDir(), AppName)},
-		"a file":            {file, filepath.Join(t.TempDir(), AppName)},
-		"itself":            {src, src},
-		"a path inside src": {src, filepath.Join(src, "Contents", AppName)},
+		"a missing bundle":           {filepath.Join(src, "missing"), filepath.Join(t.TempDir(), AppName)},
+		"a file":                     {file, filepath.Join(t.TempDir(), AppName)},
+		"itself":                     {src, src},
+		"a path inside src":          {src, filepath.Join(src, "Contents", AppName)},
+		"a destination named else":   {src, t.TempDir()},
+		"a destination not a bundle": {src, notBundle},
 	} {
-		if err := Install(args[0], args[1], &bytes.Buffer{}); err == nil {
+		if err := Install(args[0], args[1], verifyOK, &bytes.Buffer{}); err == nil {
 			t.Errorf("%s: installed", name)
 		}
 	}
+	if _, err := os.Stat(filepath.Join(notBundle, "Documents")); err != nil {
+		t.Errorf("the directory that isn't a bundle changed: %v", err)
+	}
+}
+
+// TestInstallVerifiesTheCopy: a copy that doesn't verify is never
+// renamed in, and the installed bundle stays.
+func TestInstallVerifiesTheCopy(t *testing.T) {
+	src := t.TempDir()
+	first, second := filepath.Join(src, "first.app"), filepath.Join(src, "second.app")
+	writeBundle(t, first, "first")
+	writeBundle(t, second, "second")
+	dest := filepath.Join(t.TempDir(), AppName)
+	if err := Install(first, dest, verifyOK, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	var verified string
+	refuse := func(path string) error {
+		verified = path
+		return errors.New("refused")
+	}
+	if err := Install(second, dest, refuse, &bytes.Buffer{}); err == nil {
+		t.Fatal("installed a copy that doesn't verify")
+	}
+	if verified == "" || verified == second {
+		t.Errorf("verified %q, want the copy", verified)
+	}
+	assertFile(t, dest, "Contents/MacOS/wb", "program first")
 }
 
 func assertSameMode(t *testing.T, src, dst string) {

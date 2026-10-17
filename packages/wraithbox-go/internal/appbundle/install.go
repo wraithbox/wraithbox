@@ -22,8 +22,14 @@ import (
 // It never copies over the files of an installed bundle, so nothing
 // starts a program from a bundle that is half old and half new. The copy
 // and the old bundle are in a directory next to dest, on the same
-// volume, so both renames stay on one volume. log gets one line per step.
-func Install(src, dest string, log io.Writer) (err error) {
+// volume, so both renames stay on one volume. verify checks the copy
+// before it is renamed in: the copy keeps no extended attributes, so the
+// copy is what has to verify. log gets one line per step.
+//
+// dest must be named AppName, and anything already there must be a
+// bundle, so a mistyped destination such as ~/Applications itself is
+// refused instead of renamed aside and deleted.
+func Install(src, dest string, verify func(path string) error, log io.Writer) (err error) {
 	src, dest = filepath.Clean(src), filepath.Clean(dest)
 	info, err := os.Stat(src)
 	if err != nil {
@@ -34,6 +40,9 @@ func Install(src, dest string, log io.Writer) (err error) {
 	}
 	if src == dest || strings.HasPrefix(dest, src+string(filepath.Separator)) {
 		return fmt.Errorf("can't install %s into itself as %s", src, dest)
+	}
+	if err := checkDest(dest); err != nil {
+		return err
 	}
 	parent := filepath.Dir(dest)
 	if err := os.MkdirAll(parent, 0o755); err != nil { //nolint:gosec // G301: ~/Applications is world-readable, as macOS makes it
@@ -49,7 +58,35 @@ func Install(src, dest string, log io.Writer) (err error) {
 	if err := copyTree(src, stage, "new"); err != nil {
 		return fmt.Errorf("copying the new bundle: %w", err)
 	}
-	return swapIn(filepath.Join(stage, "new"), dest, filepath.Join(stage, "old"), log)
+	next := filepath.Join(stage, "new")
+	if err := verify(next); err != nil {
+		return fmt.Errorf("the copy of the new bundle doesn't verify: %w", err)
+	}
+	return swapIn(next, dest, filepath.Join(stage, "old"), log)
+}
+
+// checkDest refuses a destination that isn't named AppName, and one that
+// exists and isn't a bundle: a directory, not a link, with
+// Contents/Info.plist.
+func checkDest(dest string) error {
+	if filepath.Base(dest) != AppName {
+		return fmt.Errorf("the destination %s is not named %s", dest, AppName)
+	}
+	info, err := os.Lstat(dest)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("the destination %s is there and is not a bundle directory", dest)
+	}
+	plist, err := os.Lstat(filepath.Join(dest, filepath.FromSlash(InfoPlistPath)))
+	if err != nil || !plist.Mode().IsRegular() {
+		return fmt.Errorf("the destination %s is there and has no %s, so it is not a bundle", dest, InfoPlistPath)
+	}
+	return nil
 }
 
 // swapIn does steps 2 to 4: it renames dest aside to old when there is

@@ -7,7 +7,7 @@
 //	wb-dev-app identity                 # print the bundle identifier, or refuse WB_TEAM_ID and a bad WB_BUNDLE_ID
 //	wb-dev-app layout                   # print the layout table for the script
 //	wb-dev-app go-build -stamp F -out D # build the Go programs of the table for darwin/arm64, stamped
-//	wb-dev-app check -app A -disk D -stamp F [-team T]  # the entitlement check (step 8)
+//	wb-dev-app check -app A -disk D -stamp F -bundle-id I [-team T]  # the entitlement check (step 8)
 //	wb-dev-app install -app A -to D     # install A as D with the swap of S17-05-upgrades-and-migrations
 //
 // check and install run codesign and plutil by absolute path, so they
@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 )
@@ -94,11 +95,18 @@ func installCommand(ctx context.Context, args []string, stdout, stderr io.Writer
 	if *app == "" || *to == "" || fs.NArg() != 0 {
 		return errUsage
 	}
-	// Only a bundle that verifies is installed.
-	if out, err := run1(ctx, codesignPath, "--verify", "--deep", "--strict", *app); err != nil {
-		return fmt.Errorf("codesign --verify refuses %s: %w: %s", *app, err, out)
+	// Only a bundle that verifies is installed: the built one, and then
+	// its copy, before the copy is renamed in.
+	verify := func(path string) error {
+		if out, err := run1(ctx, codesignPath, "--verify", "--deep", "--strict", path); err != nil {
+			return fmt.Errorf("codesign --verify refuses %s: %w: %s", path, err, strings.TrimSpace(out))
+		}
+		return nil
 	}
-	if err := appbundle.Install(*app, *to, stdout); err != nil {
+	if err := verify(*app); err != nil {
+		return err
+	}
+	if err := appbundle.Install(*app, *to, verify, stdout); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "install: %s is installed\n", *to)

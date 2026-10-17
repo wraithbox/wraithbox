@@ -18,6 +18,9 @@ func goodBundle(team string) Bundle {
 	b := Bundle{Plists: map[string]*Plist{}, ToolsVersion: testStamp}
 	for _, p := range Programs {
 		f := Found{Path: p.Path(), Signed: true, Runtime: true, Entitlements: map[string]any{}, Stamp: testStamp}
+		if p.Source == SourceGo {
+			f.GoMain = testModule + "/cmd/" + p.Name
+		}
 		if p.Virtualization {
 			f.Entitlements[VirtualizationEntitlement] = true
 		}
@@ -45,6 +48,13 @@ func goodBundle(team string) Bundle {
 		b.Programs = append(b.Programs, f)
 	}
 	return b
+}
+
+// testModule is the Go module the bundle's Go programs come from.
+const testModule = "github.com/wraithbox/wraithbox/packages/wraithbox-go"
+
+func testMode(team string) Mode {
+	return Mode{Stamp: testStamp, Team: team, BundleID: AdhocBundleID}
 }
 
 func anyList(items ...string) []any {
@@ -77,7 +87,7 @@ func program(t *testing.T, b *Bundle, name string) *Found {
 
 func TestC05BuildCheckGoodLayoutsPass(t *testing.T) {
 	for _, team := range []string{"", testTeam} {
-		if got := Check(goodBundle(team), Programs, Mode{Stamp: testStamp, Team: team}); len(got) != 0 {
+		if got := Check(goodBundle(team), Programs, testMode(team)); len(got) != 0 {
 			t.Errorf("team %q: the good bundle fails: %v", team, got)
 		}
 	}
@@ -159,6 +169,18 @@ func TestC05BuildCheck(t *testing.T) {
 		{"a guest program of another build", "", func(t *testing.T, b *Bundle) {
 			program(t, b, "wb-guestd").Stamp = "0.1.0+g1111111111111111"
 		}, "wb-guestd", RuleStamp},
+		{"a Go program from another main package", "", func(t *testing.T, b *Bundle) {
+			program(t, b, "wb").GoMain = testModule + "/cmd/wb-dev-app"
+		}, "wb", RuleSource},
+		{"a Go program from no Go package", "", func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-guestd").GoMain = ""
+		}, "wb-guestd", RuleSource},
+		{"a Go program in the place of a Swift one", "", func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-vmd").GoMain = testModule + "/cmd/wb-vmd"
+		}, "wb-vmd", RuleSource},
+		{"an app with another bundle identifier", "", func(_ *testing.T, b *Bundle) {
+			b.Plists[InfoPlistPath].Keys[keyIdentifier] = "nl.example.other"
+		}, "wb-notify", RuleInfoPlist},
 		{"an unsigned program", "", func(t *testing.T, b *Bundle) {
 			program(t, b, "wb-hostd").Signed = false
 		}, "wb-hostd", RuleSigned},
@@ -191,7 +213,7 @@ func TestC05BuildCheck(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			b := goodBundle(tc.team)
 			tc.change(t, &b)
-			got := Check(b, Programs, Mode{Stamp: testStamp, Team: tc.team})
+			got := Check(b, Programs, testMode(tc.team))
 			if !slices.Contains(Rules, tc.rule) {
 				t.Errorf("%s is not in Rules", tc.rule.ID)
 			}
@@ -216,9 +238,11 @@ func hasViolation(got []Violation, program string, rule Rule) bool {
 
 func TestC05BuildCheckMode(t *testing.T) {
 	for _, m := range []Mode{
-		{Stamp: "", Team: ""},
-		{Stamp: "unstamped", Team: ""},
-		{Stamp: testStamp, Team: "abcde12345"},
+		{Stamp: "", BundleID: AdhocBundleID},
+		{Stamp: "unstamped", BundleID: AdhocBundleID},
+		{Stamp: testStamp, Team: "abcde12345", BundleID: AdhocBundleID},
+		{Stamp: testStamp},
+		{Stamp: testStamp, BundleID: "wraithbox"},
 	} {
 		b := goodBundle(m.Team)
 		if got := Check(b, Programs, m); !hasViolation(got, "build", RuleMode) {

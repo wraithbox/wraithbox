@@ -67,13 +67,19 @@ Outside a `needs-host` issue, in an attended session:
 
 - No host `xcodebuild`, `xcrun simctl`, or `xcode-select`. They can
   wait for hours on a signing or Keychain dialog. Host Xcode setup
-  (`sudo xcodebuild -runFirstLaunch`) is the maintainer's. The one
-  exception is the `xcodebuild` that `mise run app:bundle` runs, and
-  `build` and `ci` with it, without `WB_TEAM_ID`. It signs nothing
-  (`CODE_SIGNING_ALLOWED=NO`), and the bundle is signed ad-hoc
-  (S17-01-bundle). The task also makes the guest tools disk image in
-  `packages/wraithbox-swift/.build/`, and attaches it read-only for its
-  check.
+  (`sudo xcodebuild -runFirstLaunch`) is the maintainer's.
+- The one exception is the `xcodebuild` in the bundle build, run only
+  through `mise run app:bundle`, `build` or `ci`, without `WB_TEAM_ID`.
+  Never run `xcodebuild` or `scripts/app-bundle.sh` directly. That
+  build signs nothing in Xcode (`CODE_SIGNING_ALLOWED=NO`), and signs
+  the bundle ad-hoc (S17-01-bundle). It writes under
+  `packages/wraithbox-swift/.build/`, Xcode's derived data included.
+  It makes the guest tools disk image there, and attaches it read-only
+  for its check. Outside the worktree, Xcode registers the built app
+  with Launch Services and with the execution policy
+  (`RegisterWithLaunchServices`, `RegisterExecutionPolicyException`).
+  Next to the project it writes `WraithBox.xcodeproj/project.xcworkspace`,
+  which git ignores.
 - No `WB_TEAM_ID` in an agent's environment, and no
   `mise run app:install`, which replaces `~/Applications/Wraith Box.app`.
 - No `security` command, no signing with an identity, no Keychain reads

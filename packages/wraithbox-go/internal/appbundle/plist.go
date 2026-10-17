@@ -76,11 +76,12 @@ func checkPlistKeys(name, path string, plist *Plist, want map[string]any) []Viol
 	return out
 }
 
-// checkAppPlist checks the app's bundle identifier and WBBuildVersion.
+// checkAppPlist checks that the app's bundle identifier is the one the
+// build chose, and its WBBuildVersion.
 func checkAppPlist(name string, plist *Plist, m Mode) []Violation {
 	var out []Violation
-	if id, _ := plist.Keys[keyIdentifier].(string); !ValidBundleID(id) {
-		out = append(out, Violation{name, RuleInfoPlist, fmt.Sprintf("%s has %s %q, not a bundle identifier", InfoPlistPath, keyIdentifier, id)})
+	if id, _ := plist.Keys[keyIdentifier].(string); id != m.BundleID {
+		out = append(out, Violation{name, RuleInfoPlist, fmt.Sprintf("%s has %s %q, not the build's %q", InfoPlistPath, keyIdentifier, id, m.BundleID)})
 	}
 	if got, _ := plist.Keys[BuildVersionKey].(string); got != m.Stamp {
 		out = append(out, Violation{

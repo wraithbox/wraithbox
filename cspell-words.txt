@@ -226,6 +226,7 @@ plists
 provisionprofile
 SDKROOT
 SYMROOT
+trimpath
 TEAMID
 UDTO
 volname
