@@ -79,15 +79,15 @@ func requireRoot(t *testing.T) {
 	}
 }
 
-// bind tries to bind a vsock port on every CID, and closes the socket.
-func bind(t *testing.T, port uint32) error {
+// bind tries to bind a vsock port on cid, and closes the socket.
+func bind(t *testing.T, cid, port uint32) error {
 	t.Helper()
 	fd, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
 	if err != nil {
 		t.Fatalf("socket(AF_VSOCK): %v", err)
 	}
 	defer unix.Close(fd)
-	return unix.Bind(fd, &unix.SockaddrVM{CID: unix.VMADDR_CID_ANY, Port: port})
+	return unix.Bind(fd, &unix.SockaddrVM{CID: cid, Port: port})
 }
 
 // connectSelf connects to a port on the guest's own CID. It succeeds when
@@ -113,13 +113,16 @@ func requireGuestdListening(t *testing.T, cid uint32) {
 
 // TestFreeLowPortsNeedRoot: a project user can't bind a free port below
 // 1024 (C09-guest-and-sessions, X27-vsock-confinement condition 4). The
-// rule is only in the XNU source, so each guest image is checked.
+// rule is only in the XNU source, so each guest image is checked, with
+// the wildcard CID and the guest's own.
 func TestFreeLowPortsNeedRoot(t *testing.T) {
-	localCID(t)
+	self := localCID(t)
 	requireStandardUser(t)
-	for _, port := range []uint32{1, 80, 1022} {
-		if err := bind(t, port); !errors.Is(err, unix.EACCES) {
-			t.Errorf("bind port %d as uid %d: %v, want EACCES", port, os.Geteuid(), err)
+	for _, cid := range []uint32{unix.VMADDR_CID_ANY, self} {
+		for _, port := range []uint32{1, 80, 1022} {
+			if err := bind(t, cid, port); !errors.Is(err, unix.EACCES) {
+				t.Errorf("bind CID %d port %d as uid %d: %v, want EACCES", cid, port, os.Geteuid(), err)
+			}
 		}
 	}
 }
@@ -130,18 +133,22 @@ func TestGuestdPortRefused(t *testing.T) {
 	cid := localCID(t)
 	requireStandardUser(t)
 	requireGuestdListening(t, cid)
-	err := bind(t, guestsock.Port)
-	if err == nil {
-		t.Fatalf("bind port %d as uid %d succeeded while wb-guestd runs", guestsock.Port, os.Geteuid())
+	for _, c := range []uint32{unix.VMADDR_CID_ANY, cid} {
+		err := bind(t, c, guestsock.Port)
+		if err == nil {
+			t.Fatalf("bind CID %d port %d as uid %d succeeded while wb-guestd runs", c, guestsock.Port, os.Geteuid())
+		}
+		t.Logf("bind CID %d port %d as uid %d: %v", c, guestsock.Port, os.Geteuid(), err)
 	}
-	t.Logf("bind port %d as uid %d: %v", guestsock.Port, os.Geteuid(), err)
 }
 
 // TestSelfCIDFlood: after 30 s of connects to the guest's own CID,
 // wb-guestd still holds its port, and its log holds only rate-limited
 // records of the flood (#115 item 1, X27-vsock-confinement condition 3).
 // It runs as root, which can read the log and would get the port if
-// wb-guestd had let it go.
+// wb-guestd had let it go. The host connects to the port during the
+// flood, outside this test, and wb-guestd's log shows those connections
+// served.
 func TestSelfCIDFlood(t *testing.T) {
 	cid := localCID(t)
 	requireRoot(t)
@@ -166,7 +173,7 @@ func TestSelfCIDFlood(t *testing.T) {
 	}
 	time.Sleep(time.Second)
 
-	if err := bind(t, guestsock.Port); !errors.Is(err, unix.EADDRINUSE) {
+	if err := bind(t, unix.VMADDR_CID_ANY, guestsock.Port); !errors.Is(err, unix.EADDRINUSE) {
 		t.Fatalf("root bind of port %d after the flood: %v, want EADDRINUSE (wb-guestd holds it)", guestsock.Port, err)
 	}
 	checkFloodLog(t, logPath, start)

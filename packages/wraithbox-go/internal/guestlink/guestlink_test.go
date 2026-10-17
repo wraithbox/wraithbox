@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
@@ -164,6 +166,56 @@ func TestHelloTimeout(t *testing.T) {
 	requireRefused(t, link, err, RuleTimeout)
 	if d := time.Since(start); d > 2*time.Second {
 		t.Fatalf("refused after %v, want about the deadline", d)
+	}
+	requireClosed(t, conn)
+}
+
+// statusGuest answers Hello at once with an error status.
+type statusGuest struct {
+	guestv1.UnimplementedGuestServiceServer
+
+	code codes.Code
+}
+
+func (g *statusGuest) Hello(context.Context, *guestv1.HelloRequest) (*guestv1.HelloResponse, error) {
+	return nil, status.Error(g.code, "guest says so")
+}
+
+// TestHelloGuestDeadlineStatus: a DEADLINE_EXCEEDED status the guest
+// sends is guest input, refused as invalid, not as the host's timeout.
+func TestHelloGuestDeadlineStatus(t *testing.T) {
+	conn := serve(t, &statusGuest{code: codes.DeadlineExceeded})
+	link, err := Hello(t.Context(), conn, own, slog.New(slog.DiscardHandler))
+	requireRefused(t, link, err, RuleInvalid)
+	requireClosed(t, conn)
+}
+
+// TestHelloCanceled: when the host cancels, the connection is closed and
+// the error wraps context.Canceled, with no refusal of the guest.
+func TestHelloCanceled(t *testing.T) {
+	lis := bufconn.Listen(1 << 20)
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		silent, _ := lis.Accept()
+		accepted <- silent
+	}()
+	conn, err := lis.Dial()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer (<-accepted).Close()
+	ctx, cancel := context.WithCancel(t.Context())
+	time.AfterFunc(50*time.Millisecond, cancel)
+	var logs logCapture
+	link, err := Hello(ctx, conn, own, logs.logger())
+	if link != nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("Hello = %v, %v; want nil, context.Canceled", link, err)
+	}
+	if _, ok := errors.AsType[*Refusal](err); ok {
+		t.Fatalf("Hello returned a refusal %v for the host's own cancel", err)
+	}
+	if rec := logs.last(t); rec["rule"] != nil || rec["decision"] != "close" {
+		t.Fatalf("log %v, want a close without a rule", rec)
 	}
 	requireClosed(t, conn)
 }

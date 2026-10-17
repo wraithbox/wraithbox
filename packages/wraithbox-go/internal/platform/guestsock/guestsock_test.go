@@ -207,6 +207,15 @@ func TestAcceptRefusesOtherPeers(t *testing.T) {
 	if len(recs) != 1 || recs[0]["peer_cid"] != float64(3) || recs[0]["decision"] != "close" {
 		t.Fatalf("records %v, want one close of peer CID 3", recs)
 	}
+	served := 0
+	for _, rec := range logs.records(t) {
+		if rec["decision"] == "serve" && rec["peer_cid"] == float64(HostCID) {
+			served++
+		}
+	}
+	if served != 1 {
+		t.Fatalf("%d serve records for the host's connection, want 1: %v", served, logs.records(t))
+	}
 }
 
 // TestLogLimit: one record per kind per window, each with the count held
