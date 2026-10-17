@@ -43,16 +43,19 @@ sign() {
 	fi
 }
 
-# Detaches the tools disk the check attached, by force when it is busy.
+# Detaches the tools disk the check attached at $mount: a plain detach,
+# and a forced one only when the plain one fails. Called only once the
+# attach has succeeded, so $mount is the disk's mount point.
 detach_disk() {
 	hdiutil detach -quiet "$mount" || hdiutil detach -quiet -force "$mount"
 }
 
 # The entitlement check of step 8, on the bundle $1, with its tools disk
 # attached read-only for the time of the check. A relative $1 is taken
-# from the repository root, where mise runs the task. The traps detach
-# the disk when the script exits or is interrupted during the check, so
-# no mount is left in the work directory.
+# from the repository root, where mise runs the task. Once the attach has
+# succeeded, traps detach the disk when the script exits or is
+# interrupted during the check, so no mount is left in the work
+# directory. A failed attach detaches nothing.
 check() {
 	case $1 in
 	/*) app_dir=$1 ;;
@@ -60,9 +63,9 @@ check() {
 	esac
 	mount=$work/tools-disk
 	mkdir -p "$mount"
-	trap 'detach_disk 2>/dev/null' EXIT
-	trap 'detach_disk 2>/dev/null; exit 130' INT TERM
 	hdiutil attach -readonly -nobrowse -noautoopen -mountpoint "$mount" "$app_dir/$tools_disk" >/dev/null
+	trap 'detach_disk' EXIT
+	trap 'detach_disk; exit 130' INT TERM
 	status=0
 	(cd "$go_dir" && "$dev" check -app "$app_dir" -disk "$mount" -stamp "$stamp_file" -bundle-id "$bundle_id") || status=$?
 	trap - EXIT INT TERM

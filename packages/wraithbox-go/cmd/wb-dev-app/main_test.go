@@ -85,7 +85,7 @@ func TestReadStamp(t *testing.T) {
 
 func TestGoBuildArgs(t *testing.T) {
 	got := goBuildArgs("wb", "0.1.0+g0123456789abcdef", "out")
-	want := []string{"build", "-ldflags=-X " + version.StampVar + "=0.1.0+g0123456789abcdef", "-o", filepath.Join("out", "wb"), "./cmd/wb"}
+	want := []string{"build", "-trimpath=false", "-ldflags=-X " + version.StampVar + "=0.1.0+g0123456789abcdef", "-o", filepath.Join("out", "wb"), "./cmd/wb"}
 	if !slices.Equal(got, want) {
 		t.Errorf("goBuildArgs = %q, want %q", got, want)
 	}
