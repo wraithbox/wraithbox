@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 )
 
 // Linux hosts are later (S12-platforms). Their endpoint will be a Unix
@@ -14,9 +13,6 @@ import (
 // errors.ErrUnsupported (S12-01-platform-interfaces, "Unimplemented
 // platforms fail clearly").
 var errUnsupported = fmt.Errorf("localipc: local IPC on linux: %w", errors.ErrUnsupported)
-
-// peerCredential isn't built on linux, so every peer is refused.
-var peerCredential = func(*net.UnixConn) (Peer, error) { return Peer{}, errUnsupported }
 
 // EnsureRunDir isn't built on linux.
 func EnsureRunDir(*slog.Logger, string) error { return errUnsupported }

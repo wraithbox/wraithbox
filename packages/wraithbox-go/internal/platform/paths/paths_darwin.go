@@ -1,6 +1,7 @@
 package paths
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -77,4 +78,17 @@ func (p Paths) Real() (Paths, error) {
 	}
 	out.Run = filepath.Join(out.Data, "run")
 	return out, nil
+}
+
+// logRefusal logs a refusal with its rule. A nil log is slog.Default().
+func logRefusal(log *slog.Logger, r *Refusal, attrs ...slog.Attr) {
+	if log == nil {
+		log = slog.Default()
+	}
+	attrs = append([]slog.Attr{
+		slog.String("rule", string(r.Rule)),
+		slog.String("decision", "refuse"),
+		slog.String("reason", r.msg),
+	}, attrs...)
+	log.LogAttrs(context.Background(), slog.LevelError, "host paths refused", attrs...)
 }
