@@ -27,8 +27,11 @@ struct VMBootTests {
         defer { slot.remove() }
         let daemon = try SpawnedDaemon(binary: try signedBinary())
         defer { daemon.kill() }
+        // The signed wb-vmd is stamped and this test process isn't, so the
+        // client sends the version wb-vmd logs as started.
         let transport = try clientTransport(
-            path: daemon.socketPath, version: WraithBoxVersion.version, log: RecordedLog().log)
+            path: daemon.socketPath, version: try await daemon.startedVersion(),
+            log: RecordedLog().log)
         try await withGRPCClient(transport: transport) { grpc in
             let client = Wraithbox_Vmd_V1_VMService.Client(wrapping: grpc)
             try await bootThenForceStop(client, daemon: daemon)
@@ -243,6 +246,18 @@ final class SpawnedDaemon: Sendable {
                 pending = pending[(newline + 1)...]
             }
         }
+    }
+
+    /// The build version from wb-vmd's `started` record. It waits up to
+    /// 10 seconds for the record, and requires a stamped build.
+    func startedVersion() async throws -> String {
+        for _ in 0..<100 where log.events("started").isEmpty {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let started = try #require(log.events("started").first, "wb-vmd logged no started record")
+        let version = try #require(started["version"] as? String)
+        try #require(!version.isEmpty, "wb-vmd is unstamped: run mise run swift:sign")
+        return version
     }
 
     func closeLifeline() throws {
