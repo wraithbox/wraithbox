@@ -6,8 +6,9 @@ licenses.
 ## Design
 
 
-Permissive licenses only (Apache-2.0, MIT, BSD, ISC). No copyleft and
-no source-available licenses. This includes programs Wraith Box ships
+Permissive licenses only (Apache-2.0, MIT, BSD, ISC), or a public
+domain dedication such as SQLite's. No copyleft and no
+source-available licenses. This includes programs Wraith Box ships
 or downloads and runs, such as a VMM on Linux.
 
 | Need | Choice |

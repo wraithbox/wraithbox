@@ -152,8 +152,9 @@ ai-tells rules flag them:
 
 **Supply chain:**
 
-- Dependencies must have permissive licenses (Apache-2.0, MIT, BSD, ISC).
-  No copyleft, no source-available licenses (S10-tech-stack).
+- Dependencies must have permissive licenses (Apache-2.0, MIT, BSD, ISC)
+  or a public domain dedication, such as SQLite's. No copyleft, no
+  source-available licenses (S10-tech-stack).
 - Every lockfile is committed (`bun.lock`, each `go.sum`,
   `Package.resolved`) and has a `.github/dependabot.yml` entry.
 - `mise run vuln` must be clean. Fix a finding by moving the dependency,
