@@ -62,8 +62,8 @@ type vsockListener struct {
 
 func (v *vsockListener) accept() (net.Conn, Peer, error) {
 	var (
-		nfd  int
-		sa   unix.Sockaddr
+		nfd       int
+		sa        unix.Sockaddr
 		acceptErr error
 	)
 	err := v.rc.Read(func(fd uintptr) bool {
