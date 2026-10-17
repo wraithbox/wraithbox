@@ -56,17 +56,20 @@ func goBuildCommand(ctx context.Context, args []string, stdout, stderr io.Writer
 // goBuildEnv is what go-build sets over the environment: the bundle's
 // target, and an empty GOFLAGS. A -trimpath there would leave -ldflags
 // out of the build information, where the check reads the stamp
-// (appbundle.ReadLinked), so the flags come only from goBuildArgs.
+// (appbundle.ReadLinked). An empty GOFLAGS still leaves a value set
+// with `go env -w`, so goBuildArgs turns -trimpath off as well.
 // exec.Cmd keeps the last value of a repeated variable.
 func goBuildEnv() []string {
 	return []string{"GOOS=" + bundleGOOS, "GOARCH=" + bundleGOARCH, "GOFLAGS="}
 }
 
-// goBuildArgs are the arguments of `go build` for one program: the
+// goBuildArgs are the arguments of `go build` for one program: no
+// -trimpath, whatever GOFLAGS says (a flag on the command line wins), the
 // stamp as internal/tools/buildversion links it, and the output file.
 func goBuildArgs(name, stamp, out string) []string {
 	return []string{
 		"build",
+		"-trimpath=false",
 		"-ldflags=-X " + version.StampVar + "=" + stamp,
 		"-o", filepath.Join(out, name),
 		"./cmd/" + name,
