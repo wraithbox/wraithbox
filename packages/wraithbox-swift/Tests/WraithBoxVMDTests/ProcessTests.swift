@@ -4,6 +4,7 @@
 // anywhere the package builds.
 import Darwin
 import Foundation
+import Synchronization
 import Testing
 
 @testable import WraithBoxVMD
@@ -23,6 +24,32 @@ struct ProcessTests {
         #expect(log.rules == [rule.rawValue])
         #expect(log.events("start-refused").count == 1)
         #expect(log.events("confined").isEmpty)
+    }
+
+    // The needs-vm test waits for wb-vmd's started record while wb-vmd
+    // runs, so its log reader must hand over each line as it arrives, not
+    // at end of file.
+    @Test("the log reader adds a record while its writer is still open")
+    func logReaderDoesNotWaitForEndOfFile() async throws {
+        let (readEnd, writeEnd) = try makePipe()
+        let log = RecordedLog()
+        let done = Mutex(false)
+        let thread = Thread {
+            SpawnedDaemon.readLines(readEnd, into: log)
+            done.withLock { $0 = true }
+        }
+        thread.start()
+        writeAll(writeEnd, "{\"event\":\"started\"}\n{\"event\":")
+        for _ in 0..<50 where log.lines.isEmpty {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        #expect(log.lines == ["{\"event\":\"started\"}"])
+        close(writeEnd)
+        for _ in 0..<50 where !done.withLock({ $0 }) {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        #expect(done.withLock { $0 })
+        #expect(log.lines.count == 1)
     }
 
     /// Runs the wb-vmd next to the test bundle with a lifeline and a log

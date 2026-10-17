@@ -26,7 +26,9 @@ struct VMBootTests {
         let slot = try WorkSlot(cloning: try #require(spikeBundle))
         defer { slot.remove() }
         let daemon = try SpawnedDaemon(binary: try signedBinary())
-        defer { daemon.kill() }
+        // Pass or fail, the output ends with how wb-vmd ended and every
+        // record it logged, so a failure names its cause.
+        defer { daemon.finish() }
         // The signed wb-vmd is stamped and this test process isn't, so the
         // client sends the version wb-vmd logs as started.
         let transport = try clientTransport(
@@ -40,9 +42,8 @@ struct VMBootTests {
             try await waitForState(client, .running)
         }
         try daemon.closeLifeline()
-        #expect(try daemon.waitForExit(seconds: 30) == 0)
+        #expect(daemon.waitForExit(seconds: 30) == 0)
         #expect(!daemon.log.events("lifeline-closed").isEmpty)
-        daemon.printLog()
     }
 
     private func bootThenForceStop(
@@ -186,7 +187,9 @@ final class SpawnedDaemon: Sendable {
     let socketPath: String
     let log = RecordedLog()
     private let lifeline = Mutex<Int32>(-1)
-    private let reaped = Mutex(false)
+    /// The wait status, once the process has been reaped.
+    private let waitStatus = Mutex<Int32?>(nil)
+    private let readerDone = Mutex(false)
     private let directory: TemporaryDirectory
 
     init(binary: String) throws {
@@ -200,10 +203,10 @@ final class SpawnedDaemon: Sendable {
             binary, descriptors: [lifelinePipe.0, logPipe.1, listening, handoff.1])
         closeAll([lifelinePipe.0, logPipe.1, listening, handoff.1])
         lifeline.withLock { $0 = lifelinePipe.1 }
-        let log = log
-        let thread = Thread {
+        let thread = Thread { [self] in
             Self.readLines(logPipe.0, into: log)
             close(handoff.0)
+            readerDone.withLock { $0 = true }
         }
         thread.start()
     }
@@ -236,14 +239,26 @@ final class SpawnedDaemon: Sendable {
         return pid
     }
 
+    /// Reads `fd` until end of file, adds each line to `log` as soon as it
+    /// arrives, and closes `fd`. read(2) returns what the pipe holds.
+    /// FileHandle's `read(upToCount:)` waits for the whole count or end of
+    /// file, which keeps a running wb-vmd's few records from the test.
     static func readLines(_ fd: Int32, into log: RecordedLog) {
-        let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
-        var pending = Data()
-        while let chunk = try? handle.read(upToCount: 4096), !chunk.isEmpty {
-            pending += chunk
+        defer { close(fd) }
+        var pending: [UInt8] = []
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while true {
+            let count = buffer.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
+            if count < 0 && errno == EINTR {
+                continue
+            }
+            guard count > 0 else {
+                return
+            }
+            pending += buffer.prefix(count)
             while let newline = pending.firstIndex(of: 0x0A) {
                 log.append(String(decoding: pending[..<newline], as: UTF8.self))
-                pending = pending[(newline + 1)...]
+                pending.removeFirst(newline + 1)
             }
         }
     }
@@ -254,7 +269,11 @@ final class SpawnedDaemon: Sendable {
         for _ in 0..<100 where log.events("started").isEmpty {
             try await Task.sleep(for: .milliseconds(100))
         }
-        let started = try #require(log.events("started").first, "wb-vmd logged no started record")
+        let records = log.lines.suffix(5).joined(separator: "\n")
+        let started = try #require(
+            log.events("started").first,
+            "wb-vmd logged no started record, and it \(endDescription()). Its last records:\n\(records)"
+        )
         let version = try #require(started["version"] as? String)
         try #require(!version.isEmpty, "wb-vmd is unstamped: run mise run swift:sign")
         return version
@@ -267,31 +286,55 @@ final class SpawnedDaemon: Sendable {
         }
     }
 
-    /// Waits for the process to exit, and returns its exit status.
-    func waitForExit(seconds: Int) throws -> Int32? {
+    /// Waits for the process to exit, and returns its exit status, or nil
+    /// when it is still running or ended on a signal.
+    func waitForExit(seconds: Int) -> Int32? {
         for _ in 0..<(seconds * 10) {
-            var status: Int32 = 0
-            if waitpid(pid, &status, WNOHANG) == pid {
-                reaped.withLock { $0 = true }
-                return (status >> 8) & 0xFF
+            if let status = reap() {
+                return status & 0x7F == 0 ? (status >> 8) & 0xFF : nil
             }
             usleep(100_000)
         }
         return nil
     }
 
-    /// Ends the process if the test didn't see it exit.
-    func kill() {
-        guard !reaped.withLock({ $0 }) else {
-            return
+    /// The wait status once the process has exited, without waiting for it.
+    private func reap() -> Int32? {
+        waitStatus.withLock { stored in
+            var status: Int32 = 0
+            if stored == nil, waitpid(pid, &status, WNOHANG) == pid {
+                stored = status
+            }
+            return stored
         }
-        Darwin.kill(pid, SIGKILL)
-        var status: Int32 = 0
-        waitpid(pid, &status, 0)
     }
 
-    /// Prints wb-vmd's log, for the pull request.
-    func printLog() {
+    /// How the process ended, or that it hasn't, as the end of a sentence
+    /// that starts with "wb-vmd".
+    func endDescription() -> String {
+        guard let status = reap() else {
+            return "is still running"
+        }
+        let signal = status & 0x7F
+        return signal == 0
+            ? "exited with status \((status >> 8) & 0xFF)" : "ended on signal \(signal)"
+    }
+
+    /// Ends the process if it is still running, and prints how it ended
+    /// and every record it logged, for the pull request and for a failure.
+    func finish() {
+        let ended = endDescription()
+        if reap() == nil {
+            Darwin.kill(pid, SIGKILL)
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            waitStatus.withLock { $0 = status }
+        }
+        // The reader ends at end of file, once the process is gone.
+        for _ in 0..<20 where !readerDone.withLock({ $0 }) {
+            usleep(100_000)
+        }
+        print("wb-vmd \(ended) at the end of the test. Its records:")
         for line in log.lines {
             print("wb-vmd: \(line)")
         }
