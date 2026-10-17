@@ -2,6 +2,11 @@ version: "2"
 
 run:
   timeout: 5m
+  # The in-guest conformance checks in packages/wraithbox-go/conformance/
+  # are behind this tag (S11-verification-and-spikes, "Conformance
+  # suite"). Lint them with the rest of the code.
+  build-tags:
+    - conformance
 
 linters:
   default: standard
