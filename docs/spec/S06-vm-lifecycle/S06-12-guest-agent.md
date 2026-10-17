@@ -25,6 +25,36 @@ port below 1024.
 So a project user can't take the port while the service manager
 restarts `wb-guestd` (S04-architecture, X27-vsock-confinement).
 
+The port is 1023, the highest one only root can bind. The Go code of
+guest and host takes it from one constant, `Port` in
+`internal/platform/guestsock`. How the
+listener keeps serving through aborted accepts, connect floods, and
+restart races is in S04-02-vm-provider, "Guest ports below 1024".
+
+#### The hello
+
+The first call on every connection the host opens is
+`GuestService.Hello`. `wb-guestd` answers with its build version and
+the `.proto` packages it serves. `wb-hostd` checks the answer before
+anything else uses the connection (S04-08-records-and-bounds, "With
+`wb-guestd`"):
+
+- It sets its receive cap of 4 KiB as a client option, so gRPC refuses
+  a larger answer before it decodes it, and it waits at most 5 s.
+- A timeout is refused with `guest-hello-timeout`. A failed call, an
+  answer over the cap, or an error status is refused with
+  `guest-hello-invalid`.
+- The version and the package list get the checks of
+  S04-08-records-and-bounds, each with its rule.
+
+A refusal closes the connection and is logged with its rule, and guest
+text in the record is escaped and cut. `wb-guestd`'s own receive cap is
+64 KiB, because the host sends nothing large.
+
+`wb-guestd` logs one JSON object per line on standard error, as
+`wb-vmd` does. On macOS its LaunchDaemon sends that to a file in the
+guest.
+
 On a Windows guest or a Windows host, the spikes of
 S12-01-platform-interfaces ("Host-guest socket: keeping `wb-guestd`'s
 endpoint") decide how a project user is kept from posing as

@@ -26,6 +26,8 @@ guestv
 contracttest
 fuzzsmoke
 fdchan
+guestlink
+guestsock
 selfsandbox
 termfilter
 
@@ -110,6 +112,7 @@ socketpairs
 adddup
 clonefile
 CLOEXEC
+VMADDR
 confstr
 dladdr
 dlsym
@@ -192,6 +195,8 @@ Codeberg
 codesign
 protoc
 protoreflect
+protowire
+bufconn
 genproto
 mktemp
 Xlinker

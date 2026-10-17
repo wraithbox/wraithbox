@@ -18,11 +18,23 @@ S06-09-session-lifecycle, S13-guest-confinement, S15-04-guest-admin
 
 - Read or change policy, credentials, or the audit log from the guest.
 - As a project user outside the session profile, bind a free vsock port
-  below 1024, and see `EACCES`. Bind `wb-guestd`'s port while it runs,
-  and see the bind refused. The rule for ports below 1024 isn't in
+  below 1024, on the wildcard CID and on the guest's own, and see
+  `EACCES`. Bind `wb-guestd`'s port the same two ways while it runs, and
+  see the bind refused. The rule for ports below 1024 isn't in
   Apple's developer documentation, only in the XNU source
   (`bsd/kern/vsock_domain.c`, `VSOCK_PORT_RESERVED`, `proc_suser`), so
-  each guest image is checked.
+  each guest image is checked. In `conformance/guestsock`:
+  `TestFreeLowPortsNeedRoot` and `TestGuestdPortRefused`.
+- As root, connect to `wb-guestd`'s port on the guest's own CID in a
+  loop for 30 s. See `wb-guestd` still hold the port (a root bind gets
+  `EADDRINUSE`), and its log hold at most one `guestd-accept-failed`
+  or `guestd-peer-not-host` record per 10 s (S04-02-vm-provider,
+  "Guest ports below 1024", I115). Meanwhile, connect from the host,
+  and see the host still reach the port and each of its connections
+  logged as served from CID 2. In `conformance/guestsock`:
+  `TestSelfCIDFlood`, with the host side run by hand.
+- Kill `wb-guestd` with `SIGKILL`, and see launchd start it again and it
+  hold its port again.
 - Inside a session, open an `AF_VSOCK` socket, and see `EPERM`
   (X27-vsock-confinement).
 - As root, run `sudo -l -U` for each project user, and see no rules
