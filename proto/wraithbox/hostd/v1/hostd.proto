@@ -1,0 +1,52 @@
+// The contract between wb and wb-hostd (S04-architecture, "Inter-process
+// contracts"). wb is the client and wb-hostd serves it on its local IPC
+// endpoint, <data>/run/wb-hostd.sock, which only the user can open. Each
+// connection passes the peer check and the build version exchange
+// before any call (internal/platform/localipc, internal/hostversion).
+//
+// A request names its VM with the VM enum, never with a path.
+//
+// Refusals use gRPC's rich error model: status FAILED_PRECONDITION or
+// INVALID_ARGUMENT, with a google.rpc.ErrorInfo detail whose `reason` is
+// the name of the rule that refused. The status message is the text for
+// the user, which names the fix (NFR06-explained-refusals). The caller
+// reads the rule as data and never parses the message.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.hostd.v1;
+
+// HostService is wb-hostd's service for wb's management commands
+// (S05-03-management-commands). No guest request reaches it.
+service HostService {
+  // ResetVMData gives a stopped VM a new data disk, for `wb vm
+  // reset-data`. wb calls it only after a person confirmed in wb's own
+  // terminal (SEC14-no-fake-approvals). It deletes the old disk, with
+  // every project's home on it, and has wb-diskfmt make a new one
+  // (S05-03-management-commands, "`wb vm reset-data`"). It is refused
+  // with vm-running unless the VM is stopped.
+  rpc ResetVMData(ResetVMDataRequest) returns (ResetVMDataResponse);
+}
+
+// VM names one of the two VMs (S06-04-vms-and-placement).
+enum VM {
+  // Refused: a request names its VM.
+  VM_UNSPECIFIED = 0;
+  VM_WORK = 1;
+  VM_ISOLATED = 2;
+}
+
+message ResetVMDataRequest {
+  VM vm = 1;
+}
+
+message ResetVMDataResponse {
+  // The volume UUID of the disk deleted, empty when the VM had none
+  // recorded.
+  string old_volume_uuid = 1;
+  // The volume UUID of the new disk.
+  string new_volume_uuid = 2;
+}
