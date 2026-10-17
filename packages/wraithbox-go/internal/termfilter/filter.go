@@ -8,7 +8,9 @@
 // any other token whole, so the terminal's parser is back in its ground
 // state after every token. It counts each drop by a Rule of
 // S16-02-drops-and-links. It logs nothing per token, because the guest
-// chooses how many drops there are: the counts are the record.
+// chooses how many drops there are: the counts are the record. Of the
+// OSC 8 links it drops, it keeps the URL, the text and a Mark for the
+// record too (links.go, S09-12-terminal-filter).
 package termfilter
 
 import (
@@ -37,6 +39,7 @@ type Filter struct {
 	kb  keyboard
 
 	counts map[Rule]uint64
+	links  linkList
 
 	now      func() time.Time
 	belLimit bool
@@ -60,6 +63,7 @@ func New(w io.Writer, opts ...Option) *Filter {
 	f := &Filter{
 		w:        w,
 		counts:   make(map[Rule]uint64, len(rules)),
+		links:    newLinkList(),
 		now:      time.Now,
 		belLimit: true,
 	}
@@ -92,13 +96,14 @@ func (f *Filter) Write(p []byte) (int, error) {
 
 // Close ends the stream. The bytes of an unfinished UTF-8 character
 // each become U+FFFD, and an unfinished sequence is dropped and counted
-// by its class. It doesn't close the underlying writer. Close after
-// Close does nothing.
+// by its class. A link still open is complete. It doesn't close the
+// underlying writer. Close after Close does nothing.
 func (f *Filter) Close() error {
 	if f.closed {
 		return nil
 	}
 	f.closed = true
+	defer f.links.end()
 	if f.err != nil {
 		return f.err
 	}
@@ -138,10 +143,12 @@ func (f *Filter) handle(t token) {
 	switch t.kind {
 	case kText:
 		f.pass(t.raw)
+		f.links.addText(t.raw)
 	case kInvalid:
 		// Not a drop and not counted: the text around it stays
 		// (S16-02-drops-and-links, "Which rule a drop counts under").
 		f.pass(replacement)
+		f.links.addText(replacement)
 	case kC1:
 		// A C1 control is a second way to start a sequence, so it never
 		// passes (SEC03-no-host-exec).

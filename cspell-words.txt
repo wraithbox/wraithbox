@@ -235,6 +235,9 @@ OCSF
 SIEM
 relinks
 recompiles
+dotless
+fullwidth
+halfwidth
 
 # Vale rule names quoted in .vale.ini
 Cataphoric
