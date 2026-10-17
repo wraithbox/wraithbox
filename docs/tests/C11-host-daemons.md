@@ -36,6 +36,8 @@ S09-11-audit
   started"). An argument is refused with `vmd-arguments`, and a missing
   descriptor or one of the wrong kind with `vmd-descriptor-invalid`.
   Closing the lifeline stops the VM. Unconfined, the deny probe refuses.
+  An empty sandbox parameter, or one with a NUL byte, is refused with
+  `vmd-sandbox-param-invalid` before confinement.
 - **Peer check and version record** (S04-architecture, "The version
   record"). A peer of another user ID is closed with
   `ipc-peer-uid` and doesn't get a byte, and the next connection is
