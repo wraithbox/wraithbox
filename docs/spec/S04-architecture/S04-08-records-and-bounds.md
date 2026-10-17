@@ -162,7 +162,11 @@ In V1, `wb-hostd` accepts only its own build version:
 
 The package list is refused unless it holds at most 16 names of at
 most 64 bytes, each `wraithbox.<lowercase letters>.v<number>`, and
-equals the host's own list. The host uses it only to refuse.
+equals the host's own list. The host uses it only to refuse. A list
+outside that form is refused with `guest-packages-form`, and another
+list with `guest-packages-mismatch`. The host checks the list after the
+version, so a guest of another build version is refused for its
+version.
 
 A `wb-guestd` that reports another version is refused before any
 session request. `wb-hostd` logs both versions. A session start in

@@ -5,7 +5,7 @@
 the accounting and event channels, the daemon log pipes, the audit
 writer, free space, and the data disk steps.
 
-**Verifies:** S04-02-vm-provider ("The device set is fixed and checked"),
+**Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024"), S06-12-guest-agent ("The hello"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
 S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
 S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
@@ -195,6 +195,26 @@ Spec: S04-08-records-and-bounds, "Logs and health". Tests in
 - A blocked file write doesn't stop the reader from draining the pipe.
   The lines it drops are counted in `daemon-log-backlog` records.
 
+### Host-guest socket
+
+Spec: S04-02-vm-provider ("Guest ports below 1024"), S06-12-guest-agent
+("The port", "The hello").
+
+- **Listener** (`internal/platform/guestsock`, with a fake socket and
+  clock). Failed accepts are skipped and the next host connection is
+  served. A connection from CID 3 and one from CID 0 are closed and
+  logged with `guestd-peer-not-host`. Each kind logs one record per
+  10 s window with the count held back. `EADDRINUSE` is retried from
+  100 ms doubling to 2 s with `guestd-bind-in-use`, and `EACCES` is
+  returned at once with `guestd-bind-failed`. Port 1023 is below 1024.
+- **Hello** (`internal/guestlink`). An empty version, one of 65 bytes,
+  one with a control byte or a non-ASCII byte, another version, an
+  answer over 4 KiB, a guest that never answers, one that answers
+  `UNIMPLEMENTED`, and package lists that are empty, other, longer or
+  out of form are each refused with their rule and the connection
+  closed. A good answer passes, and `wb-guestd`'s Hello passes over a
+  socketpair.
+
 ### Build versions
 
 - Have `wb-guestd` report another build version, a version string that
@@ -298,7 +318,11 @@ and one before it detaches nothing.
   chunks. Each record is one JSON line with at most 4 KiB of input in
   its line field. The reader's buffer doesn't grow past its bound
   (S04-08-records-and-bounds, "Logs and health").
-- Every vsock RPC handler in `wb-hostd`.
+- Every vsock RPC handler in `wb-hostd`. The first is
+  `FuzzHelloResponse` in `internal/guestlink`: a refused answer never
+  yields a version, and an accepted one is 1 to 64 bytes of printable
+  ASCII equal to the host's own (S04-08-records-and-bounds, "With
+  `wb-guestd`").
 - The stream framing that multiplexes guest requests on a host-opened
   connection, with the project each request is attributed to
   (S04-architecture, B29-vsock-handoff).

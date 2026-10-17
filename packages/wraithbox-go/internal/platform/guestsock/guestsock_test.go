@@ -254,16 +254,16 @@ func heldBack(recs []map[string]any) []any {
 // TestCloseEndsAccept: Close wakes a waiting Accept with net.ErrClosed.
 func TestCloseEndsAccept(t *testing.T) {
 	l := newListener(newFakeSocket(), slog.New(slog.DiscardHandler), time.Now)
-	errc := make(chan error, 1)
+	accepted := make(chan error, 1)
 	go func() {
 		_, err := l.Accept()
-		errc <- err
+		accepted <- err
 	}()
 	time.Sleep(10 * time.Millisecond)
 	if err := l.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
-	if err := <-errc; !errors.Is(err, net.ErrClosed) {
+	if err := <-accepted; !errors.Is(err, net.ErrClosed) {
 		t.Fatalf("Accept after Close: %v, want net.ErrClosed", err)
 	}
 	if err := l.Close(); !errors.Is(err, net.ErrClosed) {

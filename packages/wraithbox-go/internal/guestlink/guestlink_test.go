@@ -51,8 +51,8 @@ func serve(t *testing.T, srv guestv1.GuestServiceServer) net.Conn {
 	return conn
 }
 
-func answer(v string, pkgs ...string) *fakeGuest {
-	return &fakeGuest{resp: &guestv1.HelloResponse{GuestdVersion: v, ServedPackages: pkgs}}
+func answer(v string, packages ...string) *fakeGuest {
+	return &fakeGuest{resp: &guestv1.HelloResponse{GuestdVersion: v, ServedPackages: packages}}
 }
 
 // logCapture collects JSON log records.

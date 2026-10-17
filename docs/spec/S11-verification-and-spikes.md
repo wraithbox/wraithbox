@@ -25,8 +25,18 @@ without a GOOS suffix or build constraint, or CI never finds it.
 
 ### Conformance suite
 
-Adversarial checks run *inside a guest* against a real `wb-netd` and
-`wb-proxyd`. Each must fail safely.
+Adversarial checks run *inside a guest* against a real `wb-netd`,
+`wb-proxyd` and `wb-guestd`. Each must fail safely. The cases are on
+the test case pages, under "Conformance".
+
+The checks are Go tests in `packages/wraithbox-go/conformance/`, one
+package per area, behind the build tag `conformance`. So `go test
+./...` never runs them. `mise run conformance:build` compiles each
+package for the guest, darwin/arm64 for now, into
+`packages/wraithbox-go/.build/conformance/<package>.test`. The binary
+is copied into a test guest and run there. A check that isn't run in a
+guest, or not as the user it needs (root, or a standard user outside
+`admin` and `wheel`), skips with a message that says why.
 
 The suite is a release gate for every host and guest combination in
 the platform matrix (S12-platforms). A combination isn't supported
@@ -106,6 +116,9 @@ These run on hosted runners:
 - Swift, on macOS;
 - the fuzz smoke runs, on Linux.
 
+CI compiles the conformance suite in its Go build step
+(`conformance:build`) and never runs it. A check that stops compiling
+fails CI.
 The conformance suite and the benchmarks need machines that can run
 the guest VMs. Those are Apple Silicon for macOS guests, and nested
 virtualization or bare metal elsewhere. Hosted runners mostly can't.

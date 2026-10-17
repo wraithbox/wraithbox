@@ -104,6 +104,29 @@ while launchd restarted the daemon.
 which a guest process causes by connecting to the guest's own CID. So
 `wb-guestd` never stops listening because of one.
 
+A guest process can repeat that connect in a loop: `connect` has no
+port check, and each one takes a slot in the listen queue until the
+`accept` fails. So the listener bounds what a flood costs it
+(SEC13-bounded-resources):
+
+- It closes a connection from any CID but the host's, because only the
+  host may talk to `wb-guestd`.
+- It logs failed accepts and refused peers at most once per 10 seconds
+  for each kind. Each record carries the count it held back since the
+  last one.
+- After an error other than an aborted connection, such as running out
+  of descriptors, it pauses before the next `accept`, longer each time,
+  up to a second.
+
+A restart can find the port still held by the old process. Then
+`wb-guestd` retries `bind` with a backoff from 100 ms that doubles up
+to 2 s, and logs each try with its errno. It doesn't exit: launchd
+would start it again only after its throttle of 10 s, and the project
+processes stay stopped while the link is down (S13-01-process-hardening,
+"When the link drops"). Any other bind error, `EACCES` included, makes
+it exit non-zero with the errno logged, because such an error means the
+install is broken.
+
 ### Caps and closing
 
 - `wb-vmd` caps the connections it has opened but not yet passed.
