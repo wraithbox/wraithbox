@@ -236,7 +236,7 @@ func TestStartWhileStarting(t *testing.T) {
 	h := newHarness(t)
 	release := make(chan struct{})
 	entered := make(chan struct{})
-	h.provider.OnStart = func(i *vmtest.Instance, req *vmdv1.StartRequest) error {
+	h.provider.OnStart = func(_ context.Context, i *vmtest.Instance, req *vmdv1.StartRequest) error {
 		close(entered)
 		<-release
 		i.Publish(req.GetGeneration(), vmdv1.State_STATE_RUNNING, nil)
@@ -308,7 +308,7 @@ func TestC11GenerationsIncreaseAcrossManagers(t *testing.T) {
 	h := newHarness(t)
 	var seen []uint64
 	var mu sync.Mutex
-	h.provider.OnStart = func(i *vmtest.Instance, req *vmdv1.StartRequest) error {
+	h.provider.OnStart = func(_ context.Context, i *vmtest.Instance, req *vmdv1.StartRequest) error {
 		if c := lastGeneration(t, h.dataDir, "macos-work"); c != req.GetGeneration() {
 			t.Errorf("state.db has %d when the provider sees %d", c, req.GetGeneration())
 		}
@@ -411,11 +411,13 @@ func TestC11ProviderRefusalPassedOn(t *testing.T) {
 		{"not a rule name", &vm.ProviderRefusal{Rule: "Vm Resources\n"}, vm.RuleProviderFailed},
 		{"rule too long", &vm.ProviderRefusal{Rule: strings.Repeat("a", 65)}, vm.RuleProviderFailed},
 		{"transport error", errors.New("connection reset"), vm.RuleProviderFailed},
+		{"the manager's own rule", &vm.ProviderRefusal{Rule: "vm-limit-other-software"}, vm.RuleProviderFailed},
+		{"the manager's running rule", &vm.ProviderRefusal{Rule: "vm-running"}, vm.RuleProviderFailed},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHarness(t)
-			h.provider.OnStart = func(*vmtest.Instance, *vmdv1.StartRequest) error { return tt.err }
+			h.provider.OnStart = func(context.Context, *vmtest.Instance, *vmdv1.StartRequest) error { return tt.err }
 			m := h.manager()
 			r := refusal(t, m.Start(t.Context(), vm.SlotWork), tt.want)
 			if r.Generation != 1 {
@@ -452,7 +454,7 @@ func TestC11LimitOtherSoftware(t *testing.T) {
 		t.Fatal(err)
 	}
 	limit := &vmdv1.VMError{Code: 6, Description: "The number of virtual machines exceeds the limit."}
-	h.provider.OnStart = func(i *vmtest.Instance, req *vmdv1.StartRequest) error {
+	h.provider.OnStart = func(_ context.Context, i *vmtest.Instance, req *vmdv1.StartRequest) error {
 		i.Publish(req.GetGeneration(), vmdv1.State_STATE_ERROR, limit)
 		return &vm.ProviderRefusal{Rule: "vm-start-failed", Detail: limit.GetDescription(), VMError: limit}
 	}
@@ -491,7 +493,7 @@ func TestC11LimitOtherSoftware(t *testing.T) {
 // With no VM of Wraith Box's running, the refusal says so.
 func TestLimitWithNothingRunning(t *testing.T) {
 	h := newHarness(t)
-	h.provider.OnStart = func(*vmtest.Instance, *vmdv1.StartRequest) error {
+	h.provider.OnStart = func(context.Context, *vmtest.Instance, *vmdv1.StartRequest) error {
 		return &vm.ProviderRefusal{Rule: "vm-start-failed", VMError: &vmdv1.VMError{Code: 6}}
 	}
 	m := h.manager()
@@ -552,7 +554,7 @@ func TestInstanceExitStopsSlot(t *testing.T) {
 // stopped.
 func TestStoppedDuringStart(t *testing.T) {
 	h := newHarness(t)
-	h.provider.OnStart = func(i *vmtest.Instance, req *vmdv1.StartRequest) error {
+	h.provider.OnStart = func(_ context.Context, i *vmtest.Instance, req *vmdv1.StartRequest) error {
 		i.Publish(req.GetGeneration(), vmdv1.State_STATE_RUNNING, nil)
 		i.Publish(req.GetGeneration(), vmdv1.State_STATE_STOPPED, nil)
 		return nil
@@ -569,7 +571,7 @@ func TestStoppedDuringStart(t *testing.T) {
 func TestC11RequestStopTimesOutToForce(t *testing.T) {
 	h := newHarness(t)
 	h.cfg.RequestStopTimeout = 10 * time.Millisecond
-	h.provider.OnStop = func(i *vmtest.Instance, req *vmdv1.StopRequest) error {
+	h.provider.OnStop = func(_ context.Context, i *vmtest.Instance, req *vmdv1.StopRequest) error {
 		if req.GetMode() == vmdv1.StopMode_STOP_MODE_FORCE {
 			i.Publish(req.GetGeneration(), vmdv1.State_STATE_STOPPED, nil)
 		}
@@ -598,7 +600,7 @@ func TestStopClosesInstanceAfterForce(t *testing.T) {
 	h := newHarness(t)
 	h.cfg.RequestStopTimeout = time.Hour
 	h.cfg.ForceStopTimeout = 10 * time.Millisecond
-	h.provider.OnStop = func(_ *vmtest.Instance, req *vmdv1.StopRequest) error {
+	h.provider.OnStop = func(_ context.Context, _ *vmtest.Instance, req *vmdv1.StopRequest) error {
 		if req.GetMode() == vmdv1.StopMode_STOP_MODE_REQUEST {
 			return &vm.ProviderRefusal{Rule: "vm-stop-failed"}
 		}

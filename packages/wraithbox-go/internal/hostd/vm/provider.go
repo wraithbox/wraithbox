@@ -16,7 +16,9 @@ type Provider interface {
 	// Open starts a new instance for slot. The slot is the only thing it
 	// is given: on macOS it becomes the instance's WB_VMD_SLOT, and the
 	// bundle path follows from it there (S04-04-vm-processes, "The
-	// slot"). No request names a path, a slot or a device.
+	// slot"). No request names a path, a slot or a device. The manager
+	// passes a ctx that is never cancelled, so an instance may keep it for
+	// its life, which ends at Close.
 	Open(ctx context.Context, slot Slot) (Instance, error)
 }
 
@@ -34,7 +36,8 @@ type Instance interface {
 	// States sends the current state, then each change, as WatchState
 	// does. It is closed when the instance ends: a wb-vmd that exits
 	// means its VM stopped (S04-07-supervision, "`wb-vmd` and
-	// `wb-vmd-install`").
+	// `wb-vmd-install`"). The manager reads it until it is closed, Close
+	// included.
 	States() <-chan *vmdv1.VMState
 	// ConnectGuest opens a connection to port in the guest of
 	// generation, and returns the handed-off descriptor as a net.Conn.

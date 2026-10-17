@@ -87,7 +87,7 @@ func replaceToolsDisk(c Cloner, src, bundle string) error {
 	}
 	tmp := filepath.Join(bundle, toolsDiskTemp)
 	if err := removeName(tmp); err != nil {
-		return fmt.Errorf("the leftover %s: %w", tmp, err)
+		return fmt.Errorf("the leftover %s can't be deleted, so move it away: %w", tmp, err)
 	}
 	if err := c.Clone(src, tmp); err != nil {
 		return errors.Join(fmt.Errorf("clone %s to %s: %w", src, tmp, err), removeName(tmp))

@@ -58,6 +58,9 @@ const (
 	// RuleGuestPort: a connection to guest port 0, or to one of 1024 or
 	// above (S04-02-vm-provider, "Guest ports below 1024").
 	RuleGuestPort Rule = "guest-port-invalid"
+	// RuleStartTimeout: the provider didn't answer a start within
+	// Config.StartTimeout.
+	RuleStartTimeout Rule = "vm-start-timeout"
 	// RuleStoppedUnexpectedly is logged, never returned: the VM reached
 	// STOPPED or ERROR, or its wb-vmd ended, without a stop request.
 	RuleStoppedUnexpectedly Rule = "vm-stopped-unexpectedly"
@@ -113,7 +116,7 @@ func (m *Manager) refuse(ctx context.Context, op string, r *Refusal) *Refusal {
 		attrs = append(attrs, vmErrorAttrs(r.VMError, r.Rule))
 	}
 	if r.err != nil {
-		attrs = append(attrs, slog.String("cause", r.err.Error()))
+		attrs = append(attrs, slog.String("cause", bound(r.err.Error())))
 	}
 	m.log.LogAttrs(ctx, slog.LevelWarn, "vm request refused", attrs...)
 	return r
@@ -129,35 +132,63 @@ func vmErrorAttrs(e *vmdv1.VMError, classified Rule) slog.Attr {
 		slog.String("classified", string(classified)))
 }
 
-// cloneVMError copies e, so a caller can't change the manager's copy.
+// cloneVMError copies e, so a caller can't change the manager's copy,
+// with its text fields cut to maxProviderText.
 func cloneVMError(e *vmdv1.VMError) *vmdv1.VMError {
 	if e == nil {
 		return nil
 	}
 	return &vmdv1.VMError{
-		Code: e.GetCode(), FailureReason: e.GetFailureReason(),
-		Errno: e.GetErrno(), Description: e.GetDescription(),
+		Code: e.GetCode(), FailureReason: bound(e.GetFailureReason()),
+		Errno: e.GetErrno(), Description: bound(e.GetDescription()),
 	}
 }
 
+// maxProviderText bounds each text the provider returns: the rule, the
+// detail, a framework error's failure reason and description, and any
+// other error's text. A possibly compromised wb-vmd chooses them, and
+// they reach the refusal, the log and the slot's status.
+const maxProviderText = 1024
+
+// bound cuts s to maxProviderText bytes, drops a rune the cut split,
+// and marks the cut.
+func bound(s string) string {
+	if len(s) <= maxProviderText {
+		return s
+	}
+	return strings.ToValidUTF8(s[:maxProviderText], "") + " [cut]"
+}
+
+// ownRules are the rules this package decides. A provider that returns
+// one of them is refused with vm-provider-failed, so a refusal with one
+// of these rules always comes from the manager's own check.
+var ownRules = map[Rule]bool{
+	RuleSlotUnknown: true, RuleRunning: true, RuleNotRunning: true, RuleStarting: true,
+	RuleStopping: true, RuleLiveSessions: true, RuleBundleNotDirectory: true,
+	RuleBundleCreateFailed: true, RuleToolsDiskCloneFailed: true, RuleGenerationFailed: true,
+	RuleGenerationInvalid: true, RuleLimitOtherSoftware: true, RuleProviderFailed: true,
+	RuleGuestPort: true, RuleStartTimeout: true, RuleStoppedUnexpectedly: true,
+}
+
 // providerRefusal turns the provider's error for op into a refusal. A
-// *ProviderRefusal keeps wb-vmd's rule when it is a rule name. Any other
-// error, or a rule that isn't one, is vm-provider-failed.
+// *ProviderRefusal keeps wb-vmd's rule when it is a rule name and not
+// one of ownRules. Any other error, or any other rule, is
+// vm-provider-failed.
 func providerRefusal(slot Slot, generation uint64, op string, err error) *Refusal {
 	pr, ok := errors.AsType[*ProviderRefusal](err)
 	if !ok {
 		return &Refusal{
 			Rule: RuleProviderFailed, Slot: slot, Generation: generation, err: err,
-			Message: fmt.Sprintf("the VM provider of the %s VM failed to %s: %v", slot, op, err),
+			Message: fmt.Sprintf("the VM provider of the %s VM failed to %s: %s", slot, op, bound(err.Error())),
 		}
 	}
 	rule := Rule(pr.Rule)
-	if !isRuleName(pr.Rule) {
+	if !isRuleName(pr.Rule) || ownRules[rule] {
 		rule = RuleProviderFailed
 	}
 	return &Refusal{
 		Rule: rule, Slot: slot, Generation: generation, VMError: cloneVMError(pr.VMError), err: err,
-		Message: fmt.Sprintf("wb-vmd refused to %s the %s VM (%q): %s", op, slot, pr.Rule, pr.Detail),
+		Message: fmt.Sprintf("wb-vmd refused to %s the %s VM (%q): %s", op, slot, bound(pr.Rule), bound(pr.Detail)),
 	}
 }
 

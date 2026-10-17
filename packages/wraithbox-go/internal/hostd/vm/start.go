@@ -112,7 +112,9 @@ func checkGeneration(slot Slot, g uint64) *Refusal {
 // boot opens a new provider instance for generation, follows its states
 // and starts the VM.
 func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error {
-	inst, err := m.cfg.Provider.Open(ctx, slot)
+	// The instance lives until the manager closes it, not as long as the
+	// request that started it.
+	inst, err := m.cfg.Provider.Open(context.WithoutCancel(ctx), slot)
 	if err != nil {
 		m.unreserve(slot)
 		return m.refuse(ctx, "start", providerRefusal(slot, generation, "start", err))
@@ -133,18 +135,43 @@ func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error 
 		slog.String("decision", "accept"), slog.String("slot", string(slot)),
 		slog.Uint64("generation", generation), slog.Uint64("cpu_count", uint64(req.GetCpuCount())),
 		slog.Uint64("memory_mib", req.GetMemoryMib()))
-	if err := inst.Start(ctx, req); err != nil {
-		return m.refuse(ctx, "start", m.startFailed(ctx, r, err))
+	if ref := m.startVM(ctx, r, req); ref != nil {
+		return m.refuse(ctx, "start", m.startFailed(ctx, r, ref))
 	}
 	m.started(ctx, r)
 	return nil
 }
 
+// startVM runs the provider's start within StartTimeout. The call runs
+// on its own goroutine, so a wb-vmd that never answers is refused with
+// vm-start-timeout. The call ends at the latest when startFailed closes
+// the instance.
+func (m *Manager) startVM(ctx context.Context, r *run, req *vmdv1.StartRequest) *Refusal {
+	sctx, cancel := context.WithTimeout(ctx, m.cfg.StartTimeout)
+	defer cancel()
+	answer := make(chan error, 1)
+	go func() { answer <- r.inst.Start(sctx, req) }()
+	select {
+	case err := <-answer:
+		if err != nil {
+			return providerRefusal(r.slot, r.generation, "start", err)
+		}
+		return nil
+	case <-sctx.Done():
+		if err := ctx.Err(); err != nil {
+			return providerRefusal(r.slot, r.generation, "start", err)
+		}
+		return &Refusal{
+			Rule: RuleStartTimeout, Slot: r.slot, Generation: r.generation, err: sctx.Err(),
+			Message: fmt.Sprintf("the %s VM didn't start: wb-vmd didn't answer within %s", r.slot, m.cfg.StartTimeout),
+		}
+	}
+}
+
 // startFailed ends a run whose start failed, keeps its framework error,
 // and returns the refusal: vm-limit-other-software for the framework's
-// limit of running VMs, else the provider's.
-func (m *Manager) startFailed(ctx context.Context, r *run, err error) *Refusal {
-	ref := providerRefusal(r.slot, r.generation, "start", err)
+// limit of running VMs, else ref.
+func (m *Manager) startFailed(ctx context.Context, r *run, ref *Refusal) *Refusal {
 	m.mu.Lock()
 	rec := m.slots[r.slot]
 	if ref.VMError != nil && rec.run == r {
