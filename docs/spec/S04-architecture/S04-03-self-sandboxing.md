@@ -45,6 +45,11 @@ process and runs the probe, so no daemon can leave the probe out:
   show that the profile denies all it should: each daemon's own
   self-checks and the profile's review do that.
 
+`wb-vmd` is written in Swift, so it has its own call, `Confinement` in
+`WraithBoxVMD`. Its parameter names are fixed in code. It refuses an
+empty value or one with a NUL byte with `vmd-sandbox-param-invalid`,
+and runs the same probe.
+
 ### `wb-hostd` before it confines itself
 
 `wb-hostd` is one exception. Before it confines itself, it:

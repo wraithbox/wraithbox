@@ -74,6 +74,8 @@ public enum Confinement {
     /// directory as its parameters. The function is looked up with dlsym
     /// and called with the C calling convention: it has no public header.
     public static func apply(bundle: String, cache: String) throws(StartupRefusal) {
+        let values = [("BUNDLE", bundle), ("CACHE", cache)]
+        try checkParameters(values)
         guard
             let initSymbol = dlsym(
                 UnsafeMutableRawPointer(bitPattern: -2), "sandbox_init_with_parameters")
@@ -81,7 +83,7 @@ public enum Confinement {
             throw StartupRefusal(.sandboxInit, "sandbox_init_with_parameters not found")
         }
         let sandboxInit = unsafeBitCast(initSymbol, to: SandboxInit.self)
-        let pairs: [String] = ["BUNDLE", bundle, "CACHE", cache]
+        let pairs: [String] = values.flatMap { [$0.0, $0.1] }
         let strings: [UnsafeMutablePointer<CChar>?] = pairs.map { strdup($0) }
         defer {
             for string in strings {
@@ -103,6 +105,18 @@ public enum Confinement {
                 unsafeBitCast(freeSymbol, to: SandboxFreeError.self)(errorText)
             }
             throw StartupRefusal(.sandboxInit, detail)
+        }
+    }
+
+    /// Refuses a parameter value that is empty or holds a NUL byte, while
+    /// the process is still unconfined (S04-03-self-sandboxing, "Confined
+    /// first thing in `main`"). An empty value names no path, and `strdup`
+    /// would cut a value at its first NUL, so the profile would get
+    /// another path than the one resolved.
+    static func checkParameters(_ values: [(String, String)]) throws(StartupRefusal) {
+        for (name, value) in values where value.isEmpty || value.utf8.contains(0) {
+            throw StartupRefusal(
+                .sandboxParameter, "sandbox parameter \(name) is empty or holds a NUL byte")
         }
     }
 
