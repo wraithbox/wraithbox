@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 
@@ -146,12 +146,14 @@ func stringOrBytes(v any) string {
 	return ""
 }
 
-// absPath returns p cleaned when it is absolute, and "" otherwise.
+// absPath returns p cleaned when it is absolute, and "" otherwise. The
+// paths are macOS paths from diskutil and the I/O Registry, so they are
+// read with slashes on every OS.
 func absPath(p string) string {
-	if !filepath.IsAbs(p) || strings.ContainsRune(p, 0) {
+	if !path.IsAbs(p) || strings.ContainsRune(p, 0) {
 		return ""
 	}
-	return filepath.Clean(p)
+	return path.Clean(p)
 }
 
 // FileURLPath returns the path of a file URL, such as
