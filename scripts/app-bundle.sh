@@ -108,8 +108,9 @@ swift_bin=$(swift build -c release --package-path "$swift_dir" --force-resolved-
 # Step 4: the app, whose executable is the notification helper. Its
 # deployment target is Package.swift's, so one edit moves both. Xcode
 # signs nothing (CODE_SIGNING_ALLOWED=NO). The stamp goes into the same
-# section as in the Swift package's programs. Xcode's derived data goes
-# into the work directory, not ~/Library/Developer/Xcode/DerivedData.
+# section as in the Swift package's programs. xcodebuild takes
+# -derivedDataPath only with -scheme, so Xcode may write to
+# ~/Library/Developer/Xcode/DerivedData (docs/agents/host-work.md).
 manifest=$(swift package dump-package --package-path "$swift_dir")
 platform=$(printf '%s' "$manifest" | plutil -extract platforms.0.platformName raw -o - -)
 target=$(printf '%s' "$manifest" | plutil -extract platforms.0.version raw -o - -)
@@ -118,7 +119,6 @@ if [ "$platform" != macos ]; then
 	exit 1
 fi
 xcodebuild -quiet -project "$swift_dir/WraithBox.xcodeproj" -target WraithBox -configuration Release \
-	-derivedDataPath "$work/xcode/derived" \
 	SYMROOT="$work/xcode/sym" OBJROOT="$work/xcode/obj" \
 	CODE_SIGNING_ALLOWED=NO \
 	MACOSX_DEPLOYMENT_TARGET="$target" \

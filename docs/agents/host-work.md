@@ -72,12 +72,14 @@ Outside a `needs-host` issue, in an attended session:
   through `mise run app:bundle`, `build` or `ci`, without `WB_TEAM_ID`.
   Never run `xcodebuild` or `scripts/app-bundle.sh` directly. That
   build signs nothing in Xcode (`CODE_SIGNING_ALLOWED=NO`), and signs
-  the bundle ad-hoc (S17-01-bundle). It writes under
-  `packages/wraithbox-swift/.build/`, Xcode's derived data included.
-  It makes the guest tools disk image there, and attaches it read-only
-  for its check. Outside the worktree, Xcode registers the built app
-  with Launch Services and with the execution policy
-  (`RegisterWithLaunchServices`, `RegisterExecutionPolicyException`).
+  the bundle ad-hoc (S17-01-bundle). It writes its build output under
+  `packages/wraithbox-swift/.build/`. It makes the guest tools disk
+  image there, and attaches it read-only for its check. Outside the
+  worktree, Xcode registers the built app with Launch Services and
+  with the execution policy (`RegisterWithLaunchServices`,
+  `RegisterExecutionPolicyException`), and may write to
+  `~/Library/Developer/Xcode/DerivedData`: `xcodebuild` takes
+  `-derivedDataPath` only with a scheme.
   Next to the project it writes `WraithBox.xcodeproj/project.xcworkspace`,
   which git ignores.
 - No `WB_TEAM_ID` in an agent's environment, and no
