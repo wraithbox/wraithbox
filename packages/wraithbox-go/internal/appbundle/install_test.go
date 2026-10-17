@@ -65,7 +65,7 @@ func TestC12BundleInstallSwap(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(dest, "Contents", "Resources", "extra")); !os.IsNotExist(err) {
 		t.Errorf("a file of the first bundle is left: %v", err)
 	}
-	if target, err := os.Readlink(filepath.Join(dest, "Contents", "link")); linked && (err != nil || target != "MacOS/wb") {
+	if target, err := os.Readlink(filepath.Join(dest, "Contents", "link")); linked && (err != nil || filepath.ToSlash(target) != "MacOS/wb") {
 		t.Errorf("the link is %q, %v; want MacOS/wb", target, err)
 	}
 	assertSameMode(t, filepath.Join(second, "Contents", "MacOS", "wb"), filepath.Join(dest, "Contents", "MacOS", "wb"))
