@@ -57,6 +57,7 @@ func New(cfg Config) (Manager, error) {
 		run:   run,
 		log:   log,
 		poll:  unloadPoll,
+		wait:  unloadWait,
 	}, nil
 }
 
@@ -70,8 +71,10 @@ type launchAgent struct {
 	uid   int
 	run   Runner
 	log   *slog.Logger
-	// poll is the step of the wait after a bootout. The tests shorten it.
+	// poll is the step of the wait after a bootout, and wait its bound.
+	// The tests shorten them.
 	poll time.Duration
+	wait time.Duration
 }
 
 // Plist returns the LaunchAgent plist that runs program, the absolute
@@ -163,10 +166,14 @@ func (a *launchAgent) Replace(ctx context.Context, program string) error {
 	if err != nil {
 		return err
 	}
-	if err := a.writePlist(data); err != nil {
+	// The bootout comes before the write. A bootout that fails then
+	// leaves the old plist on disk, so the next State isn't Current and
+	// the next run tries again, instead of finding the new bytes while
+	// launchd runs the old program.
+	if err := a.bootout(ctx); err != nil {
 		return err
 	}
-	if err := a.bootout(ctx); err != nil {
+	if err := a.writePlist(data); err != nil {
 		return err
 	}
 	return a.bootstrap(ctx)
@@ -258,32 +265,27 @@ func (a *launchAgent) loaded(ctx context.Context) (bool, error) {
 }
 
 // bootout unloads the agent, which stops wb-hostd, and waits until
-// launchd no longer has it. A bootout of an agent that isn't loaded
-// counts as done.
+// launchd no longer has it. A bootout that exits nonzero counts as done
+// when the agent is gone within the wait, as it is for an agent that
+// wasn't loaded. Otherwise it is an error that names the failed bootout.
 func (a *launchAgent) bootout(ctx context.Context) error {
 	args := []string{"bootout", a.target()}
 	res, err := a.launchctl(ctx, args...)
 	if err != nil {
 		return err
 	}
-	if res.Code != 0 {
-		loaded, err := a.loaded(ctx)
-		if err != nil {
-			return err
-		}
-		if loaded {
-			return failed(args, res)
-		}
-		return nil
+	err = a.waitUnloaded(ctx)
+	if err != nil && res.Code != 0 {
+		return fmt.Errorf("%w: %w", failed(args, res), err)
 	}
-	return a.waitUnloaded(ctx)
+	return err
 }
 
-// waitUnloaded checks every poll, for up to unloadWait, until launchd no
+// waitUnloaded checks every poll, for up to wait, until launchd no
 // longer has the agent, so the bootstrap that follows doesn't find the
 // old one still there.
 func (a *launchAgent) waitUnloaded(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, unloadWait)
+	ctx, cancel := context.WithTimeout(ctx, a.wait)
 	defer cancel()
 	for {
 		loaded, err := a.loaded(ctx)
@@ -292,7 +294,7 @@ func (a *launchAgent) waitUnloaded(ctx context.Context) error {
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("service: %s is still loaded %s after its bootout: %w", Label, unloadWait, context.Cause(ctx))
+			return fmt.Errorf("service: %s is still loaded %s after its bootout: %w", Label, a.wait, context.Cause(ctx))
 		case <-time.After(a.poll):
 		}
 	}

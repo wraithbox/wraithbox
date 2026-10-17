@@ -535,7 +535,25 @@ func TestLockHeld(t *testing.T) {
 	if err := os.Symlink(filepath.Join(data, "elsewhere"), lock); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LockHeld(nil, run, "hostd"); err == nil {
-		t.Error("LockHeld followed a symbolic link")
+	_, err := LockHeld(nil, run, "hostd")
+	wantRule(t, err, RuleEndpointUnsafe)
+
+	// A FIFO would block a plain open until a writer comes.
+	if err := os.Remove(lock); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(lock, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := LockHeld(nil, run, "hostd")
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		wantRule(t, err, RuleEndpointUnsafe)
+	case <-time.After(5 * time.Second):
+		t.Fatal("LockHeld blocked on a FIFO")
 	}
 }

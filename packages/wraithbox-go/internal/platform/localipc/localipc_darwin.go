@@ -284,22 +284,33 @@ func Dial(ctx context.Context, log *slog.Logger, dir, name string) (*Conn, error
 // leftover socket. A missing lock file, or a missing run directory, is
 // not held. When no one holds the lock, LockHeld takes it for an
 // instant, so a Listen in that instant is refused with
-// RuleEndpointInUse. It opens the lock file read-only, never creates
-// it, and doesn't follow a symbolic link.
+// RuleEndpointInUse. It opens the lock file read-only and without
+// waiting, never creates it, and doesn't follow a symbolic link. A lock
+// file that isn't a regular file of the effective user, such as a FIFO
+// that would block the open, is refused with RuleEndpointUnsafe, as
+// Listen refuses it.
 func LockHeld(log *slog.Logger, dir, name string) (bool, error) {
 	path, err := endpointPath(log, dir, name)
 	if err != nil {
 		return false, err
 	}
 	lockPath := strings.TrimSuffix(path, ".sock") + ".lock"
-	f, err := os.OpenFile(lockPath, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	attrs := []slog.Attr{slog.String("endpoint", path), slog.String("lock", lockPath)}
+	f, err := os.OpenFile(lockPath, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("localipc: open the lock file %q: %w", lockPath, err)
+		return false, refuse(log, &Refusal{Rule: RuleEndpointUnsafe, msg: "open the endpoint's lock file", err: err}, attrs...)
 	}
 	defer func() { _ = f.Close() }()
+	fi, err := f.Stat()
+	if err != nil {
+		return false, fmt.Errorf("localipc: stat the lock file %q: %w", lockPath, err)
+	}
+	if uid, owned := ownerOf(fi); !fi.Mode().IsRegular() || !owned || uid != ownUID() {
+		return false, refuse(log, &Refusal{Rule: RuleEndpointUnsafe, msg: "the endpoint's lock file is not a regular file of the effective user"}, attrs...)
+	}
 	err = unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB)
 	if errors.Is(err, unix.EWOULDBLOCK) {
 		return true, nil

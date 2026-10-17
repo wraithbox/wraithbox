@@ -57,9 +57,8 @@ its VMs. So `wb setup` first asks `wb-hostd`:
      a refused connect while the lock is held.
 
 A refusal for another build, or for a `wb-hostd` that can't list its
-VMs, also names the `launchctl bootout` command that stops
-`wb-hostd` once its VMs are stopped. Without that step, the next run
-refuses again.
+VMs, also says how to stop `wb-hostd` once its VMs are stopped.
+Without that step, the next run refuses again.
 
 Then it runs `launchctl bootout` and `launchctl bootstrap gui/<uid>`.
 It runs `/bin/launchctl` by absolute path, with the environment
@@ -84,6 +83,15 @@ It replaces only such a link. It refuses any other file with
 
 When `~/.local/bin` isn't on `PATH`, it prints the line to add. It
 never edits a shell file.
+
+### The Keychain backend
+
+After it installed the agent and the link, `wb setup` refuses the
+Keychain backend of an ad-hoc signed build with `keychain-needs-team`
+(S15-02-secret-store, "Ad-hoc signed builds"). Until the team-signed
+build reads the team from the code signature (I280), `wb setup` takes
+a helper bundle without `Contents/embedded.provisionprofile` as the
+sign of an ad-hoc build.
 
 ### Running it again
 
