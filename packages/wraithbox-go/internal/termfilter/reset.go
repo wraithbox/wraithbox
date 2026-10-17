@@ -33,9 +33,9 @@ type resetStep struct {
 //  3. The guest's pushes on the main screen are popped.
 //  4. The modes and the style are reset after the screen switch,
 //     because leaving the alternate screen restores the style and
-//     character sets saved when it was entered. The scroll region goes
-//     first in this group, because its save and restore of the cursor
-//     also restores a style and character sets that later steps reset.
+//     character sets saved when it was entered. The scroll region comes
+//     after the style and the character sets, because its save of the
+//     cursor keeps them for the next restore.
 //  5. The reports clear the progress indicator and the program status.
 //  6. A new line, so what `wb` prints next starts at the left edge.
 //
@@ -46,9 +46,6 @@ var resetSteps = []resetStep{
 	{"alternate-pops", alternatePops},
 	{"alternate-screen", leaveAlternate},
 	{"main-pops", mainPops},
-	// `CSI r` moves the cursor home, so a save and restore keeps it
-	// where the session left it.
-	{"scroll-region", fixed("\x1b7\x1b[r\x1b8")},
 	{"style", fixed("\x1b[0m")},
 	{"mouse", fixed("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1016l")},
 	{"bracketed-paste", fixed("\x1b[?2004l")},
@@ -61,6 +58,11 @@ var resetSteps = []resetStep{
 	// SI invokes G0. The filter drops SO, so the guest can't invoke G1,
 	// and this step is there in case a later allowlist passes it.
 	{"shift-in", fixed("\x0f")},
+	// `CSI r` moves the cursor home, so a save and restore keeps it
+	// where the session left it. It runs after the style and character
+	// set steps, so the save holds their defaults and not the guest's,
+	// and a later `ESC 8` or `CSI u` doesn't bring the guest's back.
+	{"scroll-region", fixed("\x1b7\x1b[r\x1b8")},
 	{"modify-other-keys", fixed("\x1b[>4m")},
 	{"keypad", fixed("\x1b>")},
 	// The filter drops `CSI ? 5 W`, so the guest can't send it. `wb`

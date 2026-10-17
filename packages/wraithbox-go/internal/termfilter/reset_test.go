@@ -230,6 +230,19 @@ func boolIndex(b bool) int {
 	return 0
 }
 
+// TestExitResetSavesDefaults checks that the scroll region step saves
+// the cursor after the style and character set steps, so the main
+// screen's saved cursor holds no guest style for a later `ESC 8`.
+func TestExitResetSavesDefaults(t *testing.T) {
+	for _, in := range []string{"\x1b[8m", "\x1b(0", "\x1b)0", "\x1b[38;5;1;48;5;1m"} {
+		m, reset := replay(t, []byte(in), "", false)
+		m.feed([]byte("\x1b8"))
+		if c := m.changed(); len(c) > 0 {
+			t.Errorf("after %q, the reset %q and ESC 8 the model differs in %v", in, reset, c)
+		}
+	}
+}
+
 // TestExitResetOnlyAfterReports checks that the progress and status
 // clears run only when a report passed, and not for a query or a
 // dropped report.
@@ -275,12 +288,12 @@ func TestModel(t *testing.T) {
 		{"unnamed code", "\x1b[71m\x1b[22m", []string{"style"}},
 		{"modes", "\x1b[?1000;1006h\x1b[?1000l", []string{"modes"}},
 		{"cursor hidden and shown", "\x1b[?25l\x1b[?25h", nil},
-		{"alt screen restores the cursor", "\x1b[1m\x1b[?1049h\x1b[0m\x1b(0\x1b[?1049l", []string{"style"}},
+		{"alt screen restores the cursor", "\x1b[1m\x1b[?1049h\x1b[0m\x1b(0\x1b[?1049l", []string{"style", "saved-cursor"}},
 		{"alt stack kept", "\x1b[?1049h\x1b[>1u\x1b[?1049l", []string{"kitty-alt"}},
 		{"pop past the guest", "\x1b[>1u\x1b[<2u", []string{"kitty-main"}},
 		{"pop of own push", "\x1b[>1u\x1b[<u", nil},
-		{"save and restore", "\x1b(0\x1b7\x1b(B\x1b8", []string{"g0"}},
-		{"sco save", "\x1b[7m\x1b[s\x1b[0m\x1b[u", []string{"style"}},
+		{"save and restore", "\x1b(0\x1b7\x1b(B\x1b8", []string{"g0", "saved-cursor"}},
+		{"sco save", "\x1b[7m\x1b[s\x1b[0m\x1b[u", []string{"style", "saved-cursor"}},
 		{"scroll region", "\x1b[5;10r\x1b[r\x1b[1;0r", nil},
 		{"tab stops", "\x1b[3g\x1b[?5W\x1b[0g", []string{"tab-stops"}},
 		{"keypad", "\x1b=\x1b>", nil},
