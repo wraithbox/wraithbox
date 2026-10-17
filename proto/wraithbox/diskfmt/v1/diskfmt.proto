@@ -1,0 +1,88 @@
+// The exchange between wb-hostd and wb-diskfmt, the shim that formats a
+// VM's new data disk (S04-04-vm-processes, "`wb-diskfmt`"; S06-05-disks,
+// "Formatting a data disk").
+//
+// It runs on descriptor 3 of wb-diskfmt, one end of a Unix datagram
+// socketpair whose other end wb-hostd keeps. Each datagram holds one
+// message, so the socket keeps the boundaries, and no message carries a
+// descriptor (internal/platform/fdchan). wb-hostd sends HostMessage and
+// wb-diskfmt sends ShimMessage. The steps are those of S06-05-disks:
+//
+//  1. wb-hostd sends a FormatRequest with the size.
+//  2. wb-diskfmt creates, attaches, formats, unmounts and detaches the
+//     image under its temporary name (steps 1 to 6), and answers with a
+//     FormatResult that holds the volume UUID.
+//  3. wb-hostd records the volume UUID and the temporary name in
+//     state.db (step 7), then sends a RenameRequest.
+//  4. wb-diskfmt renames the file to its final name with RENAME_EXCL
+//     (step 8), and answers with a RenameResult.
+//  5. wb-hostd records the disk as formatted (step 9).
+//
+// wb-diskfmt answers a request it refuses with a Refusal, and exits. No
+// message names a path or a slot: the shim learns its bundle from its
+// launcher entry, never from wb-hostd (S04-04-vm-processes).
+//
+// wb-hostd treats every ShimMessage as untrusted input: it accepts a
+// volume UUID only in canonical form, a temporary or final name only
+// when it equals the fixed name, and it cuts a refusal's text to a
+// fixed bound before it logs it or passes it on.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.diskfmt.v1;
+
+// HostMessage is what wb-hostd sends.
+message HostMessage {
+  oneof kind {
+    FormatRequest format = 1;
+    RenameRequest rename = 2;
+  }
+}
+
+// FormatRequest starts steps 1 to 6.
+message FormatRequest {
+  // The data disk's nominal size in GiB. The image is sparse, so this is
+  // the most it can grow to, not what it takes on the host. wb-diskfmt
+  // refuses a size outside its bounds with diskfmt-size-invalid.
+  uint32 size_gib = 1;
+}
+
+// RenameRequest starts step 8. wb-hostd sends it only after it recorded
+// the volume UUID and the temporary name.
+message RenameRequest {}
+
+// ShimMessage is what wb-diskfmt sends.
+message ShimMessage {
+  oneof kind {
+    FormatResult formatted = 1;
+    RenameResult renamed = 2;
+    Refusal refusal = 3;
+  }
+}
+
+// FormatResult ends step 6: the volume is formatted, unmounted and
+// detached.
+message FormatResult {
+  // The APFS volume's UUID, in canonical form: 36 characters, uppercase
+  // hexadecimal digits in groups of 8, 4, 4, 4 and 12, with hyphens.
+  // wb-guestd mounts the volume by it (S06-05-disks, "The mount").
+  string volume_uuid = 1;
+  // The file's temporary name in the bundle.
+  string temporary_name = 2;
+}
+
+// RenameResult ends step 8.
+message RenameResult {
+  // The file's final name in the bundle.
+  string final_name = 1;
+}
+
+// Refusal says which rule refused the request, such as
+// diskfmt-backing-path. wb-diskfmt exits after it.
+message Refusal {
+  string rule = 1;
+  string detail = 2;
+}
