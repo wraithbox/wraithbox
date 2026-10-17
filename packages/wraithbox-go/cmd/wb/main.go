@@ -12,6 +12,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/cli"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/setup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmcmd"
 )
 
 func main() {
@@ -36,6 +37,9 @@ func run(args []string) int {
 		// so the log shows only errors here.
 		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 		return setup.Run(context.Background(), setup.SystemEnv(log), inv.Args)
+	case inv.Command.Name == "vm":
+		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+		return vmcmd.Run(context.Background(), vmcmd.SystemEnv(log), inv.Args)
 	}
 	fmt.Fprintf(os.Stderr, "wb %s: not implemented yet\n", inv.Command.Name)
 	return 2

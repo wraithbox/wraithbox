@@ -7,7 +7,7 @@ writer, free space, and the data disk steps.
 
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
-S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks,
+S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
 S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
 
 ## Unit tests
@@ -70,7 +70,9 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   refuses provisioning options with `vmd-provisioning-refused`.
 - **Launcher table.** A table test on the `wb-launcher` entries checks
   that each `wb-vmd` entry's `WB_VMD_SLOT` value and its bundle
-  parameter belong to the same slot.
+  parameter belong to the same slot. `TestDiskfmtEntries` checks the
+  same of each `wb-diskfmt` entry's `WB_DISKFMT_SLOT`, and that its
+  environment holds nothing else.
 
 ### Local IPC
 
@@ -223,22 +225,66 @@ Spec: S09-11-audit.
 
 ### Data disk steps
 
-Spec: S06-05-disks.
+Spec: S06-13-data-disk-format, S04-04-vm-processes ("`wb-diskfmt`"),
+S05-03-management-commands ("`wb vm reset-data`").
 
-With a fake `diskutil`. In each case the fake `diskutil` is never asked
-to attach a file at the final name (SEC15-no-guest-disk-mount).
+The steps, in `internal/diskfmt`, with a fake `diskutil`. In each case
+the fake `diskutil` is never asked to attach a file at the final name
+(SEC15-no-guest-disk-mount).
 
-- Give `wb-hostd` a file at the final name that `state.db` doesn't
-  record as formatted, and see the VM start refused with the file kept.
-- Leave a temporary file, and see it deleted.
+- Leave a temporary file, and see it deleted, never attached.
 - Have the fake `diskutil` report another backing image path at the
   check after the attach, and at the check before `eraseDisk`.
 - Replace the temporary file with another file at the same path, or
   add a hard link to it, before the attach and before the format.
 - Put a file at the final name before the rename.
+- Ask for a size outside the bounds, and see `diskfmt-size-invalid`
+  before any file is made.
 
-In the last three cases, see `wb-diskfmt` fail with the rule each time
-and the file at the final name kept.
+In each failure, see `wb-diskfmt` fail with the rule and the file at
+the final name kept. A failure after the attach detaches that device,
+and one before it detaches nothing.
+
+`cmd/wb-diskfmt`:
+
+- Start it with `WB_DISKFMT_SLOT` unset, with an unknown value, with an
+  argument, with its bundle missing, and with its bundle a symbolic link
+  to the other slot's. See `diskfmt-slot-missing`,
+  `diskfmt-slot-unknown`, `diskfmt-arguments`, `diskfmt-bundle-missing`
+  and `diskfmt-slot-bundle-mismatch` logged before `sandbox_init`.
+- Confined by its own profile, it refuses a size outside the bounds,
+  a request out of order, and a peer of another build version.
+- `TestHostFormat`, opt-in with `WB_DISKFMT_HOST_TEST=1` and attended
+  (I228): the steps with the real `diskutil`, confined, on a bundle
+  under `.scratch/`. See a formatted image at the final name with far
+  fewer blocks than its size, a canonical volume UUID, no device left
+  attached, and a read outside the bundle denied.
+- Each data disk name ends in an extension that DiskImageMounter's
+  `Info.plist` doesn't claim.
+
+`wb-hostd`, with a fake `wb-diskfmt` and a temporary `state.db`:
+
+- Give it a file at the final name that `state.db` doesn't record as
+  formatted, and a link there, and see the VM start refused with
+  `data-disk-unrecorded` and the file kept. Remove a disk recorded as
+  formatted, and see `data-disk-missing`. No `wb-diskfmt` runs.
+- See the records written in the order of steps 7 and 9, and a crash
+  between the rename and step 9 refused at the next start with
+  `data-disk-unrecorded`.
+- Answer with a refusal of `wb-diskfmt`'s own, one of another rule, a
+  UUID not in canonical form and another name, and see each refused,
+  with nothing recorded as formatted.
+- A second format or reset of a slot while one runs is refused with
+  `data-disk-busy`.
+
+`wb vm reset-data`:
+
+- Refused without a terminal, and with a flag. A declined confirmation
+  leaves the disk and its record as they were. While the VM runs, `wb-hostd` refuses with
+  `vm-running`, and a start during a reset is refused with
+  `vm-resetting`.
+- An accepted one deletes the old file, drops the record, and records a
+  new disk with a new UUID. The log line holds the old and new UUID.
 
 ## Fuzzing
 

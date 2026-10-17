@@ -1,8 +1,8 @@
 # S06-05 - Disks
 
 **Purpose:** A VM's system disk and data disk: how the data disk keeps
-what the guest flushes, how the host formats it, and how the guest
-mounts it.
+what the guest flushes, and how the guest mounts it. How the host
+formats it is in S06-13-data-disk-format.
 
 ## Design
 
@@ -15,7 +15,10 @@ A VM has two writable disks:
   Those include Claude Code state (FR13-claude-state) and commits not
   yet pushed.
 
-The data disk is a raw sparse image file. It is attached with
+The data disk is a raw sparse image file. Its nominal size is the most
+it can grow to. That size is a setting, read when a disk is made and
+bounded in code. A new disk takes almost nothing on the host until the guest
+writes to it. It is attached with
 automatic host caching and full synchronization. On macOS that is
 `VZDiskImageStorageDeviceAttachment` with
 `VZDiskImageCachingModeAutomatic` and
@@ -120,87 +123,16 @@ The host doesn't check or repair a data disk
 can't mount, as it refuses a missing one ("Mounting the data volume"
 below). What was on that disk is lost.
 
-`wb-hostd` never deletes a data disk on its own. The user runs the
-command that gives the VM a new data disk (I229). It deletes the old
-file, and has `wb-diskfmt` make a new one.
+`wb-hostd` never deletes a data disk on its own. The user runs `wb vm
+reset-data` (S05-03-management-commands). It deletes the old file, and
+has `wb-diskfmt` make a new one.
 
 ### Formatting a data disk
 
-The host formats a new data disk before any guest has run with it.
-
-- A volume the guest formats APFS is encrypted at rest. A fresh system
-  disk with fresh auxiliary storage couldn't unwrap its key, so it
-  doesn't mount after a swap.
-- A volume the host makes on the image isn't encrypted at rest.
-
-I228 measures three things about a host-made volume: that it stays
-unencrypted, that it gives the space the guest frees back to the host,
-and that a confined `diskutil` can format it.
-
-#### The shim
-
-The formatting runs in `wb-diskfmt`, a shim. `wb-hostd` starts it
-through the fixed `wb-launcher` entry of the VM's slot,
-`wb-diskfmt-work` or `wb-diskfmt-isolated`. The entry's profile
-parameter is that VM's bundle (S04-architecture). The shim never takes
-a path from the request. It confines itself to that bundle, and then:
-
-1. It creates the image under a temporary name in the bundle, with
-   `O_CREAT|O_EXCL` and mode 0600. It makes the image sparse at the
-   data disk's size, and keeps that descriptor open.
-2. It checks the file's identity. `lstat` on the temporary name and
-   `fstat` on the descriptor must give the same `st_dev` and `st_ino`,
-   with `st_nlink` 1 and `st_blocks` 0.
-3. It attaches the file with `diskutil image attach --noMount`. It
-   checks that the backing image path of the device it got is the
-   temporary name.
-4. Right before it runs `diskutil eraseDisk APFS` on that device, it
-   repeats the identity check and the backing image path check.
-5. The format mounts the new, empty volume on the host once. It is a
-   volume the host just made, not one a guest wrote.
-6. `wb-diskfmt` reports the volume's UUID, unmounts the volume, and
-   detaches the image.
-7. `wb-hostd` records the volume UUID and the temporary name in
-   `state.db`.
-8. The shim renames the file to its final name with `renamex_np` and
-   `RENAME_EXCL`. That fails with the rule when a file has that name.
-9. `wb-hostd` records the disk as formatted.
-
-When a check fails, the shim fails with the rule. It detaches only a
-device it attached.
-
-#### The temporary and final names
-
-- The host never attaches a file at the final name.
-- A leftover temporary file is deleted, never attached.
-- A file can have its final name while `state.db` doesn't record it as
-  formatted, as after a crash between the rename and the record.
-  `wb-hostd` then refuses to start the VM with the rule. The refusal
-  names the command that gives the VM a new data disk (I229).
-  `wb-hostd` never deletes the file.
-- The final name has no extension that Launch Services opens as a disk
-  image ("Names on the host" above). So a double click doesn't mount
-  it.
-
-A data disk is unencrypted at rest, except by the host's own
-FileVault. A user who mounts it by hand gives the host kernel a
-guest-written filesystem.
-
-#### The one exception
-
-Formatting a blank image the host itself created, before any guest has
-run with it, is the one exception SEC15-no-guest-disk-mount makes. The
-steps above keep it to that file:
-
-- the shim attaches only the file it just created under its temporary
-  name;
-- a VM starts only with a disk that `state.db` records as formatted.
-
-The exception ends when the VM first starts with the disk.
-
-The VM's system disk, auxiliary storage and saved state are
-guest-written too. The Virtualization API in `wb-vmd` is the one host
-code that opens them.
+The host formats each new data disk before any guest has run with it,
+in the confined shim `wb-diskfmt`. That is the one exception
+SEC15-no-guest-disk-mount makes, and S06-13-data-disk-format has its
+steps and the checks before a VM starts with its disk.
 
 ### Mounting the data volume
 
@@ -221,8 +153,8 @@ anything as a project user. The mount point is a fixed path outside
 4. It checks that `diskutil` reports the volume "Encrypted: No".
 
 An encrypted or reformatted volume, or a missing one, is refused with
-the rule. The refusal names the command that gives the VM a new data
-disk (I229, NFR06-explained-refusals).
+the rule. The refusal names `wb vm reset-data`
+(NFR06-explained-refusals).
 
 The mount isn't repeated while the guest runs. Once a process has run
 as a user whose home is under the mount point, macOS refuses another
@@ -281,13 +213,6 @@ Claude Code state and commits not yet pushed are kept. Tool caches may
 be lost. A data disk the guest can't mount after a crash is lost.
 
 - **Decided:** I44.
-
-### A host-formatted data disk on an image file
-
-- **Rejected:** a volume the guest formats, because it doesn't mount
-  after a swap.
-- **Rejected:** a USB data disk. Without a grant, TCC denies every
-  guest process access to it (X08-data-disk).
 
 ### Bundle names that a double click doesn't mount
 

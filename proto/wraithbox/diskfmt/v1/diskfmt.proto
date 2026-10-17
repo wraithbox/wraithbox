@@ -1,12 +1,12 @@
 // The exchange between wb-hostd and wb-diskfmt, the shim that formats a
-// VM's new data disk (S04-04-vm-processes, "`wb-diskfmt`"; S06-05-disks,
+// VM's new data disk (S04-04-vm-processes, "`wb-diskfmt`"; S06-13-data-disk-format,
 // "Formatting a data disk").
 //
 // It runs on descriptor 3 of wb-diskfmt, one end of a Unix datagram
 // socketpair whose other end wb-hostd keeps. Each datagram holds one
 // message, so the socket keeps the boundaries, and no message carries a
 // descriptor (internal/platform/fdchan). wb-hostd sends HostMessage and
-// wb-diskfmt sends ShimMessage. The steps are those of S06-05-disks:
+// wb-diskfmt sends ShimMessage. The steps are those of S06-13-data-disk-format:
 //
 //  1. wb-hostd sends a FormatRequest with the size.
 //  2. wb-diskfmt creates, attaches, formats, unmounts and detaches the

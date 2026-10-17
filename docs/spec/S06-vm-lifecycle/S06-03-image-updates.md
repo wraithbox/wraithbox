@@ -65,8 +65,8 @@ host kept for it.
 
 When the host has no state for a home, `wb-guestd` attaches it to
 nobody. The session start is then refused with a rule that names `wb
-project rm`, or the command that gives the VM a new data disk (I229,
-NFR06-explained-refusals).
+project rm`, or `wb vm reset-data`, which gives the VM a new data disk
+(S05-03-management-commands, NFR06-explained-refusals).
 
 ### One guest admin password per VM
 

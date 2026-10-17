@@ -28,6 +28,7 @@
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
 | `wb gate reset go-clock` | Reset the Go clock after a `go-sumdb-inconsistent` finding ("`wb gate reset go-clock`") |
 | `wb vm reset-ca <vm>` | Replace a VM's CAs after a `ca-key-restore` refusal ("`wb vm reset-ca`") |
+| `wb vm reset-data <vm>` | Give a stopped VM a new, empty data disk after a data disk refusal ("`wb vm reset-data`") |
 | `wb vm start/stop/suspend/status` | Explicit VM control ("`wb vm`") |
 | `wb image build/list/use` | Base image management ("`wb image`") |
 | `wb shell [--project P]` | A debug shell as the project user, labeled as a debug shell |
@@ -142,6 +143,39 @@ The command is refused while the VM runs. It is refused without a
 terminal, because a person has to confirm. It asks in its own terminal,
 never in a session's stream (SEC14-no-fake-approvals). It is never
 part of a guest RPC.
+
+### `wb vm reset-data`
+
+This command follows a data disk refusal: `data-disk-missing`,
+`data-disk-unrecorded`, or a data volume `wb-guestd` can't mount
+(S06-13-data-disk-format). `<vm>` is `work` or `isolated`.
+
+1. It prints the VM, its data disk and the space the disk takes on the
+   host, from the file's `st_blocks`. It says that every project's home
+   on that disk is lost: its Claude Code state, and commits not yet
+   pushed. It asks for confirmation.
+2. Then `wb-hostd`, asked over local IPC:
+   - refuses with `vm-running` unless the VM is stopped, and holds the
+     VM's start lock until it is done, so a start meanwhile is refused
+     with `vm-resetting`;
+   - deletes the file at the data disk's final name and any temporary
+     file, without following a symbolic link or opening either;
+   - drops the disk's record;
+   - deletes the VM's saved state, because a saved state restores only
+     onto its own disks (S06-06-devices-and-warm-start);
+   - has `wb-diskfmt` make a new disk, and records it (S06-13-data-disk-format,
+     "Formatting a data disk");
+   - writes a 5019 event with the command, the VM, and the old and new
+     volume UUIDs.
+
+The project users' host records stay, because their IDs are never
+reused (S06-03-image-updates). A new, empty home is made on the new
+volume.
+
+The command is refused without a terminal, because a person has to
+confirm. It asks in its own terminal, never in a session's stream, and
+no flag skips the question (SEC14-no-fake-approvals). It is never part
+of a guest RPC.
 
 ### `wb vm`
 

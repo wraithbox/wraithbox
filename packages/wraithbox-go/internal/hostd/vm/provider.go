@@ -5,6 +5,7 @@ import (
 	"net"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 )
 
 // Provider starts one Instance for each VM run. On macOS each Instance
@@ -72,6 +73,20 @@ type Cloner interface {
 	// clonefile(2) with CLONE_NOFOLLOW does both. After a failure it may
 	// leave a partial dst, which the caller deletes.
 	Clone(src, dst string) error
+}
+
+// DataDisks is the data disk side of each VM. *datadisk.Manager
+// implements it (S06-13-data-disk-format). Each method takes the slot's name, work
+// or isolated, and returns a *datadisk.Refusal for a refusal.
+type DataDisks interface {
+	// Prepare runs the checks before a start, and makes a new disk when
+	// the slot has none.
+	Prepare(ctx context.Context, slot string) error
+	// Started records that the VM started with its disk.
+	Started(ctx context.Context, slot string) error
+	// Reset replaces the slot's disk. The manager holds the slot's start
+	// lock while it runs.
+	Reset(ctx context.Context, slot string) (datadisk.ResetResult, error)
 }
 
 // Generations hands out VM generations. *state.DB implements it: each

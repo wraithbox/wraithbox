@@ -124,29 +124,66 @@ isn't `build` refuses them and logs `vmd-provisioning-refused`
 
 ### `wb-diskfmt`
 
-`wb-diskfmt` formats a VM's new data disk (S06-05-disks,
+`wb-diskfmt` formats a VM's new data disk (S06-13-data-disk-format,
 X08-data-disk). `wb-launcher` has two fixed entries,
 `wb-diskfmt-work` and `wb-diskfmt-isolated`. Each has that VM's bundle
 as its profile parameter, so the shim learns which bundle to format
-without arguments.
+without arguments. Each has an instance cap of one. On hosts without
+`wb-launcher`, `wb-hostd` starts the entry itself, with the entry's
+fixed environment and descriptors, as it starts `wb-vmd`.
+
+Its start interface:
+
+- no arguments;
+- `WB_DISKFMT_SLOT`, `work` or `isolated`, in the entry's fixed
+  environment, as `WB_VMD_SLOT` is for `wb-vmd` ("The slot" above);
+- descriptor 2, its log pipe (S04-03-self-sandboxing, "Daemon logs");
+- descriptor 3, one end of a Unix datagram socketpair for the exchange
+  with `wb-hostd`, `proto/wraithbox/diskfmt/v1`. Each datagram holds
+  one message, and none carries a descriptor.
+
+Before it confines itself, `wb-diskfmt` refuses to start, logs the
+rule and exits:
+
+- with an argument (`diskfmt-arguments`);
+- when the variable is missing (`diskfmt-slot-missing`);
+- when it holds any other value (`diskfmt-slot-unknown`);
+- when its slot's bundle path doesn't exist or isn't a directory
+  (`diskfmt-bundle-missing`);
+- when the real path of that bundle isn't that slot's bundle under the
+  real path of `<data>` (`diskfmt-slot-bundle-mismatch`).
+
+It finds `<data>` from the home directory in the user database, never
+`HOME`. C11-host-daemons has a test for each rule.
 
 1. As `wb-vmd` does, it resolves the bundle path with `realpath` to get
    its profile parameter. It reads nothing from `wb-hostd` before it
    confines itself.
-2. After that, it receives the disk's size from `wb-hostd` over its
-   inherited pipe.
-3. It sends the volume UUID back over the same pipe.
+2. After that, it exchanges version records with `wb-hostd`
+   (S04-08-records-and-bounds, "Between host processes"), and receives
+   the disk's size in GiB. A size outside the bounds in code is refused
+   with `diskfmt-size-invalid`.
+3. It sends the volume UUID back on the same socketpair. It renames the
+   file when `wb-hostd` asks, and then exits.
+
+`wb-hostd` treats each answer as untrusted. It accepts a volume UUID
+only in canonical form, and a name only when it is the fixed one, and
+it cuts a refusal's text to a fixed bound.
 
 The compiled-in profile allows:
 
 - reading and writing that one bundle path;
-- that one inherited descriptor;
-- starting `diskutil`, and nothing else;
+- its inherited descriptors;
+- starting `/usr/sbin/diskutil` and no other program, with the
+  system's libraries and settings read-only;
 - the DiskImages, Disk Arbitration and disk management services that
-  `diskutil` uses.
+  `diskutil` uses, and reading device properties in the I/O Registry,
+  where the check before the format reads the attached device's
+  backing image (S06-13-data-disk-format, "The shim").
 
 It denies the network and every other file. `wb-diskfmt` exits after
-one format, and is never restarted.
+one format, and is never restarted. The service names are in code.
+I228 measures a confined run.
 
 ## Decisions
 
