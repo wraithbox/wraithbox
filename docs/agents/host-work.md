@@ -72,7 +72,8 @@ Outside a `needs-host` issue, in an attended session:
   `build` and `ci` with it, without `WB_TEAM_ID`. It signs nothing
   (`CODE_SIGNING_ALLOWED=NO`), and the bundle is signed ad-hoc
   (S17-01-bundle). The task also makes the guest tools disk image in
-  the worktree's `.build/`, and attaches it read-only for its check.
+  `packages/wraithbox-swift/.build/`, and attaches it read-only for its
+  check.
 - No `WB_TEAM_ID` in an agent's environment, and no
   `mise run app:install`, which replaces `~/Applications/Wraith Box.app`.
 - No `security` command, no signing with an identity, no Keychain reads
