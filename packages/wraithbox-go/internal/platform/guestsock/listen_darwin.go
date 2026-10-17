@@ -64,22 +64,22 @@ func (v *vsockListener) accept() (net.Conn, Peer, error) {
 	var (
 		nfd  int
 		sa   unix.Sockaddr
-		aerr error
+		acceptErr error
 	)
 	err := v.rc.Read(func(fd uintptr) bool {
 		syscall.ForkLock.RLock()
-		nfd, sa, aerr = unix.Accept(int(fd))
-		if aerr == nil {
+		nfd, sa, acceptErr = unix.Accept(int(fd))
+		if acceptErr == nil {
 			unix.CloseOnExec(nfd)
 		}
 		syscall.ForkLock.RUnlock()
-		return !errors.Is(aerr, unix.EAGAIN)
+		return !errors.Is(acceptErr, unix.EAGAIN)
 	})
 	if err != nil {
 		return nil, Peer{}, err
 	}
-	if aerr != nil {
-		return nil, Peer{}, os.NewSyscallError("accept", aerr)
+	if acceptErr != nil {
+		return nil, Peer{}, os.NewSyscallError("accept", acceptErr)
 	}
 	return wrapAccepted(nfd, sa, v.port)
 }
