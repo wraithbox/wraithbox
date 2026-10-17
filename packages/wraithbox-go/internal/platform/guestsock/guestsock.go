@@ -177,6 +177,11 @@ func (l *Listener) Accept() (net.Conn, error) {
 			l.logRefusedPeer(peer)
 			continue
 		}
+		// Only the host opens these, and it caps its reconnects
+		// (S06-11-reconnect-and-recovery, "Reconnect"), so each is logged.
+		l.log.LogAttrs(context.Background(), slog.LevelInfo, "connection accepted",
+			slog.String("decision", "serve"),
+			slog.Uint64("peer_cid", uint64(peer.CID)), slog.Uint64("peer_port", uint64(peer.Port)))
 		return conn, nil
 	}
 }

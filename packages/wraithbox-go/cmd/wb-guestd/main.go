@@ -44,7 +44,9 @@ func run() int {
 		<-ctx.Done()
 		srv.Stop()
 	}()
-	if err := srv.Serve(lis); err != nil {
+	// A signal between Listen and Serve stops the server before it serves,
+	// and Serve then returns grpc.ErrServerStopped: a clean stop too.
+	if err := srv.Serve(lis); err != nil && ctx.Err() == nil {
 		log.LogAttrs(ctx, slog.LevelError, "serve failed", slog.String("error", err.Error()))
 		return 1
 	}
