@@ -86,7 +86,7 @@ func (l *linkList) osc8(payload string, cut bool) {
 	if len(uri) > maxLinkURL {
 		uri, urlCut = uri[:maxLinkURL], true
 	}
-	mark := markURL(uri)
+	mark := markURL(uri, urlCut)
 	if len(l.kept) >= maxLinks {
 		if mark == "" {
 			mark = MarkUnmarked

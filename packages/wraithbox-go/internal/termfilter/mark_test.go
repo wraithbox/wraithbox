@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/idna"
 )
 
 // markCases has one row per mark of S16-02-drops-and-links, "Marks",
@@ -41,6 +43,12 @@ var markCases = []struct {
 	{"percent-encoded name", "https://%6c%6f%63%61%6c%68%6f%73%74/", MarkLocalName},
 	{"unicode capital that lowercases to ascii", "https://db.İnternal/", MarkLocalName},
 	{"local name with a user", "https://me@printer.lan/", MarkLocalName},
+	{"fullwidth digit", "https://127.0.0.１/", MarkIPLiteral},
+	{"circled digit", "https://127.0.0.①/", MarkIPLiteral},
+	{"fullwidth letters", "https://printer.ｌａｎ/", MarkLocalName},
+	{"soft hyphen", "https://printer.la\u00adn/", MarkLocalName},
+	{"name idna refuses", "https://a\u200d.example/", MarkDotlessName},
+	{"name idna maps to punycode", "https://bücher.example/", ""},
 	{"dotless name", "https://intranet/", MarkDotlessName},
 	{"no host", "https://", MarkDotlessName},
 	{"only slashes", "https:///", MarkDotlessName},
@@ -90,10 +98,32 @@ var markCases = []struct {
 func TestMarkURL(t *testing.T) {
 	for _, tt := range markCases {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := markURL(tt.url); got != tt.want {
+			if got := markURL(tt.url, false); got != tt.want {
 				t.Errorf("markURL(%q) = %q, want %q", tt.url, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestMarkURLCut sees a cut URL whose authority runs to the cut read
+// as a host that can't be read: the host may go on past the cut.
+func TestMarkURLCut(t *testing.T) {
+	tests := []struct {
+		url  string
+		want Mark
+	}{
+		{"https://" + strings.Repeat("a.b", 680), MarkDotlessName},
+		{"https://example.com", MarkDotlessName},
+		{"https://example.com/" + strings.Repeat("p", 100), ""},
+		{"https://example.com?q", ""},
+		{"http://example.com", MarkDotlessName},
+		{"ssh://example.com", MarkOtherScheme},
+		{"https://[::1", MarkDotlessName},
+	}
+	for _, tt := range tests {
+		if got := markURL(tt.url, true); got != tt.want {
+			t.Errorf("markURL(%.40q, cut) = %q, want %q", tt.url, got, tt.want)
+		}
 	}
 }
 
@@ -125,23 +155,35 @@ func TestMarks(t *testing.T) {
 // FuzzLinkMark checks the marker against the property of C10-terminal,
 // "Fuzzing": it marks every URL that matches a mark rule. The oracle is
 // mustMark, which reads the URL with net/url and not with the marker's
-// code. It also checks that marking a URL twice gives the same mark.
+// code. It also checks that marking a URL twice gives the same mark,
+// and that a cut URL whose authority runs to the cut has a mark.
 func FuzzLinkMark(f *testing.F) {
-	for _, tt := range markCases {
-		f.Add(tt.url)
+	for i, tt := range markCases {
+		f.Add(tt.url, i%5 == 0)
 	}
-	f.Fuzz(func(t *testing.T, raw string) {
-		got := markURL(raw)
+	f.Fuzz(func(t *testing.T, raw string, cut bool) {
+		got := markURL(raw, cut)
 		if got != "" && !got.Valid() {
 			t.Fatalf("markURL(%q) = %q, not a mark", raw, got)
 		}
-		if again := markURL(raw); again != got {
+		if again := markURL(raw, cut); again != got {
 			t.Fatalf("markURL(%q) = %q, then %q", raw, got, again)
 		}
 		if why := mustMark(raw); why != "" && got == "" {
 			t.Fatalf("markURL(%q) has no mark, but %s", raw, why)
 		}
+		if cut && got == "" && !authorityEnds(raw) {
+			t.Fatalf("markURL(%q, cut) has no mark, but its authority runs to the cut", raw)
+		}
 	})
+}
+
+// authorityEnds reports whether something after the first `:` and the
+// slashes after it ends an authority. A cut URL without one may have
+// any host past the cut.
+func authorityEnds(raw string) bool {
+	_, rest, _ := strings.Cut(raw, ":")
+	return strings.ContainsAny(strings.TrimLeft(rest, `/\`), `/\?#`)
 }
 
 // mustMark says why raw matches a mark rule of S16-02-drops-and-links,
@@ -149,9 +191,10 @@ func FuzzLinkMark(f *testing.F) {
 // matches none or net/url can't parse it. The reverse isn't checked:
 // the marker reads more hosts as IP literals than net/url does.
 //
-// A host's dots are those the marker reads as dots, because IDNA reads
-// U+3002, U+FF0E and U+FF61 as `.`, and S16-02-drops-and-links reads a
-// name as the WHATWG URL Standard does.
+// It maps the host with the idna Lookup profile, as a resolver would,
+// because S16-02-drops-and-links reads a name as the WHATWG URL
+// Standard does, through IDNA. That profile is stricter than the
+// marker's, and a host it refuses isn't checked.
 func mustMark(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -170,7 +213,10 @@ func mustMark(raw string) string {
 	if _, err := netip.ParseAddr(host); err == nil {
 		return "the host is an IP address"
 	}
-	host = strings.NewReplacer("。", ".", "．", ".", "｡", ".").Replace(strings.ToLower(host))
+	host, err = idna.Lookup.ToASCII(host)
+	if err != nil {
+		return ""
+	}
 	if host == "localhost" {
 		return "the host is localhost"
 	}
