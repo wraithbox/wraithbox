@@ -299,6 +299,13 @@ DECSCA
 XTVERSION
 XTGETTCAP
 XTHIMOUSE
+DECSC
+DECRC
+DECSTR
+DECSTBM
+DECST
+XTMODKEYS
+charmbracelet
 truecolor
 
 # Package registries, and projects measured by spikes

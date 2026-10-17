@@ -21,13 +21,22 @@ BEL rate limit off:
 - the link list holds at most 100 entries, and marks every URL that
   matches a mark rule of S16-terminal-stream;
 - the filtered output followed by the exit reset, replayed into a
-  headless terminal emulator, leaves it in its initial state: modes,
-  kitty keyboard stacks on both screens, keypad mode, character sets,
-  scroll region, tab stops, and colors and style.
+  terminal state model, leaves it in its initial state. The model
+  tracks the modes on the allowlist, colors and style, the active
+  screen, cursor visibility and style, the scroll region, G0 and G1
+  and which one is invoked, the keypad mode, `modifyOtherKeys`, tab
+  stops, a kitty keyboard stack per screen, the progress indicator,
+  and whether a program status report is open. Its main stack starts
+  with one entry of the user's own, which the reset must keep. It is a
+  model and not a terminal emulator, because the emulator
+  X19-terminal-filter used tracks neither the kitty keyboard stacks
+  nor `modifyOtherKeys`.
 
 For each of the states in the last property, a test removes its step
 from the reset and sees the property fail, for example `ESC =` with no
-`ESC >`.
+`ESC >`. Other tests check the model itself on known sequences
+(`FuzzExitReset`, `TestExitResetWithoutStep` and `TestModel` in
+`internal/termfilter`).
 
 ## Conformance
 
