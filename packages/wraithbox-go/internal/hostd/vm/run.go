@@ -93,7 +93,11 @@ func (m *Manager) observe(ctx context.Context, r *run, st *vmdv1.VMState) {
 	}
 	end := m.settleLocked(r)
 	m.mu.Unlock()
-	m.finish(ctx, r, end)
+	if end != endNone {
+		// finish closes the instance on another goroutine, so this
+		// reader keeps draining States while Close runs.
+		go m.finish(ctx, r, end)
+	}
 }
 
 // settleLocked decides whether a run whose VM stopped ends now. While

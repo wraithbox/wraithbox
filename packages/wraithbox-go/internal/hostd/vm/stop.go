@@ -56,6 +56,9 @@ func (m *Manager) Stop(ctx context.Context, slot Slot) error {
 	if r := m.checkRequest(slot); r != nil {
 		return m.refuse(ctx, "stop", r)
 	}
+	// The hook runs before the slot moves to stopping, so a session
+	// admitted in between isn't listed. Session admission must refuse a
+	// VM that isn't running, stopping included, which closes that window.
 	var sessions []Session
 	if m.cfg.Sessions != nil {
 		sessions = m.cfg.Sessions(slot)
@@ -67,8 +70,9 @@ func (m *Manager) Stop(ctx context.Context, slot Slot) error {
 	m.log.LogAttrs(ctx, slog.LevelInfo, "vm stop",
 		slog.String("decision", "accept"), slog.String("slot", string(slot)),
 		slog.Uint64("generation", generation))
-	// A caller that goes away doesn't leave the VM half stopped: the
-	// deadlines bound the stop instead.
+	// A caller that goes away doesn't leave the VM half stopped. The
+	// deadlines bound each step instead, the provider's calls included,
+	// and the last step closes the instance.
 	m.stopRun(context.WithoutCancel(ctx), r, generation)
 	return nil
 }
@@ -127,31 +131,47 @@ func (m *Manager) stopRun(ctx context.Context, r *run, generation uint64) {
 }
 
 // stopWith asks for the stop req, and reports whether the run ended
-// within timeout.
+// within timeout. The deadline covers the provider's call as well as the
+// wait for the VM to stop, so a wb-vmd that never answers doesn't hold
+// the slot in stopping. The call runs on its own goroutine, and ends at
+// the latest when the instance is closed.
 func (m *Manager) stopWith(ctx context.Context, r *run, req *vmdv1.StopRequest, timeout time.Duration) bool {
 	attrs := []slog.Attr{
 		slog.String("slot", string(r.slot)), slog.Uint64("generation", req.GetGeneration()),
 		slog.String("mode", req.GetMode().String()),
 	}
-	if err := r.inst.Stop(ctx, req); err != nil {
-		ref := providerRefusal(r.slot, req.GetGeneration(), "stop", err)
-		attrs = append(attrs, slog.String("rule", string(ref.Rule)), slog.String("reason", ref.Message))
-		m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop failed", attrs...)
+	sctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	answer := make(chan error, 1)
+	go func() { answer <- r.inst.Stop(sctx, req) }()
+	for {
 		select {
 		case <-r.ended:
 			return true
-		default:
-			return false
+		case err := <-answer:
+			if err == nil {
+				// Wait for the VM to stop. A nil channel never receives.
+				answer = nil
+				continue
+			}
+			ref := providerRefusal(r.slot, req.GetGeneration(), "stop", err)
+			attrs = append(attrs, slog.String("rule", string(ref.Rule)), slog.String("reason", ref.Message))
+			m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop failed", attrs...)
+			return isClosed(r.ended)
+		case <-sctx.Done():
+			attrs = append(attrs, slog.Duration("timeout", timeout))
+			m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop deadline passed", attrs...)
+			return isClosed(r.ended)
 		}
 	}
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
+}
+
+// isClosed reports whether ch is closed, without waiting.
+func isClosed(ch <-chan struct{}) bool {
 	select {
-	case <-r.ended:
+	case <-ch:
 		return true
-	case <-timer.C:
-		attrs = append(attrs, slog.Duration("timeout", timeout))
-		m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop deadline passed", attrs...)
+	default:
 		return false
 	}
 }

@@ -1,6 +1,7 @@
 package vm_test
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -65,7 +66,7 @@ func TestC11BundleFileRefused(t *testing.T) {
 func TestC11ToolsDiskReplacedBeforeEachStart(t *testing.T) {
 	h := newHarness(t)
 	var seen []string
-	h.provider.OnStart = func(i *vmtest.Instance, req *vmdv1.StartRequest) error {
+	h.provider.OnStart = func(_ context.Context, i *vmtest.Instance, req *vmdv1.StartRequest) error {
 		seen = append(seen, readFile(t, filepath.Join(h.bundle(i.Slot()), vm.ToolsDiskName)))
 		i.Publish(req.GetGeneration(), vmdv1.State_STATE_RUNNING, nil)
 		return nil

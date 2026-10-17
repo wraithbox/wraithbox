@@ -8,7 +8,7 @@ writer, free space, and the data disk steps.
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
 S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks,
-S09-11-audit, S04-04-vm-processes, S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
+S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
 
 ## Unit tests
 
@@ -136,9 +136,20 @@ cloner of `internal/hostd/vm/vmtest`:
   `vm-limit-other-software`, naming the running VM, with no retry.
 - A VM that stops on its own reaches stopped with its error kept, and
   is logged with `vm-stopped-unexpectedly`.
-- A request stop that doesn't finish in time goes to a force stop.
+- A request stop that doesn't finish in time goes to a force stop. A
+  provider that never answers a stop still ends the run, with the
+  instance closed once, and one that never answers a start is refused
+  with `vm-start-timeout`.
+- While a stop runs, a second stop and a connection are refused with
+  `vm-stopping`, and a start with `vm-running`. Of concurrent starts of
+  one slot, one opens an instance. A stop that races `wb-vmd`'s exit
+  closes the instance once. After a restart the old instance gets no
+  call.
+- A provider rule that names one of the manager's own rules is refused
+  with `vm-provider-failed`, and the provider's text is cut to 1 KiB.
 - A bundle path that is a symbolic link or a file is refused with
-  `vm-bundle-not-directory`.
+  `vm-bundle-not-directory`, and one that can't be created with
+  `vm-bundle-create-failed`.
 - The configured resources reach the provider.
 - A stop with a fake session is refused with `vm-live-sessions`, and
   the refusal lists it.

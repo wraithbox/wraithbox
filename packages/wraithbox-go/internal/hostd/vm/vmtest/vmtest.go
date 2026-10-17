@@ -31,9 +31,12 @@ type Provider struct {
 	// OpenErr, when set, is Open's error.
 	OpenErr error
 	// OnStart, OnStop and OnConnect replace the defaults.
-	OnStart   func(*Instance, *vmdv1.StartRequest) error
-	OnStop    func(*Instance, *vmdv1.StopRequest) error
-	OnConnect func(i *Instance, generation uint64, port uint32) (net.Conn, error)
+	// Each gets the call's context. They run after the instance's own
+	// checks: a call after the instance ended, or for a generation other
+	// than the one started, is refused with a *vm.ProviderRefusal first.
+	OnStart   func(context.Context, *Instance, *vmdv1.StartRequest) error
+	OnStop    func(context.Context, *Instance, *vmdv1.StopRequest) error
+	OnConnect func(ctx context.Context, i *Instance, generation uint64, port uint32) (net.Conn, error)
 
 	mu        sync.Mutex
 	instances []*Instance
@@ -76,6 +79,8 @@ type Instance struct {
 
 	mu       sync.Mutex
 	closed   bool
+	closes   int
+	started  uint64
 	starts   []*vmdv1.StartRequest
 	stops    []*vmdv1.StopRequest
 	connects []Connect
@@ -87,41 +92,79 @@ type Connect struct {
 	Port       uint32
 }
 
+// The rules of the fake's own refusals. The generation rule is wb-vmd's.
+const (
+	RuleClosed     = "vmtest-instance-closed"
+	RuleGeneration = "vm-generation"
+)
+
 // Slot returns the slot the instance was opened for.
 func (i *Instance) Slot() vm.Slot { return i.slot }
 
-// Start implements vm.Instance.
-func (i *Instance) Start(_ context.Context, req *vmdv1.StartRequest) error {
+// check refuses a call after the instance ended, and a generation that
+// fails ok against the last one started, as wb-vmd does.
+func (i *Instance) check(generation uint64, ok func(last uint64) bool) error {
+	if i.closed {
+		return &vm.ProviderRefusal{Rule: RuleClosed, Detail: "the instance ended"}
+	}
+	if generation == 0 || !ok(i.started) {
+		return &vm.ProviderRefusal{Rule: RuleGeneration, Detail: fmt.Sprintf("generation %d, last started %d", generation, i.started)}
+	}
+	return nil
+}
+
+// Start implements vm.Instance. It refuses a generation that isn't above
+// the last one started.
+func (i *Instance) Start(ctx context.Context, req *vmdv1.StartRequest) error {
+	g := req.GetGeneration()
 	i.mu.Lock()
 	i.starts = append(i.starts, req)
-	i.mu.Unlock()
-	if i.p.OnStart != nil {
-		return i.p.OnStart(i, req)
+	err := i.check(g, func(last uint64) bool { return g > last })
+	if err == nil {
+		i.started = g
 	}
-	i.Publish(req.GetGeneration(), vmdv1.State_STATE_STARTING, nil)
-	i.Publish(req.GetGeneration(), vmdv1.State_STATE_RUNNING, nil)
+	i.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	if i.p.OnStart != nil {
+		return i.p.OnStart(ctx, i, req)
+	}
+	i.Publish(g, vmdv1.State_STATE_STARTING, nil)
+	i.Publish(g, vmdv1.State_STATE_RUNNING, nil)
 	return nil
 }
 
-// Stop implements vm.Instance.
-func (i *Instance) Stop(_ context.Context, req *vmdv1.StopRequest) error {
+// Stop implements vm.Instance. It refuses a generation other than the
+// last one started.
+func (i *Instance) Stop(ctx context.Context, req *vmdv1.StopRequest) error {
+	g := req.GetGeneration()
 	i.mu.Lock()
 	i.stops = append(i.stops, req)
+	err := i.check(g, func(last uint64) bool { return g == last })
 	i.mu.Unlock()
-	if i.p.OnStop != nil {
-		return i.p.OnStop(i, req)
+	if err != nil {
+		return err
 	}
-	i.Publish(req.GetGeneration(), vmdv1.State_STATE_STOPPED, nil)
+	if i.p.OnStop != nil {
+		return i.p.OnStop(ctx, i, req)
+	}
+	i.Publish(g, vmdv1.State_STATE_STOPPED, nil)
 	return nil
 }
 
-// ConnectGuest implements vm.Instance.
-func (i *Instance) ConnectGuest(_ context.Context, generation uint64, port uint32) (net.Conn, error) {
+// ConnectGuest implements vm.Instance. It refuses a generation other
+// than the last one started.
+func (i *Instance) ConnectGuest(ctx context.Context, generation uint64, port uint32) (net.Conn, error) {
 	i.mu.Lock()
 	i.connects = append(i.connects, Connect{Generation: generation, Port: port})
+	err := i.check(generation, func(last uint64) bool { return generation == last })
 	i.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	if i.p.OnConnect != nil {
-		return i.p.OnConnect(i, generation, port)
+		return i.p.OnConnect(ctx, i, generation, port)
 	}
 	host, guest := net.Pipe()
 	_ = guest.Close()
@@ -133,8 +176,18 @@ func (i *Instance) States() <-chan *vmdv1.VMState { return i.states }
 
 // Close implements vm.Instance: the lifeline closes, and wb-vmd exits.
 func (i *Instance) Close() error {
+	i.mu.Lock()
+	i.closes++
+	i.mu.Unlock()
 	i.end()
 	return nil
+}
+
+// Closes returns how many times Close was called.
+func (i *Instance) Closes() int {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return i.closes
 }
 
 // Exit ends the instance from its side, as a wb-vmd that exits.

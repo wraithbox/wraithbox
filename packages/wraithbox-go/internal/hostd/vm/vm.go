@@ -84,6 +84,14 @@ const (
 	DefaultForceStopTimeout   = 10 * time.Second
 )
 
+// DefaultStartTimeout bounds the provider's start, used when Config
+// leaves it 0. wb-vmd answers once the framework has started the VM. A
+// cold boot to wb-guestd's listener takes 10.9 s at the median and 13.5 s
+// at p95 (S06-06-devices-and-warm-start, "Warm start"), so a start without an
+// answer after 60 s is a wb-vmd that hangs. The start is then refused
+// with vm-start-timeout and the instance closed.
+const DefaultStartTimeout = 60 * time.Second
+
 // Config is what the manager runs with.
 type Config struct {
 	// DataDir is <data>. Each slot's bundle is
@@ -100,11 +108,15 @@ type Config struct {
 	Provider    Provider
 	Cloner      Cloner
 	// Sessions lists the slot's sessions that are starting, running,
-	// paused or ending. nil means none.
+	// paused or ending. nil means none. Stop calls it before the slot
+	// moves to stopping, so session admission must refuse a VM whose
+	// Status isn't running: then no session starts in a VM that stops.
 	Sessions func(Slot) []Session
 	// Refusing is set in refusing mode, and every request is then refused
 	// with its rule (S17-05-upgrades-and-migrations, "Refusing mode").
 	Refusing *startup.Refusing
+	// StartTimeout bounds the provider's start. 0 takes the default.
+	StartTimeout time.Duration
 	// RequestStopTimeout and ForceStopTimeout are the stop deadlines. 0
 	// takes the default.
 	RequestStopTimeout time.Duration
@@ -153,6 +165,9 @@ type slotRecord struct {
 func New(cfg Config) (*Manager, error) {
 	if err := cfg.check(); err != nil {
 		return nil, err
+	}
+	if cfg.StartTimeout <= 0 {
+		cfg.StartTimeout = DefaultStartTimeout
 	}
 	if cfg.RequestStopTimeout <= 0 {
 		cfg.RequestStopTimeout = DefaultRequestStopTimeout
