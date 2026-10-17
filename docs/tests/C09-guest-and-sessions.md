@@ -22,7 +22,16 @@ S06-09-session-lifecycle, S13-guest-confinement, S15-04-guest-admin
   and see the bind refused. The rule for ports below 1024 isn't in
   Apple's developer documentation, only in the XNU source
   (`bsd/kern/vsock_domain.c`, `VSOCK_PORT_RESERVED`, `proc_suser`), so
-  each guest image is checked.
+  each guest image is checked. In `conformance/guestsock`:
+  `TestFreeLowPortsNeedRoot` and `TestGuestdPortRefused`.
+- As root, connect to `wb-guestd`'s port on the guest's own CID in a
+  loop for 30 s. See `wb-guestd` still hold the port (a root bind gets
+  `EADDRINUSE`), and its log hold at most one `guestd-accept-failed`
+  or `guestd-peer-not-host` record per 10 s (S04-02-vm-provider,
+  "Guest ports below 1024", I115). In `conformance/guestsock`:
+  `TestSelfCIDFlood`.
+- Kill `wb-guestd` with `SIGKILL`, and see launchd start it again and it
+  hold its port again.
 - Inside a session, open an `AF_VSOCK` socket, and see `EPERM`
   (X27-vsock-confinement).
 - As root, run `sudo -l -U` for each project user, and see no rules
