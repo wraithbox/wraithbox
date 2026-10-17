@@ -4,7 +4,10 @@ node_modules/
 # Swift (SwiftPM)
 .build/
 .swiftpm/
-*.xcodeproj/
+# Xcode projects: only WraithBox.xcodeproj's project file is tracked.
+# xcodebuild writes project.xcworkspace and xcuserdata next to it.
+*.xcodeproj/*
+!/packages/wraithbox-swift/WraithBox.xcodeproj/project.pbxproj
 xcuserdata/
 
 # Go

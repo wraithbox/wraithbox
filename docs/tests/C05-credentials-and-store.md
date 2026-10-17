@@ -46,7 +46,9 @@ Spec: S15-02-secret-store, "Keychain".
 - The build check of S10-tech-stack fails a bundle whose helper has a
   group more or less than its row in S15-02-secret-store, "Keychain",
   and one where `wb` or any other program outside the table has a
-  `keychain-access-groups` entitlement.
+  `keychain-access-groups` entitlement. The tests are the
+  `TestC05BuildCheck` ones in `internal/appbundle`, with every case of
+  S17-01-bundle, "The entitlement check".
 
 ### Builds without a team, and development builds
 

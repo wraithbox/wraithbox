@@ -68,6 +68,12 @@ export const RULES = [
 	{ glob: 'go.work', jobs: ['go', 'swift'] },
 	{ glob: 'go.work.sum', jobs: ['go', 'swift'] },
 
+	// The Swift job builds the app bundle (app:bundle), which holds the Go
+	// programs, from the layout and check in internal/appbundle and the
+	// dev command cmd/wb-dev-app.
+	{ glob: 'packages/wraithbox-go/cmd/**', jobs: ['go', 'swift'] },
+	{ glob: 'packages/wraithbox-go/internal/appbundle/**', jobs: ['go', 'swift'] },
+
 	{ glob: 'packages/wraithbox-swift/**', jobs: ['swift'] },
 	{ glob: '.swiftlint.yml', jobs: ['swift'] },
 	{ glob: '.swift-format', jobs: ['swift'] },

@@ -67,7 +67,14 @@ Outside a `needs-host` issue, in an attended session:
 
 - No host `xcodebuild`, `xcrun simctl`, or `xcode-select`. They can
   wait for hours on a signing or Keychain dialog. Host Xcode setup
-  (`sudo xcodebuild -runFirstLaunch`) is the maintainer's.
+  (`sudo xcodebuild -runFirstLaunch`) is the maintainer's. The one
+  exception is the `xcodebuild` that `mise run app:bundle` runs, and
+  `build` and `ci` with it, without `WB_TEAM_ID`. It signs nothing
+  (`CODE_SIGNING_ALLOWED=NO`), and the bundle is signed ad-hoc
+  (S17-01-bundle). The task also makes the guest tools disk image in
+  the worktree's `.build/`, and attaches it read-only for its check.
+- No `WB_TEAM_ID` in an agent's environment, and no
+  `mise run app:install`, which replaces `~/Applications/Wraith Box.app`.
 - No `security` command, no signing with an identity, no Keychain reads
   or writes. Ad-hoc signing of a spike binary with
   `codesign -f -s - --entitlements spikes/vm.entitlements .scratch/<path>`

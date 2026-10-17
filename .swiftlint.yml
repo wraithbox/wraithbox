@@ -11,6 +11,7 @@
 included:
   - packages/wraithbox-swift/Sources
   - packages/wraithbox-swift/Tests
+  - packages/wraithbox-swift/App
 
 # Generated contract code, never edited by hand: `mise run
 # proto:check-swift` fails on any difference from what the generators
