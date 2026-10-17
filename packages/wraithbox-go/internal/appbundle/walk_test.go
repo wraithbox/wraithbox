@@ -32,28 +32,37 @@ func buildProgram(t *testing.T, dir, stamp string) string {
 	return out
 }
 
-func TestReadStampGo(t *testing.T) {
+func TestReadLinkedGo(t *testing.T) {
 	dir := t.TempDir()
+	want := Linked{Stamp: testStamp, GoMain: testModule + "/cmd/wb-credset"}
 	stamped := buildProgram(t, filepath.Join(dir, "stamped"), testStamp)
-	if got, err := ReadStamp(stamped); err != nil || got != testStamp {
-		t.Errorf("ReadStamp of a stamped program = %q, %v; want %q", got, err, testStamp)
+	if got, err := ReadLinked(stamped); err != nil || got != want {
+		t.Errorf("ReadLinked of a stamped program = %+v, %v; want %+v", got, err, want)
 	}
 	bare := buildProgram(t, filepath.Join(dir, "bare"), "")
-	if got, err := ReadStamp(bare); err != nil || got != "" {
-		t.Errorf("ReadStamp of an unstamped program = %q, %v; want none", got, err)
+	if got, err := ReadLinked(bare); err != nil || got != (Linked{GoMain: want.GoMain}) {
+		t.Errorf("ReadLinked of an unstamped program = %+v, %v; want no stamp", got, err)
 	}
 	if isMachO, err := IsMachO(bare); err != nil || !isMachO {
 		t.Errorf("IsMachO of a darwin program = %v, %v", isMachO, err)
 	}
 }
 
-func TestReadStampRefusesOtherFiles(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "text")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ReadStamp(path); err == nil {
-		t.Error("ReadStamp read a stamp from a text file")
+// TestReadLinkedRefusesOtherFiles: a text file and a fat file are
+// errors, so the check stops rather than pass a program it can't read.
+func TestReadLinkedRefusesOtherFiles(t *testing.T) {
+	dir := t.TempDir()
+	for name, data := range map[string][]byte{
+		"text":  []byte("#!/bin/sh\n"),
+		"fat64": {0xca, 0xfe, 0xba, 0xbf, 0, 0, 0, 1},
+	} {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ReadLinked(path); err == nil {
+			t.Errorf("ReadLinked read the %s file", name)
+		}
 	}
 }
 
@@ -87,6 +96,8 @@ func TestIsMachOMagic(t *testing.T) {
 		"thin64-be": {[]byte{0xfe, 0xed, 0xfa, 0xcf}, true},
 		"fat":       {[]byte{0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2}, true},
 		"fat-le":    {[]byte{0xbe, 0xba, 0xfe, 0xca}, true},
+		"fat64":     {[]byte{0xca, 0xfe, 0xba, 0xbf, 0, 0, 0, 2}, true},
+		"fat64-le":  {[]byte{0xbf, 0xba, 0xfe, 0xca}, true},
 		"elf":       {[]byte{0x7f, 'E', 'L', 'F'}, false},
 		"short":     {[]byte{0xcf, 0xfa}, false},
 		"empty":     {nil, false},
@@ -110,6 +121,7 @@ func TestWalk(t *testing.T) {
 	files := map[string][]byte{
 		"Contents/MacOS/wb":                                      {0xcf, 0xfa, 0xed, 0xfe},
 		"Contents/Resources/notes.txt":                           {0xcf, 0xfa, 0xed, 0xfe, 1},
+		"Contents/Resources/universal":                           {0xca, 0xfe, 0xba, 0xbf, 0, 0, 0, 2},
 		"Contents/Resources/readme":                              []byte("text"),
 		"Contents/Helpers/wb-proxyd.app/Contents/" + ProfileName: []byte("profile"),
 	}
@@ -128,7 +140,7 @@ func TestWalk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"Contents/MacOS/wb", "Contents/Resources/notes.txt"}; !slices.Equal(got.MachO, want) {
+	if want := []string{"Contents/MacOS/wb", "Contents/Resources/notes.txt", "Contents/Resources/universal"}; !slices.Equal(got.MachO, want) {
 		t.Errorf("Mach-O files %v, want %v", got.MachO, want)
 	}
 	if want := []string{"Contents/Helpers/wb-proxyd.app/Contents/" + ProfileName}; !slices.Equal(got.Profiles, want) {

@@ -89,6 +89,9 @@ func TestGoBuildArgs(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("goBuildArgs = %q, want %q", got, want)
 	}
+	if env := goBuildEnv(); !slices.Contains(env, "GOFLAGS=") || !slices.Contains(env, "GOARCH=arm64") {
+		t.Errorf("goBuildEnv = %q, want an empty GOFLAGS and GOARCH=arm64", env)
+	}
 }
 
 func TestHasRuntimeFlag(t *testing.T) {

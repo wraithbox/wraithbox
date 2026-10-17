@@ -44,13 +44,22 @@ func goBuildCommand(ctx context.Context, args []string, stdout, stderr io.Writer
 		}
 		fmt.Fprintf(stdout, "go-build: %s for %s/%s as %s\n", p.Name, bundleGOOS, bundleGOARCH, stamp)
 		cmd := exec.CommandContext(ctx, "go", goBuildArgs(p.Name, stamp, *out)...) //nolint:gosec // G204: the names come from the layout table, and readStamp checked the version form, which has no space or shell byte
-		cmd.Env = append(os.Environ(), "GOOS="+bundleGOOS, "GOARCH="+bundleGOARCH)
+		cmd.Env = append(os.Environ(), goBuildEnv()...)
 		cmd.Stdout, cmd.Stderr = stdout, stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("go build ./cmd/%s: %w", p.Name, err)
 		}
 	}
 	return nil
+}
+
+// goBuildEnv is what go-build sets over the environment: the bundle's
+// target, and an empty GOFLAGS. A -trimpath there would leave -ldflags
+// out of the build information, where the check reads the stamp
+// (appbundle.ReadLinked), so the flags come only from goBuildArgs.
+// exec.Cmd keeps the last value of a repeated variable.
+func goBuildEnv() []string {
+	return []string{"GOOS=" + bundleGOOS, "GOARCH=" + bundleGOARCH, "GOFLAGS="}
 }
 
 // goBuildArgs are the arguments of `go build` for one program: the

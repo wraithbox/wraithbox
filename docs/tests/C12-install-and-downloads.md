@@ -75,7 +75,9 @@ Spec: S17-01-bundle.
   reverse-DNS is refused (`TestC12BundleIdentity`).
 - **Install.** Installing two bundles in turn at one temporary
   destination leaves the second, with no file of the first and nothing
-  next to it (`TestC12BundleInstallSwap`).
+  next to it (`TestC12BundleInstallSwap`). A destination with another
+  name, or one that is there and isn't a bundle, is refused. A copy
+  that doesn't verify is never renamed in.
 - **Build.** CI's macOS job builds the ad-hoc bundle and runs the check
   on it (`mise run app:bundle`).
 

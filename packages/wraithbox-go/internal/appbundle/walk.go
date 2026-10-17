@@ -61,11 +61,15 @@ func Walk(root string) (Files, error) {
 	return found, err
 }
 
-// The magic numbers of Mach-O files, thin and fat, in either byte order.
+// The magic numbers of Mach-O files, thin and fat, 32- and 64-bit, in
+// either byte order (mach-o/loader.h, mach-o/fat.h).
 var machOMagic = []uint32{
-	macho.Magic32, macho.Magic64, macho.MagicFat,
-	0xcefaedfe, 0xcffaedfe, 0xbebafeca,
+	macho.Magic32, macho.Magic64, macho.MagicFat, magicFat64,
+	0xcefaedfe, 0xcffaedfe, 0xbebafeca, 0xbfbafeca,
 }
+
+// magicFat64 is FAT_MAGIC_64, which debug/macho doesn't name.
+const magicFat64 = 0xcafebabf
 
 // IsMachO reports whether the file at path starts with a Mach-O magic
 // number. A file shorter than one isn't a Mach-O file.
@@ -92,30 +96,47 @@ const (
 	stampSection = "__wb_version"
 )
 
-// ReadStamp returns the build version linked into the program at path,
-// or "" when it has none. A Swift program has it in its __wb_version
-// section, as `mise run swift:build` links it. A Go program was linked
-// with `-X <version.StampVar>=<version>`, which its build information
-// records. A stamp outside the version form counts as none.
-func ReadStamp(path string) (string, error) {
+// Linked is what the build linked into a program.
+type Linked struct {
+	// Stamp is the build version, or "" when it has none. A stamp outside
+	// the version form counts as none.
+	Stamp string
+	// GoMain is the import path of a Go program's main package, from its
+	// build information, or "" for a program that isn't Go.
+	GoMain string
+}
+
+// ReadLinked reads the build version and, for a Go program, the main
+// package linked into the thin Mach-O program at path. A Swift program
+// has the version in its __wb_version section, as `mise run swift:build`
+// links it. A Go program was linked with `-X <version.StampVar>=<version>`,
+// which its build information records. A fat file is an error: the
+// bundle is arm64 only (NFR04-host-platforms).
+func ReadLinked(path string) (Linked, error) {
 	f, err := macho.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("%s is not a thin Mach-O file: %w", path, err)
+		return Linked{}, fmt.Errorf("%s is not a thin Mach-O file: %w", path, err)
 	}
 	defer func() { _ = f.Close() }()
-	if s := f.Section(stampSection); s != nil && s.Seg == stampSegment {
-		data, err := s.Data()
+	var linked Linked
+	section := f.Section(stampSection)
+	hasSection := section != nil && section.Seg == stampSegment
+	if hasSection {
+		data, err := section.Data()
 		if err != nil {
-			return "", err
+			return Linked{}, err
 		}
-		return validOrNone(string(data)), nil
+		linked.Stamp = validOrNone(string(data))
 	}
-	// A program without the section and without Go build information
-	// has no stamp: that is the answer, and the check refuses it.
+	// A program without the section and without Go build information has
+	// no stamp: that is the answer, and the check refuses it.
 	if info, err := buildinfo.ReadFile(path); err == nil {
-		return validOrNone(goStamp(info)), nil
+		linked.GoMain = info.Path
+		if !hasSection {
+			linked.Stamp = validOrNone(goStamp(info))
+		}
 	}
-	return "", nil
+	return linked, nil
 }
 
 // goStamp returns the value the build's -ldflags gave version.StampVar.

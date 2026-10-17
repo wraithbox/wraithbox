@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
@@ -36,6 +37,7 @@ var (
 	RuleBuildVersion         = Rule{"stamp-info-plist", `S04-08-records-and-bounds, "Version skew"`}
 	RuleToolsVersion         = Rule{"stamp-tools-disk", `S04-08-records-and-bounds, "Version skew"`}
 	RuleVerify               = Rule{"codesign-verify", `S17-01-bundle, "Building a bundle"`}
+	RuleSource               = Rule{"program-source", `S17-01-bundle, "The entitlement check"`}
 )
 
 // Rules are every rule of the check, for the log of a bundle that passes.
@@ -44,6 +46,7 @@ var Rules = []Rule{
 	RuleAdhocGroup, RuleTeamHelperGroups, RuleTeamOtherGroup, RuleAdhocEntitlement,
 	RuleVirtualization, RuleVMDHasVirtualization, RuleAdhocProfile, RuleTeamProfile,
 	RuleInfoPlist, RuleStamp, RuleBuildVersion, RuleToolsVersion, RuleVerify,
+	RuleSource,
 }
 
 // Violation is one way the bundle breaks a rule.
@@ -66,6 +69,8 @@ type Mode struct {
 	// Team is the team ID that signed the bundle, or "" for an ad-hoc
 	// build.
 	Team string
+	// BundleID is the bundle identifier the build chose (BundleID).
+	BundleID string
 }
 
 // Found is what was read from one Mach-O file.
@@ -80,9 +85,11 @@ type Found struct {
 	// Entitlements are the signed entitlements, as plutil converts them
 	// to JSON. Empty or nil when there are none.
 	Entitlements map[string]any
-	// Stamp is the build version linked into the program (ReadStamp), or
-	// "" when it has none.
-	Stamp string
+	// Stamp is the build version linked into the program, or "" when it
+	// has none, and GoMain the main package of a Go program, or "" for
+	// another (ReadLinked).
+	Stamp  string
+	GoMain string
 }
 
 // Plist is what was read from one Info.plist.
@@ -121,6 +128,9 @@ func Check(b Bundle, programs []Program, m Mode) []Violation {
 	}
 	if m.Team != "" && !ValidTeamID(m.Team) {
 		out = append(out, Violation{"build", RuleMode, fmt.Sprintf("the team %q is not a team ID", m.Team)})
+	}
+	if !ValidBundleID(m.BundleID) {
+		out = append(out, Violation{"build", RuleMode, fmt.Sprintf("the bundle identifier %q is not reverse-DNS", m.BundleID)})
 	}
 	app, disk := split(programs)
 	out = append(out, checkPrograms(b.Programs, app, m, "")...)
@@ -187,9 +197,13 @@ func checkPrograms(found []Found, rows []Program, m Mode, prefix string) []Viola
 	return out
 }
 
-// checkProgram checks one program's signature, entitlements and stamp.
+// checkProgram checks one program's source, signature, entitlements and
+// stamp.
 func checkProgram(p Program, f Found, m Mode) []Violation {
 	var out []Violation
+	if !fromSource(p, f.GoMain) {
+		out = append(out, Violation{p.Name, RuleSource, fmt.Sprintf("is built from the Go package %q, and its row says %s ./cmd/%s", f.GoMain, p.Source, p.Name)})
+	}
 	if !f.Signed || !f.Runtime {
 		out = append(out, Violation{p.Name, RuleSigned, "is not signed with the hardened runtime"})
 	}
@@ -205,6 +219,17 @@ func checkProgram(p Program, f Found, m Mode) []Violation {
 		})
 	}
 	return out
+}
+
+// fromSource reports whether a program was built from its row's source:
+// a Go row from the main package ./cmd/<name>, any other row from no Go
+// package. So another program put at a row's path, with the right stamp,
+// still fails.
+func fromSource(p Program, goMain string) bool {
+	if p.Source == SourceGo {
+		return strings.HasSuffix(goMain, "/cmd/"+p.Name)
+	}
+	return goMain == ""
 }
 
 // groupsKey is the entitlement that names a program's Keychain access

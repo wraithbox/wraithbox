@@ -43,15 +43,30 @@ sign() {
 	fi
 }
 
+# Detaches the tools disk the check attached, by force when it is busy.
+detach_disk() {
+	hdiutil detach -quiet "$mount" || hdiutil detach -quiet -force "$mount"
+}
+
 # The entitlement check of step 8, on the bundle $1, with its tools disk
-# attached read-only for the time of the check.
+# attached read-only for the time of the check. A relative $1 is taken
+# from the repository root, where mise runs the task. The traps detach
+# the disk when the script exits or is interrupted during the check, so
+# no mount is left in the work directory.
 check() {
+	case $1 in
+	/*) app_dir=$1 ;;
+	*) app_dir=$root/$1 ;;
+	esac
 	mount=$work/tools-disk
 	mkdir -p "$mount"
-	hdiutil attach -readonly -nobrowse -noautoopen -mountpoint "$mount" "$1/$tools_disk" >/dev/null
+	trap 'detach_disk 2>/dev/null' EXIT
+	trap 'detach_disk 2>/dev/null; exit 130' INT TERM
+	hdiutil attach -readonly -nobrowse -noautoopen -mountpoint "$mount" "$app_dir/$tools_disk" >/dev/null
 	status=0
-	(cd "$go_dir" && "$dev" check -app "$1" -disk "$mount" -stamp "$stamp_file") || status=$?
-	hdiutil detach -quiet "$mount"
+	(cd "$go_dir" && "$dev" check -app "$app_dir" -disk "$mount" -stamp "$stamp_file" -bundle-id "$bundle_id") || status=$?
+	trap - EXIT INT TERM
+	detach_disk
 	return "$status"
 }
 
@@ -62,6 +77,7 @@ build_dev() {
 
 if [ "${1:-}" = check ]; then
 	build_dev
+	bundle_id=$("$dev" identity)
 	check "${2:-$out}"
 	exit 0
 fi
@@ -92,7 +108,8 @@ swift_bin=$(swift build -c release --package-path "$swift_dir" --force-resolved-
 # Step 4: the app, whose executable is the notification helper. Its
 # deployment target is Package.swift's, so one edit moves both. Xcode
 # signs nothing (CODE_SIGNING_ALLOWED=NO). The stamp goes into the same
-# section as in the Swift package's programs.
+# section as in the Swift package's programs. Xcode's derived data goes
+# into the work directory, not ~/Library/Developer/Xcode/DerivedData.
 manifest=$(swift package dump-package --package-path "$swift_dir")
 platform=$(printf '%s' "$manifest" | plutil -extract platforms.0.platformName raw -o - -)
 target=$(printf '%s' "$manifest" | plutil -extract platforms.0.version raw -o - -)
@@ -101,6 +118,7 @@ if [ "$platform" != macos ]; then
 	exit 1
 fi
 xcodebuild -quiet -project "$swift_dir/WraithBox.xcodeproj" -target WraithBox -configuration Release \
+	-derivedDataPath "$work/xcode/derived" \
 	SYMROOT="$work/xcode/sym" OBJROOT="$work/xcode/obj" \
 	CODE_SIGNING_ALLOWED=NO \
 	MACOSX_DEPLOYMENT_TARGET="$target" \

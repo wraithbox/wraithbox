@@ -70,6 +70,8 @@ signed entitlements. The build fails unless:
 
 - every Mach-O file is a program of the table, at its place, and every
   program of the table is there;
+- each Go program is built from its own command package, and no other
+  program is Go;
 - neither the bundle nor the disk holds a symbolic link;
 - every program is signed with the hardened runtime;
 - the access groups follow S10-02-packaging-and-signing, "Helper
@@ -78,7 +80,8 @@ signed entitlements. The build fails unless:
 - without a team, no program has any other entitlement, and the bundle
   has no profile;
 - with a team, each helper bundle has a profile;
-- each `Info.plist` holds what "The bundle" above says;
+- each `Info.plist` holds what "The bundle" above says, with the bundle
+  identifier the build chose;
 - every program, `WBBuildVersion` and the disk's `VERSION` file hold
   the run's version stamp.
 
