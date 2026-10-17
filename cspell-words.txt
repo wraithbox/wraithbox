@@ -32,11 +32,13 @@ localipc
 hostversion
 grpccreds
 healthpb
+vmtest
 
 # Virtualization, networking and OS facilities
 datavol
 AMFI
 ipsw
+noindex
 pidinfo
 sysctls
 testmanagerd

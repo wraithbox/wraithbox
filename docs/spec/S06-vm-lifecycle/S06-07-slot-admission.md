@@ -141,7 +141,9 @@ when starting or restoring one of its own VMs fails on the
 Virtualization framework's limit of running VMs
 (`VZErrorVirtualMachineLimitExceeded` in `VZError.h`).
 
-`wb` then:
+`wb-hostd` then refuses the start with `vm-limit-other-software`. It
+matches the limit on the framework error's code, which `wb-vmd` passes
+on. `wb` then:
 
 - says that a macOS VM outside Wraith Box holds a slot;
 - lists the VMs Wraith Box runs;

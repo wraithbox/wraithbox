@@ -34,8 +34,10 @@ and the bundle come from the same table entry. On hosts without
 and the same refusals apply.
 
 `wb-hostd` creates each bundle directory, never as a symbolic link,
-before it asks `wb-launcher` to start the entry. It creates a new,
-empty build bundle before each build.
+before it asks `wb-launcher` to start the entry. It checks the path
+with `lstat` and never follows it. A symbolic link, or anything but a
+directory, refuses the start with `vm-bundle-not-directory`. It creates
+a new, empty build bundle before each build.
 
 ### Slot checks
 
