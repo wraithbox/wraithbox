@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/net/idna"
 )
 
 // Mark names one row of S16-02-drops-and-links, "Marks". The filter
@@ -65,14 +67,15 @@ func (m Mark) Valid() bool {
 // (S16-02-drops-and-links, "Marks").
 var localSuffixes = []string{".localhost", ".local", ".internal", ".home.arpa", ".lan"}
 
-// markURL returns the mark of a link's URL, or the zero Mark.
+// markURL returns the mark of a link's URL, or the zero Mark. cut says
+// that the URL may go on past its last byte.
 //
 // A click on a link goes to the host's URL handler, so markURL reads
 // the URL the way the WHATWG URL Standard does, and not the way
 // net/url does (S16-02-drops-and-links, "Marks"). A
 // URL is guest bytes, so markURL accepts any bytes, and reads a URL a
 // browser would refuse as far as it can.
-func markURL(raw string) Mark {
+func markURL(raw string, cut bool) Mark {
 	scheme, rest, ok := readScheme(trimURL(raw))
 	if !ok {
 		return MarkOtherScheme
@@ -80,12 +83,16 @@ func markURL(raw string) Mark {
 	if scheme == "file" {
 		return MarkGuestPath
 	}
-	userInfo, host, hasAuthority := readAuthority(scheme, rest)
-	if hasAuthority {
-		if m := markHost(scheme, host); m != "" {
+	if a, ok := readAuthority(scheme, rest); ok {
+		if cut && !a.ended {
+			// The host may go on past the cut, so it can't be read
+			// (S16-02-drops-and-links, "Marks").
+			a.hostPort = ""
+		}
+		if m := markHost(scheme, a.hostPort); m != "" {
 			return m
 		}
-		if userInfo {
+		if a.userInfo {
 			return MarkUserName
 		}
 	}
@@ -141,13 +148,24 @@ func isASCIILetter(c byte) bool {
 // than `file`, which markURL handles first.
 var specialSchemes = []string{"http", "https", "ws", "wss", "ftp"}
 
+// authority is what readAuthority found.
+type authority struct {
+	// userInfo is set when the authority has a user name, which is
+	// everything before its last `@`.
+	userInfo bool
+	// hostPort is the host and port after that `@`.
+	hostPort string
+	// ended is set when a byte after the authority ends it. Without
+	// one, the authority runs to the end of the URL.
+	ended bool
+}
+
 // readAuthority finds the authority of a URL after its scheme. For a
 // special scheme it skips every `/` and `\` and ends the authority at
 // the next `/`, `\`, `?` or `#`. Any other scheme has an authority only
-// after `//`, and `\` doesn't end it. It returns whether the authority
-// has a user name, which is everything before its last `@`, and the
-// host and port after that `@`.
-func readAuthority(scheme, rest string) (bool, string, bool) {
+// after `//`, and `\` doesn't end it. It reports false when the URL has
+// no authority.
+func readAuthority(scheme, rest string) (authority, bool) {
 	ends := "/?#"
 	if slices.Contains(specialSchemes, scheme) {
 		rest = strings.TrimLeft(rest, `/\`)
@@ -155,14 +173,15 @@ func readAuthority(scheme, rest string) (bool, string, bool) {
 	} else {
 		var found bool
 		if rest, found = strings.CutPrefix(rest, "//"); !found {
-			return false, "", false
+			return authority{}, false
 		}
 	}
-	if i := strings.IndexAny(rest, ends); i >= 0 {
+	i := strings.IndexAny(rest, ends)
+	if i >= 0 {
 		rest = rest[:i]
 	}
 	at := strings.LastIndexByte(rest, '@')
-	return at >= 0, rest[at+1:], true
+	return authority{userInfo: at >= 0, hostPort: rest[at+1:], ended: i >= 0}, true
 }
 
 // markHost returns the mark of a host and port, or the zero Mark.
@@ -196,16 +215,32 @@ func markHost(scheme, hostPort string) Mark {
 // read.
 const forbiddenHost = " #%/:<>?@[\\]^|"
 
-// idnaDots maps the dots that IDNA reads as `.` to `.`.
-var idnaDots = strings.NewReplacer("。", ".", "．", ".", "｡", ".")
+// domainToASCII maps a host with the options the WHATWG URL Standard's
+// "domain to ASCII" gives UTS #46: not transitional, with the bidi and
+// joiner checks, and without the STD3 rules, the hyphen checks and the
+// DNS length checks. It maps width, case and compatibility forms, so
+// `１` and `①` read as `1`, removes ignored code points such as the
+// soft hyphen, and reads the dots U+3002, U+FF0E and U+FF61 as `.`.
+var domainToASCII = idna.New(
+	idna.MapForLookup(),
+	idna.BidiRule(),
+	idna.Transitional(false),
+	idna.StrictDomainName(false),
+	idna.CheckHyphens(false),
+	idna.VerifyDNSLength(false),
+)
 
 // readHost reads the host in hostPort the way the WHATWG URL Standard
 // does: it cuts the port at the first `:`, percent-decodes the host,
-// lowercases it, reads the dots U+3002, U+FF0E and U+FF61 as `.`, and
-// strips one trailing dot. It reports false for a host it can't read:
-// an empty one, one with a port that isn't digits, and one that, after
-// percent-decoding, isn't valid UTF-8 or holds U+FFFD or a code point
-// the standard forbids in a domain.
+// lowercases it, maps it with domainToASCII, and strips one trailing
+// dot. It reports false for a host it can't read: an empty one, one
+// with a port that isn't digits, one that, after percent-decoding,
+// isn't valid UTF-8 or holds U+FFFD or a code point the standard
+// forbids in a domain, and one the mapping refuses.
+//
+// It lowercases before the mapping as well, because Go lowercases a
+// few capitals, such as U+0130, to ASCII where UTS #46 doesn't. A host
+// that reads as a local name either way is marked.
 func readHost(hostPort string) (string, bool) {
 	host, port, _ := strings.Cut(hostPort, ":")
 	if strings.TrimFunc(port, func(r rune) bool { return r >= '0' && r <= '9' }) != "" {
@@ -217,7 +252,10 @@ func readHost(hostPort string) (string, bool) {
 		strings.ContainsFunc(host, func(r rune) bool { return r < ' ' || r == del }) {
 		return "", false
 	}
-	host = idnaDots.Replace(strings.ToLower(host))
+	host, err := domainToASCII.ToASCII(strings.ToLower(host))
+	if err != nil {
+		return "", false
+	}
 	host = strings.TrimSuffix(host, ".")
 	return host, host != ""
 }

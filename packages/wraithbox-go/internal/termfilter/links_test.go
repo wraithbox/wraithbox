@@ -96,6 +96,12 @@ func TestLinks(t *testing.T) {
 			want: []Link{{URL: "https://example.com/" + strings.Repeat("p", 2028), Text: "x"}},
 		},
 		{
+			name: "url cut inside its authority",
+			in:   link("https://"+strings.Repeat("a.b", 800)+"@127.0.0.1/") + "x" + linkEnd,
+			out:  "x",
+			want: []Link{{URL: "https://" + strings.Repeat("a.b", 680), URLCut: true, Text: "x", Mark: MarkDotlessName}},
+		},
+		{
 			name: "url with invalid utf-8, as sent",
 			in:   link("https://example.com/\xff\xc2") + "x" + linkEnd,
 			out:  "x",
@@ -320,8 +326,9 @@ func TestLinksIsACopy(t *testing.T) {
 // FuzzFilter, against S16-02-drops-and-links, "What `wb` keeps of a
 // link": at most 100 links, each URL of at most 2048 bytes, each text
 // valid UTF-8 of at most 256 code points, each mark the marker's mark
-// for its URL, no overflow before the list is full, and no more links
-// than OSC 8 drops. It also checks that the link function got the same
+// for its URL, a mark on each cut URL whose authority runs to the cut,
+// no overflow before the list is full, and no more links than OSC 8
+// drops. It also checks that the link function got the same
 // links.
 func checkLinks(r filtered) error {
 	if len(r.links) > 100 {
@@ -356,8 +363,10 @@ func checkLink(l Link) error {
 		return fmt.Errorf("text %q isn't valid UTF-8", l.Text)
 	case utf8.RuneCountInString(l.Text) > 256:
 		return fmt.Errorf("text of %d code points, want at most 256", utf8.RuneCountInString(l.Text))
-	case l.Mark != markURL(l.URL):
-		return fmt.Errorf("link to %q marked %q, the marker says %q", l.URL, l.Mark, markURL(l.URL))
+	case l.Mark != markURL(l.URL, l.URLCut):
+		return fmt.Errorf("link to %q marked %q, the marker says %q", l.URL, l.Mark, markURL(l.URL, l.URLCut))
+	case l.URLCut && l.Mark == "" && !authorityEnds(l.URL):
+		return fmt.Errorf("cut link to %q has no mark, but its authority runs to the cut", l.URL)
 	}
 	return nil
 }
@@ -379,6 +388,7 @@ func TestCheckLinksRefuses(t *testing.T) {
 		"invalid text":        {counts: osc8, links: one(Link{URL: "https://example.com/", Text: "\xff"})},
 		"long text":           {counts: osc8, links: one(Link{URL: "https://example.com/", Text: strings.Repeat("é", 257)})},
 		"wrong mark":          {counts: osc8, links: one(Link{URL: "file:///etc/hosts"})},
+		"cut without a mark":  {counts: osc8, links: one(Link{URL: "https://example.com", URLCut: true})},
 		"not reported":        {counts: osc8, links: one(ok), reported: []Link{}},
 	}
 	for name, r := range bad {
