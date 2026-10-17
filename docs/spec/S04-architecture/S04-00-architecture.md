@@ -100,8 +100,12 @@ On macOS the endpoints are in `internal/platform/localipc`:
   isn't a directory of the user without group or other permission
   bits, or is a symbolic link, is refused with `ipc-run-dir-unsafe`
   and left as it is.
-- An endpoint is `<data>/run/<name>.sock`. A leftover socket of the user
-  that refuses a connect is removed before the bind. A live one is
+- An endpoint is `<data>/run/<name>.sock`. A listener holds an
+  exclusive lock on `<name>.lock` for its life, and a second one is
+  refused with `ipc-endpoint-in-use`. The lock holder removes a
+  leftover socket of the user that refuses a connect, before its bind.
+  Its close removes the socket before it releases the lock, so no
+  listener removes another's socket. A socket that answers is
   refused with `ipc-endpoint-in-use`, and any other file at the path
   with `ipc-endpoint-unsafe`.
 - Both ends check the other's user ID, the listener on every accepted

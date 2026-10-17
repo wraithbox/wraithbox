@@ -446,3 +446,55 @@ func TestDialRefusesUnsafeRunDir(t *testing.T) {
 	_, err := Dial(context.Background(), nil, run, "hostd")
 	wantRule(t, err, RuleRunDirUnsafe)
 }
+
+// TestTwoListens: while one listener holds the endpoint's lock, a second
+// Listen on the path is refused with RuleEndpointInUse, even with the
+// socket file gone, as a racing Listen's probe could see it. Once the
+// first closes, the second gets the path, and the first's late Close
+// leaves the second's socket in place.
+func TestTwoListens(t *testing.T) {
+	ctx := context.Background()
+	run := filepath.Join(shortDir(t), "run")
+	first, err := Listen(ctx, nil, run, "hostd")
+	if err != nil {
+		t.Fatalf("first Listen: %v", err)
+	}
+	path := filepath.Join(run, "hostd.sock")
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	_, err = Listen(ctx, nil, run, "hostd")
+	wantRule(t, err, RuleEndpointInUse)
+	_ = first.Close()
+	second := listen(t, nil, run)
+	_ = first.Close()
+	go func() {
+		c, err := second.Accept()
+		if err == nil {
+			_ = c.Close()
+		}
+	}()
+	c, err := Dial(ctx, nil, run, "hostd")
+	if err != nil {
+		t.Fatalf("Dial the second listener: %v", err)
+	}
+	_ = c.Close()
+}
+
+// TestListenRefusesLinkedLock: a symbolic link at the lock file's name
+// is refused with RuleEndpointUnsafe and left in place.
+func TestListenRefusesLinkedLock(t *testing.T) {
+	run := filepath.Join(shortDir(t), "run")
+	if err := EnsureRunDir(nil, run); err != nil {
+		t.Fatal(err)
+	}
+	lock := filepath.Join(run, "hostd.lock")
+	if err := os.Symlink(filepath.Join(run, "elsewhere"), lock); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Listen(context.Background(), nil, run, "hostd")
+	wantRule(t, err, RuleEndpointUnsafe)
+	if got := modeOf(t, lock).Type(); got != fs.ModeSymlink {
+		t.Errorf("lock file type after the refusal = %v, want the link left in place", got)
+	}
+}

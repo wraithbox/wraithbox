@@ -47,11 +47,13 @@ const (
 	RuleEndpointName Rule = "ipc-endpoint-name"
 	// RulePathTooLong: the endpoint path is over MaxPathLen bytes.
 	RulePathTooLong Rule = "ipc-path-too-long"
-	// RuleEndpointInUse: a listener answers at the endpoint path, or the
-	// probe of the file there failed other than with a refused connect.
+	// RuleEndpointInUse: another listener holds the endpoint's lock, a
+	// listener answers at the endpoint path, or the probe of the file
+	// there failed other than with a refused connect.
 	RuleEndpointInUse Rule = "ipc-endpoint-in-use"
 	// RuleEndpointUnsafe: the file at the endpoint path isn't a socket
-	// of the effective user. It is left in place.
+	// of the effective user, or its lock file isn't a regular file of
+	// the effective user. It is left in place.
 	RuleEndpointUnsafe Rule = "ipc-endpoint-unsafe"
 	// RulePeerUID: the peer's user ID isn't the effective user ID, or
 	// its credential can't be read (SEC12-least-privilege).
@@ -97,7 +99,9 @@ func (c *Conn) Peer() Peer { return c.peer }
 // whose peer passed the user ID check. It is a net.Listener, so a gRPC
 // server serves it directly. Close removes the socket file.
 type Listener struct {
-	ln       *net.UnixListener
+	ln *net.UnixListener
+	// lock holds the endpoint's flock for the listener's life.
+	lock     *os.File
 	log      *slog.Logger
 	endpoint string
 	// peerOf is peerCredential as it was at Listen, so a test that
@@ -126,8 +130,18 @@ func (l *Listener) AcceptPeer() (*Conn, error) {
 	}
 }
 
-// Close stops listening and removes the socket file.
-func (l *Listener) Close() error { return l.ln.Close() }
+// Close stops listening and removes the socket file, then releases the
+// endpoint's lock. The socket is gone before another listener can take
+// the lock, so Close never removes another listener's socket.
+func (l *Listener) Close() error {
+	err := l.ln.Close()
+	if l.lock != nil {
+		if lockErr := l.lock.Close(); err == nil {
+			err = lockErr
+		}
+	}
+	return err
+}
 
 // Addr returns the endpoint's address.
 func (l *Listener) Addr() net.Addr { return l.ln.Addr() }
