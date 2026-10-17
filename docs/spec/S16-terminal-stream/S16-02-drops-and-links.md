@@ -93,6 +93,10 @@ applies, in this order:
 | is `http:` | `http` |
 | has another scheme | `other-scheme` |
 
+A click on a link goes to the host's URL handler, so `wb` reads the
+name in a URL as the WHATWG URL Standard reads a host, not as a URL
+library of the host's language might.
+
 The mark is a heuristic on the name alone. An unmarked name can still
 resolve to a host-local address, so no mark doesn't mean safe.
 

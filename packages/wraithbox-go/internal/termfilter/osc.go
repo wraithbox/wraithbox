@@ -97,6 +97,14 @@ func oscDropRule(n oscNumber) Rule {
 // "Allowlist"). Every other OSC is dropped.
 func (f *Filter) osc(t token) {
 	n, payload := readOSC(string(t.raw[2:]))
+	if n.known && n.value == 8 {
+		// Every OSC 8 is dropped, whatever its URL and its mark, and its
+		// text stays as plain text. The filter keeps the link for the
+		// record (SEC03-no-host-exec, S16-02-drops-and-links "Links").
+		f.count(RuleOSCLink)
+		f.links.osc8(payload, t.cut)
+		return
+	}
 	if t.cut || !n.plain {
 		f.count(oscDropRule(n))
 		return

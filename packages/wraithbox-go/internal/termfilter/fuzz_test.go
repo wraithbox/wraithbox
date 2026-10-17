@@ -199,32 +199,56 @@ func statusWithinCaps(s string) bool {
 	return true
 }
 
+// filtered is what one run of the filter gave.
+type filtered struct {
+	out      []byte
+	counts   map[Rule]uint64
+	links    []Link
+	overflow map[Mark]uint64
+	// reported holds the links the filter passed to its link function.
+	reported []Link
+}
+
 // filterChunks filters the chunks with one Write each and a Close, with
-// the BEL limit off, and checks that no count goes down between writes.
-func filterChunks(t *testing.T, chunks ...[]byte) ([]byte, map[Rule]uint64) {
+// the BEL limit off, and checks that no count by rule or by mark goes
+// down between writes.
+func filterChunks(t *testing.T, chunks ...[]byte) filtered {
 	t.Helper()
 	var out bytes.Buffer
-	f := New(&out, WithoutBELLimit())
-	prev := f.Counts()
+	var reported []Link
+	f := New(&out, WithoutBELLimit(), WithLinkFunc(func(l Link) { reported = append(reported, l) }))
+	prev, prevOver := f.Counts(), f.LinkOverflow()
 	step := func(err error) {
 		t.Helper()
 		if err != nil {
 			t.Fatalf("filter error: %v", err)
 		}
-		now := f.Counts()
-		for r, n := range now {
-			if n < prev[r] {
-				t.Fatalf("count %s went down from %d to %d", r, prev[r], n)
-			}
+		now, over := f.Counts(), f.LinkOverflow()
+		if r, ok := wentDown(prev, now); ok {
+			t.Fatalf("count %s went down from %d to %d", r, prev[r], now[r])
 		}
-		prev = now
+		if m, ok := wentDown(prevOver, over); ok {
+			t.Fatalf("overflow %s went down from %d to %d", m, prevOver[m], over[m])
+		}
+		prev, prevOver = now, over
 	}
 	for _, c := range chunks {
 		_, err := f.Write(c)
 		step(err)
 	}
 	step(f.Close())
-	return out.Bytes(), f.Counts()
+	return filtered{out.Bytes(), f.Counts(), f.Links(), f.LinkOverflow(), reported}
+}
+
+// wentDown returns a key whose count is lower in now than in prev.
+func wentDown[K comparable](prev, now map[K]uint64) (K, bool) {
+	for k, n := range now {
+		if n < prev[k] {
+			return k, true
+		}
+	}
+	var zero K
+	return zero, false
 }
 
 // chunksOf splits p into chunks of n bytes.
@@ -263,45 +287,56 @@ var fuzzSeeds = []string{
 	"tmux:\x1bP" + "tmux;\x1b\x1b]52;c;eA==\x07\x1b\\:end\n",
 	"title report:\x1b[21t:end\nwindow move:\x1b[3;0;0t:end\n",
 	"\x1b[1\x18\x1b[1\x1a\x1b[1\x1b[m\x1b]52;c;eA==\x18\x1b]0;a\x1b[1m",
+	// OSC 8 links with each mark of S16-02-drops-and-links, "Marks".
+	"links:\x1b]8;;https://example.com/\x1b\\pub\x1b[1mlic\x1b]8;;\x1b\\ \x1b]8;;file:///etc/hosts\x07path\x1b]8;;\x07",
+	"\x1b]8;id=1;https://127.1/\u009cip\x1b]8;;https://LOCALHOST./\x07local\x1b]8;;https://intranet/\x07dotless",
+	"\x1b]8;;https://github.com@evil.example/\x07user\x1b]8;;http://example.com/\x07http\x1b]8;;ftp://x.example/\x07ftp",
+	"\x1b]8;;https://evil%2Eexample/\x07\xffé\x1b]08;;https://[::1]/\x18x\x1b]8;;no-scheme\x07y\x1b]8;;\x07",
 }
 
 // FuzzFilter checks the properties of C10-terminal, "Fuzzing", other
-// than the link list (#300) and the exit reset (#301), with the BEL
-// limit off. filterChunks checks that no count goes down between
-// writes.
+// than the exit reset (#301), with the BEL limit off. filterChunks
+// checks that no count by rule or by mark goes down between writes, and
+// checkLinks checks the link list.
 func FuzzFilter(f *testing.F) {
 	for i, s := range fuzzSeeds {
 		f.Add([]byte(s), uint16(i*7))
 	}
 	f.Fuzz(func(t *testing.T, in []byte, split uint16) {
-		out, counts := filterChunks(t, in)
-		if err := checkOutput(out); err != nil {
+		whole := filterChunks(t, in)
+		if err := checkOutput(whole.out); err != nil {
 			t.Fatal(err)
 		}
-		checkIdempotent(t, out)
-		checkSplits(t, in, split, out, counts)
+		if err := checkLinks(whole); err != nil {
+			t.Fatal(err)
+		}
+		checkIdempotent(t, whole.out)
+		checkSplits(t, in, split, whole)
 	})
 }
 
 // checkIdempotent checks that filtering the output again gives the same
-// bytes and counts nothing.
+// bytes, and counts and keeps nothing.
 func checkIdempotent(t *testing.T, out []byte) {
 	t.Helper()
-	again, counts := filterChunks(t, out)
-	if !bytes.Equal(again, out) {
-		t.Fatalf("filtering twice differs:\n once %q\ntwice %q", out, again)
+	again := filterChunks(t, out)
+	if !bytes.Equal(again.out, out) {
+		t.Fatalf("filtering twice differs:\n once %q\ntwice %q", out, again.out)
 	}
 	for _, r := range rules {
-		if counts[r] != 0 {
+		if again.counts[r] != 0 {
 			t.Fatalf("filtering the output again counts %s", r)
 		}
+	}
+	if len(again.links) != 0 {
+		t.Fatalf("filtering the output again keeps %d links", len(again.links))
 	}
 }
 
 // checkSplits checks that splitting the input into reads, once at a
-// point and once into chunks of 1 to 7 bytes, gives the same output and
-// counts.
-func checkSplits(t *testing.T, in []byte, split uint16, out []byte, counts map[Rule]uint64) {
+// point and once into chunks of 1 to 7 bytes, gives the same output,
+// counts and links.
+func checkSplits(t *testing.T, in []byte, split uint16, whole filtered) {
 	t.Helper()
 	i := int(split) % (len(in) + 1)
 	splits := [][][]byte{
@@ -309,12 +344,16 @@ func checkSplits(t *testing.T, in []byte, split uint16, out []byte, counts map[R
 		chunksOf(in, int(split%7)+1),
 	}
 	for _, chunks := range splits {
-		got, gotCounts := filterChunks(t, chunks...)
-		if !bytes.Equal(got, out) {
-			t.Fatalf("split into %d reads changes the output:\n whole %q\n split %q", len(chunks), out, got)
+		got := filterChunks(t, chunks...)
+		if !bytes.Equal(got.out, whole.out) {
+			t.Fatalf("split into %d reads changes the output:\n whole %q\n split %q", len(chunks), whole.out, got.out)
 		}
-		if !maps.Equal(gotCounts, counts) {
-			t.Fatalf("split into %d reads changes the counts: %v, want %v", len(chunks), gotCounts, counts)
+		if !maps.Equal(got.counts, whole.counts) {
+			t.Fatalf("split into %d reads changes the counts: %v, want %v", len(chunks), got.counts, whole.counts)
+		}
+		if !slices.Equal(got.links, whole.links) || !maps.Equal(got.overflow, whole.overflow) {
+			t.Fatalf("split into %d reads changes the links:\n whole %+v %v\n split %+v %v",
+				len(chunks), whole.links, whole.overflow, got.links, got.overflow)
 		}
 	}
 }
