@@ -7,7 +7,8 @@
 // descriptor 3 one end of a Unix datagram socketpair for the exchange
 // with wb-hostd (proto/wraithbox/diskfmt/v1). Before it confines itself
 // it checks the slot and the slot's bundle, and reads nothing from
-// wb-hostd. It then confines itself to that bundle, exchanges version
+// wb-hostd. It then confines itself to the data disk's two names in
+// that bundle, exchanges version
 // records with wb-hostd (S04-08-records-and-bounds, "Between host
 // processes"), runs one format, and exits. It is never restarted
 // (S04-07-supervision).
@@ -61,7 +62,8 @@ func run(ctx context.Context, log *slog.Logger, args []string, getenv func(strin
 		return 1
 	}
 	defer func() { _ = ch.Close() }()
-	// SEC12-least-privilege: confined to the one bundle before any byte
+	// SEC12-least-privilege: confined to the data disk's names in the
+	// bundle before any byte
 	// from wb-hostd is read (S04-04-vm-processes, "`wb-diskfmt`").
 	if err := selfsandbox.Confine(profile, map[string]string{"BUNDLE": bundle}); err != nil {
 		return 1

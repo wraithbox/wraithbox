@@ -224,6 +224,24 @@ func formattedDiskMissing(t *testing.T, h *harness) {
 	}
 }
 
+func formattedDiskLinked(t *testing.T, h *harness) {
+	formattedDiskMissing(t, h)
+	other := filepath.Join(vmbundle.Path(h.data, "isolated"), vmbundle.DataDiskName)
+	if err := os.WriteFile(other, []byte("the isolated VM's disk"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(other, h.path(vmbundle.DataDiskName)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func formattedDiskDirectory(t *testing.T, h *harness) {
+	formattedDiskMissing(t, h)
+	if err := os.Mkdir(h.path(vmbundle.DataDiskName), 0o700); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestStartChecks: each case of a start that is refused keeps the file
 // at the final name, and runs no wb-diskfmt.
 func TestStartChecks(t *testing.T) {
@@ -236,6 +254,8 @@ func TestStartChecks(t *testing.T) {
 		{"a file recorded but not formatted", fileRecordedNotFormatted, datadisk.RuleUnrecorded},
 		{"a link at the final name", linkAtFinalName, datadisk.RuleUnrecorded},
 		{"a formatted disk missing", formattedDiskMissing, datadisk.RuleMissing},
+		{"a formatted disk replaced by a link to the other VM's", formattedDiskLinked, datadisk.RuleNotRegular},
+		{"a formatted disk replaced by a directory", formattedDiskDirectory, datadisk.RuleNotRegular},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newHarness(t)

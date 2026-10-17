@@ -279,8 +279,11 @@ func (f *Formatter) Format(ctx context.Context, sizeGiB uint32) (string, *Refusa
 	if r != nil {
 		return "", f.detachAfter(ctx, device, r)
 	}
-	if err := f.Tool.Detach(ctx, device); err != nil {
-		return "", f.refuse(ctx, "detach", &Refusal{Rule: RuleDiskutil, Detail: "the detach of " + device + " failed", err: err})
+	if err := f.detach(ctx, device); err != nil {
+		return "", f.refuse(ctx, "detach", &Refusal{
+			Rule: RuleDiskutil, err: err,
+			Detail: "the detach of " + device + " failed twice, so it stays attached until it is ejected or the host restarts",
+		})
 	}
 	f.accept(ctx, "data disk formatted", slog.String("device", device), slog.String("volume_uuid", uuid))
 	return uuid, nil
@@ -348,7 +351,7 @@ func (f *Formatter) attach(ctx context.Context) (string, *Refusal) {
 	if err != nil {
 		return "", f.refuse(ctx, "attach", &Refusal{Rule: RuleDiskutil, Detail: "the attach of " + tmp + " failed", err: err})
 	}
-	f.accept(ctx, "data disk attached", slog.String("device", att.Device), slog.String("backing_path", att.BackingPath))
+	f.accept(ctx, "data disk attached", slog.String("device", att.Device), slog.String("backing_path", cut(att.BackingPath)))
 	if att.BackingPath != tmp {
 		return "", f.detachAfter(ctx, att.Device, f.refuse(ctx, "attach", &Refusal{
 			Rule:   RuleBackingPath,
@@ -360,8 +363,10 @@ func (f *Formatter) attach(ctx context.Context) (string, *Refusal) {
 
 // erase is steps 4 and 5: the identity and backing path checks right
 // before the format, the format, and the volume UUID. A name replaced
-// before the attach opened it, or after, is found by the identity check
-// here, and the device detached before any format.
+// before the attach, or after it, and not put back is found by the
+// identity check here, and the device detached before any format. A
+// swap that is put back before this check isn't found: a residual
+// within the host user (S06-13-data-disk-format, "The one exception").
 func (f *Formatter) erase(ctx context.Context, device string) (string, *Refusal) {
 	if r := f.checkIdentity(ctx, "erase", true); r != nil {
 		return "", r
@@ -388,6 +393,19 @@ func (f *Formatter) erase(ctx context.Context, device string) (string, *Refusal)
 		return "", f.refuse(ctx, "volume", &Refusal{Rule: RuleVolumeUUID, Detail: fmt.Sprintf("the volume UUID %q isn't in canonical form", cut(uuid))})
 	}
 	return uuid, nil
+}
+
+// detach detaches device, and tries once more when the first try
+// fails, as when Disk Arbitration still holds the new volume. A device
+// left attached stays so until the host restarts.
+func (f *Formatter) detach(ctx context.Context, device string) error {
+	err := f.Tool.Detach(ctx, device)
+	if err == nil {
+		return nil
+	}
+	f.log().LogAttrs(ctx, slog.LevelWarn, "data disk detach failed, trying again",
+		slog.String("device", device), slog.String("cause", err.Error()))
+	return f.Tool.Detach(ctx, device)
 }
 
 // detachAfter detaches the device this formatter attached, after a

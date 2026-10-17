@@ -3,9 +3,10 @@
 // Info.plist files. A binary property list is refused.
 //
 // The values are map[string]any for a dict, []any for an array, string
-// for a string or a date, int64 for an integer, float64 for a real, bool
-// for true and false, and []byte for data. A dict with a key twice, an
-// element out of place, and nesting deeper than MaxDepth are errors.
+// for a string or a date, int64 for a decimal integer, float64 for a
+// real, bool for true and false, and []byte for data. A dict with a key
+// twice, an element out of place, a second value in <plist>, and nesting
+// deeper than MaxDepth are errors.
 package plist
 
 import (
@@ -44,7 +45,43 @@ func Decode(data []byte) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return d.value(inner, 1)
+	v, err := d.value(inner, 1)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.end(); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// end requires that </plist> follows the one value, and that only
+// white space, comments and processing instructions follow it.
+func (d *decoder) end() error {
+	start, ok, err := d.startOrEnd()
+	if err != nil {
+		return err
+	}
+	if ok {
+		return fmt.Errorf("plist: <%s> after the value", start.Name.Local)
+	}
+	for {
+		tok, err := d.x.Token()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("plist: %w", err)
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			return fmt.Errorf("plist: <%s> after </plist>", t.Name.Local)
+		case xml.CharData:
+			if len(bytes.TrimSpace(t)) != 0 {
+				return errors.New("plist: text after </plist>")
+			}
+		}
+	}
 }
 
 type decoder struct {
@@ -101,7 +138,7 @@ func (d *decoder) value(start xml.StartElement, depth int) (any, error) {
 			return nil, fmt.Errorf("plist: %w", err)
 		}
 		return start.Name.Local == "true", nil
-	case "string", "date", "key":
+	case "string", "date":
 		return d.text()
 	case "integer":
 		return d.integer()
@@ -183,7 +220,7 @@ func (d *decoder) integer() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	v, err := strconv.ParseInt(strings.TrimSpace(s), 0, 64)
+	v, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("plist: integer %q: %w", s, err)
 	}

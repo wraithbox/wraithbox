@@ -8,7 +8,11 @@ import "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/s
 // before confinement. diskutil runs as a child and inherits it.
 //
 // It allows:
-//   - reading and writing that one bundle;
+//   - reading and writing the data disk's two names in that bundle,
+//     data.wbdisk.tmp and data.wbdisk, and reading the bundle
+//     directory's metadata. The bundle's other files, the system disk,
+//     auxiliary storage and saved state among them, are guest-written,
+//     and the shim can't open them (SEC15-no-guest-disk-mount);
 //   - the inherited descriptors, which need no rule;
 //   - starting /usr/sbin/diskutil, and no other program, with the
 //     system's own libraries and settings read-only;
@@ -30,8 +34,12 @@ var profile = selfsandbox.Profile{
 	Text: `(version 1)
 (deny default)
 
-; The VM's bundle: the image under its temporary and final names.
-(allow file-read* file-write* (subpath (param "BUNDLE")))
+; The image under its temporary and final names in the VM's bundle
+; (internal/vmbundle), and nothing else in it.
+(allow file-read* file-write*
+  (literal (string-append (param "BUNDLE") "/data.wbdisk.tmp"))
+  (literal (string-append (param "BUNDLE") "/data.wbdisk")))
+(allow file-read-metadata (literal (param "BUNDLE")))
 
 ; diskutil, at its fixed path, and no other program.
 (allow process-fork)

@@ -44,6 +44,11 @@ const (
 	// the final name. wb-hostd never makes a new disk on its own
 	// (S06-05-disks, "After a crash").
 	RuleMissing Rule = "data-disk-missing"
+	// RuleNotRegular: state.db records a formatted disk, and the name
+	// at the final path is a symbolic link, a directory or another
+	// special file, not the disk. A link could point at another VM's
+	// disk (SEC08-proj-isolation).
+	RuleNotRegular Rule = "data-disk-not-regular"
 	// RuleBusy: a format or a reset of the slot's disk is running.
 	RuleBusy Rule = "data-disk-busy"
 	// RuleRecordFailed: state.db couldn't read or write the record.
@@ -195,7 +200,7 @@ func (m *Manager) Prepare(ctx context.Context, slot string) error {
 		return m.refuse(ctx, "prepare", recordFailed(slot, err))
 	}
 	final := filepath.Join(vmbundle.Path(m.cfg.DataDir, slot), vmbundle.DataDiskName)
-	exists, err := nameExists(final)
+	exists, regular, err := lstatName(final)
 	if err != nil {
 		return m.refuse(ctx, "prepare", &Refusal{
 			Rule: RuleRecordFailed, Slot: slot, err: err,
@@ -204,6 +209,11 @@ func (m *Manager) Prepare(ctx context.Context, slot string) error {
 	}
 	formatted := found && rec.Formatted
 	switch {
+	case formatted && exists && !regular:
+		return m.refuse(ctx, "prepare", &Refusal{
+			Rule: RuleNotRegular, Slot: slot,
+			Message: fmt.Sprintf("the %s VM can't start: %s isn't a regular file, so it isn't used as the data disk. %s", slot, final, fix(slot)),
+		})
 	case formatted && exists:
 		m.log.LogAttrs(ctx, slog.LevelInfo, "data disk ready", slog.String("decision", "accept"),
 			slog.String("slot", slot), slog.String("volume_uuid", rec.VolumeUUID))
@@ -370,14 +380,18 @@ func shimFailed(slot, step string, err error) *Refusal {
 	}
 }
 
-// nameExists reports whether anything has the name path, read with
-// lstat: a link isn't followed, and no file is opened.
-func nameExists(path string) (bool, error) {
-	_, err := os.Lstat(path)
+// lstatName reports whether anything has the name path, and whether
+// that is a regular file, read with lstat: a link isn't followed, and no
+// file is opened.
+func lstatName(path string) (exists, regular bool, err error) {
+	info, err := os.Lstat(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
+		return false, false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return false, false, err
+	}
+	return true, info.Mode().IsRegular(), nil
 }
 
 // removeName deletes the name path, a symbolic link and not its

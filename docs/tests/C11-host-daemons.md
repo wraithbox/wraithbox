@@ -253,7 +253,8 @@ and one before it detaches nothing.
   `diskfmt-slot-unknown`, `diskfmt-arguments`, `diskfmt-bundle-missing`
   and `diskfmt-slot-bundle-mismatch` logged before `sandbox_init`.
 - Confined by its own profile, it refuses a size outside the bounds,
-  a request out of order, and a peer of another build version.
+  a request out of order, and a peer of another build version. It
+  can't read another file of its bundle, such as the system disk.
 - `TestHostFormat`, opt-in with `WB_DISKFMT_HOST_TEST=1` and attended
   (I228): the steps with the real `diskutil`, confined, on a bundle
   under `.scratch/`. See a formatted image at the final name with far

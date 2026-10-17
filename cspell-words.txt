@@ -45,6 +45,8 @@ hostservice
 # Virtualization, networking and OS facilities
 datavol
 diskutil
+fread
+tcflush
 iokit
 IOBSD
 IOHDIX

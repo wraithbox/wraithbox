@@ -21,6 +21,8 @@ type harness struct {
 	tool  *fakeTool
 	f     *diskfmt.Formatter
 	logs  *bytes.Buffer
+	// leftAttached is set by a test whose device stays attached.
+	leftAttached bool
 }
 
 func newHarness(t *testing.T) *harness {
@@ -40,7 +42,7 @@ func newHarness(t *testing.T) *harness {
 				t.Errorf("the fake diskutil was asked to attach %s", p)
 			}
 		}
-		if len(h.tool.attached) != 0 {
+		if len(h.tool.attached) != 0 && !h.leftAttached {
 			t.Errorf("devices left attached: %v", h.tool.attached)
 		}
 	})
@@ -224,6 +226,24 @@ func TestFinalExists(t *testing.T) {
 	}
 	if len(h.files.renames) != 0 {
 		t.Errorf("renames: %v", h.files.renames)
+	}
+}
+
+// TestDetachRetried: a detach that fails once after the format is tried
+// again. One that fails twice refuses with the device named.
+func TestDetachRetried(t *testing.T) {
+	h := newHarness(t)
+	h.tool.detachFails = 1
+	if _, r := h.f.Format(t.Context(), diskfmt.DefaultSizeGiB); r != nil {
+		t.Fatal(r)
+	}
+	h = newHarness(t)
+	h.leftAttached = true
+	h.tool.detachFails = 2
+	_, r := h.f.Format(t.Context(), diskfmt.DefaultSizeGiB)
+	h.refused(r, diskfmt.RuleDiskutil)
+	if !strings.Contains(r.Detail, "disk9") {
+		t.Errorf("the detail doesn't name the device: %s", r.Detail)
 	}
 }
 

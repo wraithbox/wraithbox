@@ -7,7 +7,9 @@
 //
 // The terminal comes from an opener, internal/platform/tty.Open in wb,
 // never from standard input or output: a script that pipes an answer
-// there doesn't answer, and a session's stream never reaches it.
+// there doesn't answer, and a session's stream never reaches it. The
+// opener discards input typed before the question, so a `yes` typed or
+// pasted ahead doesn't answer it.
 package confirm
 
 import (

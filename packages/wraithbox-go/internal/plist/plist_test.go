@@ -59,6 +59,12 @@ func TestDecodeRefuses(t *testing.T) {
 		"truncated":      `<plist><dict><key>a</key><string>b`,
 		"entity":         `<plist><string>&custom;</string></plist>`,
 		"empty document": ``,
+		"second value":   `<plist><string>a</string><string>b</string></plist>`,
+		"element after":  `<plist><string>a</string></plist><plist/>`,
+		"text after":     `<plist><string>a</string></plist>x`,
+		"key as a value": `<plist><dict><key>a</key><key>b</key></dict></plist>`,
+		"hex integer":    `<plist><integer>0x10</integer></plist>`,
+		"underscores":    `<plist><integer>1_000</integer></plist>`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if v, err := plist.Decode([]byte(doc)); err == nil {

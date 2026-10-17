@@ -157,6 +157,8 @@ type fakeTool struct {
 	backing       string
 	attachErr     error
 	eraseErr      error
+	// detachFails is how many detaches fail before one succeeds.
+	detachFails int
 
 	attached map[string]attachedDisk
 	calls    []string
@@ -239,6 +241,10 @@ func (t *fakeTool) VolumeUUID(context.Context, string) (string, error) {
 
 func (t *fakeTool) Detach(_ context.Context, device string) error {
 	t.calls = append(t.calls, "detach")
+	if t.detachFails > 0 {
+		t.detachFails--
+		return fmt.Errorf("%s is busy", device)
+	}
 	if _, ok := t.attached[device]; !ok {
 		return fmt.Errorf("%s isn't attached", device)
 	}
