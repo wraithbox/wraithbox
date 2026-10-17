@@ -16,9 +16,11 @@ import (
 //  2. refused with vm-running while the slot is starting, running or
 //     stopping;
 //  3. the bundle directory, created when it is missing;
-//  4. the guest tools disk, cloned into the bundle;
-//  5. a new generation, committed to state.db;
-//  6. a new provider instance, and its start with the configured
+//  4. the data disk checks, and a new data disk when the slot has none
+//     (S06-13-data-disk-format);
+//  5. the guest tools disk, cloned into the bundle;
+//  6. a new generation, committed to state.db;
+//  7. a new provider instance, and its start with the configured
 //     resources.
 //
 // It returns once the provider has started the VM. A refusal is a
@@ -50,6 +52,9 @@ func (m *Manager) reserve(slot Slot) *Refusal {
 			Message: fmt.Sprintf("the %s VM is already %s", slot, rec.phase),
 		}
 	}
+	if rec.resetting {
+		return resettingRefusal(slot, "start")
+	}
 	rec.phase = PhaseStarting
 	return nil
 }
@@ -62,12 +67,19 @@ func (m *Manager) unreserve(slot Slot) {
 	m.slots[slot].phase = PhaseStopped
 }
 
-// prepare runs the steps before the provider: the bundle, the tools disk
-// and the generation.
+// prepare runs the steps before the provider: the bundle, the data
+// disk, the tools disk and the generation.
 func (m *Manager) prepare(ctx context.Context, slot Slot) (uint64, *Refusal) {
 	bundle, r := ensureBundle(slot, m.bundlePath(slot))
 	if r != nil {
 		return 0, r
+	}
+	// SEC15-no-guest-disk-mount: a VM starts only with a data disk that
+	// state.db records as formatted (S06-13-data-disk-format, "The one exception").
+	// A format that has begun finishes, and records what it did, when
+	// the caller goes away.
+	if err := m.cfg.DataDisks.Prepare(context.WithoutCancel(ctx), string(slot)); err != nil {
+		return 0, dataDiskRefusal(slot, err)
 	}
 	if err := replaceToolsDisk(m.cfg.Cloner, m.cfg.ToolsImage, bundle); err != nil {
 		return 0, &Refusal{
@@ -238,5 +250,9 @@ func (m *Manager) started(ctx context.Context, r *run) {
 	m.log.LogAttrs(ctx, slog.LevelInfo, "vm running",
 		slog.String("decision", "accept"), slog.String("slot", string(r.slot)),
 		slog.Uint64("generation", r.generation))
+	// The first start with a disk ends the SEC15-no-guest-disk-mount
+	// exception for it. A failed record is logged, and doesn't stop the
+	// VM.
+	_ = m.cfg.DataDisks.Started(context.WithoutCancel(ctx), string(r.slot))
 	m.finish(ctx, r, end)
 }

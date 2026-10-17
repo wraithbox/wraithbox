@@ -61,7 +61,7 @@ name in the bundle. For each one it:
 1. `lstat`s the name, and requires a regular file with `st_nlink` 1;
 2. opens it with `O_NOFOLLOW`;
 3. requires that `fstat` on the descriptor gives the same `st_dev` and
-   `st_ino`, as `wb-diskfmt` checks its file (S06-05-disks);
+   `st_ino`, as `wb-diskfmt` checks its file (S06-13-data-disk-format);
 4. clones it into `<data>/images/` from that checked descriptor, with
    `fclonefileat` and `CLONE_NOFOLLOW`, and never acts on the path
    again.

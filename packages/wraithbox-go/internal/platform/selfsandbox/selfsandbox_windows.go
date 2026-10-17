@@ -11,6 +11,6 @@ import (
 // an error that wraps errors.ErrUnsupported and leaves the process
 // unconfined, so a daemon that calls it exits (S12-01-platform-interfaces,
 // "Unimplemented platforms fail clearly").
-func Confine(Profile, map[string]string) error {
-	return fmt.Errorf("selfsandbox: confinement on windows: %w", errors.ErrUnsupported)
-}
+func Confine(Profile, map[string]string) error { return errUnsupported }
+
+var errUnsupported = fmt.Errorf("selfsandbox: confinement on windows: %w", errors.ErrUnsupported)

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 )
 
 // Rule names the rule behind a refusal or a logged decision. A refusal
@@ -64,6 +65,13 @@ const (
 	// RuleStoppedUnexpectedly is logged, never returned: the VM reached
 	// STOPPED or ERROR, or its wb-vmd ended, without a stop request.
 	RuleStoppedUnexpectedly Rule = "vm-stopped-unexpectedly"
+	// RuleResetting: a start or a second reset while the slot's data
+	// disk is being reset (S05-03-management-commands, "`wb vm
+	// reset-data`").
+	RuleResetting Rule = "vm-resetting"
+	// RuleDataDiskFailed: the data disk step failed without a rule of
+	// its own.
+	RuleDataDiskFailed Rule = "data-disk-failed"
 )
 
 // vzErrorVirtualMachineLimitExceeded is VZErrorVirtualMachineLimitExceeded
@@ -168,7 +176,13 @@ var ownRules = map[Rule]bool{
 	RuleBundleCreateFailed: true, RuleToolsDiskCloneFailed: true, RuleGenerationFailed: true,
 	RuleGenerationInvalid: true, RuleLimitOtherSoftware: true, RuleProviderFailed: true,
 	RuleGuestPort: true, RuleStartTimeout: true, RuleStoppedUnexpectedly: true,
+	RuleResetting: true, RuleDataDiskFailed: true,
 }
+
+// foreignPrefixes are the rule prefixes of the data disk steps. A
+// provider never decides one, so a provider rule with one of them is
+// refused with vm-provider-failed, as one of ownRules is.
+var foreignPrefixes = []string{"data-disk-", "diskfmt-"}
 
 // providerRefusal turns the provider's error for op into a refusal. A
 // *ProviderRefusal keeps wb-vmd's rule when it is a rule name and not
@@ -183,12 +197,40 @@ func providerRefusal(slot Slot, generation uint64, op string, err error) *Refusa
 		}
 	}
 	rule := Rule(pr.Rule)
-	if !isRuleName(pr.Rule) || ownRules[rule] {
+	if !isRuleName(pr.Rule) || ownRules[rule] || hasForeignPrefix(pr.Rule) {
 		rule = RuleProviderFailed
 	}
 	return &Refusal{
 		Rule: rule, Slot: slot, Generation: generation, VMError: cloneVMError(pr.VMError), err: err,
 		Message: fmt.Sprintf("wb-vmd refused to %s the %s VM (%q): %s", op, slot, bound(pr.Rule), bound(pr.Detail)),
+	}
+}
+
+func hasForeignPrefix(rule string) bool {
+	for _, p := range foreignPrefixes {
+		if strings.HasPrefix(rule, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// dataDiskRefusal turns the data disk step's error into a refusal of
+// the start or the reset, with the step's rule (S06-13-data-disk-format).
+func dataDiskRefusal(slot Slot, err error) *Refusal {
+	if dr, ok := errors.AsType[*datadisk.Refusal](err); ok {
+		return &Refusal{Rule: Rule(dr.Rule), Slot: slot, Phase: PhaseStopped, Message: dr.Message, err: err}
+	}
+	return &Refusal{
+		Rule: RuleDataDiskFailed, Slot: slot, Phase: PhaseStopped, err: err,
+		Message: fmt.Sprintf("the %s VM's data disk step failed: %s", slot, bound(err.Error())),
+	}
+}
+
+func resettingRefusal(slot Slot, op string) *Refusal {
+	return &Refusal{
+		Rule: RuleResetting, Slot: slot, Phase: PhaseStopped,
+		Message: fmt.Sprintf("can't %s the %s VM: its data disk is being reset. Try again once wb vm reset-data %s ends", op, slot, slot),
 	}
 }
 

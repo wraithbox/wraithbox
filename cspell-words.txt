@@ -33,9 +33,37 @@ hostversion
 grpccreds
 healthpb
 vmtest
+vmbundle
+datadisk
+datadisktest
+diskimage
+diskfmtv
+hostdv
+vmcmd
+hostservice
 
 # Virtualization, networking and OS facilities
 datavol
+diskutil
+fread
+tcflush
+iokit
+IOBSD
+IOHDIX
+cfprefsd
+storagekitd
+diskmanagementd
+diskimagesiod
+diskarbitrationd
+logd
+urandom
+localtime
+mkfile
+rdisk
+sparseimage
+inodes
+errdetails
+bufconn
 AMFI
 ipsw
 noindex

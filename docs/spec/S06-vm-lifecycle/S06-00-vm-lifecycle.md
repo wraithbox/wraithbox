@@ -27,7 +27,7 @@ in S12-platforms.
 | S06-02-image-build | `wb image build`: the build VM, provisioning, terminfo, sealing and storage |
 | S06-03-image-updates | Replacing a VM's system disk, recreating project users, and the guest admin password per VM |
 | S06-04-vms-and-placement | The work VM and the isolated VM, Xcode, and which VM a project runs in |
-| S06-05-disks | The data disk: durability, formatting by the host, and mounting in the guest |
+| S06-05-disks | The data disk: durability, and mounting in the guest |
 | S06-06-devices-and-warm-start | A VM's devices and resources, saving and restoring it, and the guest clock |
 | S06-07-slot-admission | How `wb-hostd` admits macOS VMs against the limit of two |
 | S06-08-projects-and-sessions | Guest users, worktrees, conversation history and Claude Code in a VM |
@@ -35,6 +35,7 @@ in S12-platforms.
 | S06-10-leftover-processes | Results of the kill of a project user, and what `wb-hostd` does with them |
 | S06-11-reconnect-and-recovery | Reconnecting after a dropped link, lost sessions and their recovery |
 | S06-12-guest-agent | What `wb-guestd` does, and how it updates itself |
+| S06-13-data-disk-format | How the host formats a new data disk, and the checks before a VM starts with it |
 
 ## Out of scope
 

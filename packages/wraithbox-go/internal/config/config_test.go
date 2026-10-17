@@ -44,8 +44,10 @@ func TestAccepted(t *testing.T) {
 	}{
 		{"empty", "", Defaults()},
 		{"comment only", "# nothing\n", Defaults()},
-		{"cpu", "vm_cpu_count = 2\n", Config{CPUCount: 2, MemoryMiB: 8192}},
-		{"both", "vm_cpu_count = 6\nvm_memory_mib = 16384\n", Config{CPUCount: 6, MemoryMiB: 16384}},
+		{"cpu", "vm_cpu_count = 2\n", Config{CPUCount: 2, MemoryMiB: 8192, DataDiskGiB: 128}},
+		{"both", "vm_cpu_count = 6\nvm_memory_mib = 16384\n", Config{CPUCount: 6, MemoryMiB: 16384, DataDiskGiB: 128}},
+		{"data disk", "vm_data_disk_gib = 8\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 8}},
+		{"data disk at the top", "vm_data_disk_gib = 1024\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 1024}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,6 +84,8 @@ func TestC12Refused(t *testing.T) {
 		{"float", "\nvm_memory_mib = 8192.0\n", RuleValueInvalid, 2, "vm_memory_mib"},
 		{"over uint32", "vm_cpu_count = 4294967296\n", RuleValueInvalid, 0, "vm_cpu_count"},
 		{"over int64", "vm_memory_mib = 9223372036854775808\n", RuleValueInvalid, 1, "vm_memory_mib"},
+		{"data disk too small", "vm_data_disk_gib = 7\n", RuleValueInvalid, 0, "vm_data_disk_gib"},
+		{"data disk too large", "vm_data_disk_gib = 1025\n", RuleValueInvalid, 0, "vm_data_disk_gib"},
 		{"upper-case key", "VM_CPU_COUNT = 2\n", RuleKeyUnknown, 1, "VM_CPU_COUNT"},
 		{"mixed-case key", "\nVm_Cpu_Count = 2\n", RuleKeyUnknown, 2, "Vm_Cpu_Count"},
 		{"case-variant duplicate", "vm_cpu_count = 2\nVM_CPU_COUNT = 3\n", RuleKeyUnknown, 2, "VM_CPU_COUNT"},

@@ -15,6 +15,8 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
@@ -30,6 +32,7 @@ type harness struct {
 	db       *state.DB
 	provider *vmtest.Provider
 	cloner   *vmtest.CopyCloner
+	shim     *datadisktest.Shim
 	logs     *syncBuffer
 	cfg      vm.Config
 }
@@ -65,10 +68,16 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	h.db = db
+	logger := slog.New(slog.NewJSONHandler(h.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	h.shim = &datadisktest.Shim{DataDir: h.dataDir, UUIDs: []string{uuid1, uuid2}}
+	disks, err := datadisk.New(datadisk.Config{DataDir: h.dataDir, Records: db, Shim: h.shim, Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
 	h.cfg = vm.Config{
 		DataDir: h.dataDir, ToolsImage: h.tools, Resources: config.Defaults(),
-		Generations: db, Provider: h.provider, Cloner: h.cloner,
-		Logger: slog.New(slog.NewJSONHandler(h.logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
+		Generations: db, Provider: h.provider, Cloner: h.cloner, DataDisks: disks,
+		Logger: logger,
 	}
 	return h
 }
@@ -146,6 +155,7 @@ func TestNewChecksConfig(t *testing.T) {
 		"no provider":    func(c *vm.Config) { c.Provider = nil },
 		"no cloner":      func(c *vm.Config) { c.Cloner = nil },
 		"no generations": func(c *vm.Config) { c.Generations = nil },
+		"no data disks":  func(c *vm.Config) { c.DataDisks = nil },
 	}
 	for name, change := range tests {
 		t.Run(name, func(t *testing.T) {
