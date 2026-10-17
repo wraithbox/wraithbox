@@ -14,11 +14,6 @@
 // than run/ are added by the packages that use them.
 package paths
 
-import (
-	"context"
-	"log/slog"
-)
-
 // Paths are the host directories of one user. Each is an absolute path.
 // Current doesn't create them: `wb setup` does.
 type Paths struct {
@@ -48,16 +43,3 @@ type Refusal struct {
 }
 
 func (r *Refusal) Error() string { return "paths: " + string(r.Rule) + ": " + r.msg }
-
-// logRefusal logs a refusal with its rule. A nil log is slog.Default().
-func logRefusal(log *slog.Logger, r *Refusal, attrs ...slog.Attr) {
-	if log == nil {
-		log = slog.Default()
-	}
-	attrs = append([]slog.Attr{
-		slog.String("rule", string(r.Rule)),
-		slog.String("decision", "refuse"),
-		slog.String("reason", r.msg),
-	}, attrs...)
-	log.LogAttrs(context.Background(), slog.LevelError, "host paths refused", attrs...)
-}
