@@ -38,7 +38,7 @@ var Commands = []Command{
 	{Name: "untrust", Summary: "Stop honouring a repository's own configuration"},
 	{Name: "cred", Summary: "Manage credentials held on the host"},
 	{Name: "audit", Summary: "Read the audit log"},
-	{Name: "vm", Summary: "Start, stop, suspend and inspect VMs"},
+	{Name: "vm", Summary: "Start, stop, suspend and inspect VMs, and reset a VM's data disk"},
 	{Name: "image", Summary: "Build, list and select guest images"},
 	{Name: "shell", Summary: "Debug shell as a project's guest user"},
 	{Name: "setup", Summary: "Check prerequisites and install the host services"},

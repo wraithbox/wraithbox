@@ -20,6 +20,7 @@ type migration struct {
 // migration, so the schema has only what exists.
 var migrations = []migration{
 	{name: "vm-slots", apply: createVMSlots},
+	{name: "data-disks", apply: createDataDisks},
 }
 
 // createVMSlots is version 1: one row per VM slot with the last VM

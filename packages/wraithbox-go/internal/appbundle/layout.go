@@ -119,6 +119,7 @@ var Programs = []Program{
 	{Name: "wb", Source: SourceGo, Place: PlaceMacOS},
 	{Name: "wb-hostd", Source: SourceGo, Place: PlaceMacOS},
 	{Name: "wb-netd", Source: SourceGo, Place: PlaceMacOS},
+	{Name: "wb-diskfmt", Source: SourceGo, Place: PlaceMacOS},
 	{Name: "wb-vmd", Source: SourceSwiftPM, Place: PlaceMacOS, Virtualization: true},
 	{Name: "wb-proxyd", Source: SourceGo, Place: PlaceHelper, Roles: []string{"binding", "ca"}},
 	{Name: "wb-credset", Source: SourceGo, Place: PlaceHelper, Roles: []string{"binding"}},

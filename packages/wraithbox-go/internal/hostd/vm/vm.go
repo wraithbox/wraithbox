@@ -1,8 +1,9 @@
 // Package vm is wb-hostd's VM manager. It keeps the state of the work
 // VM and the isolated VM (S06-04-vms-and-placement), the generation each
 // runs, refuses a start or a stop that its rules don't allow, and runs
-// the steps before every cold start: the bundle directory, the guest
-// tools disk, and a new generation.
+// the steps before every cold start: the bundle directory, the data
+// disk checks, the guest tools disk, and a new generation. It also holds
+// a slot's start lock while its data disk is reset.
 //
 // It drives each VM run through a Provider, a new Instance per run
 // (S04-04-vm-processes, "One `wb-vmd` per VM"). When the VM stops, on
@@ -27,6 +28,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmbundle"
 )
 
 // Slot names a VM slot. Its value is the WB_VMD_SLOT value of the slot's
@@ -37,8 +39,8 @@ type Slot string
 // two macOS VMs run, one per slot (NFR05-two-macos-vms,
 // S06-07-slot-admission).
 const (
-	SlotWork     Slot = "work"
-	SlotIsolated Slot = "isolated"
+	SlotWork     Slot = vmbundle.SlotWork
+	SlotIsolated Slot = vmbundle.SlotIsolated
 )
 
 // Slots returns every slot, in the order a listing shows them.
@@ -48,7 +50,7 @@ func (s Slot) valid() bool { return s == SlotWork || s == SlotIsolated }
 
 // name is the slot's bundle name without its extension, macos-work or
 // macos-isolated. It is also the slot's key in state.db.
-func (s Slot) name() string { return "macos-" + string(s) }
+func (s Slot) name() string { return vmbundle.Name(string(s)) }
 
 // Phase is the manager's state of a slot.
 type Phase string
@@ -108,6 +110,10 @@ type Config struct {
 	Generations Generations
 	Provider    Provider
 	Cloner      Cloner
+	// DataDisks runs the data disk checks before each start, records the
+	// first start, and resets a disk (S06-13-data-disk-format). Only nil in
+	// refusing mode.
+	DataDisks DataDisks
 	// Sessions lists the slot's sessions that are starting, running,
 	// paused or ending. nil means none. Stop calls it before the slot
 	// moves to stopping, so session admission must refuse a VM whose
@@ -137,8 +143,8 @@ func (c *Config) check() error {
 	if c.Provider == nil || c.Cloner == nil {
 		errs = append(errs, errors.New("vm: a provider and a cloner are required"))
 	}
-	if c.Generations == nil && c.Refusing == nil {
-		errs = append(errs, errors.New("vm: generations are required outside refusing mode"))
+	if (c.Generations == nil || c.DataDisks == nil) && c.Refusing == nil {
+		errs = append(errs, errors.New("vm: generations and data disks are required outside refusing mode"))
 	}
 	return errors.Join(errs...)
 }
@@ -160,6 +166,9 @@ type slotRecord struct {
 	lastErr    *vmdv1.VMError
 	// run is the current run, nil while the slot is stopped.
 	run *run
+	// resetting: the slot's data disk is being reset, so a start is
+	// refused.
+	resetting bool
 }
 
 // New returns a manager with every slot stopped. It starts no VM.
@@ -244,7 +253,7 @@ func (m *Manager) checkRequest(slot Slot) *Refusal {
 // bundlePath is the slot's own bundle. A slot uses its bundle, never
 // another's (SEC08-proj-isolation).
 func (m *Manager) bundlePath(slot Slot) string {
-	return filepath.Join(m.cfg.DataDir, "vms", slot.name()+".noindex")
+	return vmbundle.Path(m.cfg.DataDir, string(slot))
 }
 
 // phaseRefusal refuses a request that needs another phase than rec's.

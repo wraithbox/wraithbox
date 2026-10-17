@@ -26,6 +26,8 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/diskfmt"
 )
 
 // FileName is the name of the settings file in <config>.
@@ -73,11 +75,17 @@ type Config struct {
 	CPUCount uint32
 	// MemoryMiB is the guest memory of each VM in MiB.
 	MemoryMiB uint64
+	// DataDiskGiB is the nominal size of a VM's new data disk in GiB,
+	// read when a disk is made (S06-05-disks, "Disks"). The image is
+	// sparse: this is the most it grows to. It is bounded to
+	// diskfmt.MinSizeGiB to diskfmt.MaxSizeGiB, the bounds wb-diskfmt
+	// checks too.
+	DataDiskGiB uint32
 }
 
 // Defaults returns the settings of a missing file.
 func Defaults() Config {
-	return Config{CPUCount: DefaultCPUCount, MemoryMiB: DefaultMemoryMiB}
+	return Config{CPUCount: DefaultCPUCount, MemoryMiB: DefaultMemoryMiB, DataDiskGiB: diskfmt.DefaultSizeGiB}
 }
 
 // file is the closed set of keys. A key is added here only when its
@@ -85,8 +93,9 @@ func Defaults() Config {
 // (S08-08-host-git), audit_retention_days and audit_events_per_minute
 // (S09-11-audit). Pointers tell a missing key from a zero.
 type file struct {
-	CPUCount  *int64 `toml:"vm_cpu_count"`
-	MemoryMiB *int64 `toml:"vm_memory_mib"`
+	CPUCount    *int64 `toml:"vm_cpu_count"`
+	MemoryMiB   *int64 `toml:"vm_memory_mib"`
+	DataDiskGiB *int64 `toml:"vm_data_disk_gib"`
 }
 
 // renamedKeys maps a dotted key that a release renamed or removed to the
@@ -135,7 +144,8 @@ func load(ctx context.Context, path string, renamed map[string]string) (Config, 
 	slog.Default().LogAttrs(ctx, slog.LevelInfo, "config file accepted",
 		slog.String("file", path), slog.String("decision", "accept"),
 		slog.Uint64("vm_cpu_count", uint64(cfg.CPUCount)),
-		slog.Uint64("vm_memory_mib", cfg.MemoryMiB))
+		slog.Uint64("vm_memory_mib", cfg.MemoryMiB),
+		slog.Uint64("vm_data_disk_gib", uint64(cfg.DataDiskGiB)))
 	return cfg, nil
 }
 
@@ -276,6 +286,17 @@ func (f file) check(path string) (Config, *Refusal) {
 			return Config{}, outOfRange(path, "vm_memory_mib", v)
 		}
 		cfg.MemoryMiB = uint64(v)
+	}
+	if f.DataDiskGiB != nil {
+		v := *f.DataDiskGiB
+		if v < diskfmt.MinSizeGiB || v > diskfmt.MaxSizeGiB {
+			return Config{}, &Refusal{
+				Rule: RuleValueInvalid, File: path, Key: "vm_data_disk_gib",
+				msg: fmt.Sprintf("the settings file %s sets vm_data_disk_gib to %d: a data disk is %d to %d GiB",
+					path, v, diskfmt.MinSizeGiB, diskfmt.MaxSizeGiB),
+			}
+		}
+		cfg.DataDiskGiB = uint32(v)
 	}
 	return cfg, nil
 }
