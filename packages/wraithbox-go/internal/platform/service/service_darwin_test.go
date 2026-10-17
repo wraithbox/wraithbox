@@ -65,6 +65,7 @@ func newAgent(t *testing.T, codes map[string][]int) (*launchAgent, *recorder, st
 		t.Fatalf("New gave a %T", m)
 	}
 	a.poll = time.Millisecond
+	a.wait = 50 * time.Millisecond
 	return a, rec, home
 }
 
@@ -277,12 +278,39 @@ func TestBootoutOfAnAgentNotLoaded(t *testing.T) {
 		t.Errorf("launchctl runs %q, want bootout, print, bootstrap", got)
 	}
 
-	a, rec, _ = newAgent(t, map[string][]int{"bootout": {5}, "print": {0}})
-	if err := a.Replace(ctx, testProgram); err == nil {
-		t.Fatal("Replace went on after a failed bootout of a loaded agent")
+	// A nonzero bootout of an agent that launchd drops within the wait
+	// counts as done too.
+	a, _, _ = newAgent(t, map[string][]int{"bootout": {5}, "print": {0, 113}, "bootstrap": {0}})
+	if err := a.Replace(ctx, testProgram); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestFailedBootoutKeepsTheOldPlist sees a bootout that fails while the
+// agent stays loaded end Replace before the write: the old plist stays
+// on disk, the next State isn't Current, and nothing is bootstrapped.
+func TestFailedBootoutKeepsTheOldPlist(t *testing.T) {
+	ctx := context.Background()
+	a, rec, _ := newAgent(t, map[string][]int{"bootout": {5}, "print": {0}})
+	old, err := Plist("/Applications/Wraith Box.app/Contents/MacOS/wb-hostd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.writePlist(old); err != nil {
+		t.Fatal(err)
+	}
+	err = a.Replace(ctx, testProgram)
+	if err == nil || !strings.Contains(err.Error(), "bootout gui/501/nl.wraithbox.hostd exited with 5") {
+		t.Fatalf("Replace = %v, want the failed bootout", err)
 	}
 	if slices.ContainsFunc(rec.args(), func(s string) bool { return strings.HasPrefix(s, "bootstrap") }) {
 		t.Error("bootstrap ran after a failed bootout")
+	}
+	if have, _ := os.ReadFile(a.plist); string(have) != string(old) {
+		t.Errorf("the plist on disk is\n%s\nwant the old one", have)
+	}
+	if st, err := a.State(ctx, testProgram); err != nil || st.Current {
+		t.Errorf("State = %+v, %v; want not current after the failed replace", st, err)
 	}
 }
 

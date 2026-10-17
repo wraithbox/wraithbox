@@ -21,7 +21,9 @@ Then set ` + appbundle.TeamEnv + ` to the team ID, the organizational unit (OU) 
 // when any helper bundle has no Contents/embedded.provisionprofile: then
 // no team signed the build, and it has no Keychain backend
 // (S10-02-packaging-and-signing, "Signing"; S15-02-secret-store,
-// "Ad-hoc signed builds"). wb setup runs it after it installed the
+// "Ad-hoc signed builds"). The profile is the signal until I280 reads
+// the team from the code signature (S17-02-setup, "The Keychain
+// backend"). wb setup runs it after it installed the
 // agent and the link, and still exits nonzero on it (S05-03-management-commands,
 // "`wb setup`"). A profile that isn't a regular file counts as missing.
 func checkKeychain(ctx context.Context, env *Env, bundle string) error {

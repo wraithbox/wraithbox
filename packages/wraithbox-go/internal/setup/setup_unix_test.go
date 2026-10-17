@@ -91,6 +91,31 @@ func TestC12SetupRefusals(t *testing.T) {
 	}
 }
 
+// TestC12SetupRealPaths checks the real-path part of the bundle check
+// (S17-02-setup, "The bundle check"): wb run through a link to the
+// bundle's wb goes on, and a bundle that ~/Applications holds only as a
+// link to a directory elsewhere is refused with setup-bundle-location,
+// nothing written.
+func TestC12SetupRealPaths(t *testing.T) {
+	f := newFixture(t)
+	f.env.Executable = filepath.Join(f.root, "bin", "wb")
+	f.symlink(filepath.Join(f.bundle, "Contents", "MacOS", "wb"), f.env.Executable)
+	if code := f.run(); code != ExitOK {
+		t.Fatalf("wb through a link: exit %d, stderr %q", code, f.stderr.String())
+	}
+	f.wantLink()
+
+	f = newFixture(t)
+	elsewhere := filepath.Join(f.root, "build", appbundle.AppName)
+	f.mkdir(filepath.Dir(elsewhere))
+	if err := os.Rename(f.bundle, elsewhere); err != nil {
+		t.Fatal(err)
+	}
+	f.symlink(elsewhere, f.bundle)
+	f.wantRefused(RuleBundleLocation, f.tree())
+	f.wantStderr(elsewhere)
+}
+
 func (f *fixture) symlink(target, path string) {
 	f.t.Helper()
 	f.mkdir(filepath.Dir(path))
