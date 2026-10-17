@@ -29,3 +29,6 @@ func Listen(context.Context, *slog.Logger, string, string) (*Listener, error) {
 func Dial(context.Context, *slog.Logger, string, string) (*Conn, error) {
 	return nil, errUnsupported
 }
+
+// LockHeld isn't built on linux.
+func LockHeld(*slog.Logger, string, string) (bool, error) { return false, errUnsupported }

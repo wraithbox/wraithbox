@@ -22,6 +22,7 @@ func TestUnsupported(t *testing.T) {
 		"CheckRunDir":  func() error { return CheckRunDir(nil, dir) },
 		"Listen":       func() error { _, err := Listen(ctx, nil, dir, "x"); return err },
 		"Dial":         func() error { _, err := Dial(ctx, nil, dir, "x"); return err },
+		"LockHeld":     func() error { _, err := LockHeld(nil, dir, "x"); return err },
 	}
 	for name, call := range calls {
 		if err := call(); !errors.Is(err, errors.ErrUnsupported) {

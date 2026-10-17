@@ -17,6 +17,15 @@ them silently.
 | Windows | Permission to create VMs through HCS as a standard user | decided by spike X11-windows-host |
 | Linux | Read-write access to `/dev/kvm` (desktop sessions usually have it; otherwise the `kvm` group) | administrator, once |
 
+A failed check refuses before `wb setup` installs anything:
+
+- A Mac without Apple Silicon, or with an older macOS, is refused with
+  `setup-host-unsupported`. So is a Mac whose CPU or macOS version
+  `wb setup` can't read.
+- A host that is later in the platform matrix is refused with
+  `setup-host-later` (S12-01-platform-interfaces, "Unimplemented
+  platforms fail clearly").
+
 Spike X11-windows-host may show that HCS needs administrator rights for
 every VM operation. The Windows design then needs a narrowly scoped
 system service. That would change SEC12-least-privilege for Windows. It

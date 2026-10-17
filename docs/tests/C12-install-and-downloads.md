@@ -83,19 +83,30 @@ Spec: S17-01-bundle.
 
 ### wb setup
 
-See each refused with its rule:
+See each refused with its rule, and nothing written:
 
 - a bundle outside both `Applications` folders
   (`setup-bundle-location`);
-- a bare `wb` (`setup-not-in-bundle`);
+- a bare `wb`, an unstamped one, and one whose `WBBuildVersion`
+  differs (`setup-not-in-bundle`);
 - a regular file, and a link into another directory, at
   `~/.local/bin/wb` (`setup-link-exists`);
-- a changed plist with a VM running, and a `wb-hostd` of another build
-  version (`setup-vms-running`).
+- a changed plist with a VM running, with a same-version `wb-hostd`
+  that can't list its VMs, and with a `wb-hostd` of another build
+  version, whose message names both versions (`setup-vms-running`);
+- a Mac without Apple Silicon or with an older macOS
+  (`setup-host-unsupported`), and a Linux or Windows host
+  (`setup-host-later`).
 
-With an unchanged plist, it leaves the agent running. With no
-`wb-hostd` running, it goes on. It runs `/bin/launchctl` with only
-`PATH` in its environment.
+With an unchanged plist and a loaded agent, it leaves the agent running
+and asks `wb-hostd` nothing. With no `wb-hostd` listening, it goes on.
+It runs `/bin/launchctl` with only `PATH` in its environment. The plist
+is mode 644, written by rename. An old Wraith Box link is replaced, and
+a `~/.local/bin` that isn't on `PATH` gets the line to add. The
+projects root and the probe file are made when missing and left alone
+when present. The tests are the `TestC12Setup` ones in
+`internal/setup` and `internal/platform/service`, and the reader of
+`WBBuildVersion` is `TestReadBuildVersion` in `internal/appbundle`.
 
 ### Migrations
 

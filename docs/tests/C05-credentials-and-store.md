@@ -60,6 +60,9 @@ Spec: S15-02-secret-store, "Keychain".
     items of `wb image build` and of a rotation, each with the same
     rule and logged, before any Keychain call;
   - see `wb setup` still install the services and exit nonzero.
+
+  The `wb setup` cases are `TestC05SetupAdhocKeychain` in
+  `internal/setup`.
 - In a development build, see `wb setup`, `wb cred list` and the
   session-start audit record name the signing team and say the grant is
   team-wide.
