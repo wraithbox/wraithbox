@@ -148,10 +148,15 @@ part of a guest RPC.
 `wb vm start/stop/suspend/status` controls a VM explicitly.
 
 `stop` and `suspend` are refused while the VM has a session that is
-starting, running, paused or ending. The refusal names each such
-session, the process ID of its `wb`, and how it ends: close its
-terminal, or wait for its deadline. `wb sessions` lists them
+starting, running, paused or ending (`vm-live-sessions`). The refusal
+names each such session, the process ID of its `wb`, and how it ends:
+close its terminal, or wait for its deadline. `wb sessions` lists them
 (S06-09-session-lifecycle, "Idle suspend").
+
+`stop` asks the guest to shut down, and stops the VM at once when the
+guest hasn't stopped by a deadline. A `stop` of a stopped VM is refused
+with `vm-not-running`, and a `start` of a VM that isn't stopped with
+`vm-running`.
 
 `suspend` is also refused while a kill of a project user is pending, or
 after a leftover-process result (S06-10-leftover-processes). That

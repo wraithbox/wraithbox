@@ -8,7 +8,7 @@ writer, free space, and the data disk steps.
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
 S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks,
-S09-11-audit
+S09-11-audit, S04-04-vm-processes, S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
 
 ## Unit tests
 
@@ -115,6 +115,40 @@ Spec: S04-07-supervision.
 - The type that holds `wb-hostd`'s copy of the packet transport
   descriptor has no read or write method, and the copy is closed at VM
   stop and at a restore.
+
+### VM manager
+
+Spec: S04-04-vm-processes, S06-07-slot-admission ("Other software"),
+S06-12-guest-agent ("Guest tools disk"), S05-03-management-commands
+("`wb vm`"). Tests in `internal/hostd/vm`, with the fake provider and
+cloner of `internal/hostd/vm/vmtest`:
+
+- A start and a stop of each slot. A second start is refused with
+  `vm-running`, and a stop of a stopped VM with `vm-not-running`.
+- Refusing mode refuses a start with its rule, before any step.
+- Managers that share one `state.db` give strictly increasing
+  generations, and the generation is committed before the provider
+  sees it.
+  Generation 0 is refused with `vm-generation-invalid` on start, stop
+  and connect.
+- A provider refusal is passed on with its rule. A start that fails on
+  the framework's limit of running VMs is refused with
+  `vm-limit-other-software`, naming the running VM, with no retry.
+- A VM that stops on its own reaches stopped with its error kept, and
+  is logged with `vm-stopped-unexpectedly`.
+- A request stop that doesn't finish in time goes to a force stop.
+- A bundle path that is a symbolic link or a file is refused with
+  `vm-bundle-not-directory`.
+- The configured resources reach the provider.
+- A stop with a fake session is refused with `vm-live-sessions`, and
+  the refusal lists it.
+- **Tools disk**, in a temporary directory with a cloner that copies:
+  `tools.img` is replaced before each start. A symbolic link at
+  `tools.img` to a file outside the bundle is replaced, with the target
+  unchanged. A leftover temporary file is deleted. A clone failure
+  refuses the start with `tools-disk-clone-failed`, and the temporary
+  file is gone. An old copy with mode 000 is still replaced, which
+  shows the manager never opens it (SEC15-no-guest-disk-mount).
 
 ### Accounting and event channels
 

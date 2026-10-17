@@ -1,0 +1,198 @@
+package vm
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net"
+	"strings"
+	"time"
+
+	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+)
+
+// SessionState is the state of a session that holds its VM
+// (S06-09-session-lifecycle, "Idle suspend").
+type SessionState string
+
+// The states of a live session. A lost or ended session doesn't hold
+// its VM.
+const (
+	SessionStarting SessionState = "starting"
+	SessionRunning  SessionState = "running"
+	SessionPaused   SessionState = "paused"
+	SessionEnding   SessionState = "ending"
+)
+
+// Session is a live session in a VM, a debug shell included, as the
+// Sessions hook lists it.
+type Session struct {
+	ID    string
+	State SessionState
+	// PID is the process ID of the session's wb.
+	PID int
+}
+
+// HowItEnds says how the user ends the session: close its terminal for a
+// running or paused session, wait for its deadline for a starting or
+// ending one (S06-09-session-lifecycle, "Idle suspend").
+func (s Session) HowItEnds() string {
+	switch s.State {
+	case SessionRunning, SessionPaused:
+		return "close its terminal"
+	case SessionStarting, SessionEnding:
+		return "wait for its deadline"
+	}
+	return "wait for its deadline"
+}
+
+// Stop stops slot's VM: a requested stop, then a forced one after
+// RequestStopTimeout (S05-03-management-commands, "`wb vm`"). It is
+// refused with vm-not-running when the VM is stopped, and with
+// vm-live-sessions while the VM has a session that is starting,
+// running, paused or ending. It returns once the VM has stopped and its
+// instance is closed.
+func (m *Manager) Stop(ctx context.Context, slot Slot) error {
+	if r := m.checkRequest(slot); r != nil {
+		return m.refuse(ctx, "stop", r)
+	}
+	var sessions []Session
+	if m.cfg.Sessions != nil {
+		sessions = m.cfg.Sessions(slot)
+	}
+	r, generation, ref := m.beginStop(slot, sessions)
+	if ref != nil {
+		return m.refuse(ctx, "stop", ref)
+	}
+	m.log.LogAttrs(ctx, slog.LevelInfo, "vm stop",
+		slog.String("decision", "accept"), slog.String("slot", string(slot)),
+		slog.Uint64("generation", generation))
+	// A caller that goes away doesn't leave the VM half stopped: the
+	// deadlines bound the stop instead.
+	m.stopRun(context.WithoutCancel(ctx), r, generation)
+	return nil
+}
+
+// beginStop moves a running slot to stopping, and returns its run and
+// the generation the stop requests carry.
+func (m *Manager) beginStop(slot Slot, sessions []Session) (*run, uint64, *Refusal) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	rec := m.slots[slot]
+	if rec.phase != PhaseRunning {
+		return nil, 0, phaseRefusal(slot, rec, "stop")
+	}
+	if r := checkGeneration(slot, rec.generation); r != nil {
+		r.Phase = rec.phase
+		return nil, 0, r
+	}
+	if len(sessions) > 0 {
+		return nil, 0, sessionsRefusal(slot, rec, sessions)
+	}
+	rec.phase = PhaseStopping
+	return rec.run, rec.generation, nil
+}
+
+// sessionsRefusal names each live session with its state, the process
+// ID of its wb, and how it ends (S06-09-session-lifecycle, "Idle
+// suspend", NFR06-explained-refusals).
+func sessionsRefusal(slot Slot, rec *slotRecord, sessions []Session) *Refusal {
+	parts := make([]string, len(sessions))
+	for i, s := range sessions {
+		parts[i] = fmt.Sprintf("session %s is %s (wb process %d): %s", s.ID, s.State, s.PID, s.HowItEnds())
+	}
+	return &Refusal{
+		Rule: RuleLiveSessions, Slot: slot, Phase: rec.phase, Generation: rec.generation,
+		Sessions: append([]Session(nil), sessions...),
+		Message: fmt.Sprintf("the %s VM has live sessions and isn't stopped: %s. wb sessions lists them",
+			slot, strings.Join(parts, "; ")),
+	}
+}
+
+// stopRun asks for a requested stop, then a forced one, and closes the
+// instance when neither stopped the VM in time. Closing it closes
+// wb-vmd's lifeline, and wb-vmd stops its VM at once and exits
+// (S04-07-supervision, "When `wb-hostd` stops").
+func (m *Manager) stopRun(ctx context.Context, r *run, generation uint64) {
+	request := &vmdv1.StopRequest{Generation: generation, Mode: vmdv1.StopMode_STOP_MODE_REQUEST}
+	if m.stopWith(ctx, r, request, m.cfg.RequestStopTimeout) {
+		return
+	}
+	force := &vmdv1.StopRequest{Generation: generation, Mode: vmdv1.StopMode_STOP_MODE_FORCE}
+	if m.stopWith(ctx, r, force, m.cfg.ForceStopTimeout) {
+		return
+	}
+	m.finish(ctx, r, endClosed)
+	<-r.ended
+}
+
+// stopWith asks for the stop req, and reports whether the run ended
+// within timeout.
+func (m *Manager) stopWith(ctx context.Context, r *run, req *vmdv1.StopRequest, timeout time.Duration) bool {
+	attrs := []slog.Attr{
+		slog.String("slot", string(r.slot)), slog.Uint64("generation", req.GetGeneration()),
+		slog.String("mode", req.GetMode().String()),
+	}
+	if err := r.inst.Stop(ctx, req); err != nil {
+		ref := providerRefusal(r.slot, req.GetGeneration(), "stop", err)
+		attrs = append(attrs, slog.String("rule", string(ref.Rule)), slog.String("reason", ref.Message))
+		m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop failed", attrs...)
+		select {
+		case <-r.ended:
+			return true
+		default:
+			return false
+		}
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-r.ended:
+		return true
+	case <-timer.C:
+		attrs = append(attrs, slog.Duration("timeout", timeout))
+		m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop deadline passed", attrs...)
+		return false
+	}
+}
+
+// ConnectGuest opens a connection to port in slot's running guest
+// through the provider, for the current generation.
+func (m *Manager) ConnectGuest(ctx context.Context, slot Slot, port uint32) (net.Conn, error) {
+	if r := m.checkRequest(slot); r != nil {
+		return nil, m.refuse(ctx, "connect", r)
+	}
+	// Every guest port wb-hostd connects to is below 1024, which only
+	// root in the guest can bind (S04-02-vm-provider, "Guest ports below
+	// 1024").
+	if port == 0 || port >= 1024 {
+		return nil, m.refuse(ctx, "connect", &Refusal{
+			Rule: RuleGuestPort, Slot: slot,
+			Message: fmt.Sprintf("guest port %d is refused: wb-hostd connects only to ports 1 to 1023", port),
+		})
+	}
+	inst, generation, ref := m.currentRun(slot)
+	if ref != nil {
+		return nil, m.refuse(ctx, "connect", ref)
+	}
+	conn, err := inst.ConnectGuest(ctx, generation, port)
+	if err != nil {
+		return nil, m.refuse(ctx, "connect", providerRefusal(slot, generation, "connect to", err))
+	}
+	return conn, nil
+}
+
+// currentRun returns the instance and generation of a running slot.
+func (m *Manager) currentRun(slot Slot) (Instance, uint64, *Refusal) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	rec := m.slots[slot]
+	if rec.phase != PhaseRunning {
+		return nil, 0, phaseRefusal(slot, rec, "connect to")
+	}
+	if r := checkGeneration(slot, rec.generation); r != nil {
+		r.Phase = rec.phase
+		return nil, 0, r
+	}
+	return rec.run.inst, rec.generation, nil
+}

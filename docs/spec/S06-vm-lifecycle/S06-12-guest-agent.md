@@ -64,7 +64,21 @@ with its build version (S10-tech-stack).
 `wb-vmd` attaches no disk file outside the VM's bundle
 (S04-02-vm-provider, "The device set is fixed and checked"). So before
 each cold start, `wb-hostd` clones the bundle's image into the VM's
-bundle, replacing the copy there. On macOS that is an APFS clone.
+bundle as `tools.img`, replacing the copy there. On macOS that is an
+APFS clone.
+
+`wb-vmd` may have changed anything in the VM's bundle
+(S04-04-vm-processes, "Reaching an instance"). So `wb-hostd`:
+
+- clones to a temporary name in the bundle, created exclusively, and
+  renames it over `tools.img`;
+- follows no symbolic link at either name. A link at `tools.img` is
+  replaced, and its target is left alone;
+- never opens or reads the old copy (SEC15-no-guest-disk-mount);
+- deletes a temporary file an earlier crash left, without following it.
+
+A failure refuses the start with `tools-disk-clone-failed`, and
+`wb-hostd` deletes the temporary file.
 
 `wb-vmd` can write the VM's bundle. A change it made to the copy is
 gone at the next cold start. `wb-vmd` attaches the copy read-only.
