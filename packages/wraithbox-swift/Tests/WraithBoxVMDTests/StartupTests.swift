@@ -120,6 +120,20 @@ struct StartInterfaceTests {
         }
     }
 
+    // The check, not `apply`: if the check ever let a value through,
+    // `apply` would confine the test process.
+    @Test("an empty sandbox parameter, or one with a NUL byte, is refused before confinement")
+    func sandboxParameters() throws {
+        try Confinement.checkParameters([("BUNDLE", "/b"), ("CACHE", "/c")])
+        for values in [
+            [("BUNDLE", ""), ("CACHE", "/c")], [("BUNDLE", "/b"), ("CACHE", "/c\0/x")],
+        ] {
+            try expectRefusal(.sandboxParameter) {
+                try Confinement.checkParameters(values)
+            }
+        }
+    }
+
     @Test("the deny probe passes only on EPERM, the sandbox's denial")
     func probe() throws {
         // Unconfined, the probe file can be read, so the probe refuses.

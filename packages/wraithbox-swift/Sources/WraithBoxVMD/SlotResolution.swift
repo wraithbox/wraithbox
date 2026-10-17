@@ -28,6 +28,8 @@ public enum StartupRule: String, Sendable, Equatable, CaseIterable {
     case homeInvalid = "paths-home-invalid"
     /// The per-user cache directory can't be found.
     case cacheDirectory = "vmd-cache-dir"
+    /// A sandbox parameter value is empty or holds a NUL byte.
+    case sandboxParameter = "vmd-sandbox-param-invalid"
     /// `sandbox_init_with_parameters` failed.
     case sandboxInit = "vmd-sandbox-init"
     /// An operation the profile denies succeeded after confinement.
