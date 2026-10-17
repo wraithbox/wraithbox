@@ -63,10 +63,12 @@ func New(log *slog.Logger, own string) *Credentials {
 	return &Credentials{log: log, own: own}
 }
 
-// LastRefusal returns the refusal of the latest handshake that refused
-// the peer's version, or nil. gRPC turns a handshake error into a
-// status message, so a client reads the refusal here to name both
-// versions (S04-08-records-and-bounds, "Between host processes").
+// LastRefusal returns the version refusal of the latest handshake, or
+// nil when the latest handshake passed or none has run. gRPC turns a
+// handshake error into a status message, so a client reads the refusal
+// here to name both versions (S04-08-records-and-bounds, "Between host
+// processes"). Each client gets its own *Credentials from New, so the
+// refusal is that client's.
 func (c *Credentials) LastRefusal() *hostversion.Refusal {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -108,12 +110,11 @@ func (c *Credentials) handshake(ctx context.Context, raw net.Conn) (AuthInfo, er
 		return AuthInfo{}, err
 	}
 	v, err := hostversion.Exchange(ctx, c.log, raw, c.own)
+	r, _ := errors.AsType[*hostversion.Refusal](err)
+	c.mu.Lock()
+	c.last = r
+	c.mu.Unlock()
 	if err != nil {
-		if r, ok := errors.AsType[*hostversion.Refusal](err); ok {
-			c.mu.Lock()
-			c.last = r
-			c.mu.Unlock()
-		}
 		return AuthInfo{}, err
 	}
 	return AuthInfo{

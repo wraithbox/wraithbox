@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -134,6 +135,22 @@ func Listen(ctx context.Context, log *slog.Logger, dir, name string) (*Listener,
 	if err := EnsureRunDir(log, dir); err != nil {
 		return nil, err
 	}
+	lock, err := lockEndpoint(log, path)
+	if err != nil {
+		return nil, err
+	}
+	ul, err := bind(ctx, log, path)
+	if err != nil {
+		_ = lock.Close()
+		return nil, err
+	}
+	logger(log).LogAttrs(ctx, slog.LevelInfo, "local IPC listening", slog.String("endpoint", path))
+	return &Listener{ln: ul, lock: lock, log: log, endpoint: path, peerOf: peerCredential}, nil
+}
+
+// bind clears a leftover socket and binds at path, then gives the
+// socket file mode 0600. The caller holds the endpoint's lock.
+func bind(ctx context.Context, log *slog.Logger, path string) (*net.UnixListener, error) {
 	if err := clearLeftover(ctx, log, path); err != nil {
 		return nil, err
 	}
@@ -151,13 +168,50 @@ func Listen(ctx context.Context, log *slog.Logger, dir, name string) (*Listener,
 		_ = ul.Close()
 		return nil, fmt.Errorf("localipc: chmod 0600 %q: %w", path, err)
 	}
-	logger(log).LogAttrs(ctx, slog.LevelInfo, "local IPC listening", slog.String("endpoint", path))
-	return &Listener{ln: ul, log: log, endpoint: path, peerOf: peerCredential}, nil
+	return ul, nil
 }
 
-// clearLeftover handles a file already at the endpoint path. A socket of
-// the effective user whose connect is refused is a leftover from a
-// crash, and is removed. One where a connect succeeds is a live
+// lockEndpoint takes an exclusive flock on <dir>/<name>.lock without
+// waiting, and returns the open file that holds it. The listener holds
+// it for its life, so only one listener at a time owns the endpoint
+// path: only the holder removes a leftover socket, and only the holder's
+// Close unlinks the socket. A connect refused with ECONNREFUSED doesn't
+// prove a leftover on its own: a live listener with a full backlog
+// refuses too. A lock another process holds is refused with
+// RuleEndpointInUse. The lock file is never removed, so two listeners
+// always lock the same file. A lock file that is a symbolic link, or not
+// a regular file of the effective user, is refused with
+// RuleEndpointUnsafe.
+func lockEndpoint(log *slog.Logger, path string) (*os.File, error) {
+	lockPath := strings.TrimSuffix(path, ".sock") + ".lock"
+	attrs := []slog.Attr{slog.String("endpoint", path), slog.String("lock", lockPath)}
+	f, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW, 0o600)
+	if err != nil {
+		return nil, refuse(log, &Refusal{Rule: RuleEndpointUnsafe, msg: "open the endpoint's lock file", err: err}, attrs...)
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("localipc: stat the lock file %q: %w", lockPath, err)
+	}
+	if uid, owned := ownerOf(fi); !fi.Mode().IsRegular() || !owned || uid != ownUID() {
+		_ = f.Close()
+		return nil, refuse(log, &Refusal{Rule: RuleEndpointUnsafe, msg: "the endpoint's lock file is not a regular file of the effective user"}, attrs...)
+	}
+	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		_ = f.Close()
+		if errors.Is(err, unix.EWOULDBLOCK) {
+			return nil, refuse(log, &Refusal{Rule: RuleEndpointInUse, msg: "another listener holds the endpoint's lock"}, attrs...)
+		}
+		return nil, fmt.Errorf("localipc: flock %q: %w", lockPath, err)
+	}
+	return f, nil
+}
+
+// clearLeftover handles a file already at the endpoint path. The caller
+// holds the endpoint's lock, so no other listener of localipc owns the
+// path. A socket of the effective user whose connect is refused is a
+// leftover from a crash, and is removed. One where a connect succeeds is a live
 // listener: RuleEndpointInUse. Anything else, a regular file, a symbolic
 // link, or a socket of another owner, is refused with RuleEndpointUnsafe
 // and left in place.

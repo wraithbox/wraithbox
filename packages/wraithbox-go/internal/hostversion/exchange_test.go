@@ -189,18 +189,19 @@ func TestExchangeRefusesRecords(t *testing.T) {
 	}
 }
 
-// TestExchangeSilentPeer: a peer that never sends gets RuleTimeout. The
-// context's deadline, shorter than Timeout, ends the exchange.
+// TestExchangeSilentPeer: a peer that never sends gets RuleTimeout, at
+// the exchange's deadline, shortened here.
 func TestExchangeSilentPeer(t *testing.T) {
+	old := exchangeTimeout
+	exchangeTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { exchangeTimeout = old })
 	conn := peer(t, nil, hold)
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
 	log, buf := testLog()
 	start := time.Now()
-	_, err := Exchange(ctx, log, conn, "1.2.3")
+	_, err := Exchange(context.Background(), log, conn, "1.2.3")
 	r := wantRule(t, err, RuleTimeout)
 	if time.Since(start) > Timeout {
-		t.Errorf("Exchange took %v, past the context's deadline", time.Since(start))
+		t.Errorf("Exchange took %v, past its deadline", time.Since(start))
 	}
 	if r.PeerLabel() != noneLabel {
 		t.Errorf("PeerLabel = %s, want %s", r.PeerLabel(), noneLabel)
@@ -210,13 +211,32 @@ func TestExchangeSilentPeer(t *testing.T) {
 	}
 }
 
-// TestExchangeCancel: a cancelled context ends the exchange at once.
+// TestExchangeCancel: a cancelled context ends the exchange at once,
+// with the context's cause and no Refusal: the peer didn't time out.
 func TestExchangeCancel(t *testing.T) {
 	conn := peer(t, nil, hold)
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() { time.Sleep(50 * time.Millisecond); cancel() }()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cause := errors.New("the caller gave up")
+	go func() { time.Sleep(50 * time.Millisecond); cancel(cause) }()
 	_, err := Exchange(ctx, nil, conn, "1.2.3")
-	wantRule(t, err, RuleTimeout)
+	if !errors.Is(err, cause) {
+		t.Errorf("Exchange = %v, want the context's cause", err)
+	}
+	if _, ok := errors.AsType[*Refusal](err); ok {
+		t.Errorf("Exchange = %v, want no Refusal", err)
+	}
+}
+
+// TestExchangeContextDeadline: a context deadline sooner than Timeout
+// ends the exchange with context.DeadlineExceeded, not RuleTimeout.
+func TestExchangeContextDeadline(t *testing.T) {
+	conn := peer(t, nil, hold)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, err := Exchange(ctx, nil, conn, "1.2.3")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Exchange = %v, want context.DeadlineExceeded", err)
+	}
 }
 
 // countingConn counts the bytes read from a connection.

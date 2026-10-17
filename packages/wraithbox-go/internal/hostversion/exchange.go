@@ -78,9 +78,10 @@ func (r *Refusal) Unwrap() error { return r.err }
 // Exchange sends own's version record on conn and reads the peer's, at
 // the same time, so two peers that both send first don't wait for each
 // other. It returns the peer's version when both are versions in the
-// form and equal as bytes. The exchange ends by Timeout, or by ctx's
-// deadline when that is sooner, and stops when ctx ends. On success the
-// connection's deadline is cleared.
+// form and equal as bytes. The exchange ends by Timeout. When ctx ends
+// first, it stops, closes conn, and returns an error that wraps
+// context.Cause(ctx) instead of a Refusal: the caller ended it, not the
+// peer. On success the connection's deadline is cleared.
 //
 // It reads exactly the peer's record, at most MaxRecordLen bytes, so the
 // bytes after it are left for the caller. Until it returns, nothing the
@@ -89,7 +90,13 @@ func (r *Refusal) Unwrap() error { return r.err }
 // versions, and the peer's user ID and process ID when conn is a
 // localipc.Conn (S04-architecture, "The version record").
 func Exchange(ctx context.Context, log *slog.Logger, conn net.Conn, own string) (string, error) {
-	peer, r := exchange(ctx, conn, own)
+	peer, r, err := exchange(ctx, conn, own)
+	if err != nil {
+		_ = conn.Close()
+		logger(log).LogAttrs(ctx, slog.LevelInfo, "host version exchange abandoned",
+			append(peerAttrs(conn), slog.String("decision", "abandon"), slog.String("reason", err.Error()))...)
+		return "", err
+	}
 	if r != nil {
 		r.own = own
 		_ = conn.Close()
@@ -101,15 +108,19 @@ func Exchange(ctx context.Context, log *slog.Logger, conn net.Conn, own string) 
 	return peer, nil
 }
 
-func exchange(ctx context.Context, conn net.Conn, own string) (string, *Refusal) {
-	deadline := time.Now().Add(Timeout)
-	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
-		deadline = d
+// exchangeTimeout is Timeout. The tests shorten it.
+var exchangeTimeout = Timeout
+
+// exchange returns the peer's version, or the refusal, or the error of
+// a ctx that ended first.
+func exchange(ctx context.Context, conn net.Conn, own string) (string, *Refusal, error) {
+	if err := conn.SetDeadline(time.Now().Add(exchangeTimeout)); err != nil {
+		return "", &Refusal{Rule: RuleTimeout, msg: "set the exchange deadline", err: err}, nil
 	}
-	if err := conn.SetDeadline(deadline); err != nil {
-		return "", &Refusal{Rule: RuleTimeout, msg: "set the exchange deadline", err: err}
-	}
-	// A deadline in the past ends a blocked read or write at once.
+	// ctx ends the exchange through this function, never through the
+	// connection's deadline, so ctx.Err() is set whenever ctx is why a
+	// read failed. A deadline in the past ends a blocked read or write
+	// at once.
 	stop := context.AfterFunc(ctx, func() { _ = conn.SetDeadline(time.Unix(1, 0)) })
 	sent := make(chan error, 1)
 	go func() {
@@ -121,24 +132,32 @@ func exchange(ctx context.Context, conn net.Conn, own string) (string, *Refusal)
 		stop()
 		_ = conn.Close() // ends the write, if it is still blocked
 		<-sent
-		return "", r
+		if ctx.Err() != nil {
+			return "", nil, ctxEnded(ctx)
+		}
+		return "", r, nil
 	}
 	writeErr := <-sent
 	if !stop() {
-		return "", &Refusal{Rule: RuleTimeout, msg: "the caller's context ended", err: context.Cause(ctx), peer: peer, peerRead: true}
+		return "", nil, ctxEnded(ctx)
 	}
 	if writeErr != nil {
 		r := incomplete(writeErr, RuleTimeout, 0)
 		r.msg, r.peer, r.peerRead = "the peer didn't take this side's record", peer, true
-		return "", r
+		return "", r, nil
 	}
 	if r := check(own, peer); r != nil {
-		return "", r
+		return "", r, nil
 	}
 	if err := conn.SetDeadline(time.Time{}); err != nil {
-		return "", &Refusal{Rule: RuleTimeout, msg: "clear the exchange deadline", err: err, peer: peer, peerRead: true}
+		return "", &Refusal{Rule: RuleTimeout, msg: "clear the exchange deadline", err: err, peer: peer, peerRead: true}, nil
 	}
-	return peer, nil
+	return peer, nil, nil
+}
+
+// ctxEnded is the error of an exchange the caller's context ended.
+func ctxEnded(ctx context.Context) error {
+	return fmt.Errorf("hostversion: the caller's context ended the exchange: %w", context.Cause(ctx))
 }
 
 // CheckRecord checks a datagram that must be exactly one version record,
