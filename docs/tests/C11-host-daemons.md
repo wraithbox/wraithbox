@@ -61,7 +61,8 @@ S09-11-audit
   stop reach `STOPPED`, a data disk linked out of the bundle refused
   with `device-set-file-outside-bundle` and `wb-vmd` still answering,
   and a closed lifeline end the process with status 0. The slot is
-  deleted afterwards.
+  deleted afterwards. Pass or fail, the test prints how `wb-vmd` ended
+  and every record it logged.
 - **Restore image.** A `wb-vmd-install` whose restore image is a
   symbolic link, or not at the fixed path, logs
   `vmd-restore-image-mismatch` before `sandbox_init`.
