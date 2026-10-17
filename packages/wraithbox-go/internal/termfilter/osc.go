@@ -132,7 +132,9 @@ func (f *Filter) osc9(t token, payload string) {
 		f.notify()
 		return
 	}
-	f.passIf(t, progressParams(payload[1:]), RuleOSC)
+	ok := progressParams(payload[1:])
+	f.passIf(t, ok, RuleOSC)
+	f.seen.progress = f.seen.progress || ok
 }
 
 // progressParams reports whether rest, the part after `4`, is at most
@@ -234,6 +236,7 @@ func (f *Filter) status(t token, payload string) {
 	if removed {
 		f.count(RuleOSCStatusText)
 	}
+	f.seen.status = true
 	f.out = append(f.out, esc, ']')
 	f.out = append(f.out, "7501"...)
 	for _, k := range statusKeys {

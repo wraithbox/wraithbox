@@ -37,6 +37,8 @@ type Filter struct {
 	tok tokenizer
 	out []byte
 	kb  keyboard
+	// seen records the reports the exit reset clears (reset.go).
+	seen passed
 
 	counts map[Rule]uint64
 	links  linkList
