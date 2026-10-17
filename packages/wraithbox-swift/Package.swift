@@ -7,6 +7,9 @@ import PackageDescription
 
 let package = Package(
     name: "wraithbox-swift",
+    // The first platform is the app target's deployment target too:
+    // scripts/app-bundle.sh reads it and passes it to xcodebuild for
+    // WraithBox.xcodeproj, so one edit here moves both.
     platforms: [
         .macOS(.v15)
     ],

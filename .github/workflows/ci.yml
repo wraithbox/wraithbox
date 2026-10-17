@@ -146,6 +146,12 @@ jobs:
       - name: Sign wb-vmd (ad-hoc, hardened runtime)
         run: mise run swift:sign
 
+      # `Wraith Box.app`, ad-hoc signed, and its entitlement check
+      # (S17-01-bundle, "Output"). No WB_TEAM_ID: the team-signed build
+      # is I280.
+      - name: Bundle (ad-hoc Wraith Box.app + entitlement check)
+        run: mise run app:bundle
+
   docs:
     name: Docs
     # Runs on every pull request: cspell checks every tracked file, code

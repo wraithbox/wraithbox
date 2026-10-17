@@ -211,6 +211,26 @@ bigfft
 mathutil
 txlock
 
+# The app bundle build: Xcode settings, hdiutil flags, Info.plist keys
+appbundle
+APPL
+ARCHS
+INFOPLIST
+LSUI
+mountpoint
+noautoopen
+nobrowse
+OBJROOT
+pbxproj
+plists
+provisionprofile
+SDKROOT
+SYMROOT
+TEAMID
+UDTO
+volname
+xcworkspace
+
 # Docs site (Astro Starlight)
 frontmatter
 seti

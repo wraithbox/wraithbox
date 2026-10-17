@@ -62,6 +62,23 @@
 - **Audit.** A download record that can't be written cancels the run
   with `download-audit-failed`.
 
+### Bundle
+
+Spec: S17-01-bundle.
+
+- **Entitlement check.** Each case of S17-01-bundle, "The entitlement
+  check", fails the check with the program and the rule in its message.
+  The tests are the `TestC05BuildCheck` ones in `internal/appbundle`
+  (C05-credentials-and-store, "Access groups").
+- **Identity.** A set `WB_TEAM_ID` fails the build before anything is
+  built, with a message that names it. A `WB_BUNDLE_ID` that isn't
+  reverse-DNS is refused (`TestC12BundleIdentity`).
+- **Install.** Installing two bundles in turn at one temporary
+  destination leaves the second, with no file of the first and nothing
+  next to it (`TestC12BundleInstallSwap`).
+- **Build.** CI's macOS job builds the ad-hoc bundle and runs the check
+  on it (`mise run app:bundle`).
+
 ### wb setup
 
 See each refused with its rule:

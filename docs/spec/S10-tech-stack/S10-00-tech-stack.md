@@ -44,6 +44,7 @@ packages/
                      internal/gen/wraithbox/<area>/v1: generated code for every .proto package
   wraithbox-swift/   SwiftPM package: WraithBoxVM library, wb-vmd executable (macOS)
                      Sources/WraithBoxRPC: generated code for wraithbox.vmd.v1 only
+                     WraithBox.xcodeproj, App/: the app target of Wraith Box.app (S17-01-bundle)
   wraithbox-dotnet/  .NET solution for Windows-native helpers (when the first one is built)
   wraithbox-doc/     documentation site
 proto/               .proto contracts shared by every language: wraithbox/<area>/v1/<area>.proto
