@@ -1311,13 +1311,13 @@
 	},
 	"210": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "build(deps): Bump jdx/mise-action from 4.3.0 to 5.1.1",
 		"summary": "Bumps jdx/mise-action from 4.3.0 to 5.1.1."
 	},
 	"211": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "chore(deps): Bump @astrojs/starlight from 0.42.4 to 0.42.5 in /packages/wraithbox-doc",
 		"summary": "Bumps @astrojs/starlight from 0.42.4 to 0.42.5."
 	},
@@ -1752,7 +1752,7 @@
 	},
 	"283": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: state.db with migrations, config.toml with closed keys, refusing mode, daemon log pipes",
 		"summary": "wb-hostd is a stub."
 	},
@@ -1848,7 +1848,7 @@
 	},
 	"299": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb: terminal filter for guest output, with drop counts and fuzz properties",
 		"summary": "wb shell (M2.12) and later wb claude write guest bytes to the user's terminal."
 	},
@@ -1992,7 +1992,7 @@
 	},
 	"323": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Run 2026-10-16 (V1-M2-walking-skeleton, lane mac)",
 		"summary": "Size 4, 5 waves, lane mac, milestone V1-M2-walking-skeleton (default: first open milestone in the version page's order with ready work for the lane)."
 	},
@@ -2028,13 +2028,13 @@
 	},
 	"329": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(go): terminal filter for guest output, with drop counts and fuzz properties",
 		"summary": "Adds packages/wraithbox-go/internal/termfilter, the allowlist filter of S16-01-filter for the host terminal stream (boundary 6 of T00-index)."
 	},
 	"330": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(go): wb-hostd state.db with migrations, closed config keys, refusing mode, daemon log pipes",
 		"summary": "Part M2.7a of wb-hostd core: libraries with unit tests, not wired into cmd/wb-hostd (that is #287)."
 	},
@@ -2055,5 +2055,35 @@
 		"state": "open",
 		"title": "go:fuzz: the default fuzz minimize time can use up each target's 10 s budget",
 		"summary": "The security review of #330 (#283) saw the Go fuzz minimizer stall FuzzLogPipe."
+	},
+	"334": {
+		"kind": "pr",
+		"state": "open",
+		"title": "build(deps-dev): Bump playwright from 1.63.0 to 1.64.0 in /packages/wraithbox-doc",
+		"summary": "Bumps playwright from 1.63.0 to 1.64.0."
+	},
+	"335": {
+		"kind": "pr",
+		"state": "open",
+		"title": "build(deps): Bump jdx/mise-action from 4.3.0 to 5.1.1",
+		"summary": "Bumps jdx/mise-action from 4.3.0 to 5.1.1."
+	},
+	"336": {
+		"kind": "pr",
+		"state": "open",
+		"title": "build(deps): Bump astro from 7.3.5 to 7.3.8 in /packages/wraithbox-doc",
+		"summary": "Bumps astro from 7.3.5 to 7.3.8."
+	},
+	"337": {
+		"kind": "pr",
+		"state": "open",
+		"title": "build(deps): Bump @astrojs/starlight from 0.42.4 to 0.42.6 in /packages/wraithbox-doc",
+		"summary": "Bumps @astrojs/starlight from 0.42.4 to 0.42.6."
+	},
+	"338": {
+		"kind": "pr",
+		"state": "open",
+		"title": "build(deps): Bump @astrojs/markdown-remark from 7.3.1 to 7.3.2 in /packages/wraithbox-doc",
+		"summary": "Bumps @astrojs/markdown-remark from 7.3.1 to 7.3.2."
 	}
 }

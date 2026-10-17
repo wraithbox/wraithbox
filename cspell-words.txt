@@ -138,7 +138,6 @@ revents
 GRPCNIO
 NIOBSD
 NSPOSIX
-terminfo
 
 # Tools and their names in configs
 globl
@@ -304,4 +303,3 @@ resolv
 securityd
 BCSTXR
 BCTXR
-termfilter
