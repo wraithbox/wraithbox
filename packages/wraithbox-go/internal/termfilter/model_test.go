@@ -82,25 +82,27 @@ type termState struct {
 	progress int
 	// status holds the ids of the open program status reports, "" for
 	// a report without an id.
-	status  map[string]bool
+	status map[string]bool
+	// saved is what DECSC saved on each screen. The property compares
+	// the main screen's, which a later `ESC 8` or `CSI u` of the user's
+	// shell would restore.
+	saved   [2]savedCursor
 	unknown []string
 }
 
-// termModel is the state and what DECSC saved on each screen.
+// termModel is the terminal state the property replays bytes into.
 type termModel struct {
 	termState
-	saved [2]savedCursor
 }
 
 func newModel() *termModel {
-	m := &termModel{termState: initialState()}
-	m.saved[0] = m.cursor()
-	m.saved[1] = m.cursor()
-	return m
+	return &termModel{termState: initialState()}
 }
 
 func initialState() termState {
+	initial := savedCursor{g0: 'B', g1: 'B'}
 	return termState{
+		saved:        [2]savedCursor{initial, initial},
 		modes:        map[int]bool{},
 		g0:           'B',
 		g1:           'B',
@@ -131,6 +133,7 @@ func diff(a, b *termState) []string {
 		{"kitty-alt", slices.Equal(a.kitty[1], b.kitty[1])},
 		{"progress", a.progress == b.progress},
 		{"status", maps.Equal(a.status, b.status)},
+		{"saved-cursor", a.saved[0] == b.saved[0]},
 		{"unknown", slices.Equal(a.unknown, b.unknown)},
 	}
 	var names []string
@@ -165,6 +168,8 @@ func (m *termModel) value(name string) any {
 		return m.kitty[1]
 	case "status":
 		return m.status
+	case "saved-cursor":
+		return m.saved[0]
 	case "unknown":
 		return m.unknown
 	}

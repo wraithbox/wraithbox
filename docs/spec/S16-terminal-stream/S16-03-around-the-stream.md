@@ -50,6 +50,10 @@ the guest may have changed:
 - the program status records, with `OSC 7501 ; state=clear`, when the
   guest sent a report (S16-01-filter, "Program status").
 
+When the guest left pushes on the alternate screen and then returned
+to the main screen, `wb` visits the alternate screen to pop them, with
+synchronized output on so the terminal doesn't draw the visit.
+
 Then it starts a new line. It doesn't send `ESC c`, which can clear
 the scroll-back.
 
