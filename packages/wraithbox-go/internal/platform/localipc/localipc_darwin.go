@@ -277,6 +277,40 @@ func Dial(ctx context.Context, log *slog.Logger, dir, name string) (*Conn, error
 	return &Conn{UnixConn: uc, peer: peer}, nil
 }
 
+// LockHeld reports whether a listener holds the lock of the endpoint
+// <dir>/<name>.sock: whether one listens there, or is about to. A dialer
+// that gets ECONNREFUSED asks it, because a live listener with a full
+// backlog refuses a connect too, so only the lock tells it from a
+// leftover socket. A missing lock file, or a missing run directory, is
+// not held. When no one holds the lock, LockHeld takes it for an
+// instant, so a Listen in that instant is refused with
+// RuleEndpointInUse. It opens the lock file read-only, never creates
+// it, and doesn't follow a symbolic link.
+func LockHeld(log *slog.Logger, dir, name string) (bool, error) {
+	path, err := endpointPath(log, dir, name)
+	if err != nil {
+		return false, err
+	}
+	lockPath := strings.TrimSuffix(path, ".sock") + ".lock"
+	f, err := os.OpenFile(lockPath, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("localipc: open the lock file %q: %w", lockPath, err)
+	}
+	defer func() { _ = f.Close() }()
+	err = unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+	if errors.Is(err, unix.EWOULDBLOCK) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("localipc: flock %q: %w", lockPath, err)
+	}
+	// Closing the file releases the lock.
+	return false, nil
+}
+
 // endpointPath returns <dir>/<name>.sock, refusing a name outside
 // [a-z][a-z0-9-]* and a path over MaxPathLen bytes.
 func endpointPath(log *slog.Logger, dir, name string) (string, error) {

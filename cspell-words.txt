@@ -88,6 +88,8 @@ videotoolbox
 terminfo
 osrelease
 osversion
+osproductversion
+bootout
 libkrun
 NXDOMAIN
 SVCB
@@ -222,6 +224,9 @@ txlock
 appbundle
 APPL
 ARCHS
+bplist
+chardata
+apos
 INFOPLIST
 LSUI
 mountpoint

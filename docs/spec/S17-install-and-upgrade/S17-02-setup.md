@@ -13,7 +13,9 @@ bundle, then installs the agent and the link below.
 
 `wb setup` resolves its own executable's real path. It refuses with
 `setup-not-in-bundle` unless that path is `Contents/MacOS/wb` of a
-bundle whose `Info.plist` has the same `WBBuildVersion` as `wb`.
+bundle whose `Info.plist` has the same `WBBuildVersion` as `wb`. An
+unstamped `wb` never matches. It refuses a bundle without
+`Contents/MacOS/wb-hostd` the same way.
 
 It refuses with `setup-bundle-location` a bundle that isn't directly
 in `~/Applications` or `/Applications`. The agent then never points
@@ -41,9 +43,23 @@ its VMs. So `wb setup` first asks `wb-hostd`:
    read its VMs. It then refuses with `setup-vms-running` as well. The
    message names both versions, and says to stop the VMs with the `wb`
    of the running build.
-3. When no `wb-hostd` answers, no VM runs, because VMs stop with
+3. When no `wb-hostd` listens, no VM runs, because VMs stop with
    `wb-hostd` (S04-07-supervision, "When `wb-hostd` stops"). It goes
-   on.
+   on. `wb setup` takes it that no `wb-hostd` listens when there is no
+   socket, or when the connect is refused while no listener holds the
+   endpoint's lock. A listener with a full backlog refuses a connect
+   too.
+4. Every other answer refuses with `setup-vms-running`, because a
+   wrong "no VM runs" stops running VMs and loses their sessions:
+   - a `wb-hostd` of the same build that doesn't list its VMs, as
+     every `wb-hostd` before the VM list is built;
+   - a question that fails, such as a timeout, a failed peer check, or
+     a refused connect while the lock is held.
+
+A refusal for another build, or for a `wb-hostd` that can't list its
+VMs, also names the `launchctl bootout` command that stops
+`wb-hostd` once its VMs are stopped. Without that step, the next run
+refuses again.
 
 Then it runs `launchctl bootout` and `launchctl bootstrap gui/<uid>`.
 It runs `/bin/launchctl` by absolute path, with the environment
@@ -52,7 +68,8 @@ It runs `/bin/launchctl` by absolute path, with the environment
 ### The link
 
 `wb setup` links `~/.local/bin/wb` to the bundle's
-`Contents/MacOS/wb`.
+`Contents/MacOS/wb`. It makes a missing `~/.local/bin`, and renames a
+new link over the old one.
 
 A file there is a link into a Wraith Box bundle when all of these
 hold:

@@ -498,3 +498,44 @@ func TestListenRefusesLinkedLock(t *testing.T) {
 		t.Errorf("lock file type after the refusal = %v, want the link left in place", got)
 	}
 }
+
+// TestLockHeld sees the lock held while a listener runs, and not held
+// without a run directory, and after the listener closed with a
+// leftover socket. A lock file that is a symbolic link is an error,
+// never "not held".
+func TestLockHeld(t *testing.T) {
+	data := shortDir(t)
+	run := filepath.Join(data, "run")
+	held := func() bool {
+		t.Helper()
+		h, err := LockHeld(nil, run, "hostd")
+		if err != nil {
+			t.Fatalf("LockHeld: %v", err)
+		}
+		return h
+	}
+	if held() {
+		t.Error("held without a run directory")
+	}
+	ln := listen(t, nil, run)
+	if !held() {
+		t.Error("not held while a listener runs")
+	}
+	if err := ln.Close(); err != nil {
+		t.Fatal(err)
+	}
+	leftover(t, filepath.Join(run, "hostd.sock"))
+	if held() {
+		t.Error("held after the listener closed")
+	}
+	lock := filepath.Join(run, "hostd.lock")
+	if err := os.Remove(lock); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(data, "elsewhere"), lock); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LockHeld(nil, run, "hostd"); err == nil {
+		t.Error("LockHeld followed a symbolic link")
+	}
+}

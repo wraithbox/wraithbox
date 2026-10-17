@@ -29,6 +29,10 @@ import (
 	"os"
 )
 
+// HostdEndpoint is the name of wb-hostd's endpoint,
+// <data>/run/wb-hostd.sock, where wb reaches wb-hostd.
+const HostdEndpoint = "wb-hostd"
+
 // MaxPathLen is the longest endpoint path: sun_path holds 104 bytes on
 // macOS, the last one the terminating NUL.
 const MaxPathLen = 103
