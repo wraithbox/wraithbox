@@ -15,7 +15,7 @@ OS:
 | **Host-guest socket** | Byte streams between `wb-hostd` and `wb-guestd` | virtio-vsock ("Host-guest socket on macOS") | Hyper-V sockets | virtio-vsock |
 | **Packet transport** | Guest Ethernet frames to and from `wb-netd`, without host privileges | file-handle network attachment ("Packet transport on macOS") | spike X11-windows-host | spike X10-linux-hypervisor |
 | **Disk cloning** | Copy-on-write images | APFS clones | VHDX differencing disks | qcow2 backing files, or reflinks where the filesystem supports them |
-| **Local IPC** | Host gRPC endpoints, peer identity | Unix sockets, peer credentials | named pipes, user-SID ACL, client process id | Unix sockets, `SO_PEERCRED` |
+| **Local IPC** | Host gRPC endpoints, peer identity (`internal/platform/localipc`) | Unix sockets in `<data>/run`, peer credentials | named pipes, user-SID ACL, client process id | Unix sockets, `SO_PEERCRED` |
 | **Secret store** | Holds every credential. Each item is readable only by the processes S15-least-privilege declares for it | Keychain | Credential Manager (DPAPI, per user) | Secret Service (D-Bus); see "Secret store on Linux without a desktop session" |
 | **Hardware key** | Non-exportable CA signing key (S09-06-ca-keys, "Key") | Secure Enclave, a key kept as its wrapped form in a store item | TPM via the CNG platform crypto provider | TPM 2.0 where present, else a software key in the secret store |
 | **Service manager** | Run `wb-hostd` per user, at login and again whenever it exits. `wb-hostd` supervises the other daemons (S04-07-supervision) | LaunchAgent `nl.wraithbox.hostd`, which `wb setup` writes (S17-install-and-upgrade) | per-user logon task | systemd user unit |
@@ -23,7 +23,7 @@ OS:
 | **Image build downloads** | Fetch what an image build needs from the internet: `wb-download` only, never `wb-hostd` (S17-03-downloads) | "Image build downloads on macOS" | no Windows image download: the user supplies it (S12-platforms, "What the matrix assumes"). The same program and host rules, confined with the Self-sandbox row's mechanism, specified when Windows hosts are built | the same program and host rules, confined with Landlock and seccomp, specified when Linux hosts are built |
 | **Notifications** | Approval prompts with actions | native helper (Swift) | native helper (S12-02-languages-and-ci) | freedesktop notifications over D-Bus from Go |
 | **Downloaded-file marker** | Files leaving the guest other than via git | quarantine attribute | Mark of the Web | none (documented) |
-| **Paths** | `<config>`, `<data>`, `<logs>` of S04-architecture | `~/.config/wraithbox`, `~/Library/Application Support/WraithBox`, `~/Library/Logs/WraithBox` | `%APPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox\Logs` | `$XDG_CONFIG_HOME/wraithbox`, `$XDG_DATA_HOME/wraithbox`, `$XDG_STATE_HOME/wraithbox/logs` |
+| **Paths** | `<config>`, `<data>`, `<logs>` of S04-architecture (`internal/platform/paths`) | `~/.config/wraithbox`, `~/Library/Application Support/WraithBox`, `~/Library/Logs/WraithBox`, where `~` is the home directory the user database gives the effective user ID, never `HOME` | `%APPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox\Logs` | `$XDG_CONFIG_HOME/wraithbox`, `$XDG_DATA_HOME/wraithbox`, `$XDG_STATE_HOME/wraithbox/logs` |
 
 ### Host-guest socket on macOS
 

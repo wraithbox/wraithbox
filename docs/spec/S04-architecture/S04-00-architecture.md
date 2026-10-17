@@ -94,6 +94,23 @@ named pipes with an ACL for the user's SID on Windows. The peer's
 identity is checked on every connection. To the guest it runs over the
 host-guest socket.
 
+On macOS the endpoints are in `internal/platform/localipc`:
+
+- The run directory is made with mode `0700` when missing. One that
+  isn't a directory of the user without group or other permission
+  bits, or is a symbolic link, is refused with `ipc-run-dir-unsafe`
+  and left as it is.
+- An endpoint is `<data>/run/<name>.sock`. A leftover socket of the user
+  that refuses a connect is removed before the bind. A live one is
+  refused with `ipc-endpoint-in-use`, and any other file at the path
+  with `ipc-endpoint-unsafe`.
+- Both ends check the other's user ID, the listener on every accepted
+  connection and the dialer after its connect. A peer of another user
+  ID is closed with `ipc-peer-uid` before a byte is read, and the
+  listener goes on to the next connection.
+- The gRPC handshake refuses a connection that didn't come through
+  these checks with `ipc-peer-unchecked`.
+
 gRPC can't pass a descriptor. So a hand-off of descriptors is one
 record per message on a socketpair inherited at spawn
 (S04-02-vm-provider, "Hand-off on macOS").
@@ -115,7 +132,9 @@ the bounds the receiver checks.
 
 On a host stream connection, gRPC included, each side sends its version
 record first, then reads the peer's (S04-08-records-and-bounds,
-"Between host processes"). Go and Swift write the same bytes:
+"Between host processes"). On a datagram channel the first record is
+the version record. The Go side is `internal/hostversion`. Go and Swift
+write the same bytes:
 
 - the four bytes `WBV1`;
 - one length byte;
@@ -130,8 +149,8 @@ its rule:
 
 | Rule | When |
 |---|---|
-| `peer-version-timeout` | no whole record before the deadline |
-| `peer-version-malformed` | another magic, a length over 64, or a version byte outside 0x20 to 0x7E |
+| `peer-version-timeout` | no whole record before the deadline: the peer sent none, the connection ended first, or the peer didn't take this side's record |
+| `peer-version-malformed` | another magic, a length over 64, a version byte outside 0x20 to 0x7E, or, on a datagram channel, a first record that isn't exactly one version record |
 | `peer-version-unstamped` | the peer's version is empty, or its own is empty or outside the form |
 | `guest-version-form` | the peer's version is not in the version form of S04-08-records-and-bounds, "The guest's version is a label" (the rule Go's version check names) |
 | `peer-version-mismatch` | the versions differ as bytes |

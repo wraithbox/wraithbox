@@ -28,6 +28,10 @@ fuzzsmoke
 fdchan
 selfsandbox
 termfilter
+localipc
+hostversion
+grpccreds
+healthpb
 
 # Virtualization, networking and OS facilities
 datavol
@@ -123,6 +127,7 @@ usec
 PEERCRED
 PEERPID
 xucred
+ucred
 plutil
 renamex
 setflags

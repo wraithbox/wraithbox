@@ -6,8 +6,9 @@ import (
 	"log/slog"
 )
 
-// Windows hosts are later (S12-platforms). Their roots are under
-// %APPDATA% and %LOCALAPPDATA% (S12-01-platform-interfaces, "Paths").
+// Windows hosts are later (S12-platforms). Their roots are in the
+// roaming and local application data folders (S12-01-platform-interfaces,
+// "Paths").
 // Until they are built, every function returns an error that wraps
 // errors.ErrUnsupported (S12-01-platform-interfaces, "Unimplemented
 // platforms fail clearly").

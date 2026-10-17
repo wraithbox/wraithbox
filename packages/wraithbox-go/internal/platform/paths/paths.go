@@ -10,7 +10,7 @@
 // It is in internal/platform because the roots differ per OS
 // (S12-01-platform-interfaces, "Rules"). Linux and Windows return an
 // error that wraps errors.ErrUnsupported (S12-01-platform-interfaces,
-// "Unimplemented platforms fail clearly"). The subpaths of <data> other
+// "Unimplemented platforms fail clearly"). The paths under <data> other
 // than run/ are added by the packages that use them.
 package paths
 
