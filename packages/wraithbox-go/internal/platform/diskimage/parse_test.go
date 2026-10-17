@@ -35,6 +35,8 @@ func TestParseAttach(t *testing.T) {
 		{"file URL", entities(`<key>DiskImageURL</key><string>file:///Users/a/Library/Application%20Support/WraithBox/vms/macos-work.noindex/data.wbdisk.tmp</string>`), "disk7", tmp},
 		{"both agree", entities(`<key>image-path</key><string>` + tmp + `</string><key>image-url</key><string>file://localhost` + strings.ReplaceAll(tmp, " ", "%20") + `</string>`), "disk7", tmp},
 		{"both disagree", entities(`<key>image-path</key><string>` + tmp + `</string><key>image-url</key><string>file:///elsewhere</string>`), "disk7", ""},
+		{"a relative path, then a good URL", entities(`<key>image-path</key><string>relative/x</string><key>DiskImageURL</key><string>file://` + strings.ReplaceAll(tmp, " ", "%20") + `</string>`), "disk7", ""},
+		{"a good path, then a remote URL", entities(`<key>image-path</key><string>` + tmp + `</string><key>DiskImageURL</key><string>https://host/x</string>`), "disk7", ""},
 		{"no backing path", entities(``), "disk7", ""},
 		{"relative path", entities(`<key>image-path</key><string>data.wbdisk.tmp</string>`), "disk7", ""},
 		{"remote URL", entities(`<key>DiskImageURL</key><string>https://host/x</string>`), "disk7", ""},

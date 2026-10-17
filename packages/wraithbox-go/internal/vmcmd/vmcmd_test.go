@@ -13,7 +13,9 @@ import (
 	"testing"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
@@ -292,6 +294,34 @@ func TestPrintsWithoutEscapes(t *testing.T) {
 		t.Errorf("last line %q", got)
 	}
 }
+
+// TestResetMayHaveRun: when the answer doesn't arrive, wb says the
+// reset may have run.
+func TestResetMayHaveRun(t *testing.T) {
+	for _, err := range []error{
+		status.Error(codes.Unavailable, "connection closed"),
+		status.Error(codes.DeadlineExceeded, "deadline"),
+		context.DeadlineExceeded,
+	} {
+		f := newFixture(t, "yes\n")
+		env := f.env()
+		env.Dial = func(context.Context) (vmcmd.Hostd, error) { return failing{err}, nil }
+		if code := vmcmd.Run(t.Context(), env, []string{"reset-data", "work"}); code != 255 {
+			t.Fatalf("exit %d", code)
+		}
+		if got := f.lastLine(); !strings.HasSuffix(got, "(vm-reset-unknown)") || !strings.Contains(got, "wb vm status") {
+			t.Errorf("%v: last line %q", err, got)
+		}
+	}
+}
+
+type failing struct{ err error }
+
+func (f failing) ResetVMData(context.Context, hostdv1.VM) (*hostdv1.ResetVMDataResponse, error) {
+	return nil, f.err
+}
+
+func (failing) Close() error { return nil }
 
 type evil struct{}
 

@@ -102,7 +102,9 @@ func backingIn(dicts ...map[string]any) string {
 	found := ""
 	for _, d := range dicts {
 		for _, p := range backingValues(d) {
-			if found != "" && p != found {
+			// A value that isn't a path is as ambiguous as two that
+			// disagree, whichever key holds it.
+			if p == "" || (found != "" && p != found) {
 				return ""
 			}
 			found = p

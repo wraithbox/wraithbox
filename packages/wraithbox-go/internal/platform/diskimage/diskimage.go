@@ -11,7 +11,9 @@
 // "Unimplemented platforms fail clearly").
 //
 // The parsers of diskutil's output are in parse.go, with no OS code, so
-// their table tests run on every OS. That output comes from a blank
-// image wb-diskfmt made, never from a guest, so it gets table tests and
-// no fuzz target.
+// their table tests run on every OS. The attach output describes the
+// blank image wb-diskfmt made, and `diskutil apfs list` describes every
+// APFS container on the host. None of it is written by a guest
+// (T00-index), so the parsers get table tests and no fuzz target. The
+// property list decoder under them, internal/plist, has one.
 package diskimage

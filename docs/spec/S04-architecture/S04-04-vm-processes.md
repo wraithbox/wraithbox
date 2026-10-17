@@ -172,7 +172,10 @@ it cuts a refusal's text to a fixed bound.
 
 The compiled-in profile allows:
 
-- reading and writing that one bundle path;
+- reading and writing the data disk's temporary and final names in
+  that bundle, and reading the bundle directory's metadata. The
+  bundle's other files are guest-written, and the shim can't open
+  them;
 - its inherited descriptors;
 - starting `/usr/sbin/diskutil` and no other program, with the
   system's libraries and settings read-only;

@@ -186,7 +186,13 @@ func TestChildRefusesSize(t *testing.T) {
 	if err := os.MkdirAll(bundle, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	s := startShim(t, data, SlotEnv+"=work")
+	// A guest-written file in the same bundle, which the profile keeps
+	// the shim from opening (SEC15-no-guest-disk-mount).
+	system := filepath.Join(bundle, "sys.wbdisk")
+	if err := os.WriteFile(system, []byte("guest-written"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := startShim(t, data, SlotEnv+"=work", childOutside+"="+system)
 	s.versions(testVersion)
 	s.send(formatRequest(diskfmt.MinSizeGiB - 1))
 	got := s.recv(30 * time.Second).GetRefusal()
@@ -197,9 +203,12 @@ func TestChildRefusesSize(t *testing.T) {
 	if !strings.Contains(logs, `"rule":"sandbox-applied"`) {
 		t.Errorf("the child didn't confine itself:\n%s", logs)
 	}
+	if !strings.Contains(logs, outsideDenied) {
+		t.Errorf("the confined child read the bundle's system disk:\n%s", logs)
+	}
 	entries, err := os.ReadDir(bundle)
-	if err != nil || len(entries) != 0 {
-		t.Errorf("the bundle holds %v (%v), want nothing", entries, err)
+	if err != nil || len(entries) != 1 {
+		t.Errorf("the bundle holds %v (%v), want only the system disk", entries, err)
 	}
 }
 

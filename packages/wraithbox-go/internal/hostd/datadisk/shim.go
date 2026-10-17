@@ -168,6 +168,8 @@ type processSession struct {
 	log     *slog.Logger
 	done    chan struct{}
 	waitErr error
+	// refused: wb-diskfmt answered with a refusal, after which it exits 1.
+	refused bool
 }
 
 func (s *processSession) copyLog(ctx context.Context, r io.ReadCloser, w io.Writer, process string) {
@@ -231,6 +233,7 @@ func (s *processSession) ask(req *diskfmtv1.HostMessage, wait time.Duration) (*d
 		return nil, fmt.Errorf("datadisk: wb-diskfmt's answer can't be read: %w", err)
 	}
 	if r := answer.GetRefusal(); r != nil {
+		s.refused = true
 		return nil, &ShimRefusal{Rule: bound(r.GetRule()), Detail: bound(r.GetDetail())}
 	}
 	return &answer, nil
@@ -267,9 +270,10 @@ func (s *processSession) Close() error {
 	}
 	s.log.LogAttrs(context.Background(), slog.LevelInfo, "wb-diskfmt exited",
 		slog.Int("pid", s.cmd.Process.Pid), slog.Int("status", s.cmd.ProcessState.ExitCode()))
-	// An exit status other than 0 follows a refusal, which the answer
-	// already carried.
-	if _, ok := errors.AsType[*exec.ExitError](s.waitErr); ok {
+	// Exit status 1 follows a refusal, which the answer already carried.
+	// Any other end of the process, such as a crash after the rename, is
+	// returned, and the caller logs it.
+	if _, ok := errors.AsType[*exec.ExitError](s.waitErr); ok && s.refused {
 		return nil
 	}
 	return s.waitErr

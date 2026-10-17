@@ -26,8 +26,8 @@ The formatting runs in `wb-diskfmt`, a shim. `wb-hostd` starts it
 through the fixed `wb-launcher` entry of the VM's slot,
 `wb-diskfmt-work` or `wb-diskfmt-isolated`. The entry's profile
 parameter is that VM's bundle (S04-architecture). The shim never takes
-a path from the request. It confines itself to that bundle
-(S04-04-vm-processes, "`wb-diskfmt`"), and then:
+a path from the request. It confines itself to the data disk's two
+names in that bundle (S04-04-vm-processes, "`wb-diskfmt`"), and then:
 
 1. It creates the image under a temporary name in the bundle, with
    `O_CREAT|O_EXCL` and mode 0600. It makes the image sparse at the
@@ -43,8 +43,8 @@ a path from the request. It confines itself to that bundle
    backing path then comes from the device's properties in the I/O
    Registry, read in the shim's own process: `diskutil` has no command
    that reports it, and the shim doesn't start another program. A name
-   replaced before the attach opened it, or after, fails the identity
-   check here, and the device is detached before any format.
+   replaced before the attach, or after it, and not put back fails the
+   identity check here, and the device is detached before any format.
 5. The format mounts the new, empty volume on the host once. It is a
    volume the host just made, not one a guest wrote.
 6. `wb-diskfmt` reports the volume's UUID, unmounts the volume, and
@@ -107,6 +107,13 @@ steps above keep it to that file:
 - a VM starts only with a disk that `state.db` records as formatted.
 
 The exception ends when the VM first starts with the disk.
+
+The checks are on the name, not on what the attach opened. A process of
+the host user can rename another image to the temporary name before
+the attach, and the shim's file back before the checks. Both checks
+then pass, and the format writes to that image. The kernel has also
+read the other image's partition map at the attach. That is a residual
+within the host user, whom T00-index trusts.
 
 The VM's system disk, auxiliary storage and saved state are
 guest-written too. The Virtualization API in `wb-vmd` is the one host

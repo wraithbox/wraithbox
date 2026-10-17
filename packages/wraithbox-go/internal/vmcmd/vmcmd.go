@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/confirm"
@@ -39,6 +40,10 @@ const (
 	// RuleUnreachable: wb-hostd can't be reached, or answered without a
 	// rule.
 	RuleUnreachable = "hostd-unreachable"
+	// RuleResetUnknown: the connection ended or timed out after the
+	// request went out. wb-hostd finishes a reset it began, so it may
+	// have run.
+	RuleResetUnknown = "vm-reset-unknown"
 )
 
 // resetTimeout bounds the reset: wb-diskfmt's format and the records.
@@ -142,6 +147,10 @@ func resetData(ctx context.Context, env Env, args []string) int {
 	}
 	defer func() { _ = hostd.Close() }()
 	res, err := hostd.ResetVMData(ctx, vm)
+	if mayHaveRun(err) {
+		return fail(env, RuleResetUnknown, fmt.Sprintf(
+			"the answer from wb-hostd didn't arrive (%s), and the reset may have run: check the %s VM with wb vm status before you start it", err, slot))
+	}
 	if err != nil {
 		rule, msg := failureOf(err)
 		return fail(env, rule, msg)
@@ -171,6 +180,21 @@ func bytesText(n int64) string {
 		return fmt.Sprintf("%.1f GiB", float64(n)/(1<<30))
 	}
 	return fmt.Sprintf("%.1f MiB", float64(n)/(1<<20))
+}
+
+// mayHaveRun reports whether err leaves open whether wb-hostd ran the
+// request: a deadline, or a connection that ended after the request
+// went out. wb-hostd runs a reset to its end without its caller.
+func mayHaveRun(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	st, ok := status.FromError(err)
+	if !ok || err == nil {
+		return false
+	}
+	code := st.Code()
+	return code == codes.DeadlineExceeded || code == codes.Canceled || code == codes.Unavailable
 }
 
 // failureOf reads a refusal from wb-hostd: the ErrorInfo reason is the
