@@ -64,6 +64,38 @@ func TestStartBoundsAProviderThatHangs(t *testing.T) {
 	}
 }
 
+// A wb-vmd that doesn't open within the deadline refuses the start with
+// vm-start-timeout. The open gets a context that isn't cancelled, and an
+// instance that opens late is closed at once.
+func TestOpenBoundsAProviderThatHangs(t *testing.T) {
+	h := newHarness(t)
+	h.cfg.StartTimeout = 10 * time.Millisecond
+	release := make(chan struct{})
+	h.provider.OnOpen = func(ctx context.Context, _ vm.Slot) error {
+		<-release
+		return ctx.Err()
+	}
+	m := h.manager()
+	refusal(t, m.Start(t.Context(), vm.SlotWork), vm.RuleStartTimeout)
+	if s := m.Status(vm.SlotWork); s.Phase != vm.PhaseStopped {
+		t.Errorf("phase = %s", s.Phase)
+	}
+	close(release)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if inst := h.provider.Last(); inst != nil && inst.Closed() {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the instance that opened late isn't closed")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if n := len(h.provider.Last().Starts()); n != 0 {
+		t.Errorf("the late instance got %d starts", n)
+	}
+}
+
 // While a stop runs, a second stop is refused with vm-stopping, a start
 // with vm-running, and a connection with vm-stopping.
 func TestRequestsWhileStopping(t *testing.T) {

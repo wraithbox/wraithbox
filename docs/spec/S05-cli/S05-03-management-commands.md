@@ -156,7 +156,9 @@ close its terminal, or wait for its deadline. `wb sessions` lists them
 `stop` asks the guest to shut down, and stops the VM at once when the
 guest hasn't stopped by a deadline. A `stop` of a stopped VM is refused
 with `vm-not-running`, and a `start` of a VM that isn't stopped with
-`vm-running`.
+`vm-running`. A `start` whose `wb-vmd` doesn't open or answer within a
+deadline is refused with `vm-start-timeout`, and that `wb-vmd` is
+closed.
 
 `suspend` is also refused while a kill of a project user is pending, or
 after a leftover-process result (S06-10-leftover-processes). That

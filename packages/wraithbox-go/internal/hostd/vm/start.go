@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
 )
@@ -109,15 +110,53 @@ func checkGeneration(slot Slot, g uint64) *Refusal {
 	}
 }
 
+// open opens a new provider instance within StartTimeout. The instance
+// lives until the manager closes it, not as long as the request that
+// started it, so Open gets a context that is never cancelled, and the
+// wait for it is bounded here instead. An instance that opens after the
+// wait ended is closed at once.
+func (m *Manager) open(ctx context.Context, slot Slot, generation uint64) (Instance, *Refusal) {
+	type opened struct {
+		inst Instance
+		err  error
+	}
+	answer := make(chan opened, 1)
+	go func() {
+		inst, err := m.cfg.Provider.Open(context.WithoutCancel(ctx), slot)
+		answer <- opened{inst, err}
+	}()
+	timer := time.NewTimer(m.cfg.StartTimeout)
+	defer timer.Stop()
+	var ref *Refusal
+	select {
+	case o := <-answer:
+		if o.err != nil {
+			return nil, providerRefusal(slot, generation, "start", o.err)
+		}
+		return o.inst, nil
+	case <-ctx.Done():
+		ref = providerRefusal(slot, generation, "start", ctx.Err())
+	case <-timer.C:
+		ref = &Refusal{
+			Rule: RuleStartTimeout, Slot: slot, Generation: generation,
+			Message: fmt.Sprintf("the %s VM didn't start: its wb-vmd didn't open within %s", slot, m.cfg.StartTimeout),
+		}
+	}
+	go func() {
+		if o := <-answer; o.err == nil && o.inst != nil {
+			_ = o.inst.Close()
+		}
+	}()
+	return nil, ref
+}
+
 // boot opens a new provider instance for generation, follows its states
 // and starts the VM.
 func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error {
-	// The instance lives until the manager closes it, not as long as the
-	// request that started it.
-	inst, err := m.cfg.Provider.Open(context.WithoutCancel(ctx), slot)
-	if err != nil {
+	inst, ref := m.open(ctx, slot, generation)
+	if ref != nil {
 		m.unreserve(slot)
-		return m.refuse(ctx, "start", providerRefusal(slot, generation, "start", err))
+		return m.refuse(ctx, "start", ref)
 	}
 	r := newRun(slot, generation, inst)
 	m.mu.Lock()

@@ -18,7 +18,8 @@ type Provider interface {
 	// bundle path follows from it there (S04-04-vm-processes, "The
 	// slot"). No request names a path, a slot or a device. The manager
 	// passes a ctx that is never cancelled, so an instance may keep it for
-	// its life, which ends at Close.
+	// its life, which ends at Close. The manager bounds its own wait for
+	// Open, and closes an instance that opens after that wait ended.
 	Open(ctx context.Context, slot Slot) (Instance, error)
 }
 

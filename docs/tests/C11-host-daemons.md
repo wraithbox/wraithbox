@@ -138,13 +138,13 @@ cloner of `internal/hostd/vm/vmtest`:
   is logged with `vm-stopped-unexpectedly`.
 - A request stop that doesn't finish in time goes to a force stop. A
   provider that never answers a stop still ends the run, with the
-  instance closed once, and one that never answers a start is refused
-  with `vm-start-timeout`.
+  instance closed once, and one that never opens or never answers a start
+  is refused with `vm-start-timeout`.
 - While a stop runs, a second stop and a connection are refused with
   `vm-stopping`, and a start with `vm-running`. Of concurrent starts of
   one slot, one opens an instance. A stop that races `wb-vmd`'s exit
-  closes the instance once. After a restart the old instance gets no
-  call.
+  closes the instance once. After a restart, every call goes to the
+  new instance.
 - A provider rule that names one of the manager's own rules is refused
   with `vm-provider-failed`, and the provider's text is cut to 1 KiB.
 - A bundle path that is a symbolic link or a file is refused with
