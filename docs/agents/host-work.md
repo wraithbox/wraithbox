@@ -48,7 +48,9 @@ before Wraith Box works end to end.
   outside `.scratch/`. It runs on the personal Mac in a session the
   maintainer attends. `/wave` never picks it. Removing a spike's
   bundles with `mise run spike:clean` doesn't make work `needs-host`
-  (`planning.md`, "Spikes", "VM bundles").
+  (`planning.md`, "Spikes", "VM bundles"), and neither do test bundles
+  made through `mise run vm:*` ("Gotchas"). Booting one is `needs-vm`
+  work.
 
 A run merges an issue's pull request without the maintainer only when
 the issue has neither label, nor `comp:wb-vmd` (`orchestration.md`,
@@ -87,7 +89,8 @@ Outside a `needs-host` issue, in an attended session:
 - No `security` command, no signing with an identity, no Keychain reads
   or writes. Ad-hoc signing of a spike binary with
   `codesign -f -s - --entitlements spikes/vm.entitlements .scratch/<path>`
-  is allowed, with the path written out.
+  is allowed, with the path written out. So is the same signing of
+  `wb-dev-bundle` that `mise run vm:build` does.
 - No `sudo`, no `su`, nothing run as `wbtest`.
 - Never run a command for an agent that the permission system refused
   it. Report the refusal, and the maintainer decides.
@@ -106,11 +109,38 @@ Outside a `needs-host` issue, in an attended session:
   reported.
 - **VM bundles:** spike bundles are under
   `~/Library/Caches/wraithbox-spikes/x<NN>/` (`planning.md`, "Spikes",
-  "VM bundles"). The maintainer makes APFS clones (`cp -c`) of a
-  bundle. When the clone goes to a slot's bundle path, the maintainer
-  also renames its guest-written files (S06-05-disks, "Bundle files").
-  An agent asks for a clone with the target path, and names that
-  rename in the request when the target is a slot's bundle path. It
-  never clones a bundle itself. It removes bundles only with
-  `mise run spike:clean x<NN>`, never with `rm`. Hand the builder the
-  clone's literal path.
+  "VM bundles"). Test bundles for `needs-vm` work go in the same cache,
+  and agents and the maintainer make, clone, provision, stop and remove
+  them only through `mise run vm:*`:
+
+  ```bash
+  mise run vm:install dev/base restore-images/<image>.ipsw  # never booted
+  mise run vm:clone dev/base i<n>/guest                    # cp -c, APFS clone
+  mise run vm:provision i<n>/guest [minutes]               # first boot: SSH user, Remote Login, NAT
+  mise run vm:stop i<n>/guest
+  mise run vm:clean i<n>
+  ```
+
+  The tasks run `wb-dev-bundle`, dev-only test tooling that `vm:build`
+  signs ad hoc with `spikes/vm.entitlements` (S10-tech-stack, "Test
+  tooling"). Paths are absolute in the cache or relative to it. The tool
+  refuses a path outside the cache, a symbolic link, `restore-images/`
+  as a bundle, a change to a directory with a `KEEP` file or under one,
+  and a clone, provision or removal of a bundle whose VM runs. It logs
+  each step and the rule of each refusal.
+- **Provisioning:** `vm:provision` boots a bundle that `vm:install` made
+  and that never booted, such as a fresh clone of it. macOS creates the
+  user `wbdev` with a random password, which the tool writes to
+  `ssh-password` in the bundle, and turns on Remote Login on Apple's NAT
+  network. Only test guests in the spike cache get this. Product guests
+  never do. The guest's address is its lease in `/var/db/dhcpd_leases`,
+  for the MAC address the task prints. The task runs until the guest
+  shuts down, `vm:stop`, or the time limit (60 minutes by default), so
+  run it in the background.
+- **Slots:** a clone of a `vm:install` bundle has the file names
+  `wb-vmd` opens (S06-05-disks, "Bundle files"). An older spike bundle
+  has `.img` names, which have to be renamed when its clone goes to a
+  slot's bundle path. The needs-vm test of `wb-vmd` (`VMBootTests`) does
+  that rename.
+  Agents remove spike bundles with `mise run spike:clean x<NN>` or
+  `mise run vm:clean`, never with `rm`.

@@ -705,6 +705,61 @@ gh run watch --repo "$repo" --exit-status "$run_id"
 description = "Remove a spike's VM bundles from the spike cache (args: x<NN>...); without arguments, list the cache"
 run = "bun scripts/spike-clean.mjs"
 
+# ---------- Test VM bundles (macOS) ----------
+# Test guests for needs-vm work (docs/agents/host-work.md, "VM bundles"),
+# made with wb-dev-bundle, dev-only test tooling in
+# packages/wraithbox-swift that is never in the app bundle (S10-tech-stack,
+# "Test tooling"). Each path is in ~/Library/Caches/wraithbox-spikes/,
+# absolute or relative to it. The tool refuses a path outside the cache, a
+# symbolic link, restore-images/ as a bundle, and a change to a directory
+# with a KEEP file or under one, and logs each step and the rule of each
+# refusal. Agents and the maintainer run the same tasks. The arguments
+# mise passes after the task name go to the tool.
+[tasks."vm:build"]
+description = "Build wb-dev-bundle and sign a copy ad hoc with spikes/vm.entitlements (macOS)"
+run_windows = "echo vm:build: test VMs need macOS; skipped on Windows"
+run = """
+set -e
+p=packages/wraithbox-swift
+out="$p/.build/dev-bundle"
+swift build --package-path "$p" --force-resolved-versions --product wb-dev-bundle
+bin="$(swift build --package-path "$p" --force-resolved-versions --show-bin-path)/wb-dev-bundle"
+mkdir -p "$out"
+rm -f "$out/wb-dev-bundle"
+cp "$bin" "$out/wb-dev-bundle"
+codesign -f -s - --entitlements spikes/vm.entitlements "$out/wb-dev-bundle"
+"""
+
+[tasks."vm:install"]
+description = "Make a test bundle with macOS from a restore image (args: <bundle> restore-images/<image>; macOS)"
+depends = ["vm:build"]
+run_windows = "echo vm:install: test VMs need macOS; skipped on Windows"
+run = "packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle install"
+
+[tasks."vm:clone"]
+description = "APFS-clone a test bundle whose VM doesn't run (args: <source> <new bundle>; macOS)"
+depends = ["vm:build"]
+run_windows = "echo vm:clone: test VMs need macOS; skipped on Windows"
+run = "packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle clone"
+
+[tasks."vm:provision"]
+description = "First boot of a never-booted test bundle: SSH user, Remote Login, NAT network (args: <bundle> [minutes]; macOS)"
+depends = ["vm:build"]
+run_windows = "echo vm:provision: test VMs need macOS; skipped on Windows"
+run = "packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle provision"
+
+[tasks."vm:stop"]
+description = "Stop the VM that runs from a test bundle (args: <bundle>; macOS)"
+depends = ["vm:build"]
+run_windows = "echo vm:stop: test VMs need macOS; skipped on Windows"
+run = "packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle stop"
+
+[tasks."vm:clean"]
+description = "Remove a directory of test bundles from the spike cache (args: <directory>; macOS)"
+depends = ["vm:build"]
+run_windows = "echo vm:clean: test VMs need macOS; skipped on Windows"
+run = "packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle clean"
+
 # Tests for the scripts in scripts/. Not in `test` yet: the CI workflow
 # runs each task by name, and both lists must name the same checks.
 [tasks."scripts:test"]

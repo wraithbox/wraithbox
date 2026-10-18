@@ -43,6 +43,7 @@ packages/
                      internal/platform: host/guest matrix and per-OS interfaces (S12-platforms)
                      internal/gen/wraithbox/<area>/v1: generated code for every .proto package
   wraithbox-swift/   SwiftPM package: WraithBoxVM library, wb-vmd executable (macOS)
+                     Sources/wb-dev-bundle: test tooling, never in the app bundle
                      Sources/WraithBoxRPC: generated code for wraithbox.vmd.v1 only
                      WraithBox.xcodeproj, App/: the app target of Wraith Box.app (S17-01-bundle)
   wraithbox-dotnet/  .NET solution for Windows-native helpers (when the first one is built)
@@ -81,6 +82,24 @@ every OS.
 
 `cmd/wb-vmd` in the Go module builds for Windows and Linux. On macOS,
 the binary of that name comes from the Swift package.
+
+### Test tooling
+
+Some programs exist only to develop and test Wraith Box. They are
+never in the app bundle (S17-01-bundle), and no product program links
+their code. They are held to the same gates as the product code.
+
+| Program | Language | What it does |
+|---|---|---|
+| `wb-dev-app` | Go | Builds the app bundle's Go half, runs its check, and installs it (`mise run app:*`) |
+| `wb-dev-bundle` | Swift | Makes, clones, provisions, stops and removes macOS test bundles in the spike cache (`mise run vm:*`) |
+
+`wb-dev-bundle` comes from the X18-vsock-handoff host tool, and
+`mise run vm:build` signs it ad hoc with `spikes/vm.entitlements`. It
+accepts paths only in `~/Library/Caches/wraithbox-spikes/`. Its
+provisioning boot gives a test guest an SSH user and Remote Login on
+Apple's NAT network, which no product guest gets (SEC05-default-deny).
+`docs/agents/host-work.md` ("Gotchas") says how agents use it.
 
 ### Platforms
 

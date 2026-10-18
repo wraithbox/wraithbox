@@ -78,10 +78,17 @@ large_tuple:
 # check refuses with a rule of their own (network, share, audio input, console, storage), and of USB
 # passthrough and custom virtio devices. The rule matches comments and
 # strings too, so a class looked up by its name is caught.
+#
+# One file is excepted: the NAT network of wb-dev-bundle's provisioning
+# boot, which test guests in the spike cache get (I350). wb-dev-bundle is
+# dev-only test tooling, an executable target that only its tests depend
+# on, and never in the app bundle (S10-tech-stack, "Test tooling"). The
+# exception names the one file, so the rest of that tool is checked too.
 custom_rules:
   vmd_refused_device_class:
     name: "Refused Virtualization device class"
     message: "wb-vmd never configures this device or attachment (S04-02-vm-provider, \"The device set is fixed and checked\")"
     included: "packages/wraithbox-swift/Sources/.*\\.swift$"
+    excluded: "packages/wraithbox-swift/Sources/wb-dev-bundle/ProvisionBoot\\.swift$"
     regex: "\\b(VZNATNetworkDeviceAttachment|VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZDirectoryShare|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZDirectorySharingDeviceConfiguration|VZVirtioFileSystemDeviceConfiguration|VZAudioDeviceConfiguration|VZVirtioSoundDeviceConfiguration|VZVirtioSoundDeviceStreamConfiguration|VZAudioInputStreamSource|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZConsoleDeviceConfiguration|VZConsolePortConfiguration|VZVirtioConsoleDeviceConfiguration|VZVirtioConsolePortConfiguration|VZVirtioConsoleDeviceSerialPortConfiguration|VZSerialPortConfiguration|VZSerialPortAttachment|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration)\\b"
     severity: error
