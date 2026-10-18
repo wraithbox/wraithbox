@@ -99,7 +99,7 @@ their code. They are held to the same gates as the product code.
 accepts paths only in `~/Library/Caches/wraithbox-spikes/`. Its
 provisioning boot gives a test guest an SSH user and Remote Login on
 Apple's NAT network, which no product guest gets (SEC05-default-deny).
-`docs/agents/host-work.md` ("Gotchas") says how agents use it.
+The page `docs/agents/host-work.md` says how agents use it.
 
 ### Platforms
 
