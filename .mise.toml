@@ -714,7 +714,9 @@ run = "bun scripts/spike-clean.mjs"
 # symbolic link, restore-images/ as a bundle, and a change to a directory
 # with a KEEP file or under one, and logs each step and the rule of each
 # refusal. Agents and the maintainer run the same tasks. The arguments
-# mise passes after the task name go to the tool.
+# mise passes after the task name go to the tool. vm:stop and vm:clean
+# build the tool only when no signed copy exists, so a worktree that
+# doesn't build can still stop a VM and remove its bundle.
 [tasks."vm:build"]
 description = "Build wb-dev-bundle and sign a copy ad hoc with spikes/vm.entitlements (macOS)"
 run_windows = "echo vm:build: test VMs need macOS; skipped on Windows"
@@ -750,15 +752,13 @@ run = "packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle provision"
 
 [tasks."vm:stop"]
 description = "Stop the VM that runs from a test bundle (args: <bundle>; macOS)"
-depends = ["vm:build"]
 run_windows = "echo vm:stop: test VMs need macOS; skipped on Windows"
-run = "packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle stop"
+run = 'b=packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle; [ -x "$b" ] || mise run vm:build; "$b" stop'
 
 [tasks."vm:clean"]
 description = "Remove a directory of test bundles from the spike cache (args: <directory>; macOS)"
-depends = ["vm:build"]
 run_windows = "echo vm:clean: test VMs need macOS; skipped on Windows"
-run = "packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle clean"
+run = 'b=packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle; [ -x "$b" ] || mise run vm:build; "$b" clean'
 
 # Tests for the scripts in scripts/. Not in `test` yet: the CI workflow
 # runs each task by name, and both lists must name the same checks.

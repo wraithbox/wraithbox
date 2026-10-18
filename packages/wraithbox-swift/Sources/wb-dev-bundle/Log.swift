@@ -30,6 +30,9 @@ enum Rule: String, Sendable, CaseIterable {
     case pathComponent = "path-component"
     /// No symbolic link anywhere below the cache in a path.
     case symbolicLink = "symbolic-link"
+    /// An existing component is spelled byte for byte as its directory
+    /// entry, because APFS ignores case and Unicode normalization.
+    case nameSpelling = "name-spelling"
     /// Every component but the last is a directory, and a bundle is one.
     case notDirectory = "not-a-directory"
     /// `restore-images/` holds only restore images, and no bundle.
@@ -50,6 +53,8 @@ enum Rule: String, Sendable, CaseIterable {
     case restoreImagePath = "restore-image-path"
     /// A removal stays on the cache's device.
     case otherDevice = "other-device"
+    /// The bundle files a VM opens are regular files, not links.
+    case bundleFile = "bundle-file"
     /// The command line names a command and its arguments.
     case usage = "usage"
 }

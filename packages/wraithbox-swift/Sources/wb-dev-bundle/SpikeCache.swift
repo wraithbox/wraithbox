@@ -1,9 +1,13 @@
 // The path checks of every command (I350): the tool works only in the
 // spike cache, `~/Library/Caches/wraithbox-spikes/`, which also holds the
 // spikes' bundles (docs/agents/planning.md, "Spikes", "VM bundles"), and it
-// refuses what `mise run spike:clean` refuses. The checks are by path, and
-// only the maintainer and agents on the host write in the cache. So a
-// change between a check and its use comes from them, not from a guest.
+// refuses what `mise run spike:clean` refuses. The home volume's APFS
+// ignores case and Unicode normalization, so every existing component
+// must be spelled byte for byte as its directory entry, and the checks
+// apply to those names. The checks are by path, and only the maintainer
+// and agents on the host write in the cache. So a change between a check
+// and its use comes from them, not from a guest. `clean` removes with
+// openat and unlinkat, which follow no symbolic link.
 import Foundation
 
 /// A path in the cache that passed the checks for its use.
@@ -54,7 +58,7 @@ struct SpikeCache: Sendable {
     func bundle(_ argument: String, for use: PathUse) throws(Refusal) -> CachePath {
         try checkRoot()
         let target = try place(argument)
-        guard target.components[0] != Self.restoreImages else {
+        guard !Self.isRestoreImages(target.components[0]) else {
             throw Refusal(
                 .restoreImages, target.path, "\(Self.restoreImages)/ holds only restore images")
         }
@@ -79,7 +83,7 @@ struct SpikeCache: Sendable {
     func restoreImage(_ argument: String) throws(Refusal) -> CachePath {
         try checkRoot()
         let image = try place(argument)
-        guard image.components.count > 1, image.components[0] == Self.restoreImages else {
+        guard image.components.count > 1, Self.isRestoreImages(image.components[0]) else {
             throw Refusal(
                 .restoreImagePath, image.path, "a restore image is in \(Self.restoreImages)/")
         }
@@ -103,6 +107,12 @@ struct SpikeCache: Sendable {
                 throw Failure.posix("mkdir", path)
             }
         }
+    }
+
+    /// Whether a name is `restore-images` in any case or normalization,
+    /// as the file system compares names.
+    static func isRestoreImages(_ name: String) -> Bool {
+        name.compare(restoreImages, options: [.caseInsensitive]) == .orderedSame
     }
 
     /// The cache is there, and a real directory.
@@ -142,12 +152,14 @@ struct SpikeCache: Sendable {
     }
 
     /// Walks the path from the cache down with lstat. Refuses a symbolic
-    /// link at any level, and a component above the last that isn't a
-    /// directory. Returns the file type of the last component, or nil when
+    /// link at any level, a component above the last that isn't a
+    /// directory, and an existing component that isn't spelled byte for
+    /// byte as its directory entry. Returns the file type of the last component, or nil when
     /// the path ends in components that don't exist.
     private func walk(_ target: CachePath) throws(Refusal) -> mode_t? {
         var path = root
         for (index, component) in target.components.enumerated() {
+            let parent = path
             path += "/" + component
             var info = stat()
             guard lstat(path, &info) == 0 else {
@@ -155,6 +167,12 @@ struct SpikeCache: Sendable {
                     throw Refusal(.missing, path, "lstat failed: \(errnoText())")
                 }
                 return nil
+            }
+            guard directory(parent, hasEntry: component) else {
+                throw Refusal(
+                    .nameSpelling, path,
+                    "no entry in \(parent) is spelled byte for byte like it; name it as ls shows it"
+                )
             }
             let type = info.st_mode & S_IFMT
             guard type != S_IFLNK else {
@@ -191,23 +209,43 @@ struct SpikeCache: Sendable {
             }
         }
     }
+}
 
-    /// The first line of a `KEEP` file in `directory`, or nil when it has
-    /// none.
-    private func keepReason(in directory: String) -> String? {
-        let path = directory + "/" + Self.keepFile
-        var info = stat()
-        guard lstat(path, &info) == 0 else {
-            return nil
-        }
-        guard info.st_mode & S_IFMT == S_IFREG else {
-            return "(\(Self.keepFile) is not a regular file)"
-        }
-        let text = (try? readSmallFile(path, limit: 200)) ?? ""
-        let line = text.split(separator: "\n", omittingEmptySubsequences: false).first ?? ""
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? "(no reason given)" : trimmed
+/// The first line of a `KEEP` file in `directory`, or nil when it has
+/// none.
+func keepReason(in directory: String) -> String? {
+    let path = directory + "/" + SpikeCache.keepFile
+    var info = stat()
+    guard lstat(path, &info) == 0 else {
+        return nil
     }
+    guard info.st_mode & S_IFMT == S_IFREG else {
+        return "(\(SpikeCache.keepFile) is not a regular file)"
+    }
+    let text = (try? readSmallFile(path, limit: 200)) ?? ""
+    let line = text.split(separator: "\n", omittingEmptySubsequences: false).first ?? ""
+    let trimmed = line.trimmingCharacters(in: .whitespaces)
+    return trimmed.isEmpty ? "(no reason given)" : trimmed
+}
+
+/// Whether `directory` has an entry whose name is byte for byte `name`.
+/// lstat finds a name in any case or normalization, readdir gives the
+/// spelling on disk.
+func directory(_ directory: String, hasEntry name: String) -> Bool {
+    guard let stream = opendir(directory) else {
+        return false
+    }
+    defer { closedir(stream) }
+    let wanted = Array(name.utf8)
+    while let entry = readdir(stream) {
+        let found = withUnsafeBytes(of: entry.pointee.d_name) { raw in
+            Array(raw.prefix(Int(entry.pointee.d_namlen)))
+        }
+        if found == wanted {
+            return true
+        }
+    }
+    return false
 }
 
 /// Up to `limit` bytes of a regular file, as UTF-8 with invalid bytes

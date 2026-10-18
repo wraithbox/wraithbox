@@ -155,4 +155,75 @@ struct SpikeCacheTests {
         #expect(test.exists("i350/a"))
         #expect(!test.exists("i350/a/bundle"))
     }
+
+    @Test(
+        "restore-images/ in another case is refused too",
+        arguments: ["Restore-Images", "RESTORE-IMAGES/x", "restore-IMAGES"])
+    func restoreImagesCase(argument: String) throws {
+        let test = try TestCache()
+        for use in [PathUse.create, .change, .read] {
+            #expect(ruleOf { _ = try test.cache.bundle(argument, for: use) } == .restoreImages)
+        }
+    }
+
+    @Test("a component spelled in another case than its entry is refused")
+    func caseSpelling() throws {
+        let test = try TestCache()
+        try test.makeDirectory("x08/base")
+        try test.write("x08/KEEP", "#228: X08 data disk follow-up")
+        try test.write("restore-images/i.ipsw")
+        #expect(ruleOf { _ = try test.cache.bundle("X08", for: .change) } == .nameSpelling)
+        #expect(ruleOf { _ = try test.cache.bundle("X08/base", for: .change) } == .nameSpelling)
+        #expect(ruleOf { _ = try test.cache.bundle("x08/BASE", for: .read) } == .nameSpelling)
+        #expect(ruleOf { _ = try test.cache.bundle("X08/new", for: .create) } == .nameSpelling)
+        #expect(
+            ruleOf { _ = try test.cache.restoreImage("restore-images/I.ipsw") } == .nameSpelling)
+        #expect(
+            ruleOf { _ = try test.cache.restoreImage("Restore-Images/i.ipsw") } == .nameSpelling)
+    }
+
+    @Test("a component in another Unicode normalization than its entry is refused")
+    func normalizationSpelling() throws {
+        let test = try TestCache()
+        let composed = "caf\u{E9}"
+        let decomposed = "cafe\u{301}"
+        #expect(Array(composed.utf8) != Array(decomposed.utf8))
+        #expect(mkdir(test.path(composed), 0o755) == 0)
+        #expect(try test.cache.bundle(composed, for: .change).components == [composed])
+        #expect(ruleOf { _ = try test.cache.bundle(decomposed, for: .change) } == .nameSpelling)
+        #expect(
+            ruleOf { _ = try test.cache.bundle(decomposed + "/b", for: .create) } == .nameSpelling)
+    }
+
+    @Test("a symbolic link in a middle component is refused for a change and a read")
+    func middleLink() throws {
+        let test = try TestCache()
+        try test.makeDirectory("x50/base/inner")
+        try test.link("x50/link", to: test.path("x50/base"))
+        for use in [PathUse.change, .read] {
+            #expect(
+                ruleOf { _ = try test.cache.bundle("x50/link/inner", for: use) } == .symbolicLink)
+        }
+    }
+
+    @Test("the cache comes from the account database, not from $HOME")
+    func accountHome() throws {
+        let saved = ProcessInfo.processInfo.environment["HOME"]
+        setenv("HOME", "/tmp/not-the-home", 1)
+        defer {
+            if let saved {
+                setenv("HOME", saved, 1)
+            } else {
+                unsetenv("HOME")
+            }
+        }
+        let cache = try SpikeCache.forCurrentUser()
+        let home = try #require(getpwuid(getuid())?.pointee.pw_dir)
+        let expected = String(
+            decoding: Array(UnsafeBufferPointer(start: home, count: strlen(home))).map {
+                UInt8(bitPattern: $0)
+            }, as: UTF8.self)
+        #expect(cache.root == expected + "/Library/Caches/wraithbox-spikes")
+        #expect(!cache.root.hasPrefix("/tmp/not-the-home"))
+    }
 }

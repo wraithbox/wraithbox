@@ -183,11 +183,15 @@ Three checks verify the parts the profile doesn't enforce:
    `VZVirtioSoundDeviceInputStreamConfiguration`. It also names the
    classes of the other kinds the check refuses with a rule of their
    own (network, share, audio input, console and storage), and of USB
-   passthrough and custom virtio devices. One file is excepted:
-   `Sources/wb-dev-bundle/ProvisionBoot.swift`, the NAT network that
-   test guests in the spike cache get on their first boot. It is in
-   `wb-dev-bundle`, test tooling that is never in the app bundle
-   (S10-tech-stack, "Test tooling"), and `wb-vmd` doesn't link it.
+   passthrough and custom virtio devices.
+
+The static check excepts one file,
+`Sources/wb-dev-bundle/ProvisionBoot.swift`: the NAT network that test
+guests in the spike cache get on their first boot. It is in
+`wb-dev-bundle`, test tooling that is never in the app bundle
+(S10-tech-stack, "Test tooling"), and `wb-vmd` doesn't link it. A
+second rule, `dev_bundle_refused_device_class`, checks that file
+against every other class, so it can add only the NAT network.
 
 ### `wb-proxyd` takes a stream's identity from the connection, not from `wb-netd`
 

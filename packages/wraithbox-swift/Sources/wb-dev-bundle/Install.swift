@@ -17,18 +17,34 @@ func installBundle(_ target: CachePath, image: CachePath, cache: SpikeCache, log
     else {
         throw Failure("\(image.path): this host can't run macOS \(restore.buildVersion)")
     }
+    let size = try machineSize(requirements)
+    let record = BundleRecord(
+        restoreImage: image.path, buildVersion: restore.buildVersion, cpuCount: size.cpuCount,
+        memoryGiB: size.memoryGiB, installedAt: Date())
     try cache.makeParents(of: target)
     guard mkdir(target.path, 0o755) == 0 else {
         throw Failure.posix("mkdir", target.path)
     }
+    do {
+        try await install(restore, requirements, into: target, record: record, log: log)
+    } catch {
+        throw Failure(
+            "\(target.path): the install is incomplete, \(error)."
+                + " Remove it with mise run vm:clean \(target.path)")
+    }
+}
+
+/// Writes the bundle files into the new bundle directory and runs the
+/// installer.
+@MainActor
+private func install(
+    _ restore: VZMacOSRestoreImage, _ requirements: VZMacOSConfigurationRequirements,
+    into target: CachePath, record: BundleRecord, log: Log
+) async throws {
     let lock = try BundleLock.take(bundle: target.path)
-    let size = machineSize(requirements)
-    var record = BundleRecord(
-        restoreImage: image.path, buildVersion: restore.buildVersion, cpuCount: size.cpuCount,
-        memoryGiB: size.memoryGiB, installedAt: Date())
     log.step(
-        "made \(target.path) for macOS \(restore.buildVersion), \(size.cpuCount) CPUs, \(size.memoryGiB) GiB"
-    )
+        "made \(target.path) for macOS \(restore.buildVersion), \(record.cpuCount) CPUs,"
+            + " \(record.memoryGiB) GiB")
     try makeBundleFiles(target.path, model: requirements.hardwareModel)
 
     let network = try UnconnectedNetwork()
@@ -36,23 +52,24 @@ func installBundle(_ target: CachePath, image: CachePath, cache: SpikeCache, log
         configuration: try machineConfiguration(
             bundle: target.path, record: record, network: network.attachment,
             mac: .randomLocallyAdministered()))
-    let installer = VZMacOSInstaller(virtualMachine: machine, restoringFromImageAt: imageURL)
+    let installer = VZMacOSInstaller(virtualMachine: machine, restoringFromImageAt: restore.url)
     let stop = StopRequest { installer.progress.cancel() }
     let reporter = reportProgress(installer.progress, log: log)
     defer { reporter.cancel() }
     do {
         try await installer.install()
     } catch {
-        let cause = stop.requested ? "it was stopped" : "it failed: \(error)"
-        throw Failure(
-            "\(target.path): the install is incomplete, \(cause). Remove it with mise run vm:clean")
+        throw Failure(stop.requested ? "it was stopped" : "it failed: \(error)")
     }
+    // The socket pair stays open until the installer's VM is done.
+    withExtendedLifetime(network) {}
     // Stop the VM as soon as the install returns, as the X18 tool did.
     if machine.canStop {
         try? await machine.stop()
     }
-    record.installedAt = Date()
-    try record.write(bundle: target.path)
+    var installed = record
+    installed.installedAt = Date()
+    try installed.write(bundle: target.path)
     log.step("installed \(target.path)")
     withExtendedLifetime(lock) {}
 }

@@ -101,6 +101,10 @@ memsize
 machdep
 dirhelper
 strerror
+opendir
+fdopendir
+closedir
+namlen
 realpath
 nlink
 wbdisk

@@ -55,6 +55,13 @@ struct CommandTests {
             (["clean", "x50/link"], .symbolicLink),
             (["clean", "../x50"], .pathComponent),
             (["stop", "x50/none"], .missing),
+            (["clean", "Restore-Images"], .restoreImages),
+            (["clean", "RESTORE-IMAGES/x"], .restoreImages),
+            (["clean", "X08"], .nameSpelling),
+            (["clean", "X08/base"], .nameSpelling),
+            (["provision", "X08/base"], .nameSpelling),
+            (["stop", "Restore-Images"], .restoreImages),
+            (["clean", "dev"], .keepFile),
         ])
     func refusals(arguments: [String], rule: Rule) async throws {
         let test = try TestCache()
@@ -64,6 +71,8 @@ struct CommandTests {
         try test.installedBundle("x08/base")
         try test.write("x08/KEEP", "#228: X08 data disk follow-up")
         try test.write("restore-images/i.ipsw")
+        try test.installedBundle("dev/base")
+        try test.write("dev/base/KEEP", "#277: fixture bundle")
         let before = try snapshot(test)
         #expect(await Command.run(arguments, cache: test.cache, log: test.log) == 1)
         #expect(test.lines.refused(by: rule), "\(test.lines.all)")
@@ -97,6 +106,33 @@ struct CommandTests {
         #expect(test.exists("x50/base/sys.wbdisk"))
         #expect(!test.exists("x50/c"))
         withExtendedLifetime(lock) {}
+    }
+
+    @Test("a clone has no lock file, so it names no process")
+    func cloneWithoutLock() async throws {
+        let test = try TestCache()
+        try test.installedBundle("x50/base")
+        _ = try BundleLock.take(bundle: test.path("x50/base"))
+        #expect(test.exists("x50/base/\(BundleLock.fileName)"))
+        #expect(
+            await Command.run(["clone", "x50/base", "x50/c"], cache: test.cache, log: test.log) == 0
+        )
+        #expect(!test.exists("x50/c/\(BundleLock.fileName)"))
+        #expect(BundleLock.holder(bundle: test.path("x50/base")) == nil)
+    }
+
+    @Test("the VM's bundle files must be regular files")
+    func machineFiles() throws {
+        let test = try TestCache()
+        for name in ["hw.bin", "mid.bin", "aux.wbstore", "data.wbdisk"] {
+            try test.write("x50/base/" + name)
+        }
+        try test.write("x51/sys.wbdisk")
+        try test.link("x50/base/sys.wbdisk", to: test.path("x51/sys.wbdisk"))
+        #expect(throws: Refusal.self) { try checkMachineFiles(test.path("x50/base")) }
+        try FileManager.default.removeItem(atPath: test.path("x50/base/sys.wbdisk"))
+        try test.write("x50/base/sys.wbdisk")
+        try checkMachineFiles(test.path("x50/base"))
     }
 
     @Test("clean removes the directory and logs the space")

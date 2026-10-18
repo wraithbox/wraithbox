@@ -17,19 +17,41 @@ enum DiskSize {
 
 /// The CPU count and memory of a test guest: four CPUs and 4 GiB, or the
 /// restore image's minimum when it is more, within the host's limits.
-func machineSize(_ requirements: VZMacOSConfigurationRequirements) -> (
+/// Fails when the host's maximum is below the image's minimum.
+func machineSize(_ requirements: VZMacOSConfigurationRequirements) throws(Failure) -> (
     cpuCount: Int, memoryGiB: Int
 ) {
-    let cpuCount = min(
-        max(4, requirements.minimumSupportedCPUCount),
-        VZVirtualMachineConfiguration.maximumAllowedCPUCount)
+    let minimumCPUs = requirements.minimumSupportedCPUCount
+    let maximumCPUs = VZVirtualMachineConfiguration.maximumAllowedCPUCount
     let minimumGiB = Int((requirements.minimumSupportedMemorySize + (1 << 30) - 1) >> 30)
     let maximumGiB = Int(VZVirtualMachineConfiguration.maximumAllowedMemorySize >> 30)
-    return (cpuCount, min(max(4, minimumGiB), maximumGiB))
+    guard maximumCPUs >= minimumCPUs, maximumGiB >= minimumGiB else {
+        throw Failure(
+            "the image needs \(minimumCPUs) CPUs and \(minimumGiB) GiB, and this host allows"
+                + " \(maximumCPUs) CPUs and \(maximumGiB) GiB")
+    }
+    return (min(max(4, minimumCPUs), maximumCPUs), min(max(4, minimumGiB), maximumGiB))
 }
 
 func bundleURL(_ bundle: String, _ file: BundleFile) -> URL {
     URL(fileURLWithPath: VMBundle(path: bundle).path(of: file))
+}
+
+/// The files a test VM opens: the tools disk isn't one of them.
+let machineFiles: [BundleFile] = [
+    .hardwareModel, .machineIdentifier, .auxiliaryStorage, .systemDisk, .dataDisk,
+]
+
+/// Refuses unless each file the VM opens is a regular file, so no
+/// symbolic link in the bundle points the VM at another file.
+func checkMachineFiles(_ bundle: String) throws(Refusal) {
+    for file in machineFiles {
+        let path = VMBundle(path: bundle).path(of: file)
+        var info = stat()
+        guard lstat(path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else {
+            throw Refusal(.bundleFile, path, "it is missing, or not a regular file")
+        }
+    }
 }
 
 /// The configuration of the bundle's VM with `network` as its one network
@@ -39,6 +61,7 @@ func machineConfiguration(
     bundle: String, record: BundleRecord, network: VZNetworkDeviceAttachment,
     mac: VZMACAddress
 ) throws -> VZVirtualMachineConfiguration {
+    try checkMachineFiles(bundle)
     let platform = VZMacPlatformConfiguration()
     let hardware = try Data(contentsOf: bundleURL(bundle, .hardwareModel))
     let identifier = try Data(contentsOf: bundleURL(bundle, .machineIdentifier))
