@@ -152,11 +152,16 @@ type fakeTool struct {
 	afterAttach  func()
 	beforeErase  func()
 	// attachBacking and backing, when set, replace the backing path the
-	// attach and BackingPath report.
-	attachBacking string
-	backing       string
-	attachErr     error
-	eraseErr      error
+	// attach and BackingPath report. attachNoBacking makes the attach
+	// report none, as diskutil on macOS 27 does. backingFrom is how many
+	// BackingPath calls report the true path before backing replaces it.
+	attachBacking   string
+	attachNoBacking bool
+	backing         string
+	backingFrom     int
+	backingCalls    int
+	attachErr       error
+	eraseErr        error
 	// detachFails is how many detaches fail before one succeeds.
 	detachFails int
 
@@ -198,7 +203,10 @@ func (t *fakeTool) Attach(_ context.Context, path string) (diskfmt.Attachment, e
 		t.afterAttach()
 	}
 	backing := path
-	if t.attachBacking != "" {
+	switch {
+	case t.attachNoBacking:
+		backing = ""
+	case t.attachBacking != "":
 		backing = t.attachBacking
 	}
 	return diskfmt.Attachment{Device: dev, BackingPath: backing}, nil
@@ -210,7 +218,8 @@ func (t *fakeTool) BackingPath(_ context.Context, device string) (string, error)
 	if !ok {
 		return "", fmt.Errorf("%s isn't attached", device)
 	}
-	if t.backing != "" {
+	t.backingCalls++
+	if t.backing != "" && t.backingCalls > t.backingFrom {
 		return t.backing, nil
 	}
 	return d.path, nil

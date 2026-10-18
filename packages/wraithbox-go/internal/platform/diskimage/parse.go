@@ -21,10 +21,11 @@ func ValidDevice(s string) bool { return wholeDisk.MatchString(s) }
 
 // The keys that name the backing image in the attach output and in the
 // I/O Registry, in the order they are read. A path key holds a path, a
-// URL key a file URL. diskutil's output on macOS 27 isn't recorded yet
-// (I228), so the parser takes each form it may have, and a backing path
-// it can't find, or two that disagree, reads as none, which the backing
-// path check refuses (internal/diskfmt).
+// URL key a file URL. diskutil's attach output on macOS 27 names none,
+// and the I/O Registry names DiskImageURL. The parser takes each form
+// it may have, and a backing path it can't find, or two that disagree,
+// reads as none. The backing path check reads the I/O Registry, and
+// refuses an attach output that names another path (internal/diskfmt).
 var (
 	pathKeys = []string{"image-path", "ImagePath"}
 	urlKeys  = []string{"DiskImageURL", "image-url", "ImageURL"}

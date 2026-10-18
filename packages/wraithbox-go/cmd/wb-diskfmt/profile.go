@@ -16,19 +16,19 @@ import "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/s
 //   - the inherited descriptors, which need no rule;
 //   - starting /usr/sbin/diskutil, and no other program, with the
 //     system's own libraries and settings read-only;
-//   - the DiskImages, Disk Arbitration and disk management services
-//     diskutil uses, and reading device properties in the I/O Registry,
-//     where the backing path check reads the device's backing image.
+//   - the metadata of the /dev/disk* nodes, not their contents;
+//   - the services diskutil reaches, Authorization Services among them
+//     (I353). The backing path check reads the I/O Registry, which
+//     needs no rule.
 //
 // It denies the network, every other user file and the user database
 // files, so the deny probe's read of /etc/passwd fails
 // (internal/platform/selfsandbox).
 //
-// The service names are those diskutil is known to use. They aren't
-// measured under this profile yet: the opt-in host test
-// (TestHostFormat) runs a confined format, and I228 records the rules it
-// needs. A rule beyond this list is a change to S04-04-vm-processes
-// first.
+// The service and device rules were measured on macOS 27 with the
+// opt-in host test (TestHostFormat), which runs a confined format: the
+// format fails without any one of them (I228). A rule beyond this list
+// is a change to S04-04-vm-processes first.
 var profile = selfsandbox.Profile{
 	Name: "wb-diskfmt",
 	Text: `(version 1)
@@ -68,29 +68,23 @@ var profile = selfsandbox.Profile{
   (literal "/System")
   (literal "/Library")
   (literal "/dev"))
-(allow sysctl-read)
+; dyld reads the root directory's entries to find the shared cache.
+(allow file-read-data (literal "/"))
+; diskutil stats a disk's node, and its slices' nodes, before it acts
+; on the disk or lists its APFS container. Metadata only: no disk's
+; contents.
+(allow file-read-metadata (regex #"^/dev/disk[0-9]+(s[0-9]+)?$"))
 
-; The disk services: Disk Arbitration, the disk image service, and disk
-; management, which runs the format.
+; The services diskutil reaches, measured on macOS 27 with
+; TestHostFormat: without any one of them a format fails. The disk image
+; controller and Authorization Services are for the attach, and
+; storagekitd.dm for the format.
+(allow mach-lookup (xpc-service-name "com.apple.diskimagescontroller"))
 (allow mach-lookup
   (global-name
+    "com.apple.authd"
     "com.apple.DiskArbitration.diskarbitrationd"
-    "com.apple.diskimagesiod"
-    "com.apple.diskmanagementd"
-    "com.apple.storagekitd"))
-(allow mach-lookup (xpc-service-name-prefix "com.apple.DiskImages"))
-(allow iokit-open
-  (iokit-user-client-class "AppleDiskImagesControllerUserClient" "IOHDIXControllerUserClient"))
-(allow iokit-get-properties)
-
-; Settings and logging, which every system program reaches.
-(allow mach-lookup
-  (global-name
-    "com.apple.cfprefsd.daemon"
-    "com.apple.cfprefsd.agent"
-    "com.apple.logd"
-    "com.apple.system.logger"
-    "com.apple.system.notification_center"))
-(allow ipc-posix-shm-read* (ipc-posix-name "apple.shm.notification_center"))
+    "com.apple.storagekitd"
+    "com.apple.storagekitd.dm"))
 `,
 }
