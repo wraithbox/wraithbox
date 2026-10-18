@@ -51,7 +51,16 @@
       "Bash(mise run scripts:test *)",
       "Bash(mise run spike:clean)",
       "Bash(mise run spike:clean *)",
+      "Bash(mise run vm:build)",
+      "Bash(mise run vm:install *)",
+      "Bash(mise run vm:clone *)",
+      "Bash(mise run vm:provision *)",
+      "Bash(mise run vm:stop *)",
+      "Bash(mise run vm:clean *)",
       "Bash(codesign -f -s - --entitlements spikes/vm.entitlements .scratch/*)"
+    ],
+    "deny": [
+      "Bash(mise run *:::*)"
     ],
     "ask": [
       "Edit(./osv-scanner.toml)",

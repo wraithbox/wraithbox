@@ -32,9 +32,9 @@ lockfile = true
 # `mise up`, read the diff, and keep the native pin files in step
 # (`go.work` and each `go.mod` for go).
 #
-# The 7-day cooldown this repo applies to *dependencies* (dependabot
-# cooldown) is deliberately NOT applied here: tool versions are chosen by
-# a human reading a changelog, not resolved automatically.
+# The same 7-day cooldown that dependabot applies to dependencies applies
+# here: `minimum_release_age` above keeps `mise up` from picking a release
+# younger than 7 days. A human still reads the changelog of each bump.
 [tools]
 go = "1.27.2"
 golangci-lint = "2.14.0"
