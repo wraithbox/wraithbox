@@ -61,6 +61,19 @@ runs every check. The `CI result` job is the one required check
 scan, and fails unless each passed or was skipped because its inputs
 did not change.
 
+A change to the Go programs or the bundle layout alone runs the build,
+sign, and bundle steps of the Swift job, because the app bundle holds
+the Go programs, and skips its lint, contract, and test steps. The other
+Swift inputs, such as Swift sources, the contracts, and the version
+stamp, run the whole Swift job.
+
+The Swift job caches SwiftPM's `.build`, the compiled dependencies,
+keyed on the runner image, the Xcode version, `Package.swift`, and
+`Package.resolved`. Each run restores it. A push to `main` saves it,
+and a pull request doesn't, so a pull request can't write a cache that
+`main` restores. A miss costs time and nothing else: no step depends on
+a hit, and tests always run.
+
 ### Go on three operating systems
 
 Go runs on macOS, Linux, and Windows from the start. Most code is

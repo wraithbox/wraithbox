@@ -17,8 +17,9 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # Decides which of the go and swift jobs and the docs site steps a pull
-  # request needs, from the files it changes (scripts/ci-changes.mjs).
+  # Decides which of the go and swift jobs, the Swift bundle steps and the
+  # docs site steps a pull request needs, from the files it changes
+  # (scripts/ci-changes.mjs).
   # A push to main and workflow_dispatch run everything. When this job
   # fails, the others run as if every file changed, and `CI result` fails.
   changes:
@@ -27,6 +28,7 @@ jobs:
     outputs:
       go: ${{ steps.detect.outputs.go }}
       swift: ${{ steps.detect.outputs.swift }}
+      bundle: ${{ steps.detect.outputs.bundle }}
       docs: ${{ steps.detect.outputs.docs }}
     steps:
       # Depth 2: a pull request checks out its merge commit, and the diff
@@ -110,10 +112,12 @@ jobs:
     # Swift comes from the runner image's default Xcode; Package.swift's
     # tools version (6.2) is the floor. See docs/spec/S02-toolchain.md.
     #
-    # Skipped only when detection succeeded and found no Swift input
-    # changed.
+    # Skipped only when detection succeeded and found neither a Swift
+    # input nor a bundle input changed. A change to the Go programs or the
+    # bundle layout alone runs only the build, sign and bundle steps
+    # (`bundle`); every Swift input runs them all (`swift`).
     needs: changes
-    if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false') }}
+    if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false' && needs.changes.outputs.bundle == 'false') }}
     runs-on: macos-26
     steps:
       - name: Checkout code
@@ -128,16 +132,47 @@ jobs:
           install_args: swiftlint buf go
           cache: true
 
+      # SwiftPM's .build holds the compiled dependencies (SwiftProtobuf,
+      # swift-crypto with BoringSSL, swift-nio, gRPC), debug and release,
+      # which take most of this job to build from source (#354). The key
+      # is the runner image, the architecture, the Xcode version and the
+      # package manifest and lock. Restored on every run, saved only by a
+      # push to main (the save step below), so a pull request never writes
+      # a cache that main restores. A miss or a stale cache only costs
+      # time: SwiftPM rebuilds what changed, and tests always run. The
+      # bundle work directory and outputs are left out, because
+      # app:bundle deletes and rebuilds them on every run.
+      - name: Swift build cache key
+        id: swift-cache-key
+        run: |
+          xcode=$(xcodebuild -version | shasum -a 256 | cut -c 1-16)
+          echo "prefix=swift-build-${ImageOS}-${ImageVersion}-${RUNNER_ARCH}-xcode-${xcode}-" >>"$GITHUB_OUTPUT"
+
+      - name: Restore Swift build cache
+        id: swift-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            packages/wraithbox-swift/.build
+            !packages/wraithbox-swift/.build/app-work
+            !packages/wraithbox-swift/.build/signed
+            !packages/wraithbox-swift/.build/Wraith Box.app
+          key: ${{ steps.swift-cache-key.outputs.prefix }}${{ hashFiles('packages/wraithbox-swift/Package.resolved', 'packages/wraithbox-swift/Package.swift') }}
+          restore-keys: ${{ steps.swift-cache-key.outputs.prefix }}
+
       - name: Lint (swift-format + SwiftLint)
+        if: ${{ !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false') }}
         run: mise run swift:lint
 
       - name: Contracts (Swift drift)
+        if: ${{ !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false') }}
         run: mise run proto:check-swift
 
       # Test before Build, as `mise run ci` orders them: `swift test`
       # relinks the programs without the version stamp, so the stamped
       # build goes last.
       - name: Test
+        if: ${{ !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false') }}
         run: mise run swift:test
 
       - name: Build
@@ -151,6 +186,19 @@ jobs:
       # is I280.
       - name: Bundle (ad-hoc Wraith Box.app + entitlement check)
         run: mise run app:bundle
+
+      # Only a push to main saves, and only when no cache had this exact
+      # key: a pull request run restores main's cache and saves nothing.
+      - name: Save Swift build cache
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.swift-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            packages/wraithbox-swift/.build
+            !packages/wraithbox-swift/.build/app-work
+            !packages/wraithbox-swift/.build/signed
+            !packages/wraithbox-swift/.build/Wraith Box.app
+          key: ${{ steps.swift-cache.outputs.cache-primary-key }}
 
   docs:
     name: Docs

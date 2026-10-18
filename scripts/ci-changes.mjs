@@ -10,8 +10,10 @@
 // file it reads changed: the diff is the pull request's merge commit
 // against its first parent, the base branch. Every other event (a push to
 // main, workflow_dispatch) runs everything. It prints one line per file
-// with the rule that matched it, and writes `go`, `swift` and `docs`
-// (`true` or `false`) to GITHUB_OUTPUT.
+// with the rule that matched it, and writes `go`, `swift`, `bundle` and
+// `docs` (`true` or `false`) to GITHUB_OUTPUT. The Swift job runs when
+// `swift` or `bundle` is true. `swift` runs all of it, and `bundle` alone
+// runs only the build, sign and bundle steps (#354).
 //
 // It fails closed. A changed file that no rule matches runs every job,
 // and so does an error: the workflow skips a job only when `detect`
@@ -26,8 +28,11 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
-/** The outputs of `detect`. `docs` gates the site check and build steps. */
-export const OUTPUTS = /** @type {const} */ (['go', 'swift', 'docs']);
+/**
+ * The outputs of `detect`. `bundle` gates the Swift job's build, sign and
+ * bundle steps, and `docs` the site check and build steps.
+ */
+export const OUTPUTS = /** @type {const} */ (['go', 'swift', 'bundle', 'docs']);
 
 /** @typedef {typeof OUTPUTS[number]} Output */
 
@@ -54,29 +59,30 @@ export const RULES = [
 	{ glob: 'packages/wraithbox-go/**', jobs: ['go'] },
 	{ glob: '.golangci.yml', jobs: ['go'] },
 	// The gRPC contracts have a Go and a Swift side.
-	{ glob: '**/*.proto', jobs: ['go', 'swift'] },
-	{ glob: '**/buf*.yaml', jobs: ['go', 'swift'] },
+	{ glob: '**/*.proto', jobs: ['go', 'swift', 'bundle'] },
+	{ glob: '**/buf*.yaml', jobs: ['go', 'swift', 'bundle'] },
 
 	// The release number goes into every Go and Swift build's version.
 	// swift:build runs the Go stamping tool, so the tool, the package it
 	// imports and the Go module and workspace files run the Swift job too.
-	{ glob: 'VERSION', jobs: ['go', 'swift'] },
-	{ glob: 'packages/wraithbox-go/internal/tools/buildversion/**', jobs: ['go', 'swift'] },
-	{ glob: 'packages/wraithbox-go/internal/version/**', jobs: ['go', 'swift'] },
-	{ glob: 'packages/wraithbox-go/go.mod', jobs: ['go', 'swift'] },
-	{ glob: 'packages/wraithbox-go/go.sum', jobs: ['go', 'swift'] },
-	{ glob: 'go.work', jobs: ['go', 'swift'] },
-	{ glob: 'go.work.sum', jobs: ['go', 'swift'] },
+	{ glob: 'VERSION', jobs: ['go', 'swift', 'bundle'] },
+	{ glob: 'packages/wraithbox-go/internal/tools/buildversion/**', jobs: ['go', 'swift', 'bundle'] },
+	{ glob: 'packages/wraithbox-go/internal/version/**', jobs: ['go', 'swift', 'bundle'] },
+	{ glob: 'packages/wraithbox-go/go.mod', jobs: ['go', 'swift', 'bundle'] },
+	{ glob: 'packages/wraithbox-go/go.sum', jobs: ['go', 'swift', 'bundle'] },
+	{ glob: 'go.work', jobs: ['go', 'swift', 'bundle'] },
+	{ glob: 'go.work.sum', jobs: ['go', 'swift', 'bundle'] },
 
 	// The Swift job builds the app bundle (app:bundle), which holds the Go
 	// programs, from the layout and check in internal/appbundle and the
-	// dev command cmd/wb-dev-app.
-	{ glob: 'packages/wraithbox-go/cmd/**', jobs: ['go', 'swift'] },
-	{ glob: 'packages/wraithbox-go/internal/appbundle/**', jobs: ['go', 'swift'] },
+	// dev command cmd/wb-dev-app. Only its bundle steps read them (#354).
+	{ glob: 'packages/wraithbox-go/cmd/**', jobs: ['go', 'bundle'] },
+	{ glob: 'packages/wraithbox-go/internal/appbundle/**', jobs: ['go', 'bundle'] },
 
-	{ glob: 'packages/wraithbox-swift/**', jobs: ['swift'] },
-	{ glob: '.swiftlint.yml', jobs: ['swift'] },
-	{ glob: '.swift-format', jobs: ['swift'] },
+	// Every Swift input runs the whole Swift job, bundle steps included.
+	{ glob: 'packages/wraithbox-swift/**', jobs: ['swift', 'bundle'] },
+	{ glob: '.swiftlint.yml', jobs: ['swift', 'bundle'] },
+	{ glob: '.swift-format', jobs: ['swift', 'bundle'] },
 
 	// The docs site renders docs/ and its own package. The prose checks
 	// run on every pull request and need no rule.
@@ -151,8 +157,11 @@ export function decide(files) {
 	return { jobs, log };
 }
 
-/** Jobs the workflow may skip, with the `detect` output that skips each. */
-const SKIPPABLE = /** @type {Record<string, Output>} */ ({ go: 'go', swift: 'swift' });
+/**
+ * Jobs the workflow may skip, with the `detect` outputs that run each. A
+ * job is skipped by rule only when every one of its outputs is `false`.
+ */
+const SKIPPABLE = /** @type {Record<string, Output[]>} */ ({ go: ['go'], swift: ['swift', 'bundle'] });
 
 /** Every job `CI result` must list in `needs:`. */
 export const GATED = ['changes', 'go', 'swift', 'docs', 'actions'];
@@ -172,8 +181,8 @@ export function verdict(needs) {
 	}
 	for (const [job, { result } = {}] of Object.entries(needs)) {
 		if (job === 'changes' || result === 'success') continue;
-		const output = SKIPPABLE[job];
-		const skippedByRule = result === 'skipped' && output && detected && changes?.outputs?.[output] === 'false';
+		const outputs = SKIPPABLE[job];
+		const skippedByRule = result === 'skipped' && outputs && detected && outputs.every((output) => changes?.outputs?.[output] === 'false');
 		if (!skippedByRule) found.push(`${job}: ${result}`);
 	}
 	return found;
