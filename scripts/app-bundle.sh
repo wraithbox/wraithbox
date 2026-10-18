@@ -103,15 +103,26 @@ stamp=$(cat "$stamp_file")
 # Step 2: the Go programs of the table, host and guest, for darwin/arm64.
 (cd "$go_dir" && "$dev" go-build -stamp "$stamp_file" -out "$work/go")
 
-# Step 3: wb-vmd, linked with the stamp as swift:build links it.
-swift build -c release --package-path "$swift_dir" --force-resolved-versions --product wb-vmd \
-	-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __wb_version -Xlinker "$stamp_file"
+# Step 3: the Swift package's programs of the table (wb-vmd), linked
+# with the stamp as swift:build links them. SwiftPM's native build
+# system doesn't track what is in the stamp file, so with no Swift change
+# it keeps a program linked with an older stamp. Removing the program
+# first makes SwiftPM link it again with this run's stamp. swift build
+# gets /dev/null as stdin, so it reads none of the layout's lines.
 swift_bin=$(swift build -c release --package-path "$swift_dir" --force-resolved-versions --show-bin-path)
+while read -r source _ name _; do
+	[ "$source" = swiftpm ] || continue
+	rm -f "$swift_bin/$name"
+	swift build -c release --package-path "$swift_dir" --force-resolved-versions --product "$name" \
+		-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __wb_version -Xlinker "$stamp_file" </dev/null
+done <"$work/layout"
 
 # Step 4: the app, whose executable is the notification helper. Its
 # deployment target is Package.swift's, so one edit moves both. Xcode
 # signs nothing (CODE_SIGNING_ALLOWED=NO). The stamp goes into the same
-# section as in the Swift package's programs. xcodebuild takes
+# section as in the Swift package's programs. Its build directories are
+# in the work directory, which every build removes first, so Xcode links
+# the helper with this run's stamp every time. xcodebuild takes
 # -derivedDataPath only with -scheme, so Xcode may write to
 # ~/Library/Developer/Xcode/DerivedData (docs/agents/host-work.md).
 manifest=$(swift package dump-package --package-path "$swift_dir")
