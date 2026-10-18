@@ -2210,7 +2210,7 @@
 		"kind": "pr",
 		"state": "merged",
 		"title": "build(deps): bump all dependencies to their latest stable versions (2026-10-18)",
-		"summary": "Bumps every version pin to the latest stable release that is at least 7 days old on 2026-10-18 (cutoff 2026-10-11), the dependabot cooldown and the .mise.toml minimumreleaseage."
+		"summary": "Bumps every version pin to the latest stable release that is at least 7 days old on 2026-10-18 (cutoff 2026-10-11), the dependabot cooldown and the .mise.toml minimum_release_age."
 	},
 	"360": {
 		"kind": "pr",
@@ -2235,5 +2235,11 @@
 		"state": "merged",
 		"title": "fix(agents): match a standalone ::: in the mise deny rule",
 		"summary": "The deny rule from #361, Bash(mise run :::), ends in :, so Claude Code reads it as the legacy prefix syntax: the literal prefix mise run :: with an unexpanded ."
+	},
+	"364": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd, wb: three refusal messages that misname what happened (#352 review folds)",
+		"summary": "Three messages from the code review of #352 (round 2), outside the reviewed commit, say something other than what happened."
 	}
 }

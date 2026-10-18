@@ -35,7 +35,10 @@ function summarize(/** @type {string} */ body) {
 		.filter((p) => p.length >= 30 && !/^(#|Blocked by|Brief:|Closes|Refs|Co-Authored-By|Assisted-by|```|- \[)/i.test(p));
 	const text = (paragraphs[0] ?? '')
 		.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-		.replace(/[`*_>]/g, '')
+		.replace(/[`*>]/g, '')
+		// An underscore inside a word (minimum_release_age) is part of a
+		// name, so keep it. Only underscores at a word's edge are emphasis.
+		.replace(/(?<![A-Za-z0-9])_+|_+(?![A-Za-z0-9])/g, '')
 		.replace(/\s+/g, ' ')
 		.trim();
 	const sentence = text.match(/^(.+?[.?!])(\s|$)/)?.[1] ?? text;
