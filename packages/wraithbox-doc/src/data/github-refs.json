@@ -1323,7 +1323,7 @@
 	},
 	"212": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "build(deps-dev): Bump cspell from 10.3.4 to 10.3.6 in /packages/wraithbox-doc",
 		"summary": "Bumps cspell from 10.3.4 to 10.3.6."
 	},
@@ -1728,7 +1728,7 @@
 	},
 	"279": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb setup: bundle check, LaunchAgent and `wb` link install, ad-hoc Keychain refusal",
 		"summary": "wb setup is how a user installs Wraith Box: a per-user LaunchAgent that runs wb-hostd, and a wb link on PATH (S17-02-setup)."
 	},
@@ -1758,7 +1758,7 @@
 	},
 	"284": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: VM manager for the work and isolated VMs, with generations, the guest tools disk step and a fake VM provider",
 		"summary": "Nothing on the host starts a VM for the user yet."
 	},
@@ -1788,7 +1788,7 @@
 	},
 	"289": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-diskfmt: format a VM's new data disk on the host, data disk records, and `wb vm reset-data`",
 		"summary": "A VM needs a data disk before it first boots."
 	},
@@ -2070,13 +2070,13 @@
 	},
 	"336": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "build(deps): Bump astro from 7.3.5 to 7.3.8 in /packages/wraithbox-doc",
 		"summary": "Bumps astro from 7.3.5 to 7.3.8."
 	},
 	"337": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "build(deps): Bump @astrojs/starlight from 0.42.4 to 0.42.6 in /packages/wraithbox-doc",
 		"summary": "Bumps @astrojs/starlight from 0.42.4 to 0.42.6."
 	},
@@ -2094,7 +2094,7 @@
 	},
 	"340": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Run 2026-10-17 (V1-M2-walking-skeleton, lane mac)",
 		"summary": "Approval: the maintainer typed /wave --waves 5 --lane mac --merge in this session (2026-10-17)."
 	},
@@ -2142,7 +2142,7 @@
 	},
 	"348": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(hostd): VM manager for the work and isolated VMs, with generations and the tools disk step",
 		"summary": "wb-hostd's VM manager in internal/hostd/vm."
 	},
@@ -2154,8 +2154,86 @@
 	},
 	"350": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Dev VM tooling: mise vm:* tasks for install, clone, provision, stop and clean, instead of spike commands",
 		"summary": "Every step that needs a macOS guest goes through spike code (the X17-image-build and X18-vsock-handoff host tools) or waits for the maintainer."
+	},
+	"351": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(wb): wb setup checks the host and bundle, installs the agent and link",
+		"summary": "wb setup now does the macOS install path of S17-02-setup for an ad-hoc bundle."
+	},
+	"352": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): wb-diskfmt formats a VM's new data disk, with records and wb vm reset-data",
+		"summary": "wb-diskfmt formats a VM's new data disk on the host, the one exception SEC15-no-guest-disk-mount makes."
+	},
+	"353": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "wb-diskfmt: measure its sandbox profile on the host and decide the iokit-get-properties rule",
+		"summary": "PR #352 (#289) gives wb-diskfmt a self-sandbox profile (packages/wraithbox-go/cmd/wb-diskfmt/profile.go) that no confined run has measured yet."
+	},
+	"354": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "ci(swift): cache Swift dependency builds, and run only the bundle for Go cmd changes",
+		"summary": "The Swift CI job takes about 11 minutes, and almost all of it compiles dependencies."
+	},
+	"355": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: kill wb-diskfmt's process group on a timeout, so no diskutil is left running",
+		"summary": "When wb-diskfmt doesn't exit within exitWait, processSession.Close in packages/wraithbox-go/internal/hostd/datadisk/shim.go (line 268 on #352) kills it with s.cmd.Process.Kill()."
+	},
+	"356": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(agents): the agent the maintainer answered posts the decision",
+		"summary": "docs/agents/planning.md, \"Decisions\" and \"Triage\": the maintainer still makes each one-way decision, but the agent they answered in the session now posts the Decision (YYYY-MM-DD): comment, with the attribution lines,…"
+	},
+	"357": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "ci(swift): cache Swift dependency builds, and run only the bundle for Go cmd changes",
+		"summary": "The Swift job spent about 10 of its 11 minutes compiling SwiftProtobuf, swift-crypto with BoringSSL, swift-nio, gRPC and swift-collections from source."
+	},
+	"358": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(platform): fix a race in TestListenReplacesLeftover",
+		"summary": "TestListenReplacesLeftover (internal/platform/localipc) failed on main's CI on macos-26 after #352 merged (run 39133542257): Dial the new listener: localipc: ipc-peer-uid: the peer's credential can't be read:…"
+	},
+	"359": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build(deps): bump all dependencies to their latest stable versions (2026-10-18)",
+		"summary": "Bumps every version pin to the latest stable release that is at least 7 days old on 2026-10-18 (cutoff 2026-10-11), the dependabot cooldown and the .mise.toml minimumreleaseage."
+	},
+	"360": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(swift): wb-dev-bundle and mise run vm:* tasks for test VM bundles",
+		"summary": "wb-dev-bundle is a dev-only Swift executable in packages/wraithbox-swift, promoted from the X18-vsock-handoff host tool."
+	},
+	"361": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "chore(agents): allow the vm:* tasks, deny chained mise tasks",
+		"summary": "- .claude/settings.json: the six vm: allow rules the maintainer approved on #360: vm:build exact, and vm:install, vm:clone, vm:provision, vm:stop and vm:clean with arguments."
+	},
+	"362": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci(swift): trim the Swift cache, run the bundle for every Go change, and measure the warm run",
+		"summary": "Follow-ups from the code review of #357 (#354), which merged as is."
+	},
+	"363": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(agents): match a standalone ::: in the mise deny rule",
+		"summary": "The deny rule from #361, Bash(mise run :::), ends in :, so Claude Code reads it as the legacy prefix syntax: the literal prefix mise run :: with an unexpanded ."
 	}
 }

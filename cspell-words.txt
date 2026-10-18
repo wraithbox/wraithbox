@@ -240,7 +240,6 @@ codesign
 protoc
 protoreflect
 protowire
-bufconn
 genproto
 mktemp
 Xlinker
