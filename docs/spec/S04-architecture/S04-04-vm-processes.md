@@ -170,6 +170,8 @@ It finds `<data>` from the home directory in the user database, never
 only in canonical form, and a name only when it is the fixed one, and
 it cuts a refusal's text to a fixed bound.
 
+#### `wb-diskfmt`'s profile
+
 The compiled-in profile allows:
 
 - reading and writing the data disk's temporary and final names in
@@ -186,12 +188,22 @@ The compiled-in profile allows:
   Arbitration, `storagekitd`, and Authorization Services
   (`com.apple.authd`), which the attach asks.
 
-The `authd` rule lets a subverted shim show a real administrator
-password dialog. It gains nothing unless the user then enters a
-password. The shim takes no guest input, and `diskutil` can't attach an
-image without that service (I353).
+The file rules bind only the shim's own opens. The disk services run
+outside the sandbox and act on the disk a request names, so a
+subverted shim could erase, mount or unmount any disk the host user
+may, and list the host's disks. Seatbelt can't filter what a request
+to a service asks for, so the profile can't narrow that.
 
-It denies the network and every other file. `wb-diskfmt` exits after
+The `authd` rule lets a subverted shim ask for authorization rights.
+A right that needs authentication shows a real administrator password
+dialog, and gains nothing unless the user enters a password. A right
+that doesn't is granted to an administrator's session without a
+dialog, which is within the host user's own powers. `diskutil` can't
+attach an image without that service (I353).
+
+These rest on the shim's inputs: it takes no guest input, only
+`wb-hostd`'s request, and it exits after one format. It denies the
+network and every other file. `wb-diskfmt` exits after
 one format, and is never restarted. The service names are in code.
 They were measured on macOS 27 with the opt-in host test, which runs a
 confined format (I228).

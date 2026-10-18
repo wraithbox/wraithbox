@@ -34,27 +34,28 @@ const macOS27Attach = `<dict><key>system-entities</key><array>
 func TestParseAttach(t *testing.T) {
 	for _, tc := range []struct {
 		name, body, device, backing string
+		named                       bool
 	}{
-		{"image-path", entities(`<key>image-path</key><string>` + tmp + `</string>`), "disk7", tmp},
-		{"file URL", entities(`<key>DiskImageURL</key><string>file:///Users/a/Library/Application%20Support/WraithBox/vms/macos-work.noindex/data.wbdisk.tmp</string>`), "disk7", tmp},
-		{"both agree", entities(`<key>image-path</key><string>` + tmp + `</string><key>image-url</key><string>file://localhost` + strings.ReplaceAll(tmp, " ", "%20") + `</string>`), "disk7", tmp},
-		{"both disagree", entities(`<key>image-path</key><string>` + tmp + `</string><key>image-url</key><string>file:///elsewhere</string>`), "disk7", ""},
-		{"a relative path, then a good URL", entities(`<key>image-path</key><string>relative/x</string><key>DiskImageURL</key><string>file://` + strings.ReplaceAll(tmp, " ", "%20") + `</string>`), "disk7", ""},
-		{"a good path, then a remote URL", entities(`<key>image-path</key><string>` + tmp + `</string><key>DiskImageURL</key><string>https://host/x</string>`), "disk7", ""},
-		{"no backing path", entities(``), "disk7", ""},
-		{"macOS 27", macOS27Attach, "disk4", ""},
-		{"relative path", entities(`<key>image-path</key><string>data.wbdisk.tmp</string>`), "disk7", ""},
-		{"remote URL", entities(`<key>DiskImageURL</key><string>https://host/x</string>`), "disk7", ""},
-		{"path as data", entities(`<key>image-path</key><data>L3RtcC94</data>`), "disk7", "/tmp/x"},
-		{"top-level device", `<dict><key>DeviceIdentifier</key><string>disk12</string><key>ImagePath</key><string>` + tmp + `</string></dict>`, "disk12", tmp},
+		{"image-path", entities(`<key>image-path</key><string>` + tmp + `</string>`), "disk7", tmp, true},
+		{"file URL", entities(`<key>DiskImageURL</key><string>file:///Users/a/Library/Application%20Support/WraithBox/vms/macos-work.noindex/data.wbdisk.tmp</string>`), "disk7", tmp, true},
+		{"both agree", entities(`<key>image-path</key><string>` + tmp + `</string><key>image-url</key><string>file://localhost` + strings.ReplaceAll(tmp, " ", "%20") + `</string>`), "disk7", tmp, true},
+		{"both disagree", entities(`<key>image-path</key><string>` + tmp + `</string><key>image-url</key><string>file:///elsewhere</string>`), "disk7", "", true},
+		{"a relative path, then a good URL", entities(`<key>image-path</key><string>relative/x</string><key>DiskImageURL</key><string>file://` + strings.ReplaceAll(tmp, " ", "%20") + `</string>`), "disk7", "", true},
+		{"a good path, then a remote URL", entities(`<key>image-path</key><string>` + tmp + `</string><key>DiskImageURL</key><string>https://host/x</string>`), "disk7", "", true},
+		{"no backing path", entities(``), "disk7", "", false},
+		{"macOS 27", macOS27Attach, "disk4", "", false},
+		{"relative path", entities(`<key>image-path</key><string>data.wbdisk.tmp</string>`), "disk7", "", true},
+		{"remote URL", entities(`<key>DiskImageURL</key><string>https://host/x</string>`), "disk7", "", true},
+		{"path as data", entities(`<key>image-path</key><data>L3RtcC94</data>`), "disk7", "/tmp/x", true},
+		{"top-level device", `<dict><key>DeviceIdentifier</key><string>disk12</string><key>ImagePath</key><string>` + tmp + `</string></dict>`, "disk12", tmp, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := diskimage.ParseAttach(plistDoc(tc.body))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.Device != tc.device || got.BackingPath != tc.backing {
-				t.Errorf("got %+v, want device %s backing %q", got, tc.device, tc.backing)
+			if got.Device != tc.device || got.BackingPath != tc.backing || got.BackingNamed != tc.named {
+				t.Errorf("got %+v, want device %s backing %q named %t", got, tc.device, tc.backing, tc.named)
 			}
 		})
 	}

@@ -186,8 +186,12 @@ type Attachment struct {
 	// Device is the whole disk's name, such as disk5.
 	Device string
 	// BackingPath is the device's backing image path as the attach
-	// reported it.
+	// reported it, or "" when it named none, or more than one, or a
+	// value that isn't a path.
 	BackingPath string
+	// BackingNamed is whether the attach output named a backing image
+	// under any key, usable or not.
+	BackingNamed bool
 }
 
 // Tool is the disk tool, diskutil on macOS.
@@ -346,7 +350,8 @@ func (f *Formatter) checkIdentity(ctx context.Context, step string, blank bool) 
 // attach is step 3: it attaches the temporary name without mounting it,
 // and checks the device it got. diskutil on macOS 27 reports no backing
 // path in the attach output, so the check reads it from the I/O
-// Registry. A backing path the output does report must agree.
+// Registry. An output that does name a backing image must name the
+// temporary name, once and as a path.
 func (f *Formatter) attach(ctx context.Context) (string, *Refusal) {
 	tmp := f.TempPath()
 	att, err := f.Tool.Attach(ctx, tmp)
@@ -354,7 +359,7 @@ func (f *Formatter) attach(ctx context.Context) (string, *Refusal) {
 		return "", f.refuse(ctx, "attach", &Refusal{Rule: RuleDiskutil, Detail: "the attach of " + tmp + " failed", err: err})
 	}
 	f.accept(ctx, "data disk attached", slog.String("device", att.Device), slog.String("reported_backing_path", cut(att.BackingPath)))
-	if att.BackingPath != "" && att.BackingPath != tmp {
+	if att.BackingNamed && att.BackingPath != tmp {
 		return "", f.detachAfter(ctx, att.Device, f.refuse(ctx, "attach", &Refusal{
 			Rule:   RuleBackingPath,
 			Detail: fmt.Sprintf("the attach of %s reported the backing image %q", cut(tmp), cut(att.BackingPath)),
@@ -380,6 +385,7 @@ func (f *Formatter) checkBacking(ctx context.Context, step, device string) *Refu
 			Detail: fmt.Sprintf("%s is backed by %q, not %s", device, cut(backing), tmp),
 		})
 	}
+	f.accept(ctx, "backing path checked", slog.String("step", step), slog.String("device", device), slog.String("backing_path", cut(backing)))
 	return nil
 }
 

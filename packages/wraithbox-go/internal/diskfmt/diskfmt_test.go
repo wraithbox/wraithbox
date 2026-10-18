@@ -98,6 +98,20 @@ func TestAttachReportsNoBacking(t *testing.T) {
 	}
 }
 
+// TestRegistryRefusesAtAttach: when the attach output names no backing
+// path and the I/O Registry names another, the check at the attach
+// refuses, before the identity check and the format.
+func TestRegistryRefusesAtAttach(t *testing.T) {
+	h := newHarness(t)
+	h.tool.attachNoBacking = true
+	h.tool.backing = h.f.FinalPath()
+	_, r := h.f.Format(t.Context(), diskfmt.DefaultSizeGiB)
+	h.refused(r, diskfmt.RuleBackingPath)
+	if want := []string{"attach", "backing", "detach"}; !slices.Equal(h.tool.calls, want) {
+		t.Errorf("calls = %v, want %v", h.tool.calls, want)
+	}
+}
+
 // TestLeftoverDeleted: a leftover temporary file is unlinked, and the
 // file attached is the new one.
 func TestLeftoverDeleted(t *testing.T) {
@@ -156,9 +170,8 @@ func TestRefusals(t *testing.T) {
 		{"another backing path at the attach", func(h *harness) {
 			h.tool.attachBacking = filepath.Join("/", "data", "vms", "macos-isolated.noindex", "data.wbdisk.tmp")
 		}, diskfmt.RuleBackingPath, true},
-		{"another backing path in the registry at the attach", func(h *harness) {
-			h.tool.attachNoBacking = true
-			h.tool.backing = h.f.FinalPath()
+		{"an ambiguous backing path at the attach", func(h *harness) {
+			h.tool.attachAmbiguous = true
 		}, diskfmt.RuleBackingPath, true},
 		{"another backing path before the format", func(h *harness) {
 			h.tool.backing = h.f.FinalPath()

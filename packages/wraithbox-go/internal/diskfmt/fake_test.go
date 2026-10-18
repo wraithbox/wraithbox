@@ -153,10 +153,12 @@ type fakeTool struct {
 	beforeErase  func()
 	// attachBacking and backing, when set, replace the backing path the
 	// attach and BackingPath report. attachNoBacking makes the attach
-	// report none, as diskutil on macOS 27 does. backingFrom is how many
+	// report none, as diskutil on macOS 27 does, and attachAmbiguous one
+	// that ParseAttach reads as "" but named, such as two that disagree. backingFrom is how many
 	// BackingPath calls report the true path before backing replaces it.
 	attachBacking   string
 	attachNoBacking bool
+	attachAmbiguous bool
 	backing         string
 	backingFrom     int
 	backingCalls    int
@@ -202,14 +204,16 @@ func (t *fakeTool) Attach(_ context.Context, path string) (diskfmt.Attachment, e
 	if t.afterAttach != nil {
 		t.afterAttach()
 	}
-	backing := path
+	att := diskfmt.Attachment{Device: dev, BackingPath: path, BackingNamed: true}
 	switch {
 	case t.attachNoBacking:
-		backing = ""
+		att.BackingPath, att.BackingNamed = "", false
+	case t.attachAmbiguous:
+		att.BackingPath = ""
 	case t.attachBacking != "":
-		backing = t.attachBacking
+		att.BackingPath = t.attachBacking
 	}
-	return diskfmt.Attachment{Device: dev, BackingPath: backing}, nil
+	return att, nil
 }
 
 func (t *fakeTool) BackingPath(_ context.Context, device string) (string, error) {
