@@ -20,13 +20,13 @@
   },
   "dependencies": {
     "@astrojs/markdown-remark": "7.3.2",
-    "@astrojs/starlight": "0.42.4",
-    "astro": "7.3.5",
+    "@astrojs/starlight": "0.42.6",
+    "astro": "7.3.8",
     "sharp": "0.35.5"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
-    "cspell": "10.3.4",
+    "cspell": "10.3.6",
     "playwright": "1.64.0",
     "typescript": "6.0.3"
   },
