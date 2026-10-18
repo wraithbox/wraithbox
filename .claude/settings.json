@@ -60,7 +60,9 @@
       "Bash(codesign -f -s - --entitlements spikes/vm.entitlements .scratch/*)"
     ],
     "deny": [
-      "Bash(mise run *:::*)"
+      "Bash(mise run * ::: *)",
+      "Bash(mise run * ':::' *)",
+      "Bash(mise run * \":::\" *)"
     ],
     "ask": [
       "Edit(./osv-scanner.toml)",
