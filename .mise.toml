@@ -276,8 +276,14 @@ done
 
 # The linker copies build/version, the run's version, into the section
 # __TEXT,__wb_version of each program, where WraithBoxVM/Version.swift
-# reads it. Changing the flag relinks, and recompiles nothing. `check`
-# fails first when the tree changed after the stamp was made.
+# reads it. `check` fails first when the tree changed after the stamp was
+# made. The stamp's path stays the same, and SwiftPM's native build
+# system doesn't track what is in the file, so with no Swift change it
+# keeps each program linked with an older stamp. The task removes the
+# package's executable products (Package.swift's products of type
+# executable) before the build, and SwiftPM links each one again with
+# this run's stamp. That relinks and recompiles nothing. app:bundle does
+# the same for the programs it builds (scripts/app-bundle.sh, step 3).
 #
 # SwiftPM locks .build, and `swift test` relinks the programs without the
 # stamp. So under `ci` this waits for swift:test, and the stamped
@@ -294,6 +300,15 @@ stamp="$PWD/build/version"
 for p in packages/*-swift; do
   [ -d "$p" ] || continue
   echo "--- swift build $p"
+  bin=$(swift build --package-path "$p" --force-resolved-versions --show-bin-path)
+  manifest=$(swift package dump-package --package-path "$p")
+  i=0
+  while name=$(printf '%s' "$manifest" | plutil -extract "products.$i.name" raw -o - - 2>/dev/null); do
+    if printf '%s' "$manifest" | plutil -type "products.$i.type.executable" - >/dev/null 2>&1; then
+      rm -f "$bin/$name"
+    fi
+    i=$((i + 1))
+  done
   swift build --package-path "$p" --force-resolved-versions -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __wb_version -Xlinker "$stamp"
 done
 """
