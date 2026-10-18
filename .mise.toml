@@ -282,8 +282,10 @@ done
 # keeps each program linked with an older stamp. The task removes the
 # package's executable products (Package.swift's products of type
 # executable) before the build, and SwiftPM links each one again with
-# this run's stamp. That relinks and recompiles nothing. app:bundle does
-# the same for the programs it builds (scripts/app-bundle.sh, step 3).
+# this run's stamp. SwiftPM relinks each program and recompiles nothing.
+# The task fails when the manifest names no executable product, or when
+# a removed program is missing after the build. app:bundle removes the
+# programs it builds the same way (scripts/app-bundle.sh, step 3).
 #
 # SwiftPM locks .build, and `swift test` relinks the programs without the
 # stamp. So under `ci` this waits for swift:test, and the stamped
@@ -302,14 +304,29 @@ for p in packages/*-swift; do
   echo "--- swift build $p"
   bin=$(swift build --package-path "$p" --force-resolved-versions --show-bin-path)
   manifest=$(swift package dump-package --package-path "$p")
+  count=$(printf '%s' "$manifest" | plutil -extract products raw -o - -)
+  programs=
   i=0
-  while name=$(printf '%s' "$manifest" | plutil -extract "products.$i.name" raw -o - - 2>/dev/null); do
+  while [ "$i" -lt "$count" ]; do
+    name=$(printf '%s' "$manifest" | plutil -extract "products.$i.name" raw -o - -)
     if printf '%s' "$manifest" | plutil -type "products.$i.type.executable" - >/dev/null 2>&1; then
+      echo "swift:build: removing $bin/$name, so it is linked with this run's stamp"
       rm -f "$bin/$name"
+      programs="$programs $name"
     fi
     i=$((i + 1))
   done
+  if [ -z "$programs" ]; then
+    echo "swift:build: found no executable product in $p's manifest, so no program is relinked with the stamp" >&2
+    exit 1
+  fi
   swift build --package-path "$p" --force-resolved-versions -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __wb_version -Xlinker "$stamp"
+  for name in $programs; do
+    if [ ! -f "$bin/$name" ]; then
+      echo "swift:build: $bin/$name is missing after the build" >&2
+      exit 1
+    fi
+  done
 done
 """
 
