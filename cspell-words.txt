@@ -107,6 +107,11 @@ wbdisk
 wbstore
 VZNAT
 VZUSB
+VZMAC
+Featureful
+bootpd
+dhcpd
+wbdev
 vmnet
 paravirtualized
 paravirtualizedgraphics

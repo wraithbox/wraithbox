@@ -18,6 +18,10 @@ let package = Package(
         .library(name: "WraithBoxRPC", targets: ["WraithBoxRPC"]),
         .library(name: "WraithBoxVMD", targets: ["WraithBoxVMD"]),
         .executable(name: "wb-vmd", targets: ["wb-vmd"]),
+        // Dev-only test tooling, never in the app bundle: makes, clones,
+        // provisions, stops and removes test VM bundles in the spike cache
+        // through `mise run vm:*` (S10-tech-stack, "Test tooling").
+        .executable(name: "wb-dev-bundle", targets: ["wb-dev-bundle"]),
     ],
     // Exact versions: Package.resolved pins the rest of the tree, and
     // dependabot proposes the bumps (AGENTS.md, "Supply chain"). The two
@@ -62,6 +66,17 @@ let package = Package(
         .executableTarget(
             name: "wb-vmd",
             dependencies: ["WraithBoxVMD"]
+        ),
+        // An executable target that only its tests depend on. Its one
+        // file with a NAT network is excepted from the static check of
+        // S04-02-vm-provider (.swiftlint.yml).
+        .executableTarget(
+            name: "wb-dev-bundle",
+            dependencies: ["WraithBoxVM"]
+        ),
+        .testTarget(
+            name: "WbDevBundleTests",
+            dependencies: ["wb-dev-bundle"]
         ),
         .testTarget(
             name: "WraithBoxVMTests",
