@@ -18,8 +18,10 @@ import "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/s
 //     system's own libraries and settings read-only;
 //   - the metadata of the /dev/disk* nodes, not their contents;
 //   - the services diskutil reaches, Authorization Services among them
-//     (I353). The backing path check reads the I/O Registry, which
-//     needs no rule.
+//     (I353). They run outside the sandbox and act on the disk a
+//     request names, which no rule here can narrow
+//     (S04-04-vm-processes). The backing path check reads the I/O
+//     Registry, which needs no rule.
 //
 // It denies the network, every other user file and the user database
 // files, so the deny probe's read of /etc/passwd fails

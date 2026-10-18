@@ -23,9 +23,10 @@ func ValidDevice(s string) bool { return wholeDisk.MatchString(s) }
 // I/O Registry, in the order they are read. A path key holds a path, a
 // URL key a file URL. diskutil's attach output on macOS 27 names none,
 // and the I/O Registry names DiskImageURL. The parser takes each form
-// it may have, and a backing path it can't find, or two that disagree,
-// reads as none. The backing path check reads the I/O Registry, and
-// refuses an attach output that names another path (internal/diskfmt).
+// it may have. A value that isn't a path, or two that disagree, read as
+// "" but still count as named, and the backing path check refuses an
+// attach output that names anything but the temporary name
+// (internal/diskfmt).
 var (
 	pathKeys = []string{"image-path", "ImagePath"}
 	urlKeys  = []string{"DiskImageURL", "image-url", "ImageURL"}
@@ -34,8 +35,8 @@ var (
 // ParseAttach reads the output of `diskutil image attach --noMount
 // --plist`: the whole disk the image was attached as, and the backing
 // image path the output names. A device it can't find is an error. A
-// backing path it can't find is "", so the caller detaches the device
-// and refuses.
+// backing path it can't find is "", and BackingNamed says whether the
+// output named one at all.
 func ParseAttach(out []byte) (diskfmt.Attachment, error) {
 	v, err := plist.Decode(out)
 	if err != nil {
@@ -49,7 +50,8 @@ func ParseAttach(out []byte) (diskfmt.Attachment, error) {
 	if err != nil {
 		return diskfmt.Attachment{}, err
 	}
-	return diskfmt.Attachment{Device: device, BackingPath: backingIn(root, entity)}, nil
+	backing, named := backingIn(root, entity)
+	return diskfmt.Attachment{Device: device, BackingPath: backing, BackingNamed: named}, nil
 }
 
 // attachedDisk finds the whole disk in the attach output: the one
@@ -98,20 +100,22 @@ func entityDisk(entities []any) (string, map[string]any, error) {
 }
 
 // backingIn returns the one backing path the dicts name, or "" when
-// they name none, or more than one.
-func backingIn(dicts ...map[string]any) string {
+// they name none, or more than one. named is whether any backing key is
+// present.
+func backingIn(dicts ...map[string]any) (path string, named bool) {
 	found := ""
 	for _, d := range dicts {
 		for _, p := range backingValues(d) {
+			named = true
 			// A value that isn't a path is as ambiguous as two that
 			// disagree, whichever key holds it.
 			if p == "" || (found != "" && p != found) {
-				return ""
+				return "", true
 			}
 			found = p
 		}
 	}
-	return found
+	return found, named
 }
 
 // backingValues returns each backing path d names under the path and

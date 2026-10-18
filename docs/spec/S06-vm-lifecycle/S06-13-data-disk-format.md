@@ -41,7 +41,8 @@ names in that bundle (S04-04-vm-processes, "`wb-diskfmt`"), and then:
    from the device's properties in the I/O Registry, read in the shim's
    own process. On macOS 27 the attach output doesn't name a backing
    path, and `diskutil` has no command that reports it. When the
-   attach output does name one, it must be the temporary name too.
+   attach output does name a backing image, it must name the
+   temporary name, once and as a path.
 4. Right before it runs `diskutil eraseDisk APFS` on that device, it
    repeats the identity check and the backing path check. A name
    replaced before the attach, or after it, and not put back fails the
