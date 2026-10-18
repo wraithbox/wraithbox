@@ -290,10 +290,14 @@ that needs its own issue.
   until the breakage shows up.
 - **Questions wait for the end** of a wave or a run, and go to the
   maintainer as one batch, up to four per question dialog.
-- **The maintainer posts `Decision (YYYY-MM-DD):` comments.** An agent
-  drafts the text and gives the maintainer the command
-  (`gh issue comment <n> --body-file <file>`). The auto-mode classifier
-  refuses an agent that posts a decision for the maintainer.
+- **The maintainer makes each decision, and the agent they answered
+  posts it.** When the maintainer answers a decision in a session, that
+  session's agent posts the `Decision (YYYY-MM-DD):` comment with
+  `gh issue comment <n> --body-file <file>`, ending in the attribution
+  lines, and tells the maintainer it did. The comment holds only what
+  the maintainer decided, with any detail the agent added named as such.
+  No builder, lead or reviewer posts a decision, and no agent posts one
+  the maintainer didn't give.
 
 ## Large doc changes
 
@@ -353,7 +357,7 @@ the decisions written down, and any blockers set as relationships),
 - Agents decide routine triage themselves (labels, duplicates, splits)
   and report what they did. They ask the maintainer only when a decision
   touches a spec, a rule in `AGENTS.md`, the scope, or the cost. A
-  `Decision` comment is the maintainer's to post ("Decisions").
+  `Decision` comment holds only the maintainer's answer ("Decisions").
 - Fix stale paths in an old body in the triage comment rather than
   leaving them for the builder.
 - Set `needs-vm` and `needs-host` on every `ready-for-agent` issue that
