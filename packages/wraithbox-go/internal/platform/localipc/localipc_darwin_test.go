@@ -235,13 +235,18 @@ func TestListenReplacesLeftover(t *testing.T) {
 	if !strings.Contains(buf.String(), "leftover socket removed") {
 		t.Errorf("log = %s, want the removal", buf.String())
 	}
+	// The accepted end stays open until Dial returns: Dial reads the
+	// real peer credential, which fails once the peer has closed.
+	dialed := make(chan struct{})
 	go func() {
 		c, err := ln.Accept()
 		if err == nil {
+			<-dialed
 			_ = c.Close()
 		}
 	}()
 	c, err := Dial(context.Background(), nil, run, "hostd")
+	close(dialed)
 	if err != nil {
 		t.Fatalf("Dial the new listener: %v", err)
 	}
