@@ -178,15 +178,23 @@ The compiled-in profile allows:
   them;
 - its inherited descriptors;
 - starting `/usr/sbin/diskutil` and no other program, with the
-  system's libraries and settings read-only;
-- the DiskImages, Disk Arbitration and disk management services that
-  `diskutil` uses, and reading device properties in the I/O Registry,
-  where the check before the format reads the attached device's
-  backing image (S06-13-data-disk-format, "The shim").
+  system's libraries and settings read-only, and listing the root
+  directory, which dyld reads to find the shared cache;
+- the metadata of the `/dev/disk*` nodes, whole disks and slices, but
+  not their contents;
+- the services `diskutil` reaches: the disk image controller, Disk
+  Arbitration, `storagekitd`, and Authorization Services
+  (`com.apple.authd`), which the attach asks.
+
+The `authd` rule lets a subverted shim show a real administrator
+password dialog. It gains nothing unless the user then enters a
+password. The shim takes no guest input, and `diskutil` can't attach an
+image without that service (I353).
 
 It denies the network and every other file. `wb-diskfmt` exits after
 one format, and is never restarted. The service names are in code.
-I228 measures a confined run.
+They were measured on macOS 27 with the opt-in host test, which runs a
+confined format (I228).
 
 ## Decisions
 

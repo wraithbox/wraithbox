@@ -49,11 +49,9 @@ fread
 tcflush
 iokit
 IOBSD
-IOHDIX
 cfprefsd
 storagekitd
-diskmanagementd
-diskimagesiod
+diskimagescontroller
 diskarbitrationd
 logd
 urandom

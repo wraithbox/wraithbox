@@ -73,7 +73,7 @@ func TestFormatAndRename(t *testing.T) {
 	if uuid != h.tool.uuid {
 		t.Errorf("uuid = %s, want %s", uuid, h.tool.uuid)
 	}
-	want := []string{"attach", "backing", "erase", "uuid", "detach"}
+	want := []string{"attach", "backing", "backing", "erase", "uuid", "detach"}
 	if !slices.Equal(h.tool.calls, want) {
 		t.Errorf("calls = %v, want %v", h.tool.calls, want)
 	}
@@ -85,6 +85,16 @@ func TestFormatAndRename(t *testing.T) {
 	}
 	if err := h.f.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestAttachReportsNoBacking: diskutil on macOS 27 names no backing
+// path in the attach output, and the registry read decides.
+func TestAttachReportsNoBacking(t *testing.T) {
+	h := newHarness(t)
+	h.tool.attachNoBacking = true
+	if _, r := h.f.Format(t.Context(), diskfmt.DefaultSizeGiB); r != nil {
+		t.Fatal(r)
 	}
 }
 
@@ -146,8 +156,13 @@ func TestRefusals(t *testing.T) {
 		{"another backing path at the attach", func(h *harness) {
 			h.tool.attachBacking = filepath.Join("/", "data", "vms", "macos-isolated.noindex", "data.wbdisk.tmp")
 		}, diskfmt.RuleBackingPath, true},
+		{"another backing path in the registry at the attach", func(h *harness) {
+			h.tool.attachNoBacking = true
+			h.tool.backing = h.f.FinalPath()
+		}, diskfmt.RuleBackingPath, true},
 		{"another backing path before the format", func(h *harness) {
 			h.tool.backing = h.f.FinalPath()
+			h.tool.backingFrom = 1
 		}, diskfmt.RuleBackingPath, true},
 		{"replaced before the attach", func(h *harness) {
 			h.tool.beforeAttach = func() { h.files.put(h.f.TempPath(), true) }

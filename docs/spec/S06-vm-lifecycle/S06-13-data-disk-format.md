@@ -36,13 +36,14 @@ names in that bundle (S04-04-vm-processes, "`wb-diskfmt`"), and then:
    `fstat` on the descriptor must give the same `st_dev` and `st_ino`,
    with `st_nlink` 1 and `st_blocks` 0.
 3. It attaches the file with `diskutil image attach --noMount`. It
-   checks that the backing image path the attach reports for the
-   device it got is the temporary name.
+   checks that the backing image path of the device it got is the
+   temporary name (the backing path check). The backing path comes
+   from the device's properties in the I/O Registry, read in the shim's
+   own process. On macOS 27 the attach output doesn't name a backing
+   path, and `diskutil` has no command that reports it. When the
+   attach output does name one, it must be the temporary name too.
 4. Right before it runs `diskutil eraseDisk APFS` on that device, it
-   repeats the identity check and the backing image path check. The
-   backing path then comes from the device's properties in the I/O
-   Registry, read in the shim's own process: `diskutil` has no command
-   that reports it, and the shim doesn't start another program. A name
+   repeats the identity check and the backing path check. A name
    replaced before the attach, or after it, and not put back fails the
    identity check here, and the device is detached before any format.
 5. The format mounts the new, empty volume on the host once. It is a

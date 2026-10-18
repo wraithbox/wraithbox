@@ -344,21 +344,43 @@ func (f *Formatter) checkIdentity(ctx context.Context, step string, blank bool) 
 }
 
 // attach is step 3: it attaches the temporary name without mounting it,
-// and checks the device it got.
+// and checks the device it got. diskutil on macOS 27 reports no backing
+// path in the attach output, so the check reads it from the I/O
+// Registry. A backing path the output does report must agree.
 func (f *Formatter) attach(ctx context.Context) (string, *Refusal) {
 	tmp := f.TempPath()
 	att, err := f.Tool.Attach(ctx, tmp)
 	if err != nil {
 		return "", f.refuse(ctx, "attach", &Refusal{Rule: RuleDiskutil, Detail: "the attach of " + tmp + " failed", err: err})
 	}
-	f.accept(ctx, "data disk attached", slog.String("device", att.Device), slog.String("backing_path", cut(att.BackingPath)))
-	if att.BackingPath != tmp {
+	f.accept(ctx, "data disk attached", slog.String("device", att.Device), slog.String("reported_backing_path", cut(att.BackingPath)))
+	if att.BackingPath != "" && att.BackingPath != tmp {
 		return "", f.detachAfter(ctx, att.Device, f.refuse(ctx, "attach", &Refusal{
 			Rule:   RuleBackingPath,
 			Detail: fmt.Sprintf("the attach of %s reported the backing image %q", cut(tmp), cut(att.BackingPath)),
 		}))
 	}
+	if r := f.checkBacking(ctx, "attach", att.Device); r != nil {
+		return "", f.detachAfter(ctx, att.Device, r)
+	}
 	return att.Device, nil
+}
+
+// checkBacking is the backing path check: the I/O Registry must name the
+// temporary name as device's backing image.
+func (f *Formatter) checkBacking(ctx context.Context, step, device string) *Refusal {
+	tmp := f.TempPath()
+	backing, err := f.Tool.BackingPath(ctx, device)
+	if err != nil {
+		return f.refuse(ctx, step, &Refusal{Rule: RuleBackingPath, Detail: "the backing image of " + device + " can't be read", err: err})
+	}
+	if backing != tmp {
+		return f.refuse(ctx, step, &Refusal{
+			Rule:   RuleBackingPath,
+			Detail: fmt.Sprintf("%s is backed by %q, not %s", device, cut(backing), tmp),
+		})
+	}
+	return nil
 }
 
 // erase is steps 4 and 5: the identity and backing path checks right
@@ -371,16 +393,8 @@ func (f *Formatter) erase(ctx context.Context, device string) (string, *Refusal)
 	if r := f.checkIdentity(ctx, "erase", true); r != nil {
 		return "", r
 	}
-	tmp := f.TempPath()
-	backing, err := f.Tool.BackingPath(ctx, device)
-	if err != nil {
-		return "", f.refuse(ctx, "erase", &Refusal{Rule: RuleBackingPath, Detail: "the backing image of " + device + " can't be read", err: err})
-	}
-	if backing != tmp {
-		return "", f.refuse(ctx, "erase", &Refusal{
-			Rule:   RuleBackingPath,
-			Detail: fmt.Sprintf("%s is backed by %q, not %s", device, cut(backing), tmp),
-		})
+	if r := f.checkBacking(ctx, "erase", device); r != nil {
+		return "", r
 	}
 	if err := f.Tool.Erase(ctx, device); err != nil {
 		return "", f.refuse(ctx, "erase", &Refusal{Rule: RuleDiskutil, Detail: "the format of " + device + " failed", err: err})

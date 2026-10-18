@@ -9,8 +9,8 @@ import (
 )
 
 // The samples follow the form of hdiutil's and diskutil's -plist
-// output. diskutil's attach output on macOS 27 isn't recorded yet
-// (I228): the opt-in host test in cmd/wb-diskfmt runs the real one.
+// output. macOS27Attach is diskutil's attach output on macOS 27,
+// recorded: it names the device without /dev/ and no backing path.
 
 func plistDoc(body string) []byte {
 	return []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -27,6 +27,10 @@ func entities(extra string) string {
 	</array></dict>`
 }
 
+const macOS27Attach = `<dict><key>system-entities</key><array>
+	<dict><key>content-hint</key><string></string><key>dev-entry</key><string>disk4</string><key>size</key><integer>8589934592</integer></dict>
+</array></dict>`
+
 func TestParseAttach(t *testing.T) {
 	for _, tc := range []struct {
 		name, body, device, backing string
@@ -38,6 +42,7 @@ func TestParseAttach(t *testing.T) {
 		{"a relative path, then a good URL", entities(`<key>image-path</key><string>relative/x</string><key>DiskImageURL</key><string>file://` + strings.ReplaceAll(tmp, " ", "%20") + `</string>`), "disk7", ""},
 		{"a good path, then a remote URL", entities(`<key>image-path</key><string>` + tmp + `</string><key>DiskImageURL</key><string>https://host/x</string>`), "disk7", ""},
 		{"no backing path", entities(``), "disk7", ""},
+		{"macOS 27", macOS27Attach, "disk4", ""},
 		{"relative path", entities(`<key>image-path</key><string>data.wbdisk.tmp</string>`), "disk7", ""},
 		{"remote URL", entities(`<key>DiskImageURL</key><string>https://host/x</string>`), "disk7", ""},
 		{"path as data", entities(`<key>image-path</key><data>L3RtcC94</data>`), "disk7", "/tmp/x"},
