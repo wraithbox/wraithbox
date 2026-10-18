@@ -118,6 +118,11 @@ first-class issues, and the first milestone is mostly spikes.
   - `x<NN>/` and `x<NN>-<anything>/` hold the bundles of spike
     `X<NN>`. They are throwaway once the result is written up and its
     numbers are committed to the spike branch.
+  - `dev/` holds the test bundles that `mise run vm:install` made, such
+    as `dev/base`, and `i<n>/` the clones that issue `<n>` provisions
+    and boots (`host-work.md`, "Gotchas"). `mise run vm:clean i<n>`
+    removes them, with the same refusals as `spike:clean`, plus a
+    bundle whose VM runs, and a `KEEP` file anywhere in the tree.
 
   `mise run spike:clean x<NN>` removes those directories and prints
   what it removed and the space freed. It doesn't check for a running

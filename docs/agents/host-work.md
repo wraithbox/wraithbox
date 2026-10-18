@@ -123,10 +123,13 @@ Outside a `needs-host` issue, in an attended session:
 
   The tasks run `wb-dev-bundle`, dev-only test tooling that `vm:build`
   signs ad hoc with `spikes/vm.entitlements` (S10-tech-stack, "Test
-  tooling"). Paths are absolute in the cache or relative to it. The tool
-  refuses a path outside the cache, a symbolic link, `restore-images/`
-  as a bundle, a change to a directory with a `KEEP` file or under one,
-  and a clone, provision or removal of a bundle whose VM runs. It logs
+  tooling"). Paths are absolute in the cache or relative to it, and
+  spelled byte for byte as `ls` shows them: APFS ignores case, so the
+  tool refuses any other spelling. It refuses a path outside the cache,
+  a symbolic link, `restore-images/` as a bundle, a change to a
+  directory with a `KEEP` file or under one, a removal of a tree with a
+  `KEEP` file anywhere in it, and a clone, provision or removal of a
+  bundle whose VM runs. It logs
   each step and the rule of each refusal.
 - **Provisioning:** `vm:provision` boots a bundle that `vm:install` made
   and that never booted, such as a fresh clone of it. macOS creates the

@@ -28,7 +28,9 @@ final class BundleLock {
         guard fd >= 0 else {
             throw Failure.posix("open", path)
         }
-        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else {
+        // `holder` probes with a shared lock for a moment, so a failed try
+        // is tried once more before it counts as a running VM.
+        guard flock(fd, LOCK_EX | LOCK_NB) == 0 || retryAfterProbe(fd) else {
             let holder = readHolder(fd)
             close(fd)
             throw Refusal(.vmRunning, bundle, "process \(holder) runs its VM")
@@ -55,6 +57,11 @@ final class BundleLock {
             return nil
         }
         return readHolder(fd)
+    }
+
+    private static func retryAfterProbe(_ fd: Int32) -> Bool {
+        usleep(100_000)
+        return flock(fd, LOCK_EX | LOCK_NB) == 0
     }
 
     /// The process ID in a lock file, or 0 when it holds none.

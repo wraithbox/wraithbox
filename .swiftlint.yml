@@ -83,7 +83,8 @@ large_tuple:
 # boot, which test guests in the spike cache get (I350). wb-dev-bundle is
 # dev-only test tooling, an executable target that only its tests depend
 # on, and never in the app bundle (S10-tech-stack, "Test tooling"). The
-# exception names the one file, so the rest of that tool is checked too.
+# exception names the one file, so the rest of that tool is checked too,
+# and a second rule checks that file against every other class.
 custom_rules:
   vmd_refused_device_class:
     name: "Refused Virtualization device class"
@@ -91,4 +92,12 @@ custom_rules:
     included: "packages/wraithbox-swift/Sources/.*\\.swift$"
     excluded: "packages/wraithbox-swift/Sources/wb-dev-bundle/ProvisionBoot\\.swift$"
     regex: "\\b(VZNATNetworkDeviceAttachment|VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZDirectoryShare|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZDirectorySharingDeviceConfiguration|VZVirtioFileSystemDeviceConfiguration|VZAudioDeviceConfiguration|VZVirtioSoundDeviceConfiguration|VZVirtioSoundDeviceStreamConfiguration|VZAudioInputStreamSource|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZConsoleDeviceConfiguration|VZConsolePortConfiguration|VZVirtioConsoleDeviceConfiguration|VZVirtioConsolePortConfiguration|VZVirtioConsoleDeviceSerialPortConfiguration|VZSerialPortConfiguration|VZSerialPortAttachment|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration)\\b"
+    severity: error
+  # The excepted file is checked against every other class of the rule
+  # above, so only the NAT attachment is allowed in it.
+  dev_bundle_refused_device_class:
+    name: "Refused Virtualization device class in the provisioning boot"
+    message: "wb-dev-bundle's provisioning boot adds only the NAT network to the device set (S04-02-vm-provider, I350)"
+    included: "packages/wraithbox-swift/Sources/wb-dev-bundle/ProvisionBoot\\.swift$"
+    regex: "\\b(VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZDirectoryShare|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZDirectorySharingDeviceConfiguration|VZVirtioFileSystemDeviceConfiguration|VZAudioDeviceConfiguration|VZVirtioSoundDeviceConfiguration|VZVirtioSoundDeviceStreamConfiguration|VZAudioInputStreamSource|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZConsoleDeviceConfiguration|VZConsolePortConfiguration|VZVirtioConsoleDeviceConfiguration|VZVirtioConsolePortConfiguration|VZVirtioConsoleDeviceSerialPortConfiguration|VZSerialPortConfiguration|VZSerialPortAttachment|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration)\\b"
     severity: error
