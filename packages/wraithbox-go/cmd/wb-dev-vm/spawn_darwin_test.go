@@ -135,6 +135,13 @@ func TestSpawn(t *testing.T) {
 	log := &syncBuffer{}
 	s := &session{log: slog.New(slog.DiscardHandler), dir: dir, exited: make(chan struct{}), life: d.lifeWrite}
 	started := make(chan string, 1)
+	// The CI runner leaves descriptors open in the test process without
+	// close-on-exec (fd 131 on macos-26). Those are the runner's, not
+	// wb-dev-vm's, so they are marked here: the check is that wb-dev-vm
+	// passes none of its own.
+	for fd := 3; fd < 256; fd++ {
+		_, _ = unix.FcntlInt(uintptr(fd), unix.F_SETFD, unix.FD_CLOEXEC)
+	}
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
