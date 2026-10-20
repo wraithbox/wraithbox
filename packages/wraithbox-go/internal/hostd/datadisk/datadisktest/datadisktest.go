@@ -34,6 +34,9 @@ type Shim struct {
 	// refusal.
 	OnFormat func(slot string, sizeGiB uint32) (*diskfmtv1.FormatResult, error)
 	OnRename func(slot string) (*diskfmtv1.RenameResult, error)
+	// OnClose, when set, is Close's error, as after a kill of
+	// wb-diskfmt.
+	OnClose func(slot string) error
 	// Block, when set, holds Format until it is closed.
 	Block chan struct{}
 
@@ -145,5 +148,8 @@ func (x *session) Close() error {
 	x.s.mu.Lock()
 	x.s.open--
 	x.s.mu.Unlock()
+	if x.s.OnClose != nil {
+		return x.s.OnClose(x.slot)
+	}
 	return nil
 }

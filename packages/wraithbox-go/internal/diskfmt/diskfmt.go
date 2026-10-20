@@ -31,6 +31,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmbundle"
 )
@@ -193,6 +194,23 @@ type Attachment struct {
 	// under any key, usable or not.
 	BackingNamed bool
 }
+
+// The deadline of each Tool call that runs a program. The Tool stops
+// the program at its deadline, and the call fails. BackingPath runs no
+// program and has none. They are here, with no OS code, so wb-hostd
+// derives its wait for the format's answer from them on every OS,
+// without linking the macOS Tool.
+const (
+	AttachTimeout = 2 * time.Minute
+	EraseTimeout  = 5 * time.Minute
+	VolumeTimeout = time.Minute
+	DetachTimeout = 2 * time.Minute
+)
+
+// FormatTimeout bounds the time Format spends in Tool calls. Its
+// longest path runs the attach, the erase and the volume UUID read,
+// and then the detach twice, when the first try fails.
+const FormatTimeout = AttachTimeout + EraseTimeout + VolumeTimeout + 2*DetachTimeout
 
 // Tool is the disk tool, diskutil on macOS.
 type Tool interface {

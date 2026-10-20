@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/diskfmt"
 )
@@ -272,6 +273,46 @@ func TestDetachRetried(t *testing.T) {
 	h.refused(r, diskfmt.RuleDiskutil)
 	if !strings.Contains(r.Detail, "disk9") {
 		t.Errorf("the detail doesn't name the device: %s", r.Detail)
+	}
+}
+
+// TestFormatTimeout: the deadlines of the Tool calls of each path
+// through Format add up to at most FormatTimeout, and the longest path,
+// a detach that fails twice, to exactly that. wb-hostd's wait for the
+// format's answer is derived from it.
+func TestFormatTimeout(t *testing.T) {
+	deadline := map[string]time.Duration{
+		"attach": diskfmt.AttachTimeout, "backing": 0, "erase": diskfmt.EraseTimeout,
+		"uuid": diskfmt.VolumeTimeout, "detach": diskfmt.DetachTimeout,
+	}
+	for _, tc := range []struct {
+		name    string
+		setup   func(h *harness)
+		longest bool
+	}{
+		{"formatted", func(*harness) {}, false},
+		{"detach tried again", func(h *harness) { h.tool.detachFails = 1 }, true},
+		{"detach failed twice", func(h *harness) { h.tool.detachFails = 2; h.leftAttached = true }, true},
+		{"attach fails", func(h *harness) { h.tool.attachErr = errors.New("attach failed") }, false},
+		{"erase fails", func(h *harness) { h.tool.eraseErr = errors.New("erase failed") }, false},
+		{"volume UUID refused", func(h *harness) { h.tool.uuid = "not-a-uuid" }, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			tc.setup(h)
+			_, _ = h.f.Format(t.Context(), diskfmt.DefaultSizeGiB)
+			var sum time.Duration
+			for _, call := range h.tool.calls {
+				d, ok := deadline[call]
+				if !ok {
+					t.Fatalf("no deadline for the call %q", call)
+				}
+				sum += d
+			}
+			if sum > diskfmt.FormatTimeout || (sum == diskfmt.FormatTimeout) != tc.longest {
+				t.Errorf("calls %v take up to %s, FormatTimeout is %s", h.tool.calls, sum, diskfmt.FormatTimeout)
+			}
+		})
 	}
 }
 
