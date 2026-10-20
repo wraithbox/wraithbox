@@ -42,8 +42,9 @@ type Process struct {
 
 // Start starts cmd, in its own process group where the OS has them, and
 // waits for it in a goroutine. cmd must not have been started, and the
-// caller never calls cmd.Wait: Done and Err report the exit. On macOS a
-// program whose exit can't be watched is killed and isn't returned.
+// caller never calls cmd.Wait or reads cmd.ProcessState: Done, Err and
+// ExitCode report the exit. On macOS a program whose exit can't be
+// watched is killed, reaped in the background, and isn't returned.
 func Start(cmd *exec.Cmd) (*Process, error) {
 	newGroup(cmd)
 	if err := cmd.Start(); err != nil {
@@ -52,7 +53,9 @@ func Start(cmd *exec.Cmd) (*Process, error) {
 	exited, err := watch(cmd.Process.Pid)
 	if err != nil {
 		_ = kill(cmd.Process, false)
-		_ = cmd.Wait()
+		// The reap waits for the exit, which a refused kill could hold
+		// off, so Start doesn't wait for it.
+		go func() { _ = cmd.Wait() }()
 		return nil, fmt.Errorf("procgroup: watch the exit of %s: %w", cmd.Path, err)
 	}
 	p := &Process{cmd: cmd, done: make(chan struct{})}
@@ -78,6 +81,13 @@ func (p *Process) Done() <-chan struct{} { return p.done }
 func (p *Process) Err() error {
 	<-p.done
 	return p.err
+}
+
+// ExitCode is the program's exit code once Done is closed, or -1 when a
+// signal ended it.
+func (p *Process) ExitCode() int {
+	<-p.done
+	return p.cmd.ProcessState.ExitCode()
 }
 
 // Pid is the program's process id.

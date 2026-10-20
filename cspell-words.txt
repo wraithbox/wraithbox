@@ -181,6 +181,7 @@ usleep
 vnode
 waitpid
 Fflags
+Kinfo
 Pgid
 pidfd
 pidfds

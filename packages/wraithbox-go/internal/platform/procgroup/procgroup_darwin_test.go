@@ -2,6 +2,9 @@ package procgroup
 
 import (
 	"bufio"
+	"errors"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -62,5 +65,41 @@ func TestSignalGroupRefuses(t *testing.T) {
 		if err := signalGroup(pid, 0); err == nil {
 			t.Errorf("signalGroup(%d) sent a signal", pid)
 		}
+	}
+}
+
+// TestKillZombieLeader: a group whose only member is its leader as a
+// zombie, not reaped yet, answers kill(-pgid) with EPERM on macOS. A
+// kill in the window between the exit and the wait goroutine taking
+// the lock isn't an error.
+func TestKillZombieLeader(t *testing.T) {
+	cmd := exec.Command("/usr/bin/true") //nolint:noctx // exits at once
+	newGroup(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = cmd.Wait() }()
+	deadline := time.Now().Add(10 * time.Second)
+	for !zombie(cmd.Process.Pid) {
+		if time.Now().After(deadline) {
+			t.Fatal("the program isn't a zombie")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	p := &Process{cmd: cmd, done: make(chan struct{})}
+	if err := p.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		t.Errorf("Kill of a zombie leader = %v", err)
+	}
+}
+
+// TestZombie: a running program isn't a zombie.
+func TestZombie(t *testing.T) {
+	p, err := Start(helper("sleep"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = p.Kill(); _ = p.Err() })
+	if zombie(p.Pid()) {
+		t.Error("a running program reads as a zombie")
 	}
 }

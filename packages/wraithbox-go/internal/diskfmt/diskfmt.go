@@ -195,11 +195,16 @@ type Attachment struct {
 	BackingNamed bool
 }
 
-// The deadline of each Tool call that runs a program. The Tool stops
-// the program at its deadline, and the call fails. BackingPath runs no
-// program and has none. They are here, with no OS code, so wb-hostd
-// derives its wait for the format's answer from them on every OS,
-// without linking the macOS Tool.
+// The deadline of each Tool call that runs a program. At its deadline
+// the Tool cancels the program. A confined wb-diskfmt can't signal
+// diskutil: its profile has no signal rule (S04-04-vm-processes,
+// "`wb-diskfmt`'s profile"). So a diskutil that hangs isn't stopped by
+// its deadline. The bound is wb-hostd's wait for the answer, and then
+// its kill of wb-diskfmt's process group (S06-13-data-disk-format,
+// "When `wb-diskfmt` doesn't exit"). BackingPath runs no program and
+// has no deadline. The deadlines are here, with no OS code, so wb-hostd
+// derives that wait from them on every OS, without linking the macOS
+// Tool.
 const (
 	AttachTimeout = 2 * time.Minute
 	EraseTimeout  = 5 * time.Minute
@@ -207,9 +212,10 @@ const (
 	DetachTimeout = 2 * time.Minute
 )
 
-// FormatTimeout bounds the time Format spends in Tool calls. Its
-// longest path runs the attach, the erase and the volume UUID read,
-// and then the detach twice, when the first try fails.
+// FormatTimeout is the sum of the deadlines on Format's longest path:
+// the attach, the erase and the volume UUID read, and then the detach
+// twice, when the first try fails. wb-hostd waits longer than that for
+// the format's answer.
 const FormatTimeout = AttachTimeout + EraseTimeout + VolumeTimeout + 2*DetachTimeout
 
 // Tool is the disk tool, diskutil on macOS.
