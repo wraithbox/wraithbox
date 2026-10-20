@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/diskfmt"
 	diskfmtv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/diskfmt/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
@@ -454,5 +456,38 @@ func TestNewRefusesSize(t *testing.T) {
 		if _, err := datadisk.New(datadisk.Config{DataDir: t.TempDir(), Records: &steps{}, Shim: &datadisktest.Shim{}, SizeGiB: gib}); err == nil {
 			t.Errorf("%d GiB accepted", gib)
 		}
+	}
+}
+
+// TestShimKilledLogged: a wb-diskfmt killed at its exit is logged with
+// data-disk-shim-exit and the temporary image a device may stay
+// attached to. Any other error at the exit names no image.
+func TestShimKilledLogged(t *testing.T) {
+	h := newHarness(t)
+	h.shim.OnClose = func(string) error { return fmt.Errorf("%w: signal: killed", datadisk.ErrKilled) }
+	if err := h.m.Prepare(t.Context(), "work"); err != nil {
+		t.Fatal(err)
+	}
+	logs := h.logs.String()
+	if !strings.Contains(logs, `"rule":"`+string(datadisk.RuleShimExit)+`"`) ||
+		!strings.Contains(logs, `"image":"`+h.path(vmbundle.DataDiskTempName)+`"`) {
+		t.Errorf("the kill isn't logged with its rule and the image:\n%s", logs)
+	}
+
+	h = newHarness(t)
+	h.shim.OnClose = func(string) error { return errors.New("exit status 2") }
+	if err := h.m.Prepare(t.Context(), "work"); err != nil {
+		t.Fatal(err)
+	}
+	if logs := h.logs.String(); strings.Contains(logs, string(datadisk.RuleShimExit)) || !strings.Contains(logs, "exit status 2") {
+		t.Errorf("another exit error is logged as a kill, or not at all:\n%s", logs)
+	}
+}
+
+// TestFormatAnswerWait: wb-hostd waits longer for the format's answer
+// than wb-diskfmt's diskutil steps take on their longest path.
+func TestFormatAnswerWait(t *testing.T) {
+	if datadisk.FormatAnswerWait <= diskfmt.FormatTimeout {
+		t.Errorf("the format answer wait %s isn't above the steps' %s", datadisk.FormatAnswerWait, diskfmt.FormatTimeout)
 	}
 }

@@ -4,13 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/diskfmt"
@@ -47,6 +51,9 @@ func fakeShim() int {
 	} else if _, err := hostversion.CheckRecord(nil, testVersion, rec); err != nil {
 		return 1
 	}
+	if filepath.Base(filepath.Dir(os.Args[0])) == stubbornDir {
+		return stubbornShim()
+	}
 	var problems []string
 	if len(os.Args) != 1 {
 		problems = append(problems, fmt.Sprintf("arguments %q", os.Args[1:]))
@@ -72,6 +79,82 @@ func fakeShim() int {
 // testVersion is the build version of both ends: a test binary is
 // unstamped, which no peer accepts.
 const testVersion = "0.0.1-test"
+
+// stubbornDir is the directory of a wb-diskfmt link that plays a shim
+// stuck in a diskutil run: stubbornShim.
+const stubbornDir = "stubborn"
+
+// stubbornShim starts a child, as a diskutil run, writes its pid to
+// child.pid next to the link, and then ignores the closed exchange.
+func stubbornShim() int {
+	child := exec.Command("/bin/sleep", "120") //nolint:noctx // the test checks that the kill of the group stops it
+	if err := child.Start(); err != nil {
+		fmt.Fprintln(os.Stderr, "child:", err)
+		return 1
+	}
+	pidFile := filepath.Join(filepath.Dir(os.Args[0]), "child.pid")
+	if err := os.WriteFile(pidFile, []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
+		return 1
+	}
+	time.Sleep(2 * time.Minute)
+	return 0
+}
+
+// TestProcessShimKilled: a wb-diskfmt that doesn't exit after the
+// exchange closes is killed with its process group, so the child it
+// started stops too, and Close's error wraps ErrKilled. The kill is
+// logged with its rule.
+func TestProcessShimKilled(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), stubbornDir)
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	program := filepath.Join(dir, "wb-diskfmt")
+	if err := os.Symlink(os.Args[0], program); err != nil {
+		t.Fatal(err)
+	}
+	logs := &syncBuffer{}
+	shim := &datadisk.ProcessShim{Program: program, Version: testVersion, Logger: slog.New(slog.NewJSONHandler(logs, nil))}
+	datadisk.SetExitWait(shim, 200*time.Millisecond)
+	run, err := shim.Start(t.Context(), "work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	child := readChildPid(t, filepath.Join(dir, "child.pid"))
+	if err := run.Close(); !errors.Is(err, datadisk.ErrKilled) {
+		t.Fatalf("Close = %v, want ErrKilled", err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for unix.Kill(child, 0) == nil {
+		if time.Now().After(deadline) {
+			t.Fatalf("the shim's child %d still runs after Close", child)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := logs.String(); !strings.Contains(got, `"rule":"`+string(datadisk.RuleShimExit)+`"`) || !strings.Contains(got, `"process_group":true`) {
+		t.Errorf("the kill isn't logged with its rule:\n%s", got)
+	}
+}
+
+// readChildPid waits for the stubborn shim to write its child's pid.
+func readChildPid(t *testing.T, path string) int {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		b, err := os.ReadFile(path)
+		if err == nil {
+			pid, err := strconv.Atoi(string(b))
+			if err != nil || pid <= 1 {
+				t.Fatalf("child.pid holds %q", b)
+			}
+			return pid
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the shim wrote no child.pid")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
 
 func receiveRaw(ch *fdchan.Channel) []byte {
 	_ = ch.SetReadDeadline(time.Now().Add(30 * time.Second))

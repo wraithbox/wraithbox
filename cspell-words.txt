@@ -38,6 +38,7 @@ vmtest
 vmbundle
 datadisk
 datadisktest
+procgroup
 diskimage
 diskfmtv
 hostdv
@@ -179,6 +180,11 @@ strdup
 usleep
 vnode
 waitpid
+Fflags
+Pgid
+pidfd
+pidfds
+waitid
 pollfd
 POLLIN
 revents

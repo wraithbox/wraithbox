@@ -62,6 +62,31 @@ names in that bundle (S04-04-vm-processes, "`wb-diskfmt`"), and then:
 When a check fails, the shim fails with the rule. It detaches only a
 device it attached.
 
+### When `wb-diskfmt` doesn't exit
+
+`wb-diskfmt` leads its own process group, and each `diskutil` it runs
+is in that group. When the exchange has closed and the shim doesn't
+exit in time, `wb-hostd` kills the whole group, so no `diskutil` keeps
+running after the shim. A `diskutil` stopped part-way leaves its
+request with the daemon it asked, which finishes or abandons it.
+
+`wb-hostd` sends the kill only while the shim hasn't exited. The
+shim's process ID, which is also its group's ID, isn't reused before
+`wb-hostd` reaps the shim, so the kill can't reach another process
+group.
+
+After the kill, `wb-hostd` logs the rule `data-disk-shim-exit` and the
+path of the temporary image, which a device may still be attached to.
+It doesn't detach that device: only the shim attaches and detaches
+(S04-04-vm-processes, "`wb-diskfmt`"). The device is attached until the
+user ejects it or the host restarts. A later format is still safe.
+It deletes the leftover temporary file without attaching it, and its
+checks guard the device it attaches itself.
+
+`wb-hostd` waits for the format's answer longer than the deadlines of
+the shim's `diskutil` steps add up to on their longest path, so a slow
+run that keeps to them gets its answer.
+
 ### The temporary and final names
 
 The final name is `data.wbdisk`, and the temporary name

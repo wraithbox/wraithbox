@@ -22,15 +22,13 @@ const Diskutil = "/usr/sbin/diskutil"
 // own environment reaches it.
 var diskutilEnv = []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LANG=C"}
 
-// The bounds of each diskutil run: its time, and what is kept of its
-// output. The APFS list of a host with many volumes is tens of KiB.
+// What is kept of a diskutil run's output. The APFS list of a host with
+// many volumes is tens of KiB. Each run's deadline is in
+// internal/diskfmt, which wb-hostd's wait for the format's answer is
+// derived from.
 const (
-	attachTimeout = 2 * time.Minute
-	eraseTimeout  = 5 * time.Minute
-	listTimeout   = time.Minute
-	ejectTimeout  = 2 * time.Minute
-	maxOutput     = 4 << 20
-	maxErrOutput  = 4 << 10
+	maxOutput    = 4 << 20
+	maxErrOutput = 4 << 10
 )
 
 // Tool is the disk tool of internal/diskfmt on macOS: diskutil, and the
@@ -54,7 +52,7 @@ func (t *Tool) log() *slog.Logger {
 
 // Attach runs `diskutil image attach --noMount --plist path`.
 func (t *Tool) Attach(ctx context.Context, path string) (diskfmt.Attachment, error) {
-	out, err := t.run(ctx, attachTimeout, "image", "attach", "--noMount", "--plist", path)
+	out, err := t.run(ctx, diskfmt.AttachTimeout, "image", "attach", "--noMount", "--plist", path)
 	if err != nil {
 		return diskfmt.Attachment{}, err
 	}
@@ -76,14 +74,14 @@ func (t *Tool) Erase(ctx context.Context, device string) error {
 	if !ValidDevice(device) {
 		return fmt.Errorf("diskimage: %q isn't a whole disk", cut(device))
 	}
-	_, err := t.run(ctx, eraseTimeout, "eraseDisk", "APFS", diskfmt.VolumeName, "GPT", device)
+	_, err := t.run(ctx, diskfmt.EraseTimeout, "eraseDisk", "APFS", diskfmt.VolumeName, "GPT", device)
 	return err
 }
 
 // VolumeUUID runs `diskutil apfs list -plist`, and returns the UUID of
 // the volume on device.
 func (t *Tool) VolumeUUID(ctx context.Context, device string) (string, error) {
-	out, err := t.run(ctx, listTimeout, "apfs", "list", "-plist")
+	out, err := t.run(ctx, diskfmt.VolumeTimeout, "apfs", "list", "-plist")
 	if err != nil {
 		return "", err
 	}
@@ -96,12 +94,15 @@ func (t *Tool) Detach(ctx context.Context, device string) error {
 	if !ValidDevice(device) {
 		return fmt.Errorf("diskimage: %q isn't a whole disk", cut(device))
 	}
-	_, err := t.run(ctx, ejectTimeout, "eject", device)
+	_, err := t.run(ctx, diskfmt.DetachTimeout, "eject", device)
 	return err
 }
 
 // run runs diskutil with args and the fixed environment, within
-// timeout, and returns its standard output. It logs the run.
+// timeout, and returns its standard output. It logs the run. diskutil
+// stays in wb-diskfmt's process group, with no SysProcAttr, so
+// wb-hostd's kill of that group on a timeout stops it too
+// (S06-13-data-disk-format, "When `wb-diskfmt` doesn't exit").
 func (t *Tool) run(ctx context.Context, timeout time.Duration, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

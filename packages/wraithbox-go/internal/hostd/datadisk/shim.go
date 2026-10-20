@@ -19,6 +19,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/logpipe"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostversion"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/fdchan"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/procgroup"
 )
 
 // Shim starts one wb-diskfmt for a slot.
@@ -48,14 +49,23 @@ type ShimRefusal struct {
 
 func (s *ShimRefusal) Error() string { return s.Rule + ": " + s.Detail }
 
-// How long wb-hostd waits for each answer. Each diskutil step in
-// wb-diskfmt has its own deadline (internal/platform/diskimage), and
-// the format's wait covers all of them.
+// How long wb-hostd waits for each answer, and for wb-diskfmt's exit.
+// Each diskutil step in wb-diskfmt has its own deadline, and the
+// format's wait covers the longest path through them,
+// diskfmt.FormatTimeout, with formatAnswerMargin for the checks and the
+// exchange around them.
 const (
-	formatAnswerWait = 12 * time.Minute
-	renameAnswerWait = time.Minute
-	exitWait         = 30 * time.Second
+	formatAnswerMargin = time.Minute
+	formatAnswerWait   = diskfmt.FormatTimeout + formatAnswerMargin
+	renameAnswerWait   = time.Minute
+	exitWait           = 30 * time.Second
 )
+
+// ErrKilled is in Close's error when wb-diskfmt didn't exit within its
+// wait after the exchange closed, and was killed, with its process group
+// where the OS has them (S06-13-data-disk-format, "When `wb-diskfmt`
+// doesn't exit"). A device it attached may stay attached.
+var ErrKilled = errors.New("datadisk: wb-diskfmt didn't exit in time, and was killed")
 
 // ProcessShim starts wb-diskfmt as a process, with the fixed
 // environment of its slot's launcher entry (internal/hostd/launch),
@@ -76,6 +86,9 @@ type ProcessShim struct {
 	// must have the same (S04-08-records-and-bounds, "Between host
 	// processes").
 	Version string
+
+	// exitWait replaces the package's exitWait when set, for the tests.
+	exitWait time.Duration
 }
 
 // Start starts wb-diskfmt for slot.
@@ -103,21 +116,26 @@ func (p *ProcessShim) Start(ctx context.Context, slot string) (Session, error) {
 	}
 	defer func() { _ = logW.Close() }()
 	// No argument, the entry's environment only, and exactly descriptors
-	// 0 to 3: os/exec sets close-on-exec on every other one.
+	// 0 to 3: os/exec sets close-on-exec on every other one. It leads its
+	// own process group where the OS has them, so a kill on a timeout
+	// stops the diskutil it runs too.
 	cmd := exec.Command(p.Program) //nolint:noctx,gosec // G204: Program is the installed bundle's path from wb-hostd's own configuration, never a request; the run outlives the request's context, with deadlines on each answer and Close to end it
 	cmd.Env = append([]string(nil), entry.Env...)
 	cmd.Stderr = logW
 	cmd.ExtraFiles = []*os.File{theirs}
-	if err := cmd.Start(); err != nil {
+	proc, err := procgroup.Start(cmd)
+	if err != nil {
 		_ = ch.Close()
 		_ = logR.Close()
 		return nil, fmt.Errorf("datadisk: start %s: %w", p.Program, err)
 	}
-	s := &processSession{ch: ch, cmd: cmd, done: make(chan struct{}), log: p.logger()}
+	s := &processSession{ch: ch, cmd: cmd, proc: proc, log: p.logger(), exitWait: exitWait}
+	if p.exitWait > 0 {
+		s.exitWait = p.exitWait
+	}
 	go s.copyLog(context.WithoutCancel(ctx), logR, p.sink(entry.Name), entry.Name)
-	go func() { s.waitErr = cmd.Wait(); close(s.done) }()
 	s.log.LogAttrs(ctx, slog.LevelInfo, "wb-diskfmt started", slog.String("entry", entry.Name),
-		slog.Int("pid", cmd.Process.Pid))
+		slog.Int("pid", proc.Pid()), slog.Bool("process_group", procgroup.Groups))
 	if err := s.versions(p.Version); err != nil {
 		_ = s.Close()
 		return nil, err
@@ -163,11 +181,11 @@ func (p *ProcessShim) sink(process string) io.Writer {
 }
 
 type processSession struct {
-	ch      *fdchan.Channel
-	cmd     *exec.Cmd
-	log     *slog.Logger
-	done    chan struct{}
-	waitErr error
+	ch       *fdchan.Channel
+	cmd      *exec.Cmd
+	proc     *procgroup.Process
+	log      *slog.Logger
+	exitWait time.Duration
 	// refused: wb-diskfmt answered with a refusal, after which it exits 1.
 	refused bool
 }
@@ -242,8 +260,8 @@ func (s *processSession) ask(req *diskfmtv1.HostMessage, wait time.Duration) (*d
 // ended adds wb-diskfmt's exit status to err when it has exited.
 func (s *processSession) ended(err error) error {
 	select {
-	case <-s.done:
-		return fmt.Errorf("%w (wb-diskfmt exited: %s)", err, exitText(s.waitErr))
+	case <-s.proc.Done():
+		return fmt.Errorf("%w (wb-diskfmt exited: %s)", err, exitText(s.proc.Err()))
 	case <-time.After(time.Second):
 		return err
 	}
@@ -259,22 +277,59 @@ func exitText(err error) string {
 
 // Close closes the exchange, which ends a wb-diskfmt that waits for a
 // request, and waits for it to exit. One that doesn't exit in time is
-// killed.
+// killed, with its process group, and the error wraps ErrKilled.
 func (s *processSession) Close() error {
 	_ = s.ch.Close()
 	select {
-	case <-s.done:
-	case <-time.After(exitWait):
-		_ = s.cmd.Process.Kill()
-		<-s.done
+	case <-s.proc.Done():
+	case <-time.After(s.exitWait):
+		if err := s.kill(); err != nil {
+			return err
+		}
 	}
-	s.log.LogAttrs(context.Background(), slog.LevelInfo, "wb-diskfmt exited",
-		slog.Int("pid", s.cmd.Process.Pid), slog.Int("status", s.cmd.ProcessState.ExitCode()))
+	waitErr := s.exited()
 	// Exit status 1 follows a refusal, which the answer already carried.
 	// Any other end of the process, such as a crash after the rename, is
 	// returned, and the caller logs it.
-	if _, ok := errors.AsType[*exec.ExitError](s.waitErr); ok && s.refused {
+	if _, ok := errors.AsType[*exec.ExitError](waitErr); ok && s.refused {
 		return nil
 	}
-	return s.waitErr
+	return waitErr
+}
+
+// exited logs wb-diskfmt's exit, once it has exited, and returns its
+// wait error.
+func (s *processSession) exited() error {
+	s.log.LogAttrs(context.Background(), slog.LevelInfo, "wb-diskfmt exited",
+		slog.Int("pid", s.proc.Pid()), slog.Int("status", s.cmd.ProcessState.ExitCode()))
+	return s.proc.Err()
+}
+
+// kill kills wb-diskfmt, with its process group where the OS has them,
+// so a diskutil it started stops too, and waits up to exitWait for the
+// exit. It logs the decision and its rule. It returns nil when
+// wb-diskfmt exited on its own first, an error that wraps ErrKilled
+// after the kill, and any other error when no kill was sent.
+func (s *processSession) kill() error {
+	ctx := context.Background()
+	err := s.proc.Kill()
+	if errors.Is(err, os.ErrProcessDone) {
+		return nil
+	}
+	attrs := []slog.Attr{
+		slog.String("rule", string(RuleShimExit)), slog.String("decision", "kill"),
+		slog.Int("pid", s.proc.Pid()), slog.Bool("process_group", procgroup.Groups),
+		slog.Duration("waited", s.exitWait),
+	}
+	if err != nil {
+		s.log.LogAttrs(ctx, slog.LevelError, "wb-diskfmt kill failed", append(attrs, slog.String("error", err.Error()))...)
+		return fmt.Errorf("datadisk: kill wb-diskfmt: %w", err)
+	}
+	s.log.LogAttrs(ctx, slog.LevelWarn, "wb-diskfmt killed", attrs...)
+	select {
+	case <-s.proc.Done():
+		return fmt.Errorf("%w (%s)", ErrKilled, exitText(s.exited()))
+	case <-time.After(s.exitWait):
+		return fmt.Errorf("%w, and it didn't exit within %s of the kill", ErrKilled, s.exitWait)
+	}
 }
