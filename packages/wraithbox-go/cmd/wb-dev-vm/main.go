@@ -21,7 +21,7 @@
 //
 // wb-vmd refuses a peer of another build version, so wb-dev-vm has to
 // be built with the same stamp as wb-vmd and wb-guestd:
-// `mise run go:build swift:sign` builds bin/wb-dev-vm, bin/wb-guestd and
+// `mise run go:build ::: swift:sign` builds bin/wb-dev-vm, bin/wb-guestd and
 // the signed wb-vmd with one stamp. A test guest outlives the build that
 // put wb-guestd in it, so `hello -guest-version` names the version
 // wb-guestd has to report. The hello checks it as wb-hostd does.
