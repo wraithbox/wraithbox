@@ -15,6 +15,7 @@ import (
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsock"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmdlink"
 )
 
 // helloRetry is how long hello waits between tries while wb-guestd isn't
@@ -126,6 +127,9 @@ type hello struct {
 }
 
 func (h *hello) run(ctx context.Context) error {
+	if h.port == 0 || h.port >= vmdlink.FirstUnreservedPort {
+		return h.probe(ctx)
+	}
 	waitCtx, cancel := context.WithTimeout(ctx, h.wait)
 	defer cancel()
 	link, err := h.retry(waitCtx)
@@ -154,6 +158,25 @@ func (h *hello) run(ctx context.Context) error {
 	}
 	fmt.Fprintf(h.stdout, "wb-guestd %s, on a connection wb-vmd passed before it was stopped\n", link.Version())
 	return link.Close()
+}
+
+// probeRequestID is the request ID of a probe. The link counts its own
+// from 1, so the two never meet, and the receiver refuses a record for a
+// request it didn't open.
+const probeRequestID = math.MaxUint64
+
+// probe asks wb-vmd itself for a port the host never connects to, which
+// vmdlink refuses before it asks, and prints wb-vmd's refusal. It fails
+// when wb-vmd doesn't refuse.
+func (h *hello) probe(ctx context.Context) error {
+	_, err := h.s.client.ConnectGuest(ctx, &vmdv1.ConnectGuestRequest{
+		Generation: generation, RequestId: probeRequestID, GuestPort: h.port,
+	})
+	if err == nil {
+		return fmt.Errorf("wb-vmd accepted a connect to guest port %d", h.port)
+	}
+	fmt.Fprintf(h.stdout, "wb-vmd refused guest port %d: %v\n", h.port, err)
+	return nil
 }
 
 // retry connects and runs the hello until it works or ctx ends. A
