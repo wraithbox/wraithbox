@@ -13,7 +13,9 @@
 // `wb-vmd` is started"): no arguments, the environment WB_VMD_SLOT=work
 // and nothing else, and the descriptors 0 (lifeline), 2 (log), 3 (a
 // listening gRPC socket in a new private directory) and 4 (the hand-off
-// socketpair). wb-vmd confines itself to the work slot's bundle,
+// socketpair). Every descriptor wb-dev-vm opens is close-on-exec, but one
+// its own parent left open without that flag passes on, as it would to
+// any child. wb-vmd confines itself to the work slot's bundle,
 // <data>/vms/macos-work.noindex, and the slot checks refuse any other
 // (S04-04-vm-processes, "Slot checks"). The bundle has to be there
 // before wb-dev-vm runs. It runs one VM at a time, so a needs-vm builder
