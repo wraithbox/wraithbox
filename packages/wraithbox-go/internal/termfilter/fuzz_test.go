@@ -28,8 +28,8 @@ var allowedCSI = regexp.MustCompile("^\x1b\\[(?:" + strings.Join([]string{
 	"\\?" + modeAlt + "(?:;" + modeAlt + ")*[hl]", // modes
 	"\\?" + modeAlt + "\\$p",                      // mode query
 	">[0-9]*u", "<(?:[1-9][0-9]*)?u", "\\?u",      // kitty keyboard
-	">4(?:;2)?m",       // modifyOtherKeys
-	"[0-9;:]* q", "!p", // cursor style, soft reset
+	">4(?:;2)?m",                              // modifyOtherKeys
+	"[0-9;:]* q",                              // cursor style
 	"0?c", ">0?c", "[56]n", ">0?q", "1[468]t", // queries
 }, "|") + ")$")
 
