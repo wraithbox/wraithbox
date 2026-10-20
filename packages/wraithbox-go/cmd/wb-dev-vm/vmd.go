@@ -124,7 +124,7 @@ func (d *descriptors) closeAll() {
 func startVMD(ctx context.Context, out, stderr io.Writer) (*session, error) {
 	own := version.Build()
 	if own == "" {
-		return nil, errors.New("wb-dev-vm is unstamped, and wb-vmd refuses an unstamped peer: build it with mise run go:build swift:sign")
+		return nil, errors.New("wb-dev-vm is unstamped, and wb-vmd refuses an unstamped peer: build it with mise run go:build ::: swift:sign")
 	}
 	log := slog.New(slog.NewTextHandler(stderr, nil))
 	dir, err := os.MkdirTemp("", "wb-dev-vm")
@@ -264,7 +264,7 @@ func (s *session) waitStarted(ctx context.Context, started <-chan string) error 
 	select {
 	case v := <-started:
 		if v != s.own {
-			return fmt.Errorf("wb-vmd is version %s and wb-dev-vm %s: build both with mise run go:build swift:sign", version.Label(v), version.Label(s.own))
+			return fmt.Errorf("wb-vmd is version %s and wb-dev-vm %s: build both with mise run go:build ::: swift:sign", version.Label(v), version.Label(s.own))
 		}
 		return nil
 	case <-s.exited:

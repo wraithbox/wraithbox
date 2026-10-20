@@ -98,7 +98,7 @@ their code. They are held to the same gates as the product code.
 `wb-dev-vm` lets VM spikes and needs-vm work reach their guest code
 through `wb-vmd`'s hand-off. It runs one VM at a time
 (NFR05-two-macos-vms), and the bundle has to be in the work slot before
-it starts. `mise run go:build swift:sign` builds it with the same stamp
+it starts. `mise run go:build ::: swift:sign` builds it with the same stamp
 as `wb-vmd`, because `wb-vmd` refuses a peer of another build version.
 
 `wb-dev-bundle` comes from the X18-vsock-handoff host tool, and
