@@ -13,10 +13,12 @@ public struct VMServiceHandler: Wraithbox_Vmd_V1_VMService.SimpleServiceProtocol
     public static let errorDomain = "wb-vmd"
 
     let supervisor: VMSupervisor
+    let connector: GuestConnector
     let log: EventLog
 
-    public init(supervisor: VMSupervisor, log: EventLog) {
+    public init(supervisor: VMSupervisor, connector: GuestConnector, log: EventLog) {
         self.supervisor = supervisor
+        self.connector = connector
         self.log = log
     }
 
@@ -88,9 +90,19 @@ public struct VMServiceHandler: Wraithbox_Vmd_V1_VMService.SimpleServiceProtocol
     public func connectGuest(request: Wraithbox_Vmd_V1_ConnectGuestRequest, context: ServerContext)
         async throws -> Wraithbox_Vmd_V1_ConnectGuestResponse
     {
+        log.info(
+            "rpc-connect-guest",
+            [
+                "generation": .uint(request.generation), "request_id": .uint(request.requestID),
+                "guest_port": .uint(request.guestPort),
+            ])
+        // The answer comes after the record is sent and wb-vmd's copy of
+        // the descriptor is closed (S04-02-vm-provider, "Hand-off on macOS").
         try await refusing("ConnectGuest", generation: request.generation) {
             () async throws(VMRefusal) in
-            throw VMRefusal(.notImplemented, .unimplemented, "ConnectGuest is not built yet")
+            try await connector.connect(
+                generation: request.generation, requestID: request.requestID,
+                port: request.guestPort)
         }
         return Wraithbox_Vmd_V1_ConnectGuestResponse()
     }

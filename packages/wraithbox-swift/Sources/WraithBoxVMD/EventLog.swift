@@ -36,25 +36,41 @@ public struct EventLog: Sendable {
     static let maxFieldBytes = 512
 
     private let sink: @Sendable (String) -> Void
+    private let urgentSink: @Sendable (String) -> Void
     private let clock: @Sendable () -> String
 
+    /// A log of `sink`. `urgentSink` takes the records of `urgent`, and
+    /// must not wait. Without one, `sink` takes them.
     public init(
         sink: @escaping @Sendable (String) -> Void,
+        urgentSink: (@Sendable (String) -> Void)? = nil,
         clock: @escaping @Sendable () -> String = EventLog.utcNow
     ) {
         self.sink = sink
+        self.urgentSink = urgentSink ?? sink
         self.clock = clock
     }
 
     /// A log that writes each record to a descriptor, one whole line per
-    /// write call sequence, under a lock.
+    /// write call sequence, under a lock. An urgent record is written only
+    /// when the lock is free, without waiting for room in the pipe, and is
+    /// dropped otherwise: wb-vmd writes one just before it exits.
     public static func descriptor(_ fd: Int32) -> EventLog {
         let lock = Mutex(())
-        return EventLog { line in
-            lock.withLock { _ in
-                writeAll(fd, line + "\n")
-            }
-        }
+        return EventLog(
+            sink: { line in
+                lock.withLock { _ in
+                    writeAll(fd, line + "\n")
+                }
+            },
+            urgentSink: { line in
+                _ = lock.withLockIfAvailable { _ in
+                    // The flag is the pipe's, shared with any other copy
+                    // of the descriptor. Only the exiting process writes.
+                    _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+                    writeAll(fd, line + "\n")
+                }
+            })
     }
 
     public func info(_ event: String, _ fields: [String: LogValue] = [:]) {
@@ -70,9 +86,21 @@ public struct EventLog: Sendable {
         emit(.error, event, rule: rule, fields)
     }
 
+    /// An error record that is dropped rather than wait: for the moment
+    /// just before wb-vmd exits whatever the log's reader does.
+    public func urgent(_ event: String, _ fields: [String: LogValue] = [:]) {
+        urgentSink(Self.encode(pairs(.error, event, rule: nil, fields)))
+    }
+
     private func emit(
         _ level: LogLevel, _ event: String, rule: String?, _ fields: [String: LogValue]
     ) {
+        sink(Self.encode(pairs(level, event, rule: rule, fields)))
+    }
+
+    private func pairs(
+        _ level: LogLevel, _ event: String, rule: String?, _ fields: [String: LogValue]
+    ) -> [(String, LogValue)] {
         var pairs: [(String, LogValue)] = [
             ("time", .string(clock())),
             ("level", .string(level.rawValue)),
@@ -86,7 +114,7 @@ public struct EventLog: Sendable {
                 pairs.append((key, value))
             }
         }
-        sink(Self.encode(pairs))
+        return pairs
     }
 
     /// One JSON object, keys in the given order.

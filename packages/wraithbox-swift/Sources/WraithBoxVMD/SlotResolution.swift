@@ -148,8 +148,13 @@ public enum SlotResolution {
     public static func cacheDirectory() throws(StartupRefusal) -> String {
         var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
         let length = confstr(_CS_DARWIN_USER_CACHE_DIR, &buffer, buffer.count)
-        guard length > 0, length <= buffer.count else {
+        guard length > 0 else {
             throw StartupRefusal(.cacheDirectory, "confstr: \(String(cString: strerror(errno)))")
+        }
+        // confstr sets no errno when the value doesn't fit.
+        guard length <= buffer.count else {
+            throw StartupRefusal(
+                .cacheDirectory, "confstr: the path needs \(length) bytes, over \(buffer.count)")
         }
         let raw = String(
             decoding: buffer.prefix(length - 1).map { UInt8(bitPattern: $0) }, as: UTF8.self)

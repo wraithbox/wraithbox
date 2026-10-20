@@ -20,7 +20,9 @@ public enum VMRule: String, Sendable, CaseIterable {
     /// Start while the VM runs, starts or stops.
     case alreadyRunning = "vm-already-running"
     /// Generation 0, a Start for a generation not above the last one, or
-    /// a Stop for one other than the current one.
+    /// a Stop or ConnectGuest for one other than the current one. A Start
+    /// that failed used its generation up: the state it published names
+    /// it, so the next Start needs a higher one.
     case generation = "vm-generation"
     /// A Stop without a mode.
     case stopMode = "vm-stop-mode"
@@ -34,8 +36,25 @@ public enum VMRule: String, Sendable, CaseIterable {
     case stopFailed = "vm-stop-failed"
     /// Too many WatchState streams at once.
     case watchLimit = "vm-watch-limit"
-    /// ConnectGuest, which isn't built yet.
-    case notImplemented = "vmd-not-implemented"
+    /// A ConnectGuest to a guest port of 1024 or above (S04-02-vm-provider,
+    /// "Guest ports below 1024").
+    case guestPortNotReserved = "guest-port-not-reserved"
+    /// A ConnectGuest with request_id 0, which proto3 gives an absent
+    /// field.
+    case requestID = "vm-request-id"
+    /// A ConnectGuest while the VM isn't running, or after it stopped
+    /// during the connect.
+    case notRunning = "vm-not-running"
+    /// A ConnectGuest while GuestConnector.maxInFlight connects are in
+    /// flight (SEC13-bounded-resources).
+    case connectCap = "connect-cap"
+    /// The framework failed to open the connection, such as when nothing
+    /// listens on the guest port.
+    case connectFailed = "vm-connect-failed"
+    /// The framework didn't open the connection in time.
+    case connectTimeout = "vm-connect-timeout"
+    /// The hand-off record couldn't be sent.
+    case handoffSendFailed = "handoff-send-failed"
 }
 
 /// A refused request.
@@ -128,6 +147,7 @@ public final class VMSupervisor {
         let request = try bootRequest(cpuCount: cpuCount, memoryMiB: memoryMiB)
         starting = true
         defer { starting = false }
+        // Used up even when the start fails (VMRule.generation).
         lastGeneration = generation
         publish(VMStatus(generation: generation, state: .starting, failure: nil))
         let machine: any EngineVM
@@ -167,6 +187,11 @@ public final class VMSupervisor {
                 ["generation": .uint(generation), "mode": .string(mode.rawValue)])
             return
         }
+        // The guest was asked already. Only a forced stop changes anything.
+        guard mode == .force || status.state != .stopping else {
+            log.info("vm-stop-already-stopping", ["generation": .uint(generation)])
+            return
+        }
         log.info("vm-stop", ["generation": .uint(generation), "mode": .string(mode.rawValue)])
         do {
             switch mode {
@@ -178,6 +203,15 @@ public final class VMSupervisor {
         } catch {
             throw VMRefusal(.stopFailed, .failedPrecondition, error.description)
         }
+    }
+
+    /// The VM of `generation`, for ConnectGuest, when it runs.
+    func runningVM(generation: UInt64) throws(VMRefusal) -> any EngineVM {
+        try checkCurrentGeneration(generation)
+        guard let vm, !starting, status.state == .running else {
+            throw VMRefusal(.notRunning, .failedPrecondition, "the VM is \(status.state.rawValue)")
+        }
+        return vm
     }
 
     /// A stream of the current state, then each change, and the call

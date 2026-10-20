@@ -191,9 +191,13 @@ final class ServerFixture: Sendable {
             ownVersion: version, lookup: lookup, timeout: timeout, log: log)
         let supervisor = VMSupervisor(
             engine: FakeEngine(), slot: .work, bundlePath: "/nonexistent", log: log)
+        // No test here calls ConnectGuest, so the hand-off channel is none.
+        let connector = GuestConnector(
+            supervisor: supervisor, handoff: HandoffChannel(fd: -1), log: log)
+        let service = VMServiceHandler(supervisor: supervisor, connector: connector, log: log)
         task = Task {
             try await VMDaemon.serveGRPC(
-                descriptor: fd, version: version, supervisor: supervisor, log: log,
+                descriptor: fd, version: version, service: service, log: log,
                 handshake: handshake)
         }
     }

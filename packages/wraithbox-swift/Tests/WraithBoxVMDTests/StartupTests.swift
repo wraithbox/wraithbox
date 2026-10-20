@@ -3,6 +3,7 @@
 // descriptors, the lifeline, and the log format.
 import Darwin
 import Foundation
+import NIOCore
 import Testing
 import WraithBoxVM
 
@@ -257,6 +258,46 @@ struct EventLogTests {
         let now = EventLog.utcNow()
         #expect(now.count == "2026-10-16T19:00:00.000000Z".count)
         #expect(now.hasSuffix("Z"))
+    }
+
+    @Test("an urgent record on a full log pipe is dropped instead of waiting")
+    func urgentOnFullPipe() throws {
+        let ends = try makePipe()
+        defer { closeAll([ends.0, ends.1]) }
+        // Fill the pipe while it doesn't block, then make it block again,
+        // as wb-vmd's log descriptor does.
+        _ = fcntl(ends.1, F_SETFL, fcntl(ends.1, F_GETFL) | O_NONBLOCK)
+        let chunk = [UInt8](repeating: 0x61, count: 4096)
+        while write(ends.1, chunk, chunk.count) > 0 {}
+        _ = fcntl(ends.1, F_SETFL, fcntl(ends.1, F_GETFL) & ~O_NONBLOCK)
+        let log = EventLog.descriptor(ends.1)
+        let started = ContinuousClock.now
+        log.urgent("exit-deadline", ["cause": .string("test")])
+        #expect(ContinuousClock.now - started < .seconds(1))
+    }
+
+    @Test("an urgent record goes to the urgent sink, or to the sink without one")
+    func urgentSink() {
+        let recorded = RecordedLog()
+        recorded.log.urgent("exit-deadline", ["cause": .string("lifeline-closed")])
+        #expect(
+            recorded.lines == [
+                #"{"time":"t","level":"error","event":"exit-deadline","cause":"lifeline-closed"}"#
+            ])
+    }
+}
+
+@Suite("Accept errors")
+struct AcceptErrorTests {
+    @Test(
+        "the accept errors NIO recovers from are dropped, and any other passes on",
+        arguments: [
+            (EMFILE, true), (ENFILE, true), (ECONNABORTED, true), (ENOBUFS, true), (ENOMEM, true),
+            (EBADF, false), (EINVAL, false),
+        ])
+    func dropped(code: Int32, dropped: Bool) {
+        let error = IOError(errnoCode: code, reason: "accept")
+        #expect((DroppedAcceptFilter.droppedKind(error) != nil) == dropped)
     }
 }
 

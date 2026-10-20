@@ -6,6 +6,7 @@ import Foundation
 import GRPCCore
 import GRPCInProcessTransport
 import GRPCProtobuf
+import Synchronization
 import Testing
 import WraithBoxRPC
 import WraithBoxVM
@@ -20,15 +21,44 @@ final class ServiceFixture {
     let engine = FakeEngine()
     nonisolated let recorded = RecordedLog()
     nonisolated let supervisor: VMSupervisor
+    nonisolated let connector: GuestConnector
     nonisolated let bundlePath: String
     nonisolated let homePath: String
+    /// wb-vmd's end of the hand-off channel, and wb-hostd's, which the
+    /// tests read.
+    nonisolated let handoff: (vmd: Int32, host: Int32)
 
-    init() throws {
+    init(connectTimeout: Duration = GuestConnector.defaultTimeout) throws {
         bundle = try BundleFixture()
         bundlePath = bundle.path
         homePath = bundle.home.path
         supervisor = VMSupervisor(
             engine: engine, slot: .work, bundlePath: bundle.path, log: recorded.log)
+        let pair = try makeSocketPair(SOCK_DGRAM)
+        handoff = (pair.0, pair.1)
+        connector = GuestConnector(
+            supervisor: supervisor, handoff: HandoffChannel(fd: pair.0), log: recorded.log,
+            timeout: connectTimeout)
+    }
+
+    /// Whether the test closed wb-hostd's end already.
+    private nonisolated let hostClosed = Mutex(false)
+
+    deinit {
+        close(handoff.vmd)
+        if !hostClosed.withLock({ $0 }) {
+            close(handoff.host)
+        }
+    }
+
+    /// Closes wb-hostd's end, as when wb-hostd is gone.
+    nonisolated func closeHostEnd() {
+        hostClosed.withLock { closed in
+            if !closed {
+                close(handoff.host)
+                closed = true
+            }
+        }
     }
 
     /// Runs `body` with a client of the service.
@@ -36,7 +66,8 @@ final class ServiceFixture {
         _ body: (Wraithbox_Vmd_V1_VMService.Client<InProcessTransport.Client>) async throws -> T
     ) async throws -> T {
         let transport = InProcessTransport()
-        let service = VMServiceHandler(supervisor: supervisor, log: recorded.log)
+        let service = VMServiceHandler(
+            supervisor: supervisor, connector: connector, log: recorded.log)
         return try await withGRPCServer(transport: transport.server, services: [service]) { _ in
             try await withGRPCClient(transport: transport.client) { grpc in
                 try await body(Wraithbox_Vmd_V1_VMService.Client(wrapping: grpc))
@@ -167,7 +198,7 @@ struct VMServiceTests {
         #expect(await fixture.engine.requests.count == 2)
     }
 
-    @Test("a stop without a mode is refused with vm-stop-mode; each mode reaches the VM")
+    @Test("a stop without a mode is refused with vm-stop-mode; each mode reaches the VM once")
     func stopModes() async throws {
         let fixture = try await ServiceFixture()
         try await fixture.withClient { client in
@@ -176,6 +207,8 @@ struct VMServiceTests {
                 _ = try await client.stop(stopRequest(generation: 1, mode: .unspecified))
             }
             #expect(none == (.invalidArgument, "vm-stop-mode"))
+            _ = try await client.stop(stopRequest(generation: 1, mode: .request))
+            // The guest was asked already: a second request doesn't reach it.
             _ = try await client.stop(stopRequest(generation: 1, mode: .request))
             _ = try await client.stop(stopRequest(generation: 1, mode: .force))
             let state = try await client.getState(Wraithbox_Vmd_V1_GetStateRequest())
@@ -234,18 +267,6 @@ struct VMServiceTests {
         #expect(state.error.code == 2)
         #expect(state.error.failureReason == "bad")
         #expect(state.error.description_p == "invalid")
-    }
-
-    @Test("ConnectGuest is refused until the hand-off is built")
-    func connectGuest() async throws {
-        let fixture = try await ServiceFixture()
-        let (code, reason) = await refusal {
-            try await fixture.withClient { client in
-                _ = try await client.connectGuest(Wraithbox_Vmd_V1_ConnectGuestRequest())
-            }
-        }
-        #expect(code == .unimplemented)
-        #expect(reason == "vmd-not-implemented")
     }
 
     @Test("a guest that stops on its own is reported, and the next start is allowed")

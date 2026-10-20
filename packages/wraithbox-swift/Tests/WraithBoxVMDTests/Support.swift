@@ -120,6 +120,143 @@ final class FakeVM: EngineVM {
     func guestStopped() {
         onState(.stopped, nil)
     }
+
+    /// What connect does: open a socketpair, fail, or hold the completion
+    /// until `releaseConnects`.
+    enum ConnectMode {
+        case succeed
+        case fail(VMFailure)
+        case hold
+    }
+
+    var connectMode = ConnectMode.succeed
+    /// The ports of every connect, in order.
+    private(set) var connects: [UInt32] = []
+    /// The connections the fake opened.
+    private(set) var connections: [FakeConnection] = []
+    private var heldConnects: [(UInt32, GuestConnectHandler)] = []
+
+    var heldCount: Int {
+        heldConnects.count
+    }
+
+    func connect(toPort port: UInt32, completion: @escaping GuestConnectHandler) {
+        connects.append(port)
+        switch connectMode {
+        case .succeed:
+            completion(open(port))
+        case .fail(let failure):
+            completion(.failure(failure))
+        case .hold:
+            heldConnects.append((port, completion))
+        }
+    }
+
+    /// Completes every held connect with a new connection.
+    func releaseConnects() {
+        let waiting = heldConnects
+        heldConnects = []
+        for (port, completion) in waiting {
+            completion(open(port))
+        }
+    }
+
+    private func open(_ port: UInt32) -> Result<any GuestConnection, VMFailure> {
+        guard let connection = try? FakeConnection(destinationPort: port) else {
+            return .failure(VMFailure(description: "socketpair failed"))
+        }
+        connections.append(connection)
+        return .success(connection)
+    }
+}
+
+/// A guest connection over a stream socketpair: wb-vmd's end, which it
+/// passes, and the end that stands in for the guest.
+@MainActor
+final class FakeConnection: GuestConnection {
+    let fileDescriptor: Int32
+    let guest: Int32
+    let sourcePort: UInt32 = 49152
+    let destinationPort: UInt32
+    private(set) var closes = 0
+
+    init(destinationPort: UInt32) throws {
+        var fds: [Int32] = [0, 0]
+        guard socketpair(AF_UNIX, SOCK_STREAM, 0, &fds) == 0 else {
+            throw POSIXError(.EMFILE)
+        }
+        fileDescriptor = fds[0]
+        guest = fds[1]
+        self.destinationPort = destinationPort
+    }
+
+    func close() {
+        closes += 1
+        Darwin.close(fileDescriptor)
+    }
+
+    deinit {
+        Darwin.close(guest)
+    }
+}
+
+/// One record received on the hand-off channel, and its descriptors.
+struct ReceivedHandoff: Equatable {
+    var record: [UInt8]
+    var descriptors: [Int32]
+}
+
+/// Receives one record from the test's end of the hand-off channel
+/// without waiting, or nil when none is there.
+func receiveHandoff(_ fd: Int32) -> ReceivedHandoff? {
+    var data = [UInt8](repeating: 0, count: 512)
+    var control = [UInt8](repeating: 0, count: 256)
+    var controlLength = 0
+    let count = data.withUnsafeMutableBytes { dataBytes in
+        control.withUnsafeMutableBytes { controlBytes in
+            var iov = iovec(iov_base: dataBytes.baseAddress, iov_len: dataBytes.count)
+            return withUnsafeMutablePointer(to: &iov) { iovPointer in
+                var message = msghdr(
+                    msg_name: nil, msg_namelen: 0, msg_iov: iovPointer, msg_iovlen: 1,
+                    msg_control: controlBytes.baseAddress,
+                    msg_controllen: socklen_t(controlBytes.count), msg_flags: 0)
+                let received = recvmsg(fd, &message, MSG_DONTWAIT)
+                controlLength = Int(message.msg_controllen)
+                return received
+            }
+        }
+    }
+    guard count >= 0 else {
+        return nil
+    }
+    return ReceivedHandoff(
+        record: Array(data.prefix(count)),
+        descriptors: rights(in: Array(control.prefix(controlLength))))
+}
+
+/// The descriptors of every SCM_RIGHTS message in control data.
+private func rights(in control: [UInt8]) -> [Int32] {
+    var descriptors: [Int32] = []
+    var offset = 0
+    let header = MemoryLayout<cmsghdr>.size
+    while offset + header <= control.count {
+        let message = control.withUnsafeBytes {
+            $0.loadUnaligned(fromByteOffset: offset, as: cmsghdr.self)
+        }
+        let length = Int(message.cmsg_len)
+        guard length >= header, offset + length <= control.count else {
+            break
+        }
+        if message.cmsg_level == SOL_SOCKET, message.cmsg_type == SCM_RIGHTS {
+            for at in stride(from: offset + header, to: offset + length, by: 4) {
+                descriptors.append(
+                    control.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: at, as: Int32.self) }
+                )
+            }
+        }
+        offset += (length + 3) & ~3
+    }
+    return descriptors
 }
 
 /// A new temporary directory, removed when the value goes away. Its path
