@@ -27,7 +27,10 @@ describe('globToRegExp', () => {
 describe('decide', () => {
 	test.each([
 		['a docs-only change runs only the docs site', ['docs/spec/S03-requirements.md', 'README.md'], ['docs']],
-		['a Go-only change does not run Swift', ['packages/wraithbox-go/internal/x/x.go'], ['go']],
+		['a Go-only change runs Go and only the bundle steps of Swift', ['packages/wraithbox-go/internal/x/x.go'], ['bundle', 'go']],
+		['a daemon package runs the bundle steps', ['packages/wraithbox-go/internal/hostd/datadisk/disk.go'], ['bundle', 'go']],
+		['a Go test file runs the bundle steps', ['packages/wraithbox-go/internal/netd/dns_test.go'], ['bundle', 'go']],
+		['the Go lint settings do not run Swift', ['.golangci.yml'], ['go']],
 		['a Swift-only change does not run Go', ['packages/wraithbox-swift/Sources/A.swift'], ['bundle', 'swift']],
 		['a proto change runs both sides', ['proto/wb/v1/vm.proto'], ['bundle', 'go', 'swift']],
 		['the release number runs both sides', ['VERSION'], ['bundle', 'go', 'swift']],
@@ -66,6 +69,11 @@ describe('decide', () => {
 
 	test('an empty diff runs every job', () => {
 		expect(jobsFor([])).toEqual(['bundle', 'docs', 'go', 'swift']);
+	});
+
+	test('every rule for a file of the Go module runs the bundle steps', () => {
+		const missing = RULES.filter((rule) => rule.glob.startsWith('packages/wraithbox-go/') && !rule.jobs.includes('bundle')).map((rule) => rule.glob);
+		expect(missing).toEqual([]);
 	});
 
 	test('every rule that runs the Swift steps runs the bundle steps too', () => {
@@ -163,12 +171,12 @@ describe('detect', () => {
 
 	test('a pull request turns on the jobs its files need', () => {
 		const { log, outputs } = detect({ GITHUB_EVENT_NAME: 'pull_request' }, prFiles);
-		expect(outputs).toEqual(['go=true', 'swift=false', 'bundle=false', 'docs=false']);
-		expect(log).toEqual(['packages/wraithbox-go/a.go: go (packages/wraithbox-go/**)']);
+		expect(outputs).toEqual(['go=true', 'swift=false', 'bundle=true', 'docs=false']);
+		expect(log).toEqual(['packages/wraithbox-go/a.go: go bundle (packages/wraithbox-go/**)']);
 	});
 
-	test('a pull request that changes only a Go program turns on the bundle steps', () => {
-		const { outputs } = detect({ GITHUB_EVENT_NAME: 'pull_request' }, () => ['packages/wraithbox-go/cmd/wb/main.go']);
+	test('a pull request that changes only a daemon package turns on the bundle steps', () => {
+		const { outputs } = detect({ GITHUB_EVENT_NAME: 'pull_request' }, () => ['packages/wraithbox-go/internal/hostd/session.go']);
 		expect(outputs).toEqual(['go=true', 'swift=false', 'bundle=true', 'docs=false']);
 	});
 
@@ -259,5 +267,12 @@ describe('ci.yml', () => {
 		expect(save?.with?.path).toBe(restore?.with?.path);
 		expect(save?.with?.key).toBe('${{ steps.swift-cache.outputs.cache-primary-key }}');
 		expect(swiftSteps.indexOf(/** @type {any} */ (save))).toBe(swiftSteps.length - 1);
+	});
+
+	test('the Swift build cache is trimmed just before the save, and only when it saves', () => {
+		const trim = step('Trim Swift build cache');
+		const save = step('Save Swift build cache');
+		expect(swiftSteps.indexOf(/** @type {any} */ (trim))).toBe(swiftSteps.indexOf(/** @type {any} */ (save)) - 1);
+		expect(trim?.if).toBe(save?.if);
 	});
 });
