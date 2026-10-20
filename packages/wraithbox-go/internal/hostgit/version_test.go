@@ -79,15 +79,15 @@ func TestMinimum(t *testing.T) {
 }
 
 func TestCappedBuffer(t *testing.T) {
-	c := &cappedBuffer{limit: 4}
+	c := NewCappedBuffer(4)
 	for _, p := range []string{"12", "3456", "78"} {
 		n, err := c.Write([]byte(p))
 		if n != len(p) || err != nil {
 			t.Fatalf("Write(%q) = %d, %v", p, n, err)
 		}
 	}
-	if string(c.buf) != "1234" || !c.over {
-		t.Errorf("buf = %q, over = %v; want %q, true", c.buf, c.over, "1234")
+	if string(c.Bytes()) != "1234" || !c.Over() {
+		t.Errorf("buf = %q, over = %v; want %q, true", c.Bytes(), c.Over(), "1234")
 	}
 }
 

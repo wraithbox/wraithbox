@@ -27,6 +27,12 @@ func GitInstallHint() string {
 	return "install the Command Line Tools (xcode-select --install), or set git in config.toml to the absolute path of a git binary"
 }
 
+// HasDrivePrefix reports whether a remote URL starts with a drive
+// letter, which git reads as a local path (S08-01-into-the-guest,
+// "Remote URLs"). Only Windows has drive letters, so git on macOS reads
+// `C:/x` as an SSH short form.
+func HasDrivePrefix(string) bool { return false }
+
 // UserHome returns the current user's home directory from the user
 // database. On darwin os/user asks libSystem, also without cgo. It looks
 // the user up by id, like the other Unix files, and never reads $HOME

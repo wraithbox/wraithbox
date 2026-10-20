@@ -15,6 +15,14 @@ func GitInstallHint() string {
 	return "install Git for Windows, or set git in config.toml to the absolute path of a git binary"
 }
 
+// HasDrivePrefix reports whether a remote URL starts with a drive
+// letter, such as `C:/x` or `c:\x`, which git for Windows reads as a
+// local path (S08-01-into-the-guest, "Remote URLs"). It is git's
+// has_dos_drive_prefix: an ASCII letter and a colon.
+func HasDrivePrefix(s string) bool {
+	return len(s) >= 2 && s[1] == ':' && ('a' <= s[0] && s[0] <= 'z' || 'A' <= s[0] && s[0] <= 'Z')
+}
+
 // UserHome returns the current user's profile directory. On Windows
 // user.Current asks the process token for it and reads no environment
 // variable (S05-04-naming, "Resolving the key").
