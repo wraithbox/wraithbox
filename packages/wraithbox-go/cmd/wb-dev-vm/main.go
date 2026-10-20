@@ -6,7 +6,7 @@
 // tooling").
 //
 //	wb-dev-vm boot [flags]                           # boot, print each state, stop on Ctrl-C
-//	wb-dev-vm hello [-port N] [-hold] [flags]        # boot, run wb-guestd's hello, print its version, stop
+//	wb-dev-vm hello [-port N] [-hold] [-guest-version V] [flags]  # boot, run wb-guestd's hello, print its version, stop
 //	wb-dev-vm connect -port N -listen PATH [flags]   # boot, relay each client of PATH to guest port N
 //
 // It starts wb-vmd as wb-launcher is to (S04-03-self-sandboxing, "How
@@ -22,7 +22,9 @@
 // wb-vmd refuses a peer of another build version, so wb-dev-vm has to
 // be built with the same stamp as wb-vmd and wb-guestd:
 // `mise run go:build swift:sign` builds bin/wb-dev-vm, bin/wb-guestd and
-// the signed wb-vmd with one stamp.
+// the signed wb-vmd with one stamp. A test guest outlives the build that
+// put wb-guestd in it, so `hello -guest-version` names the version
+// wb-guestd has to report. The hello checks it as wb-hostd does.
 //
 // Spike guest daemons listen on a guest port below 1024, as wb-guestd
 // does, because wb-vmd refuses a ConnectGuest to any other
