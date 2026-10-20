@@ -56,7 +56,7 @@ func (r *Resolver) resolve(ctx context.Context, dir string) (*Repo, *Refusal) {
 	if r.Own.Data == "" || r.Own.Config == "" || r.Own.Logs == "" {
 		return nil, &Refusal{Rule: RuleOwnUnset, msg: "Wraith Box's own directories are not known, so no project is resolved"}
 	}
-	d, entry, ref := findGitEntry(dir)
+	d, isFile, ref := findGitEntry(dir)
 	if ref != nil {
 		return nil, ref
 	}
@@ -71,7 +71,7 @@ func (r *Resolver) resolve(ctx context.Context, dir string) (*Repo, *Refusal) {
 	if err != nil {
 		return nil, &Refusal{Rule: RuleGitOutput, err: err, msg: fmt.Sprintf("git rev-parse in %q printed paths that can't be read: %v", d, err)}
 	}
-	kind, ref := r.checkGitDir(ctx, d, entry, common, gitDir)
+	kind, ref := r.checkGitDir(ctx, d, isFile, common, gitDir)
 	if ref != nil {
 		return nil, ref
 	}
@@ -87,29 +87,30 @@ func (r *Resolver) resolve(ctx context.Context, dir string) (*Repo, *Refusal) {
 }
 
 // findGitEntry walks up from dir, in canonical form, to the first
-// directory with a `.git` entry. It returns that directory and the
-// entry's type. Lstat doesn't follow the entry, so a symbolic link is
-// seen as one.
-func findGitEntry(dir string) (string, fs.FileMode, *Refusal) {
+// directory with a `.git` entry. It returns that directory, and whether
+// the entry is a file rather than a directory. Lstat doesn't follow the
+// entry, so a symbolic link is seen as one, and refused.
+func findGitEntry(dir string) (string, bool, *Refusal) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
-		return "", 0, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the directory %q can't be made absolute: %v", dir, err)}
+		return "", false, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the directory %q can't be made absolute: %v", dir, err)}
 	}
 	d, ref := canonical(abs)
 	if ref != nil {
-		return "", 0, ref
+		return "", false, ref
 	}
 	for {
 		info, err := os.Lstat(filepath.Join(d, gitEntry))
 		switch {
 		case err == nil:
-			return d, info.Mode().Type(), nil
+			isFile, ref := entryType(d, info.Mode().Type())
+			return d, isFile, ref
 		case !errors.Is(err, fs.ErrNotExist):
-			return "", 0, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the .git entry in %q can't be read: %v", d, err)}
+			return "", false, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the .git entry in %q can't be read: %v", d, err)}
 		}
 		parent := filepath.Dir(d)
 		if parent == d {
-			return "", 0, &Refusal{Rule: RuleNotInRepo, msg: fmt.Sprintf("%q is not in a git repository: no .git from there up to the root", abs)}
+			return "", false, &Refusal{Rule: RuleNotInRepo, msg: fmt.Sprintf("%q is not in a git repository: no .git from there up to the root", abs)}
 		}
 		d = parent
 	}
@@ -128,20 +129,31 @@ func canonical(dir string) (string, *Refusal) {
 	return c, nil
 }
 
-// checkGitDir checks that the repository git resolved in d is d's own,
-// by the type of d's `.git` entry (S05-04-naming, "Which directory" and
-// "A `.git` file"). It is where SEC08-proj-isolation is enforced for a
-// directory.
-func (r *Resolver) checkGitDir(ctx context.Context, d string, entry fs.FileMode, common, gitDir string) (Kind, *Refusal) {
+// entryType accepts a `.git` directory or file, before git runs. git
+// would follow a symbolic link, and a link could name another project's
+// `.git` (SEC08-proj-isolation, S05-04-naming, "Which directory"), so
+// it is refused, as is any other type.
+func entryType(d string, mode fs.FileMode) (isFile bool, ref *Refusal) {
+	entry := filepath.Join(d, gitEntry)
 	switch {
-	case entry == fs.ModeSymlink:
-		return "", &Refusal{Rule: RuleGitLink, msg: fmt.Sprintf("%q is a symbolic link, which could name another project's repository. Wraith Box accepts a .git directory, or the .git file of a linked worktree or submodule", filepath.Join(d, gitEntry))}
-	case entry.IsDir():
-		return KindMain, checkMain(d, common, gitDir)
-	case entry.IsRegular():
+	case mode.IsDir():
+		return false, nil
+	case mode.IsRegular():
+		return true, nil
+	case mode == fs.ModeSymlink:
+		return false, &Refusal{Rule: RuleGitLink, msg: fmt.Sprintf("%q is a symbolic link, which could name another project's repository. Wraith Box accepts a .git directory, or the .git file of a linked worktree or submodule", entry)}
+	}
+	return false, &Refusal{Rule: RuleGitEntryType, msg: fmt.Sprintf("%q is neither a directory nor a file", entry)}
+}
+
+// checkGitDir checks that the repository git resolved in d is d's own
+// (S05-04-naming, "Which directory" and "A `.git` file"). It is where
+// SEC08-proj-isolation is enforced for a directory.
+func (r *Resolver) checkGitDir(ctx context.Context, d string, isFile bool, common, gitDir string) (Kind, *Refusal) {
+	if isFile {
 		return r.checkGitFile(ctx, d, common, gitDir)
 	}
-	return "", &Refusal{Rule: RuleGitEntryType, msg: fmt.Sprintf("%q is neither a directory nor a file", filepath.Join(d, gitEntry))}
+	return KindMain, checkMain(d, common, gitDir)
 }
 
 // checkMain: a `.git` directory must be git's git directory and common
