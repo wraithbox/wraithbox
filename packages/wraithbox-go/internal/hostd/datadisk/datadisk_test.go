@@ -3,6 +3,7 @@ package datadisk_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -469,8 +470,9 @@ func TestShimKilledLogged(t *testing.T) {
 		t.Fatal(err)
 	}
 	logs := h.logs.String()
+	image, _ := json.Marshal(h.path(vmbundle.DataDiskTempName))
 	if !strings.Contains(logs, `"rule":"`+string(datadisk.RuleShimExit)+`"`) ||
-		!strings.Contains(logs, `"image":"`+h.path(vmbundle.DataDiskTempName)+`"`) {
+		!strings.Contains(logs, `"image":`+string(image)) {
 		t.Errorf("the kill isn't logged with its rule and the image:\n%s", logs)
 	}
 

@@ -18,6 +18,7 @@ package procgroup
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"sync"
 )
@@ -89,5 +90,10 @@ func (p *Process) Pid() int { return p.cmd.Process.Pid }
 func (p *Process) Kill() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return kill(p.cmd.Process, p.exited)
+	select {
+	case <-p.done:
+		return os.ErrProcessDone
+	default:
+		return kill(p.cmd.Process, p.exited)
+	}
 }
