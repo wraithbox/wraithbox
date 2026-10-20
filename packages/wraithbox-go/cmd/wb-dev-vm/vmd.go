@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -65,14 +66,14 @@ func vmdPath() string {
 
 // vmFlags are the flags of every command.
 type vmFlags struct {
-	cpus      uint
+	cpuCount  uint
 	memoryMiB uint64
 	wait      time.Duration
 }
 
 func addVMFlags(fs *flag.FlagSet) *vmFlags {
 	f := &vmFlags{}
-	fs.UintVar(&f.cpus, "cpus", 4, "virtual CPUs")
+	fs.UintVar(&f.cpuCount, "cpu-count", 4, "virtual CPUs")
 	fs.Uint64Var(&f.memoryMiB, "memory-mib", 4096, "guest memory in MiB")
 	fs.DurationVar(&f.wait, "wait", 3*time.Minute, "how long to wait for the VM, and for wb-guestd to answer")
 	return f
@@ -126,7 +127,7 @@ func startVMD(ctx context.Context, out, stderr io.Writer) (*session, error) {
 		return nil, errors.New("wb-dev-vm is unstamped, and wb-vmd refuses an unstamped peer: build it with mise run go:build swift:sign")
 	}
 	log := slog.New(slog.NewTextHandler(stderr, nil))
-	dir, err := os.MkdirTemp("", "wbdv")
+	dir, err := os.MkdirTemp("", "wb-dev-vm")
 	if err != nil {
 		return nil, err
 	}
@@ -277,13 +278,13 @@ func (s *session) waitStarted(ctx context.Context, started <-chan string) error 
 
 // boot starts the VM and waits until it runs.
 func (s *session) boot(ctx context.Context, f *vmFlags) error {
-	_, err := s.client.Start(ctx, &vmdv1.StartRequest{Generation: generation, CpuCount: uint32(min(f.cpus, 1<<16)), MemoryMib: f.memoryMiB})
+	_, err := s.client.Start(ctx, &vmdv1.StartRequest{Generation: generation, CpuCount: uint32(min(f.cpuCount, math.MaxUint32)), MemoryMib: f.memoryMiB})
 	if err != nil {
 		return fmt.Errorf("start the VM: %w", err)
 	}
-	wctx, cancel := context.WithTimeout(ctx, f.wait)
+	waitCtx, cancel := context.WithTimeout(ctx, f.wait)
 	defer cancel()
-	return s.watch(wctx, func(st *vmdv1.VMState) bool { return st.GetState() == vmdv1.State_STATE_RUNNING })
+	return s.watch(waitCtx, func(st *vmdv1.VMState) bool { return st.GetState() == vmdv1.State_STATE_RUNNING })
 }
 
 // watch prints each state until done returns true, the VM stops or

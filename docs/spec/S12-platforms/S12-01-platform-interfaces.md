@@ -30,7 +30,11 @@ OS:
 - In the guest, `wb-guestd` uses `AF_VSOCK` through
   `golang.org/x/sys/unix`.
 - On the host, `wb-vmd` passes each connection to `wb-hostd` as a Unix
-  socket descriptor from Virtualization, with its ports.
+  socket descriptor from Virtualization, with its ports. `wb-hostd`
+  receives it with `internal/platform/vmhandoff`, which refuses a
+  record that fails a check of S04-02-vm-provider, "Hand-off on macOS".
+  On Linux and Windows hosts it returns an error that wraps
+  `errors.ErrUnsupported`.
 - `wb-hostd` routes only on the destination port.
 - The host opens every connection. `wb-vmd` doesn't register a host
   listener (S04-architecture, B29-vsock-handoff).
