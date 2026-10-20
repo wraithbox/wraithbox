@@ -98,11 +98,15 @@ func helloCommand(ctx context.Context, args []string, stdin io.Reader, stdout, s
 	port := portValue(guestsock.Port)
 	fs.Var(&port, "port", "the guest port wb-guestd listens on")
 	hold := fs.Bool("hold", false, "wait for a line on standard input between the hand-off and the hello")
+	guestVersion := fs.String("guest-version", "", "the build version wb-guestd must report (default: wb-dev-vm's own)")
 	if err := parse(fs, f, args); err != nil {
 		return err
 	}
 	return withVM(ctx, f, stdout, stderr, func(s *session) error {
-		h := hello{s: s, port: uint32(port), wait: f.wait, stdout: stdout}
+		h := hello{s: s, port: uint32(port), wait: f.wait, stdout: stdout, guestVersion: s.own}
+		if *guestVersion != "" {
+			h.guestVersion = *guestVersion
+		}
 		if *hold {
 			h.hold = bufio.NewReader(stdin)
 		}
@@ -117,6 +121,8 @@ type hello struct {
 	wait   time.Duration
 	stdout io.Writer
 	hold   *bufio.Reader // nil without -hold
+	// guestVersion is the version Hello checks wb-guestd's against.
+	guestVersion string
 }
 
 func (h *hello) run(ctx context.Context) error {
@@ -142,7 +148,7 @@ func (h *hello) run(ctx context.Context) error {
 		_ = conn.Close()
 		return err
 	}
-	link, err = guestlink.Hello(ctx, conn, h.s.own, h.s.log)
+	link, err = guestlink.Hello(ctx, conn, h.guestVersion, h.s.log)
 	if err != nil {
 		return err
 	}
@@ -157,7 +163,7 @@ func (h *hello) retry(ctx context.Context) (*guestlink.Link, error) {
 	for {
 		conn, err := h.s.link.ConnectGuest(ctx, generation, h.port)
 		if err == nil {
-			return guestlink.Hello(ctx, conn, h.s.own, h.s.log)
+			return guestlink.Hello(ctx, conn, h.guestVersion, h.s.log)
 		}
 		if !retryable(err) {
 			return nil, err
