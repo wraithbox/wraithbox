@@ -93,6 +93,13 @@ their code. They are held to the same gates as the product code.
 |---|---|---|
 | `wb-dev-app` | Go | Builds the app bundle's Go half, runs its check, and installs it (`mise run app:*`) |
 | `wb-dev-bundle` | Swift | Makes, clones, provisions, stops and removes macOS test bundles in the spike cache (`mise run vm:*`) |
+| `wb-dev-vm` | Go | Starts the signed `wb-vmd` as `wb-launcher` is to, boots the bundle in the work slot, and runs `wb-guestd`'s hello or relays a local socket to a guest port below 1024 |
+
+`wb-dev-vm` lets VM spikes and needs-vm work reach their guest code
+through `wb-vmd`'s hand-off. It runs one VM at a time
+(NFR05-two-macos-vms), and the bundle has to be in the work slot before
+it starts. `mise run go:build swift:sign` builds it with the same stamp
+as `wb-vmd`, because `wb-vmd` refuses a peer of another build version.
 
 `wb-dev-bundle` comes from the X18-vsock-handoff host tool, and
 `mise run vm:build` signs it ad hoc with `spikes/vm.entitlements`. It

@@ -109,9 +109,9 @@ func (l *Link) ConnectGuest(ctx context.Context, generation uint64, port uint32)
 		pending.Cancel()
 		return nil, l.refuse(ctx, id, generation, port, rpcRefusal(err))
 	}
-	wctx, cancel := context.WithTimeout(ctx, HandoffTimeout)
+	waitCtx, cancel := context.WithTimeout(ctx, HandoffTimeout)
 	defer cancel()
-	conn, err := pending.Wait(wctx)
+	conn, err := pending.Wait(waitCtx)
 	if err != nil {
 		r := &Refusal{Rule: RuleHandoffMissing, msg: err.Error(), err: err}
 		if hr, ok := errors.AsType[*vmhandoff.Refusal](err); ok {

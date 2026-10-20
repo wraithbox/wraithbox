@@ -49,8 +49,8 @@ func parse(fs *flag.FlagSet, f *vmFlags, args []string) error {
 	if fs.NArg() > 0 {
 		return fmt.Errorf("unexpected argument %q: %w", fs.Arg(0), errUsage)
 	}
-	if f.cpus == 0 || f.cpus > math.MaxUint32 {
-		return fmt.Errorf("-cpus %d is outside 1 to %d: %w", f.cpus, uint32(math.MaxUint32), errUsage)
+	if f.cpuCount == 0 || f.cpuCount > math.MaxUint32 {
+		return fmt.Errorf("-cpu-count %d is outside 1 to %d: %w", f.cpuCount, uint32(math.MaxUint32), errUsage)
 	}
 	return nil
 }
@@ -120,9 +120,9 @@ type hello struct {
 }
 
 func (h *hello) run(ctx context.Context) error {
-	wctx, cancel := context.WithTimeout(ctx, h.wait)
+	waitCtx, cancel := context.WithTimeout(ctx, h.wait)
 	defer cancel()
-	link, err := h.retry(wctx)
+	link, err := h.retry(waitCtx)
 	if err != nil {
 		return err
 	}

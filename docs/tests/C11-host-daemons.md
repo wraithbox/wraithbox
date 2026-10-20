@@ -5,7 +5,7 @@
 the accounting and event channels, the daemon log pipes, the audit
 writer, free space, and the data disk steps.
 
-**Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024", "The host opens every connection", "Caps and closing"), S06-12-guest-agent ("The hello"),
+**Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024", "Hand-off on macOS", "The host opens every connection", "Caps and closing"), S06-12-guest-agent ("The hello"),
 S06-11-reconnect-and-recovery ("Reconnect"), S06-06-devices-and-warm-start ("When the host sends the time"), S04-08-records-and-bounds ("Host work the guest can cause"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
 S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
@@ -52,6 +52,14 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   `vm-generation`, `vm-stop-mode`, `vm-starting`, `vm-config`,
   `vm-watch-limit`, and a device-set refusal passed through. A stop for
   `wb-vmd`'s exit during a start waits for it, then stops the VM.
+- **ConnectGuest** (S04-02-vm-provider, "Hand-off on macOS", "Caps
+  and closing"). With a fake socket device and a real hand-off
+  socketpair (`ConnectGuestTests`), `guest-port-not-reserved`,
+  `vm-request-id`, `vm-generation`, `vm-not-running`, `connect-cap`,
+  `vm-connect-failed`, `vm-connect-timeout` and `handoff-send-failed`
+  each come before any record is sent. A connection is sent once with
+  the request's fields, and `wb-vmd`'s copy is closed before the record
+  is read.
 
 ### VM boot (needs-vm)
 
@@ -93,6 +101,7 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 ### Descriptor channels
 
 - **One descriptor per message** (S07-05-stream-hand-off, "Message form"). Over real socketpairs, records with and without a descriptor round-trip. An oversized record, two, three and 254 descriptors are each refused with every descriptor closed. A message whose descriptors don't fit the full descriptor table is dropped, and a send to a full peer fails at once.
+- **Hand-off receiver** (S04-02-vm-provider, "Hand-off on macOS"). Tests in `internal/platform/vmhandoff` and `internal/vmdlink`: over a real socketpair, each refusal of the receiver and of `fdchan` has its rule, and no descriptor of the record is open after it (`fcntl`). A good record gives its request a working connection, and the hello runs over it end to end with a fake `wb-vmd`. `FuzzHandoffMessage` checks that no record of arbitrary bytes, the empty one included, is accepted unless it names the open request, the current generation, the host's direction and the requested port.
 
 ### Supervision
 

@@ -44,12 +44,35 @@ On macOS (X18-vsock-handoff):
   asked for. It closes any descriptor in it, and logs the refusal. The
   comments on `HandoffMessage` list every refusal rule.
 
+`wb-hostd`'s receiver is `internal/platform/vmhandoff`. It reads
+through the channel of `internal/platform/fdchan`, which refuses a
+record over 256 bytes or truncated (`fdchan-record-size`,
+`fdchan-control-truncated`) and two or more descriptors
+(`fdchan-fd-count`). It treats each record as untrusted input, because
+`wb-vmd` runs framework code on the guest's behalf, and refuses:
+
+- a record without a descriptor (`handoff-fd-count`);
+- a descriptor that isn't an `AF_UNIX` stream socket
+  (`handoff-socket-type`);
+- a record that doesn't decode, or that has a field `HandoffMessage`
+  doesn't (`handoff-malformed`);
+- generation 0, or one that isn't the current one
+  (`handoff-generation`);
+- request ID 0, one that isn't open, or a destination port other than
+  the one that request asked for (`handoff-unexpected`);
+- a direction other than `DIRECTION_HOST_TO_GUEST` (`handoff-direction`).
+
+When a refused record names an open request, that request ends with
+the refusal. Opening a request of a newer generation ends every open
+request of the older one.
+
 ### The host opens every connection
 
 The host opens every host-guest connection (B29-vsock-handoff).
 
 - `wb-vmd` doesn't register a host vsock listener, so nothing in the
-  guest can dial the host.
+  guest can dial the host. The static check of "What only the code
+  keeps out" refuses the listener class in the sources.
 - `wb-hostd` asks `wb-vmd` to connect to `wb-guestd`: at boot, after
   each restore, and after `wb-guestd` restarts.
 - `wb-hostd` routes a connection only on its destination port. That is
@@ -135,18 +158,32 @@ install is broken.
 
 ### Caps and closing
 
-- `wb-vmd` caps the connections it has opened but not yet passed.
-  `wb-hostd` caps live connections per VM (`guest-conn-cap-vm`) and per
+- `wb-vmd` caps the connects it has started and not yet passed, at a
+  value in its code (8). Beyond it, `ConnectGuest` is refused with
+  `connect-cap`. A connect that timed out keeps its place until the
+  framework completes it, and the connection it then gets is closed
+  unused.
+- `wb-hostd` caps live connections per VM (`guest-conn-cap-vm`) and per
   project (`guest-conn-cap-project`), and the connections it opens to
   one VM in a minute (`guest-reconnect-rate`,
-  S06-11-reconnect-and-recovery, "Reconnect"). Over a cap a connection
-  is refused, never queued. Both log each refusal
-  (SEC13-bounded-resources), `wb-hostd` at most once per rule per VM in
-  a window, with the count it held back. The values are in code.
+  S06-11-reconnect-and-recovery, "Reconnect"), at values in its code.
+  Over a cap a connection is refused, never queued.
+- Both log each refusal (SEC13-bounded-resources), `wb-hostd` at most
+  once per rule per VM in a window, with the count it held back.
 - Every connection of a VM closes when its run ends, so before its
   generation changes.
-- `wb-vmd` closes its copy of a descriptor once it has passed it. The
-  passed descriptor keeps working, also while `wb-vmd` is stopped.
+- `wb-vmd` closes its copy of a descriptor once it has passed it, and
+  answers `ConnectGuest` only then. The passed descriptor keeps
+  working, also while `wb-vmd` is stopped.
+
+`ConnectGuest` also refuses, each with its rule: a guest port of 1024
+or more (`guest-port-not-reserved`), request ID 0 (`vm-request-id`), a
+generation that is 0 or not the current one (`vm-generation`), and a VM
+that isn't running (`vm-not-running`). A connect that fails or takes
+longer than a timeout in code is refused with `vm-connect-failed` or
+`vm-connect-timeout`, and a record that can't be sent with
+`handoff-send-failed`. After each of these refusals, `wb-vmd` hasn't
+sent a record, and has closed any connection it opened.
 
 ### Restore
 
@@ -219,7 +256,9 @@ Three checks verify the parts the profile doesn't enforce:
    `VZVirtioSoundDeviceInputStreamConfiguration`. It also names the
    classes of the other kinds the check refuses with a rule of their
    own (network, share, audio input, console and storage), and of USB
-   passthrough and custom virtio devices.
+   passthrough and custom virtio devices. It refuses the host vsock
+   listener too: `VZVirtioSocketListener`, its delegate protocol, and
+   `setSocketListener` ("The host opens every connection").
 
 The static check excepts one file,
 `Sources/wb-dev-bundle/ProvisionBoot.swift`: the NAT network that test

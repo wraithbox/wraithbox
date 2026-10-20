@@ -49,6 +49,8 @@ terminalv
 guesttext
 guestconn
 ratelog
+vmhandoff
+vmdlink
 
 # Virtualization, networking and OS facilities
 datavol
@@ -156,6 +158,9 @@ ctrunc
 cloexec
 firsthdr
 nxthdr
+namelen
+iovlen
+controllen
 getsockopt
 maxdgram
 socketpairs

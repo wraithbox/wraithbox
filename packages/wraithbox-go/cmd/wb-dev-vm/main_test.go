@@ -14,7 +14,7 @@ func TestUsage(t *testing.T) {
 		nil,
 		{"start"},
 		{"boot", "extra"},
-		{"boot", "-cpus", "0"},
+		{"boot", "-cpu-count", "0"},
 		{"hello", "-port", "4294967296"},
 		{"hello", "-port", "-1"},
 		{"connect", "-listen", "x.sock"},
