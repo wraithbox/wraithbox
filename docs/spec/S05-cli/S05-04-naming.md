@@ -25,11 +25,12 @@ The parts of the key:
   repository opened from native Windows are in two realms. So they are
   two projects.
 - *Path.* The key uses the path as git returns it, and `wb` doesn't
-  recompute it. On macOS, git's absolute common directory already
-  resolves symbolic links. It also folds letter case to the spelling on
-  disk (APFS). So `~/Git/foo` and `~/git/foo` give one key. On other
-  platforms, the canonical form comes from `internal/platform`
-  (S12-platforms).
+  recompute it. `wb` runs git in the canonical form of the directory:
+  symbolic links resolved, and letter case as on disk (APFS). git's
+  absolute common directory then has that form too. So `~/Git/foo`,
+  `~/git/foo` and a link to it give one key. The canonical form comes
+  from `internal/platform`. Hosts other than macOS get theirs with
+  S12-platforms, and until then resolution refuses there.
 
 ### Resolving the key
 
@@ -69,9 +70,22 @@ URLs resolve as the user's git resolves them (`url.<base>.insteadOf`).
 
 #### Which directory
 
-`wb` walks up from the current directory to the first directory that
-holds a `.git` entry, as git does. The key must belong to that
-directory.
+`wb` walks up from the current directory, or `-C <dir>`, in canonical
+form, to the first directory that holds a `.git` entry, as git does.
+The key must belong to that directory. What that takes depends on the
+entry's type, which `wb` reads without following a link:
+
+- *A directory.* git's `--git-dir` and `--git-common-dir` must both be
+  that `.git` directory, compared in canonical form. They differ when
+  git didn't find a valid repository there and walked on to a parent's.
+- *A file.* See "A `.git` file".
+- *A symbolic link, or any other type.* Refused. A link could name
+  another project's `.git`, and the directory would then resolve to
+  that project (SEC08-proj-isolation).
+
+No `.git` entry up to the root refuses the command: the directory isn't
+in a git repository. A bare repository has no `.git` entry, so it is
+never found.
 
 #### A `.git` file
 
@@ -116,7 +130,9 @@ that isn't the resolved project's (S08-06-landing-on-the-host).
 
 A key under `<data>`, `<config>` or `<logs>` refuses the command. So no
 command treats a repository that `wb-hostd` can write, such as a
-`landing.git`, as the user's.
+`landing.git`, as the user's. The comparison is by path component, in
+canonical form, so another letter case or a link to the same directory
+still matches.
 
 ### Project id
 
@@ -142,6 +158,16 @@ S08-01-into-the-guest ("Remote URLs").
   rotated token.
 - A URL the guest doesn't get is compared with its user name, password,
   query string and fragment removed.
+- A URL the cleaner can't parse, and a `<helper>::` URL, whose address
+  is a command line the cleaner doesn't parse, are recorded as
+  `sha256:<hex>` of their bytes. So a token inside one is never stored
+  or printed.
+- The host is compared in lowercase, because host names don't depend on
+  letter case.
+
+The number of remotes and of URLs, a URL's length and the number of
+root commits are capped (SEC13-bounded-resources). Over a cap, the
+command is refused with that cap's rule. The identity is never cut.
 
 For a repository with no remote, `wb` also records its root commits
 (`git rev-list --max-parents=0 --all`). It doesn't record them for a
@@ -281,6 +307,17 @@ state and approvals always takes this one explicit command.
 
 A human-readable name is derived from the directory that holds the
 common directory. `wb project rename` changes it.
+
+- A submodule's common directory is under the parent's `modules/`. So
+  its name comes from the directory that holds its `.git` file.
+- A common directory not named `.git`, such as a bare repository with
+  linked worktrees, gives its own name without the `.git` suffix.
+
+A name holds only characters that keep the session branch
+`wb/<session-id>` valid for `git check-ref-format`, and that print
+without escapes. A derived name replaces any other character with `-`.
+The characters and the length are in code, with `wb project rename` and
+`wb-hostd` checking against the same rule.
 
 ### Session id and branch
 

@@ -49,6 +49,9 @@ again or changes its remote, and the project commands.
   `gitdir: <project A>/.git`, and in one whose `.git` file reads
   `gitdir: <project A>/.git/modules/sub`. See both refused with the reason and
   nothing registered.
+- Start a session in a directory whose `.git` is a symbolic link to
+  project A's `.git`, and see it refused with the reason and nothing
+  registered.
 - Start a session with `GIT_DIR`, `GIT_CONFIG_PARAMETERS` or
   `GIT_CONFIG_COUNT` set in the environment to point at project A or
   rewrite its configuration, and see it resolve to the directory's own

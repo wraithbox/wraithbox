@@ -44,6 +44,7 @@ diskfmtv
 hostdv
 vmcmd
 hostservice
+gitremote
 
 # Virtualization, networking and OS facilities
 datavol
@@ -268,6 +269,8 @@ remyoudompheng
 bigfft
 mathutil
 txlock
+gitdir
+fsmonitor
 
 # The app bundle build: Xcode settings, hdiutil flags, Info.plist keys
 appbundle

@@ -43,15 +43,15 @@ func checkVersion(ctx context.Context, path string) (Result, *Refusal) {
 	if r != nil {
 		return Result{}, r
 	}
-	out := &cappedBuffer{limit: versionMaxOutput}
-	stderr := &cappedBuffer{limit: maxShown}
+	out := NewCappedBuffer(versionMaxOutput)
+	stderr := NewCappedBuffer(maxShown)
 	cmd.Stdout = out
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
-		return Result{}, runFailed(ctx, path, err, stderr.buf)
+		return Result{}, runFailed(ctx, path, err, stderr.Bytes())
 	}
 
-	line, ok := firstLine(out.buf, out.over)
+	line, ok := firstLine(out.Bytes(), out.Over())
 	v, readable := parseVersionLine(line)
 	if !ok || !readable {
 		return Result{}, unreadable(path, line)
@@ -111,23 +111,4 @@ func unreadable(path, line string) *Refusal {
 		msg: fmt.Sprintf("git at %s printed a version that can't be read: %q. Wraith Box needs git %s or later",
 			path, shown, MinVersion),
 	}
-}
-
-// cappedBuffer keeps the first limit bytes written to it and drops the
-// rest, so git can't make the caller hold unbounded output.
-type cappedBuffer struct {
-	buf   []byte
-	limit int
-	over  bool
-}
-
-func (c *cappedBuffer) Write(p []byte) (int, error) {
-	room := c.limit - len(c.buf)
-	if len(p) > room {
-		c.over = true
-		c.buf = append(c.buf, p[:room]...)
-		return len(p), nil
-	}
-	c.buf = append(c.buf, p...)
-	return len(p), nil
 }

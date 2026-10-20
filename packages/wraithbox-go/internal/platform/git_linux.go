@@ -17,6 +17,12 @@ func GitInstallHint() string {
 	return "install git with the distribution's package manager, or set git in config.toml to the absolute path of a git binary"
 }
 
+// HasDrivePrefix reports whether a remote URL starts with a drive
+// letter, which git reads as a local path (S08-01-into-the-guest,
+// "Remote URLs"). Only Windows has drive letters, so git on Linux reads
+// `C:/x` as an SSH short form.
+func HasDrivePrefix(string) bool { return false }
+
 // UserHome returns the current user's home directory from the user
 // database. It looks the user up by id because user.Current falls back
 // to $HOME when the lookup fails on Linux without cgo, and HOME must
