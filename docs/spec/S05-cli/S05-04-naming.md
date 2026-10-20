@@ -25,21 +25,17 @@ The parts of the key:
   repository opened from native Windows are in two realms. So they are
   two projects.
 - *Path.* The key uses the path as git returns it, and `wb` doesn't
-  recompute it. `wb` runs git in the canonical form of the directory:
-  symbolic links resolved, and letter case as on disk (APFS). git's
-  absolute common directory then has that form too. So `~/Git/foo`,
-  `~/git/foo` and a link to it give one key. The canonical form comes
-  from `internal/platform`. Hosts other than macOS get theirs with
-  S12-platforms, and until then resolution refuses there.
+  recompute it. `wb` runs git in the directory's canonical form, from
+  `internal/platform`: links resolved, and letter case as on disk. So
+  `~/Git/foo`, `~/git/foo` and a link to it give one key. Other hosts
+  get a canonical form with S12-platforms, and refuse until then.
 
 ### Resolving the key
 
-`wb` runs git for the key, the remotes and the root commits:
-
-- with the git binary of S08-08-host-git;
-- with `core.hooksPath` set to `/dev/null` (`NUL` on Windows);
-- with an otherwise scrubbed environment, as `wb-git` runs git
-  (S08-03-pushes).
+`wb` runs git for the key, the remotes and the root commits with the
+git binary of S08-08-host-git, `core.hooksPath` set to `/dev/null`
+(`NUL` on Windows), and an otherwise scrubbed environment, as `wb-git`
+runs git (S08-03-pushes).
 
 It sets only these variables:
 
@@ -70,22 +66,11 @@ URLs resolve as the user's git resolves them (`url.<base>.insteadOf`).
 
 #### Which directory
 
-`wb` walks up from the current directory, or `-C <dir>`, in canonical
-form, to the first directory that holds a `.git` entry, as git does.
-The key must belong to that directory. What that takes depends on the
-entry's type, which `wb` reads without following a link:
-
-- *A directory.* git's `--git-dir` and `--git-common-dir` must both be
-  that `.git` directory, compared in canonical form. They differ when
-  git didn't find a valid repository there and walked on to a parent's.
-- *A file.* See "A `.git` file".
-- *A symbolic link, or any other type.* Refused. A link could name
-  another project's `.git`, and the directory would then resolve to
-  that project (SEC08-proj-isolation).
-
-No `.git` entry up to the root refuses the command: the directory isn't
-in a git repository. A bare repository has no `.git` entry, so it is
-never found.
+`wb` walks up from the current directory, in canonical form, to the
+first one with a `.git` entry, as git does. The key must belong to that
+directory. A `.git` directory must be both `--git-dir` and
+`--git-common-dir`. A symbolic link refuses the command, because it
+could name another project's `.git`. So does any type but a file.
 
 #### A `.git` file
 
@@ -100,11 +85,9 @@ accepts it only for a linked worktree or a submodule:
   the directory that holds this `.git` file.
 
 `wb` doesn't use `--show-toplevel` for this, because git derives it
-from that same `core.worktree`.
-
-Anything else refuses the command. An example is a `.git` file in a
-downloaded archive that names another project's repository, or one of
-its submodules.
+from that same `core.worktree`. Anything else refuses the command, such
+as a `.git` file in a downloaded archive that names another project's
+repository, or one of its submodules.
 
 #### Failure
 
@@ -130,9 +113,7 @@ that isn't the resolved project's (S08-06-landing-on-the-host).
 
 A key under `<data>`, `<config>` or `<logs>` refuses the command. So no
 command treats a repository that `wb-hostd` can write, such as a
-`landing.git`, as the user's. The comparison is by path component, in
-canonical form, so another letter case or a link to the same directory
-still matches.
+`landing.git`, as the user's. It compares in canonical form.
 
 ### Project id
 
@@ -158,16 +139,8 @@ S08-01-into-the-guest ("Remote URLs").
   rotated token.
 - A URL the guest doesn't get is compared with its user name, password,
   query string and fragment removed.
-- A URL the cleaner can't parse, and a `<helper>::` URL, whose address
-  is a command line the cleaner doesn't parse, are recorded as
-  `sha256:<hex>` of their bytes. So a token inside one is never stored
-  or printed.
-- The host is compared in lowercase, because host names don't depend on
-  letter case.
-
-The number of remotes and of URLs, a URL's length and the number of
-root commits are capped (SEC13-bounded-resources). Over a cap, the
-command is refused with that cap's rule. The identity is never cut.
+- A URL the cleaner can't parse, or a `<helper>::` URL, is recorded as
+  `sha256:<hex>` of its bytes, so a token in it is never stored.
 
 For a repository with no remote, `wb` also records its root commits
 (`git rev-list --max-parents=0 --all`). It doesn't record them for a
@@ -306,18 +279,9 @@ state and approvals always takes this one explicit command.
 ### Name
 
 A human-readable name is derived from the directory that holds the
-common directory. `wb project rename` changes it.
-
-- A submodule's common directory is under the parent's `modules/`. So
-  its name comes from the directory that holds its `.git` file.
-- A common directory not named `.git`, such as a bare repository with
-  linked worktrees, gives its own name without the `.git` suffix.
-
-A name holds only characters that keep the session branch
-`wb/<session-id>` valid for `git check-ref-format`, and that print
-without escapes. A derived name replaces any other character with `-`.
-The characters and the length are in code, with `wb project rename` and
-`wb-hostd` checking against the same rule.
+common directory, or for a submodule from its own directory.
+`wb project rename` changes it. A name keeps `wb/<session-id>` a valid
+branch name, and prints without escapes.
 
 ### Session id and branch
 
