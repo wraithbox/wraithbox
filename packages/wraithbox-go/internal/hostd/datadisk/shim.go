@@ -67,6 +67,11 @@ const (
 // doesn't exit"). A device it attached may stay attached.
 var ErrKilled = errors.New("datadisk: wb-diskfmt didn't exit in time, and was killed")
 
+// ErrKillFailed is in Close's error when wb-diskfmt didn't exit in time,
+// and the kill failed. It may still run, and a device it attached may
+// stay attached.
+var ErrKillFailed = errors.New("datadisk: wb-diskfmt didn't exit in time, and the kill failed")
+
 // ProcessShim starts wb-diskfmt as a process, with the fixed
 // environment of its slot's launcher entry (internal/hostd/launch),
 // until wb-launcher starts it (S04-04-vm-processes, "`wb-diskfmt`").
@@ -129,7 +134,7 @@ func (p *ProcessShim) Start(ctx context.Context, slot string) (Session, error) {
 		_ = logR.Close()
 		return nil, fmt.Errorf("datadisk: start %s: %w", p.Program, err)
 	}
-	s := &processSession{ch: ch, cmd: cmd, proc: proc, log: p.logger(), exitWait: exitWait}
+	s := &processSession{ch: ch, proc: proc, log: p.logger(), exitWait: exitWait}
 	if p.exitWait > 0 {
 		s.exitWait = p.exitWait
 	}
@@ -182,7 +187,6 @@ func (p *ProcessShim) sink(process string) io.Writer {
 
 type processSession struct {
 	ch       *fdchan.Channel
-	cmd      *exec.Cmd
 	proc     *procgroup.Process
 	log      *slog.Logger
 	exitWait time.Duration
@@ -297,19 +301,21 @@ func (s *processSession) Close() error {
 	return waitErr
 }
 
-// exited logs wb-diskfmt's exit, once it has exited, and returns its
-// wait error.
+// exited waits for wb-diskfmt's exit, logs it, and returns its wait
+// error.
 func (s *processSession) exited() error {
+	err := s.proc.Err()
 	s.log.LogAttrs(context.Background(), slog.LevelInfo, "wb-diskfmt exited",
-		slog.Int("pid", s.proc.Pid()), slog.Int("status", s.cmd.ProcessState.ExitCode()))
-	return s.proc.Err()
+		slog.Int("pid", s.proc.Pid()), slog.Int("status", s.proc.ExitCode()))
+	return err
 }
 
 // kill kills wb-diskfmt, with its process group where the OS has them,
 // so a diskutil it started stops too, and waits up to exitWait for the
 // exit. It logs the decision and its rule. It returns nil when
 // wb-diskfmt exited on its own first, an error that wraps ErrKilled
-// after the kill, and any other error when no kill was sent.
+// after the kill, and one that wraps ErrKillFailed when the kill
+// failed.
 func (s *processSession) kill() error {
 	ctx := context.Background()
 	err := s.proc.Kill()
@@ -323,7 +329,7 @@ func (s *processSession) kill() error {
 	}
 	if err != nil {
 		s.log.LogAttrs(ctx, slog.LevelError, "wb-diskfmt kill failed", append(attrs, slog.String("error", err.Error()))...)
-		return fmt.Errorf("datadisk: kill wb-diskfmt: %w", err)
+		return fmt.Errorf("%w: %w", ErrKillFailed, err)
 	}
 	s.log.LogAttrs(ctx, slog.LevelWarn, "wb-diskfmt killed", attrs...)
 	select {

@@ -65,8 +65,8 @@ const (
 	RuleSlotUnknown Rule = "data-disk-slot-unknown"
 	// RuleShimExit: wb-diskfmt didn't exit in time after the exchange
 	// closed, and wb-hostd killed it, with its process group where the
-	// OS has them. No refusal carries it: the kill and the image it
-	// leaves are logged with it.
+	// OS has them, or the kill failed. No refusal carries it: the kill,
+	// and the image it may leave attached, are logged with it.
 	RuleShimExit Rule = "data-disk-shim-exit"
 )
 
@@ -316,12 +316,17 @@ func (m *Manager) format(ctx context.Context, slot string) (string, *Refusal) {
 	if err != nil {
 		return "", shimFailed(slot, "start", err)
 	}
+	// answered: wb-diskfmt answered the format, with a result or a
+	// refusal, and so has detached any device it attached, or said why not.
+	answered := false
 	defer func() {
 		if err := run.Close(); err != nil {
-			m.closeFailed(ctx, slot, err)
+			m.closeFailed(ctx, slot, err, answered)
 		}
 	}()
 	res, err := run.Format(ctx, m.cfg.SizeGiB)
+	_, refused := errors.AsType[*ShimRefusal](err)
+	answered = err == nil || refused
 	if err != nil {
 		return "", shimFailed(slot, "format", err)
 	}
@@ -349,20 +354,29 @@ func (m *Manager) format(ctx context.Context, slot string) (string, *Refusal) {
 	return uuid, nil
 }
 
-// closeFailed logs wb-diskfmt's error at its exit. After a kill it
-// names the temporary image, which a device may stay attached to: only
-// wb-diskfmt attaches and detaches, so wb-hostd doesn't detach it
-// (S06-13-data-disk-format, "When `wb-diskfmt` doesn't exit").
-func (m *Manager) closeFailed(ctx context.Context, slot string, err error) {
-	if !errors.Is(err, ErrKilled) {
+// closeFailed logs wb-diskfmt's error at its exit. When it didn't exit
+// in time, killed or not, the line has RuleShimExit. When that happened
+// before the format's answer, the line also names the temporary image,
+// which a device may still be attached to: only wb-diskfmt attaches and
+// detaches, so wb-hostd doesn't detach it (S06-13-data-disk-format,
+// "When `wb-diskfmt` doesn't exit").
+func (m *Manager) closeFailed(ctx context.Context, slot string, err error, answered bool) {
+	if !errors.Is(err, ErrKilled) && !errors.Is(err, ErrKillFailed) {
 		m.log.LogAttrs(ctx, slog.LevelWarn, "wb-diskfmt ended with an error",
 			slog.String("slot", slot), slog.String("error", bound(err.Error())))
 		return
 	}
+	attrs := []slog.Attr{
+		slog.String("rule", string(RuleShimExit)), slog.String("slot", slot),
+		slog.String("error", bound(err.Error())),
+	}
+	if answered {
+		m.log.LogAttrs(ctx, slog.LevelError, "wb-diskfmt didn't exit after its format answer", attrs...)
+		return
+	}
 	image := filepath.Join(vmbundle.Path(m.cfg.DataDir, slot), vmbundle.DataDiskTempName)
-	m.log.LogAttrs(ctx, slog.LevelError, "wb-diskfmt was killed, and a device backed by the image may be left attached",
-		slog.String("rule", string(RuleShimExit)), slog.String("slot", slot), slog.String("image", image),
-		slog.String("error", bound(err.Error())))
+	m.log.LogAttrs(ctx, slog.LevelError, "wb-diskfmt didn't exit before its format answer, and a device backed by the image may still be attached",
+		append(attrs, slog.String("image", image))...)
 }
 
 func recordFailed(slot string, err error) *Refusal {

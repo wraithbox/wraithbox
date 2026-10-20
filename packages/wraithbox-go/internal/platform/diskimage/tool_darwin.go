@@ -29,6 +29,10 @@ var diskutilEnv = []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LANG=C"}
 const (
 	maxOutput    = 4 << 20
 	maxErrOutput = 4 << 10
+	// outputWait is how long a run waits for diskutil's output after it
+	// exits or its deadline passes. A process that holds the pipes past
+	// that doesn't hold up the run.
+	outputWait = 5 * time.Second
 )
 
 // Tool is the disk tool of internal/diskfmt on macOS: diskutil, and the
@@ -108,6 +112,7 @@ func (t *Tool) run(ctx context.Context, timeout time.Duration, args ...string) (
 	defer cancel()
 	cmd := exec.CommandContext(ctx, Diskutil, args...)
 	cmd.Env = diskutilEnv
+	cmd.WaitDelay = outputWait
 	stdout := &boundedBuffer{max: maxOutput}
 	stderr := &boundedBuffer{max: maxErrOutput}
 	cmd.Stdout, cmd.Stderr = stdout, stderr

@@ -460,29 +460,51 @@ func TestNewRefusesSize(t *testing.T) {
 	}
 }
 
-// TestShimKilledLogged: a wb-diskfmt killed at its exit is logged with
-// data-disk-shim-exit and the temporary image a device may stay
-// attached to. Any other error at the exit names no image.
+// TestShimKilledLogged: a wb-diskfmt that didn't exit in time, killed
+// or not, is logged with data-disk-shim-exit. The line names the
+// temporary image a device may still be attached to only when the
+// format had no answer. Any other error at the exit has neither.
 func TestShimKilledLogged(t *testing.T) {
-	h := newHarness(t)
-	h.shim.OnClose = func(string) error { return fmt.Errorf("%w: signal: killed", datadisk.ErrKilled) }
-	if err := h.m.Prepare(t.Context(), "work"); err != nil {
-		t.Fatal(err)
+	noAnswer := func(string, uint32) (*diskfmtv1.FormatResult, error) {
+		return nil, errors.New("no answer from wb-diskfmt: i/o timeout")
 	}
-	logs := h.logs.String()
-	image, _ := json.Marshal(h.path(vmbundle.DataDiskTempName))
-	if !strings.Contains(logs, `"rule":"`+string(datadisk.RuleShimExit)+`"`) ||
-		!strings.Contains(logs, `"image":`+string(image)) {
-		t.Errorf("the kill isn't logged with its rule and the image:\n%s", logs)
+	refusal := func(string, uint32) (*diskfmtv1.FormatResult, error) {
+		return nil, &datadisk.ShimRefusal{Rule: "diskfmt-backing-path", Detail: "x"}
 	}
-
-	h = newHarness(t)
-	h.shim.OnClose = func(string) error { return errors.New("exit status 2") }
-	if err := h.m.Prepare(t.Context(), "work"); err != nil {
-		t.Fatal(err)
-	}
-	if logs := h.logs.String(); strings.Contains(logs, string(datadisk.RuleShimExit)) || !strings.Contains(logs, "exit status 2") {
-		t.Errorf("another exit error is logged as a kill, or not at all:\n%s", logs)
+	killed := fmt.Errorf("%w (signal: killed)", datadisk.ErrKilled)
+	killFailed := fmt.Errorf("%w: operation not permitted", datadisk.ErrKillFailed)
+	for _, tc := range []struct {
+		name          string
+		onFormat      func(string, uint32) (*diskfmtv1.FormatResult, error)
+		closeErr      error
+		rule, image   bool
+		prepareFailed bool
+	}{
+		{"killed after the answers", nil, killed, true, false, false},
+		{"killed after a refusal", refusal, killed, true, false, true},
+		{"killed with no answer", noAnswer, killed, true, true, true},
+		{"kill failed with no answer", noAnswer, killFailed, true, true, true},
+		{"another exit error", noAnswer, errors.New("exit status 2"), false, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			h.shim.OnFormat = tc.onFormat
+			h.shim.OnClose = func(string) error { return tc.closeErr }
+			if err := h.m.Prepare(t.Context(), "work"); (err != nil) != tc.prepareFailed {
+				t.Fatalf("Prepare = %v", err)
+			}
+			logs := h.logs.String()
+			image, _ := json.Marshal(h.path(vmbundle.DataDiskTempName))
+			if got := strings.Contains(logs, `"rule":"`+string(datadisk.RuleShimExit)+`"`); got != tc.rule {
+				t.Errorf("rule logged: %t, want %t\n%s", got, tc.rule, logs)
+			}
+			if got := strings.Contains(logs, `"image":`+string(image)); got != tc.image {
+				t.Errorf("image logged: %t, want %t\n%s", got, tc.image, logs)
+			}
+			if !strings.Contains(logs, tc.closeErr.Error()) {
+				t.Errorf("the exit error isn't logged:\n%s", logs)
+			}
+		})
 	}
 }
 

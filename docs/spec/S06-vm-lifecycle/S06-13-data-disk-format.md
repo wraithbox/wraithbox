@@ -64,28 +64,33 @@ device it attached.
 
 ### When `wb-diskfmt` doesn't exit
 
+This section holds when `wb-hostd` starts the shim itself, on hosts
+without `wb-launcher` (S04-04-vm-processes, "`wb-diskfmt`").
+
 `wb-diskfmt` leads its own process group, and each `diskutil` it runs
 is in that group. When the exchange has closed and the shim doesn't
 exit in time, `wb-hostd` kills the whole group, so no `diskutil` keeps
 running after the shim. A `diskutil` stopped part-way leaves its
 request with the daemon it asked, which finishes or abandons it.
 
-`wb-hostd` sends the kill only while the shim hasn't exited. The
+`wb-hostd` sends the kill only while it hasn't reaped the shim. The
 shim's process ID, which is also its group's ID, isn't reused before
-`wb-hostd` reaps the shim, so the kill can't reach another process
-group.
+that reap, so the kill can't reach another process group.
 
-After the kill, `wb-hostd` logs the rule `data-disk-shim-exit` and the
-path of the temporary image, which a device may still be attached to.
-It doesn't detach that device: only the shim attaches and detaches
-(S04-04-vm-processes, "`wb-diskfmt`"). The device is attached until the
-user ejects it or the host restarts. A later format is still safe.
-It deletes the leftover temporary file without attaching it, and its
-checks guard the device it attaches itself.
+After the kill, or a kill that failed, `wb-hostd` logs the rule
+`data-disk-shim-exit`. When the shim hadn't answered the format, the
+line also names the temporary image, which a device may still be
+attached to. `wb-hostd` doesn't detach that device: only the shim
+attaches and detaches (S04-04-vm-processes, "`wb-diskfmt`"). The device
+is attached until the user ejects it or the host restarts. A later
+format is still safe. It deletes the leftover temporary file without
+attaching it, and its checks guard the device it attaches itself.
 
-`wb-hostd` waits for the format's answer longer than the deadlines of
-the shim's `diskutil` steps add up to on their longest path, so a slow
-run that keeps to them gets its answer.
+Each `diskutil` step has a deadline, but the confined shim can't
+signal `diskutil`, so a `diskutil` that hangs runs past it. The bound
+is `wb-hostd`'s wait for the format's answer, and then the group kill.
+A slow run that keeps to its deadlines gets its answer in time, because
+the wait is longer than the sum of the deadlines on their longest path.
 
 ### The temporary and final names
 
