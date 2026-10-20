@@ -56,7 +56,12 @@ export const RULES = [
 	{ glob: '.github/dependabot.yml', jobs: ALL },
 	{ glob: 'scripts/**', jobs: ALL },
 
-	{ glob: 'packages/wraithbox-go/**', jobs: ['go'] },
+	// The Swift job builds the app bundle (app:bundle), which holds the Go
+	// programs, from the layout and check in internal/appbundle and the
+	// dev command cmd/wb-dev-app. Any file of the Go module can change a
+	// program in the bundle, so every one runs the bundle steps, the only
+	// steps of the Swift job that read Go (#354, #362).
+	{ glob: 'packages/wraithbox-go/**', jobs: ['go', 'bundle'] },
 	{ glob: '.golangci.yml', jobs: ['go'] },
 	// The gRPC contracts have a Go and a Swift side.
 	{ glob: '**/*.proto', jobs: ['go', 'swift', 'bundle'] },
@@ -72,12 +77,6 @@ export const RULES = [
 	{ glob: 'packages/wraithbox-go/go.sum', jobs: ['go', 'swift', 'bundle'] },
 	{ glob: 'go.work', jobs: ['go', 'swift', 'bundle'] },
 	{ glob: 'go.work.sum', jobs: ['go', 'swift', 'bundle'] },
-
-	// The Swift job builds the app bundle (app:bundle), which holds the Go
-	// programs, from the layout and check in internal/appbundle and the
-	// dev command cmd/wb-dev-app. Only its bundle steps read them (#354).
-	{ glob: 'packages/wraithbox-go/cmd/**', jobs: ['go', 'bundle'] },
-	{ glob: 'packages/wraithbox-go/internal/appbundle/**', jobs: ['go', 'bundle'] },
 
 	// Every Swift input runs the whole Swift job, bundle steps included.
 	{ glob: 'packages/wraithbox-swift/**', jobs: ['swift', 'bundle'] },

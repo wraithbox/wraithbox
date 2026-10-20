@@ -113,9 +113,10 @@ jobs:
     # tools version (6.2) is the floor. See docs/spec/S02-toolchain.md.
     #
     # Skipped only when detection succeeded and found neither a Swift
-    # input nor a bundle input changed. A change to the Go programs or the
-    # bundle layout alone runs only the build, sign and bundle steps
-    # (`bundle`); every Swift input runs them all (`swift`).
+    # input nor a bundle input changed. A change to any file of the Go
+    # module alone runs only the build, sign and bundle steps (`bundle`),
+    # because the bundle holds the Go programs. Every Swift input runs
+    # them all (`swift`).
     needs: changes
     if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false' && needs.changes.outputs.bundle == 'false') }}
     runs-on: macos-26
@@ -136,12 +137,12 @@ jobs:
       # swift-crypto with BoringSSL, swift-nio, gRPC), debug and release,
       # which take most of this job to build from source (#354). The key
       # is the runner image, the architecture, the Xcode version and the
-      # package manifest and lock. Restored on every run, saved only by a
-      # push to main (the save step below), so a pull request never writes
-      # a cache that main restores. A miss or a stale cache only costs
-      # time: SwiftPM rebuilds what changed, and tests always run. The
-      # bundle work directory and outputs are left out, because
-      # app:bundle deletes and rebuilds them on every run.
+      # package manifest and lock. A run with no exact match restores the
+      # newest cache of the same image, architecture and Xcode
+      # (restore-keys). Restored on every run, saved only by a push to main
+      # (the save step below), so a pull request never writes a cache that
+      # main restores. A miss or a stale cache only costs time: SwiftPM
+      # rebuilds what changed, and tests always run.
       - name: Swift build cache key
         id: swift-cache-key
         run: |
@@ -152,11 +153,7 @@ jobs:
         id: swift-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            packages/wraithbox-swift/.build
-            !packages/wraithbox-swift/.build/app-work
-            !packages/wraithbox-swift/.build/signed
-            !packages/wraithbox-swift/.build/Wraith Box.app
+          path: packages/wraithbox-swift/.build
           key: ${{ steps.swift-cache-key.outputs.prefix }}${{ hashFiles('packages/wraithbox-swift/Package.resolved', 'packages/wraithbox-swift/Package.swift') }}
           restore-keys: ${{ steps.swift-cache-key.outputs.prefix }}
 
@@ -187,17 +184,42 @@ jobs:
       - name: Bundle (ad-hoc Wraith Box.app + entitlement check)
         run: mise run app:bundle
 
+      # Deletes, just before the save and only when it saves, what the next
+      # run builds again or never reads. The cache then holds mostly the
+      # compiled dependencies (#362). It deletes the bundle work directory
+      # and outputs, which app:bundle deletes first; the package's own
+      # programs and test bundle, which link the package's own modules and
+      # so link again after every checkout; the debug symbols (.dSYM) of
+      # the linked programs; and the index store, which no build reads. A
+      # delete and not `!` patterns in `path`: actions/cache hands the
+      # directories it matches to tar, which takes everything below them.
+      # The paths follow SwiftPM's native build layout,
+      # .build/<triple>/<debug|release>. The checkouts stay, because they
+      # borrow their git objects from .build/repositories.
+      #
+      # The trade-off (#362): one cache of about 0.5 GB compressed (0.7 GB
+      # untrimmed) per runner image, Xcode, Package.swift and
+      # Package.resolved, against about 9 of the job's 14 minutes. A new
+      # image every week or so adds an entry. The old one, no longer
+      # restored, is the first that GitHub's least recently used eviction
+      # removes under the repository's 10 GB limit, before the bun and
+      # mise caches that every run restores.
+      - name: Trim Swift build cache
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.swift-cache.outputs.cache-hit != 'true' }}
+        working-directory: packages/wraithbox-swift/.build
+        run: |
+          rm -rf -- app-work signed "Wraith Box.app"
+          rm -rf -- *-apple-macosx/*/*.dSYM *-apple-macosx/*/*.xctest *-apple-macosx/*/index
+          rm -f -- *-apple-macosx/*/wb-vmd *-apple-macosx/*/wb-dev-bundle
+          du -sh .
+
       # Only a push to main saves, and only when no cache had this exact
       # key: a pull request run restores main's cache and saves nothing.
       - name: Save Swift build cache
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.swift-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            packages/wraithbox-swift/.build
-            !packages/wraithbox-swift/.build/app-work
-            !packages/wraithbox-swift/.build/signed
-            !packages/wraithbox-swift/.build/Wraith Box.app
+          path: packages/wraithbox-swift/.build
           key: ${{ steps.swift-cache.outputs.cache-primary-key }}
 
   docs:

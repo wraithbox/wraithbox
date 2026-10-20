@@ -61,18 +61,23 @@ runs every check. The `CI result` job is the one required check
 scan, and fails unless each passed or was skipped because its inputs
 did not change.
 
-A change to the Go programs or the bundle layout alone runs the build,
-sign, and bundle steps of the Swift job, because the app bundle holds
-the Go programs, and skips its lint, contract, and test steps. The other
-Swift inputs, such as Swift sources, the contracts, and the version
-stamp, run the whole Swift job.
+A change to any file of the Go module alone runs the build, sign, and
+bundle steps of the Swift job, because the app bundle holds the Go
+programs, and skips its lint, contract, and test steps. The other Swift
+inputs, such as Swift sources, the contracts, the version stamp, and
+`go.mod`, run the whole Swift job.
 
 The Swift job caches SwiftPM's `.build`, the compiled dependencies,
-keyed on the runner image, the Xcode version, `Package.swift`, and
-`Package.resolved`. Each run restores it. A push to `main` saves it,
-and a pull request doesn't, so a pull request can't write a cache that
-`main` restores. A miss costs time and nothing else: no step depends on
-a hit, and tests always run.
+keyed on the runner image, the runner architecture (`RUNNER_ARCH`), the
+Xcode version, `Package.swift`, and `Package.resolved`. Each run
+restores it. Without an exact match, a run restores the newest cache of
+the same image, architecture, and Xcode, whatever its `Package.swift`
+and `Package.resolved` (`restore-keys`). A push to `main` saves it, and
+a pull request doesn't, so a pull request can't write a cache that
+`main` restores. Before the save, the job deletes what every run builds
+again, such as the package's own programs and debug symbols. What the cache
+keeps is mostly the compiled dependencies. A miss costs time and
+nothing else: no step depends on a hit, and tests always run.
 
 ### Go on three operating systems
 

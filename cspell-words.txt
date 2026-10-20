@@ -222,6 +222,7 @@ astrojs
 gomod
 xcodeproj
 xcuserdata
+xctest
 bodyclose
 errorlint
 gocritic
