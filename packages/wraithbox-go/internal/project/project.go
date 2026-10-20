@@ -105,7 +105,9 @@ const (
 	// (S12-platforms).
 	RuleHostUnsupported Rule = "project-host-unsupported"
 	// RuleDirUnreadable: a directory or `.git` entry on the way couldn't
-	// be read, or a path couldn't be put in canonical form.
+	// be read, a path couldn't be put in canonical form, or the
+	// directory's canonical form holds a control character or isn't
+	// UTF-8.
 	RuleDirUnreadable Rule = "project-dir-unreadable"
 	// RuleNotInRepo: no `.git` entry from the directory up to the root.
 	RuleNotInRepo Rule = "project-not-in-repo"

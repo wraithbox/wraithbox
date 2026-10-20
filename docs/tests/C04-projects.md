@@ -56,8 +56,8 @@ again or changes its remote, and the project commands.
   `GIT_CONFIG_COUNT` set in the environment to point at project A or
   rewrite its configuration, and see it resolve to the directory's own
   repository, not A.
-- Run `wb trust` and `wb project place` in the first two directories,
-  and see them refused the same way.
+- Run `wb trust` and `wb project place` in each directory whose `.git`
+  file or link points elsewhere, and see them refused the same way.
 
 ### Project commands
 

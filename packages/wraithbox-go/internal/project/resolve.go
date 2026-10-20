@@ -99,6 +99,11 @@ func findGitEntry(dir string) (string, bool, *Refusal) {
 	if ref != nil {
 		return "", false, ref
 	}
+	// The directory becomes Repo.Dir and is printed, so it gets the
+	// checks of the paths git prints.
+	if err := checkPath(d); err != nil {
+		return "", false, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the directory %q %v", d, err)}
+	}
 	for {
 		info, err := os.Lstat(filepath.Join(d, gitEntry))
 		switch {
