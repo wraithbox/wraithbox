@@ -133,35 +133,41 @@ func (p *Pending) Cancel() {
 
 // Run receives records until the channel ends, and returns nil when
 // wb-vmd closed its end or Close was called. A refused record is logged
-// and skipped. A transport refusal after which fdchan may have closed
-// the channel ends Run with that refusal, as does any other receive
-// error.
+// and skipped. A transport refusal after which fdchan closed the channel
+// ends Run with that refusal, as does any other receive error.
+//
+// When Run returns, the receiver is closed: Expect refuses with
+// RuleClosed, and every open request fails at once.
 func (r *Receiver) Run() error {
+	defer func() { _ = r.Close() }()
+	var last *fdchan.Refusal
 	for {
 		err := r.Receive()
 		switch {
 		case err == nil:
 		case errors.Is(err, io.EOF), r.isClosed():
 			return nil
-		case !fatal(err):
-		default:
+		case fatal(err, last):
 			return err
 		}
+		last, _ = errors.AsType[*fdchan.Refusal](err)
 	}
 }
 
 // fatal reports whether a receive error ends the receiver: anything but
-// the refusal of one record.
-func fatal(err error) bool {
+// the refusal of one record. fdchan ends its channel after
+// RuleControlTruncated, and after a RuleFDTableFull whose message it
+// couldn't drop. An ended channel returns the refusal that ended it
+// again on every Recv, so the same refusal twice means it ended.
+func fatal(err error, last *fdchan.Refusal) bool {
 	if _, ok := errors.AsType[*Refusal](err); ok {
 		return false
 	}
-	if fr, ok := errors.AsType[*fdchan.Refusal](err); ok {
-		// After these two, fdchan may have closed the channel, and then
-		// every later Recv returns the same refusal.
-		return fr.Rule == fdchan.RuleControlTruncated || fr.Rule == fdchan.RuleFDTableFull
+	fr, ok := errors.AsType[*fdchan.Refusal](err)
+	if !ok {
+		return true
 	}
-	return true
+	return fr.Rule == fdchan.RuleControlTruncated || fr == last
 }
 
 func (r *Receiver) isClosed() bool {
@@ -182,20 +188,15 @@ func (r *Receiver) Receive() error {
 	if err != nil {
 		return err
 	}
-	if m.File == nil {
-		return r.refuse(m, nil, &Refusal{Rule: RuleFDCount, msg: "the record came without a descriptor"})
-	}
-	family, sockType, err := fdchan.SocketType(m.File)
-	if err != nil || family != syscall.AF_UNIX || sockType != syscall.SOCK_STREAM {
-		return r.refuse(m, nil, &Refusal{
-			Rule: RuleSocketType,
-			msg:  fmt.Sprintf("the descriptor is not an AF_UNIX stream socket (family %d, type %d)", family, sockType),
-			err:  err,
-		})
-	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	// The record is decoded first, fdchan having bounded it at
+	// MaxRecord bytes, so that a refusal of its descriptor reaches the
+	// request it names instead of leaving that request to time out.
 	msg, req, ref := r.t.check(m.Record)
+	if ref == nil {
+		ref = checkDescriptor(m)
+	}
 	if ref != nil {
 		if req != nil {
 			req.done <- result{err: ref}
@@ -217,6 +218,24 @@ func (r *Receiver) Receive() error {
 	req.done <- result{conn: conn}
 	r.log.LogAttrs(context.Background(), slog.LevelInfo, "guest connection handed off",
 		append([]slog.Attr{slog.String("decision", "accept")}, messageAttrs(msg)...)...)
+	return nil
+}
+
+// checkDescriptor refuses a record without a descriptor, or with one
+// that isn't an AF_UNIX stream socket, which a vsock connection's
+// descriptor is on macOS (X18-vsock-handoff).
+func checkDescriptor(m *fdchan.Message) *Refusal {
+	if m.File == nil {
+		return &Refusal{Rule: RuleFDCount, msg: "the record came without a descriptor"}
+	}
+	family, sockType, err := fdchan.SocketType(m.File)
+	if err != nil || family != syscall.AF_UNIX || sockType != syscall.SOCK_STREAM {
+		return &Refusal{
+			Rule: RuleSocketType,
+			msg:  fmt.Sprintf("the descriptor is not an AF_UNIX stream socket (family %d, type %d)", family, sockType),
+			err:  err,
+		}
+	}
 	return nil
 }
 

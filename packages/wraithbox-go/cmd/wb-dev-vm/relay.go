@@ -95,6 +95,12 @@ func relayClient(ctx context.Context, log *slog.Logger, client net.Conn, dial fu
 		return
 	}
 	defer func() { _ = guest.Close() }()
+	// Ctrl-C ends the copies, which would otherwise wait on both peers.
+	stop := context.AfterFunc(ctx, func() {
+		_ = client.Close()
+		_ = guest.Close()
+	})
+	defer stop()
 	relay(client, guest)
 }
 

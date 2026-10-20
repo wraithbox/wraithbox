@@ -185,6 +185,13 @@ longer than a timeout in code is refused with `vm-connect-failed` or
 `handoff-send-failed`. After each of these refusals, `wb-vmd` hasn't
 sent a record, and has closed any connection it opened.
 
+On the host, `internal/vmdlink` refuses a guest port of 0 or of 1024
+or more itself (`guest-port-invalid`) before it asks `wb-vmd`. It gives
+the `ConnectGuest` call a deadline of its own, longer than `wb-vmd`'s
+connect timeout, so a `wb-vmd` that doesn't answer can't hold the caller.
+Once the call returns, it waits a short time for the record
+(`handoff-missing`).
+
 ### Restore
 
 A restore ends every connection. The saved VM's descriptors read EOF

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -43,11 +44,14 @@ type fakeVMD struct {
 	// port, when set, replaces the destination port of the record.
 	port uint32
 
+	calls atomic.Int32
+
 	mu      sync.Mutex
 	servers []*grpc.Server
 }
 
 func (v *fakeVMD) ConnectGuest(_ context.Context, req *vmdv1.ConnectGuestRequest) (*vmdv1.ConnectGuestResponse, error) {
+	v.calls.Add(1)
 	if v.refuse != "" {
 		st, err := status.New(codes.InvalidArgument, v.refuse).WithDetails(&errdetails.ErrorInfo{Reason: v.refuse, Domain: "wb-vmd"})
 		if err != nil {
@@ -199,25 +203,31 @@ func TestConnectRefusals(t *testing.T) {
 	cases := []struct {
 		name          string
 		vmd           *fakeVMD
+		port          uint32
 		rule, vmdRule string
 	}{
-		{"wb-vmd refuses", &fakeVMD{refuse: "guest-port-not-reserved"}, RuleConnectRefused, "guest-port-not-reserved"},
-		{"wb-vmd's rule is not a rule name", &fakeVMD{refuse: "bad\nrule"}, RuleConnectRefused, `"bad\nrule"`},
-		{"no hand-off", &fakeVMD{silent: true}, RuleHandoffMissing, ""},
-		{"another port", &fakeVMD{port: 22}, string(vmhandoff.RuleUnexpected), ""},
+		{"wb-vmd refuses", &fakeVMD{refuse: "vm-not-running"}, 1023, RuleConnectRefused, "vm-not-running"},
+		{"wb-vmd's rule is not a rule name", &fakeVMD{refuse: "bad\nrule"}, 1023, RuleConnectRefused, `"bad\nrule"`},
+		{"no hand-off", &fakeVMD{silent: true}, 1023, RuleHandoffMissing, ""},
+		{"another port", &fakeVMD{port: 22}, 1023, string(vmhandoff.RuleUnexpected), ""},
+		{"port 1024", &fakeVMD{}, 1024, RuleGuestPort, ""},
+		{"port 0", &fakeVMD{}, 0, RuleGuestPort, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			l := newLink(t, c.vmd)
 			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 			defer cancel()
-			conn, err := l.ConnectGuest(ctx, 1, 1023)
+			conn, err := l.ConnectGuest(ctx, 1, c.port)
 			if conn != nil {
 				_ = conn.Close()
 			}
 			r, ok := errors.AsType[*Refusal](err)
 			if !ok || r.Rule != c.rule || r.VMDRule != c.vmdRule {
 				t.Fatalf("ConnectGuest = %v, want rule %s with wb-vmd rule %q", err, c.rule, c.vmdRule)
+			}
+			if c.rule == RuleGuestPort && c.vmd.calls.Load() != 0 {
+				t.Fatal("wb-vmd was asked for a port the host refuses")
 			}
 		})
 	}

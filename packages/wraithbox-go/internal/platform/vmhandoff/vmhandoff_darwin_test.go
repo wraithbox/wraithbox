@@ -259,24 +259,39 @@ func TestReceiveAccepted(t *testing.T) {
 }
 
 // TestRefusalReachesRequest: a record for an open request that fails a
-// check gives the request the refusal, and a second record for it is
-// refused as unexpected.
+// check, of its fields or of its descriptor, gives the request the
+// refusal at once, and a second record for it is refused as unexpected.
 func TestRefusalReachesRequest(t *testing.T) {
+	cases := []struct {
+		name   string
+		record func(*testing.T) []byte
+		fds    func(*testing.T) []int
+		rule   Rule
+	}{
+		{"other port", changed(func(m *vmdv1.HandoffMessage) { m.DestinationPort = 22 }), oneStream, RuleUnexpected},
+		{"no descriptor", goodRecord, noFDs, RuleFDCount},
+		{"a pipe", goodRecord, pipeEnd, RuleSocketType},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) { checkReachesRequest(t, c.record(t), c.fds(t), c.rule) })
+	}
+}
+
+func checkReachesRequest(t *testing.T, record []byte, fds []int, rule Rule) {
 	f := newFixture(t)
 	p, err := f.rx.Expect(7, 3, 1023)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := good()
-	m.DestinationPort = 22
-	c, guest := streamPair(t)
-	defer func() { _ = syscall.Close(guest) }()
-	f.sendRaw(t, marshal(t, m), c)
-	if err := f.rx.Receive(); ruleOf(err) != string(RuleUnexpected) {
-		t.Fatalf("Receive = %v", err)
+	f.sendRaw(t, record, fds...)
+	if err := f.rx.Receive(); ruleOf(err) != string(rule) {
+		t.Fatalf("Receive = %v, want %s", err, rule)
 	}
-	if _, err := p.Wait(t.Context()); ruleOf(err) != string(RuleUnexpected) {
-		t.Fatalf("Wait = %v, want %s", err, RuleUnexpected)
+	// At once, not after a timeout.
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	if _, err := p.Wait(ctx); ruleOf(err) != string(rule) {
+		t.Fatalf("Wait = %v, want %s", err, rule)
 	}
 	c2, guest2 := streamPair(t)
 	defer func() { _ = syscall.Close(guest2) }()
@@ -344,9 +359,48 @@ func TestCancelAndClose(t *testing.T) {
 // when wb-vmd closes its end.
 func TestRunEndsAtPeerClose(t *testing.T) {
 	f := newFixture(t)
+	p, err := f.rx.Expect(7, 3, 1023)
+	if err != nil {
+		t.Fatal(err)
+	}
 	f.sendRaw(t, []byte{0xff})
 	_ = syscall.Close(f.send)
 	if err := f.rx.Run(); err != nil && !errors.Is(err, io.EOF) {
 		t.Fatalf("Run = %v, want nil", err)
+	}
+	// Run closed the receiver: the open request fails at once, and a
+	// new one is refused.
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	if _, err := p.Wait(ctx); ruleOf(err) != string(RuleClosed) {
+		t.Fatalf("Wait after Run = %v, want %s", err, RuleClosed)
+	}
+	if _, err := f.rx.Expect(8, 3, 1023); ruleOf(err) != string(RuleClosed) {
+		t.Fatalf("Expect after Run = %v, want %s", err, RuleClosed)
+	}
+}
+
+// TestFatal: fdchan's descriptor table refusal ends Run only when fdchan
+// ended its channel, which it shows by returning the same refusal again.
+func TestFatal(t *testing.T) {
+	full := &fdchan.Refusal{Rule: fdchan.RuleFDTableFull}
+	cases := []struct {
+		name string
+		err  error
+		last *fdchan.Refusal
+		want bool
+	}{
+		{"own refusal", &Refusal{Rule: RuleMalformed}, nil, false},
+		{"table full, dropped", full, nil, false},
+		{"table full, channel ended", full, full, true},
+		{"another table full after a drop", &fdchan.Refusal{Rule: fdchan.RuleFDTableFull}, full, false},
+		{"control truncated", &fdchan.Refusal{Rule: fdchan.RuleControlTruncated}, nil, true},
+		{"record size", &fdchan.Refusal{Rule: fdchan.RuleRecordSize}, nil, false},
+		{"other error", errors.New("recvmsg: EBADF"), nil, true},
+	}
+	for _, c := range cases {
+		if got := fatal(c.err, c.last); got != c.want {
+			t.Errorf("%s: fatal = %v, want %v", c.name, got, c.want)
+		}
 	}
 }

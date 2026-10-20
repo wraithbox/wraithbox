@@ -34,6 +34,17 @@ import (
 // it is normally there already.
 const HandoffTimeout = 5 * time.Second
 
+// RPCTimeout bounds the ConnectGuest call itself: wb-vmd's own connect
+// timeout of 5 seconds, and slack for the call and the send
+// (S04-02-vm-provider, "Caps and closing"). A wb-vmd that doesn't answer
+// can't hold the caller longer.
+const RPCTimeout = 10 * time.Second
+
+// FirstUnreservedPort is the lowest guest port the host never connects
+// to: every guest port it connects to is below 1024, where only guest
+// root can listen (S04-02-vm-provider, "Guest ports below 1024").
+const FirstUnreservedPort = 1024
+
 // errorDomain is the ErrorInfo domain of wb-vmd's refusals.
 const errorDomain = "wb-vmd"
 
@@ -49,6 +60,10 @@ const (
 	// RuleHandoffMissing: wb-vmd answered ConnectGuest, and no
 	// connection came for the request within HandoffTimeout.
 	RuleHandoffMissing = "handoff-missing"
+	// RuleGuestPort: a connection to guest port 0, or to one of 1024 or
+	// above, refused before wb-vmd is asked. wb-vmd refuses the same
+	// ports itself.
+	RuleGuestPort = "guest-port-invalid"
 )
 
 // Refusal is the error of a refused ConnectGuest.
@@ -100,11 +115,19 @@ func New(client vmdv1.VMServiceClient, rx *vmhandoff.Receiver, log *slog.Logger)
 // closed.
 func (l *Link) ConnectGuest(ctx context.Context, generation uint64, port uint32) (net.Conn, error) {
 	id := l.ids.Add(1)
+	if port == 0 || port >= FirstUnreservedPort {
+		return nil, l.refuse(ctx, id, generation, port, &Refusal{
+			Rule: RuleGuestPort,
+			msg:  fmt.Sprintf("guest port %d is not 1 to %d", port, FirstUnreservedPort-1),
+		})
+	}
 	pending, err := l.rx.Expect(id, generation, port)
 	if err != nil {
 		return nil, fmt.Errorf("vmdlink: %w", err)
 	}
-	_, err = l.client.ConnectGuest(ctx, &vmdv1.ConnectGuestRequest{Generation: generation, RequestId: id, GuestPort: port})
+	rpcCtx, cancelRPC := context.WithTimeout(ctx, RPCTimeout)
+	_, err = l.client.ConnectGuest(rpcCtx, &vmdv1.ConnectGuestRequest{Generation: generation, RequestId: id, GuestPort: port})
+	cancelRPC()
 	if err != nil {
 		pending.Cancel()
 		return nil, l.refuse(ctx, id, generation, port, rpcRefusal(err))

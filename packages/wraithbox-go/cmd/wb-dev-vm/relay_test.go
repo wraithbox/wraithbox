@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"io"
+	"log/slog"
 	"net"
 	"testing"
 	"time"
@@ -46,6 +48,26 @@ func closeWrite(t *testing.T, c net.Conn) {
 	}
 	if err := hc.CloseWrite(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestRelayEndsOnCancel: a relay with both peers still open ends when
+// ctx does, as on Ctrl-C.
+func TestRelayEndsOnCancel(t *testing.T) {
+	_, clientSide := tcpPair(t)
+	guestSide, _ := tcpPair(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		relayClient(ctx, slog.New(slog.DiscardHandler), clientSide,
+			func(context.Context) (net.Conn, error) { return guestSide, nil })
+		close(done)
+	}()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the relay didn't end when its context did")
 	}
 }
 
