@@ -113,10 +113,11 @@ jobs:
     # tools version (6.2) is the floor. See docs/spec/S02-toolchain.md.
     #
     # Skipped only when detection succeeded and found neither a Swift
-    # input nor a bundle input changed. A change to any file of the Go
-    # module alone runs only the build, sign and bundle steps (`bundle`),
-    # because the bundle holds the Go programs. Every Swift input runs
-    # them all (`swift`).
+    # input nor a bundle input changed. A change to the Go module alone
+    # runs only the build, sign and bundle steps (`bundle`), because the
+    # bundle holds the Go programs. Every Swift input runs them all
+    # (`swift`), and so do the Go files swift:build reads: go.mod, go.sum,
+    # internal/version and internal/tools/buildversion.
     needs: changes
     if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false' && needs.changes.outputs.bundle == 'false') }}
     runs-on: macos-26
@@ -194,8 +195,12 @@ jobs:
       # delete and not `!` patterns in `path`: actions/cache hands the
       # directories it matches to tar, which takes everything below them.
       # The paths follow SwiftPM's native build layout,
-      # .build/<triple>/<debug|release>. The checkouts stay, because they
-      # borrow their git objects from .build/repositories.
+      # .build/<triple>/<debug|release>, and the step fails when that
+      # layout is missing, so a new layout can't make it delete nothing.
+      # The checkouts stay, because they borrow their git objects from
+      # .build/repositories. The package's own target objects and modules
+      # stay too: every run compiles them again, but the largest is about
+      # 5 MB of 1.4 GB, and deleting them would need a list of names.
       #
       # The trade-off (#362): one cache of about 0.5 GB compressed (0.7 GB
       # untrimmed) per runner image, Xcode, Package.swift and
@@ -208,6 +213,12 @@ jobs:
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.swift-cache.outputs.cache-hit != 'true' }}
         working-directory: packages/wraithbox-swift/.build
         run: |
+          shopt -s nullglob
+          configs=(*-apple-macosx/debug *-apple-macosx/release)
+          if [ "${#configs[@]}" -ne 2 ]; then
+            echo "Trim: expected one <triple>/debug and one <triple>/release in .build, found ${configs[*]:-none}; the build layout changed, so update this step" >&2
+            exit 1
+          fi
           rm -rf -- app-work signed "Wraith Box.app"
           rm -rf -- *-apple-macosx/*/*.dSYM *-apple-macosx/*/*.xctest *-apple-macosx/*/index
           rm -f -- *-apple-macosx/*/wb-vmd *-apple-macosx/*/wb-dev-bundle

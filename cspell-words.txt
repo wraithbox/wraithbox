@@ -223,6 +223,8 @@ gomod
 xcodeproj
 xcuserdata
 xctest
+nullglob
+shopt
 bodyclose
 errorlint
 gocritic
