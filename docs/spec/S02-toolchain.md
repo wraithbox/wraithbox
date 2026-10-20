@@ -61,11 +61,12 @@ runs every check. The `CI result` job is the one required check
 scan, and fails unless each passed or was skipped because its inputs
 did not change.
 
-A change to any file of the Go module alone runs the build, sign, and
-bundle steps of the Swift job, because the app bundle holds the Go
-programs, and skips its lint, contract, and test steps. The other Swift
-inputs, such as Swift sources, the contracts, the version stamp, and
-`go.mod`, run the whole Swift job.
+A change to the Go module alone runs the build, sign, and bundle steps
+of the Swift job, because the app bundle holds the Go programs, and
+skips its lint, contract, and test steps. The Go files that the Swift
+build reads are the exceptions: `go.mod`, `go.sum`, the version package
+and the stamping tool run the whole Swift job, like the other Swift
+inputs, such as Swift sources, the contracts, and the version stamp.
 
 The Swift job caches SwiftPM's `.build`, the compiled dependencies,
 keyed on the runner image, the runner architecture (`RUNNER_ARCH`), the
