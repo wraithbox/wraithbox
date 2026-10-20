@@ -90,7 +90,8 @@ The list is the one X19-terminal-filter measured with Claude Code
 
 - modes the recordings don't hold are left off;
 - each cap is above the largest value recorded.
-- the soft reset `! p`, which the recordings hold, is left off (I345).
+
+The soft reset `! p` left the list later (I345).
 
 OSC 10 to 12 queries stay, because the Claude Code binary holds the
 background color query.
