@@ -79,6 +79,11 @@ large_tuple:
 # passthrough and custom virtio devices. The rule matches comments and
 # strings too, so a class looked up by its name is caught.
 #
+# It also refuses the host vsock listener, its delegate and the call that
+# registers one: the host opens every connection, so nothing in the guest
+# can dial the host (S04-02-vm-provider, "The host opens every
+# connection"; B29-vsock-handoff).
+#
 # One file is excepted: the NAT network of wb-dev-bundle's provisioning
 # boot, which test guests in the spike cache get (I350). wb-dev-bundle is
 # dev-only test tooling, an executable target that only its tests depend
@@ -88,10 +93,10 @@ large_tuple:
 custom_rules:
   vmd_refused_device_class:
     name: "Refused Virtualization device class"
-    message: "wb-vmd never configures this device or attachment (S04-02-vm-provider, \"The device set is fixed and checked\")"
+    message: "wb-vmd never configures this device or attachment, or a host vsock listener (S04-02-vm-provider, \"The device set is fixed and checked\", \"The host opens every connection\")"
     included: "packages/wraithbox-swift/Sources/.*\\.swift$"
     excluded: "packages/wraithbox-swift/Sources/wb-dev-bundle/ProvisionBoot\\.swift$"
-    regex: "\\b(VZNATNetworkDeviceAttachment|VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZDirectoryShare|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZDirectorySharingDeviceConfiguration|VZVirtioFileSystemDeviceConfiguration|VZAudioDeviceConfiguration|VZVirtioSoundDeviceConfiguration|VZVirtioSoundDeviceStreamConfiguration|VZAudioInputStreamSource|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZConsoleDeviceConfiguration|VZConsolePortConfiguration|VZVirtioConsoleDeviceConfiguration|VZVirtioConsolePortConfiguration|VZVirtioConsoleDeviceSerialPortConfiguration|VZSerialPortConfiguration|VZSerialPortAttachment|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration)\\b"
+    regex: "\\b(VZNATNetworkDeviceAttachment|VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZDirectoryShare|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZDirectorySharingDeviceConfiguration|VZVirtioFileSystemDeviceConfiguration|VZAudioDeviceConfiguration|VZVirtioSoundDeviceConfiguration|VZVirtioSoundDeviceStreamConfiguration|VZAudioInputStreamSource|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZConsoleDeviceConfiguration|VZConsolePortConfiguration|VZVirtioConsoleDeviceConfiguration|VZVirtioConsolePortConfiguration|VZVirtioConsoleDeviceSerialPortConfiguration|VZSerialPortConfiguration|VZSerialPortAttachment|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration|VZVirtioSocketListener|VZVirtioSocketListenerDelegate|setSocketListener)\\b"
     severity: error
   # The excepted file is checked against every other class of the rule
   # above, so only the NAT attachment is allowed in it.
@@ -99,5 +104,5 @@ custom_rules:
     name: "Refused Virtualization device class in the provisioning boot"
     message: "wb-dev-bundle's provisioning boot adds only the NAT network to the device set (S04-02-vm-provider, I350)"
     included: "packages/wraithbox-swift/Sources/wb-dev-bundle/ProvisionBoot\\.swift$"
-    regex: "\\b(VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZDirectoryShare|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZDirectorySharingDeviceConfiguration|VZVirtioFileSystemDeviceConfiguration|VZAudioDeviceConfiguration|VZVirtioSoundDeviceConfiguration|VZVirtioSoundDeviceStreamConfiguration|VZAudioInputStreamSource|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZConsoleDeviceConfiguration|VZConsolePortConfiguration|VZVirtioConsoleDeviceConfiguration|VZVirtioConsolePortConfiguration|VZVirtioConsoleDeviceSerialPortConfiguration|VZSerialPortConfiguration|VZSerialPortAttachment|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration)\\b"
+    regex: "\\b(VZBridgedNetworkDeviceAttachment|VZVmnetNetworkDeviceAttachment|VZSharedDirectory|VZDirectoryShare|VZSingleDirectoryShare|VZMultipleDirectoryShare|VZLinuxRosettaDirectoryShare|VZDirectorySharingDeviceConfiguration|VZVirtioFileSystemDeviceConfiguration|VZAudioDeviceConfiguration|VZVirtioSoundDeviceConfiguration|VZVirtioSoundDeviceStreamConfiguration|VZAudioInputStreamSource|VZHostAudioInputStreamSource|VZVirtioSoundDeviceInputStreamConfiguration|VZConsoleDeviceConfiguration|VZConsolePortConfiguration|VZVirtioConsoleDeviceConfiguration|VZVirtioConsolePortConfiguration|VZVirtioConsoleDeviceSerialPortConfiguration|VZSerialPortConfiguration|VZSerialPortAttachment|VZSpiceAgentPortAttachment|VZUSBMassStorageDeviceConfiguration|VZUSBPassthroughDeviceConfiguration|VZNetworkBlockDeviceStorageDeviceAttachment|VZDiskBlockDeviceStorageDeviceAttachment|VZFileSerialPortAttachment|VZFileHandleSerialPortAttachment|VZCustomVirtioDeviceConfiguration|VZVirtioSocketListener|VZVirtioSocketListenerDelegate|setSocketListener)\\b"
     severity: error

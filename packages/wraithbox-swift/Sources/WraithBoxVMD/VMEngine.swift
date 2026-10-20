@@ -88,4 +88,8 @@ public protocol EngineVM: AnyObject {
     func requestStop() throws(VMFailure)
     /// Stops the VM at once.
     func forceStop() async throws(VMFailure)
+    /// Opens a connection to `port` in the guest, through the VM's one
+    /// virtio socket device, and calls `completion` once, on the main
+    /// actor, with the connection or the error.
+    func connect(toPort port: UInt32, completion: @escaping GuestConnectHandler)
 }

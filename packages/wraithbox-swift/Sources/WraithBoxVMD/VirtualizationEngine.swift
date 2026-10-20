@@ -186,6 +186,24 @@ final class VirtualizationVM: NSObject, EngineVM, VZVirtualMachineDelegate {
         }
     }
 
+    func connect(toPort port: UInt32, completion: @escaping GuestConnectHandler) {
+        guard let device = machine.socketDevices.first as? VZVirtioSocketDevice else {
+            completion(.failure(VMFailure(description: "the VM has no virtio socket device")))
+            return
+        }
+        // The framework calls back on the VM's queue, the main queue.
+        device.connect(toPort: port) { result in
+            MainActor.assumeIsolated {
+                switch result {
+                case .success(let connection):
+                    completion(.success(VirtioConnection(connection)))
+                case .failure(let error):
+                    completion(.failure(VMFailure(error)))
+                }
+            }
+        }
+    }
+
     nonisolated func virtualMachine(
         _ virtualMachine: VZVirtualMachine, didStopWithError error: any Error
     ) {
@@ -205,6 +223,25 @@ final class VirtualizationVM: NSObject, EngineVM, VZVirtualMachineDelegate {
     private func stateChanged() {
         let state = VMRunState(machine.state)
         onState(state, state == .error ? lastFailure : nil)
+    }
+}
+
+/// A vsock connection the framework opened. Its descriptor is a Unix
+/// stream socket to Virtualization's service process (X18-vsock-handoff).
+@MainActor
+final class VirtioConnection: GuestConnection {
+    private let connection: VZVirtioSocketConnection
+
+    init(_ connection: VZVirtioSocketConnection) {
+        self.connection = connection
+    }
+
+    var fileDescriptor: Int32 { connection.fileDescriptor }
+    var sourcePort: UInt32 { connection.sourcePort }
+    var destinationPort: UInt32 { connection.destinationPort }
+
+    func close() {
+        connection.close()
     }
 }
 

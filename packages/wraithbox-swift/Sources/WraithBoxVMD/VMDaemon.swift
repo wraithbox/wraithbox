@@ -7,6 +7,7 @@ import Dispatch
 import GRPCCore
 import GRPCNIOTransportHTTP2Posix
 import NIOPosix
+import Synchronization
 import WraithBoxVM
 
 /// The wb-vmd process.
@@ -63,10 +64,16 @@ public enum VMDaemon {
                 "slot": .string(resolved.slot.rawValue),
                 "pid": .int(Int64(getpid())),
             ])
-        let supervisor = MainActor.assumeIsolated {
-            VMSupervisor(
+        let (supervisor, service) = MainActor.assumeIsolated {
+            let supervisor = VMSupervisor(
                 engine: VirtualizationEngine(), slot: resolved.slot,
                 bundlePath: resolved.realBundle, log: log)
+            let connector = GuestConnector(
+                supervisor: supervisor,
+                handoff: HandoffChannel(fd: InheritedDescriptor.handoff.rawValue), log: log)
+            return (
+                supervisor, VMServiceHandler(supervisor: supervisor, connector: connector, log: log)
+            )
         }
         Lifeline.watch(fd: InheritedDescriptor.lifeline.rawValue) { reason in
             stopAndExit(supervisor, log: log, event: "lifeline-closed", reason: reason, status: 0)
@@ -76,8 +83,7 @@ public enum VMDaemon {
             do {
                 try await serveGRPC(
                     descriptor: InheritedDescriptor.grpc.rawValue,
-                    version: WraithBoxVersion.version,
-                    supervisor: supervisor, log: log)
+                    version: WraithBoxVersion.version, service: service, log: log)
             } catch {
                 reason = "\(error)"
             }
@@ -88,7 +94,7 @@ public enum VMDaemon {
 
     /// Serves VMService on a listening socket until the server ends.
     public static func serveGRPC(
-        descriptor: Int32, version: String, supervisor: VMSupervisor, log: EventLog,
+        descriptor: Int32, version: String, service: VMServiceHandler, log: EventLog,
         handshake: HostHandshake? = nil
     ) async throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -97,18 +103,34 @@ public enum VMDaemon {
             handshake: handshake ?? HostHandshake(ownVersion: version, log: log))
         let transport = HTTP2ServerTransport.Custom(
             listenerFactory: listener, config: ServerLimits.config)
-        let server = GRPCServer(
-            transport: transport, services: [VMServiceHandler(supervisor: supervisor, log: log)])
+        let server = GRPCServer(transport: transport, services: [service])
         try await server.serve()
     }
 
-    /// Stops the VM at once and exits, within the deadline.
+    /// Set by the first stopAndExit. The lifeline and the end of the gRPC
+    /// server can both call it, and only the first one stops the VM.
+    private static let exiting = Atomic(false)
+
+    /// Stops the VM at once and exits, within the deadline. Only the
+    /// first call does anything.
     private static func stopAndExit(
         _ supervisor: VMSupervisor, log: EventLog, event: String, reason: String, status: Int32
     ) {
+        guard
+            exiting.compareExchange(
+                expected: false, desired: true, ordering: .acquiringAndReleasing
+            )
+            .exchanged
+        else {
+            log.info("exit-already-started", ["cause": .string(event)])
+            return
+        }
         DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(exitDeadlineSeconds)) {
-            log.error("exit-deadline", ["cause": .string(event)])
-            exit(status)
+            // A full log pipe must not hold the exit up: the record is
+            // dropped when it can't be written at once, and _exit runs no
+            // handler that could wait.
+            log.urgent("exit-deadline", ["cause": .string(event)])
+            _exit(status)
         }
         Task { @MainActor in
             await supervisor.stopForExit()
