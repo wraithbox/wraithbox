@@ -2,8 +2,9 @@ package termfilter
 
 import "testing"
 
-// resetSeeds are the seeds of FuzzExitReset that #301 names: a change
-// to each state the model keeps.
+// resetSeeds are the seeds of FuzzExitReset: a change to each state
+// the model keeps, which #301 names, and a soft reset the filter drops
+// (I345).
 var resetSeeds = []string{
 	"\x1b[>1u\x1b[?1049h\x1b[>1u\x1b[>1u",
 	"\x1b[>1u\x1b[?1049h\x1b[>1u\x1b[?1049l",
@@ -19,7 +20,8 @@ var resetSeeds = []string{
 	"\x1b[?2026h",
 	"\x1b]9;4;1;50\x07",
 	"\x1b]7501;state=blocked;kind=permission;msg=approve\x1b\\",
-	"\x1b[1m\x1b[?1049h\x1b[0m\x1b7\x1b[7m\x1b(0\x1b[?1049l\x1b[!p\x1b[?25l",
+	"\x1b[1m\x1b[?1049h\x1b[0m\x1b7\x1b[7m\x1b(0\x1b[?1049l\x1b[?25l",
+	"\x1b[>1u\x1b[?25l\x1b[7m\x1b[!p",
 }
 
 // FuzzExitReset checks the last property of C10-terminal, "Fuzzing",

@@ -69,7 +69,9 @@ var csiRules = func() map[csiKey]csiCheck {
 		{prefix: '?', final: 'u'}: noParams,
 		{prefix: '>', final: 'm'}: oneOf("4;2", "4"),
 		{inter: " ", final: 'q'}:  anyParams,
-		{inter: "!", final: 'p'}:  noParams,
+		// `CSI ! p`, the soft reset, is off the list: kitty then
+		// clears the user's kitty keyboard stacks, and a terminal may
+		// turn line wrap off (S16-01-filter "Allowlist", I345).
 		// Row "CSI queries". `CSI 21 t`, the title report, is never on
 		// the list (SEC03-no-host-exec, S16-01-filter "Never on the
 		// list"), and neither is any other t.

@@ -78,7 +78,7 @@ version starts to use shows up there (S16-02-drops-and-links, "Drop rules").
 | CSI parameters | digits, `;` and `:`, at most 16 values of at most 5 digits, 64 bytes in all | any other |
 | CSI screen | `A` to `H`, `f`, `` ` ``, `a`, `d`, `e`, `@`, `L`, `M`, `P`, `X`, `b`, `S`, `T`, `r`, `I`, `Z`, `g`, `m`; `J` and `K` with 0 to 2; `s` and `u` without parameters | `CSI 3 J`, which erases the host's scroll-back |
 | CSI modes | `? h/l` for 25, 1000, 1002, 1003, 1004, 1006, 1016, 1049, 2004, 2026, 2031; `? … $ p` (mode query) for those modes | other modes |
-| CSI keyboard | kitty keyboard `> u` (push, at most 4 deep per screen), `< u` (pop, only entries the guest pushed on that screen), `? u`; `> 4 ; 2 m` and `> 4 m`; `SP q`; `! p` | `= u`, which changes the current entry in place; other `> m` |
+| CSI keyboard | kitty keyboard `> u` (push, at most 4 deep per screen), `< u` (pop, only entries the guest pushed on that screen), `? u`; `> 4 ; 2 m` and `> 4 m`; `SP q` | `= u`, which changes the current entry in place; other `> m`; `! p` (soft reset), because kitty then clears the user's kitty keyboard stacks and a terminal may turn line wrap off |
 | CSI queries | `c`, `> c`, `5 n`, `6 n`, `> q`, `14 t`, `16 t`, `18 t` | other `t`: window moves, title reports, the title stack |
 | OSC | 9 ; 4 (progress) with numeric parameters; 10, 11, 12 with `?` only; 7501 (program status) as "Program status" says; 9, 99 and 777 (notifications) become one BEL | the rest: 0 to 2 (title), 8 (links), 52, 1337, 7, 133, … |
 | DCS, APC, PM, SOS | | all, whole |
@@ -90,6 +90,7 @@ The list is the one X19-terminal-filter measured with Claude Code
 
 - modes the recordings don't hold are left off;
 - each cap is above the largest value recorded.
+- the soft reset `! p`, which the recordings hold, is left off (I345).
 
 OSC 10 to 12 queries stay, because the Claude Code binary holds the
 background color query.

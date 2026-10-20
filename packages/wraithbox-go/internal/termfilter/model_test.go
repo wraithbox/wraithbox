@@ -317,8 +317,6 @@ func (m *termModel) csiState(c csiForm) bool {
 		return m.keyResource(c.params)
 	case csiKey{inter: " ", final: 'q'}:
 		m.cursorStyle = numberOr(c.params, 0)
-	case csiKey{inter: "!", final: 'p'}:
-		m.softReset()
 	default:
 		return false
 	}
@@ -427,22 +425,6 @@ func (m *termModel) keyResource(params string) bool {
 		delete(m.keyResources, n)
 	}
 	return true
-}
-
-// softReset is DECSTR as the VT510 manual lists it, for the states the
-// model keeps: the cursor shown, the style normal, the whole screen as
-// scroll region, ASCII in every character set with G0 invoked, the
-// numeric keypad, and the saved cursor at its defaults. It doesn't
-// change the kitty keyboard stacks, which the protocol's documentation
-// doesn't tie to DECSTR. Ghostty leaves them too, and kitty clears both
-// (I345).
-func (m *termModel) softReset() {
-	delete(m.modes, 25)
-	m.sgr = sgrState{}
-	m.scroll = ""
-	m.g0, m.g1, m.gl = 'B', 'B', 0
-	m.keypadApp = false
-	m.saved[m.screen()] = savedCursor{g0: 'B', g1: 'B'}
 }
 
 func (m *termModel) osc(t token) {

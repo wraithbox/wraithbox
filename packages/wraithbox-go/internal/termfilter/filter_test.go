@@ -192,7 +192,7 @@ func TestAllowlistCSIKeyboard(t *testing.T) {
 		{name: "csi > 1 m", in: "\x1b[>1m", want: "", drops: drops{RuleCSI: 1}},
 		{name: "cursor style", in: "\x1b[ q\x1b[2 q", want: "\x1b[ q\x1b[2 q"},
 		{name: "decsca, next to sp q", in: "\x1b[1\"q", want: "", drops: drops{RuleCSI: 1}},
-		{name: "soft reset", in: "\x1b[!p", want: "\x1b[!p"},
+		{name: "soft reset", in: "\x1b[!p", want: "", drops: drops{RuleCSI: 1}},
 		{name: "soft reset with a value", in: "\x1b[1!p", want: "", drops: drops{RuleCSI: 1}},
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -230,6 +231,22 @@ func boolIndex(b bool) int {
 	return 0
 }
 
+// TestExitResetAfterSoftReset checks that the filter drops a guest's
+// DECSTR (`CSI ! p`) before it reaches the terminal, so the reset
+// still undoes the states and pops the push the guest made before it
+// (S16-01-filter "Allowlist", I345).
+func TestExitResetAfterSoftReset(t *testing.T) {
+	in := "\x1b[>1u\x1b[?25l\x1b[7m\x1b(0\x1b[!p"
+	got, d := filterString(t, in, WithoutBELLimit())
+	if want := strings.TrimSuffix(in, "\x1b[!p"); got != want || !maps.Equal(d, drops{RuleCSI: 1}) {
+		t.Fatalf("filter of %q = %q, drops %v, want %q and one %s", in, got, d, want, RuleCSI)
+	}
+	m, reset := replay(t, []byte(in), "", false)
+	if c := m.changed(); len(c) > 0 {
+		t.Fatalf("after the reset %q the model differs in %v", reset, c)
+	}
+}
+
 // TestExitResetSavesDefaults checks that the scroll region step saves
 // the cursor after the style and character set steps, so the main
 // screen's saved cursor holds no guest style for a later `ESC 8`.
@@ -298,8 +315,7 @@ func TestModel(t *testing.T) {
 		{"tab stops", "\x1b[3g\x1b[?5W\x1b[0g", []string{"tab-stops"}},
 		{"keypad", "\x1b=\x1b>", nil},
 		{"modifyOtherKeys", "\x1b[>4;2m\x1b[>4m\x1b[>1;1m", []string{"key-resources"}},
-		{"soft reset", "\x1b[?25l\x1b[7m\x1b=\x1b(0\x1b[2;3r\x1b[!p", nil},
-		{"soft reset keeps kitty", "\x1b[>1u\x1b[!p", []string{"kitty-main"}},
+		{"soft reset unknown", "\x1b[!p", []string{"unknown"}},
 		{"cursor style", "\x1b[2 q\x1b[ q", nil},
 		{"progress", "\x1b]9;4;1;50\x07\x1b]9;4;0\x1b\\", nil},
 		{"status ids", "\x1b]7501;state=working;id=a\x1b\\\x1b]7501;state=clear;id=b\x1b\\", []string{"status"}},
