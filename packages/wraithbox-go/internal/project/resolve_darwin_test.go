@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -98,6 +99,11 @@ func TestResolveRefusesGitElsewhere(t *testing.T) {
 			dir := mkdir(t, filepath.Join(tmp, "x"+string(rune('0'+i))))
 			tt.make(dir)
 			r, log := testResolver(t, emptyGlobal(t))
+			if tt.rule == RuleGitLink {
+				// A git that doesn't exist: the link is refused before
+				// git runs and follows it.
+				r.Git = filepath.Join(tmp, "no-git")
+			}
 			repo, err := r.Resolve(t.Context(), mkdir(t, filepath.Join(dir, "deeper")))
 			if repo != nil {
 				t.Fatalf("Resolve = %+v, want a refusal", repo)
@@ -236,6 +242,19 @@ func TestResolveFailingRevParse(t *testing.T) {
 	log.Reset()
 	_, err = r.Resolve(t.Context(), nested)
 	requireRule(t, err, RuleGitDirElsewhere, log)
+}
+
+// TestResolveRefusesOtherEntryType: a `.git` that is neither a
+// directory, a file nor a link, here a FIFO, is refused before git runs.
+func TestResolveRefusesOtherEntryType(t *testing.T) {
+	dir := tempDir(t)
+	if err := syscall.Mkfifo(filepath.Join(dir, ".git"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, log := testResolver(t, emptyGlobal(t))
+	r.Git = filepath.Join(dir, "no-git")
+	_, err := r.Resolve(t.Context(), dir)
+	requireRule(t, err, RuleGitEntryType, log)
 }
 
 // TestResolveNotInRepo: no `.git` up to the root is refused.
