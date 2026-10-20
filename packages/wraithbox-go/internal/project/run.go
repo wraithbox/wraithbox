@@ -80,8 +80,12 @@ func (r *Resolver) run(ctx context.Context, g gitRun) ([]byte, *Refusal) {
 // runFailed explains a failed run with git's first error line.
 func runFailed(ctx context.Context, g gitRun, err error, stderr []byte) *Refusal {
 	r := &Refusal{Rule: RuleGitFailed, err: err}
-	if ctx.Err() != nil {
+	switch {
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
 		r.msg = fmt.Sprintf("git %s in %q did not finish within %s", g.args[0], g.dir, g.timeout)
+		return r
+	case ctx.Err() != nil:
+		r.msg = fmt.Sprintf("git %s in %q was canceled before it finished", g.args[0], g.dir)
 		return r
 	}
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {

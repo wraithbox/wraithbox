@@ -34,8 +34,8 @@ The parts of the key:
 
 `wb` runs git for the key, the remotes and the root commits with the
 git binary of S08-08-host-git, `core.hooksPath` set to `/dev/null`
-(`NUL` on Windows), and an otherwise scrubbed environment, as `wb-git`
-runs git (S08-03-pushes).
+(`NUL` on Windows), `core.fsmonitor` set to `false`, and an otherwise
+scrubbed environment, as `wb-git` runs git (S08-03-pushes).
 
 It sets only these variables:
 
@@ -69,8 +69,8 @@ URLs resolve as the user's git resolves them (`url.<base>.insteadOf`).
 `wb` walks up from the current directory, in canonical form, to the
 first one with a `.git` entry, as git does. The key must belong to that
 directory. A `.git` directory must be both `--git-dir` and
-`--git-common-dir`. A symbolic link refuses the command, because it
-could name another project's `.git`. So does any type but a file.
+`--git-common-dir`. Any type other than a directory or a file refuses
+the command. A symbolic link, for one, could name another project's `.git`.
 
 #### A `.git` file
 

@@ -175,8 +175,8 @@ func TestResolveCaseAndLinks(t *testing.T) {
 
 // TestResolveRefusesOwnDirectories: a repository under <data>, <config>
 // or <logs> is refused, also when the directory is spelled in another
-// letter case or reached through a link (S05-04-naming, "Wraith Box's
-// own directories").
+// letter case or reached through a link (C04-projects, "Git directories
+// that point elsewhere"; S05-04-naming, "Wraith Box's own directories").
 func TestResolveRefusesOwnDirectories(t *testing.T) {
 	for _, field := range []string{"data", "config", "logs"} {
 		t.Run(field, func(t *testing.T) {
@@ -224,7 +224,8 @@ func (r *Resolver) setOwnField(field, dir string) {
 
 // TestResolveFailingRevParse: a repository with a corrupt HEAD is
 // refused with git's error, standing alone, and when git walks on to a
-// parent repository (S05-04-naming, "Failure").
+// parent repository (C04-projects, "Git directories that point
+// elsewhere"; S05-04-naming, "Failure").
 func TestResolveFailingRevParse(t *testing.T) {
 	tmp := tempDir(t)
 	alone := newRepo(t, filepath.Join(tmp, "alone"))
@@ -255,6 +256,21 @@ func TestResolveRefusesOtherEntryType(t *testing.T) {
 	r.Git = filepath.Join(dir, "no-git")
 	_, err := r.Resolve(t.Context(), dir)
 	requireRule(t, err, RuleGitEntryType, log)
+}
+
+// TestResolveRefusesControlInDir: a directory whose name holds a
+// control character or isn't UTF-8 is refused, as a path git prints
+// would be, before git runs.
+func TestResolveRefusesControlInDir(t *testing.T) {
+	for name, base := range map[string]string{"escape": "a\x1b[2Jb", "line end": "a\nb"} {
+		t.Run(name, func(t *testing.T) {
+			dir := newRepo(t, filepath.Join(tempDir(t), base))
+			r, log := testResolver(t, emptyGlobal(t))
+			r.Git = filepath.Join(dir, "no-git")
+			_, err := r.Resolve(t.Context(), dir)
+			requireRule(t, err, RuleDirUnreadable, log)
+		})
+	}
 }
 
 // TestResolveNotInRepo: no `.git` up to the root is refused.
