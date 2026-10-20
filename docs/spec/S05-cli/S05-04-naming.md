@@ -278,10 +278,9 @@ state and approvals always takes this one explicit command.
 
 ### Name
 
-A human-readable name is derived from the directory that holds the
-common directory, or for a submodule from its own directory.
-`wb project rename` changes it. A name keeps `wb/<session-id>` a valid
-branch name, and prints without escapes.
+A human-readable name comes from the directory that holds the common
+directory, or a submodule's own. `wb project rename` changes it. A name
+keeps `wb/<session-id>` a valid branch, and prints without escapes.
 
 ### Session id and branch
 
