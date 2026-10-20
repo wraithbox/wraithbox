@@ -1764,7 +1764,7 @@
 	},
 	"285": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: guest link with port routing, connection caps, reconnect, build version match and gRPC limits",
 		"summary": "Once a VM boots, wb-hostd must reach wb-guestd, check it, keep the link, and get it back after a drop, within the bounds of SEC13-bounded-resources."
 	},
@@ -2310,8 +2310,14 @@
 	},
 	"376": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(hostd): guest link with port routing, connection caps, reconnect, version match and gRPC limits",
 		"summary": "The link wb-hostd keeps to each running VM's wb-guestd: the ports it connects to, the caps on its connections, the reconnect waits and rate, the build version match of the hello, the clock schedule, and the gRPC…"
+	},
+	"377": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(wb): refuse a host terminal whose charset isn't UTF-8",
+		"summary": "wb now refuses to relay a guest terminal stream when the host terminal's charset isn't UTF-8, as the maintainer decided on #341: refuse, no warn mode, no override flag."
 	}
 }
