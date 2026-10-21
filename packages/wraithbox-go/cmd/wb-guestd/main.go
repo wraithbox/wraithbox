@@ -2,6 +2,10 @@
 // It serves GuestService to wb-hostd on the host-guest socket. See
 // docs/spec/S06-vm-lifecycle/S06-12-guest-agent.md.
 //
+// Before it listens, it updates itself from the guest tools disk when
+// the disk's version isn't its own (internal/guestupdate), and runs the
+// installed wb-guestd in its place.
+//
 // It logs one JSON object per line on standard error, as wb-vmd does.
 // The service manager sends standard error to a file in the guest.
 package main
@@ -15,6 +19,7 @@ import (
 	"syscall"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestupdate"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsock"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
@@ -30,6 +35,13 @@ func run() int {
 
 	own := version.Build()
 	log.LogAttrs(ctx, slog.LevelInfo, "starting", slog.String("version", version.Label(own)))
+
+	if err := guestupdate.AtStart(ctx, guestupdate.Config{Own: own, Log: log}); err != nil {
+		if ctx.Err() != nil {
+			return 0 // stopped while it waited for the tools disk
+		}
+		return 1 // AtStart logged it: the installed wb-guestd didn't run
+	}
 
 	lis, err := guestsock.Listen(ctx, log, guestsock.Port)
 	if errors.Is(err, context.Canceled) {

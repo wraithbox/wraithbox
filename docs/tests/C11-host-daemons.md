@@ -227,6 +227,44 @@ Spec: S04-02-vm-provider ("Guest ports below 1024"), S06-12-guest-agent
   closed. A good answer passes, and `wb-guestd`'s Hello passes over a
   socketpair.
 
+### Guest update and clock
+
+Spec: S06-12-guest-agent ("Update at start"),
+S06-06-devices-and-warm-start ("Step or slew").
+
+- **Update** (`internal/guestupdate`, with a fake platform and
+  temporary directories). A disk of `wb-guestd`'s own version doesn't
+  install anything. A disk of another version, and a `wb-guestd` without a
+  version, install every program with the disk's bytes, mode 0755,
+  `wb-guestd` last, and run the installed `wb-guestd`. A link at a
+  program's name or at the temporary name is replaced, and its target
+  left alone. A `VERSION` that is missing, empty, a link, a directory,
+  over 64 bytes, ends in a newline or isn't a version is refused with
+  `guestd-update-version-invalid`. A program that is missing, a link, a
+  directory or over the size cap is refused with
+  `guestd-update-program-invalid`. Both refusals come before anything
+  is installed. An installed `wb-guestd` that holds the disk's bytes
+  already is refused with `guestd-update-no-effect`. A `wb-guestd` that
+  can't be installed leaves the programs before it installed, and
+  nothing runs. A disk that never passes its check is refused after the
+  wait with the platform's rule, and a stop during the wait ends it.
+- **Tools disk and install directory** (`internal/platform/guesttools`).
+  Only an APFS volume mounted read-only by root at the mount point
+  passes. One mounted read-write, by a user, or of another file system
+  is refused with `guestd-tools-untrusted`, and a path with no volume
+  mounted on it with `guestd-tools-not-mounted`. A directory that is a
+  link or a file, has another owner, or is writable by its group or by
+  others is refused with `guestd-install-dir-unsafe`. So is a path with
+  such a parent, before anything is made under it.
+- **Clock** (`internal/guestd`, with a fake clock over a socketpair).
+  `SetTime` steps the clock for a boot, a restore and a wake, and for a
+  periodic update more than 1 s off either way, and slews it by the
+  offset otherwise. A time of 0 or less and a reason that isn't one of
+  `TimeReason`'s are refused with `InvalidArgument`, and leave the clock
+  alone. A clock the OS doesn't let `wb-guestd` set answers `Internal`.
+  On the host, `internal/platform/guestclock` gets `EPERM` as a user
+  other than root.
+
 ### Guest link
 
 Spec: S04-02-vm-provider ("The host opens every connection", "Caps and

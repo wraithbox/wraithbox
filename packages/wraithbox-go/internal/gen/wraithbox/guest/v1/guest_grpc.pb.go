@@ -34,8 +34,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GuestService_Hello_FullMethodName = "/wraithbox.guest.v1.GuestService/Hello"
-	GuestService_Shell_FullMethodName = "/wraithbox.guest.v1.GuestService/Shell"
+	GuestService_Hello_FullMethodName   = "/wraithbox.guest.v1.GuestService/Hello"
+	GuestService_Shell_FullMethodName   = "/wraithbox.guest.v1.GuestService/Shell"
+	GuestService_SetTime_FullMethodName = "/wraithbox.guest.v1.GuestService/SetTime"
 )
 
 // GuestServiceClient is the client API for GuestService service.
@@ -59,6 +60,13 @@ type GuestServiceClient interface {
 	// bounds of wraithbox.terminal.v1 and builds a new one for wb, so a
 	// guest frame never reaches wb as it is (SEC11-root-gains-nothing).
 	Shell(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ShellRequest, ShellResponse], error)
+	// SetTime sets the guest's clock to the host's time
+	// (S06-06-devices-and-warm-start, "Time and sleep"). The guest has no
+	// other clock source. wb-guestd steps the clock for a boot, a restore
+	// or a wake, and whenever it is more than 1 second off, and slews it
+	// otherwise. The answer is empty: wb-hostd never reads a time from the
+	// guest.
+	SetTime(ctx context.Context, in *SetTimeRequest, opts ...grpc.CallOption) (*SetTimeResponse, error)
 }
 
 type guestServiceClient struct {
@@ -92,6 +100,16 @@ func (c *guestServiceClient) Shell(ctx context.Context, opts ...grpc.CallOption)
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type GuestService_ShellClient = grpc.BidiStreamingClient[ShellRequest, ShellResponse]
 
+func (c *guestServiceClient) SetTime(ctx context.Context, in *SetTimeRequest, opts ...grpc.CallOption) (*SetTimeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetTimeResponse)
+	err := c.cc.Invoke(ctx, GuestService_SetTime_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GuestServiceServer is the server API for GuestService service.
 // All implementations must embed UnimplementedGuestServiceServer
 // for forward compatibility.
@@ -113,6 +131,13 @@ type GuestServiceServer interface {
 	// bounds of wraithbox.terminal.v1 and builds a new one for wb, so a
 	// guest frame never reaches wb as it is (SEC11-root-gains-nothing).
 	Shell(grpc.BidiStreamingServer[ShellRequest, ShellResponse]) error
+	// SetTime sets the guest's clock to the host's time
+	// (S06-06-devices-and-warm-start, "Time and sleep"). The guest has no
+	// other clock source. wb-guestd steps the clock for a boot, a restore
+	// or a wake, and whenever it is more than 1 second off, and slews it
+	// otherwise. The answer is empty: wb-hostd never reads a time from the
+	// guest.
+	SetTime(context.Context, *SetTimeRequest) (*SetTimeResponse, error)
 	mustEmbedUnimplementedGuestServiceServer()
 }
 
@@ -128,6 +153,9 @@ func (UnimplementedGuestServiceServer) Hello(context.Context, *HelloRequest) (*H
 }
 func (UnimplementedGuestServiceServer) Shell(grpc.BidiStreamingServer[ShellRequest, ShellResponse]) error {
 	return status.Error(codes.Unimplemented, "method Shell not implemented")
+}
+func (UnimplementedGuestServiceServer) SetTime(context.Context, *SetTimeRequest) (*SetTimeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetTime not implemented")
 }
 func (UnimplementedGuestServiceServer) mustEmbedUnimplementedGuestServiceServer() {}
 func (UnimplementedGuestServiceServer) testEmbeddedByValue()                      {}
@@ -175,6 +203,24 @@ func _GuestService_Shell_Handler(srv interface{}, stream grpc.ServerStream) erro
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type GuestService_ShellServer = grpc.BidiStreamingServer[ShellRequest, ShellResponse]
 
+func _GuestService_SetTime_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetTimeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuestServiceServer).SetTime(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GuestService_SetTime_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuestServiceServer).SetTime(ctx, req.(*SetTimeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GuestService_ServiceDesc is the grpc.ServiceDesc for GuestService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -185,6 +231,10 @@ var GuestService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Hello",
 			Handler:    _GuestService_Hello_Handler,
+		},
+		{
+			MethodName: "SetTime",
+			Handler:    _GuestService_SetTime_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

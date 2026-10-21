@@ -1,11 +1,13 @@
 # C09 - Guest and Sessions
 
 **Purpose:** The test cases for what a project user can reach inside
-the guest, the shared toolchain prefix, the guest admin password, and
-the session lifecycle.
+the guest, `wb-guestd`'s update and the guest clock, the shared
+toolchain prefix, the guest admin password, and the session lifecycle.
 
 **Verifies:** S06-01-image-layers ("Toolchain prefix"),
-S06-09-session-lifecycle, S13-guest-confinement, S15-04-guest-admin
+S06-06-devices-and-warm-start ("Time and sleep"),
+S06-09-session-lifecycle, S06-12-guest-agent ("Update at start"),
+S13-guest-confinement, S15-04-guest-admin
 
 ## Fuzzing
 
@@ -40,6 +42,25 @@ S06-09-session-lifecycle, S13-guest-confinement, S15-04-guest-admin
 - As root, run `sudo -l -U` for each project user, and see no rules
   listed, and no `admin` or `wheel` group in its `id`
   (S06-vm-lifecycle, X27-vsock-confinement).
+
+### Update at start and the clock
+
+Spec: S06-12-guest-agent ("Update at start"),
+S06-06-devices-and-warm-start ("Step or slew").
+
+- As root, step the clock 5 s forward and back, and see the wall clock
+  follow at once. Slew it by 0.5 s each way, and see the kernel hold
+  the slew. In `conformance/guestclock`: `TestStep` and `TestSlew`.
+- Boot a guest whose installed `wb-guestd` has another build version
+  than its tools disk. See the hello answer with the disk's version,
+  and the wait for the disk and the update logged. Boot it again, and
+  see `tools disk is current` logged.
+- In a boot without the tools disk, attach a disk image whose volume is
+  named `wb-guest-tools` as a user other than root, and start
+  `wb-guestd` again. See the mount refused with
+  `guestd-tools-untrusted` and nothing installed. Attach it as root,
+  read-only, and see `wb-guestd` install its programs and run the new
+  one under the same process ID.
 
 ### The toolchain prefix
 

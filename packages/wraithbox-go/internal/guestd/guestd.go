@@ -2,8 +2,8 @@
 // proto/wraithbox/guest/v1/guest.proto, which wb-hostd calls over the
 // host-guest socket (S06-12-guest-agent, "`wb-guestd`").
 //
-// It serves Hello only so far. The session messages, users, exec and the
-// git transport join it later.
+// It serves Hello and SetTime so far. The session messages, users, exec
+// and the git transport join it later.
 package guestd
 
 import (
@@ -29,12 +29,22 @@ func ServedPackages() []string {
 	return []string{string(guestv1.File_wraithbox_guest_v1_guest_proto.Package())}
 }
 
+// Option changes the service NewServer registers.
+type Option func(*service)
+
+// WithClock makes SetTime read and set c instead of the guest's clock.
+func WithClock(c Clock) Option { return func(s *service) { s.clock = c } }
+
 // NewServer returns a gRPC server with GuestService registered. own is
 // the build version Hello reports, normally version.Build(): "" for an
 // unstamped build, which the host refuses.
-func NewServer(own string, log *slog.Logger) *grpc.Server {
+func NewServer(own string, log *slog.Logger, opts ...Option) *grpc.Server {
+	svc := &service{version: own, log: log, clock: systemClock{}}
+	for _, o := range opts {
+		o(svc)
+	}
 	srv := grpc.NewServer(grpc.MaxRecvMsgSize(MaxRecvMsgSize))
-	guestv1.RegisterGuestServiceServer(srv, &service{version: own, log: log})
+	guestv1.RegisterGuestServiceServer(srv, svc)
 	return srv
 }
 
@@ -43,6 +53,7 @@ type service struct {
 
 	version string
 	log     *slog.Logger
+	clock   Clock
 }
 
 // Hello reports wb-guestd's build version and the packages it serves.

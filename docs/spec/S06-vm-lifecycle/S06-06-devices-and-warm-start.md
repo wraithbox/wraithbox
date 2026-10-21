@@ -163,7 +163,9 @@ restore.
 The guest has no network time. NTP is UDP, and `wb-netd` drops it
 (S07-egress-gateway, X03-network-path). The guest's clock comes only
 from `wb-hostd`. `wb-hostd` sends its own time to `wb-guestd`, and
-`wb-guestd` sets the guest clock from it.
+`wb-guestd` sets the guest clock from it. The call is
+`GuestService.SetTime`, with the reason for each update: a cold boot,
+a restore, a wake, or the update every 60 seconds. Its answer is empty.
 
 #### When the host sends the time
 
@@ -192,7 +194,8 @@ has no message that asks for the time (S04-01-design-principles, "Everything in 
 - when the guest is more than 1 second off.
 
 Otherwise it slews the clock, so a running build never sees the wall
-clock go backward.
+clock go backward. On macOS a step is `settimeofday` and a slew is
+`adjtime`, in `internal/platform/guestclock`.
 
 Drift between two updates 60 seconds apart stays far below 1 second. A
 larger offset means the host clock changed or an update was missed.
