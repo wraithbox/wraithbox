@@ -1,0 +1,69 @@
+// The debug shell between wb and wb-hostd, for `wb shell`
+// (S05-03-management-commands, "`wb shell`"). It runs on the same local
+// IPC endpoint and checks as HostService (hostd.proto).
+//
+// The frames after the first message are those of wraithbox.terminal.v1.
+// wb-hostd builds each server frame new from a checked guest frame, so
+// it holds no unknown field from the guest. Its fields are still guest
+// input, and wb checks them against the bounds of wraithbox.terminal.v1
+// (SEC11-root-gains-nothing).
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.hostd.v1;
+
+import "wraithbox/terminal/v1/terminal.proto";
+
+// ShellService is wb-hostd's service for `wb shell`.
+service ShellService {
+  // Shell opens a debug shell as the project's guest user in the
+  // project's VM. The first request holds a ShellOpen, and every later
+  // one a client frame. The first response holds a ShellOpened, and
+  // every later one a server frame, the last an exit or a failure. A
+  // refusal before the shell starts is a gRPC status with the rule, as
+  // in HostService.
+  rpc Shell(stream ShellRequest) returns (stream ShellResponse);
+}
+
+message ShellRequest {
+  oneof msg {
+    // The first request, and only the first.
+    ShellOpen open = 1;
+    // Every later request.
+    wraithbox.terminal.v1.ClientFrame frame = 2;
+  }
+}
+
+// ShellOpen names the project and holds the terminal setup.
+message ShellOpen {
+  // The project id: 32 lowercase hexadecimal characters
+  // (S05-04-naming, "Project id"). wb resolved it from the directory.
+  string project_id = 1;
+  wraithbox.terminal.v1.Setup setup = 2;
+}
+
+message ShellResponse {
+  oneof msg {
+    // The first response, and only the first.
+    ShellOpened opened = 1;
+    // Every later response.
+    wraithbox.terminal.v1.ServerFrame frame = 2;
+  }
+}
+
+// ShellOpened says which shell started. wb shows each field in its title
+// and in the line that labels the debug shell. It removes the escaped
+// set of S16-03-around-the-stream ("Guest text elsewhere") from each,
+// and refuses one longer than its bound.
+message ShellOpened {
+  // The shell's id, in the session id form of S05-04-naming ("Session
+  // id and branch"). At most 128 bytes.
+  string shell_id = 1;
+  // The project's name (S05-04-naming). At most 128 bytes.
+  string project_name = 2;
+  // The project user the shell runs as. At most 64 bytes.
+  string guest_user = 3;
+}

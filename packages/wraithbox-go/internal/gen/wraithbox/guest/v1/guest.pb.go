@@ -22,6 +22,7 @@
 package guestv1
 
 import (
+	v1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -141,17 +142,225 @@ func (x *HelloResponse) GetServedPackages() []string {
 	return nil
 }
 
+type ShellRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Msg:
+	//
+	//	*ShellRequest_Start
+	//	*ShellRequest_Frame
+	Msg           isShellRequest_Msg `protobuf_oneof:"msg"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShellRequest) Reset() {
+	*x = ShellRequest{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShellRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShellRequest) ProtoMessage() {}
+
+func (x *ShellRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShellRequest.ProtoReflect.Descriptor instead.
+func (*ShellRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ShellRequest) GetMsg() isShellRequest_Msg {
+	if x != nil {
+		return x.Msg
+	}
+	return nil
+}
+
+func (x *ShellRequest) GetStart() *ShellStart {
+	if x != nil {
+		if x, ok := x.Msg.(*ShellRequest_Start); ok {
+			return x.Start
+		}
+	}
+	return nil
+}
+
+func (x *ShellRequest) GetFrame() *v1.ClientFrame {
+	if x != nil {
+		if x, ok := x.Msg.(*ShellRequest_Frame); ok {
+			return x.Frame
+		}
+	}
+	return nil
+}
+
+type isShellRequest_Msg interface {
+	isShellRequest_Msg()
+}
+
+type ShellRequest_Start struct {
+	// The first request, and only the first.
+	Start *ShellStart `protobuf:"bytes,1,opt,name=start,proto3,oneof"`
+}
+
+type ShellRequest_Frame struct {
+	// Every later request.
+	Frame *v1.ClientFrame `protobuf:"bytes,2,opt,name=frame,proto3,oneof"`
+}
+
+func (*ShellRequest_Start) isShellRequest_Msg() {}
+
+func (*ShellRequest_Frame) isShellRequest_Msg() {}
+
+// ShellStart names the shell and its user, and holds the terminal setup.
+type ShellStart struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The shell's id, in the session id form of S05-04-naming ("Session
+	// id and branch"). wb-hostd chooses it. It names the shell in the
+	// guest's logs.
+	ShellId string `protobuf:"bytes,1,opt,name=shell_id,json=shellId,proto3" json:"shell_id,omitempty"`
+	// The project user the shell runs as. wb-guestd refuses root and any
+	// user that isn't a project user of this VM.
+	User          string    `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	Setup         *v1.Setup `protobuf:"bytes,3,opt,name=setup,proto3" json:"setup,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShellStart) Reset() {
+	*x = ShellStart{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShellStart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShellStart) ProtoMessage() {}
+
+func (x *ShellStart) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShellStart.ProtoReflect.Descriptor instead.
+func (*ShellStart) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ShellStart) GetShellId() string {
+	if x != nil {
+		return x.ShellId
+	}
+	return ""
+}
+
+func (x *ShellStart) GetUser() string {
+	if x != nil {
+		return x.User
+	}
+	return ""
+}
+
+func (x *ShellStart) GetSetup() *v1.Setup {
+	if x != nil {
+		return x.Setup
+	}
+	return nil
+}
+
+// ShellResponse is one server frame. Guest input: wb-hostd checks it
+// against the bounds of wraithbox.terminal.v1.
+type ShellResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Frame         *v1.ServerFrame        `protobuf:"bytes,1,opt,name=frame,proto3" json:"frame,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShellResponse) Reset() {
+	*x = ShellResponse{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShellResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShellResponse) ProtoMessage() {}
+
+func (x *ShellResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShellResponse.ProtoReflect.Descriptor instead.
+func (*ShellResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ShellResponse) GetFrame() *v1.ServerFrame {
+	if x != nil {
+		return x.Frame
+	}
+	return nil
+}
+
 var File_wraithbox_guest_v1_guest_proto protoreflect.FileDescriptor
 
 const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
 	"\n" +
-	"\x1ewraithbox/guest/v1/guest.proto\x12\x12wraithbox.guest.v1\"\x0e\n" +
+	"\x1ewraithbox/guest/v1/guest.proto\x12\x12wraithbox.guest.v1\x1a$wraithbox/terminal/v1/terminal.proto\"\x0e\n" +
 	"\fHelloRequest\"_\n" +
 	"\rHelloResponse\x12%\n" +
 	"\x0eguestd_version\x18\x01 \x01(\tR\rguestdVersion\x12'\n" +
-	"\x0fserved_packages\x18\x02 \x03(\tR\x0eservedPackages2\\\n" +
+	"\x0fserved_packages\x18\x02 \x03(\tR\x0eservedPackages\"\x89\x01\n" +
+	"\fShellRequest\x126\n" +
+	"\x05start\x18\x01 \x01(\v2\x1e.wraithbox.guest.v1.ShellStartH\x00R\x05start\x12:\n" +
+	"\x05frame\x18\x02 \x01(\v2\".wraithbox.terminal.v1.ClientFrameH\x00R\x05frameB\x05\n" +
+	"\x03msg\"o\n" +
+	"\n" +
+	"ShellStart\x12\x19\n" +
+	"\bshell_id\x18\x01 \x01(\tR\ashellId\x12\x12\n" +
+	"\x04user\x18\x02 \x01(\tR\x04user\x122\n" +
+	"\x05setup\x18\x03 \x01(\v2\x1c.wraithbox.terminal.v1.SetupR\x05setup\"I\n" +
+	"\rShellResponse\x128\n" +
+	"\x05frame\x18\x01 \x01(\v2\".wraithbox.terminal.v1.ServerFrameR\x05frame2\xae\x01\n" +
 	"\fGuestService\x12L\n" +
-	"\x05Hello\x12 .wraithbox.guest.v1.HelloRequest\x1a!.wraithbox.guest.v1.HelloResponseB\xec\x01\n" +
+	"\x05Hello\x12 .wraithbox.guest.v1.HelloRequest\x1a!.wraithbox.guest.v1.HelloResponse\x12P\n" +
+	"\x05Shell\x12 .wraithbox.guest.v1.ShellRequest\x1a!.wraithbox.guest.v1.ShellResponse(\x010\x01B\xec\x01\n" +
 	"\x16com.wraithbox.guest.v1B\n" +
 	"GuestProtoP\x01Z\\github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1;guestv1\xa2\x02\x03WGX\xaa\x02\x12Wraithbox.Guest.V1\xca\x02\x12Wraithbox\\Guest\\V1\xe2\x02\x1eWraithbox\\Guest\\V1\\GPBMetadata\xea\x02\x14Wraithbox::Guest::V1b\x06proto3"
 
@@ -167,19 +376,31 @@ func file_wraithbox_guest_v1_guest_proto_rawDescGZIP() []byte {
 	return file_wraithbox_guest_v1_guest_proto_rawDescData
 }
 
-var file_wraithbox_guest_v1_guest_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_wraithbox_guest_v1_guest_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_wraithbox_guest_v1_guest_proto_goTypes = []any{
-	(*HelloRequest)(nil),  // 0: wraithbox.guest.v1.HelloRequest
-	(*HelloResponse)(nil), // 1: wraithbox.guest.v1.HelloResponse
+	(*HelloRequest)(nil),   // 0: wraithbox.guest.v1.HelloRequest
+	(*HelloResponse)(nil),  // 1: wraithbox.guest.v1.HelloResponse
+	(*ShellRequest)(nil),   // 2: wraithbox.guest.v1.ShellRequest
+	(*ShellStart)(nil),     // 3: wraithbox.guest.v1.ShellStart
+	(*ShellResponse)(nil),  // 4: wraithbox.guest.v1.ShellResponse
+	(*v1.ClientFrame)(nil), // 5: wraithbox.terminal.v1.ClientFrame
+	(*v1.Setup)(nil),       // 6: wraithbox.terminal.v1.Setup
+	(*v1.ServerFrame)(nil), // 7: wraithbox.terminal.v1.ServerFrame
 }
 var file_wraithbox_guest_v1_guest_proto_depIdxs = []int32{
-	0, // 0: wraithbox.guest.v1.GuestService.Hello:input_type -> wraithbox.guest.v1.HelloRequest
-	1, // 1: wraithbox.guest.v1.GuestService.Hello:output_type -> wraithbox.guest.v1.HelloResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	3, // 0: wraithbox.guest.v1.ShellRequest.start:type_name -> wraithbox.guest.v1.ShellStart
+	5, // 1: wraithbox.guest.v1.ShellRequest.frame:type_name -> wraithbox.terminal.v1.ClientFrame
+	6, // 2: wraithbox.guest.v1.ShellStart.setup:type_name -> wraithbox.terminal.v1.Setup
+	7, // 3: wraithbox.guest.v1.ShellResponse.frame:type_name -> wraithbox.terminal.v1.ServerFrame
+	0, // 4: wraithbox.guest.v1.GuestService.Hello:input_type -> wraithbox.guest.v1.HelloRequest
+	2, // 5: wraithbox.guest.v1.GuestService.Shell:input_type -> wraithbox.guest.v1.ShellRequest
+	1, // 6: wraithbox.guest.v1.GuestService.Hello:output_type -> wraithbox.guest.v1.HelloResponse
+	4, // 7: wraithbox.guest.v1.GuestService.Shell:output_type -> wraithbox.guest.v1.ShellResponse
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_guest_v1_guest_proto_init() }
@@ -187,13 +408,17 @@ func file_wraithbox_guest_v1_guest_proto_init() {
 	if File_wraithbox_guest_v1_guest_proto != nil {
 		return
 	}
+	file_wraithbox_guest_v1_guest_proto_msgTypes[2].OneofWrappers = []any{
+		(*ShellRequest_Start)(nil),
+		(*ShellRequest_Frame)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_guest_v1_guest_proto_rawDesc), len(file_wraithbox_guest_v1_guest_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -35,6 +35,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	GuestService_Hello_FullMethodName = "/wraithbox.guest.v1.GuestService/Hello"
+	GuestService_Shell_FullMethodName = "/wraithbox.guest.v1.GuestService/Shell"
 )
 
 // GuestServiceClient is the client API for GuestService service.
@@ -50,6 +51,14 @@ type GuestServiceClient interface {
 	// wb-guestd whose answer fails a check below, or that reports another
 	// build version than its own, before any other request.
 	Hello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
+	// Shell runs a program as a project user on the terminal stream of
+	// wraithbox.terminal.v1, for `wb shell` (S05-03-management-commands,
+	// "`wb shell`"). The first request holds a ShellStart, and every later
+	// one a client frame. Each response holds a server frame, and the last
+	// one an exit or a failure. wb-hostd checks every frame against the
+	// bounds of wraithbox.terminal.v1 and builds a new one for wb, so a
+	// guest frame never reaches wb as it is (SEC11-root-gains-nothing).
+	Shell(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ShellRequest, ShellResponse], error)
 }
 
 type guestServiceClient struct {
@@ -70,6 +79,19 @@ func (c *guestServiceClient) Hello(ctx context.Context, in *HelloRequest, opts .
 	return out, nil
 }
 
+func (c *guestServiceClient) Shell(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ShellRequest, ShellResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &GuestService_ServiceDesc.Streams[0], GuestService_Shell_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ShellRequest, ShellResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type GuestService_ShellClient = grpc.BidiStreamingClient[ShellRequest, ShellResponse]
+
 // GuestServiceServer is the server API for GuestService service.
 // All implementations must embed UnimplementedGuestServiceServer
 // for forward compatibility.
@@ -83,6 +105,14 @@ type GuestServiceServer interface {
 	// wb-guestd whose answer fails a check below, or that reports another
 	// build version than its own, before any other request.
 	Hello(context.Context, *HelloRequest) (*HelloResponse, error)
+	// Shell runs a program as a project user on the terminal stream of
+	// wraithbox.terminal.v1, for `wb shell` (S05-03-management-commands,
+	// "`wb shell`"). The first request holds a ShellStart, and every later
+	// one a client frame. Each response holds a server frame, and the last
+	// one an exit or a failure. wb-hostd checks every frame against the
+	// bounds of wraithbox.terminal.v1 and builds a new one for wb, so a
+	// guest frame never reaches wb as it is (SEC11-root-gains-nothing).
+	Shell(grpc.BidiStreamingServer[ShellRequest, ShellResponse]) error
 	mustEmbedUnimplementedGuestServiceServer()
 }
 
@@ -95,6 +125,9 @@ type UnimplementedGuestServiceServer struct{}
 
 func (UnimplementedGuestServiceServer) Hello(context.Context, *HelloRequest) (*HelloResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Hello not implemented")
+}
+func (UnimplementedGuestServiceServer) Shell(grpc.BidiStreamingServer[ShellRequest, ShellResponse]) error {
+	return status.Error(codes.Unimplemented, "method Shell not implemented")
 }
 func (UnimplementedGuestServiceServer) mustEmbedUnimplementedGuestServiceServer() {}
 func (UnimplementedGuestServiceServer) testEmbeddedByValue()                      {}
@@ -135,6 +168,13 @@ func _GuestService_Hello_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuestService_Shell_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(GuestServiceServer).Shell(&grpc.GenericServerStream[ShellRequest, ShellResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type GuestService_ShellServer = grpc.BidiStreamingServer[ShellRequest, ShellResponse]
+
 // GuestService_ServiceDesc is the grpc.ServiceDesc for GuestService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -147,6 +187,13 @@ var GuestService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GuestService_Hello_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Shell",
+			Handler:       _GuestService_Shell_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "wraithbox/guest/v1/guest.proto",
 }

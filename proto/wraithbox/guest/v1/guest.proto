@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package wraithbox.guest.v1;
 
+import "wraithbox/terminal/v1/terminal.proto";
+
 // GuestService is what wb-guestd serves. The session messages of
 // S06-11-reconnect-and-recovery and S06-09-session-lifecycle join it
 // later as RPCs of their own, each with its own caps and checks.
@@ -25,6 +27,15 @@ service GuestService {
   // wb-guestd whose answer fails a check below, or that reports another
   // build version than its own, before any other request.
   rpc Hello(HelloRequest) returns (HelloResponse);
+
+  // Shell runs a program as a project user on the terminal stream of
+  // wraithbox.terminal.v1, for `wb shell` (S05-03-management-commands,
+  // "`wb shell`"). The first request holds a ShellStart, and every later
+  // one a client frame. Each response holds a server frame, and the last
+  // one an exit or a failure. wb-hostd checks every frame against the
+  // bounds of wraithbox.terminal.v1 and builds a new one for wb, so a
+  // guest frame never reaches wb as it is (SEC11-root-gains-nothing).
+  rpc Shell(stream ShellRequest) returns (stream ShellResponse);
 }
 
 message HelloRequest {}
@@ -50,4 +61,31 @@ message HelloResponse {
   // equal the host's own list, and it never picks which package the host
   // speaks.
   repeated string served_packages = 2;
+}
+
+message ShellRequest {
+  oneof msg {
+    // The first request, and only the first.
+    ShellStart start = 1;
+    // Every later request.
+    wraithbox.terminal.v1.ClientFrame frame = 2;
+  }
+}
+
+// ShellStart names the shell and its user, and holds the terminal setup.
+message ShellStart {
+  // The shell's id, in the session id form of S05-04-naming ("Session
+  // id and branch"). wb-hostd chooses it. It names the shell in the
+  // guest's logs.
+  string shell_id = 1;
+  // The project user the shell runs as. wb-guestd refuses root and any
+  // user that isn't a project user of this VM.
+  string user = 2;
+  wraithbox.terminal.v1.Setup setup = 3;
+}
+
+// ShellResponse is one server frame. Guest input: wb-hostd checks it
+// against the bounds of wraithbox.terminal.v1.
+message ShellResponse {
+  wraithbox.terminal.v1.ServerFrame frame = 1;
 }
