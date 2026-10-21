@@ -75,11 +75,12 @@ message ShellRequest {
 // ShellStart names the shell and its user, and holds the terminal setup.
 message ShellStart {
   // The shell's id, in the session id form of S05-04-naming ("Session
-  // id and branch"). wb-hostd chooses it. It names the shell in the
+  // id and branch"), 1 to 128 bytes, as in ShellOpened of
+  // wraithbox.hostd.v1. wb-hostd chooses it. It names the shell in the
   // guest's logs.
   string shell_id = 1;
-  // The project user the shell runs as. wb-guestd refuses root and any
-  // user that isn't a project user of this VM.
+  // The project user the shell runs as, 1 to 64 bytes. wb-guestd
+  // refuses root and any user that isn't a project user of this VM.
   string user = 2;
   wraithbox.terminal.v1.Setup setup = 3;
 }

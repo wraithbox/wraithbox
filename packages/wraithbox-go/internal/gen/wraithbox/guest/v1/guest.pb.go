@@ -230,11 +230,12 @@ func (*ShellRequest_Frame) isShellRequest_Msg() {}
 type ShellStart struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The shell's id, in the session id form of S05-04-naming ("Session
-	// id and branch"). wb-hostd chooses it. It names the shell in the
+	// id and branch"), 1 to 128 bytes, as in ShellOpened of
+	// wraithbox.hostd.v1. wb-hostd chooses it. It names the shell in the
 	// guest's logs.
 	ShellId string `protobuf:"bytes,1,opt,name=shell_id,json=shellId,proto3" json:"shell_id,omitempty"`
-	// The project user the shell runs as. wb-guestd refuses root and any
-	// user that isn't a project user of this VM.
+	// The project user the shell runs as, 1 to 64 bytes. wb-guestd
+	// refuses root and any user that isn't a project user of this VM.
 	User          string    `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
 	Setup         *v1.Setup `protobuf:"bytes,3,opt,name=setup,proto3" json:"setup,omitempty"`
 	unknownFields protoimpl.UnknownFields

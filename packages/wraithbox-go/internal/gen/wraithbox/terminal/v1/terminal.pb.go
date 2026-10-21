@@ -1040,7 +1040,11 @@ type Failure struct {
 	// The text for the user, which names the fix
 	// (NFR06-explained-refusals). At most 256 bytes. wb removes the
 	// escaped set of S16-03-around-the-stream ("Guest text elsewhere")
-	// before it prints it.
+	// before it prints it on its `wraith box:` line, which speaks for
+	// Wraith Box. So wb-hostd never passes on a message from wb-guestd
+	// as the guest wrote it: it words the failure by its rule itself, or
+	// quotes the guest's message, stripped, as
+	// `the guest reported: "<message>"`.
 	Message       string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
