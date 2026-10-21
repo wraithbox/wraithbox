@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -53,8 +54,8 @@ const (
 	// the disk's VERSION isn't wb-guestd's own version. Installing again
 	// would loop, so wb-guestd serves as it is.
 	RuleNoEffect = "guestd-update-no-effect"
-	// RuleInstallFailed: copying a program into the install directory
-	// failed. The programs installed before it stay, and the next start
+	// RuleInstallFailed: opening the install directory, or copying a
+	// program into it, failed. The programs installed before it stay, and the next start
 	// tries again, because wb-guestd is installed last.
 	RuleInstallFailed = "guestd-update-install-failed"
 	// RuleExecFailed: running the installed wb-guestd failed. wb-guestd
@@ -79,8 +80,9 @@ func (r *Refusal) Unwrap() error { return r.err }
 // Platform is what the update needs from the guest OS:
 // internal/platform/guesttools, or a fake in tests.
 type Platform interface {
-	// CheckMount checks that the tools disk is mounted at path.
-	CheckMount(path string) error
+	// OpenDisk opens the tools disk mounted at path, and checks the mount
+	// of the directory it opened.
+	OpenDisk(path string) (*os.Root, error)
 	// PrepareDir makes the install directory when it is missing, and
 	// checks that only root can change it.
 	PrepareDir(dir string) error
@@ -91,9 +93,9 @@ type Platform interface {
 
 type system struct{}
 
-func (system) CheckMount(path string) error { return guesttools.CheckMount(path) }
-func (system) PrepareDir(dir string) error  { return guesttools.PrepareDir(dir) }
-func (system) Exec(path string) error       { return guesttools.Exec(path) }
+func (system) OpenDisk(path string) (*os.Root, error) { return guesttools.OpenDisk(path) }
+func (system) PrepareDir(dir string) error            { return guesttools.PrepareDir(dir) }
+func (system) Exec(path string) error                 { return guesttools.Exec(path) }
 
 // Config is what AtStart runs with. Only Own and Log are set outside
 // tests.
@@ -160,18 +162,20 @@ func Programs() []string {
 // waits for the disk.
 func AtStart(ctx context.Context, cfg Config) error {
 	cfg = cfg.withDefaults()
-	if err := waitDisk(ctx, cfg); err != nil {
+	disk, err := waitDisk(ctx, cfg)
+	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		refused(ctx, cfg, "", err)
 		return nil
 	}
+	defer disk.Close()
 	if err := cfg.Platform.PrepareDir(cfg.Dir); err != nil {
 		refused(ctx, cfg, "", err)
 		return nil
 	}
-	installed, diskVersion, err := install(ctx, cfg)
+	installed, diskVersion, err := install(ctx, cfg, disk)
 	if err != nil {
 		refused(ctx, cfg, diskVersion, err)
 		return nil
@@ -187,23 +191,23 @@ func AtStart(ctx context.Context, cfg Config) error {
 	return err
 }
 
-// waitDisk checks the disk's mount until it passes, every pollEvery, for
+// waitDisk opens the disk until its check passes, every pollEvery, for
 // at most cfg.Wait. It returns the last refusal when the wait ends, and
 // at once when the platform has no tools disk.
-func waitDisk(ctx context.Context, cfg Config) error {
+func waitDisk(ctx context.Context, cfg Config) (*os.Root, error) {
 	start := time.Now()
 	logged := false
 	for {
-		err := cfg.Platform.CheckMount(cfg.Disk)
+		disk, err := cfg.Platform.OpenDisk(cfg.Disk)
 		if err == nil {
 			if logged {
 				cfg.Log.LogAttrs(ctx, slog.LevelInfo, "tools disk mounted",
 					slog.String("path", cfg.Disk), slog.Duration("waited", time.Since(start)))
 			}
-			return nil
+			return disk, nil
 		}
 		if errors.Is(err, errors.ErrUnsupported) || time.Since(start) >= cfg.Wait {
-			return err
+			return nil, err
 		}
 		if !logged {
 			cfg.Log.LogAttrs(ctx, slog.LevelInfo, "waiting for the tools disk",
@@ -212,13 +216,15 @@ func waitDisk(ctx context.Context, cfg Config) error {
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		case <-time.After(pollEvery):
 		}
 	}
 }
 
-// refused logs a refusal of the update, with the rule of err.
+// refused logs a refusal of the update, with the rule of err. Every
+// error AtStart passes here holds its rule, or wraps
+// errors.ErrUnsupported.
 func refused(ctx context.Context, cfg Config, diskVersion string, err error) {
 	rule := RuleInstallFailed
 	var ur *Refusal

@@ -3,6 +3,7 @@ package guesttools
 import (
 	"errors"
 	"fmt"
+	"os"
 )
 
 // Windows guests are later (S12-platforms), and where their tools disk and
@@ -17,8 +18,8 @@ const (
 	InstallDir = ""
 )
 
-// CheckMount checks that the tools disk is mounted at path.
-func CheckMount(string) error { return errUnsupported }
+// OpenDisk opens the tools disk mounted at path and checks it.
+func OpenDisk(string) (*os.Root, error) { return nil, errUnsupported }
 
 // PrepareDir makes and checks the install directory.
 func PrepareDir(string) error { return errUnsupported }

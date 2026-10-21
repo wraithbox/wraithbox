@@ -244,7 +244,9 @@ S06-06-devices-and-warm-start ("Step or slew").
   directory or over the size cap is refused with
   `guestd-update-program-invalid`. Both refusals come before anything
   is installed. An installed `wb-guestd` that holds the disk's bytes
-  already is refused with `guestd-update-no-effect`. A `wb-guestd` that
+  already is refused with `guestd-update-no-effect`, and one that
+  differs in any byte is replaced. The update reads the disk only
+  through the directory that passed its check. A `wb-guestd` that
   can't be installed leaves the programs before it installed, and
   nothing runs. A disk that never passes its check is refused after the
   wait with the platform's rule, and a stop during the wait ends it.
@@ -255,7 +257,8 @@ S06-06-devices-and-warm-start ("Step or slew").
   mounted on it with `guestd-tools-not-mounted`. A directory that is a
   link or a file, has another owner, or is writable by its group or by
   others is refused with `guestd-install-dir-unsafe`. So is a path with
-  such a parent, before anything is made under it.
+  such a parent, before anything is made under it. One that can't be
+  looked at fails with `guestd-install-dir-failed`.
 - **Clock** (`internal/guestd`, with a fake clock over a socketpair).
   `SetTime` steps the clock for a boot, a restore and a wake, and for a
   periodic update more than 1 s off either way, and slews it by the
