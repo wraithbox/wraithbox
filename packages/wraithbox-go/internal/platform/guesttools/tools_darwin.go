@@ -65,6 +65,8 @@ func checkStatfs(path string, st *unix.Statfs_t) error {
 	refuse := func(rule, format string, args ...any) error {
 		return &Refusal{Rule: rule, Path: path, msg: fmt.Sprintf(format, args...)}
 	}
+	// os.OpenRoot follows a symbolic link at path, so this is the check
+	// that refuses a link there to another volume.
 	if on := unix.ByteSliceToString(st.Mntonname[:]); on != path {
 		return refuse(RuleNotMounted, "no volume mounted here: the path is on %q", on)
 	}
