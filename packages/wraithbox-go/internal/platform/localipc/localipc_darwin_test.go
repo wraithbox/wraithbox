@@ -473,13 +473,18 @@ func TestTwoListens(t *testing.T) {
 	_ = first.Close()
 	second := listen(t, nil, run)
 	_ = first.Close()
+	// The accepted end stays open until Dial returns: Dial reads the
+	// real peer credential, which fails once the peer has closed.
+	dialed := make(chan struct{})
 	go func() {
 		c, err := second.Accept()
 		if err == nil {
+			<-dialed
 			_ = c.Close()
 		}
 	}()
 	c, err := Dial(ctx, nil, run, "hostd")
+	close(dialed)
 	if err != nil {
 		t.Fatalf("Dial the second listener: %v", err)
 	}
