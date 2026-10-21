@@ -51,8 +51,17 @@ guestconn
 ratelog
 vmhandoff
 vmdlink
+guestclock
+guesttools
+guestupdate
 
 # Virtualization, networking and OS facilities
+execve
+libexec
+fstype
+fstypename
+mntonname
+rdonly
 datavol
 diskutil
 fread

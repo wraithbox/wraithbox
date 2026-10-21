@@ -132,6 +132,8 @@ func messages() []proto.Message {
 			GuestdVersion:  "1.2.3-rc.1+build.5",
 			ServedPackages: []string{"wraithbox.guest.v1"},
 		},
+		&guestv1.SetTimeRequest{UnixNanos: 1_792_591_200_123_456_789, Reason: guestv1.TimeReason_TIME_REASON_PERIODIC},
+		&guestv1.SetTimeResponse{},
 		&hostdv1.ResetVMDataRequest{Vm: hostdv1.VM_VM_ISOLATED},
 		&hostdv1.ResetVMDataResponse{OldVolumeUuid: "A", NewVolumeUuid: "B"},
 	}, terminalMessages()...)

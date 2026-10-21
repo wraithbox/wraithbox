@@ -36,6 +36,14 @@ service GuestService {
   // bounds of wraithbox.terminal.v1 and builds a new one for wb, so a
   // guest frame never reaches wb as it is (SEC11-root-gains-nothing).
   rpc Shell(stream ShellRequest) returns (stream ShellResponse);
+
+  // SetTime sets the guest's clock to the host's time
+  // (S06-06-devices-and-warm-start, "Time and sleep"). The guest has no
+  // other clock source. wb-guestd steps the clock for a boot, a restore
+  // or a wake, and whenever it is more than 1 second off, and slews it
+  // otherwise. The answer is empty: wb-hostd never reads a time from the
+  // guest.
+  rpc SetTime(SetTimeRequest) returns (SetTimeResponse);
 }
 
 message HelloRequest {}
@@ -90,3 +98,29 @@ message ShellStart {
 message ShellResponse {
   wraithbox.terminal.v1.ServerFrame frame = 1;
 }
+
+// TimeReason says why the host sends its time
+// (S06-06-devices-and-warm-start, "When the host sends the time").
+enum TimeReason {
+  // Never sent. wb-guestd refuses it.
+  TIME_REASON_UNSPECIFIED = 0;
+  // After a cold boot. wb-guestd steps the clock.
+  TIME_REASON_BOOT = 1;
+  // After a restore from saved state. wb-guestd steps the clock.
+  TIME_REASON_RESTORE = 2;
+  // After a host wake. wb-guestd steps the clock.
+  TIME_REASON_WAKE = 3;
+  // The update every 60 seconds while the VM runs. wb-guestd slews the
+  // clock, unless it is more than 1 second off.
+  TIME_REASON_PERIODIC = 4;
+}
+
+message SetTimeRequest {
+  // The host's wall clock when it sent the request, in nanoseconds since
+  // the Unix epoch, UTC. wb-guestd refuses a value of 0 or less.
+  int64 unix_nanos = 1;
+  TimeReason reason = 2;
+}
+
+// SetTimeResponse is empty, so the guest has no time to send back.
+message SetTimeResponse {}

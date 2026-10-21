@@ -76,6 +76,9 @@ endpoint") decide how a project user is kept from posing as
   the trust files and sets the toolchain trust variables. On Linux and
   Windows guests it also adds them to the system trust store. A macOS
   guest refuses that without a user.
+- It sets the guest's clock from the host's time, with
+  `GuestService.SetTime` (S06-06-devices-and-warm-start, "Time and
+  sleep").
 - It acts as the guest end of the git transport
   (S08-workspace-and-git).
 - It relays the flow labels of the guest Network Extension, once spike
@@ -127,7 +130,53 @@ one recorded on the disk. When they differ, before it listens for the
 host, it:
 
 1. installs the disk's programs;
-2. has the service manager start it again.
+2. runs the installed `wb-guestd` in its own place.
+
+On macOS, in this order:
+
+1. **It waits for the disk.** Disk Arbitration mounts the disk's
+   volume, `wb-guest-tools`, at `/Volumes/wb-guest-tools` during boot,
+   which can be after launchd starts `wb-guestd`. `wb-guestd` looks
+   every 100 ms, for at most 30 s.
+2. **It checks the mount.** The volume there has to be APFS, read-only,
+   and mounted by root. Disk Arbitration mounts a disk attached at boot
+   as root. A disk image that a project user attaches is mounted as that
+   user, so it is refused. While the tools disk holds the path, such an
+   image gets another one.
+3. **It reads `VERSION`.** It has to be a regular file that holds a
+   build version in the form of S04-08-records-and-bounds, "The guest's
+   version is a label", and nothing else. `wb-guestd` follows no
+   symbolic link on the disk. When it equals `wb-guestd`'s own version, the update
+   ends here.
+4. **It checks every program before it copies any.** It reads only the
+   programs that the bundle's layout table puts on the disk
+   (S17-01-bundle, "The entitlement check"), and no other file. Each
+   has to be a regular file of at most 256 MiB.
+   Their owners and modes on the disk don't count. The host's user
+   built the disk, and `wb-guestd` sets both when it installs.
+5. **It installs them** into `/Library/WraithBox/libexec`, where the
+   LaunchDaemon runs `wb-guestd` from. It makes the directory when it
+   is missing. The directory and each parent of it have to be
+   directories that root owns and that neither their group nor others
+   can write. A symbolic link there is refused. Each program is copied to a new file
+   created exclusively in the directory, made mode 0755 and synced, and
+   renamed over the old one, so a link at either name is replaced and
+   not followed. `wb-guestd` comes last. After a failure, the next start
+   finds the old `wb-guestd` and installs again.
+6. **It runs the installed `wb-guestd` with `execve`.** The process ID
+   stays, so launchd doesn't see an exit, and its throttle doesn't hold
+   the start back ("Exec after the install" below). When `execve` fails,
+   `wb-guestd` exits, and launchd starts the installed one.
+
+The new `wb-guestd` compares again. When the disk's version still isn't
+its own, while the installed `wb-guestd` already holds the disk's
+bytes, the disk's `VERSION` doesn't match its program. `wb-guestd`
+doesn't install again then, so it can't loop.
+
+Each refusal is logged with its rule, and `wb-guestd` then serves as it
+is. The values are in code: the path and the checks of the mount and
+the directory in `internal/platform/guesttools`, the rest in
+`internal/guestupdate`.
 
 ### The host checks, not the guest
 
@@ -140,5 +189,42 @@ A saved state written under another build version is deleted, and the
 VM cold boots, as after a configuration change
 (S06-06-devices-and-warm-start, "Warm start"). The restored guest
 would run the old `wb-guestd`.
+
+## Decisions
+
+### Exec after the install
+
+After an install, `wb-guestd` replaces itself with the installed
+program through `execve`, rather than having the service manager start
+it again.
+
+- **Why:** launchd starts a `KeepAlive` job at most once every 10 s.
+  The update runs during boot, right after launchd started
+  `wb-guestd`, so an exit would wait out most of those 10 s before the
+  host gets its hello. Cold boot to `wb-guestd` is above the
+  NFR01-startup ceiling already (I86). After `execve` the process keeps
+  its ID, and its memory and threads are the new program's.
+- **Rejected:** an exit and the `KeepAlive` restart, for the throttle.
+  `launchctl kickstart -k` on its own job, which puts the job's label
+  in `wb-guestd`, and kills the process that asked. A shorter
+  `ThrottleInterval` in the LaunchDaemon, which also shortens the pause
+  of a crash loop.
+- **Decided:** I379.
+
+### The mount says which disk it is
+
+`wb-guestd` takes the tools disk from its mount point, and trusts it
+only when root mounted it read-only.
+
+- **Why:** a project user can't mount a volume as root, and the tools
+  disk is the only read-only disk Wraith Box attaches. The update runs
+  before the host link, so `wb-guestd` can't ask the host which disk it
+  is.
+- **Rejected:** finding the disk by its volume name alone, which any
+  disk image can have. Unmounting it and mounting it again at a path
+  of `wb-guestd`'s own, as the data volume is (X08-data-disk): the
+  checks above already refuse what that would keep out, and the guest
+  programs run from the install directory, not from the disk.
+- **Decided:** I379.
 
 **Status:** Draft
