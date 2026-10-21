@@ -2,7 +2,19 @@
 
 **Purpose:** What `wb claude` exits with, and what it does with each signal.
 
+**Tests:** C10-terminal
+
 ## Design
+
+### `wb shell`
+
+This page applies to `wb shell` too, with the shell in place of
+`claude` (S05-03-management-commands, "`wb shell`"). A debug shell
+returns no work, so the table below has no "work was returned"
+condition for it. The shell's code n gives n, and its signal n gives
+128 + n. A usage error gives 2, and any other failure of Wraith Box
+gives 255. That includes a closed or broken stream, and an exit
+status from the guest out of range.
 
 ### Exit status
 

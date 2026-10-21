@@ -31,7 +31,7 @@
 | `wb vm reset-data <vm>` | Give a stopped VM a new, empty data disk after a data disk refusal ("`wb vm reset-data`") |
 | `wb vm start/stop/suspend/status` | Explicit VM control ("`wb vm`") |
 | `wb image build/list/use` | Base image management ("`wb image`") |
-| `wb shell [--project P]` | A debug shell as the project user, labeled as a debug shell |
+| `wb shell [--project P]` | A debug shell as the project user, labeled as a debug shell ("`wb shell`") |
 | `wb setup` | Check the host, and install and start the per-user services ("`wb setup`") |
 | `wb help`, `wb version` | Help and version |
 
@@ -210,6 +210,29 @@ borrowed its slot. The refusal names the build (S06-07-slot-admission).
 - `build` borrows the isolated VM's slot. It is refused while the
   isolated VM has a session that is starting, running, paused or
   ending, a debug shell (`wb shell`) included (S06-07-slot-admission).
+
+### `wb shell`
+
+`wb shell [--project P]` runs `/bin/zsh -l` as the project user, in
+that user's home, in the project's VM. It takes no command to run. It
+resolves the project from the directory unless `--project` is given
+(S05-04-naming, "Which commands"). It refuses a directory that isn't a
+registered project, and names `wb claude` and `wb project place` as the
+ways to register one.
+
+`wb` labels it as a debug shell:
+
+- the window title is `wb: <shell id>` (S16-03-around-the-stream,
+  "Title"). The shell id has the session id form (S05-04-naming,
+  "Session id and branch");
+- before the relay starts, one line on standard error names the
+  project and the guest user, and says that a debug shell returns no
+  work.
+
+The shell's output reaches the terminal through the filter, and `wb`
+writes the title, the reset and the drain around it, as for an agent
+session (S16-terminal-stream). Its exit status and signals are those
+of S05-02-exit-status-and-signals, with the shell in place of `claude`.
 
 ### `wb setup`
 

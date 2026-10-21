@@ -17,14 +17,23 @@ other output is escaped.
 It writes them only when its standard output is a terminal. The drain
 also needs standard input to be one.
 
-`wb claude -p … > out.txt` gets none of them. Its output still passes
+Standard error with frames of its own passes a filter of its own. When
+it goes to a terminal and got output, it also gets that filter's reset.
+So `wb claude -p … > out.txt` in a terminal still resets what the
+guest's standard error changed, before the summary on standard error.
+
+`wb claude -p … > out.txt` gets nothing else. Its output still passes
 the filter (S16-01-filter, "Where").
+
+Before `wb` stops itself for job control, it writes the reset, drains
+the input and restores the title too (S05-02-exit-status-and-signals,
+"Job control").
 
 ### Title
 
 1. `wb` saves the user's window title on the terminal's title stack
    (`CSI 22 t`).
-2. It sets its own: `wb: <session id>`.
+2. It sets its own: `wb: <session id>`, or the shell id for `wb shell`.
 3. On exit it restores the saved one (`CSI 23 t`).
 
 A guest title would reach desktop notifications through the bell
@@ -118,7 +127,9 @@ unknown terminal. `TERM` still isn't changed (I83).
 
 `wb` prints text the guest influenced in other places too:
 
+- the id in the window title;
 - the session summary and its link list;
+- the `wraith box:` line of a failure;
 - `wb diff`, `wb sessions`, `wb approve`, `wb audit`,
   `wb learn report` and `wb status`.
 
