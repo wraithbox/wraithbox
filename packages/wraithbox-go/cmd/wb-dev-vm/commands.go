@@ -93,8 +93,8 @@ func bootCommand(ctx context.Context, args []string, stdout, stderr io.Writer) e
 // standard input between the hand-off and the hello, so wb-vmd can be
 // stopped with SIGSTOP in between (X18-vsock-handoff): a passed
 // descriptor works without wb-vmd. With -time it then sends the host's
-// time, as for a boot and as the periodic update
-// (S06-06-devices-and-warm-start, "Time and sleep").
+// time on the connection of the hello, as for a boot and as the periodic
+// update (S06-06-devices-and-warm-start, "Time and sleep").
 func helloCommand(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("hello", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -143,10 +143,7 @@ func (h *hello) run(ctx context.Context) error {
 	}
 	if h.hold == nil {
 		fmt.Fprintf(h.stdout, "wb-guestd %s\n", link.Version())
-		if h.setTime {
-			err = sendTime(ctx, link, h.stdout)
-		}
-		return errors.Join(err, link.Close())
+		return h.done(ctx, link)
 	}
 	_ = link.Close()
 	// wb-guestd answers, so this connection is the one the hold is for.
@@ -165,7 +162,17 @@ func (h *hello) run(ctx context.Context) error {
 		return err
 	}
 	fmt.Fprintf(h.stdout, "wb-guestd %s, on a connection wb-vmd passed before it was stopped\n", link.Version())
-	return link.Close()
+	return h.done(ctx, link)
+}
+
+// done sends the host's time on link when -time asks for it, and closes
+// link.
+func (h *hello) done(ctx context.Context, link *guestlink.Link) error {
+	var err error
+	if h.setTime {
+		err = sendTime(ctx, link, h.stdout)
+	}
+	return errors.Join(err, link.Close())
 }
 
 // sendTime sends the host's time to wb-guestd, first as for a boot, which

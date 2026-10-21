@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -38,24 +37,27 @@ var errRan = errors.New("ran the installed program")
 
 // fakePlatform stands in for internal/platform/guesttools.
 type fakePlatform struct {
-	// mount is CheckMount's answer. nil passes.
-	mount      func() error
+	// mount is OpenDisk's check. nil passes, and opens the disk.
+	mount func() error
+	// open is the directory OpenDisk opens when the check passes. ""
+	// opens the path it is given.
+	open       string
 	prepareErr error
 
-	mu       sync.Mutex
-	checks   int
 	prepared []string
 	execs    []string
 }
 
-func (p *fakePlatform) CheckMount(string) error {
-	p.mu.Lock()
-	p.checks++
-	p.mu.Unlock()
-	if p.mount == nil {
-		return nil
+func (p *fakePlatform) OpenDisk(path string) (*os.Root, error) {
+	if p.mount != nil {
+		if err := p.mount(); err != nil {
+			return nil, err
+		}
 	}
-	return p.mount()
+	if p.open != "" {
+		path = p.open
+	}
+	return os.OpenRoot(path)
 }
 
 func (p *fakePlatform) PrepareDir(dir string) error {
@@ -333,27 +335,32 @@ func TestInstallFailed(t *testing.T) {
 // TestDiskRefused: a disk that never passes its mount check, an install
 // directory that fails its check, and a platform without a tools disk
 // each leave wb-guestd serving as it is, with the platform's rule
-// logged. A platform without a tools disk doesn't wait.
+// logged. The wait ends, and a platform without a tools disk doesn't
+// wait at all: its wait here is an hour.
 func TestDiskRefused(t *testing.T) {
 	notMounted := &guesttools.Refusal{Rule: guesttools.RuleNotMounted, Path: "/Volumes/wb-guest-tools"}
 	unsafe := &guesttools.Refusal{Rule: guesttools.RuleDirUnsafe, Path: "/Library"}
+	failed := &guesttools.Refusal{Rule: guesttools.RuleDirFailed, Path: "/Library"}
 	cases := []struct {
 		name     string
 		platform *fakePlatform
+		wait     time.Duration
 		rule     string
-		maxWait  time.Duration
 	}{
-		{"never mounted", &fakePlatform{mount: func() error { return notMounted }}, guesttools.RuleNotMounted, 2 * time.Second},
-		{"unsafe install directory", &fakePlatform{prepareErr: unsafe}, guesttools.RuleDirUnsafe, time.Second},
-		{"unsupported", &fakePlatform{mount: func() error { return errors.ErrUnsupported }}, guestupdate.RuleUnsupported, 50 * time.Millisecond},
+		{"never mounted", &fakePlatform{mount: func() error { return notMounted }}, 250 * time.Millisecond, guesttools.RuleNotMounted},
+		{"unsafe install directory", &fakePlatform{prepareErr: unsafe}, 0, guesttools.RuleDirUnsafe},
+		{"install directory failed", &fakePlatform{prepareErr: failed}, 0, guesttools.RuleDirFailed},
+		{"unsupported", &fakePlatform{mount: func() error { return errors.ErrUnsupported }}, time.Hour, guestupdate.RuleUnsupported},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			e := newEnv(t, newer)
 			e.platform = tc.platform
+			cfg := e.config()
+			cfg.Wait = tc.wait
 			start := time.Now()
-			err := e.run(e.config())
-			if took := time.Since(start); took > tc.maxWait {
+			err := e.run(cfg)
+			if took := time.Since(start); took > 10*time.Second {
 				t.Fatalf("took %v", took)
 			}
 			e.refusedWith(err, tc.rule)
@@ -361,8 +368,62 @@ func TestDiskRefused(t *testing.T) {
 	}
 }
 
+// TestReadsTheCheckedDisk: the update reads only through the directory
+// that passed the mount check, never the mount point again, so another
+// volume mounted there after the check isn't what it installs.
+func TestReadsTheCheckedDisk(t *testing.T) {
+	e := newEnv(t, newer)
+	other := t.TempDir()
+	e.write(other, "VERSION", newer)
+	e.write(other, helper, "other")
+	e.write(other, guestd, "other")
+	e.platform.open = e.disk
+	cfg := e.config()
+	cfg.Disk = other
+	if err := e.run(cfg); !errors.Is(err, errRan) {
+		t.Fatalf("AtStart = %v", err)
+	}
+	e.installedNewer()
+}
+
+// TestSameBytes: only an installed wb-guestd with the disk's bytes stops
+// the update, whatever its size. One of the same size with other bytes,
+// one that is a prefix of the disk's, and one that differs only in its
+// last byte are replaced.
+func TestSameBytes(t *testing.T) {
+	big := strings.Repeat("g", 64<<10)
+	cases := []struct {
+		name, disk, installed string
+		noEffect              bool
+	}{
+		{"same size, other bytes", "guestd " + newer, "guestd 1.1.0+b3", false},
+		{"a prefix", big + "g", big, false},
+		{"last byte differs", big + "g", big + "h", false},
+		{"64 KiB, same", big, big, true},
+		{"over 64 KiB, same", big + "g", big + "g", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t, newer)
+			e.write(e.disk, guestd, tc.disk)
+			e.write(e.dir, guestd, tc.installed)
+			err := e.run(e.config())
+			if tc.noEffect {
+				if err != nil || !slices.Equal(e.rules(), []string{guestupdate.RuleNoEffect}) {
+					t.Fatalf("AtStart = %v, rules %q", err, e.rules())
+				}
+				return
+			}
+			if !errors.Is(err, errRan) || e.installed()[guestd] != tc.disk {
+				t.Fatalf("AtStart = %v, rules %q, want %s installed", err, e.rules(), guestd)
+			}
+		})
+	}
+}
+
 // TestWaitsForDisk: the update waits for the disk to be mounted, and
-// then installs.
+// then installs. The wait is long enough for a slow machine, and the
+// test ends when the disk is there.
 func TestWaitsForDisk(t *testing.T) {
 	e := newEnv(t, newer)
 	tries := 0
@@ -372,7 +433,9 @@ func TestWaitsForDisk(t *testing.T) {
 		}
 		return nil
 	}
-	if err := e.run(e.config()); !errors.Is(err, errRan) {
+	cfg := e.config()
+	cfg.Wait = time.Minute
+	if err := e.run(cfg); !errors.Is(err, errRan) {
 		t.Fatalf("AtStart = %v", err)
 	}
 	if tries != 3 || !strings.Contains(e.log.String(), `"msg":"tools disk mounted"`) {

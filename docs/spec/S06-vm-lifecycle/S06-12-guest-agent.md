@@ -137,12 +137,14 @@ On macOS, in this order:
 1. **It waits for the disk.** Disk Arbitration mounts the disk's
    volume, `wb-guest-tools`, at `/Volumes/wb-guest-tools` during boot,
    which can be after launchd starts `wb-guestd`. `wb-guestd` looks
-   every 100 ms, for at most 30 s.
+   again until the disk is there, for a bounded time.
 2. **It checks the mount.** The volume there has to be APFS, read-only,
    and mounted by root. Disk Arbitration mounts a disk attached at boot
    as root. A disk image that a project user attaches is mounted as that
    user, so it is refused. While the tools disk holds the path, such an
-   image gets another one.
+   image gets another one. `wb-guestd` checks the mount of the directory
+   it opened, and reads the disk only through that directory. So a
+   volume mounted at the path after the check isn't what it installs.
 3. **It reads `VERSION`.** It has to be a regular file that holds a
    build version in the form of S04-08-records-and-bounds, "The guest's
    version is a label", and nothing else. `wb-guestd` follows no
@@ -151,7 +153,7 @@ On macOS, in this order:
 4. **It checks every program before it copies any.** It reads only the
    programs that the bundle's layout table puts on the disk
    (S17-01-bundle, "The entitlement check"), and no other file. Each
-   has to be a regular file of at most 256 MiB.
+   has to be a regular file under a size cap.
    Their owners and modes on the disk don't count. The host's user
    built the disk, and `wb-guestd` sets both when it installs.
 5. **It installs them** into `/Library/WraithBox/libexec`, where the
@@ -174,9 +176,9 @@ bytes, the disk's `VERSION` doesn't match its program. `wb-guestd`
 doesn't install again then, so it can't loop.
 
 Each refusal is logged with its rule, and `wb-guestd` then serves as it
-is. The values are in code: the path and the checks of the mount and
-the directory in `internal/platform/guesttools`, the rest in
-`internal/guestupdate`.
+is. The values are in code: the paths and the checks of the mount and
+the directory in `internal/platform/guesttools`, and the wait, the size
+cap and the rest in `internal/guestupdate`.
 
 ### The host checks, not the guest
 

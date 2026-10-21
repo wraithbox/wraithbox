@@ -20,15 +20,43 @@ const (
 	InstallDir = "/Library/WraithBox/libexec"
 )
 
-// CheckMount checks that a volume is mounted at path, and that it can
-// only be the tools disk wb-hostd attached: APFS, read-only, and mounted
-// by root. Disk Arbitration mounts a disk attached at boot as root. A
-// disk image a project user attaches is mounted as that user, and comes
-// up at another path while the tools disk holds this one.
-func CheckMount(path string) error {
-	var st unix.Statfs_t
-	if err := unix.Statfs(path, &st); err != nil {
+// OpenDisk opens the volume mounted at path, and checks that it can only
+// be the tools disk wb-hostd attached: APFS, read-only, and mounted by
+// root. Disk Arbitration mounts a disk attached at boot as root. A disk
+// image a project user attaches is mounted as that user, and comes up at
+// another path while the tools disk holds this one. The check is of the
+// directory it opened, so another volume mounted at path afterwards isn't
+// what the caller reads through the root it returns.
+func OpenDisk(path string) (*os.Root, error) {
+	root, err := os.OpenRoot(path)
+	if err != nil {
+		return nil, &Refusal{Rule: RuleNotMounted, Path: path, msg: err.Error()}
+	}
+	if err := checkRoot(path, root); err != nil {
+		_ = root.Close()
+		return nil, err
+	}
+	return root, nil
+}
+
+// checkRoot checks the mount of root's own directory, with fstatfs.
+func checkRoot(path string, root *os.Root) error {
+	dir, err := root.Open(".")
+	if err != nil {
 		return &Refusal{Rule: RuleNotMounted, Path: path, msg: err.Error()}
+	}
+	defer dir.Close()
+	rc, err := dir.SyscallConn()
+	if err != nil {
+		return &Refusal{Rule: RuleNotMounted, Path: path, msg: err.Error()}
+	}
+	var st unix.Statfs_t
+	var statErr error
+	if err := rc.Control(func(fd uintptr) { statErr = unix.Fstatfs(int(fd), &st) }); err != nil {
+		statErr = err
+	}
+	if statErr != nil {
+		return &Refusal{Rule: RuleNotMounted, Path: path, msg: statErr.Error()}
 	}
 	return checkStatfs(path, &st)
 }
@@ -67,11 +95,11 @@ func prepareDir(dir string, owner uint32) error {
 	for _, p := range pathAndParents(dir) {
 		if _, err := os.Lstat(p); errors.Is(err, fs.ErrNotExist) {
 			if err := os.Mkdir(p, 0o755); err != nil { //nolint:gosec // G301: readable by all as /Library is; only root can write it, which checkDir checks
-				return fmt.Errorf("guesttools: %w", err)
+				return dirFailed(p, err)
 			}
 			// The umask may have taken bits off.
 			if err := os.Chmod(p, 0o755); err != nil { //nolint:gosec // G302: a directory, readable by all as /Library is
-				return fmt.Errorf("guesttools: %w", err)
+				return dirFailed(p, err)
 			}
 		}
 		if err := checkDir(p, owner); err != nil {
@@ -97,7 +125,7 @@ func pathAndParents(dir string) []string {
 func checkDir(p string, owner uint32) error {
 	fi, err := os.Lstat(p)
 	if err != nil {
-		return fmt.Errorf("guesttools: %w", err)
+		return dirFailed(p, err)
 	}
 	refuse := func(format string, args ...any) error {
 		return &Refusal{Rule: RuleDirUnsafe, Path: p, msg: fmt.Sprintf(format, args...)}
@@ -116,6 +144,12 @@ func checkDir(p string, owner uint32) error {
 		return refuse("mode %v: its group or others can write it", fi.Mode().Perm())
 	}
 	return nil
+}
+
+// dirFailed is the refusal of a directory PrepareDir couldn't make or
+// look at.
+func dirFailed(p string, err error) error {
+	return &Refusal{Rule: RuleDirFailed, Path: p, msg: err.Error()}
 }
 
 // Exec runs the program at path in this process's place, with execve:

@@ -13,8 +13,9 @@ import (
 // "Platform contract tests", S12-01-platform-interfaces, "Unimplemented
 // platforms fail clearly").
 func TestUnsupported(t *testing.T) {
+	_, openErr := OpenDisk("/")
 	for name, err := range map[string]error{
-		"CheckMount": CheckMount("/"),
+		"OpenDisk":   openErr,
 		"PrepareDir": PrepareDir("/"),
 		"Exec":       Exec("/"),
 	} {

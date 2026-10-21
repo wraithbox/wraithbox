@@ -26,6 +26,10 @@ const (
 	// symbolic link or not a directory, isn't owned by root, or its group
 	// or others can write it.
 	RuleDirUnsafe = "guestd-install-dir-unsafe"
+	// RuleDirFailed: the install directory or a parent of it couldn't be
+	// made or looked at, for a reason other than what it is, such as an
+	// I/O error.
+	RuleDirFailed = "guestd-install-dir-failed"
 )
 
 // Refusal is the error of a refusal in this package.

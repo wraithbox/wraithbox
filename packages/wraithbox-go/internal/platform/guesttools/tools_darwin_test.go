@@ -56,25 +56,31 @@ func TestCheckStatfs(t *testing.T) {
 	}
 }
 
-// TestCheckMount: a path with no volume mounted on it is refused, and
-// the sealed system volume, read-only and mounted by root, passes.
-func TestCheckMount(t *testing.T) {
+// TestOpenDisk: a path with no volume mounted on it is refused, and the
+// sealed system volume, read-only and mounted by root, passes.
+func TestOpenDisk(t *testing.T) {
 	for _, p := range []string{t.TempDir(), filepath.Join(t.TempDir(), "missing")} {
-		if err := CheckMount(p); ruleOf(err) != RuleNotMounted {
-			t.Fatalf("CheckMount(%s) = %v, want %s", p, err, RuleNotMounted)
+		if root, err := OpenDisk(p); ruleOf(err) != RuleNotMounted || root != nil {
+			t.Fatalf("OpenDisk(%s) = %v, %v, want %s", p, root, err, RuleNotMounted)
 		}
 	}
-	var root unix.Statfs_t
-	if err := unix.Statfs("/", &root); err != nil || root.Flags&unix.MNT_RDONLY == 0 {
+	var st unix.Statfs_t
+	if err := unix.Statfs("/", &st); err != nil || st.Flags&unix.MNT_RDONLY == 0 {
 		t.Skipf("/ isn't a read-only volume here: %v", err)
 	}
-	if err := CheckMount("/"); err != nil {
-		t.Fatalf("CheckMount(/) = %v", err)
+	root, err := OpenDisk("/")
+	if err != nil {
+		t.Fatalf("OpenDisk(/) = %v", err)
+	}
+	defer root.Close()
+	if _, err := root.Stat("System"); err != nil {
+		t.Fatalf("read through the root: %v", err)
 	}
 }
 
 // TestCheckDir: a directory passes only when it isn't a link, belongs to
-// the owner, and its group and others can't write it.
+// the owner, and its group and others can't write it. A path that can't
+// be looked at fails.
 func TestCheckDir(t *testing.T) {
 	me := uint32(os.Getuid())
 	dir := t.TempDir()
@@ -101,21 +107,22 @@ func TestCheckDir(t *testing.T) {
 		name  string
 		path  string
 		owner uint32
-		ok    bool
+		rule  string
 	}{
-		{"owned, 0755", good, me, true},
-		{"owned, 0700", mk("private", 0o700), me, true},
-		{"group can write", mk("group", 0o775), me, false},
-		{"others can write", mk("others", 0o757), me, false},
-		{"another owner", good, me + 1, false},
-		{"a symbolic link", link, me, false},
-		{"a file", file, me, false},
+		{"owned, 0755", good, me, ""},
+		{"owned, 0700", mk("private", 0o700), me, ""},
+		{"group can write", mk("group", 0o775), me, RuleDirUnsafe},
+		{"others can write", mk("others", 0o757), me, RuleDirUnsafe},
+		{"another owner", good, me + 1, RuleDirUnsafe},
+		{"a symbolic link", link, me, RuleDirUnsafe},
+		{"a file", file, me, RuleDirUnsafe},
+		{"missing", filepath.Join(dir, "missing"), me, RuleDirFailed},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := checkDir(tc.path, tc.owner)
-			if tc.ok != (err == nil) || (!tc.ok && ruleOf(err) != RuleDirUnsafe) {
-				t.Fatalf("checkDir = %v, want ok %v", err, tc.ok)
+			if ruleOf(err) != tc.rule || (tc.rule == "") != (err == nil) {
+				t.Fatalf("checkDir = %v, want rule %q", err, tc.rule)
 			}
 		})
 	}

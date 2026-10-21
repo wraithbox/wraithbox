@@ -25,12 +25,7 @@ type program struct {
 // every program on the disk before it installs any, then installs them
 // in cfg.Programs' order. It returns whether it installed them, and the
 // disk's version once it has read a valid one.
-func install(ctx context.Context, cfg Config) (installed bool, diskVersion string, err error) {
-	disk, err := os.OpenRoot(cfg.Disk)
-	if err != nil {
-		return false, "", &Refusal{Rule: RuleVersionInvalid, err: err}
-	}
-	defer disk.Close()
+func install(ctx context.Context, cfg Config, disk *os.Root) (installed bool, diskVersion string, err error) {
 	diskVersion, err = readVersion(disk)
 	if err != nil {
 		return false, "", err
