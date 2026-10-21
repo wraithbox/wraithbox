@@ -99,6 +99,9 @@ type Config struct {
 	Signals <-chan tty.Signal
 	// StopSelf stops wb until it continues (tty.StopSelf).
 	StopSelf func() error
+	// Charset is the host terminal's charset (tty.HostCharset). Run
+	// refuses one that isn't UTF-8, the zero Charset included.
+	Charset tty.Charset
 
 	Stdin          io.Reader
 	Stdout, Stderr io.Writer
@@ -130,7 +133,9 @@ func (c *Config) defaults() {
 	}
 }
 
-// Run relays until the stream's last frame, or until it fails, and
+// Run refuses a host terminal whose charset isn't UTF-8 before it reads
+// a frame (CheckCharset). Otherwise it relays until the stream's last
+// frame, or until it fails, and
 // returns wb's exit status by the table of
 // S05-02-exit-status-and-signals. On every way out, a panic included, it
 // restores the terminal mode it found. Unless wb got SIGHUP, it then
@@ -145,6 +150,9 @@ func (c *Config) defaults() {
 // input again.
 func Run(cfg Config) (code int) {
 	cfg.defaults()
+	if err := CheckCharset(cfg.Charset, cfg.Log); err != nil {
+		return refuse(cfg, &failure{rule: RuleCharset, message: err.Error()})
+	}
 	r := newRelay(cfg)
 	defer r.recoverPanic(&code)
 	if f := r.start(); f != nil {

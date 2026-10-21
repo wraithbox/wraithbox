@@ -50,7 +50,10 @@ func TestEnvironment(t *testing.T) {
 	}
 
 	h := newHarness(t, allTTYs)
-	setup, lines := NewSetup(allTTYs, h.term, lookup, h.cfg.Log)
+	setup, lines, err := NewSetup(allTTYs, h.term, utf8Charset, lookup, h.cfg.Log)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(lines) != 1 || lines[0] != "wb: left out of the guest's environment: LC_ALL (over 256 bytes), LC_CTYPE (a byte outside printable ASCII)" {
 		t.Errorf("lines %q", lines)
 	}
@@ -84,7 +87,10 @@ func TestSetupUses(t *testing.T) {
 		{TTYs{}, false, true},
 	}
 	for _, tt := range tests {
-		s, _ := NewSetup(tt.ttys, &fakeTerminal{rows: 0, cols: 0}, func(string) (string, bool) { return "", false }, nil)
+		s, _, err := NewSetup(tt.ttys, &fakeTerminal{rows: 0, cols: 0}, utf8Charset, func(string) (string, bool) { return "", false }, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if s.GetInteractive() != tt.interactive || s.GetSeparateStderr() != tt.separate {
 			t.Errorf("%+v: setup %v", tt.ttys, s)
 		}

@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/tty"
+
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 )
 
@@ -64,10 +66,15 @@ func envValueProblem(v string) string {
 // NewSetup returns the terminal setup of the first message of a Shell
 // call, and the lines wb prints on standard error before the relay
 // starts: one that names the variables left out of the environment,
-// when there are any. term is used in interactive use only.
-func NewSetup(ttys TTYs, term Terminal, lookup func(string) (string, bool), log *slog.Logger) (*terminalv1.Setup, []string) {
+// when there are any. term is used in interactive use only. It refuses
+// a host terminal whose charset isn't UTF-8 with a *CharsetError
+// (CheckCharset), so a session is refused before wb-hostd opens it.
+func NewSetup(ttys TTYs, term Terminal, cs tty.Charset, lookup func(string) (string, bool), log *slog.Logger) (*terminalv1.Setup, []string, error) {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
+	}
+	if err := CheckCharset(cs, log); err != nil {
+		return nil, nil, err
 	}
 	vars, left := Environment(lookup)
 	s := &terminalv1.Setup{
@@ -87,7 +94,7 @@ func NewSetup(ttys TTYs, term Terminal, lookup func(string) (string, bool), log 
 		}
 		lines = append(lines, "wb: left out of the guest's environment: "+strings.Join(parts, ", "))
 	}
-	return s, lines
+	return s, lines, nil
 }
 
 func setupSize(term Terminal, log *slog.Logger) *terminalv1.WindowSize {

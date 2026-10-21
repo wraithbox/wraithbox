@@ -203,6 +203,9 @@ TSTP
 COLORTERM
 CTYPE
 ITERM
+charsets
+codeset
+setlocale
 
 # Tools and their names in configs
 globl

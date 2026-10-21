@@ -233,6 +233,9 @@ func (s *syncBuffer) String() string {
 
 var allTTYs = TTYs{Stdin: true, Stdout: true, Stderr: true}
 
+// utf8Charset is a host terminal that reads UTF-8.
+var utf8Charset = tty.Charset{Source: "LANG", Value: "en_US.UTF-8", UTF8: true}
+
 func newHarness(t *testing.T, ttys TTYs) *harness {
 	t.Helper()
 	e := &events{}
@@ -251,6 +254,7 @@ func newHarness(t *testing.T, ttys TTYs) *harness {
 	h.cfg = Config{
 		Stream:       h.stream,
 		Terminal:     h.term,
+		Charset:      utf8Charset,
 		Signals:      h.sigs,
 		Stdin:        stdinR,
 		Stdout:       h.stdout,

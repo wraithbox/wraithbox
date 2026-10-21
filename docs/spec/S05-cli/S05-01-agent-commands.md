@@ -87,6 +87,15 @@ projects' sessions.
 255, with a message that says why: the return path is git
 (S08-workspace-and-git).
 
+#### A terminal that isn't UTF-8
+
+`wb` refuses the session, before it opens one, when the host
+terminal's charset isn't UTF-8 (S16-01-filter, "Where"). It exits with
+255 and logs the rule `terminal-charset-not-utf8`. The refusal names
+the variable it read and its value, and says to set that variable to a
+UTF-8 locale. No flag overrides it. This holds when the output goes to
+a pipe or a file as well, and for `wb shell`.
+
 #### Closing the terminal
 
 Closing the terminal ends the session.

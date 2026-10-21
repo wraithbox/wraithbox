@@ -9,11 +9,16 @@ import (
 
 // System returns a Config with the parts that come from the OS: the
 // standard streams, which of them are terminals, the terminal on
-// standard input, the signals, and the stop for job control. The caller
+// standard input, the signals, the stop for job control, and the host
+// terminal's charset, which Run checks. The caller
 // sets the stream, the id and the log. stop ends the signal delivery.
 // On an OS where internal/platform/tty isn't built, it fails with an
 // error that wraps errors.ErrUnsupported.
 func System() (cfg Config, stop func(), err error) {
+	cs, err := tty.HostCharset(os.LookupEnv)
+	if err != nil {
+		return Config{}, nil, fmt.Errorf("relay: %w", err)
+	}
 	sigs := make(chan tty.Signal, 8)
 	stop, err = tty.Notify(sigs)
 	if err != nil {
@@ -22,6 +27,7 @@ func System() (cfg Config, stop func(), err error) {
 	cfg = Config{
 		Signals:  sigs,
 		StopSelf: tty.StopSelf,
+		Charset:  cs,
 		Stdin:    os.Stdin,
 		Stdout:   os.Stdout,
 		Stderr:   os.Stderr,

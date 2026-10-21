@@ -23,10 +23,24 @@ The filter passes text, Markdown and JSON unchanged when they:
   `DEL`, or a C0 control other than the ones it passes.
 
 Invalid bytes become U+FFFD, so binary output through standard output
-isn't supported. The filter's output is for a terminal that reads
-UTF-8. On a terminal that reads 8-bit bytes, some bytes inside a valid
-character act as C1 controls, 0x9B among them. If moving files out of the guest is ever needed, it
+isn't supported. If moving files out of the guest is ever needed, it
 gets its own command, not an unfiltered stream.
+
+The filter's output is for a terminal that reads UTF-8. On a terminal
+that reads 8-bit bytes, some bytes inside a valid character act as C1
+controls, 0x9B among them. So `wb` reads the host terminal's charset
+before it relays a guest terminal stream. A charset other than UTF-8
+refuses the session, with the rule `terminal-charset-not-utf8` (I341):
+
+- on macOS and Linux, the charset is that of the first of `LC_ALL`,
+  `LC_CTYPE` and `LANG` that is set and not empty, as `setlocale`
+  reads them. None set is the C locale, which isn't UTF-8;
+- on Windows, the charset is the console output code page. Until the relay runs
+  there, the read fails, and `wb` refuses.
+
+The refusal comes before any guest byte reaches the terminal, and
+nothing overrides it (S05-01-agent-commands, "A terminal that isn't
+UTF-8").
 
 ### How
 

@@ -97,6 +97,7 @@ func TestC10Conformance(t *testing.T) {
 	code := relay.Run(relay.Config{
 		Stream:       s,
 		Terminal:     term,
+		Charset:      tty.Charset{Source: "LANG", Value: "en_US.UTF-8", UTF8: true},
 		Signals:      make(chan tty.Signal),
 		Stdin:        stdin,
 		Stdout:       pts,
