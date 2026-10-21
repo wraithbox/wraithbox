@@ -129,6 +129,12 @@ func (ls *Links) vm(slot vm.Slot) *vmConns {
 	return vc
 }
 
+func (ls *Links) isClosed() bool {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	return ls.closed
+}
+
 // Run starts the control link of slot's run of generation, and keeps it
 // until ended is closed or Close is called. vm.Config.OnRunning calls it
 // for each run that reaches running. It doesn't block.

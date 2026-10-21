@@ -39,8 +39,11 @@ the `.proto` packages it serves. `wb-hostd` checks the answer before
 anything else uses the connection (S04-08-records-and-bounds, "With
 `wb-guestd`"):
 
-- It sets its receive cap of 4 KiB as a client option, so gRPC refuses
-  a larger answer before it decodes it, and it waits at most 5 s.
+- It sets a receive cap of 4 KiB as a call option on `Hello`, so gRPC
+  refuses a larger answer before it decodes it, and it waits at most
+  5 s. Later calls on the connection take the 64 KiB cap of every guest
+  connection (S04-08-records-and-bounds, "Host work the guest can
+  cause").
 - A timeout is refused with `guest-hello-timeout`. A failed call, an
   answer over the cap, or an error status is refused with
   `guest-hello-invalid`.

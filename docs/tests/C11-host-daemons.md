@@ -236,12 +236,14 @@ the guest end of each socketpair:
 - Each cap refuses at its limit with its rule: `guest-conn-cap-vm`,
   `guest-conn-cap-project`, and `guest-reconnect-rate` for the 21st
   open in a minute. A connection that opens after its run ended is
-  closed with `guest-conn-stale`.
+  closed with `guest-conn-stale`. After `Close`, an open is refused with
+  `guest-links-closed` before the provider is asked.
 - While every try fails, by a failed connection or a refused hello,
   the waits are 0.1, 0.2, 0.4 s and so on up to 5 s. A guest that drops
   the link after each hello gets 20 connections, then the link waits
   for the window and logs `guest-reconnect-rate` once.
-- Closing the guest end reconnects after 0.1 s, and grpc-go never asks
+- Closing the guest end logs `guest-link-dropped` once and reconnects
+  after 0.1 s, the old connection closed, and grpc-go never asks
   the link's dialer for a second connection (`guest-redial-refused`).
 - A VM stop ends the loop and closes every connection, and the next
   start links to the new generation. No goroutine of the link, its
