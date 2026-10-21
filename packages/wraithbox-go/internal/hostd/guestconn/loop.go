@@ -53,6 +53,9 @@ func (r *run) loop() {
 // sleep waits d, or longer when the VM's open window is full, and
 // reports false when the run ended first.
 func (r *run) sleep(d time.Duration) bool {
+	if r.ctx.Err() != nil {
+		return false
+	}
 	if room := r.vc.untilRoom(); room > d {
 		r.vc.rateLog.LogAttrs(r.ctx, slog.LevelWarn, "guest reconnect waits for the window",
 			slog.String("rule", RuleReconnectRate), slog.String("decision", "wait"),
