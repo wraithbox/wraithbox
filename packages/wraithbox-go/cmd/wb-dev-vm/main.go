@@ -6,7 +6,7 @@
 // tooling").
 //
 //	wb-dev-vm boot [flags]                           # boot, print each state, stop on Ctrl-C
-//	wb-dev-vm hello [-port N] [-hold] [-guest-version V] [flags]  # boot, run wb-guestd's hello, print its version, stop
+//	wb-dev-vm hello [-port N] [-hold] [-guest-version V] [-time] [flags]  # boot, run wb-guestd's hello, print its version, stop
 //	wb-dev-vm connect -port N -listen PATH [flags]   # boot, relay each client of PATH to guest port N
 //
 // It starts wb-vmd as wb-launcher is to (S04-03-self-sandboxing, "How

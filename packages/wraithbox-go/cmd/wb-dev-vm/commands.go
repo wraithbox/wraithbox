@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsock"
@@ -91,7 +92,9 @@ func bootCommand(ctx context.Context, args []string, stdout, stderr io.Writer) e
 // wb-guestd's hello on the connection. With -hold it waits for a line on
 // standard input between the hand-off and the hello, so wb-vmd can be
 // stopped with SIGSTOP in between (X18-vsock-handoff): a passed
-// descriptor works without wb-vmd.
+// descriptor works without wb-vmd. With -time it then sends the host's
+// time, as for a boot and as the periodic update
+// (S06-06-devices-and-warm-start, "Time and sleep").
 func helloCommand(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("hello", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -100,11 +103,12 @@ func helloCommand(ctx context.Context, args []string, stdin io.Reader, stdout, s
 	fs.Var(&port, "port", "the guest port wb-guestd listens on")
 	hold := fs.Bool("hold", false, "wait for a line on standard input between the hand-off and the hello")
 	guestVersion := fs.String("guest-version", "", "the build version wb-guestd must report (default: wb-dev-vm's own)")
+	setTime := fs.Bool("time", false, "after the hello, send the host's time with SetTime, for a boot and as the periodic update")
 	if err := parse(fs, f, args); err != nil {
 		return err
 	}
 	return withVM(ctx, f, stdout, stderr, func(s *session) error {
-		h := hello{s: s, port: uint32(port), wait: f.wait, stdout: stdout, guestVersion: s.own}
+		h := hello{s: s, port: uint32(port), wait: f.wait, stdout: stdout, guestVersion: s.own, setTime: *setTime}
 		if *guestVersion != "" {
 			h.guestVersion = *guestVersion
 		}
@@ -124,6 +128,7 @@ type hello struct {
 	hold   *bufio.Reader // nil without -hold
 	// guestVersion is the version Hello checks wb-guestd's against.
 	guestVersion string
+	setTime      bool
 }
 
 func (h *hello) run(ctx context.Context) error {
@@ -138,7 +143,10 @@ func (h *hello) run(ctx context.Context) error {
 	}
 	if h.hold == nil {
 		fmt.Fprintf(h.stdout, "wb-guestd %s\n", link.Version())
-		return link.Close()
+		if h.setTime {
+			err = sendTime(ctx, link, h.stdout)
+		}
+		return errors.Join(err, link.Close())
 	}
 	_ = link.Close()
 	// wb-guestd answers, so this connection is the one the hold is for.
@@ -158,6 +166,22 @@ func (h *hello) run(ctx context.Context) error {
 	}
 	fmt.Fprintf(h.stdout, "wb-guestd %s, on a connection wb-vmd passed before it was stopped\n", link.Version())
 	return link.Close()
+}
+
+// sendTime sends the host's time to wb-guestd, first as for a boot, which
+// steps the guest clock, then as the periodic update, which slews it
+// unless it is more than 1 s off.
+func sendTime(ctx context.Context, link *guestlink.Link, stdout io.Writer) error {
+	for _, reason := range []guestv1.TimeReason{
+		guestv1.TimeReason_TIME_REASON_BOOT, guestv1.TimeReason_TIME_REASON_PERIODIC,
+	} {
+		req := &guestv1.SetTimeRequest{UnixNanos: time.Now().UnixNano(), Reason: reason}
+		if _, err := link.Client().SetTime(ctx, req); err != nil {
+			return fmt.Errorf("SetTime %v: %w", reason, err)
+		}
+		fmt.Fprintf(stdout, "SetTime %v: ok\n", reason)
+	}
+	return nil
 }
 
 // probeRequestID is the request ID of a probe. The link counts its own
