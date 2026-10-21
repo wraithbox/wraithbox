@@ -5,7 +5,8 @@
 the accounting and event channels, the daemon log pipes, the audit
 writer, free space, and the data disk steps.
 
-**Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024"), S06-12-guest-agent ("The hello"),
+**Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024", "The host opens every connection", "Caps and closing"), S06-12-guest-agent ("The hello"),
+S06-11-reconnect-and-recovery ("Reconnect"), S06-06-devices-and-warm-start ("When the host sends the time"), S04-08-records-and-bounds ("Host work the guest can cause"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
 S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
 S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
@@ -132,7 +133,9 @@ cloner of `internal/hostd/vm/vmtest`:
   generations, and the generation is committed before the provider
   sees it.
   Generation 0 is refused with `vm-generation-invalid` on start, stop
-  and connect.
+  and connect. A connection for any generation but the current one is
+  refused with `vm-generation-stale`. Each run that reaches running is
+  reported once to `OnRunning`, whose channel closes when the run ends.
 - A provider refusal is passed on with its rule. A start that fails on
   the framework's limit of running VMs is refused with
   `vm-limit-other-software`, naming the running VM, with no retry.
@@ -215,13 +218,62 @@ Spec: S04-02-vm-provider ("Guest ports below 1024"), S06-12-guest-agent
   closed. A good answer passes, and `wb-guestd`'s Hello passes over a
   socketpair.
 
+### Guest link
+
+Spec: S04-02-vm-provider ("The host opens every connection", "Caps and
+closing"), S06-11-reconnect-and-recovery ("Reconnect"),
+S06-06-devices-and-warm-start ("When the host sends the time"),
+S04-08-records-and-bounds ("Host work the guest can cause", its row of
+RPCs from `wb-guestd`). Tests
+`TestC11GuestLink*` in `internal/hostd/guestconn`, with the VM manager,
+the fake provider, a fake clock, and `wb-guestd`'s GuestService serving
+the guest end of each socketpair:
+
+- A good hello links on port 1023 of the current generation, and the
+  time hook runs after it, then every 60 s.
+- Port 0, 22, 1022, 1024 and 65535 are refused with
+  `guest-port-unrouted` before the provider is asked.
+- Each cap refuses at its limit with its rule: `guest-conn-cap-vm`,
+  `guest-conn-cap-project`, and `guest-reconnect-rate` for the 21st
+  open in a minute. A connection that opens after its run ended is
+  closed with `guest-conn-stale`.
+- While every try fails, by a failed connection or a refused hello,
+  the waits are 0.1, 0.2, 0.4 s and so on up to 5 s. A guest that drops
+  the link after each hello gets 20 connections, then the link waits
+  for the window and logs `guest-reconnect-rate` once.
+- Closing the guest end reconnects after 0.1 s, and grpc-go never asks
+  the link's dialer for a second connection (`guest-redial-refused`).
+- A VM stop ends the loop and closes every connection, and the next
+  start links to the new generation. No goroutine of the link, its
+  loop or a gRPC client transport is left after `Close`.
+
+The gRPC limits, in `internal/guestlink`:
+
+- `TestOptionsSetEveryLimit` and `TestLimitsValues`: the client and the
+  server options of a guest connection set every limit explicitly.
+- `TestLinkNamesItself`: the guest sees `:authority` `wb-guestd` and the
+  user agent `wb-hostd` with grpc-go's version, and no host path.
+- An answer over 64 KiB after the hello, and a request over 64 KiB to a
+  server on a guest connection, are refused. One guest connection runs
+  at most 16 requests at once.
+- Over a socketpair, a test handler refuses past the rate with
+  `guest-rpc-rate` and past the bound of requests in flight per VM,
+  over three connections, with `guest-rpc-inflight`.
+- A link closes itself and its connection when the connection leaves
+  `READY`, and its dialer refuses a second call with
+  `guest-redial-refused`.
+
 ### Build versions
 
 - Have `wb-guestd` report another build version, a version string that
   isn't ASCII, one longer than 64 bytes, and one not of the fixed
   form. Connect a host peer of another build version, and one of an
   unstamped build. See each refused before any other request, with the
-  version escaped and cut in the log.
+  version escaped and cut in the log. The guest cases are
+  `TestHelloRefuses` and `TestHelloUnstampedHost` in
+  `internal/guestlink`, and `TestC11GuestLinkVersionRefused` in
+  `internal/hostd/guestconn`, which also checks that the link status
+  keeps both versions for `wb vm status`.
 - Connect a host peer from a replaced bundle, and see `wb-hostd` exit
   with `bundle-replaced`. An unreadable installed version doesn't make
   it exit.
@@ -322,7 +374,11 @@ and one before it detaches nothing.
   `FuzzHelloResponse` in `internal/guestlink`: a refused answer never
   yields a version, and an accepted one is 1 to 64 bytes of printable
   ASCII equal to the host's own (S04-08-records-and-bounds, "With
-  `wb-guestd`").
+  `wb-guestd`"). The second is `FuzzGuestLink` there: arbitrary bytes
+  in arbitrary chunks from the guest end of a socketpair as the answer
+  to the link's open: the HTTP/2 preface, the settings, and the hello. The
+  link ends linked or refused within its deadline, and never links to a
+  version other than its own.
 - The stream framing that multiplexes guest requests on a host-opened
   connection, with the project each request is attributed to
   (S04-architecture, B29-vsock-handoff).

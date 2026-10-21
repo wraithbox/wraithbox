@@ -54,6 +54,12 @@ The host opens every host-guest connection (B29-vsock-handoff).
   each restore, and after `wb-guestd` restarts.
 - `wb-hostd` routes a connection only on its destination port. That is
   the guest port it asked `wb-vmd` to connect to.
+- `wb-hostd` asks only for the ports in a fixed table in its code, all
+  below 1024. In V1-M2-walking-skeleton the table holds `wb-guestd`'s
+  port. Any other port is refused with `guest-port-unrouted` before
+  `wb-vmd` is asked.
+- Each connection is for one VM generation. A connection that opens
+  after its generation's run ended is closed at once.
 
 A connection the guest opened would say nothing trustworthy about who
 opened it. Every process in the guest that can open `AF_VSOCK` can
@@ -130,8 +136,15 @@ install is broken.
 ### Caps and closing
 
 - `wb-vmd` caps the connections it has opened but not yet passed.
-  `wb-hostd` caps connections per VM and per project. Both log each
-  refusal (SEC13-bounded-resources).
+  `wb-hostd` caps live connections per VM (`guest-conn-cap-vm`) and per
+  project (`guest-conn-cap-project`), and the connections it opens to
+  one VM in a minute (`guest-reconnect-rate`,
+  S06-11-reconnect-and-recovery, "Reconnect"). Over a cap a connection
+  is refused, never queued. Both log each refusal
+  (SEC13-bounded-resources), `wb-hostd` at most once per rule per VM in
+  a window, with the count it held back. The values are in code.
+- Every connection of a VM closes when its run ends, so before its
+  generation changes.
 - `wb-vmd` closes its copy of a descriptor once it has passed it. The
   passed descriptor keeps working, also while `wb-vmd` is stopped.
 
