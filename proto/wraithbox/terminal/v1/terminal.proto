@@ -1,0 +1,181 @@
+// The terminal stream: the frames of an interactive or non-interactive
+// program that runs in the guest, and that wb relays to the user's
+// terminal (S16-terminal-stream, S05-02-exit-status-and-signals). Both
+// hops use these messages, wb to wb-hostd (wraithbox.hostd.v1
+// ShellService) and wb-hostd to wb-guestd (wraithbox.guest.v1
+// GuestService), because the stream is the same.
+//
+// ClientFrame goes toward the guest. ServerFrame comes from it. Every
+// field of a ServerFrame is guest input, also after wb-hostd relayed it
+// (SEC11-root-gains-nothing). wb-hostd never forwards a guest frame as
+// it is: it checks it against the bounds below and builds a new one, so
+// unknown fields from the guest never reach wb. wb checks each frame
+// again before it uses it, and ends the stream on one out of bounds
+// with exit status 255 (S05-02-exit-status-and-signals, "Exit status").
+//
+// Bounds the receiver checks:
+// - at most 32 KiB of data in one input or output frame;
+// - at most the seven environment names of S16-03-around-the-stream
+//   ("Environment"), each at most once, and values of at most 256
+//   bytes of printable ASCII (0x20 to 0x7E);
+// - a window size of 1 to 65535 in each dimension;
+// - an exit code of 0 to 255, or a signal number of 1 to 64;
+// - an exit or a failure is the last frame of the stream.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.terminal.v1;
+
+// Setup is the terminal the program gets. It is in the first message of
+// each hop, next to what names the program (S05-01-agent-commands,
+// "Interactive and non-interactive use").
+message Setup {
+  // Set when wb's standard input and standard output are both
+  // terminals. The program then runs on a PTY in the guest, and wb
+  // relays in raw mode.
+  bool interactive = 1;
+  // Set, in interactive use only, when wb's standard error isn't a
+  // terminal: standard error then has its own output frames instead of
+  // going to the PTY. Non-interactive use always has them.
+  bool separate_stderr = 2;
+  // The window size, in interactive use. Each dimension is 1 to 65535.
+  WindowSize size = 3;
+  // The host's terminal environment: at most the seven names of
+  // S16-03-around-the-stream ("Environment"), each at most once, in any
+  // order, with values of at most 256 bytes of printable ASCII. TERM is
+  // never mapped to another name.
+  repeated EnvVar env = 4;
+}
+
+// WindowSize is a terminal's size in cells. Each dimension is 1 to
+// 65535.
+message WindowSize {
+  uint32 rows = 1;
+  uint32 cols = 2;
+}
+
+// EnvVar is one environment variable of Setup.
+message EnvVar {
+  string name = 1;
+  string value = 2;
+}
+
+// Signal is a signal wb forwards to the program's process group
+// (S05-02-exit-status-and-signals, "Forwarded" and "Job control").
+enum Signal {
+  // Refused.
+  SIGNAL_UNSPECIFIED = 0;
+  SIGNAL_INT = 1;
+  SIGNAL_QUIT = 2;
+  SIGNAL_TERM = 3;
+  // Non-interactive use only: wb forwards SIGTSTP before it stops
+  // itself, and SIGCONT after it continues.
+  SIGNAL_TSTP = 4;
+  SIGNAL_CONT = 5;
+}
+
+// ClientFrame is one frame toward the guest.
+message ClientFrame {
+  oneof frame {
+    // Bytes the user typed, at most 32 KiB. Input to the guest isn't
+    // filtered (S16-03-around-the-stream, "Input drain").
+    bytes input = 1;
+    // A new window size, in interactive use.
+    WindowSize resize = 2;
+    // A signal for the program's process group.
+    Signal signal = 3;
+    // Interactive use: stop the program's process group, because wb got
+    // a SIGTSTP from outside. The guest answers with Stopped.
+    Stop stop = 4;
+    // Interactive use: continue the program after wb itself continued.
+    Resume resume = 5;
+    // Non-interactive use: wb's standard input reached its end. The
+    // guest closes the program's standard input.
+    StdinClosed stdin_closed = 6;
+    // Non-interactive use: wb's standard output is a pipe whose reader
+    // closed it. The guest closes the program's standard output.
+    StdoutClosed stdout_closed = 7;
+    // wb got SIGHUP: its terminal is gone. The guest hangs the program
+    // up, and wb waits for the last frame.
+    Hangup hangup = 8;
+  }
+}
+
+// Stop is ClientFrame.stop.
+message Stop {}
+
+// Resume is ClientFrame.resume.
+message Resume {}
+
+// StdinClosed is ClientFrame.stdin_closed.
+message StdinClosed {}
+
+// StdoutClosed is ClientFrame.stdout_closed.
+message StdoutClosed {}
+
+// Hangup is ClientFrame.hangup.
+message Hangup {}
+
+// ServerFrame is one frame from the guest. Every field is guest input.
+message ServerFrame {
+  oneof frame {
+    // Program output, which wb passes through the terminal filter.
+    Output output = 1;
+    // Interactive use: the program stopped itself, or a Stop stopped
+    // it. It can only make wb give the terminal back early. wb ignores
+    // and logs it in non-interactive use.
+    Stopped stopped = 2;
+    // The program ended. The last frame.
+    Exit exit = 3;
+    // Wraith Box failed. The last frame.
+    Failure failure = 4;
+  }
+}
+
+// Stream names the output a frame belongs to.
+enum Stream {
+  // Refused.
+  STREAM_UNSPECIFIED = 0;
+  // Standard output, or the PTY in interactive use.
+  STREAM_STDOUT = 1;
+  // Standard error, when it has its own frames (Setup.separate_stderr).
+  STREAM_STDERR = 2;
+}
+
+// Output is program output. Guest input.
+message Output {
+  Stream stream = 1;
+  // At most 32 KiB, any bytes. wb filters them (S16-01-filter).
+  bytes data = 2;
+}
+
+// Stopped is ServerFrame.stopped. Guest input.
+message Stopped {}
+
+// Exit is how the program ended. Guest input: exactly one of the two is
+// set, the code 0 to 255 or the signal 1 to 64. Anything else is a
+// Wraith Box failure (S05-02-exit-status-and-signals, "Exit status").
+message Exit {
+  oneof status {
+    // The program's exit code, 0 to 255.
+    uint32 code = 1;
+    // The signal that ended the program, 1 to 64.
+    uint32 signal = 2;
+  }
+}
+
+// Failure is a Wraith Box failure that ended the stream. Guest input
+// when it came from wb-guestd.
+message Failure {
+  // The name of the rule that failed: 1 to 64 bytes of lowercase
+  // letters, digits and hyphens, such as `guest-lost`.
+  string rule = 1;
+  // The text for the user, which names the fix
+  // (NFR06-explained-refusals). At most 256 bytes. wb removes the
+  // escaped set of S16-03-around-the-stream ("Guest text elsewhere")
+  // before it prints it.
+  string message = 2;
+}
