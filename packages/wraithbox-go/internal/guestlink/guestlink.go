@@ -9,6 +9,11 @@
 // before anything is decoded, the call has a deadline, and the answer is
 // checked against fixed bounds. A refusal closes the connection and is
 // logged with its rule.
+//
+// Every gRPC client and server on a guest connection gets its options
+// from this package (clientOptions, serverOptions), so each limit of
+// S04-08-records-and-bounds, "RPCs from `wb-guestd`", is set on
+// whichever side wb-hostd is.
 package guestlink
 
 import (
@@ -20,11 +25,12 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/status"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
@@ -35,19 +41,11 @@ const (
 	// HelloTimeout is how long wb-guestd has to answer Hello.
 	HelloTimeout = 5 * time.Second
 
-	// MaxRecvMsgSize is the largest message the host decodes from
-	// wb-guestd. A Hello answer is well under it. The cap is a client
-	// option, so gRPC refuses a larger message before it decodes it
+	// HelloMaxRecvMsgSize is the largest Hello answer the host decodes.
+	// An answer is well under it. The cap is a call option, so gRPC
+	// refuses a larger message before it decodes it
 	// (S04-08-records-and-bounds, "Host work the guest can cause").
-	MaxRecvMsgSize = 4 << 10
-
-	// maxSendMsgSize is the largest message the host sends, wb-guestd's
-	// own receive cap.
-	maxSendMsgSize = 64 << 10
-
-	// maxHeaderListSize caps the response headers and trailers, which
-	// hold the guest's status message.
-	maxHeaderListSize = 4 << 10
+	HelloMaxRecvMsgSize = 4 << 10
 
 	// maxPackages and maxPackageLen bound the package list
 	// (S04-08-records-and-bounds, "With `wb-guestd`").
@@ -73,6 +71,11 @@ const (
 	RulePackagesForm = "guest-packages-form"
 	// RulePackagesMismatch: the package list isn't the host's own.
 	RulePackagesMismatch = "guest-packages-mismatch"
+	// RuleRedial: grpc-go asked the link's dialer for a second
+	// connection. The dialer hands out only the one it was given, so
+	// every new connection goes through the caller's caps and reconnect
+	// rate (S06-11-reconnect-and-recovery, "Reconnect").
+	RuleRedial = "guest-redial-refused"
 )
 
 // packageForm is the form of a served package name.
@@ -91,17 +94,66 @@ func (r *Refusal) Error() string { return "guest hello refused (" + r.Rule + "):
 // Unwrap returns the cause, such as a *version.Refusal.
 func (r *Refusal) Unwrap() error { return r.err }
 
-// Link is a checked connection to wb-guestd.
+// Link is a checked connection to wb-guestd. It closes itself, and its
+// connection, once gRPC reports the connection left READY: a drop. Down
+// says when.
 type Link struct {
 	cc      *grpc.ClientConn
+	conn    net.Conn
 	version string
+	dials   *atomic.Int32
+
+	stop      context.CancelFunc
+	down      chan struct{}
+	closeOnce sync.Once
 }
 
 // Version is wb-guestd's build version, which equals the host's own.
 func (l *Link) Version() string { return l.version }
 
-// Close closes the connection.
-func (l *Link) Close() error { return l.cc.Close() }
+// Client is GuestService on the link's connection.
+func (l *Link) Client() guestv1.GuestServiceClient { return guestv1.NewGuestServiceClient(l.cc) }
+
+// Down is closed once the link is down: its connection dropped, or Close
+// was called.
+func (l *Link) Down() <-chan struct{} { return l.down }
+
+// Dials is how many times gRPC asked the link's dialer for a connection.
+// It stays 1: gRPC never gets a second one (RuleRedial).
+func (l *Link) Dials() int { return int(l.dials.Load()) }
+
+// Close closes the gRPC client and the connection, and waits until the
+// link's watch has ended. It is safe to call more than once.
+func (l *Link) Close() error {
+	l.stop()
+	<-l.down
+	return l.closeConns()
+}
+
+func (l *Link) closeConns() error {
+	var err error
+	l.closeOnce.Do(func() {
+		err = errors.Join(l.cc.Close(), l.conn.Close())
+	})
+	return err
+}
+
+// watch closes the link once its connection leaves READY, or Close is
+// called. grpc-go would otherwise try to connect again, which the dialer
+// refuses: the caller opens every new connection (RuleRedial).
+func (l *Link) watch(ctx context.Context) {
+	defer close(l.down)
+	for {
+		s := l.cc.GetState()
+		if s != connectivity.Ready {
+			_ = l.closeConns()
+			return
+		}
+		if !l.cc.WaitForStateChange(ctx, s) {
+			return
+		}
+	}
+}
 
 // Hello runs gRPC over conn, calls GuestService.Hello, and checks the
 // answer against own, the host's build version (normally
@@ -110,14 +162,15 @@ func (l *Link) Close() error { return l.cc.Close() }
 // a *Refusal. When the host cancels ctx first, conn is closed and the
 // error wraps context.Canceled: the host gave up, the guest wasn't refused.
 func Hello(ctx context.Context, conn net.Conn, own string, log *slog.Logger) (*Link, error) {
-	cc, err := newClient(conn)
+	cc, dials, err := newClient(conn, log)
 	if err != nil {
 		_ = conn.Close()
 		return nil, refuse(ctx, log, own, &Refusal{Rule: RuleInvalid, msg: "client: " + err.Error(), err: err})
 	}
 	callCtx, cancel := context.WithTimeout(ctx, HelloTimeout)
 	defer cancel()
-	resp, err := guestv1.NewGuestServiceClient(cc).Hello(callCtx, &guestv1.HelloRequest{})
+	resp, err := guestv1.NewGuestServiceClient(cc).Hello(callCtx, &guestv1.HelloRequest{},
+		grpc.MaxCallRecvMsgSize(HelloMaxRecvMsgSize))
 	if err != nil {
 		closeBoth(cc, conn)
 		if errors.Is(callCtx.Err(), context.Canceled) {
@@ -133,32 +186,28 @@ func Hello(ctx context.Context, conn net.Conn, own string, log *slog.Logger) (*L
 	}
 	log.LogAttrs(ctx, slog.LevelInfo, "guest hello accepted",
 		slog.String("decision", "accept"), slog.String("version", version.Label(v)))
-	return &Link{cc: cc, version: v}, nil
+	watchCtx, stop := context.WithCancel(context.WithoutCancel(ctx))
+	l := &Link{cc: cc, conn: conn, version: v, dials: dials, stop: stop, down: make(chan struct{})}
+	go l.watch(watchCtx)
+	return l, nil
 }
 
-// newClient makes a gRPC client whose only connection is conn. TLS would
-// add nothing: the host-guest socket is a channel to one VM that only
-// wb-vmd opens, and its peer is guest root either way.
-func newClient(conn net.Conn) (*grpc.ClientConn, error) {
-	var used atomic.Bool
-	dial := func(context.Context, string) (net.Conn, error) {
-		if used.Swap(true) {
+// newClient makes a gRPC client whose only connection is conn, with the
+// options of every guest connection. Its dialer hands out conn once, and
+// refuses and logs every later call, so grpc-go never reconnects on its
+// own. The count of calls is returned for Link.Dials.
+func newClient(conn net.Conn, log *slog.Logger) (*grpc.ClientConn, *atomic.Int32, error) {
+	dials := &atomic.Int32{}
+	dial := func(ctx context.Context, _ string) (net.Conn, error) {
+		if dials.Add(1) > 1 {
+			log.LogAttrs(ctx, slog.LevelWarn, "guest redial refused",
+				slog.String("rule", RuleRedial), slog.String("decision", "refuse"))
 			return nil, errors.New("guestlink: the connection was already used")
 		}
 		return conn, nil
 	}
-	return grpc.NewClient("passthrough:///wb-guestd",
-		grpc.WithContextDialer(dial),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDisableRetry(),
-		// A Link stays open for later calls. Going idle would close conn,
-		// and the dialer can't open it again.
-		grpc.WithIdleTimeout(0),
-		grpc.WithMaxHeaderListSize(maxHeaderListSize),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(MaxRecvMsgSize),
-			grpc.MaxCallSendMsgSize(maxSendMsgSize)),
-	)
+	cc, err := grpc.NewClient("passthrough:///"+authority, dialOptions(clientOptions(guestLimits, dial))...)
+	return cc, dials, err
 }
 
 func closeBoth(cc *grpc.ClientConn, conn net.Conn) {
@@ -219,11 +268,18 @@ func ownPackages() []string {
 	return []string{string(guestv1.File_wraithbox_guest_v1_guest_proto.Package())}
 }
 
-// refuse logs a refusal with its rule and returns it.
+// refuse logs a refusal with its rule and returns it. A version refusal
+// also logs the guest's version, escaped and cut by version.Label.
 func refuse(ctx context.Context, log *slog.Logger, own string, r *Refusal) *Refusal {
-	log.LogAttrs(ctx, slog.LevelWarn, "guest hello refused",
+	attrs := []slog.Attr{
 		slog.String("rule", r.Rule), slog.String("decision", "refuse"),
-		slog.String("own_version", version.Label(own)), slog.String("reason", r.msg))
+		slog.String("own_version", version.Label(own)),
+	}
+	if vr, ok := errors.AsType[*version.Refusal](r); ok {
+		attrs = append(attrs, slog.String("guest_version", vr.PeerLabel()))
+	}
+	attrs = append(attrs, slog.String("reason", r.msg))
+	log.LogAttrs(ctx, slog.LevelWarn, "guest hello refused", attrs...)
 	return r
 }
 

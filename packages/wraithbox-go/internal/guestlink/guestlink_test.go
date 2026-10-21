@@ -118,7 +118,7 @@ func TestHelloRefuses(t *testing.T) {
 		{"control byte", answer("1.2.3\x01", pkg), version.RuleForm},
 		{"non-ASCII byte", answer("1.2.3-é", pkg), version.RuleForm},
 		{"other version", answer("1.2.4", pkg), version.RuleMismatch},
-		{"over 4 KiB", answer(own+strings.Repeat("x", MaxRecvMsgSize), pkg), RuleInvalid},
+		{"over 4 KiB", answer(own+strings.Repeat("x", HelloMaxRecvMsgSize), pkg), RuleInvalid},
 		{"unimplemented", &guestv1.UnimplementedGuestServiceServer{}, RuleInvalid},
 		{"no packages", answer(own), RulePackagesMismatch},
 		{"other package", answer(own, "wraithbox.guest.v2"), RulePackagesMismatch},
