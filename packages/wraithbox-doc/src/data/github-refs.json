@@ -1866,7 +1866,7 @@
 	},
 	"302": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb: terminal-stream contract and the wb end of the shell relay",
 		"summary": "V1-M2-walking-skeleton ends when \"wb shell opens a PTY as a project user\"."
 	},
@@ -2304,7 +2304,7 @@
 	},
 	"375": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(wb): terminal-stream contract and the wb end of the shell relay",
 		"summary": "The terminal-stream contract, and wb's end of the shell relay."
 	},
