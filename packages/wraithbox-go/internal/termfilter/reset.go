@@ -85,6 +85,20 @@ func (f *Filter) ExitReset() []byte {
 	return f.exitReset("")
 }
 
+// StopReset returns the bytes of ExitReset, and then takes the state
+// they undo as undone: no guest push on either kitty keyboard stack, the
+// main screen active, and no report to clear. `wb` writes them before
+// it stops itself for job control, and the stream goes on after it
+// continues (S05-02-exit-status-and-signals, "Job control"). Without
+// the update, a pop after the stop could reach an entry the user's
+// shell pushed (S16-01-filter, "Kitty keyboard stacks").
+func (f *Filter) StopReset() []byte {
+	b := f.ExitReset()
+	f.kb = keyboard{}
+	f.seen = passed{}
+	return b
+}
+
 // exitReset builds the reset without the step named skip.
 func (f *Filter) exitReset(skip string) []byte {
 	var b []byte

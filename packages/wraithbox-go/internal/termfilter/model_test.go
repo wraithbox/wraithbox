@@ -86,7 +86,14 @@ type termState struct {
 	// saved is what DECSC saved on each screen. The property compares
 	// the main screen's, which a later `ESC 8` or `CSI u` of the user's
 	// shell would restore.
-	saved   [2]savedCursor
+	saved [2]savedCursor
+	// title is the window title OSC 0 and 2 set, and titles the stack
+	// `CSI 22 t` pushes it on and `CSI 23 t` pops it from. The filter
+	// passes none of them, and `wb` writes them around the stream
+	// (S16-03-around-the-stream, "Title"), which the relay's C10 test
+	// replays.
+	title   string
+	titles  []string
 	unknown []string
 }
 
@@ -134,6 +141,7 @@ func diff(a, b *termState) []string {
 		{"progress", a.progress == b.progress},
 		{"status", maps.Equal(a.status, b.status)},
 		{"saved-cursor", a.saved[0] == b.saved[0]},
+		{"title", a.title == b.title && slices.Equal(a.titles, b.titles)},
 		{"unknown", slices.Equal(a.unknown, b.unknown)},
 	}
 	var names []string
@@ -275,6 +283,9 @@ var csiQueries = map[csiKey]bool{
 	{prefix: '?', final: 'u'}:             true,
 	{prefix: '>', final: 'c'}:             true,
 	{prefix: '>', final: 'q'}:             true,
+	// The sentinel query of the input drain, which `wb` sends
+	// (S16-03-around-the-stream, "Input drain").
+	{prefix: '?', final: 'n'}: true,
 }
 
 func (m *termModel) csi(t token) {
@@ -284,12 +295,33 @@ func (m *termModel) csi(t token) {
 		return
 	}
 	key := csiKey{prefix: c.prefix, inter: c.inter, final: c.final}
+	if key == (csiKey{final: 't'}) && m.titleStack(c.params) {
+		return
+	}
 	if csiQueries[key] || (key == csiKey{final: c.final} && strings.IndexByte(csiNoState, c.final) >= 0) {
 		return
 	}
 	if !m.csiState(c) {
 		m.unknownToken(t.raw)
 	}
+}
+
+// titleStack applies `CSI 22 t` and `CSI 23 t`, with no second
+// parameter or with 0 or 2 (the window title), and reports whether
+// params were one of them.
+func (m *termModel) titleStack(params string) bool {
+	switch params {
+	case "22", "22;0", "22;2":
+		m.titles = append(m.titles, m.title)
+	case "23", "23;0", "23;2":
+		if n := len(m.titles); n > 0 {
+			m.title = m.titles[n-1]
+			m.titles = m.titles[:n-1]
+		}
+	default:
+		return false
+	}
+	return true
 }
 
 // csiState applies a CSI that may change a state, and reports whether
@@ -440,6 +472,9 @@ func (m *termModel) osc(t token) {
 		if known {
 			m.progressReport(payload)
 		}
+	case 0, 2:
+		m.title = payload
+	case 1: // the icon title, which the model doesn't keep
 	case 10, 11, 12:
 		known = payload == "?"
 	case 7501:
