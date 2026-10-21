@@ -134,6 +134,61 @@ func TestLinkDrop(t *testing.T) {
 	}
 }
 
+// TestWatchWaitsForReady: a link whose connection still says CONNECTING
+// isn't down. grpc-go gives Hello the ready connection before it reports
+// READY, so the watch can start in that state. Once the connection has
+// been READY, leaving it is a drop.
+func TestWatchWaitsForReady(t *testing.T) {
+	host, guest := socketpair(t)
+	srv := grpc.NewServer()
+	guestv1.RegisterGuestServiceServer(srv, &scriptGuest{answers: []*guestv1.HelloResponse{good()}})
+	serveOn(t, srv, guest)
+	release := make(chan struct{})
+	dial := func(ctx context.Context, _ string) (net.Conn, error) {
+		select {
+		case <-release:
+			return host, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	cc, err := grpc.NewClient("passthrough:///"+authority, dialOptions(clientOptions(guestLimits, dial))...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cc.Connect()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	waitState(ctx, t, cc, connectivity.Connecting)
+	watchCtx, stop := context.WithCancel(t.Context())
+	l := &Link{cc: cc, conn: host, stop: stop, down: make(chan struct{})}
+	t.Cleanup(func() { _ = l.Close() })
+	go l.watch(watchCtx)
+	select {
+	case <-l.Down():
+		t.Fatal("the link went down while its connection was CONNECTING")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(release)
+	waitState(ctx, t, cc, connectivity.Ready)
+	_ = guest.Close()
+	select {
+	case <-l.Down():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the link isn't down after the guest end closed")
+	}
+}
+
+// waitState waits until cc's state is want.
+func waitState(ctx context.Context, t *testing.T, cc *grpc.ClientConn, want connectivity.State) {
+	t.Helper()
+	for s := cc.GetState(); s != want; s = cc.GetState() {
+		if !cc.WaitForStateChange(ctx, s) {
+			t.Fatalf("state %v, want %v", s, want)
+		}
+	}
+}
+
 // TestLinkClose: Close ends the watch and closes the connection, and
 // returns nil, though closing the gRPC client already closed the
 // connection. A second Close is harmless.

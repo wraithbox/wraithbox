@@ -147,11 +147,21 @@ func (l *Link) closeConns() error {
 // watch closes the link once its connection leaves READY, or Close is
 // called. grpc-go would otherwise try to connect again, which the dialer
 // refuses: the caller opens every new connection (RuleRedial).
+//
+// grpc-go gives calls the ready connection before it reports READY, so
+// Hello can pass while the state still says CONNECTING. That isn't a
+// drop, so the watch waits for READY first.
 func (l *Link) watch(ctx context.Context) {
 	defer close(l.down)
+	wasReady := false
 	for {
 		s := l.cc.GetState()
-		if s != connectivity.Ready {
+		switch {
+		case s == connectivity.Ready:
+			wasReady = true
+		case s == connectivity.Connecting && !wasReady:
+			// Hello passed, so READY follows.
+		default:
 			_ = l.closeConns()
 			return
 		}
