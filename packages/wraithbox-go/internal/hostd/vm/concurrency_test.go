@@ -117,7 +117,7 @@ func TestRequestsWhileStopping(t *testing.T) {
 	<-entered
 	refusal(t, m.Stop(t.Context(), vm.SlotWork), vm.RuleStopping)
 	refusal(t, m.Start(t.Context(), vm.SlotWork), vm.RuleRunning)
-	_, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1023)
+	_, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1, 1023)
 	refusal(t, err, vm.RuleStopping)
 	close(release)
 	if err := <-done; err != nil {
@@ -194,7 +194,7 @@ func TestOldInstanceAfterRestart(t *testing.T) {
 	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
 		t.Fatal(err)
 	}
-	conn, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1023)
+	conn, err := m.ConnectGuest(t.Context(), vm.SlotWork, 2, 1023)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -48,6 +48,9 @@ const (
 	// because proto3 reads an absent field as 0 and wb-vmd refuses it
 	// (proto/wraithbox/vmd/v1).
 	RuleGenerationInvalid Rule = "vm-generation-invalid"
+	// RuleGenerationStale: a connection for a generation other than the
+	// slot's current one, as from a guest link of a run that ended.
+	RuleGenerationStale Rule = "vm-generation-stale"
 	// RuleLimitOtherSoftware: the start failed on the Virtualization
 	// framework's limit of running VMs while Wraith Box held fewer than
 	// two slots, so a VM outside Wraith Box holds one
@@ -174,7 +177,7 @@ var ownRules = map[Rule]bool{
 	RuleSlotUnknown: true, RuleRunning: true, RuleNotRunning: true, RuleStarting: true,
 	RuleStopping: true, RuleLiveSessions: true, RuleBundleNotDirectory: true,
 	RuleBundleCreateFailed: true, RuleToolsDiskCloneFailed: true, RuleGenerationFailed: true,
-	RuleGenerationInvalid: true, RuleLimitOtherSoftware: true, RuleProviderFailed: true,
+	RuleGenerationInvalid: true, RuleGenerationStale: true, RuleLimitOtherSoftware: true, RuleProviderFailed: true,
 	RuleGuestPort: true, RuleStartTimeout: true, RuleStoppedUnexpectedly: true,
 	RuleResetting: true, RuleDataDiskFailed: true,
 }
