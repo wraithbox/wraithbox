@@ -47,6 +47,9 @@ const (
 	// RuleConnStale: the run the connection was opened for ended while it
 	// was opened. It is closed at once.
 	RuleConnStale = "guest-conn-stale"
+	// RuleClosed: a connection asked for after Links.Close. A connection
+	// that opens while Close runs is closed at once with RuleConnStale.
+	RuleClosed = "guest-links-closed"
 	// RuleLinkDropped: the control link's connection left READY, and the
 	// link connects again.
 	RuleLinkDropped = "guest-link-dropped"
@@ -96,6 +99,8 @@ type vmConns struct {
 	// endedUpTo is the newest generation whose run has ended. Runs of a
 	// slot end in order, so every older one has ended too.
 	endedUpTo uint64
+	// closed: closeAll ran, so every later connection is closed at once.
+	closed bool
 }
 
 func newVMConns(slot vm.Slot, base *slog.Logger, now func() time.Time) *vmConns {
@@ -113,6 +118,9 @@ func newVMConns(slot vm.Slot, base *slog.Logger, now func() time.Time) *vmConns 
 // its rule, and none is queued.
 func (ls *Links) open(ctx context.Context, slot vm.Slot, generation uint64, port uint32, project string) (net.Conn, error) {
 	vc := ls.vm(slot)
+	if ls.isClosed() {
+		return nil, vc.refuse(ctx, RuleClosed, fmt.Sprintf("wb-hostd's links to the %s VM are closed", slot))
+	}
 	// SEC08-proj-isolation: only a port of the table, which only guest
 	// root can bind, and the connection goes back to this caller only.
 	if _, ok := routes[port]; !ok || port >= 1024 {
@@ -183,11 +191,12 @@ func (vc *vmConns) releaseProjectLocked(project string) {
 }
 
 // track turns a reservation into a live connection of generation. When
-// that run has ended, it closes raw instead and reports false.
+// that run has ended, or Links closed, it closes raw instead and reports
+// false.
 func (vc *vmConns) track(raw net.Conn, generation uint64, project string) (*conn, bool) {
 	vc.mu.Lock()
 	vc.reserved--
-	if generation <= vc.endedUpTo {
+	if generation <= vc.endedUpTo || vc.closed {
 		vc.releaseProjectLocked(project)
 		vc.mu.Unlock()
 		_ = raw.Close()
@@ -239,9 +248,10 @@ func (vc *vmConns) closeGeneration(generation uint64) {
 	}
 }
 
-// closeAll closes every live connection.
+// closeAll closes every live connection, and every one that opens later.
 func (vc *vmConns) closeAll() {
 	vc.mu.Lock()
+	vc.closed = true
 	doomed := make([]*conn, 0, len(vc.live))
 	for c := range vc.live {
 		doomed = append(doomed, c)

@@ -123,6 +123,39 @@ func TestC11GuestLinkOpenRate(t *testing.T) {
 	}
 }
 
+// After Close, an open is refused with guest-links-closed before the
+// provider is asked, and a connection that opens while Close runs is
+// closed at once.
+func TestC11GuestLinkClosed(t *testing.T) {
+	h := newHarness(t, own, own, false)
+	h.start()
+	live, err := h.openWork("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vc := h.links.vm(vm.SlotWork)
+	if r := vc.reserve(""); r != nil {
+		t.Fatal(r)
+	}
+	h.links.Close()
+	if _, err := live.Write([]byte{0}); err == nil {
+		t.Fatal("a live connection is still open after Close")
+	}
+	_, err = h.openWork("")
+	requireRefusal(t, h, err, RuleClosed)
+	if n := len(h.provider.Last().Connects()); n != 1 {
+		t.Fatalf("the provider was asked %d times, want once", n)
+	}
+	host, guest := net.Pipe()
+	defer guest.Close()
+	if _, ok := vc.track(host, 1, ""); ok {
+		t.Fatal("a connection that opened during Close was kept")
+	}
+	if _, err := host.Write([]byte{0}); err == nil {
+		t.Fatal("the connection that opened during Close is still open")
+	}
+}
+
 // A connection of a run that ended while it opened is closed at once,
 // and gives its place back.
 func TestC11GuestLinkStaleGeneration(t *testing.T) {
