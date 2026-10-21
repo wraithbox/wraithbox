@@ -119,6 +119,13 @@ type Config struct {
 	// moves to stopping, so session admission must refuse a VM whose
 	// Status isn't running: then no session starts in a VM that stops.
 	Sessions func(Slot) []Session
+	// OnRunning, when set, is called once for each run that reaches
+	// running, with the slot, the run's generation, and a channel that is
+	// closed once the run has ended: its instance closed and the slot
+	// stopped. wb-hostd's guest link follows each run through it
+	// (internal/hostd/guestconn). It is called without the manager's
+	// lock, and must not block.
+	OnRunning func(slot Slot, generation uint64, ended <-chan struct{})
 	// Refusing is set in refusing mode, and every request is then refused
 	// with its rule (S17-05-upgrades-and-migrations, "Refusing mode").
 	Refusing *startup.Refusing

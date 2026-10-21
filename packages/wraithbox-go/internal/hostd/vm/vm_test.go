@@ -276,7 +276,7 @@ func TestC11RefusingMode(t *testing.T) {
 		t.Errorf("message %q doesn't hold the detail", r.Message)
 	}
 	refusal(t, m.Stop(t.Context(), vm.SlotWork), vm.Rule(state.RuleNewer))
-	if _, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1023); err == nil {
+	if _, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1, 1023); err == nil {
 		t.Error("connect accepted in refusing mode")
 	}
 	if len(h.provider.Instances()) != 0 || h.cloner.Calls() != 0 {
@@ -379,7 +379,7 @@ func TestC11GenerationZeroRefused(t *testing.T) {
 	}
 	vm.SetGeneration(m, vm.SlotWork, 0)
 	refusal(t, m.Stop(t.Context(), vm.SlotWork), vm.RuleGenerationInvalid)
-	_, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1023)
+	_, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1, 1023)
 	refusal(t, err, vm.RuleGenerationInvalid)
 	inst := h.provider.Last()
 	if len(inst.Stops()) != 0 || len(inst.Connects()) != 0 {
@@ -707,16 +707,20 @@ func TestHowItEnds(t *testing.T) {
 func TestConnectGuest(t *testing.T) {
 	h := newHarness(t)
 	m := h.manager()
-	_, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1023)
+	_, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1, 1023)
 	refusal(t, err, vm.RuleNotRunning)
 	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
 		t.Fatal(err)
 	}
 	for _, port := range []uint32{0, 1024, 65535} {
-		_, err := m.ConnectGuest(t.Context(), vm.SlotWork, port)
+		_, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1, port)
 		refusal(t, err, vm.RuleGuestPort)
 	}
-	conn, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1023)
+	for _, g := range []uint64{2, 99} {
+		_, err := m.ConnectGuest(t.Context(), vm.SlotWork, g, 1023)
+		refusal(t, err, vm.RuleGenerationStale)
+	}
+	conn, err := m.ConnectGuest(t.Context(), vm.SlotWork, 1, 1023)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -726,6 +730,58 @@ func TestConnectGuest(t *testing.T) {
 	}
 	h.provider.Last().Exit()
 	waitStopped(t, m, vm.SlotWork)
-	_, err = m.ConnectGuest(t.Context(), vm.SlotWork, 1023)
+	_, err = m.ConnectGuest(t.Context(), vm.SlotWork, 1, 1023)
 	refusal(t, err, vm.RuleNotRunning)
+	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
+		t.Fatal(err)
+	}
+	_, err = m.ConnectGuest(t.Context(), vm.SlotWork, 1, 1023)
+	refusal(t, err, vm.RuleGenerationStale)
+}
+
+// OnRunning is called once for each run that reaches running, with its
+// generation, and its channel closes once the run has ended.
+func TestOnRunning(t *testing.T) {
+	h := newHarness(t)
+	type call struct {
+		slot       vm.Slot
+		generation uint64
+		ended      <-chan struct{}
+	}
+	calls := make(chan call, 4)
+	h.cfg.OnRunning = func(slot vm.Slot, generation uint64, ended <-chan struct{}) {
+		calls <- call{slot, generation, ended}
+	}
+	m := h.manager()
+	for want := uint64(1); want <= 2; want++ {
+		if err := m.Start(t.Context(), vm.SlotWork); err != nil {
+			t.Fatal(err)
+		}
+		c := <-calls
+		if c.slot != vm.SlotWork || c.generation != want {
+			t.Fatalf("OnRunning(%s, %d), want (%s, %d)", c.slot, c.generation, vm.SlotWork, want)
+		}
+		select {
+		case <-c.ended:
+			t.Fatal("ended is closed while the VM runs")
+		default:
+		}
+		if err := m.Stop(t.Context(), vm.SlotWork); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-c.ended:
+		case <-time.After(5 * time.Second):
+			t.Fatal("ended isn't closed after the stop")
+		}
+	}
+	h.provider.OnStart = func(context.Context, *vmtest.Instance, *vmdv1.StartRequest) error {
+		return &vm.ProviderRefusal{Rule: "vm-config", Detail: "refused"}
+	}
+	_ = m.Start(t.Context(), vm.SlotWork)
+	select {
+	case c := <-calls:
+		t.Fatalf("OnRunning(%s, %d) for a failed start", c.slot, c.generation)
+	default:
+	}
 }

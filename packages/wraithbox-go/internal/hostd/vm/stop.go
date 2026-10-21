@@ -177,8 +177,11 @@ func isClosed(ch <-chan struct{}) bool {
 }
 
 // ConnectGuest opens a connection to port in slot's running guest
-// through the provider, for the current generation.
-func (m *Manager) ConnectGuest(ctx context.Context, slot Slot, port uint32) (net.Conn, error) {
+// through the provider. generation is the run the caller follows: a
+// connection for any generation but the current one is refused with
+// vm-generation-stale, so a caller never gets a connection to a newer
+// run than its own (S04-02-vm-provider, "Restore").
+func (m *Manager) ConnectGuest(ctx context.Context, slot Slot, generation uint64, port uint32) (net.Conn, error) {
 	if r := m.checkRequest(slot); r != nil {
 		return nil, m.refuse(ctx, "connect", r)
 	}
@@ -191,7 +194,7 @@ func (m *Manager) ConnectGuest(ctx context.Context, slot Slot, port uint32) (net
 			Message: fmt.Sprintf("guest port %d is refused: wb-hostd connects only to ports 1 to 1023", port),
 		})
 	}
-	inst, generation, ref := m.currentRun(slot)
+	inst, ref := m.currentRun(slot, generation)
 	if ref != nil {
 		return nil, m.refuse(ctx, "connect", ref)
 	}
@@ -202,17 +205,24 @@ func (m *Manager) ConnectGuest(ctx context.Context, slot Slot, port uint32) (net
 	return conn, nil
 }
 
-// currentRun returns the instance and generation of a running slot.
-func (m *Manager) currentRun(slot Slot) (Instance, uint64, *Refusal) {
+// currentRun returns the instance of a running slot whose current
+// generation is generation.
+func (m *Manager) currentRun(slot Slot, generation uint64) (Instance, *Refusal) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	rec := m.slots[slot]
 	if rec.phase != PhaseRunning {
-		return nil, 0, phaseRefusal(slot, rec, "connect to")
+		return nil, phaseRefusal(slot, rec, "connect to")
 	}
 	if r := checkGeneration(slot, rec.generation); r != nil {
 		r.Phase = rec.phase
-		return nil, 0, r
+		return nil, r
 	}
-	return rec.run.inst, rec.generation, nil
+	if generation != rec.generation {
+		return nil, &Refusal{
+			Rule: RuleGenerationStale, Slot: slot, Phase: rec.phase, Generation: rec.generation,
+			Message: fmt.Sprintf("can't connect to generation %d of the %s VM: it runs generation %d", generation, slot, rec.generation),
+		}
+	}
+	return rec.run.inst, nil
 }

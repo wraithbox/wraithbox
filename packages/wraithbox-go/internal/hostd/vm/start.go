@@ -242,7 +242,8 @@ func (m *Manager) startFailed(ctx context.Context, r *run, ref *Refusal) *Refusa
 func (m *Manager) started(ctx context.Context, r *run) {
 	m.mu.Lock()
 	rec := m.slots[r.slot]
-	if rec.run == r && rec.phase == PhaseStarting {
+	running := rec.run == r && rec.phase == PhaseStarting
+	if running {
 		rec.phase = PhaseRunning
 	}
 	end := m.settleLocked(r)
@@ -250,6 +251,9 @@ func (m *Manager) started(ctx context.Context, r *run) {
 	m.log.LogAttrs(ctx, slog.LevelInfo, "vm running",
 		slog.String("decision", "accept"), slog.String("slot", string(r.slot)),
 		slog.Uint64("generation", r.generation))
+	if running && m.cfg.OnRunning != nil {
+		m.cfg.OnRunning(r.slot, r.generation, r.ended)
+	}
 	// The first start with a disk ends the SEC15-no-guest-disk-mount
 	// exception for it. A failed record is logged, and doesn't stop the
 	// VM.
