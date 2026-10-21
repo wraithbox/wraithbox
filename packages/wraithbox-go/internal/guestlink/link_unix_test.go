@@ -156,6 +156,7 @@ func TestWatchWaitsForReady(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = cc.Close() })
 	cc.Connect()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()

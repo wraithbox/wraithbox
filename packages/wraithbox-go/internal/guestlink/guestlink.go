@@ -148,20 +148,16 @@ func (l *Link) closeConns() error {
 // called. grpc-go would otherwise try to connect again, which the dialer
 // refuses: the caller opens every new connection (RuleRedial).
 //
-// grpc-go gives calls the ready connection before it reports READY, so
-// Hello can pass while the state still says CONNECTING. That isn't a
-// drop, so the watch waits for READY first.
+// grpc-go gives calls the ready connection before it reports READY, in
+// the same locked update, so Hello can pass while the state still says
+// CONNECTING. That isn't a drop: on its first look only, the watch
+// takes CONNECTING as the state before READY. Any later state other
+// than READY is a drop.
 func (l *Link) watch(ctx context.Context) {
 	defer close(l.down)
-	wasReady := false
-	for {
+	for first := true; ; first = false {
 		s := l.cc.GetState()
-		switch {
-		case s == connectivity.Ready:
-			wasReady = true
-		case s == connectivity.Connecting && !wasReady:
-			// Hello passed, so READY follows.
-		default:
+		if s != connectivity.Ready && (!first || s != connectivity.Connecting) {
 			_ = l.closeConns()
 			return
 		}
