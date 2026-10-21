@@ -101,7 +101,7 @@ Every command that resolves a project from a directory resolves it this
 way:
 
 - `wb claude`, `wb trust` and `wb untrust`;
-- the `wb project` commands without `--project`;
+- the `wb project` commands and `wb shell`, without `--project`;
 - `wb project move` for its `<dir>`, also when `--project` is given;
 - `wb land` and `wb diff`.
 
