@@ -150,8 +150,8 @@ func (c *Config) defaults() {
 // input again.
 func Run(cfg Config) (code int) {
 	cfg.defaults()
-	if err := CheckCharset(cfg.Charset, cfg.Log); err != nil {
-		return refuse(cfg, &failure{rule: RuleCharset, message: err.Error()})
+	if CheckCharset(cfg.Charset, cfg.Log) != nil {
+		return refuse(cfg, (&CharsetError{Charset: cfg.Charset}).Line())
 	}
 	r := newRelay(cfg)
 	defer r.recoverPanic(&code)

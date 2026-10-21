@@ -26,6 +26,19 @@ func (e *CharsetError) Error() string {
 	return fmt.Sprintf("the host terminal's charset isn't UTF-8 (%s): set %s to a UTF-8 locale, such as en_US.UTF-8, and the terminal to UTF-8", found, name)
 }
 
+// Line is the last line wb prints on standard error for the refusal,
+// `wraith box: … (rule terminal-charset-not-utf8)`
+// (S05-02-exit-status-and-signals, "Exit status"). Run prints it, and a
+// caller that gets the error from NewSetup prints it too.
+func (e *CharsetError) Line() string {
+	f := failure{rule: RuleCharset, message: e.Error()}
+	return f.line()
+}
+
+// ExitStatus is wb's exit status for the refusal: 255, a refusal before
+// the session starts (S05-02-exit-status-and-signals, "Exit status").
+func (e *CharsetError) ExitStatus() int { return ExitFailure }
+
 // CheckCharset refuses a host terminal whose charset isn't UTF-8 with a
 // *CharsetError, and logs the decision with RuleCharset either way. The
 // terminal filter's output is safe only on a terminal that reads UTF-8:
@@ -46,16 +59,15 @@ func CheckCharset(cs tty.Charset, log *slog.Logger) error {
 }
 
 // refuse ends a relay that didn't start: it closes the stream without
-// reading a frame, prints the failure line on standard error, and
-// returns 255. It writes nothing else, so no guest byte reaches the
-// terminal.
-func refuse(cfg Config, f *failure) int {
+// reading a frame, prints line on standard error, and returns 255. It
+// writes nothing else, so no guest byte reaches the terminal.
+func refuse(cfg Config, line string) int {
 	if cfg.Stream != nil {
 		if err := cfg.Stream.CloseSend(); err != nil {
 			cfg.Log.Info("relay: close of the stream failed", "err", err)
 		}
 	}
-	if _, err := fmt.Fprintln(cfg.Stderr, f.line()); err != nil {
+	if _, err := fmt.Fprintln(cfg.Stderr, line); err != nil {
 		cfg.Log.Info("relay: write of the refusal failed", "err", err)
 	}
 	return ExitFailure
