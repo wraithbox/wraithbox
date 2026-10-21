@@ -1,3 +1,9 @@
+//go:build unix
+
+// The update runs on unix guests only (internal/platform/guesttools), and
+// these tests use symbolic links and file modes, which Windows treats
+// differently.
+
 package guestupdate_test
 
 import (
