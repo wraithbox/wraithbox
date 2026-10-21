@@ -221,10 +221,10 @@ only when root mounted it read-only.
   before the host link, so `wb-guestd` can't ask the host which disk it
   is.
 - **Rejected:** finding the disk by its volume name alone, which any
-  disk image can have. Unmounting it and mounting it again at a path
-  of `wb-guestd`'s own, as the data volume is (X08-data-disk): the
-  checks above already refuse what that would keep out, and the guest
-  programs run from the install directory, not from the disk.
+  disk image can have. Mounting it again at a path of `wb-guestd`'s
+  own, as the data volume is (X08-data-disk). The checks above already
+  refuse what that would keep out, and the programs run from the
+  install directory.
 - **Decided:** I379.
 
 **Status:** Draft
