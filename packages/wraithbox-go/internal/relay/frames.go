@@ -15,6 +15,12 @@ import (
 const (
 	// MaxFrameData is the most bytes of one input or output frame.
 	MaxFrameData = 32 << 10
+	// MaxRecvMsgSize is the receive cap of a Shell call: one frame of
+	// MaxFrameData and its framing, with room to spare. gRPC decodes a
+	// message up to its cap before the relay sees it, and its default
+	// cap is 4 MiB, so the dial passes
+	// grpc.MaxCallRecvMsgSize(MaxRecvMsgSize) (SEC13-bounded-resources).
+	MaxRecvMsgSize = 64 << 10
 	// maxWindow is the largest window dimension.
 	maxWindow = 65535
 	// maxExitCode is the largest exit code.
@@ -84,6 +90,9 @@ func frameEnd(detail string) end {
 }
 
 func streamEnd(err error) end {
+	if errors.Is(err, errNotFrame) {
+		return frameEnd(errNotFrame.Error())
+	}
 	if errors.Is(err, io.EOF) {
 		return end{code: ExitFailure, fail: &failure{rule: RuleStreamClosed, message: "the connection to wb-hostd closed before the program exited"}}
 	}

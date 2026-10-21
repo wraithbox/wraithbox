@@ -92,13 +92,18 @@ func (r *relay) raw(s string) {
 }
 
 // writeReset writes a filter's reset to its output, when that output is
-// a terminal. Standard output always gets it then. Standard error gets
-// it only when output frames came for it: in interactive use without a
-// separate standard error it had none, and its terminal is the one
-// standard output reset.
-func (r *relay) writeReset(o *output, reset []byte) {
+// a terminal: the stop reset before wb stops itself, or the exit reset.
+// Standard output always gets it then. Standard error gets it only when
+// output frames came for it: in interactive use without a separate
+// standard error it had none, and its terminal is the one standard
+// output reset.
+func (r *relay) writeReset(o *output, stop bool) {
 	if !o.tty || o.closed || r.hungUp || (o == r.errOut && !o.used) {
 		return
+	}
+	reset := o.filter.ExitReset()
+	if stop {
+		reset = o.filter.StopReset()
 	}
 	if _, err := o.w.Write(reset); err != nil {
 		r.log.Info("relay: write of the reset failed", "output", o.name, "err", err)
@@ -110,7 +115,7 @@ func (r *relay) writeReset(o *output, reset []byte) {
 // shell (S16-03-around-the-stream, "Input drain"). It needs standard
 // input and standard output to be terminals.
 func (r *relay) drain() {
-	if !r.cfg.TTY.Interactive() || r.hungUp || r.input == nil {
+	if !r.cfg.TTY.Interactive() || r.hungUp || r.input == nil || !r.started {
 		return
 	}
 	r.raw(drainQuery)
@@ -141,8 +146,8 @@ func (r *relay) finish(e end) int {
 	r.cancelStopTimer()
 	r.closeFilter(r.out)
 	r.closeFilter(r.errOut)
-	r.writeReset(r.out, r.out.filter.ExitReset())
-	r.writeReset(r.errOut, r.errOut.filter.ExitReset())
+	r.writeReset(r.out, false)
+	r.writeReset(r.errOut, false)
 	r.drain()
 	r.restoreTitle()
 	r.restoreMode()
@@ -180,6 +185,12 @@ func (r *relay) report(e end) {
 	lines := summaryLines(r.out.filter, r.errOut.filter)
 	if e.fail != nil {
 		lines = append(lines, e.fail.line())
+	}
+	if len(lines) > 0 && r.errOut.w.unended() {
+		// The guest's last standard error byte didn't end a line, so the
+		// report starts its own, and no guest text joins the
+		// `wraith box:` line.
+		lines[0] = "\n" + lines[0]
 	}
 	for _, l := range lines {
 		if _, err := fmt.Fprintln(r.errOut.w, l); err != nil {

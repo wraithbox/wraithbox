@@ -1,3 +1,5 @@
+//go:build darwin || linux
+
 package tty
 
 import (
@@ -9,7 +11,8 @@ import (
 	"golang.org/x/term"
 )
 
-// The relay's calls. term_darwin.go makes the same POSIX calls.
+// The relay's calls, the same POSIX calls on darwin and linux, so CI's
+// Linux job runs the PTY tests.
 
 // Terminal is the terminal on one file descriptor, wb's standard input
 // for the relay.

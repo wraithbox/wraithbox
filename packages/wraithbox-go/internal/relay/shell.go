@@ -62,7 +62,9 @@ func CheckOpened(o *hostdv1.ShellOpened) (Shell, error) {
 }
 
 // ShellClient is wb's end of a ShellService.Shell call
-// (hostdv1.ShellService_ShellClient).
+// (hostdv1.ShellService_ShellClient). The call must be made with
+// grpc.MaxCallRecvMsgSize(MaxRecvMsgSize), so a frame over the bounds
+// is refused before it is decoded.
 type ShellClient interface {
 	Send(*hostdv1.ShellRequest) error
 	Recv() (*hostdv1.ShellResponse, error)
@@ -70,7 +72,8 @@ type ShellClient interface {
 }
 
 // OpenShell sends the ShellOpen and reads the ShellOpened, and returns
-// the terminal stream that follows.
+// the terminal stream that follows. c's call must have the receive cap
+// of ShellClient.
 func OpenShell(c ShellClient, projectID string, setup *terminalv1.Setup) (Stream, Shell, error) {
 	open := &hostdv1.ShellRequest{Msg: &hostdv1.ShellRequest_Open{Open: &hostdv1.ShellOpen{ProjectId: projectID, Setup: setup}}}
 	if err := c.Send(open); err != nil {
