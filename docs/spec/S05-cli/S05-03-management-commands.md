@@ -218,7 +218,9 @@ that user's home, in the project's VM. It takes no command to run. It
 resolves the project from the directory unless `--project` is given
 (S05-04-naming, "Which commands"). It refuses a directory that isn't a
 registered project, and names `wb claude` and `wb project place` as the
-ways to register one.
+ways to register one. It refuses a host terminal whose charset isn't
+UTF-8, as `wb claude` does (S05-01-agent-commands, "A terminal that
+isn't UTF-8").
 
 `wb` labels it as a debug shell:
 

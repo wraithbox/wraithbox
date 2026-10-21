@@ -59,3 +59,18 @@ func (s Signal) String() string {
 	}
 	return "unknown"
 }
+
+// Charset is the character set of the host terminal, as wb reads it
+// before it relays a guest terminal stream. The terminal filter writes
+// UTF-8 for a terminal that reads UTF-8, so the relay refuses any other
+// (S16-01-filter, "Where").
+type Charset struct {
+	// Source is where the charset was read: LC_ALL, LC_CTYPE or LANG on
+	// darwin and linux. It is empty when none of them is set, which is
+	// the C locale.
+	Source string
+	// Value is the value read there.
+	Value string
+	// UTF8 reports that the charset is UTF-8. The zero Charset isn't.
+	UTF8 bool
+}
