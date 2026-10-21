@@ -134,13 +134,18 @@ func TestLinkDrop(t *testing.T) {
 	}
 }
 
-// TestLinkClose: Close ends the watch and closes the connection, and a
-// second Close is harmless.
+// TestLinkClose: Close ends the watch and closes the connection, and
+// returns nil, though closing the gRPC client already closed the
+// connection. A second Close is harmless.
 func TestLinkClose(t *testing.T) {
 	g := &scriptGuest{answers: []*guestv1.HelloResponse{good()}}
 	l, _, host := link(t, g)
-	_ = l.Close()
-	_ = l.Close()
+	if err := l.Close(); err != nil {
+		t.Errorf("Close: %v, want nil", err)
+	}
+	if err := l.Close(); err != nil {
+		t.Errorf("a second Close: %v, want nil", err)
+	}
 	select {
 	case <-l.Down():
 	default:

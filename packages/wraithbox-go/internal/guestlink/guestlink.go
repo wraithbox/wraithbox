@@ -130,10 +130,16 @@ func (l *Link) Close() error {
 	return l.closeConns()
 }
 
+// closeConns closes the gRPC client, whose transport closes conn once it
+// has dialed it, and then conn, for a client that never dialed. So
+// net.ErrClosed from conn is the normal case, not a failure.
 func (l *Link) closeConns() error {
 	var err error
 	l.closeOnce.Do(func() {
-		err = errors.Join(l.cc.Close(), l.conn.Close())
+		err = l.cc.Close()
+		if connErr := l.conn.Close(); !errors.Is(connErr, net.ErrClosed) {
+			err = errors.Join(err, connErr)
+		}
 	})
 	return err
 }
