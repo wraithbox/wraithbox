@@ -47,6 +47,8 @@ hostservice
 gitremote
 terminalv
 guesttext
+guestconn
+ratelog
 
 # Virtualization, networking and OS facilities
 datavol

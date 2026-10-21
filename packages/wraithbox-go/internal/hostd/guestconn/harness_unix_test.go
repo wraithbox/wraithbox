@@ -182,13 +182,13 @@ func newHarness(t *testing.T, host, guest string, follow bool) *harness {
 		Version: host, Clock: h.clock, Logger: logger,
 		TimeHook: func(_ context.Context, _ vm.Slot, generation uint64, _ *guestlink.Link) { h.times <- generation },
 	}
-	vcfg := h.vmConfig(logger)
+	vmCfg := h.vmConfig(logger)
 	if follow {
-		vcfg.OnRunning = func(slot vm.Slot, generation uint64, ended <-chan struct{}) {
+		vmCfg.OnRunning = func(slot vm.Slot, generation uint64, ended <-chan struct{}) {
 			h.links.Run(slot, generation, ended)
 		}
 	}
-	m, err := vm.New(vcfg)
+	m, err := vm.New(vmCfg)
 	if err != nil {
 		t.Fatal(err)
 	}

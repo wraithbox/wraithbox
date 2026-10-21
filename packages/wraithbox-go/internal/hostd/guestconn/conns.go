@@ -113,10 +113,14 @@ func newVMConns(slot vm.Slot, base *slog.Logger, now func() time.Time) *vmConns 
 // its rule, and none is queued.
 func (ls *Links) open(ctx context.Context, slot vm.Slot, generation uint64, port uint32, project string) (net.Conn, error) {
 	vc := ls.vm(slot)
+	// SEC08-proj-isolation: only a port of the table, which only guest
+	// root can bind, and the connection goes back to this caller only.
 	if _, ok := routes[port]; !ok || port >= 1024 {
 		return nil, vc.refuse(ctx, RulePortUnrouted,
 			fmt.Sprintf("guest port %d of the %s VM isn't one wb-hostd connects to", port, slot))
 	}
+	// SEC13-bounded-resources: the caps hold before the provider is
+	// asked, and a connection over one is refused, never queued.
 	if r := vc.reserve(project); r != nil {
 		return nil, vc.refuse(ctx, r.Rule, r.Message)
 	}
