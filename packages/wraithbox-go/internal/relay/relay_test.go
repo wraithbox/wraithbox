@@ -2,6 +2,7 @@ package relay
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"syscall"
 	"testing"
@@ -549,24 +550,159 @@ func TestJobControlNonInteractive(t *testing.T) {
 	}
 }
 
-// TestSendFailure: a stream that fails a send ends the relay with 255.
+// TestSendFailure: a failed send doesn't end the relay. wb sends
+// nothing more and reads on, so the frame that ends the stream decides
+// the exit status: the exit frame wb-hostd queued before it ended the
+// call, or 255 for a stream that ends without one.
 func TestSendFailure(t *testing.T) {
-	h := newHarness(t, allTTYs)
-	h.stream.sendErr = errBroken
-	h.start()
-	h.sigs <- tty.Interrupt
-	if code := h.wait(t); code != ExitFailure || !strings.Contains(h.lastLine(), RuleStreamBroken) {
-		t.Errorf("exit status %d, last line %q", code, h.lastLine())
-	}
+	t.Run("exit frame after io.EOF", func(t *testing.T) {
+		h := newHarness(t, allTTYs)
+		h.stream.sendErr = io.EOF
+		h.start()
+		h.sigs <- tty.Interrupt
+		h.sigs <- tty.Quit
+		h.stream.serve(exitCode(7))
+		if code := h.wait(t); code != 7 {
+			t.Errorf("exit status %d, want 7; last line %q", code, h.lastLine())
+		}
+		if !strings.Contains(h.logs.String(), "send failed") {
+			t.Errorf("log %q doesn't record the failed send", h.logs.String())
+		}
+	})
+	t.Run("stream closed without an exit frame", func(t *testing.T) {
+		h := newHarness(t, allTTYs)
+		h.stream.sendErr = errBroken
+		h.start()
+		h.sigs <- tty.Interrupt
+		close(h.stream.frames)
+		if code := h.wait(t); code != ExitFailure || !strings.Contains(h.lastLine(), RuleStreamClosed) {
+			t.Errorf("exit status %d, last line %q", code, h.lastLine())
+		}
+	})
 }
 
 // TestNoTerminal: interactive use without a terminal to set up fails
-// before the relay with 255.
+// before the relay with 255, at once: no drain waits for input that no
+// goroutine reads.
 func TestNoTerminal(t *testing.T) {
 	h := newHarness(t, allTTYs)
 	h.cfg.Terminal = nil
+	h.cfg.DrainTimeout = waitLimit
+	start := time.Now()
 	h.start()
 	if code := h.wait(t); code != ExitFailure || !strings.Contains(h.lastLine(), RuleTerminal) {
+		t.Errorf("exit status %d, last line %q", code, h.lastLine())
+	}
+	if d := time.Since(start); d > waitLimit/2 {
+		t.Errorf("a relay that didn't start took %v", d)
+	}
+}
+
+// TestJobControlNonInteractiveTerminal: in non-interactive use with
+// standard output a terminal, wb writes the stop reset and restores the
+// user's title before it stops itself, and sets its title again after
+// it continues (S16-03-around-the-stream, "Around the stream").
+func TestJobControlNonInteractiveTerminal(t *testing.T) {
+	h := newHarness(t, TTYs{Stdout: true, Stderr: true})
+	h.start()
+	h.stream.serve(stdout("\x1b[>1u"))
+	h.e.waitOut(t, "\x1b[>1u")
+	h.sigs <- tty.TerminalStop
+	for _, w := range []string{"signal SIGNAL_TSTP", "signal SIGNAL_CONT"} {
+		if got := kind(h.stream.next(t)); got != w {
+			t.Fatalf("frame %q, want %q", got, w)
+		}
+	}
+	pop := h.e.index("stdout:", "\x1b[<1u")
+	restore := h.e.index("stdout:", titleRestore)
+	stop := h.e.index("stop-self", "")
+	evs := h.e.all()
+	again := -1
+	for i := stop + 1; stop >= 0 && i < len(evs); i++ {
+		if strings.Contains(evs[i], "\x1b]2;wb: ") {
+			again = i
+			break
+		}
+	}
+	if pop == -1 || restore <= pop || stop <= restore || again == -1 {
+		t.Errorf("order of pop %d, title restore %d, stop %d, title again %d: %q", pop, restore, stop, again, evs)
+	}
+	if strings.Contains(h.e.text("stdout"), drainQuery) {
+		t.Error("a drain without a terminal on standard input")
+	}
+	h.stream.serve(exitCode(0))
+	h.wait(t)
+}
+
+// TestLateStopped: after wb stopped itself because no stopped frame
+// came in time, the late one is ignored, so wb doesn't stop twice. A
+// stopped frame after guest output stops wb again.
+func TestLateStopped(t *testing.T) {
+	h := newHarness(t, allTTYs)
+	h.cfg.StopWait = 10 * time.Millisecond
+	h.start()
+	h.sigs <- tty.TerminalStop
+	for _, w := range []string{"stop", "resize 24x80", "resume"} {
+		if got := kind(h.stream.next(t)); got != w {
+			t.Fatalf("frame %q, want %q", got, w)
+		}
+	}
+	h.stream.serve(stopped())
+	h.stream.none(t, 20*time.Millisecond)
+	h.stream.serve(stdout("redrawn"), stopped())
+	for _, w := range []string{"resize 24x80", "resume"} {
+		if got := kind(h.stream.next(t)); got != w {
+			t.Fatalf("frame %q, want %q", got, w)
+		}
+	}
+	h.stream.serve(exitCode(0))
+	h.wait(t)
+	if n := strings.Count(strings.Join(h.e.all(), "\n"), "stop-self"); n != 2 {
+		t.Errorf("wb stopped itself %d times, want 2", n)
+	}
+}
+
+// TestHangupPipedInput: after SIGHUP, input from a pipe and its end
+// still reach the guest in non-interactive use.
+func TestHangupPipedInput(t *testing.T) {
+	h := newHarness(t, TTYs{})
+	h.start()
+	h.sigs <- tty.Hangup
+	if got := kind(h.stream.next(t)); got != "hangup" {
+		t.Fatalf("frame %q, want hangup", got)
+	}
+	h.typeIn("data")
+	if got := kind(h.stream.next(t)); got != "input data" {
+		t.Fatalf("frame %q, want the input", got)
+	}
+	_ = h.stdin.Close()
+	if got := kind(h.stream.next(t)); got != "stdin-closed" {
+		t.Fatalf("frame %q, want stdin-closed", got)
+	}
+	h.stream.serve(exitCode(0))
+	h.wait(t)
+}
+
+// TestReportOwnLine: when the guest's last standard error byte doesn't
+// end a line, as on a pipe or a file, the report starts a line of its
+// own, so the `wraith box:` line holds no guest text.
+func TestReportOwnLine(t *testing.T) {
+	h := newHarness(t, TTYs{})
+	h.start()
+	h.stream.serve(outFrame(terminalv1.Stream_STREAM_STDERR, "guest says"), failureFrame("guest-lost", "lost"))
+	h.wait(t)
+	if got := h.e.text("stderr"); got != "guest says\nwraith box: lost (rule guest-lost)\n" {
+		t.Errorf("standard error %q", got)
+	}
+}
+
+// TestNotAFrame: a ShellService response that isn't a server frame is
+// out of bounds.
+func TestNotAFrame(t *testing.T) {
+	h := newHarness(t, allTTYs)
+	h.start()
+	h.stream.frames <- received{err: errNotFrame}
+	if code := h.wait(t); code != ExitFailure || !strings.Contains(h.lastLine(), RuleFrame) {
 		t.Errorf("exit status %d, last line %q", code, h.lastLine())
 	}
 }

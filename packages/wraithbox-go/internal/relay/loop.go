@@ -32,7 +32,7 @@ type chunk struct {
 // own filter (S16-01-filter, "Where").
 type output struct {
 	name   string
-	w      io.Writer
+	w      *lastByte
 	filter *termfilter.Filter
 	tty    bool
 	// used is set once an output frame came for it.
@@ -40,6 +40,30 @@ type output struct {
 	// closed is set after a write failed: later output is discarded.
 	closed bool
 }
+
+func newOutput(name string, w io.Writer, tty bool) *output {
+	lb := &lastByte{w: w}
+	return &output{name: name, w: lb, filter: termfilter.New(lb), tty: tty}
+}
+
+// lastByte is a writer that remembers the last byte written through it,
+// so the report on standard error can start a line of its own.
+type lastByte struct {
+	w     io.Writer
+	last  byte
+	wrote bool
+}
+
+func (l *lastByte) Write(p []byte) (int, error) {
+	n, err := l.w.Write(p)
+	if n > 0 {
+		l.last, l.wrote = p[n-1], true
+	}
+	return n, err
+}
+
+// unended reports whether the last byte written didn't end a line.
+func (l *lastByte) unended() bool { return l.wrote && l.last != '\n' }
 
 // relay is the state of one Run. Only the goroutine that runs Run
 // reads and writes it, except for the channels.
@@ -66,8 +90,18 @@ type relay struct {
 	// stopTimer runs from a stop frame to the stopped frame.
 	stopTimer *time.Timer
 	stopC     <-chan time.Time
-	// broken is the error of a failed Send.
+	// broken is the error of a failed Send. Nothing more is sent, and the
+	// relay reads on until the stream's last frame or its error, which
+	// decides the exit status: a call that wb-hostd ended fails a Send
+	// before wb reads the exit frame queued behind it.
 	broken error
+	// started is set once the goroutines that read the stream and
+	// standard input run.
+	started bool
+	// lateStopped is set when wb stopped itself without the stopped
+	// frame it asked for. The one that arrives late is ignored, so wb
+	// doesn't stop twice. Output from the guest clears it.
+	lateStopped bool
 	// writeFailed is the error of a failed output write other than
 	// EPIPE on standard output in non-interactive use.
 	writeFailed error
@@ -78,8 +112,8 @@ func newRelay(cfg Config) *relay {
 		cfg:         cfg,
 		log:         cfg.Log,
 		interactive: cfg.TTY.Interactive(),
-		out:         &output{name: "standard output", w: cfg.Stdout, filter: termfilter.New(cfg.Stdout), tty: cfg.TTY.Stdout},
-		errOut:      &output{name: "standard error", w: cfg.Stderr, filter: termfilter.New(cfg.Stderr), tty: cfg.TTY.Stderr},
+		out:         newOutput("standard output", cfg.Stdout, cfg.TTY.Stdout),
+		errOut:      newOutput("standard error", cfg.Stderr, cfg.TTY.Stderr),
 		frames:      make(chan received),
 		input:       make(chan chunk),
 		panics:      make(chan any, 2),
@@ -101,6 +135,7 @@ func (r *relay) start() *failure {
 	r.setTitle()
 	r.goSafe(r.receive)
 	r.goSafe(r.read)
+	r.started = true
 	return nil
 }
 
@@ -177,11 +212,9 @@ func (r *relay) loop() end {
 		case <-r.stopC:
 			r.log.Info("relay: no stopped frame in time, stopping anyway", "wait", r.cfg.StopWait)
 			r.stop()
+			r.lateStopped = true
 		case p := <-r.panics:
 			return end{code: ExitFailure, fail: &failure{rule: RulePanic, message: fmt.Sprintf("internal error in the terminal relay: %v", p)}}
-		}
-		if r.broken != nil {
-			return streamEnd(r.broken)
 		}
 	}
 }
@@ -218,6 +251,7 @@ func (r *relay) onOutput(o *terminalv1.Output) *failure {
 	if fail != nil {
 		return fail
 	}
+	r.lateStopped = false
 	r.write(dst, o.GetData())
 	return nil
 }
@@ -274,18 +308,19 @@ func (r *relay) writeError(o *output, err error) {
 
 // onInput forwards input to the guest, unfiltered
 // (S16-03-around-the-stream, "Input drain"). The end of standard input
-// in non-interactive use becomes a standard-input-closed frame.
+// in non-interactive use becomes a standard-input-closed frame. After
+// SIGHUP, the terminal's input is gone, but a pipe's still goes through.
 func (r *relay) onInput(c chunk) {
 	if c.err != nil {
 		r.input = nil
-		if r.interactive || r.hungUp {
+		if r.interactive {
 			r.log.Info("relay: terminal input ended", "err", c.err)
 			return
 		}
 		r.send(&terminalv1.ClientFrame{Frame: &terminalv1.ClientFrame_StdinClosed{StdinClosed: &terminalv1.StdinClosed{}}})
 		return
 	}
-	if r.hungUp {
+	if r.hungUp && r.interactive {
 		return
 	}
 	r.send(&terminalv1.ClientFrame{Frame: &terminalv1.ClientFrame_Input{Input: c.data}})
@@ -296,6 +331,7 @@ func (r *relay) send(f *terminalv1.ClientFrame) {
 		return
 	}
 	if err := r.cfg.Stream.Send(f); err != nil {
+		r.log.Info("relay: send failed, reading on to the last frame", "err", err)
 		r.broken = err
 	}
 }
@@ -368,6 +404,7 @@ func (r *relay) terminalStop() {
 	}
 	if !r.interactive {
 		r.sendSignal(terminalv1.Signal_SIGNAL_TSTP)
+		r.giveBack()
 		r.stopSelf()
 		return
 	}
@@ -394,7 +431,22 @@ func (r *relay) onStopped() {
 		r.log.Info("relay: stopped frame ignored in non-interactive use", "rule", RuleStoppedIgnored)
 		return
 	}
+	if r.lateStopped {
+		r.lateStopped = false
+		r.log.Info("relay: late stopped frame ignored, wb already stopped for it", "rule", RuleStoppedIgnored)
+		return
+	}
 	r.stop()
+}
+
+// giveBack writes what wb writes before it stops itself: the stop
+// reset to each output that is a terminal, the drain, and the user's
+// title (S16-03-around-the-stream, "Around the stream").
+func (r *relay) giveBack() {
+	r.writeReset(r.out, true)
+	r.writeReset(r.errOut, true)
+	r.drain()
+	r.restoreTitle()
 }
 
 // stop gives the terminal back and stops wb, in interactive use: the
@@ -405,10 +457,7 @@ func (r *relay) stop() {
 	if r.hungUp || r.selfStopped {
 		return
 	}
-	r.writeReset(r.out, r.out.filter.StopReset())
-	r.writeReset(r.errOut, r.errOut.filter.StopReset())
-	r.drain()
-	r.restoreTitle()
+	r.giveBack()
 	r.restoreMode()
 	r.selfStopped = true
 	if err := r.cfg.StopSelf(); err != nil {
@@ -430,6 +479,7 @@ func (r *relay) cont() {
 		return
 	}
 	if !r.interactive {
+		r.setTitle()
 		r.sendSignal(terminalv1.Signal_SIGNAL_CONT)
 		return
 	}

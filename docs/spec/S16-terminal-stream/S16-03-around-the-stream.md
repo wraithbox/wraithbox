@@ -147,6 +147,11 @@ There it never passes a code point of the escaped set:
 sees them. S09-11-audit gives the form for audit records. Other output
 removes them (SEC10-audit, SEC14-no-fake-approvals).
 
+The `wraith box:` line speaks for Wraith Box, after the reset. So
+`wb-hostd` never passes on a failure message from `wb-guestd` as the
+guest wrote it. It words a failure by its rule itself, or quotes the
+guest's message, stripped, as `the guest reported: "<message>"`.
+
 ## Decisions
 
 ### Write around the stream only to a terminal

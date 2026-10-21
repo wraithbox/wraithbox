@@ -137,6 +137,12 @@ func (c *Config) defaults() {
 // writes the reset, drains the input, restores the title, and prints
 // the drop summary and a `wraith box:` line for a failure on standard
 // error.
+//
+// Run leaves the goroutine that reads standard input running when it
+// returns: a read from a terminal can't be cancelled, and `wb shell`
+// exits right after. A caller that goes on after Run, such as `wb
+// claude` with its summary of returned work, must not read standard
+// input again.
 func Run(cfg Config) (code int) {
 	cfg.defaults()
 	r := newRelay(cfg)

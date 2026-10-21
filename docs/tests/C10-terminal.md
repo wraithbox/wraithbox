@@ -55,7 +55,9 @@ item of S05-02-exit-status-and-signals or S16-03-around-the-stream:
   terminal (`TestTitle`);
 - the reset follows the last output and comes before the summary and
   the `wraith box:` line (`TestResetBeforeLine`), and standard error
-  that is a terminal gets its own (`TestStderrReset`);
+  that is a terminal gets its own (`TestStderrReset`). On a pipe, the
+  report starts a line of its own after guest text without a final
+  new line (`TestReportOwnLine`);
 - the drain ends on `CSI ? 1 ; 1 R`, ends after 100 ms with no reply,
   discards earlier input, and isn't ended by `CSI 1 ; 1 R` (`TestDrain`);
   its reply parser is fuzzed (`FuzzDrainReply`);
@@ -65,16 +67,22 @@ item of S05-02-exit-status-and-signals or S16-03-around-the-stream:
   named (`TestEnvironment`);
 - `SIGINT`, `SIGQUIT`, `SIGTERM` and `SIGWINCH` give their frames
   (`TestForwarded`), after `SIGHUP` nothing more reaches the terminal
-  (`TestHangup`), and `EPIPE` gives the standard-output-closed frame
-  (`TestClosedOutput`);
+  (`TestHangup`) while piped input still crosses
+  (`TestHangupPipedInput`), and `EPIPE` gives the
+  standard-output-closed frame (`TestClosedOutput`);
 - job control in interactive use, after a stopped frame and after an
   outside `SIGTSTP` with and without one (`TestJobControlInteractive`),
   and in non-interactive use, where a stopped frame is ignored
-  (`TestJobControlNonInteractive`);
+  (`TestJobControlNonInteractive`). With standard output a terminal,
+  the reset and the title restore come before the stop
+  (`TestJobControlNonInteractiveTerminal`). A stopped frame that comes
+  after wb stopped without it is ignored (`TestLateStopped`);
 - the exit table: codes 0, 2, 7 and 255, signal 9 as 137, a failure
   frame, a closed and a broken stream, and an exit code of 256 and a
   signal of 0 and 65, each 255 with a `wraith box:` last line
-  (`TestExitStatus`);
+  (`TestExitStatus`). A response that isn't a frame gives 255 as well
+  (`TestNotAFrame`). After a failed send, the exit frame wb-hostd
+  queued still decides the status (`TestSendFailure`);
 - a child process runs the relay as a real PTY's session leader, and
   gets real `SIGWINCH`, `SIGTSTP`, `SIGCONT` and `SIGHUP`, on darwin
   and linux (`TestSignalsOnPTY`).
