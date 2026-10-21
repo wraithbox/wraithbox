@@ -70,6 +70,7 @@ sparseimage
 inodes
 errdetails
 bufconn
+unrouted
 AMFI
 ipsw
 noindex
