@@ -68,7 +68,9 @@ func envValueProblem(v string) string {
 // starts: one that names the variables left out of the environment,
 // when there are any. term is used in interactive use only. It refuses
 // a host terminal whose charset isn't UTF-8 with a *CharsetError
-// (CheckCharset), so a session is refused before wb-hostd opens it.
+// (CheckCharset), so a session is refused before wb-hostd opens it. The
+// caller then prints its Line on standard error and exits with its
+// ExitStatus, as Run does.
 func NewSetup(ttys TTYs, term Terminal, cs tty.Charset, lookup func(string) (string, bool), log *slog.Logger) (*terminalv1.Setup, []string, error) {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)

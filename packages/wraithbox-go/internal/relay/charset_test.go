@@ -59,7 +59,7 @@ func checkHolds(t *testing.T, s string, want []string) {
 	}
 }
 
-// TestCheckCharsetAccepts:a UTF-8 charset passes, and the decision is
+// TestCheckCharsetAccepts: a UTF-8 charset passes, and the decision is
 // logged with its rule.
 func TestCheckCharsetAccepts(t *testing.T) {
 	var logs bytes.Buffer
@@ -122,8 +122,9 @@ func checkRefusalLine(t *testing.T, h *harness) {
 	if strings.Contains(stderr, "guest") || strings.Count(stderr, "\n") != 1 {
 		t.Errorf("standard error %q, want the refusal line only", stderr)
 	}
-	if last := h.lastLine(); !strings.HasPrefix(last, "wraith box: the host terminal's charset isn't UTF-8") || !strings.HasSuffix(last, "(rule "+RuleCharset+")") {
-		t.Errorf("last line %q", last)
+	want := (&CharsetError{Charset: h.cfg.Charset}).Line()
+	if last := h.lastLine(); last != want || !strings.HasPrefix(last, "wraith box: the host terminal's charset isn't UTF-8") || !strings.HasSuffix(last, "(rule "+RuleCharset+")") {
+		t.Errorf("last line %q, want %q", last, want)
 	}
 	if !strings.Contains(h.logs.String(), "rule="+RuleCharset) {
 		t.Errorf("log %q doesn't name the rule", h.logs.String())
@@ -139,7 +140,21 @@ func TestNewSetupRefusesCharset(t *testing.T) {
 		s, lines, err := NewSetup(allTTYs, &fakeTerminal{rows: 24, cols: 80}, tt.cs, lookup, nil)
 		var ce *CharsetError
 		if !errors.As(err, &ce) || s != nil || lines != nil {
-			t.Errorf("%s: NewSetup = %v, %q, %v; want a CharsetError", tt.name, s, lines, err)
+			t.Fatalf("%s: NewSetup = %v, %q, %v; want a CharsetError", tt.name, s, lines, err)
 		}
+		checkRefusalForCaller(t, ce)
+	}
+}
+
+// checkRefusalForCaller: a caller of NewSetup gets the same `wraith
+// box:` line with the rule, and the same exit status 255, as Run gives.
+func checkRefusalForCaller(t *testing.T, ce *CharsetError) {
+	t.Helper()
+	want := "wraith box: " + ce.Error() + " (rule " + RuleCharset + ")"
+	if ce.Line() != want {
+		t.Errorf("Line = %q, want %q", ce.Line(), want)
+	}
+	if ce.ExitStatus() != ExitFailure {
+		t.Errorf("ExitStatus = %d, want %d", ce.ExitStatus(), ExitFailure)
 	}
 }
