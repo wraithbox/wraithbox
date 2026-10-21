@@ -1024,7 +1024,7 @@
 	},
 	"163": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-guestd: vsock listener below port 1024 and the hello",
 		"summary": "wb-guestd is a stub."
 	},
@@ -1806,7 +1806,7 @@
 	},
 	"292": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb: resolve a directory to its project key and recorded identity",
 		"summary": "Every project command starts from a directory."
 	},
@@ -2112,7 +2112,7 @@
 	},
 	"343": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(guestd): vsock listener on port 1023 and the checked hello",
 		"summary": "wb-guestd now listens on vsock port 1023 and serves GuestService.Hello."
 	},
@@ -2124,7 +2124,7 @@
 	},
 	"345": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb: kitty clears the user's kitty keyboard entry on a guest's soft reset",
 		"summary": "The filter passes CSI !"
 	},
@@ -2184,7 +2184,7 @@
 	},
 	"355": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: kill wb-diskfmt's process group on a timeout, so no diskutil is left running",
 		"summary": "When wb-diskfmt doesn't exit within exitWait, processSession.Close in packages/wraithbox-go/internal/hostd/datadisk/shim.go (line 268 on #352) kills it with s.cmd.Process.Kill()."
 	},
@@ -2226,7 +2226,7 @@
 	},
 	"362": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "ci(swift): trim the Swift cache, run the bundle for every Go change, and measure the warm run",
 		"summary": "Follow-ups from the code review of #357 (#354), which merged as is."
 	},
@@ -2241,5 +2241,77 @@
 		"state": "open",
 		"title": "wb-hostd, wb: three refusal messages that misname what happened (#352 review folds)",
 		"summary": "Three messages from the code review of #352 (round 2), outside the reviewed commit, say something other than what happened."
+	},
+	"365": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "ci: a cached wb-vmd keeps an old version stamp, so app:bundle fails on main",
+		"summary": "CI on main has failed since b0e5cb3 (runs 39142986103, 39143013324, 39144088136), and so does every pull request run since."
+	},
+	"366": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(ci): relink the stamped Swift programs on every build",
+		"summary": "CI on main fails app:bundle's stamp-program check (S04-08-records-and-bounds, \"Version skew\") because wb-vmd keeps an old version stamp."
+	},
+	"367": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Run 2026-10-20 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "Approval: the maintainer typed /wave --waves 5 --lane mac --merge in this session (2026-10-20)."
+	},
+	"368": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(wb): drop DECSTR (CSI ! p) from the terminal filter allowlist",
+		"summary": "Follows the maintainer's decision on #345 (option 1): the filter drops a guest's soft reset CSI !"
+	},
+	"369": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(hostd): kill wb-diskfmt's process group on a timeout",
+		"summary": "- wb-diskfmt now leads its own process group on macOS."
+	},
+	"370": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-launcher: own wb-diskfmt's process group kill once it starts the shim",
+		"summary": "From the security review of #369 (finding 3), for #355."
+	},
+	"371": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "ci(swift): trim the Swift cache, run the bundle for every Go change, measure the warm run",
+		"summary": "Follow-ups from the review of #357 (#354)."
+	},
+	"372": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(wb): resolve a directory to its project key and recorded identity",
+		"summary": "wb can now find the repository a directory belongs to, its project key, its recorded identity and its default name."
+	},
+	"373": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(vmd): ConnectGuest hands off the guest connection, with the host receiver and wb-dev-vm",
+		"summary": "wb-vmd now serves ConnectGuest: it opens a vsock connection to a guest port below 1024 and sends the descriptor to the host in one HandoffMessage on fd 4."
+	},
+	"374": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project resolution: a .git directory whose core.worktree names another project's tree",
+		"summary": "The security review of #372 (#292) found that a downloaded .git directory whose core.worktree names another project's working tree resolves to its own key, so SEC08-proj-isolation holds for the key and the identity."
+	},
+	"375": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(wb): terminal-stream contract and the wb end of the shell relay",
+		"summary": "The terminal-stream contract, and wb's end of the shell relay."
+	},
+	"376": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(hostd): guest link with port routing, connection caps, reconnect, version match and gRPC limits",
+		"summary": "The link wb-hostd keeps to each running VM's wb-guestd: the ports it connects to, the caps on its connections, the reconnect waits and rate, the build version match of the hello, the clock schedule, and the gRPC…"
 	}
 }
