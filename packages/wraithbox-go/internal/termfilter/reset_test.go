@@ -286,6 +286,35 @@ func TestExitResetOnlyAfterReports(t *testing.T) {
 	}
 }
 
+// TestStopReset: the stop reset is the exit reset, and after it the
+// filter holds the guest to the entries it pushes after the stop. A pop
+// of the entries it pushed before the stop, which the reset popped,
+// would reach the user's entry, so the filter drops it
+// (S05-02-exit-status-and-signals, "Job control"; S16-01-filter, "Kitty
+// keyboard stacks").
+func TestStopReset(t *testing.T) {
+	var out bytes.Buffer
+	f := New(&out, WithoutBELLimit())
+	_, _ = f.Write([]byte("\x1b[>1u\x1b[>1u\x1b]9;4;1;50\x1b\\"))
+	exit := f.ExitReset()
+	if stop := f.StopReset(); !bytes.Equal(stop, exit) {
+		t.Fatalf("StopReset() = %q, want the exit reset %q", stop, exit)
+	}
+	if again := f.ExitReset(); bytes.Contains(again, []byte("\x1b[<")) || bytes.Contains(again, []byte("\x1b]9;4;0")) {
+		t.Errorf("after the stop reset, the exit reset %q still pops or clears", again)
+	}
+	out.Reset()
+	before := f.Counts()[RuleCSI]
+	_, _ = f.Write([]byte("\x1b[<1u"))
+	if out.Len() != 0 || f.Counts()[RuleCSI] != before+1 {
+		t.Errorf("a pop after the stop reset passed: %q", out.String())
+	}
+	_, _ = f.Write([]byte("\x1b[>1u\x1b[<1u"))
+	if got := out.String(); got != "\x1b[>1u\x1b[<1u" {
+		t.Errorf("a push and its pop after the stop reset gave %q", got)
+	}
+}
+
 // TestModel checks the model on known sequences, so a failure of the
 // property points at the reset and not at the model.
 func TestModel(t *testing.T) {
@@ -317,11 +346,14 @@ func TestModel(t *testing.T) {
 		{"modifyOtherKeys", "\x1b[>4;2m\x1b[>4m\x1b[>1;1m", []string{"key-resources"}},
 		{"soft reset unknown", "\x1b[!p", []string{"unknown"}},
 		{"cursor style", "\x1b[2 q\x1b[ q", nil},
+		{"title pushed, set and popped", "\x1b[22t\x1b]2;wb: x\x07\x1b[23t\x1b[?6n", nil},
+		{"title set", "\x1b]0;x\x07\x1b]2;y\x1b\\", []string{"title"}},
+		{"title pushed", "\x1b[22;0t", []string{"title"}},
+		{"other window op", "\x1b[22;1t", nil},
 		{"progress", "\x1b]9;4;1;50\x07\x1b]9;4;0\x1b\\", nil},
 		{"status ids", "\x1b]7501;state=working;id=a\x1b\\\x1b]7501;state=clear;id=b\x1b\\", []string{"status"}},
 		{"status clear all", "\x1b]7501;state=working;id=a\x1b\\\x1b]7501;state=blocked\x1b\\\x1b]7501;state=clear\x1b\\", nil},
 		{"full reset unknown", "\x1bc", []string{"unknown"}},
-		{"title unknown", "\x1b]0;x\x07", []string{"unknown"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

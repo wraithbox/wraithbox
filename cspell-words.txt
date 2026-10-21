@@ -45,6 +45,8 @@ hostdv
 vmcmd
 hostservice
 gitremote
+terminalv
+guesttext
 
 # Virtualization, networking and OS facilities
 datavol
@@ -193,6 +195,14 @@ revents
 GRPCNIO
 NIOBSD
 NSPOSIX
+lflag
+Winsize
+Setsize
+TCGETS
+TSTP
+COLORTERM
+CTYPE
+ITERM
 
 # Tools and their names in configs
 globl
@@ -271,6 +281,7 @@ mathutil
 txlock
 gitdir
 fsmonitor
+creack
 
 # The app bundle build: Xcode settings, hdiutil flags, Info.plist keys
 appbundle
@@ -323,6 +334,7 @@ recompiles
 dotless
 fullwidth
 halfwidth
+oneofs
 
 # Vale rule names quoted in .vale.ini
 Cataphoric
