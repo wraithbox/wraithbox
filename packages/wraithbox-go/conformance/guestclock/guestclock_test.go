@@ -41,27 +41,22 @@ func TestStep(t *testing.T) {
 	}
 }
 
-// TestSlew: a slew is accepted and the kernel has it pending, for both
-// signs. The check cancels it after.
+// TestSlew: a slew is accepted and the kernel holds it, for both signs.
+// macOS's adjtime takes no null delta, so the check reads what is left
+// by setting a slew of zero, which also cancels it.
 func TestSlew(t *testing.T) {
 	inGuestAsRoot(t)
-	defer func() {
-		var zero unix.Timeval
-		if err := unix.Adjtime(&zero, nil); err != nil {
-			t.Errorf("cancel the slew: %v", err)
-		}
-	}()
 	for _, by := range []time.Duration{500 * time.Millisecond, -500 * time.Millisecond} {
 		if err := guestclock.Slew(by); err != nil {
 			t.Fatalf("Slew by %v: %v", by, err)
 		}
-		var left unix.Timeval
-		if err := unix.Adjtime(nil, &left); err != nil {
+		var zero, left unix.Timeval
+		if err := unix.Adjtime(&zero, &left); err != nil {
 			t.Fatalf("adjtime: %v", err)
 		}
 		pending := time.Duration(left.Nano())
 		if pending == 0 || (pending > 0) != (by > 0) || pending.Abs() > by.Abs() {
-			t.Fatalf("Slew by %v: %v pending", by, pending)
+			t.Fatalf("Slew by %v: %v left", by, pending)
 		}
 	}
 }

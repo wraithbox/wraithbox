@@ -34,7 +34,10 @@ func run() int {
 	defer stop()
 
 	own := version.Build()
-	log.LogAttrs(ctx, slog.LevelInfo, "starting", slog.String("version", version.Label(own)))
+	// The process ID shows that an update kept it (S06-12-guest-agent,
+	// "Update at start").
+	log.LogAttrs(ctx, slog.LevelInfo, "starting",
+		slog.String("version", version.Label(own)), slog.Int("pid", os.Getpid()))
 
 	if err := guestupdate.AtStart(ctx, guestupdate.Config{Own: own, Log: log}); err != nil {
 		if ctx.Err() != nil {
