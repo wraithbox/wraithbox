@@ -90,7 +90,7 @@ func (r *run) connect() (*guestlink.Link, error) {
 		}
 		return nil, err
 	}
-	r.ls.setStatus(r.slot, r.generation, func(s *Status) { s.State, s.Refusal = StateLinked, nil })
+	r.ls.setStatus(r.slot, r.generation, func(s *Status) { s.State, s.Refusal, s.GuestVersion = StateLinked, nil, l.Version() })
 	return l, nil
 }
 
@@ -107,7 +107,7 @@ func (r *run) keep(l *guestlink.Link) {
 			r.vc.log.LogAttrs(r.ctx, slog.LevelWarn, "guest link dropped",
 				slog.String("rule", RuleLinkDropped), slog.String("decision", "reconnect"),
 				slog.Uint64("generation", r.generation))
-			r.ls.setStatus(r.slot, r.generation, func(s *Status) { s.State = StateConnecting })
+			r.ls.setStatus(r.slot, r.generation, func(s *Status) { s.State, s.GuestVersion = StateConnecting, "" })
 			return
 		case <-r.ctx.Done():
 			return

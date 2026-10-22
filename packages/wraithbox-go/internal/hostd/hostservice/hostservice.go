@@ -4,6 +4,12 @@
 // S05-03-management-commands). Each refusal is a gRPC status whose
 // message is the text for the user and whose google.rpc.ErrorInfo
 // reason is the rule (proto/wraithbox/hostd/v1).
+//
+// wb-hostd serves it only on its local IPC endpoint with the
+// credentials of internal/hostversion/grpccreds, so the peer and the
+// build version of every connection are checked before a call reaches
+// this package (SEC12-least-privilege, internal/platform/localipc). The
+// daemon's main, which wires that up, comes with I287.
 package hostservice
 
 import (
@@ -17,6 +23,8 @@ import (
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 )
 
@@ -35,7 +43,16 @@ const (
 // VMs is the VM manager, as the service uses it. *vm.Manager
 // implements it.
 type VMs interface {
+	Start(ctx context.Context, slot vm.Slot) error
+	Stop(ctx context.Context, slot vm.Slot) error
+	Status(slot vm.Slot) vm.Status
 	ResetData(ctx context.Context, slot vm.Slot) (datadisk.ResetResult, error)
+}
+
+// Links is the state of each VM's guest link. *guestconn.Links
+// implements it.
+type Links interface {
+	Status(slot vm.Slot) guestconn.Status
 }
 
 // Server serves wraithbox.hostd.v1.HostService.
@@ -43,26 +60,88 @@ type Server struct {
 	hostdv1.UnimplementedHostServiceServer
 
 	VMs VMs
+	// Links has the guest link states. nil reads every link as down.
+	Links Links
+	// Refusing is set in refusing mode. Every call of this service is
+	// then refused with its rule (S17-05-upgrades-and-migrations,
+	// "Refusing mode"): only wb status is answered, and that isn't part
+	// of this service.
+	Refusing *startup.Refusing
 	// Log gets the refusals. nil takes slog.Default().
 	Log *slog.Logger
 }
 
 var _ hostdv1.HostServiceServer = (*Server)(nil)
 
+// StartVM cold-starts a stopped VM (S05-03-management-commands,
+// "`wb vm`"). It returns once the provider has started the VM, with the
+// generation of the run.
+func (s *Server) StartVM(ctx context.Context, req *hostdv1.StartVMRequest) (*hostdv1.StartVMResponse, error) {
+	slot, err := s.admit(ctx, "StartVM", req.GetVm())
+	if err != nil {
+		return nil, err
+	}
+	if err := s.VMs.Start(ctx, slot); err != nil {
+		return nil, s.fromError(ctx, "StartVM", err)
+	}
+	// The run that started is the slot's current or last one. Only a
+	// stop and a new start in between can give a newer generation, and
+	// wb then reads that run's state as its own.
+	return &hostdv1.StartVMResponse{Generation: s.VMs.Status(slot).Generation}, nil
+}
+
+// StopVM stops a running VM, a requested stop and then a forced one
+// (S05-03-management-commands, "`wb vm`"). A refusal for live sessions
+// names each in its message (S06-09-session-lifecycle, "Idle suspend").
+func (s *Server) StopVM(ctx context.Context, req *hostdv1.StopVMRequest) (*hostdv1.StopVMResponse, error) {
+	slot, err := s.admit(ctx, "StopVM", req.GetVm())
+	if err != nil {
+		return nil, err
+	}
+	if err := s.VMs.Stop(ctx, slot); err != nil {
+		return nil, s.fromError(ctx, "StopVM", err)
+	}
+	return &hostdv1.StopVMResponse{}, nil
+}
+
+// GetVMStatus returns a VM's state and its guest link's.
+func (s *Server) GetVMStatus(ctx context.Context, req *hostdv1.GetVMStatusRequest) (*hostdv1.GetVMStatusResponse, error) {
+	slot, err := s.admit(ctx, "GetVMStatus", req.GetVm())
+	if err != nil {
+		return nil, err
+	}
+	return &hostdv1.GetVMStatusResponse{Status: s.statusOf(slot, req.GetVm())}, nil
+}
+
 // ResetVMData gives a stopped VM a new data disk
 // (S05-03-management-commands, "`wb vm reset-data`"). The VM manager
-// refuses it unless the VM is stopped, and in refusing mode.
+// refuses it unless the VM is stopped.
 func (s *Server) ResetVMData(ctx context.Context, req *hostdv1.ResetVMDataRequest) (*hostdv1.ResetVMDataResponse, error) {
-	slot, ok := SlotOf(req.GetVm())
-	if !ok {
-		return nil, s.refuse(ctx, "ResetVMData", codes.InvalidArgument, RuleVMUnspecified,
-			"the request names no VM: name work or isolated")
+	slot, err := s.admit(ctx, "ResetVMData", req.GetVm())
+	if err != nil {
+		return nil, err
 	}
 	res, err := s.VMs.ResetData(ctx, slot)
 	if err != nil {
 		return nil, s.fromError(ctx, "ResetVMData", err)
 	}
 	return &hostdv1.ResetVMDataResponse{OldVolumeUuid: res.OldVolumeUUID, NewVolumeUuid: res.NewVolumeUUID}, nil
+}
+
+// admit refuses every call in refusing mode, with the rule that put
+// wb-hostd in it, and a call that names no VM. Else it returns the
+// call's slot.
+func (s *Server) admit(ctx context.Context, method string, v hostdv1.VM) (vm.Slot, error) {
+	if r := s.Refusing; r != nil {
+		return "", s.refuse(ctx, method, codes.FailedPrecondition, r.Rule,
+			"wb-hostd is in refusing mode, and answers only wb status: "+r.Detail)
+	}
+	slot, ok := SlotOf(v)
+	if !ok {
+		return "", s.refuse(ctx, method, codes.InvalidArgument, RuleVMUnspecified,
+			"the request names no VM: name work or isolated")
+	}
+	return slot, nil
 }
 
 // SlotOf maps the contract's VM to a slot.

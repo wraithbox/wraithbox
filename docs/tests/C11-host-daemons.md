@@ -411,6 +411,19 @@ and one before it detaches nothing.
 - An accepted one deletes the old file, drops the record, and records a
   new disk with a new UUID. The log line holds the old and new UUID.
 
+`wb vm start`, `stop`, `suspend` and `status`, in
+`internal/hostd/hostservice` and `internal/vmcmd`:
+
+- In refusing mode `wb-hostd` refuses every call of `HostService` with
+  its rule, and a refusal of the manager arrives as the `ErrorInfo`
+  reason. A `wb` of another build version is refused before the
+  service, and `wb` names both versions.
+- `start` exits 0 once the guest is linked. A refused hello and a link
+  that isn't up by the deadline exit 255, and leave the VM running.
+- A guest version with escape sequences prints without them, cut to
+  64 bytes (`FuzzGuestText`). `suspend` is refused without a
+  connection to `wb-hostd`. A usage error exits 2.
+
 ## Fuzzing
 
 - The receive decision of the descriptor channels, `FuzzRecvDecision`: at most one descriptor kept, and every other one closed (S07-05-stream-hand-off, "Message form").

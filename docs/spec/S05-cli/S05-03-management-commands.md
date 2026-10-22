@@ -179,7 +179,31 @@ of a guest RPC.
 
 ### `wb vm`
 
-`wb vm start/stop/suspend/status` controls a VM explicitly.
+`wb vm start/stop/suspend/status` controls a VM explicitly. Each takes
+the VM as its argument, `work` or `isolated`, and `status` without one
+shows both. `wb` names the VM to `wb-hostd` as a value of the
+contract's VM enum, never as a path. A command without a VM, with
+another name, or with an extra argument is a usage error (exit 2).
+`wb` asks `wb-hostd` over local IPC. Any refusal or failure ends with
+one `wraith box: <message> (<rule>)` line and exit 255
+(S05-02-exit-status-and-signals).
+
+`start` returns after the VM runs and `wb-hostd` accepted or refused
+the hello of its `wb-guestd`, or after a deadline. The deadline is in
+code, above the cold boot of X18-vsock-handoff with a margin. A refused
+hello and a link that isn't up by the deadline both exit 255, and leave
+the VM running for `stop`.
+
+`status` shows, for each VM, its state, its generation, the guest
+link with `wb-guestd`'s version or the refusal with both versions, and
+the last error of the Virtualization framework. The guest's version is
+guest input, so `wb` removes control and escape characters from it and
+cuts it to 64 bytes ("`wb approve` and `wb deny`").
+
+`suspend` saves the VM's state for a warm start
+(S06-06-devices-and-warm-start). Until warm start is built, `wb`
+refuses it with `vm-suspend-needs-warm-start` without asking
+`wb-hostd`.
 
 `stop` and `suspend` are refused while the VM has a session that is
 starting, running, paused or ending (`vm-live-sessions`). The refusal

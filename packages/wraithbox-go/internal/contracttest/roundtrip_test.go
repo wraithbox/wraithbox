@@ -29,6 +29,19 @@ func vmState() *vmdv1.VMState {
 	}
 }
 
+// vmStatus is a VMStatus with every field set, its nested messages
+// included.
+func vmStatus() *hostdv1.VMStatus {
+	return &hostdv1.VMStatus{
+		Vm: hostdv1.VM_VM_WORK, Phase: hostdv1.VMPhase_VM_PHASE_RUNNING, Generation: 7,
+		LinkState: hostdv1.LinkState_LINK_STATE_REFUSED, GuestVersion: "1.2.3",
+		LinkRefusal: &hostdv1.LinkRefusal{
+			Rule: "peer-version-mismatch", GuestVersion: `"1.2.4"`, HostdVersion: `"1.2.3"`, Message: "stop and start",
+		},
+		LastError: &hostdv1.VMError{Code: 6, FailureReason: "limit", Errno: 1, Description: "too many VMs"},
+	}
+}
+
 // setup is a terminal Setup with every field set.
 func setup() *terminalv1.Setup {
 	return &terminalv1.Setup{
@@ -136,6 +149,15 @@ func messages() []proto.Message {
 		&guestv1.SetTimeResponse{},
 		&hostdv1.ResetVMDataRequest{Vm: hostdv1.VM_VM_ISOLATED},
 		&hostdv1.ResetVMDataResponse{OldVolumeUuid: "A", NewVolumeUuid: "B"},
+		&hostdv1.StartVMRequest{Vm: hostdv1.VM_VM_WORK},
+		&hostdv1.StartVMResponse{Generation: 7},
+		&hostdv1.StopVMRequest{Vm: hostdv1.VM_VM_ISOLATED},
+		&hostdv1.StopVMResponse{},
+		&hostdv1.GetVMStatusRequest{Vm: hostdv1.VM_VM_WORK},
+		&hostdv1.GetVMStatusResponse{Status: vmStatus()},
+		vmStatus(),
+		vmStatus().GetLinkRefusal(),
+		vmStatus().GetLastError(),
 	}, terminalMessages()...)
 }
 

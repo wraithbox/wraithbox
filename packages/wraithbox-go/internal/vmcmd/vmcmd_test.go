@@ -58,13 +58,17 @@ type fixture struct {
 	dials   int
 	stdout  bytes.Buffer
 	stderr  bytes.Buffer
-	hostLog bytes.Buffer
+	hostLog syncBuffer
 	lis     *bufconn.Listener
+	links   *fakeLinks
+	// live is the sessions the manager's Sessions hook lists. Set it
+	// before the run.
+	live []vm.Session
 }
 
 func newFixture(t *testing.T, typed string) *fixture {
 	t.Helper()
-	f := &fixture{t: t, data: t.TempDir(), term: &term{in: strings.NewReader(typed)}}
+	f := &fixture{t: t, data: t.TempDir(), term: &term{in: strings.NewReader(typed)}, links: &fakeLinks{}}
 	db, err := state.Open(t.Context(), f.data)
 	if err != nil {
 		t.Fatal(err)
@@ -86,13 +90,14 @@ func newFixture(t *testing.T, typed string) *fixture {
 	f.vms, err = vm.New(vm.Config{
 		DataDir: f.data, ToolsImage: tools, Resources: config.Defaults(), Generations: db,
 		Provider: &vmtest.Provider{}, Cloner: &vmtest.CopyCloner{}, DataDisks: disks, Logger: log,
+		Sessions: func(vm.Slot) []vm.Session { return f.live },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.lis = bufconn.Listen(1 << 16)
 	srv := grpc.NewServer()
-	hostdv1.RegisterHostServiceServer(srv, &hostservice.Server{VMs: f.vms, Log: log})
+	hostdv1.RegisterHostServiceServer(srv, &hostservice.Server{VMs: f.vms, Links: f.links, Log: log})
 	go func() { _ = srv.Serve(f.lis) }()
 	t.Cleanup(srv.Stop)
 	return f
@@ -105,6 +110,20 @@ type client struct {
 
 func (c *client) ResetVMData(ctx context.Context, v hostdv1.VM) (*hostdv1.ResetVMDataResponse, error) {
 	return c.c.ResetVMData(ctx, &hostdv1.ResetVMDataRequest{Vm: v})
+}
+
+func (c *client) StartVM(ctx context.Context, v hostdv1.VM) (*hostdv1.StartVMResponse, error) {
+	return c.c.StartVM(ctx, &hostdv1.StartVMRequest{Vm: v})
+}
+
+func (c *client) StopVM(ctx context.Context, v hostdv1.VM) error {
+	_, err := c.c.StopVM(ctx, &hostdv1.StopVMRequest{Vm: v})
+	return err
+}
+
+func (c *client) GetVMStatus(ctx context.Context, v hostdv1.VM) (*hostdv1.VMStatus, error) {
+	res, err := c.c.GetVMStatus(ctx, &hostdv1.GetVMStatusRequest{Vm: v})
+	return res.GetStatus(), err
 }
 
 func (c *client) Close() error { return c.conn.Close() }
@@ -286,7 +305,7 @@ func TestNoDiskYet(t *testing.T) {
 func TestPrintsWithoutEscapes(t *testing.T) {
 	f := newFixture(t, "yes\n")
 	env := f.env()
-	env.Dial = func(context.Context) (vmcmd.Hostd, error) { return evil{}, nil }
+	env.Dial = func(context.Context) (vmcmd.Hostd, error) { return newEvil(), nil }
 	if code := vmcmd.Run(t.Context(), env, []string{"reset-data", "work"}); code != 255 {
 		t.Fatalf("exit %d", code)
 	}
@@ -315,7 +334,16 @@ func TestResetMayHaveRun(t *testing.T) {
 	}
 }
 
+// failing is a wb-hostd whose every call fails with err.
 type failing struct{ err error }
+
+func (f failing) StartVM(context.Context, hostdv1.VM) (*hostdv1.StartVMResponse, error) {
+	return nil, f.err
+}
+func (f failing) StopVM(context.Context, hostdv1.VM) error { return f.err }
+func (f failing) GetVMStatus(context.Context, hostdv1.VM) (*hostdv1.VMStatus, error) {
+	return nil, f.err
+}
 
 func (f failing) ResetVMData(context.Context, hostdv1.VM) (*hostdv1.ResetVMDataResponse, error) {
 	return nil, f.err
@@ -323,10 +351,6 @@ func (f failing) ResetVMData(context.Context, hostdv1.VM) (*hostdv1.ResetVMDataR
 
 func (failing) Close() error { return nil }
 
-type evil struct{}
-
-func (evil) ResetVMData(context.Context, hostdv1.VM) (*hostdv1.ResetVMDataResponse, error) {
-	return nil, errors.New("\x1b]0;owned\a\x1b[2J bad")
-}
-
-func (evil) Close() error { return nil }
+// newEvil is a wb-hostd that fails every call with an error whose text
+// holds escape sequences.
+func newEvil() failing { return failing{errors.New("\x1b]0;owned\a\x1b[2J bad")} }
