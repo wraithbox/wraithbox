@@ -181,7 +181,10 @@ func parseRemoteNames(out []byte, lim limits) ([]string, *Refusal) {
 }
 
 // parseURLs reads the output of `git remote get-url --all <name>`: one
-// URL a line. A message never quotes a URL: it can hold a token.
+// URL a line. A message never quotes a URL: it can hold a token. A
+// refusal depends on the number and lengths of the lines alone, which
+// the fuzz oracle urlRefusalProblem in fuzz_test.go relies on. A rule
+// that depends on line content needs a change to that oracle.
 func parseURLs(out []byte, name string, lim limits) ([]string, *Refusal) {
 	urls, ok := lines(out)
 	if !ok {
