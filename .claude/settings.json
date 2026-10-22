@@ -1,4 +1,6 @@
 {
+  "autoCompactEnabled": true,
+  "autoCompactWindow": 500000,
   "permissions": {
     "allow": [
       "Bash(mise run install)",
