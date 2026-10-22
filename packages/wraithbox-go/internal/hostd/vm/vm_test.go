@@ -208,15 +208,20 @@ func TestC11StartAndStopEachSlot(t *testing.T) {
 	if n := len(h.provider.Instances()); n != 2 {
 		t.Errorf("%d instances, want one per run", n)
 	}
-	// The next start of a slot gets a new instance and a new generation.
-	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
+	// The next start of a slot gets a new instance and a new generation,
+	// which StartRun returns.
+	started, err := m.StartRun(t.Context(), vm.SlotWork)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if n := len(h.provider.Instances()); n != 3 {
 		t.Errorf("%d instances, want a new one for the new run", n)
 	}
-	if g := m.Status(vm.SlotWork).Generation; g != 2 {
-		t.Errorf("generation = %d, want 2", g)
+	if g := m.Status(vm.SlotWork).Generation; g != 2 || started != 2 {
+		t.Errorf("generation = %d, StartRun returned %d, want 2", g, started)
+	}
+	if g, err := m.StartRun(t.Context(), vm.SlotWork); g != 0 || err == nil {
+		t.Errorf("a refused StartRun returned %d, %v", g, err)
 	}
 }
 

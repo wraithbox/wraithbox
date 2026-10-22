@@ -26,18 +26,28 @@ import (
 // It returns once the provider has started the VM. A refusal is a
 // *Refusal, logged with its rule.
 func (m *Manager) Start(ctx context.Context, slot Slot) error {
+	_, err := m.StartRun(ctx, slot)
+	return err
+}
+
+// StartRun is Start, and returns the generation of the run it started,
+// so a caller never takes a later run for its own.
+func (m *Manager) StartRun(ctx context.Context, slot Slot) (uint64, error) {
 	if r := m.checkRequest(slot); r != nil {
-		return m.refuse(ctx, "start", r)
+		return 0, m.refuse(ctx, "start", r)
 	}
 	if r := m.reserve(slot); r != nil {
-		return m.refuse(ctx, "start", r)
+		return 0, m.refuse(ctx, "start", r)
 	}
 	generation, r := m.prepare(ctx, slot)
 	if r != nil {
 		m.unreserve(slot)
-		return m.refuse(ctx, "start", r)
+		return 0, m.refuse(ctx, "start", r)
 	}
-	return m.boot(ctx, slot, generation)
+	if err := m.boot(ctx, slot, generation); err != nil {
+		return 0, err
+	}
+	return generation, nil
 }
 
 // reserve moves a stopped slot to starting, so a second start is

@@ -67,12 +67,15 @@ func enumWord(name, prefix string) string {
 }
 
 // linkRefusalText names the rule, both versions when the refusal is
-// about the version, and wb-hostd's text with the fix.
+// about the version, and wb-hostd's text with the fix. wb-hostd sends
+// both versions in version.Label's form, already cut and quoted, so wb
+// strips them without the 64-byte cut of guestText, which could split
+// the quoted form.
 func linkRefusalText(r *hostdv1.LinkRefusal) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "rule %s", printable(r.GetRule()))
 	if gv := r.GetGuestVersion(); gv != "" {
-		fmt.Fprintf(&b, ", wb-guestd version %s and wb-hostd version %s", guestText(gv), guestText(r.GetHostdVersion()))
+		fmt.Fprintf(&b, ", wb-guestd version %s and wb-hostd version %s", printable(gv), printable(r.GetHostdVersion()))
 	}
 	if msg := r.GetMessage(); msg != "" {
 		b.WriteString(": " + printable(msg))
