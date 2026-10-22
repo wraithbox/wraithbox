@@ -29,6 +29,25 @@ service HostService {
   // (S05-03-management-commands, "`wb vm reset-data`"). It is refused
   // with vm-running unless the VM is stopped.
   rpc ResetVMData(ResetVMDataRequest) returns (ResetVMDataResponse);
+
+  // StartVM cold-starts a stopped VM, for `wb vm start`. It returns once
+  // wb-vmd has started the VM, before the guest link is up: wb follows
+  // the link with GetVMStatus. It is refused with vm-running unless the
+  // VM is stopped, and with vm-start-timeout when wb-vmd doesn't open or
+  // answer in time (S05-03-management-commands, "`wb vm`").
+  rpc StartVM(StartVMRequest) returns (StartVMResponse);
+
+  // StopVM asks the guest to shut down, and stops the VM at once when
+  // the guest hasn't stopped by a deadline. It returns once the VM has
+  // stopped. It is refused with vm-not-running when the VM is stopped,
+  // and with vm-live-sessions while the VM has a live session, with a
+  // message that names each one (S06-09-session-lifecycle, "Idle
+  // suspend").
+  rpc StopVM(StopVMRequest) returns (StopVMResponse);
+
+  // GetVMStatus returns a VM's state and the state of its guest link,
+  // for `wb vm status` and the wait of `wb vm start`.
+  rpc GetVMStatus(GetVMStatusRequest) returns (GetVMStatusResponse);
 }
 
 // VM names one of the two VMs (S06-04-vms-and-placement).
@@ -49,4 +68,99 @@ message ResetVMDataResponse {
   string old_volume_uuid = 1;
   // The volume UUID of the new disk.
   string new_volume_uuid = 2;
+}
+
+message StartVMRequest {
+  VM vm = 1;
+}
+
+message StartVMResponse {
+  // The generation of the run that started. Generations start at 1.
+  uint64 generation = 1;
+}
+
+message StopVMRequest {
+  VM vm = 1;
+}
+
+message StopVMResponse {}
+
+message GetVMStatusRequest {
+  VM vm = 1;
+}
+
+message GetVMStatusResponse {
+  VMStatus status = 1;
+}
+
+// VMStatus is a VM's state. Its text fields can hold text from wb-vmd
+// or the guest, which wb strips of control and escape characters and
+// cuts before it prints them (SEC11-root-gains-nothing).
+message VMStatus {
+  VM vm = 1;
+  VMPhase phase = 2;
+  // The generation of the current or the last run since wb-hostd
+  // started, 0 before the first.
+  uint64 generation = 3;
+  // The guest link of the current run: DOWN unless the VM is running.
+  LinkState link_state = 4;
+  // wb-guestd's build version, set while the link is up. It equals
+  // wb-hostd's, the only version the link takes.
+  string guest_version = 5;
+  // The last refused hello of the current run, kept until a hello is
+  // accepted. Set when link_state is REFUSED.
+  LinkRefusal link_refusal = 6;
+  // The last error of the Virtualization framework in the current or
+  // the last run, kept after the VM stopped. Unset when there is none.
+  VMError last_error = 7;
+}
+
+// VMPhase is wb-hostd's state of a VM.
+enum VMPhase {
+  VM_PHASE_UNSPECIFIED = 0;
+  VM_PHASE_STOPPED = 1;
+  VM_PHASE_STARTING = 2;
+  VM_PHASE_RUNNING = 3;
+  VM_PHASE_STOPPING = 4;
+}
+
+// LinkState is the state of wb-hostd's control link to wb-guestd.
+enum LinkState {
+  LINK_STATE_UNSPECIFIED = 0;
+  // The VM isn't running.
+  LINK_STATE_DOWN = 1;
+  // The link isn't up yet, or dropped, and the next try is pending.
+  LINK_STATE_CONNECTING = 2;
+  // The hello was accepted, and the link is up.
+  LINK_STATE_LINKED = 3;
+  // The last hello was refused. The link tries again.
+  LINK_STATE_REFUSED = 4;
+}
+
+// LinkRefusal is a refused hello of wb-guestd.
+message LinkRefusal {
+  // The rule that refused it.
+  string rule = 1;
+  // The guest's version as wb-hostd logs it: cut to 64 bytes and
+  // quoted, with every byte outside printable ASCII escaped. Empty when
+  // the refusal wasn't about the version.
+  string guest_version = 2;
+  // wb-hostd's version, in the same form.
+  string hostd_version = 3;
+  // What was refused, and what to do.
+  string message = 4;
+}
+
+// VMError is an error of the Virtualization framework as wb-vmd passed
+// it on (wraithbox.vmd.v1.VMError). wb-hostd cuts each text field to
+// 1024 bytes.
+message VMError {
+  // The error code, a VZError.Code value.
+  int64 code = 1;
+  // The error's localized failure reason, empty when it has none.
+  string failure_reason = 2;
+  // The errno of the underlying POSIX error, 0 when there is none.
+  int32 errno = 3;
+  // The error's localized description.
+  string description = 4;
 }

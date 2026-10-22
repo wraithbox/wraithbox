@@ -162,7 +162,7 @@ func (ls *Links) Run(slot vm.Slot, generation uint64, ended <-chan struct{}) {
 		r.loop()
 		cancel()
 		r.vc.closeGeneration(generation)
-		ls.setStatus(slot, generation, func(s *Status) { s.State = StateDown })
+		ls.setStatus(slot, generation, func(s *Status) { s.State, s.GuestVersion = StateDown, "" })
 		r.vc.log.LogAttrs(context.Background(), slog.LevelInfo, "guest link ended",
 			slog.String("decision", "close"), slog.Uint64("generation", generation))
 	}()
@@ -210,6 +210,10 @@ type Status struct {
 	Slot       vm.Slot
 	Generation uint64
 	State      State
+	// GuestVersion is wb-guestd's build version while the link is up,
+	// else "". The hello took it only because it equals wb-hostd's own
+	// (internal/guestlink).
+	GuestVersion string
 	// Refusal is the last refused hello of this generation, kept until a
 	// hello is accepted. nil when there is none.
 	Refusal *HelloRefusal

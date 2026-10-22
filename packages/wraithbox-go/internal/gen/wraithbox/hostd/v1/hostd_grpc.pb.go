@@ -38,6 +38,9 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	HostService_ResetVMData_FullMethodName = "/wraithbox.hostd.v1.HostService/ResetVMData"
+	HostService_StartVM_FullMethodName     = "/wraithbox.hostd.v1.HostService/StartVM"
+	HostService_StopVM_FullMethodName      = "/wraithbox.hostd.v1.HostService/StopVM"
+	HostService_GetVMStatus_FullMethodName = "/wraithbox.hostd.v1.HostService/GetVMStatus"
 )
 
 // HostServiceClient is the client API for HostService service.
@@ -54,6 +57,22 @@ type HostServiceClient interface {
 	// (S05-03-management-commands, "`wb vm reset-data`"). It is refused
 	// with vm-running unless the VM is stopped.
 	ResetVMData(ctx context.Context, in *ResetVMDataRequest, opts ...grpc.CallOption) (*ResetVMDataResponse, error)
+	// StartVM cold-starts a stopped VM, for `wb vm start`. It returns once
+	// wb-vmd has started the VM, before the guest link is up: wb follows
+	// the link with GetVMStatus. It is refused with vm-running unless the
+	// VM is stopped, and with vm-start-timeout when wb-vmd doesn't open or
+	// answer in time (S05-03-management-commands, "`wb vm`").
+	StartVM(ctx context.Context, in *StartVMRequest, opts ...grpc.CallOption) (*StartVMResponse, error)
+	// StopVM asks the guest to shut down, and stops the VM at once when
+	// the guest hasn't stopped by a deadline. It returns once the VM has
+	// stopped. It is refused with vm-not-running when the VM is stopped,
+	// and with vm-live-sessions while the VM has a live session, with a
+	// message that names each one (S06-09-session-lifecycle, "Idle
+	// suspend").
+	StopVM(ctx context.Context, in *StopVMRequest, opts ...grpc.CallOption) (*StopVMResponse, error)
+	// GetVMStatus returns a VM's state and the state of its guest link,
+	// for `wb vm status` and the wait of `wb vm start`.
+	GetVMStatus(ctx context.Context, in *GetVMStatusRequest, opts ...grpc.CallOption) (*GetVMStatusResponse, error)
 }
 
 type hostServiceClient struct {
@@ -74,6 +93,36 @@ func (c *hostServiceClient) ResetVMData(ctx context.Context, in *ResetVMDataRequ
 	return out, nil
 }
 
+func (c *hostServiceClient) StartVM(ctx context.Context, in *StartVMRequest, opts ...grpc.CallOption) (*StartVMResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartVMResponse)
+	err := c.cc.Invoke(ctx, HostService_StartVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hostServiceClient) StopVM(ctx context.Context, in *StopVMRequest, opts ...grpc.CallOption) (*StopVMResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StopVMResponse)
+	err := c.cc.Invoke(ctx, HostService_StopVM_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hostServiceClient) GetVMStatus(ctx context.Context, in *GetVMStatusRequest, opts ...grpc.CallOption) (*GetVMStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVMStatusResponse)
+	err := c.cc.Invoke(ctx, HostService_GetVMStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HostServiceServer is the server API for HostService service.
 // All implementations must embed UnimplementedHostServiceServer
 // for forward compatibility.
@@ -88,6 +137,22 @@ type HostServiceServer interface {
 	// (S05-03-management-commands, "`wb vm reset-data`"). It is refused
 	// with vm-running unless the VM is stopped.
 	ResetVMData(context.Context, *ResetVMDataRequest) (*ResetVMDataResponse, error)
+	// StartVM cold-starts a stopped VM, for `wb vm start`. It returns once
+	// wb-vmd has started the VM, before the guest link is up: wb follows
+	// the link with GetVMStatus. It is refused with vm-running unless the
+	// VM is stopped, and with vm-start-timeout when wb-vmd doesn't open or
+	// answer in time (S05-03-management-commands, "`wb vm`").
+	StartVM(context.Context, *StartVMRequest) (*StartVMResponse, error)
+	// StopVM asks the guest to shut down, and stops the VM at once when
+	// the guest hasn't stopped by a deadline. It returns once the VM has
+	// stopped. It is refused with vm-not-running when the VM is stopped,
+	// and with vm-live-sessions while the VM has a live session, with a
+	// message that names each one (S06-09-session-lifecycle, "Idle
+	// suspend").
+	StopVM(context.Context, *StopVMRequest) (*StopVMResponse, error)
+	// GetVMStatus returns a VM's state and the state of its guest link,
+	// for `wb vm status` and the wait of `wb vm start`.
+	GetVMStatus(context.Context, *GetVMStatusRequest) (*GetVMStatusResponse, error)
 	mustEmbedUnimplementedHostServiceServer()
 }
 
@@ -100,6 +165,15 @@ type UnimplementedHostServiceServer struct{}
 
 func (UnimplementedHostServiceServer) ResetVMData(context.Context, *ResetVMDataRequest) (*ResetVMDataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ResetVMData not implemented")
+}
+func (UnimplementedHostServiceServer) StartVM(context.Context, *StartVMRequest) (*StartVMResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartVM not implemented")
+}
+func (UnimplementedHostServiceServer) StopVM(context.Context, *StopVMRequest) (*StopVMResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StopVM not implemented")
+}
+func (UnimplementedHostServiceServer) GetVMStatus(context.Context, *GetVMStatusRequest) (*GetVMStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetVMStatus not implemented")
 }
 func (UnimplementedHostServiceServer) mustEmbedUnimplementedHostServiceServer() {}
 func (UnimplementedHostServiceServer) testEmbeddedByValue()                     {}
@@ -140,6 +214,60 @@ func _HostService_ResetVMData_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HostService_StartVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartVMRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostServiceServer).StartVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HostService_StartVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostServiceServer).StartVM(ctx, req.(*StartVMRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HostService_StopVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopVMRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostServiceServer).StopVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HostService_StopVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostServiceServer).StopVM(ctx, req.(*StopVMRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HostService_GetVMStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVMStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostServiceServer).GetVMStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HostService_GetVMStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostServiceServer).GetVMStatus(ctx, req.(*GetVMStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HostService_ServiceDesc is the grpc.ServiceDesc for HostService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -150,6 +278,18 @@ var HostService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResetVMData",
 			Handler:    _HostService_ResetVMData_Handler,
+		},
+		{
+			MethodName: "StartVM",
+			Handler:    _HostService_StartVM_Handler,
+		},
+		{
+			MethodName: "StopVM",
+			Handler:    _HostService_StopVM_Handler,
+		},
+		{
+			MethodName: "GetVMStatus",
+			Handler:    _HostService_GetVMStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

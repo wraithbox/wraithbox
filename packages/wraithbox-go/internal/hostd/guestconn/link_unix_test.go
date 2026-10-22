@@ -275,8 +275,8 @@ func TestC11GuestLinkStop(t *testing.T) {
 		t.Fatalf("time hook for generation %d, want 2", g)
 	}
 	s := h.waitState(StateLinked)
-	if s.Generation != 2 {
-		t.Fatalf("linked to generation %d", s.Generation)
+	if s.Generation != 2 || s.GuestVersion != own {
+		t.Fatalf("linked to generation %d, guest version %q", s.Generation, s.GuestVersion)
 	}
 	got := h.provider.Last().Connects()
 	if len(got) != 1 || got[0].Generation != 2 {

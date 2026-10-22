@@ -55,20 +55,43 @@ func dial(log *slog.Logger, run string) (Hostd, error) {
 	return &grpcHostd{conn: conn, client: hostdv1.NewHostServiceClient(conn), creds: creds}, nil
 }
 
-// ResetVMData calls the RPC. A build version refusal of the connection
+// The calls of the RPCs. A build version refusal of the connection
 // becomes an error that names both versions.
+
+func (h *grpcHostd) StartVM(ctx context.Context, vm hostdv1.VM) (*hostdv1.StartVMResponse, error) {
+	res, err := h.client.StartVM(ctx, &hostdv1.StartVMRequest{Vm: vm}, grpc.WaitForReady(false))
+	return res, h.versionChecked(err)
+}
+
+func (h *grpcHostd) StopVM(ctx context.Context, vm hostdv1.VM) error {
+	_, err := h.client.StopVM(ctx, &hostdv1.StopVMRequest{Vm: vm}, grpc.WaitForReady(false))
+	return h.versionChecked(err)
+}
+
+func (h *grpcHostd) GetVMStatus(ctx context.Context, vm hostdv1.VM) (*hostdv1.VMStatus, error) {
+	res, err := h.client.GetVMStatus(ctx, &hostdv1.GetVMStatusRequest{Vm: vm}, grpc.WaitForReady(false))
+	return res.GetStatus(), h.versionChecked(err)
+}
+
 func (h *grpcHostd) ResetVMData(ctx context.Context, vm hostdv1.VM) (*hostdv1.ResetVMDataResponse, error) {
 	res, err := h.client.ResetVMData(ctx, &hostdv1.ResetVMDataRequest{Vm: vm}, grpc.WaitForReady(false))
+	return res, h.versionChecked(err)
+}
+
+// versionChecked returns err, or in its place the connection's build
+// version refusal (S04-08-records-and-bounds, "Between host
+// processes"). A refused connection never carried the request.
+func (h *grpcHostd) versionChecked(err error) error {
 	if err == nil {
-		return res, nil
+		return nil
 	}
 	if r := h.creds.LastRefusal(); r != nil {
-		return nil, &versionError{
+		return &versionError{
 			rule: r.Rule,
 			msg:  fmt.Sprintf("wb-hostd is version %s and wb is version %s, so nothing changed: install Wraith Box again", r.PeerLabel(), r.OwnLabel()),
 		}
 	}
-	return nil, err
+	return err
 }
 
 func (h *grpcHostd) Close() error {
