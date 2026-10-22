@@ -25,10 +25,9 @@ The parts of the key:
   repository opened from native Windows are in two realms. So they are
   two projects.
 - *Path.* The key uses the path as git returns it, and `wb` doesn't
-  recompute it. `wb` runs git in the directory's canonical form, from
-  `internal/platform`: links resolved, and letter case as on disk. So
-  `~/Git/foo`, `~/git/foo` and a link to it give one key. Other hosts
-  get a canonical form with S12-platforms, and refuse until then.
+  recompute it. `wb` runs git in the directory's canonical form
+  (S12-01-platform-interfaces): links resolved, and letter case as on
+  disk. So `~/Git/foo`, `~/git/foo` and a link to it give one key.
 
 ### Resolving the key
 
@@ -71,41 +70,28 @@ first one with a `.git` entry, as git does. The key must belong to that
 directory. A `.git` directory must be both `--git-dir` and
 `--git-common-dir`. Any type other than a directory or a file refuses
 the command. A symbolic link, for one, could name another project's `.git`.
-
-A `.git` directory's `core.worktree` must be unset, or resolve,
-relative to that `.git` and in canonical form, to the directory that
-holds it. Anything else refuses the command, before any identity is
-read. git runs its worktree commands in the directory `core.worktree`
-names, so a downloaded `.git` whose `core.worktree` names another
-project's tree would have git read and write that tree under the
-downloaded repository's configuration. `wb` reads `core.worktree` from
-the repository's `config` and `config.worktree` files, with includes
-off, as git reads it. It reads `config.worktree` even when
-`extensions.worktreeConfig` is off, so a file git ignores can still
-refuse the command.
+git works in the tree `core.worktree` names. Each value of it, in
+`config` or `config.worktree`, read with includes off, must
+canonicalize, relative to `--git-dir`, to the directory holding `.git`.
 
 #### A `.git` file
 
 That entry can be a file (`gitdir: …`) instead of a directory. `wb`
 accepts it only for a linked worktree or a submodule:
 
-- A linked worktree has `--git-dir` equal to
-  `<common>/worktrees/<name>`. That worktree's back-link,
-  `<common>/worktrees/<name>/gitdir`, names this `.git` file.
-- A submodule has `--git-dir` equal to the common directory. Its
-  `core.worktree` is set, and, resolved relative to `--git-dir`,
-  canonicalizes to the directory that holds this `.git` file. It is
-  read as for a `.git` directory, and a value in either file must
-  match.
+- A linked worktree has `--git-dir` equal to `<common>/worktrees/<name>`.
+  Its back-link, `<common>/worktrees/<name>/gitdir`, names this `.git` file.
+- A submodule has `--git-dir` equal to the common directory, and sets
+  `core.worktree`.
 
-`wb` doesn't use `--show-toplevel` for this, because git derives it
-from that same `core.worktree`. Anything else refuses the command, such
-as a `.git` file in a downloaded archive that names another project's
-repository, or one of its submodules.
+`wb` doesn't use `--show-toplevel`, which git derives from
+`core.worktree`. Anything else refuses the command, such as a `.git`
+file in a downloaded archive that names another project's repository,
+or one of its submodules.
 
 #### Failure
 
-Any failed `rev-parse` refuses the command, "dubious ownership"
+Any failed git run refuses the command, "dubious ownership"
 included. Every refusal here says why (NFR06-explained-refusals), and
 nothing is registered.
 

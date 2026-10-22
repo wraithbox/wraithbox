@@ -24,7 +24,7 @@ OS:
 | **Notifications** | Approval prompts with actions | native helper (Swift) | native helper (S12-02-languages-and-ci) | freedesktop notifications over D-Bus from Go |
 | **Downloaded-file marker** | Files leaving the guest other than via git | quarantine attribute | Mark of the Web | none (documented) |
 | **Paths** | `<config>`, `<data>`, `<logs>` of S04-architecture (`internal/platform/paths`) | `~/.config/wraithbox`, `~/Library/Application Support/WraithBox`, `~/Library/Logs/WraithBox`, where `~` is the home directory the user database gives the effective user ID, never `HOME` | `%APPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox`, `%LOCALAPPDATA%\WraithBox\Logs` | `$XDG_CONFIG_HOME/wraithbox`, `$XDG_DATA_HOME/wraithbox`, `$XDG_STATE_HOME/wraithbox/logs` |
-| **Canonical path** | One string for each directory, with every symbolic link resolved and each name in the letter case it has on disk, for project resolution (S05-04-naming, "Resolving the key") (`platform.CanonicalDir`) | `fcntl(F_GETPATH)` on the open directory | refuses with `errors.ErrUnsupported`, so project resolution refuses, until Windows hosts are built | refuses with `errors.ErrUnsupported`, so project resolution refuses, until Linux hosts are built |
+| **Canonical path** | The directory as one string: links resolved, names in their case on disk (`platform.CanonicalDir`). Project resolution compares paths in this form (S05-04-naming, "Resolving the key") | `fcntl(F_GETPATH)` on the open directory | refuses with `errors.ErrUnsupported`, so project resolution refuses, until Windows hosts are built | refuses with `errors.ErrUnsupported`, so project resolution refuses, until Linux hosts are built |
 
 ### Host-guest socket on macOS
 
