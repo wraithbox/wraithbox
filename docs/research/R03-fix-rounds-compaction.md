@@ -281,14 +281,82 @@ the change.
 - **Keep resuming after a turn limit.** A builder that stops at its
   turn limit has work in its context that isn't in a commit or a pull
   request yet. Its three continuations were warm.
-- **No compaction setting.** No builder, reviewer or lead compacted,
-  and the largest builder stopped at 587k, below the 967K default. A
-  lower `autoCompactWindow` would summarize builders in the middle of
-  their work, with an effect the runs can't measure, and the fix-round
-  rule already caps the largest resumed contexts. Look again when a
-  builder passes about 800k or a subagent transcript has a
-  `compact_boundary` record. With `autoCompactEnabled` off, if that
-  setting covers subagents, a builder that reaches the 1M window stops
-  with a context-limit error instead of compacting.
+- **No compaction setting.** Replaced by "Follow-up: compaction for
+  builders" below, which turns compaction on with a 200k window for
+  builders. The reasoning this note first gave: no builder, reviewer or
+  lead compacted, and the largest builder stopped at 587k, below the
+  967K default. A lower `autoCompactWindow` would summarize builders in
+  the middle of their work, with an effect the runs can't measure, and
+  the fix-round rule already caps the largest resumed contexts. With
+  `autoCompactEnabled` off, if that setting covers subagents, a builder
+  that reaches the 1M window stops with a context-limit error instead
+  of compacting.
 
-**Status:** Measured 2026-10-22 over 42 fix rounds of V1-M2. PR389 applies the recommendations in commit 28ab7e2, and merging it accepts them
+## Follow-up: compaction for builders
+
+Issue I392, decided by the maintainer on 2026-10-22.
+
+**Why no builder compacted.** `~/.claude/settings.json` on the
+maintainer's Mac has `"autoCompactEnabled": false`. In Claude Code
+2.1.302 that setting gates every window. While it's false, Claude
+Code ignores `autoCompactWindow` in settings and in agent frontmatter.
+
+**Where a builder's context goes.** A measurement on 2026-10-22 split
+the final context of the builders of I286 and I374 in run I384, and of
+six builders from the runs I314 to I367, estimated as characters
+divided by 4.
+
+| | Range over the eight |
+|---|---|
+| Final context | 103k to 586k |
+| Fixed start (system prompt, tools, `AGENTS.md`, agent file) | 17k to 18k |
+| Tool output | 20% to 29% |
+| The builder's own commands and edit contents | 9% to 20% |
+| The rest, mostly thinking (inferred: transcripts keep only thinking signatures) | 44% to 58% |
+
+Compaction replaces the history, thinking included, with a summary.
+mise and `go test` output is small, because builders already filter it
+with `tail` and `grep`, so tuning commands saves under 1%.
+
+**The plan.**
+
+- `.claude/settings.json` sets `"autoCompactEnabled": true` and
+  `"autoCompactWindow": 500000`. Main sessions, leads and reviewers
+  compact at 500k. Leads and reviewers end under about 60k, so in
+  practice this applies to main sessions.
+- `.claude/agents/builder.md` sets `autoCompactWindow: 200000` in its
+  frontmatter. Claude Code 2.1.302 describes that key as one that only
+  lowers the window the subagent would otherwise inherit.
+- The body of `builder.md` has a `## Compact Instructions` section,
+  for builders only. The summary request tells the model to follow
+  summarization instructions it finds in the context, with that heading
+  as its example. It adds what the standard summary doesn't already
+  keep: the issue, branch, worktree and pull request, the issue's
+  decisions and the pull request's "Choices made", where each review
+  finding stands, the "Done when" items still open, and not to revisit
+  a choice a review approved. `AGENTS.md` doesn't get the section,
+  because only builders are expected to compact, and a lead needs other
+  things kept.
+- No `idleCompaction` key. In 2.1.302 that setting can only turn idle
+  compaction off, and `true` "does not turn idle compaction on", so a
+  `true` there would do nothing and mislead a reader.
+- The builder's rule to stop after a compaction is gone. A builder
+  carries on from the summary and reads back from the branch, the pull
+  request and the issue what the summary doesn't hold.
+
+**The `PreCompact` hook.** Its input doesn't name the subagent type in
+2.1.302. The schema lists the common `agent_id` and `agent_type` fields,
+but the PreCompact input is built without the subagent's context, so
+`agent_id` is absent and `agent_type` is set only in a main session
+started with `--agent`. A hook can't add builder-only instructions, so
+the plan has none.
+
+**How to check it.** Not yet confirmed: that the project setting
+overrides the user's `false`, and that the summary request of a
+subagent includes its system prompt, which holds the section. The next
+builder that passes 200k shows both. Its transcript has a
+`compact_boundary` record, and its summary keeps the items of the
+section. A main session that passes 500k compacts. Whoever runs the
+next wave checks this and comments the result on I392.
+
+**Status:** Measured 2026-10-22 over 42 fix rounds of V1-M2. PR389 applies the recommendations in commit 28ab7e2, and merging it accepts them. Follow-up 2026-10-22: I392 turns compaction on, with builders at 200k

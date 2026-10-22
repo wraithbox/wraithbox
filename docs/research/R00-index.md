@@ -13,4 +13,4 @@ new one here.
 |----|-------------|--------|
 | R01-defenseclaw | DefenseClaw | Read 2026-10-14, re-review after V1 (I240) |
 | R02-builder-effort | Builder effort trial | Measured 2026-10-22 over 32 pull requests of V1-M2. Decided 2026-10-22: builders and code reviewers at medium |
-| R03-fix-rounds-compaction | Fix rounds and compaction | Measured 2026-10-22 over 42 fix rounds of V1-M2. PR389 applies the recommendations in commit 28ab7e2, and merging it accepts them |
+| R03-fix-rounds-compaction | Fix rounds and compaction | Measured 2026-10-22 over 42 fix rounds of V1-M2. PR389 applies the recommendations in commit 28ab7e2, and merging it accepts them. Follow-up 2026-10-22: I392 turns compaction on, with builders at 200k |

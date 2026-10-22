@@ -4,6 +4,7 @@ description: Builds one Wraith Box issue (or spike) in its own worktree and bran
 model: opus
 effort: medium
 maxTurns: 200
+autoCompactWindow: 200000
 disallowedTools: Agent
 experimental:
   cacheTtl: 1h
@@ -134,6 +135,24 @@ plainly; never soften it to keep the plan intact.
 - If `mise run ci` fails on a file you didn't touch, check it on
   `origin/main` in a detached worktree. If it fails there too, stop and
   report the failing task and file; don't fix it on your branch.
-- Past about 150 turns, or after a context compaction, stop: commit,
-  push, comment `Unfinished: <branch>` on the issue with what is left,
-  and hand back that list.
+- Past about 150 turns, stop: commit, push, comment
+  `Unfinished: <branch>` on the issue with what is left, and hand back
+  that list.
+- After a context compaction, carry on from the summary. What it
+  doesn't hold, read back from the branch, the pull request and the
+  issue.
+
+## Compact Instructions
+
+When this conversation is summarized, the summary also keeps these,
+word for word where they are short:
+
+- The issue number, the branch, the worktree path, and the pull request
+  number once one is open.
+- The decisions in the issue and the maintainer's comments, and the
+  pull request's "Choices made".
+- Each review finding and where it stands: applied (with the commit),
+  skipped (with the reason), or open.
+- The "Done when" items still open.
+- That a choice a review approved is settled, and the next window
+  doesn't revisit it.
