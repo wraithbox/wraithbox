@@ -173,4 +173,18 @@ between the two levels.
   the notifications it already gets, and the milestone review and the
   next trial read it.
 
-**Status:** Measured 2026-10-22 over 32 pull requests of V1-M2
+## Decision
+
+The maintainer decided on 2026-10-22, and `orchestration.md`
+("Effort") now says:
+
+- Builders run at medium, spikes and security-sensitive work included.
+- Code reviewers run at medium, also on pull requests that get a
+  security review.
+- Security reviewers, wave leads and the maintainer's own sessions run
+  at high. Claude Code's default stays at high.
+- The per-PR records and the second code reviewer end with the trial.
+  No further effort trials are planned. After the current wave the next
+  harness experiment counts the valid findings of Claude Security.
+
+**Status:** Measured 2026-10-22 over 32 pull requests of V1-M2. Decided 2026-10-22: builders and code reviewers at medium

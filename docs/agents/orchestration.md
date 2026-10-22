@@ -135,9 +135,8 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    only what changes per issue: the issue number, the branch name, the
    definition of done beyond the agent file's (normally: PR open, CI
    green, not merged), and what sibling builders are doing that could
-   collide, including files they also edit. Set the builder's effort as
-   "Effort" below says. Before you give a builder design direction,
-   check it against the flows the specs already define. When two issues
+   collide, including files they also edit. Before you give a builder
+   design direction, check it against the flows the specs already define. When two issues
    change one mechanism, set one rule, send each builder its half, and
    merge the pull request that defines the rule first.
 4. **Spawn a reviewer when a pull request opens.** `code-reviewer`
@@ -214,7 +213,6 @@ machine, can see it and resume it.
     commands the permission system refused.
   - `## Attended queue`: steps for the personal Mac, with the commands
     written out.
-  - `## Records`: one row per pull request ("Effort").
 
   Each wave's report is a comment on the run issue. The issue closes
   when the run ends, with a comment that says why.
@@ -266,32 +264,12 @@ machine, can see it and resume it.
 
 ## Effort
 
-A builder runs at medium unless its spawn says otherwise, and the
-reviewers at the effort in their files. The lead sets `effort` on each
-spawn:
-
-| Work | Effort |
-|---|---|
-| Builder of a spike, or of security-sensitive code (the pull requests that get a security review, "A wave", step 4) | high |
-| Any other builder | high for an even issue number, medium for an odd one |
-| Code reviewer | medium, high on a pull request that gets a security review |
-| Security reviewer | Fable at high, as its file says; `model: opus` when Fable has no credits |
-
-The split by issue number is a trial. Each wave report has one record
-per pull request: issue, lane, builder effort, review rounds until
-approve, `must-fix` findings in the first review, the total tokens of
-the builder and its reviewers (from the agents' notifications),
-minutes from spawn to approve, and how often the maintainer stepped in.
-On the first six code pull requests of V1-M2, the lead also runs a
-second code reviewer at high on the same head, sends its extra
-`must-fix` findings to the builder, and records how many of its unique
-findings hold.
-
-After 12 to 16 code pull requests, compare the two halves. Raise a
-role's default when high cuts first-review `must-fix` findings by a
-third or more, or saves half a review round per pull request, while
-tokens per merged pull request rise by less than about a quarter.
-Otherwise keep medium. The milestone review checks it again.
+Each agent runs at the effort in its file, and a spawn doesn't set
+one. Builders, spikes included, and code reviewers run at medium.
+Security reviewers run on Fable at high, or on Opus when Fable has no
+credits. Wave leads run at high, and so do the maintainer's sessions,
+the dispatcher among them, at Claude Code's default. R02-builder-effort
+has the trial behind this.
 
 ## Hot files and collisions
 
