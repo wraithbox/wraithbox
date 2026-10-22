@@ -12,4 +12,4 @@ new one here.
 | ID | Description | Status |
 |----|-------------|--------|
 | R01-defenseclaw | DefenseClaw | Read 2026-10-14, re-review after V1 (I240) |
-| R02-builder-effort | Builder effort trial | Measured 2026-10-22 over 32 pull requests of V1-M2 |
+| R02-builder-effort | Builder effort trial | Measured 2026-10-22 over 32 pull requests of V1-M2. Decided 2026-10-22: builders and code reviewers at medium |

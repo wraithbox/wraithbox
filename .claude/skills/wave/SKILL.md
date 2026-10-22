@@ -75,8 +75,7 @@ before you start. Don't ask the maintainer anything until the run ends.
    assigned (`orchestration.md`, "A wave", step 2). Rebase items from
    the last wave come first and count toward the size.
 5. Give each issue its branch (`<type>/<n>-<slug>`, or
-   `spike/x<k>-<slug>`) and its builder effort (`orchestration.md`,
-   "Effort").
+   `spike/x<k>-<slug>`).
 
 When nothing is pickable, say why and stop the run. If the milestone's
 issues are all closed, check its exit criterion (`planning.md`,
@@ -86,14 +85,11 @@ issues are all closed, check its exit criterion (`planning.md`,
 
 1. Write `In flight: wave <k>, issues #a #b` to the run issue.
 2. Spawn one `wave-lead`, without `isolation`. Its prompt: the wave
-   number, the run issue, per issue the branch, the likely files and
-   the effort, the rebase items, and whether it runs the second code
-   reviewer of `orchestration.md`, "Effort" (yes until the leads'
-   `Second reviewer:` lines in the run issues of V1-M2 name six pull
-   requests). End your turn. Its notification wakes you.
+   number, the run issue, per issue the branch and the likely files,
+   and the rebase items. End your turn. Its notification wakes you.
 3. Post the lead's report as a comment on the run issue. Replace the
    `In flight` line with the wave's line, and add to `For the
-   maintainer`, `Attended queue` and `Records`.
+   maintainer` and `Attended queue`.
 4. For each `Ready` pull request, check the standing approval
    (`orchestration.md`, "Runs") against GitHub, never the report:
 
