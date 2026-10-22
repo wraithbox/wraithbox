@@ -322,8 +322,10 @@ with `tail` and `grep`, so tuning commands saves under 1%.
 
 - `.claude/settings.json` sets `"autoCompactEnabled": true` and
   `"autoCompactWindow": 500000`. Main sessions, leads and reviewers
-  compact at 500k. Leads and reviewers end under about 60k, so in
-  practice this applies to main sessions.
+  compact at 500k. The decision in I392 puts the leads and reviewers
+  of these runs under about 60k when they end, a figure this note
+  didn't measure. If that holds, in practice the 500k window applies
+  to main sessions.
 - `.claude/agents/builder.md` sets `autoCompactWindow: 200000` in its
   frontmatter. Claude Code 2.1.302 describes that key as one that only
   lowers the window the subagent would otherwise inherit.
@@ -357,6 +359,7 @@ subagent includes its system prompt, which holds the section. The next
 builder that passes 200k shows both. Its transcript has a
 `compact_boundary` record, and its summary keeps the items of the
 section. A main session that passes 500k compacts. Whoever runs the
-next wave checks this and comments the result on I392.
+next wave checks this and comments the result on I392. I392 is closed only
+after that comment.
 
-**Status:** Measured 2026-10-22 over 42 fix rounds of V1-M2. PR389 applies the recommendations in commit 28ab7e2, and merging it accepts them. Follow-up 2026-10-22: I392 turns compaction on, with builders at 200k
+**Status:** Measured 2026-10-22 over 42 fix rounds of V1-M2. PR389 applies the recommendations in commit 28ab7e2, and merging it accepts them. Follow-up 2026-10-22: I392 turns compaction on, with builders at 200k, and is closed after the check that follows the merge
