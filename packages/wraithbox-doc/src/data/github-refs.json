@@ -1030,7 +1030,7 @@
 	},
 	"164": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-vmd: connect to a guest port and hand off the descriptor, end-to-end hello, wb-dev-vm",
 		"summary": "After #161 and #163, a VM boots and wb-guestd listens, but the host can't reach it."
 	},
@@ -1716,7 +1716,7 @@
 	},
 	"277": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Host setup H3: fixture VM bundle for the V1-M2 tests",
 		"summary": "V1-M2-walking-skeleton boots a fixture VM bundle instead of a built image, because wb image build moved to V1-M7-image-build (V1-initial)."
 	},
@@ -2100,7 +2100,7 @@
 	},
 	"341": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb: refuse or warn when the host terminal's charset isn't UTF-8",
 		"summary": "The terminal filter writes UTF-8 for a terminal that reads UTF-8 (S16-01-filter, \"Where\")."
 	},
@@ -2256,7 +2256,7 @@
 	},
 	"367": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Run 2026-10-20 (V1-M2-walking-skeleton, lane mac)",
 		"summary": "Approval: the maintainer typed /wave --waves 5 --lane mac --merge in this session (2026-10-20)."
 	},
@@ -2292,7 +2292,7 @@
 	},
 	"373": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(vmd): ConnectGuest hands off the guest connection, with the host receiver and wb-dev-vm",
 		"summary": "wb-vmd now serves ConnectGuest: it opens a vsock connection to a guest port below 1024 and sends the descriptor to the host in one HandoffMessage on fd 4."
 	},
@@ -2316,8 +2316,38 @@
 	},
 	"377": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(wb): refuse a host terminal whose charset isn't UTF-8",
 		"summary": "wb now refuses to relay a guest terminal stream when the host terminal's charset isn't UTF-8, as the maintainer decided on #341: refuse, no warn mode, no override flag."
+	},
+	"378": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: revisit the UTF-8 charset refusal for pipes, files and unset locales",
+		"summary": "Revisit how strict wb's refusal of a host terminal that isn't UTF-8 is, as merged in #377 for #341."
+	},
+	"379": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "wb-guestd: update at start from the guest tools disk, and the guest side of the clock (the rest of M2.6)",
+		"summary": "The implementation plan gives package M2.6 (#163) \"tools-disk update, clock\", and #288 is blocked by M2.6 for both: \"wb-guestd updates itself from the tools disk at start (S06-12-guest-agent, \"Update at start\"), and…"
+	},
+	"380": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(go): guestlink Close returns nil after a clean close",
+		"summary": "guestlink.Link.Close joined the errors of closing the gRPC client and the connection."
+	},
+	"381": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(guestd): update at start from the tools disk, and SetTime",
+		"summary": "The rest of M2.6: wb-guestd updates itself from the guest tools disk before it listens, and serves GuestService.SetTime, the guest side of the clock."
+	},
+	"382": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(go): guestlink's watch waits for READY before it takes a state as a drop",
+		"summary": "TestSetTime/restore (internal/guestd, #381) failed on main's CI on ubuntu-24.04 after #381 merged (run 39681529947): SetTime: rpc error: code = Canceled desc = grpc: the client connection is closing."
 	}
 }
