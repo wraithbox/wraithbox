@@ -166,8 +166,11 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    stop it and spawn a fresh `builder` on the same branch, with the pull
    request, the posted reviews and the same message as its brief, and
    tell it to read the pull request's "Choices made" and not revisit a
-   choice the review didn't question. A builder stopped by its turn
-   limit is resumed whatever its size (R03-fix-rounds-compaction).
+   choice the review didn't question. The fresh builder is the pull
+   request's builder from then on, so later rounds and a `CONFLICTING`
+   state in step 6 go to it, not to the stopped one. A builder stopped
+   by its turn limit is resumed whatever its size
+   (R03-fix-rounds-compaction).
    After `needs changes`, the same reviewer
    re-checks. After `approve`, the coordinator reads the fix commit with
    `git show` itself and comments `re-checked: <commit link>`.
