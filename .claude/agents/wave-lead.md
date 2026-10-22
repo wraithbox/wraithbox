@@ -5,6 +5,8 @@ model: opus
 effort: high
 maxTurns: 300
 tools: Agent, SendMessage, TaskStop, Bash, Read, Grep, Glob, Write
+experimental:
+  cacheTtl: 1h
 ---
 
 You are a WAVE LEAD for the Wraith Box repository. The `/wave`
@@ -45,7 +47,11 @@ Write scratch files only to `.scratch/`.
    `Security review, round <k>`: the dispatcher's merge check reads
    them.
    Send the builder one message: the `must-fix` findings, the cheap
-   `fold` findings, and the findings to skip.
+   `fold` findings, and the findings to skip. When the builder's last
+   notice shows `<subagent_tokens>` of 150k or more and it didn't stop
+   at its turn limit, stop it with `TaskStop`. Send the message to a
+   fresh `builder` with `isolation: "worktree"` instead, naming the
+   pull request and its branch (`orchestration.md`, "A wave", step 5).
 4. After `needs changes`, the same reviewer re-checks. After an
    approve, read later fix commits with `git show` and comment
    `re-checked: <commit link>` on the pull request, with the full commit
