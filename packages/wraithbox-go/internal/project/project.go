@@ -126,6 +126,9 @@ const (
 	// RuleGitDirElsewhere: the `.git` directory isn't the repository git
 	// resolved.
 	RuleGitDirElsewhere Rule = "project-git-dir-elsewhere"
+	// RuleWorktreeElsewhere: the `.git` directory's core.worktree names
+	// a directory other than the one that holds that `.git`.
+	RuleWorktreeElsewhere Rule = "project-worktree-elsewhere"
 	// RuleGitFileElsewhere: the `.git` file names a repository that is
 	// neither this directory's linked worktree nor its submodule.
 	RuleGitFileElsewhere Rule = "project-git-file-elsewhere"

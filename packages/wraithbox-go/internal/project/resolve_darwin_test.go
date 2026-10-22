@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -285,4 +286,93 @@ func TestResolveMissingDir(t *testing.T) {
 	r, log := testResolver(t, emptyGlobal(t))
 	_, err := r.Resolve(t.Context(), filepath.Join(tempDir(t), "missing"))
 	requireRule(t, err, RuleDirUnreadable, log)
+}
+
+// TestResolveCoreWorktree: a `.git` directory whose core.worktree, in
+// config or config.worktree, names another project's working tree, or
+// anything but the directory that holds it, is refused before any
+// identity is read. One that names that directory, also relatively or
+// through a link, is accepted (C04-projects, "Git directories that
+// point elsewhere"; S05-04-naming, "Which directory";
+// SEC08-proj-isolation).
+func TestResolveCoreWorktree(t *testing.T) {
+	tmp := tempDir(t)
+	a := newRepo(t, filepath.Join(tmp, "a"))
+	link := symlink(t, tmp, filepath.Join(tmp, "link"))
+	file := filepath.Join(tmp, "file")
+	writeFile(t, file, "")
+
+	tests := []struct {
+		name  string
+		file  string
+		value func(x string) string
+		rule  Rule
+	}{
+		{"names A", "config", func(string) string { return a }, RuleWorktreeElsewhere},
+		{"names A relatively", "config", func(string) string { return "../../a" }, RuleWorktreeElsewhere},
+		{"names A in config.worktree", "config.worktree", func(string) string { return a }, RuleWorktreeElsewhere},
+		{"names A's subdirectory", "config", func(string) string { return mkdir(t, filepath.Join(a, "sub")) }, RuleWorktreeElsewhere},
+		{"names the parent", "config", func(string) string { return ".." + string(filepath.Separator) + ".." }, RuleWorktreeElsewhere},
+		{"names a file", "config", func(string) string { return file }, RuleWorktreeElsewhere},
+		{"names nothing", "config", func(string) string { return filepath.Join(tmp, "missing") }, RuleWorktreeElsewhere},
+		// git itself refuses an empty value.
+		{"empty", "config", func(string) string { return "" }, RuleGitFailed},
+		{"names itself", "config", func(x string) string { return x }, ""},
+		{"names itself relatively", "config", func(string) string { return ".." }, ""},
+		{"names itself through a link", "config", func(x string) string { return filepath.Join(link, filepath.Base(x)) }, ""},
+		{"names itself in config.worktree", "config.worktree", func(x string) string { return x }, ""},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			x := newRepo(t, filepath.Join(tmp, "x"+strconv.Itoa(i)))
+			gitT(t, x, "config", "--file", filepath.Join(x, ".git", tt.file), "core.worktree", tt.value(x))
+			r, log := testResolver(t, emptyGlobal(t))
+			repo, err := r.Resolve(t.Context(), x)
+			if tt.rule == "" {
+				if err != nil || repo.Dir != x || repo.Kind != KindMain {
+					t.Fatalf("Resolve = %+v, %v; want dir %s, kind main", repo, err, x)
+				}
+				return
+			}
+			if repo != nil {
+				t.Fatalf("Resolve = %+v, want a refusal", repo)
+			}
+			requireRule(t, err, tt.rule, log)
+			t.Logf("refused: %v", err)
+			if strings.Contains(log.String(), "identity") {
+				t.Errorf("log = %s: an identity was read", log)
+			}
+		})
+	}
+}
+
+// TestResolveCoreWorktreeUnreadable: a config.worktree that git can't
+// parse is refused, not taken as unset, even with
+// extensions.worktreeConfig off, when git itself ignores the file.
+func TestResolveCoreWorktreeUnreadable(t *testing.T) {
+	x := newRepo(t, filepath.Join(tempDir(t), "x"))
+	writeFile(t, filepath.Join(x, ".git", "config.worktree"), "[core\nworktree = /\n")
+	r, log := testResolver(t, emptyGlobal(t))
+	repo, err := r.Resolve(t.Context(), x)
+	if repo != nil {
+		t.Fatalf("Resolve = %+v, want a refusal", repo)
+	}
+	t.Logf("refused: %v", err)
+	requireRule(t, err, RuleGitFailed, log)
+}
+
+// TestResolveSubmoduleWorktreeConfig: a submodule whose config.worktree
+// names another directory is refused, even though its config names the
+// submodule's own (S05-04-naming, "A `.git` file").
+func TestResolveSubmoduleWorktreeConfig(t *testing.T) {
+	tmp := tempDir(t)
+	main := newRepo(t, filepath.Join(tmp, "foo"))
+	other := newRepo(t, filepath.Join(tmp, "other"))
+	sub := newRepo(t, filepath.Join(tmp, "lib"))
+	gitT(t, main, "submodule", "add", "-q", sub, "sub")
+	gitDir := filepath.Join(main, ".git", "modules", "sub")
+	gitT(t, main, "config", "--file", filepath.Join(gitDir, "config.worktree"), "core.worktree", other)
+	r, log := testResolver(t, emptyGlobal(t))
+	_, err := r.Resolve(t.Context(), filepath.Join(main, "sub"))
+	requireRule(t, err, RuleGitFileElsewhere, log)
 }

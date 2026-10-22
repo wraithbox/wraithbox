@@ -49,6 +49,9 @@ again or changes its remote, and the project commands.
   `gitdir: <project A>/.git`, and in one whose `.git` file reads
   `gitdir: <project A>/.git/modules/sub`. See both refused with the reason and
   nothing registered.
+- Start a session in a directory whose `.git` directory sets
+  `core.worktree` to project A's working tree, and see it refused with
+  the reason and nothing registered.
 - Start a session in a directory whose `.git` is a symbolic link to
   project A's `.git`, and see it refused with the reason and nothing
   registered.

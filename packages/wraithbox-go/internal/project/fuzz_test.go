@@ -12,7 +12,8 @@ import (
 // parser of guest bytes is.
 
 // FuzzGitPaths feeds arbitrary bytes to the parsers of git's paths: the
-// rev-parse output, the back-link file and the core.worktree value. An
+// rev-parse output, the back-link file and the core.worktree value of a
+// submodule or a main checkout, from config or config.worktree. An
 // accepted path is 1 to maxPathLen bytes of UTF-8 without a control
 // character, and absolute: rev-parse's as printed, the others after
 // joining with an absolute git directory.
@@ -23,6 +24,8 @@ func FuzzGitPaths(f *testing.F) {
 		"/a\x1b[2J\n/b\n",
 		"../../../../wt/.git\n",
 		"../../../sub\x00",
+		"/other/project\x00",
+		"..\x00",
 		"C:/x\nC:/y\n",
 		"",
 	} {
