@@ -2,9 +2,11 @@ package hostservice_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,7 +58,8 @@ func dialLocal(t *testing.T, run, own string) (hostdv1.HostServiceClient, *grpcc
 // (SEC12-least-privilege).
 func TestOverLocalIPC(t *testing.T) {
 	m := newManager(t, slog.New(slog.DiscardHandler), nil)
-	run := serveLocal(t, &hostservice.Server{VMs: m}, "1.2.3")
+	var logs syncBuffer
+	run := serveLocal(t, &hostservice.Server{VMs: m, Log: slog.New(slog.NewJSONHandler(&logs, nil))}, "1.2.3")
 	c, _ := dialLocal(t, run, "1.2.3")
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
@@ -73,6 +76,11 @@ func TestOverLocalIPC(t *testing.T) {
 	}
 	if _, err := c.StopVM(ctx, &hostdv1.StopVMRequest{Vm: hostdv1.VM_VM_ISOLATED}); err != nil {
 		t.Fatal(err)
+	}
+	// The accept names the calling wb by the IDs localipc checked.
+	want := fmt.Sprintf(`"decision":"accept","method":"StartVM","slot":"isolated","peer_uid":%d,"peer_pid":%d`, os.Getuid(), os.Getpid())
+	if !strings.Contains(logs.String(), want) {
+		t.Errorf("log misses %s:\n%s", want, logs.String())
 	}
 }
 

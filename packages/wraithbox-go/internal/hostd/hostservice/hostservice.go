@@ -19,6 +19,7 @@ import (
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
@@ -26,6 +27,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostversion/grpccreds"
 )
 
 // Domain is the ErrorInfo domain of every refusal.
@@ -43,7 +45,7 @@ const (
 // VMs is the VM manager, as the service uses it. *vm.Manager
 // implements it.
 type VMs interface {
-	Start(ctx context.Context, slot vm.Slot) error
+	StartRun(ctx context.Context, slot vm.Slot) (uint64, error)
 	Stop(ctx context.Context, slot vm.Slot) error
 	Status(slot vm.Slot) vm.Status
 	ResetData(ctx context.Context, slot vm.Slot) (datadisk.ResetResult, error)
@@ -81,13 +83,14 @@ func (s *Server) StartVM(ctx context.Context, req *hostdv1.StartVMRequest) (*hos
 	if err != nil {
 		return nil, err
 	}
-	if err := s.VMs.Start(ctx, slot); err != nil {
+	// A start that began runs to its end, or to the manager's own
+	// deadlines, when wb goes away, as a stop and a reset do. wb then
+	// says the VM may be starting (S05-03-management-commands, "`wb vm`").
+	generation, err := s.VMs.StartRun(context.WithoutCancel(ctx), slot)
+	if err != nil {
 		return nil, s.fromError(ctx, "StartVM", err)
 	}
-	// The run that started is the slot's current or last one. Only a
-	// stop and a new start in between can give a newer generation, and
-	// wb then reads that run's state as its own.
-	return &hostdv1.StartVMResponse{Generation: s.VMs.Status(slot).Generation}, nil
+	return &hostdv1.StartVMResponse{Generation: generation}, nil
 }
 
 // StopVM stops a running VM, a requested stop and then a forced one
@@ -141,6 +144,16 @@ func (s *Server) admit(ctx context.Context, method string, v hostdv1.VM) (vm.Slo
 		return "", s.refuse(ctx, method, codes.InvalidArgument, RuleVMUnspecified,
 			"the request names no VM: name work or isolated")
 	}
+	// wb polls GetVMStatus while it waits for a start, so its accepts
+	// are logged at debug level only.
+	level := slog.LevelInfo
+	if method == "GetVMStatus" {
+		level = slog.LevelDebug
+	}
+	attrs := append([]slog.Attr{
+		slog.String("decision", "accept"), slog.String("method", method), slog.String("slot", string(slot)),
+	}, peerAttrs(ctx)...)
+	s.logger().LogAttrs(ctx, level, "host request", attrs...)
 	return slot, nil
 }
 
@@ -167,14 +180,34 @@ func (s *Server) fromError(ctx context.Context, method string, err error) error 
 }
 
 func (s *Server) refuse(ctx context.Context, method string, code codes.Code, rule, msg string) error {
-	log := s.Log
-	if log == nil {
-		log = slog.Default()
-	}
-	log.LogAttrs(ctx, slog.LevelWarn, "host request refused",
+	attrs := append([]slog.Attr{
 		slog.String("rule", rule), slog.String("decision", "refuse"),
-		slog.String("method", method), slog.String("reason", msg))
+		slog.String("method", method), slog.String("reason", msg),
+	}, peerAttrs(ctx)...)
+	s.logger().LogAttrs(ctx, slog.LevelWarn, "host request refused", attrs...)
 	return withRule(code, rule, msg)
+}
+
+func (s *Server) logger() *slog.Logger {
+	if s.Log == nil {
+		return slog.Default()
+	}
+	return s.Log
+}
+
+// peerAttrs names the calling wb by the user ID and process ID that
+// localipc checked on its connection (SEC12-least-privilege). A call
+// over a connection without that check has none.
+func peerAttrs(ctx context.Context) []slog.Attr {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil
+	}
+	info, ok := p.AuthInfo.(grpccreds.AuthInfo)
+	if !ok {
+		return nil
+	}
+	return []slog.Attr{slog.Int("peer_uid", info.Peer.UID), slog.Int("peer_pid", info.Peer.PID)}
 }
 
 // withRule builds the status of a refusal: msg for the user, and the

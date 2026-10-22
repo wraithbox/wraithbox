@@ -220,7 +220,7 @@ func TestStartStoppedBeforeLink(t *testing.T) {
 	}}
 	code := f.runWith(func(e *vmcmd.Env) { e.Dial = func(context.Context) (vmcmd.Hostd, error) { return h, nil } }, "start", "work")
 	line := f.failedOnce(code, vmcmd.RuleStoppedUnexpectedly)
-	if !strings.Contains(line, "generation 4") || !strings.Contains(line, "boot ?[2J failed (code 1)") {
+	if !strings.Contains(line, "generation 4") || !strings.Contains(line, "boot [2J failed (code 1)") {
 		t.Errorf("line %q", line)
 	}
 }
@@ -302,11 +302,14 @@ func TestStatus(t *testing.T) {
 // link's refusal and the framework error.
 func TestStatusEscaped(t *testing.T) {
 	f := newFixture(t, "")
+	// A version of 64 bytes in version.Label's quoted form, 66 bytes: it
+	// prints whole, with its closing quote.
+	label := `"1.2.3-` + strings.Repeat("a", 58) + `"`
 	h := scripted{status: &hostdv1.VMStatus{
 		Phase: hostdv1.VMPhase_VM_PHASE_RUNNING, Generation: 2, LinkState: hostdv1.LinkState_LINK_STATE_REFUSED,
 		LinkRefusal: &hostdv1.LinkRefusal{
-			Rule: "peer\x1b[1m-version", GuestVersion: "\x1b]0;x\a\"1.2.4\"", HostdVersion: `"1.2.3"`,
-			Message: "\x1b[2J stop and start",
+			Rule: "peer\x1b[1m-version", GuestVersion: "\x1b]0;x\a\"1.2.4\"", HostdVersion: label,
+			Message: "\x1b[2J stop\u202e and\u2028 start\u200d",
 		},
 		LastError: &hostdv1.VMError{Code: 2, Errno: 5, Description: "\x9b31m red", FailureReason: "\x07bell"},
 	}}
@@ -315,10 +318,10 @@ func TestStatusEscaped(t *testing.T) {
 		t.Fatalf("exit %d\n%s", code, f.stderr.String())
 	}
 	out := f.stdout.String()
-	if strings.ContainsAny(out, "\x1b\a\u009b") {
+	if strings.ContainsAny(out, "\x1b\a\u009b\u202e\u2028\u200d") {
 		t.Errorf("stdout %q", out)
 	}
-	for _, want := range []string{`wb-guestd version ]0;x"1.2.4"`, "stop and start", "(code 2, errno 5)"} {
+	for _, want := range []string{`wb-guestd version ]0;x"1.2.4"`, "wb-hostd version " + label, "stop and start", "(code 2, errno 5)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("stdout %q misses %q", out, want)
 		}

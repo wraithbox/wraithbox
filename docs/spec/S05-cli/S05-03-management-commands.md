@@ -192,7 +192,10 @@ one `wraith box: <message> (<rule>)` line and exit 255
 the hello of its `wb-guestd`, or after a deadline. The deadline is in
 code, above the cold boot of X18-vsock-handoff with a margin. A refused
 hello and a link that isn't up by the deadline both exit 255, and leave
-the VM running for `stop`.
+the VM running for `stop`. A start or a stop that `wb-hostd` began runs
+to its end when `wb` goes away, as from `Ctrl-C`. When its answer
+doesn't arrive, `wb` says the VM may still be starting or stopping, and
+names `wb vm status`.
 
 `status` shows, for each VM, its state, its generation, the guest
 link with `wb-guestd`'s version or the refusal with both versions, and

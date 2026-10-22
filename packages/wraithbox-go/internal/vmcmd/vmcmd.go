@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmbundle"
 )
 
@@ -184,17 +185,14 @@ func (v *versionError) Error() string { return v.msg }
 // maxPrinted bounds a text from wb-hostd that wb prints.
 const maxPrinted = 2048
 
-// printable removes control and escape characters from s and cuts it,
-// so text that came from another process can't rewrite the terminal
-// (SEC14-no-fake-approvals).
+// printable removes the escaped set of S16-03-around-the-stream from s
+// (controls, escapes, bidirectional overrides and other invisible code
+// points), then cuts it, so text that came from another process can't
+// rewrite or hide part of the terminal (SEC14-no-fake-approvals).
 func printable(s string) string {
+	s = guesttext.Strip(s)
 	if len(s) > maxPrinted {
 		s = strings.ToValidUTF8(s[:maxPrinted], "") + " [cut]"
 	}
-	return strings.Map(func(r rune) rune {
-		if r < 0x20 || (r >= 0x7f && r <= 0x9f) {
-			return '?'
-		}
-		return r
-	}, strings.ToValidUTF8(s, "?"))
+	return s
 }

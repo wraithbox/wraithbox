@@ -64,8 +64,13 @@ func (f *fakeVMs) record(op string, slot vm.Slot) error {
 	return f.err
 }
 
-func (f *fakeVMs) Start(_ context.Context, slot vm.Slot) error { return f.record("start", slot) }
-func (f *fakeVMs) Stop(_ context.Context, slot vm.Slot) error  { return f.record("stop", slot) }
+func (f *fakeVMs) StartRun(_ context.Context, slot vm.Slot) (uint64, error) {
+	if err := f.record("start", slot); err != nil {
+		return 0, err
+	}
+	return 5, nil
+}
+func (f *fakeVMs) Stop(_ context.Context, slot vm.Slot) error { return f.record("stop", slot) }
 
 func (f *fakeVMs) Status(slot vm.Slot) vm.Status {
 	_ = f.record("status", slot)
@@ -400,5 +405,31 @@ func TestResetVMData(t *testing.T) {
 	}
 	if res.GetOldVolumeUuid() != "A" || res.GetNewVolumeUuid() != "B" || len(vms.Calls()) != 1 || vms.Calls()[0] != "reset isolated" {
 		t.Errorf("response %v, calls %v", res, vms.Calls())
+	}
+}
+
+// ctxVMs records whether the context of a start was cancelled.
+type ctxVMs struct {
+	fakeVMs
+	cancelled chan bool
+}
+
+func (c *ctxVMs) StartRun(ctx context.Context, slot vm.Slot) (uint64, error) {
+	c.cancelled <- ctx.Err() != nil
+	return c.fakeVMs.StartRun(ctx, slot)
+}
+
+// TestStartOutlivesCaller: a start that began runs on when its caller
+// goes away, as a stop and a reset do.
+func TestStartOutlivesCaller(t *testing.T) {
+	vms := &ctxVMs{cancelled: make(chan bool, 1)}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	res, err := (&hostservice.Server{VMs: vms}).StartVM(ctx, &hostdv1.StartVMRequest{Vm: hostdv1.VM_VM_WORK})
+	if err != nil || res.GetGeneration() != 5 {
+		t.Fatalf("StartVM: %v, %v", res, err)
+	}
+	if <-vms.cancelled {
+		t.Error("the manager got the caller's cancelled context")
 	}
 }
