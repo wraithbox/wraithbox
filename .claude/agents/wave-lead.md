@@ -52,6 +52,9 @@ Write scratch files only to `.scratch/`.
    at its turn limit, stop it with `TaskStop`. Send the message to a
    fresh `builder` with `isolation: "worktree"` instead, naming the
    pull request and its branch (`orchestration.md`, "A wave", step 5).
+   From then on the fresh builder is the pull request's builder: later
+   rounds and a `CONFLICTING` pull request go to it, not to the
+   stopped one.
 4. After `needs changes`, the same reviewer re-checks. After an
    approve, read later fix commits with `git show` and comment
    `re-checked: <commit link>` on the pull request, with the full commit

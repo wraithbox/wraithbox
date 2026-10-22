@@ -59,8 +59,10 @@ local branch of another name from `origin/<branch>` and push with
 `git push origin HEAD:<branch>`. Read the pull request body, its
 reviews and the issue before you change anything. Keep the choices in
 "Choices made" that the review didn't question. Fix the findings in new
-commits, run `mise run ci`, push, and watch CI as in step 6. Hand back
-the new head's full hash.
+commits and run `mise run ci`. Don't rebase and don't force-push: add
+commits on top, push, and watch CI with `mise run ci-watch` as in step
+6. Hand back the new head's full hash, the CI result, and the
+follow-ups you filed.
 
 ## For a spike (`spike` label, title `X<NN>-<slug>: …`)
 

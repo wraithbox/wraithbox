@@ -146,9 +146,12 @@ cost 18.4M of the 27.7M the 42 rounds cost.
 | Always fresh | 7.8M | 9.7M |
 
 With a fresh builder that orients at 80k instead of 60k, resuming under
-150k costs 8.1M on today's cache. Of the limits tried, 80k to 200k, a
-limit of 150k is within 0.2M of the cheapest under both cache
-lifetimes. A fresh builder adds
+150k costs 8.1M on today's cache. Of the limits in the table, 150k is
+within 0.2M of the cheapest under both cache lifetimes. Both lifetimes
+matter because Claude Code ignores the agent frontmatter's `1h` cache
+while the subscription draws on usage credits. On the 5-minute cache,
+150k costs 1.4M less than 200k, and on the 1-hour cache 200k saves
+only 0.2M. A fresh builder adds
 2 to 4 minutes to a round that takes 9.5 minutes at the median.
 
 The lead can see the size: a builder's completion notice has a
@@ -288,4 +291,4 @@ the change.
   setting covers subagents, a builder that reaches the 1M window stops
   with a context-limit error instead of compacting.
 
-**Status:** Measured 2026-10-22 over 42 fix rounds of V1-M2. Awaits the maintainer's decision
+**Status:** Measured 2026-10-22 over 42 fix rounds of V1-M2. PR389 applies the recommendations in commit 28ab7e2, and merging it accepts them
