@@ -72,6 +72,18 @@ directory. A `.git` directory must be both `--git-dir` and
 `--git-common-dir`. Any type other than a directory or a file refuses
 the command. A symbolic link, for one, could name another project's `.git`.
 
+A `.git` directory's `core.worktree` must be unset, or resolve,
+relative to that `.git` and in canonical form, to the directory that
+holds it. Anything else refuses the command, before any identity is
+read. git runs its worktree commands in the directory `core.worktree`
+names, so a downloaded `.git` whose `core.worktree` names another
+project's tree would have git read and write that tree under the
+downloaded repository's configuration. `wb` reads `core.worktree` from
+the repository's `config` and `config.worktree` files, with includes
+off, as git reads it. It reads `config.worktree` even when
+`extensions.worktreeConfig` is off, so a file git ignores can still
+refuse the command.
+
 #### A `.git` file
 
 That entry can be a file (`gitdir: …`) instead of a directory. `wb`
@@ -81,8 +93,10 @@ accepts it only for a linked worktree or a submodule:
   `<common>/worktrees/<name>`. That worktree's back-link,
   `<common>/worktrees/<name>/gitdir`, names this `.git` file.
 - A submodule has `--git-dir` equal to the common directory. Its
-  `core.worktree`, resolved relative to `--git-dir`, canonicalizes to
-  the directory that holds this `.git` file.
+  `core.worktree` is set, and, resolved relative to `--git-dir`,
+  canonicalizes to the directory that holds this `.git` file. It is
+  read as for a `.git` directory, and a value in either file must
+  match.
 
 `wb` doesn't use `--show-toplevel` for this, because git derives it
 from that same `core.worktree`. Anything else refuses the command, such
