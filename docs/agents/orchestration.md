@@ -161,6 +161,13 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    needs the maintainer (a spec change, a choice between designs) goes
    to the maintainer instead. When the two reviewers disagree on a
    security trade-off, take the strict side and say so in the report.
+   The builder's last notice gives its size in `<subagent_tokens>`.
+   Under 150k, resume that builder with the message. At 150k or more,
+   stop it and spawn a fresh `builder` on the same branch, with the pull
+   request, the posted reviews and the same message as its brief, and
+   tell it to read the pull request's "Choices made" and not revisit a
+   choice the review didn't question. A builder stopped by its turn
+   limit is resumed whatever its size (R03-fix-rounds-compaction).
    After `needs changes`, the same reviewer
    re-checks. After `approve`, the coordinator reads the fix commit with
    `git show` itself and comments `re-checked: <commit link>`.
@@ -319,9 +326,13 @@ on; append a commit instead.
   worktree (gitignored), never `/tmp`.
 - **Concurrent agents are capped.** A spawn that hits the cap fails with
   a clear message; retry when one finishes.
-- **Resuming an agent** with a message keeps its context. For a
-  follow-up on a long-lived branch, a fresh builder with the PR and the
-  review as its brief is often cheaper.
+- **Resuming an agent** with a message keeps its context, and the
+  resumed agent reads that whole context again on every call. A
+  subagent's prompt cache lasts five minutes unless its agent file sets
+  `experimental: cacheTtl: 1h`, as `builder` and `wave-lead` do. A
+  resume after the cache expired pays the whole context as a cache
+  write. "A wave", step 5 says when a fresh builder is cheaper
+  (R03-fix-rounds-compaction).
 - **Short hand-backs.** A builder returns at most about 150 words plus
   links. The detail goes in the pull request body, where the maintainer
   reads it too.

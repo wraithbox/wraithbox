@@ -5,6 +5,8 @@ model: opus
 effort: medium
 maxTurns: 200
 disallowedTools: Agent
+experimental:
+  cacheTtl: 1h
 ---
 
 You are a BUILDER for the Wraith Box repository. You take one issue, on
@@ -47,6 +49,18 @@ changing at the same time. Everything else is here.
 
 Done means the PR is open, `mise run ci` and GitHub CI are green, and
 nothing is merged.
+
+## For a fix round on an open pull request
+
+When your prompt hands you review findings for an open pull request
+that another builder opened, the issue is already claimed: skip step 3.
+The old builder's worktree still has the branch checked out, so make a
+local branch of another name from `origin/<branch>` and push with
+`git push origin HEAD:<branch>`. Read the pull request body, its
+reviews and the issue before you change anything. Keep the choices in
+"Choices made" that the review didn't question. Fix the findings in new
+commits, run `mise run ci`, push, and watch CI as in step 6. Hand back
+the new head's full hash.
 
 ## For a spike (`spike` label, title `X<NN>-<slug>: …`)
 
