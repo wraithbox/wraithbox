@@ -104,8 +104,8 @@ const (
 	// RuleHostUnsupported: this host has no canonical form of a path yet
 	// (S12-platforms).
 	RuleHostUnsupported Rule = "project-host-unsupported"
-	// RuleDirUnreadable: a directory or `.git` entry on the way couldn't
-	// be read, a path couldn't be put in canonical form, or the
+	// RuleDirUnreadable: a directory or `.git` entry on the way, or a
+	// git config file that holds core.worktree, couldn't be read, a path couldn't be put in canonical form, or the
 	// directory's canonical form holds a control character or isn't
 	// UTF-8.
 	RuleDirUnreadable Rule = "project-dir-unreadable"
@@ -126,8 +126,9 @@ const (
 	// RuleGitDirElsewhere: the `.git` directory isn't the repository git
 	// resolved.
 	RuleGitDirElsewhere Rule = "project-git-dir-elsewhere"
-	// RuleWorktreeElsewhere: the `.git` directory's core.worktree names
-	// a directory other than the one that holds that `.git`.
+	// RuleWorktreeElsewhere: the core.worktree of a `.git` directory or
+	// a linked worktree names a directory other than the one that holds
+	// that `.git`.
 	RuleWorktreeElsewhere Rule = "project-worktree-elsewhere"
 	// RuleGitFileElsewhere: the `.git` file names a repository that is
 	// neither this directory's linked worktree nor its submodule.

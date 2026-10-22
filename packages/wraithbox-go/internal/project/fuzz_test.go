@@ -13,9 +13,10 @@ import (
 
 // FuzzGitPaths feeds arbitrary bytes to the parsers of git's paths: the
 // rev-parse output, the back-link file and the core.worktree value of a
-// submodule or a main checkout, from config or config.worktree. An
-// accepted path is 1 to maxPathLen bytes of UTF-8 without a control
-// character, and absolute: rev-parse's as printed, the others after
+// main checkout, linked worktree or submodule, from config or
+// config.worktree. An accepted path is 1 to maxPathLen bytes of UTF-8
+// without a control character, and absolute: rev-parse's as printed, the
+// others after
 // joining with an absolute git directory.
 func FuzzGitPaths(f *testing.F) {
 	for _, seed := range []string{
