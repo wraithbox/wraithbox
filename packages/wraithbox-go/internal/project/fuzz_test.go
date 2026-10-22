@@ -2,6 +2,7 @@ package project
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -80,11 +81,10 @@ func FuzzIdentityOutput(f *testing.F) {
 		} else if ref.Rule == "" {
 			t.Fatalf("parseRemoteNames(%q): refusal without a rule", out)
 		}
-		urls, ref := parseURLs(out, "origin", lim)
-		if ref == nil {
+		if urls, ref := parseURLs(out, "origin", lim); ref == nil {
 			checkURLs(t, out, urls, lim)
-		} else {
-			checkURLRefusal(t, out, ref)
+		} else if problem := urlRefusalProblem(parseURLs, out, lim); problem != "" {
+			t.Fatal(problem)
 		}
 		if roots, ref := parseRootCommits(out, lim); ref == nil {
 			checkRoots(t, out, roots, lim)
@@ -118,17 +118,86 @@ func checkURLs(t *testing.T, out []byte, urls []string, lim limits) {
 	}
 }
 
-// checkURLRefusal: the message never holds a line of the input longer
-// than the remote name, which it quotes.
-func checkURLRefusal(t *testing.T, out []byte, ref *Refusal) {
-	t.Helper()
-	if ref.Rule == "" {
-		t.Fatalf("parseURLs(%q): refusal without a rule", out)
+// urlParser is the signature of parseURLs, so a test can hand
+// urlRefusalProblem a broken parser.
+type urlParser func(out []byte, name string, lim limits) ([]string, *Refusal)
+
+// urlRefusalProblem says how parse's refusal of out breaks the rule that
+// a refusal names a rule and never quotes a URL (SEC04-no-guest-secrets:
+// a URL can hold a token), or returns "" when it keeps it. A refusal
+// depends on the number and lengths of the lines alone, so the input is
+// parsed again with every byte but the line ends replaced, once by 'x'
+// and once by 'y'. A message that changes quoted a URL. The second mask
+// catches a URL made of x alone. The remote name the message quotes is
+// not input, so a line that reads like it is no finding (#390).
+func urlRefusalProblem(parse urlParser, out []byte, lim limits) string {
+	_, ref := parse(out, "origin", lim)
+	if ref == nil {
+		return ""
 	}
-	for line := range bytes.SplitSeq(out, []byte("\n")) {
-		if len(line) > len("origin") && strings.Contains(ref.Error(), string(line)) {
-			t.Fatalf("parseURLs(%q): refusal %q quotes a URL", out, ref)
+	if ref.Rule == "" {
+		return fmt.Sprintf("parseURLs(%q): refusal without a rule", out)
+	}
+	for _, c := range []byte{'x', 'y'} {
+		masked := maskLines(out, c)
+		if _, maskedRef := parse(masked, "origin", lim); maskedRef == nil || maskedRef.Error() != ref.Error() {
+			return fmt.Sprintf("parseURLs(%q): refusal %q quotes a URL: the input masked to %q gives %v", out, ref, masked, maskedRef)
 		}
+	}
+	return ""
+}
+
+// maskLines replaces every byte of out but the line ends with c.
+func maskLines(out []byte, c byte) []byte {
+	m := bytes.Clone(out)
+	for i := range m {
+		if m[i] != '\n' {
+			m[i] = c
+		}
+	}
+	return m
+}
+
+// TestURLRefusalProblem: the oracle passes parseURLs on the input that
+// a quoted remote name made it fail on (#390), and fails a parser whose
+// refusal quotes a URL or names no rule.
+func TestURLRefusalProblem(t *testing.T) {
+	lim := limits{remotes: 4, remoteName: 16, urls: 4, urlLen: 64, roots: 4}
+	quotesURL := func(out []byte, name string, lim limits) ([]string, *Refusal) {
+		urls, ref := parseURLs(out, name, lim)
+		if ref != nil && ref.Rule == RuleURLTooLong {
+			ref = &Refusal{Rule: ref.Rule, msg: "URL " + quoted(string(bytes.TrimSuffix(out, []byte("\n")))) + " is too long"}
+		}
+		return urls, ref
+	}
+	noRule := func(out []byte, name string, lim limits) ([]string, *Refusal) {
+		urls, ref := parseURLs(out, name, lim)
+		if ref != nil {
+			ref = &Refusal{msg: ref.msg}
+		}
+		return urls, ref
+	}
+	long := "https://u:" + strings.Repeat("t", 64) + "@h.example/x\n"
+	for _, tc := range []struct {
+		name  string
+		parse urlParser
+		in    string
+		fails bool
+	}{
+		{"quoted remote name", parseURLs, "origin\"", false},
+		{"no line end", parseURLs, "https://u:tokentoken@h.example/x", false},
+		{"too long", parseURLs, long, false},
+		{"accepted", parseURLs, "https://h.example/x\n", false},
+		{"quotes a URL", quotesURL, long, true},
+		{"quotes a URL of x", quotesURL, strings.Repeat("x", 65) + "\n", true},
+		{"no rule", noRule, "origin\"", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			problem := urlRefusalProblem(tc.parse, []byte(tc.in), lim)
+			if (problem != "") != tc.fails {
+				t.Errorf("urlRefusalProblem(%q) = %q, want a finding: %v", tc.in, problem, tc.fails)
+			}
+		})
 	}
 }
 
