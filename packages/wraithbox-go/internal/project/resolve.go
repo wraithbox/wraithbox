@@ -28,8 +28,8 @@ const gitEntry = ".git"
 //   - a `.git` directory must be both of git's git directory and common
 //     directory, and its core.worktree, when set, must be D;
 //   - a `.git` file is accepted only for a linked worktree whose
-//     back-link names D's `.git`, or a submodule whose core.worktree is
-//     D;
+//     back-link names D's `.git` and whose core.worktree, when set, is
+//     D, or a submodule whose core.worktree is D;
 //   - a `.git` symbolic link, or any other type, is refused, because a
 //     link could name another project's `.git`.
 //
@@ -161,7 +161,7 @@ func (r *Resolver) checkGitDir(ctx context.Context, d string, isFile bool, commo
 	if ref := checkMain(d, common, gitDir); ref != nil {
 		return "", ref
 	}
-	return KindMain, r.checkMainWorktree(ctx, d, gitDir)
+	return KindMain, r.checkCoreWorktree(ctx, d, gitDir, gitDir)
 }
 
 // checkMain: a `.git` directory must be git's git directory and common
@@ -202,7 +202,10 @@ func (r *Resolver) checkGitFile(ctx context.Context, d, common, gitDir string) (
 	case cg == cc:
 		return KindSubmodule, r.checkSubmodule(ctx, d, gitDir)
 	case filepath.Dir(cg) == filepath.Join(cc, "worktrees"):
-		return KindWorktree, checkWorktree(d, cg)
+		if ref := checkWorktree(d, cg); ref != nil {
+			return "", ref
+		}
+		return KindWorktree, r.checkCoreWorktree(ctx, d, common, gitDir)
 	}
 	return "", elsewhere(d, gitDir, "is neither a linked worktree's nor a submodule's")
 }
@@ -260,23 +263,22 @@ func readSmallFile(path string) ([]byte, error) {
 	return b, nil
 }
 
-// checkMainWorktree: a `.git` directory's core.worktree, when it is set,
-// must be d in canonical form. git runs its worktree commands in the
-// directory core.worktree names, so a downloaded `.git` directory whose
-// core.worktree names another project's tree would have git read and
-// write that tree under this repository's configuration
-// (SEC08-proj-isolation, S05-04-naming, "Which directory").
-func (r *Resolver) checkMainWorktree(ctx context.Context, d, gitDir string) *Refusal {
-	values, ref := r.coreWorktrees(ctx, d, gitDir)
+// checkCoreWorktree: the core.worktree of a `.git` directory or a linked
+// worktree, when it is set, must be d in canonical form. git runs its
+// worktree commands in the directory core.worktree names, so a
+// downloaded repository whose core.worktree names another project's
+// tree would have git read and write that tree under this repository's
+// configuration (SEC08-proj-isolation, S05-04-naming, "Which
+// directory"). For a `.git` directory, common and gitDir are the same.
+func (r *Resolver) checkCoreWorktree(ctx context.Context, d, common, gitDir string) *Refusal {
+	values, ref := r.coreWorktrees(ctx, d, common, gitDir)
 	if ref != nil {
 		return ref
 	}
-	for _, v := range values {
-		if why := v.notIn(d); why != "" {
-			return &Refusal{
-				Rule: RuleWorktreeElsewhere,
-				msg:  fmt.Sprintf("the repository %q %s. A .git directory from another place, such as a downloaded archive, can't make git work in another directory", gitDir, why),
-			}
+	if why := notAllIn(values, d); why != "" {
+		return &Refusal{
+			Rule: RuleWorktreeElsewhere,
+			msg:  fmt.Sprintf("the repository %q %s. A repository from another place, such as a downloaded archive, can't make git work in another directory", gitDir, why),
 		}
 	}
 	return nil
@@ -285,60 +287,71 @@ func (r *Resolver) checkMainWorktree(ctx context.Context, d, gitDir string) *Ref
 // checkSubmodule: the submodule's core.worktree, relative to its git
 // directory, must be set, and be d.
 func (r *Resolver) checkSubmodule(ctx context.Context, d, gitDir string) *Refusal {
-	values, ref := r.coreWorktrees(ctx, d, gitDir)
+	values, ref := r.coreWorktrees(ctx, d, gitDir, gitDir)
 	if ref != nil {
 		return ref
 	}
 	if len(values) == 0 {
 		return elsewhere(d, gitDir, "is a repository's own git directory without core.worktree")
 	}
-	for _, v := range values {
-		if why := v.notIn(d); why != "" {
-			return elsewhere(d, gitDir, why)
-		}
+	if why := notAllIn(values, d); why != "" {
+		return elsewhere(d, gitDir, why)
 	}
 	return nil
 }
 
-// worktreeFiles are the files of a git directory that git takes
-// core.worktree from: config, and config.worktree when
-// extensions.worktreeConfig is on. Both are read whether the extension
-// is on or not, so no value git takes is missed. A value in
-// config.worktree that git ignores can then refuse a directory, which
-// is the strict side.
-var worktreeFiles = []string{"config", "config.worktree"}
-
-// worktreeValue is core.worktree as one of worktreeFiles sets it: the
-// path, made absolute against the git directory, or why it can't be
-// read.
+// worktreeValue is core.worktree as one config file sets it: the path,
+// made absolute against the git directory, or why it can't be read.
 type worktreeValue struct {
 	file string
 	path string
 	err  error
 }
 
-// notIn says why the value isn't the directory d in canonical form, or
-// returns "" when it is. A path that can't be put in canonical form,
-// such as one that doesn't exist, isn't d.
-func (v worktreeValue) notIn(d string) string {
-	if v.err != nil {
-		return fmt.Sprintf("has a core.worktree in %s that %v", v.file, v.err)
-	}
-	if c, ref := canonical(v.path); ref != nil || c != d {
-		return fmt.Sprintf("has a core.worktree in %s that names %q, not %q", v.file, v.path, d)
+// notAllIn says why one of values isn't the directory d in canonical
+// form, or returns "" when all are. A path that can't be put in
+// canonical form, such as one that doesn't exist, isn't d.
+func notAllIn(values []worktreeValue, d string) string {
+	for _, v := range values {
+		if v.err != nil {
+			return fmt.Sprintf("has a core.worktree in %q that %v", v.file, v.err)
+		}
+		c, ref := canonical(v.path)
+		if ref != nil {
+			return fmt.Sprintf("has a core.worktree in %q that names %q, which can't be put in canonical form: %v", v.file, v.path, ref)
+		}
+		if c != d {
+			return fmt.Sprintf("has a core.worktree in %q that names %q, not %q", v.file, v.path, d)
+		}
 	}
 	return ""
 }
 
-// coreWorktrees reads core.worktree from each of worktreeFiles in
-// gitDir, with includes off, as git reads it. A file that doesn't set
-// it, or doesn't exist, gives no value.
-func (r *Resolver) coreWorktrees(ctx context.Context, d, gitDir string) ([]worktreeValue, *Refusal) {
+// coreWorktrees reads core.worktree, with includes off, as git reads
+// it, from the files git takes it from: the common directory's config,
+// and the git directory's config.worktree when
+// extensions.worktreeConfig is on. For a linked worktree they are in two
+// directories. Both are read whether the extension is on or not, and
+// the common config is read for a linked worktree too, so no value git
+// takes is missed. A value git ignores can then refuse a directory,
+// which is the strict side. A relative value is relative to gitDir.
+//
+// A file that doesn't exist gives no value, without a git run. One that
+// exists but isn't a readable regular file is refused, because git's
+// exit code for "unset" is also the one for a file it can't read.
+func (r *Resolver) coreWorktrees(ctx context.Context, d, common, gitDir string) ([]worktreeValue, *Refusal) {
 	var values []worktreeValue
-	for _, file := range worktreeFiles {
+	for _, file := range []string{filepath.Join(common, "config"), filepath.Join(gitDir, "config.worktree")} {
+		present, ref := checkConfigFile(file)
+		if ref != nil {
+			return nil, ref
+		}
+		if !present {
+			continue
+		}
 		out, ref := r.run(ctx, gitRun{
 			dir: d, timeout: gitTimeout, limit: maxPathLen + 1,
-			args: []string{"config", "--file", filepath.Join(gitDir, file), "--no-includes", "--null", "--get", "core.worktree"},
+			args: []string{"config", "--file", file, "--no-includes", "--null", "--get", "core.worktree"},
 		})
 		if ref != nil && ref.exitCode == 1 {
 			continue
@@ -350,6 +363,26 @@ func (r *Resolver) coreWorktrees(ctx context.Context, d, gitDir string) ([]workt
 		values = append(values, worktreeValue{file: file, path: p, err: err})
 	}
 	return values, nil
+}
+
+// checkConfigFile reports whether a git config file exists, and refuses
+// one that exists but isn't a regular file that can be opened.
+func checkConfigFile(file string) (bool, *Refusal) {
+	info, err := os.Lstat(file)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return false, nil
+	case err != nil:
+		return false, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the git config file %q can't be read: %v", file, err)}
+	case !info.Mode().IsRegular():
+		return false, &Refusal{Rule: RuleDirUnreadable, msg: fmt.Sprintf("the git config file %q is not a regular file", file)}
+	}
+	f, err := os.Open(file)
+	if err != nil {
+		return false, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the git config file %q can't be read: %v", file, err)}
+	}
+	_ = f.Close()
+	return true, nil
 }
 
 // checkOwn refuses a key under <data>, <config> or <logs>, compared by

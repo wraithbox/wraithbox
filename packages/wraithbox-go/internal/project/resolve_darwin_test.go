@@ -346,10 +346,10 @@ func TestResolveCoreWorktree(t *testing.T) {
 	}
 }
 
-// TestResolveCoreWorktreeUnreadable: a config.worktree that git can't
+// TestResolveCoreWorktreeMalformed: a config.worktree that git can't
 // parse is refused, not taken as unset, even with
 // extensions.worktreeConfig off, when git itself ignores the file.
-func TestResolveCoreWorktreeUnreadable(t *testing.T) {
+func TestResolveCoreWorktreeMalformed(t *testing.T) {
 	x := newRepo(t, filepath.Join(tempDir(t), "x"))
 	writeFile(t, filepath.Join(x, ".git", "config.worktree"), "[core\nworktree = /\n")
 	r, log := testResolver(t, emptyGlobal(t))
@@ -359,6 +359,85 @@ func TestResolveCoreWorktreeUnreadable(t *testing.T) {
 	}
 	t.Logf("refused: %v", err)
 	requireRule(t, err, RuleGitFailed, log)
+}
+
+// TestResolveCoreWorktreeUnreadable: a config.worktree that exists but
+// isn't a regular file that can be opened is refused before git reads
+// it, because git takes a file it can't read as one without the value.
+func TestResolveCoreWorktreeUnreadable(t *testing.T) {
+	tmp := tempDir(t)
+	for name, build := range map[string]func(p string){
+		"directory": func(p string) { mkdir(t, p) },
+		"mode 000": func(p string) {
+			writeFile(t, p, "[core]\n\tworktree = /\n")
+			if err := os.Chmod(p, 0); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"link": func(p string) { symlink(t, filepath.Join(tmp, "elsewhere"), p) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			x := newRepo(t, filepath.Join(tmp, strings.ReplaceAll(name, " ", "-")))
+			build(filepath.Join(x, ".git", "config.worktree"))
+			r, log := testResolver(t, emptyGlobal(t))
+			repo, err := r.Resolve(t.Context(), x)
+			if repo != nil {
+				t.Fatalf("Resolve = %+v, want a refusal", repo)
+			}
+			t.Logf("refused: %v", err)
+			requireRule(t, err, RuleDirUnreadable, log)
+		})
+	}
+}
+
+// TestResolveLinkedWorktreeCoreWorktree: a linked worktree, as an
+// archive could hold it next to its repository, whose core.worktree in
+// the common config or in the worktree's config.worktree names another
+// project's tree is refused before any identity is read. One that names
+// the worktree itself is accepted (C04-projects, "Git directories that
+// point elsewhere"; S05-04-naming, "A `.git` file";
+// SEC08-proj-isolation).
+func TestResolveLinkedWorktreeCoreWorktree(t *testing.T) {
+	tmp := tempDir(t)
+	a := newRepo(t, filepath.Join(tmp, "a"))
+	tests := []struct {
+		name  string
+		file  func(repo, wt string) string
+		value func(wt string) string
+		rule  Rule
+	}{
+		{"common config names A", func(repo, _ string) string { return filepath.Join(repo, ".git", "config") }, func(string) string { return a }, RuleWorktreeElsewhere},
+		{"config.worktree names A", func(repo, wt string) string {
+			return filepath.Join(repo, ".git", "worktrees", filepath.Base(wt), "config.worktree")
+		}, func(string) string { return a }, RuleWorktreeElsewhere},
+		{"config.worktree names itself", func(repo, wt string) string {
+			return filepath.Join(repo, ".git", "worktrees", filepath.Base(wt), "config.worktree")
+		}, func(wt string) string { return wt }, ""},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newRepo(t, filepath.Join(tmp, "repo"+strconv.Itoa(i)))
+			wt := filepath.Join(tmp, "wt"+strconv.Itoa(i))
+			gitT(t, repo, "worktree", "add", "-q", wt)
+			gitT(t, repo, "config", "--file", tt.file(repo, wt), "core.worktree", tt.value(wt))
+			r, log := testResolver(t, emptyGlobal(t))
+			got, err := r.Resolve(t.Context(), wt)
+			if tt.rule == "" {
+				if err != nil || got.Dir != wt || got.Kind != KindWorktree {
+					t.Fatalf("Resolve = %+v, %v; want dir %s, kind worktree", got, err, wt)
+				}
+				return
+			}
+			if got != nil {
+				t.Fatalf("Resolve = %+v, want a refusal", got)
+			}
+			requireRule(t, err, tt.rule, log)
+			t.Logf("refused: %v", err)
+			if strings.Contains(log.String(), "identity") {
+				t.Errorf("log = %s: an identity was read", log)
+			}
+		})
+	}
 }
 
 // TestResolveSubmoduleWorktreeConfig: a submodule whose config.worktree

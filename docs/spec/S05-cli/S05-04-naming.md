@@ -70,19 +70,19 @@ first one with a `.git` entry, as git does. The key must belong to that
 directory. A `.git` directory must be both `--git-dir` and
 `--git-common-dir`. Any type other than a directory or a file refuses
 the command. A symbolic link, for one, could name another project's `.git`.
-git works in the tree `core.worktree` names. Each value of it, in
-`config` or `config.worktree`, read with includes off, must
-canonicalize, relative to `--git-dir`, to the directory holding `.git`.
+git works in the tree `core.worktree` names. Each value of it, in the
+common directory's `config` or the git directory's `config.worktree`,
+read with includes off, must canonicalize, relative to `--git-dir`, to
+the directory holding `.git`, for every kind of `.git` entry.
 
 #### A `.git` file
 
-That entry can be a file (`gitdir: …`) instead of a directory. `wb`
-accepts it only for a linked worktree or a submodule:
+A `.git` file (`gitdir: …`) is accepted only for a linked worktree or a
+submodule:
 
-- A linked worktree has `--git-dir` equal to `<common>/worktrees/<name>`.
-  Its back-link, `<common>/worktrees/<name>/gitdir`, names this `.git` file.
-- A submodule has `--git-dir` equal to the common directory, and sets
-  `core.worktree`.
+- A linked worktree has `--git-dir` `<common>/worktrees/<name>`, whose
+  `gitdir` back-link names this `.git` file. Its `core.worktree` may be unset.
+- A submodule's `--git-dir` is the common directory. It sets `core.worktree`.
 
 `wb` doesn't use `--show-toplevel`, which git derives from
 `core.worktree`. Anything else refuses the command, such as a `.git`
@@ -91,9 +91,9 @@ or one of its submodules.
 
 #### Failure
 
-Any failed git run refuses the command, "dubious ownership"
-included. Every refusal here says why (NFR06-explained-refusals), and
-nothing is registered.
+Any failed git run, or a git config file that isn't a readable regular
+file, refuses the command, "dubious ownership" included. Every refusal
+here says why (NFR06-explained-refusals), and nothing is registered.
 
 #### Which commands
 
