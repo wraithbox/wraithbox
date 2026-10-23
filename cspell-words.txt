@@ -56,6 +56,9 @@ guesttools
 guestupdate
 
 # Virtualization, networking and OS facilities
+nftables
+TPROXY
+Streamable
 execve
 libexec
 fstype
@@ -423,7 +426,6 @@ blocklist
 defenseclaw
 exfiltration
 Rego
-nftables
 ctkd
 mesu
 routetable
