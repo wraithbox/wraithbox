@@ -14,6 +14,7 @@
 // Start publishes STARTING and RUNNING, and Stop STOPPED. A start with
 // MemoryMiB FailMemoryMiB fails as the framework's would: wb-vmd
 // publishes ERROR with the error, then refuses with vm-start-failed.
+// After a start with EndStreamsMemoryMiB, every WatchState stream ends.
 //
 // It is not test code because two packages' tests use it. Nothing but
 // tests imports it.
@@ -47,6 +48,11 @@ import (
 
 // FailMemoryMiB is the memory size whose start fails.
 const FailMemoryMiB = 1
+
+// EndStreamsMemoryMiB is the memory size whose start succeeds, after
+// which the fake ends every WatchState stream with an error and keeps
+// running.
+const EndStreamsMemoryMiB = 2
 
 // The rules of the fake's refusals, as wb-vmd names them.
 const (
@@ -168,7 +174,20 @@ func (s *server) Start(_ context.Context, req *vmdv1.StartRequest) (*vmdv1.Start
 		return nil, refusal(codes.FailedPrecondition, RuleStartFailed, "the VM failed to start")
 	}
 	s.publish(&vmdv1.VMState{Generation: g, State: vmdv1.State_STATE_RUNNING})
+	if req.GetMemoryMib() == EndStreamsMemoryMiB {
+		s.endStreams()
+	}
 	return &vmdv1.StartResponse{}, nil
+}
+
+// endStreams ends every WatchState stream after the states it has.
+func (s *server) endStreams() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, w := range s.watchers {
+		close(w)
+	}
+	s.watchers = nil
 }
 
 func (s *server) checkCurrent(g uint64) error {
@@ -202,7 +221,10 @@ func (s *server) WatchState(_ *vmdv1.WatchStateRequest, stream grpc.ServerStream
 	s.mu.Unlock()
 	for {
 		select {
-		case st := <-w:
+		case st, ok := <-w:
+			if !ok {
+				return status.Error(codes.Unavailable, "the fake ended the stream")
+			}
 			if err := stream.Send(&vmdv1.WatchStateResponse{State: st}); err != nil {
 				return err
 			}
