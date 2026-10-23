@@ -242,8 +242,8 @@ func (i *instance) Start(ctx context.Context, req *vmdv1.StartRequest) error {
 	if pr == nil {
 		return err
 	}
-	resp, gerr := i.proc.Client.GetState(ctx, &vmdv1.GetStateRequest{})
-	if st := resp.GetState(); gerr == nil && st.GetGeneration() == req.GetGeneration() {
+	resp, stateErr := i.proc.Client.GetState(ctx, &vmdv1.GetStateRequest{})
+	if st := resp.GetState(); stateErr == nil && st.GetGeneration() == req.GetGeneration() {
 		pr.VMError = st.GetError()
 	}
 	return pr

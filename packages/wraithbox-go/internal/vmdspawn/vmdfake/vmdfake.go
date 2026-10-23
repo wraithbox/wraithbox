@@ -71,8 +71,8 @@ func Is() bool {
 // exit code. check, when set, runs first, and an error from it is logged
 // and exits 3.
 func Main(own string, check func() error) int {
-	logw := json.NewEncoder(os.Stderr)
-	logLine := func(rec map[string]any) { _ = logw.Encode(rec) }
+	enc := json.NewEncoder(os.Stderr)
+	logLine := func(rec map[string]any) { _ = enc.Encode(rec) }
 	if check != nil {
 		if err := check(); err != nil {
 			logLine(map[string]any{"event": "check-failed", "error": err.Error()})
