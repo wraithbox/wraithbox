@@ -3,7 +3,7 @@
 # This file is the record; GitHub is the copy. Apply it, together with
 # the generic labels in .github/labels.yml, with `mise run gh:labels`
 # (create or update, never delete). The scheme and the rules for applying
-# these labels are in docs/agents/planning.md.
+# these labels are in docs/agents/working.md, "Labels".
 #
 # Two families, one color each:
 #   area:*  where in the repository the change lands (a package or a
@@ -24,6 +24,9 @@
 - name: "area:spec"
   color: "bfd4f2"
   description: "docs/spec: requirements, architecture, design specs"
+- name: "area:research"
+  color: "bfd4f2"
+  description: "docs/research: research notes, built by the researcher agent"
 - name: "area:ci"
   color: "bfd4f2"
   description: "CI workflows, mise tasks, toolchain pins, supply chain"
