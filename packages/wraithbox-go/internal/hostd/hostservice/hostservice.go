@@ -8,8 +8,8 @@
 // wb-hostd serves it only on its local IPC endpoint with the
 // credentials of internal/hostversion/grpccreds, so the peer and the
 // build version of every connection are checked before a call reaches
-// this package (SEC12-least-privilege, internal/platform/localipc). The
-// daemon's main, which wires that up, comes with I287.
+// this package (SEC12-least-privilege, internal/platform/localipc).
+// cmd/wb-hostd wires that up.
 package hostservice
 
 import (

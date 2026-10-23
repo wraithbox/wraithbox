@@ -100,7 +100,9 @@ inherits four descriptors:
 Its profile allows no path outside its bundle, so it can't bind a
 socket. The spawner binds it in `<data>/run/` (S04-architecture,
 "Inter-process contracts") and passes the listening descriptor. The
-spawner is `wb-hostd` through `wb-launcher`, or a test.
+spawner is `wb-hostd` through `wb-launcher`, or a test. `wb-hostd`
+names the socket `vmd-<slot>-<generation>.sock`, so no two runs share
+a path, and removes it when the run ends.
 
 Right after the deny probe, `wb-vmd` checks each descriptor: open, and
 of the kind in the table. Descriptors 0 and 2 must be a pipe or a
