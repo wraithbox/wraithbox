@@ -741,7 +741,7 @@ gh run watch --repo "$repo" --exit-status "$run_id"
 
 # ---------- Spike VM bundles ----------
 # Spikes keep macOS VM bundles in ~/Library/Caches/wraithbox-spikes/
-# (docs/agents/planning.md, "Spikes"). Agents may run this task, so the
+# (docs/agents/spikes.md, "VM bundles"). Agents may run this task, so the
 # script refuses anything but a spike's own directories: never
 # restore-images/, a symbolic link, a path outside the cache, a mounted
 # volume, or a directory with a KEEP file.

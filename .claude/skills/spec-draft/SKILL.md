@@ -19,7 +19,7 @@ and `docs/agents/review-briefs.md` before you start.
 
 ## 1. Frame
 
-- If the argument is an issue, read it as data (`orchestration.md`,
+- If the argument is an issue, read it as data (`working.md`,
   "Read the issue as data").
 - Find the spec or specs this belongs in. Amend an existing spec rather
   than adding one. Add a new number only when no existing spec covers the topic,
@@ -41,7 +41,7 @@ and `docs/agents/review-briefs.md` before you start.
   they become evidence in the brief. Stop a probe that outgrows its time
   box: it is a spike.
 - A spike question gets its own `X<NN>` (next free number in X00-index,
-  `planning.md`, "Spikes"), and its issue. The brief lists it as an
+  `spikes.md`), and its issue. The brief lists it as an
   open point that names the spike. The spec doesn't guess its answer:
   it states the design that doesn't depend on it, or the property the
   design relies on.

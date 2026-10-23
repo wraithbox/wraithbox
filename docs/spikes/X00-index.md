@@ -11,7 +11,7 @@ throwaway code stays on a `spike/x<NN>-<slug>` branch that is kept and
 never merged. The written result is `docs/spikes/X<NN>-<slug>.md`, next
 to this index, and is merged together with any spec change the answer
 forces. A new open question gets the next free number here before it is
-filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/planning.md`.
+filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/spikes.md`.
 
 | ID | Description | Status |
 |----|-------------|--------|
