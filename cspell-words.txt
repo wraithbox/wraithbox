@@ -429,6 +429,7 @@ blocklist
 defenseclaw
 exfiltration
 Rego
+nftables
 ctkd
 mesu
 routetable
