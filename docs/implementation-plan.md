@@ -46,7 +46,7 @@ decision, could change a spec by measurement, or is more than about
 300 lines. A review follow-up in the same spec section with no new
 decision is folded into the component's next package. Defaults,
 buffer sizes, retry delays and wording are decided in code with a
-test (`docs/agents/planning.md`, "Follow-ups").
+test (`docs/agents/working.md`, "Follow-ups").
 
 Contracts land with the first package that uses them, as its first
 commit: the VM provider and hello in M2.1, the terminal stream in

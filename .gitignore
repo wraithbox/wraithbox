@@ -54,5 +54,5 @@ mise.local.toml
 ehthumbs.db
 Thumbs.db
 
-# Agent scratch space (docs/agents/orchestration.md)
+# Agent scratch space (docs/agents/working.md)
 .scratch/

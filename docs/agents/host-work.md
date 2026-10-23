@@ -25,7 +25,7 @@ before Wraith Box works end to end.
 ### Setting up a second machine
 
 - `gh auth status` shows `lsimons`. Agents trust only comments by
-  `lsimons` and `lsimons-bot` (`orchestration.md`, "Picking up an
+  `lsimons` and `lsimons-bot` (`working.md`, "Picking up an
   issue").
 - A git identity for this repository, and the attribution lines from
   `AGENTS.md`.
@@ -48,7 +48,7 @@ before Wraith Box works end to end.
   outside `.scratch/`. It runs on the personal Mac in a session the
   maintainer attends. `/wave` never picks it. Removing a spike's
   bundles with `mise run spike:clean` doesn't make work `needs-host`
-  (`planning.md`, "Spikes", "VM bundles"), and neither do test bundles
+  (`spikes.md`, "VM bundles"), and neither do test bundles
   made through `mise run vm:*` ("Gotchas"). Booting one is `needs-vm`
   work.
 
@@ -108,7 +108,7 @@ Outside a `needs-host` issue, in an attended session:
   (`eventMessage CONTAINS "Sandbox: <process>("`), and only some are
   reported.
 - **VM bundles:** spike bundles are under
-  `~/Library/Caches/wraithbox-spikes/x<NN>/` (`planning.md`, "Spikes",
+  `~/Library/Caches/wraithbox-spikes/x<NN>/` (`spikes.md`,
   "VM bundles"). Test bundles for `needs-vm` work go in the same cache,
   and agents and the maintainer make, clone, provision, stop and remove
   them only through `mise run vm:*`:

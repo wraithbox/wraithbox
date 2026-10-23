@@ -2,7 +2,7 @@
 // Removes the VM bundles a spike left in the spike cache
 // (`mise run spike:clean x<NN>`), or lists what the cache holds
 // (`mise run spike:clean`). The layout and when to run it are in
-// docs/agents/planning.md, "Spikes".
+// docs/agents/spikes.md, "VM bundles".
 //
 // The cache is `~/Library/Caches/wraithbox-spikes/`:
 //
