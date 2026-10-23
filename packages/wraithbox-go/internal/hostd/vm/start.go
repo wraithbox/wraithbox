@@ -144,7 +144,7 @@ func (m *Manager) open(ctx context.Context, slot Slot, generation uint64) (Insta
 	}
 	answer := make(chan opened, 1)
 	go func() {
-		inst, err := m.cfg.Provider.Open(context.WithoutCancel(ctx), slot)
+		inst, err := m.cfg.Provider.Open(context.WithoutCancel(ctx), slot, generation)
 		answer <- opened{inst, err}
 	}()
 	timer := time.NewTimer(m.cfg.StartTimeout)

@@ -14,14 +14,16 @@ import (
 // internal/platform's: the platform boundary is wb-vmd's gRPC contract,
 // proto/wraithbox/vmd/v1 (S12-01-platform-interfaces, "VM provider").
 type Provider interface {
-	// Open starts a new instance for slot. The slot is the only thing it
-	// is given: on macOS it becomes the instance's WB_VMD_SLOT, and the
-	// bundle path follows from it there (S04-04-vm-processes, "The
-	// slot"). No request names a path, a slot or a device. The manager
+	// Open starts a new instance for slot, for the run of generation. The
+	// slot is the only thing wb-vmd is given: on macOS it becomes the
+	// instance's WB_VMD_SLOT, and the bundle path follows from it there
+	// (S04-04-vm-processes, "The slot"). No request names a path, a slot
+	// or a device. The generation stays on the host: it names the
+	// instance's gRPC socket, so no two runs share one. The manager
 	// passes a ctx that is never cancelled, so an instance may keep it for
 	// its life, which ends at Close. The manager bounds its own wait for
 	// Open, and closes an instance that opens after that wait ended.
-	Open(ctx context.Context, slot Slot) (Instance, error)
+	Open(ctx context.Context, slot Slot, generation uint64) (Instance, error)
 }
 
 // Instance is one VM run: one wb-vmd, and the VM of one generation.
