@@ -152,7 +152,7 @@ func (h *hello) run(ctx context.Context) error {
 		return err
 	}
 	fmt.Fprintf(h.stdout, "handed off; wb-vmd is pid %d. Stop it (kill -STOP %d), then press Enter for the hello.\n",
-		h.s.cmd.Process.Pid, h.s.cmd.Process.Pid)
+		h.s.proc.Pid(), h.s.proc.Pid())
 	if _, err := h.hold.ReadString('\n'); err != nil && !errors.Is(err, io.EOF) {
 		_ = conn.Close()
 		return err
