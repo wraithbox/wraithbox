@@ -336,6 +336,7 @@ mdxjs
 BSTXR
 BSTXRI
 smol
+unifont
 
 # Engineering jargon the dictionaries lack
 stdlib
