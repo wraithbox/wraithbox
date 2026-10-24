@@ -509,6 +509,29 @@ func TestListenRefusesLinkedLock(t *testing.T) {
 	}
 }
 
+// TestKeepLock sees the lock held after Close of a listener whose lock
+// was kept, so a second Listen is refused, and released by release.
+func TestKeepLock(t *testing.T) {
+	run := filepath.Join(shortDir(t), "run")
+	ln := listen(t, nil, run)
+	release := ln.KeepLock()
+	if err := ln.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(run, "hostd.sock")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("socket after Close: %v, want it removed", err)
+	}
+	_, err := Listen(context.Background(), nil, run, "hostd")
+	var r *Refusal
+	if !errors.As(err, &r) || r.Rule != RuleEndpointInUse {
+		t.Fatalf("Listen with the lock kept = %v, want %s", err, RuleEndpointInUse)
+	}
+	if err := release(); err != nil {
+		t.Fatal(err)
+	}
+	listen(t, nil, run)
+}
+
 // TestLockHeld sees the lock held while a listener runs, and not held
 // without a run directory, and after the listener closed with a
 // leftover socket. A lock file that is a symbolic link is an error,
