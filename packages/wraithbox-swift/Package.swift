@@ -29,10 +29,10 @@ let package = Package(
     // protoc-gen-swift and protoc-gen-grpc-swift-2, are built from these
     // same packages (B52-proto-contracts).
     dependencies: [
-        .package(url: "https://github.com/grpc/grpc-swift-2.git", exact: "2.4.3"),
-        .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", exact: "2.10.0"),
+        .package(url: "https://github.com/grpc/grpc-swift-2.git", exact: "2.4.4"),
+        .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", exact: "2.11.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", exact: "2.4.1"),
-        .package(url: "https://github.com/apple/swift-protobuf.git", exact: "1.38.1"),
+        .package(url: "https://github.com/apple/swift-protobuf.git", exact: "1.39.0"),
         .package(url: "https://github.com/apple/swift-nio.git", exact: "2.104.0"),
     ],
     targets: [
