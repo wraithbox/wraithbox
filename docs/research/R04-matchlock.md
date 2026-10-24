@@ -61,7 +61,7 @@ defense in depth, not the isolation.
 | Guest | Linux, from any OCI image, booted fresh each run | macOS with Xcode, persistent (FR06-native-tools) |
 | Hosts | Linux with KVM, macOS on Apple Silicon | macOS (S12-platforms) |
 | Egress | Open by default. With an allowlist: inspected HTTP and HTTPS, other TCP by IP | Default deny with TLS inspection on the host (SEC05-default-deny) |
-| DNS | Every query relayed to `8.8.8.8` | Answered by `wb-netd` for allowed names only (S07-03-dns) |
+| DNS | On the userspace stack, every query relayed to `8.8.8.8` by default | Answered by `wb-netd` for allowed names only (S07-03-dns) |
 | Credentials | Placeholder replaced in any header or the query string of a bound host | Injected in the binding's header only, on named paths (S07-09-placeholder-binding) |
 | Host files | Host directories served to the guest, as a copy or live | None (SEC02-no-host-fs-share) |
 | Returned work | The agent pushes with the user's token, or writes a live mount | A branch in a landing repository (FR03-work-as-branch) |
@@ -91,8 +91,10 @@ Wraith Box.
 contract another program could serve. Its Linux backend needs
 `cap_net_admin` and `cap_net_raw` on the binary, membership of the
 `kvm` and `netdev` groups and a TAP device (`cmd/matchlock/setup_linux.go`).
-X10-linux-hypervisor rules out each of those for Wraith Box, and so does
-SEC12-least-privilege.
+X10-linux-hypervisor rules out the TAP device and `cap_net_admin` for
+Wraith Box, and SEC12-least-privilege rules out file capabilities on
+the binary. Access to `/dev/kvm` through the `kvm` group is something
+S12-03-host-prerequisites also accepts.
 
 ## Where Wraith Box's controls differ
 
@@ -105,11 +107,11 @@ matchlock doesn't have, read from matchlock's code and not tested.
   and no hosts, an empty allowlist "means allow all hosts"
   (`docs/network-interception.md`). The `claude-danger` example
   allows `*` unless the user passes `--allowed-host`.
-- **DNS.** The gVisor stack relays every UDP query on port 53 to
-  `8.8.8.8` or `8.8.4.4`, whatever the allowlist says. That is the DNS
-  tunnel that SEC05-default-deny forbids. Wraith Box answers only
-  allowed names and bounds lookups under a wildcard
-  (T02-dns-names).
+- **DNS.** The gVisor userspace stack relays every UDP query on port
+  53 to `8.8.8.8` or `8.8.4.4` by default (`--dns-servers` overrides
+  them), whatever the allowlist says. That is the DNS tunnel that
+  SEC05-default-deny forbids. Wraith Box answers only allowed names
+  and bounds lookups under a wildcard (T02-dns-names).
 - **Upstream addresses.** `isPrivateIP` resolves the name, checks only
   the first address, treats a failed lookup as public, and the dial
   resolves the name again. Its ranges leave out CGNAT, `0.0.0.0/8`,
@@ -149,8 +151,9 @@ matchlock doesn't have, read from matchlock's code and not tested.
   disk that guests write, and runs `e2fsck -fy` and `resize2fs` on it
   on the host to grow it (`cmd/matchlock/cmd_build.go`). It then
   imports the image tarball the build guest wrote. SEC15-no-guest-disk-mount
-  forbids the first, and S06-02-image-build never parses the build
-  guest's output.
+  forbids the first. S06-02-image-build never mounts or reads a
+  filesystem or archive the build guest wrote: it clones the checked
+  disks whole.
 - **Bounds.** The VFS server reads a 4-byte length from the guest and
   allocates that many bytes, and a read allocates the size the guest
   asks for, up to 4 GiB each. The repository has no fuzz targets.
@@ -215,8 +218,9 @@ do.
 ## Recommendations
 
 - **Don't integrate with matchlock.** It has no contract another
-  program could serve or call, and its Linux backend needs host
-  privileges that SEC12-least-privilege forbids.
+  program could serve or call, and its Linux backend needs a TAP
+  device and file capabilities, which X10-linux-hypervisor and
+  SEC12-least-privilege rule out.
 - **Don't take its egress or file designs.** The differences above
   each follow a rule Wraith Box already has. Matchlock is a reminder
   of why those rules are there, and a source of review cases for
