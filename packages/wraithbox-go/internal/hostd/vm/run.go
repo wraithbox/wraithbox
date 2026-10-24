@@ -96,7 +96,7 @@ func (m *Manager) observe(ctx context.Context, r *run, st *vmdv1.VMState) {
 	if end != endNone {
 		// finish closes the instance on another goroutine, so this
 		// reader keeps draining States while Close runs.
-		go m.finish(ctx, r, end)
+		m.runs.Go(func() { m.finish(ctx, r, end) })
 	}
 }
 

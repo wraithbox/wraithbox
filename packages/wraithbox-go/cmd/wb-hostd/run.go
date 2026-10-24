@@ -50,8 +50,8 @@ type options struct {
 }
 
 // run runs wb-hostd until ctx is done. Its steps, in order: the logs,
-// the configuration and state.db, the VM manager, then the
-// wraithbox.hostd.v1 server. A refused configuration, state.db or
+// the local IPC endpoint, the configuration and state.db, the VM
+// manager, then the wraithbox.hostd.v1 server. A refused configuration, state.db or
 // bundle puts it in refusing mode, where it builds no VM manager, so it
 // spawns no wb-vmd, and its endpoint answers every call with the rule
 // (S17-05-upgrades-and-migrations, "Refusing mode").
@@ -67,12 +67,19 @@ func run(ctx context.Context, o options) error {
 	slog.SetDefault(log)
 	log.LogAttrs(ctx, slog.LevelInfo, "wb-hostd started",
 		slog.String("version", version.Label(o.Version)), slog.Int("pid", os.Getpid()))
-	h, err := prepare(ctx, o, log, logs.files)
+	// The endpoint first: its lock makes this the only wb-hostd, before
+	// it touches state.db or clears the sockets of a wb-hostd before it.
+	ln, err := localipc.Listen(ctx, log, o.Paths.Run, localipc.HostdEndpoint)
 	if err != nil {
 		return err
 	}
+	h, err := prepare(ctx, o, log, logs.files)
+	if err != nil {
+		_ = ln.Close()
+		return err
+	}
 	defer h.close(ctx)
-	return serve(ctx, o, log, h.server)
+	return serve(ctx, o, log, ln, h.server)
 }
 
 // hostLogs are wb-hostd's own log, <logs>/wb-hostd.log, and the log
@@ -104,6 +111,7 @@ func (l *hostLogs) close() {
 // host is what wb-hostd serves. Only server is set in refusing mode.
 type host struct {
 	server   *hostservice.Server
+	vms      *vm.Manager
 	provider *vmdprovider.Provider
 	links    *guestconn.Links
 	closeDB  func() error
@@ -121,7 +129,7 @@ func prepare(ctx context.Context, o options, log *slog.Logger, files *logpipe.Fi
 		_ = ready.State.Close()
 		return refusingHost(ctx, log, notIn), nil
 	}
-	h, err := newHost(o, bundle, ready, log, files)
+	h, err := newHost(ctx, o, bundle, ready, log, files)
 	if err != nil {
 		_ = ready.State.Close()
 		return nil, err
@@ -154,8 +162,10 @@ func bundleOf(exe string) (string, *startup.Refusing) {
 // newHost builds the VM manager, with wb-vmd as its provider, the APFS
 // clone of the guest tools disk, and guest links that follow its runs.
 // Every program comes from the bundle wb-hostd runs from (S17-01-bundle).
-// It starts no VM.
-func newHost(o options, bundle string, ready *startup.Host, log *slog.Logger, files *logpipe.Files) (*host, error) {
+// It starts no VM. The caller holds wb-hostd's endpoint, so the wb-vmd
+// sockets left in the run directory are a crashed wb-hostd's, and are
+// cleared before the manager can start a run.
+func newHost(ctx context.Context, o options, bundle string, ready *startup.Host, log *slog.Logger, files *logpipe.Files) (*host, error) {
 	macos := filepath.Join(bundle, "Contents", "MacOS")
 	disks, err := datadisk.New(datadisk.Config{
 		DataDir: o.Paths.Data, Records: ready.State, SizeGiB: ready.Config.DataDiskGiB, Logger: log,
@@ -173,6 +183,11 @@ func newHost(o options, bundle string, ready *startup.Host, log *slog.Logger, fi
 	if err != nil {
 		return nil, err
 	}
+	// A leftover takes only its directory entry: each run's socket has a
+	// new name, so the start goes on when one can't be removed.
+	if _, err := provider.ClearLeftovers(ctx); err != nil {
+		log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd leftover sockets not all removed", slog.String("error", err.Error()))
+	}
 	var links *guestconn.Links
 	m, err := vm.New(vm.Config{
 		DataDir: o.Paths.Data, ToolsImage: filepath.Join(bundle, filepath.FromSlash(appbundle.ToolsDiskPath)),
@@ -188,13 +203,14 @@ func newHost(o options, bundle string, ready *startup.Host, log *slog.Logger, fi
 		return nil, err
 	}
 	return &host{
-		server:   &hostservice.Server{VMs: m, Links: links, Log: log},
-		provider: provider, links: links, closeDB: ready.State.Close,
+		server: &hostservice.Server{VMs: m, Links: links, Log: log},
+		vms:    m, provider: provider, links: links, closeDB: ready.State.Close,
 	}, nil
 }
 
 // close ends every wb-vmd by its lifeline, which stops its VM at once
-// (S04-07-supervision, "When `wb-hostd` stops"), then the guest links
+// (S04-07-supervision, "When `wb-hostd` stops"), waits until the
+// manager has logged the end of each run, then closes the guest links
 // and state.db.
 func (h *host) close(ctx context.Context) {
 	log := h.server.Log
@@ -202,6 +218,7 @@ func (h *host) close(ctx context.Context) {
 		if err := h.provider.Close(); err != nil {
 			log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd ended with an error", slog.String("error", err.Error()))
 		}
+		h.vms.Wait()
 	}
 	if h.links != nil {
 		h.links.Close()
@@ -216,11 +233,7 @@ func (h *host) close(ctx context.Context) {
 // done. Every connection passes localipc's peer check and the build
 // version exchange of grpccreds before a call reaches the server
 // (SEC12-least-privilege).
-func serve(ctx context.Context, o options, log *slog.Logger, s *hostservice.Server) error {
-	ln, err := localipc.Listen(ctx, log, o.Paths.Run, localipc.HostdEndpoint)
-	if err != nil {
-		return err
-	}
+func serve(ctx context.Context, o options, log *slog.Logger, ln *localipc.Listener, s *hostservice.Server) error {
 	srv := grpc.NewServer(grpc.Creds(grpccreds.New(log, o.Version)))
 	hostdv1.RegisterHostServiceServer(srv, s)
 	served := make(chan error, 1)

@@ -164,7 +164,16 @@ type Manager struct {
 
 	mu    sync.Mutex
 	slots map[Slot]*slotRecord
+
+	// runs counts the goroutines that follow a run and end it.
+	runs sync.WaitGroup
 }
+
+// Wait returns once every run has ended and its end is logged. A run
+// ends when its instance's States closes, so wb-hostd calls Wait after
+// its provider has closed every instance, and before it closes the log
+// that gets the records of the runs' ends.
+func (m *Manager) Wait() { m.runs.Wait() }
 
 // slotRecord is a slot's state, guarded by Manager.mu.
 type slotRecord struct {

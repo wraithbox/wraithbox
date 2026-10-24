@@ -19,9 +19,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +34,7 @@ import (
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/logpipe"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/localipc"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmdlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmdspawn"
 )
@@ -53,7 +57,8 @@ type Config struct {
 	// PATH or <config> (S17-01-bundle).
 	Program string
 	// RunDir is <data>/run, mode 0700. Each instance's gRPC socket is
-	// <RunDir>/vmd-<slot>-<generation>.sock, removed when it ends.
+	// <RunDir>/vmd-<slot>-<generation>.sock, removed when it ends, or by
+	// ClearLeftovers after a crash.
 	RunDir string
 	// Version is wb-hostd's build version, which wb-vmd must have too
 	// (S04-08-records-and-bounds, "Between host processes").
@@ -108,7 +113,7 @@ func (p *Provider) Open(ctx context.Context, slot vm.Slot, generation uint64) (v
 	w := p.cfg.Logs(process)
 	proc, err := vmdspawn.Start(ctx, vmdspawn.Config{
 		Program: p.cfg.Program, Slot: string(slot), RunDir: p.cfg.RunDir,
-		Endpoint: fmt.Sprintf("vmd-%s-%d", slot, generation), Version: p.cfg.Version,
+		Endpoint: fmt.Sprintf("%s%s-%d", socketPrefix, slot, generation), Version: p.cfg.Version,
 		Log:    func(r io.Reader) { _ = logpipe.Copy(r, w, process) },
 		Logger: p.log,
 	})
@@ -137,6 +142,51 @@ func (p *Provider) Open(ctx context.Context, slot vm.Slot, generation uint64) (v
 	i.states <- first
 	go i.follow(watchCtx, stream)
 	return i, nil
+}
+
+// socketPrefix and socketSuffix frame the name of each instance's
+// socket in the run directory, vmd-<slot>-<generation>.sock.
+const (
+	socketPrefix = "vmd-"
+	socketSuffix = ".sock"
+)
+
+// ClearLeftovers removes the sockets of instances that a wb-hostd
+// before this one left in the run directory when it crashed, and
+// returns how many it removed. The caller holds wb-hostd's endpoint
+// lock, so no other wb-hostd's wb-vmd serves one, and calls it before
+// any Open. A file of that name that isn't a socket is left in place
+// and logged with ipc-endpoint-unsafe: the bind of a later Open refuses
+// anything at its path anyway (S04-03-self-sandboxing, "How `wb-vmd` is
+// started").
+func (p *Provider) ClearLeftovers(ctx context.Context) (int, error) {
+	entries, err := os.ReadDir(p.cfg.RunDir)
+	if err != nil {
+		return 0, fmt.Errorf("vmdprovider: read the run directory: %w", err)
+	}
+	removed := 0
+	var errs []error
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasPrefix(name, socketPrefix) || !strings.HasSuffix(name, socketSuffix) {
+			continue
+		}
+		path := filepath.Join(p.cfg.RunDir, name)
+		if e.Type() != fs.ModeSocket {
+			p.log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd socket name holds another file",
+				slog.String("decision", "keep"), slog.String("rule", string(localipc.RuleEndpointUnsafe)),
+				slog.String("endpoint", path), slog.String("type", e.Type().String()))
+			continue
+		}
+		if err := os.Remove(path); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		removed++
+		p.log.LogAttrs(ctx, slog.LevelInfo, "wb-vmd leftover socket removed",
+			slog.String("decision", "remove"), slog.String("endpoint", path))
+	}
+	return removed, errors.Join(errs...)
 }
 
 // errClosed is Open's error once the provider is closed.

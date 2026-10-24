@@ -88,7 +88,11 @@ These put `wb-hostd` in refusing mode:
 - a database newer than `wb-hostd` knows (`state-db-newer`);
 - a database it can't open or read the version of
   (`state-db-open-failed`);
-- a refused configuration file.
+- a refused configuration file;
+- a `wb-hostd` whose real path isn't `Contents/MacOS/wb-hostd` of a
+  bundle (`hostd-not-in-bundle`). It has no installed `wb-vmd`,
+  `wb-diskfmt` or guest tools disk, and never looks for them on `PATH`
+  or in `<config>` (S17-01-bundle).
 
 In refusing mode, `wb-hostd` keeps running, so launchd doesn't restart
 it in a loop. It doesn't start a daemon or a VM. It answers `wb

@@ -38,13 +38,13 @@ func TestMain(m *testing.M) {
 
 // checkStartInterface checks, inside wb-vmd, the start interface of
 // S04-03-self-sandboxing, "How `wb-vmd` is started": no arguments,
-// WB_VMD_SLOT=work as the whole environment, a blocking lifeline, and
-// descriptors 0, 2, 3 and 4 and no others.
+// WB_VMD_SLOT=work or WB_VMD_SLOT=isolated as the whole environment, a
+// blocking lifeline, and descriptors 0, 2, 3 and 4 and no others.
 func checkStartInterface() error {
 	if len(os.Args) != 1 {
 		return fmt.Errorf("arguments %q", os.Args[1:])
 	}
-	if env := os.Environ(); len(env) != 1 || env[0] != "WB_VMD_SLOT=work" {
+	if env := os.Environ(); len(env) != 1 || (env[0] != "WB_VMD_SLOT=work" && env[0] != "WB_VMD_SLOT=isolated") {
 		return fmt.Errorf("environment %q", env)
 	}
 	if fl, err := unix.FcntlInt(0, unix.F_GETFL, 0); err != nil || fl&unix.O_NONBLOCK != 0 {
@@ -122,34 +122,137 @@ func (l *lines) String() string {
 	return strings.Join(l.all, "\n")
 }
 
-func start(t *testing.T, version string) (*vmdspawn.Process, *lines, string) {
-	t.Helper()
-	// The CI runner leaves descriptors open in the test process without
-	// close-on-exec (fd 131 on macos-26). Those are the runner's, not
-	// vmdspawn's, so they are marked here, before vmdspawn opens any: the
-	// check is that vmdspawn passes none of its own.
+// markRunnerDescriptors marks the test process's descriptors
+// close-on-exec. The CI runner leaves descriptors open in the test
+// process without close-on-exec (fd 131 on macos-26). Those are the
+// runner's, not vmdspawn's, so they are marked here, before vmdspawn
+// opens any: the check is that vmdspawn passes none of its own.
+func markRunnerDescriptors() {
 	for fd := 3; fd < 256; fd++ {
 		_, _ = unix.FcntlInt(uintptr(fd), unix.F_SETFD, unix.FD_CLOEXEC)
 	}
-	self, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+}
+
+// runDir returns a new run directory, mode 0700, whose socket paths fit
+// sun_path.
+func runDir(t *testing.T) string {
+	t.Helper()
 	dir, err := os.MkdirTemp("", "vs") //nolint:usetesting // t.TempDir's path holds the test name, which pushes the socket past sun_path's 104 bytes, and its subdirectory is mode 0755, which localipc refuses
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
-	log := &lines{}
-	p, err := vmdspawn.Start(t.Context(), vmdspawn.Config{
-		Program: self, Slot: "work", RunDir: dir, Endpoint: "vmd-work-1",
+	return dir
+}
+
+// config is the start of this test binary as wb-vmd for slot in dir.
+func config(t *testing.T, dir, slot, version string, log *lines) vmdspawn.Config {
+	t.Helper()
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return vmdspawn.Config{
+		Program: self, Slot: slot, RunDir: dir, Endpoint: "vmd-" + slot + "-1",
 		Version: version, Log: log.read, Logger: slog.New(slog.DiscardHandler),
-	})
+	}
+}
+
+func start(t *testing.T, version string) (*vmdspawn.Process, *lines, string) {
+	t.Helper()
+	markRunnerDescriptors()
+	dir := runDir(t)
+	log := &lines{}
+	p, err := vmdspawn.Start(t.Context(), config(t, dir, "work", version, log))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p, log, filepath.Join(dir, "vmd-work-1.sock")
+}
+
+// Both slots' wb-vmd started at the same time each get only their own
+// descriptors 0, 2, 3 and 4: the fake checks its start interface from
+// inside, so a descriptor of one spawn that leaked into the other's
+// fails it (SEC08-proj-isolation).
+func TestSpawnBothSlotsAtOnce(t *testing.T) {
+	markRunnerDescriptors()
+	dir := runDir(t)
+	slots := []string{"work", "isolated"}
+	procs := make([]*vmdspawn.Process, len(slots))
+	logs := make([]*lines, len(slots))
+	errs := make([]error, len(slots))
+	var wg sync.WaitGroup
+	for n, slot := range slots {
+		logs[n] = &lines{}
+		wg.Go(func() { procs[n], errs[n] = vmdspawn.Start(t.Context(), config(t, dir, slot, own, logs[n])) })
+	}
+	wg.Wait()
+	for n, slot := range slots {
+		if errs[n] != nil {
+			t.Fatalf("start %s: %v", slot, errs[n])
+		}
+		t.Cleanup(func() { _ = procs[n].Close() })
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	for n, slot := range slots {
+		if _, err := procs[n].Client.GetState(ctx, &vmdv1.GetStateRequest{}); err != nil {
+			t.Errorf("GetState of %s: %v; log: %s", slot, err, logs[n])
+		}
+		if !strings.Contains(logs[n].String(), `"slot":"`+slot+`"`) {
+			t.Errorf("%s: no started record for the slot; log: %s", slot, logs[n])
+		}
+	}
+}
+
+// A file at the socket path, here a dangling symbolic link, is refused
+// with ipc-endpoint-unsafe and left in place. Nothing is made at the
+// link's target, and no wb-vmd starts.
+func TestSocketPathTakenRefused(t *testing.T) {
+	dir := runDir(t)
+	sock := filepath.Join(dir, "vmd-work-1.sock")
+	target := filepath.Join(dir, "elsewhere.sock")
+	if err := os.Symlink(target, sock); err != nil {
+		t.Fatal(err)
+	}
+	var buf syncBuffer
+	cfg := config(t, dir, "work", own, &lines{})
+	cfg.Logger = slog.New(slog.NewJSONHandler(&buf, nil))
+	_, err := vmdspawn.Start(t.Context(), cfg)
+	if r, ok := errors.AsType[*vmdspawn.UnsafeEndpointError](err); !ok || r.Type != os.ModeSymlink {
+		t.Fatalf("err = %v, want an UnsafeEndpointError for a symbolic link", err)
+	}
+	if !strings.Contains(buf.String(), `"rule":"ipc-endpoint-unsafe"`) {
+		t.Errorf("no ipc-endpoint-unsafe in the log: %s", buf.String())
+	}
+	if _, err := os.Lstat(target); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("something was made at the link's target: %v", err)
+	}
+	if fi, err := os.Lstat(sock); err != nil || fi.Mode().Type() != os.ModeSymlink {
+		t.Errorf("the link isn't left in place: %v, %v", fi, err)
+	}
+	if strings.Contains(buf.String(), "wb-vmd started") {
+		t.Errorf("wb-vmd started: %s", buf.String())
+	}
+}
+
+// syncBuffer is a log sink for the decisions.
+type syncBuffer struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
 }
 
 // TestSpawn starts the fake as wb-vmd, which checks from inside that it

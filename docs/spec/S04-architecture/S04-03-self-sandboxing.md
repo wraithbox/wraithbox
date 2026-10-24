@@ -104,6 +104,28 @@ spawner is `wb-hostd` through `wb-launcher`, or a test. `wb-hostd`
 names the socket `vmd-<slot>-<generation>.sock`, so no two runs share
 a path, and removes it when the run ends.
 
+The socket follows these endpoint rules of S04-architecture,
+"Inter-process contracts":
+
+- The socket is in the run directory, which `wb-hostd` makes and
+  checks before it serves, and which the dialer checks before each
+  connect.
+- The socket file has mode `0600` after the bind.
+- Each end checks the other's user ID: `wb-hostd` dials through
+  `localipc`, and `wb-vmd` checks each peer it accepts.
+
+The socket has no `.lock` of its own. `wb-hostd` holds the lock of its
+own endpoint for its life, so one `wb-hostd` at a time makes and
+removes `vmd-*.sock` files. Before the bind, `wb-hostd` refuses any
+file already at the path, a symbolic link included, with
+`ipc-endpoint-unsafe` and leaves it, because `bind(2)` follows a
+dangling link. When `wb-hostd` crashes, its sockets stay. The next
+`wb-hostd` removes every `vmd-*.sock` that is a socket once it holds
+its endpoint's lock, before it builds the VM manager. It doesn't probe
+them with a connect, because the `wb-vmd` processes of the crashed
+`wb-hostd` exited when their lifelines closed. A file of that name that
+isn't a socket is left and logged with `ipc-endpoint-unsafe`.
+
 Right after the deny probe, `wb-vmd` checks each descriptor: open, and
 of the kind in the table. Descriptors 0 and 2 must be a pipe or a
 socket, and descriptor 0 must block. Descriptor 3 must have a path of
