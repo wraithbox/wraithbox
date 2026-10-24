@@ -565,6 +565,25 @@ func TestInstanceExitStopsSlot(t *testing.T) {
 	}
 }
 
+// Wait returns once the end of every run whose instance closed is
+// logged, as wb-hostd needs before it closes its log.
+func TestWaitForRunEnds(t *testing.T) {
+	h := newHarness(t)
+	m := h.manager()
+	for _, slot := range vm.Slots() {
+		if err := m.Start(t.Context(), slot); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, i := range h.provider.Instances() {
+		i.Exit()
+	}
+	m.Wait()
+	if n := strings.Count(h.logs.String(), `"msg":"vm stopped"`); n != len(vm.Slots()) {
+		t.Errorf("%d vm stopped records after Wait, want %d:\n%s", n, len(vm.Slots()), h.logs.String())
+	}
+}
+
 // A VM that stops between the provider's start and its answer ends as
 // stopped.
 func TestStoppedDuringStart(t *testing.T) {

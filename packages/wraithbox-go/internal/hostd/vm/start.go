@@ -185,7 +185,7 @@ func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error 
 	rec := m.slots[slot]
 	rec.run, rec.generation, rec.lastErr = r, generation, nil
 	m.mu.Unlock()
-	go m.watch(context.WithoutCancel(ctx), r)
+	m.runs.Go(func() { m.watch(context.WithoutCancel(ctx), r) })
 
 	// The configured caps reach wb-vmd on every start
 	// (SEC13-bounded-resources).

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,13 +181,26 @@ func TestNotInBundleRefusing(t *testing.T) {
 }
 
 // With a valid configuration, wb-hostd serves the VM manager, and has
-// started no VM.
+// started no VM. A wb-vmd socket a crashed wb-hostd left is gone.
 func TestServesStoppedVMs(t *testing.T) {
 	f := newFixture(t)
+	if err := os.Mkdir(f.o.Paths.Run, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(f.o.Paths.Run, "vmd-work-4.sock")
+	ln, err := net.ListenUnix("unix", &net.UnixAddr{Name: stale, Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln.SetUnlinkOnClose(false)
+	_ = ln.Close()
 	f.start()
 	res, err := f.status()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err := os.Lstat(stale); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the leftover wb-vmd socket is still there: %v", err)
 	}
 	if s := res.GetStatus(); s.GetPhase() != hostdv1.VMPhase_VM_PHASE_STOPPED || s.GetGeneration() != 0 {
 		t.Errorf("status %v", s)

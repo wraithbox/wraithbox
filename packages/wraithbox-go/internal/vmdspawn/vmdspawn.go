@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"os"
@@ -31,6 +32,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostversion"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostversion/grpccreds"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/fdchan"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/localipc"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/vmhandoff"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmdlink"
 )
@@ -157,7 +159,7 @@ func Start(ctx context.Context, cfg Config) (*Process, error) {
 		log = slog.Default()
 	}
 	p := &Process{log: log, sock: filepath.Join(cfg.RunDir, cfg.Endpoint+".sock"), exited: make(chan struct{})}
-	d, err := makeDescriptors(p.sock)
+	d, err := makeDescriptors(log, p.sock)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +178,7 @@ func Start(ctx context.Context, cfg Config) (*Process, error) {
 
 // makeDescriptors makes the pipes, the listening gRPC socket at sock
 // with mode 0600, and the hand-off socketpair.
-func makeDescriptors(sock string) (*descriptors, error) {
+func makeDescriptors(log *slog.Logger, sock string) (*descriptors, error) {
 	d := &descriptors{}
 	var err error
 	if d.lifeRead, d.lifeWrite, err = os.Pipe(); err != nil {
@@ -186,7 +188,7 @@ func makeDescriptors(sock string) (*descriptors, error) {
 		d.closeAll()
 		return nil, err
 	}
-	if d.grpc, err = listenFile(sock); err != nil {
+	if d.grpc, err = listenFile(log, sock); err != nil {
 		d.closeAll()
 		return nil, err
 	}
@@ -198,11 +200,46 @@ func makeDescriptors(sock string) (*descriptors, error) {
 	return d, nil
 }
 
+// UnsafeEndpointError is Start's refusal of a file already at the
+// socket path, with localipc's rule ipc-endpoint-unsafe.
+type UnsafeEndpointError struct {
+	Path string
+	// Type is the file type found at Path, when lstat read it.
+	Type fs.FileMode
+
+	err error
+}
+
+func (e *UnsafeEndpointError) Error() string {
+	if e.err != nil {
+		return fmt.Sprintf("vmdspawn: %s: lstat %q: %v", localipc.RuleEndpointUnsafe, e.Path, e.err)
+	}
+	return fmt.Sprintf("vmdspawn: %s: %q already holds a file of type %s", localipc.RuleEndpointUnsafe, e.Path, e.Type)
+}
+
+// Unwrap returns lstat's error, if that is what failed.
+func (e *UnsafeEndpointError) Unwrap() error { return e.err }
+
 // listenFile binds a listening Unix socket at path, gives it mode 0600,
 // and returns its descriptor. The directory is mode 0700, so no one else
-// reaches the socket before the chmod. The bind fails on anything at
-// path, so a socket is never shared between runs.
-func listenFile(path string) (*os.File, error) {
+// reaches the socket before the chmod. Anything already at path, a
+// leftover socket or a symbolic link included, is refused with
+// ipc-endpoint-unsafe and left in place: bind(2) follows a dangling
+// link and makes the socket at its target (S04-architecture,
+// "Inter-process contracts"; S04-03-self-sandboxing, "How `wb-vmd` is
+// started"). Only the user writes the run directory, so nothing appears
+// at path between the lstat and the bind.
+func listenFile(log *slog.Logger, path string) (*os.File, error) {
+	if fi, err := os.Lstat(path); !errors.Is(err, fs.ErrNotExist) {
+		r := &UnsafeEndpointError{Path: path, err: err}
+		if err == nil {
+			r.Type = fi.Mode().Type()
+		}
+		log.LogAttrs(context.Background(), slog.LevelWarn, "wb-vmd socket refused",
+			slog.String("decision", "refuse"), slog.String("rule", string(localipc.RuleEndpointUnsafe)),
+			slog.String("endpoint", path), slog.String("reason", r.Error()))
+		return nil, r
+	}
 	ln, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
 	if err != nil {
 		return nil, err

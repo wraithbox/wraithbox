@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -375,6 +376,48 @@ func TestCrashKeepsLastError(t *testing.T) {
 	if strings.Contains(h.log.String(), "vmd-state-stream-ended") {
 		t.Errorf("wb-hostd logged that it ended a wb-vmd that had exited:\n%s", h.log.String())
 	}
+}
+
+// ClearLeftovers removes the sockets a crashed wb-hostd left, and
+// leaves every other file: one of another name, and one of a socket's
+// name that isn't a socket, which it logs with its rule.
+func TestClearLeftovers(t *testing.T) {
+	h := newHarness(t)
+	for _, name := range []string{"vmd-work-3.sock", "vmd-isolated-7.sock", "wb-hostd.sock"} {
+		leftover(t, filepath.Join(h.runDir, name))
+	}
+	notSocket := filepath.Join(h.runDir, "vmd-work-9.sock")
+	if err := os.Symlink(filepath.Join(h.runDir, "elsewhere"), notSocket); err != nil {
+		t.Fatal(err)
+	}
+	n, err := h.provider.ClearLeftovers(t.Context())
+	if err != nil || n != 2 {
+		t.Fatalf("ClearLeftovers = %d, %v; want 2 removed", n, err)
+	}
+	for _, name := range []string{"vmd-work-3.sock", "vmd-isolated-7.sock"} {
+		if _, err := os.Lstat(filepath.Join(h.runDir, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("%s is still there: %v", name, err)
+		}
+	}
+	for _, name := range []string{"wb-hostd.sock", "vmd-work-9.sock"} {
+		if _, err := os.Lstat(filepath.Join(h.runDir, name)); err != nil {
+			t.Errorf("%s was removed: %v", name, err)
+		}
+	}
+	if !strings.Contains(h.log.String(), `"rule":"ipc-endpoint-unsafe"`) {
+		t.Errorf("the link isn't logged with its rule:\n%s", h.log.String())
+	}
+}
+
+// leftover leaves a socket file with no listener, as a crash does.
+func leftover(t *testing.T, path string) {
+	t.Helper()
+	ln, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln.SetUnlinkOnClose(false)
+	_ = ln.Close()
 }
 
 // A wb-vmd of another build version is refused, and Open says so.
