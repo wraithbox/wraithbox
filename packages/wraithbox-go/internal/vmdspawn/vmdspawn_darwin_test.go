@@ -179,25 +179,26 @@ func TestSpawnBothSlotsAtOnce(t *testing.T) {
 	markRunnerDescriptors()
 	dir := runDir(t)
 	slots := []string{"work", "isolated"}
-	procs := make([]*vmdspawn.Process, len(slots))
+	spawned := make([]*vmdspawn.Process, len(slots))
 	logs := make([]*lines, len(slots))
 	errs := make([]error, len(slots))
 	var wg sync.WaitGroup
 	for n, slot := range slots {
 		logs[n] = &lines{}
-		wg.Go(func() { procs[n], errs[n] = vmdspawn.Start(t.Context(), config(t, dir, slot, own, logs[n])) })
+		cfg := config(t, dir, slot, own, logs[n])
+		wg.Go(func() { spawned[n], errs[n] = vmdspawn.Start(t.Context(), cfg) })
 	}
 	wg.Wait()
 	for n, slot := range slots {
 		if errs[n] != nil {
 			t.Fatalf("start %s: %v", slot, errs[n])
 		}
-		t.Cleanup(func() { _ = procs[n].Close() })
+		t.Cleanup(func() { _ = spawned[n].Close() })
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	for n, slot := range slots {
-		if _, err := procs[n].Client.GetState(ctx, &vmdv1.GetStateRequest{}); err != nil {
+		if _, err := spawned[n].Client.GetState(ctx, &vmdv1.GetStateRequest{}); err != nil {
 			t.Errorf("GetState of %s: %v; log: %s", slot, err, logs[n])
 		}
 		if !strings.Contains(logs[n].String(), `"slot":"`+slot+`"`) {
