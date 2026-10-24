@@ -275,6 +275,10 @@ func TestExitMarksStopped(t *testing.T) {
 	if s := waitStopped(t, m, vm.SlotWork); s.Generation != 1 {
 		t.Errorf("after the exit = %+v", s)
 	}
+	// wb-vmd exited on its own, so wb-hostd ended nothing.
+	if strings.Contains(h.log.String(), "vmd-state-stream-ended") {
+		t.Errorf("wb-hostd logged that it ended a wb-vmd that had exited:\n%s", h.log.String())
+	}
 	// The next start spawns a new wb-vmd with a new socket.
 	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
 		t.Fatalf("second start: %v", err)
@@ -322,6 +326,9 @@ func TestProviderCloseEndsAll(t *testing.T) {
 	if _, err := h.provider.Open(t.Context(), vm.SlotWork, 9); err == nil {
 		t.Error("Open after Close succeeded")
 	}
+	if n := strings.Count(h.log.String(), `"msg":"wb-vmd started"`); n != len(vm.Slots()) {
+		t.Errorf("%d wb-vmd started, want %d: Open after Close spawned one", n, len(vm.Slots()))
+	}
 }
 
 // A wb-vmd whose state stream ends while it runs is ended, with the
@@ -336,6 +343,37 @@ func TestStreamEndedEndsVMD(t *testing.T) {
 	h.waitEvent(vm.SlotWork, "lifeline-closed")
 	if !strings.Contains(h.log.String(), `"rule":"vmd-state-stream-ended"`) {
 		t.Errorf("no vmd-state-stream-ended in wb-hostd's log:\n%s", h.log.String())
+	}
+	// The fake's 4 KiB status message is cut to the provider text bound.
+	if !strings.Contains(h.log.String(), "[cut]") || strings.Contains(h.log.String(), strings.Repeat("x", 2048)) {
+		t.Errorf("the stream's error text isn't cut in wb-hostd's log:\n%s", h.log.String())
+	}
+}
+
+// A wb-vmd whose VM fails sends ERROR with the framework's error, then
+// exits. The manager gets that last state, so the end of the run is
+// recorded with the error, and wb-hostd doesn't log that it ended
+// wb-vmd.
+func TestCrashKeepsLastError(t *testing.T) {
+	h := newHarness(t)
+	h.cfg.Resources.MemoryMiB = vmdfake.CrashMemoryMiB
+	m := h.manager()
+	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	waitStopped(t, m, vm.SlotWork)
+	deadline := time.Now().Add(10 * time.Second)
+	for !strings.Contains(h.log.String(), `"msg":"vm stopped"`) {
+		if time.Now().After(deadline) {
+			t.Fatalf("no vm stopped record:\n%s", h.log.String())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !strings.Contains(h.log.String(), `"failure_reason":"`+vmdfake.CrashReason+`"`) {
+		t.Errorf("the run's end has no framework error:\n%s", h.log.String())
+	}
+	if strings.Contains(h.log.String(), "vmd-state-stream-ended") {
+		t.Errorf("wb-hostd logged that it ended a wb-vmd that had exited:\n%s", h.log.String())
 	}
 }
 

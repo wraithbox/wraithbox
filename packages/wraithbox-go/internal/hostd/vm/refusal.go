@@ -127,7 +127,7 @@ func (m *Manager) refuse(ctx context.Context, op string, r *Refusal) *Refusal {
 		attrs = append(attrs, vmErrorAttrs(r.VMError, r.Rule))
 	}
 	if r.err != nil {
-		attrs = append(attrs, slog.String("cause", bound(r.err.Error())))
+		attrs = append(attrs, slog.String("cause", BoundText(r.err.Error())))
 	}
 	m.log.LogAttrs(ctx, slog.LevelWarn, "vm request refused", attrs...)
 	return r
@@ -150,8 +150,8 @@ func cloneVMError(e *vmdv1.VMError) *vmdv1.VMError {
 		return nil
 	}
 	return &vmdv1.VMError{
-		Code: e.GetCode(), FailureReason: bound(e.GetFailureReason()),
-		Errno: e.GetErrno(), Description: bound(e.GetDescription()),
+		Code: e.GetCode(), FailureReason: BoundText(e.GetFailureReason()),
+		Errno: e.GetErrno(), Description: BoundText(e.GetDescription()),
 	}
 }
 
@@ -161,9 +161,10 @@ func cloneVMError(e *vmdv1.VMError) *vmdv1.VMError {
 // they reach the refusal, the log and the slot's status.
 const maxProviderText = 1024
 
-// bound cuts s to maxProviderText bytes, drops a rune the cut split,
-// and marks the cut.
-func bound(s string) string {
+// BoundText cuts s to maxProviderText bytes, drops a rune the cut
+// split, and marks the cut. The vmd provider cuts the texts it logs
+// itself with it (S04-04-vm-processes, "Reaching an instance").
+func BoundText(s string) string {
 	if len(s) <= maxProviderText {
 		return s
 	}
@@ -196,7 +197,7 @@ func providerRefusal(slot Slot, generation uint64, op string, err error) *Refusa
 	if !ok {
 		return &Refusal{
 			Rule: RuleProviderFailed, Slot: slot, Generation: generation, err: err,
-			Message: fmt.Sprintf("the VM provider of the %s VM failed to %s: %s", slot, op, bound(err.Error())),
+			Message: fmt.Sprintf("the VM provider of the %s VM failed to %s: %s", slot, op, BoundText(err.Error())),
 		}
 	}
 	rule := Rule(pr.Rule)
@@ -205,7 +206,7 @@ func providerRefusal(slot Slot, generation uint64, op string, err error) *Refusa
 	}
 	return &Refusal{
 		Rule: rule, Slot: slot, Generation: generation, VMError: cloneVMError(pr.VMError), err: err,
-		Message: fmt.Sprintf("wb-vmd refused to %s the %s VM (%q): %s", op, slot, bound(pr.Rule), bound(pr.Detail)),
+		Message: fmt.Sprintf("wb-vmd refused to %s the %s VM (%q): %s", op, slot, BoundText(pr.Rule), BoundText(pr.Detail)),
 	}
 }
 
@@ -226,7 +227,7 @@ func dataDiskRefusal(slot Slot, err error) *Refusal {
 	}
 	return &Refusal{
 		Rule: RuleDataDiskFailed, Slot: slot, Phase: PhaseStopped, err: err,
-		Message: fmt.Sprintf("the %s VM's data disk step failed: %s", slot, bound(err.Error())),
+		Message: fmt.Sprintf("the %s VM's data disk step failed: %s", slot, BoundText(err.Error())),
 	}
 }
 

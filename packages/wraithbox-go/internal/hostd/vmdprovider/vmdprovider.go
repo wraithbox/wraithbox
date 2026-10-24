@@ -99,6 +99,11 @@ func New(cfg Config) (*Provider, error) {
 // version exchange and sent its first state (SEC08-proj-isolation: each
 // wb-vmd gets only its slot and its own channels).
 func (p *Provider) Open(ctx context.Context, slot vm.Slot, generation uint64) (vm.Instance, error) {
+	// A closed provider spawns nothing. add checks again once wb-vmd
+	// runs, for a Close in between.
+	if p.isClosed() {
+		return nil, errClosed
+	}
 	process := "wb-vmd-" + string(slot)
 	w := p.cfg.Logs(process)
 	proc, err := vmdspawn.Start(ctx, vmdspawn.Config{
@@ -127,11 +132,20 @@ func (p *Provider) Open(ctx context.Context, slot vm.Slot, generation uint64) (v
 	if !p.add(i) {
 		cancel()
 		_ = proc.Close()
-		return nil, errors.New("vmdprovider: the provider is closed")
+		return nil, errClosed
 	}
 	i.states <- first
 	go i.follow(watchCtx, stream)
 	return i, nil
+}
+
+// errClosed is Open's error once the provider is closed.
+var errClosed = errors.New("vmdprovider: the provider is closed")
+
+func (p *Provider) isClosed() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.closed
 }
 
 func (p *Provider) add(i *instance) bool {
@@ -200,9 +214,9 @@ func (i *instance) watch(ctx context.Context) (vmdv1.VMService_WatchStateClient,
 }
 
 // follow passes on each state until the stream ends, then ends wb-vmd
-// and closes States. A stream that ends while wb-vmd may still run
-// leaves its VM's state unknown, so wb-vmd is ended too: an instance
-// without its states is never kept (S04-07-supervision, "`wb-vmd` and
+// and closes States. A stream that ends while wb-vmd still runs leaves
+// its VM's state unknown, so wb-vmd is ended too: an instance without
+// its states is never kept (S04-07-supervision, "`wb-vmd` and
 // `wb-vmd-install`"). ctx is cancelled by Close, whose end is no
 // decision of follow's.
 func (i *instance) follow(ctx context.Context, stream vmdv1.VMService_WatchStateClient) {
@@ -214,20 +228,53 @@ func (i *instance) follow(ctx context.Context, stream vmdv1.VMService_WatchState
 		if resp, err = stream.Recv(); err != nil {
 			break
 		}
-		select {
-		case i.states <- resp.GetState():
-		case <-i.proc.Exited():
-		}
+		i.pass(resp.GetState())
 	}
-	select {
-	case <-i.proc.Exited():
-	case <-ctx.Done():
-	default:
+	if !i.endedOnItsOwn(ctx) {
+		// The text is wb-vmd's choice, so it is cut as every other text
+		// from wb-vmd is (S04-04-vm-processes, "Reaching an instance").
 		i.log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd ended: its state stream ended",
 			slog.String("decision", "end"), slog.String("rule", "vmd-state-stream-ended"),
-			slog.String("slot", string(i.slot)), slog.Int("pid", i.proc.Pid()), slog.String("error", err.Error()))
+			slog.String("slot", string(i.slot)), slog.Int("pid", i.proc.Pid()),
+			slog.String("error", vm.BoundText(err.Error())))
 	}
 	_ = i.proc.Close()
+}
+
+// pass hands st to the manager. A state that fits the buffer is never
+// dropped, not even when wb-vmd has exited since: its last state, such
+// as an ERROR with the framework's error, is the one the manager needs.
+// Only while the buffer is full does wb-vmd's exit end the wait.
+func (i *instance) pass(st *vmdv1.VMState) {
+	select {
+	case i.states <- st:
+		return
+	default:
+	}
+	select {
+	case i.states <- st:
+	case <-i.proc.Exited():
+	}
+}
+
+// exitGrace is how long follow waits, once the stream ended, for a
+// wb-vmd that exited on its own to be reaped. Its socket closes as it
+// exits, so the stream can end before Exited is closed.
+const exitGrace = 2 * time.Second
+
+// endedOnItsOwn reports whether the stream ended because wb-vmd exited
+// or because Close ended it, rather than while wb-vmd still runs.
+func (i *instance) endedOnItsOwn(ctx context.Context) bool {
+	timer := time.NewTimer(exitGrace)
+	defer timer.Stop()
+	select {
+	case <-i.proc.Exited():
+		return true
+	case <-ctx.Done():
+		return true
+	case <-timer.C:
+		return false
+	}
 }
 
 // Start implements vm.Instance. A refused start keeps wb-vmd's rule.
