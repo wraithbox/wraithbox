@@ -51,6 +51,10 @@ guestconn
 ratelog
 vmhandoff
 vmdlink
+vmdspawn
+vmdfake
+vmdprovider
+diskclone
 guestclock
 guesttools
 guestupdate
@@ -175,6 +179,8 @@ maxdgram
 socketpairs
 adddup
 clonefile
+fclonefileat
+reflink
 CLOEXEC
 VMADDR
 confstr

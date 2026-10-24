@@ -46,7 +46,7 @@ type Provider struct {
 }
 
 // Open implements vm.Provider.
-func (p *Provider) Open(ctx context.Context, slot vm.Slot) (vm.Instance, error) {
+func (p *Provider) Open(ctx context.Context, slot vm.Slot, _ uint64) (vm.Instance, error) {
 	if p.OpenErr != nil {
 		return nil, p.OpenErr
 	}

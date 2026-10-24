@@ -144,7 +144,7 @@ func (m *Manager) open(ctx context.Context, slot Slot, generation uint64) (Insta
 	}
 	answer := make(chan opened, 1)
 	go func() {
-		inst, err := m.cfg.Provider.Open(context.WithoutCancel(ctx), slot)
+		inst, err := m.cfg.Provider.Open(context.WithoutCancel(ctx), slot, generation)
 		answer <- opened{inst, err}
 	}()
 	timer := time.NewTimer(m.cfg.StartTimeout)
@@ -185,7 +185,7 @@ func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error 
 	rec := m.slots[slot]
 	rec.run, rec.generation, rec.lastErr = r, generation, nil
 	m.mu.Unlock()
-	go m.watch(context.WithoutCancel(ctx), r)
+	m.runs.Go(func() { m.watch(context.WithoutCancel(ctx), r) })
 
 	// The configured caps reach wb-vmd on every start
 	// (SEC13-bounded-resources).

@@ -14,7 +14,7 @@ OS:
 | **VM provider** (`wb-vmd`) | Create, start, stop, save, restore VMs; disks; devices | Swift, Virtualization framework | Go, Host Compute Service (HCS) | Go, supervising a VMM over KVM (spike X10-linux-hypervisor; X16-openshell-linux checks OpenShell's VM driver first) |
 | **Host-guest socket** | Byte streams between `wb-hostd` and `wb-guestd` | virtio-vsock ("Host-guest socket on macOS") | Hyper-V sockets | virtio-vsock |
 | **Packet transport** | Guest Ethernet frames to and from `wb-netd`, without host privileges | file-handle network attachment ("Packet transport on macOS") | spike X11-windows-host | spike X10-linux-hypervisor |
-| **Disk cloning** | Copy-on-write images | APFS clones | VHDX differencing disks | qcow2 backing files, or reflinks where the filesystem supports them |
+| **Disk cloning** | Copy-on-write images (`internal/platform/diskclone`) | APFS clones, `fclonefileat` | VHDX differencing disks | qcow2 backing files, or reflinks where the filesystem supports them |
 | **Local IPC** | Host gRPC endpoints, peer identity (`internal/platform/localipc`) | Unix sockets in `<data>/run`, peer credentials | named pipes, user-SID ACL, client process id | Unix sockets, `SO_PEERCRED` |
 | **Secret store** | Holds every credential. Each item is readable only by the processes S15-least-privilege declares for it | Keychain | Credential Manager (DPAPI, per user) | Secret Service (D-Bus); see "Secret store on Linux without a desktop session" |
 | **Hardware key** | Non-exportable CA signing key (S09-06-ca-keys, "Key") | Secure Enclave, a key kept as its wrapped form in a store item | TPM via the CNG platform crypto provider | TPM 2.0 where present, else a software key in the secret store |
