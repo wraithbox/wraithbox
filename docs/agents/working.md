@@ -3,7 +3,7 @@
 This page is for every agent that takes one issue: the builder, the
 spike builder, the researcher and the reviewers, and a session that
 works alone. It covers picking up and claiming an issue, the labels a worker
-sees, follow-ups, decisions and the platform. How a coordinator runs
+sees, large doc changes, follow-ups, decisions and the platform. How a coordinator runs
 waves is in `orchestration.md`, how issues are cut, ordered and triaged
 in `planning.md`, and spikes in `spikes.md`.
 
@@ -124,8 +124,9 @@ together (a `.proto` change and both its Go and Swift sides, for
 example).
 
 An issue labeled `area:research` is a research issue. Its type is
-`documentation`, it has no other area label, and the `researcher`
-agent takes it (`orchestration.md`, "A wave", step 3). A change the
+`documentation`, and it has no other area label: `area:research` alone
+covers the R00-index, `github-refs.json` and the word-list edits a note
+brings with it. The `researcher` agent takes it (`orchestration.md`, "A wave", step 3). A change the
 research calls for elsewhere is proposed as a new issue
 ("Follow-ups").
 
@@ -165,6 +166,13 @@ against `main` only, so the builder triggers
 so its commits get new SHAs), retarget with `gh pr edit <n> --base main`
 and rebase. Never amend or force-push a branch another branch is stacked
 on; append a commit instead.
+
+## Large doc changes
+
+A rewrite that spans many specs or pages (a split, a restructure, a
+style pass) gets a fixed definition of done before it starts, at most
+one revision of the plan after a pilot page, and no design changes on
+the way. Findings go on a list and are settled after it merges.
 
 ## Follow-ups
 

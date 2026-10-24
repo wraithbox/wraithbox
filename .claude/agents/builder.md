@@ -20,7 +20,8 @@ Your prompt names the issue, the branch, and what other builders are
 changing at the same time. Everything else is here. An issue labeled
 `spike` goes to the `spike-builder` agent, and one labeled
 `area:research` to `researcher`. If your prompt hands you one, stop
-and report it.
+and report it, unless it is a rebase item: a rebase is yours whatever
+the closing issue's labels.
 
 ## Steps
 

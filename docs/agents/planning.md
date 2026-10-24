@@ -8,8 +8,8 @@ them by name.
 
 This page is for coordinators: the dispatcher, a wave lead, and a
 session that files or triages issues. The labels a worker sees,
-follow-ups and decisions are in `working.md`, and spikes in
-`spikes.md`.
+large doc changes, follow-ups and decisions are in `working.md`, and
+spikes in `spikes.md`.
 
 ## Where work comes from
 
@@ -96,13 +96,6 @@ An issue that holds a list (ideas, deferred items) is not a task. Triage
 splits it: each kept entry becomes its own sub-issue
 (`gh issue create --parent <list>`), each dropped entry is named in the
 closing comment with the reason, and the list issue closes.
-
-## Large doc changes
-
-A rewrite that spans many specs or pages (a split, a restructure, a
-style pass) gets a fixed definition of done before it starts, at most
-one revision of the plan after a pilot page, and no design changes on
-the way. Findings go on a list and are settled after it merges.
 
 ## Dependencies and relationships
 
