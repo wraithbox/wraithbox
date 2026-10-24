@@ -104,7 +104,8 @@ func (c *Conn) Peer() Peer { return c.peer }
 // server serves it directly. Close removes the socket file.
 type Listener struct {
 	ln *net.UnixListener
-	// lock holds the endpoint's flock for the listener's life.
+	// lock holds the endpoint's flock for the listener's life, unless
+	// KeepLock took it out.
 	lock     *os.File
 	log      *slog.Logger
 	endpoint string
@@ -145,6 +146,18 @@ func (l *Listener) Close() error {
 		}
 	}
 	return err
+}
+
+// KeepLock takes the endpoint's lock out of the listener, so Close stops
+// listening and removes the socket file but keeps the lock. The returned
+// release releases it, and the caller calls it after Close. A caller
+// whose work outlives its listener, such as wb-hostd ending its wb-vmd processes
+// after its gRPC server closed the listener, holds the lock until that
+// work is done. Call KeepLock once, before the listener is served.
+func (l *Listener) KeepLock() (release func() error) {
+	lock := l.lock
+	l.lock = nil
+	return lock.Close
 }
 
 // Addr returns the endpoint's address.

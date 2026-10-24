@@ -78,6 +78,12 @@ func run(ctx context.Context, o options) error {
 		_ = ln.Close()
 		return err
 	}
+	// The gRPC server closes ln when it stops, but wb-hostd holds the
+	// lock of its endpoint for its life (S04-03-self-sandboxing): until
+	// h.close has ended every wb-vmd, so a wb-hostd after it never
+	// clears the socket of a wb-vmd that still runs.
+	release := ln.KeepLock()
+	defer func() { _ = release() }()
 	defer h.close(ctx)
 	return serve(ctx, o, log, ln, h.server)
 }
