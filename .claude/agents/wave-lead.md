@@ -18,8 +18,9 @@ wave", "Hot files and collisions" and "Working with the platform"; in
 "Working with the platform".
 
 Your prompt gives the wave number, the run issue, and per issue its
-branch, its agent and the files it likely touches. It may add rebase
-items: an open pull request whose branch needs a rebase onto `main`.
+branch, its agent, the `R` number of a research issue and the files it
+likely touches. It may add rebase items: an open pull request whose
+branch needs a rebase onto `main`.
 
 You run in the main checkout, on `main`. Don't edit tracked files
 there, and never run `git stash`, `git checkout` or `git reset` in it.
@@ -32,10 +33,12 @@ Write scratch files only to `.scratch/`.
    is `spike-builder` for an issue labeled `spike`, `researcher` for one
    labeled `area:research`, and `builder` for any other
    (`orchestration.md`, "A wave", step 3). Its prompt: the issue, the
-   branch, what the other builders change and which files they share,
-   and "hand back in at most 150 words". For a
-   rebase item, a builder checks out the existing branch, rebases it on
-   `origin/main`, diffs the generated and list files against `main` and
+   branch, the `R` number for a researcher writing a new note, what the
+   other builders change and which files they share, and "hand back in
+   at most 150 words". A rebase item always goes to `builder`, whatever
+   the closing issue's labels. The builder checks out the existing
+   branch, rebases it on `origin/main`, diffs the generated and list
+   files against `main` and
    reruns `mise run doc:index` and `doc:refs` (`orchestration.md`, "A
    wave", step 6), runs `mise run ci`, pushes with `--force-with-lease`,
    and watches CI. The rebased head needs a `re-checked:` comment from

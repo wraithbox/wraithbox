@@ -80,10 +80,14 @@ the pull request body, its reviews and the issue before you change
 anything. Keep the choices in "Choices made" that the review didn't
 question. Fix the findings in new commits and run `mise run ci`. Don't
 rebase and don't force-push: add commits on top, push, and watch CI
-with `mise run ci-watch` as in step 7. If you push another spike commit
-later, move the permalink to it in the same round. The coordinator tags
-that commit when the result merges. Don't tag it yourself. Hand back
-the new head's full hash, the CI result, and the follow-ups you filed.
+with `mise run ci-watch` as in step 7. To add a spike commit, switch to
+the spike branch when you created it in this worktree, or make a local branch
+of another name from `origin/spike/x<NN>-<slug>` and push with
+`git push origin HEAD:spike/x<NN>-<slug>`. In the same round, move the
+result page's permalink to the new head of the spike branch. The
+coordinator tags that commit when the result merges. Don't tag it
+yourself. Hand back the new head's full hash, the CI result, and the
+follow-ups you filed.
 
 ## Self-check before the first push of the result
 
