@@ -81,7 +81,7 @@ risks.
 | Secret sources | Environment, file, AWS, Vault, 1Password | The platform's secret store (S09-05-credentials) |
 | CA key | A file | A Secure Enclave key per CA (S09-06-ca-keys) |
 | Content checks | An LLM judge, MCP tool rules, external gRPC transforms | The dependency gate, through OpenShell's middleware API (S07-12-dependency-gate) |
-| Audit | JSON and OTLP, request bodies when asked | OCSF 1.8.0 JSONL, never bodies or credential values (SEC10-audit) |
+| Audit | JSON and OTLP, request bodies when asked | OCSF 1.8.0 JSONL, never bodies or credential values (S09-11-audit) |
 | Users | Operators of CI and container fleets | One developer on their own machine |
 
 **Overlap.** iron-proxy does the job of `wb-proxyd`, and the DNS half
@@ -116,9 +116,10 @@ between building and reusing. That choice is open now, because
   SDK, two 1Password SDKs (one a fork through a `replace` line), a
   PostgreSQL parser, OpenTelemetry and gRPC.
 
-What would be left to reuse is the parts that Go's standard library
-already gives `wb-proxyd`: TLS termination, the leaf cache and the
-upstream transport.
+Besides a few packages and tests that could be copied, what is left
+to reuse is the parts that Go's standard library already gives
+`wb-proxyd`: TLS termination, the leaf cache and the upstream
+transport.
 
 **Shared ideas.** iron-proxy's `TransformService` and OpenShell's
 supervisor middleware, which the dependency gate implements in process
@@ -138,7 +139,7 @@ the action would need an allowlist entry (`docs/github-settings.md`).
 The difference that matters most is how each one puts a credential
 into a request.
 
-iron-proxy's `secrets` transform has two modes:
+iron-proxy's `secrets` transform works in one of these modes:
 
 - `inject` sets one header or query parameter to the secret on
   requests that match the entry's rules.
@@ -242,8 +243,8 @@ guest can't turn it off. iron-proxy shows what such a layer looks like
 in a shipping proxy:
 
 - the `judge` transform, which only refuses, fails closed by default,
-  and runs before credential injection so the model provider sees
-  placeholders;
+  and, when placed before `secrets` as its README recommends, sends
+  the model provider placeholders rather than credentials;
 - MCP decisions, with the tool and the reason, in each audit record;
 - `body_capture`, which writes request bodies, such as prompts, to the
   audit log;
@@ -254,7 +255,7 @@ revoke one grant.
 
 A judge in `wb-proxyd` would send request content from the host to a
 model provider. That is new egress from the host, it costs money per
-request, and it sends data that SEC10-audit never records. Bodies in
+request, and it sends data that S09-11-audit never records. Bodies in
 the audit log would break that rule too. The open question of
 R01-defenseclaw stands: which layer detects what, and what a finding
 makes Wraith Box or the user do.

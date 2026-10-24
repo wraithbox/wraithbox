@@ -56,9 +56,6 @@ guesttools
 guestupdate
 
 # Virtualization, networking and OS facilities
-nftables
-TPROXY
-Streamable
 execve
 libexec
 fstype
@@ -155,6 +152,8 @@ WPAD
 CGNAT
 ALPN
 middleboxes
+nftables
+TPROXY
 ASIF
 libuv
 SYSTEMROOT
@@ -426,6 +425,7 @@ blocklist
 defenseclaw
 exfiltration
 Rego
+Streamable
 ctkd
 mesu
 routetable
