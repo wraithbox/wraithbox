@@ -15,6 +15,8 @@
 // MemoryMiB FailMemoryMiB fails as the framework's would: wb-vmd
 // publishes ERROR with the error, then refuses with vm-start-failed.
 // After a start with EndStreamsMemoryMiB, every WatchState stream ends.
+// After a start with CrashMemoryMiB, the VM fails as it runs: wb-vmd
+// publishes ERROR with the error, and exits 1 once it has sent it.
 //
 // It is not test code because two packages' tests use it. Nothing but
 // tests imports it.
@@ -30,6 +32,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
@@ -53,6 +56,18 @@ const FailMemoryMiB = 1
 // which the fake ends every WatchState stream with an error and keeps
 // running.
 const EndStreamsMemoryMiB = 2
+
+// CrashMemoryMiB is the memory size whose start succeeds, after which
+// the VM fails with CrashReason and the fake exits 1.
+const CrashMemoryMiB = 3
+
+// CrashReason is the failure reason of the VM error after a start with
+// CrashMemoryMiB.
+const CrashReason = "fake-crash"
+
+// endStreamText is the status message of an ended WatchState stream.
+// It is longer than wb-hostd logs any text of wb-vmd's.
+var endStreamText = "the fake ended the stream: " + strings.Repeat("x", 4096)
 
 // The rules of the fake's refusals, as wb-vmd names them.
 const (
@@ -89,7 +104,7 @@ func Main(own string, check func() error) int {
 		logLine(map[string]any{"event": "listen-failed", "error": err.Error()})
 		return 1
 	}
-	vmd := &server{own: own, tx: tx, state: &vmdv1.VMState{State: vmdv1.State_STATE_STOPPED}}
+	vmd := &server{own: own, tx: tx, state: &vmdv1.VMState{State: vmdv1.State_STATE_STOPPED}, errorSent: make(chan struct{})}
 	srv := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
 	vmdv1.RegisterVMServiceServer(srv, vmd)
 	go func() { _ = srv.Serve(&exchangeListener{Listener: ln, own: own}) }()
@@ -127,6 +142,10 @@ type server struct {
 
 	own string
 	tx  *fdchan.Channel
+
+	// errorSent is closed once a stream has sent the ERROR of a crash.
+	errorSent     chan struct{}
+	errorSentOnce sync.Once
 
 	mu       sync.Mutex
 	state    *vmdv1.VMState
@@ -174,10 +193,29 @@ func (s *server) Start(_ context.Context, req *vmdv1.StartRequest) (*vmdv1.Start
 		return nil, refusal(codes.FailedPrecondition, RuleStartFailed, "the VM failed to start")
 	}
 	s.publish(&vmdv1.VMState{Generation: g, State: vmdv1.State_STATE_RUNNING})
-	if req.GetMemoryMib() == EndStreamsMemoryMiB {
+	switch req.GetMemoryMib() {
+	case EndStreamsMemoryMiB:
 		s.endStreams()
+	case CrashMemoryMiB:
+		go s.crash(g)
 	}
 	return &vmdv1.StartResponse{}, nil
+}
+
+// crash publishes ERROR with CrashReason, waits until a stream has sent
+// it, and exits 1, as a wb-vmd whose VM failed does.
+func (s *server) crash(g uint64) {
+	s.publish(&vmdv1.VMState{
+		Generation: g, State: vmdv1.State_STATE_ERROR,
+		Error: &vmdv1.VMError{Code: 3, FailureReason: CrashReason, Description: "the fake VM failed"},
+	})
+	select {
+	case <-s.errorSent:
+	case <-time.After(5 * time.Second):
+	}
+	// Send has queued the state, and the transport writes it soon after.
+	time.Sleep(100 * time.Millisecond)
+	os.Exit(1)
 }
 
 // endStreams ends every WatchState stream after the states it has.
@@ -223,10 +261,13 @@ func (s *server) WatchState(_ *vmdv1.WatchStateRequest, stream grpc.ServerStream
 		select {
 		case st, ok := <-w:
 			if !ok {
-				return status.Error(codes.Unavailable, "the fake ended the stream")
+				return status.Error(codes.Unavailable, endStreamText)
 			}
 			if err := stream.Send(&vmdv1.WatchStateResponse{State: st}); err != nil {
 				return err
+			}
+			if st.GetError().GetFailureReason() == CrashReason {
+				s.errorSentOnce.Do(func() { close(s.errorSent) })
 			}
 		case <-stream.Context().Done():
 			return nil
