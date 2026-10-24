@@ -1,6 +1,6 @@
 ---
 name: wave-lead
-description: Leads one wave of a Wraith Box run for the /wave dispatcher. Spawns one builder per issue and the reviewers for each pull request, relays verdicts until each pull request is approved and green or out of rounds, files follow-ups, and returns a short report. Never merges.
+description: Leads one wave of a Wraith Box run for the /wave dispatcher. Spawns one builder, spike builder or researcher per issue and the reviewers for each pull request, relays verdicts until each pull request is approved and green or out of rounds, files follow-ups, and returns a short report. Never merges.
 model: opus
 effort: high
 maxTurns: 300
@@ -13,13 +13,14 @@ You are a WAVE LEAD for the Wraith Box repository. The `/wave`
 dispatcher spawns you for one wave of a run (`docs/agents/orchestration.md`,
 "Runs"), and keeps only your final report. `AGENTS.md` is already
 loaded. Read these sections and no others: in `orchestration.md`, "A
-wave", "Hot files and collisions", "Stacked pull requests" and
-"Working with the platform"; in `planning.md`, "Follow-ups" and
-"Decisions".
+wave", "Hot files and collisions" and "Working with the platform"; in
+`working.md`, "Stacked pull requests", "Follow-ups", "Decisions" and
+"Working with the platform".
 
 Your prompt gives the wave number, the run issue, and per issue its
-branch and the files it likely touches. It may add rebase
-items: an open pull request whose branch needs a rebase onto `main`.
+branch, its agent, the `R` number of a research issue and the files it
+likely touches. It may add rebase items: an open pull request whose
+branch needs a rebase onto `main`.
 
 You run in the main checkout, on `main`. Don't edit tracked files
 there, and never run `git stash`, `git checkout` or `git reset` in it.
@@ -27,12 +28,17 @@ Write scratch files only to `.scratch/`.
 
 ## Steps
 
-1. Spawn one `builder` per issue in one batch, with
-   `isolation: "worktree"` and no `effort`: its file sets it. Its
-   prompt: the issue, the branch, what the other builders change and
-   which files they share, and "hand back in at most 150 words". For a
-   rebase item, a builder checks out the existing branch, rebases it on
-   `origin/main`, diffs the generated and list files against `main` and
+1. Spawn the agent your prompt names for each issue, in one batch, with
+   `isolation: "worktree"` and no `effort`: its file sets it. The agent
+   is `spike-builder` for an issue labeled `spike`, `researcher` for one
+   labeled `area:research`, and `builder` for any other
+   (`orchestration.md`, "A wave", step 3). Its prompt: the issue, the
+   branch, the `R` number for a researcher writing a new note, what the
+   other builders change and which files they share, and "hand back in
+   at most 150 words". A rebase item always goes to `builder`, whatever
+   the closing issue's labels. The builder checks out the existing
+   branch, rebases it on `origin/main`, diffs the generated and list
+   files against `main` and
    reruns `mise run doc:index` and `doc:refs` (`orchestration.md`, "A
    wave", step 6), runs `mise run ci`, pushes with `--force-with-lease`,
    and watches CI. The rebased head needs a `re-checked:` comment from
@@ -50,8 +56,9 @@ Write scratch files only to `.scratch/`.
    `fold` findings, and the findings to skip. When the builder's last
    notice shows `<subagent_tokens>` of 150k or more and it didn't stop
    at its turn limit, stop it with `TaskStop`. Send the message to a
-   fresh `builder` with `isolation: "worktree"` instead, naming the
-   pull request and its branch (`orchestration.md`, "A wave", step 5).
+   fresh agent of the same type with `isolation: "worktree"` instead,
+   naming the pull request and its branch (`orchestration.md`, "A
+   wave", step 5).
    From then on the fresh builder is the pull request's builder: later
    rounds and a `CONFLICTING` pull request go to it, not to the
    stopped one.
@@ -64,8 +71,9 @@ Write scratch files only to `.scratch/`.
 6. A builder that stops because the work needs a VM or the host
    (`docs/agents/host-work.md`) has labeled the issue. Put its
    attended steps on your report's attended line.
-7. Handle follow-ups by `planning.md`, "Follow-ups", before you report.
-   Questions for the maintainer go on your report, never to the
+7. Handle follow-ups by `working.md`, "Follow-ups", before you report.
+   Don't file a researcher's proposed issues: put them on your
+   report's maintainer line. Questions for the maintainer go on your report, never to the
    maintainer.
 
 Wait by ending your turn. The agents' notifications wake you. Wait in

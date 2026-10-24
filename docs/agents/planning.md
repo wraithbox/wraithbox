@@ -1,10 +1,15 @@
-# Planning: issues, labels, spikes, and milestones
+# Planning: issues, milestones, and triage
 
 How work on Wraith Box is cut into GitHub issues, so that many agents can
 pick it up in parallel without asking. `orchestration.md` says how the
 agents then build and review it. Generic labels and issue templates (type,
 priority, triage status) belong to the issue-tracker setup; this page uses
 them by name.
+
+This page is for coordinators: the dispatcher, a wave lead, and a
+session that files or triages issues. The labels a worker sees,
+large doc changes, follow-ups and decisions are in `working.md`, and
+spikes in `spikes.md`.
 
 ## Where work comes from
 
@@ -20,161 +25,6 @@ Order of work, top down:
    version page's order ("Milestones" below).
 2. Within it, **spikes** before anything that depends on them.
 3. Then by `priority:` label, then by issue number.
-
-## Labels
-
-Every open work issue carries:
-
-- exactly one **type**: `bug`, `enhancement`, `spike`, `documentation` or
-  `chore`;
-- one **triage status**: `needs-triage`, `needs-info`, `ready-for-agent`
-  or `ready-for-human` (none in the `post-V1` milestone,
-  "Milestones"), plus `needs-vm` when it needs a running macOS guest
-  and `needs-host` when it needs the maintainer's Mac itself
-  (`host-work.md`);
-- at least one **area** label (`area:*`);
-- zero to two **component** labels (`comp:*`), when the work belongs to a
-  process from S04-architecture;
-- optionally a `priority:` label.
-
-No label says an issue is blocked. A `blockedBy` relationship does
-("Dependencies and relationships").
-
-The area and component labels are recorded in `.github/labels-areas.yml`
-(the generic ones in `.github/labels.yml`, see `issue-tracker.md`).
-Change the file, then apply it with `mise run gh:labels`.
-
-### Area: where the change lands
-
-| Label | Covers | `mise run` tasks to run while working |
-|---|---|---|
-| `area:go` | `packages/wraithbox-go` | `go:lint`, `go:test`, `go:cross` |
-| `area:swift` | `packages/wraithbox-swift` | `swift:lint`, `swift:test` |
-| `area:doc` | `packages/wraithbox-doc` | `doc:check`, `doc:build` |
-| `area:spec` | `docs/spec/` | read-through against the requirement IDs |
-| `area:ci` | `.github/`, `.mise.toml`, lockfiles, dependabot | `gha:lint`, `audit`, `vuln` |
-| `area:agents` | `AGENTS.md`, `.claude/`, `docs/agents/` | read-through; restart to test |
-
-The area is mechanical: it follows the paths the change touches, and it
-tells the builder which toolchain and the reviewer which checks matter.
-`mise run ci` is the gate before every push regardless.
-
-An issue that touches two packages gets both area labels. Prefer
-splitting it, so each half has one area, unless the halves must land
-together (a `.proto` change and both its Go and Swift sides, for
-example).
-
-### Component: which process it belongs to
-
-| Label | Process or interface | Main specs |
-|---|---|---|
-| `comp:wb` | `wb` CLI, dispatcher, TTY relay | S05-cli, S16-terminal-stream |
-| `comp:wb-hostd` | sessions, git gateway, policy store, approvals, audit | S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit |
-| `comp:wb-vmd` | VM provider (Swift on macOS, Go elsewhere) | S06-vm-lifecycle, S12-platforms |
-| `comp:wb-netd` | userspace network stack, DHCP, DNS | S07-egress-gateway |
-| `comp:wb-proxyd` | HTTP policy, credential replacement, dependency gate | S07-egress-gateway, S09-policy-credentials-audit |
-| `comp:wb-guestd` | in-guest agent: users, PTY exec, git transport | S06-vm-lifecycle, S08-workspace-and-git |
-| `comp:platform` | `internal/platform` interfaces and per-OS code | S12-platforms |
-
-Component labels make it possible to see one process's backlog across
-packages (`wb-vmd` is Swift on macOS and Go elsewhere) and to keep two
-agents from rewriting the same process in one wave. The labels for
-`comp:wb-netd`, `comp:wb-proxyd`, `comp:wb-guestd` and the host-guest
-socket handlers in `comp:wb-hostd` also mark security-sensitive code: a
-pull request with one of them gets a security review
-(`orchestration.md`).
-
-Shared Go code that belongs to no single process (`internal/version`,
-logging, the `.proto` contracts) has an area label and no component.
-
-No label for the conformance suite, benchmarks, or guest images yet. Add
-one to the YAML file when the first issue needs it, and keep the families
-small: a label nobody filters on is noise.
-
-## Spikes
-
-Spikes are the open questions `X01-model-credential` to `X24-openshell-artifacts` in X00-index. They are
-first-class issues, and the first milestone is mostly spikes.
-
-- **One issue per spike**, title `X<NN>-<slug>: <name>` as X00-index defines them, for example
-  `X03-network-path: Network path`. Labels: `spike`, the area where the
-  throwaway code will live, and the component it informs. The body quotes
-  the question from X00-index and states the yes/no answer it needs, what
-  will be measured, and which requirement IDs depend on it.
-- **IDs are stable.** A new open question is added to X00-index first,
-  with the next free `X` number, then filed. A spike is never renumbered.
-- **Dependent work is blocked on the spike.** Any issue that builds on
-  a spike's answer is `blocked by` the spike issue (GitHub relationship,
-  see "Dependencies"). `AGENTS.md` forbids building on an unanswered
-  spike; the relationship is how a picker sees that.
-- **Branch and code.** A spike runs on branch `spike/x<NN>-<slug>` (for
-  example `spike/x3-network-path`), with its throwaway code under
-  `spikes/x<NN>-<slug>/` on that branch. That code is not held to the
-  project gates, is never merged to `main`, and the branch is kept as
-  the record.
-- **VM bundles.** A spike that boots a macOS guest keeps its bundles
-  outside the worktree, in `~/Library/Caches/wraithbox-spikes/`:
-  - `restore-images/` holds the shared restore images, which stay.
-  - `x<NN>/` and `x<NN>-<anything>/` hold the bundles of spike
-    `X<NN>`. They are throwaway once the result is written up and its
-    numbers are committed to the spike branch.
-  - `dev/` holds the test bundles that `mise run vm:install` made, such
-    as `dev/base`, and `i<n>/` the clones that issue `<n>` provisions
-    and boots (`host-work.md`, "Gotchas"). `mise run vm:clean i<n>`
-    removes them, with the same refusals as `spike:clean`, plus a
-    bundle whose VM runs, and a `KEEP` file anywhere in the tree.
-
-  `mise run spike:clean x<NN>` removes those directories and prints
-  what it removed and the space freed. It doesn't check for a running
-  VM, so stop the VM and detach any volume mounted from a bundle first.
-  It refuses `restore-images/`, a symbolic link, any path outside the
-  cache, a directory with a volume mounted in it, and a directory that
-  holds a `KEEP` file. Without an argument it lists the cache with
-  sizes and doesn't remove anything. Agents may run it without asking.
-
-  The builder runs it before it hands back a spike, and reports the
-  space freed. When review or an open issue still needs the bundles,
-  the builder keeps them. It comments `Keeping x<NN>/ for #<n>` on the
-  spike's issue, naming the issue that needs them, and writes a `KEEP`
-  file into `x<NN>/` whose first line names that issue
-  (`#228: X08 data disk follow-up`). The maintainer removes the `KEEP`
-  file once that issue closes. When a result merges, the coordinator
-  reads the spike's issue for such a comment. It runs the task unless
-  that comment's issue is still open (`orchestration.md`, "A wave",
-  step 6).
-- **Tag.** When the result pull request merges, the coordinator tags
-  the spike commit that the result page links to with an annotated tag
-  `spike-x<NN>-<slug>` (for example `spike-x19-terminal-filter`) and
-  pushes it. The tag keeps the commit reachable if the branch is ever
-  deleted or rewritten, so the permalink keeps working. The result page
-  links to the head of the spike branch: a builder who adds a spike
-  commit after the first result updates the permalink in the same
-  round. A tag is never moved. If later spike work needs a new record,
-  it gets its own result and tag.
-- **Result.** The answer lands on `main` as a short pull request that
-  adds `docs/spikes/X<NN>-<slug>.md`: the question, the answer
-  (yes / no / yes-with-conditions), the measurements, what it means for
-  the specs, and a permalink to the spike branch commit. It opens with
-  a short **For review** block: what approving the answer commits to,
-  the controls touched, the assumptions, and the open decisions. A
-  result records the answer to a question, and keeps that block, which
-  S01-spec-based-development keeps out of specs. The same
-  pull request adds a review brief (`review-briefs.md`, the `brief`
-  skill), so the maintainer can approve the answer without reading the
-  spike code. The same pull
-  request changes any spec the answer affects, or, if that is too big,
-  files the spec change as an issue. It also links the result from the
-  spike's entry in X00-index. That pull request says
-  `Closes #<spike issue>`. A "no" that makes a requirement unachievable
-  is written up as a spec change and the work stops there
-  (`AGENTS.md`).
-- **No spec text for an undecided option.** When the result leaves a
-  decision open, the spec keeps failing closed (the stricter behavior,
-  or "refused") until the maintainer decides, and the brief holds the
-  options.
-- **A spike only when** the answer could change a `SEC*` control or the
-  design. A measurement that confirms the design becomes a test case
-  (`C*`), not a spike.
 
 ## Milestones
 
@@ -234,7 +84,7 @@ issue (body plus any `Decision (YYYY-MM-DD):` comment) holds:
   pass, the spec status to update.
 - Out of scope, where a reader could reasonably assume otherwise.
 - Blockers, set as relationships.
-- Labels and a milestone as above.
+- Labels (`working.md`, "Labels") and a milestone as above.
 
 An issue that lacks a decision only the maintainer can make is
 `ready-for-human`, with the problem, the options with their cost, and one
@@ -246,70 +96,6 @@ An issue that holds a list (ideas, deferred items) is not a task. Triage
 splits it: each kept entry becomes its own sub-issue
 (`gh issue create --parent <list>`), each dropped entry is named in the
 closing comment with the reason, and the list issue closes.
-
-## Follow-ups
-
-Most review findings are small. These rules keep the backlog to work
-that needs its own issue.
-
-- **Reviewers rate each finding** `must-fix`, `fold` or `drop`. Only a
-  `must-fix` finding makes the verdict `needs changes`. A `fold` finding
-  goes to the builder to fix in the same pull request when it is cheap,
-  or into the component's next issue. A `drop` finding is reported and
-  left.
-- **A follow-up gets its own issue only when** it changes a contract
-  (a `.proto` file or an `internal/platform` interface), belongs to
-  another component, moves where a `SEC*` control is enforced, needs a
-  VM or the maintainer's Mac, needs a maintainer decision, or is more
-  than about 300 lines. Otherwise it is fixed in the pull request,
-  decided in code with a test, or named in the pull request body as part
-  of the component's next issue.
-- **Small spec edits are made, not filed.** When a spike result or a
-  review implies a few lines of spec change and no decision, edit the
-  spec in the same pull request or the next one.
-- **Values belong to code.** A spec states the property and names the
-  rule. Defaults, buffer sizes, retry delays, step lists and message wording
-  are in code, with a comment that names the spec section. The spec
-  changes only when the property changes.
-- **A spec pull request gets one review round**, unless it touches a
-  `SEC*` control or a contract. A second round only for `must-fix`
-  findings.
-- **Test case pages (`C*`) are an index.** A case is done when a test
-  with its ID exists. Detail goes in the test, with a one-line entry on
-  the page.
-- **A follow-up issue is filed `needs-triage` with a parent**, the issue
-  whose work named it. A run's report counts them.
-
-## Decisions
-
-- **One-way decisions go to the maintainer.** A `SEC*` control, the
-  scope, behavior the user sees, or anything hard to undo gets a
-  `ready-for-human` issue, and a brief when it touches a `SEC*` control
-  or more than one spec (`review-briefs.md`).
-- **Two-way decisions are the builder's call.** Internal design, values
-  and naming. The builder makes the call and lists it under "Choices
-  made" in the pull request body, one line each, so the maintainer can
-  skim and veto. Merging the pull request accepts them.
-- **When a security trade-off is unclear, choose the strict option.**
-  Name the likely breakage and its later fix, but don't design the fix
-  until the breakage shows up.
-- **Questions wait for the end** of a wave or a run, and go to the
-  maintainer as one batch, up to four per question dialog.
-- **The maintainer makes each decision, and the agent they answered
-  posts it.** When the maintainer answers a decision in a session, that
-  session's agent posts the `Decision (YYYY-MM-DD):` comment with
-  `gh issue comment <n> --body-file <file>`, ending in the attribution
-  lines, and tells the maintainer it did. The comment holds only what
-  the maintainer decided, with any detail the agent added named as such.
-  No builder, lead or reviewer posts a decision, and no agent posts one
-  the maintainer didn't give.
-
-## Large doc changes
-
-A rewrite that spans many specs or pages (a split, a restructure, a
-style pass) gets a fixed definition of done before it starts, at most
-one revision of the plan after a pilot page, and no design changes on
-the way. Findings go on a list and are settled after it merges.
 
 ## Dependencies and relationships
 
@@ -333,7 +119,7 @@ gh issue view 34 --json blockedBy,blocking,parent,subIssues,milestone
   target, so block on the issue the pull request closes. A pull request
   without an issue gets one, and its body says `Closes #<it>`, so the
   merge closes the issue and lifts the block. A stacked pull request
-  gets `main` as its base before it merges (`orchestration.md`,
+  gets `main` as its base before it merges (`working.md`,
   "Stacked pull requests"). The closing keyword fires on a merge into
   `main`. A pull request closed without merging leaves the issue open,
   which keeps the block, as it should.
@@ -362,7 +148,8 @@ the decisions written down, and any blockers set as relationships),
 - Agents decide routine triage themselves (labels, duplicates, splits)
   and report what they did. They ask the maintainer only when a decision
   touches a spec, a rule in `AGENTS.md`, the scope, or the cost. A
-  `Decision` comment holds only the maintainer's answer ("Decisions").
+  `Decision` comment holds only the maintainer's answer (`working.md`,
+  "Decisions").
 - Fix stale paths in an old body in the triage comment rather than
   leaving them for the builder.
 - Set `needs-vm` and `needs-host` on every `ready-for-agent` issue that

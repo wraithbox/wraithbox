@@ -8,9 +8,9 @@ lets them decide from the page alone, in a few minutes, with the
 technical detail one click away.
 
 The `brief` skill writes briefs and the `spec-draft` skill calls it.
-Builders write one for a spike result (`planning.md`, "Spikes").
+Spike builders write one for a spike result (`spikes.md`, "Result").
 
-Briefs are for spike results and one-way decisions (`planning.md`,
+Briefs are for spike results and one-way decisions (`working.md`,
 "Decisions"). A two-way decision is listed under "Choices made" in its
 pull request, without a brief.
 

@@ -64,7 +64,8 @@ Area labels (`area:go`, `area:spec`, ...) and component labels
 (`comp:wb-netd`, ...) are recorded in
 [`.github/labels-areas.yml`](../../.github/labels-areas.yml), applied by
 the same `mise run gh:labels`, and explained in
-[`planning.md`](planning.md) together with milestones and spikes. GitHub's
+[`working.md`](working.md), with milestones in
+[`planning.md`](planning.md) and spikes in [`spikes.md`](spikes.md). GitHub's
 default labels (`duplicate`, `invalid`, `question`, `good first issue`,
 `help wanted`, `accessibility`) and the ones dependabot adds to its pull
 requests (`dependencies`, ...) also exist.

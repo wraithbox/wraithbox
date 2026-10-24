@@ -1,6 +1,6 @@
 // The path checks of every command (I350): the tool works only in the
 // spike cache, `~/Library/Caches/wraithbox-spikes/`, which also holds the
-// spikes' bundles (docs/agents/planning.md, "Spikes", "VM bundles"), and it
+// spikes' bundles (docs/agents/spikes.md, "VM bundles"), and it
 // refuses what `mise run spike:clean` refuses. The home volume's APFS
 // ignores case and Unicode normalization, so every existing component
 // must be spelled byte for byte as its directory entry, and the checks
@@ -199,7 +199,7 @@ struct SpikeCache: Sendable {
 
     /// Refuses when the path, or a directory between it and the cache,
     /// holds a `KEEP` file. The first line of the file names the issue
-    /// that still needs the bundles (docs/agents/planning.md, "Spikes").
+    /// that still needs the bundles (docs/agents/spikes.md, "VM bundles").
     private func checkKeep(_ target: CachePath) throws(Refusal) {
         var path = root
         for component in target.components {
