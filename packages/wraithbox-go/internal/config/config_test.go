@@ -48,6 +48,10 @@ func TestAccepted(t *testing.T) {
 		{"both", "vm_cpu_count = 6\nvm_memory_mib = 16384\n", Config{CPUCount: 6, MemoryMiB: 16384, DataDiskGiB: 128}},
 		{"data disk", "vm_data_disk_gib = 8\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 8}},
 		{"data disk at the top", "vm_data_disk_gib = 1024\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 1024}},
+		{"git", "git = \"/opt/homebrew/bin/git\"\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 128, Git: "/opt/homebrew/bin/git"}},
+		// A relative path is kept: hostgit.Resolve refuses it, as a
+		// failed git check (S08-08-host-git, "Which git").
+		{"git relative", "git = \"git\"\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 128, Git: "git"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -75,7 +79,9 @@ func TestC12Refused(t *testing.T) {
 		key  string
 	}{
 		{"unknown top-level key", "vm_cpu_count = 2\nvm_disk_gib = 64\n", RuleKeyUnknown, 2, "vm_disk_gib"},
-		{"unknown table", "\n[git]\npath = \"/usr/bin/git\"\n", RuleKeyUnknown, 2, "git"},
+		{"unknown table", "\n[audit]\nretention = 30\n", RuleKeyUnknown, 2, "audit"},
+		{"git as a table", "\n[git]\npath = \"/usr/bin/git\"\n", RuleValueInvalid, 2, "git"},
+		{"git as a number", "git = 2\n", RuleValueInvalid, 1, "git"},
 		{"unknown dotted key", "vm.cpu = 2\n", RuleKeyUnknown, 1, "vm.cpu"},
 		{"first of two unknown keys", "a = 1\nvm_cpu_count = 2\nb = 2\n", RuleKeyUnknown, 1, "a"},
 		{"zero", "vm_cpu_count = 0\n", RuleValueInvalid, 0, "vm_cpu_count"},

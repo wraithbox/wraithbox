@@ -6,8 +6,8 @@
 // The package only reads. No process writes a file in <config>
 // (S17-05-upgrades-and-migrations, "Configuration"). wb-hostd reads the
 // file at start, and a refusal puts it in refusing mode
-// (S17-05-upgrades-and-migrations, "Refusing mode"). wb reads it as well
-// once the git key lands (S08-08-host-git).
+// (S17-05-upgrades-and-migrations, "Refusing mode"). wb is to read it
+// as well, for the git key (S08-08-host-git).
 package config
 
 import (
@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
@@ -81,6 +82,12 @@ type Config struct {
 	// diskfmt.MinSizeGiB to diskfmt.MaxSizeGiB, the bounds wb-diskfmt
 	// checks too.
 	DataDiskGiB uint32
+	// Git is the git setting: the git binary wb and wb-hostd run, empty
+	// for the platform's fixed default (S08-08-host-git, "Which git").
+	// It is kept as written. hostgit.Resolve refuses one that isn't an
+	// absolute path, and that refusal is a failed git check, not a
+	// refused settings file.
+	Git string
 }
 
 // Defaults returns the settings of a missing file.
@@ -89,13 +96,14 @@ func Defaults() Config {
 }
 
 // file is the closed set of keys. A key is added here only when its
-// feature exists. Later packages add theirs: git
-// (S08-08-host-git), audit_retention_days and audit_events_per_minute
-// (S09-11-audit). Pointers tell a missing key from a zero.
+// feature exists. Later packages add theirs: audit_retention_days and
+// audit_events_per_minute (S09-11-audit). Pointers tell a missing key
+// from a zero.
 type file struct {
-	CPUCount    *int64 `toml:"vm_cpu_count"`
-	MemoryMiB   *int64 `toml:"vm_memory_mib"`
-	DataDiskGiB *int64 `toml:"vm_data_disk_gib"`
+	CPUCount    *int64  `toml:"vm_cpu_count"`
+	MemoryMiB   *int64  `toml:"vm_memory_mib"`
+	DataDiskGiB *int64  `toml:"vm_data_disk_gib"`
+	Git         *string `toml:"git"`
 }
 
 // renamedKeys maps a dotted key that a release renamed or removed to the
@@ -145,7 +153,8 @@ func load(ctx context.Context, path string, renamed map[string]string) (Config, 
 		slog.String("file", path), slog.String("decision", "accept"),
 		slog.Uint64("vm_cpu_count", uint64(cfg.CPUCount)),
 		slog.Uint64("vm_memory_mib", cfg.MemoryMiB),
-		slog.Uint64("vm_data_disk_gib", uint64(cfg.DataDiskGiB)))
+		slog.Uint64("vm_data_disk_gib", uint64(cfg.DataDiskGiB)),
+		slog.String("git", strconv.Quote(cfg.Git)))
 	return cfg, nil
 }
 
@@ -297,6 +306,9 @@ func (f file) check(path string) (Config, *Refusal) {
 			}
 		}
 		cfg.DataDiskGiB = uint32(v)
+	}
+	if f.Git != nil {
+		cfg.Git = *f.Git
 	}
 	return cfg, nil
 }
