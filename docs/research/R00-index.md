@@ -17,3 +17,4 @@ new one here.
 | R04-matchlock | Matchlock | Read 2026-10-23, no follow-up issues |
 | R05-iron-proxy | iron-proxy | Read 2026-10-23, re-review after V1 (no issue yet) |
 | R06-nono | nono | Read 2026-10-25, re-review after V1 (I240) |
+| R07-egzo | egzo | Read 2026-10-25, re-review after V1 (I240) |

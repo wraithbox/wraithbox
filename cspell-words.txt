@@ -430,6 +430,10 @@ diskfmt
 PKCE
 blocklist
 defenseclaw
+egzo
+Neopeak
+Veilleux
+pytest
 exfiltration
 Rego
 Streamable
