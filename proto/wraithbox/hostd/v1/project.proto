@@ -1,0 +1,288 @@
+// The project records between wb and wb-hostd (S05-04-naming). wb-hostd
+// owns state.db, so the `projects` table and every change to a project
+// go through it (S04-architecture, "Host state"). The service runs on
+// the same local IPC endpoint and checks as HostService (hostd.proto).
+//
+// wb resolves the directory, the key and the identity itself, with its
+// own git, because wb-hostd doesn't read the user's repositories. wb
+// never runs git on a location that wb-hostd reports, and never runs a
+// binary that wb-hostd names (S04-06-git-confinement, "`wb` takes no
+// path, URL or program from `wb-hostd`").
+//
+// wb-hostd takes every field as untrusted. Each string and list has a
+// cap, and a request over one is refused with a rule, never cut. The
+// caps are in code (S04-08-records-and-bounds, "Input from `wb`").
+//
+// Refusals are as in HostService: status FAILED_PRECONDITION,
+// INVALID_ARGUMENT or NOT_FOUND, with a google.rpc.ErrorInfo detail
+// whose `reason` is the rule. A refused identity check also holds an
+// IdentityMismatch detail.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.hostd.v1;
+
+// ProjectService is wb-hostd's service for the project records of the
+// `wb project` commands and of each session start
+// (S05-03-management-commands).
+service ProjectService {
+  // LookupProject finds the project of a key, and runs the identity
+  // check on it (S05-04-naming, "Identity check"). For an unknown key
+  // it returns every project whose identity matches instead
+  // (S05-04-naming, "Registration"). A refused identity check is a
+  // refusal with project-urls-changed or project-root-commit-gone. At
+  // a session start it records an empty identity that is no longer
+  // empty (S05-04-naming, "Grow-only"), and it is refused with the
+  // rule of wb-hostd's git check when that check failed
+  // (S08-08-host-git, "Where it is checked").
+  rpc LookupProject(LookupProjectRequest) returns (LookupProjectResponse);
+
+  // RegisterProject registers a new project for an unknown key, with a
+  // new random id (S05-04-naming, "Project id"). It starts isolated when
+  // any project with a matching identity is isolated, or when the
+  // request asks for it. It copies nothing else from a match
+  // (T13-new-project-grants). A key that has a project is refused with
+  // project-key-taken.
+  rpc RegisterProject(RegisterProjectRequest) returns (RegisterProjectResponse);
+
+  // GetProject returns a project by its id or its name, without the
+  // identity check. `wb project confirm` and `wb project rm` use it.
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+
+  // ConfirmProject records the current identity and clears
+  // `config_trust` (S05-04-naming, "Confirming").
+  rpc ConfirmProject(ConfirmProjectRequest) returns (ConfirmProjectResponse);
+
+  // MoveProject gives a project a new key, and keeps its id and its
+  // recorded identity (S05-04-naming, "Moving"). A key that another
+  // project has is refused with project-key-taken.
+  rpc MoveProject(MoveProjectRequest) returns (MoveProjectResponse);
+
+  // RenameProject changes a project's name (S05-04-naming, "Name").
+  rpc RenameProject(RenameProjectRequest) returns (RenameProjectResponse);
+
+  // PlaceProject sets a registered project's `placement`. The same
+  // value succeeds without a change. Another value is refused with
+  // project-place-has-home until I232 decides how a home moves
+  // (S06-04-vms-and-placement, "Changing placement").
+  rpc PlaceProject(PlaceProjectRequest) returns (PlaceProjectResponse);
+
+  // RemoveProject deletes a project's row in state.db (S05-04-naming,
+  // "Removing"). wb removes the project directory itself.
+  rpc RemoveProject(RemoveProjectRequest) returns (RemoveProjectResponse);
+}
+
+// ProjectKey is a project's key (S05-04-naming, "Project key").
+message ProjectKey {
+  // The host realm. Only "native" is accepted today. The WSL realms
+  // come with S08-10-wsl.
+  string realm = 1;
+  // The absolute path of the repository's git common directory, in
+  // canonical form: links resolved, and letter case as on disk. At
+  // most 4096 bytes of UTF-8 without a control character.
+  string path = 2;
+}
+
+// ProjectIdentity is a repository's recorded identity (S05-04-naming,
+// "Recorded identity"). wb-hostd sorts both lists and drops
+// duplicates.
+message ProjectIdentity {
+  // The compare forms of every URL of every remote. At most 1024, each
+  // 1 to 2048 bytes of UTF-8 without a control character.
+  repeated string urls = 1;
+  // The root commits, read only when there is no URL. At most 1024,
+  // each a 40- or 64-character lowercase object ID.
+  repeated string root_commits = 2;
+}
+
+// Placement is the VM a project's sessions run in
+// (S09-03-project-settings, "`placement`").
+enum Placement {
+  PLACEMENT_UNSPECIFIED = 0;
+  PLACEMENT_WORK = 1;
+  PLACEMENT_ISOLATED = 2;
+}
+
+// Project is a project's row in state.db.
+message Project {
+  // 32 lowercase hexadecimal characters (S05-04-naming, "Project id").
+  string id = 1;
+  string name = 2;
+  // The project's location: its key.
+  ProjectKey key = 3;
+  Placement placement = 4;
+  // Whether the repository's `.wraithbox/` is read
+  // (S09-03-project-settings, "`config_trust`").
+  bool config_trust = 5;
+  ProjectIdentity identity = 6;
+  // When the project was registered, in Unix seconds.
+  int64 created_unix = 7;
+}
+
+// ProjectMatch is a project whose identity matches a repository's
+// (S05-04-naming, "Registration").
+message ProjectMatch {
+  string id = 1;
+  string name = 2;
+  ProjectKey key = 3;
+  Placement placement = 4;
+}
+
+// LookupPurpose is the command a lookup is for.
+enum LookupPurpose {
+  // Refused: a lookup names its purpose.
+  LOOKUP_PURPOSE_UNSPECIFIED = 0;
+  // A session start: `wb claude`.
+  LOOKUP_PURPOSE_SESSION_START = 1;
+  // Any other command that resolves a project from a directory, but
+  // `wb project confirm` and `wb project rm`, which use GetProject.
+  LOOKUP_PURPOSE_COMMAND = 2;
+}
+
+// IdentityOutcome is the outcome of an identity check that passed.
+enum IdentityOutcome {
+  IDENTITY_OUTCOME_UNSPECIFIED = 0;
+  // The current identity is the recorded one.
+  IDENTITY_OUTCOME_MATCHED = 1;
+  // The recorded identity is empty, and the current one is accepted
+  // without a change: nothing is recorded outside a session start.
+  IDENTITY_OUTCOME_EMPTY_RECORDED = 2;
+  // At a session start, the empty recorded identity was replaced with
+  // the current one (S05-04-naming, "Grow-only").
+  IDENTITY_OUTCOME_GROWN = 3;
+}
+
+// HostGit is wb-hostd's git and its check at start (S08-08-host-git).
+// wb resolves its own git, and compares the path. It never runs this
+// one (S04-06-git-confinement).
+message HostGit {
+  // The absolute path wb-hostd resolved, empty when the git setting
+  // was refused.
+  string binary = 1;
+  // The version read as major.minor.patch, empty when none was read.
+  string version = 2;
+  // The rule of the check, git-version-accepted when it passed.
+  string rule = 3;
+  // Why the check failed, empty when it passed.
+  string message = 4;
+}
+
+message LookupProjectRequest {
+  ProjectKey key = 1;
+  // The repository's current identity.
+  ProjectIdentity identity = 2;
+  LookupPurpose purpose = 3;
+}
+
+message LookupProjectResponse {
+  oneof result {
+    // The key's project, after the identity check passed. At a session
+    // start its identity is the grown one.
+    Project project = 1;
+    // The key has no project.
+    UnknownKey unknown = 2;
+  }
+  // The identity check's outcome, set with project.
+  IdentityOutcome outcome = 3;
+  HostGit git = 4;
+}
+
+// UnknownKey lists the projects whose identity matches the
+// repository's.
+message UnknownKey {
+  // At most 64, the oldest first.
+  repeated ProjectMatch matches = 1;
+  // The number of matches, which can be above the length of matches.
+  uint32 match_count = 2;
+}
+
+// IdentityMismatch is a detail of a refused identity check. It holds
+// what was recorded and what is there now, so wb can name both
+// (NFR06-explained-refusals).
+message IdentityMismatch {
+  string project_id = 1;
+  string project_name = 2;
+  ProjectIdentity recorded = 3;
+  ProjectIdentity current = 4;
+}
+
+message RegisterProjectRequest {
+  ProjectKey key = 1;
+  ProjectIdentity identity = 2;
+  // A valid project name (S05-04-naming, "Name").
+  string name = 3;
+  // PLACEMENT_ISOLATED for `wb project place isolated`. Any other value
+  // gives `work`, unless a matching project is isolated.
+  Placement placement = 4;
+}
+
+message RegisterProjectResponse {
+  Project project = 1;
+  // The projects whose identity matches, for the registration notice.
+  // At most 64, the oldest first.
+  repeated ProjectMatch matches = 2;
+  uint32 match_count = 3;
+}
+
+message GetProjectRequest {
+  oneof by {
+    string id = 1;
+    // Refused with project-name-ambiguous when more than one project
+    // has it.
+    string name = 2;
+  }
+}
+
+message GetProjectResponse {
+  Project project = 1;
+}
+
+message ConfirmProjectRequest {
+  string id = 1;
+  ProjectIdentity identity = 2;
+}
+
+message ConfirmProjectResponse {
+  // The project after the change. Its `placement` is unchanged.
+  Project project = 1;
+}
+
+message MoveProjectRequest {
+  string id = 1;
+  ProjectKey key = 2;
+}
+
+message MoveProjectResponse {
+  Project project = 1;
+}
+
+message RenameProjectRequest {
+  string id = 1;
+  string name = 2;
+}
+
+message RenameProjectResponse {
+  Project project = 1;
+}
+
+message PlaceProjectRequest {
+  string id = 1;
+  // Refused when unspecified.
+  Placement placement = 2;
+}
+
+message PlaceProjectResponse {
+  Project project = 1;
+}
+
+message RemoveProjectRequest {
+  string id = 1;
+}
+
+message RemoveProjectResponse {
+  // The project as it was before it was removed.
+  Project project = 1;
+}
