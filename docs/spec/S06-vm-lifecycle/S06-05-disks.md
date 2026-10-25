@@ -137,8 +137,11 @@ steps and the checks before a VM starts with its disk.
 ### Mounting the data volume
 
 `wb-guestd` mounts the data volume after first contact with
-`wb-hostd`, when the volume UUID arrives. It does that before it starts
-anything as a project user. The mount point is a fixed path outside
+`wb-hostd`, when the volume UUID arrives. `wb-hostd` sends it with
+`GuestService.MountData` before any other call, after every accepted
+hello of a VM run, the first one included.
+`wb-guestd` mounts the volume before it starts anything as a project
+user. The mount point is `/private/var/wbhomes`, a fixed path outside
 `/Volumes`, which holds the homes.
 
 #### The mount
@@ -146,19 +149,27 @@ anything as a project user. The mount point is a fixed path outside
 1. `wb-guestd` waits up to 30 s for the volume with the UUID that the
    host recorded at format time. It identifies the volume only by that
    UUID.
-2. By then Disk Arbitration has mounted it at `/Volumes/<name>`,
+2. It checks that `diskutil` reports the volume unencrypted, both at
+   rest and by FileVault. A report that doesn't say counts as
+   encrypted.
+3. By then Disk Arbitration has mounted it at `/Volumes/<name>`,
    without `nosuid`. So `wb-guestd` unmounts it.
-3. It mounts it at the home path, with `nobrowse`, `nosuid`, `nodev`
-   and ownership on.
-4. It checks that `diskutil` reports the volume "Encrypted: No".
+4. It mounts it at the home path with `diskutil mount -mountOptions
+   nobrowse,nosuid,nodev,owners`, and runs the check of the next
+   section on the mount.
 
-An encrypted or reformatted volume, or a missing one, is refused with
-the rule. The refusal names `wb vm reset-data`
-(NFR06-explained-refusals).
+An encrypted volume, a missing one, or one that fails the check is
+refused with the rule. `wb-hostd` keeps the VM running and the link
+up, and refuses every session start in the VM with that rule and the
+fix: stop the VM with `wb vm stop`, then `wb vm reset-data`
+(NFR06-explained-refusals). `wb vm status` shows the refusal. A mount
+that `wb-guestd` leaves unanswered for 45 s drops the link, and the
+next link asks again.
 
 The mount isn't repeated while the guest runs. Once a process has run
 as a user whose home is under the mount point, macOS refuses another
-mount there until the next boot.
+mount there until the next boot. So after a reconnect, `wb-guestd`
+finds the volume mounted already and only checks it.
 
 #### Before every session start
 
@@ -173,6 +184,15 @@ guest root left in a home gives a project user root, also after a
 swap.
 
 #### Owners and modes
+
+The host formats the volume as the host user, so the guest may see the
+mount root with another owner or mode. On a volume's first mount,
+`wb-guestd` logs the root's owner and mode as it found them ("data
+volume root before its first claim"), and gives the root to
+`root:wheel` with mode 755 by `fchown` and `fchmod` on a descriptor
+opened without following a link. `wb-hostd` records the first mount
+that succeeded in `state.db` and asks for this only until then. A
+reformat of the data disk clears the record.
 
 `wb-guestd` checks with `lstat`, never following a link:
 

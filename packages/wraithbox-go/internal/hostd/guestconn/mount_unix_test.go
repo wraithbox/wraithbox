@@ -51,7 +51,7 @@ func (g *guestVolumes) Statfs(string) (guestmount.Mount, error) {
 	if !g.mounted {
 		return guestmount.Mount{From: "/dev/disk3s1s1", On: "/"}, nil
 	}
-	return guestmount.Mount{From: "/dev/disk5s1", On: guestd.HomePath, NoSUID: true, NoDev: true, DontBrowse: true}, nil
+	return guestmount.Mount{From: "/dev/disk5s1", On: guestd.HomePath, NoSUID: true, NoDev: true, NoBrowse: true}, nil
 }
 
 func (*guestVolumes) Lstat(string) (guestmount.Dir, error) {
