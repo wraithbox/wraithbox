@@ -436,8 +436,12 @@ swift test --package-path packages/wraithbox-swift --force-resolved-versions --f
 # needs-vm and needs-host, attended (docs/agents/host-work.md): runs
 # wb-hostd with the bundle app:bundle built on a clone of the bundle
 # WB_VM_TEST_BUNDLE names, in the work slot under the real <data>, the
-# only bundle wb-vmd boots. The test refuses to run when <data> exists,
-# and removes it at its end. <config>, <logs> and the child's output go
+# only bundle wb-vmd boots. Nothing else may use Wraith Box on the Mac
+# during the run. The test refuses to run when <data> exists, which may
+# be left by an earlier run: stop its wb-hostd (`pgrep -fl
+# wb-hostd.test`, then kill the pid), and remove <data>. The test
+# removes <data> at its end, unless it holds something the test didn't
+# make. <config>, <logs> and the child's output go
 # to .scratch/go-test-vm. The test binary is stamped with this run's
 # build/version, so it matches the bundle (TestC11HostdVM).
 [tasks."go:test-vm"]

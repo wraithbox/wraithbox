@@ -117,15 +117,21 @@ func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeRea
 		select {
 		case <-r.ls.clock.After(TimeInterval):
 		case <-l.Down():
-			r.vc.log.LogAttrs(r.ctx, slog.LevelWarn, "guest link dropped",
-				slog.String("rule", RuleLinkDropped), slog.String("decision", "reconnect"),
-				slog.Uint64("generation", r.generation))
-			r.reconnecting()
+			r.dropped()
 			return reason
 		case <-r.ctx.Done():
 			return reason
 		}
 	}
+}
+
+// dropped logs a drop of the link's connection, and shows the link as
+// connecting again.
+func (r *run) dropped() {
+	r.vc.log.LogAttrs(r.ctx, slog.LevelWarn, "guest link dropped",
+		slog.String("rule", RuleLinkDropped), slog.String("decision", "reconnect"),
+		slog.Uint64("generation", r.generation))
+	r.reconnecting()
 }
 
 // reconnecting shows the link as connecting again after a drop.
@@ -137,6 +143,8 @@ func (r *run) reconnecting() {
 // next call, and whether the link is kept:
 //
 //   - A call that succeeds makes every later one periodic.
+//   - A call that fails on a link already down is logged as the drop,
+//     RuleLinkDropped, whatever its code.
 //   - A call the guest leaves unanswered, past the link's call deadline
 //     or on a failed connection, drops the link with RuleTimeUnanswered.
 //     So a wb-guestd that answered the hello and then went silent is
@@ -171,6 +179,14 @@ func (r *run) sendTime(l *guestlink.Link, reason guestv1.TimeReason) (guestv1.Ti
 	if r.ctx.Err() != nil {
 		// The run ended during the call, and keep returns.
 		return reason, true
+	}
+	select {
+	case <-l.Down():
+		// The connection dropped under the call: a drop, whatever the
+		// call's code.
+		r.dropped()
+		return reason, false
+	default:
 	}
 	code := status.Code(err)
 	attrs = append(attrs, slog.String("code", code.String()))
