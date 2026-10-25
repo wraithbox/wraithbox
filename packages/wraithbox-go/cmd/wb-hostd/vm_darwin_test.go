@@ -193,7 +193,7 @@ func (r *vmRun) checkStart() {
 	hello := r.waitRecord("guest hello accepted", began, time.Minute)
 	t.Logf("measure: start to accepted hello %v", hello.time(t).Sub(began))
 	_, out := r.wb("status", "work")
-	want := "guest link: linked, wb-guestd version " + version.Label(version.Build())
+	want := "guest link: linked, wb-guestd version " + version.Build()
 	if !strings.Contains(out, want) {
 		t.Errorf("wb vm status: %q, want %q", out, want)
 	}
@@ -307,7 +307,7 @@ func (r *vmRun) checkMismatch() {
 	}
 	r.waitRecord("guest hello refused", began, time.Minute)
 	_, out := r.wb("status", "work")
-	for _, want := range []string{"guest link: refused", "guest-version-mismatch", version.Label(other), version.Label(version.Build())} {
+	for _, want := range []string{"guest link: refused", version.RuleMismatch, version.Label(other), version.Label(version.Build())} {
 		if !strings.Contains(out, want) {
 			t.Errorf("wb vm status: %q, want %q", out, want)
 		}
