@@ -7,9 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
@@ -130,7 +127,14 @@ func (r *run) mount(l *guestlink.Link) bool {
 		slog.String("decision", "refuse"), slog.String("reason", err.Error()))
 	dm := DataMount{State: MountRefused, Rule: rule, Message: mountMessage(r.slot, rule)}
 	r.ls.setStatus(r.slot, r.generation, func(s *Status) { s.DataMount = dm })
-	return rule != guestlink.RuleMountTimeout && status.Code(err) != codes.Unavailable
+	return !reconnects(rule)
+}
+
+// reconnects reports whether a mount refused with rule drops the link,
+// so the next link asks again: no answer, or a call that failed with
+// UNAVAILABLE. Neither says anything about the volume.
+func reconnects(rule string) bool {
+	return rule == guestlink.RuleMountTimeout || rule == guestlink.RuleMountUnavailable
 }
 
 // mountRule names the rule of a failed mount hook.
@@ -145,8 +149,20 @@ func mountRule(err error) string {
 }
 
 // mountMessage says what a refused mount means and what to do. It holds
-// only text wb-hostd made: the rule is one of a fixed list.
+// only text wb-hostd made: the rule is one of a fixed list. Only a
+// refusal about the volume advises wb vm reset-data, which deletes the
+// homes (NFR06-explained-refusals).
 func mountMessage(slot vm.Slot, rule string) string {
+	switch {
+	case reconnects(rule):
+		return fmt.Sprintf("wb-guestd in the %s VM didn't answer the data mount (%s), so no session starts in it yet. "+
+			"wb-hostd asks again when the link reconnects. If this stays, stop the VM with wb vm stop %s and start it again.",
+			slot, rule, slot)
+	case rule == RuleMountRecord:
+		return fmt.Sprintf("wb-hostd has no usable data disk record for the %s VM (%s), so no session starts in it. "+
+			"The wb-hostd log has the cause. Stop the VM with wb vm stop %s and start it again.",
+			slot, rule, slot)
+	}
 	return fmt.Sprintf("The %s VM's data volume was refused (%s), so no session starts in it. "+
 		"Stop the VM with wb vm stop %s, then run wb vm reset-data %s, which deletes every project's home on that disk.",
 		slot, rule, slot, slot)
@@ -179,8 +195,8 @@ const (
 // CheckSessionStart refuses a session start in slot's run of generation
 // unless its link is up and its data mount succeeded
 // (S06-05-disks, "Mounting the data volume"; SEC08-proj-isolation). A
-// refused mount refuses with the mount's rule, and says to stop the VM
-// and reset its data disk (NFR06-explained-refusals).
+// refused mount refuses with the mount's rule and message, which says
+// what to do (NFR06-explained-refusals).
 func (ls *Links) CheckSessionStart(slot vm.Slot, generation uint64) error {
 	s := ls.Status(slot)
 	var r *SessionRefusal

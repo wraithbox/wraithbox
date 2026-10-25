@@ -153,6 +153,14 @@ func TestMountDataUnimplemented(t *testing.T) {
 	requireMountRefused(t, l.MountData(t.Context(), testUUID, false, slog.New(slog.DiscardHandler)), RuleReplyInvalid)
 }
 
+// TestMountDataUnavailable: a call that fails with UNAVAILABLE is
+// RuleMountUnavailable, which the link answers with a reconnect, and
+// not a refusal of the volume.
+func TestMountDataUnavailable(t *testing.T) {
+	l := linked(t, &mountGuest{err: status.Error(codes.Unavailable, "transport is closing")})
+	requireMountRefused(t, l.MountData(t.Context(), testUUID, false, slog.New(slog.DiscardHandler)), RuleMountUnavailable)
+}
+
 // TestMountDataTimeout: no answer is RuleMountTimeout when the deadline
 // passes.
 func TestMountDataTimeout(t *testing.T) {
