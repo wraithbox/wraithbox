@@ -72,6 +72,28 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   and a closed lifeline end the process with status 0. The slot is
   deleted afterwards. Pass or fail, the test prints how `wb-vmd` ended
   and every record it logged.
+- **`wb-hostd` on a VM** (`TestC11HostdVM` in `cmd/wb-hostd`, needs-vm
+  and needs-host). With `WB_VM_TEST_BUNDLE` naming a provisioned test
+  bundle, `mise run go:test-vm` builds the bundle and runs the test
+  binary as `wb-hostd` from it, with `<config>` and `<logs>` in
+  `.scratch/go-test-vm`. `wb-vmd` boots only the slot bundle under the
+  real `<data>`. The test refuses to run when `<data>` exists, and
+  removes it at its end. Through `wb vm` it checks:
+  - `start` links, `status` shows the guest's version equal to the
+    build's and the generation, `tools.img` has a new inode, and the
+    boot's time call took under 1 s;
+  - closing `wb-hostd`'s end of the link (SIGUSR1 to the child) links
+    again within 2.1 s;
+  - `stop` reaches stopped, and `wb-vmd` exits;
+  - after `kill -9` of `wb-hostd`, its `wb-vmd` exits by the lifeline.
+    A new `wb-hostd` starts the VM at once, and the test logs the
+    outcome;
+  - a bundle whose tools disk has another build's `wb-guestd` and
+    `VERSION`: `start` exits 255, and `status` shows the refusal with
+    `guest-version-mismatch` and both versions.
+
+  Each measurement is logged with `measure:`. Runs: none yet. The first
+  is attended (I288).
 - **Restore image.** A `wb-vmd-install` whose restore image is a
   symbolic link, or not at the fixed path, logs
   `vmd-restore-image-mismatch` before `sandbox_init`.
@@ -281,6 +303,14 @@ the guest end of each socketpair:
 
 - A good hello links on port 1023 of the current generation, and the
   time hook runs after it, then every 60 s.
+- **Time** (`TestC11GuestLinkTime*`). The first time call of a
+  generation has the reason boot, and every later one periodic: after
+  60 s, and after a reconnect. The next generation boots again. A call
+  that fails with `DeadlineExceeded` or `Unavailable` drops the link
+  with `guest-time-unanswered`, and the link connects again after
+  0.1 s. Any other failure logs `guest-time-failed` and keeps the
+  link. Either way the next call is a boot again. `SendTime`, the hook
+  of `wb-hostd`, makes `wb-guestd`'s clock step to the host's time.
 - Port 0, 22, 1022, 1024 and 65535 are refused with
   `guest-port-unrouted` before the provider is asked.
 - Each cap refuses at its limit with its rule: `guest-conn-cap-vm`,
