@@ -304,7 +304,7 @@ func (d *DataMount) check(ctx context.Context, uuid string) *MountRefusal {
 }
 
 // checkMount checks that the file system at HomePath is the volume with
-// uuid, mounted with every flag and with ownership on.
+// uuid, unencrypted, and mounted with every flag and with ownership on.
 func (d *DataMount) checkMount(ctx context.Context, uuid string) *MountRefusal {
 	m, err := d.vols.Statfs(HomePath)
 	if err != nil {
@@ -318,7 +318,12 @@ func (d *DataMount) checkMount(ctx context.Context, uuid string) *MountRefusal {
 		return &MountRefusal{Rule: RuleMountVolume, Detail: fmt.Sprintf("%s; no volume with UUID %s", mountText(m), uuid)}
 	case m.On != HomePath || m.From != "/dev/"+vol.Device:
 		return &MountRefusal{Rule: RuleMountVolume, Detail: fmt.Sprintf("%s; volume %s is /dev/%s", mountText(m), uuid, vol.Device)}
-	case !m.NoSUID || !m.NoDev || !m.DontBrowse || m.IgnoreOwnership:
+	case vol.Encrypted:
+		// A mount found in place after a reconnect skipped the check of
+		// the mount, so this one makes it.
+		return &MountRefusal{Rule: RuleVolumeEncrypted, Detail: fmt.Sprintf(
+			"%s is encrypted (encryption reported: %t)", vol.Device, vol.EncryptionReported)}
+	case !m.NoSUID || !m.NoDev || !m.NoBrowse || m.IgnoreOwnership:
 		return &MountRefusal{Rule: RuleMountFlags, Detail: mountText(m)}
 	}
 	return nil
@@ -328,7 +333,7 @@ func (d *DataMount) checkMount(ctx context.Context, uuid string) *MountRefusal {
 // and its flags.
 func mountText(m guestmount.Mount) string {
 	return fmt.Sprintf("%q on %q, nosuid %t, nodev %t, nobrowse %t, ignore ownership %t",
-		cut(m.From), cut(m.On), m.NoSUID, m.NoDev, m.DontBrowse, m.IgnoreOwnership)
+		cut(m.From), cut(m.On), m.NoSUID, m.NoDev, m.NoBrowse, m.IgnoreOwnership)
 }
 
 // dirText describes what lstat found.

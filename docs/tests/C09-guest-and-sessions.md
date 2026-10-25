@@ -5,6 +5,7 @@ the guest, `wb-guestd`'s update and the guest clock, the shared
 toolchain prefix, the guest admin password, and the session lifecycle.
 
 **Verifies:** S06-01-image-layers ("Toolchain prefix"),
+S06-05-disks ("Mounting the data volume"),
 S06-06-devices-and-warm-start ("Time and sleep"),
 S06-09-session-lifecycle, S06-12-guest-agent ("Update at start"),
 S13-guest-confinement, S15-04-guest-admin
@@ -13,6 +14,10 @@ S13-guest-confinement, S15-04-guest-admin
 
 - The toolchain manifest parser in `wb-hostd`, and the name check in
   `wb-guestd` (S06-01-image-layers, "Toolchain prefix").
+- The parser of `diskutil info -plist` in `wb-guestd`, `FuzzParseInfo`
+  in `internal/platform/guestmount`: an accepted report has a UUID and
+  a device of the form `disk<N>s<N>`, and a report without an encryption
+  property reads as encrypted (S06-05-disks, "The mount").
 
 ## Conformance
 
@@ -61,6 +66,53 @@ S06-06-devices-and-warm-start ("Step or slew").
   `guestd-tools-untrusted` and nothing installed. Attach it as root,
   read-only, and see `wb-guestd` install its programs and run the new
   one under the same process ID.
+
+### Data volume
+
+Spec: S06-05-disks ("Mounting the data volume"), SEC08-proj-isolation,
+SEC11-root-gains-nothing, NFR06-explained-refusals.
+
+Unit tests in `internal/guestd`, with a fake `diskutil`, `statfs` and
+`lstat`:
+
+- The mount of a fresh volume unmounts it from `/Volumes`, mounts it
+  at `/private/var/wbhomes`, and claims its root, with the owner it
+  had before the claim logged. The guest mounts a volume that appears
+  after 5 s, and refuses one that never appears with
+  `data-volume-missing` after 30 s. Without `first_mount`, the root isn't claimed.
+- An encrypted volume, one whose report doesn't say, a failed unmount
+  or mount, a mount point that is a link or owned by a user, and a
+  failed claim are each refused with their rule, logged with what was
+  found.
+- After a mount, the check before a session refuses with
+  `data-mount-flags` without each of `nosuid`, `nodev`, `nobrowse` or
+  ownership, with `data-mount-volume` for another volume or none, with
+  `data-volume-encrypted` for an encrypted one, and with
+  `data-mount-root` for a root that is a link, a file, or has another
+  owner or mode. Before any mount it refuses with
+  `data-mount-pending`.
+- `MountData` answers each refusal with `FAILED_PRECONDITION` and one
+  `ErrorInfo` whose reason is the rule, and a UUID of the wrong form
+  with `INVALID_ARGUMENT` and `guestd-mount-invalid`. Its rules are the
+  list `wb-hostd` takes.
+
+The host side is under "Guest link" in C11-host-daemons.
+
+In the guest, after `wb-hostd` had `wb-guestd` mount the volume, in
+`conformance/datamount`:
+
+- As a standard user and as root, see the mount carry every flag, the
+  volume reported unencrypted, and the check pass (`TestMounted`).
+- As root, copy `/usr/bin/id` onto the volume as a setuid-root file,
+  run it as the standard user, and see it report that user's UID. The
+  same copy in `/private/var/tmp` reports root (`TestSetuidIgnored`).
+- As root, remount the volume with `mount -u -o suid`, and see the
+  check refuse with `data-mount-flags`. Set `nosuid` back, and see it
+  pass (`TestRemountRefused`).
+- Boot a VM with a fresh data disk, and see the volume mounted by its
+  UUID and its root before the claim logged. Stop and start it, and
+  see it mounted again without a claim. Run `wb vm reset-data`, and
+  see the next boot claim the root again.
 
 ### The toolchain prefix
 

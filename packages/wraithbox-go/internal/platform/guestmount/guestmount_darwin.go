@@ -97,7 +97,7 @@ func (*System) Statfs(path string) (Mount, error) {
 		On:              unix.ByteSliceToString(st.Mntonname[:]),
 		NoSUID:          st.Flags&unix.MNT_NOSUID != 0,
 		NoDev:           st.Flags&unix.MNT_NODEV != 0,
-		DontBrowse:      st.Flags&unix.MNT_DONTBROWSE != 0,
+		NoBrowse:        st.Flags&unix.MNT_DONTBROWSE != 0,
 		IgnoreOwnership: st.Flags&unix.MNT_IGNORE_OWNERSHIP != 0,
 	}, nil
 }

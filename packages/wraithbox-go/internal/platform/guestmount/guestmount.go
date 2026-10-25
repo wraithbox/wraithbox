@@ -54,7 +54,7 @@ type Mount struct {
 	// session start").
 	NoSUID          bool
 	NoDev           bool
-	DontBrowse      bool
+	NoBrowse        bool
 	IgnoreOwnership bool
 }
 

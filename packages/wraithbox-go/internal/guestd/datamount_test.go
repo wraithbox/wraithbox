@@ -25,7 +25,7 @@ const (
 // goodMount is the mount Mount makes: the volume at the home path with
 // every flag.
 func goodMount(dev string) guestmount.Mount {
-	return guestmount.Mount{From: "/dev/" + dev, On: guestd.HomePath, NoSUID: true, NoDev: true, DontBrowse: true}
+	return guestmount.Mount{From: "/dev/" + dev, On: guestd.HomePath, NoSUID: true, NoDev: true, NoBrowse: true}
 }
 
 var rootDir = guestmount.Dir{IsDir: true, Perm: 0o755}
@@ -346,11 +346,12 @@ func TestCheck(t *testing.T) {
 	}{
 		{"nosuid off", func(f *fakeVolumes) { f.mounted.NoSUID = false }, guestd.RuleMountFlags},
 		{"nodev off", func(f *fakeVolumes) { f.mounted.NoDev = false }, guestd.RuleMountFlags},
-		{"nobrowse off", func(f *fakeVolumes) { f.mounted.DontBrowse = false }, guestd.RuleMountFlags},
+		{"nobrowse off", func(f *fakeVolumes) { f.mounted.NoBrowse = false }, guestd.RuleMountFlags},
 		{"ownership ignored", func(f *fakeVolumes) { f.mounted.IgnoreOwnership = true }, guestd.RuleMountFlags},
 		{"another volume", func(f *fakeVolumes) { f.mounted.From = "/dev/disk6s1" }, guestd.RuleMountVolume},
 		{"unmounted", func(f *fakeVolumes) { f.mounted = nil }, guestd.RuleMountVolume},
 		{"volume gone", func(f *fakeVolumes) { f.never = true }, guestd.RuleMountVolume},
+		{"volume encrypted", func(f *fakeVolumes) { f.vol.Encrypted = true }, guestd.RuleVolumeEncrypted},
 		{"root is a link", func(f *fakeVolumes) { f.root = guestmount.Dir{IsLink: true, Perm: 0o755} }, guestd.RuleMountRoot},
 		{"root not a directory", func(f *fakeVolumes) { f.root = guestmount.Dir{Perm: 0o755} }, guestd.RuleMountRoot},
 		{"root owned by a user", func(f *fakeVolumes) { f.root.UID = 501 }, guestd.RuleMountRoot},

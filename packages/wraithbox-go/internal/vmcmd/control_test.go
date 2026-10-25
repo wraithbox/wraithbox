@@ -339,10 +339,10 @@ func TestStatusDataMount(t *testing.T) {
 		{&hostdv1.DataMount{State: hostdv1.DataMountState_DATA_MOUNT_STATE_PENDING}, "  data volume: pending\n"},
 		{
 			&hostdv1.DataMount{
-				State: hostdv1.DataMountState_DATA_MOUNT_STATE_REFUSED, Rule: "data-mount-\x1b[1mflags",
-				Message: "\x1b[2Jstop\u202e and reset",
+				State: hostdv1.DataMountState_DATA_MOUNT_STATE_REFUSED, Rule: "data-mount\x1b[1m-flags",
+				Message: "\x1b[2J stop\u202e and reset",
 			},
-			"  data volume: refused, rule data-mount-[1mflags: [2Jstop and reset\n",
+			"  data volume: refused, rule data-mount[1m-flags: [2J stop and reset\n",
 		},
 	}
 	for _, tt := range tests {

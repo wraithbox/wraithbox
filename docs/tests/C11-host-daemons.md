@@ -321,6 +321,26 @@ the guest end of each socketpair:
   0.1 s. Any other failure logs `guest-time-failed` and keeps the
   link. Either way the next call is a boot again. `SendTime`, the hook
   of `wb-hostd`, makes `wb-guestd`'s clock step to the host's time.
+- **Data mount** (`TestC11GuestLinkSendMount`,
+  `TestC11GuestLinkMountRefused`, `TestC11GuestLinkMountTimeout`;
+  S06-05-disks, "Mounting the data volume"). `SendMount`, the hook of
+  `wb-hostd`, asks `wb-guestd` to mount the recorded volume with
+  `first_mount` set, records the first success in `state.db`, and
+  asks again without it after a reconnect. A refusal by the guest, or a
+  record that is missing, not formatted, or unreadable
+  (`guest-mount-record`), keeps the link. Every session start is then
+  refused with the rule and a message that names `wb vm stop` and
+  `wb vm reset-data`. A mount left unanswered
+  (`guest-mount-timeout`) reconnects, and the next link asks again. A
+  session start is refused with `session-no-link` for another
+  generation or without a link, and with `session-mount-pending`
+  until the mount is answered.
+- In `internal/guestlink` (`TestMountData*` and
+  `TestMountRefusalHidesGuestText`), `MountData` takes only a
+  `FAILED_PRECONDITION` with one `ErrorInfo` in the guest's domain
+  whose reason is a listed rule of `wb-guestd`. Anything else, an
+  answer over 4 KiB included, is `guest-reply-invalid`, and the
+  guest's message is never shown. The call's deadline is 45 s.
 - Port 0, 22, 1022, 1024 and 65535 are refused with
   `guest-port-unrouted` before the provider is asked.
 - Each cap refuses at its limit with its rule: `guest-conn-cap-vm`,
@@ -483,7 +503,10 @@ and one before it detaches nothing.
   in arbitrary chunks from the guest end of a socketpair as the answer
   to the link's open: the HTTP/2 preface, the settings, and the hello. The
   link ends linked or refused within its deadline, and never links to a
-  version other than its own.
+  version other than its own. The third is `FuzzMountDataResponse`
+  there: arbitrary bytes as the answer to `MountData` and as its status
+  details. A refusal names a listed rule or `guest-reply-invalid`, and
+  its text doesn't hold a control byte.
 - The stream framing that multiplexes guest requests on a host-opened
   connection, with the project each request is attributed to
   (S04-architecture, B29-vsock-handoff).

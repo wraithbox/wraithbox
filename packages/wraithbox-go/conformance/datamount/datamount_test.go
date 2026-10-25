@@ -65,7 +65,7 @@ func checked(t *testing.T, vol guestmount.Volume) *guestd.DataMount {
 // user.
 func TestMounted(t *testing.T) {
 	m, vol := inGuest(t)
-	if !m.NoSUID || !m.NoDev || !m.DontBrowse || m.IgnoreOwnership {
+	if !m.NoSUID || !m.NoDev || !m.NoBrowse || m.IgnoreOwnership {
 		t.Errorf("mount %+v, want nosuid, nodev, nobrowse and owners", m)
 	}
 	if vol.Encrypted || !vol.EncryptionReported {
