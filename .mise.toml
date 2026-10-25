@@ -433,6 +433,30 @@ test -n "$WB_VM_TEST_BUNDLE" || { echo "set WB_VM_TEST_BUNDLE to a spike bundle"
 swift test --package-path packages/wraithbox-swift --force-resolved-versions --filter VMBootTests
 """
 
+# needs-vm and needs-host, attended (docs/agents/host-work.md): runs
+# wb-hostd with the bundle app:bundle built on a clone of the bundle
+# WB_VM_TEST_BUNDLE names, in the work slot under the real <data>, the
+# only bundle wb-vmd boots. The test refuses to run when <data> exists,
+# and removes it at its end. <config>, <logs> and the child's output go
+# to .scratch/go-test-vm. The test binary is stamped with this run's
+# build/version, so it matches the bundle (TestC11HostdVM).
+[tasks."go:test-vm"]
+description = "Run wb-hostd with the built bundle on a clone of WB_VM_TEST_BUNDLE (needs-vm, needs-host, macOS)"
+depends = ["app:bundle"]
+dir = "packages/wraithbox-go"
+run = """
+set -e
+test -n "$WB_VM_TEST_BUNDLE" || { echo "set WB_VM_TEST_BUNDLE to a provisioned test bundle" >&2; exit 2; }
+root=$(cd ../.. && pwd)
+mkdir -p "$root/.scratch/go-test-vm"
+WB_VM_TEST_APP="$root/packages/wraithbox-swift/.build/Wraith Box.app" \
+WB_VM_TEST_SCRATCH="$root/.scratch/go-test-vm" \
+go test -count=1 -v -timeout 30m \
+  "-ldflags=-X github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version.stamp=$(cat "$root/build/version")" \
+  -run '^TestC11HostdVM$' ./cmd/wb-hostd
+"""
+run_windows = "echo go:test-vm: the VM needs macOS; skipped on Windows"
+
 # ---------- Contracts (.proto) ----------
 # The .proto files in proto/ are the one contract for every language, and
 # the code generated from them is committed (B52-proto-contracts, decision

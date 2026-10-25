@@ -47,6 +47,10 @@ type options struct {
 	Executable string
 	// Version is wb-hostd's build version.
 	Version string
+	// wrapVMs, set only by the needs-vm test, wraps what the guest links
+	// open connections through, so the test can close wb-hostd's end of
+	// the control link. main leaves it nil.
+	wrapVMs func(guestconn.VMs) guestconn.VMs
 }
 
 // run runs wb-hostd until ctx is done. Its steps, in order: the logs,
@@ -204,7 +208,11 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	if err != nil {
 		return nil, err
 	}
-	links, err = guestconn.New(guestconn.Config{VMs: m, Version: o.Version, Logger: log})
+	var vms guestconn.VMs = m
+	if o.wrapVMs != nil {
+		vms = o.wrapVMs(m)
+	}
+	links, err = guestconn.New(guestconn.Config{VMs: vms, Version: o.Version, TimeHook: guestconn.SendTime, Logger: log})
 	if err != nil {
 		return nil, err
 	}
