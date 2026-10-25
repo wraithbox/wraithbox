@@ -25,6 +25,7 @@ func (s *Server) statusOf(slot vm.Slot, v hostdv1.VM) *hostdv1.VMStatus {
 		return out
 	}
 	out.LinkState = linkStateOf(link.State)
+	out.DataMount = dataMountOf(link.DataMount)
 	switch link.State {
 	case guestconn.StateLinked:
 		out.GuestVersion = link.GuestVersion
@@ -72,6 +73,25 @@ func linkRefusalOf(r *guestconn.HelloRefusal) *hostdv1.LinkRefusal {
 	return &hostdv1.LinkRefusal{
 		Rule: r.Rule, GuestVersion: r.GuestVersion, HostdVersion: r.OwnVersion, Message: r.Message,
 	}
+}
+
+// dataMountOf passes the generation's data mount on. Its rule is one of
+// a fixed list and its message is wb-hostd's own (guestconn). A status
+// without one, before the run's link started, has none.
+func dataMountOf(dm guestconn.DataMount) *hostdv1.DataMount {
+	if dm.State == "" {
+		return nil
+	}
+	out := &hostdv1.DataMount{Rule: dm.Rule, Message: dm.Message}
+	switch dm.State {
+	case guestconn.MountPending:
+		out.State = hostdv1.DataMountState_DATA_MOUNT_STATE_PENDING
+	case guestconn.MountMounted:
+		out.State = hostdv1.DataMountState_DATA_MOUNT_STATE_MOUNTED
+	case guestconn.MountRefused:
+		out.State = hostdv1.DataMountState_DATA_MOUNT_STATE_REFUSED
+	}
+	return out
 }
 
 // vmErrorOf copies the manager's copy of a framework error, whose text

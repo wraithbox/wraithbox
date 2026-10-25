@@ -328,6 +328,37 @@ func TestStatusEscaped(t *testing.T) {
 	}
 }
 
+// TestStatusDataMount: the data volume's state prints, and a refusal
+// prints its rule and the fix without escapes.
+func TestStatusDataMount(t *testing.T) {
+	tests := []struct {
+		dm   *hostdv1.DataMount
+		want string
+	}{
+		{&hostdv1.DataMount{State: hostdv1.DataMountState_DATA_MOUNT_STATE_MOUNTED}, "  data volume: mounted\n"},
+		{&hostdv1.DataMount{State: hostdv1.DataMountState_DATA_MOUNT_STATE_PENDING}, "  data volume: pending\n"},
+		{
+			&hostdv1.DataMount{
+				State: hostdv1.DataMountState_DATA_MOUNT_STATE_REFUSED, Rule: "data-mount-\x1b[1mflags",
+				Message: "\x1b[2Jstop\u202e and reset",
+			},
+			"  data volume: refused, rule data-mount-[1mflags: [2Jstop and reset\n",
+		},
+	}
+	for _, tt := range tests {
+		f := newFixture(t, "")
+		h := scripted{status: &hostdv1.VMStatus{
+			Phase: hostdv1.VMPhase_VM_PHASE_RUNNING, Generation: 1, LinkState: hostdv1.LinkState_LINK_STATE_LINKED,
+			GuestVersion: "1.2.3", DataMount: tt.dm,
+		}}
+		code := f.runWith(func(e *vmcmd.Env) { e.Dial = func(context.Context) (vmcmd.Hostd, error) { return h, nil } }, "status", "work")
+		want := "work VM: running, generation 1\n  guest link: linked, wb-guestd version 1.2.3\n" + tt.want
+		if code != 0 || f.stdout.String() != want {
+			t.Errorf("exit %d, stdout %q, want %q", code, f.stdout.String(), want)
+		}
+	}
+}
+
 // TestStatusFailure: a failed status call prints one wraith box line
 // with its rule, without escapes.
 func TestStatusFailure(t *testing.T) {

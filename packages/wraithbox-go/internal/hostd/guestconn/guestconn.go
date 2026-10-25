@@ -84,6 +84,9 @@ type Config struct {
 	// Version is wb-hostd's own build version, normally version.Build().
 	// "" is an unstamped build, which matches no guest.
 	Version string
+	// MountHook, when set, is called after each accepted hello, before
+	// the time hook. nil does nothing, and the data mount stays pending.
+	MountHook MountHook
 	// TimeHook, when set, is called on the clock schedule. nil does
 	// nothing.
 	TimeHook TimeHook
@@ -156,7 +159,10 @@ func (ls *Links) Run(slot vm.Slot, generation uint64, ended <-chan struct{}) {
 		ls.mu.Unlock()
 		return
 	}
-	ls.status[slot] = Status{Slot: slot, Generation: generation, State: StateConnecting}
+	ls.status[slot] = Status{
+		Slot: slot, Generation: generation, State: StateConnecting,
+		DataMount: DataMount{State: MountPending},
+	}
 	ls.runs.Add(1)
 	ls.mu.Unlock()
 
@@ -229,6 +235,9 @@ type Status struct {
 	// Refusal is the last refused hello of this generation, kept until a
 	// hello is accepted. nil when there is none.
 	Refusal *HelloRefusal
+	// DataMount is the result of this generation's last data mount, kept
+	// across reconnects until the next one is answered.
+	DataMount DataMount
 }
 
 // HelloRefusal is a refused hello, for `wb vm status` and a session start

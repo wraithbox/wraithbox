@@ -102,12 +102,17 @@ func (r *run) connect() (*guestlink.Link, error) {
 	return l, nil
 }
 
-// keep holds the link until it drops, the guest leaves a time call
-// unanswered, or the run ends. It calls the time hook after the hello
-// and every TimeInterval, and returns the reason of the next link's
-// first time call.
+// keep holds the link until it drops, the guest leaves a time call or
+// the data mount unanswered, or the run ends. It calls the mount hook
+// after the hello, then the time hook, and the time hook every
+// TimeInterval after. It returns the reason of the next link's first
+// time call.
 func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeReason {
 	defer func() { _ = l.Close() }()
+	if !r.mount(l) {
+		r.reconnecting()
+		return reason
+	}
 	for {
 		var kept bool
 		if reason, kept = r.sendTime(l, reason); !kept {

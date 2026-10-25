@@ -27,6 +27,16 @@ func createDataDisks(ctx context.Context, tx *sql.Tx) error {
 	return err
 }
 
+// addDataDiskFirstMount is version 4: the time wb-guestd first mounted
+// the slot's formatted disk. Until then wb-hostd asks it to make the
+// volume's root owned by root:wheel (S06-05-disks, "Owners and
+// modes").
+func addDataDiskFirstMount(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `ALTER TABLE data_disks ADD COLUMN
+		first_mounted_unix INTEGER CHECK (first_mounted_unix IS NULL OR formatted = 1)`)
+	return err
+}
+
 // DataDisk is the record of a slot's data disk.
 type DataDisk struct {
 	Slot string
@@ -42,6 +52,9 @@ type DataDisk struct {
 	// FirstStarted is when the VM first started with the disk, zero
 	// before.
 	FirstStarted time.Time
+	// FirstMounted is when wb-guestd first mounted the disk's volume,
+	// zero before.
+	FirstMounted time.Time
 }
 
 // The data disk errors.
@@ -65,9 +78,11 @@ func (d *DB) DataDiskRecord(ctx context.Context, slot string) (DataDisk, bool, e
 		size      int64
 		formatted int64
 		started   sql.NullInt64
+		mounted   sql.NullInt64
 	)
-	err := d.db.QueryRowContext(ctx, `SELECT volume_uuid, temp_name, size_gib, formatted, first_started_unix
-		FROM data_disks WHERE slot = ?`, slot).Scan(&rec.VolumeUUID, &rec.TempName, &size, &formatted, &started)
+	err := d.db.QueryRowContext(ctx, `SELECT volume_uuid, temp_name, size_gib, formatted, first_started_unix,
+		first_mounted_unix FROM data_disks WHERE slot = ?`, slot).Scan(
+		&rec.VolumeUUID, &rec.TempName, &size, &formatted, &started, &mounted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return DataDisk{}, false, nil
 	}
@@ -81,6 +96,9 @@ func (d *DB) DataDiskRecord(ctx context.Context, slot string) (DataDisk, bool, e
 	rec.Formatted = formatted == 1
 	if started.Valid {
 		rec.FirstStarted = time.Unix(started.Int64, 0).UTC()
+	}
+	if mounted.Valid {
+		rec.FirstMounted = time.Unix(mounted.Int64, 0).UTC()
 	}
 	return rec, true, nil
 }
@@ -96,7 +114,7 @@ func (d *DB) RecordDataDiskFormat(ctx context.Context, rec DataDisk) error {
 	res, err := d.db.ExecContext(ctx, `INSERT INTO data_disks
 		(slot, volume_uuid, temp_name, size_gib, formatted, first_started_unix) VALUES (?, ?, ?, ?, 0, NULL)
 		ON CONFLICT (slot) DO UPDATE SET volume_uuid = excluded.volume_uuid, temp_name = excluded.temp_name,
-			size_gib = excluded.size_gib, formatted = 0, first_started_unix = NULL
+			size_gib = excluded.size_gib, formatted = 0, first_started_unix = NULL, first_mounted_unix = NULL
 		WHERE data_disks.formatted = 0`,
 		rec.Slot, rec.VolumeUUID, rec.TempName, int64(rec.SizeGiB))
 	if err != nil {
@@ -123,6 +141,19 @@ func (d *DB) MarkDataDiskFormatted(ctx context.Context, slot, volumeUUID string)
 func (d *DB) MarkDataDiskStarted(ctx context.Context, slot string, at time.Time) error {
 	res, err := d.db.ExecContext(ctx, `UPDATE data_disks SET first_started_unix = coalesce(first_started_unix, ?)
 		WHERE slot = ? AND formatted = 1`, at.Unix(), slot)
+	if err != nil {
+		return err
+	}
+	return oneRow(res, ErrDataDiskNotRecorded)
+}
+
+// MarkDataDiskMounted records when wb-guestd first mounted slot's
+// formatted disk with volumeUUID. A later mount keeps the first time. A
+// slot without a formatted disk with that UUID fails with
+// ErrDataDiskNotRecorded.
+func (d *DB) MarkDataDiskMounted(ctx context.Context, slot, volumeUUID string, at time.Time) error {
+	res, err := d.db.ExecContext(ctx, `UPDATE data_disks SET first_mounted_unix = coalesce(first_mounted_unix, ?)
+		WHERE slot = ? AND volume_uuid = ? AND formatted = 1`, at.Unix(), slot, volumeUUID)
 	if err != nil {
 		return err
 	}
