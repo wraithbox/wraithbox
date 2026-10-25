@@ -16,3 +16,4 @@ new one here.
 | R03-fix-rounds-compaction | Fix rounds and compaction | Measured 2026-10-22 over 42 fix rounds of V1-M2. PR389 applies the recommendations in commit 28ab7e2, and merging it accepts them. Follow-up 2026-10-22: I392 turns compaction on, with builders at 200k, and is closed after the check that follows the merge |
 | R04-matchlock | Matchlock | Read 2026-10-23, no follow-up issues |
 | R05-iron-proxy | iron-proxy | Read 2026-10-23, re-review after V1 (no issue yet) |
+| R06-nono | nono | Read 2026-10-25, re-review after V1 (I240) |
