@@ -94,8 +94,16 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
     `VERSION`: `start` exits 255, and `status` shows the refusal with
     `peer-version-mismatch` and both versions.
 
-  Each measurement is logged with `measure:`. Runs: none yet. The first
-  is attended (I288).
+  Each measurement is logged with `measure:`. Runs:
+  - 2026-10-25, macOS 27 on Apple silicon, I288 fixture, build
+    `0.0.0+g90b07d3d8a955e8e`: pass. Start to accepted hello 14.1 s,
+    boot time call 2.7 ms, link closed to accepted hello 103 ms. `stop`
+    took 30.0 s, because the request-stop timeout ran out (I414). After
+    `kill -9`, the old `wb-vmd` exited 11.8 s after the kill, and the
+    new `wb-hostd`'s start exited 0 at generation 3.
+  - 2026-10-25, same Mac, build `0.0.0+g753eae127c860ddf`: failed only on
+    two wrong expectations of the test, fixed since. Start to accepted
+    hello 19.4 s. The other times were within 10 ms of the run above.
 - **Restore image.** A `wb-vmd-install` whose restore image is a
   symbolic link, or not at the fixed path, logs
   `vmd-restore-image-mismatch` before `sandbox_init`.
