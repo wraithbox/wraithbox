@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -92,8 +93,8 @@ func (f *fixture) shutdown() error {
 	}
 }
 
-// client dials wb-hostd's endpoint as wb does.
-func (f *fixture) client() hostdv1.HostServiceClient {
+// dial connects to wb-hostd's endpoint as wb does.
+func (f *fixture) dial() *grpc.ClientConn {
 	f.t.Helper()
 	conn, err := grpc.NewClient("passthrough:///"+localipc.HostdEndpoint,
 		grpccreds.ClientOptions(nil, grpccreds.New(nil, own), f.o.Paths.Run, localipc.HostdEndpoint)...)
@@ -101,7 +102,34 @@ func (f *fixture) client() hostdv1.HostServiceClient {
 		f.t.Fatal(err)
 	}
 	f.t.Cleanup(func() { _ = conn.Close() })
-	return hostdv1.NewHostServiceClient(conn)
+	return conn
+}
+
+func (f *fixture) client() hostdv1.HostServiceClient {
+	return hostdv1.NewHostServiceClient(f.dial())
+}
+
+// sessionStart looks up a repository that has no project for a session
+// start, waiting for the endpoint.
+func (f *fixture) sessionStart() (*hostdv1.LookupProjectResponse, error) {
+	ctx, cancel := context.WithTimeout(f.t.Context(), 30*time.Second)
+	defer cancel()
+	return hostdv1.NewProjectServiceClient(f.dial()).LookupProject(ctx, &hostdv1.LookupProjectRequest{
+		Key:      &hostdv1.ProjectKey{Realm: "native", Path: "/r/a/.git"},
+		Identity: &hostdv1.ProjectIdentity{Urls: []string{"https://a.example/a.git"}},
+		Purpose:  hostdv1.LookupPurpose_LOOKUP_PURPOSE_SESSION_START,
+	}, grpc.WaitForReady(true))
+}
+
+// standInGit writes a git that prints out to `git version`, and returns
+// its path for config.toml's git key.
+func standInGit(t *testing.T, out string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "git")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nprintf '%s\\n' '"+out+"'\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func (f *fixture) hostdLog() string {
@@ -210,5 +238,37 @@ func TestServesStoppedVMs(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(f.o.Paths.Data, "state.db")); err != nil {
 		t.Errorf("state.db: %v", err)
+	}
+}
+
+// wb-hostd checks the git that config.toml names when it starts, and a
+// session start is refused with the check's rule until it passes
+// (S08-08-host-git, SEC09-host-policy). A release candidate of the
+// minimum version is unreadable, not accepted.
+func TestSessionStartNeedsGit(t *testing.T) {
+	cases := []struct {
+		out, rule string
+	}{
+		{"git version 2.40.0", "git-version-too-old"},
+		{"git version 2.54.0.rc1", "git-version-unreadable"},
+		{"git version 2.54.0", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.out, func(t *testing.T) {
+			f := newFixture(t)
+			f.writeConfig("git = " + strconv.Quote(standInGit(t, c.out)) + "\n")
+			f.start()
+			res, err := f.sessionStart()
+			if c.rule == "" {
+				if err != nil || res.GetUnknown() == nil || res.GetGit().GetVersion() != "2.54.0" {
+					t.Fatalf("session start = %v, %v, want an unknown key", res, err)
+				}
+				return
+			}
+			wantRule(t, err, c.rule)
+			if log := f.hostdLog(); !strings.Contains(log, `"rule":"`+c.rule+`"`) {
+				t.Errorf("wb-hostd.log misses the rule %s:\n%s", c.rule, log)
+			}
+		})
 	}
 }
