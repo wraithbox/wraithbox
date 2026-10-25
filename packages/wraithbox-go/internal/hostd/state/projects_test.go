@@ -2,6 +2,7 @@ package state
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -193,5 +194,36 @@ func TestProjectUpdateAndDelete(t *testing.T) {
 	}))
 	if n := count(t, db.Path(), "projects"); n != 0 {
 		t.Errorf("rows = %d, want 0", n)
+	}
+}
+
+// TestProjectInsertRace: of many transactions inserting one key at
+// once, each with its own id, exactly one succeeds, and every other is
+// refused with ErrProjectKeyTaken (S05-04-naming, "Project id": a key
+// has at most one project).
+func TestProjectInsertRace(t *testing.T) {
+	db := newProjectsDB(t)
+	const n = 16
+	errs := make(chan error, n)
+	for i := range n {
+		go func() {
+			row := projectRow(fmt.Sprintf("%032x", i+1), "/Users/a/foo/.git")
+			errs <- db.Projects(t.Context(), func(p *ProjectTx) error { return p.Insert(row) })
+		}()
+	}
+	won := 0
+	for range n {
+		switch err := <-errs; {
+		case err == nil:
+			won++
+		case !errors.Is(err, ErrProjectKeyTaken):
+			t.Errorf("err = %v, want ErrProjectKeyTaken", err)
+		}
+	}
+	if won != 1 {
+		t.Errorf("%d inserts succeeded, want 1", won)
+	}
+	if n := count(t, db.Path(), "projects"); n != 1 {
+		t.Errorf("rows = %d, want 1", n)
 	}
 }
