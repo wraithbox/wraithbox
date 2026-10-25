@@ -103,9 +103,10 @@ In the guest, after `wb-hostd` had `wb-guestd` mount the volume, in
 
 - As a standard user and as root, see the mount carry every flag, the
   volume reported unencrypted, and the check pass (`TestMounted`).
-- As root, copy `/usr/bin/id` onto the volume as a setuid-root file,
-  run it as the standard user, and see it report that user's UID. The
-  same copy in `/private/var/tmp` reports root (`TestSetuidIgnored`).
+- As root, copy the test binary onto the volume as a setuid-root file,
+  run it as the standard user, and see it report that user's UID as
+  its effective UID. The same copy in `/private/var/tmp` must report
+  root, or the test fails (`TestSetuidIgnored`).
 - As root, remount the volume with `mount -u -o suid`, and see the
   check refuse with `data-mount-flags`. Set `nosuid` back, and see it
   pass (`TestRemountRefused`).
