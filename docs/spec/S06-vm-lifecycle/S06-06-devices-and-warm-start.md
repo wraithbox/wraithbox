@@ -182,9 +182,18 @@ cold-booted guest starts from the virtual clock. A restored guest lags
 by the time it spent saved (X18-vsock-handoff). The periodic update
 corrects drift and a change of the host clock within a minute.
 
+The guest link (S06-11-reconnect-and-recovery) sends an update after
+every accepted hello, and every 60 seconds while it is up. After a
+cold boot the reason is a boot until an update of that run has succeeded, and periodic
+after it, so an update after a reconnect is periodic. An update that
+fails for another reason than an unanswered call is logged with
+`guest-time-failed`, and the link is kept.
+
 `wb-hostd` never reads or uses a time value from the guest. The guest
-has no message that asks for the time (S04-01-design-principles, "Everything in the guest is untrusted"). So the guest can't make
-`wb-hostd` send more updates than this schedule.
+has no message that asks for the time (S04-01-design-principles, "Everything in the guest is untrusted"). A guest that drops the link
+gets one update per new hello, and the reconnect cap of 20 connections
+a minute bounds those. So the guest can't make `wb-hostd` send more
+updates than this schedule and that cap allow.
 
 #### Step or slew
 

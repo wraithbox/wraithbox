@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
+	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
@@ -163,8 +164,15 @@ type harness struct {
 	// order.
 	guests chan net.Conn
 	hosts  chan net.Conn
-	// times receives the generation of each time hook call.
-	times chan uint64
+	// times receives the generation of each time hook call, and reasons
+	// its reason.
+	times   chan uint64
+	reasons chan guestv1.TimeReason
+	// send, when set, is what the time hook does after it records the
+	// call, and guestClock the clock of the guests' wb-guestd. Set them
+	// before the first start.
+	send       func(ctx context.Context, l *guestlink.Link, reason guestv1.TimeReason) error
+	guestClock guestd.Clock
 }
 
 // newHarness returns a harness whose wb-hostd has version host and whose
@@ -175,13 +183,11 @@ func newHarness(t *testing.T, host, guest string, follow bool) *harness {
 	h := &harness{
 		t: t, provider: &vmtest.Provider{}, clock: newFakeClock(), logs: &logs{},
 		guestVersion: guest, guests: make(chan net.Conn, 1024), hosts: make(chan net.Conn, 1024), times: make(chan uint64, 1024),
+		reasons: make(chan guestv1.TimeReason, 1024),
 	}
 	h.provider.OnConnect = h.connect
 	logger := slog.New(slog.NewJSONHandler(h.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	cfg := Config{
-		Version: host, Clock: h.clock, Logger: logger,
-		TimeHook: func(_ context.Context, _ vm.Slot, generation uint64, _ *guestlink.Link) { h.times <- generation },
-	}
+	cfg := Config{Version: host, Clock: h.clock, Logger: logger, TimeHook: h.timeHook}
 	vmCfg := h.vmConfig(logger)
 	if follow {
 		vmCfg.OnRunning = func(slot vm.Slot, generation uint64, ended <-chan struct{}) {
@@ -201,6 +207,28 @@ func newHarness(t *testing.T, host, guest string, follow bool) *harness {
 	h.links = ls
 	t.Cleanup(ls.Close)
 	return h
+}
+
+// timeHook records the call, then runs send.
+func (h *harness) timeHook(ctx context.Context, _ vm.Slot, generation uint64, l *guestlink.Link, reason guestv1.TimeReason) error {
+	h.reasons <- reason
+	h.times <- generation
+	if h.send != nil {
+		return h.send(ctx, l, reason)
+	}
+	return nil
+}
+
+// nextReason returns the reason of the next time hook call.
+func (h *harness) nextReason() guestv1.TimeReason {
+	h.t.Helper()
+	select {
+	case r := <-h.reasons:
+		return r
+	case <-time.After(5 * time.Second):
+		h.t.Fatal("the time hook wasn't called")
+		return 0
+	}
 }
 
 func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
@@ -231,7 +259,11 @@ func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
 // wb-guestd's GuestService serves.
 func (h *harness) connect(_ context.Context, _ *vmtest.Instance, _ uint64, _ uint32) (net.Conn, error) {
 	host, guest := socketpair(h.t)
-	srv := guestd.NewServer(h.guestVersion, slog.New(slog.DiscardHandler))
+	var opts []guestd.Option
+	if h.guestClock != nil {
+		opts = append(opts, guestd.WithClock(h.guestClock))
+	}
+	srv := guestd.NewServer(h.guestVersion, slog.New(slog.DiscardHandler), opts...)
 	go func() { _ = srv.Serve(newOneConn(guest)) }()
 	h.t.Cleanup(srv.Stop)
 	// Close the guest end before Stop, which otherwise waits for the
