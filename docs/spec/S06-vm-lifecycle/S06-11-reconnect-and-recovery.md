@@ -20,7 +20,10 @@ one VM in a minute (SEC13-bounded-resources).
 A guest that answers the hello and then stops answering also counts as
 a drop. `wb-hostd` drops the link with `guest-time-unanswered` when a
 time call (S06-06-devices-and-warm-start) is still unanswered at the
-link's call deadline, or fails because the connection failed. So the
+link's call deadline, or fails because the connection failed. The
+call's status code is guest input: the host can't tell a failed
+transport from an `Unavailable` that the guest sent, and both lead to
+the same reconnect, which the waits and the cap above bound. So the
 link is never shown as up for more than a minute plus that deadline
 after the guest's last answer.
 

@@ -4,6 +4,7 @@ package guestconn
 
 import (
 	"context"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -160,5 +161,50 @@ func TestC11GuestLinkSendTime(t *testing.T) {
 	}
 	if recs := h.logs.withRule(t, RuleTimeFailed); len(recs) != 0 {
 		t.Fatalf("time call failed: %v", recs)
+	}
+}
+
+// A time call that fails because the link dropped under it is logged as
+// the drop, guest-link-dropped, whatever its code, and the link connects
+// again after 0.1 s.
+func TestC11GuestLinkTimeDropUnderCall(t *testing.T) {
+	for _, code := range []codes.Code{codes.Canceled, codes.Unavailable} {
+		t.Run(code.String(), func(t *testing.T) {
+			h := newHarness(t, own, own, true)
+			h.send = dropFirst(h.guests, code)
+			h.start()
+			h.clock.skipTo(t, FirstWait)
+			h.nextTime()
+			if d := h.clock.nextWait(t); d != FirstWait {
+				t.Fatalf("wait after the drop = %v, want %v", d, FirstWait)
+			}
+			if n := len(h.logs.withRule(t, RuleLinkDropped)); n != 1 {
+				t.Fatalf("%d %s records, want 1", n, RuleLinkDropped)
+			}
+			for _, rule := range []string{RuleTimeUnanswered, RuleTimeFailed} {
+				if recs := h.logs.withRule(t, rule); len(recs) != 0 {
+					t.Fatalf("%s records %v, want none", rule, recs)
+				}
+			}
+			h.clock.advance(FirstWait)
+			h.nextTime()
+			h.waitState(StateLinked)
+		})
+	}
+}
+
+// dropFirst is a time hook whose first call closes the guest end of the
+// connection, waits until the link is down, and fails with code. Every
+// later call succeeds.
+func dropFirst(guests <-chan net.Conn, code codes.Code) func(context.Context, *guestlink.Link, guestv1.TimeReason) error {
+	var once sync.Once
+	return func(_ context.Context, l *guestlink.Link, _ guestv1.TimeReason) error {
+		var err error
+		once.Do(func() {
+			_ = (<-guests).Close()
+			<-l.Down()
+			err = status.Error(code, "guest text")
+		})
+		return err
 	}
 }

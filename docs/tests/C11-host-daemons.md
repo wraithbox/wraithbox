@@ -77,8 +77,10 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   bundle, `mise run go:test-vm` builds the bundle and runs the test
   binary as `wb-hostd` from it, with `<config>` and `<logs>` in
   `.scratch/go-test-vm`. `wb-vmd` boots only the slot bundle under the
-  real `<data>`. The test refuses to run when `<data>` exists, and
-  removes it at its end. Through `wb vm` it checks:
+  real `<data>`. Nothing else may use Wraith Box on the Mac during the
+  run. The test makes `<data>`, and refuses to run when it exists. At
+  its end it removes `<data>`, unless `<data>` holds something it
+  didn't make. Through `wb vm` it checks:
   - `start` links, `status` shows the guest's version equal to the
     build's and the generation, `tools.img` has a new inode, and the
     boot's time call took under 1 s;

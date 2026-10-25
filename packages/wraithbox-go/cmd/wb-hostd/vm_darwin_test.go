@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/paths"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
@@ -98,10 +100,18 @@ func newVMRun(t *testing.T) *vmRun {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Lstat(p.Data); !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("%s exists (%v): this test makes <data> and removes it at its end, so it runs only without one", p.Data, err)
-	}
 	r := &vmRun{t: t, paths: p, scratch: scratch, app: app, started: time.Now()}
+	// The test claims <data> by making it, so it never runs on a <data>
+	// it didn't make.
+	if err := os.Mkdir(p.Data, 0o700); errors.Is(err, fs.ErrExist) {
+		t.Fatalf("%s exists: this test makes <data> and removes it at its end, so it runs only without one. "+
+			"It may be left by an earlier run of this test: stop any wb-hostd it left (pgrep -fl wb-hostd.test, then kill <pid>), "+
+			"check that nothing else of Wraith Box uses it, and remove it", p.Data)
+	} else if err != nil {
+		t.Fatal(err)
+	}
+	// Registered before stopChild, so it runs after the child stops.
+	t.Cleanup(r.removeData)
 	r.paths.Config = filepath.Join(scratch, "config")
 	r.paths.Logs = filepath.Join(scratch, "logs")
 	for _, dir := range []string{r.paths.Config, r.paths.Logs} {
@@ -112,10 +122,41 @@ func newVMRun(t *testing.T) *vmRun {
 			t.Fatal(err)
 		}
 	}
-	// Registered first, so it runs last: after the child stops.
-	t.Cleanup(r.removeData)
 	t.Cleanup(r.stopChild)
 	return r
+}
+
+// dataNames are the names in <data> that wb-hostd makes for the work VM:
+// the run directory, the slot bundles' directory, and state.db with its
+// journal and backups. vmsNames are those in <data>/vms.
+var (
+	dataNames = []string{"run", "vms", state.FileName}
+	vmsNames  = []string{filepath.Base(vmbundle.Rel(vmbundle.SlotWork))}
+)
+
+// foreign returns the names in dir that aren't one of names or start
+// with one of them.
+func foreign(dir string, names []string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, e := range entries {
+		if !slices.ContainsFunc(names, func(n string) bool { return ownName(e.Name(), n) }) {
+			out = append(out, e.Name())
+		}
+	}
+	return out, nil
+}
+
+// ownName reports whether name is n, or n with a suffix after a dot or a
+// hyphen, such as state.db-wal and state.db.bak.
+func ownName(name, n string) bool {
+	return name == n || strings.HasPrefix(name, n+".") || strings.HasPrefix(name, n+"-")
 }
 
 // cloneFixture clones the test bundle's files into the work slot's
@@ -378,13 +419,25 @@ func (r *vmRun) stopChild() {
 }
 
 // removeData removes the <data> the test made, once every wb-vmd it
-// started has exited.
+// started has exited. It leaves a <data> that holds anything wb-hostd
+// doesn't make for the work VM, which something else put there during
+// the run.
 func (r *vmRun) removeData() {
 	t := r.t
 	for _, pid := range r.vmdPIDs() {
 		if alive(pid) {
 			waitExit(t, pid, time.Minute)
 		}
+	}
+	top, err := foreign(r.paths.Data, dataNames)
+	if err == nil {
+		var vms []string
+		vms, err = foreign(filepath.Join(r.paths.Data, "vms"), vmsNames)
+		top = append(top, vms...)
+	}
+	if err != nil || len(top) > 0 {
+		t.Errorf("%s holds %v that this test didn't make (%v), so it is left: check what made it, and remove <data> by hand", r.paths.Data, top, err)
+		return
 	}
 	if err := os.RemoveAll(r.paths.Data); err != nil {
 		t.Errorf("remove %s: %v: remove it by hand", r.paths.Data, err)
