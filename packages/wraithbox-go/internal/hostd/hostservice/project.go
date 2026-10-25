@@ -24,7 +24,7 @@ import (
 // session start refused for git has the rule of wb-hostd's git check
 // (hostgit).
 const (
-	// RuleProjectOverCap: a field over its cap (S04-08-records-and-bounds,
+	// RuleProjectOverCap: a field over its cap (S04-00-architecture,
 	// "Input from `wb`").
 	RuleProjectOverCap = "project-request-over-cap"
 	// RuleProjectForm: a field that isn't in its form, such as a key
@@ -84,7 +84,7 @@ type ProjectStore interface {
 // ProjectServer serves wraithbox.hostd.v1.ProjectService: the project
 // records of S05-04-naming. wb resolves the key and the identity, and
 // wb-hostd checks each field of a request before it reads or writes
-// state.db (S04-08-records-and-bounds, "Input from `wb`").
+// state.db (S04-00-architecture, "Input from `wb`").
 type ProjectServer struct {
 	hostdv1.UnimplementedProjectServiceServer
 

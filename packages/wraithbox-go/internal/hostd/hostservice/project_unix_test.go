@@ -391,7 +391,7 @@ func TestProjectSessionStartGit(t *testing.T) {
 
 // TestProjectInputRefused: each field over its cap or out of its form
 // is refused with its rule before state.db is read
-// (S04-08-records-and-bounds, "Input from `wb`"; SEC13-bounded-resources).
+// (S04-00-architecture, "Input from `wb`"; SEC13-bounded-resources).
 func TestProjectInputRefused(t *testing.T) {
 	f := newProjects(t, nil)
 	many := make([]string, 1025)

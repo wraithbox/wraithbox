@@ -11,7 +11,7 @@ import (
 
 // FuzzProjectInput: the checks of a project request's key, identity, id
 // and name never panic, and what they accept is in its form
-// (S04-08-records-and-bounds, "Input from `wb`").
+// (S04-00-architecture, "Input from `wb`").
 func FuzzProjectInput(f *testing.F) {
 	f.Add("/r/a/.git", "https://a.example/a.git", "1111111111111111111111111111111111111111", "0123456789abcdef0123456789abcdef", "foo")
 	f.Add("r/../a", "https://a b", "ABC", "", "-x")

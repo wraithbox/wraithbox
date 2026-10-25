@@ -128,6 +128,7 @@ The `.proto` files in `proto/` are the one contract for every language
 | `proto/wraithbox/guest/v1/guest.proto` | `wraithbox.guest.v1` | `GuestService`, served by `wb-guestd` and called by `wb-hostd`. Its `Shell` runs the terminal stream to the guest, and its `SetTime` sets the guest clock |
 | `proto/wraithbox/hostd/v1/hostd.proto` | `wraithbox.hostd.v1` | `HostService`, served by `wb-hostd` on its local IPC endpoint and called by `wb` |
 | `proto/wraithbox/hostd/v1/shell.proto` | `wraithbox.hostd.v1` | `ShellService`, served by `wb-hostd` on the same endpoint and called by `wb shell`, for the terminal stream |
+| `proto/wraithbox/hostd/v1/project.proto` | `wraithbox.hostd.v1` | `ProjectService`, served by `wb-hostd` on the same endpoint and called by `wb`, for project records (S05-04-naming) |
 | `proto/wraithbox/terminal/v1/terminal.proto` | `wraithbox.terminal.v1` | The frames of the terminal stream (S16-terminal-stream, S05-02-exit-status-and-signals), the same on both hops. `wb-hostd` builds each frame it passes on new from a checked one |
 | `proto/wraithbox/diskfmt/v1/diskfmt.proto` | `wraithbox.diskfmt.v1` | The messages between `wb-hostd` and `wb-diskfmt`, one per datagram on `wb-diskfmt`'s socketpair (S04-04-vm-processes, "`wb-diskfmt`") |
 
@@ -135,6 +136,24 @@ A refusal over gRPC names its rule in a `google.rpc.ErrorInfo` detail,
 as the `reason`, so the caller needn't parse the message text. The
 comments on each message from the guest, and on `HandoffMessage`, state
 the bounds the receiver checks.
+
+### Input from `wb`
+
+`wb` runs as the user, but what it sends `wb-hostd` about a project
+comes from a repository, which anyone can have written. So
+`wb-hostd` checks each field of a `ProjectService` request before it
+reads `state.db` (SEC13-bounded-resources). A field over its cap is
+refused with `project-request-over-cap`, and a field outside its form
+with `project-request-form`. The refusal and its log name the field.
+
+| Input from `wb` | Limits |
+|---|---|
+| A gRPC message | 4 MiB each way |
+| The project key | the `native` realm only, a clean absolute path of at most 4,096 bytes of UTF-8 without a control character |
+| The URLs of an identity | 1,024, each 1 to 8,192 bytes of printable ASCII without a space, 1 MiB together |
+| The root commits of an identity | 1,024, each a 40- or 64-character lowercase object ID |
+| A project id and name | 32 lowercase hexadecimal characters, and a name of S05-04-naming of at most 64 bytes |
+| Matching projects in a reply | 64, with the full count, and 8 ids in the refusal of an ambiguous name |
 
 ### The version record
 

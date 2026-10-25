@@ -269,24 +269,6 @@ in S17-03-downloads:
 | The result records | `wb-hostd` | a fixed form per field, at most 16 requests per run |
 | Audit records of downloads | `wb-hostd` | one per request or refusal, at most 16 per run, never dropped |
 
-### Input from `wb`
-
-`wb` runs as the user, but what it sends `wb-hostd` about a project
-comes from a repository, which anyone can have written. So
-`wb-hostd` checks each field of a `ProjectService` request before it
-reads `state.db`. A field over its cap is refused with
-`project-request-over-cap`, and a field outside its form with
-`project-request-form`, both logged with the field:
-
-| Input from `wb` | Process | Limits |
-|---|---|---|
-| A gRPC message | `wb-hostd` | 4 MiB each way |
-| The project key | `wb-hostd` | the `native` realm only, a clean absolute path of at most 4,096 bytes of UTF-8 without a control character |
-| The URLs of an identity | `wb-hostd` | 1,024, each 1 to 8,192 bytes of printable ASCII without a space, 1 MiB together |
-| The root commits of an identity | `wb-hostd` | 1,024, each a 40- or 64-character lowercase object ID |
-| A project id and name | `wb-hostd` | 32 lowercase hexadecimal characters, and a name of S05-04-naming of at most 64 bytes |
-| Matching projects in a reply | `wb-hostd` | 64, with the full count; 8 ids in the refusal of an ambiguous name |
-
 ### Logs and health
 
 `wb-hostd` writes its own log, and the lines the other daemons send it,

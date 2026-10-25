@@ -13,7 +13,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/project"
 )
 
-// The caps on a project request from wb (S04-08-records-and-bounds,
+// The caps on a project request from wb (S04-00-architecture,
 // "Input from `wb`"). wb is a process of the user, but the repository it
 // reads is not, so every field is checked here as untrusted input
 // (SEC13-bounded-resources). A request over a cap is refused with

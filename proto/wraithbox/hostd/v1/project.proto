@@ -11,7 +11,7 @@
 //
 // wb-hostd takes every field as untrusted. Each string and list has a
 // cap, and a request over one is refused with a rule, never cut. The
-// caps are in code (S04-08-records-and-bounds, "Input from `wb`").
+// caps are in code (S04-00-architecture, "Input from `wb`").
 //
 // Refusals are as in HostService: status FAILED_PRECONDITION,
 // INVALID_ARGUMENT or NOT_FOUND, with a google.rpc.ErrorInfo detail
