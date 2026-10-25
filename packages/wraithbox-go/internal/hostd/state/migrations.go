@@ -21,6 +21,7 @@ type migration struct {
 var migrations = []migration{
 	{name: "vm-slots", apply: createVMSlots},
 	{name: "data-disks", apply: createDataDisks},
+	{name: "projects", apply: createProjects},
 }
 
 // createVMSlots is version 1: one row per VM slot with the last VM
