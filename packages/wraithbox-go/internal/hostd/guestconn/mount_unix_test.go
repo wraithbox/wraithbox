@@ -183,11 +183,7 @@ func TestC11GuestLinkMountRefused(t *testing.T) {
 				t.Fatalf("%s records %v, want one refusal", tt.rule, recs)
 			}
 			wantSessionRefused(t, h.links.CheckSessionStart(vm.SlotWork, 1), tt.rule, "wb vm stop work")
-			// Only a refusal about the volume advises the reset, which
-			// deletes the homes.
-			if got := strings.Contains(dm.Message, "wb vm reset-data work"); got != tt.reset {
-				t.Errorf("message %q advises reset-data: %t, want %t", dm.Message, got, tt.reset)
-			}
+			wantResetAdvised(t, dm.Message, tt.reset)
 			// The link stays up: the next time call comes after 60 s.
 			if d := h.clock.nextWait(t); d != TimeInterval {
 				t.Fatalf("wait after the refusal = %v, want %v", d, TimeInterval)
@@ -224,9 +220,10 @@ func TestC11GuestLinkMountTimeout(t *testing.T) {
 				t.Fatalf("wait after the refusal = %v, want a reconnect after %v", d, FirstWait)
 			}
 			dm := h.waitMount(MountRefused)
-			if dm.Rule != rule || strings.Contains(dm.Message, "reset-data") {
-				t.Fatalf("data mount %+v, want rule %s without a reset", dm, rule)
+			if dm.Rule != rule {
+				t.Fatalf("rule %s, want %s", dm.Rule, rule)
 			}
+			wantResetAdvised(t, dm.Message, false)
 			h.clock.advance(FirstWait)
 			h.nextTime()
 			h.waitMount(MountMounted)
@@ -274,6 +271,16 @@ func TestCheckSessionStartPending(t *testing.T) {
 	h.waitMount(MountMounted)
 	if err := h.links.CheckSessionStart(vm.SlotWork, 1); err != nil {
 		t.Fatalf("session start after the reconnect: %v", err)
+	}
+}
+
+// wantResetAdvised checks that a refusal's message names
+// wb vm reset-data when want is true, and only then. Only a refusal of
+// the volume advises the reset, which deletes the homes.
+func wantResetAdvised(t *testing.T, msg string, want bool) {
+	t.Helper()
+	if got := strings.Contains(msg, "wb vm reset-data work"); got != want {
+		t.Errorf("message %q advises reset-data: %t, want %t", msg, got, want)
 	}
 }
 
