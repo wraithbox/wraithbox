@@ -53,6 +53,13 @@ const (
 	// RuleLinkDropped: the control link's connection left READY, and the
 	// link connects again.
 	RuleLinkDropped = "guest-link-dropped"
+	// RuleTimeUnanswered: the guest didn't answer a time call within the
+	// link's call deadline, or the connection failed under the call. The
+	// link is dropped, and connects again.
+	RuleTimeUnanswered = "guest-time-unanswered"
+	// RuleTimeFailed: a time call failed otherwise, such as a refusal of
+	// wb-guestd's. The link is kept.
+	RuleTimeFailed = "guest-time-failed"
 )
 
 // route is a guest port wb-hostd connects to, and what for. A connection

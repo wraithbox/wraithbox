@@ -17,6 +17,13 @@ When the host-guest link drops:
 after each failed one, up to 5 s. It opens at most 20 connections to
 one VM in a minute (SEC13-bounded-resources).
 
+A guest that answers the hello and then stops answering also counts as
+a drop. `wb-hostd` drops the link with `guest-time-unanswered` when a
+time call (S06-06-devices-and-warm-start) is still unanswered at the
+link's call deadline, or fails because the connection failed. So the
+link is never shown as up for more than a minute plus that deadline
+after the guest's last answer.
+
 #### The list
 
 After it connects, `wb-guestd` lists what `wb-hostd` hasn't

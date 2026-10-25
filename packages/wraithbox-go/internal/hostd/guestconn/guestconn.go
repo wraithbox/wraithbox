@@ -34,6 +34,7 @@ import (
 	"sync"
 	"time"
 
+	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/ratelog"
@@ -62,9 +63,20 @@ func (realClock) After(d time.Duration) <-chan time.Time { return time.After(d) 
 // TimeHook sends the host's time to the guest of a linked VM
 // (S06-06-devices-and-warm-start, "When the host sends the time"). The
 // link calls it after each accepted hello, and every TimeInterval while
-// the link is up. It must return: the link doesn't watch for a drop
-// while it runs. wb-hostd never reads a time from the guest.
-type TimeHook func(ctx context.Context, slot vm.Slot, generation uint64, link *guestlink.Link)
+// the link is up. reason is TIME_REASON_BOOT until a call for the
+// generation has succeeded, and TIME_REASON_PERIODIC after. It must
+// return: the link doesn't watch for a drop while it runs. Its error
+// decides whether the link is kept (RuleTimeUnanswered,
+// RuleTimeFailed). wb-hostd never reads a time from the guest. SendTime
+// is the hook of wb-hostd.
+type TimeHook func(ctx context.Context, slot vm.Slot, generation uint64, link *guestlink.Link, reason guestv1.TimeReason) error
+
+// SendTime is the TimeHook of wb-hostd: GuestService.SetTime with the
+// host's wall clock now, within the link's call deadline.
+func SendTime(ctx context.Context, _ vm.Slot, _ uint64, link *guestlink.Link, reason guestv1.TimeReason) error {
+	_, err := link.Client().SetTime(ctx, &guestv1.SetTimeRequest{UnixNanos: time.Now().UnixNano(), Reason: reason})
+	return err
+}
 
 // Config is what Links runs with.
 type Config struct {

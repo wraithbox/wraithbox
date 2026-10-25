@@ -5,6 +5,10 @@ import (
 	"log/slog"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsock"
@@ -38,6 +42,10 @@ type run struct {
 // a drop or a failed try, until the run ends.
 func (r *run) loop() {
 	wait := FirstWait
+	// The first time call of a generation is its boot's, and so is every
+	// one after it until one succeeds (S06-06-devices-and-warm-start,
+	// "When the host sends the time").
+	reason := guestv1.TimeReason_TIME_REASON_BOOT
 	for r.sleep(wait) {
 		l, err := r.connect()
 		if err != nil {
@@ -46,7 +54,7 @@ func (r *run) loop() {
 		}
 		// An accepted hello resets the wait.
 		wait = FirstWait
-		r.keep(l)
+		reason = r.keep(l, reason)
 	}
 }
 
@@ -94,29 +102,84 @@ func (r *run) connect() (*guestlink.Link, error) {
 	return l, nil
 }
 
-// keep holds the link until it drops or the run ends, and calls the time
-// hook after the hello and every TimeInterval.
-func (r *run) keep(l *guestlink.Link) {
+// keep holds the link until it drops, the guest leaves a time call
+// unanswered, or the run ends. It calls the time hook after the hello
+// and every TimeInterval, and returns the reason of the next link's
+// first time call.
+func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeReason {
 	defer func() { _ = l.Close() }()
-	r.sendTime(l)
 	for {
+		var kept bool
+		if reason, kept = r.sendTime(l, reason); !kept {
+			r.reconnecting()
+			return reason
+		}
 		select {
 		case <-r.ls.clock.After(TimeInterval):
-			r.sendTime(l)
 		case <-l.Down():
 			r.vc.log.LogAttrs(r.ctx, slog.LevelWarn, "guest link dropped",
 				slog.String("rule", RuleLinkDropped), slog.String("decision", "reconnect"),
 				slog.Uint64("generation", r.generation))
-			r.ls.setStatus(r.slot, r.generation, func(s *Status) { s.State, s.GuestVersion = StateConnecting, "" })
-			return
+			r.reconnecting()
+			return reason
 		case <-r.ctx.Done():
-			return
+			return reason
 		}
 	}
 }
 
-func (r *run) sendTime(l *guestlink.Link) {
-	if hook := r.ls.cfg.TimeHook; hook != nil {
-		hook(r.ctx, r.slot, r.generation, l)
+// reconnecting shows the link as connecting again after a drop.
+func (r *run) reconnecting() {
+	r.ls.setStatus(r.slot, r.generation, func(s *Status) { s.State, s.GuestVersion = StateConnecting, "" })
+}
+
+// sendTime calls the time hook with reason. It returns the reason of the
+// next call, and whether the link is kept:
+//
+//   - A call that succeeds makes every later one periodic.
+//   - A call the guest leaves unanswered, past the link's call deadline
+//     or on a failed connection, drops the link with RuleTimeUnanswered.
+//     So a wb-guestd that answered the hello and then went silent is
+//     reconnected, not shown as linked.
+//   - Any other failure is logged with RuleTimeFailed, and the link is
+//     kept. A later call steps a guest clock more than 1 s off.
+//
+// The status code comes from the guest's gRPC server or from grpc-go,
+// and the host can't tell which. Either way it only decides between a
+// reconnect, which the reconnect waits and the open cap bound, and
+// keeping the link.
+func (r *run) sendTime(l *guestlink.Link, reason guestv1.TimeReason) (guestv1.TimeReason, bool) {
+	hook := r.ls.cfg.TimeHook
+	if hook == nil {
+		return reason, true
 	}
+	sent := r.ls.clock.Now()
+	err := hook(r.ctx, r.slot, r.generation, l, reason)
+	attrs := []slog.Attr{
+		slog.Uint64("generation", r.generation), slog.String("reason", reason.String()),
+		slog.Duration("took", r.ls.clock.Now().Sub(sent)),
+	}
+	if err == nil {
+		// The periodic update comes every minute, so it logs at debug.
+		level := slog.LevelInfo
+		if reason == guestv1.TimeReason_TIME_REASON_PERIODIC {
+			level = slog.LevelDebug
+		}
+		r.vc.log.LogAttrs(r.ctx, level, "guest time sent", append(attrs, slog.String("decision", "send"))...)
+		return guestv1.TimeReason_TIME_REASON_PERIODIC, true
+	}
+	if r.ctx.Err() != nil {
+		// The run ended during the call, and keep returns.
+		return reason, true
+	}
+	code := status.Code(err)
+	attrs = append(attrs, slog.String("code", code.String()))
+	if code == codes.DeadlineExceeded || code == codes.Unavailable {
+		r.vc.log.LogAttrs(r.ctx, slog.LevelWarn, "guest time unanswered",
+			append(attrs, slog.String("rule", RuleTimeUnanswered), slog.String("decision", "reconnect"))...)
+		return reason, false
+	}
+	r.vc.log.LogAttrs(r.ctx, slog.LevelWarn, "guest time not set",
+		append(attrs, slog.String("rule", RuleTimeFailed), slog.String("decision", "keep"))...)
+	return reason, true
 }
