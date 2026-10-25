@@ -92,7 +92,7 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
     outcome;
   - a bundle whose tools disk has another build's `wb-guestd` and
     `VERSION`: `start` exits 255, and `status` shows the refusal with
-    `guest-version-mismatch` and both versions.
+    `peer-version-mismatch` and both versions.
 
   Each measurement is logged with `measure:`. Runs: none yet. The first
   is attended (I288).
