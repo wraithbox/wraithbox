@@ -188,8 +188,8 @@ swap.
 The host formats the volume as the host user, so the guest may see the
 mount root with another owner or mode. On a volume's first mount,
 `wb-guestd` logs the root's owner and mode as it found them ("data
-volume root before its first claim"), and gives the root to
-`root:wheel` with mode 755 by `fchown` and `fchmod` on a descriptor
+volume root before its first claim"). It then gives the root to
+`root:wheel` with mode 755, by `fchown` and `fchmod` on a descriptor
 opened without following a link. `wb-hostd` records the first mount
 that succeeded in `state.db` and asks for this only until then. A
 reformat of the data disk clears the record.

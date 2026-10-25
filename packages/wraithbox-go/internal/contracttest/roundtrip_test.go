@@ -39,6 +39,9 @@ func vmStatus() *hostdv1.VMStatus {
 			Rule: "peer-version-mismatch", GuestVersion: `"1.2.4"`, HostdVersion: `"1.2.3"`, Message: "stop and start",
 		},
 		LastError: &hostdv1.VMError{Code: 6, FailureReason: "limit", Errno: 1, Description: "too many VMs"},
+		DataMount: &hostdv1.DataMount{
+			State: hostdv1.DataMountState_DATA_MOUNT_STATE_REFUSED, Rule: "data-mount-flags", Message: "stop and reset",
+		},
 	}
 }
 
@@ -147,6 +150,8 @@ func messages() []proto.Message {
 		},
 		&guestv1.SetTimeRequest{UnixNanos: 1_792_591_200_123_456_789, Reason: guestv1.TimeReason_TIME_REASON_PERIODIC},
 		&guestv1.SetTimeResponse{},
+		&guestv1.MountDataRequest{VolumeUuid: "0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0", FirstMount: true},
+		&guestv1.MountDataResponse{},
 		&hostdv1.ResetVMDataRequest{Vm: hostdv1.VM_VM_ISOLATED},
 		&hostdv1.ResetVMDataResponse{OldVolumeUuid: "A", NewVolumeUuid: "B"},
 		&hostdv1.StartVMRequest{Vm: hostdv1.VM_VM_WORK},
@@ -158,6 +163,7 @@ func messages() []proto.Message {
 		vmStatus(),
 		vmStatus().GetLinkRefusal(),
 		vmStatus().GetLastError(),
+		vmStatus().GetDataMount(),
 	}, terminalMessages()...)
 }
 
