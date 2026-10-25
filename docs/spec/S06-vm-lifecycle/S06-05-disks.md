@@ -158,18 +158,28 @@ user. The mount point is `/private/var/wbhomes`, a fixed path outside
    nobrowse,nosuid,nodev,owners`, and runs the check of the next
    section on the mount.
 
+`wb-guestd` gives up on the mount after 40 s in all, and answers with
+the refusal. `wb-hostd` waits 45 s for the answer.
+
 An encrypted volume, a missing one, or one that fails the check is
 refused with the rule. `wb-hostd` keeps the VM running and the link
 up, and refuses every session start in the VM with that rule and the
 fix: stop the VM with `wb vm stop`, then `wb vm reset-data`
-(NFR06-explained-refusals). `wb vm status` shows the refusal. A mount
-that `wb-guestd` leaves unanswered for 45 s drops the link, and the
-next link asks again.
+(NFR06-explained-refusals). `wb vm status` shows the refusal. A
+missing data disk record in `state.db` is refused the same way, but
+its fix doesn't name `wb vm reset-data`, which deletes every home.
+
+A mount that `wb-guestd` leaves unanswered for 45 s, or a call that
+fails with `UNAVAILABLE`, drops the link, and the next link asks
+again. Each accepted hello sets the mount back to pending, so no
+session starts on a new link until its mount succeeds.
 
 The mount isn't repeated while the guest runs. Once a process has run
 as a user whose home is under the mount point, macOS refuses another
 mount there until the next boot. So after a reconnect, `wb-guestd`
-finds the volume mounted already and only checks it.
+finds the volume mounted already and only checks it. When the host
+still asks for the first mount, it checks the mount, then claims the
+root as the next section says, then checks the root.
 
 #### Before every session start
 

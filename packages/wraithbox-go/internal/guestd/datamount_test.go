@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 )
 
@@ -50,6 +51,9 @@ type fakeVolumes struct {
 
 	mountErr, unmountErr, claimErr error
 	calls                          []string
+	// deadline is the deadline of the last Info call's context, zero
+	// when it had none.
+	deadline time.Time
 }
 
 func newFakeVolumes() *fakeVolumes {
@@ -63,10 +67,11 @@ func (f *fakeVolumes) record(call string) {
 	f.calls = append(f.calls, call)
 }
 
-func (f *fakeVolumes) Info(_ context.Context, uuid string) (guestmount.Volume, bool, error) {
+func (f *fakeVolumes) Info(ctx context.Context, uuid string) (guestmount.Volume, bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.infoCalls++
+	f.deadline, _ = ctx.Deadline()
 	if f.never || f.infoCalls <= f.appearAfter || !strings.EqualFold(uuid, f.vol.UUID) {
 		return guestmount.Volume{}, false, nil
 	}
@@ -304,8 +309,7 @@ func TestMountVolumeNeverAppears(t *testing.T) {
 
 // TestMountAgain: a second Mount, after a reconnect or a restart of
 // wb-guestd, finds the volume at the home path and checks it without a
-// second mount (X08-data-disk, answer 12). first_mount doesn't claim
-// the root again.
+// second mount (X08-data-disk, answer 12).
 func TestMountAgain(t *testing.T) {
 	vols := newFakeVolumes()
 	d, _, _ := newDataMount(vols)
@@ -315,7 +319,7 @@ func TestMountAgain(t *testing.T) {
 	restarted, _, _ := newDataMount(vols)
 	for _, dm := range []*guestd.DataMount{d, restarted} {
 		vols.calls = nil
-		if r := dm.Mount(t.Context(), testUUID, true); r != nil {
+		if r := dm.Mount(t.Context(), testUUID, false); r != nil {
 			t.Fatalf("second Mount: %v", r)
 		}
 		if len(vols.calls) != 0 {
@@ -381,4 +385,61 @@ func TestCheckPending(t *testing.T) {
 	d, _, log := newDataMount(newFakeVolumes())
 	wantRule(t, d.Check(t.Context()), guestd.RuleMountPending)
 	wantLogged(t, log, guestd.RuleMountPending)
+}
+
+// TestMountAgainFirstMount: a Mount with first_mount that finds the
+// volume at the home path claims its root once the mount passed: the
+// answer to the first Mount may have been lost. A mount that fails its
+// check isn't claimed.
+func TestMountAgainFirstMount(t *testing.T) {
+	vols := newFakeVolumes()
+	d, _, _ := newDataMount(vols)
+	if r := d.Mount(t.Context(), testUUID, false); r == nil {
+		t.Fatal("Mount without first_mount passed a root owned by 501:20")
+	}
+	vols.calls = nil
+	if r := d.Mount(t.Context(), testUUID, true); r != nil {
+		t.Fatalf("Mount with first_mount: %v", r)
+	}
+	if !slices.Equal(vols.calls, []string{"claim " + guestd.HomePath}) {
+		t.Fatalf("calls %q, want only the claim", vols.calls)
+	}
+
+	vols.root = guestmount.Dir{IsDir: true, UID: 501, GID: 20, Perm: 0o755}
+	vols.mounted.NoSUID = false
+	vols.calls = nil
+	wantRule(t, d.Mount(t.Context(), testUUID, true), guestd.RuleMountFlags)
+	if vols.called("claim ") {
+		t.Fatal("claimed the root of a mount without nosuid")
+	}
+}
+
+// TestMountDeadline: Mount runs under MountDeadline, which is longer
+// than the wait for the volume and shorter than wb-hostd's deadline for
+// the answer, and a deadline that passes ends the wait for the volume
+// with a refusal.
+func TestMountDeadline(t *testing.T) {
+	if guestd.MountDeadline <= guestd.VolumeWait || guestd.MountDeadline >= guestlink.MountTimeout {
+		t.Fatalf("MountDeadline %v, want between VolumeWait %v and MountTimeout %v",
+			guestd.MountDeadline, guestd.VolumeWait, guestlink.MountTimeout)
+	}
+	vols := newFakeVolumes()
+	d, _, _ := newDataMount(vols)
+	if r := d.Mount(context.Background(), testUUID, true); r != nil {
+		t.Fatalf("Mount: %v", r)
+	}
+	if vols.deadline.IsZero() || vols.deadline.After(time.Now().Add(guestd.MountDeadline)) {
+		t.Fatalf("Mount ran with deadline %v, want one at most %v ahead", vols.deadline, guestd.MountDeadline)
+	}
+
+	vols = newFakeVolumes()
+	vols.never = true
+	d, w, _ := newDataMount(vols)
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(-time.Second))
+	defer cancel()
+	begun := w.Now()
+	wantRule(t, d.Mount(ctx, testUUID, true), guestd.RuleVolumeMissing)
+	if waited := w.Now().Sub(begun); waited >= guestd.VolumeWait {
+		t.Fatalf("waited %v past the deadline, want the wait to end", waited)
+	}
 }

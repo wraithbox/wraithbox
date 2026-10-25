@@ -20,9 +20,15 @@ import (
 const HomePath = "/private/var/wbhomes"
 
 // VolumeWait is how long Mount waits for the volume with the UUID to
-// appear (S06-05-disks, "The mount", step 1). wb-hostd's deadline for
-// the answer is longer (internal/guestlink, MountTimeout).
+// appear (S06-05-disks, "The mount", step 1). MountDeadline, which
+// bounds the whole mount, is longer.
 const VolumeWait = 30 * time.Second
+
+// MountDeadline bounds the whole of Mount: the wait for the volume, the
+// unmount, the mount and the check. It is below wb-hostd's deadline for
+// the answer (internal/guestlink, MountTimeout, 45 s), so the guest's
+// refusal arrives before the host gives up on the call.
+const MountDeadline = 40 * time.Second
 
 // volumePoll is how often Mount asks for the volume while it waits.
 const volumePoll = time.Second
@@ -134,13 +140,16 @@ func NewDataMount(vols Volumes, waits Waits, log *slog.Logger) *DataMount {
 // Mount mounts the volume with uuid at HomePath and checks it, or only
 // checks it when a file system is mounted there already
 // (S06-05-disks, "The mount"). firstMount makes the mount root owned by
-// root:wheel with mode 755 before the check. A refusal is logged with
+// root:wheel with mode 755 before the check. It gives up after
+// MountDeadline. A refusal is logged with
 // its rule, and every check before a session refuses until a later
 // Mount succeeds.
 func (d *DataMount) Mount(ctx context.Context, uuid string, firstMount bool) *MountRefusal {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.mounted = ""
+	ctx, cancel := context.WithTimeout(ctx, MountDeadline)
+	defer cancel()
 	attrs := []slog.Attr{slog.String("volume_uuid", uuid), slog.Bool("first_mount", firstMount)}
 	r := d.mount(ctx, uuid, firstMount)
 	if r != nil {
@@ -188,7 +197,7 @@ func (d *DataMount) mount(ctx context.Context, uuid string, firstMount bool) *Mo
 	if m, err := d.vols.Statfs(HomePath); err == nil && m.On == HomePath {
 		d.log.LogAttrs(ctx, slog.LevelInfo, "data volume mounted already, checking it",
 			slog.String("mount_from", m.From), slog.String("mount_on", m.On))
-		return d.check(ctx, uuid)
+		return d.mountedAlready(ctx, uuid, firstMount)
 	}
 	vol, r := d.waitVolume(ctx, uuid)
 	if r != nil {
@@ -211,6 +220,23 @@ func (d *DataMount) mount(ctx context.Context, uuid string, firstMount bool) *Mo
 		return &MountRefusal{Rule: RuleVolumeMountFailed, Detail: fmt.Sprintf("mount %s at %s: %v", vol.Device, HomePath, err)}
 	}
 	if firstMount {
+		if r := d.claimRoot(ctx); r != nil {
+			return r
+		}
+	}
+	return d.check(ctx, uuid)
+}
+
+// mountedAlready checks a mount found at HomePath. firstMount claims
+// its root once the mount itself passed: an earlier Mount may have
+// mounted the volume and then lost its answer, or wb-hostd may have
+// failed to record the first mount, so the host still asks for the
+// claim.
+func (d *DataMount) mountedAlready(ctx context.Context, uuid string, firstMount bool) *MountRefusal {
+	if firstMount {
+		if r := d.checkMount(ctx, uuid); r != nil {
+			return r
+		}
 		if r := d.claimRoot(ctx); r != nil {
 			return r
 		}

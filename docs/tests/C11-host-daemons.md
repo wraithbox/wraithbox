@@ -329,18 +329,22 @@ the guest end of each socketpair:
   asks again without it after a reconnect. A refusal by the guest, or a
   record that is missing, not formatted, or unreadable
   (`guest-mount-record`), keeps the link. Every session start is then
-  refused with the rule and a message that names `wb vm stop` and
-  `wb vm reset-data`. A mount left unanswered
-  (`guest-mount-timeout`) reconnects, and the next link asks again. A
-  session start is refused with `session-no-link` for another
+  refused with the rule and a message that names `wb vm stop`. Only a
+  refusal by the guest also names `wb vm reset-data`. A mount left
+  unanswered (`guest-mount-timeout`) or failed with `UNAVAILABLE`
+  (`guest-mount-unavailable`) reconnects, and the next link asks
+  again. A session start is refused with `session-no-link` for another
   generation or without a link, and with `session-mount-pending`
-  until the mount is answered.
+  until the mount is answered, also after a reconnect
+  (`TestCheckSessionStartPending`).
 - In `internal/guestlink` (`TestMountData*` and
   `TestMountRefusalHidesGuestText`), `MountData` takes only a
   `FAILED_PRECONDITION` with one `ErrorInfo` in the guest's domain
   whose reason is a listed rule of `wb-guestd`. Anything else, an
   answer over 4 KiB included, is `guest-reply-invalid`, and the
-  guest's message is never shown. The call's deadline is 45 s.
+  guest's message is never shown. A call that fails with
+  `UNAVAILABLE` is `guest-mount-unavailable`. The call's deadline is
+  45 s.
 - Port 0, 22, 1022, 1024 and 65535 are refused with
   `guest-port-unrouted` before the provider is asked.
 - Each cap refuses at its limit with its rule: `guest-conn-cap-vm`,
