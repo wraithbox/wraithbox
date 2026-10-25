@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	// MountTimeout is how long wb-guestd has to answer MountData: its
-	// wait of 30 s for the volume, and the unmount and the mount after it
-	// (S06-05-disks, "The mount").
+	// MountTimeout is how long wb-guestd has to answer MountData. Its
+	// own deadline of 40 s for the whole mount (internal/guestd,
+	// MountDeadline) is shorter (S06-05-disks, "The mount").
 	MountTimeout = 45 * time.Second
 
 	// MountMaxRecvMsgSize is the largest MountData answer the host

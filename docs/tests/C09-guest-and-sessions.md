@@ -75,26 +75,40 @@ SEC11-root-gains-nothing, NFR06-explained-refusals.
 Unit tests in `internal/guestd`, with a fake `diskutil`, `statfs` and
 `lstat`:
 
-- The mount of a fresh volume unmounts it from `/Volumes`, mounts it
-  at `/private/var/wbhomes`, and claims its root, with the owner it
-  had before the claim logged. The guest mounts a volume that appears
-  after 5 s, and refuses one that never appears with
-  `data-volume-missing` after 30 s. Without `first_mount`, the root isn't claimed.
-- An encrypted volume, one whose report doesn't say, a failed unmount
-  or mount, a mount point that is a link or owned by a user, and a
-  failed claim are each refused with their rule, logged with what was
-  found.
-- After a mount, the check before a session refuses with
+- `TestMountFresh`: the mount of a fresh volume unmounts it from
+  `/Volumes`, mounts it at `/private/var/wbhomes`, and claims its root,
+  with the owner it had before the claim logged.
+- `TestMountWaitsForVolume`: the guest mounts a volume that appears
+  after 5 s.
+- `TestMountVolumeNeverAppears`: a volume that never appears is
+  refused with `data-volume-missing` after 30 s.
+- `TestMountRefusals`: an encrypted volume, one whose report doesn't
+  say, a failed unmount or mount, a mount point that is a link or owned
+  by a user, and a failed claim are each refused with their rule,
+  logged with what was found.
+- `TestMountAgain`: a second mount, also after a restart of
+  `wb-guestd`, only checks the volume it finds mounted, and refuses
+  another UUID with `data-mount-volume`.
+- `TestMountAgainFirstMount`: without `first_mount` the root isn't
+  claimed. With it, a volume found mounted is claimed once its mount
+  passes the check, and not when it fails.
+- `TestMountDeadline`: the whole mount runs under a deadline of 40 s,
+  between the 30 s wait and the host's 45 s, and a deadline that passes
+  ends the wait with `data-volume-missing`.
+- `TestCheck`: after a mount, the check before a session refuses with
   `data-mount-flags` without each of `nosuid`, `nodev`, `nobrowse` or
   ownership, with `data-mount-volume` for another volume or none, with
   `data-volume-encrypted` for an encrypted one, and with
   `data-mount-root` for a root that is a link, a file, or has another
-  owner or mode. Before any mount it refuses with
+  owner or mode.
+- `TestCheckPending`: before any mount the check refuses with
   `data-mount-pending`.
-- `MountData` answers each refusal with `FAILED_PRECONDITION` and one
-  `ErrorInfo` whose reason is the rule, and a UUID of the wrong form
-  with `INVALID_ARGUMENT` and `guestd-mount-invalid`. Its rules are the
-  list `wb-hostd` takes.
+- `TestMountDataRPC`: `MountData` answers each refusal with
+  `FAILED_PRECONDITION` and one `ErrorInfo` whose reason is the rule,
+  and a UUID of the wrong form with `INVALID_ARGUMENT` and
+  `guestd-mount-invalid`.
+- `TestMountRulesListed`: the rules of `wb-guestd` are the list
+  `wb-hostd` takes.
 
 The host side is under "Guest link" in C11-host-daemons.
 
