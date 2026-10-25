@@ -353,6 +353,7 @@ subpackages
 lockfiles
 worktrees
 unscanned
+uninspected
 askpass
 esac
 ehthumbs
@@ -440,3 +441,7 @@ resolv
 securityd
 BCSTXR
 BCTXR
+nono
+Sigstore
+Bitwarden
+DSSE
