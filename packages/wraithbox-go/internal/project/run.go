@@ -112,9 +112,11 @@ func firstLine(b []byte) string {
 	return strconv.Quote(string(line))
 }
 
-// hasControl reports whether s holds a control character (C0, DEL or
-// C1) or isn't valid UTF-8. A path or name like that is refused rather
-// than printed or passed on.
+// hasControl reports whether s holds a character of Unicode's category
+// C (C0, DEL and C1, but also format characters such as U+202E, which
+// reverses the text after it, and U+200B, which doesn't show) or isn't
+// valid UTF-8. A path or name like that is refused rather than printed
+// or passed on, so what the user reads is what is stored.
 func hasControl(s string) bool {
-	return !utf8.ValidString(s) || strings.ContainsFunc(s, unicode.IsControl)
+	return !utf8.ValidString(s) || strings.ContainsFunc(s, func(r rune) bool { return unicode.In(r, unicode.C) })
 }
