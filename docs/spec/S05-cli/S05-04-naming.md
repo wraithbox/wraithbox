@@ -211,9 +211,9 @@ project's. A match is the same URLs, or, for a repository without a
 remote, a shared root commit.
 
 - *Moved.* It matches a project whose location no longer resolves to
-  its key. `wb` refuses the command, and names that project with
-  `wb project move`, which keeps its state, and `wb project rm`, which
-  drops it.
+  its key, decided without running git there (S04-06-git-confinement).
+  `wb` refuses the command and names the project with `wb project move`,
+  which keeps its state, or `wb project rm`, which drops it.
 - *Second clone.* Otherwise, a match is a second clone of a repository
   whose first clone is still in place. It registers as its own project.
   The registration notice names each matching project and its
