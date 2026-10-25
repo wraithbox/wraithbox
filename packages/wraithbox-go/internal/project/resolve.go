@@ -75,14 +75,15 @@ func (r *Resolver) resolve(ctx context.Context, dir string) (*Repo, *Refusal) {
 	if ref != nil {
 		return nil, ref
 	}
-	if ref := r.checkOwn(common); ref != nil {
+	key, ref := r.checkOwn(common)
+	if ref != nil {
 		return nil, ref
 	}
 	return &Repo{
-		Key:  Key{Realm: RealmNative, Path: common},
+		Key:  Key{Realm: RealmNative, Path: key},
 		Dir:  d,
 		Kind: kind,
-		Name: defaultName(kind, d, common),
+		Name: defaultName(kind, d, key),
 	}, nil
 }
 
@@ -385,14 +386,23 @@ func checkConfigFile(file string) (bool, *Refusal) {
 	return true, nil
 }
 
-// checkOwn refuses a key under <data>, <config> or <logs>, compared by
-// path component in canonical form, so another letter case or a link
-// to the same directory still matches (S05-04-naming, "Wraith Box's own
-// directories"). A root that doesn't exist holds no repository.
-func (r *Resolver) checkOwn(common string) *Refusal {
+// checkOwn returns the key's path: the common directory in canonical
+// form, so each kind of `.git` entry that reaches one repository in
+// another letter case or through a link gives one key (S05-04-naming,
+// "Path"). It refuses a key under <data>, <config> or <logs>, compared
+// by path component in canonical form, so another letter case or a
+// link to the same directory still matches (S05-04-naming, "Wraith
+// Box's own directories"). A root that doesn't exist holds no
+// repository.
+func (r *Resolver) checkOwn(common string) (string, *Refusal) {
 	key, ref := canonical(common)
 	if ref != nil {
-		return ref
+		return "", ref
+	}
+	// The key is stored and printed, so it gets the checks of the paths
+	// git prints: a link can resolve to a name git never printed.
+	if err := checkPath(key); err != nil {
+		return "", &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the repository's canonical path %q %v", key, err)}
 	}
 	for _, root := range []string{r.Own.Data, r.Own.Config, r.Own.Logs} {
 		c, err := platform.CanonicalDir(root)
@@ -400,17 +410,17 @@ func (r *Resolver) checkOwn(common string) *Refusal {
 			continue
 		}
 		if err != nil {
-			return &Refusal{
+			return "", &Refusal{
 				Rule: RuleDirUnreadable, err: err,
 				msg: fmt.Sprintf("Wraith Box's directory %q can't be compared with the repository: %v", root, err),
 			}
 		}
 		if key == c || strings.HasPrefix(key, c+string(filepath.Separator)) {
-			return &Refusal{
+			return "", &Refusal{
 				Rule: RuleOwnDirectory,
 				msg:  fmt.Sprintf("the repository %q is in Wraith Box's own directory %q, which is not a project", common, root),
 			}
 		}
 	}
-	return nil
+	return key, nil
 }

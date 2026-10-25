@@ -174,6 +174,31 @@ func TestResolveCaseAndLinks(t *testing.T) {
 	}
 }
 
+// TestResolveWorktreeOtherCase: a linked worktree whose `.git` file
+// names the common directory in another letter case, or through a
+// link, gives the key of its main checkout: the key is the canonical
+// form, not the path git prints (S05-04-naming, "Path").
+func TestResolveWorktreeOtherCase(t *testing.T) {
+	tmp := tempDir(t)
+	foo := newRepo(t, filepath.Join(tmp, "git", "foo"))
+	if _, err := os.Stat(filepath.Join(tmp, "GIT", "FOO")); err != nil {
+		t.Skipf("the volume is case-sensitive: %v", err)
+	}
+	link := symlink(t, filepath.Join(tmp, "git"), filepath.Join(tmp, "link"))
+	r, _ := testResolver(t, emptyGlobal(t))
+	want := resolveOK(t, r, foo).Key
+	for i, base := range []string{filepath.Join(tmp, "GIT", "FOO"), filepath.Join(link, "foo")} {
+		wt := filepath.Join(tmp, "wt"+strconv.Itoa(i))
+		gitT(t, foo, "worktree", "add", "-q", wt)
+		name := filepath.Base(wt)
+		writeFile(t, filepath.Join(wt, ".git"), "gitdir: "+filepath.Join(base, ".git", "worktrees", name)+"\n")
+		repo := resolveOK(t, r, wt)
+		if repo.Key != want || repo.Kind != KindWorktree || repo.Name != "foo" {
+			t.Errorf("Resolve(%s) through %s = %+v, want key %+v, a worktree named foo", wt, base, repo, want)
+		}
+	}
+}
+
 // TestResolveRefusesOwnDirectories: a repository under <data>, <config>
 // or <logs> is refused, also when the directory is spelled in another
 // letter case or reached through a link (C04-projects, "Git directories
