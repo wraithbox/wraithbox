@@ -217,7 +217,7 @@ func mismatch(row state.Project, rule project.Rule, current project.Identity) *p
 	return &projectRefusal{
 		code: codes.FailedPrecondition, rule: string(rule),
 		msg: fmt.Sprintf("the repository of project %s is not the one recorded: %s. If it is the same repository, run wb project confirm", row.Name, what),
-		detail: &hostdv1.IdentityMismatch{
+		mismatch: &hostdv1.IdentityMismatch{
 			ProjectId: row.ID, ProjectName: row.Name,
 			Recorded: identityProto(identityOf(row)), Current: identityProto(current),
 		},

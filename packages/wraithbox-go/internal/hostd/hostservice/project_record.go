@@ -8,7 +8,6 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/protoadapt"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
@@ -16,26 +15,26 @@ import (
 )
 
 // projectRefusal is a refused project request: the status code, the
-// rule, the message for the user, and an optional detail, such as an
-// IdentityMismatch.
+// rule, the message for the user, and the IdentityMismatch of a refused
+// identity check.
 type projectRefusal struct {
-	code   codes.Code
-	rule   string
-	msg    string
-	detail protoadapt.MessageV1
+	code     codes.Code
+	rule     string
+	msg      string
+	mismatch *hostdv1.IdentityMismatch
 }
 
 func (r *projectRefusal) Error() string { return r.msg }
 
 // status builds the refusal's status: msg, the rule as the ErrorInfo
-// reason, and the detail.
+// reason, and the mismatch.
 func (r *projectRefusal) status() error {
-	details := []protoadapt.MessageV1{&errdetails.ErrorInfo{Reason: r.rule, Domain: Domain}}
-	if r.detail != nil {
-		details = append(details, r.detail)
-	}
+	info := &errdetails.ErrorInfo{Reason: r.rule, Domain: Domain}
 	st := status.New(r.code, r.msg)
-	detailed, err := st.WithDetails(details...)
+	detailed, err := st.WithDetails(info)
+	if r.mismatch != nil {
+		detailed, err = st.WithDetails(info, r.mismatch)
+	}
 	if err != nil {
 		return withRule(r.code, r.rule, r.msg)
 	}
