@@ -19,8 +19,12 @@ type edit func(tx *state.ProjectTx, before state.Project) (state.Project, error)
 // update runs fn on the project with id in one transaction and writes
 // the row it returns. A row that fn left as it was is not written. Once
 // the transaction has committed, a change is recorded under command
-// with rule (S09-11-audit, "Project settings").
+// with rule (S09-11-audit, "Project settings"). id is checked before
+// the transaction takes state.db's write lock.
 func (s *ProjectServer) update(ctx context.Context, method, command, rule, id string, fn edit) (state.Project, error) {
+	if err := checkID(id); err != nil {
+		return state.Project{}, s.refuse(ctx, method, err)
+	}
 	var c *change
 	var after state.Project
 	err := s.Store.Projects(ctx, func(tx *state.ProjectTx) error {
@@ -159,6 +163,9 @@ func (s *ProjectServer) PlaceProject(ctx context.Context, req *hostdv1.PlaceProj
 func (s *ProjectServer) RemoveProject(ctx context.Context, req *hostdv1.RemoveProjectRequest) (*hostdv1.RemoveProjectResponse, error) {
 	const method = "RemoveProject"
 	if err := s.admit(); err != nil {
+		return nil, s.refuse(ctx, method, err)
+	}
+	if err := checkID(req.GetId()); err != nil {
 		return nil, s.refuse(ctx, method, err)
 	}
 	var before state.Project

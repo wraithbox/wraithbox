@@ -91,7 +91,10 @@ type ProjectServer struct {
 	Store ProjectStore
 	// Git is wb-hostd's git check at start. A session start is refused
 	// while it hasn't passed, or is nil (S08-08-host-git, "Where it is
-	// checked").
+	// checked"). The purpose of a lookup comes from wb, so it gates
+	// nothing on its own: the RPC that starts a session and the push
+	// path check Git themselves, never trusting that a session-start
+	// lookup came first (SEC09-host-policy).
 	Git *hostdv1.HostGit
 	// Refusing is set in refusing mode, and every call is then refused
 	// with its rule.
@@ -237,6 +240,9 @@ func (s *ProjectServer) RegisterProject(ctx context.Context, req *hostdv1.Regist
 	}
 	out := &hostdv1.RegisterProjectResponse{}
 	reason := "requested"
+	if req.GetPlacement() == hostdv1.Placement_PLACEMENT_UNSPECIFIED {
+		reason = "default"
+	}
 	err = s.Store.Projects(ctx, func(tx *state.ProjectTx) error {
 		if err := keyFree(tx, row.Realm, row.KeyPath, ""); err != nil {
 			return err
@@ -338,6 +344,9 @@ func (s *ProjectServer) GetProject(ctx context.Context, req *hostdv1.GetProjectR
 	if err := s.admit(); err != nil {
 		return nil, s.refuse(ctx, method, err)
 	}
+	if err := checkGet(req); err != nil {
+		return nil, s.refuse(ctx, method, err)
+	}
 	var row state.Project
 	err := s.Store.Projects(ctx, func(tx *state.ProjectTx) error {
 		var err error
@@ -351,21 +360,28 @@ func (s *ProjectServer) GetProject(ctx context.Context, req *hostdv1.GetProjectR
 	return &hostdv1.GetProjectResponse{Project: projectProto(row)}, nil
 }
 
-func byIDOrName(tx *state.ProjectTx, req *hostdv1.GetProjectRequest) (state.Project, error) {
+// checkGet checks the id or name a GetProject request names, before
+// the transaction takes state.db's write lock.
+func checkGet(req *hostdv1.GetProjectRequest) error {
 	switch by := req.GetBy().(type) {
 	case *hostdv1.GetProjectRequest_Id:
-		return byID(tx, by.Id)
+		return checkID(by.Id)
 	case *hostdv1.GetProjectRequest_Name:
-		return byName(tx, by.Name)
+		return checkName(by.Name)
 	}
-	return state.Project{}, badForm("the request names neither a project id nor a name")
+	return badForm("the request names neither a project id nor a name")
 }
 
-// byID checks id and returns its project.
-func byID(tx *state.ProjectTx, id string) (state.Project, error) {
-	if err := checkID(id); err != nil {
-		return state.Project{}, err
+// byIDOrName returns the project of a request that checkGet passed.
+func byIDOrName(tx *state.ProjectTx, req *hostdv1.GetProjectRequest) (state.Project, error) {
+	if by, ok := req.GetBy().(*hostdv1.GetProjectRequest_Name); ok {
+		return byName(tx, by.Name)
 	}
+	return byID(tx, req.GetId())
+}
+
+// byID returns the project of an id that checkID passed.
+func byID(tx *state.ProjectTx, id string) (state.Project, error) {
 	row, ok, err := tx.ByID(id)
 	if err != nil {
 		return state.Project{}, err
@@ -376,10 +392,8 @@ func byID(tx *state.ProjectTx, id string) (state.Project, error) {
 	return row, nil
 }
 
+// byName returns the one project named name, a name checkName passed.
 func byName(tx *state.ProjectTx, name string) (state.Project, error) {
-	if err := checkName(name); err != nil {
-		return state.Project{}, err
-	}
 	rows, err := tx.ByName(name)
 	switch {
 	case err != nil:
