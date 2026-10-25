@@ -22,6 +22,7 @@ var migrations = []migration{
 	{name: "vm-slots", apply: createVMSlots},
 	{name: "data-disks", apply: createDataDisks},
 	{name: "projects", apply: createProjects},
+	{name: "data-disk-first-mount", apply: addDataDiskFirstMount},
 }
 
 // createVMSlots is version 1: one row per VM slot with the last VM

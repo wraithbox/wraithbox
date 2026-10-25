@@ -82,6 +82,49 @@ func TestDataDiskFirstStart(t *testing.T) {
 	}
 }
 
+// TestDataDiskFirstMount: the first mount's time is kept, needs the
+// formatted disk with the UUID, and a new format clears it.
+func TestDataDiskFirstMount(t *testing.T) {
+	ctx := t.Context()
+	db := newDataDiskDB(t)
+	must(t, db.RecordDataDiskFormat(ctx, workDisk))
+	wantErr(t, "a mount before step 9", db.MarkDataDiskMounted(ctx, "macos-work", uuidA, time.Unix(10, 0)), ErrDataDiskNotRecorded)
+	must(t, db.MarkDataDiskFormatted(ctx, "macos-work", uuidA))
+	wantErr(t, "a mount of another volume", db.MarkDataDiskMounted(ctx, "macos-work", uuidB, time.Unix(10, 0)), ErrDataDiskNotRecorded)
+	for _, at := range []int64{100, 200} {
+		must(t, db.MarkDataDiskMounted(ctx, "macos-work", uuidA, time.Unix(at, 0)))
+	}
+	got, _, err := db.DataDiskRecord(ctx, "macos-work")
+	must(t, err)
+	if !got.FirstMounted.Equal(time.Unix(100, 0)) {
+		t.Errorf("first mount %v, want the first", got.FirstMounted)
+	}
+	must(t, db.DropDataDisk(ctx, "macos-work"))
+	must(t, db.RecordDataDiskFormat(ctx, workDisk))
+	if got, _, _ := db.DataDiskRecord(ctx, "macos-work"); !got.FirstMounted.IsZero() {
+		t.Errorf("a new format has a first mount at %v", got.FirstMounted)
+	}
+}
+
+// TestDataDiskFirstMountMigration: version 4 adds the first mount to a
+// version 2 record, unset.
+func TestDataDiskFirstMountMigration(t *testing.T) {
+	dir := t.TempDir()
+	fixture(t, dir, 2, `CREATE TABLE vm_slots (slot TEXT PRIMARY KEY NOT NULL, last_generation INTEGER NOT NULL) STRICT`,
+		`CREATE TABLE data_disks (
+			slot TEXT PRIMARY KEY NOT NULL, volume_uuid TEXT NOT NULL, temp_name TEXT NOT NULL,
+			size_gib INTEGER NOT NULL, formatted INTEGER NOT NULL, first_started_unix INTEGER
+		) STRICT`,
+		`INSERT INTO data_disks VALUES ('macos-work', '`+uuidA+`', 'data.wbdisk.tmp', 128, 1, 50)`)
+	db := mustOpen(t, dir, opts(migrations))
+	got, ok, err := db.DataDiskRecord(t.Context(), "macos-work")
+	must(t, err)
+	if !ok || !got.Formatted || !got.FirstMounted.IsZero() || !got.FirstStarted.Equal(time.Unix(50, 0)) {
+		t.Fatalf("record after the migration = %+v (%t)", got, ok)
+	}
+	must(t, db.MarkDataDiskMounted(t.Context(), "macos-work", uuidA, time.Unix(60, 0)))
+}
+
 // TestDataDiskDrop: a dropped record is gone, and a new format records
 // again.
 func TestDataDiskDrop(t *testing.T) {

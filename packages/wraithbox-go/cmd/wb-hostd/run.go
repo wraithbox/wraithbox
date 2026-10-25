@@ -217,7 +217,10 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	if o.wrapVMs != nil {
 		vms = o.wrapVMs(m)
 	}
-	links, err = guestconn.New(guestconn.Config{VMs: vms, Version: o.Version, TimeHook: guestconn.SendTime, Logger: log})
+	links, err = guestconn.New(guestconn.Config{
+		VMs: vms, Version: o.Version, TimeHook: guestconn.SendTime,
+		MountHook: guestconn.SendMount(ready.State, time.Now, log), Logger: log,
+	})
 	if err != nil {
 		return nil, err
 	}

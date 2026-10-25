@@ -257,6 +257,41 @@ func TestStatusLinkRefused(t *testing.T) {
 	}
 }
 
+// TestStatusDataMount: the data mount of the current generation reaches
+// the status with its rule and message, and one of an older run's
+// doesn't.
+func TestStatusDataMount(t *testing.T) {
+	links := &fakeLinks{}
+	c := serve(t, &hostservice.Server{VMs: newManager(t, slog.New(slog.DiscardHandler), nil), Links: links})
+	started, err := c.StartVM(t.Context(), &hostdv1.StartVMRequest{Vm: hostdv1.VM_VM_WORK})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := started.GetGeneration()
+	if s := getStatus(t, c, hostdv1.VM_VM_WORK); s.GetDataMount() != nil {
+		t.Errorf("data mount before the link started: %v", s.GetDataMount())
+	}
+	tests := []struct {
+		dm   guestconn.DataMount
+		want hostdv1.DataMountState
+	}{
+		{guestconn.DataMount{State: guestconn.MountPending}, hostdv1.DataMountState_DATA_MOUNT_STATE_PENDING},
+		{guestconn.DataMount{State: guestconn.MountMounted}, hostdv1.DataMountState_DATA_MOUNT_STATE_MOUNTED},
+		{guestconn.DataMount{State: guestconn.MountRefused, Rule: "data-mount-flags", Message: "stop and reset"}, hostdv1.DataMountState_DATA_MOUNT_STATE_REFUSED},
+	}
+	for _, tt := range tests {
+		links.set(guestconn.Status{Slot: vm.SlotWork, Generation: g, State: guestconn.StateLinked, DataMount: tt.dm})
+		dm := getStatus(t, c, hostdv1.VM_VM_WORK).GetDataMount()
+		if dm.GetState() != tt.want || dm.GetRule() != tt.dm.Rule || dm.GetMessage() != tt.dm.Message {
+			t.Errorf("data mount %v, want %s %q %q", dm, tt.want, tt.dm.Rule, tt.dm.Message)
+		}
+	}
+	links.set(guestconn.Status{Slot: vm.SlotWork, Generation: g - 1, State: guestconn.StateLinked, DataMount: tests[2].dm})
+	if dm := getStatus(t, c, hostdv1.VM_VM_WORK).GetDataMount(); dm != nil {
+		t.Errorf("an older run's data mount: %v", dm)
+	}
+}
+
 // TestManagerRefusals: the manager's refusals arrive with their rule as
 // the ErrorInfo reason, and the message names the live sessions.
 func TestManagerRefusals(t *testing.T) {

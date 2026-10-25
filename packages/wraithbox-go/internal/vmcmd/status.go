@@ -55,9 +55,25 @@ func printStatus(env Env, slot string, s *hostdv1.VMStatus) {
 	case hostdv1.LinkState_LINK_STATE_UNSPECIFIED, hostdv1.LinkState_LINK_STATE_CONNECTING:
 		fmt.Fprintf(env.Stdout, "  guest link: %s\n", enumWord(s.GetLinkState().String(), "LINK_STATE_"))
 	}
+	if dm := s.GetDataMount(); dm != nil {
+		fmt.Fprintf(env.Stdout, "  data volume: %s\n", dataMountText(dm))
+	}
 	if e := s.GetLastError(); e != nil {
 		fmt.Fprintf(env.Stdout, "  last error: %s\n", lastErrorText(e))
 	}
+}
+
+// dataMountText is the state of the data volume's mount, with the rule
+// and wb-hostd's text with the fix when it was refused.
+func dataMountText(dm *hostdv1.DataMount) string {
+	text := enumWord(dm.GetState().String(), "DATA_MOUNT_STATE_")
+	if rule := dm.GetRule(); rule != "" {
+		text += ", rule " + printable(rule)
+	}
+	if msg := dm.GetMessage(); msg != "" {
+		text += ": " + printable(msg)
+	}
+	return text
 }
 
 // enumWord is an enum value's name without its prefix, in lowercase.

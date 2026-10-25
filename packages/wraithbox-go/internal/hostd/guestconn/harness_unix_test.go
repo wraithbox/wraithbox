@@ -173,6 +173,11 @@ type harness struct {
 	// before the first start.
 	send       func(ctx context.Context, l *guestlink.Link, reason guestv1.TimeReason) error
 	guestClock guestd.Clock
+	// mount, when set, is the mount hook. nil mounts at once. guestMount,
+	// when set, is the data mount of the guests' wb-guestd. Set them
+	// before the first start.
+	mount      MountHook
+	guestMount *guestd.DataMount
 }
 
 // newHarness returns a harness whose wb-hostd has version host and whose
@@ -187,7 +192,7 @@ func newHarness(t *testing.T, host, guest string, follow bool) *harness {
 	}
 	h.provider.OnConnect = h.connect
 	logger := slog.New(slog.NewJSONHandler(h.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	cfg := Config{Version: host, Clock: h.clock, Logger: logger, TimeHook: h.timeHook}
+	cfg := Config{Version: host, Clock: h.clock, Logger: logger, TimeHook: h.timeHook, MountHook: h.mountHook}
 	vmCfg := h.vmConfig(logger)
 	if follow {
 		vmCfg.OnRunning = func(slot vm.Slot, generation uint64, ended <-chan struct{}) {
@@ -215,6 +220,14 @@ func (h *harness) timeHook(ctx context.Context, _ vm.Slot, generation uint64, l 
 	h.times <- generation
 	if h.send != nil {
 		return h.send(ctx, l, reason)
+	}
+	return nil
+}
+
+// mountHook runs mount, or mounts at once.
+func (h *harness) mountHook(ctx context.Context, slot vm.Slot, generation uint64, l *guestlink.Link) error {
+	if h.mount != nil {
+		return h.mount(ctx, slot, generation, l)
 	}
 	return nil
 }
@@ -262,6 +275,9 @@ func (h *harness) connect(_ context.Context, _ *vmtest.Instance, _ uint64, _ uin
 	var opts []guestd.Option
 	if h.guestClock != nil {
 		opts = append(opts, guestd.WithClock(h.guestClock))
+	}
+	if h.guestMount != nil {
+		opts = append(opts, guestd.WithDataMount(h.guestMount))
 	}
 	srv := guestd.NewServer(h.guestVersion, slog.New(slog.DiscardHandler), opts...)
 	go func() { _ = srv.Serve(newOneConn(guest)) }()
