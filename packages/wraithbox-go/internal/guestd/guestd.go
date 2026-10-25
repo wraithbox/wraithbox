@@ -2,7 +2,7 @@
 // proto/wraithbox/guest/v1/guest.proto, which wb-hostd calls over the
 // host-guest socket (S06-12-guest-agent, "`wb-guestd`").
 //
-// It serves Hello and SetTime so far. The session messages, users, exec
+// It serves Hello, SetTime and MountData so far. The session messages, users, exec
 // and the git transport join it later.
 package guestd
 
@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/peer"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
@@ -35,6 +36,10 @@ type Option func(*service)
 // WithClock makes SetTime read and set c instead of the guest's clock.
 func WithClock(c Clock) Option { return func(s *service) { s.clock = c } }
 
+// WithDataMount makes MountData mount and check with d instead of the
+// guest's own volumes.
+func WithDataMount(d *DataMount) Option { return func(s *service) { s.dataMount = d } }
+
 // NewServer returns a gRPC server with GuestService registered. own is
 // the build version Hello reports, normally version.Build(): "" for an
 // unstamped build, which the host refuses.
@@ -42,6 +47,9 @@ func NewServer(own string, log *slog.Logger, opts ...Option) *grpc.Server {
 	svc := &service{version: own, log: log, clock: systemClock{}}
 	for _, o := range opts {
 		o(svc)
+	}
+	if svc.dataMount == nil {
+		svc.dataMount = NewDataMount(&guestmount.System{Log: log}, nil, log)
 	}
 	srv := grpc.NewServer(grpc.MaxRecvMsgSize(MaxRecvMsgSize))
 	guestv1.RegisterGuestServiceServer(srv, svc)
@@ -51,9 +59,10 @@ func NewServer(own string, log *slog.Logger, opts ...Option) *grpc.Server {
 type service struct {
 	guestv1.UnimplementedGuestServiceServer
 
-	version string
-	log     *slog.Logger
-	clock   Clock
+	version   string
+	log       *slog.Logger
+	clock     Clock
+	dataMount *DataMount
 }
 
 // Hello reports wb-guestd's build version and the packages it serves.
