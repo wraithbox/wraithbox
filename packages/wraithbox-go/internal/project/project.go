@@ -30,8 +30,9 @@ type Realm string
 const RealmNative Realm = "native"
 
 // Key is a project's key: the realm, and the absolute path of the
-// repository's git common directory as git printed it (S05-04-naming,
-// "Path").
+// repository's git common directory in canonical form: links resolved,
+// and letter case as on disk (S05-04-naming, "Path"). A main checkout, a
+// linked worktree and a submodule get it the same way.
 type Key struct {
 	Realm Realm
 	Path  string
