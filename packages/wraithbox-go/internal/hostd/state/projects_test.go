@@ -53,14 +53,14 @@ func TestProjectsMigrationFromLast(t *testing.T) {
 	}
 }
 
-// TestProjectRoundTrip: what Insert writes, ByID, ByKey, ByName and All
-// read back.
-func TestProjectRoundTrip(t *testing.T) {
-	db := newProjectsDB(t)
-	a := projectRow(idA, "/Users/a/foo/.git")
+// seedTwo inserts a, with trust and a root commit, and b, older and
+// without URLs, and returns them.
+func seedTwo(t *testing.T, db *DB) (a, b Project) {
+	t.Helper()
+	a = projectRow(idA, "/Users/a/foo/.git")
 	a.ConfigTrust = true
 	a.RootCommits = []string{"1111111111111111111111111111111111111111"}
-	b := projectRow(idB, "/Users/a/bar/.git")
+	b = projectRow(idB, "/Users/a/bar/.git")
 	b.URLs = nil
 	b.Created = time.Unix(50, 0).UTC()
 	must(t, inTx(t, db, func(p *ProjectTx) error {
@@ -69,6 +69,31 @@ func TestProjectRoundTrip(t *testing.T) {
 		}
 		return p.Insert(b)
 	}))
+	return a, b
+}
+
+// TestProjectLists: All and ByName return every match, oldest first.
+func TestProjectLists(t *testing.T) {
+	db := newProjectsDB(t)
+	seedTwo(t, db)
+	must(t, inTx(t, db, func(p *ProjectTx) error {
+		all, err := p.All()
+		if err != nil || len(all) != 2 || all[0].ID != idB {
+			t.Errorf("All = %+v (%v), want b then a", all, err)
+		}
+		named, err := p.ByName("foo")
+		if err != nil || len(named) != 2 || named[0].ID != idB {
+			t.Errorf("ByName = %+v (%v), want b then a", named, err)
+		}
+		return nil
+	}))
+}
+
+// TestProjectRoundTrip: what Insert writes, ByID and ByKey read back,
+// and an unknown id isn't found.
+func TestProjectRoundTrip(t *testing.T) {
+	db := newProjectsDB(t)
+	a, b := seedTwo(t, db)
 	must(t, inTx(t, db, func(p *ProjectTx) error {
 		got, ok, err := p.ByID(idA)
 		if err != nil || !ok || !equalProject(got, a) {
@@ -77,14 +102,6 @@ func TestProjectRoundTrip(t *testing.T) {
 		got, ok, err = p.ByKey("native", b.KeyPath)
 		if err != nil || !ok || !equalProject(got, b) {
 			t.Errorf("ByKey = %+v (%t, %v), want %+v", got, ok, err, b)
-		}
-		all, err := p.All()
-		if err != nil || len(all) != 2 || all[0].ID != idB {
-			t.Errorf("All = %+v (%v), want b then a", all, err)
-		}
-		named, err := p.ByName("foo")
-		if err != nil || len(named) != 2 {
-			t.Errorf("ByName = %+v (%v), want both", named, err)
 		}
 		_, ok, err = p.ByID(idA[:31] + "0")
 		if err != nil || ok {

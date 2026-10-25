@@ -272,7 +272,8 @@ func (x *ProjectKey) GetPath() string {
 type ProjectIdentity struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The compare forms of every URL of every remote. At most 1024, each
-	// 1 to 2048 bytes of UTF-8 without a control character.
+	// 1 to 8192 bytes of printable ASCII without a space, and 1 MiB
+	// together.
 	Urls []string `protobuf:"bytes,1,rep,name=urls,proto3" json:"urls,omitempty"`
 	// The root commits, read only when there is no URL. At most 1024,
 	// each a 40- or 64-character lowercase object ID.
