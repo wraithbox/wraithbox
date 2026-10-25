@@ -19,6 +19,7 @@ Anthropic
 Apple\sSilicon
 Virtualization\sframework
 Xcode
+egzo
 SwiftPM
 SwiftLint
 Starlight
