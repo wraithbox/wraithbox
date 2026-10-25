@@ -4,6 +4,7 @@ package guestd_test
 
 import (
 	"log/slog"
+	"slices"
 	"testing"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -68,6 +69,22 @@ func TestMountDataRPC(t *testing.T) {
 				wantErrorInfo(t, st, c.rule)
 			}
 		})
+	}
+}
+
+// TestMountRulesListed: wb-hostd takes every rule MountData refuses
+// with, and only those, so a rule added on one side is added on the
+// other.
+func TestMountRulesListed(t *testing.T) {
+	guest := []string{
+		guestd.RuleVolumeMissing, guestd.RuleVolumeEncrypted, guestd.RuleVolumeMountFailed,
+		guestd.RuleMountPoint, guestd.RuleMountFlags, guestd.RuleMountVolume, guestd.RuleMountRoot,
+	}
+	if !slices.Equal(guest, guestlink.MountRules) {
+		t.Fatalf("wb-guestd's rules %q, wb-hostd's %q", guest, guestlink.MountRules)
+	}
+	if guestd.ErrorDomain != string(guestv1.File_wraithbox_guest_v1_guest_proto.Package()) {
+		t.Fatalf("domain %s isn't the contract's package", guestd.ErrorDomain)
 	}
 }
 

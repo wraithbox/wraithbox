@@ -5,6 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
@@ -42,6 +46,47 @@ func FuzzHelloResponse(f *testing.F) {
 			return
 		}
 		requireAccepted(t, v, resp)
+	})
+}
+
+// FuzzMountDataResponse feeds arbitrary bytes as wb-guestd's MountData
+// answer and as the status of its refusal, error details included, into
+// what MountData does with them (C11-host-daemons, "Fuzzing"). An answer
+// that decodes is a success. A status is only ever a rule of MountRules
+// or RuleReplyInvalid, and its message holds no raw control byte.
+func FuzzMountDataResponse(f *testing.F) {
+	refusal := func(code codes.Code, domain, reason string) []byte {
+		st, err := status.New(code, reason).WithDetails(&errdetails.ErrorInfo{Reason: reason, Domain: domain})
+		if err != nil {
+			f.Fatal(err)
+		}
+		b, err := proto.Marshal(st.Proto())
+		if err != nil {
+			f.Fatal(err)
+		}
+		return b
+	}
+	f.Add([]byte{}, refusal(codes.FailedPrecondition, guestDomain, MountRules[0]))
+	f.Add([]byte{0x0a, 0x00}, refusal(codes.FailedPrecondition, guestDomain, "data-volume-gone"))
+	f.Add([]byte{}, refusal(codes.FailedPrecondition, guestDomain, strings.Repeat("a", 65)))
+	f.Add([]byte{}, refusal(codes.FailedPrecondition, "other", MountRules[1]))
+	f.Add([]byte{}, refusal(codes.Unimplemented, guestDomain, MountRules[2]))
+
+	f.Fuzz(func(t *testing.T, answer, st []byte) {
+		// A success decodes into the empty MountDataResponse, unknown
+		// fields and all, and carries nothing the host reads.
+		_ = proto.Unmarshal(answer, &guestv1.MountDataResponse{})
+		sp := &spb.Status{}
+		if err := proto.Unmarshal(st, sp); err != nil {
+			return // gRPC refuses trailers that don't decode (RuleReplyInvalid)
+		}
+		r := mountRefusalOf(status.FromProto(sp))
+		if r.Rule != RuleReplyInvalid && !slices.Contains(MountRules, r.Rule) {
+			t.Fatalf("refusal with rule %q", r.Rule)
+		}
+		if strings.ContainsFunc(r.Error(), func(c rune) bool { return c < 0x20 || c == 0x7f }) {
+			t.Fatalf("refusal message %q holds a raw control byte", r.Error())
+		}
 	})
 }
 
