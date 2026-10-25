@@ -16,6 +16,7 @@ func FuzzProjectInput(f *testing.F) {
 	f.Add("/r/a/.git", "https://a.example/a.git", "1111111111111111111111111111111111111111", "0123456789abcdef0123456789abcdef", "foo")
 	f.Add("r/../a", "https://a b", "ABC", "", "-x")
 	f.Add("/r/\x1b[2J", "sha256:00", "", "zz", "a..b")
+	f.Add("/r/\u202etxt.git", "https://tok@a.example/a.git", "", "", "a\u200b")
 	f.Fuzz(func(t *testing.T, path, url, root, id, name string) {
 		fuzzKey(t, path)
 		fuzzIdentity(t, url, root)
@@ -51,7 +52,8 @@ func fuzzIdentity(t *testing.T, url, root string) {
 		return
 	}
 	outside := strings.IndexFunc(url, func(r rune) bool { return r < '!' || r > '~' }) >= 0
-	if len(got.URLs) != 1 || url == "" || outside || len(url) > maxIdentityURLLen {
+	userInfo := strings.ContainsAny(authority(url), "@?#")
+	if len(got.URLs) != 1 || url == "" || outside || userInfo || len(url) > maxIdentityURLLen {
 		t.Errorf("accepted URL %q as %q", url, got.URLs)
 	}
 	if !objectID(root) || strings.ToLower(root) != root {

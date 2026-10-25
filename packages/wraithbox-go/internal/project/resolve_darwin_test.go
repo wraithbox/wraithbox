@@ -199,6 +199,27 @@ func TestResolveWorktreeOtherCase(t *testing.T) {
 	}
 }
 
+// TestCheckOwnRefusesControlInCanonicalKey: a common directory reached
+// through a clean link is refused when the link's target name holds a
+// control or format character, because the key is the canonical path
+// (S05-04-naming, "Path"). git resolves links in the common directory
+// it prints, and that output is checked first, so Resolve can't reach
+// this check with git's own output. The test calls it directly.
+func TestCheckOwnRefusesControlInCanonicalKey(t *testing.T) {
+	for name, base := range map[string]string{"escape": "a\x1b[2Jb", "right-to-left override": "a\u202eb"} {
+		t.Run(name, func(t *testing.T) {
+			tmp := tempDir(t)
+			newRepo(t, filepath.Join(tmp, base, "foo"))
+			link := symlink(t, filepath.Join(tmp, base), filepath.Join(tmp, "link"))
+			r, _ := testResolver(t, emptyGlobal(t))
+			_, ref := r.checkOwn(filepath.Join(link, "foo", ".git"))
+			if ref == nil || ref.Rule != RuleDirUnreadable {
+				t.Fatalf("checkOwn through %s = %v, want the rule %s", link, ref, RuleDirUnreadable)
+			}
+		})
+	}
+}
+
 // TestResolveRefusesOwnDirectories: a repository under <data>, <config>
 // or <logs> is refused, also when the directory is spelled in another
 // letter case or reached through a link (C04-projects, "Git directories

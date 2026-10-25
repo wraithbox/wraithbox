@@ -3,6 +3,7 @@ package hostservice
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -78,13 +79,11 @@ func checkKey(k *hostdv1.ProjectKey) error {
 	return nil
 }
 
+// hasControl reports whether s holds a character of Unicode's category
+// C: a control character, or a format character such as U+202E or
+// U+200B, which would make a printed path read as another.
 func hasControl(s string) bool {
-	for _, r := range s {
-		if unicode.IsControl(r) {
-			return true
-		}
-	}
-	return false
+	return strings.ContainsFunc(s, func(r rune) bool { return unicode.In(r, unicode.C) })
 }
 
 // checkIdentity checks an identity and returns it sorted and without
@@ -119,7 +118,9 @@ func checkIdentity(id *hostdv1.ProjectIdentity) (project.Identity, error) {
 }
 
 // compareForm accepts what gitremote.Result.Compare can be: printable
-// ASCII without a space.
+// ASCII without a space. An http or https form has no user, password,
+// query or fragment in its authority (S05-04-naming, "Recorded
+// identity"), so a token in one is never stored.
 func compareForm(s string) bool {
 	if s == "" {
 		return false
@@ -129,7 +130,21 @@ func compareForm(s string) bool {
 			return false
 		}
 	}
-	return true
+	return !strings.ContainsAny(authority(s), "@?#")
+}
+
+// authority returns the part of an http or https URL between `://` and
+// the next `/`, and "" for any other form.
+func authority(s string) string {
+	rest, ok := strings.CutPrefix(s, "https://")
+	if !ok {
+		rest, ok = strings.CutPrefix(s, "http://")
+	}
+	if !ok {
+		return ""
+	}
+	host, _, _ := strings.Cut(rest, "/")
+	return host
 }
 
 // objectID accepts a SHA-1 or SHA-256 object ID in lowercase hex.
