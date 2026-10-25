@@ -20,6 +20,11 @@ A project's settings hold:
 Clipboard and port-forwarding switches come after V1
 (V1-08-no-forward-clipboard).
 
+`placement` and `config_trust` are in the project's row of the
+`projects` table in `state.db`, which only `wb-hostd` writes. The rest
+is in `<config>/projects/<project-id>.toml` (S04-architecture, "Host
+state").
+
 #### `placement`
 
 `placement` is `work` or `isolated`: the VM the project's sessions run
