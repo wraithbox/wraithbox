@@ -24,10 +24,11 @@ The parts of the key:
   on a Windows drive, opened from WSL through `/mnt/c`, and the same
   repository opened from native Windows are in two realms. So they are
   two projects.
-- *Path.* The key uses the path as git returns it, and `wb` doesn't
-  recompute it. `wb` runs git in the directory's canonical form
-  (S12-01-platform-interfaces): links resolved, and letter case as on
-  disk. So `~/Git/foo`, `~/git/foo` and a link to it give one key.
+- *Path.* The key uses the canonical form of the common directory git
+  returns (S12-01-platform-interfaces): links resolved, and letter case
+  as on disk. `wb` also runs git in the directory's canonical form. So
+  `~/Git/foo`, `~/git/foo` and a link to it give one key. That holds
+  for every kind of `.git` entry below. I293 decided this.
 
 ### Resolving the key
 
