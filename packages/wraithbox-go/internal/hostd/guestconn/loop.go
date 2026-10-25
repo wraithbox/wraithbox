@@ -98,7 +98,16 @@ func (r *run) connect() (*guestlink.Link, error) {
 		}
 		return nil, err
 	}
-	r.ls.setStatus(r.slot, r.generation, func(s *Status) { s.State, s.Refusal, s.GuestVersion = StateLinked, nil, l.Version() })
+	r.ls.setStatus(r.slot, r.generation, func(s *Status) {
+		s.State, s.Refusal, s.GuestVersion = StateLinked, nil, l.Version()
+		// A new link is a wb-guestd that may have restarted, so a mount
+		// an earlier link saw counts only once this link's MountData
+		// answers. Until then CheckSessionStart refuses
+		// (S06-05-disks, "Mounting the data volume").
+		if r.ls.cfg.MountHook != nil {
+			s.DataMount = DataMount{State: MountPending}
+		}
+	})
 	return l, nil
 }
 

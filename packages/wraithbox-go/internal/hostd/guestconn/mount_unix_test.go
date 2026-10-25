@@ -153,19 +153,21 @@ func TestC11GuestLinkSendMount(t *testing.T) {
 
 // A refused mount keeps the link and the VM, and every session start
 // in the VM is refused with the mount's rule and the fix: stop the VM,
-// then reset its data disk (NFR06-explained-refusals). A record that
-// is missing refuses before the guest is asked.
+// and for a refused volume reset its data disk
+// (NFR06-explained-refusals). A record that is missing refuses before
+// the guest is asked.
 func TestC11GuestLinkMountRefused(t *testing.T) {
 	tests := []struct {
-		name string
-		recs *records
-		vols *guestVolumes
-		rule string
+		name  string
+		recs  *records
+		vols  *guestVolumes
+		rule  string
+		reset bool
 	}{
-		{"encrypted", formatted(), &guestVolumes{encrypted: true}, "data-volume-encrypted"},
-		{"no record", &records{}, &guestVolumes{}, RuleMountRecord},
-		{"not formatted", &records{rec: state.DataDisk{VolumeUUID: volumeUUID}, found: true}, &guestVolumes{}, RuleMountRecord},
-		{"record unreadable", &records{err: errors.New("disk I/O error")}, &guestVolumes{}, RuleMountRecord},
+		{"encrypted", formatted(), &guestVolumes{encrypted: true}, "data-volume-encrypted", true},
+		{"no record", &records{}, &guestVolumes{}, RuleMountRecord, false},
+		{"not formatted", &records{rec: state.DataDisk{VolumeUUID: volumeUUID}, found: true}, &guestVolumes{}, RuleMountRecord, false},
+		{"record unreadable", &records{err: errors.New("disk I/O error")}, &guestVolumes{}, RuleMountRecord, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -180,8 +182,12 @@ func TestC11GuestLinkMountRefused(t *testing.T) {
 			if recs := h.logs.withRule(t, tt.rule); len(recs) != 1 || recs[0]["decision"] != "refuse" {
 				t.Fatalf("%s records %v, want one refusal", tt.rule, recs)
 			}
-			wantSessionRefused(t, h.links.CheckSessionStart(vm.SlotWork, 1), tt.rule,
-				"wb vm stop work", "wb vm reset-data work")
+			wantSessionRefused(t, h.links.CheckSessionStart(vm.SlotWork, 1), tt.rule, "wb vm stop work")
+			// Only a refusal about the volume advises the reset, which
+			// deletes the homes.
+			if got := strings.Contains(dm.Message, "wb vm reset-data work"); got != tt.reset {
+				t.Errorf("message %q advises reset-data: %t, want %t", dm.Message, got, tt.reset)
+			}
 			// The link stays up: the next time call comes after 60 s.
 			if d := h.clock.nextWait(t); d != TimeInterval {
 				t.Fatalf("wait after the refusal = %v, want %v", d, TimeInterval)
@@ -193,47 +199,55 @@ func TestC11GuestLinkMountRefused(t *testing.T) {
 	}
 }
 
-// A mount the guest leaves unanswered drops the link with
-// guest-mount-timeout, and the next link asks again. A later success
-// replaces the refusal.
+// A mount the guest leaves unanswered (guest-mount-timeout), or one that
+// fails with UNAVAILABLE (guest-mount-unavailable), drops the link, and
+// the next link asks again. The refusal doesn't advise a reset. A later
+// success replaces it.
 func TestC11GuestLinkMountTimeout(t *testing.T) {
-	h := newHarness(t, own, own, true)
-	var mu sync.Mutex
-	calls := 0
-	h.mount = func(context.Context, vm.Slot, uint64, *guestlink.Link) error {
-		mu.Lock()
-		defer mu.Unlock()
-		calls++
-		if calls == 1 {
-			return &guestlink.MountRefusal{Rule: guestlink.RuleMountTimeout}
-		}
-		return nil
-	}
-	h.start()
-	h.clock.skipTo(t, FirstWait)
-	if d := h.clock.nextWait(t); d != FirstWait {
-		t.Fatalf("wait after the timeout = %v, want a reconnect after %v", d, FirstWait)
-	}
-	if dm := h.waitMount(MountRefused); dm.Rule != guestlink.RuleMountTimeout {
-		t.Fatalf("rule %s, want %s", dm.Rule, guestlink.RuleMountTimeout)
-	}
-	h.clock.advance(FirstWait)
-	h.nextTime()
-	h.waitMount(MountMounted)
-	if err := h.links.CheckSessionStart(vm.SlotWork, 1); err != nil {
-		t.Fatalf("session start after the mount: %v", err)
+	for _, rule := range []string{guestlink.RuleMountTimeout, guestlink.RuleMountUnavailable} {
+		t.Run(rule, func(t *testing.T) {
+			h := newHarness(t, own, own, true)
+			var mu sync.Mutex
+			calls := 0
+			h.mount = func(context.Context, vm.Slot, uint64, *guestlink.Link) error {
+				mu.Lock()
+				defer mu.Unlock()
+				calls++
+				if calls == 1 {
+					return &guestlink.MountRefusal{Rule: rule}
+				}
+				return nil
+			}
+			h.start()
+			h.clock.skipTo(t, FirstWait)
+			if d := h.clock.nextWait(t); d != FirstWait {
+				t.Fatalf("wait after the refusal = %v, want a reconnect after %v", d, FirstWait)
+			}
+			dm := h.waitMount(MountRefused)
+			if dm.Rule != rule || strings.Contains(dm.Message, "reset-data") {
+				t.Fatalf("data mount %+v, want rule %s without a reset", dm, rule)
+			}
+			h.clock.advance(FirstWait)
+			h.nextTime()
+			h.waitMount(MountMounted)
+			if err := h.links.CheckSessionStart(vm.SlotWork, 1); err != nil {
+				t.Fatalf("session start after the mount: %v", err)
+			}
+		})
 	}
 }
 
 // A session start is refused while no link is up, for another
-// generation, and while the data mount is pending.
+// generation, and while the data mount is pending. After a reconnect it
+// is pending again until the new link's mount answers: wb-guestd may
+// have restarted.
 func TestCheckSessionStartPending(t *testing.T) {
 	h := newHarness(t, own, own, true)
 	wantSessionRefused(t, h.links.CheckSessionStart(vm.SlotWork, 1), RuleSessionNoLink)
-	block := make(chan struct{})
+	release := make(chan struct{}, 2)
 	h.mount = func(ctx context.Context, _ vm.Slot, _ uint64, _ *guestlink.Link) error {
 		select {
-		case <-block:
+		case <-release:
 		case <-ctx.Done():
 		}
 		return nil
@@ -243,10 +257,23 @@ func TestCheckSessionStartPending(t *testing.T) {
 	h.waitState(StateLinked)
 	wantSessionRefused(t, h.links.CheckSessionStart(vm.SlotWork, 1), RuleSessionMountPending)
 	wantSessionRefused(t, h.links.CheckSessionStart(vm.SlotWork, 2), RuleSessionNoLink)
-	close(block)
+	release <- struct{}{}
 	h.waitMount(MountMounted)
 	if err := h.links.CheckSessionStart(vm.SlotWork, 1); err != nil {
 		t.Fatalf("session start: %v", err)
+	}
+
+	// Reconnect: the new link's mount is pending until it answers.
+	h.nextTime()
+	_ = h.nextGuest().Close()
+	h.clock.skipTo(t, FirstWait)
+	h.waitState(StateLinked)
+	h.waitMount(MountPending)
+	wantSessionRefused(t, h.links.CheckSessionStart(vm.SlotWork, 1), RuleSessionMountPending)
+	release <- struct{}{}
+	h.waitMount(MountMounted)
+	if err := h.links.CheckSessionStart(vm.SlotWork, 1); err != nil {
+		t.Fatalf("session start after the reconnect: %v", err)
 	}
 }
 

@@ -43,6 +43,10 @@ const (
 	RuleReplyInvalid = "guest-reply-invalid"
 	// RuleMountTimeout: no answer within MountTimeout.
 	RuleMountTimeout = "guest-mount-timeout"
+	// RuleMountUnavailable: the call failed with UNAVAILABLE, as when the
+	// connection drops under it. The link reconnects and asks again, as
+	// after a time call that fails so.
+	RuleMountUnavailable = "guest-mount-unavailable"
 )
 
 // MountRules are the rules a refusal of MountData may carry, as its
@@ -62,9 +66,9 @@ var MountRules = []string{
 var ruleForm = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 // MountRefusal is the error of a refused MountData: a rule of
-// MountRules the guest sent, RuleReplyInvalid or RuleMountTimeout. Its
-// message holds only text the host made, and guest text escaped and
-// cut.
+// MountRules the guest sent, or one of the host's: RuleReplyInvalid,
+// RuleMountTimeout or RuleMountUnavailable. Its message holds only text
+// the host made, and guest text escaped and cut.
 type MountRefusal struct {
 	Rule string
 	msg  string
@@ -96,8 +100,10 @@ func (l *Link) MountData(ctx context.Context, uuid string, first bool, log *slog
 	var r *MountRefusal
 	if timedOut(callCtx, err) {
 		r = &MountRefusal{Rule: RuleMountTimeout, msg: "no answer within " + MountTimeout.String()}
+	} else if st := status.Convert(err); st.Code() == codes.Unavailable {
+		r = &MountRefusal{Rule: RuleMountUnavailable, msg: "the call failed: " + guestText(st.Message())}
 	} else {
-		r = mountRefusalOf(status.Convert(err))
+		r = mountRefusalOf(st)
 	}
 	log.LogAttrs(ctx, slog.LevelWarn, "guest data mount refused",
 		append(attrs, slog.String("rule", r.Rule), slog.String("decision", "refuse"), slog.String("reason", r.msg))...)
