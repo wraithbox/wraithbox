@@ -113,6 +113,31 @@ message VMStatus {
   // The last error of the Virtualization framework in the current or
   // the last run, kept after the VM stopped. Unset when there is none.
   VMError last_error = 7;
+  // The data volume's mount in the guest for the current run: unset
+  // unless the VM is running (S06-05-disks, "Mounting the data volume").
+  DataMount data_mount = 8;
+}
+
+// DataMount is the outcome of the last MountData call of the current run.
+// A session start in the VM is refused unless its state is MOUNTED.
+message DataMount {
+  DataMountState state = 1;
+  // The rule that refused the mount. Set when state is REFUSED.
+  string rule = 2;
+  // What was refused, and what to do. Set when state is REFUSED.
+  string message = 3;
+}
+
+// DataMountState is the state of a VM's data volume mount.
+enum DataMountState {
+  DATA_MOUNT_STATE_UNSPECIFIED = 0;
+  // No MountData call has answered in the current run yet.
+  DATA_MOUNT_STATE_PENDING = 1;
+  // The guest mounted the data volume and it passed every check.
+  DATA_MOUNT_STATE_MOUNTED = 2;
+  // The mount was refused. The VM keeps running, and every session start
+  // in it is refused until a later MountData succeeds.
+  DATA_MOUNT_STATE_REFUSED = 3;
 }
 
 // VMPhase is wb-hostd's state of a VM.

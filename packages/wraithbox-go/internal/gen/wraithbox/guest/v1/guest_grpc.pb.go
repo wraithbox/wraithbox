@@ -34,9 +34,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GuestService_Hello_FullMethodName   = "/wraithbox.guest.v1.GuestService/Hello"
-	GuestService_Shell_FullMethodName   = "/wraithbox.guest.v1.GuestService/Shell"
-	GuestService_SetTime_FullMethodName = "/wraithbox.guest.v1.GuestService/SetTime"
+	GuestService_Hello_FullMethodName     = "/wraithbox.guest.v1.GuestService/Hello"
+	GuestService_Shell_FullMethodName     = "/wraithbox.guest.v1.GuestService/Shell"
+	GuestService_SetTime_FullMethodName   = "/wraithbox.guest.v1.GuestService/SetTime"
+	GuestService_MountData_FullMethodName = "/wraithbox.guest.v1.GuestService/MountData"
 )
 
 // GuestServiceClient is the client API for GuestService service.
@@ -67,6 +68,26 @@ type GuestServiceClient interface {
 	// otherwise. The answer is empty: wb-hostd never reads a time from the
 	// guest.
 	SetTime(ctx context.Context, in *SetTimeRequest, opts ...grpc.CallOption) (*SetTimeResponse, error)
+	// MountData mounts the VM's data volume at the home path, or checks it
+	// when it is mounted there already (S06-05-disks, "Mounting the data
+	// volume"). wb-hostd calls it right after every accepted hello, before
+	// any other request. wb-guestd runs nothing as a project user until a
+	// MountData has succeeded since wb-guestd started.
+	//
+	// A refusal is the status FAILED_PRECONDITION with a
+	// google.rpc.ErrorInfo detail of the domain `wraithbox.guest.v1`, whose
+	// reason is the rule: one of `data-volume-missing`,
+	// `data-volume-encrypted`, `data-volume-mount-failed`,
+	// `data-mount-point`, `data-mount-flags`, `data-mount-volume` and
+	// `data-mount-root`. The host takes nothing else from a refusal. It
+	// refuses with `guest-reply-invalid` an answer over 4 KiB, another
+	// status code, a rule outside that list, a rule over 64 bytes or with a
+	// byte outside `[a-z0-9-]`, and every other failed call. It refuses with
+	// `guest-mount-timeout` an answer that doesn't come within 45 s, which
+	// is longer than the guest's 30 s wait for the volume. The status
+	// message is guest text: the host logs it escaped and cut, and never
+	// reads it.
+	MountData(ctx context.Context, in *MountDataRequest, opts ...grpc.CallOption) (*MountDataResponse, error)
 }
 
 type guestServiceClient struct {
@@ -110,6 +131,16 @@ func (c *guestServiceClient) SetTime(ctx context.Context, in *SetTimeRequest, op
 	return out, nil
 }
 
+func (c *guestServiceClient) MountData(ctx context.Context, in *MountDataRequest, opts ...grpc.CallOption) (*MountDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MountDataResponse)
+	err := c.cc.Invoke(ctx, GuestService_MountData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GuestServiceServer is the server API for GuestService service.
 // All implementations must embed UnimplementedGuestServiceServer
 // for forward compatibility.
@@ -138,6 +169,26 @@ type GuestServiceServer interface {
 	// otherwise. The answer is empty: wb-hostd never reads a time from the
 	// guest.
 	SetTime(context.Context, *SetTimeRequest) (*SetTimeResponse, error)
+	// MountData mounts the VM's data volume at the home path, or checks it
+	// when it is mounted there already (S06-05-disks, "Mounting the data
+	// volume"). wb-hostd calls it right after every accepted hello, before
+	// any other request. wb-guestd runs nothing as a project user until a
+	// MountData has succeeded since wb-guestd started.
+	//
+	// A refusal is the status FAILED_PRECONDITION with a
+	// google.rpc.ErrorInfo detail of the domain `wraithbox.guest.v1`, whose
+	// reason is the rule: one of `data-volume-missing`,
+	// `data-volume-encrypted`, `data-volume-mount-failed`,
+	// `data-mount-point`, `data-mount-flags`, `data-mount-volume` and
+	// `data-mount-root`. The host takes nothing else from a refusal. It
+	// refuses with `guest-reply-invalid` an answer over 4 KiB, another
+	// status code, a rule outside that list, a rule over 64 bytes or with a
+	// byte outside `[a-z0-9-]`, and every other failed call. It refuses with
+	// `guest-mount-timeout` an answer that doesn't come within 45 s, which
+	// is longer than the guest's 30 s wait for the volume. The status
+	// message is guest text: the host logs it escaped and cut, and never
+	// reads it.
+	MountData(context.Context, *MountDataRequest) (*MountDataResponse, error)
 	mustEmbedUnimplementedGuestServiceServer()
 }
 
@@ -156,6 +207,9 @@ func (UnimplementedGuestServiceServer) Shell(grpc.BidiStreamingServer[ShellReque
 }
 func (UnimplementedGuestServiceServer) SetTime(context.Context, *SetTimeRequest) (*SetTimeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetTime not implemented")
+}
+func (UnimplementedGuestServiceServer) MountData(context.Context, *MountDataRequest) (*MountDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MountData not implemented")
 }
 func (UnimplementedGuestServiceServer) mustEmbedUnimplementedGuestServiceServer() {}
 func (UnimplementedGuestServiceServer) testEmbeddedByValue()                      {}
@@ -221,6 +275,24 @@ func _GuestService_SetTime_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuestService_MountData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MountDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuestServiceServer).MountData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GuestService_MountData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuestServiceServer).MountData(ctx, req.(*MountDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GuestService_ServiceDesc is the grpc.ServiceDesc for GuestService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -235,6 +307,10 @@ var GuestService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetTime",
 			Handler:    _GuestService_SetTime_Handler,
+		},
+		{
+			MethodName: "MountData",
+			Handler:    _GuestService_MountData_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

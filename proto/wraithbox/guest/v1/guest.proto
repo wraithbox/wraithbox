@@ -44,6 +44,27 @@ service GuestService {
   // otherwise. The answer is empty: wb-hostd never reads a time from the
   // guest.
   rpc SetTime(SetTimeRequest) returns (SetTimeResponse);
+
+  // MountData mounts the VM's data volume at the home path, or checks it
+  // when it is mounted there already (S06-05-disks, "Mounting the data
+  // volume"). wb-hostd calls it right after every accepted hello, before
+  // any other request. wb-guestd runs nothing as a project user until a
+  // MountData has succeeded since wb-guestd started.
+  //
+  // A refusal is the status FAILED_PRECONDITION with a
+  // google.rpc.ErrorInfo detail of the domain `wraithbox.guest.v1`, whose
+  // reason is the rule: one of `data-volume-missing`,
+  // `data-volume-encrypted`, `data-volume-mount-failed`,
+  // `data-mount-point`, `data-mount-flags`, `data-mount-volume` and
+  // `data-mount-root`. The host takes nothing else from a refusal. It
+  // refuses with `guest-reply-invalid` an answer over 4 KiB, another
+  // status code, a rule outside that list, a rule over 64 bytes or with a
+  // byte outside `[a-z0-9-]`, and every other failed call. It refuses with
+  // `guest-mount-timeout` an answer that doesn't come within 45 s, which
+  // is longer than the guest's 30 s wait for the volume. The status
+  // message is guest text: the host logs it escaped and cut, and never
+  // reads it.
+  rpc MountData(MountDataRequest) returns (MountDataResponse);
 }
 
 message HelloRequest {}
@@ -124,3 +145,21 @@ message SetTimeRequest {
 
 // SetTimeResponse is empty, so the guest has no time to send back.
 message SetTimeResponse {}
+
+message MountDataRequest {
+  // The data volume's UUID as wb-hostd recorded it at format time, in
+  // canonical form: 36 bytes of uppercase hexadecimal digits and hyphens
+  // (S06-13-data-disk-format). wb-guestd mounts only the volume with this
+  // UUID, and refuses a request with another form.
+  string volume_uuid = 1;
+
+  // Set while wb-hostd's record says the volume has never been mounted in
+  // a guest. Only then does wb-guestd make the volume root owned by
+  // root:wheel with mode 755 (S06-05-disks, "Owners and modes"). On any
+  // other mount it only checks them.
+  bool first_mount = 2;
+}
+
+// MountDataResponse is empty: a success says the volume is mounted and
+// passed every check, and the host reads nothing else from the guest.
+message MountDataResponse {}
