@@ -449,3 +449,4 @@ nono
 Sigstore
 Bitwarden
 DSSE
+pgrep
