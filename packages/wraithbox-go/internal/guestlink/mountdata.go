@@ -94,7 +94,7 @@ func (l *Link) MountData(ctx context.Context, uuid string, first bool, log *slog
 		return fmt.Errorf("guestlink: data mount abandoned by the host: %w", callCtx.Err())
 	}
 	var r *MountRefusal
-	if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
+	if timedOut(callCtx, err) {
 		r = &MountRefusal{Rule: RuleMountTimeout, msg: "no answer within " + MountTimeout.String()}
 	} else {
 		r = mountRefusalOf(status.Convert(err))
@@ -102,6 +102,19 @@ func (l *Link) MountData(ctx context.Context, uuid string, first bool, log *slog
 	log.LogAttrs(ctx, slog.LevelWarn, "guest data mount refused",
 		append(attrs, slog.String("rule", r.Rule), slog.String("decision", "refuse"), slog.String("reason", r.msg))...)
 	return r
+}
+
+// timedOut reports whether the call failed by its deadline on the host's
+// clock. The guest's server ends the call at the deadline it was sent,
+// and that answer can arrive before the host's own timer has marked
+// callCtx done. A DEADLINE_EXCEEDED before the deadline is the guest's
+// own, which mountRefusalOf takes as guest input.
+func timedOut(callCtx context.Context, err error) bool {
+	if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
+		return true
+	}
+	deadline, ok := callCtx.Deadline()
+	return ok && status.Code(err) == codes.DeadlineExceeded && !time.Now().Before(deadline)
 }
 
 // mountRefusalOf reads a MountData error status. Only FAILED_PRECONDITION
