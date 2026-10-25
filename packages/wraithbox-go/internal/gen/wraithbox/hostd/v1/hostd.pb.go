@@ -90,6 +90,63 @@ func (VM) EnumDescriptor() ([]byte, []int) {
 	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{0}
 }
 
+// DataMountState is the state of a VM's data volume mount.
+type DataMountState int32
+
+const (
+	DataMountState_DATA_MOUNT_STATE_UNSPECIFIED DataMountState = 0
+	// No MountData call has answered in the current run yet.
+	DataMountState_DATA_MOUNT_STATE_PENDING DataMountState = 1
+	// The guest mounted the data volume and it passed every check.
+	DataMountState_DATA_MOUNT_STATE_MOUNTED DataMountState = 2
+	// The mount was refused. The VM keeps running, and every session start
+	// in it is refused until a later MountData succeeds.
+	DataMountState_DATA_MOUNT_STATE_REFUSED DataMountState = 3
+)
+
+// Enum value maps for DataMountState.
+var (
+	DataMountState_name = map[int32]string{
+		0: "DATA_MOUNT_STATE_UNSPECIFIED",
+		1: "DATA_MOUNT_STATE_PENDING",
+		2: "DATA_MOUNT_STATE_MOUNTED",
+		3: "DATA_MOUNT_STATE_REFUSED",
+	}
+	DataMountState_value = map[string]int32{
+		"DATA_MOUNT_STATE_UNSPECIFIED": 0,
+		"DATA_MOUNT_STATE_PENDING":     1,
+		"DATA_MOUNT_STATE_MOUNTED":     2,
+		"DATA_MOUNT_STATE_REFUSED":     3,
+	}
+)
+
+func (x DataMountState) Enum() *DataMountState {
+	p := new(DataMountState)
+	*p = x
+	return p
+}
+
+func (x DataMountState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DataMountState) Descriptor() protoreflect.EnumDescriptor {
+	return file_wraithbox_hostd_v1_hostd_proto_enumTypes[1].Descriptor()
+}
+
+func (DataMountState) Type() protoreflect.EnumType {
+	return &file_wraithbox_hostd_v1_hostd_proto_enumTypes[1]
+}
+
+func (x DataMountState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DataMountState.Descriptor instead.
+func (DataMountState) EnumDescriptor() ([]byte, []int) {
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{1}
+}
+
 // VMPhase is wb-hostd's state of a VM.
 type VMPhase int32
 
@@ -130,11 +187,11 @@ func (x VMPhase) String() string {
 }
 
 func (VMPhase) Descriptor() protoreflect.EnumDescriptor {
-	return file_wraithbox_hostd_v1_hostd_proto_enumTypes[1].Descriptor()
+	return file_wraithbox_hostd_v1_hostd_proto_enumTypes[2].Descriptor()
 }
 
 func (VMPhase) Type() protoreflect.EnumType {
-	return &file_wraithbox_hostd_v1_hostd_proto_enumTypes[1]
+	return &file_wraithbox_hostd_v1_hostd_proto_enumTypes[2]
 }
 
 func (x VMPhase) Number() protoreflect.EnumNumber {
@@ -143,7 +200,7 @@ func (x VMPhase) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use VMPhase.Descriptor instead.
 func (VMPhase) EnumDescriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{1}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{2}
 }
 
 // LinkState is the state of wb-hostd's control link to wb-guestd.
@@ -190,11 +247,11 @@ func (x LinkState) String() string {
 }
 
 func (LinkState) Descriptor() protoreflect.EnumDescriptor {
-	return file_wraithbox_hostd_v1_hostd_proto_enumTypes[2].Descriptor()
+	return file_wraithbox_hostd_v1_hostd_proto_enumTypes[3].Descriptor()
 }
 
 func (LinkState) Type() protoreflect.EnumType {
-	return &file_wraithbox_hostd_v1_hostd_proto_enumTypes[2]
+	return &file_wraithbox_hostd_v1_hostd_proto_enumTypes[3]
 }
 
 func (x LinkState) Number() protoreflect.EnumNumber {
@@ -203,7 +260,7 @@ func (x LinkState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LinkState.Descriptor instead.
 func (LinkState) EnumDescriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{2}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{3}
 }
 
 type ResetVMDataRequest struct {
@@ -582,7 +639,10 @@ type VMStatus struct {
 	LinkRefusal *LinkRefusal `protobuf:"bytes,6,opt,name=link_refusal,json=linkRefusal,proto3" json:"link_refusal,omitempty"`
 	// The last error of the Virtualization framework in the current or
 	// the last run, kept after the VM stopped. Unset when there is none.
-	LastError     *VMError `protobuf:"bytes,7,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	LastError *VMError `protobuf:"bytes,7,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	// The data volume's mount in the guest for the current run: unset
+	// unless the VM is running (S06-05-disks, "Mounting the data volume").
+	DataMount     *DataMount `protobuf:"bytes,8,opt,name=data_mount,json=dataMount,proto3" json:"data_mount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -666,6 +726,77 @@ func (x *VMStatus) GetLastError() *VMError {
 	return nil
 }
 
+func (x *VMStatus) GetDataMount() *DataMount {
+	if x != nil {
+		return x.DataMount
+	}
+	return nil
+}
+
+// DataMount is the outcome of the last MountData call of the current run.
+// A session start in the VM is refused unless its state is MOUNTED.
+type DataMount struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	State DataMountState         `protobuf:"varint,1,opt,name=state,proto3,enum=wraithbox.hostd.v1.DataMountState" json:"state,omitempty"`
+	// The rule that refused the mount. Set when state is REFUSED.
+	Rule string `protobuf:"bytes,2,opt,name=rule,proto3" json:"rule,omitempty"`
+	// What was refused, and what to do. Set when state is REFUSED.
+	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DataMount) Reset() {
+	*x = DataMount{}
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DataMount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DataMount) ProtoMessage() {}
+
+func (x *DataMount) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DataMount.ProtoReflect.Descriptor instead.
+func (*DataMount) Descriptor() ([]byte, []int) {
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DataMount) GetState() DataMountState {
+	if x != nil {
+		return x.State
+	}
+	return DataMountState_DATA_MOUNT_STATE_UNSPECIFIED
+}
+
+func (x *DataMount) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
+func (x *DataMount) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 // LinkRefusal is a refused hello of wb-guestd.
 type LinkRefusal struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -685,7 +816,7 @@ type LinkRefusal struct {
 
 func (x *LinkRefusal) Reset() {
 	*x = LinkRefusal{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[9]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -697,7 +828,7 @@ func (x *LinkRefusal) String() string {
 func (*LinkRefusal) ProtoMessage() {}
 
 func (x *LinkRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[9]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -710,7 +841,7 @@ func (x *LinkRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkRefusal.ProtoReflect.Descriptor instead.
 func (*LinkRefusal) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{9}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *LinkRefusal) GetRule() string {
@@ -760,7 +891,7 @@ type VMError struct {
 
 func (x *VMError) Reset() {
 	*x = VMError{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[10]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -772,7 +903,7 @@ func (x *VMError) String() string {
 func (*VMError) ProtoMessage() {}
 
 func (x *VMError) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[10]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -785,7 +916,7 @@ func (x *VMError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMError.ProtoReflect.Descriptor instead.
 func (*VMError) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{10}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *VMError) GetCode() int64 {
@@ -838,7 +969,7 @@ const file_wraithbox_hostd_v1_hostd_proto_rawDesc = "" +
 	"\x12GetVMStatusRequest\x12&\n" +
 	"\x02vm\x18\x01 \x01(\x0e2\x16.wraithbox.hostd.v1.VMR\x02vm\"K\n" +
 	"\x13GetVMStatusResponse\x124\n" +
-	"\x06status\x18\x01 \x01(\v2\x1c.wraithbox.hostd.v1.VMStatusR\x06status\"\xe8\x02\n" +
+	"\x06status\x18\x01 \x01(\v2\x1c.wraithbox.hostd.v1.VMStatusR\x06status\"\xa6\x03\n" +
 	"\bVMStatus\x12&\n" +
 	"\x02vm\x18\x01 \x01(\x0e2\x16.wraithbox.hostd.v1.VMR\x02vm\x121\n" +
 	"\x05phase\x18\x02 \x01(\x0e2\x1b.wraithbox.hostd.v1.VMPhaseR\x05phase\x12\x1e\n" +
@@ -850,7 +981,13 @@ const file_wraithbox_hostd_v1_hostd_proto_rawDesc = "" +
 	"\rguest_version\x18\x05 \x01(\tR\fguestVersion\x12B\n" +
 	"\flink_refusal\x18\x06 \x01(\v2\x1f.wraithbox.hostd.v1.LinkRefusalR\vlinkRefusal\x12:\n" +
 	"\n" +
-	"last_error\x18\a \x01(\v2\x1b.wraithbox.hostd.v1.VMErrorR\tlastError\"\x85\x01\n" +
+	"last_error\x18\a \x01(\v2\x1b.wraithbox.hostd.v1.VMErrorR\tlastError\x12<\n" +
+	"\n" +
+	"data_mount\x18\b \x01(\v2\x1d.wraithbox.hostd.v1.DataMountR\tdataMount\"s\n" +
+	"\tDataMount\x128\n" +
+	"\x05state\x18\x01 \x01(\x0e2\".wraithbox.hostd.v1.DataMountStateR\x05state\x12\x12\n" +
+	"\x04rule\x18\x02 \x01(\tR\x04rule\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x85\x01\n" +
 	"\vLinkRefusal\x12\x12\n" +
 	"\x04rule\x18\x01 \x01(\tR\x04rule\x12#\n" +
 	"\rguest_version\x18\x02 \x01(\tR\fguestVersion\x12#\n" +
@@ -864,7 +1001,12 @@ const file_wraithbox_hostd_v1_hostd_proto_rawDesc = "" +
 	"\x02VM\x12\x12\n" +
 	"\x0eVM_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aVM_WORK\x10\x01\x12\x0f\n" +
-	"\vVM_ISOLATED\x10\x02*}\n" +
+	"\vVM_ISOLATED\x10\x02*\x8c\x01\n" +
+	"\x0eDataMountState\x12 \n" +
+	"\x1cDATA_MOUNT_STATE_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18DATA_MOUNT_STATE_PENDING\x10\x01\x12\x1c\n" +
+	"\x18DATA_MOUNT_STATE_MOUNTED\x10\x02\x12\x1c\n" +
+	"\x18DATA_MOUNT_STATE_REFUSED\x10\x03*}\n" +
 	"\aVMPhase\x12\x18\n" +
 	"\x14VM_PHASE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10VM_PHASE_STOPPED\x10\x01\x12\x15\n" +
@@ -897,48 +1039,52 @@ func file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP() []byte {
 	return file_wraithbox_hostd_v1_hostd_proto_rawDescData
 }
 
-var file_wraithbox_hostd_v1_hostd_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_wraithbox_hostd_v1_hostd_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_wraithbox_hostd_v1_hostd_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_wraithbox_hostd_v1_hostd_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_wraithbox_hostd_v1_hostd_proto_goTypes = []any{
 	(VM)(0),                     // 0: wraithbox.hostd.v1.VM
-	(VMPhase)(0),                // 1: wraithbox.hostd.v1.VMPhase
-	(LinkState)(0),              // 2: wraithbox.hostd.v1.LinkState
-	(*ResetVMDataRequest)(nil),  // 3: wraithbox.hostd.v1.ResetVMDataRequest
-	(*ResetVMDataResponse)(nil), // 4: wraithbox.hostd.v1.ResetVMDataResponse
-	(*StartVMRequest)(nil),      // 5: wraithbox.hostd.v1.StartVMRequest
-	(*StartVMResponse)(nil),     // 6: wraithbox.hostd.v1.StartVMResponse
-	(*StopVMRequest)(nil),       // 7: wraithbox.hostd.v1.StopVMRequest
-	(*StopVMResponse)(nil),      // 8: wraithbox.hostd.v1.StopVMResponse
-	(*GetVMStatusRequest)(nil),  // 9: wraithbox.hostd.v1.GetVMStatusRequest
-	(*GetVMStatusResponse)(nil), // 10: wraithbox.hostd.v1.GetVMStatusResponse
-	(*VMStatus)(nil),            // 11: wraithbox.hostd.v1.VMStatus
-	(*LinkRefusal)(nil),         // 12: wraithbox.hostd.v1.LinkRefusal
-	(*VMError)(nil),             // 13: wraithbox.hostd.v1.VMError
+	(DataMountState)(0),         // 1: wraithbox.hostd.v1.DataMountState
+	(VMPhase)(0),                // 2: wraithbox.hostd.v1.VMPhase
+	(LinkState)(0),              // 3: wraithbox.hostd.v1.LinkState
+	(*ResetVMDataRequest)(nil),  // 4: wraithbox.hostd.v1.ResetVMDataRequest
+	(*ResetVMDataResponse)(nil), // 5: wraithbox.hostd.v1.ResetVMDataResponse
+	(*StartVMRequest)(nil),      // 6: wraithbox.hostd.v1.StartVMRequest
+	(*StartVMResponse)(nil),     // 7: wraithbox.hostd.v1.StartVMResponse
+	(*StopVMRequest)(nil),       // 8: wraithbox.hostd.v1.StopVMRequest
+	(*StopVMResponse)(nil),      // 9: wraithbox.hostd.v1.StopVMResponse
+	(*GetVMStatusRequest)(nil),  // 10: wraithbox.hostd.v1.GetVMStatusRequest
+	(*GetVMStatusResponse)(nil), // 11: wraithbox.hostd.v1.GetVMStatusResponse
+	(*VMStatus)(nil),            // 12: wraithbox.hostd.v1.VMStatus
+	(*DataMount)(nil),           // 13: wraithbox.hostd.v1.DataMount
+	(*LinkRefusal)(nil),         // 14: wraithbox.hostd.v1.LinkRefusal
+	(*VMError)(nil),             // 15: wraithbox.hostd.v1.VMError
 }
 var file_wraithbox_hostd_v1_hostd_proto_depIdxs = []int32{
 	0,  // 0: wraithbox.hostd.v1.ResetVMDataRequest.vm:type_name -> wraithbox.hostd.v1.VM
 	0,  // 1: wraithbox.hostd.v1.StartVMRequest.vm:type_name -> wraithbox.hostd.v1.VM
 	0,  // 2: wraithbox.hostd.v1.StopVMRequest.vm:type_name -> wraithbox.hostd.v1.VM
 	0,  // 3: wraithbox.hostd.v1.GetVMStatusRequest.vm:type_name -> wraithbox.hostd.v1.VM
-	11, // 4: wraithbox.hostd.v1.GetVMStatusResponse.status:type_name -> wraithbox.hostd.v1.VMStatus
+	12, // 4: wraithbox.hostd.v1.GetVMStatusResponse.status:type_name -> wraithbox.hostd.v1.VMStatus
 	0,  // 5: wraithbox.hostd.v1.VMStatus.vm:type_name -> wraithbox.hostd.v1.VM
-	1,  // 6: wraithbox.hostd.v1.VMStatus.phase:type_name -> wraithbox.hostd.v1.VMPhase
-	2,  // 7: wraithbox.hostd.v1.VMStatus.link_state:type_name -> wraithbox.hostd.v1.LinkState
-	12, // 8: wraithbox.hostd.v1.VMStatus.link_refusal:type_name -> wraithbox.hostd.v1.LinkRefusal
-	13, // 9: wraithbox.hostd.v1.VMStatus.last_error:type_name -> wraithbox.hostd.v1.VMError
-	3,  // 10: wraithbox.hostd.v1.HostService.ResetVMData:input_type -> wraithbox.hostd.v1.ResetVMDataRequest
-	5,  // 11: wraithbox.hostd.v1.HostService.StartVM:input_type -> wraithbox.hostd.v1.StartVMRequest
-	7,  // 12: wraithbox.hostd.v1.HostService.StopVM:input_type -> wraithbox.hostd.v1.StopVMRequest
-	9,  // 13: wraithbox.hostd.v1.HostService.GetVMStatus:input_type -> wraithbox.hostd.v1.GetVMStatusRequest
-	4,  // 14: wraithbox.hostd.v1.HostService.ResetVMData:output_type -> wraithbox.hostd.v1.ResetVMDataResponse
-	6,  // 15: wraithbox.hostd.v1.HostService.StartVM:output_type -> wraithbox.hostd.v1.StartVMResponse
-	8,  // 16: wraithbox.hostd.v1.HostService.StopVM:output_type -> wraithbox.hostd.v1.StopVMResponse
-	10, // 17: wraithbox.hostd.v1.HostService.GetVMStatus:output_type -> wraithbox.hostd.v1.GetVMStatusResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	2,  // 6: wraithbox.hostd.v1.VMStatus.phase:type_name -> wraithbox.hostd.v1.VMPhase
+	3,  // 7: wraithbox.hostd.v1.VMStatus.link_state:type_name -> wraithbox.hostd.v1.LinkState
+	14, // 8: wraithbox.hostd.v1.VMStatus.link_refusal:type_name -> wraithbox.hostd.v1.LinkRefusal
+	15, // 9: wraithbox.hostd.v1.VMStatus.last_error:type_name -> wraithbox.hostd.v1.VMError
+	13, // 10: wraithbox.hostd.v1.VMStatus.data_mount:type_name -> wraithbox.hostd.v1.DataMount
+	1,  // 11: wraithbox.hostd.v1.DataMount.state:type_name -> wraithbox.hostd.v1.DataMountState
+	4,  // 12: wraithbox.hostd.v1.HostService.ResetVMData:input_type -> wraithbox.hostd.v1.ResetVMDataRequest
+	6,  // 13: wraithbox.hostd.v1.HostService.StartVM:input_type -> wraithbox.hostd.v1.StartVMRequest
+	8,  // 14: wraithbox.hostd.v1.HostService.StopVM:input_type -> wraithbox.hostd.v1.StopVMRequest
+	10, // 15: wraithbox.hostd.v1.HostService.GetVMStatus:input_type -> wraithbox.hostd.v1.GetVMStatusRequest
+	5,  // 16: wraithbox.hostd.v1.HostService.ResetVMData:output_type -> wraithbox.hostd.v1.ResetVMDataResponse
+	7,  // 17: wraithbox.hostd.v1.HostService.StartVM:output_type -> wraithbox.hostd.v1.StartVMResponse
+	9,  // 18: wraithbox.hostd.v1.HostService.StopVM:output_type -> wraithbox.hostd.v1.StopVMResponse
+	11, // 19: wraithbox.hostd.v1.HostService.GetVMStatus:output_type -> wraithbox.hostd.v1.GetVMStatusResponse
+	16, // [16:20] is the sub-list for method output_type
+	12, // [12:16] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_hostd_v1_hostd_proto_init() }
@@ -951,8 +1097,8 @@ func file_wraithbox_hostd_v1_hostd_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_hostd_v1_hostd_proto_rawDesc), len(file_wraithbox_hostd_v1_hostd_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   11,
+			NumEnums:      4,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

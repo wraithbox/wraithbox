@@ -493,6 +493,104 @@ func (*SetTimeResponse) Descriptor() ([]byte, []int) {
 	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{6}
 }
 
+type MountDataRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The data volume's UUID as wb-hostd recorded it at format time, in
+	// canonical form: 36 bytes of uppercase hexadecimal digits and hyphens
+	// (S06-13-data-disk-format). wb-guestd mounts only the volume with this
+	// UUID, and refuses a request with another form.
+	VolumeUuid string `protobuf:"bytes,1,opt,name=volume_uuid,json=volumeUuid,proto3" json:"volume_uuid,omitempty"`
+	// Set while wb-hostd's record says the volume has never been mounted in
+	// a guest. Only then does wb-guestd make the volume root owned by
+	// root:wheel with mode 755 (S06-05-disks, "Owners and modes"). On any
+	// other mount it only checks them.
+	FirstMount    bool `protobuf:"varint,2,opt,name=first_mount,json=firstMount,proto3" json:"first_mount,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MountDataRequest) Reset() {
+	*x = MountDataRequest{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MountDataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MountDataRequest) ProtoMessage() {}
+
+func (x *MountDataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MountDataRequest.ProtoReflect.Descriptor instead.
+func (*MountDataRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *MountDataRequest) GetVolumeUuid() string {
+	if x != nil {
+		return x.VolumeUuid
+	}
+	return ""
+}
+
+func (x *MountDataRequest) GetFirstMount() bool {
+	if x != nil {
+		return x.FirstMount
+	}
+	return false
+}
+
+// MountDataResponse is empty: a success says the volume is mounted and
+// passed every check, and the host reads nothing else from the guest.
+type MountDataResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MountDataResponse) Reset() {
+	*x = MountDataResponse{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MountDataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MountDataResponse) ProtoMessage() {}
+
+func (x *MountDataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MountDataResponse.ProtoReflect.Descriptor instead.
+func (*MountDataResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{8}
+}
+
 var File_wraithbox_guest_v1_guest_proto protoreflect.FileDescriptor
 
 const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
@@ -517,18 +615,25 @@ const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
 	"\n" +
 	"unix_nanos\x18\x01 \x01(\x03R\tunixNanos\x126\n" +
 	"\x06reason\x18\x02 \x01(\x0e2\x1e.wraithbox.guest.v1.TimeReasonR\x06reason\"\x11\n" +
-	"\x0fSetTimeResponse*\x88\x01\n" +
+	"\x0fSetTimeResponse\"T\n" +
+	"\x10MountDataRequest\x12\x1f\n" +
+	"\vvolume_uuid\x18\x01 \x01(\tR\n" +
+	"volumeUuid\x12\x1f\n" +
+	"\vfirst_mount\x18\x02 \x01(\bR\n" +
+	"firstMount\"\x13\n" +
+	"\x11MountDataResponse*\x88\x01\n" +
 	"\n" +
 	"TimeReason\x12\x1b\n" +
 	"\x17TIME_REASON_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TIME_REASON_BOOT\x10\x01\x12\x17\n" +
 	"\x13TIME_REASON_RESTORE\x10\x02\x12\x14\n" +
 	"\x10TIME_REASON_WAKE\x10\x03\x12\x18\n" +
-	"\x14TIME_REASON_PERIODIC\x10\x042\x82\x02\n" +
+	"\x14TIME_REASON_PERIODIC\x10\x042\xdc\x02\n" +
 	"\fGuestService\x12L\n" +
 	"\x05Hello\x12 .wraithbox.guest.v1.HelloRequest\x1a!.wraithbox.guest.v1.HelloResponse\x12P\n" +
 	"\x05Shell\x12 .wraithbox.guest.v1.ShellRequest\x1a!.wraithbox.guest.v1.ShellResponse(\x010\x01\x12R\n" +
-	"\aSetTime\x12\".wraithbox.guest.v1.SetTimeRequest\x1a#.wraithbox.guest.v1.SetTimeResponseB\xec\x01\n" +
+	"\aSetTime\x12\".wraithbox.guest.v1.SetTimeRequest\x1a#.wraithbox.guest.v1.SetTimeResponse\x12X\n" +
+	"\tMountData\x12$.wraithbox.guest.v1.MountDataRequest\x1a%.wraithbox.guest.v1.MountDataResponseB\xec\x01\n" +
 	"\x16com.wraithbox.guest.v1B\n" +
 	"GuestProtoP\x01Z\\github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1;guestv1\xa2\x02\x03WGX\xaa\x02\x12Wraithbox.Guest.V1\xca\x02\x12Wraithbox\\Guest\\V1\xe2\x02\x1eWraithbox\\Guest\\V1\\GPBMetadata\xea\x02\x14Wraithbox::Guest::V1b\x06proto3"
 
@@ -545,34 +650,38 @@ func file_wraithbox_guest_v1_guest_proto_rawDescGZIP() []byte {
 }
 
 var file_wraithbox_guest_v1_guest_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_wraithbox_guest_v1_guest_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_wraithbox_guest_v1_guest_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_wraithbox_guest_v1_guest_proto_goTypes = []any{
-	(TimeReason)(0),         // 0: wraithbox.guest.v1.TimeReason
-	(*HelloRequest)(nil),    // 1: wraithbox.guest.v1.HelloRequest
-	(*HelloResponse)(nil),   // 2: wraithbox.guest.v1.HelloResponse
-	(*ShellRequest)(nil),    // 3: wraithbox.guest.v1.ShellRequest
-	(*ShellStart)(nil),      // 4: wraithbox.guest.v1.ShellStart
-	(*ShellResponse)(nil),   // 5: wraithbox.guest.v1.ShellResponse
-	(*SetTimeRequest)(nil),  // 6: wraithbox.guest.v1.SetTimeRequest
-	(*SetTimeResponse)(nil), // 7: wraithbox.guest.v1.SetTimeResponse
-	(*v1.ClientFrame)(nil),  // 8: wraithbox.terminal.v1.ClientFrame
-	(*v1.Setup)(nil),        // 9: wraithbox.terminal.v1.Setup
-	(*v1.ServerFrame)(nil),  // 10: wraithbox.terminal.v1.ServerFrame
+	(TimeReason)(0),           // 0: wraithbox.guest.v1.TimeReason
+	(*HelloRequest)(nil),      // 1: wraithbox.guest.v1.HelloRequest
+	(*HelloResponse)(nil),     // 2: wraithbox.guest.v1.HelloResponse
+	(*ShellRequest)(nil),      // 3: wraithbox.guest.v1.ShellRequest
+	(*ShellStart)(nil),        // 4: wraithbox.guest.v1.ShellStart
+	(*ShellResponse)(nil),     // 5: wraithbox.guest.v1.ShellResponse
+	(*SetTimeRequest)(nil),    // 6: wraithbox.guest.v1.SetTimeRequest
+	(*SetTimeResponse)(nil),   // 7: wraithbox.guest.v1.SetTimeResponse
+	(*MountDataRequest)(nil),  // 8: wraithbox.guest.v1.MountDataRequest
+	(*MountDataResponse)(nil), // 9: wraithbox.guest.v1.MountDataResponse
+	(*v1.ClientFrame)(nil),    // 10: wraithbox.terminal.v1.ClientFrame
+	(*v1.Setup)(nil),          // 11: wraithbox.terminal.v1.Setup
+	(*v1.ServerFrame)(nil),    // 12: wraithbox.terminal.v1.ServerFrame
 }
 var file_wraithbox_guest_v1_guest_proto_depIdxs = []int32{
 	4,  // 0: wraithbox.guest.v1.ShellRequest.start:type_name -> wraithbox.guest.v1.ShellStart
-	8,  // 1: wraithbox.guest.v1.ShellRequest.frame:type_name -> wraithbox.terminal.v1.ClientFrame
-	9,  // 2: wraithbox.guest.v1.ShellStart.setup:type_name -> wraithbox.terminal.v1.Setup
-	10, // 3: wraithbox.guest.v1.ShellResponse.frame:type_name -> wraithbox.terminal.v1.ServerFrame
+	10, // 1: wraithbox.guest.v1.ShellRequest.frame:type_name -> wraithbox.terminal.v1.ClientFrame
+	11, // 2: wraithbox.guest.v1.ShellStart.setup:type_name -> wraithbox.terminal.v1.Setup
+	12, // 3: wraithbox.guest.v1.ShellResponse.frame:type_name -> wraithbox.terminal.v1.ServerFrame
 	0,  // 4: wraithbox.guest.v1.SetTimeRequest.reason:type_name -> wraithbox.guest.v1.TimeReason
 	1,  // 5: wraithbox.guest.v1.GuestService.Hello:input_type -> wraithbox.guest.v1.HelloRequest
 	3,  // 6: wraithbox.guest.v1.GuestService.Shell:input_type -> wraithbox.guest.v1.ShellRequest
 	6,  // 7: wraithbox.guest.v1.GuestService.SetTime:input_type -> wraithbox.guest.v1.SetTimeRequest
-	2,  // 8: wraithbox.guest.v1.GuestService.Hello:output_type -> wraithbox.guest.v1.HelloResponse
-	5,  // 9: wraithbox.guest.v1.GuestService.Shell:output_type -> wraithbox.guest.v1.ShellResponse
-	7,  // 10: wraithbox.guest.v1.GuestService.SetTime:output_type -> wraithbox.guest.v1.SetTimeResponse
-	8,  // [8:11] is the sub-list for method output_type
-	5,  // [5:8] is the sub-list for method input_type
+	8,  // 8: wraithbox.guest.v1.GuestService.MountData:input_type -> wraithbox.guest.v1.MountDataRequest
+	2,  // 9: wraithbox.guest.v1.GuestService.Hello:output_type -> wraithbox.guest.v1.HelloResponse
+	5,  // 10: wraithbox.guest.v1.GuestService.Shell:output_type -> wraithbox.guest.v1.ShellResponse
+	7,  // 11: wraithbox.guest.v1.GuestService.SetTime:output_type -> wraithbox.guest.v1.SetTimeResponse
+	9,  // 12: wraithbox.guest.v1.GuestService.MountData:output_type -> wraithbox.guest.v1.MountDataResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -593,7 +702,7 @@ func file_wraithbox_guest_v1_guest_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_guest_v1_guest_proto_rawDesc), len(file_wraithbox_guest_v1_guest_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
