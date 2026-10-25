@@ -89,7 +89,7 @@ func run(ctx context.Context, o options) error {
 	release := ln.KeepLock()
 	defer func() { _ = release() }()
 	defer h.close(ctx)
-	return serve(ctx, o, log, ln, h.server)
+	return serve(ctx, o, log, ln, h)
 }
 
 // hostLogs are wb-hostd's own log, <logs>/wb-hostd.log, and the log
@@ -118,9 +118,11 @@ func (l *hostLogs) close() {
 	_ = l.file.Close()
 }
 
-// host is what wb-hostd serves. Only server is set in refusing mode.
+// host is what wb-hostd serves. Only server and projects are set in
+// refusing mode.
 type host struct {
 	server   *hostservice.Server
+	projects *hostservice.ProjectServer
 	vms      *vm.Manager
 	provider *vmdprovider.Provider
 	links    *guestconn.Links
@@ -150,7 +152,10 @@ func prepare(ctx context.Context, o options, log *slog.Logger, files *logpipe.Fi
 func refusingHost(ctx context.Context, log *slog.Logger, r *startup.Refusing) *host {
 	log.LogAttrs(ctx, slog.LevelError, "wb-hostd is in refusing mode",
 		slog.String("decision", "refuse"), slog.String("rule", r.Rule), slog.String("detail", r.Detail))
-	return &host{server: &hostservice.Server{Refusing: r, Log: log}}
+	return &host{
+		server:   &hostservice.Server{Refusing: r, Log: log},
+		projects: &hostservice.ProjectServer{Refusing: r, Log: log},
+	}
 }
 
 // bundleOf returns the bundle directory of wb-hostd's real path, which
@@ -218,7 +223,10 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	}
 	return &host{
 		server: &hostservice.Server{VMs: m, Links: links, Log: log},
-		vms:    m, provider: provider, links: links, closeDB: ready.State.Close,
+		projects: &hostservice.ProjectServer{
+			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git), Log: log,
+		},
+		vms: m, provider: provider, links: links, closeDB: ready.State.Close,
 	}, nil
 }
 
@@ -247,9 +255,11 @@ func (h *host) close(ctx context.Context) {
 // done. Every connection passes localipc's peer check and the build
 // version exchange of grpccreds before a call reaches the server
 // (SEC12-least-privilege).
-func serve(ctx context.Context, o options, log *slog.Logger, ln *localipc.Listener, s *hostservice.Server) error {
-	srv := grpc.NewServer(grpc.Creds(grpccreds.New(log, o.Version)))
-	hostdv1.RegisterHostServiceServer(srv, s)
+func serve(ctx context.Context, o options, log *slog.Logger, ln *localipc.Listener, h *host) error {
+	srv := grpc.NewServer(grpc.Creds(grpccreds.New(log, o.Version)),
+		grpc.MaxRecvMsgSize(hostservice.MaxMessageSize), grpc.MaxSendMsgSize(hostservice.MaxMessageSize))
+	hostdv1.RegisterHostServiceServer(srv, h.server)
+	hostdv1.RegisterProjectServiceServer(srv, h.projects)
 	served := make(chan error, 1)
 	go func() { served <- srv.Serve(ln) }()
 	log.LogAttrs(ctx, slog.LevelInfo, "wb-hostd serving", slog.String("endpoint", localipc.HostdEndpoint))

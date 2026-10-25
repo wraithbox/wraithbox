@@ -1,0 +1,169 @@
+package hostservice
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/protoadapt"
+
+	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/project"
+)
+
+// projectRefusal is a refused project request: the status code, the
+// rule, the message for the user, and an optional detail, such as an
+// IdentityMismatch.
+type projectRefusal struct {
+	code   codes.Code
+	rule   string
+	msg    string
+	detail protoadapt.MessageV1
+}
+
+func (r *projectRefusal) Error() string { return r.msg }
+
+// status builds the refusal's status: msg, the rule as the ErrorInfo
+// reason, and the detail.
+func (r *projectRefusal) status() error {
+	details := []protoadapt.MessageV1{&errdetails.ErrorInfo{Reason: r.rule, Domain: Domain}}
+	if r.detail != nil {
+		details = append(details, r.detail)
+	}
+	st := status.New(r.code, r.msg)
+	detailed, err := st.WithDetails(details...)
+	if err != nil {
+		return withRule(r.code, r.rule, r.msg)
+	}
+	return detailed.Err()
+}
+
+// refuse logs a refusal with its rule and the calling wb, and returns
+// its status. An error that isn't a *projectRefusal, such as one of
+// state.db, is refused with RuleInternal.
+func (s *ProjectServer) refuse(ctx context.Context, method string, err error) error {
+	r, ok := errors.AsType[*projectRefusal](err)
+	if !ok {
+		r = &projectRefusal{code: codes.Internal, rule: RuleInternal, msg: "wb-hostd failed: " + err.Error()}
+	}
+	attrs := append([]slog.Attr{
+		slog.String("rule", r.rule), slog.String("decision", "refuse"),
+		slog.String("method", method), slog.String("reason", r.msg),
+	}, peerAttrs(ctx)...)
+	s.logger().LogAttrs(ctx, slog.LevelWarn, "project request refused", attrs...)
+	return r.status()
+}
+
+// accept logs an accepted request with the rule that decided it.
+func (s *ProjectServer) accept(ctx context.Context, method, rule string, attrs ...slog.Attr) {
+	attrs = append(append([]slog.Attr{
+		slog.String("rule", rule), slog.String("decision", "accept"), slog.String("method", method),
+	}, attrs...), peerAttrs(ctx)...)
+	s.logger().LogAttrs(ctx, slog.LevelInfo, "project request", attrs...)
+}
+
+// change is one change of a project, recorded once its transaction has
+// committed. after is nil for a removal.
+type change struct {
+	command       string
+	rule          string
+	before, after *state.Project
+}
+
+// record writes a change as one line with the fields of a Device Config
+// State Change (5019) event: the project, the command, and its values
+// before and after (S09-11-audit, "Project settings"). M3.10's audit
+// writer turns the line into the event. It is the one place a project
+// change is recorded.
+func (s *ProjectServer) record(ctx context.Context, c *change) {
+	if c == nil {
+		return
+	}
+	attrs := []slog.Attr{
+		slog.String("event", "5019"), slog.String("decision", "accept"), slog.String("rule", c.rule),
+		slog.String("command", c.command), slog.String("project", c.before.ID),
+		slog.Any("before", projectGroup(c.before)),
+	}
+	if c.after != nil {
+		attrs = append(attrs, slog.Any("after", projectGroup(c.after)))
+	}
+	attrs = append(attrs, peerAttrs(ctx)...)
+	s.logger().LogAttrs(ctx, slog.LevelInfo, "project changed", attrs...)
+}
+
+func projectGroup(p *state.Project) slog.Value {
+	return slog.GroupValue(
+		slog.String("realm", p.Realm), slog.String("location", p.KeyPath), slog.String("name", p.Name),
+		slog.String("placement", p.Placement), slog.Bool("config_trust", p.ConfigTrust),
+		slog.Any("urls", nonNilList(p.URLs)), slog.Any("root_commits", nonNilList(p.RootCommits)),
+	)
+}
+
+// nonNilList logs a missing list as [], not null.
+func nonNilList(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
+
+func identityOf(p state.Project) project.Identity {
+	return project.Identity{URLs: p.URLs, RootCommits: p.RootCommits}
+}
+
+func identityProto(id project.Identity) *hostdv1.ProjectIdentity {
+	return &hostdv1.ProjectIdentity{Urls: id.URLs, RootCommits: id.RootCommits}
+}
+
+func placementProto(p string) hostdv1.Placement {
+	switch p {
+	case state.PlacementWork:
+		return hostdv1.Placement_PLACEMENT_WORK
+	case state.PlacementIsolated:
+		return hostdv1.Placement_PLACEMENT_ISOLATED
+	}
+	return hostdv1.Placement_PLACEMENT_UNSPECIFIED
+}
+
+func keyProto(p state.Project) *hostdv1.ProjectKey {
+	return &hostdv1.ProjectKey{Realm: p.Realm, Path: p.KeyPath}
+}
+
+func projectProto(p state.Project) *hostdv1.Project {
+	return &hostdv1.Project{
+		Id: p.ID, Name: p.Name, Key: keyProto(p), Placement: placementProto(p.Placement),
+		ConfigTrust: p.ConfigTrust, Identity: identityProto(identityOf(p)), CreatedUnix: p.Created.Unix(),
+	}
+}
+
+// maxMatchesShown bounds the matches a response lists. match_count has
+// the number.
+const maxMatchesShown = 64
+
+// matchesOf lists the projects whose identity matches current, oldest
+// first (S05-04-naming, "Registration"), at most maxMatchesShown of
+// them, with their number, and whether any of them is isolated.
+func matchesOf(all []state.Project, current project.Identity) ([]*hostdv1.ProjectMatch, uint32, bool) {
+	var (
+		shown    []*hostdv1.ProjectMatch
+		count    uint32
+		isolated bool
+	)
+	for _, p := range all {
+		if !project.Matches(identityOf(p), current) {
+			continue
+		}
+		count++
+		isolated = isolated || p.Placement == state.PlacementIsolated
+		if len(shown) < maxMatchesShown {
+			shown = append(shown, &hostdv1.ProjectMatch{
+				Id: p.ID, Name: p.Name, Key: keyProto(p), Placement: placementProto(p.Placement),
+			})
+		}
+	}
+	return shown, count, isolated
+}
