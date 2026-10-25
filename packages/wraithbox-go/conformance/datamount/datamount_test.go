@@ -4,6 +4,7 @@ package datamount
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -19,6 +20,18 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 )
+
+// probeEnv makes the test binary print its effective uid and exit, so a
+// setuid-root copy of it is the probe of TestSetuidIgnored.
+const probeEnv = "WB_DATAMOUNT_PROBE"
+
+func TestMain(m *testing.M) {
+	if os.Getenv(probeEnv) == "1" {
+		fmt.Println(os.Geteuid())
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
 
 // nobody is the uid and gid of macOS's nobody, -2.
 const nobody = 4294967294
@@ -76,16 +89,16 @@ func TestMounted(t *testing.T) {
 	}
 }
 
-// TestSetuidIgnored: a setuid-root copy of id on the data volume runs
-// as the user who started it (SEC11-root-gains-nothing). The same copy
-// in a temporary directory in /private/var/tmp runs as root,
-// so the probe gains root where setuid counts.
+// TestSetuidIgnored: a setuid-root copy of this test binary on the data
+// volume runs as the user who started it (SEC11-root-gains-nothing). The
+// same copy in /private/var/tmp, where setuid counts, must run as root,
+// or the test fails: a probe that never gains root proves nothing.
 func TestSetuidIgnored(t *testing.T) {
 	inGuest(t)
 	asRoot(t)
 	uid := standardUser(t)
 	if got := probe(t, tempDir(t, "/private/var/tmp"), uid); got != "0" {
-		t.Skipf("the probe runs as %s outside the data volume, not as root, so it proves nothing", got)
+		t.Fatalf("the setuid-root probe in /private/var/tmp runs as uid %s, want 0: it proves nothing on the data volume", got)
 	}
 	if got, want := probe(t, tempDir(t, guestd.HomePath), uid), strconv.FormatUint(uint64(uid), 10); got != want {
 		t.Fatalf("setuid-root probe on the data volume runs as uid %s, want %s", got, want)
@@ -135,27 +148,32 @@ func tempDir(t *testing.T, parent string) string {
 	return dir
 }
 
-// probe copies /usr/bin/id into dir as a setuid-root file, runs it as
-// uid, and returns the effective uid it prints.
+// probe copies this test binary into dir as a setuid-root file, runs
+// it as uid with probeEnv set, and returns the effective uid it prints.
 func probe(t *testing.T, dir string, uid uint32) string {
 	t.Helper()
 	if err := os.Chmod(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, "id")
-	copyFile(t, "/usr/bin/id", path)
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "probe")
+	copyFile(t, self, path)
 	if err := os.Chown(path, 0, 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(path, 0o4755); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(t.Context(), path, "-u")
+	cmd := exec.CommandContext(t.Context(), path)
+	cmd.Env = []string{probeEnv + "=1"}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Credential: &syscall.Credential{Uid: uid, Gid: nobody}}
 	cmd.Dir = "/"
 	out, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("%s -u as uid %d: %v", path, uid, err)
+		t.Fatalf("%s as uid %d: %v", path, uid, err)
 	}
 	return strings.TrimSpace(string(out))
 }
