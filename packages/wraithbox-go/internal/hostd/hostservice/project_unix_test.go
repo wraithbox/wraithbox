@@ -421,7 +421,7 @@ func TestProjectInputRefused(t *testing.T) {
 		{"relative path", &hostdv1.LookupProjectRequest{Key: key("r/.git"), Purpose: cmd}, hostservice.RuleProjectForm},
 		{"unclean path", &hostdv1.LookupProjectRequest{Key: key("/r/../.git"), Purpose: cmd}, hostservice.RuleProjectForm},
 		{"control in path", &hostdv1.LookupProjectRequest{Key: key("/r/\x1b[2J"), Purpose: cmd}, hostservice.RuleProjectForm},
-		{"right-to-left override in path", &hostdv1.LookupProjectRequest{Key: key("/r/\u202etxt.git"), Purpose: cmd}, hostservice.RuleProjectForm},
+		{"right-to-left override in path", &hostdv1.LookupProjectRequest{Key: key("/r/\u202e.git"), Purpose: cmd}, hostservice.RuleProjectForm},
 		{"zero-width space in path", &hostdv1.LookupProjectRequest{Key: key("/r/a\u200b/.git"), Purpose: cmd}, hostservice.RuleProjectForm},
 		{"user in URL", &hostdv1.LookupProjectRequest{Key: key("/r"), Identity: urls("https://tok@a.example/a.git"), Purpose: cmd}, hostservice.RuleProjectForm},
 		{"query in URL authority", &hostdv1.LookupProjectRequest{Key: key("/r"), Identity: urls("http://a.example?t=x"), Purpose: cmd}, hostservice.RuleProjectForm},
