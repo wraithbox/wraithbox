@@ -22,6 +22,24 @@ func systemUsers(log *slog.Logger) *users.Manager {
 		func() (guestusers.Root, error) { return guestusers.OpenRoot(HomePath) }, log)
 }
 
+// sameMount is the users' RootCheck: the root opened at HomePath must be
+// on the mount the data mount check just passed, or each user that
+// needs it is refused with RuleMountVolume (S06-05-disks, "Before every
+// session start"; SEC08-proj-isolation).
+func (s *service) sameMount(ctx context.Context, root guestusers.Root) (rule, found string) {
+	m, err := root.Mount()
+	if err != nil {
+		s.log.LogAttrs(ctx, slog.LevelWarn, "data mount of the home root unknown",
+			slog.String("rule", RuleMountVolume), slog.String("decision", "refuse"),
+			slog.String("found", err.Error()))
+		return RuleMountVolume, err.Error()
+	}
+	if r := s.dataMount.SameMount(ctx, m); r != nil {
+		return r.Rule, r.Detail
+	}
+	return "", ""
+}
+
 // EnsureUsers makes each project user of the request exist with its
 // values, or refuses it with a rule (S06-03-image-updates, "Creation").
 // A malformed request is refused as a whole with INVALID_ARGUMENT and
@@ -53,7 +71,7 @@ func (s *service) EnsureUsers(ctx context.Context, req *guestv1.EnsureUsersReque
 	if r := s.dataMount.Check(ctx); r != nil {
 		results = s.users.Refuse(ctx, us, r.Rule)
 	} else {
-		results = s.users.Ensure(ctx, us)
+		results = s.users.Ensure(ctx, us, s.sameMount)
 	}
 	resp := &guestv1.EnsureUsersResponse{Results: make([]*guestv1.EnsureUserResult, 0, len(results))}
 	for _, r := range results {

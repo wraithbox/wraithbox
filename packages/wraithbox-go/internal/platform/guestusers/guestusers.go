@@ -17,6 +17,8 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 )
 
 // Kind is the kind of a directory record.
@@ -58,7 +60,17 @@ const (
 	// GeneratedUID. A project user is a member of no group.
 	AttrGroupMembership = "GroupMembership"
 	AttrGroupMembers    = "GroupMembers"
+	// AttrNestedGroups lists the groups, by GeneratedUID, whose members
+	// are members of this group too. A project group nests none and is
+	// nested in none.
+	AttrNestedGroups = "NestedGroups"
+	// AttrShadowHash is a user's password hash. dscl reports it under its
+	// native name. A project user has none.
+	AttrShadowHash = "dsAttrTypeNative:ShadowHashData"
 )
+
+// HomeMode is the mode of every home (S06-05-disks, "Owners and modes").
+const HomeMode fs.FileMode = 0o700
 
 // Record is one directory record: the values of each attribute, by the
 // attribute's standard name. An attribute outside the standard set keeps
@@ -108,6 +120,10 @@ type Root interface {
 	// Entries reports every entry of the root, and an error that wraps
 	// ErrTooManyEntries when there are more than limit.
 	Entries(limit int) ([]Entry, error)
+	// Mount reports the file system that holds the root, from fstatfs on
+	// its descriptor, so the caller can check it is the mount it checked
+	// by path.
+	Mount() (guestmount.Mount, error)
 	Close() error
 }
 

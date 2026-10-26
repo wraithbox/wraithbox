@@ -55,9 +55,18 @@ var (
 	userListAttrs  = []string{gu.AttrRecordName, gu.AttrUniqueID, gu.AttrPrimaryGroupID, gu.AttrGeneratedUID}
 	groupListAttrs = []string{
 		gu.AttrRecordName, gu.AttrPrimaryGroupID, gu.AttrGeneratedUID,
-		gu.AttrGroupMembership, gu.AttrGroupMembers,
+		gu.AttrGroupMembership, gu.AttrGroupMembers, gu.AttrNestedGroups,
 	}
 )
+
+// refusedAttrs are the attributes a project user's or group's own
+// record never has: a password hash or its reference, and any member
+// or nested group (SEC12-least-privilege). A record with one is a
+// conflict, never completed.
+var refusedAttrs = []string{
+	gu.AttrAuthAuthority, gu.AttrShadowHash,
+	gu.AttrGroupMembership, gu.AttrGroupMembers, gu.AttrNestedGroups,
+}
 
 // plan is what a user needs written: the missing attributes of each
 // record, and whether the home is missing.
@@ -87,14 +96,18 @@ type request struct {
 	ctx      context.Context
 	dir      gu.Directory
 	openRoot func() (gu.Root, error)
+	check    RootCheck
 
 	listed bool
 	users  []gu.Record
 	groups []gu.Record
 
-	opened  bool
-	root    gu.Root
-	rootErr error
+	opened bool
+	root   gu.Root
+	// rootRule and rootFound refuse every user that needs the root when
+	// it couldn't be opened or failed the check.
+	rootRule  string
+	rootFound string
 
 	scanned bool
 	entries []gu.Entry
@@ -161,15 +174,17 @@ func (q *request) record(kind gu.Kind, name string, want []attr) ([]attr, bool, 
 }
 
 // compare returns the attributes of want that rec lacks. It refuses a
-// record with another name or an alias, with a password or a disabled
-// marker, with members, or with a value of want that differs. A record
-// without want's first attribute, its GeneratedUID, is refused too: that
-// can't be added once the record has an ID (X08-data-disk, answer 11).
+// record with another name or an alias, with one of refusedAttrs, or
+// with a value of want that differs. A record without want's first
+// attribute, its GeneratedUID, is refused too: that can't be added once
+// the record has an ID (X08-data-disk, answer 11). Other attributes are
+// let through: macOS adds its own, such as RecordType and
+// AppleMetaNodeLocation, to every record.
 func compare(kind gu.Kind, rec gu.Record, name string, want []attr) ([]attr, *refusal) {
 	if got := rec[gu.AttrRecordName]; !slices.Equal(got, []string{name}) {
 		return nil, conflict(kind.String()+" "+gu.AttrRecordName, values(got))
 	}
-	for _, a := range []string{gu.AttrAuthAuthority, gu.AttrGroupMembership, gu.AttrGroupMembers} {
+	for _, a := range refusedAttrs {
 		if got := rec[a]; len(got) > 0 {
 			return nil, conflict(kind.String()+" "+a, values(got))
 		}
@@ -188,7 +203,8 @@ func compare(kind gu.Kind, rec gu.Record, name string, want []attr) ([]attr, *re
 }
 
 // others refuses u when a record under another name holds one of its
-// IDs or GeneratedUIDs, or lists it as a member. Records written earlier
+// IDs or GeneratedUIDs, lists it as a member, or nests its group, as
+// admin would to make it an admin (SEC12-least-privilege). Records written earlier
 // in this request hold only other users' values, which CheckRequest
 // keeps distinct, so the lists are read once per request.
 func (q *request) others(u User) *refusal {
@@ -211,18 +227,22 @@ func (q *request) others(u User) *refusal {
 		{gu.AttrGeneratedUID, u.UserGUID},
 		{gu.AttrGroupMembership, u.Name},
 		{gu.AttrGroupMembers, u.UserGUID},
+		{gu.AttrNestedGroups, u.GroupGUID},
 	})
 }
 
 // holder refuses the first record of recs not named own that holds one
-// of the values of keys.
+// of the values of keys. Values compare without case. Open Directory
+// may match a GeneratedUID without case (not verified), so a lowercase
+// copy of a kept one must count. For the names and IDs, folding only
+// refuses more.
 func holder(kind gu.Kind, recs []gu.Record, own string, keys []attr) *refusal {
 	for _, rec := range recs {
 		if slices.Contains(rec[gu.AttrRecordName], own) {
 			continue
 		}
 		for _, a := range keys {
-			if slices.Contains(rec[a.name], a.value) {
+			if slices.ContainsFunc(rec[a.name], func(v string) bool { return strings.EqualFold(v, a.value) }) {
 				return conflict("other "+kind.String()+" "+a.name, values(rec[gu.AttrRecordName]))
 			}
 		}

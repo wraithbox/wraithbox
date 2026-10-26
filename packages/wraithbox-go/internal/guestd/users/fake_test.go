@@ -9,6 +9,7 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 	gu "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
 )
 
@@ -145,4 +146,9 @@ func (r *fakeRoot) Entries(limit int) ([]gu.Entry, error) {
 	return out, nil
 }
 
+func (r *fakeRoot) Mount() (guestmount.Mount, error) { return guestmount.Mount{}, nil }
+
 func (r *fakeRoot) Close() error { r.closes++; return nil }
+
+// rootOK is a RootCheck that passes every root.
+func rootOK(context.Context, gu.Root) (rule, found string) { return "", "" }

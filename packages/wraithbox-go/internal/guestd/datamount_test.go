@@ -387,6 +387,31 @@ func TestCheckPending(t *testing.T) {
 	wantLogged(t, log, guestd.RuleMountPending)
 }
 
+// TestSameMount: the mount of an opened root passes only when it is the
+// one the last Check passed. Another mount, a Check that failed since,
+// and no Check at all are refused with data-mount-volume and logged.
+func TestSameMount(t *testing.T) {
+	vols := newFakeVolumes()
+	d, _, log := newDataMount(vols)
+	wantRule(t, d.SameMount(t.Context(), goodMount(testDevice)), guestd.RuleMountVolume)
+	if r := d.Mount(t.Context(), testUUID, true); r != nil {
+		t.Fatalf("Mount: %v", r)
+	}
+	if r := d.Check(t.Context()); r != nil {
+		t.Fatalf("Check: %v", r)
+	}
+	if r := d.SameMount(t.Context(), goodMount(testDevice)); r != nil {
+		t.Errorf("the checked mount refused: %v", r)
+	}
+	wantRule(t, d.SameMount(t.Context(), goodMount("disk6s1")), guestd.RuleMountVolume)
+	vols.mu.Lock()
+	vols.mounted.NoSUID = false
+	vols.mu.Unlock()
+	wantRule(t, d.Check(t.Context()), guestd.RuleMountFlags)
+	wantRule(t, d.SameMount(t.Context(), goodMount(testDevice)), guestd.RuleMountVolume)
+	wantLogged(t, log, guestd.RuleMountVolume)
+}
+
 // TestMountAgainFirstMount: a Mount with first_mount that finds the
 // volume at the home path claims its root once the mount passed: the
 // answer to the first Mount may have been lost. A mount that fails its

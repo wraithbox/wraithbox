@@ -40,7 +40,8 @@ const (
 	// shouldn't have.
 	RuleIDsOwnEntry = "project-ids-own-entry"
 	// RuleHomeRoot: the volume's root couldn't be opened or read, or
-	// holds more than MaxRootEntries entries.
+	// holds more than MaxRootEntries entries. The RootCheck's rule
+	// refuses a root that fails it instead.
 	RuleHomeRoot = "project-home-root"
 	// RuleDirectory: the guest's directory failed a read or a write, or
 	// a record read back after the writes isn't what was written.
@@ -120,16 +121,24 @@ func New(dir guestusers.Directory, openRoot func() (guestusers.Root, error), log
 	return &Manager{dir: dir, openRoot: openRoot, log: log, known: map[uint32]User{}}
 }
 
+// RootCheck checks the volume's root once a request has opened it,
+// before any home is read or made. It returns the rule that refuses each
+// user that needs the root and what it found, or an empty rule when the
+// root may be used.
+type RootCheck func(ctx context.Context, root guestusers.Root) (rule, found string)
+
 // Ensure makes each user exist with exactly its values, or refuses it,
 // and returns one result per user in the request's order. A refused
 // user doesn't stop the others. The caller has checked the request
-// with CheckRequest and the data mount just before.
-func (m *Manager) Ensure(ctx context.Context, us []User) []Result {
+// with CheckRequest and the data mount just before, and check ties the
+// root the request opens to that mount. A nil check refuses every user
+// that needs the root.
+func (m *Manager) Ensure(ctx context.Context, us []User, check RootCheck) []Result {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, Deadline)
 	defer cancel()
-	q := &request{ctx: ctx, dir: m.dir, openRoot: m.openRoot}
+	q := &request{ctx: ctx, dir: m.dir, openRoot: m.openRoot, check: check}
 	defer q.close()
 	results := make([]Result, 0, len(us))
 	for _, u := range us {
