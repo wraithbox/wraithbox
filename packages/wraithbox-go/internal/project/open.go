@@ -218,6 +218,10 @@ func (o *Opener) register(ctx context.Context, out *Opened, unknown *hostdv1.Unk
 	if reg.GetProject() == nil {
 		return o.badAnswer(ctx, out.Repo.Dir, "a registration answer without the project")
 	}
+	if ref := badMatch(reg.GetMatches()); ref != nil {
+		o.refused(ctx, out.Repo.Dir, ref)
+		return ref
+	}
 	out.Project, out.Registered = reg.GetProject(), true
 	out.Matches, out.MatchCount = reg.GetMatches(), reg.GetMatchCount()
 	return nil
@@ -231,6 +235,9 @@ func (o *Opener) register(ctx context.Context, out *Opened, unknown *hostdv1.Unk
 // names it with wb project move and wb project rm written out
 // (S05-04-naming, "Registration", "Moved").
 func movedMatch(dir string, matches []*hostdv1.ProjectMatch) *Refusal {
+	if ref := badMatch(matches); ref != nil {
+		return ref
+	}
 	for _, m := range matches {
 		why := movedAway(m.GetKey())
 		if why == "" {
@@ -241,6 +248,23 @@ func movedMatch(dir string, matches []*hostdv1.ProjectMatch) *Refusal {
 			msg: fmt.Sprintf("this repository has the identity of project %s (%s), whose location %q %s, so the project may have moved here. "+
 				"To keep its state, run: wb project move %s --project %s. To drop it, run: wb project rm --project %s",
 				m.GetName(), m.GetId(), m.GetKey().GetPath(), why, quoteArg(dir), m.GetId(), m.GetId()),
+		}
+	}
+	return nil
+}
+
+// badMatch refuses the first match whose id isn't an id or whose name
+// isn't a name, with RuleHostdAnswer, or returns nil. Both go into the
+// commands a refusal writes out for the user to paste, and into the
+// registration notice, so wb-hostd's answer is checked as it would be
+// from a compromised process (SEC03-no-host-exec, SEC12-least-privilege).
+func badMatch(matches []*hostdv1.ProjectMatch) *Refusal {
+	for _, m := range matches {
+		if CheckID(m.GetId()) != nil || ValidName(m.GetName()) != nil {
+			return &Refusal{
+				Rule: RuleHostdAnswer,
+				msg:  fmt.Sprintf("wb-hostd sent a matching project with id %q and name %q, which aren't an id and a name", m.GetId(), m.GetName()),
+			}
 		}
 	}
 	return nil
@@ -310,19 +334,22 @@ func (o *Opener) FindID(ctx context.Context, dir string) (*Local, string, error)
 		return nil, "", err
 	}
 	res, err := o.Lookup(ctx, l, hostdv1.LookupPurpose_LOOKUP_PURPOSE_COMMAND)
-	if m := Mismatch(err); m != nil {
-		if err := CheckID(m.GetProjectId()); err != nil {
-			return nil, "", err
-		}
-		return l, m.GetProjectId(), nil
+	var id string
+	switch m := Mismatch(err); {
+	case m != nil:
+		id = m.GetProjectId()
+	case err != nil:
+		return nil, "", err
+	case res.GetProject() == nil:
+		return nil, "", o.notRegistered(ctx, l)
+	default:
+		id = res.GetProject().GetId()
 	}
-	if err != nil {
+	if err := CheckID(id); err != nil {
+		o.refused(ctx, l.Repo.Dir, refusalOf(err))
 		return nil, "", err
 	}
-	if res.GetProject() == nil {
-		return nil, "", o.notRegistered(ctx, l)
-	}
-	return l, res.GetProject().GetId(), nil
+	return l, id, nil
 }
 
 // Mismatch returns the IdentityMismatch detail of a refused identity

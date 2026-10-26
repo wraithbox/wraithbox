@@ -8,7 +8,8 @@ import (
 )
 
 // CheckOwnDir checks that path is a directory, not a symbolic link, and
-// is owned by the effective user. It doesn't follow a link at path. A
+// is owned by the effective user, and that neither its group nor other
+// users can write it. It doesn't follow a link at path. A
 // missing path gives an error that wraps fs.ErrNotExist. wb accepts a
 // project directory under <data> only when it passes, so a link or a
 // directory that another user made can't take the place of one
@@ -30,6 +31,10 @@ func CheckOwnDir(path string) error {
 	}
 	if owner, uid := strconv.FormatUint(uint64(st.Uid), 10), strconv.Itoa(os.Geteuid()); owner != uid {
 		return fmt.Errorf("%q is owned by user ID %s, not by this user (%s)", path, owner, uid)
+	}
+	// A directory others can write lets them plant entries in it.
+	if perm := info.Mode().Perm(); perm&0o022 != 0 {
+		return fmt.Errorf("%q has mode %04o, which lets other users write it", path, perm)
 	}
 	return nil
 }

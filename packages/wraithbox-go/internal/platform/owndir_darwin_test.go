@@ -41,3 +41,20 @@ func TestCheckOwnDir(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckOwnDirWritable: the user's own directory that its group or
+// other users can write is refused.
+func TestCheckOwnDirWritable(t *testing.T) {
+	for _, mode := range []os.FileMode{0o720, 0o702, 0o777} {
+		dir := filepath.Join(t.TempDir(), "writable")
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(dir, mode); err != nil {
+			t.Fatal(err)
+		}
+		if err := CheckOwnDir(dir); err == nil || !strings.Contains(err.Error(), "lets other users write it") {
+			t.Errorf("mode %04o: %v", mode, err)
+		}
+	}
+}

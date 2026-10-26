@@ -56,7 +56,7 @@ func (r *Resolver) resolve(ctx context.Context, dir string) (*Repo, *Refusal) {
 	if r.Own.Data == "" || r.Own.Config == "" || r.Own.Logs == "" {
 		return nil, &Refusal{Rule: RuleOwnUnset, msg: "Wraith Box's own directories are not known, so no project is resolved"}
 	}
-	d, isFile, ref := findGitEntry(dir)
+	d, isFile, ref := r.findGitEntry(dir)
 	if ref != nil {
 		return nil, ref
 	}
@@ -91,7 +91,12 @@ func (r *Resolver) resolve(ctx context.Context, dir string) (*Repo, *Refusal) {
 // directory with a `.git` entry. It returns that directory, and whether
 // the entry is a file rather than a directory. Lstat doesn't follow the
 // entry, so a symbolic link is seen as one, and refused.
-func findGitEntry(dir string) (string, bool, *Refusal) {
+//
+// A dir in Wraith Box's own directories is refused before the walk, so
+// git never runs in a directory wb-hostd can write
+// (S04-06-git-confinement, SEC12-least-privilege). The walk only goes
+// up, so a directory it reaches is in them only when dir is.
+func (r *Resolver) findGitEntry(dir string) (string, bool, *Refusal) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return "", false, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the directory %q can't be made absolute: %v", dir, err)}
@@ -104,6 +109,9 @@ func findGitEntry(dir string) (string, bool, *Refusal) {
 	// checks of the paths git prints.
 	if err := checkPath(d); err != nil {
 		return "", false, &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the directory %q %v", d, err)}
+	}
+	if ref := r.inOwn(d, "the directory", abs); ref != nil {
+		return "", false, ref
 	}
 	for {
 		info, err := os.Lstat(filepath.Join(d, gitEntry))
@@ -404,23 +412,34 @@ func (r *Resolver) checkOwn(common string) (string, *Refusal) {
 	if err := checkPath(key); err != nil {
 		return "", &Refusal{Rule: RuleDirUnreadable, err: err, msg: fmt.Sprintf("the repository's canonical path %q %v", key, err)}
 	}
+	if ref := r.inOwn(key, "the repository", common); ref != nil {
+		return "", ref
+	}
+	return key, nil
+}
+
+// inOwn refuses a canonical path equal to or under <data>, <config> or
+// <logs> with RuleOwnDirectory, compared by path component (S05-04-naming,
+// "Wraith Box's own directories"). The refusal names what and shown,
+// the path as the user gave it. A root that doesn't exist holds nothing.
+func (r *Resolver) inOwn(path, what, shown string) *Refusal {
 	for _, root := range []string{r.Own.Data, r.Own.Config, r.Own.Logs} {
 		c, err := platform.CanonicalDir(root)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
 		if err != nil {
-			return "", &Refusal{
+			return &Refusal{
 				Rule: RuleDirUnreadable, err: err,
-				msg: fmt.Sprintf("Wraith Box's directory %q can't be compared with the repository: %v", root, err),
+				msg: fmt.Sprintf("Wraith Box's directory %q can't be compared with %s: %v", root, what, err),
 			}
 		}
-		if key == c || strings.HasPrefix(key, c+string(filepath.Separator)) {
-			return "", &Refusal{
+		if path == c || strings.HasPrefix(path, c+string(filepath.Separator)) {
+			return &Refusal{
 				Rule: RuleOwnDirectory,
-				msg:  fmt.Sprintf("the repository %q is in Wraith Box's own directory %q, which is not a project", common, root),
+				msg:  fmt.Sprintf("%s %q is in Wraith Box's own directory %q, which is not a project", what, shown, root),
 			}
 		}
 	}
-	return key, nil
+	return nil
 }

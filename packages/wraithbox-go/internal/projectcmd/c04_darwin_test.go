@@ -196,6 +196,13 @@ func TestC04SecondClones(t *testing.T) {
 	if n := strings.Join(op.Notice(), "\n"); !strings.Contains(n, isoProject.GetId()) || !strings.Contains(n, "placement isolated") {
 		t.Errorf("notice %q", n)
 	}
+	// wb project place work in a third clone registers it isolated too,
+	// and says the request was overridden.
+	third := newRepo(t, filepath.Join(h.root, "iso3"), "root", urlB)
+	r = h.mustWB(third, "place", "work")
+	if !strings.Contains(r.stderr, "you asked for placement work, but the project is isolated") {
+		t.Errorf("place work in a clone of an isolated project printed %q", r.stderr)
+	}
 }
 
 // C04-projects, "Moves and second clones": on macOS one repository
