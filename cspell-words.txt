@@ -63,6 +63,7 @@ datamount
 wbhomes
 guesttools
 guestupdate
+guestusers
 
 # Virtualization, networking and OS facilities
 execve
@@ -75,6 +76,12 @@ dontbrowse
 rdonly
 datavol
 diskutil
+dsmemberutil
+checkmembership
+createhomedir
+readall
+localaccounts
+mkdirat
 fread
 tcflush
 iokit

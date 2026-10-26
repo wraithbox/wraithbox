@@ -5,6 +5,7 @@ the guest, `wb-guestd`'s update and the guest clock, the shared
 toolchain prefix, the guest admin password, and the session lifecycle.
 
 **Verifies:** S06-01-image-layers ("Toolchain prefix"),
+S06-03-image-updates ("Creation"),
 S06-05-disks ("Mounting the data volume"),
 S06-06-devices-and-warm-start ("Time and sleep"),
 S06-09-session-lifecycle,
@@ -26,6 +27,10 @@ S13-guest-confinement, S15-04-guest-admin
   generation, with a result and count in their bounds, and a record out
   of bounds is never acknowledged (S06-10-leftover-processes,
   "Acceptance").
+- The parser of `dscl -plist` records in `wb-guestd`,
+  `FuzzDirectoryRecord` in `internal/platform/guestusers`: guest root can
+  write the values, and an accepted record keeps the bounds on its
+  values and their count (S06-03-image-updates, "Creation").
 
 ## Conformance
 
@@ -136,6 +141,70 @@ In the guest, after `wb-hostd` had `wb-guestd` mount the volume, in
   UUID and its root before the claim logged. Stop and start it, and
   see it mounted again without a claim. Run `wb vm reset-data`, and
   see the next boot claim the root again.
+
+### Project users
+
+Spec: S06-03-image-updates ("Creation"), SEC08-proj-isolation,
+SEC11-root-gains-nothing, SEC12-least-privilege.
+
+Unit tests in `internal/guestd/users`, with a fake directory and volume
+root:
+
+- `TestNewUser`: a new user gets its group, then its user record, then
+  its home, with `GeneratedUID` first and the IDs last in each record.
+- `TestSameUser`: a user whose records and home match is kept, with
+  nothing written.
+- `TestRecreate`: a home on the data disk with no records, as after a
+  new system disk, gets its records back, and the home stays as it is.
+- `TestPartialRecord`, `TestMissingGroupRecord`, `TestMissingHome`: a
+  record that stopped halfway, a missing group record and a missing
+  home are completed.
+- `TestConflicts`, `TestConflictNewUser`: a record with another value,
+  an alias, an `AuthenticationAuthority` or a member, or another record
+  that holds one of the user's names, IDs or `GeneratedUID`s, is
+  refused with `project-user-conflict` before any write, logged with the
+  attribute, and the request's other users are still made.
+- `TestHomes`, `TestHomeOfKeptUser`: a home owned by another UID is
+  `project-home-other-owner`. A link, a file, another group, another
+  mode or a special bit is `project-home-invalid`.
+- `TestIDsOwnEntry`: a UID or GID that owns another entry of the
+  volume's root is `project-ids-own-entry`.
+- `TestRootRefused`, `TestDirectoryFailures`, `TestLockedRecord`,
+  `TestDeadline`: a root that can't be read, a failed list, read or
+  write, a write the directory didn't keep, a home path macOS locked
+  once the IDs were set, and a request past its deadline each refuse
+  with their rule.
+- `TestInvalidUser`, `TestCheckRequest`: a value outside the allocation
+  is `project-user-request-invalid` with nothing read, and a request
+  with no user, too many, or a UID, name or `GeneratedUID` twice is
+  refused as a whole.
+
+On the guest's own file system, in `internal/guestd/users`:
+`TestRealHomeMade` (mode 700 under a umask of 0), `TestRealHomeLink`,
+`TestRealHomeMode` and `TestRealIDsOwnEntry`. Over a socket pair, in
+`internal/guestd`: `TestEnsureUsersRPC`, `TestEnsureUsersBeforeMount`
+(refused with the data mount check's rule) and
+`TestEnsureUsersRequestRefused`, each read by `wb-hostd`'s own check of
+the answer.
+
+With the work VM, `TestC09GuestUsersVM` in `cmd/wb-hostd` (needs-vm,
+needs-host): give the data disk two project users in `state.db`, and
+see `wb-hostd` log both as ensured on a new link, after a reboot, and
+after the system disk is cloned anew while the data disk stays.
+
+As root in the guest, after `wb-hostd` had `wb-guestd` make at least two
+project users, in `conformance/guestusers`:
+
+- `TestNoSudo`, `TestNotAdmin`, `TestNoSecureToken`: no project user
+  has a `sudo` rule, `admin` membership or a secure token.
+- `TestIDs`: each user's `id` shows its own UID and GID, and no group
+  but its own, `everyone` and `localaccounts`. Each record has the
+  password `*` and no `AuthenticationAuthority` or shadow hash.
+- `TestHomes`, `TestHomesApart`: each home is a directory of mode 700
+  owned by its user, and one project user can't list another's.
+- `TestEnsureKeepsAndRefuses`: `EnsureUsers`' code, with every write
+  refused, keeps each user, and refuses one with another
+  `GeneratedUID` with `project-user-conflict`.
 
 ### The toolchain prefix
 
