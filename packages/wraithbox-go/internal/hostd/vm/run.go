@@ -44,6 +44,15 @@ const (
 	endClosed
 )
 
+// End is how a run ended, as Config.OnEnded gets it.
+type End struct {
+	// Cold is true when the guest stopped and its state is gone: a stop,
+	// a crash or a failed start, not a save.
+	Cold bool
+	// Cause is why the run ended, for the log.
+	Cause string
+}
+
 func (e ending) String() string {
 	switch e {
 	case endNone:
@@ -144,7 +153,9 @@ func (m *Manager) finish(ctx context.Context, r *run, why ending) {
 	close(r.ended)
 	m.logEnd(ctx, r, why, lastErr, closeErr)
 	if m.cfg.OnEnded != nil {
-		m.cfg.OnEnded(r.slot, r.generation, why.String())
+		// No run is saved yet, so every end is a cold stop. Warm start
+		// sets Cold to false for a save.
+		m.cfg.OnEnded(r.slot, r.generation, End{Cold: true, Cause: why.String()})
 	}
 }
 

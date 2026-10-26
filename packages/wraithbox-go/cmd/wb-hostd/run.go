@@ -213,7 +213,11 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 		Resources: ready.Config, Generations: ready.State, Provider: provider, Cloner: diskclone.Cloner{},
 		DataDisks: disks, Logger: log,
 		OnRunning: func(slot vm.Slot, generation uint64, ended <-chan struct{}) { links.Run(slot, generation, ended) },
-		OnEnded:   tracker.ColdStop,
+		OnEnded: func(slot vm.Slot, generation uint64, end vm.End) {
+			if end.Cold {
+				tracker.ColdStop(slot, generation, end.Cause)
+			}
+		},
 	})
 	if err != nil {
 		return nil, err

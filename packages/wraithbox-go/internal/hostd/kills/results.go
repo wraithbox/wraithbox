@@ -75,12 +75,13 @@ func (t *Tracker) acceptLocked(slot vm.Slot, generation uint64, out guestlink.Ki
 		return dropped
 	}
 	attrs = append(attrs, slog.String("project", out.ProjectID))
-	g := t.genLocked(slot, generation)
+	// Only the slot's current generation takes a result. The lookup
+	// creates no state, so a result can't start or end a generation.
+	g := t.currentLocked(slot, generation)
 	if g == nil {
-		t.drop(attrs, RuleUnknownKill, "the VM generation has ended")
+		t.drop(attrs, RuleUnknownKill, "the VM generation isn't the one that runs in the slot")
 		return dropped
 	}
-	t.expireLocked(slot, g)
 	k := g.kills[out.KillID]
 	switch {
 	case k == nil || k.projectID != out.ProjectID:
@@ -90,25 +91,39 @@ func (t *Tracker) acceptLocked(slot vm.Slot, generation uint64, out guestlink.Ki
 		t.drop(attrs, RuleLate, "the kill's deadline passed, or a cold stop closed it")
 		return dropped
 	case k.status == accepted:
-		t.log.LogAttrs(context.Background(), slog.LevelInfo, "kill result again",
-			append(attrs, slog.String("rule", RuleAgain), slog.String("decision", "acknowledge"))...)
-		t.takeLocked(slot, g, out, attrs)
+		t.againLocked(slot, g, k, out, attrs)
 		return takenBefore
 	}
 	k.status = accepted
-	t.takeLocked(slot, g, out, attrs)
-	return taken
-}
-
-// takeLocked records an accepted result: a clean one is logged, and one
-// of processes left refuses the generation.
-func (t *Tracker) takeLocked(slot vm.Slot, g *gen, out guestlink.KillOutcome, attrs []slog.Attr) {
+	k.clean = out.Clean
 	if out.Clean {
 		t.log.LogAttrs(context.Background(), slog.LevelInfo, "kill result clean",
 			append(attrs, slog.String("rule", RuleClean), slog.String("decision", "accept"))...)
-		return
+		return taken
 	}
-	t.leftLocked(slot, g, Left{KillID: out.KillID, ProjectID: out.ProjectID, Count: out.ProcessesLeft, Rule: RuleProcessesLeft})
+	t.leftLocked(slot, g, leftOf(out))
+	return taken
+}
+
+// againLocked acknowledges a result for a kill whose result was taken
+// before, and logs the verdict it keeps (SEC10-audit). A clean result
+// changes nothing. One of processes left still counts, so a clean verdict
+// turns into processes left: a faked count only makes the host stricter.
+func (t *Tracker) againLocked(slot vm.Slot, g *gen, k *kill, out guestlink.KillOutcome, attrs []slog.Attr) {
+	if !out.Clean && k.clean {
+		k.clean = false
+		t.leftLocked(slot, g, leftOf(out))
+	}
+	kept := "processes-left"
+	if k.clean {
+		kept = "clean"
+	}
+	t.log.LogAttrs(context.Background(), slog.LevelInfo, "kill result again",
+		append(attrs, slog.String("rule", RuleAgain), slog.String("decision", "acknowledge"), slog.String("kept", kept))...)
+}
+
+func leftOf(out guestlink.KillOutcome) Left {
+	return Left{KillID: out.KillID, ProjectID: out.ProjectID, Count: out.ProcessesLeft, Rule: RuleProcessesLeft}
 }
 
 // leftLocked records a result of processes left for g, and logs it with

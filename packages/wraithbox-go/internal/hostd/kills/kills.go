@@ -110,6 +110,9 @@ type kill struct {
 	projectID string
 	deadline  time.Time
 	status    status
+	// clean is the verdict of an accepted result: true for clean, false
+	// for processes left.
+	clean bool
 }
 
 // Left is a result of processes left: an accepted one, or a kill whose
@@ -129,6 +132,9 @@ type gen struct {
 	// left is the first result of processes left, nil while there is
 	// none.
 	left *Left
+	// ended is set by a cold stop: the guest no longer runs, and Begin
+	// refuses the generation.
+	ended bool
 }
 
 // Tracker holds the kills of every VM. Its methods are safe for
@@ -185,12 +191,12 @@ func (t *Tracker) Started(slot vm.Slot, generation uint64) {
 // returns its kill ID, which the caller sends in KillUserRequest. The
 // kill is pending until its result is accepted, its deadline passes, or
 // its generation ends in a cold stop. A generation older than the
-// slot's is refused.
+// slot's, or one a cold stop ended, is refused.
 func (t *Tracker) Begin(slot vm.Slot, generation uint64, projectID string) (uint64, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	g := t.genLocked(slot, generation)
-	if g == nil {
+	if g == nil || g.ended {
 		return 0, fmt.Errorf("kills: generation %d of the %s VM has ended", generation, slot)
 	}
 	// The guest keeps one record per user, and a newer one replaces an
@@ -261,7 +267,8 @@ func (t *Tracker) expireLocked(slot vm.Slot, g *gen) {
 // in a cold stop: the guest it targeted no longer runs. Each one is
 // logged with the rule and the stop's cause (S06-10-leftover-processes,
 // "Failing closed"; SEC10-audit). A kill whose deadline passed first
-// still counts as processes left.
+// still counts as processes left. No kill begins in the generation after
+// it.
 func (t *Tracker) ColdStop(slot vm.Slot, generation uint64, cause string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -271,6 +278,7 @@ func (t *Tracker) ColdStop(slot vm.Slot, generation uint64, cause string) {
 	}
 	t.expireLocked(slot, g)
 	t.closePendingLocked(slot, g, cause)
+	g.ended = true
 }
 
 func (t *Tracker) closePendingLocked(slot vm.Slot, g *gen, cause string) {

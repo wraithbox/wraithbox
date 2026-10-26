@@ -127,13 +127,11 @@ type Config struct {
 	// lock, and must not block.
 	OnRunning func(slot Slot, generation uint64, ended <-chan struct{})
 	// OnEnded, when set, is called once for each run that ended, after
-	// ended is closed, with why it ended. No run is saved yet, so every
-	// end is a cold stop (S06-10-leftover-processes, "Failing closed"),
-	// and warm start must tell a save apart when it comes. wb-hostd's
-	// kill tracker closes the run's pending kills through it
-	// (internal/hostd/kills). It is called without the manager's lock,
-	// and must not block.
-	OnEnded func(slot Slot, generation uint64, cause string)
+	// ended is closed, with how it ended. wb-hostd's kill tracker closes
+	// the run's pending kills at a cold stop through it
+	// (S06-10-leftover-processes, "Failing closed"; internal/hostd/kills).
+	// It is called without the manager's lock, and must not block.
+	OnEnded func(slot Slot, generation uint64, end End)
 	// Refusing is set in refusing mode, and every request is then refused
 	// with its rule (S17-05-upgrades-and-migrations, "Refusing mode").
 	Refusing *startup.Refusing

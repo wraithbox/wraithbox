@@ -263,8 +263,13 @@ clock:
 - `TestKillColdStop` and `TestKillColdStopAfterDeadline`: a cold stop
   closes the pending kills with its cause, and a kill past its deadline
   before it still counts as processes left.
-- `TestKillBeginOldGeneration` and `TestKillIDs`: no kill is sent to an
-  ended generation, and kill IDs are never 0 and never repeat.
+- `TestKillBeginOldGeneration` and `TestKillIDs`: no kill is sent to a
+  generation that a newer one or a cold stop ended, and kill IDs are
+  never 0 and never repeat.
+- `TestKillResultNewerGeneration`: a result for a generation newer than
+  the slot's is dropped, and leaves the slot's kills pending.
+- `TestKillResultAgain`: a result again for a kill is acknowledged and
+  logged with the verdict kept, and one of processes left still counts.
 - `TestListRefused` and `TestListAnswers`: a reconnect list with more
   records than project users, or two with one kill ID, is refused whole.
   Each other record gets "acknowledged" or "end".
@@ -281,8 +286,8 @@ In `internal/hostd/guestconn`, with a fake `wb-guestd`:
 - `TestProcessesLeftRefusesSessions`: a result of processes left
   refuses session starts and saves until the next generation.
 - `TestKillUser`: a session of a project is refused while a kill of its
-  user is pending, and `KillUser` sends nothing to a generation that
-  doesn't run.
+  user is pending. `KillUser` returns `ErrKillNotSent` for a canceled
+  call, after a cold stop, and for a generation that doesn't run.
 
 In `internal/hostd/vm`, `TestOnEnded`: each run's end reaches the kill
 tracker with its cause.
