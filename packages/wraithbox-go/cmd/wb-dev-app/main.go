@@ -4,14 +4,16 @@
 // isn't in the bundle's layout table, so it never ships, and the check
 // refuses it in a bundle.
 //
-//	wb-dev-app identity                 # print the bundle identifier, or refuse WB_TEAM_ID and a bad WB_BUNDLE_ID
-//	wb-dev-app layout                   # print the layout table for the script
+//	wb-dev-app identity                 # print the bundle identifier, or refuse a bad WB_TEAM_ID or WB_BUNDLE_ID
+//	wb-dev-app layout [-team T -dir D]  # print the layout table for the script; with -team, write the helpers' entitlements into D
+//	wb-dev-app sign-identity -team T    # print the hash of the one Apple Development identity of team T
+//	wb-dev-app profile -app A -team T   # fail unless the app Xcode built has a profile of team T
 //	wb-dev-app go-build -stamp F -out D # build the Go programs of the table for darwin/arm64, stamped
 //	wb-dev-app check -app A -disk D -stamp F -bundle-id I [-team T]  # the entitlement check (step 8)
 //	wb-dev-app install -app A -to D     # install A as D with the swap of S17-05-upgrades-and-migrations
 //
-// check and install run codesign and plutil by absolute path, so they
-// need macOS.
+// check, install, sign-identity and profile run codesign, plutil and
+// security by absolute path, so they need macOS.
 package main
 
 import (
@@ -26,7 +28,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 )
 
-const usage = "usage: wb-dev-app identity | layout | go-build | check | install (see the package comment)"
+const usage = "usage: wb-dev-app identity | layout | sign-identity | profile | go-build | check | install (see the package comment)"
 
 // errUsage is a usage error: exit 2.
 var errUsage = errors.New(usage)
@@ -58,10 +60,11 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 	case "identity":
 		return identity(stdout)
 	case "layout":
-		for _, line := range appbundle.LayoutLines(appbundle.Programs) {
-			fmt.Fprintln(stdout, line)
-		}
-		return nil
+		return layoutCommand(rest, stdout, stderr)
+	case "profile":
+		return profileCommand(ctx, rest, stdout, stderr)
+	case "sign-identity":
+		return signIdentityCommand(ctx, rest, stdout, stderr)
 	case "go-build":
 		return goBuildCommand(ctx, rest, stdout, stderr)
 	case "check":
@@ -72,9 +75,9 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 	return fmt.Errorf("unknown command %q: %w", args[0], errUsage)
 }
 
-// identity prints the bundle identifier of an ad-hoc build. A set
-// WB_TEAM_ID or an invalid WB_BUNDLE_ID fails, before the build builds
-// anything (S17-01-bundle, "Signing identity").
+// identity prints the bundle identifier of the build. A WB_TEAM_ID that
+// isn't an Apple team ID, or an invalid WB_BUNDLE_ID, fails before the
+// build builds anything (S17-01-bundle, "Signing identity").
 func identity(stdout io.Writer) error {
 	id, err := appbundle.BundleID(os.Getenv(appbundle.TeamEnv), os.Getenv(appbundle.BundleIDEnv))
 	if err != nil {

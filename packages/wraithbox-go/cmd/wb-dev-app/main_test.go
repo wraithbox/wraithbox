@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -9,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
@@ -27,17 +30,23 @@ func TestRunUsage(t *testing.T) {
 	}
 }
 
-// TestC12BundleIdentityCommand: a set WB_TEAM_ID fails the identity
-// command, which app:identity runs before any build task.
+// TestC12BundleIdentityCommand: a WB_TEAM_ID that isn't a team ID fails
+// the identity command, which app:identity runs before any build task,
+// and a team ID gives the team's identifier.
 func TestC12BundleIdentityCommand(t *testing.T) {
-	t.Setenv(appbundle.TeamEnv, "ABCDE12345")
+	t.Setenv(appbundle.TeamEnv, "abcde12345")
 	t.Setenv(appbundle.BundleIDEnv, "")
 	var stdout, stderr bytes.Buffer
 	if code := run(t.Context(), []string{"identity"}, &stdout, &stderr); code != 1 || stdout.Len() != 0 {
-		t.Errorf("identity with %s = %d, stdout %q", appbundle.TeamEnv, code, stdout.String())
+		t.Errorf("identity with a lowercase %s = %d, stdout %q", appbundle.TeamEnv, code, stdout.String())
 	}
 	if !strings.Contains(stderr.String(), appbundle.TeamEnv) {
 		t.Errorf("the message %q doesn't name %s", stderr.String(), appbundle.TeamEnv)
+	}
+
+	t.Setenv(appbundle.TeamEnv, "ABCDE12345")
+	if code := run(t.Context(), []string{"identity"}, &stdout, &stderr); code != 0 || stdout.String() != "nl.wraithbox.dev.abcde12345\n" {
+		t.Errorf("identity with a team = %d, %q", code, stdout.String())
 	}
 
 	t.Setenv(appbundle.TeamEnv, "")
@@ -56,6 +65,83 @@ func TestLayoutCommand(t *testing.T) {
 	if !slices.Contains(lines, "swiftpm macos wb-vmd "+appbundle.VirtualizationEntitlementsFile) ||
 		!slices.Contains(lines, "go helper wb-proxyd -") {
 		t.Errorf("layout lines:\n%s", stdout.String())
+	}
+}
+
+// TestLayoutCommandTeam: with a team, each helper's line names an
+// entitlements file with its row's groups, and the other lines stay.
+func TestLayoutCommandTeam(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "entitlements")
+	var stdout, stderr bytes.Buffer
+	if code := run(t.Context(), []string{"layout", "-team", "ABCDE12345", "-dir", dir}, &stdout, &stderr); code != 0 {
+		t.Fatalf("layout -team = %d: %s", code, stderr.String())
+	}
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	path := filepath.Join(dir, "wb-credset.entitlements")
+	if !slices.Contains(lines, "go helper wb-credset "+path) ||
+		!slices.Contains(lines, "swiftpm macos wb-vmd "+appbundle.VirtualizationEntitlementsFile) ||
+		!slices.Contains(lines, "go macos wb -") {
+		t.Errorf("layout lines:\n%s", stdout.String())
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "<string>ABCDE12345.nl.wraithbox.binding</string>") {
+		t.Errorf("wb-credset's entitlements:\n%s", data)
+	}
+	for _, args := range [][]string{
+		{"layout", "-team", "ABCDE12345"},
+		{"layout", "-dir", dir},
+		{"layout", "-team", "abcde12345", "-dir", dir},
+	} {
+		if code := run(t.Context(), args, &stdout, &stderr); code == 0 {
+			t.Errorf("run %v = 0", args)
+		}
+	}
+}
+
+// TestC05BuildMissingProfile: a team build whose app from Xcode has no
+// profile, a profile that isn't a regular file, or one of another team
+// stops with an error that names WB_TEAM_ID and the one-time setup.
+func TestC05BuildMissingProfile(t *testing.T) {
+	const team = "ABCDE12345"
+	dir := t.TempDir()
+	file := filepath.Join(dir, "profile")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	read := func(teams ...string) func(context.Context, string) (codesign.Profile, error) {
+		return func(context.Context, string) (codesign.Profile, error) {
+			return codesign.Profile{TeamIdentifier: teams, TeamName: "Test"}, nil
+		}
+	}
+	unreadable := func(context.Context, string) (codesign.Profile, error) {
+		return codesign.Profile{}, errors.New("security cms: not a profile")
+	}
+	for label, tc := range map[string]struct {
+		path string
+		read func(context.Context, string) (codesign.Profile, error)
+	}{
+		"no profile":         {filepath.Join(dir, "missing"), read(team)},
+		"a directory":        {dir, read(team)},
+		"another team":       {file, read("B2B2B2B2B2")},
+		"two teams":          {file, read(team, "B2B2B2B2B2")},
+		"an unreadable file": {file, unreadable},
+	} {
+		_, err := checkProfile(t.Context(), tc.path, team, tc.read)
+		if !errors.Is(err, appbundle.ErrNoProfile) {
+			t.Errorf("%s: checkProfile = %v, want ErrNoProfile", label, err)
+			continue
+		}
+		for _, want := range []string{appbundle.TeamEnv, team, "Missing profile", "Sign in to Xcode"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: the message %q doesn't name %q", label, err, want)
+			}
+		}
+	}
+	if p, err := checkProfile(t.Context(), file, team, read(team)); err != nil || p.TeamName != "Test" {
+		t.Errorf("checkProfile of the team's profile = %+v, %v", p, err)
 	}
 }
 

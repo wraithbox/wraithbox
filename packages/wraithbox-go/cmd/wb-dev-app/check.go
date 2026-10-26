@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
 )
 
 // The tools check and install run, by absolute path, so a PATH entry
@@ -131,7 +132,7 @@ func readPrograms(ctx context.Context, root string, paths []string) ([]appbundle
 	for _, rel := range paths {
 		path := filepath.Join(root, filepath.FromSlash(rel))
 		f := appbundle.Found{Path: rel}
-		f.Signed, f.Runtime = readFlags(ctx, path)
+		f.Signed, f.Runtime, f.Team = readFlags(ctx, path)
 		var err error
 		// An unsigned file has no entitlements, and the check refuses it
 		// for being unsigned.
@@ -153,14 +154,17 @@ func readPrograms(ctx context.Context, root string, paths []string) ([]appbundle
 // flagsLine is the code directory flags in `codesign -d --verbose=1`.
 var flagsLine = regexp.MustCompile(`(?m)^CodeDirectory .*\bflags=0x[0-9a-f]+\(([^)]*)\)`)
 
-// readFlags reports whether codesign reads a signature, and whether its
-// flags include the hardened runtime.
-func readFlags(ctx context.Context, path string) (signed, runtime bool) {
+// readFlags reports whether codesign reads a signature, whether its
+// flags include the hardened runtime, and the team that signed it, ""
+// for none. A signature without a TeamIdentifier line has no team, and a
+// team build's check refuses it (RuleSignatureTeam).
+func readFlags(ctx context.Context, path string) (signed, runtime bool, team string) {
 	out, err := run1(ctx, codesignPath, "-d", "--verbose=1", path)
 	if err != nil {
-		return false, false
+		return false, false, ""
 	}
-	return true, hasRuntimeFlag(out)
+	team, _ = codesign.ParseTeam(out)
+	return true, hasRuntimeFlag(out), team
 }
 
 // hasRuntimeFlag reports whether the code directory flags in the output

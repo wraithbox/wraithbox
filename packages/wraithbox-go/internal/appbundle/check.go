@@ -24,10 +24,12 @@ var (
 	RuleMissing              = Rule{"layout-missing", `S17-01-bundle, "The entitlement check"`}
 	RuleLink                 = Rule{"layout-link", `S17-01-bundle, "The entitlement check"`}
 	RuleSigned               = Rule{"signature-runtime", `SEC12-least-privilege; S10-02-packaging-and-signing, "macOS"`}
+	RuleSignatureTeam        = Rule{"signature-team", `S17-01-bundle, "Signing identity"`}
 	RuleAdhocGroup           = Rule{"keychain-adhoc", `SEC04-no-guest-secrets; S10-02-packaging-and-signing, "Signing"`}
 	RuleTeamHelperGroups     = Rule{"keychain-helper-row", `S15-02-secret-store, "Keychain"; S10-02-packaging-and-signing, "Helper bundles"`}
 	RuleTeamOtherGroup       = Rule{"keychain-other", `SEC04-no-guest-secrets; S10-02-packaging-and-signing, "Helper bundles"`}
 	RuleAdhocEntitlement     = Rule{"entitlement-adhoc", `SEC12-least-privilege; S17-01-bundle, "The entitlement check"`}
+	RuleTeamEntitlement      = Rule{"entitlement-team", `SEC12-least-privilege; S17-01-bundle, "The entitlement check"`}
 	RuleVirtualization       = Rule{"virtualization-only-vmd", `SEC12-least-privilege; S10-02-packaging-and-signing, "macOS"`}
 	RuleVMDHasVirtualization = Rule{"virtualization-vmd", `S10-02-packaging-and-signing, "macOS"`}
 	RuleAdhocProfile         = Rule{"profile-adhoc", `S10-02-packaging-and-signing, "Helper bundles"`}
@@ -42,8 +44,8 @@ var (
 
 // Rules are every rule of the check, for the log of a bundle that passes.
 var Rules = []Rule{
-	RuleMode, RuleUnknownMachO, RuleMissing, RuleLink, RuleSigned,
-	RuleAdhocGroup, RuleTeamHelperGroups, RuleTeamOtherGroup, RuleAdhocEntitlement,
+	RuleMode, RuleUnknownMachO, RuleMissing, RuleLink, RuleSigned, RuleSignatureTeam,
+	RuleAdhocGroup, RuleTeamHelperGroups, RuleTeamOtherGroup, RuleAdhocEntitlement, RuleTeamEntitlement,
 	RuleVirtualization, RuleVMDHasVirtualization, RuleAdhocProfile, RuleTeamProfile,
 	RuleInfoPlist, RuleStamp, RuleBuildVersion, RuleToolsVersion, RuleVerify,
 	RuleSource,
@@ -82,6 +84,9 @@ type Found struct {
 	// it has the hardened runtime flag.
 	Signed  bool
 	Runtime bool
+	// Team is the team of the signature, or "" for one without a team,
+	// such as an ad-hoc signature.
+	Team string
 	// Entitlements are the signed entitlements, as plutil converts them
 	// to JSON. Empty or nil when there are none.
 	Entitlements map[string]any
@@ -207,11 +212,12 @@ func checkProgram(p Program, f Found, m Mode) []Violation {
 	if !f.Signed || !f.Runtime {
 		out = append(out, Violation{p.Name, RuleSigned, "is not signed with the hardened runtime"})
 	}
+	if f.Signed && f.Team != m.Team {
+		out = append(out, Violation{p.Name, RuleSignatureTeam, fmt.Sprintf("is signed by the team %q, and the build's team is %q", f.Team, m.Team)})
+	}
 	out = append(out, checkGroups(p, f.Entitlements, m)...)
 	out = append(out, checkVirtualization(p, f.Entitlements)...)
-	if m.Team == "" {
-		out = append(out, checkAdhocEntitlements(p, f.Entitlements)...)
-	}
+	out = append(out, checkAllowed(p, f.Entitlements, m)...)
 	if f.Stamp != m.Stamp {
 		out = append(out, Violation{
 			p.Name, RuleStamp,
@@ -232,32 +238,95 @@ func fromSource(p Program, goMain string) bool {
 	return goMain == ""
 }
 
-// groupsKey is the entitlement that names a program's Keychain access
-// groups.
-const groupsKey = "keychain-access-groups"
+// The entitlements that name Keychain access groups. Apple takes a
+// program's access groups from all three: keychain-access-groups, the
+// application identifier, and the application groups. So the group
+// rules look at each, and wb with only an application group still has a
+// group (SEC04-no-guest-secrets; S15-02-secret-store, "`wb` doesn't hold
+// a group").
+const (
+	groupsKey            = "keychain-access-groups"
+	applicationIDKey     = "com.apple.application-identifier"
+	applicationGroupsKey = "com.apple.security.application-groups"
+)
+
+// groupKeys are the entitlements that name access groups.
+var groupKeys = []string{groupsKey, applicationIDKey, applicationGroupsKey}
+
+// teamIDKey is the entitlement that names the signing team.
+const teamIDKey = "com.apple.developer.team-identifier"
 
 // checkGroups applies the Keychain rules: no program has a group in an
 // ad-hoc build; in a team build each helper has exactly its row's groups
 // under the team's prefix (S15-02-secret-store, "Keychain"), and every
-// other program, wb and the app included, has none.
+// other program, wb and the app included, has none. Each entitlement in
+// groupKeys counts.
 func checkGroups(p Program, entitlements map[string]any, m Mode) []Violation {
-	raw, has := entitlements[groupsKey]
+	present := presentKeys(entitlements, groupKeys)
 	switch {
-	case m.Team == "" && has:
-		return []Violation{{p.Name, RuleAdhocGroup, fmt.Sprintf("has %s %v in an ad-hoc build", groupsKey, raw)}}
+	case m.Team == "" && len(present) > 0:
+		return []Violation{{p.Name, RuleAdhocGroup, fmt.Sprintf("has %s in an ad-hoc build", describe(entitlements, present))}}
 	case m.Team == "":
 		return nil
-	case p.Place != PlaceHelper && has:
-		return []Violation{{p.Name, RuleTeamOtherGroup, fmt.Sprintf("has %s %v, and only a helper bundle holds a group", groupsKey, raw)}}
+	case p.Place != PlaceHelper && len(present) > 0:
+		return []Violation{{p.Name, RuleTeamOtherGroup, fmt.Sprintf("has %s, and only a helper bundle holds a group", describe(entitlements, present))}}
 	case p.Place != PlaceHelper:
 		return nil
 	}
 	want := TeamGroups(m.Team, p.Roles)
-	got, ok := stringList(raw)
+	got, ok := groupsOf(entitlements, present)
 	if !ok || !sameSet(got, want) {
-		return []Violation{{p.Name, RuleTeamHelperGroups, fmt.Sprintf("has %s %v, and its row is %v", groupsKey, raw, want)}}
+		return []Violation{{p.Name, RuleTeamHelperGroups, fmt.Sprintf("has %s, and its row is %s %v", describe(entitlements, present), groupsKey, want)}}
 	}
 	return nil
+}
+
+// presentKeys returns the keys of entitlements that are in keys, in the
+// order of keys.
+func presentKeys(entitlements map[string]any, keys []string) []string {
+	var out []string
+	for _, k := range keys {
+		if _, has := entitlements[k]; has {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// describe names each of keys with its value, for a message.
+func describe(entitlements map[string]any, keys []string) string {
+	if len(keys) == 0 {
+		return "no group"
+	}
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s %v", k, entitlements[k]))
+	}
+	return strings.Join(parts, " and ")
+}
+
+// groupsOf returns every access group the keys name: the lists of
+// keychain-access-groups and the application groups, and the application
+// identifier. A value of another form is not ok, so the check fails
+// closed on it.
+func groupsOf(entitlements map[string]any, keys []string) ([]string, bool) {
+	var groups []string
+	for _, k := range keys {
+		if k == applicationIDKey {
+			id, ok := entitlements[k].(string)
+			if !ok {
+				return nil, false
+			}
+			groups = append(groups, id)
+			continue
+		}
+		list, ok := stringList(entitlements[k])
+		if !ok {
+			return nil, false
+		}
+		groups = append(groups, list...)
+	}
+	return groups, true
 }
 
 // TeamGroups are the access groups of roles in a build that team signs:
@@ -311,16 +380,34 @@ func checkVirtualization(p Program, entitlements map[string]any) []Violation {
 	return nil
 }
 
-// checkAdhocEntitlements refuses every entitlement of an ad-hoc build
-// besides wb-vmd's one (S17-01-bundle, "The entitlement check"). The
-// groups and the virtualization entitlement have rules of their own.
-func checkAdhocEntitlements(p Program, entitlements map[string]any) []Violation {
+// The entitlements each mode allows. Every other entitlement fails the
+// check (S17-01-bundle, "The entitlement check"), such as get-task-allow,
+// disable-library-validation, allow-dyld-environment-variables, and
+// com.apple.vm.networking, which S15-01-rights, "Hardening and
+// entitlements", gives no process. The group and virtualization
+// entitlements have rules of their own on top, so an allowed key held by
+// the wrong program still fails.
+var (
+	adhocAllowed = []string{groupsKey, applicationIDKey, applicationGroupsKey, VirtualizationEntitlement}
+	teamAllowed  = []string{groupsKey, applicationIDKey, teamIDKey, VirtualizationEntitlement}
+)
+
+// checkAllowed refuses every entitlement outside the mode's allowlist,
+// and in a team build a team identifier entitlement of another team
+// (SEC12-least-privilege).
+func checkAllowed(p Program, entitlements map[string]any, m Mode) []Violation {
+	allowed, rule, build := adhocAllowed, RuleAdhocEntitlement, "an ad-hoc build"
+	if m.Team != "" {
+		allowed, rule, build = teamAllowed, RuleTeamEntitlement, "a build of the team "+m.Team
+	}
 	var out []Violation
 	for _, key := range sortedKeys(entitlements) {
-		if key == groupsKey || key == VirtualizationEntitlement {
-			continue
+		if !slices.Contains(allowed, key) {
+			out = append(out, Violation{p.Name, rule, "has the entitlement " + key + " in " + build})
 		}
-		out = append(out, Violation{p.Name, RuleAdhocEntitlement, "has the entitlement " + key + " in an ad-hoc build"})
+	}
+	if team, has := entitlements[teamIDKey]; has && m.Team != "" && team != m.Team {
+		out = append(out, Violation{p.Name, rule, fmt.Sprintf("has %s %v in %s", teamIDKey, team, build)})
 	}
 	return out
 }

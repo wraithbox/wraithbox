@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/paths"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/service"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
@@ -21,6 +22,8 @@ func SystemEnv(log *slog.Logger) Env {
 	env := Env{
 		Host:               platform.Detect(),
 		ReadRelease:        platform.ReadRelease,
+		ReadTeam:           codesign.ReadTeam,
+		ReadProfile:        codesign.ReadProfile,
 		UID:                os.Getuid(),
 		PATH:               os.Getenv("PATH"),
 		Version:            version.Build(),

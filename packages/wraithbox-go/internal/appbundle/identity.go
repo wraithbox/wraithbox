@@ -1,7 +1,6 @@
 package appbundle
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -19,31 +18,37 @@ const (
 // identityRule names the requirement in BundleID's errors.
 const identityRule = `S17-01-bundle, "Signing identity"`
 
-// ErrTeamBuild is BundleID's error when WB_TEAM_ID is set. The
-// team-signed build is M2.2c (I280). Until it is built, a build with a
-// team fails before it builds anything, so nobody gets a bundle that is
-// half team-signed.
-var ErrTeamBuild = errors.New(TeamEnv + " is set, and the team-signed build isn't built yet (#280); unset " + TeamEnv + " for an ad-hoc build")
+// DevBundleIDPrefix is the start of the bundle identifier of a build a
+// team signs when WB_BUNDLE_ID isn't set: the team ID in lowercase
+// follows it (S10-02-packaging-and-signing, "Signing").
+const DevBundleIDPrefix = "nl.wraithbox.dev."
 
 // maxBundleIDLen is the longest bundle identifier BundleID accepts.
 const maxBundleIDLen = 155
 
-// BundleID returns the bundle identifier of an ad-hoc build from the
-// values of WB_TEAM_ID and WB_BUNDLE_ID: WB_BUNDLE_ID when it is set and
-// valid (ValidBundleID), else AdhocBundleID. A set WB_TEAM_ID is
-// refused (ErrTeamBuild).
+// BundleID returns the bundle identifier of a build from the values of
+// WB_TEAM_ID and WB_BUNDLE_ID (S17-01-bundle, "Signing identity"):
+// WB_BUNDLE_ID when it is set and valid (ValidBundleID), else
+// DevBundleIDPrefix and the team in lowercase, or AdhocBundleID without
+// a team. A team that isn't ten uppercase letters and digits
+// (ValidTeamID) is refused, so the build stops before it runs anything
+// with it.
 func BundleID(team, bundleID string) (string, error) {
-	if team != "" {
-		return "", fmt.Errorf("%w (%s)", ErrTeamBuild, identityRule)
+	if team != "" && !ValidTeamID(team) {
+		return "", fmt.Errorf("%s=%q is not an Apple team ID: ten uppercase letters and digits, the organizational unit (OU) in the subject of your Apple Development certificate (%s)",
+			TeamEnv, team, identityRule)
 	}
-	if bundleID == "" {
+	if bundleID != "" {
+		if !ValidBundleID(bundleID) {
+			return "", fmt.Errorf("%s=%q is not a reverse-DNS bundle identifier: two or more labels of letters, digits and hyphens, joined by dots, at most %d bytes (%s)",
+				BundleIDEnv, bundleID, maxBundleIDLen, identityRule)
+		}
+		return bundleID, nil
+	}
+	if team == "" {
 		return AdhocBundleID, nil
 	}
-	if !ValidBundleID(bundleID) {
-		return "", fmt.Errorf("%s=%q is not a reverse-DNS bundle identifier: two or more labels of letters, digits and hyphens, joined by dots, at most %d bytes (%s)",
-			BundleIDEnv, bundleID, maxBundleIDLen, identityRule)
-	}
-	return bundleID, nil
+	return DevBundleIDPrefix + strings.ToLower(team), nil
 }
 
 // ValidBundleID reports whether s is a reverse-DNS bundle identifier:

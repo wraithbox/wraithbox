@@ -1,7 +1,6 @@
 package appbundle
 
 import (
-	"errors"
 	"strings"
 	"testing"
 )
@@ -16,9 +15,15 @@ func TestC12BundleIdentity(t *testing.T) {
 		{"", "com.example.wraithbox", "com.example.wraithbox", false},
 		{"", "nl.wraithbox.dev.abcde12345", "nl.wraithbox.dev.abcde12345", false},
 		{"", "Com.Example-1.App", "Com.Example-1.App", false},
-		// Refused: WB_TEAM_ID, with or without a bundle identifier.
-		{testTeam, "", "", true},
-		{testTeam, "com.example.wraithbox", "", true},
+		// A team: the team ID in lowercase, or WB_BUNDLE_ID.
+		{testTeam, "", "nl.wraithbox.dev.abcde12345", false},
+		{testTeam, "com.example.wraithbox", "com.example.wraithbox", false},
+		// Refused: a team that isn't an Apple team ID, even with a bundle
+		// identifier.
+		{"abcde12345", "", "", true},
+		{"ABCDE1234", "", "", true},
+		{"ABCDE12345 ", "com.example.wraithbox", "", true},
+		{"ABCDE;1234", "", "", true},
 		// Refused: not reverse-DNS.
 		{"", "wraithbox", "", true},
 		{"", "com..example", "", true},
@@ -40,11 +45,11 @@ func TestC12BundleIdentity(t *testing.T) {
 }
 
 func TestC12BundleIdentityTeamMessage(t *testing.T) {
-	_, err := BundleID(testTeam, "")
-	if !errors.Is(err, ErrTeamBuild) {
-		t.Fatalf("got %v, want ErrTeamBuild", err)
+	_, err := BundleID("abcde12345", "")
+	if err == nil {
+		t.Fatal("BundleID took a lowercase team")
 	}
-	for _, want := range []string{TeamEnv, "#280", "Signing identity"} {
+	for _, want := range []string{TeamEnv, "organizational unit", "Signing identity"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the message %q doesn't name %q", err, want)
 		}

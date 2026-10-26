@@ -237,61 +237,6 @@ func TestC12SetupPATH(t *testing.T) {
 	}
 }
 
-// removeProfiles removes the profile of each helper bundle that keep
-// doesn't name.
-func (f *fixture) removeProfiles(keep func(name string) bool) {
-	f.t.Helper()
-	for _, p := range appbundle.Programs {
-		if p.Place != appbundle.PlaceHelper || keep(p.Name) {
-			continue
-		}
-		if err := os.Remove(filepath.Join(f.bundle, filepath.FromSlash(appbundle.HelperDir(p.Name)), "Contents", appbundle.ProfileName)); err != nil {
-			f.t.Fatal(err)
-		}
-	}
-}
-
-// TestC05SetupAdhocKeychain sees an ad-hoc bundle, whose helper bundles
-// have no profile, refused the Keychain backend with keychain-needs-team,
-// with the Xcode steps and WB_TEAM_ID named, after the agent and the
-// link are installed, and a nonzero exit (C05-credentials-and-store,
-// "Builds without a team, and development builds").
-func TestC05SetupAdhocKeychain(t *testing.T) {
-	for name, keep := range map[string]func(string) bool{
-		"wb-credset without a profile": func(name string) bool { return name != "wb-credset" },
-		"no helper with a profile":     func(string) bool { return false },
-	} {
-		t.Run(name, func(t *testing.T) {
-			f := newFixture(t)
-			f.removeProfiles(keep)
-			if code := f.run(); code != ExitRefused {
-				t.Errorf("exit %d, want %d", code, ExitRefused)
-			}
-			f.wantStderr("refused (keychain-needs-team)", "Sign in to Xcode with an Apple ID", `"My Mac"`, "WB_TEAM_ID", "wb-credset")
-			if strings.Contains(f.stderr.String(), "1Password") {
-				t.Errorf("stderr = %q, mentions 1Password", f.stderr.String())
-			}
-			if want := []string{"state " + f.hostdProgram(), "replace " + f.hostdProgram()}; !slices.Equal(f.svc.calls, want) {
-				t.Errorf("service calls %q, want %q", f.svc.calls, want)
-			}
-			f.wantLink()
-		})
-	}
-}
-
-// TestSetupProfileNotAFile counts a profile that is a link as missing.
-func TestSetupProfileNotAFile(t *testing.T) {
-	f := newFixture(t)
-	profile := filepath.Join(f.bundle, filepath.FromSlash(appbundle.HelperDir("wb-proxyd")), "Contents", appbundle.ProfileName)
-	if err := os.Remove(profile); err != nil {
-		t.Fatal(err)
-	}
-	f.symlink(filepath.Join(f.root, "profile"), profile)
-	if code := f.run(); code != ExitRefused || !strings.Contains(f.stderr.String(), "keychain-needs-team") {
-		t.Errorf("exit %d, stderr %q; want keychain-needs-team", code, f.stderr.String())
-	}
-}
-
 // TestC12SetupProjectsRoot makes the projects root and the probe file
 // when they are missing, mode 0700 and 0600, and leaves them as they are
 // when they are there (S04-06-git-confinement, "The profile probes").
