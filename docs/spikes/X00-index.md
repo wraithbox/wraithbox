@@ -22,7 +22,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/sp
 | X05-fs-benchmark | Filesystem benchmark | Answered 2026-10-05: no. NFR02-fs-speed is not met for `npm ci` with any disk setting, and the data disk uses full sync. Decided 2026-10-06 (I19): NFR02-fs-speed is a goal outside the release gate |
 | X06-guest-xcode | Guest users and Xcode | Answered 2026-10-08: yes, with conditions |
 | X07-git-round-trip | Git round trip | Answered: yes, with conditions |
-| X08-data-disk | Data disk for homes | Answered 2026-10-12: yes, with conditions. Decided 2026-10-12 (I22): 1A, the host formats the data disk APFS, and 2A, in the `wb-diskfmt` shim. Follow-up answered 2026-10-26 (I228): the host-made volume is not encrypted, gives freed space back at each stop or start while mounted `nobrowse`, and formats under the confined shim. Decision 3 (`nobrowse`) awaits the maintainer |
+| X08-data-disk | Data disk for homes | Answered 2026-10-12: yes, with conditions. Decided 2026-10-12 (I22): 1A, the host formats the data disk APFS, and 2A, in the `wb-diskfmt` shim. Follow-up answered 2026-10-26 (I228): the host-made volume is not encrypted, gives freed space back at each clean shutdown or cold boot while mounted `nobrowse`, and formats under the confined shim. Decision 3 (`nobrowse`) awaits the maintainer |
 | X09-keychain-unsigned | Keychain access without a signing identity | Answered 2026-10-13: yes between updates, no across an update, and no permanent Secure Enclave key. Decided 2026-10-15 (I23): 1D, with 1A until X29-dev-signing, and 2A |
 | X10-linux-hypervisor | Linux VMM and packet transport | Open |
 | X11-windows-host | Windows host through HCS | Open |
@@ -111,7 +111,8 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/sp
   first boot survives, with the users recreated from host state. Its
   follow-up (I228), in the same page, measured the host-made volume:
   it is not encrypted, `wb-diskfmt` formats it confined, and it gives
-  freed space back at each stop or start while mounted `nobrowse`.
+  freed space back at each clean shutdown or cold boot while mounted
+  `nobrowse`.
 - **X09-keychain-unsigned: Keychain access without a signing identity.** Confirm the
   fallback access-control model from S09-policy-credentials-audit and the Secure Enclave
   key creation for an ad-hoc signed binary. Answered in the result page

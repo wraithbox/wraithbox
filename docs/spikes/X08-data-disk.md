@@ -44,9 +44,10 @@ Brief: B22-data-disk. Follow-up (I228): B228-data-disk-followup
   guest frees on the host-made volume goes back to the host as on a
   guest-made one (X05-fs-benchmark measured the guest-made one). I228
   measured both: encryption stayed off, and space goes back at each
-  stop or start ("Follow-up (I228)", below). That the key of a guest-made volume needs the old
-  system disk is inferred from the kernel log: the clones also replaced
-  the auxiliary storage, and the spike didn't separate the two.
+  clean shutdown or cold boot ("Follow-up (I228)", below). That the
+  key of a guest-made volume needs the old system disk is inferred
+  from the kernel log: the clones also replaced the auxiliary
+  storage, and the spike didn't separate the two.
 - **Decisions:** decided 2026-10-12, as recommended, in the I22
   comment that starts `Decision (2026-10-12):`. The assumptions above
   stay with I228.
@@ -305,19 +306,19 @@ Brief: B228-data-disk-followup
   `diskutil`, and "yes, with conditions" for the space given back. While
   `wb-guestd` mounts the volume with `nobrowse`, space the guest frees
   goes back to the host only when the volume is unmounted or mounted
-  again: at a clean guest shutdown or at the next VM start.
-  S06-05-disks now says so.
+  again: at a clean guest shutdown or at the next cold boot, not at a
+  restore from saved state. S06-05-disks now says so.
 - **Controls touched:** none weakened. SEC15-no-guest-disk-mount keeps
   its one exception for a blank image, now measured confined.
   SEC12-least-privilege: the profile of S04-04-vm-processes suffices,
   with no `hdiutil`. SEC13-bounded-resources counts the file's
-  `st_blocks`, which still count deleted data until the next stop or
-  start.
+  `st_blocks`, which still count deleted data until the next clean
+  shutdown or cold boot.
 - **Assumed:** that a later point release keeps the volume
   unencrypted. All three guests ran macOS 27.0.1, and 27.2 wasn't
   tried (I425).
 - **Decision 3 (open):** keep `nobrowse` (the spec as it is, space
-  returns per stop or start) or drop it from the mount and the check
+  returns per clean shutdown or cold boot) or drop it from the mount and the check
   (space returns within about 20 s). Recommended: keep it. The brief
   holds the options, and the spec keeps `nobrowse` until the maintainer
   decides.
@@ -347,7 +348,7 @@ From I228, which X08-data-disk's "What was not measured" names:
    doesn't go back to the host while the volume is mounted. It
    was still allocated for 10.5 min in the longest wait. It goes back in
    full when the volume is unmounted or mounted again: a clean guest
-   shutdown, or `wb-guestd`'s mount at the next VM start. Without
+   shutdown, or the mounts of the next cold boot. Without
    `nobrowse`, it went back within 20 s of the delete. Mounting with
    each option alone showed that `nobrowse` alone holds it back.
 3. **A confined format works: yes.** `TestHostFormat` ran
@@ -392,7 +393,13 @@ then check) without `wb-hostd`.
 | b1, first mount | Encrypted: No, FileVault: No | FileVault: No | 1.17 s, accepted | 0.12 s, accepted | PASS |
 | b1, 25 min later, after every space run | Encrypted: No, FileVault: No | FileVault: No | | | |
 | b2, swap | Encrypted: No, FileVault: No | FileVault: No | 0.79 s, accepted | 0.17 s, accepted | PASS |
-| b3, swap | Encrypted: No, FileVault: No | FileVault: No | 0.79 s, accepted | 0.11 s, accepted | PASS |
+| b3, swap | Encrypted: No, FileVault: No | FileVault: No | 0.79 s, accepted | 0.11 s, accepted | not run |
+
+In b3 the `scp` that copies `datamount.test` to the guest failed, and
+the run after it found no file. The `PASS` lines that follow that
+error in `b3-boot-check.txt` can't come from a run on b3, so
+`TestMounted` counts as not run there. The mount and the check above
+ran.
 
 The guest saw the volume as internal and solid state, with owners
 enabled. `statfs` reported `nosuid`, `nodev` and `nobrowse` set, with
@@ -450,6 +457,11 @@ reads the image's `st_blocks` on the host every 10 s.
   was 10.5 min. Each delete was one file.
 - **A guest that crashes or is stopped by force and then never starts
   again.** Its space is still allocated until the next start (b2 to b3).
+- **A restore from saved state** (S06-06-devices-and-warm-start,
+  "Warm start"). The guest doesn't boot and `wb-guestd` doesn't mount again
+  (S06-05-disks, "The mount"), so the space deleted before the save
+  presumably stays allocated across the restore, until a clean
+  shutdown or a cold boot.
 - **Who owns the volume's `.fseventsd`.** In b1 it was owned by
   `wbdev` (uid 501), the dev image's user. S06-05-disks refuses a UID
   that owns a top-level entry when it creates a user. A product guest
@@ -478,4 +490,4 @@ Branch `spike/x8-data-disk-followup`, at
 the space scripts, the probes of the two failing conformance checks,
 and the raw results in `results/`.
 
-**Status:** Answered 2026-10-12: yes, with conditions. Decided 2026-10-12 (I22): 1A, the host formats the data disk APFS, and 2A, in the `wb-diskfmt` shim. Follow-up answered 2026-10-26 (I228): the host-made volume is not encrypted, gives freed space back at each stop or start while mounted `nobrowse`, and formats under the confined shim. Decision 3 (`nobrowse`) awaits the maintainer
+**Status:** Answered 2026-10-12: yes, with conditions. Decided 2026-10-12 (I22): 1A, the host formats the data disk APFS, and 2A, in the `wb-diskfmt` shim. Follow-up answered 2026-10-26 (I228): the host-made volume is not encrypted, gives freed space back at each clean shutdown or cold boot while mounted `nobrowse`, and formats under the confined shim. Decision 3 (`nobrowse`) awaits the maintainer
