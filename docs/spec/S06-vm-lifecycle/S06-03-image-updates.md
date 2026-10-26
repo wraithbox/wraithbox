@@ -88,16 +88,22 @@ because `dscl . -create` on an existing record changes it:
   the home is valid. The user is kept, and nothing is written.
 - **New user:** neither record exists. `wb-guestd` makes the group,
   then the user, then the home.
-- **Partial record:** a record holds some of the request's values and
-  nothing else, as a creation that stopped halfway leaves it. A missing
-  record or attribute is added, and so is a missing home of a user
-  that exists. A record without its `GeneratedUID` isn't partial: that
-  can't be added once the record has an ID.
+- **Partial record:** every value of the request that a record holds
+  matches, and the record has no `AuthenticationAuthority`, shadow
+  hash, members or nested groups. A creation that stopped halfway
+  leaves such a record. Other attributes, such as the `RecordType` that
+  macOS adds, aren't checked. A missing record or attribute is added,
+  and so is a missing home of a user that exists. A record without its
+  `GeneratedUID` isn't partial: that can't be added once the record has
+  an ID.
 - **Anything else** is refused with `project-user-conflict`, and the
   log names the attribute that differs. That is another value, a
-  record name with an alias, an `AuthenticationAuthority` or a member.
-  It is also another record that holds one of the user's names, IDs or
-  `GeneratedUID`s, or lists it as a member.
+  record name with an alias, an `AuthenticationAuthority`, a shadow
+  hash, a member or a nested group. It is also another record that
+  holds one of the user's names, IDs or `GeneratedUID`s, or lists the
+  user as a member or the group as a nested group. A group that nests
+  the project group, such as `admin`, would give the project user its
+  rights. `GeneratedUID`s are compared without case.
 
 Before it writes, it also refuses:
 
@@ -116,14 +122,22 @@ group, macOS refuses to change its `GeneratedUID` or home path
 `AuthenticationAuthority` and no shadow hash, so nobody can log in as
 it. Both records are written without members. `wb-guestd` never uses `sysadminctl
 -addUser` or `createhomedir`, which add a password, a secure token or
-group memberships. It makes the home relative to the volume's root
+group memberships.
+
+It makes the home relative to the volume's root
 without following a link, mode 700, then sets its owner and mode on
-the open directory.
+the open directory. When a step after the directory is made fails, it
+removes the directory again. A guest that stops between those steps
+leaves a home owned by root. That user is then refused with
+`project-home-other-owner` until the directory is removed by hand.
 
 After the writes, it reads both records back and checks the home. A
 difference is refused with `project-user-directory` or
 `project-home-invalid`. A volume root it can't open or read, or one
-with more than 4096 entries, is `project-home-root`, and a request
+with more than 4096 entries, is `project-home-root`. It opens the root
+once per request and checks with `fstatfs` that it is on the mount the
+data mount check just passed (S06-05-disks, "Before every session
+start"). Another mount is `data-mount-volume`. A request
 still running after 50 seconds refuses its remaining users with
 `project-user-deadline`. It logs each user's decision and rule (I138).
 

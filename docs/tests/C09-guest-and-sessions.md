@@ -116,6 +116,9 @@ Unit tests in `internal/guestd`, with a fake `diskutil`, `statfs` and
   owner or mode.
 - `TestCheckPending`: before any mount the check refuses with
   `data-mount-pending`.
+- `TestSameMount`: the mount `fstatfs` reports of an opened root passes
+  only when it is the one the last check passed. Another mount, a check
+  that failed since, or no check is `data-mount-volume`.
 - `TestMountDataRPC`: `MountData` answers each refusal with
   `FAILED_PRECONDITION` and one `ErrorInfo` whose reason is the rule,
   and a UUID of the wrong form with `INVALID_ARGUMENT` and
@@ -160,15 +163,20 @@ root:
   record that stopped halfway, a missing group record and a missing
   home are completed.
 - `TestConflicts`, `TestConflictNewUser`: a record with another value,
-  an alias, an `AuthenticationAuthority` or a member, or another record
-  that holds one of the user's names, IDs or `GeneratedUID`s, is
-  refused with `project-user-conflict` before any write, logged with the
-  attribute, and the request's other users are still made.
+  an alias, an `AuthenticationAuthority`, a shadow hash, a member or a
+  nested group is refused with `project-user-conflict`. So is another
+  record that holds one of the user's names, IDs or `GeneratedUID`s,
+  in any case, or nests the project group. Each is refused before any
+  write and logged with the attribute, and the request's other users are
+  still made.
 - `TestHomes`, `TestHomeOfKeptUser`: a home owned by another UID is
   `project-home-other-owner`. A link, a file, another group, another
   mode or a special bit is `project-home-invalid`.
 - `TestIDsOwnEntry`: a UID or GID that owns another entry of the
   volume's root is `project-ids-own-entry`.
+- `TestRootCheckRefused`: a root that fails the caller's check refuses
+  each user with the check's rule, and a request without a check with
+  `project-home-root`, before any write.
 - `TestRootRefused`, `TestDirectoryFailures`, `TestLockedRecord`,
   `TestDeadline`: a root that can't be read, a failed list, read or
   write, a write the directory didn't keep, a home path macOS locked
@@ -176,21 +184,27 @@ root:
   with their rule.
 - `TestInvalidUser`, `TestCheckRequest`: a value outside the allocation
   is `project-user-request-invalid` with nothing read, and a request
-  with no user, too many, or a UID, name or `GeneratedUID` twice is
-  refused as a whole.
+  with no user, too many, a UID or name twice, or a `GeneratedUID` that
+  two users share is refused as a whole.
 
 On the guest's own file system, in `internal/guestd/users`:
 `TestRealHomeMade` (mode 700 under a umask of 0), `TestRealHomeLink`,
-`TestRealHomeMode` and `TestRealIDsOwnEntry`. Over a socket pair, in
-`internal/guestd`: `TestEnsureUsersRPC`, `TestEnsureUsersBeforeMount`
-(refused with the data mount check's rule) and
-`TestEnsureUsersRequestRefused`, each read by `wb-hostd`'s own check of
-the answer.
+`TestRealHomeMode` and `TestRealIDsOwnEntry`. In
+`internal/platform/guestusers`, `TestRootMkdirUndone` sees a home whose
+`fchown` failed removed again, and `TestRootEntriesLongName` sees a
+name of 300 bytes listed. Over a socket pair, in `internal/guestd`:
+`TestEnsureUsersRPC`, `TestEnsureUsersOneBadUser` (one invalid user
+refused, the others made), `TestEnsureUsersBeforeMount` (refused with
+the data mount check's rule), `TestEnsureUsersRootOnOtherMount`
+(`data-mount-volume`) and `TestEnsureUsersRequestRefused`, each read by
+`wb-hostd`'s own check of the answer.
 
 With the work VM, `TestC09GuestUsersVM` in `cmd/wb-hostd` (needs-vm,
 needs-host): give the data disk two project users in `state.db`, and
 see `wb-hostd` log both as ensured on a new link, after a reboot, and
-after the system disk is cloned anew while the data disk stays.
+after the system disk is cloned anew while the data disk stays. It logs
+how long the guest took for each request, which the 50 s deadline for
+128 users is judged by.
 
 As root in the guest, after `wb-hostd` had `wb-guestd` make at least two
 project users, in `conformance/guestusers`:
