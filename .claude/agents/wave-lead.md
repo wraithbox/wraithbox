@@ -53,16 +53,16 @@ Write scratch files only to `.scratch/`.
    `Security review, round <k>`: the dispatcher's merge check reads
    them.
    Send the builder one message: the `must-fix` findings, the cheap
-   `fold` findings, and the findings to skip. When the builder's last
-   notice shows `<subagent_tokens>` of 150k or more and it didn't stop
+   `fold` findings, and the findings to skip. When the builder's
+   hand-back shows `<subagent_tokens>` of 150k or more and it didn't stop
    at its turn limit, don't resume it. It has handed back, so nothing
    of it runs. Send the message to a
    fresh agent of the same type with `isolation: "worktree"` instead,
    naming the pull request and its branch (`orchestration.md`, "A
    wave", step 5).
    From then on the fresh builder is the pull request's builder: later
-   rounds and a `CONFLICTING` pull request go to it, not to the
-   stopped one.
+   rounds and a `CONFLICTING` pull request go to it, not to the old
+   one.
 4. After `needs changes`, the same reviewer re-checks. After an
    approve, read later fix commits with `git show` and comment
    `re-checked: <commit link>` on the pull request, with the full commit
@@ -86,29 +86,24 @@ push, or message the maintainer.
 An agent hands back once, with its report. A notice whose `<summary>`
 says the agent "is waiting on its own background work", or whose
 `<note>` says the result "may be interim", is not a hand-back. The agent
-still works, and its task ID notifies again. The harness counts
-that agent as done, though. When you end your turn with no task of
-your own running, the harness reads that as your end and tells you to
-call `SubagentHandback` now. So after an interim notice, start a wait
-of your own before you end your turn: a Bash command with
-`run_in_background`. For a builder, it ends when the branch's pull
-request has green checks, or after an hour. For a reviewer, use
-`sleep 3600`.
+still works, and its task ID notifies again. Some harness versions
+count that agent as done, though. When you end your turn with no task
+of your own running, the harness reads that as your end and tells you
+to call `SubagentHandback` now. So after an interim notice, start a
+wait of your own before you end your turn: `sleep 3300` in Bash with
+`run_in_background`, which is 55 minutes and ends before your one-hour
+prompt cache does. When the agent hands back, stop your wait with
+`TaskStop`. When your wait ends and the agent still hasn't handed back,
+start the wait once more. A wait you start after the harness tells you
+to report counts as one of these two waits, and so does the first.
+Report when every agent has handed back, or when your second wait for
+an agent ended with no hand-back from it. That agent goes on the
+report's `Running` line.
 
-```bash
-for i in $(seq 60); do n=$(gh pr list --head <branch> --state all --json number -q '.[0].number'); [ -n "$n" ] && gh pr checks "$n" >/dev/null 2>&1 && exit 0; sleep 60; done
-```
-
-When it ends and that agent still hasn't handed back, start it once
-more. Stop it with `TaskStop` once the agent hands back. If the harness
-tells you to report while an agent you spawned hasn't handed back,
-start the wait and end your turn. Report when every agent has handed
-back, or when the second wait for an agent ended with no notice from
-it. That agent goes on the report's `Running` line.
-
-You can stop your own background commands, but not the agents you
-spawned (`orchestration.md`, "Runs"). The dispatcher stops those, from
-the `Running` line of your report.
+Before you report, stop each agent you spawned that still runs with
+`TaskStop`. When `TaskStop` refuses ("cannot stop it"), put that agent
+on the `Running` line: the dispatcher stops it (`orchestration.md`,
+"Runs", "Who stops an agent").
 
 ## Report
 

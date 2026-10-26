@@ -98,8 +98,9 @@ issues are all closed, check its exit criterion (`planning.md`,
    `In flight` line with the wave's line, and add to `For the
    maintainer` and `Attended queue`.
    Stop each agent on the report's `Running` line with `TaskStop` and
-   its agent ID: the lead can't (`orchestration.md`, "Runs", "Who stops
-   an agent"). Put its issue and worktree on `For the maintainer`.
+   its agent ID (`orchestration.md`, "Runs", "Who stops an agent"), and
+   put its issue and worktree on `For the maintainer`. Add the agent ID
+   when your `TaskStop` is refused too.
 4. For each `Ready` pull request, check the standing approval
    (`orchestration.md`, "Runs") against GitHub, never the report:
 
