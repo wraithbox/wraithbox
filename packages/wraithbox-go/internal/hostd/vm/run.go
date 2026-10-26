@@ -143,6 +143,9 @@ func (m *Manager) finish(ctx context.Context, r *run, why ending) {
 	m.mu.Unlock()
 	close(r.ended)
 	m.logEnd(ctx, r, why, lastErr, closeErr)
+	if m.cfg.OnEnded != nil {
+		m.cfg.OnEnded(r.slot, r.generation, why.String())
+	}
 }
 
 func (m *Manager) logEnd(ctx context.Context, r *run, why ending, lastErr *vmdv1.VMError, closeErr error) {

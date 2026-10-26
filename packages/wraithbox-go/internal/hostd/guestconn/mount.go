@@ -194,7 +194,9 @@ const (
 
 // CheckSessionStart refuses a session start in slot's run of generation
 // unless its link is up and its data mount succeeded
-// (S06-05-disks, "Mounting the data volume"; SEC08-proj-isolation). A
+// (S06-05-disks, "Mounting the data volume"; SEC08-proj-isolation), its
+// first-connection kills were sent, and none of its kills left processes
+// (S06-10-leftover-processes). A
 // refused mount refuses with the mount's rule and message, which says
 // what to do (NFR06-explained-refusals).
 func (ls *Links) CheckSessionStart(slot vm.Slot, generation uint64) error {
@@ -207,6 +209,9 @@ func (ls *Links) CheckSessionStart(slot vm.Slot, generation uint64) error {
 	case s.DataMount.State != MountMounted:
 		return ls.refuseSession(slot, generation, &SessionRefusal{Rule: RuleSessionMountPending, Message: fmt.Sprintf(
 			"the %s VM's data volume isn't mounted yet. Try again in a minute.", slot)})
+	}
+	if refusal := ls.checkKills(slot, generation); refusal != nil {
+		return ls.refuseSession(slot, generation, refusal)
 	}
 	return nil
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/kills"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/launch"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/logpipe"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
@@ -204,11 +205,15 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 		log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd leftover sockets not all removed", slog.String("error", err.Error()))
 	}
 	var links *guestconn.Links
+	// Pending kills are in memory only: a wb-hostd exit stops every VM
+	// (S06-10-leftover-processes, "Failing closed").
+	tracker := kills.New(kills.Config{Logger: log})
 	m, err := vm.New(vm.Config{
 		DataDir: o.Paths.Data, ToolsImage: filepath.Join(bundle, filepath.FromSlash(appbundle.ToolsDiskPath)),
 		Resources: ready.Config, Generations: ready.State, Provider: provider, Cloner: diskclone.Cloner{},
 		DataDisks: disks, Logger: log,
 		OnRunning: func(slot vm.Slot, generation uint64, ended <-chan struct{}) { links.Run(slot, generation, ended) },
+		OnEnded:   tracker.ColdStop,
 	})
 	if err != nil {
 		return nil, err
@@ -219,7 +224,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	}
 	links, err = guestconn.New(guestconn.Config{
 		VMs: vms, Version: o.Version, TimeHook: guestconn.SendTime,
-		MountHook: guestconn.SendMount(ready.State, time.Now, log), Users: ready.State, Logger: log,
+		MountHook: guestconn.SendMount(ready.State, time.Now, log), Users: ready.State, Kills: tracker, Logger: log,
 	})
 	if err != nil {
 		return nil, err

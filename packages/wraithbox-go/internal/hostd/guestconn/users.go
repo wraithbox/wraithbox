@@ -45,6 +45,9 @@ type genUsers struct {
 	ok         map[uint32]bool
 	// refused holds the rule of each refused user.
 	refused map[uint32]string
+	// killsDone: the first-connection kills of the generation were all
+	// sent (S06-10-leftover-processes, "Kill IDs and records").
+	killsDone bool
 }
 
 func newGenUsers(generation uint64) *genUsers {
@@ -266,6 +269,9 @@ func (ls *Links) EnsureProjectUser(ctx context.Context, slot vm.Slot, generation
 		_ = l.Close()
 	}
 	if refusal := ls.userGone(ctx, slot, u.UID); refusal != nil {
+		return state.ProjectUser{}, ls.refuseSession(slot, generation, refusal)
+	}
+	if refusal := ls.checkProjectKill(slot, generation, projectID); refusal != nil {
 		return state.ProjectUser{}, ls.refuseSession(slot, generation, refusal)
 	}
 	return u, ls.CheckUser(slot, generation, u.UID)
