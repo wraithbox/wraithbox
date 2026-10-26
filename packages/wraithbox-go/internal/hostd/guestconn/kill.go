@@ -19,6 +19,10 @@ const RuleSessionKillsPending = "session-kills-pending"
 // guest. The kill stays pending, and fails closed at its deadline.
 var ErrKillNotSent = errors.New("guestconn: kill not sent")
 
+// errUnanswered: the KillUser call went unanswered, or the link dropped
+// under it. The link reconnects.
+var errUnanswered = errors.New("wb-guestd didn't answer")
+
 // firstKills sends a kill for each project user of the VM's data disk,
 // once per VM generation, after the users (S06-10-leftover-processes,
 // "Kill IDs and records"). The spec sends them after the reconnect list
@@ -52,7 +56,10 @@ func (r *run) firstKills(l *guestlink.Link) bool {
 			continue
 		}
 		r.killed[u.ProjectID] = true
-		if !r.sendKill(r.ctx, l, u) {
+		// Any other error ends the run (its context, or a cold stop), or
+		// is an answer out of bounds, logged with its rule, whose kill
+		// fails closed at the deadline.
+		if err := r.sendKill(r.ctx, l, u); errors.Is(err, errUnanswered) {
 			return false
 		}
 	}
@@ -61,28 +68,31 @@ func (r *run) firstKills(l *guestlink.Link) bool {
 }
 
 // sendKill records a kill of u with the tracker, sends it, and gives
-// the tracker the answer. It reports false when the call went unanswered
-// or the link dropped under it.
-func (r *run) sendKill(ctx context.Context, l *guestlink.Link, u state.ProjectUser) bool {
+// the tracker the answer. Its error wraps ErrKillNotSent when the kill
+// didn't begin or the call failed, and also errUnanswered when the call
+// went unanswered or the link dropped under it. An answer out of the
+// contract's bounds is an error that doesn't wrap ErrKillNotSent: the
+// kill was sent. An answer that came back in bounds is nil, whether the
+// tracker took it or dropped it with its rule.
+func (r *run) sendKill(ctx context.Context, l *guestlink.Link, u state.ProjectUser) error {
 	k := r.ls.cfg.Kills
 	id, err := k.Begin(r.slot, r.generation, u.ProjectID)
 	if err != nil {
-		// The generation ended, and the run with it.
-		return true
+		return fmt.Errorf("%w: %w", ErrKillNotSent, err)
 	}
 	out, err := l.KillUser(ctx, &guestv1.KillUserRequest{KillId: id, ProjectId: u.ProjectID, Uid: u.UID}, r.vc.log)
 	switch {
 	case ctx.Err() != nil:
-		return true
+		return fmt.Errorf("%w: %w", ErrKillNotSent, ctx.Err())
 	case err != nil && (guestlink.IsUnanswered(err) || isDown(l)):
-		return false
+		return fmt.Errorf("%w: %w: %w", ErrKillNotSent, errUnanswered, err)
 	case err != nil:
 		// guestlink logged the refused answer with its rule. The kill fails
 		// closed at its deadline.
-		return true
+		return fmt.Errorf("kill answer refused: %w", err)
 	}
 	k.AcceptReply(r.slot, r.generation, id, u.ProjectID, out)
-	return true
+	return nil
 }
 
 func (r *run) killsDone() bool {
@@ -100,8 +110,11 @@ func (r *run) setKillsDone() {
 // the end of a project's last session there (S06-10-leftover-processes,
 // "Kill IDs and records"). The kill is recorded before it is sent, so a
 // kill of the running generation that can't reach the guest,
-// ErrKillNotSent, still fails closed at its deadline. A refused or late answer is logged with its rule, and
-// counts the same way.
+// ErrKillNotSent, still fails closed at its deadline. So does one whose
+// answer is out of bounds, an error that doesn't wrap ErrKillNotSent,
+// and one whose answer the tracker drops, which returns nil. Both are
+// logged with their rule. A generation a cold stop ended takes no kill:
+// ErrKillNotSent.
 func (ls *Links) KillUser(ctx context.Context, slot vm.Slot, generation uint64, u state.ProjectUser) error {
 	if ls.cfg.Kills == nil {
 		return fmt.Errorf("%w: wb-hostd has no kill tracker", ErrKillNotSent)
@@ -114,10 +127,13 @@ func (ls *Links) KillUser(ctx context.Context, slot vm.Slot, generation uint64, 
 		}
 		return fmt.Errorf("%w: no link to wb-guestd in the %s VM", ErrKillNotSent, slot)
 	}
-	if !r.sendKill(ctx, l, u) {
+	err := r.sendKill(ctx, l, u)
+	if errors.Is(err, errUnanswered) {
 		// The run's loop sees the link down, logs the drop and reconnects.
 		_ = l.Close()
-		return fmt.Errorf("%w: wb-guestd in the %s VM didn't answer", ErrKillNotSent, slot)
+	}
+	if err != nil {
+		return fmt.Errorf("kill in the %s VM: %w", slot, err)
 	}
 	return nil
 }

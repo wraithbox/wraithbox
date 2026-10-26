@@ -313,6 +313,14 @@ func TestKillProcessesLeft(t *testing.T) {
 	if !tr.AcceptReply(work, 1, id, projA, clean(id, projA)) {
 		t.Fatal("a result taken before wasn't acknowledged")
 	}
+	// The clean result is logged only as the same result again, with the
+	// verdict kept.
+	if recs := l.withRule(t, RuleClean); len(recs) != 0 {
+		t.Fatalf("a clean result logged as accepted after processes left: %v", recs)
+	}
+	if rec := requireLogged(t, l, RuleAgain, "acknowledge"); rec["kept"] != "processes-left" {
+		t.Fatalf("record %v, want the kept verdict processes-left", rec)
+	}
 	c.advance(Deadline)
 	requireRule(t, tr.CheckAdmission(work, 1), RuleVMProcessesLeft)
 
@@ -369,13 +377,54 @@ func TestKillColdStopAfterDeadline(t *testing.T) {
 }
 
 // TestKillBeginOldGeneration: no kill is sent to a generation that has
-// ended.
+// ended, by a newer one or by a cold stop.
 func TestKillBeginOldGeneration(t *testing.T) {
 	tr, _, _ := newTracker(t)
 	tr.Started(work, 3)
 	if _, err := tr.Begin(work, 2, projA); err == nil {
-		t.Fatal("a kill began in an ended generation")
+		t.Fatal("a kill began in an older generation")
 	}
+	tr.ColdStop(work, 3, "stop requested")
+	if _, err := tr.Begin(work, 3, projA); err == nil {
+		t.Fatal("a kill began in a generation a cold stop ended")
+	}
+	requireNone(t, tr.CheckSave(work, 3))
+}
+
+// TestKillResultNewerGeneration: a result for a generation newer than the
+// slot's is dropped, and doesn't start that generation: the slot's kills
+// stay pending.
+func TestKillResultNewerGeneration(t *testing.T) {
+	tr, _, l := newTracker(t)
+	id := begin(t, tr, work, 1, projA)
+	if tr.Accept(work, 2, clean(id, projA), SourceRecord) {
+		t.Fatal("a result for generation 2 was accepted")
+	}
+	requireLogged(t, l, RuleUnknownKill, "drop")
+	requireRule(t, tr.CheckProject(work, 1, projA), RuleKillPending)
+	if !tr.Accept(work, 1, clean(id, projA), SourceRecord) {
+		t.Fatal("generation 1's result was dropped after a result for generation 2")
+	}
+}
+
+// TestKillResultAgain: a result again for a clean kill is acknowledged
+// and logged with the verdict kept. One of processes left still counts.
+func TestKillResultAgain(t *testing.T) {
+	tr, _, l := newTracker(t)
+	id := begin(t, tr, work, 1, projA)
+	for range 2 {
+		if !tr.Accept(work, 1, clean(id, projA), SourceReply) {
+			t.Fatal("clean result dropped")
+		}
+	}
+	if rec := requireLogged(t, l, RuleAgain, "acknowledge"); rec["kept"] != "clean" {
+		t.Fatalf("record %v, want the kept verdict clean", rec)
+	}
+	requireNone(t, tr.CheckAdmission(work, 1))
+	if !tr.Accept(work, 1, left(id, projA, 2), SourceRecord) {
+		t.Fatal("a result of processes left again was dropped")
+	}
+	requireRule(t, tr.CheckAdmission(work, 1), RuleVMProcessesLeft)
 }
 
 // TestKillIDs: kill IDs are never 0, and never repeat among the kills

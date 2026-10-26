@@ -3,6 +3,7 @@
 package guestconn
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"slices"
@@ -225,6 +226,25 @@ func TestKillUser(t *testing.T) {
 	}
 	if r := tracker.CheckSave(vm.SlotWork, gen); r != nil {
 		t.Fatalf("save = %v", r)
+	}
+
+	// A canceled call isn't sent, and its kill fails closed.
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := h.links.KillUser(ctx, vm.SlotWork, gen, u); !errors.Is(err, ErrKillNotSent) {
+		t.Fatalf("KillUser with a canceled context = %v", err)
+	}
+	if r := tracker.CheckSave(vm.SlotWork, gen); r == nil || r.Rule != kills.RuleKillPending {
+		t.Fatalf("save after a canceled kill = %v", r)
+	}
+	// After a cold stop of the generation, no kill begins in it.
+	tracker.ColdStop(vm.SlotWork, gen, "test")
+	sent := len(g.kills())
+	if err := h.links.KillUser(t.Context(), vm.SlotWork, gen, u); !errors.Is(err, ErrKillNotSent) {
+		t.Fatalf("KillUser after a cold stop = %v", err)
+	}
+	if n := len(g.kills()); n != sent {
+		t.Fatalf("%d kills sent after a cold stop, want %d", n, sent)
 	}
 
 	if err := h.links.KillUser(t.Context(), vm.SlotWork, gen+1, u); !errors.Is(err, ErrKillNotSent) {
