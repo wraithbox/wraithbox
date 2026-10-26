@@ -100,6 +100,172 @@ func (TimeReason) EnumDescriptor() ([]byte, []int) {
 	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{0}
 }
 
+type EnsureResult int32
+
+const (
+	// Never sent. wb-hostd drops an answer that holds it, or a value it
+	// doesn't know.
+	EnsureResult_ENSURE_RESULT_UNSPECIFIED EnsureResult = 0
+	// The user exists with every value of the request.
+	EnsureResult_ENSURE_RESULT_OK EnsureResult = 1
+	// wb-guestd refused the user, and rule says why.
+	EnsureResult_ENSURE_RESULT_REFUSED EnsureResult = 2
+)
+
+// Enum value maps for EnsureResult.
+var (
+	EnsureResult_name = map[int32]string{
+		0: "ENSURE_RESULT_UNSPECIFIED",
+		1: "ENSURE_RESULT_OK",
+		2: "ENSURE_RESULT_REFUSED",
+	}
+	EnsureResult_value = map[string]int32{
+		"ENSURE_RESULT_UNSPECIFIED": 0,
+		"ENSURE_RESULT_OK":          1,
+		"ENSURE_RESULT_REFUSED":     2,
+	}
+)
+
+func (x EnsureResult) Enum() *EnsureResult {
+	p := new(EnsureResult)
+	*p = x
+	return p
+}
+
+func (x EnsureResult) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EnsureResult) Descriptor() protoreflect.EnumDescriptor {
+	return file_wraithbox_guest_v1_guest_proto_enumTypes[1].Descriptor()
+}
+
+func (EnsureResult) Type() protoreflect.EnumType {
+	return &file_wraithbox_guest_v1_guest_proto_enumTypes[1]
+}
+
+func (x EnsureResult) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EnsureResult.Descriptor instead.
+func (EnsureResult) EnumDescriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{1}
+}
+
+type KillResult int32
+
+const (
+	// Never sent. wb-hostd drops an answer that holds it, or a value it
+	// doesn't know.
+	KillResult_KILL_RESULT_UNSPECIFIED KillResult = 0
+	// No process of the user is left.
+	KillResult_KILL_RESULT_CLEAN KillResult = 1
+	// Processes of the user are left, as many as processes_left says.
+	KillResult_KILL_RESULT_PROCESSES_LEFT KillResult = 2
+)
+
+// Enum value maps for KillResult.
+var (
+	KillResult_name = map[int32]string{
+		0: "KILL_RESULT_UNSPECIFIED",
+		1: "KILL_RESULT_CLEAN",
+		2: "KILL_RESULT_PROCESSES_LEFT",
+	}
+	KillResult_value = map[string]int32{
+		"KILL_RESULT_UNSPECIFIED":    0,
+		"KILL_RESULT_CLEAN":          1,
+		"KILL_RESULT_PROCESSES_LEFT": 2,
+	}
+)
+
+func (x KillResult) Enum() *KillResult {
+	p := new(KillResult)
+	*p = x
+	return p
+}
+
+func (x KillResult) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (KillResult) Descriptor() protoreflect.EnumDescriptor {
+	return file_wraithbox_guest_v1_guest_proto_enumTypes[2].Descriptor()
+}
+
+func (KillResult) Type() protoreflect.EnumType {
+	return &file_wraithbox_guest_v1_guest_proto_enumTypes[2]
+}
+
+func (x KillResult) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use KillResult.Descriptor instead.
+func (KillResult) EnumDescriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{2}
+}
+
+type RemoveResult int32
+
+const (
+	// Never sent. wb-hostd drops an answer that holds it, or a value it
+	// doesn't know.
+	RemoveResult_REMOVE_RESULT_UNSPECIFIED RemoveResult = 0
+	// The user's record and home are removed, or were never there.
+	RemoveResult_REMOVE_RESULT_REMOVED RemoveResult = 1
+	// Processes of the user are left, as many as processes_left says.
+	// wb-hostd keeps the pending removal and sends it again at the next
+	// connection.
+	RemoveResult_REMOVE_RESULT_PROCESSES_LEFT RemoveResult = 2
+	// wb-guestd refused the removal, and rule says why. wb-hostd keeps the
+	// pending removal and sends it again at the next connection.
+	RemoveResult_REMOVE_RESULT_REFUSED RemoveResult = 3
+)
+
+// Enum value maps for RemoveResult.
+var (
+	RemoveResult_name = map[int32]string{
+		0: "REMOVE_RESULT_UNSPECIFIED",
+		1: "REMOVE_RESULT_REMOVED",
+		2: "REMOVE_RESULT_PROCESSES_LEFT",
+		3: "REMOVE_RESULT_REFUSED",
+	}
+	RemoveResult_value = map[string]int32{
+		"REMOVE_RESULT_UNSPECIFIED":    0,
+		"REMOVE_RESULT_REMOVED":        1,
+		"REMOVE_RESULT_PROCESSES_LEFT": 2,
+		"REMOVE_RESULT_REFUSED":        3,
+	}
+)
+
+func (x RemoveResult) Enum() *RemoveResult {
+	p := new(RemoveResult)
+	*p = x
+	return p
+}
+
+func (x RemoveResult) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RemoveResult) Descriptor() protoreflect.EnumDescriptor {
+	return file_wraithbox_guest_v1_guest_proto_enumTypes[3].Descriptor()
+}
+
+func (RemoveResult) Type() protoreflect.EnumType {
+	return &file_wraithbox_guest_v1_guest_proto_enumTypes[3]
+}
+
+func (x RemoveResult) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RemoveResult.Descriptor instead.
+func (RemoveResult) EnumDescriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{3}
+}
+
 type HelloRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -591,6 +757,721 @@ func (*MountDataResponse) Descriptor() ([]byte, []int) {
 	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{8}
 }
 
+// ProjectUser is one project user as wb-hostd keeps it in state.db
+// (S06-03-image-updates, "Host state per project user"). wb-hostd makes
+// every field. wb-guestd refuses a user whose name, UID or GID exists
+// with other values, and a home that exists and is owned by another UID.
+type ProjectUser struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The project's id: 32 lowercase hexadecimal digits (S05-04-naming,
+	// "Project id").
+	ProjectId string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// The user's short name, `wbp<uid>`, at most 16 bytes.
+	UserName string `protobuf:"bytes,2,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	// The UID and GID: one number from wb-hostd's counter, from 10000 up
+	// to the ceiling of internal/projectuser, never reused on this host.
+	Uid uint32 `protobuf:"varint,3,opt,name=uid,proto3" json:"uid,omitempty"`
+	Gid uint32 `protobuf:"varint,4,opt,name=gid,proto3" json:"gid,omitempty"`
+	// The name of the user's own group, equal to the user name.
+	GroupName string `protobuf:"bytes,5,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
+	// The GeneratedUID of the user's record and of its group's: uppercase
+	// version 4 UUIDs, 36 bytes, that wb-hostd drew from crypto/rand.
+	UserGeneratedUid  string `protobuf:"bytes,6,opt,name=user_generated_uid,json=userGeneratedUid,proto3" json:"user_generated_uid,omitempty"`
+	GroupGeneratedUid string `protobuf:"bytes,7,opt,name=group_generated_uid,json=groupGeneratedUid,proto3" json:"group_generated_uid,omitempty"`
+	// The home: the data volume's mount point, a slash and the user name.
+	HomePath      string `protobuf:"bytes,8,opt,name=home_path,json=homePath,proto3" json:"home_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectUser) Reset() {
+	*x = ProjectUser{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectUser) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectUser) ProtoMessage() {}
+
+func (x *ProjectUser) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectUser.ProtoReflect.Descriptor instead.
+func (*ProjectUser) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ProjectUser) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ProjectUser) GetUserName() string {
+	if x != nil {
+		return x.UserName
+	}
+	return ""
+}
+
+func (x *ProjectUser) GetUid() uint32 {
+	if x != nil {
+		return x.Uid
+	}
+	return 0
+}
+
+func (x *ProjectUser) GetGid() uint32 {
+	if x != nil {
+		return x.Gid
+	}
+	return 0
+}
+
+func (x *ProjectUser) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
+	}
+	return ""
+}
+
+func (x *ProjectUser) GetUserGeneratedUid() string {
+	if x != nil {
+		return x.UserGeneratedUid
+	}
+	return ""
+}
+
+func (x *ProjectUser) GetGroupGeneratedUid() string {
+	if x != nil {
+		return x.GroupGeneratedUid
+	}
+	return ""
+}
+
+func (x *ProjectUser) GetHomePath() string {
+	if x != nil {
+		return x.HomePath
+	}
+	return ""
+}
+
+type EnsureUsersRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// At least one user. Every UID, user name and GeneratedUID is distinct.
+	Users         []*ProjectUser `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureUsersRequest) Reset() {
+	*x = EnsureUsersRequest{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureUsersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureUsersRequest) ProtoMessage() {}
+
+func (x *EnsureUsersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureUsersRequest.ProtoReflect.Descriptor instead.
+func (*EnsureUsersRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *EnsureUsersRequest) GetUsers() []*ProjectUser {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+// EnsureUsersResponse is guest input. wb-hostd decodes at most 16 KiB of
+// it. It drops the whole answer with the rule `guest-users-reply-invalid`
+// when it is larger, holds a result for a UID that wasn't in the
+// request, holds two results for one UID, or holds a result that breaks
+// a bound of EnsureUserResult.
+type EnsureUsersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       []*EnsureUserResult    `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureUsersResponse) Reset() {
+	*x = EnsureUsersResponse{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureUsersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureUsersResponse) ProtoMessage() {}
+
+func (x *EnsureUsersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureUsersResponse.ProtoReflect.Descriptor instead.
+func (*EnsureUsersResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *EnsureUsersResponse) GetResults() []*EnsureUserResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+type EnsureUserResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The UID of a user of the request.
+	Uid    uint32       `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"`
+	Result EnsureResult `protobuf:"varint,2,opt,name=result,proto3,enum=wraithbox.guest.v1.EnsureResult" json:"result,omitempty"`
+	// Empty with OK. With REFUSED, the rule: 1 to 64 bytes of `[a-z0-9-]`.
+	// wb-hostd logs it escaped, and it only ever refuses the user.
+	Rule          string `protobuf:"bytes,3,opt,name=rule,proto3" json:"rule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureUserResult) Reset() {
+	*x = EnsureUserResult{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureUserResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureUserResult) ProtoMessage() {}
+
+func (x *EnsureUserResult) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureUserResult.ProtoReflect.Descriptor instead.
+func (*EnsureUserResult) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *EnsureUserResult) GetUid() uint32 {
+	if x != nil {
+		return x.Uid
+	}
+	return 0
+}
+
+func (x *EnsureUserResult) GetResult() EnsureResult {
+	if x != nil {
+		return x.Result
+	}
+	return EnsureResult_ENSURE_RESULT_UNSPECIFIED
+}
+
+func (x *EnsureUserResult) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
+type UnlockUserRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The UID of a project user of this VM.
+	Uid           uint32 `protobuf:"varint,1,opt,name=uid,proto3" json:"uid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnlockUserRequest) Reset() {
+	*x = UnlockUserRequest{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnlockUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnlockUserRequest) ProtoMessage() {}
+
+func (x *UnlockUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnlockUserRequest.ProtoReflect.Descriptor instead.
+func (*UnlockUserRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *UnlockUserRequest) GetUid() uint32 {
+	if x != nil {
+		return x.Uid
+	}
+	return 0
+}
+
+// UnlockUserResponse is empty: a success says the user is unlocked.
+type UnlockUserResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnlockUserResponse) Reset() {
+	*x = UnlockUserResponse{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnlockUserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnlockUserResponse) ProtoMessage() {}
+
+func (x *UnlockUserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnlockUserResponse.ProtoReflect.Descriptor instead.
+func (*UnlockUserResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{14}
+}
+
+type KillUserRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The kill ID, which wb-hostd assigns, never 0
+	// (S06-10-leftover-processes, "Kill IDs and records").
+	KillId uint64 `protobuf:"varint,1,opt,name=kill_id,json=killId,proto3" json:"kill_id,omitempty"`
+	// The project's id, as in ProjectUser.
+	ProjectId string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// The UID of the project's user in this VM.
+	Uid           uint32 `protobuf:"varint,3,opt,name=uid,proto3" json:"uid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KillUserRequest) Reset() {
+	*x = KillUserRequest{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KillUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KillUserRequest) ProtoMessage() {}
+
+func (x *KillUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KillUserRequest.ProtoReflect.Descriptor instead.
+func (*KillUserRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *KillUserRequest) GetKillId() uint64 {
+	if x != nil {
+		return x.KillId
+	}
+	return 0
+}
+
+func (x *KillUserRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *KillUserRequest) GetUid() uint32 {
+	if x != nil {
+		return x.Uid
+	}
+	return 0
+}
+
+// KillUserResponse is guest input. wb-hostd takes it only for the kill ID
+// and project ID it sent, with the bounds of CleanupRecord.
+type KillUserResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	KillId    uint64                 `protobuf:"varint,1,opt,name=kill_id,json=killId,proto3" json:"kill_id,omitempty"`
+	ProjectId string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Result    KillResult             `protobuf:"varint,3,opt,name=result,proto3,enum=wraithbox.guest.v1.KillResult" json:"result,omitempty"`
+	// With PROCESSES_LEFT, 1 to 1001. 0 with CLEAN.
+	ProcessesLeft uint32 `protobuf:"varint,4,opt,name=processes_left,json=processesLeft,proto3" json:"processes_left,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KillUserResponse) Reset() {
+	*x = KillUserResponse{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KillUserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KillUserResponse) ProtoMessage() {}
+
+func (x *KillUserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KillUserResponse.ProtoReflect.Descriptor instead.
+func (*KillUserResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *KillUserResponse) GetKillId() uint64 {
+	if x != nil {
+		return x.KillId
+	}
+	return 0
+}
+
+func (x *KillUserResponse) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *KillUserResponse) GetResult() KillResult {
+	if x != nil {
+		return x.Result
+	}
+	return KillResult_KILL_RESULT_UNSPECIFIED
+}
+
+func (x *KillUserResponse) GetProcessesLeft() uint32 {
+	if x != nil {
+		return x.ProcessesLeft
+	}
+	return 0
+}
+
+// CleanupRecord is the result of a kill. wb-guestd keeps it in its
+// root-owned directory until wb-hostd acknowledges it, and lists it at
+// reconnect (S06-10-leftover-processes, S06-11-reconnect-and-recovery,
+// "The list"). It is guest input: wb-hostd checks the project ID's form,
+// takes the result only for a kill ID it sent for that project in this
+// VM generation, and never counts a dropped result as clean.
+type CleanupRecord struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	KillId    uint64                 `protobuf:"varint,1,opt,name=kill_id,json=killId,proto3" json:"kill_id,omitempty"`
+	ProjectId string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Result    KillResult             `protobuf:"varint,3,opt,name=result,proto3,enum=wraithbox.guest.v1.KillResult" json:"result,omitempty"`
+	// With PROCESSES_LEFT, 1 to 1001. 0 with CLEAN.
+	ProcessesLeft uint32 `protobuf:"varint,4,opt,name=processes_left,json=processesLeft,proto3" json:"processes_left,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CleanupRecord) Reset() {
+	*x = CleanupRecord{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CleanupRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CleanupRecord) ProtoMessage() {}
+
+func (x *CleanupRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CleanupRecord.ProtoReflect.Descriptor instead.
+func (*CleanupRecord) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *CleanupRecord) GetKillId() uint64 {
+	if x != nil {
+		return x.KillId
+	}
+	return 0
+}
+
+func (x *CleanupRecord) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CleanupRecord) GetResult() KillResult {
+	if x != nil {
+		return x.Result
+	}
+	return KillResult_KILL_RESULT_UNSPECIFIED
+}
+
+func (x *CleanupRecord) GetProcessesLeft() uint32 {
+	if x != nil {
+		return x.ProcessesLeft
+	}
+	return 0
+}
+
+type RemoveUserRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The project's id, as in ProjectUser.
+	ProjectId string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// The UID and GID the user had, and its home path.
+	Uid           uint32 `protobuf:"varint,2,opt,name=uid,proto3" json:"uid,omitempty"`
+	Gid           uint32 `protobuf:"varint,3,opt,name=gid,proto3" json:"gid,omitempty"`
+	HomePath      string `protobuf:"bytes,4,opt,name=home_path,json=homePath,proto3" json:"home_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveUserRequest) Reset() {
+	*x = RemoveUserRequest{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveUserRequest) ProtoMessage() {}
+
+func (x *RemoveUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveUserRequest.ProtoReflect.Descriptor instead.
+func (*RemoveUserRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RemoveUserRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *RemoveUserRequest) GetUid() uint32 {
+	if x != nil {
+		return x.Uid
+	}
+	return 0
+}
+
+func (x *RemoveUserRequest) GetGid() uint32 {
+	if x != nil {
+		return x.Gid
+	}
+	return 0
+}
+
+func (x *RemoveUserRequest) GetHomePath() string {
+	if x != nil {
+		return x.HomePath
+	}
+	return ""
+}
+
+// RemoveUserResponse is guest input. wb-hostd decodes at most 4 KiB of
+// it. It drops the answer with the rule `guest-users-reply-invalid`
+// unless its project ID and UID are the request's and its fields keep
+// these bounds. A dropped answer keeps the pending removal.
+type RemoveUserResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Uid       uint32                 `protobuf:"varint,2,opt,name=uid,proto3" json:"uid,omitempty"`
+	Result    RemoveResult           `protobuf:"varint,3,opt,name=result,proto3,enum=wraithbox.guest.v1.RemoveResult" json:"result,omitempty"`
+	// With PROCESSES_LEFT, 1 to 1001. 0 otherwise.
+	ProcessesLeft uint32 `protobuf:"varint,4,opt,name=processes_left,json=processesLeft,proto3" json:"processes_left,omitempty"`
+	// With REFUSED, the rule: 1 to 64 bytes of `[a-z0-9-]`. Empty
+	// otherwise. wb-hostd logs it escaped.
+	Rule          string `protobuf:"bytes,5,opt,name=rule,proto3" json:"rule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveUserResponse) Reset() {
+	*x = RemoveUserResponse{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveUserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveUserResponse) ProtoMessage() {}
+
+func (x *RemoveUserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveUserResponse.ProtoReflect.Descriptor instead.
+func (*RemoveUserResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *RemoveUserResponse) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *RemoveUserResponse) GetUid() uint32 {
+	if x != nil {
+		return x.Uid
+	}
+	return 0
+}
+
+func (x *RemoveUserResponse) GetResult() RemoveResult {
+	if x != nil {
+		return x.Result
+	}
+	return RemoveResult_REMOVE_RESULT_UNSPECIFIED
+}
+
+func (x *RemoveUserResponse) GetProcessesLeft() uint32 {
+	if x != nil {
+		return x.ProcessesLeft
+	}
+	return 0
+}
+
+func (x *RemoveUserResponse) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
 var File_wraithbox_guest_v1_guest_proto protoreflect.FileDescriptor
 
 const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
@@ -621,19 +1502,91 @@ const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
 	"volumeUuid\x12\x1f\n" +
 	"\vfirst_mount\x18\x02 \x01(\bR\n" +
 	"firstMount\"\x13\n" +
-	"\x11MountDataResponse*\x88\x01\n" +
+	"\x11MountDataResponse\"\x87\x02\n" +
+	"\vProjectUser\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tuser_name\x18\x02 \x01(\tR\buserName\x12\x10\n" +
+	"\x03uid\x18\x03 \x01(\rR\x03uid\x12\x10\n" +
+	"\x03gid\x18\x04 \x01(\rR\x03gid\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\x05 \x01(\tR\tgroupName\x12,\n" +
+	"\x12user_generated_uid\x18\x06 \x01(\tR\x10userGeneratedUid\x12.\n" +
+	"\x13group_generated_uid\x18\a \x01(\tR\x11groupGeneratedUid\x12\x1b\n" +
+	"\thome_path\x18\b \x01(\tR\bhomePath\"K\n" +
+	"\x12EnsureUsersRequest\x125\n" +
+	"\x05users\x18\x01 \x03(\v2\x1f.wraithbox.guest.v1.ProjectUserR\x05users\"U\n" +
+	"\x13EnsureUsersResponse\x12>\n" +
+	"\aresults\x18\x01 \x03(\v2$.wraithbox.guest.v1.EnsureUserResultR\aresults\"r\n" +
+	"\x10EnsureUserResult\x12\x10\n" +
+	"\x03uid\x18\x01 \x01(\rR\x03uid\x128\n" +
+	"\x06result\x18\x02 \x01(\x0e2 .wraithbox.guest.v1.EnsureResultR\x06result\x12\x12\n" +
+	"\x04rule\x18\x03 \x01(\tR\x04rule\"%\n" +
+	"\x11UnlockUserRequest\x12\x10\n" +
+	"\x03uid\x18\x01 \x01(\rR\x03uid\"\x14\n" +
+	"\x12UnlockUserResponse\"[\n" +
+	"\x0fKillUserRequest\x12\x17\n" +
+	"\akill_id\x18\x01 \x01(\x04R\x06killId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x10\n" +
+	"\x03uid\x18\x03 \x01(\rR\x03uid\"\xa9\x01\n" +
+	"\x10KillUserResponse\x12\x17\n" +
+	"\akill_id\x18\x01 \x01(\x04R\x06killId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x126\n" +
+	"\x06result\x18\x03 \x01(\x0e2\x1e.wraithbox.guest.v1.KillResultR\x06result\x12%\n" +
+	"\x0eprocesses_left\x18\x04 \x01(\rR\rprocessesLeft\"\xa6\x01\n" +
+	"\rCleanupRecord\x12\x17\n" +
+	"\akill_id\x18\x01 \x01(\x04R\x06killId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x126\n" +
+	"\x06result\x18\x03 \x01(\x0e2\x1e.wraithbox.guest.v1.KillResultR\x06result\x12%\n" +
+	"\x0eprocesses_left\x18\x04 \x01(\rR\rprocessesLeft\"s\n" +
+	"\x11RemoveUserRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x10\n" +
+	"\x03uid\x18\x02 \x01(\rR\x03uid\x12\x10\n" +
+	"\x03gid\x18\x03 \x01(\rR\x03gid\x12\x1b\n" +
+	"\thome_path\x18\x04 \x01(\tR\bhomePath\"\xba\x01\n" +
+	"\x12RemoveUserResponse\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x10\n" +
+	"\x03uid\x18\x02 \x01(\rR\x03uid\x128\n" +
+	"\x06result\x18\x03 \x01(\x0e2 .wraithbox.guest.v1.RemoveResultR\x06result\x12%\n" +
+	"\x0eprocesses_left\x18\x04 \x01(\rR\rprocessesLeft\x12\x12\n" +
+	"\x04rule\x18\x05 \x01(\tR\x04rule*\x88\x01\n" +
 	"\n" +
 	"TimeReason\x12\x1b\n" +
 	"\x17TIME_REASON_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TIME_REASON_BOOT\x10\x01\x12\x17\n" +
 	"\x13TIME_REASON_RESTORE\x10\x02\x12\x14\n" +
 	"\x10TIME_REASON_WAKE\x10\x03\x12\x18\n" +
-	"\x14TIME_REASON_PERIODIC\x10\x042\xdc\x02\n" +
+	"\x14TIME_REASON_PERIODIC\x10\x04*^\n" +
+	"\fEnsureResult\x12\x1d\n" +
+	"\x19ENSURE_RESULT_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10ENSURE_RESULT_OK\x10\x01\x12\x19\n" +
+	"\x15ENSURE_RESULT_REFUSED\x10\x02*`\n" +
+	"\n" +
+	"KillResult\x12\x1b\n" +
+	"\x17KILL_RESULT_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11KILL_RESULT_CLEAN\x10\x01\x12\x1e\n" +
+	"\x1aKILL_RESULT_PROCESSES_LEFT\x10\x02*\x85\x01\n" +
+	"\fRemoveResult\x12\x1d\n" +
+	"\x19REMOVE_RESULT_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15REMOVE_RESULT_REMOVED\x10\x01\x12 \n" +
+	"\x1cREMOVE_RESULT_PROCESSES_LEFT\x10\x02\x12\x19\n" +
+	"\x15REMOVE_RESULT_REFUSED\x10\x032\xcd\x05\n" +
 	"\fGuestService\x12L\n" +
 	"\x05Hello\x12 .wraithbox.guest.v1.HelloRequest\x1a!.wraithbox.guest.v1.HelloResponse\x12P\n" +
 	"\x05Shell\x12 .wraithbox.guest.v1.ShellRequest\x1a!.wraithbox.guest.v1.ShellResponse(\x010\x01\x12R\n" +
 	"\aSetTime\x12\".wraithbox.guest.v1.SetTimeRequest\x1a#.wraithbox.guest.v1.SetTimeResponse\x12X\n" +
-	"\tMountData\x12$.wraithbox.guest.v1.MountDataRequest\x1a%.wraithbox.guest.v1.MountDataResponseB\xec\x01\n" +
+	"\tMountData\x12$.wraithbox.guest.v1.MountDataRequest\x1a%.wraithbox.guest.v1.MountDataResponse\x12^\n" +
+	"\vEnsureUsers\x12&.wraithbox.guest.v1.EnsureUsersRequest\x1a'.wraithbox.guest.v1.EnsureUsersResponse\x12[\n" +
+	"\n" +
+	"UnlockUser\x12%.wraithbox.guest.v1.UnlockUserRequest\x1a&.wraithbox.guest.v1.UnlockUserResponse\x12U\n" +
+	"\bKillUser\x12#.wraithbox.guest.v1.KillUserRequest\x1a$.wraithbox.guest.v1.KillUserResponse\x12[\n" +
+	"\n" +
+	"RemoveUser\x12%.wraithbox.guest.v1.RemoveUserRequest\x1a&.wraithbox.guest.v1.RemoveUserResponseB\xec\x01\n" +
 	"\x16com.wraithbox.guest.v1B\n" +
 	"GuestProtoP\x01Z\\github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1;guestv1\xa2\x02\x03WGX\xaa\x02\x12Wraithbox.Guest.V1\xca\x02\x12Wraithbox\\Guest\\V1\xe2\x02\x1eWraithbox\\Guest\\V1\\GPBMetadata\xea\x02\x14Wraithbox::Guest::V1b\x06proto3"
 
@@ -649,42 +1602,70 @@ func file_wraithbox_guest_v1_guest_proto_rawDescGZIP() []byte {
 	return file_wraithbox_guest_v1_guest_proto_rawDescData
 }
 
-var file_wraithbox_guest_v1_guest_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_wraithbox_guest_v1_guest_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_wraithbox_guest_v1_guest_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_wraithbox_guest_v1_guest_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_wraithbox_guest_v1_guest_proto_goTypes = []any{
-	(TimeReason)(0),           // 0: wraithbox.guest.v1.TimeReason
-	(*HelloRequest)(nil),      // 1: wraithbox.guest.v1.HelloRequest
-	(*HelloResponse)(nil),     // 2: wraithbox.guest.v1.HelloResponse
-	(*ShellRequest)(nil),      // 3: wraithbox.guest.v1.ShellRequest
-	(*ShellStart)(nil),        // 4: wraithbox.guest.v1.ShellStart
-	(*ShellResponse)(nil),     // 5: wraithbox.guest.v1.ShellResponse
-	(*SetTimeRequest)(nil),    // 6: wraithbox.guest.v1.SetTimeRequest
-	(*SetTimeResponse)(nil),   // 7: wraithbox.guest.v1.SetTimeResponse
-	(*MountDataRequest)(nil),  // 8: wraithbox.guest.v1.MountDataRequest
-	(*MountDataResponse)(nil), // 9: wraithbox.guest.v1.MountDataResponse
-	(*v1.ClientFrame)(nil),    // 10: wraithbox.terminal.v1.ClientFrame
-	(*v1.Setup)(nil),          // 11: wraithbox.terminal.v1.Setup
-	(*v1.ServerFrame)(nil),    // 12: wraithbox.terminal.v1.ServerFrame
+	(TimeReason)(0),             // 0: wraithbox.guest.v1.TimeReason
+	(EnsureResult)(0),           // 1: wraithbox.guest.v1.EnsureResult
+	(KillResult)(0),             // 2: wraithbox.guest.v1.KillResult
+	(RemoveResult)(0),           // 3: wraithbox.guest.v1.RemoveResult
+	(*HelloRequest)(nil),        // 4: wraithbox.guest.v1.HelloRequest
+	(*HelloResponse)(nil),       // 5: wraithbox.guest.v1.HelloResponse
+	(*ShellRequest)(nil),        // 6: wraithbox.guest.v1.ShellRequest
+	(*ShellStart)(nil),          // 7: wraithbox.guest.v1.ShellStart
+	(*ShellResponse)(nil),       // 8: wraithbox.guest.v1.ShellResponse
+	(*SetTimeRequest)(nil),      // 9: wraithbox.guest.v1.SetTimeRequest
+	(*SetTimeResponse)(nil),     // 10: wraithbox.guest.v1.SetTimeResponse
+	(*MountDataRequest)(nil),    // 11: wraithbox.guest.v1.MountDataRequest
+	(*MountDataResponse)(nil),   // 12: wraithbox.guest.v1.MountDataResponse
+	(*ProjectUser)(nil),         // 13: wraithbox.guest.v1.ProjectUser
+	(*EnsureUsersRequest)(nil),  // 14: wraithbox.guest.v1.EnsureUsersRequest
+	(*EnsureUsersResponse)(nil), // 15: wraithbox.guest.v1.EnsureUsersResponse
+	(*EnsureUserResult)(nil),    // 16: wraithbox.guest.v1.EnsureUserResult
+	(*UnlockUserRequest)(nil),   // 17: wraithbox.guest.v1.UnlockUserRequest
+	(*UnlockUserResponse)(nil),  // 18: wraithbox.guest.v1.UnlockUserResponse
+	(*KillUserRequest)(nil),     // 19: wraithbox.guest.v1.KillUserRequest
+	(*KillUserResponse)(nil),    // 20: wraithbox.guest.v1.KillUserResponse
+	(*CleanupRecord)(nil),       // 21: wraithbox.guest.v1.CleanupRecord
+	(*RemoveUserRequest)(nil),   // 22: wraithbox.guest.v1.RemoveUserRequest
+	(*RemoveUserResponse)(nil),  // 23: wraithbox.guest.v1.RemoveUserResponse
+	(*v1.ClientFrame)(nil),      // 24: wraithbox.terminal.v1.ClientFrame
+	(*v1.Setup)(nil),            // 25: wraithbox.terminal.v1.Setup
+	(*v1.ServerFrame)(nil),      // 26: wraithbox.terminal.v1.ServerFrame
 }
 var file_wraithbox_guest_v1_guest_proto_depIdxs = []int32{
-	4,  // 0: wraithbox.guest.v1.ShellRequest.start:type_name -> wraithbox.guest.v1.ShellStart
-	10, // 1: wraithbox.guest.v1.ShellRequest.frame:type_name -> wraithbox.terminal.v1.ClientFrame
-	11, // 2: wraithbox.guest.v1.ShellStart.setup:type_name -> wraithbox.terminal.v1.Setup
-	12, // 3: wraithbox.guest.v1.ShellResponse.frame:type_name -> wraithbox.terminal.v1.ServerFrame
+	7,  // 0: wraithbox.guest.v1.ShellRequest.start:type_name -> wraithbox.guest.v1.ShellStart
+	24, // 1: wraithbox.guest.v1.ShellRequest.frame:type_name -> wraithbox.terminal.v1.ClientFrame
+	25, // 2: wraithbox.guest.v1.ShellStart.setup:type_name -> wraithbox.terminal.v1.Setup
+	26, // 3: wraithbox.guest.v1.ShellResponse.frame:type_name -> wraithbox.terminal.v1.ServerFrame
 	0,  // 4: wraithbox.guest.v1.SetTimeRequest.reason:type_name -> wraithbox.guest.v1.TimeReason
-	1,  // 5: wraithbox.guest.v1.GuestService.Hello:input_type -> wraithbox.guest.v1.HelloRequest
-	3,  // 6: wraithbox.guest.v1.GuestService.Shell:input_type -> wraithbox.guest.v1.ShellRequest
-	6,  // 7: wraithbox.guest.v1.GuestService.SetTime:input_type -> wraithbox.guest.v1.SetTimeRequest
-	8,  // 8: wraithbox.guest.v1.GuestService.MountData:input_type -> wraithbox.guest.v1.MountDataRequest
-	2,  // 9: wraithbox.guest.v1.GuestService.Hello:output_type -> wraithbox.guest.v1.HelloResponse
-	5,  // 10: wraithbox.guest.v1.GuestService.Shell:output_type -> wraithbox.guest.v1.ShellResponse
-	7,  // 11: wraithbox.guest.v1.GuestService.SetTime:output_type -> wraithbox.guest.v1.SetTimeResponse
-	9,  // 12: wraithbox.guest.v1.GuestService.MountData:output_type -> wraithbox.guest.v1.MountDataResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	13, // 5: wraithbox.guest.v1.EnsureUsersRequest.users:type_name -> wraithbox.guest.v1.ProjectUser
+	16, // 6: wraithbox.guest.v1.EnsureUsersResponse.results:type_name -> wraithbox.guest.v1.EnsureUserResult
+	1,  // 7: wraithbox.guest.v1.EnsureUserResult.result:type_name -> wraithbox.guest.v1.EnsureResult
+	2,  // 8: wraithbox.guest.v1.KillUserResponse.result:type_name -> wraithbox.guest.v1.KillResult
+	2,  // 9: wraithbox.guest.v1.CleanupRecord.result:type_name -> wraithbox.guest.v1.KillResult
+	3,  // 10: wraithbox.guest.v1.RemoveUserResponse.result:type_name -> wraithbox.guest.v1.RemoveResult
+	4,  // 11: wraithbox.guest.v1.GuestService.Hello:input_type -> wraithbox.guest.v1.HelloRequest
+	6,  // 12: wraithbox.guest.v1.GuestService.Shell:input_type -> wraithbox.guest.v1.ShellRequest
+	9,  // 13: wraithbox.guest.v1.GuestService.SetTime:input_type -> wraithbox.guest.v1.SetTimeRequest
+	11, // 14: wraithbox.guest.v1.GuestService.MountData:input_type -> wraithbox.guest.v1.MountDataRequest
+	14, // 15: wraithbox.guest.v1.GuestService.EnsureUsers:input_type -> wraithbox.guest.v1.EnsureUsersRequest
+	17, // 16: wraithbox.guest.v1.GuestService.UnlockUser:input_type -> wraithbox.guest.v1.UnlockUserRequest
+	19, // 17: wraithbox.guest.v1.GuestService.KillUser:input_type -> wraithbox.guest.v1.KillUserRequest
+	22, // 18: wraithbox.guest.v1.GuestService.RemoveUser:input_type -> wraithbox.guest.v1.RemoveUserRequest
+	5,  // 19: wraithbox.guest.v1.GuestService.Hello:output_type -> wraithbox.guest.v1.HelloResponse
+	8,  // 20: wraithbox.guest.v1.GuestService.Shell:output_type -> wraithbox.guest.v1.ShellResponse
+	10, // 21: wraithbox.guest.v1.GuestService.SetTime:output_type -> wraithbox.guest.v1.SetTimeResponse
+	12, // 22: wraithbox.guest.v1.GuestService.MountData:output_type -> wraithbox.guest.v1.MountDataResponse
+	15, // 23: wraithbox.guest.v1.GuestService.EnsureUsers:output_type -> wraithbox.guest.v1.EnsureUsersResponse
+	18, // 24: wraithbox.guest.v1.GuestService.UnlockUser:output_type -> wraithbox.guest.v1.UnlockUserResponse
+	20, // 25: wraithbox.guest.v1.GuestService.KillUser:output_type -> wraithbox.guest.v1.KillUserResponse
+	23, // 26: wraithbox.guest.v1.GuestService.RemoveUser:output_type -> wraithbox.guest.v1.RemoveUserResponse
+	19, // [19:27] is the sub-list for method output_type
+	11, // [11:19] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_guest_v1_guest_proto_init() }
@@ -701,8 +1682,8 @@ func file_wraithbox_guest_v1_guest_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_guest_v1_guest_proto_rawDesc), len(file_wraithbox_guest_v1_guest_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   9,
+			NumEnums:      4,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

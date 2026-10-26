@@ -34,10 +34,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GuestService_Hello_FullMethodName     = "/wraithbox.guest.v1.GuestService/Hello"
-	GuestService_Shell_FullMethodName     = "/wraithbox.guest.v1.GuestService/Shell"
-	GuestService_SetTime_FullMethodName   = "/wraithbox.guest.v1.GuestService/SetTime"
-	GuestService_MountData_FullMethodName = "/wraithbox.guest.v1.GuestService/MountData"
+	GuestService_Hello_FullMethodName       = "/wraithbox.guest.v1.GuestService/Hello"
+	GuestService_Shell_FullMethodName       = "/wraithbox.guest.v1.GuestService/Shell"
+	GuestService_SetTime_FullMethodName     = "/wraithbox.guest.v1.GuestService/SetTime"
+	GuestService_MountData_FullMethodName   = "/wraithbox.guest.v1.GuestService/MountData"
+	GuestService_EnsureUsers_FullMethodName = "/wraithbox.guest.v1.GuestService/EnsureUsers"
+	GuestService_UnlockUser_FullMethodName  = "/wraithbox.guest.v1.GuestService/UnlockUser"
+	GuestService_KillUser_FullMethodName    = "/wraithbox.guest.v1.GuestService/KillUser"
+	GuestService_RemoveUser_FullMethodName  = "/wraithbox.guest.v1.GuestService/RemoveUser"
 )
 
 // GuestServiceClient is the client API for GuestService service.
@@ -88,6 +92,34 @@ type GuestServiceClient interface {
 	// message is guest text: the host logs it escaped and cut, and never
 	// reads it.
 	MountData(ctx context.Context, in *MountDataRequest, opts ...grpc.CallOption) (*MountDataResponse, error)
+	// EnsureUsers makes each project user of the request exist in the
+	// guest with exactly the names, IDs, GeneratedUIDs and home path given
+	// (S06-03-image-updates, "Updates", step 2, and "Creation"). wb-hostd
+	// allocates every value. It sends every project user of the VM's data
+	// disk after each accepted MountData, and one user when a session
+	// needs a new one. The request is idempotent: a user that exists with
+	// these values is left as it is. wb-hostd splits a long list into
+	// requests that each fit wb-guestd's receive cap.
+	//
+	// The answer is guest input. wb-hostd takes it only with at most one
+	// result per UID, each for a UID of this request, and drops the whole
+	// answer with the rule `guest-users-reply-invalid` otherwise. A user
+	// with no accepted OK result is refused for the VM generation.
+	EnsureUsers(ctx context.Context, in *EnsureUsersRequest, opts ...grpc.CallOption) (*EnsureUsersResponse, error)
+	// UnlockUser lets a project user log in and run processes again, for a
+	// session start (S06-09-session-lifecycle). The answer is empty: a
+	// success says the user is unlocked.
+	UnlockUser(ctx context.Context, in *UnlockUserRequest, opts ...grpc.CallOption) (*UnlockUserResponse, error)
+	// KillUser locks a project user and stops every process it runs
+	// (S06-10-leftover-processes). wb-guestd keeps a CleanupRecord of the
+	// result until wb-hostd acknowledges it.
+	KillUser(ctx context.Context, in *KillUserRequest, opts ...grpc.CallOption) (*KillUserResponse, error)
+	// RemoveUser removes a project user's record and home, for `wb project
+	// rm` (S05-04-naming, "The project user"; S06-08-projects-and-sessions,
+	// "Removing a home"). wb-hostd keeps the pending removal in state.db
+	// until a REMOVED result for that project and UID comes back. A reply
+	// never clears another project's record.
+	RemoveUser(ctx context.Context, in *RemoveUserRequest, opts ...grpc.CallOption) (*RemoveUserResponse, error)
 }
 
 type guestServiceClient struct {
@@ -135,6 +167,46 @@ func (c *guestServiceClient) MountData(ctx context.Context, in *MountDataRequest
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(MountDataResponse)
 	err := c.cc.Invoke(ctx, GuestService_MountData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *guestServiceClient) EnsureUsers(ctx context.Context, in *EnsureUsersRequest, opts ...grpc.CallOption) (*EnsureUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EnsureUsersResponse)
+	err := c.cc.Invoke(ctx, GuestService_EnsureUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *guestServiceClient) UnlockUser(ctx context.Context, in *UnlockUserRequest, opts ...grpc.CallOption) (*UnlockUserResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnlockUserResponse)
+	err := c.cc.Invoke(ctx, GuestService_UnlockUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *guestServiceClient) KillUser(ctx context.Context, in *KillUserRequest, opts ...grpc.CallOption) (*KillUserResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(KillUserResponse)
+	err := c.cc.Invoke(ctx, GuestService_KillUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *guestServiceClient) RemoveUser(ctx context.Context, in *RemoveUserRequest, opts ...grpc.CallOption) (*RemoveUserResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveUserResponse)
+	err := c.cc.Invoke(ctx, GuestService_RemoveUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -189,6 +261,34 @@ type GuestServiceServer interface {
 	// message is guest text: the host logs it escaped and cut, and never
 	// reads it.
 	MountData(context.Context, *MountDataRequest) (*MountDataResponse, error)
+	// EnsureUsers makes each project user of the request exist in the
+	// guest with exactly the names, IDs, GeneratedUIDs and home path given
+	// (S06-03-image-updates, "Updates", step 2, and "Creation"). wb-hostd
+	// allocates every value. It sends every project user of the VM's data
+	// disk after each accepted MountData, and one user when a session
+	// needs a new one. The request is idempotent: a user that exists with
+	// these values is left as it is. wb-hostd splits a long list into
+	// requests that each fit wb-guestd's receive cap.
+	//
+	// The answer is guest input. wb-hostd takes it only with at most one
+	// result per UID, each for a UID of this request, and drops the whole
+	// answer with the rule `guest-users-reply-invalid` otherwise. A user
+	// with no accepted OK result is refused for the VM generation.
+	EnsureUsers(context.Context, *EnsureUsersRequest) (*EnsureUsersResponse, error)
+	// UnlockUser lets a project user log in and run processes again, for a
+	// session start (S06-09-session-lifecycle). The answer is empty: a
+	// success says the user is unlocked.
+	UnlockUser(context.Context, *UnlockUserRequest) (*UnlockUserResponse, error)
+	// KillUser locks a project user and stops every process it runs
+	// (S06-10-leftover-processes). wb-guestd keeps a CleanupRecord of the
+	// result until wb-hostd acknowledges it.
+	KillUser(context.Context, *KillUserRequest) (*KillUserResponse, error)
+	// RemoveUser removes a project user's record and home, for `wb project
+	// rm` (S05-04-naming, "The project user"; S06-08-projects-and-sessions,
+	// "Removing a home"). wb-hostd keeps the pending removal in state.db
+	// until a REMOVED result for that project and UID comes back. A reply
+	// never clears another project's record.
+	RemoveUser(context.Context, *RemoveUserRequest) (*RemoveUserResponse, error)
 	mustEmbedUnimplementedGuestServiceServer()
 }
 
@@ -210,6 +310,18 @@ func (UnimplementedGuestServiceServer) SetTime(context.Context, *SetTimeRequest)
 }
 func (UnimplementedGuestServiceServer) MountData(context.Context, *MountDataRequest) (*MountDataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MountData not implemented")
+}
+func (UnimplementedGuestServiceServer) EnsureUsers(context.Context, *EnsureUsersRequest) (*EnsureUsersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EnsureUsers not implemented")
+}
+func (UnimplementedGuestServiceServer) UnlockUser(context.Context, *UnlockUserRequest) (*UnlockUserResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UnlockUser not implemented")
+}
+func (UnimplementedGuestServiceServer) KillUser(context.Context, *KillUserRequest) (*KillUserResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method KillUser not implemented")
+}
+func (UnimplementedGuestServiceServer) RemoveUser(context.Context, *RemoveUserRequest) (*RemoveUserResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveUser not implemented")
 }
 func (UnimplementedGuestServiceServer) mustEmbedUnimplementedGuestServiceServer() {}
 func (UnimplementedGuestServiceServer) testEmbeddedByValue()                      {}
@@ -293,6 +405,78 @@ func _GuestService_MountData_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuestService_EnsureUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuestServiceServer).EnsureUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GuestService_EnsureUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuestServiceServer).EnsureUsers(ctx, req.(*EnsureUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GuestService_UnlockUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnlockUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuestServiceServer).UnlockUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GuestService_UnlockUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuestServiceServer).UnlockUser(ctx, req.(*UnlockUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GuestService_KillUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(KillUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuestServiceServer).KillUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GuestService_KillUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuestServiceServer).KillUser(ctx, req.(*KillUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GuestService_RemoveUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuestServiceServer).RemoveUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GuestService_RemoveUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuestServiceServer).RemoveUser(ctx, req.(*RemoveUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GuestService_ServiceDesc is the grpc.ServiceDesc for GuestService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -311,6 +495,22 @@ var GuestService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MountData",
 			Handler:    _GuestService_MountData_Handler,
+		},
+		{
+			MethodName: "EnsureUsers",
+			Handler:    _GuestService_EnsureUsers_Handler,
+		},
+		{
+			MethodName: "UnlockUser",
+			Handler:    _GuestService_UnlockUser_Handler,
+		},
+		{
+			MethodName: "KillUser",
+			Handler:    _GuestService_KillUser_Handler,
+		},
+		{
+			MethodName: "RemoveUser",
+			Handler:    _GuestService_RemoveUser_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
