@@ -48,15 +48,21 @@ func TestParseRecords(t *testing.T) {
 				t.Fatalf("%d records, want %d", len(recs), tc.n)
 			}
 			for _, rec := range recs {
-				if !slices.Equal(rec[guestusers.AttrUniqueID], []string{"10000"}) ||
-					!slices.Equal(rec[guestusers.AttrRecordName], []string{"wbp10000"}) {
-					t.Errorf("record %v", rec)
-				}
-				if !slices.Equal(rec["dsAttrTypeNative:extra"], []string{"a", "b"}) {
-					t.Errorf("native attribute %v", rec["dsAttrTypeNative:extra"])
-				}
+				checkUserDict(t, rec)
 			}
 		})
+	}
+}
+
+// checkUserDict checks a record parsed from userDict.
+func checkUserDict(t *testing.T, rec guestusers.Record) {
+	t.Helper()
+	if !slices.Equal(rec[guestusers.AttrUniqueID], []string{"10000"}) ||
+		!slices.Equal(rec[guestusers.AttrRecordName], []string{"wbp10000"}) {
+		t.Errorf("record %v", rec)
+	}
+	if !slices.Equal(rec["dsAttrTypeNative:extra"], []string{"a", "b"}) {
+		t.Errorf("native attribute %v", rec["dsAttrTypeNative:extra"])
 	}
 }
 
@@ -105,15 +111,22 @@ func FuzzDirectoryRecord(f *testing.F) {
 		}
 		for _, rec := range recs {
 			for name, values := range rec {
-				if name == "" || len(values) > guestusers.MaxValues {
-					t.Fatalf("attribute %q with %d values", name, len(values))
-				}
-				for _, v := range values {
-					if len(v) > guestusers.MaxValueLen || strings.IndexByte(v, 0) >= 0 {
-						t.Fatalf("value of %d bytes in %q", len(v), name)
-					}
-				}
+				checkBounds(t, name, values)
 			}
 		}
 	})
+}
+
+// checkBounds fails t when an attribute the parser accepted breaks a
+// bound.
+func checkBounds(t *testing.T, name string, values []string) {
+	t.Helper()
+	if name == "" || len(values) > guestusers.MaxValues {
+		t.Fatalf("attribute %q with %d values", name, len(values))
+	}
+	for _, v := range values {
+		if len(v) > guestusers.MaxValueLen || strings.IndexByte(v, 0) >= 0 {
+			t.Fatalf("value of %d bytes in %q", len(v), name)
+		}
+	}
 }

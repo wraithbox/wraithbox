@@ -96,8 +96,7 @@ func (s *System) Read(ctx context.Context, kind Kind, name string) (Record, bool
 		return nil, false, err
 	}
 	out, err := s.run(ctx, MaxReadOutput, slog.LevelDebug, "-plist", ".", "-read", path)
-	var nf *notFoundError
-	if errors.As(err, &nf) {
+	if _, ok := errors.AsType[*notFoundError](err); ok {
 		return nil, false, nil
 	}
 	if err != nil {
