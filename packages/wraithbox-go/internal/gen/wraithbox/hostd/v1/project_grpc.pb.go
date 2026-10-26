@@ -79,7 +79,7 @@ type ProjectServiceClient interface {
 	// project-key-taken.
 	RegisterProject(ctx context.Context, in *RegisterProjectRequest, opts ...grpc.CallOption) (*RegisterProjectResponse, error)
 	// GetProject returns a project by its id or its name, without the
-	// identity check. `wb project confirm` and `wb project rm` use it.
+	// identity check. A command given `--project` uses it.
 	GetProject(ctx context.Context, in *GetProjectRequest, opts ...grpc.CallOption) (*GetProjectResponse, error)
 	// ConfirmProject records the current identity and clears
 	// `config_trust` (S05-04-naming, "Confirming").
@@ -214,7 +214,7 @@ type ProjectServiceServer interface {
 	// project-key-taken.
 	RegisterProject(context.Context, *RegisterProjectRequest) (*RegisterProjectResponse, error)
 	// GetProject returns a project by its id or its name, without the
-	// identity check. `wb project confirm` and `wb project rm` use it.
+	// identity check. A command given `--project` uses it.
 	GetProject(context.Context, *GetProjectRequest) (*GetProjectResponse, error)
 	// ConfirmProject records the current identity and clears
 	// `config_trust` (S05-04-naming, "Confirming").

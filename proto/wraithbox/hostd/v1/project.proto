@@ -49,7 +49,7 @@ service ProjectService {
   rpc RegisterProject(RegisterProjectRequest) returns (RegisterProjectResponse);
 
   // GetProject returns a project by its id or its name, without the
-  // identity check. `wb project confirm` and `wb project rm` use it.
+  // identity check. A command given `--project` uses it.
   rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
 
   // ConfirmProject records the current identity and clears
@@ -138,8 +138,10 @@ enum LookupPurpose {
   LOOKUP_PURPOSE_UNSPECIFIED = 0;
   // A session start: `wb claude`.
   LOOKUP_PURPOSE_SESSION_START = 1;
-  // Any other command that resolves a project from a directory, but
-  // `wb project confirm` and `wb project rm`, which use GetProject.
+  // Any other command that resolves a project from a directory. For
+  // `wb project confirm` and `wb project rm`, `wb` also takes the id
+  // from the IdentityMismatch detail of a refused lookup, so a changed
+  // identity doesn't stop them.
   LOOKUP_PURPOSE_COMMAND = 2;
 }
 

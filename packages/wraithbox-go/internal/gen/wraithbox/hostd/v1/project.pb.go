@@ -104,8 +104,10 @@ const (
 	LookupPurpose_LOOKUP_PURPOSE_UNSPECIFIED LookupPurpose = 0
 	// A session start: `wb claude`.
 	LookupPurpose_LOOKUP_PURPOSE_SESSION_START LookupPurpose = 1
-	// Any other command that resolves a project from a directory, but
-	// `wb project confirm` and `wb project rm`, which use GetProject.
+	// Any other command that resolves a project from a directory. For
+	// `wb project confirm` and `wb project rm`, `wb` also takes the id
+	// from the IdentityMismatch detail of a refused lookup, so a changed
+	// identity doesn't stop them.
 	LookupPurpose_LOOKUP_PURPOSE_COMMAND LookupPurpose = 2
 )
 
