@@ -5,14 +5,14 @@ description: Encryption stays off and the confined format works. Freed space goe
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-26: yes, and yes with conditions. Awaiting decision 3: keep `nobrowse`.** Source: X08-data-disk, "Follow-up (I228)" (I228). Changes S06-05-disks ("Disks") and S06-13-data-disk-format. Earlier brief: B22-data-disk. Follow-ups: I424 (two conformance checks of C09-guest-and-sessions), I425 (a macOS 27.2 guest).
+**Answered 2026-10-26: yes, and yes with conditions. Awaiting decision 3: keep `nobrowse`.** Source: X08-data-disk (I228). Changes S06-05-disks ("Disks") and S06-13-data-disk-format. Earlier brief: B22-data-disk. Follow-ups: I424 (two conformance checks of C09-guest-and-sessions), I425 (a macOS 27.2 guest).
 
 <Aside type="tip" title="What we learned">
-**Encryption stays off: yes. The confined format works: yes. Space goes back: yes, with conditions.** In three guests on macOS 27.0.1, two of them system disk swaps, the volume `wb-diskfmt` made was not encrypted. But with the mount option `nobrowse` that S06-05-disks gives it, space the guest deletes is still allocated on the host until the volume is unmounted or mounted again, at a clean shutdown, or at the next VM start. You decide whether to keep `nobrowse`. Recommended: keep it, as the spec says today. Dropping it makes the space come back within about 20 s.
+**Encryption stays off, and the confined format works: yes. Space goes back: yes, with conditions.** While `wb-guestd` mounts the volume `nobrowse`, deleted data goes back to the host only at the next unmount or mount, a clean shutdown or VM start. Recommended: keep `nobrowse`, as the spec says today. Dropping it brings the space back within about 20 s.
 </Aside>
 
 <figure class="wb-figure">
-<svg viewBox="0 0 760 300" role="img" aria-label="A project user in the guest deletes a file on the data volume, mounted nobrowse at /private/var/wbhomes. The host's image file keeps the blocks while the volume stays mounted. They go back when wb-guestd's mount is unmounted at a clean shutdown, or mounted again at the next VM start.">
+<svg viewBox="0 0 760 320" role="img" aria-label="A project user in the guest deletes a file on the data volume, mounted nobrowse at /private/var/wbhomes. The host's image file keeps the blocks while the volume stays mounted. They go back when wb-guestd's mount is unmounted at a clean shutdown, or mounted again at the next VM start.">
   <defs>
     <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
     <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
@@ -36,9 +36,9 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 
   <line class="edge" x1="120" y1="117" x2="120" y2="188" marker-end="url(#f1-arrow)" />
   <path class="edge-bad" d="M392,205 C450,180 480,180 518,205" marker-end="url(#f1-arrow-bad)" />
-  <text class="note" x="420" y="160">on delete: kept</text>
+  <text class="note" x="430" y="168">on delete: kept</text>
   <path class="edge" d="M392,250 C450,280 480,280 518,250" marker-end="url(#f1-arrow)" />
-  <text class="note" x="400" y="295">at unmount or mount: freed</text>
+  <text class="note" x="420" y="312">at unmount or mount: freed</text>
   <line class="edge" x1="310" y1="117" x2="310" y2="188" marker-end="url(#f1-arrow)" />
 </svg>
 <figcaption>
