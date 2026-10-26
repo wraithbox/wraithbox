@@ -178,6 +178,13 @@ type harness struct {
 	// before the first start.
 	mount      MountHook
 	guestMount *guestd.DataMount
+	// users, when set, serves each connection instead of wb-guestd's
+	// GuestService. Set it before the first start.
+	users *usersGuest
+	// db is the state.db of the VM manager and the links, and cfg the
+	// links' configuration.
+	db  *state.DB
+	cfg Config
 }
 
 // newHarness returns a harness whose wb-hostd has version host and whose
@@ -192,8 +199,8 @@ func newHarness(t *testing.T, host, guest string, follow bool) *harness {
 	}
 	h.provider.OnConnect = h.connect
 	logger := slog.New(slog.NewJSONHandler(h.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	cfg := Config{Version: host, Clock: h.clock, Logger: logger, TimeHook: h.timeHook, MountHook: h.mountHook}
 	vmCfg := h.vmConfig(logger)
+	cfg := Config{Version: host, Clock: h.clock, Logger: logger, TimeHook: h.timeHook, MountHook: h.mountHook, Users: h.db}
 	if follow {
 		vmCfg.OnRunning = func(slot vm.Slot, generation uint64, ended <-chan struct{}) {
 			h.links.Run(slot, generation, ended)
@@ -209,8 +216,8 @@ func newHarness(t *testing.T, host, guest string, follow bool) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.links = ls
-	t.Cleanup(ls.Close)
+	h.links, h.cfg = ls, cfg
+	t.Cleanup(func() { h.links.Close() })
 	return h
 }
 
@@ -256,6 +263,7 @@ func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
+	h.db = db
 	shim := &datadisktest.Shim{DataDir: dataDir, UUIDs: []string{"0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0"}}
 	disks, err := datadisk.New(datadisk.Config{DataDir: dataDir, Records: db, Shim: shim, Logger: logger})
 	if err != nil {
@@ -272,6 +280,12 @@ func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
 // wb-guestd's GuestService serves.
 func (h *harness) connect(_ context.Context, _ *vmtest.Instance, _ uint64, _ uint32) (net.Conn, error) {
 	host, guest := socketpair(h.t)
+	if h.users != nil {
+		h.users.serve(h.t, guest)
+		h.guests <- guest
+		h.hosts <- host
+		return host, nil
+	}
 	var opts []guestd.Option
 	if h.guestClock != nil {
 		opts = append(opts, guestd.WithClock(h.guestClock))

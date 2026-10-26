@@ -36,6 +36,11 @@ type run struct {
 	generation uint64
 	// ctx ends when the run ends or Links closes.
 	ctx context.Context
+	// kick asks the link to send the queued user removals now.
+	kick chan struct{}
+	// link is the run's link while it is up and has sent the users, else
+	// nil. Links.mu guards it.
+	link *guestlink.Link
 }
 
 // loop connects, keeps the link while it is up, and connects again after
@@ -111,9 +116,10 @@ func (r *run) connect() (*guestlink.Link, error) {
 	return l, nil
 }
 
-// keep holds the link until it drops, the guest leaves a time call or
-// the data mount unanswered, or the run ends. It calls the mount hook
-// after the hello, then the time hook, and the time hook every
+// keep holds the link until it drops, the guest leaves a time call, the
+// data mount or a user call unanswered, or the run ends. It calls the
+// mount hook after the hello, then sends the project users and their
+// removals, then calls the time hook, and the time hook every
 // TimeInterval after. It returns the reason of the next link's first
 // time call.
 func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeReason {
@@ -122,21 +128,57 @@ func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeRea
 		r.reconnecting()
 		return reason
 	}
+	if !r.users(l) {
+		r.lost(l)
+		return reason
+	}
+	r.setLink(l)
+	defer r.setLink(nil)
 	for {
 		var kept bool
 		if reason, kept = r.sendTime(l, reason); !kept {
 			r.reconnecting()
 			return reason
 		}
-		select {
-		case <-r.ls.clock.After(TimeInterval):
-		case <-l.Down():
-			r.dropped()
-			return reason
-		case <-r.ctx.Done():
+		if !r.idle(l) {
 			return reason
 		}
 	}
+}
+
+// idle waits TimeInterval, and sends the queued user removals each time
+// it is kicked. It reports false when the link is gone or the run ended.
+func (r *run) idle(l *guestlink.Link) bool {
+	tick := r.ls.clock.After(TimeInterval)
+	for {
+		select {
+		case <-tick:
+			return true
+		case <-r.kick:
+			if r.ls.cfg.Users != nil && r.mounted() && !r.sendRemovals(l) {
+				r.lost(l)
+				return false
+			}
+		case <-l.Down():
+			r.dropped()
+			return false
+		case <-r.ctx.Done():
+			return false
+		}
+	}
+}
+
+// lost shows the link as connecting again after a call that dropped it:
+// as a drop when its connection is down.
+func (r *run) lost(l *guestlink.Link) {
+	if r.ctx.Err() != nil {
+		return
+	}
+	if isDown(l) {
+		r.dropped()
+		return
+	}
+	r.reconnecting()
 }
 
 // dropped logs a drop of the link's connection, and shows the link as

@@ -11,6 +11,7 @@ import (
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 )
 
 // twoProjects registers a at /r/a/.git with urlA and b at /r/b/.git
@@ -102,4 +103,37 @@ func TestProjectRemove(t *testing.T) {
 	wantRefused(t, "get after rm", err, codes.NotFound, hostservice.RuleProjectUnknown)
 	_, err = f.c.RemoveProject(t.Context(), &hostdv1.RemoveProjectRequest{Id: a.GetId()})
 	wantRefused(t, "rm twice", err, codes.NotFound, hostservice.RuleProjectUnknown)
+}
+
+// TestProjectRemoveQueuesUserRemovals: a removal deletes the project's
+// users with it, queues one removal per data disk, and then asks the
+// links to send them (S05-04-naming, "The project user").
+func TestProjectRemoveQueuesUserRemovals(t *testing.T) {
+	kicks := 0
+	f := newProjects(t, func(s *hostservice.ProjectServer) { s.UsersRemoved = func() { kicks++ } })
+	a := f.register(t, "/r/a/.git", urls(urlA), hostdv1.Placement_PLACEMENT_UNSPECIFIED).GetProject()
+	disk := state.DataDisk{Slot: "macos-work", VolumeUUID: "0F1E2D3C-4B5A-4978-8796-A5B4C3D2E1F0", TempName: "data.wbdisk.tmp", SizeGiB: 128}
+	if err := f.db.RecordDataDiskFormat(t.Context(), disk); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.MarkDataDiskFormatted(t.Context(), disk.Slot, disk.VolumeUUID); err != nil {
+		t.Fatal(err)
+	}
+	u, _, err := f.db.ProjectUser(t.Context(), a.GetId(), disk.Slot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.c.RemoveProject(t.Context(), &hostdv1.RemoveProjectRequest{Id: a.GetId()}); err != nil {
+		t.Fatal(err)
+	}
+	rms, err := f.db.UserRemovals(t.Context(), disk.Slot)
+	if err != nil || len(rms) != 1 || rms[0].ProjectID != a.GetId() || rms[0].UID != u.UID || rms[0].HomePath != u.HomePath {
+		t.Fatalf("removals %+v %v, want the one of %+v", rms, err, u)
+	}
+	if users, err := f.db.ProjectUsers(t.Context(), disk.Slot); err != nil || len(users) != 0 {
+		t.Fatalf("users left %+v %v", users, err)
+	}
+	if kicks != 1 {
+		t.Fatalf("%d sends asked for, want 1", kicks)
+	}
 }

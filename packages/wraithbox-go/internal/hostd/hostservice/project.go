@@ -106,6 +106,11 @@ type ProjectServer struct {
 	Rand io.Reader
 	// Now is the clock of the created time. nil takes time.Now.
 	Now func() time.Time
+	// UsersRemoved, when set, is called after RemoveProject committed
+	// the project's user removals, to send them to the running VMs now
+	// (S05-04-naming, "The project user"). wb-hostd passes
+	// guestconn.Links.SendUserRemovals. It must not block.
+	UsersRemoved func()
 }
 
 var _ hostdv1.ProjectServiceServer = (*ProjectServer)(nil)

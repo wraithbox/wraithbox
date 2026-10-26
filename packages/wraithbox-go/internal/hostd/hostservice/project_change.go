@@ -175,10 +175,19 @@ func (s *ProjectServer) RemoveProject(ctx context.Context, req *hostdv1.RemovePr
 		if err != nil {
 			return err
 		}
+		// The project's users go in this transaction, so no user row
+		// outlives its project, and each guest gets a pending removal
+		// (S05-04-naming, "The project user"; SEC08-proj-isolation).
+		if _, err := tx.QueueUserRemovals(before.ID, s.now()); err != nil {
+			return err
+		}
 		return tx.Delete(before.ID)
 	})
 	if err != nil {
 		return nil, s.refuse(ctx, method, err)
+	}
+	if s.UsersRemoved != nil {
+		s.UsersRemoved()
 	}
 	s.record(ctx, &change{command: "wb project rm", rule: ruleProjectRemoved, before: &before})
 	s.accept(ctx, method, ruleProjectRemoved, slog.String("project", before.ID))
