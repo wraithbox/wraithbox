@@ -17,7 +17,7 @@ const (
 func goodBundle(team string) Bundle {
 	b := Bundle{Plists: map[string]*Plist{}, ToolsVersion: testStamp}
 	for _, p := range Programs {
-		f := Found{Path: p.Path(), Signed: true, Runtime: true, Entitlements: map[string]any{}, Stamp: testStamp}
+		f := Found{Path: p.Path(), Signed: true, Runtime: true, Team: team, Entitlements: map[string]any{}, Stamp: testStamp}
 		if p.Source == SourceGo {
 			f.GoMain = testModule + "/cmd/" + p.Name
 		}
@@ -26,9 +26,6 @@ func goodBundle(team string) Bundle {
 		}
 		if team != "" && p.Place == PlaceHelper {
 			f.Entitlements[groupsKey] = anyList(TeamGroups(team, p.Roles)...)
-			// A team build's entitlements hold more than the groups,
-			// which only the ad-hoc rule refuses.
-			f.Entitlements["com.apple.application-identifier"] = team + ".nl.wraithbox.dev.x"
 			b.Profiles = append(b.Profiles, HelperDir(p.Name)+"/Contents/"+ProfileName)
 		}
 		switch p.Place {
@@ -151,6 +148,63 @@ func TestC05BuildCheck(t *testing.T) {
 		{"an ad-hoc program with another entitlement", "", func(t *testing.T, b *Bundle) {
 			program(t, b, "wb-netd").Entitlements["com.apple.security.cs.disable-library-validation"] = true
 		}, "wb-netd", RuleAdhocEntitlement},
+		{"wb with only an application group in a team build", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb").Entitlements[applicationGroupsKey] = anyList(testTeam + ".nl.wraithbox.binding")
+		}, "wb", RuleTeamOtherGroup},
+		{"wb with an application identifier in a team build", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb").Entitlements[applicationIDKey] = testTeam + ".nl.wraithbox.dev.abcde12345"
+		}, "wb", RuleTeamOtherGroup},
+		{"wb-hostd with an application identifier in an ad-hoc build", "", func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-hostd").Entitlements[applicationIDKey] = testTeam + ".nl.wraithbox.dev.abcde12345"
+		}, "wb-hostd", RuleAdhocGroup},
+		{"an ad-hoc program with an application group", "", func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-netd").Entitlements[applicationGroupsKey] = anyList("group.nl.wraithbox")
+		}, "wb-netd", RuleAdhocGroup},
+		{"a helper with an application identifier on top of its row", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-credset").Entitlements[applicationIDKey] = testTeam + ".nl.wraithbox.dev.abcde12345"
+		}, "wb-credset", RuleTeamHelperGroups},
+		{"a helper with an application group on top of its row", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-guestadmin").Entitlements[applicationGroupsKey] = anyList(testTeam + ".nl.wraithbox.binding")
+		}, "wb-guestadmin", RuleTeamHelperGroups},
+		{"a helper with an application identifier that isn't a string", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-proxyd").Entitlements[applicationIDKey] = true
+		}, "wb-proxyd", RuleTeamHelperGroups},
+		{"a team program with get-task-allow", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-hostd").Entitlements["com.apple.security.get-task-allow"] = true
+		}, "wb-hostd", RuleTeamEntitlement},
+		{"a team helper with disable-library-validation", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-credset").Entitlements["com.apple.security.cs.disable-library-validation"] = true
+		}, "wb-credset", RuleTeamEntitlement},
+		{"a team program with allow-dyld-environment-variables", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb").Entitlements["com.apple.security.cs.allow-dyld-environment-variables"] = true
+		}, "wb", RuleTeamEntitlement},
+		{"a team wb-vmd with com.apple.vm.networking", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-vmd").Entitlements["com.apple.vm.networking"] = true
+		}, "wb-vmd", RuleTeamEntitlement},
+		{"a team guest program with get-task-allow", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-guestd").Entitlements["com.apple.security.get-task-allow"] = true
+		}, "wb-guestd", RuleTeamEntitlement},
+		{"a team program with an application group", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-netd").Entitlements[applicationGroupsKey] = anyList()
+		}, "wb-netd", RuleTeamOtherGroup},
+		{"a team program with another team's identifier", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-netd").Entitlements[teamIDKey] = otherTeam
+		}, "wb-netd", RuleTeamEntitlement},
+		{"an ad-hoc program with a team identifier", "", func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-netd").Entitlements[teamIDKey] = testTeam
+		}, "wb-netd", RuleAdhocEntitlement},
+		{"a program another team signed", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-proxyd").Team = otherTeam
+		}, "wb-proxyd", RuleSignatureTeam},
+		{"an ad-hoc program in a team build", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-diskfmt").Team = ""
+		}, "wb-diskfmt", RuleSignatureTeam},
+		{"a guest program ad-hoc in a team build", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-guestd").Team = ""
+		}, "wb-guestd", RuleSignatureTeam},
+		{"a team-signed program in an ad-hoc build", "", func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-notify").Team = testTeam
+		}, "wb-notify", RuleSignatureTeam},
 		{"a Mach-O file not in the table", "", func(_ *testing.T, b *Bundle) {
 			b.Programs = append(b.Programs, Found{Path: "Contents/MacOS/wb-dev-app", Signed: true, Runtime: true, Stamp: testStamp})
 		}, "Contents/MacOS/wb-dev-app", RuleUnknownMachO},

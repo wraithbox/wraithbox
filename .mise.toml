@@ -139,7 +139,7 @@ rm -rf build
 # makes a new nonce, so a partial rebuild of a modified tree needs a full
 # build. A Go program, so it runs under cmd.exe (S02-toolchain).
 #
-# It depends on app:identity, so a refused WB_TEAM_ID or WB_BUNDLE_ID stops
+# It depends on app:identity, so an invalid WB_TEAM_ID or WB_BUNDLE_ID stops
 # every build task before it starts (S17-01-bundle, "Signing identity").
 [tasks."version:stamp"]
 description = "Write this run's build version to build/version"
@@ -383,22 +383,25 @@ echo "signed $out/wb-vmd"
 # ---------- App bundle (macOS) ----------
 # `Wraith Box.app` (S17-01-bundle): the programs of the layout table in
 # packages/wraithbox-go/internal/appbundle, helper bundles, the guest tools
-# disk and the notification helper, ad-hoc signed with the hardened
-# runtime, then the entitlement check. scripts/app-bundle.sh has the
-# steps, and packages/wraithbox-go/cmd/wb-dev-app the Go half. The
-# team-signed build (WB_TEAM_ID) is I280 and refused until then.
+# disk and the notification helper, signed with the hardened runtime,
+# then the entitlement check. Ad-hoc signed without WB_TEAM_ID, and with
+# it signed by that team's Apple Development identity, with a profile in
+# each helper bundle (S17-01-bundle, "Signing identity"). scripts/
+# app-bundle.sh has the steps, and packages/wraithbox-go/cmd/wb-dev-app
+# the Go half.
 
-# Prints the bundle identifier. Fails on a set WB_TEAM_ID or an invalid
-# WB_BUNDLE_ID. A Go program, so it runs under cmd.exe (S02-toolchain).
+# Prints the bundle identifier. Fails on a WB_TEAM_ID that isn't an
+# Apple team ID or an invalid WB_BUNDLE_ID. A Go program, so it runs
+# under cmd.exe (S02-toolchain).
 [tasks."app:identity"]
-description = "Print the bundle identifier of this build; fails on WB_TEAM_ID or an invalid WB_BUNDLE_ID"
+description = "Print the bundle identifier of this build; fails on an invalid WB_TEAM_ID or WB_BUNDLE_ID"
 dir = "packages/wraithbox-go"
 run = "go run ./cmd/wb-dev-app identity"
 
 # SwiftPM locks .build, so this waits for every other task that builds
 # the Swift package.
 [tasks."app:bundle"]
-description = "Build packages/wraithbox-swift/.build/Wraith Box.app, ad-hoc signed, and run its entitlement check (macOS)"
+description = "Build packages/wraithbox-swift/.build/Wraith Box.app, ad-hoc or with WB_TEAM_ID team signed, and run its entitlement check (macOS)"
 depends = ["version:stamp"]
 wait_for = ["swift:test", "swift:build", "swift:sign", "proto:swift-plugins"]
 run = "sh scripts/app-bundle.sh build"

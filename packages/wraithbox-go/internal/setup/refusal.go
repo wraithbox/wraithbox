@@ -33,6 +33,11 @@ const (
 	// RuleKeychainNeedsTeam: the build has no Keychain backend, because
 	// no team signed it (S15-02-secret-store, "Ad-hoc signed builds").
 	RuleKeychainNeedsTeam Rule = "keychain-needs-team"
+	// RuleKeychainTeamMixed: the helper bundles don't agree on one team,
+	// by their signatures and their profiles, so the build's Keychain
+	// groups are refused (S12-03-host-prerequisites, "Team-signed
+	// build").
+	RuleKeychainTeamMixed Rule = "keychain-team-mixed"
 )
 
 // Refusal is the error of every refusal of wb setup. It says what was

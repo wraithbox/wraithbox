@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/paths"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/service"
 )
@@ -60,6 +61,13 @@ type Env struct {
 	Service service.Manager
 	// Hostd asks the running wb-hostd which VMs run.
 	Hostd Hostd
+	// ReadTeam reads the team of the code signature at a path, "" for a
+	// signature without one: codesign.ReadTeam. Nil refuses the
+	// Keychain backend.
+	ReadTeam func(ctx context.Context, path string) (string, error)
+	// ReadProfile reads a provisioning profile: codesign.ReadProfile.
+	// Nil refuses the Keychain backend of a team build.
+	ReadProfile func(ctx context.Context, path string) (codesign.Profile, error)
 	// CheckGit checks the host's git before anything is installed:
 	// CheckGitAt with <config>. Nil refuses.
 	CheckGit func(ctx context.Context) error

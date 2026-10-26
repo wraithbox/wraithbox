@@ -180,8 +180,9 @@ jobs:
         run: mise run swift:sign
 
       # `Wraith Box.app`, ad-hoc signed, and its entitlement check
-      # (S17-01-bundle, "Output"). No WB_TEAM_ID: the team-signed build
-      # is I280.
+      # (S17-01-bundle, "Output"). No WB_TEAM_ID: CI has no Apple
+      # Development identity, so the team-signed build runs on the
+      # maintainer's Mac only.
       - name: Bundle (ad-hoc Wraith Box.app + entitlement check)
         run: mise run app:bundle
 
