@@ -83,7 +83,7 @@ func TestC05SetupTeamReport(t *testing.T) {
 			t.Errorf("stdout = %q, want %q", f.stdout.String(), want)
 		}
 	}
-	f.wantLogged(RuleKeychainTeamMixed, "accept")
+	f.wantLogged(RuleKeychainTeam, "accept")
 }
 
 // TestC05SetupTeamMixed feeds wb setup bundles whose helpers don't agree
@@ -123,6 +123,9 @@ func TestC05SetupTeamMixed(t *testing.T) {
 		{"a profile with another team name", func(f *fixture) {
 			f.write(f.profilePath("wb-guestadmin"), testProfile(testTeam, "Other"))
 		}, `names the team "Other"`},
+		{"the first helper's profile with no team name", func(f *fixture) {
+			f.write(f.profilePath("wb-proxyd"), testProfile(testTeam, ""))
+		}, "the profile of wb-proxyd names no team name"},
 		{"a profile that isn't one", func(f *fixture) { f.write(f.profilePath("wb-credset"), "profile") }, "the profile of wb-credset"},
 	}
 	for _, tc := range cases {

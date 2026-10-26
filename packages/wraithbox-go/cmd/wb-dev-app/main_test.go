@@ -193,3 +193,19 @@ func TestHasRuntimeFlag(t *testing.T) {
 		}
 	}
 }
+
+// TestReadProfileTeams leaves out a profile that doesn't decode, so the
+// check refuses it (profile-team).
+func TestReadProfileTeams(t *testing.T) {
+	read := func(_ context.Context, path string) (codesign.Profile, error) {
+		if strings.Contains(path, "bad") {
+			return codesign.Profile{}, errors.New("not a profile")
+		}
+		return codesign.Profile{TeamIdentifier: []string{"ABCDE12345"}}, nil
+	}
+	good, bad := "good/"+appbundle.ProfileName, "bad/"+appbundle.ProfileName
+	got := readProfileTeams(t.Context(), "/app", []string{good, bad}, read)
+	if len(got) != 1 || !slices.Equal(got[good], []string{"ABCDE12345"}) {
+		t.Errorf("readProfileTeams = %v, want only the good profile", got)
+	}
+}

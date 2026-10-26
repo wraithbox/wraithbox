@@ -179,6 +179,19 @@ func TestParseTeam(t *testing.T) {
 		{"/x: code object is not signed at all\n", "", ErrNoSignature},
 		{"", "", ErrNoSignature},
 	}
+	for _, out := range []string{
+		// An identifier with a newline puts a second TeamIdentifier line first.
+		"Executable=/x\nIdentifier=a\nTeamIdentifier=B2B2B2B2B2\nTeamIdentifier=ABCDE12345\n",
+		"Executable=/x\nTeamIdentifier=not set\nTeamIdentifier=not set\n",
+		"Executable=/x\nTeamIdentifier=abcde12345\n",
+		"Executable=/x\nTeamIdentifier=ABCDE1234\n",
+		"Executable=/x\nTeamIdentifier=\n",
+		"Executable=/x\nTeamIdentifier=ABCDE12345 \n",
+	} {
+		if got, err := ParseTeam(out); err == nil {
+			t.Errorf("ParseTeam(%q) = %q, want an error", out, got)
+		}
+	}
 	for _, tc := range cases {
 		got, err := ParseTeam(tc.out)
 		if got != tc.want || !errors.Is(err, tc.err) || (tc.err == nil && err != nil) {

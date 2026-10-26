@@ -39,6 +39,10 @@ team=${WB_TEAM_ID:-}
 # What codesign signs with: - (ad-hoc), or the hash of the team's Apple
 # Development identity, which the build chooses after Xcode has run.
 identity=-
+# The one access group Xcode's signature of the app names in a team
+# build. Xcode expands the prefix to the team ID and a period.
+# shellcheck disable=SC2016 # Xcode expands $(AppIdentifierPrefix), not the shell
+xcode_group='$(AppIdentifierPrefix)nl.wraithbox.xcode-profile'
 
 # codesign with the hardened runtime (S17-01-bundle, "Signing identity").
 # $2 is an entitlements file, relative to the repository root or
@@ -161,8 +165,20 @@ if [ "$platform" != macos ]; then
 	echo "app:bundle: Package.swift's first platform is $platform, not macos" >&2
 	exit 1
 fi
+# Xcode makes a profile only for a target whose entitlements need one,
+# and the app target has none of its own. So a team build hands it one
+# keychain-access-groups entry, as X29-dev-signing signed its app with
+# one. The group is in no row of S15-02-secret-store, and step 7 signs
+# the app again without entitlements, so the app never holds it. If that
+# signing were dropped, the entitlement check would refuse the app's
+# group (keychain-other, SEC04-no-guest-secrets).
 if [ -n "$team" ]; then
-	set -- -allowProvisioningUpdates CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$team" CODE_SIGN_IDENTITY="Apple Development"
+	xcode_entitlements=$work/xcode-profile.entitlements
+	plutil -create xml1 "$xcode_entitlements"
+	plutil -insert keychain-access-groups -array "$xcode_entitlements"
+	plutil -insert keychain-access-groups -string "$xcode_group" -append "$xcode_entitlements"
+	set -- -allowProvisioningUpdates CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$team" CODE_SIGN_IDENTITY="Apple Development" \
+		CODE_SIGN_ENTITLEMENTS="$xcode_entitlements"
 else
 	set -- CODE_SIGNING_ALLOWED=NO
 fi

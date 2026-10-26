@@ -110,6 +110,7 @@ func inspect(ctx context.Context, app, disk string) (appbundle.Bundle, error) {
 		return b, err
 	}
 	b.Profiles = files.Profiles
+	b.ProfileTeams = readProfileTeams(ctx, app, files.Profiles, codesign.ReadProfile)
 	b.Links = files.Links
 	for _, link := range diskFiles.Links {
 		b.Links = append(b.Links, appbundle.DiskPrefix+link)
@@ -123,6 +124,23 @@ func inspect(ctx context.Context, app, disk string) (appbundle.Bundle, error) {
 	}
 	b.ToolsVersion = string(version)
 	return b, nil
+}
+
+// readProfileTeams decodes each profile with read, by its path relative
+// to app, and returns the TeamIdentifier list of each one it could
+// decode. The
+// check refuses a profile missing from the result (RuleProfileTeam).
+func readProfileTeams(ctx context.Context, app string, paths []string, read func(context.Context, string) (codesign.Profile, error)) map[string][]string {
+	teams := make(map[string][]string, len(paths))
+	for _, rel := range paths {
+		p, err := read(ctx, filepath.Join(app, filepath.FromSlash(rel)))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "wb-dev-app check: %s: %v\n", rel, err)
+			continue
+		}
+		teams[rel] = p.TeamIdentifier
+	}
+	return teams
 }
 
 // readPrograms reads the signature, entitlements, stamp and Go main

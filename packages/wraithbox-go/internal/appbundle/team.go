@@ -62,11 +62,14 @@ const developmentPrefix = "Apple Development: "
 // identity whose name starts with "Apple Development: " and whose
 // certificate has team as its organizational unit. It chooses by the
 // team ID in the certificate, never by a part of the name. No match, or
-// more than one, is an error that lists the identities it found.
+// more than one, is an error that lists the identities it found. One
+// certificate listed twice, as in two keychains, counts once: codesign
+// names it by its hash, so both are the same identity.
 func ChooseIdentity(ids []SigningIdentity, team string) (SigningIdentity, error) {
 	var matches []SigningIdentity
 	for _, id := range ids {
-		if strings.HasPrefix(id.Name, developmentPrefix) && slices.Equal(id.Teams, []string{team}) {
+		duplicate := slices.ContainsFunc(matches, func(m SigningIdentity) bool { return m.Hash == id.Hash })
+		if !duplicate && strings.HasPrefix(id.Name, developmentPrefix) && slices.Equal(id.Teams, []string{team}) {
 			matches = append(matches, id)
 		}
 	}

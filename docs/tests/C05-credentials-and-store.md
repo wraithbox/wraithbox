@@ -49,11 +49,17 @@ Spec: S15-02-secret-store, "Keychain".
   entitlement that names a group: `keychain-access-groups`, the
   application identifier, or application groups. It also fails each
   entitlement outside the build's allowlist, such as `get-task-allow`
-  in a team build, and a program another team signed. The tests are
+  in a team build, and a program another team signed. A profile
+  that doesn't decode, or names another team or two, fails it too. So
+  does the app executable with the entitlements Xcode signed it with, as
+  if step 7 hadn't signed it again. The tests are
   the `TestC05BuildCheck` ones in `internal/appbundle`, with every case
   of S17-01-bundle, "The entitlement check". `TestC05BuildSigningIdentity`
   sees the build choose the team's one Apple Development identity by
-  the OU of its certificate, and fail on none or two.
+  the OU of its certificate, and fail on none or two. One certificate
+  listed twice counts once. `TestParseTeam` in
+  `internal/platform/codesign` refuses `codesign` output with two
+  `TeamIdentifier` lines, or a value that isn't a team ID.
 
 ### Builds without a team, and development builds
 
@@ -71,11 +77,12 @@ Spec: S15-02-secret-store, "Keychain".
   is still ad-hoc: `wb setup` reads the signature.
 - In a development build, see `wb setup`, `wb cred list` and the
   session-start audit record name the signing team and say the grant is
-  team-wide. The `wb setup` case is `TestC05SetupTeamReport`.
+  team-wide. The `wb setup` case is `TestC05SetupTeamReport`, which
+  also sees the accept logged under `keychain-team`.
 - Give `wb setup` helpers that don't agree on one team: another team's
   signature, an ad-hoc one among team ones, an unreadable signature,
-  and a profile that is missing, a link, of another team, or of
-  another team name. See each refused with `keychain-team-mixed` after
+  and a profile that is missing, a link, of another team, without a
+  team name, or of another team name. See each refused with `keychain-team-mixed` after
   the install, and a nonzero exit (`TestC05SetupTeamMixed`).
 
 ### wb-credset
