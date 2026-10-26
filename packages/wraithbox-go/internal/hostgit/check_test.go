@@ -208,3 +208,21 @@ func TestResolveNeverUsesPATH(t *testing.T) {
 		t.Error("the git stand-in in PATH ran")
 	}
 }
+
+// TestCheck: Check refuses a relative setting with the path rule before
+// it runs anything, and otherwise checks the version of the binary the
+// setting names.
+func TestCheck(t *testing.T) {
+	res, err := Check(t.Context(), "git")
+	checkRefusal(t, err, RulePathNotAbsolute, []string{"git"})
+	if res.Rule != RulePathNotAbsolute {
+		t.Errorf("Result = %+v", res)
+	}
+	bin := fakeGit(t, "old")
+	_, err = Check(t.Context(), bin)
+	checkRefusal(t, err, RuleVersionTooOld, []string{bin, MinVersion})
+	res, err = Check(t.Context(), fakeGit(t, "ok"))
+	if err != nil || res.Rule != RuleVersionAccepted {
+		t.Errorf("Check(ok) = %+v, %v", res, err)
+	}
+}

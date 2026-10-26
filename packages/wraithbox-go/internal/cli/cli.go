@@ -36,6 +36,7 @@ var Commands = []Command{
 	{Name: "learn", Summary: "Suggested allowlist from a learn-mode session"},
 	{Name: "trust", Summary: "Allow a repository's own configuration"},
 	{Name: "untrust", Summary: "Stop honouring a repository's own configuration"},
+	{Name: "project", Summary: "Show, confirm, move, rename, place or remove a project"},
 	{Name: "cred", Summary: "Manage credentials held on the host"},
 	{Name: "audit", Summary: "Read the audit log"},
 	{Name: "vm", Summary: "Start, stop, suspend and inspect VMs, and reset a VM's data disk"},
@@ -53,7 +54,7 @@ var Commands = []Command{
 type Globals struct {
 	Isolated  bool   // run in the isolated VM (SEC08-proj-isolation)
 	Ephemeral bool   // no persisted state (FR14-ephemeral)
-	Learn     bool   // learn mode; refused later unless the project is trusted (FR10-learn-mode)
+	Learn     bool   // learn mode; refused later unless the session runs in the work VM (FR10-learn-mode; S09-03-project-settings, "Learn mode")
 	Guest     string // guest OS for this project (S12-platforms); empty means the default
 	Dir       string // act as if started in this directory
 	Help      bool
@@ -116,7 +117,7 @@ func Help() string {
 	b.WriteString("Flags (before the command):\n")
 	b.WriteString("  --isolated    run the session in the isolated VM\n")
 	b.WriteString("  --ephemeral   keep no state after the session\n")
-	b.WriteString("  --learn       learn mode, trusted projects only\n")
+	b.WriteString("  --learn       learn mode, in the work VM only\n")
 	b.WriteString("  --guest <os>  guest OS for the project: macos, linux or windows\n")
 	b.WriteString("  -C <dir>      run as if started in <dir>\n\n")
 	b.WriteString("Commands:\n")

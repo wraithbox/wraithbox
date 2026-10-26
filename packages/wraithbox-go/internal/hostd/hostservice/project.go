@@ -338,7 +338,7 @@ func keyFree(tx *state.ProjectTx, realm, path, self string) error {
 }
 
 // GetProject returns a project by id or name, without the identity
-// check. wb project confirm and wb project rm use it.
+// check. A wb command given --project uses it.
 func (s *ProjectServer) GetProject(ctx context.Context, req *hostdv1.GetProjectRequest) (*hostdv1.GetProjectResponse, error) {
 	const method = "GetProject"
 	if err := s.admit(); err != nil {

@@ -22,7 +22,7 @@
 | `wb project move <dir> [--project P]` | Point the project at the repository in `<dir>`. It keeps its id, state, approvals and policy (S05-04-naming) |
 | `wb project rename <name> [--project P]` | Change the project's name. The id stays |
 | `wb project place work\|isolated [--project P]` | Set the project's `placement` ("`wb project place`") |
-| `wb project confirm [--project P]` | Accept the repository's current remote URLs and root commits as the project's, and clear `config_trust` (S05-04-naming) |
+| `wb project confirm` | Accept the current remote URLs and root commits of the repository in the directory as the project's, and clear `config_trust` (S05-04-naming). It takes no `--project`, because it reads the identity from a repository and `--project` names none |
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it (S05-04-naming) |
 | `wb cred set/list/rm <binding>` | Manage the binding credentials in the secret store ("`wb cred`") |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
@@ -268,7 +268,9 @@ of S05-02-exit-status-and-signals, with the shell in place of `claude`.
 `wb setup`:
 
 1. checks the host prerequisites (S12-platforms), and the minimum git
-   version (S08-workspace-and-git);
+   version (S08-workspace-and-git). A refused git, or a `config.toml`
+   it can't read, refuses `wb setup` before it creates or installs
+   anything (S08-08-host-git, "Where it is checked");
 2. creates the projects root `<data>/projects`, and its probe
    directory. `wb-hostd` can't write them (S04-03-self-sandboxing, "Each host daemon is self-sandboxed");
 3. installs and starts the per-user services. On macOS those are the

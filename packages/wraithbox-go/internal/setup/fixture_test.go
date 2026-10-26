@@ -115,6 +115,7 @@ func newFixture(t *testing.T) *fixture {
 		SystemApplications: sys,
 		Service:            f.svc,
 		Hostd:              f.hostd,
+		CheckGit:           func(context.Context) error { return nil },
 		Stdout:             &f.stdout,
 		Stderr:             &f.stderr,
 		Log:                slog.New(slog.NewTextHandler(&f.log, nil)),

@@ -60,6 +60,9 @@ type Env struct {
 	Service service.Manager
 	// Hostd asks the running wb-hostd which VMs run.
 	Hostd Hostd
+	// CheckGit checks the host's git before anything is installed:
+	// CheckGitAt with <config>. Nil refuses.
+	CheckGit func(ctx context.Context) error
 	// Unavailable is an error SystemEnv met building the fields above.
 	// Run reports it after the host check, so a host that is later in
 	// the matrix gets that refusal first.
@@ -109,6 +112,9 @@ func install(ctx context.Context, env *Env) error {
 	}
 	if env.Unavailable != nil {
 		return env.Unavailable
+	}
+	if err := checkGit(ctx, env); err != nil {
+		return err
 	}
 	bundle, err := checkBundle(ctx, env)
 	if err != nil {

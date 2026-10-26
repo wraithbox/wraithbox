@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/cli"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectcmd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/setup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmcmd"
@@ -40,6 +41,13 @@ func run(args []string) int {
 	case inv.Command.Name == "vm":
 		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 		return vmcmd.Run(context.Background(), vmcmd.SystemEnv(log), inv.Args)
+	case inv.Command.Name == "project":
+		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+		dir := inv.Globals.Dir
+		if dir == "" {
+			dir = "."
+		}
+		return projectcmd.Run(context.Background(), projectcmd.SystemEnv(log), dir, inv.Args)
 	}
 	fmt.Fprintf(os.Stderr, "wb %s: not implemented yet\n", inv.Command.Name)
 	return 2

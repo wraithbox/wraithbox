@@ -94,6 +94,18 @@ func Resolve(setting string) (string, error) {
 	return setting, nil
 }
 
+// Check resolves the git binary from setting and checks its version:
+// Resolve, then CheckVersion. wb runs it in wb setup and at each
+// session start (S08-08-host-git, "Where it is checked"). Every refusal
+// is a *Refusal, logged with its rule.
+func Check(ctx context.Context, setting string) (Result, error) {
+	path, err := Resolve(setting)
+	if err != nil {
+		return Result{Binary: setting, Rule: RulePathNotAbsolute}, err
+	}
+	return CheckVersion(ctx, path)
+}
+
 func pathNotAbsolute(path string) *Refusal {
 	return &Refusal{
 		Binary: path,

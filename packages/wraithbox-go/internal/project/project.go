@@ -1,7 +1,8 @@
 // Package project resolves a directory to the project it belongs to: the
 // repository's project key, its recorded identity and its default name
-// (S05-04-naming). It keeps no state. Storing and comparing what it
-// returns, and registration, are elsewhere.
+// (S05-04-naming). Opener is wb's session-start entry and the lookups of
+// the `wb project` commands. It keeps no state: wb-hostd stores and
+// compares the records, and Opener asks it over ProjectService.
 //
 // Everything it reads from the repository is treated as an attacker's.
 // A downloaded archive can hold a `.git` file or a symbolic link that

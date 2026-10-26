@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"os"
@@ -35,6 +36,7 @@ func SystemEnv(log *slog.Logger) Env {
 	env.Executable, errs[2] = os.Executable()
 	env.Service, errs[3] = service.New(service.Config{Home: env.Home, UID: env.UID, Log: log})
 	env.Hostd = NewHostd(log, env.Paths.Run, env.Version)
+	env.CheckGit = func(ctx context.Context) error { return CheckGitAt(ctx, env.Paths.Config) }
 	env.Unavailable = errors.Join(errs...)
 	return env
 }
