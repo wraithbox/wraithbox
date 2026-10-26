@@ -199,20 +199,14 @@ const (
 // what to do (NFR06-explained-refusals).
 func (ls *Links) CheckSessionStart(slot vm.Slot, generation uint64) error {
 	s := ls.Status(slot)
-	var r *SessionRefusal
 	switch {
 	case s.Generation != generation || s.State != StateLinked:
-		r = &SessionRefusal{Rule: RuleSessionNoLink, Message: fmt.Sprintf(
-			"wb-hostd has no link to wb-guestd in the %s VM. Wait for it, or stop and start the VM.", slot)}
+		return ls.refuseSession(slot, generation, noLink(slot))
 	case s.DataMount.State == MountRefused:
-		r = &SessionRefusal{Rule: s.DataMount.Rule, Message: s.DataMount.Message}
+		return ls.refuseSession(slot, generation, &SessionRefusal{Rule: s.DataMount.Rule, Message: s.DataMount.Message})
 	case s.DataMount.State != MountMounted:
-		r = &SessionRefusal{Rule: RuleSessionMountPending, Message: fmt.Sprintf(
-			"the %s VM's data volume isn't mounted yet. Try again in a minute.", slot)}
-	default:
-		return nil
+		return ls.refuseSession(slot, generation, &SessionRefusal{Rule: RuleSessionMountPending, Message: fmt.Sprintf(
+			"the %s VM's data volume isn't mounted yet. Try again in a minute.", slot)})
 	}
-	ls.vm(slot).log.LogAttrs(context.Background(), slog.LevelWarn, "session start refused",
-		slog.Uint64("generation", generation), slog.String("rule", r.Rule), slog.String("decision", "refuse"))
-	return r
+	return nil
 }

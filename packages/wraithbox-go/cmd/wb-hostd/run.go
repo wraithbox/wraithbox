@@ -219,7 +219,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	}
 	links, err = guestconn.New(guestconn.Config{
 		VMs: vms, Version: o.Version, TimeHook: guestconn.SendTime,
-		MountHook: guestconn.SendMount(ready.State, time.Now, log), Logger: log,
+		MountHook: guestconn.SendMount(ready.State, time.Now, log), Users: ready.State, Logger: log,
 	})
 	if err != nil {
 		return nil, err
@@ -228,6 +228,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 		server: &hostservice.Server{VMs: m, Links: links, Log: log},
 		projects: &hostservice.ProjectServer{
 			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git), Log: log,
+			UsersRemoved: links.SendUserRemovals,
 		},
 		vms: m, provider: provider, links: links, closeDB: ready.State.Close,
 	}, nil

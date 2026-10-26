@@ -90,6 +90,11 @@ type Config struct {
 	// TimeHook, when set, is called on the clock schedule. nil does
 	// nothing.
 	TimeHook TimeHook
+	// Users, when set, holds the project users and their queued
+	// removals, which each link sends after a data mount its guest
+	// answered, before the time hook. nil sends none, and CheckUser
+	// refuses every user.
+	Users UserRecords
 	// Clock is nil for the real clock.
 	Clock Clock
 	// Logger gets the decisions. nil takes slog.Default().
@@ -106,6 +111,10 @@ type Links struct {
 	mu     sync.Mutex
 	vms    map[vm.Slot]*vmConns
 	status map[vm.Slot]Status
+	// users is what each slot's current generation's guest said about
+	// the project users, and active each slot's current run.
+	users  map[vm.Slot]*genUsers
+	active map[vm.Slot]*run
 	closed bool
 
 	done      chan struct{}
@@ -121,6 +130,7 @@ func New(cfg Config) (*Links, error) {
 	ls := &Links{
 		cfg: cfg, clock: cfg.Clock, log: cfg.Logger,
 		vms: map[vm.Slot]*vmConns{}, status: map[vm.Slot]Status{},
+		users: map[vm.Slot]*genUsers{}, active: map[vm.Slot]*run{},
 		done: make(chan struct{}),
 	}
 	if ls.clock == nil {
@@ -154,6 +164,7 @@ func (ls *Links) isClosed() bool {
 // until ended is closed or Close is called. vm.Config.OnRunning calls it
 // for each run that reaches running. It doesn't block.
 func (ls *Links) Run(slot vm.Slot, generation uint64, ended <-chan struct{}) {
+	vc := ls.vm(slot)
 	ls.mu.Lock()
 	if ls.closed || ls.status[slot].Generation >= generation {
 		ls.mu.Unlock()
@@ -163,11 +174,13 @@ func (ls *Links) Run(slot vm.Slot, generation uint64, ended <-chan struct{}) {
 		Slot: slot, Generation: generation, State: StateConnecting,
 		DataMount: DataMount{State: MountPending},
 	}
+	ls.users[slot] = newGenUsers(generation)
+	ctx, cancel := context.WithCancel(context.Background())
+	r := &run{ls: ls, vc: vc, slot: slot, generation: generation, ctx: ctx, kick: make(chan struct{}, 1)}
+	ls.active[slot] = r
 	ls.runs.Add(1)
 	ls.mu.Unlock()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	r := &run{ls: ls, vc: ls.vm(slot), slot: slot, generation: generation, ctx: ctx}
 	go func() {
 		select {
 		case <-ended:
@@ -180,6 +193,11 @@ func (ls *Links) Run(slot vm.Slot, generation uint64, ended <-chan struct{}) {
 		r.loop()
 		cancel()
 		r.vc.closeGeneration(generation)
+		ls.mu.Lock()
+		if ls.active[slot] == r {
+			delete(ls.active, slot)
+		}
+		ls.mu.Unlock()
 		ls.setStatus(slot, generation, func(s *Status) { s.State, s.GuestVersion = StateDown, "" })
 		r.vc.log.LogAttrs(context.Background(), slog.LevelInfo, "guest link ended",
 			slog.String("decision", "close"), slog.Uint64("generation", generation))
