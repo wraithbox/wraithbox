@@ -1422,7 +1422,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X08-data-disk follow-up: measure that a host-made data volume stays unencrypted and returns freed space",
-		"summary": "X08-data-disk (PR #227) recommends option A: the host formats the data disk as APFS."
+		"summary": "X08-data-disk (PR #227) recommends option A: the host formats the data disk as APFS.",
+		"brief": "B228-data-disk-followup"
 	},
 	"229": {
 		"kind": "issue",
@@ -2607,5 +2608,30 @@
 		"state": "open",
 		"title": "X08-data-disk follow-up: check the host-made volume stays unencrypted on a macOS 27.2 guest",
 		"summary": "Follow-up of #228 (X08-data-disk, \"Follow-up (I228)\")."
+	},
+	"426": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(hostd): project user IDs, records and the removal queue",
+		"summary": "wb-hostd now allocates and records project users, sends them to the guest at each connection, and queues their removal on wb project rm."
+	},
+	"427": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: refuse wb project rm while a session or returned work exists",
+		"summary": "S05-04-naming says wb project rm refuses while the project has a session or returned work that hasn't been landed."
+	},
+	"428": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X08-data-disk follow-up, the host-made volume measured",
+		"summary": "Appends the I228 follow-up to X08-data-disk: the volume wb-diskfmt makes on the host, measured in three macOS 27.0.1 guests (two of them system disk swaps) and with the confined TestHostFormat.",
+		"brief": "B228-data-disk-followup"
+	},
+	"429": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-diskfmt: keep Spotlight off the data volume with .metadata_never_index",
+		"summary": "When a guest boots, Disk Arbitration mounts the data volume at /Volumes without nobrowse before wb-guestd remounts it, and in X08-data-disk's follow-up runs that mount created .Spotlight-V100 on the volume."
 	}
 }
