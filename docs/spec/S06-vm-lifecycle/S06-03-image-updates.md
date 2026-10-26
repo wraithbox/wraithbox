@@ -94,10 +94,10 @@ because `dscl . -create` on an existing record changes it:
   that exists. A record without its `GeneratedUID` isn't partial: that
   can't be added once the record has an ID.
 - **Anything else** is refused with `project-user-conflict`, and the
-  log names the attribute that differs: another value, a record name
-  with an alias, an `AuthenticationAuthority`, a member, or another
-  record that holds one of the user's names, IDs or `GeneratedUID`s or
-  lists it as a member.
+  log names the attribute that differs. That is another value, a
+  record name with an alias, an `AuthenticationAuthority` or a member.
+  It is also another record that holds one of the user's names, IDs or
+  `GeneratedUID`s, or lists it as a member.
 
 Before it writes, it also refuses:
 
