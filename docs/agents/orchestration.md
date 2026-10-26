@@ -93,7 +93,7 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    needs the maintainer (a spec change, a choice between designs) goes
    to the maintainer instead. When the two reviewers disagree on a
    security trade-off, take the strict side and say so in the report.
-   The builder's last notice gives its size in `<subagent_tokens>`.
+   The builder's hand-back gives its size in `<subagent_tokens>`.
    Under 150k, resume that builder with the message. At 150k or more,
    leave it as it is (it has handed back and doesn't run) and
    spawn a fresh agent of the same type on the same branch,
@@ -192,12 +192,15 @@ machine, can see it and resume it.
   damage that a review doesn't catch, so they stay attended. The dispatcher merges, never the lead,
   so the approval is in the transcript that the auto-mode classifier
   reads.
-- **Who stops an agent.** An agent can stop only the tasks its own
-  session owns: a lead's `TaskStop` on a builder it spawned fails with
-  "cannot stop it". The lead stops its own background commands. An agent it spawned that still runs when it reports goes
-  on its report's `Running` line, and the dispatcher stops it with
-  `TaskStop` and that agent ID. When the dispatcher's `TaskStop` is
-  refused as well, it goes on `For the maintainer`.
+- **Who stops an agent.** The lead stops its own background commands,
+  and tries `TaskStop` on an agent it spawned that still runs when it
+  reports. In some harness versions that agent's task is in the
+  lead's registry, and in others it isn't and `TaskStop` refuses
+  with "cannot stop it". A refused agent goes on the report's
+  `Running` line. The dispatcher stops each agent on that line with
+  `TaskStop` and its agent ID, and puts its issue and worktree on
+  `For the maintainer`, with the agent ID when its `TaskStop` is
+  refused too.
 - **After a merge.** A pull request that turns `CONFLICTING` goes into
   the next wave as a rebase of its branch, and a failed CI run on `main`
   stops the run.
@@ -242,14 +245,16 @@ has the trial behind this.
   background wait (below). It waits in the foreground only for a
   check it started itself (`mise run ci`, `gh pr checks --watch`,
   `gh run watch`).
-- **An interim notice is not a hand-back.** An agent that ends its turn
-  while its own background command runs sends a notice with status
-  `completed`, a summary that says it "is waiting on its own background
-  work", and a note that the result "may be interim". It still works,
-  and the same task ID notifies again when it hands back. A lead that then ends its turn with no task of its own running is told
-  by the harness to report at once, and the pull request that agent
-  opens later isn't reviewed. So a lead keeps a background wait of its
-  own running until each agent it spawned has handed back
+- **An interim notice is not a hand-back.** In some harness versions,
+  an agent that ends its turn while its own background command runs
+  sends a notice with status `completed`, a summary that says it "is
+  waiting on its own background work", and a note that the result "may
+  be interim". It still works, and the same task ID notifies again
+  when it hands back. A lead that then ends its turn with no task of
+  its own running is told by the harness to report at once, and the
+  pull request that agent opens later isn't reviewed. So a lead keeps a
+  background wait of its own running until each agent it spawned has
+  handed back
   (`wave-lead.md`, "Waiting").
 - **What every agent does** (`cd`, the `code-review` skill, never
   `git stash`, `.scratch/`, short hand-backs) is in `working.md`,
