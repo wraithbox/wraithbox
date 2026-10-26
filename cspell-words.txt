@@ -300,6 +300,7 @@ Gitea
 Forgejo
 Codeberg
 codesign
+codesigning
 protoc
 protoreflect
 protowire

@@ -70,9 +70,11 @@ Spec: S17-01-bundle.
   check", fails the check with the program and the rule in its message.
   The tests are the `TestC05BuildCheck` ones in `internal/appbundle`
   (C05-credentials-and-store, "Access groups").
-- **Identity.** A set `WB_TEAM_ID` fails the build before anything is
-  built, with a message that names it. A `WB_BUNDLE_ID` that isn't
-  reverse-DNS is refused (`TestC12BundleIdentity`).
+- **Identity.** A `WB_TEAM_ID` that isn't ten uppercase letters and
+  digits fails the build before anything is built, with a message that
+  names it. A valid one gives `nl.wraithbox.dev.<teamid>` in lowercase.
+  A `WB_BUNDLE_ID` that isn't reverse-DNS is refused
+  (`TestC12BundleIdentity`).
 - **Install.** Installing two bundles in turn at one temporary
   destination leaves the second, with no file of the first and nothing
   next to it (`TestC12BundleInstallSwap`). A destination with another

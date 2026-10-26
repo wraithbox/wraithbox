@@ -48,8 +48,13 @@ Its entitlements hold the groups of its items, from the table in
 S15-02-secret-store, "Keychain", and no others. The build fails unless:
 
 - each helper's signed entitlements equal its row's groups exactly;
-- every other program, `wb` included, has no `keychain-access-groups`
-  entitlement.
+- every other program, `wb` included, has no entitlement that names a
+  group.
+
+Apple takes a program's access groups from `keychain-access-groups`,
+the application identifier (`com.apple.application-identifier`) and the
+application groups (`com.apple.security.application-groups`). The check
+counts all three (S17-01-bundle, "The entitlement check").
 
 The installer's `wb` link on `PATH` points to `Contents/MacOS/wb`. A
 program without a group doesn't need a bundle of its own

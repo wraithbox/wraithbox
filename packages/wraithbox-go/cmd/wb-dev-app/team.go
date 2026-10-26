@@ -26,14 +26,14 @@ const securityPath = "/usr/bin/security"
 // path in the helper's line (S10-02-packaging-and-signing, "Helper
 // bundles").
 func layoutCommand(args []string, stdout, stderr io.Writer) error {
-	fset := flag.NewFlagSet("layout", flag.ContinueOnError)
-	fset.SetOutput(stderr)
-	team := fset.String("team", "", "the team that signs the build; empty for an ad-hoc build")
-	dir := fset.String("dir", "", "where to write the helpers' entitlements files, with -team")
-	if err := fset.Parse(args); err != nil {
+	fs := flag.NewFlagSet("layout", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	team := fs.String("team", "", "the team that signs the build; empty for an ad-hoc build")
+	dir := fs.String("dir", "", "where to write the helpers' entitlements files, with -team")
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if fset.NArg() != 0 || (*team == "") != (*dir == "") {
+	if fs.NArg() != 0 || (*team == "") != (*dir == "") {
 		return errUsage
 	}
 	if *team != "" && !appbundle.ValidTeamID(*team) {
@@ -83,14 +83,14 @@ func teamLayout(team, dir string) ([]string, error) {
 // (S12-03-host-prerequisites, "Missing profile"). It prints the team's
 // name.
 func profileCommand(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	fset := flag.NewFlagSet("profile", flag.ContinueOnError)
-	fset.SetOutput(stderr)
-	app := fset.String("app", "", "the app Xcode built")
-	team := fset.String("team", "", "the team the build signs with")
-	if err := fset.Parse(args); err != nil {
+	fs := flag.NewFlagSet("profile", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	app := fs.String("app", "", "the app Xcode built")
+	team := fs.String("team", "", "the team the build signs with")
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if *app == "" || *team == "" || fset.NArg() != 0 {
+	if *app == "" || *team == "" || fs.NArg() != 0 {
 		return errUsage
 	}
 	p, err := checkProfile(ctx, filepath.Join(*app, "Contents", appbundle.ProfileName), *team, codesign.ReadProfile)
@@ -129,13 +129,13 @@ func checkProfile(ctx context.Context, path, team string, read func(context.Cont
 // identity of -team in the user's keychains, for codesign --sign
 // (S17-01-bundle, "Signing identity").
 func signIdentityCommand(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	fset := flag.NewFlagSet("sign-identity", flag.ContinueOnError)
-	fset.SetOutput(stderr)
-	team := fset.String("team", "", "the team the build signs with")
-	if err := fset.Parse(args); err != nil {
+	fs := flag.NewFlagSet("sign-identity", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	team := fs.String("team", "", "the team the build signs with")
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if *team == "" || fset.NArg() != 0 {
+	if *team == "" || fs.NArg() != 0 {
 		return errUsage
 	}
 	list, err := exec.CommandContext(ctx, securityPath, "find-identity", "-v", "-p", "codesigning").Output()

@@ -86,12 +86,22 @@ never edits a shell file.
 
 ### The Keychain backend
 
-After it installed the agent and the link, `wb setup` refuses the
-Keychain backend of an ad-hoc signed build with `keychain-needs-team`
-(S15-02-secret-store, "Ad-hoc signed builds"). Until the team-signed
-build reads the team from the code signature (I280), `wb setup` takes
-a helper bundle without `Contents/embedded.provisionprofile` as the
-sign of an ad-hoc build.
+After it installed the agent and the link, `wb setup` reads the team
+from each helper bundle's code signature. Whether a profile file is
+there doesn't decide anything.
+
+- No helper has a team signature: the build is ad-hoc signed, and `wb
+  setup` refuses its Keychain backend with `keychain-needs-team`
+  (S15-02-secret-store, "Ad-hoc signed builds").
+- The helpers don't agree on one team: `wb setup` refuses with
+  `keychain-team-mixed` (S12-03-host-prerequisites, "Team-signed
+  build").
+- One team signed every helper, with its profile: `wb setup` prints the
+  team's name from the profile and its ID, and that every program the
+  team signs can reach Wraith Box's groups (S15-02-secret-store,
+  "Team-wide groups in development builds").
+
+`wb setup` exits nonzero on either refusal.
 
 ### Running it again
 

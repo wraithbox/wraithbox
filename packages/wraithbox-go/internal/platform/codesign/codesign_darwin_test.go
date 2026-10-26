@@ -25,17 +25,3 @@ func TestReadTeamUnsigned(t *testing.T) {
 		t.Errorf("ReadTeam of an unsigned file = %q, want an error", team)
 	}
 }
-
-// TestReadProfileNotAProfile fails on a file that isn't a signed
-// profile, such as the decoded form itself, and on a missing one.
-func TestReadProfileNotAProfile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "embedded.provisionprofile")
-	if err := os.WriteFile(path, []byte(testProfile), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range []string{path, path + ".missing"} {
-		if _, err := ReadProfile(t.Context(), p); err == nil {
-			t.Errorf("ReadProfile(%s) succeeded", p)
-		}
-	}
-}

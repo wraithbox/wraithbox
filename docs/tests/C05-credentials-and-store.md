@@ -45,10 +45,15 @@ Spec: S15-02-secret-store, "Keychain".
   `store-group-mismatch`.
 - The build check of S10-tech-stack fails a bundle whose helper has a
   group more or less than its row in S15-02-secret-store, "Keychain",
-  and one where `wb` or any other program outside the table has a
-  `keychain-access-groups` entitlement. The tests are the
-  `TestC05BuildCheck` ones in `internal/appbundle`, with every case of
-  S17-01-bundle, "The entitlement check".
+  and one where `wb` or any other program outside the table has an
+  entitlement that names a group: `keychain-access-groups`, the
+  application identifier, or application groups. It also fails each
+  entitlement outside the build's allowlist, such as `get-task-allow`
+  in a team build, and a program another team signed. The tests are
+  the `TestC05BuildCheck` ones in `internal/appbundle`, with every case
+  of S17-01-bundle, "The entitlement check". `TestC05BuildSigningIdentity`
+  sees the build choose the team's one Apple Development identity by
+  the OU of its certificate, and fail on none or two.
 
 ### Builds without a team, and development builds
 
@@ -62,10 +67,16 @@ Spec: S15-02-secret-store, "Keychain".
   - see `wb setup` still install the services and exit nonzero.
 
   The `wb setup` cases are `TestC05SetupAdhocKeychain` in
-  `internal/setup`.
+  `internal/setup`. A bundle with profile files and ad-hoc signatures
+  is still ad-hoc: `wb setup` reads the signature.
 - In a development build, see `wb setup`, `wb cred list` and the
   session-start audit record name the signing team and say the grant is
-  team-wide.
+  team-wide. The `wb setup` case is `TestC05SetupTeamReport`.
+- Give `wb setup` helpers that don't agree on one team: another team's
+  signature, an ad-hoc one among team ones, an unreadable signature,
+  and a profile that is missing, a link, of another team, or of
+  another team name. See each refused with `keychain-team-mixed` after
+  the install, and a nonzero exit (`TestC05SetupTeamMixed`).
 
 ### wb-credset
 
@@ -86,7 +97,9 @@ Spec: S12-03-host-prerequisites, "Development builds on macOS".
   in 31 days, and see them print nothing about it. See `wb-hostd` log
   the warning at start for the first and not the second.
 - Build with `WB_TEAM_ID` set and no profile from Xcode, and see the
-  build fail before it makes the bundle.
+  build fail before it makes the bundle. `TestC05BuildMissingProfile`
+  in `cmd/wb-dev-app` feeds the build's profile check a missing
+  profile, a directory, and a profile of another team or of two.
 - Send a fake `wb-launcher` report of a group helper's exit on
   `SIGKILL`, and see `wb-hostd` log `signing-profile-expired` with an
   expired profile, and a plain exit with a valid profile and with none.

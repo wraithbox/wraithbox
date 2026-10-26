@@ -9,8 +9,7 @@
 // they run /usr/bin/codesign and /usr/bin/security by absolute path,
 // with a fixed environment. Code signing of this kind is macOS only, so
 // on Linux and Windows both return an error that wraps
-// errors.ErrUnsupported (S12-01-platform-interfaces, "Unimplemented
-// platforms fail clearly").
+// errors.ErrUnsupported: unimplemented platforms fail clearly.
 //
 // The parsers are shared, so they are tested on every OS. The bytes they
 // read come from the user's own bundle and tools, never from a guest.

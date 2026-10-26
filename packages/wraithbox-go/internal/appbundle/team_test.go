@@ -24,13 +24,13 @@ func testCert(t *testing.T, cn string, ou ...string) (pemData []byte, hash strin
 	if err != nil {
 		t.Fatal(err)
 	}
-	tmpl := &x509.Certificate{
+	template := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject:      pkix.Name{CommonName: cn, OrganizationalUnit: ou},
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     time.Now().Add(time.Hour),
 	}
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,16 +43,16 @@ func testCert(t *testing.T, cn string, ou ...string) (pemData []byte, hash strin
 // fails, listing what it found, on none or more than one.
 func TestC05BuildSigningIdentity(t *testing.T) {
 	good, goodHash := testCert(t, "Apple Development: dev@example.com (QWERTY1234)", testTeam)
-	other, otherHash := testCert(t, "Apple Development: dev@example.com (ASDFGH5678)", otherTeam)
+	other, otherHash := testCert(t, "Apple Development: dev@example.com (OTHER56789)", otherTeam)
 	// The team ID in the name and not in the OU: never chosen.
 	named, namedHash := testCert(t, "Apple Development: "+testTeam, otherTeam)
 	dist, distHash := testCert(t, "Developer ID Application: Example ("+testTeam+")", testTeam)
-	second, secondHash := testCert(t, "Apple Development: other@example.com (ZXCVBN9012)", testTeam)
+	second, secondHash := testCert(t, "Apple Development: other@example.com (SECOND9012)", testTeam)
 	list := func(hashes ...string) string {
 		names := map[string]string{
-			goodHash: "Apple Development: dev@example.com (QWERTY1234)", otherHash: "Apple Development: dev@example.com (ASDFGH5678)",
+			goodHash: "Apple Development: dev@example.com (QWERTY1234)", otherHash: "Apple Development: dev@example.com (OTHER56789)",
 			namedHash: "Apple Development: " + testTeam, distHash: "Developer ID Application: Example (" + testTeam + ")",
-			secondHash: "Apple Development: other@example.com (ZXCVBN9012)",
+			secondHash: "Apple Development: other@example.com (SECOND9012)",
 		}
 		var b strings.Builder
 		for i, h := range hashes {

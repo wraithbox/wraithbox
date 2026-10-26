@@ -73,12 +73,27 @@ signed entitlements. The build fails unless:
 - each Go program is built from its own command package, and no other
   program is Go;
 - neither the bundle nor the disk holds a symbolic link;
-- every program is signed with the hardened runtime;
+- every program is signed with the hardened runtime, by the build's
+  team, or without a team in an ad-hoc build;
 - the access groups follow S10-02-packaging-and-signing, "Helper
-  bundles";
+  bundles". The check counts the groups of `keychain-access-groups`,
+  `com.apple.application-identifier` and
+  `com.apple.security.application-groups`, the group entitlements;
 - only `wb-vmd` has the virtualization entitlement, and it has it;
-- without a team, no program has any other entitlement, and the bundle
-  has no profile;
+- no program has an entitlement outside its build's allowlist:
+  - without a team: the three group entitlements, refused by the group
+    rule, and the virtualization entitlement;
+  - with a team: `keychain-access-groups`,
+    `com.apple.application-identifier`,
+    `com.apple.developer.team-identifier` with the build's team, and
+    the virtualization entitlement.
+
+  So `get-task-allow`, `disable-library-validation` and
+  `allow-dyld-environment-variables` fail in both, and so does
+  `com.apple.vm.networking`, which S15-01-rights, "Hardening and
+  entitlements", doesn't give any process. The application identifier names a
+  group, so the group rule still refuses it on every program;
+- without a team, the bundle has no profile;
 - with a team, each helper bundle has a profile;
 - each `Info.plist` holds what "The bundle" above says, with the bundle
   identifier the build chose;
@@ -89,11 +104,31 @@ signed entitlements. The build fails unless:
 
 With `WB_TEAM_ID` set:
 
-- `xcodebuild` builds with automatic signing for that team.
-- The bundle identifier is `nl.wraithbox.dev.<teamid>`, or
-  `WB_BUNDLE_ID` when that is set.
-- The build fails when Xcode gives it no profile (S12-03-host-prerequisites, "Development builds on macOS").
-- Step 7 signs with the team's Apple Development certificate.
+- A value that isn't ten uppercase letters and digits is refused before
+  the build runs anything with it.
+- The bundle identifier is `nl.wraithbox.dev.<teamid>`, with the team
+  ID in lowercase, or `WB_BUNDLE_ID` when that is set.
+- `xcodebuild` builds with automatic signing for that team, and with
+  `-allowProvisioningUpdates`, so Xcode registers a new bundle
+  identifier and fetches its profile.
+- The build fails, before it puts the bundle together, unless Xcode
+  gave the app a profile whose `TeamIdentifier` is exactly that team
+  (S12-03-host-prerequisites, "Missing profile").
+- Step 7 signs with the team's one Apple Development identity: the
+  identity whose name starts with `Apple Development: ` and whose
+  certificate has the team as its organizational unit. The build
+  chooses it by the certificate, never by a part of the name. None, or
+  more than one, fails the build with a list of the identities it
+  found.
+- Step 7 signs the guest programs with that identity too. It doesn't
+  add a secure timestamp, as Xcode doesn't for a development build.
+- Each helper bundle gets a copy of the app's profile, and its
+  entitlements hold only `keychain-access-groups` with its row's
+  groups (S10-02-packaging-and-signing, "Helper bundles"). `wb-vmd`
+  keeps only the virtualization entitlement, and the other programs
+  get none.
+- The entitlement check runs for that team, and refuses a program
+  another team signed, or none.
 
 Without `WB_TEAM_ID`:
 
@@ -112,7 +147,8 @@ together in a work directory, and moves it to that path only when step
 `app:install` reads.
 
 CI runs `app:bundle` without `WB_TEAM_ID`. Every pull request builds
-the ad-hoc bundle and runs its checks.
+the ad-hoc bundle and runs its checks. CI has no Apple Development
+identity. The team-signed build runs on a developer's Mac only.
 
 `mise run app:install` installs the built bundle as
 `~/Applications/Wraith Box.app` (S17-05-upgrades-and-migrations, "Upgrades").
