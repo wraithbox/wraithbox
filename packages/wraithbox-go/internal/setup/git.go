@@ -49,13 +49,28 @@ func checkGit(ctx context.Context, env *Env) error {
 			Rule: Rule(r.Rule), Msg: r.Error(), Fix: fmt.Sprintf("Fix %s, then run wb setup again.", file),
 		})
 	}
-	rule := Rule(hostgit.RuleRunFailed)
+	rule := hostgit.RuleRunFailed
 	if r, ok := errors.AsType[*hostgit.Refusal](err); ok {
-		rule = Rule(r.Rule)
+		rule = r.Rule
 	}
-	return refuse(ctx, env.Log, &Refusal{
-		Rule: rule, Msg: err.Error(),
-		Fix: fmt.Sprintf("Wraith Box needs git %s or later: %s (%s). Then run wb setup again.",
-			hostgit.MinVersion, platform.GitInstallHint(), file),
-	})
+	return refuse(ctx, env.Log, &Refusal{Rule: Rule(rule), Msg: err.Error(), Fix: gitFix(rule, file)})
+}
+
+// gitFix says what to do about a refused git, by the rule that refused
+// it (NFR06-explained-refusals).
+func gitFix(rule hostgit.Rule, file string) string {
+	switch rule {
+	case hostgit.RulePathNotAbsolute:
+		return fmt.Sprintf("Set git in %s to an absolute path, or remove it to use the default. Then run wb setup again.", file)
+	case hostgit.RuleEnvUnavailable:
+		return "Fix what keeps git's environment from being built, as the message says. Then run wb setup again."
+	case hostgit.RuleVersionTooOld, hostgit.RuleVersionUnreadable:
+		return fmt.Sprintf("Wraith Box needs a release of git %s or later: %s, or set git in %s to one. Then run wb setup again.",
+			hostgit.MinVersion, platform.GitInstallHint(), file)
+	case hostgit.RuleRunFailed, hostgit.RuleVersionAccepted:
+		// A failed run, and any rule this switch doesn't name, get the
+		// advice below.
+	}
+	return fmt.Sprintf("Check that the git binary runs, or set git in %s to one that does: %s. Then run wb setup again.",
+		file, platform.GitInstallHint())
 }

@@ -155,10 +155,16 @@ func (c *cmd) place(ctx context.Context) error {
 	for _, l := range op.Notice() {
 		fmt.Fprintln(c.env.Stderr, printable(l))
 	}
-	if op.Registered {
-		return nil
+	if !op.Registered {
+		return c.setPlacement(ctx, op.Project)
 	}
-	return c.setPlacement(ctx, op.Project)
+	// A clone of an isolated project is registered isolated, whatever
+	// the command asked (S05-04-naming, "Registration").
+	if got := op.Project.GetPlacement(); got != c.inv.placement {
+		line(c.env.Stderr, "note", fmt.Sprintf("you asked for placement %s, but the project is %s: a new clone of a repository with an isolated project starts isolated",
+			project.PlacementName(c.inv.placement), project.PlacementName(got)))
+	}
+	return nil
 }
 
 // setPlacement asks wb-hostd to give p the placement of the command

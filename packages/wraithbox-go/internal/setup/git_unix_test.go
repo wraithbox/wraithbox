@@ -5,6 +5,7 @@ package setup
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
@@ -65,4 +66,25 @@ func TestSetupGitCheckFailsClosed(t *testing.T) {
 	f.env.CheckGit = func(ctx context.Context) error { return CheckGitAt(ctx, f.env.Paths.Config) }
 	f.wantRefused(Rule(config.RuleKeyUnknown), f.tree())
 	f.wantStderr("gti", config.FileName)
+}
+
+// TestGitFix: each git rule gets its own advice, and only a version
+// rule names the minimum version (NFR06-explained-refusals).
+func TestGitFix(t *testing.T) {
+	for rule, want := range map[hostgit.Rule]string{
+		hostgit.RulePathNotAbsolute:   "absolute path",
+		hostgit.RuleEnvUnavailable:    "environment",
+		hostgit.RuleRunFailed:         "runs",
+		hostgit.RuleVersionTooOld:     hostgit.MinVersion,
+		hostgit.RuleVersionUnreadable: hostgit.MinVersion,
+	} {
+		got := gitFix(rule, "/c/config.toml")
+		if !strings.Contains(got, want) {
+			t.Errorf("%s: %q misses %q", rule, got, want)
+		}
+		version := rule == hostgit.RuleVersionTooOld || rule == hostgit.RuleVersionUnreadable
+		if !version && strings.Contains(got, hostgit.MinVersion) {
+			t.Errorf("%s: %q names the minimum version", rule, got)
+		}
+	}
 }
