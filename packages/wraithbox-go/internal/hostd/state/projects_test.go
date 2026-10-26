@@ -30,16 +30,20 @@ func inTx(t *testing.T, db *DB, fn func(*ProjectTx) error) error {
 	return db.Projects(t.Context(), fn)
 }
 
-// TestProjectsMigrationFromLast: the projects migration runs on a
+// TestProjectsMigrationFromBefore: the projects migration runs on a
 // database at the version before it, and keeps that version's rows.
-func TestProjectsMigrationFromLast(t *testing.T) {
+func TestProjectsMigrationFromBefore(t *testing.T) {
 	dir := t.TempDir()
-	last := len(migrations) - 1
-	if migrations[last].name != "projects" {
-		t.Fatalf("the last migration is %s, want projects", migrations[last].name)
+	at := slices.IndexFunc(migrations, func(m migration) bool { return m.name == "projects" })
+	if at < 0 {
+		t.Fatal("no projects migration")
 	}
-	db := mustOpen(t, dir, opts(migrations[:last]))
-	must(t, db.RecordDataDiskFormat(t.Context(), workDisk))
+	db := mustOpen(t, dir, opts(migrations[:at]))
+	// The columns of data_disks before the projects migration: the
+	// record methods write later ones.
+	_, err := db.db.ExecContext(t.Context(), `INSERT INTO data_disks
+		(slot, volume_uuid, temp_name, size_gib, formatted) VALUES ('macos-work', ?, 'data.wbdisk.tmp', 128, 1)`, uuidA)
+	must(t, err)
 	_ = db.Close()
 
 	db = mustOpen(t, dir, opts(migrations))
