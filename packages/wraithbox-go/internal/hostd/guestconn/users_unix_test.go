@@ -176,7 +176,7 @@ func (h *harness) pendingRemovals() []state.UserRemoval {
 	return rms
 }
 
-func uidsOf(reqs []*guestv1.EnsureUsersRequest) []uint32 {
+func sentUIDs(reqs []*guestv1.EnsureUsersRequest) []uint32 {
 	var out []uint32
 	for _, r := range reqs {
 		for _, u := range r.GetUsers() {
@@ -238,7 +238,7 @@ func TestUsersSentAtEachConnection(t *testing.T) {
 	h.rm(1)
 	h.reconnect()
 	ensured, rms := g.requests()
-	if got := uidsOf(ensured[len(ensured)-1:]); !slices.Equal(got, []uint32{10000, 10002}) {
+	if got := sentUIDs(ensured[len(ensured)-1:]); !slices.Equal(got, []uint32{10000, 10002}) {
 		t.Fatalf("users at the connection %v, want 10000 and 10002", got)
 	}
 	if len(rms) != 1 || rms[0].GetProjectId() != projectID(1) || rms[0].GetUid() != 10001 {
@@ -280,7 +280,7 @@ func TestUsersSplit(t *testing.T) {
 	if total <= guestd.MaxRecvMsgSize {
 		t.Fatalf("%d bytes in all, want a list over the cap", total)
 	}
-	got := uidsOf(ensured)
+	got := sentUIDs(ensured)
 	if len(got) != n || got[0] != 10000 || got[n-1] != 10000+n-1 {
 		t.Fatalf("%d users sent", len(got))
 	}

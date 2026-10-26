@@ -23,6 +23,21 @@ A guest root that wrote to the data disk keeps what it wrote after the
 swap, because only the system disk is replaced
 (T18-data-disk-persistence).
 
+`wb-hostd` doesn't track which boot is the first. At every connection,
+after the guest has mounted the data volume, it sends every project
+user it holds for that data disk with `EnsureUsers`, in requests of at
+most 128 users. The guest answers OK for a user that exists with
+every value of the request. A resend doesn't change a user.
+
+`wb-hostd` reads each reply as untrusted (SEC11-root-gains-nothing). It
+drops a whole reply that names a UID it didn't send, names one twice,
+has a result it doesn't know, or has a rule that isn't 1 to 64
+characters of `[a-z0-9-]`, and logs `guest-users-reply-invalid`. A
+user without an accepted OK is refused for that VM generation: a
+session start for its project is refused with the rule, and the next
+VM start asks again. A request the guest doesn't answer drops the
+link, and the next connection sends it again.
+
 ### Host state per project user
 
 To recreate the users, `wb-hostd` keeps this in `state.db` for each
@@ -38,11 +53,20 @@ Project users have no password to keep.
 
 #### Allocation
 
-- `wb-hostd` allocates every UID and GID from a counter in `state.db`,
-  from 10000 up. The image never uses that range.
-- It commits the counter before the record goes to the guest.
-- It generates every `GeneratedUID` itself, and never records one the
+- `wb-hostd` allocates every UID and GID from one counter in `state.db`,
+  from 10000 up. The image never uses that range. The user and its
+  group get the same number, and the group has the user's name.
+- The counter stops at 999,999,999, below `nobody` and 2^31. Past it
+  every new allocation is refused with `project-user-ids-exhausted`.
+- It commits the counter and the user's row before the record goes to
+  the guest. The counter doesn't go down when a project is removed.
+- The user is named `wbp<uid>`, and its home is that name under the
+  data volume's mount point, `/private/var/wbhomes` (S06-05-disks).
+- It generates every `GeneratedUID` itself, from a cryptographic random
+  source as an uppercase version 4 UUID, and never records one the
   guest reports.
+- Each project has one row per data disk. A new data disk gets new
+  users.
 - A UID, GID or `GeneratedUID` is never reused for any project on any
   data disk of this host. So a recreated user can't own another
   project's home (SEC08-proj-isolation).
