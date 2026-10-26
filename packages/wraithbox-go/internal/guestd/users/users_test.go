@@ -127,8 +127,8 @@ func TestNewUser(t *testing.T) {
 		t.Errorf("writes\n%s\nwant\n%s", strings.Join(f.dir.writes, "\n"), strings.Join(want, "\n"))
 	}
 	e := f.root.entries[u.Name]
-	if !slices.Equal(f.root.mkdirs, []string{u.Name}) || !e.IsDir || e.UID != 10000 || e.GID != 10000 || e.Perm != 0o700 {
-		t.Errorf("home %+v after mkdirs %v", e, f.root.mkdirs)
+	if !slices.Equal(f.root.made, []string{u.Name}) || !e.IsDir || e.UID != 10000 || e.GID != 10000 || e.Perm != 0o700 {
+		t.Errorf("home %+v, made %v", e, f.root.made)
 	}
 	if !strings.Contains(f.log.String(), "outcome=created") {
 		t.Errorf("log: %s", f.log)
@@ -146,8 +146,8 @@ func TestSameUser(t *testing.T) {
 	f.complete(u)
 	f.wantResults(t, f.ensure(t, u), "")
 	f.wantResults(t, f.ensure(t, u), "")
-	if len(f.dir.writes) != 0 || len(f.root.mkdirs) != 0 {
-		t.Errorf("writes %v, mkdirs %v", f.dir.writes, f.root.mkdirs)
+	if len(f.dir.writes) != 0 || len(f.root.made) != 0 {
+		t.Errorf("writes %v, made %v", f.dir.writes, f.root.made)
 	}
 	if !strings.Contains(f.log.String(), "outcome=kept") {
 		t.Errorf("log: %s", f.log)
@@ -163,8 +163,8 @@ func TestRecreate(t *testing.T) {
 	f.home(u, 0o700)
 	f.root.entries["wbp10001"] = gu.Entry{Name: "wbp10001", IsDir: true, UID: 10001, GID: 10001, Perm: 0o700}
 	f.wantResults(t, f.ensure(t, u), "")
-	if len(f.dir.writes) != 12 || len(f.root.mkdirs) != 0 {
-		t.Errorf("%d writes, mkdirs %v", len(f.dir.writes), f.root.mkdirs)
+	if len(f.dir.writes) != 12 || len(f.root.made) != 0 {
+		t.Errorf("%d writes, made %v", len(f.dir.writes), f.root.made)
 	}
 }
 
@@ -216,8 +216,8 @@ func TestMissingHome(t *testing.T) {
 	f.complete(u)
 	delete(f.root.entries, u.Name)
 	f.wantResults(t, f.ensure(t, u), "")
-	if len(f.dir.writes) != 0 || !slices.Equal(f.root.mkdirs, []string{u.Name}) {
-		t.Errorf("writes %v, mkdirs %v", f.dir.writes, f.root.mkdirs)
+	if len(f.dir.writes) != 0 || !slices.Equal(f.root.made, []string{u.Name}) {
+		t.Errorf("writes %v, made %v", f.dir.writes, f.root.made)
 	}
 }
 
@@ -241,7 +241,7 @@ func TestConflicts(t *testing.T) {
 		{"user shell", "user UserShell", func(f *fixture) { userRec(f)[gu.AttrShell] = []string{"/bin/sh"} }},
 		{"user two values", "user RealName", func(f *fixture) { userRec(f)[gu.AttrRealName] = []string{"a", "b"} }},
 		{"user password", "user AuthenticationAuthority", func(f *fixture) {
-			userRec(f)[gu.AttrAuthAuthority] = []string{";ShadowHash;HASHLIST:<SALTED-SHA512-PBKDF2>"}
+			userRec(f)[gu.AttrAuthAuthority] = []string{";ShadowHash;"}
 		}},
 		{"user alias", "user RecordName", func(f *fixture) { userRec(f)[gu.AttrRecordName] = []string{u.Name, "root2"} }},
 		{"group GeneratedUID", "group GeneratedUID", func(f *fixture) { group(f)[gu.AttrGeneratedUID] = []string{guid(1, 'C')} }},
@@ -278,8 +278,8 @@ func TestConflicts(t *testing.T) {
 			if slices.ContainsFunc(f.dir.writes, func(w string) bool { return strings.Contains(w, " "+u.Name+" ") }) {
 				t.Errorf("wrote %v, some for the refused user", f.dir.writes)
 			}
-			if len(f.root.mkdirs) != 1 || len(f.root.entries) != before+1 {
-				t.Errorf("mkdirs %v", f.root.mkdirs)
+			if len(f.root.made) != 1 || len(f.root.entries) != before+1 {
+				t.Errorf("made %v", f.root.made)
 			}
 			if !strings.Contains(f.log.String(), `attribute="`+tc.attr+`"`) ||
 				!strings.Contains(f.log.String(), "rule=project-user-conflict") {
@@ -296,8 +296,8 @@ func TestConflictNewUser(t *testing.T) {
 	u := user(10000)
 	f.dir.put(gu.Users, "intruder", gu.Record{gu.AttrUniqueID: {"10000"}})
 	f.wantResults(t, f.ensure(t, u), users.RuleConflict)
-	if len(f.dir.writes) != 0 || len(f.root.mkdirs) != 0 {
-		t.Errorf("writes %v, mkdirs %v", f.dir.writes, f.root.mkdirs)
+	if len(f.dir.writes) != 0 || len(f.root.made) != 0 {
+		t.Errorf("writes %v, made %v", f.dir.writes, f.root.made)
 	}
 }
 
@@ -328,8 +328,8 @@ func TestHomes(t *testing.T) {
 			if len(f.dir.writes) != 12 || !strings.Contains(f.dir.writes[0], other.Name) {
 				t.Errorf("writes %v, want only the other user's", f.dir.writes)
 			}
-			if f.root.entries[u.Name] != e || !slices.Equal(f.root.mkdirs, []string{other.Name}) {
-				t.Errorf("home changed to %+v, mkdirs %v", f.root.entries[u.Name], f.root.mkdirs)
+			if f.root.entries[u.Name] != e || !slices.Equal(f.root.made, []string{other.Name}) {
+				t.Errorf("home changed to %+v, made %v", f.root.entries[u.Name], f.root.made)
 			}
 		})
 	}
@@ -355,8 +355,8 @@ func TestIDsOwnEntry(t *testing.T) {
 			f := newFixture()
 			f.root.entries[e.Name] = e
 			f.wantResults(t, f.ensure(t, user(10000)), users.RuleIDsOwnEntry)
-			if len(f.dir.writes) != 0 || len(f.root.mkdirs) != 0 {
-				t.Errorf("writes %v, mkdirs %v", f.dir.writes, f.root.mkdirs)
+			if len(f.dir.writes) != 0 || len(f.root.made) != 0 {
+				t.Errorf("writes %v, made %v", f.dir.writes, f.root.made)
 			}
 		})
 	}

@@ -76,7 +76,7 @@ func parseRecord(d map[string]any) (Record, error) {
 		if name == "" {
 			return nil, errors.New("guestusers: an attribute without a name")
 		}
-		strs, err := parseValues(name, raw)
+		vals, err := parseValues(name, raw)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +84,7 @@ func parseRecord(d map[string]any) (Record, error) {
 			// Both the prefixed and the bare name of one attribute.
 			return nil, fmt.Errorf("guestusers: attribute %q appears twice", cut(name))
 		}
-		rec[name] = strs
+		rec[name] = vals
 	}
 	return rec, nil
 }
@@ -99,7 +99,7 @@ func parseValues(name string, raw any) ([]string, error) {
 	if len(values) > MaxValues {
 		return nil, fmt.Errorf("guestusers: attribute %q has %d values, over %d", cut(name), len(values), MaxValues)
 	}
-	strs := make([]string, 0, len(values))
+	vals := make([]string, 0, len(values))
 	for _, item := range values {
 		s, ok := item.(string)
 		if !ok {
@@ -108,9 +108,9 @@ func parseValues(name string, raw any) ([]string, error) {
 		if len(s) > MaxValueLen || strings.IndexByte(s, 0) >= 0 {
 			return nil, fmt.Errorf("guestusers: a value of attribute %q is over %d bytes or holds NUL", cut(name), MaxValueLen)
 		}
-		strs = append(strs, s)
+		vals = append(vals, s)
 	}
-	return strs, nil
+	return vals, nil
 }
 
 // maxText is how much of a value from dscl goes into an error.

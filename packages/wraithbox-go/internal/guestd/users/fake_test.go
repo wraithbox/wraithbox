@@ -100,7 +100,7 @@ func cloneRec(rec gu.Record) gu.Record {
 // fakeRoot is an in-memory volume root.
 type fakeRoot struct {
 	entries map[string]gu.Entry
-	mkdirs  []string
+	made    []string
 	// openErr fails the open, and entriesErr every Entries.
 	openErr, entriesErr error
 	opens, closes       int
@@ -128,7 +128,7 @@ func (r *fakeRoot) Mkdir(name string, uid, gid uint32) error {
 	if _, ok := r.entries[name]; ok {
 		return fmt.Errorf("fake: %s: %w", name, fs.ErrExist)
 	}
-	r.mkdirs = append(r.mkdirs, name)
+	r.made = append(r.made, name)
 	r.entries[name] = gu.Entry{Name: name, IsDir: true, UID: uid, GID: gid, Perm: 0o700}
 	return nil
 }
