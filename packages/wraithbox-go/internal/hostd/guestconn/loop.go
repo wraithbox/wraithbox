@@ -44,6 +44,9 @@ type run struct {
 	// sent holds the removals this link has sent, so a kick sends only
 	// the ones queued since. Only the run's own goroutine uses it.
 	sent map[removalKey]bool
+	// killed holds the projects whose first-connection kill the run has
+	// sent. Only the run's own goroutine uses it.
+	killed map[string]bool
 }
 
 // loop connects, keeps the link while it is up, and connects again after
@@ -123,7 +126,9 @@ func (r *run) connect() (*guestlink.Link, error) {
 // data mount or a user call unanswered, or the run ends. It calls the
 // mount hook after the hello, then sends the project users and their
 // removals, then calls the time hook, and the time hook every
-// TimeInterval after. It returns the reason of the next link's first
+// TimeInterval after. After the first time call it sends the VM
+// generation's first-connection kills, and any it hasn't sent after each
+// later one. It returns the reason of the next link's first
 // time call.
 func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeReason {
 	defer func() { _ = l.Close() }()
@@ -141,6 +146,10 @@ func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeRea
 		var kept bool
 		if reason, kept = r.sendTime(l, reason); !kept {
 			r.reconnecting()
+			return reason
+		}
+		if !r.firstKills(l) {
+			r.lost(l)
 			return reason
 		}
 		if !r.idle(l) {

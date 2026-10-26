@@ -7,7 +7,9 @@ toolchain prefix, the guest admin password, and the session lifecycle.
 **Verifies:** S06-01-image-layers ("Toolchain prefix"),
 S06-05-disks ("Mounting the data volume"),
 S06-06-devices-and-warm-start ("Time and sleep"),
-S06-09-session-lifecycle, S06-12-guest-agent ("Update at start"),
+S06-09-session-lifecycle,
+S06-10-leftover-processes,
+S06-12-guest-agent ("Update at start"),
 S13-guest-confinement, S15-04-guest-admin
 
 ## Fuzzing
@@ -18,6 +20,12 @@ S13-guest-confinement, S15-04-guest-admin
   in `internal/platform/guestmount`: an accepted report has a UUID and
   a device of the form `disk<N>s<N>`, and a report without an encryption
   property reads as encrypted (S06-05-disks, "The mount").
+- The checks of a kill result in `wb-hostd`, `FuzzKillResult` in
+  `internal/hostd/kills`: a KillUser answer or a cleanup record of any
+  bytes is taken only for a kill ID sent for its project in the VM
+  generation, with a result and count in their bounds, and a record out
+  of bounds is never acknowledged (S06-10-leftover-processes,
+  "Acceptance").
 
 ## Conformance
 
@@ -227,5 +235,56 @@ Commands and pushes around a session:
   with `setsid` and another session of the project runs, and see the
   child logged as a survivor (S13-guest-confinement). With no other
   session, see it killed.
+
+### Leftover processes
+
+Spec: S06-10-leftover-processes, S06-11-reconnect-and-recovery ("Answers
+to cleanup records"), SEC08-proj-isolation, SEC11-root-gains-nothing.
+
+Unit tests of the host side in `internal/hostd/kills`, with a fake
+clock:
+
+- `TestKillCleanAccepted`: a clean result of a kill that was sent is
+  accepted and logged.
+- `TestKillAcceptanceRules`: a project ID of the wrong form, a kill ID
+  never sent, one sent for another project, in another VM or in an older
+  generation are each dropped with their rule, and the kill is still
+  pending.
+- `TestKillReplyForAnotherKill`: an answer that names another kill than
+  its request is dropped.
+- `TestKillAnotherGeneration`: a kill of one generation takes no result
+  in the next.
+- `TestKillLateResult` and `TestKillMissingResult`: a result after the
+  7-minute deadline is dropped, and a kill with no result counts as
+  processes left at its deadline.
+- `TestKillProcessesLeft`: a result of processes left refuses sessions,
+  learn mode and saves, logs the count capped at "more than 1000", and
+  asks for a cold boot. Only a new generation clears it.
+- `TestKillColdStop` and `TestKillColdStopAfterDeadline`: a cold stop
+  closes the pending kills with its cause, and a kill past its deadline
+  before it still counts as processes left.
+- `TestKillBeginOldGeneration` and `TestKillIDs`: no kill is sent to an
+  ended generation, and kill IDs are never 0 and never repeat.
+- `TestListRefused` and `TestListAnswers`: a reconnect list with more
+  records than project users, or two with one kill ID, is refused whole.
+  Each other record gets "acknowledged" or "end".
+
+In `internal/guestlink`, `TestCheckKill` and `TestCountLabel`: an answer
+or record out of the contract's bounds is refused with
+`guest-users-reply-invalid`.
+
+In `internal/hostd/guestconn`, with a fake `wb-guestd`:
+
+- `TestFirstConnectionKills`: the first connection of a VM generation
+  sends a kill for every project user, each with its own ID, and session
+  starts wait for them. A reconnect sends none again.
+- `TestProcessesLeftRefusesSessions`: a result of processes left
+  refuses session starts and saves until the next generation.
+- `TestKillUser`: a session of a project is refused while a kill of its
+  user is pending, and `KillUser` sends nothing to a generation that
+  doesn't run.
+
+In `internal/hostd/vm`, `TestOnEnded`: each run's end reaches the kill
+tracker with its cause.
 
 **Status:** Draft

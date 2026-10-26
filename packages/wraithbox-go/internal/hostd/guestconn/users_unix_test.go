@@ -35,10 +35,13 @@ type usersGuest struct {
 	mu     sync.Mutex
 	ensure func(*guestv1.EnsureUsersRequest) *guestv1.EnsureUsersResponse
 	remove func(*guestv1.RemoveUserRequest) *guestv1.RemoveUserResponse
+	// kill answers KillUser, or CLEAN for the request when nil.
+	kill func(*guestv1.KillUserRequest) *guestv1.KillUserResponse
 	// ensureErr, when set, fails the next EnsureUsers call, once.
 	ensureErr error
 	ensured   []*guestv1.EnsureUsersRequest
 	removed   []*guestv1.RemoveUserRequest
+	killed    []*guestv1.KillUserRequest
 }
 
 func (g *usersGuest) serve(t *testing.T, conn net.Conn) {
@@ -79,6 +82,18 @@ func (g *usersGuest) RemoveUser(_ context.Context, req *guestv1.RemoveUserReques
 		return g.remove(req), nil
 	}
 	return removed(req, guestv1.RemoveResult_REMOVE_RESULT_REMOVED), nil
+}
+
+func (g *usersGuest) KillUser(_ context.Context, req *guestv1.KillUserRequest) (*guestv1.KillUserResponse, error) {
+	g.mu.Lock()
+	g.killed = append(g.killed, req)
+	kill := g.kill
+	g.mu.Unlock()
+	// kill may block, so it runs without the lock.
+	if kill != nil {
+		return kill(req), nil
+	}
+	return &guestv1.KillUserResponse{KillId: req.GetKillId(), ProjectId: req.GetProjectId(), Result: guestv1.KillResult_KILL_RESULT_CLEAN}, nil
 }
 
 func (g *usersGuest) setEnsure(f func(*guestv1.EnsureUsersRequest) *guestv1.EnsureUsersResponse) {

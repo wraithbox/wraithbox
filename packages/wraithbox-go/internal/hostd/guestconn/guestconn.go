@@ -36,6 +36,7 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/kills"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/ratelog"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
@@ -95,6 +96,11 @@ type Config struct {
 	// answered, before the time hook. nil sends none, and CheckUser
 	// refuses every user.
 	Users UserRecords
+	// Kills, when set, records the kills of project users. Each link
+	// sends one for every project user once per VM generation, and
+	// CheckSessionStart refuses until it has, and after a result of
+	// processes left (S06-10-leftover-processes). nil sends none.
+	Kills *kills.Tracker
 	// Clock is nil for the real clock.
 	Clock Clock
 	// Logger gets the decisions. nil takes slog.Default().
@@ -175,6 +181,9 @@ func (ls *Links) Run(slot vm.Slot, generation uint64, ended <-chan struct{}) {
 		DataMount: DataMount{State: MountPending},
 	}
 	ls.users[slot] = newGenUsers(generation)
+	if ls.cfg.Kills != nil {
+		ls.cfg.Kills.Started(slot, generation)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &run{ls: ls, vc: vc, slot: slot, generation: generation, ctx: ctx, kick: make(chan struct{}, 1)}
 	ls.active[slot] = r

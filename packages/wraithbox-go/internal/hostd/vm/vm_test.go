@@ -765,6 +765,54 @@ func TestConnectGuest(t *testing.T) {
 
 // OnRunning is called once for each run that reaches running, with its
 // generation, and its channel closes once the run has ended.
+// OnEnded is called once for each run that ended, with its generation
+// and why it ended: the kill tracker closes the run's pending kills
+// through it (S06-10-leftover-processes, "Failing closed").
+func TestOnEnded(t *testing.T) {
+	h := newHarness(t)
+	type call struct {
+		slot       vm.Slot
+		generation uint64
+		cause      string
+	}
+	calls := make(chan call, 4)
+	h.cfg.OnEnded = func(slot vm.Slot, generation uint64, cause string) {
+		calls <- call{slot, generation, cause}
+	}
+	m := h.manager()
+	next := func() call {
+		t.Helper()
+		select {
+		case c := <-calls:
+			return c
+		case <-time.After(5 * time.Second):
+			t.Fatal("OnEnded wasn't called")
+			return call{}
+		}
+	}
+	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Stop(t.Context(), vm.SlotWork); err != nil {
+		t.Fatal(err)
+	}
+	if c := next(); c != (call{vm.SlotWork, 1, "stop requested"}) {
+		t.Fatalf("OnEnded%+v", c)
+	}
+	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
+		t.Fatal(err)
+	}
+	h.provider.Last().Publish(2, vmdv1.State_STATE_STOPPED, nil)
+	if c := next(); c != (call{vm.SlotWork, 2, "stopped unexpectedly"}) {
+		t.Fatalf("OnEnded%+v", c)
+	}
+	select {
+	case c := <-calls:
+		t.Fatalf("OnEnded%+v called again", c)
+	default:
+	}
+}
+
 func TestOnRunning(t *testing.T) {
 	h := newHarness(t)
 	type call struct {
