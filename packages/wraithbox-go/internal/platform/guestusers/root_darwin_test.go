@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
@@ -106,5 +107,42 @@ func TestRootEntries(t *testing.T) {
 	}
 	if _, err := root.Entries(2); !errors.Is(err, guestusers.ErrTooManyEntries) {
 		t.Errorf("Entries(2) of 3: %v, want ErrTooManyEntries", err)
+	}
+}
+
+// TestRootMkdirUndone: when a step after mkdirat fails, here fchown to
+// root without being root, the new directory is removed again, so no
+// home owned by root stays behind.
+func TestRootMkdirUndone(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("fchown to root works as root")
+	}
+	dir, root := openRoot(t)
+	if err := root.Mkdir("wbp10000", 0, 0); err == nil {
+		t.Fatal("Mkdir with fchown to root worked")
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "wbp10000")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("directory after the failed Mkdir: %v, want fs.ErrNotExist", err)
+	}
+}
+
+// TestRootEntriesLongName: an entry whose name is over 255 bytes, which
+// APFS allows as long as it is at most 255 characters, is listed. Stat
+// and Mkdir still refuse a name that long.
+func TestRootEntriesLongName(t *testing.T) {
+	dir, root := openRoot(t)
+	long := strings.Repeat("é", 150)
+	if err := os.WriteFile(filepath.Join(dir, long), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := root.Entries(10)
+	if err != nil || len(entries) != 1 || entries[0].Name != long {
+		t.Fatalf("Entries: %v, %v", entries, err)
+	}
+	if _, err := root.Stat(long); err == nil {
+		t.Error("Stat of a 300-byte name worked")
+	}
+	if err := root.Mkdir(long+"x", 0, 0); err == nil {
+		t.Error("Mkdir of a 301-byte name worked")
 	}
 }

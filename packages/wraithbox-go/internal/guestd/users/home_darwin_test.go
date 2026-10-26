@@ -77,7 +77,7 @@ func TestRealHomeMade(t *testing.T) {
 	t.Cleanup(func() { syscall.Umask(old) })
 	m, dir := realRoot(t)
 	u := user(mapped)
-	if got := m.Ensure(t.Context(), []users.User{u}); got[0].Rule != "" {
+	if got := m.Ensure(t.Context(), []users.User{u}, rootOK); got[0].Rule != "" {
 		t.Fatalf("refused: %s", got[0].Rule)
 	}
 	fi, err := os.Lstat(filepath.Join(dir, u.Name))
@@ -103,7 +103,7 @@ func TestRealHomeLink(t *testing.T) {
 	if err := os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
-	if got := m.Ensure(t.Context(), []users.User{u}); got[0].Rule != users.RuleHomeInvalid {
+	if got := m.Ensure(t.Context(), []users.User{u}, rootOK); got[0].Rule != users.RuleHomeInvalid {
 		t.Errorf("rule %q, want %q", got[0].Rule, users.RuleHomeInvalid)
 	}
 	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
@@ -125,7 +125,7 @@ func TestRealHomeMode(t *testing.T) {
 	if err := os.Chmod(home, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if got := m.Ensure(t.Context(), []users.User{u}); got[0].Rule != users.RuleHomeInvalid {
+	if got := m.Ensure(t.Context(), []users.User{u}, rootOK); got[0].Rule != users.RuleHomeInvalid {
 		t.Errorf("rule %q, want %q", got[0].Rule, users.RuleHomeInvalid)
 	}
 	if fi, err := os.Stat(home); err != nil || fi.Mode().Perm() != 0o755 {
@@ -141,7 +141,7 @@ func TestRealIDsOwnEntry(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "stray"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := m.Ensure(t.Context(), []users.User{u}); got[0].Rule != users.RuleIDsOwnEntry {
+	if got := m.Ensure(t.Context(), []users.User{u}, rootOK); got[0].Rule != users.RuleIDsOwnEntry {
 		t.Errorf("rule %q, want %q", got[0].Rule, users.RuleIDsOwnEntry)
 	}
 	if _, err := os.Lstat(filepath.Join(dir, u.Name)); !os.IsNotExist(err) {

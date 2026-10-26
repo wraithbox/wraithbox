@@ -17,6 +17,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 	gu "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectuser"
 )
@@ -42,8 +43,11 @@ func (d *memDir) Create(_ context.Context, kind gu.Kind, name, attr, value strin
 	return nil
 }
 
-// memRoot is an empty volume root that keeps the homes made.
-type memRoot struct{ homes map[string]gu.Entry }
+// memRoot is an empty volume root on mount that keeps the homes made.
+type memRoot struct {
+	homes map[string]gu.Entry
+	mount guestmount.Mount
+}
 
 func (r *memRoot) Stat(name string) (gu.Entry, error) {
 	if e, ok := r.homes[name]; ok {
@@ -56,8 +60,9 @@ func (r *memRoot) Mkdir(name string, uid, gid uint32) error {
 	r.homes[name] = gu.Entry{Name: name, IsDir: true, UID: uid, GID: gid, Perm: 0o700}
 	return nil
 }
-func (r *memRoot) Entries(int) ([]gu.Entry, error) { return nil, nil }
-func (r *memRoot) Close() error                    { return nil }
+func (r *memRoot) Entries(int) ([]gu.Entry, error)  { return nil, nil }
+func (r *memRoot) Mount() (guestmount.Mount, error) { return r.mount, nil }
+func (r *memRoot) Close() error                     { return nil }
 
 func projectUser(id uint32) *guestv1.ProjectUser {
 	name := projectuser.UserName(id)
@@ -74,15 +79,22 @@ func projectUser(id uint32) *guestv1.ProjectUser {
 }
 
 // usersLink serves wb-guestd on a socketpair with fake volumes, a memDir
-// and a memRoot, and returns the host's link to it. mount runs a
-// MountData first.
+// and a memRoot on the mount MountData makes, and returns the host's
+// link to it. mount runs a MountData first.
 func usersLink(t *testing.T, mount bool) *guestlink.Link {
+	t.Helper()
+	return usersLinkOn(t, mount, goodMount(testDevice))
+}
+
+// usersLinkOn is usersLink with a memRoot that fstatfs reports on
+// rootMount.
+func usersLinkOn(t *testing.T, mount bool, rootMount guestmount.Mount) *guestlink.Link {
 	t.Helper()
 	const v = "1.2.3"
 	host, guest := socketpair(t)
 	dm, _, _ := newDataMount(newFakeVolumes())
 	m := users.New(&memDir{recs: map[string]gu.Record{}},
-		func() (gu.Root, error) { return &memRoot{homes: map[string]gu.Entry{}}, nil },
+		func() (gu.Root, error) { return &memRoot{homes: map[string]gu.Entry{}, mount: rootMount}, nil },
 		slog.New(slog.DiscardHandler))
 	srv := guestd.NewServer(v, slog.New(slog.DiscardHandler), guestd.WithDataMount(dm), guestd.WithUsers(m))
 	go func() { _ = srv.Serve(newOneConn(guest)) }()
@@ -115,6 +127,34 @@ func TestEnsureUsersRPC(t *testing.T) {
 	}
 }
 
+// TestEnsureUsersOneBadUser: a user with one GeneratedUID for both its
+// records, and two users without any, are each refused with
+// project-user-request-invalid, and the valid user of the same request
+// is made.
+func TestEnsureUsersOneBadUser(t *testing.T) {
+	link := usersLink(t, true)
+	same := projectUser(10001)
+	same.GroupGeneratedUid = same.UserGeneratedUid
+	none, none2 := projectUser(10002), projectUser(10003)
+	none.UserGeneratedUid, none.GroupGeneratedUid = "", ""
+	none2.UserGeneratedUid, none2.GroupGeneratedUid = "", ""
+	resp, err := link.Client().EnsureUsers(t.Context(), &guestv1.EnsureUsersRequest{
+		Users: []*guestv1.ProjectUser{projectUser(10000), same, none, none2},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[uint32]string{10000: "", 10001: users.RuleRequestInvalid, 10002: users.RuleRequestInvalid, 10003: users.RuleRequestInvalid}
+	if len(resp.GetResults()) != len(want) {
+		t.Fatalf("results %v", resp.GetResults())
+	}
+	for _, r := range resp.GetResults() {
+		if r.GetRule() != want[r.GetUid()] || (r.GetRule() == "") != (r.GetResult() == guestv1.EnsureResult_ENSURE_RESULT_OK) {
+			t.Errorf("uid %d: %v %q, want rule %q", r.GetUid(), r.GetResult(), r.GetRule(), want[r.GetUid()])
+		}
+	}
+}
+
 // TestEnsureUsersBeforeMount: with no data volume mounted, every user is
 // refused with the data mount check's rule, and the host takes it.
 func TestEnsureUsersBeforeMount(t *testing.T) {
@@ -124,6 +164,21 @@ func TestEnsureUsersBeforeMount(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got[10000].OK || got[10000].Rule != guestd.RuleMountPending {
+		t.Errorf("results %+v", got)
+	}
+}
+
+// TestEnsureUsersRootOnOtherMount: a home root that fstatfs reports on
+// another file system than the mount the check passed refuses each user
+// with the mount rule, as a volume swapped after the check would.
+func TestEnsureUsersRootOnOtherMount(t *testing.T) {
+	other := goodMount("disk9s1")
+	link := usersLinkOn(t, true, other)
+	got, err := link.EnsureUsers(t.Context(), []*guestv1.ProjectUser{projectUser(10000)}, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[10000].OK || got[10000].Rule != guestd.RuleMountVolume {
 		t.Errorf("results %+v", got)
 	}
 }

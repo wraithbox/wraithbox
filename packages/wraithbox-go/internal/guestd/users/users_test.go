@@ -57,7 +57,7 @@ func (f *fixture) ensure(t *testing.T, us ...users.User) []users.Result {
 	if err := users.CheckRequest(us); err != nil {
 		t.Fatalf("CheckRequest: %v", err)
 	}
-	return f.m.Ensure(t.Context(), us)
+	return f.m.Ensure(t.Context(), us, rootOK)
 }
 
 // wantResults fails t unless each user's rule is the one given, "" for
@@ -268,6 +268,18 @@ func TestConflicts(t *testing.T) {
 		{"admin lists the user's GeneratedUID", "other group GroupMembers", func(f *fixture) {
 			f.dir.put(gu.Groups, "admin", gu.Record{gu.AttrGroupMembers: {u.UserGUID}})
 		}},
+		{"admin lists the user's GeneratedUID in lowercase", "other group GroupMembers", func(f *fixture) {
+			f.dir.put(gu.Groups, "admin", gu.Record{gu.AttrGroupMembers: {strings.ToLower(u.UserGUID)}})
+		}},
+		{"user shadow hash", "user " + gu.AttrShadowHash, func(f *fixture) {
+			userRec(f)[gu.AttrShadowHash] = []string{"62706c6973743030"}
+		}},
+		{"group nests admin", "group NestedGroups", func(f *fixture) {
+			group(f)[gu.AttrNestedGroups] = []string{"ABCDEFAB-CDEF-ABCD-EFAB-CDEF00000050"}
+		}},
+		{"admin nests the group", "other group NestedGroups", func(f *fixture) {
+			f.dir.put(gu.Groups, "admin", gu.Record{gu.AttrNestedGroups: {u.GroupGUID}})
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture()
@@ -386,6 +398,31 @@ func TestRootRefused(t *testing.T) {
 	}
 }
 
+// TestRootCheckRefused: a root that fails the RootCheck refuses each
+// user with the check's rule, and a request without a check refuses each
+// with project-home-root, both before any write. The root is closed.
+func TestRootCheckRefused(t *testing.T) {
+	failed := func(context.Context, gu.Root) (rule, found string) {
+		return "data-mount-volume", "opened another mount"
+	}
+	for name, tc := range map[string]struct {
+		check users.RootCheck
+		rule  string
+	}{
+		"check fails": {failed, "data-mount-volume"},
+		"no check":    {nil, users.RuleHomeRoot},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture()
+			got := f.m.Ensure(t.Context(), []users.User{user(10000), user(10001)}, tc.check)
+			f.wantResults(t, got, tc.rule, tc.rule)
+			if len(f.dir.writes) != 0 || len(f.root.made) != 0 || f.root.opens != 1 || f.root.closes != 1 {
+				t.Errorf("writes %v, made %v, opens %d, closes %d", f.dir.writes, f.root.made, f.root.opens, f.root.closes)
+			}
+		})
+	}
+}
+
 // TestDirectoryFailures: a failed list, read or write, or a write the
 // directory didn't keep, refuses with project-user-directory.
 func TestDirectoryFailures(t *testing.T) {
@@ -440,7 +477,7 @@ func TestInvalidUser(t *testing.T) {
 			f := newFixture()
 			bad := user(10000)
 			change(&bad)
-			got := f.m.Ensure(t.Context(), []users.User{bad, user(10002)})
+			got := f.m.Ensure(t.Context(), []users.User{bad, user(10002)}, rootOK)
 			f.wantResults(t, got, users.RuleRequestInvalid, "")
 			if f.dir.reads != 4 || len(f.dir.writes) != 12 {
 				t.Errorf("%d reads, %d writes: the invalid user was read or written", f.dir.reads, len(f.dir.writes))
@@ -473,6 +510,14 @@ func TestCheckRequest(t *testing.T) {
 	}
 	if err := users.CheckRequest(long[:users.MaxPerRequest]); err != nil {
 		t.Errorf("MaxPerRequest users: %v", err)
+	}
+	// A fault of one user alone is left to that user's refusal.
+	ownGUID := user(10001)
+	ownGUID.GroupGUID = ownGUID.UserGUID
+	noGUID, noGUID2 := user(10002), user(10003)
+	noGUID.UserGUID, noGUID.GroupGUID, noGUID2.UserGUID, noGUID2.GroupGUID = "", "", "", ""
+	if err := users.CheckRequest([]users.User{user(10000), ownGUID, noGUID, noGUID2}); err != nil {
+		t.Errorf("faults of single users refused the request: %v", err)
 	}
 }
 
@@ -512,7 +557,7 @@ func TestDeadline(t *testing.T) {
 	f := newFixture()
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	f.wantResults(t, f.m.Ensure(ctx, []users.User{user(10000)}), users.RuleDeadline)
+	f.wantResults(t, f.m.Ensure(ctx, []users.User{user(10000)}, rootOK), users.RuleDeadline)
 	if len(f.dir.writes) != 0 {
 		t.Errorf("writes %v", f.dir.writes)
 	}

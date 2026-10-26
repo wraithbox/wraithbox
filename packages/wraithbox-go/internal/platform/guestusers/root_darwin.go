@@ -8,19 +8,23 @@ import (
 	"os"
 
 	"golang.org/x/sys/unix"
-)
 
-// homeMode is the mode of every home (S06-08-projects-and-sessions,
-// "Guest users").
-const homeMode = 0o700
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
+)
 
 // errName is the error for a name that isn't one path component.
 var errName = errors.New("guestusers: not one path component")
 
+// maxNameLen is the longest name Stat and Mkdir take. It bounds the
+// names the caller passes, all of the form wbp<uid>. Names that readdir
+// returns aren't held to it: APFS counts 255 characters, which can be
+// more bytes in UTF-8.
+const maxNameLen = 255
+
 // validEntryName reports whether name is one path component other than
 // "." and "..".
 func validEntryName(name string) bool {
-	if name == "" || name == "." || name == ".." || len(name) > 255 {
+	if name == "" || name == "." || name == ".." {
 		return false
 	}
 	for i := range len(name) {
@@ -52,6 +56,14 @@ func (r *dirRoot) fd() int { return int(r.f.Fd()) }
 
 // Stat runs fstatat with AT_SYMLINK_NOFOLLOW on the root's descriptor.
 func (r *dirRoot) Stat(name string) (Entry, error) {
+	if len(name) > maxNameLen {
+		return Entry{}, &fs.PathError{Op: "fstatat", Path: name, Err: errName}
+	}
+	return r.stat(name)
+}
+
+// stat is Stat without the length bound, for the names of Entries.
+func (r *dirRoot) stat(name string) (Entry, error) {
 	if !validEntryName(name) {
 		return Entry{}, &fs.PathError{Op: "fstatat", Path: name, Err: errName}
 	}
@@ -76,14 +88,31 @@ func entryOf(name string, st *unix.Stat_t) Entry {
 // link included. It then opens the new directory with O_NOFOLLOW and
 // gives it to uid and gid with fchown and fchmod, so a link put in its
 // place meanwhile is never followed (S06-05-disks, "Owners and modes").
+// When a step after mkdirat fails, it removes the directory again with
+// unlinkat on the root's descriptor, so no home owned by root stays to
+// refuse the user at the next request. An error of the removal joins
+// the step's.
 func (r *dirRoot) Mkdir(name string, uid, gid uint32) error {
-	if !validEntryName(name) {
+	if !validEntryName(name) || len(name) > maxNameLen {
 		return &fs.PathError{Op: "mkdirat", Path: name, Err: errName}
 	}
 	path := r.path + "/" + name
-	if err := unix.Mkdirat(r.fd(), name, homeMode); err != nil {
+	if err := unix.Mkdirat(r.fd(), name, uint32(HomeMode)); err != nil {
 		return &fs.PathError{Op: "mkdirat", Path: path, Err: err}
 	}
+	if err := r.own(name, uid, gid); err != nil {
+		if rmErr := unix.Unlinkat(r.fd(), name, unix.AT_REMOVEDIR); rmErr != nil {
+			return errors.Join(err, &fs.PathError{Op: "unlinkat", Path: path, Err: rmErr})
+		}
+		return err
+	}
+	return nil
+}
+
+// own opens the directory Mkdir made and gives it to uid and gid, mode
+// 700.
+func (r *dirRoot) own(name string, uid, gid uint32) error {
+	path := r.path + "/" + name
 	fd, err := unix.Openat(r.fd(), name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return &fs.PathError{Op: "openat", Path: path, Err: err}
@@ -93,7 +122,7 @@ func (r *dirRoot) Mkdir(name string, uid, gid uint32) error {
 		return &fs.PathError{Op: "fchown", Path: path, Err: err}
 	}
 	// The umask may have cleared bits of the mode mkdirat asked for.
-	if err := unix.Fchmod(fd, homeMode); err != nil {
+	if err := unix.Fchmod(fd, uint32(HomeMode)); err != nil {
 		return &fs.PathError{Op: "fchmod", Path: path, Err: err}
 	}
 	return nil
@@ -124,7 +153,7 @@ func (r *dirRoot) Entries(limit int) ([]Entry, error) {
 	}
 	out := make([]Entry, 0, len(names))
 	for _, name := range names {
-		e, err := r.Stat(name)
+		e, err := r.stat(name)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
@@ -135,5 +164,8 @@ func (r *dirRoot) Entries(limit int) ([]Entry, error) {
 	}
 	return out, nil
 }
+
+// Mount runs fstatfs on the root's descriptor.
+func (r *dirRoot) Mount() (guestmount.Mount, error) { return guestmount.Fstatfs(r.f.Fd()) }
 
 func (r *dirRoot) Close() error { return r.f.Close() }

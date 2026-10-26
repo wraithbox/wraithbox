@@ -126,6 +126,10 @@ type DataMount struct {
 	// mounted is the UUID of the last Mount that succeeded, "" when none
 	// has, or the last one failed.
 	mounted string
+	// checked is the mount the last Check passed, and checkedOK whether
+	// the last Check passed.
+	checked   guestmount.Mount
+	checkedOK bool
 }
 
 // NewDataMount returns a DataMount that makes its calls with vols. nil
@@ -174,6 +178,7 @@ func (d *DataMount) Mount(ctx context.Context, uuid string, firstMount bool) *Mo
 func (d *DataMount) Check(ctx context.Context) *MountRefusal {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.checkedOK = false
 	r := &MountRefusal{Rule: RuleMountPending, Detail: "no data volume mounted since wb-guestd started"}
 	if d.mounted != "" {
 		r = d.check(ctx, d.mounted)
@@ -184,9 +189,32 @@ func (d *DataMount) Check(ctx context.Context) *MountRefusal {
 			slog.String("volume_uuid", d.mounted), slog.String("found", r.Detail))
 		return r
 	}
+	d.checkedOK = true
 	d.log.LogAttrs(ctx, slog.LevelDebug, "data mount check passed",
 		slog.String("decision", "accept"), slog.String("volume_uuid", d.mounted))
 	return nil
+}
+
+// SameMount checks that m, what fstatfs reports of a descriptor opened
+// at HomePath after a Check, is the mount that Check passed. A volume
+// unmounted or swapped between the two would put homes on another file
+// system, so a mismatch, or no passed Check, is refused with
+// RuleMountVolume and logged (S06-05-disks, "Before every session
+// start"; SEC08-proj-isolation).
+func (d *DataMount) SameMount(ctx context.Context, m guestmount.Mount) *MountRefusal {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.checkedOK && m == d.checked {
+		return nil
+	}
+	r := &MountRefusal{Rule: RuleMountVolume, Detail: "opened " + mountText(m) + "; checked " + mountText(d.checked)}
+	if !d.checkedOK {
+		r.Detail = "opened " + mountText(m) + "; no check passed"
+	}
+	d.log.LogAttrs(ctx, slog.LevelWarn, "data mount changed after the check",
+		slog.String("rule", r.Rule), slog.String("decision", "refuse"),
+		slog.String("volume_uuid", d.mounted), slog.String("found", r.Detail))
+	return r
 }
 
 // mount runs the steps of S06-05-disks, "The mount".
@@ -352,6 +380,7 @@ func (d *DataMount) checkMount(ctx context.Context, uuid string) *MountRefusal {
 	case !m.NoSUID || !m.NoDev || !m.NoBrowse || m.IgnoreOwnership:
 		return &MountRefusal{Rule: RuleMountFlags, Detail: mountText(m)}
 	}
+	d.checked = m
 	return nil
 }
 

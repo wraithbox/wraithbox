@@ -2,14 +2,18 @@ package users
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectuser"
 )
 
 // CheckRequest checks the request as a whole: one to MaxPerRequest
-// users, and no UID, user name or GeneratedUID twice
+// users, and no UID, user name or GeneratedUID in two users
 // (proto/wraithbox/guest/v1, EnsureUsersRequest). An error is refused
-// with RuleRequest.
+// with RuleRequest. What concerns one user alone, a GeneratedUID of the
+// wrong form or the same one for its user and group, is left to
+// validate, so that user is refused with RuleRequestInvalid and the
+// others go on.
 func CheckRequest(us []User) error {
 	if len(us) == 0 || len(us) > MaxPerRequest {
 		return fmt.Errorf("%d users, want 1 to %d", len(us), MaxPerRequest)
@@ -22,14 +26,28 @@ func CheckRequest(us []User) error {
 			return fmt.Errorf("the UID %d or the name %s twice", u.UID, cut(u.Name))
 		}
 		byUID[u.UID], names[u.Name] = true, true
-		for _, g := range []string{u.UserGUID, u.GroupGUID} {
+		own := ownGUIDs(u)
+		for _, g := range own {
 			if byGUID[g] {
-				return fmt.Errorf("the GeneratedUID %s twice", cut(g))
+				return fmt.Errorf("the GeneratedUID %s in two users", cut(g))
 			}
+		}
+		for _, g := range own {
 			byGUID[g] = true
 		}
 	}
 	return nil
+}
+
+// ownGUIDs returns u's distinct GeneratedUIDs of the valid form.
+func ownGUIDs(u User) []string {
+	var out []string
+	for _, g := range []string{u.UserGUID, u.GroupGUID} {
+		if projectuser.ValidGeneratedUID(g) && !slices.Contains(out, g) {
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 // validate checks one user's values against the form wb-hostd

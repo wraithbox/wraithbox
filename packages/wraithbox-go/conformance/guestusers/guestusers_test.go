@@ -74,7 +74,7 @@ func readUser(t *testing.T, sys *gu.System, name string) users.User {
 	}
 	uid, _ := strconv.ParseUint(first(userRec[gu.AttrUniqueID]), 10, 32)
 	gid, _ := strconv.ParseUint(first(userRec[gu.AttrPrimaryGroupID]), 10, 32)
-	for _, a := range []string{gu.AttrAuthAuthority, "dsAttrTypeNative:ShadowHashData"} {
+	for _, a := range []string{gu.AttrAuthAuthority, gu.AttrShadowHash} {
 		if len(userRec[a]) > 0 {
 			t.Errorf("%s has %s", name, a)
 		}
@@ -221,6 +221,19 @@ type readOnlyRoot struct{ gu.Root }
 
 func (readOnlyRoot) Mkdir(string, uint32, uint32) error { return errNoWrites }
 
+// onHomePath is the RootCheck of the check: fstatfs of the opened root
+// must report the mount at HomePath.
+func onHomePath(_ context.Context, root gu.Root) (rule, found string) {
+	m, err := root.Mount()
+	if err != nil {
+		return guestd.RuleMountVolume, err.Error()
+	}
+	if m.On != guestd.HomePath {
+		return guestd.RuleMountVolume, "root on " + m.On
+	}
+	return "", ""
+}
+
 // TestEnsureKeepsAndRefuses: EnsureUsers' code keeps each user as it is,
 // with nothing to write, and refuses one whose GeneratedUID differs from
 // its record before any write.
@@ -234,14 +247,14 @@ func TestEnsureKeepsAndRefuses(t *testing.T) {
 			}
 			return readOnlyRoot{root}, nil
 		}, discard)
-	for i, r := range m.Ensure(t.Context(), us) {
+	for i, r := range m.Ensure(t.Context(), us, onHomePath) {
 		if r.Rule != "" {
 			t.Errorf("%s refused with %s", us[i].Name, r.Rule)
 		}
 	}
 	changed := us[0]
 	changed.UserGUID = projectuser.NewGeneratedUID()
-	if got := m.Ensure(t.Context(), []users.User{changed}); got[0].Rule != users.RuleConflict {
+	if got := m.Ensure(t.Context(), []users.User{changed}, onHomePath); got[0].Rule != users.RuleConflict {
 		t.Errorf("%s with another GeneratedUID: rule %q, want %q", changed.Name, got[0].Rule, users.RuleConflict)
 	}
 }

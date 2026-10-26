@@ -8,9 +8,6 @@ import (
 	gu "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
 )
 
-// homeMode is the mode of every home (S06-05-disks, "Owners and modes").
-const homeMode fs.FileMode = 0o700
-
 // home checks u's home through the volume's root, never following a
 // link, and reports whether it is missing (S06-05-disks, "Owners and
 // modes"; SEC08-proj-isolation). A home that another UID owns is
@@ -30,7 +27,7 @@ func (q *request) home(u User) (bool, *refusal) {
 		return false, &refusal{rule: RuleHomeRoot, attr: "home", found: err.Error()}
 	case e.UID != u.UID:
 		return false, &refusal{rule: RuleHomeOtherOwner, attr: "home", found: describe(e)}
-	case e.IsLink || !e.IsDir || e.Special || e.GID != u.GID || e.Perm != homeMode:
+	case e.IsLink || !e.IsDir || e.Special || e.GID != u.GID || e.Perm != gu.HomeMode:
 		return false, &refusal{rule: RuleHomeInvalid, attr: "home", found: describe(e)}
 	}
 	return false, nil
@@ -54,16 +51,32 @@ func (q *request) idsFree(u User) *refusal {
 	return nil
 }
 
-// volume opens the volume's root once per request.
+// volume opens and checks the volume's root once per request.
 func (q *request) volume() (gu.Root, *refusal) {
 	if !q.opened {
 		q.opened = true
-		q.root, q.rootErr = q.openRoot()
+		q.rootRule, q.rootFound = q.open()
 	}
-	if q.rootErr != nil {
-		return nil, &refusal{rule: RuleHomeRoot, attr: "root", found: q.rootErr.Error()}
+	if q.rootRule != "" {
+		return nil, &refusal{rule: q.rootRule, attr: "root", found: q.rootFound}
 	}
 	return q.root, nil
+}
+
+// open opens the volume's root and runs the request's RootCheck on it,
+// so no home is read or made on a file system other than the mount the
+// caller checked (S06-05-disks, "Before every session start";
+// SEC08-proj-isolation). A request without a check fails closed.
+func (q *request) open() (rule, found string) {
+	root, err := q.openRoot()
+	if err != nil {
+		return RuleHomeRoot, err.Error()
+	}
+	q.root = root
+	if q.check == nil {
+		return RuleHomeRoot, "no check of the root"
+	}
+	return q.check(q.ctx, root)
 }
 
 // scan reads the volume root's entries once per request.

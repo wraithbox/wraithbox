@@ -92,6 +92,19 @@ func (*System) Statfs(path string) (Mount, error) {
 	if err := unix.Statfs(path, &st); err != nil {
 		return Mount{}, fmt.Errorf("guestmount: statfs %s: %w", path, err)
 	}
+	return mountOf(&st), nil
+}
+
+// Fstatfs reports the file system that holds the open descriptor fd.
+func Fstatfs(fd uintptr) (Mount, error) {
+	var st unix.Statfs_t
+	if err := unix.Fstatfs(int(fd), &st); err != nil {
+		return Mount{}, fmt.Errorf("guestmount: fstatfs: %w", err)
+	}
+	return mountOf(&st), nil
+}
+
+func mountOf(st *unix.Statfs_t) Mount {
 	return Mount{
 		From:            unix.ByteSliceToString(st.Mntfromname[:]),
 		On:              unix.ByteSliceToString(st.Mntonname[:]),
@@ -99,7 +112,7 @@ func (*System) Statfs(path string) (Mount, error) {
 		NoDev:           st.Flags&unix.MNT_NODEV != 0,
 		NoBrowse:        st.Flags&unix.MNT_DONTBROWSE != 0,
 		IgnoreOwnership: st.Flags&unix.MNT_IGNORE_OWNERSHIP != 0,
-	}, nil
+	}
 }
 
 // Lstat reports path without following a link. A missing path is an
