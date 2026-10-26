@@ -76,23 +76,9 @@ func parseRecord(d map[string]any) (Record, error) {
 		if name == "" {
 			return nil, errors.New("guestusers: an attribute without a name")
 		}
-		values, ok := raw.([]any)
-		if !ok {
-			return nil, fmt.Errorf("guestusers: attribute %q isn't an array", cut(name))
-		}
-		if len(values) > MaxValues {
-			return nil, fmt.Errorf("guestusers: attribute %q has %d values, over %d", cut(name), len(values), MaxValues)
-		}
-		strs := make([]string, 0, len(values))
-		for _, item := range values {
-			s, ok := item.(string)
-			if !ok {
-				return nil, fmt.Errorf("guestusers: a value of attribute %q isn't a string", cut(name))
-			}
-			if len(s) > MaxValueLen || strings.IndexByte(s, 0) >= 0 {
-				return nil, fmt.Errorf("guestusers: a value of attribute %q is over %d bytes or holds NUL", cut(name), MaxValueLen)
-			}
-			strs = append(strs, s)
+		strs, err := parseValues(name, raw)
+		if err != nil {
+			return nil, err
 		}
 		if _, dup := rec[name]; dup {
 			// Both the prefixed and the bare name of one attribute.
@@ -101,6 +87,30 @@ func parseRecord(d map[string]any) (Record, error) {
 		rec[name] = strs
 	}
 	return rec, nil
+}
+
+// parseValues reads one attribute's values: an array of at most
+// MaxValues strings, each at most MaxValueLen bytes without NUL.
+func parseValues(name string, raw any) ([]string, error) {
+	values, ok := raw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("guestusers: attribute %q isn't an array", cut(name))
+	}
+	if len(values) > MaxValues {
+		return nil, fmt.Errorf("guestusers: attribute %q has %d values, over %d", cut(name), len(values), MaxValues)
+	}
+	strs := make([]string, 0, len(values))
+	for _, item := range values {
+		s, ok := item.(string)
+		if !ok {
+			return nil, fmt.Errorf("guestusers: a value of attribute %q isn't a string", cut(name))
+		}
+		if len(s) > MaxValueLen || strings.IndexByte(s, 0) >= 0 {
+			return nil, fmt.Errorf("guestusers: a value of attribute %q is over %d bytes or holds NUL", cut(name), MaxValueLen)
+		}
+		strs = append(strs, s)
+	}
+	return strs, nil
 }
 
 // maxText is how much of a value from dscl goes into an error.

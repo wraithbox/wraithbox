@@ -53,6 +53,11 @@ const (
 	// AttrAuthAuthority holds a user's password hash reference or a
 	// disabled marker. A project user has none.
 	AttrAuthAuthority = "AuthenticationAuthority"
+	// AttrGroupMembership and AttrGroupMembers list a group's members
+	// beyond those with it as their primary group, by name and by
+	// GeneratedUID. A project user is a member of no group.
+	AttrGroupMembership = "GroupMembership"
+	AttrGroupMembers    = "GroupMembers"
 )
 
 // Record is one directory record: the values of each attribute, by the

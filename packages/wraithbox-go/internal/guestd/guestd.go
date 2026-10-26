@@ -2,8 +2,9 @@
 // proto/wraithbox/guest/v1/guest.proto, which wb-hostd calls over the
 // host-guest socket (S06-12-guest-agent, "`wb-guestd`").
 //
-// It serves Hello, SetTime and MountData so far. The session messages, users, exec
-// and the git transport join it later.
+// It serves Hello, SetTime, MountData and EnsureUsers so far. The rest
+// of the users' calls, the session messages, exec and the git transport
+// join it later.
 package guestd
 
 import (
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/grpc/peer"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
@@ -51,6 +53,9 @@ func NewServer(own string, log *slog.Logger, opts ...Option) *grpc.Server {
 	if svc.dataMount == nil {
 		svc.dataMount = NewDataMount(&guestmount.System{Log: log}, nil, log)
 	}
+	if svc.users == nil {
+		svc.users = systemUsers(log)
+	}
 	srv := grpc.NewServer(grpc.MaxRecvMsgSize(MaxRecvMsgSize))
 	guestv1.RegisterGuestServiceServer(srv, svc)
 	return srv
@@ -63,6 +68,7 @@ type service struct {
 	log       *slog.Logger
 	clock     Clock
 	dataMount *DataMount
+	users     *users.Manager
 }
 
 // Hello reports wb-guestd's build version and the packages it serves.
