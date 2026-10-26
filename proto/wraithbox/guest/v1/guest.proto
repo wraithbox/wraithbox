@@ -65,6 +65,38 @@ service GuestService {
   // message is guest text: the host logs it escaped and cut, and never
   // reads it.
   rpc MountData(MountDataRequest) returns (MountDataResponse);
+
+  // EnsureUsers makes each project user of the request exist in the
+  // guest with exactly the names, IDs, GeneratedUIDs and home path given
+  // (S06-03-image-updates, "Updates", step 2, and "Creation"). wb-hostd
+  // allocates every value. It sends every project user of the VM's data
+  // disk after each accepted MountData, and one user when a session
+  // needs a new one. The request is idempotent: a user that exists with
+  // these values is left as it is. wb-hostd splits a long list into
+  // requests that each fit wb-guestd's receive cap.
+  //
+  // The answer is guest input. wb-hostd takes it only with at most one
+  // result per UID, each for a UID of this request, and drops the whole
+  // answer with the rule `guest-users-reply-invalid` otherwise. A user
+  // with no accepted OK result is refused for the VM generation.
+  rpc EnsureUsers(EnsureUsersRequest) returns (EnsureUsersResponse);
+
+  // UnlockUser lets a project user log in and run processes again, for a
+  // session start (S06-09-session-lifecycle). The answer is empty: a
+  // success says the user is unlocked.
+  rpc UnlockUser(UnlockUserRequest) returns (UnlockUserResponse);
+
+  // KillUser locks a project user and stops every process it runs
+  // (S06-10-leftover-processes). wb-guestd keeps a CleanupRecord of the
+  // result until wb-hostd acknowledges it.
+  rpc KillUser(KillUserRequest) returns (KillUserResponse);
+
+  // RemoveUser removes a project user's record and home, for `wb project
+  // rm` (S05-04-naming, "The project user"; S06-08-projects-and-sessions,
+  // "Removing a home"). wb-hostd keeps the pending removal in state.db
+  // until a REMOVED result for that project and UID comes back. A reply
+  // never clears another project's record.
+  rpc RemoveUser(RemoveUserRequest) returns (RemoveUserResponse);
 }
 
 message HelloRequest {}
@@ -163,3 +195,151 @@ message MountDataRequest {
 // MountDataResponse is empty: a success says the volume is mounted and
 // passed every check, and the host reads nothing else from the guest.
 message MountDataResponse {}
+
+// ProjectUser is one project user as wb-hostd keeps it in state.db
+// (S06-03-image-updates, "Host state per project user"). wb-hostd makes
+// every field. wb-guestd refuses a user whose name, UID or GID exists
+// with other values, and a home that exists and is owned by another UID.
+message ProjectUser {
+  // The project's id: 32 lowercase hexadecimal digits (S05-04-naming,
+  // "Project id").
+  string project_id = 1;
+  // The user's short name, `wbp<uid>`, at most 16 bytes.
+  string user_name = 2;
+  // The UID and GID: one number from wb-hostd's counter, from 10000 up
+  // to the ceiling of internal/projectuser, never reused on this host.
+  uint32 uid = 3;
+  uint32 gid = 4;
+  // The name of the user's own group, equal to the user name.
+  string group_name = 5;
+  // The GeneratedUID of the user's record and of its group's: uppercase
+  // version 4 UUIDs, 36 bytes, that wb-hostd drew from crypto/rand.
+  string user_generated_uid = 6;
+  string group_generated_uid = 7;
+  // The home: the data volume's mount point, a slash and the user name.
+  string home_path = 8;
+}
+
+message EnsureUsersRequest {
+  // At least one user. Every UID, user name and GeneratedUID is distinct.
+  repeated ProjectUser users = 1;
+}
+
+// EnsureUsersResponse is guest input. wb-hostd decodes at most 16 KiB of
+// it. It drops the whole answer with the rule `guest-users-reply-invalid`
+// when it is larger, holds a result for a UID that wasn't in the
+// request, holds two results for one UID, or holds a result that breaks
+// a bound of EnsureUserResult.
+message EnsureUsersResponse {
+  repeated EnsureUserResult results = 1;
+}
+
+enum EnsureResult {
+  // Never sent. wb-hostd drops an answer that holds it, or a value it
+  // doesn't know.
+  ENSURE_RESULT_UNSPECIFIED = 0;
+  // The user exists with every value of the request.
+  ENSURE_RESULT_OK = 1;
+  // wb-guestd refused the user, and rule says why.
+  ENSURE_RESULT_REFUSED = 2;
+}
+
+message EnsureUserResult {
+  // The UID of a user of the request.
+  uint32 uid = 1;
+  EnsureResult result = 2;
+  // Empty with OK. With REFUSED, the rule: 1 to 64 bytes of `[a-z0-9-]`.
+  // wb-hostd logs it escaped, and it only ever refuses the user.
+  string rule = 3;
+}
+
+message UnlockUserRequest {
+  // The UID of a project user of this VM.
+  uint32 uid = 1;
+}
+
+// UnlockUserResponse is empty: a success says the user is unlocked.
+message UnlockUserResponse {}
+
+message KillUserRequest {
+  // The kill ID, which wb-hostd assigns, never 0
+  // (S06-10-leftover-processes, "Kill IDs and records").
+  uint64 kill_id = 1;
+  // The project's id, as in ProjectUser.
+  string project_id = 2;
+  // The UID of the project's user in this VM.
+  uint32 uid = 3;
+}
+
+enum KillResult {
+  // Never sent. wb-hostd drops an answer that holds it, or a value it
+  // doesn't know.
+  KILL_RESULT_UNSPECIFIED = 0;
+  // No process of the user is left.
+  KILL_RESULT_CLEAN = 1;
+  // Processes of the user are left, as many as processes_left says.
+  KILL_RESULT_PROCESSES_LEFT = 2;
+}
+
+// KillUserResponse is guest input. wb-hostd takes it only for the kill ID
+// and project ID it sent, with the bounds of CleanupRecord.
+message KillUserResponse {
+  uint64 kill_id = 1;
+  string project_id = 2;
+  KillResult result = 3;
+  // With PROCESSES_LEFT, 1 to 1001. 0 with CLEAN.
+  uint32 processes_left = 4;
+}
+
+// CleanupRecord is the result of a kill. wb-guestd keeps it in its
+// root-owned directory until wb-hostd acknowledges it, and lists it at
+// reconnect (S06-10-leftover-processes, S06-11-reconnect-and-recovery,
+// "The list"). It is guest input: wb-hostd checks the project ID's form,
+// takes the result only for a kill ID it sent for that project in this
+// VM generation, and never counts a dropped result as clean.
+message CleanupRecord {
+  uint64 kill_id = 1;
+  string project_id = 2;
+  KillResult result = 3;
+  // With PROCESSES_LEFT, 1 to 1001. 0 with CLEAN.
+  uint32 processes_left = 4;
+}
+
+message RemoveUserRequest {
+  // The project's id, as in ProjectUser.
+  string project_id = 1;
+  // The UID and GID the user had, and its home path.
+  uint32 uid = 2;
+  uint32 gid = 3;
+  string home_path = 4;
+}
+
+enum RemoveResult {
+  // Never sent. wb-hostd drops an answer that holds it, or a value it
+  // doesn't know.
+  REMOVE_RESULT_UNSPECIFIED = 0;
+  // The user's record and home are removed, or were never there.
+  REMOVE_RESULT_REMOVED = 1;
+  // Processes of the user are left, as many as processes_left says.
+  // wb-hostd keeps the pending removal and sends it again at the next
+  // connection.
+  REMOVE_RESULT_PROCESSES_LEFT = 2;
+  // wb-guestd refused the removal, and rule says why. wb-hostd keeps the
+  // pending removal and sends it again at the next connection.
+  REMOVE_RESULT_REFUSED = 3;
+}
+
+// RemoveUserResponse is guest input. wb-hostd decodes at most 4 KiB of
+// it. It drops the answer with the rule `guest-users-reply-invalid`
+// unless its project ID and UID are the request's and its fields keep
+// these bounds. A dropped answer keeps the pending removal.
+message RemoveUserResponse {
+  string project_id = 1;
+  uint32 uid = 2;
+  RemoveResult result = 3;
+  // With PROCESSES_LEFT, 1 to 1001. 0 otherwise.
+  uint32 processes_left = 4;
+  // With REFUSED, the rule: 1 to 64 bytes of `[a-z0-9-]`. Empty
+  // otherwise. wb-hostd logs it escaped.
+  string rule = 5;
+}
