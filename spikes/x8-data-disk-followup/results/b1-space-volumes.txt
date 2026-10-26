@@ -1,0 +1,30 @@
+before: host 6942720 B; guest used 888.8 KB (888832 Bytes) (exactly 1736 512-Byte-Units)
+after write+sync of 1024 MiB (3 s): host 1080758272 B; guest used 1.1 GB (1085075456 Bytes) (exactly 2119288 512-Byte-Units)
+Permission denied, please try again.
+Permission denied, please try again.
+Received disconnect from 192.168.64.14 port 22:2: Too many authentication failures
+Permission denied, please try again.
+Permission denied, please try again.
+wbdev@192.168.64.14: Permission denied (publickey,password,keyboard-interactive).
+before: host 1080721408 B; guest used 
+after write+sync of 0 MiB (0 s): host 1080721408 B; guest used 1.1 GB (1085079552 Bytes) (exactly 2119296 512-Byte-Units)
+deleted +0 s: host 6930432 B
+deleted +10 s: host 6930432 B
+deleted +20 s: host 6930432 B
+deleted +30 s: host 6930432 B
+deleted +40 s: host 6930432 B
+deleted +50 s: host 6930432 B
+deleted +60 s: host 6930432 B
+deleted +70 s: host 6930432 B
+deleted +80 s: host 6930432 B
+deleted +90 s: host 6930432 B
+deleted +100 s: host 6930432 B
+deleted +110 s: host 6930432 B
+deleted +120 s: host 6930432 B
+deleted +130 s: host 6930432 B
+deleted +140 s: host 6930432 B
+deleted +150 s: host 6930432 B
+deleted +160 s: host 6930432 B
+deleted +170 s: host 6930432 B
+deleted +180 s: host 6930432 B
+end: guest used 872.4 KB (872448 Bytes) (exactly 1704 512-Byte-Units)

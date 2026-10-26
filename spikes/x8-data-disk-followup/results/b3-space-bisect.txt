@@ -1,0 +1,28 @@
+=== mount at /private/var/x8a, options none
+wbdev@192.168.64.16: Permission denied (publickey,password,keyboard-interactive).
+before: host 7045120 B; guest used 942.1 KB (942080 Bytes) (exactly 1840 512-Byte-Units)
+after write+sync of 512 MiB (0 s): host 7045120 B; guest used 
+rm: /private/var/x8a/fill: No such file or directory
+deleted +0 s: host 7045120 B
+deleted +10 s: host 7045120 B
+deleted +20 s: host 7045120 B
+deleted +30 s: host 7045120 B
+end: guest used 942.1 KB (942080 Bytes) (exactly 1840 512-Byte-Units)
+=== mount at /private/var/x8b, options nobrowse
+/dev/disk3s1 on /private/var/x8b (apfs, local, journaled, nobrowse)
+before: host 6991872 B; guest used 942.1 KB (942080 Bytes) (exactly 1840 512-Byte-Units)
+after write+sync of 512 MiB (2 s): host 543887360 B; guest used 549.3 MB (549347328 Bytes) (exactly 1072944 512-Byte-Units)
+deleted +0 s: host 543903744 B
+deleted +10 s: host 543903744 B
+deleted +20 s: host 543903744 B
+deleted +30 s: host 543903744 B
+end: guest used 942.1 KB (942080 Bytes) (exactly 1840 512-Byte-Units)
+=== mount at /private/var/x8a, options none
+/dev/disk3s1 on /private/var/x8a (apfs, local, journaled)
+before: host 7049216 B; guest used 974.8 KB (974848 Bytes) (exactly 1904 512-Byte-Units)
+after write+sync of 512 MiB (1 s): host 544010240 B; guest used 548.3 MB (548298752 Bytes) (exactly 1070896 512-Byte-Units)
+deleted +0 s: host 543981568 B
+deleted +10 s: host 543981568 B
+deleted +20 s: host 7147520 B
+deleted +30 s: host 7188480 B
+end: guest used 946.2 KB (946176 Bytes) (exactly 1848 512-Byte-Units)

@@ -1,0 +1,12 @@
+-rwsr-xr-x  1 root  wheel     33512 Oct 26 11:30 /private/var/tmp/p-c
+-rwsr-xr-x  1 root  wheel  17651250 Oct 26 11:30 /private/var/tmp/p-go
+C as nobody:
+ruid=-2 euid=0
+Go as nobody:
+0
+Go as wbdev:
+0
+CodeDirectory v=20400 size=136926 flags=0x20002(adhoc,linker-signed) hashes=4276+0 location=embedded
+Signature=adhoc
+CodeDirectory v=20400 size=381 flags=0x20002(adhoc,linker-signed) hashes=9+0 location=embedded
+Signature=adhoc

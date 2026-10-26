@@ -1,0 +1,10 @@
+before: host 6955008 B; guest used 
+after write+sync of 1024 MiB (4 s): host 1080688640 B; guest used 1.1 GB (1083064320 Bytes) (exactly 2115360 512-Byte-Units)
+deleted +0 s: host 1080729600 B
+deleted +10 s: host 1080729600 B
+deleted +21 s: host 1080729600 B
+deleted +31 s: host 1080729600 B
+deleted +41 s: host 1080729600 B
+deleted +51 s: host 1080729600 B
+deleted +61 s: host 1080729600 B
+end: guest used 933.9 KB (933888 Bytes) (exactly 1824 512-Byte-Units)

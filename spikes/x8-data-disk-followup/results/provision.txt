@@ -1,0 +1,21 @@
+packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle: replacing existing signature
+wb-dev-bundle: starting /Users/lsimons/Library/Caches/wraithbox-spikes/i228/b3 with guest provisioning on the NAT network
+wb-dev-bundle: started: SSH user wbdev, password in /Users/lsimons/Library/Caches/wraithbox-spikes/i228/b3/ssh-password
+wb-dev-bundle: the guest's address is the lease for hw_address=1,66:f4:b1:77:83:ed in /var/db/dhcpd_leases
+wb-dev-bundle: runs until the guest shuts down, mise run vm:stop, or 90 minutes pass
+wb-dev-bundle: ending: the guest stopped
+packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle: replacing existing signature
+wb-dev-bundle: starting /Users/lsimons/Library/Caches/wraithbox-spikes/i228/b1 with guest provisioning on the NAT network
+wb-dev-bundle: started: SSH user wbdev, password in /Users/lsimons/Library/Caches/wraithbox-spikes/i228/b1/ssh-password
+wb-dev-bundle: the guest's address is the lease for hw_address=1,9a:57:2f:3d:75:be in /var/db/dhcpd_leases
+wb-dev-bundle: runs until the guest shuts down, mise run vm:stop, or 90 minutes pass
+wb-dev-bundle: ending: the guest stopped
+packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle: replacing existing signature
+wb-dev-bundle: starting /Users/lsimons/Library/Caches/wraithbox-spikes/i228/b2 with guest provisioning on the NAT network
+wb-dev-bundle: started: SSH user wbdev, password in /Users/lsimons/Library/Caches/wraithbox-spikes/i228/b2/ssh-password
+wb-dev-bundle: the guest's address is the lease for hw_address=1,e6:6d:4c:d7:fb:60 in /var/db/dhcpd_leases
+wb-dev-bundle: runs until the guest shuts down, mise run vm:stop, or 90 minutes pass
+wb-dev-bundle: ending: a stop was requested
+wb-dev-bundle: asking the guest to shut down
+wb-dev-bundle: stopping the VM
+wb-dev-bundle: VM state: 0

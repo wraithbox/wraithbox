@@ -1,0 +1,10 @@
+--- PASS: TestMounted (0.32s)
+--- SKIP: TestSetuidIgnored (0.09s)
+--- SKIP: TestRemountRefused (0.08s)
+PASS
+--- PASS: TestMounted (0.36s)
+    datamount_test.go:101: the setuid-root probe in /private/var/tmp runs as uid 501, want 0: it proves nothing on the data volume
+--- FAIL: TestSetuidIgnored (0.39s)
+    datamount_test.go:122: check after nosuid was set back = data-mount-flags: "/dev/disk2s1" on "/private/var/wbhomes", nosuid true, nodev false, nobrowse false, ignore ownership false
+--- FAIL: TestRemountRefused (0.35s)
+FAIL

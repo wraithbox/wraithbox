@@ -1,0 +1,13 @@
+now: /dev/disk2s1 on /private/var/wbhomes (apfs, local, nosuid, journaled)
+after -o nosuid,nodev,nobrowse: /dev/disk2s1 on /private/var/wbhomes (apfs, local, nodev, nosuid, journaled, nobrowse)
+after -o suid: /dev/disk2s1 on /private/var/wbhomes (apfs, local, journaled)
+after -o nosuid: /dev/disk2s1 on /private/var/wbhomes (apfs, local, nosuid, journaled)
+after -o nosuid,nodev,nobrowse: /dev/disk2s1 on /private/var/wbhomes (apfs, local, nodev, nosuid, journaled, nobrowse)
+on the data volume, nosuid:
+C as nobody: ruid=-2 euid=-2
+Go as nobody: -2
+after -o suid,nodev,nobrowse: /dev/disk2s1 on /private/var/wbhomes (apfs, local, nodev, journaled, nobrowse)
+on the data volume, suid:
+C as nobody: ruid=-2 euid=0
+Go as nobody: 0
+restored: /dev/disk2s1 on /private/var/wbhomes (apfs, local, nodev, nosuid, journaled, nobrowse)

@@ -1,0 +1,54 @@
+=== mount at /private/var/x8a, options none
+/dev/disk2s1 on /private/var/x8a (apfs, local, journaled)
+before: host 6848512 B; guest used 917.5 KB (917504 Bytes) (exactly 1792 512-Byte-Units)
+after write+sync of 512 MiB (1 s): host 543776768 B; guest used 537.8 MB (537755648 Bytes) (exactly 1050304 512-Byte-Units)
+deleted +0 s: host 543752192 B
+deleted +10 s: host 543752192 B
+deleted +20 s: host 6918144 B
+deleted +31 s: host 6918144 B
+end: guest used 
+=== mount at /private/var/x8b, options nobrowse
+/dev/disk2s1 on /private/var/x8b (apfs, local, journaled, nobrowse)
+before: host 6926336 B; guest used 897.0 KB (897024 Bytes) (exactly 1752 512-Byte-Units)
+after write+sync of 512 MiB (2 s): host 543805440 B; guest used 537.8 MB (537767936 Bytes) (exactly 1050328 512-Byte-Units)
+deleted +0 s: host 543784960 B
+deleted +10 s: host 543784960 B
+deleted +20 s: host 543784960 B
+deleted +30 s: host 543784960 B
+end: guest used 897.0 KB (897024 Bytes) (exactly 1752 512-Byte-Units)
+=== mount at /private/var/x8c, options nosuid,nodev
+/dev/disk2s1 on /private/var/x8c (apfs, local, nodev, nosuid, journaled)
+before: host 6815744 B; guest used 929.8 KB (929792 Bytes) (exactly 1816 512-Byte-Units)
+after write+sync of 512 MiB (2 s): host 543776768 B; guest used 545.1 MB (545107968 Bytes) (exactly 1064664 512-Byte-Units)
+deleted +0 s: host 543719424 B
+deleted +10 s: host 543719424 B
+deleted +20 s: host 6918144 B
+deleted +30 s: host 6918144 B
+end: guest used 901.1 KB (901120 Bytes) (exactly 1760 512-Byte-Units)
+=== mount at /private/var/x8d, options owners
+/dev/disk2s1 on /private/var/x8d (apfs, local, journaled)
+before: host 6918144 B; guest used 942.1 KB (942080 Bytes) (exactly 1840 512-Byte-Units)
+after write+sync of 512 MiB (1 s): host 543801344 B; guest used 537.8 MB (537780224 Bytes) (exactly 1050352 512-Byte-Units)
+deleted +0 s: host 543784960 B
+deleted +10 s: host 543784960 B
+deleted +20 s: host 6926336 B
+deleted +30 s: host 6926336 B
+end: guest used 913.4 KB (913408 Bytes) (exactly 1784 512-Byte-Units)
+=== mount at /private/var/x8e, options nobrowse,nosuid,nodev,owners
+/dev/disk2s1 on /private/var/x8e (apfs, local, nodev, nosuid, journaled, nobrowse)
+before: host 6959104 B; guest used 925.7 KB (925696 Bytes) (exactly 1808 512-Byte-Units)
+after write+sync of 512 MiB (1 s): host 543821824 B; guest used 538.8 MB (538845184 Bytes) (exactly 1052432 512-Byte-Units)
+deleted +0 s: host 543801344 B
+deleted +10 s: host 543801344 B
+deleted +20 s: host 543801344 B
+deleted +30 s: host 543801344 B
+end: guest used 925.7 KB (925696 Bytes) (exactly 1808 512-Byte-Units)
+=== mount at /private/var/wbhomes, options nobrowse,nosuid,nodev,owners
+/dev/disk2s1 on /private/var/wbhomes (apfs, local, nodev, nosuid, journaled, nobrowse)
+before: host 6856704 B; guest used 925.7 KB (925696 Bytes) (exactly 1808 512-Byte-Units)
+after write+sync of 512 MiB (3 s): host 543784960 B; guest used 545.1 MB (545136640 Bytes) (exactly 1064720 512-Byte-Units)
+deleted +0 s: host 543748096 B
+deleted +10 s: host 543748096 B
+deleted +20 s: host 543748096 B
+deleted +30 s: host 543748096 B
+end: guest used 925.7 KB (925696 Bytes) (exactly 1808 512-Byte-Units)

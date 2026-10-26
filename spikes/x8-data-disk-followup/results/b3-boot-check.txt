@@ -1,0 +1,110 @@
+Permission denied, please try again.
+Permission denied, please try again.
+wbdev@192.168.64.16: Permission denied (publickey,password,keyboard-interactive).
+scp: Connection closed
+chmod: /tmp/datamount.test: No such file or directory
+##### report at boot
+== sw_vers
+ProductName:		macOS
+ProductVersion:		27.0.1
+BuildVersion:		26A434
+== uptime
+12:01  up 1 min, 0 users, load averages: 14.33 4.77 1.83
+== mount (data volume)
+/dev/disk3s1 on /Volumes/WraithBoxData (apfs, local, journaled)
+== diskutil info 4A4B13A8-F535-4ECC-A777-C0DF42D6A076
+   Device Identifier:         disk3s1
+   Part of Whole:             disk3
+   Volume Name:               WraithBoxData
+   Mount Point:               /Volumes/WraithBoxData
+   File System Personality:   APFS
+   Owners:                    Enabled
+   Protocol:                  
+   Volume Used Space:         933.9 KB (933888 Bytes) (exactly 1824 512-Byte-Units)
+   Container Free Space:      8.4 GB (8352866304 Bytes) (exactly 16314192 512-Byte-Units)
+   Device Location:           Internal
+   Removable Media:           Fixed
+   Solid State:               Yes
+   Encrypted:                 No
+   FileVault:                 No
+== diskutil apfs list disk3
+|
++-- Container disk3 3C549A14-2AC4-44C3-B6BD-1CE6B240EB7E
+    ====================================================
+    APFS Container Reference:     disk3
+    Size (Capacity Ceiling):      8380178432 B (8.4 GB)
+    Capacity In Use By Volumes:   27312128 B (27.3 MB) (0.3% used)
+    Capacity Not Allocated:       8352866304 B (8.4 GB) (99.7% free)
+    |
+    +-< Physical Store disk0s2 71BBBA58-E110-4FEA-B42F-A116053C9108
+    |   -----------------------------------------------------------
+    |   APFS Physical Store Disk:   disk0s2
+    |   Size:                       8380178432 B (8.4 GB)
+    |
+    +-> Volume disk3s1 4A4B13A8-F535-4ECC-A777-C0DF42D6A076
+        ---------------------------------------------------
+        APFS Volume Disk (Role):   disk3s1 (No specific role)
+        Name:                      WraithBoxData (Case-insensitive)
+        Mount Point:               /Volumes/WraithBoxData
+        Capacity Consumed:         933888 B (933.9 KB)
+        Sealed:                    No
+        FileVault:                 No
+##### wb-guestd data mount (first mount: false)
+info: found=true err=<nil> volume={"UUID":"4A4B13A8-F535-4ECC-A777-C0DF42D6A076","Device":"disk3s1","MountPoint":"/Volumes/WraithBoxData","Encrypted":false,"EncryptionReported":true}
+{"time":"2026-10-26T12:01:46.85334-07:00","level":"INFO","msg":"diskutil ran","program":"/usr/sbin/diskutil","args":"unmount disk3s1","took":346673250,"stderr":""}
+{"time":"2026-10-26T12:01:47.054256-07:00","level":"INFO","msg":"diskutil ran","program":"/usr/sbin/diskutil","args":"mount -mountOptions nobrowse,nosuid,nodev,owners -mountPoint /private/var/wbhomes disk3s1","took":200651334,"stderr":""}
+mount: took=793ms refusal=<nil>
+{"time":"2026-10-26T12:01:47.175826-07:00","level":"INFO","msg":"data volume mounted","volume_uuid":"4A4B13A8-F535-4ECC-A777-C0DF42D6A076","first_mount":false,"decision":"accept","path":"/private/var/wbhomes"}
+check: took=110ms refusal=<nil>
+statfs: {"From":"/dev/disk3s1","On":"/private/var/wbhomes","NoSUID":true,"NoDev":true,"NoBrowse":true,"IgnoreOwnership":false} err=<nil>
+##### report after the mount
+== sw_vers
+ProductName:		macOS
+ProductVersion:		27.0.1
+BuildVersion:		26A434
+== uptime
+12:01  up 1 min, 0 users, load averages: 13.59 4.78 1.85
+== mount (data volume)
+/dev/disk3s1 on /private/var/wbhomes (apfs, local, nodev, nosuid, journaled, nobrowse)
+== diskutil info 4A4B13A8-F535-4ECC-A777-C0DF42D6A076
+   Device Identifier:         disk3s1
+   Part of Whole:             disk3
+   Volume Name:               WraithBoxData
+   Mount Point:               /private/var/wbhomes
+   File System Personality:   APFS
+   Owners:                    Enabled
+   Protocol:                  
+   Volume Used Space:         942.1 KB (942080 Bytes) (exactly 1840 512-Byte-Units)
+   Container Free Space:      8.4 GB (8352858112 Bytes) (exactly 16314176 512-Byte-Units)
+   Device Location:           Internal
+   Removable Media:           Fixed
+   Solid State:               Yes
+   Encrypted:                 No
+   FileVault:                 No
+== diskutil apfs list disk3
+|
++-- Container disk3 3C549A14-2AC4-44C3-B6BD-1CE6B240EB7E
+    ====================================================
+    APFS Container Reference:     disk3
+    Size (Capacity Ceiling):      8380178432 B (8.4 GB)
+    Capacity In Use By Volumes:   27320320 B (27.3 MB) (0.3% used)
+    Capacity Not Allocated:       8352858112 B (8.4 GB) (99.7% free)
+    |
+    +-< Physical Store disk0s2 71BBBA58-E110-4FEA-B42F-A116053C9108
+    |   -----------------------------------------------------------
+    |   APFS Physical Store Disk:   disk0s2
+    |   Size:                       8380178432 B (8.4 GB)
+    |
+    +-> Volume disk3s1 4A4B13A8-F535-4ECC-A777-C0DF42D6A076
+        ---------------------------------------------------
+        APFS Volume Disk (Role):   disk3s1 (No specific role)
+        Name:                      WraithBoxData (Case-insensitive)
+        Mount Point:               /private/var/wbhomes
+        Capacity Consumed:         942080 B (942.1 KB)
+        Sealed:                    No
+        FileVault:                 No
+##### TestMounted as the SSH user
+zsh:1: no such file or directory: /tmp/datamount.test
+=== RUN   TestMounted
+--- PASS: TestMounted (0.28s)
+PASS

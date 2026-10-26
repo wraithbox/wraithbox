@@ -1,0 +1,19 @@
+# The confined format on the host, at origin/main 3dd4c0c, macOS 27.0.1 (26A434)
+# (cd packages/wraithbox-go && WB_DISKFMT_HOST_TEST=1 go test -count=1 -run TestHostFormat -v ./cmd/wb-diskfmt)
+# Paths shortened: <wt> is the agent worktree, <b> the test bundle
+# <wt>/.scratch/diskfmt-host-test-1793039153280442000/vms/macos-work.noindex.
+=== RUN   TestHostFormat
+{"msg":"self-sandbox applied","rule":"sandbox-applied","decision":"confined","profile":"wb-diskfmt","probe":"/etc/passwd"}
+{"msg":"diskutil ran","program":"/usr/sbin/diskutil","args":"image attach --noMount --plist <b>/data.wbdisk.tmp","took":197854291,"stderr":""}
+{"msg":"data disk attached","decision":"accept","device":"disk4","reported_backing_path":""}
+{"msg":"backing path checked","decision":"accept","step":"attach","device":"disk4","backing_path":"<b>/ [cut]"}
+{"msg":"backing path checked","decision":"accept","step":"erase","device":"disk4","backing_path":"<b>/ [cut]"}
+{"msg":"diskutil ran","program":"/usr/sbin/diskutil","args":"eraseDisk APFS WraithBoxData GPT disk4","took":1091826583,"stderr":""}
+{"msg":"diskutil ran","program":"/usr/sbin/diskutil","args":"apfs list -plist","took":167956708,"stderr":""}
+{"msg":"diskutil ran","program":"/usr/sbin/diskutil","args":"eject disk4","took":279556541,"stderr":""}
+{"msg":"data disk formatted","decision":"accept","device":"disk4","volume_uuid":"4A4B13A8-F535-4ECC-A777-C0DF42D6A076"}
+{"msg":"data disk renamed","decision":"accept","from":"<b>/data.wbdisk.tmp","to":"<b>/data.wbdisk"}
+OUTSIDE denied
+child_darwin_test.go:327: <b>/data.wbdisk: size 8589934592, 5603328 bytes allocated
+--- PASS: TestHostFormat (1.77s)
+ok  	github.com/wraithbox/wraithbox/packages/wraithbox-go/cmd/wb-diskfmt	2.007s

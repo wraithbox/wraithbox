@@ -1,0 +1,11 @@
+info: found=true err=<nil> volume={"UUID":"4A4B13A8-F535-4ECC-A777-C0DF42D6A076","Device":"disk2s1","MountPoint":"/Volumes/WraithBoxData","Encrypted":false,"EncryptionReported":true}
+{"time":"2026-10-26T11:29:39.06268-07:00","level":"INFO","msg":"diskutil ran","program":"/usr/sbin/diskutil","args":"unmount disk2s1","took":363974917,"stderr":""}
+{"time":"2026-10-26T11:29:39.334896-07:00","level":"INFO","msg":"diskutil ran","program":"/usr/sbin/diskutil","args":"mount -mountOptions nobrowse,nosuid,nodev,owners -mountPoint /private/var/wbhomes disk2s1","took":272013791,"stderr":""}
+{"time":"2026-10-26T11:29:39.334979-07:00","level":"INFO","msg":"data volume root before its first claim","path":"/private/var/wbhomes","found":"a directory owned by 0:0 with mode 0775 (setuid, setgid or sticky: false)"}
+mount: took=1.167s refusal=<nil>
+{"time":"2026-10-26T11:29:39.651448-07:00","level":"INFO","msg":"data volume mounted","volume_uuid":"4A4B13A8-F535-4ECC-A777-C0DF42D6A076","first_mount":true,"decision":"accept","path":"/private/var/wbhomes"}
+check: took=116ms refusal=<nil>
+statfs: {"From":"/dev/disk2s1","On":"/private/var/wbhomes","NoSUID":true,"NoDev":true,"NoBrowse":true,"IgnoreOwnership":false} err=<nil>
+exit=0
+/dev/disk2s1 on /private/var/wbhomes (apfs, local, nodev, nosuid, journaled, nobrowse)
+drwxr-xr-x@ 4 0  0  128 Oct 26 11:28 /private/var/wbhomes
