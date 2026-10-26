@@ -26,7 +26,12 @@ automatic host caching and full synchronization. On macOS that is
 reaches permanent storage on the host.
 
 A raw image gives the host back the space of data the guest deletes.
-An ASIF image does not (X05-fs-benchmark).
+An ASIF image does not (X05-fs-benchmark). On the data volume, mounted
+`nobrowse` as "The mount" says, the space comes back when the volume is
+unmounted or mounted again, not when the guest deletes. That is at a
+clean guest shutdown, or at `wb-guestd`'s mount when the VM next starts
+(X08-data-disk, "Follow-up (I228)"). Until then the file's `st_blocks`
+still count the deleted data.
 
 The space a data disk takes on the host comes from the file's
 `st_blocks`, never from an image tool (SEC15-no-guest-disk-mount).

@@ -16,9 +16,10 @@ The host formats a new data disk before any guest has run with it
   doesn't mount after a swap.
 - A volume the host makes on the image isn't encrypted at rest.
 
-I228 measures three things about a host-made volume: that it stays
-unencrypted, that it gives the space the guest frees back to the host,
-and that a confined `diskutil` can format it.
+On macOS 27.0.1, a host-made volume was not encrypted in the guest
+across two system disk swaps, and `wb-diskfmt` formatted it under its
+own profile, with `diskutil` and no `hdiutil` (X08-data-disk,
+"Follow-up (I228)").
 
 ### The shim
 

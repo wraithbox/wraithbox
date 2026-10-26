@@ -453,6 +453,7 @@ securityd
 BCSTXR
 BCTXR
 nono
+nolabs
 Sigstore
 Bitwarden
 DSSE

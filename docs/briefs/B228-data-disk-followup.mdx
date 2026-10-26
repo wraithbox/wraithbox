@@ -1,0 +1,120 @@
+---
+title: Does the host-made data volume stay unencrypted and give freed space back?
+description: Encryption stays off and the confined format works. Freed space goes back to the host only at each unmount or mount while wb-guestd mounts the volume nobrowse, so keep nobrowse unless the space matters more.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-10-26: yes, and yes with conditions. Awaiting decision 3: keep `nobrowse`.** Source: X08-data-disk, "Follow-up (I228)" (I228). Changes S06-05-disks ("Disks") and S06-13-data-disk-format. Earlier brief: B22-data-disk. Follow-ups: I424 (two conformance checks of C09-guest-and-sessions), I425 (a macOS 27.2 guest).
+
+<Aside type="tip" title="What we learned">
+**Encryption stays off: yes. The confined format works: yes. Space goes back: yes, with conditions.** In three guests on macOS 27.0.1, two of them system disk swaps, the volume `wb-diskfmt` made was not encrypted. But with the mount option `nobrowse` that S06-05-disks gives it, space the guest deletes is still allocated on the host until the volume is unmounted or mounted again, at a clean shutdown, or at the next VM start. You decide whether to keep `nobrowse`. Recommended: keep it, as the spec says today. Dropping it makes the space come back within about 20 s.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="A project user in the guest deletes a file on the data volume, mounted nobrowse at /private/var/wbhomes. The host's image file keeps the blocks while the volume stays mounted. They go back when wb-guestd's mount is unmounted at a clean shutdown, or mounted again at the next VM start.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="15" y="15" width="400" height="270" rx="12" />
+  <text class="boundary-label" x="27" y="35">guest (untrusted)</text>
+  <rect class="box guest" x="40" y="55" width="160" height="60" rx="10" />
+  <text class="label" x="120" y="81" text-anchor="middle">project user</text>
+  <text class="note" x="120" y="101" text-anchor="middle">deletes 1 GiB</text>
+  <rect class="box guest" x="40" y="190" width="350" height="70" rx="10" />
+  <text class="label" x="215" y="218" text-anchor="middle">data volume, /private/var/wbhomes</text>
+  <text class="note" x="215" y="240" text-anchor="middle">nobrowse, nosuid, nodev, owners</text>
+  <rect class="box guest" x="230" y="55" width="160" height="60" rx="10" />
+  <text class="label" x="310" y="81" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="310" y="101" text-anchor="middle">mounts at VM start</text>
+
+  <rect class="box host" x="520" y="190" width="220" height="70" rx="10" />
+  <text class="label" x="630" y="218" text-anchor="middle">data.wbdisk on the host</text>
+  <text class="note" x="630" y="240" text-anchor="middle">st_blocks</text>
+
+  <line class="edge" x1="120" y1="117" x2="120" y2="188" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M392,205 C450,180 480,180 518,205" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="420" y="160">on delete: kept</text>
+  <path class="edge" d="M392,250 C450,280 480,280 518,250" marker-end="url(#f1-arrow)" />
+  <text class="note" x="400" y="295">at unmount or mount: freed</text>
+  <line class="edge" x1="310" y1="117" x2="310" y2="188" marker-end="url(#f1-arrow)" />
+</svg>
+<figcaption>
+Figure 1. With `nobrowse`, a delete in the guest leaves the blocks allocated in the host's image file. They go back when the volume is unmounted (a clean guest shutdown) or mounted again (`wb-guestd` at the next VM start). Without `nobrowse` they went back within 20 s (X08-data-disk, "Follow-up (I228)").
+</figcaption>
+</figure>
+
+## Decision 3: keep `nobrowse` on the data volume?
+
+`nobrowse` marks a mount as not for browsing: Finder and other user-facing tools don't show it. S06-05-disks sets it with `nosuid`, `nodev` and `owners`, and `wb-guestd` refuses a session when it's missing. No spec or decision gives its reason. Mounting with each option alone showed that `nobrowse` is the one that holds the space back. A remount during a run isn't a way around it: once a project user process has run, macOS refuses another mount at the home path until the next boot (X08-data-disk, "Answer" part 12).
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Keep `nobrowse` (the spec today)
+
+The space the guest frees goes back at each clean shutdown and at each VM start.
+
+- **Cost:** between a delete and the next stop or start, the image keeps the deleted data's blocks. The file can grow up to the disk's nominal size, which bounds it. A VM that is stopped by force keeps them until it starts again. The code and tests already do this.
+- **Keeps:** <Badge text="SEC13-bounded-resources" variant="success" /> bounded by the nominal size, and every control as written.
+
+</div>
+<div class="wb-option">
+
+### B. Drop `nobrowse`
+
+Mount with `nosuid,nodev,owners`, and drop `nobrowse` from the check before every session.
+
+- **Cost:** a change to S06-05-disks, `internal/platform/guestmount`, `wb-guestd`'s check, its tests and C09-guest-and-sessions. The volume shows up in the guest's Finder for a person at the guest's screen, and Spotlight may index the homes, which wasn't measured.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" /> `nosuid` and `nodev` are kept, and the homes keep mode 700.
+
+</div>
+</div>
+
+**The case for B.** The design rests on the space coming back: NFR03-footprint says disk use grows only with divergence from the base image, and S06-05-disks says a raw image gives deleted data back. With `nobrowse`, a long session that writes and deletes build output keeps every deleted block until the VM stops, and VMs that suspend when idle may not stop for days. The specs don't say what `nobrowse` protects, and the mount is outside `/Volumes` already. Without it the space came back within 20 s in every run.
+
+**Confidence:** medium. A is the stricter option and the one the code and tests check today, so choosing it doesn't change the code. A finding that Spotlight doesn't index the volume either way, or reports of host disk pressure from long sessions, would make B the better choice.
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Keep `nobrowse`</th><th>B. Drop it</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>NFR03-footprint</strong> disk use grows only with divergence from the base</td><td class="partial">deleted data counts until the next stop or start</td><td class="yes">back within about 20 s</td></tr>
+<tr><td><strong>SEC13-bounded-resources</strong> the guest can't exhaust host resources</td><td class="yes">bounded by the nominal size</td><td class="yes">same</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> one project can't reach another's state</td><td class="yes">as written</td><td class="partial">Spotlight on the homes not measured</td></tr>
+<tr><td><strong>SEC15-no-guest-disk-mount</strong> the host never mounts a disk a guest used</td><td class="yes">as written</td><td class="yes">as written</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> The volume was not encrypted ("Encrypted: No", "FileVault: No") in three boots on macOS 27.0.1, two of them system disk swaps, and after 2 GiB were written and deleted. `wb-guestd`'s mount and check accepted it each time. Source: X08-data-disk, "Follow-up (I228)", `results/b1-report-*.txt`, `b2-boot-check.txt`, `b3-boot-check.txt`.
+- <Badge text="verified" variant="success" /> `TestHostFormat` ran `wb-diskfmt` under its profile, which allows `diskutil` and no other program: attach, backing path checks, format, eject and rename passed, `st_blocks` was 0 right before the format, and a read outside the bundle was denied. Source: `results/host-format.txt`.
+- <Badge text="verified" variant="success" /> At `/private/var/wbhomes` with `nobrowse,nosuid,nodev,owners`, deleted data stayed allocated for up to 10.5 min. With no options, `nosuid,nodev`, `owners`, or Disk Arbitration's mount at `/Volumes`, it went back within 20 s. `nobrowse` alone held it back. Source: `results/b1-space*.txt`, `b2-space.txt`, `b3-space-bisect.txt`.
+- <Badge text="verified" variant="success" /> A remount, a clean guest shutdown, and `wb-guestd`'s mount at the next boot each gave it all back. A VM stopped by force did not, until its next start. Source: `results/stop-and-start.txt`.
+- <Badge text="assumed" variant="caution" /> That Spotlight indexes the homes without `nobrowse`, which wasn't measured. Disk Arbitration's mount at boot, which has no `nobrowse`, made a `.Spotlight-V100` directory on the volume before `wb-guestd` mounted it. A measurement in a product guest would settle it before option B.
+- <Badge text="assumed" variant="caution" /> That a later point release behaves the same. Only macOS 27.0.1 ran as the guest. I425 repeats the check on 27.2.
+
+## What it unblocks
+
+No issue waits on decision 3, because the spec and the code already do A. Choosing B opens a change to S06-05-disks and `wb-guestd`. The two conformance checks of C09-guest-and-sessions that fail on a real guest, `TestSetuidIgnored` and `TestRemountRefused`, are fixed in I424 either way. I425 repeats the encryption check on macOS 27.2.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why space goes back at all.** The data disk is a sparse raw file. When the guest's APFS deletes a file, it can tell the virtual disk that the blocks are free (an unmap), and the host then frees them in the file. X05-fs-benchmark measured this for a guest-made volume. On this volume it happens within about 20 s of a delete, and in full at every unmount and mount, except while the mount has `nobrowse`, when it happens only at the unmount or mount.
+
+**Why the two conformance checks fail.** `TestSetuidIgnored` first checks that a setuid-root copy of itself in `/private/var/tmp` runs as root. Started from the test, it ran as uid 501, while the same copy started with `sudo -u` ran as root, which points at the test's way of starting it. On the data volume, `nosuid` held in every probe. `TestRemountRefused` cleans up with `mount -u -o nosuid`, but on macOS that replaces the other flags rather than adding one, so the mount lost `nodev` and `nobrowse` and the check refused it.
+
+- **nobrowse:** a mount flag (`MNT_DONTBROWSE`) that keeps the volume out of Finder and other browsing.
+- **Sparse file:** a file whose unwritten parts take no space on the host's disk.
+- **Unmap (trim):** the filesystem telling a disk that blocks no longer hold data.
+- **st_blocks:** the space a file takes on the host's disk, which `wb-hostd` counts.
+- **Disk Arbitration:** the macOS service that mounts disks at boot, at `/Volumes/<name>`.
+
+</details>

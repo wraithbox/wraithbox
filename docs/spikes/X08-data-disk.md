@@ -4,7 +4,7 @@
 survive a replacement of the system disk, and what the host must keep
 to recreate the users.
 
-Brief: B22-data-disk
+Brief: B22-data-disk. Follow-up (I228): B228-data-disk-followup
 
 ## For review
 
@@ -43,7 +43,8 @@ Brief: B22-data-disk
   didn't format, which held for four boots here, and that the space a
   guest frees on the host-made volume goes back to the host as on a
   guest-made one (X05-fs-benchmark measured the guest-made one). I228
-  measures both. That the key of a guest-made volume needs the old
+  measured both: encryption stayed off, and space goes back at each
+  stop or start ("Follow-up (I228)", below). That the key of a guest-made volume needs the old
   system disk is inferred from the kernel log: the clones also replaced
   the auxiliary storage, and the spike didn't separate the two.
 - **Decisions:** decided 2026-10-12, as recommended, in the I22
@@ -63,8 +64,8 @@ Brief: B22-data-disk
      which runs the steps of "Disks". S04-architecture and
      S06-vm-lifecycle are written for decision 2A.
      I218 (one `wb-vmd` per VM, its launcher entries) also edits
-     S04-architecture and rebases onto this. A confined `diskutil` run
-     isn't measured yet, and I228 measures it.
+     S04-architecture and rebases onto this. I228 measured a confined
+     `diskutil` run, which works ("Follow-up (I228)", below).
 - **Brief:** B22-data-disk
 
 ## Question
@@ -252,11 +253,13 @@ changed between boots with the checks, not with the swap.
   an update, so the answer wouldn't change the design.
 - **HFS+ against NFR02-fs-speed.** X05-fs-benchmark measured APFS.
 - **Space given back to the host** on the host-made APFS volume, and
-  whether a guest ever turns encryption on for it. I228 measures both.
+  whether a guest ever turns encryption on for it. I228 measured both
+  ("Follow-up (I228)", below).
 - **The formatting steps of S06-vm-lifecycle.** The spike's script
   checked the device by protocol and size, used the deprecated
   `hdiutil attach`, and didn't rename the file or check its backing
-  path, and didn't run `diskutil` under a profile (I228).
+  path, and didn't run `diskutil` under a profile. I228 ran the steps
+  confined ("Follow-up (I228)", below).
 - **A different macOS version** on the new system disk. All three were
   clones of one image.
 
@@ -289,4 +292,190 @@ the Swift `wb-vmd` stand-in with read-write and USB data disks, the
 request client, the host-side format script, the guest scripts, the
 host state of each cycle, and the raw results in `results/`.
 
-**Status:** Answered 2026-10-12: yes, with conditions. Decided 2026-10-12 (I22): 1A, the host formats the data disk APFS, and 2A, in the `wb-diskfmt` shim
+## Follow-up (I228): the host-made volume
+
+Brief: B228-data-disk-followup
+
+### For review
+
+- **Decides:** the answers to the three questions that X08-data-disk
+  left to I228, and whether `wb-guestd` keeps mounting the data volume
+  with `nobrowse` (decision 3, open).
+- **You are approving:** "yes" for encryption and for the confined
+  `diskutil`, and "yes, with conditions" for the space given back. While
+  `wb-guestd` mounts the volume with `nobrowse`, space the guest frees
+  goes back to the host only when the volume is unmounted or mounted
+  again: at a clean guest shutdown or at the next VM start.
+  S06-05-disks now says so.
+- **Controls touched:** none weakened. SEC15-no-guest-disk-mount keeps
+  its one exception for a blank image, now measured confined.
+  SEC12-least-privilege: the profile of S04-04-vm-processes suffices,
+  with no `hdiutil`. SEC13-bounded-resources counts the file's
+  `st_blocks`, which still count deleted data until the next stop or
+  start.
+- **Assumed:** that a later point release keeps the volume
+  unencrypted. All three guests ran macOS 27.0.1, and 27.2 wasn't
+  tried (I425).
+- **Decision 3 (open):** keep `nobrowse` (the spec as it is, space
+  returns per stop or start) or drop it from the mount and the check
+  (space returns within about 20 s). Recommended: keep it. The brief
+  holds the options, and the spec keeps `nobrowse` until the maintainer
+  decides.
+
+### Question
+
+From I228, which X08-data-disk's "What was not measured" names:
+
+1. Does a guest ever turn encryption on for a volume that `wb-diskfmt`
+   made on the host?
+2. Does that volume give the space the guest frees back to the host,
+   as X05-fs-benchmark measured for a guest-made one?
+3. Can `diskutil` attach and format the image under `wb-diskfmt`'s
+   profile? Does the file keep `st_blocks` 0 through `diskutil image
+   attach --noMount`, and does the profile need `hdiutil`?
+
+### Answer
+
+1. **Encryption stays off: yes.** In three boots, each a fresh system
+   disk, the guest reported the volume "Encrypted: No" and "FileVault:
+   No", with no "Encrypted at rest" in `diskutil apfs list`, before and
+   after writing to it. The same disk went from boot b1 to b2 to b3, so
+   b2 and b3 are system disk swaps. `wb-guestd`'s own mount code
+   accepted it each time.
+2. **Space goes back: yes, with conditions.** With the mount options
+   of S06-05-disks, `nobrowse,nosuid,nodev,owners`, deleted data
+   doesn't go back to the host while the volume is mounted. It
+   was still allocated for 10.5 min in the longest wait. It goes back in
+   full when the volume is unmounted or mounted again: a clean guest
+   shutdown, or `wb-guestd`'s mount at the next VM start. Without
+   `nobrowse`, it went back within 20 s of the delete. Mounting with
+   each option alone showed that `nobrowse` alone holds it back.
+3. **A confined format works: yes.** `TestHostFormat` ran
+   `wb-diskfmt` under its own profile, which allows `diskutil` and no
+   other program. It attached, checked the backing path twice through
+   the I/O Registry, formatted, ejected, and renamed the image. The
+   file had `st_blocks` 0 at the check right before `eraseDisk`, after
+   the attach. `hdiutil` isn't needed.
+
+Two of the `datamount` conformance checks of C09-guest-and-sessions
+fail on a real guest because of how the tests are written, not because
+of the mount: `TestSetuidIgnored` and `TestRemountRefused`. See
+"Conformance" below.
+
+### Measurements
+
+Host: Apple M2, macOS 27.0.1 (26A434). Guests: macOS 27.0.1 (26A434),
+each a fresh `mise run vm:clone dev/base i228/bN`. The data disk was
+the 8 GiB image that `TestHostFormat` made, moved into each clone
+before its first boot.
+
+**The confined format** (`results/host-format.txt`), at main `3dd4c0c`:
+
+| Step | Result |
+|---|---|
+| `self-sandbox applied`, profile `wb-diskfmt` | confined |
+| `diskutil image attach --noMount` | 0.20 s, no backing path in its output |
+| Backing path check, at the attach and at the erase | accepted both times |
+| Identity check with `st_blocks` 0, at create and at the erase | passed |
+| `diskutil eraseDisk APFS` | 1.09 s |
+| `diskutil eject` | 0.28 s |
+| Read outside the bundle | denied |
+| The image after the rename | 8 GiB, 5,603,328 bytes allocated |
+| Whole test | 1.77 s, PASS |
+
+**Encryption and the mount** (`results/b1-*.txt`, `b2-boot-check.txt`,
+`b3-boot-check.txt`). `x8mount` runs `wb-guestd`'s `DataMount` (mount,
+then check) without `wb-hostd`.
+
+| Boot | `diskutil info` | `apfs list` | Mount | Check | `TestMounted` |
+|---|---|---|---|---|---|
+| b1, first mount | Encrypted: No, FileVault: No | FileVault: No | 1.17 s, accepted | 0.12 s, accepted | PASS |
+| b1, 25 min later, after every space run | Encrypted: No, FileVault: No | FileVault: No | | | |
+| b2, swap | Encrypted: No, FileVault: No | FileVault: No | 0.79 s, accepted | 0.17 s, accepted | PASS |
+| b3, swap | Encrypted: No, FileVault: No | FileVault: No | 0.79 s, accepted | 0.11 s, accepted | PASS |
+
+The guest saw the volume as internal and solid state, with owners
+enabled. `statfs` reported `nosuid`, `nodev` and `nobrowse` set, with
+ownership on. On the first mount the root was `0:0` mode 0775, and
+`wb-guestd` claimed it to mode 755.
+
+**Space given back** (`results/*space*.txt`, `stop-and-start.txt`).
+`space.sh` writes random data in the guest, syncs, deletes it, and
+reads the image's `st_blocks` on the host every 10 s.
+
+| Mount | Written | Allocated after the delete |
+|---|---|---|
+| `/private/var/wbhomes`, `nobrowse,nosuid,nodev,owners` (b1) | 2 GiB | 2,172,194,816 B for 180 s |
+| the same (b1) | 512 MiB | 543,748,096 B for 30 s, then 10.5 min more |
+| the same (b2) | 1 GiB | 1,080,729,600 B for 61 s |
+| `/private/var/x8e`, the same options (b1) | 512 MiB | 543,801,344 B for 30 s |
+| `/private/var/x8b`, `nobrowse` alone (b1, b3) | 512 MiB | 543,784,960 and 543,903,744 B for 30 s |
+| `/Volumes/WraithBoxData`, Disk Arbitration's mount (b1) | 1 GiB | 6,930,432 B at once |
+| `/private/var/x8a`, no options (b1, b3) | 512 MiB | 6,918,144 and 7,147,520 B at 20 s |
+| `/private/var/x8c`, `nosuid,nodev` (b1) | 512 MiB | 6,918,144 B at 20 s |
+| `/private/var/x8d`, `owners` (b1) | 512 MiB | 6,926,336 B at 20 s |
+
+| Event | Allocated before | After |
+|---|---|---|
+| Unmount from `/private/var/wbhomes`, mount at `/Volumes` (b1) | 2,172,194,816 B | 6,942,720 B |
+| Clean shutdown in the guest, `shutdown -h` (b1) | 543,748,096 B | 6,860,800 B |
+| `mise run vm:stop`, guest not down in the grace time, stopped (b2) | 1,080,729,600 B | 1,080,729,600 B |
+| Next boot with that disk, `wb-guestd`'s mount (b3) | 1,080,729,600 B | 7,045,120 B |
+
+**Conformance** (`results/b1-conformance.txt`,
+`b1-setuid-probe.txt`, `b1-remount-probe.txt`). Run as root on b1,
+`datamount.test` passed `TestMounted` and failed the other two:
+
+- `TestSetuidIgnored`: its control probe, a setuid-root copy in
+  `/private/var/tmp`, ran as uid 501, so the test stopped before the
+  data volume. The same copy started with `sudo -u nobody` or
+  `sudo -u wbdev` ran with effective uid 0, and so did a C probe. That
+  points at how the test starts the probe, not at macOS. On the
+  data volume with `nosuid`, the C and Go probes ran as uid -2 (nobody).
+  Remounted without `nosuid`, they ran as uid 0. So `nosuid` works on
+  this volume and is needed, as X08-data-disk found.
+- `TestRemountRefused`: `mount -u -o <option>` on macOS 27 replaces
+  the flags rather than adding one. `-o suid` dropped `nodev` and
+  `nobrowse`, and `-o nosuid` left only `nosuid`. The test's cleanup
+  remounts with `nosuid` alone, so the check refused the mount after
+  it. Remounting with `nosuid,nodev,nobrowse` restores it.
+
+### What was not measured
+
+- **A product guest with `wb-hostd`.** `x8mount` ran `wb-guestd`'s mount
+  code by hand, as root over SSH, in the dev image.
+- **macOS 27.2 or later as the guest.** A 27.2 restore image is
+  25.6 GB, and the host had 50 GiB free (I425).
+- **Space given back with `nobrowse` over hours.** The longest wait
+  was 10.5 min. Each delete was one file.
+- **A guest that crashes or is stopped by force and then never starts
+  again.** Its space is still allocated until the next start (b2 to b3).
+- **Who owns the volume's `.fseventsd`.** In b1 it was owned by
+  `wbdev` (uid 501), the dev image's user. S06-05-disks refuses a UID
+  that owns a top-level entry when it creates a user. A product guest
+  has its own users, and I424 checks it there.
+
+### What it means for the specs
+
+- **S06-05-disks**, "Disks": the space the guest frees goes back to the
+  host when `wb-guestd`'s mount is unmounted or mounted again, not when
+  the guest deletes (changed in this pull request).
+- **S06-13-data-disk-format**: the three I228 claims are measured
+  (changed in this pull request).
+- **S04-04-vm-processes**: the profile stands as written, with no
+  `hdiutil`.
+- **C09-guest-and-sessions**: `TestSetuidIgnored` and
+  `TestRemountRefused` need fixing in the tests (I424).
+- **Decision 3** would change S06-05-disks, "The mount" and "Before
+  every session start", and `internal/platform/guestmount` if
+  `nobrowse` goes.
+
+### Spike code
+
+Branch `spike/x8-data-disk-followup`, at
+[81c1f21](https://github.com/wraithbox/wraithbox/tree/81c1f214461856075fb4bb2a26fcabf779f60dbf/spikes/x8-data-disk-followup):
+`x8mount` (`wb-guestd`'s mount without `wb-hostd`), the guest scripts,
+the space scripts, the probes of the two failing conformance checks,
+and the raw results in `results/`.
+
+**Status:** Answered 2026-10-12: yes, with conditions. Decided 2026-10-12 (I22): 1A, the host formats the data disk APFS, and 2A, in the `wb-diskfmt` shim. Follow-up answered 2026-10-26 (I228): the host-made volume is not encrypted, gives freed space back at each stop or start while mounted `nobrowse`, and formats under the confined shim. Decision 3 (`nobrowse`) awaits the maintainer

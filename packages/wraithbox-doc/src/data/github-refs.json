@@ -1494,8 +1494,8 @@
 	"240": {
 		"kind": "issue",
 		"state": "open",
-		"title": "Re-review DefenseClaw after V1 and update R01-defenseclaw",
-		"summary": "After V1 ships, read DefenseClaw (cisco-ai-defense/defenseclaw) again and update docs/research/R01-defenseclaw.md (R01-defenseclaw)."
+		"title": "Re-review the research notes on related projects after V1 and fold their recommendations into post-V1 plans",
+		"summary": "After V1 ships, review the recommendations of the research notes that compare Wraith Box with related projects, and fold the ones that still hold into the post-V1 plans."
 	},
 	"241": {
 		"kind": "pr",
@@ -1770,19 +1770,19 @@
 	},
 	"286": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb vm start, stop and status over a first wraithbox.hostd.v1 contract",
 		"summary": "The user can't start or stop a VM."
 	},
 	"287": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd on macOS: spawn wb-vmd with its descriptors, the vmd provider, APFS clone of the guest tools disk, and the daemon's main",
 		"summary": "M2.7b (#284) and M2.7c (#285) run against a fake provider."
 	},
 	"288": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd on a VM: wb vm start boots the fixture bundle, links to wb-guestd, sends the time, reconnects and stops",
 		"summary": "M2.7a (#283) to M2.7e (#287) are tested with fakes."
 	},
@@ -1794,7 +1794,7 @@
 	},
 	"290": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-guestd: mount the data volume by its UUID and check the mount before each session",
 		"summary": "After M2.8a (#289), each VM has a host-formatted data disk, and state.db holds its volume UUID."
 	},
@@ -1812,7 +1812,7 @@
 	},
 	"293": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: project records, identity check, registration and placement over local IPC",
 		"summary": "wb-hostd owns state.db (S04-architecture, \"Host state\"), so the projects table, and each change to a project, go through it."
 	},
@@ -1980,7 +1980,7 @@
 	},
 	"321": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Agent permissions: mise run <task> * allow rules also match ::: task chaining",
 		"summary": "Follow-up from the review of #315 (#120)."
 	},
@@ -2298,7 +2298,7 @@
 	},
 	"374": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Project resolution: a .git directory whose core.worktree names another project's tree",
 		"summary": "The security review of #372 (#292) found that a downloaded .git directory whose core.worktree names another project's working tree resolves to its own key, so SEC08-proj-isolation holds for the key and the identity."
 	},
@@ -2349,5 +2349,263 @@
 		"state": "merged",
 		"title": "fix(go): guestlink's watch waits for READY before it takes a state as a drop",
 		"summary": "TestSetTime/restore (internal/guestd, #381) failed on main's CI on ubuntu-24.04 after #381 merged (run 39681529947): SetTime: rpc error: code = Canceled desc = grpc: the client connection is closing."
+	},
+	"383": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: R02-builder-effort, and settle agent effort at medium for builders and code reviewers",
+		"summary": "Adds R02-builder-effort, a research note with the result of the builder effort trial in docs/agents/orchestration.md (\"Effort\"), measured over the V1-M2 runs #307, #314, #323, #340 and #367."
+	},
+	"384": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Run 2026-10-22 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "/wave --waves 5 --lane mac --merge"
+	},
+	"385": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): wb vm start, stop and status over wraithbox.hostd.v1",
+		"summary": "Adds StartVM, StopVM and GetVMStatus to HostService in the existing proto/wraithbox/hostd/v1/hostd.proto."
+	},
+	"386": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Fix rounds and compaction: when to resume a builder, and how agents should compact",
+		"summary": "When a review sends findings back, the wave lead resumes the original builder."
+	},
+	"387": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(go): refuse a .git directory whose core.worktree names another tree",
+		"summary": "Project resolution now refuses a .git directory (a main checkout) or a linked worktree whose core.worktree doesn't resolve, in canonical form, to the directory that holds that .git, as the maintainer decided on #374."
+	},
+	"388": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project resolution: symbolic links inside a .git directory that point into another project",
+		"summary": "Found during the security review of #387 (#374)."
+	},
+	"389": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(research): R03-fix-rounds-compaction, when to resume a builder and how agents compact",
+		"summary": "Adds docs/research/R03-fix-rounds-compaction.md, measured from the session transcripts of runs #307, #314, #323, #340, #367 and waves 1 and 2 of #384, and the GitHub reviews of each pull request."
+	},
+	"390": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "FuzzIdentityOutput's oracle takes the quoted remote name for a quoted URL, and fails CI on main",
+		"summary": "CI on main failed after the merge of #387 (run 39828152008, job \"Go (ubuntu-24.04)\", step \"Fuzz smoke run\"):"
+	},
+	"391": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(go): FuzzIdentityOutput's URL oracle compares against a masked input",
+		"summary": "checkURLRefusal took any input line longer than origin that appeared in a parseURLs refusal for a quoted URL."
+	},
+	"392": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Compaction: turn on auto-compaction for the project, a 200k window and compaction instructions for builders",
+		"summary": "Builders never compact, and about half of a builder's context is its own thinking, which stays in context for the whole run."
+	},
+	"393": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "chore(agents): turn on auto-compaction, 200k window and compact instructions for builders",
+		"summary": "Part of #392."
+	},
+	"394": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Run 2026-10-23 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "Approval: the maintainer typed /wave --lane mac --merge in this session (2026-10-23)."
+	},
+	"395": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): spawn wb-vmd, the vmd provider, APFS tools disk clone and wb-hostd's main",
+		"summary": "wb-hostd on macOS now spawns one wb-vmd per VM run, runs the VM manager with it as the provider, clones the guest tools disk with APFS, and has a real main."
+	},
+	"396": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "chore(agents): researcher agent, oss-compare skill, spike-builder split and agent docs split",
+		"summary": "Harness changes the maintainer asked for in the main session:"
+	},
+	"397": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps): Bump zizmorcore/zizmor-action from 0.6.4 to 0.7.1",
+		"summary": "Bumps zizmorcore/zizmor-action from 0.6.4 to 0.7.1."
+	},
+	"398": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps-dev): Bump cspell from 10.3.6 to 10.4.0 in /packages/wraithbox-doc",
+		"summary": "Bumps cspell from 10.3.6 to 10.4.0."
+	},
+	"399": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps-dev): Bump playwright from 1.64.0 to 1.64.1 in /packages/wraithbox-doc",
+		"summary": "Bumps playwright from 1.64.0 to 1.64.1."
+	},
+	"400": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps): Bump @astrojs/markdown-remark from 7.3.2 to 7.3.3 in /packages/wraithbox-doc",
+		"summary": "Bumps @astrojs/markdown-remark from 7.3.2 to 7.3.3."
+	},
+	"401": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps): Bump jdx/mise-action from 5.1.1 to 5.2.0",
+		"summary": "Bumps jdx/mise-action from 5.1.1 to 5.2.0."
+	},
+	"402": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps): Bump astro from 7.3.8 to 7.4.0 in /packages/wraithbox-doc",
+		"summary": "Bumps astro from 7.3.8 to 7.4.0."
+	},
+	"403": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps): Bump github.com/grpc/grpc-swift-2 from 2.4.3 to 2.4.4 in /packages/wraithbox-swift",
+		"summary": "Bumps github.com/grpc/grpc-swift-2 from 2.4.3 to 2.4.4."
+	},
+	"404": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps): Bump github.com/apple/swift-protobuf from 1.38.1 to 1.39.0 in /packages/wraithbox-swift",
+		"summary": "Bumps github.com/apple/swift-protobuf from 1.38.1 to 1.39.0."
+	},
+	"405": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(deps): Bump github.com/grpc/grpc-swift-nio-transport from 2.10.0 to 2.11.0 in /packages/wraithbox-swift",
+		"summary": "Bumps github.com/grpc/grpc-swift-nio-transport from 2.10.0 to 2.11.0."
+	},
+	"406": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wave-lead reports before its builder hands back, and cannot TaskStop its builders",
+		"summary": "In run #394 (wave 1, #287) the wave-lead handed back before its builder did:"
+	},
+	"407": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(research): R04-matchlock and R05-iron-proxy",
+		"summary": "R04-matchlock reads matchlock 0.2.17, an MIT sandbox that runs agents in throwaway Linux microVMs."
+	},
+	"408": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build(deps): consolidate dependabot bumps and fix GHSA-333x-w4r6-6crp, GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr, GHSA-xhq7-xmqj-769h, GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c, GHSA-mrhx-c7xc-m3w5",
+		"summary": "Takes every open dependabot bump in one pull request and fixes the advisories that turned the Dependency vulnerability scan job red on main and on every dependabot pull request."
+	},
+	"409": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(research): R06-nono how nono relates to Wraith Box and what to take from it",
+		"summary": "Adds R06-nono, a comparison of nono (nolabs-ai/nono, Apache-2.0) with Wraith Box, read at commit 11d9e6b8 (v0.80.0-41)."
+	},
+	"410": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(research): R07-egzo compares egzo with Wraith Box",
+		"summary": "Compares the open source project egzo (550e5d6, 0.10.0-5-g550e5d6, read 2026-10-25) with Wraith Box in a new research note, R07-egzo."
+	},
+	"411": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Run 2026-10-25 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "/wave --waves 5 --lane mac --merge"
+	},
+	"412": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): send the time on the guest link, drop unanswered links, and add the wb vm needs-vm test",
+		"summary": "wb-hostd's guest links now send the time (GuestService.SetTime) after every accepted hello and every 60 s."
+	},
+	"413": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: a test-only bundle root, so needs-vm tests run without the real Wraith Box data",
+		"summary": "wb-vmd boots only bundles under the real ~/Library/Application Support/WraithBox."
+	},
+	"414": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb vm stop: the guest ignores the requested stop, so every stop waits out the 30 s timeout",
+		"summary": "In the needs-vm run of #288 (#412, head 753eae1, fixture bundle i379/fixture), wb vm stop work took 30.0 s and wb-vmd exited 30.01 s after the stop began."
+	},
+	"415": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Run 2026-10-25 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "/wave --waves 5 --lane mac --merge"
+	},
+	"416": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(guestd): mount the data volume by its UUID and check it before each session",
+		"summary": "wb-guestd mounts the data volume by the UUID the host recorded and checks the mount, and wb-hostd asks for it after every hello and refuses a session start unless it passed."
+	},
+	"417": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): project records, identity check, registration and placement over local IPC",
+		"summary": "wb-hostd now serves wraithbox.hostd.v1.ProjectService on its local IPC endpoint."
+	},
+	"418": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S04-08-records-and-bounds: point to the input-from-wb bounds in S04-00-architecture",
+		"summary": ""
+	},
+	"419": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S15-least-privilege: a designed admin path from the host into the user's own guest, apart from every agent path",
+		"summary": "The host has no way to do admin work inside a VM that wb-vmd booted."
+	},
+	"420": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: run the data mount's in-guest C09 checks in a real guest",
+		"summary": "- datamount.test -test.v as a standard user (TestMounted); - sudo ./datamount.test -test.v as root (TestSetuidIgnored, TestRemountRefused); - the guest log's data volume root before its first claim on a fresh data…"
+	},
+	"421": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Run 2026-10-26 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "/wave --waves 5 --lane mac --merge"
+	},
+	"422": {
+		"kind": "pr",
+		"state": "open",
+		"title": "fix(agents): wave lead waits out interim notices, dispatcher stops agents",
+		"summary": "From the run #394 lead's transcript: the builder ended its turn while its own background mise run ci ran."
+	},
+	"423": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(wb): wb project commands, session-start resolution and host git checks",
+		"summary": "Adds wb project show|confirm|move|rename|place|rm, the session-start project resolution that wb claude will call (project.Opener), and the host git checks in wb and wb setup."
+	},
+	"424": {
+		"kind": "issue",
+		"state": "open",
+		"title": "fix(conformance): datamount setuid probe and remount restore on a real guest",
+		"summary": "Follow-up of #228 (X08-data-disk, \"Follow-up (I228)\")."
+	},
+	"425": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X08-data-disk follow-up: check the host-made volume stays unencrypted on a macOS 27.2 guest",
+		"summary": "Follow-up of #228 (X08-data-disk, \"Follow-up (I228)\")."
 	}
 }
