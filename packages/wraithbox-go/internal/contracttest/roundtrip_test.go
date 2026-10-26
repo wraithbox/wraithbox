@@ -164,7 +164,7 @@ func messages() []proto.Message {
 		vmStatus().GetLinkRefusal(),
 		vmStatus().GetLastError(),
 		vmStatus().GetDataMount(),
-	}, terminalMessages()...)
+	}, append(terminalMessages(), userMessages()...)...)
 }
 
 func TestRoundTrip(t *testing.T) {
