@@ -1,0 +1,21 @@
+# The image's allocation on the host (st_blocks * 512) across each
+# stop and start, read with watch-alloc.sh on the host. Times are the
+# host's local clock.
+#
+# b1: 512 MiB deleted at /private/var/wbhomes (nobrowse), then 10.5 min
+# with no change (b1-space-nobrowse-long.txt), then halt.sh.
+19:54:36 +0 s: 543748096 B   (b1, right before halt.sh)
+19:54:59 +0 s: 6860800 B     (b1, after the guest shut down and the VM ended)
+#
+# b2: boot of a fresh clone with this disk. Before its first write the
+# image was near the b1 shutdown size.
+19:57:34 +0 s: 6955008 B     (b2, after boot and wb-guestd's mount)
+# b2-space.txt: 1 GiB written and deleted at /private/var/wbhomes,
+# 1080729600 B for 61 s. Then `mise run vm:stop i228/b2`: the guest
+# didn't shut down in the grace time and the VM was stopped (SIGTERM).
+19:59:51 +0 s: 1080729600 B  (b2, right after vm:stop)
+20:00:15 +0 s: 1080729600 B  (b2, 24 s later, VM gone)
+#
+# b3: boot of a fresh clone with this disk, Disk Arbitration's mount,
+# then wb-guestd's unmount and mount (b3-boot-check.txt).
+20:01:49 +0 s: 7045120 B     (b3, after boot and wb-guestd's mount)

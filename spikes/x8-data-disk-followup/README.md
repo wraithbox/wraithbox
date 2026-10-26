@@ -46,4 +46,5 @@ guest frees back to the host, and does the confined `diskutil` run work?
   given back to the host, by mount option.
 - `setuid-probe.sh`, `remount-probe.sh`: why two datamount
   conformance checks fail.
-- `results/`: raw output of every run.
+- `results/`: raw output of every run. `stop-and-start.txt` has the
+  image's allocation around each shutdown, stop and boot.
