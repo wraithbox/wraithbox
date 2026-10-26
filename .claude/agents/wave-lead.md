@@ -55,7 +55,8 @@ Write scratch files only to `.scratch/`.
    Send the builder one message: the `must-fix` findings, the cheap
    `fold` findings, and the findings to skip. When the builder's last
    notice shows `<subagent_tokens>` of 150k or more and it didn't stop
-   at its turn limit, stop it with `TaskStop`. Send the message to a
+   at its turn limit, don't resume it. It has handed back, so nothing
+   of it runs. Send the message to a
    fresh agent of the same type with `isolation: "worktree"` instead,
    naming the pull request and its branch (`orchestration.md`, "A
    wave", step 5).
@@ -76,10 +77,38 @@ Write scratch files only to `.scratch/`.
    report's maintainer line. Questions for the maintainer go on your report, never to the
    maintainer.
 
+## Waiting
+
 Wait by ending your turn. The agents' notifications wake you. Wait in
 the foreground only for a check you started yourself. You don't merge,
-push, or message the maintainer. Before you report, stop
-every agent that still runs with `TaskStop`.
+push, or message the maintainer.
+
+An agent hands back once, with its report. A notice whose `<summary>`
+says the agent "is waiting on its own background work", or whose
+`<note>` says the result "may be interim", is not a hand-back. The agent
+still works, and its task ID notifies again. The harness counts
+that agent as done, though. When you end your turn with no task of
+your own running, the harness reads that as your end and tells you to
+call `SubagentHandback` now. So after an interim notice, start a wait
+of your own before you end your turn: a Bash command with
+`run_in_background`. For a builder, it ends when the branch's pull
+request has green checks, or after an hour. For a reviewer, use
+`sleep 3600`.
+
+```bash
+for i in $(seq 60); do n=$(gh pr list --head <branch> --state all --json number -q '.[0].number'); [ -n "$n" ] && gh pr checks "$n" >/dev/null 2>&1 && exit 0; sleep 60; done
+```
+
+When it ends and that agent still hasn't handed back, start it once
+more. Stop it with `TaskStop` once the agent hands back. If the harness
+tells you to report while an agent you spawned hasn't handed back,
+start the wait and end your turn. Report when every agent has handed
+back, or when the second wait for an agent ended with no notice from
+it. That agent goes on the report's `Running` line.
+
+You can stop your own background commands, but not the agents you
+spawned (`orchestration.md`, "Runs"). The dispatcher stops those, from
+the `Running` line of your report.
 
 ## Report
 
@@ -90,6 +119,7 @@ Wave <k> of run #<run>
 Ready: #<pr> (#<issue>) ...        approved, green, re-checked
 Open: #<pr> (#<issue>, <reason>) ...
 Not built: #<issue> (<reason>) ...
+Running: <agent ID> (#<issue>, <what it waits on>) ... (or none)
 Filed: #<n> <title> ... (or none)
 For the maintainer: <decisions, refused commands, or none>
 Attended: <needs-vm or needs-host steps with commands, or none>

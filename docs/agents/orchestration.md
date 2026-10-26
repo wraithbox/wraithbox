@@ -95,7 +95,8 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    security trade-off, take the strict side and say so in the report.
    The builder's last notice gives its size in `<subagent_tokens>`.
    Under 150k, resume that builder with the message. At 150k or more,
-   stop it and spawn a fresh agent of the same type on the same branch,
+   leave it as it is (it has handed back and doesn't run) and
+   spawn a fresh agent of the same type on the same branch,
    with the pull request, the posted reviews and the same message as its
    brief, and
    tell it to read the pull request's "Choices made" and not revisit a
@@ -124,7 +125,7 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    which follow-ups were filed. On the personal Mac, the report also
    lists what is still in the spike cache, from `mise run spike:clean`
    without an argument. Close the milestone if its exit criterion
-   holds (`planning.md`). Stop finished agents with `TaskStop`.
+   holds (`planning.md`). Stop agents that still run with `TaskStop`.
 
 Follow-ups that review or a wave names are handled before the session
 ends, by the rules in `working.md`, "Follow-ups": fixed, named in a
@@ -191,6 +192,12 @@ machine, can see it and resume it.
   damage that a review doesn't catch, so they stay attended. The dispatcher merges, never the lead,
   so the approval is in the transcript that the auto-mode classifier
   reads.
+- **Who stops an agent.** An agent can stop only the tasks its own
+  session owns: a lead's `TaskStop` on a builder it spawned fails with
+  "cannot stop it". The lead stops its own background commands. An agent it spawned that still runs when it reports goes
+  on its report's `Running` line, and the dispatcher stops it with
+  `TaskStop` and that agent ID. When the dispatcher's `TaskStop` is
+  refused as well, it goes on `For the maintainer`.
 - **After a merge.** A pull request that turns `CONFLICTING` goes into
   the next wave as a rebase of its branch, and a failed CI run on `main`
   stops the run.
@@ -231,9 +238,19 @@ has the trial behind this.
 ## Working with the platform
 
 - **The coordinator waits by ending its turn.** Each agent's
-  notification wakes it; it does not sleep or poll. It waits in the
-  foreground only for a check it started itself (`mise run ci`,
-  `gh pr checks --watch`, `gh run watch`).
+  notification wakes it. It does not sleep or poll, except in a lead's
+  background wait (below). It waits in the foreground only for a
+  check it started itself (`mise run ci`, `gh pr checks --watch`,
+  `gh run watch`).
+- **An interim notice is not a hand-back.** An agent that ends its turn
+  while its own background command runs sends a notice with status
+  `completed`, a summary that says it "is waiting on its own background
+  work", and a note that the result "may be interim". It still works,
+  and the same task ID notifies again when it hands back. A lead that then ends its turn with no task of its own running is told
+  by the harness to report at once, and the pull request that agent
+  opens later isn't reviewed. So a lead keeps a background wait of its
+  own running until each agent it spawned has handed back
+  (`wave-lead.md`, "Waiting").
 - **What every agent does** (`cd`, the `code-review` skill, never
   `git stash`, `.scratch/`, short hand-backs) is in `working.md`,
   "Working with the platform".
