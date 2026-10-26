@@ -141,7 +141,7 @@ Let `wb-hostd` run `diskutil` itself.
 - <Badge text="verified" variant="success" /> That the guest never turns encryption on for a volume the host made. It held for four boots here, and for three more on macOS 27.0.1 in I228, two of them system disk swaps. Option 1A rests on it, and `wb-guestd` refuses an encrypted volume. Source: X08-data-disk, "Follow-up (I228)".
 - <Badge text="verified" variant="success" /> That the host-made volume gives freed space back to the host. I228 found it does so at each unmount or mount while mounted `nobrowse`, and within about 20 s without `nobrowse`. Source: X08-data-disk, "Follow-up (I228)", and B228-data-disk-followup for the open decision.
 - <Badge text="verified" variant="success" /> That `diskutil` can attach and format the image under `wb-diskfmt`'s profile, which allows only the bundle, `diskutil`, and the DiskImages, Disk Arbitration and disk management services. Decision 2A rests on it. `TestHostFormat` ran it confined in I228. Source: X08-data-disk, "Follow-up (I228)".
-- <Badge text="assumed" variant="caution" /> The formatting steps of option 1A as S06-vm-lifecycle writes them. The spike checked the device by protocol and size with the deprecated `hdiutil attach`, not by backing path.
+- <Badge text="verified" variant="success" /> The formatting steps of option 1A as S06-vm-lifecycle writes them. The first spike checked the device by protocol and size with the deprecated `hdiutil attach`, not by backing path. I228's `TestHostFormat` ran the steps with `diskutil` and checked the backing path at attach and at erase. Source: X08-data-disk, "Follow-up (I228)", `results/host-format.txt`.
 
 ## What it unblocks
 
