@@ -3,6 +3,8 @@ package appbundle
 import (
 	"fmt"
 	"strings"
+
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
 )
 
 // AdhocBundleID is the bundle identifier of an ad-hoc build when
@@ -79,11 +81,9 @@ func isUpperOrDigit(r rune) bool {
 	return (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
 }
 
-// teamIDLen is the length of an Apple team identifier.
-const teamIDLen = 10
-
 // ValidTeamID reports whether s is an Apple team identifier: ten
-// uppercase ASCII letters and digits.
+// uppercase ASCII letters and digits. codesign.ParseTeam holds a team
+// read from a signature to the same form.
 func ValidTeamID(s string) bool {
-	return len(s) == teamIDLen && strings.IndexFunc(s, func(r rune) bool { return !isUpperOrDigit(r) }) < 0
+	return codesign.ValidTeamID(s)
 }

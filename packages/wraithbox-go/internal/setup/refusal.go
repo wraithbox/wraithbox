@@ -38,6 +38,12 @@ const (
 	// groups are refused (S12-03-host-prerequisites, "Team-signed
 	// build").
 	RuleKeychainTeamMixed Rule = "keychain-team-mixed"
+	// RuleKeychainTeam: one team signed every helper bundle and its
+	// profile, so the build has the Keychain backend, with groups that
+	// are team-wide (S15-02-secret-store, "Team-wide groups in
+	// development builds"). It never refuses: wb setup logs its accept
+	// and prints the team.
+	RuleKeychainTeam Rule = "keychain-team"
 )
 
 // Refusal is the error of every refusal of wb setup. It says what was

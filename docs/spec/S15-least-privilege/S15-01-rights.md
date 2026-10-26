@@ -31,10 +31,12 @@ Every binary in the bundle is signed with the hardened runtime
 - in a build signed by a team, a process with store access gets the
   Keychain access groups of the items it declares, and no other
   (S15-02-secret-store, "Keychain");
-- no program gets `com.apple.developer.team-identifier` or
-  `com.apple.application-identifier`. The entitlement check of a team
-  build lets the first through with the build's team, and counts the
-  second as an access group (S17-01-bundle, "The entitlement check").
+- the build doesn't give any program
+  `com.apple.developer.team-identifier` or
+  `com.apple.application-identifier`. The check of a team build
+  tolerates the first when it names the build's team, because Xcode may
+  add it, and counts the second as an access group (S17-01-bundle, "The
+  entitlement check").
 
 A new entitlement needs a change here first. Other hosts use the
 equivalents in S12-platforms.

@@ -94,7 +94,8 @@ signed entitlements. The build fails unless:
   entitlements", doesn't give any process. The application identifier names a
   group, so the group rule still refuses it on every program;
 - without a team, the bundle has no profile;
-- with a team, each helper bundle has a profile;
+- with a team, each helper bundle has a profile, and every profile in
+  the bundle decodes with a `TeamIdentifier` of exactly that team;
 - each `Info.plist` holds what "The bundle" above says, with the bundle
   identifier the build chose;
 - every program, `WBBuildVersion` and the disk's `VERSION` file hold
@@ -110,7 +111,13 @@ With `WB_TEAM_ID` set:
   ID in lowercase, or `WB_BUNDLE_ID` when that is set.
 - `xcodebuild` builds with automatic signing for that team, and with
   `-allowProvisioningUpdates`, so Xcode registers a new bundle
-  identifier and fetches its profile.
+  identifier and fetches its profile. Xcode makes a profile only for
+  entitlements that need one. So the build passes it an entitlements
+  file with one access group, `<TEAMID>.nl.wraithbox.xcode-profile`,
+  as X29-dev-signing signed its app with one. That group is in no row
+  of S15-02-secret-store. Step 7 signs the app again without
+  entitlements, and the check refuses the group if the app still holds
+  it.
 - The build fails, before it puts the bundle together, unless Xcode
   gave the app a profile whose `TeamIdentifier` is exactly that team
   (S12-03-host-prerequisites, "Missing profile").

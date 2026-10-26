@@ -34,6 +34,7 @@ var (
 	RuleVMDHasVirtualization = Rule{"virtualization-vmd", `S10-02-packaging-and-signing, "macOS"`}
 	RuleAdhocProfile         = Rule{"profile-adhoc", `S10-02-packaging-and-signing, "Helper bundles"`}
 	RuleTeamProfile          = Rule{"profile-helper", `S10-02-packaging-and-signing, "Helper bundles"`}
+	RuleProfileTeam          = Rule{"profile-team", `S17-01-bundle, "The entitlement check"`}
 	RuleInfoPlist            = Rule{"info-plist", `S17-01-bundle, "The bundle"; S10-02-packaging-and-signing, "Helper bundles"`}
 	RuleStamp                = Rule{"stamp-program", `S04-08-records-and-bounds, "Version skew"`}
 	RuleBuildVersion         = Rule{"stamp-info-plist", `S04-08-records-and-bounds, "Version skew"`}
@@ -46,7 +47,7 @@ var (
 var Rules = []Rule{
 	RuleMode, RuleUnknownMachO, RuleMissing, RuleLink, RuleSigned, RuleSignatureTeam,
 	RuleAdhocGroup, RuleTeamHelperGroups, RuleTeamOtherGroup, RuleAdhocEntitlement, RuleTeamEntitlement,
-	RuleVirtualization, RuleVMDHasVirtualization, RuleAdhocProfile, RuleTeamProfile,
+	RuleVirtualization, RuleVMDHasVirtualization, RuleAdhocProfile, RuleTeamProfile, RuleProfileTeam,
 	RuleInfoPlist, RuleStamp, RuleBuildVersion, RuleToolsVersion, RuleVerify,
 	RuleSource,
 }
@@ -113,6 +114,9 @@ type Bundle struct {
 	DiskPrograms []Found
 	// Profiles are the paths of every ProfileName file in the bundle.
 	Profiles []string
+	// ProfileTeams is the TeamIdentifier list of each profile that could
+	// be decoded, by its path. A profile missing here couldn't be.
+	ProfileTeams map[string][]string
 	// Links are the paths of every symbolic link in the bundle or on the
 	// disk. The walk doesn't follow them, so the check refuses them.
 	Links []string
@@ -143,7 +147,7 @@ func Check(b Bundle, programs []Program, m Mode) []Violation {
 	for _, link := range b.Links {
 		out = append(out, Violation{link, RuleLink, "is a symbolic link, which the check doesn't follow"})
 	}
-	out = append(out, checkProfiles(b.Profiles, app, m)...)
+	out = append(out, checkProfiles(b, app, m)...)
 	out = append(out, checkPlists(b.Plists, app, m)...)
 	if b.ToolsVersion != m.Stamp {
 		out = append(out, Violation{
@@ -421,20 +425,30 @@ func sortedKeys(m map[string]any) []string {
 	return keys
 }
 
-// checkProfiles refuses every profile in an ad-hoc build, and in a team
-// build every helper bundle without one (S10-02-packaging-and-signing,
-// "Helper bundles").
-func checkProfiles(profiles []string, rows []Program, m Mode) []Violation {
+// checkProfiles refuses every profile in an ad-hoc build. In a team
+// build it refuses every helper bundle without one, and every profile
+// that couldn't be decoded or whose TeamIdentifier isn't exactly the
+// build's team (S10-02-packaging-and-signing, "Helper bundles").
+func checkProfiles(b Bundle, rows []Program, m Mode) []Violation {
 	var out []Violation
 	if m.Team == "" {
-		for _, path := range profiles {
+		for _, path := range b.Profiles {
 			out = append(out, Violation{path, RuleAdhocProfile, "is a provisioning profile in an ad-hoc build"})
 		}
 		return out
 	}
 	for _, p := range rows {
-		if p.Place == PlaceHelper && !slices.Contains(profiles, HelperDir(p.Name)+"/Contents/"+ProfileName) {
+		if p.Place == PlaceHelper && !slices.Contains(b.Profiles, HelperDir(p.Name)+"/Contents/"+ProfileName) {
 			out = append(out, Violation{p.Name, RuleTeamProfile, "has no provisioning profile in its helper bundle"})
+		}
+	}
+	for _, path := range b.Profiles {
+		teams, ok := b.ProfileTeams[path]
+		switch {
+		case !ok:
+			out = append(out, Violation{path, RuleProfileTeam, "couldn't be decoded"})
+		case !slices.Equal(teams, []string{m.Team}):
+			out = append(out, Violation{path, RuleProfileTeam, fmt.Sprintf("names the teams %q, not only %s", teams, m.Team)})
 		}
 	}
 	return out

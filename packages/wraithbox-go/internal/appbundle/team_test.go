@@ -68,6 +68,11 @@ func TestC05BuildSigningIdentity(t *testing.T) {
 	if err != nil || id.Hash != goodHash {
 		t.Errorf("ChooseIdentity = %v, %v; want %s", id, err, goodHash)
 	}
+	// One certificate in two keychains is listed twice, and is one identity.
+	id, err = ChooseIdentity(ParseIdentities(list(goodHash, goodHash), certs), testTeam)
+	if err != nil || id.Hash != goodHash {
+		t.Errorf("ChooseIdentity of one identity listed twice = %v, %v; want %s", id, err, goodHash)
+	}
 
 	for label, findIdentity := range map[string]string{
 		"no identity of the team":  list(otherHash, namedHash, distHash),

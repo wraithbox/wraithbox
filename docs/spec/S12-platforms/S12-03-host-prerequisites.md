@@ -73,7 +73,7 @@ the helpers don't agree on one team:
 - a helper's profile is missing, isn't a regular file, or can't be
   decoded;
 - a profile's `TeamIdentifier` isn't exactly the signature's team, or
-  its `TeamName` differs from another helper's.
+  its `TeamName` is empty or differs from another helper's.
 
 Its fix is to build Wraith Box again with `WB_TEAM_ID` and install it.
 Otherwise it prints the team and that the team's groups are team-wide

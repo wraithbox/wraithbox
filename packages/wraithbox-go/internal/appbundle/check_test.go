@@ -15,7 +15,11 @@ const (
 // goodBundle is what the inspection reads from a bundle built as it
 // should be, ad-hoc when team is "", else signed by team.
 func goodBundle(team string) Bundle {
-	b := Bundle{Plists: map[string]*Plist{}, ToolsVersion: testStamp}
+	b := Bundle{Plists: map[string]*Plist{}, ProfileTeams: map[string][]string{}, ToolsVersion: testStamp}
+	if team != "" {
+		b.Profiles = append(b.Profiles, "Contents/"+ProfileName)
+		b.ProfileTeams["Contents/"+ProfileName] = []string{team}
+	}
 	for _, p := range Programs {
 		f := Found{Path: p.Path(), Signed: true, Runtime: true, Team: team, Entitlements: map[string]any{}, Stamp: testStamp}
 		if p.Source == SourceGo {
@@ -27,6 +31,7 @@ func goodBundle(team string) Bundle {
 		if team != "" && p.Place == PlaceHelper {
 			f.Entitlements[groupsKey] = anyList(TeamGroups(team, p.Roles)...)
 			b.Profiles = append(b.Profiles, HelperDir(p.Name)+"/Contents/"+ProfileName)
+			b.ProfileTeams[HelperDir(p.Name)+"/Contents/"+ProfileName] = []string{team}
 		}
 		switch p.Place {
 		case PlaceToolsDisk:
@@ -121,6 +126,26 @@ func TestC05BuildCheck(t *testing.T) {
 		{"the app executable with a group in a team build", testTeam, func(t *testing.T, b *Bundle) {
 			program(t, b, "wb-notify").Entitlements[groupsKey] = anyList(TeamGroups(testTeam, []string{"ca"})...)
 		}, "wb-notify", RuleTeamOtherGroup},
+		{"the app as Xcode signed it, had step 7 not signed it again", testTeam, func(t *testing.T, b *Bundle) {
+			program(t, b, "wb-notify").Entitlements = map[string]any{
+				groupsKey:                           anyList(testTeam + ".nl.wraithbox.xcode-profile"),
+				applicationIDKey:                    testTeam + "." + AdhocBundleID,
+				teamIDKey:                           testTeam,
+				"com.apple.security.get-task-allow": true,
+			}
+		}, "wb-notify", RuleTeamOtherGroup},
+		{"a helper profile of another team", testTeam, func(_ *testing.T, b *Bundle) {
+			b.ProfileTeams[HelperDir("wb-credset")+"/Contents/"+ProfileName] = []string{otherTeam}
+		}, HelperDir("wb-credset") + "/Contents/" + ProfileName, RuleProfileTeam},
+		{"a helper profile of two teams", testTeam, func(_ *testing.T, b *Bundle) {
+			b.ProfileTeams[HelperDir("wb-proxyd")+"/Contents/"+ProfileName] = []string{testTeam, otherTeam}
+		}, HelperDir("wb-proxyd") + "/Contents/" + ProfileName, RuleProfileTeam},
+		{"a helper profile that couldn't be decoded", testTeam, func(_ *testing.T, b *Bundle) {
+			delete(b.ProfileTeams, HelperDir("wb-guestadmin")+"/Contents/"+ProfileName)
+		}, HelperDir("wb-guestadmin") + "/Contents/" + ProfileName, RuleProfileTeam},
+		{"the app's profile of another team", testTeam, func(_ *testing.T, b *Bundle) {
+			b.ProfileTeams["Contents/"+ProfileName] = []string{otherTeam}
+		}, "Contents/" + ProfileName, RuleProfileTeam},
 		{"wb with a group in an ad-hoc build", "", func(t *testing.T, b *Bundle) {
 			program(t, b, "wb").Entitlements[groupsKey] = anyList(TeamGroups(testTeam, []string{"binding"})...)
 		}, "wb", RuleAdhocGroup},
@@ -131,7 +156,9 @@ func TestC05BuildCheck(t *testing.T) {
 			b.Profiles = append(b.Profiles, HelperDir("wb-proxyd")+"/Contents/"+ProfileName)
 		}, HelperDir("wb-proxyd") + "/Contents/" + ProfileName, RuleAdhocProfile},
 		{"a team helper bundle without a profile", testTeam, func(_ *testing.T, b *Bundle) {
-			b.Profiles = b.Profiles[1:]
+			b.Profiles = slices.DeleteFunc(b.Profiles, func(path string) bool {
+				return path == HelperDir("wb-proxyd")+"/Contents/"+ProfileName
+			})
 		}, "wb-proxyd", RuleTeamProfile},
 		{"a second program with the virtualization entitlement", "", func(t *testing.T, b *Bundle) {
 			program(t, b, "wb-hostd").Entitlements[VirtualizationEntitlement] = true

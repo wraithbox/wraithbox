@@ -30,8 +30,8 @@ const mixedFix = "Build Wraith Box again with " + appbundle.TeamEnv + " set to y
 //     or a helper's profile is missing, unreadable or of another team:
 //     RuleKeychainTeamMixed refuses it (S12-03-host-prerequisites,
 //     "Team-signed build").
-//   - Otherwise it prints the team from the profile, and that the
-//     team's groups are team-wide (S15-02-secret-store, "Team-wide
+//   - Otherwise it logs the accept under RuleKeychainTeam, and prints
+//     the team from the profile and that the team's groups are team-wide (S15-02-secret-store, "Team-wide
 //     groups in development builds").
 func checkKeychain(ctx context.Context, env *Env, bundle string) error {
 	teams, problems := helperTeams(ctx, env, bundle)
@@ -59,7 +59,7 @@ func checkKeychain(ctx context.Context, env *Env, bundle string) error {
 		})
 	}
 	team := profile.TeamIdentifier[0]
-	decide(ctx, env.Log, RuleKeychainTeamMixed, "accept", fmt.Sprintf("the team %s (%s) signed every helper bundle and its profile", team, profile.TeamName))
+	decide(ctx, env.Log, RuleKeychainTeam, "accept", fmt.Sprintf("the team %s (%s) signed every helper bundle and its profile", team, profile.TeamName))
 	fmt.Fprintf(env.Stdout, "wb setup: this build is signed by the team %q (%s). Every program that team signs can reach Wraith Box's Keychain groups (%s.nl.wraithbox.*), not only Wraith Box's helpers (S15-02-secret-store, \"Team-wide groups in development builds\").\n",
 		profile.TeamName, team, team)
 	return nil
@@ -119,8 +119,8 @@ func describeTeams(teams map[string][]string) string {
 
 // helperProfiles reads the profile of each helper bundle, and returns
 // the last one read. A profile that is missing, isn't a regular file,
-// can't be read, names another team than exactly team, or another team
-// name than the others is a problem.
+// can't be read, names another team than exactly team, names no team
+// name, or another team name than the others is a problem.
 func helperProfiles(ctx context.Context, env *Env, bundle, team string) (codesign.Profile, []string) {
 	var last codesign.Profile
 	var problems []string
@@ -131,6 +131,8 @@ func helperProfiles(ctx context.Context, env *Env, bundle, team string) (codesig
 			problems = append(problems, fmt.Sprintf("the profile of %s: %v", name, err))
 		case !slices.Equal(p.TeamIdentifier, []string{team}):
 			problems = append(problems, fmt.Sprintf("the profile of %s is of the team %q, and its signature of %s", name, p.TeamIdentifier, team))
+		case p.TeamName == "":
+			problems = append(problems, fmt.Sprintf("the profile of %s names no team name", name))
 		case last.TeamName != "" && p.TeamName != last.TeamName:
 			problems = append(problems, fmt.Sprintf("the profile of %s names the team %q, and another helper's %q", name, p.TeamName, last.TeamName))
 		default:

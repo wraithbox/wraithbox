@@ -96,10 +96,14 @@ there doesn't decide anything.
 - The helpers don't agree on one team: `wb setup` refuses with
   `keychain-team-mixed` (S12-03-host-prerequisites, "Team-signed
   build").
-- One team signed every helper, with its profile: `wb setup` prints the
-  team's name from the profile and its ID, and that every program the
+- One team signed every helper, with its profile: `wb setup` logs that
+  decision under `keychain-team`. It prints the team's name from the
+  profile and its ID, and that every program the
   team signs can reach Wraith Box's groups (S15-02-secret-store,
-  "Team-wide groups in development builds").
+  "Team-wide groups in development builds"). The profile's content
+  isn't authenticated, because `security cms -D` doesn't verify who
+  signed it. So `wb setup` uses it only after the signature named the
+  team.
 
 `wb setup` exits nonzero on either refusal.
 

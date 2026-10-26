@@ -36,19 +36,46 @@ const (
 // ParseTeam returns the team of a signature from the output of
 // `codesign -d --verbose=1`: the value of its TeamIdentifier line, or ""
 // when that is "not set". Output without the line is ErrNoSignature. The
-// value is returned as it is, and the caller checks its form.
+// output also holds the signature's identifier, which the signer chose,
+// so a newline in it could put a TeamIdentifier line before the real
+// one. Output with more than one such line, or a value that is neither
+// "not set" nor a team ID (ValidTeamID), is an error, and a caller
+// treats the signature as one it can't read.
 func ParseTeam(out string) (string, error) {
+	var values []string
 	for line := range strings.Lines(out) {
-		value, ok := strings.CutPrefix(strings.TrimRight(line, "\r\n"), teamLine)
-		if !ok {
-			continue
+		if value, ok := strings.CutPrefix(strings.TrimRight(line, "\r\n"), teamLine); ok {
+			values = append(values, value)
 		}
-		if value == teamNotSet {
-			return "", nil
-		}
-		return value, nil
 	}
-	return "", ErrNoSignature
+	switch {
+	case len(values) == 0:
+		return "", ErrNoSignature
+	case len(values) > 1:
+		return "", fmt.Errorf("codesign: %d TeamIdentifier lines in its output, not one", len(values))
+	case values[0] == teamNotSet:
+		return "", nil
+	case !ValidTeamID(values[0]):
+		return "", fmt.Errorf("codesign: the TeamIdentifier %q is not a team ID", values[0])
+	}
+	return values[0], nil
+}
+
+// teamIDLen is the length of an Apple team identifier.
+const teamIDLen = 10
+
+// ValidTeamID reports whether s is an Apple team identifier: ten
+// uppercase ASCII letters and digits.
+func ValidTeamID(s string) bool {
+	if len(s) != teamIDLen {
+		return false
+	}
+	for _, r := range s {
+		if (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+	return true
 }
 
 // Profile is a decoded provisioning profile.
@@ -64,7 +91,12 @@ type Profile struct {
 }
 
 // ParseProfile reads a profile from the XML property list that
-// `security cms -D` prints for it. TeamIdentifier must be a list of
+// `security cms -D` prints for it. That command decodes the CMS envelope
+// without verifying who signed it, so the content isn't authenticated.
+// wb setup uses a profile only after the helper's code signature, which
+// macOS does verify, has named the team, and then only to compare it
+// with that team and to print its TeamName. The expiry date that M6.6
+// reads from it must keep that order. TeamIdentifier must be a list of
 // strings and TeamName a string. A missing or malformed key is an
 // error, so a profile that names no team never counts as one that does.
 func ParseProfile(data []byte) (Profile, error) {
