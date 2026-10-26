@@ -60,11 +60,31 @@ profiles are in, and reports each case itself.
 `wb setup` refuses the Keychain backend with the rule
 `keychain-needs-team`. It names both steps and `WB_TEAM_ID`.
 
+#### Team-signed build
+
+`wb setup` reads the team from each helper bundle's code signature,
+and decodes each helper's profile with `/usr/bin/security cms -D`. It
+refuses the Keychain backend with the rule `keychain-team-mixed` when
+the helpers don't agree on one team:
+
+- two helpers are signed by different teams, or one by a team and
+  another without one;
+- a helper's signature can't be read;
+- a helper's profile is missing, isn't a regular file, or can't be
+  decoded;
+- a profile's `TeamIdentifier` isn't exactly the signature's team, or
+  its `TeamName` differs from another helper's.
+
+Its fix is to build Wraith Box again with `WB_TEAM_ID` and install it.
+Otherwise it prints the team and that the team's groups are team-wide
+(S17-02-setup, "The Keychain backend").
+
 #### Missing profile
 
-A build with `WB_TEAM_ID` set fails before it makes the bundle, and
-names both steps. macOS then never gets a bundle it would refuse to
-start (S10-tech-stack).
+A build with `WB_TEAM_ID` set fails before it makes the bundle when the
+app from Xcode has no profile, or one whose `TeamIdentifier` isn't
+exactly that team. Its message names both steps. macOS then never gets a
+bundle it would refuse to start (S10-tech-stack).
 
 #### Profile within 30 days of its expiry date
 

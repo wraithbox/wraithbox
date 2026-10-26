@@ -32,8 +32,8 @@ const testProfile = `<?xml version="1.0" encoding="UTF-8"?>
 	<true/>
 	<key>DeveloperCertificates</key>
 	<array>
-		<data>MIIF
-		vzCC</data>
+		<data>MDEy
+		MzQ1</data>
 	</array>
 	<key>Entitlements</key>
 	<dict>
@@ -85,7 +85,7 @@ func TestParseProfile(t *testing.T) {
 		t.Errorf("TimeToLive = %v", p.Plist["TimeToLive"])
 	}
 	certs, _ := p.Plist["DeveloperCertificates"].([]any)
-	if len(certs) != 1 || !bytes.Equal(asBytes(certs[0]), []byte{0x30, 0x82, 0x05, 0xbf, 0x30, 0x82}) {
+	if len(certs) != 1 || !bytes.Equal(asBytes(certs[0]), []byte("012345")) {
 		t.Errorf("DeveloperCertificates = %v", p.Plist["DeveloperCertificates"])
 	}
 	ent, _ := p.Plist["Entitlements"].(map[string]any)
