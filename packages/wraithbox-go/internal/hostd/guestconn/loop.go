@@ -41,6 +41,9 @@ type run struct {
 	// link is the run's link while it is up and has sent the users, else
 	// nil. Links.mu guards it.
 	link *guestlink.Link
+	// sent holds the removals this link has sent, so a kick sends only
+	// the ones queued since. Only the run's own goroutine uses it.
+	sent map[removalKey]bool
 }
 
 // loop connects, keeps the link while it is up, and connects again after
@@ -146,8 +149,10 @@ func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeRea
 	}
 }
 
-// idle waits TimeInterval, and sends the queued user removals each time
-// it is kicked. It reports false when the link is gone or the run ended.
+// idle waits TimeInterval. Each time it is kicked, it sends the user
+// removals this link hasn't sent yet: a kept one waits for the next
+// connection (S05-04-naming, "The project user"). It reports false when
+// the link is gone or the run ended.
 func (r *run) idle(l *guestlink.Link) bool {
 	tick := r.ls.clock.After(TimeInterval)
 	for {

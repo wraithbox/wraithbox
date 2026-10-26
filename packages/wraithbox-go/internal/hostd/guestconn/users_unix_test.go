@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
@@ -30,11 +32,13 @@ import (
 type usersGuest struct {
 	guestv1.UnimplementedGuestServiceServer
 
-	mu      sync.Mutex
-	ensure  func(*guestv1.EnsureUsersRequest) *guestv1.EnsureUsersResponse
-	remove  func(*guestv1.RemoveUserRequest) *guestv1.RemoveUserResponse
-	ensured []*guestv1.EnsureUsersRequest
-	removed []*guestv1.RemoveUserRequest
+	mu     sync.Mutex
+	ensure func(*guestv1.EnsureUsersRequest) *guestv1.EnsureUsersResponse
+	remove func(*guestv1.RemoveUserRequest) *guestv1.RemoveUserResponse
+	// ensureErr, when set, fails the next EnsureUsers call, once.
+	ensureErr error
+	ensured   []*guestv1.EnsureUsersRequest
+	removed   []*guestv1.RemoveUserRequest
 }
 
 func (g *usersGuest) serve(t *testing.T, conn net.Conn) {
@@ -57,6 +61,10 @@ func (g *usersGuest) EnsureUsers(_ context.Context, req *guestv1.EnsureUsersRequ
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.ensured = append(g.ensured, req)
+	if err := g.ensureErr; err != nil {
+		g.ensureErr = nil
+		return nil, err
+	}
 	if g.ensure != nil {
 		return g.ensure(req), nil
 	}
@@ -434,31 +442,107 @@ func TestC04RemovalReplyForOtherProject(t *testing.T) {
 
 // C04-projects: a "processes left" answer keeps the removal, and the
 // next connection sends it again. A removal queued while the VM runs is
-// sent at once.
+// sent at once, and a later kick sends only the removals this link
+// hasn't sent.
 func TestC04RemovalProcessesLeft(t *testing.T) {
+	// Project 0's user has processes left, and project 1's is removed.
 	g := &usersGuest{remove: func(req *guestv1.RemoveUserRequest) *guestv1.RemoveUserResponse {
-		return removed(req, guestv1.RemoveResult_REMOVE_RESULT_PROCESSES_LEFT)
+		if req.GetProjectId() == projectID(0) {
+			return removed(req, guestv1.RemoveResult_REMOVE_RESULT_PROCESSES_LEFT)
+		}
+		return removed(req, guestv1.RemoveResult_REMOVE_RESULT_REMOVED)
 	}}
-	h, gen := usersHarness(t, g, 1)
-	if _, err := h.links.EnsureProjectUser(t.Context(), vm.SlotWork, gen, projectID(0)); err != nil {
-		t.Fatal(err)
+	h, gen := usersHarness(t, g, 2)
+	for i := range 2 {
+		if _, err := h.links.EnsureProjectUser(t.Context(), vm.SlotWork, gen, projectID(i)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	h.rm(0)
 	h.links.SendUserRemovals()
-	waitFor(t, func() bool { _, rms := g.requests(); return len(rms) == 1 })
+	// The host logs the answer once it has taken it, and does nothing
+	// more for a kept removal, so the kicked send has ended.
+	waitFor(t, func() bool { return len(h.logs.withRule(t, guestlink.RuleUserProcessesLeft)) == 1 })
 	if left := h.pendingRemovals(); len(left) != 1 {
 		t.Fatalf("removals left %v, want it kept", left)
 	}
-	if recs := h.logs.withRule(t, guestlink.RuleUserProcessesLeft); len(recs) != 1 {
-		t.Fatalf("%d processes-left records, want 1", len(recs))
+	h.rm(1)
+	h.links.SendUserRemovals()
+	// Clearing project 1's removal is the kicked send's last step.
+	waitFor(t, func() bool { left := h.pendingRemovals(); return len(left) == 1 && left[0].ProjectID == projectID(0) })
+	_, rms := g.requests()
+	if len(rms) != 2 || rms[0].GetProjectId() != projectID(0) || rms[1].GetProjectId() != projectID(1) {
+		t.Fatalf("removals sent %v, want project 0's, then only project 1's", rms)
 	}
 	g.setRemove(nil)
 	h.reconnect()
-	if _, rms := g.requests(); len(rms) != 2 {
-		t.Fatalf("%d removals sent, want it again at the connection", len(rms))
+	if _, rms := g.requests(); len(rms) != 3 || rms[2].GetProjectId() != projectID(0) {
+		t.Fatalf("removals sent %v, want project 0's again at the connection", rms)
 	}
 	if left := h.pendingRemovals(); len(left) != 0 {
 		t.Fatalf("removals left %v", left)
+	}
+}
+
+// An EnsureUsers request of a session start that goes unanswered drops
+// the link, and the next connection sends the user again
+// (S06-03-image-updates, "Updates"). The guest answers UNAVAILABLE on a
+// connection it keeps open, which guestlink takes as no answer, as it
+// does a hang past guestlink.UsersTimeout.
+func TestEnsureProjectUserUnansweredDropsLink(t *testing.T) {
+	g := &usersGuest{}
+	h, gen := usersHarness(t, g, 1)
+	g.mu.Lock()
+	g.ensureErr = status.Error(codes.Unavailable, "busy")
+	g.mu.Unlock()
+	u, err := h.links.EnsureProjectUser(t.Context(), vm.SlotWork, gen, projectID(0))
+	requireSessionRule(t, err, RuleSessionUserPending)
+	_ = h.nextGuest()
+	h.clock.skipTo(t, FirstWait)
+	h.nextTime()
+	h.waitState(StateLinked)
+	if err := h.links.CheckUser(vm.SlotWork, gen, u.UID); err != nil {
+		t.Fatalf("CheckUser after the reconnect: %v", err)
+	}
+	if ensured, _ := g.requests(); !slices.Equal(sentUIDs(ensured[len(ensured)-1:]), []uint32{u.UID}) {
+		t.Fatalf("the new link sent %v", sentUIDs(ensured))
+	}
+}
+
+// A `wb project rm` that commits while the guest makes the project's
+// user refuses the session start: its removal may already be cleared.
+func TestEnsureProjectUserRemovedMeanwhile(t *testing.T) {
+	g := &usersGuest{}
+	h, gen := usersHarness(t, g, 1)
+	var rmErr error
+	g.setEnsure(func(req *guestv1.EnsureUsersRequest) *guestv1.EnsureUsersResponse {
+		rmErr = h.db.Projects(context.Background(), func(tx *state.ProjectTx) error {
+			if _, err := tx.QueueUserRemovals(projectID(0), time.Unix(200, 0)); err != nil {
+				return err
+			}
+			return tx.Delete(projectID(0))
+		})
+		return allOK(req)
+	})
+	_, err := h.links.EnsureProjectUser(t.Context(), vm.SlotWork, gen, projectID(0))
+	if rmErr != nil {
+		t.Fatal(rmErr)
+	}
+	requireSessionRule(t, err, RuleUsersRecord)
+}
+
+// A late answer of an earlier generation's run changes nothing of the
+// current generation's users (SEC11-root-gains-nothing).
+func TestUsersLateAnswerOfEarlierGeneration(t *testing.T) {
+	g := &usersGuest{}
+	h, gen := usersHarness(t, g, 1)
+	u, err := h.links.EnsureProjectUser(t.Context(), vm.SlotWork, gen, projectID(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.links.withUsers(vm.SlotWork, gen-1, func(old *genUsers) { old.take([]*guestv1.ProjectUser{protoUser(u)}, nil) })
+	if err := h.links.CheckUser(vm.SlotWork, gen, u.UID); err != nil {
+		t.Fatalf("CheckUser after a late refusal of generation %d: %v", gen-1, err)
 	}
 }
 

@@ -25,9 +25,10 @@ swap, because only the system disk is replaced
 
 `wb-hostd` doesn't track which boot is the first. At every connection,
 after the guest has mounted the data volume, it sends every project
-user it holds for that data disk with `EnsureUsers`, in requests of at
-most 128 users. The guest answers OK for a user that exists with
-every value of the request. A resend doesn't change a user.
+user it holds for that data disk with `EnsureUsers`, split into
+requests that each fit `wb-guestd`'s receive limit. The guest answers
+OK for a user that exists with every value of the request. A resend
+doesn't change a user.
 
 `wb-hostd` reads each reply as untrusted (SEC11-root-gains-nothing). It
 drops a whole reply that names a UID it didn't send, names one twice,

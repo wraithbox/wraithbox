@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
@@ -77,6 +78,7 @@ func protoUser(u state.ProjectUser) *guestv1.ProjectUser {
 // kept: a call left unanswered reconnects, and the next link sends both
 // again.
 func (r *run) users(l *guestlink.Link) bool {
+	r.sent = map[removalKey]bool{}
 	if r.ls.cfg.Users == nil || !r.mounted() {
 		return true
 	}
@@ -153,17 +155,31 @@ func (g *genUsers) take(part []*guestv1.ProjectUser, results map[uint32]guestlin
 	}
 }
 
-// sendRemovals sends each of the data disk's queued removals, and clears
-// a removal only when the guest answers REMOVED for its project and UID.
-// Any other answer keeps it, and the next link sends it again
-// (S05-04-naming, "The project user").
+// removalKey names a queued removal.
+type removalKey struct {
+	projectID string
+	uid       uint32
+}
+
+// sendRemovals sends each of the data disk's queued removals this link
+// hasn't sent yet, and clears a removal only when the guest answers
+// REMOVED for its project and UID. Any other answer keeps it, and the
+// next link sends it again (S05-04-naming, "The project user").
 func (r *run) sendRemovals(l *guestlink.Link) bool {
 	removals, err := r.ls.cfg.Users.UserRemovals(r.ctx, r.diskSlot())
 	if err != nil {
 		r.recordFailed("user removals not read", err)
 		return true
 	}
+	if r.sent == nil {
+		r.sent = map[removalKey]bool{}
+	}
 	for _, rm := range removals {
+		key := removalKey{rm.ProjectID, rm.UID}
+		if r.sent[key] {
+			continue
+		}
+		r.sent[key] = true
 		req := &guestv1.RemoveUserRequest{ProjectId: rm.ProjectID, Uid: rm.UID, Gid: rm.GID, HomePath: rm.HomePath}
 		out, err := l.RemoveUser(r.ctx, req, r.vc.log)
 		switch {
@@ -230,17 +246,44 @@ func (ls *Links) SendUserRemovals() {
 // CheckUser's answer (S06-03-image-updates, "Allocation"). A session
 // start calls it, then starts only on a nil error. Every error is a
 // *SessionRefusal, with what to do (NFR06-explained-refusals).
+//
+// A request the guest leaves unanswered drops the link, and the next
+// connection sends the user again (S06-03-image-updates, "Updates").
+// A user whose row a `wb project rm` deleted meanwhile is refused: its
+// removal may have been sent and cleared before the guest made it.
 func (ls *Links) EnsureProjectUser(ctx context.Context, slot vm.Slot, generation uint64, projectID string) (state.ProjectUser, error) {
 	r, l := ls.linkOf(slot, generation)
 	if l == nil || ls.cfg.Users == nil {
 		return state.ProjectUser{}, ls.refuseSession(slot, generation, noLink(slot))
 	}
-	u, _, err := ls.cfg.Users.ProjectUser(ctx, projectID, vmbundle.Name(string(slot)))
+	disk := vmbundle.Name(string(slot))
+	u, _, err := ls.cfg.Users.ProjectUser(ctx, projectID, disk)
 	if err != nil {
 		return state.ProjectUser{}, ls.refuseSession(slot, generation, allocationRefusal(slot, err))
 	}
-	r.ensure(ctx, l, []*guestv1.ProjectUser{protoUser(u)})
+	if !r.ensure(ctx, l, []*guestv1.ProjectUser{protoUser(u)}) {
+		// The run's loop sees the link down, logs the drop and reconnects.
+		_ = l.Close()
+	}
+	if refusal := ls.userGone(ctx, slot, u.UID); refusal != nil {
+		return state.ProjectUser{}, ls.refuseSession(slot, generation, refusal)
+	}
 	return u, ls.CheckUser(slot, generation, u.UID)
+}
+
+// userGone refuses the session of user uid when the records of slot's
+// data disk no longer hold it, or can't be read.
+func (ls *Links) userGone(ctx context.Context, slot vm.Slot, uid uint32) *SessionRefusal {
+	rows, err := ls.cfg.Users.ProjectUsers(ctx, vmbundle.Name(string(slot)))
+	if err != nil {
+		ls.vm(slot).log.LogAttrs(ctx, slog.LevelError, "project users not read",
+			slog.String("rule", RuleUsersRecord), slog.String("decision", "refuse"), slog.String("error", err.Error()))
+		return &SessionRefusal{Rule: RuleUsersRecord, Message: "wb-hostd couldn't read the project users. The wb-hostd log has the cause."}
+	}
+	if !slices.ContainsFunc(rows, func(u state.ProjectUser) bool { return u.UID == uid }) {
+		return &SessionRefusal{Rule: RuleUsersRecord, Message: "the project was removed while its session started."}
+	}
+	return nil
 }
 
 // allocationRefusal says why a project's user couldn't be had.
