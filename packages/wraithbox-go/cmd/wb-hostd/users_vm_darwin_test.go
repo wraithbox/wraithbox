@@ -131,12 +131,25 @@ func (r *vmRun) waitUsers(what string, ids []uint32, after time.Time) {
 		}
 		if missing == 0 {
 			t.Logf("measure: users %s %v after the step began", what, time.Since(after))
+			r.logTook(what, after)
 			return
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("users %s: %d of %d not ensured after 2m", what, missing, len(ids))
 		}
 		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// logTook logs how long the guest took for each EnsureUsers request
+// after after, from wb-hostd's "guest users answered". The guest's
+// deadline for one request of 128 users is 50 s
+// (S06-03-image-updates, "Creation").
+func (r *vmRun) logTook(what string, after time.Time) {
+	for _, rec := range r.records("guest users answered", after) {
+		// The JSON handler writes a duration in nanoseconds.
+		took, _ := rec["took"].(float64)
+		r.t.Logf("measure: users %s, a request of %v users took %v", what, rec["users"], time.Duration(took))
 	}
 }
 
