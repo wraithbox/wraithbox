@@ -43,6 +43,7 @@ diskimage
 diskfmtv
 hostdv
 vmcmd
+projectcmd
 hostservice
 gitremote
 terminalv
