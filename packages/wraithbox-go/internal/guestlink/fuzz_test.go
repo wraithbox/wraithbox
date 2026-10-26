@@ -90,6 +90,96 @@ func FuzzMountDataResponse(f *testing.F) {
 	})
 }
 
+// FuzzProjectUserReplies feeds arbitrary bytes through proto.Unmarshal
+// into the checks of wb-guestd's EnsureUsers and RemoveUser answers
+// (C11-host-daemons, "Fuzzing"; S06-03-image-updates). An accepted
+// EnsureUsers answer only names UIDs the host sent, once each, with OK
+// and no rule or a refusal with a rule in the form. An accepted
+// RemoveUser answer is for the request's project and UID and keeps its
+// result's bounds. A dropped answer yields nothing.
+func FuzzProjectUserReplies(f *testing.F) {
+	sent := []*guestv1.ProjectUser{{Uid: 10000}, {Uid: 10001}, {Uid: 10002}}
+	req := &guestv1.RemoveUserRequest{ProjectId: strings.Repeat("a", 32), Uid: 10000}
+	seed := func(m proto.Message) []byte {
+		b, err := proto.Marshal(m)
+		if err != nil {
+			f.Fatal(err)
+		}
+		return b
+	}
+	f.Add([]byte{}, []byte{})
+	f.Add(seed(&guestv1.EnsureUsersResponse{Results: []*guestv1.EnsureUserResult{
+		{Uid: 10000, Result: guestv1.EnsureResult_ENSURE_RESULT_OK},
+		{Uid: 10001, Result: guestv1.EnsureResult_ENSURE_RESULT_REFUSED, Rule: "user-exists"},
+	}}), seed(&guestv1.RemoveUserResponse{
+		ProjectId: req.GetProjectId(), Uid: 10000, Result: guestv1.RemoveResult_REMOVE_RESULT_PROCESSES_LEFT, ProcessesLeft: 2,
+	}))
+	f.Add(seed(&guestv1.EnsureUsersResponse{Results: []*guestv1.EnsureUserResult{
+		{Uid: 10000, Result: guestv1.EnsureResult_ENSURE_RESULT_OK},
+		{Uid: 10000, Result: guestv1.EnsureResult_ENSURE_RESULT_OK},
+	}}), seed(&guestv1.RemoveUserResponse{
+		ProjectId: req.GetProjectId(), Uid: 10000, Result: guestv1.RemoveResult_REMOVE_RESULT_REFUSED, Rule: "home-not-owned",
+	}))
+
+	f.Fuzz(func(t *testing.T, ensure, remove []byte) {
+		if resp := (&guestv1.EnsureUsersResponse{}); proto.Unmarshal(ensure, resp) == nil {
+			requireEnsureChecked(t, sent, resp)
+		}
+		if resp := (&guestv1.RemoveUserResponse{}); proto.Unmarshal(remove, resp) == nil {
+			requireRemoveChecked(t, req, resp)
+		}
+	})
+}
+
+func requireEnsureChecked(t *testing.T, sent []*guestv1.ProjectUser, resp *guestv1.EnsureUsersResponse) {
+	t.Helper()
+	got, r := CheckEnsureUsers(sent, resp)
+	if r != nil {
+		if got != nil || r.Rule != RuleUsersReplyInvalid {
+			t.Fatalf("dropped answer (%s) yielded %v", r.Rule, got)
+		}
+		return
+	}
+	if len(got) != len(resp.GetResults()) {
+		t.Fatalf("%d results taken from %d", len(got), len(resp.GetResults()))
+	}
+	for uid, res := range got {
+		if !slices.ContainsFunc(sent, func(u *guestv1.ProjectUser) bool { return u.GetUid() == uid }) {
+			t.Fatalf("accepted a result for UID %d, which wasn't sent", uid)
+		}
+		if res.OK == (res.Rule != "") || (!res.OK && !validRule(res.Rule)) {
+			t.Fatalf("accepted result %+v", res)
+		}
+	}
+}
+
+func requireRemoveChecked(t *testing.T, req *guestv1.RemoveUserRequest, resp *guestv1.RemoveUserResponse) {
+	t.Helper()
+	out, r := CheckRemoveUser(req, resp)
+	if r != nil {
+		if out != (RemoveOutcome{}) || r.Rule != RuleUsersReplyInvalid {
+			t.Fatalf("dropped answer (%s) yielded %+v", r.Rule, out)
+		}
+		return
+	}
+	if resp.GetProjectId() != req.GetProjectId() || resp.GetUid() != req.GetUid() {
+		t.Fatalf("accepted an answer for %q UID %d", resp.GetProjectId(), resp.GetUid())
+	}
+	ok := false
+	switch out.Result {
+	case guestv1.RemoveResult_REMOVE_RESULT_REMOVED:
+		ok = out.ProcessesLeft == 0 && out.Rule == ""
+	case guestv1.RemoveResult_REMOVE_RESULT_PROCESSES_LEFT:
+		ok = out.ProcessesLeft >= 1 && out.ProcessesLeft <= MaxProcessesLeft && out.Rule == ""
+	case guestv1.RemoveResult_REMOVE_RESULT_REFUSED:
+		ok = out.ProcessesLeft == 0 && validRule(out.Rule)
+	case guestv1.RemoveResult_REMOVE_RESULT_UNSPECIFIED:
+	}
+	if !ok {
+		t.Fatalf("accepted outcome %+v", out)
+	}
+}
+
 // requireRefusal: a refusal names its rule and yields no version.
 func requireRefusal(t *testing.T, v string, r *Refusal) {
 	t.Helper()
