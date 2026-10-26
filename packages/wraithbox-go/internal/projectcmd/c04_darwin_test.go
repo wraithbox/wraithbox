@@ -13,7 +13,7 @@ import (
 
 const (
 	urlA     = "https://a.example/org/r.git"
-	urlASSH  = "git@a.example:org/r.git"
+	urlSSH   = "git@a.example:org/r.git"
 	urlB     = "https://b.example/org/r.git"
 	ruleURLs = string(project.RuleURLsChanged)
 	ruleRoot = string(project.RuleRootCommitGone)
@@ -58,7 +58,7 @@ func TestC04ChangedURL(t *testing.T) {
 // project.
 func TestC04SSHSwitchAndWorktree(t *testing.T) {
 	h := newHarness(t)
-	dir := newRepo(t, filepath.Join(h.root, "r"), "root", urlASSH)
+	dir := newRepo(t, filepath.Join(h.root, "r"), "root", urlSSH)
 	id := h.mustStart(dir).Project.GetId()
 	gitT(t, dir, "remote", "set-url", "origin", urlA)
 	if got := h.mustStart(dir).Project.GetId(); got != id {

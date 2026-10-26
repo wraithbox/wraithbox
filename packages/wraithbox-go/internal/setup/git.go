@@ -18,7 +18,7 @@ const RuleGitUnchecked Rule = "setup-git-unchecked"
 // CheckGitAt is the git check of wb setup: it reads the git setting of
 // <configDir>/config.toml, and checks the version of the git binary it
 // names, or of the platform default (S08-08-host-git, "Where it is
-// checked"). SystemEnv's CheckGit calls it with <config>.
+// checked"). The CheckGit of SystemEnv calls it with <config>.
 func CheckGitAt(ctx context.Context, configDir string) error {
 	cfg, err := config.Load(ctx, configDir)
 	if err != nil {

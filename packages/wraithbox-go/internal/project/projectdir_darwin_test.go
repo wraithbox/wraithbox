@@ -25,7 +25,7 @@ func wantRule(t *testing.T, err error, rule Rule) {
 // TestCheckID: only 32 lowercase hexadecimal characters are an id, so
 // no path is built from an id wb-hostd sent with `..` or `/` in it.
 func TestCheckID(t *testing.T) {
-	for _, bad := range []string{"", "../../../../etc", testID[:31], testID + "0", strings.ToUpper(testID), "0123456789abcdef0123456789abcdeg", "0123456789abcdef/123456789abcdef"} {
+	for _, bad := range []string{"", "../../../../etc", testID[:31], testID + "0", strings.ToUpper(testID), testID[:31] + "g", "0123456789abcdef/123456789abcdef"} {
 		wantRule(t, CheckID(bad), RuleIDForm)
 		if IsID(bad) {
 			t.Errorf("IsID(%q) = true", bad)
@@ -150,7 +150,7 @@ func TestRemoveFilesLeft(t *testing.T) {
 func TestMovedMatch(t *testing.T) {
 	root := tempDir(t)
 	inPlace := filepath.Join(newRepo(t, filepath.Join(root, "a")), ".git")
-	noHead := mkdir(t, filepath.Join(root, "nohead"))
+	noHead := mkdir(t, filepath.Join(root, "no-head"))
 	file := filepath.Join(root, "file")
 	writeFile(t, file, "")
 	match := func(realm, path string) *hostdv1.ProjectMatch {
