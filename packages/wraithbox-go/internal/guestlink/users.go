@@ -114,16 +114,18 @@ func splitUsers(users []*guestv1.ProjectUser, budget int) [][]*guestv1.ProjectUs
 // UID. A UID without a result has none: the caller refuses it. A whole
 // answer the host doesn't take is a *UsersRefusal, logged with its rule
 // (SEC11-root-gains-nothing). Each accepted refusal is logged with the
-// guest's rule, escaped.
+// guest's rule, escaped. An accepted answer is logged with the number of
+// users and how long the guest took.
 func (l *Link) EnsureUsers(ctx context.Context, users []*guestv1.ProjectUser, log *slog.Logger) (map[uint32]UserResult, error) {
 	if len(users) == 0 || len(users) > MaxUsersPerRequest {
 		return nil, fmt.Errorf("guestlink: %d users in one request, want 1 to %d", len(users), MaxUsersPerRequest)
 	}
 	callCtx, cancel := context.WithTimeout(ctx, UsersTimeout)
 	defer cancel()
+	start := time.Now()
 	resp, err := l.Client().EnsureUsers(callCtx, &guestv1.EnsureUsersRequest{Users: users},
 		grpc.MaxCallRecvMsgSize(UsersMaxRecvMsgSize))
-	attrs := []slog.Attr{slog.Int("users", len(users))}
+	attrs := []slog.Attr{slog.Int("users", len(users)), slog.Duration("took", time.Since(start))}
 	if err != nil {
 		return nil, logUsersRefusal(ctx, log, "guest users refused", attrs, callRefusalOf(ctx, callCtx, err))
 	}
@@ -131,6 +133,7 @@ func (l *Link) EnsureUsers(ctx context.Context, users []*guestv1.ProjectUser, lo
 	if r != nil {
 		return nil, logUsersRefusal(ctx, log, "guest users refused", attrs, r)
 	}
+	log.LogAttrs(ctx, slog.LevelInfo, "guest users answered", append(attrs, slog.String("decision", "accept"))...)
 	for _, u := range users {
 		logResult(ctx, log, u.GetUid(), results)
 	}

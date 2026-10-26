@@ -89,6 +89,9 @@ func TestEnsureUsersAccepts(t *testing.T) {
 	if rec := logs.last(t); rec["rule"] != RuleUserRefused || rec["guest_rule"] != "(no result)" || rec["uid"] != float64(10002) {
 		t.Fatalf("log %v, want 10002 refused for no result", rec)
 	}
+	if !strings.Contains(logs.buf.String(), `"msg":"guest users answered","users":3,"took":`) {
+		t.Fatalf("log %s, want the answer with its users and took", logs.buf.String())
+	}
 }
 
 // TestEnsureUsersInvalid: every answer outside the contract is dropped
