@@ -36,6 +36,7 @@ grpccreds
 healthpb
 vmtest
 vmbundle
+projectuser
 datadisk
 datadisktest
 procgroup

@@ -124,15 +124,15 @@ func TestProjectUserGeneratedUIDs(t *testing.T) {
 	db := newUsersDB(t)
 	a := userOf(t, db, idA, workDisk.Slot)
 	b := userOf(t, db, idB, workDisk.Slot)
-	guids := map[string]bool{}
+	seen := map[string]bool{}
 	for _, g := range []string{a.UserGeneratedUID, a.GroupGeneratedUID, b.UserGeneratedUID, b.GroupGeneratedUID} {
 		if !projectuser.ValidGeneratedUID(g) {
 			t.Errorf("GeneratedUID %q isn't an uppercase version 4 UUID", g)
 		}
-		guids[g] = true
+		seen[g] = true
 	}
-	if len(guids) != 4 {
-		t.Errorf("%d distinct GeneratedUIDs for two users, want 4", len(guids))
+	if len(seen) != 4 {
+		t.Errorf("%d distinct GeneratedUIDs for two users, want 4", len(seen))
 	}
 }
 

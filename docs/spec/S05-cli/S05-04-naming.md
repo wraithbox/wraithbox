@@ -253,7 +253,11 @@ home.
 `wb-guestd`'s reply is untrusted (SEC11-root-gains-nothing):
 
 - The record stays until a reply for that project comes.
-- A reply never clears another project's record.
+- A reply never clears another project's record. Only a removed reply
+  for the project and UID that were sent clears it.
+- A reply that processes are left, or that the removal was refused,
+  keeps the record, and `wb-hostd` sends it again at the next
+  connection.
 - A false reply can only leave the home inside that guest.
 
 The host-side state is gone before the request is sent. Ids are random,
