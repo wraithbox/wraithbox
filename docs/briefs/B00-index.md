@@ -77,4 +77,4 @@ B33-no-guest-credentials, B35-openshell-artifacts,
 B37-terminal-boundary and B74-pre-receive-check on 2026-10-06,
 B248-dev-signing on 2026-10-15, and B102-git-alloc-limit on 2026-10-16.
 
-No decision is open.
+1. B228-data-disk-followup: decision 3, whether to keep `nobrowse` on the data volume. No issue waits on it.
