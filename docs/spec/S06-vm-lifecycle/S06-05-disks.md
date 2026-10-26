@@ -27,10 +27,12 @@ reaches permanent storage on the host.
 
 A raw image gives the host back the space of data the guest deletes.
 An ASIF image does not (X05-fs-benchmark). On the data volume, mounted
-`nobrowse` as "The mount" says, the space comes back when the volume is
-unmounted or mounted again, not when the guest deletes. That is at a
-clean guest shutdown, or at `wb-guestd`'s mount when the VM next starts
-(X08-data-disk, "Follow-up (I228)"). Until then the file's `st_blocks`
+`nobrowse` as "The mount" says, on macOS 27.0.1 the space comes back
+when the volume is unmounted or mounted again, not when the guest
+deletes. That is at a clean guest shutdown, or at the mounts of a cold
+boot (X08-data-disk, "Follow-up (I228)"). A restore from saved state
+(S06-06-devices-and-warm-start, "Warm start") doesn't mount again, so
+it doesn't give the space back. Until then the file's `st_blocks`
 still count the deleted data.
 
 The space a data disk takes on the host comes from the file's
