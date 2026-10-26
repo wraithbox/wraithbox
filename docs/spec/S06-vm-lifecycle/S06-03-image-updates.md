@@ -74,14 +74,58 @@ Project users have no password to keep.
 
 #### Creation
 
-`wb-guestd` refuses to create a record whose name, UID or GID already
-exists, because `dscl . -create` on an existing record changes it
-instead. It also refuses a home that exists and is owned by another
-UID. It logs the refusal and the rule (I138).
+`wb-guestd` first checks each user's values against the allocation
+above: the `wbp<uid>` name, a group of the same name, one number for
+the UID and the GID in the project range, two distinct `GeneratedUID`s,
+and the home path. It refuses a user that fails with
+`project-user-request-invalid`, before it reads anything.
 
-It makes the record with `GeneratedUID` as its first attribute. Once a
-record has a UID and a primary group, macOS refuses to change its
-`GeneratedUID` or home path.
+It then reads the user's and the group's records and compares them
+with the request. Every check below comes before the first write,
+because `dscl . -create` on an existing record changes it:
+
+- **Same user:** both records hold every value of the request, and
+  the home is valid. The user is kept, and nothing is written.
+- **New user:** neither record exists. `wb-guestd` makes the group,
+  then the user, then the home.
+- **Partial record:** a record holds some of the request's values and
+  nothing else, as a creation that stopped halfway leaves it. A missing
+  record or attribute is added, and so is a missing home of a user
+  that exists. A record without its `GeneratedUID` isn't partial: that
+  can't be added once the record has an ID.
+- **Anything else** is refused with `project-user-conflict`, and the
+  log names the attribute that differs: another value, a record name
+  with an alias, an `AuthenticationAuthority`, a member, or another
+  record that holds one of the user's names, IDs or `GeneratedUID`s or
+  lists it as a member.
+
+Before it writes, it also refuses:
+
+- a UID or GID that owns an entry at the top of the data volume other
+  than the user's own home, `project-ids-own-entry`;
+- a home that exists and is owned by another UID,
+  `project-home-other-owner`;
+- a home of the user that is a link, isn't a directory, has another
+  group, a mode other than 700 or a setuid, setgid or sticky bit,
+  `project-home-invalid`.
+
+It writes `GeneratedUID` as each record's first attribute, and the
+primary group and UID last. Once a record has a UID and a primary
+group, macOS refuses to change its `GeneratedUID` or home path
+(X08-data-disk). The password is `*`, and the user record has no
+`AuthenticationAuthority` and no shadow hash, so nobody can log in as
+it. Both records are written without members. `wb-guestd` never uses `sysadminctl
+-addUser` or `createhomedir`, which add a password, a secure token or
+group memberships. It makes the home relative to the volume's root
+without following a link, mode 700, then sets its owner and mode on
+the open directory.
+
+After the writes, it reads both records back and checks the home. A
+difference is refused with `project-user-directory` or
+`project-home-invalid`. A volume root it can't open or read, or one
+with more than 4096 entries, is `project-home-root`, and a request
+still running after 50 seconds refuses its remaining users with
+`project-user-deadline`. It logs each user's decision and rule (I138).
 
 #### Attaching a home
 
