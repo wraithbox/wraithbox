@@ -3,6 +3,7 @@ package guestusers_test
 import (
 	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
@@ -42,7 +43,7 @@ func TestSystemReads(t *testing.T) {
 func TestSystemRefusesArguments(t *testing.T) {
 	s := &guestusers.System{Log: slog.New(slog.DiscardHandler)}
 	ctx := t.Context()
-	for _, name := range []string{"", "-plist", "a/b", "Root", "../x", "a b", "abcdefghijabcdefghijabcdefghijabc"} {
+	for _, name := range []string{"", "-plist", "a/b", "Root", "../x", "a b", strings.Repeat("a", 33)} {
 		if _, _, err := s.Read(ctx, guestusers.Users, name); err == nil {
 			t.Errorf("Read(%q) ran", name)
 		}

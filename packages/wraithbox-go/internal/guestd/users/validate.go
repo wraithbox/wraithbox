@@ -14,19 +14,19 @@ func CheckRequest(us []User) error {
 	if len(us) == 0 || len(us) > MaxPerRequest {
 		return fmt.Errorf("%d users, want 1 to %d", len(us), MaxPerRequest)
 	}
-	uids := make(map[uint32]bool, len(us))
+	byUID := make(map[uint32]bool, len(us))
 	names := make(map[string]bool, len(us))
-	guids := make(map[string]bool, 2*len(us))
+	byGUID := make(map[string]bool, 2*len(us))
 	for _, u := range us {
-		if uids[u.UID] || names[u.Name] {
+		if byUID[u.UID] || names[u.Name] {
 			return fmt.Errorf("the UID %d or the name %s twice", u.UID, cut(u.Name))
 		}
-		uids[u.UID], names[u.Name] = true, true
+		byUID[u.UID], names[u.Name] = true, true
 		for _, g := range []string{u.UserGUID, u.GroupGUID} {
-			if guids[g] {
+			if byGUID[g] {
 				return fmt.Errorf("the GeneratedUID %s twice", cut(g))
 			}
-			guids[g] = true
+			byGUID[g] = true
 		}
 	}
 	return nil

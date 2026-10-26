@@ -37,17 +37,17 @@ func TestC09GuestUsersVM(t *testing.T) {
 		t.Fatalf("wb vm start work: exit %d, want 0", code)
 	}
 	r.waitRecord("guest data mount accepted", began, 2*time.Minute)
-	uids := r.addProjectUsers(2)
+	ids := r.addProjectUsers(2)
 
 	// A new link mounts again and sends every user of the data disk.
 	dropped := time.Now()
 	if err := r.child.Process.Signal(syscall.SIGUSR1); err != nil {
 		t.Fatal(err)
 	}
-	r.waitUsers("made", uids, dropped)
+	r.waitUsers("made", ids, dropped)
 
-	r.restart("kept over a reboot", uids, nil)
-	r.restart("made again on a new system disk", uids, func() {
+	r.restart("kept over a reboot", ids, nil)
+	r.restart("made again on a new system disk", ids, func() {
 		src := filepath.Join(os.Getenv(bundleVar), "sys.wbdisk")
 		r.command("cp", "-c", src, filepath.Join(r.slotBundle(), "sys.wbdisk"))
 	})
@@ -66,14 +66,14 @@ func (r *vmRun) addProjectUsers(n int) []uint32 {
 		t.Fatal(err)
 	}
 	defer func() { _ = db.Close() }()
-	ids := make([]string, n)
+	projects := make([]string, n)
 	err = db.Projects(t.Context(), func(tx *state.ProjectTx) error {
-		for i := range ids {
+		for i := range projects {
 			id := make([]byte, 16)
 			_, _ = rand.Read(id)
-			ids[i] = hex.EncodeToString(id)
+			projects[i] = hex.EncodeToString(id)
 			if err := tx.Insert(state.Project{
-				ID: ids[i], Realm: "native", KeyPath: fmt.Sprintf("/c09/%d", i), Name: "c09",
+				ID: projects[i], Realm: "native", KeyPath: fmt.Sprintf("/c09/%d", i), Name: "c09",
 				Placement: state.PlacementWork, Created: time.Now(),
 			}); err != nil {
 				return err
@@ -84,21 +84,21 @@ func (r *vmRun) addProjectUsers(n int) []uint32 {
 	if err != nil {
 		t.Fatal(err)
 	}
-	uids := make([]uint32, 0, n)
-	for _, id := range ids {
+	ids := make([]uint32, 0, n)
+	for _, id := range projects {
 		u, _, err := db.ProjectUser(t.Context(), id, vmbundle.Name(vmbundle.SlotWork))
 		if err != nil {
 			t.Fatal(err)
 		}
 		t.Logf("measure: project %s has user %s, uid %d", id, u.UserName, u.UID)
-		uids = append(uids, u.UID)
+		ids = append(ids, u.UID)
 	}
-	return uids
+	return ids
 }
 
 // restart stops the work VM, runs between when it is set, starts it
 // again, and waits for the users.
-func (r *vmRun) restart(what string, uids []uint32, between func()) {
+func (r *vmRun) restart(what string, ids []uint32, between func()) {
 	t := r.t
 	if code, _ := r.wb("stop", "work"); code != 0 {
 		t.Fatalf("wb vm stop work: exit %d, want 0", code)
@@ -110,12 +110,12 @@ func (r *vmRun) restart(what string, uids []uint32, between func()) {
 	if code, _ := r.wb("start", "work"); code != 0 {
 		t.Fatalf("wb vm start work: exit %d, want 0", code)
 	}
-	r.waitUsers(what, uids, began)
+	r.waitUsers(what, ids, began)
 }
 
 // waitUsers waits until wb-hostd logged an accepted OK for every UID
 // after after, and fails at once on a refusal of one.
-func (r *vmRun) waitUsers(what string, uids []uint32, after time.Time) {
+func (r *vmRun) waitUsers(what string, ids []uint32, after time.Time) {
 	t := r.t
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Minute)
@@ -124,7 +124,7 @@ func (r *vmRun) waitUsers(what string, uids []uint32, after time.Time) {
 			t.Fatalf("users %s: wb-hostd refused uid %v with %v (guest rule %v)", what, rec["uid"], rec["rule"], rec["guest_rule"])
 		}
 		missing := 0
-		for _, uid := range uids {
+		for _, uid := range ids {
 			if !r.ensured(uid, after) {
 				missing++
 			}
@@ -134,7 +134,7 @@ func (r *vmRun) waitUsers(what string, uids []uint32, after time.Time) {
 			return
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("users %s: %d of %d not ensured after 2m", what, missing, len(uids))
+			t.Fatalf("users %s: %d of %d not ensured after 2m", what, missing, len(ids))
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

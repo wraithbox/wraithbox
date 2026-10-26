@@ -64,23 +64,23 @@ func projectUsers(t *testing.T, n int) []users.User {
 // guest doesn't keep the project id, so a fixed one stands in.
 func readUser(t *testing.T, sys *gu.System, name string) users.User {
 	t.Helper()
-	urec, found, err := sys.Read(t.Context(), gu.Users, name)
+	userRec, found, err := sys.Read(t.Context(), gu.Users, name)
 	if err != nil || !found {
 		t.Fatalf("read user %s: found %v, %v", name, found, err)
 	}
-	grec, found, err := sys.Read(t.Context(), gu.Groups, name)
+	groupRec, found, err := sys.Read(t.Context(), gu.Groups, name)
 	if err != nil || !found {
 		t.Fatalf("read group %s: found %v, %v", name, found, err)
 	}
-	uid, _ := strconv.ParseUint(first(urec[gu.AttrUniqueID]), 10, 32)
-	gid, _ := strconv.ParseUint(first(urec[gu.AttrPrimaryGroupID]), 10, 32)
+	uid, _ := strconv.ParseUint(first(userRec[gu.AttrUniqueID]), 10, 32)
+	gid, _ := strconv.ParseUint(first(userRec[gu.AttrPrimaryGroupID]), 10, 32)
 	for _, a := range []string{gu.AttrAuthAuthority, "dsAttrTypeNative:ShadowHashData"} {
-		if len(urec[a]) > 0 {
+		if len(userRec[a]) > 0 {
 			t.Errorf("%s has %s", name, a)
 		}
 	}
-	if !slices.Equal(urec[gu.AttrPassword], []string{users.NoPassword}) {
-		t.Errorf("%s's Password is %q, want %q", name, urec[gu.AttrPassword], users.NoPassword)
+	if !slices.Equal(userRec[gu.AttrPassword], []string{users.NoPassword}) {
+		t.Errorf("%s's Password is %q, want %q", name, userRec[gu.AttrPassword], users.NoPassword)
 	}
 	return users.User{
 		ProjectID: strings.Repeat("0", 32),
@@ -88,9 +88,9 @@ func readUser(t *testing.T, sys *gu.System, name string) users.User {
 		UID:       uint32(uid),
 		GID:       uint32(gid),
 		GroupName: name,
-		UserGUID:  first(urec[gu.AttrGeneratedUID]),
-		GroupGUID: first(grec[gu.AttrGeneratedUID]),
-		Home:      first(urec[gu.AttrHome]),
+		UserGUID:  first(userRec[gu.AttrGeneratedUID]),
+		GroupGUID: first(groupRec[gu.AttrGeneratedUID]),
+		Home:      first(userRec[gu.AttrHome]),
 	}
 }
 
