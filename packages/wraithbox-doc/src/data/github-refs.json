@@ -1420,7 +1420,7 @@
 	},
 	"228": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X08-data-disk follow-up: measure that a host-made data volume stays unencrypted and returns freed space",
 		"summary": "X08-data-disk (PR #227) recommends option A: the host formats the data disk as APFS.",
 		"brief": "B228-data-disk-followup"
@@ -1819,13 +1819,13 @@
 	},
 	"294": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb: `wb project` commands, project resolution at session start, and the host git checks in `wb`",
 		"summary": "FR02-any-repo: the first run in a repository registers the project, with no setup step."
 	},
 	"295": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: project user IDs, records and the removal queue",
 		"summary": "Each project gets its own guest user in each VM (S06-08-projects-and-sessions, \"Guest users\", SEC08-proj-isolation)."
 	},
@@ -1843,7 +1843,7 @@
 	},
 	"298": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: kill IDs and leftover-process results",
 		"summary": "wb-guestd kills a project user's processes in a bounded loop and reports clean or a count of processes left (S13-01-process-hardening, M2.10c (#297))."
 	},
@@ -2491,7 +2491,7 @@
 	},
 	"406": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wave-lead reports before its builder hands back, and cannot TaskStop its builders",
 		"summary": "In run #394 (wave 1, #287) the wave-lead handed back before its builder did:"
 	},
@@ -2587,13 +2587,13 @@
 	},
 	"422": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "fix(agents): wave lead waits out interim notices, dispatcher stops agents",
 		"summary": "From the run #394 lead's transcript: the builder ended its turn while its own background mise run ci ran."
 	},
 	"423": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(wb): wb project commands, session-start resolution and host git checks",
 		"summary": "Adds wb project show|confirm|move|rename|place|rm, the session-start project resolution that wb claude will call (project.Opener), and the host git checks in wb and wb setup."
 	},
@@ -2611,7 +2611,7 @@
 	},
 	"426": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(hostd): project user IDs, records and the removal queue",
 		"summary": "wb-hostd now allocates and records project users, sends them to the guest at each connection, and queues their removal on wb project rm."
 	},
@@ -2623,7 +2623,7 @@
 	},
 	"428": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X08-data-disk follow-up, the host-made volume measured",
 		"summary": "Appends the I228 follow-up to X08-data-disk: the volume wb-diskfmt makes on the host, measured in three macOS 27.0.1 guests (two of them system disk swaps) and with the confined TestHostFormat.",
 		"brief": "B228-data-disk-followup"
@@ -2633,5 +2633,35 @@
 		"state": "open",
 		"title": "wb-diskfmt: keep Spotlight off the data volume with .metadata_never_index",
 		"summary": "When a guest boots, Disk Arbitration mounts the data volume at /Volumes without nobrowse before wb-guestd remounts it, and in X08-data-disk's follow-up runs that mount created .Spotlight-V100 on the volume."
+	},
+	"430": {
+		"kind": "issue",
+		"state": "open",
+		"title": "B228-data-disk-followup: record decision 3 (keep nobrowse) in the brief and B00-index",
+		"summary": "The maintainer decided B228-data-disk-followup, decision 3, on 2026-10-26: keep nobrowse (Decision comment on #228)."
+	},
+	"431": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): kill IDs and leftover-process results",
+		"summary": "The host side of the leftover-process kills: kill IDs, the pending kills with their 7-minute deadline, and the checks a kill result passes before wb-hostd takes it."
+	},
+	"432": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(guestd): create and recreate project users with their homes",
+		"summary": "wb-guestd answers EnsureUsers."
+	},
+	"433": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(app): team-signed Wraith Box.app with WB_TEAM_ID, and the team report in wb setup",
+		"summary": "Adds the team-signed path to app:bundle, and the team report to wb setup."
+	},
+	"434": {
+		"kind": "issue",
+		"state": "open",
+		"title": "test(vmdspawn): TestSpawn reads the log before the started record arrives",
+		"summary": "TestSpawn in packages/wraithbox-go/internal/vmdspawn/vmdspawn_darwin_test.go failed once on the macOS CI runner and passed on the rerun, on a pull request that doesn't touch the package (#433, run 40406194623, attempt…"
 	}
 }
