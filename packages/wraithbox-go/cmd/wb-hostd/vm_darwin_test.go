@@ -452,10 +452,16 @@ func (r *vmRun) wb(args ...string) (int, string) {
 }
 
 func (r *vmRun) wbQuiet(args ...string) (int, string) {
+	return r.wbIn(r.t.Context(), args...)
+}
+
+// wbIn runs `wb vm <args>` against the child with ctx, for a cleanup,
+// which runs after t.Context is canceled.
+func (r *vmRun) wbIn(ctx context.Context, args ...string) (int, string) {
 	var out bytes.Buffer
 	env := vmcmd.SystemEnv(slog.New(slog.DiscardHandler))
 	env.Stdout, env.Stderr = &out, &out
-	code := vmcmd.Run(r.t.Context(), env, args)
+	code := vmcmd.Run(ctx, env, args)
 	return code, out.String()
 }
 
