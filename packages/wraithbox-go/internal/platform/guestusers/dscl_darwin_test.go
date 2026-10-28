@@ -69,8 +69,8 @@ func TestSystemRefusesArguments(t *testing.T) {
 // TestSystemRecordKeys reads the local node of the Mac the test runs on
 // and checks that each attribute wb-guestd writes is reported under its
 // RecordKey. Root's record has the standard ones, and a hidden user,
-// such as _mbsetupuser, has IsHidden under its native name, where a
-// read-back by the written name doesn't find it.
+// such as the setup assistant's, has IsHidden under its native name,
+// where a read-back by the written name doesn't find it.
 func TestSystemRecordKeys(t *testing.T) {
 	s := &guestusers.System{Log: slog.New(slog.DiscardHandler)}
 	rec, found, err := s.Read(t.Context(), guestusers.Users, "root")

@@ -19,9 +19,9 @@ const guestLogPath = "private/var/log/wb-guestd.log"
 
 // keepGuestLog has a failed test copy wb-guestd's log out of the work
 // VM's system disk, to <scratch>/guest/wb-guestd.log, before <data> is
-// removed. wb-hostd never reads the guest's log, and the guest's
-// refusals reach the host as a rule only (S06-12-guest-agent), so the
-// attribute and value that a refusal names are only in this log. The
+// removed. wb-hostd never reads the guest's log, and a refused user
+// reaches the host as a rule only (EnsureUserResult in guest.proto), so
+// the attribute and value that a refusal names are only in this log. The
 // copy is for the person who runs the test: the test logs its path and
 // size, never its text, and wb-hostd doesn't see it.
 func (r *vmRun) keepGuestLog() {
@@ -49,7 +49,7 @@ func (r *vmRun) copyGuestLog() error {
 	}
 	for _, pid := range r.vmdPIDs() {
 		if alive(pid) {
-			waitExit(r.t, pid, time.Minute)
+			waitExit(r.t, pid)
 		}
 	}
 	dir := filepath.Join(r.scratch, "guest")
