@@ -62,10 +62,14 @@ var (
 // refusedAttrs are the attributes a project user's or group's own
 // record never has: a password hash or its reference, and any member
 // or nested group (SEC12-least-privilege). A record with one is a
-// conflict, never completed.
+// conflict, never completed. IsHidden under its bare name is one too:
+// wb-guestd writes it as a native attribute (gu.RecordKey), so a
+// standard IsHidden came from someone else, and a second key for one
+// setting is never let through.
 var refusedAttrs = []string{
 	gu.AttrAuthAuthority, gu.AttrShadowHash,
 	gu.AttrGroupMembership, gu.AttrGroupMembers, gu.AttrNestedGroups,
+	gu.AttrIsHidden,
 }
 
 // plan is what a user needs written: the missing attributes of each

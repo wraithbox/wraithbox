@@ -99,8 +99,10 @@ because `dscl . -create` on an existing record changes it:
 - **Anything else** is refused with `project-user-conflict`, and the
   log names the attribute that differs. That is another value, a
   record name with an alias, an `AuthenticationAuthority`, a shadow
-  hash, a member or a nested group. It is also another record that
-  holds one of the user's names, IDs or `GeneratedUID`s, or lists the
+  hash, a member, a nested group, or an `IsHidden` under its standard
+  name, since `wb-guestd` writes it as a native attribute. It is also
+  another record that holds one of the user's names, IDs or
+  `GeneratedUID`s, or lists the
   user as a member or the group as a nested group. A group that nests
   the project group, such as `admin`, would give the project user its
   rights. `GeneratedUID`s are compared without case.

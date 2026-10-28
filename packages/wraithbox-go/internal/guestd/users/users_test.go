@@ -274,6 +274,9 @@ func TestConflicts(t *testing.T) {
 		{"user not hidden", "user " + gu.KeyIsHidden, func(f *fixture) {
 			userRec(f)[gu.KeyIsHidden] = []string{"0"}
 		}},
+		{"user IsHidden under the standard name", "user " + gu.AttrIsHidden, func(f *fixture) {
+			userRec(f)[gu.AttrIsHidden] = []string{users.Hidden}
+		}},
 		{"user shadow hash", "user " + gu.AttrShadowHash, func(f *fixture) {
 			userRec(f)[gu.AttrShadowHash] = []string{"62706c6973743030"}
 		}},
