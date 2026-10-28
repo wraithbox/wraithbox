@@ -39,7 +39,9 @@ func (d *memDir) Create(_ context.Context, kind gu.Kind, name, attr, value strin
 	if d.recs[k] == nil {
 		d.recs[k] = gu.Record{gu.AttrRecordName: {name}}
 	}
-	d.recs[k][attr] = []string{value}
+	// Like dscl, it keeps an attribute without a standard name under
+	// its native name.
+	d.recs[k][gu.RecordKey(attr)] = []string{value}
 	return nil
 }
 

@@ -51,7 +51,10 @@ const (
 	AttrShell          = "UserShell"
 	AttrRealName       = "RealName"
 	AttrPassword       = "Password"
-	AttrIsHidden       = "IsHidden"
+	// AttrIsHidden hides a user from the login window. dscl has no
+	// standard name for it, so it writes the attribute as a native one
+	// and reports it under KeyIsHidden (RecordKey).
+	AttrIsHidden = "IsHidden"
 	// AttrAuthAuthority holds a user's password hash reference or a
 	// disabled marker. A project user has none.
 	AttrAuthAuthority = "AuthenticationAuthority"
@@ -68,6 +71,24 @@ const (
 	// native name. A project user has none.
 	AttrShadowHash = "dsAttrTypeNative:ShadowHashData"
 )
+
+// NativePrefix starts the name of each native attribute in dscl's
+// -plist form: one that dscl has no standard name for.
+const NativePrefix = "dsAttrTypeNative:"
+
+// KeyIsHidden is the key of AttrIsHidden in a Record.
+const KeyIsHidden = NativePrefix + AttrIsHidden
+
+// RecordKey is the key under which a Record holds the attribute that
+// Directory.Create wrote as attr. It is attr for a standard attribute,
+// and the native name for one that dscl has no standard name for. A
+// read-back compares by this key, so it finds what was written.
+func RecordKey(attr string) string {
+	if attr == AttrIsHidden {
+		return KeyIsHidden
+	}
+	return attr
+}
 
 // HomeMode is the mode of every home (S06-05-disks, "Owners and modes").
 const HomeMode fs.FileMode = 0o700
@@ -87,7 +108,8 @@ type Directory interface {
 	// every attribute, and found false when there is none.
 	Read(ctx context.Context, kind Kind, name string) (rec Record, found bool, err error)
 	// Create sets attr of the record of kind named name to the one value
-	// value, and makes the record first when it is missing.
+	// value, and makes the record first when it is missing. Read and
+	// List report it under RecordKey(attr).
 	Create(ctx context.Context, kind Kind, name, attr, value string) error
 }
 

@@ -65,3 +65,40 @@ func TestSystemRefusesArguments(t *testing.T) {
 		t.Error("List of an unknown kind ran")
 	}
 }
+
+// TestSystemRecordKeys reads the local node of the Mac the test runs on
+// and checks that each attribute wb-guestd writes is reported under its
+// RecordKey. Root's record has the standard ones, and a hidden user,
+// such as _mbsetupuser, has IsHidden under its native name, where a
+// read-back by the written name doesn't find it.
+func TestSystemRecordKeys(t *testing.T) {
+	s := &guestusers.System{Log: slog.New(slog.DiscardHandler)}
+	rec, found, err := s.Read(t.Context(), guestusers.Users, "root")
+	if err != nil || !found {
+		t.Fatalf("Read root: found %v, %v", found, err)
+	}
+	for _, a := range []string{
+		guestusers.AttrGeneratedUID, guestusers.AttrHome, guestusers.AttrShell, guestusers.AttrRealName,
+		guestusers.AttrPassword, guestusers.AttrPrimaryGroupID, guestusers.AttrUniqueID,
+	} {
+		if len(rec[guestusers.RecordKey(a)]) == 0 {
+			t.Errorf("root has no %s", guestusers.RecordKey(a))
+		}
+	}
+	list, err := s.List(t.Context(), guestusers.Users, []string{guestusers.AttrRecordName, guestusers.AttrIsHidden})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hidden := 0
+	for _, r := range list {
+		if _, ok := r[guestusers.AttrIsHidden]; ok {
+			t.Errorf("user %v has IsHidden under its bare name", r[guestusers.AttrRecordName])
+		}
+		if len(r[guestusers.RecordKey(guestusers.AttrIsHidden)]) > 0 {
+			hidden++
+		}
+	}
+	if hidden == 0 {
+		t.Skip("no hidden user on this Mac to check IsHidden with")
+	}
+}

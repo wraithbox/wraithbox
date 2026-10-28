@@ -84,8 +84,10 @@ func (d *fakeDir) Create(_ context.Context, kind gu.Kind, name, attr, value stri
 	if locked && (attr == gu.AttrGeneratedUID || attr == gu.AttrHome) {
 		return errors.New("fake: eDSPermissionError")
 	}
+	// Like dscl, it keeps an attribute without a standard name under
+	// its native name.
 	if attr != d.drop {
-		rec[attr] = []string{value}
+		rec[gu.RecordKey(attr)] = []string{value}
 	}
 	return nil
 }

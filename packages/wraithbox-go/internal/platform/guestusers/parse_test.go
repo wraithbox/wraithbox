@@ -14,6 +14,20 @@ const plistHead = `<?xml version="1.0" encoding="UTF-8"?>
 
 func doc(body string) []byte { return []byte(plistHead + body + `</plist>`) }
 
+// TestRecordKey: IsHidden, which dscl has no standard name for, is read
+// back under its native name, and a standard attribute by its own.
+func TestRecordKey(t *testing.T) {
+	for attr, want := range map[string]string{
+		guestusers.AttrIsHidden: "dsAttrTypeNative:IsHidden",
+		guestusers.AttrShell:    guestusers.AttrShell,
+		guestusers.AttrUniqueID: guestusers.AttrUniqueID,
+	} {
+		if got := guestusers.RecordKey(attr); got != want {
+			t.Errorf("RecordKey(%q) = %q, want %q", attr, got, want)
+		}
+	}
+}
+
 // userDict is a record as `dscl -plist . -read /Users/wbp10000` prints
 // it.
 const userDict = `<dict>

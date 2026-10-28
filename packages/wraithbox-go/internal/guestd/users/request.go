@@ -191,12 +191,13 @@ func compare(kind gu.Kind, rec gu.Record, name string, want []attr) ([]attr, *re
 	}
 	var missing []attr
 	for i, a := range want {
-		got := rec[a.name]
+		key := gu.RecordKey(a.name)
+		got := rec[key]
 		switch {
 		case len(got) == 0 && i > 0:
 			missing = append(missing, a)
 		case !slices.Equal(got, []string{a.value}):
-			return nil, conflict(kind.String()+" "+a.name, values(got))
+			return nil, conflict(kind.String()+" "+key, values(got))
 		}
 	}
 	return missing, nil

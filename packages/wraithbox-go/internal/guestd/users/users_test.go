@@ -91,7 +91,7 @@ func (f *fixture) complete(u users.User) {
 		gu.AttrShell:            {users.Shell},
 		gu.AttrRealName:         {users.UserRealName},
 		gu.AttrPassword:         {users.NoPassword},
-		gu.AttrIsHidden:         {users.Hidden},
+		gu.KeyIsHidden:          {users.Hidden},
 		gu.AttrPrimaryGroupID:   {strconv.FormatUint(uint64(u.GID), 10)},
 		gu.AttrUniqueID:         {strconv.FormatUint(uint64(u.UID), 10)},
 		"AppleMetaNodeLocation": {"/Local/Default"},
@@ -176,7 +176,7 @@ func TestPartialRecord(t *testing.T) {
 	u := user(10000)
 	f.complete(u)
 	rec := f.dir.recs[gu.Users][u.Name]
-	for _, a := range []string{gu.AttrShell, gu.AttrIsHidden, gu.AttrPrimaryGroupID, gu.AttrUniqueID} {
+	for _, a := range []string{gu.AttrShell, gu.KeyIsHidden, gu.AttrPrimaryGroupID, gu.AttrUniqueID} {
 		delete(rec, a)
 	}
 	delete(f.dir.recs[gu.Groups][u.GroupName], gu.AttrPassword)
@@ -270,6 +270,9 @@ func TestConflicts(t *testing.T) {
 		}},
 		{"admin lists the user's GeneratedUID in lowercase", "other group GroupMembers", func(f *fixture) {
 			f.dir.put(gu.Groups, "admin", gu.Record{gu.AttrGroupMembers: {strings.ToLower(u.UserGUID)}})
+		}},
+		{"user not hidden", "user " + gu.KeyIsHidden, func(f *fixture) {
+			userRec(f)[gu.KeyIsHidden] = []string{"0"}
 		}},
 		{"user shadow hash", "user " + gu.AttrShadowHash, func(f *fixture) {
 			userRec(f)[gu.AttrShadowHash] = []string{"62706c6973743030"}
