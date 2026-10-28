@@ -15,9 +15,9 @@ wb land <session>              # fetch it into your repo as a branch
 
 Every command goes through `wb`, `gh`-style: `wb [wb flags] <command> [args]`.
 
-> **Status: design phase.** The design is in [`docs/spec/`](docs/spec/).
-> The code under `packages/` is a skeleton that compiles but does not
-> run an agent yet.
+> **Status: vibe coded prototype.** Most [design](docs/spec/) and
+> [code](packages/) is AI-generated with relatively little human
+> oversight. Working towards a 0.1. Do not use.
 
 ## Why
 
