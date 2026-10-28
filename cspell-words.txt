@@ -337,6 +337,10 @@ LSUI
 mountpoint
 noautoopen
 nobrowse
+imagekey
+noverify
+noautofsck
+mountrandom
 OBJROOT
 pbxproj
 plists

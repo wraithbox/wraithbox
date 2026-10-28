@@ -257,7 +257,7 @@ func (r *vmRun) checkStop() {
 	if _, out := r.wb("status", "work"); !strings.Contains(out, "work VM: stopped") {
 		t.Errorf("wb vm status after the stop: %q, want stopped", out)
 	}
-	t.Logf("measure: wb-vmd %d exited %v after the stop began", pid, waitExit(t, pid, time.Minute).Sub(began))
+	t.Logf("measure: wb-vmd %d exited %v after the stop began", pid, waitExit(t, pid).Sub(began))
 }
 
 // checkKill kills wb-hostd with SIGKILL while the VM runs, checks that
@@ -281,7 +281,7 @@ func (r *vmRun) checkKill(exe string) {
 	t.Logf("measure: start right after kill -9: exit %d, %v after the kill\n%s", code, time.Since(killed), out)
 	_, status := r.wb("status", "work")
 	t.Logf("measure: status right after kill -9:\n%s", status)
-	t.Logf("measure: wb-vmd %d of the killed wb-hostd exited %v after the kill", pid, waitExit(t, pid, time.Minute).Sub(killed))
+	t.Logf("measure: wb-vmd %d of the killed wb-hostd exited %v after the kill", pid, waitExit(t, pid).Sub(killed))
 	if code != 0 {
 		// Once the old wb-vmd is gone, the start goes through.
 		if code, _ := r.wb("start", "work"); code != 0 {
@@ -426,7 +426,7 @@ func (r *vmRun) removeData() {
 	t := r.t
 	for _, pid := range r.vmdPIDs() {
 		if alive(pid) {
-			waitExit(t, pid, time.Minute)
+			waitExit(t, pid)
 		}
 	}
 	top, err := foreign(r.paths.Data, dataNames)
@@ -560,9 +560,11 @@ func alive(pid int) bool {
 	return syscall.Kill(pid, 0) == nil
 }
 
-// waitExit waits until pid has exited, and returns when it saw that.
-func waitExit(t *testing.T, pid int, limit time.Duration) time.Time {
+// waitExit waits up to a minute until pid has exited, and returns when
+// it saw that.
+func waitExit(t *testing.T, pid int) time.Time {
 	t.Helper()
+	const limit = time.Minute
 	deadline := time.Now().Add(limit)
 	for alive(pid) {
 		if time.Now().After(deadline) {
