@@ -31,6 +31,7 @@ func TestC09GuestUsersVM(t *testing.T) {
 	r := newVMRun(t)
 	r.cloneFixture()
 	r.startChild(filepath.Join(r.app, "Contents", "MacOS", "wb-hostd"))
+	r.keepGuestLog()
 
 	began := time.Now()
 	if code, _ := r.wb("start", "work"); code != 0 {
