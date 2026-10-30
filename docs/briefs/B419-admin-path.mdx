@@ -1,0 +1,217 @@
+---
+title: How does the person at the host's terminal get root in their own guest, apart from every agent path?
+description: Recommended, a root daemon of its own in the guest, wb-guestroot, opened only by wb vm admin after a typed confirmation. The VM then takes no project session until its next cold start replaces its system disk.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I419. Changes S15-04-guest-admin, S06-02-image-build ("Sealing"), S04-architecture (the `wb-guestroot` process), SEC08-proj-isolation, C09-guest-and-sessions, and adds S15-05-admin-path. Spike filed: X31-admin-channel (I448). Related: I156, I158, I420.
+
+<Aside type="tip" title="You are deciding">
+How a person at the host's terminal gets a root shell in their own VM, and what that VM may do afterwards. **Recommended:** `wb vm admin <vm>`, confirmed by typing the VM's name, opens a root shell from `wb-guestroot`, a guest daemon apart from `wb-guestd` on a port of its own. The VM then doesn't start project sessions until its next cold start gives it a fresh system disk. If you accept, X31-admin-channel (I448) checks the daemon in a real guest, the builder issues follow, and I420 can run its root checks.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 1000 520" role="img" aria-label="The admin path next to the agent paths. wb vm admin reaches wb-guestroot in the guest through a service and a guest port of its own. The agent paths reach wb-guestd. No guest process reaches wb-guestroot.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="30" y="70" width="200" height="80" rx="10" />
+  <text class="label" x="130" y="98" text-anchor="middle">wb vm admin</text>
+  <text class="note" x="130" y="118" text-anchor="middle">a person, in its own</text>
+  <text class="note" x="130" y="135" text-anchor="middle">terminal, types the VM</text>
+
+  <rect class="box host" x="30" y="300" width="200" height="80" rx="10" />
+  <text class="label" x="130" y="328" text-anchor="middle">wb claude, wb shell</text>
+  <text class="note" x="130" y="348" text-anchor="middle">agent sessions and</text>
+  <text class="note" x="130" y="365" text-anchor="middle">debug shells</text>
+
+  <rect class="box host" x="290" y="60" width="230" height="330" rx="10" />
+  <text class="label" x="405" y="88" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="405" y="112" text-anchor="middle">admin service and handler</text>
+  <text class="note" x="405" y="130" text-anchor="middle">marks the system disk</text>
+  <text class="note" x="405" y="148" text-anchor="middle">first, writes 5019 events</text>
+  <text class="note" x="405" y="230" text-anchor="middle">both through wb-vmd,</text>
+  <text class="note" x="405" y="248" text-anchor="middle">routed on the guest port</text>
+  <text class="note" x="405" y="330" text-anchor="middle">ShellService, sessions</text>
+  <text class="note" x="405" y="348" text-anchor="middle">refused on a marked disk</text>
+
+  <rect class="boundary" x="580" y="30" width="400" height="470" rx="14" />
+  <text class="boundary-label" x="594" y="52">VM, untrusted</text>
+
+  <rect class="box guest" x="620" y="70" width="210" height="80" rx="10" />
+  <text class="label" x="725" y="98" text-anchor="middle">wb-guestroot</text>
+  <text class="note" x="725" y="118" text-anchor="middle">root daemon, own port</text>
+  <text class="note" x="725" y="135" text-anchor="middle">zsh as root on a PTY</text>
+
+  <rect class="box guest" x="620" y="300" width="210" height="80" rx="10" />
+  <text class="label" x="725" y="328" text-anchor="middle">wb-guestd</text>
+  <text class="note" x="725" y="348" text-anchor="middle">root daemon, port 1023</text>
+  <text class="note" x="725" y="365" text-anchor="middle">users, sessions, git</text>
+
+  <rect class="box guest" x="620" y="420" width="210" height="56" rx="10" />
+  <text class="label" x="725" y="446" text-anchor="middle">project user</text>
+  <text class="note" x="725" y="464" text-anchor="middle">agent processes</text>
+
+  <line class="edge" x1="230" y1="110" x2="288" y2="110" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="230" y1="340" x2="288" y2="340" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="520" y1="110" x2="618" y2="110" marker-end="url(#f1-arrow)" />
+  <text class="note" x="528" y="100">admin port</text>
+  <line class="edge" x1="520" y1="340" x2="618" y2="340" marker-end="url(#f1-arrow)" />
+  <text class="note" x="528" y="330">port 1023</text>
+
+  <line class="edge-bad" x1="700" y1="298" x2="700" y2="152" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="708" y="230">no call</text>
+  <path class="edge-bad" d="M830,448 C930,448 930,110 832,110" marker-end="url(#f1-arrow-bad)" />
+  <text class="note" x="860" y="260">can't bind</text>
+  <text class="note" x="860" y="277">or open it</text>
+</svg>
+<figcaption>
+Figure 1. Option A. The admin path has its own command, its own service and handler in `wb-hostd`, its own guest port, and its own guest daemon. The agent paths go to `wb-guestd` (S06-12-guest-agent). Only `wb-hostd` is shared, because it terminates every host-guest connection (S04-architecture). The red flows are what the design stops.
+</figcaption>
+</figure>
+
+## Decision 1: what in the guest gives the root shell?
+
+Today nothing does. `wbadmin` is disabled, hidden, without a shell and out of `admin` (I156), and `wb shell` runs as the project user. Each option below is reached only through `wb vm admin`, with the same typed confirmation.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. A daemon of its own, `wb-guestroot`
+
+A second root LaunchDaemon in the image, on its own guest port below 1024. On a connection from the host it runs `zsh` as root on a PTY.
+
+- **Cost:** a new small guest program, a service, a `.proto` package, a launchd job in the sealing allowlist. It updates itself from the guest tools disk, as `wb-guestd` does. X31-admin-channel must show it answers while `wb-guestd` is dead or wedged.
+- **Keeps:** <Badge text="SEC11-root-gains-nothing" variant="success" /> <Badge text="SEC14-no-fake-approvals" variant="success" /> <Badge text="SEC08-proj-isolation" variant="caution" /> with the mark of decision 2.
+
+</div>
+<div class="wb-option">
+
+### B. A second port in `wb-guestd`
+
+`wb-guestd` serves a root shell on another port.
+
+- **Cost:** the least code. But it stops answering with `wb-guestd`, so it can't help with a broken `wb-guestd`. It shares the process that serves the agent paths, which the issue rules out.
+- **Keeps:** <Badge text="SEC11-root-gains-nothing" variant="success" /> <Badge text="SEC08-proj-isolation" variant="caution" /> with the mark.
+
+</div>
+<div class="wb-option">
+
+### C. `wbadmin` at a console in `wb-vmd`
+
+A serial or graphical console device, and a login as `wbadmin` with its host-held password.
+
+- **Cost:** reverses I156: `wbadmin` enabled, with a shell, in `admin`, and an exception in the sealing scan. Adds a console device that the fixed device set refuses today. Untried: it needs its own spike.
+- **Weakens:** <Badge text="SEC04-no-guest-secrets" variant="caution" /> the password enters the guest again after first contact. The device set of S04-02-vm-provider changes.
+
+</div>
+<div class="wb-option">
+
+### D. The recovery system (I158)
+
+Boot the VM into recoveryOS and unlock the disk as `wbadmin`.
+
+- **Cost:** the guest system isn't running there, so the root checks of I420 can't run. Needs a graphical console. Untried: I158 is a deferred spike.
+- **Keeps:** <Badge text="SEC11-root-gains-nothing" variant="success" />, but the password burns after each use.
+
+</div>
+</div>
+
+**The case for B.** It is a fraction of A's work. `wb-guestd` is already a root daemon on a checked port, with an update path, a version check and a fuzzed listener, and a second service in it would reuse all of that. Most uses in the issue are root checks in a healthy guest, where `wb-guestd` answers. A wedged `wb-guestd` is rare, and break-glass already replaces the system disk. The separation the maintainer asked for could be kept at the service level: its own port and `.proto` package, never called by session code.
+
+**Confidence:** medium-high. A meets the maintainer's three requirements as the spec states them, and B, C and D each miss one. A no from X31-admin-channel, such as launchd refusing a second daemon on the port, would move the recommendation to B, with "dead or wedged" left to break-glass.
+
+## Decision 2: what may the VM do after a root shell?
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Marked until the next cold start replaces the system disk
+
+`wb-hostd` marks the system disk before it opens the shell. Session starts and suspend are refused with `vm-admin-used`. The next cold start gives the VM a fresh clone of the image, as break-glass does. The data disk stays.
+
+- **Cost:** a developer's own changes to the system disk last only until the VM stops.
+- **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" /> project users never run on an unchecked system disk.
+
+</div>
+<div class="wb-option">
+
+### B. Marked until the person clears it
+
+As A, but `wb vm admin --clear <vm>`, with a typed confirmation, lets project sessions run on the changed disk.
+
+- **Cost:** one more command. A developer keeps their changes.
+- **Weakens:** <Badge text="SEC08-proj-isolation" variant="caution" /> project users may run on a disk no scan checked, such as with a sudoers entry.
+
+</div>
+<div class="wb-option">
+
+### C. No mark, only the audit event
+
+- **Cost:** none.
+- **Weakens:** <Badge text="SEC08-proj-isolation" variant="danger" /> silently: a change made as root carries into every later session. Needs a spec change.
+
+</div>
+</div>
+
+**The case for B.** The maintainer asked that a developer may "do as they please" in their own VM, and A undoes their changes at each stop. The person owns the VM and typed a confirmation, and host controls don't depend on the guest (SEC11-root-gains-nothing). B costs only guest-side layers.
+
+**Confidence:** high for A as the default. B can be added later without changing A, once a developer needs a VM that keeps root changes.
+
+## Also in the spec, not asked
+
+- **Who starts it.** Only `wb vm admin`, refused without a terminal, with a typed VM name, and no flag to skip it, as `wb vm reset-data`. It is never a guest RPC (SEC14-no-fake-approvals). It is refused while a session runs, and before first contact's `wbadmin` rotation has ended.
+- **The data disk.** It stays mounted as it is. The root shell can read every project's home, which is the person's own data. What it writes there stays, as T18-data-disk-persistence says for guest root.
+- **Audit.** A Device Config State Change (5019) event at the mark and one at the end, which are never dropped, the mark in `wb vm status`, and each refusal logged with its rule.
+- **Tests.** Tests reach `wb-guestroot` through `wb-dev-vm`, test tooling that is never in the app bundle. No shipped binary has a test-only way to guest root. The admin path adds no network device (SEC05-default-deny).
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>1A. Own daemon</th><th>1B. Port in `wb-guestd`</th><th>1C. Console</th><th>1D. recoveryOS</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC11-root-gains-nothing</strong> guest root gets no host control</td><td class="yes">kept</td><td class="yes">as in A</td><td class="yes">kept too</td><td class="yes">as in C</td></tr>
+<tr><td><strong>SEC14-no-fake-approvals</strong> no approval in the agent's stream</td><td class="yes">own terminal</td><td class="yes">as in A</td><td class="yes">own terminal</td><td class="yes">as in C</td></tr>
+<tr><td><strong>SEC08-proj-isolation</strong> one project can't persist into another</td><td class="yes">with the mark</td><td class="yes">as in A</td><td class="partial">`wbadmin` enabled</td><td class="yes">disk replaced</td></tr>
+<tr><td><strong>SEC04-no-guest-secrets</strong> no host secret in the guest</td><td class="yes">no password used</td><td class="yes">as in A</td><td class="partial">password typed in</td><td class="partial">as in C</td></tr>
+<tr><td>Works when `wb-guestd` is dead</td><td class="partial">X31 checks</td><td class="no">no</td><td class="partial">untried</td><td class="partial">not tried</td></tr>
+<tr><td>Runs I420's root checks</td><td class="yes">yes</td><td class="yes">when it runs</td><td class="yes">once tried</td><td class="no">system offline</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Only guest root can bind a vsock port below 1024, and a project user took port 1024 while launchd restarted a daemon. Source: X27-vsock-confinement.
+- <Badge text="verified" variant="success" /> The session profile denies `AF_VSOCK` sockets to project users. Source: S13-02-filesystem-profile, "Host-guest socket".
+- <Badge text="verified" variant="success" /> `wb-hostd` connects only to the guest ports in a fixed table, and routes each connection on its port. Source: S04-02-vm-provider, "The host opens every connection".
+- <Badge text="verified" variant="success" /> `wb-guestd`'s listener closes a connection from any CID but the host's. Source: S04-02-vm-provider, "Guest ports below 1024", and `internal/platform/guestsock/guestsock.go`.
+- <Badge text="verified" variant="success" /> `wb-vmd`'s static check refuses console device classes. Source: S04-02-vm-provider, "What only the code keeps out".
+- <Badge text="verified" variant="success" /> I156 decided that `wbadmin` stays disabled, hidden, without a shell and out of `admin`, and the sealing scan checks it. Source: I156, S06-02-image-build, "The `wbadmin` exception".
+- <Badge text="verified" variant="success" /> `wb-dev-vm` relays a local socket to a guest port below 1024. Source: S10-tech-stack, "Test tooling".
+- <Badge text="inferred" variant="note" /> A fresh clone of the sealed image holds what the sealing scan checked, so replacing the system disk ends what a root shell changed there. What it wrote to the data disk stays (T18-data-disk-persistence).
+- <Badge text="assumed" variant="caution" /> That a second root LaunchDaemon on its own port answers while `wb-guestd` is unloaded, stopped or crash-looping. X31-admin-channel (I448) checks it.
+- <Badge text="assumed" variant="caution" /> That recoveryOS accepts a disabled `wbadmin`. I158 would check it, and it is deferred.
+
+## What it unblocks
+
+I420, the data mount's root checks of C09-guest-and-sessions, and the root runs of I296 and I297 that moved there. X31-admin-channel (I448) runs first. The builder issues for `wb-guestroot`, the `wb-hostd` service and `wb vm admin` follow the decision. The spec change also needs one row in S05-03-management-commands and `wb vm admin` in S16-01-filter, "Where", which this pull request leaves to them.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why mark the disk at all.** Every host control already assumes guest root is hostile, so a root shell gains nothing on the host. What it can undo are the guest's own layers: the sealing scan's checks, such as no sudoers entries and no extra admin account, on which the separation of project users in one VM rests. A fresh system disk brings them back.
+
+**Why before rotation is refused.** The first contact of a fresh disk rotates `wbadmin`'s password, and relies on nothing else running in the guest (S15-04-guest-admin, "What first contact relies on").
+
+- **vsock:** the socket between the host and a VM, with ports like TCP. CID is the address of each end. The host's is 2.
+- **LaunchDaemon:** a program that macOS's launchd runs as root at boot, and restarts when it exits.
+- **PTY:** a pseudo-terminal, what a shell needs to behave interactively.
+- **recoveryOS:** the macOS recovery system, booted instead of the installed system.
+- **Cold start:** a boot from scratch, not a restore from saved state.
+
+</details>

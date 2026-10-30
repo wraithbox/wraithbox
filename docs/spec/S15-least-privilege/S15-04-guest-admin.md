@@ -35,6 +35,9 @@ the host, because the asset never leaves its VM.
 `wb-guestadmin` (S04-architecture) does each step below, and only it
 reads or writes `wbadmin/*`.
 
+The admin path for the person at the host's terminal doesn't use
+`wbadmin` or its password (S15-05-admin-path).
+
 ### Build
 
 `wb-guestadmin-build` generates the build password and writes
@@ -130,6 +133,12 @@ in. `wb-guestadmin-cleanup` removes the old disk's item.
 What guest root wrote to the data disk stays through break-glass
 (T18-data-disk-persistence).
 
+The same replacement runs at the next cold start of a VM whose system
+disk the admin path marked (S15-05-admin-path, "Marked"). To look
+inside a VM before its disk is replaced, the person at the host's
+terminal uses the admin path, whose guest end runs apart from
+`wb-guestd`.
+
 ### Refused outside the path
 
 `wb-vmd` refuses provisioning options unless its slot is `build`. That
@@ -139,6 +148,9 @@ bundle under `<data>/images/`. It logs `vmd-provisioning-refused`
 
 `wb-launcher` and `wb-guestadmin` accept only requests whose fields
 are item names in the fixed format of S15-03-access-rules, "Declared access". Each refusal is logged with its rule.
+
+No step of this page goes through `wb-guestroot`'s port, and the admin
+path fetches no `wbadmin/*` item (S15-05-admin-path).
 
 ### Not readable in the image
 

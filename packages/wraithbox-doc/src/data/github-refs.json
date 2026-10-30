@@ -1735,7 +1735,7 @@
 	},
 	"280": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "build(app): team-signed `Wraith Box.app` with `WB_TEAM_ID`, and the team report in `wb setup`",
 		"summary": "S10-02-packaging-and-signing and S17-01-bundle say a development build signed by the developer's own team gets a profile from Xcode, copies it into each helper bundle, and signs with the team's Apple Development…"
 	},
@@ -1831,7 +1831,7 @@
 	},
 	"296": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-guestd: create and recreate project users with their homes",
 		"summary": "wb-guestd must create each project user from the IDs the host kept, recreate the users on a fresh system disk, and give each home on the data disk only to the record with every kept ID (S06-03-image-updates,…"
 	},
@@ -2581,7 +2581,7 @@
 	},
 	"421": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Run 2026-10-26 (V1-M2-walking-skeleton, lane mac)",
 		"summary": "/wave --waves 5 --lane mac --merge"
 	},
@@ -2648,13 +2648,13 @@
 	},
 	"432": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(guestd): create and recreate project users with their homes",
 		"summary": "wb-guestd answers EnsureUsers."
 	},
 	"433": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(app): team-signed Wraith Box.app with WB_TEAM_ID, and the team report in wb setup",
 		"summary": "Adds the team-signed path to app:bundle, and the team report to wb setup."
 	},
@@ -2663,5 +2663,89 @@
 		"state": "open",
 		"title": "test(vmdspawn): TestSpawn reads the log before the started record arrives",
 		"summary": "TestSpawn in packages/wraithbox-go/internal/vmdspawn/vmdspawn_darwin_test.go failed once on the macOS CI runner and passed on the rerun, on a pull request that doesn't touch the package (#433, run 40406194623, attempt…"
+	},
+	"435": {
+		"kind": "issue",
+		"state": "open",
+		"title": "test(vmdspawn): TestSpawnBothSlotsAtOnce can read the log before the started record",
+		"summary": "TestSpawnBothSlotsAtOnce in packages/wraithbox-go/internal/vmdspawn/vmdspawn_darwin_test.go failed once on Go (macos-26), in attempt 1 of https://github.com/wraithbox/wraithbox/actions/runs/40410257984 on #432's head…"
+	},
+	"436": {
+		"kind": "issue",
+		"state": "open",
+		"title": "chore: replace deprecated hdiutil attach with diskutil image attach in app-bundle.sh and the VM test helper",
+		"summary": "mise run app:bundle prints a deprecation warning on the maintainer's Mac:"
+	},
+	"437": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Guest diagnostics: read a guest's own logs from the host without mounting its disk",
+		"summary": "Test code and a developer chasing a failure need a way to see inside a guest, both while it runs and after a failure."
+	},
+	"438": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd keeps running from a replaced bundle: bundle-replaced isn't built, and a same-version replace goes unnoticed",
+		"summary": "During the attended run of #433 (comment on that PR), mise run app:install replaced ~/Applications/Wraith Box.app, a team-signed build, with an ad-hoc build of the same commit."
+	},
+	"439": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Run 2026-10-30 (V1-M2-walking-skeleton, lane mac)",
+		"summary": "/wave --waves 5 --lane mac --merge"
+	},
+	"440": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(briefs): record B228 decision 3, keep nobrowse",
+		"summary": "Records the maintainer's decision on B228-data-disk-followup, decision 3 (the Decision (2026-10-26): comment on #228): keep nobrowse on the data volume."
+	},
+	"441": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(guestd): lock, kill loop and removal of project users",
+		"summary": "wb-guestd locks every project user in memory at start, kills a user's processes with a bounded loop, keeps a cleanup record per kill, stops project processes when the link drops and at start, and removes a project…"
+	},
+	"442": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project users' crontabs survive the kill loop and removal",
+		"summary": "A project user's crontab survives the kill loop and the removal that #297 builds (security review round 1 on #441, finding F1)."
+	},
+	"443": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): refuse policy rules that allow the OAuth token paths",
+		"summary": "Per the Decision (2026-10-16, option B) and Triage comments: a user or repository policy rule that could allow POST /v1/oauth/token on a model API host is a load error."
+	},
+	"444": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): wb-launcher sends wb-diskfmt's process group kill",
+		"summary": "Part of #370."
+	},
+	"445": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-17/S09-09: approvals can't add the GraphQL or OAuth token paths locked in S09-02",
+		"summary": "From the code and security reviews of PR #443 (#259), finding 1 of each."
+	},
+	"446": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(guestd): session helper, PTY and the guest end of wb shell",
+		"summary": "Stacked on #441 (feat/297-guestd-user-lock-removal); merge that first."
+	},
+	"447": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Flaky test: internal/relay TestSendFailure/exit_frame_after_io.EOF on Ubuntu CI",
+		"summary": "Seen while building #303 (PR #446), which doesn't touch internal/relay."
+	},
+	"448": {
+		"kind": "issue",
+		"state": "open",
+		"title": "X31-admin-channel: a root shell from a second guest daemon while wb-guestd is down",
+		"summary": "Can a second root LaunchDaemon in a macOS guest, wb-guestroot, give the host a root shell on a PTY over its own vsock port below 1024, while wb-guestd is dead, wedged or restarting?"
 	}
 }

@@ -12,7 +12,7 @@ boundary.
 **Tests:** C05-credentials-and-store, C09-guest-and-sessions
 
 Briefs: B145-least-privilege, B23-keychain-unsigned, B248-dev-signing,
-B28-image-build
+B28-image-build, B419-admin-path
 
 ![The secret store is outside every Wraith Box process. wb-credset, which wb runs for wb cred, writes, lists and deletes binding secrets in it. wb-proxyd fetches the binding secrets of the VM's sessions and the wrapped CA key, which only the host's hardware key store can sign with. wb-guestadmin writes and fetches the wbadmin passwords, pipes the build password to the build's wb-vmd and to wb-build-ssh, and writes the old and new password to wb-guestd at a VM's first contact. wb-hostd has no store access and passes descriptors on. A VM that runs project code gets placeholders only.](S15-00-least-privilege.svg)
 
@@ -26,6 +26,7 @@ B28-image-build
 | S15-02-secret-store | The store that holds every credential, its backends, and what they guarantee |
 | S15-03-access-rules | The rules for store access, and which process may access which item |
 | S15-04-guest-admin | The guest admin user `wbadmin` and its password, from the build to each VM |
+| S15-05-admin-path | The root shell for the person at the host's terminal, apart from every agent path |
 
 ## Out of scope
 

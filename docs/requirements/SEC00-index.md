@@ -66,6 +66,9 @@ against the adversary of T00-index.
   work VM (T13-new-project-grants). A project whose grants must stay
   apart is set to `placement = isolated`, and `wb-hostd` refuses to
   start another project next to it (S06-04-vms-and-placement).
+  After a person has used the admin path's root shell in a VM, that VM
+  starts no project session until its system disk is replaced
+  (S15-05-admin-path).
 - **SEC09-host-policy: Policy is held on the host.** The guest cannot read or change policy.
   Repository-supplied configuration is ignored unless the user turns on
   the project's `config_trust` (`wb trust`), and can never add

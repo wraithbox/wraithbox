@@ -63,6 +63,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B145-least-privilege | Where are credentials held on the host, and who may reach them? | Decided 2026-10-07: A, the store, with declared access per process |
 | B228-data-disk-followup | Does the host-made data volume stay unencrypted and give freed space back? | Answered 2026-10-26: yes, and yes with conditions. Awaiting decision 3: keep `nobrowse` |
 | B248-dev-signing | Can development builds signed by the developer's own team share Keychain items across an update? | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15: A |
+| B419-admin-path | How does the person at the host's terminal get root in their own guest, apart from every agent path? | Awaiting decision |
 
 ## Order to decide
 

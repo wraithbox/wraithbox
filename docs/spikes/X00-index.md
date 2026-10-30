@@ -45,6 +45,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/sp
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |
 | X29-dev-signing | Keychain access group for development builds | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15 (I248): no Keychain backend for a build without a team signature |
 | X30-installer-trust | Installer refusal of a changed restore image | Open |
+| X31-admin-channel | A root shell from a second guest daemon | Open |
 
 ## Spikes
 
@@ -340,3 +341,11 @@ assumption that v1 work would otherwise build on. They block v1.
   S17-04-restore-and-release rests on the installer's own check
   (SEC12-least-privilege, SEC08-proj-isolation). Found while deciding
   B49-install-upgrade. Tracked in I262.
+- **X31-admin-channel: A root shell from a second guest daemon.**
+  Can `wb-guestroot`, a root LaunchDaemon apart from `wb-guestd` on a
+  vsock port of its own below 1024, give the host a root shell on a PTY
+  while `wb-guestd` is dead, stopped or restarting? Can a project user
+  bind its port while launchd restarts it? The admin path of
+  S15-05-admin-path relies on it (SEC08-proj-isolation,
+  SEC11-root-gains-nothing). Found while drafting B419-admin-path.
+  Needs a VM. Tracked in I448.

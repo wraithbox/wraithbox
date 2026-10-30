@@ -466,3 +466,5 @@ Sigstore
 Bitwarden
 DSSE
 pgrep
+guestroot
+crontabs

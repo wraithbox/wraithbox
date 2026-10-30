@@ -234,7 +234,7 @@ project code has run. The host parses no guest filesystem
   temporary folders of `wbadmin`;
 - launchd jobs outside an allowlist: what macOS ships (`com.apple.*`
   and `amsdstat.plist` in `/Library/LaunchDaemons`), plus
-  `wb-guestd`'s.
+  `wb-guestd`'s and `wb-guestroot`'s (S15-05-admin-path).
 
 So any admin account the build creates is disabled or removed before
 the image is sealed.
