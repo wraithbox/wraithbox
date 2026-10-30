@@ -113,8 +113,9 @@ with stopped, and at most 1024 stopped reports come: each one is a
 frame to the host, and the program can stop and continue itself in a
 loop. A wait status holds one change, and two changes between waits
 read as the second. The helper adds the continued report it missed
-between two stops, and drops a continued report whose stop it missed. Exited or signaled comes last, and the
-pipe then closes. The helper runs as the project user, so `wb-guestd`
+between two stops, and drops a continued report whose stop it missed.
+
+Exited or signaled comes last, and the pipe then closes. The helper runs as the project user, so `wb-guestd`
 reads the reports as guest input (SEC11-root-gains-nothing). A record
 out of form, out of bounds, out of order, or after the last one ends
 the session with the rule `session-helper-report`. A helper that ends
