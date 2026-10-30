@@ -59,7 +59,7 @@ func ownGUIDs(u User) []string {
 func validate(u User) *refusal {
 	field := ""
 	switch {
-	case !projectID(u.ProjectID):
+	case !projectuser.ValidProjectID(u.ProjectID):
 		field = "project_id"
 	case !projectuser.InRange(u.UID):
 		field = "uid"
@@ -79,21 +79,4 @@ func validate(u User) *refusal {
 		return nil
 	}
 	return &refusal{rule: RuleRequestInvalid, attr: field, found: "not in the form wb-hostd allocates"}
-}
-
-// projectIDLen is the length of a project id: 128 bits in hexadecimal
-// (S05-04-naming, "Project id").
-const projectIDLen = 32
-
-// projectID reports whether id is 32 lowercase hexadecimal digits.
-func projectID(id string) bool {
-	if len(id) != projectIDLen {
-		return false
-	}
-	for i := range len(id) {
-		if c := id[i]; (c < '0' || c > '9') && (c < 'a' || c > 'f') {
-			return false
-		}
-	}
-	return true
 }

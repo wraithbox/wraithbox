@@ -84,3 +84,21 @@ func ValidGeneratedUID(s string) bool {
 	}
 	return s[14] == '4' && strings.IndexByte("89AB", s[19]) >= 0
 }
+
+// ProjectIDLen is the length of a project id: 128 bits in hexadecimal
+// (S05-04-naming, "Project id").
+const ProjectIDLen = 32
+
+// ValidProjectID reports whether id is 32 lowercase hexadecimal digits,
+// the form of a project id (S05-04-naming, "Project id").
+func ValidProjectID(id string) bool {
+	if len(id) != ProjectIDLen {
+		return false
+	}
+	for i := range len(id) {
+		if c := id[i]; (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
+}
