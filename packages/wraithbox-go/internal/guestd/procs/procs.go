@@ -93,6 +93,10 @@ type Loops struct {
 
 	// mu makes the loops run one at a time.
 	mu sync.Mutex
+	// stopMu keeps a stop loop and a shell start apart. StopAll holds it
+	// to write, before mu, and HoldStops to read. A kill loop doesn't
+	// take it, so a shell start never waits for another user's kill.
+	stopMu sync.RWMutex
 
 	// oursMu guards ours apart from mu, so Forget doesn't wait for a
 	// loop.
@@ -241,8 +245,8 @@ type StopResult struct {
 	// no stop loop had sent SIGSTOP.
 	AlreadyStopped int
 	Rounds         int
-	// CutShort is set when ctx ended the loop with processes running:
-	// a new connection from the host cancels the link-drop loop.
+	// CutShort is set when ctx ended the loop with processes running,
+	// as when wb-guestd stops during its stop loop at start.
 	CutShort bool
 }
 
@@ -259,6 +263,8 @@ type StopResult struct {
 // AlreadyStopped, and StoppedByUs leaves it out. A process Exclude
 // names is skipped and counted in the log.
 func (l *Loops) StopAll(ctx context.Context, reason string) StopResult {
+	l.stopMu.Lock()
+	defer l.stopMu.Unlock()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	run := &stopRun{l: l, start: l.clock.Now(), already: map[gp.Key]bool{}}
@@ -414,13 +420,16 @@ func (l *Loops) Forget(keys []gp.Key) {
 	}
 }
 
-// Idle waits until no loop runs. A shell start calls it, so a stop
-// loop that a new connection cut short has sent its last SIGSTOP before
-// the shell's processes start (S13-01-process-hardening, "When the link
-// drops").
-func (l *Loops) Idle() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+// HoldStops waits until no stop loop runs, and keeps a new one from
+// starting until release is called. A shell start holds it from before
+// its checks until its helper runs and its POSIX session is known. So
+// the loop of an earlier link drop ends before the shell starts
+// anything, and the loop of a later drop waits, then sees the whole
+// shell (S13-01-process-hardening, "When the link drops"). It doesn't
+// wait for a kill loop.
+func (l *Loops) HoldStops() (release func()) {
+	l.stopMu.RLock()
+	return sync.OnceFunc(l.stopMu.RUnlock)
 }
 
 // Names returns at most MaxNames process names of procs for a log

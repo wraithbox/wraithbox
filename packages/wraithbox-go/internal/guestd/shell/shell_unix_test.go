@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/sessionproc"
@@ -40,6 +41,33 @@ func TestSessionLeader(t *testing.T) {
 		t.Errorf("pid %d, helper %d, session %d, group %d, foreground %d, controlling terminal %v",
 			pid, ppid, sid, pgid, fg, ctty)
 	}
+}
+
+// TestStartHoldsStops: a shell start waits for a running stop loop, and
+// keeps a new one from starting until its helper's POSIX session is
+// known (S13-01-process-hardening, "When the link drops").
+func TestStartHoldsStops(t *testing.T) {
+	h := newHarness(t, "sleep")
+	h.stop.gate = make(chan struct{})
+	h.start(interactive(24, 80))
+	select {
+	case f := <-h.st.out:
+		t.Fatalf("frame %v while a stop loop ran", f)
+	case <-time.After(200 * time.Millisecond):
+	}
+	if sids := h.srv.openSessions(); len(sids) != 0 {
+		t.Fatalf("a helper started while a stop loop ran: %v", sids)
+	}
+	close(h.stop.gate)
+	h.waitOutput("ready")
+	h.stop.mu.Lock()
+	holds, released := h.stop.holds, slices.Clone(h.stop.released)
+	h.stop.mu.Unlock()
+	if holds != 1 || !slices.Equal(released, []int{1}) {
+		t.Errorf("holds %d, open sessions at each release %v; want 1 and [1]", holds, released)
+	}
+	h.send(&terminalv1.ClientFrame{Frame: &terminalv1.ClientFrame_Hangup{Hangup: &terminalv1.Hangup{}}})
+	h.end()
 }
 
 // TestCtrlCAndResize: a Ctrl-C byte reaches the program as SIGINT, and a

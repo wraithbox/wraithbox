@@ -34,9 +34,11 @@ func (t *stubbornTable) Signal(gp.Proc, gp.Signal) error {
 
 func (*stubbornTable) Bootout(context.Context, uint32) error { return nil }
 
-// TestLinkWatchCancelsOnBegin: a new connection cancels the link-drop
-// stop loop that still runs, and the loop reports it was cut short.
-func TestLinkWatchCancelsOnBegin(t *testing.T) {
+// TestLinkWatchRunsToItsBounds: a new connection doesn't end the
+// link-drop stop loop. It runs to its bounds, and a shell start's
+// HoldStops waits for it (S13-01-process-hardening, "When the link
+// drops").
+func TestLinkWatchRunsToItsBounds(t *testing.T) {
 	table := &stubbornTable{stops: make(chan struct{})}
 	results := make(chan procs.StopResult, 1)
 	w := &linkWatch{
@@ -54,15 +56,23 @@ func TestLinkWatchCancelsOnBegin(t *testing.T) {
 	}
 	c2 := w.TagConn(context.Background(), &stats.ConnTagInfo{})
 	w.HandleConn(c2, &stats.ConnBegin{})
+	held := make(chan func(), 1)
+	go func() { held <- w.loops.HoldStops() }()
+	var release func()
 	select {
 	case r := <-results:
-		if !r.CutShort || r.Rounds >= procs.MaxRounds {
-			t.Errorf("result %+v, want cut short", r)
+		if r.CutShort || r.Running == 0 {
+			t.Errorf("result %+v, want the loop run to its bounds", r)
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("the stop loop ran on after a new connection")
+	case release = <-held:
+		t.Fatal("HoldStops returned while the stop loop ran")
+	case <-time.After(15 * time.Second):
+		t.Fatal("the stop loop didn't end at its bounds")
 	}
-	w.loops.Idle()
+	if release == nil {
+		release = <-held
+	}
+	release()
 	if w.dropped(c1) {
 		t.Error("dropped with a new connection up")
 	}
@@ -73,6 +83,5 @@ func TestLinkWatchCancelsOnBegin(t *testing.T) {
 	if !w.dropped(c2) {
 		t.Error("not dropped after the last connection ended")
 	}
-	w.HandleConn(w.TagConn(context.Background(), &stats.ConnTagInfo{}), &stats.ConnBegin{})
 	<-results
 }

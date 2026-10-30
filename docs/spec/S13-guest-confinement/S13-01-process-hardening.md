@@ -44,6 +44,12 @@ services"). When a check still finds a process running after either
 bound, `wb-guestd` logs it with the rule `project-users-stop-incomplete`
 and the processes left, at most 5 of them plus a count.
 
+A link that comes back doesn't end a running loop, which runs to its
+bounds. A shell start waits until no stop loop runs, and no new loop
+starts until the shell's helper runs and its POSIX session is known.
+So no loop stops a shell that starts after it, and a loop that starts
+after a shell sees all of it.
+
 The loop leaves alone the processes of a user whose home a removal
 empties at that moment, when both their user IDs are that user's.
 Those are the removal's own children, which run after its kill loop
