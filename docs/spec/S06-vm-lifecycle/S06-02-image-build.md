@@ -128,8 +128,9 @@ who may write, fetch, or receive it.
 - The password is never in arguments. It is never written to disk
   outside the store, and never in a log, a gRPC message, or an audit
   record.
-- The guest gets it only in the build's SSH session, at the login and
-  on `sudo -S`'s standard input, and at the rotation on `sysadminctl`'s
+- The guest gets it only in the provisioning options through the
+  build's `wb-vmd`, in the build's SSH session, at the login and on
+  `sudo -S`'s standard input, and at the rotation on `sysadminctl`'s
   standard input.
 
 #### No guest disk mounts

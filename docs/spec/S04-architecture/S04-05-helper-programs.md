@@ -122,10 +122,14 @@ host has no route to the guest, so no other process can open it.
 `wb-netd` passes it to `wb-hostd` on its control channel, and
 `wb-hostd` hands it to `wb-launcher` with the start request.
 
-`wb-hostd` refuses the socket when it comes from another VM's
-`wb-netd`, when no build waits for it, or when the message doesn't
-hold exactly one descriptor. It then closes the message's descriptors
-and logs `build-socket-refused`.
+`wb-hostd` reads that message with the checks of
+S07-05-stream-hand-off, "Message form", in the same receiver
+(`fdchan`). It refuses the socket when it comes from another VM's
+`wb-netd`, when no build waits for it, when the message doesn't hold
+exactly one descriptor, or when the descriptor isn't a Unix domain
+`SOCK_STREAM` socket. It then closes the message's descriptors and
+logs `build-socket-refused`. It logs an accepted socket with
+`build-socket-accepted`, the build and the VM generation.
 
 `wb-build-ssh` speaks SSH in its own process, with Go's SSH library
 (`golang.org/x/crypto/ssh`). It doesn't start a program. It doesn't
@@ -143,18 +147,46 @@ Then it:
    socket, and refuses to run with `build-ssh-socket-refused`
    otherwise;
 2. reads one line, the build password, from its standard input;
-3. logs in as `wbadmin` with that password;
+3. logs in as `wbadmin` with that password, offering password
+   authentication only, and not a key, an agent or keyboard-interactive;
 4. starts one session, with no terminal, that runs the install
    commands compiled into it;
 5. writes the password and a newline into that session's standard
-   input, for the guest's `sudo -S`, and closes it;
+   input, for the guest's `sudo -S`, and closes it, so the install
+   commands run under one `sudo -S`;
 6. exits with the session's result.
 
-Every byte it reads from the socket comes from the guest. So the
-session's output is cut to a size fixed in code before it's logged,
-and any copy of the password in it is replaced before the line is
-written. `wb-build-ssh` never writes the password to its log, its
-arguments or its environment.
+#### Deadlines
+
+Go's SSH library doesn't set a deadline on a socket it didn't dial. So
+`wb-build-ssh` sets its own, and each ends the run with its rule:
+
+| Limit | Time | Rule |
+|---|---|---|
+| Handshake and login, from the start | 30 s | `build-ssh-login-timeout` |
+| No byte from the guest during the session | 2 minutes | `build-ssh-idle-timeout` |
+| The whole session | 15 minutes | `build-ssh-deadline` |
+
+It reads at most 1 MiB of session output in total. More ends the run
+with `build-ssh-output-limit`. The build fails on each of these
+(S15-04-guest-admin, "The build's SSH session").
+
+#### What reaches the log
+
+Every byte it reads from the socket comes from the guest.
+
+- **Session output.** `wb-build-ssh` replaces each copy of the
+  password in the whole output stream, and carries a partial match at
+  the end of one read into the next. Only then does it cut each line
+  to a fixed length and write it to its log.
+- **Other guest strings.** The server version, the disconnect text and
+  the error text of the SSH library are escaped and cut as
+  S07-02-packet-path, "Events and rate limits", says, and the password
+  is replaced in them too.
+- **The banner.** It is discarded and never logged.
+
+`wb-build-ssh` never writes the password to its log, its arguments or
+its environment.
 
 ## Decisions
 

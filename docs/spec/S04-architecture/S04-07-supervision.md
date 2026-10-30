@@ -146,9 +146,13 @@ A new `wb-netd` gets the same start as the first one:
 - the effective policy;
 - the VM's synthetic name mapping and its counts ("What a restart
   keeps", below);
-- a new hand-off socket to `wb-proxyd`.
+- a new hand-off socket to `wb-proxyd`, except for the build VM, whose
+  `wb-netd` has none.
 
 The guest keeps its lease, and its cached DNS answers still work.
+
+`wb-hostd` never restarts the build VM's `wb-netd`. When it exits, the
+image build fails with its exit reason (S07-18-build-network).
 
 `wb-hostd` keeps its copy of each VM's packet transport descriptor only
 to hand it to a new `wb-netd`. It holds the copy in a type that has no

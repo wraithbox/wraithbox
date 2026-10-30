@@ -54,8 +54,9 @@ address outside the range, also close VM A's hand-off socket, and
 - Block the accounting record of a wildcard name for more than 100 ms,
   and see the name refused.
 - From `wb-hostd`, send hand-off messages with an older generation, a
-  VM that isn't a VM slot, and a datagram with two descriptors, and see
-  each refused. An equal generation replaces the old socket and closes
+  VM that isn't a VM slot, the build VM of a running image build, and a
+  datagram with two descriptors, and see each refused with
+  `handoff-socket-refused`. An equal generation replaces the old socket and closes
   its streams.
 - Change the effective policy, and see it reach `wb-netd` only after
   `wb-proxyd` has acknowledged it.
