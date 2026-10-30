@@ -127,7 +127,7 @@ func StartHelper(spec HelperSpec) (*os.Process, error) {
 // caller reaps it with Wait, never with os.Process.Wait.
 func StartProgram(spec ProgramSpec) (int, error) {
 	attr := &syscall.SysProcAttr{Setpgid: !spec.Foreground, Foreground: spec.Foreground, Ctty: 0}
-	pid, err := syscall.ForkExec(spec.Path, spec.Args, &syscall.ProcAttr{
+	pid, err := syscall.ForkExec(spec.Path, spec.Args, &syscall.ProcAttr{ //nolint:gosec // G204: the helper passes the fixed /bin/zsh -l, and no shell parses the arguments
 		Env: spec.Env, Files: []uintptr{0, 1, 2}, Sys: attr,
 	})
 	if err != nil {

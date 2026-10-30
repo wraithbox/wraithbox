@@ -23,12 +23,12 @@ type System struct{}
 // and keeps those with uid as their real or effective user ID. A
 // process gone in between, and a zombie, are left out.
 func (System) ByUID(uid uint32) ([]Proc, error) {
-	ents, err := os.ReadDir(procRoot)
+	entries, err := os.ReadDir(procRoot)
 	if err != nil {
 		return nil, fmt.Errorf("sessionproc: read %s: %w", procRoot, err)
 	}
 	var out []Proc
-	for _, e := range ents {
+	for _, e := range entries {
 		pid, err := strconv.ParseInt(e.Name(), 10, 32)
 		if err != nil || pid < 1 {
 			continue

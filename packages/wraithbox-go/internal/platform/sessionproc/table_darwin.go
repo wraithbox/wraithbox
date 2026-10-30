@@ -33,7 +33,7 @@ func (System) ByUID(uid uint32) ([]Proc, error) {
 		if err != nil {
 			return nil, fmt.Errorf("sessionproc: getsid %d: %w", p.PID, err)
 		}
-		out = append(out, Proc{PID: p.PID, Start: p.Start, UID: p.UID, RUID: p.RUID, SID: int32(sid), Name: p.Name})
+		out = append(out, Proc{PID: p.PID, Start: p.Start, UID: p.UID, RUID: p.RUID, SID: PID(sid), Name: p.Name})
 	}
 	return out, nil
 }

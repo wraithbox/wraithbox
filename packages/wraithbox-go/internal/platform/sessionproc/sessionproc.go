@@ -17,6 +17,7 @@ package sessionproc
 
 import (
 	"errors"
+	"math"
 	"os"
 
 	gp "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestprocs"
@@ -136,6 +137,16 @@ type Proc struct {
 
 // Key returns p's guestprocs.Key, which the stop loop keeps.
 func (p Proc) Key() gp.Key { return gp.Key{PID: p.PID, Start: p.Start} }
+
+// PID returns n, a process or session ID, as an int32, and 0, which
+// names no process, when n is outside 1..MaxInt32. Callers refuse a PID
+// below 2.
+func PID(n int) int32 {
+	if n < 1 || n > math.MaxInt32 {
+		return 0
+	}
+	return int32(n)
+}
 
 // Table lists a user's processes with their POSIX session IDs, and
 // kills one. *System implements it. Tests pass a fake.

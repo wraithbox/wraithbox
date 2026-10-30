@@ -482,3 +482,12 @@ DSSE
 pgrep
 guestroot
 crontabs
+sessionproc
+ctty
+setctty
+getconf
+logname
+pgrp
+ppid
+tcgetpgrp
+waitstatus
