@@ -8,6 +8,7 @@ toolchain prefix, the guest admin password, and the session lifecycle.
 S06-03-image-updates ("Creation"),
 S06-05-disks ("Mounting the data volume"),
 S06-06-devices-and-warm-start ("Time and sleep"),
+S06-08-projects-and-sessions ("Removing a home"),
 S06-09-session-lifecycle,
 S06-10-leftover-processes,
 S06-12-guest-agent ("Update at start"),
@@ -31,6 +32,12 @@ S13-guest-confinement, S15-04-guest-admin
   `FuzzDirectoryRecord` in `internal/platform/guestusers`: guest root can
   write the values, and an accepted record keeps the bounds on its
   values and their count (S06-03-image-updates, "Creation").
+- The parser of a cleanup record file in `wb-guestd`,
+  `FuzzCleanupRecordFile` in `internal/guestd/cleanup`: guest root can
+  write the records' directory, and an accepted record has a kill ID
+  other than 0, a project ID of its form and a count of at most 1001,
+  and formats back to the same bytes (S06-10-leftover-processes, "Kill
+  IDs and records").
 
 ## Conformance
 
@@ -219,6 +226,117 @@ project users, in `conformance/guestusers`:
 - `TestEnsureKeepsAndRefuses`: `EnsureUsers`' code, with every write
   refused, keeps each user, and refuses one with another
   `GeneratedUID` with `project-user-conflict`.
+
+### Locking, killing and removing
+
+Spec: S06-08-projects-and-sessions ("Removing a home"),
+S06-10-leftover-processes, S13-01-process-hardening ("Locked users",
+"When the link drops", "Per-user launchd services"),
+SEC08-proj-isolation, SEC11-root-gains-nothing.
+
+Unit tests of the loops in `internal/guestd/procs`, with a fake process
+table and clock:
+
+- `TestKillClean`, `TestKillBootsOutWithNoProcess`: a kill ends every
+  process whose UID or real UID is the user's, and no other, and runs
+  `launchctl bootout` at least once.
+- `TestKillRespawn`: a KeepAlive agent that launchd starts again is
+  ended in a later round.
+- `TestKillRoundBound`, `TestKillTimeBound`, `TestKillCap`: a process
+  that survives is reported after 10 rounds or 30 seconds, logged with
+  `project-user-kill-incomplete`, at most 5 names escaped and cut, and a
+  count capped at 1001.
+- `TestKillListError`, `TestKillCanceled`, `TestKillZombie`: a process
+  table that can't be read counts as 1001 left, a canceled kill as at
+  least one, and a zombie as none.
+- `TestStopAll`, `TestStopAllAgain`: the stop loop stops every running
+  process of the project range, and not root's or `nobody`'s. It
+  records the ones it stopped itself, apart from those already stopped.
+- `TestStopAllBound`, `TestStopAllListError`: a process that stays
+  running is logged with `project-users-stop-incomplete`.
+
+Unit tests of the cleanup records in `internal/guestd/cleanup`:
+`TestFormatParse`, `TestParseRefuses` and `TestFileName` (one format,
+canonical numbers, the bounds), `TestStoreWriteList` (one record per
+user, the newest), `TestStoreListSkips` (a bad file is logged and
+skipped), `TestStoreOpenRefuses` (a records' directory that isn't a directory of
+root's with mode 700 and no special bit, or opens through a link, is
+refused with `cleanup-record-dir`) and `TestStoreWriteFails`.
+
+Unit tests of the lock and the removal in `internal/guestd/users`, with
+a fake directory, volume root, kill loop and child:
+
+- `TestLocks`: every user is locked at start, only an unlock of a known
+  user unlocks it, and a kill locks it again.
+- `TestRemoveKnown`: a removal kills, empties the home as the user,
+  removes it, disables and hides the record and gives it the shell
+  `/usr/bin/false`, in that order. The record stays, `EnsureUsers`
+  refuses the user afterwards, and a second removal answers removed.
+- `TestRemoveAfterRestart`, `TestRemoveAfterDiskSwap`: with nothing
+  known, a record with the request's IDs and home, or with no record a
+  home the UID owns, is removed.
+- `TestRemoveRefuses`, `TestRemoveRootCheck`: a request out of form, a
+  known user of another project, a record or home of another UID, a
+  failed directory read and a root off the data mount are refused before
+  any kill or child, each logged with its rule.
+- `TestRemoveHomeChecks`: a home that is a link, a file or another
+  UID's starts no child, and retires nothing.
+- `TestRemoveProcessesLeft`: with processes left, no child starts and
+  nothing else changes.
+- `TestRemoveChild`, `TestRemoveChildDeadline`: a child that didn't
+  start, or ran past its 15 seconds, refuses with
+  `project-home-child-failed` and retires nothing. A home the child
+  couldn't empty stays, logged with `project-home-left`.
+- `TestRemoveRetireFails`, `TestRemoveRunning`: a failed retirement
+  refuses, and a removal, `EnsureUsers` or unlock of a user whose
+  removal runs is refused with `project-user-removal-running`.
+
+On the guest's own file system, in `internal/platform/guestusers`:
+`TestRootRmdir`, `TestDirWriteRead`, `TestDirNames`, `TestDirReadRefuses`
+(a link, a FIFO, a directory or a file over the cap isn't read),
+`TestRootOpenDirLink` and `TestEmptyHomeRefuses`. In
+`internal/platform/guestprocs`, `TestListsOwnProcess` and `TestSignal`
+(a PID below 2, or one whose start time changed, gets no signal).
+
+Over a socket pair, in `internal/guestd`, each read by `wb-hostd`'s own
+check of the answer where it has one:
+
+- `TestUnlockUserRPC`: an unknown user stays locked with
+  `project-user-unknown`.
+- `TestKillUserRPC`, `TestKillUserLeft`: the answer and the cleanup
+  record hold the kill's result.
+- `TestKillUserRefused`: a kill ID of 0, a project ID out of form, a UID
+  out of range (`guestd-kill-invalid`) and a known user of another
+  project (`project-user-unknown`) are refused before any kill.
+- `TestKillUserRecordRefused`: a record that can't be kept, before the
+  data mount or in a directory guest root left owned by a user, fails
+  the call with its rule.
+- `TestRemoveUserRPC`, `TestRemoveUserNotRemoved`: a removal answers
+  removed, or processes left, or refused with the data mount check's
+  rule.
+- `TestLinkDropStops`: the end of the host's connection runs the stop
+  loop.
+
+As root in the guest, in `conformance/guestusers`, each only with its
+variable naming the UID of a project user it may end:
+
+- `TestKillUser` (`WB_CONFORMANCE_KILL_UID`): one kill ends a KeepAlive
+  LaunchAgent, a `nohup` process and a process in its own session, and
+  none comes back.
+- `TestRemoveUser` (`WB_CONFORMANCE_REMOVE_UID`): a removal removes the
+  home with a file the user made in it, keeps the record, and
+  `pwpolicy -authentication-allowed` reports the account disabled.
+
+With the work VM (needs-vm, needs-host), by hand:
+
+- `kill -9` of `wb-guestd` with a session running: the new process
+  stops the project users' processes before it serves.
+- A link drop with a session running stops its processes.
+- `wb project rm` of a project whose home holds a file owned by root:
+  the home stays, logged with `project-home-left`, and the removal is
+  answered removed.
+- A system disk swap with a removed project: the retired record is gone
+  with the old system disk, and the home is still gone.
 
 ### The toolchain prefix
 

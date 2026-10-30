@@ -65,7 +65,14 @@ endpoint") decide how a project user is kept from posing as
 
 #### What it does
 
-- It creates, locks, and removes project users.
+- It creates and locks project users (S13-01-process-hardening,
+  "Locked users"). It removes a project user's home, and keeps its
+  record, locked and disabled (S06-08-projects-and-sessions, "Removing a
+  home").
+- It kills a project user's processes, and keeps the result as a
+  cleanup record (S06-10-leftover-processes). It stops every project
+  user's processes when the link drops and when it starts
+  (S13-01-process-hardening, "When the link drops").
 - It runs commands as a project user, with:
   - a PTY or pipes;
   - a sanitized environment: an explicit allowlist, with placeholders

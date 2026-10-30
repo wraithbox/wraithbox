@@ -31,6 +31,15 @@ When the host-guest socket drops, `wb-guestd` stops every process of
 every project user in the VM. It repeats that in a loop until none is
 left running, so no session runs on without host session control.
 
+The stop loop sends `SIGSTOP` to every process whose user ID is in the
+project users' range, 10000 to 999,999,999. A new `wb-guestd` knows no
+user yet, so the loop goes by the range. The range
+leaves out root, the system accounts and `nobody`. The loop has the kill
+loop's bounds, at most 10 rounds and 30 seconds ("Per-user launchd
+services"). When a check still finds a process running after either
+bound, `wb-guestd` logs it with the rule `project-users-stop-incomplete`
+and the processes left, at most 5 of them plus a count.
+
 It records which processes were already stopped, such as a `claude`
 stopped with job control. When the link returns:
 
@@ -45,6 +54,19 @@ holds, stay stopped until that user's processes are killed.
 A new `wb-guestd` process never takes over the sessions of an earlier
 one. A VM with a session is never saved for idleness. A restore then
 never has a session to resume.
+
+### Locked users
+
+A locked project user can't run anything new: while a user is locked,
+`wb-guestd` doesn't start a process as it, except the child that empties its
+home in a removal (S06-08-projects-and-sessions, "Removing a home").
+
+The lock is in `wb-guestd`'s memory only. Every project user starts
+locked, and only `UnlockUser`, for a session start, unlocks one.
+`UnlockUser` refuses a user `wb-guestd` hasn't made or checked since it
+started, and one whose removal runs. A kill and a removal lock the user
+again. So a new `wb-guestd` process starts with every user
+locked, and fails closed without stored state.
 
 ### When a session's client goes
 

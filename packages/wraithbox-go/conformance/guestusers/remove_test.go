@@ -94,7 +94,7 @@ func running(t *testing.T, uid uint32) []gp.Proc {
 // TestKillUser: the kill loop ends every process of the user, a
 // KeepAlive LaunchAgent, a nohup process and one in its own session
 // among them, in one call, and none comes back (S06-10-leftover-processes;
-// S13-01-process-hardening, "The kill loop"; SEC08-proj-isolation). It
+// S13-01-process-hardening, "Per-user launchd services"; SEC08-proj-isolation). It
 // ends the user's session: run it only with WB_CONFORMANCE_KILL_UID
 // set.
 func TestKillUser(t *testing.T) {

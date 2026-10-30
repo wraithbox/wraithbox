@@ -64,8 +64,21 @@ wbhomes
 guesttools
 guestupdate
 guestusers
+guestprocs
+procs
 
 # Virtualization, networking and OS facilities
+asuser
+bootouts
+disableuser
+eproc
+euid
+nohup
+pcred
+pwpolicy
+renameat
+ruid
+zomb
 execve
 libexec
 fstype
@@ -362,6 +375,7 @@ smol
 unifont
 
 # Engineering jargon the dictionaries lack
+respawn
 stdlib
 startswith
 subpackages
