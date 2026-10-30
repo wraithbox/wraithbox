@@ -1,14 +1,14 @@
 ---
 title: Does the host-made data volume stay unencrypted and give freed space back?
-description: "Encryption stays off and the confined format works. Freed space goes back to the host only at each unmount or mount while wb-guestd mounts the volume nobrowse. Decided 2026-10-26: keep nobrowse."
+description: "Encryption stays off and the confined format works. Freed space goes back to the host only at each unmount or mount while wb-guestd mounts the volume nobrowse. Decided 2026-10-26: A, keep nobrowse."
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-26: yes, and yes with conditions. Decided 2026-10-26: keep `nobrowse`.** The decision is in the I228 comment that starts `Decision (2026-10-26):`. Source: X08-data-disk (I228). Changes S06-05-disks ("Disks") and S06-13-data-disk-format. Earlier brief: B22-data-disk. Follow-ups: I424 (two conformance checks of C09-guest-and-sessions), I425 (a macOS 27.2 guest).
+**Answered 2026-10-26: yes, and yes with conditions. Decided 2026-10-26: A, keep `nobrowse`.** The decision is in the I228 comment that starts `Decision (2026-10-26):`. Source: X08-data-disk (I228). Changes S06-05-disks ("Disks") and S06-13-data-disk-format. Earlier brief: B22-data-disk. Follow-ups: I424 (two conformance checks of C09-guest-and-sessions), I425 (a macOS 27.2 guest).
 
 <Aside type="tip" title="What we learned">
-**Encryption stays off, and the confined format works: yes. Space goes back: yes, with conditions.** While `wb-guestd` mounts the volume `nobrowse`, deleted data goes back to the host only at the next unmount or mount: a clean shutdown or a cold boot, not a restore from saved state. Decided 2026-10-26: keep `nobrowse`, as the spec says today. Dropping it brings the space back within about 20 s.
+**Encryption stays off, and the confined format works: yes. Space goes back: yes, with conditions.** While `wb-guestd` mounts the volume `nobrowse`, deleted data goes back to the host only at the next unmount or mount: a clean shutdown or a cold boot, not a restore from saved state. Decided 2026-10-26: A, keep `nobrowse`, as the spec says today. Dropping it brings the space back within about 20 s.
 </Aside>
 
 <figure class="wb-figure">
@@ -102,7 +102,7 @@ Mount with `nosuid,nodev,owners`, and drop `nobrowse` from the check before ever
 
 ## What it unblocks
 
-No issue waits on decision 3, because the spec and the code already do A. Choosing B opens a change to S06-05-disks and `wb-guestd`. The two conformance checks of C09-guest-and-sessions that fail on a real guest, `TestSetuidIgnored` and `TestRemountRefused`, are fixed in I424 either way. I425 repeats the encryption check on macOS 27.2. I429 keeps Spotlight off the volume either way.
+Decision 3 was decided A on 2026-10-26, and the spec and the code already do A, so no issue follows from it. The two conformance checks of C09-guest-and-sessions that fail on a real guest, `TestSetuidIgnored` and `TestRemountRefused`, are fixed in I424 either way. I425 repeats the encryption check on macOS 27.2. I429 keeps Spotlight off the volume either way.
 
 <details>
 <summary>Details and glossary</summary>
