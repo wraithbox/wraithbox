@@ -128,8 +128,8 @@ isn't `build` refuses them and logs `vmd-provisioning-refused`
 X08-data-disk). `wb-launcher` has two fixed entries,
 `wb-diskfmt-work` and `wb-diskfmt-isolated`. Each has that VM's bundle
 as its profile parameter, so the shim learns which bundle to format
-without arguments. Each has an instance cap of one, and starts the
-shim as the leader of a new process group, so that its parent can kill
+without arguments. Each has an instance cap of one, and its shim is
+started as the leader of a new process group, so that its parent can kill
 the shim with the `diskutil` it runs (S06-13-data-disk-format, "When
 `wb-diskfmt` doesn't exit"). On hosts without
 `wb-launcher`, `wb-hostd` starts the entry itself, with the entry's
@@ -222,15 +222,31 @@ on the request channel, in one fixed-format request that names the
 entry and the instance ID (S04-07-supervision, "Who starts whom").
 
 - **Refused.** `wb-launcher` refuses a kill for an entry other than the
-  `wb-diskfmt` entries, and for an instance of that entry it didn't
-  start. It logs the refusal with the rule `launcher-kill-refused`.
+  `wb-diskfmt` entries, and for an instance ID it never returned. It
+  signals nothing, and logs the refusal with the rule
+  `launcher-kill-refused`.
+- **Already exited.** For an instance it started and has reaped, it
+  signals nothing. Instance IDs aren't reused (S04-07-supervision, "Who
+  starts whom"), so that ID can't name a newer shim.
 - **Sent.** Otherwise, while it hasn't reaped the shim, it sends
   `SIGKILL` to the shim's process group and to the shim, and logs the
   decision with the rule `launcher-kill`. The shim's ID, which is also
   the group's ID, isn't reused before that reap.
-- **The answer.** Its answer says whether the kill was sent. When it
-  wasn't, it says why: the shim had already exited, or the signal
-  failed. The exit report follows, as for any exit.
+- **The answer.** Its answer is one of: sent, already exited, refused
+  with its rule, or the signal failed. The exit report may come before
+  the answer or after it, and `wb-hostd` matches the two by instance ID.
+
+Where `wb-launcher` writes the lines for `launcher-kill` and
+`launcher-kill-refused` is decided in M3.11. They don't go only
+through `wb-hostd`, so the `wb-hostd` that asked for a kill can't hide
+it.
+
+`wb-hostd` bounds its wait for the answer and for the exit report. No
+answer in time, or the end of the request channel, counts as a kill
+that failed. `wb-hostd` then logs `data-disk-shim-exit` with that
+outcome, as it does when its own kill fails today. Each outcome,
+the launcher's rule included, is in that line
+(NFR06-explained-refusals).
 
 Without `wb-launcher`, `wb-hostd` is the parent, and sends the kill
 itself under the same gate.

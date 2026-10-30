@@ -270,9 +270,9 @@ while all of these hold:
   the installed bundle, never under `<config>`, `<data>` or `<logs>`.
   It checks that when it starts.
 - **Kills only its own `wb-diskfmt`.** A kill request names an
-  instance of a `wb-diskfmt` entry that it started, and it signals that
-  instance's process group only before it reaps it (S04-04-vm-processes,
-  "`wb-diskfmt`'s kill").
+  instance ID of a `wb-diskfmt` entry that it started, never a process
+  ID. It signals that shim and its process group only before it reaps
+  the shim (S04-04-vm-processes, "`wb-diskfmt`'s kill").
 - **Instance caps.** Each program has an instance cap
   (SEC13-bounded-resources). The `wb-download` entries also have a file
   size limit.
