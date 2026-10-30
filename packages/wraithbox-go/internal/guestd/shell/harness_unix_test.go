@@ -62,13 +62,34 @@ func (f *fakeUsers) Hold(_ users.User, start func()) error {
 	return nil
 }
 
-// fakeStopper records what the shell forgets.
+// fakeStopper records what the shell forgets, and the shell's holds
+// against a stop loop. A HoldStops waits for gate when it is set, as for
+// a running stop loop. At each release it records the count of open
+// shells whose POSIX session is known.
 type fakeStopper struct {
-	mu     sync.Mutex
-	forgot []gp.Key
+	gate     chan struct{}
+	sessions func() map[int32]bool
+
+	mu       sync.Mutex
+	forgot   []gp.Key
+	holds    int
+	released []int
 }
 
-func (*fakeStopper) Idle() {}
+func (f *fakeStopper) HoldStops() func() {
+	f.mu.Lock()
+	f.holds++
+	f.mu.Unlock()
+	if f.gate != nil {
+		<-f.gate
+	}
+	return func() {
+		n := len(f.sessions())
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.released = append(f.released, n)
+	}
+}
 
 func (f *fakeStopper) Forget(keys []gp.Key) {
 	f.mu.Lock()
@@ -148,6 +169,7 @@ func newHarness(t *testing.T, mode string) *harness {
 		Credential: func(users.User) *sessionproc.Cred { return nil },
 		KillDelay:  500 * time.Millisecond,
 	})
+	h.stop.sessions = h.srv.openSessions
 	t.Cleanup(func() { t.Logf("guestd log:\n%s", h.log) })
 	return h
 }

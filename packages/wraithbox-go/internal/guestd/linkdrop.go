@@ -21,10 +21,9 @@ const linkDropGrace = 2 * time.Second
 // the last one ends: with the link down, no project user's process runs
 // on (S13-01-process-hardening, "When the link drops";
 // SEC08-proj-isolation). The loop runs on its own goroutine, so the
-// connection's close doesn't wait for it. A new connection cancels a
-// loop that still runs, so it can't stop the processes of a shell that
-// starts on the new link, and a shell start waits until the cancelled
-// loop has ended (procs.Loops.Idle).
+// connection's close doesn't wait for it. A new connection doesn't end
+// it: the loop runs to its bounds, and a shell start waits for it
+// (procs.Loops.HoldStops).
 type linkWatch struct {
 	loops *procs.Loops
 	log   *slog.Logger
@@ -33,10 +32,6 @@ type linkWatch struct {
 
 	mu    sync.Mutex
 	conns int
-	// cancel cancels the running stop loop, and is nil when none runs.
-	// gen tells a loop's end from a later loop's start.
-	cancel context.CancelFunc
-	gen    int
 }
 
 // connKey is the context key of a connection's connState.
@@ -58,20 +53,14 @@ func (w *linkWatch) TagConn(ctx context.Context, _ *stats.ConnTagInfo) context.C
 	return context.WithValue(ctx, connKey{}, &connState{ended: make(chan struct{})})
 }
 
-// HandleConn counts a connection's begin and end. A begin cancels a
-// running stop loop, and the last end starts one.
+// HandleConn counts a connection's begin and end. The last end starts
+// a stop loop.
 func (w *linkWatch) HandleConn(ctx context.Context, s stats.ConnStats) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	switch s.(type) {
 	case *stats.ConnBegin:
 		w.conns++
-		if w.cancel != nil {
-			w.log.LogAttrs(ctx, slog.LevelInfo, "host link back",
-				slog.String("decision", "cancel-stop-loop"))
-			w.cancel()
-			w.cancel = nil
-		}
 		return
 	case *stats.ConnEnd:
 		w.conns--
@@ -85,21 +74,9 @@ func (w *linkWatch) HandleConn(ctx context.Context, s stats.ConnStats) {
 		return
 	}
 	w.log.LogAttrs(ctx, slog.LevelWarn, "host link dropped", slog.String("decision", "stop-project-users"))
-	if w.cancel != nil {
-		w.cancel()
-	}
-	loopCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	w.cancel = cancel
-	w.gen++
-	gen := w.gen
+	loopCtx := context.WithoutCancel(ctx)
 	go func() {
 		res := w.loops.StopAll(loopCtx, "link-drop")
-		w.mu.Lock()
-		if w.gen == gen {
-			w.cancel = nil
-		}
-		w.mu.Unlock()
-		cancel()
 		if w.done != nil {
 			w.done(res)
 		}

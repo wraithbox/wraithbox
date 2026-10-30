@@ -40,8 +40,9 @@ type Users interface {
 // Stopper is the stop loop of S13-01-process-hardening, "When the link
 // drops". *procs.Loops implements it.
 type Stopper interface {
-	// Idle returns once no stop loop runs.
-	Idle()
+	// HoldStops waits until no stop loop runs, and keeps a new one from
+	// starting until release is called.
+	HoldStops() (release func())
 	// Forget drops processes from the set the stop loop stopped.
 	Forget(keys []gp.Key)
 }

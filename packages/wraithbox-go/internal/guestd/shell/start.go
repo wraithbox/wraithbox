@@ -54,9 +54,13 @@ type childEnds []*os.File
 // start opens the PTY or the pipes and starts the helper, and returns
 // the rule of a failure, or "".
 func (s *session) start(ctx context.Context, cfg Config) string {
-	// A stop loop that a new connection cancelled may still be ending.
-	// Wait for it, so it can't stop what this shell starts.
-	cfg.Stopper.Idle()
+	// The stop loop of an earlier link drop may still run: wait for it,
+	// so it can't stop what this shell starts. A later drop's loop waits
+	// until the helper's POSIX session is known, so the shell's kill and
+	// the loop's rounds both see the helper (S13-01-process-hardening,
+	// "When the link drops").
+	release := cfg.Stopper.HoldStops()
+	defer release()
 	cred := s.credential(cfg)
 	child, err := s.open(cred)
 	if err != nil {
