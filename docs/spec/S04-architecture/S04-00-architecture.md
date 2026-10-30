@@ -54,6 +54,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | `wb-download` | Go | user, one run per download for an image build, started through `wb-launcher` (on macOS); instance cap one per entry, then exits | nothing | none | Confine itself, then fetch over HTTPS, from the hosts compiled into its entry only, a macOS restore image or a Claude Code release into files `wb-hostd` opened for it (S17-03-downloads) |
 | `wb-askpass` | Go | user, started by `ssh` for the login prompt | one line of `ssh`'s standard input, until it prints it | none | Print the first line of its standard input to `ssh` (S15-least-privilege) |
 | `wb-guestd` | Go | root / SYSTEM inside the guest | nothing | n/a (runs in the guest) | Users, PTY exec, git transport (S06-vm-lifecycle) |
+| `wb-guestroot` | Go | root inside the guest, a daemon apart from `wb-guestd` | nothing | n/a (runs in the guest); its own port below 1024, which `wb-hostd` opens only for `wb vm admin` | A root shell on a PTY for the person at the host's terminal (S15-05-admin-path) |
 
 Native user-interface helpers (notifications with actions, later a tray
 or menu-bar item) are separate small processes per platform. They render

@@ -508,4 +508,25 @@ In `internal/hostd/guestconn`, with a fake `wb-guestd`:
 In `internal/hostd/vm`, `TestOnEnded`: each run's end reaches the kill
 tracker with its cause.
 
+### The admin path
+
+Spec: S15-05-admin-path.
+
+- `wb vm admin` without a terminal, and with a wrong answer to its
+  question, is refused with `admin-no-terminal` and
+  `admin-not-confirmed`, and `wb-hostd` opens no connection.
+- With a session running, and before first contact's rotation has
+  ended, `wb-hostd` refuses with `admin-sessions` and
+  `admin-before-rotation`.
+- After the mark, a session start, a debug shell and `wb vm suspend`
+  are refused with `vm-admin-used`, also after a `wb-hostd` crash
+  between the mark and the connection. The next cold start replaces the
+  system disk and clears the mark.
+- An ask for `wb-guestroot`'s port from anything but the admin service
+  is refused with `admin-port-unrequested`.
+- In a guest, a project user can't bind `wb-guestroot`'s port while it
+  restarts, and a connection from the guest's own CID is closed. The
+  root shell opens while `wb-guestd` is stopped.
+- Each use writes the two 5019 events.
+
 **Status:** Draft
