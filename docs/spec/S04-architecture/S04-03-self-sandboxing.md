@@ -269,6 +269,10 @@ while all of these hold:
 - **Paths in the bundle.** Its program table holds absolute paths in
   the installed bundle, never under `<config>`, `<data>` or `<logs>`.
   It checks that when it starts.
+- **Kills only its own `wb-diskfmt`.** A kill request names an
+  instance of a `wb-diskfmt` entry that it started, and it signals that
+  instance's process group only before it reaps it (S04-07-supervision,
+  "A kill on request").
 - **Instance caps.** Each program has an instance cap
   (SEC13-bounded-resources). The `wb-download` entries also have a file
   size limit.

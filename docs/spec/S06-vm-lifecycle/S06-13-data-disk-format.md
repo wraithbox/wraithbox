@@ -65,21 +65,31 @@ device it attached.
 
 ### When `wb-diskfmt` doesn't exit
 
-This section holds when `wb-hostd` starts the shim itself, on hosts
-without `wb-launcher` (S04-04-vm-processes, "`wb-diskfmt`").
-
 `wb-diskfmt` leads its own process group, and each `diskutil` it runs
 is in that group. When the exchange has closed and the shim doesn't
-exit in time, `wb-hostd` kills the whole group, so no `diskutil` keeps
+exit in time, the whole group is killed, so no `diskutil` keeps
 running after the shim. A `diskutil` stopped part-way leaves its
 request with the daemon it asked, which finishes or abandons it.
 
-`wb-hostd` sends the kill only while it hasn't reaped the shim. The
-shim's process ID, which is also its group's ID, isn't reused before
-that reap, so the kill can't reach another process group.
+The shim's parent sends the kill, and only while it hasn't reaped the
+shim. The shim's process ID, which is also its group's ID, isn't
+reused before that reap, so the kill can't reach another process
+group. Only the parent's own wait reaps the shim, so only the parent
+knows that the ID is still the shim's.
+
+- **With `wb-launcher`** (macOS, S04-07-supervision, "Who starts
+  whom"), `wb-launcher` is the shim's parent and reaps it. It sends
+  the group kill when `wb-hostd` asks for it on the request channel.
+  `wb-hostd` keeps the wait and decides when to ask. It never signals
+  the shim itself: once it confines itself, its profile denies
+  `signal` to other processes, its children included.
+- **Without `wb-launcher`**, `wb-hostd` starts the shim itself, is its
+  parent, and sends the kill.
 
 After the kill, or a kill that failed, `wb-hostd` logs the rule
-`data-disk-shim-exit`. When the shim hadn't answered the format, the
+`data-disk-shim-exit`. With `wb-launcher`, the launcher's answer tells
+`wb-hostd` whether the kill was sent, and the launcher also logs its own
+decision. When the shim hadn't answered the format, the
 line also names the temporary image, which a device may still be
 attached to. `wb-hostd` doesn't detach that device: only the shim
 attaches and detaches (S04-04-vm-processes, "`wb-diskfmt`"). The device
@@ -89,8 +99,8 @@ attaching it, and its checks guard the device it attaches itself.
 
 Each `diskutil` step has a deadline, but the confined shim can't
 signal `diskutil`, so a `diskutil` that hangs runs past it. The bound
-is `wb-hostd`'s wait for the format's answer, and then the group kill.
-A slow run that keeps to its deadlines gets its answer in time, because
+is `wb-hostd`'s wait for the format's answer, and then the group kill
+by the shim's parent. A slow run that keeps to its deadlines gets its answer in time, because
 the wait is longer than the sum of the deadlines on their longest path.
 
 ### The temporary and final names
@@ -153,6 +163,17 @@ guest-written too. The Virtualization API in `wb-vmd` is the one host
 code that opens them.
 
 ## Decisions
+
+### The shim's parent kills its process group
+
+- **Rejected:** `wb-hostd` signals the group itself, with the group ID
+  the launcher reports. Its confined profile denies `signal`, and it
+  can't tell whether the launcher has reaped the shim, so the ID could
+  name another group by then.
+- **Rejected:** the shim kills its own group on a timer. Its profile
+  has no signal rule, and the kill is for a shim that hangs.
+- **Decided:** I370. `wb-launcher` sends the kill once it starts the
+  shim, and `wb-hostd` asks for it.
 
 ### A host-formatted data disk on an image file
 

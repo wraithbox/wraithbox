@@ -27,6 +27,13 @@ NFR06-explained-refusals).
   program table entry, the instance ID it returned when it started the
   process, and the exit code or the signal. It never restarts anything
   itself.
+- **A program in its own process group.** Only the `wb-diskfmt`
+  entries start their program as the leader of a new process group, so
+  that a kill also stops the `diskutil` it runs
+  (S06-13-data-disk-format, "When `wb-diskfmt` doesn't exit").
+  `wb-launcher` signals that group only while it hasn't reaped the
+  program. The program's ID, which is also the group's ID, isn't reused
+  before that reap.
 - **The programs started for one run** are never restarted: `wb-git`,
   `wb-prover`, `wb-guestadmin`, `wb-build-ssh`, `wb-diskfmt`,
   `wb-release-check` and `wb-download`. `wb-release-check` has an
@@ -58,6 +65,9 @@ acts on its own:
   runs next to the ones a new `wb-hostd` starts. Every per-run program
   ends with the `wb-hostd` that asked for it.
 
+For a program that leads its own process group, `wb-launcher` sends
+both signals to the group, under the same reap gate.
+
 The per-run programs don't hold a control channel, and can't learn
 that `wb-hostd` has gone. `wb-launcher` ends them. On hosts without
 `wb-launcher`, the service manager ends them with `wb-hostd`. That is
@@ -67,6 +77,30 @@ On macOS, launchd also kills the processes left in `wb-hostd`'s process
 group when `wb-hostd` exits (`man launchd.plist`,
 `AbandonProcessGroup`). That is a second layer. The control channel is
 the rule on every host.
+
+### A kill on request
+
+`wb-hostd` keeps the wait for a per-run program's answer, and decides
+when a program that doesn't exit is killed. On macOS it can't send the
+kill. Its profile denies `signal` to other processes, and it isn't
+the parent, so it can't tell whether the program was reaped. So it asks
+`wb-launcher` on the request channel, in one fixed-format request that
+names the program table entry and the instance ID.
+
+- **Refused.** `wb-launcher` refuses a kill for an entry other than the
+  `wb-diskfmt` entries, and for an instance of that entry it didn't
+  start. It logs the refusal with the rule `launcher-kill-refused`.
+- **Sent.** Otherwise, while it hasn't reaped the program, it sends
+  `SIGKILL` to the program's process group and to the program, and
+  logs the decision with the rule `launcher-kill`.
+- **The answer.** Its answer says whether the kill was sent. When it
+  wasn't, it says why: the program had already exited, or the signal
+  failed. The exit report
+  follows, as for any exit. `wb-hostd` logs its own rule after the
+  answer (S06-13-data-disk-format).
+
+Without `wb-launcher`, `wb-hostd` is the parent, and sends the kill
+itself under the same gate.
 
 ### A new `wb-hostd`
 
@@ -271,6 +305,14 @@ That is a residual risk to availability, not to egress
 (T14-shared-proxyd).
 
 ## Decisions
+
+### `wb-launcher` sends the kill for `wb-hostd`
+
+- **Why:** the parent's reap is the only gate that keeps a group ID
+  from naming another group, and a confined `wb-hostd` can't signal.
+- **Rejected:** a kill request for any entry. Only `wb-diskfmt` needs
+  one so far, and a narrower request channel is the stricter choice.
+- **Decided:** I370.
 
 ### VMs stop with `wb-hostd`, for V1
 

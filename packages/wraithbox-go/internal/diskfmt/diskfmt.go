@@ -200,7 +200,8 @@ type Attachment struct {
 // diskutil: its profile has no signal rule (S04-04-vm-processes,
 // "`wb-diskfmt`'s profile"). So a diskutil that hangs isn't stopped by
 // its deadline. The bound is wb-hostd's wait for the answer, and then
-// its kill of wb-diskfmt's process group (S06-13-data-disk-format,
+// the kill of wb-diskfmt's process group by its parent
+// (S06-13-data-disk-format,
 // "When `wb-diskfmt` doesn't exit"). BackingPath runs no program and
 // has no deadline. The deadlines are here, with no OS code, so wb-hostd
 // derives that wait from them on every OS, without linking the macOS

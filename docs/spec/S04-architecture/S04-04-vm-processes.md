@@ -128,7 +128,10 @@ isn't `build` refuses them and logs `vmd-provisioning-refused`
 X08-data-disk). `wb-launcher` has two fixed entries,
 `wb-diskfmt-work` and `wb-diskfmt-isolated`. Each has that VM's bundle
 as its profile parameter, so the shim learns which bundle to format
-without arguments. Each has an instance cap of one. On hosts without
+without arguments. Each has an instance cap of one, and starts the
+shim as the leader of a new process group, so that its parent can kill
+the shim with the `diskutil` it runs (S06-13-data-disk-format, "When
+`wb-diskfmt` doesn't exit"). On hosts without
 `wb-launcher`, `wb-hostd` starts the entry itself, with the entry's
 fixed environment and descriptors, as it starts `wb-vmd`.
 
