@@ -44,11 +44,10 @@ services"). When a check still finds a process running after either
 bound, `wb-guestd` logs it with the rule `project-users-stop-incomplete`
 and the processes left, at most 5 of them plus a count.
 
-A link that comes back doesn't end a running loop, which runs to its
-bounds. A shell start waits until no stop loop runs, and no new loop
-starts until the shell's helper runs and its POSIX session is known.
-So no loop stops a shell that starts after it, and a loop that starts
-after a shell sees all of it.
+When the link comes back, a running loop goes on to its bounds, and a
+shell start waits until no stop loop runs. Then no new loop starts
+until that shell's helper runs and its POSIX session is known. No loop stops a shell that starts after it, and
+a loop that starts after a shell sees the whole shell.
 
 The loop leaves alone the processes of a user whose home a removal
 empties at that moment, when both their user IDs are that user's.
@@ -96,13 +95,22 @@ Then:
    (S06-09-session-lifecycle, "Session helper"). It sends it only to
    those whose effective and real user IDs are both the session's
    project user. It logs any other process in that POSIX session, and
-   leaves it.
+   leaves it. A process table it can't read counts as processes left.
+   The kill repeats while any is left, for at most 10 rounds. When some
+   may still be left after the last round, it logs them with the
+   decision `incomplete`, and the host gets the failure
+   `shell-hangup-kill` in place of an exit.
 3. When the project user has no other session in the VM, a lost one
    included, it then kills every process of that user, in a loop until
    none remain.
 4. Otherwise it logs each process of that user that is in no session's
    POSIX session, with the rule, and leaves it
    (S13-02-filesystem-profile, "Known gaps").
+
+The helper's exit report comes from the project user's process, so it
+doesn't end a session by itself. When processes of the session's POSIX
+session still run after it, `wb-guestd` hangs up and kills them as in
+steps 1 and 2, and then sends the exit.
 
 ### When a project's last session ends
 

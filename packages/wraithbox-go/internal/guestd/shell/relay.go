@@ -52,7 +52,10 @@ func (l *loop) readOutput(f *os.File, stream terminalv1.Stream) {
 // recv reads the host's frames. Input and the close of standard input go
 // to writeInput in order, and the other frames to the loop.
 // The loop drops its copies of frames and end once the stream ended, so
-// recv takes its own.
+// recv takes its own. With inputQueue frames waiting for a program that
+// doesn't read them, recv waits, and the frames behind them wait too: a
+// hangup among them is handled once the queue has room. The end of the
+// stream doesn't wait, and hangs the shell up.
 func (l *loop) recv(stream Stream, frames chan<- *terminalv1.ClientFrame, end chan<- error) {
 	defer close(l.input)
 	for {

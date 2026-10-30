@@ -175,6 +175,7 @@ func alternate(r Report, stopped *bool) []Report {
 			return nil
 		}
 		*stopped = false
+	case ReportStarted, ReportExited, ReportSignaled:
 	}
 	return []Report{r}
 }

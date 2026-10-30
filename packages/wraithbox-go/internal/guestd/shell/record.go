@@ -152,11 +152,11 @@ func (rr *ReportReader) next() (Report, error) {
 	}
 	rr.started = true
 	rr.ended = rep.Final()
-	switch rep.Kind {
-	case ReportStopped:
+	if rep.Kind == ReportStopped {
 		rr.stopped = true
 		rr.stops++
-	case ReportContinued:
+	}
+	if rep.Kind == ReportContinued {
 		rr.stopped = false
 	}
 	return rep, nil
