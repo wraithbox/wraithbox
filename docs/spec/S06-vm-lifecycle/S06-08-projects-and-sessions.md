@@ -45,15 +45,21 @@ Then `wb-guestd`:
    the kill loop (S13-01-process-hardening, "Per-user launchd
    services"). With processes left, it answers how many, changes
    nothing else, and `wb-hostd` asks again later;
-2. removes the entries of the home in a child process that runs as
+2. removes the entries of the home in child processes that run as
    that user, in its own group only, for at most 15 seconds. So it never
-   follows a link the user left with root's rights. A child that didn't
-   start or ran past its deadline refuses the removal with
-   `project-home-child-failed`, and the record stays as it was;
+   follows a link the user left with root's rights. The first gives the
+   user every right on each of its directories, so a directory it set
+   to mode 000 doesn't hide its entries, and the second removes them. A
+   child that didn't start, ran past its deadline, or ended on a signal
+   refuses the removal with `project-home-child-failed`, and the record
+   stays as it was. The stop loop at a link drop leaves the processes
+   of a user under removal alone, so it doesn't stop that child;
 3. removes the home directory itself;
-4. retires the record: `pwpolicy -disableuser`, hidden from the login
-   window, and the shell `/usr/bin/false`. A step that fails refuses
-   the removal, and `wb-hostd` asks again.
+4. retires the record: the shell `/usr/bin/false` first, then
+   `pwpolicy -disableuser` and hidden from the login window. A step
+   that fails refuses the removal, and `wb-hostd` asks again. Because
+   the shell goes first, `EnsureUsers` refuses a record that a failed
+   step left half retired.
 
 What that user can't remove stays, such as a file guest root left
 there. `wb-guestd` logs it with `project-home-left` and still answers

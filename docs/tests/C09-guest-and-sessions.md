@@ -254,6 +254,9 @@ table and clock:
   records the ones it stopped itself, apart from those already stopped.
 - `TestStopAllBound`, `TestStopAllListError`: a process that stays
   running is logged with `project-users-stop-incomplete`.
+- `TestStopAllExclude`: while a removal empties a home, the stop loop
+  leaves a process whose UID and real UID are both that user's running,
+  and stops it again once the removal releases it.
 
 Unit tests of the cleanup records in `internal/guestd/cleanup`:
 `TestFormatParse`, `TestParseRefuses` and `TestFileName` (one format,
@@ -266,11 +269,13 @@ refused with `cleanup-record-dir`) and `TestStoreWriteFails`.
 Unit tests of the lock and the removal in `internal/guestd/users`, with
 a fake directory, volume root, kill loop and child:
 
-- `TestLocks`: every user is locked at start, only an unlock of a known
-  user unlocks it, and a kill locks it again.
+- `TestLocks`, `TestLocksKill`: every user is locked at start, only an
+  unlock of a known user unlocks it, and a kill locks it again. An
+  unlock while the kill runs is refused with
+  `project-user-kill-running`.
 - `TestRemoveKnown`: a removal kills, empties the home as the user,
-  removes it, disables and hides the record and gives it the shell
-  `/usr/bin/false`, in that order. The record stays, `EnsureUsers`
+  removes it, gives the record the shell `/usr/bin/false`, then
+  disables and hides it, in that order. The record stays, `EnsureUsers`
   refuses the user afterwards, and a second removal answers removed.
 - `TestRemoveAfterRestart`, `TestRemoveAfterDiskSwap`: with nothing
   known, a record with the request's IDs and home, or with no record a
@@ -278,18 +283,20 @@ a fake directory, volume root, kill loop and child:
 - `TestRemoveRefuses`, `TestRemoveRootCheck`: a request out of form, a
   known user of another project, a record or home of another UID, a
   failed directory read and a root off the data mount are refused before
-  any kill or child, each logged with its rule.
+  any kill or child, each logged with its rule. A known user of another
+  project stays unlocked.
 - `TestRemoveHomeChecks`: a home that is a link, a file or another
   UID's starts no child, and retires nothing.
 - `TestRemoveProcessesLeft`: with processes left, no child starts and
   nothing else changes.
 - `TestRemoveChild`, `TestRemoveChildDeadline`: a child that didn't
-  start, or ran past its 15 seconds, refuses with
+  start, ended on a signal, or ran past its 15 seconds, refuses with
   `project-home-child-failed` and retires nothing. A home the child
   couldn't empty stays, logged with `project-home-left`.
 - `TestRemoveRetireFails`, `TestRemoveRunning`: a failed retirement
-  refuses, and a removal, `EnsureUsers` or unlock of a user whose
-  removal runs is refused with `project-user-removal-running`.
+  refuses, and `EnsureUsers` refuses the half-retired record. A
+  removal, `EnsureUsers`, kill or unlock of a user whose removal runs
+  is refused with `project-user-removal-running`.
 
 On the guest's own file system, in `internal/platform/guestusers`:
 `TestRootRmdir`, `TestDirWriteRead`, `TestDirNames`, `TestDirReadRefuses`
@@ -308,6 +315,9 @@ check of the answer where it has one:
 - `TestKillUserRefused`: a kill ID of 0, a project ID out of form, a UID
   out of range (`guestd-kill-invalid`) and a known user of another
   project (`project-user-unknown`) are refused before any kill.
+- `TestKillUserDuringRemoval`: a kill and an unlock of a user whose
+  removal runs are refused with `project-user-removal-running`, and the
+  kill boots nothing out.
 - `TestKillUserRecordRefused`: a record that can't be kept, before the
   data mount or in a directory guest root left owned by a user, fails
   the call with its rule.
@@ -321,17 +331,20 @@ As root in the guest, in `conformance/guestusers`, each only with its
 variable naming the UID of a project user it may end:
 
 - `TestKillUser` (`WB_CONFORMANCE_KILL_UID`): one kill ends a KeepAlive
-  LaunchAgent, a `nohup` process and a process in its own session, and
-  none comes back.
+  LaunchAgent, a `nohup` process and a process in its own session. None
+  is back 5 seconds later, and `launchctl print` of the user's domain
+  fails or doesn't name the agent.
 - `TestRemoveUser` (`WB_CONFORMANCE_REMOVE_UID`): a removal removes the
-  home with a file the user made in it, keeps the record, and
+  home with a file the user made in it, and a directory the user set to
+  mode 000 with a file in it, keeps the record, and
   `pwpolicy -authentication-allowed` reports the account disabled.
 
 With the work VM (needs-vm, needs-host), by hand:
 
 - `kill -9` of `wb-guestd` with a session running: the new process
   stops the project users' processes before it serves.
-- A link drop with a session running stops its processes.
+- A link drop with a session running stops its processes, and one
+  stopped before the drop is recorded as such.
 - `wb project rm` of a project whose home holds a file owned by root:
   the home stays, logged with `project-home-left`, and the removal is
   answered removed.
