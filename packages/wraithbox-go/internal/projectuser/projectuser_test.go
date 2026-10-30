@@ -44,6 +44,23 @@ func TestNames(t *testing.T) {
 	}
 }
 
+func TestValidProjectID(t *testing.T) {
+	if !projectuser.ValidProjectID("0123456789abcdef0123456789abcdef") {
+		t.Error("a valid project id is refused")
+	}
+	for _, bad := range []string{
+		"",
+		"0123456789abcdef0123456789abcde",   // short
+		"0123456789abcdef0123456789abcdef0", // long
+		"0123456789ABCDEF0123456789abcdef",  // uppercase
+		"0123456789abcdef0123456789abcdeg",  // not hex
+	} {
+		if projectuser.ValidProjectID(bad) {
+			t.Errorf("ValidProjectID(%q) = true", bad)
+		}
+	}
+}
+
 func TestGeneratedUID(t *testing.T) {
 	seen := map[string]bool{}
 	for range 1000 {
