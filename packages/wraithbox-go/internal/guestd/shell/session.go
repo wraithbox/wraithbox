@@ -101,7 +101,12 @@ func (l *loop) step() bool {
 	case ev := <-l.reps:
 		return l.report(ev)
 	case <-l.killAt:
-		l.s.kill()
+		if !l.s.kill() {
+			l.send(&terminalv1.ServerFrame{Frame: &terminalv1.ServerFrame_Failure{
+				Failure: &terminalv1.Failure{Rule: RuleKilled, Message: "the shell's processes may still run"},
+			}})
+			return true
+		}
 		l.send(&terminalv1.ServerFrame{Frame: &terminalv1.ServerFrame_Exit{
 			Exit: &terminalv1.Exit{Status: &terminalv1.Exit_Signal{Signal: sigKill}},
 		}})
@@ -129,6 +134,11 @@ func (l *loop) send(f *terminalv1.ServerFrame) {
 func (l *loop) output(c chunk, most int) int {
 	if c.data == nil {
 		l.outputs--
+		return 0
+	}
+	if most <= 0 {
+		// The drain's budget is spent: drop the chunk, and send no empty
+		// frame.
 		return 0
 	}
 	data := c.data[:min(len(c.data), most)]
@@ -164,11 +174,22 @@ func (l *loop) report(ev reportEvent) bool {
 
 // exit sends what is still readable, within drainWait and drainBytes,
 // and then the exit frame, as the last frame. A record after the exit
-// report makes it a failure.
+// report makes it a failure. The report comes from the project user's
+// process, so it doesn't end the session by itself: processes of the
+// session still running after it get the hangup, and the kill after
+// the delay.
 func (l *loop) exit(r Report) {
 	if !l.drain() {
 		l.fail(RuleHelperReport)
 		return
+	}
+	if l.s.leftAfterExit() {
+		l.s.log.LogAttrs(l.ctx, slog.LevelWarn, "shell processes left after the exit report",
+			slog.String("rule", RuleKilled), slog.String("decision", "hangup-and-kill"))
+		l.hangup("exit-with-processes-left")
+		if l.s.waitForEnd(l.s.srv.cfg.KillDelay) {
+			l.s.kill()
+		}
 	}
 	exit := &terminalv1.Exit{Status: &terminalv1.Exit_Code{Code: r.Value}}
 	attr := slog.Uint64("code", uint64(r.Value))
@@ -178,6 +199,19 @@ func (l *loop) exit(r Report) {
 	}
 	l.s.log.LogAttrs(l.ctx, slog.LevelInfo, "shell exited", attr, slog.String("decision", "exit"))
 	l.send(&terminalv1.ServerFrame{Frame: &terminalv1.ServerFrame_Exit{Exit: exit}})
+}
+
+// leftAfterExit waits up to commandWait for the helper to be reaped
+// after its exit report, and then up to drainWait for the session to
+// have no member left. It reports whether members may be left.
+func (s *session) leftAfterExit() bool {
+	t := time.NewTimer(commandWait)
+	defer t.Stop()
+	select {
+	case <-s.gone:
+	case <-t.C:
+	}
+	return s.waitForEnd(drainWait)
 }
 
 // drain relays output until each output stream and the reports have

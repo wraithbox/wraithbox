@@ -13,12 +13,12 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/procs"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	gp "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestprocs"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/sessionproc"
@@ -134,7 +134,7 @@ func (s *Server) Shell(stream Stream) error {
 // refuse logs a refused start, and returns it.
 func (s *Server) refuse(ctx context.Context, id, user, rule string, invalid bool) error {
 	s.cfg.Log.LogAttrs(ctx, slog.LevelWarn, "shell refused",
-		slog.String("shell_id", quoted(id)), slog.String("user", quoted(user)),
+		slog.String("shell_id", procs.Label(id)), slog.String("user", procs.Label(user)),
 		slog.String("rule", rule), slog.String("decision", "refuse"))
 	return &Refusal{Rule: rule, Invalid: invalid}
 }
@@ -153,7 +153,7 @@ func (s *Server) user(ctx context.Context, name string) (users.User, string) {
 	privileged, err := s.cfg.Users.Privileged(ctx, u)
 	if err != nil {
 		s.cfg.Log.LogAttrs(ctx, slog.LevelWarn, "shell user check failed",
-			slog.String("user", quoted(name)), slog.String("rule", users.RuleDirectory), slog.String("error", err.Error()))
+			slog.String("user", procs.Label(name)), slog.String("rule", users.RuleDirectory), slog.String("error", err.Error()))
 		return users.User{}, users.RuleDirectory
 	}
 	if privileged {
@@ -194,15 +194,6 @@ func (s *Server) openSessions() map[int32]bool {
 		}
 	}
 	return sids
-}
-
-// quoted escapes and cuts guest text for a log line.
-func quoted(s string) string {
-	const most = 128
-	if len(s) > most {
-		s = s[:most]
-	}
-	return strconv.Quote(s)
 }
 
 // closeAll closes each file that is set.

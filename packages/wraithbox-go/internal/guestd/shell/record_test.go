@@ -19,7 +19,30 @@ func reports(rs ...Report) []byte {
 	return b
 }
 
-var started = Report{Kind: ReportStarted, Value: 4242}
+var (
+	started = Report{Kind: ReportStarted, Value: 4242}
+	stop    = Report{Kind: ReportStopped}
+	cont    = Report{Kind: ReportContinued}
+)
+
+// stopCycles returns the start, n stops each with its continue, and then
+// last.
+func stopCycles(n int, last Report) []byte {
+	rs := []Report{started}
+	for range n {
+		rs = append(rs, stop, cont)
+	}
+	return reports(append(rs, last)...)
+}
+
+// stopKinds returns the kinds of stopCycles(n, ...), and then more.
+func stopKinds(n int, more ...ReportKind) []ReportKind {
+	kinds := []ReportKind{ReportStarted}
+	for range n {
+		kinds = append(kinds, ReportStopped, ReportContinued)
+	}
+	return append(kinds, more...)
+}
 
 func TestReportReader(t *testing.T) {
 	tests := []struct {
@@ -53,6 +76,11 @@ func TestReportReader(t *testing.T) {
 			ErrReport,
 		},
 		{"gone", reports(started, Report{Kind: ReportStopped}), []ReportKind{ReportStarted, ReportStopped}, ErrGone},
+		{"continued first", reports(started, cont), []ReportKind{ReportStarted}, ErrReport},
+		{"two stops", reports(started, stop, stop), []ReportKind{ReportStarted, ReportStopped}, ErrReport},
+		{"two continues", reports(started, stop, cont, cont), []ReportKind{ReportStarted, ReportStopped, ReportContinued}, ErrReport},
+		{"stops at the cap", stopCycles(maxStops, Report{Kind: ReportExited}), stopKinds(maxStops, ReportExited), io.EOF},
+		{"a stop past the cap", stopCycles(maxStops, stop), stopKinds(maxStops), ErrReport},
 		{"empty", nil, nil, ErrGone},
 	}
 	for _, tt := range tests {
@@ -115,7 +143,8 @@ func TestParseCommand(t *testing.T) {
 
 // FuzzHelperReport: arbitrary bytes from the helper never yield an exit
 // code outside 0 to 255, a signal outside 1 to 64, a start PID below 2,
-// a report before the start, or a report after the exit, and never
+// a report before the start, a report after the exit, a stopped or
+// continued report out of turn, or more than maxStops stops, and never
 // panic (SEC11-root-gains-nothing).
 func FuzzHelperReport(f *testing.F) {
 	for _, r := range []Report{
@@ -126,18 +155,19 @@ func FuzzHelperReport(f *testing.F) {
 	f.Add(reports(started))
 	f.Add(append(reports(started), 4, 0, 0))
 	f.Add(reports(started, Report{Kind: 77}))
+	f.Add(reports(started, stop, stop))
+	f.Add(reports(started, cont))
+	f.Add(stopCycles(maxStops, stop))
 	f.Fuzz(func(t *testing.T, in []byte) {
 		rr := NewReportReader(bytes.NewReader(in))
-		seenStart, seenEnd := false, false
+		var seen fuzzSeen
 		for range len(in)/RecordSize + 2 {
 			r, err := rr.Next()
 			if err != nil {
-				checkFuzzEnd(t, err, seenEnd)
+				checkFuzzEnd(t, err, seen.end)
 				return
 			}
-			checkFuzzed(t, r, seenStart, seenEnd)
-			seenStart = true
-			seenEnd = r.Final()
+			seen.check(t, r)
 		}
 		t.Fatal("the reader never ended")
 	})
@@ -157,12 +187,19 @@ func checkFuzzEnd(t *testing.T, err error, seenEnd bool) {
 	}
 }
 
-func checkFuzzed(t *testing.T, r Report, seenStart, seenEnd bool) {
+// fuzzSeen is what a fuzzed reader returned so far.
+type fuzzSeen struct {
+	start, end, stopped bool
+	stops               int
+}
+
+// check fails t when r may not come after what was seen, and adds it.
+func (s *fuzzSeen) check(t *testing.T, r Report) {
 	t.Helper()
 	switch {
-	case seenEnd:
+	case s.end:
 		t.Fatalf("report %+v after the exit", r)
-	case (r.Kind == ReportStarted) == seenStart:
+	case (r.Kind == ReportStarted) == s.start:
 		t.Fatalf("report %+v out of order", r)
 	case r.Kind == ReportStarted && r.Value < 2:
 		t.Fatalf("start PID %d", r.Value)
@@ -170,6 +207,17 @@ func checkFuzzed(t *testing.T, r Report, seenStart, seenEnd bool) {
 		t.Fatalf("exit code %d", r.Value)
 	case r.Kind == ReportSignaled && (r.Value < 1 || r.Value > maxSignal):
 		t.Fatalf("signal %d", r.Value)
+	case r.Kind == ReportStopped && (s.stopped || s.stops == maxStops):
+		t.Fatalf("stop %d, stopped %v", s.stops+1, s.stopped)
+	case r.Kind == ReportContinued && !s.stopped:
+		t.Fatal("continued while running")
+	}
+	s.start, s.end = true, r.Final()
+	if r.Kind == ReportStopped {
+		s.stops++
+	}
+	if r.Kind == ReportStopped || r.Kind == ReportContinued {
+		s.stopped = r.Kind == ReportStopped
 	}
 }
 
@@ -187,4 +235,23 @@ func FuzzHelperCommand(f *testing.F) {
 			t.Fatalf("parsed %v as %d %d", b, c, sig)
 		}
 	})
+}
+
+// TestAlternate: the helper's reports alternate whatever the wait
+// statuses folded, so the reader accepts them.
+func TestAlternate(t *testing.T) {
+	statuses := []Report{stop, stop, cont, cont, stop, cont, {Kind: ReportExited}}
+	stopped := false
+	rs := []Report{started}
+	for _, r := range statuses {
+		rs = append(rs, alternate(r, &stopped)...)
+	}
+	got, err := readAll(NewReportReader(bytes.NewReader(reports(rs...))))
+	want := []ReportKind{
+		ReportStarted, ReportStopped, ReportContinued, ReportStopped, ReportContinued,
+		ReportStopped, ReportContinued, ReportExited,
+	}
+	if !errors.Is(err, io.EOF) || !slices.Equal(got, want) {
+		t.Errorf("reports %v (%v), want %v", got, err, want)
+	}
 }
