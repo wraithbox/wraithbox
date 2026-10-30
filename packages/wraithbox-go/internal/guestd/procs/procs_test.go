@@ -235,6 +235,17 @@ func TestKillListError(t *testing.T) {
 	}
 }
 
+// TestKillCanceled: a kill whose ctx is done before the first round
+// isn't clean, even with no process listed.
+func TestKillCanceled(t *testing.T) {
+	l, _, _ := newLoops(t, &fakeTable{})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if res := l.Kill(ctx, 10000); res.Clean() || res.Rounds != 0 {
+		t.Errorf("Kill = %+v", res)
+	}
+}
+
 // TestKillZombie: a zombie has exited and doesn't count.
 func TestKillZombie(t *testing.T) {
 	z := proc(100, 10000, "z")
