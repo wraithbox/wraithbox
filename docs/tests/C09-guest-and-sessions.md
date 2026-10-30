@@ -421,7 +421,18 @@ place of `zsh`:
   output give `EPIPE`, and standard error on its own channel.
 - Kill the helper and see `session-helper-gone` and the session killed.
 - Send a report out of form, one after the exit and an exit code of
-  256, and see `session-helper-report` and the session killed.
+  256, and see `session-helper-report` and the session killed. See the
+  reader refuse a continued report first, two stops in a row, and a
+  stop past 1024.
+- Have a helper report the exit and run on, and see it hung up and
+  killed before the exit frame.
+- Make the process table unreadable during the kill and see the kill
+  retry. With a table that never reads, see the kill logged
+  `incomplete` and a `shell-hangup-kill` failure.
+- Start a shell while a stop loop runs and see it wait for the loop.
+  See a new connection leave a running stop loop to its bounds.
+- Resume a shell and see its processes dropped from the stop loop's
+  set.
 - Send each refused start: an id, size, user or environment out of
   form, an unknown, privileged or locked user, a data mount that fails
   its check, an id in use, and a helper that doesn't start. See each

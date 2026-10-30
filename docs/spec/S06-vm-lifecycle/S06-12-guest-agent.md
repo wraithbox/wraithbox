@@ -108,7 +108,12 @@ The helper writes reports on its descriptor 3:
 | exited | the exit code, 0 to 255 |
 | signaled | the signal number that ended it, 1 to 64 |
 
-Started comes first and once. Exited or signaled comes last, and the
+Started comes first and once. Stopped and continued alternate, starting
+with stopped, and at most 1024 stopped reports come: each one is a
+frame to the host, and the program can stop and continue itself in a
+loop. A wait status holds one change, and two changes between waits
+read as the second. The helper adds the continued report it missed
+between two stops, and drops a continued report whose stop it missed. Exited or signaled comes last, and the
 pipe then closes. The helper runs as the project user, so `wb-guestd`
 reads the reports as guest input (SEC11-root-gains-nothing). A record
 out of form, out of bounds, out of order, or after the last one ends

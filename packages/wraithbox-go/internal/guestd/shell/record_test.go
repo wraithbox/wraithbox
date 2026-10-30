@@ -207,17 +207,28 @@ func (s *fuzzSeen) check(t *testing.T, r Report) {
 		t.Fatalf("exit code %d", r.Value)
 	case r.Kind == ReportSignaled && (r.Value < 1 || r.Value > maxSignal):
 		t.Fatalf("signal %d", r.Value)
-	case r.Kind == ReportStopped && (s.stopped || s.stops == maxStops):
-		t.Fatalf("stop %d, stopped %v", s.stops+1, s.stopped)
-	case r.Kind == ReportContinued && !s.stopped:
-		t.Fatal("continued while running")
 	}
 	s.start, s.end = true, r.Final()
-	if r.Kind == ReportStopped {
+	s.checkStop(t, r)
+}
+
+// checkStop fails t when a stopped or continued report is out of turn
+// or past maxStops, and adds it.
+func (s *fuzzSeen) checkStop(t *testing.T, r Report) {
+	t.Helper()
+	switch r.Kind {
+	case ReportStopped:
+		if s.stopped || s.stops == maxStops {
+			t.Fatalf("stop %d, stopped %v", s.stops+1, s.stopped)
+		}
+		s.stopped = true
 		s.stops++
-	}
-	if r.Kind == ReportStopped || r.Kind == ReportContinued {
-		s.stopped = r.Kind == ReportStopped
+	case ReportContinued:
+		if !s.stopped {
+			t.Fatal("continued while running")
+		}
+		s.stopped = false
+	case ReportStarted, ReportExited, ReportSignaled:
 	}
 }
 

@@ -58,21 +58,17 @@ func TestLinkWatchRunsToItsBounds(t *testing.T) {
 	w.HandleConn(c2, &stats.ConnBegin{})
 	held := make(chan func(), 1)
 	go func() { held <- w.loops.HoldStops() }()
-	var release func()
 	select {
 	case r := <-results:
 		if r.CutShort || r.Running == 0 {
 			t.Errorf("result %+v, want the loop run to its bounds", r)
 		}
-	case release = <-held:
+	case <-held:
 		t.Fatal("HoldStops returned while the stop loop ran")
 	case <-time.After(15 * time.Second):
 		t.Fatal("the stop loop didn't end at its bounds")
 	}
-	if release == nil {
-		release = <-held
-	}
-	release()
+	(<-held)()
 	if w.dropped(c1) {
 		t.Error("dropped with a new connection up")
 	}
