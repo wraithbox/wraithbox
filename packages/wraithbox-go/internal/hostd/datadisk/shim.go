@@ -77,7 +77,7 @@ var ErrKillFailed = errors.New("datadisk: wb-diskfmt didn't exit in time, and th
 // until wb-launcher starts it (S04-04-vm-processes, "`wb-diskfmt`").
 // Until then wb-hostd is its parent, and sends the group kill itself.
 // Once wb-launcher starts it, wb-launcher is the parent, and wb-hostd
-// asks it for the kill (S04-07-supervision, "A kill on request").
+// asks it for the kill (S04-04-vm-processes, "`wb-diskfmt`'s kill").
 // Descriptor 2 is its log pipe, which goes to Logs, and descriptor 3
 // one end of a Unix datagram socketpair for the exchange.
 type ProcessShim struct {
