@@ -35,7 +35,7 @@ item.
    Keychain doesn't show a dialog in any build ("No Keychain dialogs"
    below).
 5. **Consumers that can't read the store.** A program that can't read
-   the store itself, such as `wb-vmd` or the system `ssh`, gets the
+   the store itself, such as `wb-vmd` or `wb-build-ssh`, gets the
    value from a declared reader on a pipe or on standard input. It
    never gets it in arguments, the environment, a file, a log line, a
    gRPC message field, an audit record, or an error message. A process
