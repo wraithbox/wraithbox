@@ -61,7 +61,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B101-vsock-confinement | Can a project user take wb-guestd's place on the host-guest socket? | Answered 2026-10-06: yes, with conditions |
 | B102-git-alloc-limit | Can git itself refuse a push that asks for too much memory, so the pack scanner gets simpler? | Answered 2026-10-06. Decided 2026-10-16: as recommended, with the wire-byte and per-push caps and `receive.maxInputSize` lowered from 1 GiB to 256 MiB |
 | B145-least-privilege | Where are credentials held on the host, and who may reach them? | Decided 2026-10-07: A, the store, with declared access per process |
-| B228-data-disk-followup | Does the host-made data volume stay unencrypted and give freed space back? | Answered 2026-10-26: yes, and yes with conditions. Awaiting decision 3: keep `nobrowse` |
+| B228-data-disk-followup | Does the host-made data volume stay unencrypted and give freed space back? | Answered 2026-10-26: yes, and yes with conditions. Decided 2026-10-26: keep `nobrowse` |
 | B248-dev-signing | Can development builds signed by the developer's own team share Keychain items across an update? | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15: A |
 | B419-admin-path | How does the person at the host's terminal get root in their own guest, apart from every agent path? | Awaiting decision |
 
@@ -76,6 +76,7 @@ The maintainer decided B36-flow-attribution to B52-proto-contracts on
 B17-network-path, B19-fs-benchmark, B29-vsock-handoff,
 B33-no-guest-credentials, B35-openshell-artifacts,
 B37-terminal-boundary and B74-pre-receive-check on 2026-10-06,
-B248-dev-signing on 2026-10-15, and B102-git-alloc-limit on 2026-10-16.
+B248-dev-signing on 2026-10-15, B102-git-alloc-limit on 2026-10-16,
+and B228-data-disk-followup on 2026-10-26.
 
-1. B228-data-disk-followup: decision 3, whether to keep `nobrowse` on the data volume. No issue waits on it.
+No decision is open.
