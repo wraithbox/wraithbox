@@ -55,6 +55,11 @@ const (
 	maxSignal   = 64
 )
 
+// maxStops is the most stopped reports of one session. Each one is a
+// stopped frame to the host, and the program can stop and continue
+// itself in a loop, so a stopped report past it is out of order.
+const maxStops = 1024
+
 // Report is one report.
 type Report struct {
 	Kind  ReportKind
@@ -88,8 +93,9 @@ func u32(n int) uint32 {
 var (
 	// ErrReport is a report out of form or out of order: an unknown kind,
 	// a short record, padding that isn't zero, a value out of bounds, a
-	// report before the start or a second start, or a record after the
-	// exit. The rule is RuleHelperReport.
+	// report before the start or a second start, a stopped or continued
+	// report out of turn, a stopped report past maxStops, or a record
+	// after the exit. The rule is RuleHelperReport.
 	ErrReport = errors.New("shell: a session helper report out of form")
 	// ErrGone is the end of the reports without an exit or a signal. The
 	// rule is RuleHelperGone.
@@ -102,6 +108,10 @@ type ReportReader struct {
 	r       io.Reader
 	started bool
 	ended   bool
+	// stopped is set after a stopped report until the continued one, and
+	// stops counts the stopped reports.
+	stopped bool
+	stops   int
 	err     error
 }
 
@@ -142,10 +152,19 @@ func (rr *ReportReader) next() (Report, error) {
 	}
 	rr.started = true
 	rr.ended = rep.Final()
+	switch rep.Kind {
+	case ReportStopped:
+		rr.stopped = true
+		rr.stops++
+	case ReportContinued:
+		rr.stopped = false
+	}
 	return rep, nil
 }
 
-// inOrder reports whether rep is in bounds, and may come now.
+// inOrder reports whether rep is in bounds, and may come now. Stopped
+// and continued alternate, starting with stopped, and at most maxStops
+// stopped reports come.
 func (rr *ReportReader) inOrder(rep Report) bool {
 	if rep.Kind != ReportStarted && !rr.started {
 		return false
@@ -153,8 +172,10 @@ func (rr *ReportReader) inOrder(rep Report) bool {
 	switch rep.Kind {
 	case ReportStarted:
 		return !rr.started && rep.Value >= 2 && rep.Value <= math.MaxInt32
-	case ReportStopped, ReportContinued:
-		return rep.Value == 0
+	case ReportStopped:
+		return rep.Value == 0 && !rr.stopped && rr.stops < maxStops
+	case ReportContinued:
+		return rep.Value == 0 && rr.stopped
 	case ReportExited:
 		return rep.Value <= maxExitCode
 	case ReportSignaled:

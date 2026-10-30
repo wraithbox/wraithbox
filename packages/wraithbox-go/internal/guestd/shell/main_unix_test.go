@@ -37,6 +37,7 @@ func rawHelper(mode string) int {
 		"unknown-kind": {start, {Kind: 9}},
 		"after-exit":   {start, {Kind: ReportExited}, {Kind: ReportStopped}},
 		"code-256":     {start, {Kind: ReportExited, Value: 256}},
+		"exit-lingers": {start, {Kind: ReportExited, Value: 7}},
 	}[mode]
 	f := os.NewFile(reportFD, "reports")
 	for _, r := range rs {

@@ -131,6 +131,7 @@ func (h *helper) report(r Report) error {
 // wait reports each stop, continue and the end of the program, and
 // returns after the end.
 func (h *helper) wait() {
+	stopped := false
 	for {
 		st, err := sessionproc.Wait(h.pid)
 		if err != nil {
@@ -145,12 +146,37 @@ func (h *helper) wait() {
 			h.ended = true
 			h.mu.Unlock()
 		}
-		_ = h.report(r)
+		for _, r := range alternate(r, &stopped) {
+			_ = h.report(r)
+		}
 		if final {
 			_ = h.reports.Close()
 			return
 		}
 	}
+}
+
+// alternate returns the reports for r that keep stopped and continued
+// alternating, as wb-guestd reads them (S06-12-guest-agent, "Session
+// helper records"). A wait status holds only the latest change, so a
+// continue and the next stop between two waits read as one stop, and a
+// stop and the next continue as one continue. So a stop while stopped
+// gets the continued report it missed first, and a continue while
+// running is dropped.
+func alternate(r Report, stopped *bool) []Report {
+	switch r.Kind {
+	case ReportStopped:
+		if *stopped {
+			return []Report{{Kind: ReportContinued}, r}
+		}
+		*stopped = true
+	case ReportContinued:
+		if !*stopped {
+			return nil
+		}
+		*stopped = false
+	}
+	return []Report{r}
 }
 
 func statusReport(st sessionproc.Status) (Report, bool) {
