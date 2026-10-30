@@ -11,8 +11,7 @@ An app bundle, `Wraith Box.app`, contains:
 
 - `wb-hostd`, `wb-launcher`, `wb-vmd`, `wb-netd`, `wb-proxyd`, `wb-git`,
   `wb-prover`, `openshell-prover`, `wb-guestadmin`, `wb-credset`,
-  `wb-build-ssh`, `wb-askpass`, `wb-diskfmt`, `wb-release-check`,
-  `wb-download`;
+  `wb-build-ssh`, `wb-diskfmt`, `wb-release-check`, `wb-download`;
 - the notification helper;
 - the guest tools disk image;
 - `wb`, which the installer links onto `PATH`.

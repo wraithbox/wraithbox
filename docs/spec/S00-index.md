@@ -54,6 +54,7 @@ Wraith Box works and why.
 | S07-15-non-http-streams | Non-HTTP Streams | Draft |
 | S07-16-tls-and-tunnels | TLS and Tunnels | Draft |
 | S07-17-approvals-and-learning | Approvals and Learning | Draft |
+| S07-18-build-network | Build Network | Draft |
 | S08-workspace-and-git | Workspace and Git Round Trip | Draft |
 | S08-01-into-the-guest | Into the Guest | Draft |
 | S08-02-export-repository | Export Repository | Draft |

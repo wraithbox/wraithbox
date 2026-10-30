@@ -260,8 +260,7 @@ while all of these hold:
   descriptors has them closed and is refused.
 - **Fixed starts.** It starts each program with no arguments and a
   fixed environment. It passes only the descriptors `wb-hostd` hands
-  it. The two bounded exceptions are `wb-git` and `wb-build-ssh`
-  (S04-06-git-confinement, S04-05-helper-programs).
+  it. The one bounded exception is `wb-git` (S04-06-git-confinement).
 - **Profiles not from the request.** Each program's profile and its
   parameters are compiled into it, or come from configuration
   `wb-hostd` read before it confined itself. They never come over the

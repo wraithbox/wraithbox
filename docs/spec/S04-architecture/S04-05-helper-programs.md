@@ -107,17 +107,54 @@ it starts the program. So the host bounds what a run writes.
 
 ### `wb-build-ssh`
 
-`wb-build-ssh` is the second bounded exception to the fixed starts of
-`wb-launcher`, after `wb-git` (S04-03-self-sandboxing). It is a fixed
-shim in the bundle that takes no request field.
+`wb-build-ssh` runs the image build's one SSH session
+(S15-04-guest-admin, "The build's SSH session"). It is a fixed start of
+`wb-launcher` like the others: no arguments, a fixed environment, and
+only the descriptors `wb-hostd` hands it. It inherits:
 
-It confines itself. Then it runs the one program outside the bundle
-that the launcher allows: the system `ssh` at its fixed platform path,
-with arguments and environment compiled into the shim
-(S15-04-guest-admin, "The build's SSH session").
+- the read end of `wb-guestadmin`'s pipe, as its standard input;
+- the connected socket to the build guest's port 22;
+- its log pipe to `wb-hostd`.
 
-Its only connection is to the build guest's port 22, through `wb-netd`
-on the build VM's own network (S06-vm-lifecycle).
+The socket comes from `wb-netd`, which opens that one connection for
+the build VM only (S07-18-build-network). The
+host has no route to the guest, so no other process can open it.
+`wb-netd` passes it to `wb-hostd` on its control channel, and
+`wb-hostd` hands it to `wb-launcher` with the start request.
+
+`wb-hostd` refuses the socket when it comes from another VM's
+`wb-netd`, when no build waits for it, or when the message doesn't
+hold exactly one descriptor. It then closes the message's descriptors
+and logs `build-socket-refused`.
+
+`wb-build-ssh` speaks SSH in its own process, with Go's SSH library
+(`golang.org/x/crypto/ssh`). It doesn't start a program. It doesn't
+read the host user's SSH configuration, known-hosts file or keys.
+
+It confines itself first thing, from a compiled-in profile:
+
+- The profile allows its inherited descriptors.
+- It denies files, the network, the secret store and starting
+  programs.
+
+Then it:
+
+1. checks that the socket is a connected Unix domain `SOCK_STREAM`
+   socket, and refuses to run with `build-ssh-socket-refused`
+   otherwise;
+2. reads one line, the build password, from its standard input;
+3. logs in as `wbadmin` with that password;
+4. starts one session, with no terminal, that runs the install
+   commands compiled into it;
+5. writes the password and a newline into that session's standard
+   input, for the guest's `sudo -S`, and closes it;
+6. exits with the session's result.
+
+Every byte it reads from the socket comes from the guest. So the
+session's output is cut to a size fixed in code before it's logged,
+and any copy of the password in it is replaced before the line is
+written. `wb-build-ssh` never writes the password to its log, its
+arguments or its environment.
 
 ## Decisions
 
@@ -125,5 +162,20 @@ on the build VM's own network (S06-vm-lifecycle).
 
 - **Why:** least privilege. `wb-hostd` runs the host-guest socket
   handlers, and so never reads a credential.
+
+### Go's SSH library, not the system `ssh`
+
+`wb-build-ssh` speaks SSH with `golang.org/x/crypto/ssh` in its own
+process.
+
+- **Why:** the connection exists only as the socket `wb-netd` hands
+  over. OpenSSH closes inherited descriptors above standard error at
+  start, and its proxy options would need another helper program. The
+  library uses the socket as it is, reads none of the host user's SSH
+  configuration, and doesn't need an askpass program.
+- **Rejected:** the system `ssh` with a `wb-askpass` helper. It needed
+  a second program in the bundle, an exception to the fixed starts of
+  `wb-launcher`, and a two-line framing of the password on standard
+  input.
 
 **Status:** Draft
