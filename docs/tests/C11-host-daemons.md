@@ -407,6 +407,13 @@ Spec: S09-11-audit.
 
 ### Free space
 
+- **Kill request** (S04-04-vm-processes, "`wb-diskfmt`'s kill"). Ask
+  `wb-launcher` to kill an instance of another entry, an instance ID it
+  never returned, and a reaped `wb-diskfmt`. See the first two logged
+  with `launcher-kill-refused`, the third answered as already exited,
+  and nothing signaled in any.
+- Ask it to kill a hung fake `wb-diskfmt`, and see `launcher-kill`
+  logged and the shim's child in its process group stopped too.
 - On a fake volume, drop the free space below the floor, and see the
   VM whose data disk grew stopped before any write fails, and the
   reserve allocated again once space returns.

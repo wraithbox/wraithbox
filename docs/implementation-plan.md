@@ -91,7 +91,7 @@ leftovers of V1-M1 in the docs (#169, #236, #237, #247).
 | M3.8 | Secret store shim and `wb-credset` | S15-02, S15-03, S12-03; SEC12; C05 | M2.2, H1 | mac, host | |
 | M3.9 | Inspection CA: Secure Enclave key, leaves, rotation, removal list, `wb vm reset-ca`, guest trust | S09-06, S09-07, S09-08; C02 | M3.8 | any, host, vm | |
 | M3.10 | Audit writer and event channel: OCSF, budgets, free space, a failed write stops the VM; the records V1-M2 only logs (data disk reset, git checks) | S09-11, S04-08; SEC10; C11 | M2.7 | any | folded: #177 (bound on the event retry queue) |
-| M3.11 | Supervision and `wb-launcher` | S04-03, S04-07; SEC13; C11 | M2.3 | mac | |
+| M3.11 | Supervision and `wb-launcher` | S04-03, S04-07; SEC13; C11 | M2.3 | mac | #370 (the `wb-diskfmt` kill request, S04-04) |
 | M3.12 | Egress integration: the NIC in the device set, a `wb-netd` per VM, flow reset on restore | S04-02; SEC05, SEC10, SEC11, FR08; C01, C02 | M3.1 to M3.11, H1 | vm, host | |
 
 ## V1-M7-image-build

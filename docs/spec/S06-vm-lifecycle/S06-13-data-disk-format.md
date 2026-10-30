@@ -87,10 +87,10 @@ knows that the ID is still the shim's.
   parent, and sends the kill.
 
 After the kill, or a kill that failed, `wb-hostd` logs the rule
-`data-disk-shim-exit`. With `wb-launcher`, the launcher's answer tells
-`wb-hostd` whether the kill was sent, and the launcher also logs its own
-decision. When the shim hadn't answered the format, the
-line also names the temporary image, which a device may still be
+`data-disk-shim-exit`. With `wb-launcher`, the line holds the
+launcher's answer, or that no answer came in time
+(S04-04-vm-processes, "`wb-diskfmt`'s kill"). When the shim hadn't
+answered the format, the line also names the temporary image, which a device may still be
 attached to. `wb-hostd` doesn't detach that device: only the shim
 attaches and detaches (S04-04-vm-processes, "`wb-diskfmt`"). The device
 is attached until the user ejects it or the host restarts. A later
@@ -100,8 +100,9 @@ attaching it, and its checks guard the device it attaches itself.
 Each `diskutil` step has a deadline, but the confined shim can't
 signal `diskutil`, so a `diskutil` that hangs runs past it. The bound
 is `wb-hostd`'s wait for the format's answer, and then the group kill
-by the shim's parent. A slow run that keeps to its deadlines gets its answer in time, because
-the wait is longer than the sum of the deadlines on their longest path.
+by the shim's parent. A slow run that keeps to its deadlines gets its
+answer in time, because the wait is longer than the sum of the
+deadlines on their longest path.
 
 ### The temporary and final names
 
@@ -175,8 +176,8 @@ code that opens them.
 - **Rejected:** a kill request for any launcher entry. Only
   `wb-diskfmt` needs one so far, and the narrower request channel is
   the stricter choice.
-- **Decided:** I370. `wb-launcher` sends the kill once it starts the
-  shim, and `wb-hostd` asks for it.
+- **Decided:** I370. `wb-launcher` sends the kill once it is the
+  shim's parent, and `wb-hostd` asks for it.
 
 ### A host-formatted data disk on an image file
 

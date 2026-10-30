@@ -25,7 +25,8 @@ NFR06-explained-refusals).
   sees their wait status. It reports each exit to `wb-hostd` on its
   request channel, in one fixed-format message. The message holds the
   program table entry, the instance ID it returned when it started the
-  process, and the exit code or the signal. It never restarts anything
+  process, and the exit code or the signal. An instance ID is never
+  reused while that `wb-launcher` runs. It never restarts anything
   itself. It also sends the kill of a `wb-diskfmt` it started, with its
   process group, when `wb-hostd` asks, and only before it reaps the
   program (S04-04-vm-processes, "`wb-diskfmt`'s kill").
@@ -56,12 +57,12 @@ acts on its own:
   (SEC05-default-deny).
 - **`wb-launcher`** sends `SIGTERM` to every program it started that
   still runs. It sends `SIGKILL` to any left after 5 seconds, waits for
-  them, and exits. So no old `wb-launcher`, `wb-netd` or `wb-proxyd`
+  them, and exits. A `wb-diskfmt` has nothing to clean up, so it gets
+  `SIGKILL` at once, sent to its process group and to the shim before
+  the reap. So no `diskutil` keeps running after `SIGTERM` ends
+  the shim. So no old `wb-launcher`, `wb-netd` or `wb-proxyd`
   runs next to the ones a new `wb-hostd` starts. Every per-run program
   ends with the `wb-hostd` that asked for it.
-
-For `wb-diskfmt`, it sends both signals to the process group, under
-the same reap gate.
 
 The per-run programs don't hold a control channel, and can't learn
 that `wb-hostd` has gone. `wb-launcher` ends them. On hosts without
