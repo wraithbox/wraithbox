@@ -48,7 +48,9 @@ maintainable Wraith Box must be.
   hasn't been measured, so no figure is given for it.
 - **NFR03-footprint: Footprint.** Idle VMs suspend after a configurable period. Disk use
   grows only with divergence from the base image (copy-on-write clones).
-- **NFR04-host-platforms: Host platforms.** First target: Apple Silicon, macOS 15 or later.
+- **NFR04-host-platforms: Host platforms.** First target: Apple Silicon, macOS 27 or later,
+  because `wb image build` needs the guest provisioning options that are
+  new in macOS 27 (X17-image-build).
   Later: Windows 11 (Home and Pro) and Ubuntu LTS, with other Linux
   distributions considered after that. Works on managed (MDM or
   domain-joined) machines on every host OS.

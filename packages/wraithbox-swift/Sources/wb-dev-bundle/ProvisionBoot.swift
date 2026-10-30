@@ -18,40 +18,20 @@ func provisioningMachine(bundle: String, record: BundleRecord, mac: VZMACAddress
             bundle: bundle, record: record, network: VZNATNetworkDeviceAttachment(), mac: mac))
 }
 
-/// Fails when this build or host can't provision a guest: the API is new
-/// in macOS 27.
-func checkProvisioningAvailable() throws(Failure) {
-    #if compiler(>=6.4)
-        guard #available(macOS 27, *) else {
-            throw Failure("guest provisioning needs a macOS 27 host")
-        }
-    #else
-        throw Failure("guest provisioning needs a build with Xcode 27 (Swift 6.4) or later")
-    #endif
-}
-
 /// Starts the VM with guest provisioning: macOS creates `user` with
 /// `password` on the first boot and turns on Remote Login. The API is new
-/// in macOS 27, so a build with an older SDK, or a run on an older host,
-/// refuses to start.
+/// in macOS 27, the package's deployment target (NFR04-host-platforms).
 @MainActor
 func startProvisioning(_ machine: VZVirtualMachine, user: String, password: String)
     async throws
 {
-    #if compiler(>=6.4)
-        guard #available(macOS 27, *) else {
-            throw Failure("guest provisioning needs a macOS 27 host")
-        }
-        let provisioning = VZMacGuestProvisioningOptions()
-        provisioning.fullName = "Wraith Box test guest"
-        provisioning.username = user
-        provisioning.password = password
-        provisioning.logsInAutomatically = false
-        provisioning.enablesRemoteLogin = true
-        let options = VZMacOSVirtualMachineStartOptions()
-        try options.setGuestProvisioning(provisioning)
-        try await machine.start(options: options)
-    #else
-        throw Failure("guest provisioning needs a build with Xcode 27 (Swift 6.4) or later")
-    #endif
+    let provisioning = VZMacGuestProvisioningOptions()
+    provisioning.fullName = "Wraith Box test guest"
+    provisioning.username = user
+    provisioning.password = password
+    provisioning.logsInAutomatically = false
+    provisioning.enablesRemoteLogin = true
+    let options = VZMacOSVirtualMachineStartOptions()
+    try options.setGuestProvisioning(provisioning)
+    try await machine.start(options: options)
 }

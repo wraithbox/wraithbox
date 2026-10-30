@@ -110,7 +110,9 @@ jobs:
   swift:
     name: Swift
     # Swift comes from the runner image's default Xcode; Package.swift's
-    # tools version (6.2) is the floor. See docs/spec/S02-toolchain.md.
+    # tools version (6.4, Xcode 27) is the floor. The `xcode-27` image is
+    # macOS 27 with Xcode 27, because the package targets macOS 27
+    # (NFR04-host-platforms). See docs/spec/S02-toolchain.md.
     #
     # Skipped only when detection succeeded and found neither a Swift
     # input nor a bundle input changed. A change to the Go module alone
@@ -120,7 +122,7 @@ jobs:
     # internal/version and internal/tools/buildversion.
     needs: changes
     if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.swift == 'false' && needs.changes.outputs.bundle == 'false') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

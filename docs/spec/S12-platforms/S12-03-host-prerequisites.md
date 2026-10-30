@@ -12,7 +12,7 @@ them silently.
 
 | Host | Prerequisite | Who can do it |
 |---|---|---|
-| macOS | Apple Silicon, macOS 15+ | n/a (hardware and OS version) |
+| macOS | Apple Silicon, macOS 27+ | n/a (hardware and OS version) |
 | Windows | Virtual Machine Platform optional feature enabled (it is if WSL 2 is installed) | administrator, once |
 | Windows | Permission to create VMs through HCS as a standard user | decided by spike X11-windows-host |
 | Linux | Read-write access to `/dev/kvm` (desktop sessions usually have it; otherwise the `kvm` group) | administrator, once |

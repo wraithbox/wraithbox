@@ -110,7 +110,10 @@ func realPath(_ path: String) -> String? {
     guard fcntl(fd, F_GETPATH, &buffer) == 0 else {
         return nil
     }
-    return String(cString: buffer)
+    // The path ends at the first NUL. String(cString:) on an array is
+    // deprecated from macOS 27.
+    let bytes = buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+    return String(decoding: bytes, as: UTF8.self)
 }
 
 private func errnoText() -> String {

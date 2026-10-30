@@ -16,7 +16,7 @@ Briefs: B29-vsock-handoff
 
 | Host ↓ / Guest → | macOS | Linux (Ubuntu LTS first) | Windows 11 |
 |---|---|---|---|
-| **macOS 15+, Apple Silicon** | **v1** | later | later, blocked on spike X13-windows-guests |
+| **macOS 27+, Apple Silicon** | **v1** | later | later, blocked on spike X13-windows-guests |
 | **Windows 11 Home / Pro** | not possible | later | later, blocked on spike X11-windows-host |
 | **Linux, Ubuntu LTS first** | not possible | later | later |
 
@@ -25,6 +25,12 @@ The code encodes this matrix in `internal/platform` and tests it.
 ### What the matrix assumes
 
 - macOS guests need Apple hardware, technically and by license.
+- A macOS host needs macOS 27 or later (NFR04-host-platforms).
+  `wb image build` boots the new guest with the guest provisioning
+  options, which are new in macOS 27 (S06-02-image-build). Building
+  images on a newer Mac and shipping them to older hosts was rejected:
+  it needs image signing and provenance that don't exist, and Apple's
+  license may not allow it (I143).
 - Guests use the host's CPU architecture, with no instruction-set
   emulation:
   - arm64 on Apple Silicon;

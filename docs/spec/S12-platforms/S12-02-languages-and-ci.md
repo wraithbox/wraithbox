@@ -25,7 +25,8 @@ platform.
 
 Go is built, linted, vetted, and tested natively on macOS, Ubuntu, and
 Windows runners from the start (S02-toolchain). Swift runs on macOS
-only. A .NET job is added with the first .NET component.
+only, on the `xcode-27` runner image, which is macOS 27 with Xcode 27,
+because the Swift package targets macOS 27 (NFR04-host-platforms). A .NET job is added with the first .NET component.
 
 ## Decisions
 

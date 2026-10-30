@@ -152,7 +152,7 @@ func newFixture(t *testing.T) *fixture {
 	data := filepath.Join(f.home, "Library", "Application Support", "WraithBox")
 	f.env = Env{
 		Host:        platform.Host{OS: platform.MacOS},
-		ReadRelease: func() (platform.Release, error) { return platform.Release{AppleSilicon: true, Version: "15.0"}, nil },
+		ReadRelease: func() (platform.Release, error) { return platform.Release{AppleSilicon: true, Version: "27.0"}, nil },
 		Home:        f.home,
 		UID:         501,
 		Paths: paths.Paths{

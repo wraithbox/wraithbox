@@ -1,4 +1,4 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.4
 // macOS-native components. wb-vmd runs VMs with the Virtualization framework
 // for the cross-platform Go daemon wb-hostd; it holds no policy and no
 // secrets. Only code that needs Apple frameworks belongs here.
@@ -7,11 +7,15 @@ import PackageDescription
 
 let package = Package(
     name: "wraithbox-swift",
+    // macOS 27 is the oldest v1 host (NFR04-host-platforms). wb image build
+    // needs the guest provisioning options that are new in macOS 27, and
+    // with this target the code calls them without an #available check.
+    // `.v27` needs tools version 6.4, which ships with Xcode 27.
     // The first platform is the app target's deployment target too:
     // scripts/app-bundle.sh reads it and passes it to xcodebuild for
     // WraithBox.xcodeproj, so one edit here moves both.
     platforms: [
-        .macOS(.v15)
+        .macOS(.v27)
     ],
     products: [
         .library(name: "WraithBoxVM", targets: ["WraithBoxVM"]),

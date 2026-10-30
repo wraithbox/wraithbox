@@ -25,8 +25,9 @@ func TestC12SetupHostCheck(t *testing.T) {
 		rule    Rule
 		says    string
 	}{
-		{"Intel Mac", platform.Host{OS: platform.MacOS}, release(platform.Release{Version: "15.1"}, nil), RuleHostUnsupported, "no Apple Silicon"},
+		{"Intel Mac", platform.Host{OS: platform.MacOS}, release(platform.Release{Version: "27.1"}, nil), RuleHostUnsupported, "no Apple Silicon"},
 		{"macOS 14", platform.Host{OS: platform.MacOS}, release(platform.Release{AppleSilicon: true, Version: "14.7.1"}, nil), RuleHostUnsupported, `macOS "14.7.1"`},
+		{"macOS 26", platform.Host{OS: platform.MacOS}, release(platform.Release{AppleSilicon: true, Version: "26.6"}, nil), RuleHostUnsupported, `macOS "26.6"`},
 		{"unreadable version", platform.Host{OS: platform.MacOS}, release(platform.Release{AppleSilicon: true, Version: "x"}, nil), RuleHostUnsupported, `macOS "x"`},
 		{"release error", platform.Host{OS: platform.MacOS}, release(platform.Release{}, errors.New("no sysctl")), RuleHostUnsupported, "no sysctl"},
 		{"Linux", platform.Host{OS: platform.Linux}, nil, RuleHostLater, "Linux hosts is later"},
@@ -39,13 +40,13 @@ func TestC12SetupHostCheck(t *testing.T) {
 			f.env.Host = tc.host
 			f.env.ReadRelease = tc.release
 			f.wantRefused(tc.rule, f.tree())
-			f.wantStderr(tc.says, "macOS 15 or later")
+			f.wantStderr(tc.says, "macOS 27 or later")
 		})
 	}
 }
 
 func TestC12SetupHostCheckAccepts(t *testing.T) {
-	for _, v := range []string{"15.0", "15", "27.0.1"} {
+	for _, v := range []string{"27.0", "27", "27.0.1", "28.1"} {
 		f := newFixture(t)
 		f.env.ReadRelease = func() (platform.Release, error) { return platform.Release{AppleSilicon: true, Version: v}, nil }
 		if err := checkHost(t.Context(), &f.env); err != nil {

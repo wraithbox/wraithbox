@@ -39,9 +39,14 @@ with `.mise.toml`.
 The compiler, `swift-format`, and `xcodebuild` ship inside Xcode. So
 the Xcode version is the pin.
 
-- `Package.swift` declares `swift-tools-version: 6.2`, the floor.
-  Contributors may use a newer Xcode.
-- CI uses the default Xcode of its pinned macOS runner image.
+- `Package.swift` declares `swift-tools-version: 6.4`, the floor, and
+  its deployment target is macOS 27 (NFR04-host-platforms). Tools
+  version 6.4 is the first that knows macOS 27, and it ships with
+  Xcode 27. Contributors may use a newer Xcode.
+- CI uses the default Xcode of its pinned macOS runner image. The Swift
+  job runs on the `xcode-27` image, which is macOS 27 with Xcode 27.
+  The Go job's macOS runner stays on `macos-26`: the Go module has no
+  cgo, so it builds against no macOS SDK.
 - SwiftLint, which Xcode does not ship, is pinned in `.mise.toml`.
 
 ### CI
