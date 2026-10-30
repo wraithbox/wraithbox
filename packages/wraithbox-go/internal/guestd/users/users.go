@@ -113,12 +113,20 @@ type Manager struct {
 	mu sync.Mutex
 	// known holds each user whose last result was OK, by UID.
 	known map[uint32]User
+
+	// lockMu guards locks, apart from mu, which a request holds for up
+	// to Deadline.
+	lockMu sync.Mutex
+	locks  locks
 }
 
 // New returns a Manager that reads and writes records with dir and
 // opens the volume's root with openRoot once per request.
 func New(dir guestusers.Directory, openRoot func() (guestusers.Root, error), log *slog.Logger) *Manager {
-	return &Manager{dir: dir, openRoot: openRoot, log: log, known: map[uint32]User{}}
+	return &Manager{
+		dir: dir, openRoot: openRoot, log: log, known: map[uint32]User{},
+		locks: locks{unlocked: map[uint32]bool{}, removing: map[uint32]bool{}},
+	}
 }
 
 // RootCheck checks the volume's root once a request has opened it,
@@ -129,7 +137,8 @@ type RootCheck func(ctx context.Context, root guestusers.Root) (rule, found stri
 
 // Ensure makes each user exist with exactly its values, or refuses it,
 // and returns one result per user in the request's order. A refused
-// user doesn't stop the others. The caller has checked the request
+// user doesn't stop the others, and a user whose removal runs is
+// refused with RuleRemovalRunning. Ensure leaves every user locked. The caller has checked the request
 // with CheckRequest and the data mount just before, and check ties the
 // root the request opens to that mount. A nil check refuses every user
 // that needs the root.
@@ -144,7 +153,10 @@ func (m *Manager) Ensure(ctx context.Context, us []User, check RootCheck) []Resu
 	for _, u := range us {
 		var outcome string
 		r := &refusal{rule: RuleDeadline, found: "the request's deadline passed"}
-		if ctx.Err() == nil {
+		switch {
+		case m.removing(u.UID):
+			r = &refusal{rule: RuleRemovalRunning, found: "a removal of the user runs"}
+		case ctx.Err() == nil:
 			outcome, r = q.ensure(u)
 		}
 		results = append(results, m.settle(ctx, u, outcome, r))

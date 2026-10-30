@@ -8,7 +8,9 @@ import (
 	"maps"
 	"slices"
 	"sort"
+	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/procs"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 	gu "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
 )
@@ -21,8 +23,9 @@ type fakeDir struct {
 	// writes is every Create, as "kind name attr=value", in order.
 	writes []string
 	reads  int
-	// listErr, readErr and createErr fail every call of their kind.
-	listErr, readErr, createErr error
+	// listErr, readErr, createErr and disableErr fail every call of
+	// their kind.
+	listErr, readErr, createErr, disableErr error
 	// drop makes Create succeed without writing attribute drop.
 	drop string
 }
@@ -92,6 +95,12 @@ func (d *fakeDir) Create(_ context.Context, kind gu.Kind, name, attr, value stri
 	return nil
 }
 
+// Disable records the call as "disable name" in writes.
+func (d *fakeDir) Disable(_ context.Context, name string) error {
+	d.writes = append(d.writes, "disable "+name)
+	return d.disableErr
+}
+
 func cloneRec(rec gu.Record) gu.Record {
 	out := gu.Record{}
 	for k, v := range rec {
@@ -104,6 +113,10 @@ func cloneRec(rec gu.Record) gu.Record {
 type fakeRoot struct {
 	entries map[string]gu.Entry
 	made    []string
+	// removed is every name Rmdir removed, and full each name it fails
+	// on, as a home with entries the user couldn't remove.
+	removed []string
+	full    map[string]bool
 	// openErr fails the open, and entriesErr every Entries.
 	openErr, entriesErr error
 	opens, closes       int
@@ -148,9 +161,64 @@ func (r *fakeRoot) Entries(limit int) ([]gu.Entry, error) {
 	return out, nil
 }
 
+func (r *fakeRoot) Rmdir(name string) error {
+	e, ok := r.entries[name]
+	switch {
+	case !ok:
+		return fmt.Errorf("fake: %s: %w", name, fs.ErrNotExist)
+	case !e.IsDir || e.IsLink:
+		return fmt.Errorf("fake: %s: not a directory", name)
+	case r.full[name]:
+		return fmt.Errorf("fake: %s: directory not empty", name)
+	}
+	delete(r.entries, name)
+	r.removed = append(r.removed, name)
+	return nil
+}
+
+func (*fakeRoot) OpenDir(string) (gu.Dir, error) { return nil, errors.New("fake: no OpenDir") }
+
 func (r *fakeRoot) Mount() (guestmount.Mount, error) { return guestmount.Mount{}, nil }
 
 func (r *fakeRoot) Close() error { r.closes++; return nil }
 
 // rootOK is a RootCheck that passes every root.
 func rootOK(context.Context, gu.Root) (rule, found string) { return "", "" }
+
+// fakeKiller is the kill loop: it reports left for each kill, and
+// records each call in calls.
+type fakeKiller struct {
+	left  uint32
+	calls *[]string
+}
+
+func (k *fakeKiller) Kill(_ context.Context, uid uint32) procs.KillResult {
+	*k.calls = append(*k.calls, fmt.Sprintf("kill %d", uid))
+	return procs.KillResult{Left: k.left, Rounds: 1}
+}
+
+// fakeEmptier is the child that empties a home: it records its IDs and
+// home in calls and its deadline in deadline, runs onRun when set, and
+// returns err.
+type fakeEmptier struct {
+	err      error
+	calls    *[]string
+	deadline time.Time
+	onRun    func()
+}
+
+func (e *fakeEmptier) EmptyHome(ctx context.Context, uid, gid uint32, home string) error {
+	*e.calls = append(*e.calls, fmt.Sprintf("empty %d:%d %s", uid, gid, home))
+	e.deadline, _ = ctx.Deadline()
+	if e.onRun != nil {
+		e.onRun()
+	}
+	return e.err
+}
+
+// exitError is a child that ran and exited nonzero.
+type exitError struct{}
+
+func (exitError) Error() string { return "exit status 1" }
+
+func (exitError) ExitCode() int { return 1 }

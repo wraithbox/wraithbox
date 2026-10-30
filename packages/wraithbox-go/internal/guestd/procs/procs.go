@@ -121,7 +121,8 @@ func (r KillResult) Clean() bool { return r.Left == 0 }
 // nothing, because a domain can hold a job between two starts. It stops
 // at the first clean check, after MaxRounds, or past MaxTime, and then
 // logs the processes left with RuleKillIncomplete. A check that
-// couldn't read the process table counts as MaxLeft processes left.
+// couldn't read the process table counts as MaxLeft processes left,
+// and a ctx done before the first round as at least one.
 func (l *Loops) Kill(ctx context.Context, uid uint32) KillResult {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -159,6 +160,12 @@ func (l *Loops) Kill(ctx context.Context, uid uint32) KillResult {
 	if err != nil {
 		left = MaxLeft
 		attrs = append(attrs, slog.String("error", err.Error()))
+	}
+	if round == 0 {
+		// ctx was done before the first round: no bootout ran, so the
+		// kill isn't clean even with no process listed.
+		left = max(left, 1)
+		attrs = append(attrs, slog.String("error", ctx.Err().Error()))
 	}
 	l.log.LogAttrs(ctx, slog.LevelError, "processes of a project user left after the kill loop",
 		append(attrs, slog.Int("count", len(procs)), slog.Any("names", Names(procs)))...)
