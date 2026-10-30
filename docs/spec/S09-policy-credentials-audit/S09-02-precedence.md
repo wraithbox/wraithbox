@@ -45,6 +45,31 @@ profile: turn a part of it off (S07-11-http-policy, "Profile parts").
 This lock holds whatever parts are on. So does the removal of guest
 credentials in the places a profile names.
 
+#### The OAuth token paths
+
+A user or repository rule is a load error when it could allow a `POST`
+to `/v1/oauth/token`, or to any path that starts with it, on a model
+API host (S07-11-http-policy, "model API"). The load check applies the
+same normalization as for the GraphQL path, and it counts a host
+pattern that matches a model API host, a wildcard included. It covers
+rules in the global and project policy, and in repository configuration
+with `config_trust`.
+
+The refusal names the rule `model-token-path`, the policy file and the
+rule's name (NFR06-explained-refusals). It tells the user that the model
+credential comes from `claude setup-token` on the host and is stored
+with `wb cred set` (S09-05-credentials, "Long-lived token").
+
+The model API profile doesn't allow these paths, so a login started in
+the guest fails at its token request (S14-04-commands-and-endpoints,
+"Browser login"). Without this check a policy rule could allow them. The
+guest's login would then complete and leave the OAuth tokens in the
+guest. With no unlocked Keychain, Claude Code writes them in plaintext
+to `~/.claude/.credentials.json` (X01-model-credential, "Without a
+Keychain"). This check enforces
+SEC04-no-guest-secrets for the model credential's OAuth tokens. Like the
+GraphQL lock, it holds whatever profile parts are on.
+
 #### Mode per host and port
 
 `enforcement` is resolved for each host and port over the whole union,
@@ -102,5 +127,10 @@ sources are those of every project with a session in the VM.
 ### The mode resolves per host and port, over the whole union
 
 - **Decided:** I109.
+
+### Policy can't allow the OAuth token paths
+
+- **Decided:** I259. A built-in deny on these paths, evaluated before
+  any allow, can be added on top later.
 
 **Status:** Draft

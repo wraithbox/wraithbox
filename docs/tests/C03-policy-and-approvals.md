@@ -5,7 +5,7 @@ the policies of the projects in one VM, modes per host, profile parts,
 learn mode, and the approval flow.
 
 **Verifies:** S07-01-per-vm-policy ("Session end"), S07-07-hosts-and-modes ("Modes, per host"), S07-11-http-policy ("Profile parts"),
-S07-17-approvals-and-learning, S07-04-dns-refusals ("Deny duration"), S09-02-precedence ("Mode per host and port"),
+S07-17-approvals-and-learning, S07-04-dns-refusals ("Deny duration"), S09-02-precedence ("Mode per host and port", "The OAuth token paths"),
 S09-04-boundary-check ("Built-in profiles in the check"),
 S09-10-approval-flow,
 S13-guest-confinement
@@ -24,6 +24,14 @@ Spec: S07-07-hosts-and-modes, "Modes, per host".
 - Load a policy with a host that has `_` or a non-ASCII byte in its
   name, and run `wb allow` on such a host, and see both refused with
   the rule `dns-name-form` (S07-02-packet-path, DNS).
+- Load a global, project, and `config_trust` repository rule that
+  allows `POST /v1/oauth/token` on `platform.claude.com`, and rules that
+  reach it through `/v1/oauth/token/revoke`, `/v1/oauth/**`, a wildcard
+  method, a trailing slash, percent-encoding, the host pattern
+  `*.claude.com`, or the host `api.anthropic.com`. See each refused at load with
+  the rule `model-token-path`, the file and rule named, and a message
+  that names `claude setup-token` and `wb cred set`
+  (S09-02-precedence, "The OAuth token paths").
 - Add a global pass entry on a host that a joining project's remote
   names, and see that project's session start refused, with the project
   named.
