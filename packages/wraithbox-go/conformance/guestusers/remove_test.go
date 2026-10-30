@@ -12,12 +12,20 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	gp "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestprocs"
 	gu "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
 )
+
+// keepAliveLabel is the label of the LaunchAgent keepAliveAgent loads.
+const keepAliveLabel = "com.wraithbox.conformance.keepalive"
+
+// comeBackWait is how long TestKillUser waits before it looks for a
+// process launchd started again.
+const comeBackWait = 5 * time.Second
 
 // The variables that name the project user a check that writes may
 // kill or remove. A check that writes skips without its variable, so
@@ -62,11 +70,11 @@ func startAs(t *testing.T, u users.User, setsid bool, name string, args ...strin
 // launchd domain, so launchd starts it again after each SIGKILL.
 func keepAliveAgent(t *testing.T, u users.User) {
 	t.Helper()
-	plist := filepath.Join(t.TempDir(), "com.wraithbox.conformance.keepalive.plist")
+	plist := filepath.Join(t.TempDir(), keepAliveLabel+".plist")
 	body := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>Label</key><string>com.wraithbox.conformance.keepalive</string>
+<key>Label</key><string>` + keepAliveLabel + `</string>
 <key>ProgramArguments</key><array><string>/bin/sleep</string><string>3600</string></array>
 <key>KeepAlive</key><true/>
 <key>RunAtLoad</key><true/>
@@ -93,7 +101,9 @@ func running(t *testing.T, uid uint32) []gp.Proc {
 
 // TestKillUser: the kill loop ends every process of the user, a
 // KeepAlive LaunchAgent, a nohup process and one in its own session
-// among them, in one call, and none comes back (S06-10-leftover-processes;
+// among them, in one call. None comes back comeBackWait later, and the
+// user's launchd domain no longer holds the agent
+// (S06-10-leftover-processes;
 // S13-01-process-hardening, "Per-user launchd services"; SEC08-proj-isolation). It
 // ends the user's session: run it only with WB_CONFORMANCE_KILL_UID
 // set.
@@ -112,18 +122,38 @@ func TestKillUser(t *testing.T) {
 	if left := running(t, u.UID); len(left) != 0 {
 		t.Errorf("processes of %s after a clean kill: %v", u.Name, left)
 	}
+	time.Sleep(comeBackWait)
+	if left := running(t, u.UID); len(left) != 0 {
+		t.Errorf("processes of %s %v after a clean kill: %v", u.Name, comeBackWait, left)
+	}
+	// wb-guestd never runs `launchctl print` against a locked user. This
+	// check isn't wb-guestd.
+	domain := "user/" + strconv.FormatUint(uint64(u.UID), 10)
+	out, err := exec.CommandContext(t.Context(), "/bin/launchctl", "print", domain).CombinedOutput()
+	if err == nil && strings.Contains(string(out), keepAliveLabel) {
+		t.Errorf("launchctl print %s still names %s:\n%s", domain, keepAliveLabel, out)
+	}
 }
 
 // TestRemoveUser: a removal ends the user's processes, empties and
-// removes its home with a file the user made in it, and retires the
+// removes its home with a file the user made in it and a directory the
+// user set to mode 000 with a file in it, and retires the
 // record, which stays with `pwpolicy -authentication-allowed` reporting
 // the account disabled (S06-08-projects-and-sessions, "Removing a
 // home"; SEC08-proj-isolation). It removes the user: run it only with
 // WB_CONFORMANCE_REMOVE_UID set.
 func TestRemoveUser(t *testing.T) {
 	u := chosenUser(t, removeEnv)
-	if out, err := asUser(t, u, "/usr/bin/touch", filepath.Join(u.Home, "made-by-the-user")); err != nil {
-		t.Fatalf("touch as %s: %v: %s", u.Name, err, out)
+	closed := filepath.Join(u.Home, "closed-by-the-user")
+	for _, c := range [][]string{
+		{"/usr/bin/touch", filepath.Join(u.Home, "made-by-the-user")},
+		{"/bin/mkdir", closed},
+		{"/usr/bin/touch", filepath.Join(closed, "inside")},
+		{"/bin/chmod", "000", closed},
+	} {
+		if out, err := asUser(t, u, c[0], c[1:]...); err != nil {
+			t.Fatalf("%v as %s: %v: %s", c, u.Name, err, out)
+		}
 	}
 	startAs(t, u, true, "/bin/sleep", "3600")
 	sys := &gu.System{Log: discard}
