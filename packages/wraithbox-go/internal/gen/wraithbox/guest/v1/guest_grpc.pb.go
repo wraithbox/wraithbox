@@ -107,16 +107,18 @@ type GuestServiceClient interface {
 	// with no accepted OK result is refused for the VM generation.
 	EnsureUsers(ctx context.Context, in *EnsureUsersRequest, opts ...grpc.CallOption) (*EnsureUsersResponse, error)
 	// UnlockUser lets a project user log in and run processes again, for a
-	// session start (S06-09-session-lifecycle). The answer is empty: a
+	// session start (S06-09-session-lifecycle; S13-01-process-hardening,
+	// "Locked users"). wb-guestd starts with every user locked. The answer is empty: a
 	// success says the user is unlocked.
 	UnlockUser(ctx context.Context, in *UnlockUserRequest, opts ...grpc.CallOption) (*UnlockUserResponse, error)
 	// KillUser locks a project user and stops every process it runs
 	// (S06-10-leftover-processes). wb-guestd keeps a CleanupRecord of the
 	// result until wb-hostd acknowledges it.
 	KillUser(ctx context.Context, in *KillUserRequest, opts ...grpc.CallOption) (*KillUserResponse, error)
-	// RemoveUser removes a project user's record and home, for `wb project
-	// rm` (S05-04-naming, "The project user"; S06-08-projects-and-sessions,
-	// "Removing a home"). wb-hostd keeps the pending removal in state.db
+	// RemoveUser removes a project user's home and retires its record,
+	// which stays, locked and disabled, for `wb project rm` (S05-04-naming,
+	// "The project user"; S06-08-projects-and-sessions, "Removing a
+	// home"). wb-hostd keeps the pending removal in state.db
 	// until a REMOVED result for that project and UID comes back. A reply
 	// never clears another project's record.
 	RemoveUser(ctx context.Context, in *RemoveUserRequest, opts ...grpc.CallOption) (*RemoveUserResponse, error)
@@ -276,16 +278,18 @@ type GuestServiceServer interface {
 	// with no accepted OK result is refused for the VM generation.
 	EnsureUsers(context.Context, *EnsureUsersRequest) (*EnsureUsersResponse, error)
 	// UnlockUser lets a project user log in and run processes again, for a
-	// session start (S06-09-session-lifecycle). The answer is empty: a
+	// session start (S06-09-session-lifecycle; S13-01-process-hardening,
+	// "Locked users"). wb-guestd starts with every user locked. The answer is empty: a
 	// success says the user is unlocked.
 	UnlockUser(context.Context, *UnlockUserRequest) (*UnlockUserResponse, error)
 	// KillUser locks a project user and stops every process it runs
 	// (S06-10-leftover-processes). wb-guestd keeps a CleanupRecord of the
 	// result until wb-hostd acknowledges it.
 	KillUser(context.Context, *KillUserRequest) (*KillUserResponse, error)
-	// RemoveUser removes a project user's record and home, for `wb project
-	// rm` (S05-04-naming, "The project user"; S06-08-projects-and-sessions,
-	// "Removing a home"). wb-hostd keeps the pending removal in state.db
+	// RemoveUser removes a project user's home and retires its record,
+	// which stays, locked and disabled, for `wb project rm` (S05-04-naming,
+	// "The project user"; S06-08-projects-and-sessions, "Removing a
+	// home"). wb-hostd keeps the pending removal in state.db
 	// until a REMOVED result for that project and UID comes back. A reply
 	// never clears another project's record.
 	RemoveUser(context.Context, *RemoveUserRequest) (*RemoveUserResponse, error)

@@ -15,6 +15,8 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/cleanup"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/procs"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
@@ -23,7 +25,16 @@ import (
 )
 
 // memDir is a local directory that starts empty and keeps every write.
-type memDir struct{ recs map[string]gu.Record }
+type memDir struct {
+	recs map[string]gu.Record
+	// disabled is each user Disable disabled.
+	disabled []string
+}
+
+func (d *memDir) Disable(_ context.Context, name string) error {
+	d.disabled = append(d.disabled, name)
+	return nil
+}
 
 func (d *memDir) key(kind gu.Kind, name string) string { return kind.String() + "/" + name }
 
@@ -45,10 +56,28 @@ func (d *memDir) Create(_ context.Context, kind gu.Kind, name, attr, value strin
 	return nil
 }
 
-// memRoot is an empty volume root on mount that keeps the homes made.
+// memRoot is an empty volume root on mount that keeps the homes and
+// directories made, and the files written in them.
 type memRoot struct {
 	homes map[string]gu.Entry
+	files map[string][]byte
 	mount guestmount.Mount
+}
+
+func (r *memRoot) Rmdir(name string) error {
+	if _, ok := r.homes[name]; !ok {
+		return fs.ErrNotExist
+	}
+	delete(r.homes, name)
+	return nil
+}
+
+func (r *memRoot) OpenDir(name string) (gu.Dir, error) {
+	e, ok := r.homes[name]
+	if !ok {
+		return nil, fs.ErrNotExist
+	}
+	return &memSubdir{root: r, self: e}, nil
 }
 
 func (r *memRoot) Stat(name string) (gu.Entry, error) {
@@ -59,6 +88,9 @@ func (r *memRoot) Stat(name string) (gu.Entry, error) {
 }
 
 func (r *memRoot) Mkdir(name string, uid, gid uint32) error {
+	if _, ok := r.homes[name]; ok {
+		return fs.ErrExist
+	}
 	r.homes[name] = gu.Entry{Name: name, IsDir: true, UID: uid, GID: gid, Perm: 0o700}
 	return nil
 }
@@ -92,13 +124,38 @@ func usersLink(t *testing.T, mount bool) *guestlink.Link {
 // rootMount.
 func usersLinkOn(t *testing.T, mount bool, rootMount guestmount.Mount) *guestlink.Link {
 	t.Helper()
+	return newUsersEnv(t, mount, rootMount).link
+}
+
+// usersEnv is a wb-guestd served on a socketpair with fakes for the
+// guest, and the host's link to it.
+type usersEnv struct {
+	link  *guestlink.Link
+	dir   *memDir
+	root  *memRoot
+	table *procTable
+	empty *memEmptier
+}
+
+// newUsersEnv serves wb-guestd with fake volumes, a memDir, one memRoot
+// on rootMount, a procTable and a memEmptier. mount runs a MountData
+// first.
+func newUsersEnv(t *testing.T, mount bool, rootMount guestmount.Mount) *usersEnv {
+	t.Helper()
 	const v = "1.2.3"
 	host, guest := socketpair(t)
 	dm, _, _ := newDataMount(newFakeVolumes())
-	m := users.New(&memDir{recs: map[string]gu.Record{}},
-		func() (gu.Root, error) { return &memRoot{homes: map[string]gu.Entry{}, mount: rootMount}, nil },
-		slog.New(slog.DiscardHandler))
-	srv := guestd.NewServer(v, slog.New(slog.DiscardHandler), guestd.WithDataMount(dm), guestd.WithUsers(m))
+	e := &usersEnv{
+		dir:   &memDir{recs: map[string]gu.Record{}},
+		root:  &memRoot{homes: map[string]gu.Entry{}, files: map[string][]byte{}, mount: rootMount},
+		table: &procTable{},
+	}
+	e.empty = &memEmptier{}
+	open := func() (gu.Root, error) { return e.root, nil }
+	log := slog.New(slog.DiscardHandler)
+	m := users.New(e.dir, open, log)
+	srv := guestd.NewServer(v, log, guestd.WithDataMount(dm), guestd.WithUsers(m),
+		guestd.WithProcesses(procs.New(e.table, newInstantClock(), log)), guestd.WithRemoval(e.empty, open))
 	go func() { _ = srv.Serve(newOneConn(guest)) }()
 	t.Cleanup(srv.Stop)
 	link, err := guestlink.Hello(t.Context(), host, v, slog.New(slog.DiscardHandler))
@@ -111,7 +168,8 @@ func usersLinkOn(t *testing.T, mount bool, rootMount guestmount.Mount) *guestlin
 			t.Fatalf("MountData: %v", err)
 		}
 	}
-	return link
+	e.link = link
+	return e
 }
 
 // TestEnsureUsersRPC: wb-hostd's own check takes the answer, with OK for
@@ -209,6 +267,8 @@ func TestUsersRulesForm(t *testing.T) {
 	for _, r := range []string{
 		users.RuleRequestInvalid, users.RuleConflict, users.RuleHomeOtherOwner, users.RuleHomeInvalid,
 		users.RuleIDsOwnEntry, users.RuleHomeRoot, users.RuleDirectory, users.RuleDeadline, users.RuleRequest,
+		users.RuleUnknown, users.RuleRemovalRunning, users.RuleHomeChild, users.RuleHomeLeft,
+		guestd.RuleKillRequest, cleanup.RuleDir, cleanup.RuleFile, cleanup.RuleWrite,
 	} {
 		if !form.MatchString(r) {
 			t.Errorf("rule %q", r)

@@ -176,17 +176,23 @@ func TestRemoveRefuses(t *testing.T) {
 			if c.r != nil {
 				r = c.r(r)
 			}
-			res := f.m.Remove(t.Context(), r, f.tools())
-			if res.Outcome != users.Refused || res.Rule != c.rule {
-				t.Errorf("Remove = %+v, want rule %s", res, c.rule)
-			}
-			if len(f.calls) != 0 || len(f.root.removed) != 0 {
-				t.Errorf("calls %v, removed %v", f.calls, f.root.removed)
-			}
-			if !strings.Contains(f.log.String(), "rule="+c.rule) {
-				t.Errorf("log %s", f.log)
-			}
+			f.wantRefused(t, f.m.Remove(t.Context(), r, f.tools()), c.rule)
 		})
+	}
+}
+
+// wantRefused checks that res refused the removal with rule, logged it,
+// and killed, started and removed nothing.
+func (f *removeFixture) wantRefused(t *testing.T, res users.RemoveResult, rule string) {
+	t.Helper()
+	if res.Outcome != users.Refused || res.Rule != rule {
+		t.Errorf("Remove = %+v, want rule %s", res, rule)
+	}
+	if len(f.calls) != 0 || len(f.root.removed) != 0 {
+		t.Errorf("calls %v, removed %v", f.calls, f.root.removed)
+	}
+	if !strings.Contains(f.log.String(), "rule="+rule) {
+		t.Errorf("log %s", f.log)
 	}
 }
 
@@ -198,16 +204,9 @@ func TestRemoveRootCheck(t *testing.T) {
 	f.complete(u)
 	tools := f.tools()
 	tools.Check = func(context.Context, gu.Root) (string, string) { return "data-mount-other", "found" }
-	if res := f.m.Remove(t.Context(), removal(u), tools); res.Rule != "data-mount-other" {
-		t.Errorf("Remove = %+v", res)
-	}
+	f.wantRefused(t, f.m.Remove(t.Context(), removal(u), tools), "data-mount-other")
 	tools.Check = nil
-	if res := f.m.Remove(t.Context(), removal(u), tools); res.Rule != users.RuleHomeRoot {
-		t.Errorf("Remove with no check = %+v", res)
-	}
-	if len(f.calls) != 0 {
-		t.Errorf("calls %v", f.calls)
-	}
+	f.wantRefused(t, f.m.Remove(t.Context(), removal(u), tools), users.RuleHomeRoot)
 }
 
 // TestRemoveProcessesLeft: with processes left after the kill loop, no

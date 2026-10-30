@@ -212,7 +212,9 @@ const (
 	// Never sent. wb-hostd drops an answer that holds it, or a value it
 	// doesn't know.
 	RemoveResult_REMOVE_RESULT_UNSPECIFIED RemoveResult = 0
-	// The user's record and home are removed, or were never there.
+	// The user's record is retired and its home removed, or neither was
+	// there. A home the removal couldn't empty stays, and wb-guestd logs
+	// it with the rule `project-home-left`.
 	RemoveResult_REMOVE_RESULT_REMOVED RemoveResult = 1
 	// Processes of the user are left, as many as processes_left says.
 	// wb-hostd keeps the pending removal and sends it again at the next
