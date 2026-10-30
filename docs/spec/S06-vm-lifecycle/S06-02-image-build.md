@@ -24,7 +24,8 @@ instance:
 
 1. installs macOS;
 2. runs the provisioning boot and the boots of the second stage;
-3. exits when the build ends.
+3. exits when its part of the build ends. The Claude Code layer gets
+   an instance of its own (S06-01-image-layers, "The Claude Code layer").
 
 The install reads only the restore image at the fixed path
 `<data>/images/macos-restore.ipsw`.
@@ -103,7 +104,13 @@ provisioning boot goes over the host-guest socket to `wb-guestd`:
 3. The build takes `wbadmin` out of every group, disables it, and
    deletes its keychains.
 4. The base layer is installed through `wb-guestd`.
-5. The image is sealed ("Sealing" below).
+5. The image is sealed ("Sealing" below). This sealed image is the
+   parent of the Claude Code layer.
+
+Then the build makes the Claude Code layer on a clone of that parent,
+in a new build bundle, with a new `wb-vmd-install`, and seals it again
+(S06-01-image-layers, "The Claude Code layer"). A build for a new
+Claude Code release does only that part.
 
 After the rotation the secure token keeps working, and the host alone
 can unlock it.
@@ -147,8 +154,10 @@ sealing deletes the SSH host keys (`/etc/ssh/ssh_host_*_key`). The
 local Kerberos realm (`LKDC`) of `wbadmin` is also the same in every
 clone.
 
-An image is rebuilt from a newer restore image, never updated in
-place.
+An image is never updated in place. A newer restore image rebuilds
+every layer, and a new Claude Code release rebuilds the Claude Code
+layer on a clone of its sealed parent (S06-01-image-layers, "The Claude
+Code layer").
 
 ### Guest confinement
 

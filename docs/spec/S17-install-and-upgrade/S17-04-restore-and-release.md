@@ -83,12 +83,35 @@ installer refusing a restore image that Apple didn't sign (I262).
 
 #### The version
 
-The version is a build input that `wb-hostd` holds, from the user's
-`wb image build`. It is never a value from a guest or a repository.
-I220 decides which release a build picks.
+The version is a build input that `wb-hostd` holds. It is never a
+value from a guest or a repository. It comes from one of two places
+(S14-01-install, "Which release"):
+
+- the user's `wb image build --claude-version <version>`;
+- without that option, Anthropic's stable channel.
 
 `wb-hostd` and `wb-download` both refuse a version outside
 `^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,6}$`.
+
+For the stable channel, a run of `wb-download-claude` fetches only the
+channel file, before the release's run:
+
+1. `wb-hostd` creates `stable` in `<data>/downloads/` as "The files"
+   below says, and passes its descriptor.
+2. `wb-download` fetches `/claude-code-releases/stable`, at most 64
+   bytes, and parses nothing. A larger body fails with
+   `download-too-large`.
+3. After `wb-launcher` reports the exit, `wb-hostd` checks the size
+   with `fstat` the same way, and reads the file from its own
+   descriptor. It drops one trailing line feed, and checks the rest
+   against the version's form. Anything else fails the build with
+   `claude-channel-invalid`. The channel reader has a fuzz target.
+4. It refuses a version older than the Claude Code version of the last
+   image a build sealed, with `claude-release-rollback`. `state.db`
+   records that version. A version from `--claude-version` skips this
+   step.
+
+Versions compare as three numbers, part by part.
 
 #### The files
 

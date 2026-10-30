@@ -7,13 +7,15 @@ project layers install into.
 
 ### Layers
 
-A guest image has three layers:
+A guest image has four layers:
 
 1. *Base*: macOS installed from an Apple restore image, plus
-   `wb-guestd`, Homebrew, the Xcode command line tools, and Claude Code
-   (S14-01-install). An Xcode variant adds full Xcode.
+   `wb-guestd`, Homebrew and the Xcode command line tools. An Xcode
+   variant adds full Xcode.
 2. *Org layer*, optional: a shared Brewfile and settings.
-3. *Project layer*: the formulae the project declares
+3. *Claude Code layer*: Claude Code (S14-01-install), the top layer
+   of the sealed image ("The Claude Code layer" below).
+4. *Project layer*: the formulae the project declares
    (FR07-toolchain-manifest). `wb-guestd` installs them as the
    toolchain user into the toolchain prefix, before the session starts
    ("Toolchain prefix" below).
@@ -21,6 +23,49 @@ A guest image has three layers:
 The image doesn't contain a Wraith Box CA. `wb-guestd` installs the
 VM's CAs at runtime in the guest trust files. On Linux and Windows
 guests it also installs them in the system store (S09-08-guest-trust).
+
+#### The Claude Code layer
+
+Claude Code releases often, and the image sets its version
+(S14-01-install, "Version"). So Claude Code is in a layer of its own,
+and a new release rebuilds only that layer.
+
+1. A build seals the image below the Claude Code layer first, as
+   "Sealing" in S06-02-image-build says. It keeps that sealed image in
+   `<data>/images/` as the layer's parent.
+2. It clones the parent into a new build bundle, with the identity
+   check of S06-02-image-build, "Taking the sealed image".
+3. It boots the clone. At first contact `wbadmin`'s password is
+   rotated, as in every fresh clone of an image (S06-03-image-updates,
+   "One guest admin password per VM"). The new password is the new
+   image's.
+4. `wb-guestd` installs the checked Claude Code binary through its
+   named operation (S14-01-install, "Into the image").
+5. The clone is sealed again, with the same scan, before any project
+   code runs (S06-02-image-build, "Sealing"). `wb-hostd` takes it from
+   the build bundle as "Taking the sealed image" says.
+
+A new Claude Code release repeats steps 2 to 5 from the parent that is
+already stored. `wb image build` takes that path when the stored parent
+was built from the restore image entry the build picks
+(S17-04-restore-and-release, "The entry"), and, for a named image, from
+the same recipe (I150). Otherwise it builds every layer. A layer build
+doesn't download a restore image, install macOS, or run a provisioning
+boot. The guest of a layer build has no egress, because the host sends
+the binary over the host-guest socket.
+
+A layer build never changes its parent, and never changes an image
+built earlier. It makes a new image. A VM gets it by an update
+(S06-03-image-updates, "Updates").
+
+A session VM never boots a parent. Only an image with a Claude Code
+layer is offered to sessions, because `wb-guestd` starts Claude Code by
+its absolute path in the image.
+
+A named image derives from the base, and images don't chain (I150).
+The Claude Code layer is the only exception. It goes on top of the
+base, and on top of each named image. A new restore image
+rebuilds the base, every image above it, and their Claude Code layers.
 
 ### Toolchain prefix
 
