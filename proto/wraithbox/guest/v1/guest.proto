@@ -82,7 +82,8 @@ service GuestService {
   rpc EnsureUsers(EnsureUsersRequest) returns (EnsureUsersResponse);
 
   // UnlockUser lets a project user log in and run processes again, for a
-  // session start (S06-09-session-lifecycle). The answer is empty: a
+  // session start (S06-09-session-lifecycle; S13-01-process-hardening,
+  // "Locked users"). wb-guestd starts with every user locked. The answer is empty: a
   // success says the user is unlocked.
   rpc UnlockUser(UnlockUserRequest) returns (UnlockUserResponse);
 
@@ -91,9 +92,10 @@ service GuestService {
   // result until wb-hostd acknowledges it.
   rpc KillUser(KillUserRequest) returns (KillUserResponse);
 
-  // RemoveUser removes a project user's record and home, for `wb project
-  // rm` (S05-04-naming, "The project user"; S06-08-projects-and-sessions,
-  // "Removing a home"). wb-hostd keeps the pending removal in state.db
+  // RemoveUser removes a project user's home and retires its record,
+  // which stays, locked and disabled, for `wb project rm` (S05-04-naming,
+  // "The project user"; S06-08-projects-and-sessions, "Removing a
+  // home"). wb-hostd keeps the pending removal in state.db
   // until a REMOVED result for that project and UID comes back. A reply
   // never clears another project's record.
   rpc RemoveUser(RemoveUserRequest) returns (RemoveUserResponse);
@@ -318,7 +320,9 @@ enum RemoveResult {
   // Never sent. wb-hostd drops an answer that holds it, or a value it
   // doesn't know.
   REMOVE_RESULT_UNSPECIFIED = 0;
-  // The user's record and home are removed, or were never there.
+  // The user's record is retired and its home removed, or neither was
+  // there. A home the removal couldn't empty stays, and wb-guestd logs
+  // it with the rule `project-home-left`.
   REMOVE_RESULT_REMOVED = 1;
   // Processes of the user are left, as many as processes_left says.
   // wb-hostd keeps the pending removal and sends it again at the next

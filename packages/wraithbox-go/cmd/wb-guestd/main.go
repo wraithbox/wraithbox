@@ -4,7 +4,9 @@
 //
 // Before it listens, it updates itself from the guest tools disk when
 // the disk's version isn't its own (internal/guestupdate), and runs the
-// installed wb-guestd in its place.
+// installed wb-guestd in its place. Then it runs the stop loop, so no
+// project user's process runs on while no host is connected
+// (S13-01-process-hardening, "When the link drops").
 //
 // It logs one JSON object per line on standard error, as wb-vmd does.
 // The service manager sends standard error to a file in the guest.
@@ -46,6 +48,13 @@ func run() int {
 		return 1 // AtStart logged it: the installed wb-guestd didn't run
 	}
 
+	// A wb-guestd that starts again, after a crash or a kill, finds the
+	// project users' processes of the last link still running
+	// (S13-01-process-hardening, "When the link drops";
+	// SEC08-proj-isolation).
+	loops := guestd.SystemProcesses(log)
+	loops.StopAll(ctx, "start")
+
 	lis, err := guestsock.Listen(ctx, log, guestsock.Port)
 	if errors.Is(err, context.Canceled) {
 		return 0 // stopped while the port was still in use
@@ -54,7 +63,7 @@ func run() int {
 		return 1 // Listen logged the errno and the rule
 	}
 
-	srv := guestd.NewServer(own, log)
+	srv := guestd.NewServer(own, log, guestd.WithProcesses(loops))
 	go func() {
 		<-ctx.Done()
 		srv.Stop()
