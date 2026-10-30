@@ -6,7 +6,8 @@ import (
 )
 
 func TestParseStat(t *testing.T) {
-	tail := " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 777 19\n"
+	// Fields 7 to 21 of proc(5), then starttime, field 22, then one more.
+	tail := " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 777 19\n"
 	cases := []struct {
 		name string
 		in   string
