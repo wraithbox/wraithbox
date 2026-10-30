@@ -357,6 +357,32 @@ func TestStopAllListError(t *testing.T) {
 	}
 }
 
+// TestStopAllExclude: while Exclude holds a UID, the stop loop leaves a
+// process whose UID and real UID are both that UID running, and counts
+// it in the log. A process with only one of them, or one after the
+// release, is stopped.
+func TestStopAllExclude(t *testing.T) {
+	mixed := proc(102, 10000, "setuid")
+	mixed.RUID = 10001
+	table := &fakeTable{procs: []gp.Proc{proc(100, 10000, "find"), proc(101, 10001, "zsh"), mixed}}
+	l, _, log := newLoops(t, table)
+	release := l.Exclude(10000)
+	if res := l.StopAll(t.Context(), "link-drop"); res.Running != 0 || res.Stopped != 2 {
+		t.Errorf("StopAll = %+v", res)
+	}
+	if table.procs[0].State != gp.Running || table.procs[1].State != gp.Stopped || table.procs[2].State != gp.Stopped {
+		t.Errorf("states %v", table.procs)
+	}
+	if !strings.Contains(log.String(), `"under_removal":1`) {
+		t.Errorf("log %s", log)
+	}
+	release()
+	release()
+	if res := l.StopAll(t.Context(), "link-drop"); res.Running != 0 || table.procs[0].State != gp.Stopped {
+		t.Errorf("StopAll after the release = %+v, states %v", res, table.procs)
+	}
+}
+
 func TestLabel(t *testing.T) {
 	if got := procs.Label("a\x00b\"é"); got != `"a\x00b\"\u00e9"` {
 		t.Errorf("Label = %s", got)

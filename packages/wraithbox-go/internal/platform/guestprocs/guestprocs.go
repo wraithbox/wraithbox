@@ -88,8 +88,9 @@ type Table interface {
 	// from first to last, both included.
 	InRange(first, last uint32) ([]Proc, error)
 	// Signal sends sig to p, only while the process with p's PID still
-	// has p's start time and user IDs, so a PID the kernel gave to
-	// another process meanwhile is left alone. A process that is gone is
+	// has p's start time, so a PID the kernel gave to another process
+	// meanwhile is left alone. The user IDs aren't compared: a setuid
+	// exec after the listing doesn't dodge the signal. A process that is gone is
 	// no error. It refuses a PID below 2 with ErrPID: kill(2) reads 0
 	// and -1 as groups of processes, and 1 is launchd.
 	Signal(p Proc, sig Signal) error

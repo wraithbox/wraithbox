@@ -114,7 +114,9 @@ func procOf(k *unix.KinfoProc) Proc {
 }
 
 // Signal reads kern.proc.pid for p's PID right before kill(2), and
-// sends nothing when that process isn't p. A PID is reused only after
+// sends nothing when that process isn't p: another start time. It
+// doesn't compare the UIDs, so a process that runs a setuid program
+// between the listing and the signal still gets it. A PID is reused only after
 // the kernel has handed out every other free one, so the gap between
 // the read and the kill is far too short for a reuse to slip in.
 func (*System) Signal(p Proc, sig Signal) error {
@@ -140,7 +142,7 @@ func (*System) Signal(p Proc, sig Signal) error {
 		return fmt.Errorf("sysctl kern.proc.pid %d: %w", p.PID, err)
 	}
 	now := procOf(k)
-	if now.PID != p.PID || now.Start != p.Start || now.UID != p.UID || now.RUID != p.RUID {
+	if now.PID != p.PID || now.Start != p.Start {
 		return nil
 	}
 	if err := unix.Kill(int(p.PID), num); err != nil && !errors.Is(err, unix.ESRCH) {

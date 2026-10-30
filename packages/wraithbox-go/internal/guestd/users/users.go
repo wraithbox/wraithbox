@@ -111,7 +111,8 @@ type Manager struct {
 	log      *slog.Logger
 
 	mu sync.Mutex
-	// known holds each user whose last result was OK, by UID.
+	// known holds each user whose last result was OK, by UID. A write
+	// holds mu and then lockMu, so Unlock reads it under lockMu alone.
 	known map[uint32]User
 
 	// lockMu guards locks, apart from mu, which a request holds for up
@@ -125,7 +126,7 @@ type Manager struct {
 func New(dir guestusers.Directory, openRoot func() (guestusers.Root, error), log *slog.Logger) *Manager {
 	return &Manager{
 		dir: dir, openRoot: openRoot, log: log, known: map[uint32]User{},
-		locks: locks{unlocked: map[uint32]bool{}, removing: map[uint32]bool{}},
+		locks: locks{unlocked: map[uint32]bool{}, removing: map[uint32]bool{}, killing: map[uint32]int{}},
 	}
 }
 
@@ -194,13 +195,15 @@ func (m *Manager) settle(ctx context.Context, u User, outcome string, r *refusal
 		slog.String("project_id", cut(u.ProjectID)),
 	}
 	if r != nil {
-		delete(m.known, u.UID)
+		m.forget(u.UID)
 		m.log.LogAttrs(ctx, slog.LevelWarn, "project user refused", append(attrs,
 			slog.String("rule", r.rule), slog.String("decision", "refuse"),
 			slog.String("attribute", r.attr), slog.String("found", r.found))...)
 		return Result{UID: u.UID, Rule: r.rule}
 	}
+	m.lockMu.Lock()
 	m.known[u.UID] = u
+	m.lockMu.Unlock()
 	m.log.LogAttrs(ctx, slog.LevelInfo, "project user ensured", append(attrs,
 		slog.String("decision", "accept"), slog.String("outcome", outcome))...)
 	return Result{UID: u.UID}

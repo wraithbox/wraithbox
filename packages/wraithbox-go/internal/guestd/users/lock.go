@@ -13,6 +13,8 @@ const (
 	RuleUnknown = "project-user-unknown"
 	// RuleRemovalRunning: a removal of the user is running.
 	RuleRemovalRunning = "project-user-removal-running"
+	// RuleKillRunning: a kill of the user is running.
+	RuleKillRunning = "project-user-kill-running"
 )
 
 // locks is the lock state of the project users, in memory only
@@ -25,6 +27,8 @@ type locks struct {
 	unlocked map[uint32]bool
 	// removing holds each UID whose removal runs.
 	removing map[uint32]bool
+	// killing counts the kills of each UID that run.
+	killing map[uint32]int
 }
 
 // Locked reports whether uid is locked. While it is, wb-guestd starts
@@ -37,28 +41,52 @@ func (m *Manager) Locked(uid uint32) bool {
 	return !m.locks.unlocked[uid]
 }
 
-// Lock locks uid, for a kill or a removal. reason names it in the log.
-func (m *Manager) Lock(ctx context.Context, uid uint32, reason string) {
+// StartKill locks uid for a kill and marks the kill as running, so
+// Unlock refuses the user until EndKill. It returns the rule that
+// refuses the kill, or "": RuleRemovalRunning while a removal of uid
+// runs, which locked the user and runs its own kill loop.
+func (m *Manager) StartKill(ctx context.Context, uid uint32) string {
 	m.lockMu.Lock()
 	defer m.lockMu.Unlock()
+	if m.locks.removing[uid] {
+		m.log.LogAttrs(ctx, slog.LevelWarn, "kill request refused",
+			slog.Uint64("uid", uint64(uid)), slog.String("rule", RuleRemovalRunning), slog.String("decision", "refuse"))
+		return RuleRemovalRunning
+	}
+	m.locks.killing[uid]++
 	delete(m.locks.unlocked, uid)
 	m.log.LogAttrs(ctx, slog.LevelInfo, "project user locked",
-		slog.Uint64("uid", uint64(uid)), slog.String("reason", reason))
+		slog.Uint64("uid", uint64(uid)), slog.String("reason", "kill"))
+	return ""
+}
+
+// EndKill marks one kill of uid, which StartKill started, as done. The
+// user stays locked.
+func (m *Manager) EndKill(uid uint32) {
+	m.lockMu.Lock()
+	defer m.lockMu.Unlock()
+	if m.locks.killing[uid]--; m.locks.killing[uid] <= 0 {
+		delete(m.locks.killing, uid)
+	}
 }
 
 // Unlock unlocks uid for a session start, and returns the rule that
 // refuses it, or "". It refuses a user whose removal runs, with
-// RuleRemovalRunning, and one wb-guestd hasn't ensured since it
-// started, with RuleUnknown. A refused user stays locked.
+// RuleRemovalRunning, one whose kill runs, with RuleKillRunning, and
+// one wb-guestd hasn't ensured since it started, with RuleUnknown. It
+// reads the known set under lockMu, which each write of it holds too,
+// so a removal that ends meanwhile can't leave a removed user unlocked.
+// A refused user stays locked.
 func (m *Manager) Unlock(ctx context.Context, uid uint32) string {
-	_, known := m.Known(uid)
 	m.lockMu.Lock()
 	defer m.lockMu.Unlock()
 	rule := ""
 	switch {
 	case m.locks.removing[uid]:
 		rule = RuleRemovalRunning
-	case !known:
+	case m.locks.killing[uid] > 0:
+		rule = RuleKillRunning
+	case !m.isKnownLocked(uid):
 		rule = RuleUnknown
 	}
 	if rule != "" {
@@ -70,6 +98,20 @@ func (m *Manager) Unlock(ctx context.Context, uid uint32) string {
 	m.log.LogAttrs(ctx, slog.LevelInfo, "project user unlocked",
 		slog.Uint64("uid", uint64(uid)), slog.String("decision", "unlock"))
 	return ""
+}
+
+// isKnownLocked reports whether uid is in the known set. The caller
+// holds lockMu.
+func (m *Manager) isKnownLocked(uid uint32) bool {
+	_, ok := m.known[uid]
+	return ok
+}
+
+// forget drops uid from the known set. The caller holds mu.
+func (m *Manager) forget(uid uint32) {
+	m.lockMu.Lock()
+	defer m.lockMu.Unlock()
+	delete(m.known, uid)
 }
 
 // removing reports whether a removal of uid runs.

@@ -63,11 +63,18 @@ func (d *memSubdir) WriteFile(name string, data []byte) error {
 func (*memSubdir) Close() error { return nil }
 
 // memEmptier records each home it empties. A memRoot's homes hold no
-// entries, so there is nothing to remove.
-type memEmptier struct{ homes []string }
+// entries, so there is nothing to remove. It runs during, when set,
+// while it empties a home.
+type memEmptier struct {
+	homes  []string
+	during func()
+}
 
 func (e *memEmptier) EmptyHome(_ context.Context, _, _ uint32, home string) error {
 	e.homes = append(e.homes, home)
+	if e.during != nil {
+		e.during()
+	}
 	return nil
 }
 
@@ -293,6 +300,37 @@ func TestRemoveUserRPC(t *testing.T) {
 	}
 	if _, ok := e.dir.recs[e.dir.key(gu.Users, u.GetUserName())]; !ok {
 		t.Error("the record is gone, want it kept")
+	}
+}
+
+// TestKillUserDuringRemoval: while a removal of the user runs, KillUser
+// and UnlockUser are refused with RuleRemovalRunning, and the kill
+// sends no signal and boots nothing out.
+func TestKillUserDuringRemoval(t *testing.T) {
+	e := newUsersEnv(t, true, goodMount(testDevice))
+	u := projectUser(10000)
+	if _, err := e.link.EnsureUsers(t.Context(), []*guestv1.ProjectUser{u}, slog.New(slog.DiscardHandler)); err != nil {
+		t.Fatal(err)
+	}
+	var killErr, unlockErr error
+	e.empty.during = func() {
+		bootouts := e.table.bootoutCount()
+		_, killErr = e.link.Client().KillUser(t.Context(), &guestv1.KillUserRequest{KillId: 1, ProjectId: testProject, Uid: 10000})
+		_, unlockErr = e.link.Client().UnlockUser(t.Context(), &guestv1.UnlockUserRequest{Uid: 10000})
+		if n := e.table.bootoutCount(); n != bootouts {
+			t.Errorf("a refused kill booted out: %d, then %d", bootouts, n)
+		}
+	}
+	req := &guestv1.RemoveUserRequest{ProjectId: u.GetProjectId(), Uid: u.GetUid(), Gid: u.GetGid(), HomePath: u.GetHomePath()}
+	if out, err := e.link.RemoveUser(t.Context(), req, slog.New(slog.DiscardHandler)); err != nil || out.Result != guestv1.RemoveResult_REMOVE_RESULT_REMOVED {
+		t.Fatalf("RemoveUser = %+v, %v", out, err)
+	}
+	for name, err := range map[string]error{"KillUser": killErr, "UnlockUser": unlockErr} {
+		st := status.Convert(err)
+		if st.Code() != codes.FailedPrecondition {
+			t.Fatalf("%s during a removal: %v", name, err)
+		}
+		wantErrorInfo(t, st, users.RuleRemovalRunning)
 	}
 }
 
