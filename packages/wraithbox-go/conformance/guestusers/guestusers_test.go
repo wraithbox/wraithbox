@@ -216,10 +216,16 @@ type readOnly struct{ *gu.System }
 
 func (readOnly) Create(context.Context, gu.Kind, string, string, string) error { return errNoWrites }
 
-// readOnlyRoot is the volume's root with Mkdir refused.
+func (readOnly) Disable(context.Context, string) error { return errNoWrites }
+
+// readOnlyRoot is the volume's root with every change refused.
 type readOnlyRoot struct{ gu.Root }
 
 func (readOnlyRoot) Mkdir(string, uint32, uint32) error { return errNoWrites }
+
+func (readOnlyRoot) Rmdir(string) error { return errNoWrites }
+
+func (readOnlyRoot) OpenDir(string) (gu.Dir, error) { return nil, errNoWrites }
 
 // onHomePath is the RootCheck of the check: fstatfs of the opened root
 // must report the mount at HomePath.
