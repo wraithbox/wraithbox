@@ -136,8 +136,8 @@ func (d *dirHandle) WriteFile(name string, data []byte) error {
 	if err == nil {
 		err = f.Sync()
 	}
-	if cerr := f.Close(); err == nil {
-		err = cerr
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
 	}
 	if err == nil {
 		err = unix.Renameat(d.fd(), tmp, d.fd(), name)

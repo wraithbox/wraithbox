@@ -25,15 +25,52 @@ changes, because macOS refuses to change it in the record
 #### Removing a home
 
 A home is removed when its project is removed (`wb project rm`), or
-when an ephemeral user's session ends. `wb-guestd` removes it in a
-child process that runs as that user. So it never follows a link the
-user left with root's rights.
+when an ephemeral user's session ends. `wb-hostd` sends `RemoveUser`
+with the project and the user's UID, GID and home. `wb-guestd` takes it
+only for one of these:
+
+- the user it made or checked with that project since it started;
+- after a restart, a record with that name, UID, primary group and
+  home;
+- after a system disk swap, with no record, a home whose owner is that UID.
+
+With no record and no home it answers that the user is removed. A
+request for a known user of another project is refused with
+`project-user-unknown`. One removal of a user runs at a time, and
+another is refused with `project-user-removal-running`.
+
+Then `wb-guestd`:
+
+1. locks the user (S13-01-process-hardening, "Locked users") and runs
+   the kill loop (S13-01-process-hardening, "Per-user launchd
+   services"). With processes left, it answers how many, changes
+   nothing else, and `wb-hostd` asks again later;
+2. removes the entries of the home in a child process that runs as
+   that user, in its own group only, for at most 15 seconds. So it never
+   follows a link the user left with root's rights. A child that didn't
+   start or ran past its deadline refuses the removal with
+   `project-home-child-failed`, and the record stays as it was;
+3. removes the home directory itself;
+4. retires the record: `pwpolicy -disableuser`, hidden from the login
+   window, and the shell `/usr/bin/false`. A step that fails refuses
+   the removal, and `wb-hostd` asks again.
 
 What that user can't remove stays, such as a file guest root left
-there. It stays in a directory no later user gets, because the user's
-IDs are never reused (S06-03-image-updates, "Updates").
+there. `wb-guestd` logs it with `project-home-left` and still answers
+that the user is removed. It stays in a directory no later user gets,
+because the user's IDs are never reused (S06-03-image-updates,
+"Allocation").
 
-Removing the record itself is I138.
+The record stays, locked and disabled: `opendirectoryd` refuses root's
+`dscl . -delete` of a user (X17-image-build), and deleting the record is
+I138. A removal of a retired user runs the same steps, and answers that
+it is removed again. `EnsureUsers` refuses a retired user, because its
+shell differs.
+
+So each removed project leaves one user record and one group record in
+the VM's local directory, which grows by those two for the life of the
+system disk. A system disk swap starts the directory again from the
+image.
 
 ### Standard accounts
 

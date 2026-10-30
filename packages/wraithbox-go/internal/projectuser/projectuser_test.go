@@ -53,7 +53,7 @@ func TestValidProjectID(t *testing.T) {
 		"0123456789abcdef0123456789abcde",   // short
 		"0123456789abcdef0123456789abcdef0", // long
 		"0123456789ABCDEF0123456789abcdef",  // uppercase
-		"0123456789abcdef0123456789abcdeg",  // not hex
+		"0123456789abcdef0123456789abcde-",  // not hex
 	} {
 		if projectuser.ValidProjectID(bad) {
 			t.Errorf("ValidProjectID(%q) = true", bad)
