@@ -75,7 +75,9 @@ package that ships it. V1-M6-release-gate keeps the profiles of
   and the Command Line Tools, installs and provisions a VM over the
   build network, installs the minimal base layer, Claude Code in its
   own top layer, and the Xcode variant, rotates `wbadmin`, then scans
-  and seals the image. Named derived images build from their recipes.
+  and seals the image. The build network is a minimal `wb-netd` for
+  the build VM: DHCP, ARP and the one connection to the guest's port
+  22, with no egress. Named derived images build from their recipes.
   Covers SEC04-no-guest-secrets (image seal), FR06-native-tools.
 - **V1-M4-claude-end-to-end: `wb claude` end to end.** Git round trip with carry-in,
   landing and flagging, the model credential, the terminal records and

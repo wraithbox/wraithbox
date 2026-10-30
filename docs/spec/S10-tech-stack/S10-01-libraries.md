@@ -17,6 +17,7 @@ or downloads and runs, such as a VMM on Linux.
 | RPC | protobuf + gRPC: `google.golang.org/grpc` (Apache-2.0) and `google.golang.org/protobuf` (BSD-3-Clause) in Go, grpc-swift 2 with `grpc-swift-protobuf` and `swift-protobuf` (all Apache-2.0) in Swift, `Grpc.Net` when .NET arrives. Code generated with `buf` (Apache-2.0) |
 | DNS server | a mature Go DNS library (for example `miekg/dns`) |
 | TLS/HTTP proxying | Go standard library (`crypto/tls`, `net/http`, `httputil`), `golang.org/x/net/http2` |
+| SSH client (image build) | `golang.org/x/crypto/ssh` (BSD-3-Clause), in `wb-build-ssh` only (S04-05-helper-programs) |
 | PTY | `creack/pty` (Unix), ConPTY through `golang.org/x/sys/windows`; `golang.org/x/term` |
 | Windows host APIs | `golang.org/x/sys/windows`; Microsoft's Go libraries for HCS and named pipes / Hyper-V sockets (MIT) |
 | Linux host APIs | `golang.org/x/sys/unix` (KVM device checks, Landlock, seccomp, vsock); a pure-Go D-Bus client (Secret Service, notifications) |

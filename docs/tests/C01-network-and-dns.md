@@ -4,7 +4,7 @@
 endpoint, addressing, and the DNS gateway with its hold, quiet
 refusals, and negative answers.
 
-**Verifies:** S07-02-packet-path ("Addressing"), S07-03-dns ("Name form", "Negative answers"),
+**Verifies:** S07-02-packet-path ("Addressing"), S07-18-build-network, S07-03-dns ("Name form", "Negative answers"),
 S07-04-dns-refusals ("Hold", "Widening during the hold"),
 S04-02-vm-provider ("The device set is fixed and checked")
 
@@ -86,5 +86,15 @@ S04-02-vm-provider ("The device set is fixed and checked")
   learn entries or lookup counts.
 - Close a DNS-over-TCP connection for `dns-hold-full` while it has held
   queries, and see their timers not fire (S07-04-dns-refusals, "Hold").
+
+### The build VM's network
+
+- Ask a session VM's `wb-netd` for the connection to the guest's port
+  22, and see it refused and logged with `build-connect-refused` and
+  the check, with no SYN sent to the guest. Ask the build VM's
+  `wb-netd` twice, and see the second request refused the same way.
+- From the build guest, open TCP to a raw IP address, the gateway and
+  a synthetic address, and send a DNS query. See each reset or
+  dropped, and no stream handed to `wb-proxyd`.
 
 **Status:** Draft

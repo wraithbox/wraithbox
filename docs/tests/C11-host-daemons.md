@@ -8,7 +8,7 @@ writer, free space, and the data disk steps.
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024", "Hand-off on macOS", "The host opens every connection", "Caps and closing"), S06-12-guest-agent ("The hello"),
 S06-11-reconnect-and-recovery ("Reconnect"), S06-06-devices-and-warm-start ("When the host sends the time"), S04-08-records-and-bounds ("Host work the guest can cause"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
-S04-07-supervision, S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
+S04-07-supervision, S04-05-helper-programs ("`wb-build-ssh`"), S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
 S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
 
 ## Unit tests
@@ -125,6 +125,15 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   sealed disk's name in the build bundle, and see the build fail with
   `build-bundle-not-regular`, nothing cloned into `<data>/images/`,
   and nothing outside the bundle deleted.
+- Send `wb-hostd` a port 22 socket from a session VM's `wb-netd`, one
+  while no build waits for it, and one in a message with two
+  descriptors. See each refused with `build-socket-refused` and every
+  descriptor closed. Start `wb-build-ssh` with a socket of another type,
+  and see it exit with `build-ssh-socket-refused` before it reads its
+  standard input (S04-05-helper-programs, "`wb-build-ssh`").
+- Run `wb-build-ssh` against a test SSH server whose output repeats
+  the password, and see the password in no log line, and the output
+  cut to its bound.
 
 ### Confinement
 

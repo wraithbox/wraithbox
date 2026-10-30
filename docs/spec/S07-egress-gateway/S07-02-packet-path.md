@@ -136,8 +136,9 @@ cap is dropped, and logged with the cap's rule
 
 ### No host-side listener
 
-`wb-netd` listens on nothing on the host, and never opens a connection
-to the guest. Its only peers are:
+`wb-netd` listens on nothing on the host. It opens a connection to the
+guest only for the build VM, and only to its port 22
+(S07-18-build-network). Its only peers are:
 
 - the packet transport;
 - `wb-proxyd`;

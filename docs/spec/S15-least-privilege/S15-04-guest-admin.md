@@ -46,25 +46,31 @@ The admin path for the person at the host's terminal doesn't use
 1. `wb-hostd` creates two pipes.
 2. `wb-launcher` hands one read end to the build's `wb-vmd`, and the
    other to `wb-build-ssh` as its standard input.
-3. `wb-guestadmin-build` writes the password to the first, and two
-   newline-terminated copies to the second.
+3. `wb-guestadmin-build` writes the password to the first, and one
+   newline-terminated copy to the second.
 
 ### The build's SSH session
 
-`wb-build-ssh` (S04-architecture) runs the system `ssh` with:
+`wb-build-ssh` (S04-05-helper-programs) speaks SSH in its own process,
+with Go's SSH library. It doesn't run an `ssh` program or an
+askpass helper.
 
-- `-F /dev/null -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes`;
-- `SSH_ASKPASS_REQUIRE=force`;
-- `SSH_ASKPASS` set to the path of `wb-askpass` in the bundle, a
-  program path and not the value.
-
-`wb-askpass` reads one line from its standard input, the first copy,
-and prints it for the login. The second line reaches the guest's
-`sudo -S` on the session's standard input.
+- It logs in as `wbadmin` with SSH password authentication, using the
+  line from its standard input.
+- It writes the same password into the session's standard input, where
+  the guest's `sudo -S` reads it.
+- It doesn't request a terminal.
 
 The session runs only on the build VM's own file-handle network,
-through the host's userspace stack. No third party can join that
-network, so the channel authenticates the guest (S06-vm-lifecycle).
+through the host's userspace stack. `wb-netd` connects to the guest's
+port 22 for the build VM only, and hands the socket on
+(S07-18-build-network). No third party can join
+that network, so the channel authenticates the guest
+(S06-vm-lifecycle).
+
+`wb-build-ssh` therefore doesn't check the guest's host key. It
+accepts the key the guest offers, and logs its fingerprint. The design
+relies on this ("What first contact relies on").
 
 A session that doesn't complete burns the build password:
 
@@ -123,6 +129,14 @@ user is logged in.
 `wbadmin` is enabled only during the reset, when nothing else runs
 that could use it. C09-guest-and-sessions has the conformance case.
 
+The build's SSH session relies on its channel, not on a host key. The
+channel is the build VM's own file-handle attachment to `wb-netd`'s
+stack, so the only peer `wb-build-ssh` can reach is the build guest
+behind that stack. To sit in the middle, an attacker would already
+have to control a host process on that path: `wb-vmd`, `wb-netd` or
+`wb-hostd`. A fresh build
+guest also has no host key the host could know in advance.
+
 ### Break-glass
 
 When `wb-guestd` is dead or wedged, `wb-hostd` replaces the VM's
@@ -162,9 +176,11 @@ keychain of `wbadmin`'s. The sealing scan checks that
 
 ### The password on standard input, not through a terminal
 
-The build's SSH session gets the password on standard input, not by
-answering the prompt through a terminal.
+`wb-build-ssh` gets the build password on its standard input, logs in
+with it, and writes it into the session's standard input for
+`sudo -S`. It never answers a prompt through a terminal.
 
-- **Why:** the password then never passes through a terminal stream.
+- **Why:** the password then never passes through a terminal stream,
+  and no askpass program sits between the pipe and the login.
 
 **Status:** Draft

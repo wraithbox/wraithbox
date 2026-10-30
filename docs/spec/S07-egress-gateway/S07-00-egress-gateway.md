@@ -41,6 +41,7 @@ TCP stream to an allowed name goes on to `wb-proxyd`, the stream path.
 | S07-15-non-http-streams | The protocol check on each stream, SSH, and raw TCP entries |
 | S07-16-tls-and-tunnels | Client certificates, encrypted ClientHello, tunnels, and refusals audit mode doesn't relax |
 | S07-17-approvals-and-learning | Approvals of unknown destinations, and learn mode |
+| S07-18-build-network | The build VM's `wb-netd`: DHCP, ARP and one connection to the guest's port 22, with no egress, refused for session VMs |
 
 The table is in reading order. Pages 12 to 17 continue the page above
 them.

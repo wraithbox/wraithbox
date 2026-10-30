@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 465" role="img" aria-label="The image build. wb-download fetches the restore image, and wb-hostd checks its hash before it starts wb-vmd-install, which installs macOS and runs the build's boots. In the provisioning boot, the provisioning options create wbadmin and turn Remote Login on, and wb-build-ssh's one SSH session, with the password from wb-guestadmin, installs wb-guestd. Everything after goes through wb-guestd over the host-guest socket, from the password rotation to the sealing scan. After wb-vmd-install exits, wb-hostd clones the checked disks into the sealed image. The host never mounts a guest disk.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 465" role="img" aria-label="The image build. wb-download fetches the restore image, and wb-hostd checks its hash before it starts wb-vmd-install, which installs macOS and runs the build's boots. In the provisioning boot, the provisioning options create wbadmin and turn Remote Login on, and wb-build-ssh's one SSH session, on a connection wb-netd opens for the build VM only, with the password from wb-guestadmin, installs wb-guestd. Everything after goes through wb-guestd over the host-guest socket, from the password rotation to the sealing scan. After wb-vmd-install exits, wb-hostd clones the checked disks into the sealed image. The host never mounts a guest disk.">
 <style>
 svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
 .box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
@@ -34,7 +34,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="110" y="78" text-anchor="middle">build password</text>
 <rect class="box" x="240" y="30" width="200" height="64" rx="10" />
 <text class="label" x="340" y="56" text-anchor="middle">wb-build-ssh</text>
-<text class="note" x="340" y="78" text-anchor="middle">one SSH session</text>
+<text class="note" x="340" y="78" text-anchor="middle">one SSH session via wb-netd</text>
 <rect class="box" x="20" y="150" width="180" height="64" rx="10" />
 <text class="label" x="110" y="176" text-anchor="middle">wb-download</text>
 <text class="note" x="110" y="198" text-anchor="middle">restore image</text>

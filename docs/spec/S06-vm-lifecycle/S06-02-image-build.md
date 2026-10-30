@@ -5,7 +5,7 @@ its two provisioning stages, terminfo, sealing, and storage.
 
 ## Design
 
-![The image build. wb-download fetches the restore image, and wb-hostd checks its hash before it starts wb-vmd-install, which installs macOS and runs the build's boots. In the provisioning boot, the provisioning options create wbadmin and turn Remote Login on, and wb-build-ssh's one SSH session, with the password from wb-guestadmin, installs wb-guestd. Everything after goes through wb-guestd over the host-guest socket, from the password rotation to the sealing scan. After wb-vmd-install exits, wb-hostd clones the checked disks into the sealed image. The host never mounts a guest disk.](S06-02-image-build.svg)
+![The image build. wb-download fetches the restore image, and wb-hostd checks its hash before it starts wb-vmd-install, which installs macOS and runs the build's boots. In the provisioning boot, the provisioning options create wbadmin and turn Remote Login on, and wb-build-ssh's one SSH session, on a connection wb-netd opens for the build VM only, with the password from wb-guestadmin, installs wb-guestd. Everything after goes through wb-guestd over the host-guest socket, from the password rotation to the sealing scan. After wb-vmd-install exits, wb-hostd clones the checked disks into the sealed image. The host never mounts a guest disk.](S06-02-image-build.svg)
 
 ### Built by Wraith Box
 
@@ -120,14 +120,17 @@ who may write, fetch, or receive it.
 
 - `wb-guestadmin` (S04-architecture) generates a password for each
   build, and writes it to the store. It hands it on pipes to the
-  build's `wb-vmd`, until the start call returns. It hands it to
-  `wb-build-ssh` for its one session.
+  build's `wb-vmd`, until the start call returns. It hands it on
+  a pipe to `wb-build-ssh`, which logs in with it and writes it into
+  the session's standard input for `sudo -S` (S15-04-guest-admin).
 - Provisioning options for a session VM are refused. The refusal is
   logged with its rule.
 - The password is never in arguments. It is never written to disk
   outside the store, and never in a log, a gRPC message, or an audit
   record.
-- The guest gets it only on standard input.
+- The guest gets it only in the build's SSH session, at the login and
+  on `sudo -S`'s standard input, and at the rotation on `sysadminctl`'s
+  standard input.
 
 #### No guest disk mounts
 
