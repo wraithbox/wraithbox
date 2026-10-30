@@ -92,8 +92,9 @@ the rule `claude-release-bytes-changed`.
 
 ### Into the image
 
-`wb-guestd` installs the binary through a named operation of the base
-layer, before sealing (S06-02-image-build, "Built by Wraith Box").
+`wb-guestd` installs the binary through a named operation of the
+Claude Code layer build, before that layer is sealed
+(S06-01-image-layers, "The Claude Code layer").
 
 - It installs it as `/usr/local/bin/claude`, owned by root, with mode
   755.
@@ -118,11 +119,35 @@ Code in its own home, for example with `npm`. `wb-guestd` doesn't
 start that one. An updater would fetch and run a binary past
 SEC07-dep-gate.
 
-A new version arrives with a new image. `wb image list` shows each
-image's Claude Code version.
+A new version arrives with a new image, in which only the Claude Code
+layer is rebuilt (S06-01-image-layers, "The Claude Code layer"). `wb
+image list` shows each image's Claude Code version.
 
-I220 decides which release a build picks. It also decides how a build
-for a new Claude Code version costs less than a full build.
+#### Which release
+
+A build installs the release of Anthropic's stable channel, unless the
+user names a version with `wb image build --claude-version <version>`.
+
+The stable channel is the file
+`https://downloads.claude.ai/claude-code-releases/stable`. Its body is
+the version as plain text, such as `2.1.308`. Anthropic's own installer
+reads the same file for its `stable` target, next to `latest`. The
+channel file isn't signed. So:
+
+- the version it names goes through "Check" above, with the
+  signature, the equal version and the minimum;
+- `wb-hostd` refuses a version older than the Claude Code version of
+  the last image a build sealed, with `claude-release-rollback`. A
+  version the user names with `--claude-version` isn't refused for
+  that, but the minimum still applies.
+
+A forged channel file can then only pick another signed release, not
+older than the one the last image has. After an image built with a
+newer `--claude-version`, a build from the stable channel is refused
+until the channel catches up, or the user names a version again. A new
+model can need a release newer than the stable channel's, and
+`--claude-version` is the way to get one. S17-04-restore-and-release,
+"The version", has the steps.
 
 ### Version skew
 
@@ -136,5 +161,15 @@ doesn't know is up to that build.
 ### Only the host downloads Claude Code
 
 - **Decided:** I45, row 1.
+
+### Claude Code in its own layer, from the stable channel
+
+- **Why:** Claude Code releases often, and the updater is off in the
+  guest. With a layer of its own, a new release rebuilds only that
+  layer.
+- **Rejected:** `latest` as the default. Anthropic's setup page says
+  the stable channel is typically about a week behind, and skips
+  releases with major regressions.
+- **Decided:** I220.
 
 **Status:** Draft

@@ -23,7 +23,7 @@ no network, and `wb-proxyd` serves guests.
 | Entry | Hosts | Fetches | File size limit |
 |---|---|---|---|
 | `wb-download-restore` | `mesu.apple.com`, `updates.cdn-apple.com` | Apple's restore image catalog and one restore image | 40 GiB |
-| `wb-download-claude` | `downloads.claude.ai` | one Claude Code release (S14-01-install) | 1 GiB |
+| `wb-download-claude` | `downloads.claude.ai` | the stable channel file, or one Claude Code release (S14-01-install) | 1 GiB |
 
 S17-04-restore-and-release has the steps of each entry.
 
@@ -105,7 +105,7 @@ checks the form of each field:
 | SHA-1 | 40 lowercase hexadecimal digits |
 | size | a decimal number from 1 to 42,949,672,960 (40 GiB) |
 | host, rule, status, bytes | one of the entry's hosts, a rule name of this page or S17-04-restore-and-release, a three-digit status, a decimal count |
-| path | the catalog's path, the path of the URL above, or `/claude-code-releases/<version>/` followed by `manifest.json`, `manifest.json.sig` or `darwin-arm64/claude`, with the version's form of S17-04-restore-and-release |
+| path | the catalog's path, the path of the URL above, `/claude-code-releases/stable`, or `/claude-code-releases/<version>/` followed by `manifest.json`, `manifest.json.sig` or `darwin-arm64/claude`, with the version's form of S17-04-restore-and-release |
 | address | an IPv4 address in dotted decimal, or an IPv6 address in the form Go's `netip.Addr.String` writes, without a zone |
 
 A field outside its form ends the run with `download-record-form`. So
@@ -141,7 +141,7 @@ is less than:
 - plus `audit_free_space_floor` (S09-11-audit).
 
 For a Claude Code release, the limit counts once for each of its three
-files. The check uses only numbers the host knows before the run. The
+files, and once for the channel file of its own run. The check uses only numbers the host knows before the run. The
 file size limit holds what a run writes to them.
 
 ### Failures

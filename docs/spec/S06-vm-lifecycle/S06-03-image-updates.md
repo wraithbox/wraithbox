@@ -11,6 +11,10 @@ An update replaces a VM's system disk with a fresh clone of the new
 image. It replaces the VM's auxiliary storage with the new image's. So
 nothing on the data disk may depend on either.
 
+A new Claude Code release also comes as a new image, with only its
+Claude Code layer rebuilt (S06-01-image-layers, "The Claude Code
+layer"). A VM gets it by the same update.
+
 Project data is on a separate data disk, and survives (S06-05-disks).
 On the first boot of the new system disk, `wb-guestd`:
 

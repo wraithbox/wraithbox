@@ -236,6 +236,8 @@ borrowed its slot. The refusal names the build (S06-07-slot-admission).
 `wb image build/list/use` manages base images (S06-vm-lifecycle).
 
 - `list` shows each image's Claude Code version (S14-01-install).
+- `build` takes Claude Code's stable channel or `--claude-version`,
+  and can rebuild only its layer (S14-01-install, S06-01-image-layers).
 - `build` borrows the isolated VM's slot. It is refused while the
   isolated VM has a session that is starting, running, paused or
   ending, a debug shell (`wb shell`) included (S06-07-slot-admission).

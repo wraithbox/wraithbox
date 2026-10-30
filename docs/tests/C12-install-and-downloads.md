@@ -58,6 +58,11 @@
   truncates the partial file.
 - **Claude Code.** A file left in `<data>/downloads/` is deleted at the
   build's start. A version from outside the build's input is refused.
+  A channel file over 64 bytes, empty, with two line feeds, or with
+  anything but a version, is refused (`claude-channel-invalid`). A
+  channel version older than the last sealed image's is refused
+  (`claude-release-rollback`). The same version from
+  `--claude-version` is accepted.
   `wb-release-check` starts only after `wb-download` has exited.
 - **Audit.** A download record that can't be written cancels the run
   with `download-audit-failed`.
