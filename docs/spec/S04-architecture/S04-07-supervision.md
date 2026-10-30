@@ -57,12 +57,12 @@ acts on its own:
   (SEC05-default-deny).
 - **`wb-launcher`** sends `SIGTERM` to every program it started that
   still runs. It sends `SIGKILL` to any left after 5 seconds, waits for
-  them, and exits. A `wb-diskfmt` has nothing to clean up, so it gets
-  `SIGKILL` at once, sent to its process group and to the shim before
-  the reap. So no `diskutil` keeps running after `SIGTERM` ends
-  the shim. So no old `wb-launcher`, `wb-netd` or `wb-proxyd`
-  runs next to the ones a new `wb-hostd` starts. Every per-run program
-  ends with the `wb-hostd` that asked for it.
+  them, and exits. So no old `wb-launcher`, `wb-netd` or `wb-proxyd`
+  runs next to the ones a new `wb-hostd` starts, and each per-run
+  program ends with the `wb-hostd` that asked for it. A `wb-diskfmt`
+  has nothing to clean up. It gets `SIGKILL` at once, sent to its
+  process group and to the shim before the reap, which stops each
+  `diskutil` it ran as well.
 
 The per-run programs don't hold a control channel, and can't learn
 that `wb-hostd` has gone. `wb-launcher` ends them. On hosts without

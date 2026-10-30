@@ -90,8 +90,8 @@ After the kill, or a kill that failed, `wb-hostd` logs the rule
 `data-disk-shim-exit`. With `wb-launcher`, the line holds the
 launcher's answer, or that no answer came in time
 (S04-04-vm-processes, "`wb-diskfmt`'s kill"). When the shim hadn't
-answered the format, the line also names the temporary image, which a device may still be
-attached to. `wb-hostd` doesn't detach that device: only the shim
+answered the format, the line also names the temporary image, which a
+device may still be attached to. `wb-hostd` doesn't detach that device: only the shim
 attaches and detaches (S04-04-vm-processes, "`wb-diskfmt`"). The device
 is attached until the user ejects it or the host restarts. A later
 format is still safe. It deletes the leftover temporary file without

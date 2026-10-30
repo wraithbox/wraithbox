@@ -202,10 +202,9 @@ type Attachment struct {
 // its deadline. The bound is wb-hostd's wait for the answer, and then
 // the kill of wb-diskfmt's process group by its parent
 // (S06-13-data-disk-format, "When `wb-diskfmt` doesn't exit").
-// BackingPath runs no program and
-// has no deadline. The deadlines are here, with no OS code, so wb-hostd
-// derives that wait from them on every OS, without linking the macOS
-// Tool.
+// BackingPath runs no program and has no deadline. The deadlines are
+// here, with no OS code, so wb-hostd derives that wait from them on
+// every OS, without linking the macOS Tool.
 const (
 	AttachTimeout = 2 * time.Minute
 	EraseTimeout  = 5 * time.Minute
