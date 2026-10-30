@@ -30,6 +30,7 @@
 | `wb vm reset-ca <vm>` | Replace a VM's CAs after a `ca-key-restore` refusal ("`wb vm reset-ca`") |
 | `wb vm reset-data <vm>` | Give a stopped VM a new, empty data disk after a data disk refusal ("`wb vm reset-data`") |
 | `wb vm start/stop/suspend/status` | Explicit VM control ("`wb vm`") |
+| `wb vm admin <vm>` | A root shell in a running VM for the person at the terminal, which marks the VM's system disk for replacement (S15-05-admin-path) |
 | `wb image build/list/use` | Base image management ("`wb image`") |
 | `wb shell [--project P]` | A debug shell as the project user, labeled as a debug shell ("`wb shell`") |
 | `wb setup` | Check the host, and install and start the per-user services ("`wb setup`") |

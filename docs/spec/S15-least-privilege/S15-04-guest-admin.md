@@ -133,7 +133,7 @@ in. `wb-guestadmin-cleanup` removes the old disk's item.
 What guest root wrote to the data disk stays through break-glass
 (T18-data-disk-persistence).
 
-The same replacement runs at the next cold start of a VM whose system
+The same replacement runs at the next start of a VM whose system
 disk the admin path marked (S15-05-admin-path, "Marked"). To look
 inside a VM before its disk is replaced, the person at the host's
 terminal uses the admin path, whose guest end runs apart from

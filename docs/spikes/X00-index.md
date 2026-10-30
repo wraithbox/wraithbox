@@ -345,7 +345,8 @@ assumption that v1 work would otherwise build on. They block v1.
   Can `wb-guestroot`, a root LaunchDaemon apart from `wb-guestd` on a
   vsock port of its own below 1024, give the host a root shell on a PTY
   while `wb-guestd` is dead, stopped or restarting? Can a project user
-  bind its port while launchd restarts it? The admin path of
+  bind its port while launchd restarts it? Do the two daemons' installs
+  at one boot (S06-12-guest-agent, "Update at start") collide? The admin path of
   S15-05-admin-path relies on it (SEC08-proj-isolation,
   SEC11-root-gains-nothing). Found while drafting B419-admin-path.
   Needs a VM. Tracked in I448.
