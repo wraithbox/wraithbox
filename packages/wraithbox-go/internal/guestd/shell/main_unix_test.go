@@ -49,21 +49,25 @@ func rawHelper(mode string) int {
 	return 0
 }
 
+// TestMain runs the test executable as a helper or a test program when
+// a test starts it so. Those exit with syscall.Exit, which skips the
+// exit hooks: under go test -cover, os.Exit would write a coverage
+// warning to the standard error the tests compare.
 func TestMain(m *testing.M) {
 	if len(os.Args) == 3 {
 		switch os.Args[1] {
 		case testHelperArg:
 			exe, err := os.Executable()
 			if err != nil {
-				os.Exit(1)
+				syscall.Exit(1)
 			}
-			os.Exit(runHelper(helperConfig{
+			syscall.Exit(runHelper(helperConfig{
 				path: exe, args: []string{exe, testProgramArg, os.Args[2]}, tempDir: sessionproc.UserTempDir,
 			}))
 		case testProgramArg:
-			os.Exit(testProgram(os.Args[2]))
+			syscall.Exit(testProgram(os.Args[2]))
 		case testRawHelperArg:
-			os.Exit(rawHelper(os.Args[2]))
+			syscall.Exit(rawHelper(os.Args[2]))
 		}
 	}
 	os.Exit(m.Run())

@@ -68,7 +68,7 @@ func FuzzParseStat(f *testing.F) {
 func FuzzParseUIDs(f *testing.F) {
 	f.Add([]byte("Uid:\t501\t502\t503\t504\n"))
 	f.Add([]byte("Uid:"))
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func(_ *testing.T, b []byte) {
 		_, _, _ = parseUIDs(b)
 	})
 }
