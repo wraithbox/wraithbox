@@ -48,10 +48,10 @@ credentials in the places a profile names.
 #### The OAuth token paths
 
 A user or repository rule is a load error when the `wb-proxyd` matcher
-would let it allow a canonical `POST` to a path that starts with the
-string `/v1/oauth/token`, such as `/v1/oauth/token` or
-`/v1/oauth/token/revoke`, on a model API host (S07-11-http-policy,
-"model API"). It covers rules in the global and project policy, and in
+would let it allow a canonical `POST` on a model API host
+(S07-11-http-policy, "model API") to a path that starts with the
+string `/v1/oauth/token`. Examples are `/v1/oauth/token` and
+`/v1/oauth/token/revoke`. It covers rules in the global and project policy, and in
 repository configuration with `config_trust`. The check counts, for
 example:
 
