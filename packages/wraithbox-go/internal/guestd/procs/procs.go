@@ -91,10 +91,17 @@ type Loops struct {
 	clock Clock
 	log   *slog.Logger
 
+	// mu makes the loops run one at a time.
 	mu sync.Mutex
+
+	// oursMu guards ours apart from mu, so Forget doesn't wait for a
+	// loop.
+	oursMu sync.Mutex
 	// ours holds each process the stop loop stopped itself and still
 	// finds stopped, so a resumed session sends SIGCONT only to those
-	// (S13-01-process-hardening, "When the link drops").
+	// (S13-01-process-hardening, "When the link drops"). A key goes once
+	// SIGCONT or SIGKILL is sent to its process, so a stop the user makes
+	// later never counts as the stop loop's.
 	ours map[gp.Key]bool
 
 	// exMu guards excluded apart from mu, which a loop holds for up to
@@ -163,6 +170,7 @@ func (l *Loops) Kill(ctx context.Context, uid uint32) KillResult {
 	for round < MaxRounds && ctx.Err() == nil {
 		round++
 		for _, p := range procs {
+			l.Forget([]gp.Key{p.Key()})
 			l.signal(ctx, p, gp.Kill)
 		}
 		if err := l.table.Bootout(ctx, uid); err != nil {
@@ -233,6 +241,9 @@ type StopResult struct {
 	// no stop loop had sent SIGSTOP.
 	AlreadyStopped int
 	Rounds         int
+	// CutShort is set when ctx ended the loop with processes running:
+	// a new connection from the host cancels the link-drop loop.
+	CutShort bool
 }
 
 // StopAll runs the stop loop: each round sends SIGSTOP to every running
@@ -256,7 +267,7 @@ func (l *Loops) StopAll(ctx context.Context, reason string) StopResult {
 		l.clock.Now().Sub(run.start) < MaxTime {
 		run.res.Rounds++
 		for _, p := range run.running {
-			l.ours[p.Key()] = true
+			l.markOurs(p.Key())
 			l.signal(ctx, p, gp.Stop)
 		}
 		l.clock.Sleep(ctx, settle(run.res.Rounds))
@@ -303,7 +314,7 @@ func (r *stopRun) check() {
 		switch p.State {
 		case gp.Stopped:
 			r.stopped[k] = true
-			if !r.l.ours[k] {
+			if !r.l.isOurs(k) {
 				r.already[k] = true
 			}
 		case gp.Zombie:
@@ -321,6 +332,7 @@ func (r *stopRun) check() {
 // then logs the result, with RuleStopIncomplete when processes still
 // run.
 func (r *stopRun) finish(ctx context.Context, reason string) StopResult {
+	r.l.oursMu.Lock()
 	if r.err == nil {
 		for k := range r.l.ours {
 			if !r.stopped[k] {
@@ -328,8 +340,9 @@ func (r *stopRun) finish(ctx context.Context, reason string) StopResult {
 			}
 		}
 	}
-	r.res.Running = len(r.running)
 	r.res.Stopped = len(r.l.ours)
+	r.l.oursMu.Unlock()
+	r.res.Running = len(r.running)
 	r.res.AlreadyStopped = len(r.already)
 	attrs := []slog.Attr{
 		slog.String("reason", reason), slog.Int("rounds", r.res.Rounds),
@@ -345,6 +358,13 @@ func (r *stopRun) finish(ctx context.Context, reason string) StopResult {
 		r.res.Running = max(r.res.Running, 1)
 		attrs = append(attrs, slog.String("error", r.err.Error()))
 	}
+	if ctx.Err() != nil {
+		r.res.CutShort = true
+		r.l.log.LogAttrs(ctx, slog.LevelWarn, "stop loop cut short",
+			append(attrs, slog.String("rule", RuleStopIncomplete), slog.String("decision", "cut-short"),
+				slog.Int("count", len(r.running)))...)
+		return r.res
+	}
 	r.l.log.LogAttrs(ctx, slog.LevelError, "processes of project users still run after the stop loop",
 		append(attrs, slog.String("rule", RuleStopIncomplete), slog.String("decision", "processes-left"),
 			slog.Int("count", len(r.running)), slog.Any("names", Names(r.running)))...)
@@ -357,12 +377,50 @@ func (r *stopRun) finish(ctx context.Context, reason string) StopResult {
 func (l *Loops) StoppedByUs() []gp.Key {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.oursMu.Lock()
+	defer l.oursMu.Unlock()
 	out := make([]gp.Key, 0, len(l.ours))
 	for k := range l.ours {
 		out = append(out, k)
 	}
 	slices.SortFunc(out, func(a, b gp.Key) int { return int(a.PID) - int(b.PID) })
 	return out
+}
+
+// markOurs records that the stop loop sent SIGSTOP to k.
+func (l *Loops) markOurs(k gp.Key) {
+	l.oursMu.Lock()
+	defer l.oursMu.Unlock()
+	l.ours[k] = true
+}
+
+// isOurs reports whether the stop loop sent SIGSTOP to k.
+func (l *Loops) isOurs(k gp.Key) bool {
+	l.oursMu.Lock()
+	defer l.oursMu.Unlock()
+	return l.ours[k]
+}
+
+// Forget drops keys from the processes the stop loop stopped. The kill
+// loop calls it for each process it signals, and a shell for each
+// process of its POSIX session once it had the helper send SIGCONT. So
+// a stop the user makes after that, with job control, never gets a
+// SIGCONT from wb-guestd.
+func (l *Loops) Forget(keys []gp.Key) {
+	l.oursMu.Lock()
+	defer l.oursMu.Unlock()
+	for _, k := range keys {
+		delete(l.ours, k)
+	}
+}
+
+// Idle waits until no loop runs. A shell start calls it, so a stop
+// loop that a new connection cut short has sent its last SIGSTOP before
+// the shell's processes start (S13-01-process-hardening, "When the link
+// drops").
+func (l *Loops) Idle() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 }
 
 // Names returns at most MaxNames process names of procs for a log
