@@ -27,6 +27,7 @@ environment:
 | `wb-vmd-work` | `work` |
 | `wb-vmd-isolated` | `isolated` |
 | `wb-vmd-install` ("`wb-vmd-install`", below) | `build` |
+| `wb-vmd-layer` ("`wb-vmd-layer`", below) | `build` |
 
 The slot never comes from the program path or a request. So the slot
 and the bundle come from the same table entry. On hosts without
@@ -57,8 +58,10 @@ So it never confines itself to a bundle its slot doesn't own
 
 Until the image build is built (V1-M7-image-build), `wb-vmd` also
 refuses the `build` slot, with `vmd-slot-build-unsupported`. Only
-`wb-vmd-install` serves that slot, with its install rules and its
-restore image check ("`wb-vmd-install`", below).
+`wb-vmd-install` and `wb-vmd-layer` serve that slot.
+`wb-vmd-install` has its install rules and its restore image check
+("`wb-vmd-install`", below). `wb-vmd-layer` has neither
+("`wb-vmd-layer`", below).
 
 ### Reaching an instance
 
