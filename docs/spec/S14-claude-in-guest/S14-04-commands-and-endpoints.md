@@ -52,6 +52,11 @@ on `platform.claude.com`. It doesn't allow a login or token path
 - the revocation, `POST platform.claude.com/v1/oauth/token/revoke`,
   where `/logout` fails.
 
+This holds whatever the policy files allow. A user or repository rule
+that could allow a `POST` to a path starting with `/v1/oauth/token` on
+a model API host is a load error with the rule `model-token-path`
+(S09-02-precedence, "The OAuth token paths").
+
 Refusing `/v1/oauth/hello` wouldn't stop the login prompt
 (X01-model-credential, "Browser login (I15)"):
 
