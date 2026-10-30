@@ -84,42 +84,8 @@ Before it starts the helper, `wb-guestd` checks the data mount
 it knows, not root and not in `admin` or `wheel`
 (SEC12-least-privilege), and not locked.
 
-#### Reports and commands
-
-The helper and `wb-guestd` talk over two pipes. Each message is a
-record of 8 bytes: a kind byte, three zero bytes, and a big-endian
-32-bit value.
-
-The helper writes reports on its descriptor 3:
-
-| Report | Value |
-|---|---|
-| started | the program's process ID, 2 to 2147483647 |
-| stopped | 0 |
-| continued | 0 |
-| exited | the exit code, 0 to 255 |
-| signaled | the signal number that ended it, 1 to 64 |
-
-Started comes first and once. Exited or signaled comes last, and the
-pipe then closes. The helper runs as the project user, so `wb-guestd`
-reads the reports as guest input (SEC11-root-gains-nothing). A record
-out of form, out of bounds, out of order, or after the last one ends
-the session with the rule `session-helper-report`. A helper that ends
-without the last report ends it with `session-helper-gone`. Both then
-hang up and kill the session, as below.
-
-The helper reads commands on its descriptor 4, and applies each to the
-program's process group only:
-
-| Command | Signals |
-|---|---|
-| hangup | `SIGHUP`, then `SIGCONT` |
-| stop | `SIGSTOP` |
-| resume | `SIGCONT` |
-| signal | the value: `SIGINT`, `SIGQUIT`, `SIGTERM`, `SIGTSTP` or `SIGCONT` |
-
-A command out of form, or the end of the commands, counts as a hangup.
-After a hangup, the helper reads no more commands.
+The helper reports to `wb-guestd`, and takes its commands, in the
+records of S06-12-guest-agent ("Session helper records").
 
 #### The POSIX session
 

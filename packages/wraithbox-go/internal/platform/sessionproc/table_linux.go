@@ -74,7 +74,7 @@ func readProc(pid int32) (procState, error) {
 		return procState{}, fmt.Errorf("%s/status: %w", dir, err)
 	}
 	return procState{
-		Proc:  Proc{PID: pid, Start: st.start, UID: euid, RUID: ruid, SID: st.session, Name: st.name},
+		PID: pid, Start: st.start, UID: euid, RUID: ruid, SID: st.session, Name: st.name,
 		State: st.state,
 	}, nil
 }

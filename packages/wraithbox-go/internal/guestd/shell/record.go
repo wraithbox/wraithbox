@@ -11,7 +11,7 @@ import (
 )
 
 // The records between wb-guestd and the session helper
-// (S06-09-session-lifecycle, "Session helper"). Each is RecordSize
+// (S06-12-guest-agent, "Session helper records"). Each is RecordSize
 // bytes: a kind byte, three zero bytes, and a value as a big-endian
 // uint32. The helper writes reports on its descriptor 3 and reads
 // commands on its descriptor 4.
