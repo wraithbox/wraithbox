@@ -96,6 +96,9 @@ restore, and at the restarts of S04-07-supervision, "Restarting a daemon".
    running one.
 4. It starts or resumes the VM only after `wb-netd` holds its end.
 
+The build VM gets no hand-off socket, and its `wb-netd` hands no
+stream (S07-18-build-network).
+
 `wb-proxyd` holds its end under the VM and generation `wb-hostd`
 named. A newer end for the VM replaces the old one. `wb-proxyd` then
 closes the old socket, and every stream that came on it.
@@ -114,8 +117,8 @@ only increases it.
 - the message form is wrong;
 - the descriptor isn't a Unix domain socket of the platform's hand-off
   type;
-- the VM isn't a VM slot of S06-04-vms-and-placement, or the build VM
-  of a running image build;
+- the VM isn't a VM slot of S06-04-vms-and-placement. The build VM of
+  an image build has no hand-off socket (S07-18-build-network);
 - the generation is older than the one it holds for the VM.
 
 It then closes the message's descriptors. It logs the refusal with the

@@ -131,9 +131,17 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   descriptor closed. Start `wb-build-ssh` with a socket of another type,
   and see it exit with `build-ssh-socket-refused` before it reads its
   standard input (S04-05-helper-programs, "`wb-build-ssh`").
+- See `wb-hostd` log `build-socket-accepted` for the build VM's
+  socket.
 - Run `wb-build-ssh` against a test SSH server whose output repeats
-  the password, and see the password in no log line, and the output
-  cut to its bound.
+  the password, whole and split across two reads and across a line
+  cut, and see the password in no log line. See the server's banner in
+  no log line, and its version and disconnect text escaped and cut.
+- Run it against a server that never finishes the handshake, one that
+  goes quiet in the session, and one that writes output without end.
+  See `build-ssh-login-timeout`, `build-ssh-idle-timeout` and
+  `build-ssh-output-limit`, and the build fail.
+- See it offer only password authentication to the test server.
 
 ### Confinement
 
@@ -511,6 +519,11 @@ and one before it detaches nothing.
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
   (S04-08-records-and-bounds, "Accounting and event channels").
+- The output filter of `wb-build-ssh`, `FuzzBuildSSHOutput`: arbitrary
+  output in arbitrary chunks, with the password placed anywhere in it.
+  No log line holds the password or a part of it cut at a read or a
+  line, and the total read stops at its bound (S04-05-helper-programs,
+  "What reaches the log").
 - The host version record, `FuzzVersionRecord`: no more than 69 bytes read, and an accepted record holds 1 to 64 printable ASCII bytes equal to the reader's own version (S04-architecture, "The version record").
 - The daemon log pipes, `FuzzLogPipe`: arbitrary bytes in arbitrary
   chunks. Each record is one JSON line with at most 4 KiB of input in

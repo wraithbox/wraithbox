@@ -56,7 +56,7 @@ with Go's SSH library. It doesn't run an `ssh` program or an
 askpass helper.
 
 - It logs in as `wbadmin` with SSH password authentication, using the
-  line from its standard input.
+  line from its standard input, and offers no other method.
 - It writes the same password into the session's standard input, where
   the guest's `sudo -S` reads it.
 - It doesn't request a terminal.
@@ -72,7 +72,8 @@ that network, so the channel authenticates the guest
 accepts the key the guest offers, and logs its fingerprint. The design
 relies on this ("What first contact relies on").
 
-A session that doesn't complete burns the build password:
+A session that doesn't complete, or that passes one of its deadlines
+(S04-05-helper-programs, "Deadlines"), burns the build password:
 
 - the build fails;
 - its bundle is deleted;

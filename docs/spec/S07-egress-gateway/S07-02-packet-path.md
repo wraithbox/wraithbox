@@ -99,7 +99,8 @@ In `wb-netd` these are:
 - link filter drops and DHCP findings;
 - DNS refusals, and queries dropped with `dns-hold-full`;
 - approval events;
-- `handoff-send-failed`.
+- `handoff-send-failed`;
+- the build VM's `build-egress-refused` (S07-18-build-network).
 
 In `wb-proxyd` they are:
 
@@ -145,7 +146,7 @@ guest only for the build VM, and only to its port 22
 - `wb-hostd`, over the control, accounting and event channels it
   inherits at start (S04-07-supervision).
 
-A path from the host into the guest, such as port forwarding
+Any other path from the host into the guest, such as port forwarding
 (FR11-port-forward), needs its own spec text. It doesn't go through
 `wb-netd`.
 

@@ -89,12 +89,23 @@ S04-02-vm-provider ("The device set is fixed and checked")
 
 ### The build VM's network
 
-- Ask a session VM's `wb-netd` for the connection to the guest's port
-  22, and see it refused and logged with `build-connect-refused` and
-  the check, with no SYN sent to the guest. Ask the build VM's
-  `wb-netd` twice, and see the second request refused the same way.
+- Start `wb-netd` with no mode, and with an unknown one, and ask each
+  for the connection to the guest's port 22. See each refused and
+  logged with `build-connect-refused` and the check, with no SYN sent
+  to the guest.
+- Send a build VM's `wb-netd` a control message that names a mode, and
+  see it refused with `build-mode-refused` and the mode unchanged.
+- Ask the build VM's `wb-netd` with another VM's name, with an older
+  generation, and twice at once, and see each refused with
+  `build-connect-refused`. After it has handed a socket, ask again and
+  see that refused too.
+- With nothing listening on the guest's port 22 at first, see
+  `wb-netd` try again, then hand one socket and log `build-connect`
+  once `sshd` answers. With nothing listening at all, see
+  `build-connect-timeout` at the deadline and no socket.
 - From the build guest, open TCP to a raw IP address, the gateway and
   a synthetic address, and send a DNS query. See each reset or
-  dropped, and no stream handed to `wb-proxyd`.
+  dropped and logged with `build-egress-refused`, and no stream handed
+  to `wb-proxyd`.
 
 **Status:** Draft
