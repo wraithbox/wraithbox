@@ -89,8 +89,8 @@ Claude Code does, and what it does without them wasn't measured.
 On `platform.claude.com`: `/v1/oauth/hello`, a reachability check of
 the login host. The binding doesn't cover it.
 
-No policy file can allow a `POST` to `/v1/oauth/token` or a path under
-it on the profile's hosts. Such a rule is a load error with the rule
+No policy file can allow a `POST` to a path that starts with the string
+`/v1/oauth/token` on the profile's hosts. Such a rule is a load error with the rule
 `model-token-path` (S09-02-precedence, "The OAuth token paths").
 
 - *Event log denied.* `/api/event_logging/` on `api.anthropic.com` is

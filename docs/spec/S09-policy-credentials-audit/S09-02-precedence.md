@@ -47,15 +47,32 @@ credentials in the places a profile names.
 
 #### The OAuth token paths
 
-A user or repository rule is a load error when it could allow a `POST`
-to `/v1/oauth/token`, or to any path that starts with it, on a model
-API host (S07-11-http-policy, "model API"). The load check applies the
-same normalization as for the GraphQL path, and it counts a host
-pattern that matches a model API host, a wildcard included. It covers
-rules in the global and project policy, and in repository configuration
-with `config_trust`.
+A user or repository rule is a load error when the `wb-proxyd` matcher
+would let it allow a canonical `POST` to a path that starts with the
+string `/v1/oauth/token`, such as `/v1/oauth/token` or
+`/v1/oauth/token/revoke`, on a model API host (S07-11-http-policy,
+"model API"). It covers rules in the global and project policy, and in
+repository configuration with `config_trust`. The check counts, for
+example:
 
-The refusal names the rule `model-token-path`, the policy file and the
+- a path prefix or glob that covers such a path;
+- a wildcard method, and the method compared without regard to case;
+- an access preset, or an endpoint without method and path rules, that
+  allows a write method;
+- a trailing slash;
+- percent-encoding;
+- a host pattern that matches a model API host in canonical form,
+  lowercase and without a trailing dot (S07-06-name-mapping), a
+  wildcard included;
+- any port.
+
+`POST` is the method that matters. OAuth 2 requires `POST` for a token
+request (RFC 6749, section 3.2). The code exchange, the refresh, and
+the revocation that X01-model-credential saw were all `POST`. So a rule that allows only
+`GET /v1/oauth/token` still loads, and so does a rule that allows
+`POST /v1/oauth/hello`.
+
+The refusal names the rule `model-token-path`, the policy file, and the
 rule's name (NFR06-explained-refusals). It tells the user that the model
 credential comes from `claude setup-token` on the host and is stored
 with `wb cred set` (S09-05-credentials, "Long-lived token").
@@ -69,6 +86,9 @@ to `~/.claude/.credentials.json` (X01-model-credential, "Without a
 Keychain"). This check enforces
 SEC04-no-guest-secrets for the model credential's OAuth tokens. Like the
 GraphQL lock, it holds whatever profile parts are on.
+
+Other Anthropic hosts, such as `claude.ai` and `console.anthropic.com`,
+aren't model API hosts. A rule on a token path there still loads.
 
 #### Mode per host and port
 
