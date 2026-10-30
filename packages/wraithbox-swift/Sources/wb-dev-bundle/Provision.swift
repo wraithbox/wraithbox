@@ -22,9 +22,6 @@ func provisionBundle(_ bundle: CachePath, minutes: Int, log: Log) async throws {
     _ = try neverBooted(bundle)
     let lock = try BundleLock.take(bundle: bundle.path)
     var record = try neverBooted(bundle)
-    // Before the record says booted, so a host or build that can't
-    // provision leaves the bundle as it was.
-    try checkProvisioningAvailable()
     let password = randomPassword()
     let passwordFile = try writePassword(password, bundle: bundle.path)
     record.bootedAt = Date()

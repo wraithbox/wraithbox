@@ -82,7 +82,7 @@ explains the IDs.
 
 | Host ↓ / Guest → | macOS | Linux (Ubuntu LTS) | Windows 11 |
 |---|---|---|---|
-| macOS 15+, Apple Silicon | **first target** | later | later |
+| macOS 27+, Apple Silicon | **first target** | later | later |
 | Windows 11 Home / Pro (and `wb` inside WSL) | not possible | later | later |
 | Linux (Ubuntu LTS) | not possible | later | later |
 

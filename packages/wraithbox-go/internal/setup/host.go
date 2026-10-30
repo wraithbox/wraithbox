@@ -10,8 +10,10 @@ import (
 )
 
 // MinMacOS is the oldest macOS major version wb setup accepts
-// (S12-03-host-prerequisites, "Prerequisites"). I143 moves it to 27.
-const MinMacOS = 15
+// (S12-03-host-prerequisites, "Prerequisites"): 27, because wb image
+// build needs the guest provisioning options that are new in macOS 27
+// (NFR04-host-platforms, I143).
+const MinMacOS = 27
 
 // hostFix is the fix of every host refusal.
 var hostFix = fmt.Sprintf("Run Wraith Box on a Mac with Apple Silicon and macOS %d or later.", MinMacOS)
@@ -57,7 +59,7 @@ func checkHost(ctx context.Context, env *Env) error {
 }
 
 // majorVersion reads the major number of a product version such as
-// "15.4.1".
+// "27.0.1".
 func majorVersion(v string) (int, bool) {
 	major, _, _ := strings.Cut(v, ".")
 	n, err := strconv.Atoi(major)

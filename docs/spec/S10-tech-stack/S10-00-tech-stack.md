@@ -111,9 +111,10 @@ The page `docs/agents/host-work.md` says how agents use it.
 ### Platforms
 
 See S12-platforms for the host/guest matrix. v1 is Apple Silicon,
-macOS 15 or later, with macOS guests. The guest image's macOS version
-is independent of the host's, within what the Virtualization framework
-supports.
+macOS 27 or later, with macOS guests (NFR04-host-platforms). The
+image build needs macOS 27 in the guest as well (S06-02-image-build).
+Above that, the guest image's macOS version is independent of the
+host's, within what the Virtualization framework supports.
 
 ### Quality gates
 
