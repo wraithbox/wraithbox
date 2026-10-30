@@ -27,5 +27,11 @@ func (*System) Read(context.Context, Kind, string) (Record, bool, error) {
 // Create returns an error that wraps errors.ErrUnsupported.
 func (*System) Create(context.Context, Kind, string, string, string) error { return errUnsupported }
 
+// Disable returns an error that wraps errors.ErrUnsupported.
+func (*System) Disable(context.Context, string) error { return errUnsupported }
+
+// EmptyHome returns an error that wraps errors.ErrUnsupported.
+func (*System) EmptyHome(context.Context, uint32, uint32, string) error { return errUnsupported }
+
 // OpenRoot returns an error that wraps errors.ErrUnsupported.
 func OpenRoot(string) (Root, error) { return nil, errUnsupported }
