@@ -18,7 +18,10 @@ import (
 // (S06-05-disks, "Owners and modes").
 const Dscl = "/usr/bin/dscl"
 
-// dsclEnv is dscl's whole environment.
+// AccountPolicy is the program Disable runs, pwpolicy, at its fixed path.
+const AccountPolicy = "/usr/bin/pwpolicy"
+
+// dsclEnv is the whole environment of dscl and pwpolicy.
 var dsclEnv = []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LANG=C"}
 
 // The bounds of a dscl run.
@@ -78,7 +81,7 @@ func (s *System) List(ctx context.Context, kind Kind, attrs []string) ([]Record,
 		}
 		args = append(args, a)
 	}
-	out, err := s.run(ctx, MaxListOutput, slog.LevelDebug, args...)
+	out, err := s.run(ctx, Dscl, MaxListOutput, slog.LevelDebug, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +98,7 @@ func (s *System) Read(ctx context.Context, kind Kind, name string) (Record, bool
 	if err != nil {
 		return nil, false, err
 	}
-	out, err := s.run(ctx, MaxReadOutput, slog.LevelDebug, "-plist", ".", "-read", path)
+	out, err := s.run(ctx, Dscl, MaxReadOutput, slog.LevelDebug, "-plist", ".", "-read", path)
 	if _, ok := errors.AsType[*notFoundError](err); ok {
 		return nil, false, nil
 	}
@@ -126,7 +129,18 @@ func (s *System) Create(ctx context.Context, kind Kind, name, attr, value string
 	if value == "" || strings.HasPrefix(value, "-") || len(value) > MaxValueLen || strings.ContainsAny(value, "\x00\n") {
 		return fmt.Errorf("guestusers: %q isn't a value dscl takes as one argument", cut(value))
 	}
-	_, err = s.run(ctx, MaxReadOutput, slog.LevelInfo, ".", "-create", path, attr, value)
+	_, err = s.run(ctx, Dscl, MaxReadOutput, slog.LevelInfo, ".", "-create", path, attr, value)
+	return err
+}
+
+// Disable runs `pwpolicy -u <name> -disableuser`, which marks the
+// account disabled in its policy, so the login window, su and every
+// other authentication as it fail.
+func (s *System) Disable(ctx context.Context, name string) error {
+	if !recordName.MatchString(name) {
+		return fmt.Errorf("guestusers: %q isn't a record name wb-guestd uses", cut(name))
+	}
+	_, err := s.run(ctx, AccountPolicy, MaxReadOutput, slog.LevelInfo, "-u", name, "-disableuser")
 	return err
 }
 
@@ -146,13 +160,14 @@ type notFoundError struct{ args string }
 
 func (e *notFoundError) Error() string { return "dscl " + e.args + ": " + notFound }
 
-// run runs dscl with args and the fixed environment, within
-// dsclTimeout, and returns its standard output, at most limit bytes:
-// more is an error. It logs the run at level, and a failure as an error.
-func (s *System) run(ctx context.Context, limit int, level slog.Level, args ...string) ([]byte, error) {
+// run runs program, dscl or pwpolicy, with args and the fixed
+// environment, within dsclTimeout, and returns its standard output, at
+// most limit bytes: more is an error. It logs the run at level, and a
+// failure as an error.
+func (s *System) run(ctx context.Context, program string, limit int, level slog.Level, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, dsclTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, Dscl, args...)
+	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.Env = dsclEnv
 	cmd.WaitDelay = outputWait
 	stdout := &boundedBuffer{max: limit}
@@ -162,26 +177,26 @@ func (s *System) run(ctx context.Context, limit int, level slog.Level, args ...s
 	err := cmd.Run()
 	joined := strings.Join(args, " ")
 	attrs := []slog.Attr{
-		slog.String("program", Dscl), slog.String("args", joined),
+		slog.String("program", program), slog.String("args", joined),
 		slog.Duration("took", time.Since(start)), slog.String("stderr", cut(stderr.String())),
 	}
 	if err == nil && stdout.over {
-		err = fmt.Errorf("guestusers: dscl wrote more than %d bytes", limit)
+		err = fmt.Errorf("guestusers: %s wrote more than %d bytes", program, limit)
 	}
 	if err != nil && ctx.Err() == nil && strings.Contains(stderr.String(), notFound) {
 		s.log().LogAttrs(ctx, slog.LevelDebug, "dscl found no record", attrs...)
 		return nil, &notFoundError{args: joined}
 	}
 	if err != nil {
-		s.log().LogAttrs(ctx, slog.LevelError, "dscl failed", append(attrs, slog.String("error", err.Error()))...)
-		return nil, fmt.Errorf("dscl %s: %w: %s", joined, err, cut(stderr.String()))
+		s.log().LogAttrs(ctx, slog.LevelError, "directory program failed", append(attrs, slog.String("error", err.Error()))...)
+		return nil, fmt.Errorf("%s %s: %w: %s", program, joined, err, cut(stderr.String()))
 	}
-	s.log().LogAttrs(ctx, level, "dscl ran", attrs...)
+	s.log().LogAttrs(ctx, level, "directory program ran", attrs...)
 	return stdout.Bytes(), nil
 }
 
 // boundedBuffer keeps the first max bytes written to it, and drops the
-// rest, so dscl never blocks on a full pipe.
+// rest, so a child never blocks on a full pipe.
 type boundedBuffer struct {
 	bytes.Buffer
 

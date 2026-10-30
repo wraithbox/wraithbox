@@ -21,6 +21,10 @@ func TestUnsupported(t *testing.T) {
 		"Create": func() error {
 			return s.Create(t.Context(), guestusers.Users, "wbp10000", guestusers.AttrShell, "/bin/zsh")
 		},
+		"Disable": func() error { return s.Disable(t.Context(), "wbp10000") },
+		"EmptyHome": func() error {
+			return s.EmptyHome(t.Context(), 10000, 10000, "/private/var/wbhomes/wbp10000")
+		},
 		"OpenRoot": func() error { _, err := guestusers.OpenRoot("/"); return err },
 	}
 	for name, call := range calls {

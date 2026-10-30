@@ -111,6 +111,10 @@ type Directory interface {
 	// value, and makes the record first when it is missing. Read and
 	// List report it under RecordKey(attr).
 	Create(ctx context.Context, kind Kind, name, attr, value string) error
+	// Disable disables the user named name's account, so no login and
+	// no authentication as it succeeds (S06-08-projects-and-sessions,
+	// "Removing a home").
+	Disable(ctx context.Context, name string) error
 }
 
 // Entry is what fstatat reports of an entry of the mount root, never
@@ -142,12 +146,46 @@ type Root interface {
 	// Entries reports every entry of the root, and an error that wraps
 	// ErrTooManyEntries when there are more than limit.
 	Entries(limit int) ([]Entry, error)
+	// Rmdir removes the empty directory name with unlinkat and
+	// AT_REMOVEDIR. It fails on a link, a file or a directory that isn't
+	// empty.
+	Rmdir(name string) error
+	// OpenDir opens the directory name with O_NOFOLLOW, so a link is
+	// refused rather than followed.
+	OpenDir(name string) (Dir, error)
 	// Mount reports the file system that holds the root, from fstatfs on
 	// its descriptor, so the caller can check it is the mount it checked
 	// by path.
 	Mount() (guestmount.Mount, error)
 	Close() error
 }
+
+// Dir is an open descriptor of a directory of the root, which holds
+// small files that only root writes. Every call names one entry of the
+// directory and never follows a link.
+type Dir interface {
+	// Self reports the directory itself, from fstat on its descriptor.
+	Self() (Entry, error)
+	// Names reports the name of every entry, and an error that wraps
+	// ErrTooManyEntries when there are more than limit.
+	Names(limit int) ([]string, error)
+	// ReadFile opens the entry name with O_NOFOLLOW and O_NONBLOCK, and
+	// reads it when fstat reports a regular file of at most limit bytes.
+	// It returns the entry fstat reported with the data, and an error
+	// that wraps ErrNotRegular or ErrTooBig otherwise.
+	ReadFile(name string, limit int) ([]byte, Entry, error)
+	// WriteFile replaces the entry name with a file of data, mode 600,
+	// owned by the caller: it writes name.tmp with O_EXCL and
+	// O_NOFOLLOW, syncs it, and renames it over name.
+	WriteFile(name string, data []byte) error
+	Close() error
+}
+
+// The errors of Dir.ReadFile for an entry it doesn't read.
+var (
+	ErrNotRegular = errors.New("guestusers: not a regular file")
+	ErrTooBig     = errors.New("guestusers: the file is over the limit")
+)
 
 // ErrTooManyEntries is the error of Root.Entries for a root with more
 // entries than the limit. Guest root can fill the volume root, so the
