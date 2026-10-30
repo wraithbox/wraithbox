@@ -401,6 +401,39 @@ Spec: S06-09-session-lifecycle.
 With a `wb-guestd` that the test drives as guest root. Each case checks
 the audit entry with its rule.
 
+The session helper, unit tests in `internal/guestd/shell` on darwin and
+linux. They run unprivileged, with no user switch and a test program in
+place of `zsh`:
+
+- See the helper lead the POSIX session, and the program lead its own
+  process group, which is the PTY's foreground group, with the PTY as
+  its controlling terminal.
+- Write a `Ctrl-C` byte and see the program get `SIGINT`. Resize and
+  see `SIGWINCH` with the new size.
+- Have the program stop itself, and see one stopped frame. Resume it
+  and see it run on.
+- Exit with 0 and with 3, and kill the program with `SIGKILL`. See each
+  reported, interactive and not, with the output before the exit frame.
+- Hang up an interactive shell and see the program get `SIGHUP`. With a
+  program that ignores it, see it killed after the hangup delay, and
+  another user's process in the same POSIX session logged and left.
+- Without a PTY, see standard input end with EOF, a closed standard
+  output give `EPIPE`, and standard error on its own channel.
+- Kill the helper and see `session-helper-gone` and the session killed.
+- Send a report out of form, one after the exit and an exit code of
+  256, and see `session-helper-report` and the session killed.
+- Send each refused start: an id, size, user or environment out of
+  form, an unknown, privileged or locked user, a data mount that fails
+  its check, an id in use, and a helper that doesn't start. See each
+  refused with its rule and nothing started.
+- See the program's exact environment, and the replica owned by the
+  user with mode 0600.
+- End the stream on a live connection and see a hangup. End it with the
+  link and see the shell left to the stop loop.
+- `FuzzHelperReport`: arbitrary report bytes never give an exit code
+  outside 0 to 255, a signal outside 1 to 64, or a report after the
+  exit.
+
 Exit codes and lost sessions:
 
 - Report an exit code of 256 and a signal number of 0 and of 65, and

@@ -18,6 +18,10 @@ users keep files apart, not network traffic (T11-shared-vm-grants).
 `RLIMIT_CORE` is set to 0. The environment is built from an allowlist
 (S09-policy-credentials-audit).
 
+A session's PTY replica belongs to the session's project user, with
+mode 0600, before the session helper starts. No other project user can
+open it.
+
 ### Work as the project user
 
 Every operation under a project user's home runs in a child process as
@@ -84,7 +88,9 @@ Then:
 2. When `claude` hasn't exited 10 seconds later, `wb-guestd` sends
    `SIGKILL` to every process in the session's POSIX session
    (S06-09-session-lifecycle, "Session helper"). It sends it only to
-   those whose user ID is the session's project user.
+   those whose effective and real user IDs are both the session's
+   project user. It logs any other process in that POSIX session, and
+   leaves it.
 3. When the project user has no other session in the VM, a lost one
    included, it then kills every process of that user, in a loop until
    none remain.

@@ -21,12 +21,21 @@ import (
 	"syscall"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/shell"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestupdate"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsock"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
 func main() {
+	// wb-guestd starts its own executable with this one argument as a
+	// shell's session helper, as the project user
+	// (S06-09-session-lifecycle, "Session helper"). It is checked before
+	// any other start-up code, so the helper never updates, listens or
+	// stops processes.
+	if len(os.Args) == 2 && os.Args[1] == shell.HelperArg {
+		os.Exit(shell.HelperMain())
+	}
 	os.Exit(run())
 }
 
@@ -63,7 +72,14 @@ func run() int {
 		return 1 // Listen logged the errno and the rule
 	}
 
-	srv := guestd.NewServer(own, log, guestd.WithProcesses(loops))
+	// The session helper is this executable, resolved once, after the
+	// update at start ran the installed one.
+	exe, err := os.Executable()
+	if err != nil {
+		log.LogAttrs(ctx, slog.LevelError, "own executable not found", slog.String("error", err.Error()))
+		return 1
+	}
+	srv := guestd.NewServer(own, log, guestd.WithProcesses(loops), guestd.WithShellHelper(exe))
 	go func() {
 		<-ctx.Done()
 		srv.Stop()

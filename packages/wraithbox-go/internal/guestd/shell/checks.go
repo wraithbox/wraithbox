@@ -1,0 +1,157 @@
+package shell
+
+import (
+	"math"
+	"regexp"
+	"slices"
+	"strings"
+
+	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
+)
+
+// The rules of a shell's refusals and failures (S06-09-session-lifecycle,
+// "Session helper"). Each is in the gRPC ErrorInfo of a refusal, in a
+// failure frame, and in wb-guestd's log.
+const (
+	// RuleUserUnknown: the user isn't a project user wb-guestd made or
+	// checked since it started.
+	RuleUserUnknown = "shell-user-unknown"
+	// RuleUserPrivileged: the user is root, or in admin or wheel
+	// (SEC12-least-privilege).
+	RuleUserPrivileged = "shell-user-privileged"
+	// RuleUserLocked: the user is locked (S13-01-process-hardening,
+	// "Locked users").
+	RuleUserLocked = "shell-user-locked"
+	// RuleEnv: an environment name outside S16-03-around-the-stream's
+	// seven, a name twice, or a value outside the contract's bounds.
+	RuleEnv = "shell-env"
+	// RuleStartInvalid: the first request isn't a start, a window size
+	// is out of range, or the shell id isn't of the S05-04-naming form.
+	RuleStartInvalid = "shell-start-invalid"
+	// RuleIDInUse: a shell with the id is open.
+	RuleIDInUse = "shell-id-in-use"
+	// RuleStartFailed: the PTY, the pipes or the helper didn't start.
+	RuleStartFailed = "shell-start-failed"
+	// RuleHelperReport: a helper report out of form or order
+	// (SEC11-root-gains-nothing).
+	RuleHelperReport = "session-helper-report"
+	// RuleHelperGone: the helper ended or closed its reports without an
+	// exit report.
+	RuleHelperGone = "session-helper-gone"
+	// RuleFrameInvalid: a client frame out of form, which wb-guestd
+	// logs and drops.
+	RuleFrameInvalid = "shell-frame-invalid"
+	// RuleOutsideSession: a process of the user that is in no open
+	// shell's POSIX session, which wb-guestd logs and leaves
+	// (S13-01-process-hardening, "When a session's client goes", step 4).
+	RuleOutsideSession = "shell-process-outside-session"
+	// RuleKilled: a shell's processes were killed after the hangup
+	// delay (S13-01-process-hardening, "When a session's client goes",
+	// step 2).
+	RuleKilled = "shell-hangup-kill"
+)
+
+// Refusal is a refused start. Invalid is set for a request out of form.
+type Refusal struct {
+	Rule    string
+	Invalid bool
+}
+
+func (r *Refusal) Error() string { return "shell: refused: " + r.Rule }
+
+// EnvNames are the host terminal variables a shell gets
+// (S16-03-around-the-stream, "Environment"), as wb sends them
+// (internal/relay).
+var EnvNames = []string{
+	"TERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION", "COLORTERM",
+	"LANG", "LC_ALL", "LC_CTYPE",
+}
+
+// The bounds of the start.
+const (
+	maxEnvValue = 256
+	maxShellID  = 128
+	maxUserName = 64
+)
+
+// sessionID is the session id form of S05-04-naming ("Session id and
+// branch"): the project name, then `-<yyyymmdd>-<hhmm>-<4 random
+// chars>`. A project name is 1 to 64 bytes of letters, digits, `.`, `_`
+// and `-`, starting with a letter or digit.
+var sessionID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}-[0-9]{8}-[0-9]{4}-[A-Za-z0-9]{4}$`)
+
+// validShellID reports whether id is of the session id form.
+func validShellID(id string) bool {
+	return len(id) <= maxShellID && sessionID.MatchString(id) && !strings.Contains(id, "..")
+}
+
+// checkStart checks the start's form, and returns the rule of the first
+// problem, or "".
+func checkStart(id, user string, setup *terminalv1.Setup) string {
+	if !validShellID(id) || user == "" || len(user) > maxUserName || setup == nil {
+		return RuleStartInvalid
+	}
+	if _, _, ok := windowSize(setup.GetSize()); setup.GetInteractive() && !ok {
+		return RuleStartInvalid
+	}
+	if !validEnv(setup.GetEnv()) {
+		return RuleEnv
+	}
+	return ""
+}
+
+// windowSize returns the rows and columns of size, and false when one
+// is outside 1..65535.
+func windowSize(size *terminalv1.WindowSize) (rows, cols uint16, ok bool) {
+	r, c := size.GetRows(), size.GetCols()
+	if r < 1 || r > math.MaxUint16 || c < 1 || c > math.MaxUint16 {
+		return 0, 0, false
+	}
+	return uint16(r), uint16(c), true
+}
+
+// validEnv reports whether env has only names of EnvNames, each once,
+// with values of at most 256 bytes of printable ASCII.
+func validEnv(env []*terminalv1.EnvVar) bool {
+	seen := map[string]bool{}
+	for _, v := range env {
+		name := v.GetName()
+		if !slices.Contains(EnvNames, name) || seen[name] || !printable(v.GetValue()) {
+			return false
+		}
+		seen[name] = true
+	}
+	return true
+}
+
+func printable(v string) bool {
+	if len(v) > maxEnvValue {
+		return false
+	}
+	for _, c := range []byte(v) {
+		if c < 0x20 || c > 0x7e {
+			return false
+		}
+	}
+	return true
+}
+
+// The fixed parts of a shell's environment (S13-01-process-hardening,
+// "Limits and environment").
+const (
+	shellPath = "/bin/zsh"
+	envPath   = "/usr/bin:/bin:/usr/sbin:/sbin"
+)
+
+// environment builds a shell's whole environment from the checked host
+// values and u's record. Nothing comes from wb-guestd's own
+// environment. The helper adds TMPDIR, which it reads as the user.
+func environment(u users.User, env []*terminalv1.EnvVar) []string {
+	out := make([]string, 0, len(env)+5)
+	for _, v := range env {
+		out = append(out, v.GetName()+"="+v.GetValue())
+	}
+	return append(out,
+		"HOME="+u.Home, "USER="+u.Name, "LOGNAME="+u.Name, "SHELL="+shellPath, "PATH="+envPath)
+}

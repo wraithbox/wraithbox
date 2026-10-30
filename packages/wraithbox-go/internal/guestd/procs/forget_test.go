@@ -61,7 +61,7 @@ func TestStopAllCutShort(t *testing.T) {
 func TestIdleWaitsForALoop(t *testing.T) {
 	table := &fakeTable{procs: []gp.Proc{proc(100, 10000, "zsh")}, unstoppable: map[int32]bool{100: true}}
 	var buf bytes.Buffer
-	gate := &gateClock{fakeClock: fakeClock{now: time.Unix(1_800_000_000, 0)}, in: make(chan struct{}), out: make(chan struct{})}
+	gate := &gateClock{now: time.Unix(1_800_000_000, 0), in: make(chan struct{}), out: make(chan struct{})}
 	l := procs.New(table, gate, slog.New(slog.NewJSONHandler(&buf, nil)))
 	done := make(chan struct{})
 	go func() { l.StopAll(context.Background(), "link-drop"); close(done) }()

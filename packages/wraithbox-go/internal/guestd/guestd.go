@@ -3,8 +3,8 @@
 // host-guest socket (S06-12-guest-agent, "`wb-guestd`").
 //
 // It serves Hello, SetTime, MountData, and the project users' calls:
-// EnsureUsers, UnlockUser, KillUser and RemoveUser. The session
-// messages, exec and the git transport join it later. When the last
+// EnsureUsers, UnlockUser, KillUser and RemoveUser, and Shell
+// (internal/guestd/shell). Exec and the git transport join it later. When the last
 // connection from the host ends, it runs the stop loop
 // (S13-01-process-hardening, "When the link drops").
 package guestd
@@ -18,6 +18,7 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/procs"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/shell"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
@@ -69,8 +70,9 @@ func NewServer(own string, log *slog.Logger, opts ...Option) *grpc.Server {
 	if svc.openRoot == nil {
 		svc.openRoot = func() (guestusers.Root, error) { return guestusers.OpenRoot(HomePath) }
 	}
-	srv := grpc.NewServer(grpc.MaxRecvMsgSize(MaxRecvMsgSize),
-		grpc.StatsHandler(&linkWatch{loops: svc.loops, log: log}))
+	watch := &linkWatch{loops: svc.loops, log: log}
+	svc.shells = newShells(svc, watch, log)
+	srv := grpc.NewServer(grpc.MaxRecvMsgSize(MaxRecvMsgSize), grpc.StatsHandler(watch))
 	guestv1.RegisterGuestServiceServer(srv, svc)
 	return srv
 }
@@ -86,6 +88,8 @@ type service struct {
 	loops     *procs.Loops
 	emptier   users.Emptier
 	openRoot  func() (guestusers.Root, error)
+	helper    []string
+	shells    *shell.Server
 }
 
 // Hello reports wb-guestd's build version and the packages it serves.

@@ -67,12 +67,74 @@ the project user. The helper:
 It ignores the `SIGHUP` it gets when the PTY's other end closes. So it
 can still report `claude`'s exit after a hangup.
 
+`wb shell` uses the same helper, with a login `zsh` (`zsh -l`) in
+place of `claude`.
+
+#### The helper's form
+
+The helper is `wb-guestd`'s own executable, started with the one
+argument `session-helper`. `wb-guestd` checks that argument before any
+other start-up code, so a helper never updates, listens or stops
+processes. It starts as the project user, with the user's ID, primary
+group, and no other group. It refuses to run as root. Its program
+starts in the user's home directory.
+
+Before it starts the helper, `wb-guestd` checks the data mount
+(S06-05-disks, "Before every session start") and that the user is a project user
+it knows, not root and not in `admin` or `wheel`
+(SEC12-least-privilege), and not locked.
+
+#### Reports and commands
+
+The helper and `wb-guestd` talk over two pipes. Each message is a
+record of 8 bytes: a kind byte, three zero bytes, and a big-endian
+32-bit value.
+
+The helper writes reports on its descriptor 3:
+
+| Report | Value |
+|---|---|
+| started | the program's process ID, 2 to 2147483647 |
+| stopped | 0 |
+| continued | 0 |
+| exited | the exit code, 0 to 255 |
+| signaled | the signal number that ended it, 1 to 64 |
+
+Started comes first and once. Exited or signaled comes last, and the
+pipe then closes. The helper runs as the project user, so `wb-guestd`
+reads the reports as guest input (SEC11-root-gains-nothing). A record
+out of form, out of bounds, out of order, or after the last one ends
+the session with the rule `session-helper-report`. A helper that ends
+without the last report ends it with `session-helper-gone`. Both then
+hang up and kill the session, as below.
+
+The helper reads commands on its descriptor 4, and applies each to the
+program's process group only:
+
+| Command | Signals |
+|---|---|
+| hangup | `SIGHUP`, then `SIGCONT` |
+| stop | `SIGSTOP` |
+| resume | `SIGCONT` |
+| signal | the value: `SIGINT`, `SIGQUIT`, `SIGTERM`, `SIGTSTP` or `SIGCONT` |
+
+A command out of form, or the end of the commands, counts as a hangup.
+After a hangup, the helper reads no more commands.
+
+#### The POSIX session
+
 The session's processes are the processes in the helper's POSIX
 session. `wb-guestd` records that POSIX session ID in a root-owned
 directory on the data disk, outside every project user's home. It uses
 a recorded ID only for processes whose user ID is this session's
 project user. A process that leaves the POSIX session with `setsid` is
 out of the session (S13-02-filesystem-profile, "Known gaps").
+
+V1-M2 keeps the ID in memory only. The record on the data disk comes
+with the reports kept in the guest (below). Until then, a `wb-guestd`
+that starts again stops the project users' processes at start
+(S13-01-process-hardening, "When the link drops"), and knows no
+session's ID.
 
 ### Closing the terminal ends the session
 
@@ -89,8 +151,9 @@ The hangup works like this:
 
 - In interactive use, `wb-guestd` closes its end of the session's PTY.
   The guest kernel sends `SIGHUP`, as it does for a closed terminal.
-- Otherwise the helper sends `SIGHUP` to `claude`'s process group, and
-  closes its standard input.
+- Otherwise `wb-guestd` closes `claude`'s standard input.
+- Either way, `wb-guestd` sends the helper the hangup command, and the
+  helper sends `SIGHUP` to `claude`'s process group.
 - A stopped group also gets `SIGCONT`, so the hangup is delivered.
 
 When `claude` hasn't exited 10 seconds later, `wb-guestd` kills the
