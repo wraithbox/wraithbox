@@ -96,11 +96,42 @@ type Loops struct {
 	// finds stopped, so a resumed session sends SIGCONT only to those
 	// (S13-01-process-hardening, "When the link drops").
 	ours map[gp.Key]bool
+
+	// exMu guards excluded apart from mu, which a loop holds for up to
+	// MaxTime.
+	exMu sync.Mutex
+	// excluded counts, by UID, the Exclude calls not yet released.
+	excluded map[uint32]int
 }
 
 // New returns Loops on table.
 func New(table gp.Table, clock Clock, log *slog.Logger) *Loops {
-	return &Loops{table: table, clock: clock, log: log, ours: map[gp.Key]bool{}}
+	return &Loops{table: table, clock: clock, log: log, ours: map[gp.Key]bool{}, excluded: map[uint32]int{}}
+}
+
+// Exclude makes the stop loop leave alone each process whose UID and
+// real UID are both uid, until release is called: a removal's child
+// empties the home as the user after the kill loop
+// (S06-08-projects-and-sessions, "Removing a home"). The kill loop
+// doesn't look at it.
+func (l *Loops) Exclude(uid uint32) (release func()) {
+	l.exMu.Lock()
+	defer l.exMu.Unlock()
+	l.excluded[uid]++
+	return sync.OnceFunc(func() {
+		l.exMu.Lock()
+		defer l.exMu.Unlock()
+		if l.excluded[uid]--; l.excluded[uid] <= 0 {
+			delete(l.excluded, uid)
+		}
+	})
+}
+
+// isExcluded reports whether the stop loop leaves p alone.
+func (l *Loops) isExcluded(p gp.Proc) bool {
+	l.exMu.Lock()
+	defer l.exMu.Unlock()
+	return l.excluded[p.UID] > 0 && p.RUID == p.UID
 }
 
 // KillResult is what a kill loop found at its end.
@@ -214,7 +245,8 @@ type StopResult struct {
 //
 // A process it finds stopped that no stop loop sent SIGSTOP was
 // stopped by someone else, such as job control. It counts in
-// AlreadyStopped, and StoppedByUs leaves it out.
+// AlreadyStopped, and StoppedByUs leaves it out. A process Exclude
+// names is skipped and counted in the log.
 func (l *Loops) StopAll(ctx context.Context, reason string) StopResult {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -246,6 +278,8 @@ type stopRun struct {
 	running []gp.Proc
 	stopped map[gp.Key]bool
 	err     error
+	// skipped is how many processes the last check left out for Exclude.
+	skipped int
 }
 
 // left reports whether the last check found a process running, or
@@ -255,12 +289,16 @@ func (r *stopRun) left() bool { return len(r.running) > 0 || r.err != nil }
 // check lists the processes in the project range.
 func (r *stopRun) check() {
 	procs, err := r.l.table.InRange(projectuser.FirstID, projectuser.LastID)
-	r.running, r.err = nil, err
+	r.running, r.err, r.skipped = nil, err, 0
 	if err != nil {
 		return
 	}
 	r.stopped = map[gp.Key]bool{}
 	for _, p := range procs {
+		if r.l.isExcluded(p) {
+			r.skipped++
+			continue
+		}
 		k := p.Key()
 		switch p.State {
 		case gp.Stopped:
@@ -296,6 +334,7 @@ func (r *stopRun) finish(ctx context.Context, reason string) StopResult {
 	attrs := []slog.Attr{
 		slog.String("reason", reason), slog.Int("rounds", r.res.Rounds),
 		slog.Int("stopped", r.res.Stopped), slog.Int("already_stopped", r.res.AlreadyStopped),
+		slog.Int("under_removal", r.skipped),
 		slog.Duration("took", r.l.clock.Now().Sub(r.start)),
 	}
 	if !r.left() {

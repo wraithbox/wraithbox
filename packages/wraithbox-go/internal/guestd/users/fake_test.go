@@ -197,6 +197,11 @@ func (k *fakeKiller) Kill(_ context.Context, uid uint32) procs.KillResult {
 	return procs.KillResult{Left: k.left, Rounds: 1}
 }
 
+func (k *fakeKiller) Exclude(uid uint32) func() {
+	*k.calls = append(*k.calls, fmt.Sprintf("exclude %d", uid))
+	return func() { *k.calls = append(*k.calls, fmt.Sprintf("release %d", uid)) }
+}
+
 // fakeEmptier is the child that empties a home: it records its IDs and
 // home in calls and its deadline in deadline, runs onRun when set, and
 // returns err.
@@ -222,3 +227,10 @@ type exitError struct{}
 func (exitError) Error() string { return "exit status 1" }
 
 func (exitError) ExitCode() int { return 1 }
+
+// signalError is a child a signal ended: *exec.ExitError reports -1.
+type signalError struct{}
+
+func (signalError) Error() string { return "signal: killed" }
+
+func (signalError) ExitCode() int { return -1 }

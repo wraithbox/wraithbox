@@ -267,7 +267,7 @@ func TestUsersRulesForm(t *testing.T) {
 	for _, r := range []string{
 		users.RuleRequestInvalid, users.RuleConflict, users.RuleHomeOtherOwner, users.RuleHomeInvalid,
 		users.RuleIDsOwnEntry, users.RuleHomeRoot, users.RuleDirectory, users.RuleDeadline, users.RuleRequest,
-		users.RuleUnknown, users.RuleRemovalRunning, users.RuleHomeChild, users.RuleHomeLeft,
+		users.RuleUnknown, users.RuleRemovalRunning, users.RuleKillRunning, users.RuleHomeChild, users.RuleHomeLeft,
 		guestd.RuleKillRequest, cleanup.RuleDir, cleanup.RuleFile, cleanup.RuleWrite,
 	} {
 		if !form.MatchString(r) {

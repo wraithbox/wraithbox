@@ -41,7 +41,7 @@ func WithRemoval(e users.Emptier, open func() (guestusers.Root, error)) Option {
 // UnlockUser unlocks a project user for a session start
 // (S13-01-process-hardening, "Locked users"; SEC08-proj-isolation). It
 // refuses a user wb-guestd hasn't ensured since it started, or one
-// whose removal runs, with FAILED_PRECONDITION and the rule, and the
+// whose removal or kill runs, with FAILED_PRECONDITION and the rule, and the
 // user stays locked.
 func (s *service) UnlockUser(ctx context.Context, req *guestv1.UnlockUserRequest) (*guestv1.UnlockUserResponse, error) {
 	if rule := s.users.Unlock(ctx, req.GetUid()); rule != "" {
@@ -56,7 +56,10 @@ func (s *service) UnlockUser(ctx context.Context, req *guestv1.UnlockUserRequest
 // SEC08-proj-isolation). It refuses a request out of form with
 // INVALID_ARGUMENT and RuleKillRequest, and a UID that wb-guestd knows
 // for another project with FAILED_PRECONDITION and users.RuleUnknown,
-// before it locks or kills anything. A record it couldn't keep fails
+// before it locks or kills anything. While a removal of the UID runs, it
+// refuses with FAILED_PRECONDITION and users.RuleRemovalRunning: the
+// removal runs its own kill loop, and a second one could end the
+// removal's child. UnlockUser refuses the user until the kill ends. A record it couldn't keep fails
 // the call with the record's rule, so wb-hostd never takes a result
 // that isn't kept: the kill stays pending and fails closed.
 func (s *service) KillUser(ctx context.Context, req *guestv1.KillUserRequest) (*guestv1.KillUserResponse, error) {
@@ -73,7 +76,10 @@ func (s *service) KillUser(ctx context.Context, req *guestv1.KillUserRequest) (*
 			slog.String("found", "a known user of another project"), slog.Uint64("uid", uint64(uid)))
 		return nil, withRule(codes.FailedPrecondition, users.RuleUnknown)
 	}
-	s.users.Lock(ctx, uid, "kill")
+	if rule := s.users.StartKill(ctx, uid); rule != "" {
+		return nil, withRule(codes.FailedPrecondition, rule)
+	}
+	defer s.users.EndKill(uid)
 	res := s.loops.Kill(ctx, uid)
 	rec := cleanup.Record{KillID: req.GetKillId(), ProjectID: project, Left: res.Left}
 	if rule := s.keepRecord(ctx, uid, rec); rule != "" {

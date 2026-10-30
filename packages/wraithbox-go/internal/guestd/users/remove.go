@@ -27,7 +27,8 @@ const (
 	RuleHomeLeft = "project-home-left"
 )
 
-// The deadlines of a removal. RemoveDeadline is below wb-hostd's 60 s
+// The deadlines of a removal (S06-08-projects-and-sessions, "Removing a
+// home"). RemoveDeadline is below wb-hostd's 60 s
 // wait for the answer (internal/guestlink, RemoveTimeout). The kill
 // loop takes up to procs.MaxTime of it, the child up to ChildDeadline,
 // and the directory calls the rest.
@@ -66,9 +67,11 @@ type RemoveResult struct {
 	Rule    string
 }
 
-// Killer runs the kill loop of a user: *procs.Loops.
+// Killer runs the kill loop of a user, and keeps the stop loop off a
+// user's processes while its home is emptied: *procs.Loops.
 type Killer interface {
 	Kill(ctx context.Context, uid uint32) procs.KillResult
+	Exclude(uid uint32) (release func())
 }
 
 // Emptier removes every entry of a home as its user:
@@ -91,7 +94,7 @@ type RemoveTools struct {
 // SEC08-proj-isolation). In order, it:
 //
 //  1. refuses r unless it names the user wb-guestd knows with r's
-//     project, or a record with r's IDs and home, or, with no record
+//     project, GID and home, or a record with r's IDs and home, or, with no record
 //     after a system disk swap, a home owned by r's UID. With no
 //     record and no home it answers Removed: there is nothing left;
 //  2. locks the user, and runs the kill loop. With processes left it
@@ -99,33 +102,36 @@ type RemoveTools struct {
 //  3. starts the child that empties the home as the user, its own
 //     group only, then removes the home with unlinkat. A home that
 //     stays is logged with RuleHomeLeft;
-//  4. retires the record: pwpolicy -disableuser, hidden, and the shell
-//     RetiredShell. The record stays, because opendirectoryd refuses
+//  4. retires the record: the shell RetiredShell, pwpolicy
+//     -disableuser, and hidden. The record stays, because opendirectoryd refuses
 //     root's dscl -delete (X17-image-build). The user leaves the known
 //     set, and Ensure refuses it from then on.
 //
 // A removal of a retired user runs the same steps, and answers Removed
 // again. One removal per user runs at a time: another gets Refused with
-// RuleRemovalRunning.
+// RuleRemovalRunning. A request refused in step 1 locks nothing.
 func (m *Manager) Remove(ctx context.Context, r Removal, tools RemoveTools) RemoveResult {
 	ctx, cancel := context.WithTimeout(ctx, RemoveDeadline)
 	defer cancel()
 	if bad := validRemoval(r); bad != nil {
 		return m.refuseRemoval(ctx, r, bad)
 	}
+	// The known user is compared before startRemoval, so a request for
+	// another project's user leaves that user's lock as it was.
 	m.mu.Lock()
 	known, isKnown := m.known[r.UID]
-	started := m.startRemoval(r.UID)
+	other := isKnown && (known.ProjectID != r.ProjectID || known.GID != r.GID || known.Home != r.Home)
+	started := !other && m.startRemoval(r.UID)
 	m.mu.Unlock()
+	if other {
+		return m.refuseRemoval(ctx, r, &refusal{rule: RuleUnknown, found: "a known user of another project"})
+	}
 	if !started {
 		return m.refuseRemoval(ctx, r, &refusal{rule: RuleRemovalRunning, found: "a removal of the user runs"})
 	}
 	defer m.endRemoval(r.UID)
 	m.log.LogAttrs(ctx, slog.LevelInfo, "project user locked",
 		slog.Uint64("uid", uint64(r.UID)), slog.String("reason", "removal"))
-	if isKnown && (known.ProjectID != r.ProjectID || known.GID != r.GID || known.Home != r.Home) {
-		return m.refuseRemoval(ctx, r, &refusal{rule: RuleUnknown, found: "a known user of another project"})
-	}
 	rm := &removal{m: m, ctx: ctx, r: r, name: projectuser.UserName(r.UID), tools: tools}
 	defer rm.close()
 	return rm.run(isKnown)
@@ -271,10 +277,15 @@ func (rm *removal) removeHome(e gu.Entry) *refusal {
 	}
 	child, cancel := context.WithTimeout(rm.ctx, ChildDeadline)
 	defer cancel()
+	release := rm.tools.Kill.Exclude(rm.r.UID)
 	err := rm.tools.Empty.EmptyHome(child, rm.r.UID, rm.r.GID, rm.r.Home)
+	release()
 	// A child that ran and exited nonzero left entries it couldn't
-	// remove. unlinkat then fails on them, and that is logged below.
-	if _, exited := errors.AsType[ExitError](err); err != nil && (!exited || child.Err() != nil) {
+	// remove. unlinkat then fails on them, and that is logged below. A
+	// child a signal ended, ExitCode -1, didn't finish its run: someone
+	// killed it, and the removal is refused.
+	exit, exited := errors.AsType[ExitError](err)
+	if err != nil && (!exited || exit.ExitCode() < 0 || child.Err() != nil) {
 		return &refusal{rule: RuleHomeChild, attr: "home", found: err.Error()}
 	}
 	if err := rm.root.Rmdir(rm.name); err != nil {
@@ -285,24 +296,26 @@ func (rm *removal) removeHome(e gu.Entry) *refusal {
 	return nil
 }
 
-// ExitError is the error of a child that ran and exited nonzero:
-// *exec.ExitError.
+// ExitError is the error of a child that ran and exited nonzero, or
+// that a signal ended, with ExitCode -1: *exec.ExitError.
 type ExitError interface {
 	error
 	ExitCode() int
 }
 
-// retire disables the user's record, hides it and gives it
-// RetiredShell, in that order, so a record with RetiredShell went
-// through every step.
+// retire gives the user's record RetiredShell, then disables it and
+// hides it. The shell goes first: Ensure refuses a record whose shell
+// differs, so a record a failed step left half retired never becomes a
+// known user again, and the next removal finishes it.
 func (rm *removal) retire() *refusal {
+	if err := rm.m.dir.Create(rm.ctx, gu.Users, rm.name, gu.AttrShell, RetiredShell); err != nil {
+		return &refusal{rule: RuleDirectory, attr: "user " + gu.AttrShell, found: err.Error()}
+	}
 	if err := rm.m.dir.Disable(rm.ctx, rm.name); err != nil {
 		return &refusal{rule: RuleDirectory, attr: "user disable", found: err.Error()}
 	}
-	for _, a := range []attr{{gu.AttrIsHidden, Hidden}, {gu.AttrShell, RetiredShell}} {
-		if err := rm.m.dir.Create(rm.ctx, gu.Users, rm.name, a.name, a.value); err != nil {
-			return &refusal{rule: RuleDirectory, attr: "user " + a.name, found: err.Error()}
-		}
+	if err := rm.m.dir.Create(rm.ctx, gu.Users, rm.name, gu.AttrIsHidden, Hidden); err != nil {
+		return &refusal{rule: RuleDirectory, attr: "user " + gu.AttrIsHidden, found: err.Error()}
 	}
 	return nil
 }
@@ -310,7 +323,7 @@ func (rm *removal) retire() *refusal {
 // done drops the user from the known set, and answers Removed.
 func (rm *removal) done(outcome string) RemoveResult {
 	rm.m.mu.Lock()
-	delete(rm.m.known, rm.r.UID)
+	rm.m.forget(rm.r.UID)
 	rm.m.mu.Unlock()
 	rm.m.log.LogAttrs(rm.ctx, slog.LevelInfo, "project user removed",
 		slog.Uint64("uid", uint64(rm.r.UID)), slog.String("project_id", cut(rm.r.ProjectID)),

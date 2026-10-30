@@ -46,9 +46,9 @@ func (f *removeFixture) remove(t *testing.T, u users.User) users.RemoveResult {
 // retired is what a removal writes for u, in order.
 func retired(u users.User) []string {
 	return []string{
+		"user " + u.Name + " UserShell=/usr/bin/false",
 		"disable " + u.Name,
 		"user " + u.Name + " IsHidden=1",
-		"user " + u.Name + " UserShell=/usr/bin/false",
 	}
 }
 
@@ -65,7 +65,7 @@ func TestRemoveKnown(t *testing.T) {
 	if res.Outcome != users.Removed {
 		t.Fatalf("Remove = %+v, log %s", res, f.log)
 	}
-	want := []string{"kill 10000", "empty 10000:10000 /private/var/wbhomes/wbp10000"}
+	want := []string{"kill 10000", "exclude 10000", "empty 10000:10000 /private/var/wbhomes/wbp10000", "release 10000"}
 	if !slices.Equal(f.calls, want) {
 		t.Errorf("calls %v, want %v", f.calls, want)
 	}
@@ -80,6 +80,9 @@ func TestRemoveKnown(t *testing.T) {
 	}
 	if _, known := f.m.Known(u.UID); known || !f.m.Locked(u.UID) {
 		t.Errorf("known %v, locked %v after the removal", known, f.m.Locked(u.UID))
+	}
+	if rule := f.m.Unlock(t.Context(), u.UID); rule != users.RuleUnknown {
+		t.Errorf("Unlock after the removal = %q", rule)
 	}
 	f.wantResults(t, f.ensure(t, u), users.RuleConflict)
 
@@ -124,13 +127,17 @@ func TestRemoveAfterDiskSwap(t *testing.T) {
 }
 
 // TestRemoveRefuses: a removal that names no user, or another's, is
-// refused with its rule, and kills nothing and starts no child.
+// refused with its rule, and kills nothing and starts no child. A
+// request for a known user of another project leaves that user
+// unlocked.
 func TestRemoveRefuses(t *testing.T) {
 	u := user(10000)
 	cases := map[string]struct {
 		setup func(f *removeFixture)
 		r     func(r users.Removal) users.Removal
 		rule  string
+		// unlocked is set when the user stays unlocked.
+		unlocked bool
 	}{
 		"project id": {r: func(r users.Removal) users.Removal { r.ProjectID = "x"; return r }, rule: users.RuleRequestInvalid},
 		"uid nobody": {
@@ -140,12 +147,16 @@ func TestRemoveRefuses(t *testing.T) {
 		"gid":  {r: func(r users.Removal) users.Removal { r.GID = 10001; return r }, rule: users.RuleRequestInvalid},
 		"home": {r: func(r users.Removal) users.Removal { r.Home = "/Users/admin"; return r }, rule: users.RuleRequestInvalid},
 		"other project": {
-			setup: func(f *removeFixture) { f.m.Ensure(context.Background(), []users.User{u}, rootOK) },
+			setup: func(f *removeFixture) {
+				f.m.Ensure(context.Background(), []users.User{u}, rootOK)
+				f.m.Unlock(context.Background(), u.UID)
+			},
 			r: func(r users.Removal) users.Removal {
 				r.ProjectID = "ffffffffffffffffffffffffffffffff"
 				return r
 			},
-			rule: users.RuleUnknown,
+			rule:     users.RuleUnknown,
+			unlocked: true,
 		},
 		"record of another uid": {
 			setup: func(f *removeFixture) {
@@ -177,6 +188,9 @@ func TestRemoveRefuses(t *testing.T) {
 				r = c.r(r)
 			}
 			f.wantRefused(t, f.m.Remove(t.Context(), r, f.tools()), c.rule)
+			if locked := f.m.Locked(u.UID); locked == c.unlocked {
+				t.Errorf("locked %v after a refused removal", locked)
+			}
 		})
 	}
 }
@@ -255,8 +269,8 @@ func TestRemoveHomeChecks(t *testing.T) {
 
 // TestRemoveChild: a child that exits nonzero lets the removal go on,
 // and the home it left is logged with RuleHomeLeft. A child that
-// doesn't start, or runs past its deadline, refuses the removal before
-// the record is retired.
+// doesn't start, or that a signal ended, refuses the removal before the
+// record is retired.
 func TestRemoveChild(t *testing.T) {
 	u := user(10000)
 	f := newRemoveFixture()
@@ -278,6 +292,13 @@ func TestRemoveChild(t *testing.T) {
 	}
 	if _, ok := f.root.entries[u.Name]; !ok {
 		t.Error("the home is gone")
+	}
+
+	f = newRemoveFixture()
+	f.complete(u)
+	f.empty.err = signalError{}
+	if res := f.remove(t, u); res.Rule != users.RuleHomeChild || len(f.dir.writes) != 0 || len(f.root.removed) != 0 {
+		t.Errorf("Remove with a child a signal ended = %+v, writes %v, removed %v", res, f.dir.writes, f.root.removed)
 	}
 }
 
@@ -302,14 +323,19 @@ func TestRemoveChildDeadline(t *testing.T) {
 }
 
 // TestRemoveRetireFails: a failed retirement refuses the removal with
-// RuleDirectory, so wb-hostd asks again.
+// RuleDirectory, so wb-hostd asks again. The shell is written first, so
+// Ensure refuses the half-retired record and Unlock refuses the user.
 func TestRemoveRetireFails(t *testing.T) {
 	u := user(10000)
 	f := newRemoveFixture()
-	f.complete(u)
+	f.wantResults(t, f.ensure(t, u), "")
 	f.dir.disableErr = errors.New("pwpolicy failed")
 	if res := f.remove(t, u); res.Rule != users.RuleDirectory {
 		t.Errorf("Remove = %+v", res)
+	}
+	f.wantResults(t, f.ensure(t, u), users.RuleConflict)
+	if rule := f.m.Unlock(t.Context(), u.UID); rule != users.RuleUnknown {
+		t.Errorf("Unlock of a half-retired user = %q", rule)
 	}
 	f.dir.disableErr = nil
 	if res := f.remove(t, u); res.Outcome != users.Removed {
@@ -329,8 +355,11 @@ func (k *blockingKiller) Kill(context.Context, uint32) procs.KillResult {
 	return procs.KillResult{}
 }
 
+func (*blockingKiller) Exclude(uint32) func() { return func() {} }
+
 // TestRemoveRunning: while a removal of a user runs, another removal,
-// an Ensure and an Unlock of it are refused with RuleRemovalRunning.
+// an Ensure, a kill and an Unlock of it are refused with
+// RuleRemovalRunning.
 func TestRemoveRunning(t *testing.T) {
 	f := newRemoveFixture()
 	u := user(10000)
@@ -351,6 +380,9 @@ func TestRemoveRunning(t *testing.T) {
 	if rule := f.m.Unlock(t.Context(), u.UID); rule != users.RuleRemovalRunning {
 		t.Errorf("Unlock = %q", rule)
 	}
+	if rule := f.m.StartKill(t.Context(), u.UID); rule != users.RuleRemovalRunning {
+		t.Errorf("StartKill = %q", rule)
+	}
 	close(k.release)
 	wg.Wait()
 	if first.Outcome != users.Removed {
@@ -358,8 +390,8 @@ func TestRemoveRunning(t *testing.T) {
 	}
 }
 
-// TestLocks: every user is locked at start, only Unlock of a known user
-// unlocks it, and Lock locks it again.
+// TestLocks: every user is locked at start, and only Unlock of a known
+// user unlocks it.
 func TestLocks(t *testing.T) {
 	f := newFixture()
 	u := user(10000)
@@ -378,11 +410,35 @@ func TestLocks(t *testing.T) {
 	if rule := f.m.Unlock(t.Context(), u.UID); rule != "" || f.m.Locked(u.UID) {
 		t.Errorf("Unlock = %q, locked %v", rule, f.m.Locked(u.UID))
 	}
-	f.m.Lock(t.Context(), u.UID, "kill")
-	if !f.m.Locked(u.UID) {
-		t.Error("Lock left the user unlocked")
-	}
 	if !strings.Contains(f.log.String(), "rule="+users.RuleUnknown) {
+		t.Errorf("log %s", f.log)
+	}
+}
+
+// TestLocksKill: a kill locks an unlocked user again. While the kill
+// runs, Unlock is refused with RuleKillRunning, and after it ends the
+// user stays locked until an Unlock.
+func TestLocksKill(t *testing.T) {
+	f := newFixture()
+	u := user(10000)
+	f.wantResults(t, f.ensure(t, u), "")
+	if rule := f.m.Unlock(t.Context(), u.UID); rule != "" {
+		t.Fatalf("Unlock = %q", rule)
+	}
+	if rule := f.m.StartKill(t.Context(), u.UID); rule != "" || !f.m.Locked(u.UID) {
+		t.Errorf("StartKill = %q, locked %v", rule, f.m.Locked(u.UID))
+	}
+	if rule := f.m.Unlock(t.Context(), u.UID); rule != users.RuleKillRunning || !f.m.Locked(u.UID) {
+		t.Errorf("Unlock during a kill = %q", rule)
+	}
+	f.m.EndKill(u.UID)
+	if !f.m.Locked(u.UID) {
+		t.Error("EndKill unlocked the user")
+	}
+	if rule := f.m.Unlock(t.Context(), u.UID); rule != "" {
+		t.Errorf("Unlock after the kill = %q", rule)
+	}
+	if !strings.Contains(f.log.String(), "rule="+users.RuleKillRunning) {
 		t.Errorf("log %s", f.log)
 	}
 }
