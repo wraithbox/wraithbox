@@ -40,6 +40,12 @@ services"). When a check still finds a process running after either
 bound, `wb-guestd` logs it with the rule `project-users-stop-incomplete`
 and the processes left, at most 5 of them plus a count.
 
+The loop leaves alone the processes of a user whose home a removal
+empties at that moment, when both their user IDs are that user's.
+Those are the removal's own children, which run after its kill loop
+and while the user is locked (S06-08-projects-and-sessions, "Removing
+a home").
+
 It records which processes were already stopped, such as a `claude`
 stopped with job control. When the link returns:
 
@@ -64,8 +70,9 @@ home in a removal (S06-08-projects-and-sessions, "Removing a home").
 The lock is in `wb-guestd`'s memory only. Every project user starts
 locked, and only `UnlockUser`, for a session start, unlocks one.
 `UnlockUser` refuses a user `wb-guestd` hasn't made or checked since it
-started, and one whose removal runs. A kill and a removal lock the user
-again. So a new `wb-guestd` process starts with every user
+started, and one whose kill or removal runs. A kill and a removal lock
+the user again. A kill of a user whose removal runs is refused, because
+the removal runs its own kill loop. So a new `wb-guestd` process starts with every user
 locked, and fails closed without stored state.
 
 ### When a session's client goes
@@ -145,5 +152,13 @@ the link drop. A resumed session then keeps its services.
 
 `wb-guestd` never runs `launchctl print` or `launchctl asuser` against a
 locked project user.
+
+### Known gap: cron and at
+
+A project user's `crontab` and `at` jobs stay after the kill loop and a
+removal. `cron` and `atrun` run as root and start them as the user,
+outside its launchd domain, so `bootout` doesn't reach them, and neither the disabled
+account nor its shell stops them. Closing this in the image and in the
+kill loop is I442.
 
 **Status:** Draft
