@@ -1,14 +1,14 @@
 ---
 title: Does the host-made data volume stay unencrypted and give freed space back?
-description: Encryption stays off and the confined format works. Freed space goes back to the host only at each unmount or mount while wb-guestd mounts the volume nobrowse, so keep nobrowse unless the space matters more.
+description: Encryption stays off and the confined format works. Freed space goes back to the host only at each unmount or mount while wb-guestd mounts the volume nobrowse. Decided 2026-10-26: keep nobrowse.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-10-26: yes, and yes with conditions. Awaiting decision 3: keep `nobrowse`.** Source: X08-data-disk (I228). Changes S06-05-disks ("Disks") and S06-13-data-disk-format. Earlier brief: B22-data-disk. Follow-ups: I424 (two conformance checks of C09-guest-and-sessions), I425 (a macOS 27.2 guest).
+**Answered 2026-10-26: yes, and yes with conditions. Decided 2026-10-26: keep `nobrowse`.** The decision is in the I228 comment that starts `Decision (2026-10-26):`. Source: X08-data-disk (I228). Changes S06-05-disks ("Disks") and S06-13-data-disk-format. Earlier brief: B22-data-disk. Follow-ups: I424 (two conformance checks of C09-guest-and-sessions), I425 (a macOS 27.2 guest).
 
 <Aside type="tip" title="What we learned">
-**Encryption stays off, and the confined format works: yes. Space goes back: yes, with conditions.** While `wb-guestd` mounts the volume `nobrowse`, deleted data goes back to the host only at the next unmount or mount: a clean shutdown or a cold boot, not a restore from saved state. Recommended: keep `nobrowse`, as the spec says today. Dropping it brings the space back within about 20 s.
+**Encryption stays off, and the confined format works: yes. Space goes back: yes, with conditions.** While `wb-guestd` mounts the volume `nobrowse`, deleted data goes back to the host only at the next unmount or mount: a clean shutdown or a cold boot, not a restore from saved state. Decided 2026-10-26: keep `nobrowse`, as the spec says today. Dropping it brings the space back within about 20 s.
 </Aside>
 
 <figure class="wb-figure">
