@@ -95,6 +95,7 @@ characters of `a` to `z`, `0` to `9` and `-`.
 | `ca/<vm>/<ca>`, the software key (Linux hosts without a TPM only) | `wb-proxyd`, write when it issues the CA, fetch, delete | none: it signs in `wb-proxyd` | the CA's life, deleted as above |
 | `wbadmin/build/<build>` | `wb-guestadmin-build`, write, then fetch. `wb-guestadmin-rotate`, fetch at the build VM's first contact | a pipe to the build's `wb-vmd` (until the start call returns), `ssh`'s standard input (one session), the guest connection of S15-04-guest-admin | removed when the build ends |
 | `wbadmin/image/<image>` | `wb-guestadmin-rotate`, write at the build VM's first contact, fetch at each VM's first contact | the guest connection of S15-04-guest-admin | removed with the image |
+| `wbadmin/image/<image>` of a parent, and of the image built on it | `wb-guestadmin-rotate`, at the layer VM's first contact only: fetch of the parent's item, and write of the new image's item. It writes no VM item there | the guest connection of S15-04-guest-admin | the parent's item is removed with the parent (S06-01-image-layers, "Parents"). The new image's item is removed with that image, or by `wb-guestadmin-cleanup` when its build fails |
 | `wbadmin/vm/<vm>/<disk>` | `wb-guestadmin-rotate`, write at first contact | the guest connection of S15-04-guest-admin | kept for the secure token and a later diagnostics path (I158), removed when the system disk is replaced |
 
 Which `wbadmin` item is current for a disk isn't secret. So `wb-hostd`

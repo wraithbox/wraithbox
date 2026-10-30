@@ -106,6 +106,18 @@ its sessions (S06-vm-lifecycle).
 The build VM rotates the same way, from the build password to the
 image password.
 
+The layer VM of a Claude Code layer build rotates the same way, from
+the parent's password to the new image's (S06-01-image-layers, "The
+Claude Code layer"). There, `wb-guestadmin-rotate`:
+
+- refuses when the store already holds the new image's item;
+- fetches the parent's item, and generates the new image's password;
+- writes `wbadmin/image/<image>` for the new image, in place of a VM
+  item, before it sends both passwords.
+
+So each image has a password of its own, and the parent's password
+opens nothing in the images built on it, or in their VMs.
+
 ### Rotation failure
 
 On a failed report or no answer:

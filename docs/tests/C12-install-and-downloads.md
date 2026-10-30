@@ -60,9 +60,12 @@
   build's start. A version from outside the build's input is refused.
   A channel file over 64 bytes, empty, with two line feeds, or with
   anything but a version, is refused (`claude-channel-invalid`). A
-  channel version older than the last sealed image's is refused
-  (`claude-release-rollback`). The same version from
-  `--claude-version` is accepted.
+  channel version older than the last sealed Claude Code layer's is
+  refused (`claude-release-rollback`), and a sealed parent doesn't
+  move that floor. The same version from `--claude-version` is
+  accepted. With no record any version above the minimum is accepted,
+  and an unreadable `state.db` refuses the build
+  (`claude-release-floor-unknown`).
   `wb-release-check` starts only after `wb-download` has exited.
 - **Audit.** A download record that can't be written cancels the run
   with `download-audit-failed`.

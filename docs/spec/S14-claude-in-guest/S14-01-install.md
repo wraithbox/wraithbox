@@ -136,13 +136,14 @@ channel file isn't signed. So:
 
 - the version it names goes through "Check" above, with the
   signature, the equal version and the minimum;
-- `wb-hostd` refuses a version older than the Claude Code version of
-  the last image a build sealed, with `claude-release-rollback`. A
+- `wb-hostd` refuses a version older than the one in the last Claude
+  Code layer a build sealed, of any image, with
+  `claude-release-rollback`. A
   version the user names with `--claude-version` isn't refused for
   that, but the minimum still applies.
 
 A forged channel file can then only pick another signed release, not
-older than the one the last image has. After an image built with a
+older than the one the last layer has. After an image built with a
 newer `--claude-version`, a build from the stable channel is refused
 until the channel catches up, or the user names a version again. A new
 model can need a release newer than the stable channel's, and
