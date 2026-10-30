@@ -172,6 +172,9 @@ code that opens them.
   name another group by then.
 - **Rejected:** the shim kills its own group on a timer. Its profile
   has no signal rule, and the kill is for a shim that hangs.
+- **Rejected:** a kill request for any launcher entry. Only
+  `wb-diskfmt` needs one so far, and the narrower request channel is
+  the stricter choice.
 - **Decided:** I370. `wb-launcher` sends the kill once it starts the
   shim, and `wb-hostd` asks for it.
 

@@ -4,7 +4,7 @@
 // S04-04-vm-processes). Until wb-launcher exists (M3.11), wb-hostd
 // starts an entry itself, with exactly what the entry holds. M3.11 moves
 // this table into wb-launcher, and with it the kill of wb-diskfmt's
-// process group (S04-07-supervision, "A kill on request").
+// process group (S04-04-vm-processes, "`wb-diskfmt`'s kill").
 //
 // No entry takes an argument, and no request names a path, a program or
 // a variable: the caller names an entry, and everything else comes from

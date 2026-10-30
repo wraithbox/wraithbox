@@ -211,6 +211,30 @@ one format, and is never restarted. The service names are in code.
 They were measured on macOS 27 with the opt-in host test, which runs a
 confined format (I228).
 
+#### `wb-diskfmt`'s kill
+
+`wb-hostd` keeps the wait for the shim's answer, and decides when a
+shim that doesn't exit is killed (S06-13-data-disk-format, "When
+`wb-diskfmt` doesn't exit"). On macOS it can't send the kill. Its
+profile denies `signal` to other processes, and it isn't the parent,
+so it can't tell whether the shim was reaped. So it asks `wb-launcher`
+on the request channel, in one fixed-format request that names the
+entry and the instance ID (S04-07-supervision, "Who starts whom").
+
+- **Refused.** `wb-launcher` refuses a kill for an entry other than the
+  `wb-diskfmt` entries, and for an instance of that entry it didn't
+  start. It logs the refusal with the rule `launcher-kill-refused`.
+- **Sent.** Otherwise, while it hasn't reaped the shim, it sends
+  `SIGKILL` to the shim's process group and to the shim, and logs the
+  decision with the rule `launcher-kill`. The shim's ID, which is also
+  the group's ID, isn't reused before that reap.
+- **The answer.** Its answer says whether the kill was sent. When it
+  wasn't, it says why: the shim had already exited, or the signal
+  failed. The exit report follows, as for any exit.
+
+Without `wb-launcher`, `wb-hostd` is the parent, and sends the kill
+itself under the same gate.
+
 ## Decisions
 
 ### One `wb-vmd` per VM, not one for both
