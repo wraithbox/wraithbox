@@ -12,7 +12,7 @@ S06-08-projects-and-sessions ("Removing a home"),
 S06-09-session-lifecycle,
 S06-10-leftover-processes,
 S06-12-guest-agent ("Update at start"),
-S13-guest-confinement, S15-04-guest-admin
+S13-guest-confinement, S15-04-guest-admin, S15-05-admin-path
 
 ## Fuzzing
 
@@ -517,16 +517,36 @@ Spec: S15-05-admin-path.
   `admin-not-confirmed`, and `wb-hostd` opens no connection.
 - With a session running, and before first contact's rotation has
   ended, `wb-hostd` refuses with `admin-sessions` and
-  `admin-before-rotation`.
+  `admin-before-rotation`, and writes each refusal as a 5019 event.
+- With the isolated slot lent to the build VM, `wb vm admin isolated`
+  is refused with `admin-slot-lent`, and `wb-vmd-install` is never
+  asked for the admin port.
+- A session start racing `wb vm admin` either runs and makes it refuse
+  with `admin-sessions`, or comes after the mark and is refused with
+  `vm-admin-used`. The two never run together.
 - After the mark, a session start, a debug shell and `wb vm suspend`
   are refused with `vm-admin-used`, also after a `wb-hostd` crash
-  between the mark and the connection. The next cold start replaces the
-  system disk and clears the mark.
+  between the mark and the connection.
+- When writing the mark or its 5019 event fails, no connection opens.
+  When the connection fails after the mark, with `peer-version-mismatch`
+  or a `wb-guestroot` that doesn't answer, the mark stays.
+- While the shell is open, the idle period doesn't end, a lend of the
+  isolated slot waits, and `wb vm stop` and `wb vm suspend` from
+  another terminal are refused with `vm-admin-open`.
+- After the shell ends, the idle period's end and a lend stop the
+  marked VM cold, and no saved state is written. A start of a marked
+  VM with a saved state placed in the test deletes it, replaces the
+  system disk, boots cold, and clears the mark.
+- A host stop or a `wb-hostd` crash during an open shell leaves the
+  mark. The next `wb-hostd` start writes the missing end event with
+  the cause unknown.
+- `wb vm admin` prints the warning of T19-pasted-login-code before the
+  shell opens.
 - An ask for `wb-guestroot`'s port from anything but the admin service
   is refused with `admin-port-unrequested`.
 - In a guest, a project user can't bind `wb-guestroot`'s port while it
   restarts, and a connection from the guest's own CID is closed. The
   root shell opens while `wb-guestd` is stopped.
-- Each use writes the two 5019 events.
+- Each use writes the two 5019 events, the end event with its cause.
 
 **Status:** Draft

@@ -81,6 +81,9 @@ The host opens every host-guest connection (B29-vsock-handoff).
   below 1024. In V1-M2-walking-skeleton the table holds `wb-guestd`'s
   port. Any other port is refused with `guest-port-unrouted` before
   `wb-vmd` is asked.
+- S15-05-admin-path adds `wb-guestroot`'s port to the table.
+  `wb-hostd` asks for it only for `wb vm admin`, and refuses any other
+  ask for it with `admin-port-unrequested`.
 - Each connection is for one VM generation. A connection that opens
   after its generation's run ended is closed at once.
 

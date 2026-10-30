@@ -1,14 +1,14 @@
 ---
 title: How does the person at the host's terminal get root in their own guest, apart from every agent path?
-description: Recommended, a root daemon of its own in the guest, wb-guestroot, opened only by wb vm admin after a typed confirmation. The VM then takes no project session until its next cold start replaces its system disk.
+description: Recommended, a root daemon of its own in the guest, wb-guestroot, opened only by wb vm admin after a typed confirmation. The VM then takes no project session until its next start replaces its system disk.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I419. Changes S15-04-guest-admin, S06-02-image-build ("Sealing"), S04-architecture (the `wb-guestroot` process), SEC08-proj-isolation, C09-guest-and-sessions, and adds S15-05-admin-path. Spike filed: X31-admin-channel (I448). Related: I156, I158, I420.
+**Awaiting decision.** Source: I419. Changes S15-04-guest-admin, S06-02-image-build ("Sealing"), S04-architecture (the `wb-guestroot` process and its port), S05-03-management-commands, S06-12-guest-agent ("Update at start"), S16-01-filter ("Where"), C09-guest-and-sessions, and adds S15-05-admin-path. Spike filed: X31-admin-channel (I448). Related: I156, I158, I420.
 
 <Aside type="tip" title="You are deciding">
-How a person at the host's terminal gets a root shell in their own VM, and what that VM may do afterwards. **Recommended:** `wb vm admin <vm>`, confirmed by typing the VM's name, opens a root shell from `wb-guestroot`, a guest daemon apart from `wb-guestd` on a port of its own. The VM then doesn't start project sessions until its next cold start gives it a fresh system disk. If you accept, X31-admin-channel (I448) checks the daemon in a real guest, the builder issues follow, and I420 can run its root checks.
+How a person at the host's terminal gets a root shell in their own VM, and what that VM may do afterwards. **Recommended:** `wb vm admin <vm>`, confirmed by typing the VM's name, opens a root shell from `wb-guestroot`, a guest daemon apart from `wb-guestd` on a port of its own. The VM then doesn't start project sessions until its next start gives it a fresh system disk. If you accept, X31-admin-channel (I448) checks the daemon in a real guest, the builder issues follow, and I420 can run its root checks.
 </Aside>
 
 <figure class="wb-figure">
@@ -129,9 +129,9 @@ Boot the VM into recoveryOS and unlock the disk as `wbadmin`.
 <div class="wb-options">
 <div class="wb-option" data-recommended>
 
-### A. Marked until the next cold start replaces the system disk
+### A. Marked until the next start replaces the system disk
 
-`wb-hostd` marks the system disk before it opens the shell. Session starts and suspend are refused with `vm-admin-used`. The next cold start gives the VM a fresh clone of the image, as break-glass does. The data disk stays.
+`wb-hostd` marks the system disk before it opens the shell. Session starts and suspend are refused with `vm-admin-used`. Idle and a lend of its slot stop the VM cold rather than save it. The next start deletes any saved state and gives the VM a fresh clone of the image, as break-glass does. The data disk stays.
 
 - **Cost:** a developer's own changes to the system disk last only until the VM stops.
 - **Keeps:** <Badge text="SEC08-proj-isolation" variant="success" /> project users never run on an unchecked system disk.
@@ -161,11 +161,14 @@ As A, but `wb vm admin --clear <vm>`, with a typed confirmation, lets project se
 
 **Confidence:** high for A as the default. B can be added later without changing A, once a developer needs a VM that keeps root changes.
 
+**The SEC08 sentence.** S15-05-admin-path states "A marked VM starts no project session until its system disk is replaced" for now. With A, that sentence moves into SEC08-proj-isolation in SEC00-index. Adding B after that is then a change to SEC08-proj-isolation, and goes through its own brief.
+
 ## Also in the spec, not asked
 
-- **Who starts it.** Only `wb vm admin`, refused without a terminal, with a typed VM name, and no flag to skip it, as `wb vm reset-data`. It is never a guest RPC (SEC14-no-fake-approvals). It is refused while a session runs, and before first contact's `wbadmin` rotation has ended.
+- **Who starts it.** Only `wb vm admin`, refused without a terminal, with a typed VM name, and no flag to skip it. `wb vm reset-data` asks only for a yes. It is never a guest RPC (SEC14-no-fake-approvals). `wb` checks the terminal and the name, and `wb-hostd` checks the caller's UID and the VM's state. A host process of the user's UID that runs `wb` on a terminal of its own passes both, and the mark and its 5019 event are written for it as for a person. It is refused while a session runs, while the build VM has the isolated slot (`admin-slot-lent`), and before first contact's `wbadmin` rotation has ended. The check and the mark happen under the VM's start lock.
+- **While the shell is open.** It counts like a live session: no idle save, no lend of the slot, and `wb vm stop` and `wb vm suspend` are refused with `vm-admin-open`. The host trusts nothing the shell shows, and `wb vm admin` prints the warning of T19-pasted-login-code first.
 - **The data disk.** It stays mounted as it is. The root shell can read every project's home, which is the person's own data. What it writes there stays, as T18-data-disk-persistence says for guest root.
-- **Audit.** A Device Config State Change (5019) event at the mark and one at the end, which are never dropped, the mark in `wb vm status`, and each refusal logged with its rule.
+- **Audit.** A Device Config State Change (5019) event at the mark and one at the end with its cause, the mark in `wb vm status`, and a 5019 event for each refusal of the start. No shell opens until the mark and its event are written, and a connection that fails afterwards keeps the mark.
 - **Tests.** Tests reach `wb-guestroot` through `wb-dev-vm`, test tooling that is never in the app bundle. No shipped binary has a test-only way to guest root. The admin path adds no network device (SEC05-default-deny).
 
 ## Impact
@@ -199,7 +202,7 @@ As A, but `wb vm admin --clear <vm>`, with a typed confirmation, lets project se
 
 ## What it unblocks
 
-I420, the data mount's root checks of C09-guest-and-sessions, and the root runs of I296 and I297 that moved there. X31-admin-channel (I448) runs first. The builder issues for `wb-guestroot`, the `wb-hostd` service and `wb vm admin` follow the decision. The spec change also needs one row in S05-03-management-commands and `wb vm admin` in S16-01-filter, "Where", which this pull request leaves to them.
+I420, the data mount's root checks of C09-guest-and-sessions, and the root runs of I296 and I297 that moved there. X31-admin-channel (I448) runs first. The builder issues for `wb-guestroot`, the `wb-hostd` service and `wb vm admin` follow the decision. S06-02-image-build, "Provisioning stages", gets one line for installing `wb-guestroot` after PR449 merges.
 
 <details>
 <summary>Details and glossary</summary>

@@ -182,6 +182,11 @@ its own, while the installed `wb-guestd` already holds the disk's
 bytes, the disk's `VERSION` doesn't match its program. `wb-guestd`
 doesn't install again then, so it can't loop.
 
+`wb-guestd` installs every program on the disk but `wb-guestroot`.
+`wb-guestroot` (S15-05-admin-path) runs the same steps at its own
+start for itself only, and in step 6 runs the installed
+`wb-guestroot`. So each program has one installer.
+
 Each refusal is logged with its rule, and `wb-guestd` then serves as it
 is. The values are in code: the paths and the checks of the mount and
 the directory in `internal/platform/guesttools`, and the wait, the size

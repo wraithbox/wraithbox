@@ -7,8 +7,8 @@ tokens, and the allowlist of what passes.
 
 ### Where
 
-The filter runs on every stream that `wb claude` or `wb shell` writes
-to a terminal. On WSL that is the WSL-side `wb`, which writes to the
+The filter runs on every stream that `wb claude`, `wb shell` or
+`wb vm admin` (S15-05-admin-path) writes to a terminal. On WSL that is the WSL-side `wb`, which writes to the
 terminal (S12-platforms).
 
 A stream that goes to a pipe or a file passes the same full filter.
