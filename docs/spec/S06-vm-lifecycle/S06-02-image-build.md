@@ -24,8 +24,8 @@ instance:
 
 1. installs macOS;
 2. runs the provisioning boot and the boots of the second stage;
-3. exits when its part of the build ends. The Claude Code layer gets
-   an instance of its own (S06-01-image-layers, "The Claude Code layer").
+3. exits when its part of the build ends. The Claude Code layer boots
+   in `wb-vmd-layer`, without the install rules (S04-04-vm-processes).
 
 The install reads only the restore image at the fixed path
 `<data>/images/macos-restore.ipsw`.
@@ -108,9 +108,10 @@ provisioning boot goes over the host-guest socket to `wb-guestd`:
    parent of the Claude Code layer.
 
 Then the build makes the Claude Code layer on a clone of that parent,
-in a new build bundle, with a new `wb-vmd-install`, and seals it again
-(S06-01-image-layers, "The Claude Code layer"). A build for a new
-Claude Code release does only that part.
+in a new build bundle, and seals it again (S06-01-image-layers, "The
+Claude Code layer"). The clone boots in `wb-vmd-layer`
+(S04-04-vm-processes). A build for a new Claude Code release does
+only that part.
 
 After the rotation the secure token keeps working, and the host alone
 can unlock it.

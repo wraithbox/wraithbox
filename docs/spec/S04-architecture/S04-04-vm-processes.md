@@ -105,6 +105,30 @@ logs the rule and exits unless both hold
   under the real path of `<data>`;
 - `lstat` shows a regular file.
 
+### `wb-vmd-layer`
+
+The Claude Code layer build boots a clone of a sealed parent image
+(S06-01-image-layers, "The Claude Code layer"). It installs nothing
+from a restore image, so it doesn't run in `wb-vmd-install`. It runs
+in a fourth fixed entry, `wb-vmd-layer`:
+
+- Its compiled-in profile is the `wb-vmd` profile of the session VMs,
+  without any of the install rules (SEC12-least-privilege).
+- Its profile parameter is the build bundle,
+  `<data>/images/macos-build.noindex`, and its `WB_VMD_SLOT` is
+  `build`. It doesn't check for a restore image.
+- Its instance cap is one. `wb-hostd` never starts it while
+  `wb-vmd-install` runs, because the two share the bundle and one
+  maintenance VM runs at a time (S06-07-slot-admission).
+- The VM it boots has no network device. `wb-guestd` gets the binary
+  over the host-guest socket.
+- It refuses provisioning options, and logs `vmd-provisioning-refused`,
+  as a session VM's `wb-vmd` does.
+
+`wb-hostd` creates a new, empty build bundle before it starts the
+entry, and clones the parent into it with the identity check of
+S06-02-image-build, "Taking the sealed image".
+
 ### The build bundle
 
 The install target is the fixed build bundle

@@ -106,10 +106,18 @@ channel file, before the release's run:
    descriptor. It drops one trailing line feed, and checks the rest
    against the version's form. Anything else fails the build with
    `claude-channel-invalid`. The channel reader has a fuzz target.
-4. It refuses a version older than the Claude Code version of the last
-   image a build sealed, with `claude-release-rollback`. `state.db`
-   records that version. A version from `--claude-version` skips this
-   step.
+4. It refuses a version older than the floor, with
+   `claude-release-rollback`. A version from `--claude-version` skips
+   this step.
+
+The floor is the Claude Code version in the last Claude Code layer a
+build sealed, of any image. `state.db` records it when the layer is
+sealed. A parent doesn't change it.
+
+- No record means no floor, as on a new host.
+- When `state.db` can't be read, the build is refused with
+  `claude-release-floor-unknown`. It never runs without a floor it
+  can't read.
 
 Versions compare as three numbers, part by part.
 
