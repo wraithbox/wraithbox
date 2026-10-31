@@ -18,18 +18,20 @@ let maximumMinutes = 24 * 60
 
 @MainActor
 func provisionBundle(_ bundle: CachePath, minutes: Int, log: Log) async throws {
-    // Checked before the lock, so a refused bundle gets no lock file, and
-    // again under it, in case another process booted it in between.
-    _ = try neverBooted(bundle)
-    let lock = try BundleLock.take(bundle: bundle.path)
-    var record = try neverBooted(bundle)
-    // Before the record says the bundle booted, so a refused bundle can
-    // still be provisioned on a newer host.
+    // Before the lock and the record, so a refused host leaves no lock
+    // file and the bundle can still be provisioned on a newer host. The
+    // literal is HostRequirement.minimumMacOS, because `#available` takes
+    // no constant.
     guard #available(macOS 27, *) else {
         throw Refusal(
             .hostUnsupported, bundle.path,
             "guest provisioning needs macOS \(HostRequirement.minimumMacOS) or later on the host")
     }
+    // Checked before the lock, so a refused bundle gets no lock file, and
+    // again under it, in case another process booted it in between.
+    _ = try neverBooted(bundle)
+    let lock = try BundleLock.take(bundle: bundle.path)
+    var record = try neverBooted(bundle)
     let password = randomPassword()
     let passwordFile = try writePassword(password, bundle: bundle.path)
     record.bootedAt = Date()

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/setup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
@@ -53,6 +55,19 @@ func TestC12BundleIdentityCommand(t *testing.T) {
 	stdout.Reset()
 	if code := run(t.Context(), []string{"identity"}, &stdout, &stderr); code != 0 || stdout.String() != appbundle.AdhocBundleID+"\n" {
 		t.Errorf("identity = %d, %q; want %s", code, stdout.String(), appbundle.AdhocBundleID)
+	}
+}
+
+// TestMinMacOSCommand: the build's macOS minimum is wb setup's, so the
+// app opens on no Mac that wb setup refuses (NFR04-host-platforms).
+func TestMinMacOSCommand(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	want := fmt.Sprintf("%d.0\n", setup.MinMacOS)
+	if code := run(t.Context(), []string{"min-macos"}, &stdout, &stderr); code != 0 || stdout.String() != want {
+		t.Errorf("min-macos = %d, %q; want %q", code, stdout.String(), want)
+	}
+	if code := run(t.Context(), []string{"min-macos", "extra"}, &stdout, &stderr); code != 2 {
+		t.Errorf("min-macos extra = %d, want 2", code)
 	}
 }
 

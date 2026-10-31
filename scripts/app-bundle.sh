@@ -132,37 +132,43 @@ fi
 # Step 2: the Go programs of the table, host and guest, for darwin/arm64.
 (cd "$go_dir" && "$dev" go-build -stamp "$stamp_file" -out "$work/go")
 
-# Step 3: the Swift package's programs of the table (wb-vmd), linked
-# with the stamp as swift:build links them. SwiftPM's native build
-# system doesn't track what is in the stamp file, so with no Swift change
-# it keeps a program linked with an older stamp. Removing the program
-# first makes SwiftPM link it again with this run's stamp. swift build
-# gets /dev/null as stdin, so it reads none of the layout's lines.
+# The macOS the app and the Swift package's programs are built for: the
+# oldest v1 host (NFR04-host-platforms), which is wb setup's MinMacOS, so
+# macOS won't open the app on a Mac that wb setup refuses. Package.swift
+# targets an older macOS so its tests run there (S02-toolchain), and its
+# programs check the version at run time (HostRequirement). The check of
+# step 8 refuses an app with another LSMinimumSystemVersion.
+target=$("$dev" min-macos)
+
+# Step 3: the Swift package's programs of the table (wb-vmd), built for
+# $target and linked with the stamp as swift:build links them. SwiftPM's
+# native build system doesn't track what is in the stamp file, so with
+# no Swift change it keeps a program linked with an older stamp. Removing
+# the program first makes SwiftPM link it again with this run's stamp.
+# swift build gets /dev/null as stdin, so it reads none of the layout's
+# lines.
 swift_bin=$(swift build -c release --package-path "$swift_dir" --force-resolved-versions --show-bin-path)
 while read -r source _ name _; do
 	[ "$source" = swiftpm ] || continue
 	rm -f "$swift_bin/$name"
 	swift build -c release --package-path "$swift_dir" --force-resolved-versions --product "$name" \
+		-Xswiftc -target -Xswiftc "arm64-apple-macos$target" \
 		-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __wb_version -Xlinker "$stamp_file" </dev/null
 done <"$work/layout"
 
-# Step 4: the app, whose executable is the notification helper. Its
-# deployment target is the oldest v1 host, macOS 27
-# (NFR04-host-platforms), so macOS won't open it on an older Mac.
-# Package.swift targets an older macOS so its tests run there
-# (S02-toolchain), and its programs check the version at run time
-# (HostRequirement). Without
-# a team Xcode signs nothing (CODE_SIGNING_ALLOWED=NO). With one it signs
-# automatically for that team, and -allowProvisioningUpdates lets it
-# register the bundle identifier and fetch its profile, which a new
-# identifier needs (S12-03-host-prerequisites, "Development builds on
-# macOS"). Step 7 signs the app again. The stamp goes into the same
-# section as in the Swift package's programs. Its build directories are
-# in the work directory, which every build removes first, so Xcode links
-# the helper with this run's stamp every time. xcodebuild takes
-# -derivedDataPath only with -scheme, so Xcode may write to
+# Step 4: the app, whose executable is the notification helper, built
+# for $target. Without a team Xcode signs nothing
+# (CODE_SIGNING_ALLOWED=NO). With one it signs automatically for that
+# team, and -allowProvisioningUpdates lets it register the bundle
+# identifier and fetch its profile, which a new identifier needs
+# (S12-03-host-prerequisites, "Development builds on macOS"). Step 7
+# signs the app again. The stamp goes into the same section as in the
+# Swift package's programs. Its build directories are in the work
+# directory, which every build removes first, so Xcode links the helper
+# with this run's stamp every time. xcodebuild takes -derivedDataPath
+# only with -scheme, so Xcode may write to
 # ~/Library/Developer/Xcode/DerivedData (docs/agents/host-work.md).
-target=27.0
+#
 # Xcode makes a profile only for a target whose entitlements need one,
 # and the app target has none of its own. So a team build hands it one
 # keychain-access-groups entry, as X29-dev-signing signed its app with

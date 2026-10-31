@@ -72,6 +72,8 @@ None of that reads anything the guest sent.
 `wb-vmd` on macOS is a second, bounded exception. Before it confines
 itself, it:
 
+- reads the macOS version from `ProcessInfo`, to refuse an older host
+  (S04-04-vm-processes, "Slot checks");
 - calls `confstr(_CS_DARWIN_USER_CACHE_DIR)` once. The framework needs
   the per-user cache directory, and the lookup goes to a system service
   the profile denies. libSystem keeps the answer.

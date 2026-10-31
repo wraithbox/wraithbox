@@ -12,7 +12,12 @@ import (
 // MinMacOS is the oldest macOS major version wb setup accepts
 // (S12-03-host-prerequisites, "Prerequisites"): 27, because wb image
 // build needs the guest provisioning options that are new in macOS 27
-// (NFR04-host-platforms, I143).
+// (NFR04-host-platforms, I143). The app bundle and its wb-vmd are built
+// for it (wb-dev-app min-macos), and the bundle check refuses an app with
+// another LSMinimumSystemVersion. The Swift package checks the same
+// version at run time: HostRequirement.minimumMacOS in WraithBoxVM, and
+// a literal `#available(macOS 27, *)` in wb-dev-bundle's Provision.swift.
+// Change all of them together.
 const MinMacOS = 27
 
 // hostFix is the fix of every host refusal.

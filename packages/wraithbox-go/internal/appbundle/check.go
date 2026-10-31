@@ -41,6 +41,7 @@ var (
 	RuleToolsVersion         = Rule{"stamp-tools-disk", `S04-08-records-and-bounds, "Version skew"`}
 	RuleVerify               = Rule{"codesign-verify", `S17-01-bundle, "Building a bundle"`}
 	RuleSource               = Rule{"program-source", `S17-01-bundle, "The entitlement check"`}
+	RuleMinMacOS             = Rule{"min-macos", `NFR04-host-platforms; S17-01-bundle, "The entitlement check"`}
 )
 
 // Rules are every rule of the check, for the log of a bundle that passes.
@@ -49,7 +50,7 @@ var Rules = []Rule{
 	RuleAdhocGroup, RuleTeamHelperGroups, RuleTeamOtherGroup, RuleAdhocEntitlement, RuleTeamEntitlement,
 	RuleVirtualization, RuleVMDHasVirtualization, RuleAdhocProfile, RuleTeamProfile, RuleProfileTeam,
 	RuleInfoPlist, RuleStamp, RuleBuildVersion, RuleToolsVersion, RuleVerify,
-	RuleSource,
+	RuleSource, RuleMinMacOS,
 }
 
 // Violation is one way the bundle breaks a rule.
@@ -74,6 +75,10 @@ type Mode struct {
 	Team string
 	// BundleID is the bundle identifier the build chose (BundleID).
 	BundleID string
+	// MinMacOS is the oldest macOS major version a host runs, which the
+	// app's LSMinimumSystemVersion names. wb-dev-app passes
+	// setup.MinMacOS.
+	MinMacOS int
 }
 
 // Found is what was read from one Mach-O file.
@@ -140,6 +145,9 @@ func Check(b Bundle, programs []Program, m Mode) []Violation {
 	}
 	if !ValidBundleID(m.BundleID) {
 		out = append(out, Violation{"build", RuleMode, fmt.Sprintf("the bundle identifier %q is not reverse-DNS", m.BundleID)})
+	}
+	if m.MinMacOS <= 0 {
+		out = append(out, Violation{"build", RuleMode, fmt.Sprintf("the minimum macOS %d is not a major version", m.MinMacOS)})
 	}
 	app, disk := split(programs)
 	out = append(out, checkPrograms(b.Programs, app, m, "")...)

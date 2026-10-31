@@ -17,6 +17,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/setup"
 )
 
 // The tools check and install run, by absolute path, so a PATH entry
@@ -54,7 +55,7 @@ func checkCommand(ctx context.Context, args []string, stdout, stderr io.Writer) 
 	if err != nil {
 		return err
 	}
-	mode := appbundle.Mode{Stamp: stamp, Team: *team, BundleID: *bundleID}
+	mode := appbundle.Mode{Stamp: stamp, Team: *team, BundleID: *bundleID, MinMacOS: setup.MinMacOS}
 	violations := appbundle.Check(b, appbundle.Programs, mode)
 	if out, err := run1(ctx, codesignPath, "--verify", "--deep", "--strict", *app); err != nil {
 		violations = append(violations, appbundle.Violation{

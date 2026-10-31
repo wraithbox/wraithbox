@@ -12,7 +12,15 @@ const (
 	keyExecutable  = "CFBundleExecutable"
 	keyPackageType = "CFBundlePackageType"
 	keyUIElement   = "LSUIElement"
+	keyMinSystem   = "LSMinimumSystemVersion"
 )
+
+// MinSystemVersion is the LSMinimumSystemVersion of an app built for
+// macOS major version major, as Xcode writes it: "27.0". scripts/app-bundle.sh
+// builds for it, from `wb-dev-app min-macos`.
+func MinSystemVersion(major int) string {
+	return fmt.Sprintf("%d.0", major)
+}
 
 // PlistPaths are the Info.plist files the check reads: the app's and each
 // helper bundle's, relative to the bundle's directory.
@@ -77,9 +85,13 @@ func checkPlistKeys(name, path string, plist *Plist, want map[string]any) []Viol
 }
 
 // checkAppPlist checks that the app's bundle identifier is the one the
-// build chose, and its WBBuildVersion.
+// build chose, its WBBuildVersion, and that macOS doesn't open it on a
+// Mac older than the oldest host (NFR04-host-platforms).
 func checkAppPlist(name string, plist *Plist, m Mode) []Violation {
 	var out []Violation
+	if got, want := plist.Keys[keyMinSystem], MinSystemVersion(m.MinMacOS); got != want {
+		out = append(out, Violation{name, RuleMinMacOS, fmt.Sprintf("%s has %s %v, not %s", InfoPlistPath, keyMinSystem, got, want)})
+	}
 	if id, _ := plist.Keys[keyIdentifier].(string); id != m.BundleID {
 		out = append(out, Violation{name, RuleInfoPlist, fmt.Sprintf("%s has %s %q, not the build's %q", InfoPlistPath, keyIdentifier, id, m.BundleID)})
 	}

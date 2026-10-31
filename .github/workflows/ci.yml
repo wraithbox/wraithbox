@@ -111,8 +111,10 @@ jobs:
     name: Swift
     # Swift comes from the runner image's default Xcode; Package.swift's
     # tools version (6.4, Xcode 27) is the floor. The `xcode-27` image is
-    # macOS 27 with Xcode 27, because the package targets macOS 27
-    # (NFR04-host-platforms). See docs/spec/S02-toolchain.md.
+    # macOS 27 with Xcode 27, the oldest v1 host (NFR04-host-platforms),
+    # so wb-vmd's process tests pass its host check. The package itself
+    # targets macOS 26. See docs/spec/S02-toolchain.md and
+    # docs/spec/S12-platforms/S12-02-languages-and-ci.md.
     #
     # Skipped only when detection succeeded and found neither a Swift
     # input nor a bundle input changed. A change to the Go module alone

@@ -5,6 +5,7 @@
 // refuses it in a bundle.
 //
 //	wb-dev-app identity                 # print the bundle identifier, or refuse a bad WB_TEAM_ID or WB_BUNDLE_ID
+//	wb-dev-app min-macos                # print the macOS the app and wb-vmd are built for: setup.MinMacOS, as 27.0
 //	wb-dev-app layout [-team T -dir D]  # print the layout table for the script; with -team, write the helpers' entitlements into D
 //	wb-dev-app sign-identity -team T    # print the hash of the one Apple Development identity of team T
 //	wb-dev-app profile -app A -team T   # fail unless the app Xcode built has a profile of team T
@@ -26,9 +27,10 @@ import (
 	"strings"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/setup"
 )
 
-const usage = "usage: wb-dev-app identity | layout | sign-identity | profile | go-build | check | install (see the package comment)"
+const usage = "usage: wb-dev-app identity | min-macos | layout | sign-identity | profile | go-build | check | install (see the package comment)"
 
 // errUsage is a usage error: exit 2.
 var errUsage = errors.New(usage)
@@ -59,6 +61,14 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 	switch args[0] {
 	case "identity":
 		return identity(stdout)
+	case "min-macos":
+		if len(rest) != 0 {
+			return errUsage
+		}
+		// The one place the build's macOS minimum comes from, so the app,
+		// wb-vmd and wb setup can't disagree (NFR04-host-platforms).
+		fmt.Fprintln(stdout, appbundle.MinSystemVersion(setup.MinMacOS))
+		return nil
 	case "layout":
 		return layoutCommand(rest, stdout, stderr)
 	case "profile":

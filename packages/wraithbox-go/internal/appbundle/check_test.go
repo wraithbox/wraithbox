@@ -40,6 +40,7 @@ func goodBundle(team string) Bundle {
 		case PlaceApp:
 			b.Plists[InfoPlistPath] = &Plist{XML: true, Keys: map[string]any{
 				keyIdentifier: AdhocBundleID, keyExecutable: p.Name, keyUIElement: true, BuildVersionKey: testStamp,
+				keyMinSystem: "27.0",
 			}}
 		case PlaceHelper:
 			b.Plists[HelperDir(p.Name)+"/"+InfoPlistPath] = &Plist{XML: true, Keys: map[string]any{
@@ -56,7 +57,7 @@ func goodBundle(team string) Bundle {
 const testModule = "github.com/wraithbox/wraithbox/packages/wraithbox-go"
 
 func testMode(team string) Mode {
-	return Mode{Stamp: testStamp, Team: team, BundleID: AdhocBundleID}
+	return Mode{Stamp: testStamp, Team: team, BundleID: AdhocBundleID, MinMacOS: 27}
 }
 
 func anyList(items ...string) []any {
@@ -274,6 +275,12 @@ func TestC05BuildCheck(t *testing.T) {
 		{"a WBBuildVersion that differs", "", func(_ *testing.T, b *Bundle) {
 			b.Plists[InfoPlistPath].Keys[BuildVersionKey] = "0.1.0+g1111111111111111"
 		}, "wb-notify", RuleBuildVersion},
+		{"an app that opens on an older macOS", "", func(_ *testing.T, b *Bundle) {
+			b.Plists[InfoPlistPath].Keys[keyMinSystem] = "26.0"
+		}, "wb-notify", RuleMinMacOS},
+		{"an app without LSMinimumSystemVersion", "", func(_ *testing.T, b *Bundle) {
+			delete(b.Plists[InfoPlistPath].Keys, keyMinSystem)
+		}, "wb-notify", RuleMinMacOS},
 		{"an Info.plist that isn't XML", "", func(_ *testing.T, b *Bundle) {
 			b.Plists[InfoPlistPath].XML = false
 		}, "wb-notify", RuleInfoPlist},
@@ -319,11 +326,12 @@ func hasViolation(got []Violation, program string, rule Rule) bool {
 
 func TestC05BuildCheckMode(t *testing.T) {
 	for _, m := range []Mode{
-		{Stamp: "", BundleID: AdhocBundleID},
-		{Stamp: "unstamped", BundleID: AdhocBundleID},
-		{Stamp: testStamp, Team: "abcde12345", BundleID: AdhocBundleID},
-		{Stamp: testStamp},
-		{Stamp: testStamp, BundleID: "wraithbox"},
+		{Stamp: "", BundleID: AdhocBundleID, MinMacOS: 27},
+		{Stamp: "unstamped", BundleID: AdhocBundleID, MinMacOS: 27},
+		{Stamp: testStamp, Team: "abcde12345", BundleID: AdhocBundleID, MinMacOS: 27},
+		{Stamp: testStamp, MinMacOS: 27},
+		{Stamp: testStamp, BundleID: "wraithbox", MinMacOS: 27},
+		{Stamp: testStamp, BundleID: AdhocBundleID},
 	} {
 		b := goodBundle(m.Team)
 		if got := Check(b, Programs, m); !hasViolation(got, "build", RuleMode) {
