@@ -1,10 +1,16 @@
 // The commands of wb-dev-bundle (I350) up to the point where one would
 // start a VM: each refusal is logged with its rule and changes nothing,
 // and clone, clean and stop do their work in a throwaway cache.
+// `provision` refuses a macOS older than 27 first, so on such a host only
+// that refusal is tested for it (HostRequirement).
 import Foundation
 import Testing
+import WraithBoxVM
 
 @testable import wb_dev_bundle
+
+private let hostSupported = HostRequirement.supports(
+    ProcessInfo.processInfo.operatingSystemVersion)
 
 @Suite("wb-dev-bundle: commands", .serialized)
 @MainActor
@@ -48,8 +54,6 @@ struct CommandTests {
             (["install", "x50/new", "x50/base/hw.bin"], .restoreImagePath),
             (["install", "restore-images/new", "restore-images/i.ipsw"], .restoreImages),
             (["provision", "x08/base"], .keepFile),
-            (["provision", "x50/base"], .notInstalled),
-            (["provision", "x50/booted"], .alreadyBooted),
             (["clean", "x08"], .keepFile),
             (["clean", "restore-images"], .restoreImages),
             (["clean", "x50/link"], .symbolicLink),
@@ -64,6 +68,31 @@ struct CommandTests {
             (["clean", "dev"], .keepFile),
         ])
     func refusals(arguments: [String], rule: Rule) async throws {
+        try await expectRefusal(arguments, rule: rule)
+    }
+
+    @Test(
+        "provision refuses a bundle that isn't installed or has booted",
+        .enabled(if: hostSupported, "provision refuses a macOS older than 27 first"),
+        arguments: [
+            (["provision", "x50/base"], Rule.notInstalled),
+            (["provision", "x50/booted"], .alreadyBooted),
+        ])
+    func provisionRefusals(arguments: [String], rule: Rule) async throws {
+        try await expectRefusal(arguments, rule: rule)
+    }
+
+    @Test(
+        "provision on a macOS older than 27 is refused before the bundle is read or locked",
+        .enabled(if: !hostSupported, "the host runs macOS 27 or later"),
+        arguments: [["provision", "x50/base"], ["provision", "x50/booted"]])
+    func provisionRefusedHost(arguments: [String]) async throws {
+        try await expectRefusal(arguments, rule: .hostUnsupported)
+    }
+
+    /// Runs the command in a cache with one of each kind of bundle, and
+    /// expects it to be refused with the rule and to change nothing.
+    private func expectRefusal(_ arguments: [String], rule: Rule) async throws {
         let test = try TestCache()
         try test.write("x50/base/hw.bin")
         try test.installedBundle("x50/booted", booted: true)
@@ -102,7 +131,11 @@ struct CommandTests {
         ] {
             #expect(await Command.run(arguments, cache: test.cache, log: test.log) == 1)
         }
-        #expect(test.lines.all.filter { $0.hasSuffix("(rule: vm-running)") }.count == 3)
+        // An older host refuses provision before it looks at the lock.
+        #expect(
+            test.lines.all.filter { $0.hasSuffix("(rule: vm-running)") }.count
+                == (hostSupported ? 3 : 2))
+        #expect(hostSupported || test.lines.refused(by: .hostUnsupported))
         #expect(test.exists("x50/base/sys.wbdisk"))
         #expect(!test.exists("x50/c"))
         withExtendedLifetime(lock) {}
