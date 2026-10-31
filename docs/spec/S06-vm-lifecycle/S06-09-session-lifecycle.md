@@ -203,6 +203,8 @@ ends the session.
 The idle period of S06-06-devices-and-warm-start, "Warm start", runs
 only while the VM has no session that is starting, running, paused or
 ending, debug shells included. A lost or ended session doesn't count.
+An open `wb vm admin` connection stops the idle period too
+(S15-05-admin-path, "Marked").
 So a VM is never saved for idleness with such a session in it, and no
 restore has a session to resume.
 

@@ -61,6 +61,10 @@ pending, or there is a result of processes left
 (S06-10-leftover-processes). `wb-hostd` then stops the isolated VM
 cold instead. Those rules allow that without a session.
 
+An open `wb vm admin` connection blocks a lend as a session does, and a
+VM whose system disk the admin path marked is stopped cold, never
+saved (S15-05-admin-path, "Marked").
+
 #### The return
 
 When the maintenance VM stops:

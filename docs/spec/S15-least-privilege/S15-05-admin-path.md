@@ -52,7 +52,7 @@ endpoint (S04-architecture).
 
 - `wb` enforces the terminal and the typed name, as above.
 - `wb-hostd` accepts the call only from a peer of the user's UID, and
-  closes any other with `ipc-peer-uid` (S04-00-architecture). It then
+  closes any other with `ipc-peer-uid` (S04-architecture). It then
   applies the VM state rules below.
 
 `wb-hostd` can't tell a person from a host process of the user's UID
@@ -117,8 +117,8 @@ shell. So:
   shell opens: never paste a login or `setup-token` code into a guest;
 - `wb-hostd`'s handler decodes each frame from the guest with the code
   and caps of `ShellService`'s handler, and sends `wb` a frame it built
-  itself, so the same fuzz target covers both
-  (C10-terminal);
+  itself. A fuzz target covers the decoding of both handlers
+  (C10-terminal, "Fuzzing");
 - nothing the shell prints changes a host record. Only `wb-hostd`'s
   own steps write the mark and the events.
 
@@ -144,8 +144,8 @@ The sealing scan allows that one job (S06-02-image-build, "Sealing").
 `wb-guestroot` is on the guest tools disk (S06-12-guest-agent, "Guest
 tools disk"). At its start it updates itself from that disk, with the
 steps and checks of S06-12-guest-agent, "Update at start", and installs
-only itself. `wb-guestd` installs every other program on the disk and
-never `wb-guestroot`. So a dead `wb-guestd` doesn't keep
+only itself. At its update, `wb-guestd` installs every other program
+on the disk and never `wb-guestroot`. So a dead `wb-guestd` doesn't keep
 `wb-guestroot` at an old version, and each program has one installer.
 
 `wb-hostd` accepts only a `wb-guestroot` of its own build version, as
@@ -220,8 +220,10 @@ is the way out (S05-03-management-commands).
 - `state.db` records with the mark whether its end event is written.
   After a crash of `wb-hostd` or of the host, `wb-hostd` writes the
   missing end event at its next start, with the cause unknown.
-- It writes each refusal of "Who can start it" as a 5019 event with
-  its rule, and logs every other refusal with its rule.
+- `wb-hostd` writes each of its own refusals in "Who can start it" as
+  a 5019 event with its rule, and logs every other refusal with its
+  rule. `wb` refuses `admin-no-terminal` and `admin-not-confirmed`
+  itself, and only logs them.
 - The shell's input and output aren't recorded. The person typed them
   in their own terminal.
 
