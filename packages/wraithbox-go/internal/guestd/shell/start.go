@@ -11,6 +11,7 @@ import (
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/sessionproc"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/termsetup"
 )
 
 // session is one open shell.
@@ -157,7 +158,7 @@ func (s *session) openStreams(owner sessionproc.Cred) (childEnds, error) {
 // for a separate one.
 func (s *session) openPTY(owner sessionproc.Cred) (childEnds, error) {
 	// checkStart checked the size.
-	rows, cols, _ := windowSize(s.setup.GetSize())
+	rows, cols, _ := termsetup.WindowSize(s.setup.GetSize())
 	// S13-01-process-hardening, "Limits and environment": the replica
 	// belongs to the user, with mode 0600, before the helper starts.
 	ctl, replica, err := sessionproc.OpenPTY(owner, rows, cols)

@@ -1,12 +1,10 @@
 package shell
 
 import (
-	"math"
-	"slices"
-
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/sessionid"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/termsetup"
 )
 
 // The rules of a shell's refusals and failures (S06-09-session-lifecycle,
@@ -59,69 +57,19 @@ type Refusal struct {
 
 func (r *Refusal) Error() string { return "shell: refused: " + r.Rule }
 
-// EnvNames are the host terminal variables a shell gets
-// (S16-03-around-the-stream, "Environment"), as wb sends them
-// (internal/relay).
-var EnvNames = []string{
-	"TERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION", "COLORTERM",
-	"LANG", "LC_ALL", "LC_CTYPE",
-}
-
-// The bounds of the start.
-const (
-	maxEnvValue = 256
-	maxUserName = 64
-)
+// maxUserName bounds the user name of the start.
+const maxUserName = 64
 
 // checkStart checks the start's form, and returns the rule of the first
 // problem, or "".
 func checkStart(id, user string, setup *terminalv1.Setup) string {
-	if !sessionid.Valid(id) || user == "" || len(user) > maxUserName || setup == nil {
+	if !sessionid.Valid(id) || user == "" || len(user) > maxUserName || !termsetup.ValidSize(setup) {
 		return RuleStartInvalid
 	}
-	if _, _, ok := windowSize(setup.GetSize()); setup.GetInteractive() && !ok {
-		return RuleStartInvalid
-	}
-	if !validEnv(setup.GetEnv()) {
+	if !termsetup.ValidEnv(setup.GetEnv()) {
 		return RuleEnv
 	}
 	return ""
-}
-
-// windowSize returns the rows and columns of size, and false when one
-// is outside 1..65535.
-func windowSize(size *terminalv1.WindowSize) (rows, cols uint16, ok bool) {
-	r, c := size.GetRows(), size.GetCols()
-	if r < 1 || r > math.MaxUint16 || c < 1 || c > math.MaxUint16 {
-		return 0, 0, false
-	}
-	return uint16(r), uint16(c), true
-}
-
-// validEnv reports whether env has only names of EnvNames, each once,
-// with values of at most 256 bytes of printable ASCII.
-func validEnv(env []*terminalv1.EnvVar) bool {
-	seen := map[string]bool{}
-	for _, v := range env {
-		name := v.GetName()
-		if !slices.Contains(EnvNames, name) || seen[name] || !printable(v.GetValue()) {
-			return false
-		}
-		seen[name] = true
-	}
-	return true
-}
-
-func printable(v string) bool {
-	if len(v) > maxEnvValue {
-		return false
-	}
-	for _, c := range []byte(v) {
-		if c < 0x20 || c > 0x7e {
-			return false
-		}
-	}
-	return true
 }
 
 // The fixed parts of a shell's environment (S13-01-process-hardening,

@@ -46,24 +46,30 @@ func FuzzGuestShellFrame(f *testing.F) {
 		ended := false
 		for _, raw := range splitSeq(data) {
 			var resp guestv1.ShellResponse
-			if proto.Unmarshal(raw, &resp) != nil {
-				continue
-			}
-			out, fail := c.Check(resp.GetFrame())
-			if ended && (out != nil || fail == nil) {
-				t.Fatalf("after the last frame, Check = %v, %v", out, fail)
-			}
-			if fail != nil {
-				checkFailure(t, fail)
-				ended = true
-				continue
-			}
-			if out != nil {
-				checkOut(t, setup, out)
-				ended = ended || out.GetExit() != nil
+			if proto.Unmarshal(raw, &resp) == nil {
+				ended = checkStep(t, c, setup, resp.GetFrame(), ended)
 			}
 		}
 	})
+}
+
+// checkStep checks one frame through c, and reports whether the shell's
+// last frame has been seen.
+func checkStep(t *testing.T, c *Checker, setup *terminalv1.Setup, frame *terminalv1.ServerFrame, ended bool) bool {
+	t.Helper()
+	out, fail := c.Check(frame)
+	if ended && (out != nil || fail == nil) {
+		t.Fatalf("after the last frame, Check = %v, %v", out, fail)
+	}
+	if fail != nil {
+		checkFailure(t, fail)
+		return true
+	}
+	if out != nil {
+		checkOut(t, setup, out)
+		return ended || out.GetExit() != nil
+	}
+	return ended
 }
 
 func checkFailure(t *testing.T, fail *Failure) {

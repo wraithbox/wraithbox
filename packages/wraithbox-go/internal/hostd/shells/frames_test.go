@@ -124,7 +124,7 @@ func TestFrameRebuilt(t *testing.T) {
 func TestQuote(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{"boom", `the guest reported: "boom"`},
-		{"\x1b[2Jclear‮", `the guest reported: "[2Jclear"`},
+		{"\x1b[2Jclear\u202e", `the guest reported: "[2Jclear"`},
 		{"\x9bbad", `the guest reported: "bad"`},
 	} {
 		if got := Quote(tc.in); got != tc.want {
