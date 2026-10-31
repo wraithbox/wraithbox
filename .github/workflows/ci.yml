@@ -40,7 +40,7 @@ jobs:
           fetch-depth: 2
 
       - name: Set up mise
-        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           install: true
           install_args: bun
@@ -76,7 +76,7 @@ jobs:
       # Only the Go tools and buf: the full list includes tools (SwiftLint)
       # that have no Windows or Linux build.
       - name: Set up mise
-        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           install: true
           install_args: go golangci-lint gofumpt buf
@@ -130,7 +130,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up mise
-        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           install: true
           install_args: swiftlint buf go
@@ -254,7 +254,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up mise
-        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           install: true
           cache: true
@@ -303,7 +303,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up mise
-        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           install: true
           install_args: go bun osv-scanner go:golang.org/x/vuln/cmd/govulncheck
@@ -338,7 +338,7 @@ jobs:
       # an `install_args` list that is too narrow shows up as a slower job,
       # not a failing one. Check the timings, not just the color.
       - name: Set up mise
-        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           install: true
           install_args: actionlint shellcheck
@@ -348,7 +348,7 @@ jobs:
         run: mise run gha:lint
 
       - name: Audit GitHub Actions workflows (zizmor)
-        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
         with:
           advanced-security: false
           # The action's own defaults are version "latest", collect
@@ -359,7 +359,7 @@ jobs:
           # once the docs site is installed. All three must match
           # `mise run audit` for that task to be a real local mirror.
           # Bump the version in both places together.
-          version: "1.30.1"
+          version: "1.31.1"
           collect: all
           inputs: .github
 
@@ -381,7 +381,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up mise
-        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           install: true
           install_args: bun
