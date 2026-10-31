@@ -42,6 +42,10 @@ type usersGuest struct {
 	ensured   []*guestv1.EnsureUsersRequest
 	removed   []*guestv1.RemoveUserRequest
 	killed    []*guestv1.KillUserRequest
+	// unlockErr, when set, fails every UnlockUser call
+	// (shell_unix_test.go).
+	unlockErr error
+	unlocked  []uint32
 }
 
 func (g *usersGuest) serve(t *testing.T, conn net.Conn) {
