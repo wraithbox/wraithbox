@@ -275,6 +275,31 @@ func TestLostAfterRelinkKillsNow(t *testing.T) {
 	}
 }
 
+// TestReleaseSendsLostKillAfterRelink: shell a is lost after the next
+// connection's hook while shell b of the project waits in its
+// admission. b never starts, and its Release sends a's kill, which no
+// later connection would.
+func TestReleaseSendsLostKillAfterRelink(t *testing.T) {
+	k := &fakeKiller{}
+	g := NewRegistry(k, nil)
+	a := open(t, g, "a", "p")
+	b, err := g.Register("b", vm.SlotWork, "p", 42, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g.OnLinked(vm.SlotWork, 1)
+	a.End(t.Context(), true)
+	g.kills.Wait()
+	if got := k.got(); len(got) != 0 {
+		t.Fatalf("kills while b waits = %v", got)
+	}
+	b.Release()
+	g.Close()
+	if got := k.got(); !slices.Equal(got, []string{"work/1/p"}) {
+		t.Fatalf("kills after b's release = %v", got)
+	}
+}
+
 // hookKiller fails its first kill with ErrKillNotSent after it runs
 // during, and passes the rest.
 type hookKiller struct {
