@@ -82,24 +82,41 @@ leftovers of V1-M1 in the docs (#169, #236, #237, #247).
 | # | Package | Specs and IDs | Deps | Lane | Issues |
 |---|---|---|---|---|---|
 | M3.1 | Packet path: datagram link endpoint, link filter, DHCP, caps, TCP rules | S07-02; SEC05; C01 | M2.3 | any | #482, #483 |
-| M3.2 | DNS: pool, name form, local and negative answers, hold, wildcard budget, background list | S07-03, S07-04; C01 | M3.1 | any | #484 to #487, folded: #124 (no leading or trailing hyphen in a label) |
-| M3.3 | Policy loader and effective policy: OpenShell subset, bounded YAML, modes, per-VM union | S09-01, S09-02, S07-01; SEC09; C03 | | any | #488, #489, #490, #259 (refuse rules that allow the OAuth token paths, in #489 and #490) |
+| M3.2 | DNS: pool, name form, local and negative answers, hold, wildcard budget, background list | S07-03, S07-04; C01 | M3.1 | any | #484, #485, #486 (DNS over TCP, #487, in V1-M6), folded: #124 (no leading or trailing hyphen in a label) |
+| M3.3 | Policy loader and effective policy: OpenShell subset, bounded YAML, modes, per-VM union | S09-01, S09-02, S07-01; SEC09; C03 | | any | #488, #489 (the per-VM union, #490, in V1-M5), #259 (refuse rules that allow the OAuth token paths, in #489 and #490) |
 | M3.4 | Hand-off, name mapping, accounting records (a 4 KiB record needs larger socket buffers than the 2 KiB macOS default) | S07-05, S07-06, S04-07, S04-08; SEC08; C02, C11 | M3.1 to M3.3 | mac | #491 to #494, folded: #172 (ordering test, macOS only), #179 (malformed report rule, cross-VM restart case) |
 | M3.5 | Stream checks: first bytes, SNI binding, upstream address rule, pass and raw TCP, tunnels | S07-07, S07-15, S07-16; SEC05; C02 | M3.4 | any | #495, #496 |
-| M3.6 | HTTP termination: h1 and h2, request form, caps, transfer coding, guest credential and response header removal | S07-08; SEC04; C02, C05 | M3.5 | any | #497 to #500, folded: #246 (rule for a client that rejects the inspected leaf) |
-| M3.7 | HTTP policy engine and built-in profiles, parts, GraphQL filter (allowlist starts empty) | S07-11, S07-07; SEC06 | M3.3 | any | #501, #502, folded: #206 (closed list of what audit mode relaxes, `audit-allowed` rule) |
-| M3.8 | Secret store shim and `wb-credset` | S15-02, S15-03, S12-03; SEC12; C05 | M2.2, H1 | mac, host | #503, #504, #505, #514 (`wb cred` audit records) |
+| M3.6 | HTTP termination: h1 and h2, request form, caps, transfer coding, guest credential and response header removal | S07-08; SEC04; C02, C05 | M3.5 | any | #497, #498 (HTTP/2, #499, in V1-M6; credential removal, #500, in V1-M4), folded: #246 (rule for a client that rejects the inspected leaf) |
+| M3.7 | HTTP policy engine and built-in profiles, parts, GraphQL filter (allowlist starts empty) | S07-11, S07-07; SEC06 | M3.3 | any | #501 (the GraphQL filter, #502, in V1-M4), folded: #206 (closed list of what audit mode relaxes, `audit-allowed` rule) |
+| M3.8 | Secret store shim and `wb-credset` | S15-02, S15-03, S12-03; SEC12; C05 | M2.2, H1 | mac, host | #503, #505 (`wb-credset` and `wb cred`, #504 and #514, in V1-M4) |
 | M3.9 | Inspection CA: Secure Enclave key, leaves, rotation, removal list, `wb vm reset-ca`, guest trust | S09-06, S09-07, S09-08; C02 | M3.8 | any, host, vm | #506 to #510 |
 | M3.10 | Audit writer and event channel: OCSF, budgets, free space, a failed write stops the VM; the records V1-M2 only logs (data disk reset, git checks) | S09-11, S04-08; SEC10; C11 | M2.7 | any | #476, #477, folded: #177 (bound on the event retry queue) |
-| M3.11 | Supervision and `wb-launcher` | S04-03, S04-07; SEC13; C11 | M2.3 | mac | #478, #479, #480, #370 (the `wb-diskfmt` kill request, S04-04) |
-| M3.12 | Egress integration: the NIC in the device set, a `wb-netd` per VM, flow reset on restore | S04-02; SEC05, SEC10, SEC11, FR08; C01, C02 | M3.1 to M3.11, H1 | vm, host | #481, #511, #512, #513 |
+| M3.11 | Supervision and `wb-launcher` | S04-03, S04-07; SEC13; C11 | M2.3 | mac | moved to V1-M6: #478, #479, #480, #370 (the `wb-diskfmt` kill request, S04-04) |
+| M3.12 | Egress integration: the NIC in the device set, a `wb-netd` per VM, flow reset on restore | S04-02; SEC05, SEC10, SEC11, FR08; C01, C02 | M3.1 to M3.10, H1 | vm, host | #481, #511, #512, #513 |
+
+Made smaller on 2026-10-31, with the parts moved to the milestone
+whose control or user they serve. Each fails closed until it is merged:
+
+- To V1-M4: `wb-credset` and `wb cred` (#504, #514), next to M4.10,
+  credential removal (#500, SEC04-no-guest-secrets), and the GraphQL
+  filter (#502, SEC06-repo-writes). Until then GraphQL requests on
+  built-in hosts are refused.
+- To V1-M5: the per-VM union, modes and limits (#490), next to the
+  boundary check. Until then a VM's policy is the built-ins and the
+  user's global file, fixed at its start (#489).
+- To V1-M6: M3.11, supervision and `wb-launcher` (#478 to #480,
+  #370), next to the `wb-hostd` profile (M6.1). Until then `wb-hostd`
+  starts its programs itself, as in V1-M2, and a daemon that exits
+  stops its VMs instead of restarting. HTTP/2 (#499), with `http/1.1`
+  the only ALPN offered until then, and DNS over TCP (#487), refused
+  until then.
 
 ## V1-M7-image-build
 
 | # | Package | Specs and IDs | Deps | Lane | Issues |
 |---|---|---|---|---|---|
 | IMG.0 | Spec changes before the build: `wb-build-ssh` on Go's SSH library, macOS 27 for the build, the base layer, Claude Code's release and top layer, the Xcode variant, the secret scanner | S04-00, S04-05, S15-04, NFR04, S06-01, S06-02, S14-01, S17-04, S06-04 | | any | #165, #143, #150, #220, #194, #224, secret scanner |
-| IMG.1 | Downloads: `wb-download`, catalog, resume, hash, records, the Command Line Tools entry | S17-03, S17-04; SEC10; C12 | M3.10, M3.11 | any | |
+| IMG.1 | Downloads: `wb-download`, catalog, resume, hash, records, the Command Line Tools entry | S17-03, S17-04; SEC10; C12 | M3.10 | any | |
 | IMG.2 | `wb-vmd-install`, build bundle, sealed image, slot lending, `wb image` | S06-02, S04-04, S06-07; SEC15; C11 | IMG.1, H2 | vm | #262 (X30-installer-trust) first |
 | IMG.3 | Build network (one inbound port 22, refused for session VMs) and `wb-build-ssh` | S04-05, S15-04 | M3.1, IMG.2 | vm | |
 | IMG.4 | `wb-guestadmin`: build, rotation, cleanup, first-contact gate, disk replacement and user recreation | S15-04, S06-03; SEC04, SEC12; C09 | M3.8, IMG.3 | vm, host | folded: #154 (rotation with both passwords on standard input), #155 (no password in the bundle), #142 (optional: can guest root revive the provisioning user's token) |
@@ -135,7 +152,7 @@ the fixture bundle, before the git packages.
 |---|---|---|---|---|---|
 | M5.1 | Approval flow, limits, expiry, name display, re-run during a hold, `wb approve` and `wb deny` | S09-10, S07-04, S07-17; FR09, SEC14 | M3.2 | any | folded: #173 (timing test of the policy order) |
 | M5.2 | Approved rule, risk check, joined approvals | S09-09, S07-01 | M3.3 | any | |
-| M5.3 | Boundary check: prover vendoring, `wb-prover`, projection, cache | S09-04, S10-01; SEC09 | M3.11 | mac | folded: #207 (extension check asserts the audit projection) |
+| M5.3 | Boundary check: prover vendoring, `wb-prover`, projection, cache | S09-04, S10-01; SEC09 | M3.3 | mac | folded: #207 (extension check asserts the audit projection) |
 | M5.4 | Notification helper and its `wb-hostd` contract, spec drafted first | S12-01, S09-09 "Delivery", S04-07 | M5.1, H5 | host | |
 | M5.5 | Learn mode, `wb learn report` | S07-17; FR10 | M5.1 | any | |
 | M5.6 | `.wraithbox/`, `wb trust` and `wb untrust` (the `wb project` commands are #294) | S09-03, S05-03, S05-04; SEC09 | M5.3 | any | |
