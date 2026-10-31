@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -79,6 +80,7 @@ func (r *vmRun) checkUserAndEnv(id string) string {
 		"test -x " + installedGuestd + " && echo guestd-executable\n" +
 		"echo \"term=$TERM\"\n" +
 		"echo --env--; env; echo --end--\n" +
+		pathScript +
 		"exit 7\n"
 	res := r.runShell(id, shellIO{stdin: strings.NewReader(script), lookup: hostVars})
 	if res.code != 7 {
@@ -97,6 +99,7 @@ func (r *vmRun) checkUserAndEnv(id string) string {
 		t.Errorf("stderr %q misses the label line", res.stderr)
 	}
 	checkEnv(t, res.stdout, user)
+	checkPath(t, res.stdout)
 	return user
 }
 
@@ -118,7 +121,8 @@ var shellOwnVars = []string{"OLDPWD", "PWD", "SHLVL", "_"}
 // checkEnv checks the `env` output between the markers: the host's
 // terminal variables unchanged, the fixed ones of
 // internal/guestd/shell, TMPDIR from the helper, and nothing else but
-// zsh's own.
+// zsh's own. PATH is checked by checkPath, because the login shell's
+// /etc/zprofile rebuilds it with path_helper.
 func checkEnv(t *testing.T, stdout, user string) {
 	t.Helper()
 	_, rest, _ := strings.Cut(stdout, "--env--\n")
@@ -130,23 +134,92 @@ func checkEnv(t *testing.T, stdout, user string) {
 	}
 	want := map[string]string{
 		"TERM": hostTerm, "LANG": hostLang, "USER": user, "LOGNAME": user,
-		"SHELL": "/bin/zsh", "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+		"SHELL": "/bin/zsh",
 	}
 	for name, value := range want {
 		if got[name] != value {
 			t.Errorf("env %s = %q, want %q", name, got[name], value)
 		}
 	}
-	for _, name := range []string{"HOME", "TMPDIR"} {
+	for _, name := range []string{"HOME", "TMPDIR", "PATH"} {
 		if got[name] == "" {
 			t.Errorf("env has no %s", name)
 		}
 	}
 	for name := range got {
 		_, wanted := want[name]
-		if !wanted && name != "HOME" && name != "TMPDIR" && !slices.Contains(shellOwnVars, name) {
+		if !wanted && name != "HOME" && name != "TMPDIR" && name != "PATH" && !slices.Contains(shellOwnVars, name) {
 			t.Errorf("env has %s, which the shell must not get", name)
 		}
+	}
+}
+
+// pathScript prints one line for each entry of the shell's PATH: the
+// entry, then "missing", or its owner, its permission bits in octal
+// and whether the project user can write it. stat -L follows a link to
+// the directory the shell would search.
+const pathScript = "echo --path--\n" +
+	"for d in $path; do\n" +
+	"  if [ ! -e \"$d\" ]; then echo \"entry $d missing\"; continue; fi\n" +
+	"  w=no; [ -w \"$d\" ] && w=yes\n" +
+	"  echo \"entry $d $(stat -L -f '%Su %Lp' \"$d\") $w\"\n" +
+	"done\n" +
+	"echo --end-path--\n"
+
+// basePath are the entries wb-guestd's PATH has, which the login
+// shell's PATH must keep.
+var basePath = []string{"/usr/bin", "/bin", "/usr/sbin", "/sbin"}
+
+// checkPath checks the pathScript output: the login shell's PATH comes
+// from the guest's /etc/zprofile (path_helper), so it isn't wb-guestd's
+// value. It must keep basePath, and each entry that exists must be
+// owned by root, with no group or other write bit, and not writable by
+// the project user, so that no project can put a program on another
+// project's PATH (SEC08-proj-isolation). An entry that doesn't exist is
+// logged, not failed.
+func checkPath(t *testing.T, stdout string) {
+	t.Helper()
+	_, rest, _ := strings.Cut(stdout, "--path--\n")
+	block, _, _ := strings.Cut(rest, "--end-path--")
+	var entries []string
+	for line := range strings.Lines(block) {
+		fields := strings.Fields(strings.TrimPrefix(strings.TrimSuffix(line, "\n"), "entry "))
+		if len(fields) == 0 {
+			continue
+		}
+		entries = append(entries, fields[0])
+		checkPathEntry(t, fields)
+	}
+	t.Logf("path: %s", strings.Join(entries, ":"))
+	for _, want := range basePath {
+		if !slices.Contains(entries, want) {
+			t.Errorf("PATH %q misses %s", strings.Join(entries, ":"), want)
+		}
+	}
+}
+
+// checkPathEntry checks one pathScript line, split into fields: the
+// entry, then "missing", or the owner, the octal mode and "yes" or "no"
+// for the project user's write access.
+func checkPathEntry(t *testing.T, fields []string) {
+	t.Helper()
+	if len(fields) == 2 && fields[1] == "missing" {
+		t.Logf("path: %s doesn't exist", fields[0])
+		return
+	}
+	if len(fields) != 4 {
+		t.Errorf("path entry line %q, want entry, owner, mode and writable", strings.Join(fields, " "))
+		return
+	}
+	entry, owner, writable := fields[0], fields[1], fields[3]
+	mode, err := strconv.ParseUint(fields[2], 8, 32)
+	if err != nil {
+		t.Errorf("path entry %s: mode %q: %v", entry, fields[2], err)
+		return
+	}
+	if owner != "root" || mode&0o022 != 0 || writable != "no" {
+		t.Errorf("path entry %s: owner %s, mode %o, writable by the project user %s; want root, no group or other write, and not writable (SEC08-proj-isolation)",
+			entry, owner, mode, writable)
 	}
 }
 
