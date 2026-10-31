@@ -104,7 +104,10 @@ provisioning boot goes over the host-guest socket to `wb-guestd`:
 3. The build takes `wbadmin` out of every group, disables it, and
    deletes its keychains.
 4. The base layer is installed through `wb-guestd`.
-5. The image is sealed ("Sealing" below). This sealed image is the
+5. `wb-guestd` installs `wb-guestroot` in `/Library/WraithBox/libexec`
+   and its LaunchDaemon in `/Library/LaunchDaemons`, from the guest
+   tools disk (S15-05-admin-path, "In the image").
+6. The image is sealed ("Sealing" below). This sealed image is the
    parent of the Claude Code layer.
 
 Then the build makes the Claude Code layer on a clone of that parent,
