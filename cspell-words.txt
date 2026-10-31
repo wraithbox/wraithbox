@@ -320,6 +320,7 @@ protowire
 genproto
 mktemp
 Xlinker
+Xswiftc
 sectcreate
 getsectiondata
 toplevel
