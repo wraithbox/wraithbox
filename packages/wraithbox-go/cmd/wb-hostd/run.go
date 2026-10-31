@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
@@ -19,6 +21,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/kills"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/launch"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/logpipe"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/shells"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vmdprovider"
@@ -119,11 +122,13 @@ func (l *hostLogs) close() {
 	_ = l.file.Close()
 }
 
-// host is what wb-hostd serves. Only server and projects are set in
-// refusing mode.
+// host is what wb-hostd serves. Only server, projects and shells are set
+// in refusing mode.
 type host struct {
 	server   *hostservice.Server
 	projects *hostservice.ProjectServer
+	shells   *hostservice.ShellServer
+	registry *shells.Registry
 	vms      *vm.Manager
 	provider *vmdprovider.Provider
 	links    *guestconn.Links
@@ -156,6 +161,7 @@ func refusingHost(ctx context.Context, log *slog.Logger, r *startup.Refusing) *h
 	return &host{
 		server:   &hostservice.Server{Refusing: r, Log: log},
 		projects: &hostservice.ProjectServer{Refusing: r, Log: log},
+		shells:   &hostservice.ShellServer{Refusing: r, Log: log},
 	}
 }
 
@@ -204,7 +210,10 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	if _, err := provider.ClearLeftovers(ctx); err != nil {
 		log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd leftover sockets not all removed", slog.String("error", err.Error()))
 	}
-	var links *guestconn.Links
+	var (
+		links    *guestconn.Links
+		registry *shells.Registry
+	)
 	// Pending kills are in memory only: a wb-hostd exit stops every VM
 	// (S06-10-leftover-processes, "Failing closed").
 	tracker := kills.New(kills.Config{Logger: log})
@@ -213,6 +222,9 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 		Resources: ready.Config, Generations: ready.State, Provider: provider, Cloner: diskclone.Cloner{},
 		DataDisks: disks, Logger: log,
 		OnRunning: func(slot vm.Slot, generation uint64, ended <-chan struct{}) { links.Run(slot, generation, ended) },
+		// A stop is refused while the VM has an open debug shell
+		// (S06-09-session-lifecycle, "Idle suspend").
+		Sessions: func(slot vm.Slot) []vm.Session { return registry.Sessions(slot) },
 		OnEnded: func(slot vm.Slot, generation uint64, end vm.End) {
 			if end.Cold {
 				tracker.ColdStop(slot, generation, end.Cause)
@@ -229,17 +241,23 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	links, err = guestconn.New(guestconn.Config{
 		VMs: vms, Version: o.Version, TimeHook: guestconn.SendTime,
 		MountHook: guestconn.SendMount(ready.State, time.Now, log), Users: ready.State, Kills: tracker, Logger: log,
+		// Each connection kills the users of the shells the last one lost
+		// (S13-01-process-hardening, "When the link drops").
+		OnLinked: func(slot vm.Slot, generation uint64) { registry.OnLinked(slot, generation) },
 	})
 	if err != nil {
 		return nil, err
 	}
+	registry = shells.NewRegistry(links, log)
 	return &host{
 		server: &hostservice.Server{VMs: m, Links: links, Log: log},
 		projects: &hostservice.ProjectServer{
 			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git), Log: log,
 			UsersRemoved: links.SendUserRemovals,
 		},
-		vms: m, provider: provider, links: links, closeDB: ready.State.Close,
+		shells:   &hostservice.ShellServer{Store: ready.State, VMs: m, Links: links, Shells: registry, Log: log},
+		registry: registry,
+		vms:      m, provider: provider, links: links, closeDB: ready.State.Close,
 	}, nil
 }
 
@@ -255,6 +273,9 @@ func (h *host) close(ctx context.Context) {
 		}
 		h.vms.Wait()
 	}
+	if h.registry != nil {
+		h.registry.Close()
+	}
 	if h.links != nil {
 		h.links.Close()
 	}
@@ -268,11 +289,18 @@ func (h *host) close(ctx context.Context) {
 // done. Every connection passes localipc's peer check and the build
 // version exchange of grpccreds before a call reaches the server
 // (SEC12-least-privilege).
+//
+// The server never pings a connection: a wb stopped with job control
+// can't answer, and keeps its shell. Only a closed connection ends a
+// shell (S06-09-session-lifecycle, "Closing the terminal ends the
+// session").
 func serve(ctx context.Context, o options, log *slog.Logger, ln *localipc.Listener, h *host) error {
 	srv := grpc.NewServer(grpc.Creds(grpccreds.New(log, o.Version)),
-		grpc.MaxRecvMsgSize(hostservice.MaxMessageSize), grpc.MaxSendMsgSize(hostservice.MaxMessageSize))
+		grpc.MaxRecvMsgSize(hostservice.MaxMessageSize), grpc.MaxSendMsgSize(hostservice.MaxMessageSize),
+		grpc.KeepaliveParams(keepalive.ServerParameters{Time: time.Duration(math.MaxInt64)}))
 	hostdv1.RegisterHostServiceServer(srv, h.server)
 	hostdv1.RegisterProjectServiceServer(srv, h.projects)
+	hostdv1.RegisterShellServiceServer(srv, h.shells)
 	served := make(chan error, 1)
 	go func() { served <- srv.Serve(ln) }()
 	log.LogAttrs(ctx, slog.LevelInfo, "wb-hostd serving", slog.String("endpoint", localipc.HostdEndpoint))
