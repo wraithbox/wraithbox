@@ -81,7 +81,7 @@ let package = Package(
         ),
         .testTarget(
             name: "WbDevBundleTests",
-            dependencies: ["wb-dev-bundle"]
+            dependencies: ["wb-dev-bundle", "WraithBoxVM"]
         ),
         .testTarget(
             name: "WraithBoxVMTests",
