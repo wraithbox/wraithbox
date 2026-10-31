@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -67,7 +68,9 @@ func startAs(t *testing.T, u users.User, setsid bool, name string, args ...strin
 }
 
 // keepAliveAgent loads a LaunchAgent with KeepAlive into u's per-user
-// launchd domain, so launchd starts it again after each SIGKILL.
+// launchd domain, so launchd starts it again after each SIGKILL. A
+// project user never logs in, so its domain is a Background session,
+// and launchd loads only an agent limited to that session type there.
 func keepAliveAgent(t *testing.T, u users.User) {
 	t.Helper()
 	plist := filepath.Join(t.TempDir(), keepAliveLabel+".plist")
@@ -78,6 +81,7 @@ func keepAliveAgent(t *testing.T, u users.User) {
 <key>ProgramArguments</key><array><string>/bin/sleep</string><string>3600</string></array>
 <key>KeepAlive</key><true/>
 <key>RunAtLoad</key><true/>
+<key>LimitLoadToSessionType</key><string>Background</string>
 </dict></plist>
 `
 	if err := os.WriteFile(plist, []byte(body), 0o644); err != nil {
@@ -89,18 +93,45 @@ func keepAliveAgent(t *testing.T, u users.User) {
 	}
 }
 
-// running returns the processes of uid, or fails the test.
+// startDetached starts a sleep as u that its parent shell leaves
+// behind, with SIGHUP ignored and no terminal, as nohup and a double
+// fork leave one. launchd adopts it, so the test never reaps it.
+// nohup itself exits at once as a project user, which has no console
+// to detach from.
+func startDetached(t *testing.T, u users.User) {
+	t.Helper()
+	if out, err := asUser(t, u, "/bin/sh", "-c", `trap "" HUP; /bin/sleep 3600 </dev/null >/dev/null 2>&1 &`); err != nil {
+		t.Fatalf("detached sleep as %s: %v: %s", u.Name, err, out)
+	}
+}
+
+// running returns the processes of uid that haven't exited, or fails
+// the test. A zombie doesn't count, as in the kill loop: the setsid
+// child is the test's own, and it reaps it only when the test ends.
 func running(t *testing.T, uid uint32) []gp.Proc {
 	t.Helper()
 	procs, err := (&gp.System{Log: discard}).ByUID(uid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return procs
+	return slices.DeleteFunc(procs, func(p gp.Proc) bool { return p.State == gp.Zombie })
+}
+
+// waitRunning waits up to comeBackWait for at least n processes of u,
+// or fails the test: launchd starts the agent after bootstrap returns.
+func waitRunning(t *testing.T, u users.User, n int) {
+	t.Helper()
+	deadline := time.Now().Add(comeBackWait)
+	for len(running(t, u.UID)) < n {
+		if time.Now().After(deadline) {
+			t.Fatalf("processes of %s before the kill: %v, want at least %d", u.Name, running(t, u.UID), n)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // TestKillUser: the kill loop ends every process of the user, a
-// KeepAlive LaunchAgent, a nohup process and one in its own session
+// KeepAlive LaunchAgent, a detached process and one in its own session
 // among them, in one call. None comes back comeBackWait later, and the
 // user's launchd domain no longer holds the agent
 // (S06-10-leftover-processes;
@@ -110,11 +141,9 @@ func running(t *testing.T, uid uint32) []gp.Proc {
 func TestKillUser(t *testing.T) {
 	u := chosenUser(t, killEnv)
 	keepAliveAgent(t, u)
-	startAs(t, u, false, "/usr/bin/nohup", "/bin/sleep", "3600")
+	startDetached(t, u)
 	startAs(t, u, true, "/bin/sleep", "3600")
-	if n := len(running(t, u.UID)); n < 3 {
-		t.Fatalf("%d processes of %s before the kill, want at least 3", n, u.Name)
-	}
+	waitRunning(t, u, 3)
 	res := guestd.SystemProcesses(discard).Kill(t.Context(), u.UID)
 	if !res.Clean() {
 		t.Fatalf("Kill = %+v, processes left: %v", res, running(t, u.UID))

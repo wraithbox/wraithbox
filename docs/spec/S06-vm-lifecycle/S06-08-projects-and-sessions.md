@@ -67,9 +67,12 @@ that the user is removed. It stays in a directory no later user gets,
 because the user's IDs are never reused (S06-03-image-updates,
 "Allocation").
 
-The record stays, locked and disabled: `opendirectoryd` refuses root's
-`dscl . -delete` of a user (X17-image-build), and deleting the record is
-I138. A removal of a retired user runs the same steps, and answers that
+The record stays, locked and disabled, by design. The user's IDs are
+never reused (S06-03-image-updates, "Allocation"), and the next system
+disk starts the directory without it. This doesn't depend on whether
+root can delete the record. In X17-image-build `sysadminctl -deleteUser`
+left it (I138), and in the needs-vm run of PR441 root's `dscl . -delete`
+removed one. A removal of a retired user runs the same steps, and answers that
 it is removed again. `EnsureUsers` refuses a retired user, because its
 shell differs.
 

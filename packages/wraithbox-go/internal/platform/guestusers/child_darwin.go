@@ -30,10 +30,13 @@ const childPath = "PATH=/usr/bin:/bin:/usr/sbin:/sbin"
 // follows a link and never crosses into another mount, and as the user
 // it can only change what the user could:
 //
-//  1. `find -x <home> -type d -exec chmod u+rwx {} ;` gives the user
-//     every right on each of its directories, so a directory it set to
-//     mode 000 doesn't keep its entries from the second pass. With `;`
-//     find runs chmod on a directory before it reads it;
+//  1. `find -x <home> -type d ! -perm -u+rwx -exec chmod u+rwx {} ;`
+//     gives the user every right on each of its directories that lacks
+//     one, so a directory it set to mode 000 doesn't keep its entries
+//     from the second pass. With `;` find runs chmod on a directory
+//     before it reads it. The filter keeps the pass to a few chmod runs
+//     in a normal home, so a home with tens of thousands of directories
+//     still fits the deadline;
 //  2. `find -x <home> -mindepth 1 -delete` removes the entries.
 //
 // Each child gets a fixed HOME and PATH, RLIMIT_CORE 0, and is killed
@@ -50,14 +53,26 @@ func (s *System) EmptyHome(ctx context.Context, uid, gid uint32, home string) er
 	if err := unix.Setrlimit(unix.RLIMIT_CORE, &unix.Rlimit{}); err != nil {
 		return fmt.Errorf("guestusers: RLIMIT_CORE 0: %w", err)
 	}
-	opened := s.runFind(ctx, uid, gid, home, "-x", home, "-type", "d", "-exec", Chmod, "u+rwx", "{}", ";")
+	opened := s.runFind(ctx, uid, gid, home, openArgs(home)...)
 	if _, exited := errors.AsType[*exec.ExitError](opened); opened != nil && (!exited || ctx.Err() != nil) {
 		return opened
 	}
-	if err := s.runFind(ctx, uid, gid, home, "-x", home, "-mindepth", "1", "-delete"); err != nil {
+	if err := s.runFind(ctx, uid, gid, home, deleteArgs(home)...); err != nil {
 		return err
 	}
 	return opened
+}
+
+// openArgs are find's arguments for EmptyHome's first pass: chmod
+// u+rwx on each directory of home that lacks one of those rights, and
+// on no other.
+func openArgs(home string) []string {
+	return []string{"-x", home, "-type", "d", "!", "-perm", "-u+rwx", "-exec", Chmod, "u+rwx", "{}", ";"}
+}
+
+// deleteArgs are find's arguments for EmptyHome's second pass.
+func deleteArgs(home string) []string {
+	return []string{"-x", home, "-mindepth", "1", "-delete"}
 }
 
 // runFind runs find with args as uid, and logs the run with its

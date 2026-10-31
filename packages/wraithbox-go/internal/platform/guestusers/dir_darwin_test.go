@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -169,5 +170,48 @@ func TestEmptyHomeRefuses(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(home, "f")); err != nil {
 		t.Errorf("the file is gone: %v", err)
+	}
+}
+
+// TestEmptyHomeArgs: the first pass of EmptyHome runs chmod only on a
+// directory that lacks a right of the user, so a home with many
+// directories doesn't start a chmod for each. Run as this user, its
+// arguments open a directory set to mode 000 and leave one with
+// u+rwx as it was.
+func TestEmptyHomeArgs(t *testing.T) {
+	home := "/private/var/wbhomes/wbp10000"
+	want := []string{"-x", home, "-type", "d", "!", "-perm", "-u+rwx", "-exec", guestusers.Chmod, "u+rwx", "{}", ";"}
+	if got := guestusers.OpenArgs(home); !slices.Equal(got, want) {
+		t.Errorf("OpenArgs = %q, want %q", got, want)
+	}
+	if got, want := guestusers.DeleteArgs(home), []string{"-x", home, "-mindepth", "1", "-delete"}; !slices.Equal(got, want) {
+		t.Errorf("DeleteArgs = %q, want %q", got, want)
+	}
+
+	dir := t.TempDir()
+	closed, open := filepath.Join(dir, "closed"), filepath.Join(dir, "open")
+	for _, d := range []string{closed, open} {
+		if err := os.Mkdir(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chmod(open, 0o751); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(closed, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(closed, 0o700) })
+	if out, err := exec.CommandContext(t.Context(), guestusers.Find, guestusers.OpenArgs(dir)...).CombinedOutput(); err != nil {
+		t.Fatalf("find %q: %v: %s", guestusers.OpenArgs(dir), err, out)
+	}
+	for d, mode := range map[string]fs.FileMode{closed: 0o700, open: 0o751} {
+		fi, err := os.Stat(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := fi.Mode().Perm(); got != mode {
+			t.Errorf("%s after the first pass: %v, want %v", d, got, mode)
+		}
 	}
 }
