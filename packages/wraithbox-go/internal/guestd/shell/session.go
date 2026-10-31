@@ -10,6 +10,7 @@ import (
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/sessionproc"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/termsetup"
 )
 
 // The bounds of a shell's output (S06-09-session-lifecycle, "Session
@@ -335,7 +336,7 @@ func (l *loop) frame(f *terminalv1.ClientFrame) {
 }
 
 func (l *loop) resize(size *terminalv1.WindowSize) {
-	rows, cols, ok := windowSize(size)
+	rows, cols, ok := termsetup.WindowSize(size)
 	if l.s.ctl == nil || !ok {
 		l.s.invalid(l.ctx, "resize")
 		return
