@@ -49,7 +49,7 @@ type Killer interface {
 }
 
 // Registry holds the open debug shells of every VM, in memory only: VMs
-// stop with wb-hostd, so no shell outlives it (S06-09-session-lifecycle,
+// stop with wb-hostd, so no shell outlives it (S06-08-projects-and-sessions,
 // "Debug shells in V1-M2"). Its methods are safe for concurrent use.
 type Registry struct {
 	killer Killer

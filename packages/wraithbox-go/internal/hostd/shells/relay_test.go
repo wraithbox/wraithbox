@@ -231,7 +231,7 @@ func TestRelayFailures(t *testing.T) {
 		{"stderr not asked for", outFrame(terminalv1.Stream_STREAM_STDERR, []byte("x")), RuleFrame},
 		{"output over the cap", outFrame(terminalv1.Stream_STREAM_STDOUT, make([]byte, MaxFrameData+1)), RuleFrame},
 		{"unset", &terminalv1.ServerFrame{}, RuleFrame},
-		{"guest failure", failFrame("guest-pty", "\x1b[2Jboom"), RuleFailed},
+		{"guest failure", failFrame("guest-pty", "\x1b[2J boom"), RuleFailed},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rt := startRelay(t, &terminalv1.Setup{})
