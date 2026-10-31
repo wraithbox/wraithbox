@@ -125,7 +125,7 @@ func (r *run) connect() (*guestlink.Link, error) {
 // keep holds the link until it drops, the guest leaves a time call, the
 // data mount or a user call unanswered, or the run ends. It calls the
 // mount hook after the hello, then sends the project users and their
-// removals, then calls the time hook, and the time hook every
+// removals, then calls the linked hook, then the time hook, and the time hook every
 // TimeInterval after. After the first time call it sends the VM
 // generation's first-connection kills, and any it hasn't sent after each
 // later one. It returns the reason of the next link's first
@@ -142,6 +142,9 @@ func (r *run) keep(l *guestlink.Link, reason guestv1.TimeReason) guestv1.TimeRea
 	}
 	r.setLink(l)
 	defer r.setLink(nil)
+	if hook := r.ls.cfg.OnLinked; hook != nil {
+		hook(r.slot, r.generation)
+	}
 	for {
 		var kept bool
 		if reason, kept = r.sendTime(l, reason); !kept {

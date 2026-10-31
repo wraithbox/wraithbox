@@ -2,12 +2,11 @@ package shell
 
 import (
 	"math"
-	"regexp"
 	"slices"
-	"strings"
 
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/sessionid"
 )
 
 // The rules of a shell's refusals and failures (S06-09-session-lifecycle,
@@ -71,25 +70,13 @@ var EnvNames = []string{
 // The bounds of the start.
 const (
 	maxEnvValue = 256
-	maxShellID  = 128
 	maxUserName = 64
 )
-
-// sessionID is the session id form of S05-04-naming ("Session id and
-// branch"): the project name, then `-<yyyymmdd>-<hhmm>-<4 random
-// chars>`. A project name is 1 to 64 bytes of letters, digits, `.`, `_`
-// and `-`, starting with a letter or digit.
-var sessionID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}-[0-9]{8}-[0-9]{4}-[A-Za-z0-9]{4}$`)
-
-// validShellID reports whether id is of the session id form.
-func validShellID(id string) bool {
-	return len(id) <= maxShellID && sessionID.MatchString(id) && !strings.Contains(id, "..")
-}
 
 // checkStart checks the start's form, and returns the rule of the first
 // problem, or "".
 func checkStart(id, user string, setup *terminalv1.Setup) string {
-	if !validShellID(id) || user == "" || len(user) > maxUserName || setup == nil {
+	if !sessionid.Valid(id) || user == "" || len(user) > maxUserName || setup == nil {
 		return RuleStartInvalid
 	}
 	if _, _, ok := windowSize(setup.GetSize()); setup.GetInteractive() && !ok {

@@ -109,8 +109,8 @@ func TestCheckOpened(t *testing.T) {
 	if err != nil || s.Label() != "wb: debug shell myrepo-20261021-1412-k3f9 in project myrepo, as guest user wbp1. A debug shell returns no work." {
 		t.Errorf("CheckOpened = %+v, %v; label %q", s, err, s.Label())
 	}
-	s, err = CheckOpened(&hostdv1.ShellOpened{ShellId: "a\x1b]2;b\x07", ProjectName: "p\u202e", GuestUser: "u"})
-	if err != nil || s.ID != "a]2;b" || s.Project != "p" {
+	s, err = CheckOpened(&hostdv1.ShellOpened{ShellId: "p-20261021-1412-k3f9", ProjectName: "p\u202e\x1b]2;b\x07", GuestUser: "u"})
+	if err != nil || s.Project != "p]2;b" {
 		t.Errorf("CheckOpened stripped = %+v, %v", s, err)
 	}
 	for _, bad := range []*hostdv1.ShellOpened{
@@ -119,6 +119,9 @@ func TestCheckOpened(t *testing.T) {
 		{ShellId: "s", ProjectName: "p", GuestUser: strings.Repeat("a", 65)},
 		{ShellId: "", ProjectName: "p", GuestUser: "u"},
 		{ShellId: "\x1b", ProjectName: "p", GuestUser: "u"},
+		{ShellId: "s", ProjectName: "p", GuestUser: "u"},
+		{ShellId: "a\x1b]2;b\x07-20261021-1412-k3f9", ProjectName: "p", GuestUser: "u"},
+		{ShellId: "a..b-20261021-1412-k3f9", ProjectName: "p", GuestUser: "u"},
 	} {
 		if _, err := CheckOpened(bad); err == nil {
 			t.Errorf("CheckOpened(%v) accepted", bad)
@@ -150,11 +153,11 @@ func (c *fakeShellClient) Recv() (*hostdv1.ShellResponse, error) {
 func (c *fakeShellClient) CloseSend() error { return nil }
 
 func TestOpenShell(t *testing.T) {
-	opened := &hostdv1.ShellResponse{Msg: &hostdv1.ShellResponse_Opened{Opened: &hostdv1.ShellOpened{ShellId: "s", ProjectName: "p", GuestUser: "u"}}}
+	opened := &hostdv1.ShellResponse{Msg: &hostdv1.ShellResponse_Opened{Opened: &hostdv1.ShellOpened{ShellId: "p-20261021-1412-k3f9", ProjectName: "p", GuestUser: "u"}}}
 	frame := &hostdv1.ShellResponse{Msg: &hostdv1.ShellResponse_Frame{Frame: exitCode(3)}}
 	c := &fakeShellClient{responses: []*hostdv1.ShellResponse{opened, frame, opened}}
 	stream, shell, err := OpenShell(c, "0123456789abcdef0123456789abcdef", &terminalv1.Setup{})
-	if err != nil || shell.ID != "s" {
+	if err != nil || shell.ID != "p-20261021-1412-k3f9" {
 		t.Fatalf("OpenShell = %+v, %v", shell, err)
 	}
 	if c.sent[0].GetOpen().GetProjectId() != "0123456789abcdef0123456789abcdef" {
