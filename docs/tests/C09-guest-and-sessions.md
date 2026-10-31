@@ -521,9 +521,9 @@ it adds. It checks:
 - the project user, and that it can run the installed `wb-guestd`;
 - the exact environment, with the host's `TERM` and `LANG` unchanged;
 - the login shell's `PATH`, which the guest's `path_helper` builds:
-  it keeps `/usr/bin:/bin:/usr/sbin:/sbin`, and each entry that exists
-  is owned by root and not writable by the project user
-  (SEC08-proj-isolation);
+  it keeps `/usr/bin:/bin:/usr/sbin:/sbin`, and each entry that exists,
+  or the nearest existing ancestor of one that doesn't, is owned by root
+  and not writable by the project user (SEC08-proj-isolation);
 - `exit 3` gives 3 and `kill -9 $$` gives 137;
 - 8 MiB of piped input to a program that doesn't read it;
 - `ls` of the other project user's home fails with `Permission

@@ -155,14 +155,16 @@ func checkEnv(t *testing.T, stdout, user string) {
 }
 
 // pathScript prints one line for each entry of the shell's PATH: the
-// entry, then "missing", or its owner, its permission bits in octal
-// and whether the project user can write it. stat -L follows a link to
-// the directory the shell would search.
+// entry, the directory checked, its owner, its permission bits in
+// octal, and whether the project user can write it. The directory
+// checked is the entry, or, for an entry that doesn't exist, its
+// nearest ancestor that does, where a project user could create it.
+// stat -L follows a link to the directory the shell would search.
 const pathScript = "echo --path--\n" +
 	"for d in $path; do\n" +
-	"  if [ ! -e \"$d\" ]; then echo \"entry $d missing\"; continue; fi\n" +
-	"  w=no; [ -w \"$d\" ] && w=yes\n" +
-	"  echo \"entry $d $(stat -L -f '%Su %Lp' \"$d\") $w\"\n" +
+	"  a=$d; while [ ! -e \"$a\" ]; do a=${a:h}; done\n" +
+	"  w=no; [ -w \"$a\" ] && w=yes\n" +
+	"  echo \"entry $d $a $(stat -L -f '%Su %Lp' \"$a\") $w\"\n" +
 	"done\n" +
 	"echo --end-path--\n"
 
@@ -172,11 +174,11 @@ var basePath = []string{"/usr/bin", "/bin", "/usr/sbin", "/sbin"}
 
 // checkPath checks the pathScript output: the login shell's PATH comes
 // from the guest's /etc/zprofile (path_helper), so it isn't wb-guestd's
-// value. It must keep basePath, and each entry that exists must be
-// owned by root, with no group or other write bit, and not writable by
-// the project user, so that no project can put a program on another
-// project's PATH (SEC08-proj-isolation). An entry that doesn't exist is
-// logged, not failed.
+// value. It must keep basePath. Each entry that exists, and the nearest
+// existing ancestor of each entry that doesn't, must be owned by root,
+// with no group or other write bit, and not writable by the project
+// user. So no project can put a program on another project's PATH
+// (SEC08-proj-isolation).
 func checkPath(t *testing.T, stdout string) {
 	t.Helper()
 	_, rest, _ := strings.Cut(stdout, "--path--\n")
@@ -199,27 +201,26 @@ func checkPath(t *testing.T, stdout string) {
 }
 
 // checkPathEntry checks one pathScript line, split into fields: the
-// entry, then "missing", or the owner, the octal mode and "yes" or "no"
-// for the project user's write access.
+// entry, the directory checked, its owner, its octal mode, and "yes" or
+// "no" for the project user's write access.
 func checkPathEntry(t *testing.T, fields []string) {
 	t.Helper()
-	if len(fields) == 2 && fields[1] == "missing" {
-		t.Logf("path: %s doesn't exist", fields[0])
+	if len(fields) != 5 {
+		t.Errorf("path entry line %q, want entry, directory checked, owner, mode and writable", strings.Join(fields, " "))
 		return
 	}
-	if len(fields) != 4 {
-		t.Errorf("path entry line %q, want entry, owner, mode and writable", strings.Join(fields, " "))
-		return
+	entry, checked, owner, writable := fields[0], fields[1], fields[2], fields[4]
+	if checked != entry {
+		t.Logf("path: %s doesn't exist, checked its ancestor %s", entry, checked)
 	}
-	entry, owner, writable := fields[0], fields[1], fields[3]
-	mode, err := strconv.ParseUint(fields[2], 8, 32)
+	mode, err := strconv.ParseUint(fields[3], 8, 32)
 	if err != nil {
-		t.Errorf("path entry %s: mode %q: %v", entry, fields[2], err)
+		t.Errorf("path entry %s: %s mode %q: %v", entry, checked, fields[3], err)
 		return
 	}
 	if owner != "root" || mode&0o022 != 0 || writable != "no" {
-		t.Errorf("path entry %s: owner %s, mode %o, writable by the project user %s; want root, no group or other write, and not writable (SEC08-proj-isolation)",
-			entry, owner, mode, writable)
+		t.Errorf("path entry %s: %s has owner %s, mode %o, writable by the project user %s; want root, no group or other write, and not writable (SEC08-proj-isolation)",
+			entry, checked, owner, mode, writable)
 	}
 }
 
