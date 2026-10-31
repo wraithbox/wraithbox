@@ -131,13 +131,16 @@ func exchange(ctx context.Context, conn net.Conn, own string) (string, *Refusal,
 	if r != nil {
 		stop()
 		_ = conn.Close() // ends the write, if it is still blocked
-		<-sent
+	}
+	writeErr := <-sent
+	if r != nil {
+		// The read already failed, so the refusal names that error and
+		// writeErr adds nothing.
 		if ctx.Err() != nil {
 			return "", nil, ctxEnded(ctx)
 		}
 		return "", r, nil
 	}
-	writeErr := <-sent
 	if !stop() {
 		return "", nil, ctxEnded(ctx)
 	}

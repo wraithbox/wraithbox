@@ -125,11 +125,11 @@ func parseControl(lay controlLayout, b []byte) control {
 			c.unexpected = true
 		} else {
 			c.collect(data)
-			if msgLen > len(rest) {
-				c.lost += (msgLen - lay.hdrLen - len(data)) / fdSize
-			}
+			// The descriptors past the end of the data. Zero unless the
+			// message is cut.
+			c.lost += (msgLen - lay.hdrLen - len(data)) / fdSize
 		}
-		if msgLen > len(rest) {
+		if c.cut {
 			return c
 		}
 		off += alignUp(msgLen, lay.align)
