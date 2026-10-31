@@ -25,6 +25,9 @@ type fakeGuest struct {
 	sent      chan *terminalv1.ClientFrame
 	cancelled chan struct{}
 	once      sync.Once
+	// sendFails makes each Send fail after it records the frame. Set
+	// before the relay starts.
+	sendFails bool
 }
 
 func (g *fakeGuest) Recv() (*guestv1.ShellResponse, error) {
@@ -38,6 +41,9 @@ func (g *fakeGuest) Recv() (*guestv1.ShellResponse, error) {
 
 func (g *fakeGuest) Send(req *guestv1.ShellRequest) error {
 	g.sent <- req.GetFrame()
+	if g.sendFails {
+		return io.EOF
+	}
 	return nil
 }
 
@@ -285,6 +291,107 @@ func TestRelayStoppedRepeat(t *testing.T) {
 		t.Fatal("wb didn't get the stopped frame and the exit")
 	}
 	if !strings.Contains(rt.logs.String(), `"rule":"guest-stopped-repeat"`) || !strings.Contains(rt.logs.String(), `"count":1`) {
+		t.Fatalf("log = %s", rt.logs.String())
+	}
+}
+
+// TestRelayStoppedRepeatsCounted sees only the first repeated stopped
+// frame logged as it comes, and the count logged once at the end.
+func TestRelayStoppedRepeatsCounted(t *testing.T) {
+	rt := startRelay(t, &terminalv1.Setup{Interactive: true, Size: &terminalv1.WindowSize{Rows: 24, Cols: 80}})
+	for range 4 {
+		rt.guest.frame(stoppedFrame())
+	}
+	rt.guest.frame(exitCode(0))
+	rt.guest.end(io.EOF)
+	rt.outcome(t)
+	logs := rt.logs.String()
+	if n := strings.Count(logs, "guest stopped frame dropped"); n != 1 {
+		t.Fatalf("%d lines of the first repeat, log = %s", n, logs)
+	}
+	if !strings.Contains(logs, "guest stopped frames dropped") || !strings.Contains(logs, `"count":3`) {
+		t.Fatalf("log = %s", logs)
+	}
+}
+
+// TestRelayAfterLastFlood sees guest frames after the exit dropped, the
+// first logged, and the stream cancelled past MaxAfterLast with the
+// exit kept.
+func TestRelayAfterLastFlood(t *testing.T) {
+	rt := startRelay(t, &terminalv1.Setup{})
+	rt.guest.frame(exitCode(0))
+	for range MaxAfterLast + 1 {
+		rt.guest.frame(outFrame(terminalv1.Stream_STREAM_STDOUT, []byte("late")))
+	}
+	if o := rt.outcome(t); o.Exit == nil {
+		t.Fatalf("Outcome = %+v", o)
+	}
+	select {
+	case <-rt.guest.cancelled:
+	default:
+		t.Fatal("the guest stream wasn't cancelled")
+	}
+	logs := rt.logs.String()
+	if n := strings.Count(logs, "guest frame after the last one"); n != 1 {
+		t.Fatalf("%d lines of the first frame after the last, log = %s", n, logs)
+	}
+	if !strings.Contains(logs, `"decision":"cancel"`) || !strings.Contains(logs, `"count":17`) {
+		t.Fatalf("log = %s", logs)
+	}
+}
+
+// TestRelayClientCloseOnExit sees a wb that closes on the exit send the
+// guest no hangup: the shell has ended.
+func TestRelayClientCloseOnExit(t *testing.T) {
+	rt := startRelay(t, &terminalv1.Setup{})
+	rt.guest.frame(exitCode(0))
+	if rt.toClient(t).GetExit() == nil {
+		t.Fatal("wb didn't get the exit")
+	}
+	close(rt.client.reqs)
+	rt.guest.end(io.EOF)
+	rt.outcome(t)
+	select {
+	case f := <-rt.guest.sent:
+		t.Fatalf("the guest got %v", f)
+	default:
+	}
+	if strings.Contains(rt.logs.String(), `"rule":"shell-hangup"`) {
+		t.Fatalf("log = %s", rt.logs.String())
+	}
+}
+
+// TestRelayGuestSendFails sees a failed send of wb's frame to the guest
+// hang up the shell, so the relay cancels the stream HangupWait later.
+func TestRelayGuestSendFails(t *testing.T) {
+	g := NewRegistry(&fakeKiller{}, nil)
+	t.Cleanup(g.Close)
+	rt := &relayTest{
+		guest: &fakeGuest{
+			frames: make(chan guestRecv), sent: make(chan *terminalv1.ClientFrame, 16),
+			cancelled: make(chan struct{}), sendFails: true,
+		},
+		client: &fakeClient{reqs: make(chan *hostdv1.ShellRequest), sent: make(chan *terminalv1.ServerFrame, 16)},
+		after:  &fakeAfter{hangup: make(chan time.Time, 1)},
+		logs:   &syncBuffer{},
+		out:    make(chan Outcome, 1),
+	}
+	r := &Relay{
+		Shell: open(t, g, "a", "p"), Client: rt.client, Guest: rt.guest, Cancel: rt.guest.cancel,
+		Down: make(chan struct{}), Checker: NewChecker(&terminalv1.Setup{}),
+		Log: slog.New(slog.NewJSONHandler(rt.logs, nil)), After: rt.after.after,
+	}
+	go func() { rt.out <- r.Run() }()
+	rt.client.frame(&terminalv1.ClientFrame{Frame: &terminalv1.ClientFrame_Input{Input: []byte("ls\n")}})
+	rt.toGuest(t)
+	if rt.toGuest(t).GetHangup() == nil {
+		t.Fatal("the guest got no hangup")
+	}
+	rt.after.hangup <- time.Time{}
+	if o := rt.outcome(t); o.Rule != RuleHangupTimeout {
+		t.Fatalf("Outcome = %+v", o)
+	}
+	if !strings.Contains(rt.logs.String(), "a send to wb-guestd failed") {
 		t.Fatalf("log = %s", rt.logs.String())
 	}
 }

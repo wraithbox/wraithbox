@@ -31,6 +31,10 @@ const (
 	// after the guest stream failed in transport, before it takes the
 	// failure for the stream's own.
 	LostWait = 2 * time.Second
+	// MaxAfterLast is how many guest frames after the shell's last one
+	// the relay drops before it takes the guest for a failing one and
+	// cancels the stream (SEC13-bounded-resources).
+	MaxAfterLast = 16
 )
 
 // The rules of the relay's log lines that aren't failures.
@@ -127,13 +131,29 @@ func (r *Relay) Run() Outcome {
 	defer close(rl.done)
 	frames := rl.readGuest()
 	go rl.readClient()
-	return rl.loop(frames)
+	var st loopState
+	out := rl.loop(frames, &st)
+	rl.logDropped(&st)
+	return out
+}
+
+// logDropped logs the counts of the dropped frames once, at the shell's
+// end. Only the first of each kind is logged as it comes, so a guest
+// can't flood the log.
+func (rl *relay) logDropped(st *loopState) {
+	if n := rl.Checker.Repeats(); n > 1 {
+		rl.Log.LogAttrs(context.Background(), slog.LevelWarn, "guest stopped frames dropped", rl.with(
+			slog.String("rule", RuleStoppedRepeat), slog.String("decision", "drop"), slog.Int("count", n))...)
+	}
+	if st.afterLast > 1 {
+		rl.Log.LogAttrs(context.Background(), slog.LevelWarn, "guest frames after the last one dropped", rl.with(
+			slog.String("rule", RuleFrame), slog.String("decision", "drop"), slog.Int("count", st.afterLast))...)
+	}
 }
 
 // loop reads the guest's frames. Once the shell's end is known it reads
 // on until the guest stream closes, HangupWait at most.
-func (rl *relay) loop(frames <-chan guestRecv) Outcome {
-	var st loopState
+func (rl *relay) loop(frames <-chan guestRecv, st *loopState) Outcome {
 	hungUp := rl.hungUp
 	for {
 		select {
@@ -141,7 +161,9 @@ func (rl *relay) loop(frames <-chan guestRecv) Outcome {
 			if res.err != nil {
 				return rl.streamEnd(res.err, st.out)
 			}
-			rl.received(res.resp, &st)
+			if rl.received(res.resp, st) {
+				return *st.out
+			}
 		case <-hungUp:
 			hungUp = nil
 			st.arm(rl.After)
@@ -156,6 +178,8 @@ func (rl *relay) loop(frames <-chan guestRecv) Outcome {
 type loopState struct {
 	out      *Outcome
 	deadline <-chan time.Time
+	// afterLast counts the guest frames after the shell's last one.
+	afterLast int
 }
 
 // arm starts the HangupWait, once.
@@ -166,16 +190,17 @@ func (st *loopState) arm(after func(time.Duration) <-chan time.Time) {
 }
 
 // received handles one guest frame: checked and passed to wb before the
-// shell's end, logged and dropped after it.
-func (rl *relay) received(resp *guestv1.ShellResponse, st *loopState) {
+// shell's end, dropped after it. It reports whether the relay ends now,
+// with st.out.
+func (rl *relay) received(resp *guestv1.ShellResponse, st *loopState) bool {
 	rl.got = true
 	if st.out != nil {
-		rl.afterLast(resp)
-		return
+		return rl.afterLast(resp, st)
 	}
 	if st.out = rl.frame(resp); st.out != nil {
 		st.arm(rl.After)
 	}
+	return false
 }
 
 // frame checks one guest frame and passes it to wb. It returns the
@@ -187,16 +212,22 @@ func (rl *relay) frame(resp *guestv1.ShellResponse) *Outcome {
 		rl.fail(fail)
 		return &Outcome{Rule: fail.Rule}
 	case out == nil:
-		rl.Log.LogAttrs(context.Background(), slog.LevelWarn, "guest stopped frame dropped", rl.with(
-			slog.String("rule", RuleStoppedRepeat), slog.String("decision", "drop"), slog.Int("count", rl.Checker.Repeats()))...)
+		// The first repeat is logged now, and the count at the end.
+		if rl.Checker.Repeats() == 1 {
+			rl.Log.LogAttrs(context.Background(), slog.LevelWarn, "guest stopped frame dropped", rl.with(
+				slog.String("rule", RuleStoppedRepeat), slog.String("decision", "drop"), slog.Int("count", 1))...)
+		}
 		return nil
 	}
-	rl.toClient(out)
 	e := out.GetExit()
 	if e == nil {
+		rl.toClient(out)
 		return nil
 	}
+	// last is set before wb has the exit, so a wb that closes on it gets
+	// no hangup sent to the guest.
 	rl.last.Store(true)
+	rl.toClient(out)
 	rl.Log.LogAttrs(context.Background(), slog.LevelInfo, "shell ended", rl.with(
 		slog.String("rule", RuleExit), slog.String("decision", "end"),
 		slog.Int("code", int(e.GetCode())), slog.Int("signal", int(e.GetSignal())))...)
@@ -213,12 +244,25 @@ func (rl *relay) fail(f *Failure) {
 	rl.last.Store(true)
 }
 
-// afterLast logs a guest frame after the shell's last one. Nothing more
-// reaches wb.
-func (rl *relay) afterLast(resp *guestv1.ShellResponse) {
+// afterLast drops a guest frame after the shell's last one. Nothing
+// more reaches wb. The first is logged now and the count at the end.
+// Past MaxAfterLast, the guest's stream fails as a frame failure: the
+// relay cancels it and reports that it ends now.
+func (rl *relay) afterLast(resp *guestv1.ShellResponse, st *loopState) bool {
+	st.afterLast++
+	if st.afterLast > MaxAfterLast {
+		rl.Log.LogAttrs(context.Background(), slog.LevelWarn, "shell stream cancelled", rl.with(
+			slog.String("rule", RuleFrame), slog.String("decision", "cancel"),
+			slog.String("detail", fmt.Sprintf("more than %d guest frames after the last one", MaxAfterLast)))...)
+		rl.Cancel()
+		return true
+	}
 	_, fail := rl.Checker.Check(resp.GetFrame())
-	rl.Log.LogAttrs(context.Background(), slog.LevelWarn, "guest frame after the last one", rl.with(
-		slog.String("rule", fail.Rule), slog.String("decision", "drop"), slog.String("detail", fail.Detail))...)
+	if st.afterLast == 1 {
+		rl.Log.LogAttrs(context.Background(), slog.LevelWarn, "guest frame after the last one", rl.with(
+			slog.String("rule", fail.Rule), slog.String("decision", "drop"), slog.String("detail", fail.Detail))...)
+	}
+	return false
 }
 
 // streamEnd ends the shell whose guest stream closed or failed: lost
@@ -345,6 +389,7 @@ func (rl *relay) readClient() {
 			rl.Checker.Resumed()
 		}
 		if !rl.toGuest(&guestv1.ShellRequest{Msg: &guestv1.ShellRequest_Frame{Frame: f}}) {
+			rl.hangup(RuleHangup, "a send to wb-guestd failed")
 			return
 		}
 	}

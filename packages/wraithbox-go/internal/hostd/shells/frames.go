@@ -3,8 +3,8 @@ package shells
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
-	"unicode/utf8"
 
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
@@ -222,18 +222,24 @@ const (
 )
 
 // Quote returns `the guest reported: "<msg>"`, with msg stripped of the
-// escaped set of S16-03-around-the-stream ("Guest text elsewhere") and
-// cut on a UTF-8 boundary so the whole is at most maxMessage bytes.
+// escaped set of S16-03-around-the-stream ("Guest text elsewhere"), its
+// `"` and `\` escaped with a backslash so the guest can't close the
+// quote, and cut between characters so the whole is at most maxMessage
+// bytes. A byte that isn't UTF-8 becomes U+FFFD.
 func Quote(msg string) string {
-	s := guesttext.Strip(msg)
 	room := maxMessage - len(quotePrefix) - len(quoteSuffix)
-	if len(s) > room {
-		s = s[:room]
-		for len(s) > 0 && !utf8.ValidString(s) {
-			s = s[:len(s)-1]
+	var b strings.Builder
+	for _, r := range guesttext.Strip(msg) {
+		part := string(r)
+		if r == '"' || r == '\\' {
+			part = `\` + part
 		}
+		if b.Len()+len(part) > room {
+			break
+		}
+		b.WriteString(part)
 	}
-	return quotePrefix + s + quoteSuffix
+	return quotePrefix + b.String() + quoteSuffix
 }
 
 // LogText shows a guest's text in the log: cut to maxLogged bytes, then
