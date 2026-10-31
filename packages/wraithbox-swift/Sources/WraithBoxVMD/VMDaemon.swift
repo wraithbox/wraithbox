@@ -35,9 +35,9 @@ public enum VMDaemon {
     }
 
     /// Everything up to the VM. Before `Confinement.apply`, it reads only
-    /// the cache directory, WB_VMD_SLOT, the user database and the bundle
-    /// path (S04-03-self-sandboxing, "`wb-vmd` before it confines
-    /// itself").
+    /// the macOS version, the cache directory, WB_VMD_SLOT, the user
+    /// database and the bundle path (S04-03-self-sandboxing, "`wb-vmd`
+    /// before it confines itself").
     static func prepare(log: EventLog) throws(StartupRefusal) -> ResolvedSlot {
         try StartInterface.checkHost(ProcessInfo.processInfo.operatingSystemVersion)
         let cache = try SlotResolution.cacheDirectory()

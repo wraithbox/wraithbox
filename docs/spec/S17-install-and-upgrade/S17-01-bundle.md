@@ -98,6 +98,9 @@ signed entitlements. The build fails unless:
   the bundle decodes with a `TeamIdentifier` of exactly that team;
 - each `Info.plist` holds what "The bundle" above says, with the bundle
   identifier the build chose;
+- the app's `LSMinimumSystemVersion` is the oldest macOS that `wb setup`
+  accepts (NFR04-host-platforms), so macOS doesn't open the app on a
+  Mac that `wb setup` refuses;
 - every program, `WBBuildVersion` and the disk's `VERSION` file hold
   the run's version stamp.
 
