@@ -536,6 +536,9 @@ The checks that need a terminal are attended, run by hand with
 - after a window resize, `stty size` shows the new size;
 - Ctrl-C ends `sleep 100` and leaves the shell;
 - Ctrl-Z stops `sleep 100`, and `fg` resumes it;
+- `suspend` in the guest shell gives back the host's prompt, and `fg`
+  on the host brings the guest shell back, through the guest's stopped
+  frame;
 - `nohup sleep 1000 &` and `setsid sleep 1000 &` before `exit`, and
   no process of the project user left after the shell ends;
 - the second conformance case of C10, in a real terminal.

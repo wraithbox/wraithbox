@@ -89,8 +89,9 @@ type slotShells struct {
 	// killing holds the projects whose kill the registry is beginning, so
 	// a new shell of the project waits for it.
 	killing map[string]bool
-	// skipped holds the users of ended shells whose kill End skipped for
-	// another shell of the project, which may not start. Release of the
+	// skipped holds the users of ended shells, and of shells lost after
+	// the link came up again, whose kill End skipped for another shell of
+	// the project, which may not start. Release of the
 	// project's last shell sends it.
 	skipped map[string]state.ProjectUser
 	// links counts the connections of generation (OnLinked), so End and a
@@ -281,11 +282,11 @@ func (sh *Shell) End(ctx context.Context, lost bool) {
 		return
 	}
 	if s.hasProjectLocked(sh.ProjectID) {
-		if lost {
-			s.lost[sh.ProjectID] = sh.user
-		} else {
-			s.skipped[sh.ProjectID] = sh.user
-		}
+		// A lost shell gets here only when the link is up again, so its
+		// kill waits for the project's other shells, as a skipped one
+		// does, and not for another link: the other shell's End or
+		// Release sends it.
+		s.skipped[sh.ProjectID] = sh.user
 		g.mu.Unlock()
 		g.logKill(ctx, sh.Slot, sh.generation, sh.user, "skip", "another shell of the project is open")
 		return
