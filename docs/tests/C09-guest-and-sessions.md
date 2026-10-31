@@ -420,6 +420,10 @@ place of `zsh`:
 - Without a PTY, see standard input end with EOF, a closed standard
   output give `EPIPE`, and standard error on its own channel.
 - Kill the helper and see `session-helper-gone` and the session killed.
+  With a helper failure and a kill that leaves processes, see
+  `shell-hangup-kill` and the helper's rule in the log.
+- Exit cleanly after a child left the session with `setsid`, and see
+  the child logged with `shell-process-outside-session` and left.
 - Send a report out of form, one after the exit and an exit code of
   256, and see `session-helper-report` and the session killed. See the
   reader refuse a continued report first, two stops in a row, and a

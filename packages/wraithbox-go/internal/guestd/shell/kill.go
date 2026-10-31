@@ -50,14 +50,12 @@ func (s *session) members(ctx context.Context) (ps []sessionproc.Proc, listed bo
 }
 
 // kill sends SIGKILL to the members of the shell's session, round after
-// round while any is left or the table can't be read, and then logs each
-// process of the user that is in no open shell's session
-// (S13-01-process-hardening, "When a session's client goes", steps 2
-// and 4). When members may be left after the last round, it logs them
-// with the decision "incomplete" and reports false.
+// round while any is left or the table can't be read
+// (S13-01-process-hardening, "When a session's client goes", step 2).
+// When members may be left after the last round, it logs them with the
+// decision "incomplete" and reports false.
 func (s *session) kill() (complete bool) {
 	ctx := context.Background()
-	defer s.logOutside(ctx)
 	for round := 1; ; round++ {
 		ps, listed := s.members(ctx)
 		if listed && len(ps) == 0 {
@@ -102,7 +100,9 @@ func (s *session) logLeft(ctx context.Context, ps []sessionproc.Proc, listed boo
 }
 
 // logOutside logs each process of the user that is in no open shell's
-// POSIX session, and leaves it.
+// POSIX session, and leaves it (S13-01-process-hardening, "When a
+// session's client goes", step 4). Every end of a shell runs it, a clean
+// exit included, so a child that left with setsid is logged.
 func (s *session) logOutside(ctx context.Context) {
 	all, err := s.srv.cfg.Table.ByUID(s.user.UID)
 	if err != nil {
