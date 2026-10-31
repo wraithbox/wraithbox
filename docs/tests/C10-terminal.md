@@ -39,11 +39,11 @@ from the reset and sees the property fail, for example `ESC =` with no
 (`FuzzExitReset`, `TestExitResetWithoutStep` and `TestModel` in
 `internal/termfilter`).
 
-`FuzzGuestShellFrame`, still to write, feeds arbitrary bytes as guest
-frames to the decoding that `ShellService`'s handler and the admin
-path's handler (S15-05-admin-path) share. It checks that every frame
-over a cap is refused and that a frame sent to `wb` is one the handler
-built.
+`FuzzGuestShellFrame` (`internal/hostd/shells`) feeds arbitrary bytes
+as guest frames to the check that `ShellService`'s handler uses, and
+that the admin path's handler (S15-05-admin-path) is to share. It
+checks that every frame over a cap is refused and that a frame sent to
+`wb` is one the handler built.
 
 ## Relay
 
