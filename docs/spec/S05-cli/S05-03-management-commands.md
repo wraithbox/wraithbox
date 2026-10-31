@@ -169,9 +169,8 @@ This command follows a data disk refusal: `data-disk-missing`,
    - writes a 5019 event with the command, the VM, and the old and new
      volume UUIDs.
 
-The project users' host records stay, because their IDs are never
-reused (S06-03-image-updates). A new, empty home is made on the new
-volume.
+The project users' host records stay, because their IDs are never reused
+(S06-03-image-updates). A new, empty home is made on the new volume.
 
 The command is refused without a terminal, because a person has to
 confirm. It asks in its own terminal, never in a session's stream, and
@@ -258,9 +257,8 @@ isn't UTF-8").
 - the window title is `wb: <shell id>` (S16-03-around-the-stream,
   "Title"). The shell id has the session id form (S05-04-naming,
   "Session id and branch");
-- before the relay starts, one line on standard error names the
-  project and the guest user, and says that a debug shell returns no
-  work.
+- before the relay starts, one line on standard error names the project
+  and the guest user, and says that a debug shell returns no work.
 
 The shell's output reaches the terminal through the filter, and `wb`
 writes the title, the reset and the drain around it, as for an agent
