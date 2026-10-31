@@ -492,7 +492,9 @@ guest:
   skipped, and see the waiting shell's release send it, and no kill
   without a skip (`TestReleaseSendsSkippedKill`,
   `TestReleaseWithoutSkipSendsNone`). Lose a shell after a relink, and
-  see its user killed at once (`TestLostAfterRelinkKillsNow`). Fail a
+  see its user killed at once (`TestLostAfterRelinkKillsNow`), or by
+  the release of a waiting shell of its project
+  (`TestReleaseSendsLostKillAfterRelink`). Fail a
   kill's send, and see it sent on the next link
   (`TestKillNotSentRetriedOnNewLink`). End a shell after close, and see
   no kill (`TestNoKillAfterClose`).
