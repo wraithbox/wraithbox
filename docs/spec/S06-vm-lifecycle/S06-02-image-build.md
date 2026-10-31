@@ -24,8 +24,7 @@ instance:
 
 1. installs macOS;
 2. runs the provisioning boot and the boots of the second stage;
-3. exits when its part of the build ends. The Claude Code layer boots
-   in `wb-vmd-layer`, without the install rules (S04-04-vm-processes).
+3. exits when its part of the build ends.
 
 The install reads only the restore image at the fixed path
 `<data>/images/macos-restore.ipsw`.
@@ -91,30 +90,26 @@ The first stage is the provisioning boot.
   join that network. The channel therefore authenticates the guest.
 - A session that doesn't complete fails the build.
 
-The second stage goes through `wb-guestd`. Everything after the
-provisioning boot goes over the host-guest socket to `wb-guestd`:
+The second stage goes over the host-guest socket to `wb-guestd`:
 
 1. At first contact, before any other request, `wbadmin`'s password is
-   rotated from the build's password to the image's.
-   `wb-guestadmin` writes the image's password to the store first.
-   Both passwords reach `wb-guestd` on a connection of their own, and
-   `sysadminctl` on standard input. The build fails if the rotation
-   fails.
+   rotated from the build's password to the image's. `wb-guestadmin`
+   writes the image's password to the store first. Both passwords reach
+   `wb-guestd` on a connection of their own, and `sysadminctl` on
+   standard input. The build fails if the rotation fails.
 2. The build turns Remote Login and automatic login off.
 3. The build takes `wbadmin` out of every group, disables it, and
    deletes its keychains.
 4. The base layer is installed through `wb-guestd`.
-5. `wb-guestd` installs `wb-guestroot` in `/Library/WraithBox/libexec`
-   and its LaunchDaemon in `/Library/LaunchDaemons`, from the guest
-   tools disk (S15-05-admin-path, "In the image").
-6. The image is sealed ("Sealing" below). This sealed image is the
-   parent of the Claude Code layer.
+5. `wb-guestd` installs `wb-guestroot` and its LaunchDaemon from the
+   guest tools disk (S15-05-admin-path, "In the image").
+6. The image is sealed ("Sealing" below).
 
-Then the build makes the Claude Code layer on a clone of that parent,
-in a new build bundle, and seals it again (S06-01-image-layers, "The
-Claude Code layer"). The clone boots in `wb-vmd-layer`
-(S04-04-vm-processes). A build for a new Claude Code release does
-only that part.
+That sealed image is the parent of the Claude Code layer. The build
+clones it into a new build bundle, boots the clone in `wb-vmd-layer`
+without the install rules (S04-04-vm-processes), makes the layer, and
+seals it again (S06-01-image-layers, "The Claude Code layer"). A build
+for a new Claude Code release does only that part.
 
 After the rotation the secure token keeps working, and the host alone
 can unlock it.
@@ -159,9 +154,7 @@ local Kerberos realm (`LKDC`) of `wbadmin` is also the same in every
 clone.
 
 An image is never updated in place. A newer restore image rebuilds
-every layer, and a new Claude Code release rebuilds the Claude Code
-layer on a clone of its sealed parent (S06-01-image-layers, "The Claude
-Code layer").
+every layer, and a new Claude Code release only the Claude Code layer.
 
 ### Guest confinement
 
