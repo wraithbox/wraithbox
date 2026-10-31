@@ -534,7 +534,10 @@ it adds. It checks:
 - `wb vm stop` is refused, naming the shell, while a shell is open.
 
 The checks that need a terminal are attended, run by hand with
-`wb shell --project P` in the work VM:
+`wb shell --project P` in the work VM. When the host's `TERM` has no
+terminfo entry in the guest, such as Ghostty's `xterm-ghostty`, run
+`export TERM=xterm-256color` in the guest shell first (I474). They
+check:
 
 - the terminal's title and the label line;
 - `tty` names a PTY, and `ps -o sess,pgid,uid -p $$` shows the shell
@@ -542,11 +545,17 @@ The checks that need a terminal are attended, run by hand with
 - after a window resize, `stty size` shows the new size;
 - Ctrl-C ends `sleep 100` and leaves the shell;
 - Ctrl-Z stops `sleep 100`, and `fg` resumes it;
-- `suspend` in the guest shell gives back the host's prompt, and `fg`
-  on the host brings the guest shell back, through the guest's stopped
-  frame;
-- `nohup sleep 1000 &` and `setsid sleep 1000 &` before `exit`, and
-  no process of the project user left after the shell ends;
+- `suspend -f` in the guest shell gives back the host's prompt, and
+  `fg` on the host brings the guest shell back, through the guest's
+  stopped frame. A login zsh refuses `suspend` without `-f`;
+- a `sleep 1000` that ignores the hangup and one in its own session,
+  both started before `exit`, and no process of the project user left
+  after the shell ends. macOS has no `setsid` command, so Perl starts
+  both:
+  `perl -e '$SIG{HUP} = "IGNORE"; exec "sleep", "1000"' &` and
+  `perl -MPOSIX -e 'fork and exit; POSIX::setsid() or die "setsid: $!"; exec "sleep", "1000"'`.
+  The `nohup` check waits on I475, because macOS `nohup` fails in
+  the session helper's session;
 - the second conformance case of C10, in a real terminal.
 
 Exit codes and lost sessions:
