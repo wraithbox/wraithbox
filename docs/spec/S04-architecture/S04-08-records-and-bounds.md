@@ -205,7 +205,7 @@ its limits before it merges.
 | Guest input | Process | Limits | Where |
 |---|---|---|---|
 | Host-guest socket connections | `wb-vmd`, `wb-hostd` | connections opened and not yet passed, connections per VM and per project, reconnects per minute | S04-02-vm-provider, "The VM provider passes descriptors, not bytes", S06-11-reconnect-and-recovery, "Reconnect" |
-| RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on whichever side `wb-hostd` is, client or server, and never left at the library default, requests per second per VM, entries in the reconnect session list | values in code, S06-11-reconnect-and-recovery, "Reconnect" |
+| RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on whichever side `wb-hostd` is, client or server, and never left at the library default, requests per second per VM, entries in the reconnect session list, and for a debug shell 64 KiB per received message, 64 shells per VM and 16 frames after the shell's last one | values in code, S06-11-reconnect-and-recovery, "Reconnect", S06-08-projects-and-sessions, "Debug shells in V1-M2" |
 | The version `wb-guestd` reports | `wb-hostd` | 64 bytes, fixed form | "Version skew" |
 | The package list `wb-guestd` reports | `wb-hostd` | 16 names of at most 64 bytes, fixed form, refused with `guest-packages-form`, or `guest-packages-mismatch` when it isn't the host's own | "With `wb-guestd`" |
 | Ethernet frames, DHCP and DNS | `wb-netd` | per-VM caps, query rate, name length, wildcard budget, synthetic pool | S07-02-packet-path |

@@ -9,7 +9,9 @@ A session runs from `wb claude` to its summary.
 
 - `wb-hostd` keeps each session's record and state in `state.db`
   (S04-architecture, "Host state"). The record has the VM and the VM
-  generation the session runs in.
+  generation the session runs in. The debug shells of V1-M2 are kept
+  in memory instead (S06-08-projects-and-sessions, "Debug shells in
+  V1-M2").
 - `wb-guestd` holds the session's processes. In interactive use it
   also holds its terminal device (PTY).
 

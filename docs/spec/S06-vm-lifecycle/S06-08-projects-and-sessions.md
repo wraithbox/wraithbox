@@ -187,9 +187,17 @@ Until then:
 
 - `wb-hostd` opens a shell only once the VM's data mount and the
   project user are there (`Links.CheckSessionStart`). It waits up to
-  3 minutes for a starting VM and refuses a stopping one.
+  3 minutes for a starting VM and refuses a stopping one. A `wb` that
+  gets `SIGINT`, `SIGQUIT`, `SIGTERM` or `SIGHUP` in that wait stops
+  waiting and exits with 255 (`shell-open-signal`), and `wb-hostd`
+  logs the shell with `shell-client-gone`.
 - A VM has at most 64 open shells (SEC13-bounded-resources). The 65th
   is refused with `vm-session-cap`.
+- No project is marked shared before S09-03-project-settings exists.
+  So while one project has a shell in the isolated VM, another
+  project's shell there is refused with `isolated-slot-taken`, which
+  names the project (S06-04-vms-and-placement, "Isolated slot to
+  itself").
 - A shell id has the session id form of S05-04-naming. `wb` checks it
   before it puts the id in the terminal's title.
 - Each guest frame is checked against its bounds and built again
@@ -204,11 +212,18 @@ Until then:
   no others.
 - The end of a project user's last shell locks the user and kills its
   processes (`shell-user-kill`). A new shell of that project waits for
-  the kill.
+  the kill. So does a failed unlock, as the guest may have unlocked
+  the user. A kill that didn't reach the guest is sent on the next
+  link.
+- The guest stream has 10 seconds to open, and the shell fails with
+  `guest-shell-refused` past that. Frames the guest sends after the
+  shell's last one are dropped, and past 16 of them `wb-hostd` cancels
+  the stream (`guest-shell-frame`).
 - `wb vm stop` is refused while a shell is open, naming each shell.
 
 `wb-hostd` writes one log line, with the rule, for each open, end,
-loss, refusal, hangup, lock and kill.
+loss, refusal, hangup, lock, and kill. Of the guest frames it drops,
+it logs the first of each kind, and the count once at the shell's end.
 
 ## Decisions
 
