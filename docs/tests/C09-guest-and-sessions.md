@@ -480,18 +480,65 @@ guest:
   (`TestStalledClientDoesNotStallOthers`).
 - Run `wb vm stop` with a shell open, and see it refused naming the
   shell (`TestVMStopNamesShells`).
+- Fail the unlock, and see the shell refused and its user locked and
+  killed (`TestShellUnlockFailed`). Hold the guest's stream past its
+  open time, and see the shell end with `guest-shell-refused`
+  (`TestShellOpenHeld`). Open a second project's shell in the isolated
+  VM, and see it refused with `isolated-slot-taken`
+  (`TestShellIsolatedTaken`, `TestRegisterIsolatedTaken`). End `wb`'s
+  stream while its shell waits, and see `shell-client-gone` and nothing
+  unlocked (`TestShellClientGoneWaiting`).
+- End a shell while another of its project waits, so the kill is
+  skipped, and see the waiting shell's release send it, and no kill
+  without a skip (`TestReleaseSendsSkippedKill`,
+  `TestReleaseWithoutSkipSendsNone`). Lose a shell after a relink, and
+  see its user killed at once (`TestLostAfterRelinkKillsNow`). Fail a
+  kill's send, and see it sent on the next link
+  (`TestKillNotSentRetriedOnNewLink`). End a shell after close, and see
+  no kill (`TestNoKillAfterClose`).
+- Repeat stops, and see the first logged and the count logged at the
+  end (`TestRelayStoppedRepeatsCounted`). Send frames after the exit,
+  and see them dropped and the stream cancelled past 16
+  (`TestRelayAfterLastFlood`). Close `wb` on the exit, and see no
+  hangup (`TestRelayClientCloseOnExit`). Fail a send to the guest, and
+  see the shell hung up (`TestRelayGuestSendFails`).
 
 `wb shell` itself, in `internal/projectcmd` with a fake `ShellService`:
 see it refuse an argument with exit 2, an unregistered project, a host
 without terminal support and a charset other than UTF-8 with 255, and
 print `wb-hostd`'s refusal with its rule (`TestParseShell`,
 `TestShellNotRegistered`, `TestShellTerminalUnsupported`,
-`TestShellCharsetRefused`, `TestShellHostdRefusal`).
+`TestShellCharsetRefused`, `TestShellHostdRefusal`). Send `SIGINT`
+while the open waits, and see the call cancelled and `wb` exit with 255
+and `shell-open-signal` (`TestShellSignalDuringOpen`).
 
-`TestC09ShellVM` in `cmd/wb-hostd`, needs-vm and needs-host, opens a
-real shell in the work VM through `wb-hostd`, as the project user, and
-checks that the user can run the installed `wb-guestd`, an exit status,
-and 8 MiB of piped input to a program that doesn't read it.
+`TestC09ShellVM` in `cmd/wb-hostd`, needs-vm and needs-host, opens
+real shells in the work VM through `wb-hostd`, piped, for two projects
+it adds. It checks:
+
+- the project user, and that it can run the installed `wb-guestd`;
+- the exact environment, with the host's `TERM` and `LANG` unchanged;
+- `exit 3` gives 3 and `kill -9 $$` gives 137;
+- 8 MiB of piped input to a program that doesn't read it;
+- `ls` of the other project user's home fails with `Permission
+  denied`, and `sudo -n true` fails;
+- `echo 'echo hi; exit 4' | wb shell` prints `hi` and gives 4;
+- `yes` into a reader that closes after one line, as `head -1` does,
+  ends promptly with the shell's status;
+- `wb vm stop` is refused, naming the shell, while a shell is open.
+
+What needs a terminal stays attended, run by hand with
+`wb shell --project P` in the work VM:
+
+- the terminal's title and the label line;
+- `tty` names a PTY, and `ps -o sess,pgid,uid -p $$` shows the shell
+  as its session's leader, as the project user;
+- after a window resize, `stty size` shows the new size;
+- Ctrl-C ends `sleep 100` and leaves the shell;
+- Ctrl-Z stops `sleep 100`, and `fg` resumes it;
+- `nohup sleep 1000 &` and `setsid sleep 1000 &` before `exit`, and
+  no process of the project user left after the shell ends;
+- the second conformance case of C10, in a real terminal.
 
 Exit codes and lost sessions:
 
