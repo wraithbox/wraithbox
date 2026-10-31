@@ -197,3 +197,100 @@ func TestNewRunDropsLost(t *testing.T) {
 		t.Fatalf("kills = %v", got)
 	}
 }
+
+// TestReleaseSendsSkippedKill: shell a of the project ends while shell b
+// waits in its admission, so a's kill is skipped. b never starts, and
+// its Release sends the kill (S13-01-process-hardening, "When a
+// project's last session ends").
+func TestReleaseSendsSkippedKill(t *testing.T) {
+	k := &fakeKiller{}
+	g := NewRegistry(k, nil)
+	a := open(t, g, "a", "p")
+	b, err := g.Register("b", vm.SlotWork, "p", 42, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.End(t.Context(), false)
+	g.kills.Wait()
+	if got := k.got(); len(got) != 0 {
+		t.Fatalf("kills while b waits = %v", got)
+	}
+	b.Release()
+	g.Close()
+	if got := k.got(); !slices.Equal(got, []string{"work/1/p"}) {
+		t.Fatalf("kills after b's release = %v", got)
+	}
+}
+
+// TestReleaseWithoutSkipSendsNone: a shell that never started, with no
+// skipped kill of its project, sends no kill.
+func TestReleaseWithoutSkipSendsNone(t *testing.T) {
+	k := &fakeKiller{}
+	g := NewRegistry(k, nil)
+	open(t, g, "a", "p").Release()
+	g.Close()
+	if got := k.got(); len(got) != 0 {
+		t.Fatalf("kills = %v", got)
+	}
+}
+
+// TestLostAfterRelinkKillsNow: a shell whose End comes after the next
+// connection's hook has its user killed at once, not left for a
+// connection that may not come.
+func TestLostAfterRelinkKillsNow(t *testing.T) {
+	k := &fakeKiller{}
+	g := NewRegistry(k, nil)
+	a := open(t, g, "a", "p")
+	g.OnLinked(vm.SlotWork, 1)
+	a.End(t.Context(), true)
+	g.Close()
+	if got := k.got(); !slices.Equal(got, []string{"work/1/p"}) {
+		t.Fatalf("kills = %v", got)
+	}
+}
+
+// hookKiller fails its first kill with ErrKillNotSent after it runs
+// during, and passes the rest.
+type hookKiller struct {
+	fakeKiller
+	during func()
+}
+
+func (k *hookKiller) KillUser(ctx context.Context, slot vm.Slot, generation uint64, u state.ProjectUser) error {
+	_ = k.fakeKiller.KillUser(ctx, slot, generation, u)
+	if d := k.during; d != nil {
+		k.during = nil
+		d()
+		return guestconn.ErrKillNotSent
+	}
+	return nil
+}
+
+// TestKillNotSentRetriedOnNewLink: a kill that failed while a new
+// connection came up is sent again at once on that connection.
+func TestKillNotSentRetriedOnNewLink(t *testing.T) {
+	g := NewRegistry(nil, nil)
+	k := &hookKiller{during: func() { g.OnLinked(vm.SlotWork, 1) }}
+	g.killer = k
+	open(t, g, "a", "p").End(t.Context(), false)
+	// The retry starts in the first kill's goroutine, before it ends, so
+	// Wait covers it.
+	g.kills.Wait()
+	g.Close()
+	if got := k.got(); !slices.Equal(got, []string{"work/1/p", "work/1/p"}) {
+		t.Fatalf("kills = %v", got)
+	}
+}
+
+// TestNoKillAfterClose: an End after Close starts no kill.
+func TestNoKillAfterClose(t *testing.T) {
+	k := &fakeKiller{}
+	g := NewRegistry(k, nil)
+	a := open(t, g, "a", "p")
+	g.Close()
+	a.End(t.Context(), false)
+	g.kills.Wait()
+	if got := k.got(); len(got) != 0 {
+		t.Fatalf("kills = %v", got)
+	}
+}

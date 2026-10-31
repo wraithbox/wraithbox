@@ -60,6 +60,9 @@ type Registry struct {
 
 	mu    sync.Mutex
 	slots map[vm.Slot]*slotShells
+	// closed is set by Close, after which no kill starts, so the kills'
+	// WaitGroup gets no Add after its Wait.
+	closed bool
 }
 
 // slotShells is the registry's state of one VM.
@@ -74,6 +77,13 @@ type slotShells struct {
 	// killing holds the projects whose kill the registry is beginning, so
 	// a new shell of the project waits for it.
 	killing map[string]bool
+	// skipped holds the users of ended shells whose kill End skipped for
+	// another shell of the project, which may not start. Release of the
+	// project's last shell sends it.
+	skipped map[string]state.ProjectUser
+	// links counts the connections of generation (OnLinked), so End and a
+	// failed kill can tell a link that came up again since.
+	links uint64
 }
 
 // NewRegistry returns an empty registry that sends kills through k.
@@ -85,8 +95,12 @@ func NewRegistry(k Killer, log *slog.Logger) *Registry {
 	return &Registry{killer: k, log: log, ctx: ctx, cancel: cancel, slots: map[vm.Slot]*slotShells{}}
 }
 
-// Close ends the kills the registry sends, and waits for them.
+// Close ends the kills the registry sends, and waits for them. No kill
+// starts after it.
 func (g *Registry) Close() {
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
 	g.cancel()
 	g.kills.Wait()
 }
@@ -100,10 +114,12 @@ type Shell struct {
 	PID         int
 	Interactive bool
 
-	// Set by Bind, and then fixed.
+	// Set by Bind, and then fixed. link is the slot's connection count
+	// then.
 	generation uint64
 	user       state.ProjectUser
 	bound      bool
+	link       uint64
 
 	// state is guarded by the registry's mutex.
 	state vm.SessionState
@@ -133,7 +149,10 @@ func (g *Registry) Register(id string, slot vm.Slot, projectID string, pid int, 
 func (g *Registry) slotLocked(slot vm.Slot) *slotShells {
 	s := g.slots[slot]
 	if s == nil {
-		s = &slotShells{shells: map[*Shell]struct{}{}, lost: map[string]state.ProjectUser{}, killing: map[string]bool{}}
+		s = &slotShells{
+			shells: map[*Shell]struct{}{}, lost: map[string]state.ProjectUser{},
+			killing: map[string]bool{}, skipped: map[string]state.ProjectUser{},
+		}
 		g.slots[slot] = s
 	}
 	return s
@@ -144,8 +163,10 @@ func (g *Registry) slotLocked(slot vm.Slot) *slotShells {
 func (s *slotShells) seeLocked(generation uint64) {
 	if generation > s.generation {
 		s.generation = generation
+		s.links = 0
 		clear(s.lost)
 		clear(s.killing)
+		clear(s.skipped)
 	}
 }
 
@@ -177,8 +198,9 @@ func (g *Registry) Sessions(slot vm.Slot) []vm.Session {
 func (sh *Shell) Bind(generation uint64, u state.ProjectUser) {
 	sh.g.mu.Lock()
 	defer sh.g.mu.Unlock()
-	sh.generation, sh.user, sh.bound = generation, u, true
-	sh.g.slotLocked(sh.Slot).seeLocked(generation)
+	s := sh.g.slotLocked(sh.Slot)
+	s.seeLocked(generation)
+	sh.generation, sh.user, sh.bound, sh.link = generation, u, true, s.links
 }
 
 // Generation returns the generation Bind recorded.
@@ -196,19 +218,31 @@ func (sh *Shell) SetState(st vm.SessionState) {
 }
 
 // Release removes a shell that never started in the guest. It sends no
-// kill: the project user ran nothing for it.
+// kill for itself: the project user ran nothing for it. When an ended
+// shell's kill was skipped for this one, and no other shell of the
+// project is open, Release sends that kill (S13-01-process-hardening,
+// "When a project's last session ends").
 func (sh *Shell) Release() {
-	sh.g.mu.Lock()
-	defer sh.g.mu.Unlock()
-	delete(sh.g.slotLocked(sh.Slot).shells, sh)
+	g := sh.g
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	s := g.slotLocked(sh.Slot)
+	delete(s.shells, sh)
+	u, ok := s.skipped[sh.ProjectID]
+	if !ok || s.hasProjectLocked(sh.ProjectID) {
+		return
+	}
+	g.startKillLocked(s, sh.Slot, s.generation, u, "the project's last shell ended, and a shell that waited for it didn't start")
 }
 
-// End removes a shell that started in the guest. A lost one records its
-// user, whose kill waits for the next connection. Otherwise, when the
-// VM has no other shell of the project, End has wb-guestd lock the user
-// and run the kill loop (S13-01-process-hardening, "When a project's
-// last session ends"), and logs the result. The kill runs on after End
-// returns, and a later shell of the project waits for it (Killing).
+// End removes a shell that started in the guest, or that may have: its
+// user may be unlocked. A lost one records its user, whose kill waits for
+// the next connection, or runs now when a connection came up since the
+// shell started. Otherwise, when the VM has no other shell of the
+// project, End has wb-guestd lock the user and run the kill loop
+// (S13-01-process-hardening, "When a project's last session ends"), and
+// logs the result. The kill runs on after End returns, and a later shell
+// of the project waits for it (Killing).
 func (sh *Shell) End(ctx context.Context, lost bool) {
 	g := sh.g
 	g.mu.Lock()
@@ -218,23 +252,42 @@ func (sh *Shell) End(ctx context.Context, lost bool) {
 		g.mu.Unlock()
 		return
 	}
-	if lost {
+	relinked := s.links > sh.link
+	if lost && !relinked {
 		s.lost[sh.ProjectID] = sh.user
 		g.mu.Unlock()
 		g.logKill(ctx, sh.Slot, sh.generation, sh.user, "wait", "the shell was lost, so the kill waits for the next connection")
 		return
 	}
 	if s.hasProjectLocked(sh.ProjectID) {
+		if lost {
+			s.lost[sh.ProjectID] = sh.user
+		} else {
+			s.skipped[sh.ProjectID] = sh.user
+		}
 		g.mu.Unlock()
 		g.logKill(ctx, sh.Slot, sh.generation, sh.user, "skip", "another shell of the project is open")
 		return
 	}
-	// This kill covers a lost shell's too.
-	delete(s.lost, sh.ProjectID)
-	s.killing[sh.ProjectID] = true
+	why := "the project's last shell ended"
+	if lost {
+		why = "the shell was lost, and the link is up again"
+	}
+	g.startKillLocked(s, sh.Slot, sh.generation, sh.user, why)
 	g.mu.Unlock()
-	slot, generation, u := sh.Slot, sh.generation, sh.user
-	g.kills.Go(func() { g.kill(slot, generation, u, "the project's last shell ended") })
+}
+
+// startKillLocked begins the kill of u, which covers a lost or skipped
+// kill of its project too. It starts none after Close.
+func (g *Registry) startKillLocked(s *slotShells, slot vm.Slot, generation uint64, u state.ProjectUser, why string) {
+	if g.closed {
+		return
+	}
+	delete(s.lost, u.ProjectID)
+	delete(s.skipped, u.ProjectID)
+	s.killing[u.ProjectID] = true
+	link := s.links
+	g.kills.Go(func() { g.kill(slot, generation, link, u, why) })
 }
 
 func (s *slotShells) hasProjectLocked(projectID string) bool {
@@ -252,27 +305,26 @@ func (s *slotShells) hasProjectLocked(projectID string) bool {
 // drops"), and leaves every other user alone. It doesn't block.
 func (g *Registry) OnLinked(slot vm.Slot, generation uint64) {
 	g.mu.Lock()
+	defer g.mu.Unlock()
 	s := g.slotLocked(slot)
 	s.seeLocked(generation)
-	var users []state.ProjectUser
+	if s.generation != generation {
+		return
+	}
+	s.links++
 	for projectID, u := range s.lost {
 		if s.hasProjectLocked(projectID) {
 			continue
 		}
-		delete(s.lost, projectID)
-		s.killing[projectID] = true
-		users = append(users, u)
-	}
-	g.mu.Unlock()
-	for _, u := range users {
-		g.kills.Go(func() { g.kill(slot, generation, u, "a shell of the project was lost under the last link") })
+		g.startKillLocked(s, slot, generation, u, "a shell of the project was lost under the last link")
 	}
 }
 
-// kill sends the kill of u, records a user whose kill didn't reach the
-// guest (guestconn.ErrKillNotSent) as lost, so the next connection
-// sends it again, and then lets shells of the project start.
-func (g *Registry) kill(slot vm.Slot, generation uint64, u state.ProjectUser, why string) {
+// kill sends the kill of u, which began under the slot's connection
+// link, and then lets shells of the project start. A kill that didn't
+// reach the guest (guestconn.ErrKillNotSent) begins again at once when a
+// connection came up since, and otherwise waits as lost for the next.
+func (g *Registry) kill(slot vm.Slot, generation, link uint64, u state.ProjectUser, why string) {
 	err := g.killer.KillUser(g.ctx, slot, generation, u)
 	g.mu.Lock()
 	s := g.slotLocked(slot)
@@ -280,6 +332,9 @@ func (g *Registry) kill(slot vm.Slot, generation uint64, u state.ProjectUser, wh
 		delete(s.killing, u.ProjectID)
 		if errors.Is(err, guestconn.ErrKillNotSent) && g.ctx.Err() == nil {
 			s.lost[u.ProjectID] = u
+			if s.links > link && !s.hasProjectLocked(u.ProjectID) {
+				g.startKillLocked(s, slot, generation, u, why+", sent again on the new link")
+			}
 		}
 	}
 	g.mu.Unlock()
