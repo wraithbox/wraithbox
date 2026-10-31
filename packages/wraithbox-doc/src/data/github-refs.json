@@ -2571,7 +2571,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "S15-least-privilege: a designed admin path from the host into the user's own guest, apart from every agent path",
-		"summary": "The host has no way to do admin work inside a VM that wb-vmd booted."
+		"summary": "The host has no way to do admin work inside a VM that wb-vmd booted.",
+		"brief": "B419-admin-path"
 	},
 	"420": {
 		"kind": "issue",
@@ -2747,5 +2748,42 @@
 		"state": "open",
 		"title": "X31-admin-channel: a root shell from a second guest daemon while wb-guestd is down",
 		"summary": "Can a second root LaunchDaemon in a macOS guest, wb-guestroot, give the host a root shell on a PTY over its own vsock port below 1024, while wb-guestd is dead, wedged or restarting?"
+	},
+	"449": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): Claude Code in its own image layer, from the stable channel",
+		"summary": "Spec change (IMG.0) per the Decision (2026-10-16) and Triage comments on #220: Claude Code goes in its own top layer, installed on a clone of a sealed image and sealed again, from Anthropic's stable channel by default…"
+	},
+	"450": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Flaky test: internal/guestlink TestGuestAnswerLinks on macOS CI",
+		"summary": "TestGuestAnswerLinks in packages/wraithbox-go/internal/guestlink failed on main's CI (run 41020791920, Go (macos-26), commit ba10e452), and passed on later pull request runs with the same code:"
+	},
+	"451": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): the admin path, a root shell for the person at the host terminal",
+		"summary": "- Approving commits to: wb vm admin <vm as the only way to a root shell in a guest.",
+		"brief": "B419-admin-path"
+	},
+	"452": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): wb-build-ssh on Go's SSH library over wb-netd's build-only connection",
+		"summary": "wb-build-ssh now speaks SSH in its own process with golang.org/x/crypto/ssh, on a socket that wb-netd connects to the build guest's port 22 and hands over through wb-hostd and wb-launcher."
+	},
+	"453": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(swift): macOS 27 hosts for v1, the Swift job on xcode-27",
+		"summary": "Implements the maintainer's decision 3A on #143 (2026-10-07): v1 hosts need Apple Silicon with macOS 27 or later, because wb image build needs VZMacGuestProvisioningOptions (X17-image-build)."
+	},
+	"454": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci: run the Go darwin tests on macOS 27, the new host floor",
+		"summary": "PR #453 (#143) raises the host floor to macOS 27 (NFR04-host-platforms) and moves the Swift CI job to the xcode-27 runner."
 	}
 }
