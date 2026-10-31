@@ -29,7 +29,9 @@ fdchan
 guestlink
 guestsock
 selfsandbox
+sessionid
 termfilter
+termsetup
 localipc
 hostversion
 grpccreds

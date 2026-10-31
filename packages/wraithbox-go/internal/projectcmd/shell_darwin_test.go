@@ -25,10 +25,10 @@ import (
 // opened, or with refused, then sends an exit status.
 type shellCall struct {
 	grpc.ClientStream
-	opened  *hostdv1.ShellOpened
-	refused error
-	open    *hostdv1.ShellOpen
-	recvs   int
+	opened   *hostdv1.ShellOpened
+	refused  error
+	open     *hostdv1.ShellOpen
+	received int
 }
 
 func (c *shellCall) Send(r *hostdv1.ShellRequest) error {
@@ -39,13 +39,13 @@ func (c *shellCall) Send(r *hostdv1.ShellRequest) error {
 }
 
 func (c *shellCall) Recv() (*hostdv1.ShellResponse, error) {
-	c.recvs++
+	c.received++
 	switch {
-	case c.recvs == 1 && c.refused != nil:
+	case c.received == 1 && c.refused != nil:
 		return nil, c.refused
-	case c.recvs == 1:
+	case c.received == 1:
 		return &hostdv1.ShellResponse{Msg: &hostdv1.ShellResponse_Opened{Opened: c.opened}}, nil
-	case c.recvs == 2:
+	case c.received == 2:
 		exit := &terminalv1.ServerFrame{Frame: &terminalv1.ServerFrame_Exit{Exit: &terminalv1.Exit{Status: &terminalv1.Exit_Code{Code: 3}}}}
 		return &hostdv1.ShellResponse{Msg: &hostdv1.ShellResponse_Frame{Frame: exit}}, nil
 	}

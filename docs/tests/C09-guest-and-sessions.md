@@ -451,7 +451,7 @@ place of `zsh`:
   outside 0 to 255, a signal outside 1 to 64, or a report after the
   exit.
 
-Debug shells in V1-M2 (S06-09-session-lifecycle, "Debug shells in
+Debug shells in V1-M2 (S06-08-projects-and-sessions, "Debug shells in
 V1-M2"), unit tests of `wb-hostd` in `internal/hostd/shells`,
 `internal/hostd/hostservice` and `internal/hostd/guestconn`, with a fake
 guest:

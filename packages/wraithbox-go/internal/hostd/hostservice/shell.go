@@ -65,7 +65,7 @@ type ShellLinks interface {
 
 // ShellServer serves wraithbox.hostd.v1.ShellService: the debug shell of
 // `wb shell` (S05-03-management-commands, "`wb shell`";
-// S06-09-session-lifecycle, "Debug shells in V1-M2").
+// S06-08-projects-and-sessions, "Debug shells in V1-M2").
 type ShellServer struct {
 	hostdv1.UnimplementedShellServiceServer
 
@@ -243,9 +243,9 @@ func (s *ShellServer) run(ctx context.Context, stream hostdv1.ShellService_Shell
 	// The guest stream outlives wb's, so a closed wb ends the shell by a
 	// hangup and never by a cancel (S06-09-session-lifecycle, "Closing
 	// the terminal ends the session").
-	gctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	guestCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	defer cancel()
-	guest, down, err := s.Links.OpenShell(gctx, slot, sh.Generation())
+	guest, down, err := s.Links.OpenShell(guestCtx, slot, sh.Generation())
 	if err != nil {
 		s.logger().LogAttrs(ctx, slog.LevelWarn, "shell failed", slog.String("rule", shells.RuleRefused),
 			slog.String("decision", "fail"), slog.String("shell_id", sh.ID), slog.String("error", err.Error()))
