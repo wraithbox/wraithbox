@@ -265,6 +265,38 @@ The one exception is the end of its project's last session. Then all
 the project user's processes are killed, and the user is locked
 (S13-01-process-hardening).
 
+### Debug shells in V1-M2
+
+In V1-M2, `wb shell` (S05-03-management-commands) is the only session,
+and `wb-hostd` keeps its shells in memory, not in `state.db`. The
+session records of S06-08-projects-and-sessions come with `wb claude`.
+Until then:
+
+- `wb-hostd` opens a shell only once the VM's data mount and the
+  project user are there (`Links.CheckSessionStart`). It waits up to
+  3 minutes for a starting VM and refuses a stopping one.
+- A VM has at most 64 open shells (SEC13-bounded-resources). The 65th
+  is refused with `vm-session-cap`.
+- A shell id has the session id form of S05-04-naming. `wb` checks it
+  before it puts the id in the terminal's title.
+- Each guest frame is checked against its bounds and built again
+  before it goes to `wb`. A frame out of form ends the shell with
+  `guest-shell-frame`, an exit status out of range with
+  `guest-exit-status`, and `wb` exits with 255.
+- When `wb` goes, `wb-hostd` sends the hangup and reads on until the
+  exit. It cancels the guest's stream 15 seconds later, the hangup
+  delay and a 5 second margin (`shell-hangup-timeout`).
+- When the guest link drops, each open shell of the VM ends as lost
+  (`shell-lost`). The next link kills those shells' project users, and
+  no others.
+- The end of a project user's last shell locks the user and kills its
+  processes (`shell-user-kill`). A new shell of that project waits for
+  the kill.
+- `wb vm stop` is refused while a shell is open, naming each shell.
+
+`wb-hostd` writes one log line, with the rule, for each open, end,
+loss, refusal, hangup, lock and kill.
+
 ## Decisions
 
 ### No detach in V1

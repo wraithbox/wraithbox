@@ -451,6 +451,48 @@ place of `zsh`:
   outside 0 to 255, a signal outside 1 to 64, or a report after the
   exit.
 
+Debug shells in V1-M2 (S06-09-session-lifecycle, "Debug shells in
+V1-M2"), unit tests of `wb-hostd` in `internal/hostd/shells`,
+`internal/hostd/hostservice` and `internal/hostd/guestconn`, with a fake
+guest:
+
+- Open a shell, run it to its exit, and see `wb` get the opened message
+  and the exit, and the project user unlocked, then locked and killed
+  once (`TestShellOpenAndExit`). Close `wb` and see the hangup and the
+  kill (`TestShellClientGone`, `TestRelayClientClose`).
+- Send an open out of form, for an unknown project, before the data
+  mount, refused by the session start check, for a stopping VM, past 64
+  shells and in refusing mode, and see each refused with its rule
+  (`TestShellStartInvalid`, `TestShellProjectUnknown`,
+  `TestShellMountPending`, `TestShellSessionRefused`,
+  `TestShellVMStopping`, `TestShellSessionCap`, `TestShellRefusingMode`).
+- Send guest frames out of form, an exit code of 256, signals 0 and 65,
+  standard error that wasn't asked for, a frame over its cap, a frame
+  after the exit, and repeated stops, and see each end the shell with
+  its rule (`TestCheckFrame`, `TestRelayFailures`, `TestRelayAfterExit`,
+  `TestRelayStoppedRepeat`, `FuzzGuestShellFrame`).
+- Have a guest ignore the hangup, and see the stream cancelled after
+  the hangup delay and its margin (`TestRelayHangupTimeout`).
+- Drop the link, and see the shell lost and its user killed on the next
+  link only (`TestRelayLost`, `TestLostKillsOnNextLink`,
+  `TestLostKillRetried`).
+- Stall one `wb`, and see another shell of the VM run to its end
+  (`TestStalledClientDoesNotStallOthers`).
+- Run `wb vm stop` with a shell open, and see it refused naming the
+  shell (`TestVMStopNamesShells`).
+
+`wb shell` itself, in `internal/projectcmd` with a fake `ShellService`:
+see it refuse an argument with exit 2, an unregistered project, a host
+without terminal support and a charset other than UTF-8 with 255, and
+print `wb-hostd`'s refusal with its rule (`TestParseShell`,
+`TestShellNotRegistered`, `TestShellTerminalUnsupported`,
+`TestShellCharsetRefused`, `TestShellHostdRefusal`).
+
+`TestC09ShellVM` in `cmd/wb-hostd`, needs-vm and needs-host, opens a
+real shell in the work VM through `wb-hostd`, as the project user, and
+checks that the user can run the installed `wb-guestd`, an exit status,
+and 8 MiB of piped input to a program that doesn't read it.
+
 Exit codes and lost sessions:
 
 - Report an exit code of 256 and a signal number of 0 and of 65, and
