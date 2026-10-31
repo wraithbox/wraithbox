@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/sessionid"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
@@ -53,6 +54,11 @@ func CheckOpened(o *hostdv1.ShellOpened) (Shell, error) {
 		if f.value == "" || len(f.value) > f.limit {
 			return Shell{}, fmt.Errorf("%w: a %s of %d bytes, want 1 to %d", ErrShellOpened, f.name, len(f.value), f.limit)
 		}
+	}
+	// The id names the terminal's title, so it must be of the session
+	// id form of S05-04-naming, "Session id and branch".
+	if !sessionid.Valid(o.GetShellId()) {
+		return Shell{}, fmt.Errorf("%w: a shell id that isn't of the session id form", ErrShellOpened)
 	}
 	s := Shell{ID: guesttext.Strip(o.GetShellId()), Project: guesttext.Strip(o.GetProjectName()), User: guesttext.Strip(o.GetGuestUser())}
 	if s.ID == "" || s.Project == "" || s.User == "" {

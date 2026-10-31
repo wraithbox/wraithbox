@@ -101,6 +101,11 @@ type Config struct {
 	// CheckSessionStart refuses until it has, and after a result of
 	// processes left (S06-10-leftover-processes). nil sends none.
 	Kills *kills.Tracker
+	// OnLinked, when set, is called each time a link of slot's run of
+	// generation is up and has sent the project users, so a caller can
+	// send what waited for the next connection, such as the kills after
+	// lost shells (internal/hostd/shells). It must not block.
+	OnLinked func(slot vm.Slot, generation uint64)
 	// Clock is nil for the real clock.
 	Clock Clock
 	// Logger gets the decisions. nil takes slog.Default().
