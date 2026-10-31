@@ -82,6 +82,32 @@ func TestRegisterIDTaken(t *testing.T) {
 	}
 }
 
+// TestRegisterIsolatedTaken sees a second project's shell refused in the
+// isolated VM, the same project's second shell taken there, and the
+// work VM shared by both (S06-04-vms-and-placement, "Isolated slot to
+// itself").
+func TestRegisterIsolatedTaken(t *testing.T) {
+	g := NewRegistry(&fakeKiller{}, nil)
+	defer g.Close()
+	a, err := g.Register("a", vm.SlotIsolated, "p", 1, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.Register("b", vm.SlotIsolated, "p", 1, false); err != nil {
+		t.Fatalf("the project's second shell: %v", err)
+	}
+	_, err = g.Register("c", vm.SlotIsolated, "q", 1, false)
+	if r, ok := errors.AsType[*TakenRefusal](err); !ok || r.OtherProjectID != "p" {
+		t.Fatalf("another project's shell: %v", err)
+	}
+	open(t, g, "w1", "p")
+	open(t, g, "w2", "q")
+	a.Release()
+	if _, err := g.Register("d", vm.SlotIsolated, "q", 1, false); err == nil {
+		t.Fatal("taken while b is open")
+	}
+}
+
 // TestSessions sees an open shell listed with its state and pid, and a
 // released one gone.
 func TestSessions(t *testing.T) {

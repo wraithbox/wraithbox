@@ -78,10 +78,13 @@ func sendFrame(stream guestv1.GuestService_ShellServer, f *terminalv1.ServerFram
 }
 
 // shellLinks are the guest links of the shell tests: CheckSessionStart
-// answers sessionErr, and OpenShell opens a stream to echoGuest.
+// answers sessionErr, UnlockUser unlockErr, and OpenShell opens a stream
+// to echoGuest, or waits for its context when openHeld is set.
 type shellLinks struct {
 	mu         sync.Mutex
 	sessionErr error
+	unlockErr  error
+	openHeld   bool
 	unlocked   []uint32
 	guest      guestv1.GuestServiceClient
 }
@@ -100,10 +103,14 @@ func (l *shellLinks) UnlockUser(_ context.Context, _ vm.Slot, _ uint64, u state.
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.unlocked = append(l.unlocked, u.UID)
-	return nil
+	return l.unlockErr
 }
 
 func (l *shellLinks) OpenShell(ctx context.Context, _ vm.Slot, _ uint64) (guestv1.GuestService_ShellClient, <-chan struct{}, error) {
+	if l.openHeld {
+		<-ctx.Done()
+		return nil, nil, ctx.Err()
+	}
 	stream, err := l.guest.Shell(ctx)
 	return stream, make(chan struct{}), err
 }
@@ -136,8 +143,14 @@ type shellFixture struct {
 // links.
 func newShells(t *testing.T, edit func(*hostservice.ShellServer)) *shellFixture {
 	t.Helper()
+	return newShellsPlaced(t, hostdv1.Placement_PLACEMENT_WORK, edit)
+}
+
+// newShellsPlaced is newShells with the project's placement.
+func newShellsPlaced(t *testing.T, placement hostdv1.Placement, edit func(*hostservice.ShellServer)) *shellFixture {
+	t.Helper()
 	pf := newProjects(t, nil)
-	p := pf.register(t, "/r/a/.git", urls(urlA), hostdv1.Placement_PLACEMENT_WORK).GetProject()
+	p := pf.register(t, "/r/a/.git", urls(urlA), placement).GetProject()
 	starts := make(chan *guestv1.ShellStart, 4)
 	links := &shellLinks{guest: guestv1.NewGuestServiceClient(dialBuf(t, func(srv *grpc.Server) {
 		guestv1.RegisterGuestServiceServer(srv, &echoGuest{starts: starts})
@@ -398,6 +411,83 @@ func TestShellRefusingMode(t *testing.T) {
 	})
 	_, _, err := f.open(t.Context(), t, &hostdv1.ShellOpen{ProjectId: f.projectID, Setup: pipedSetup()})
 	wantRefused(t, "refusing", err, codes.FailedPrecondition, "state-db-unreadable")
+}
+
+// TestShellUnlockFailed sees a failed unlock refuse the shell and still
+// lock and kill the user, which the guest may have unlocked
+// (S13-01-process-hardening, "Locked users").
+func TestShellUnlockFailed(t *testing.T) {
+	f := newShells(t, nil)
+	f.links.unlockErr = &guestconn.SessionRefusal{Rule: guestconn.RuleUnlockFailed, Message: "no answer."}
+	_, _, err := f.open(t.Context(), t, &hostdv1.ShellOpen{ProjectId: f.projectID, Setup: pipedSetup()})
+	wantRefused(t, "unlock failed", err, codes.FailedPrecondition, guestconn.RuleUnlockFailed)
+	f.wantKilledOnce(t)
+}
+
+// TestShellOpenHeld sees a guest stream that doesn't open within
+// OpenWait end the shell with guest-shell-refused, and the user killed
+// (SEC13-bounded-resources).
+func TestShellOpenHeld(t *testing.T) {
+	f := newShells(t, func(s *hostservice.ShellServer) { s.OpenWait = 20 * time.Millisecond })
+	f.links.openHeld = true
+	stream, _, err := f.open(t.Context(), t, &hostdv1.ShellOpen{ProjectId: f.projectID, Setup: pipedSetup()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := recvFrame(t, stream).GetFailure().GetRule(); got != shells.RuleRefused {
+		t.Fatalf("failure rule = %q", got)
+	}
+	f.wantKilledOnce(t)
+	if !strings.Contains(f.logs.String(), "didn't open within 20ms") {
+		t.Fatalf("log = %s", f.logs.String())
+	}
+}
+
+// TestShellIsolatedTaken sees a shell of an isolated project refused
+// while another project has a shell in the isolated VM, with that
+// project named (S06-04-vms-and-placement, "Isolated slot to itself").
+func TestShellIsolatedTaken(t *testing.T) {
+	f := newShellsPlaced(t, hostdv1.Placement_PLACEMENT_ISOLATED, nil)
+	if _, err := f.reg.Register("other", vm.SlotIsolated, strings.Repeat("e", 32), 1, false); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := f.open(t.Context(), t, &hostdv1.ShellOpen{ProjectId: f.projectID, Setup: pipedSetup()})
+	msg := wantRefused(t, "isolated taken", err, codes.FailedPrecondition, shells.RuleIsolatedTaken)
+	if !strings.Contains(msg, strings.Repeat("e", 32)) {
+		t.Fatalf("message = %s", msg)
+	}
+	if len(f.links.unlocked) != 0 {
+		t.Fatalf("unlocked = %v", f.links.unlocked)
+	}
+}
+
+// TestShellClientGoneWaiting sees wb's stream end while the shell waits
+// for its guest logged with shell-client-gone, and nothing unlocked.
+func TestShellClientGoneWaiting(t *testing.T) {
+	f := newShells(t, func(s *hostservice.ShellServer) { s.StartPoll = 5 * time.Millisecond })
+	f.links.sessionErr = &guestconn.SessionRefusal{Rule: guestconn.RuleSessionMountPending, Message: "the data mount is pending."}
+	ctx, cancel := context.WithCancel(t.Context())
+	stream, err := f.c.Shell(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stream.Send(openReq(f.projectID, pipedSetup())); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for len(f.reg.Sessions(vm.SlotWork)) == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	for !strings.Contains(f.logs.String(), `"rule":"shell-client-gone"`) && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !strings.Contains(f.logs.String(), `"rule":"shell-client-gone"`) {
+		t.Fatalf("log = %s", f.logs.String())
+	}
+	if len(f.links.unlocked) != 0 {
+		t.Fatalf("unlocked = %v", f.links.unlocked)
+	}
 }
 
 // TestVMStopNamesShells sees `wb vm stop` refused while a shell is open,

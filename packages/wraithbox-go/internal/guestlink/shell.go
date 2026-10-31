@@ -19,6 +19,10 @@ const (
 	UnlockMaxRecvMsgSize = 1 << 10
 	// UnlockTimeout is how long wb-guestd has to answer one UnlockUser.
 	UnlockTimeout = 10 * time.Second
+	// ShellOpenTimeout is how long the open of a Shell stream may take,
+	// such as while wb-guestd allows no more streams. It bounds the open
+	// only, not the stream.
+	ShellOpenTimeout = 10 * time.Second
 	// ShellMaxRecvMsgSize is the receive cap of a Shell stream: one
 	// server frame of 32 KiB of data and its framing, with room to
 	// spare. Set on the call, so gRPC never decodes more before the
