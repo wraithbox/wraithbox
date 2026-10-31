@@ -12,6 +12,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostversion/grpccreds"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/localipc"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/paths"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/relay"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
@@ -29,19 +30,25 @@ func SystemEnv(log *slog.Logger) Env {
 		Dial: func(context.Context) (Hostd, error) {
 			return dial(log, p.Run)
 		},
-		Log: log,
+		DialShell: func(context.Context) (ShellHostd, error) {
+			return dial(log, p.Run)
+		},
+		Terminal: relay.System,
+		Lookup:   os.LookupEnv,
+		Log:      log,
 	}
 }
 
-// grpcHostd is the Hostd of a gRPC connection to wb-hostd.
+// grpcHostd is the ShellHostd of a gRPC connection to wb-hostd.
 type grpcHostd struct {
 	hostdv1.ProjectServiceClient
+	hostdv1.ShellServiceClient
 	conn *grpc.ClientConn
 }
 
 func (h *grpcHostd) Close() error { return h.conn.Close() }
 
-func dial(log *slog.Logger, run string) (Hostd, error) {
+func dial(log *slog.Logger, run string) (*grpcHostd, error) {
 	creds := grpccreds.New(log, version.Build())
 	opts := append(grpccreds.ClientOptions(log, creds, run, localipc.HostdEndpoint),
 		grpc.WithChainUnaryInterceptor(versionChecked(creds)), grpc.WithDefaultCallOptions(grpc.WaitForReady(false)))
@@ -49,7 +56,9 @@ func dial(log *slog.Logger, run string) (Hostd, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &grpcHostd{ProjectServiceClient: hostdv1.NewProjectServiceClient(conn), conn: conn}, nil
+	return &grpcHostd{
+		ProjectServiceClient: hostdv1.NewProjectServiceClient(conn), ShellServiceClient: hostdv1.NewShellServiceClient(conn), conn: conn,
+	}, nil
 }
 
 // versionChecked returns a call's error, or in its place the

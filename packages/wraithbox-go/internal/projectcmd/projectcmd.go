@@ -23,6 +23,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostgit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/paths"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/project"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/relay"
 )
 
 // The exit statuses (S05-02-exit-status-and-signals, "Exit status").
@@ -57,6 +58,12 @@ type Env struct {
 	// Dial connects to wb-hostd.
 	Dial func(ctx context.Context) (Hostd, error)
 	Log  *slog.Logger
+
+	// The rest is `wb shell`'s. DialShell connects to wb-hostd, Terminal
+	// is relay.System, and Lookup reads wb's environment.
+	DialShell func(ctx context.Context) (ShellHostd, error)
+	Terminal  func() (cfg relay.Config, stop func(), err error)
+	Lookup    func(name string) (string, bool)
 }
 
 // Run runs `wb project <args>` in dir, the directory of `-C` or the

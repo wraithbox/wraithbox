@@ -6,20 +6,19 @@ import (
 	"strings"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/tty"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/termsetup"
 
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 )
 
 // envNames are the host variables the guest gets, and no others
 // (S16-03-around-the-stream, "Environment"). TERM crosses unchanged and
-// is never mapped to another name ("Terminfo").
-var envNames = []string{
-	"TERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION", "COLORTERM",
-	"LANG", "LC_ALL", "LC_CTYPE",
-}
+// is never mapped to another name ("Terminfo"). wb-hostd and wb-guestd
+// check the same list.
+var envNames = termsetup.EnvNames
 
 // maxEnvValue is the most bytes of an environment value.
-const maxEnvValue = 256
+const maxEnvValue = termsetup.MaxEnvValue
 
 // defaultSize is the window size sent when the terminal reports none in
 // range.
