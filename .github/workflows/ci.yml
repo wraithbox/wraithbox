@@ -197,9 +197,11 @@ jobs:
       # the linked programs; and the index store, which no build reads. A
       # delete and not `!` patterns in `path`: actions/cache hands the
       # directories it matches to tar, which takes everything below them.
-      # The paths follow SwiftPM's native build layout,
-      # .build/<triple>/<debug|release>, and the step fails when that
-      # layout is missing, so a new layout can't make it delete nothing.
+      # The paths follow the layout of Swift Build, the default build
+      # system of SwiftPM 6.4 in Xcode 27 (#468): products in
+      # .build/out/Products/<Debug|Release> and the index store in
+      # .build/out/v5. The step fails when the product directories are
+      # missing, so a new layout can't make it delete nothing.
       # The checkouts stay, because they borrow their git objects from
       # .build/repositories. The package's own target objects and modules
       # stay too: every run compiles them again, but the largest is about
@@ -217,14 +219,15 @@ jobs:
         working-directory: packages/wraithbox-swift/.build
         run: |
           shopt -s nullglob
-          configs=(*-apple-macosx/debug *-apple-macosx/release)
-          if [ "${#configs[@]}" -ne 2 ]; then
-            echo "Trim: expected one <triple>/debug and one <triple>/release in .build, found ${configs[*]:-none}; the build layout changed, so update this step" >&2
-            exit 1
-          fi
+          for config in out/Products/Debug out/Products/Release; do
+            if [ ! -d "$config" ]; then
+              echo "Trim: expected $config in .build, found none; the build layout changed, so update this step" >&2
+              exit 1
+            fi
+          done
           rm -rf -- app-work signed "Wraith Box.app"
-          rm -rf -- *-apple-macosx/*/*.dSYM *-apple-macosx/*/*.xctest *-apple-macosx/*/index
-          rm -f -- *-apple-macosx/*/wb-vmd *-apple-macosx/*/wb-dev-bundle
+          rm -rf -- out/Products/*/*.dSYM out/Products/*/*.xctest out/v5
+          rm -f -- out/Products/*/wb-vmd out/Products/*/wb-dev-bundle
           du -sh .
 
       # Only a push to main saves, and only when no cache had this exact
