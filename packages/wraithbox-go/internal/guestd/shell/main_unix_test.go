@@ -101,6 +101,8 @@ func testProgram(mode string) int {
 	case "sleep":
 		fmt.Println("ready")
 		time.Sleep(time.Hour)
+	case "setsid-child":
+		return programSetsidChild()
 	case "cat":
 		_, _ = io.Copy(os.Stdout, os.Stdin)
 		fmt.Fprintln(os.Stderr, "stdin eof")
@@ -175,5 +177,23 @@ func programEnv() int {
 	wd, _ := os.Getwd()
 	fmt.Fprintln(w, "cwd="+wd)
 	_ = w.Flush()
+	return 0
+}
+
+// programSetsidChild starts a child that leaves the POSIX session with
+// setsid, prints its PID and exits 0.
+func programSetsidChild() int {
+	exe, err := os.Executable()
+	if err != nil {
+		return 3
+	}
+	p, err := os.StartProcess(exe, []string{exe, testProgramArg, "sleep"}, &os.ProcAttr{
+		Files: []*os.File{nil, nil, nil},
+		Sys:   &syscall.SysProcAttr{Setsid: true},
+	})
+	if err != nil {
+		return 3
+	}
+	fmt.Printf("child=%d end\n", p.Pid)
 	return 0
 }

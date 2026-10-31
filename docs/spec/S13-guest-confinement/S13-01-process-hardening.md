@@ -114,6 +114,14 @@ steps 1 and 2, and then sends the exit. When the kill leaves processes
 that may still run, the host gets the failure `shell-hangup-kill` in
 place of the exit, as in step 2.
 
+A helper that fails or reports out of form gets the hangup and the kill
+of steps 1 and 2, and the host gets the failure with the helper's rule.
+When the kill leaves processes that may still run, the host gets
+`shell-hangup-kill` in its place, and the log keeps the helper's rule.
+
+The log of step 4 runs at every end of a shell, a clean exit included,
+so a child that left the session with `setsid` is logged.
+
 ### When a project's last session ends
 
 `wb-hostd` ends a project's last session in the VM, debug shells

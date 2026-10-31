@@ -6,8 +6,11 @@ import (
 	"context"
 	"errors"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -165,6 +168,54 @@ func TestExitKillIncomplete(t *testing.T) {
 	}
 	if strings.Contains(log, `"decision":"exit"`) {
 		t.Error("the exit was logged after an incomplete kill")
+	}
+}
+
+// TestFailKillIncomplete: when processes may be left after the kill
+// that follows a helper failure, the last frame is the failure
+// shell-hangup-kill, and the log keeps the helper's rule.
+func TestFailKillIncomplete(t *testing.T) {
+	h := newHarness(t, "")
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := &keepTable{kept: map[int32]sessionproc.Proc{}}
+	t.Cleanup(table.killKept)
+	h.srv.cfg.Table = table
+	h.srv.cfg.Helper = []string{exe, testRawHelperArg, "unknown-kind"}
+	h.start(&terminalv1.Setup{})
+	last := h.end()
+	if last.GetFailure().GetRule() != RuleKilled {
+		t.Fatalf("last frame %v, want a failure %s", last, RuleKilled)
+	}
+	log := h.log.String()
+	for _, want := range []string{`"rule":"` + RuleHelperReport + `"`, `"decision":"incomplete"`} {
+		if !strings.Contains(log, want) {
+			t.Errorf("log has no %s", want)
+		}
+	}
+}
+
+// TestCleanExitLogsOutside: a child that left the shell's POSIX session
+// with setsid is logged as outside every session when the shell exits
+// cleanly, and left running.
+func TestCleanExitLogsOutside(t *testing.T) {
+	h := newHarness(t, "setsid-child")
+	h.start(&terminalv1.Setup{})
+	wantExitCode(t, h.end(), 0)
+	m := regexp.MustCompile(`child=(\d+) end`).FindStringSubmatch(h.output(stdout))
+	if m == nil {
+		t.Fatalf("output %q has no child PID", h.output(stdout))
+	}
+	pid, err := strconv.Atoi(m[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	want := regexp.MustCompile(`"pid":` + m[1] + `,[^\n]*"rule":"` + RuleOutsideSession + `","decision":"leave"`)
+	if !want.MatchString(h.log.String()) {
+		t.Errorf("the setsid child %d wasn't logged with %s", pid, RuleOutsideSession)
 	}
 }
 

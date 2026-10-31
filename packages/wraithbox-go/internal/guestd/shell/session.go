@@ -85,6 +85,7 @@ func (s *session) run(stream Stream) {
 	}
 	close(l.done)
 	s.closeEnds()
+	s.logOutside(context.Background())
 	s.srv.release(s)
 	s.log.LogAttrs(context.Background(), slog.LevelInfo, "shell closed")
 }
@@ -248,13 +249,16 @@ func (l *loop) drain() bool {
 
 // fail ends a shell whose helper can't be trusted or is gone: it hangs
 // up, kills what is left of the session after the delay, and sends a
-// failure frame.
+// failure frame with the helper's rule. When processes may be left after
+// the kill, the failure is shell-hangup-kill instead, and the log line
+// "shell helper failed" keeps the helper's rule.
 func (l *loop) fail(rule string) {
 	l.s.log.LogAttrs(l.ctx, slog.LevelWarn, "shell helper failed",
 		slog.String("rule", rule), slog.String("decision", "hangup-and-kill"))
 	l.hangup(rule)
-	if l.s.waitForEnd(l.s.srv.cfg.KillDelay) {
-		l.s.kill()
+	if l.s.waitForEnd(l.s.srv.cfg.KillDelay) && !l.s.kill() {
+		l.killIncomplete()
+		return
 	}
 	l.send(&terminalv1.ServerFrame{Frame: &terminalv1.ServerFrame_Failure{
 		Failure: &terminalv1.Failure{Rule: rule, Message: "the session helper failed"},
