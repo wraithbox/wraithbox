@@ -147,7 +147,11 @@ while read -r source _ name _; do
 done <"$work/layout"
 
 # Step 4: the app, whose executable is the notification helper. Its
-# deployment target is Package.swift's, so one edit moves both. Without
+# deployment target is the oldest v1 host, macOS 27
+# (NFR04-host-platforms), so macOS won't open it on an older Mac.
+# Package.swift targets an older macOS so its tests run there
+# (S02-toolchain), and its programs check the version at run time
+# (HostRequirement). Without
 # a team Xcode signs nothing (CODE_SIGNING_ALLOWED=NO). With one it signs
 # automatically for that team, and -allowProvisioningUpdates lets it
 # register the bundle identifier and fetch its profile, which a new
@@ -158,13 +162,7 @@ done <"$work/layout"
 # the helper with this run's stamp every time. xcodebuild takes
 # -derivedDataPath only with -scheme, so Xcode may write to
 # ~/Library/Developer/Xcode/DerivedData (docs/agents/host-work.md).
-manifest=$(swift package dump-package --package-path "$swift_dir")
-platform=$(printf '%s' "$manifest" | plutil -extract platforms.0.platformName raw -o - -)
-target=$(printf '%s' "$manifest" | plutil -extract platforms.0.version raw -o - -)
-if [ "$platform" != macos ]; then
-	echo "app:bundle: Package.swift's first platform is $platform, not macos" >&2
-	exit 1
-fi
+target=27.0
 # Xcode makes a profile only for a target whose entitlements need one,
 # and the app target has none of its own. So a team build hands it one
 # keychain-access-groups entry, as X29-dev-signing signed its app with

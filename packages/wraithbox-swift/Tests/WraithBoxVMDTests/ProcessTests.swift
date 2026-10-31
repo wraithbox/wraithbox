@@ -1,18 +1,34 @@
 // C11-host-daemons, "Slot": the built wb-vmd, started with WB_VMD_SLOT
 // unset, unknown, or the build slot, logs the rule before it confines
-// itself and exits 1. None of these cases reads host state, so they run
-// anywhere the package builds.
+// itself and exits 1. None of these cases reads host state but the macOS
+// version. wb-vmd refuses a macOS older than 27 first, so on such a host
+// only that refusal is tested (HostRequirement).
 import Darwin
 import Foundation
 import Synchronization
 import Testing
+import WraithBoxVM
 
 @testable import WraithBoxVMD
+
+private let hostSupported = HostRequirement.supports(
+    ProcessInfo.processInfo.operatingSystemVersion)
 
 @Suite("wb-vmd process")
 struct ProcessTests {
     @Test(
+        "an older macOS is logged with vmd-host-unsupported before confinement, and wb-vmd exits 1",
+        .enabled(if: !hostSupported, "the host runs macOS 27 or later"))
+    func refusedHost() throws {
+        let (status, log) = try runBuiltDaemon(environment: ["WB_VMD_SLOT=work"])
+        #expect(status == 1)
+        #expect(log.rules == [StartupRule.hostUnsupported.rawValue])
+        #expect(log.events("confined").isEmpty)
+    }
+
+    @Test(
         "a slot it doesn't serve is logged with its rule before confinement, and wb-vmd exits 1",
+        .enabled(if: hostSupported, "wb-vmd refuses a macOS older than 27 first"),
         arguments: [
             ([String](), StartupRule.slotMissing),
             (["WB_VMD_SLOT=nope"], .slotUnknown),

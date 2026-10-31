@@ -20,7 +20,8 @@ func provisioningMachine(bundle: String, record: BundleRecord, mac: VZMACAddress
 
 /// Starts the VM with guest provisioning: macOS creates `user` with
 /// `password` on the first boot and turns on Remote Login. The API is new
-/// in macOS 27, the package's deployment target (NFR04-host-platforms).
+/// in macOS 27, which the package doesn't target (HostRequirement).
+@available(macOS 27, *)
 @MainActor
 func startProvisioning(_ machine: VZVirtualMachine, user: String, password: String)
     async throws

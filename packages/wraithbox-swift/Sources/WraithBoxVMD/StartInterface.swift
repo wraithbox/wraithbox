@@ -4,6 +4,8 @@
 // missing or of another kind, so it never serves on a descriptor its
 // spawner didn't mean.
 import Darwin
+import Foundation
+import WraithBoxVM
 
 /// The descriptors wb-vmd inherits.
 public enum InheritedDescriptor: Int32, Sendable, CaseIterable {
@@ -31,6 +33,18 @@ public enum InheritedDescriptor: Int32, Sendable, CaseIterable {
 
 /// The checks of the start interface.
 public enum StartInterface {
+    /// Refuses a macOS older than the oldest v1 host. The package targets
+    /// an older macOS than it runs on (HostRequirement), so this check,
+    /// not the loader, keeps wb-vmd off such a host.
+    public static func checkHost(_ version: OperatingSystemVersion) throws(StartupRefusal) {
+        guard HostRequirement.supports(version) else {
+            throw StartupRefusal(
+                .hostUnsupported,
+                "macOS \(HostRequirement.describe(version)) is older than macOS "
+                    + "\(HostRequirement.minimumMacOS)")
+        }
+    }
+
     /// Refuses any command-line argument: wb-launcher passes none
     /// (S04-03-self-sandboxing, "What keeps `wb-launcher` narrow").
     public static func checkArguments(_ arguments: [String]) throws(StartupRefusal) {
