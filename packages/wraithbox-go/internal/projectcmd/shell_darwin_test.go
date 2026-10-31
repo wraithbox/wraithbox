@@ -22,11 +22,17 @@ import (
 )
 
 // shellCall is a ShellService.Shell call that answers the open with
-// opened, or with refused, then sends an exit status.
+// opened, or with refused, then sends an exit status. With held set, it
+// closes waiting and answers nothing until the call's context ends.
+// signals are the signals the terminal delivers.
 type shellCall struct {
 	grpc.ClientStream
 	opened   *hostdv1.ShellOpened
 	refused  error
+	held     bool
+	waiting  chan struct{}
+	signals  chan tty.Signal
+	ctx      context.Context
 	open     *hostdv1.ShellOpen
 	received int
 }
@@ -40,6 +46,11 @@ func (c *shellCall) Send(r *hostdv1.ShellRequest) error {
 
 func (c *shellCall) Recv() (*hostdv1.ShellResponse, error) {
 	c.received++
+	if c.held {
+		close(c.waiting)
+		<-c.ctx.Done()
+		return nil, status.FromContextError(c.ctx.Err()).Err()
+	}
 	switch {
 	case c.received == 1 && c.refused != nil:
 		return nil, c.refused
@@ -62,8 +73,9 @@ type shellHostd struct {
 	calls int
 }
 
-func (s *shellHostd) Shell(context.Context, ...grpc.CallOption) (grpc.BidiStreamingClient[hostdv1.ShellRequest, hostdv1.ShellResponse], error) {
+func (s *shellHostd) Shell(ctx context.Context, _ ...grpc.CallOption) (grpc.BidiStreamingClient[hostdv1.ShellRequest, hostdv1.ShellResponse], error) {
 	s.calls++
+	s.call.ctx = ctx
 	return s.call, nil
 }
 
@@ -86,7 +98,9 @@ func (h *harness) shell(dir string, call *shellCall, cs tty.Charset, termErr err
 			if termErr != nil {
 				return relay.Config{}, nil, termErr
 			}
-			return relay.Config{Charset: cs, Stdin: strings.NewReader(""), Stdout: &stdout, Stderr: &stderr}, func() {}, nil
+			return relay.Config{
+				Charset: cs, Stdin: strings.NewReader(""), Stdout: &stdout, Stderr: &stderr, Signals: call.signals,
+			}, func() {}, nil
 		},
 		Lookup: func(name string) (string, bool) {
 			if name == "TERM" {
@@ -139,6 +153,32 @@ func TestShellProjectFlag(t *testing.T) {
 	r := h.shell(mkdir(t, filepath.Join(h.root, "elsewhere")), opened(), utf8Charset, nil, "--project", op.Project.GetId())
 	if r.code != 3 || r.hostd.call.open.GetProjectId() != op.Project.GetId() {
 		t.Errorf("exit %d, opened %q\n%s", r.code, r.hostd.call.open.GetProjectId(), r.stderr)
+	}
+}
+
+// TestShellSignalDuringOpen: SIGINT while wb-hostd holds the open
+// cancels the call and ends wb with shell-open-signal and 255, and a
+// window change before it is dropped.
+func TestShellSignalDuringOpen(t *testing.T) {
+	h := newHarness(t)
+	repo := newRepo(t, filepath.Join(h.root, "myrepo"), "first", "")
+	h.mustStart(repo)
+	call := &shellCall{held: true, waiting: make(chan struct{}), signals: make(chan tty.Signal)}
+	go func() {
+		<-call.waiting
+		call.signals <- tty.WindowChange
+		call.signals <- tty.Interrupt
+	}()
+	r := h.shell(repo, call, utf8Charset, nil)
+	if r.code != exitFailure || !strings.Contains(r.stderr, "got SIGINT while the shell opened") ||
+		!strings.Contains(r.stderr, "(shell-open-signal)") {
+		t.Fatalf("exit %d\n%s", r.code, r.stderr)
+	}
+	if call.ctx.Err() == nil {
+		t.Fatal("the call's context wasn't cancelled")
+	}
+	if !strings.Contains(h.log.String(), "a signal during the open dropped") {
+		t.Fatalf("log = %s", h.log.String())
 	}
 }
 

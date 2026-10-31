@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"google.golang.org/grpc"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/tty"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/project"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/relay"
 )
@@ -18,6 +20,10 @@ import (
 // standard streams for a shell, such as on a host whose terminal
 // support comes later (S12-platforms).
 const RuleTerminalUnsupported = "terminal-unsupported"
+
+// RuleOpenSignal: wb got SIGINT, SIGQUIT, SIGTERM or SIGHUP while it
+// waited for the shell to open, and stopped waiting.
+const RuleOpenSignal = "shell-open-signal"
 
 // ShellHostd is wb-hostd's ProjectService and ShellService on one
 // connection.
@@ -92,13 +98,51 @@ func RunShell(ctx context.Context, env Env, dir string, args []string) int {
 		env: env, dir: dir, inv: inv, hostd: hostd,
 		open: &project.Opener{Paths: env.Paths, Hostd: hostd, Log: env.Log},
 	}
-	stream, sh, err := c.openShell(ctx, hostd, setup)
+	// The stream runs on streamCtx, which a signal during the open
+	// cancels.
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var stream relay.Stream
+	var sh relay.Shell
+	sig, err := watchOpen(cancel, cfg.Signals, env.Log, func() error {
+		var err error
+		stream, sh, err = c.openShell(streamCtx, hostd, setup)
+		return err
+	})
+	if sig != 0 {
+		return fail(env, RuleOpenSignal, fmt.Sprintf("wb shell got %s while the shell opened, and stopped.", sig))
+	}
 	if err != nil {
 		return c.report(err)
 	}
 	fmt.Fprintln(env.Stderr, sh.Label())
 	cfg.Stream, cfg.ID, cfg.Log = stream, sh.ID, env.Log
 	return relay.Run(cfg)
+}
+
+// watchOpen runs open, and calls cancel when wb gets SIGINT, SIGQUIT,
+// SIGTERM or SIGHUP before open returns. The open can wait minutes for
+// a VM to start, and such a signal then ends wb at once instead of
+// reaching a shell that opens later. It returns the signal, or 0 and
+// open's error. Other signals during the open are logged and dropped:
+// the setup already holds the window size, and no shell runs to stop.
+func watchOpen(cancel context.CancelFunc, sigs <-chan tty.Signal, log *slog.Logger, open func() error) (tty.Signal, error) {
+	done := make(chan error, 1)
+	go func() { done <- open() }()
+	for {
+		select {
+		case err := <-done:
+			return 0, err
+		case s := <-sigs:
+			switch s {
+			case tty.Interrupt, tty.Quit, tty.Terminate, tty.Hangup:
+				cancel()
+				<-done
+				return s, nil
+			}
+			log.Info("wb shell: a signal during the open dropped", "signal", s.String())
+		}
+	}
 }
 
 // shellSetup builds the terminal setup of the open. It refuses a host
