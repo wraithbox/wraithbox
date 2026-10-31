@@ -115,8 +115,8 @@ daemon. Then:
 
 ### Restarting a daemon
 
-`wb-hostd` restarts `wb-proxyd`, and each VM's `wb-netd`, after an exit
-it didn't ask for.
+`wb-hostd` restarts `wb-proxyd`, and each VM's `wb-netd` except the
+build VM's ("A new `wb-netd`", below), after an exit it didn't ask for.
 
 - **Backoff.** It waits 0.5 seconds before the first restart, and
   doubles the wait after each one, up to 30 seconds.
