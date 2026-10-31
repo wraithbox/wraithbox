@@ -133,14 +133,21 @@ func watchOpen(cancel context.CancelFunc, sigs <-chan tty.Signal, log *slog.Logg
 		select {
 		case err := <-done:
 			return 0, err
-		case s := <-sigs:
+		case s, ok := <-sigs:
+			if !ok {
+				sigs = nil
+				continue
+			}
 			switch s {
 			case tty.Interrupt, tty.Quit, tty.Terminate, tty.Hangup:
 				cancel()
-				<-done
+				if err := <-done; err != nil {
+					log.Info("wb shell: the open cancelled", "signal", s.String(), "err", err.Error())
+				}
 				return s, nil
+			case tty.WindowChange, tty.TerminalStop, tty.Continue:
+				log.Info("wb shell: a signal during the open dropped", "signal", s.String())
 			}
-			log.Info("wb shell: a signal during the open dropped", "signal", s.String())
 		}
 	}
 }
