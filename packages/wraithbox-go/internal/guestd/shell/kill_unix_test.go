@@ -114,6 +114,60 @@ func TestExitWithProcessesLeft(t *testing.T) {
 	}
 }
 
+// keepTable lists processes but kills none, as for a program that
+// forks faster than the kill. It keeps what it was asked to kill, for
+// the test to kill at its end.
+type keepTable struct {
+	sessionproc.System
+
+	mu   sync.Mutex
+	kept map[int32]sessionproc.Proc
+}
+
+func (k *keepTable) Kill(p sessionproc.Proc) error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.kept[p.PID] = p
+	return nil
+}
+
+func (k *keepTable) killKept() {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	for _, p := range k.kept {
+		_ = sessionproc.System{}.Kill(p)
+	}
+}
+
+// TestExitKillIncomplete: when processes may be left after the kill
+// that follows an exit report, the last frame is the failure
+// shell-hangup-kill, not the reported exit.
+func TestExitKillIncomplete(t *testing.T) {
+	h := newHarness(t, "")
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := &keepTable{kept: map[int32]sessionproc.Proc{}}
+	t.Cleanup(table.killKept)
+	h.srv.cfg.Table = table
+	h.srv.cfg.Helper = []string{exe, testRawHelperArg, "exit-lingers"}
+	h.start(&terminalv1.Setup{})
+	last := h.end()
+	if last.GetFailure().GetRule() != RuleKilled {
+		t.Fatalf("last frame %v, want a failure %s", last, RuleKilled)
+	}
+	log := h.log.String()
+	for _, want := range []string{`"reason":"exit-with-processes-left"`, `"decision":"incomplete"`} {
+		if !strings.Contains(log, want) {
+			t.Errorf("log has no %s", want)
+		}
+	}
+	if strings.Contains(log, `"decision":"exit"`) {
+		t.Error("the exit was logged after an incomplete kill")
+	}
+}
+
 // TestResumeForgets: a resume drops the session's processes from the
 // stop loop's set.
 func TestResumeForgets(t *testing.T) {

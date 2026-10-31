@@ -425,7 +425,9 @@ place of `zsh`:
   reader refuse a continued report first, two stops in a row, and a
   stop past 1024.
 - Have a helper report the exit and run on, and see it hung up and
-  killed before the exit frame.
+  killed before the exit frame. With a kill that leaves processes, see
+  the kill logged `incomplete` and a `shell-hangup-kill` failure in
+  place of the exit frame.
 - Make the process table unreadable during the kill and see the kill
   retry. With a table that never reads, see the kill logged
   `incomplete` and a `shell-hangup-kill` failure.

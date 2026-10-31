@@ -110,7 +110,9 @@ Then:
 The helper's exit report comes from the project user's process, so it
 doesn't end a session by itself. When processes of the session's POSIX
 session still run after it, `wb-guestd` hangs up and kills them as in
-steps 1 and 2, and then sends the exit.
+steps 1 and 2, and then sends the exit. When the kill leaves processes
+that may still run, the host gets the failure `shell-hangup-kill` in
+place of the exit, as in step 2.
 
 ### When a project's last session ends
 

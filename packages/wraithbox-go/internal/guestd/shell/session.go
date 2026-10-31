@@ -102,9 +102,7 @@ func (l *loop) step() bool {
 		return l.report(ev)
 	case <-l.killAt:
 		if !l.s.kill() {
-			l.send(&terminalv1.ServerFrame{Frame: &terminalv1.ServerFrame_Failure{
-				Failure: &terminalv1.Failure{Rule: RuleKilled, Message: "the shell's processes may still run"},
-			}})
+			l.killIncomplete()
 			return true
 		}
 		l.send(&terminalv1.ServerFrame{Frame: &terminalv1.ServerFrame_Exit{
@@ -113,6 +111,15 @@ func (l *loop) step() bool {
 		return true
 	}
 	return false
+}
+
+// killIncomplete sends the failure shell-hangup-kill in place of an
+// exit frame, when processes of the session may be left after the kill
+// (S13-01-process-hardening, "When a session's client goes", step 2).
+func (l *loop) killIncomplete() {
+	l.send(&terminalv1.ServerFrame{Frame: &terminalv1.ServerFrame_Failure{
+		Failure: &terminalv1.Failure{Rule: RuleKilled, Message: "the shell's processes may still run"},
+	}})
 }
 
 // sigKill is the signal number of SIGKILL, which every POSIX system
@@ -177,7 +184,8 @@ func (l *loop) report(ev reportEvent) bool {
 // report makes it a failure. The report comes from the project user's
 // process, so it doesn't end the session by itself: processes of the
 // session still running after it get the hangup, and the kill after
-// the delay.
+// the delay. When processes may be left after the kill, the last frame
+// is the failure shell-hangup-kill, not the exit.
 func (l *loop) exit(r Report) {
 	if !l.drain() {
 		l.fail(RuleHelperReport)
@@ -187,8 +195,9 @@ func (l *loop) exit(r Report) {
 		l.s.log.LogAttrs(l.ctx, slog.LevelWarn, "shell processes left after the exit report",
 			slog.String("rule", RuleKilled), slog.String("decision", "hangup-and-kill"))
 		l.hangup("exit-with-processes-left")
-		if l.s.waitForEnd(l.s.srv.cfg.KillDelay) {
-			l.s.kill()
+		if l.s.waitForEnd(l.s.srv.cfg.KillDelay) && !l.s.kill() {
+			l.killIncomplete()
+			return
 		}
 	}
 	exit := &terminalv1.Exit{Status: &terminalv1.Exit_Code{Code: r.Value}}
