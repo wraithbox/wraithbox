@@ -81,18 +81,18 @@ leftovers of V1-M1 in the docs (#169, #236, #237, #247).
 
 | # | Package | Specs and IDs | Deps | Lane | Issues |
 |---|---|---|---|---|---|
-| M3.1 | Packet path: datagram link endpoint, link filter, DHCP, caps, TCP rules | S07-02; SEC05; C01 | M2.3 | any | |
-| M3.2 | DNS: pool, name form, local and negative answers, hold, wildcard budget, background list | S07-03, S07-04; C01 | M3.1 | any | folded: #124 (no leading or trailing hyphen in a label) |
-| M3.3 | Policy loader and effective policy: OpenShell subset, bounded YAML, modes, per-VM union | S09-01, S09-02, S07-01; SEC09; C03 | | any | #259 (refuse rules that allow the OAuth token paths) |
-| M3.4 | Hand-off, name mapping, accounting records (a 4 KiB record needs larger socket buffers than the 2 KiB macOS default) | S07-05, S07-06, S04-07, S04-08; SEC08; C02, C11 | M3.1 to M3.3 | mac | folded: #172 (ordering test on macOS and Linux CI), #179 (malformed report rule, cross-VM restart case) |
-| M3.5 | Stream checks: first bytes, SNI binding, upstream address rule, pass and raw TCP, tunnels | S07-07, S07-15, S07-16; SEC05; C02 | M3.4 | any | |
-| M3.6 | HTTP termination: h1 and h2, request form, caps, transfer coding, guest credential and response header removal | S07-08; SEC04; C02, C05 | M3.5 | any | folded: #246 (rule for a client that rejects the inspected leaf) |
-| M3.7 | HTTP policy engine and built-in profiles, parts, GraphQL filter (allowlist starts empty) | S07-11, S07-07; SEC06 | M3.3 | any | folded: #206 (closed list of what audit mode relaxes, `audit-allowed` rule) |
-| M3.8 | Secret store shim and `wb-credset` | S15-02, S15-03, S12-03; SEC12; C05 | M2.2, H1 | mac, host | |
-| M3.9 | Inspection CA: Secure Enclave key, leaves, rotation, removal list, `wb vm reset-ca`, guest trust | S09-06, S09-07, S09-08; C02 | M3.8 | any, host, vm | |
-| M3.10 | Audit writer and event channel: OCSF, budgets, free space, a failed write stops the VM; the records V1-M2 only logs (data disk reset, git checks) | S09-11, S04-08; SEC10; C11 | M2.7 | any | folded: #177 (bound on the event retry queue) |
-| M3.11 | Supervision and `wb-launcher` | S04-03, S04-07; SEC13; C11 | M2.3 | mac | #370 (the `wb-diskfmt` kill request, S04-04) |
-| M3.12 | Egress integration: the NIC in the device set, a `wb-netd` per VM, flow reset on restore | S04-02; SEC05, SEC10, SEC11, FR08; C01, C02 | M3.1 to M3.11, H1 | vm, host | |
+| M3.1 | Packet path: datagram link endpoint, link filter, DHCP, caps, TCP rules | S07-02; SEC05; C01 | M2.3 | any | #482, #483 |
+| M3.2 | DNS: pool, name form, local and negative answers, hold, wildcard budget, background list | S07-03, S07-04; C01 | M3.1 | any | #484 to #487, folded: #124 (no leading or trailing hyphen in a label) |
+| M3.3 | Policy loader and effective policy: OpenShell subset, bounded YAML, modes, per-VM union | S09-01, S09-02, S07-01; SEC09; C03 | | any | #488, #489, #490, #259 (refuse rules that allow the OAuth token paths, in #489 and #490) |
+| M3.4 | Hand-off, name mapping, accounting records (a 4 KiB record needs larger socket buffers than the 2 KiB macOS default) | S07-05, S07-06, S04-07, S04-08; SEC08; C02, C11 | M3.1 to M3.3 | mac | #491 to #494, folded: #172 (ordering test, macOS only), #179 (malformed report rule, cross-VM restart case) |
+| M3.5 | Stream checks: first bytes, SNI binding, upstream address rule, pass and raw TCP, tunnels | S07-07, S07-15, S07-16; SEC05; C02 | M3.4 | any | #495, #496 |
+| M3.6 | HTTP termination: h1 and h2, request form, caps, transfer coding, guest credential and response header removal | S07-08; SEC04; C02, C05 | M3.5 | any | #497 to #500, folded: #246 (rule for a client that rejects the inspected leaf) |
+| M3.7 | HTTP policy engine and built-in profiles, parts, GraphQL filter (allowlist starts empty) | S07-11, S07-07; SEC06 | M3.3 | any | #501, #502, folded: #206 (closed list of what audit mode relaxes, `audit-allowed` rule) |
+| M3.8 | Secret store shim and `wb-credset` | S15-02, S15-03, S12-03; SEC12; C05 | M2.2, H1 | mac, host | #503, #504, #505, #514 (`wb cred` audit records) |
+| M3.9 | Inspection CA: Secure Enclave key, leaves, rotation, removal list, `wb vm reset-ca`, guest trust | S09-06, S09-07, S09-08; C02 | M3.8 | any, host, vm | #506 to #510 |
+| M3.10 | Audit writer and event channel: OCSF, budgets, free space, a failed write stops the VM; the records V1-M2 only logs (data disk reset, git checks) | S09-11, S04-08; SEC10; C11 | M2.7 | any | #476, #477, folded: #177 (bound on the event retry queue) |
+| M3.11 | Supervision and `wb-launcher` | S04-03, S04-07; SEC13; C11 | M2.3 | mac | #478, #479, #480, #370 (the `wb-diskfmt` kill request, S04-04) |
+| M3.12 | Egress integration: the NIC in the device set, a `wb-netd` per VM, flow reset on restore | S04-02; SEC05, SEC10, SEC11, FR08; C01, C02 | M3.1 to M3.11, H1 | vm, host | #481, #511, #512, #513 |
 
 ## V1-M7-image-build
 
@@ -103,7 +103,7 @@ leftovers of V1-M1 in the docs (#169, #236, #237, #247).
 | IMG.2 | `wb-vmd-install`, build bundle, sealed image, slot lending, `wb image` | S06-02, S04-04, S06-07; SEC15; C11 | IMG.1, H2 | vm | #262 (X30-installer-trust) first |
 | IMG.3 | Build network (one inbound port 22, refused for session VMs) and `wb-build-ssh` | S04-05, S15-04 | M3.1, IMG.2 | vm | |
 | IMG.4 | `wb-guestadmin`: build, rotation, cleanup, first-contact gate, disk replacement and user recreation | S15-04, S06-03; SEC04, SEC12; C09 | M3.8, IMG.3 | vm, host | folded: #154 (rotation with both passwords on standard input), #155 (no password in the bundle), #142 (optional: can guest root revive the provisioning user's token) |
-| IMG.5 | Named provisioning operations, terminfo, sealing scan | S06-02; SEC04 | IMG.4, secret scanner | vm | folded: #203 (`pairs#0x7fff` alias for `xterm-kitty`) |
+| IMG.5 | Named provisioning operations, terminfo for Ghostty, kitty, WezTerm, Alacritty and foot (#474), sealing scan | S06-02; SEC04 | IMG.4, secret scanner | vm | folded: #203 (`pairs#0x7fff` alias for `xterm-kitty`) |
 | IMG.6 | Base layer: Command Line Tools from the host-fetched package, `_wbtools`, Homebrew and its snapshot; derived images from recipes | S06-01, X20-shared-homebrew; FR06; C09 | IMG.5 | vm | |
 | IMG.7 | Claude Code in its own top layer: `wb-release-check`, install, `wb image list` | S14-01, S17-04; FR01 | IMG.1, IMG.5 | any, vm | |
 | IMG.8 | Xcode variant from a host-built read-only disk image | S06-01, S06-04; FR06 | IMG.6 | vm | |
@@ -125,7 +125,7 @@ the fixture bundle, before the git packages.
 | M4.7 | Session lifecycle, guest: reports, link drop, recovery, kill loop, leftovers, the launchd domain removal | S06-10, S06-11, S13-01; C09 | M4.6, M4.3 | vm | #196 (launchd domain check) |
 | M4.8 | Carry-in: collect, scan, apply | S08-01; FR04 | secret scanner | mac, vm | |
 | M4.9 | `~/.claude` carry-in: filter, caps, write as the user | S14-02, S14-03; FR13 | secret scanner | any, vm | |
-| M4.10 | Bindings and model credential: placeholders, injection, streaming scan, `wb cred`; long-lived token and API key | S09-05, S07-08, S07-09; SEC04; C05, C06 | M3.6 to M3.9, #253 | any, H4 | #253 (folded: #226) |
+| M4.10 | Bindings and model credential: placeholders, injection, streaming scan, `wb cred` (its store operations are in #504); long-lived token and API key | S09-05, S07-08, S07-09; SEC04; C05, C06 | M3.6 to M3.9, #253 | any, H4 | #253 (folded: #226) |
 | M4.11 | Terminal records and session summary | S09-12, S16-03, S05-01; SEC10 | M2.11, M3.10 | any | folded: #199 (escaper and report parser fuzz targets) |
 | M4.12 | `wb claude`: agent interface, environment, history link, job control; C06 end to end | S14-00, S06-08, S05-01, S05-02; FR01, FR13 | M4.10, M2.12, H4 for the first prompt; the rest of V1-M4 and IMG.7 for C06 | vm, host | #135, #231 (Claude Code part) |
 
