@@ -45,10 +45,10 @@ a new, empty build bundle before each build.
 Before it confines itself, `wb-vmd` refuses to start, logs the rule
 and exits:
 
+- on a macOS older than 27 (`vmd-host-unsupported`, S02-toolchain);
 - when the variable is missing (`vmd-slot-missing`);
 - when it holds any other value (`vmd-slot-unknown`);
-- when its slot's bundle path doesn't exist or isn't a directory
-  (`vmd-bundle-missing`);
+- when its bundle path isn't a directory (`vmd-bundle-missing`);
 - when the real path of that bundle isn't that slot's bundle under the
   real path of `<data>` (`vmd-slot-bundle-mismatch`). An example is a
   bundle that is a symbolic link to another VM's bundle.

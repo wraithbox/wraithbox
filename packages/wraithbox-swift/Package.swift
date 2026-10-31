@@ -7,15 +7,16 @@ import PackageDescription
 
 let package = Package(
     name: "wraithbox-swift",
-    // macOS 27 is the oldest v1 host (NFR04-host-platforms). wb image build
-    // needs the guest provisioning options that are new in macOS 27, and
-    // with this target the code calls them without an #available check.
-    // `.v27` needs tools version 6.4, which ships with Xcode 27.
-    // The first platform is the app target's deployment target too:
-    // scripts/app-bundle.sh reads it and passes it to xcodebuild for
-    // WraithBox.xcodeproj, so one edit here moves both.
+    // macOS 27 is the oldest v1 host (NFR04-host-platforms), but the
+    // package targets macOS 26, so that its build and tests run on a Mac
+    // that can't have 27 yet (S02-toolchain). The programs refuse an older
+    // host at run time (HostRequirement), and code that calls an API new
+    // in macOS 27 checks it with #available, which the compiler enforces.
+    // `.v26` needs tools version 6.2; the package declares 6.4 for Xcode 27.
+    // The app bundle doesn't take this target: scripts/app-bundle.sh
+    // builds it for macOS 27.
     platforms: [
-        .macOS(.v27)
+        .macOS(.v26)
     ],
     products: [
         .library(name: "WraithBoxVM", targets: ["WraithBoxVM"]),

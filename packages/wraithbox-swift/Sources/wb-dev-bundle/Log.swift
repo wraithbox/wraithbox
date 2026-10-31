@@ -55,6 +55,8 @@ enum Rule: String, Sendable, CaseIterable {
     case otherDevice = "other-device"
     /// The bundle files a VM opens are regular files, not links.
     case bundleFile = "bundle-file"
+    /// Guest provisioning needs macOS 27 on the host (HostRequirement).
+    case hostUnsupported = "host-unsupported"
     /// The command line names a command and its arguments.
     case usage = "usage"
 }

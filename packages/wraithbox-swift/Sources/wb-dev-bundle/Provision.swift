@@ -4,6 +4,7 @@
 // Only test guests in the spike cache get this. Product guests never do.
 import Foundation
 import Virtualization
+import WraithBoxVM
 
 /// The SSH user every provisioned test guest gets.
 let sshUser = "wbdev"
@@ -22,6 +23,13 @@ func provisionBundle(_ bundle: CachePath, minutes: Int, log: Log) async throws {
     _ = try neverBooted(bundle)
     let lock = try BundleLock.take(bundle: bundle.path)
     var record = try neverBooted(bundle)
+    // Before the record says the bundle booted, so a refused bundle can
+    // still be provisioned on a newer host.
+    guard #available(macOS 27, *) else {
+        throw Refusal(
+            .hostUnsupported, bundle.path,
+            "guest provisioning needs macOS \(HostRequirement.minimumMacOS) or later on the host")
+    }
     let password = randomPassword()
     let passwordFile = try writePassword(password, bundle: bundle.path)
     record.bootedAt = Date()

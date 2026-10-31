@@ -27,6 +27,8 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   type, so Launch Services doesn't open it as a disk image. A clone of a spike
   bundle that kept `aux.img`, `sys.img` and `data.img` is refused with
   `bundle-file-missing`.
+- **Host.** On a macOS older than 27, `wb-vmd` is refused with
+  `vmd-host-unsupported` before `sandbox_init`, whatever its slot.
 - **Slot.** Start `wb-vmd` with `WB_VMD_SLOT` unset, with an unknown
   value, with the `build` slot, with its bundle a symbolic link to the
   other slot's bundle, and with its bundle missing. See

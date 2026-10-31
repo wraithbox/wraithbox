@@ -39,10 +39,16 @@ with `.mise.toml`.
 The compiler, `swift-format`, and `xcodebuild` ship inside Xcode. So
 the Xcode version is the pin.
 
-- `Package.swift` declares `swift-tools-version: 6.4`, the floor, and
-  its deployment target is macOS 27 (NFR04-host-platforms). Tools
-  version 6.4 is the first that knows macOS 27, and it ships with
-  Xcode 27. Contributors may use a newer Xcode.
+- `Package.swift` declares `swift-tools-version: 6.4`, the floor, which
+  ships with Xcode 27. Contributors may use a newer Xcode.
+- The package's deployment target is macOS 26, one major version below
+  the oldest v1 host (NFR04-host-platforms). A contributor whose Mac
+  can't run macOS 27 yet can still build the package and run its tests.
+  The compiler then makes each call to an API new in macOS 27 check
+  `#available`. The programs refuse an older host at run time: `wb-vmd`
+  with `vmd-host-unsupported` (S04-04-vm-processes, "Slot checks"), and
+  `wb-dev-bundle provision` with `host-unsupported`. The app bundle is
+  built for macOS 27, so macOS doesn't open it on an older Mac.
 - CI uses the default Xcode of its pinned macOS runner image. The Swift
   job runs on the `xcode-27` image, which is macOS 27 with Xcode 27.
   The Go job's macOS runner stays on `macos-26`: the Go module has no

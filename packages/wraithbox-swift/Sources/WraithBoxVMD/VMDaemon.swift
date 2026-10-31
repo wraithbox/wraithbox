@@ -4,6 +4,7 @@
 // with its rule, and wb-vmd exits.
 import Darwin
 import Dispatch
+import Foundation
 import GRPCCore
 import GRPCNIOTransportHTTP2Posix
 import NIOPosix
@@ -38,6 +39,7 @@ public enum VMDaemon {
     /// path (S04-03-self-sandboxing, "`wb-vmd` before it confines
     /// itself").
     static func prepare(log: EventLog) throws(StartupRefusal) -> ResolvedSlot {
+        try StartInterface.checkHost(ProcessInfo.processInfo.operatingSystemVersion)
         let cache = try SlotResolution.cacheDirectory()
         let slotValue = getenv(SlotResolution.variable).map { String(cString: $0) }
         let home = SlotResolution.homeDirectory()

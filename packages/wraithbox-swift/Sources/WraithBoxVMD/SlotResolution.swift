@@ -11,6 +11,9 @@ import WraithBoxVM
 
 /// The rule a refusal at start names. wb-vmd logs it and exits.
 public enum StartupRule: String, Sendable, Equatable, CaseIterable {
+    /// The host's macOS is older than HostRequirement.minimumMacOS
+    /// (NFR04-host-platforms).
+    case hostUnsupported = "vmd-host-unsupported"
     /// WB_VMD_SLOT isn't set.
     case slotMissing = "vmd-slot-missing"
     /// WB_VMD_SLOT holds a value that isn't a slot.

@@ -113,6 +113,19 @@ struct SlotResolutionTests {
 
 @Suite("Start interface")
 struct StartInterfaceTests {
+    @Test(
+        "macOS 27 and later are accepted, and an older macOS is refused with vmd-host-unsupported")
+    func host() throws {
+        for major in [27, 28] {
+            try StartInterface.checkHost(
+                OperatingSystemVersion(majorVersion: major, minorVersion: 0, patchVersion: 0))
+        }
+        try expectRefusal(.hostUnsupported) {
+            try StartInterface.checkHost(
+                OperatingSystemVersion(majorVersion: 26, minorVersion: 7, patchVersion: 1))
+        }
+    }
+
     @Test("no arguments are accepted, and any argument is refused with vmd-arguments")
     func arguments() throws {
         try StartInterface.checkArguments(["wb-vmd"])
