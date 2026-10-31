@@ -40,12 +40,10 @@ NFR06-explained-refusals).
 
 ### When `wb-hostd` stops
 
-VMs stop with `wb-hostd`, for V1 (see "Decisions").
-
-`wb-launcher`, `wb-vmd`, `wb-netd` and `wb-proxyd` each inherit a
-control channel to `wb-hostd`: a socket, never a path. End of file or
-an error on that channel means `wb-hostd` is gone. Each of them then
-acts on its own:
+VMs stop with `wb-hostd`, for V1 (see "Decisions"). `wb-launcher`,
+`wb-vmd`, `wb-netd` and `wb-proxyd` each inherit a control channel to
+`wb-hostd`: a socket, never a path. End of file or an error on that
+channel means `wb-hostd` is gone. Each of them then acts on its own:
 
 - **Each `wb-vmd`** stops its VM at once and exits. It doesn't ask the
   guest to shut down, and it doesn't save the VM. The sessions in that
