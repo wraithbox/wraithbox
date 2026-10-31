@@ -117,14 +117,43 @@ func running(t *testing.T, uid uint32) []gp.Proc {
 	return slices.DeleteFunc(procs, func(p gp.Proc) bool { return p.State == gp.Zombie })
 }
 
+// agentPID returns the PID launchd reports for the KeepAlive agent in
+// u's domain, or 0 while it has none.
+func agentPID(t *testing.T, u users.User) int32 {
+	t.Helper()
+	target := "user/" + strconv.FormatUint(uint64(u.UID), 10) + "/" + keepAliveLabel
+	out, err := exec.CommandContext(t.Context(), "/bin/launchctl", "print", target).CombinedOutput()
+	if err != nil {
+		return 0
+	}
+	for line := range strings.Lines(string(out)) {
+		v, ok := strings.CutPrefix(strings.TrimSpace(line), "pid = ")
+		if !ok {
+			continue
+		}
+		if pid, err := strconv.ParseInt(v, 10, 32); err == nil {
+			return int32(pid)
+		}
+	}
+	return 0
+}
+
 // waitRunning waits up to comeBackWait for at least n processes of u,
-// or fails the test: launchd starts the agent after bootstrap returns.
+// the KeepAlive agent's among them, or fails the test: launchd starts
+// the agent after bootstrap returns, and a sleep left from an earlier
+// run must not stand in for it.
 func waitRunning(t *testing.T, u users.User, n int) {
 	t.Helper()
 	deadline := time.Now().Add(comeBackWait)
-	for len(running(t, u.UID)) < n {
+	for {
+		procs := running(t, u.UID)
+		pid := agentPID(t, u)
+		agent := pid != 0 && slices.ContainsFunc(procs, func(p gp.Proc) bool { return p.PID == pid })
+		if agent && len(procs) >= n {
+			return
+		}
 		if time.Now().After(deadline) {
-			t.Fatalf("processes of %s before the kill: %v, want at least %d", u.Name, running(t, u.UID), n)
+			t.Fatalf("processes of %s before the kill: %v, agent PID %d, want at least %d with the agent's", u.Name, procs, pid, n)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

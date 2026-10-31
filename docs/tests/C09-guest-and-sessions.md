@@ -301,7 +301,8 @@ a fake directory, volume root, kill loop and child:
 On the guest's own file system, in `internal/platform/guestusers`:
 `TestRootRmdir`, `TestDirWriteRead`, `TestDirNames`, `TestDirReadRefuses`
 (a link, a FIFO, a directory or a file over the cap isn't read),
-`TestRootOpenDirLink` and `TestEmptyHomeRefuses`. In
+`TestRootOpenDirLink`, `TestEmptyHomeRefuses` and `TestEmptyHomeArgs`
+(the first pass runs chmod only on a directory the user closed). In
 `internal/platform/guestprocs`, `TestListsOwnProcess` and `TestSignal`
 (a PID below 2, or one whose start time changed, gets no signal).
 
@@ -331,7 +332,8 @@ As root in the guest, in `conformance/guestusers`, each only with its
 variable naming the UID of a project user it may end:
 
 - `TestKillUser` (`WB_CONFORMANCE_KILL_UID`): one kill ends a KeepAlive
-  LaunchAgent, a `nohup` process and a process in its own session. None
+  LaunchAgent, a detached process with SIGHUP ignored and a process in
+  its own session. None
   is back 5 seconds later, and `launchctl print` of the user's domain
   fails or doesn't name the agent.
 - `TestRemoveUser` (`WB_CONFORMANCE_REMOVE_UID`): a removal removes the
