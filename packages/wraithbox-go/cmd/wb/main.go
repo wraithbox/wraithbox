@@ -41,14 +41,23 @@ func run(args []string) int {
 	case inv.Command.Name == "vm":
 		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 		return vmcmd.Run(context.Background(), vmcmd.SystemEnv(log), inv.Args)
-	case inv.Command.Name == "project":
-		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-		dir := inv.Globals.Dir
-		if dir == "" {
-			dir = "."
-		}
-		return projectcmd.Run(context.Background(), projectcmd.SystemEnv(log), dir, inv.Args)
+	case inv.Command.Name == "project" || inv.Command.Name == "shell":
+		return runInProject(inv)
 	}
 	fmt.Fprintf(os.Stderr, "wb %s: not implemented yet\n", inv.Command.Name)
 	return 2
+}
+
+// runInProject runs a command that resolves its project from the
+// directory of -C, or the current one: `wb project` and `wb shell`.
+func runInProject(inv cli.Invocation) int {
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	dir := inv.Globals.Dir
+	if dir == "" {
+		dir = "."
+	}
+	if inv.Command.Name == "shell" {
+		return projectcmd.RunShell(context.Background(), projectcmd.SystemEnv(log), dir, inv.Args)
+	}
+	return projectcmd.Run(context.Background(), projectcmd.SystemEnv(log), dir, inv.Args)
 }
