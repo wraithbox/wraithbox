@@ -167,10 +167,16 @@ func failureOf(err error) (string, string) {
 	if r, ok := errors.AsType[*versionError](err); ok {
 		return r.rule, r.msg
 	}
-	st, ok := status.FromError(err)
+	// The status is read from the error that carries it, so a wrapped one,
+	// such as relay.OpenShell's, prints wb-hostd's message alone.
+	se, ok := errors.AsType[interface {
+		error
+		GRPCStatus() *status.Status
+	}](err)
 	if !ok {
 		return RuleUnreachable, err.Error()
 	}
+	st := se.GRPCStatus()
 	for _, d := range st.Details() {
 		if info, ok := d.(*errdetails.ErrorInfo); ok && info.GetReason() != "" {
 			return info.GetReason(), st.Message()
