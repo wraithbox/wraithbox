@@ -14,6 +14,7 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/shells"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
@@ -82,6 +83,9 @@ type ShellServer struct {
 	// when 0.
 	StartWait time.Duration
 	StartPoll time.Duration
+	// OpenWait bounds the open of the guest stream. It is
+	// guestlink.ShellOpenTimeout when 0.
+	OpenWait time.Duration
 	// After is time.After, Now time.Now and Rand crypto/rand when nil.
 	After func(time.Duration) <-chan time.Time
 	Now   func() time.Time
@@ -109,8 +113,13 @@ func (s *ShellServer) Shell(stream hostdv1.ShellService_ShellServer) error {
 	if err != nil {
 		return s.refuseShell(ctx, err)
 	}
-	if err := s.Links.UnlockUser(ctx, o.sh.Slot, o.sh.Generation(), o.user); err != nil {
-		o.sh.Release()
+	// The unlock runs to its answer when wb goes, so a gone wb can't leave
+	// the user unlocked with no shell to end it.
+	if err := s.Links.UnlockUser(context.WithoutCancel(ctx), o.sh.Slot, o.sh.Generation(), o.user); err != nil {
+		// The guest may have unlocked the user and lost the answer. End
+		// locks and kills it now, or on the next link when this one
+		// dropped (S13-01-process-hardening, "Locked users").
+		o.sh.End(ctx, false)
 		return s.refuseShell(ctx, err)
 	}
 	// From here the user is unlocked, so every end locks it again when no
@@ -141,7 +150,7 @@ func (s *ShellServer) open(ctx context.Context, stream hostdv1.ShellService_Shel
 	if err != nil {
 		return nil, err
 	}
-	sh, err := s.register(slot, p, peerPID(ctx), open.GetSetup().GetInteractive())
+	sh, err := s.register(ctx, slot, p, peerPID(ctx), open.GetSetup().GetInteractive())
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +215,7 @@ func slotOfPlacement(placement string) (vm.Slot, error) {
 // register draws a shell id of the session id form (S05-04-naming) and
 // records the shell as starting, before the VM's phase is read, so a
 // `wb vm stop` either lists it or ran first (vm.Manager.Stop).
-func (s *ShellServer) register(slot vm.Slot, p state.Project, pid int, interactive bool) (*shells.Shell, error) {
+func (s *ShellServer) register(ctx context.Context, slot vm.Slot, p state.Project, pid int, interactive bool) (*shells.Shell, error) {
 	for range shellIDAttempts {
 		id, err := sessionid.New(p.Name, s.now(), s.rand())
 		if err != nil {
@@ -219,9 +228,26 @@ func (s *ShellServer) register(slot vm.Slot, p state.Project, pid int, interacti
 		if r, ok := errors.AsType[*shells.CapRefusal](err); ok {
 			return nil, &projectRefusal{code: codes.ResourceExhausted, rule: shells.RuleSessionCap, msg: r.Error()}
 		}
+		if r, ok := errors.AsType[*shells.TakenRefusal](err); ok {
+			return nil, s.takenRefusal(ctx, r)
+		}
 		return sh, err
 	}
 	return nil, fmt.Errorf("no free shell id in %d draws", shellIDAttempts)
+}
+
+// takenRefusal refuses a shell in the isolated VM that another project
+// has, and names that project (S06-04-vms-and-placement, "Isolated slot
+// to itself"; NFR06-explained-refusals). An id whose row is gone is
+// named as it is.
+func (s *ShellServer) takenRefusal(ctx context.Context, r *shells.TakenRefusal) *projectRefusal {
+	name := r.OtherProjectID
+	if p, err := s.project(ctx, r.OtherProjectID); err == nil {
+		name = p.Name
+	}
+	return &projectRefusal{code: codes.FailedPrecondition, rule: shells.RuleIsolatedTaken, msg: fmt.Sprintf(
+		"the project %s has a shell in the isolated VM, and an isolated project gets that VM to itself. "+
+			"Close that shell and run wb shell again.", name)}
 }
 
 // run sends the opened message, starts the shell in the guest, and
@@ -245,7 +271,7 @@ func (s *ShellServer) run(ctx context.Context, stream hostdv1.ShellService_Shell
 	// the terminal ends the session").
 	guestCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	defer cancel()
-	guest, down, err := s.Links.OpenShell(guestCtx, slot, sh.Generation())
+	guest, down, err := s.openGuest(guestCtx, cancel, slot, sh.Generation())
 	if err != nil {
 		s.logger().LogAttrs(ctx, slog.LevelWarn, "shell failed", slog.String("rule", shells.RuleRefused),
 			slog.String("decision", "fail"), slog.String("shell_id", sh.ID), slog.String("error", err.Error()))
@@ -263,6 +289,23 @@ func (s *ShellServer) run(ctx context.Context, stream hostdv1.ShellService_Shell
 		Checker: shells.NewChecker(o.open.GetSetup()), Log: s.logger(), After: s.After,
 	}).Run()
 	return out.Lost
+}
+
+// openGuest opens the guest stream on ctx, and calls cancel when the
+// open takes longer than OpenWait, so a guest that holds the open back
+// can't hang the shell (SEC13-bounded-resources). The bound covers the
+// open only: the stream runs on until ctx ends.
+func (s *ShellServer) openGuest(ctx context.Context, cancel context.CancelFunc, slot vm.Slot, generation uint64) (guestv1.GuestService_ShellClient, <-chan struct{}, error) {
+	wait := s.OpenWait
+	if wait <= 0 {
+		wait = guestlink.ShellOpenTimeout
+	}
+	timer := time.AfterFunc(wait, cancel)
+	guest, down, err := s.Links.OpenShell(ctx, slot, generation)
+	if !timer.Stop() {
+		return nil, nil, fmt.Errorf("the guest stream didn't open within %s", wait)
+	}
+	return guest, down, err
 }
 
 // refuseShell logs a refused shell with its rule and the calling wb, and

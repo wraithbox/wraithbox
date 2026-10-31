@@ -27,6 +27,8 @@ const (
 	// RuleKill: the lock and kill of a project user after its last shell,
 	// or after a lost one, sent or not.
 	RuleKill = "shell-user-kill"
+	// RuleIsolatedTaken: another project has a shell in the isolated VM.
+	RuleIsolatedTaken = "isolated-slot-taken"
 )
 
 // ErrIDTaken is returned by Register for an id an open shell has.
@@ -39,6 +41,16 @@ type CapRefusal struct {
 
 func (r *CapRefusal) Error() string {
 	return fmt.Sprintf("the %s VM already has %d open shells, the most one VM holds. Close one and try again.", r.Slot, MaxPerVM)
+}
+
+// TakenRefusal is the refusal of a shell in the isolated VM while
+// another project has one there. OtherProjectID is that project's id.
+type TakenRefusal struct {
+	OtherProjectID string
+}
+
+func (r *TakenRefusal) Error() string {
+	return "shells: another project has a shell in the isolated VM: " + r.OtherProjectID
 }
 
 // Killer sends the lock and kill loop of a project user
@@ -128,7 +140,9 @@ type Shell struct {
 // Register records a starting shell with id in slot, before its VM's
 // phase is checked, so a `wb vm stop` that reads the shells after it
 // lists it (vm.Manager.Stop). It refuses the shell over MaxPerVM with a
-// *CapRefusal, and an id an open shell has with ErrIDTaken.
+// *CapRefusal, an id an open shell has with ErrIDTaken, and a shell in
+// the isolated VM while another project has one there with a
+// *TakenRefusal.
 func (g *Registry) Register(id string, slot vm.Slot, projectID string, pid int, interactive bool) (*Shell, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -139,6 +153,13 @@ func (g *Registry) Register(id string, slot vm.Slot, projectID string, pid int, 
 	for sh := range s.shells {
 		if sh.ID == id {
 			return nil, ErrIDTaken
+		}
+		// An isolated project gets the isolated VM to itself. No project
+		// is marked shared before its settings exist, so each one is
+		// alone there (S06-04-vms-and-placement, "Isolated slot to
+		// itself"; SEC08-proj-isolation).
+		if slot == vm.SlotIsolated && sh.ProjectID != projectID {
+			return nil, &TakenRefusal{OtherProjectID: sh.ProjectID}
 		}
 	}
 	sh := &Shell{g: g, ID: id, Slot: slot, ProjectID: projectID, PID: pid, Interactive: interactive, state: vm.SessionStarting}

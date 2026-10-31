@@ -18,6 +18,10 @@ import (
 // for.
 const RuleShellStartTimeout = "shell-start-timeout"
 
+// RuleShellClientGone: wb's stream ended while the shell waited for its
+// VM or guest, so the shell didn't start.
+const RuleShellClientGone = "shell-client-gone"
+
 // waiting is a step of the admission that isn't ready yet, which the
 // shell waits for.
 type waiting struct {
@@ -71,7 +75,8 @@ func (s *ShellServer) admit(ctx context.Context, slot vm.Slot, projectID string)
 		}
 		select {
 		case <-ctx.Done():
-			return 0, state.ProjectUser{}, fmt.Errorf("wb went while the shell waited: %w", ctx.Err())
+			return 0, state.ProjectUser{}, &projectRefusal{code: codes.Canceled, rule: RuleShellClientGone, msg: fmt.Sprintf(
+				"wb went while the shell waited for the %s VM: %s", slot, ctx.Err())}
 		case <-deadline:
 			return 0, state.ProjectUser{}, &projectRefusal{code: codes.Unavailable, rule: RuleShellStartTimeout, msg: fmt.Sprintf(
 				"the %s VM wasn't ready for the shell within %s: %s Try again.", slot, wait, err.Error())}
