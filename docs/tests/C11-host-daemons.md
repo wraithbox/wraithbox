@@ -141,6 +141,9 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   goes quiet in the session, and one that writes output without end.
   See `build-ssh-login-timeout`, `build-ssh-idle-timeout` and
   `build-ssh-output-limit`, and the build fail.
+- Run it against a server that writes one byte of output every 90 s,
+  past the session deadline, and see `build-ssh-deadline` and the build
+  fail.
 - See it offer only password authentication to the test server.
 
 ### Confinement
