@@ -126,6 +126,8 @@ func TestQuote(t *testing.T) {
 		{"boom", `the guest reported: "boom"`},
 		{"\x1b[2J clear\u202e", `the guest reported: "[2J clear"`},
 		{"\x9b fail", `the guest reported: " fail"`},
+		{`ok". Run: x`, `the guest reported: "ok\". Run: x"`},
+		{`a\" b`, `the guest reported: "a\\\" b"`},
 	} {
 		if got := Quote(tc.in); got != tc.want {
 			t.Errorf("Quote(%q) = %q, want %q", tc.in, got, tc.want)
@@ -134,6 +136,13 @@ func TestQuote(t *testing.T) {
 	long := Quote(strings.Repeat("é", maxMessage))
 	if len(long) > maxMessage || !strings.HasSuffix(long, `é"`) {
 		t.Fatalf("Quote of a long message: %d bytes, %q", len(long), long[len(long)-4:])
+	}
+	// A cut never splits an escape, which would leave a lone backslash
+	// before the closing quote.
+	quotes := Quote(strings.Repeat(`"`, maxMessage))
+	body := strings.TrimSuffix(strings.TrimPrefix(quotes, quotePrefix), quoteSuffix)
+	if len(quotes) > maxMessage || body == "" || strings.ReplaceAll(body, `\"`, "") != "" {
+		t.Fatalf("Quote of quotes: %d bytes, %q", len(quotes), quotes[len(quotes)-6:])
 	}
 }
 
