@@ -527,7 +527,7 @@ it adds. It checks:
   ends promptly with the shell's status;
 - `wb vm stop` is refused, naming the shell, while a shell is open.
 
-What needs a terminal stays attended, run by hand with
+The checks that need a terminal are attended, run by hand with
 `wb shell --project P` in the work VM:
 
 - the terminal's title and the label line;
