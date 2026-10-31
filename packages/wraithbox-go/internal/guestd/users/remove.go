@@ -103,9 +103,11 @@ type RemoveTools struct {
 //     group only, then removes the home with unlinkat. A home that
 //     stays is logged with RuleHomeLeft;
 //  4. retires the record: the shell RetiredShell, pwpolicy
-//     -disableuser, and hidden. The record stays, because opendirectoryd refuses
-//     root's dscl -delete (X17-image-build). The user leaves the known
-//     set, and Ensure refuses it from then on.
+//     -disableuser, and hidden. The record stays by design, not because
+//     root can't delete it: the user's IDs are never reused
+//     (S06-03-image-updates, "Allocation"), and the next system disk
+//     drops it. The user leaves the known set, and Ensure refuses it
+//     from then on.
 //
 // A removal of a retired user runs the same steps, and answers Removed
 // again. One removal per user runs at a time: another gets Refused with
