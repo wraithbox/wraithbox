@@ -106,7 +106,7 @@ var ErrName = errors.New("storeitem: not an item name")
 // Parse returns the item name s, which must be Prefix followed by one of
 // the forms of S15-03-access-rules, "Declared access", with every <…>
 // part of 1 to MaxPart characters of a to z, 0 to 9 and -. Anything else
-// is an error that wraps ErrName. The CA removal list carries names that
+// is an error that wraps ErrName. The CA removal list holds names that
 // a compromised wb-hostd may have chosen (T16-hostd-landing), so this is
 // the only way to make a Name.
 func Parse(s string) (Name, error) {

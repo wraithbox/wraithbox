@@ -18,7 +18,7 @@ item.
      place, and keeps the key.
 
    Our code refuses an undeclared access where the backend can't, and
-   logs it with the rule.
+   logs it with the rule `store-access-undeclared`.
 2. **Use over fetch.** Where the store can use a key in place, the
    process doesn't fetch it, as with 1Password's SSH agent signing after V1.
    For the CA key, `wb-proxyd` fetches only the key's wrapped form. The
@@ -97,6 +97,7 @@ characters of `a` to `z`, `0` to `9` and `-`.
 | `wbadmin/image/<image>` | `wb-guestadmin-rotate`, write at the build VM's first contact, fetch at each VM's first contact | the guest connection of S15-04-guest-admin | removed with the image |
 | `wbadmin/image/<image>` of a parent, and of the image built on it | `wb-guestadmin-rotate`, at the layer VM's first contact only: fetch of the parent's item, and write of the new image's item. It writes no VM item there | the guest connection of S15-04-guest-admin | the parent's item is removed with the parent (S06-01-image-layers, "Parents"). The new image's item is removed with that image, or by `wb-guestadmin-cleanup` when its build fails |
 | `wbadmin/vm/<vm>/<disk>` | `wb-guestadmin-rotate`, write at first contact | the guest connection of S15-04-guest-admin | kept for the secure token and a later diagnostics path (I158), removed when the system disk is replaced |
+| `wbadmin/build/<build>`, `wbadmin/image/<image>`, `wbadmin/vm/<vm>/<disk>` | `wb-guestadmin-cleanup`, delete of the items of builds, images and disks that are gone (rule 8) | none | one run |
 
 Which `wbadmin` item is current for a disk isn't secret. So `wb-hostd`
 keeps that marker in `state.db`, and never stores a value.

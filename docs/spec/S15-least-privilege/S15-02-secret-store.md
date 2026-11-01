@@ -195,6 +195,11 @@ and the rule. That holds in every build and on every backend.
   The work that needed the item is refused with it.
 - A failed write or delete of any item is `store-write-failed`,
   outside the cases above and the CA issue of S09-06-ca-keys, "Valid CA". The command or work that made it is refused with it.
+- The store logs a missing item with `store-item-not-found`, and a
+  locked store with `store-locked`. The caller then refuses or waits
+  under its own rule.
+- A macOS build without cgo has no Keychain shim (S10-01-libraries). It
+  refuses every store call with `store-shim-missing`.
 
 ## Decisions
 
