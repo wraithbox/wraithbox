@@ -44,7 +44,9 @@ the closing issue's labels.
 6. Rebase on `origin/main`, push, and open the PR against `main`:
    Conventional Commits title, `Closes #<issue>`, the requirement IDs it
    implements, a "Choices made" list with one line per two-way decision,
-   and the attribution lines. Watch CI in the foreground with
+   and the attribution lines. A choice that changes a spec page or a
+   `SEC*` control comes first and starts with its ID, as in
+   `S07-11-http-policy: …`. Watch CI in the foreground with
    `mise run ci-watch` (Bash timeout 600000 ms). Never `sleep` and never
    end your turn to wait: nothing wakes you. On failure
    `gh run view --log-failed`, fix, push, repeat.

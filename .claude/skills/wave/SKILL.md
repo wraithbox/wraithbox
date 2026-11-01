@@ -137,8 +137,10 @@ issues are all closed, check its exit criterion (`planning.md`,
    `mergeable` state. A `CONFLICTING` one becomes a rebase item for the
    next wave. Remove the worktree of each merged pull request with
    `git worktree remove` on the path the lead reported.
-5. After the wave's merges, watch the newest run on `main` with
-   `gh run watch --exit-status`. A failure stops the run.
+5. After the wave's last merge, check the newest completed run on
+   `main` that wasn't cancelled (`gh run list --branch main --workflow
+   ci.yml`), and wait until one exists: each push cancels the run
+   before it. A failure stops the run.
 6. Stop or pick the next wave (`orchestration.md`, "Runs", "Stop").
 
 ## End

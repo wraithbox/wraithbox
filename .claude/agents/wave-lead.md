@@ -53,20 +53,13 @@ Write scratch files only to `.scratch/`.
    `Security review, round <k>`: the dispatcher's merge check reads
    them.
    Send the builder one message: the `must-fix` findings, the cheap
-   `fold` findings, and the findings to skip. When the builder's
-   hand-back shows `<subagent_tokens>` of 150k or more and it didn't stop
-   at its turn limit, don't resume it. It has handed back, so nothing
-   of it runs. Send the message to a
-   fresh agent of the same type with `isolation: "worktree"` instead,
-   naming the pull request and its branch (`orchestration.md`, "A
-   wave", step 5).
-   From then on the fresh builder is the pull request's builder: later
-   rounds and a `CONFLICTING` pull request go to it, not to the old
-   one.
+   `fold` findings, and the findings to skip.
 4. After `needs changes`, the same reviewer re-checks. After an
-   approve, read later fix commits with `git show` and comment
+   approve, read each later commit with `git show` and comment
    `re-checked: <commit link>` on the pull request, with the full commit
-   hash of the new head.
+   hash of the new head. A commit that does more than the findings
+   asked for, or a rebase onto changes to the same code, gets a new
+   review round instead.
 5. A pull request gets at most two revision rounds. After the second
    `needs changes`, leave it open and report it with the reason.
 6. A builder that stops because the work needs a VM or the host

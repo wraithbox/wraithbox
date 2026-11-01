@@ -25,7 +25,9 @@ A session the maintainer works in directly.
 6. **Pull request.** `gh pr create`, with `Closes #<n>` when it finishes
    an issue, the requirement IDs it implements, a "Choices made" list
    for the calls the session made (`working.md`, "Decisions"), and the
-   attribution lines.
+   attribution lines. A choice that changes a spec page or a `SEC*`
+   control comes first and starts with its ID, as in
+   `S07-11-http-policy: …`.
 7. **CI.** `mise run ci-watch`. On a failure, `gh run view <id>
    --log-failed`, fix, push, watch again.
 8. **Merge**, on the maintainer's word: `gh pr merge <n> --rebase`, or

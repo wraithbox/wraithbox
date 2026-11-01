@@ -93,21 +93,13 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    needs the maintainer (a spec change, a choice between designs) goes
    to the maintainer instead. When the two reviewers disagree on a
    security trade-off, take the strict side and say so in the report.
-   The builder's hand-back gives its size in `<subagent_tokens>`.
-   Under 150k, resume that builder with the message. At 150k or more,
-   leave it as it is (it has handed back and doesn't run) and
-   spawn a fresh agent of the same type on the same branch,
-   with the pull request, the posted reviews and the same message as its
-   brief, and
-   tell it to read the pull request's "Choices made" and not revisit a
-   choice the review didn't question. The fresh builder is the pull
-   request's builder from then on, so later rounds and a `CONFLICTING`
-   state in step 6 go to it, not to the stopped one. A builder stopped
-   by its turn limit is resumed whatever its size
-   (R03-fix-rounds-compaction).
-   After `needs changes`, the same reviewer
-   re-checks. After `approve`, the coordinator reads the fix commit with
-   `git show` itself and comments `re-checked: <commit link>`.
+   Resume the builder with the message. Auto-compaction keeps its
+   context small enough to resume (R03-fix-rounds-compaction).
+   After `needs changes`, the same reviewer re-checks. After `approve`,
+   the coordinator reads each later commit with `git show` and comments
+   `re-checked: <commit link>`. A commit that does more than the
+   findings asked for, or a rebase onto changes to the same code, gets
+   a new review round instead.
 6. **Merge queue.** The maintainer approves each merge, or a run's
    standing approval covers it ("Runs"). The coordinator then runs
    `gh pr merge <n> --rebase`. After each merge, list the open
@@ -217,9 +209,8 @@ machine, can see it and resume it.
 Each agent runs at the effort in its file, and a spawn doesn't set
 one. Builders, spike builders, researchers and code reviewers run at
 medium. Security reviewers run on Fable at high, or on Opus when Fable has no
-credits. Wave leads run at high, and so do the maintainer's sessions,
-the dispatcher among them, at Claude Code's default. R02-builder-effort
-has the trial behind this.
+credits. Wave leads run at high. R02-builder-effort has the trial
+behind this.
 
 ## Hot files and collisions
 
@@ -266,8 +257,7 @@ has the trial behind this.
   subagent's prompt cache lasts five minutes unless its agent file sets
   `experimental: cacheTtl: 1h`, as `builder`, `spike-builder`,
   `researcher` and `wave-lead` do. A resume after the cache expired pays the whole context as a cache
-  write. "A wave", step 5 says when a fresh builder is cheaper
-  (R03-fix-rounds-compaction).
+  write (R03-fix-rounds-compaction).
 - **The Pages deploy.** A deploy run that waits at the `github-pages`
   environment gate holds the `pages` concurrency group, and every newer
   deploy is cancelled while it waits. After a docs merge, check with
