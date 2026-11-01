@@ -37,6 +37,7 @@ func v4Refused(b [4]byte) bool {
 // and local-use NAT64 whole.
 func v6RangeRefused(b [16]byte) bool {
 	return b[0] == 0xfe && b[1]&0xc0 == 0x80 || // fe80::/10
+		b[0] == 0xfe && b[1]&0xc0 == 0xc0 || // fec0::/10
 		b[0]&0xfe == 0xfc || // fc00::/7
 		b[0] == 0xff || // ff00::/8
 		bytes.HasPrefix(b[:], []byte{0x20, 0x02}) || // 2002::/16

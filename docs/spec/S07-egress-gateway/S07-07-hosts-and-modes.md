@@ -40,7 +40,8 @@ to is in one of these ranges:
   - reserved (240.0.0.0/4, broadcast included);
   - the synthetic range (198.18.0.0/15).
 - **IPv6:** unspecified (`::`), loopback (`::1`), link-local
-  (`fe80::/10`), unique local (`fc00::/7`) and multicast (`ff00::/8`).
+  (`fe80::/10`), the deprecated site-local range (`fec0::/10`, RFC
+  3879), unique local (`fc00::/7`) and multicast (`ff00::/8`).
 - **An IPv4 address embedded in IPv6:**
   - IPv4-mapped (`::ffff:0:0/96`) and IPv4-compatible (`::/96`)
     addresses;
