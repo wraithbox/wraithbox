@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 )
 
 // run is one VM run: one provider instance and one generation. Its
@@ -18,6 +19,9 @@ type run struct {
 	vmStopped bool
 	// finishing: finish has begun closing the instance.
 	finishing bool
+	// rule is the rule of a forced stop or a failed start, for the run's
+	// stop record. Empty takes the ending's rule.
+	rule Rule
 	// ended is closed once the instance is closed and the slot stopped.
 	ended chan struct{}
 }
@@ -42,6 +46,10 @@ const (
 	// endClosed: the VM didn't stop after the force stop's deadline, so
 	// the manager closed the instance.
 	endClosed
+	// endForced: the audit writer stopped the VM, and the manager closed
+	// the instance at once (S09-11-audit, "Free space and failed
+	// writes").
+	endForced
 )
 
 // End is how a run ended, as Config.OnEnded gets it.
@@ -65,8 +73,24 @@ func (e ending) String() string {
 		return "start failed"
 	case endClosed:
 		return "instance closed after the force stop's deadline"
+	case endForced:
+		return "stopped by the audit writer"
 	}
 	return "unknown"
+}
+
+// rule is the ending's rule in the stop record of a run that has none
+// of its own.
+func (e ending) rule() Rule {
+	switch e {
+	case endUnexpected:
+		return RuleStoppedUnexpectedly
+	case endStartFailed:
+		return RuleStart
+	case endNone, endRequested, endClosed, endForced:
+		return RuleStop
+	}
+	return RuleStop
 }
 
 // watch follows the instance's states until it ends.
@@ -149,9 +173,18 @@ func (m *Manager) finish(ctx context.Context, r *run, why ending) {
 		rec.phase, rec.run = PhaseStopped, nil
 	}
 	lastErr := cloneVMError(rec.lastErr)
+	rule := r.rule
 	m.mu.Unlock()
 	close(r.ended)
 	m.logEnd(ctx, r, why, lastErr, closeErr)
+	if rule == "" {
+		rule = why.rule()
+	}
+	// The run's stop record: the writer syncs the log before it writes
+	// it (S09-11-audit). A run that ended without a stop request, or
+	// whose start failed, is a failure.
+	unexpected := why == endUnexpected || why == endStartFailed
+	m.cfg.Audit.Record(audit.VMStopped(string(r.slot), r.generation, string(rule), why.String(), unexpected))
 	if m.cfg.OnEnded != nil {
 		// No run is saved yet, so every end is a cold stop. Warm start
 		// sets Cold to false for a save.

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 )
 
@@ -75,6 +76,12 @@ const (
 	// RuleDataDiskFailed: the data disk step failed without a rule of
 	// its own.
 	RuleDataDiskFailed Rule = "data-disk-failed"
+	// RuleStart is recorded, never returned: the rule of an accepted
+	// start in its audit records.
+	RuleStart Rule = "vm-start"
+	// RuleStop is recorded, never returned: the rule of an accepted stop
+	// request in its audit records.
+	RuleStop Rule = "vm-stop"
 )
 
 // vzErrorVirtualMachineLimitExceeded is VZErrorVirtualMachineLimitExceeded
@@ -180,13 +187,15 @@ var ownRules = map[Rule]bool{
 	RuleBundleCreateFailed: true, RuleToolsDiskCloneFailed: true, RuleGenerationFailed: true,
 	RuleGenerationInvalid: true, RuleGenerationStale: true, RuleLimitOtherSoftware: true, RuleProviderFailed: true,
 	RuleGuestPort: true, RuleStartTimeout: true, RuleStoppedUnexpectedly: true,
-	RuleResetting: true, RuleDataDiskFailed: true,
+	RuleResetting: true, RuleDataDiskFailed: true, RuleStart: true, RuleStop: true,
 }
 
-// foreignPrefixes are the rule prefixes of the data disk steps. A
-// provider never decides one, so a provider rule with one of them is
-// refused with vm-provider-failed, as one of ownRules is.
-var foreignPrefixes = []string{"data-disk-", "diskfmt-"}
+// foreignPrefixes are the rule prefixes of the data disk steps and of
+// the audit writer. A provider never decides one, so a provider rule
+// with one of them is refused with vm-provider-failed, as one of
+// ownRules is. A wb-vmd can't make a refusal look like the audit
+// writer's (SEC10-audit).
+var foreignPrefixes = []string{"data-disk-", "diskfmt-", "audit-"}
 
 // providerRefusal turns the provider's error for op into a refusal. A
 // *ProviderRefusal keeps wb-vmd's rule when it is a rule name and not
@@ -228,6 +237,21 @@ func dataDiskRefusal(slot Slot, err error) *Refusal {
 	return &Refusal{
 		Rule: RuleDataDiskFailed, Slot: slot, Phase: PhaseStopped, err: err,
 		Message: fmt.Sprintf("the %s VM's data disk step failed: %s", slot, BoundText(err.Error())),
+	}
+}
+
+// auditRefusal turns the audit writer's error into a refusal of the
+// start, with the writer's rule (S09-11-audit, "Free space and failed
+// writes"). Any other error, such as a start whose caller went away
+// before its record was written, is audit-write-failed: the start goes
+// on only once its record is written.
+func auditRefusal(slot Slot, generation uint64, err error) *Refusal {
+	if ar, ok := errors.AsType[*audit.Refusal](err); ok {
+		return &Refusal{Rule: Rule(ar.Rule), Slot: slot, Phase: PhaseStopped, Generation: generation, Message: ar.Message, err: err}
+	}
+	return &Refusal{
+		Rule: Rule(audit.RuleWriteFailed), Slot: slot, Phase: PhaseStopped, Generation: generation, err: err,
+		Message: fmt.Sprintf("the %s VM can't start: its start record wasn't written: %s", slot, BoundText(err.Error())),
 	}
 }
 

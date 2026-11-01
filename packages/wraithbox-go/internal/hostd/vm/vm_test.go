@@ -15,6 +15,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
@@ -34,6 +35,7 @@ type harness struct {
 	cloner   *vmtest.CopyCloner
 	shim     *datadisktest.Shim
 	logs     *syncBuffer
+	audit    *audittest.Recorder
 	cfg      vm.Config
 }
 
@@ -58,7 +60,7 @@ func newHarness(t *testing.T) *harness {
 	t.Helper()
 	h := &harness{
 		t: t, dataDir: t.TempDir(), provider: &vmtest.Provider{},
-		cloner: &vmtest.CopyCloner{}, logs: &syncBuffer{},
+		cloner: &vmtest.CopyCloner{}, logs: &syncBuffer{}, audit: &audittest.Recorder{},
 	}
 	h.tools = filepath.Join(t.TempDir(), "wb-guest-tools.img")
 	h.writeTools("tools v1")
@@ -77,7 +79,7 @@ func newHarness(t *testing.T) *harness {
 	h.cfg = vm.Config{
 		DataDir: h.dataDir, ToolsImage: h.tools, Resources: config.Defaults(),
 		Generations: db, Provider: h.provider, Cloner: h.cloner, DataDisks: disks,
-		Logger: logger,
+		Audit: h.audit, Logger: logger,
 	}
 	return h
 }
@@ -150,12 +152,13 @@ func TestNewStartsNothing(t *testing.T) {
 func TestNewChecksConfig(t *testing.T) {
 	h := newHarness(t)
 	tests := map[string]func(*vm.Config){
-		"relative data":  func(c *vm.Config) { c.DataDir = "data" },
-		"relative tools": func(c *vm.Config) { c.ToolsImage = "tools.img" },
-		"no provider":    func(c *vm.Config) { c.Provider = nil },
-		"no cloner":      func(c *vm.Config) { c.Cloner = nil },
-		"no generations": func(c *vm.Config) { c.Generations = nil },
-		"no data disks":  func(c *vm.Config) { c.DataDisks = nil },
+		"relative data":   func(c *vm.Config) { c.DataDir = "data" },
+		"relative tools":  func(c *vm.Config) { c.ToolsImage = "tools.img" },
+		"no provider":     func(c *vm.Config) { c.Provider = nil },
+		"no cloner":       func(c *vm.Config) { c.Cloner = nil },
+		"no generations":  func(c *vm.Config) { c.Generations = nil },
+		"no data disks":   func(c *vm.Config) { c.DataDisks = nil },
+		"no audit writer": func(c *vm.Config) { c.Audit = nil },
 	}
 	for name, change := range tests {
 		t.Run(name, func(t *testing.T) {

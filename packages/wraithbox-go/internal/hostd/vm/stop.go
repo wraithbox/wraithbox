@@ -9,6 +9,7 @@ import (
 	"time"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 )
 
 // SessionState is the state of a session that holds its VM
@@ -68,13 +69,47 @@ func (m *Manager) Stop(ctx context.Context, slot Slot) error {
 		return m.refuse(ctx, "stop", ref)
 	}
 	m.log.LogAttrs(ctx, slog.LevelInfo, "vm stop",
-		slog.String("decision", "accept"), slog.String("slot", string(slot)),
+		slog.String("decision", "accept"), slog.String("rule", string(RuleStop)), slog.String("slot", string(slot)),
 		slog.Uint64("generation", generation))
+	m.cfg.Audit.Record(audit.VMStopping(string(slot), generation, string(RuleStop), "requested"))
 	// A caller that goes away doesn't leave the VM half stopped. The
 	// deadlines bound each step instead, the provider's calls included,
 	// and the last step closes the instance.
 	m.stopRun(context.WithoutCancel(ctx), r, generation)
 	return nil
+}
+
+// ForceStop stops slot's VM at once for the audit writer, with cause as
+// the rule: a record that can't be written, or a data disk that grew
+// while the log's volume is below the free space floor (SEC10-audit,
+// S09-11-audit, "Free space and failed writes"). It closes the run's
+// instance, which stops the VM as a lost wb-hostd does
+// (S04-07-supervision, "When `wb-hostd` stops"), without a stop request
+// the guest could delay. It returns without waiting for the VM, so the
+// writer's goroutine that calls it never waits on a VM. A slot without
+// a run, or whose run is already ending, is left as it is. It
+// implements audit.Stopper.
+func (m *Manager) ForceStop(slot, cause string) {
+	m.mu.Lock()
+	rec, ok := m.slots[Slot(slot)]
+	if !ok || rec.run == nil || rec.run.finishing {
+		m.mu.Unlock()
+		m.log.Info("vm stop not needed", "rule", cause, "decision", "none", "slot", slot,
+			"reason", "the VM has no run that isn't already ending")
+		return
+	}
+	r := rec.run
+	r.rule = Rule(cause)
+	if rec.phase == PhaseRunning {
+		// No session is admitted, and no stop accepted, once the slot
+		// isn't running.
+		rec.phase = PhaseStopping
+	}
+	m.mu.Unlock()
+	m.log.Warn("vm stop", "rule", cause, "decision", "stop-vm", "slot", slot,
+		"generation", r.generation, "mode", "close")
+	m.cfg.Audit.Record(audit.VMStopping(slot, r.generation, cause, cause))
+	m.runs.Go(func() { m.finish(context.Background(), r, endForced) })
 }
 
 // beginStop moves a running slot to stopping, and returns its run and

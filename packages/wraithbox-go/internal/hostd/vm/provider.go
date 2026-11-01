@@ -5,6 +5,7 @@ import (
 	"net"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 )
 
@@ -89,6 +90,19 @@ type DataDisks interface {
 	// Reset replaces the slot's disk. The manager holds the slot's start
 	// lock while it runs.
 	Reset(ctx context.Context, slot string) (datadisk.ResetResult, error)
+}
+
+// Audit is the audit writer as the manager sees it. *audit.Writer
+// implements it (S09-11-audit). The manager never sees the file.
+type Audit interface {
+	// Record queues a record and returns at once.
+	Record(r audit.Record)
+	// Write queues a record and returns once it is written, or the
+	// writer's refusal.
+	Write(ctx context.Context, r audit.Record) error
+	// CanStart returns an *audit.Refusal when slot's VM may not start
+	// (S09-11-audit, "Free space and failed writes").
+	CanStart(slot string) error
 }
 
 // Generations hands out VM generations. *state.DB implements it: each

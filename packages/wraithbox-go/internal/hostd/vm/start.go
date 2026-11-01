@@ -7,20 +7,24 @@ import (
 	"time"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 )
 
 // Start cold-starts slot's VM. Every start in M2 is a cold start. The
 // steps, in order:
 //
 //  1. refused in refusing mode, with its rule;
-//  2. refused with vm-running while the slot is starting, running or
+//  2. the audit writer's check, refused with audit-free-space or
+//     audit-write-failed (S09-11-audit);
+//  3. refused with vm-running while the slot is starting, running or
 //     stopping;
-//  3. the bundle directory, created when it is missing;
-//  4. the data disk checks, and a new data disk when the slot has none
+//  4. the bundle directory, created when it is missing;
+//  5. the data disk checks, and a new data disk when the slot has none
 //     (S06-13-data-disk-format);
-//  5. the guest tools disk, cloned into the bundle;
-//  6. a new generation, committed to state.db;
-//  7. a new provider instance, and its start with the configured
+//  6. the guest tools disk, cloned into the bundle;
+//  7. a new generation, committed to state.db;
+//  8. the start's audit record, written;
+//  9. a new provider instance, and its start with the configured
 //     resources.
 //
 // It returns once the provider has started the VM. A refusal is a
@@ -35,6 +39,12 @@ func (m *Manager) Start(ctx context.Context, slot Slot) error {
 func (m *Manager) StartRun(ctx context.Context, slot Slot) (uint64, error) {
 	if r := m.checkRequest(slot); r != nil {
 		return 0, m.refuse(ctx, "start", r)
+	}
+	// SEC10-audit: a VM starts only with room for its records, and only
+	// while records are written (S09-11-audit, "Free space and failed
+	// writes").
+	if err := m.cfg.Audit.CanStart(string(slot)); err != nil {
+		return 0, m.refuse(ctx, "start", auditRefusal(slot, 0, err))
 	}
 	if r := m.reserve(slot); r != nil {
 		return 0, m.refuse(ctx, "start", r)
@@ -175,6 +185,15 @@ func (m *Manager) open(ctx context.Context, slot Slot, generation uint64) (Insta
 // boot opens a new provider instance for generation, follows its states
 // and starts the VM.
 func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error {
+	// The configured caps reach wb-vmd on every start
+	// (SEC13-bounded-resources).
+	req := &vmdv1.StartRequest{
+		Generation: generation, CpuCount: m.cfg.Resources.CPUCount, MemoryMib: m.cfg.Resources.MemoryMiB,
+	}
+	if ref := m.recordStart(ctx, slot, req); ref != nil {
+		m.unreserve(slot)
+		return m.refuse(ctx, "start", ref)
+	}
 	inst, ref := m.open(ctx, slot, generation)
 	if ref != nil {
 		m.unreserve(slot)
@@ -186,20 +205,27 @@ func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error 
 	rec.run, rec.generation, rec.lastErr = r, generation, nil
 	m.mu.Unlock()
 	m.runs.Go(func() { m.watch(context.WithoutCancel(ctx), r) })
-
-	// The configured caps reach wb-vmd on every start
-	// (SEC13-bounded-resources).
-	req := &vmdv1.StartRequest{
-		Generation: generation, CpuCount: m.cfg.Resources.CPUCount, MemoryMib: m.cfg.Resources.MemoryMiB,
-	}
-	m.log.LogAttrs(ctx, slog.LevelInfo, "vm start",
-		slog.String("decision", "accept"), slog.String("slot", string(slot)),
-		slog.Uint64("generation", generation), slog.Uint64("cpu_count", uint64(req.GetCpuCount())),
-		slog.Uint64("memory_mib", req.GetMemoryMib()))
 	if ref := m.startVM(ctx, r, req); ref != nil {
 		return m.refuse(ctx, "start", m.startFailed(ctx, r, ref))
 	}
 	m.started(ctx, r)
+	return nil
+}
+
+// recordStart logs the accepted start and writes its audit record. The
+// VM starts only once the record is written (SEC10-audit, S09-11-audit,
+// "Free space and failed writes"), so a start the writer refuses never
+// reaches the provider.
+func (m *Manager) recordStart(ctx context.Context, slot Slot, req *vmdv1.StartRequest) *Refusal {
+	m.log.LogAttrs(ctx, slog.LevelInfo, "vm start",
+		slog.String("decision", "accept"), slog.String("rule", string(RuleStart)), slog.String("slot", string(slot)),
+		slog.Uint64("generation", req.GetGeneration()), slog.Uint64("cpu_count", uint64(req.GetCpuCount())),
+		slog.Uint64("memory_mib", req.GetMemoryMib()))
+	rec := audit.VMStarting(string(slot), req.GetGeneration(), string(RuleStart),
+		audit.Resources{CPUCount: req.GetCpuCount(), MemoryMiB: req.GetMemoryMib()})
+	if err := m.cfg.Audit.Write(ctx, rec); err != nil {
+		return auditRefusal(slot, req.GetGeneration(), err)
+	}
 	return nil
 }
 
@@ -241,6 +267,9 @@ func (m *Manager) startFailed(ctx context.Context, r *run, ref *Refusal) *Refusa
 	if ref.VMError.GetCode() == vzErrorVirtualMachineLimitExceeded {
 		ref = limitRefusal(ref, m.runningLocked(r.slot))
 	}
+	if r.rule == "" {
+		r.rule = ref.Rule
+	}
 	m.mu.Unlock()
 	m.finish(ctx, r, endStartFailed)
 	ref.Phase = PhaseStarting
@@ -261,6 +290,9 @@ func (m *Manager) started(ctx context.Context, r *run) {
 	m.log.LogAttrs(ctx, slog.LevelInfo, "vm running",
 		slog.String("decision", "accept"), slog.String("slot", string(r.slot)),
 		slog.Uint64("generation", r.generation))
+	if running {
+		m.cfg.Audit.Record(audit.VMRunning(string(r.slot), r.generation, string(RuleStart)))
+	}
 	if running && m.cfg.OnRunning != nil {
 		m.cfg.OnRunning(r.slot, r.generation, r.ended)
 	}

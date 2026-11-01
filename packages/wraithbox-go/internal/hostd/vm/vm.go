@@ -114,6 +114,10 @@ type Config struct {
 	// first start, and resets a disk (S06-13-data-disk-format). Only nil in
 	// refusing mode.
 	DataDisks DataDisks
+	// Audit gets the record of each VM start and stop, and checks the
+	// free space before each start (S09-11-audit). Only nil in refusing
+	// mode.
+	Audit Audit
 	// Sessions lists the slot's sessions that are starting, running,
 	// paused or ending. nil means none. Stop calls it before the slot
 	// moves to stopping, so session admission must refuse a VM whose
@@ -156,8 +160,8 @@ func (c *Config) check() error {
 	if c.Provider == nil || c.Cloner == nil {
 		errs = append(errs, errors.New("vm: a provider and a cloner are required"))
 	}
-	if (c.Generations == nil || c.DataDisks == nil) && c.Refusing == nil {
-		errs = append(errs, errors.New("vm: generations and data disks are required outside refusing mode"))
+	if (c.Generations == nil || c.DataDisks == nil || c.Audit == nil) && c.Refusing == nil {
+		errs = append(errs, errors.New("vm: generations, data disks and the audit writer are required outside refusing mode"))
 	}
 	return errors.Join(errs...)
 }

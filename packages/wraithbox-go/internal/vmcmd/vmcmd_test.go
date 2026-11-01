@@ -20,6 +20,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
@@ -90,7 +91,7 @@ func newFixture(t *testing.T, typed string) *fixture {
 	f.vms, err = vm.New(vm.Config{
 		DataDir: f.data, ToolsImage: tools, Resources: config.Defaults(), Generations: db,
 		Provider: &vmtest.Provider{}, Cloner: &vmtest.CopyCloner{}, DataDisks: disks, Logger: log,
-		Sessions: func(vm.Slot) []vm.Session { return f.live },
+		Audit: &audittest.Recorder{}, Sessions: func(vm.Slot) []vm.Session { return f.live },
 	})
 	if err != nil {
 		t.Fatal(err)
