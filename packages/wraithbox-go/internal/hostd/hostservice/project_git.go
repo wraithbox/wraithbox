@@ -7,15 +7,29 @@ import (
 	"google.golang.org/grpc/codes"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostgit"
 )
 
 // CheckGit resolves wb-hostd's git from setting, the git key of
 // config.toml, and checks its version (S08-08-host-git, "Where it is
-// checked"). hostgit logs the decision with its rule. A failed check
-// doesn't put wb-hostd in refusing mode: it refuses only a session start
-// (ProjectServer.Git).
-func CheckGit(ctx context.Context, setting string) *hostdv1.HostGit {
+// checked"). hostgit logs the decision with its rule, and rec gets its
+// Device Config State Change (5019) record (S09-11-audit). A failed
+// check doesn't put wb-hostd in refusing mode: it refuses only a session
+// start (ProjectServer.Git).
+func CheckGit(ctx context.Context, setting string, rec Recorder) *hostdv1.HostGit {
+	g := checkGit(ctx, setting)
+	decision := "accept"
+	if g.GetRule() != string(hostgit.RuleVersionAccepted) {
+		decision = "refuse"
+	}
+	rec.Record(audit.GitChecked(decision, g.GetRule(), audit.Git{
+		Binary: g.GetBinary(), Version: g.GetVersion(), Minimum: hostgit.MinVersion, Reason: g.GetMessage(),
+	}))
+	return g
+}
+
+func checkGit(ctx context.Context, setting string) *hostdv1.HostGit {
 	path, err := hostgit.Resolve(setting)
 	if err != nil {
 		return gitRefused(hostgit.Result{Rule: hostgit.RulePathNotAbsolute}, err)

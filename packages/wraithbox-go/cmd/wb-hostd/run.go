@@ -15,6 +15,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
@@ -132,6 +133,7 @@ type host struct {
 	vms      *vm.Manager
 	provider *vmdprovider.Provider
 	links    *guestconn.Links
+	audit    *audit.Writer
 	closeDB  func() error
 }
 
@@ -189,8 +191,18 @@ func bundleOf(exe string) (string, *startup.Refusing) {
 // cleared before the manager can start a run.
 func newHost(ctx context.Context, o options, bundle string, ready *startup.Host, log *slog.Logger, files *logpipe.Files) (*host, error) {
 	macos := filepath.Join(bundle, "Contents", "MacOS")
+	// The audit writer comes first: the data disks, the VMs and the
+	// projects record through it, and none of them runs without it
+	// (SEC10-audit).
+	aw, err := audit.New(audit.Config{
+		Dir: o.Paths.Logs, RetentionDays: ready.Config.AuditRetentionDays, FloorMiB: ready.Config.AuditFreeSpaceFloorMiB,
+		DataDir: o.Paths.Data, DataDiskGiB: ready.Config.DataDiskGiB, Version: o.Version, Logger: log,
+	})
+	if err != nil {
+		return nil, err
+	}
 	disks, err := datadisk.New(datadisk.Config{
-		DataDir: o.Paths.Data, Records: ready.State, SizeGiB: ready.Config.DataDiskGiB, Logger: log,
+		DataDir: o.Paths.Data, Records: ready.State, SizeGiB: ready.Config.DataDiskGiB, Audit: aw, Logger: log,
 		Shim: &datadisk.ProcessShim{
 			Program: filepath.Join(macos, launch.DiskfmtProgram), Logs: files.Writer, Logger: log, Version: o.Version,
 		},
@@ -220,7 +232,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	m, err := vm.New(vm.Config{
 		DataDir: o.Paths.Data, ToolsImage: filepath.Join(bundle, filepath.FromSlash(appbundle.ToolsDiskPath)),
 		Resources: ready.Config, Generations: ready.State, Provider: provider, Cloner: diskclone.Cloner{},
-		DataDisks: disks, Logger: log,
+		DataDisks: disks, Audit: aw, Logger: log,
 		OnRunning: func(slot vm.Slot, generation uint64, ended <-chan struct{}) { links.Run(slot, generation, ended) },
 		// A stop is refused while the VM has an open debug shell
 		// (S06-09-session-lifecycle, "Idle suspend").
@@ -249,15 +261,16 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 		return nil, err
 	}
 	registry = shells.NewRegistry(links, log)
+	aw.Attach(m)
 	return &host{
 		server: &hostservice.Server{VMs: m, Links: links, Log: log},
 		projects: &hostservice.ProjectServer{
-			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git), Log: log,
+			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git, aw), Audit: aw, Log: log,
 			UsersRemoved: links.SendUserRemovals,
 		},
 		shells:   &hostservice.ShellServer{Store: ready.State, VMs: m, Links: links, Shells: registry, Log: log},
 		registry: registry,
-		vms:      m, provider: provider, links: links, closeDB: ready.State.Close,
+		vms:      m, provider: provider, links: links, audit: aw, closeDB: ready.State.Close,
 	}, nil
 }
 
@@ -272,6 +285,12 @@ func (h *host) close(ctx context.Context) {
 			log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd ended with an error", slog.String("error", err.Error()))
 		}
 		h.vms.Wait()
+	}
+	// After the wait, every VM's stop record is queued.
+	if h.audit != nil {
+		if err := h.audit.Close(); err != nil {
+			log.LogAttrs(ctx, slog.LevelError, "audit log not closed", slog.String("error", err.Error()))
+		}
 	}
 	if h.registry != nil {
 		h.registry.Close()
