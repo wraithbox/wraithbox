@@ -136,6 +136,9 @@ message AuditRefusal {
   // set time. 0 for a rule that ends when its condition does, which the
   // message names.
   int64 until_unix = 3;
+  // Whether new sessions are refused as well as VM starts. A missing
+  // reserve file refuses VM starts only.
+  bool sessions = 4;
 }
 
 // DataMount is the outcome of the last MountData call of the current run.

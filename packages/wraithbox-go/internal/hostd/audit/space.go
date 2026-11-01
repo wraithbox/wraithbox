@@ -47,6 +47,9 @@ type Refusal struct {
 	// Until is when the refusal ends, zero for a rule that ends when its
 	// condition does. No rule of this package ends at a set time.
 	Until time.Time
+	// Sessions is whether new sessions are refused as well as VM starts.
+	// A missing reserve refuses VM starts only.
+	Sessions bool
 }
 
 func (r *Refusal) Error() string { return r.Message }
@@ -118,16 +121,20 @@ func (w *Writer) refusal(vmStart bool) *Refusal {
 		return w.spaceRefusal(fmt.Sprintf("the volume of %s was below the floor of %d MiB at the last check",
 			w.cfg.Dir, w.floor>>20))
 	case noRes && vmStart:
-		return w.spaceRefusal(fmt.Sprintf("the audit log's reserve file %s is missing, and is made again once the volume has %d MiB free",
-			w.reservePath(), (w.floor+ReserveSize)>>20))
+		return &Refusal{
+			Rule: RuleFreeSpace,
+			Message: fmt.Sprintf("the audit log's reserve file %s is missing: VM starts are refused until it is made again, once the volume has %d MiB free",
+				w.reservePath(), (w.floor+ReserveSize)>>20),
+		}
 	}
 	return nil
 }
 
 func (w *Writer) spaceRefusal(why string) *Refusal {
 	return &Refusal{
-		Rule:    RuleFreeSpace,
-		Message: why + ": VM starts and new sessions are refused until there is space; free space on that volume",
+		Rule:     RuleFreeSpace,
+		Message:  why + ": VM starts and new sessions are refused until there is space; free space on that volume",
+		Sessions: true,
 	}
 }
 

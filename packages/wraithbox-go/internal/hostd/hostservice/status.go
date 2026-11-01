@@ -48,7 +48,7 @@ func (s *Server) auditRefusal() *hostdv1.AuditRefusal {
 	if r == nil {
 		return nil
 	}
-	out := &hostdv1.AuditRefusal{Rule: r.Rule, Message: r.Message}
+	out := &hostdv1.AuditRefusal{Rule: r.Rule, Message: r.Message, Sessions: r.Sessions}
 	if !r.Until.IsZero() {
 		out.UntilUnix = r.Until.Unix()
 	}

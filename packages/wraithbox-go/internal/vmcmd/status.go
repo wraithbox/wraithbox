@@ -68,11 +68,15 @@ func printStatus(env Env, slot string, s *hostdv1.VMStatus) {
 	}
 }
 
-// auditRefusalText is the audit log's refusal of starts and new
-// sessions: its rule, wb-hostd's text, and when it ends when it ends at
-// a set time (S09-11-audit, "Free space and failed writes").
+// auditRefusalText is the audit log's refusal of VM starts, and of new
+// sessions when it covers them: its rule, wb-hostd's text, and when it
+// ends when it ends at a set time (S09-11-audit, "Free space and failed writes").
 func auditRefusalText(r *hostdv1.AuditRefusal) string {
-	text := "refusing starts and new sessions, rule " + printable(r.GetRule())
+	text := "refusing VM starts, rule "
+	if r.GetSessions() {
+		text = "refusing starts and new sessions, rule "
+	}
+	text += printable(r.GetRule())
 	if msg := r.GetMessage(); msg != "" {
 		text += ": " + printable(msg)
 	}

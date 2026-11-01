@@ -42,7 +42,7 @@ func vmStatus() *hostdv1.VMStatus {
 		DataMount: &hostdv1.DataMount{
 			State: hostdv1.DataMountState_DATA_MOUNT_STATE_REFUSED, Rule: "data-mount-flags", Message: "stop and reset",
 		},
-		AuditRefusal: &hostdv1.AuditRefusal{Rule: "audit-free-space", Message: "free space", UntilUnix: 1700000000},
+		AuditRefusal: &hostdv1.AuditRefusal{Rule: "audit-free-space", Message: "free space", UntilUnix: 1700000000, Sessions: true},
 	}
 }
 

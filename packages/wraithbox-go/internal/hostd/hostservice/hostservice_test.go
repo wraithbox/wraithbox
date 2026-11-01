@@ -275,7 +275,7 @@ func TestStatusAuditRefusal(t *testing.T) {
 	rec.Refuse(audit.RuleFreeSpace, "the volume is below the floor")
 	for _, v := range []hostdv1.VM{hostdv1.VM_VM_WORK, hostdv1.VM_VM_ISOLATED} {
 		r := getStatus(t, c, v).GetAuditRefusal()
-		if r.GetRule() != audit.RuleFreeSpace || r.GetMessage() != "the volume is below the floor" || r.GetUntilUnix() != 0 {
+		if r.GetRule() != audit.RuleFreeSpace || r.GetMessage() != "the volume is below the floor" || r.GetUntilUnix() != 0 || !r.GetSessions() {
 			t.Errorf("%s: refusal %v, want %s", v, r, audit.RuleFreeSpace)
 		}
 	}
