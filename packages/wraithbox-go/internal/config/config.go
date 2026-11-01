@@ -45,6 +45,19 @@ const (
 	DefaultMemoryMiB = 8192
 )
 
+// The audit log's defaults and bounds (S09-11-audit, "Retention" and
+// "Free space and failed writes"). A record is kept for at least
+// MinAuditRetentionDays, and a file that sets fewer is refused with
+// RuleRetentionMin.
+const (
+	DefaultAuditRetentionDays     = 90
+	MinAuditRetentionDays         = 30
+	DefaultAuditFreeSpaceFloorMiB = 1024
+	// MaxAuditFreeSpaceFloorMiB is 1 EiB, which keeps the floor in bytes
+	// inside a uint64.
+	MaxAuditFreeSpaceFloorMiB = 1 << 40
+)
+
 // Rule names the rule behind a refusal, for the log and for the answer
 // wb gets in refusing mode.
 type Rule string
@@ -65,6 +78,9 @@ const (
 	// RuleFileUnreadable: the file exists but can't be read, isn't a
 	// regular file, or is larger than maxFileSize.
 	RuleFileUnreadable Rule = "config-file-unreadable"
+	// RuleRetentionMin: audit_retention_days is below
+	// MinAuditRetentionDays (S09-11-audit, "Retention").
+	RuleRetentionMin Rule = "audit-retention-min"
 )
 
 // Config holds the settings. Every field has its default when the file
@@ -88,22 +104,34 @@ type Config struct {
 	// absolute path, and that refusal is a failed git check, not a
 	// refused settings file.
 	Git string
+	// AuditRetentionDays is how long the audit log keeps a day's file,
+	// in days (S09-11-audit, "Retention"). It is at least
+	// MinAuditRetentionDays.
+	AuditRetentionDays uint32
+	// AuditFreeSpaceFloorMiB is the free space, in MiB, below which the
+	// audit log refuses VM and session starts (S09-11-audit, "Free space
+	// and failed writes").
+	AuditFreeSpaceFloorMiB uint64
 }
 
 // Defaults returns the settings of a missing file.
 func Defaults() Config {
-	return Config{CPUCount: DefaultCPUCount, MemoryMiB: DefaultMemoryMiB, DataDiskGiB: diskfmt.DefaultSizeGiB}
+	return Config{
+		CPUCount: DefaultCPUCount, MemoryMiB: DefaultMemoryMiB, DataDiskGiB: diskfmt.DefaultSizeGiB,
+		AuditRetentionDays: DefaultAuditRetentionDays, AuditFreeSpaceFloorMiB: DefaultAuditFreeSpaceFloorMiB,
+	}
 }
 
 // file is the closed set of keys. A key is added here only when its
-// feature exists. Later packages add theirs: audit_retention_days and
-// audit_events_per_minute (S09-11-audit). Pointers tell a missing key
-// from a zero.
+// feature exists. The event channel adds audit_events_per_minute
+// (S09-11-audit). Pointers tell a missing key from a zero.
 type file struct {
-	CPUCount    *int64  `toml:"vm_cpu_count"`
-	MemoryMiB   *int64  `toml:"vm_memory_mib"`
-	DataDiskGiB *int64  `toml:"vm_data_disk_gib"`
-	Git         *string `toml:"git"`
+	CPUCount           *int64  `toml:"vm_cpu_count"`
+	MemoryMiB          *int64  `toml:"vm_memory_mib"`
+	DataDiskGiB        *int64  `toml:"vm_data_disk_gib"`
+	Git                *string `toml:"git"`
+	AuditRetentionDays *int64  `toml:"audit_retention_days"`
+	AuditFreeSpaceMiB  *int64  `toml:"audit_free_space_floor"`
 }
 
 // renamedKeys maps a dotted key that a release renamed or removed to the
@@ -154,7 +182,9 @@ func load(ctx context.Context, path string, renamed map[string]string) (Config, 
 		slog.Uint64("vm_cpu_count", uint64(cfg.CPUCount)),
 		slog.Uint64("vm_memory_mib", cfg.MemoryMiB),
 		slog.Uint64("vm_data_disk_gib", uint64(cfg.DataDiskGiB)),
-		slog.String("git", strconv.Quote(cfg.Git)))
+		slog.String("git", strconv.Quote(cfg.Git)),
+		slog.Uint64("audit_retention_days", uint64(cfg.AuditRetentionDays)),
+		slog.Uint64("audit_free_space_floor", cfg.AuditFreeSpaceFloorMiB))
 	return cfg, nil
 }
 
@@ -310,7 +340,38 @@ func (f file) check(path string) (Config, *Refusal) {
 	if f.Git != nil {
 		cfg.Git = *f.Git
 	}
+	if r := f.checkAudit(path, &cfg); r != nil {
+		return Config{}, r
+	}
 	return cfg, nil
+}
+
+// checkAudit applies the audit log's keys. A retention below the
+// minimum is refused with its own rule, which says why: the audit log
+// keeps every record for at least 30 days (SEC10-audit).
+func (f file) checkAudit(path string, cfg *Config) *Refusal {
+	if f.AuditRetentionDays != nil {
+		v := *f.AuditRetentionDays
+		if v < MinAuditRetentionDays {
+			return &Refusal{
+				Rule: RuleRetentionMin, File: path, Key: "audit_retention_days",
+				msg: fmt.Sprintf("the settings file %s sets audit_retention_days to %d: the audit log keeps records for at least %d days",
+					path, v, MinAuditRetentionDays),
+			}
+		}
+		if v > math.MaxUint32 {
+			return outOfRange(path, "audit_retention_days", v)
+		}
+		cfg.AuditRetentionDays = uint32(v)
+	}
+	if f.AuditFreeSpaceMiB != nil {
+		v := *f.AuditFreeSpaceMiB
+		if v <= 0 || v > MaxAuditFreeSpaceFloorMiB {
+			return outOfRange(path, "audit_free_space_floor", v)
+		}
+		cfg.AuditFreeSpaceFloorMiB = uint64(v)
+	}
+	return nil
 }
 
 func outOfRange(path, key string, v int64) *Refusal {
