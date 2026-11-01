@@ -14,6 +14,7 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/kills"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 )
@@ -48,7 +49,7 @@ func shellHarness(t *testing.T, g *usersGuest, linked chan uint64) (*harness, ui
 	t.Helper()
 	h := newHarness(t, own, own, true)
 	h.links.Close()
-	h.cfg.Kills = kills.New(kills.Config{Logger: slog.New(slog.NewJSONHandler(h.logs, nil))})
+	h.cfg.Kills = kills.New(kills.Config{Logger: slog.New(slog.NewJSONHandler(h.logs, nil)), Audit: &audittest.Recorder{}})
 	h.cfg.OnLinked = func(_ vm.Slot, generation uint64) { linked <- generation }
 	ls, err := New(h.cfg)
 	if err != nil {

@@ -228,7 +228,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	)
 	// Pending kills are in memory only: a wb-hostd exit stops every VM
 	// (S06-10-leftover-processes, "Failing closed").
-	tracker := kills.New(kills.Config{Logger: log})
+	tracker := kills.New(kills.Config{Logger: log, Audit: aw})
 	m, err := vm.New(vm.Config{
 		DataDir: o.Paths.Data, ToolsImage: filepath.Join(bundle, filepath.FromSlash(appbundle.ToolsDiskPath)),
 		Resources: ready.Config, Generations: ready.State, Provider: provider, Cloner: diskclone.Cloner{},
