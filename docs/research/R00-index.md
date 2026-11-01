@@ -18,3 +18,4 @@ new one here.
 | R05-iron-proxy | iron-proxy | Read 2026-10-23, re-review after V1 (no issue yet) |
 | R06-nono | nono | Read 2026-10-25, re-review after V1 (I240) |
 | R07-egzo | egzo | Read 2026-10-25, re-review after V1 (I240) |
+| R08-markdown-wrapping | Markdown line wrapping | Measured 2026-11-01 over 238 Markdown and MDX files at `10b7ab59`, recommends dprint at 72 for `.md` after three parser fixes |

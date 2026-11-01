@@ -341,6 +341,7 @@ txlock
 gitdir
 fsmonitor
 creack
+rumdl
 
 # The app bundle build: Xcode settings, hdiutil flags, Info.plist keys
 appbundle
