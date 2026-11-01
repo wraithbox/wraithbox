@@ -128,7 +128,7 @@ message AuditRefusal {
   // audit-free-space: the volume that holds the audit log is below its
   // free space floor, or the log's reserve file is missing.
   // audit-write-failed: a record couldn't be written, and no write has
-  // succeeded since. M3.10b adds audit-budget and audit-bytes.
+  // succeeded since.
   string rule = 1;
   // What is refused, why, and what ends it, from wb-hostd.
   string message = 2;

@@ -17,6 +17,8 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/diskfmt"
 	diskfmtv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/diskfmt/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
@@ -94,6 +96,7 @@ type harness struct {
 	records *steps
 	shim    *datadisktest.Shim
 	logs    *syncBuffer
+	audit   *audittest.Recorder
 	m       *datadisk.Manager
 }
 
@@ -113,10 +116,11 @@ func newHarness(t *testing.T) *harness {
 	h := &harness{
 		t: t, data: data, db: db, logs: &syncBuffer{},
 		records: &steps{DB: db, bundle: vmbundle.Path(data, "work")},
+		audit:   &audittest.Recorder{},
 		shim:    &datadisktest.Shim{DataDir: data, UUIDs: []string{uuid1, uuid2}},
 	}
 	h.m, err = datadisk.New(datadisk.Config{
-		DataDir: data, Records: h.records, Shim: h.shim, SizeGiB: 64,
+		DataDir: data, Records: h.records, Shim: h.shim, SizeGiB: 64, Audit: h.audit,
 		Logger: slog.New(slog.NewJSONHandler(h.logs, nil)),
 		Now:    func() time.Time { return time.Unix(1000, 0) },
 	})
@@ -395,6 +399,33 @@ func TestReset(t *testing.T) {
 			t.Errorf("the log misses %s:\n%s", want, logs)
 		}
 	}
+	checkDiskRecords(t, h)
+}
+
+// checkDiskRecords checks the 5019 records of a first disk and its
+// reset: made, deleted and reset, each with its rule and UUIDs
+// (S09-11-audit).
+func checkDiskRecords(t *testing.T, h *harness) {
+	t.Helper()
+	want := []struct {
+		msg, rule, command string
+		disk               audit.DataDisk
+	}{
+		{"data disk made", string(datadisk.RuleMade), "wb vm start", audit.DataDisk{NewVolumeUUID: uuid1}},
+		{"data disk deleted", string(datadisk.RuleDeleted), "wb vm reset-data", audit.DataDisk{OldVolumeUUID: uuid1}},
+		{"data disk reset", string(datadisk.RuleReset), "wb vm reset-data", audit.DataDisk{OldVolumeUUID: uuid1, NewVolumeUUID: uuid2}},
+	}
+	recs := h.audit.Records()
+	if len(recs) != len(want) {
+		t.Fatalf("records %q, want made, deleted and reset", h.audit.Messages())
+	}
+	for i, w := range want {
+		f := recs[i].Fields()
+		if recs[i].Message() != w.msg || recs[i].ClassUID() != audit.ClassDeviceConfigStateChange ||
+			f.Rule != w.rule || f.Command != w.command || f.VM != "work" || f.DataDisk == nil || *f.DataDisk != w.disk {
+			t.Errorf("record %d = %q %+v, want %+v", i, recs[i].Message(), f, w)
+		}
+	}
 }
 
 // TestResetWithoutDisk: a reset of a slot that never had a disk makes
@@ -454,9 +485,17 @@ func TestOneRunPerSlot(t *testing.T) {
 
 func TestNewRefusesSize(t *testing.T) {
 	for _, gib := range []uint32{4, 2048} {
-		if _, err := datadisk.New(datadisk.Config{DataDir: t.TempDir(), Records: &steps{}, Shim: &datadisktest.Shim{}, SizeGiB: gib}); err == nil {
+		if _, err := datadisk.New(datadisk.Config{DataDir: t.TempDir(), Records: &steps{}, Shim: &datadisktest.Shim{}, SizeGiB: gib, Audit: &audittest.Recorder{}}); err == nil {
 			t.Errorf("%d GiB accepted", gib)
 		}
+	}
+}
+
+// TestNewRefusesNoAudit: a manager without the audit writer would make
+// and reset disks without their records, so New refuses it.
+func TestNewRefusesNoAudit(t *testing.T) {
+	if _, err := datadisk.New(datadisk.Config{DataDir: t.TempDir(), Records: &steps{}, Shim: &datadisktest.Shim{}}); err == nil {
+		t.Error("New accepted a config without the audit writer")
 	}
 }
 

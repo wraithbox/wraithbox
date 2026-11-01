@@ -5,6 +5,7 @@ package audittest
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
@@ -115,6 +116,20 @@ func (r *Recorder) Messages() []string {
 		out[i] = rec.Message()
 	}
 	return out
+}
+
+// AsMap is v as its JSON object, as the audit log holds it. It returns
+// nil for a value that isn't an object, nil included.
+func AsMap(v any) map[string]any {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal(data, &m) != nil {
+		return nil
+	}
+	return m
 }
 
 // Find returns the records whose message is msg.

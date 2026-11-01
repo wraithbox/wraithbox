@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
@@ -208,6 +209,25 @@ func peerAttrs(ctx context.Context) []slog.Attr {
 		return nil
 	}
 	return []slog.Attr{slog.Int("peer_uid", info.Peer.UID), slog.Int("peer_pid", info.Peer.PID)}
+}
+
+// auditPeer is the calling wb for an audit record, nil when the call
+// didn't come through localipc.
+func auditPeer(ctx context.Context) *audit.Peer {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil
+	}
+	info, ok := p.AuthInfo.(grpccreds.AuthInfo)
+	if !ok {
+		return nil
+	}
+	return &audit.Peer{UID: info.Peer.UID, PID: info.Peer.PID}
+}
+
+// Recorder takes audit records. *audit.Writer implements it.
+type Recorder interface {
+	Record(r audit.Record)
 }
 
 // withRule builds the status of a refusal: msg for the user, and the

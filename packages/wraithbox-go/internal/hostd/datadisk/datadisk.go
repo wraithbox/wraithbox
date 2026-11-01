@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/diskfmt"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmbundle"
 )
@@ -68,6 +69,13 @@ const (
 	// OS has them, or the kill failed. No refusal carries it: the kill,
 	// and the image it may leave attached, are logged with it.
 	RuleShimExit Rule = "data-disk-shim-exit"
+	// RuleMade, RuleDeleted and RuleReset are recorded, never returned:
+	// the rules of a disk made before a first start, and of the deletion
+	// and the new disk of `wb vm reset-data`, in their audit records
+	// (S09-11-audit).
+	RuleMade    Rule = "data-disk-made"
+	RuleDeleted Rule = "data-disk-deleted"
+	RuleReset   Rule = "data-disk-reset"
 )
 
 // Refusal is the error of every refusal in this package.
@@ -104,11 +112,22 @@ type Config struct {
 	// SizeGiB is the size of a new disk, from config.toml. 0 takes
 	// diskfmt.DefaultSizeGiB.
 	SizeGiB uint32
+	// Audit gets the record of each disk made, deleted and reset
+	// (S09-11-audit). Required.
+	Audit Recorder
 	// Logger gets the decisions. nil takes slog.Default().
 	Logger *slog.Logger
 	// Now is the clock. nil takes time.Now.
 	Now func() time.Time
 }
+
+// Recorder takes audit records. *audit.Writer implements it.
+type Recorder interface {
+	Record(r audit.Record)
+}
+
+// resetCommand is the command of a reset's records.
+const resetCommand = "wb vm reset-data"
 
 // Manager runs the data disk steps of both slots. Its methods are safe
 // for concurrent use, and run at most one format or reset per slot.
@@ -125,8 +144,8 @@ func New(cfg Config) (*Manager, error) {
 	if !filepath.IsAbs(cfg.DataDir) {
 		return nil, fmt.Errorf("datadisk: the data directory %q isn't an absolute path", cfg.DataDir)
 	}
-	if cfg.Records == nil || cfg.Shim == nil {
-		return nil, errors.New("datadisk: records and a shim are required")
+	if cfg.Records == nil || cfg.Shim == nil || cfg.Audit == nil {
+		return nil, errors.New("datadisk: records, a shim and the audit writer are required")
 	}
 	if cfg.SizeGiB == 0 {
 		cfg.SizeGiB = diskfmt.DefaultSizeGiB
@@ -234,10 +253,12 @@ func (m *Manager) Prepare(ctx context.Context, slot string) error {
 			Message: fmt.Sprintf("the %s VM can't start: %s isn't recorded as a formatted data disk, so it is kept and not used. %s", slot, final, fix(slot)),
 		})
 	}
-	_, r := m.format(ctx, slot)
+	uuid, r := m.format(ctx, slot)
 	if r != nil {
 		return m.refuse(ctx, "prepare", r)
 	}
+	m.cfg.Audit.Record(audit.DataDiskChanged(slot, "wb vm start", string(RuleMade), "data disk made",
+		audit.DataDisk{NewVolumeUUID: uuid}))
 	return nil
 }
 
@@ -263,8 +284,8 @@ type ResetResult struct {
 // reset-data`"). The caller holds the VM's start lock and has checked
 // that the VM is stopped. It deletes the file at the final name and any
 // temporary file, without following a symbolic link, drops the record,
-// and has wb-diskfmt make a new disk, which it records. It logs the
-// reset as one line with the fields of a 5019 event.
+// and has wb-diskfmt make a new disk, which it records. The deletion and
+// the reset each have an audit record (S09-11-audit).
 func (m *Manager) Reset(ctx context.Context, slot string) (ResetResult, error) {
 	if r := m.lock(slot); r != nil {
 		return ResetResult{}, m.refuse(ctx, "reset", r)
@@ -293,16 +314,18 @@ func (m *Manager) Reset(ctx context.Context, slot string) (ResetResult, error) {
 	}
 	m.log.LogAttrs(ctx, slog.LevelInfo, "data disk deleted", slog.String("decision", "accept"),
 		slog.String("slot", slot), slog.String("volume_uuid", rec.VolumeUUID))
+	m.cfg.Audit.Record(audit.DataDiskChanged(slot, resetCommand, string(RuleDeleted), "data disk deleted",
+		audit.DataDisk{OldVolumeUUID: rec.VolumeUUID}))
 	uuid, r := m.format(ctx, slot)
 	if r != nil {
 		return ResetResult{OldVolumeUUID: rec.VolumeUUID}, m.refuse(ctx, "reset", r)
 	}
-	// The fields of a Device Config State Change (5019) event. M3.10's
-	// audit writer turns this line into the event (S09-11-audit).
 	m.log.LogAttrs(ctx, slog.LevelInfo, "data disk reset",
-		slog.String("event", "5019"), slog.String("decision", "accept"),
-		slog.String("command", "wb vm reset-data"), slog.String("vm", slot),
+		slog.String("decision", "accept"), slog.String("rule", string(RuleReset)),
+		slog.String("command", resetCommand), slog.String("vm", slot),
 		slog.String("old_volume_uuid", rec.VolumeUUID), slog.String("new_volume_uuid", uuid))
+	m.cfg.Audit.Record(audit.DataDiskChanged(slot, resetCommand, string(RuleReset), "data disk reset",
+		audit.DataDisk{OldVolumeUUID: rec.VolumeUUID, NewVolumeUUID: uuid}))
 	return ResetResult{OldVolumeUUID: rec.VolumeUUID, NewVolumeUUID: uuid}, nil
 }
 

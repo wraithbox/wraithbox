@@ -99,8 +99,11 @@ type ProjectServer struct {
 	// Refusing is set in refusing mode, and every call is then refused
 	// with its rule.
 	Refusing *startup.Refusing
-	// Log gets the decisions and the 5019 records. nil takes
-	// slog.Default().
+	// Audit gets the 5019 record of each project change (S09-11-audit,
+	// "Project settings"). Every call is refused without it, as without
+	// Store.
+	Audit Recorder
+	// Log gets the decisions. nil takes slog.Default().
 	Log *slog.Logger
 	// Rand draws project ids. nil takes crypto/rand.
 	Rand io.Reader
@@ -422,7 +425,8 @@ func unknown(what string) *projectRefusal {
 	return &projectRefusal{code: codes.NotFound, rule: RuleProjectUnknown, msg: "no project has the " + what}
 }
 
-// admit refuses every call in refusing mode, and without a store.
+// admit refuses every call in refusing mode, and without a store or an
+// audit writer.
 func (s *ProjectServer) admit() error {
 	if r := s.Refusing; r != nil {
 		return &projectRefusal{
@@ -432,6 +436,9 @@ func (s *ProjectServer) admit() error {
 	}
 	if s.Store == nil {
 		return &projectRefusal{code: codes.Internal, rule: RuleInternal, msg: "wb-hostd has no state database"}
+	}
+	if s.Audit == nil {
+		return &projectRefusal{code: codes.Internal, rule: RuleInternal, msg: "wb-hostd has no audit log"}
 	}
 	return nil
 }
