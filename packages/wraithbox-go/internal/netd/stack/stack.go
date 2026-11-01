@@ -476,6 +476,8 @@ func (c *conn) closeOnce() error {
 	uto := tcpip.TCPUserTimeoutOption(userTimeout)
 	if err := c.ep.SetSockOpt(&uto); err != nil {
 		// Without the timeout the place isn't bounded, so reset instead.
+		// Defensive: gVisor's tcp Endpoint.SetSockOpt only stores this value
+		// and returns nil, so the branch isn't reached, and would log tcp-cap.
 		c.ep.Abort()
 		c.s.rec.Record(netd.Reset, netd.RuleTCPCap, append(c.flow.LogAttrs(), slog.String("error", err.String()))...)
 	}
