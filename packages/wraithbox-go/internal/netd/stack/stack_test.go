@@ -296,7 +296,11 @@ func TestResetConnHoldsCap(t *testing.T) {
 // is in state st.
 func waitState(t *testing.T, c net.Conn, st tcp.EndpointState) {
 	t.Helper()
-	ep := c.(*conn).ep
+	tc, ok := c.(*conn)
+	if !ok {
+		t.Fatalf("connection %T, want *conn", c)
+	}
+	ep := tc.ep
 	deadline := time.Now().Add(5 * time.Second)
 	for ep.State() != uint32(st) {
 		if time.Now().After(deadline) {
