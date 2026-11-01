@@ -52,3 +52,16 @@ func (*Pending) Wait(context.Context) (net.Conn, error) { return nil, errUnsuppo
 
 // Cancel does nothing on linux.
 func (*Pending) Cancel() {}
+
+// PendingNetwork is the open request for a packet transport. On linux it
+// isn't built.
+type PendingNetwork struct{}
+
+// ExpectNetwork isn't built on linux.
+func (*Receiver) ExpectNetwork(uint64) (*PendingNetwork, error) { return nil, errUnsupported }
+
+// Wait isn't built on linux.
+func (*PendingNetwork) Wait(context.Context) (*Transport, error) { return nil, errUnsupported }
+
+// Cancel does nothing on linux.
+func (*PendingNetwork) Cancel() {}

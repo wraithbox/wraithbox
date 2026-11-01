@@ -15,11 +15,22 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/fdchan"
 )
 
-// result is what a waiting request gets: the connection, or why there
-// is none.
+// result is what a waiting request gets: the connection or the packet
+// transport, or why there is none.
 type result struct {
-	conn net.Conn
-	err  error
+	conn      net.Conn
+	transport *Transport
+	err       error
+}
+
+// close closes what the result holds.
+func (res result) close() {
+	if res.conn != nil {
+		_ = res.conn.Close()
+	}
+	if res.transport != nil {
+		_ = res.transport.Close()
+	}
 }
 
 // waiter holds done, which gets the request's one result. It has room
@@ -37,12 +48,24 @@ func (t *table) cancel(id uint64, r *request) {
 	}
 }
 
+// cancelNetwork closes the request for the packet transport if it is
+// still the open request r.
+func (t *table) cancelNetwork(r *request) {
+	if t.network == r {
+		t.network = nil
+	}
+}
+
 // closeAll closes every open request and returns them.
 func (t *table) closeAll() []*request {
 	var all []*request
 	for id, r := range t.open {
 		all = append(all, r)
 		delete(t.open, id)
+	}
+	if t.network != nil {
+		all = append(all, t.network)
+		t.network = nil
 	}
 	return all
 }
@@ -96,10 +119,67 @@ func (r *Receiver) Expect(id, generation uint64, port uint32) (*Pending, error) 
 		r.logRefusal(ref, slog.Uint64("request_id", id), slog.Uint64("generation", generation))
 		return nil, ref
 	}
+	failStale(stale, generation)
+	return &Pending{rx: r, id: id, req: req}, nil
+}
+
+// failStale fails the requests a newer generation closed.
+func failStale(stale []*request, generation uint64) {
 	for _, s := range stale {
 		s.done <- result{err: &Refusal{Rule: RuleGeneration, msg: fmt.Sprintf("generation %d replaced generation %d", generation, s.generation)}}
 	}
-	return &Pending{rx: r, id: id, req: req}, nil
+}
+
+// PendingNetwork is the open request for a generation's packet
+// transport.
+type PendingNetwork struct {
+	rx  *Receiver
+	req *request
+}
+
+// ExpectNetwork opens the request for the packet transport of
+// generation, before the caller sends its Start request: wb-vmd sends
+// the record before the VM starts (S07-02-packet-path, "Packet
+// transport"). A generation gets one. A generation newer than the
+// current one becomes the current one, as in Expect.
+func (r *Receiver) ExpectNetwork(generation uint64) (*PendingNetwork, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return nil, &Refusal{Rule: RuleClosed, msg: "the receiver is closed"}
+	}
+	req, stale, ref := r.t.expectNetwork(generation)
+	if ref != nil {
+		r.logRefusal(ref, slog.Uint64("generation", generation), slog.String("kind", vmdv1.Kind_KIND_NETWORK.String()))
+		return nil, ref
+	}
+	failStale(stale, generation)
+	return &PendingNetwork{rx: r, req: req}, nil
+}
+
+// Wait waits for the packet transport. When ctx ends first, the request
+// is closed: a record for it that comes later is refused with
+// RuleNetwork.
+func (p *PendingNetwork) Wait(ctx context.Context) (*Transport, error) {
+	select {
+	case res := <-p.req.done:
+		return res.transport, res.err
+	case <-ctx.Done():
+		p.Cancel()
+		return nil, fmt.Errorf("vmhandoff: packet transport of generation %d: %w", p.req.generation, ctx.Err())
+	}
+}
+
+// Cancel closes the request, and a transport that came for it.
+func (p *PendingNetwork) Cancel() {
+	p.rx.mu.Lock()
+	p.rx.t.cancelNetwork(p.req)
+	p.rx.mu.Unlock()
+	select {
+	case res := <-p.req.done:
+		res.close()
+	default:
+	}
 }
 
 // Wait waits for the request's connection. When ctx ends first, the
@@ -124,9 +204,7 @@ func (p *Pending) Cancel() {
 	// either in done or never comes.
 	select {
 	case res := <-p.req.done:
-		if res.conn != nil {
-			_ = res.conn.Close()
-		}
+		res.close()
 	default:
 	}
 }
@@ -195,13 +273,20 @@ func (r *Receiver) Receive() error {
 	// request it names instead of leaving that request to time out.
 	msg, req, ref := r.t.check(m.Record)
 	if ref == nil {
-		ref = checkDescriptor(m)
+		ref = checkDescriptor(m, msg.GetKind())
 	}
 	if ref != nil {
 		if req != nil {
 			req.done <- result{err: ref}
 		}
 		return r.refuse(m, msg, ref)
+	}
+	if msg.GetKind() == vmdv1.Kind_KIND_NETWORK {
+		// The request takes the record's file, so m isn't closed.
+		req.done <- result{transport: &Transport{f: m.File}}
+		r.log.LogAttrs(context.Background(), slog.LevelInfo, "packet transport handed off",
+			append([]slog.Attr{slog.String("decision", "accept")}, messageAttrs(msg)...)...)
+		return nil
 	}
 	// FileConn takes a copy, so the record's file is closed either way.
 	conn, err := net.FileConn(m.File)
@@ -222,17 +307,23 @@ func (r *Receiver) Receive() error {
 }
 
 // checkDescriptor refuses a record without a descriptor, or with one
-// that isn't an AF_UNIX stream socket, which a vsock connection's
-// descriptor is on macOS (X18-vsock-handoff).
-func checkDescriptor(m *fdchan.Message) *Refusal {
+// that isn't the socket its kind names: an AF_UNIX stream socket for a
+// connection, which a vsock connection's descriptor is on macOS
+// (X18-vsock-handoff), and an AF_UNIX datagram socket for the packet
+// transport (S07-02-packet-path, "Packet transport").
+func checkDescriptor(m *fdchan.Message, kind vmdv1.Kind) *Refusal {
 	if m.File == nil {
 		return &Refusal{Rule: RuleFDCount, msg: "the record came without a descriptor"}
 	}
+	want, rule, name := syscall.SOCK_STREAM, RuleSocketType, "stream"
+	if kind == vmdv1.Kind_KIND_NETWORK {
+		want, rule, name = syscall.SOCK_DGRAM, RuleNetwork, "datagram"
+	}
 	family, sockType, err := fdchan.SocketType(m.File)
-	if err != nil || family != syscall.AF_UNIX || sockType != syscall.SOCK_STREAM {
+	if err != nil || family != syscall.AF_UNIX || sockType != want {
 		return &Refusal{
-			Rule: RuleSocketType,
-			msg:  fmt.Sprintf("the descriptor is not an AF_UNIX stream socket (family %d, type %d)", family, sockType),
+			Rule: rule,
+			msg:  fmt.Sprintf("the descriptor is not an AF_UNIX %s socket (family %d, type %d)", name, family, sockType),
 			err:  err,
 		}
 	}
@@ -267,6 +358,7 @@ func (r *Receiver) logRefusal(ref *Refusal, attrs ...slog.Attr) {
 // is only logged: routing uses the destination port.
 func messageAttrs(msg *vmdv1.HandoffMessage) []slog.Attr {
 	return []slog.Attr{
+		slog.String("kind", msg.GetKind().String()),
 		slog.Uint64("request_id", msg.GetRequestId()),
 		slog.Uint64("generation", msg.GetGeneration()),
 		slog.String("direction", msg.GetDirection().String()),
