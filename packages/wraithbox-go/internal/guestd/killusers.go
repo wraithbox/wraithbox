@@ -11,6 +11,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/procs"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestprocs"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsched"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectuser"
 )
@@ -21,9 +22,9 @@ import (
 const RuleKillRequest = "guestd-kill-invalid"
 
 // SystemProcesses is the kill and stop loops over the guest's own
-// process table and clock.
+// process table, cron and at, and clock.
 func SystemProcesses(log *slog.Logger) *procs.Loops {
-	return procs.New(&guestprocs.System{Log: log}, procs.SystemClock{}, log)
+	return procs.New(&guestprocs.System{Log: log}, guestsched.System{}, procs.SystemClock{}, log)
 }
 
 // WithProcesses makes KillUser, RemoveUser and the link drop run the

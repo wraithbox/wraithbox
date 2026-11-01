@@ -183,12 +183,37 @@ the link drop. A resumed session then keeps its services.
 `wb-guestd` never runs `launchctl print` or `launchctl asuser` against a
 locked project user.
 
-### Known gap: cron and at
+### Cron and at
 
-A project user's `crontab` and `at` jobs stay after the kill loop and a
-removal. `cron` and `atrun` run as root and start them as the user,
-outside its launchd domain, so `bootout` doesn't reach them, and neither the disabled
-account nor its shell stops them. Closing this in the image and in the
-kill loop is I442.
+`cron` and `atrun` run as root and start a user's crontab and `at` jobs
+as that user, outside its launchd domain. So `bootout` doesn't reach
+them, and neither the disabled account nor its shell stops them.
+`wb-guestd` closes both schedulers to project users in two places.
+
+At each start, after its stop loop and before it serves the host, it
+writes `cron.allow` and `at.allow` in `/private/var/at` with `root`
+only. That is before it makes or unlocks any project user. `crontab`
+and `at` read the files through `/usr/lib/cron`, a symbolic link to
+that directory, which is on the data volume and not the sealed system
+volume. With an allow file there, each ignores its deny file and
+refuses every user the file doesn't name. When either write fails,
+`wb-guestd` logs it with its rule and exits without serving the host.
+The image build is to write the same two files, so a guest is closed
+before `wb-guestd` first runs.
+
+In each round of the kill loop, before the first signal, it removes the
+user's crontab, `/private/var/at/tabs/<name>`, and each regular file in
+`/private/var/at/jobs` that the user owns, which is an `at` job. So a
+crontab written before the lock, or by root, goes with the kill, and
+`cron` and `atrun` find no job of the user when they next look. A removal that fails counts as a
+process left: the loop goes on to its bounds, logs the failure with its
+rule, and reports the user as not clean ("Per-user launchd services").
+
+`wb-guestd` follows no symbolic link at a name it writes or removes
+there. The paths and the bound on the entries it reads are in code, in
+`internal/platform/guestsched`.
+
+This holds against a process without guest root only, as the rest of
+this layer does.
 
 **Status:** Draft

@@ -1,9 +1,9 @@
 // Package procs is wb-guestd's kill loop and stop loop
 // (S13-01-process-hardening, "When the link drops", "When a project's
 // last session ends", "Per-user launchd services"; SEC08-proj-isolation).
-// The kill loop sends SIGKILL to every process of one project user and
-// boots out its launchd domain, round after round, until a check finds
-// none. The stop loop sends SIGSTOP to every process with a UID in the
+// The kill loop removes one project user's crontab and at jobs, sends
+// SIGKILL to every process of the user and boots out its launchd
+// domain, round after round, until a check finds none. The stop loop sends SIGSTOP to every process with a UID in the
 // project range, until none of them runs, and records which ones were
 // stopped already.
 //
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	gp "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestprocs"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsched"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectuser"
 )
 
@@ -54,7 +55,20 @@ const (
 	// RuleStopIncomplete: the stop loop ended at a bound with processes
 	// in the project range still running.
 	RuleStopIncomplete = "project-users-stop-incomplete"
+	// RuleJobs: the kill loop found a crontab or at jobs of the project
+	// user and removed them, or couldn't remove them
+	// (S13-01-process-hardening, "Cron and at").
+	RuleJobs = "project-user-scheduled-jobs"
 )
+
+// Jobs removes a project user's crontab and at jobs. cron and atrun run
+// as root and start them as the user, outside its launchd domain, so
+// neither SIGKILL nor bootout reaches them (S13-01-process-hardening,
+// "Cron and at"; SEC08-proj-isolation). guestsched.System implements
+// it. Tests pass a fake.
+type Jobs interface {
+	Clear(name string, uid uint32) (guestsched.Cleared, error)
+}
 
 // Clock is the time the loops read and wait on. Tests pass a fake.
 type Clock interface {
@@ -88,6 +102,7 @@ func settle(round int) time.Duration {
 // Loops runs the kill and stop loops. Its loops run one at a time.
 type Loops struct {
 	table gp.Table
+	jobs  Jobs
 	clock Clock
 	log   *slog.Logger
 
@@ -115,9 +130,9 @@ type Loops struct {
 	excluded map[uint32]int
 }
 
-// New returns Loops on table.
-func New(table gp.Table, clock Clock, log *slog.Logger) *Loops {
-	return &Loops{table: table, clock: clock, log: log, ours: map[gp.Key]bool{}, excluded: map[uint32]int{}}
+// New returns Loops on table, whose kill loop clears jobs.
+func New(table gp.Table, jobs Jobs, clock Clock, log *slog.Logger) *Loops {
+	return &Loops{table: table, jobs: jobs, clock: clock, log: log, ours: map[gp.Key]bool{}, excluded: map[uint32]int{}}
 }
 
 // Exclude makes the stop loop leave alone each process whose UID and
@@ -156,23 +171,29 @@ type KillResult struct {
 // Clean reports whether no process was left.
 func (r KillResult) Clean() bool { return r.Left == 0 }
 
-// Kill runs the kill loop for uid: each round sends SIGKILL to every
-// process of the user, runs `launchctl bootout user/<uid>`, and checks
-// again, so a KeepAlive agent launchd would start again goes with its
-// domain. At least one round runs, even when the first check finds
-// nothing, because a domain can hold a job between two starts. It stops
-// at the first clean check, after MaxRounds, or past MaxTime, and then
-// logs the processes left with RuleKillIncomplete. A check that
-// couldn't read the process table counts as MaxLeft processes left,
-// and a ctx done before the first round as at least one.
+// Kill runs the kill loop for uid: each round removes the user's
+// crontab and at jobs, sends SIGKILL to every process of the user, runs
+// `launchctl bootout user/<uid>`, and checks again. So a KeepAlive agent
+// launchd would start again goes with its domain, and cron and atrun
+// find no job of the user to start after the round's kill. At least one
+// round runs, even when the first check finds nothing, because a domain
+// can hold a job between two starts. It stops at the first clean
+// check, after MaxRounds, or past MaxTime, and then logs the processes
+// left with RuleKillIncomplete. A check that couldn't read the process
+// table counts as MaxLeft processes left, and a ctx done before the
+// first round, or jobs the last round couldn't remove, as at least one.
 func (l *Loops) Kill(ctx context.Context, uid uint32) KillResult {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	start := l.clock.Now()
 	procs, err := l.byUID(uid)
+	var jobsErr error
 	round := 0
 	for round < MaxRounds && ctx.Err() == nil {
 		round++
+		// Before the first signal, so cron and atrun start no job of the
+		// user after the kill (S13-01-process-hardening, "Cron and at").
+		jobsErr = l.clearJobs(ctx, uid, round)
 		for _, p := range procs {
 			l.Forget([]gp.Key{p.Key()})
 			l.signal(ctx, p, gp.Kill)
@@ -185,7 +206,7 @@ func (l *Loops) Kill(ctx context.Context, uid uint32) KillResult {
 		}
 		l.clock.Sleep(ctx, settle(round))
 		procs, err = l.byUID(uid)
-		if err == nil && len(procs) == 0 {
+		if err == nil && len(procs) == 0 && jobsErr == nil {
 			l.log.LogAttrs(ctx, slog.LevelInfo, "project user killed",
 				slog.Uint64("uid", uint64(uid)), slog.String("decision", "clean"), slog.Int("rounds", round))
 			return KillResult{Rounds: round}
@@ -194,25 +215,66 @@ func (l *Loops) Kill(ctx context.Context, uid uint32) KillResult {
 			break
 		}
 	}
-	left := uint32(min(len(procs), MaxLeft))
+	return l.killLeft(ctx, uid, killEnd{procs: procs, err: err, jobsErr: jobsErr, round: round, start: start})
+}
+
+// killEnd is what a kill loop that isn't clean found at its end.
+type killEnd struct {
+	procs []gp.Proc
+	// err is the last check's error, and jobsErr the last round's
+	// clearJobs error.
+	err, jobsErr error
+	round        int
+	start        time.Time
+}
+
+// killLeft logs the end of a kill loop that isn't clean with
+// RuleKillIncomplete, and returns its result.
+func (l *Loops) killLeft(ctx context.Context, uid uint32, e killEnd) KillResult {
+	left := uint32(min(len(e.procs), MaxLeft))
 	attrs := []slog.Attr{
 		slog.Uint64("uid", uint64(uid)), slog.String("rule", RuleKillIncomplete),
-		slog.String("decision", "processes-left"), slog.Int("rounds", round),
-		slog.Duration("took", l.clock.Now().Sub(start)),
+		slog.String("decision", "processes-left"), slog.Int("rounds", e.round),
+		slog.Duration("took", l.clock.Now().Sub(e.start)),
 	}
-	if err != nil {
+	if e.err != nil {
 		left = MaxLeft
-		attrs = append(attrs, slog.String("error", err.Error()))
+		attrs = append(attrs, slog.String("error", e.err.Error()))
 	}
-	if round == 0 {
+	if e.jobsErr != nil {
+		// cron or atrun may still start a job as the user.
+		left = max(left, 1)
+		attrs = append(attrs, slog.String("jobs_error", e.jobsErr.Error()))
+	}
+	if e.round == 0 {
 		// ctx was done before the first round: no bootout ran, so the
 		// kill isn't clean even with no process listed.
 		left = max(left, 1)
 		attrs = append(attrs, slog.String("error", ctx.Err().Error()))
 	}
 	l.log.LogAttrs(ctx, slog.LevelError, "processes of a project user left after the kill loop",
-		append(attrs, slog.Int("count", len(procs)), slog.Any("names", Names(procs)))...)
-	return KillResult{Left: left, Rounds: round}
+		append(attrs, slog.Int("count", len(e.procs)), slog.Any("names", Names(e.procs)))...)
+	return KillResult{Left: left, Rounds: e.round}
+}
+
+// clearJobs removes uid's crontab and at jobs, and logs with RuleJobs
+// what it removed, or why it couldn't.
+func (l *Loops) clearJobs(ctx context.Context, uid uint32, round int) error {
+	c, err := l.jobs.Clear(projectuser.UserName(uid), uid)
+	attrs := []slog.Attr{
+		slog.Uint64("uid", uint64(uid)), slog.String("rule", RuleJobs), slog.Int("round", round),
+		slog.Bool("crontab", c.Tab), slog.Int("at_jobs", c.Jobs),
+	}
+	if err != nil {
+		l.log.LogAttrs(ctx, slog.LevelError, "scheduled jobs of a project user not removed",
+			append(attrs, slog.String("decision", "jobs-left"), slog.String("error", err.Error()))...)
+		return err
+	}
+	if c.Any() {
+		l.log.LogAttrs(ctx, slog.LevelWarn, "scheduled jobs of a project user removed",
+			append(attrs, slog.String("decision", "removed"))...)
+	}
+	return nil
 }
 
 // byUID lists uid's processes that run: a zombie has exited.

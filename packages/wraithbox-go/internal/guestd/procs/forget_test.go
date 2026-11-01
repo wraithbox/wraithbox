@@ -98,7 +98,7 @@ func TestHoldStopsHoldsALoop(t *testing.T) {
 func gatedLoops() (*procs.Loops, *gateClock) {
 	table := &fakeTable{procs: []gp.Proc{proc(100, 10000, "zsh")}, unstoppable: map[int32]bool{100: true}}
 	gate := &gateClock{now: time.Unix(1_800_000_000, 0), in: make(chan struct{}), out: make(chan struct{})}
-	return procs.New(table, gate, slog.New(slog.DiscardHandler)), gate
+	return procs.New(table, table, gate, slog.New(slog.DiscardHandler)), gate
 }
 
 func wantBlocked[T any](t *testing.T, ch <-chan T, msg string) {
