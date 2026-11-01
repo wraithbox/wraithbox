@@ -66,8 +66,9 @@ type Endpoint struct {
 
 	qmu    sync.Mutex
 	queue  [][]byte
-	queued int // bytes in queue
-	closed bool
+	queued int  // bytes in queue
+	closed bool // Close was called
+	gone   bool // the transport is closed: frames are dropped unsent
 	wake   chan struct{}
 
 	writer    sync.WaitGroup
@@ -95,8 +96,9 @@ func New(t Transport, cfg *netd.Config, rec *netd.Recorder) *Endpoint {
 // Run reads frames from the transport and delivers each one that passes
 // the filter to the stack, until a read fails or ctx is done. It starts
 // the writer, which sends queued frames until Close. When ctx is done it
-// closes the transport, which ends the read. It returns the read's
-// error, or ctx's.
+// closes the transport, which ends the read, and the frames still queued
+// and queued later are dropped without a record: no peer is left to take
+// them. It returns the read's error, or ctx's.
 func (e *Endpoint) Run(ctx context.Context) error {
 	e.startOnce.Do(func() { e.writer.Go(e.writeLoop) })
 	stop := context.AfterFunc(ctx, e.closeTransport)
@@ -155,7 +157,7 @@ func (e *Endpoint) enqueue(pkt *stack.PacketBuffer) {
 		frame = append(frame, s...)
 	}
 	e.qmu.Lock()
-	if e.closed {
+	if e.closed || e.gone {
 		e.qmu.Unlock()
 		return
 	}
@@ -169,10 +171,7 @@ func (e *Endpoint) enqueue(pkt *stack.PacketBuffer) {
 	e.queue = append(e.queue, frame)
 	e.queued += len(frame)
 	e.qmu.Unlock()
-	select {
-	case e.wake <- struct{}{}:
-	default:
-	}
+	e.wakeWriter()
 }
 
 // writeLoop sends queued frames until Close, and then the ones still
@@ -188,10 +187,14 @@ func (e *Endpoint) writeLoop() {
 }
 
 // next takes the oldest queued frame, waiting for one. It returns false
-// once the endpoint is closed and the queue is empty.
+// once the endpoint is closed and the queue is empty. Once the transport
+// is closed it empties the queue.
 func (e *Endpoint) next() ([]byte, bool) {
 	for {
 		e.qmu.Lock()
+		if e.gone {
+			e.queue, e.queued = nil, 0
+		}
 		if len(e.queue) > 0 {
 			frame := e.queue[0]
 			e.queue[0] = nil
@@ -219,6 +222,9 @@ func (e *Endpoint) write(frame []byte) {
 		if err == nil {
 			return
 		}
+		if e.transportGone() {
+			return
+		}
 		if !errors.Is(err, packetlink.ErrBusy) || attempt == writeRetries {
 			e.rec.Record(netd.Drop, netd.RuleLinkWriteFailed,
 				slog.Int("bytes", len(frame)), slog.Int("attempts", attempt+1), slog.String("error", err.Error()))
@@ -229,8 +235,29 @@ func (e *Endpoint) write(frame []byte) {
 	}
 }
 
+// closeTransport closes the transport once, and tells the writer to drop
+// what is queued.
 func (e *Endpoint) closeTransport() {
-	e.closeT.Do(func() { _ = e.t.Close() })
+	e.closeT.Do(func() {
+		e.qmu.Lock()
+		e.gone = true
+		e.qmu.Unlock()
+		_ = e.t.Close()
+		e.wakeWriter()
+	})
+}
+
+func (e *Endpoint) transportGone() bool {
+	e.qmu.Lock()
+	defer e.qmu.Unlock()
+	return e.gone
+}
+
+func (e *Endpoint) wakeWriter() {
+	select {
+	case e.wake <- struct{}{}:
+	default:
+	}
 }
 
 // Close stops the endpoint: the writer sends the frames still queued and
@@ -240,10 +267,7 @@ func (e *Endpoint) Close() {
 	e.qmu.Lock()
 	e.closed = true
 	e.qmu.Unlock()
-	select {
-	case e.wake <- struct{}{}:
-	default:
-	}
+	e.wakeWriter()
 }
 
 // Wait waits for the writer to stop after Close, and closes the

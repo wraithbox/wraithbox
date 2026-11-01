@@ -30,6 +30,7 @@ func FuzzLinkEndpoint(f *testing.F) {
 	}
 	seeds := [][3][]byte{
 		{arpReq, syn(nt.Gateway, 80), syn(public, 443)},
+		{syn(nt.Leased, 443), syn(netip.MustParseAddr("127.0.0.1"), 80), syn(netip.MustParseAddr("0.0.0.1"), 80)},
 		{syn(synthetic, 443), syn(nt.Gateway, 53), nt.FromGuest(ip4, nt.IPv4(nt.Leased, nt.Gateway, tcpNum, nt.TCPSegment(nt.Leased, nt.Gateway, 40000, 80, header.TCPFlagAck)))},
 		{nt.FromGuest(ip4, nt.IPv4(nt.Leased, nt.Gateway, icmpNum, nt.ICMP(header.ICMPv4Echo, 0))), nt.FromGuest(ip4, nt.IPv4(nt.Leased, nt.Gateway, udpNum, nt.UDP(5353, 53, []byte("q")))), nil},
 		{nt.Ethernet(nt.Broadcast, nt.GuestMAC, ip4, nt.IPv4(netip.IPv4Unspecified(), netip.MustParseAddr("255.255.255.255"), udpNum, nt.UDP(68, 67, make([]byte, 300)))), arpReq, make([]byte, 65550)},

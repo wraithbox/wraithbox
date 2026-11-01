@@ -94,6 +94,10 @@ func filterCases() []filterCase {
 		{"spoofed source", ip4(otherHost, public, tcpNum, syn), netd.RuleIPv4Source},
 		{"0.0.0.0 to TCP", ip4(zero, public, tcpNum, syn), netd.RuleIPv4Source},
 		{"0.0.0.0 to DNS", ip4(zero, nt.Gateway, udpNum, nt.UDP(5353, 53, nil)), netd.RuleIPv4Source},
+		{"TCP to the leased address", ip4(nt.Leased, nt.Leased, tcpNum, syn), netd.RuleIPv4Destination},
+		{"TCP to 0.0.0.0/8", ip4(nt.Leased, netip.MustParseAddr("0.1.2.3"), tcpNum, syn), netd.RuleIPv4Destination},
+		{"TCP to loopback", ip4(nt.Leased, netip.MustParseAddr("127.0.0.1"), tcpNum, syn), netd.RuleIPv4Destination},
+		{"DHCP to 127.255.255.255", ip4(zero, netip.MustParseAddr("127.255.255.255"), udpNum, dhcp), netd.RuleIPv4Destination},
 		// Step 6.
 		{"multicast", nt.Ethernet(nt.Broadcast, nt.GuestMAC, ethIPv4, nt.IPv4(nt.Leased, multicast, udpNum, nt.UDP(5353, 5353, nil))), netd.RuleIPBroadcast},
 		{"broadcast other than DHCP", nt.Ethernet(nt.Broadcast, nt.GuestMAC, ethIPv4, nt.IPv4(nt.Leased, limited, udpNum, nt.UDP(137, 137, nil))), netd.RuleIPBroadcast},
@@ -233,6 +237,9 @@ func referenceIPv4(cfg *netd.Config, p []byte) error {
 	dhcp := referenceDHCP(proto, body)
 	if src != cfg.Leased && (!src.IsUnspecified() || !dhcp) {
 		return errors.New("source")
+	}
+	if dst == cfg.Leased || dst.As4()[0] == 0 || dst.IsLoopback() {
+		return errors.New("destination")
 	}
 	broadcast := dst == limited || dst == netd.BroadcastOf(cfg.Subnet)
 	if dst.IsMulticast() || broadcast && !dhcp {
