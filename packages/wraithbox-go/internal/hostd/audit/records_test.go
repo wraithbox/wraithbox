@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
+
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
 )
 
 // schema is the subset of OCSF 1.8.0 in testdata: the required and the
@@ -217,4 +220,23 @@ func TestGuestLabel(t *testing.T) {
 	if !strings.HasSuffix(got, "é") {
 		t.Errorf("label %q isn't cut at a whole rune", got)
 	}
+}
+
+// FuzzGuestLabel: whatever bytes the guest sends, the label is valid
+// UTF-8, at most maxGuestLabel bytes, keeps none of the escaped code
+// points, and its record marshals to JSON.
+func FuzzGuestLabel(f *testing.F) {
+	for _, seed := range []string{"", "7", "7\x1b[31m‮", strings.Repeat("é", 300), "\xff\xfe", "a\x00b"} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, s string) {
+		got := guestLabel(s)
+		if !utf8.ValidString(got) || len(got) > maxGuestLabel || guesttext.Strip(got) != got {
+			t.Fatalf("guestLabel(%q) = %q", s, got)
+		}
+		r := ProcessesLeft("work", 1, "kill-processes-left", Kill{ID: 1}, s)
+		if _, err := json.Marshal(r.Event); err != nil {
+			t.Fatalf("the record of %q doesn't marshal: %v", s, err)
+		}
+	})
 }
