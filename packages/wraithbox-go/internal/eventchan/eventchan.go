@@ -254,7 +254,9 @@ func (s *Sender) refusalLocked(vm VM, now time.Time) Rule {
 	if !s.blocked && !s.sendingSince.IsZero() && time.Since(s.sendingSince) > BlockAfter {
 		s.markBlockedLocked(fmt.Sprintf("a write has taken more than %s", BlockAfter))
 	}
-	if s.blocked {
+	// A queue at its cap admits nothing new until it drains (#477,
+	// S04-08-records-and-bounds, "Event records").
+	if s.blocked || s.stalled {
 		return RuleBlocked
 	}
 	if r, ok := s.budgets[vm]; ok && now.Before(r.until) {
@@ -265,9 +267,18 @@ func (s *Sender) refusalLocked(vm VM, now time.Time) Rule {
 
 // Emit queues the record of one event of vm. It never blocks and never
 // drops a record. It cuts e's guest strings to their bounds, and takes
-// e.
+// e. An event whose class, decision, rule or port a record can't carry
+// is counted as a run under event-record-not-encoded instead (formOf).
 func (s *Sender) Emit(vm VM, e *auditv1.Event) {
 	bound(e)
+	k := runKey{vm: vm, class: e.GetClass(), decision: e.GetDecision(), rule: e.GetRule()}
+	if f := s.formOf(k, e.GetDestinationPort()); f != k {
+		now := s.cfg.Now()
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.countLocked(f, now)
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.enqueueLocked(&auditv1.EventRecord{Vm: vm.proto(), Kind: &auditv1.EventRecord_Event{Event: e}})
@@ -454,6 +465,11 @@ func (s *Sender) readLoop() {
 		m, err := s.cfg.Conn.Recv()
 		var ref *fdchan.Refusal
 		switch {
+		case errors.As(err, &ref) && ref.Rule == fdchan.RuleControlTruncated:
+			// fdchan logged it and closed the channel: every later Recv
+			// returns it again.
+			s.log.Warn("event channel closed by fdchan, budget notices stop", "rule", string(ref.Rule))
+			return
 		case errors.As(err, &ref):
 			// fdchan logged it, and the channel goes on.
 			continue

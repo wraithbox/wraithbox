@@ -141,26 +141,26 @@ message Run {
   bool open = 6;
 }
 
-// BudgetRule is the audit budget a VM ran over (S09-11-audit,
+// BudgetRule is the audit budget a VM used up (S09-11-audit,
 // "Budgets").
 enum BudgetRule {
   // Refused.
   BUDGET_RULE_UNSPECIFIED = 0;
   // audit-budget: the VM's Network Activity and HTTP Activity records of
-  // this UTC minute are over audit_events_per_minute.
+  // this UTC minute reach audit_events_per_minute.
   BUDGET_RULE_EVENTS_PER_MINUTE = 1;
-  // audit-bytes: the VM's records of this UTC day are over
+  // audit-bytes: the VM's records of this UTC day reach
   // audit_vm_bytes_per_day.
   BUDGET_RULE_BYTES_PER_DAY = 2;
 }
 
-// BudgetNotice is what wb-hostd sends a VM's senders when the VM runs
-// over an audit budget. The sender refuses the VM's new lookups,
+// BudgetNotice is what wb-hostd sends a VM's senders when the VM uses
+// up an audit budget. The sender refuses the VM's new lookups,
 // connections, streams and requests with the rule until `until_unix`,
 // and counts the refusals as a run. A notice is advice: wb-hostd still
 // writes every record that arrives.
 message BudgetNotice {
-  // The VM over its budget. wb-netd refuses a notice for another VM.
+  // The VM that used up its budget. wb-netd refuses a notice for another VM.
   VM vm = 1;
   BudgetRule rule = 2;
   // When the refusals end, in Unix seconds: the end of the UTC minute or

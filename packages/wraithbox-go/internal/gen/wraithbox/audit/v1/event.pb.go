@@ -168,7 +168,7 @@ func (Slot) EnumDescriptor() ([]byte, []int) {
 	return file_wraithbox_audit_v1_event_proto_rawDescGZIP(), []int{1}
 }
 
-// BudgetRule is the audit budget a VM ran over (S09-11-audit,
+// BudgetRule is the audit budget a VM used up (S09-11-audit,
 // "Budgets").
 type BudgetRule int32
 
@@ -176,9 +176,9 @@ const (
 	// Refused.
 	BudgetRule_BUDGET_RULE_UNSPECIFIED BudgetRule = 0
 	// audit-budget: the VM's Network Activity and HTTP Activity records of
-	// this UTC minute are over audit_events_per_minute.
+	// this UTC minute reach audit_events_per_minute.
 	BudgetRule_BUDGET_RULE_EVENTS_PER_MINUTE BudgetRule = 1
-	// audit-bytes: the VM's records of this UTC day are over
+	// audit-bytes: the VM's records of this UTC day reach
 	// audit_vm_bytes_per_day.
 	BudgetRule_BUDGET_RULE_BYTES_PER_DAY BudgetRule = 2
 )
@@ -680,14 +680,14 @@ func (x *Run) GetOpen() bool {
 	return false
 }
 
-// BudgetNotice is what wb-hostd sends a VM's senders when the VM runs
-// over an audit budget. The sender refuses the VM's new lookups,
+// BudgetNotice is what wb-hostd sends a VM's senders when the VM uses
+// up an audit budget. The sender refuses the VM's new lookups,
 // connections, streams and requests with the rule until `until_unix`,
 // and counts the refusals as a run. A notice is advice: wb-hostd still
 // writes every record that arrives.
 type BudgetNotice struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The VM over its budget. wb-netd refuses a notice for another VM.
+	// The VM that used up its budget. wb-netd refuses a notice for another VM.
 	Vm   *VM        `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
 	Rule BudgetRule `protobuf:"varint,2,opt,name=rule,proto3,enum=wraithbox.audit.v1.BudgetRule" json:"rule,omitempty"`
 	// When the refusals end, in Unix seconds: the end of the UTC minute or
