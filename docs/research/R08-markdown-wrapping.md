@@ -128,11 +128,11 @@ Over the 191 `.md` files, from `.scratch/bin/measure.py`:
 "Tuned" is `wrapCodeSpans: false`, `table.skipFormat: true` and
 asterisks for emphasis and strong text. With its defaults, dprint
 pads every table and turns `*emphasis*` into `_emphasis_`, as Prettier
-does. The two files with a token change under every tuned run are
-`AGENTS.md`, where a lazy block quote line gets its `>`, and
-`CODE_OF_CONDUCT.md`, where `*` list markers become `-`. The third
-file at 80 and in the sentence mode is `README.md`, where block quote
-markers move to the new line starts. Each renders the same page
+does. Under every tuned run, the tokens of `AGENTS.md` change where a
+lazy block quote line gets its `>`, and those of `CODE_OF_CONDUCT.md`
+where `*` list markers become `-`. At 80 and in the sentence mode,
+`README.md` changes too, where block quote markers move to the new
+line starts. Each renders the same page
 as before.
 
 A full rewrap is large at either width, because a formatter refills
@@ -160,8 +160,8 @@ Prettier failed the docs build twice over. It pads the
 find the table in B00-index. On MDX it rewrites `title:` in front
 matter as a YAML block, which the index's `^title: (.+)$` doesn't read.
 
-The three tuned dprint runs that were built, `always` at 72 and
-`maintainAndWrap` at 72 and 80, rendered all 227 pages identically to
+Each tuned dprint run that was built (`always` at 72, and
+`maintainAndWrap` at 72 and 80) rendered all 227 pages identically to
 the base build once the index status and page limit problems below
 were patched in the copies. Long URLs, image alt text, and code spans
 over the width are left on lines of their own. In the `.md` files, 54
@@ -170,13 +170,13 @@ the other 14 image alt text.
 
 ### What the formatter breaks in our own tooling
 
-Three parsers of the docs site read Markdown line by line, so any
-change of line breaks reaches them:
+The index, page limit and section parsers of the docs site read
+Markdown line by line, so any change of line breaks reaches them:
 
 - **The index status.** `statusOf` in `indexes.mjs` (line 63) takes
   `^\*\*Status:\*\*\s*(.+)$`, the first line of the status paragraph.
-  Ten notes and spikes, R02-builder-effort, R03-fix-rounds-compaction
-  and X01-model-credential among them, have a status line over 72
+  R02-builder-effort, R03-fix-rounds-compaction, X01-model-credential
+  and seven other notes and spikes have a status line over 72
   characters. Wrapped, their R00-index and X00-index rows lose the rest
   of the status, and every dprint build failed with
   `index tables out of date`. Reading the paragraph up to the next
@@ -265,28 +265,98 @@ words while it wraps. Its output would need the same token check
 that `measure.py` does, and with that check a model does the job of
 dprint at a higher cost.
 
+## Reproducing the runs
+
+Each run formatted a fresh copy of the base tree. `<copy>` is the
+copy's directory, and `<list>` a file with the copy's `.md` paths, one
+per line, from `git ls-files '*.md'` without `CLAUDE.md`.
+
+Prettier, at 72 and 80 (`<w>`), over `.md` and `.mdx`, without a
+configuration file and with an ignore file that doesn't exist, so that
+`.gitignore` doesn't hide the copy under `.scratch/`:
+
+```sh
+prettier --no-config --ignore-path <copy>/.none --prose-wrap always \
+  --print-width <w> --write '<copy>/docs/**/*.{md,mdx}' \
+  '<copy>/.claude/**/*.md' \
+  '<copy>/packages/wraithbox-doc/src/content/**/*.{md,mdx}' \
+  '<copy>/*.md'
+```
+
+dprint, over the `.md` files only:
+
+```sh
+dprint fmt --no-gitignore --config <config> --allow-no-files \
+  $(sed 's|^|<copy>/|' <list>)
+```
+
+The tuned configuration at 72. The other tuned runs change only
+`lineWidth` (80) or `textWrap` (`maintainAndWrap`, or `sentence` with
+`lineWidth` 80). The default run's configuration holds only
+`"markdown": { "lineWidth": 72, "textWrap": "always" }` and the
+plugin.
+
+```json
+{
+  "lineWidth": 72,
+  "markdown": {
+    "textWrap": "always",
+    "wrapCodeSpans": false,
+    "emphasisKind": "asterisks",
+    "strongKind": "asterisks",
+    "table.skipFormat": true
+  },
+  "plugins": [
+    "https://plugins.dprint.dev/markdown-0.28.2.wasm@77d0095123be1df7c802ef1b8875433c757f79238c26a58d1c49b8cafca44e2c"
+  ]
+}
+```
+
+The runs named the plugin by a local path to the same downloaded
+file. The checksum form above was checked afterwards. With a wrong
+checksum, `dprint check` stops with
+`The checksum did not match the expected checksum.`, and with this one
+it formats.
+
 ## Recommendations
 
-- **Fix the three parsers first.** Read the whole `**Status:**`
-  paragraph in `indexes.mjs`. Pair code spans from left to right
-  before blanking them in `sections.mjs`. Decide whether the page and
+- **Fix two parsers and settle the limits first.** Read the whole
+  `**Status:**` paragraph in `indexes.mjs`. Pair code spans from left
+  to right before blanking them in `sections.mjs`. Decide whether the page and
   section limits of S01-spec-based-development ("Size and structure")
   stay in lines, with the specs at the page limit trimmed once, or move
-  to words. The first two are needed with or without a formatter: a
+  to words. The parser fixes help with or without a formatter. A
   writer who wraps a status line, or keeps two quoted code spans on
-  one line, meets them today.
+  one line, meets those failures today.
 - **Adopt dprint for `.md`, width 72, `textWrap: "always"`.** Use
   `wrapCodeSpans: false`, `table.skipFormat: true`,
   `emphasisKind: "asterisks"` and `strongKind: "asterisks"`. Exclude
   `*.mdx`, `CODE_OF_CONDUCT.md`, which is adopted text, and `CLAUDE.md`.
-  Pin dprint in `.mise.toml` (`aqua:dprint/dprint`) and the plugin by
-  URL with its checksum in `dprint.json`, or from a local copy so that
-  `mise run ci` stays offline. Add `md:format` and `md:check` tasks,
-  and `md:check` to `lint`, which puts it in `mise run ci` and CI.
+  Pin dprint in `.mise.toml` (`aqua:dprint/dprint`).
+- **Pin the plugin by URL and checksum.** In `dprint.json`, name the
+  plugin as `https://plugins.dprint.dev/markdown-0.28.2.wasm@<sha256>`,
+  which dprint verifies ("Reproducing the runs"), as an action is
+  pinned to a commit. A copy of the wasm in the repository would be a
+  binary nobody reviews, and its updates would be a binary diff. The URL alone makes dprint
+  download the plugin on its first run, so `mise run ci` isn't
+  offline. An `md:install` task that runs `dprint` once to fill its
+  cache, in the `depends` of `install` and `install-frozen`, fetches
+  it beforehand, as `mise install` does for the tools. Dependabot
+  doesn't watch dprint plugins, as it doesn't watch `.mise.toml`.
+  A plugin update is a manual edit of the URL and the checksum,
+  checked against the checksum the plugin's `latest.json` publishes,
+  with its release notes read.
+- **Wire the check into both gates.** Add `md:format` and `md:check`
+  tasks, and `md:check` to `lint`, which puts it in `mise run ci`.
+  `.github/workflows/ci.yml` doesn't run `lint`: its docs job runs
+  `prose:lint`, `prose:spell`, `doc:check` and `doc:build` as separate
+  steps. `md:check` needs its own step there, after the plugin is
+  fetched, and `dprint.json` needs a glob in the change rules of
+  `scripts/ci-changes.mjs` that starts the docs job. `**/*.md` already
+  has one.
 - **Roll out with one rewrap commit.** After the parser fixes and
-  the decision on the limits, one
-  commit runs `md:format` over the tree (about 190 files and 19,000
-  diff lines), and `.git-blame-ignore-revs` names it, which GitHub's
+  the decision on the limits, one commit runs `md:format` over the
+  tree (about 190 files and 19,000 diff lines), and `.git-blame-ignore-revs` names it, which GitHub's
   blame reads. Land it between waves, since it conflicts with every
   open pull request that touches a doc. From then on the check keeps
   the tree formatted, which is what AGENTS.md ("No `.editorconfig`")
@@ -303,4 +373,4 @@ dprint at a higher cost.
   `mittwald/developer-portal` is optional, and can follow when agents
   forget the task.
 
-**Status:** Measured 2026-11-01 over 238 Markdown and MDX files at `10b7ab59`, recommends dprint at 72 for `.md` after three parser fixes
+**Status:** Measured 2026-11-01 over 238 Markdown and MDX files at `10b7ab59`, recommends dprint at 72 for `.md` after two parser fixes and a decision on the S01-spec-based-development size limits
