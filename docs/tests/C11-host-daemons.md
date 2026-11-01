@@ -6,7 +6,7 @@ the accounting and event channels, the daemon log pipes, the audit
 writer, free space, and the data disk steps.
 
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024", "Hand-off on macOS", "The host opens every connection", "Caps and closing"), S06-12-guest-agent ("The hello"),
-S06-11-reconnect-and-recovery ("Reconnect"), S06-06-devices-and-warm-start ("When the host sends the time"), S04-08-records-and-bounds ("Host work the guest can cause"),
+S06-11-reconnect-and-recovery ("Reconnect"), S06-06-devices-and-warm-start ("When the host sends the time", "Network device per slot", "MAC address"), S07-02-packet-path ("Packet transport", "MTU"), S04-08-records-and-bounds ("Host work the guest can cause"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
 S04-07-supervision, S04-05-helper-programs ("`wb-build-ssh`"), S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
 S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
@@ -17,11 +17,14 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 
 - **Device set** (S04-02-vm-provider, "The device set is fixed and checked", X25-vmd-sandbox). Pass the check each of these, and see
   each refused with its rule: a NAT network, a bridged network, a
-  file-handle network while the set has none, a shared directory, a
+  file-handle network in the build slot, a shared directory, a
   console or SPICE device, an audio device, a disk or serial port file
   outside the VM's bundle, a second network device, a symbolic link at
   a bundle file's name, and a missing bundle file. The fixed set of
-  S06-vm-lifecycle is accepted.
+  S06-vm-lifecycle is accepted in every slot. A work or isolated VM
+  without its file-handle network device is refused with
+  `device-set-count`, and every other attachment is refused in every
+  slot, in place of the file handle too (`DeviceSetNetworkTests`).
 - **Bundle file names** (S06-05-disks, "Names on the host"). Each
   guest-written bundle file has an extension that maps to a dynamic
   type, so Launch Services doesn't open it as a disk image. A clone of a spike
@@ -62,6 +65,18 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   each come before any record is sent. A connection is sent once with
   the request's fields, and `wb-vmd`'s copy is closed before the record
   is read.
+- **Packet transport** (S07-02-packet-path, "Packet transport", "MTU";
+  `NetworkTransportTests`). Both ends of the socketpair are `AF_UNIX`
+  datagram sockets, close-on-exec, with `SO_RCVBUF` at least twice
+  `SO_SNDBUF`. The attachment has MTU 65535, the VM's MAC address and
+  its own copy of the VM end. `Start` sends one `KIND_NETWORK` record
+  with the host end and the generation only before the VM starts, and
+  `wb-vmd`'s copy is closed. A record that can't be sent refuses the
+  start with `handoff-send-failed`.
+- **MAC address** (S06-06-devices-and-warm-start, "MAC address"). A
+  multicast, a universally administered, a broadcast, a short, and an
+  empty address are each refused with `vmd-mac-invalid`, and `Start`
+  refuses one before it builds a VM or sends a record.
 
 ### VM boot (needs-vm)
 
@@ -73,7 +88,10 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   with `device-set-file-outside-bundle` and `wb-vmd` still answering,
   and a closed lifeline end the process with status 0. The slot is
   deleted afterwards. Pass or fail, the test prints how `wb-vmd` ended
-  and every record it logged.
+  and every record it logged. After the first start reaches `RUNNING`,
+  the test reads the `KIND_NETWORK` record from the hand-off channel and
+  waits up to 300 s for a DHCPDISCOVER from the VM's MAC address on the
+  transport.
 - **`wb-hostd` on a VM** (`TestC11HostdVM` in `cmd/wb-hostd`, needs-vm
   and needs-host). With `WB_VM_TEST_BUNDLE` naming a provisioned test
   bundle, `mise run go:test-vm` builds the bundle and runs the test
@@ -155,7 +173,8 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 ### Descriptor channels
 
 - **One descriptor per message** (S07-05-stream-hand-off, "Message form"). Over real socketpairs, records with and without a descriptor round-trip. An oversized record, two, three and 254 descriptors are each refused with every descriptor closed. A message whose descriptors don't fit the full descriptor table is dropped, and a send to a full peer fails at once.
-- **Hand-off receiver** (S04-02-vm-provider, "Hand-off on macOS"). Tests in `internal/platform/vmhandoff` and `internal/vmdlink`: over a real socketpair, each refusal of the receiver and of `fdchan` has its rule, and no descriptor of the record is open after it (`fcntl`). A good record gives its request a working connection, and the hello runs over it end to end with a fake `wb-vmd`. `FuzzHandoffMessage` checks that no record of arbitrary bytes, the empty one included, is accepted unless it names the open request, the current generation, the host's direction and the requested port.
+- **Hand-off receiver** (S04-02-vm-provider, "Hand-off on macOS"). Tests in `internal/platform/vmhandoff` and `internal/vmdlink`: over a real socketpair, each refusal of the receiver and of `fdchan` has its rule, and no descriptor of the record is open after it (`fcntl`). A record without a kind, or of an unknown one, is refused with `handoff-kind`. A good record gives its request a working connection, and the hello runs over it end to end with a fake `wb-vmd`. `FuzzHandoffMessage` checks that no record of arbitrary bytes, the empty one included, is accepted unless it names the open request, the current generation, the host's direction and the requested port, or is the one packet transport of the current generation.
+- **Packet transport hand-off** (S07-02-packet-path, "Packet transport"). In `internal/platform/vmhandoff`: a `KIND_NETWORK` record of the current generation with an `AF_UNIX` datagram socket gives the waiter a `Transport` whose only method is `Close`. A record of generation 0 or another generation, one nobody asked for, a generation's second one, one with a request ID, direction or port, and one with a stream socket are each refused with `handoff-network-refused`, with no descriptor left open. A newer generation's request closes the older one's. In `internal/vmdlink`: `Start` returns the transport, a refused or missing one is refused with its rule and doesn't leave a descriptor open, and a refused `Start` returns `wb-vmd`'s error.
 
 ### Supervision
 
@@ -227,6 +246,20 @@ cloner of `internal/hostd/vm/vmtest`:
   `vm-bundle-not-directory`, and one that can't be created with
   `vm-bundle-create-failed`.
 - The configured resources reach the provider.
+- **MAC address and packet transport** (S06-06-devices-and-warm-start,
+  "MAC address"; S07-02-packet-path, "Packet transport"). In
+  `internal/hostd/state`, a slot's MAC address is made once, is locally
+  administered unicast, is kept across calls and restarts, and differs
+  between slots. A new address that is another slot's is made again,
+  and an address in the database that `wb-vmd` would refuse is an error.
+  In the manager, each `StartRequest` carries the slot's address, the
+  same on every start. A failure to get it is refused with
+  `vm-mac-failed` before any provider instance opens. The transport is
+  held while the VM runs and closed once when the run ends, by a stop
+  or by `wb-vmd`'s exit. A transport that comes after the start's
+  deadline is closed. A start without one is refused with
+  `vm-network-missing`, and the instance is closed. The type the
+  manager holds it in has `Close` and no other method.
 - A stop with a fake session is refused with `vm-live-sessions`, and
   the refusal lists it.
 - **Tools disk**, in a temporary directory with a cloner that copies:

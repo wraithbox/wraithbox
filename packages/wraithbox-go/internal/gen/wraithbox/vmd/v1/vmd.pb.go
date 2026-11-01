@@ -287,7 +287,7 @@ type StartRequest struct {
 	MemoryMib uint64 `protobuf:"varint,3,opt,name=memory_mib,json=memoryMib,proto3" json:"memory_mib,omitempty"`
 	// The MAC address of the VM's one network device, six bytes. wb-hostd
 	// makes it once per slot and keeps it, so it is the same in every
-	// generation (S06-06-devices-and-warm-start, "Disks and identity").
+	// generation (S06-06-devices-and-warm-start, "MAC address").
 	// wb-vmd refuses any other length, and an address that isn't a
 	// locally administered unicast one, with the rule `vmd-mac-invalid`.
 	MacAddress    []byte `protobuf:"bytes,4,opt,name=mac_address,json=macAddress,proto3" json:"mac_address,omitempty"`

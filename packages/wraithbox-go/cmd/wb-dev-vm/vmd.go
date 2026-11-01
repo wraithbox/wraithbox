@@ -167,7 +167,7 @@ func (s *session) boot(ctx context.Context, f *vmFlags) error {
 }
 
 // newMAC is a random, locally administered unicast MAC address, the
-// form wb-vmd accepts (S06-06-devices-and-warm-start, "Devices"). Each
+// form wb-vmd accepts (S06-06-devices-and-warm-start, "MAC address"). Each
 // run of wb-dev-vm gets a new one: it keeps no state.
 func newMAC() []byte {
 	b := make([]byte, 6)

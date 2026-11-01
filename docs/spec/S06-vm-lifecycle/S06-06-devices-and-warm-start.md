@@ -24,14 +24,31 @@ serial passthrough (SEC02-no-host-fs-share).
 
 `wb-vmd` refuses any device not in this list (S04-02-vm-provider, "The device set is fixed and checked").
 
-#### No network device yet
+#### Network device per slot
 
-Until V1-M3-network-floor, the set has no network device, and `wb-vmd`
-refuses every one, a file-handle one included (I160). The set is fixed
-per `wb-vmd` slot (S04-04-vm-processes, "The slot"). The work and
-isolated VMs get the network device with V1-M3-network-floor, and the
-build VM its build network with V1-M7-image-build. Each other kind of
-network attachment stays refused in every slot.
+The set is fixed per `wb-vmd` slot (S04-04-vm-processes, "The slot").
+The work and isolated VMs have exactly one network device, with a
+file-handle attachment. The build VM has none until V1-M7-image-build
+gives it its build network, and `wb-vmd` refuses every network device
+there (I160). Each other kind of network attachment stays refused in
+every slot.
+
+At each start `wb-vmd` makes the VM's packet transport, an `AF_UNIX`
+datagram socketpair, and gives one end to the attachment with an MTU
+of 65535. It sends the other end to `wb-hostd` on the hand-off channel
+before it starts the VM (S07-02-packet-path, "Packet transport";
+S04-02-vm-provider, "Hand-off on macOS").
+
+#### MAC address
+
+Each slot has one MAC address, a random, locally administered unicast
+address. `wb-hostd` makes it on the slot's first start and keeps it in
+`state.db` with the slot. No two slots have the same one. `wb-hostd`
+sends it in each `StartRequest`. The guest sees the same device on
+every start, and a restore keeps the address ("Disks and identity",
+below). `wb-vmd` refuses an address that isn't locally administered
+unicast, and one of another length, with `vmd-mac-invalid`. `wb-netd`
+gets the address from `wb-hostd` (S07-01-per-vm-policy).
 
 #### The graphics device
 

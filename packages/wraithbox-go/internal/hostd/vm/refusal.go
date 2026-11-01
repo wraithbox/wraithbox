@@ -47,7 +47,7 @@ const (
 	RuleGenerationFailed Rule = "vm-generation-failed"
 	// RuleMACFailed: state.db couldn't hand out the slot's MAC address,
 	// or holds one that isn't a locally administered unicast address
-	// (S06-06-devices-and-warm-start, "Devices").
+	// (S06-06-devices-and-warm-start, "MAC address").
 	RuleMACFailed Rule = "vm-mac-failed"
 	// RuleNetworkMissing: the provider started the VM without handing
 	// over its packet transport. The run ends at once: a VM runs only

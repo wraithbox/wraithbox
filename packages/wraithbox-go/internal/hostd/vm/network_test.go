@@ -17,7 +17,7 @@ import (
 // TestC11MACAddressInEachStart is C11-host-daemons, "VM manager": each
 // StartRequest carries the slot's MAC address from state.db, the same
 // on every start of the slot, and another slot has another one
-// (S06-06-devices-and-warm-start, "Devices").
+// (S06-06-devices-and-warm-start, "MAC address").
 func TestC11MACAddressInEachStart(t *testing.T) {
 	h := newHarness(t)
 	m := h.manager()
