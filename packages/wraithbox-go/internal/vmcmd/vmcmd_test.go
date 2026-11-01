@@ -89,7 +89,7 @@ func newFixture(t *testing.T, typed string) *fixture {
 		t.Fatal(err)
 	}
 	f.vms, err = vm.New(vm.Config{
-		DataDir: f.data, ToolsImage: tools, Resources: config.Defaults(), Generations: db,
+		DataDir: f.data, ToolsImage: tools, Resources: config.Defaults(), Generations: db, MACAddresses: db,
 		Provider: &vmtest.Provider{}, Cloner: &vmtest.CopyCloner{}, DataDisks: disks, Logger: log,
 		Audit: &audittest.Recorder{}, Sessions: func(vm.Slot) []vm.Session { return f.live },
 	})

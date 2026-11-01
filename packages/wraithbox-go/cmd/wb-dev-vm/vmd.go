@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/vmhandoff"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmdlink"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmdspawn"
@@ -78,6 +80,9 @@ type session struct {
 	proc   *vmdspawn.Process
 	client vmdv1.VMServiceClient
 	link   *vmdlink.Link
+	// transport is the host end of the VM's packet transport. Nothing
+	// reads it: the VM has a network device and no network.
+	transport *vmhandoff.Transport
 }
 
 // startVMD starts wb-vmd and connects to it. own is wb-dev-vm's build
@@ -146,15 +151,29 @@ func (s *session) waitStarted(ctx context.Context, started <-chan string) error 
 	}
 }
 
-// boot starts the VM and waits until it runs.
+// boot starts the VM with a new MAC address and waits until it runs.
 func (s *session) boot(ctx context.Context, f *vmFlags) error {
-	_, err := s.client.Start(ctx, &vmdv1.StartRequest{Generation: generation, CpuCount: uint32(min(f.cpuCount, math.MaxUint32)), MemoryMib: f.memoryMiB})
+	t, err := s.link.Start(ctx, &vmdv1.StartRequest{
+		Generation: generation, CpuCount: uint32(min(f.cpuCount, math.MaxUint32)), MemoryMib: f.memoryMiB,
+		MacAddress: newMAC(),
+	})
 	if err != nil {
 		return fmt.Errorf("start the VM: %w", err)
 	}
+	s.transport = t
 	waitCtx, cancel := context.WithTimeout(ctx, f.wait)
 	defer cancel()
 	return s.watch(waitCtx, func(st *vmdv1.VMState) bool { return st.GetState() == vmdv1.State_STATE_RUNNING })
+}
+
+// newMAC is a random, locally administered unicast MAC address, the
+// form wb-vmd accepts (S06-06-devices-and-warm-start, "Devices"). Each
+// run of wb-dev-vm gets a new one: it keeps no state.
+func newMAC() []byte {
+	b := make([]byte, 6)
+	_, _ = rand.Read(b)
+	b[0] = b[0]&^0x01 | 0x02
+	return b
 }
 
 // watch prints each state until done returns true, the VM stops or
@@ -188,6 +207,9 @@ func (s *session) watch(ctx context.Context, done func(*vmdv1.VMState) bool) err
 // removes the run directory.
 func (s *session) close() error {
 	err := s.proc.Close()
+	if s.transport != nil {
+		_ = s.transport.Close()
+	}
 	_ = os.RemoveAll(s.dir)
 	s.log.Info("wb-vmd ended", "state", s.proc.ProcessState().String())
 	return err

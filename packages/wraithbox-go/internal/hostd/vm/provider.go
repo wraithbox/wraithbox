@@ -31,10 +31,12 @@ type Provider interface {
 // Every method but Close and States is a VMService call of the same
 // name. A refusal of wb-vmd is a *ProviderRefusal.
 type Instance interface {
-	// Start boots the VM, and returns once it has started. A start the
-	// framework failed returns a *ProviderRefusal whose VMError holds the
-	// framework's error, from the state wb-vmd published with it.
-	Start(ctx context.Context, req *vmdv1.StartRequest) error
+	// Start boots the VM, and returns once it has started, with the host
+	// end of the VM's packet transport, which wb-vmd handed off before
+	// the VM started (S07-02-packet-path, "Packet transport"). A start
+	// the framework failed returns a *ProviderRefusal whose VMError holds
+	// the framework's error, from the state wb-vmd published with it.
+	Start(ctx context.Context, req *vmdv1.StartRequest) (PacketTransport, error)
 	// Stop asks for a stop in req's mode. It returns without waiting for
 	// the VM to stop: States says when it has.
 	Stop(ctx context.Context, req *vmdv1.StopRequest) error
@@ -50,6 +52,15 @@ type Instance interface {
 	// Close ends the instance: on macOS it closes wb-vmd's lifeline,
 	// which stops the VM at once, and waits for wb-vmd to exit. It is
 	// safe to call more than once.
+	Close() error
+}
+
+// PacketTransport is the host end of a VM's packet transport. The
+// manager holds it for the run and closes it when the run ends. It has
+// no read or write method: nothing in wb-hostd reads the guest's frames.
+// The descriptor is for the VM's wb-netd (S04-07-supervision, "A new
+// `wb-netd`"). *vmhandoff.Transport implements it.
+type PacketTransport interface {
 	Close() error
 }
 
@@ -111,4 +122,13 @@ type Audit interface {
 // wb-hostd too (S04-02-vm-provider, "Restore").
 type Generations interface {
 	NextGeneration(ctx context.Context, slot string) (uint64, error)
+}
+
+// MACAddresses hands out the MAC address of each slot's network device.
+// *state.DB implements it: a slot's first call makes a random, locally
+// administered unicast address and records it, and later calls return
+// the same one, across restarts of wb-hostd too
+// (S06-06-devices-and-warm-start, "Devices").
+type MACAddresses interface {
+	MACAddress(ctx context.Context, slot string) ([]byte, error)
 }

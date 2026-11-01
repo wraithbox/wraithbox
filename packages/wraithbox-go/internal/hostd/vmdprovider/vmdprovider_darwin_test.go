@@ -118,7 +118,7 @@ func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
 	}
 	return vm.Config{
 		DataDir: dataDir, ToolsImage: tools, Resources: config.Defaults(),
-		Generations: db, Provider: h.provider, Cloner: diskclone.Cloner{}, DataDisks: disks, Audit: &audittest.Recorder{},
+		Generations: db, MACAddresses: db, Provider: h.provider, Cloner: diskclone.Cloner{}, DataDisks: disks, Audit: &audittest.Recorder{},
 		OnRunning: func(slot vm.Slot, generation uint64, ended <-chan struct{}) { h.links.Run(slot, generation, ended) },
 		Logger:    logger,
 	}

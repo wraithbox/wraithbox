@@ -45,6 +45,15 @@ const (
 	RuleToolsDiskCloneFailed Rule = "tools-disk-clone-failed"
 	// RuleGenerationFailed: state.db couldn't hand out a generation.
 	RuleGenerationFailed Rule = "vm-generation-failed"
+	// RuleMACFailed: state.db couldn't hand out the slot's MAC address,
+	// or holds one that isn't a locally administered unicast address
+	// (S06-06-devices-and-warm-start, "Devices").
+	RuleMACFailed Rule = "vm-mac-failed"
+	// RuleNetworkMissing: the provider started the VM without handing
+	// over its packet transport. The run ends at once: a VM runs only
+	// with the transport wb-netd is to read (S07-02-packet-path, "Packet
+	// transport").
+	RuleNetworkMissing Rule = "vm-network-missing"
 	// RuleGenerationInvalid: a generation of 0. Generations start at 1,
 	// because proto3 reads an absent field as 0 and wb-vmd refuses it
 	// (proto/wraithbox/vmd/v1).
@@ -185,6 +194,7 @@ var ownRules = map[Rule]bool{
 	RuleSlotUnknown: true, RuleRunning: true, RuleNotRunning: true, RuleStarting: true,
 	RuleStopping: true, RuleLiveSessions: true, RuleBundleNotDirectory: true,
 	RuleBundleCreateFailed: true, RuleToolsDiskCloneFailed: true, RuleGenerationFailed: true,
+	RuleMACFailed: true, RuleNetworkMissing: true,
 	RuleGenerationInvalid: true, RuleGenerationStale: true, RuleLimitOtherSoftware: true, RuleProviderFailed: true,
 	RuleGuestPort: true, RuleStartTimeout: true, RuleStoppedUnexpectedly: true,
 	RuleResetting: true, RuleDataDiskFailed: true, RuleStart: true, RuleStop: true,

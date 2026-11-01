@@ -22,13 +22,15 @@ import (
 //  5. the data disk checks, and a new data disk when the slot has none
 //     (S06-13-data-disk-format);
 //  6. the guest tools disk, cloned into the bundle;
-//  7. a new generation, committed to state.db;
-//  8. the start's audit record, written;
-//  9. a new provider instance, and its start with the configured
-//     resources.
+//  7. the slot's MAC address, from state.db;
+//  8. a new generation, committed to state.db;
+//  9. the start's audit record, written;
+//  10. a new provider instance, and its start with the configured
+//     resources and the MAC address;
+//  11. the VM's packet transport, held until the run ends.
 //
-// It returns once the provider has started the VM. A refusal is a
-// *Refusal, logged with its rule.
+// It returns once the provider has started the VM and handed over its
+// packet transport. A refusal is a *Refusal, logged with its rule.
 func (m *Manager) Start(ctx context.Context, slot Slot) error {
 	_, err := m.StartRun(ctx, slot)
 	return err
@@ -49,12 +51,12 @@ func (m *Manager) StartRun(ctx context.Context, slot Slot) (uint64, error) {
 	if r := m.reserve(slot); r != nil {
 		return 0, m.refuse(ctx, "start", r)
 	}
-	generation, r := m.prepare(ctx, slot)
+	generation, mac, r := m.prepare(ctx, slot)
 	if r != nil {
 		m.unreserve(slot)
 		return 0, m.refuse(ctx, "start", r)
 	}
-	if err := m.boot(ctx, slot, generation); err != nil {
+	if err := m.boot(ctx, slot, generation, mac); err != nil {
 		return 0, err
 	}
 	return generation, nil
@@ -89,21 +91,21 @@ func (m *Manager) unreserve(slot Slot) {
 }
 
 // prepare runs the steps before the provider: the bundle, the data
-// disk, the tools disk and the generation.
-func (m *Manager) prepare(ctx context.Context, slot Slot) (uint64, *Refusal) {
+// disk, the tools disk, the MAC address and the generation.
+func (m *Manager) prepare(ctx context.Context, slot Slot) (generation uint64, mac []byte, ref *Refusal) {
 	bundle, r := ensureBundle(slot, m.bundlePath(slot))
 	if r != nil {
-		return 0, r
+		return 0, nil, r
 	}
 	// SEC15-no-guest-disk-mount: a VM starts only with a data disk that
 	// state.db records as formatted (S06-13-data-disk-format, "The one exception").
 	// A format that has begun finishes, and records what it did, when
 	// the caller goes away.
 	if err := m.cfg.DataDisks.Prepare(context.WithoutCancel(ctx), string(slot)); err != nil {
-		return 0, dataDiskRefusal(slot, err)
+		return 0, nil, dataDiskRefusal(slot, err)
 	}
 	if err := replaceToolsDisk(m.cfg.Cloner, m.cfg.ToolsImage, bundle); err != nil {
-		return 0, &Refusal{
+		return 0, nil, &Refusal{
 			Rule: RuleToolsDiskCloneFailed, Slot: slot, Phase: PhaseStopped, err: err,
 			Message: fmt.Sprintf("the %s VM can't start: the guest tools disk couldn't be copied into its bundle: %v", slot, err),
 		}
@@ -111,7 +113,17 @@ func (m *Manager) prepare(ctx context.Context, slot Slot) (uint64, *Refusal) {
 	m.log.LogAttrs(ctx, slog.LevelInfo, "guest tools disk replaced",
 		slog.String("decision", "accept"), slog.String("slot", string(slot)),
 		slog.String("source", m.cfg.ToolsImage), slog.String("bundle", bundle))
-	return m.nextGeneration(ctx, slot)
+	// The slot keeps its MAC address across starts, so the guest sees the
+	// same device each time (S06-06-devices-and-warm-start, "Devices").
+	mac, err := m.cfg.MACAddresses.MACAddress(ctx, slot.name())
+	if err != nil {
+		return 0, nil, &Refusal{
+			Rule: RuleMACFailed, Slot: slot, Phase: PhaseStopped, err: err,
+			Message: fmt.Sprintf("the %s VM can't start: the state database couldn't give its MAC address: %v", slot, err),
+		}
+	}
+	generation, ref = m.nextGeneration(ctx, slot)
+	return generation, mac, ref
 }
 
 // nextGeneration commits the slot's next generation before any provider
@@ -185,11 +197,12 @@ func (m *Manager) open(ctx context.Context, slot Slot, generation uint64) (Insta
 
 // boot opens a new provider instance for generation, follows its states
 // and starts the VM.
-func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error {
+func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64, mac []byte) error {
 	// The configured caps reach wb-vmd on every start
 	// (SEC13-bounded-resources).
 	req := &vmdv1.StartRequest{
 		Generation: generation, CpuCount: m.cfg.Resources.CPUCount, MemoryMib: m.cfg.Resources.MemoryMiB,
+		MacAddress: mac,
 	}
 	if ref := m.recordStart(ctx, slot, req); ref != nil {
 		m.unreserve(slot)
@@ -266,22 +279,32 @@ func (m *Manager) abortStart(ctx context.Context, slot Slot, generation uint64, 
 	return m.refuse(ctx, "start", ref)
 }
 
-// startVM runs the provider's start within StartTimeout. The call runs
-// on its own goroutine, so a wb-vmd that never answers is refused with
-// vm-start-timeout. The call ends at the latest when startFailed closes
-// the instance.
+// startVM runs the provider's start within StartTimeout, and gives the
+// run the VM's packet transport. The call runs on its own goroutine, so
+// a wb-vmd that never answers is refused with vm-start-timeout. The call
+// ends at the latest when startFailed closes the instance, and a
+// transport it returns after the wait ended is closed.
 func (m *Manager) startVM(ctx context.Context, r *run, req *vmdv1.StartRequest) *Refusal {
 	callCtx, cancel := context.WithTimeout(ctx, m.cfg.StartTimeout)
 	defer cancel()
-	answer := make(chan error, 1)
-	go func() { answer <- r.inst.Start(callCtx, req) }()
+	type started struct {
+		transport PacketTransport
+		err       error
+	}
+	answer := make(chan started, 1)
+	go func() {
+		t, err := r.inst.Start(callCtx, req)
+		answer <- started{t, err}
+	}()
 	select {
-	case err := <-answer:
-		if err != nil {
-			return providerRefusal(r.slot, r.generation, "start", err)
+	case a := <-answer:
+		if a.err != nil {
+			closeTransport(a.transport)
+			return providerRefusal(r.slot, r.generation, "start", a.err)
 		}
-		return nil
+		return m.holdTransport(r, a.transport)
 	case <-callCtx.Done():
+		go func() { closeTransport((<-answer).transport) }()
 		if err := ctx.Err(); err != nil {
 			return providerRefusal(r.slot, r.generation, "start", err)
 		}
@@ -289,6 +312,37 @@ func (m *Manager) startVM(ctx context.Context, r *run, req *vmdv1.StartRequest) 
 			Rule: RuleStartTimeout, Slot: r.slot, Generation: r.generation, err: callCtx.Err(),
 			Message: fmt.Sprintf("the %s VM didn't start: wb-vmd didn't answer within %s", r.slot, m.cfg.StartTimeout),
 		}
+	}
+}
+
+// holdTransport gives r the VM's packet transport until the run ends. A
+// VM that started without one is refused with vm-network-missing, and
+// its run ends (S07-02-packet-path, "Packet transport"). A run that is
+// already ending closes the transport at once.
+func (m *Manager) holdTransport(r *run, t PacketTransport) *Refusal {
+	if t == nil {
+		return &Refusal{
+			Rule: RuleNetworkMissing, Slot: r.slot, Generation: r.generation,
+			Message: fmt.Sprintf("the %s VM started without its packet transport, and was stopped", r.slot),
+		}
+	}
+	m.mu.Lock()
+	finishing := r.finishing
+	if !finishing {
+		r.transport = t
+	}
+	m.mu.Unlock()
+	if finishing {
+		closeTransport(t)
+	}
+	return nil
+}
+
+// closeTransport closes t, if there is one. A failed close changes
+// nothing: the descriptor is gone either way.
+func closeTransport(t PacketTransport) {
+	if t != nil {
+		_ = t.Close()
 	}
 }
 

@@ -14,6 +14,9 @@ type run struct {
 	slot       Slot
 	generation uint64
 	inst       Instance
+	// transport is the host end of the VM's packet transport, from the
+	// provider's start. finish closes it after the instance.
+	transport PacketTransport
 	// vmStopped: the instance reported STOPPED or ERROR for this
 	// generation, or ended.
 	vmStopped bool
@@ -174,7 +177,12 @@ func (m *Manager) finish(ctx context.Context, r *run, why ending) {
 	}
 	lastErr := cloneVMError(rec.lastErr)
 	rule := r.rule
+	transport := r.transport
+	r.transport = nil
 	m.mu.Unlock()
+	// The VM is stopped, so the transport's other end is gone. Closing
+	// the host end releases it (S04-07-supervision, "A new `wb-netd`").
+	closeTransport(transport)
 	close(r.ended)
 	m.logEnd(ctx, r, why, lastErr, closeErr)
 	if rule == "" {

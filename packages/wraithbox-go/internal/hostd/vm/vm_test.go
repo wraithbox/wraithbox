@@ -78,7 +78,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	h.cfg = vm.Config{
 		DataDir: h.dataDir, ToolsImage: h.tools, Resources: config.Defaults(),
-		Generations: db, Provider: h.provider, Cloner: h.cloner, DataDisks: disks,
+		Generations: db, MACAddresses: db, Provider: h.provider, Cloner: h.cloner, DataDisks: disks,
 		Audit: h.audit, Logger: logger,
 	}
 	return h
@@ -152,13 +152,14 @@ func TestNewStartsNothing(t *testing.T) {
 func TestNewChecksConfig(t *testing.T) {
 	h := newHarness(t)
 	tests := map[string]func(*vm.Config){
-		"relative data":   func(c *vm.Config) { c.DataDir = "data" },
-		"relative tools":  func(c *vm.Config) { c.ToolsImage = "tools.img" },
-		"no provider":     func(c *vm.Config) { c.Provider = nil },
-		"no cloner":       func(c *vm.Config) { c.Cloner = nil },
-		"no generations":  func(c *vm.Config) { c.Generations = nil },
-		"no data disks":   func(c *vm.Config) { c.DataDisks = nil },
-		"no audit writer": func(c *vm.Config) { c.Audit = nil },
+		"relative data":    func(c *vm.Config) { c.DataDir = "data" },
+		"relative tools":   func(c *vm.Config) { c.ToolsImage = "tools.img" },
+		"no provider":      func(c *vm.Config) { c.Provider = nil },
+		"no cloner":        func(c *vm.Config) { c.Cloner = nil },
+		"no generations":   func(c *vm.Config) { c.Generations = nil },
+		"no MAC addresses": func(c *vm.Config) { c.MACAddresses = nil },
+		"no data disks":    func(c *vm.Config) { c.DataDisks = nil },
+		"no audit writer":  func(c *vm.Config) { c.Audit = nil },
 	}
 	for name, change := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -276,7 +277,7 @@ func TestStartWhileStarting(t *testing.T) {
 // rule, before any step.
 func TestC11RefusingMode(t *testing.T) {
 	h := newHarness(t)
-	h.cfg.Generations = nil
+	h.cfg.Generations, h.cfg.MACAddresses = nil, nil
 	h.cfg.Refusing = &startup.Refusing{Rule: string(state.RuleNewer), Detail: "the state database is version 9"}
 	m := h.manager()
 	r := refusal(t, m.Start(t.Context(), vm.SlotWork), vm.Rule(state.RuleNewer))

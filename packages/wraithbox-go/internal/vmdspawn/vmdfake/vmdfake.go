@@ -9,7 +9,8 @@
 //     exchange on each connection and serves wraithbox.vmd.v1;
 //   - fd 4 is the hand-off channel, where ConnectGuest sends one end of
 //     a new stream connection, with internal/guestd's GuestService
-//     served on the other.
+//     served on the other, and Start sends one end of a new datagram
+//     connection, the VM's packet transport, before the VM starts.
 //
 // Start publishes STARTING and RUNNING, and Stop STOPPED. A start with
 // MemoryMiB FailMemoryMiB fails as the framework's would: wb-vmd
@@ -186,6 +187,9 @@ func (s *server) Start(_ context.Context, req *vmdv1.StartRequest) (*vmdv1.Start
 	if !ok {
 		return nil, refusal(codes.FailedPrecondition, RuleGeneration, fmt.Sprintf("generation %d isn't above the last one started", g))
 	}
+	if err := s.sendTransport(g); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 	s.publish(&vmdv1.VMState{Generation: g, State: vmdv1.State_STATE_STARTING})
 	if req.GetMemoryMib() == FailMemoryMiB {
 		vmErr := &vmdv1.VMError{Code: 2, FailureReason: "fake", Description: "the fake framework refused to start"}
@@ -200,6 +204,23 @@ func (s *server) Start(_ context.Context, req *vmdv1.StartRequest) (*vmdv1.Start
 		go s.crash(g)
 	}
 	return &vmdv1.StartResponse{}, nil
+}
+
+// sendTransport sends the host end of a new datagram connection in a
+// KIND_NETWORK record for generation g, as wb-vmd does before it starts
+// the VM (S07-02-packet-path, "Packet transport"). The fake keeps no
+// guest end: nothing in the tests sends frames.
+func (s *server) sendTransport(g uint64) error {
+	host, err := datagramEnd()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = host.Close() }()
+	record, err := proto.Marshal(&vmdv1.HandoffMessage{Generation: g, Kind: vmdv1.Kind_KIND_NETWORK})
+	if err != nil {
+		return err
+	}
+	return s.tx.Send(record, host)
 }
 
 // crash publishes ERROR with CrashReason, waits until a stream has sent
@@ -289,6 +310,7 @@ func (s *server) ConnectGuest(_ context.Context, req *vmdv1.ConnectGuestRequest)
 	srv := guestd.NewServer(s.own, slog.New(slog.DiscardHandler))
 	go func() { _ = srv.Serve(newOneConn(guest)) }()
 	record, err := proto.Marshal(&vmdv1.HandoffMessage{
+		Kind:            vmdv1.Kind_KIND_CONNECTION,
 		RequestId:       req.GetRequestId(),
 		Generation:      req.GetGeneration(),
 		Direction:       vmdv1.Direction_DIRECTION_HOST_TO_GUEST,
@@ -328,6 +350,17 @@ func streamPair() (host *net.UnixConn, guest net.Conn, err error) {
 		return nil, nil, err
 	}
 	return host, guest, nil
+}
+
+// datagramEnd makes a Unix datagram socket bound in a new directory,
+// which it removes. It has no OS code.
+func datagramEnd() (*net.UnixConn, error) {
+	dir, err := os.MkdirTemp("", "vf")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	return net.ListenUnixgram("unixgram", &net.UnixAddr{Name: dir + "/d", Net: "unixgram"})
 }
 
 // oneConn is a net.Listener that returns one connection, then waits

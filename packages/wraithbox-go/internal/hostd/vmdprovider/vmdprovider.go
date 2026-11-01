@@ -327,23 +327,28 @@ func (i *instance) endedOnItsOwn(ctx context.Context) bool {
 	}
 }
 
-// Start implements vm.Instance. A refused start keeps wb-vmd's rule.
-// After a failed start, wb-vmd has published the framework's error with
-// the generation's ERROR state, and GetState returns it.
-func (i *instance) Start(ctx context.Context, req *vmdv1.StartRequest) error {
-	_, err := i.proc.Client.Start(ctx, req)
+// Start implements vm.Instance through vmdlink, which returns the VM's
+// packet transport. A refused start keeps wb-vmd's rule, and a refused
+// or missing transport keeps vmdlink's. After a failed start, wb-vmd has
+// published the framework's error with the generation's ERROR state, and
+// GetState returns it.
+func (i *instance) Start(ctx context.Context, req *vmdv1.StartRequest) (vm.PacketTransport, error) {
+	t, err := i.proc.Link.Start(ctx, req)
 	if err == nil {
-		return nil
+		return t, nil
+	}
+	if r, ok := errors.AsType[*vmdlink.Refusal](err); ok {
+		return nil, &vm.ProviderRefusal{Rule: r.Rule, Detail: r.Error()}
 	}
 	pr := refusal(err)
 	if pr == nil {
-		return err
+		return nil, err
 	}
 	resp, stateErr := i.proc.Client.GetState(ctx, &vmdv1.GetStateRequest{})
 	if st := resp.GetState(); stateErr == nil && st.GetGeneration() == req.GetGeneration() {
 		pr.VMError = st.GetError()
 	}
-	return pr
+	return nil, pr
 }
 
 // Stop implements vm.Instance.
