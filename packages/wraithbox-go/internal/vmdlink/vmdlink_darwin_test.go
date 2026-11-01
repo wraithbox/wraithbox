@@ -91,6 +91,7 @@ func (v *fakeVMD) handOff(req *vmdv1.ConnectGuestRequest) error {
 		port = v.port
 	}
 	record, err := proto.Marshal(&vmdv1.HandoffMessage{
+		Kind:            vmdv1.Kind_KIND_CONNECTION,
 		RequestId:       req.GetRequestId(),
 		Generation:      req.GetGeneration(),
 		Direction:       vmdv1.Direction_DIRECTION_HOST_TO_GUEST,
@@ -146,6 +147,12 @@ func (l *oneConn) Addr() net.Addr { return l.addr }
 // it over a real hand-off socketpair.
 func newLink(t *testing.T, vmd *fakeVMD) *Link {
 	t.Helper()
+	return linkTo(t, vmd, vmd)
+}
+
+// linkTo serves srv, whose hand-off channel is vmd's, as newLink does.
+func linkTo(t *testing.T, srv vmdv1.VMServiceServer, vmd *fakeVMD) *Link {
+	t.Helper()
 	a, b, err := fdchan.Socketpair(vmhandoff.MaxRecord)
 	if err != nil {
 		t.Fatal(err)
@@ -159,9 +166,9 @@ func newLink(t *testing.T, vmd *fakeVMD) *Link {
 		t.Fatal(err)
 	}
 	lis := bufconn.Listen(1 << 16)
-	srv := grpc.NewServer()
-	vmdv1.RegisterVMServiceServer(srv, vmd)
-	go func() { _ = srv.Serve(lis) }()
+	gs := grpc.NewServer()
+	vmdv1.RegisterVMServiceServer(gs, srv)
+	go func() { _ = gs.Serve(lis) }()
 	cc, err := grpc.NewClient("passthrough:///wb-vmd",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return lis.Dial() }),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -172,7 +179,7 @@ func newLink(t *testing.T, vmd *fakeVMD) *Link {
 	t.Cleanup(func() {
 		_ = l.Close()
 		_ = cc.Close()
-		srv.Stop()
+		gs.Stop()
 		vmd.stop()
 		_ = vmd.tx.Close()
 	})

@@ -40,6 +40,9 @@ type Provider struct {
 	OnStart   func(context.Context, *Instance, *vmdv1.StartRequest) error
 	OnStop    func(context.Context, *Instance, *vmdv1.StopRequest) error
 	OnConnect func(ctx context.Context, i *Instance, generation uint64, port uint32) (net.Conn, error)
+	// NoTransport, when set, has a start that succeeds return no packet
+	// transport, as a provider that never received one.
+	NoTransport bool
 
 	mu        sync.Mutex
 	instances []*Instance
@@ -92,6 +95,29 @@ type Instance struct {
 	starts   []*vmdv1.StartRequest
 	stops    []*vmdv1.StopRequest
 	connects []Connect
+	// transports has the packet transport of each start that succeeded.
+	transports []*Transport
+}
+
+// Transport is a vm.PacketTransport that counts its closes.
+type Transport struct {
+	mu     sync.Mutex
+	closes int
+}
+
+// Close implements vm.PacketTransport.
+func (t *Transport) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.closes++
+	return nil
+}
+
+// Closes returns how many times Close was called.
+func (t *Transport) Closes() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.closes
 }
 
 // Connect is one ConnectGuest call.
@@ -122,8 +148,9 @@ func (i *Instance) check(generation uint64, ok func(last uint64) bool) error {
 }
 
 // Start implements vm.Instance. It refuses a generation that isn't above
-// the last one started.
-func (i *Instance) Start(ctx context.Context, req *vmdv1.StartRequest) error {
+// the last one started. A start that succeeds returns a new *Transport,
+// unless the provider's NoTransport is set.
+func (i *Instance) Start(ctx context.Context, req *vmdv1.StartRequest) (vm.PacketTransport, error) {
 	g := req.GetGeneration()
 	i.mu.Lock()
 	i.starts = append(i.starts, req)
@@ -133,14 +160,30 @@ func (i *Instance) Start(ctx context.Context, req *vmdv1.StartRequest) error {
 	}
 	i.mu.Unlock()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if i.p.OnStart != nil {
-		return i.p.OnStart(ctx, i, req)
+		err = i.p.OnStart(ctx, i, req)
+	} else {
+		i.Publish(g, vmdv1.State_STATE_STARTING, nil)
+		i.Publish(g, vmdv1.State_STATE_RUNNING, nil)
 	}
-	i.Publish(g, vmdv1.State_STATE_STARTING, nil)
-	i.Publish(g, vmdv1.State_STATE_RUNNING, nil)
-	return nil
+	if err != nil || i.p.NoTransport {
+		return nil, err
+	}
+	t := &Transport{}
+	i.mu.Lock()
+	i.transports = append(i.transports, t)
+	i.mu.Unlock()
+	return t, nil
+}
+
+// Transports returns the packet transport of each start that returned
+// one, in order.
+func (i *Instance) Transports() []*Transport {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return append([]*Transport(nil), i.transports...)
 }
 
 // Stop implements vm.Instance. It refuses a generation other than the

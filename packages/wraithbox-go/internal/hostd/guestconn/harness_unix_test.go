@@ -272,7 +272,7 @@ func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
 	}
 	return vm.Config{
 		DataDir: dataDir, ToolsImage: tools, Resources: config.Defaults(),
-		Generations: db, Provider: h.provider, Cloner: &vmtest.CopyCloner{}, DataDisks: disks,
+		Generations: db, MACAddresses: db, Provider: h.provider, Cloner: &vmtest.CopyCloner{}, DataDisks: disks,
 		Audit: &audittest.Recorder{}, Logger: logger,
 	}
 }

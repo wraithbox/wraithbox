@@ -234,7 +234,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	}
 	m, err := vm.New(vm.Config{
 		DataDir: o.Paths.Data, ToolsImage: filepath.Join(bundle, filepath.FromSlash(appbundle.ToolsDiskPath)),
-		Resources: ready.Config, Generations: ready.State, Provider: provider, Cloner: diskclone.Cloner{},
+		Resources: ready.Config, Generations: ready.State, MACAddresses: ready.State, Provider: provider, Cloner: diskclone.Cloner{},
 		DataDisks: disks, Audit: aw, Logger: log,
 		OnRunning: func(slot vm.Slot, generation uint64, ended <-chan struct{}) { links.Run(slot, generation, ended) },
 		// A stop is refused while the VM has an open debug shell

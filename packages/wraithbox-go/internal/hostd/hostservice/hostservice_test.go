@@ -141,7 +141,7 @@ func newManager(t *testing.T, log *slog.Logger, sessions func(vm.Slot) []vm.Sess
 		t.Fatal(err)
 	}
 	m, err := vm.New(vm.Config{
-		DataDir: data, ToolsImage: tools, Resources: config.Defaults(), Generations: db,
+		DataDir: data, ToolsImage: tools, Resources: config.Defaults(), Generations: db, MACAddresses: db,
 		Provider: &vmtest.Provider{}, Cloner: &vmtest.CopyCloner{}, DataDisks: disks,
 		Sessions: sessions, Audit: rec, Logger: log,
 	})

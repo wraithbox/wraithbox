@@ -2,7 +2,9 @@
 // VMService client and its hand-off receiver together. ConnectGuest asks
 // wb-vmd for a connection to a guest port and waits for the descriptor
 // on the hand-off channel (S04-02-vm-provider, "Hand-off on macOS").
-// Hello runs wb-guestd's hello on such a connection.
+// Hello runs wb-guestd's hello on such a connection. Start starts the VM
+// and waits for its packet transport on the same channel
+// (S07-02-packet-path, "Packet transport").
 //
 // wb-hostd's VM manager and wb-dev-vm use it. A refusal of wb-vmd keeps
 // wb-vmd's rule, which is data a possibly compromised wb-vmd chose: it is
@@ -30,8 +32,8 @@ import (
 )
 
 // HandoffTimeout bounds the wait for the hand-off record once wb-vmd has
-// answered ConnectGuest. wb-vmd sends the record before it answers, so
-// it is normally there already.
+// answered ConnectGuest or Start. wb-vmd sends the record before it
+// answers, so it is normally there already.
 const HandoffTimeout = 5 * time.Second
 
 // RPCTimeout bounds the ConnectGuest call itself: wb-vmd's own connect
@@ -57,8 +59,8 @@ const (
 	// RuleConnectRefused: wb-vmd refused ConnectGuest, or the call
 	// failed. Refusal.VMDRule holds wb-vmd's own rule, when it gave one.
 	RuleConnectRefused = "vmd-connect-refused"
-	// RuleHandoffMissing: wb-vmd answered ConnectGuest, and no
-	// connection came for the request within HandoffTimeout.
+	// RuleHandoffMissing: wb-vmd answered ConnectGuest or Start, and no
+	// descriptor came for the request within HandoffTimeout.
 	RuleHandoffMissing = "handoff-missing"
 	// RuleGuestPort: a connection to guest port 0, or to one of 1024 or
 	// above, refused before wb-vmd is asked. wb-vmd refuses the same
@@ -66,7 +68,8 @@ const (
 	RuleGuestPort = "guest-port-invalid"
 )
 
-// Refusal is the error of a refused ConnectGuest.
+// Refusal is the error of a refused ConnectGuest, or of a Start whose
+// packet transport didn't come.
 type Refusal struct {
 	Rule string
 	// VMDRule is wb-vmd's rule, from the ErrorInfo reason of its error,
@@ -136,16 +139,59 @@ func (l *Link) ConnectGuest(ctx context.Context, generation uint64, port uint32)
 	defer cancel()
 	conn, err := pending.Wait(waitCtx)
 	if err != nil {
-		r := &Refusal{Rule: RuleHandoffMissing, msg: err.Error(), err: err}
-		if hr, ok := errors.AsType[*vmhandoff.Refusal](err); ok {
-			r.Rule = string(hr.Rule)
-		}
-		return nil, l.refuse(ctx, id, generation, port, r)
+		return nil, l.refuse(ctx, id, generation, port, handoffRefusal(err))
 	}
 	l.log.LogAttrs(ctx, slog.LevelInfo, "guest connection opened",
 		slog.String("decision", "accept"), slog.Uint64("request_id", id),
 		slog.Uint64("generation", generation), slog.Uint64("guest_port", uint64(port)))
 	return conn, nil
+}
+
+// Start starts the VM of req's generation, and returns the host end of
+// its packet transport. It opens the request on the receiver first,
+// because wb-vmd sends the record before it starts the VM
+// (S07-02-packet-path, "Packet transport"). A failed Start call returns
+// the call's error as it is, so the caller reads wb-vmd's rule from it.
+// A transport that is refused or doesn't come within HandoffTimeout is a
+// *Refusal with the hand-off's rule. The VM then runs without one, and
+// the caller stops it. On any error no transport is left open.
+func (l *Link) Start(ctx context.Context, req *vmdv1.StartRequest) (*vmhandoff.Transport, error) {
+	generation := req.GetGeneration()
+	pending, err := l.rx.ExpectNetwork(generation)
+	if err != nil {
+		return nil, l.refuseTransport(ctx, generation, handoffRefusal(err))
+	}
+	if _, err := l.client.Start(ctx, req); err != nil {
+		pending.Cancel()
+		return nil, err
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, HandoffTimeout)
+	defer cancel()
+	t, err := pending.Wait(waitCtx)
+	if err != nil {
+		return nil, l.refuseTransport(ctx, generation, handoffRefusal(err))
+	}
+	l.log.LogAttrs(ctx, slog.LevelInfo, "packet transport received",
+		slog.String("decision", "accept"), slog.Uint64("generation", generation))
+	return t, nil
+}
+
+// handoffRefusal is the refusal of a hand-off that failed: the
+// receiver's rule, or handoff-missing when it has none, as for a wait
+// that ended.
+func handoffRefusal(err error) *Refusal {
+	r := &Refusal{Rule: RuleHandoffMissing, msg: err.Error(), err: err}
+	if hr, ok := errors.AsType[*vmhandoff.Refusal](err); ok {
+		r.Rule = string(hr.Rule)
+	}
+	return r
+}
+
+func (l *Link) refuseTransport(ctx context.Context, generation uint64, r *Refusal) *Refusal {
+	l.log.LogAttrs(ctx, slog.LevelWarn, "packet transport refused",
+		slog.String("rule", r.Rule), slog.String("decision", "refuse"), slog.String("reason", r.msg),
+		slog.Uint64("generation", generation))
+	return r
 }
 
 // Hello connects to wb-guestd's port and runs the hello with own, the

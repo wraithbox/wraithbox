@@ -108,8 +108,11 @@ type Config struct {
 	Resources config.Config
 	// Generations hands out generations. Only nil in refusing mode.
 	Generations Generations
-	Provider    Provider
-	Cloner      Cloner
+	// MACAddresses hands out each slot's MAC address. Only nil in
+	// refusing mode.
+	MACAddresses MACAddresses
+	Provider     Provider
+	Cloner       Cloner
 	// DataDisks runs the data disk checks before each start, records the
 	// first start, and resets a disk (S06-13-data-disk-format). Only nil in
 	// refusing mode.
@@ -160,8 +163,8 @@ func (c *Config) check() error {
 	if c.Provider == nil || c.Cloner == nil {
 		errs = append(errs, errors.New("vm: a provider and a cloner are required"))
 	}
-	if (c.Generations == nil || c.DataDisks == nil || c.Audit == nil) && c.Refusing == nil {
-		errs = append(errs, errors.New("vm: generations, data disks and the audit writer are required outside refusing mode"))
+	if (c.Generations == nil || c.MACAddresses == nil || c.DataDisks == nil || c.Audit == nil) && c.Refusing == nil {
+		errs = append(errs, errors.New("vm: generations, MAC addresses, data disks and the audit writer are required outside refusing mode"))
 	}
 	return errors.Join(errs...)
 }
