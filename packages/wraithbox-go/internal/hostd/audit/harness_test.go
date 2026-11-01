@@ -290,6 +290,7 @@ func (h *harness) advance(d time.Duration) {
 // written is what a test reads back of a record.
 type written struct {
 	Time     int64    `json:"time"`
+	ClassUID int      `json:"class_uid"`
 	Message  string   `json:"message"`
 	Metadata Metadata `json:"metadata"`
 	Unmapped Fields   `json:"unmapped"`

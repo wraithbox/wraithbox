@@ -99,15 +99,19 @@ func (h *Hub) Begin(vm eventchan.VM) {
 }
 
 // End marks vm as stopped and returns the runs its senders sent as
-// open, for its stop record (S09-11-audit, "Runs with a count"). The
-// caller first waits for the VM's wb-netd receiver to be Done, and for
-// wb-proxyd's open runs of the VM.
+// open, for its stop record (S09-11-audit, "Runs with a count"). It
+// forgets the notices sent for vm. The caller first waits for the VM's
+// wb-netd receiver to be Done, and for wb-proxyd's open runs of the VM.
+// An open run that arrives after End is written as its own record.
 func (h *Hub) End(vm eventchan.VM) []audit.OpenRun {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	delete(h.live, vm)
 	runs := h.openRuns[vm]
 	delete(h.openRuns, vm)
+	for r := range h.receivers {
+		delete(r.sent, vm)
+	}
 	return runs
 }
 
@@ -218,7 +222,7 @@ func (r *Receiver) writeRun(from audit.From, vm eventchan.VM, run *auditv1.Run) 
 	if run.GetOpen() {
 		h := r.hub
 		h.mu.Lock()
-		held := len(h.openRuns[vm]) < maxOpenRuns
+		held := h.live[vm] && len(h.openRuns[vm]) < maxOpenRuns
 		if held {
 			h.openRuns[vm] = append(h.openRuns[vm], audit.OpenRun{
 				Sender: from.Sender, ClassUID: int(run.GetClass()), Decision: run.GetDecision(), Rule: run.GetRule(),
