@@ -108,10 +108,11 @@ cross-platform Go (S12-platforms).
 - `go:fuzz` runs every fuzz target briefly
   (S11-verification-and-spikes). `test` depends on it, and the task
   runs a Go program, which works on all three. CI runs it on Linux
-  only, in the `fuzz` job and not the Go job. That job runs four shards
-  in parallel, `go:fuzz -- -shard <i>/4`. Each shard runs one part of
-  the sorted list of targets, so every target runs in exactly one shard,
-  for the same time as locally. Without `-shard`, as under `ci`, the
+  only, in the `fuzz` job and not the Go job. That job runs the targets in
+  parallel shards, `go:fuzz -- -shard <i>/<n>`, and `ci.yml` sets the
+  shard count. Each shard runs one part of the sorted list of targets.
+  The parts don't overlap and together hold the whole list. A target
+  fuzzes for the same time as locally. Without `-shard`, as under `ci`, the
   task runs every target.
 - `go:vulncheck` analyzes each GOOS.
 
