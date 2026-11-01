@@ -279,13 +279,15 @@ Spec: S04-architecture.
   retry succeeds. In `internal/eventchan`, on a fake clock:
   `TestFailedWriteBlocksAndRetries`, `TestAdmitRefusesWhileBlocked`,
   `TestSlowWriteBlocks` (a write past 100 ms), `TestQueueCapStallsInput`
-  (a full queue stalls the caller and doesn't drop a record), and
-  `TestUnencodedRecordRefusesForGood`. `TestRealChannelFullPeerBlocks`
+  (a full queue stalls the caller, refuses new work and doesn't drop a
+  record), `TestEmitOfBadFormCounts`, `TestControlTruncatedEndsReads`
+  and `TestUnencodedRecordRefusesForGood`. `TestRealChannelFullPeerBlocks`
   fills a real socketpair, and sees every record arrive in order once
   the peer reads.
 - In `internal/hostd/events`, `TestRefusedRecordEndsSender` sends
   records that don't decode, break a bound, skip a sequence number, or
-  name another VM, and sees each logged with `event-record-invalid`, the
+  name another VM, or hold a field the contract lacks at any depth, and
+  sees each logged with `event-record-invalid`, the
   sender ended, and nothing written. So do
   `TestRepeatedSequenceEndsSender`, `TestDescriptorEndsSender` and
   `TestProxydNamesStoppedVM`. `TestRecvErrorsEndSender` ends the sender
@@ -482,10 +484,12 @@ Spec: S09-11-audit.
   turns.
 - Stop a VM with an open run of suppressed refusals, and see its count
   in the stop record (`TestEndVMWritesOpenRuns`,
-  `TestOpenRunsInStopRecord`, `TestOpenRunsPastTheCapAreWritten`).
+  `TestOpenRunsInStopRecord`, `TestOpenRunsPastTheCapAreWritten`,
+  `TestEndForgetsTheVM`).
 - Budgets: `TestEventsBudget` and `TestBytesBudget` in
   `internal/hostd/audit` see the rule and its end at the turn of the
-  minute or day, with every record still written. `TestBudgetWithWriter`
+  minute or day, with every record still written, 5019 and 2004
+  records past the budget included. `TestBudgetWithWriter`
   in `internal/hostd/events` writes 6001 records and sees one notice
   that ends at the minute's turn. In `internal/eventchan`,
   `TestBudgetNoticeRefusesAndCounts` and `TestBytesNoticeRefuses` see
@@ -606,7 +610,9 @@ and one before it detaches nothing.
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
   (S04-08-records-and-bounds, "Accounting and event channels").
   `FuzzEventRecord` checks that no record is written after a refused
-  one and that every written record marshals. `FuzzBudgetNotice` checks
+  one, that every written record marshals, and that an accepted record
+  has no unknown field, a known class, every field within its bound,
+  and a VM its sender may name. `FuzzBudgetNotice` checks
   that a sender takes no notice for another VM, of an unknown rule, or
   that ends more than 25 hours ahead.
 - The output filter of `wb-build-ssh`, `FuzzBuildSSHOutput`: arbitrary

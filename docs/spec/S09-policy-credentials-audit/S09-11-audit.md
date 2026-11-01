@@ -90,6 +90,9 @@ are never dropped are still written.
 So the high-volume classes of two VMs add at most 2 × 64 MiB to the log
 a day, at the defaults.
 
+Both budgets count per slot, not per run of the VM. A VM started again
+on the same UTC day keeps the day's count, and the refusal with it.
+
 #### Per VM
 
 Both budgets are per VM, because the host can't tell the projects in a
@@ -104,6 +107,14 @@ with it (T11-shared-vm-grants).
 over a budget, `wb-hostd` sends each sender of that VM a budget notice
 with the rule and when it ends. The senders refuse new work until then.
 A notice that doesn't arrive is sent again with the next record.
+
+Each sender queues its records until a write succeeds, and drops none.
+The queue holds at most 4096 records of up to 4 KiB each, so 16 MiB. At
+that cap the sender stops reading guest input, and refuses new work
+with `event-channel-blocked`, until the queue is empty. Only work the
+sender admitted adds records, so the per-VM caps on lookups,
+connections, streams and requests bound what fills the queue
+(S07-02-packet-path, "Events and rate limits" and "Per-VM caps").
 
 `wb-hostd` ends a sender whose record is malformed, or names a VM the
 sender may not name, with the rule `event-record-invalid`. A read of
