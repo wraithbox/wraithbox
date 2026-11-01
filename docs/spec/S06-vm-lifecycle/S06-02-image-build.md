@@ -112,10 +112,9 @@ seals it again (S06-01-image-layers, "The Claude Code layer"). A build
 for a new Claude Code release does only that part.
 
 After the rotation the secure token keeps working, and the host alone
-can unlock it.
-
-macOS refuses to delete `wbadmin`, because it holds the volume's only
-secure token. So the image keeps it as a host-administered account.
+can unlock it. macOS refuses to delete `wbadmin`, because it holds the
+volume's only secure token. So the image keeps it as a
+host-administered account.
 
 #### The guest admin password
 
@@ -158,15 +157,11 @@ every layer, and a new Claude Code release only the Claude Code layer.
 
 ### Guest confinement
 
-The image holds `cron.allow` and `at.allow` in `/private/var/at` with
-`root` only, so no project user can add a crontab or an `at` job
-(S13-01-process-hardening, "Cron and at"). `wb-guestd` writes them at
-each start, and it starts in the build's second stage, before the image
-is sealed.
-
-The base image includes the Network Extension of
-S13-guest-confinement, approved during the build, once spike
-X14-flow-attribution allows it.
+`wb-guestd` writes `cron.allow` and `at.allow` with `root` only when
+it starts in the second stage, so the image has them
+(S13-01-process-hardening, "Cron and at"). The base image includes the
+Network Extension of S13-guest-confinement, approved during the build,
+once spike X14-flow-attribution allows it.
 
 ### Terminfo
 
