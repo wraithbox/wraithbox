@@ -16,7 +16,7 @@ import (
 const team = "ABCDE12345"
 
 // secretValue is the value the tests write, and never find in a log.
-const secretValue = "s3cret-value-7f1c9"
+const secretValue = "secret-value-for-the-log-check"
 
 var (
 	groupBinding = storeitem.Group(team, storeitem.RoleBinding)
@@ -294,9 +294,9 @@ func TestC05StoreErrorsWriteFailed(t *testing.T) {
 	err = credset.store.Delete(ctx, name(t, binding), storeitem.RoleBinding)
 	requireRule(t, credset, err, storeitem.RuleWriteFailed, storeitem.AccessDelete, binding)
 
-	wfake := storetest.New(team, groupWbadmin)
-	wfake.SetStatus(storeitem.AccessWrite, build, secretstore.StatusMissingEntitlement)
-	guestadmin := open(t, storeitem.ProgramGuestadminBuild, wfake)
+	wbadminFake := storetest.New(team, groupWbadmin)
+	wbadminFake.SetStatus(storeitem.AccessWrite, build, secretstore.StatusMissingEntitlement)
+	guestadmin := open(t, storeitem.ProgramGuestadminBuild, wbadminFake)
 	err = guestadmin.store.Write(ctx, name(t, build), storeitem.RoleWbadmin, []byte(secretValue))
 	requireRule(t, guestadmin, err, storeitem.RuleWriteFailed, storeitem.AccessWrite, build)
 }

@@ -75,6 +75,9 @@ guestprocs
 procs
 packetlink
 netdtest
+secretstore
+storeitem
+storetest
 
 # Virtualization, networking and OS facilities
 gvisor
@@ -125,6 +128,10 @@ tcflush
 iokit
 IOBSD
 cfprefsd
+CFSTR
+cstring
+memset
+Wdeprecated
 storagekitd
 diskimagescontroller
 diskarbitrationd
