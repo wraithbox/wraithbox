@@ -92,6 +92,13 @@ func (m *Manager) Stop(ctx context.Context, slot Slot) error {
 func (m *Manager) ForceStop(slot, cause string) {
 	m.mu.Lock()
 	rec, ok := m.slots[Slot(slot)]
+	if ok && rec.run == nil && rec.phase == PhaseStarting {
+		// The start has no run yet: boot ends it at its next check.
+		rec.forced = cause
+		m.mu.Unlock()
+		m.log.Warn("vm stop", "rule", cause, "decision", "stop-vm", "slot", slot, "mode", "refuse-start")
+		return
+	}
 	if !ok || rec.run == nil || rec.run.finishing {
 		m.mu.Unlock()
 		m.log.Info("vm stop not needed", "rule", cause, "decision", "none", "slot", slot,

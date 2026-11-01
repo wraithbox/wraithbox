@@ -192,6 +192,10 @@ type slotRecord struct {
 	lastErr    *vmdv1.VMError
 	// run is the current run, nil while the slot is stopped.
 	run *run
+	// forced is the cause of a ForceStop that came while the slot was
+	// starting and had no run yet. The start ends with it once it
+	// reaches a check (SEC10-audit).
+	forced string
 	// resetting: the slot's data disk is being reset, so a start is
 	// refused.
 	resetting bool
