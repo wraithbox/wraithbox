@@ -110,18 +110,21 @@ func New(log *slog.Logger) *Dialer {
 // connects to the checked addresses in the order the lookup gave them,
 // one at a time, returning the first connection that opens. It never
 // resolves the name again (S07-07-hosts-and-modes, "Upstream address").
-// Every refusal is a *Refusal, and is logged.
+// Every refusal is a *Refusal, and is logged. When the caller's ctx
+// ends during the lookup or the connects, Dial returns ctx's error and
+// logs nothing: the caller gave up, and a refusal record would use up
+// the rule's ratelog window.
 func (d *Dialer) Dial(ctx context.Context, host string, port uint16) (net.Conn, error) {
 	addrs, err := d.resolve(ctx, host)
 	if err != nil {
-		return nil, d.refuse(err)
+		return nil, d.refuseUnlessDone(ctx, err)
 	}
 	if err := d.check(host, addrs); err != nil {
 		return nil, d.refuse(err)
 	}
 	conn, err := d.dialChecked(ctx, host, addrs, port)
 	if err != nil {
-		return nil, d.refuse(err)
+		return nil, d.refuseUnlessDone(ctx, err)
 	}
 	d.log.Debug("upstream connected", "host", host, "addr", conn.RemoteAddr().String())
 	return conn, nil
@@ -193,6 +196,15 @@ func (d *Dialer) connectOne(ctx context.Context, ap netip.AddrPort) (net.Conn, e
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 	return d.connect(ctx, "tcp", ap.String())
+}
+
+// refuseUnlessDone returns ctx's error when ctx has ended, and
+// otherwise refuses with r.
+func (d *Dialer) refuseUnlessDone(ctx context.Context, r *Refusal) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return d.refuse(r)
 }
 
 // refuse logs a refusal with its rule, the host and the address, and
