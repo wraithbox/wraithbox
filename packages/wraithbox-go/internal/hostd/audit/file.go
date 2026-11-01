@@ -48,19 +48,25 @@ func dayName(t time.Time) string {
 	return "audit-" + t.UTC().Format(dayLayout) + ".jsonl"
 }
 
-// openFile opens path for appending, made with mode 0600, and refuses
-// one that isn't a regular file (S09-11-audit, "Where").
+// openFile opens path for writing at its end, made with mode 0600, and
+// refuses one that isn't a regular file (S09-11-audit, "Where"). It
+// seeks to the end instead of opening with O_APPEND: Windows refuses
+// the Truncate of a file opened to append, and the writer truncates a
+// partial record. The writer is the file's one writer.
 func openFile(path string) (File, int64, error) {
 	if info, err := os.Lstat(path); err == nil && !info.Mode().IsRegular() {
 		return nil, 0, fmt.Errorf("%s isn't a regular file", path)
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0o600)
 	if err != nil {
 		return nil, 0, err
 	}
 	info, err := f.Stat()
 	if err == nil && !info.Mode().IsRegular() {
 		err = fmt.Errorf("%s isn't a regular file", path)
+	}
+	if err == nil {
+		_, err = f.Seek(0, io.SeekEnd)
 	}
 	if err != nil {
 		_ = f.Close()
