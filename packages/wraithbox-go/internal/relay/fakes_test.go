@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -132,14 +133,17 @@ func (f *fakeTerminal) Size() (int, int, error) {
 // fakeStream is wb-hostd's end of the stream: the test sends server
 // frames with serve and reads client frames from sent. With sendErr
 // set, Send fails, and each frame it failed to send goes to refused.
+// A refused frame that finds that buffer full sets refusedOverflow
+// instead of blocking the relay's loop.
 type fakeStream struct {
-	sent      chan *terminalv1.ClientFrame
-	refused   chan *terminalv1.ClientFrame
-	frames    chan received
-	closed    chan struct{}
-	closeOnce sync.Once
-	sendErr   error
-	panicRecv bool
+	sent            chan *terminalv1.ClientFrame
+	refused         chan *terminalv1.ClientFrame
+	refusedOverflow atomic.Bool
+	frames          chan received
+	closed          chan struct{}
+	closeOnce       sync.Once
+	sendErr         error
+	panicRecv       bool
 }
 
 func newFakeStream() *fakeStream {
@@ -153,7 +157,11 @@ func newFakeStream() *fakeStream {
 
 func (s *fakeStream) Send(f *terminalv1.ClientFrame) error {
 	if s.sendErr != nil {
-		s.refused <- f
+		select {
+		case s.refused <- f:
+		default:
+			s.refusedOverflow.Store(true)
+		}
 		return s.sendErr
 	}
 	s.sent <- f

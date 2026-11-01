@@ -573,6 +573,11 @@ func TestSendFailure(t *testing.T) {
 		if !strings.Contains(h.logs.String(), "send failed") {
 			t.Errorf("log %q doesn't record the failed send", h.logs.String())
 		}
+		// Nothing is sent after the failed send: no frame for the quit,
+		// if the loop took it before the exit frame.
+		if n := len(h.stream.refused); n != 0 || h.stream.refusedOverflow.Load() {
+			t.Errorf("%d more sends after the failed one, buffer overflowed: %v", n, h.stream.refusedOverflow.Load())
+		}
 	})
 	t.Run("stream closed without an exit frame", func(t *testing.T) {
 		h := newHarness(t, allTTYs)
