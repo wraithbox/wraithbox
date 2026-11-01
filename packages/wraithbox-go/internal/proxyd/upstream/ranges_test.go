@@ -89,9 +89,9 @@ func TestRefused(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.addr, func(t *testing.T) {
-			got, refused := Refused(netip.MustParseAddr(tt.addr))
+			got, refused := rangeRefused(netip.MustParseAddr(tt.addr))
 			if refused != (tt.want != "") || got != tt.want {
-				t.Fatalf("Refused(%s) = %q, %v; want %q", tt.addr, got, refused, tt.want)
+				t.Fatalf("rangeRefused(%s) = %q, %v; want %q", tt.addr, got, refused, tt.want)
 			}
 		})
 	}
@@ -99,7 +99,7 @@ func TestRefused(t *testing.T) {
 
 // An address that isn't valid has nothing to check, so it is refused.
 func TestRefusedInvalid(t *testing.T) {
-	if _, refused := Refused(netip.Addr{}); !refused {
+	if _, refused := rangeRefused(netip.Addr{}); !refused {
 		t.Fatal("the zero Addr passed")
 	}
 }
