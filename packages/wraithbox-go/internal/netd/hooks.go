@@ -36,8 +36,10 @@ type StreamPolicy interface {
 
 // StreamSink takes an accepted connection: the stream hand-off to
 // wb-proxyd (S07-05-stream-hand-off). ServeStream owns conn and closes
-// it when it is done, which frees its place under Caps.EstablishedTCP.
-// It is called on its own goroutine.
+// it when it is done. The connection keeps its place under
+// Caps.EstablishedTCP until both the hook has closed conn and the stack
+// has closed the TCP connection, whichever comes later. It is called on
+// its own goroutine.
 type StreamSink interface {
 	ServeStream(conn net.Conn, f Flow)
 }

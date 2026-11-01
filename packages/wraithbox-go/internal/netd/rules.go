@@ -77,7 +77,9 @@ const (
 	// RuleTCPDestinationRefused: TCP to an address that is neither the
 	// gateway nor synthetic.
 	RuleTCPDestinationRefused Rule = "tcp-destination-refused"
-	// RuleTCPCap: a SYN over the cap of established connections.
+	// RuleTCPCap: a SYN over the cap of established connections, or a
+	// connection reset at its hook's close because the stack couldn't
+	// bound how long it would keep the connection's place.
 	RuleTCPCap Rule = "tcp-cap"
 	// RuleTCPHalfOpenCap: a SYN over the cap of half-open connections.
 	RuleTCPHalfOpenCap Rule = "tcp-half-open-cap"
