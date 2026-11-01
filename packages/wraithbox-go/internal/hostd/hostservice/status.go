@@ -16,6 +16,7 @@ func (s *Server) statusOf(slot vm.Slot, v hostdv1.VM) *hostdv1.VMStatus {
 		Vm: v, Phase: phaseOf(st.Phase), Generation: st.Generation,
 		LinkState: hostdv1.LinkState_LINK_STATE_DOWN, LastError: vmErrorOf(st.LastError),
 	}
+	out.AuditRefusal = s.auditRefusal()
 	if st.Phase != vm.PhaseRunning || s.Links == nil {
 		return out
 	}
@@ -32,6 +33,24 @@ func (s *Server) statusOf(slot vm.Slot, v hostdv1.VM) *hostdv1.VMStatus {
 	case guestconn.StateRefused:
 		out.LinkRefusal = linkRefusalOf(link.Refusal)
 	case guestconn.StateDown, guestconn.StateConnecting:
+	}
+	return out
+}
+
+// auditRefusal is the audit log's refusal of VM starts and new
+// sessions, so wb vm status says why a start is refused (S09-11-audit,
+// "Free space and failed writes"; NFR06-explained-refusals).
+func (s *Server) auditRefusal() *hostdv1.AuditRefusal {
+	if s.Audit == nil {
+		return nil
+	}
+	r := s.Audit.Refusal()
+	if r == nil {
+		return nil
+	}
+	out := &hostdv1.AuditRefusal{Rule: r.Rule, Message: r.Message}
+	if !r.Until.IsZero() {
+		out.UntilUnix = r.Until.Unix()
 	}
 	return out
 }

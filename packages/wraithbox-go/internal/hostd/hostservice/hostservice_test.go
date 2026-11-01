@@ -22,6 +22,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
@@ -256,6 +257,31 @@ func TestStatusLinkRefused(t *testing.T) {
 	r := s.GetLinkRefusal()
 	if r.GetRule() != "peer-version-mismatch" || r.GetGuestVersion() != `"9.9.9"` || r.GetHostdVersion() != `"1.2.3"` || r.GetMessage() != "stop and start" {
 		t.Errorf("refusal %v", r)
+	}
+}
+
+// TestStatusAuditRefusal: the audit log's refusal reaches each VM's
+// status with its rule and message, stopped or running, and leaves it
+// once the refusal ends (S09-11-audit, "Free space and failed writes").
+func TestStatusAuditRefusal(t *testing.T) {
+	rec := &audittest.Recorder{}
+	c := serve(t, &hostservice.Server{VMs: newManager(t, slog.New(slog.DiscardHandler), nil), Links: &fakeLinks{}, Audit: rec})
+	if _, err := c.StartVM(t.Context(), &hostdv1.StartVMRequest{Vm: hostdv1.VM_VM_WORK}); err != nil {
+		t.Fatal(err)
+	}
+	if r := getStatus(t, c, hostdv1.VM_VM_WORK).GetAuditRefusal(); r != nil {
+		t.Errorf("a refusal while the log takes records: %v", r)
+	}
+	rec.Refuse(audit.RuleFreeSpace, "the volume is below the floor")
+	for _, v := range []hostdv1.VM{hostdv1.VM_VM_WORK, hostdv1.VM_VM_ISOLATED} {
+		r := getStatus(t, c, v).GetAuditRefusal()
+		if r.GetRule() != audit.RuleFreeSpace || r.GetMessage() != "the volume is below the floor" || r.GetUntilUnix() != 0 {
+			t.Errorf("%s: refusal %v, want %s", v, r, audit.RuleFreeSpace)
+		}
+	}
+	rec.Refuse("", "")
+	if r := getStatus(t, c, hostdv1.VM_VM_ISOLATED).GetAuditRefusal(); r != nil {
+		t.Errorf("a refusal after it ended: %v", r)
 	}
 }
 

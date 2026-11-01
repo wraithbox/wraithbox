@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
@@ -13,7 +14,8 @@ import (
 
 // vmStatus is `wb vm status [<vm>]`: for each VM, its state, its
 // generation, its guest link with the guest's version or the refusal
-// with both versions, and its last error.
+// with both versions, its last error, and the audit log's refusal of
+// starts and new sessions.
 func vmStatus(ctx context.Context, env Env, args []string) int {
 	slots := []string{vmbundle.SlotWork, vmbundle.SlotIsolated}
 	if len(args) > 0 {
@@ -61,6 +63,23 @@ func printStatus(env Env, slot string, s *hostdv1.VMStatus) {
 	if e := s.GetLastError(); e != nil {
 		fmt.Fprintf(env.Stdout, "  last error: %s\n", lastErrorText(e))
 	}
+	if r := s.GetAuditRefusal(); r != nil {
+		fmt.Fprintf(env.Stdout, "  audit log: %s\n", auditRefusalText(r))
+	}
+}
+
+// auditRefusalText is the audit log's refusal of starts and new
+// sessions: its rule, wb-hostd's text, and when it ends when it ends at
+// a set time (S09-11-audit, "Free space and failed writes").
+func auditRefusalText(r *hostdv1.AuditRefusal) string {
+	text := "refusing starts and new sessions, rule " + printable(r.GetRule())
+	if msg := r.GetMessage(); msg != "" {
+		text += ": " + printable(msg)
+	}
+	if until := r.GetUntilUnix(); until != 0 {
+		text += ", until " + time.Unix(until, 0).UTC().Format(time.RFC3339)
+	}
+	return text
 }
 
 // dataMountText is the state of the data volume's mount, with the rule

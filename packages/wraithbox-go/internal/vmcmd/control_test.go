@@ -359,6 +359,34 @@ func TestStatusDataMount(t *testing.T) {
 	}
 }
 
+// TestStatusAuditRefusal: the audit log's refusal prints with its rule
+// and wb-hostd's text without escapes, and with its end when it ends at
+// a set time (S09-11-audit, "Free space and failed writes").
+func TestStatusAuditRefusal(t *testing.T) {
+	tests := []struct {
+		r    *hostdv1.AuditRefusal
+		want string
+	}{
+		{
+			&hostdv1.AuditRefusal{Rule: "audit-free-space", Message: "free \x1b[2J space\u202e"},
+			"  audit log: refusing starts and new sessions, rule audit-free-space: free [2J space\n",
+		},
+		{
+			&hostdv1.AuditRefusal{Rule: "audit-write-failed", Message: "no writes", UntilUnix: 1_800_000_000},
+			"  audit log: refusing starts and new sessions, rule audit-write-failed: no writes, until 2027-01-15T08:00:00Z\n",
+		},
+	}
+	for _, tt := range tests {
+		f := newFixture(t, "")
+		h := scripted{status: &hostdv1.VMStatus{Phase: hostdv1.VMPhase_VM_PHASE_STOPPED, LinkState: hostdv1.LinkState_LINK_STATE_DOWN, AuditRefusal: tt.r}}
+		code := f.runWith(func(e *vmcmd.Env) { e.Dial = func(context.Context) (vmcmd.Hostd, error) { return h, nil } }, "status", "work")
+		want := "work VM: stopped, generation 0\n" + tt.want
+		if code != 0 || f.stdout.String() != want {
+			t.Errorf("exit %d, stdout %q, want %q", code, f.stdout.String(), want)
+		}
+	}
+}
+
 // TestStatusFailure: a failed status call prints one wraith box line
 // with its rule, without escapes.
 func TestStatusFailure(t *testing.T) {
