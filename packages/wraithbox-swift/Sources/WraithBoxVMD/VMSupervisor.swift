@@ -1,8 +1,10 @@
 // wb-vmd's one VM and the rules of its requests (S04-04-vm-processes,
 // "One `wb-vmd` per VM"). Every refusal names its rule; VMServiceHandler
 // logs it and returns it in the gRPC error.
+import Darwin
 import GRPCCore
 import Synchronization
+import WraithBoxRPC
 import WraithBoxVM
 
 /// A VM's state with its generation, as VMState in the contract.
@@ -55,6 +57,12 @@ public enum VMRule: String, Sendable, CaseIterable {
     case connectTimeout = "vm-connect-timeout"
     /// The hand-off record couldn't be sent.
     case handoffSendFailed = "handoff-send-failed"
+    /// A Start whose `mac_address` isn't six bytes of a locally
+    /// administered unicast address.
+    case macInvalid = "vmd-mac-invalid"
+    /// The packet transport's socketpair couldn't be made or set up
+    /// (S07-02-packet-path, "Packet transport").
+    case networkFailed = "vm-network-failed"
 }
 
 /// A refused request.
@@ -116,6 +124,7 @@ public final class VMSupervisor {
     private let engine: any VMEngine
     private let slot: VMSlot
     private let bundlePath: String
+    private let handoff: HandoffChannel
     private let log: EventLog
     private var vm: (any EngineVM)?
     private var starting = false
@@ -127,37 +136,43 @@ public final class VMSupervisor {
     /// The current state. Before the first start: generation 0, stopped.
     public private(set) var status = VMStatus(generation: 0, state: .stopped, failure: nil)
 
-    public init(engine: any VMEngine, slot: VMSlot, bundlePath: String, log: EventLog) {
+    public init(
+        engine: any VMEngine, slot: VMSlot, bundlePath: String, handoff: HandoffChannel,
+        log: EventLog
+    ) {
         self.engine = engine
         self.slot = slot
         self.bundlePath = bundlePath
+        self.handoff = handoff
         self.log = log
     }
 
     /// Starts the VM, after every check. Returns once the framework has
-    /// started it.
-    public func start(generation: UInt64, cpuCount: UInt32, memoryMiB: UInt64)
-        async throws(VMRefusal)
-    {
+    /// started it. When the slot's set has a network device, wb-hostd
+    /// has the host end of its packet transport before the VM starts.
+    public func start(
+        generation: UInt64, cpuCount: UInt32, memoryMiB: UInt64, macAddress: [UInt8]
+    ) async throws(VMRefusal) {
         guard !starting, !status.state.isActive else {
             throw VMRefusal(
                 .alreadyRunning, .failedPrecondition, "the VM is \(status.state.rawValue)")
         }
         try checkNewGeneration(generation)
-        let request = try bootRequest(cpuCount: cpuCount, memoryMiB: memoryMiB)
+        let mac = try MACAddress(validating: macAddress)
+        var request = try bootRequest(cpuCount: cpuCount, memoryMiB: memoryMiB, mac: mac)
+        let transport: PacketTransport? = try request.networks > 0 ? PacketTransport() : nil
+        // The engine keeps its own copy of the VM end, so wb-vmd's copies
+        // are closed on every way out.
+        defer { transport?.close() }
+        request.networkDescriptor = transport?.vmEnd
         starting = true
         defer { starting = false }
         // Used up even when the start fails (VMRule.generation).
         lastGeneration = generation
         publish(VMStatus(generation: generation, state: .starting, failure: nil))
-        let machine: any EngineVM
-        do {
-            machine = try engine.makeVM(request) { [weak self] state, failure in
-                self?.engineState(state, failure, generation: generation)
-            }
-        } catch {
-            publish(VMStatus(generation: generation, state: .error, failure: error))
-            throw VMRefusal(.config, .failedPrecondition, error.description)
+        let machine = try makeMachine(request, generation: generation)
+        if let transport {
+            try passTransport(transport, generation: generation, mac: mac)
         }
         vm = machine
         do {
@@ -167,6 +182,56 @@ public final class VMSupervisor {
             publish(VMStatus(generation: generation, state: .error, failure: error))
             throw VMRefusal(.startFailed, .failedPrecondition, error.description)
         }
+    }
+
+    /// Builds the VM of `generation`. A configuration the framework
+    /// refuses publishes the error state and is refused with `vm-config`.
+    private func makeMachine(_ request: BootRequest, generation: UInt64) throws(VMRefusal)
+        -> any EngineVM
+    {
+        do {
+            return try engine.makeVM(request) { [weak self] state, failure in
+                self?.engineState(state, failure, generation: generation)
+            }
+        } catch {
+            publish(VMStatus(generation: generation, state: .error, failure: error))
+            throw VMRefusal(.config, .failedPrecondition, error.description)
+        }
+    }
+
+    /// Sends the host end of the packet transport to wb-hostd in one
+    /// KIND_NETWORK record for `generation`, and closes wb-vmd's copy
+    /// (S07-02-packet-path, "Packet transport"; X18-vsock-handoff,
+    /// condition 4). A failed send publishes the error state: the VM
+    /// doesn't start without the far end of its network device.
+    private func passTransport(_ transport: PacketTransport, generation: UInt64, mac: MACAddress)
+        throws(VMRefusal)
+    {
+        defer { transport.closeHostEnd() }
+        var message = Wraithbox_Vmd_V1_HandoffMessage()
+        message.kind = .network
+        message.generation = generation
+        var detail = ""
+        if let record = try? message.serializedBytes() as [UInt8] {
+            if let failed = handoff.send(record, descriptor: transport.hostEnd) {
+                detail = "sendmsg: \(String(cString: strerror(failed)))"
+            }
+        } else {
+            detail = "encode failed"
+        }
+        guard detail.isEmpty else {
+            publish(
+                VMStatus(
+                    generation: generation, state: .error,
+                    failure: VMFailure(description: "packet transport: \(detail)")))
+            throw VMRefusal(.handoffSendFailed, .failedPrecondition, detail)
+        }
+        log.info(
+            "network-transport-passed",
+            [
+                "generation": .uint(generation), "mac_address": .string(mac.description),
+                "mtu": .int(Int64(PacketTransport.mtu)),
+            ])
     }
 
     /// Stops the VM of `generation`. A mode of nil is the contract's
@@ -281,7 +346,9 @@ public final class VMSupervisor {
     /// Checks the resources and the device set, and logs the devices it
     /// is about to create. Zero is refused, never defaulted: the defaults
     /// are wb-hostd's (S06-06-devices-and-warm-start, "Resources").
-    private func bootRequest(cpuCount: UInt32, memoryMiB: UInt64) throws(VMRefusal) -> BootRequest {
+    private func bootRequest(cpuCount: UInt32, memoryMiB: UInt64, mac: MACAddress)
+        throws(VMRefusal) -> BootRequest
+    {
         let limits = engine.limits
         let mib: UInt64 = 1 << 20
         guard limits.cpuCount.contains(Int(cpuCount)) else {
@@ -294,7 +361,7 @@ public final class VMSupervisor {
                 "memory_mib \(memoryMiB) is outside \(limits.memoryBytes.lowerBound / mib)...\(limits.memoryBytes.upperBound / mib)"
             )
         }
-        let description = VMDescription.fixedSet(bundlePath: bundlePath)
+        let description = VMDescription.fixedSet(bundlePath: bundlePath, slot: slot)
         let check = DeviceSetCheck(slot: slot, bundlePath: bundlePath) { [log] line in
             log.info("device-set-check", ["detail": .string(line)])
         }
@@ -307,7 +374,7 @@ public final class VMSupervisor {
         log.info("vm-devices", ["devices": .strings(description.devices.map(\.logName))])
         return BootRequest(
             description: description, bundlePath: bundlePath, cpuCount: Int(cpuCount),
-            memoryBytes: memoryMiB * mib)
+            memoryBytes: memoryMiB * mib, macAddress: mac)
     }
 
     private func engineState(_ state: VMRunState, _ failure: VMFailure?, generation: UInt64) {

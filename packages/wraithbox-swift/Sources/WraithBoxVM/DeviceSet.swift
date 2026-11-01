@@ -9,21 +9,24 @@ public enum VMSlot: String, Sendable, Equatable, CaseIterable {
     case build
 }
 
-/// What a slot's VM may have beyond the devices every VM has exactly one
-/// of: a vsock device, an entropy device, one disk of each role, the Mac
+/// What a slot's VM has beyond the devices every VM has exactly one of: a
+/// vsock device, an entropy device, one disk of each role, the Mac
 /// graphics device with one display, a USB keyboard and a USB pointer.
 public struct DeviceSet: Sendable, Equatable {
-    /// How many network devices with a file-handle attachment the VM may
-    /// have. No other network attachment is ever allowed.
+    /// How many network devices with a file-handle attachment the VM has:
+    /// exactly this many. No other network attachment is ever allowed.
     public let fileHandleNetworks: Int
 
-    /// The set for a slot. No slot has a network device yet
-    /// (SEC05-default-deny): the work and isolated VMs get theirs with
-    /// V1-M3-network-floor, and the build VM its build network with
-    /// V1-M7-image-build.
+    /// The set for a slot. The work and isolated VMs have one network
+    /// device, whose file-handle attachment leads to `wb-netd`
+    /// (S07-02-packet-path, "Packet transport"), the guest's only network
+    /// path (SEC05-default-deny). The build VM has none until its build
+    /// network comes with V1-M7-image-build.
     public static func fixed(for slot: VMSlot) -> DeviceSet {
         switch slot {
-        case .work, .isolated, .build:
+        case .work, .isolated:
+            DeviceSet(fileHandleNetworks: 1)
+        case .build:
             DeviceSet(fileHandleNetworks: 0)
         }
     }
@@ -31,7 +34,8 @@ public struct DeviceSet: Sendable, Equatable {
 
 /// The rule a refusal names, in the log and in the gRPC error.
 public enum DeviceSetRule: String, Sendable, Equatable, CaseIterable {
-    /// A network device the slot's set doesn't allow (SEC05-default-deny).
+    /// A network device the slot's set doesn't allow, or more of them than
+    /// it has (SEC05-default-deny).
     case network = "device-set-network"
     /// A directory or Rosetta share (SEC02-no-host-fs-share).
     case share = "device-set-share"

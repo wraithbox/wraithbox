@@ -55,12 +55,29 @@ public struct ResourceLimits: Sendable, Equatable {
     }
 }
 
-/// What the engine builds: the checked description and the resources.
+/// What the engine builds: the checked description, the resources, and
+/// the network device's MAC address and packet transport.
 public struct BootRequest: Sendable, Equatable {
     public var description: VMDescription
     public var bundlePath: String
     public var cpuCount: Int
     public var memoryBytes: UInt64
+    public var macAddress: MACAddress
+    /// The VM end of the packet transport, for the description's one
+    /// file-handle network device, or nil when it has none. The caller
+    /// keeps it and closes it after makeVM: an engine that keeps the
+    /// descriptor keeps its own copy (dup(2)).
+    public var networkDescriptor: Int32?
+
+    /// How many network devices the description has.
+    public var networks: Int {
+        description.devices.filter { device in
+            if case .network = device {
+                return true
+            }
+            return false
+        }.count
+    }
 }
 
 /// Called with each state change of a VM, and the failure that ended it

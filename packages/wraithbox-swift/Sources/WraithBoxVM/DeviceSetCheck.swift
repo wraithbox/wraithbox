@@ -92,11 +92,17 @@ public struct DeviceSetCheck: Sendable {
             }
         }
         // SEC05-default-deny: no slot has more network devices than its
-        // set allows, and today no slot allows one.
+        // set has. A missing one is a missing device of the set.
         guard networks <= set.fileHandleNetworks else {
             throw DeviceSetRefusal(
                 .network,
                 "\(networks) network devices, the \(slot.rawValue) slot allows \(set.fileHandleNetworks)"
+            )
+        }
+        guard networks == set.fileHandleNetworks else {
+            throw DeviceSetRefusal(
+                .count,
+                "\(networks) network devices, the \(slot.rawValue) slot has \(set.fileHandleNetworks)"
             )
         }
         for member in SetMember.allCases where counts[member, default: 0] != 1 {

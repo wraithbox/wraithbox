@@ -45,6 +45,10 @@ final class RecordedLog: Sendable {
     }
 }
 
+/// The MAC address the tests start a VM with: locally administered and
+/// unicast.
+let testMAC: [UInt8] = [0x02, 0x57, 0x42, 0x00, 0x00, 0x01]
+
 /// A VM engine that builds fake VMs.
 @MainActor
 final class FakeEngine: VMEngine {
@@ -55,6 +59,13 @@ final class FakeEngine: VMEngine {
     var holdStart = false
     private(set) var requests: [BootRequest] = []
     private(set) var machines: [FakeVM] = []
+    /// The engine's copy of each request's VM end of the packet
+    /// transport, taken as the real engine takes it.
+    private(set) var networkEnds: [Int32] = []
+
+    isolated deinit {
+        closeAll(networkEnds)
+    }
 
     func makeVM(_ request: BootRequest, onState: @escaping VMStateHandler) throws(VMFailure)
         -> any EngineVM
@@ -63,6 +74,9 @@ final class FakeEngine: VMEngine {
             throw configFailure
         }
         requests.append(request)
+        if let descriptor = request.networkDescriptor {
+            networkEnds.append(fcntl(descriptor, F_DUPFD_CLOEXEC, 0))
+        }
         let machine = FakeVM(onState: onState, startFailure: startFailure, hold: holdStart)
         machines.append(machine)
         return machine
