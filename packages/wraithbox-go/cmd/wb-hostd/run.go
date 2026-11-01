@@ -276,8 +276,8 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 
 // close ends every wb-vmd by its lifeline, which stops its VM at once
 // (S04-07-supervision, "When `wb-hostd` stops"), waits until the
-// manager has logged the end of each run, then closes the guest links
-// and state.db.
+// manager has logged the end of each run, then closes the guest links,
+// the audit writer and state.db.
 func (h *host) close(ctx context.Context) {
 	log := h.server.Log
 	if h.provider != nil {
@@ -286,17 +286,19 @@ func (h *host) close(ctx context.Context) {
 		}
 		h.vms.Wait()
 	}
-	// After the wait, every VM's stop record is queued.
-	if h.audit != nil {
-		if err := h.audit.Close(); err != nil {
-			log.LogAttrs(ctx, slog.LevelError, "audit log not closed", slog.String("error", err.Error()))
-		}
-	}
 	if h.registry != nil {
 		h.registry.Close()
 	}
 	if h.links != nil {
 		h.links.Close()
+	}
+	// After the wait, every VM's stop record is queued. The writer closes
+	// last before state.db, so a write that fails while it closes has no
+	// VM left to stop.
+	if h.audit != nil {
+		if err := h.audit.Close(); err != nil {
+			log.LogAttrs(ctx, slog.LevelError, "audit log not closed", slog.String("error", err.Error()))
+		}
 	}
 	if h.closeDB != nil {
 		_ = h.closeDB()
