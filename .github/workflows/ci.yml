@@ -54,7 +54,11 @@ jobs:
     name: Go (${{ matrix.os }})
     # Most Wraith Box code is cross-platform Go (S12-platforms), so it is
     # linted, vetted, tested and built natively on every host OS from the
-    # start. See docs/spec/S02-toolchain.md.
+    # start. The macOS leg runs on `xcode-27`, the Swift job's image:
+    # macOS 27, the oldest v1 host (NFR04-host-platforms), so the
+    # darwin-only tests (localipc peer credentials, vmdspawn, the
+    # wb-diskfmt child) run on a supported macOS. See
+    # docs/spec/S02-toolchain.md.
     #
     # Skipped only when detection succeeded and found no Go input changed.
     needs: changes
@@ -62,7 +66,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-26, ubuntu-24.04, windows-2025]
+        os: [xcode-27, ubuntu-24.04, windows-2025]
     runs-on: ${{ matrix.os }}
     steps:
       # Full history on Linux only: the contracts step compares the .proto

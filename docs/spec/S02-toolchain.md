@@ -49,10 +49,13 @@ the Xcode version is the pin.
   with `vmd-host-unsupported` (S04-04-vm-processes, "Slot checks"), and
   `wb-dev-bundle provision` with `host-unsupported`. The app bundle is
   built for macOS 27, so macOS doesn't open it on an older Mac.
-- CI uses the default Xcode of its pinned macOS runner image. The Swift
-  job runs on the `xcode-27` image, which is macOS 27 with Xcode 27.
-  The Go job's macOS runner stays on `macos-26`: the Go module has no
-  cgo, so it builds against no macOS SDK.
+- CI uses the default Xcode of its pinned macOS runner image. Both
+  macOS jobs, Swift and Go's macOS leg, run on the `xcode-27` image,
+  which is macOS 27 with Xcode 27, the oldest v1 host
+  (NFR04-host-platforms). The Go module has no cgo and builds against
+  no macOS SDK, but its darwin-only tests (`localipc` peer credentials,
+  `vmdspawn`, the `wb-diskfmt` child) depend on how macOS behaves, so
+  they run on a macOS that v1 supports.
 - SwiftLint, which Xcode does not ship, is pinned in `.mise.toml`.
 
 ### CI
