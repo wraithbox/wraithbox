@@ -2785,5 +2785,11 @@
 		"state": "open",
 		"title": "ci: run the Go darwin tests on macOS 27, the new host floor",
 		"summary": "PR #453 (#143) raises the host floor to macOS 27 (NFR04-host-platforms) and moves the Swift CI job to the xcode-27 runner."
+	},
+	"517": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Automate Markdown line wrapping without breaking code spans, tables or MDX",
+		"summary": "Markdown in this repository has no formatter."
 	}
 }
