@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"errors"
 	"io"
 	"slices"
 	"strings"
@@ -134,15 +135,25 @@ func TestCheckOpened(t *testing.T) {
 type fakeShellClient struct {
 	sent      []*hostdv1.ShellRequest
 	responses []*hostdv1.ShellResponse
+	// sendErr is what Send returns, and end what Recv returns once the
+	// responses run out (io.EOF when nil).
+	sendErr error
+	end     error
 }
 
 func (c *fakeShellClient) Send(r *hostdv1.ShellRequest) error {
+	if c.sendErr != nil {
+		return c.sendErr
+	}
 	c.sent = append(c.sent, r)
 	return nil
 }
 
 func (c *fakeShellClient) Recv() (*hostdv1.ShellResponse, error) {
 	if len(c.responses) == 0 {
+		if c.end != nil {
+			return nil, c.end
+		}
 		return nil, io.EOF
 	}
 	r := c.responses[0]
@@ -177,6 +188,22 @@ func TestOpenShell(t *testing.T) {
 		if _, _, err := OpenShell(&fakeShellClient{responses: []*hostdv1.ShellResponse{first}}, "p", nil); err == nil {
 			t.Errorf("OpenShell accepted a first response %v", first)
 		}
+	}
+}
+
+// TestOpenShellRefusedBeforeOpen: when wb-hostd ends the stream before
+// it reads the ShellOpen, Send returns io.EOF and OpenShell returns the
+// status Recv reads, not the EOF. Another send error is returned as is.
+func TestOpenShellRefusedBeforeOpen(t *testing.T) {
+	refusal := errors.New("wb-hostd is in refusing mode")
+	_, _, err := OpenShell(&fakeShellClient{sendErr: io.EOF, end: refusal}, "p", nil)
+	if !errors.Is(err, refusal) {
+		t.Errorf("OpenShell after an EOF send = %v, want the refusal", err)
+	}
+	broken := errors.New("broken")
+	_, _, err = OpenShell(&fakeShellClient{sendErr: broken, end: refusal}, "p", nil)
+	if !errors.Is(err, broken) {
+		t.Errorf("OpenShell after a failed send = %v, want the send's error", err)
 	}
 }
 
