@@ -31,9 +31,14 @@ type fakeConnect struct {
 	mu     sync.Mutex
 	dialed []string
 	fail   map[string]bool
+	// before runs ahead of each dial, unlocked.
+	before func()
 }
 
 func (c *fakeConnect) dial(_ context.Context, network, address string) (net.Conn, error) {
+	if c.before != nil {
+		c.before()
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if network != "tcp" {
@@ -345,5 +350,29 @@ func TestInterfacePrefix(t *testing.T) {
 				t.Fatalf("interfacePrefix = %v, %v; want %q", p, ok, tt.want)
 			}
 		})
+	}
+}
+
+// A caller that gives up mid-Dial gets its context's error, the loop
+// stops, and no refusal is logged, so the rule's window stays unused.
+func TestDialCancelled(t *testing.T) {
+	h := newHarness([]string{"8.8.8.8", "8.8.4.4"}, nil)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	h.conn.before = cancel
+	h.conn.fail["8.8.8.8:443"] = true
+	_, err := h.d.Dial(ctx, "good.example", 443)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error %v, want context.Canceled", err)
+	}
+	var r *Refusal
+	if errors.As(err, &r) {
+		t.Fatalf("a cancelled Dial gave refusal %v", r)
+	}
+	if want := []string{"8.8.8.8:443"}; !slices.Equal(h.conn.dialed, want) {
+		t.Fatalf("dialed %v, want %v", h.conn.dialed, want)
+	}
+	if recs := h.log.records(t); len(recs) != 0 {
+		t.Fatalf("log records %v, want none", recs)
 	}
 }
