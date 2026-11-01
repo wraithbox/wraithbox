@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -63,50 +64,107 @@ func FuzzGuestLink(f *testing.F) {
 	})
 }
 
-// playGuest reads the host's preface, writes data's first chunk, waits
-// until the host has opened its stream (or a moment), writes the rest,
-// then closes. It drains what the host sends all along, so the host
-// never blocks on a write.
+// playGuest writes data's first chunk. When that chunk starts with a
+// SETTINGS frame, the server preface the host waits for, playGuest
+// waits until the host has opened its stream, writes the rest, and
+// closes once the host has sent its whole request. Otherwise the host
+// never opens its stream, and playGuest writes the rest at once and
+// closes. It drains what the host sends all along, so the host never
+// blocks on a write. Each wait also ends when the host's end closes or
+// sends bytes that are not HTTP/2, so no wait is on the clock: a host
+// that stalls ends its Hello at its own deadline and closes its end.
 func playGuest(guest net.Conn, data, cuts []byte) {
 	defer guest.Close()
-	opened := make(chan struct{})
-	go readHost(guest, opened)
+	h := readHost(guest)
 	chunks := split(data, cuts)
-	for i, c := range chunks {
-		if i == 1 {
-			select {
-			case <-opened:
-			case <-time.After(100 * time.Millisecond):
-			}
-		}
-		if _, err := guest.Write(c); err != nil {
-			return
-		}
+	if len(chunks) == 0 {
+		return
 	}
+	if !startsWithSettings(chunks[0]) {
+		_ = writeChunks(guest, chunks)
+		return
+	}
+	if writeChunks(guest, chunks[:1]) != nil {
+		return
+	}
+	// The host drops an answer on stream 1 that arrives before it has
+	// opened stream 1.
+	<-h.opened
+	if writeChunks(guest, chunks[1:]) != nil {
+		return
+	}
+	// Closing while the host still writes its request would break the
+	// host's pipe, a failure that does not come from data.
+	<-h.sent
 }
 
-// readHost reads the host's client preface and frames, and closes
-// opened at the first HEADERS frame: the host's Hello request.
-func readHost(guest net.Conn, opened chan<- struct{}) {
+// startsWithSettings reports whether chunk starts with a whole SETTINGS
+// frame that is not an ACK.
+func startsWithSettings(chunk []byte) bool {
+	frame, err := http2.NewFramer(nil, bytes.NewReader(chunk)).ReadFrame()
+	if err != nil {
+		return false
+	}
+	s, ok := frame.(*http2.SettingsFrame)
+	return ok && !s.IsAck()
+}
+
+func writeChunks(guest net.Conn, chunks [][]byte) error {
+	for _, c := range chunks {
+		if _, err := guest.Write(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// hostReads holds the events on the host's side that playGuest waits
+// on. Each channel is closed once, at its event or when the host's end
+// stops being readable, whichever comes first.
+type hostReads struct {
+	opened chan struct{} // the first HEADERS frame: the Hello request
+	sent   chan struct{} // the request's END_STREAM, or a RST_STREAM
+}
+
+// readHost starts reading the host's client preface and frames from
+// guest, until the host's end closes.
+func readHost(guest net.Conn) *hostReads {
+	h := &hostReads{opened: make(chan struct{}), sent: make(chan struct{})}
+	go h.read(guest)
+	return h
+}
+
+func (h *hostReads) read(guest net.Conn) {
+	var opened, sent sync.Once
+	open := func() { opened.Do(func() { close(h.opened) }) }
+	send := func() { sent.Do(func() { close(h.sent) }) }
+	defer func() {
+		open()
+		send()
+		_, _ = io.Copy(io.Discard, guest)
+	}()
 	preface := make([]byte, len(http2.ClientPreface))
 	if _, err := io.ReadFull(guest, preface); err != nil {
-		close(opened)
 		return
 	}
 	fr := http2.NewFramer(io.Discard, guest)
-	signaled := false
 	for {
 		frame, err := fr.ReadFrame()
 		if err != nil {
-			if !signaled {
-				close(opened)
-			}
-			_, _ = io.Copy(io.Discard, guest)
 			return
 		}
-		if _, ok := frame.(*http2.HeadersFrame); ok && !signaled {
-			signaled = true
-			close(opened)
+		switch f := frame.(type) {
+		case *http2.HeadersFrame:
+			open()
+			if f.StreamEnded() {
+				send()
+			}
+		case *http2.DataFrame:
+			if f.StreamEnded() {
+				send()
+			}
+		case *http2.RSTStreamFrame:
+			send()
 		}
 	}
 }
