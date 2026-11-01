@@ -15,8 +15,10 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"strings"
 	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/ratelog"
 )
 
@@ -126,7 +128,7 @@ func (d *Dialer) Dial(ctx context.Context, host string, port uint16) (net.Conn, 
 	if err != nil {
 		return nil, d.refuseUnlessDone(ctx, err)
 	}
-	d.log.Debug("upstream connected", "host", host, "addr", conn.RemoteAddr().String())
+	d.log.Debug("upstream connected", "host", logText(host), "addr", logText(conn.RemoteAddr().String()))
 	return conn, nil
 }
 
@@ -210,13 +212,28 @@ func (d *Dialer) refuseUnlessDone(ctx context.Context, r *Refusal) error {
 // refuse logs a refusal with its rule, the host and the address, and
 // returns it.
 func (d *Dialer) refuse(r *Refusal) error {
-	attrs := []any{"rule", string(r.Rule), "host", r.Host, "reason", r.Reason}
+	attrs := []any{"rule", string(r.Rule), "host", logText(r.Host), "reason", r.Reason}
 	if r.Addr.IsValid() {
-		attrs = append(attrs, "addr", r.Addr.String())
+		attrs = append(attrs, "addr", logText(r.Addr.String()))
 	}
 	if r.err != nil {
-		attrs = append(attrs, "err", r.err.Error())
+		attrs = append(attrs, "err", logText(r.err.Error()))
 	}
 	d.log.Warn("upstream refused", attrs...)
 	return r
+}
+
+// maxLogText bounds each text field of a log record in bytes.
+const maxLogText = 256
+
+// logText is text the guest can influence, such as the host name or a
+// lookup's error, as a log record holds it: without the code points of
+// guesttext's escaped set, and cut to maxLogText bytes of valid UTF-8
+// (S16-03-around-the-stream, "Guest text elsewhere").
+func logText(s string) string {
+	s = guesttext.Strip(s)
+	if len(s) > maxLogText {
+		s = strings.ToValidUTF8(s[:maxLogText], "")
+	}
+	return s
 }
