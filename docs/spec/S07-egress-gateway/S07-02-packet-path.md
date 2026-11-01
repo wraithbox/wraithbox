@@ -84,12 +84,9 @@ logged with follows each step.
 Other IP protocols are dropped (`ip-protocol`). Multicast and non-DHCP
 broadcast are dropped before the protocol check (`ip-broadcast`).
 
-The ARP rule has two effects:
-
-- The guest's probes for its own address go unanswered. An answer
-  would tell it the address is taken.
-- Nothing the guest sends can claim another address in the stack's
-  neighbor table.
+With the ARP rule the stack doesn't answer the guest's probes for its
+own address, as an answer would tell it the address is taken. And the
+guest can't claim another address in the stack's neighbor table.
 
 gVisor didn't answer ping to other addresses even without the ICMP
 rule, which is a second layer.
@@ -142,10 +139,13 @@ cap is dropped, and logged with the cap's rule
 
 gVisor has no stack-wide memory limit. The established cap times a cap
 on each TCP buffer bounds the stack's buffer memory. A connection holds
-its place until the stack has closed it, and timeouts bound how long a
-closed connection stays open. An outbound frame over the queue's cap is
-dropped with `link-queue-full`, and one the guest's full buffer still
-refuses after a bounded number of retries with `link-write-failed`.
+its place until both its hook and the stack have closed it, so a guest
+reset doesn't free it early. Fixed timeouts, not configuration, bound
+how long the stack keeps a connection its hook closed: 30 s without an
+acknowledgment, set at the hook's close, 5 s in FIN-WAIT-2, and 5 s in
+TIME-WAIT. An outbound frame over the queue's cap is dropped with
+`link-queue-full`, and one the guest's full buffer still refuses after
+a bounded number of retries with `link-write-failed`.
 
 ### No host-side listener
 
