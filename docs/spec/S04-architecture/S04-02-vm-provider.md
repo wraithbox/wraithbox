@@ -39,10 +39,9 @@ On macOS (X18-vsock-handoff):
   "Network device per slot"), request id, VM generation, direction,
   source port and destination port. The message is `HandoffMessage` in
   `proto/wraithbox/vmd/v1/vmd.proto` (S04-08-records-and-bounds).
-- The receiver refuses the message when the descriptor count is not
-  one, the socket type is wrong, or the message isn't one it asked
-  for. It closes any descriptor in it, and logs the refusal. The
-  comments on `HandoffMessage` list every refusal rule.
+- The receiver refuses a message it didn't ask for, or with a wrong
+  descriptor count or socket type. It closes any descriptor in it, and
+  logs the refusal. `HandoffMessage`'s comments list every rule.
 
 `wb-hostd`'s receiver is `internal/platform/vmhandoff`. It reads
 through the channel of `internal/platform/fdchan`, which refuses a
