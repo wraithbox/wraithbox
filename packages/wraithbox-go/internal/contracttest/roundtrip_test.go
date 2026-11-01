@@ -4,11 +4,13 @@
 package contracttest_test
 
 import (
+	"slices"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	auditv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/audit/v1"
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
@@ -167,7 +169,7 @@ func messages() []proto.Message {
 		vmStatus().GetLastError(),
 		vmStatus().GetDataMount(),
 		vmStatus().GetAuditRefusal(),
-	}, append(terminalMessages(), userMessages()...)...)
+	}, slices.Concat(terminalMessages(), userMessages(), auditMessages())...)
 }
 
 func TestRoundTrip(t *testing.T) {
@@ -218,6 +220,7 @@ func files() []protoreflect.FileDescriptor {
 		hostdv1.File_wraithbox_hostd_v1_hostd_proto,
 		hostdv1.File_wraithbox_hostd_v1_shell_proto,
 		terminalv1.File_wraithbox_terminal_v1_terminal_proto,
+		auditv1.File_wraithbox_audit_v1_event_proto,
 	}
 }
 
