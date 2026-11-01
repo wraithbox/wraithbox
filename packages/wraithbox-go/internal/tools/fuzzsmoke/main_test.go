@@ -122,8 +122,18 @@ func TestShardOf(t *testing.T) {
 		targets int
 		shards  int
 	}{
-		{0, 1}, {0, 3}, {1, 1}, {1, 4}, {3, 4}, {4, 4},
-		{5, 2}, {34, 1}, {34, 3}, {34, 4}, {37, 4}, {100, 7},
+		{0, 1},
+		{0, 3},
+		{1, 1},
+		{1, 4},
+		{3, 4},
+		{4, 4},
+		{5, 2},
+		{34, 1},
+		{34, 3},
+		{34, 4},
+		{37, 4},
+		{100, 7},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%d targets in %d shards", tt.targets, tt.shards), func(t *testing.T) {
@@ -251,10 +261,8 @@ func TestRun(t *testing.T) {
 			writeFiles(t, dir, tt.files)
 
 			var stdout, stderr bytes.Buffer
-			args := []string{"-dir", dir, "-fuzztime", tt.fuzztime}
-			if tt.shard != "" {
-				args = append(args, "-shard", tt.shard)
-			}
+			// An empty -shard is the same as none: every target.
+			args := []string{"-dir", dir, "-fuzztime", tt.fuzztime, "-shard", tt.shard}
 			code := run(context.Background(), args, &stdout, &stderr)
 			if code != tt.wantCode {
 				t.Fatalf("run() = %d, want %d\nstdout:\n%s\nstderr:\n%s", code, tt.wantCode, &stdout, &stderr)
