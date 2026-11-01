@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/termfilter"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
@@ -193,18 +196,46 @@ func TestOpenShell(t *testing.T) {
 
 // TestOpenShellRefusedBeforeOpen: when wb-hostd ends the stream before
 // it reads the ShellOpen, Send returns io.EOF and OpenShell returns the
-// status Recv reads, not the EOF. Another send error is returned as is.
+// status Recv reads, not the EOF, with the rule wb reads from it. Another
+// send error is returned as is.
 func TestOpenShellRefusedBeforeOpen(t *testing.T) {
-	refusal := errors.New("wb-hostd is in refusing mode")
-	_, _, err := OpenShell(&fakeShellClient{sendErr: io.EOF, end: refusal}, "p", nil)
-	if !errors.Is(err, refusal) {
-		t.Errorf("OpenShell after an EOF send = %v, want the refusal", err)
+	// The refusal as wb-hostd builds it (hostservice's withRule): the
+	// rule is the ErrorInfo reason.
+	st, err := status.New(codes.FailedPrecondition, "wb-hostd is in refusing mode").
+		WithDetails(&errdetails.ErrorInfo{Reason: "state-db-unreadable", Domain: "wraithbox.hostd.v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refusal := st.Err()
+	_, _, err = OpenShell(&fakeShellClient{sendErr: io.EOF, end: refusal}, "p", nil)
+	if code, rule := refusalOf(err); code != codes.FailedPrecondition || rule != "state-db-unreadable" {
+		t.Errorf("OpenShell after an EOF send = %v: code %s, rule %q", err, code, rule)
 	}
 	broken := errors.New("broken")
 	_, _, err = OpenShell(&fakeShellClient{sendErr: broken, end: refusal}, "p", nil)
 	if !errors.Is(err, broken) {
 		t.Errorf("OpenShell after a failed send = %v, want the send's error", err)
 	}
+}
+
+// refusalOf reads the code and the rule of a wrapped status the way
+// projectcmd's failureOf does: from the error that carries the status,
+// and the rule from its ErrorInfo reason.
+func refusalOf(err error) (codes.Code, string) {
+	se, ok := errors.AsType[interface {
+		error
+		GRPCStatus() *status.Status
+	}](err)
+	if !ok {
+		return codes.Unknown, ""
+	}
+	st := se.GRPCStatus()
+	for _, d := range st.Details() {
+		if info, ok := d.(*errdetails.ErrorInfo); ok {
+			return st.Code(), info.GetReason()
+		}
+	}
+	return st.Code(), ""
 }
 
 func TestSummaryLines(t *testing.T) {
