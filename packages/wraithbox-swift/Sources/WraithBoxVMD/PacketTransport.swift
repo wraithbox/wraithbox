@@ -7,8 +7,8 @@
 import Darwin
 
 /// The MAC address of the VM's one network device. wb-hostd makes it once
-/// per slot and keeps it (S06-06-devices-and-warm-start, "Disks and
-/// identity"). wb-vmd takes only a locally administered unicast address,
+/// per slot and keeps it (S06-06-devices-and-warm-start, "MAC
+/// address"). wb-vmd takes only a locally administered unicast address,
 /// so the VM never claims a vendor's address or a group address.
 public struct MACAddress: Sendable, Equatable, CustomStringConvertible {
     public let bytes: [UInt8]

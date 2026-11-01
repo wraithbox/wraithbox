@@ -128,7 +128,7 @@ type Generations interface {
 // *state.DB implements it: a slot's first call makes a random, locally
 // administered unicast address and records it, and later calls return
 // the same one, across restarts of wb-hostd too
-// (S06-06-devices-and-warm-start, "Devices").
+// (S06-06-devices-and-warm-start, "MAC address").
 type MACAddresses interface {
 	MACAddress(ctx context.Context, slot string) ([]byte, error)
 }

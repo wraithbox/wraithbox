@@ -114,7 +114,7 @@ func (m *Manager) prepare(ctx context.Context, slot Slot) (generation uint64, ma
 		slog.String("decision", "accept"), slog.String("slot", string(slot)),
 		slog.String("source", m.cfg.ToolsImage), slog.String("bundle", bundle))
 	// The slot keeps its MAC address across starts, so the guest sees the
-	// same device each time (S06-06-devices-and-warm-start, "Devices").
+	// same device each time (S06-06-devices-and-warm-start, "MAC address").
 	mac, err := m.cfg.MACAddresses.MACAddress(ctx, slot.name())
 	if err != nil {
 		return 0, nil, &Refusal{

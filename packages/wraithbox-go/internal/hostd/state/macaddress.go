@@ -14,7 +14,7 @@ const MACLength = 6
 // createVMMACAddresses adds one row per VM slot with the MAC address of
 // its network device, made on the slot's first start and kept, so the
 // guest sees the same device on every start (S06-06-devices-and-warm-start,
-// "Devices"). No two slots share one.
+// "MAC address"). No two slots share one.
 func createVMMACAddresses(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE vm_mac_addresses (
 		slot TEXT PRIMARY KEY NOT NULL CHECK (length(slot) BETWEEN 1 AND 64),
@@ -37,7 +37,7 @@ var errMACTaken = errors.New("state: every new MAC address was already another s
 // MACAddress returns slot's MAC address, and makes and records one on
 // the slot's first call: a random, locally administered unicast address
 // that no other slot has. Later calls return the same address, across
-// restarts of wb-hostd too (S06-06-devices-and-warm-start, "Devices").
+// restarts of wb-hostd too (S06-06-devices-and-warm-start, "MAC address").
 func (d *DB) MACAddress(ctx context.Context, slot string) ([]byte, error) {
 	if slot == "" || len(slot) > 64 {
 		return nil, errSlotName
