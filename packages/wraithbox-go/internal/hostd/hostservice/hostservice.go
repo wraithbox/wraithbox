@@ -65,6 +65,9 @@ type Server struct {
 	VMs VMs
 	// Links has the guest link states. nil reads every link as down.
 	Links Links
+	// Audit has the audit log's refusal of VM starts and new sessions,
+	// which each VM's status carries. nil reads as no refusal.
+	Audit AuditStatus
 	// Refusing is set in refusing mode. Every call of this service is
 	// then refused with its rule (S17-05-upgrades-and-migrations,
 	// "Refusing mode"): only wb status is answered, and that isn't part
@@ -72,6 +75,12 @@ type Server struct {
 	Refusing *startup.Refusing
 	// Log gets the refusals. nil takes slog.Default().
 	Log *slog.Logger
+}
+
+// AuditStatus is the audit writer as a status reads it. *audit.Writer
+// implements it.
+type AuditStatus interface {
+	Refusal() *audit.Refusal
 }
 
 var _ hostdv1.HostServiceServer = (*Server)(nil)

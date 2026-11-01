@@ -263,7 +263,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	registry = shells.NewRegistry(links, log)
 	aw.Attach(m)
 	return &host{
-		server: &hostservice.Server{VMs: m, Links: links, Log: log},
+		server: &hostservice.Server{VMs: m, Links: links, Audit: aw, Log: log},
 		projects: &hostservice.ProjectServer{
 			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git, aw), Audit: aw, Log: log,
 			UsersRemoved: links.SendUserRemovals,
