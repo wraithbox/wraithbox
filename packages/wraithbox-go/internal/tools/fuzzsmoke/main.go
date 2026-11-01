@@ -9,6 +9,11 @@
 // under the package's testdata/fuzz, where it stays, and fuzzsmoke prints
 // it too, so a CI log keeps it after the runner is gone.
 //
+// With -shard <i>/<n> it runs only the i-th of n parts of the sorted list
+// of targets, so CI can run the parts as parallel jobs. Each target is in
+// exactly one part, and the parts differ in size by at most one target.
+// Without -shard it runs every target, as `mise run go:fuzz` does.
+//
 // CI lists the targets on Linux with the default build tags, so a fuzz
 // target goes in a file without a GOOS suffix or build constraint
 // (S11-verification-and-spikes, "Fuzzing").
@@ -31,6 +36,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -61,14 +67,24 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	flags.SetOutput(stderr)
 	dir := flags.String("dir", ".", "the Go module directory")
 	fuzztime := flags.String("fuzztime", "10s", "how long to fuzz each target, as go test -fuzztime takes it")
+	shardFlag := flags.String("shard", "", "run only part `i/n` of the targets, i from 1 to n; empty runs every target")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
+	part, err := parseShard(*shardFlag)
+	if err != nil {
+		fmt.Fprintf(stderr, "fuzzsmoke: %v\n", err)
+		return 2
+	}
 
-	targets, err := list(ctx, *dir, stderr)
+	all, err := list(ctx, *dir, stderr)
 	if err != nil {
 		fmt.Fprintf(stderr, "fuzzsmoke: FAIL: cannot list the fuzz targets: %v (%s)\n", err, rule)
 		return 1
+	}
+	targets := part.of(all)
+	if part.count > 1 {
+		fmt.Fprintf(stdout, "fuzzsmoke: shard %d/%d runs %d of %d fuzz targets\n", part.index, part.count, len(targets), len(all))
 	}
 	if len(targets) == 0 {
 		fmt.Fprintln(stdout, "fuzzsmoke: no fuzz targets")
@@ -87,6 +103,39 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "fuzzsmoke: every fuzz target passed (%d)\n", len(targets))
 	return 0
+}
+
+// shard is one part of the list of targets: part index of count, with
+// index from 1 to count.
+type shard struct {
+	index int
+	count int
+}
+
+// parseShard reads the -shard option, `<i>/<n>` with 1 <= i <= n. An
+// empty option is the one shard that holds every target.
+func parseShard(s string) (shard, error) {
+	if s == "" {
+		return shard{index: 1, count: 1}, nil
+	}
+	is, ns, ok := strings.Cut(s, "/")
+	i, iErr := strconv.Atoi(is)
+	n, nErr := strconv.Atoi(ns)
+	if !ok || iErr != nil || nErr != nil || n < 1 || i < 1 || i > n {
+		return shard{}, fmt.Errorf("-shard %q: want <i>/<n> with 1 <= i <= n, such as 2/4", s)
+	}
+	return shard{index: i, count: n}, nil
+}
+
+// of returns the targets of this shard: a contiguous run of the sorted
+// list, so the targets of one package mostly stay in one shard and share
+// its build. Shard i of n takes the targets from (i-1)*len/n up to
+// i*len/n, so every target is in exactly one shard, and a shard is empty
+// only when there are more shards than targets.
+func (s shard) of(targets []target) []target {
+	lo := (s.index - 1) * len(targets) / s.count
+	hi := s.index * len(targets) / s.count
+	return targets[lo:hi]
 }
 
 // list runs `go test -list` over every package of the module in dir. A

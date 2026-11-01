@@ -160,10 +160,10 @@ export function decide(files) {
  * Jobs the workflow may skip, with the `detect` outputs that run each. A
  * job is skipped by rule only when every one of its outputs is `false`.
  */
-const SKIPPABLE = /** @type {Record<string, Output[]>} */ ({ go: ['go'], swift: ['swift', 'bundle'] });
+const SKIPPABLE = /** @type {Record<string, Output[]>} */ ({ go: ['go'], fuzz: ['go'], swift: ['swift', 'bundle'] });
 
 /** Every job `CI result` must list in `needs:`. */
-export const GATED = ['changes', 'go', 'swift', 'docs', 'actions'];
+export const GATED = ['changes', 'go', 'fuzz', 'swift', 'docs', 'actions'];
 
 /**
  * One line per reason the run must not pass, or an empty list.
