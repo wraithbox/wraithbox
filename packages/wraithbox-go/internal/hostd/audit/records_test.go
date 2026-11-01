@@ -21,6 +21,7 @@ type schema struct {
 		UID         int      `json:"uid"`
 		CategoryUID int      `json:"category_uid"`
 		Required    []string `json:"required"`
+		AtLeastOne  []string `json:"at_least_one"`
 		ActivityIDs []int    `json:"activity_ids"`
 		Attributes  []string `json:"attributes"`
 	} `json:"classes"`
@@ -69,8 +70,40 @@ func everyRecord() map[string]Record {
 		"ProcessesLeft":     ProcessesLeft("work", 1, "kill-processes-left", Kill{ID: 3, ProjectID: "p1"}, "7"),
 		"KillClosed":        KillClosed("work", 1, "kill-cold-stop", Kill{ID: 3, ProjectID: "p1"}, "vm-stopped"),
 		"WriteFailed":       WriteFailed(since, "no space left on device"),
+		"VMStopped open runs": WithOpenRuns(VMStopped("work", 1, "vm-stop", "requested", false), []OpenRun{
+			{Sender: "wb-netd", ClassUID: ClassNetworkActivity, Decision: "refuse", Rule: "dns-rate", Count: 4, WindowSeconds: 12},
+		}),
+		"EventFromChannel network allow": EventFromChannel(channelFrom, ChannelEvent{
+			ClassUID: ClassNetworkActivity, Decision: "allow", Rule: "egress-allow", Host: "github.com", Port: 443,
+			BytesIn: 10, BytesOut: 20, Label: GuestLabel{Project: "p", Session: "s", User: "u", Program: "git"},
+		}),
+		"EventFromChannel network refuse": EventFromChannel(channelFrom, ChannelEvent{
+			ClassUID: ClassNetworkActivity, Decision: "refuse", Rule: "egress-default-deny",
+		}),
+		"EventFromChannel http": EventFromChannel(channelFrom, ChannelEvent{
+			ClassUID: ClassHTTPActivity, Decision: "refuse", Rule: "http-path", Host: "api.github.com", Port: 443,
+			Method: "POST", Path: "/repos/o/r/issues",
+		}),
+		"EventFromChannel http other": EventFromChannel(channelFrom, ChannelEvent{
+			ClassUID: ClassHTTPActivity, Decision: "allow", Rule: "http-allow", Method: "PROPFIND",
+		}),
+		"EventFromChannel finding": EventFromChannel(channelFrom, ChannelEvent{
+			ClassUID: ClassDetectionFinding, Decision: "refuse", Rule: "pin-mismatch", Host: "example.com",
+		}),
+		"RunFromChannel network": RunFromChannel(channelFrom, ChannelRun{
+			ClassUID: ClassNetworkActivity, Decision: "refuse", Rule: "audit-budget", Count: 9, WindowSeconds: 60,
+		}),
+		"RunFromChannel http open": RunFromChannel(channelFrom, ChannelRun{
+			ClassUID: ClassHTTPActivity, Decision: "refuse", Rule: "audit-bytes", Count: 9, WindowSeconds: 7, Open: true,
+		}),
+		"RunFromChannel finding": RunFromChannel(channelFrom, ChannelRun{
+			ClassUID: ClassDetectionFinding, Decision: "refuse", Rule: "placeholder-refused", Count: 2, WindowSeconds: 60,
+		}),
 	}
 }
+
+// channelFrom is a record of the event channel's source.
+var channelFrom = From{Slot: "isolated", Generation: 4, Sender: "wb-proxyd", Sequence: 17}
 
 func classKey(uid int) string {
 	switch uid {
@@ -80,6 +113,10 @@ func classKey(uid int) string {
 		return "detection_finding"
 	case ClassApplicationLifecycle:
 		return "application_lifecycle"
+	case ClassNetworkActivity:
+		return "network_activity"
+	case ClassHTTPActivity:
+		return "http_activity"
 	}
 	return ""
 }
@@ -87,6 +124,8 @@ func classKey(uid int) string {
 // objectOf is the OCSF object of each attribute that holds one.
 var objectOf = map[string]string{
 	"metadata": "metadata", "device": "device", "app": "product", "finding_info": "finding_info",
+	"src_endpoint": "network_endpoint", "dst_endpoint": "network_endpoint", "http_request": "http_request",
+	"traffic": "network_traffic",
 }
 
 // TestClassesRequired checks each record against OCSF 1.8.0: every
@@ -114,11 +153,17 @@ func checkRecord(t *testing.T, s schema, r Record) {
 		!slices.Contains(class.ActivityIDs, h.ActivityID) {
 		t.Errorf("category %d, type %d, activity %d don't fit class %d", h.CategoryUID, h.TypeUID, h.ActivityID, class.UID)
 	}
-	checkAttrs(t, "class", got, class.Required, nil, class.Attributes)
+	checkAttrs(t, "class", got, class.Required, class.AtLeastOne, class.Attributes)
 	for attr, obj := range objectOf {
 		if raw, ok := got[attr]; ok {
 			def := s.Objects[obj]
 			checkAttrs(t, attr, object(t, raw), def.Required, def.AtLeastOne, def.Attributes)
+		}
+	}
+	if raw, ok := got["http_request"]; ok {
+		if url, ok := object(t, raw)["url"]; ok {
+			def := s.Objects["url"]
+			checkAttrs(t, "http_request.url", object(t, url), def.Required, def.AtLeastOne, def.Attributes)
 		}
 	}
 }
@@ -161,7 +206,7 @@ func checkAttrs(t *testing.T, what string, got map[string]json.RawMessage, requi
 func TestNoCredentialFields(t *testing.T) {
 	seen := map[reflect.Type]bool{}
 	var problems []string
-	for _, e := range []Event{&ConfigChange{}, &AppLifecycle{}, &Finding{}} {
+	for _, e := range []Event{&ConfigChange{}, &AppLifecycle{}, &Finding{}, &NetworkActivity{}, &HTTPActivity{}} {
 		typ := reflect.TypeOf(e).Elem()
 		problems = walk(typ, typ.Name(), seen, problems)
 	}

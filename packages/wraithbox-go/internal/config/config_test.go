@@ -69,6 +69,10 @@ func TestAccepted(t *testing.T) {
 		{"retention at the minimum", "audit_retention_days = 30\n", with(func(c *Config) { c.AuditRetentionDays = 30 })},
 		{"retention a year", "audit_retention_days = 365\n", with(func(c *Config) { c.AuditRetentionDays = 365 })},
 		{"floor", "audit_free_space_floor = 4096\n", with(func(c *Config) { c.AuditFreeSpaceFloorMiB = 4096 })},
+		{"events per minute", "audit_events_per_minute = 100\n", with(func(c *Config) { c.AuditEventsPerMinute = 100 })},
+		{"events per minute at the top", "audit_events_per_minute = 1000000\n", with(func(c *Config) { c.AuditEventsPerMinute = 1_000_000 })},
+		{"bytes per day", "audit_vm_bytes_per_day = 1\n", with(func(c *Config) { c.AuditVMMiBPerDay = 1 })},
+		{"bytes per day at the top", "audit_vm_bytes_per_day = 1048576\n", with(func(c *Config) { c.AuditVMMiBPerDay = 1 << 20 })},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -116,6 +120,12 @@ func TestC12Refused(t *testing.T) {
 		{"retention as a string", "audit_retention_days = \"90\"\n", RuleValueInvalid, 1, "audit_retention_days"},
 		{"floor zero", "audit_free_space_floor = 0\n", RuleValueInvalid, 0, "audit_free_space_floor"},
 		{"floor over 1 EiB", "audit_free_space_floor = 1099511627777\n", RuleValueInvalid, 0, "audit_free_space_floor"},
+		{"events per minute zero", "audit_events_per_minute = 0\n", RuleValueInvalid, 0, "audit_events_per_minute"},
+		{"events per minute negative", "audit_events_per_minute = -6000\n", RuleValueInvalid, 0, "audit_events_per_minute"},
+		{"events per minute over the top", "audit_events_per_minute = 1000001\n", RuleValueInvalid, 0, "audit_events_per_minute"},
+		{"bytes per day zero", "audit_vm_bytes_per_day = 0\n", RuleValueInvalid, 0, "audit_vm_bytes_per_day"},
+		{"bytes per day over the top", "audit_vm_bytes_per_day = 1048577\n", RuleValueInvalid, 0, "audit_vm_bytes_per_day"},
+		{"bytes per day as a string", "audit_vm_bytes_per_day = \"64\"\n", RuleValueInvalid, 1, "audit_vm_bytes_per_day"},
 		{"upper-case key", "VM_CPU_COUNT = 2\n", RuleKeyUnknown, 1, "VM_CPU_COUNT"},
 		{"mixed-case key", "\nVm_Cpu_Count = 2\n", RuleKeyUnknown, 2, "Vm_Cpu_Count"},
 		{"case-variant duplicate", "vm_cpu_count = 2\nVM_CPU_COUNT = 3\n", RuleKeyUnknown, 2, "VM_CPU_COUNT"},

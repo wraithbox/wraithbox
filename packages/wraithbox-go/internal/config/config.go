@@ -58,6 +58,17 @@ const (
 	MaxAuditFreeSpaceFloorMiB = 1 << 40
 )
 
+// The audit budgets per VM (S09-11-audit, "Budgets"): the Network
+// Activity and HTTP Activity records of a calendar minute of UTC, and
+// the MiB of all records of a calendar day of UTC. The maximums keep a
+// budget a bound: a million records a minute, and 1 TiB a day.
+const (
+	DefaultAuditEventsPerMinute = 6000
+	MaxAuditEventsPerMinute     = 1_000_000
+	DefaultAuditVMMiBPerDay     = 64
+	MaxAuditVMMiBPerDay         = 1 << 20
+)
+
 // Rule names the rule behind a refusal, for the log and for the answer
 // wb gets in refusing mode.
 type Rule string
@@ -112,6 +123,13 @@ type Config struct {
 	// audit log refuses VM and session starts (S09-11-audit, "Free space
 	// and failed writes").
 	AuditFreeSpaceFloorMiB uint64
+	// AuditEventsPerMinute is each VM's budget of Network Activity and
+	// HTTP Activity records per minute (S09-11-audit, "Events per
+	// minute").
+	AuditEventsPerMinute uint64
+	// AuditVMMiBPerDay is each VM's budget of audit records per day, in
+	// MiB: audit_vm_bytes_per_day (S09-11-audit, "Bytes per day").
+	AuditVMMiBPerDay uint64
 }
 
 // Defaults returns the settings of a missing file.
@@ -119,12 +137,12 @@ func Defaults() Config {
 	return Config{
 		CPUCount: DefaultCPUCount, MemoryMiB: DefaultMemoryMiB, DataDiskGiB: diskfmt.DefaultSizeGiB,
 		AuditRetentionDays: DefaultAuditRetentionDays, AuditFreeSpaceFloorMiB: DefaultAuditFreeSpaceFloorMiB,
+		AuditEventsPerMinute: DefaultAuditEventsPerMinute, AuditVMMiBPerDay: DefaultAuditVMMiBPerDay,
 	}
 }
 
 // file is the closed set of keys. A key is added here only when its
-// feature exists. The event channel adds audit_events_per_minute
-// (S09-11-audit). Pointers tell a missing key from a zero.
+// feature exists. Pointers tell a missing key from a zero.
 type file struct {
 	CPUCount           *int64  `toml:"vm_cpu_count"`
 	MemoryMiB          *int64  `toml:"vm_memory_mib"`
@@ -132,6 +150,8 @@ type file struct {
 	Git                *string `toml:"git"`
 	AuditRetentionDays *int64  `toml:"audit_retention_days"`
 	AuditFreeSpaceMiB  *int64  `toml:"audit_free_space_floor"`
+	AuditEventsPerMin  *int64  `toml:"audit_events_per_minute"`
+	AuditVMMiBPerDay   *int64  `toml:"audit_vm_bytes_per_day"`
 }
 
 // renamedKeys maps a dotted key that a release renamed or removed to the
@@ -184,7 +204,9 @@ func load(ctx context.Context, path string, renamed map[string]string) (Config, 
 		slog.Uint64("vm_data_disk_gib", uint64(cfg.DataDiskGiB)),
 		slog.String("git", strconv.Quote(cfg.Git)),
 		slog.Uint64("audit_retention_days", uint64(cfg.AuditRetentionDays)),
-		slog.Uint64("audit_free_space_floor", cfg.AuditFreeSpaceFloorMiB))
+		slog.Uint64("audit_free_space_floor", cfg.AuditFreeSpaceFloorMiB),
+		slog.Uint64("audit_events_per_minute", cfg.AuditEventsPerMinute),
+		slog.Uint64("audit_vm_bytes_per_day", cfg.AuditVMMiBPerDay))
 	return cfg, nil
 }
 
@@ -370,6 +392,27 @@ func (f file) checkAudit(path string, cfg *Config) *Refusal {
 			return outOfRange(path, "audit_free_space_floor", v)
 		}
 		cfg.AuditFreeSpaceFloorMiB = uint64(v)
+	}
+	return f.checkBudgets(path, cfg)
+}
+
+// checkBudgets applies the audit budgets' keys. Each is a positive
+// integer up to its maximum: a budget of zero would refuse all work, and
+// none can be turned off (S09-11-audit, "Budgets").
+func (f file) checkBudgets(path string, cfg *Config) *Refusal {
+	if f.AuditEventsPerMin != nil {
+		v := *f.AuditEventsPerMin
+		if v <= 0 || v > MaxAuditEventsPerMinute {
+			return outOfRange(path, "audit_events_per_minute", v)
+		}
+		cfg.AuditEventsPerMinute = uint64(v)
+	}
+	if f.AuditVMMiBPerDay != nil {
+		v := *f.AuditVMMiBPerDay
+		if v <= 0 || v > MaxAuditVMMiBPerDay {
+			return outOfRange(path, "audit_vm_bytes_per_day", v)
+		}
+		cfg.AuditVMMiBPerDay = uint64(v)
 	}
 	return nil
 }
