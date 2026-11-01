@@ -34,16 +34,11 @@ On macOS (X18-vsock-handoff):
   has no `SOCK_SEQPACKET` for Unix domain sockets
   (S07-05-stream-hand-off, "Transport"). There is one for each VM's
   `wb-vmd` (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
-- Each message carries exactly one descriptor, and these fields:
-  kind, request id, VM generation, direction, source port and
-  destination port. The message is `HandoffMessage` in
-  `proto/wraithbox/vmd/v1/vmd.proto` (S04-08-records-and-bounds,
-  "`.proto` packages").
-- A message is one of two kinds. `KIND_CONNECTION` is a guest
-  connection, with its request id, direction, and ports.
-  `KIND_NETWORK` is the VM's packet transport (S07-02-packet-path,
-  "Packet transport"): the host end of a datagram socketpair, sent
-  once per generation before the VM starts, with the generation only.
+- Each message carries exactly one descriptor, and these fields: kind
+  (a guest connection, or the packet transport of S06-06-devices-and-warm-start,
+  "Network device per slot"), request id, VM generation, direction,
+  source port and destination port. The message is `HandoffMessage` in
+  `proto/wraithbox/vmd/v1/vmd.proto` (S04-08-records-and-bounds).
 - The receiver refuses the message when the descriptor count is not
   one, the socket type is wrong, or the message isn't one it asked
   for. It closes any descriptor in it, and logs the refusal. The
@@ -57,10 +52,9 @@ record over 256 bytes or truncated (`fdchan-record-size`,
 `wb-vmd` runs framework code on the guest's behalf, and refuses:
 
 - a record without a descriptor (`handoff-fd-count`);
-- a record of kind `KIND_UNSPECIFIED`, or of a kind it doesn't know
-  (`handoff-kind`);
-- for a guest connection, a descriptor that isn't an `AF_UNIX` stream
-  socket (`handoff-socket-type`);
+- a kind it doesn't know, or none (`handoff-kind`);
+- a guest connection that isn't an `AF_UNIX` stream socket
+  (`handoff-socket-type`);
 - a record that doesn't decode, or that has a field `HandoffMessage`
   doesn't (`handoff-malformed`);
 - generation 0, or one that isn't the current one
@@ -68,22 +62,11 @@ record over 256 bytes or truncated (`fdchan-record-size`,
 - request ID 0, one that isn't open, or a destination port other than
   the one that request asked for (`handoff-unexpected`);
 - a direction other than `DIRECTION_HOST_TO_GUEST` (`handoff-direction`);
-- a packet transport that isn't for the current generation, that comes
-  when none was asked for or after the generation already had one,
-  that has a request ID, direction or port, or whose descriptor isn't
-  an `AF_UNIX` datagram socket (`handoff-network-refused`).
+- a packet transport the current generation didn't ask for, or that
+  isn't an `AF_UNIX` datagram socket (`handoff-network-refused`).
 
-When a refused record names an open request, that request ends with
-the refusal. Opening a request of a newer generation ends every open
-request of the older one, the packet transport's included.
-
-`wb-hostd` opens the packet transport's request before it sends
-`Start`. A VM whose start returned no transport is stopped. The start
-is refused with the receiver's rule, with `handoff-missing` when the
-transport doesn't come within 5 seconds of `wb-vmd`'s answer, or with
-`vm-network-missing` when the provider returned none. The VM manager
-holds the descriptor in a type with no read or write method, and
-closes it when the run ends.
+A refused record ends the open request it names. A request of a newer
+generation ends every open request of the older one.
 
 ### The host opens every connection
 
@@ -245,13 +228,9 @@ SEC02-no-host-fs-share, SEC05-default-deny).
   does that before it creates any Virtualization device or attachment
   object. It refuses any other device, any other attachment, a second
   network device, and a disk or serial port file outside the VM's
-  bundle. The work and isolated VMs have exactly one network device,
-  with a file-handle attachment: one missing is refused with
-  `device-set-count`, and a second one with `device-set-network`. The
-  build VM has none until V1-M7-image-build, and the check refuses
-  every network device there (S06-06-devices-and-warm-start, "Network
-  device per slot"). Each refusal is logged with its rule, and returns
-  the rule in the gRPC error.
+  bundle. The network device per slot is in S06-06-devices-and-warm-start,
+  "Network device per slot". Each refusal is logged with its rule, and
+  returns the rule in the gRPC error.
 - **Why first.** Creating a disk attachment on a path the profile
   denies ends the confined process in an uncaught exception
   (X25-vmd-sandbox).
