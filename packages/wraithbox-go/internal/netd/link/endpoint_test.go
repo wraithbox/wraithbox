@@ -22,7 +22,8 @@ import (
 
 // fakeTransport reads the frames sent on reads, and io.EOF once reads is
 // closed. A read longer than the buffer is cut, as a datagram socket
-// cuts it. WriteFrame fails with ErrBusy busy times, then takes frames.
+// cuts it. WriteFrame fails with ErrBusy busy times, then takes frames,
+// and fails once the transport is closed.
 type fakeTransport struct {
 	reads chan []byte
 
@@ -53,6 +54,9 @@ func (t *fakeTransport) ReadFrame(buf []byte) (int, error) {
 func (t *fakeTransport) WriteFrame(frame []byte) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if t.closed {
+		return errors.New("fake: closed")
+	}
 	if t.fail != nil {
 		return t.fail
 	}
@@ -174,10 +178,12 @@ func TestEndpointQueueFull(t *testing.T) {
 			if got := rec.Count(netd.RuleLinkQueueFull); got != uint64(len(tc.sizes)-tc.sent) {
 				t.Fatalf("link-queue-full count %d, want %d", got, len(tc.sizes)-tc.sent)
 			}
-			ctx, cancel := context.WithCancel(context.Background())
-			cancel()
-			_ = e.Run(ctx)
+			// Run starts the writer, which sends the queued frames and
+			// stops, since the endpoint is closed. It returns io.EOF from
+			// the closed reads (TestEndpointDelivers).
 			e.Close()
+			close(ft.reads)
+			_ = e.Run(context.Background())
 			e.Wait()
 			if got := ft.writes(); got != tc.sent {
 				t.Fatalf("sent %d frames, want %d", got, tc.sent)
@@ -186,6 +192,30 @@ func TestEndpointQueueFull(t *testing.T) {
 				t.Fatalf("a frame after Close was sent")
 			}
 		})
+	}
+}
+
+// TestEndpointCancelDrops checks that once ctx is done and the transport
+// is closed, the frames still queued and queued later are dropped without
+// a link-write-failed record.
+func TestEndpointCancelDrops(t *testing.T) {
+	e, _, rec := newTestEndpoint(t, nt.Config())
+	if n, err := e.WritePackets(packets(60, 60)); n != 2 || err != nil {
+		t.Fatalf("WritePackets = %d, %v", n, err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := e.Run(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run = %v, want context.Canceled", err)
+	}
+	_, _ = e.WritePackets(packets(60))
+	e.Close()
+	e.Wait()
+	if n := rec.Count(netd.RuleLinkWriteFailed); n != 0 {
+		t.Fatalf("link-write-failed count %d, want 0", n)
+	}
+	if n := rec.Count(netd.RuleLinkQueueFull); n != 0 {
+		t.Fatalf("link-queue-full count %d, want 0", n)
 	}
 }
 

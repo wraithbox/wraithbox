@@ -117,7 +117,7 @@ type ipv4 struct {
 	payload  []byte // up to the header's total length
 }
 
-// checkIPv4 is step 5 and step 6.
+// checkIPv4 is step 5 and step 6 (SEC05-default-deny).
 func (f *Filter) checkIPv4(p []byte) (netd.Rule, bool) {
 	ip, ok := parseIPv4(p)
 	if !ok {
@@ -127,7 +127,18 @@ func (f *Filter) checkIPv4(p []byte) (netd.Rule, bool) {
 	if ip.src != f.leased && (ip.src != [4]byte{} || !dhcp) {
 		return netd.RuleIPv4Source, false
 	}
+	if f.badDestination(ip.dst) {
+		return netd.RuleIPv4Destination, false
+	}
 	return f.checkProtocol(ip, dhcp)
+}
+
+// badDestination is the destination check of step 5: the guest's own
+// leased address, 0.0.0.0/8 and 127.0.0.0/8. The stack would answer TCP
+// to the leased address with a reset to the gateway's own MAC, and drops
+// the other two itself, uncounted.
+func (f *Filter) badDestination(dst [4]byte) bool {
+	return dst == f.leased || dst[0] == 0 || dst[0] == 127
 }
 
 // parseIPv4 is the form check of step 5: version 4, a header of 20

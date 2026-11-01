@@ -38,6 +38,9 @@ const (
 	// RuleIPv4Source: step 5, a source other than the leased address,
 	// or 0.0.0.0 on anything but DHCP from port 68 to port 67.
 	RuleIPv4Source Rule = "ipv4-source"
+	// RuleIPv4Destination: step 5, a destination that is the leased
+	// address, or in 0.0.0.0/8 or 127.0.0.0/8.
+	RuleIPv4Destination Rule = "ipv4-destination"
 	// RuleIPBroadcast: step 6, multicast, or broadcast other than DHCP.
 	RuleIPBroadcast Rule = "ip-broadcast"
 	// RuleUDPNotDNS: step 6, UDP other than to the gateway's port 53 and
