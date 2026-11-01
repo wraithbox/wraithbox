@@ -488,8 +488,8 @@ Spec: S09-11-audit.
   `TestEndForgetsTheVM`).
 - Budgets: `TestEventsBudget` and `TestBytesBudget` in
   `internal/hostd/audit` see the rule and its end at the turn of the
-  minute or day, with every record still written, 5019 and 2004
-  records past the budget included. `TestBudgetWithWriter`
+  minute or day, with every record still written. That includes the
+  5019 and 2004 records past the budget. `TestBudgetWithWriter`
   in `internal/hostd/events` writes 6001 records and sees one notice
   that ends at the minute's turn. In `internal/eventchan`,
   `TestBudgetNoticeRefusesAndCounts` and `TestBytesNoticeRefuses` see
