@@ -220,12 +220,17 @@ that needs its own issue.
 - **Two-way decisions are the builder's call.** Internal design, values
   and naming. The builder makes the call and lists it under "Choices
   made" in the pull request body, one line each, so the maintainer can
-  skim and veto. Merging the pull request accepts them.
+  skim and veto. A choice that changes a spec page or a `SEC*` control
+  comes first and starts with its ID, as in `S07-11-http-policy: …`.
+  Merging the pull request accepts them.
 - **When a security trade-off is unclear, choose the strict option.**
   Name the likely breakage and its later fix, but don't design the fix
   until the breakage shows up.
 - **Questions wait for the end** of a wave or a run, and go to the
-  maintainer as one batch, up to four per question dialog.
+  maintainer as one batch, up to four per question dialog. A decision
+  that needs its reasons explained goes in the message text, with a
+  recommendation. The question dialog is for picking between options
+  already explained.
 - **The maintainer makes each decision, and the agent they answered
   posts it.** When the maintainer answers a decision in a session, that
   session's agent posts the `Decision (YYYY-MM-DD):` comment with

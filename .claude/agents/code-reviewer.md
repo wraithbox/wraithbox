@@ -23,6 +23,7 @@ need `planning.md`, `orchestration.md` or `spikes.md`.
    `git checkout --detach origin/<branch>`. Write the diff to
    `.scratch/review.diff` with `git diff origin/main...HEAD`. Use
    absolute paths or `cd <worktree> && <command>` in every Bash call.
+   Don't clean up `.scratch/`: it goes with the worktree.
 2. Run the `code-review` skill with the level first, then the worktree
    path and the range: `medium <worktree> origin/main...HEAD`. It runs
    as a background fork in the main checkout; its first result is a

@@ -35,7 +35,8 @@ absolute paths or `cd <worktree> && <command>` in every Bash call.
    shared: run fuzz targets for a short while, feed a parser crafted
    input in a test you write under `.scratch/` and do not commit, run
    `mise run vuln` and `mise run audit`. No pushes, no comments, no
-   network requests that change state anywhere.
+   network requests that change state anywhere. Don't clean up
+   `.scratch/`: it goes with the worktree.
 4. Check that each new parser of guest bytes has a fuzz target and each
    policy decision a test that sees it deny.
 
