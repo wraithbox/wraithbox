@@ -924,9 +924,11 @@ type HandoffMessage struct {
 	// The vsock port on the side that accepted it. 0 in a KIND_NETWORK
 	// record.
 	DestinationPort uint32 `protobuf:"varint,5,opt,name=destination_port,json=destinationPort,proto3" json:"destination_port,omitempty"`
-	Kind            Kind   `protobuf:"varint,6,opt,name=kind,proto3,enum=wraithbox.vmd.v1.Kind" json:"kind,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Required. KIND_UNSPECIFIED, or a kind this message doesn't name, is
+	// refused with `handoff-kind`.
+	Kind          Kind `protobuf:"varint,6,opt,name=kind,proto3,enum=wraithbox.vmd.v1.Kind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HandoffMessage) Reset() {

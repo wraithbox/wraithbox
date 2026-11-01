@@ -38,13 +38,17 @@ At each start `wb-vmd` makes the VM's packet transport, an `AF_UNIX`
 datagram socketpair, and gives one end to the attachment with an MTU
 of 65535. It sends the other end to `wb-hostd` on the hand-off channel
 before it starts the VM (S07-02-packet-path, "Packet transport";
-S04-02-vm-provider, "Hand-off on macOS").
+S04-02-vm-provider, "Hand-off on macOS"). When it can't make or set up
+the socketpair, it refuses the start with `vm-network-failed`.
 
 `wb-hostd` opens the packet transport's request before it sends
 `Start`. A VM whose start returned no transport is stopped. The start
 is refused with the receiver's rule, with `handoff-missing` when the
 transport doesn't come within 5 seconds of `wb-vmd`'s answer, or with
-`vm-network-missing` when the provider returned none. The VM manager
+`vm-network-missing` when the provider returned none. When `wb-hostd`
+cancels a start, the generation gets no other transport, and a record
+of it that comes late is closed and logged at info as
+`handoff-network-refused`. The VM manager
 holds the descriptor in a type with no read or write method, and
 closes it when the run ends.
 

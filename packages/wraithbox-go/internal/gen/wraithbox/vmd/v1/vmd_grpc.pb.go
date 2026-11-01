@@ -53,7 +53,9 @@ const (
 type VMServiceClient interface {
 	// Start boots the VM. wb-vmd checks its own description of the
 	// configuration against the fixed device set first, and refuses with
-	// the rule when it doesn't match.
+	// the rule when it doesn't match. It refuses with `vm-network-failed`
+	// when it can't make or set up the packet transport's socketpair
+	// (S06-06-devices-and-warm-start, "Network device per slot").
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
 	// Stop stops the VM in the way `mode` names.
 	Stop(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StopResponse, error)
@@ -147,7 +149,9 @@ func (c *vMServiceClient) ConnectGuest(ctx context.Context, in *ConnectGuestRequ
 type VMServiceServer interface {
 	// Start boots the VM. wb-vmd checks its own description of the
 	// configuration against the fixed device set first, and refuses with
-	// the rule when it doesn't match.
+	// the rule when it doesn't match. It refuses with `vm-network-failed`
+	// when it can't make or set up the packet transport's socketpair
+	// (S06-06-devices-and-warm-start, "Network device per slot").
 	Start(context.Context, *StartRequest) (*StartResponse, error)
 	// Stop stops the VM in the way `mode` names.
 	Stop(context.Context, *StopRequest) (*StopResponse, error)
