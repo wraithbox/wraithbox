@@ -120,6 +120,29 @@ message VMStatus {
   // unset when it refuses neither (S09-11-audit, "Free space and failed
   // writes"). wb status takes it over in M4.6.
   AuditRefusal audit_refusal = 9;
+  // The VM's use of its audit budgets, and the rule while it is over one
+  // (S09-11-audit, "Budgets").
+  AuditBudget audit_budget = 10;
+}
+
+// AuditBudget is a VM's use of its audit budgets. Over a budget, its
+// wb-netd and wb-proxyd refuse new work with the rule until the minute
+// or the day turns. Every record is still written.
+message AuditBudget {
+  // audit-bytes: the VM's records reached audit_vm_bytes_per_day this
+  // UTC day. audit-budget: its Network Activity and HTTP Activity
+  // records reached audit_events_per_minute this UTC minute. Empty when
+  // the VM is under both.
+  string rule = 1;
+  // When the refusal ends, in Unix seconds. 0 when rule is empty.
+  int64 until_unix = 2;
+  // The VM's Network Activity and HTTP Activity records this UTC minute,
+  // and the budget.
+  uint64 events_this_minute = 3;
+  uint64 events_per_minute = 4;
+  // The bytes of the VM's records this UTC day, and the budget.
+  uint64 bytes_today = 5;
+  uint64 bytes_per_day = 6;
 }
 
 // AuditRefusal is the rule by which the audit log refuses a VM's start

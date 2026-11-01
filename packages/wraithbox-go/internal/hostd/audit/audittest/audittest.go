@@ -19,6 +19,24 @@ type Recorder struct {
 	refusal *audit.Refusal
 	// writeRefusal refuses Write alone.
 	writeRefusal *audit.Refusal
+	budgets      map[string]audit.Budget
+}
+
+// SetBudget makes Budget return b for slot.
+func (r *Recorder) SetBudget(slot string, b audit.Budget) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.budgets == nil {
+		r.budgets = map[string]audit.Budget{}
+	}
+	r.budgets[slot] = b
+}
+
+// Budget returns the budget set for slot, or none.
+func (r *Recorder) Budget(slot string) audit.Budget {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.budgets[slot]
 }
 
 // Refuse makes CanStart, CanOpenSession, Write and Refusal refuse with

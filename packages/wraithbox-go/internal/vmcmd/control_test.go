@@ -391,6 +391,36 @@ func TestStatusAuditRefusal(t *testing.T) {
 	}
 }
 
+// TestStatusAuditBudget: the audit budgets print with their use, and
+// with the rule, without escapes, and its end while the VM is over one
+// (S09-11-audit, "Budgets").
+func TestStatusAuditBudget(t *testing.T) {
+	tests := []struct {
+		b    *hostdv1.AuditBudget
+		want string
+	}{
+		{
+			&hostdv1.AuditBudget{EventsThisMinute: 12, EventsPerMinute: 6000, BytesToday: 3 << 19, BytesPerDay: 64 << 20},
+			"  audit budgets: 12 of 6000 events this minute, 1.5 of 64.0 MiB today\n",
+		},
+		{
+			&hostdv1.AuditBudget{
+				Rule: "audit-budget\x1b[2J", UntilUnix: 1_800_000_000, EventsThisMinute: 6000, EventsPerMinute: 6000, BytesPerDay: 64 << 20,
+			},
+			"  audit budgets: 6000 of 6000 events this minute, 0.0 of 64.0 MiB today, over, rule audit-budget[2J, until 2027-01-15T08:00:00Z\n",
+		},
+	}
+	for _, tt := range tests {
+		f := newFixture(t, "")
+		h := scripted{status: &hostdv1.VMStatus{Phase: hostdv1.VMPhase_VM_PHASE_STOPPED, LinkState: hostdv1.LinkState_LINK_STATE_DOWN, AuditBudget: tt.b}}
+		code := f.runWith(func(e *vmcmd.Env) { e.Dial = func(context.Context) (vmcmd.Hostd, error) { return h, nil } }, "status", "work")
+		want := "work VM: stopped, generation 0\n" + tt.want
+		if code != 0 || f.stdout.String() != want {
+			t.Errorf("exit %d, stdout %q, want %q", code, f.stdout.String(), want)
+		}
+	}
+}
+
 // TestStatusFailure: a failed status call prints one wraith box line
 // with its rule, without escapes.
 func TestStatusFailure(t *testing.T) {

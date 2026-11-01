@@ -66,7 +66,26 @@ func printStatus(env Env, slot string, s *hostdv1.VMStatus) {
 	if r := s.GetAuditRefusal(); r != nil {
 		fmt.Fprintf(env.Stdout, "  audit log: %s\n", auditRefusalText(r))
 	}
+	if b := s.GetAuditBudget(); b != nil {
+		fmt.Fprintf(env.Stdout, "  audit budgets: %s\n", auditBudgetText(b))
+	}
 }
+
+// auditBudgetText is the VM's use of its audit budgets, and the rule
+// and its end while the VM is over one (S09-11-audit, "Budgets").
+func auditBudgetText(b *hostdv1.AuditBudget) string {
+	text := fmt.Sprintf("%d of %d events this minute, %.1f of %.1f MiB today",
+		b.GetEventsThisMinute(), b.GetEventsPerMinute(), mib(b.GetBytesToday()), mib(b.GetBytesPerDay()))
+	if rule := b.GetRule(); rule != "" {
+		text += ", over, rule " + printable(rule)
+	}
+	if until := b.GetUntilUnix(); until != 0 {
+		text += ", until " + time.Unix(until, 0).UTC().Format(time.RFC3339)
+	}
+	return text
+}
+
+func mib(n uint64) float64 { return float64(n) / (1 << 20) }
 
 // auditRefusalText is the audit log's refusal of VM starts, and of new
 // sessions when it covers them: its rule, wb-hostd's text, and when it
