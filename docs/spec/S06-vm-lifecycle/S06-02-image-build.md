@@ -111,10 +111,9 @@ without the install rules (S04-04-vm-processes), makes the layer, and
 seals it again (S06-01-image-layers, "The Claude Code layer"). A build
 for a new Claude Code release does only that part.
 
-After the rotation the secure token keeps working, and the host alone
-can unlock it. macOS refuses to delete `wbadmin`, because it holds the
-volume's only secure token. So the image keeps it as a
-host-administered account.
+After the rotation the secure token works, and the host alone can unlock
+it. macOS refuses to delete `wbadmin`, which holds the volume's only
+secure token. The image keeps it as a host-administered account.
 
 #### The guest admin password
 
