@@ -3,6 +3,7 @@ package guestd
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +16,7 @@ import (
 
 // stubbornTable lists one process in the project range that SIGSTOP
 // never stops, so a stop loop runs until a bound or its ctx ends. stops
-// gets one value per SIGSTOP sent.
+// is closed at the first SIGSTOP sent.
 type stubbornTable struct {
 	once  sync.Once
 	stops chan struct{}
@@ -34,41 +35,113 @@ func (t *stubbornTable) Signal(gp.Proc, gp.Signal) error {
 
 func (*stubbornTable) Bootout(context.Context, uint32) error { return nil }
 
+// gateClock moves only when a loop sleeps. Its first Sleep closes in
+// and waits until out is closed, so a test can act while the stop loop
+// runs and holds HoldStops off.
+type gateClock struct {
+	once    sync.Once
+	in, out chan struct{}
+
+	mu  sync.Mutex
+	now time.Time
+}
+
+func (c *gateClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *gateClock) Sleep(_ context.Context, d time.Duration) {
+	c.once.Do(func() { close(c.in); <-c.out })
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.now = c.now.Add(d)
+}
+
+// eventLog records events in the order they happen.
+type eventLog struct {
+	mu     sync.Mutex
+	events []string
+}
+
+func (e *eventLog) add(ev string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.events = append(e.events, ev)
+}
+
+func (e *eventLog) list() []string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return slices.Clone(e.events)
+}
+
+// loopEndHandler adds "loop-end" to events when a stop loop logs that
+// it ended with processes left. StopAll logs that before HoldStops can
+// return.
+type loopEndHandler struct{ events *eventLog }
+
+func (loopEndHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h loopEndHandler) Handle(_ context.Context, r slog.Record) error {
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == "decision" && a.Value.String() == "processes-left" {
+			h.events.add("loop-end")
+			return false
+		}
+		return true
+	})
+	return nil
+}
+
+func (h loopEndHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
+
+func (h loopEndHandler) WithGroup(string) slog.Handler { return h }
+
 // TestLinkWatchRunsToItsBounds: a new connection doesn't end the
 // link-drop stop loop. It runs to its bounds, and a shell start's
 // HoldStops waits for it (S13-01-process-hardening, "When the link
-// drops").
+// drops"). The test waits on events, not on time. The loop logs its
+// end before it lets HoldStops return, so the event log shows whether
+// HoldStops returned early, with no race between the loop's result and
+// HoldStops' return.
 func TestLinkWatchRunsToItsBounds(t *testing.T) {
 	table := &stubbornTable{stops: make(chan struct{})}
-	results := make(chan procs.StopResult, 1)
+	clock := &gateClock{in: make(chan struct{}), out: make(chan struct{}), now: time.Unix(1_800_000_000, 0)}
+	events := &eventLog{}
+	results := make(chan procs.StopResult, 2)
 	w := &linkWatch{
-		loops: procs.New(table, procs.SystemClock{}, slog.New(slog.DiscardHandler)),
+		loops: procs.New(table, clock, slog.New(loopEndHandler{events: events})),
 		log:   slog.New(slog.DiscardHandler),
 		done:  func(r procs.StopResult) { results <- r },
 	}
 	c1 := w.TagConn(context.Background(), &stats.ConnTagInfo{})
 	w.HandleConn(c1, &stats.ConnBegin{})
 	w.HandleConn(c1, &stats.ConnEnd{})
-	select {
-	case <-table.stops:
-	case <-time.After(10 * time.Second):
-		t.Fatal("the stop loop sent no SIGSTOP")
-	}
+	<-table.stops
+	// The loop sent SIGSTOP and waits in its first round's settle.
+	<-clock.in
 	c2 := w.TagConn(context.Background(), &stats.ConnTagInfo{})
 	w.HandleConn(c2, &stats.ConnBegin{})
+	calling := make(chan struct{})
 	held := make(chan func(), 1)
-	go func() { held <- w.loops.HoldStops() }()
-	select {
-	case r := <-results:
-		if r.CutShort || r.Running == 0 {
-			t.Errorf("result %+v, want the loop run to its bounds", r)
-		}
-	case <-held:
-		t.Fatal("HoldStops returned while the stop loop ran")
-	case <-time.After(15 * time.Second):
-		t.Fatal("the stop loop didn't end at its bounds")
+	go func() {
+		close(calling)
+		release := w.loops.HoldStops()
+		events.add("held")
+		held <- release
+	}()
+	<-calling
+	close(clock.out)
+	r := <-results
+	if r.CutShort || r.Running == 0 || r.Rounds != procs.MaxRounds {
+		t.Errorf("result %+v, want the loop run to its bound of %d rounds", r, procs.MaxRounds)
 	}
 	(<-held)()
+	if got := events.list(); !slices.Equal(got, []string{"loop-end", "held"}) {
+		t.Errorf("events %q, want HoldStops to return after the stop loop ended", got)
+	}
 	if w.dropped(c1) {
 		t.Error("dropped with a new connection up")
 	}
