@@ -365,8 +365,7 @@ func TestDialCancelled(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error %v, want context.Canceled", err)
 	}
-	var r *Refusal
-	if errors.As(err, &r) {
+	if r, ok := errors.AsType[*Refusal](err); ok {
 		t.Fatalf("a cancelled Dial gave refusal %v", r)
 	}
 	if want := []string{"8.8.8.8:443"}; !slices.Equal(h.conn.dialed, want) {

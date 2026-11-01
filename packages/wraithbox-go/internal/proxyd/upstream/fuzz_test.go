@@ -79,13 +79,13 @@ func FuzzUpstreamAddress(f *testing.F) {
 		}
 		b := [16]byte(raw)
 		a := netip.AddrFrom16(b)
-		name, refused := Refused(a)
+		name, refused := rangeRefused(a)
 		if want := v6RangeRefused(b) || embeddedRefused(b); refused != want {
-			t.Fatalf("Refused(%s) = %q, %v; the oracle says %v", a, name, refused, want)
+			t.Fatalf("rangeRefused(%s) = %q, %v; the oracle says %v", a, name, refused, want)
 		}
 		if a.Is4In6() {
-			if _, refused4 := Refused(a.Unmap()); refused4 != refused {
-				t.Fatalf("Refused(%s) = %v, but its IPv4 form %s gives %v", a, refused, a.Unmap(), refused4)
+			if _, refused4 := rangeRefused(a.Unmap()); refused4 != refused {
+				t.Fatalf("rangeRefused(%s) = %v, but its IPv4 form %s gives %v", a, refused, a.Unmap(), refused4)
 			}
 		}
 	})

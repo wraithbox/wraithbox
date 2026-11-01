@@ -106,11 +106,12 @@ func match(ranges []addrRange, a netip.Addr) (addrRange, bool) {
 	return addrRange{}, false
 }
 
-// Refused reports whether S07-07-hosts-and-modes, "Upstream address",
-// refuses the address by its ranges alone, and the name of the range
-// that does. The host's own networks aren't part of it: those are read
-// at each connect, in Dialer.Dial.
-func Refused(a netip.Addr) (rangeName string, refused bool) {
+// rangeRefused reports whether S07-07-hosts-and-modes, "Upstream
+// address", refuses the address by its ranges alone, and the name of
+// the range that does. It is unexported so no caller takes it for the
+// whole check: the host's own networks are read at each connect, in
+// Dialer.Dial. The tests and FuzzUpstreamAddress use it.
+func rangeRefused(a netip.Addr) (rangeName string, refused bool) {
 	r, ok := match(defaultRanges, a)
 	return r.name, ok
 }
