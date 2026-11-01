@@ -85,6 +85,7 @@ func (m *Manager) unreserve(slot Slot) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.slots[slot].phase = PhaseStopped
+	m.slots[slot].forced = ""
 }
 
 // prepare runs the steps before the provider: the bundle, the data
@@ -194,17 +195,26 @@ func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64) error 
 		m.unreserve(slot)
 		return m.refuse(ctx, "start", ref)
 	}
+	// From here the start record is written, so every way out writes a
+	// stop record too.
+	if cause := m.takeForced(slot); cause != "" {
+		return m.abortStart(ctx, slot, generation, forcedRefusal(slot, generation, cause))
+	}
 	inst, ref := m.open(ctx, slot, generation)
 	if ref != nil {
-		m.unreserve(slot)
-		return m.refuse(ctx, "start", ref)
+		return m.abortStart(ctx, slot, generation, ref)
 	}
 	r := newRun(slot, generation, inst)
 	m.mu.Lock()
 	rec := m.slots[slot]
 	rec.run, rec.generation, rec.lastErr = r, generation, nil
+	cause := rec.forced
+	rec.forced = ""
 	m.mu.Unlock()
 	m.runs.Go(func() { m.watch(context.WithoutCancel(ctx), r) })
+	if cause != "" {
+		return m.refuse(ctx, "start", m.startFailed(ctx, r, forcedRefusal(slot, generation, cause)))
+	}
 	if ref := m.startVM(ctx, r, req); ref != nil {
 		return m.refuse(ctx, "start", m.startFailed(ctx, r, ref))
 	}
@@ -227,6 +237,33 @@ func (m *Manager) recordStart(ctx context.Context, slot Slot, req *vmdv1.StartRe
 		return auditRefusal(slot, req.GetGeneration(), err)
 	}
 	return nil
+}
+
+// takeForced returns and clears the cause of a ForceStop that came
+// while slot was starting without a run.
+func (m *Manager) takeForced(slot Slot) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cause := m.slots[slot].forced
+	m.slots[slot].forced = ""
+	return cause
+}
+
+// forcedRefusal refuses a start that the audit writer stopped before
+// the VM ran (SEC10-audit).
+func forcedRefusal(slot Slot, generation uint64, cause string) *Refusal {
+	return &Refusal{
+		Rule: Rule(cause), Slot: slot, Generation: generation,
+		Message: fmt.Sprintf("the %s VM's start was stopped by the audit writer (%s). Run wb vm status for the reason", slot, cause),
+	}
+}
+
+// abortStart ends a start that has its start record but no run: the
+// slot is stopped again, and the stop record says why, as a failure.
+func (m *Manager) abortStart(ctx context.Context, slot Slot, generation uint64, ref *Refusal) error {
+	m.unreserve(slot)
+	m.cfg.Audit.Record(audit.VMStopped(string(slot), generation, string(ref.Rule), "start failed", true))
+	return m.refuse(ctx, "start", ref)
 }
 
 // startVM runs the provider's start within StartTimeout. The call runs

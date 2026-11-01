@@ -2,6 +2,7 @@ package vm_test
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -168,4 +169,43 @@ func TestAuditRuleFromProviderRefused(t *testing.T) {
 	refusal(t, m.Start(t.Context(), vm.SlotWork), vm.RuleProviderFailed)
 	waitStopRecord(t, h)
 	checkRecord(t, h, "vm stopped", string(vm.RuleProviderFailed), statusFailure)
+}
+
+// A ForceStop that comes while the start has no run yet ends the start
+// once the run is set: the VM never starts, and the start is refused
+// with the writer's rule (SEC10-audit).
+func TestAuditForceStopDuringBoot(t *testing.T) {
+	h := newHarness(t)
+	var m *vm.Manager
+	h.provider.OnOpen = func(context.Context, vm.Slot) error {
+		m.ForceStop(string(vm.SlotWork), audit.RuleWriteFailed)
+		return nil
+	}
+	m = h.manager()
+	refusal(t, m.Start(t.Context(), vm.SlotWork), vm.Rule(audit.RuleWriteFailed))
+	waitStopped(t, m, vm.SlotWork)
+	if inst := h.provider.Last(); !inst.Closed() || len(inst.Starts()) != 0 {
+		t.Errorf("closed %v, starts %v: want closed and never started", inst.Closed(), inst.Starts())
+	}
+	waitStopRecord(t, h)
+	checkRecord(t, h, "vm stopped", audit.RuleWriteFailed, statusFailure)
+}
+
+// A start whose provider can't open an instance, after its start record
+// is written, gets a failed stop record.
+func TestAuditOpenFailedRecorded(t *testing.T) {
+	h := newHarness(t)
+	h.provider.OpenErr = errors.New("no wb-vmd")
+	m := h.manager()
+	if err := m.Start(t.Context(), vm.SlotWork); err == nil {
+		t.Fatal("start accepted")
+	}
+	got := h.audit.Messages()
+	if len(got) < 2 || !slices.Equal(got[len(got)-2:], []string{"vm start", "vm stopped"}) {
+		t.Fatalf("records %q, want vm start, vm stopped last", got)
+	}
+	r := h.audit.Find("vm stopped")[0]
+	if r.StatusID() != statusFailure || r.Fields().Rule == "" {
+		t.Errorf("stopped record status %d, rule %q", r.StatusID(), r.Fields().Rule)
+	}
 }
