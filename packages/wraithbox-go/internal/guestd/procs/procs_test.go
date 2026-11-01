@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/procs"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
 	gp "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestprocs"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsched"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectuser"
 )
 
@@ -41,9 +43,14 @@ type fakeTable struct {
 	respawn  int
 	nextPID  int32
 	bootouts []uint32
-	signals  []string
-	listErr  error
-	ranges   [][2]uint32
+	// calls lists the signals, bootouts and clears in order.
+	calls   []string
+	listErr error
+	ranges  [][2]uint32
+	// tabs holds the users with a crontab, and jobsFails is how many
+	// Clear calls fail.
+	tabs      map[string]bool
+	jobsFails int
 }
 
 func (f *fakeTable) ByUID(uid uint32) ([]gp.Proc, error) {
@@ -80,7 +87,7 @@ func (f *fakeTable) InRange(first, last uint32) ([]gp.Proc, error) {
 func (f *fakeTable) Signal(p gp.Proc, sig gp.Signal) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.signals = append(f.signals, sig.String())
+	f.calls = append(f.calls, sig.String())
 	for i, q := range f.procs {
 		if q.Key() != p.Key() {
 			continue
@@ -100,12 +107,28 @@ func (f *fakeTable) Bootout(_ context.Context, uid uint32) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.bootouts = append(f.bootouts, uid)
+	f.calls = append(f.calls, "bootout")
 	if f.respawn > 0 {
 		f.respawn--
 		f.nextPID++
 		f.procs = append(f.procs, gp.Proc{PID: f.nextPID, Start: 1, UID: uid, RUID: uid, Name: "agent", State: gp.Running})
 	}
 	return errors.New("no such domain")
+}
+
+// Clear is the kill loop's procs.Jobs: it removes the crontab of name
+// when tabs holds one, or fails with jobsErr for jobsFails calls.
+func (f *fakeTable) Clear(name string, _ uint32) (guestsched.Cleared, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, "clear "+name)
+	if f.jobsFails > 0 {
+		f.jobsFails--
+		return guestsched.Cleared{}, errors.New("unlink: operation not permitted")
+	}
+	c := guestsched.Cleared{Tab: f.tabs[name]}
+	delete(f.tabs, name)
+	return c, nil
 }
 
 func proc(pid int32, uid uint32, name string) gp.Proc {
@@ -116,7 +139,7 @@ func newLoops(t *testing.T, table *fakeTable) (*procs.Loops, *fakeClock, *bytes.
 	t.Helper()
 	var buf bytes.Buffer
 	clock := &fakeClock{now: time.Unix(1_800_000_000, 0)}
-	return procs.New(table, clock, slog.New(slog.NewJSONHandler(&buf, nil))), clock, &buf
+	return procs.New(table, table, clock, slog.New(slog.NewJSONHandler(&buf, nil))), clock, &buf
 }
 
 func TestMaxLeftIsTheWireCap(t *testing.T) {
@@ -154,6 +177,57 @@ func TestKillBootsOutWithNoProcess(t *testing.T) {
 	l, _, _ := newLoops(t, table)
 	if res := l.Kill(t.Context(), 10000); !res.Clean() || res.Rounds != 1 || len(table.bootouts) != 1 {
 		t.Errorf("Kill = %+v, bootouts %v", res, table.bootouts)
+	}
+}
+
+// TestKillClearsJobs: each round removes the user's crontab before its
+// first signal, logs the removal with RuleJobs, and leaves another
+// user's crontab (S13-01-process-hardening, "Cron and at").
+func TestKillClearsJobs(t *testing.T) {
+	table := &fakeTable{
+		procs: []gp.Proc{proc(100, 10000, "cron-job")}, respawn: 1, nextPID: 500,
+		tabs: map[string]bool{"wbp10000": true, "wbp10001": true},
+	}
+	l, _, log := newLoops(t, table)
+	if res := l.Kill(t.Context(), 10000); !res.Clean() || res.Rounds != 2 {
+		t.Fatalf("Kill = %+v, want clean in two rounds", res)
+	}
+	want := []string{"clear wbp10000", "SIGKILL", "bootout", "clear wbp10000", "SIGKILL", "bootout"}
+	if !slices.Equal(table.calls, want) {
+		t.Errorf("calls %v, want %v", table.calls, want)
+	}
+	if !table.tabs["wbp10001"] || table.tabs["wbp10000"] {
+		t.Errorf("tabs left %v, want only wbp10001's", table.tabs)
+	}
+	if !strings.Contains(log.String(), `"rule":"`+procs.RuleJobs+`"`) ||
+		!strings.Contains(log.String(), `"decision":"removed"`) {
+		t.Errorf("log %s", log)
+	}
+}
+
+// TestKillJobsLeft: a clear that fails in every round makes the kill
+// not clean, with no process left, and logs both rules. A clear that
+// fails once and then succeeds makes it clean.
+func TestKillJobsLeft(t *testing.T) {
+	table := &fakeTable{jobsFails: procs.MaxRounds}
+	l, _, log := newLoops(t, table)
+	res := l.Kill(t.Context(), 10000)
+	if res.Clean() || res.Left != 1 || res.Rounds != procs.MaxRounds {
+		t.Errorf("Kill = %+v, want 1 left after MaxRounds", res)
+	}
+	for _, s := range []string{
+		`"rule":"` + procs.RuleJobs + `"`, `"decision":"jobs-left"`,
+		`"rule":"` + procs.RuleKillIncomplete + `"`, `"jobs_error":`,
+	} {
+		if !strings.Contains(log.String(), s) {
+			t.Errorf("log lacks %s: %s", s, log)
+		}
+	}
+
+	table = &fakeTable{jobsFails: 1}
+	l, _, _ = newLoops(t, table)
+	if res := l.Kill(t.Context(), 10000); !res.Clean() || res.Rounds != 2 {
+		t.Errorf("Kill after one failed clear = %+v, want clean in two rounds", res)
 	}
 }
 

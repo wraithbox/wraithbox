@@ -6,7 +6,9 @@
 // the disk's version isn't its own (internal/guestupdate), and runs the
 // installed wb-guestd in its place. Then it runs the stop loop, so no
 // project user's process runs on while no host is connected
-// (S13-01-process-hardening, "When the link drops").
+// (S13-01-process-hardening, "When the link drops"), and closes cron
+// and at to every user but root (S13-01-process-hardening, "Cron and
+// at").
 //
 // It logs one JSON object per line on standard error, as wb-vmd does.
 // The service manager sends standard error to a file in the guest.
@@ -23,6 +25,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/shell"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestupdate"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsched"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsock"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
@@ -63,6 +66,14 @@ func run() int {
 	// SEC08-proj-isolation).
 	loops := guestd.SystemProcesses(log)
 	loops.StopAll(ctx, "start")
+
+	// cron and at start a user's jobs as root, outside the kill loop's
+	// reach, so no project user may add one. A failure exits before
+	// any project user is made or unlocked (S13-01-process-hardening,
+	// "Cron and at"; SEC08-proj-isolation).
+	if !guestd.LockSchedulers(ctx, log, guestsched.Lock) {
+		return 1
+	}
 
 	lis, err := guestsock.Listen(ctx, log, guestsock.Port)
 	if errors.Is(err, context.Canceled) {

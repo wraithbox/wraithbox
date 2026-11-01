@@ -12,6 +12,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/procs"
 	gp "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestprocs"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestsched"
 )
 
 // stubbornTable lists one process in the project range that SIGSTOP
@@ -34,6 +35,10 @@ func (t *stubbornTable) Signal(gp.Proc, gp.Signal) error {
 }
 
 func (*stubbornTable) Bootout(context.Context, uint32) error { return nil }
+
+func (*stubbornTable) Clear(string, uint32) (guestsched.Cleared, error) {
+	return guestsched.Cleared{}, nil
+}
 
 // gateClock moves only when a loop sleeps. Its first Sleep closes in
 // and waits until out is closed, so a test can act while the stop loop
@@ -134,7 +139,7 @@ func TestLinkWatchRunsToItsBounds(t *testing.T) {
 	events := &eventLog{}
 	results := make(chan procs.StopResult, 2)
 	w := &linkWatch{
-		loops: procs.New(table, clock, slog.New(loopEndHandler{events: events})),
+		loops: procs.New(table, table, clock, slog.New(loopEndHandler{events: events})),
 		log:   slog.New(slog.DiscardHandler),
 		done:  func(r procs.StopResult) { results <- r },
 	}

@@ -155,7 +155,7 @@ func newUsersEnv(t *testing.T, mount bool, rootMount guestmount.Mount) *usersEnv
 	log := slog.New(slog.DiscardHandler)
 	m := users.New(e.dir, open, log)
 	srv := guestd.NewServer(v, log, guestd.WithDataMount(dm), guestd.WithUsers(m),
-		guestd.WithProcesses(procs.New(e.table, newInstantClock(), log)), guestd.WithRemoval(e.empty, open))
+		guestd.WithProcesses(procs.New(e.table, e.table, newInstantClock(), log)), guestd.WithRemoval(e.empty, open))
 	go func() { _ = srv.Serve(newOneConn(guest)) }()
 	t.Cleanup(srv.Stop)
 	link, err := guestlink.Hello(t.Context(), host, v, slog.New(slog.DiscardHandler))

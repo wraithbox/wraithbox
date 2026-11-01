@@ -64,6 +64,7 @@ guestmount
 datamount
 wbhomes
 guesttools
+guestsched
 guestupdate
 guestusers
 guestprocs
@@ -486,6 +487,7 @@ DSSE
 pgrep
 guestroot
 crontabs
+atrun
 sessionproc
 ctty
 setctty
