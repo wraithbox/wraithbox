@@ -31,13 +31,22 @@ The work and isolated VMs have exactly one network device, with a
 file-handle attachment. The build VM has none until V1-M7-image-build
 gives it its build network, and `wb-vmd` refuses every network device
 there (I160). Each other kind of network attachment stays refused in
-every slot.
+every slot. A missing network device is refused with
+`device-set-count`, and a second one with `device-set-network`.
 
 At each start `wb-vmd` makes the VM's packet transport, an `AF_UNIX`
 datagram socketpair, and gives one end to the attachment with an MTU
 of 65535. It sends the other end to `wb-hostd` on the hand-off channel
 before it starts the VM (S07-02-packet-path, "Packet transport";
 S04-02-vm-provider, "Hand-off on macOS").
+
+`wb-hostd` opens the packet transport's request before it sends
+`Start`. A VM whose start returned no transport is stopped. The start
+is refused with the receiver's rule, with `handoff-missing` when the
+transport doesn't come within 5 seconds of `wb-vmd`'s answer, or with
+`vm-network-missing` when the provider returned none. The VM manager
+holds the descriptor in a type with no read or write method, and
+closes it when the run ends.
 
 #### MAC address
 
