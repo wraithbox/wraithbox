@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -373,5 +374,25 @@ func TestDialCancelled(t *testing.T) {
 	}
 	if recs := h.log.records(t); len(recs) != 0 {
 		t.Fatalf("log records %v, want none", recs)
+	}
+}
+
+// The host and the lookup's error reach the log without escape
+// sequences and cut to maxLogText bytes.
+func TestDialLogEscapes(t *testing.T) {
+	h := newHarness(nil, nil)
+	h.res.err = errors.New("lookup \x1b]0;title\x07" + strings.Repeat("e", 2*maxLogText))
+	_, err := h.d.Dial(t.Context(), "evil\x1b[2J.example", 443)
+	wantRefusal(t, err, RuleResolveFailed)
+	recs := h.log.records(t)
+	if len(recs) != 1 {
+		t.Fatalf("%d log records, want 1", len(recs))
+	}
+	if got := recs[0]["host"]; got != "evil[2J.example" {
+		t.Fatalf("logged host %q, want it without ESC", got)
+	}
+	msg, _ := recs[0]["err"].(string)
+	if strings.ContainsAny(msg, "\x1b\x07") || len(msg) > maxLogText {
+		t.Fatalf("logged error %q (%d bytes), want no controls and at most %d bytes", msg, len(msg), maxLogText)
 	}
 }
