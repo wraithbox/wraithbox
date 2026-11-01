@@ -1,0 +1,169 @@
+// The event channel between wb-hostd and the egress daemons, wb-netd and
+// wb-proxyd (S04-08-records-and-bounds, "Accounting and event channels"
+// and "Event records"; S09-11-audit).
+//
+// Each sender process has one channel: an AF_UNIX SOCK_DGRAM socketpair
+// with no path, whose one end wb-hostd keeps and whose other end the
+// sender inherits (internal/platform/fdchan). Each wb-netd has one for
+// its VM. The one wb-proxyd has one for both VMs (S04-07-supervision,
+// "One `wb-proxyd` for both VMs"). Each datagram holds one record, and
+// no record carries a descriptor.
+//
+// The sender sends EventRecord, at most 4 KiB each. wb-hostd sends
+// BudgetNotice the other way. The accounting records of
+// S04-08-records-and-bounds ("Accounting records") are a separate message
+// on a separate channel.
+//
+// wb-hostd treats each EventRecord as untrusted input: the sender
+// handles guest bytes, so a guest that takes it over writes these
+// records. wb-hostd ends the sender, as a crash, on a record that:
+//
+// - is over 4 KiB, arrived truncated, or carries a descriptor;
+// - doesn't decode, or holds a field the message doesn't have;
+// - has a sequence number that isn't the last one plus 1;
+// - names a VM the sender may not name: for wb-netd another VM than its
+//   own, for wb-proxyd a VM and generation that isn't running;
+// - has a class other than those of EventClass, or no event or run;
+// - has a field over its bound, or out of its form, as each field's
+//   comment says.
+//
+// wb-hostd stamps each record with its own receipt time, and never takes
+// a time from the sender. It escapes and cuts every guest string again
+// before it writes it.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.audit.v1;
+
+// EventClass is the OCSF 1.8.0 class of an event, by its class_uid
+// (S09-11-audit, "Classes"). The senders write no other class.
+enum EventClass {
+  // Refused.
+  EVENT_CLASS_UNSPECIFIED = 0;
+  // Detection Finding: a refused placeholder, a foreign credential taken
+  // out of a request, a pin mismatch, or another sign of an attack.
+  EVENT_CLASS_DETECTION_FINDING = 2004;
+  // Network Activity: a lookup, connection or stream.
+  EVENT_CLASS_NETWORK_ACTIVITY = 4001;
+  // HTTP Activity: an inspected request.
+  EVENT_CLASS_HTTP_ACTIVITY = 4002;
+}
+
+// Slot names a VM by its slot (S06-vm-lifecycle).
+enum Slot {
+  // Refused.
+  SLOT_UNSPECIFIED = 0;
+  SLOT_WORK = 1;
+  SLOT_ISOLATED = 2;
+}
+
+// VM is one run of a VM: its slot and generation. wb-hostd chooses
+// generations, and they start at 1.
+message VM {
+  Slot slot = 1;
+  // At least 1.
+  uint64 generation = 2;
+}
+
+// EventRecord is one record on the event channel, from wb-netd or
+// wb-proxyd: one event, or the count of a run of refusals.
+message EventRecord {
+  // Per sender, from 1, one more than the last record's. A gap or a
+  // repeat ends the sender.
+  uint64 sequence = 1;
+  // The VM the event belongs to.
+  VM vm = 2;
+  oneof kind {
+    Event event = 3;
+    Run run = 4;
+  }
+}
+
+// Event is one decision about a lookup, connection, stream or request
+// (S09-11-audit, "Fields").
+message Event {
+  EventClass class = 1;
+  // The decision, such as allow or refuse: 1 to 32 bytes of lowercase
+  // letters and hyphens.
+  string decision = 2;
+  // The rule that made it: 1 to 64 bytes of lowercase letters, digits
+  // and hyphens.
+  string rule = 3;
+  // The destination host, a name or an address, as the guest asked for
+  // it: at most 253 bytes. Empty when the event has none.
+  string destination_host = 4;
+  // The destination port, at most 65535, and 0 when the event has none.
+  uint32 destination_port = 5;
+  // The HTTP method of an inspected request: at most 16 bytes.
+  string http_method = 6;
+  // The HTTP path of an inspected request, without its query: at most
+  // 1024 bytes. The sender cuts a longer one.
+  string http_path = 7;
+  // Bytes from the destination to the guest, and from the guest to the
+  // destination, each at most 2^53.
+  uint64 bytes_in = 8;
+  uint64 bytes_out = 9;
+  // What the guest said about who made the connection, unset when it
+  // said nothing (S09-11-audit, "Attribution of network events").
+  GuestLabel guest_label = 10;
+}
+
+// GuestLabel is the guest's label of a connection: the project, session,
+// user and program it reported (S07-01-per-vm-policy). wb-hostd stores
+// it as untrusted, and never uses it for a decision. Each field is at
+// most 256 bytes.
+message GuestLabel {
+  string project = 1;
+  string session = 2;
+  string user = 3;
+  string program = 4;
+}
+
+// Run is the count of a run of refusals that the sender aggregated
+// under one rule, instead of one event each (S07-02-packet-path, "Events
+// and rate limits"; S09-11-audit, "Runs with a count").
+message Run {
+  EventClass class = 1;
+  // The decision, in the form of Event.decision.
+  string decision = 2;
+  // The rule, in the form of Event.rule.
+  string rule = 3;
+  // How many refusals the run counted, 1 to 2^32.
+  uint64 count = 4;
+  // The length of the window the count covers, 1 to 3600 seconds.
+  uint32 window_seconds = 5;
+  // Set when the VM's run ended before the window did. wb-hostd puts an
+  // open run's count in the VM's stop record, instead of a record of its
+  // own (S09-11-audit, "Runs with a count").
+  bool open = 6;
+}
+
+// BudgetRule is the audit budget a VM ran over (S09-11-audit,
+// "Budgets").
+enum BudgetRule {
+  // Refused.
+  BUDGET_RULE_UNSPECIFIED = 0;
+  // audit-budget: the VM's Network Activity and HTTP Activity records of
+  // this UTC minute are over audit_events_per_minute.
+  BUDGET_RULE_EVENTS_PER_MINUTE = 1;
+  // audit-bytes: the VM's records of this UTC day are over
+  // audit_vm_bytes_per_day.
+  BUDGET_RULE_BYTES_PER_DAY = 2;
+}
+
+// BudgetNotice is what wb-hostd sends a VM's senders when the VM runs
+// over an audit budget. The sender refuses the VM's new lookups,
+// connections, streams and requests with the rule until `until_unix`,
+// and counts the refusals as a run. A notice is advice: wb-hostd still
+// writes every record that arrives.
+message BudgetNotice {
+  // The VM over its budget. wb-netd refuses a notice for another VM.
+  VM vm = 1;
+  BudgetRule rule = 2;
+  // When the refusals end, in Unix seconds: the end of the UTC minute or
+  // day. The sender refuses a time more than a day and an hour ahead.
+  int64 until_unix = 3;
+}
