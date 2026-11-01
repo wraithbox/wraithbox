@@ -81,9 +81,8 @@ logged with follows each step.
    - ICMP passes only as an echo request to the gateway
      (`icmp-not-echo`).
 
-Every other IP protocol is dropped (`ip-protocol`). Multicast, and
-broadcast other than DHCP, are dropped before the protocol is looked
-at (`ip-broadcast`).
+Other IP protocols are dropped (`ip-protocol`). Multicast and non-DHCP
+broadcast are dropped before the protocol check (`ip-broadcast`).
 
 The ARP rule has two effects:
 
