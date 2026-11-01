@@ -7,6 +7,7 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/project"
 )
@@ -138,6 +139,8 @@ func (t *Tracker) leftLocked(slot vm.Slot, g *gen, l Left) {
 		slog.Uint64("kill_id", l.KillID), slog.String("project", l.ProjectID),
 		slog.String("processes_left", guestlink.CountLabel(l.Count)),
 		slog.String("rule", l.Rule), slog.String("decision", "refuse-vm"))
+	t.audit.Record(audit.ProcessesLeft(string(slot), g.generation, l.Rule,
+		audit.Kill{ID: l.KillID, ProjectID: l.ProjectID}, guestlink.CountLabel(l.Count)))
 }
 
 func (t *Tracker) drop(attrs []slog.Attr, rule, reason string) {

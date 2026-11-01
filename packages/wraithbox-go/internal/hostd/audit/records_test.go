@@ -226,7 +226,7 @@ func TestGuestLabel(t *testing.T) {
 // UTF-8, at most maxGuestLabel bytes, keeps none of the escaped code
 // points, and its record marshals to JSON.
 func FuzzGuestLabel(f *testing.F) {
-	for _, seed := range []string{"", "7", "7\x1b[31m‮", strings.Repeat("é", 300), "\xff\xfe", "a\x00b"} {
+	for _, seed := range []string{"", "7", "7\x1b[31m\u202e", strings.Repeat("é", 300), "\xff\xfe", "a\x00b"} {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, s string) {

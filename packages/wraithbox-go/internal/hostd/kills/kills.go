@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 )
 
@@ -92,6 +93,14 @@ type Config struct {
 	Clock Clock
 	// Logger gets the decisions. nil takes slog.Default().
 	Logger *slog.Logger
+	// Audit records each result of processes left and each kill a cold
+	// stop closed (S09-11-audit). Required.
+	Audit Recorder
+}
+
+// Recorder takes audit records. *audit.Writer implements it.
+type Recorder interface {
+	Record(r audit.Record)
 }
 
 // status is where a kill stands.
@@ -142,6 +151,7 @@ type gen struct {
 type Tracker struct {
 	clock Clock
 	log   *slog.Logger
+	audit Recorder
 
 	mu    sync.Mutex
 	slots map[vm.Slot]*gen
@@ -149,7 +159,7 @@ type Tracker struct {
 
 // New returns a Tracker with no kill.
 func New(cfg Config) *Tracker {
-	t := &Tracker{clock: cfg.Clock, log: cfg.Logger, slots: map[vm.Slot]*gen{}}
+	t := &Tracker{clock: cfg.Clock, log: cfg.Logger, audit: cfg.Audit, slots: map[vm.Slot]*gen{}}
 	if t.clock == nil {
 		t.clock = realClock{}
 	}
@@ -291,5 +301,6 @@ func (t *Tracker) closePendingLocked(slot vm.Slot, g *gen, cause string) {
 			slog.String("slot", string(slot)), slog.Uint64("generation", g.generation), slog.Uint64("kill_id", k.id),
 			slog.String("project", k.projectID), slog.String("rule", RuleColdStop), slog.String("decision", "close"),
 			slog.String("cause", cause))
+		t.audit.Record(audit.KillClosed(string(slot), g.generation, RuleColdStop, audit.Kill{ID: k.id, ProjectID: k.projectID}, cause))
 	}
 }

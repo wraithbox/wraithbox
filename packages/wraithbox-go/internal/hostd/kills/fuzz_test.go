@@ -9,6 +9,7 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 )
 
@@ -50,7 +51,7 @@ func FuzzKillResult(f *testing.F) {
 // from Begin, and IDs 1 and 2 forced in.
 func fuzzTracker(t *testing.T) (*Tracker, map[uint64]string) {
 	t.Helper()
-	tr := New(Config{Clock: newFakeClock(), Logger: slog.New(slog.DiscardHandler)})
+	tr := New(Config{Clock: newFakeClock(), Logger: slog.New(slog.DiscardHandler), Audit: &audittest.Recorder{}})
 	sent := map[uint64]string{}
 	for _, p := range []string{projA, projB} {
 		sent[begin(t, tr, vm.SlotWork, 1, p)] = p

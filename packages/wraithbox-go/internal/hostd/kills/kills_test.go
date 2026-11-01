@@ -12,6 +12,8 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 )
 
@@ -94,7 +96,7 @@ func (l *logs) withRule(t *testing.T, rule string) []map[string]any {
 func newTracker(t *testing.T) (*Tracker, *fakeClock, *logs) {
 	t.Helper()
 	c, l := newFakeClock(), &logs{}
-	tr := New(Config{Clock: c, Logger: slog.New(slog.NewJSONHandler(l, nil))})
+	tr := New(Config{Clock: c, Logger: slog.New(slog.NewJSONHandler(l, nil)), Audit: &audittest.Recorder{}})
 	return tr, c, l
 }
 
@@ -130,6 +132,31 @@ func requireRule(t *testing.T, r *Refusal, rule string) {
 	if r == nil || r.Rule != rule {
 		t.Fatalf("refusal = %v, want the rule %s", r, rule)
 	}
+}
+
+// wantFinding checks the one 2004 record with msg in the work VM's
+// generation 1, its rule and its label of processes left, and returns
+// its fields (S09-11-audit).
+func wantFinding(t *testing.T, tr *Tracker, msg, rule, label string) audit.Fields {
+	t.Helper()
+	rec, ok := tr.audit.(*audittest.Recorder)
+	if !ok {
+		t.Fatal("the tracker's recorder isn't an audittest.Recorder")
+	}
+	recs := rec.Find(msg)
+	if len(recs) != 1 {
+		t.Fatalf("%d records %q, want 1", len(recs), msg)
+	}
+	r, f := recs[0], recs[0].Fields()
+	gotLabel := ""
+	if f.GuestLabel != nil {
+		gotLabel = f.GuestLabel.ProcessesLeft
+	}
+	if r.ClassUID() != 2004 || r.Slot != string(work) || f.Generation != 1 || f.Rule != rule || f.Kill == nil || gotLabel != label {
+		t.Fatalf("%q: class %d, slot %s, generation %d, rule %s, kill %+v, label %q; want 2004, work, 1, %s, a kill, %q",
+			msg, r.ClassUID(), r.Slot, f.Generation, f.Rule, f.Kill, gotLabel, rule, label)
+	}
+	return f
 }
 
 func requireNone(t *testing.T, r *Refusal) {
@@ -277,6 +304,7 @@ func TestKillMissingResult(t *testing.T) {
 	if rec["processes_left"] != "unknown" {
 		t.Fatalf("processes_left = %v, want unknown", rec["processes_left"])
 	}
+	wantFinding(t, tr, "processes left in the VM", RuleDeadline, "unknown")
 	requireRule(t, tr.CheckAdmission(work, 1), RuleVMProcessesLeft)
 	requireRule(t, tr.CheckSave(work, 1), RuleVMProcessesLeft)
 	if !tr.ColdBootNext(work) {
@@ -298,6 +326,7 @@ func TestKillProcessesLeft(t *testing.T) {
 	if rec["processes_left"] != "more than 1000" {
 		t.Fatalf("processes_left = %v, want more than 1000", rec["processes_left"])
 	}
+	wantFinding(t, tr, "processes left in the VM", RuleProcessesLeft, "more than 1000")
 	r := tr.CheckAdmission(work, 1)
 	requireRule(t, r, RuleVMProcessesLeft)
 	if !strings.Contains(r.Message, "more than 1000") || !strings.Contains(r.Message, "wb vm stop work") {
@@ -347,6 +376,9 @@ func TestKillColdStop(t *testing.T) {
 	rec := requireLogged(t, l, RuleColdStop, "close")
 	if rec["cause"] != "stopped unexpectedly" || rec["kill_id"] != float64(id) {
 		t.Fatalf("record %v", rec)
+	}
+	if f := wantFinding(t, tr, "kill closed", RuleColdStop, ""); f.Cause != "stopped unexpectedly" || f.Kill.ID != id {
+		t.Errorf("kill closed record: cause %q, kill %+v", f.Cause, f.Kill)
 	}
 	requireNone(t, tr.CheckSave(work, 1))
 	c.advance(Deadline)

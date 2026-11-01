@@ -11,6 +11,7 @@ import (
 	"time"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/kills"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
@@ -23,7 +24,7 @@ func killsHarness(t *testing.T, g *usersGuest, n int) (*harness, *kills.Tracker,
 	t.Helper()
 	h := newHarness(t, own, own, true)
 	h.links.Close()
-	tracker := kills.New(kills.Config{Logger: slog.New(slog.NewJSONHandler(h.logs, nil))})
+	tracker := kills.New(kills.Config{Logger: slog.New(slog.NewJSONHandler(h.logs, nil)), Audit: &audittest.Recorder{}})
 	h.cfg.Kills = tracker
 	ls, err := New(h.cfg)
 	if err != nil {
