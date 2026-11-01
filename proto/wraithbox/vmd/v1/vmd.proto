@@ -24,7 +24,9 @@ package wraithbox.vmd.v1;
 service VMService {
   // Start boots the VM. wb-vmd checks its own description of the
   // configuration against the fixed device set first, and refuses with
-  // the rule when it doesn't match.
+  // the rule when it doesn't match. It refuses with `vm-network-failed`
+  // when it can't make or set up the packet transport's socketpair
+  // (S06-06-devices-and-warm-start, "Network device per slot").
   rpc Start(StartRequest) returns (StartResponse);
 
   // Stop stops the VM in the way `mode` names.
@@ -217,5 +219,7 @@ message HandoffMessage {
   // The vsock port on the side that accepted it. 0 in a KIND_NETWORK
   // record.
   uint32 destination_port = 5;
+  // Required. KIND_UNSPECIFIED, or a kind this message doesn't name, is
+  // refused with `handoff-kind`.
   Kind kind = 6;
 }

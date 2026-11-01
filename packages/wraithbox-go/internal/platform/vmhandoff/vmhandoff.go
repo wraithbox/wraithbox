@@ -40,7 +40,7 @@ import (
 
 // MaxRecord is the largest hand-off record, as the comment on
 // HandoffMessage in proto/wraithbox/vmd/v1 states. An encoded message is
-// at most 47 bytes.
+// at most 56 bytes, well under it.
 const MaxRecord = 256
 
 // Rule names the rule behind a refusal, for the log and the caller.
@@ -81,7 +81,7 @@ const (
 	// RuleRequest: Expect was asked for request ID 0, generation 0, a
 	// generation older than the current one, or a request ID that is
 	// already open, or ExpectNetwork for a generation that already has
-	// its packet transport or an open request for it. That is the
+	// its packet transport, an open request for it, or a cancelled one. That is the
 	// caller's mistake, not wb-vmd's.
 	RuleRequest Rule = "handoff-request-invalid"
 	// RuleClosed: the receiver was closed while the request was open.
@@ -94,6 +94,10 @@ type Refusal struct {
 
 	msg string
 	err error
+	// late: the record is the packet transport of a start that was
+	// cancelled, which wb-vmd sent before it learned of that. It is
+	// refused and closed all the same, and logged at info.
+	late bool
 }
 
 func (r *Refusal) Error() string { return "vmhandoff: " + string(r.Rule) + ": " + r.msg }
@@ -136,8 +140,12 @@ type table struct {
 	open       map[uint64]*request
 	network    *request
 	// networkDone is the last generation whose KIND_NETWORK record was
-	// checked against an open request: a generation gets one.
+	// checked against an open request, or whose request was cancelled: a
+	// generation gets one.
 	networkDone uint64
+	// networkCancelled is the generation whose request for the packet
+	// transport was cancelled before its record came, or 0.
+	networkCancelled uint64
 }
 
 func newTable() *table {
@@ -265,6 +273,9 @@ func (t *table) checkNetwork(msg *vmdv1.HandoffMessage) (*request, *Refusal) {
 	switch {
 	case g == 0 || g != t.generation:
 		return nil, &Refusal{Rule: RuleNetwork, msg: fmt.Sprintf("generation %d, the current one is %d", g, t.generation)}
+	case g == t.networkCancelled:
+		t.networkCancelled = 0
+		return nil, &Refusal{Rule: RuleNetwork, late: true, msg: fmt.Sprintf("the start of generation %d was cancelled before its packet transport came", g)}
 	case g <= t.networkDone:
 		return nil, &Refusal{Rule: RuleNetwork, msg: fmt.Sprintf("generation %d already had its packet transport", g)}
 	case t.network == nil || t.network.generation != g:

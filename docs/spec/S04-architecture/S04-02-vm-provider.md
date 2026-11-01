@@ -56,8 +56,8 @@ record over 256 bytes or truncated (`fdchan-record-size`,
   (`handoff-socket-type`);
 - a record that doesn't decode, or that has a field `HandoffMessage`
   doesn't (`handoff-malformed`);
-- generation 0, or one that isn't the current one
-  (`handoff-generation`);
+- a guest connection of generation 0, or of another than the current
+  one (`handoff-generation`);
 - request ID 0, one that isn't open, or a destination port other than
   the one that request asked for (`handoff-unexpected`);
 - a direction other than `DIRECTION_HOST_TO_GUEST` (`handoff-direction`);

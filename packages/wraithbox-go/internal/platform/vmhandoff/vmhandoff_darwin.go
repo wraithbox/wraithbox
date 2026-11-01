@@ -49,10 +49,16 @@ func (t *table) cancel(id uint64, r *request) {
 }
 
 // cancelNetwork closes the request for the packet transport if it is
-// still the open request r.
+// still the open request r. Its generation gets no other request, and a
+// record of it that comes late is refused as late.
 func (t *table) cancelNetwork(r *request) {
-	if t.network == r {
-		t.network = nil
+	if t.network != r {
+		return
+	}
+	t.network = nil
+	if r.generation > t.networkDone {
+		t.networkDone = r.generation
+		t.networkCancelled = r.generation
 	}
 }
 
@@ -346,7 +352,11 @@ func (r *Receiver) refuse(m *fdchan.Message, msg *vmdv1.HandoffMessage, ref *Ref
 }
 
 func (r *Receiver) logRefusal(ref *Refusal, attrs ...slog.Attr) {
-	r.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off refused",
+	level := slog.LevelWarn
+	if ref.late {
+		level = slog.LevelInfo
+	}
+	r.log.LogAttrs(context.Background(), level, "hand-off refused",
 		append([]slog.Attr{
 			slog.String("rule", string(ref.Rule)),
 			slog.String("decision", "refuse"),

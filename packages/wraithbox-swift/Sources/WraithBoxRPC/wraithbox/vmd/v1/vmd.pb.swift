@@ -514,6 +514,8 @@ public nonisolated struct Wraithbox_Vmd_V1_HandoffMessage: Sendable {
   /// record.
   public var destinationPort: UInt32 = 0
 
+  /// Required. KIND_UNSPECIFIED, or a kind this message doesn't name, is
+  /// refused with `handoff-kind`.
   public var kind: Wraithbox_Vmd_V1_Kind = .unspecified
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()

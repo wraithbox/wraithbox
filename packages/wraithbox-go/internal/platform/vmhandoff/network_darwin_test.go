@@ -210,3 +210,36 @@ func TestTransportHasNoReadOrWrite(t *testing.T) {
 		t.Fatalf("*Transport has methods %v, want only Close", names)
 	}
 }
+
+// TestNetworkAfterCancel: once a start cancels its request for the
+// packet transport, the generation can't ask again, and the record
+// wb-vmd sent before it learned of that is refused with
+// handoff-network-refused, closed, and logged at info as late. A second
+// record of the generation is refused at warn.
+func TestNetworkAfterCancel(t *testing.T) {
+	f := newFixture(t)
+	p, err := f.rx.ExpectNetwork(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Cancel()
+	if _, err := f.rx.ExpectNetwork(3); ruleOf(err) != string(RuleRequest) {
+		t.Fatalf("ExpectNetwork after Cancel = %v, want %s", err, RuleRequest)
+	}
+	for i, level := range []string{"INFO", "WARN"} {
+		host, vm := dgramPair(t)
+		f.sendRaw(t, networkRecord(t, nil), host)
+		_ = syscall.Close(vm)
+		f.log.Reset()
+		before := openFDs()
+		if err := f.rx.Receive(); ruleOf(err) != string(RuleNetwork) {
+			t.Fatalf("record %d: Receive = %v, want %s", i, err, RuleNetwork)
+		}
+		if after := openFDs(); !maps.Equal(before, after) {
+			t.Errorf("record %d: descriptors open after the refusal: %v, before: %v", i, keys(after), keys(before))
+		}
+		if want := `"level":"` + level + `","msg":"hand-off refused","rule":"handoff-network-refused"`; !strings.Contains(f.log.String(), want) {
+			t.Errorf("record %d: log %s has no %s", i, f.log.String(), want)
+		}
+	}
+}

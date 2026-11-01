@@ -147,7 +147,9 @@ extension Wraithbox_Vmd_V1_VMService {
         /// >
         /// > Start boots the VM. wb-vmd checks its own description of the
         /// > configuration against the fixed device set first, and refuses with
-        /// > the rule when it doesn't match.
+        /// > the rule when it doesn't match. It refuses with `vm-network-failed`
+        /// > when it can't make or set up the packet transport's socketpair
+        /// > (S06-06-devices-and-warm-start, "Network device per slot").
         ///
         /// - Parameters:
         ///   - request: A streaming request of `Wraithbox_Vmd_V1_StartRequest` messages.
@@ -259,7 +261,9 @@ extension Wraithbox_Vmd_V1_VMService {
         /// >
         /// > Start boots the VM. wb-vmd checks its own description of the
         /// > configuration against the fixed device set first, and refuses with
-        /// > the rule when it doesn't match.
+        /// > the rule when it doesn't match. It refuses with `vm-network-failed`
+        /// > when it can't make or set up the packet transport's socketpair
+        /// > (S06-06-devices-and-warm-start, "Network device per slot").
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wraithbox_Vmd_V1_StartRequest` message.
@@ -369,7 +373,9 @@ extension Wraithbox_Vmd_V1_VMService {
         /// >
         /// > Start boots the VM. wb-vmd checks its own description of the
         /// > configuration against the fixed device set first, and refuses with
-        /// > the rule when it doesn't match.
+        /// > the rule when it doesn't match. It refuses with `vm-network-failed`
+        /// > when it can't make or set up the packet transport's socketpair
+        /// > (S06-06-devices-and-warm-start, "Network device per slot").
         ///
         /// - Parameters:
         ///   - request: A `Wraithbox_Vmd_V1_StartRequest` message.
@@ -678,7 +684,9 @@ extension Wraithbox_Vmd_V1_VMService {
         /// >
         /// > Start boots the VM. wb-vmd checks its own description of the
         /// > configuration against the fixed device set first, and refuses with
-        /// > the rule when it doesn't match.
+        /// > the rule when it doesn't match. It refuses with `vm-network-failed`
+        /// > when it can't make or set up the packet transport's socketpair
+        /// > (S06-06-devices-and-warm-start, "Network device per slot").
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wraithbox_Vmd_V1_StartRequest` message.
@@ -823,7 +831,9 @@ extension Wraithbox_Vmd_V1_VMService {
         /// >
         /// > Start boots the VM. wb-vmd checks its own description of the
         /// > configuration against the fixed device set first, and refuses with
-        /// > the rule when it doesn't match.
+        /// > the rule when it doesn't match. It refuses with `vm-network-failed`
+        /// > when it can't make or set up the packet transport's socketpair
+        /// > (S06-06-devices-and-warm-start, "Network device per slot").
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wraithbox_Vmd_V1_StartRequest` message.
@@ -1004,7 +1014,9 @@ extension Wraithbox_Vmd_V1_VMService.ClientProtocol {
     /// >
     /// > Start boots the VM. wb-vmd checks its own description of the
     /// > configuration against the fixed device set first, and refuses with
-    /// > the rule when it doesn't match.
+    /// > the rule when it doesn't match. It refuses with `vm-network-failed`
+    /// > when it can't make or set up the packet transport's socketpair
+    /// > (S06-06-devices-and-warm-start, "Network device per slot").
     ///
     /// - Parameters:
     ///   - request: A request containing a single `Wraithbox_Vmd_V1_StartRequest` message.
@@ -1159,7 +1171,9 @@ extension Wraithbox_Vmd_V1_VMService.ClientProtocol {
     /// >
     /// > Start boots the VM. wb-vmd checks its own description of the
     /// > configuration against the fixed device set first, and refuses with
-    /// > the rule when it doesn't match.
+    /// > the rule when it doesn't match. It refuses with `vm-network-failed`
+    /// > when it can't make or set up the packet transport's socketpair
+    /// > (S06-06-devices-and-warm-start, "Network device per slot").
     ///
     /// - Parameters:
     ///   - message: request message to send.
