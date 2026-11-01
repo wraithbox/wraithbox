@@ -22,6 +22,7 @@ import (
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/shells"
@@ -133,6 +134,7 @@ type shellFixture struct {
 	links     *shellLinks
 	reg       *shells.Registry
 	killer    *recKiller
+	audit     *audittest.Recorder
 	logs      *syncBuffer
 	projectID string
 	starts    chan *guestv1.ShellStart
@@ -158,16 +160,16 @@ func newShellsPlaced(t *testing.T, placement hostdv1.Placement, edit func(*hosts
 	killer := &recKiller{}
 	reg := shells.NewRegistry(killer, nil)
 	t.Cleanup(reg.Close)
-	logs := &syncBuffer{}
+	logs, rec := &syncBuffer{}, &audittest.Recorder{}
 	s := &hostservice.ShellServer{
 		Store: pf.db, VMs: &fakeVMs{status: vm.Status{Phase: vm.PhaseRunning, Generation: 5}},
-		Links: links, Shells: reg, Log: slog.New(slog.NewJSONHandler(logs, nil)),
+		Links: links, Shells: reg, Audit: rec, Log: slog.New(slog.NewJSONHandler(logs, nil)),
 	}
 	if edit != nil {
 		edit(s)
 	}
 	c := hostdv1.NewShellServiceClient(dialBuf(t, func(srv *grpc.Server) { hostdv1.RegisterShellServiceServer(srv, s) }))
-	return &shellFixture{c: c, links: links, reg: reg, killer: killer, logs: logs, projectID: p.GetId(), starts: starts}
+	return &shellFixture{c: c, links: links, reg: reg, killer: killer, audit: rec, logs: logs, projectID: p.GetId(), starts: starts}
 }
 
 // dialBuf serves what register adds on an in-memory connection.
@@ -248,6 +250,13 @@ func TestShellOpenAndExit(t *testing.T) {
 		t.Fatalf("after the exit: %v", err)
 	}
 	f.wantKilledOnce(t)
+	f.wantRecords(t, "shell open", "shell end")
+	if end := f.audit.Find("shell end")[0].Fields(); end.Rule != shells.RuleExit || end.Session.ExitCode == nil || *end.Session.ExitCode != 0 {
+		t.Errorf("end record: rule %s, session %+v", end.Rule, end.Session)
+	}
+	if open := f.audit.Find("shell open")[0]; open.Slot != "work" || open.Fields().Session.ID != opened.GetShellId() {
+		t.Errorf("open record: slot %s, session %+v", open.Slot, open.Fields().Session)
+	}
 	if !strings.Contains(f.logs.String(), `"rule":"shell-open"`) || !strings.Contains(f.logs.String(), `"rule":"shell-exit"`) {
 		t.Fatalf("log = %s", f.logs.String())
 	}
@@ -301,6 +310,10 @@ func TestShellClientGone(t *testing.T) {
 	}
 	if !strings.Contains(f.logs.String(), `"rule":"shell-hangup"`) {
 		t.Fatalf("log = %s", f.logs.String())
+	}
+	f.wantRecords(t, "shell open", "shell end")
+	if s := f.audit.Find("shell end")[0].Fields().Session; s.Signal == nil || s.ExitCode != nil {
+		t.Errorf("end record session = %+v, want the hangup's signal", s)
 	}
 }
 
@@ -422,6 +435,7 @@ func TestShellUnlockFailed(t *testing.T) {
 	_, _, err := f.open(t.Context(), t, &hostdv1.ShellOpen{ProjectId: f.projectID, Setup: pipedSetup()})
 	wantRefused(t, "unlock failed", err, codes.FailedPrecondition, guestconn.RuleUnlockFailed)
 	f.wantKilledOnce(t)
+	f.wantRecords(t, "shell open", "shell fail")
 }
 
 // TestShellOpenHeld sees a guest stream that doesn't open within
@@ -440,6 +454,10 @@ func TestShellOpenHeld(t *testing.T) {
 	f.wantKilledOnce(t)
 	if !strings.Contains(f.logs.String(), "didn't open within 20ms") {
 		t.Fatalf("log = %s", f.logs.String())
+	}
+	f.wantRecords(t, "shell open", "shell fail")
+	if end := f.audit.Find("shell fail")[0]; end.Fields().Rule != shells.RuleRefused || end.StatusID() != 2 {
+		t.Errorf("end record: rule %s, status %d", end.Fields().Rule, end.StatusID())
 	}
 }
 

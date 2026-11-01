@@ -268,7 +268,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git, aw), Audit: aw, Log: log,
 			UsersRemoved: links.SendUserRemovals,
 		},
-		shells:   &hostservice.ShellServer{Store: ready.State, VMs: m, Links: links, Shells: registry, Log: log},
+		shells:   &hostservice.ShellServer{Store: ready.State, VMs: m, Links: links, Shells: registry, Audit: aw, Log: log},
 		registry: registry,
 		vms:      m, provider: provider, links: links, audit: aw, closeDB: ready.State.Close,
 	}, nil

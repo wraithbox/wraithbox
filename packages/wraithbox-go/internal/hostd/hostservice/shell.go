@@ -14,7 +14,9 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/shells"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
@@ -64,6 +66,14 @@ type ShellLinks interface {
 	OpenShell(ctx context.Context, slot vm.Slot, generation uint64) (guestv1.GuestService_ShellClient, <-chan struct{}, error)
 }
 
+// ShellAudit is the audit writer as a shell uses it. *audit.Writer
+// implements it.
+type ShellAudit interface {
+	CanOpenSession() error
+	Write(ctx context.Context, r audit.Record) error
+	Record(r audit.Record)
+}
+
 // ShellServer serves wraithbox.hostd.v1.ShellService: the debug shell of
 // `wb shell` (S05-03-management-commands, "`wb shell`";
 // S06-08-projects-and-sessions, "Debug shells in V1-M2").
@@ -74,6 +84,9 @@ type ShellServer struct {
 	VMs    ShellVMs
 	Links  ShellLinks
 	Shells *shells.Registry
+	// Audit records each shell's open and end. Every shell is refused
+	// without it (SEC10-audit).
+	Audit ShellAudit
 	// Refusing is set in refusing mode, and every shell is then refused
 	// with its rule.
 	Refusing *startup.Refusing
@@ -120,13 +133,57 @@ func (s *ShellServer) Shell(stream hostdv1.ShellService_ShellServer) error {
 		// locks and kills it now, or on the next link when this one
 		// dropped (S13-01-process-hardening, "Locked users").
 		o.sh.End(ctx, false)
+		s.recordEnd(o, shellEnd{decision: "fail", rule: refusalOf(err).rule, detail: "the project user wasn't unlocked"})
 		return s.refuseShell(ctx, err)
 	}
 	// From here the user is unlocked, so every end locks it again when no
 	// other shell of the project is open.
-	lost := s.run(ctx, stream, o)
-	o.sh.End(ctx, lost)
+	end := s.run(ctx, stream, o)
+	o.sh.End(ctx, end.lost)
+	s.recordEnd(o, end)
 	return nil
+}
+
+// shellEnd is how a shell that opened ended, for its audit record.
+type shellEnd struct {
+	// decision is end, fail or lose.
+	decision string
+	rule     string
+	detail   string
+	exit     *terminalv1.Exit
+	lost     bool
+}
+
+// endOf is the end of a relay's outcome.
+func endOf(out shells.Outcome) shellEnd {
+	switch {
+	case out.Lost:
+		return shellEnd{decision: "lose", rule: out.Rule, lost: true}
+	case out.Exit != nil:
+		return shellEnd{decision: "end", rule: shells.RuleExit, exit: out.Exit}
+	}
+	return shellEnd{decision: "fail", rule: out.Rule}
+}
+
+// recordEnd records the end of a shell whose open was recorded
+// (S09-11-audit).
+func (s *ShellServer) recordEnd(o *opening, end shellEnd) {
+	session := shellSession(o.sh, o.user)
+	session.Detail = end.detail
+	switch st := end.exit.GetStatus().(type) {
+	case *terminalv1.Exit_Code:
+		code := int(st.Code)
+		session.ExitCode = &code
+	case *terminalv1.Exit_Signal:
+		signal := int(st.Signal)
+		session.Signal = &signal
+	}
+	s.Audit.Record(audit.ShellEnded(string(o.sh.Slot), o.sh.Generation(), end.decision, end.rule, session))
+}
+
+// shellSession is the shell as its audit records hold it.
+func shellSession(sh *shells.Shell, u state.ProjectUser) audit.Session {
+	return audit.Session{ID: sh.ID, ProjectID: sh.ProjectID, User: projectuser.UserName(u.UID), Interactive: sh.Interactive}
 }
 
 // open reads and checks the first message, finds the project and its
@@ -142,6 +199,15 @@ func (s *ShellServer) open(ctx context.Context, stream hostdv1.ShellService_Shel
 	if err != nil {
 		return nil, err
 	}
+	// No shell opens unrecorded: while the audit log can't take records,
+	// every open is refused with the writer's rule (SEC10-audit;
+	// S09-11-audit, "Free space and failed writes").
+	if s.Audit == nil {
+		return nil, &projectRefusal{code: codes.Internal, rule: RuleInternal, msg: "wb-hostd has no audit log"}
+	}
+	if err := s.Audit.CanOpenSession(); err != nil {
+		return nil, err
+	}
 	p, err := s.project(ctx, open.GetProjectId())
 	if err != nil {
 		return nil, err
@@ -155,12 +221,22 @@ func (s *ShellServer) open(ctx context.Context, stream hostdv1.ShellService_Shel
 		return nil, err
 	}
 	generation, u, err := s.admit(ctx, slot, p.ID)
+	if err == nil {
+		err = s.recordOpen(ctx, sh, generation, u)
+	}
 	if err != nil {
 		sh.Release()
 		return nil, err
 	}
 	sh.Bind(generation, u)
 	return &opening{open: open, project: p, sh: sh, user: u}, nil
+}
+
+// recordOpen writes the shell's open record and waits for it: the shell
+// opens only once its record is written, and is refused with the
+// writer's rule when it can't be (SEC10-audit).
+func (s *ShellServer) recordOpen(ctx context.Context, sh *shells.Shell, generation uint64, u state.ProjectUser) error {
+	return s.Audit.Write(ctx, audit.ShellOpened(string(sh.Slot), generation, ruleShellOpen, shellSession(sh, u), auditPeer(ctx)))
 }
 
 // readOpen reads the first message and checks its form
@@ -251,8 +327,8 @@ func (s *ShellServer) takenRefusal(ctx context.Context, r *shells.TakenRefusal) 
 }
 
 // run sends the opened message, starts the shell in the guest, and
-// relays it. It reports whether the shell was lost.
-func (s *ShellServer) run(ctx context.Context, stream hostdv1.ShellService_ShellServer, o *opening) bool {
+// relays it. It returns how the shell ended.
+func (s *ShellServer) run(ctx context.Context, stream hostdv1.ShellService_ShellServer, o *opening) shellEnd {
 	sh, slot := o.sh, o.sh.Slot
 	name := projectuser.UserName(o.user.UID)
 	attrs := append([]slog.Attr{
@@ -264,7 +340,7 @@ func (s *ShellServer) run(ctx context.Context, stream hostdv1.ShellService_Shell
 	opened := &hostdv1.ShellOpened{ShellId: sh.ID, ProjectName: o.project.Name, GuestUser: name}
 	if err := stream.Send(&hostdv1.ShellResponse{Msg: &hostdv1.ShellResponse_Opened{Opened: opened}}); err != nil {
 		// wb went before the shell started: nothing ran.
-		return false
+		return shellEnd{decision: "fail", rule: shells.RuleHangup, detail: "wb went before the shell started"}
 	}
 	// The guest stream outlives wb's, so a closed wb ends the shell by a
 	// hangup and never by a cancel (S06-09-session-lifecycle, "Closing
@@ -277,7 +353,7 @@ func (s *ShellServer) run(ctx context.Context, stream hostdv1.ShellService_Shell
 			slog.String("decision", "fail"), slog.String("shell_id", sh.ID), slog.String("error", err.Error()))
 		f := &shells.Failure{Rule: shells.RuleRefused, Message: fmt.Sprintf("wb-hostd couldn't open the shell's stream to wb-guestd in the %s VM. Try again.", slot)}
 		_ = stream.Send(&hostdv1.ShellResponse{Msg: &hostdv1.ShellResponse_Frame{Frame: f.Frame()}})
-		return false
+		return shellEnd{decision: "fail", rule: shells.RuleRefused, detail: "the guest stream didn't open"}
 	}
 	// An error of the send shows up as the guest stream's end.
 	_ = guest.Send(&guestv1.ShellRequest{Msg: &guestv1.ShellRequest_Start{Start: &guestv1.ShellStart{
@@ -288,7 +364,7 @@ func (s *ShellServer) run(ctx context.Context, stream hostdv1.ShellService_Shell
 		Shell: sh, Client: stream, Guest: guest, Cancel: cancel, Down: down,
 		Checker: shells.NewChecker(o.open.GetSetup()), Log: s.logger(), After: s.After,
 	}).Run()
-	return out.Lost
+	return endOf(out)
 }
 
 // openGuest opens the guest stream on ctx, and calls cancel when the
@@ -330,6 +406,9 @@ func refusalOf(err error) *projectRefusal {
 	}
 	if r, ok := errors.AsType[*vm.Refusal](err); ok {
 		return &projectRefusal{code: codes.FailedPrecondition, rule: string(r.Rule), msg: r.Message}
+	}
+	if r, ok := errors.AsType[*audit.Refusal](err); ok {
+		return &projectRefusal{code: codes.FailedPrecondition, rule: r.Rule, msg: r.Message}
 	}
 	if r, ok := errors.AsType[*waiting](err); ok {
 		return &projectRefusal{code: codes.Unavailable, rule: r.rule, msg: r.msg}
