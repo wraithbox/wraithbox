@@ -43,7 +43,10 @@ func FuzzGuestLink(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data, cuts []byte) {
 		host, guest := socketpair(t)
-		go playGuest(guest, data, cuts)
+		done := goPlayGuest(guest, data, cuts)
+		// Runs last, after l.Close: the fuzz engine reuses data once the
+		// body returns, so playGuest must be done reading it.
+		defer func() { <-done }()
 		ctx, cancel := context.WithTimeout(context.Background(), fuzzDeadline)
 		defer cancel()
 		start := time.Now()
@@ -96,6 +99,17 @@ func playGuest(guest net.Conn, data, cuts []byte) {
 	// Closing while the host still writes its request would break the
 	// host's pipe, a failure that does not come from data.
 	<-h.sent
+}
+
+// goPlayGuest runs playGuest in a goroutine and returns a channel that
+// is closed when it returns.
+func goPlayGuest(guest net.Conn, data, cuts []byte) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		playGuest(guest, data, cuts)
+	}()
+	return done
 }
 
 // startsWithSettings reports whether chunk starts with a whole SETTINGS
@@ -152,6 +166,9 @@ func (h *hostReads) read(guest net.Conn) {
 		frame, err := fr.ReadFrame()
 		if err != nil {
 			return
+		}
+		if frame.Header().StreamID != 1 {
+			continue
 		}
 		switch f := frame.(type) {
 		case *http2.HeadersFrame:
@@ -232,16 +249,18 @@ func guestAnswer(tb testing.TB, v string) []byte {
 // seed is refused.
 func TestGuestAnswerLinks(t *testing.T) {
 	host, guest := socketpair(t)
-	go playGuest(guest, guestAnswer(t, own), []byte{8})
+	done := goPlayGuest(guest, guestAnswer(t, own), []byte{8})
 	l, err := Hello(t.Context(), host, own, discard)
 	if err != nil {
 		t.Fatalf("Hello: %v", err)
 	}
 	_ = l.Close()
+	<-done
 
 	host, guest = socketpair(t)
-	go playGuest(guest, guestAnswer(t, "1.2.4"), []byte{8})
+	done = goPlayGuest(guest, guestAnswer(t, "1.2.4"), []byte{8})
 	if _, err := Hello(t.Context(), host, own, discard); err == nil {
 		t.Fatal("another version linked")
 	}
+	<-done
 }
