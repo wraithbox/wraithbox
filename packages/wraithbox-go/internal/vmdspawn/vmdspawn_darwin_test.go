@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -101,18 +102,60 @@ func checkGRPCSocket() error {
 	return nil
 }
 
-// lines collects wb-vmd's log lines.
+// lines collects wb-vmd's log lines. The fake's records reach it through
+// a pipe and a reader goroutine, so a record the fake has written can
+// still be on its way when a gRPC call to the fake answers. A test waits
+// for a record with waitFor instead of reading String at once.
 type lines struct {
 	mu  sync.Mutex
 	all []string
+	// changed is closed and replaced when a line is added.
+	changed chan struct{}
+	// eof is closed when the log pipe has been read to its end.
+	eof chan struct{}
+}
+
+func newLines() *lines {
+	return &lines{changed: make(chan struct{}), eof: make(chan struct{})}
 }
 
 func (l *lines) read(r io.Reader) {
+	defer close(l.eof)
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
 		l.mu.Lock()
 		l.all = append(l.all, sc.Text())
+		close(l.changed)
+		l.changed = make(chan struct{})
 		l.mu.Unlock()
+	}
+}
+
+// has reports whether a line holds s, and returns the channel that is
+// closed when the next line is added.
+func (l *lines) has(s string) (bool, <-chan struct{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return slices.ContainsFunc(l.all, func(line string) bool { return strings.Contains(line, s) }), l.changed
+}
+
+// waitFor waits until a line holds s, and reports whether one does. It
+// stops waiting when the log has been read to its end, since no line
+// comes after that, or when ctx is done.
+func (l *lines) waitFor(ctx context.Context, s string) bool {
+	for {
+		found, changed := l.has(s)
+		if found {
+			return true
+		}
+		select {
+		case <-changed:
+		case <-l.eof:
+			found, _ = l.has(s)
+			return found
+		case <-ctx.Done():
+			return false
+		}
 	}
 }
 
@@ -162,7 +205,7 @@ func start(t *testing.T, version string) (*vmdspawn.Process, *lines, string) {
 	t.Helper()
 	markRunnerDescriptors()
 	dir := runDir(t)
-	log := &lines{}
+	log := newLines()
 	p, err := vmdspawn.Start(t.Context(), config(t, dir, "work", version, log))
 	if err != nil {
 		t.Fatal(err)
@@ -184,7 +227,7 @@ func TestSpawnBothSlotsAtOnce(t *testing.T) {
 	errs := make([]error, len(slots))
 	var wg sync.WaitGroup
 	for n, slot := range slots {
-		logs[n] = &lines{}
+		logs[n] = newLines()
 		cfg := config(t, dir, slot, own, logs[n])
 		wg.Go(func() { spawned[n], errs[n] = vmdspawn.Start(t.Context(), cfg) })
 	}
@@ -201,7 +244,7 @@ func TestSpawnBothSlotsAtOnce(t *testing.T) {
 		if _, err := spawned[n].Client.GetState(ctx, &vmdv1.GetStateRequest{}); err != nil {
 			t.Errorf("GetState of %s: %v; log: %s", slot, err, logs[n])
 		}
-		if !strings.Contains(logs[n].String(), `"slot":"`+slot+`"`) {
+		if !logs[n].waitFor(ctx, `"slot":"`+slot+`"`) {
 			t.Errorf("%s: no started record for the slot; log: %s", slot, logs[n])
 		}
 	}
@@ -218,7 +261,7 @@ func TestSocketPathTakenRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf syncBuffer
-	cfg := config(t, dir, "work", own, &lines{})
+	cfg := config(t, dir, "work", own, newLines())
 	cfg.Logger = slog.New(slog.NewJSONHandler(&buf, nil))
 	_, err := vmdspawn.Start(t.Context(), cfg)
 	if r, ok := errors.AsType[*vmdspawn.UnsafeEndpointError](err); !ok || r.Type != os.ModeSymlink {
@@ -273,7 +316,7 @@ func TestSpawn(t *testing.T) {
 	if resp.GetState().GetState() != vmdv1.State_STATE_STOPPED {
 		t.Errorf("state %v", resp.GetState())
 	}
-	if !strings.Contains(log.String(), `"event":"started"`) {
+	if !log.waitFor(ctx, `"event":"started"`) {
 		t.Errorf("no started record in the log: %s", log)
 	}
 	if err := p.Close(); err != nil {
@@ -282,7 +325,7 @@ func TestSpawn(t *testing.T) {
 	if st := p.ProcessState(); st == nil || !st.Success() {
 		t.Fatalf("the fake ended %v; its log: %s", st, log)
 	}
-	if !strings.Contains(log.String(), `"event":"lifeline-closed"`) {
+	if !log.waitFor(ctx, `"event":"lifeline-closed"`) {
 		t.Errorf("no lifeline-closed in the log: %s", log)
 	}
 	if _, err := os.Lstat(sock); !errors.Is(err, os.ErrNotExist) {
