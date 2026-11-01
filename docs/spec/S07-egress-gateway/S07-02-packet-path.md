@@ -70,8 +70,9 @@ logged with follows each step.
 5. IPv4 has a header of 20 bytes (no options) with a valid checksum,
    and a total length within the frame. It is not a fragment (MF
    clear, offset 0), and the reserved flag bit is clear (`ipv4-form`).
-   Its source is the leased address. The source can be `0.0.0.0` only
-   for DHCP from UDP port 68 to port 67 (`ipv4-source`).
+   Its source is the leased address, or `0.0.0.0` only for DHCP from
+   UDP port 68 to port 67 (`ipv4-source`). Its destination isn't the
+   leased address, `0.0.0.0/8` or `127.0.0.0/8` (`ipv4-destination`).
 6. The protocol is allowed:
    - TCP passes to the stack, which decides under "Connections".
    - UDP passes only to the gateway's port 53, or for DHCP from port
@@ -141,10 +142,11 @@ cap is dropped, and logged with the cap's rule
 (SEC13-bounded-resources).
 
 gVisor has no stack-wide memory limit. The established cap times a cap
-on each TCP buffer bounds the stack's buffer memory. An outbound
-frame over the queue's cap is dropped with `link-queue-full`, and one
-the guest's full buffer still refuses after about 20 ms of retries
-with `link-write-failed`.
+on each TCP buffer bounds the stack's buffer memory. A connection holds
+its place until the stack has closed it, and timeouts bound how long a
+closed connection stays open. An outbound frame over the queue's cap is
+dropped with `link-queue-full`, and one the guest's full buffer still
+refuses after a bounded number of retries with `link-write-failed`.
 
 ### No host-side listener
 
@@ -242,8 +244,7 @@ Everything else is refused:
 
 - TCP to any other address is reset (`tcp-destination-refused`).
 - UDP other than DNS is dropped. Clients fall back from QUIC to TCP.
-  UDP to an unbound port is dropped without an ICMP reply
-  (`udp-unbound`).
+  UDP to an unbound port gets no ICMP reply (`udp-unbound`).
 - ICMP is answered only for the gateway address.
 - TCP to the gateway on any port but 53, or on 53 with no DNS-over-TCP
   server, is reset too (`gateway-port-refused`). So is TCP to a

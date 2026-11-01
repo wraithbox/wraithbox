@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -188,14 +189,107 @@ func TestEstablishedCap(t *testing.T) {
 	if n := h.s.Recorder().Count(netd.RuleTCPCap); n != 1 {
 		t.Fatalf("tcp-cap count %d, want 1", n)
 	}
-	_ = server.Close()
+	// The guest closes first, so the stack's side ends in LAST-ACK, not
+	// TIME-WAIT, and frees its place once the guest acknowledges its FIN.
 	_ = first.Close()
+	if _, err := server.Read(make([]byte, 1)); !errors.Is(err, io.EOF) {
+		t.Fatalf("the hook's read after the guest's close = %v, want io.EOF", err)
+	}
+	_ = server.Close()
+	waitActive(t, h.s, 0)
 	third, err := g.dial(dest)
 	if err != nil {
 		t.Fatalf("after a close: %v", err)
 	}
 	_ = third.Close()
 	_ = conns.take(t).Close()
+}
+
+// TestClosedConnHoldsCap checks that a connection its hook closed keeps
+// its place under Caps.EstablishedTCP while gVisor still holds it
+// (SEC13-bounded-resources): the guest keeps its window at zero, so the
+// stack can't send what the hook wrote, and the endpoint stays in
+// FIN-WAIT-1 with the data in its buffer. A SYN over the cap is reset.
+func TestClosedConnHoldsCap(t *testing.T) {
+	conns := make(sink, 4)
+	cfg := nt.Config()
+	cfg.Caps.EstablishedTCP = 1
+	cfg.Caps.TCPBuffer = 64 << 10
+	g := newGuest(t)
+	g.smallWindow(t)
+	h := g.attach(t, cfg, netd.Hooks{Stream: policy(func(netd.Flow) netd.StreamDecision {
+		return netd.StreamDecision{Sink: conns}
+	})})
+	dest := netip.AddrPortFrom(synthetic, 443)
+
+	first, err := g.dial(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	server := conns.take(t)
+	// More than the guest's buffer, less than the stack's.
+	if _, err := server.Write(make([]byte, 32<<10)); err != nil {
+		t.Fatal(err)
+	}
+	_ = server.Close()
+	if _, err := g.dial(dest); !isRefused(err) {
+		t.Fatalf("dial after the hook's close = %v, want refused", err)
+	}
+	if n := h.s.Recorder().Count(netd.RuleTCPCap); n != 1 {
+		t.Fatalf("tcp-cap count %d, want 1", n)
+	}
+	if n := active(h.s); n != 1 {
+		t.Fatalf("%d connections hold a place, want 1", n)
+	}
+}
+
+// TestRunWaitsForAccepts checks that Run returns only once the accept
+// goroutines have, here one whose hook is still deciding when ctx is
+// done and which then starts a handshake on the closed stack.
+func TestRunWaitsForAccepts(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	var returned atomic.Bool
+	h := start(t, nt.Config(), netd.Hooks{Stream: policy(func(netd.Flow) netd.StreamDecision {
+		close(entered)
+		<-release
+		returned.Store(true)
+		return netd.StreamDecision{Sink: make(sink, 1)}
+	})}, nil)
+	tcpNum := uint8(header.TCPProtocolNumber)
+	h.send(nt.FromGuest(uint16(header.IPv4ProtocolNumber), nt.IPv4(nt.Leased, synthetic, tcpNum,
+		nt.TCPSegment(nt.Leased, synthetic, 40000, 443, header.TCPFlagSyn))))
+	<-entered
+	h.cancel()
+	time.AfterFunc(50*time.Millisecond, func() { close(release) })
+	select {
+	case err := <-h.done:
+		h.done <- err
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run didn't return")
+	}
+	if !returned.Load() {
+		t.Fatal("Run returned before the accept goroutine")
+	}
+}
+
+// active returns the number of places taken under the established cap.
+func active(s *Stack) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.active
+}
+
+// waitActive waits until n places are taken under the established cap.
+func waitActive(t *testing.T, s *Stack, n int) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for active(s) != n {
+		if time.Now().After(deadline) {
+			t.Fatalf("%d connections hold a place, want %d", active(s), n)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 // TestHalfOpenCap checks Caps.HalfOpenTCP (SEC13-bounded-resources): a

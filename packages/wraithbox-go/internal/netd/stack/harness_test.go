@@ -194,6 +194,16 @@ func newGuest(t *testing.T) *guest {
 	return g
 }
 
+// smallWindow caps the guest's TCP receive buffer at 4 KiB, so a guest
+// that doesn't read soon advertises a window of zero.
+func (g *guest) smallWindow(t *testing.T) {
+	t.Helper()
+	opt := tcpip.TCPReceiveBufferSizeRangeOption{Min: 4096, Default: 4096, Max: 4096}
+	if err := g.s.SetTransportProtocolOption(tcp.ProtocolNumber, &opt); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // attach starts a stack of cfg with hooks, linked to the guest.
 func (g *guest) attach(t *testing.T, cfg netd.Config, hooks netd.Hooks) *harness {
 	t.Helper()

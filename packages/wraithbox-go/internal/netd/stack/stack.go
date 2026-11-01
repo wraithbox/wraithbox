@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"time"
 
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
@@ -40,6 +41,24 @@ const (
 	portDNS uint16      = 53
 )
 
+// How long gVisor keeps a connection after it stops making progress or
+// is closed. Each bounds how long a connection holds its place under the
+// established cap, and its buffers, after its hook has closed it
+// (S07-02-packet-path, "Per-VM caps", SEC13-bounded-resources).
+const (
+	// userTimeout ends a connection whose sent data has gone unacknowledged
+	// this long, zero-window probes included. Without it a guest that
+	// keeps its window at zero holds a closed connection open forever.
+	userTimeout = 30 * time.Second
+	// lingerTimeout ends FIN-WAIT-2, gVisor's default being 60 s.
+	lingerTimeout = 5 * time.Second
+	// timeWaitTimeout ends TIME-WAIT, gVisor's default being 60 s.
+	timeWaitTimeout = 5 * time.Second
+	// abortEvery is how often stop aborts endpoints while it waits for
+	// the accept goroutines.
+	abortEvery = 10 * time.Millisecond
+)
+
 // Stack is the network stack of one VM's link.
 type Stack struct {
 	cfg   netd.Config
@@ -50,10 +69,11 @@ type Stack struct {
 	fwd   *tcp.Forwarder
 	dns   *gonet.UDPConn // the gateway's port 53, when DNSOverUDP is set
 
-	mu      sync.Mutex
-	active  int // connections a hook accepted, not closed yet
-	conns   map[*conn]struct{}
-	stopped bool
+	mu        sync.Mutex
+	active    int // connections a hook accepted that gVisor hasn't closed yet
+	conns     map[*conn]struct{}
+	stopped   bool
+	accepting sync.WaitGroup // accept goroutines that started before stop
 }
 
 // New returns the stack of a link over t. It checks cfg, and closes t
@@ -86,21 +106,25 @@ func New(cfg netd.Config, t link.Transport, hooks netd.Hooks) (*Stack, error) {
 }
 
 // setup adds the NIC, its address, route and neighbor, sets the TCP
-// buffer caps, and installs the TCP and UDP rules.
+// buffer caps and timeouts, and installs the TCP and UDP rules.
 func (s *Stack) setup() error {
 	if err := s.setupNIC(); err != nil {
 		return err
 	}
 	buf := s.cfg.Caps.TCPBuffer
+	linger, timeWait := tcpip.TCPLingerTimeoutOption(lingerTimeout), tcpip.TCPTimeWaitTimeoutOption(timeWaitTimeout)
 	// SEC13-bounded-resources: every TCP connection's send and receive
-	// buffer is at most Caps.TCPBuffer bytes.
-	if err := s.gv.SetTransportProtocolOption(tcp.ProtocolNumber,
-		&tcpip.TCPSendBufferSizeRangeOption{Min: 4096, Default: buf, Max: buf}); err != nil {
-		return fmt.Errorf("netd: set the TCP send buffer: %s", err)
-	}
-	if err := s.gv.SetTransportProtocolOption(tcp.ProtocolNumber,
-		&tcpip.TCPReceiveBufferSizeRangeOption{Min: 4096, Default: buf, Max: buf}); err != nil {
-		return fmt.Errorf("netd: set the TCP receive buffer: %s", err)
+	// buffer is at most Caps.TCPBuffer bytes, and a closed connection
+	// ends within the timeouts.
+	for _, opt := range []tcpip.SettableTransportProtocolOption{
+		&tcpip.TCPSendBufferSizeRangeOption{Min: 4096, Default: buf, Max: buf},
+		&tcpip.TCPReceiveBufferSizeRangeOption{Min: 4096, Default: buf, Max: buf},
+		&linger,
+		&timeWait,
+	} {
+		if err := s.gv.SetTransportProtocolOption(tcp.ProtocolNumber, opt); err != nil {
+			return fmt.Errorf("netd: set the TCP option %T: %s", opt, err)
+		}
 	}
 	// SEC13-bounded-resources: at most Caps.HalfOpenTCP handshakes at once.
 	s.fwd = tcp.NewForwarder(s.gv, buf, s.cfg.Caps.HalfOpenTCP, s.accept)
@@ -161,9 +185,10 @@ func (s *Stack) Run(ctx context.Context) error {
 	return err
 }
 
-// stop closes what Run leaves open. Closing the link endpoint stops its
-// writer once the frames still queued are sent. The stack's Wait waits
-// for the writer through the endpoint's Wait, which closes the transport.
+// stop closes what Run leaves open, and waits for the accept goroutines.
+// Closing the link endpoint stops its writer once the frames still queued
+// are sent. The stack's Wait waits for the writer through the endpoint's
+// Wait, which closes the transport.
 func (s *Stack) stop() {
 	s.mu.Lock()
 	s.stopped = true
@@ -180,7 +205,32 @@ func (s *Stack) stop() {
 	}
 	s.gv.Close()
 	s.ep.Close()
+	s.waitAccepts()
 	s.gv.Wait()
+}
+
+// waitAccepts waits for the accept goroutines. One may be in a handshake,
+// which waits for an ACK the stopped link never delivers, and one may
+// have started its handshake after gv.Close. So while it waits it aborts
+// every endpoint the stack holds, which ends their handshakes.
+func (s *Stack) waitAccepts() {
+	done := make(chan struct{})
+	go func() {
+		s.accepting.Wait()
+		close(done)
+	}()
+	tick := time.NewTicker(abortEvery)
+	defer tick.Stop()
+	for {
+		select {
+		case <-done:
+			return
+		case <-tick.C:
+			for _, e := range s.gv.RegisteredEndpoints() {
+				e.Abort()
+			}
+		}
+	}
 }
 
 // Recorder returns the recorder every drop and reset is counted with.
@@ -239,7 +289,13 @@ func decisionFor(pkt *gvstack.PacketBuffer) netd.Decision {
 // accept decides one SYN the forwarder took, on its own goroutine. The
 // established cap is checked first, then the hook decides. A refused SYN
 // is reset. An accepted one completes its handshake and goes to the hook.
+// After stop has begun, every SYN is reset.
 func (s *Stack) accept(req *tcp.ForwarderRequest) {
+	if !s.enter() {
+		req.Complete(true)
+		return
+	}
+	defer s.accepting.Done()
 	f := flowOf(req.ID())
 	if !s.reserve() {
 		// SEC13-bounded-resources: a SYN over Caps.EstablishedTCP.
@@ -261,6 +317,14 @@ func (s *Stack) accept(req *tcp.ForwarderRequest) {
 		return
 	}
 	req.Complete(false)
+	s.releaseWhenClosed(ep, &wq)
+	uto := tcpip.TCPUserTimeoutOption(userTimeout)
+	if err := ep.SetSockOpt(&uto); err != nil {
+		// Without the timeout the connection's place isn't bounded.
+		ep.Abort()
+		s.rec.Record(netd.Reset, netd.RuleTCPHandshakeFailed, append(f.LogAttrs(), slog.String("error", err.String()))...)
+		return
+	}
 	c := s.track(gonet.NewTCPConn(&wq, ep))
 	if c == nil {
 		return
@@ -299,6 +363,37 @@ func (s *Stack) handleUDP(id gvstack.TransportEndpointID, _ *gvstack.PacketBuffe
 	return true
 }
 
+// enter counts an accept goroutine that stop waits for, or reports that
+// stop has begun.
+func (s *Stack) enter() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stopped {
+		return false
+	}
+	s.accepting.Add(1)
+	return true
+}
+
+// releaseWhenClosed frees a connection's place under the established cap
+// once gVisor's endpoint is closed. The hook's Close isn't the end: a
+// graceful close keeps the endpoint, and its buffers, until the FIN
+// exchange ends or a timeout does (SEC13-bounded-resources). gVisor
+// signals EventHUp on the endpoint's queue when it closes. The entry is
+// never unregistered, because Notify holds the queue's lock while it
+// calls it, and the queue goes with the endpoint.
+func (s *Stack) releaseWhenClosed(ep tcpip.Endpoint, wq *waiter.Queue) {
+	var once sync.Once
+	check := func(waiter.EventMask) {
+		if st := ep.State(); st == uint32(tcp.StateClose) || st == uint32(tcp.StateError) {
+			once.Do(s.release)
+		}
+	}
+	entry := waiter.NewFunctionEntry(waiter.EventHUp, check)
+	wq.EventRegister(&entry)
+	check(0) // closed before the entry was registered
+}
+
 // reserve takes a place under the established cap, or reports that
 // there is none.
 func (s *Stack) reserve() bool {
@@ -317,8 +412,8 @@ func (s *Stack) release() {
 	s.active--
 }
 
-// track wraps an accepted connection so its Close frees its place. After
-// Run has stopped it closes the connection and returns nil.
+// track wraps an accepted connection, so stop can close it. After Run
+// has stopped it closes the connection and returns nil.
 func (s *Stack) track(tc net.Conn) *conn {
 	c := &conn{Conn: tc, s: s}
 	s.mu.Lock()
@@ -332,8 +427,9 @@ func (s *Stack) track(tc net.Conn) *conn {
 	return c
 }
 
-// conn is an accepted connection. Its first Close frees its place under
-// the established cap.
+// conn is an accepted connection. Its first Close takes it off the list
+// stop closes. Its place under the established cap is freed later, when
+// gVisor closes the endpoint (releaseWhenClosed).
 type conn struct {
 	net.Conn
 	s    *Stack
@@ -347,7 +443,6 @@ func (c *conn) Close() error {
 		c.s.mu.Lock()
 		defer c.s.mu.Unlock()
 		delete(c.s.conns, c)
-		c.s.active--
 	})
 	if errors.Is(err, net.ErrClosed) {
 		return nil
