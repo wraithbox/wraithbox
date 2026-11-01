@@ -3,6 +3,7 @@ package relay
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/sessionid"
@@ -80,9 +81,14 @@ type ShellClient interface {
 // OpenShell sends the ShellOpen and reads the ShellOpened, and returns
 // the terminal stream that follows. c's call must have the receive cap
 // of ShellClient.
+//
+// wb-hostd may refuse before it reads the ShellOpen (in refusing mode),
+// and then Send can return io.EOF, gRPC's way of saying "the stream is
+// done, Recv returns its status". OpenShell reads on, so the user sees
+// the refusal and not a bare EOF.
 func OpenShell(c ShellClient, projectID string, setup *terminalv1.Setup) (Stream, Shell, error) {
 	open := &hostdv1.ShellRequest{Msg: &hostdv1.ShellRequest_Open{Open: &hostdv1.ShellOpen{ProjectId: projectID, Setup: setup}}}
-	if err := c.Send(open); err != nil {
+	if err := c.Send(open); err != nil && !errors.Is(err, io.EOF) {
 		return nil, Shell{}, fmt.Errorf("relay: open the shell: %w", err)
 	}
 	resp, err := c.Recv()

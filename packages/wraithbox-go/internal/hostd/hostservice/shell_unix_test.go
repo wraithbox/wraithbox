@@ -200,11 +200,21 @@ func (f *shellFixture) open(ctx context.Context, t *testing.T, open *hostdv1.She
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := stream.Send(&hostdv1.ShellRequest{Msg: &hostdv1.ShellRequest_Open{Open: open}}); err != nil {
+	opened, err := sendOpen(t, stream, &hostdv1.ShellRequest{Msg: &hostdv1.ShellRequest_Open{Open: open}})
+	return stream, opened, err
+}
+
+// sendOpen sends the first message and reads the answer. The server
+// may refuse before it reads the message (refusing mode), and then
+// Send returns io.EOF, gRPC's way of saying "the stream is done, Recv
+// returns its status", so sendOpen reads on.
+func sendOpen(t *testing.T, stream hostdv1.ShellService_ShellClient, req *hostdv1.ShellRequest) (*hostdv1.ShellOpened, error) {
+	t.Helper()
+	if err := stream.Send(req); err != nil && !errors.Is(err, io.EOF) {
 		t.Fatal(err)
 	}
 	resp, err := stream.Recv()
-	return stream, resp.GetOpened(), err
+	return resp.GetOpened(), err
 }
 
 func recvFrame(t *testing.T, stream hostdv1.ShellService_ShellClient) *terminalv1.ServerFrame {
@@ -341,10 +351,7 @@ func TestShellStartInvalid(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := stream.Send(tc.req); err != nil {
-				t.Fatal(err)
-			}
-			_, err = stream.Recv()
+			_, err = sendOpen(t, stream, tc.req)
 			wantRefused(t, tc.name, err, codes.InvalidArgument, hostservice.RuleShellStartInvalid)
 		})
 	}
@@ -424,6 +431,29 @@ func TestShellRefusingMode(t *testing.T) {
 	})
 	_, _, err := f.open(t.Context(), t, &hostdv1.ShellOpen{ProjectId: f.projectID, Setup: pipedSetup()})
 	wantRefused(t, "refusing", err, codes.FailedPrecondition, "state-db-unreadable")
+}
+
+// TestShellRefusingModeEndedFirst widens the race of
+// TestShellRefusingMode: the client sends only once the server has
+// ended the stream, so Send returns io.EOF, and sendOpen still reads
+// the refusal with its code and rule.
+func TestShellRefusingModeEndedFirst(t *testing.T) {
+	f := newShells(t, func(s *hostservice.ShellServer) {
+		s.Refusing = &startup.Refusing{Rule: "state-db-unreadable", Detail: "broken"}
+	})
+	stream, err := f.c.Shell(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Header returns once the server's status has arrived: refusing mode
+	// sends no headers, so the stream is done by then.
+	_, _ = stream.Header()
+	req := openReq(f.projectID, pipedSetup())
+	if err := stream.Send(req); !errors.Is(err, io.EOF) {
+		t.Fatalf("Send after the server ended = %v, want io.EOF", err)
+	}
+	_, err = sendOpen(t, stream, req)
+	wantRefused(t, "refusing, ended first", err, codes.FailedPrecondition, "state-db-unreadable")
 }
 
 // TestShellUnlockFailed sees a failed unlock refuse the shell and still
