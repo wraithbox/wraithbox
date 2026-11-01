@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/proto"
 
@@ -201,7 +202,7 @@ func TestEmitCutsGuestStrings(t *testing.T) {
 	e := event("r")
 	e.DestinationHost = strings.Repeat("h", 400)
 	e.HttpPath = strings.Repeat("é", 1000)
-	e.GuestLabel = &auditv1.GuestLabel{Program: "bad\xffbytes" + strings.Repeat("p", 300)}
+	e.GuestLabel = &auditv1.GuestLabel{Program: "bad\xff bytes" + strings.Repeat("p", 300)}
 	e.BytesIn = 1 << 60
 	h.s.Emit(work, e)
 	eventually(t, "the record", func() bool { return len(h.conn.records(t)) == 1 })
@@ -437,29 +438,29 @@ func TestCountRunOfBadFormKeepsCount(t *testing.T) {
 	h.s.CountRun(work, net4001, "Not A Decision", "rule")
 	h.s.EndVM(work)
 	eventually(t, "the run", func() bool { return len(h.conn.records(t)) == 1 })
-	if run := h.conn.records(t)[0].GetRun(); run.GetRule() != string(RuleUnsendable) || run.GetCount() != 1 {
+	if run := h.conn.records(t)[0].GetRun(); run.GetRule() != string(RuleNotEncoded) || run.GetCount() != 1 {
 		t.Fatalf("run %v", run)
 	}
-	if !strings.Contains(h.log.String(), "rule=event-record-unsendable") {
+	if !strings.Contains(h.log.String(), "rule=event-record-not-encoded") {
 		t.Errorf("log lacks the rule:\n%s", h.log)
 	}
 }
 
-// TestUnsendableRecordRefusesForGood: a record that doesn't encode
+// TestUnencodedRecordRefusesForGood: a record that doesn't encode
 // within MaxRecord refuses all new work, as nothing may run without its
 // record (SEC10-audit).
-func TestUnsendableRecordRefusesForGood(t *testing.T) {
+func TestUnencodedRecordRefusesForGood(t *testing.T) {
 	h := start(t, Config{})
 	e := event("r")
 	e.Decision = strings.Repeat("x", 2*MaxRecord) // the sender's own field, not cut
 	h.s.Emit(work, e)
 	if r := h.s.Admit(work, net4001); r != RuleBlocked {
-		t.Fatalf("Admit after an unsendable record: %q", r)
+		t.Fatalf("Admit after a record that didn't encode: %q", r)
 	}
 	h.s.Emit(work, event("next"))
 	eventually(t, "the next record", func() bool { return len(h.conn.records(t)) == 1 })
 	if got := h.conn.records(t)[0]; got.GetSequence() != 1 {
-		t.Fatalf("sequence %d, want 1: the unsendable record takes no number", got.GetSequence())
+		t.Fatalf("sequence %d, want 1: the record that didn't encode takes no number", got.GetSequence())
 	}
 	if r := h.s.Admit(work, net4001); r != RuleBlocked {
 		t.Fatalf("Admit later: %q", r)
@@ -507,7 +508,7 @@ func TestCut(t *testing.T) {
 		{"abc", 5, "abc"},
 		{"abcdef", 3, "abc"},
 		{"aé", 2, "a"},
-		{"a\xff", 8, "a\uFFFD"},
+		{"a\xff", 8, "a" + string(utf8.RuneError)},
 		{"", 0, ""},
 	} {
 		if got := Cut(tc.in, tc.n); got != tc.want {

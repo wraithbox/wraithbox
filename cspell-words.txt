@@ -49,6 +49,10 @@ procgroup
 diskimage
 diskfmtv
 hostdv
+auditv
+eventchan
+PROPFIND
+timespan
 vmcmd
 projectcmd
 hostservice
