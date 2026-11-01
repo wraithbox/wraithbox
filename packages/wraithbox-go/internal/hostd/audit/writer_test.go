@@ -132,7 +132,8 @@ func TestRetentionMinimum(t *testing.T) {
 // reserve when the volume was full, refuses starts with
 // audit-write-failed, and then writes the failed record, the stop record,
 // and the record of the failure, in that order (S09-11-audit, "Free
-// space and failed writes"). The other VM keeps running.
+// space and failed writes"). The other VM keeps running only until the
+// first retry fails, as TestLastingFailure shows.
 func TestFailedWrite(t *testing.T) {
 	tests := []struct {
 		name    string
