@@ -276,7 +276,22 @@ Spec: S04-architecture.
 
 - Fail an event write with `ENOBUFS` or `EAGAIN`, and see new work
   refused with `event-channel-blocked`, and the record written once the
-  retry succeeds.
+  retry succeeds. In `internal/eventchan`, on a fake clock:
+  `TestFailedWriteBlocksAndRetries`, `TestAdmitRefusesWhileBlocked`,
+  `TestSlowWriteBlocks` (a write past 100 ms), `TestQueueCapStallsInput`
+  (a full queue stalls the caller and doesn't drop a record), and
+  `TestUnsendableRecordRefusesForGood`. `TestRealChannelFullPeerBlocks`
+  fills a real socketpair, and sees every record arrive in order once
+  the peer reads.
+- In `internal/hostd/events`, `TestRefusedRecordEndsSender` sends
+  records that don't decode, break a bound, skip a sequence number, or
+  name another VM, and sees each logged with `event-record-invalid`, the
+  sender ended, and nothing written. So do
+  `TestRepeatedSequenceEndsSender`, `TestDescriptorEndsSender` and
+  `TestProxydNamesStoppedVM`. `TestRecvErrorsEndSender` ends the sender
+  with `fdchan`'s rule or `event-channel-failed`, and
+  `TestRealChannelOversizeEndsSender` with `fdchan-record-size` for a
+  record over 4 KiB.
 - Send a mapping entry with an uppercase or non-LDH name, a trailing
   dot, an address outside 198.18.0.0/15, or one past 131,072 live
   entries. See it logged with `mapping-entry-invalid`, and the
@@ -466,7 +481,18 @@ Spec: S09-11-audit.
   `wb-netd` and `wb-proxyd` refuse with `audit-budget` until the window
   turns.
 - Stop a VM with an open run of suppressed refusals, and see its count
-  in the stop record.
+  in the stop record (`TestEndVMWritesOpenRuns`,
+  `TestOpenRunsInStopRecord`, `TestOpenRunsPastTheCapAreWritten`).
+- Budgets: `TestEventsBudget` and `TestBytesBudget` in
+  `internal/hostd/audit` see the rule and its end at the turn of the
+  minute or day, with every record still written. `TestBudgetWithWriter`
+  in `internal/hostd/events` writes 6001 records and sees one notice
+  that ends at the minute's turn. In `internal/eventchan`,
+  `TestBudgetNoticeRefusesAndCounts` and `TestBytesNoticeRefuses` see
+  the sender refuse with `audit-budget` or `audit-bytes` and write one
+  run per minute, and `TestInvalidNoticeIgnored` sees a notice for
+  another VM ignored and logged. `TestStatusAuditBudget` checks both
+  budgets in `wb vm status`.
 - In `internal/hostd/audit`: `TestClassesRequired` checks each record
   against the OCSF 1.8.0 subset in `testdata`, `TestNoCredentialFields`
   checks that no record type can hold a credential, and
@@ -579,6 +605,10 @@ and one before it detaches nothing.
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
   (S04-08-records-and-bounds, "Accounting and event channels").
+  `FuzzEventRecord` checks that no record is written after a refused
+  one and that every written record marshals. `FuzzBudgetNotice` checks
+  that a sender takes no notice for another VM, of an unknown rule, or
+  that ends more than 25 hours ahead.
 - The output filter of `wb-build-ssh`, `FuzzBuildSSHOutput`: arbitrary
   output in arbitrary chunks, with the password placed anywhere in it.
   No log line holds the password or a part of it cut at a read or a
