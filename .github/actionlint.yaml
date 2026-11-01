@@ -6,6 +6,6 @@
 # actionlint lists it.
 self-hosted-runner:
   labels:
-    # macOS 27 with Xcode 27, in public preview, for the Swift job
-    # (docs/spec/S02-toolchain.md, NFR04-host-platforms).
+    # macOS 27 with Xcode 27, in public preview, for the Swift job and the
+    # Go job's macOS leg (docs/spec/S02-toolchain.md, NFR04-host-platforms).
     - xcode-27
