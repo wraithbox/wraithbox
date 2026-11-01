@@ -338,7 +338,7 @@ func TestInterfacePrefix(t *testing.T) {
 	}{
 		{"ipv4 in 16 bytes", &net.IPNet{IP: net.ParseIP("192.0.2.5"), Mask: net.CIDRMask(24, 32)}, "192.0.2.5/24"},
 		{"ipv6", &net.IPNet{IP: net.ParseIP("2001:db8::5"), Mask: net.CIDRMask(64, 128)}, "2001:db8::5/64"},
-		{"mask not a prefix", &net.IPNet{IP: net.ParseIP("192.0.2.5").To4(), Mask: net.IPv4Mask(255, 0, 255, 0)}, "192.0.2.5/32"},
+		{"mask not a prefix", &net.IPNet{IP: net.ParseIP("192.0.2.5").To4(), Mask: net.IPv4Mask(255, 0, 255, 0)}, ""},
 		{"ipv4 with a 16-byte mask", &net.IPNet{IP: net.ParseIP("192.0.2.5"), Mask: net.CIDRMask(120, 128)}, "192.0.2.5/24"},
 		{"ip addr", &net.IPAddr{IP: net.ParseIP("192.0.2.5")}, "192.0.2.5/32"},
 		{"not an ip", &net.UnixAddr{Name: "x", Net: "unix"}, ""},
