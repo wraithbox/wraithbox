@@ -119,7 +119,7 @@ func CheckMTU(mtu int) error {
 // size lower than the transport asked for fails the check with
 // RuleBuffers, and the transport isn't used.
 func checkBuffers(snd, rcv, mtu int) error {
-	attrs := []slog.Attr{slog.Int("sndbuf", snd), slog.Int("rcvbuf", rcv), slog.Int("mtu", mtu)}
+	attrs := []slog.Attr{slog.Int("send_buffer", snd), slog.Int("receive_buffer", rcv), slog.Int("mtu", mtu)}
 	if snd < MaxFrame(mtu) {
 		msg := fmt.Sprintf("SO_SNDBUF is %d, below the largest frame of %d bytes", snd, MaxFrame(mtu))
 		return refuse(RuleBuffers, msg, nil, attrs...)

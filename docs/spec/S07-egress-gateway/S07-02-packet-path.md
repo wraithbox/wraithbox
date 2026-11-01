@@ -54,30 +54,35 @@ answers connections to every synthetic address (X03-network-path).
 With spoofing on, gVisor answers ARP for any address. The guest then
 declines every lease as an address conflict (X03-network-path). So
 `wb-netd` checks every frame before the stack sees it. It drops the
-frame unless all of these hold, in this order:
+frame unless all of these hold, in this order. The rule a drop is
+logged with follows each step.
 
-1. The frame is 14 to MTU + 14 bytes long.
+1. The frame is 14 to MTU + 14 bytes long (`frame-size`).
 2. Its source MAC is the guest's. Its destination MAC is the
-   gateway's or broadcast.
-3. It is ARP or IPv4. Every other EtherType is dropped, IPv6
-   included.
+   gateway's or broadcast (`frame-mac`).
+3. Its EtherType is ARP or IPv4. IPv6 and the rest are dropped
+   (`frame-ethertype`).
 4. ARP is Ethernet/IPv4: hardware type 1, protocol type `0x0800`,
    address lengths 6 and 4. Its operation is request or reply. The
    sender hardware address is the guest's MAC, the sender protocol
    address is the leased address, and the target protocol address is
-   the gateway.
-5. IPv4 has a header of 20 bytes (no options), and is not a fragment
-   (MF clear, offset 0). Its source is the leased address. The source
-   can be `0.0.0.0` only for DHCP from UDP port 68 to port 67.
+   the gateway (`arp-form`).
+5. IPv4 has a header of 20 bytes (no options) with a valid checksum,
+   and a total length within the frame. It is not a fragment (MF
+   clear, offset 0), and the reserved flag bit is clear (`ipv4-form`).
+   Its source is the leased address. The source can be `0.0.0.0` only
+   for DHCP from UDP port 68 to port 67 (`ipv4-source`).
 6. The protocol is allowed:
    - TCP passes to the stack, which decides under "Connections".
    - UDP passes only to the gateway's port 53, or for DHCP from port
      68 to port 67. DHCP goes to the gateway, or to limited and
-     subnet-directed broadcast.
-   - ICMP passes only as an echo request to the gateway.
+     subnet-directed broadcast (`udp-not-dns`).
+   - ICMP passes only as an echo request to the gateway
+     (`icmp-not-echo`).
 
-Every other IP protocol, multicast, and broadcast other than DHCP is
-dropped.
+Every other IP protocol is dropped (`ip-protocol`). Multicast, and
+broadcast other than DHCP, are dropped before the protocol is looked
+at (`ip-broadcast`).
 
 The ARP rule has two effects:
 
@@ -134,6 +139,12 @@ Each VM's `wb-netd` caps:
 Each cap is configuration with a default. A frame or connection over a
 cap is dropped, and logged with the cap's rule
 (SEC13-bounded-resources).
+
+gVisor has no stack-wide memory limit. The established cap times a cap
+on each TCP buffer bounds the stack's buffer memory. An outbound
+frame over the queue's cap is dropped with `link-queue-full`, and one
+the guest's full buffer still refuses after about 20 ms of retries
+with `link-write-failed`.
 
 ### No host-side listener
 
@@ -229,10 +240,18 @@ SYN. It is audited with the rule `port-not-allowed`.
 
 Everything else is refused:
 
-- TCP to any other address is reset.
+- TCP to any other address is reset (`tcp-destination-refused`).
 - UDP other than DNS is dropped. Clients fall back from QUIC to TCP.
+  UDP to an unbound port is dropped without an ICMP reply
+  (`udp-unbound`).
 - ICMP is answered only for the gateway address.
-- TCP to the gateway on any port but 53 is reset too.
+- TCP to the gateway on any port but 53, or on 53 with no DNS-over-TCP
+  server, is reset too (`gateway-port-refused`). So is TCP to a
+  synthetic address with no name mapping (`synthetic-unmapped`).
+
+These resets go out on the goroutine that read the SYN. A SYN a part of
+`wb-netd` may take is checked against the established cap
+(`tcp-cap`) before that part decides it.
 
 The host, the LAN, and raw IP destinations are therefore unreachable
 by construction (SEC05-default-deny).

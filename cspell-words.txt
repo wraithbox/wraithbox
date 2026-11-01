@@ -73,8 +73,18 @@ guestupdate
 guestusers
 guestprocs
 procs
+packetlink
+netdtest
 
 # Virtualization, networking and OS facilities
+gvisor
+tcpip
+gvstack
+gonet
+NICID
+ethertype
+SCTP
+Dont
 Bavail
 fallocate
 Fstore

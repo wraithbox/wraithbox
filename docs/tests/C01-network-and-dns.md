@@ -11,9 +11,16 @@ S04-02-vm-provider ("The device set is fixed and checked")
 ## Fuzzing
 
 - Ethernet, IP and TCP handling at the link endpoint, and DHCP.
+  `FuzzLinkEndpoint` (`internal/netd/stack`) feeds frames through the
+  link endpoint into the stack with the TCP rules and no hooks. The
+  stack must send frames only to the guest's MAC or broadcast, answer
+  ARP only for the gateway, and send no SYN-ACK.
 - The link filter of S07-egress-gateway and its ARP branch, with a
   corpus of frames from 0 to 65535 + 14 bytes, and seeds of truncated
   reads that fill the MTU + 15 byte buffer, which must be dropped.
+  `FuzzLinkFilter` (`internal/netd/link`) checks that the filter agrees
+  with a second check written with gVisor's header package on every
+  frame, and never passes one longer than MTU + 14 bytes.
 - DNS, with a corpus that holds a dot byte inside a wire label, a label
   of 0 and of 64 bytes, and a name of 254 bytes (S07-03-dns, "Name form").
 
