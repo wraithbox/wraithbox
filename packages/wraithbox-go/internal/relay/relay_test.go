@@ -560,6 +560,11 @@ func TestSendFailure(t *testing.T) {
 		h.stream.sendErr = io.EOF
 		h.start()
 		h.sigs <- tty.Interrupt
+		// The loop picks at random among ready channels, so the exit
+		// frame is served only after the send failed.
+		if got := kind(h.stream.nextRefused(t)); got != "signal SIGNAL_INT" {
+			t.Fatalf("failed send of %q, want the interrupt", got)
+		}
 		h.sigs <- tty.Quit
 		h.stream.serve(exitCode(7))
 		if code := h.wait(t); code != 7 {
@@ -574,6 +579,9 @@ func TestSendFailure(t *testing.T) {
 		h.stream.sendErr = errBroken
 		h.start()
 		h.sigs <- tty.Interrupt
+		if got := kind(h.stream.nextRefused(t)); got != "signal SIGNAL_INT" {
+			t.Fatalf("failed send of %q, want the interrupt", got)
+		}
 		close(h.stream.frames)
 		if code := h.wait(t); code != ExitFailure || !strings.Contains(h.lastLine(), RuleStreamClosed) {
 			t.Errorf("exit status %d, last line %q", code, h.lastLine())
