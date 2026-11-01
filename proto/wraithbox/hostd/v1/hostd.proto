@@ -116,6 +116,26 @@ message VMStatus {
   // The data volume's mount in the guest for the current run: unset
   // unless the VM is running (S06-05-disks, "Mounting the data volume").
   DataMount data_mount = 8;
+  // The audit log's refusal of the VM's start and of its new sessions,
+  // unset when it refuses neither (S09-11-audit, "Free space and failed
+  // writes"). wb status takes it over in M4.6.
+  AuditRefusal audit_refusal = 9;
+}
+
+// AuditRefusal is the rule by which the audit log refuses a VM's start
+// and its new sessions, and what ends it.
+message AuditRefusal {
+  // audit-free-space: the volume that holds the audit log is below its
+  // free space floor, or the log's reserve file is missing.
+  // audit-write-failed: a record couldn't be written, and no write has
+  // succeeded since. M3.10b adds audit-budget and audit-bytes.
+  string rule = 1;
+  // What is refused, why, and what ends it, from wb-hostd.
+  string message = 2;
+  // When the refusal ends, in Unix seconds, for a rule that ends at a
+  // set time. 0 for a rule that ends when its condition does, which the
+  // message names.
+  int64 until_unix = 3;
 }
 
 // DataMount is the outcome of the last MountData call of the current run.
