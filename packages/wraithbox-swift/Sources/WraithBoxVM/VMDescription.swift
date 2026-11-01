@@ -14,20 +14,23 @@ public struct VMDescription: Sendable, Equatable {
     }
 
     /// The fixed device set of S06-06-devices-and-warm-start, "Devices",
-    /// with each disk at its role's file in the bundle. It has no network
-    /// device until V1-M3-network-floor.
-    public static func fixedSet(bundlePath: String) -> VMDescription {
+    /// for `slot`, with each disk at its role's file in the bundle, and as
+    /// many file-handle network devices as the slot's set has.
+    public static func fixedSet(bundlePath: String, slot: VMSlot) -> VMDescription {
         let bundle = VMBundle(path: bundlePath)
-        return VMDescription(devices: [
-            .vsock,
-            .entropy,
-            .disk(VMDisk(role: .system, path: bundle.path(of: .systemDisk), readOnly: false)),
-            .disk(VMDisk(role: .data, path: bundle.path(of: .dataDisk), readOnly: false)),
-            .disk(VMDisk(role: .tools, path: bundle.path(of: .toolsDisk), readOnly: true)),
-            .macGraphics(displays: 1),
-            .usbKeyboard,
-            .usbScreenPointer,
-        ])
+        let networks = DeviceSet.fixed(for: slot).fileHandleNetworks
+        let network = [VMDevice](repeating: .network(.fileHandle), count: networks)
+        return VMDescription(
+            devices: [
+                .vsock,
+                .entropy,
+                .disk(VMDisk(role: .system, path: bundle.path(of: .systemDisk), readOnly: false)),
+                .disk(VMDisk(role: .data, path: bundle.path(of: .dataDisk), readOnly: false)),
+                .disk(VMDisk(role: .tools, path: bundle.path(of: .toolsDisk), readOnly: true)),
+                .macGraphics(displays: 1),
+                .usbKeyboard,
+                .usbScreenPointer,
+            ] + network)
     }
 }
 

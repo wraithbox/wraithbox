@@ -202,6 +202,7 @@ public final class GuestConnector {
                 "generation \(generation) stopped while the connect ran")
         }
         var message = Wraithbox_Vmd_V1_HandoffMessage()
+        message.kind = .connection
         message.requestID = requestID
         message.generation = generation
         message.direction = .hostToGuest

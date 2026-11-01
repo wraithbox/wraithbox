@@ -1,5 +1,6 @@
-// The needs-vm test of I161: the signed wb-vmd boots a macOS guest in the
-// work slot, confined, and stops it. Skipped unless WB_VM_TEST_BUNDLE
+// The needs-vm test of I161 and I481: the signed wb-vmd boots a macOS
+// guest in the work slot, confined, passes the packet transport on which
+// the guest sends its DHCPDISCOVER, and stops it. Skipped unless WB_VM_TEST_BUNDLE
 // names a spike bundle. It writes the work slot's bundle under the real
 // `<data>`, so it runs on the maintainer's Mac in an attended session
 // (docs/agents/host-work.md): `mise run swift:test-vm`.
@@ -52,10 +53,27 @@ struct VMBootTests {
     ) async throws {
         _ = try await client.start(startRequest(generation: 1))
         try await waitForState(client, .running)
+        try await expectDHCPDiscover(daemon: daemon, generation: 1)
         let devices = try #require(daemon.log.events("vm-devices").first?["devices"] as? [String])
-        #expect(devices == VMDescription.fixedSet(bundlePath: "/").devices.map(\.logName))
+        #expect(
+            devices == VMDescription.fixedSet(bundlePath: "/", slot: .work).devices.map(\.logName))
         _ = try await client.stop(stopRequest(generation: 1, mode: .force))
         try await waitForState(client, .stopped)
+    }
+
+    /// The start's KIND_NETWORK record, then a DHCPDISCOVER from the VM's
+    /// MAC address on the transport it passed (S07-02-packet-path).
+    private func expectDHCPDiscover(daemon: SpawnedDaemon, generation: UInt64) async throws {
+        let received = try #require(
+            try await waitForHandoff(daemon.handoffEnd, seconds: 10), "no network record")
+        defer { closeAll(received.descriptors) }
+        let message = try Wraithbox_Vmd_V1_HandoffMessage(serializedBytes: received.record)
+        #expect(message.kind == .network)
+        #expect(message.generation == generation)
+        let transport = try #require(received.descriptors.first)
+        #expect(received.descriptors.count == 1)
+        let (found, frames) = waitForDHCPDiscover(transport, mac: testMAC, seconds: 300)
+        #expect(found, "no DHCPDISCOVER from the VM's MAC address in \(frames) frames")
     }
 
     private func refuseLinkOutOfBundle(
@@ -191,6 +209,9 @@ final class SpawnedDaemon: Sendable {
     private let waitStatus = Mutex<Int32?>(nil)
     private let readerDone = Mutex(false)
     private let directory: TemporaryDirectory
+    /// The test's end of the hand-off channel, closed once wb-vmd's log
+    /// ends.
+    let handoffEnd: Int32
 
     init(binary: String) throws {
         directory = try TemporaryDirectory()
@@ -203,6 +224,7 @@ final class SpawnedDaemon: Sendable {
             binary, descriptors: [lifelinePipe.0, logPipe.1, listening, handoff.1])
         closeAll([lifelinePipe.0, logPipe.1, listening, handoff.1])
         lifeline.withLock { $0 = lifelinePipe.1 }
+        handoffEnd = handoff.0
         let thread = Thread { [self] in
             Self.readLines(logPipe.0, into: log)
             close(handoff.0)

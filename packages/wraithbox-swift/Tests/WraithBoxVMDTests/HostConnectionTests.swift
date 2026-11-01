@@ -189,9 +189,11 @@ final class ServerFixture: Sendable {
         }
         let handshake = HostHandshake(
             ownVersion: version, lookup: lookup, timeout: timeout, log: log)
+        // No test here calls Start or ConnectGuest, so the hand-off
+        // channel is none.
         let supervisor = VMSupervisor(
-            engine: FakeEngine(), slot: .work, bundlePath: "/nonexistent", log: log)
-        // No test here calls ConnectGuest, so the hand-off channel is none.
+            engine: FakeEngine(), slot: .work, bundlePath: "/nonexistent",
+            handoff: HandoffChannel(fd: -1), log: log)
         let connector = GuestConnector(
             supervisor: supervisor, handoff: HandoffChannel(fd: -1), log: log)
         let service = VMServiceHandler(supervisor: supervisor, connector: connector, log: log)

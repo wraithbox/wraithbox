@@ -47,7 +47,7 @@ enum VirtualizationConfiguration {
         configuration.cpuCount = request.cpuCount
         configuration.memorySize = request.memoryBytes
         for device in request.description.devices {
-            try add(device, to: configuration)
+            try add(device, to: configuration, request: request)
         }
         do {
             try configuration.validate()
@@ -99,9 +99,9 @@ enum VirtualizationConfiguration {
 
     /// Adds one device. A kind outside the fixed set was refused by the
     /// check before this runs, and is refused here again.
-    private static func add(_ device: VMDevice, to configuration: VZVirtualMachineConfiguration)
-        throws(VMFailure)
-    {
+    private static func add(
+        _ device: VMDevice, to configuration: VZVirtualMachineConfiguration, request: BootRequest
+    ) throws(VMFailure) {
         switch device {
         case .vsock:
             configuration.socketDevices.append(VZVirtioSocketDeviceConfiguration())
@@ -121,9 +121,38 @@ enum VirtualizationConfiguration {
             configuration.keyboards.append(VZUSBKeyboardConfiguration())
         case .usbScreenPointer:
             configuration.pointingDevices.append(VZUSBScreenCoordinatePointingDeviceConfiguration())
+        case .network(.fileHandle):
+            guard let descriptor = request.networkDescriptor else {
+                throw VMFailure(description: "the network device has no packet transport")
+            }
+            configuration.networkDevices.append(
+                try networkDevice(descriptor: descriptor, mac: request.macAddress))
         case .network, .directoryShare, .audioInput, .console, .storage, .unknown:
             throw VMFailure(description: "\(device.logName) is not in the fixed device set")
         }
+    }
+
+    /// The virtio network device on the VM end of the packet transport,
+    /// with the slot's MAC address and an MTU of 65535 (S07-02-packet-path,
+    /// "Packet transport", "MTU"). The attachment gets its own copy of
+    /// `descriptor`, which it closes when the VM goes away.
+    static func networkDevice(descriptor: Int32, mac: MACAddress) throws(VMFailure)
+        -> VZVirtioNetworkDeviceConfiguration
+    {
+        guard let address = VZMACAddress(string: mac.description) else {
+            throw VMFailure(description: "\(mac) is not a MAC address")
+        }
+        let copy = fcntl(descriptor, F_DUPFD_CLOEXEC, 0)
+        guard copy >= 0 else {
+            throw VMFailure(description: "dup: \(String(cString: strerror(errno)))")
+        }
+        let attachment = VZFileHandleNetworkDeviceAttachment(
+            fileHandle: FileHandle(fileDescriptor: copy, closeOnDealloc: true))
+        attachment.maximumTransmissionUnit = PacketTransport.mtu
+        let device = VZVirtioNetworkDeviceConfiguration()
+        device.attachment = attachment
+        device.macAddress = address
+        return device
     }
 
     /// A disk image on a virtio block device, with automatic caching and

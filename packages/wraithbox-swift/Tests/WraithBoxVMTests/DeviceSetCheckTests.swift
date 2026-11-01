@@ -61,21 +61,30 @@ final class BundleFixture {
     ) throws(DeviceSetRefusal) {
         let check = DeviceSetCheck(
             slot: slot, set: set ?? .fixed(for: slot), bundlePath: path, log: { log.append($0) })
-        try check.check(description ?? .fixedSet(bundlePath: path))
+        try check.check(description ?? .fixedSet(bundlePath: path, slot: slot))
     }
 }
 
-/// The fixed set with `extra` added.
-func fixedSet(_ bundle: BundleFixture, adding extra: [VMDevice]) -> VMDescription {
-    var description = VMDescription.fixedSet(bundlePath: bundle.path)
+/// The fixed set of `slot` with `extra` added.
+func fixedSet(_ bundle: BundleFixture, slot: VMSlot = .work, adding extra: [VMDevice])
+    -> VMDescription
+{
+    var description = VMDescription.fixedSet(bundlePath: bundle.path, slot: slot)
     description.devices += extra
+    return description
+}
+
+/// The fixed set of `slot` without its network devices.
+func withoutNetwork(_ bundle: BundleFixture, slot: VMSlot) -> VMDescription {
+    var description = VMDescription.fixedSet(bundlePath: bundle.path, slot: slot)
+    description.devices.removeAll { $0 == .network(.fileHandle) }
     return description
 }
 
 /// The fixed set with the disk of `role` replaced.
 func fixedSet(_ bundle: BundleFixture, replacing role: DiskRole, with disk: VMDisk) -> VMDescription
 {
-    var description = VMDescription.fixedSet(bundlePath: bundle.path)
+    var description = VMDescription.fixedSet(bundlePath: bundle.path, slot: .work)
     description.devices = description.devices.map { device in
         if case .disk(let old) = device, old.role == role {
             return .disk(disk)
@@ -92,15 +101,20 @@ struct DeviceSetAcceptedTests {
         let bundle = try BundleFixture()
         let log = LogSink()
         try bundle.check(slot: slot, log: log)
+        let devices = slot == .build ? 8 : 9
         #expect(
             log.lines == [
-                "device-set: accepted slot=\(slot.rawValue) devices=8 bundle=\(bundle.path)"
+                "device-set: accepted slot=\(slot.rawValue) devices=\(devices) bundle=\(bundle.path)"
             ])
     }
 
-    @Test("no slot allows a network device yet", arguments: VMSlot.allCases)
-    func noNetworkYet(slot: VMSlot) {
-        #expect(DeviceSet.fixed(for: slot).fileHandleNetworks == 0)
+    @Test(
+        "the work and isolated sets have one file-handle network, the build set none",
+        arguments: [(VMSlot.work, 1), (.isolated, 1), (.build, 0)])
+    func networks(slot: VMSlot, count: Int) {
+        #expect(DeviceSet.fixed(for: slot).fileHandleNetworks == count)
+        let description = VMDescription.fixedSet(bundlePath: "/", slot: slot)
+        #expect(description.devices.filter { $0 == .network(.fileHandle) }.count == count)
     }
 
     @Test("another file in the bundle is ignored")
@@ -114,15 +128,74 @@ struct DeviceSetAcceptedTests {
     func trailingSlash() throws {
         let bundle = try BundleFixture()
         let check = DeviceSetCheck(slot: .work, bundlePath: bundle.path + "/", log: { _ in })
-        try check.check(.fixedSet(bundlePath: bundle.path))
+        try check.check(.fixedSet(bundlePath: bundle.path, slot: .work))
     }
 
-    @Test("one file-handle network device is accepted where a set allows one")
-    func oneNetworkWhereAllowed() throws {
+}
+
+@Suite("Device set: network devices")
+struct DeviceSetNetworkTests {
+    @Test(
+        "a work or isolated VM without its network device is refused",
+        arguments: [VMSlot.work, .isolated])
+    func missingNetwork(slot: VMSlot) throws {
         let bundle = try BundleFixture()
-        try bundle.check(
-            fixedSet(bundle, adding: [.network(.fileHandle)]), set: DeviceSet(fileHandleNetworks: 1)
-        )
+        let error = #expect(throws: DeviceSetRefusal.self) {
+            try bundle.check(withoutNetwork(bundle, slot: slot), slot: slot)
+        }
+        #expect(error?.rule == .count)
+    }
+
+    @Test(
+        "a second file-handle network device is refused in the work and isolated slots",
+        arguments: [VMSlot.work, .isolated])
+    func secondNetwork(slot: VMSlot) throws {
+        let bundle = try BundleFixture()
+        let error = #expect(throws: DeviceSetRefusal.self) {
+            try bundle.check(
+                fixedSet(bundle, slot: slot, adding: [.network(.fileHandle)]), slot: slot)
+        }
+        #expect(error?.rule == .network)
+    }
+
+    @Test("the build slot still refuses a file-handle network device")
+    func buildRefusesNetwork() throws {
+        let bundle = try BundleFixture()
+        let error = #expect(throws: DeviceSetRefusal.self) {
+            try bundle.check(
+                fixedSet(bundle, slot: .build, adding: [.network(.fileHandle)]), slot: .build)
+        }
+        #expect(error?.rule == .network)
+    }
+
+    @Test(
+        "every other attachment is refused in every slot, also in place of the file handle",
+        arguments: VMSlot.allCases)
+    func otherAttachments(slot: VMSlot) throws {
+        let bundle = try BundleFixture()
+        for attachment in [NetworkAttachment.nat, .bridged, .vmnet] {
+            var descriptions = [fixedSet(bundle, slot: slot, adding: [.network(attachment)])]
+            if slot != .build {
+                descriptions.append(
+                    VMDescription.fixedSet(bundlePath: bundle.path, slot: slot)
+                        .replacingNetwork(with: attachment))
+            }
+            for description in descriptions {
+                let error = #expect(throws: DeviceSetRefusal.self) {
+                    try bundle.check(description, slot: slot)
+                }
+                #expect(error?.rule == .network, "\(attachment.rawValue) in \(slot.rawValue)")
+            }
+        }
+    }
+}
+
+extension VMDescription {
+    /// The description with each file-handle network device given
+    /// `attachment` instead.
+    func replacingNetwork(with attachment: NetworkAttachment) -> VMDescription {
+        VMDescription(
+            devices: devices.map { $0 == .network(.fileHandle) ? .network(attachment) : $0 })
     }
 }
 
@@ -230,7 +303,7 @@ struct DeviceSetCountTests {
     @Test("a missing device of the set is refused")
     func missingDevice() throws {
         let bundle = try BundleFixture()
-        var description = VMDescription.fixedSet(bundlePath: bundle.path)
+        var description = VMDescription.fixedSet(bundlePath: bundle.path, slot: .work)
         description.devices.removeAll { $0 == .entropy }
         let error = #expect(throws: DeviceSetRefusal.self) {
             try bundle.check(description)
@@ -241,7 +314,7 @@ struct DeviceSetCountTests {
     @Test("a graphics device without exactly one display is refused", arguments: [0, 2])
     func displays(count: Int) throws {
         let bundle = try BundleFixture()
-        var description = VMDescription.fixedSet(bundlePath: bundle.path)
+        var description = VMDescription.fixedSet(bundlePath: bundle.path, slot: .work)
         description.devices = description.devices.map {
             $0 == .macGraphics(displays: 1) ? .macGraphics(displays: count) : $0
         }

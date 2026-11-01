@@ -32,10 +32,11 @@ final class ServiceFixture {
         bundle = try BundleFixture()
         bundlePath = bundle.path
         homePath = bundle.home.path
-        supervisor = VMSupervisor(
-            engine: engine, slot: .work, bundlePath: bundle.path, log: recorded.log)
         let pair = try makeSocketPair(SOCK_DGRAM)
         handoff = (pair.0, pair.1)
+        supervisor = VMSupervisor(
+            engine: engine, slot: .work, bundlePath: bundle.path,
+            handoff: HandoffChannel(fd: pair.0), log: recorded.log)
         connector = GuestConnector(
             supervisor: supervisor, handoff: HandoffChannel(fd: pair.0), log: recorded.log,
             timeout: connectTimeout)
@@ -76,13 +77,14 @@ final class ServiceFixture {
     }
 }
 
-func startRequest(generation: UInt64, cpuCount: UInt32 = 4, memoryMiB: UInt64 = 4096)
-    -> Wraithbox_Vmd_V1_StartRequest
-{
+func startRequest(
+    generation: UInt64, cpuCount: UInt32 = 4, memoryMiB: UInt64 = 4096, mac: [UInt8] = testMAC
+) -> Wraithbox_Vmd_V1_StartRequest {
     var request = Wraithbox_Vmd_V1_StartRequest()
     request.generation = generation
     request.cpuCount = cpuCount
     request.memoryMib = memoryMiB
+    request.macAddress = Data(mac)
     return request
 }
 
@@ -125,7 +127,9 @@ struct VMServiceTests {
         #expect(states == [.running])
         #expect(await fixture.engine.requests.count == 1)
         let request = try #require(await fixture.engine.requests.first)
-        #expect(request.description == VMDescription.fixedSet(bundlePath: fixture.bundlePath))
+        #expect(
+            request.description
+                == VMDescription.fixedSet(bundlePath: fixture.bundlePath, slot: .work))
         #expect(request.cpuCount == 4)
         #expect(request.memoryBytes == 4096 << 20)
         let devices = try #require(
@@ -134,7 +138,7 @@ struct VMServiceTests {
             devices == [
                 "vsock", "entropy", "disk:system:rw", "disk:data:rw", "disk:tools:ro",
                 "mac-graphics:1",
-                "usb-keyboard", "usb-pointer",
+                "usb-keyboard", "usb-pointer", "network:file-handle",
             ])
     }
 
@@ -307,7 +311,10 @@ struct VMServiceTests {
         let fixture = try await ServiceFixture()
         let supervisor = fixture.supervisor
         await MainActor.run { fixture.engine.holdStart = true }
-        let start = Task { try await supervisor.start(generation: 1, cpuCount: 2, memoryMiB: 1024) }
+        let start = Task {
+            try await supervisor.start(
+                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+        }
         let machine = try await heldMachine(fixture)
         await #expect(throws: VMRefusal(.starting, .failedPrecondition, "the VM is starting")) {
             try await supervisor.stop(generation: 1, mode: .force)
@@ -323,7 +330,10 @@ struct VMServiceTests {
         let fixture = try await ServiceFixture()
         let supervisor = fixture.supervisor
         await MainActor.run { fixture.engine.holdStart = true }
-        let start = Task { try await supervisor.start(generation: 1, cpuCount: 2, memoryMiB: 1024) }
+        let start = Task {
+            try await supervisor.start(
+                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+        }
         let machine = try await heldMachine(fixture)
         let exit = Task { await supervisor.stopForExit() }
         try await Task.sleep(for: .milliseconds(100))
@@ -348,7 +358,8 @@ struct VMServiceTests {
     @Test("the lifeline's stop forces the running VM off")
     func stopForExit() async throws {
         let fixture = try await ServiceFixture()
-        try await fixture.supervisor.start(generation: 1, cpuCount: 2, memoryMiB: 1024)
+        try await fixture.supervisor.start(
+            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
         await fixture.supervisor.stopForExit()
         #expect(await fixture.engine.machines.first?.stops == ["force"])
         #expect(await fixture.supervisor.status.state == .stopped)

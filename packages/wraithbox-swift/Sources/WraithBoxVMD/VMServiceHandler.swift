@@ -34,7 +34,7 @@ public struct VMServiceHandler: Wraithbox_Vmd_V1_VMService.SimpleServiceProtocol
         try await refusing("Start", generation: request.generation) { () async throws(VMRefusal) in
             try await supervisor.start(
                 generation: request.generation, cpuCount: request.cpuCount,
-                memoryMiB: request.memoryMib)
+                memoryMiB: request.memoryMib, macAddress: Array(request.macAddress))
         }
         return Wraithbox_Vmd_V1_StartResponse()
     }
