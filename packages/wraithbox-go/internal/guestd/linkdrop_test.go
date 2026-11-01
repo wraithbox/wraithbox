@@ -99,6 +99,28 @@ func (h loopEndHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
 
 func (h loopEndHandler) WithGroup(string) slog.Handler { return h }
 
+// recvBackstop bounds recv. It fires only when the test is already
+// broken, so a regression fails with a named message instead of
+// hanging until the go test timeout. The events themselves come in
+// milliseconds.
+const recvBackstop = 10 * time.Second
+
+// recv waits for a value on ch, and fails the test naming what it
+// waited for if none comes within recvBackstop.
+func recv[T any](t *testing.T, ch <-chan T, what string) T {
+	t.Helper()
+	timer := time.NewTimer(recvBackstop)
+	defer timer.Stop()
+	select {
+	case v := <-ch:
+		return v
+	case <-timer.C:
+		t.Fatalf("no %s within %v", what, recvBackstop)
+		var zero T
+		return zero
+	}
+}
+
 // TestLinkWatchRunsToItsBounds: a new connection doesn't end the
 // link-drop stop loop. It runs to its bounds, and a shell start's
 // HoldStops waits for it (S13-01-process-hardening, "When the link
@@ -119,9 +141,9 @@ func TestLinkWatchRunsToItsBounds(t *testing.T) {
 	c1 := w.TagConn(context.Background(), &stats.ConnTagInfo{})
 	w.HandleConn(c1, &stats.ConnBegin{})
 	w.HandleConn(c1, &stats.ConnEnd{})
-	<-table.stops
+	recv(t, table.stops, "the first SIGSTOP")
 	// The loop sent SIGSTOP and waits in its first round's settle.
-	<-clock.in
+	recv(t, clock.in, "the first settle of the stop loop")
 	c2 := w.TagConn(context.Background(), &stats.ConnTagInfo{})
 	w.HandleConn(c2, &stats.ConnBegin{})
 	calling := make(chan struct{})
@@ -134,11 +156,11 @@ func TestLinkWatchRunsToItsBounds(t *testing.T) {
 	}()
 	<-calling
 	close(clock.out)
-	r := <-results
+	r := recv(t, results, "the stop loop's result")
 	if r.CutShort || r.Running == 0 || r.Rounds != procs.MaxRounds {
 		t.Errorf("result %+v, want the loop run to its bound of %d rounds", r, procs.MaxRounds)
 	}
-	(<-held)()
+	recv(t, held, "HoldStops after the stop loop")()
 	if got := events.list(); !slices.Equal(got, []string{"loop-end", "held"}) {
 		t.Errorf("events %q, want HoldStops to return after the stop loop ended", got)
 	}
@@ -152,5 +174,5 @@ func TestLinkWatchRunsToItsBounds(t *testing.T) {
 	if !w.dropped(c2) {
 		t.Error("not dropped after the last connection ended")
 	}
-	<-results
+	recv(t, results, "the second stop loop's result")
 }
