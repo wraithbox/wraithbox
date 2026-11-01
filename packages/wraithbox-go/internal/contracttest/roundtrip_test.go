@@ -125,7 +125,7 @@ func terminalMessages() []proto.Message {
 // checks that every member is set in some value.
 func messages() []proto.Message {
 	return append([]proto.Message{
-		&vmdv1.StartRequest{Generation: 1, CpuCount: 4, MemoryMib: 8192},
+		&vmdv1.StartRequest{Generation: 1, CpuCount: 4, MemoryMib: 8192, MacAddress: []byte{0x02, 0x11, 0x22, 0x33, 0x44, 0x55}},
 		&vmdv1.StartResponse{},
 		&vmdv1.StopRequest{Generation: 2, Mode: vmdv1.StopMode_STOP_MODE_FORCE},
 		&vmdv1.StopResponse{},
@@ -138,6 +138,7 @@ func messages() []proto.Message {
 		&vmdv1.ConnectGuestRequest{Generation: 3, RequestId: 41, GuestPort: 700},
 		&vmdv1.ConnectGuestResponse{},
 		&vmdv1.HandoffMessage{
+			Kind:            vmdv1.Kind_KIND_CONNECTION,
 			RequestId:       41,
 			Generation:      3,
 			Direction:       vmdv1.Direction_DIRECTION_HOST_TO_GUEST,
