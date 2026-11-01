@@ -33,37 +33,33 @@ func v4Refused(b [4]byte) bool {
 	return false
 }
 
-// v6RangeRefused is the oracle for the IPv6 ranges, with 6to4 and
-// Teredo whole.
+// v6RangeRefused is the oracle for the IPv6 ranges, with 6to4, Teredo
+// and local-use NAT64 whole.
 func v6RangeRefused(b [16]byte) bool {
 	return b[0] == 0xfe && b[1]&0xc0 == 0x80 || // fe80::/10
 		b[0]&0xfe == 0xfc || // fc00::/7
 		b[0] == 0xff || // ff00::/8
 		bytes.HasPrefix(b[:], []byte{0x20, 0x02}) || // 2002::/16
-		bytes.HasPrefix(b[:], []byte{0x20, 0x01, 0, 0}) // 2001::/32
+		bytes.HasPrefix(b[:], []byte{0x20, 0x01, 0, 0}) || // 2001::/32
+		bytes.HasPrefix(b[:], []byte{0, 0x64, 0xff, 0x9b, 0, 1}) // 64:ff9b:1::/48
 }
 
-// embeddedRefused is the oracle for the IPv4 address at each embedded
-// position: IPv4-compatible (with :: and ::1 among them), IPv4-mapped,
-// and NAT64.
+// embeddedRefused is the oracle for the IPv4 address in the last four
+// bytes of an IPv4-compatible (with :: and ::1 among them), IPv4-mapped
+// or well-known NAT64 address.
 func embeddedRefused(b [16]byte) bool {
-	at := func(i, j, k, l int) bool { return v4Refused([4]byte{b[i], b[j], b[k], b[l]}) }
 	compat := make([]byte, 12)
 	mapped := append(make([]byte, 10), 0xff, 0xff)
 	wellKnown := append([]byte{0, 0x64, 0xff, 0x9b}, make([]byte, 8)...)
-	localUse := []byte{0, 0x64, 0xff, 0x9b, 0, 1}
-	switch {
-	case bytes.HasPrefix(b[:], compat), bytes.HasPrefix(b[:], mapped), bytes.HasPrefix(b[:], wellKnown):
-		return at(12, 13, 14, 15)
-	case bytes.HasPrefix(b[:], localUse):
-		return at(6, 7, 9, 10) || at(7, 9, 10, 11) || at(9, 10, 11, 12) || at(12, 13, 14, 15)
+	if bytes.HasPrefix(b[:], compat) || bytes.HasPrefix(b[:], mapped) || bytes.HasPrefix(b[:], wellKnown) {
+		return v4Refused([4]byte(b[12:16]))
 	}
 	return false
 }
 
 // Arbitrary 16-byte addresses: every one whose IPv4 form, mapped,
 // compatible or NAT64-embedded, is in an IPv4 range is refused, and so
-// is every address in 6to4 and Teredo (C02-streams-and-tls, "Fuzzing").
+// is every address in 6to4, Teredo and local-use NAT64 (C02-streams-and-tls, "Fuzzing").
 // The check and the oracle agree both ways.
 func FuzzUpstreamAddress(f *testing.F) {
 	for _, s := range []string{

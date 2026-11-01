@@ -72,11 +72,11 @@ func TestRefused(t *testing.T) {
 		{"::8.8.8.8", ""},
 		{"64:ff9b::a00:1", "ipv4-private"},
 		{"64:ff9b::808:808", ""},
-		// Local-use NAT64: 10.0.0.1 at the /96 position, 8.8.8.x at the
-		// others; 10.0.0.1 at the /48 position; and 8.8.8.8 at every one.
-		{"64:ff9b:1:808:8:808:a00:1", "ipv4-private"},
-		{"64:ff9b:1:a00:1:808:808:808", "ipv4-private"},
-		{"64:ff9b:1:808:8:808:808:808", ""},
+		// Local-use NAT64 is refused whole: an RFC 6052 /96 address
+		// embedding 8.8.8.8, and 8.8.8.8 at every position.
+		{"64:ff9b:1::808:808", "ipv6-nat64-local-use"},
+		{"64:ff9b:1:808:8:808:808:808", "ipv6-nat64-local-use"},
+		{"64:ff9b:2::808:808", ""},
 		// 6to4 and Teredo embedding 8.8.8.8 are refused whole.
 		{"2002:808:808::1", "ipv6-6to4"},
 		{"2001:0:4136:e378:8000:63bf:f7f7:f7f7", "ipv6-teredo"},

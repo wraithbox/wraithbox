@@ -44,7 +44,10 @@ to is in one of these ranges:
 - **An IPv4 address embedded in IPv6:**
   - IPv4-mapped (`::ffff:0:0/96`) and IPv4-compatible (`::/96`)
     addresses;
-  - the NAT64 prefixes (`64:ff9b::/96`, `64:ff9b:1::/48`);
+  - the well-known NAT64 prefix (`64:ff9b::/96`);
+  - the local-use NAT64 prefix (`64:ff9b:1::/48`), refused whole.
+    Where it carries the IPv4 address depends on how the network
+    splits it, which `wb-proxyd` can't know;
   - 6to4 (`2002::/16`) and Teredo (`2001::/32`). The whole 6to4 and
     Teredo prefixes are refused, whatever address they embed.
 - **The host's own networks, at connect time:**
