@@ -1,3 +1,4 @@
+import Foundation
 import SwiftProtobuf
 import Testing
 import WraithBoxRPC
@@ -34,6 +35,7 @@ private func vmState() -> Wraithbox_Vmd_V1_VMState {
     request.generation = 1
     request.cpuCount = 4
     request.memoryMib = 8192
+    request.macAddress = Data([0x02, 0x11, 0x22, 0x33, 0x44, 0x55])
     #expect(try roundTrip(request) == request)
     #expect(try roundTrip(Wraithbox_Vmd_V1_StartResponse()) == Wraithbox_Vmd_V1_StartResponse())
 }
@@ -77,6 +79,7 @@ private func vmState() -> Wraithbox_Vmd_V1_VMState {
 
 @Test func handoffMessageRoundTrips() throws {
     var message = Wraithbox_Vmd_V1_HandoffMessage()
+    message.kind = .connection
     message.requestID = 41
     message.generation = 3
     message.direction = .hostToGuest
