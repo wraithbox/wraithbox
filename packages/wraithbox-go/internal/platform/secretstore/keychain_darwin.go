@@ -92,15 +92,15 @@ static void wb_join_groups(CFArrayRef groups, wb_self *out) {
 // signing information. No entitlements, or no such entitlement, is no
 // group.
 static void wb_read_groups(CFDictionaryRef info, wb_self *out) {
-	CFTypeRef ents = CFDictionaryGetValue(info, kSecCodeInfoEntitlementsDict);
-	if (ents == NULL) {
+	CFTypeRef entitlements = CFDictionaryGetValue(info, kSecCodeInfoEntitlementsDict);
+	if (entitlements == NULL) {
 		return;
 	}
-	if (CFGetTypeID(ents) != CFDictionaryGetTypeID()) {
+	if (CFGetTypeID(entitlements) != CFDictionaryGetTypeID()) {
 		out->groups_bad = 1;
 		return;
 	}
-	CFTypeRef groups = CFDictionaryGetValue((CFDictionaryRef)ents, CFSTR("keychain-access-groups"));
+	CFTypeRef groups = CFDictionaryGetValue((CFDictionaryRef)entitlements, CFSTR("keychain-access-groups"));
 	if (groups == NULL) {
 		return;
 	}
