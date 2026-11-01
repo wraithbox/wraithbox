@@ -131,31 +131,41 @@ func (l *lines) read(r io.Reader) {
 	}
 }
 
-// has reports whether a line holds s, and returns the channel that is
-// closed when the next line is added.
-func (l *lines) has(s string) (bool, <-chan struct{}) {
+// has reports whether one line holds every string in all, and returns
+// the channel that is closed when the next line is added.
+func (l *lines) has(all []string) (bool, <-chan struct{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return slices.ContainsFunc(l.all, func(line string) bool { return strings.Contains(line, s) }), l.changed
+	return slices.ContainsFunc(l.all, func(line string) bool { return holdsAll(line, all) }), l.changed
 }
 
-// waitFor waits until a line holds s, and reports whether one does. It
-// stops waiting when the log has been read to its end, since no line
-// comes after that, or when ctx is done. Either way it looks at the
+// holdsAll reports whether line holds every string in all.
+func holdsAll(line string, all []string) bool {
+	for _, s := range all {
+		if !strings.Contains(line, s) {
+			return false
+		}
+	}
+	return true
+}
+
+// waitFor waits until one line holds every string in all, and reports
+// whether one does. It stops waiting when the log has been read to its
+// end, since no line comes after that, or when ctx is done. Either way it looks at the
 // lines once more, since both can be ready when the line has arrived.
-func (l *lines) waitFor(ctx context.Context, s string) bool {
+func (l *lines) waitFor(ctx context.Context, all ...string) bool {
 	for {
-		found, changed := l.has(s)
+		found, changed := l.has(all)
 		if found {
 			return true
 		}
 		select {
 		case <-changed:
 		case <-l.eof:
-			found, _ = l.has(s)
+			found, _ = l.has(all)
 			return found
 		case <-ctx.Done():
-			found, _ = l.has(s)
+			found, _ = l.has(all)
 			return found
 		}
 	}
@@ -246,7 +256,7 @@ func TestSpawnBothSlotsAtOnce(t *testing.T) {
 		if _, err := spawned[n].Client.GetState(ctx, &vmdv1.GetStateRequest{}); err != nil {
 			t.Errorf("GetState of %s: %v; log: %s", slot, err, logs[n])
 		}
-		if !logs[n].waitFor(ctx, `"slot":"`+slot+`"`) {
+		if !logs[n].waitFor(ctx, `"event":"started"`, `"slot":"`+slot+`"`) {
 			t.Errorf("%s: no started record for the slot; log: %s", slot, logs[n])
 		}
 	}
