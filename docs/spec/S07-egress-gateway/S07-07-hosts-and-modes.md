@@ -59,8 +59,8 @@ to is in one of these ranges:
 the name again between the check and the connect.
 
 A refused connection is logged with the host, the address, and the
-rule `upstream-address-refused` (SEC10-audit). A lookup that fails or
-gives no address is refused with `upstream-resolve-failed`. When none
+rule `upstream-address-refused` (SEC10-audit). A lookup that fails,
+or returns an empty answer, is refused with `upstream-resolve-failed`. When none
 of the checked addresses connects, the rule is
 `upstream-connect-failed`. Both are logged with the host, and the
 second with the last address tried.
