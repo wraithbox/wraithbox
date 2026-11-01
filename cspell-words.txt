@@ -37,6 +37,10 @@ hostversion
 grpccreds
 healthpb
 vmtest
+audittest
+volspace
+cerr
+rerr
 vmbundle
 projectuser
 datadisk
@@ -71,6 +75,14 @@ guestprocs
 procs
 
 # Virtualization, networking and OS facilities
+Bavail
+fallocate
+Fstore
+Posmode
+iccid
+imei
+meid
+udid
 asuser
 bootouts
 disableuser
