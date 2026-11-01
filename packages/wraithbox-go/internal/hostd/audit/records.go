@@ -23,6 +23,19 @@ type Record struct {
 	Event Event
 }
 
+// Message is the record's message.
+func (r Record) Message() string { return r.Event.head().Message }
+
+// Fields are the record's unmapped fields.
+func (r Record) Fields() Fields { return r.Event.head().Unmapped }
+
+// ClassUID is the record's OCSF class.
+func (r Record) ClassUID() int { return r.Event.head().ClassUID }
+
+// StatusID is the record's OCSF status: 1 for success, 2 for failure, 0
+// for a class without one.
+func (r Record) StatusID() int { return r.Event.head().StatusID }
+
 // Fields are a record's attributes that OCSF has none for, in its
 // unmapped object: the decision and the rule that made it (SEC10-audit),
 // the VM, and what each kind of record adds. No field is named for a

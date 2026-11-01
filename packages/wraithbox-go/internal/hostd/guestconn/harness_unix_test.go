@@ -19,6 +19,7 @@ import (
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestlink"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
@@ -272,7 +273,7 @@ func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
 	return vm.Config{
 		DataDir: dataDir, ToolsImage: tools, Resources: config.Defaults(),
 		Generations: db, Provider: h.provider, Cloner: &vmtest.CopyCloner{}, DataDisks: disks,
-		Logger: logger,
+		Audit: &audittest.Recorder{}, Logger: logger,
 	}
 }
 

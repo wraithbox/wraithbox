@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
@@ -117,7 +118,7 @@ func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
 	}
 	return vm.Config{
 		DataDir: dataDir, ToolsImage: tools, Resources: config.Defaults(),
-		Generations: db, Provider: h.provider, Cloner: diskclone.Cloner{}, DataDisks: disks,
+		Generations: db, Provider: h.provider, Cloner: diskclone.Cloner{}, DataDisks: disks, Audit: &audittest.Recorder{},
 		OnRunning: func(slot vm.Slot, generation uint64, ended <-chan struct{}) { h.links.Run(slot, generation, ended) },
 		Logger:    logger,
 	}
