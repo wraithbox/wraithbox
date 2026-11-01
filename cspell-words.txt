@@ -181,6 +181,10 @@ VZMAC
 Featureful
 bootpd
 dhcpd
+DHCPDISCOVER
+BOOTREQUEST
+Subrange
+VMMAC
 wbdev
 vmnet
 paravirtualized
