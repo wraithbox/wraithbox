@@ -197,6 +197,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	aw, err := audit.New(audit.Config{
 		Dir: o.Paths.Logs, RetentionDays: ready.Config.AuditRetentionDays, FloorMiB: ready.Config.AuditFreeSpaceFloorMiB,
 		DataDir: o.Paths.Data, DataDiskGiB: ready.Config.DataDiskGiB, Version: o.Version, Logger: log,
+		EventsPerMinute: ready.Config.AuditEventsPerMinute, VMBytesPerDay: ready.Config.AuditVMMiBPerDay << 20,
 	})
 	if err != nil {
 		return nil, err

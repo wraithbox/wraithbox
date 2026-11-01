@@ -3,15 +3,18 @@ package audit
 // The OCSF 1.8.0 classes the writer writes (S09-11-audit, "Classes";
 // X24-openshell-artifacts). Each has one Go type, with the OCSF
 // attribute names. Network Activity (4001) and HTTP Activity (4002)
-// come with the event channel of M3.10b.
+// come on the event channel, and their types are in channel.go.
 const (
 	OCSFVersion = "1.8.0"
 
 	ClassDeviceConfigStateChange = 5019
 	ClassDetectionFinding        = 2004
 	ClassApplicationLifecycle    = 6002
+	ClassNetworkActivity         = 4001
+	ClassHTTPActivity            = 4002
 
 	categoryFindings    = 2
+	categoryNetwork     = 4
 	categoryDiscovery   = 5
 	categoryApplication = 6
 )
@@ -133,9 +136,11 @@ type AppLifecycle struct {
 	App Product `json:"app"`
 }
 
-// Finding is a Detection Finding (2004) record.
+// Finding is a Detection Finding (2004) record. Device is the VM of a
+// finding that came on the event channel.
 type Finding struct {
 	header
+	Device      *Device     `json:"device,omitempty"`
 	FindingInfo FindingInfo `json:"finding_info"`
 }
 

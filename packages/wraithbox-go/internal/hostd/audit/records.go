@@ -57,6 +57,14 @@ type Fields struct {
 	// GuestLabel holds what the guest reported, stored as its untrusted
 	// label (S09-11-audit, "Fields").
 	GuestLabel *GuestLabel `json:"guest_label,omitempty"`
+	// Channel names the sender and sequence of a record that came on the
+	// event channel (S04-08-records-and-bounds, "Event records").
+	Channel *Channel `json:"channel,omitempty"`
+	// Run is the count of a run record (S09-11-audit, "Runs with a
+	// count").
+	Run *RunCount `json:"run,omitempty"`
+	// OpenRuns are the runs still open at a VM's stop, in its stop record.
+	OpenRuns []OpenRun `json:"open_runs,omitempty"`
 }
 
 // Peer is the wb that asked, by the user ID and process ID localipc
@@ -127,9 +135,15 @@ type Kill struct {
 }
 
 // GuestLabel is text the guest reported. Each field is escaped and cut
-// by guestLabel before it is set.
+// by guestLabel before it is set. Project, Session, User and Program are
+// a network event's attribution, from the guest's label (S09-11-audit,
+// "Attribution of network events").
 type GuestLabel struct {
 	ProcessesLeft string `json:"processes_left,omitempty"`
+	Project       string `json:"project,omitempty"`
+	Session       string `json:"session,omitempty"`
+	User          string `json:"user,omitempty"`
+	Program       string `json:"program,omitempty"`
 }
 
 // maxGuestLabel bounds each guest label in bytes.
@@ -138,10 +152,14 @@ const maxGuestLabel = 256
 // guestLabel is guest text as a record holds it: without the code
 // points of guesttext's escaped set, and cut to maxGuestLabel bytes of
 // valid UTF-8.
-func guestLabel(s string) string {
+func guestLabel(s string) string { return guestText(s, maxGuestLabel) }
+
+// guestText is guest text without the code points of guesttext's
+// escaped set, cut to n bytes of valid UTF-8.
+func guestText(s string, n int) string {
 	s = guesttext.Strip(s)
-	if len(s) > maxGuestLabel {
-		s = strings.ToValidUTF8(s[:maxGuestLabel], "")
+	if len(s) > n {
+		s = strings.ToValidUTF8(s[:n], "")
 	}
 	return s
 }

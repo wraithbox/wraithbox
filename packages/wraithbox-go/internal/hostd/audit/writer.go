@@ -69,6 +69,11 @@ type Config struct {
 	DataDir string
 	// DataDiskGiB is vm_data_disk_gib, the cap a data disk grows to.
 	DataDiskGiB uint32
+	// EventsPerMinute is audit_events_per_minute, and VMBytesPerDay is
+	// audit_vm_bytes_per_day in bytes (S09-11-audit, "Budgets"). Zero
+	// means config's default.
+	EventsPerMinute uint64
+	VMBytesPerDay   uint64
 	// Version is wb-hostd's build version, in each record's metadata.
 	Version string
 	Logger  *slog.Logger
@@ -98,6 +103,8 @@ type Writer struct {
 	noRes   bool
 	stopper Stopper
 	closed  bool
+	// usage is each VM's count against its budgets, by slot.
+	usage map[string]*usage
 
 	wake  chan struct{}
 	calls chan func()
@@ -150,6 +157,7 @@ func New(cfg Config) (*Writer, error) {
 	if cfg.Open == nil {
 		cfg.Open = openFile
 	}
+	budgetDefaults(&cfg)
 	w := &Writer{
 		cfg: cfg, log: cfg.Logger, floor: cfg.FloorMiB << 20, diskCap: uint64(cfg.DataDiskGiB) << 30,
 		metadata: Metadata{
@@ -157,7 +165,7 @@ func New(cfg Config) (*Writer, error) {
 			Version: OCSFVersion, LogName: "audit",
 		},
 		wake: make(chan struct{}, 1), calls: make(chan func()), quit: make(chan struct{}), done: make(chan struct{}),
-		disks: map[string]uint64{},
+		disks: map[string]uint64{}, usage: map[string]*usage{},
 	}
 	now := cfg.Now()
 	w.prune(now)
@@ -257,6 +265,7 @@ func (w *Writer) enqueue(r Record, done chan error) *item {
 		return nil
 	}
 	it := &item{rec: r, at: at, line: append(line, '\n'), done: done}
+	w.countLocked(r, uint64(len(it.line)), at)
 	w.queue = append(w.queue, it)
 	w.mu.Unlock()
 	select {
