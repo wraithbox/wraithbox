@@ -80,12 +80,12 @@ forbid the merge commits that stacked branches need.
 
 `CI result` is the only required check. On a pull request, the
 `changes` job of `.github/workflows/ci.yml` runs `scripts/ci-changes.mjs`
-to list the jobs the changed files need. The workflow skips `Go`,
-`Swift`, and the site check and build steps of `Docs` when that list
+to list the jobs the changed files need. The workflow skips `Go`, the
+`Fuzz smoke` shards, `Swift`, and the site check and build steps of `Docs` when that list
 leaves them out. A change that only the app bundle reads runs the
 `Swift` job's bundle steps and skips its lint, contract, and test steps. A push to `main` and `workflow_dispatch` run
-everything. A skipped matrix job doesn't report the per-OS `Go (…)`
-check names, so a ruleset that required them would block every pull
+everything. A skipped matrix job doesn't report the per-OS `Go (…)` or
+per-shard `Fuzz smoke (…)` check names, so a ruleset that required them would block every pull
 request that skipped Go. A skipped job counts as passed for a required
 check, so requiring `Swift` directly would pass a run that skipped it by
 mistake. `CI result` runs on every run, even a cancelled one, and fails

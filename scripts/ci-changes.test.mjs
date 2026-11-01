@@ -105,8 +105,21 @@ describe('verdict', () => {
 	test('a job skipped because detection said so passes', () => {
 		const needs = passing({ go: 'false', swift: 'false', bundle: 'false', docs: 'true' });
 		needs.go.result = 'skipped';
+		needs.fuzz.result = 'skipped';
 		needs.swift.result = 'skipped';
 		expect(verdict(needs)).toEqual([]);
+	});
+
+	test('the fuzz shards skipped while detection said to run Go fail', () => {
+		const needs = passing({ go: 'true', swift: 'false', bundle: 'true', docs: 'false' });
+		needs.fuzz.result = 'skipped';
+		expect(verdict(needs)).toEqual(['fuzz: skipped']);
+	});
+
+	test('a failed fuzz shard fails', () => {
+		const needs = passing();
+		needs.fuzz.result = 'failure';
+		expect(verdict(needs)).toEqual(['fuzz: failure']);
 	});
 
 	test('the Swift job skipped while detection said to run its bundle steps fails', () => {
@@ -232,6 +245,11 @@ describe('ci.yml', () => {
 
 	test('CI result gates every job except vuln and itself', () => {
 		expect(Object.keys(workflow.jobs).sort()).toEqual([...GATED, 'vuln', 'result'].sort());
+	});
+
+	test('the fuzz shards run under the Go job\'s condition, on Linux', () => {
+		expect(workflow.jobs.fuzz.if).toBe(workflow.jobs.go.if);
+		expect(workflow.jobs.fuzz['runs-on']).toBe('ubuntu-24.04');
 	});
 
 	test('CI result needs exactly the gated jobs and always runs', () => {

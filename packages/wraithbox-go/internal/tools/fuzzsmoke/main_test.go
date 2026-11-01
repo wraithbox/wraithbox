@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -76,6 +77,77 @@ func TestParseList(t *testing.T) {
 	}
 }
 
+func TestParseShard(t *testing.T) {
+	tests := []struct {
+		in      string
+		want    shard
+		wantErr bool
+	}{
+		{in: "", want: shard{index: 1, count: 1}},
+		{in: "1/1", want: shard{index: 1, count: 1}},
+		{in: "2/4", want: shard{index: 2, count: 4}},
+		{in: "4/4", want: shard{index: 4, count: 4}},
+		{in: "0/4", wantErr: true},
+		{in: "5/4", wantErr: true},
+		{in: "1/0", wantErr: true},
+		{in: "-1/4", wantErr: true},
+		{in: "1/-4", wantErr: true},
+		{in: "2", wantErr: true},
+		{in: "/4", wantErr: true},
+		{in: "2/", wantErr: true},
+		{in: "a/b", wantErr: true},
+		{in: "1/2/3", wantErr: true},
+		{in: " 1/2", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			got, err := parseShard(tt.in)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("parseShard(%q) = %v, want an error", tt.in, got)
+				}
+				return
+			}
+			if err != nil || got != tt.want {
+				t.Fatalf("parseShard(%q) = %v, %v, want %v", tt.in, got, err, tt.want)
+			}
+		})
+	}
+}
+
+// TestShardOf checks that the shards of a list hold every target exactly
+// once, in order, and differ in size by at most one.
+func TestShardOf(t *testing.T) {
+	tests := []struct {
+		targets int
+		shards  int
+	}{
+		{0, 1}, {0, 3}, {1, 1}, {1, 4}, {3, 4}, {4, 4},
+		{5, 2}, {34, 1}, {34, 3}, {34, 4}, {37, 4}, {100, 7},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d targets in %d shards", tt.targets, tt.shards), func(t *testing.T) {
+			targets := make([]target, tt.targets)
+			for i := range targets {
+				targets[i] = target{pkg: "m/p", name: fmt.Sprintf("Fuzz%03d", i)}
+			}
+			var joined []target
+			minLen, maxLen := tt.targets, 0
+			for i := 1; i <= tt.shards; i++ {
+				part := shard{index: i, count: tt.shards}.of(targets)
+				joined = append(joined, part...)
+				minLen, maxLen = min(minLen, len(part)), max(maxLen, len(part))
+			}
+			if !slices.Equal(joined, targets) {
+				t.Errorf("shards joined = %v, want every target once in order: %v", joined, targets)
+			}
+			if maxLen-minLen > 1 {
+				t.Errorf("shard sizes range from %d to %d, want a difference of at most 1", minLen, maxLen)
+			}
+		})
+	}
+}
+
 const passingTarget = `package a
 
 import "testing"
@@ -110,6 +182,7 @@ func TestRun(t *testing.T) {
 		name       string
 		files      map[string]string
 		fuzztime   string
+		shard      string
 		wantCode   int
 		wantStdout string
 		wantStderr string // a regular expression
@@ -138,6 +211,30 @@ func TestRun(t *testing.T) {
 			wantFile:   "a/testdata/fuzz/FuzzFail",
 		},
 		{
+			name:       "a shard runs only its part",
+			files:      map[string]string{"a/a_test.go": passingTarget, "a/b_test.go": failingTarget},
+			fuzztime:   "100x",
+			shard:      "2/2",
+			wantCode:   0,
+			wantStdout: "fuzzsmoke: shard 2/2 runs 1 of 2 fuzz targets\nfuzzsmoke: run example.com/m/a FuzzPass",
+		},
+		{
+			name:       "a shard with no targets is a pass",
+			files:      map[string]string{"a/a_test.go": passingTarget},
+			fuzztime:   "100x",
+			shard:      "1/2",
+			wantCode:   0,
+			wantStdout: "fuzzsmoke: shard 1/2 runs 0 of 1 fuzz targets\nfuzzsmoke: no fuzz targets",
+		},
+		{
+			name:       "a malformed shard is refused",
+			files:      map[string]string{"a/a_test.go": passingTarget},
+			fuzztime:   "100x",
+			shard:      "3/2",
+			wantCode:   2,
+			wantStderr: `fuzzsmoke: -shard "3/2": want <i>/<n> with 1 <= i <= n`,
+		},
+		{
 			name:       "package that does not build fails the listing",
 			files:      map[string]string{"a/a_test.go": "package a\n\nfunc broken( {}\n"},
 			fuzztime:   "1s",
@@ -154,7 +251,11 @@ func TestRun(t *testing.T) {
 			writeFiles(t, dir, tt.files)
 
 			var stdout, stderr bytes.Buffer
-			code := run(context.Background(), []string{"-dir", dir, "-fuzztime", tt.fuzztime}, &stdout, &stderr)
+			args := []string{"-dir", dir, "-fuzztime", tt.fuzztime}
+			if tt.shard != "" {
+				args = append(args, "-shard", tt.shard)
+			}
+			code := run(context.Background(), args, &stdout, &stderr)
 			if code != tt.wantCode {
 				t.Fatalf("run() = %d, want %d\nstdout:\n%s\nstderr:\n%s", code, tt.wantCode, &stdout, &stderr)
 			}

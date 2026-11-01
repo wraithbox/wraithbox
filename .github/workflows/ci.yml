@@ -58,7 +58,7 @@ jobs:
     # macOS 27, the oldest v1 host (NFR04-host-platforms), so the
     # darwin-only tests (localipc peer credentials, vmdspawn, the
     # wb-diskfmt child) run on a supported macOS. See
-    # docs/spec/S02-toolchain.md.
+    # docs/spec/S02-toolchain.md. The fuzz smoke run is the `fuzz` job.
     #
     # Skipped only when detection succeeded and found no Go input changed.
     needs: changes
@@ -101,15 +101,45 @@ jobs:
       - name: Test
         run: mise run go:test
 
-      # The fuzz smoke run (S11-verification-and-spikes). One OS is enough:
-      # the targets parse bytes the same way on every OS, and fuzzing on
-      # three runners would triple the time.
-      - name: Fuzz smoke run
-        if: ${{ runner.os == 'Linux' }}
-        run: mise run go:fuzz
-
       - name: Build
         run: mise run go:build
+
+  # The fuzz smoke run (S11-verification-and-spikes, "Fuzzing"): every fuzz
+  # target for go:fuzz's 10s, split into shards that run in parallel
+  # (#528). Each shard runs one contiguous part of the sorted list of
+  # targets (internal/tools/fuzzsmoke, -shard), so every target runs in
+  # exactly one shard and a new target needs no change here. One OS is
+  # enough: the targets parse bytes the same way on every OS. The shard
+  # count comes from measurement: with 4, a shard takes about as long as
+  # the Go job on macOS. Change it in both the matrix and its names.
+  #
+  # Skipped under the same condition as the Go job.
+  fuzz:
+    name: Fuzz smoke (${{ matrix.shard }})
+    needs: changes
+    if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.go == 'false') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1/4, 2/4, 3/4, 4/4]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
+        with:
+          install: true
+          install_args: go
+          cache: true
+
+      - name: Fuzz smoke run
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: mise run go:fuzz -- -shard "$SHARD"
 
   swift:
     name: Swift
@@ -377,7 +407,7 @@ jobs:
   # fail, when the run is cancelled.
   result:
     name: CI result
-    needs: [changes, go, swift, docs, actions]
+    needs: [changes, go, fuzz, swift, docs, actions]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     steps:
