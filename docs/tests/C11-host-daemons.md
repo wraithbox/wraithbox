@@ -434,12 +434,34 @@ Spec: S09-11-audit.
   turns.
 - Stop a VM with an open run of suppressed refusals, and see its count
   in the stop record.
+- In `internal/hostd/audit`: `TestClassesRequired` checks each record
+  against the OCSF 1.8.0 subset in `testdata`, `TestNoCredentialFields`
+  checks that no record type can hold a credential, and
+  `FuzzGuestLabel` feeds guest labels. `TestRetention` and
+  `TestRetentionMinimum` delete files by age only.
+- A failed write (`TestFailedWrite`, `TestFailedWriteOfNoVM`,
+  `TestFailedWriteStopsQueued`, `TestLastingFailure`,
+  `TestWriteGivenUp`, `TestFailedOpen`): see the VM of the record and
+  of every queued record stopped first, then the `audit-write-failed`
+  finding, and starts refused until a write succeeds.
+- In `internal/hostd/vm` (`TestAudit*`), a VM start is refused, or the
+  VM stopped, when its record can't be written. In
+  `internal/hostd/hostservice`, a shell doesn't open while the log
+  refuses new sessions or its open record can't be written
+  (`TestShellAuditRefusesOpen`, `TestShellAuditOpenNotWritten`,
+  `TestShellNoAuditLog`), and `TestStatusAuditRefusal` shows the
+  refusal in `wb vm status`. In `internal/hostd/kills`,
+  `TestKillProcessesLeft` and `TestKillColdStop` see the 2004 records.
 
 ### Free space
 
 - On a fake volume, drop the free space below the floor, and see the
   VM whose data disk grew stopped before any write fails, and the
   reserve allocated again once space returns.
+- `TestFloor`, `TestReserve`, `TestReserveAllocateFails` and
+  `TestCanStartDisk` in `internal/hostd/audit` use a fake volume.
+  `internal/platform/volspace` reads a real one (`TestStat`,
+  `TestAllocate`, `TestAllocatedSparse`, `TestAllocatedLink`).
 
 ### Data disk steps
 

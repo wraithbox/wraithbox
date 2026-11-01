@@ -98,7 +98,8 @@ with it (T11-shared-vm-grants).
 
 `wb-hostd` keeps free space for the log. At each VM start, each session
 start and every minute, it checks the volume that holds `<logs>`
-against `audit_free_space_floor`, default 1 GiB.
+against the floor. The floor is `audit_free_space_floor`, in MiB, default
+1024 (1 GiB).
 
 - **At VM start:** a VM starts only when the free space is at least the
   floor, plus the room the VM's data disk can still grow on that
@@ -108,24 +109,34 @@ against `audit_free_space_floor`, default 1 GiB.
   check every minute covers the data disk while the VM runs.
 - **Every minute:** below the floor, `wb-hostd` stops each VM whose
   data disk grew since the last check, before any write fails. It
-  shows a native notification and a `wb status` line. It refuses VM
+  shows a native notification and a `wb vm status` line. It refuses VM
   and session starts with the rule `audit-free-space`.
 - **Reserve:** at start, `wb-hostd` allocates a 64 MiB reserve file in
   `<logs>`. It frees the reserve only when a write fails for lack of
   space. So the records that follow, a VM's stop record among them,
   can still be written. It allocates the reserve again once the free
   space is back above the floor.
+- **Volumes:** the checks count a data disk only when it is on the
+  volume that holds `<logs>`. On APFS, the volumes of one container
+  share its free space. A data disk on a sibling volume still takes
+  space from `<logs>`, but neither the start check nor the stop every
+  minute counts it. The floor check every minute still sees the free
+  space it took, and refuses starts. A write that then fails stops the
+  VMs.
 
 #### Failed writes
 
-When a record can't be written, `wb-hostd` stops the VM the record
-belongs to first. A failed record that belongs to no VM stops every VM.
+When a record can't be written, `wb-hostd` first stops the VM of the
+record, and of every record queued behind it. A failed record that
+belongs to no VM stops every VM. It then writes a Detection Finding
+(2004) with the rule `audit-write-failed`, and refuses VM and session
+starts with that rule until a write succeeds.
 
 `wb-hostd` refuses a session start until it can write that start's
 record.
 
 So no guest keeps its network while its decisions aren't recorded
-(SEC10-audit). `wb status` says why.
+(SEC10-audit). `wb vm status` says why, with the rule.
 
 ### Records
 
@@ -141,7 +152,12 @@ Events use OCSF 1.8.0 classes, as OpenShell's do
 - Detection Finding (2004), for refused placeholders, foreign
   credentials removed from a request (S07-egress-gateway), pin
   mismatches, the terminal filter's drops and dropped links, and other
-  signs of an attack.
+  signs of an attack, and for a write of the log that failed;
+- Application Lifecycle (6002), for VM starts and stops, and for
+  sessions opened and ended;
+- Entity Management (3004), for the secret store accesses of
+  S15-03-access-rules, rule 6: a fetch, use or list is a read,
+  and a write or delete is an update or delete of the item.
 
 A SIEM can read the log without a custom parser.
 
