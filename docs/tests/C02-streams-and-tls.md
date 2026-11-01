@@ -5,7 +5,8 @@ the hand-off from `wb-netd`, the first-byte and TLS checks, upstream
 addresses, the HTTP request form, and the inspection CA's leaves,
 rotation, and keys.
 
-**Verifies:** S07-05-stream-hand-off, S07-15-non-http-streams,
+**Verifies:** S07-05-stream-hand-off, S07-07-hosts-and-modes
+("Upstream address"), S07-15-non-http-streams,
 S07-08-requests-and-credentials ("Request form"), S09-06-ca-keys ("Valid CA"),
 S09-07-ca-certificates ("Lifetimes"), S09-08-guest-trust
 
@@ -60,6 +61,32 @@ address outside the range, also close VM A's hand-off socket, and
   its streams.
 - Change the effective policy, and see it reach `wb-netd` only after
   `wb-proxyd` has acknowledged it.
+
+### Upstream addresses
+
+Spec: S07-07-hosts-and-modes, "Upstream address". The tests are in
+`internal/proxyd/upstream`.
+
+- One address inside and one just outside each range, with
+  `169.254.169.254`, `192.0.0.8`, `::ffff:127.0.0.1`, `::127.0.0.1`,
+  `64:ff9b::a00:1`, 6to4 and Teredo addresses that embed a public IPv4
+  address, and public addresses that pass (`TestRefused`).
+- With a fake reader of the host's networks, an address assigned to an
+  interface, an address in an on-link IPv4 prefix, a global IPv6
+  address in an on-link prefix and the IPv4-mapped form of an
+  interface address are refused, and nothing is dialed
+  (`TestDialHostNetworks`). The networks are read at each connect
+  (`TestDialReadsNetworksEachTime`).
+- With a fake resolver, a name with one bad address among good ones is
+  refused, nothing is dialed, and the refusal is logged with the host,
+  the address and `upstream-address-refused`
+  (`TestDialRefusesOneBadAddress`). A good name is dialed at the
+  checked address after one lookup (`TestDialGoodName`), and its
+  addresses are tried in order (`TestDialInOrder`). A failed lookup and
+  one with no address give `upstream-resolve-failed`
+  (`TestDialResolveFailed`).
+- A name that resolves to `127.0.0.1` reaches no listener there
+  (`TestDialLoopback`).
 
 ### Leaf issuance
 
@@ -124,6 +151,8 @@ Spec: S09-07-ca-certificates, "Lifetimes".
 
 ## Fuzzing
 
+- Upstream addresses: arbitrary 16-byte addresses, checked against a
+  second reading of the ranges (`FuzzUpstreamAddress`).
 - TLS ClientHello parsing, a ClientHello split across TLS records
   included.
 - The first-byte protocol check of S07-15-non-http-streams.
