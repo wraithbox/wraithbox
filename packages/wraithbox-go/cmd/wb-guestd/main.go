@@ -6,9 +6,9 @@
 // the disk's version isn't its own (internal/guestupdate), and runs the
 // installed wb-guestd in its place. Then it runs the stop loop, so no
 // project user's process runs on while no host is connected
-// (S13-01-process-hardening, "When the link drops"), and closes cron
-// and at to every user but root (S13-01-process-hardening, "Cron and
-// at").
+// (S13-01-process-hardening, "When the link drops"). It closes cron and
+// at to every user but root, and removes every crontab and at job a
+// project user left (S13-01-process-hardening, "Cron and at").
 //
 // It logs one JSON object per line on standard error, as wb-vmd does.
 // The service manager sends standard error to a file in the guest.
@@ -67,11 +67,13 @@ func run() int {
 	loops := guestd.SystemProcesses(log)
 	loops.StopAll(ctx, "start")
 
-	// cron and at start a user's jobs as root, outside the kill loop's
-	// reach, so no project user may add one. A failure exits before
-	// any project user is made or unlocked (S13-01-process-hardening,
-	// "Cron and at"; SEC08-proj-isolation).
-	if !guestd.LockSchedulers(ctx, log, guestsched.Lock) {
+	// cron and atrun run as root and start a user's jobs outside the
+	// kill loop's reach. So no project user may add one, and none may
+	// keep one from before. A failure exits before any project user is
+	// made or unlocked (S13-01-process-hardening, "Cron and at";
+	// SEC08-proj-isolation).
+	if !guestd.LockSchedulers(ctx, log, guestsched.Lock) ||
+		!guestd.SweepSchedulers(ctx, log, guestsched.Sweep) {
 		return 1
 	}
 

@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// Linux guests are later (S12-platforms). Until they are built, Lock
-// and Clear return an error that wraps errors.ErrUnsupported
+// Linux guests are later (S12-platforms). Until they are built, Lock,
+// Sweep and Clear return an error that wraps errors.ErrUnsupported
 // (S12-01-platform-interfaces, "Unimplemented platforms fail clearly").
 var errUnsupported = fmt.Errorf("guestsched: cron and at on linux: %w", errors.ErrUnsupported)
 
@@ -15,3 +15,6 @@ func Lock() error { return errUnsupported }
 
 // Clear removes a user's crontab and at jobs.
 func (System) Clear(string, uint32) (Cleared, error) { return Cleared{}, errUnsupported }
+
+// Sweep removes every project user's crontab and at jobs.
+func Sweep() (Swept, error) { return Swept{}, errUnsupported }

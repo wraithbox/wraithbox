@@ -6,8 +6,9 @@
 // the disabled account nor its shell stops them.
 //
 // Lock writes cron's and at's allow files with root only, so a project
-// user can't add a crontab or an at job. System.Clear removes a user's
-// crontab and at jobs, for the kill loop. The decisions are in
+// user can't add a crontab or an at job. Sweep removes every project
+// user's crontab and at jobs, for wb-guestd's start. System.Clear
+// removes one user's, for the kill loop. The decisions are in
 // internal/guestd and internal/guestd/procs. This package only makes
 // the calls: on darwin, openat, renameat and unlinkat relative to a
 // descriptor of the directory, through golang.org/x/sys/unix. It never
@@ -37,10 +38,11 @@ const (
 	Jobs = "jobs"
 )
 
-// MaxJobEntries bounds how many entries Clear reads in the jobs
-// directory (SEC13-bounded-resources). A directory with more fails the
-// clear, so the kill loop reports the user as not clean.
-const MaxJobEntries = 10000
+// MaxEntries bounds how many entries Clear and Sweep read in the jobs
+// or tabs directory (SEC13-bounded-resources). A directory with more
+// fails the call: the kill loop then reports the user as not clean,
+// and wb-guestd doesn't start.
+const MaxEntries = 10000
 
 // Cleared is what Clear removed.
 type Cleared struct {
@@ -52,6 +54,14 @@ type Cleared struct {
 
 // Any reports whether Clear removed anything.
 func (c Cleared) Any() bool { return c.Tab || c.Jobs > 0 }
+
+// Swept is what Sweep removed.
+type Swept struct {
+	// Tabs is how many crontabs of project users were removed.
+	Tabs int
+	// Jobs is how many at jobs of project users were removed.
+	Jobs int
+}
 
 // System is the guest's own cron and at.
 type System struct{}

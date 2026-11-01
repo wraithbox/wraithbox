@@ -2,6 +2,8 @@ package projectuser_test
 
 import (
 	"math"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd"
@@ -41,6 +43,25 @@ func TestNames(t *testing.T) {
 	}
 	if got := projectuser.HomePath("wbp10000"); got != "/private/var/wbhomes/wbp10000" {
 		t.Errorf("HomePath = %q", got)
+	}
+}
+
+func TestIsUserName(t *testing.T) {
+	for name, want := range map[string]bool{
+		"wbp10000":      true,
+		"wbp999999999":  true,
+		"wbp9999":       false,
+		"wbp1000000000": false,
+		"wbp010000":     false,
+		"wbp+10000":     false,
+		"wbp":           false,
+		"wbp10000x":     false,
+		"root":          false,
+		"xbp10000":      false,
+	} {
+		if got := projectuser.IsUserName(name); got != want {
+			t.Errorf("IsUserName(%q) = %v, want %v", name, got, want)
+		}
 	}
 }
 
@@ -90,4 +111,22 @@ func TestGeneratedUID(t *testing.T) {
 	if !projectuser.ValidGeneratedUID("0F1E2D3C-4B5A-4978-8796-A5B4C3D2E1F0") {
 		t.Error("a valid GeneratedUID is refused")
 	}
+}
+
+// FuzzIsUserName: IsUserName accepts a name only when UserName makes it
+// from an ID in range. The start sweep runs it on the names in the
+// guest's crontab directory.
+func FuzzIsUserName(f *testing.F) {
+	for _, s := range []string{"wbp10000", "wbp999999999", "wbp010000", "wbp+1", "root", "wbp\x00"} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, name string) {
+		if !projectuser.IsUserName(name) {
+			return
+		}
+		id, err := strconv.ParseUint(strings.TrimPrefix(name, "wbp"), 10, 32)
+		if err != nil || !projectuser.InRange(uint32(id)) || projectuser.UserName(uint32(id)) != name {
+			t.Errorf("IsUserName(%q) = true, but it isn't UserName of an ID in range", name)
+		}
+	})
 }

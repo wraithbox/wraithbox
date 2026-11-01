@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectuser"
 )
 
 // Dir holds cron's and at's allow files, the crontabs and the at jobs.
@@ -22,6 +24,12 @@ func Lock() error { return lockIn(Dir) }
 // Clear removes name's crontab from Dir, and every at job whose file
 // uid owns.
 func (System) Clear(name string, uid uint32) (Cleared, error) { return clearIn(Dir, name, uid) }
+
+// Sweep removes from Dir the crontab of every project user, and every
+// at job whose file a project user's ID owns.
+func Sweep() (Swept, error) {
+	return sweepIn(Dir, projectuser.IsUserName, projectuser.InRange)
+}
 
 // openDir opens path relative to parent as a directory, and refuses a
 // symbolic link there.
@@ -101,7 +109,7 @@ func clearIn(dir, name string, uid uint32) (Cleared, error) {
 	if err != nil {
 		return c, fmt.Errorf("guestsched: crontab of %s in %s: %w", name, dir, err)
 	}
-	c.Jobs, err = removeJobs(dfd, uid)
+	c.Jobs, err = removeJobs(dfd, func(owner uint32) bool { return owner == uid })
 	if err != nil {
 		return c, fmt.Errorf("guestsched: at jobs of uid %d in %s: %w", uid, dir, err)
 	}
@@ -128,25 +136,86 @@ func removeTab(dfd int, name string) (bool, error) {
 	return true, nil
 }
 
-// removeJobs unlinks each regular file in Jobs that uid owns, and
-// returns how many it removed. It reads at most MaxJobEntries entries.
-func removeJobs(dfd int, uid uint32) (int, error) {
-	jfd, err := openDir(dfd, Jobs)
+// sweepIn removes, from dir, each crontab whose name user accepts, and
+// each at job whose owner's ID owner accepts. A missing Tabs or Jobs
+// directory holds nothing.
+func sweepIn(dir string, user func(name string) bool, owner func(uid uint32) bool) (Swept, error) {
+	var s Swept
+	dfd, err := openDir(unix.AT_FDCWD, dir)
+	if err != nil {
+		return s, fmt.Errorf("guestsched: open %s: %w", dir, err)
+	}
+	defer func() { _ = unix.Close(dfd) }()
+	s.Tabs, err = removeTabs(dfd, user)
+	if err != nil {
+		return s, fmt.Errorf("guestsched: crontabs of project users in %s: %w", dir, err)
+	}
+	s.Jobs, err = removeJobs(dfd, owner)
+	if err != nil {
+		return s, fmt.Errorf("guestsched: at jobs of project users in %s: %w", dir, err)
+	}
+	return s, nil
+}
+
+// listDir opens sub in dfd as a directory, without following a
+// symbolic link, and reads at most MaxEntries names from it. A missing
+// sub gives no file, no names and no error. The caller closes the file.
+func listDir(dfd int, sub string) (*os.File, []string, error) {
+	fd, err := openDir(dfd, sub)
 	if errors.Is(err, unix.ENOENT) {
-		return 0, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return 0, fmt.Errorf("open %s: %w", Jobs, err)
+		return nil, nil, fmt.Errorf("open %s: %w", sub, err)
 	}
-	f := os.NewFile(uintptr(jfd), Jobs)
-	defer func() { _ = f.Close() }()
-	names, err := f.Readdirnames(MaxJobEntries + 1)
+	f := os.NewFile(uintptr(fd), sub)
+	names, err := f.Readdirnames(MaxEntries + 1)
 	if err != nil && !errors.Is(err, io.EOF) {
-		return 0, fmt.Errorf("read %s: %w", Jobs, err)
+		_ = f.Close()
+		return nil, nil, fmt.Errorf("read %s: %w", sub, err)
 	}
-	if len(names) > MaxJobEntries {
-		return 0, fmt.Errorf("%s holds more than %d entries", Jobs, MaxJobEntries)
+	if len(names) > MaxEntries {
+		_ = f.Close()
+		return nil, nil, fmt.Errorf("%s holds more than %d entries", sub, MaxEntries)
 	}
+	return f, names, nil
+}
+
+// removeTabs unlinks each entry of Tabs whose name user accepts, and
+// returns how many it removed. It reads at most MaxEntries entries.
+func removeTabs(dfd int, user func(name string) bool) (int, error) {
+	f, names, err := listDir(dfd, Tabs)
+	if f == nil {
+		return 0, err
+	}
+	defer func() { _ = f.Close() }()
+	removed := 0
+	for _, n := range names {
+		if !user(n) {
+			continue
+		}
+		err := unix.Unlinkat(int(f.Fd()), n, 0)
+		switch {
+		case errors.Is(err, unix.ENOENT):
+			continue
+		case err != nil:
+			return removed, fmt.Errorf("unlink %s/%s: %w", Tabs, n, err)
+		}
+		removed++
+	}
+	return removed, nil
+}
+
+// removeJobs unlinks each regular file in Jobs whose owner's ID owner
+// accepts, and returns how many it removed. It reads at most MaxEntries
+// entries.
+func removeJobs(dfd int, owner func(uid uint32) bool) (int, error) {
+	f, names, err := listDir(dfd, Jobs)
+	if f == nil {
+		return 0, err
+	}
+	defer func() { _ = f.Close() }()
+	jfd := int(f.Fd())
 	removed := 0
 	for _, n := range names {
 		var st unix.Stat_t
@@ -156,7 +225,7 @@ func removeJobs(dfd int, uid uint32) (int, error) {
 			continue // atrun ran it meanwhile
 		case err != nil:
 			return removed, fmt.Errorf("stat %s/%s: %w", Jobs, n, err)
-		case st.Mode&unix.S_IFMT != unix.S_IFREG || st.Uid != uid:
+		case st.Mode&unix.S_IFMT != unix.S_IFREG || !owner(st.Uid):
 			continue
 		}
 		if err := unix.Unlinkat(jfd, n, 0); err != nil && !errors.Is(err, unix.ENOENT) {

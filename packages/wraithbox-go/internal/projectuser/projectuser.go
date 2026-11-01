@@ -45,6 +45,18 @@ const MaxNameLen = len(namePrefix) + 10
 // UID is, and needs no escaping.
 func UserName(uid uint32) string { return namePrefix + strconv.FormatUint(uint64(uid), 10) }
 
+// IsUserName reports whether name is the name UserName gives an ID in
+// the range of project users. It accepts each such name in one form
+// only: no sign, no leading zero.
+func IsUserName(name string) bool {
+	digits, ok := strings.CutPrefix(name, namePrefix)
+	if !ok {
+		return false
+	}
+	id, err := strconv.ParseUint(digits, 10, 32)
+	return err == nil && InRange(uint32(id)) && UserName(uint32(id)) == name
+}
+
 // HomePath is the home of the user named name.
 func HomePath(name string) string { return HomeRoot + "/" + name }
 
