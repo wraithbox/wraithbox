@@ -26,13 +26,13 @@ type run struct {
 // (S07-02-packet-path, "Events and rate limits"), in place of its own
 // record. The run's count is written at the end of its minute, or as an
 // open run at EndVM. A decision or rule that isn't of the form a record
-// takes is counted under event-record-unsendable, so the count still
+// takes is counted under event-record-not-encoded, so the count still
 // reaches the log.
 func (s *Sender) CountRun(vm VM, class auditv1.EventClass, decision, rule string) {
 	if !ValidDecision(decision) || !ValidRule(rule) {
-		s.log.Error("run not of a record's form", "rule", string(RuleUnsendable), "decision", "count",
+		s.log.Error("run not of a record's form", "rule", string(RuleNotEncoded), "decision", "count",
 			"run_decision", Cut(decision, MaxDecision), "run_rule", Cut(rule, MaxRule))
-		decision, rule = "refuse", string(RuleUnsendable)
+		decision, rule = "refuse", string(RuleNotEncoded)
 	}
 	now := s.cfg.Now()
 	s.mu.Lock()

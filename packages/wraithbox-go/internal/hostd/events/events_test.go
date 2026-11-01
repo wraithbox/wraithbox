@@ -24,21 +24,21 @@ import (
 // fakeConn hands Recv the queued messages, then io.EOF once closed for
 // input. It records what is sent.
 type fakeConn struct {
-	in      chan recvd
+	in      chan received
 	mu      sync.Mutex
 	sent    [][]byte
 	sendErr error
 	closed  bool
 }
 
-type recvd struct {
+type received struct {
 	m   *fdchan.Message
 	err error
 }
 
-func newFakeConn() *fakeConn { return &fakeConn{in: make(chan recvd, 16)} }
+func newFakeConn() *fakeConn { return &fakeConn{in: make(chan received, 16)} }
 
-func (c *fakeConn) push(record []byte) { c.in <- recvd{m: &fdchan.Message{Record: record}} }
+func (c *fakeConn) push(record []byte) { c.in <- received{m: &fdchan.Message{Record: record}} }
 
 func (c *fakeConn) Recv() (*fdchan.Message, error) {
 	r, ok := <-c.in
@@ -364,7 +364,7 @@ func TestDescriptorEndsSender(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conn.in <- recvd{m: &fdchan.Message{Record: marshal(t, eventRecord(1, work, validEvent())), File: f}}
+	conn.in <- received{m: &fdchan.Message{Record: marshal(t, eventRecord(1, work, validEvent())), File: f}}
 	waitDone(t, r)
 	if got := end.got(); len(got) != 1 || got[0] != RuleRecordInvalid || len(s.log.got()) != 0 {
 		t.Fatalf("ends %v, records %d", got, len(s.log.got()))
@@ -387,7 +387,7 @@ func TestRecvErrorsEndSender(t *testing.T) {
 		s := newSetup()
 		conn, end := newFakeConn(), &ender{}
 		r := s.hub.Attach(conn, Netd(work), end)
-		conn.in <- recvd{err: tc.err}
+		conn.in <- received{err: tc.err}
 		waitDone(t, r)
 		if got := end.got(); len(got) != 1 || got[0] != tc.rule {
 			t.Errorf("%v: ends %v, want %s", tc.err, got, tc.rule)

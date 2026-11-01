@@ -65,10 +65,10 @@ const (
 	// a VM this sender doesn't serve, or ends too far ahead. It is logged
 	// and has no effect.
 	RuleNoticeInvalid Rule = "budget-notice-invalid"
-	// RuleUnsendable: a record doesn't encode within MaxRecord. The bounds
+	// RuleNotEncoded: a record doesn't encode within MaxRecord. The bounds
 	// keep that from happening. If it does, the channel stays blocked
 	// for good, as nothing may run without its record.
-	RuleUnsendable Rule = "event-record-unsendable"
+	RuleNotEncoded Rule = "event-record-not-encoded"
 )
 
 // BlockAfter is how long one write may take before the channel counts
@@ -281,7 +281,7 @@ func (s *Sender) enqueueLocked(rec *auditv1.EventRecord) {
 		// Nothing may run without its record, so new work is refused for
 		// good.
 		s.broken = true
-		s.log.Error("event record not sent", "rule", string(RuleUnsendable), "decision", "refuse-all",
+		s.log.Error("event record not sent", "rule", string(RuleNotEncoded), "decision", "refuse-all",
 			"bytes", len(b), "max", MaxRecord, "error", fmt.Sprint(err))
 		return
 	}

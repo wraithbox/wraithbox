@@ -280,7 +280,7 @@ Spec: S04-architecture.
   `TestFailedWriteBlocksAndRetries`, `TestAdmitRefusesWhileBlocked`,
   `TestSlowWriteBlocks` (a write past 100 ms), `TestQueueCapStallsInput`
   (a full queue stalls the caller and doesn't drop a record), and
-  `TestUnsendableRecordRefusesForGood`. `TestRealChannelFullPeerBlocks`
+  `TestUnencodedRecordRefusesForGood`. `TestRealChannelFullPeerBlocks`
   fills a real socketpair, and sees every record arrive in order once
   the peer reads.
 - In `internal/hostd/events`, `TestRefusedRecordEndsSender` sends
