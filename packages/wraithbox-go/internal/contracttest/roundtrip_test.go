@@ -45,6 +45,9 @@ func vmStatus() *hostdv1.VMStatus {
 			State: hostdv1.DataMountState_DATA_MOUNT_STATE_REFUSED, Rule: "data-mount-flags", Message: "stop and reset",
 		},
 		AuditRefusal: &hostdv1.AuditRefusal{Rule: "audit-free-space", Message: "free space", UntilUnix: 1700000000, Sessions: true},
+		AuditBudget: &hostdv1.AuditBudget{
+			Rule: "audit-bytes", UntilUnix: 1700000000, EventsThisMinute: 12, EventsPerMinute: 6000, BytesToday: 1 << 26, BytesPerDay: 1 << 26,
+		},
 	}
 }
 
@@ -169,6 +172,7 @@ func messages() []proto.Message {
 		vmStatus().GetLastError(),
 		vmStatus().GetDataMount(),
 		vmStatus().GetAuditRefusal(),
+		vmStatus().GetAuditBudget(),
 	}, slices.Concat(terminalMessages(), userMessages(), auditMessages())...)
 }
 

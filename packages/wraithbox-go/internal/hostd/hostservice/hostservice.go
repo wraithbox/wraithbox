@@ -81,6 +81,7 @@ type Server struct {
 // implements it.
 type AuditStatus interface {
 	Refusal() *audit.Refusal
+	Budget(slot string) audit.Budget
 }
 
 var _ hostdv1.HostServiceServer = (*Server)(nil)

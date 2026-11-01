@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
@@ -282,6 +283,28 @@ func TestStatusAuditRefusal(t *testing.T) {
 	rec.Refuse("", "")
 	if r := getStatus(t, c, hostdv1.VM_VM_ISOLATED).GetAuditRefusal(); r != nil {
 		t.Errorf("a refusal after it ended: %v", r)
+	}
+}
+
+// TestStatusAuditBudget: each VM's status shows its own use of the audit
+// budgets, and the rule and its end while it is over one (S09-11-audit,
+// "Budgets").
+func TestStatusAuditBudget(t *testing.T) {
+	rec := &audittest.Recorder{}
+	until := time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)
+	rec.SetBudget("work", audit.Budget{
+		Rule: audit.RuleBytes, Until: until, EventsThisMinute: 7, EventsPerMinute: 6000, BytesToday: 65 << 20, BytesPerDay: 64 << 20,
+	})
+	rec.SetBudget("isolated", audit.Budget{EventsThisMinute: 1, EventsPerMinute: 6000, BytesPerDay: 64 << 20})
+	c := serve(t, &hostservice.Server{VMs: newManager(t, slog.New(slog.DiscardHandler), nil), Links: &fakeLinks{}, Audit: rec})
+	b := getStatus(t, c, hostdv1.VM_VM_WORK).GetAuditBudget()
+	if b.GetRule() != audit.RuleBytes || b.GetUntilUnix() != until.Unix() || b.GetEventsThisMinute() != 7 ||
+		b.GetEventsPerMinute() != 6000 || b.GetBytesToday() != 65<<20 || b.GetBytesPerDay() != 64<<20 {
+		t.Errorf("work: budget %v", b)
+	}
+	b = getStatus(t, c, hostdv1.VM_VM_ISOLATED).GetAuditBudget()
+	if b.GetRule() != "" || b.GetUntilUnix() != 0 || b.GetEventsThisMinute() != 1 {
+		t.Errorf("isolated: budget %v", b)
 	}
 }
 

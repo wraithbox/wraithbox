@@ -17,6 +17,7 @@ func (s *Server) statusOf(slot vm.Slot, v hostdv1.VM) *hostdv1.VMStatus {
 		LinkState: hostdv1.LinkState_LINK_STATE_DOWN, LastError: vmErrorOf(st.LastError),
 	}
 	out.AuditRefusal = s.auditRefusal()
+	out.AuditBudget = s.auditBudget(slot)
 	if st.Phase != vm.PhaseRunning || s.Links == nil {
 		return out
 	}
@@ -51,6 +52,23 @@ func (s *Server) auditRefusal() *hostdv1.AuditRefusal {
 	out := &hostdv1.AuditRefusal{Rule: r.Rule, Message: r.Message, Sessions: r.Sessions}
 	if !r.Until.IsZero() {
 		out.UntilUnix = r.Until.Unix()
+	}
+	return out
+}
+
+// auditBudget is slot's use of its audit budgets, and the budget's rule
+// while it is over one (S09-11-audit, "Budgets").
+func (s *Server) auditBudget(slot vm.Slot) *hostdv1.AuditBudget {
+	if s.Audit == nil {
+		return nil
+	}
+	b := s.Audit.Budget(string(slot))
+	out := &hostdv1.AuditBudget{
+		Rule: b.Rule, EventsThisMinute: b.EventsThisMinute, EventsPerMinute: b.EventsPerMinute,
+		BytesToday: b.BytesToday, BytesPerDay: b.BytesPerDay,
+	}
+	if !b.Until.IsZero() {
+		out.UntilUnix = b.Until.Unix()
 	}
 	return out
 }
