@@ -32,6 +32,7 @@ var defaultRanges = []addrRange{
 	{"ipv6-unspecified", netip.MustParsePrefix("::/128")},
 	{"ipv6-loopback", netip.MustParsePrefix("::1/128")},
 	{"ipv6-link-local", netip.MustParsePrefix("fe80::/10")},
+	{"ipv6-site-local", netip.MustParsePrefix("fec0::/10")},
 	{"ipv6-unique-local", netip.MustParsePrefix("fc00::/7")},
 	{"ipv6-multicast", netip.MustParsePrefix("ff00::/8")},
 	{"ipv6-6to4", netip.MustParsePrefix("2002::/16")},
