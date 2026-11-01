@@ -177,12 +177,14 @@ func (w *Writer) cutTo(off int64) {
 
 // failed enters the failed state, or stays in it (S09-11-audit, "Free
 // space and failed writes"). In order: it stops the VM of each failed
-// record, or every VM for a record that belongs to none, frees the
-// reserve when the cause was a full volume, and queues a record of the
-// failure. Each caller waiting on a record is refused, and the record
-// it waited on is dropped, because the caller refuses its action. The
-// failed records stay queued, and the writer writes them again, then
-// the stop records, once a tick.
+// record and of every record queued behind it, or every VM when one
+// belongs to none, frees the reserve when the cause was a full
+// volume, and queues a record of the failure. Each caller waiting on a
+// record is refused, and the record it waited on is dropped, because
+// the caller refuses its action. The failed records stay queued, and
+// the writer writes them again, then the stop records, once a tick.
+// Under a lasting failure it logs and stops again only when the VMs to
+// stop change. Once Close began it stops none: every VM stopped first.
 func (w *Writer) failed(err error, items []*item) {
 	now := w.cfg.Now()
 	w.mu.Lock()
@@ -194,24 +196,33 @@ func (w *Writer) failed(err error, items []*item) {
 				w.cfg.Dir, now.UTC().Format(time.RFC3339), err),
 		}
 	}
-	failure, stopper := w.failure, w.stopper
+	failure, stopper, closing := w.failure, w.stopper, w.closed
 	w.mu.Unlock()
 	w.dropWaiters(failure)
-	slots := slotsOf(items)
-	w.log.Error("audit write failed", "rule", RuleWriteFailed, "decision", "stop-vm",
-		"vms", slots, "records", len(items), "error", err)
+	slots := slotsOf(append(slices.Clone(items), w.queued()...))
+	if first || !slices.Equal(slots, w.stopped) {
+		w.stopped = slots
+		w.log.Error("audit write failed", "rule", RuleWriteFailed, "decision", "stop-vm",
+			"vms", slots, "records", len(items), "error", err)
+		if stopper != nil && !closing {
+			for _, slot := range slots {
+				stopper.ForceStop(slot, RuleWriteFailed)
+			}
+		}
+	}
 	if errors.Is(err, syscall.ENOSPC) {
 		w.freeReserve()
 	}
 	if first {
 		w.Record(WriteFailed(now, err.Error()))
 	}
-	if stopper == nil {
-		return
-	}
-	for _, slot := range slots {
-		stopper.ForceStop(slot, RuleWriteFailed)
-	}
+}
+
+// queued is a copy of the queue.
+func (w *Writer) queued() []*item {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return slices.Clone(w.queue)
 }
 
 // recovered leaves the failed state after a successful write.
@@ -220,6 +231,7 @@ func (w *Writer) recovered() {
 	was := w.failure
 	w.failure = nil
 	w.mu.Unlock()
+	w.stopped = nil
 	if was != nil {
 		w.log.Info("audit write succeeded", "rule", RuleWriteFailed, "decision", "accept",
 			"reason", "a record was written, and VM starts and new sessions are allowed again")
@@ -232,12 +244,14 @@ func slotsOf(items []*item) []string {
 	var slots []string
 	for _, it := range items {
 		if it.rec.Slot == "" {
-			return vmbundle.Slots()
+			slots = vmbundle.Slots()
+			break
 		}
 		if !slices.Contains(slots, it.rec.Slot) {
 			slots = append(slots, it.rec.Slot)
 		}
 	}
+	slices.Sort(slots)
 	return slots
 }
 

@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -129,8 +130,8 @@ func TestRetentionMinimum(t *testing.T) {
 
 // TestFailedWrite: a failed write stops the record's VM first, frees the
 // reserve when the volume was full, refuses starts with
-// audit-write-failed, and then writes the failed record, the record of
-// the failure, and the stop record, in that order (S09-11-audit, "Free
+// audit-write-failed, and then writes the failed record, the stop record,
+// and the record of the failure, in that order (S09-11-audit, "Free
 // space and failed writes"). The other VM keeps running.
 func TestFailedWrite(t *testing.T) {
 	tests := []struct {
@@ -143,19 +144,19 @@ func TestFailedWrite(t *testing.T) {
 			h.fault(func(f *faults) { f.write = []error{syscall.ENOSPC} })
 			h.w.Record(VMRunning("work", 1, "vm-start"))
 			h.flush()
-		}, true, []string{"vm running", "audit write failed", "vm stopped"}},
+		}, true, []string{"vm running", "vm stopped", "audit write failed"}},
 		{"short write", func(h *harness) {
 			h.fault(func(f *faults) { f.short = 1 })
 			h.w.Record(VMRunning("work", 1, "vm-start"))
 			h.flush()
-		}, false, []string{"vm running", "audit write failed", "vm stopped"}},
+		}, false, []string{"vm running", "vm stopped", "audit write failed"}},
 		{"failed sync", func(h *harness) {
 			h.w.Record(VMStarting("work", 1, "vm-start", Resources{}))
 			h.flush()
 			h.fault(func(f *faults) { f.sync = []error{syscall.EIO} })
 			h.w.Record(VMRunning("work", 1, "vm-start"))
 			h.advance(time.Second)
-		}, false, []string{"vm start", "vm running", "audit write failed", "vm stopped"}},
+		}, false, []string{"vm start", "vm running", "vm stopped", "audit write failed"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -209,11 +210,69 @@ func TestFailedWriteOfNoVM(t *testing.T) {
 	h.faults.mu.Unlock()
 	h.w.Record(GitChecked("accept", "host-git-version", Git{Binary: "/usr/bin/git"}))
 	h.flush()
-	h.checkStops("work:audit-write-failed", "isolated:audit-write-failed")
+	h.checkStops("isolated:audit-write-failed", "work:audit-write-failed")
 	h.advance(time.Second)
-	want := []string{"host git accept", "audit write failed", "vm stopped", "vm stopped"}
+	want := []string{"host git accept", "vm stopped", "vm stopped", "audit write failed"}
 	if got := h.messages(start); !slices.Equal(got, want) {
 		t.Errorf("records = %q, want %q", got, want)
+	}
+}
+
+// TestFailedWriteStopsQueued: a failed write stops the VM of every record
+// queued behind the failed one too, because none of them can be written
+// either (SEC10-audit).
+func TestFailedWriteStopsQueued(t *testing.T) {
+	h := newHarness(t, nil)
+	h.fault(func(f *faults) { f.write = []error{syscall.EIO} })
+	done := make(chan struct{})
+	h.w.calls <- func() {
+		h.w.Record(VMRunning("work", 1, "vm-start"))
+		h.w.Record(VMRunning("isolated", 1, "vm-start"))
+		h.w.drain(false)
+		close(done)
+	}
+	<-done
+	h.checkStops("isolated:audit-write-failed", "work:audit-write-failed")
+}
+
+// TestLastingFailure: while writes keep failing, the writer logs and
+// stops VMs again only when the VMs to stop change. The first retry
+// fails with the failure's own record queued, which belongs to no VM,
+// so it stops every VM.
+func TestLastingFailure(t *testing.T) {
+	h := newHarness(t, nil)
+	h.fault(func(f *faults) { f.write = []error{syscall.EIO, syscall.EIO, syscall.EIO} })
+	h.w.Record(VMRunning("work", 1, "vm-start"))
+	h.flush()
+	h.checkStops("work:audit-write-failed")
+	h.advance(time.Second)
+	h.checkStops("work:audit-write-failed", "isolated:audit-write-failed", "work:audit-write-failed")
+	h.advance(time.Second)
+	h.checkStops("work:audit-write-failed", "isolated:audit-write-failed", "work:audit-write-failed")
+	if n := strings.Count(h.logs.String(), `msg="audit write failed"`); n != 2 {
+		t.Errorf("%d failure lines, want 2:\n%s", n, h.logs)
+	}
+	h.advance(time.Second)
+	checkRefused(t, h, "", "")
+}
+
+// TestWriteGivenUp: a Write whose context ends before the loop takes its
+// record is refused, and the record is never written, because its
+// caller refuses the action the record was for.
+func TestWriteGivenUp(t *testing.T) {
+	h := newHarness(t, nil)
+	release := make(chan struct{})
+	h.w.calls <- func() { <-release }
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := h.w.Write(ctx, ShellOpened("work", 1, "shell-open", Session{ID: "s1"}, nil)); !errors.Is(err, context.Canceled) {
+		t.Errorf("Write = %v, want the context's error", err)
+	}
+	close(release)
+	h.w.Record(VMRunning("work", 1, "vm-start"))
+	h.flush()
+	if got := h.messages(start); !slices.Equal(got, []string{"vm running"}) {
+		t.Errorf("records = %q, want only vm running", got)
 	}
 }
 
@@ -261,7 +320,7 @@ func TestWriteWaits(t *testing.T) {
 		t.Errorf("Write while failing = %v", err)
 	}
 	h.advance(time.Second)
-	want := []string{"shell open", "audit write failed", "vm stopped"}
+	want := []string{"shell open", "vm stopped", "audit write failed"}
 	if got := h.messages(start); !slices.Equal(got, want) {
 		t.Errorf("records = %q, want %q: the refused opens aren't recorded", got, want)
 	}

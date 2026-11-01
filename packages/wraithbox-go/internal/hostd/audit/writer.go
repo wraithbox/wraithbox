@@ -5,9 +5,9 @@
 //
 // The writer enforces SEC10-audit's floor on the host: a VM start and a
 // shell open are refused while the log can't take records, a failed
-// write stops the record's VM, and a file is deleted by age only, never
-// to make room (S09-11-audit, "Retention" and "Free space and failed
-// writes").
+// write stops the VM of every record that waits, and a file is deleted
+// by age only, never to make room (S09-11-audit, "Retention" and "Free
+// space and failed writes").
 package audit
 
 import (
@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -110,6 +111,9 @@ type Writer struct {
 	lastFree time.Time
 	lastAge  time.Time
 	disks    map[string]uint64
+	// stopped is the VMs the last failure stopped, nil once a write
+	// succeeds.
+	stopped []string
 }
 
 // item is an accepted record. done is nil for a record no caller waits
@@ -119,6 +123,9 @@ type item struct {
 	at   time.Time
 	line []byte
 	done chan error
+	// taken: the loop has begun to write it, so a Write whose context
+	// ended can no longer take it back. Guarded by Writer.mu.
+	taken bool
 }
 
 // New checks cfg, deletes the files past retention, checks free space
@@ -192,18 +199,26 @@ func (w *Writer) Write(ctx context.Context, r Record) error {
 		return failure
 	}
 	done := make(chan error, 1)
-	w.enqueue(r, done)
+	it := w.enqueue(r, done)
 	select {
 	case err := <-done:
 		return err
 	case <-ctx.Done():
+	}
+	// A caller that gave up refuses its action, so its record must not be
+	// written later as if the action went ahead. One the loop is writing
+	// already gets its answer soon.
+	if w.withdraw(it) {
 		return ctx.Err()
 	}
+	return <-done
 }
 
 // Close writes and syncs the records the writer has accepted, closes
 // the file and stops the writer. A record accepted after Close is
-// dropped, with a log line.
+// dropped, with a log line. Call it once every VM has stopped, so the
+// stop records are among the last writes: a write that fails during
+// Close stops no VM.
 func (w *Writer) Close() error {
 	w.mu.Lock()
 	if w.closed {
@@ -217,7 +232,7 @@ func (w *Writer) Close() error {
 	return nil
 }
 
-func (w *Writer) enqueue(r Record, done chan error) {
+func (w *Writer) enqueue(r Record, done chan error) *item {
 	w.mu.Lock()
 	if w.closed {
 		w.mu.Unlock()
@@ -226,7 +241,7 @@ func (w *Writer) enqueue(r Record, done chan error) {
 		if done != nil {
 			done <- errClosed
 		}
-		return
+		return nil
 	}
 	at := w.cfg.Now()
 	h := r.Event.head()
@@ -239,14 +254,32 @@ func (w *Writer) enqueue(r Record, done chan error) {
 		if done != nil {
 			done <- err
 		}
-		return
+		return nil
 	}
-	w.queue = append(w.queue, &item{rec: r, at: at, line: append(line, '\n'), done: done})
+	it := &item{rec: r, at: at, line: append(line, '\n'), done: done}
+	w.queue = append(w.queue, it)
 	w.mu.Unlock()
 	select {
 	case w.wake <- struct{}{}:
 	default:
 	}
+	return it
+}
+
+// withdraw takes it out of the queue unless the loop has begun to write
+// it or already answered it. It reports whether it did.
+func (w *Writer) withdraw(it *item) bool {
+	if it == nil {
+		return false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	i := slices.Index(w.queue, it)
+	if i < 0 || it.taken {
+		return false
+	}
+	w.queue = slices.Delete(w.queue, i, i+1)
+	return true
 }
 
 func (w *Writer) loop(tick <-chan time.Time, stop func()) {
@@ -314,6 +347,7 @@ func (w *Writer) head() *item {
 	if len(w.queue) == 0 {
 		return nil
 	}
+	w.queue[0].taken = true
 	return w.queue[0]
 }
 
