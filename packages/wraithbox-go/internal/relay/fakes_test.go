@@ -130,9 +130,11 @@ func (f *fakeTerminal) Size() (int, int, error) {
 }
 
 // fakeStream is wb-hostd's end of the stream: the test sends server
-// frames with serve and reads client frames from sent.
+// frames with serve and reads client frames from sent. With sendErr
+// set, Send fails, and each frame it failed to send goes to refused.
 type fakeStream struct {
 	sent      chan *terminalv1.ClientFrame
+	refused   chan *terminalv1.ClientFrame
 	frames    chan received
 	closed    chan struct{}
 	closeOnce sync.Once
@@ -142,14 +144,16 @@ type fakeStream struct {
 
 func newFakeStream() *fakeStream {
 	return &fakeStream{
-		sent:   make(chan *terminalv1.ClientFrame, 64),
-		frames: make(chan received, 64),
-		closed: make(chan struct{}),
+		sent:    make(chan *terminalv1.ClientFrame, 64),
+		refused: make(chan *terminalv1.ClientFrame, 64),
+		frames:  make(chan received, 64),
+		closed:  make(chan struct{}),
 	}
 }
 
 func (s *fakeStream) Send(f *terminalv1.ClientFrame) error {
 	if s.sendErr != nil {
+		s.refused <- f
 		return s.sendErr
 	}
 	s.sent <- f
@@ -186,6 +190,18 @@ func (s *fakeStream) next(t *testing.T) *terminalv1.ClientFrame {
 		return f
 	case <-time.After(waitLimit):
 		t.Fatal("no client frame")
+	}
+	return nil
+}
+
+// nextRefused returns the next client frame that Send failed to send.
+func (s *fakeStream) nextRefused(t *testing.T) *terminalv1.ClientFrame {
+	t.Helper()
+	select {
+	case f := <-s.refused:
+		return f
+	case <-time.After(waitLimit):
+		t.Fatal("no failed send")
 	}
 	return nil
 }
