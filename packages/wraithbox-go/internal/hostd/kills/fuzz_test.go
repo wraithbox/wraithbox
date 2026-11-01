@@ -51,7 +51,10 @@ func FuzzKillResult(f *testing.F) {
 // from Begin, and IDs 1 and 2 forced in.
 func fuzzTracker(t *testing.T) (*Tracker, map[uint64]string) {
 	t.Helper()
-	tr := New(Config{Clock: newFakeClock(), Logger: slog.New(slog.DiscardHandler), Audit: &audittest.Recorder{}})
+	tr, err := New(Config{Clock: newFakeClock(), Logger: slog.New(slog.DiscardHandler), Audit: &audittest.Recorder{}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	sent := map[uint64]string{}
 	for _, p := range []string{projA, projB} {
 		sent[begin(t, tr, vm.SlotWork, 1, p)] = p

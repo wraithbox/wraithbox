@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -157,8 +158,13 @@ type Tracker struct {
 	slots map[vm.Slot]*gen
 }
 
-// New returns a Tracker with no kill.
-func New(cfg Config) *Tracker {
+// New returns a Tracker with no kill. It refuses a Config without an
+// audit recorder, which records the kills that leave processes and the
+// kills a cold stop closes (SEC10-audit).
+func New(cfg Config) (*Tracker, error) {
+	if cfg.Audit == nil {
+		return nil, errors.New("kills: the audit writer is required")
+	}
 	t := &Tracker{clock: cfg.Clock, log: cfg.Logger, audit: cfg.Audit, slots: map[vm.Slot]*gen{}}
 	if t.clock == nil {
 		t.clock = realClock{}
@@ -166,7 +172,7 @@ func New(cfg Config) *Tracker {
 	if t.log == nil {
 		t.log = slog.Default()
 	}
-	return t
+	return t, nil
 }
 
 // genLocked returns what the tracker holds for slot's generation. A

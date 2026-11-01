@@ -24,7 +24,10 @@ func killsHarness(t *testing.T, g *usersGuest, n int) (*harness, *kills.Tracker,
 	t.Helper()
 	h := newHarness(t, own, own, true)
 	h.links.Close()
-	tracker := kills.New(kills.Config{Logger: slog.New(slog.NewJSONHandler(h.logs, nil)), Audit: &audittest.Recorder{}})
+	tracker, err := kills.New(kills.Config{Logger: slog.New(slog.NewJSONHandler(h.logs, nil)), Audit: &audittest.Recorder{}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	h.cfg.Kills = tracker
 	ls, err := New(h.cfg)
 	if err != nil {
