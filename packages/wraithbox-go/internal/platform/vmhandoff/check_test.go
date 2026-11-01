@@ -17,6 +17,7 @@ func good() *vmdv1.HandoffMessage {
 		Direction:       vmdv1.Direction_DIRECTION_HOST_TO_GUEST,
 		SourcePort:      49152,
 		DestinationPort: 1023,
+		Kind:            vmdv1.Kind_KIND_CONNECTION,
 	}
 }
 
@@ -54,7 +55,10 @@ func TestCheck(t *testing.T) {
 		{"good", nil, "", false},
 		{"not protobuf", func(*vmdv1.HandoffMessage) []byte { return []byte{0xff, 0xff, 0xff} }, RuleMalformed, false},
 		{"unknown field", func(*vmdv1.HandoffMessage) []byte { return unknownField }, RuleMalformed, false},
-		{"empty", func(*vmdv1.HandoffMessage) []byte { return nil }, RuleGeneration, false},
+		{"empty", func(*vmdv1.HandoffMessage) []byte { return nil }, RuleKind, false},
+		{"no kind", func(m *vmdv1.HandoffMessage) []byte { m.Kind = 0; return marshal(t, m) }, RuleKind, false},
+		{"unknown kind", func(m *vmdv1.HandoffMessage) []byte { m.Kind = 3; return marshal(t, m) }, RuleKind, false},
+		{"connection sent as the network", func(m *vmdv1.HandoffMessage) []byte { m.Kind = vmdv1.Kind_KIND_NETWORK; return marshal(t, m) }, RuleNetwork, false},
 		{"generation 0", func(m *vmdv1.HandoffMessage) []byte { m.Generation = 0; return marshal(t, m) }, RuleGeneration, false},
 		{"older generation", func(m *vmdv1.HandoffMessage) []byte { m.Generation = 2; return marshal(t, m) }, RuleGeneration, false},
 		{"newer generation", func(m *vmdv1.HandoffMessage) []byte { m.Generation = 4; return marshal(t, m) }, RuleGeneration, false},
