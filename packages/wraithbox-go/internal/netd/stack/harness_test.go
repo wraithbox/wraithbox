@@ -204,6 +204,14 @@ func (g *guest) smallWindow(t *testing.T) {
 	}
 }
 
+// reset aborts every connection the guest has open, which sends a RST
+// on each one that is connected.
+func (g *guest) reset() {
+	for _, e := range g.s.RegisteredEndpoints() {
+		e.Abort()
+	}
+}
+
 // attach starts a stack of cfg with hooks, linked to the guest.
 func (g *guest) attach(t *testing.T, cfg netd.Config, hooks netd.Hooks) *harness {
 	t.Helper()

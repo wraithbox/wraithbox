@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gvisor.dev/gvisor/pkg/tcpip/header"
+	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd"
 	nt "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/netdtest"
@@ -241,6 +242,67 @@ func TestClosedConnHoldsCap(t *testing.T) {
 	}
 	if n := active(h.s); n != 1 {
 		t.Fatalf("%d connections hold a place, want 1", n)
+	}
+}
+
+// TestResetConnHoldsCap checks that a connection the guest resets keeps
+// its place under Caps.EstablishedTCP until its hook closes it
+// (SEC13-bounded-resources). The guest sends data the hook doesn't read,
+// then resets, which ends gVisor's endpoint while the hook still holds
+// the connection. A SYN is reset with tcp-cap until the hook closes.
+func TestResetConnHoldsCap(t *testing.T) {
+	conns := make(sink, 4)
+	cfg := nt.Config()
+	cfg.Caps.EstablishedTCP = 1
+	g := newGuest(t)
+	h := g.attach(t, cfg, netd.Hooks{Stream: policy(func(netd.Flow) netd.StreamDecision {
+		return netd.StreamDecision{Sink: conns}
+	})})
+	dest := netip.AddrPortFrom(synthetic, 443)
+
+	first, err := g.dial(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	server := conns.take(t)
+	if _, err := first.Write(make([]byte, 16<<10)); err != nil {
+		t.Fatal(err)
+	}
+	g.reset()
+	waitState(t, server, tcp.StateError)
+
+	if _, err := g.dial(dest); !isRefused(err) {
+		t.Fatalf("dial after the guest's reset = %v, want refused", err)
+	}
+	if n := h.s.Recorder().Count(netd.RuleTCPCap); n != 1 {
+		t.Fatalf("tcp-cap count %d, want 1", n)
+	}
+	if n := active(h.s); n != 1 {
+		t.Fatalf("%d connections hold a place, want 1", n)
+	}
+
+	_ = server.Close()
+	waitActive(t, h.s, 0)
+	next, err := g.dial(dest)
+	if err != nil {
+		t.Fatalf("after the hook's close: %v", err)
+	}
+	_ = next.Close()
+	_ = conns.take(t).Close()
+}
+
+// waitState waits until the stack's endpoint of an accepted connection
+// is in state st.
+func waitState(t *testing.T, c net.Conn, st tcp.EndpointState) {
+	t.Helper()
+	ep := c.(*conn).ep
+	deadline := time.Now().Add(5 * time.Second)
+	for ep.State() != uint32(st) {
+		if time.Now().After(deadline) {
+			t.Fatalf("endpoint state %v, want %v", tcp.EndpointState(ep.State()), st)
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }
 

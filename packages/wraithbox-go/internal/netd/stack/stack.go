@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gvisor.dev/gvisor/pkg/tcpip"
@@ -41,14 +42,17 @@ const (
 	portDNS uint16      = 53
 )
 
-// How long gVisor keeps a connection after it stops making progress or
-// is closed. Each bounds how long a connection holds its place under the
-// established cap, and its buffers, after its hook has closed it
-// (S07-02-packet-path, "Per-VM caps", SEC13-bounded-resources).
+// How long gVisor keeps a connection after its hook has closed it. Each
+// bounds how long the connection then holds its place under the
+// established cap, and its buffers. They are fixed values, not caps in
+// the configuration (S07-02-packet-path, "Per-VM caps",
+// SEC13-bounded-resources).
 const (
-	// userTimeout ends a connection whose sent data has gone unacknowledged
-	// this long, zero-window probes included. Without it a guest that
-	// keeps its window at zero holds a closed connection open forever.
+	// userTimeout ends a closed connection whose sent data has gone
+	// unacknowledged this long, zero-window probes included. Without it a
+	// guest that keeps its window at zero holds a closed connection open
+	// forever. It is set when the hook closes the connection, so a live
+	// connection whose guest stops reading isn't reset.
 	userTimeout = 30 * time.Second
 	// lingerTimeout ends FIN-WAIT-2, gVisor's default being 60 s.
 	lingerTimeout = 5 * time.Second
@@ -70,7 +74,7 @@ type Stack struct {
 	dns   *gonet.UDPConn // the gateway's port 53, when DNSOverUDP is set
 
 	mu        sync.Mutex
-	active    int // connections a hook accepted that gVisor hasn't closed yet
+	active    int // places taken under the established cap (place)
 	conns     map[*conn]struct{}
 	stopped   bool
 	accepting sync.WaitGroup // accept goroutines that started before stop
@@ -317,15 +321,9 @@ func (s *Stack) accept(req *tcp.ForwarderRequest) {
 		return
 	}
 	req.Complete(false)
-	s.releaseWhenClosed(ep, &wq)
-	uto := tcpip.TCPUserTimeoutOption(userTimeout)
-	if err := ep.SetSockOpt(&uto); err != nil {
-		// Without the timeout the connection's place isn't bounded.
-		ep.Abort()
-		s.rec.Record(netd.Reset, netd.RuleTCPHandshakeFailed, append(f.LogAttrs(), slog.String("error", err.String()))...)
-		return
-	}
-	c := s.track(gonet.NewTCPConn(&wq, ep))
+	p := s.newPlace()
+	s.releaseWhenClosed(ep, &wq, p)
+	c := s.track(&conn{Conn: gonet.NewTCPConn(&wq, ep), s: s, ep: ep, flow: f, place: p})
 	if c == nil {
 		return
 	}
@@ -375,18 +373,44 @@ func (s *Stack) enter() bool {
 	return true
 }
 
-// releaseWhenClosed frees a connection's place under the established cap
-// once gVisor's endpoint is closed. The hook's Close isn't the end: a
-// graceful close keeps the endpoint, and its buffers, until the FIN
-// exchange ends or a timeout does (SEC13-bounded-resources). gVisor
-// signals EventHUp on the endpoint's queue when it closes. The entry is
-// never unregistered, because Notify holds the queue's lock while it
-// calls it, and the queue goes with the endpoint.
-func (s *Stack) releaseWhenClosed(ep tcpip.Endpoint, wq *waiter.Queue) {
+// place is one accepted connection's place under the established cap
+// (SEC13-bounded-resources). Two holders hold it, and it is freed when
+// the later of them lets go:
+//   - The hook, until it closes its net.Conn. A guest reset ends gVisor's
+//     endpoint, but the hook still holds the connection, the data it
+//     hasn't read, and whatever it opened for the connection.
+//   - gVisor's endpoint, until it reaches StateClose or StateError. The
+//     hook's Close isn't the end: a graceful close keeps the endpoint,
+//     and its buffers, until the FIN exchange ends or a timeout does.
+type place struct {
+	s    *Stack
+	held atomic.Int32
+}
+
+// newPlace returns a place reserve took, held by both holders.
+func (s *Stack) newPlace() *place {
+	p := &place{s: s}
+	p.held.Store(2)
+	return p
+}
+
+// letGo ends one holder's hold. Each holder calls it once.
+func (p *place) letGo() {
+	if p.held.Add(-1) == 0 {
+		p.s.release()
+	}
+}
+
+// releaseWhenClosed lets go of the endpoint's hold on p once gVisor's
+// endpoint is closed. gVisor signals EventHUp on the endpoint's queue
+// when it closes. The entry is never unregistered, because Notify holds
+// the queue's lock while it calls it, and the queue goes with the
+// endpoint.
+func (s *Stack) releaseWhenClosed(ep tcpip.Endpoint, wq *waiter.Queue, p *place) {
 	var once sync.Once
 	check := func(waiter.EventMask) {
 		if st := ep.State(); st == uint32(tcp.StateClose) || st == uint32(tcp.StateError) {
-			once.Do(s.release)
+			once.Do(p.letGo)
 		}
 	}
 	entry := waiter.NewFunctionEntry(waiter.EventHUp, check)
@@ -412,10 +436,9 @@ func (s *Stack) release() {
 	s.active--
 }
 
-// track wraps an accepted connection, so stop can close it. After Run
+// track adds an accepted connection to the list stop closes. After Run
 // has stopped it closes the connection and returns nil.
-func (s *Stack) track(tc net.Conn) *conn {
-	c := &conn{Conn: tc, s: s}
+func (s *Stack) track(c *conn) *conn {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -427,23 +450,40 @@ func (s *Stack) track(tc net.Conn) *conn {
 	return c
 }
 
-// conn is an accepted connection. Its first Close takes it off the list
-// stop closes. Its place under the established cap is freed later, when
-// gVisor closes the endpoint (releaseWhenClosed).
+// conn is an accepted connection, the hook's side of it.
 type conn struct {
 	net.Conn
-	s    *Stack
-	once sync.Once
+	s     *Stack
+	ep    tcpip.Endpoint
+	flow  netd.Flow
+	place *place
+	once  sync.Once
 }
 
-// Close closes the connection.
+// Close closes the connection. Only the first call does anything.
 func (c *conn) Close() error {
+	var err error
+	c.once.Do(func() { err = c.closeOnce() })
+	return err
+}
+
+// closeOnce bounds how long gVisor may keep the connection now that the
+// hook is done with it, closes it, takes it off the list stop closes,
+// and lets go of the hook's hold on its place under the established cap.
+func (c *conn) closeOnce() error {
+	// SEC13-bounded-resources: the user timeout bounds how long a guest
+	// that doesn't acknowledge keeps the closed connection, and its place.
+	uto := tcpip.TCPUserTimeoutOption(userTimeout)
+	if err := c.ep.SetSockOpt(&uto); err != nil {
+		// Without the timeout the place isn't bounded, so reset instead.
+		c.ep.Abort()
+		c.s.rec.Record(netd.Reset, netd.RuleTCPCap, append(c.flow.LogAttrs(), slog.String("error", err.String()))...)
+	}
 	err := c.Conn.Close()
-	c.once.Do(func() {
-		c.s.mu.Lock()
-		defer c.s.mu.Unlock()
-		delete(c.s.conns, c)
-	})
+	c.s.mu.Lock()
+	delete(c.s.conns, c)
+	c.s.mu.Unlock()
+	c.place.letGo()
 	if errors.Is(err, net.ErrClosed) {
 		return nil
 	}
