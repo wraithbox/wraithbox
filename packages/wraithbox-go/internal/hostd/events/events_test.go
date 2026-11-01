@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/eventchan"
 	auditv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/audit/v1"
@@ -242,6 +243,10 @@ func TestAcceptsRecords(t *testing.T) {
 // refusedCases are records that end their sender, each with what makes
 // it fail. Each is the first record of a wb-netd of the work VM, or of
 // wb-proxyd when proxyd is set.
+// unknown200 is field 200, a varint of 1, which no message of the
+// contract has.
+var unknown200 = protoreflect.RawFields{0xc0, 0x0c, 0x01}
+
 func refusedCases(t testing.TB) []struct {
 	name   string
 	proxyd bool
@@ -266,6 +271,14 @@ func refusedCases(t testing.TB) []struct {
 	}{
 		{"doesn't decode", false, []byte{0xff, 0xff, 0xff}},
 		{"unknown field", false, append(marshal(t, eventRecord(1, work, validEvent())), 0x78, 0x01)},
+		{"unknown field in the event", false, ev(func(e *auditv1.Event) { e.ProtoReflect().SetUnknown(unknown200) })},
+		{"unknown field in the label", false, ev(func(e *auditv1.Event) { e.GetGuestLabel().ProtoReflect().SetUnknown(unknown200) })},
+		{"unknown field in the run", false, run(func(r *auditv1.Run) { r.ProtoReflect().SetUnknown(unknown200) })},
+		{"unknown field in the VM", false, marshal(t, func() *auditv1.EventRecord {
+			r := eventRecord(1, work, validEvent())
+			r.GetVm().ProtoReflect().SetUnknown(unknown200)
+			return r
+		}())},
 		{"sequence 2 first", false, marshal(t, eventRecord(2, work, validEvent()))},
 		{"sequence 0", false, marshal(t, eventRecord(0, work, validEvent()))},
 		{"no VM", false, marshal(t, &auditv1.EventRecord{Sequence: 1, Kind: &auditv1.EventRecord_Event{Event: validEvent()}})},
@@ -452,6 +465,35 @@ func TestOpenRunsPastTheCapAreWritten(t *testing.T) {
 	}
 }
 
+// TestEndForgetsTheVM: End forgets the notices sent for the VM, and an
+// open run of the VM that arrives after End is written as its own
+// record, not held for a stop record that was already written.
+func TestEndForgetsTheVM(t *testing.T) {
+	s := newSetup()
+	conn, end := newFakeConn(), &ender{}
+	r := s.hub.Attach(conn, Netd(work), end)
+	s.log.setBudget(audit.Budget{Rule: audit.RuleBudget, Until: time.Date(2026, 11, 1, 12, 1, 0, 0, time.UTC)})
+	conn.push(marshal(t, eventRecord(1, work, validEvent())))
+	waitFor(t, func() bool { return len(conn.notices(t)) == 1 })
+	s.hub.End(work)
+	s.hub.mu.Lock()
+	sent := len(r.sent)
+	s.hub.mu.Unlock()
+	if sent != 0 {
+		t.Fatalf("%d notices kept after End", sent)
+	}
+	conn.push(marshal(t, runRecord(2, work, true)))
+	close(conn.in)
+	waitDone(t, r)
+	got := s.log.got()
+	if len(got) != 2 || !got[1].Fields().Run.Open || len(end.got()) != 0 {
+		t.Fatalf("records %d, ends %v", len(got), end.got())
+	}
+	if runs := s.hub.End(work); len(runs) != 0 {
+		t.Fatalf("%d open runs held after End", len(runs))
+	}
+}
+
 // TestProxydNamesStoppedVM: once End marks a VM stopped, wb-proxyd may
 // no longer name it.
 func TestProxydNamesStoppedVM(t *testing.T) {
@@ -606,5 +648,62 @@ func FuzzEventRecord(f *testing.F) {
 				t.Fatalf("record doesn't marshal: %v", err)
 			}
 		}
+		assertAccepted(t, record, src)
 	})
+}
+
+// assertAccepted checks, apart from check, what an accepted record
+// holds: no unknown field, sequence 1, a VM the sender may name, a known
+// class, and every field within its bound (proto/wraithbox/audit/v1).
+func assertAccepted(t *testing.T, record []byte, src Source) {
+	t.Helper()
+	rec := &auditv1.EventRecord{}
+	if err := proto.Unmarshal(record, rec); err != nil {
+		t.Fatalf("accepted a record that doesn't decode: %v", err)
+	}
+	if n := unknownBytes(rec.ProtoReflect()); n != 0 || rec.GetSequence() != 1 {
+		t.Fatalf("accepted %d unknown bytes, sequence %d", n, rec.GetSequence())
+	}
+	vm := eventchan.VM{Slot: rec.GetVm().GetSlot(), Generation: rec.GetVm().GetGeneration()}
+	if src.VM != nil && vm != *src.VM || src.VM == nil && vm != work && vm != isolated {
+		t.Fatalf("accepted %s from %s", vm, src.Sender)
+	}
+	if e := rec.GetEvent(); e != nil {
+		assertEventBounds(t, e)
+		return
+	}
+	r := rec.GetRun()
+	if r == nil {
+		t.Fatal("accepted a record of no kind")
+	}
+	assertHead(t, r.GetClass(), r.GetDecision(), r.GetRule())
+	if r.GetCount() < 1 || r.GetCount() > eventchan.MaxRunCount || r.GetWindowSeconds() < 1 || r.GetWindowSeconds() > eventchan.MaxRunWindow {
+		t.Fatalf("accepted run count %d window %d", r.GetCount(), r.GetWindowSeconds())
+	}
+}
+
+func assertHead(t *testing.T, class auditv1.EventClass, decision, rule string) {
+	t.Helper()
+	if !eventchan.KnownClass(class) || !eventchan.ValidDecision(decision) || !eventchan.ValidRule(rule) {
+		t.Fatalf("accepted class %d, decision %q, rule %q", class, decision, rule)
+	}
+}
+
+func assertEventBounds(t *testing.T, e *auditv1.Event) {
+	t.Helper()
+	assertHead(t, e.GetClass(), e.GetDecision(), e.GetRule())
+	l := e.GetGuestLabel()
+	if len(e.GetDestinationHost()) > eventchan.MaxHost || len(e.GetHttpMethod()) > eventchan.MaxMethod ||
+		len(e.GetHttpPath()) > eventchan.MaxPath || e.GetDestinationPort() > eventchan.MaxPort {
+		t.Fatalf("accepted host %d, method %d, path %d bytes, port %d",
+			len(e.GetDestinationHost()), len(e.GetHttpMethod()), len(e.GetHttpPath()), e.GetDestinationPort())
+	}
+	for _, s := range []string{l.GetProject(), l.GetSession(), l.GetUser(), l.GetProgram()} {
+		if len(s) > eventchan.MaxLabel {
+			t.Fatalf("accepted a label of %d bytes", len(s))
+		}
+	}
+	if e.GetBytesIn() > eventchan.MaxBytes || e.GetBytesOut() > eventchan.MaxBytes {
+		t.Fatalf("accepted bytes in %d out %d", e.GetBytesIn(), e.GetBytesOut())
+	}
 }

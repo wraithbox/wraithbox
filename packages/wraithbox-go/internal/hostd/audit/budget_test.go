@@ -33,9 +33,17 @@ func TestEventsBudget(t *testing.T) {
 	if other := h.w.Budget("isolated"); other.Rule != "" {
 		t.Fatalf("the other VM: %+v", other)
 	}
+	// Past the budget, a 5019 and a 2004 record of the VM are written.
+	h.w.Record(DataDiskChanged("work", "reset", "data-disk-reset", "reset", DataDisk{}))
+	h.w.Record(EventFromChannel(From{Slot: "work", Generation: 1, Sender: "wb-netd", Sequence: 7},
+		ChannelEvent{ClassUID: ClassDetectionFinding, Decision: "refuse", Rule: "r"}))
 	h.flush()
-	if n := len(h.records(start)); n != 7 {
-		t.Fatalf("%d records written, want all 7", n)
+	got := h.records(start)
+	if len(got) != 9 {
+		t.Fatalf("%d records written, want all 9", len(got))
+	}
+	if got[7].ClassUID != ClassDeviceConfigStateChange || got[8].ClassUID != ClassDetectionFinding {
+		t.Fatalf("classes %d and %d, want 5019 and 2004", got[7].ClassUID, got[8].ClassUID)
 	}
 	h.advance(time.Minute)
 	if b := h.w.Budget("work"); b.Rule != "" || b.EventsThisMinute != 0 {
@@ -64,9 +72,11 @@ func TestBytesBudget(t *testing.T) {
 		t.Fatalf("over the budget: %+v", b)
 	}
 	h.w.Record(ShellOpened("work", 1, "shell-open", Session{ID: "s"}, nil))
+	h.w.Record(DataDiskChanged("work", "reset", "data-disk-reset", "reset", DataDisk{}))
 	h.flush()
-	if msgs := h.messages(start); msgs[len(msgs)-1] != "shell open" {
-		t.Fatalf("the never-dropped record wasn't written: %q", msgs[len(msgs)-1])
+	got := h.records(start)
+	if last := got[len(got)-2:]; last[0].Message != "shell open" || last[1].ClassUID != ClassDeviceConfigStateChange {
+		t.Fatalf("the never-dropped records weren't written: %+v", last)
 	}
 	h.advance(12 * time.Hour)
 	if b := h.w.Budget("work"); b.Rule != "" || b.BytesToday != 0 {

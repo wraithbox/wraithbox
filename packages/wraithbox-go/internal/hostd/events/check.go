@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/eventchan"
 	auditv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/audit/v1"
@@ -28,8 +29,8 @@ func check(record []byte, src Source, last uint64, live func(eventchan.VM) bool)
 	if err := proto.Unmarshal(record, rec); err != nil {
 		return nil, eventchan.VM{}, refuse("record of %d bytes doesn't decode: %v", len(record), err)
 	}
-	if n := len(rec.ProtoReflect().GetUnknown()); n > 0 {
-		return nil, eventchan.VM{}, refuse("%d bytes of fields EventRecord doesn't have", n)
+	if n := unknownBytes(rec.ProtoReflect()); n > 0 {
+		return nil, eventchan.VM{}, refuse("%d bytes of fields the contract doesn't have", n)
 	}
 	if rec.GetSequence() != last+1 {
 		return nil, eventchan.VM{}, refuse("sequence %d after %d", rec.GetSequence(), last)
@@ -50,6 +51,22 @@ func check(record []byte, src Source, last uint64, live func(eventchan.VM) bool)
 		return nil, vm, bad
 	}
 	return rec, vm, nil
+}
+
+// unknownBytes counts the bytes of unknown fields in m and in each
+// message m holds, at any depth (proto/wraithbox/audit/v1: a record
+// with a field the contract lacks is refused). The contract has no
+// repeated or map fields of messages, and a list or map is counted at
+// its top only.
+func unknownBytes(m protoreflect.Message) int {
+	n := len(m.GetUnknown())
+	m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		if fd.Message() != nil && !fd.IsList() && !fd.IsMap() {
+			n += unknownBytes(v.Message())
+		}
+		return true
+	})
+	return n
 }
 
 // checkVM checks the VM a record names: wb-netd names its own VM only,
