@@ -7,6 +7,9 @@ import "slices"
 // flag, the environment or a request (S15-03-access-rules, rule 1).
 // wb-guestadmin has one identity per run kind, the fixed entries of
 // wb-launcher (S04-05-helper-programs, "wb-guestadmin's profile").
+// wb-hostd asks wb-launcher for one of those entries, so its request
+// picks the run kind, and with it the identity, from that fixed list.
+// It can't name any other identity.
 type Program string
 
 // The programs of S15-03-access-rules, "Declared access".
