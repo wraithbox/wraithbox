@@ -49,7 +49,11 @@ func shellHarness(t *testing.T, g *usersGuest, linked chan uint64) (*harness, ui
 	t.Helper()
 	h := newHarness(t, own, own, true)
 	h.links.Close()
-	h.cfg.Kills = kills.New(kills.Config{Logger: slog.New(slog.NewJSONHandler(h.logs, nil)), Audit: &audittest.Recorder{}})
+	tracker, err := kills.New(kills.Config{Logger: slog.New(slog.NewJSONHandler(h.logs, nil)), Audit: &audittest.Recorder{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.cfg.Kills = tracker
 	h.cfg.OnLinked = func(_ vm.Slot, generation uint64) { linked <- generation }
 	ls, err := New(h.cfg)
 	if err != nil {

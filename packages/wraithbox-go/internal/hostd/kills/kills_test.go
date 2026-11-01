@@ -96,8 +96,18 @@ func (l *logs) withRule(t *testing.T, rule string) []map[string]any {
 func newTracker(t *testing.T) (*Tracker, *fakeClock, *logs) {
 	t.Helper()
 	c, l := newFakeClock(), &logs{}
-	tr := New(Config{Clock: c, Logger: slog.New(slog.NewJSONHandler(l, nil)), Audit: &audittest.Recorder{}})
+	tr, err := New(Config{Clock: c, Logger: slog.New(slog.NewJSONHandler(l, nil)), Audit: &audittest.Recorder{}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	return tr, c, l
+}
+
+// TestNewNoAudit: a tracker without an audit writer isn't made.
+func TestNewNoAudit(t *testing.T) {
+	if tr, err := New(Config{Clock: newFakeClock()}); err == nil || tr != nil {
+		t.Errorf("New without Audit = %v, %v, want an error", tr, err)
+	}
 }
 
 const (
