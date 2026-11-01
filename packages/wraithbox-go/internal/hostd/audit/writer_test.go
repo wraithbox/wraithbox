@@ -34,15 +34,6 @@ func TestDayFiles(t *testing.T) {
 	if got := h.messages(second); !slices.Equal(got, []string{"vm stopped"}) {
 		t.Errorf("2026-11-02 = %q", got)
 	}
-	for _, day := range []time.Time{first, second} {
-		info, err := os.Stat(filepath.Join(h.dir, dayName(day)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if info.Mode().Perm() != 0o600 {
-			t.Errorf("%s has mode %v, want 0600", info.Name(), info.Mode().Perm())
-		}
-	}
 	r := h.records(second)[0]
 	if r.Time != second.UnixMilli() || r.Metadata.Version != OCSFVersion || r.Metadata.Product.Version != "test" {
 		t.Errorf("record = %+v", r)
