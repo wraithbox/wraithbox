@@ -54,13 +54,16 @@ func goBuildCommand(ctx context.Context, args []string, stdout, stderr io.Writer
 }
 
 // goBuildEnv is what go-build sets over the environment: the bundle's
-// target, and an empty GOFLAGS. A -trimpath there would leave -ldflags
+// target, cgo on, and an empty GOFLAGS. The secret store's Keychain shim
+// is cgo (S10-01-libraries), and without cgo the helpers would refuse
+// every store call with store-shim-missing, so a build without a C
+// compiler fails instead. A -trimpath in GOFLAGS would leave -ldflags
 // out of the build information, where the check reads the stamp
 // (appbundle.ReadLinked). An empty GOFLAGS still leaves a value set
 // with `go env -w`, so goBuildArgs turns -trimpath off as well.
 // exec.Cmd keeps the last value of a repeated variable.
 func goBuildEnv() []string {
-	return []string{"GOOS=" + bundleGOOS, "GOARCH=" + bundleGOARCH, "GOFLAGS="}
+	return []string{"GOOS=" + bundleGOOS, "GOARCH=" + bundleGOARCH, "CGO_ENABLED=1", "GOFLAGS="}
 }
 
 // goBuildArgs are the arguments of `go build` for one program: no
