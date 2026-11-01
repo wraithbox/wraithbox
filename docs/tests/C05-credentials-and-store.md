@@ -31,6 +31,14 @@ Spec: S15-least-privilege.
   unlock, for a CA item as for any other.
 - Each log line names the failed call.
 
+The store's side of these cases is in `internal/platform/secretstore`,
+over the fake of `secretstore/storetest`: `TestC05StoreDialogsOn`,
+`TestC05StoreErrorsNotFoundLocked`, `TestC05StoreErrorsReadFailed`,
+`TestC05StoreErrorsWriteFailed` and `TestC05StoreAccessUndeclared`.
+Each of them also searches the log for the value it wrote and finds
+none. The waits, the binding's refusal and `ca-key-restore` are the
+callers' tests.
+
 ### Access groups
 
 Spec: S15-02-secret-store, "Keychain".
@@ -43,6 +51,9 @@ Spec: S15-02-secret-store, "Keychain".
   refused with `store-group-mismatch` before any Keychain call.
 - A shim whose own entitlements can't be read refuses every call with
   `store-group-mismatch`.
+- `TestC05AccessGroups` in `internal/storeitem` is the table test.
+  `TestC05AccessGroupsMismatch` and `TestC05AccessGroupsUnreadable` in
+  `internal/platform/secretstore` are the refusals, over the fake.
 - The build check of S10-tech-stack fails a bundle whose helper has a
   group more or less than its row in S15-02-secret-store, "Keychain",
   and one where `wb` or any other program outside the table has an
@@ -75,6 +86,10 @@ Spec: S15-02-secret-store, "Keychain".
   The `wb setup` cases are `TestC05SetupAdhocKeychain` in
   `internal/setup`. A bundle with profile files and ad-hoc signatures
   is still ad-hoc: `wb setup` reads the signature.
+  The store's own refusal is `TestC05StoreNeedsTeam` in
+  `internal/platform/secretstore`, over the fake, and
+  `TestC05AdhocShim`, which opens the darwin backend from the ad-hoc
+  test binary on macOS CI.
 - In a development build, see `wb setup`, `wb cred list` and the
   session-start audit record name the signing team and say the grant is
   team-wide. The `wb setup` case is `TestC05SetupTeamReport`, which
@@ -121,6 +136,8 @@ Spec: S12-03-host-prerequisites, "Development builds on macOS".
 
 - The credential parameter scan of query strings and of form and JSON
   bodies (X22-no-guest-credentials).
+- Item names, which the CA removal list gets from `wb-hostd`
+  (T16-hostd-landing): `FuzzItemName` in `internal/storeitem`.
 
 ## Conformance
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// FuzzItemName feeds any bytes to Parse. The CA removal list carries
+// FuzzItemName feeds any bytes to Parse. The CA removal list holds
 // names that a compromised wb-hostd may have chosen (T16-hostd-landing),
 // so Parse is the gate. A name that parses formats back to the same
 // bytes, has one of the forms, and has only valid parts.
