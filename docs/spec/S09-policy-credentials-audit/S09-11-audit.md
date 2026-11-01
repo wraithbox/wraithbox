@@ -53,7 +53,8 @@ limits, and the terminal filter's records per session
 The high-volume classes, Network Activity (4001) and HTTP Activity
 (4002), have a budget per VM per minute. It is
 `audit_events_per_minute` in `config.toml`, default 6000. A minute is a
-calendar minute of UTC.
+calendar minute of UTC. The budget is used up when the minute's count
+reaches it.
 
 Over the budget, `wb-hostd` doesn't drop records. It refuses new work
 instead, with the rule `audit-budget`, until the minute turns:
@@ -62,7 +63,8 @@ instead, with the rule `audit-budget`, until the minute turns:
 - `wb-proxyd` refuses new streams and requests.
 
 The refusals under that rule are written as one record per minute, with
-their count.
+their count. So are the refusals under `audit-bytes` and
+`event-channel-blocked`.
 
 #### Runs with a count
 
@@ -71,12 +73,15 @@ Only the refusal classes that S07-egress-gateway aggregates per rule
 a count.
 
 Each open run's count is written when its window ends, and in the VM's
-stop record. So no count is lost with the VM.
+stop record. So no count is lost with the VM. `wb-hostd` holds up to 64
+open runs per VM for the stop record, and writes a run past that as its
+own record.
 
 #### Bytes per day
 
-Each VM has a byte budget per day, `audit_vm_bytes_per_day`, default 64
-MiB. The day is a calendar day of UTC.
+Each VM has a byte budget per day, `audit_vm_bytes_per_day`, in MiB,
+default 64. It counts the bytes of all the VM's records, the classes
+that are never dropped too. The day is a calendar day of UTC.
 
 Over the budget, new work gets the same refusals until the day turns,
 with the rule `audit-bytes`, and `wb status` says so. The classes that
@@ -91,6 +96,21 @@ Both budgets are per VM, because the host can't tell the projects in a
 VM apart (S07-01-per-vm-policy). In the work VM, one project's traffic
 can use up the budget. The other projects' new work is then refused
 with it (T11-shared-vm-grants).
+
+#### Telling the senders
+
+`wb-netd` and `wb-proxyd` send their records over the event channel
+(S04-08-records-and-bounds, "Event records"). When a record puts a VM
+over a budget, `wb-hostd` sends each sender of that VM a budget notice
+with the rule and when it ends. The senders refuse new work until then.
+A notice that doesn't arrive is sent again with the next record.
+
+`wb-hostd` ends a sender whose record is malformed, or names a VM the
+sender may not name, with the rule `event-record-invalid`. A read of
+the channel that fails otherwise ends it with `event-channel-failed`.
+
+`wb vm status` shows both budgets of a VM: their use, and the rule and
+its end while the VM is over one.
 
 ### Free space and failed writes
 

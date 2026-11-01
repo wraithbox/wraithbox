@@ -112,7 +112,7 @@ the rule `event-channel-blocked`:
 
 It keeps the record and retries it until a write succeeds, so no event
 is lost. So a slow or hung `wb-hostd` makes the VM's network refuse,
-not run without records.
+not run without records. A full queue stalls guest input, never drops.
 
 ### Version skew
 
