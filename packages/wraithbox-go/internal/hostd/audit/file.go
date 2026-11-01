@@ -194,6 +194,7 @@ func (w *Writer) failed(err error, items []*item) {
 			Rule: RuleWriteFailed,
 			Message: fmt.Sprintf("the audit log in %s can't be written since %s (%v): VM starts and new sessions are refused until a record is written",
 				w.cfg.Dir, now.UTC().Format(time.RFC3339), err),
+			Sessions: true,
 		}
 	}
 	failure, stopper, closing := w.failure, w.stopper, w.closed

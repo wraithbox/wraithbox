@@ -758,7 +758,10 @@ type AuditRefusal struct {
 	// When the refusal ends, in Unix seconds, for a rule that ends at a
 	// set time. 0 for a rule that ends when its condition does, which the
 	// message names.
-	UntilUnix     int64 `protobuf:"varint,3,opt,name=until_unix,json=untilUnix,proto3" json:"until_unix,omitempty"`
+	UntilUnix int64 `protobuf:"varint,3,opt,name=until_unix,json=untilUnix,proto3" json:"until_unix,omitempty"`
+	// Whether new sessions are refused as well as VM starts. A missing
+	// reserve file refuses VM starts only.
+	Sessions      bool `protobuf:"varint,4,opt,name=sessions,proto3" json:"sessions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -812,6 +815,13 @@ func (x *AuditRefusal) GetUntilUnix() int64 {
 		return x.UntilUnix
 	}
 	return 0
+}
+
+func (x *AuditRefusal) GetSessions() bool {
+	if x != nil {
+		return x.Sessions
+	}
+	return false
 }
 
 // DataMount is the outcome of the last MountData call of the current run.
@@ -1065,12 +1075,13 @@ const file_wraithbox_hostd_v1_hostd_proto_rawDesc = "" +
 	"last_error\x18\a \x01(\v2\x1b.wraithbox.hostd.v1.VMErrorR\tlastError\x12<\n" +
 	"\n" +
 	"data_mount\x18\b \x01(\v2\x1d.wraithbox.hostd.v1.DataMountR\tdataMount\x12E\n" +
-	"\raudit_refusal\x18\t \x01(\v2 .wraithbox.hostd.v1.AuditRefusalR\fauditRefusal\"[\n" +
+	"\raudit_refusal\x18\t \x01(\v2 .wraithbox.hostd.v1.AuditRefusalR\fauditRefusal\"w\n" +
 	"\fAuditRefusal\x12\x12\n" +
 	"\x04rule\x18\x01 \x01(\tR\x04rule\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
-	"until_unix\x18\x03 \x01(\x03R\tuntilUnix\"s\n" +
+	"until_unix\x18\x03 \x01(\x03R\tuntilUnix\x12\x1a\n" +
+	"\bsessions\x18\x04 \x01(\bR\bsessions\"s\n" +
 	"\tDataMount\x128\n" +
 	"\x05state\x18\x01 \x01(\x0e2\".wraithbox.hostd.v1.DataMountStateR\x05state\x12\x12\n" +
 	"\x04rule\x18\x02 \x01(\tR\x04rule\x12\x18\n" +

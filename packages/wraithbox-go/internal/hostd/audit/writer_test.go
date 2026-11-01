@@ -196,7 +196,7 @@ func checkRefused(t *testing.T, h *harness, start, session string) {
 	if err := h.w.CanOpenSession(); rule(err) != session {
 		t.Errorf("CanOpenSession = %v, want rule %q", err, session)
 	}
-	if r := h.w.Refusal(); (r == nil && start != "") || (r != nil && r.Rule != start) {
+	if r := h.w.Refusal(); (r == nil && start != "") || (r != nil && r.Rule != start) || (start == RuleWriteFailed && !r.Sessions) {
 		t.Errorf("Refusal() = %v, want rule %q", r, start)
 	}
 }
@@ -352,7 +352,7 @@ func TestFloor(t *testing.T) {
 			t.Errorf("%s = %v", name, err)
 		}
 	}
-	if r := h.w.Refusal(); r == nil || r.Rule != RuleFreeSpace {
+	if r := h.w.Refusal(); r == nil || r.Rule != RuleFreeSpace || !r.Sessions {
 		t.Errorf("Refusal() = %v", r)
 	}
 	if !strings.Contains(h.logs.String(), "rule=audit-free-space decision=stop-vm vm=work") {
@@ -384,6 +384,9 @@ func TestReserve(t *testing.T) {
 	}
 	if err := h.w.CanOpenSession(); err != nil {
 		t.Errorf("CanOpenSession without a reserve = %v", err)
+	}
+	if r := h.w.Refusal(); r == nil || r.Sessions {
+		t.Errorf("Refusal without a reserve = %+v, want one of VM starts only", r)
 	}
 	h.vol.set(func(v *fakeVolume) { v.free = 10 << 30 })
 	h.advance(time.Minute)

@@ -31,7 +31,7 @@ func (r *Recorder) Refuse(rule, message string) {
 		r.refusal = nil
 		return
 	}
-	r.refusal = &audit.Refusal{Rule: rule, Message: message}
+	r.refusal = &audit.Refusal{Rule: rule, Message: message, Sessions: true}
 }
 
 // RefuseWrites makes Write alone refuse with rule, as a write that

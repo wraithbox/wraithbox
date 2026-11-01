@@ -368,12 +368,16 @@ func TestStatusAuditRefusal(t *testing.T) {
 		want string
 	}{
 		{
-			&hostdv1.AuditRefusal{Rule: "audit-free-space", Message: "free \x1b[2J space\u202e"},
+			&hostdv1.AuditRefusal{Rule: "audit-free-space", Message: "free \x1b[2J space\u202e", Sessions: true},
 			"  audit log: refusing starts and new sessions, rule audit-free-space: free [2J space\n",
 		},
 		{
-			&hostdv1.AuditRefusal{Rule: "audit-write-failed", Message: "no writes", UntilUnix: 1_800_000_000},
+			&hostdv1.AuditRefusal{Rule: "audit-write-failed", Message: "no writes", UntilUnix: 1_800_000_000, Sessions: true},
 			"  audit log: refusing starts and new sessions, rule audit-write-failed: no writes, until 2027-01-15T08:00:00Z\n",
+		},
+		{
+			&hostdv1.AuditRefusal{Rule: "audit-free-space", Message: "no reserve"},
+			"  audit log: refusing VM starts, rule audit-free-space: no reserve\n",
 		},
 	}
 	for _, tt := range tests {
