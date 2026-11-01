@@ -287,6 +287,9 @@ func TestQueueCapStallsInput(t *testing.T) {
 	for range 6 {
 		h.s.Emit(work, event("r"))
 	}
+	if r := h.s.Admit(isolated, net4001); r != RuleBlocked {
+		t.Fatalf("Admit at the cap: %q, want %s", r, RuleBlocked)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 	if err := h.s.WaitRoom(ctx); !errors.Is(err, context.DeadlineExceeded) {
@@ -304,11 +307,47 @@ func TestQueueCapStallsInput(t *testing.T) {
 	if err := h.s.WaitRoom(context.Background()); err != nil {
 		t.Fatalf("WaitRoom with room: %v", err)
 	}
+	if r := h.s.Admit(isolated, net4001); r != "" {
+		t.Fatalf("Admit after the drain: %q", r)
+	}
 	for _, want := range []string{"decision=stall", "decision=resume"} {
 		if !strings.Contains(h.log.String(), want) {
 			t.Errorf("log lacks %q:\n%s", want, h.log)
 		}
 	}
+}
+
+// truncatedConn reads fdchan's refusal that closes the channel, on every
+// Recv, as fdchan returns it.
+type truncatedConn struct {
+	*fakeConn
+	mu    sync.Mutex
+	reads int
+}
+
+func (c *truncatedConn) Recv() (*fdchan.Message, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.reads++
+	return nil, &fdchan.Refusal{Rule: fdchan.RuleControlTruncated}
+}
+
+// TestControlTruncatedEndsReads: after fdchan's refusal that closes the
+// channel, the sender reads no more notices, rather than spin, and
+// still writes its records.
+func TestControlTruncatedEndsReads(t *testing.T) {
+	c := &truncatedConn{fakeConn: newFakeConn()}
+	h := start(t, Config{Conn: c})
+	eventually(t, "the log line", func() bool { return strings.Contains(h.log.String(), "rule=fdchan-control-truncated") })
+	time.Sleep(20 * time.Millisecond)
+	c.mu.Lock()
+	reads := c.reads
+	c.mu.Unlock()
+	if reads != 1 {
+		t.Fatalf("%d reads, want 1", reads)
+	}
+	h.s.Emit(work, event("r"))
+	eventually(t, "the record", func() bool { return len(c.records(t)) == 1 })
 }
 
 func noticeBytes(vm VM, rule auditv1.BudgetRule, until time.Time) []byte {
@@ -345,10 +384,10 @@ func TestBudgetNoticeRefusesAndCounts(t *testing.T) {
 	if run.GetRule() != string(RuleBudget) || run.GetDecision() != "refuse" || run.GetWindowSeconds() != 60 || run.GetOpen() {
 		t.Fatalf("run %v", run)
 	}
-	// The refusals before the notice was seen count too, so the count
-	// is at least the ten checked here.
-	if run.GetCount() < 10 {
-		t.Fatalf("run count %d, want at least 10", run.GetCount())
+	// An Admit before the notice arrived admitted and counted nothing.
+	// The refusals are the one that ended the wait and the nine after.
+	if run.GetCount() != 10 {
+		t.Fatalf("run count %d, want 10", run.GetCount())
 	}
 	if !strings.Contains(h.log.String(), "rule=audit-budget decision=refuse") {
 		t.Errorf("log lacks the notice:\n%s", h.log)
@@ -446,14 +485,54 @@ func TestCountRunOfBadFormKeepsCount(t *testing.T) {
 	}
 }
 
+// TestEmitOfBadFormCounts: an event whose class, decision, rule or port
+// a record can't carry is counted as a run under
+// event-record-not-encoded, and the channel goes on.
+func TestEmitOfBadFormCounts(t *testing.T) {
+	h := start(t, Config{})
+	bad := []*auditv1.Event{event("r"), event("r"), event("Bad Rule"), event("r")}
+	bad[0].Decision = strings.Repeat("x", 2*MaxRecord)
+	bad[1].Class = auditv1.EventClass(9999)
+	bad[3].DestinationPort = MaxPort + 1
+	for _, e := range bad {
+		h.s.Emit(work, e)
+	}
+	if r := h.s.Admit(work, net4001); r != "" {
+		t.Fatalf("Admit after a bad form: %q", r)
+	}
+	h.s.Emit(work, event("next"))
+	h.s.EndVM(work)
+	eventually(t, "the records", func() bool { return len(h.conn.records(t)) == 3 })
+	recs := h.conn.records(t)
+	if recs[0].GetEvent().GetRule() != "next" || recs[0].GetSequence() != 1 {
+		t.Fatalf("first record %v", recs[0])
+	}
+	counts := map[auditv1.EventClass]uint64{}
+	for _, r := range recs[1:] {
+		run := r.GetRun()
+		if run.GetRule() != string(RuleNotEncoded) || run.GetDecision() != "refuse" || !run.GetOpen() {
+			t.Fatalf("run %v", run)
+		}
+		counts[run.GetClass()] += run.GetCount()
+	}
+	if counts[net4001] != 3 || counts[auditv1.EventClass_EVENT_CLASS_DETECTION_FINDING] != 1 {
+		t.Fatalf("counts %v, want 3 of 4001 and 1 of 2004", counts)
+	}
+	if !strings.Contains(h.log.String(), "rule=event-record-not-encoded") {
+		t.Errorf("log lacks the rule:\n%s", h.log)
+	}
+}
+
 // TestUnencodedRecordRefusesForGood: a record that doesn't encode
 // within MaxRecord refuses all new work, as nothing may run without its
 // record (SEC10-audit).
 func TestUnencodedRecordRefusesForGood(t *testing.T) {
 	h := start(t, Config{})
 	e := event("r")
-	e.Decision = strings.Repeat("x", 2*MaxRecord) // the sender's own field, not cut
-	h.s.Emit(work, e)
+	e.HttpPath = strings.Repeat("x", 2*MaxRecord) // past the bound Emit would cut it to
+	h.s.mu.Lock()
+	h.s.enqueueLocked(&auditv1.EventRecord{Vm: work.proto(), Kind: &auditv1.EventRecord_Event{Event: e}})
+	h.s.mu.Unlock()
 	if r := h.s.Admit(work, net4001); r != RuleBlocked {
 		t.Fatalf("Admit after a record that didn't encode: %q", r)
 	}

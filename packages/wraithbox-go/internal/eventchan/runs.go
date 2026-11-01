@@ -25,19 +25,34 @@ type run struct {
 // CountRun counts one event of a class the daemon aggregates
 // (S07-02-packet-path, "Events and rate limits"), in place of its own
 // record. The run's count is written at the end of its minute, or as an
-// open run at EndVM. A decision or rule that isn't of the form a record
-// takes is counted under event-record-not-encoded, so the count still
-// reaches the log.
+// open run at EndVM. A class, decision or rule that isn't of the form a
+// record takes is counted under event-record-not-encoded, so the count
+// still reaches the log.
 func (s *Sender) CountRun(vm VM, class auditv1.EventClass, decision, rule string) {
-	if !ValidDecision(decision) || !ValidRule(rule) {
-		s.log.Error("run not of a record's form", "rule", string(RuleNotEncoded), "decision", "count",
-			"run_decision", Cut(decision, MaxDecision), "run_rule", Cut(rule, MaxRule))
-		decision, rule = "refuse", string(RuleNotEncoded)
-	}
+	k := s.formOf(runKey{vm: vm, class: class, decision: decision, rule: rule}, 0)
 	now := s.cfg.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.countLocked(runKey{vm: vm, class: class, decision: decision, rule: rule}, now)
+	s.countLocked(k, now)
+}
+
+// formOf returns k as is when a record may carry its class, decision,
+// rule and port. Otherwise it logs the bad form, and returns the run of
+// k's VM that counts such events: a refusal under
+// event-record-not-encoded, of a Detection Finding when the class isn't
+// known. wb-hostd would end a sender that wrote the bad form.
+func (s *Sender) formOf(k runKey, port uint32) runKey {
+	if KnownClass(k.class) && ValidDecision(k.decision) && ValidRule(k.rule) && port <= MaxPort {
+		return k
+	}
+	s.log.Error("event not of a record's form, counted", "rule", string(RuleNotEncoded), "decision", "count",
+		"class", int32(k.class), "event_decision", Cut(k.decision, MaxDecision), "event_rule", Cut(k.rule, MaxRule),
+		"port", port)
+	if !KnownClass(k.class) {
+		k.class = auditv1.EventClass_EVENT_CLASS_DETECTION_FINDING
+	}
+	k.decision, k.rule = "refuse", string(RuleNotEncoded)
+	return k
 }
 
 // countLocked counts one event in its run, and writes the run's count
