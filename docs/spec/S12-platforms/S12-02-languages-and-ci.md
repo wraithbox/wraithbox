@@ -25,8 +25,10 @@ platform.
 
 Go is built, linted, vetted, and tested natively on macOS, Ubuntu, and
 Windows runners from the start (S02-toolchain). Swift runs on macOS
-only, on the `xcode-27` runner image, which is macOS 27 with Xcode 27,
-the oldest v1 host (NFR04-host-platforms). The package itself targets
+only. Both macOS jobs, Swift and Go's macOS leg, run on the `xcode-27`
+runner image, which is macOS 27 with Xcode 27, the oldest v1 host
+(NFR04-host-platforms). The darwin-only Go tests and `wb-vmd`'s host
+check then run on a macOS that v1 supports. The Swift package itself targets
 macOS 26, so its tests also run on an older Mac (S02-toolchain). A .NET job is added with the first .NET component.
 
 ## Decisions
