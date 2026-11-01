@@ -132,6 +132,10 @@ belongs to no VM stops every VM. It then writes a Detection Finding
 (2004) with the rule `audit-write-failed`, and refuses VM and session
 starts with that rule until a write succeeds.
 
+The writer retries the failed record. The finding is queued behind it,
+and it belongs to no VM. So a failure that lasts past the first retry
+stops every VM.
+
 `wb-hostd` refuses a session start until it can write that start's
 record.
 
