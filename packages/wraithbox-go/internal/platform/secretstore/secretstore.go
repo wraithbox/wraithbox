@@ -127,5 +127,5 @@ func (e *Error) Error() string {
 	return s + ": " + string(e.Rule) + ": " + e.msg
 }
 
-// Unwrap returns ErrNotFound, ErrLocked, errors.ErrUnsupported or nil.
+// Unwrap returns ErrNotFound, ErrLocked or nil.
 func (e *Error) Unwrap() error { return e.err }

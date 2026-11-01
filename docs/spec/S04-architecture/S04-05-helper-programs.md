@@ -55,8 +55,8 @@ chooses what it does. The entries are:
 
 - `wb-guestadmin-build`;
 - `wb-guestadmin-rotate`;
-- `wb-guestadmin-cleanup`, which removes the items of images and system
-  disks that are gone.
+- `wb-guestadmin-cleanup`, which removes the items of builds, images and
+  system disks that are gone (S15-03-access-rules, rule 8).
 
 ### `wb-release-check`
 

@@ -30,8 +30,10 @@ var storePrograms = map[string]bool{
 func TestStoreImporters(t *testing.T) {
 	for _, goos := range []string{"darwin", "linux", "windows"} {
 		programs := programDeps(t, goos)
-		if len(programs) < len(storePrograms) {
-			t.Errorf("GOOS=%s: go list named %d programs", goos, len(programs))
+		for _, want := range expectedPrograms() {
+			if _, ok := programs[want]; !ok {
+				t.Errorf("GOOS=%s: go list didn't name %s", goos, want)
+			}
 		}
 		for program, deps := range programs {
 			if slices.Contains(deps, storetestPkg) {
@@ -65,6 +67,17 @@ func programDeps(t *testing.T, goos string) map[string][]string {
 		}
 	}
 	return programs
+}
+
+// expectedPrograms are the programs go list must name for every GOOS, so
+// a list that misses them can't pass the test: wb and wb-hostd, which
+// may not link the store, and each program that may.
+func expectedPrograms() []string {
+	out := []string{module + "/cmd/wb", module + "/cmd/wb-hostd"}
+	for program := range storePrograms {
+		out = append(out, program)
+	}
+	return out
 }
 
 func keys(m map[string]bool) []string {

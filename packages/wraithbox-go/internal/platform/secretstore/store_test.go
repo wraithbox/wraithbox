@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 
@@ -169,13 +170,19 @@ func TestC05AccessGroupsMismatch(t *testing.T) {
 	_, err = notHeld.store.Fetch(ctx, name(t, binding), storeitem.RoleBinding)
 	requireRule(t, notHeld, err, storeitem.RuleGroupMismatch, storeitem.AccessFetch, binding)
 
+	// wb-credset doesn't hold the group and may not fetch a binding
+	// either. The group check runs first, so its rule is the one logged.
+	both := open(t, storeitem.ProgramCredset, storetest.New(team, groupCA))
+	_, err = both.store.Fetch(ctx, name(t, binding), storeitem.RoleBinding)
+	requireRule(t, both, err, storeitem.RuleGroupMismatch, storeitem.AccessFetch, binding)
+
 	// The zero Name is no item, and a role outside the table is no group.
 	_, err = o.store.Fetch(ctx, storeitem.Name{}, storeitem.RoleBinding)
 	requireRule(t, o, err, storeitem.RuleGroupMismatch, storeitem.AccessFetch, "")
 	_, err = o.store.List(ctx, storeitem.Role("other"))
 	requireRule(t, o, err, storeitem.RuleGroupMismatch, storeitem.AccessList, "")
 
-	if calls := append(o.fake.Calls(), notHeld.fake.Calls()...); len(calls) != 0 {
+	if calls := slices.Concat(o.fake.Calls(), notHeld.fake.Calls(), both.fake.Calls()); len(calls) != 0 {
 		t.Errorf("the backend saw %v", calls)
 	}
 }
