@@ -36,6 +36,20 @@ func TestMissingFileGivesDefaults(t *testing.T) {
 	}
 }
 
+// with is Defaults with change applied.
+func with(change func(*Config)) Config {
+	c := Defaults()
+	change(&c)
+	return c
+}
+
+func TestDefaults(t *testing.T) {
+	d := Defaults()
+	if d.AuditRetentionDays != 90 || d.AuditFreeSpaceFloorMiB != 1024 || d.DataDiskGiB != 128 {
+		t.Errorf("Defaults() = %+v, want 90 days, a 1024 MiB floor and a 128 GiB disk", d)
+	}
+}
+
 func TestAccepted(t *testing.T) {
 	tests := []struct {
 		name string
@@ -44,14 +58,17 @@ func TestAccepted(t *testing.T) {
 	}{
 		{"empty", "", Defaults()},
 		{"comment only", "# nothing\n", Defaults()},
-		{"cpu", "vm_cpu_count = 2\n", Config{CPUCount: 2, MemoryMiB: 8192, DataDiskGiB: 128}},
-		{"both", "vm_cpu_count = 6\nvm_memory_mib = 16384\n", Config{CPUCount: 6, MemoryMiB: 16384, DataDiskGiB: 128}},
-		{"data disk", "vm_data_disk_gib = 8\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 8}},
-		{"data disk at the top", "vm_data_disk_gib = 1024\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 1024}},
-		{"git", "git = \"/opt/homebrew/bin/git\"\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 128, Git: "/opt/homebrew/bin/git"}},
+		{"cpu", "vm_cpu_count = 2\n", with(func(c *Config) { c.CPUCount = 2 })},
+		{"both", "vm_cpu_count = 6\nvm_memory_mib = 16384\n", with(func(c *Config) { c.CPUCount, c.MemoryMiB = 6, 16384 })},
+		{"data disk", "vm_data_disk_gib = 8\n", with(func(c *Config) { c.DataDiskGiB = 8 })},
+		{"data disk at the top", "vm_data_disk_gib = 1024\n", with(func(c *Config) { c.DataDiskGiB = 1024 })},
+		{"git", "git = \"/opt/homebrew/bin/git\"\n", with(func(c *Config) { c.Git = "/opt/homebrew/bin/git" })},
 		// A relative path is kept: hostgit.Resolve refuses it, as a
 		// failed git check (S08-08-host-git, "Which git").
-		{"git relative", "git = \"git\"\n", Config{CPUCount: 4, MemoryMiB: 8192, DataDiskGiB: 128, Git: "git"}},
+		{"git relative", "git = \"git\"\n", with(func(c *Config) { c.Git = "git" })},
+		{"retention at the minimum", "audit_retention_days = 30\n", with(func(c *Config) { c.AuditRetentionDays = 30 })},
+		{"retention a year", "audit_retention_days = 365\n", with(func(c *Config) { c.AuditRetentionDays = 365 })},
+		{"floor", "audit_free_space_floor = 4096\n", with(func(c *Config) { c.AuditFreeSpaceFloorMiB = 4096 })},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -92,6 +109,13 @@ func TestC12Refused(t *testing.T) {
 		{"over int64", "vm_memory_mib = 9223372036854775808\n", RuleValueInvalid, 1, "vm_memory_mib"},
 		{"data disk too small", "vm_data_disk_gib = 7\n", RuleValueInvalid, 0, "vm_data_disk_gib"},
 		{"data disk too large", "vm_data_disk_gib = 1025\n", RuleValueInvalid, 0, "vm_data_disk_gib"},
+		{"retention 29 days", "audit_retention_days = 29\n", RuleRetentionMin, 0, "audit_retention_days"},
+		{"retention 0 days", "audit_retention_days = 0\n", RuleRetentionMin, 0, "audit_retention_days"},
+		{"retention negative", "audit_retention_days = -90\n", RuleRetentionMin, 0, "audit_retention_days"},
+		{"retention over uint32", "audit_retention_days = 4294967296\n", RuleValueInvalid, 0, "audit_retention_days"},
+		{"retention as a string", "audit_retention_days = \"90\"\n", RuleValueInvalid, 1, "audit_retention_days"},
+		{"floor zero", "audit_free_space_floor = 0\n", RuleValueInvalid, 0, "audit_free_space_floor"},
+		{"floor over 1 EiB", "audit_free_space_floor = 1099511627777\n", RuleValueInvalid, 0, "audit_free_space_floor"},
 		{"upper-case key", "VM_CPU_COUNT = 2\n", RuleKeyUnknown, 1, "VM_CPU_COUNT"},
 		{"mixed-case key", "\nVm_Cpu_Count = 2\n", RuleKeyUnknown, 2, "Vm_Cpu_Count"},
 		{"case-variant duplicate", "vm_cpu_count = 2\nVM_CPU_COUNT = 3\n", RuleKeyUnknown, 2, "VM_CPU_COUNT"},
