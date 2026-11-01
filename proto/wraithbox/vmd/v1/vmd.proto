@@ -55,6 +55,12 @@ message StartRequest {
   uint32 cpu_count = 2;
   // Guest memory in MiB (S06-06-devices-and-warm-start, "Resources").
   uint64 memory_mib = 3;
+  // The MAC address of the VM's one network device, six bytes. wb-hostd
+  // makes it once per slot and keeps it, so it is the same in every
+  // generation (S06-06-devices-and-warm-start, "Disks and identity").
+  // wb-vmd refuses any other length, and an address that isn't a
+  // locally administered unicast one, with the rule `vmd-mac-invalid`.
+  bytes mac_address = 4;
 }
 
 message StartResponse {}
@@ -154,12 +160,27 @@ enum Direction {
   DIRECTION_HOST_TO_GUEST = 1;
 }
 
+// Kind says what a HandoffMessage's descriptor is.
+enum Kind {
+  // Refused.
+  KIND_UNSPECIFIED = 0;
+  // A host-guest connection that answers a ConnectGuest request: a
+  // stream socket.
+  KIND_CONNECTION = 1;
+  // The host end of the VM's packet transport: an AF_UNIX SOCK_DGRAM
+  // socket whose other end is the VM's file-handle network attachment
+  // (S07-02-packet-path, "Packet transport"). wb-vmd sends one per
+  // generation, before it starts the VM.
+  KIND_NETWORK = 2;
+}
+
 // HandoffMessage is not part of any RPC. wb-vmd sends one for each
-// connection it hands to wb-hostd, as one record on the hand-off
+// descriptor it hands to wb-hostd, as one record on the hand-off
 // channel: an AF_UNIX SOCK_DGRAM socketpair with no path that wb-hostd
 // passes to wb-vmd at spawn (S04-02-vm-provider, "Hand-off on macOS").
 // The record is this message's protobuf encoding, with exactly one
-// descriptor attached by SCM_RIGHTS: the connection.
+// descriptor attached by SCM_RIGHTS: a connection (KIND_CONNECTION) or
+// the packet transport (KIND_NETWORK).
 //
 // The receiver refuses the record, closes every descriptor that came
 // with it, and logs the refusal with its rule, when:
@@ -168,20 +189,33 @@ enum Direction {
 //   MSG_CTRUNC);
 // - it doesn't decode as a HandoffMessage;
 // - it carries other than exactly one descriptor;
-// - the descriptor isn't a socket of the expected type;
-// - `generation` is 0, or isn't the VM's current generation;
+// - `kind` is neither KIND_CONNECTION nor KIND_NETWORK;
+// - the descriptor isn't a socket of the type its kind names;
+// - `generation` is 0, or isn't the VM's current generation.
+//
+// A KIND_CONNECTION record is also refused when:
+//
 // - `request_id` is 0, or doesn't name an open ConnectGuest request of
 //   that generation;
 // - `direction` isn't DIRECTION_HOST_TO_GUEST;
 // - `destination_port` isn't the guest port that request asked for.
+//
+// A KIND_NETWORK record is also refused when `request_id`, `direction`,
+// `source_port` or `destination_port` is set, or when the generation
+// already had one.
 message HandoffMessage {
-  // The ConnectGuest request this connection answers, at least 1.
+  // The ConnectGuest request this connection answers, at least 1. 0 in a
+  // KIND_NETWORK record.
   uint64 request_id = 1;
-  // The VM generation the connection belongs to, at least 1.
+  // The VM generation the descriptor belongs to, at least 1.
   uint64 generation = 2;
+  // Unset in a KIND_NETWORK record.
   Direction direction = 3;
-  // The vsock port on the side that opened the connection.
+  // The vsock port on the side that opened the connection. 0 in a
+  // KIND_NETWORK record.
   uint32 source_port = 4;
-  // The vsock port on the side that accepted it.
+  // The vsock port on the side that accepted it. 0 in a KIND_NETWORK
+  // record.
   uint32 destination_port = 5;
+  Kind kind = 6;
 }
