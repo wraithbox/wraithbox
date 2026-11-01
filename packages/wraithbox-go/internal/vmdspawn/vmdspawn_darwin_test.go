@@ -141,7 +141,8 @@ func (l *lines) has(s string) (bool, <-chan struct{}) {
 
 // waitFor waits until a line holds s, and reports whether one does. It
 // stops waiting when the log has been read to its end, since no line
-// comes after that, or when ctx is done.
+// comes after that, or when ctx is done. Either way it looks at the
+// lines once more, since both can be ready when the line has arrived.
 func (l *lines) waitFor(ctx context.Context, s string) bool {
 	for {
 		found, changed := l.has(s)
@@ -154,7 +155,8 @@ func (l *lines) waitFor(ctx context.Context, s string) bool {
 			found, _ = l.has(s)
 			return found
 		case <-ctx.Done():
-			return false
+			found, _ = l.has(s)
+			return found
 		}
 	}
 }
@@ -325,7 +327,11 @@ func TestSpawn(t *testing.T) {
 	if st := p.ProcessState(); st == nil || !st.Success() {
 		t.Fatalf("the fake ended %v; its log: %s", st, log)
 	}
-	if !log.waitFor(ctx, `"event":"lifeline-closed"`) {
+	// Close can take up to ExitTimeout, so the wait for the last record
+	// gets its own deadline, not what is left of ctx's.
+	closedCtx, closedCancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer closedCancel()
+	if !log.waitFor(closedCtx, `"event":"lifeline-closed"`) {
 		t.Errorf("no lifeline-closed in the log: %s", log)
 	}
 	if _, err := os.Lstat(sock); !errors.Is(err, os.ErrNotExist) {
