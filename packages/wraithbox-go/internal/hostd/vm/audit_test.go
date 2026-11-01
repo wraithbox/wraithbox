@@ -48,13 +48,13 @@ func waitStopRecord(t *testing.T, h *harness) {
 }
 
 // A start and a stop each have their records, in order, with the VM's
-// generation (S09-11-audit).
+// generation (S09-11-audit). The first start makes the data disk first.
 func TestAuditStartAndStopRecorded(t *testing.T) {
 	h := newHarness(t)
 	m := h.manager()
 	startAndStop(t, h, m, vm.SlotWork)
 	waitStopRecord(t, h)
-	want := []string{"vm start", "vm running", "vm stop", "vm stopped"}
+	want := []string{"data disk made", "vm start", "vm running", "vm stop", "vm stopped"}
 	if got := h.audit.Messages(); !slices.Equal(got, want) {
 		t.Errorf("records = %q, want %q", got, want)
 	}

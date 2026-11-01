@@ -28,8 +28,8 @@ import (
 // (S08-08-host-git, "Minimum version").
 const MinVersion = "2.54.0"
 
-// Rule names the rule behind a decision, for the log and later the audit
-// log (S08-08-host-git, "Where it is checked").
+// Rule names the rule behind a decision, for the log and the audit log
+// (S08-08-host-git, "Where it is checked").
 type Rule string
 
 // The rules of this package. Each refusal has its own.
@@ -115,8 +115,8 @@ func pathNotAbsolute(path string) *Refusal {
 	}
 }
 
-// logDecision logs a decision with the rule that made it. The caller
-// sends it to the audit writer later (M3.10).
+// logDecision logs a decision with the rule that made it.
+// hostservice.CheckGit writes its audit record.
 func logDecision(ctx context.Context, res Result, err error) {
 	attrs := []slog.Attr{
 		slog.String("rule", string(res.Rule)),

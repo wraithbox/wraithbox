@@ -266,7 +266,7 @@ func (h *harness) vmConfig(logger *slog.Logger) vm.Config {
 	t.Cleanup(func() { _ = db.Close() })
 	h.db = db
 	shim := &datadisktest.Shim{DataDir: dataDir, UUIDs: []string{"0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0"}}
-	disks, err := datadisk.New(datadisk.Config{DataDir: dataDir, Records: db, Shim: shim, Logger: logger})
+	disks, err := datadisk.New(datadisk.Config{DataDir: dataDir, Records: db, Shim: shim, Audit: &audittest.Recorder{}, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
@@ -120,6 +121,7 @@ func (f *fakeLinks) set(s guestconn.Status) {
 // provider and a fake wb-diskfmt.
 func newManager(t *testing.T, log *slog.Logger, sessions func(vm.Slot) []vm.Session) *vm.Manager {
 	t.Helper()
+	rec := &audittest.Recorder{}
 	data := t.TempDir()
 	db, err := state.Open(t.Context(), data)
 	if err != nil {
@@ -127,7 +129,7 @@ func newManager(t *testing.T, log *slog.Logger, sessions func(vm.Slot) []vm.Sess
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	disks, err := datadisk.New(datadisk.Config{
-		DataDir: data, Records: db, Logger: log,
+		DataDir: data, Records: db, Audit: rec, Logger: log,
 		Shim: &datadisktest.Shim{DataDir: data, UUIDs: []string{"0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0"}},
 	})
 	if err != nil {
@@ -140,7 +142,7 @@ func newManager(t *testing.T, log *slog.Logger, sessions func(vm.Slot) []vm.Sess
 	m, err := vm.New(vm.Config{
 		DataDir: data, ToolsImage: tools, Resources: config.Defaults(), Generations: db,
 		Provider: &vmtest.Provider{}, Cloner: &vmtest.CopyCloner{}, DataDisks: disks,
-		Sessions: sessions, Logger: log,
+		Sessions: sessions, Audit: rec, Logger: log,
 	})
 	if err != nil {
 		t.Fatal(err)

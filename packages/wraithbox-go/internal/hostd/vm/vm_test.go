@@ -72,7 +72,7 @@ func newHarness(t *testing.T) *harness {
 	h.db = db
 	logger := slog.New(slog.NewJSONHandler(h.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	h.shim = &datadisktest.Shim{DataDir: h.dataDir, UUIDs: []string{uuid1, uuid2}}
-	disks, err := datadisk.New(datadisk.Config{DataDir: h.dataDir, Records: db, Shim: h.shim, Logger: logger})
+	disks, err := datadisk.New(datadisk.Config{DataDir: h.dataDir, Records: db, Shim: h.shim, Audit: h.audit, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}

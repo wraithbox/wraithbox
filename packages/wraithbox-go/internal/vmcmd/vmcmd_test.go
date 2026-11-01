@@ -78,7 +78,7 @@ func newFixture(t *testing.T, typed string) *fixture {
 	f.db = db
 	log := slog.New(slog.NewJSONHandler(&f.hostLog, nil))
 	disks, err := datadisk.New(datadisk.Config{
-		DataDir: f.data, Records: db, Logger: log,
+		DataDir: f.data, Records: db, Logger: log, Audit: &audittest.Recorder{},
 		Shim: &datadisktest.Shim{DataDir: f.data, UUIDs: []string{uuid1, uuid2}},
 	})
 	if err != nil {

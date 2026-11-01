@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/project"
 )
@@ -73,17 +74,16 @@ type change struct {
 	before, after *state.Project
 }
 
-// record writes a change as one line with the fields of a Device Config
-// State Change (5019) event: the project, the command, and its values
-// before and after (S09-11-audit, "Project settings"). M3.10's audit
-// writer turns the line into the event. It is the one place a project
-// change is recorded.
+// record logs a change and writes its Device Config State Change (5019)
+// audit record: the project, the command, its values before and after,
+// and the calling wb (S09-11-audit, "Project settings"). It is the one
+// place a project change is recorded.
 func (s *ProjectServer) record(ctx context.Context, c *change) {
 	if c == nil {
 		return
 	}
 	attrs := []slog.Attr{
-		slog.String("event", "5019"), slog.String("decision", "accept"), slog.String("rule", c.rule),
+		slog.String("decision", "accept"), slog.String("rule", c.rule),
 		slog.String("command", c.command), slog.String("project", c.before.ID),
 		slog.Any("before", projectGroup(c.before)),
 	}
@@ -92,6 +92,19 @@ func (s *ProjectServer) record(ctx context.Context, c *change) {
 	}
 	attrs = append(attrs, peerAttrs(ctx)...)
 	s.logger().LogAttrs(ctx, slog.LevelInfo, "project changed", attrs...)
+	pc := audit.ProjectChange{ID: c.before.ID, Before: projectState(c.before)}
+	if c.after != nil {
+		pc.After = projectState(c.after)
+	}
+	s.Audit.Record(audit.ProjectChanged(c.command, c.rule, pc, auditPeer(ctx)))
+}
+
+// projectState is a project's settings as its audit record holds them.
+func projectState(p *state.Project) *audit.ProjectState {
+	return &audit.ProjectState{
+		Realm: p.Realm, Location: p.KeyPath, Name: p.Name, Placement: p.Placement,
+		ConfigTrust: p.ConfigTrust, URLs: nonNilList(p.URLs), RootCommits: nonNilList(p.RootCommits),
+	}
 }
 
 func projectGroup(p *state.Project) slog.Value {

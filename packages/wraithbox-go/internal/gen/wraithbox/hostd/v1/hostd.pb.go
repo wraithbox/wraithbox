@@ -751,7 +751,7 @@ type AuditRefusal struct {
 	// audit-free-space: the volume that holds the audit log is below its
 	// free space floor, or the log's reserve file is missing.
 	// audit-write-failed: a record couldn't be written, and no write has
-	// succeeded since. M3.10b adds audit-budget and audit-bytes.
+	// succeeded since.
 	Rule string `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
 	// What is refused, why, and what ends it, from wb-hostd.
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`

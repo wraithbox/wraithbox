@@ -114,7 +114,7 @@ func TestC04GitRefusals(t *testing.T) {
 	h.mustStart(dir)
 
 	h.conn = serve(t, &hostservice.ProjectServer{
-		Store: h.db, Log: slog.New(slog.DiscardHandler),
+		Store: h.db, Audit: h.audit, Log: slog.New(slog.DiscardHandler),
 		Git: &hostdv1.HostGit{Binary: "/usr/bin/git", Version: "2.54.0", Rule: "git-version-accepted"},
 	})
 	_, err := h.start(dir)

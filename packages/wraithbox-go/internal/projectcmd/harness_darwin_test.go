@@ -1,10 +1,8 @@
 package projectcmd
 
 import (
-	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net"
 	"os"
@@ -19,6 +17,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform"
@@ -62,6 +61,7 @@ type harness struct {
 	srv   *hostservice.ProjectServer
 	conn  *grpc.ClientConn
 	logs  *syncBuffer
+	audit *audittest.Recorder
 	log   bytes.Buffer
 }
 
@@ -71,7 +71,7 @@ func newHarness(t *testing.T) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := &harness{t: t, root: root, logs: &syncBuffer{}}
+	h := &harness{t: t, root: root, logs: &syncBuffer{}, audit: &audittest.Recorder{}}
 	h.paths = paths.Paths{
 		Data: filepath.Join(root, "wb", "data"), Config: filepath.Join(root, "wb", "config"),
 		Logs: filepath.Join(root, "wb", "logs"), Run: filepath.Join(root, "wb", "data", "run"),
@@ -87,7 +87,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Cleanup(func() { _ = h.db.Close() })
 	h.srv = &hostservice.ProjectServer{
-		Store: h.db, Log: slog.New(slog.NewJSONHandler(h.logs, nil)),
+		Store: h.db, Audit: h.audit, Log: slog.New(slog.NewJSONHandler(h.logs, nil)),
 		Git: &hostdv1.HostGit{Binary: h.git, Version: "2.54.0", Rule: "git-version-accepted"},
 	}
 	h.conn = serve(t, h.srv)
@@ -224,31 +224,27 @@ func (h *harness) trust(id string) {
 	}
 }
 
-// record is a 5019 line of wb-hostd's log.
+// record is a project change (5019) audit record of wb-hostd.
 type record struct {
-	Command string         `json:"command"`
-	Project string         `json:"project"`
-	Before  map[string]any `json:"before"`
-	After   map[string]any `json:"after"`
+	Command string
+	Project string
+	Before  map[string]any
+	After   map[string]any
 }
 
-// records returns the 5019 records of command.
+// records returns the project change records of command.
 func (h *harness) records(command string) []record {
 	h.t.Helper()
 	var out []record
-	sc := bufio.NewScanner(strings.NewReader(h.logs.String()))
-	sc.Buffer(nil, 1<<20)
-	for sc.Scan() {
-		var line struct {
-			Event string `json:"event"`
-			record
+	for _, r := range h.audit.Find("project changed") {
+		fs := r.Fields()
+		if fs.Command != command || fs.Project == nil {
+			continue
 		}
-		if err := json.Unmarshal(sc.Bytes(), &line); err != nil {
-			h.t.Fatalf("hostd log line %q: %v", sc.Text(), err)
-		}
-		if line.Event == "5019" && line.Command == command {
-			out = append(out, line.record)
-		}
+		out = append(out, record{
+			Command: fs.Command, Project: fs.Project.ID,
+			Before: audittest.AsMap(fs.Project.Before), After: audittest.AsMap(fs.Project.After),
+		})
 	}
 	return out
 }

@@ -3,9 +3,7 @@
 package hostservice_test
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net"
 	"os"
@@ -21,6 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
@@ -39,10 +38,11 @@ var gitPassed = &hostdv1.HostGit{Binary: "/usr/bin/git", Version: "2.54.0", Rule
 // projectFixture is a ProjectServer on a temporary state.db, served on
 // a Unix socket in a temporary directory, with its log.
 type projectFixture struct {
-	ctx  context.Context
-	c    hostdv1.ProjectServiceClient
-	db   *state.DB
-	logs *syncBuffer
+	ctx   context.Context
+	c     hostdv1.ProjectServiceClient
+	db    *state.DB
+	logs  *syncBuffer
+	audit *audittest.Recorder
 }
 
 func newProjects(t *testing.T, edit func(*hostservice.ProjectServer)) *projectFixture {
@@ -52,12 +52,12 @@ func newProjects(t *testing.T, edit func(*hostservice.ProjectServer)) *projectFi
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	logs := &syncBuffer{}
-	s := &hostservice.ProjectServer{Store: db, Git: gitPassed, Log: slog.New(slog.NewJSONHandler(logs, nil))}
+	logs, rec := &syncBuffer{}, &audittest.Recorder{}
+	s := &hostservice.ProjectServer{Store: db, Git: gitPassed, Audit: rec, Log: slog.New(slog.NewJSONHandler(logs, nil))}
 	if edit != nil {
 		edit(s)
 	}
-	return &projectFixture{ctx: t.Context(), c: serveProjects(t, s), db: db, logs: logs}
+	return &projectFixture{ctx: t.Context(), c: serveProjects(t, s), db: db, logs: logs, audit: rec}
 }
 
 // serveProjects serves s on a Unix socket with wb-hostd's message size
@@ -124,20 +124,26 @@ func (f *projectFixture) setTrust(t *testing.T, id string) {
 	}
 }
 
-// records returns the 5019 records of the log.
+// records returns the project change (5019) audit records, each as a
+// map of its command, project, decision, rule, and the project's
+// settings before and after.
 func (f *projectFixture) records(t *testing.T) []map[string]any {
 	t.Helper()
 	var out []map[string]any
-	sc := bufio.NewScanner(strings.NewReader(f.logs.String()))
-	sc.Buffer(nil, 16<<20)
-	for sc.Scan() {
-		var line map[string]any
-		if err := json.Unmarshal(sc.Bytes(), &line); err != nil {
-			t.Fatalf("log line %q: %v", sc.Text(), err)
+	for _, r := range f.audit.Find("project changed") {
+		if r.ClassUID() != 5019 {
+			t.Errorf("project change in class %d, want 5019", r.ClassUID())
 		}
-		if line["event"] == "5019" {
-			out = append(out, line)
+		fs := r.Fields()
+		m := map[string]any{"command": fs.Command, "decision": fs.Decision, "rule": fs.Rule}
+		if p := fs.Project; p != nil {
+			m["project"] = p.ID
+			m["before"] = audittest.AsMap(p.Before)
+			if p.After != nil {
+				m["after"] = audittest.AsMap(p.After)
+			}
 		}
+		out = append(out, m)
 	}
 	return out
 }
@@ -464,4 +470,15 @@ func TestProjectRefusingMode(t *testing.T) {
 	wantRefused(t, "rm", err, codes.FailedPrecondition, "state-db-newer")
 	_, err = serveProjects(t, &hostservice.ProjectServer{}).GetProject(ctx, &hostdv1.GetProjectRequest{})
 	wantRefused(t, "no store", err, codes.Internal, hostservice.RuleInternal)
+}
+
+// TestProjectNoAuditLog: without the audit writer every call is
+// refused, so no change goes unrecorded (SEC10-audit).
+func TestProjectNoAuditLog(t *testing.T) {
+	f := newProjects(t, func(s *hostservice.ProjectServer) { s.Audit = nil })
+	_, err := f.c.RegisterProject(t.Context(), &hostdv1.RegisterProjectRequest{Key: key("/r/x/.git"), Name: "x"})
+	wantRefused(t, "register without an audit log", err, codes.Internal, hostservice.RuleInternal)
+	if !strings.Contains(f.logs.String(), "wb-hostd has no audit log") {
+		t.Errorf("refusal not logged with its reason:\n%s", f.logs.String())
+	}
 }
