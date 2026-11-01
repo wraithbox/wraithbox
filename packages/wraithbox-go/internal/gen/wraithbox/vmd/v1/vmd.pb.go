@@ -218,6 +218,63 @@ func (Direction) EnumDescriptor() ([]byte, []int) {
 	return file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP(), []int{2}
 }
 
+// Kind says what a HandoffMessage's descriptor is.
+type Kind int32
+
+const (
+	// Refused.
+	Kind_KIND_UNSPECIFIED Kind = 0
+	// A host-guest connection that answers a ConnectGuest request: a
+	// stream socket.
+	Kind_KIND_CONNECTION Kind = 1
+	// The host end of the VM's packet transport: an AF_UNIX SOCK_DGRAM
+	// socket whose other end is the VM's file-handle network attachment
+	// (S07-02-packet-path, "Packet transport"). wb-vmd sends one per
+	// generation, before it starts the VM.
+	Kind_KIND_NETWORK Kind = 2
+)
+
+// Enum value maps for Kind.
+var (
+	Kind_name = map[int32]string{
+		0: "KIND_UNSPECIFIED",
+		1: "KIND_CONNECTION",
+		2: "KIND_NETWORK",
+	}
+	Kind_value = map[string]int32{
+		"KIND_UNSPECIFIED": 0,
+		"KIND_CONNECTION":  1,
+		"KIND_NETWORK":     2,
+	}
+)
+
+func (x Kind) Enum() *Kind {
+	p := new(Kind)
+	*p = x
+	return p
+}
+
+func (x Kind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Kind) Descriptor() protoreflect.EnumDescriptor {
+	return file_wraithbox_vmd_v1_vmd_proto_enumTypes[3].Descriptor()
+}
+
+func (Kind) Type() protoreflect.EnumType {
+	return &file_wraithbox_vmd_v1_vmd_proto_enumTypes[3]
+}
+
+func (x Kind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Kind.Descriptor instead.
+func (Kind) EnumDescriptor() ([]byte, []int) {
+	return file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP(), []int{3}
+}
+
 type StartRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The VM generation, chosen by wb-hostd, which owns generations. Each
@@ -227,7 +284,13 @@ type StartRequest struct {
 	// Number of virtual CPUs (S06-06-devices-and-warm-start, "Resources").
 	CpuCount uint32 `protobuf:"varint,2,opt,name=cpu_count,json=cpuCount,proto3" json:"cpu_count,omitempty"`
 	// Guest memory in MiB (S06-06-devices-and-warm-start, "Resources").
-	MemoryMib     uint64 `protobuf:"varint,3,opt,name=memory_mib,json=memoryMib,proto3" json:"memory_mib,omitempty"`
+	MemoryMib uint64 `protobuf:"varint,3,opt,name=memory_mib,json=memoryMib,proto3" json:"memory_mib,omitempty"`
+	// The MAC address of the VM's one network device, six bytes. wb-hostd
+	// makes it once per slot and keeps it, so it is the same in every
+	// generation (S06-06-devices-and-warm-start, "Disks and identity").
+	// wb-vmd refuses any other length, and an address that isn't a
+	// locally administered unicast one, with the rule `vmd-mac-invalid`.
+	MacAddress    []byte `protobuf:"bytes,4,opt,name=mac_address,json=macAddress,proto3" json:"mac_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,6 +344,13 @@ func (x *StartRequest) GetMemoryMib() uint64 {
 		return x.MemoryMib
 	}
 	return 0
+}
+
+func (x *StartRequest) GetMacAddress() []byte {
+	if x != nil {
+		return x.MacAddress
+	}
+	return nil
 }
 
 type StartResponse struct {
@@ -811,11 +881,12 @@ func (*ConnectGuestResponse) Descriptor() ([]byte, []int) {
 }
 
 // HandoffMessage is not part of any RPC. wb-vmd sends one for each
-// connection it hands to wb-hostd, as one record on the hand-off
+// descriptor it hands to wb-hostd, as one record on the hand-off
 // channel: an AF_UNIX SOCK_DGRAM socketpair with no path that wb-hostd
 // passes to wb-vmd at spawn (S04-02-vm-provider, "Hand-off on macOS").
 // The record is this message's protobuf encoding, with exactly one
-// descriptor attached by SCM_RIGHTS: the connection.
+// descriptor attached by SCM_RIGHTS: a connection (KIND_CONNECTION) or
+// the packet transport (KIND_NETWORK).
 //
 // The receiver refuses the record, closes every descriptor that came
 // with it, and logs the refusal with its rule, when:
@@ -824,23 +895,36 @@ func (*ConnectGuestResponse) Descriptor() ([]byte, []int) {
 //     MSG_CTRUNC);
 //   - it doesn't decode as a HandoffMessage;
 //   - it carries other than exactly one descriptor;
-//   - the descriptor isn't a socket of the expected type;
-//   - `generation` is 0, or isn't the VM's current generation;
+//   - `kind` is neither KIND_CONNECTION nor KIND_NETWORK;
+//   - the descriptor isn't a socket of the type its kind names;
+//   - `generation` is 0, or isn't the VM's current generation.
+//
+// A KIND_CONNECTION record is also refused when:
+//
 //   - `request_id` is 0, or doesn't name an open ConnectGuest request of
 //     that generation;
 //   - `direction` isn't DIRECTION_HOST_TO_GUEST;
 //   - `destination_port` isn't the guest port that request asked for.
+//
+// A KIND_NETWORK record is also refused when `request_id`, `direction`,
+// `source_port` or `destination_port` is set, or when the generation
+// already had one.
 type HandoffMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The ConnectGuest request this connection answers, at least 1.
+	// The ConnectGuest request this connection answers, at least 1. 0 in a
+	// KIND_NETWORK record.
 	RequestId uint64 `protobuf:"varint,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// The VM generation the connection belongs to, at least 1.
-	Generation uint64    `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
-	Direction  Direction `protobuf:"varint,3,opt,name=direction,proto3,enum=wraithbox.vmd.v1.Direction" json:"direction,omitempty"`
-	// The vsock port on the side that opened the connection.
+	// The VM generation the descriptor belongs to, at least 1.
+	Generation uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// Unset in a KIND_NETWORK record.
+	Direction Direction `protobuf:"varint,3,opt,name=direction,proto3,enum=wraithbox.vmd.v1.Direction" json:"direction,omitempty"`
+	// The vsock port on the side that opened the connection. 0 in a
+	// KIND_NETWORK record.
 	SourcePort uint32 `protobuf:"varint,4,opt,name=source_port,json=sourcePort,proto3" json:"source_port,omitempty"`
-	// The vsock port on the side that accepted it.
+	// The vsock port on the side that accepted it. 0 in a KIND_NETWORK
+	// record.
 	DestinationPort uint32 `protobuf:"varint,5,opt,name=destination_port,json=destinationPort,proto3" json:"destination_port,omitempty"`
+	Kind            Kind   `protobuf:"varint,6,opt,name=kind,proto3,enum=wraithbox.vmd.v1.Kind" json:"kind,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -910,18 +994,27 @@ func (x *HandoffMessage) GetDestinationPort() uint32 {
 	return 0
 }
 
+func (x *HandoffMessage) GetKind() Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return Kind_KIND_UNSPECIFIED
+}
+
 var File_wraithbox_vmd_v1_vmd_proto protoreflect.FileDescriptor
 
 const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"\n" +
-	"\x1awraithbox/vmd/v1/vmd.proto\x12\x10wraithbox.vmd.v1\"j\n" +
+	"\x1awraithbox/vmd/v1/vmd.proto\x12\x10wraithbox.vmd.v1\"\x8b\x01\n" +
 	"\fStartRequest\x12\x1e\n" +
 	"\n" +
 	"generation\x18\x01 \x01(\x04R\n" +
 	"generation\x12\x1b\n" +
 	"\tcpu_count\x18\x02 \x01(\rR\bcpuCount\x12\x1d\n" +
 	"\n" +
-	"memory_mib\x18\x03 \x01(\x04R\tmemoryMib\"\x0f\n" +
+	"memory_mib\x18\x03 \x01(\x04R\tmemoryMib\x12\x1f\n" +
+	"\vmac_address\x18\x04 \x01(\fR\n" +
+	"macAddress\"\x0f\n" +
 	"\rStartResponse\"]\n" +
 	"\vStopRequest\x12\x1e\n" +
 	"\n" +
@@ -954,7 +1047,7 @@ const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"request_id\x18\x02 \x01(\x04R\trequestId\x12\x1d\n" +
 	"\n" +
 	"guest_port\x18\x03 \x01(\rR\tguestPort\"\x16\n" +
-	"\x14ConnectGuestResponse\"\xd6\x01\n" +
+	"\x14ConnectGuestResponse\"\x82\x02\n" +
 	"\x0eHandoffMessage\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\x04R\trequestId\x12\x1e\n" +
@@ -964,7 +1057,8 @@ const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"\tdirection\x18\x03 \x01(\x0e2\x1b.wraithbox.vmd.v1.DirectionR\tdirection\x12\x1f\n" +
 	"\vsource_port\x18\x04 \x01(\rR\n" +
 	"sourcePort\x12)\n" +
-	"\x10destination_port\x18\x05 \x01(\rR\x0fdestinationPort*Q\n" +
+	"\x10destination_port\x18\x05 \x01(\rR\x0fdestinationPort\x12*\n" +
+	"\x04kind\x18\x06 \x01(\x0e2\x16.wraithbox.vmd.v1.KindR\x04kind*Q\n" +
 	"\bStopMode\x12\x19\n" +
 	"\x15STOP_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11STOP_MODE_REQUEST\x10\x01\x12\x13\n" +
@@ -984,7 +1078,11 @@ const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"*C\n" +
 	"\tDirection\x12\x19\n" +
 	"\x15DIRECTION_UNSPECIFIED\x10\x00\x12\x1b\n" +
-	"\x17DIRECTION_HOST_TO_GUEST\x10\x012\xa9\x03\n" +
+	"\x17DIRECTION_HOST_TO_GUEST\x10\x01*C\n" +
+	"\x04Kind\x12\x14\n" +
+	"\x10KIND_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fKIND_CONNECTION\x10\x01\x12\x10\n" +
+	"\fKIND_NETWORK\x10\x022\xa9\x03\n" +
 	"\tVMService\x12H\n" +
 	"\x05Start\x12\x1e.wraithbox.vmd.v1.StartRequest\x1a\x1f.wraithbox.vmd.v1.StartResponse\x12E\n" +
 	"\x04Stop\x12\x1d.wraithbox.vmd.v1.StopRequest\x1a\x1e.wraithbox.vmd.v1.StopResponse\x12Q\n" +
@@ -1006,48 +1104,50 @@ func file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP() []byte {
 	return file_wraithbox_vmd_v1_vmd_proto_rawDescData
 }
 
-var file_wraithbox_vmd_v1_vmd_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_wraithbox_vmd_v1_vmd_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_wraithbox_vmd_v1_vmd_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_wraithbox_vmd_v1_vmd_proto_goTypes = []any{
 	(StopMode)(0),                // 0: wraithbox.vmd.v1.StopMode
 	(State)(0),                   // 1: wraithbox.vmd.v1.State
 	(Direction)(0),               // 2: wraithbox.vmd.v1.Direction
-	(*StartRequest)(nil),         // 3: wraithbox.vmd.v1.StartRequest
-	(*StartResponse)(nil),        // 4: wraithbox.vmd.v1.StartResponse
-	(*StopRequest)(nil),          // 5: wraithbox.vmd.v1.StopRequest
-	(*StopResponse)(nil),         // 6: wraithbox.vmd.v1.StopResponse
-	(*GetStateRequest)(nil),      // 7: wraithbox.vmd.v1.GetStateRequest
-	(*GetStateResponse)(nil),     // 8: wraithbox.vmd.v1.GetStateResponse
-	(*WatchStateRequest)(nil),    // 9: wraithbox.vmd.v1.WatchStateRequest
-	(*WatchStateResponse)(nil),   // 10: wraithbox.vmd.v1.WatchStateResponse
-	(*VMState)(nil),              // 11: wraithbox.vmd.v1.VMState
-	(*VMError)(nil),              // 12: wraithbox.vmd.v1.VMError
-	(*ConnectGuestRequest)(nil),  // 13: wraithbox.vmd.v1.ConnectGuestRequest
-	(*ConnectGuestResponse)(nil), // 14: wraithbox.vmd.v1.ConnectGuestResponse
-	(*HandoffMessage)(nil),       // 15: wraithbox.vmd.v1.HandoffMessage
+	(Kind)(0),                    // 3: wraithbox.vmd.v1.Kind
+	(*StartRequest)(nil),         // 4: wraithbox.vmd.v1.StartRequest
+	(*StartResponse)(nil),        // 5: wraithbox.vmd.v1.StartResponse
+	(*StopRequest)(nil),          // 6: wraithbox.vmd.v1.StopRequest
+	(*StopResponse)(nil),         // 7: wraithbox.vmd.v1.StopResponse
+	(*GetStateRequest)(nil),      // 8: wraithbox.vmd.v1.GetStateRequest
+	(*GetStateResponse)(nil),     // 9: wraithbox.vmd.v1.GetStateResponse
+	(*WatchStateRequest)(nil),    // 10: wraithbox.vmd.v1.WatchStateRequest
+	(*WatchStateResponse)(nil),   // 11: wraithbox.vmd.v1.WatchStateResponse
+	(*VMState)(nil),              // 12: wraithbox.vmd.v1.VMState
+	(*VMError)(nil),              // 13: wraithbox.vmd.v1.VMError
+	(*ConnectGuestRequest)(nil),  // 14: wraithbox.vmd.v1.ConnectGuestRequest
+	(*ConnectGuestResponse)(nil), // 15: wraithbox.vmd.v1.ConnectGuestResponse
+	(*HandoffMessage)(nil),       // 16: wraithbox.vmd.v1.HandoffMessage
 }
 var file_wraithbox_vmd_v1_vmd_proto_depIdxs = []int32{
 	0,  // 0: wraithbox.vmd.v1.StopRequest.mode:type_name -> wraithbox.vmd.v1.StopMode
-	11, // 1: wraithbox.vmd.v1.GetStateResponse.state:type_name -> wraithbox.vmd.v1.VMState
-	11, // 2: wraithbox.vmd.v1.WatchStateResponse.state:type_name -> wraithbox.vmd.v1.VMState
+	12, // 1: wraithbox.vmd.v1.GetStateResponse.state:type_name -> wraithbox.vmd.v1.VMState
+	12, // 2: wraithbox.vmd.v1.WatchStateResponse.state:type_name -> wraithbox.vmd.v1.VMState
 	1,  // 3: wraithbox.vmd.v1.VMState.state:type_name -> wraithbox.vmd.v1.State
-	12, // 4: wraithbox.vmd.v1.VMState.error:type_name -> wraithbox.vmd.v1.VMError
+	13, // 4: wraithbox.vmd.v1.VMState.error:type_name -> wraithbox.vmd.v1.VMError
 	2,  // 5: wraithbox.vmd.v1.HandoffMessage.direction:type_name -> wraithbox.vmd.v1.Direction
-	3,  // 6: wraithbox.vmd.v1.VMService.Start:input_type -> wraithbox.vmd.v1.StartRequest
-	5,  // 7: wraithbox.vmd.v1.VMService.Stop:input_type -> wraithbox.vmd.v1.StopRequest
-	7,  // 8: wraithbox.vmd.v1.VMService.GetState:input_type -> wraithbox.vmd.v1.GetStateRequest
-	9,  // 9: wraithbox.vmd.v1.VMService.WatchState:input_type -> wraithbox.vmd.v1.WatchStateRequest
-	13, // 10: wraithbox.vmd.v1.VMService.ConnectGuest:input_type -> wraithbox.vmd.v1.ConnectGuestRequest
-	4,  // 11: wraithbox.vmd.v1.VMService.Start:output_type -> wraithbox.vmd.v1.StartResponse
-	6,  // 12: wraithbox.vmd.v1.VMService.Stop:output_type -> wraithbox.vmd.v1.StopResponse
-	8,  // 13: wraithbox.vmd.v1.VMService.GetState:output_type -> wraithbox.vmd.v1.GetStateResponse
-	10, // 14: wraithbox.vmd.v1.VMService.WatchState:output_type -> wraithbox.vmd.v1.WatchStateResponse
-	14, // 15: wraithbox.vmd.v1.VMService.ConnectGuest:output_type -> wraithbox.vmd.v1.ConnectGuestResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	3,  // 6: wraithbox.vmd.v1.HandoffMessage.kind:type_name -> wraithbox.vmd.v1.Kind
+	4,  // 7: wraithbox.vmd.v1.VMService.Start:input_type -> wraithbox.vmd.v1.StartRequest
+	6,  // 8: wraithbox.vmd.v1.VMService.Stop:input_type -> wraithbox.vmd.v1.StopRequest
+	8,  // 9: wraithbox.vmd.v1.VMService.GetState:input_type -> wraithbox.vmd.v1.GetStateRequest
+	10, // 10: wraithbox.vmd.v1.VMService.WatchState:input_type -> wraithbox.vmd.v1.WatchStateRequest
+	14, // 11: wraithbox.vmd.v1.VMService.ConnectGuest:input_type -> wraithbox.vmd.v1.ConnectGuestRequest
+	5,  // 12: wraithbox.vmd.v1.VMService.Start:output_type -> wraithbox.vmd.v1.StartResponse
+	7,  // 13: wraithbox.vmd.v1.VMService.Stop:output_type -> wraithbox.vmd.v1.StopResponse
+	9,  // 14: wraithbox.vmd.v1.VMService.GetState:output_type -> wraithbox.vmd.v1.GetStateResponse
+	11, // 15: wraithbox.vmd.v1.VMService.WatchState:output_type -> wraithbox.vmd.v1.WatchStateResponse
+	15, // 16: wraithbox.vmd.v1.VMService.ConnectGuest:output_type -> wraithbox.vmd.v1.ConnectGuestResponse
+	12, // [12:17] is the sub-list for method output_type
+	7,  // [7:12] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_vmd_v1_vmd_proto_init() }
@@ -1060,7 +1160,7 @@ func file_wraithbox_vmd_v1_vmd_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_vmd_v1_vmd_proto_rawDesc), len(file_wraithbox_vmd_v1_vmd_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      4,
 			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,

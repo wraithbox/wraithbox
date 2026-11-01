@@ -26,6 +26,11 @@
 /// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
 /// packages").
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -196,6 +201,55 @@ public nonisolated enum Wraithbox_Vmd_V1_Direction: SwiftProtobuf.Enum, Swift.Ca
 
 }
 
+/// Kind says what a HandoffMessage's descriptor is.
+public nonisolated enum Wraithbox_Vmd_V1_Kind: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Refused.
+  case unspecified // = 0
+
+  /// A host-guest connection that answers a ConnectGuest request: a
+  /// stream socket.
+  case connection // = 1
+
+  /// The host end of the VM's packet transport: an AF_UNIX SOCK_DGRAM
+  /// socket whose other end is the VM's file-handle network attachment
+  /// (S07-02-packet-path, "Packet transport"). wb-vmd sends one per
+  /// generation, before it starts the VM.
+  case network // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .connection
+    case 2: self = .network
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .connection: return 1
+    case .network: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wraithbox_Vmd_V1_Kind] = [
+    .unspecified,
+    .connection,
+    .network,
+  ]
+
+}
+
 public nonisolated struct Wraithbox_Vmd_V1_StartRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -211,6 +265,13 @@ public nonisolated struct Wraithbox_Vmd_V1_StartRequest: Sendable {
 
   /// Guest memory in MiB (S06-06-devices-and-warm-start, "Resources").
   public var memoryMib: UInt64 = 0
+
+  /// The MAC address of the VM's one network device, six bytes. wb-hostd
+  /// makes it once per slot and keeps it, so it is the same in every
+  /// generation (S06-06-devices-and-warm-start, "Disks and identity").
+  /// wb-vmd refuses any other length, and an address that isn't a
+  /// locally administered unicast one, with the rule `vmd-mac-invalid`.
+  public var macAddress: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -402,11 +463,12 @@ public nonisolated struct Wraithbox_Vmd_V1_ConnectGuestResponse: Sendable {
 }
 
 /// HandoffMessage is not part of any RPC. wb-vmd sends one for each
-/// connection it hands to wb-hostd, as one record on the hand-off
+/// descriptor it hands to wb-hostd, as one record on the hand-off
 /// channel: an AF_UNIX SOCK_DGRAM socketpair with no path that wb-hostd
 /// passes to wb-vmd at spawn (S04-02-vm-provider, "Hand-off on macOS").
 /// The record is this message's protobuf encoding, with exactly one
-/// descriptor attached by SCM_RIGHTS: the connection.
+/// descriptor attached by SCM_RIGHTS: a connection (KIND_CONNECTION) or
+/// the packet transport (KIND_NETWORK).
 ///
 /// The receiver refuses the record, closes every descriptor that came
 /// with it, and logs the refusal with its rule, when:
@@ -415,30 +477,44 @@ public nonisolated struct Wraithbox_Vmd_V1_ConnectGuestResponse: Sendable {
 ///   MSG_CTRUNC);
 /// - it doesn't decode as a HandoffMessage;
 /// - it carries other than exactly one descriptor;
-/// - the descriptor isn't a socket of the expected type;
-/// - `generation` is 0, or isn't the VM's current generation;
+/// - `kind` is neither KIND_CONNECTION nor KIND_NETWORK;
+/// - the descriptor isn't a socket of the type its kind names;
+/// - `generation` is 0, or isn't the VM's current generation.
+///
+/// A KIND_CONNECTION record is also refused when:
+///
 /// - `request_id` is 0, or doesn't name an open ConnectGuest request of
 ///   that generation;
 /// - `direction` isn't DIRECTION_HOST_TO_GUEST;
 /// - `destination_port` isn't the guest port that request asked for.
+///
+/// A KIND_NETWORK record is also refused when `request_id`, `direction`,
+/// `source_port` or `destination_port` is set, or when the generation
+/// already had one.
 public nonisolated struct Wraithbox_Vmd_V1_HandoffMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The ConnectGuest request this connection answers, at least 1.
+  /// The ConnectGuest request this connection answers, at least 1. 0 in a
+  /// KIND_NETWORK record.
   public var requestID: UInt64 = 0
 
-  /// The VM generation the connection belongs to, at least 1.
+  /// The VM generation the descriptor belongs to, at least 1.
   public var generation: UInt64 = 0
 
+  /// Unset in a KIND_NETWORK record.
   public var direction: Wraithbox_Vmd_V1_Direction = .unspecified
 
-  /// The vsock port on the side that opened the connection.
+  /// The vsock port on the side that opened the connection. 0 in a
+  /// KIND_NETWORK record.
   public var sourcePort: UInt32 = 0
 
-  /// The vsock port on the side that accepted it.
+  /// The vsock port on the side that accepted it. 0 in a KIND_NETWORK
+  /// record.
   public var destinationPort: UInt32 = 0
+
+  public var kind: Wraithbox_Vmd_V1_Kind = .unspecified
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -461,9 +537,13 @@ nonisolated extension Wraithbox_Vmd_V1_Direction: SwiftProtobuf._ProtoNameProvid
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DIRECTION_UNSPECIFIED\0\u{1}DIRECTION_HOST_TO_GUEST\0")
 }
 
+nonisolated extension Wraithbox_Vmd_V1_Kind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0KIND_UNSPECIFIED\0\u{1}KIND_CONNECTION\0\u{1}KIND_NETWORK\0")
+}
+
 nonisolated extension Wraithbox_Vmd_V1_StartRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StartRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}generation\0\u{3}cpu_count\0\u{3}memory_mib\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}generation\0\u{3}cpu_count\0\u{3}memory_mib\0\u{3}mac_address\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -474,6 +554,7 @@ nonisolated extension Wraithbox_Vmd_V1_StartRequest: SwiftProtobuf.Message, Swif
       case 1: try { try decoder.decodeSingularUInt64Field(value: &self.generation) }()
       case 2: try { try decoder.decodeSingularUInt32Field(value: &self.cpuCount) }()
       case 3: try { try decoder.decodeSingularUInt64Field(value: &self.memoryMib) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.macAddress) }()
       default: break
       }
     }
@@ -489,6 +570,9 @@ nonisolated extension Wraithbox_Vmd_V1_StartRequest: SwiftProtobuf.Message, Swif
     if self.memoryMib != 0 {
       try visitor.visitSingularUInt64Field(value: self.memoryMib, fieldNumber: 3)
     }
+    if !self.macAddress.isEmpty {
+      try visitor.visitSingularBytesField(value: self.macAddress, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -496,6 +580,7 @@ nonisolated extension Wraithbox_Vmd_V1_StartRequest: SwiftProtobuf.Message, Swif
     if lhs.generation != rhs.generation {return false}
     if lhs.cpuCount != rhs.cpuCount {return false}
     if lhs.memoryMib != rhs.memoryMib {return false}
+    if lhs.macAddress != rhs.macAddress {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -830,7 +915,7 @@ nonisolated extension Wraithbox_Vmd_V1_ConnectGuestResponse: SwiftProtobuf.Messa
 
 nonisolated extension Wraithbox_Vmd_V1_HandoffMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".HandoffMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}generation\0\u{1}direction\0\u{3}source_port\0\u{3}destination_port\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}generation\0\u{1}direction\0\u{3}source_port\0\u{3}destination_port\0\u{1}kind\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -843,6 +928,7 @@ nonisolated extension Wraithbox_Vmd_V1_HandoffMessage: SwiftProtobuf.Message, Sw
       case 3: try { try decoder.decodeSingularEnumField(value: &self.direction) }()
       case 4: try { try decoder.decodeSingularUInt32Field(value: &self.sourcePort) }()
       case 5: try { try decoder.decodeSingularUInt32Field(value: &self.destinationPort) }()
+      case 6: try { try decoder.decodeSingularEnumField(value: &self.kind) }()
       default: break
       }
     }
@@ -864,6 +950,9 @@ nonisolated extension Wraithbox_Vmd_V1_HandoffMessage: SwiftProtobuf.Message, Sw
     if self.destinationPort != 0 {
       try visitor.visitSingularUInt32Field(value: self.destinationPort, fieldNumber: 5)
     }
+    if self.kind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.kind, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -873,6 +962,7 @@ nonisolated extension Wraithbox_Vmd_V1_HandoffMessage: SwiftProtobuf.Message, Sw
     if lhs.direction != rhs.direction {return false}
     if lhs.sourcePort != rhs.sourcePort {return false}
     if lhs.destinationPort != rhs.destinationPort {return false}
+    if lhs.kind != rhs.kind {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
