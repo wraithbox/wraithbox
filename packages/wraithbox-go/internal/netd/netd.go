@@ -112,9 +112,10 @@ type Caps struct {
 	// end of the handshake. A SYN over it is dropped with
 	// tcp-half-open-cap.
 	HalfOpenTCP int
-	// EstablishedTCP bounds the TCP connections a hook accepted that
-	// aren't closed yet, the half-open ones that a hook accepted
-	// included. A SYN over it is reset with tcp-cap.
+	// EstablishedTCP bounds the TCP connections a hook may take, from
+	// before the hook decides until both the hook and the stack have
+	// closed the connection, whichever comes later. A guest reset alone
+	// doesn't free a place. A SYN over it is reset with tcp-cap.
 	EstablishedTCP int
 	// TCPBuffer bounds each accepted connection's send buffer and its
 	// receive buffer, in bytes.

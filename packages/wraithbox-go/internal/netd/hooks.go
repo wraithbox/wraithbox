@@ -38,15 +38,21 @@ type StreamPolicy interface {
 // wb-proxyd (S07-05-stream-hand-off). ServeStream owns conn and closes
 // it when it is done. The connection keeps its place under
 // Caps.EstablishedTCP until both the hook has closed conn and the stack
-// has closed the TCP connection, whichever comes later. It is called on
-// its own goroutine.
+// has closed the TCP connection, whichever comes later. The stack sets
+// no timeout while the hook holds conn, so the hook bounds a guest that
+// stops acknowledging, with a write deadline or an idle timeout. It is
+// called on its own goroutine.
 type StreamSink interface {
 	ServeStream(conn net.Conn, f Flow)
 }
 
 // DNSOverTCP serves DNS over TCP on the gateway's port 53 (S07-03-dns).
-// ServeDNSOverTCP owns conn and closes it when it is done. It is called
-// on its own goroutine per connection.
+// ServeDNSOverTCP owns conn and closes it when it is done. As for
+// StreamSink, the connection keeps its place under Caps.EstablishedTCP
+// until both the hook and the stack have closed it, and the stack sets
+// no timeout while the hook holds conn, so the hook bounds a guest that
+// stops acknowledging, with a write deadline or an idle timeout. It is
+// called on its own goroutine per connection.
 type DNSOverTCP interface {
 	ServeDNSOverTCP(conn net.Conn, f Flow)
 }
