@@ -12,20 +12,20 @@ import (
 // refused from its first connect on (S07-07-hosts-and-modes, "Upstream
 // address", the host's own networks).
 func hostNetworks() ([]netip.Prefix, error) {
-	ifaces, err := net.Interfaces()
+	links, err := net.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("read the host's interfaces: %w", err)
 	}
 	var out []netip.Prefix
-	for _, iface := range ifaces {
-		addrs, err := iface.Addrs()
+	for _, link := range links {
+		addrs, err := link.Addrs()
 		if err != nil {
-			return nil, fmt.Errorf("read the addresses of interface %s: %w", iface.Name, err)
+			return nil, fmt.Errorf("read the addresses of interface %s: %w", link.Name, err)
 		}
 		for _, a := range addrs {
 			p, ok := interfacePrefix(a)
 			if !ok {
-				return nil, fmt.Errorf("interface %s has address %q that isn't an IP address", iface.Name, a.String())
+				return nil, fmt.Errorf("interface %s has address %q that isn't an IP address", link.Name, a.String())
 			}
 			out = append(out, p)
 		}
