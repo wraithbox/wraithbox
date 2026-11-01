@@ -158,6 +158,12 @@ every layer, and a new Claude Code release only the Claude Code layer.
 
 ### Guest confinement
 
+The image holds `cron.allow` and `at.allow` in `/private/var/at` with
+`root` only, so no project user can add a crontab or an `at` job
+(S13-01-process-hardening, "Cron and at"). `wb-guestd` writes them at
+each start, and it starts in the build's second stage, before the image
+is sealed.
+
 The base image includes the Network Extension of
 S13-guest-confinement, approved during the build, once spike
 X14-flow-attribution allows it.

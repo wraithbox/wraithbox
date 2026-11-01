@@ -73,6 +73,10 @@ endpoint") decide how a project user is kept from posing as
   cleanup record (S06-10-leftover-processes). It stops every project
   user's processes when the link drops and when it starts
   (S13-01-process-hardening, "When the link drops").
+- It closes cron and `at` to project users when it starts, and removes
+  every crontab and `at` job a project user left. The kill loop clears
+  the user's crontab and `at` jobs in each round
+  (S13-01-process-hardening, "Cron and at").
 - It runs commands as a project user, with:
   - a PTY or pipes;
   - a sanitized environment: an explicit allowlist, with placeholders

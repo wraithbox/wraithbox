@@ -3,9 +3,9 @@
 // last session ends", "Per-user launchd services"; SEC08-proj-isolation).
 // The kill loop removes one project user's crontab and at jobs, sends
 // SIGKILL to every process of the user and boots out its launchd
-// domain, round after round, until a check finds none. The stop loop sends SIGSTOP to every process with a UID in the
-// project range, until none of them runs, and records which ones were
-// stopped already.
+// domain, round after round, until a check finds none. The stop loop
+// sends SIGSTOP to every process with a UID in the project range, until
+// none of them runs, and records which ones were stopped already.
 //
 // Both loops are bounded in rounds and time (SEC13-bounded-resources),
 // and a loop that ends with processes left logs its rule, the count

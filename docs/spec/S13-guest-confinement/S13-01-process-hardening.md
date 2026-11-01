@@ -188,7 +188,8 @@ locked project user.
 `cron` and `atrun` run as root and start a user's crontab and `at` jobs
 as that user, outside its launchd domain. So `bootout` doesn't reach
 them, and neither the disabled account nor its shell stops them.
-`wb-guestd` closes both schedulers to project users in two places.
+`wb-guestd` closes both schedulers to project users at its start, and
+clears a user's jobs in the kill loop.
 
 At each start, after its stop loop and before it serves the host, it
 writes `cron.allow` and `at.allow` in `/private/var/at` with `root`
@@ -196,18 +197,25 @@ only. That is before it makes or unlocks any project user. `crontab`
 and `at` read the files through `/usr/lib/cron`, a symbolic link to
 that directory, which is on the data volume and not the sealed system
 volume. With an allow file there, each ignores its deny file and
-refuses every user the file doesn't name. When either write fails,
-`wb-guestd` logs it with its rule and exits without serving the host.
-The image build is to write the same two files, so a guest is closed
-before `wb-guestd` first runs.
+refuses every user the file doesn't name. The image has the same two
+files (S06-02-image-build, "Guest confinement"), so a guest is closed
+before `wb-guestd` makes its first project user.
+
+Right after the lock, it sweeps the directory. It removes each crontab
+in `tabs/` whose name is a project user's, and each regular file in
+`jobs/` whose owner has an ID in the project range. A guest made before
+the lock, or a kill loop that stopped at its bounds, can have left one.
+When the lock or the sweep fails, `wb-guestd` logs it with its rule and
+exits without serving the host.
 
 In each round of the kill loop, before the first signal, it removes the
 user's crontab, `/private/var/at/tabs/<name>`, and each regular file in
 `/private/var/at/jobs` that the user owns, which is an `at` job. So a
-crontab written before the lock, or by root, goes with the kill, and
-`cron` and `atrun` find no job of the user when they next look. A removal that fails counts as a
-process left: the loop goes on to its bounds, logs the failure with its
-rule, and reports the user as not clean ("Per-user launchd services").
+crontab written by root goes with the kill, and `cron` and `atrun`
+don't find a job of the user when they next look. A removal that fails
+counts as a process left. The loop goes on to its bounds and logs the
+failure with its rule. It then reports the user as not clean
+("Per-user launchd services").
 
 `wb-guestd` follows no symbolic link at a name it writes or removes
 there. The paths and the bound on the entries it reads are in code, in
