@@ -8,20 +8,20 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Awaiting decision.** Source: X32-project-metrics (I543). The full report is R09-v1-progress-and-quality. The figures cover the project's first month, 2026-10-03 to 2026-11-01.
 
 <Aside type="tip" title="You are deciding">
-Whether to keep building V1, and at what pace: faster, as before, at half, or stop. Each pace leads to the same V1 at about the same total cost. The pace moves the date and the hours each week. This page doesn't recommend an option, because the answer depends on goals outside the project.
+Whether to keep building V1, and at what pace: faster, as before, at half, or stop. Each pace leads to the same V1 and moves the date and your hours each week. If output per active day doesn't depend on the pace, the total cost is about the same. The page doesn't recommend an option, because the answer depends on goals outside the project. The decision goes in a comment on I543.
 </Aside>
 
 ## Wraith Box in brief
 
 Wraith Box runs Claude Code, an AI coding agent, inside an isolated macOS virtual machine, with one command: `wb claude`. The controls run on the host, out of the agent's reach. The VM sees only its own disk and reaches only the destinations that a rule allows, and secrets stay on the host (S03-requirements). V1-initial is the first usable version, for macOS hosts and macOS guests.
 
-One maintainer builds it part-time, in evenings and at weekends. Claude agents write nearly all of the specs, code and tests, many of them at once. The maintainer sets the scope, approves each design decision, and runs the tests that need a real VM on their own Mac. The project started on 2026-10-03.
+One maintainer builds it part-time, in evenings and at weekends. Claude agents write nearly all the specs, code and tests, many of them at once. The maintainer sets the scope, approves each design decision, and runs the tests that need a real VM on their own Mac. The project started on 2026-10-03.
 
 ## At a glance
 
 | | The first month | To finish V1 at the current pace (P50) |
 |---|---|---|
-| Calendar time | 30 days | about 10 more weeks, to 2027-01-07 to 2027-01-15 |
+| Calendar time | 30 days | about 10 more weeks, P50 between 2027-01-07 and 2027-01-15 |
 | Active days | 25 | 53 to 60 |
 | Work | 55 work units, about 28% of V1 | 143 units, plus up to 40% for follow-ups |
 | Maintainer's time | about 60 hours, with a range of 27 to 117 | 73 to 102 hours, with a range of 33 to 210 |
@@ -34,10 +34,24 @@ In this table:
 - **Active day:** a day with any agent activity. Each of those also had prompts from the maintainer.
 - **P50 and P85:** the dates by which half, and 85%, of the simulated runs finish.
 
+The options side by side, described under "Options" below:
+
+| | A. Faster | B. As before | C. Half | D. Stop |
+|---|---|---|---|---|
+| Active days a week | 6 or 7 | 5 to 7 | 0 to 4 | 0 |
+| Your hours a week | about 16 | about 14 | about 6 | 0 |
+| Tokens a week | about $880 | about $760 | about $320 | about $0 |
+| V1 at P50 | 2026-12-29 to 2027-01-04 | 2027-01-07 to 2027-01-15 | 2027-04-06 to 2027-04-26 | not done |
+| V1 at P85 | 2027-01-07 to 2027-01-16 | 2027-01-18 to 2027-01-29 | 2027-05-11 to 2027-06-05 | not done |
+| Your hours to V1 | 73 to 102 | 73 to 102 | 73 to 102, or more | none |
+| Tokens to V1 | $4,900 to $6,900 | $4,900 to $6,900 | $4,900 to $6,900, or more | none |
+
+The weekly figures multiply the active days of each pace by the first month's rates: 2.4 hours and $132 per active day. Each date range spans the two ways of counting the work.
+
 ## How far along V1 is
 
 <figure class="wb-figure">
-<svg viewBox="0 0 760 285" role="img" aria-label="Progress bars. Spikes answered: 22 of 31. Milestones closed: 2 of 7. V1 work units built: 55 of 198. gRPC methods between processes: 26 of 26. wb commands that run: 6 of 22. Policy rule kinds built: 0 of 11.">
+<svg viewBox="0 0 760 285" role="img" aria-label="Progress bars. Spikes answered: 22 of 31. Milestones closed: 2 of 7. V1 work units built: 55 of 198. Calls between processes: 26 of 26. wb commands that run: 6 of 22. Policy rule kinds built: 0 of 11.">
   <text class="label" x="20" y="40">Spikes answered</text>
   <rect class="track" x="300" y="24" width="360" height="22" rx="4" />
   <rect class="bar" x="300" y="24" width="255.5" height="22" rx="4" />
@@ -53,7 +67,7 @@ In this table:
   <rect class="bar" x="300" y="114" width="100" height="22" rx="4" />
   <text class="note" x="672" y="130">55 of 198</text>
 
-  <text class="label" x="20" y="175">gRPC methods between processes</text>
+  <text class="label" x="20" y="175">Calls between processes</text>
   <rect class="track" x="300" y="159" width="360" height="22" rx="4" />
   <rect class="bar" x="300" y="159" width="360" height="22" rx="4" />
   <text class="note" x="672" y="175">26 of 26</text>
@@ -68,13 +82,13 @@ In this table:
   <text class="note" x="672" y="265">0 of 11</text>
 </svg>
 <figcaption>
-Figure 1. The design is close to done, and the build is about a quarter of the way. The internal plumbing between the processes is complete. The parts a user touches are not: `wb claude` is not one of the 6 commands that run, and none of the network policy exists yet. Source: R09-v1-progress-and-quality, "Where V1 stands".
+Figure 1. The design is close to done, and the build is about a quarter of the way. Every call defined so far between the processes (their gRPC methods) is built, though `wb-netd` and `wb-proxyd` don't have theirs yet. The parts a user touches are further behind: `wb claude` is not one of the 6 commands that run, and none of the network policy exists yet. Source: R09-v1-progress-and-quality, "Where V1 stands".
 </figcaption>
 </figure>
 
 - **The design.** 22 of 31 open questions were settled by spikes, small experiments with a written result. The maintainer recorded 118 decisions, and 111 spec files describe the design. The closed milestones are the spikes (V1-M1-spikes-closed) and a walking skeleton (V1-M2-walking-skeleton): the host processes that start a VM and run commands in it, tested on the maintainer's Mac.
 - **The build.** The network floor (V1-M3-network-floor) is under way, at 18 of 42 issues. The milestone that gives the first real prompt inside a VM, V1-M4-claude-end-to-end, has not started. The processes that enforce the network controls, `wb-netd` and `wb-proxyd`, are stubs.
-- **What remains.** 143 units in 114 items, of which 36 are planned packages not yet filed as issues. 35 of the units need a running VM. Only one of those runs at a time, so they form a serial lane, and 19 of their steps need the maintainer at the Mac.
+- **What remains.** 143 units in 114 items, of which 36 are planned packages not yet filed as issues. 35 of the units need a running VM. Only one of those runs at a time, so they form a serial lane, the VM lane. 19 steps on the lane or feeding it need the maintainer at the Mac.
 
 ## What the first month cost
 
@@ -147,15 +161,15 @@ Figure 1. The design is close to done, and the build is about a quarter of the w
   <text class="note" x="679" y="274" text-anchor="middle">build</text>
 </svg>
 <figcaption>
-Figure 2. The maintainer's hours, the agents' hours and the token cost, by week. Week 1 is 2026-10-03 and 2026-10-04 only, and weeks 2 to 5 start on the Mondays from 2026-10-05 to 2026-10-26. Maintainer hours here use METR's count of 10-minute windows with a prompt, and the token cost is at API list price. Source: R09-v1-progress-and-quality, "Velocity".
+Figure 2. The maintainer's hours, the agents' hours and the token cost, by week. Week 1 is 2026-10-03 and 2026-10-04 only, and weeks 2 to 5 start on the Mondays from 2026-10-05 to 2026-10-26. Maintainer hours here use a published method from the research group METR, which counts the 10-minute windows that hold a prompt, and the token cost is at API list price. Source: R09-v1-progress-and-quality, "Velocity".
 </figcaption>
 </figure>
 
-- **The maintainer.** About 60 hours over 25 of the 30 days: about 2.5 hours per active day, or 14 hours a week. Only 12% of the prompts fell in weekday working hours, and the rest came in evenings and at weekends. Nobody logged this time. It's inferred from the Claude Code transcripts by two methods that agree, with a range of 27 to 117 hours.
+- **The maintainer.** About 60 hours over 25 of the 30 days: about 2.4 hours per active day, or 14 hours a week. Only 12% of the prompts fell in weekday working hours, and the rest outside them, mostly in evenings and at weekends. Nobody logged this time. It's inferred from the Claude Code transcripts by two methods that agree, with a range of 27 to 117 hours.
 - **Other work.** Wraith Box was 19% of the maintainer's public GitHub contributions in its first week, then 65%, 92%, 95% and 74% in the weeks after. Contributions to everything else fell from 738 in the first week to between 8 and 194 a week.
 - **The agents.** 182 agent-hours, with up to 13 agents at once. For each hour of the maintainer's time the agents worked about three.
 - **Tokens.** $3,294 at API list prices: $16 per merged pull request, or $132 per active day. That's a list price, not what the maintainer pays on a subscription. The vendor quotes $13 per active day for one developer. This project spends ten times that because it runs waves of agents in parallel.
-- **The phases.** Weeks 1 and 2 wrote 29,000 lines of spec and almost no code. Weeks 3 to 5 wrote 122,000 lines of code and tests, and built 3.9 units per active day.
+- **The phases.** Weeks 1 and 2 wrote 29,000 lines of spec and almost no code. Weeks 3 to 5 wrote 122,000 lines of code and tests. From 2026-10-16 the build made 3.9 units per active day.
 
 ## What finishing V1 will take
 
@@ -180,7 +194,7 @@ Figure 2. The maintainer's hours, the agents' hours and the token cost, by week.
   <text class="note" x="591.3" y="203" text-anchor="middle">May</text>
   <text class="note" x="666.9" y="203" text-anchor="middle">Jun</text>
   <text class="note" x="740" y="203" text-anchor="middle">Jul</text>
-  <line class="whisker" x1="152.4" y1="26" x2="152.4" y2="185" />
+  <line class="axis" x1="152.4" y1="26" x2="152.4" y2="185" />
   <text class="note" x="158" y="24">today</text>
 
   <text class="label" x="20" y="58">Faster</text>
@@ -220,7 +234,7 @@ Figure 3. When V1 is done, at three paces of the maintainer's attention. The sol
 The forecast replays randomly chosen days of the build phase until the remaining work is done, many thousands of times. It grows the remaining work by 0% to 40%, because almost half of the issues added since the build began are follow-ups and bugs. A second method, a schedule over the dependency graph, gives 53 to 61 active days, close to the simulation's 53 to 60.
 
 - **Attention sets the date, not agents.** V1 needs 53 to 60 more active days whatever the pace. The current pace already has 5 to 7 of them a week. A faster pace gains about a week. Half the attention moves the date by three months.
-- **Adding agents has a limit.** The VM lane runs one item at a time and alone needs about 42 busy days. With three builders beside it, a schedule takes 49 to 53 active days, and the VM lane is busy 87% of that time. Another builder can gain only the gap between those.
+- **Adding agents has a limit.** The VM lane runs one item at a time and alone needs about 42 busy days. With three other agents building beside it, a schedule takes 49 to 53 active days, and the VM lane is busy 87% of that time. More agents can save at most the gap between the lane's 42 days and that schedule.
 - **The maintainer gates the VM lane.** Between 2026-10-23 and 2026-10-31, five agent runs merged nothing, because every ready item waited on the maintainer for a VM step, a host step or a decision. A decision waits 47 hours at the median, and one attended step, I253, has waited 18 days.
 
 <figure class="wb-figure">
@@ -244,7 +258,7 @@ The forecast replays randomly chosen days of the build phase until the remaining
   <rect class="bar-soft" x="436" y="137" width="58" height="26" />
 </svg>
 <figcaption>
-Figure 4. What the first month cost, in gray, and what finishing will cost, in color. The solid part is the low end of the estimate and the outlined part runs to its high end. The line shows the full range of the maintainer's hours. Each row has its own scale. Source: R09-v1-progress-and-quality, "What finishing will cost".
+Figure 4. What the first month cost, in gray, and what finishing will cost, in color. The solid part is the low end of the estimate and the outlined part runs to its high end. The line shows the full range of the maintainer's hours to finish, 33 to 210. The range of the hours spent, 27 to 117, isn't drawn. Each row has its own scale. Source: R09-v1-progress-and-quality, "What finishing will cost".
 </figcaption>
 </figure>
 
@@ -263,7 +277,7 @@ The forecast leaves out:
 
 | Measure | Value | Reading |
 |---|---|---|
-| Test coverage | Go 82%, Swift 72% | Above Google's "commendable" 75% for Go. Coverage is a floor, not proof |
+| Test coverage | Go 82%, Swift 72% | Go is above Google's "commendable" 75%. Coverage is a floor, not proof |
 | Fuzz targets on input from the VM | 41, on every host-side parser of guest bytes that exists | Wide, but shallow: one seed file, 10 seconds per target |
 | Complexity | 0 functions over the limit of 15, out of about 2,500 | Enforced by CI |
 | Rework | 95% to 97% of the lines added each build week are still there | Little churn so far |
@@ -272,13 +286,14 @@ The forecast leaves out:
 
 The weak spots are where defects are most likely. The network and policy code has the most input from the VM to parse, and none of it is written yet. Only the maintainer runs the tests that need a real VM, by hand, and the runs aren't recorded. And the same model writes the code and its tests, so a shared misreading of the spec passes CI.
 
-**In use: uncertain, and nothing in the plan measures it.** V1's exit criteria cite requirements, and none of them is a person using it. The goals a user feels, start time (NFR01-startup) and file speed (NFR02-fs-speed), were demoted from requirements to goals. The design changes the daily loop of working with an agent, on purpose:
+**In use: uncertain, and nothing in the plan measures it.** V1's exit criteria cite requirements, and none of them is a person using it. Start time (NFR01-startup) and file speed (NFR02-fs-speed), the two things a user feels, were demoted from requirements to goals. The design changes the daily loop of working with an agent, on purpose:
 
 - The editor on the host can't see the files during a session, because nothing is shared. Work comes back through `wb diff` and `wb land`.
-- Each session starts from a fresh copy of the repository, without installed packages.
-- A website the rules don't yet allow is refused on the first try, and the user approves it for the next. A check of real package installs refused 4 of 10 (X21-dep-gate-registries).
+- Each session starts in a new checkout of the repository, with your uncommitted changes but without ignored files such as installed dependencies.
+- A website the rules don't yet allow waits for the user's approval. The first try fails unless the user approves within 4 seconds.
+- A check of 10 real package installs refused 4, for package age or a known vulnerability (X21-dep-gate-registries).
 - Starting a VM took 14 to 19 seconds against a 10-second goal (C11-host-daemons).
-- `gh pr create` is refused inside the VM until someone lists its operation (I502). So the way this project is itself built can't run inside V1 as planned. That list is cheap to change.
+- `gh pr create` is refused inside the VM until its GitHub API call is added to an allowlist that starts empty (I502). So the way this project is itself built can't run inside V1 as planned. That list is cheap to change.
 
 An agent that walked the first-run journey through the specs judged it about 80% likely that a plain session works end to end on day one, and 30% to 40% likely that the maintainer runs most Claude sessions through `wb` in the first month. Nobody has compared V1 with the real alternatives: Claude Code on the host with its own permission prompts, or a dev container.
 
@@ -289,7 +304,7 @@ An agent that walked the first-run journey through the specs judged it about 80%
 
 ### A. Faster
 
-Work on it 6 or 7 days a week, and clear the steps that need you as they come up.
+6 or 7 active days a week.
 
 - **Each week:** about 16 of your hours and $880 of tokens.
 - **V1:** P50 2026-12-29 to 2027-01-04, P85 by 2027-01-16.
@@ -301,7 +316,7 @@ Work on it 6 or 7 days a week, and clear the steps that need you as they come up
 
 ### B. As before
 
-5 to 7 active days a week, about 2.5 hours on each.
+5 to 7 active days a week, about 2.4 hours on each.
 
 - **Each week:** about 14 of your hours and $760 of tokens.
 - **V1:** P50 2027-01-07 to 2027-01-15, P85 by 2027-01-29.
@@ -317,8 +332,8 @@ Work on it 6 or 7 days a week, and clear the steps that need you as they come up
 
 - **Each week:** about 6 of your hours and $320 of tokens.
 - **V1:** P50 2027-04-06 to 2027-04-26, P85 by 2027-06-05.
-- **Gives:** the same V1 about three months later, and time back for other work.
-- **Costs:** gaps between sessions may cost more per unit, for example through stale branches. Nobody has measured that.
+- **Gives:** time back for other work.
+- **Costs:** V1 about three months after the current pace. Gaps between sessions may also cost more per unit, for example through stale branches. Nobody has measured that.
 
 </div>
 <div class="wb-option">
@@ -330,24 +345,14 @@ Finish the open pull requests, then stop building.
 - **Each week:** nothing beyond dependency updates and CI.
 - **V1:** not done. The cost of a restart later isn't measured.
 - **Keeps:** the specs, 22 answered spikes, the research notes, the agent harness, and code that starts a VM and runs commands in it.
-- **Costs:** no usable `wb claude`. The $3,294 and 60 hours stay spent either way.
+- **Costs:** no usable `wb claude`.
 
 </div>
 </div>
 
-| | A. Faster | B. As before | C. Half | D. Stop |
-|---|---|---|---|---|
-| Active days a week | 6 or 7 | 5 to 7 | 0 to 4 | 0 |
-| Your hours a week | about 16 | about 14 | about 6 | 0 |
-| Tokens a week | about $880 | about $760 | about $320 | about $0 |
-| V1 at P50 | 2026-12-29 to 2027-01-04 | 2027-01-07 to 2027-01-15 | 2027-04-06 to 2027-04-26 | not done |
-| V1 at P85 | 2027-01-07 to 2027-01-16 | 2027-01-18 to 2027-01-29 | 2027-05-11 to 2027-06-05 | not done |
-| Your hours to V1 | 73 to 102 | 73 to 102 | 73 to 102, or more | none |
-| Tokens to V1 | $4,900 to $6,900 | $4,900 to $6,900 | $4,900 to $6,900, or more | none |
+The table under "At a glance" compares the options side by side.
 
-The weekly figures multiply the active days of each pace by the first month's rates: 2.4 hours and $132 per active day. Each date range spans the two ways of counting the work.
-
-**Why there's no recommendation.** The figures say what each pace costs and when it ends. They don't say what else the maintainer could do with those evenings, or how much users need V1. They also leave out the maintainer's other goal for the project: to learn harness engineering and harness security engineering, the craft of building and securing the setup that agents work in. This page doesn't measure that learning. Those things decide between the options, and the maintainer weighs them.
+**Why there's no recommendation.** The figures say what each pace costs and when it ends. They don't say what else the maintainer could do with those evenings, or how much users need V1. They also leave out the maintainer's other goal for the project: to learn harness engineering and harness security engineering, the craft of building and securing the setup that agents work in. This page doesn't measure that learning. Those things decide between the options, and the maintainer weighs them. The $3,294 and 60 hours already spent stay spent under every option.
 
 ## What changes the numbers at any pace
 
@@ -376,7 +381,7 @@ These levers come from R09-v1-progress-and-quality. They apply to every option e
 
 ## What it unblocks
 
-The pace decides how many agent runs to plan each week and when to book the attended sessions. Record it as a comment on I543. Separately, I544 proposes repeating this measurement at each milestone close, with a time log to calibrate the maintainer's hours. The report's other recommendations are the maintainer's to file.
+The pace decides how many agent runs to plan each week and when to book the attended sessions. Record it as a comment on I543. The measurement itself is the answer of X32-project-metrics: it can be repeated, with conditions. Cost totals come from Claude Code's own cost records, because the transcripts miss about 30% of the calls. The maintainer's hours stay a range until a time log calibrates them. GitHub can't tell the maintainer from an agent, because both post as one login, so only the `Assisted-by` commit trailer and the transcripts separate them. Raw data stays on the maintainer's Mac, and only aggregates are published. Separately, I544 proposes repeating the measurement at each milestone close, with that time log. The report's other recommendations are the maintainer's to file.
 
 <details>
 <summary>How the figures were made, and a glossary</summary>

@@ -278,8 +278,8 @@ The project went through two phases:
   Spikes answered their questions, and the maintainer recorded 47
   decisions in 7 active days.
 - **Build, weeks 3 to 5.** 122,000 lines of code and tests, 55 work
-  units. That's 3.9 units per active day: 3.1 on the parallel lanes and
-  0.8 on the VM lane.
+  units. Over the 14 active days from 2026-10-16, that's 3.9 units per
+  active day: 3.1 on the parallel lanes and 0.8 on the VM lane.
 
 Between 2026-10-23 and 2026-10-31, five runs merged nothing, because
 every ready item waited on the maintainer for a VM, host or spec step.
