@@ -143,7 +143,7 @@ package of logic, and 2.6, the M2 and M3 average, for the rest.
   43 package issues, 1 spike and 36 small issues.
 - **Remaining:** 143 units in 114 items: 76 with an issue, 36
   unfiled packages, and the H4 and H5 host setups. The 78 open issues
-  sit on the 76 items, two of which carry two issues each. 35 units are on the VM lane, which runs one item
+  belong to the 76 items, and two of those items have two issues each. 35 units are on the VM lane, which runs one item
   at a time, and 107 units run in parallel beside it.
 
 So the implementation is about 28% done, by work units. The parts a
