@@ -5,7 +5,7 @@ Scope: 76 top-level sessions plus 705 subagents, 2026-10-03 10:47 to 2026-11-01 
 ## Headline
 
 - **Cost:** the transcripts give $2,297 API-equivalent. Claude Code's own cost-state gives $3,294 (Opus 5.5 $2,663, Fable 5.1 $618, other $13).
-  - Use $3,294 as the total.
+  - Use $3,294 as the total. Sessions without subagents or web tools match `cost-state` within 3%. Sessions with subagents show 1.2 to 1.7 times more in `cost-state`, and one session that used WebSearch shows 1.5 times more (agent C's hand-back).
   - Breakdowns from the transcripts cover about 70% of the real figure. Sessions with subagents or WebSearch show 1.2–1.7 times more in cost-state, probably from classifier, web, compaction and title calls that aren't logged.
 - **Tokens (deduplicated):** 38,890 calls.
   - Input 0.126 M, output 13.0 M.
