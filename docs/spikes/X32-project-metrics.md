@@ -12,9 +12,12 @@ product.
 
 ## For review
 
-- **Decides:** whether to make the measurement of
-  R09-v1-progress-and-quality repeat at each milestone close, as I544
-  proposes. It should, with the conditions below.
+- **Decides:** whether V1 continues, and at what pace: faster, as
+  before, at half, or not at all. B543-project-metrics sets out the
+  figures of R09-v1-progress-and-quality for that decision and doesn't
+  recommend an option. Separately, whether to repeat the measurement
+  at each milestone close, as I544 proposes. It should, with the
+  conditions below.
 - **You are approving:** the answer and these conditions:
   - totals of AI cost come from Claude Code's `cost-state` records,
     because the transcripts miss about 30% of the calls;
@@ -31,8 +34,9 @@ product.
     the forecast;
   - that the report's findings, rather than its numbers, are the reason
     to repeat it.
-- **Open decisions:** whether to do I544, and how often: each milestone
-  close (recommended) or monthly.
+- **Open decisions:** the pace of V1 (B543-project-metrics), and
+  whether to do I544 and how often: each milestone close (recommended)
+  or monthly.
 
 ## Question
 

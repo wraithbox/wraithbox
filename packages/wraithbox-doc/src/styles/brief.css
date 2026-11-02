@@ -200,3 +200,41 @@
 	font-size: 12.5px;
 	font-weight: 600;
 }
+
+/* Charts: bars and axes for figures that show measurements. `bar` is a
+   measured value, `bar-past` a value already spent next to a forecast,
+   `bar-soft` the uncertain part of a range, `track` the full scale
+   behind a bar, `whisker` the outer end of a range, `axis` an axis line,
+   and `grid` a guide line. */
+.wb-figure .bar {
+	fill: var(--sl-color-accent);
+}
+.wb-figure .bar-past {
+	fill: var(--sl-color-gray-4);
+}
+.wb-figure .bar-soft {
+	fill: var(--sl-color-accent-low);
+	stroke: var(--sl-color-accent);
+	stroke-width: 1;
+}
+.wb-figure .track {
+	fill: var(--sl-color-gray-6);
+	stroke: var(--sl-color-gray-5);
+	stroke-width: 1;
+}
+.wb-figure .whisker {
+	fill: none;
+	stroke: var(--sl-color-text-accent);
+	stroke-width: 2;
+}
+.wb-figure .axis {
+	fill: none;
+	stroke: var(--sl-color-gray-4);
+	stroke-width: 1;
+}
+.wb-figure .grid {
+	fill: none;
+	stroke: var(--sl-color-gray-5);
+	stroke-width: 1;
+	stroke-dasharray: 3 4;
+}
