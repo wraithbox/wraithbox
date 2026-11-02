@@ -19,3 +19,4 @@ new one here.
 | R06-nono | nono | Read 2026-10-25, re-review after V1 (I240) |
 | R07-egzo | egzo | Read 2026-10-25, re-review after V1 (I240) |
 | R08-markdown-wrapping | Markdown line wrapping | Measured 2026-11-01 over 238 Markdown and MDX files at `10b7ab59`, recommends dprint at 72 for `.md` after two parser fixes and a decision on the S01-spec-based-development size limits |
+| R09-v1-progress-and-quality | V1 progress, effort and quality | Measured 2026-11-02 over 2026-10-03 to 2026-11-01 at `6138336c`. V1 is about 28% implemented, the median forecast is January 2027 at the current attention, and quality is good to spec and unmeasured in use |

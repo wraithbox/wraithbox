@@ -1,0 +1,139 @@
+---
+title: Should the project measure its progress, effort and quality at each milestone?
+description: Yes, with conditions. The first measurement took six agents about 0.86 M tokens and found problems no other check had flagged, so repeat it at each milestone close through I544.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-11-02. Awaiting decision.** Source: X32-project-metrics (I543). The report is R09-v1-progress-and-quality. The follow-up is I544.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** Git, GitHub, the Claude Code transcripts and the tree measure the project well enough to answer how far V1 is, what it costs, when it will be done and how good it is. The measuring agents ran in parallel and needed about a quarter of an hour. Their scripts run again on new data. The first report found that V1 is about 28% implemented. Its P50 is January 2027 at the current attention and April 2027 at half. It is likely good to spec, and nothing in the plan measures whether it's good in use. Conditions: cost totals come from Claude Code's `cost-state` records, human effort stays a range until a time log calibrates it, and raw data stays on your Mac. Recommended: do I544 and repeat the measurement at each milestone close.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 300" role="img" aria-label="On the maintainer's Mac, the transcripts, the cached GitHub data and the git history feed six measuring agents. Their aggregates cross out of the private area into the report on the docs site. The raw data never crosses.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="boundary" x="10" y="20" width="470" height="260" rx="12" />
+  <text class="boundary-label" x="22" y="40">maintainer's Mac, private</text>
+
+  <rect class="box host" x="30" y="60" width="150" height="50" rx="10" />
+  <text class="label" x="105" y="90" text-anchor="middle">transcripts</text>
+  <rect class="box host" x="30" y="125" width="150" height="50" rx="10" />
+  <text class="label" x="105" y="155" text-anchor="middle">git history</text>
+  <rect class="box host" x="30" y="190" width="150" height="50" rx="10" />
+  <text class="label" x="105" y="220" text-anchor="middle">GitHub cache</text>
+
+  <rect class="box host" x="250" y="110" width="200" height="80" rx="10" />
+  <text class="label" x="350" y="142" text-anchor="middle">six agents</text>
+  <text class="note" x="350" y="164" text-anchor="middle">scripts, aggregates only</text>
+
+  <rect class="box host" x="560" y="110" width="180" height="80" rx="10" />
+  <text class="label" x="650" y="142" text-anchor="middle">R09 report</text>
+  <text class="note" x="650" y="164" text-anchor="middle">docs site, public</text>
+
+  <line class="edge" x1="182" y1="85" x2="248" y2="130" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="182" y1="150" x2="248" y2="150" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="182" y1="215" x2="248" y2="170" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="452" y1="150" x2="558" y2="150" marker-end="url(#f1-arrow)" />
+  <path class="edge-bad" d="M182,75 C330,20 520,30 600,105" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="430" y="48">no raw data or prompt text</text>
+</svg>
+<figcaption>
+Figure 1. How the measurement keeps private data private. The transcripts, the git history and the cached GitHub responses stay on the maintainer's Mac. Agents turn them into aggregates such as weekly totals, token counts and coverage, and only those reach R09-v1-progress-and-quality on the docs site.
+</figcaption>
+</figure>
+
+## Options
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. At each milestone close
+
+Do I544: an agent file, a `mise` task and a time log. Run the measurement when a V1 milestone closes, and add a short R note each time, or update R09-v1-progress-and-quality.
+
+- **Cost:** I544 itself, then about 1 M agent tokens and an hour of coordinator time per run. You keep a time log of a line per sitting.
+- **Gives:** a forecast that tightens as milestones close, a check on the plan's estimates at the point where the next milestone is cut, and calibrated human numbers.
+
+</div>
+<div class="wb-option">
+
+### B. Monthly
+
+The same as A, on the first weekend of each month.
+
+- **Cost:** the same per run. Runs may fall mid-milestone, when the numbers say less.
+- **Gives:** a steady series, independent of how milestones are cut.
+
+</div>
+<div class="wb-option">
+
+### C. Only when asked
+
+Skip I544. Keep the spike scripts, and run them by hand when you want a report.
+
+- **Cost:** nothing now. Each run fixes paths and re-learns the traps: units, lane names, the 30% of cost that the transcripts miss.
+- **Gives:** a report when you think to ask for one.
+
+</div>
+<div class="wb-option">
+
+### D. Not again
+
+Close I544 as not planned. R09-v1-progress-and-quality stays as a one-time snapshot.
+
+- **Cost:** none.
+- **Gives:** nothing more. The forecast ages within weeks.
+
+</div>
+</div>
+
+**The case for C.** This is a hobby project, and a report costs about as much as one small issue. Most of its value came from findings, not numbers: the empty GraphQL allowlist, the missing use criterion and the plan's drift. A careful review at each milestone might find those without any measurement. A run on request keeps that option open without building anything.
+
+Confidence in A: medium. A second run will show whether the forecast narrows and whether the findings keep coming. If the second report doesn't add anything new, drop to C.
+
+## Evidence
+
+| Claim | Source | |
+|---|---|---|
+| Each agent took 6 to 13 minutes, about 0.86 M tokens in total | The coordinator's task records, X32-project-metrics | <Badge text="verified" variant="success" /> |
+| The transcripts miss about 30% of the cost, and `cost-state` has the total | $2,297 against $3,294, sessions without subagents match within 3% (R09-v1-progress-and-quality, "Method") | <Badge text="verified" variant="success" /> |
+| Forecasts built separately agree on P50 at 53 to 60 active days | The throughput simulation and agent E's schedule (R09-v1-progress-and-quality, "Forecast") | <Badge text="verified" variant="success" /> |
+| `gh pr create` is refused in the guest in V1 | S07-11-http-policy, "git hosting", and I502, which starts the allowlist empty | <Badge text="verified" variant="success" /> |
+| Human effort was about 60 hours over 25 active days | The METR count and the mid estimate, on the same transcripts. No ground truth | <Badge text="inferred" variant="note" /> |
+| The findings, not the numbers, are the reason to repeat a report | The coordinator's judgment | <Badge text="assumed" variant="caution" /> |
+
+## What it unblocks
+
+I544, and the recommendations of R09-v1-progress-and-quality. Each of those recommendations is the maintainer's to file.
+
+<details>
+<summary>Details and glossary</summary>
+
+**The report's recommendations:**
+
+1. A use criterion for V1: a timed first run and a week of real use at V1-M4-claude-end-to-end or V1-M5-approvals.
+2. Count approval prompts now by replaying a week of host transcripts against the built-in profiles.
+3. Decide the GraphQL allowlist for `gh` before V1-M4-claude-end-to-end (I502).
+4. Repair the plan: its status, the package sizes, a stale dependency, the missing secret scanner package and the dependencies of V1-M6-release-gate.
+5. Batch the attended steps and decisions, starting with I253.
+6. Record manual VM test runs, and add mutation testing and deeper fuzz corpora for `wb-netd` and `wb-proxyd`.
+7. Look at the 7.4% flaky CI runs of the last week.
+
+**Glossary**
+
+- **Active day:** a day with any agent activity. Every such day also had a prompt from the maintainer.
+- **Work unit:** one closed package issue of V1-M2-walking-skeleton or V1-M3-network-floor, about 2,700 changed lines at the median. A small issue counts 0.3.
+- **Monte Carlo forecast:** replay randomly chosen past days until the remaining work is done, many thousands of times. Report the spread.
+- **P50, P85:** half of the simulated runs finish by the P50 date, 85% by the P85 date.
+- **VM lane:** the work that needs a running macOS guest. One builder at a time does it, so it runs in series.
+- **`cost-state`:** Claude Code's own record of what a session cost at list prices.
+- **METR method:** count the 10-minute windows that hold at least one human prompt, once across parallel sessions.
+- **Line survival:** the share of lines added in a week that are still there today. The rest were rewritten or removed.
+
+</details>

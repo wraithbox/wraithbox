@@ -436,6 +436,8 @@ dotless
 fullwidth
 halfwidth
 oneofs
+linkdrop
+dnsname
 
 # Vale rule names quoted in .vale.ini
 Cataphoric
@@ -536,3 +538,14 @@ tcgetpgrp
 waitstatus
 OLDPWD
 SHLVL
+
+# Measurement and forecasting: sources and terms (R09-v1-progress-and-quality)
+METR
+Magennis
+Rempel
+Mäder
+libyears
+unfiled
+Stratton
+ASOS
+Vacanti
