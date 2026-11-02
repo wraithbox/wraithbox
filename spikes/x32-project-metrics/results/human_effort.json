@@ -1,0 +1,62 @@
+{
+  "active_days": 25,
+  "total_h": {
+    "low": 26.9,
+    "mid": 63.1,
+    "high": 116.6
+  },
+  "ai_union_h": 91.5,
+  "agent_h": 182.1,
+  "decisions": 118,
+  "corr_mid_vs_ai_union": 0.6,
+  "corr_decisions_vs_mid": 0.89,
+  "corr_decisions_vs_prompt_sess15": 0.66,
+  "corr_ai_union_vs_prompt_sess15": 0.54,
+  "weeks": {
+    "2026-09-28": {
+      "days": 2,
+      "low_h": 5,
+      "mid_h": 10.9,
+      "high_h": 18.8,
+      "ai_union_h": 7.3,
+      "agent_h": 14.4,
+      "decisions": 30
+    },
+    "2026-10-05": {
+      "days": 5,
+      "low_h": 4.7,
+      "mid_h": 12.9,
+      "high_h": 20.1,
+      "ai_union_h": 20.2,
+      "agent_h": 45.8,
+      "decisions": 17
+    },
+    "2026-10-12": {
+      "days": 7,
+      "low_h": 9.1,
+      "mid_h": 22.2,
+      "high_h": 41.4,
+      "ai_union_h": 26.6,
+      "agent_h": 54.7,
+      "decisions": 39
+    },
+    "2026-10-19": {
+      "days": 6,
+      "low_h": 2.7,
+      "mid_h": 6.3,
+      "high_h": 11.8,
+      "ai_union_h": 15,
+      "agent_h": 24.1,
+      "decisions": 5
+    },
+    "2026-10-26": {
+      "days": 5,
+      "low_h": 5.4,
+      "mid_h": 10.9,
+      "high_h": 24.5,
+      "ai_union_h": 22.3,
+      "agent_h": 43,
+      "decisions": 27
+    }
+  }
+}

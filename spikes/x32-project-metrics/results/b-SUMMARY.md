@@ -1,0 +1,37 @@
+# Agent B: git and GitHub history, X32-project-metrics
+
+Snapshot main at `6138336c`, 2026-11-02 (Europe/Amsterdam, weeks Mon-Sun, week label = Monday). Scripts: `.../x32-spike/spikes/x32-project-metrics/b-git/*.mjs` (`lib.mjs` shared; run `commits`, `snapshots`, `survival`, `fetch_gh`, `fetch_runs`, `fetch_contrib`, `analyze_gh`, `contrib`, `weekly_rollup`). Complete, all 8 items.
+
+## Headline totals
+- 796 commits (783 with `Assisted-by: Claude:claude-opus-5-5`, the only model named; 13 without: 5 dependabot, 2 logo commits on day 1, 2 "Merge pull request" commits, 4 maintainer hand edits: `feat(supply-chain): Edit implies Write permission`, `feat(spikes): allow ad-hoc signing by agents`, `chore(prose): codesign is a command`, `update status`, see `commits_without_assisted_by.csv`). Commit types: docs 443, fix 128, feat 106, test 50, chore 26, build 20, ci 11. Reverts: 0.
+- Lines added/deleted over all history: go-src 55.4k/3.0k, go-test 55.6k/1.8k, go-generated 11.4k/0.4k, swift-src 7.6k/0.3k, swift-test 3.9k/0.1k, spec-docs 70.2k/29.2k, agent-harness 4.2k/1.3k, doc-site 10.4k/4.8k, ci-config-scripts 14.9k/1.1k, lockfiles 3.3k/1.0k, other 3.8k/0.3k.
+- HEAD: 1223 files, 97 Go packages, 3146 Go funcs + 1994 methods, 833 Go types, 189 Swift types, 519 Swift funcs, 111 spec files (`docs/spec/**.md`). LOC: go-src 52.4k, go-test 53.8k, go-generated 11.0k, swift-src 7.2k, swift-test 3.8k, spec-docs 40.3k, harness 2.9k, doc-site 5.4k, ci/config/scripts 13.8k.
+- Issues 315 (207 closed, 108 open, 27 closed not-planned); PRs 228 (201 by `lsimons`, 27 dependabot), 206 merged. All at HEAD: milestone issues closed/total: M1 67/67, M2 62/62, M3 18/42, M4 0/18, M5 0/4, M6 0/23, M7 4/13, post-V1 0/24, none 56/62.
+- CI: 1055 runs (CI 802, Deploy docs 212, dependabot 41). Logins seen: only `lsimons` (issues, PRs, 873 comments, 441 reviews, 206 merges) and `dependabot`. Agent and maintainer share `lsimons`.
+
+## Per week
+| week | commits | go-src +/- | go-test +/- | spec-docs +/- | swift src+test + | issues closed | PRs merged | median h to merge | CI runs | CI fail % | CI flaky % | CI min | survival % (src+test) | feat/fix | wb share of contribs |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 09-28 | 74 | 379/49 | 194/0 | 10027/2278 | 85 | 6 | 25 | 0.18 | 118 | 31.4 | 2.5 | 195 | 77.8 (n=658) | 11/3 | 19% |
+| 10-05 | 180 | 0/0 | 33/26 | 18705/5192 | 0 | 49 | 49 | 1.03 | 284 | 3.6 | 0.4 | 442 | 100 (n=33) | 1/5 | 65% |
+| 10-12 | 223 | 17745/621 | 16430/233 | 34377/20414 | 9433 | 87 | 65 | 0.69 | 321 | 3.7 | 0.9 | 1045 | 95.7 | 20/42 | 92% |
+| 10-19 | 111 | 13634/983 | 14696/547 | 2876/332 | 890 | 21 | 25 | 1.49 | 128 | 14.3 | 0.0 | 818 | 95.0 | 30/26 | 95% |
+| 10-26 | 208 | 23658/1330 | 24239/975 | 4180/959 | 1091 | 44 | 42 | 2.03 | 204 | 7.0 | 7.4 | 1206 | 96.5 | 44/52 | 74% |
+
+Maintainer actions per week (login-agnostic, told apart by trailer; bots excluded): merges 25/49/65/25/42; reviews APPROVED or CHANGES_REQUESTED by a human 0 in every week (all 441 reviews are state COMMENTED, all with `Assisted-by`); comments without `Assisted-by` 3/3/4/1/1 (12 total); issues closed with no PR or commit as closer 0/6/39/5/7; non-bot commits without `Assisted-by` 4/2/1/0/1. Review verdicts (all bodies with a `Verdict:` line): 462 bodies, approve 236, needs-changes ~215. Estimated must-fix count (heuristic) 0/0/51/17/73.
+
+Contributions (calendar, all of `lsimons`, Aug 31 to Nov 2): total 5024. Weekly wraithbox share: before 09-28 0%, then 19%, 65%, 92%, 95%, 74%. "Other" work fell from 1416 (week 09-21) and 738 (09-28) to 8-136 per week since mid-Oct.
+
+## Files (`data/b/`)
+`commits.csv/json` (per commit: dates, type, scope, trailer, model, LOC by category), `commits_per_day.csv`, `commits_weekly.csv`, `commits_without_assisted_by.csv`, `commit_models.json`, `weekly_snapshots.csv` (files, LOC, packages, funcs, types, spec files per week-end + HEAD), `line_survival_weekly.csv` (also feat/fix/revert per week), `issues.csv`, `prs.csv`, `comments_and_reviews.csv` (issue/PR comments and PR reviews: author, time, length, assisted_by, verdict, must_fix_est), `milestone_burnup_daily.csv`, `github_weekly.csv`, `ci_runs.csv`, `ci_weekly.csv`, `ci_flaky_runs.csv`, `ci_by_workflow.csv`, `maintainer_actions_daily.csv`, `logins.json`, `contributions_daily.csv`, `contributions_weekly.csv`, `raw/` (cached GraphQL and REST pages; contain issue and PR bodies and the full contributions JSON, which names other repos, so do not publish `raw/`).
+
+## Doubts
+- Day/week bucket by author date. Rebase merges keep author date but change committer date, so "landed" times differ slightly. Snapshots use the newest commit by committer date within the week; the 11-02 snapshot row duplicates HEAD (no commits that week), and the 10-26 snapshot is HEAD.
+- Rename detection (`-M`) on numstat; renames of directories may still show as add+delete for some files. Spec-docs deletes (29k) include big moves/restructures.
+- go-generated detected by `*.pb.go` or `// Code generated` at HEAD only; files deleted since would be classed go-src. `docs/*.md` outside the listed dirs, `.proto`, images etc. fall in `other`. `.vale` and `go.mod` are in ci-config-scripts. Lockfile LOC is not counted in snapshots.
+- Go func/type/Swift counts are regexes (types includes function-local types; Swift types include `extension`).
+- Line survival: blame at HEAD attributes a line to its last touching commit, so reformatting or moves reduce an earlier week's survival and inflate a later one; week 10-05 and 09-28 have tiny denominators. Moves across files count as new adds.
+- Issue milestone and labels are current values, so the burn-up charts assume the milestone was set at creation (late reassignments are shown as if earlier). Closure "manual" means no PR or commit closer on the ClosedEvent; it can still be an agent using `gh issue close` under the shared login. Issues closed via a PR whose merge also closed it count as `pr`.
+- PR closes-issues list = GraphQL closingIssuesReferences plus a regex on the body. Review verdict parsing takes the last `Verdict:` line; must-fix count is a heuristic (numbered items under a `must-fix` heading, or items starting with "must-fix"), likely undercounts for spec PRs and bodies using other formats. Only review bodies and counts of inline comments were fetched, not inline comment text.
+- CI duration = `updated_at - run_started_at`; the weekly minutes sum only successful or failed runs (cancelled deploy-docs runs wait days in the queue, durations up to 6 days). It is wall-clock, not billed minutes (no per-job timing). The runs API shows only the latest attempt, so retried runs show as `run_attempt > 1` only. Fail-then-pass on the same sha is rare (new commits normally follow a failure), so flaky rates are a lower bound. 09-28 failure rate 31% is CI bring-up.
+- Contributions: GitHub's calendar days follow the profile timezone (looks like America/Los_Angeles, inferred from 07:00Z markers), not Amsterdam. Commit contributions per repo per day are complete. Issue, PR and review contributions per repo are truncated at 100 nodes by the API, so wraithbox issues/PRs/reviews were taken from the repo data (author `lsimons`, bucketed in LA time) instead, and `wraithbox` per day is capped at the calendar total. `other` = total minus wraithbox, includes 871 restricted (private) contributions. Other repository names are not in any output file except `raw/contributions.json`.

@@ -1,0 +1,5 @@
+METR-style (10-min windows with >=1 human prompt, parallel sessions counted once)
+total_h 59.2
+week 2026-09-28 7.3 | 2026-10-05 12.5 | 2026-10-12 18.7 | 2026-10-19 9.0 | 2026-10-26 11.7
+prompts by local hour 0..23: 7,0,8,0,13,0,11,39,59,49,28,31,11,24,23,68,23,29,32,78,56,61,34,18
+prompts by weekday: Mon 77, Tue 54, Wed 90, Thu 123, Fri 64, Sat 99, Sun 195
