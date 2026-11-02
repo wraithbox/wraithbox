@@ -1,139 +1,405 @@
 ---
-title: Should the project measure its progress, effort and quality at each milestone?
-description: Yes, with conditions. The first measurement took six agents about 0.86 M tokens and found problems no other check had flagged, so repeat it at each milestone close through I544.
+title: Should Wraith Box continue to V1, and at what pace?
+description: After a month, V1 is about 28% built, for $3,294 of tokens and about 60 hours of the maintainer's time. Finishing takes 53 to 60 more active days, $4,900 to $6,900 and 73 to 102 hours. At the current pace that's January 2027, and at half pace April. The page sets out the figures and doesn't recommend an option.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-11-02. Awaiting decision.** Source: X32-project-metrics (I543). The report is R09-v1-progress-and-quality. The follow-up is I544.
+**Awaiting decision.** Source: X32-project-metrics (I543). The full report is R09-v1-progress-and-quality. The figures cover the project's first month, 2026-10-03 to 2026-11-01.
 
-<Aside type="tip" title="What we learned">
-**Yes, with conditions.** Git, GitHub, the Claude Code transcripts and the tree measure the project well enough to answer how far V1 is, what it costs, when it will be done and how good it is. The measuring agents ran in parallel and needed about a quarter of an hour. Their scripts run again on new data. The first report found that V1 is about 28% implemented. Its P50 is January 2027 at the current attention and April 2027 at half. It is likely good to spec, and nothing in the plan measures whether it's good in use. Conditions: cost totals come from Claude Code's `cost-state` records, human effort stays a range until a time log calibrates it, and raw data stays on your Mac. Recommended: do I544 and repeat the measurement at each milestone close.
+<Aside type="tip" title="You are deciding">
+Whether to keep building V1, and at what pace: faster, as before, at half, or stop. Each pace leads to the same V1 at about the same total cost. The pace moves the date and the hours each week. This page doesn't recommend an option, because the answer depends on goals outside the project.
 </Aside>
 
+## Wraith Box in brief
+
+Wraith Box runs Claude Code, an AI coding agent, inside an isolated macOS virtual machine, with one command: `wb claude`. The controls run on the host, out of the agent's reach. The VM sees only its own disk and reaches only the destinations that a rule allows, and secrets stay on the host (S03-requirements). V1-initial is the first usable version, for macOS hosts and macOS guests.
+
+One maintainer builds it part-time, in evenings and at weekends. Claude agents write nearly all of the specs, code and tests, many of them at once. The maintainer sets the scope, approves each design decision, and runs the tests that need a real VM on their own Mac. The project started on 2026-10-03.
+
+## At a glance
+
+| | The first month | To finish V1 at the current pace (P50) |
+|---|---|---|
+| Calendar time | 30 days | about 10 more weeks, to 2027-01-07 to 2027-01-15 |
+| Active days | 25 | 53 to 60 |
+| Work | 55 work units, about 28% of V1 | 143 units, plus up to 40% for follow-ups |
+| Maintainer's time | about 60 hours, with a range of 27 to 117 | 73 to 102 hours, with a range of 33 to 210 |
+| Agent time | 182 agent-hours in 705 subagents | not forecast |
+| Tokens at API list price | $3,294 | $4,900 to $6,900 |
+
+In this table:
+
+- **Work unit:** the size of one finished package issue from the first build milestones, about 2,700 changed lines at the median.
+- **Active day:** a day with any agent activity. Each of those also had prompts from the maintainer.
+- **P50 and P85:** the dates by which half, and 85%, of the simulated runs finish.
+
+## How far along V1 is
+
 <figure class="wb-figure">
-<svg viewBox="0 0 760 300" role="img" aria-label="On the maintainer's Mac, the transcripts, the cached GitHub data and the git history feed six measuring agents. Their aggregates cross out of the private area into the report on the docs site. The raw data never crosses.">
-  <defs>
-    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
-    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
-  </defs>
+<svg viewBox="0 0 760 285" role="img" aria-label="Progress bars. Spikes answered: 22 of 31. Milestones closed: 2 of 7. V1 work units built: 55 of 198. gRPC methods between processes: 26 of 26. wb commands that run: 6 of 22. Policy rule kinds built: 0 of 11.">
+  <text class="label" x="20" y="40">Spikes answered</text>
+  <rect class="track" x="300" y="24" width="360" height="22" rx="4" />
+  <rect class="bar" x="300" y="24" width="255.5" height="22" rx="4" />
+  <text class="note" x="672" y="40">22 of 31</text>
 
-  <rect class="boundary" x="10" y="20" width="470" height="260" rx="12" />
-  <text class="boundary-label" x="22" y="40">maintainer's Mac, private</text>
+  <text class="label" x="20" y="85">Milestones closed</text>
+  <rect class="track" x="300" y="69" width="360" height="22" rx="4" />
+  <rect class="bar" x="300" y="69" width="102.9" height="22" rx="4" />
+  <text class="note" x="672" y="85">2 of 7</text>
 
-  <rect class="box host" x="30" y="60" width="150" height="50" rx="10" />
-  <text class="label" x="105" y="90" text-anchor="middle">transcripts</text>
-  <rect class="box host" x="30" y="125" width="150" height="50" rx="10" />
-  <text class="label" x="105" y="155" text-anchor="middle">git history</text>
-  <rect class="box host" x="30" y="190" width="150" height="50" rx="10" />
-  <text class="label" x="105" y="220" text-anchor="middle">GitHub cache</text>
+  <text class="label" x="20" y="130">V1 work units built</text>
+  <rect class="track" x="300" y="114" width="360" height="22" rx="4" />
+  <rect class="bar" x="300" y="114" width="100" height="22" rx="4" />
+  <text class="note" x="672" y="130">55 of 198</text>
 
-  <rect class="box host" x="250" y="110" width="200" height="80" rx="10" />
-  <text class="label" x="350" y="142" text-anchor="middle">six agents</text>
-  <text class="note" x="350" y="164" text-anchor="middle">scripts, aggregates only</text>
+  <text class="label" x="20" y="175">gRPC methods between processes</text>
+  <rect class="track" x="300" y="159" width="360" height="22" rx="4" />
+  <rect class="bar" x="300" y="159" width="360" height="22" rx="4" />
+  <text class="note" x="672" y="175">26 of 26</text>
 
-  <rect class="box host" x="560" y="110" width="180" height="80" rx="10" />
-  <text class="label" x="650" y="142" text-anchor="middle">R09 report</text>
-  <text class="note" x="650" y="164" text-anchor="middle">docs site, public</text>
+  <text class="label" x="20" y="220">wb commands that run</text>
+  <rect class="track" x="300" y="204" width="360" height="22" rx="4" />
+  <rect class="bar" x="300" y="204" width="98.2" height="22" rx="4" />
+  <text class="note" x="672" y="220">6 of 22</text>
 
-  <line class="edge" x1="182" y1="85" x2="248" y2="130" marker-end="url(#f1-arrow)" />
-  <line class="edge" x1="182" y1="150" x2="248" y2="150" marker-end="url(#f1-arrow)" />
-  <line class="edge" x1="182" y1="215" x2="248" y2="170" marker-end="url(#f1-arrow)" />
-  <line class="edge" x1="452" y1="150" x2="558" y2="150" marker-end="url(#f1-arrow)" />
-  <path class="edge-bad" d="M182,75 C330,20 520,30 600,105" marker-end="url(#f1-arrow-bad)" />
-  <text class="boundary-label" x="430" y="48">no raw data or prompt text</text>
+  <text class="label" x="20" y="265">Policy rule kinds built</text>
+  <rect class="track" x="300" y="249" width="360" height="22" rx="4" />
+  <text class="note" x="672" y="265">0 of 11</text>
 </svg>
 <figcaption>
-Figure 1. How the measurement keeps private data private. The transcripts, the git history and the cached GitHub responses stay on the maintainer's Mac. Agents turn them into aggregates such as weekly totals, token counts and coverage, and only those reach R09-v1-progress-and-quality on the docs site.
+Figure 1. The design is close to done, and the build is about a quarter of the way. The internal plumbing between the processes is complete. The parts a user touches are not: `wb claude` is not one of the 6 commands that run, and none of the network policy exists yet. Source: R09-v1-progress-and-quality, "Where V1 stands".
 </figcaption>
 </figure>
+
+- **The design.** 22 of 31 open questions were settled by spikes, small experiments with a written result. The maintainer recorded 118 decisions, and 111 spec files describe the design. The closed milestones are the spikes (V1-M1-spikes-closed) and a walking skeleton (V1-M2-walking-skeleton): the host processes that start a VM and run commands in it, tested on the maintainer's Mac.
+- **The build.** The network floor (V1-M3-network-floor) is under way, at 18 of 42 issues. The milestone that gives the first real prompt inside a VM, V1-M4-claude-end-to-end, has not started. The processes that enforce the network controls, `wb-netd` and `wb-proxyd`, are stubs.
+- **What remains.** 143 units in 114 items, of which 36 are planned packages not yet filed as issues. 35 of the units need a running VM. Only one of those runs at a time, so they form a serial lane, and 19 of their steps need the maintainer at the Mac.
+
+## What the first month cost
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 285" role="img" aria-label="Three bar charts by week, for weeks 1 to 5. Maintainer hours: 7.3, 12.5, 18.7, 9.0, 11.7. Agent-hours: 14, 46, 55, 24, 43. Token cost in dollars: 247, 802, 976, 486, 783. Weeks 1 and 2 were design, weeks 3 to 5 build.">
+  <text class="label" x="135" y="40" text-anchor="middle">Maintainer hours a week</text>
+  <line class="axis" x1="23" y1="230" x2="247" y2="230" />
+  <rect class="bar" x="31" y="171.6" width="32" height="58.4" />
+  <rect class="bar" x="75" y="130" width="32" height="100" />
+  <rect class="bar" x="119" y="80.4" width="32" height="149.6" />
+  <rect class="bar" x="163" y="158" width="32" height="72" />
+  <rect class="bar" x="207" y="136.4" width="32" height="93.6" />
+  <text class="note" x="47" y="165.6" text-anchor="middle">7.3</text>
+  <text class="note" x="91" y="124" text-anchor="middle">12.5</text>
+  <text class="note" x="135" y="74.4" text-anchor="middle">18.7</text>
+  <text class="note" x="179" y="152" text-anchor="middle">9.0</text>
+  <text class="note" x="223" y="130.4" text-anchor="middle">11.7</text>
+  <text class="note" x="47" y="248" text-anchor="middle">1</text>
+  <text class="note" x="91" y="248" text-anchor="middle">2</text>
+  <text class="note" x="135" y="248" text-anchor="middle">3</text>
+  <text class="note" x="179" y="248" text-anchor="middle">4</text>
+  <text class="note" x="223" y="248" text-anchor="middle">5</text>
+  <line class="axis" x1="31" y1="258" x2="107" y2="258" />
+  <line class="axis" x1="119" y1="258" x2="239" y2="258" />
+  <text class="note" x="69" y="274" text-anchor="middle">design</text>
+  <text class="note" x="179" y="274" text-anchor="middle">build</text>
+
+  <text class="label" x="385" y="40" text-anchor="middle">Agent-hours a week</text>
+  <line class="axis" x1="273" y1="230" x2="497" y2="230" />
+  <rect class="bar" x="281" y="191.6" width="32" height="38.4" />
+  <rect class="bar" x="325" y="107.9" width="32" height="122.1" />
+  <rect class="bar" x="369" y="84.1" width="32" height="145.9" />
+  <rect class="bar" x="413" y="165.7" width="32" height="64.3" />
+  <rect class="bar" x="457" y="115.3" width="32" height="114.7" />
+  <text class="note" x="297" y="185.6" text-anchor="middle">14</text>
+  <text class="note" x="341" y="101.9" text-anchor="middle">46</text>
+  <text class="note" x="385" y="78.1" text-anchor="middle">55</text>
+  <text class="note" x="429" y="159.7" text-anchor="middle">24</text>
+  <text class="note" x="473" y="109.3" text-anchor="middle">43</text>
+  <text class="note" x="297" y="248" text-anchor="middle">1</text>
+  <text class="note" x="341" y="248" text-anchor="middle">2</text>
+  <text class="note" x="385" y="248" text-anchor="middle">3</text>
+  <text class="note" x="429" y="248" text-anchor="middle">4</text>
+  <text class="note" x="473" y="248" text-anchor="middle">5</text>
+  <line class="axis" x1="281" y1="258" x2="357" y2="258" />
+  <line class="axis" x1="369" y1="258" x2="489" y2="258" />
+  <text class="note" x="319" y="274" text-anchor="middle">design</text>
+  <text class="note" x="429" y="274" text-anchor="middle">build</text>
+
+  <text class="label" x="635" y="40" text-anchor="middle">Tokens a week, $</text>
+  <line class="axis" x1="523" y1="230" x2="747" y2="230" />
+  <rect class="bar" x="531" y="190.5" width="32" height="39.5" />
+  <rect class="bar" x="575" y="101.7" width="32" height="128.3" />
+  <rect class="bar" x="619" y="73.8" width="32" height="156.2" />
+  <rect class="bar" x="663" y="152.2" width="32" height="77.8" />
+  <rect class="bar" x="707" y="104.7" width="32" height="125.3" />
+  <text class="note" x="547" y="184.5" text-anchor="middle">247</text>
+  <text class="note" x="591" y="95.7" text-anchor="middle">802</text>
+  <text class="note" x="635" y="67.8" text-anchor="middle">976</text>
+  <text class="note" x="679" y="146.2" text-anchor="middle">486</text>
+  <text class="note" x="723" y="98.7" text-anchor="middle">783</text>
+  <text class="note" x="547" y="248" text-anchor="middle">1</text>
+  <text class="note" x="591" y="248" text-anchor="middle">2</text>
+  <text class="note" x="635" y="248" text-anchor="middle">3</text>
+  <text class="note" x="679" y="248" text-anchor="middle">4</text>
+  <text class="note" x="723" y="248" text-anchor="middle">5</text>
+  <line class="axis" x1="531" y1="258" x2="607" y2="258" />
+  <line class="axis" x1="619" y1="258" x2="739" y2="258" />
+  <text class="note" x="569" y="274" text-anchor="middle">design</text>
+  <text class="note" x="679" y="274" text-anchor="middle">build</text>
+</svg>
+<figcaption>
+Figure 2. The maintainer's hours, the agents' hours and the token cost, by week. Week 1 is 2026-10-03 and 2026-10-04 only, and weeks 2 to 5 start on the Mondays from 2026-10-05 to 2026-10-26. Maintainer hours here use METR's count of 10-minute windows with a prompt, and the token cost is at API list price. Source: R09-v1-progress-and-quality, "Velocity".
+</figcaption>
+</figure>
+
+- **The maintainer.** About 60 hours over 25 of the 30 days: about 2.5 hours per active day, or 14 hours a week. Only 12% of the prompts fell in weekday working hours, and the rest came in evenings and at weekends. Nobody logged this time. It's inferred from the Claude Code transcripts by two methods that agree, with a range of 27 to 117 hours.
+- **Other work.** Wraith Box was 19% of the maintainer's public GitHub contributions in its first week, then 65%, 92%, 95% and 74% in the weeks after. Contributions to everything else fell from 738 in the first week to between 8 and 194 a week.
+- **The agents.** 182 agent-hours, with up to 13 agents at once. For each hour of the maintainer's time the agents worked about three.
+- **Tokens.** $3,294 at API list prices: $16 per merged pull request, or $132 per active day. That's a list price, not what the maintainer pays on a subscription. The vendor quotes $13 per active day for one developer. This project spends ten times that because it runs waves of agents in parallel.
+- **The phases.** Weeks 1 and 2 wrote 29,000 lines of spec and almost no code. Weeks 3 to 5 wrote 122,000 lines of code and tests, and built 3.9 units per active day.
+
+## What finishing V1 will take
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 250" role="img" aria-label="Forecast finish dates for three paces on a calendar from November 2026 to July 2027. Faster: P50 late December to early January, P95 late January. As before: P50 early to mid January, P95 early February. Half: P50 April, P95 end of June.">
+  <line class="grid" x1="150" y1="30" x2="150" y2="185" />
+  <line class="grid" x1="223.1" y1="30" x2="223.1" y2="185" />
+  <line class="grid" x1="298.7" y1="30" x2="298.7" y2="185" />
+  <line class="grid" x1="374.3" y1="30" x2="374.3" y2="185" />
+  <line class="grid" x1="442.6" y1="30" x2="442.6" y2="185" />
+  <line class="grid" x1="518.1" y1="30" x2="518.1" y2="185" />
+  <line class="grid" x1="591.3" y1="30" x2="591.3" y2="185" />
+  <line class="grid" x1="666.9" y1="30" x2="666.9" y2="185" />
+  <line class="grid" x1="740" y1="30" x2="740" y2="185" />
+  <line class="axis" x1="150" y1="185" x2="740" y2="185" />
+  <text class="note" x="150" y="203" text-anchor="middle">Nov</text>
+  <text class="note" x="223.1" y="203" text-anchor="middle">Dec</text>
+  <text class="note" x="298.7" y="203" text-anchor="middle">Jan 2027</text>
+  <text class="note" x="374.3" y="203" text-anchor="middle">Feb</text>
+  <text class="note" x="442.6" y="203" text-anchor="middle">Mar</text>
+  <text class="note" x="518.1" y="203" text-anchor="middle">Apr</text>
+  <text class="note" x="591.3" y="203" text-anchor="middle">May</text>
+  <text class="note" x="666.9" y="203" text-anchor="middle">Jun</text>
+  <text class="note" x="740" y="203" text-anchor="middle">Jul</text>
+  <line class="whisker" x1="152.4" y1="26" x2="152.4" y2="185" />
+  <text class="note" x="158" y="24">today</text>
+
+  <text class="label" x="20" y="58">Faster</text>
+  <text class="note" x="20" y="75">6 or 7 days a week</text>
+  <line class="whisker" x1="335.3" y1="60" x2="354.8" y2="60" />
+  <line class="whisker" x1="354.8" y1="54" x2="354.8" y2="66" />
+  <rect class="bar-soft" x="306" y="54" width="29.3" height="12" />
+  <rect class="bar" x="291.4" y="50" width="14.6" height="20" />
+
+  <text class="label" x="20" y="103">As before</text>
+  <text class="note" x="20" y="120">5 to 7 days a week</text>
+  <line class="whisker" x1="367" y1="105" x2="388.9" y2="105" />
+  <line class="whisker" x1="388.9" y1="99" x2="388.9" y2="111" />
+  <rect class="bar-soft" x="332.9" y="99" width="34.1" height="12" />
+  <rect class="bar" x="313.3" y="95" width="19.6" height="20" />
+
+  <text class="label" x="20" y="148">Half</text>
+  <text class="note" x="20" y="165">0 to 4 days a week</text>
+  <line class="whisker" x1="676.6" y1="150" x2="735.1" y2="150" />
+  <line class="whisker" x1="735.1" y1="144" x2="735.1" y2="156" />
+  <rect class="bar-soft" x="579.1" y="144" width="97.5" height="12" />
+  <rect class="bar" x="530.3" y="140" width="48.8" height="20" />
+
+  <rect class="bar" x="150" y="226" width="24" height="16" />
+  <text class="note" x="180" y="238">P50</text>
+  <rect class="bar-soft" x="230" y="228" width="24" height="12" />
+  <text class="note" x="260" y="238">to P85</text>
+  <line class="whisker" x1="330" y1="234" x2="354" y2="234" />
+  <line class="whisker" x1="354" y1="228" x2="354" y2="240" />
+  <text class="note" x="362" y="238">to P95</text>
+</svg>
+<figcaption>
+Figure 3. When V1 is done, at three paces of the maintainer's attention. The solid bar spans the P50 of two ways of counting the work, by issues and by changed lines. The outlined bar runs on to P85 and the line to P95. Faster gains about a week. Half loses about three months. Source: R09-v1-progress-and-quality, "Forecast".
+</figcaption>
+</figure>
+
+The forecast replays randomly chosen days of the build phase until the remaining work is done, many thousands of times. It grows the remaining work by 0% to 40%, because almost half of the issues added since the build began are follow-ups and bugs. A second method, a schedule over the dependency graph, gives 53 to 61 active days, close to the simulation's 53 to 60.
+
+- **Attention sets the date, not agents.** V1 needs 53 to 60 more active days whatever the pace. The current pace already has 5 to 7 of them a week. A faster pace gains about a week. Half the attention moves the date by three months.
+- **Adding agents has a limit.** The VM lane runs one item at a time and alone needs about 42 busy days. With three builders beside it, a schedule takes 49 to 53 active days, and the VM lane is busy 87% of that time. Another builder can gain only the gap between those.
+- **The maintainer gates the VM lane.** Between 2026-10-23 and 2026-10-31, five agent runs merged nothing, because every ready item waited on the maintainer for a VM step, a host step or a decision. A decision waits 47 hours at the median, and one attended step, I253, has waited 18 days.
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 185" role="img" aria-label="Spent so far against the cost to finish. Tokens: 3,294 dollars spent, 4,900 to 6,900 dollars to finish. Maintainer hours: about 60 spent, 73 to 102 to finish, with a range of 33 to 210.">
+  <text class="label" x="20" y="75">Tokens</text>
+  <text class="note" x="20" y="92">$ at API list price</text>
+  <text class="note" x="257.8" y="48" text-anchor="middle">$3,294 spent</text>
+  <text class="note" x="530" y="48" text-anchor="middle">$4,900 to $6,900 to finish</text>
+  <rect class="bar-past" x="170" y="57" width="175.7" height="26" />
+  <rect class="bar" x="345.7" y="57" width="261.3" height="26" />
+  <rect class="bar-soft" x="607" y="57" width="106.7" height="26" />
+
+  <text class="label" x="20" y="155">Maintainer hours</text>
+  <text class="note" x="20" y="172">mid estimate and range</text>
+  <text class="note" x="230" y="128" text-anchor="middle">about 60 h spent</text>
+  <text class="note" x="500" y="128" text-anchor="middle">73 to 102 h to finish, range 33 to 210</text>
+  <line class="whisker" x1="356" y1="150" x2="710" y2="150" />
+  <line class="whisker" x1="710" y1="143" x2="710" y2="157" />
+  <rect class="bar-past" x="170" y="137" width="120" height="26" />
+  <rect class="bar" x="290" y="137" width="146" height="26" />
+  <rect class="bar-soft" x="436" y="137" width="58" height="26" />
+</svg>
+<figcaption>
+Figure 4. What the first month cost, in gray, and what finishing will cost, in color. The solid part is the low end of the estimate and the outlined part runs to its high end. The line shows the full range of the maintainer's hours. Each row has its own scale. Source: R09-v1-progress-and-quality, "What finishing will cost".
+</figcaption>
+</figure>
+
+The cost to finish uses the build phase's rates, $34 and about half an hour of the maintainer's time per unit. The VM lane and its 19 attended steps need more of the maintainer per unit than the build phase did, so expect the upper half of the hours.
+
+The forecast leaves out:
+
+- **The holidays.** Late December can add attention or take it away.
+- **New kinds of work.** Building the VM image (V1-M7-image-build) and the policy engine for approvals (V1-M5-approvals) have no precedent among the finished issues.
+- **Gaps in the plan.** No package builds the secret scanner that three packages need, and the release milestone (V1-M6-release-gate) has no dependencies in the plan yet.
+- **A short history.** The forecast rests on 14 active days, from the most intense month so far.
+
+## What V1 is likely to be
+
+**To spec: probably good.** The code that exists scores well on the usual leading indicators:
+
+| Measure | Value | Reading |
+|---|---|---|
+| Test coverage | Go 82%, Swift 72% | Above Google's "commendable" 75% for Go. Coverage is a floor, not proof |
+| Fuzz targets on input from the VM | 41, on every host-side parser of guest bytes that exists | Wide, but shallow: one seed file, 10 seconds per target |
+| Complexity | 0 functions over the limit of 15, out of about 2,500 | Enforced by CI |
+| Rework | 95% to 97% of the lines added each build week are still there | Little churn so far |
+| Follow-ups | about one bug or follow-up for every two items closed | Expect the same after the release |
+| Flaky CI runs | under 2.5% a week, then 7.4% in the last week | The last week needs a look |
+
+The weak spots are where defects are most likely. The network and policy code has the most input from the VM to parse, and none of it is written yet. Only the maintainer runs the tests that need a real VM, by hand, and the runs aren't recorded. And the same model writes the code and its tests, so a shared misreading of the spec passes CI.
+
+**In use: uncertain, and nothing in the plan measures it.** V1's exit criteria cite requirements, and none of them is a person using it. The goals a user feels, start time (NFR01-startup) and file speed (NFR02-fs-speed), were demoted from requirements to goals. The design changes the daily loop of working with an agent, on purpose:
+
+- The editor on the host can't see the files during a session, because nothing is shared. Work comes back through `wb diff` and `wb land`.
+- Each session starts from a fresh copy of the repository, without installed packages.
+- A website the rules don't yet allow is refused on the first try, and the user approves it for the next. A check of real package installs refused 4 of 10 (X21-dep-gate-registries).
+- Starting a VM took 14 to 19 seconds against a 10-second goal (C11-host-daemons).
+- `gh pr create` is refused inside the VM until someone lists its operation (I502). So the way this project is itself built can't run inside V1 as planned. That list is cheap to change.
+
+An agent that walked the first-run journey through the specs judged it about 80% likely that a plain session works end to end on day one, and 30% to 40% likely that the maintainer runs most Claude sessions through `wb` in the first month. Nobody has compared V1 with the real alternatives: Claude Code on the host with its own permission prompts, or a dev container.
 
 ## Options
 
 <div class="wb-options">
-<div class="wb-option" data-recommended>
+<div class="wb-option">
 
-### A. At each milestone close
+### A. Faster
 
-Do I544: an agent file, a `mise` task and a time log. Run the measurement when a V1 milestone closes, and add a short R note each time, or update R09-v1-progress-and-quality.
+Work on it 6 or 7 days a week, and clear the steps that need you as they come up.
 
-- **Cost:** I544 itself, then about 1 M agent tokens and an hour of coordinator time per run. You keep a time log of a line per sitting.
-- **Gives:** a forecast that tightens as milestones close, a check on the plan's estimates at the point where the next milestone is cut, and calibrated human numbers.
+- **Each week:** about 16 of your hours and $880 of tokens.
+- **V1:** P50 2026-12-29 to 2027-01-04, P85 by 2027-01-16.
+- **Gives:** V1 about a week before the current pace.
+- **Costs:** even less time for other work than the first month left. The model counts days, so it can't say whether longer evenings speed things up.
 
 </div>
 <div class="wb-option">
 
-### B. Monthly
+### B. As before
 
-The same as A, on the first weekend of each month.
+5 to 7 active days a week, about 2.5 hours on each.
 
-- **Cost:** the same per run. Runs may fall mid-milestone, when the numbers say less.
-- **Gives:** a steady series, independent of how milestones are cut.
-
-</div>
-<div class="wb-option">
-
-### C. Only when asked
-
-Skip I544. Keep the spike scripts, and run them by hand when you want a report.
-
-- **Cost:** nothing now. Each run fixes paths and re-learns the traps: units, lane names, the 30% of cost that the transcripts miss.
-- **Gives:** a report when you think to ask for one.
+- **Each week:** about 14 of your hours and $760 of tokens.
+- **V1:** P50 2027-01-07 to 2027-01-15, P85 by 2027-01-29.
+- **Gives:** V1 in January.
+- **Costs:** the pace of the most intense month so far, which took 65% to 95% of your public GitHub activity, kept up for about ten more weeks.
 
 </div>
 <div class="wb-option">
 
-### D. Not again
+### C. Half
 
-Close I544 as not planned. R09-v1-progress-and-quality stays as a one-time snapshot.
+0 to 4 active days a week, with some weeks off.
 
-- **Cost:** none.
-- **Gives:** nothing more. The forecast ages within weeks.
+- **Each week:** about 6 of your hours and $320 of tokens.
+- **V1:** P50 2027-04-06 to 2027-04-26, P85 by 2027-06-05.
+- **Gives:** the same V1 about three months later, and time back for other work.
+- **Costs:** gaps between sessions may cost more per unit, for example through stale branches. Nobody has measured that.
+
+</div>
+<div class="wb-option">
+
+### D. Stop or pause
+
+Finish the open pull requests, then stop building.
+
+- **Each week:** nothing beyond dependency updates and CI.
+- **V1:** not done. The cost of a restart later isn't measured.
+- **Keeps:** the specs, 22 answered spikes, the research notes, the agent harness, and code that starts a VM and runs commands in it.
+- **Costs:** no usable `wb claude`. The $3,294 and 60 hours stay spent either way.
 
 </div>
 </div>
 
-**The case for C.** This is a hobby project, and a report costs about as much as one small issue. Most of its value came from findings, not numbers: the empty GraphQL allowlist, the missing use criterion and the plan's drift. A careful review at each milestone might find those without any measurement. A run on request keeps that option open without building anything.
+| | A. Faster | B. As before | C. Half | D. Stop |
+|---|---|---|---|---|
+| Active days a week | 6 or 7 | 5 to 7 | 0 to 4 | 0 |
+| Your hours a week | about 16 | about 14 | about 6 | 0 |
+| Tokens a week | about $880 | about $760 | about $320 | about $0 |
+| V1 at P50 | 2026-12-29 to 2027-01-04 | 2027-01-07 to 2027-01-15 | 2027-04-06 to 2027-04-26 | not done |
+| V1 at P85 | 2027-01-07 to 2027-01-16 | 2027-01-18 to 2027-01-29 | 2027-05-11 to 2027-06-05 | not done |
+| Your hours to V1 | 73 to 102 | 73 to 102 | 73 to 102, or more | none |
+| Tokens to V1 | $4,900 to $6,900 | $4,900 to $6,900 | $4,900 to $6,900, or more | none |
 
-Confidence in A: medium. A second run will show whether the forecast narrows and whether the findings keep coming. If the second report doesn't add anything new, drop to C.
+The weekly figures multiply the active days of each pace by the first month's rates: 2.4 hours and $132 per active day. Each date range spans the two ways of counting the work.
+
+**Why there's no recommendation.** The figures say what each pace costs and when it ends. They don't say what else the maintainer could do with those evenings, or how much users need V1. They also leave out the maintainer's other goal for the project: to learn harness engineering and harness security engineering, the craft of building and securing the setup that agents work in. This page doesn't measure that learning. Those things decide between the options, and the maintainer weighs them.
+
+## What changes the numbers at any pace
+
+These levers come from R09-v1-progress-and-quality. They apply to every option except D, and each is the maintainer's to file:
+
+- **Batch the steps that need you.** The 19 attended VM and host steps and the decisions waiting on you are the human part of the critical path. Planned sessions that clear them in batches shorten the date at any pace, starting with I253.
+- **Measure use before V1 is done.** Make a timed first run and a week of real use exit criteria of V1-M4-claude-end-to-end or V1-M5-approvals. Count approval prompts now, by replaying a week of real transcripts against the built-in rules. These test the risk that V1 is done to spec and unused.
+- **Decide the `gh` operation list** for the guest (I502) before V1-M4-claude-end-to-end, or record that V1 doesn't support work through `gh` in the VM.
+- **Repair the plan.** Its status section, its package sizes (off by 3 to 5 times), one stale dependency, the missing secret scanner package, and the release milestone's dependencies.
 
 ## Evidence
 
 | Claim | Source | |
 |---|---|---|
-| Each agent took 6 to 13 minutes, about 0.86 M tokens in total | `results/wave1-cost.md` on the spike branch, from the coordinator's task records | <Badge text="verified" variant="success" /> |
-| The transcripts miss about 30% of the cost, and `cost-state` has the total | $2,297 against $3,294. Sessions without subagents or web tools match within 3% (R09-v1-progress-and-quality, "Method", and `results/c-SUMMARY.md`) | <Badge text="verified" variant="success" /> |
-| Forecasts built separately agree on P50 at 53 to 60 active days | The throughput simulation and agent E's schedule (R09-v1-progress-and-quality, "Forecast") | <Badge text="verified" variant="success" /> |
-| `gh pr create` is refused in the guest in V1 | S07-11-http-policy, "git hosting", and I502, which starts the allowlist empty | <Badge text="verified" variant="success" /> |
-| Human effort was about 60 hours over 25 active days | The METR count and the mid estimate, on the same transcripts. No ground truth | <Badge text="inferred" variant="note" /> |
-| The findings, not the numbers, are the reason to repeat a report | The coordinator's judgment | <Badge text="assumed" variant="caution" /> |
+| The first month cost $3,294 at API list price | Claude Code's own cost records (R09-v1-progress-and-quality, "AI effort") | <Badge text="verified" variant="success" /> |
+| `wb` runs 6 of its 22 commands, and `wb claude` isn't one of them | The built binary, and S05-cli | <Badge text="verified" variant="success" /> |
+| `gh pr create` is refused inside the VM in V1 | S07-11-http-policy, and I502, which starts the operation list empty | <Badge text="verified" variant="success" /> |
+| The code's coverage, fuzz targets, complexity and churn are as in the table | Measured at `6138336c` (R09-v1-progress-and-quality, "Quality") | <Badge text="verified" variant="success" /> |
+| V1 is about 28% built | 55 of 198 work units. The 36 unfiled packages are sized by kind, from averages | <Badge text="inferred" variant="note" /> |
+| The maintainer spent about 60 hours | METR's count (59 h) and a model (63 h, range 27 to 117) read the same transcripts. Nobody logged the time | <Badge text="inferred" variant="note" /> |
+| Finishing takes 53 to 60 active days at P50 | A simulation by issues and by changed lines, and a schedule over the dependency graph (R09-v1-progress-and-quality, "Forecast") | <Badge text="inferred" variant="note" /> |
+| Adding agents has a limit | The serial VM lane needs about 42 busy days. Three builders beside it take 49 to 53 days, and two take 61 | <Badge text="inferred" variant="note" /> |
+| The weekly hours and token figures of each option | The first month's rates per active day, times each pace's active days | <Badge text="inferred" variant="note" /> |
+| The pace moves the date but not the total cost | Assumes that output and cost per active day don't depend on the pace | <Badge text="assumed" variant="caution" /> |
+| A plain session is about 80% likely to work on day one, and 30% to 40% likely to become the default | One agent's judgment from the specs and spike results. No VM was run | <Badge text="assumed" variant="caution" /> |
 
 ## What it unblocks
 
-I544, and the recommendations of R09-v1-progress-and-quality. Each of those recommendations is the maintainer's to file.
+The pace decides how many agent runs to plan each week and when to book the attended sessions. Record it as a comment on I543. Separately, I544 proposes repeating this measurement at each milestone close, with a time log to calibrate the maintainer's hours. The report's other recommendations are the maintainer's to file.
 
 <details>
-<summary>Details and glossary</summary>
+<summary>How the figures were made, and a glossary</summary>
 
-**The report's recommendations:**
+**Method.** Agents measured the project in parallel, from git history, GitHub, the Claude Code transcripts on the maintainer's Mac, the source tree, the open issues and the specs. They published only aggregates, such as weekly totals and coverage. The transcripts, the raw GitHub data and the prompt text stay on the Mac, and no other project of the maintainer's is named. R09-v1-progress-and-quality has the details, and X32-project-metrics says how well each measurement worked.
 
-1. A use criterion for V1: a timed first run and a week of real use at V1-M4-claude-end-to-end or V1-M5-approvals.
-2. Count approval prompts now by replaying a week of host transcripts against the built-in profiles.
-3. Decide the GraphQL allowlist for `gh` before V1-M4-claude-end-to-end (I502).
-4. Repair the plan: its status, the package sizes, a stale dependency, the missing secret scanner package and the dependencies of V1-M6-release-gate.
-5. Batch the attended steps and decisions, starting with I253.
-6. Record manual VM test runs, and add mutation testing and deeper fuzz corpora for `wb-netd` and `wb-proxyd`.
-7. Look at the 7.4% flaky CI runs of the last week.
+**The maintainer's time** comes from the transcripts. The assumptions came from the maintainer: no effort on days without agent activity, more effort on days with more activity or bigger decisions, and little during weekday working hours. METR's method counts the 10-minute windows that hold a prompt (59 hours). A model adds reading time, pauses before long prompts and time per decision (27, 63 and 117 hours as low, mid and high). Neither sees thinking done away from the keyboard.
+
+**The forecast** has two layers. The first replays the build phase's active days on two lanes, the serial VM lane and the parallel rest, until both are empty. The second turns active days into calendar dates, by drawing weeks from three attention patterns: faster (6 or 7 days), as before (the measured weeks, 5 to 7 days) and half (0 to 4 days, 2.4 on average). It starts on 2026-11-03.
 
 **Glossary**
 
 - **Active day:** a day with any agent activity. Every such day also had a prompt from the maintainer.
-- **Work unit:** one closed package issue of V1-M2-walking-skeleton or V1-M3-network-floor, about 2,700 changed lines at the median. A small issue counts 0.3.
-- **Monte Carlo forecast:** replay randomly chosen past days until the remaining work is done, many thousands of times. Report the spread.
-- **P50, P85:** half of the simulated runs finish by the P50 date, 85% by the P85 date.
-- **VM lane:** the work that needs a running macOS guest. One builder at a time does it, so it runs in series.
-- **`cost-state`:** Claude Code's own record of what a session cost at list prices.
+- **Agent-hour:** one agent working for one hour. Thirteen agents in parallel for an hour make thirteen agent-hours.
+- **API list price:** what the tokens would cost when bought per token from the vendor's price list. A subscription costs a different amount.
+- **Attended step:** a step that needs the maintainer at the Mac, such as running a VM test or setting up the host.
+- **Fuzz target:** a test that passes random and malformed input to a parser, looking for crashes.
+- **Line survival:** the share of the lines added in a week that are still there today.
 - **METR method:** count the 10-minute windows that hold at least one human prompt, once across parallel sessions.
-- **Line survival:** the share of lines added in a week that are still there today. The rest were rewritten or removed.
+- **P50, P85, P95:** the dates by which 50%, 85% and 95% of the simulated runs finish.
+- **Spike:** a small experiment that answers one design question, with a written result.
+- **Token:** the unit that language models read and write, and are billed by.
+- **VM lane:** the work that needs a running macOS VM. One builder at a time does it, so it runs in series.
+- **Work unit:** the size of one finished package issue from V1-M2-walking-skeleton or V1-M3-network-floor, about 2,700 changed lines at the median. A small issue counts 0.3.
 
 </details>
