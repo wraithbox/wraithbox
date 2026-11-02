@@ -16,8 +16,9 @@ product.
   before, at half, or not at all. B543-project-metrics sets out the
   figures of R09-v1-progress-and-quality for that decision and doesn't
   recommend an option. Separately, whether to repeat the measurement
-  at each milestone close, as I544 proposes. It should, with the
-  conditions below.
+  at each milestone close, as I544 proposes. The spike's answer is that
+  the measurement should be repeated, with the conditions below, which
+  B543-project-metrics also lists.
 - **You are approving:** the answer and these conditions:
   - totals of AI cost come from Claude Code's `cost-state` records,
     because the transcripts miss about 30% of the calls;

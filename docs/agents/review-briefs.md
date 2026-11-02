@@ -171,6 +171,10 @@ colors, so one drawing works in both themes:
 | `edge` + marker path `arrow` | a flow |
 | `edge-bad` + marker path `arrow-bad` | a flow the design must stop |
 | `label` / `note` | text / secondary text |
+| `bar` / `bar-past` | a measured value / a value already spent, next to a forecast |
+| `bar-soft` + `whisker` | the uncertain part of a range / its outer end |
+| `track` | the full scale behind a bar |
+| `axis` / `grid` | an axis or marker line / a guide line |
 
 Rules:
 
