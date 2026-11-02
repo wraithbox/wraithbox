@@ -20,7 +20,7 @@ SEC06-repo-writes where its findings touch them.
   114 items. `wb` runs 6 of its 22 commands, `wb claude` isn't one of
   them, and `wb-netd` and `wb-proxyd` are stubs.
 - **Effort so far.** The maintainer spent an estimated 59 to 63 hours,
-  with a range of 27 to 117 hours, on 25 of 31 days. That is about 2.5
+  with a range of 27 to 117 hours, on 25 of 30 days. That is about 2.5
   hours per active day, mostly in evenings and at weekends. The agents
   ran 182 agent-hours in 705 subagents. They used $3,294 of tokens at
   API list prices: $16 per merged pull request, or $132 per active day.
@@ -35,7 +35,8 @@ SEC06-repo-writes where its findings touch them.
   with real risk. No exit criterion measures use, and some of
   Wraith Box's own design choices change the daily work loop a lot.
   These choices are deliberate. One of them, the empty GraphQL
-  allowlist, breaks `gh pr create` and is cheap to revisit.
+  allowlist, breaks `gh pr create` and is cheap to revisit, as a
+  change to the built-in profile.
 
 ## Method
 
@@ -61,13 +62,15 @@ Choices behind the numbers:
   counts it about twice. The transcripts still miss about 30% of the
   cost that Claude Code's own `cost-state` records show, probably the
   side calls it doesn't log (classifier, web tools, compaction, titles).
-  So totals use `cost-state` ($3,294), and breakdowns use the
+  Sessions without subagents or web tools match `cost-state` within
+  3%. So totals use `cost-state` ($3,294), and breakdowns use the
   transcripts scaled by 1.43.
 - **Cost** is API list price (the pricing page, fetched 2026-11-02),
   not what the maintainer paid on a subscription.
 - **Human effort** isn't recorded anywhere, and agents commit and post
-  as the maintainer's GitHub login. Only 4 commits and 12 comments lack
-  the `Assisted-by` trailer. The note infers human effort from the
+  as the maintainer's GitHub login. 13 commits lack the `Assisted-by`
+  trailer: 5 from Dependabot and 8 others, 4 of them hand edits. So do
+  12 comments. The note infers human effort from the
   transcripts ("Human effort").
 - **Privacy.** The transcripts and cached GitHub responses stay on the
   maintainer's disk. This note publishes weekly totals and summaries by
@@ -132,13 +135,15 @@ numbers only where the setting is close.
 Issue counts mislead here: M1 was 67 small spike and decision issues.
 Agent E sized the remaining work in units of one closed M2 or M3
 package issue (about 2,700 changed lines at the median, about 1,400 of
-them source). An unfiled plan package counts as 2.6 units, the M2 and
-M3 average.
+them source). An unfiled plan package counts as 1 to 2.6 units by
+kind: 1 for the VM part of a package, 1.5 for a VM package, 2 for a
+package of logic, and 2.6, the M2 and M3 average, for the rest.
 
 - **Built in the build phase** (2026-10-16 to 11-01): 55 units, from
   43 package issues, 1 spike and 36 small issues.
-- **Remaining:** 143 units in 114 items, 78 open issues and 39
-  unfiled packages. 35 units are on the VM lane, which runs one item
+- **Remaining:** 143 units in 114 items: 76 with an issue, 36
+  unfiled packages, and the H4 and H5 host setups. The 78 open issues
+  map onto those items, and 13 of them fold into unfiled packages. 35 units are on the VM lane, which runs one item
   at a time, and 107 units run in parallel beside it.
 
 So the implementation is about 28% done, by work units. The parts a
@@ -196,13 +201,19 @@ The transcripts give an estimate by each of these methods:
 
 - **METR's method** counts 10-minute windows with a human prompt:
   **59 hours**.
-- **This note's model** gives a low, mid and high bound per day. Low
-  is prompting sessions at a 5-minute gap. Mid is prompting sessions at
-  a 15-minute gap, or the time to read the agents' output when that's
-  longer, plus half the thinking gaps and 10 minutes per decision.
-  High uses a 30-minute gap, all of the gaps, and 20 minutes per
-  decision. Prompts during weekday working hours count half at low and
-  mid. The result is **27 / 63 / 117 hours**.
+- **This note's model** gives a low, mid and high bound per day:
+  - low: prompting sessions at a 5-minute gap, plus 5 minutes per
+    decision;
+  - mid: prompting sessions at a 15-minute gap, or the time to read
+    the agents' output when that's longer, plus half the thinking gaps
+    and 10 minutes per decision;
+  - high: prompting sessions at a 30-minute gap, or the reading time
+    when that's longer, plus all thinking gaps, half the other gaps of
+    15 to 120 minutes, and 20 minutes per decision.
+
+  Session time on a day shrinks with its share of prompts in weekday
+  working hours: by up to half at low and mid, and up to a quarter at
+  high. The result is **27 / 63 / 117 hours**.
 
 The METR count and the mid estimate agree at about 60 hours, or 2.5 hours per
 active day and 14 hours per week. Neither sees time spent away from the
@@ -216,7 +227,7 @@ both are lower bounds in that sense.
 | Reading | 275,000 words of agent output in interactive sessions |
 | Decisions | 118 `Decision (date):` comments on 95 issues. 43 of 46 briefs are decided or answered |
 | Thinking gaps | 28 pauses of 15 to 120 minutes before a long prompt or after a question, 17 hours in total |
-| Active days | 25 of 31. Every day with agent activity also had a human prompt |
+| Active days | 25 of 30. Every day with agent activity also had a human prompt |
 
 When the maintainer works:
 
@@ -239,8 +250,8 @@ results) and the week of 2026-10-12 (39).
 
 The project also took over the maintainer's public GitHub activity.
 Wraith Box was 19% of the maintainer's contributions in its first week,
-then 65%, 92%, 95% and 74%. Other work dropped from more than 700
-contributions a week to between 8 and 136.
+then 65%, 92%, 95% and 74%. Other work dropped from 738 contributions
+in the first week to between 8 and 194 a week after it.
 
 For each agent-hour the maintainer spent about 20 minutes, a ratio of
 about 3 agent-hours to 1 human hour. Anthropic reports 6 to 1 for its
@@ -253,7 +264,7 @@ measured week is about 14 hours.
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2026-09-28 | 2 | 74 | 10,027 | 658 | 6 | 25 | 30 | 7.3 | 14 | 247 |
 | 2026-10-05 | 5 | 180 | 18,705 | 33 | 49 | 49 | 17 | 12.5 | 46 | 802 |
-| 2026-10-12 | 7 | 223 | 34,377 | 43,608 | 87 | 65 | 39 | 18.7 | 55 | 977 |
+| 2026-10-12 | 7 | 223 | 34,377 | 43,608 | 87 | 65 | 39 | 18.7 | 55 | 976 |
 | 2026-10-19 | 6 | 111 | 2,876 | 29,220 | 21 | 25 | 5 | 9.0 | 24 | 486 |
 | 2026-10-26 | 5 | 208 | 4,180 | 48,988 | 44 | 42 | 27 | 11.7 | 43 | 783 |
 | **Total** | **25** | **796** | **70,165** | **122,507** | **207** | **206** | **118** | **59.2** | **182** | **3,294** |
@@ -297,9 +308,10 @@ At HEAD:
 Agent E built a graph of the remaining work from the issues' `blockedBy`
 links and the plan's order, with the VM lane serial:
 
-- **The dependency chain alone** is 11 items, about 23 days, with 3
-  steps that need the maintainer present: IMG.1 to IMG.5, IMG.7, the
-  C06-model-api conformance run of M4.12, then M6.3, M6.7 and M6.8.
+- **The dependency chain alone** is 11 items, about 23 days: IMG.1 to
+  IMG.5, IMG.7 and its VM part, the C06-model-api conformance run of
+  M4.12, then M6.3, M6.7 and M6.8. IMG.4, the M4.12 run and M6.8 need
+  the maintainer present.
 - **The VM lane binds**: 32 items and 35 units, about 42 busy days.
   With one VM builder and three others, a schedule ends after about 49
   days, with the VM lane busy 87% of that time.
@@ -326,7 +338,8 @@ Methods built separately give close answers:
 | Throughput, by issue units | 53 | 62 | 67 |
 | Throughput, by changed lines | 60 | 71 | 78 |
 | Scheduling, 3 builders | 53 | | |
-| Scheduling, 2 builders, follow-ups ×1.3 | 61 | 84 (P80) | 89 (P90) |
+| Scheduling, 2 builders | 61 | | |
+| Scheduling, 2 builders, follow-ups ×1.3 | | 84 (P80) | 89 (P90) |
 
 Active days become calendar days through the maintainer's attention.
 Weeks are drawn at random from three patterns:
@@ -364,10 +377,12 @@ The simulation leaves out:
 
 ### What finishing will cost
 
-At the build phase's rates, the remaining 143 units, grown by 1.0 to
-1.4, take about **$6,000 to $8,000** of tokens at API list prices.
-They also take about **100 to 145 maintainer hours** at the mid
-estimate, with a range of 45 to 265 hours. The VM lane and the 19
+The build phase (2026-10-16 to 11-01) cost $1,892 of tokens and 28
+maintainer hours at the mid estimate for its 55 units: $34 and 0.51
+hours per unit. At those rates the remaining 143 units, grown by 1.0 to
+1.4, take about **$4,900 to $6,900** of tokens at API list prices, and
+about **73 to 102 maintainer hours** at the mid estimate, with a range
+of 33 to 210 hours. The VM lane and the 19
 attended steps need more of the maintainer per unit than the build
 phase did, so expect the upper half.
 
@@ -400,10 +415,10 @@ phase did, so expect the upper half.
 | Spec alignment | Requirement IDs cited in code or tests | SEC 12 of 15, NFR 3 of 8, FR 2 of 17, test case pages 9 of 12 | Traceability goes with fewer defects (Rempel and Mäder, 2017) | SEC06-repo-writes and SEC07-dep-gate aren't built yet. FR IDs are cited by milestones, not code |
 | Spec alignment | Plan drift | stale status, package sizes off by 3 to 5 times, stale dependency edges, one missing package | | The specs are current. The plan isn't |
 | Dependencies | Freshness and count | 10 direct Go modules at 0.24 libyears (4.25 with indirect), 22 Swift pins, 8 bun packages | `mise run vuln` is clean | Small and current |
-| Rework | Line survival | 95 to 96% of the code and test lines added each build week are still at HEAD | GitClear: 5.7% two-week churn across the industry (vendor) | Comparable, and early |
+| Rework | Line survival | 95 to 97% of the code and test lines added each build week are still at HEAD | GitClear: 5.7% two-week churn across the industry (vendor) | Comparable, and early |
 | Rework | Reverts, fixes | 0 reverts, 128 fix and 106 feat commits | | Fixes outnumber features |
 | Rework | Follow-up inflow | 45 of 93 issues added to V1 since 2026-10-16 are bugs or follow-ups, arriving at about half the closing rate | Agent pull requests get a follow-up fix 1.62 times as often as human ones (`2609.26847`) | Expected |
-| Review | Rounds and verdicts | 2 rounds at the median, 3 at the cap, 3 pull requests ran out of rounds. Out of 462 verdicts, 236 approved and about 215 asked for changes | | Reviews find things. Builders don't pass review on their first try |
+| Review | Rounds and verdicts | 2 rounds at the median for package issues (1 across all issues), and 6 issues reached the cap of 3. Out of 462 verdicts, 236 approved and about 215 asked for changes | | Reviews find things. Builders don't pass review on their first try |
 | CI | Failure and flaky rates | failures 3.6 to 14% a week (31% in week 1, during setup). flaky runs at least 0 to 2.5% a week, then 7.4% in the week of 2026-10-26 | Google: 1.5% of test runs flaky | The last week needs a look |
 | Fitness | What a user can do | 6 of 22 commands, no prompt in a guest yet | | Not testable yet |
 
@@ -435,8 +450,10 @@ where noted:
   - `gh pr create` and `gh issue comment` use GraphQL mutations, so the
     way this project itself is built can't run inside `wb claude` in V1.
   - The coordinator checked this in the spec and the issue.
-  - It's a choice of allowlist entries, not of design, so it's cheap to
-    revisit.
+  - It's a choice of entries in the built-in profile, not of design,
+    so it's cheap to revisit. A user rule on that endpoint is a load
+    error (S09-02-precedence). The change belongs in the built-in
+    list.
 - **Approvals during normal work.**
   - A name not yet allowed is held for 4 seconds at DNS and then
     refused. The first try fails.
@@ -530,8 +547,9 @@ agents. X32-project-metrics reports whether to repeat them.
 - **Fitness for use is judgment.** No VM was run for this note.
 - **Outside numbers.** Most quality evidence on AI-written code comes
   from vendors, and the churn studies disagree. Agent A marked figures
-  it took from search summaries. This note uses only those whose source
-  it read.
+  it took from search summaries, not the source. This note uses five
+  of them as context only: Chen and Stratton, the ASOS back-test,
+  Magennis's rule, Rempel and Mäder, and the ISO/IEC 25010 term.
 
 ## Recommendations
 

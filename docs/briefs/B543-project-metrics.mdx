@@ -101,8 +101,8 @@ Confidence in A: medium. A second run will show whether the forecast narrows and
 
 | Claim | Source | |
 |---|---|---|
-| Each agent took 6 to 13 minutes, about 0.86 M tokens in total | The coordinator's task records, X32-project-metrics | <Badge text="verified" variant="success" /> |
-| The transcripts miss about 30% of the cost, and `cost-state` has the total | $2,297 against $3,294, sessions without subagents match within 3% (R09-v1-progress-and-quality, "Method") | <Badge text="verified" variant="success" /> |
+| Each agent took 6 to 13 minutes, about 0.86 M tokens in total | `results/wave1-cost.md` on the spike branch, from the coordinator's task records | <Badge text="verified" variant="success" /> |
+| The transcripts miss about 30% of the cost, and `cost-state` has the total | $2,297 against $3,294. Sessions without subagents or web tools match within 3% (R09-v1-progress-and-quality, "Method", and `results/c-SUMMARY.md`) | <Badge text="verified" variant="success" /> |
 | Forecasts built separately agree on P50 at 53 to 60 active days | The throughput simulation and agent E's schedule (R09-v1-progress-and-quality, "Forecast") | <Badge text="verified" variant="success" /> |
 | `gh pr create` is refused in the guest in V1 | S07-11-http-policy, "git hosting", and I502, which starts the allowlist empty | <Badge text="verified" variant="success" /> |
 | Human effort was about 60 hours over 25 active days | The METR count and the mid estimate, on the same transcripts. No ground truth | <Badge text="inferred" variant="note" /> |

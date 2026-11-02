@@ -62,7 +62,7 @@ report turned up several findings that no other check had flagged:
 |---|---|---|
 | Commits, lines, structure, line survival | yes, from `git log`, `git ls-tree` and `git blame` | moves across files count as new lines |
 | Issues, pull requests, reviews, CI | yes, from GitHub REST and GraphQL | the review `must-fix` count is a heuristic |
-| Who did what on GitHub | partly | one login for agents and maintainer, so only the trailer separates them (4 commits and 12 comments without it) |
+| Who did what on GitHub | partly | one login for agents and maintainer, so only the trailer separates them (13 commits, 8 not from Dependabot, and 12 comments without it) |
 | AI tokens and cost | yes, deduplicated by message ID | the transcripts miss about 30% of the cost. `cost-state` has the total, for main sessions only |
 | Agent time and concurrency | yes, from event timestamps | a long tool call looks idle |
 | Human time | as a model: METR's 10-minute windows gave 59 h, and this spike's model gave 27, 63 and 117 h as low, mid and high | no ground truth. Time away from the keyboard is invisible |
@@ -83,8 +83,9 @@ Things that went wrong and would go wrong again without I544:
 - **Lanes.** A lane test matched `nonvm` as `vm`.
 
 The spike code is on
-[`spike/x32-project-metrics`](https://github.com/wraithbox/wraithbox/tree/73a3cf4e8b9496e1e209a843acdbe10ac9b9ee31/spikes/x32-project-metrics),
-with each agent's summary and the aggregate outputs under `results/`.
+[`spike/x32-project-metrics`](https://github.com/wraithbox/wraithbox/tree/d250e4a005feb9c4c94b4bb5830dc5ee40c2ed3f/spikes/x32-project-metrics),
+with each agent's summary, the aggregate outputs and the agents' cost
+(`results/wave1-cost.md`) under `results/`.
 
 ## What it means for the specs
 
