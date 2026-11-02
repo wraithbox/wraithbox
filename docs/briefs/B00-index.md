@@ -64,6 +64,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B228-data-disk-followup | Does the host-made data volume stay unencrypted and give freed space back? | Answered 2026-10-26: yes, and yes with conditions. Decided 2026-10-26: A, keep `nobrowse` |
 | B248-dev-signing | Can development builds signed by the developer's own team share Keychain items across an update? | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15: A |
 | B419-admin-path | How does the person at the host's terminal get root in their own guest, apart from every agent path? | Awaiting decision |
+| B543-project-metrics | Should the project measure its progress, effort and quality at each milestone? | Answered 2026-11-02. Awaiting decision |
 
 ## Order to decide
 

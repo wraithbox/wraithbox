@@ -46,6 +46,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/sp
 | X29-dev-signing | Keychain access group for development builds | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15 (I248): no Keychain backend for a build without a team signature |
 | X30-installer-trust | Installer refusal of a changed restore image | Open |
 | X31-admin-channel | A root shell from a second guest daemon | Open |
+| X32-project-metrics | Measuring V1 progress, effort and quality | Answered 2026-11-02: yes, with conditions. Repeat it at each milestone close through I544, using `cost-state` for cost and a time log to calibrate the human model |
 
 ## Spikes
 
@@ -350,3 +351,10 @@ assumption that v1 work would otherwise build on. They block v1.
   S15-05-admin-path relies on it (SEC08-proj-isolation,
   SEC11-root-gains-nothing). Found while drafting B419-admin-path.
   Needs a VM. Tracked in I448.
+- **X32-project-metrics: Measuring V1 progress, effort and quality.**
+  Can progress toward V1, human and AI effort, velocity and quality be
+  measured again and again from git, GitHub and Claude Code
+  transcripts, at a cost the project can pay each release or month? What do
+  they say now? Asked by the maintainer. The report is
+  R09-v1-progress-and-quality, and I544 makes it repeatable. Tracked
+  in I543.
