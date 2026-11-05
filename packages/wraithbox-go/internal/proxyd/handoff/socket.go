@@ -61,11 +61,21 @@ func newSocket(r *Receiver, st *vmState, gen uint64, ch Conn) *socket {
 	}
 }
 
-// run starts the socket's reader and decider.
-func (s *socket) run() {
+// run starts the socket's reader and decider. It counts them under the
+// receiver's lock, so Close can't wait on the group while they are
+// added, and it starts nothing on a socket or receiver that already
+// closed. It returns false then.
+func (s *socket) run() bool {
+	s.r.mu.Lock()
+	if s.r.closed || s.closed {
+		s.r.mu.Unlock()
+		return false
+	}
 	s.r.wg.Add(2)
+	s.r.mu.Unlock()
 	go s.read()
 	go s.decide()
+	return true
 }
 
 // read reads messages into the queue until a read fails or the socket
@@ -75,13 +85,11 @@ func (s *socket) run() {
 func (s *socket) read() {
 	defer s.r.wg.Done()
 	defer close(s.readerDone)
+	var dropped *fdchan.Refusal
 	for {
 		m, err := s.ch.Recv()
-		if ref, ok := errors.AsType[*fdchan.Refusal](err); ok && ref.Rule == fdchan.RuleFDTableFull {
-			// fdchan dropped the message and closed what arrived with it.
-			// It says nothing of wb-netd, so the socket carries on.
-			s.r.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off message dropped",
-				slog.String("rule", string(ref.Rule)), slog.String("vm", s.vm.slot), slog.Uint64("generation", s.gen))
+		if ref := s.droppedMessage(err, dropped); ref != nil {
+			dropped = ref
 			continue
 		}
 		select {
@@ -142,6 +150,28 @@ func (s *socket) drain() {
 	}
 }
 
+// droppedMessage returns the refusal when err is fdchan dropping one
+// message because the descriptor table was full, and nil otherwise. fdchan closed what arrived
+// with it, and it says nothing of wb-netd, so the socket carries on.
+// When fdchan couldn't drop the message it ended the channel, and
+// every later Recv returns the same refusal again. A refusal that comes
+// twice is that end, and so is one after the socket closed: the read
+// then ends, so the reader never spins.
+func (s *socket) droppedMessage(err error, prev *fdchan.Refusal) *fdchan.Refusal {
+	ref, ok := errors.AsType[*fdchan.Refusal](err)
+	if !ok || ref.Rule != fdchan.RuleFDTableFull || ref == prev {
+		return nil
+	}
+	select {
+	case <-s.done:
+		return nil
+	default:
+	}
+	s.r.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off message dropped",
+		slog.String("rule", string(ref.Rule)), slog.String("vm", s.vm.slot), slog.Uint64("generation", s.gen))
+	return ref
+}
+
 // handle decides one item, and returns false when the socket must
 // close.
 func (s *socket) handle(it item, first bool) bool {
@@ -170,10 +200,11 @@ func (s *socket) handle(it item, first bool) bool {
 }
 
 // readFailed handles the error that ended the reads. An fdchan refusal
-// is a malformed message (S07-05-stream-hand-off, "Message form").
-// End of file, or any other error, ends the socket.
+// is a malformed message (S07-05-stream-hand-off, "Message form"),
+// except a full descriptor table, which is this process's. End of file,
+// or any other error, ends the socket.
 func (s *socket) readFailed(err error) bool {
-	if ref, ok := errors.AsType[*fdchan.Refusal](err); ok {
+	if ref, ok := errors.AsType[*fdchan.Refusal](err); ok && ref.Rule != fdchan.RuleFDTableFull {
 		s.malformed(egressmsg.CheckMessageForm, egressmsg.CheckMessageForm, slog.String("fdchan_rule", string(ref.Rule)))
 		return false
 	}
@@ -459,7 +490,7 @@ func (s *socket) close() {
 }
 
 // canonicalNames checks names as egressmsg does and returns them.
-func canonicalNames(list []string) ([]dnsname.Name, error) {
+func canonicalNames(list []string) ([]dnsname.Name, *egressmsg.Refusal) {
 	out := make([]dnsname.Name, 0, len(list))
 	for _, n := range list {
 		name, ref := egressmsg.Name("wildcard_names.names", n)

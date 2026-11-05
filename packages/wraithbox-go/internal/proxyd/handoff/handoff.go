@@ -210,7 +210,7 @@ type Config struct {
 	// version record on each hand-off socket and expects from wb-netd.
 	// Empty means version.Build().
 	Version string
-	// Caps are the caps per socket. The zero Caps means DefaultCaps.
+	// Caps are the caps per socket. A zero cap takes its DefaultCaps value.
 	Caps Caps
 	// Handler takes each accepted stream.
 	Handler StreamHandler
@@ -230,8 +230,12 @@ func (c *Config) withDefaults() (Config, error) {
 	if out.Version == "" {
 		out.Version = version.Build()
 	}
-	if out.Caps == (Caps{}) {
-		out.Caps = DefaultCaps()
+	def := DefaultCaps()
+	if out.Caps.Streams == 0 {
+		out.Caps.Streams = def.Streams
+	}
+	if out.Caps.Pending == 0 {
+		out.Caps.Pending = def.Pending
 	}
 	if err := out.Caps.Validate(); err != nil {
 		return Config{}, err

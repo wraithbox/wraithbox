@@ -107,7 +107,7 @@ func TestNewReceiverConfig(t *testing.T) {
 	}{
 		{"no handler", Config{Wildcard: nopWildcard{}}},
 		{"no wildcard recorder", Config{Handler: nopHandler{}}},
-		{"a stream cap of 0", Config{Handler: nopHandler{}, Wildcard: nopWildcard{}, Caps: Caps{Streams: 0, Pending: 1}}},
+		{"a stream cap below 0", Config{Handler: nopHandler{}, Wildcard: nopWildcard{}, Caps: Caps{Streams: -1, Pending: 1}}},
 		{"a pending cap below 0", Config{Handler: nopHandler{}, Wildcard: nopWildcard{}, Caps: Caps{Streams: 1, Pending: -1}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
