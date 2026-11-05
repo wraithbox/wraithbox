@@ -234,6 +234,6 @@ func checkControlSends(t *testing.T, c *fakeConn, tg *countTargets) {
 	tg.mu.Lock()
 	defer tg.mu.Unlock()
 	if tg.applied != len(sent)-1 || tg.replaced != 0 {
-		t.Fatalf("control: %d policies applied, %d acks, %d sockets taken", tg.applied, len(sent)-1, tg.replaced)
+		t.Fatalf("control: %d policies applied, %d acknowledgments, %d sockets taken", tg.applied, len(sent)-1, tg.replaced)
 	}
 }
