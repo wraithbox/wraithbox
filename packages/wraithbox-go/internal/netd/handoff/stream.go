@@ -145,14 +145,28 @@ func fileConn(f *os.File) (halfCloser, error) {
 
 // toProxyd copies the guest's bytes to wb-proxyd. At the guest's FIN it
 // sends wb-proxyd a FIN. When the guest resets or the read fails, it
-// closes our end (S07-05-stream-hand-off, "Streams").
+// closes our end (S07-05-stream-hand-off, "Streams"). When a write to
+// wb-proxyd fails it stops and leaves our end open, so the rest of
+// wb-proxyd's bytes still reaches the guest, and toGuest ends the
+// stream.
 func (st *stream) toProxyd() {
-	_, err := io.CopyBuffer(st.ours, onlyReader{st.guest}, make([]byte, copyBuffer))
-	if err == nil {
-		_ = st.ours.CloseWrite()
-		return
+	buf := make([]byte, copyBuffer)
+	for {
+		n, err := st.guest.Read(buf)
+		if n > 0 {
+			if _, werr := st.ours.Write(buf[:n]); werr != nil {
+				return
+			}
+		}
+		switch {
+		case errors.Is(err, io.EOF):
+			_ = st.ours.CloseWrite()
+			return
+		case err != nil:
+			_ = st.ours.Close()
+			return
+		}
 	}
-	_ = st.ours.Close()
 }
 
 // toGuest copies wb-proxyd's bytes to the guest, each write within
@@ -175,15 +189,30 @@ func (st *stream) toGuest(sock *socket) {
 			st.reset()
 			return
 		}
-		sock.drain()
-		if st.resetByProxyd.Load() {
-			sock.s.rec.Record(netd.Reset, netd.RuleStreamReset,
-				append(st.flow.LogAttrs(), slog.Uint64("stream_id", st.id))...)
-			st.reset()
-			return
-		}
-		_ = st.guest.CloseWrite()
+		st.end(sock)
 		return
+	}
+}
+
+// end ends the stream at end of file from wb-proxyd, once every message
+// queued on the hand-off socket was read. A StreamReset that named the
+// stream, or a hand-off socket that ended, gives the guest an RST:
+// wb-proxyd closes the hand-off socket before a stream's socket so that
+// wb-netd resets it (S07-05-stream-hand-off, "Resets"). Otherwise the
+// guest gets a FIN.
+func (st *stream) end(sock *socket) {
+	sock.drain()
+	switch {
+	case st.resetByProxyd.Load():
+		sock.s.rec.Record(netd.Reset, netd.RuleStreamReset,
+			append(st.flow.LogAttrs(), slog.Uint64("stream_id", st.id))...)
+		st.reset()
+	case sock.isEnded():
+		// The socket's end reset the stream and logged
+		// handoff-socket-ended. reset runs once.
+		st.reset()
+	default:
+		_ = st.guest.CloseWrite()
 	}
 }
 
@@ -195,7 +224,3 @@ func (st *stream) writeGuest(b []byte) bool {
 	_, err := st.guest.Write(b)
 	return err == nil
 }
-
-// onlyReader hides every method but Read, so io.CopyBuffer uses its
-// buffer and not a ReaderFrom or WriterTo of the connection.
-type onlyReader struct{ io.Reader }

@@ -178,6 +178,16 @@ func CheckRecord(log *slog.Logger, own string, rec []byte) (string, error) {
 	return peer, nil
 }
 
+// RecordTimeout returns the refusal of a datagram channel whose first
+// record didn't come before the reader's deadline, err the read's
+// error, and logs it as CheckRecord logs its refusals, with the rule
+// peer-version-timeout. The caller closes the channel.
+func RecordTimeout(log *slog.Logger, own string, err error) error {
+	r := &Refusal{Rule: RuleTimeout, own: own, msg: "no version record before the deadline", err: err}
+	logRefusal(context.Background(), log, r)
+	return r
+}
+
 func checkRecord(own string, rec []byte) (string, *Refusal) {
 	if len(rec) > MaxRecordLen {
 		return "", &Refusal{Rule: RuleMalformed, msg: fmt.Sprintf("the datagram is %d bytes, over %d", len(rec), MaxRecordLen)}

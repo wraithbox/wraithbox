@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"syscall"
+	"time"
 
 	egressv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1"
 	policyv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/policy/v1"
@@ -49,6 +51,9 @@ type ControlConfig struct {
 	// NewHandoffConn makes a hand-off socket of a descriptor, and closes
 	// the descriptor. Nil is fdchan.New with egressmsg.MaxRecord.
 	NewHandoffConn func(f *os.File) (handoff.Conn, error)
+	// VersionTimeout bounds the wait for wb-hostd's version record.
+	// Zero is hostversion.Timeout.
+	VersionTimeout time.Duration
 }
 
 // Kept is what NetdStart gives a new wb-netd: its VM and generation, the
@@ -88,6 +93,9 @@ func NewControl(cfg ControlConfig) (*Control, error) {
 	if cfg.SocketType == nil {
 		cfg.SocketType = fdchan.SocketType
 	}
+	if cfg.VersionTimeout == 0 {
+		cfg.VersionTimeout = hostversion.Timeout
+	}
 	if cfg.NewHandoffConn == nil {
 		cfg.NewHandoffConn = func(f *os.File) (handoff.Conn, error) {
 			return fdchan.New(f, egressmsg.MaxRecord)
@@ -99,25 +107,21 @@ func NewControl(cfg ControlConfig) (*Control, error) {
 // Recorder returns the control channel's recorder, for its counts.
 func (c *Control) Recorder() *netd.Recorder { return c.rec }
 
-// Start exchanges version records, then reads NetdStart and its payload
-// and returns what it kept. An error ends the channel.
+// Start exchanges version records, wb-hostd's within the version
+// timeout, then reads NetdStart and its payload and returns what it
+// kept. An error ends the channel.
 func (c *Control) Start() (Kept, error) {
 	if err := c.cfg.Conn.Send(hostversion.Record(c.cfg.Own), nil); err != nil {
 		return Kept{}, c.fail("send-version-record", err)
 	}
-	m, err := c.cfg.Conn.Recv()
+	check, err := versionRecord(c.cfg.Conn, c.cfg.Log, c.cfg.Own, c.cfg.VersionTimeout)
+	if errors.Is(err, io.EOF) {
+		return Kept{}, c.ended(context.Background(), err)
+	}
 	if err != nil {
-		return Kept{}, c.fail("recv", err)
+		return Kept{}, c.fail(check, err)
 	}
-	hasFD := m.File != nil
-	_ = m.Close()
-	if hasFD {
-		return Kept{}, c.fail("version-record", errors.New("the version record carries a descriptor"))
-	}
-	if _, err := hostversion.CheckRecord(c.cfg.Log, c.cfg.Own, m.Record); err != nil {
-		return Kept{}, c.fail("version-record", err)
-	}
-	msg, file, err := c.next()
+	msg, file, err := c.next(context.Background())
 	if err != nil {
 		return Kept{}, err
 	}
@@ -164,7 +168,7 @@ func (c *Control) Serve(ctx context.Context) error {
 	defer stop()
 	defer func() { _ = c.cfg.Conn.Close() }()
 	for {
-		msg, file, err := c.next()
+		msg, file, err := c.next(ctx)
 		if err != nil {
 			return err
 		}
@@ -182,15 +186,16 @@ func (c *Control) Serve(ctx context.Context) error {
 }
 
 // next reads and checks the next control message. Every kind carries
-// one descriptor, which the caller closes.
-func (c *Control) next() (*egressv1.HostdToNetd, *os.File, error) {
+// one descriptor, which the caller closes. A read that fails because
+// wb-hostd closed the channel, or ctx ended, isn't a refusal.
+func (c *Control) next(ctx context.Context) (*egressv1.HostdToNetd, *os.File, error) {
 	m, err := c.cfg.Conn.Recv()
+	if refusal, ok := errors.AsType[*fdchan.Refusal](err); ok {
+		// fdchan logged it and closed its descriptors.
+		return nil, nil, c.fail(string(refusal.Rule), err)
+	}
 	if err != nil {
-		if refusal, ok := errors.AsType[*fdchan.Refusal](err); ok {
-			// fdchan logged it and closed its descriptors.
-			return nil, nil, c.fail(string(refusal.Rule), err)
-		}
-		return nil, nil, c.fail("recv", err)
+		return nil, nil, c.ended(ctx, err)
 	}
 	msg, ref := egressmsg.DecodeHostdToNetd(m.Record, m.File != nil)
 	if ref == nil {
@@ -274,6 +279,24 @@ func (c *Control) policyChange(ctx context.Context, m *egressv1.PolicyChange, fi
 		return c.fail("send-policy-ack", err)
 	}
 	return nil
+}
+
+// ended logs a control channel that ended without a refused message:
+// wb-hostd closed it, ctx ended and Serve closed it, or the read failed.
+// It closes the channel and returns the error.
+func (c *Control) ended(ctx context.Context, err error) error {
+	reason := "read failed"
+	switch {
+	case ctx.Err() != nil:
+		reason = "stopped"
+		err = context.Cause(ctx)
+	case errors.Is(err, io.EOF):
+		reason = "wb-hostd closed the control channel"
+	}
+	_ = c.cfg.Conn.Close()
+	c.cfg.Log.LogAttrs(context.Background(), slog.LevelWarn, "netd control channel ended",
+		slog.String("reason", reason), slog.String("error", err.Error()))
+	return fmt.Errorf("hostlink: control channel: %s: %w", reason, err)
 }
 
 // fail logs why the control channel ends, with the rule

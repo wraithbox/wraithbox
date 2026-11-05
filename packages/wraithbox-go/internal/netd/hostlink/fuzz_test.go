@@ -197,7 +197,7 @@ func FuzzNetdControl(f *testing.F) {
 		onlyVersion(t, "hand-off socket", hs)
 
 		ac := newFakeConn(frames(t, control))
-		a, err := hostlink.NewAccounting(ac, nt.Own, log)
+		a, err := hostlink.NewAccounting(hostlink.AccountingConfig{Conn: ac, Own: nt.Own, Log: log})
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -64,7 +64,9 @@ func (k *socket) cause() error {
 }
 
 // end closes the socket and resets every stream of it
-// (S07-05-stream-hand-off, "Resets"). Only the first call does anything.
+// (S07-05-stream-hand-off, "Resets"). It resets the streams before it
+// answers the drain requests, so a stream whose drain returns sees its
+// reset. Only the first call does anything.
 func (k *socket) end(why error) {
 	k.endOnce.Do(func() {
 		k.mu.Lock()
@@ -77,16 +79,33 @@ func (k *socket) end(why error) {
 		k.mu.Unlock()
 		close(k.done)
 		_ = k.conn.Close()
-		for _, ch := range drains {
-			close(ch)
-		}
 		for _, st := range streams {
 			st.reset()
+		}
+		for _, ch := range drains {
+			close(ch)
 		}
 		k.s.rec.Note(netd.RuleHandoffSocketEnded,
 			slog.Uint64("generation", k.generation), slog.Int("streams_reset", len(streams)),
 			slog.String("reason", why.Error()))
 	})
+}
+
+// isEnded reports whether the socket ended.
+func (k *socket) isEnded() bool {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return k.ended
+}
+
+// isReady reports whether wb-proxyd's version record passed.
+func (k *socket) isReady() bool {
+	select {
+	case <-k.ready:
+		return true
+	default:
+		return false
+	}
 }
 
 // add registers an open stream. It fails when the socket ended.
@@ -128,11 +147,19 @@ func (k *socket) drain() {
 }
 
 // read reads wb-proxyd's messages until the socket ends: the version
-// record first, then StreamReset messages. It is the only reader of the
-// socket.
+// record first, within the Sender's version timeout, then StreamReset
+// messages. It is the only reader of the socket.
 func (k *socket) read() {
+	// version clears the deadline once the record passed. Until then no
+	// stream exists, so no drain sets it (S04-architecture, "The version
+	// record").
+	_ = k.conn.SetReadDeadline(time.Now().Add(k.s.versionTimeout))
 	for {
 		m, err := k.conn.Recv()
+		if errors.Is(err, os.ErrDeadlineExceeded) && !k.isReady() {
+			k.refuse(hostversion.RuleTimeout, hostversion.RecordTimeout(k.s.log, k.s.own, err))
+			return
+		}
 		if errors.Is(err, os.ErrDeadlineExceeded) {
 			if !k.serveDrains() {
 				return
@@ -208,6 +235,10 @@ func (k *socket) version(m *fdchan.Message) bool {
 	}
 	if _, err := hostversion.CheckRecord(k.s.log, k.s.own, m.Record); err != nil {
 		k.refuse("version-record", err)
+		return false
+	}
+	if err := k.conn.SetReadDeadline(time.Time{}); err != nil {
+		k.end(fmt.Errorf("clear the version deadline: %w", err))
 		return false
 	}
 	k.readyOnce.Do(func() { close(k.ready) })
