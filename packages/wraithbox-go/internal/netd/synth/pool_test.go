@@ -414,7 +414,7 @@ func TestDecideStream(t *testing.T) {
 	}
 	ours, theirs := net.Pipe()
 	defer func() { _ = theirs.Close() }()
-	d.Sink.ServeStream(ours, flow(a, 443))
+	d.Sink.ServeStream(nt.PipeConn{Conn: ours}, flow(a, 443))
 	s := <-f.handOff
 	if s.Flow.Name != nt.Name("api.example.com") || s.Flow.Dest != netip.AddrPortFrom(a, 443) {
 		t.Fatalf("handed %+v", s.Flow)
@@ -464,7 +464,7 @@ func TestServeStreamRechecks(t *testing.T) {
 			d := f.p.DecideStream(fl)
 			c.change(f)
 			ours, theirs := net.Pipe()
-			d.Sink.ServeStream(ours, fl)
+			d.Sink.ServeStream(nt.PipeConn{Conn: ours}, fl)
 			if _, err := theirs.Read(make([]byte, 1)); err == nil {
 				t.Fatal("the connection is open")
 			}

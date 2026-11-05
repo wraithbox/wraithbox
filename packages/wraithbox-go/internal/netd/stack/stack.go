@@ -387,7 +387,7 @@ func (s *Stack) accept(req *tcp.ForwarderRequest) {
 	req.Complete(false)
 	p := s.newPlace()
 	s.releaseWhenClosed(ep, &wq, p)
-	c := s.track(&conn{Conn: gonet.NewTCPConn(&wq, ep), s: s, ep: ep, flow: f, place: p})
+	c := s.track(&conn{TCPConn: gonet.NewTCPConn(&wq, ep), s: s, ep: ep, flow: f, place: p})
 	if c == nil {
 		return
 	}
@@ -402,14 +402,15 @@ func (s *Stack) refuse(req *tcp.ForwarderRequest, rule netd.Rule, f netd.Flow) {
 // decide asks the hook for a flow route let through. It returns the
 // function that serves the connection, or nil and the rule that refuses
 // it. A stream decision is an accept only with a sink and no rule.
-func (s *Stack) decide(f netd.Flow) (func(net.Conn, netd.Flow), netd.Rule) {
+func (s *Stack) decide(f netd.Flow) (func(*conn, netd.Flow), netd.Rule) {
 	if f.Dest.Addr() == s.cfg.Gateway {
-		return s.hooks.DNSOverTCP.ServeDNSOverTCP, ""
+		dns := s.hooks.DNSOverTCP
+		return func(c *conn, f netd.Flow) { dns.ServeDNSOverTCP(c, f) }, ""
 	}
 	d := s.hooks.Stream.DecideStream(f)
 	switch {
 	case d.Sink != nil && d.Rule == "":
-		return d.Sink.ServeStream, ""
+		return func(c *conn, f netd.Flow) { d.Sink.ServeStream(c, f) }, ""
 	case d.Rule == "":
 		return nil, netd.RuleStreamRefused
 	default:
@@ -532,9 +533,10 @@ func (s *Stack) track(c *conn) *conn {
 	return c
 }
 
-// conn is an accepted connection, the hook's side of it.
+// conn is an accepted connection, the hook's side of it. It is a
+// netd.StreamConn: gonet's CloseWrite sends the guest a FIN.
 type conn struct {
-	net.Conn
+	*gonet.TCPConn
 	s     *Stack
 	ep    tcpip.Endpoint
 	flow  netd.Flow
@@ -547,6 +549,13 @@ func (c *conn) Close() error {
 	var err error
 	c.once.Do(func() { err = c.closeOnce() })
 	return err
+}
+
+// Reset sends the guest an RST and ends the connection at once
+// (S07-05-stream-hand-off, "Streams"). The hook still calls Close, which
+// lets go of the connection's place.
+func (c *conn) Reset() {
+	c.ep.Abort()
 }
 
 // closeOnce bounds how long gVisor may keep the connection now that the
@@ -563,7 +572,7 @@ func (c *conn) closeOnce() error {
 		c.ep.Abort()
 		c.s.rec.Record(netd.Reset, netd.RuleTCPCap, append(c.flow.LogAttrs(), slog.String("error", err.String()))...)
 	}
-	err := c.Conn.Close()
+	err := c.TCPConn.Close()
 	c.s.mu.Lock()
 	delete(c.s.conns, c)
 	c.s.mu.Unlock()

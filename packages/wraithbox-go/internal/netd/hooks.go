@@ -43,6 +43,17 @@ type StreamPolicy interface {
 	DecideStream(f Flow) StreamDecision
 }
 
+// StreamConn is an accepted guest TCP connection a stream hook takes.
+// Beside a net.Conn it half-closes and resets, as the stream hand-off
+// does (S07-05-stream-hand-off, "Streams"). CloseWrite sends the guest a
+// FIN, and the guest can still send. Reset sends the guest an RST at
+// once. The hook still calls Close after either.
+type StreamConn interface {
+	net.Conn
+	CloseWrite() error
+	Reset()
+}
+
 // StreamSink takes an accepted connection: the stream hand-off to
 // wb-proxyd (S07-05-stream-hand-off). ServeStream owns conn and closes
 // it when it is done. The connection keeps its place under
@@ -52,7 +63,7 @@ type StreamPolicy interface {
 // stops acknowledging, with a write deadline or an idle timeout. It is
 // called on its own goroutine.
 type StreamSink interface {
-	ServeStream(conn net.Conn, f Flow)
+	ServeStream(conn StreamConn, f Flow)
 }
 
 // DNSOverTCP serves DNS over TCP on the gateway's port 53 (S07-03-dns).
@@ -142,7 +153,7 @@ type NamedFlow struct {
 // The address stays mapped to the name until conn is closed. It is
 // called on its own goroutine.
 type StreamHandOff interface {
-	HandOffStream(conn net.Conn, f NamedFlow)
+	HandOffStream(conn StreamConn, f NamedFlow)
 }
 
 // NameClass is how the VM's effective policy classes a name for DNS

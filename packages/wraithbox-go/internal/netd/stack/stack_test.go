@@ -70,7 +70,7 @@ func (p policy) DecideStream(f netd.Flow) netd.StreamDecision { return p(f) }
 // sink passes every connection it takes to a channel.
 type sink chan net.Conn
 
-func (s sink) ServeStream(c net.Conn, _ netd.Flow)     { s <- c }
+func (s sink) ServeStream(c netd.StreamConn, _ netd.Flow) { s <- c }
 func (s sink) ServeDNSOverTCP(c net.Conn, _ netd.Flow) { s <- c }
 
 func (s sink) take(t *testing.T) net.Conn {
