@@ -160,7 +160,7 @@ func (p fuzzPorts) PortAllowed(dnsname.Name, uint16) bool { return !p.deny }
 // until the fuzzer closes it.
 type fuzzHandOff struct{ r *fuzzRun }
 
-func (h fuzzHandOff) HandOffStream(conn net.Conn, f netd.NamedFlow) {
+func (h fuzzHandOff) HandOffStream(conn netd.StreamConn, f netd.NamedFlow) {
 	addr, pr := f.Dest.Addr(), h.r.peers
 	if pr.hostd[addr] != f.Name || pr.proxyd[addr] != f.Name {
 		h.r.t.Fatalf("handed %v off for %s, which wb-hostd holds for %q and wb-proxyd for %q", addr, f.Name, pr.hostd[addr], pr.proxyd[addr])
@@ -222,7 +222,7 @@ func (r *fuzzRun) serve(arg byte) {
 	r.decided = append(r.decided[:i], r.decided[i+1:]...)
 	ours, theirs := net.Pipe()
 	defer func() { _ = theirs.Close() }()
-	d.sink.ServeStream(ours, d.flow)
+	d.sink.ServeStream(nt.PipeConn{Conn: ours}, d.flow)
 }
 
 func (r *fuzzRun) answer(arg byte) {

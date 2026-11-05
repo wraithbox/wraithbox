@@ -146,7 +146,7 @@ func (p *Ports) PortAllowed(name dnsname.Name, port uint16) bool {
 
 // Stream is a connection a HandOff took.
 type Stream struct {
-	Conn net.Conn
+	Conn netd.StreamConn
 	Flow netd.NamedFlow
 }
 
@@ -154,7 +154,20 @@ type Stream struct {
 // a channel.
 type HandOff chan Stream
 
-func (h HandOff) HandOffStream(conn net.Conn, f netd.NamedFlow) { h <- Stream{Conn: conn, Flow: f} }
+func (h HandOff) HandOffStream(conn netd.StreamConn, f netd.NamedFlow) {
+	h <- Stream{Conn: conn, Flow: f}
+}
+
+// PipeConn is a netd.StreamConn over a net.Conn without half-close, such
+// as one end of net.Pipe. CloseWrite closes the whole connection, and so
+// does Reset.
+type PipeConn struct{ net.Conn }
+
+// CloseWrite closes the connection: a pipe has no half-close.
+func (c PipeConn) CloseWrite() error { return c.Close() }
+
+// Reset closes the connection.
+func (c PipeConn) Reset() { _ = c.Close() }
 
 // Name is the Name of a host that passes the name form rule. It panics
 // on one that doesn't.

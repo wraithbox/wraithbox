@@ -2,7 +2,6 @@ package synth
 
 import (
 	"log/slog"
-	"net"
 	"sync"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
@@ -49,7 +48,7 @@ type pinSink struct {
 // connection with synthetic-unmapped. When the policy no longer allows
 // the port, it closes it with port-not-allowed. Each close is recorded
 // with its rule (SEC05-default-deny, SEC10-audit).
-func (s *pinSink) ServeStream(conn net.Conn, f netd.Flow) {
+func (s *pinSink) ServeStream(conn netd.StreamConn, f netd.Flow) {
 	name, done, ok := s.p.Open(f.Dest.Addr())
 	rule := netd.Rule("")
 	switch {
@@ -67,7 +66,7 @@ func (s *pinSink) ServeStream(conn net.Conn, f netd.Flow) {
 		s.p.rec.Record(netd.Close, rule, append(f.LogAttrs(), slog.String("name", s.name.String()))...)
 		return
 	}
-	s.p.deps.HandOff.HandOffStream(&pinnedConn{Conn: conn, done: done}, netd.NamedFlow{Flow: f, Name: name})
+	s.p.deps.HandOff.HandOffStream(&pinnedConn{StreamConn: conn, done: done}, netd.NamedFlow{Flow: f, Name: name})
 }
 
 // portAllowed asks the port policy. Without one no port is allowed.
@@ -78,14 +77,14 @@ func (p *Pool) portAllowed(name dnsname.Name, port uint16) bool {
 // pinnedConn is a connection that holds its entry's pin until it is
 // closed.
 type pinnedConn struct {
-	net.Conn
+	netd.StreamConn
 	done func()
 	once sync.Once
 }
 
 // Close closes the connection and ends the pin.
 func (c *pinnedConn) Close() error {
-	err := c.Conn.Close()
+	err := c.StreamConn.Close()
 	c.once.Do(c.done)
 	return err
 }
