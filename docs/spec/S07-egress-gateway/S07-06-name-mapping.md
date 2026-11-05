@@ -37,7 +37,8 @@ Otherwise it drops the report. It logs it with the rule
 #### Malformed reports
 
 A report or release that fails the message form, the name form or the
-synthetic range is malformed. An honest `wb-netd` never sends one,
+synthetic range is malformed, and so is a stream message of the wrong
+form (S07-05-stream-hand-off, "Streams"). An honest `wb-netd` never sends one,
 because `wb-hostd` checks the same entry first. For a malformed
 message, `wb-proxyd` also:
 

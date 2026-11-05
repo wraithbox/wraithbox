@@ -171,8 +171,10 @@ only increases it.
   an image build has no hand-off socket (S07-18-build-network);
 - the generation is older than the one it holds for the VM.
 
-It then closes the message's descriptors. It logs the refusal with the
-rule `handoff-socket-refused` and the check that failed.
+It then closes the message's descriptors and the control channel, as
+`control.proto` says. It logs the refusal with the rule
+`handoff-socket-refused` and the check that failed. A datagram whose
+descriptors the channel refuses gets `control-message-refused`.
 
 A message with the generation it holds is a replacement. That is the
 new socket for the same VM and generation that `wb-hostd` sends at a
@@ -193,9 +195,10 @@ A stream message holds exactly one descriptor, a Unix domain
 - once X14-flow-attribution delivers labels, the guest's label. Its
   field number is kept, and this build refuses a message that sets it.
 
-`wb-proxyd` refuses the stream when:
+A stream message of the wrong form, such as one without its
+descriptor, is malformed (S07-06-name-mapping). `wb-proxyd` refuses
+the stream when:
 
-- the message form is wrong;
 - the descriptor isn't a Unix domain `SOCK_STREAM` socket;
 - the generation isn't the socket's;
 - the copy has no entry for the address;
@@ -203,8 +206,9 @@ A stream message holds exactly one descriptor, a Unix domain
   name, or doesn't allow the port for it;
 - a cap below is reached (`stream-cap`).
 
-It then closes the descriptor. It logs the refusal with the rule
-`stream-handoff-refused` and the check that failed.
+It then sends a `StreamReset` for the stream id and closes the
+descriptor. It logs the refusal with the rule `stream-handoff-refused`
+and the check that failed.
 
 It neither resolves the name upstream nor fetches a binding before
 these checks pass.
@@ -217,10 +221,8 @@ This section serves SEC13-bounded-resources. Per hand-off socket,
 - the streams open from it;
 - the hand-off messages it has read but not yet decided on.
 
-Each cap is configuration with a default.
-
-`wb-proxyd` reads the hand-off sockets of all VMs in turn. So one VM's
-flood doesn't hold up another VM's streams.
+Each cap is configuration with a default. Each hand-off socket has its
+own reader, so one VM's flood doesn't hold up another VM's streams.
 
 ### Only narrows
 
