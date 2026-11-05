@@ -3,6 +3,7 @@ package policyfile
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
@@ -21,7 +22,9 @@ const DefaultWildcardBudget = 256
 // per-VM union of M3.3c replaces it: the built-in profiles and the
 // global policy file in configDir, with no project files, modes, limits
 // or union. wb-hostd sends it to wb-netd and wb-proxyd. A refused
-// global file refuses the start, and the error is a *Refusals.
+// global file refuses the start, with a *Refusals. An effective policy
+// that fails the model's check (policy.Policy.Check) refuses it too,
+// logged with its rule, and the error wraps the *policy.Refusal.
 //
 // The built-in profiles have no rules in package builtin yet (M3.7a),
 // so the endpoints are the global file's. The checks that guard the
@@ -37,6 +40,9 @@ func Static(ctx context.Context, configDir string) (*policy.Policy, error) {
 		p.WildcardBudget = DefaultWildcardBudget
 	}
 	if r := p.Check(); r != nil {
+		slog.Default().LogAttrs(ctx, slog.LevelError, "effective policy refused",
+			slog.String("rule", r.Rule), slog.String("decision", "refuse"),
+			slog.String("file", f.Name), slog.String("key", r.Field), slog.String("reason", r.Error()))
 		return nil, fmt.Errorf("the effective policy from %s is refused: %w", f.Name, r)
 	}
 	return p, nil

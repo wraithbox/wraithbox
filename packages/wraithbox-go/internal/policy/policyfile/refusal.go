@@ -86,6 +86,9 @@ const (
 	// RuleFileUnreadable: the file exists but isn't a regular file or
 	// can't be read.
 	RuleFileUnreadable = "policy-file-unreadable"
+	// RuleLoaderPanic: the loader panicked on the file, such as in the
+	// YAML decoder. The file is refused.
+	RuleLoaderPanic = "policy-loader-panic"
 )
 
 // maxValueShown caps the bytes of a value at fault that a message
@@ -182,6 +185,14 @@ func isPlainKey(s string) bool {
 	return true
 }
 
+// maxKeyPath caps the bytes of a key path. A path past it ends in
+// pathCut and grows no further, so a deep file of long keys can't make a
+// long string for each node.
+const maxKeyPath = 512
+
+// pathCut ends a key path cut at maxKeyPath.
+const pathCut = "..."
+
 // child returns the key path of a key under path.
 func child(path, key string) string {
 	if !isPlainKey(key) {
@@ -190,11 +201,23 @@ func child(path, key string) string {
 	if path == "" {
 		return key
 	}
-	return path + "." + key
+	return extend(path, "."+key)
 }
 
 // index returns the key path of a list entry.
-func index(path string, i int) string { return path + "[" + strconv.Itoa(i) + "]" }
+func index(path string, i int) string { return extend(path, "["+strconv.Itoa(i)+"]") }
+
+// extend appends part to path, cut at maxKeyPath bytes. A path longer
+// than maxKeyPath is one that was cut, and stays as it is.
+func extend(path, part string) string {
+	switch {
+	case len(path) > maxKeyPath:
+		return path
+	case len(path)+len(part) > maxKeyPath:
+		return (path + part)[:maxKeyPath] + pathCut
+	}
+	return path + part
+}
 
 // MaxRefusals caps the refusals of one file, so a hostile file can't
 // make an unbounded list (I489, decision 10).

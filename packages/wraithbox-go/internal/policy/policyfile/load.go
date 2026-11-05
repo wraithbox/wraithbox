@@ -76,7 +76,7 @@ func LoadFile(ctx context.Context, path string, src policy.Source) (*File, error
 // log. It lets a caller hand in bytes read from a git commit
 // (S09-03-project-settings, "Which commit"). The error is a *Refusals.
 func Load(ctx context.Context, name string, data []byte, src policy.Source) (*File, error) {
-	f, rs := load(name, data, src)
+	f, rs := guard(name, func() (*File, *Refusals) { return load(name, data, src) })
 	if rs != nil {
 		logRefusals(ctx, rs)
 		return nil, rs
@@ -124,6 +124,23 @@ func load(name string, data []byte, src policy.Source) (*File, *Refusals) {
 		return nil, c.err()
 	}
 	return f, nil
+}
+
+// guard runs fn, and turns a panic in it into a refusal with
+// RuleLoaderPanic, so a fault in the decoder on a hostile file refuses
+// the file and doesn't stop wb-hostd. It fails closed: no File comes
+// back.
+func guard(name string, fn func() (*File, *Refusals)) (f *File, rs *Refusals) {
+	defer func() {
+		if p := recover(); p != nil {
+			f = nil
+			rs = &Refusals{File: name, List: []*Refusal{{
+				Rule: RuleLoaderPanic, File: name,
+				msg: "the loader failed on the file: " + escape(fmt.Sprint(p)),
+			}}}
+		}
+	}()
+	return fn()
 }
 
 func logRefusals(ctx context.Context, rs *Refusals) {
