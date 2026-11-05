@@ -90,16 +90,33 @@ foreground only for a check you started yourself. You don't merge,
 push, or message the maintainer.
 
 Watch a pull request's checks with one background command per pull
-request, `sleep 30; gh pr checks <n> --watch --fail-fast` in Bash with
-`run_in_background`. The `sleep` gives GitHub time to register the
-checks of a new push. When the watch ends, read `gh pr checks <n>`. It
-says whether every check passed, which one failed, or that no check was
-reported yet. In that last case, start the watch again. Before you send a fix
-round, stop the watch of that pull request with `TaskStop`, and start a
-new one when the builder hands back the new head. Never end your turn
-while a pull request's checks are pending and neither a watch of yours
-nor a builder you sent works on it. Don't report until every pull
-request's checks have finished.
+request, in Bash with `run_in_background`:
+
+```bash
+for i in $(seq 110); do sleep 30; gh pr checks <n> >/dev/null 2>&1; [ $? -eq 8 ] || break; done; gh pr checks <n>
+```
+
+Exit code 8 means checks pending, so the loop ends when every check
+finished, when no check is reported, or after 55 minutes, and prints
+the checks. The first `sleep` gives GitHub time to register the checks
+of a new push. A watch ends one of these ways:
+
+- **Every check passed:** the head is green.
+- **A check failed:** it goes back with the review findings (step 3).
+  Run `gh pr checks <n>` again right before you send the fix round, so
+  every failure on that head goes in the one message.
+- **No check reported:** start the watch again, at most twice. After
+  that, the pull request goes on `Open` with `no checks`. A pull
+  request that conflicts with `main` gets no checks.
+- **Still pending after 55 minutes:** start the watch once more. When
+  the second one ends pending too, the pull request goes on `Open`
+  with `checks pending`.
+
+Before you send a fix round, stop the watch of that pull request with
+`TaskStop`, and start a new one when the builder hands back the new
+head. Never end your turn while a pull request's checks are pending
+and neither a watch of yours nor a builder you sent works on it.
+Never report a pull request `Ready` while one of its checks is pending.
 
 An agent hands back once, with its report. A notice whose `<summary>`
 says the agent "is waiting on its own background work", or whose

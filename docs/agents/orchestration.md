@@ -92,8 +92,8 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    `--request-changes` from the PR's own author).
    In the same step, the coordinator starts a background watch of the
    pull request's checks (`wave-lead.md`, "Waiting"). It watches again
-   after each push of a fix round, and doesn't end its work while a
-   pull request's checks are pending.
+   after each push of a fix round. A watch has a time limit, and a
+   pull request whose checks stay pending or never start stays open.
 5. **Decide what goes back.** One message to the builder: required
    findings, suggestions to apply unless they read worse, findings to
    skip, and each failed check with its run link. Cheap `fold` findings
@@ -258,7 +258,7 @@ behind this.
   its own running is told by the harness to report at once, and the
   pull request that agent opens later isn't reviewed. So a lead keeps a
   background wait of its own running until each agent it spawned has
-  handed back and each pull request's checks have finished
+  handed back and each pull request's check watch has ended
   (`wave-lead.md`, "Waiting").
 - **What every agent does** (`cd`, the `code-review` skill, never
   `git stash`, `.scratch/`, short hand-backs) is in `working.md`,
