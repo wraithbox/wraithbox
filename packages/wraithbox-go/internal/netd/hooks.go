@@ -144,3 +144,101 @@ type NamedFlow struct {
 type StreamHandOff interface {
 	HandOffStream(conn net.Conn, f NamedFlow)
 }
+
+// NameClass is how the VM's effective policy classes a name for DNS
+// (S07-03-dns, S07-04-dns-refusals). The zero NameClass is
+// NameNotAllowed, so a policy that says nothing refuses.
+type NameClass int
+
+// The classes of a name.
+const (
+	// NameNotAllowed: no rule allows or denies the name. It is refused,
+	// and raises an approval event.
+	NameNotAllowed NameClass = iota
+	// NameExact: an allow rule names the host. It never debits the
+	// wildcard budget.
+	NameExact
+	// NameWildcard: only a wildcard allow rule covers the name. A new
+	// name debits the wildcard budget.
+	NameWildcard
+	// NameDenied: a deny rule covers the name. It is refused with
+	// name-denied and raises no approval event.
+	NameDenied
+	// NamePartOff: every built-in rule for the name is in a profile part
+	// that is off. It is refused with profile-part-off and raises no
+	// approval event (S07-04-dns-refusals, "Parts that are off").
+	NamePartOff
+)
+
+// String returns the class's name, for log records.
+func (c NameClass) String() string {
+	switch c {
+	case NameNotAllowed:
+		return "not-allowed"
+	case NameExact:
+		return "exact"
+	case NameWildcard:
+		return "wildcard"
+	case NameDenied:
+		return "denied"
+	case NamePartOff:
+		return "part-off"
+	}
+	return "unknown"
+}
+
+// NamePolicy is the part of the VM's effective policy the DNS server
+// reads (S07-01-per-vm-policy). It is called once per query, so it
+// returns promptly.
+type NamePolicy interface {
+	// Class returns the class of a name, and the rule or project it came
+	// from, which the answer or refusal is logged with
+	// (NFR06-explained-refusals). A class the DNS server doesn't know
+	// refuses.
+	Class(name dnsname.Name) (NameClass, string)
+	// WildcardBudget returns how many names may debit the wildcard
+	// budget in the active period: the strictest project's value
+	// (S07-01-per-vm-policy, "Limits and modes"). It may shrink during
+	// the period, and then applies to the count already reached.
+	WildcardBudget() int
+}
+
+// HostState says whether the host's own state refuses new work: the
+// VM is over its audit budget per minute or per day, or its event
+// channel's queue is full (S09-11-audit, S04-08-records-and-bounds).
+// Refusal returns audit-budget, audit-bytes, event-channel-blocked or
+// "". It is called once per query and per SYN, so it returns promptly.
+type HostState interface {
+	Refusal() Rule
+}
+
+// Approvals takes the names that raise an approval event
+// (FR09-approve-unknown, S07-04-dns-refusals, "Names not on the
+// allowlist"). The DNS server calls NotAllowed after a not-allowed name
+// was debited and its query held, and never for a name that failed the
+// name form (SEC14-no-fake-approvals). It returns promptly: the event
+// runs apart from the answer (S07-04-dns-refusals, "Work beside the
+// answer").
+type Approvals interface {
+	NotAllowed(name dnsname.Name)
+}
+
+// HostStateStreams is a stream policy that resets each new connection
+// with the host state's refusal before it asks Policy, because a VM
+// over its audit budget or with a blocked event channel refuses new
+// connections as well as new lookups (S09-11-audit). A nil Host refuses
+// nothing.
+type HostStateStreams struct {
+	Policy StreamPolicy
+	Host   HostState
+}
+
+// DecideStream resets with the host state's rule, or asks Policy.
+func (h HostStateStreams) DecideStream(f Flow) StreamDecision {
+	if h.Host != nil {
+		if rule := h.Host.Refusal(); rule != "" {
+			return StreamDecision{Rule: rule}
+		}
+	}
+	return h.Policy.DecideStream(f)
+}

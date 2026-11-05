@@ -34,6 +34,7 @@ func TestConfigValidate(t *testing.T) {
 		{"no half-open cap", func(c *netd.Config) { c.Caps.HalfOpenTCP = 0 }},
 		{"no established cap", func(c *netd.Config) { c.Caps.EstablishedTCP = 0 }},
 		{"no frame cap", func(c *netd.Config) { c.Caps.QueueFrames = 0 }},
+		{"no held-query cap", func(c *netd.Config) { c.Caps.HeldQueries = 0 }},
 		{"small TCP buffer", func(c *netd.Config) { c.Caps.TCPBuffer = 4095 }},
 		{"byte cap under a frame", func(c *netd.Config) { c.Caps.QueueBytes = 65548 }},
 	}
@@ -134,5 +135,49 @@ func TestRecorderNote(t *testing.T) {
 	}
 	if r.Count(netd.RuleDHCPOffer) != 10 || len(ev) != 0 {
 		t.Fatalf("count %d, events %v", r.Count(netd.RuleDHCPOffer), ev)
+	}
+}
+
+// streamRule is a stream policy that refuses with its rule.
+type streamRule netd.Rule
+
+func (s streamRule) DecideStream(netd.Flow) netd.StreamDecision {
+	return netd.StreamDecision{Rule: netd.Rule(s)}
+}
+
+// hostRule is a host state with a fixed refusal.
+type hostRule netd.Rule
+
+func (h hostRule) Refusal() netd.Rule { return netd.Rule(h) }
+
+// TestHostStateStreams checks that a VM the host state refuses resets
+// every new connection with the host's rule, and that the stream policy
+// decides the rest (S09-11-audit).
+func TestHostStateStreams(t *testing.T) {
+	for _, tc := range []struct {
+		host netd.HostState
+		want netd.Rule
+	}{
+		{nil, "policy"},
+		{hostRule(""), "policy"},
+		{hostRule(netd.RuleAuditBudget), netd.RuleAuditBudget},
+		{hostRule(netd.RuleEventChannelBlocked), netd.RuleEventChannelBlocked},
+	} {
+		s := netd.HostStateStreams{Policy: streamRule("policy"), Host: tc.host}
+		if got := s.DecideStream(netd.Flow{}); got.Rule != tc.want || got.Sink != nil {
+			t.Errorf("host %v: decision %+v, want %s", tc.host, got, tc.want)
+		}
+	}
+}
+
+// TestNameClassString checks the names of the classes in the log.
+func TestNameClassString(t *testing.T) {
+	for c, want := range map[netd.NameClass]string{
+		netd.NameNotAllowed: "not-allowed", netd.NameExact: "exact", netd.NameWildcard: "wildcard",
+		netd.NameDenied: "denied", netd.NamePartOff: "part-off", netd.NameClass(99): "unknown",
+	} {
+		if got := c.String(); got != want {
+			t.Errorf("%d: %q, want %q", int(c), got, want)
+		}
 	}
 }

@@ -124,11 +124,16 @@ type Caps struct {
 	// over either is dropped with link-queue-full.
 	QueueFrames int
 	QueueBytes  int
+	// HeldQueries bounds the DNS queries held for their refusal at once
+	// (S07-04-dns-refusals, "Hold limits"). A refused query over it is
+	// dropped with dns-hold-full.
+	HeldQueries int
 }
 
 // DefaultCaps returns the default caps (S07-02-packet-path, "Per-VM
-// caps"). With them the stack's buffer memory is at most 1,024
-// connections of 256 KiB each way, 512 MiB.
+// caps", S07-04-dns-refusals, "Hold limits"). With them the stack's
+// buffer memory is at most 1,024 connections of 256 KiB each way,
+// 512 MiB.
 func DefaultCaps() Caps {
 	return Caps{
 		HalfOpenTCP:    1024,
@@ -136,6 +141,7 @@ func DefaultCaps() Caps {
 		TCPBuffer:      256 << 10,
 		QueueFrames:    4096,
 		QueueBytes:     16 << 20,
+		HeldQueries:    1024,
 	}
 }
 
@@ -146,8 +152,8 @@ const minTCPBuffer = 4096
 // at least gVisor's minimum, and that the queue holds a frame of the
 // largest size.
 func (c Caps) Validate() error {
-	if c.HalfOpenTCP < 1 || c.EstablishedTCP < 1 || c.QueueFrames < 1 {
-		return fmt.Errorf("netd: caps %+v: each TCP and frame cap must be at least 1", c)
+	if c.HalfOpenTCP < 1 || c.EstablishedTCP < 1 || c.QueueFrames < 1 || c.HeldQueries < 1 {
+		return fmt.Errorf("netd: caps %+v: each TCP, frame and held-query cap must be at least 1", c)
 	}
 	if c.TCPBuffer < minTCPBuffer {
 		return fmt.Errorf("netd: TCP buffer cap %d is below %d", c.TCPBuffer, minTCPBuffer)

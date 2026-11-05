@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/ratelog"
 )
 
@@ -114,6 +115,61 @@ const (
 	RuleSyntheticRelease Rule = "synthetic-release"
 )
 
+// The rules of the DNS server, after S07-03-dns and S07-04-dns-refusals.
+// Every refusal of a name is held and gets the same bytes, whatever its
+// rule. The rule is only logged and counted.
+const (
+	// RuleDNSMessageForm: a message that isn't one query of class IN with
+	// one question, read as S07-03-dns, "Messages" says. It is dropped
+	// without an answer.
+	RuleDNSMessageForm Rule = "dns-message-form"
+	// RuleDNSNameForm: a name that fails the name form rule
+	// (internal/dnsname).
+	RuleDNSNameForm Rule = dnsname.RuleForm
+	// RuleDNSQueryRate: a query over the VM's query rate.
+	RuleDNSQueryRate Rule = "dns-query-rate"
+	// RuleDNSHoldFull: a refused query over Caps.HeldQueries. It is
+	// dropped without an answer.
+	RuleDNSHoldFull Rule = "dns-hold-full"
+	// RuleNameNotAllowed: a name the effective policy doesn't allow.
+	RuleNameNotAllowed Rule = "name-not-allowed"
+	// RuleNameDenied: a name the effective policy denies.
+	RuleNameDenied Rule = "name-denied"
+	// RuleProfilePartOff: a name whose built-in rules are all in profile
+	// parts that are off (S07-04-dns-refusals, "Parts that are off").
+	RuleProfilePartOff Rule = "profile-part-off"
+	// RuleGuestOSBackground: a name on the guest OS's background list
+	// that the policy doesn't allow (S07-04-dns-refusals, "Quiet
+	// refusals").
+	RuleGuestOSBackground Rule = "guest-os-background"
+	// RuleWildcardBudget: a name that would debit the wildcard budget
+	// while it is used up.
+	RuleWildcardBudget Rule = "wildcard-budget"
+	// RuleAuditBudget, RuleAuditBytes and RuleEventChannelBlocked: the
+	// host state refusals of S09-11-audit, which refuse new lookups and
+	// connections.
+	RuleAuditBudget         Rule = "audit-budget"
+	RuleAuditBytes          Rule = "audit-bytes"
+	RuleEventChannelBlocked Rule = "event-channel-blocked"
+	// RuleDNSSendFailed: an answer the socket didn't take.
+	RuleDNSSendFailed Rule = "dns-send-failed"
+
+	// The rules an answer that isn't a refusal is logged with
+	// (Recorder.Note).
+	//
+	// RuleDNSLocalAnswer: a name under arpa or local, answered with
+	// NXDOMAIN at once (S07-03-dns, "Local answers").
+	RuleDNSLocalAnswer Rule = "dns-local-answer"
+	// RuleDNSAnswer: an A answer with a synthetic address.
+	RuleDNSAnswer Rule = "dns-answer"
+	// RuleDNSEmptyAnswer: an empty AAAA, HTTPS or SVCB answer for an
+	// allowed name.
+	RuleDNSEmptyAnswer Rule = "dns-empty-answer"
+	// RuleDNSTypeRefused: another record type for an allowed name,
+	// answered with REFUSED at once.
+	RuleDNSTypeRefused Rule = "dns-type-refused"
+)
+
 // The rules of the DHCP server, after S07-02-packet-path, "Addressing".
 // A request dropped with one of the first four gets no answer.
 const (
@@ -144,16 +200,17 @@ const (
 	RuleDHCPRelease Rule = "dhcp-release"
 )
 
-// Decision is what happened to a frame or connection: a drop, a reset
-// sent to its SYN, or a close of a connection whose handshake had
-// finished.
+// Decision is what happened to a frame, connection or query: a drop, a
+// reset sent to its SYN, a close of a connection whose handshake had
+// finished, or a refusal of a DNS query's name.
 type Decision string
 
 // The decisions a Recorder counts.
 const (
-	Drop  Decision = "drop"
-	Reset Decision = "reset"
-	Close Decision = "close"
+	Drop   Decision = "drop"
+	Reset  Decision = "reset"
+	Close  Decision = "close"
+	Refuse Decision = "refuse"
 )
 
 // Events receives every drop and reset with its rule, the count of the
