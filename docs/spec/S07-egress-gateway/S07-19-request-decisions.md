@@ -22,7 +22,8 @@ The first step that decides the request ends it.
    `registry-token`, `registry-publish` and
    `git-write-outside-project-set`. They match the canonical path in
    lowercase, and its stem: each segment cut at its first `;`, `.` or
-   `%`, without a trailing `/`. So `/forks;x`, `/forks.json`,
+   `%`, without a trailing `/`. A segment the cut would leave empty
+   stays as it is. So `/forks;x`, `/forks.json`,
    `/forks%2F` and `/forks/` meet the deny of `/forks`. They hold in every mode and on every port, against any
    rule that allows the request.
 3. *Parts.* The first built-in allow rule that matches puts the
@@ -72,7 +73,8 @@ in the project set:
 - git's transport: the path before `/info/refs`, `/git-upload-pack` or
   `/git-receive-pack`, without a trailing `.git`. It is
   `/<owner>/<repo>` on GitHub and Gitea. On GitLab and a host a remote
-  names, it has two segments or more, and the first isn't `api`. So
+  names, it has two segments or more, the first isn't `api`, and none
+  is `-`, which GitLab reserves for its web routes. So
   an API path that ends in `/git-upload-pack` isn't a fetch;
 - GitHub's REST API: `/repos/<owner>/<repo>` on `api.github.com` and
   `uploads.github.com`;
