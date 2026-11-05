@@ -151,12 +151,12 @@ func (a *Accounting) read() {
 	first := true
 	for {
 		m, err := a.conn.Recv()
-		var fref *fdchan.Refusal
+		var refusal *fdchan.Refusal
 		switch {
 		case errors.Is(err, io.EOF):
 			a.end(errors.New("wb-hostd closed the accounting channel"))
 			return
-		case errors.As(err, &fref) && !first:
+		case errors.As(err, &refusal) && !first:
 			// fdchan logged it and closed its descriptors.
 			continue
 		case err != nil:

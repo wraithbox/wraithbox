@@ -186,9 +186,9 @@ func (c *Control) Serve(ctx context.Context) error {
 func (c *Control) next() (*egressv1.HostdToNetd, *os.File, error) {
 	m, err := c.cfg.Conn.Recv()
 	if err != nil {
-		if fref, ok := errors.AsType[*fdchan.Refusal](err); ok {
+		if refusal, ok := errors.AsType[*fdchan.Refusal](err); ok {
 			// fdchan logged it and closed its descriptors.
-			return nil, nil, c.fail(string(fref.Rule), err)
+			return nil, nil, c.fail(string(refusal.Rule), err)
 		}
 		return nil, nil, c.fail("recv", err)
 	}

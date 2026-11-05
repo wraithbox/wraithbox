@@ -175,15 +175,15 @@ func (k *socket) serveDrains() bool {
 // take decides one message the socket returned, or the error of the
 // read. It reports whether the socket goes on.
 func (k *socket) take(m *fdchan.Message, err error) bool {
-	var fref *fdchan.Refusal
+	var refusal *fdchan.Refusal
 	switch {
 	case errors.Is(err, io.EOF):
 		k.end(errors.New("wb-proxyd closed the hand-off socket"))
 		return false
-	case errors.As(err, &fref):
+	case errors.As(err, &refusal):
 		// fdchan logged it and closed every descriptor of it. A message
 		// wb-proxyd can't have sent ends the socket (fail closed).
-		k.refuse(string(fref.Rule), err)
+		k.refuse(string(refusal.Rule), err)
 		return false
 	case err != nil:
 		k.end(fmt.Errorf("read: %w", err))

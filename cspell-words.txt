@@ -34,6 +34,7 @@ termfilter
 termsetup
 localipc
 hostversion
+hostlink
 grpccreds
 healthpb
 vmtest
