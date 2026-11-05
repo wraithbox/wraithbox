@@ -172,43 +172,28 @@ address, with the gateway as router and DNS server.
 - A reply holds only the subnet mask, router, DNS server, lease time,
   server identifier and interface MTU.
 
-The macOS client also asks for more. The gateway never offers any of
-it (FR08-no-proxy-config):
+The macOS client also asks for a proxy configuration (WPAD, option
+252), static routes, encrypted DNS, IPv6-only preferred, NetBIOS, LDAP
+and a search domain. The gateway never offers any of it
+(FR08-no-proxy-config).
 
-- a proxy configuration (WPAD, option 252);
-- static routes;
-- encrypted DNS;
-- IPv6-only preferred;
-- NetBIOS, LDAP and a search domain.
+The server answers each message and logs it with a rule:
 
-The server answers:
+| Message | Answer | Rule |
+|---|---|---|
+| DISCOVER | OFFER | `dhcp-offer` |
+| REQUEST for the leased address | ACK | `dhcp-ack` |
+| any other REQUEST | NAK | `dhcp-nak` |
+| INFORM | an ACK of the same options, with no address | `dhcp-inform` |
+| RELEASE | none. The lease stays with the guest's MAC, because there is only one | `dhcp-release` |
+| DECLINE: something answered for the guest's address | none, logged as a finding | `dhcp-decline` |
+| any other type | none, dropped | `dhcp-type` |
 
-| Message | Answer |
-|---|---|
-| DISCOVER | OFFER |
-| REQUEST for the leased address | ACK |
-| any other REQUEST | NAK |
-| INFORM | an ACK of the same options, with no address |
-
-RELEASE is logged. The lease stays with the guest's MAC, because there
-is only one.
-
-A `DHCPDECLINE` means something answered for the guest's address. It
-is logged as a finding, `dhcp-decline`.
-
-The server drops a message without an answer, logged with its rule:
-
-| Rule | Message |
-|---|---|
-| `dhcp-form` | over 1500 bytes, or not a BOOTREQUEST for a 6-byte Ethernet address with the magic cookie, a message type, and options that are well-formed, each at most once, and end in END. Option overload (52) is dropped too. |
-| `dhcp-mac` | `chaddr` other than the guest's MAC |
-| `dhcp-type` | a message type other than the five above and DECLINE |
-| `dhcp-decline` | DECLINE |
-
-Each request gets one log record with its message type and the rule.
-The answers are logged with `dhcp-offer`, `dhcp-ack`, `dhcp-nak`,
-`dhcp-inform` and `dhcp-release`, and all of them are rate-limited per
-rule ("Events and rate limits").
+A message from another MAC (`chaddr`) is dropped with `dhcp-mac`.
+`dhcp-form` drops one over 1500 bytes, with option overload (52), or
+not a BOOTREQUEST for a 6-byte Ethernet address with the magic cookie,
+a message type, and well-formed options, each once, ending in END.
+Each request gets one log record, rate-limited per rule.
 
 Strings the guest sends are logged escaped and cut to the fixed length
 ("Events and rate limits"), never raw. Examples are the host name,
