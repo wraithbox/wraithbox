@@ -35,7 +35,9 @@ GraphQL path after normalization. That covers:
 - a path prefix or glob that covers it;
 - a wildcard method;
 - a trailing slash;
-- percent-encoding.
+- percent-encoding;
+- the letter case of the path, as in `/GraphQL`. A host may route it
+  to the same handler, and the request-time match is case-sensitive.
 
 The built-in GraphQL operation filter applies whatever the source of
 the allow.
@@ -61,6 +63,7 @@ example:
   allows a write method;
 - a trailing slash;
 - percent-encoding;
+- the letter case of the path, as in `/V1/OAuth/Token`;
 - a host pattern that matches a model API host in canonical form,
   lowercase and without a trailing dot (S07-06-name-mapping), a
   wildcard included;

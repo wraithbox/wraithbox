@@ -247,6 +247,11 @@ func stepWild(oneSegment bool, path string, cur, next []bool) bool {
 // towards a match, which fails closed for the load checks of
 // S09-02-precedence.
 //
+// Literal ASCII letters compare without regard to case, so `/GraphQL`
+// counts for `/graphql`. A host may route a path in either case to the
+// same handler, and Match, at request time, stays case-sensitive, so a
+// rule in another case would let the request through past the check.
+//
 // prefix must be in canonical form: the caller passes a path such as
 // `/graphql` or `/v1/oauth/token`.
 func (p Pattern) CanMatchPrefix(prefix string) bool {
@@ -282,8 +287,8 @@ func closeStates(atoms []atom, states []bool) {
 
 // advance moves the live states over one byte, and reports whether any
 // is still live. A wildcard state stays on the byte it consumes, a
-// literal state moves past a byte equal to it, and the end state
-// consumes nothing.
+// literal state moves past a byte equal to it but for the case of an
+// ASCII letter, and the end state consumes nothing.
 func advance(atoms []atom, states []bool, c byte) ([]bool, bool) {
 	next := make([]bool, len(states))
 	live := false
@@ -295,10 +300,19 @@ func advance(atoms []atom, states []bool, c byte) ([]bool, bool) {
 		case a == atomDoubleStar, a == atomStar && c != '/':
 			next[i] = true
 			live = true
-		case a == atom(c):
+		case a >= 0 && foldCase(byte(a)) == foldCase(c):
 			next[i+1] = true
 			live = true
 		}
 	}
 	return next, live
+}
+
+// foldCase returns an ASCII letter in lowercase, and any other byte as
+// it is.
+func foldCase(c byte) byte {
+	if 'A' <= c && c <= 'Z' {
+		return c + ('a' - 'A')
+	}
+	return c
 }

@@ -95,14 +95,17 @@ func (r Rule) Match(host dnsname.Name, method, path string) bool {
 // built-in host's GraphQL path, and `model-token-path` with `POST` and
 // `/v1/oauth/token` on each model API host. Methods compare as Method.Match
 // does, so without regard to case, and `*` in the rule matches every
-// one. host is in canonical form, so a wildcard rule host counts on it.
+// one. An empty or nil methods means any method, so the rule's method
+// doesn't narrow the answer. host is in canonical form, so a wildcard
+// rule host counts on it. Path letters compare without regard to case
+// (Pattern.CanMatchPrefix).
 // An access preset, or an endpoint without method and path rules, is
 // expanded into its rules by the caller before it asks.
 func CanMatch(r Rule, host dnsname.Name, methods []string, pathPrefix string) bool {
 	if !r.Host.Match(host) {
 		return false
 	}
-	methodOK := false
+	methodOK := len(methods) == 0
 	for _, m := range methods {
 		methodOK = methodOK || r.Method.Match(m)
 	}
