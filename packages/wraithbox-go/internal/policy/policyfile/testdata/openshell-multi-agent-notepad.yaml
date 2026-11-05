@@ -1,0 +1,66 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Taken from OpenShell v0.1.2, examples/multi-agent-notepad/policy.template.yaml,
+# with these changes, so it holds only the keys Wraith Box implements
+# (S09-01-policy-files):
+#
+# - filesystem_policy and landlock are removed;
+# - each rule's binaries are path: "/**", because rules can't name
+#   programs yet (S09-01-policy-files, "Program narrowing");
+# - the template's __OWNER__, __REPO__ and __RUN_ID__ are filled in.
+#
+# The result is still a valid OpenShell v0.1.2 policy.
+
+version: 1
+
+network_policies:
+  codex:
+    name: codex
+    endpoints:
+      - { host: api.openai.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: auth.openai.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: chatgpt.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+      - { host: ab.chatgpt.com, port: 443, protocol: rest, enforcement: enforce, access: full }
+    binaries:
+      - { path: "/**" }
+
+  codex_plugins:
+    name: codex-plugins
+    endpoints:
+      - host: github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow:
+              method: GET
+              path: "/openai/plugins.git/info/refs*"
+          - allow:
+              method: POST
+              path: "/openai/plugins.git/git-upload-pack"
+    binaries:
+      - { path: "/**" }
+
+  github_memory:
+    name: github-memory
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow:
+              method: GET
+              path: "/repos/example/notepad"
+          - allow:
+              method: GET
+              path: "/repos/example/notepad/contents/runs/run-1"
+          - allow:
+              method: GET
+              path: "/repos/example/notepad/contents/runs/run-1/**"
+          - allow:
+              method: PUT
+              path: "/repos/example/notepad/contents/runs/run-1/**"
+    binaries:
+      - { path: "/**" }
