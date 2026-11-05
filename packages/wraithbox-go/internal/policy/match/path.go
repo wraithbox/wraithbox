@@ -206,32 +206,40 @@ func resolveSegments(raw string) ([]string, *Refusal) {
 	for i, seg := range parts {
 		at := offset
 		offset += len(seg) + 1
-		switch {
-		case seg == "..":
-			if len(stack) == 0 {
+		if seg == "." || seg == ".." || (seg == "" && i != last) {
+			var ok bool
+			if stack, ok = dotSegment(stack, seg, i == last); !ok {
 				return nil, refuse(RulePathForm, "the path has a .. segment above the root")
 			}
-			stack = stack[:len(stack)-1]
-			if i == last {
-				stack = append(stack, "")
-			}
-		case seg == ".":
-			if i == last {
-				stack = append(stack, "")
-			}
-		case seg == "" && i != last:
-		default:
-			d, r := decodeSegment(seg, at)
-			if r != nil {
-				return nil, r
-			}
-			if hasHiddenDot(d) {
-				return nil, refuse(RulePathForm, "segment "+strconv.Itoa(i+1)+" of the path is a . or .. segment after decoding")
-			}
-			stack = append(stack, d)
+			continue
 		}
+		d, r := decodeSegment(seg, at)
+		if r != nil {
+			return nil, r
+		}
+		if hasHiddenDot(d) {
+			return nil, refuse(RulePathForm, "segment "+strconv.Itoa(i+1)+" of the path is a . or .. segment after decoding")
+		}
+		stack = append(stack, d)
 	}
 	return stack, nil
+}
+
+// dotSegment applies a literal `.`, `..` or empty segment to the stack
+// of segments kept so far (RFC 3986, section 5.2.4). `..` removes the
+// last one, and reports false above the root. A last dot segment leaves
+// a trailing slash.
+func dotSegment(stack []string, seg string, last bool) ([]string, bool) {
+	if seg == ".." {
+		if len(stack) == 0 {
+			return nil, false
+		}
+		stack = stack[:len(stack)-1]
+	}
+	if last {
+		stack = append(stack, "")
+	}
+	return stack, true
 }
 
 // hasHiddenDot reports whether a decoded segment that isn't a literal
