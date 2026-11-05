@@ -2,9 +2,10 @@
 // and "IP literals", and the canonical form of a name
 // (S07-06-name-mapping, "Name reports"): lower case, no trailing dot.
 //
-// One rule decides which names Wraith Box handles at all. wb-netd checks
-// it on the labels of every query as they are on the wire (FromWire),
-// before any other check. The policy loader, `wb allow` and wb-proxyd's
+// One rule decides which names Wraith Box handles at all. wb-netd matches
+// the local answers of S07-03-dns first, then checks this rule on the
+// labels of every other query as they are on the wire (FromWire), before
+// any other check. The policy loader, `wb allow` and wb-proxyd's
 // name reports check it on a dotted host (FromHost). Both apply the same
 // checks, so a host that loads also resolves, and a name that resolves
 // is never refused for its form later. So no policy host names an
@@ -80,7 +81,14 @@ type Refusal struct {
 	msg string
 }
 
-func (r *Refusal) Error() string { return r.Rule + ": " + r.msg }
+// Error returns the rule and the message. A nil Refusal gives "", so a
+// nil one stored in an error by mistake doesn't panic its caller.
+func (r *Refusal) Error() string {
+	if r == nil {
+		return ""
+	}
+	return r.Rule + ": " + r.msg
+}
 
 // Name is a name that passed the rule, in canonical form: ASCII letters,
 // digits, hyphens and dots, lower case, without a trailing dot. The zero
@@ -172,7 +180,7 @@ func finish[L label](c *canon, last L) (Name, *Refusal) {
 	if isIPLiteral(last) {
 		// The label passed checkLabel, so it is printable ASCII.
 		return Name{}, refuse(FaultIPLiteral, 0,
-			"the last label \""+string(last)+"\" is a number, so the name is an IPv4 address, not a host")
+			"the last label \""+string(last)+"\" is a decimal or hexadecimal number, or a bare 0x, so the name is an IPv4 address, not a host")
 	}
 	return Name{s: string(c.buf[:c.n])}, nil
 }
