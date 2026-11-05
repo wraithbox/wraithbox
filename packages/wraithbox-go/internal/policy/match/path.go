@@ -99,11 +99,11 @@ func CanonicalPath(raw string) (string, *Refusal) {
 	if r := checkRawPath(raw); r != nil {
 		return "", r
 	}
-	segs, r := resolveSegments(raw)
+	segments, r := resolveSegments(raw)
 	if r != nil {
 		return "", r
 	}
-	canon := buildPath(segs)
+	canon := buildPath(segments)
 	if len(canon) > MaxPath {
 		return "", refuse(RulePathForm, "the canonical path is "+strconv.Itoa(len(canon))+" bytes, longer than "+strconv.Itoa(MaxPath))
 	}
@@ -156,7 +156,7 @@ func decodeSegment(seg string, at int) (string, *Refusal) {
 			out = append(out, seg[i])
 			continue
 		}
-		b, ok := unhex(seg, i)
+		b, ok := decodeHex(seg, i)
 		if !ok {
 			return "", refuse(RulePathForm, "the path has a malformed percent-escape at offset "+strconv.Itoa(at+i))
 		}
@@ -171,8 +171,8 @@ func decodeSegment(seg string, at int) (string, *Refusal) {
 	return string(out), nil
 }
 
-// unhex decodes the escape that starts at s[i], a `%`.
-func unhex(s string, i int) (byte, bool) {
+// decodeHex decodes the escape that starts at s[i], a `%`.
+func decodeHex(s string, i int) (byte, bool) {
 	if i+2 >= len(s) {
 		return 0, false
 	}
@@ -255,10 +255,10 @@ func hasHiddenDot(seg string) bool {
 	return false
 }
 
-func buildPath(segs []string) string {
+func buildPath(segments []string) string {
 	var b strings.Builder
 	b.WriteByte('/')
-	for i, seg := range segs {
+	for i, seg := range segments {
 		if i > 0 {
 			b.WriteByte('/')
 		}

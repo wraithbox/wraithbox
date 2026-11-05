@@ -34,7 +34,13 @@
     "packages/wraithbox-go/internal/gen",
     "packages/wraithbox-swift/Sources/WraithBoxRPC"
   ],
-  "ignoreRegExpList": ["/GHSA(-[a-z0-9]{4}){3}/g", "/\\b(?=[0-9a-f]*[0-9])[0-9a-f]{6}\\b/gi"],
+  // A percent-escape and the letters glued to it, as in the path tests'
+  // `/%67raphql` and `wget%2Fcurl`, are no word.
+  "ignoreRegExpList": [
+    "/GHSA(-[a-z0-9]{4}){3}/g",
+    "/\\b(?=[0-9a-f]*[0-9])[0-9a-f]{6}\\b/gi",
+    "/%[0-9a-fA-F]{2}[A-Za-z]*/g"
+  ],
   "languageSettings": [
     {
       "languageId": "markdown,mdx",

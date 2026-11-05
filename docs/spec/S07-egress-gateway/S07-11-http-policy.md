@@ -25,6 +25,45 @@ boundary allows every one (S09-01-policy-files, "Audit as the whole host").
 The built-in profiles are git hosting, model API and package
 registries.
 
+#### Covered hosts
+
+Each built-in profile covers these exact hosts, and no subdomain of
+them. A covered host is a guarded host (S07-07-hosts-and-modes,
+"Guarded hosts"). "Covered only" means the profile doesn't allow a
+request to it. The GraphQL path is the one the GraphQL lock protects
+(S09-02-precedence).
+
+| Host | Profile | Kind | Allowed | GraphQL path |
+|---|---|---|---|---|
+| `github.com` | git hosting | GitHub | yes | |
+| `api.github.com` | git hosting | GitHub | yes | `/graphql` |
+| `codeload.github.com` | git hosting | GitHub | yes | |
+| `ssh.github.com` | git hosting | GitHub | covered only | |
+| `gist.github.com` | git hosting | GitHub | yes | |
+| `uploads.github.com` | git hosting | GitHub | yes | |
+| `objects.githubusercontent.com` | git hosting | GitHub | yes | |
+| `gitlab.com` | git hosting | GitLab | yes | `/api/graphql` |
+| `altssh.gitlab.com` | git hosting | GitLab | covered only | |
+| `codeberg.org` | git hosting | Gitea and Forgejo | yes | |
+| `api.anthropic.com` | model API | | yes | |
+| `platform.claude.com` | model API | | yes | |
+| `registry.npmjs.org` | package registries | | yes | |
+| `pypi.org` | package registries | | yes | |
+| `files.pythonhosted.org` | package registries | | yes | |
+| `crates.io` | package registries | | yes | |
+| `static.crates.io` | package registries | | yes | |
+| `index.crates.io` | package registries | | yes | |
+| `proxy.golang.org` | package registries | | yes | |
+| `sum.golang.org` | package registries | | yes | |
+| `ghcr.io` | package registries | | yes | |
+| `pkg-containers.githubusercontent.com` | package registries | | yes | |
+| `formulae.brew.sh` | package registries | | yes | |
+
+`raw.githubusercontent.com` isn't covered: it is outside every
+profile ("model API"). A host a project's remotes name gets the git
+hosting profile too, so it is covered while that project has a
+session in the VM.
+
 #### git hosting
 
 - Reads are allowed.
@@ -199,8 +238,28 @@ The GitHub kind of the git hosting profile has these parts:
 With only `git` on, git can fetch, pull and push to `github.com`, and
 every API request, REST and GraphQL, is refused.
 
-The other kinds of the git hosting profile, and the other profiles,
-name their parts in their profile. The docs list them.
+#### Other parts
+
+| Profile | Kind | Part | Rules |
+|---|---|---|---|
+| git hosting | GitLab | `git` | git's smart HTTP transport on `gitlab.com` |
+| git hosting | GitLab | `rest` | the REST API, `/api/v4/` on `gitlab.com` |
+| git hosting | GitLab | `graphql` | the GraphQL API, `POST gitlab.com/api/graphql` |
+| git hosting | GitLab | `web` | every other rule of the GitLab kind |
+| git hosting | Gitea and Forgejo | `git` | git's smart HTTP transport |
+| git hosting | Gitea and Forgejo | `rest` | the REST API, `/api/v1/` |
+| git hosting | Gitea and Forgejo | `web` | every other rule of the kind |
+| model API | | `model` | every allow rule of the profile |
+| package registries | | `npm` | `registry.npmjs.org` |
+| package registries | | `pypi` | `pypi.org` and `files.pythonhosted.org` |
+| package registries | | `crates` | `crates.io`, `static.crates.io` and `index.crates.io` |
+| package registries | | `go` | `proxy.golang.org` and `sum.golang.org` |
+| package registries | | `homebrew` | `ghcr.io`, `pkg-containers.githubusercontent.com` and `formulae.brew.sh` |
+
+Gitea and Forgejo have no GraphQL API, so their kind has no `graphql`
+part. In policy, a part is named by its profile (`git-hosting`,
+`model-api` or `package-registries`), its kind (`github`, `gitlab` or
+`gitea`, and none outside git hosting) and its name.
 
 ## Decisions
 
