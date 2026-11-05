@@ -76,12 +76,14 @@ func Compile(src string) (Pattern, *Refusal) {
 	}
 	p := Pattern{src: src}
 	segments := strings.Split(src[1:], "/")
+	at := 1
 	for i, seg := range segments {
 		p.tokens = addLit(p.tokens, "/")
 		var r *Refusal
-		if p.tokens, r = addSegment(p.tokens, seg, i, i == len(segments)-1); r != nil {
+		if p.tokens, r = addSegment(p.tokens, seg, i, at, i == len(segments)-1); r != nil {
 			return Pattern{}, r
 		}
+		at += len(seg) + 1
 	}
 	for _, t := range p.tokens {
 		p.atoms = appendAtoms(p.atoms, t)
@@ -106,14 +108,15 @@ func checkPattern(src string) *Refusal {
 	return nil
 }
 
-// addSegment adds one segment of the pattern, the i-th, split on its
-// stars.
-func addSegment(tokens []token, seg string, i int, last bool) ([]token, *Refusal) {
+// addSegment adds one segment of the pattern, the i-th, which starts at
+// offset at of the pattern, split on its stars. A refusal names offsets
+// in the pattern (NFR06-explained-refusals).
+func addSegment(tokens []token, seg string, i, at int, last bool) ([]token, *Refusal) {
 	if seg == "" && !last {
 		return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern is empty")
 	}
 	if !strings.Contains(seg, "*") {
-		d, r := decodeSegment(seg, 0)
+		d, r := decodeSegment(seg, at)
 		if r != nil {
 			return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern: "+r.msg)
 		}
@@ -124,7 +127,7 @@ func addSegment(tokens []token, seg string, i int, last bool) ([]token, *Refusal
 	}
 	for rest := seg; rest != ""; {
 		lit, after, star := strings.Cut(rest, "*")
-		d, r := decodeSegment(lit, 0)
+		d, r := decodeSegment(lit, at+len(seg)-len(rest))
 		if r != nil {
 			return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern: "+r.msg)
 		}
