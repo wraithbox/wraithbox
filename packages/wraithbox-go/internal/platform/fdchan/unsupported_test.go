@@ -23,9 +23,11 @@ func TestUnsupported(t *testing.T) {
 	calls := map[string]func() error{
 		"Socketpair": func() error { _, _, err := Socketpair(4096); return err },
 		"New":        func() error { _, err := New(f, 4096); return err },
+		"StreamPair": func() error { _, _, err := StreamPair(); return err },
 		"SocketType": func() error { _, _, err := SocketType(f); return err },
 		"Send":       func() error { return c.Send([]byte("x"), nil) },
 		"Recv":       func() error { _, err := c.Recv(); return err },
+		"TryRecv":    func() error { _, err := c.TryRecv(); return err },
 		"SetReadDeadline": func() error {
 			return c.SetReadDeadline(time.Now())
 		},

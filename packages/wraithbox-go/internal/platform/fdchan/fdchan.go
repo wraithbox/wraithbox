@@ -24,7 +24,13 @@
 // must use only the standard library (S04-03-self-sandboxing).
 package fdchan
 
-import "os"
+import (
+	"errors"
+	"os"
+)
+
+// ErrNoMessage is what TryRecv returns when no message is queued.
+var ErrNoMessage = errors.New("fdchan: no message queued")
 
 // MaxRecordLimit is the largest maximum record size a channel takes.
 // The records of S04-08-records-and-bounds and S07-05-stream-hand-off are
