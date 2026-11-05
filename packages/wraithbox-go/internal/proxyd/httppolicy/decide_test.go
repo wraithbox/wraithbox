@@ -96,7 +96,7 @@ func TestDecideSteps(t *testing.T) {
 		{"POST docs.example.com/public", false, RuleNoRule},
 		{"GET other.example.com/", false, RuleNoRule},
 		// Not GraphQL: a longer name.
-		{"GET api.github.com/graphqlx", true, RuleAllowed},
+		{"GET api.github.com/graphql-x", true, RuleAllowed},
 	} {
 		want(t, e, req(tc.req), tc.allow, tc.rule)
 	}

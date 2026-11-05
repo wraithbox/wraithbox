@@ -121,16 +121,37 @@ checked as above. No tool needs proxy settings (FR08-no-proxy-config).
 
 ### Not relaxed by audit mode or approvals
 
-These apply on a host in `audit` mode too (S07-11-http-policy):
+A host and port in `audit` relaxes exactly two refusals:
+`http-no-rule` and `http-deny-rule`, the method and path rules and the
+`deny_rules` of its sources. The request goes on, and is logged with
+the rule `audit-allowed` and the rule it broke (S07-11-http-policy,
+"Deciding a request"). Every other refusal applies on a host in
+`audit` too. Among them:
 
+- the built-in denies of S07-11-http-policy: `model-path-escape`,
+  `git-archive`, `git-create-denied`, `model-event-log`,
+  `registry-token`, `registry-publish` and
+  `git-write-outside-project-set`;
+- `profile-part-off` and `graphql-operation`;
+- the request form refusals: `http-method-form`, `http-path-form`, and
+  the other checks of S07-08-requests-and-credentials, "Request form";
+- the removal of guest credentials, and the refusal of a named
+  credential parameter (S07-08-requests-and-credentials, "Credential
+  replacement");
+- the placeholder refusals `placeholder-outside-binding`,
+  `model-placeholder-in-body` and `model-content-encoding`;
+- `anonymous-binding-read-only`;
+- the dependency gate's refusals (S07-12-dependency-gate);
+- `port-not-allowed`;
 - the `http-tunnel` refusal;
 - the `tls-*` refusals;
 - the `stream-*` resets;
 - `http-header-timeout`, `http-header-size` and
   `http-transfer-coding`;
-- the placeholder refusals `placeholder-outside-binding`,
-  `model-placeholder-in-body` and `model-content-encoding`;
 - `upstream-address-refused`.
+
+A covered host is never in `audit` (S07-07-hosts-and-modes), and
+`wb-proxyd` holds it in `enforce` even if a policy put it there.
 
 A `CONNECT` request, or an `Upgrade` other than WebSocket, never
 raises an approval request.
