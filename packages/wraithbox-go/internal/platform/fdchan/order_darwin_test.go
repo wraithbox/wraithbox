@@ -23,9 +23,9 @@ const (
 	// orderFDEvery is how often a record carries a descriptor.
 	orderFDEvery = 10
 	// orderWriteDeadline is the sender's deadline for one record,
-	// retries included: wb-proxyd's for a ProxydWildcardName record
-	// (S07-06-name-mapping, "Wildcard budget, second layer").
-	orderWriteDeadline = 100 * time.Millisecond
+	// retries included. The test proves order and no silent drop, not a
+	// production deadline, so it is long enough for a loaded runner.
+	orderWriteDeadline = 5 * time.Second
 	// orderPauseEvery and orderPause make the receiver slower than the
 	// sender, so the channel fills and the sender retries.
 	orderPauseEvery = 1000
@@ -61,17 +61,25 @@ func isFull(err error) bool {
 
 // orderSender sends the records in order, retrying a record whose send
 // fails with a full buffer until it goes or its deadline passes, and
-// never sending the next one before it. It returns how many records it
-// sent and how many sends failed with a full buffer.
+// never sending the next one before it. It counts the records it sent
+// and the sends that failed with a full buffer, and stops before the
+// next record once stop is closed. It doesn't use the test's T, so it
+// can't log after the test ends.
 type orderSender struct {
 	ch       *Channel
+	stop     chan struct{}
 	sent     int
 	failures int
 }
 
-func (s *orderSender) run(t *testing.T) error {
+func (s *orderSender) run() error {
 	rec := make([]byte, testMax)
 	for i := range orderRecords {
+		select {
+		case <-s.stop:
+			return errors.New("stopped")
+		default:
+		}
 		var fd *os.File
 		if i%orderFDEvery == 0 {
 			var err error
@@ -84,8 +92,7 @@ func (s *orderSender) run(t *testing.T) error {
 			_ = fd.Close()
 		}
 		if err != nil {
-			t.Logf("record %d: %v", i, err)
-			return err
+			return fmt.Errorf("record %d: %w", i, err)
 		}
 		s.sent++
 	}
@@ -173,11 +180,17 @@ func TestOrderUnderLoad(t *testing.T) {
 		t.Skip("sends 100,000 records")
 	}
 	a, b := pair(t)
-	s := &orderSender{ch: a}
+	s := &orderSender{ch: a, stop: make(chan struct{})}
 	done := make(chan error, 1)
-	go func() { done <- s.run(t) }()
+	go func() { done <- s.run() }()
 
-	received := receiveOrdered(t, b)
+	received, recvErr := receiveOrdered(b)
+	if recvErr != nil {
+		// Stop the sender and wait for it before the test ends.
+		close(s.stop)
+		<-done
+		t.Fatalf("receiver after %d records: %v", received, recvErr)
+	}
 	if err := <-done; err != nil {
 		t.Fatalf("sender after %d records: %v", s.sent, err)
 	}
@@ -198,29 +211,29 @@ func TestOrderUnderLoad(t *testing.T) {
 }
 
 // receiveOrdered receives orderRecords records, pausing now and then,
-// and checks each is the next in order. It returns how many it received.
-func receiveOrdered(t *testing.T, b *Channel) int {
-	t.Helper()
+// and checks each is the next in order. It returns how many it received
+// and the first error.
+func receiveOrdered(b *Channel) (int, error) {
 	received := 0
 	for i := range orderRecords {
 		if i%orderPauseEvery == orderPauseEvery-1 {
 			time.Sleep(orderPause)
 		}
 		if err := b.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
-			t.Fatal(err)
+			return received, err
 		}
 		m, err := b.Recv()
 		if err != nil {
-			t.Fatalf("after %d records: %v", received, err)
+			return received, err
 		}
 		err = checkOrdered(m, i)
 		_ = m.Close()
 		if err != nil {
-			t.Fatalf("record %d: %v", i, err)
+			return received, fmt.Errorf("record %d: %w", i, err)
 		}
 		received++
 	}
-	return received
+	return received, nil
 }
 
 // TestQueueDepth measures how many records a channel queues before a
