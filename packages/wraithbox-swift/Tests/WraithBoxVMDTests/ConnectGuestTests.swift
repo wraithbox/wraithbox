@@ -72,7 +72,9 @@ struct ConnectGuestTests {
         closeAll(unclosed)
         unclosed = []
         let guest = connection.guest
-        #expect(try await closeShows { recv(guest, &byte, 1, MSG_DONTWAIT) == 0 })
+        #expect(
+            try await closeShows { recv(guest, &byte, 1, MSG_DONTWAIT) == 0 },
+            "the guest end did not read end of file within 2 s")
     }
 
     @Test(
