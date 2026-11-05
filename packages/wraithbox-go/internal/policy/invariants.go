@@ -1,7 +1,7 @@
 package policy
 
 import (
-	"net/url"
+	"net/netip"
 	"strings"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
@@ -49,7 +49,9 @@ func (p *Policy) guardedNames() map[dnsname.Name]string {
 	}
 	for _, pr := range p.Projects {
 		for _, repo := range pr.Repositories {
-			if n, ok := repositoryHost(repo); ok {
+			// checkProjects has refused a repository whose host
+			// can't be read, so the refusal is nil here.
+			if n, ok, _ := repositoryHost(repo); ok {
 				out[n] = "a repository of project " + pr.ID + " names it"
 			}
 		}
@@ -57,19 +59,54 @@ func (p *Policy) guardedNames() map[dnsname.Name]string {
 	return out
 }
 
-// repositoryHost returns the host of a compare form
-// (gitremote.Result.Compare) of the form `https://host[:port]/path`. A
-// compare form without a host, such as `sha256:<hex>`, names none.
-func repositoryHost(compare string) (dnsname.Name, bool) {
-	if !strings.HasPrefix(compare, "https://") {
-		return dnsname.Name{}, false
+// repositoryHost returns the host a compare form
+// (gitremote.Result.Compare) names. Any `scheme://` form names the host
+// of its authority, whatever the scheme, because
+// S07-08-requests-and-credentials ("Named places") gives a remote on any
+// scheme the git hosting profile. The port is dropped whether or not it
+// parses, so `https://host:bad/o/r` still names host. A form without
+// `://`, a local path or `sha256:<hex>`, names none, and so do an IP
+// address and a `file://` form with no host.
+//
+// It refuses a `scheme://` form whose host can't be read, so a guarded
+// host is never missed (SEC06-repo-writes).
+func repositoryHost(compare string) (dnsname.Name, bool, *Refusal) {
+	scheme, rest, ok := strings.Cut(compare, "://")
+	if !ok {
+		return dnsname.Name{}, false, nil
 	}
-	u, err := url.Parse(compare)
-	if err != nil {
-		return dnsname.Name{}, false
+	authority := rest
+	if i := strings.IndexAny(rest, "/?#"); i >= 0 {
+		authority = rest[:i]
 	}
-	n, r := dnsname.FromHost(u.Hostname())
-	return n, r == nil
+	if i := strings.LastIndexByte(authority, '@'); i >= 0 {
+		authority = authority[i+1:]
+	}
+	host := authority
+	if inner, ok := strings.CutPrefix(authority, "["); ok {
+		host, _, _ = strings.Cut(inner, "]")
+	}
+	if _, err := netip.ParseAddr(host); err == nil {
+		return dnsname.Name{}, false, nil
+	}
+	// A host name has no `:`, so what follows the last one is a port,
+	// as in `host:22` or git's `[host:22]`.
+	if i := strings.LastIndexByte(host, ':'); i >= 0 {
+		host = host[:i]
+	}
+	if host == "" && strings.EqualFold(scheme, "file") {
+		return dnsname.Name{}, false, nil
+	}
+	n, r := dnsname.FromHost(host)
+	switch {
+	case r == nil:
+		return n, true, nil
+	case r.Fault == dnsname.FaultIPLiteral:
+		// A host such as `127.1`, which a resolver reads as an address.
+		// No pass host or raw TCP entry can name it.
+		return dnsname.Name{}, false, nil
+	}
+	return dnsname.Name{}, false, refuse(RuleValue, "", "names no host that can be read, so it can't be checked against the guarded hosts")
 }
 
 // checkGuarded refuses a pass host, a raw TCP entry or an `audit`

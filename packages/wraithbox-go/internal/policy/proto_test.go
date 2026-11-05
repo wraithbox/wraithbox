@@ -120,6 +120,9 @@ func TestFromProtoRefused(t *testing.T) {
 		{"pass reason long", RuleString, func(m *policyv1.EffectivePolicy) { m.PassHosts[0].Reason = long(MaxReason + 1) }},
 		{"pass reason empty", RuleString, func(m *policyv1.EffectivePolicy) { m.PassHosts[0].Reason = "" }},
 		{"raw reason long", RuleString, func(m *policyv1.EffectivePolicy) { m.RawTcp[0].Reason = long(MaxReason + 1) }},
+		{"raw reason empty", RuleString, func(m *policyv1.EffectivePolicy) { m.RawTcp[0].Reason = "" }},
+		{"profile long", RuleString, func(m *policyv1.EffectivePolicy) { m.PartsOff[0].Profile = long(MaxPartString + 1) }},
+		{"kind long", RuleString, func(m *policyv1.EffectivePolicy) { m.PartsOff[0].Kind = long(MaxPartString + 1) }},
 		{"repository long", RuleString, func(m *policyv1.EffectivePolicy) { m.Projects[0].Repositories[0] = long(MaxRepository + 1) }},
 		{"source repository long", RuleString, func(m *policyv1.EffectivePolicy) {
 			m.Endpoints[1].Source.Repository = long(MaxRepository + 1)
@@ -191,6 +194,27 @@ func TestFromProtoRefused(t *testing.T) {
 		{"pass on a project's host", RuleGuarded, func(m *policyv1.EffectivePolicy) {
 			m.Projects[1].Repositories = []string{"https://git.example.com:8443/o/r"}
 			m.PassHosts[0].Host = "git.example.com"
+		}},
+		{"pass on a project's http host", RuleGuarded, func(m *policyv1.EffectivePolicy) {
+			m.Projects[1].Repositories = []string{"http://git.example.com/o/r.git"}
+			m.PassHosts[0].Host = "git.example.com"
+		}},
+		{"pass on a project's git host", RuleGuarded, func(m *policyv1.EffectivePolicy) {
+			m.Projects[1].Repositories = []string{"git://Git.Example.com/o/r.git"}
+			m.PassHosts[0].Host = "git.example.com"
+		}},
+		{"pass on a project's host with a bad port", RuleGuarded, func(m *policyv1.EffectivePolicy) {
+			m.Projects[1].Repositories = []string{"https://git.example.com:bad/o/r"}
+			m.PassHosts[0].Host = "git.example.com"
+		}},
+		{"raw TCP on a project's http host", RuleGuarded, func(m *policyv1.EffectivePolicy) {
+			m.Projects[1].Repositories = []string{"http://db.example.com/o/r.git"}
+		}},
+		{"repository with no readable host", RuleValue, func(m *policyv1.EffectivePolicy) {
+			m.Projects[1].Repositories = []string{"https://git_example.com/o/r"}
+		}},
+		{"repository with an empty host", RuleValue, func(m *policyv1.EffectivePolicy) {
+			m.Projects[1].Repositories = []string{"https:///o/r"}
 		}},
 		{"raw TCP on a covered host", RuleGuarded, func(m *policyv1.EffectivePolicy) { m.RawTcp[0].Host = "altssh.gitlab.com" }},
 		{"audit on a covered host", RuleGuarded, func(m *policyv1.EffectivePolicy) { m.Endpoints[2].Host = "api.anthropic.com" }},

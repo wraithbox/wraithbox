@@ -841,7 +841,9 @@ type Project struct {
 	// 32 lowercase hexadecimal characters, each project once.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// The compare forms of its repositories, at most 64, each 1 to 2048
-	// bytes.
+	// bytes. The host of a `scheme://` form, whatever the scheme, is a
+	// guarded host. A `scheme://` form whose host can't be read as a DNS
+	// name or an IP address refuses the message.
 	Repositories  []string `protobuf:"bytes,2,rep,name=repositories,proto3" json:"repositories,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

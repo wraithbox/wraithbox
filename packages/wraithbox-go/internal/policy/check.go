@@ -235,7 +235,12 @@ func (p *Policy) checkProjects() *Refusal {
 			return r
 		}
 		for j, repo := range pr.Repositories {
-			if r := checkString(at(f+".repositories", j), repo, MaxRepository); r != nil {
+			fr := at(f+".repositories", j)
+			if r := checkString(fr, repo, MaxRepository); r != nil {
+				return r
+			}
+			if _, _, r := repositoryHost(repo); r != nil {
+				r.Field = fr
 				return r
 			}
 		}
