@@ -25,14 +25,16 @@ without a GOOS suffix or build constraint, or CI never finds it.
 
 The smoke run has a budget of 60 seconds of fuzzing, so `ci` doesn't
 grow with each new target. It fuzzes 4 targets at once. Each target
-gets an equal share of the budget, at most 10 seconds.
-With more targets, each one fuzzes for less time. Building the test
+gets an equal share of the budget, at most 5 seconds. With more
+targets, each one fuzzes for less time. Building the test
 binaries takes time on top. Plain `go test` already replays every
 target's seeds and the failing inputs kept in `testdata/fuzz`.
 
 The smoke run is too short to find much that is new. A daily run
 (`go:fuzz-long`, the `Fuzz` workflow) fuzzes every target the same
-way within a budget of 10 minutes. It also runs locally. A failure
+way within a budget of 10 minutes. It also runs locally. CI keeps the
+fuzz corpus Go builds up (`$GOCACHE/fuzz`) in its cache between daily
+runs. Each run starts from what the earlier ones found. A failure
 prints the input that caused it, which is then kept in the package's
 `testdata/fuzz`.
 

@@ -105,7 +105,7 @@ jobs:
         run: mise run go:build
 
   # The fuzz smoke run (S11-verification-and-spikes, "Fuzzing"): every fuzz
-  # target for a share of go:fuzz's 60s budget, at most 10s, split into
+  # target for a share of go:fuzz's 60s budget, at most 5s, split into
   # shards that run in parallel (#528). Each shard runs one contiguous
   # part of the sorted list of targets (internal/tools/fuzzsmoke, -shard)
   # with the whole budget, so every target runs in exactly one shard and a
