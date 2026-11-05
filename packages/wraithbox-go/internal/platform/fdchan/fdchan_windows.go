@@ -28,6 +28,9 @@ func New(f *os.File, _ int) (*Channel, error) {
 	return nil, errUnsupported
 }
 
+// StreamPair isn't built on windows.
+func StreamPair() (a, b *os.File, err error) { return nil, nil, errUnsupported }
+
 // SocketType isn't built on windows.
 func SocketType(syscall.Conn) (family, sockType int, err error) { return 0, 0, errUnsupported }
 
@@ -36,6 +39,9 @@ func (*Channel) Send([]byte, syscall.Conn) error { return errUnsupported }
 
 // Recv isn't built on windows.
 func (*Channel) Recv() (*Message, error) { return nil, errUnsupported }
+
+// TryRecv isn't built on windows.
+func (*Channel) TryRecv() (*Message, error) { return nil, errUnsupported }
 
 // SetReadDeadline isn't built on windows.
 func (*Channel) SetReadDeadline(time.Time) error { return errUnsupported }

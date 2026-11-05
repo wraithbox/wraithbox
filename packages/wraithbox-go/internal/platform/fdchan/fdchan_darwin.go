@@ -93,6 +93,24 @@ func Socketpair(maxRecord int) (a, b *os.File, err error) {
 	return os.NewFile(uintptr(fds[0]), "fdchan"), os.NewFile(uintptr(fds[1]), "fdchan"), nil
 }
 
+// StreamPair makes an AF_UNIX SOCK_STREAM socketpair with close-on-exec
+// set on both ends: the byte stream of one guest connection that wb-netd
+// hands to wb-proxyd (S07-05-stream-hand-off, "Streams"). The caller
+// sends one end in a message and closes it, and keeps the other.
+func StreamPair() (a, b *os.File, err error) {
+	syscall.ForkLock.RLock()
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err == nil {
+		syscall.CloseOnExec(fds[0])
+		syscall.CloseOnExec(fds[1])
+	}
+	syscall.ForkLock.RUnlock()
+	if err != nil {
+		return nil, nil, fmt.Errorf("fdchan: stream socketpair: %w", err)
+	}
+	return os.NewFile(uintptr(fds[0]), "fdchan-stream"), os.NewFile(uintptr(fds[1]), "fdchan-stream"), nil
+}
+
 func setBuffers(fd, maxRecord int) error {
 	snd := maxRecord + bufferSlack
 	if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, snd); err != nil {
@@ -346,56 +364,103 @@ func (c *Channel) peerClosed() bool {
 
 // recvOnce reads one message, waiting until the deadline armReadDeadline
 // set. After the peer closed, it doesn't wait: no message means io.EOF.
+func (c *Channel) recvOnce(buf, oob []byte, peerClosed bool) (*Message, error) {
+	var a attempt
+	err := c.raw.Read(func(fd uintptr) bool {
+		a = c.attempt(int(fd), buf, oob)
+		switch {
+		case errors.Is(a.recvErr, syscall.EAGAIN) && peerClosed:
+			a.recvErr = syscall.ECONNRESET
+			return true
+		case errors.Is(a.recvErr, syscall.EAGAIN):
+			return false
+		}
+		return true
+	})
+	if err != nil {
+		return nil, fmt.Errorf("fdchan: recv: %w", err)
+	}
+	return c.finish(buf, a)
+}
+
+// TryRecv receives one message when one is queued, and returns
+// ErrNoMessage at once when none is. It decides a message as Recv does
+// and ignores the read deadline. A reader that must know it has read
+// every message the peer queued before some event calls it until
+// ErrNoMessage, as wb-netd does for the stream resets of
+// S07-05-stream-hand-off ("Resets"). Only the goroutine that calls Recv
+// calls it: two readers would read in no set order.
+func (c *Channel) TryRecv() (*Message, error) {
+	if err := c.ended(); err != nil {
+		return nil, err
+	}
+	buf := make([]byte, c.maxRecord+1)
+	oob := make([]byte, controlSpace)
+	var a attempt
+	if err := c.raw.Control(func(fd uintptr) { a = c.attempt(int(fd), buf, oob) }); err != nil {
+		return nil, fmt.Errorf("fdchan: recv: %w", err)
+	}
+	if errors.Is(a.recvErr, syscall.EAGAIN) {
+		return nil, ErrNoMessage
+	}
+	return c.finish(buf, a)
+}
+
+// attempt is what one recvmsg gave: the bytes and control data, the
+// decision about them, and the errors of the call and of dropping a
+// message whose descriptors didn't fit.
+type attempt struct {
+	r       received
+	d       decision
+	recvErr error
+	dropErr error
+}
+
+// attempt makes one recvmsg on the non-blocking socket fd and decides
+// the message.
 //
 // darwin has no MSG_CMSG_CLOEXEC, so it holds ForkLock across recvmsg
 // and setting close-on-exec on each descriptor that arrived: a fork in
 // another goroutine never inherits one.
-func (c *Channel) recvOnce(buf, oob []byte, peerClosed bool) (*Message, error) {
-	var r received
-	var d decision
-	var recvErr, dropErr error
-	err := c.raw.Read(func(fd uintptr) bool {
-		syscall.ForkLock.RLock()
-		defer syscall.ForkLock.RUnlock()
-		r, recvErr = recvmsg(int(fd), buf, oob)
-		switch {
-		case errors.Is(recvErr, syscall.EAGAIN) && peerClosed:
-			recvErr = syscall.ECONNRESET
-			return true
-		case errors.Is(recvErr, syscall.EAGAIN):
-			return false
-		case fdTableFull(recvErr):
-			dropErr = dropRedelivered(int(fd), buf, oob, c.maxRecord)
-			return true
-		case recvErr != nil:
-			return true
-		}
-		d = decide(darwinControl, r, c.maxRecord)
-		for _, rfd := range d.closeFDs {
-			syscall.CloseOnExec(rfd)
-		}
-		if d.keep >= 0 {
-			syscall.CloseOnExec(d.keep)
-		}
-		return true
-	})
+func (c *Channel) attempt(fd int, buf, oob []byte) attempt {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
+	var a attempt
+	a.r, a.recvErr = recvmsg(fd, buf, oob)
 	switch {
-	case err != nil:
-		return nil, fmt.Errorf("fdchan: recv: %w", err)
-	case errors.Is(recvErr, syscall.ECONNRESET):
+	case fdTableFull(a.recvErr):
+		a.dropErr = dropRedelivered(fd, buf, oob, c.maxRecord)
+		return a
+	case a.recvErr != nil:
+		return a
+	}
+	a.d = decide(darwinControl, a.r, c.maxRecord)
+	for _, rfd := range a.d.closeFDs {
+		syscall.CloseOnExec(rfd)
+	}
+	if a.d.keep >= 0 {
+		syscall.CloseOnExec(a.d.keep)
+	}
+	return a
+}
+
+// finish turns an attempt into the message or the error Recv returns.
+func (c *Channel) finish(buf []byte, a attempt) (*Message, error) {
+	switch {
+	case errors.Is(a.recvErr, syscall.ECONNRESET):
 		// darwin reports a closed datagram peer once, as ECONNRESET.
 		c.eof.Store(true)
 		return nil, io.EOF
-	case fdTableFull(recvErr):
-		return nil, c.refuseFDTableFull(recvErr, dropErr)
-	case recvErr != nil:
-		return nil, fmt.Errorf("fdchan: recv: %w", recvErr)
-	case d.rule != "":
-		return nil, c.refuse(r, d)
+	case fdTableFull(a.recvErr):
+		return nil, c.refuseFDTableFull(a.recvErr, a.dropErr)
+	case a.recvErr != nil:
+		return nil, fmt.Errorf("fdchan: recv: %w", a.recvErr)
+	case a.d.rule != "":
+		return nil, c.refuse(a.r, a.d)
 	}
-	m := &Message{Record: buf[:r.n:r.n]}
-	if d.keep >= 0 {
-		m.File = os.NewFile(uintptr(d.keep), "fdchan-received")
+	m := &Message{Record: buf[:a.r.n:a.r.n]}
+	if a.d.keep >= 0 {
+		m.File = os.NewFile(uintptr(a.d.keep), "fdchan-received")
 	}
 	return m, nil
 }
