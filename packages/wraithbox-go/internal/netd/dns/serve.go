@@ -38,6 +38,8 @@ func (r *Resolver) Handle(ctx context.Context, msg []byte, arrival time.Time, fr
 			return Outcome{When: SendNever, Rule: netd.RuleDNSHoldFull, Name: o.Name, Debited: o.Debited}
 		}
 		r.rec.Record(netd.Refuse, o.Rule, attrs...)
+		// Once per held query, not once per name: Approvals keeps one
+		// open event per name (netd.Approvals).
 		if o.Approve && r.cfg.Approvals != nil {
 			r.cfg.Approvals.NotAllowed(o.Name)
 		}

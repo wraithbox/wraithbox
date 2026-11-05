@@ -153,17 +153,34 @@ func (s *Stack) setup() error {
 	if s.hooks.DNSOverUDP == nil {
 		return nil
 	}
-	dns, err := gonet.DialUDP(s.gv, &tcpip.FullAddress{NIC: nicID, Addr: addr(s.cfg.Gateway), Port: portDNS}, nil, ipv4.ProtocolNumber)
-	if err != nil {
-		return fmt.Errorf("netd: bind the gateway's UDP port 53: %w", err)
-	}
-	s.dns = dns
-	return nil
+	return s.bindDNS()
 }
 
 // dhcpReceiveBuffer bounds the DHCP requests queued for the server, in
 // bytes. Past it the stack drops them (SEC13-bounded-resources).
 const dhcpReceiveBuffer = 64 << 10
+
+// dnsReceiveBuffer bounds the DNS queries queued for the server, which
+// reads them one at a time, in bytes. Past it the stack drops them
+// (SEC13-bounded-resources).
+const dnsReceiveBuffer = 64 << 10
+
+// bindDNS binds the DNS server's socket: UDP port 53 on the gateway's
+// address.
+func (s *Stack) bindDNS() error {
+	var wq waiter.Queue
+	ep, err := s.gv.NewEndpoint(udp.ProtocolNumber, ipv4.ProtocolNumber, &wq)
+	if err != nil {
+		return fmt.Errorf("netd: open the DNS socket: %s", err)
+	}
+	ep.SocketOptions().SetReceiveBufferSize(dnsReceiveBuffer, false)
+	if err := ep.Bind(tcpip.FullAddress{NIC: nicID, Addr: addr(s.cfg.Gateway), Port: portDNS}); err != nil {
+		ep.Close()
+		return fmt.Errorf("netd: bind the gateway's UDP port 53: %s", err)
+	}
+	s.dns = gonet.NewUDPConn(&wq, ep)
+	return nil
+}
 
 // bindDHCP binds the DHCP server's socket: UDP port 67 on the NIC, with
 // no address, so that it gets requests to the gateway and to limited and

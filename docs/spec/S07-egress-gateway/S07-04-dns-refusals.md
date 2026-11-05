@@ -208,6 +208,10 @@ When the query arrives, `wb-netd`:
 
 It does no other work that depends on the reason.
 
+The whole order, with the local answers, the name form and the host
+state, is in S07-03-dns, "Order of checks". Which lookups debit is in
+S07-03-dns, "Wildcard budget".
+
 When the write fails, the name is refused with the rule
 `accounting-write-failed` (S04-08-records-and-bounds, "Accounting and event channels"). An answered name's accounting record, with its
 address, is written before its answer too. A failed write refuses the

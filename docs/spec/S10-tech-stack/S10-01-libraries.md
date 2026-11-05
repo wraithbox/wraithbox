@@ -16,7 +16,7 @@ or downloads and runs, such as a VMM on Linux.
 | Userspace TCP/IP | gVisor `pkg/tcpip`, from gVisor's `go` branch (Apache-2.0) |
 | RPC | protobuf + gRPC: `google.golang.org/grpc` (Apache-2.0) and `google.golang.org/protobuf` (BSD-3-Clause) in Go, grpc-swift 2 with `grpc-swift-protobuf` and `swift-protobuf` (all Apache-2.0) in Swift, `Grpc.Net` when .NET arrives. Code generated with `buf` (Apache-2.0) |
 | DHCP server | Wraith Box's own Go code in `internal/netd/dhcp`. It reads the few fields and options the server needs and rejects the rest. A library would parse every option the guest sends and add modules to the dependency set |
-| DNS server | a mature Go DNS library (for example `miekg/dns`) |
+| DNS server | Wraith Box's own Go code in `internal/netd/dns`. It reads the one-question subset of S07-03-dns, "Messages", and writes its responses itself. `golang.org/x/net/dns/dnsmessage` (BSD-3-Clause) is the independent decoder in its tests and fuzz target |
 | TLS/HTTP proxying | Go standard library (`crypto/tls`, `net/http`, `httputil`), `golang.org/x/net/http2` |
 | SSH client (image build) | `golang.org/x/crypto/ssh` (BSD-3-Clause), in `wb-build-ssh` only (S04-05-helper-programs) |
 | PTY | `creack/pty` (Unix), ConPTY through `golang.org/x/sys/windows`; `golang.org/x/term` |

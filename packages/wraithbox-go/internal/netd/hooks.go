@@ -216,7 +216,10 @@ type HostState interface {
 // (FR09-approve-unknown, S07-04-dns-refusals, "Names not on the
 // allowlist"). The DNS server calls NotAllowed after a not-allowed name
 // was debited and its query held, and never for a name that failed the
-// name form (SEC14-no-fake-approvals). It returns promptly: the event
+// name form (SEC14-no-fake-approvals). It calls it for every held query
+// of such a name, so a name asked for again during its hold is passed
+// again: the implementer keeps one open event per name (M5.1,
+// S07-17-approvals-and-learning). It returns promptly: the event
 // runs apart from the answer (S07-04-dns-refusals, "Work beside the
 // answer").
 type Approvals interface {

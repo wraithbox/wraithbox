@@ -263,6 +263,49 @@ func TestBackground(t *testing.T) {
 	})
 }
 
+// TestBackgroundPastBudget checks that a listed name refused with
+// wildcard-budget is still counted on the background list, and raises
+// no event (S07-03-dns, "Wildcard budget").
+func TestBackgroundPastBudget(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		listed := nt.Name("time.apple.com")
+		f := newFixture(t, func(c *Config) { c.Background = []dnsname.Name{listed} })
+		f.names.budget = 0
+		if o := f.ask(query(1, "time.apple.com", TypeA, false), &outbox{}); o.Rule != netd.RuleWildcardBudget || o.Approve {
+			t.Fatalf("outcome %+v", o)
+		}
+		if n := f.r.BackgroundCounts()[listed]; n != 1 {
+			t.Fatalf("count %d, want 1", n)
+		}
+	})
+}
+
+// TestFormFloodSpendsRate checks that a name that fails the form spends
+// a rate token (S07-03-dns, "Order of checks", SEC13-bounded-resources):
+// of a burst of bad names, QueryBurst are refused for their form and the
+// rest with dns-query-rate, and a good name after them is refused with
+// dns-query-rate too. The refusals of both rules are held, so the hold
+// table's cap, not the rate, bounds what a burst holds.
+func TestFormFloodSpendsRate(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFixture(t, nil)
+		out := &outbox{}
+		for i := range QueryBurst + 50 {
+			f.ask(query(1, fmt.Sprintf("bad_%d.example.com", i), TypeA, false), out)
+		}
+		rec := f.r.Recorder()
+		if rec.Count(netd.RuleDNSNameForm) != QueryBurst || rec.Count(netd.RuleDNSQueryRate) != 50 {
+			t.Fatalf("form %d, rate %d", rec.Count(netd.RuleDNSNameForm), rec.Count(netd.RuleDNSQueryRate))
+		}
+		if o := f.ask(query(1, "good.example.com", TypeA, false), out); o.Rule != netd.RuleDNSQueryRate {
+			t.Fatalf("outcome %+v", o)
+		}
+		if len(f.calls.List()) != 0 || len(f.approvals.list()) != 0 {
+			t.Fatalf("calls %+v, approvals %v", f.calls.List(), f.approvals.list())
+		}
+	})
+}
+
 // debits returns the names of the debit calls.
 func debits(f *fixture) []string {
 	var out []string
