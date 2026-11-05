@@ -48,9 +48,10 @@ against the adversary of T00-index.
   have a session in the VM. The host can't tell the projects in one VM
   apart, so it enforces this per VM, and the projects that share a VM
   share their write grants (T11-shared-vm-grants). Gists, repository
-  creation, and package publishing are denied by default. Work
-  returned over the host-guest socket lands only in the session's own
-  branch of its project's landing repository (S08-workspace-and-git).
+  creation, forks and package publishing are denied, and no policy
+  allows them. Work returned over the host-guest socket lands only in
+  the session's own branch of its project's landing repository
+  (S08-workspace-and-git).
 - **SEC07-dep-gate: Dependency gate.** Package downloads (npm, PyPI, Go modules,
   crates) are refused when the version is younger than a minimum age or
   has a known vulnerability at or above a severity threshold.

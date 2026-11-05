@@ -141,7 +141,7 @@ func TestModelAPI(t *testing.T) {
 		"GET api.anthropic.com/api/claude_code/policy_limits",
 		"GET api.anthropic.com/api/claude_code/settings",
 		"GET api.anthropic.com/api/claude_cli/bootstrap",
-		"POST api.anthropic.com/api/eval/sdk-zAZezfDKGoZuXXKe",
+		"POST api.anthropic.com/api/eval/sdk-abc",
 		"GET api.anthropic.com/mcp-registry/v0/servers",
 		"GET api.anthropic.com/api/hello",
 		"HEAD api.anthropic.com/api/hello",
@@ -163,7 +163,7 @@ func TestModelAPI(t *testing.T) {
 		{"POST api.anthropic.com/api/event_logging%2Fv2/batch", RuleModelPathEscape},
 		{"GET platform.claude.com/v1/oauth/%68ello", RuleModelPathEscape},
 		{"GET downloads.claude.ai/claude-code-releases/latest", RuleNoRule},
-		{"GET raw.githubusercontent.com/anthropics/claude-code/refs/heads/main/CHANGELOG.md", RuleNoRule},
+		{"GET raw.githubusercontent.com/acme/app/refs/heads/main/CHANGELOG.md", RuleNoRule},
 	} {
 		want(t, e, req(tc.req), false, tc.rule)
 	}

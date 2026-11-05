@@ -570,3 +570,5 @@ pchar
 policyv
 pypi
 pythonhosted
+httppolicy
+zipball
