@@ -50,7 +50,7 @@ func (h *hostRules) isWrite(method, path, rawQuery string) bool {
 // one only on a host that serves the transport (repoForms.transport).
 // On GitHub and Gitea the repository is `/{owner}/{repo}`. On GitLab
 // and a host a remote names, it has two segments or more, and its first
-// segment isn't `api`. So an API path that ends in a transport suffix,
+// segment isn't `api`, and no segment is `-`. So an API path that ends in a transport suffix,
 // such as a file named `git-upload-pack`, isn't the transport.
 func (h *hostRules) transportRepo(path string) (repo, suffix string, ok bool) {
 	if !h.forms.transport {
@@ -87,7 +87,9 @@ func (h *hostRules) isTransportRepo(repo string) bool {
 	if h.kind == builtin.GitHub || h.kind == builtin.Gitea {
 		return len(segments) == 2
 	}
-	return !strings.EqualFold(segments[0], "api")
+	// GitLab reserves the segment `-` for its web routes, such as
+	// `/{project}/-/create/{ref}`, so no repository path has one.
+	return !strings.EqualFold(segments[0], "api") && !slices.Contains(segments, "-")
 }
 
 // namesPushService reports whether a query has a `service` parameter

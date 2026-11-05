@@ -76,6 +76,11 @@ func TestProjectSet(t *testing.T) {
 				{"POST api.github.com/repos/other/repo/x/git-upload-pack", false, RuleWriteOutside},
 				{"POST github.com/other/repo/x/git-upload-pack", false, RuleWriteOutside},
 				{"GET git.example.net/api/x/info/refs", false, RuleNoRule},
+				// GitLab's `-` segment is a web route, never a repository.
+				{"POST gitlab.com/other/proj/-/create/main/git-upload-pack", false, RuleWriteOutside},
+				// Known gap until M4.10: a remote host's API path that
+				// doesn't start with `api` still reads as git's transport.
+				{"POST git.example.net/rest/api/1.0/x/git-upload-pack", true, RuleAllowed},
 				{"POST codeberg.org/other/repo/x/git-upload-pack", false, RuleWriteOutside},
 				// Gists, creation and forks, even of a project's repository.
 				{"POST gist.github.com/acme/app.git/git-receive-pack", false, builtin.RuleCreate},
