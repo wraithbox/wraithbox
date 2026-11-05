@@ -93,18 +93,21 @@ Watch a pull request's checks with one background command per pull
 request, in Bash with `run_in_background`:
 
 ```bash
-for i in $(seq 110); do sleep 30; gh pr checks <n> >/dev/null 2>&1; [ $? -eq 8 ] || break; done; gh pr checks <n>
+for i in $(seq 110); do sleep 30; p=$(gh pr checks <n> --json bucket --jq 'any(.[]; .bucket == "pending")' 2>/dev/null); [ "$p" = true ] || break; done; gh pr checks <n>
 ```
 
-Exit code 8 means checks pending, so the loop ends when every check
-finished, when no check is reported, or after 55 minutes, and prints
-the checks. The first `sleep` gives GitHub time to register the checks
-of a new push. A watch ends one of these ways:
+The loop tests for a pending check, not the exit code: `gh pr checks`
+exits 1 when one check failed while others still run. So the loop ends
+when no check is pending, when no check is reported (the command fails
+and prints nothing), or after 55 minutes, and prints the checks. The
+first `sleep` gives GitHub time to register the checks of a new push.
+A watch ends one of these ways:
 
 - **Every check passed:** the head is green.
 - **A check failed:** it goes back with the review findings (step 3).
-  Run `gh pr checks <n>` again right before you send the fix round, so
-  every failure on that head goes in the one message.
+  Every check on that head has finished by then, so every failure goes
+  in the one message. Only a broken build goes back before the watch
+  ends. To see one sooner, read `gh pr checks <n>` at any wake.
 - **No check reported:** start the watch again, at most twice. After
   that, the pull request goes on `Open` with `no checks`. A pull
   request that conflicts with `main` gets no checks.
