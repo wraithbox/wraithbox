@@ -195,9 +195,8 @@ A stream message holds exactly one descriptor, a Unix domain
 - once X14-flow-attribution delivers labels, the guest's label. Its
   field number is kept, and this build refuses a message that sets it.
 
-A stream message of the wrong form, such as one without its
-descriptor, is malformed (S07-06-name-mapping). `wb-proxyd` refuses
-the stream when:
+A stream message of the wrong form is malformed (S07-06-name-mapping).
+`wb-proxyd` refuses the stream when:
 
 - the descriptor isn't a Unix domain `SOCK_STREAM` socket;
 - the generation isn't the socket's;

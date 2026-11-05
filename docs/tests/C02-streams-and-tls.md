@@ -60,7 +60,7 @@ over 4 KiB), and a record that doesn't decode. `wb-hostd` ends VM A's
   and see the name refused.
 - Release an address the copy doesn't hold, and see it logged with
   `release-unheld` and ignored. Release one with a stream open, and see
-  the stream stay open and a new one refused.
+  the open stream left as it was and a new one refused.
 - Narrow the effective policy with streams open, and see each stream it
   no longer allows reset with `policy-recomputed` before the
   `PolicyAck`.
