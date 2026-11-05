@@ -59,10 +59,11 @@ request to it. The GraphQL path is the one the GraphQL lock protects
 | `pkg-containers.githubusercontent.com` | package registries | | yes | |
 | `formulae.brew.sh` | package registries | | yes | |
 
-`raw.githubusercontent.com` isn't covered: it is outside every
-profile ("model API"). A host a project's remotes name gets the git
-hosting profile too, so it is covered while that project has a
-session in the VM.
+`raw.githubusercontent.com` isn't covered. It is outside the model API
+profile ("model API"), and no other profile in this table names it.
+Whether to cover it is open (I560). A host a project's remotes name
+gets the git hosting profile too, so it is covered while that project
+has a session in the VM.
 
 #### git hosting
 

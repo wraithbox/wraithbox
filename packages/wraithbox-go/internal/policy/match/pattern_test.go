@@ -280,6 +280,9 @@ func TestCanMatchGraphQLLock(t *testing.T) {
 		{"api.github.com", "POST", "/*", true},
 		{"api.github.com", "POST", "/*/", true},
 		{"api.github.com", "POST", "/graph**", true},
+		// Letter case: a host may route `/GraphQL` to GraphQL too.
+		{"api.github.com", "POST", "/GraphQL", true},
+		{"api.github.com", "POST", "/GRAPH*", true},
 		// `/graphql/x` starts with `/graphql`. The answer is about the
 		// prefix, so the caller's prefix decides how wide the check is.
 		{"api.github.com", "POST", "/*/x", true},
@@ -325,6 +328,8 @@ func TestCanMatchTokenPath(t *testing.T) {
 		{"platform.claude.com", "platform.claude.com", "post", "/v1/oauth/token", true},
 		{"platform.claude.com", "platform.claude.com", "POST", "/v1/oauth/%74oken", true},
 		{"platform.claude.com", "platform.claude.com", "POST", "/v1/%6Fauth/token", true},
+		{"platform.claude.com", "platform.claude.com", "POST", "/V1/OAuth/Token", true},
+		{"api.anthropic.com", "api.anthropic.com", "POST", "/v1/OAUTH/**", true},
 		{"*.claude.com", "platform.claude.com", "POST", "/v1/oauth/token", true},
 		{"*.anthropic.com", "api.anthropic.com", "POST", "/**", true},
 		{"PLATFORM.claude.com.", "platform.claude.com", "POST", "/v1/oauth/token", true},
@@ -345,6 +350,35 @@ func TestCanMatchTokenPath(t *testing.T) {
 		if got := CanMatch(r, mustName(t, tc.host), []string{"POST"}, prefix); got != tc.want {
 			t.Errorf("CanMatch(%s %s %s on %s) = %v, want %v", tc.ruleHost, tc.method, tc.path, tc.host, got, tc.want)
 		}
+	}
+}
+
+// TestCanMatchAnyMethod checks that an empty or nil method list asks
+// about any method, so no rule method narrows the answer.
+func TestCanMatchAnyMethod(t *testing.T) {
+	host := mustName(t, "api.github.com")
+	for _, method := range []string{"GET", "POST", "DELETE", "*"} {
+		r := Rule{Host: mustHost(t, "api.github.com"), Method: Method(method), Path: mustPattern(t, "/graphql")}
+		for _, methods := range [][]string{nil, {}} {
+			if !CanMatch(r, host, methods, "/graphql") {
+				t.Errorf("CanMatch(%s /graphql, methods %v) = false, want true", method, methods)
+			}
+		}
+		if method == "DELETE" && CanMatch(r, host, []string{"GET", "POST"}, "/graphql") {
+			t.Errorf("CanMatch(DELETE /graphql, GET and POST) = true, want false")
+		}
+	}
+}
+
+// TestMatchCase checks that Match, at request time, stays case-sensitive
+// while CanMatchPrefix folds letter case.
+func TestMatchCase(t *testing.T) {
+	p := mustPattern(t, "/graphql")
+	if p.Match("/GraphQL") {
+		t.Errorf("Match(/GraphQL) = true, want false")
+	}
+	if !p.CanMatchPrefix("/GraphQL") {
+		t.Errorf("CanMatchPrefix(/GraphQL) = false, want true")
 	}
 }
 
