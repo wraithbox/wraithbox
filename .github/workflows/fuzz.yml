@@ -39,5 +39,22 @@ jobs:
           install_args: go
           cache: true
 
+      # Go keeps the inputs that found new coverage under
+      # $GOCACHE/fuzz. Kept between runs, each day's fuzzing starts from
+      # what the earlier days found and not from the seeds alone. A cache
+      # entry can't be changed, so each run saves a new one, under its
+      # run ID, and restores the newest. Only this workflow writes these
+      # entries, and pull request runs can't write to main's cache.
+      - name: Find the fuzz corpus
+        id: corpus
+        run: echo "dir=$(mise exec -- go env GOCACHE)/fuzz" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the fuzz corpus
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.corpus.outputs.dir }}
+          key: fuzz-corpus-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ runner.os }}-
+
       - name: Fuzz run
         run: mise run go:fuzz-long

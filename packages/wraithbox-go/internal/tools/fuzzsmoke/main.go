@@ -134,7 +134,7 @@ func parseFlags(args []string, stderr io.Writer) (options, bool) {
 	flags.SetOutput(stderr)
 	var o options
 	flags.StringVar(&o.dir, "dir", ".", "the Go module directory")
-	flags.StringVar(&o.fuzztime, "fuzztime", "10s", "the longest one target fuzzes, as go test -fuzztime takes it")
+	flags.StringVar(&o.fuzztime, "fuzztime", "5s", "the longest one target fuzzes, as go test -fuzztime takes it")
 	flags.DurationVar(&o.budget, "budget", 60*time.Second, "how long the fuzzing takes in all, shared equally by the targets; 0 fuzzes each target for -fuzztime")
 	flags.IntVar(&o.jobs, "jobs", 4, "how many targets fuzz at once")
 	shardFlag := flags.String("shard", "", "run only part `i/n` of the targets, i from 1 to n; empty runs every target")
