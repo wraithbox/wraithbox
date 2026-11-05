@@ -24,8 +24,8 @@ sends these streams:
   no entry;
 - one on a port the name's policy doesn't allow;
 - one to a name that a policy change removed after its report;
-- one with no descriptor, one with two, and one with three, which cuts
-  the control data (`MSG_CTRUNC`);
+- one with no descriptor, one with two, and one with three, which the
+  channel refuses with `fdchan-fd-count`;
 - one with a datagram socket, and one with a socket that isn't a Unix
   domain socket, as the stream;
 - one sent right behind a report that waits on `wb-hostd` for the
@@ -41,11 +41,15 @@ On the same socket it sends name reports with:
 - an address outside the synthetic range;
 - new names under a wildcard past the wildcard budget.
 
-Each is refused and logged with its rule and check, and `wb-proxyd`
-doesn't resolve a name upstream, open an upstream connection or fetch a
-binding. The malformed ones, a name not in canonical form and an
-address outside the range, also close VM A's hand-off socket, and
-`wb-hostd` ends VM A's `wb-netd` and counts the exit.
+Each is refused and logged with its rule and check, a refused stream
+gets a `StreamReset`, and the stream handler sees none of them, so
+`wb-proxyd` doesn't resolve a name upstream, open an upstream
+connection or fetch a binding. The malformed ones also close VM A's
+hand-off socket and its streams, and `wb-proxyd` sends
+`HandoffSocketClosed`: a name not in canonical form, an address outside
+the range, a stream of the wrong form (no descriptor, two, three or
+over 4 KiB), and a record that doesn't decode. `wb-hostd` ends VM A's
+`wb-netd` and counts the exit.
 
 - Report an address held for another name twice, once with no stream
   open and once with a stream to it open, and see the old entry removed
@@ -54,13 +58,25 @@ address outside the range, also close VM A's hand-off socket, and
   unchanged.
 - Block the accounting record of a wildcard name for more than 100 ms,
   and see the name refused.
+- Release an address the copy doesn't hold, and see it logged with
+  `release-unheld` and ignored. Release one with a stream open, and see
+  the stream stay open and a new one refused.
+- Narrow the effective policy with streams open, and see each stream it
+  no longer allows reset with `policy-recomputed` before the
+  `PolicyAck`.
 - From `wb-hostd`, send hand-off messages with an older generation, a
   VM that isn't a VM slot, the build VM of a running image build, and a
-  datagram with two descriptors, and see each refused with
-  `handoff-socket-refused`. An equal generation replaces the old socket and closes
-  its streams.
+  `SOCK_STREAM` socket, and see each refused with
+  `handoff-socket-refused`. Send a datagram with two descriptors, and see
+  it refused with `control-message-refused`. Each refusal ends the
+  control channel. An equal generation replaces the old socket and
+  closes its streams.
 - Change the effective policy, and see it reach `wb-netd` only after
   `wb-proxyd` has acknowledged it.
+
+On macOS, `internal/proxyd/handoff` runs the `wb-proxyd` cases over
+socketpairs (`receiver_darwin_test.go`), and the reset that can't be
+sent with a fake channel (`TestResetSendFails`).
 
 ### Upstream addresses
 
@@ -166,6 +182,8 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   stream and no other message. The message encodes again within 4 KiB.
   `FuzzProxydMessage` does the same for the `StreamReset` that
   `wb-netd` reads, and `FuzzControlMessage` for `wb-hostd`'s messages.
+  `FuzzHandoffDecision` drives `wb-proxyd`'s decisions on them and
+  checks its copy of the name mapping after each.
 
 ## Conformance
 
