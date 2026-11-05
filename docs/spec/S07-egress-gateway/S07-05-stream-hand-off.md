@@ -124,16 +124,13 @@ sends it when it resets a stream it accepted, before it closes the
 stream's socket. So `wb-netd` knows to reset the guest's TCP
 connection, not to close it, when it reads end of file on that socket.
 
-`wb-netd` sends every byte it already queued for the guest, then
-answers end of file with a FIN, unless a `StreamReset` for the stream
-came first. Then it answers with a reset. Before it answers end of
-file, it reads what is waiting on the hand-off socket.
+`wb-netd` reads what waits on the hand-off socket and sends every byte
+it already queued for the guest. Then it answers end of file with a
+FIN, or with a reset when a `StreamReset` for the stream came first.
 
-A `StreamReset` whose send fails, with `ENOBUFS` or past its deadline,
-makes `wb-proxyd` close the VM's hand-off socket before it closes the
-stream's socket. `wb-netd` resets every stream of a VM whose hand-off
-socket closed. So a stream cut short never reaches the guest as a
-clean FIN.
+When a `StreamReset` send fails (`ENOBUFS` or its deadline), `wb-proxyd`
+closes the VM's hand-off socket before the stream's socket, and
+`wb-netd` resets every stream of a VM whose hand-off socket closed.
 
 ### One hand-off socket per VM
 
