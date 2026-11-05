@@ -1,7 +1,6 @@
 package synth
 
 import (
-	"context"
 	"log/slog"
 	"net"
 	"sync"
@@ -26,7 +25,7 @@ func (p *Pool) DecideStream(f netd.Flow) netd.StreamDecision {
 	switch {
 	case !ok:
 		return netd.StreamDecision{Rule: netd.RuleSyntheticUnmapped}
-	case p.deps.Ports == nil || !p.deps.Ports.PortAllowed(name, f.Dest.Port()):
+	case !p.portAllowed(name, f.Dest.Port()):
 		return netd.StreamDecision{Rule: netd.RulePortNotAllowed}
 	case p.deps.HandOff == nil:
 		return netd.StreamDecision{Rule: netd.RuleHandoffUnavailable}
@@ -43,26 +42,37 @@ type pinSink struct {
 	name dnsname.Name
 }
 
-// ServeStream pins the entry of the connection's address and hands the
-// connection on with the name. When the entry was released, or the
-// address went to another name, after the decision, it closes the
-// connection and logs synthetic-unmapped.
+// ServeStream pins the entry of the connection's address, checks the
+// decision again, and hands the connection on with the name. The
+// handshake took time, so the decision may no longer hold. When the
+// entry was released or the address went to another name, it closes the
+// connection with synthetic-unmapped. When the policy no longer allows
+// the port, it closes it with port-not-allowed. Each close is recorded
+// with its rule (SEC05-default-deny, SEC10-audit).
 func (s *pinSink) ServeStream(conn net.Conn, f netd.Flow) {
 	name, done, ok := s.p.Open(f.Dest.Addr())
-	if ok && name != s.name {
+	rule := netd.Rule("")
+	switch {
+	case !ok:
+		rule = netd.RuleSyntheticUnmapped
+	case name != s.name:
 		done()
-		ok = false
+		rule = netd.RuleSyntheticUnmapped
+	case !s.p.portAllowed(name, f.Dest.Port()):
+		done()
+		rule = netd.RulePortNotAllowed
 	}
-	if !ok {
+	if rule != "" {
 		_ = conn.Close()
-		attrs := append([]slog.Attr{
-			slog.String("decision", string(netd.Reset)),
-			slog.String("rule", string(netd.RuleSyntheticUnmapped)),
-		}, f.LogAttrs()...)
-		s.p.log.LogAttrs(context.Background(), slog.LevelInfo, "netd reset", attrs...)
+		s.p.rec.Record(netd.Close, rule, append(f.LogAttrs(), slog.String("name", s.name.String()))...)
 		return
 	}
 	s.p.deps.HandOff.HandOffStream(&pinnedConn{Conn: conn, done: done}, netd.NamedFlow{Flow: f, Name: name})
+}
+
+// portAllowed asks the port policy. Without one no port is allowed.
+func (p *Pool) portAllowed(name dnsname.Name, port uint16) bool {
+	return p.deps.Ports != nil && p.deps.Ports.PortAllowed(name, port)
 }
 
 // pinnedConn is a connection that holds its entry's pin until it is

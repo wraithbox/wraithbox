@@ -109,6 +109,9 @@ const (
 	// RuleHandoffSendFailed: a name report or release that failed or
 	// took more than 100 ms (S07-05-stream-hand-off, "Transport").
 	RuleHandoffSendFailed Rule = "handoff-send-failed"
+	// RuleSyntheticRelease: an entry released, recorded and reported. It
+	// is logged, rate-limited, but not refused.
+	RuleSyntheticRelease Rule = "synthetic-release"
 )
 
 // The rules of the DHCP server, after S07-02-packet-path, "Addressing".
@@ -141,14 +144,16 @@ const (
 	RuleDHCPRelease Rule = "dhcp-release"
 )
 
-// Decision is what happened to a frame or connection: a drop, or a
-// reset sent to its SYN.
+// Decision is what happened to a frame or connection: a drop, a reset
+// sent to its SYN, or a close of a connection whose handshake had
+// finished.
 type Decision string
 
 // The decisions a Recorder counts.
 const (
 	Drop  Decision = "drop"
 	Reset Decision = "reset"
+	Close Decision = "close"
 )
 
 // Events receives every drop and reset with its rule, the count of the
