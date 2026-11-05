@@ -1,0 +1,43 @@
+name: Fuzz
+
+# The daily fuzz run (S11-verification-and-spikes, "Fuzzing"): every Go
+# fuzz target for a share of 10 minutes, through `mise run go:fuzz-long`,
+# which runs the same way locally. The fuzz smoke run in ci.yml is too
+# short to find much that is new. This run is long enough to. A failure
+# prints the failing input in the log, so it can be committed under the
+# package's testdata/fuzz.
+on:
+  schedule:
+    # Once a day, off the hour, when hosted runners are less busy.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time. A manual run waits for the scheduled one.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  fuzz:
+    name: Fuzz (daily)
+    runs-on: ubuntu-24.04
+    # 10 minutes of fuzzing, plus setup and building the test binaries.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
+        with:
+          install: true
+          install_args: go
+          cache: true
+
+      - name: Fuzz run
+        run: mise run go:fuzz-long

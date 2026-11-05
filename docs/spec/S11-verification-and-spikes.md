@@ -23,6 +23,19 @@ and a new target doesn't need a change to it. CI lists the targets on
 Linux with the default build tags. A fuzz target belongs in a file
 without a GOOS suffix or build constraint, or CI never finds it.
 
+The smoke run has a budget of 60 seconds of fuzzing, so `ci` doesn't
+grow with each new target. It fuzzes 4 targets at once. Each target
+gets an equal share of the budget, at most 10 seconds.
+With more targets, each one fuzzes for less time. Building the test
+binaries takes time on top. Plain `go test` already replays every
+target's seeds and the failing inputs kept in `testdata/fuzz`.
+
+The smoke run is too short to find much that is new. A daily run
+(`go:fuzz-long`, the `Fuzz` workflow) fuzzes every target the same
+way within a budget of 10 minutes. It also runs locally. A failure
+prints the input that caused it, which is then kept in the package's
+`testdata/fuzz`.
+
 ### Conformance suite
 
 Adversarial checks run *inside a guest* against a real `wb-netd`,
@@ -114,7 +127,8 @@ These run on hosted runners:
 
 - Go unit tests, lint, and vet, natively on macOS, Linux, and Windows;
 - Swift, on macOS;
-- the fuzz smoke runs, on Linux.
+- the fuzz smoke runs, on Linux;
+- and once a day, the daily fuzz run, on Linux.
 
 CI compiles the conformance suite in its Go build step
 (`conformance:build`) and never runs it. A check that stops compiling

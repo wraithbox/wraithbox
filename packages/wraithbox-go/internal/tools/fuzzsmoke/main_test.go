@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseList(t *testing.T) {
@@ -158,6 +160,70 @@ func TestShardOf(t *testing.T) {
 	}
 }
 
+func TestNewPlan(t *testing.T) {
+	tests := []struct {
+		name      string
+		opts      options
+		n, numCPU int
+		want      plan
+		wantErr   string
+	}{
+		{
+			name: "local smoke run: 43 targets in 11 rounds of 4 share 60s",
+			opts: options{fuzztime: "10s", longest: 10 * time.Second, budget: time.Minute, jobs: 4},
+			n:    43, numCPU: 8,
+			want: plan{fuzztime: "5.4s", jobs: 4, workers: 2},
+		},
+		{
+			name: "a share is at most -fuzztime",
+			opts: options{fuzztime: "10s", longest: 10 * time.Second, budget: time.Minute, jobs: 4},
+			n:    11, numCPU: 4,
+			want: plan{fuzztime: "10s", jobs: 4, workers: 1},
+		},
+		{
+			name: "no more jobs than targets, and the CPUs go to the jobs that run",
+			opts: options{fuzztime: "10s", longest: 10 * time.Second, budget: time.Minute, jobs: 4},
+			n:    2, numCPU: 8,
+			want: plan{fuzztime: "10s", jobs: 2, workers: 4},
+		},
+		{
+			name: "daily run: 43 targets in 11 rounds of 4 share 10m",
+			opts: options{fuzztime: "10m", longest: 10 * time.Minute, budget: 10 * time.Minute, jobs: 4},
+			n:    43, numCPU: 4,
+			want: plan{fuzztime: "54.5s", jobs: 4, workers: 1},
+		},
+		{
+			name: "no budget: every target fuzzes for -fuzztime",
+			opts: options{fuzztime: "100x", jobs: 4},
+			n:    43, numCPU: 8,
+			want: plan{fuzztime: "100x", jobs: 4, workers: 2},
+		},
+		{
+			name: "a budget too small for the targets is refused",
+			opts: options{fuzztime: "10s", longest: 10 * time.Second, budget: time.Second, jobs: 1},
+			n:    11, numCPU: 8,
+			wantErr: "-budget 1s leaves less than 100ms for each of 11 targets, 1 at a time",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := newPlan(tt.opts, tt.n, tt.numCPU)
+			if tt.wantErr != "" {
+				if err == nil || err.Error() != tt.wantErr {
+					t.Fatalf("newPlan() error = %v, want %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("newPlan() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("newPlan() = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
 const passingTarget = `package a
 
 import "testing"
@@ -192,6 +258,8 @@ func TestRun(t *testing.T) {
 		name       string
 		files      map[string]string
 		fuzztime   string
+		budget     string // empty is 0: each target fuzzes for fuzztime
+		jobs       string // empty is 4, the default
 		shard      string
 		wantCode   int
 		wantStdout string
@@ -226,7 +294,7 @@ func TestRun(t *testing.T) {
 			fuzztime:   "100x",
 			shard:      "2/2",
 			wantCode:   0,
-			wantStdout: "fuzzsmoke: shard 2/2 runs 1 of 2 fuzz targets\nfuzzsmoke: run example.com/m/a FuzzPass",
+			wantStdout: "fuzzsmoke: shard 2/2 runs 1 of 2 fuzz targets\nfuzzsmoke: targets: 1, time each: 100x, at a time: 1",
 		},
 		{
 			name:       "a shard with no targets is a pass",
@@ -243,6 +311,48 @@ func TestRun(t *testing.T) {
 			shard:      "3/2",
 			wantCode:   2,
 			wantStderr: `fuzzsmoke: -shard "3/2": want <i>/<n> with 1 <= i <= n`,
+		},
+		{
+			name:       "the budget is shared by the targets",
+			files:      map[string]string{"a/a_test.go": passingTarget, "b/b_test.go": strings.Replace(passingTarget, "package a", "package b", 1)},
+			fuzztime:   "10s",
+			budget:     "2s",
+			jobs:       "1",
+			wantCode:   0,
+			wantStdout: "fuzzsmoke: targets: 2, time each: 1s, at a time: 1",
+		},
+		{
+			name:       "targets fuzz at once",
+			files:      map[string]string{"a/a_test.go": passingTarget, "b/b_test.go": strings.Replace(passingTarget, "package a", "package b", 1)},
+			fuzztime:   "10s",
+			budget:     "1s",
+			jobs:       "2",
+			wantCode:   0,
+			wantStdout: "fuzzsmoke: targets: 2, time each: 1s, at a time: 2",
+		},
+		{
+			name:       "no target starts after a failure",
+			files:      map[string]string{"a/a_test.go": passingTarget, "a/b_test.go": failingTarget},
+			fuzztime:   "20s",
+			jobs:       "1",
+			wantCode:   1,
+			wantStderr: `fuzzsmoke: FAIL: 1 of 2 fuzz targets failed, 1 not started after the failure`,
+		},
+		{
+			name:       "a budget with a count for -fuzztime is refused",
+			files:      map[string]string{"a/a_test.go": passingTarget},
+			fuzztime:   "100x",
+			budget:     "60s",
+			wantCode:   2,
+			wantStderr: `fuzzsmoke: -budget 1m0s needs -fuzztime as a duration such as 10s, not "100x"`,
+		},
+		{
+			name:       "fewer than one job is refused",
+			files:      map[string]string{"a/a_test.go": passingTarget},
+			fuzztime:   "100x",
+			jobs:       "0",
+			wantCode:   2,
+			wantStderr: `fuzzsmoke: -jobs 0: want at least 1`,
 		},
 		{
 			name:       "package that does not build fails the listing",
@@ -262,7 +372,7 @@ func TestRun(t *testing.T) {
 
 			var stdout, stderr bytes.Buffer
 			// An empty -shard is the same as none: every target.
-			args := []string{"-dir", dir, "-fuzztime", tt.fuzztime, "-shard", tt.shard}
+			args := []string{"-dir", dir, "-fuzztime", tt.fuzztime, "-budget", cmp.Or(tt.budget, "0"), "-jobs", cmp.Or(tt.jobs, "4"), "-shard", tt.shard}
 			code := run(context.Background(), args, &stdout, &stderr)
 			if code != tt.wantCode {
 				t.Fatalf("run() = %d, want %d\nstdout:\n%s\nstderr:\n%s", code, tt.wantCode, &stdout, &stderr)
