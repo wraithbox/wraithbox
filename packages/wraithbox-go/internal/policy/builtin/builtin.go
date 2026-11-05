@@ -7,7 +7,8 @@
 //
 // A covered host is a guarded host (S07-07-hosts-and-modes, "Guarded
 // hosts"): it can't be a pass host, have a raw TCP entry, or be in
-// `audit`. The rules the profiles allow and deny are not here (M3.7a).
+// `audit`. The allow rules of each part and the built-in denies are in
+// rules.go. wb-proxyd decides requests with them (S07-11-http-policy).
 package builtin
 
 import (
