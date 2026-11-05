@@ -1,0 +1,21 @@
+# The background list of macOS 27 guests (S07-04-dns-refusals, "Quiet
+# refusals"): the 14 host names an idle guest at the login window looked
+# up in its first hour, in X03-network-path. Decided in I486 (option A).
+# Cut it down when the image build (X17-image-build) measures again.
+#
+# One exact name per line. Blank lines and lines that start with # are
+# skipped. Each name must pass the name form rule in canonical form.
+1-courier.push.apple.com
+1-courier.sandbox.push.apple.com
+albert.apple.com
+appleid.apple.com
+configuration-carry.ls.apple.com
+gateway.icloud.com
+gdmf.apple.com
+gspe1-ssl.ls.apple.com
+gspe35-ssl.ls.apple.com
+init.push.apple.com
+mesu.apple.com
+push.apple.com
+time.apple.com
+xp.apple.com
