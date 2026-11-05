@@ -51,15 +51,30 @@ struct PacketTransportTests {
         }
     }
 
-    @Test("closing closes both of wb-vmd's descriptors")
-    func closes() throws {
+    // The two close tests see each close from the socket's peer
+    // (closeShows).
+
+    @Test("closing the host end closes wb-vmd's copy and keeps the VM end")
+    func closesHostEnd() async throws {
         let transport = try PacketTransport()
-        let fds = [transport.vmEnd, transport.hostEnd]
+        defer { transport.close() }
         transport.closeHostEnd()
-        #expect(fcntl(fds[1], F_GETFD) == -1)
-        #expect(fcntl(fds[0], F_GETFD) != -1)
+        #expect(transport.hostEnd == -1)
+        // The VM end is still an open socket, and its peer is gone.
+        let vmEnd = transport.vmEnd
+        #expect(try await closeShows { peerIsClosed(vmEnd) })
+    }
+
+    @Test("closing closes the VM end")
+    func closesVMEnd() async throws {
+        let transport = try PacketTransport()
+        // A copy of the host end outlives the transport and sees its peer go.
+        let watcher = dup(transport.hostEnd)
+        try #require(watcher >= 0)
+        defer { Darwin.close(watcher) }
         transport.close()
-        #expect(fcntl(fds[0], F_GETFD) == -1)
+        #expect(transport.vmEnd == -1 && transport.hostEnd == -1)
+        #expect(try await closeShows { peerIsClosed(watcher) })
     }
 
     @Test("the attachment has MTU 65535, the MAC address, and its own copy of the VM end")

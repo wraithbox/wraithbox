@@ -353,6 +353,35 @@ func connectedSocket(to path: String) throws -> Int32 {
     return fd
 }
 
+/// Whether a close shows at the socket's peer within two seconds:
+/// `check` is tried every 5 ms until it holds. A test sees a close only
+/// from the peer, never from the descriptor number, which a test running
+/// in parallel can reuse at once. The peer sees the close once no process
+/// holds a copy, and a test that spawns wb-vmd gives the new process a
+/// copy of every descriptor until posix_spawn closes them, so the first
+/// try can miss it.
+func closeShows(
+    isolation: isolated (any Actor)? = #isolation, _ check: () -> Bool
+) async throws -> Bool {
+    for _ in 0..<400 {
+        if check() {
+            return true
+        }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    return false
+}
+
+/// Whether a send on the open datagram socket `fd` fails because its peer
+/// is closed. A send that succeeds, or fails with EBADF or ENOTSOCK
+/// because `fd` is not an open socket, is false.
+func peerIsClosed(_ fd: Int32) -> Bool {
+    guard send(fd, "x", 1, 0) == -1 else {
+        return false
+    }
+    return [ECONNRESET, ENOTCONN, EDESTADDRREQ, EPIPE].contains(errno)
+}
+
 /// Reads from `fd` until end of file or `timeout` seconds, and returns
 /// what arrived.
 func readUntilClosed(_ fd: Int32, timeout: Int = 5) -> [UInt8] {
