@@ -74,8 +74,12 @@ in `planning.md`, and spikes in `spikes.md`.
    `mise run ci` before every push.
 6. **Open the pull request** against `main` with `Closes #<n>` in the
    body, a summary, which requirement IDs it implements, and the
-   attribution lines. Watch CI (`mise run ci-watch`) and fix failures.
-   Do not merge.
+   attribution lines. Do not merge. A session working alone watches CI
+   (`mise run ci-watch`) and fixes failures before it reports done. An
+   agent that a coordinator spawned hands back once the pull request is
+   open, and the coordinator watches the checks while the review runs.
+   A failed check comes back to the agent with the review findings
+   (`orchestration.md`, "A wave", step 4).
 
 A spike follows `spikes.md`.
 

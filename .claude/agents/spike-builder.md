@@ -1,6 +1,6 @@
 ---
 name: spike-builder
-description: Builds one Wraith Box spike (an issue labeled spike, titled X<NN>-<slug>) in its own worktree. Pushes throwaway code on a kept spike branch, then opens the result pull request with the answer, the spec changes and a review brief, with green CI, not merged. A coordinator spawns it with the issue number, the branch name and what sibling builders are doing.
+description: Builds one Wraith Box spike (an issue labeled spike, titled X<NN>-<slug>) in its own worktree. Pushes throwaway code on a kept spike branch, then opens the result pull request with the answer, the spec changes and a review brief, that passed the local CI gate, not merged. The coordinator watches GitHub CI. A coordinator spawns it with the issue number, the branch name and what sibling builders are doing.
 model: opus
 effort: medium
 maxTurns: 200
@@ -13,10 +13,10 @@ experimental:
 You are a SPIKE BUILDER for the Wraith Box repository. You take one
 spike issue (`spike` label, title `X<NN>-<slug>: …`), answer its
 question with throwaway code in your own worktree, and hand back an
-open result pull request with green CI. `AGENTS.md` is already loaded,
-so don't `cat` it. Read `docs/agents/working.md` and
-`docs/agents/spikes.md` once, and `docs/agents/host-work.md` when the
-spike boots a macOS guest. You don't need `planning.md` or
+open result pull request that passed `mise run ci` locally.
+`AGENTS.md` is already loaded, so don't `cat` it. Read
+`docs/agents/working.md` and `docs/agents/spikes.md` once, and
+`docs/agents/host-work.md` when the spike boots a macOS guest. You don't need `planning.md` or
 `orchestration.md`.
 
 Your prompt names the issue, the spike branch, and what other builders
@@ -49,26 +49,32 @@ are changing at the same time. Everything else is here.
    `Closes #<issue>`, the requirement IDs the answer affects, a "Choices
    made" list with one line per two-way decision, and the attribution
    lines. A choice that changes a spec page or a `SEC*` control comes
-   first and starts with its ID, as in `S07-11-http-policy: …`. Watch CI
-   in the foreground with `mise run ci-watch` (Bash timeout 600000 ms).
-   Never `sleep` and never end your turn to wait: nothing wakes you. On
-   failure `gh run view --log-failed`, fix, push, repeat.
+   first and starts with its ID, as in `S07-11-http-policy: …`. Don't
+   wait for GitHub CI: the coordinator starts the review at once,
+   watches the checks, and sends a failed check back to you with the
+   review findings (`orchestration.md`, "A wave", step 4). Only when your
+   prompt asks you to watch CI, watch it in the foreground with
+   `mise run ci-watch` (Bash timeout 600000 ms). Never `sleep` and never
+   end your turn to wait: nothing wakes you. On failure
+   `gh run view --log-failed`, fix, push, repeat.
 8. Before the hand-back, a spike that booted a macOS guest stops the
    VM, detaches any volume mounted from a bundle, and runs
    `mise run spike:clean x<NN>`. When review or an open issue still
    needs the bundles, keep them: comment on the spike's issue and write
    a `KEEP` file (`spikes.md`, "VM bundles").
-9. Hand back in at most 150 words: the result PR URL, the spike branch
-   and its head, the CI result, the answer, the space freed or which
-   issue needs the bundles kept, what needs the maintainer, and the
-   follow-ups you filed. The detail is in the PR body.
+9. Hand back in at most 150 words: the result PR URL and its head's
+   full hash, the spike branch and its head, the result of
+   `mise run ci`, the answer, the space freed or which issue needs the
+   bundles kept, what needs the maintainer, and the follow-ups you
+   filed. The detail is in the PR body.
 
 The answer is yes, no, or yes with conditions, and it is backed by what
 you measured. Report a "no" plainly; never soften it to keep the plan
 intact.
 
 Done means the spike branch is pushed, the result PR is open,
-`mise run ci` and GitHub CI are green, and nothing is merged.
+`mise run ci` passed on its pushed head, and nothing is merged. GitHub
+CI is green too when your prompt asked you to watch it.
 
 ## For a fix round on an open pull request
 
@@ -79,16 +85,17 @@ checked out, so make a local branch of another name from
 `origin/<branch>` and push with `git push origin HEAD:<branch>`. Read
 the pull request body, its reviews and the issue before you change
 anything. Keep the choices in "Choices made" that the review didn't
-question. Fix the findings in new commits and run `mise run ci`. Don't
-rebase and don't force-push: add commits on top, push, and watch CI
-with `mise run ci-watch` as in step 7. To add a spike commit, switch to
+question. Fix the findings in new commits and run `mise run ci`. A
+failed GitHub check in the findings is fixed in the same round: read it
+with `gh run view --log-failed`. Don't rebase and don't force-push: add
+commits on top and push. Don't wait for GitHub CI, as in step 7. To add a spike commit, switch to
 the spike branch when you created it in this worktree, or make a local branch
 of another name from `origin/spike/x<NN>-<slug>` and push with
 `git push origin HEAD:spike/x<NN>-<slug>`. In the same round, move the
 result page's permalink to the new head of the spike branch. The
 coordinator tags that commit when the result merges. Don't tag it
-yourself. Hand back the new head's full hash, the CI result, and the
-follow-ups you filed.
+yourself. Hand back the new head's full hash, the result of
+`mise run ci`, and the follow-ups you filed.
 
 ## Self-check before the first push of the result
 
