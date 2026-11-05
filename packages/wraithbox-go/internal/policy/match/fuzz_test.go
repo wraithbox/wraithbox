@@ -60,7 +60,13 @@ func spellings(canon string) []string {
 		"/." + canon,
 		"/x/.." + canon,
 	}
-	if i := strings.IndexAny(canon, "jklmnozJKLMNOZ:=@~"); i >= 0 {
+	// A byte whose escape has a hex letter: `j` to `o`, `z`, their
+	// uppercase forms, `:`, `=` and `~`.
+	hexLetter := func(r rune) bool {
+		l := r | 0x20
+		return 'j' <= l && l <= 'o' || l == 'z' || strings.ContainsRune(":=~", r)
+	}
+	if i := strings.IndexFunc(canon, hexLetter); i >= 0 {
 		out = append(out, canon[:i]+fmt.Sprintf("%%%02x", canon[i])+canon[i+1:])
 	}
 	return out
