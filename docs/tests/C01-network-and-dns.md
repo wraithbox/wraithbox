@@ -4,7 +4,7 @@
 endpoint, addressing, and the DNS gateway with its hold, quiet
 refusals, and negative answers.
 
-**Verifies:** S07-02-packet-path ("Addressing"), S07-18-build-network, S07-03-dns ("Name form", "Negative answers"),
+**Verifies:** S07-02-packet-path ("Addressing"), S07-18-build-network, S07-03-dns ("Name form", "Synthetic pool", "Negative answers"),
 S07-04-dns-refusals ("Hold", "Widening during the hold"),
 S04-02-vm-provider ("The device set is fixed and checked")
 
@@ -38,6 +38,13 @@ S04-02-vm-provider ("The device set is fixed and checked")
   canonical form and pass the check again unchanged as a host. The wire
   and host checks must agree on every list a host can hold, and a
   refusal message must be printable ASCII.
+- The synthetic pool (S07-03-dns, "Synthetic pool"). `FuzzPoolOps`
+  (`internal/netd/synth`) runs a sequence of answers for names the
+  fuzzer picks, connection opens and closes, clock steps, sweeps, and
+  failing writes and sends, on a pool of 8 addresses. Each address
+  maps to one name at a time, and goes to another name only after its
+  release was recorded and reported. The pool never releases a pinned
+  entry, and holds at most 8 live entries.
 
 ## Conformance
 
