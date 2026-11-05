@@ -12,7 +12,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd"
-	nt"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/netdtest"
+	nt "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/netdtest"
 )
 
 // peers is wb-hostd's and wb-proxyd's view of the mapping, built from the

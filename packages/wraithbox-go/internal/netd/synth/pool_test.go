@@ -81,6 +81,16 @@ func (f *fixture) answer(host string) netip.Addr {
 }
 
 // refused answers a name and wants rule.
+// noHandOff fails when the pool handed a stream off.
+func (f *fixture) noHandOff() {
+	f.t.Helper()
+	select {
+	case s := <-f.handOff:
+		f.t.Fatalf("handed %+v", s.Flow)
+	default:
+	}
+}
+
 func (f *fixture) refused(host string, rule netd.Rule) {
 	f.t.Helper()
 	if a, got := f.p.Answer(context.Background(), nt.Name(host)); got != rule || a.IsValid() {
@@ -458,11 +468,7 @@ func TestServeStreamRechecks(t *testing.T) {
 			if _, err := theirs.Read(make([]byte, 1)); err == nil {
 				t.Fatal("the connection is open")
 			}
-			select {
-			case s := <-f.handOff:
-				t.Fatalf("handed %+v", s.Flow)
-			default:
-			}
+			f.noHandOff()
 			if n := f.p.Recorder().Count(c.rule); n != 1 {
 				t.Fatalf("%s count %d, want 1", c.rule, n)
 			}
