@@ -129,19 +129,41 @@ func TestDecodeNetdToHostd(t *testing.T) {
 }
 
 func TestStartOrder(t *testing.T) {
-	var o StartOrder
-	wantCheck(t, o.Next(false), CheckMessageForm)
-	if r := o.Next(true); r != nil {
-		t.Fatal(r)
-	}
-	if r := o.Next(false); r != nil {
-		t.Fatal(r)
-	}
-	wantCheck(t, o.Next(true), CheckMessageForm)
+	netdStart := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: &egressv1.NetdStart{}}}
+	netdPolicy := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_PolicyChange{PolicyChange: &egressv1.PolicyChange{}}}
+	proxydStart := &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_ProxydStart{ProxydStart: &egressv1.ProxydStart{}}}
+	proxydSocket := &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{}}}
 
-	var fresh StartOrder
-	if r := fresh.Next(true); r != nil {
+	// In order: the start, then other messages.
+	var ok StartOrder
+	for i, m := range []*egressv1.HostdToNetd{netdStart, netdPolicy, netdPolicy} {
+		if r := ok.NextNetd(m); r != nil {
+			t.Fatalf("message %d: %v", i, r)
+		}
+	}
+	var okProxyd StartOrder
+	for i, m := range []*egressv1.HostdToProxyd{proxydStart, proxydSocket} {
+		if r := okProxyd.NextProxyd(m); r != nil {
+			t.Fatalf("proxyd message %d: %v", i, r)
+		}
+	}
+
+	// A message before the start is refused, and so is every later
+	// message, the start included.
+	var early StartOrder
+	wantCheck(t, early.NextProxyd(proxydSocket), CheckMessageForm)
+	wantCheck(t, early.NextProxyd(proxydStart), CheckMessageForm)
+	wantCheck(t, early.NextProxyd(proxydSocket), CheckMessageForm)
+
+	// A second start is refused, and the channel stays refused.
+	var twice StartOrder
+	if r := twice.NextNetd(netdStart); r != nil {
 		t.Fatal(r)
 	}
-	wantCheck(t, fresh.Next(true), CheckMessageForm)
+	wantCheck(t, twice.NextNetd(netdStart), CheckMessageForm)
+	wantCheck(t, twice.NextNetd(netdPolicy), CheckMessageForm)
+
+	// A nil message isn't a start message.
+	var none StartOrder
+	wantCheck(t, none.NextNetd(nil), CheckMessageForm)
 }
