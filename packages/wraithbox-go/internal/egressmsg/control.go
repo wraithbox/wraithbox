@@ -165,23 +165,45 @@ func vmSequence(kind, vm string, sequence uint64, wantFD, hasFD bool) *Refusal {
 }
 
 // StartOrder holds a daemon's check of the order of its control
-// channel: the start message first, and once (control.proto). The zero
-// StartOrder expects the start message. It isn't safe for concurrent
-// use: one reader decides the channel's messages in order.
+// channel: the start message first, and once (control.proto,
+// S04-architecture "Control channels"). The zero StartOrder expects the
+// start message. Once it refuses a message it refuses every later one,
+// since the daemon ends the channel. It isn't safe for concurrent use:
+// one reader decides the channel's messages in order.
 type StartOrder struct {
 	started bool
+	refused bool
 }
 
-// Next checks the next message from wb-hostd. isStart says whether it
-// is the daemon's start message, ProxydStart or NetdStart. A message
-// before the start, and a second start, are refused with
-// CheckMessageForm.
-func (o *StartOrder) Next(isStart bool) *Refusal {
+// NextNetd checks the order of the next message a wb-netd decoded from
+// its control channel, with DecodeHostdToNetd. NetdStart is its start
+// message.
+func (o *StartOrder) NextNetd(m *egressv1.HostdToNetd) *Refusal {
+	return o.next(m.GetNetdStart() != nil)
+}
+
+// NextProxyd checks the order of the next message wb-proxyd decoded
+// from its control channel, with DecodeHostdToProxyd. ProxydStart is
+// its start message.
+func (o *StartOrder) NextProxyd(m *egressv1.HostdToProxyd) *Refusal {
+	return o.next(m.GetProxydStart() != nil)
+}
+
+// next refuses, with CheckMessageForm, a message before the start, a
+// second start, and every message after a refusal.
+func (o *StartOrder) next(isStart bool) *Refusal {
+	var r *Refusal
 	switch {
+	case o.refused:
+		r = refuse(CheckMessageForm, "kind", "a message after a refused one")
 	case isStart && o.started:
-		return refuse(CheckMessageForm, "kind", "a second start message")
+		r = refuse(CheckMessageForm, "kind", "a second start message")
 	case !isStart && !o.started:
-		return refuse(CheckMessageForm, "kind", "a message before the start message")
+		r = refuse(CheckMessageForm, "kind", "a message before the start message")
+	}
+	if r != nil {
+		o.refused = true
+		return r
 	}
 	o.started = true
 	return nil
