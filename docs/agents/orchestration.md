@@ -65,14 +65,17 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    an issue labeled `spike`, `researcher` for one labeled
    `area:research`, and `builder` for any other. The prompt holds
    only what changes per issue: the issue number, the branch name, the
-   definition of done beyond the agent file's (normally: PR open, CI
-   green, not merged), and what sibling builders are doing that could
-   collide, including files they also edit. Before you give a builder
+   definition of done beyond the agent file's (normally: PR open,
+   `mise run ci` passed locally, not merged), and what sibling builders
+   are doing that could collide, including files they also edit. Before you give a builder
    design direction, check it against the flows the specs already define. When two issues
    change one mechanism, set one rule, send each builder its half, and
    merge the pull request that defines the rule first.
-4. **Spawn a reviewer when a pull request opens.** `code-reviewer`
-   always. Add `security-reviewer` when the PR has `comp:wb-netd`,
+4. **Spawn a reviewer when a pull request opens, and watch its
+   checks.** The agent hands back once its pull request is open,
+   without waiting for GitHub CI, so the review and CI run in
+   parallel. `code-reviewer` always. Add `security-reviewer` when the PR
+   has `comp:wb-netd`,
    `comp:wb-proxyd` or `comp:wb-guestd`, touches the host-guest socket
    handlers in `wb-hostd` or the git transport, or changes
    `internal/platform` self-sandboxing, local IPC, or secret store code.
@@ -87,11 +90,19 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    `Security review, round <k>`, and posts it with
    `gh pr review <n> --comment --body-file …` (GitHub refuses
    `--request-changes` from the PR's own author).
+   In the same step, the coordinator starts a background watch of the
+   pull request's checks (`wave-lead.md`, "Waiting"). It watches again
+   after each push of a fix round, and doesn't end its work while a
+   pull request's checks are pending.
 5. **Decide what goes back.** One message to the builder: required
    findings, suggestions to apply unless they read worse, findings to
-   skip. Cheap `fold` findings go back even on approve. A finding that
-   needs the maintainer (a spec change, a choice between designs) goes
-   to the maintainer instead. When the two reviewers disagree on a
+   skip, and each failed check with its run link. Cheap `fold` findings
+   go back even on approve, and so does a failed check. When a
+   check fails before the review returns, the coordinator either waits
+   for the review, so both go back in one round, or sends the failure
+   at once when the review can't use the head as it is (the build
+   breaks, say). A finding that needs the maintainer (a spec change, a
+   choice between designs) goes to the maintainer instead. When the two reviewers disagree on a
    security trade-off, take the strict side and say so in the report.
    Resume the builder with the message. Auto-compaction keeps its
    context small enough to resume (R03-fix-rounds-compaction).
@@ -99,7 +110,9 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    the coordinator reads each later commit with `git show` and comments
    `re-checked: <commit link>`. A commit that does more than the
    findings asked for, or a rebase onto changes to the same code, gets
-   a new review round instead.
+   a new review round instead. A commit that fixes a check after an
+   approve follows the same rule. A pull request is ready only when it
+   is approved and every check on its head commit passed.
 6. **Merge queue.** The maintainer approves each merge, or a run's
    standing approval covers it ("Runs"). The coordinator then runs
    `gh pr merge <n> --rebase`. After each merge, list the open
@@ -232,10 +245,10 @@ behind this.
 ## Working with the platform
 
 - **The coordinator waits by ending its turn.** Each agent's
-  notification wakes it. It does not sleep or poll, except in a lead's
-  background wait (below). It waits in the foreground only for a
-  check it started itself (`mise run ci`, `gh pr checks --watch`,
-  `gh run watch`).
+  notification, and the end of each of its background check watches,
+  wakes it. It does not sleep or poll, except in a lead's background
+  waits (below). It waits in the foreground only for a check it
+  started itself (`mise run ci`, `gh run watch`).
 - **An interim notice is not a hand-back.** In some harness versions,
   an agent that ends its turn while its own background command runs
   sends a notice with status `completed`, a summary that says it "is
@@ -245,7 +258,7 @@ behind this.
   its own running is told by the harness to report at once, and the
   pull request that agent opens later isn't reviewed. So a lead keeps a
   background wait of its own running until each agent it spawned has
-  handed back
+  handed back and each pull request's checks have finished
   (`wave-lead.md`, "Waiting").
 - **What every agent does** (`cd`, the `code-review` skill, never
   `git stash`, `.scratch/`, short hand-backs) is in `working.md`,
