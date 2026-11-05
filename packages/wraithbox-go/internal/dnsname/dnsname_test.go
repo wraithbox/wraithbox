@@ -124,27 +124,27 @@ func TestRefusedHost(t *testing.T) {
 		{name254 + ".", FaultNameLong, 0, "dns-name-form: the name is 254 bytes written with dots, longer than 253"},
 		{
 			"1.2.3.4", FaultIPLiteral, 0,
-			`dns-name-form: the last label "4" is a number, so the name is an IPv4 address, not a host`,
+			`dns-name-form: the last label "4" is a decimal or hexadecimal number, or a bare 0x, so the name is an IPv4 address, not a host`,
 		},
 		{
 			"example.123", FaultIPLiteral, 0,
-			`dns-name-form: the last label "123" is a number, so the name is an IPv4 address, not a host`,
+			`dns-name-form: the last label "123" is a decimal or hexadecimal number, or a bare 0x, so the name is an IPv4 address, not a host`,
 		},
 		{
 			"example.0x1f", FaultIPLiteral, 0,
-			`dns-name-form: the last label "0x1f" is a number, so the name is an IPv4 address, not a host`,
+			`dns-name-form: the last label "0x1f" is a decimal or hexadecimal number, or a bare 0x, so the name is an IPv4 address, not a host`,
 		},
 		{
 			"example.0X1F", FaultIPLiteral, 0,
-			`dns-name-form: the last label "0X1F" is a number, so the name is an IPv4 address, not a host`,
+			`dns-name-form: the last label "0X1F" is a decimal or hexadecimal number, or a bare 0x, so the name is an IPv4 address, not a host`,
 		},
 		{
 			"example.0x", FaultIPLiteral, 0,
-			`dns-name-form: the last label "0x" is a number, so the name is an IPv4 address, not a host`,
+			`dns-name-form: the last label "0x" is a decimal or hexadecimal number, or a bare 0x, so the name is an IPv4 address, not a host`,
 		},
 		{
 			"2130706433", FaultIPLiteral, 0,
-			`dns-name-form: the last label "2130706433" is a number, so the name is an IPv4 address, not a host`,
+			`dns-name-form: the last label "2130706433" is a decimal or hexadecimal number, or a bare 0x, so the name is an IPv4 address, not a host`,
 		},
 		// The label checks run before the length check, label by label.
 		{name254 + ".-a", FaultLabelHyphen, 5, "dns-name-form: label 5 starts with a hyphen"},
@@ -222,6 +222,16 @@ func checkRefusal(t *testing.T, fn, in string, n Name, r *Refusal, w want) {
 	}
 }
 
+// TestNilRefusal checks that a nil Refusal stored in an error doesn't
+// panic when the error is printed.
+func TestNilRefusal(t *testing.T) {
+	var r *Refusal
+	var err error = r
+	if err.Error() != "" {
+		t.Errorf("nil Refusal gave %q", err.Error())
+	}
+}
+
 // TestManyLabels checks that a long list of labels, or a long host,
 // costs one pass and allocates only the refusal.
 func TestManyLabels(t *testing.T) {
@@ -273,6 +283,10 @@ func FuzzNameForm(f *testing.F) {
 		labels := decode(in)
 		n, r := FromWire(labels)
 		checkOutcome(t, n, r)
+		// A dot byte inside a wire label must never become a separator.
+		if r == nil && strings.Count(n.String(), ".") != len(labels)-1 {
+			t.Fatalf("FromWire(%q) = %q, not %d labels", labels, n, len(labels))
+		}
 		if !hostCanExpress(labels) {
 			return
 		}
@@ -325,6 +339,13 @@ func notCanonical(s string) string {
 		if strings.Trim(l, "abcdefghijklmnopqrstuvwxyz0123456789-") != "" {
 			return "byte in label " + l
 		}
+	}
+	last := s[strings.LastIndexByte(s, '.')+1:]
+	if strings.Trim(last, "0123456789") == "" {
+		return "decimal last label"
+	}
+	if hex, ok := strings.CutPrefix(last, "0x"); ok && strings.Trim(hex, "0123456789abcdef") == "" {
+		return "hexadecimal last label"
 	}
 	return ""
 }
