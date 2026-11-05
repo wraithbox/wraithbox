@@ -119,3 +119,20 @@ func TestRecorderRateLimit(t *testing.T) {
 		t.Fatalf("count %d", r.Count(netd.RuleFrameSize))
 	}
 }
+
+// TestRecorderNote checks that a note is counted and logged with its
+// rule, rate-limited per rule, and isn't passed to Events.
+func TestRecorderNote(t *testing.T) {
+	var buf bytes.Buffer
+	var ev eventLog
+	r := netd.NewRecorder(slog.New(slog.NewTextHandler(&buf, nil)), &ev)
+	for range 10 {
+		r.Note(netd.RuleDHCPOffer, slog.String("type", "DISCOVER"))
+	}
+	if n := strings.Count(buf.String(), "rule=dhcp-offer count=1 type=DISCOVER"); n != 1 {
+		t.Fatalf("log %q, want one record", buf.String())
+	}
+	if r.Count(netd.RuleDHCPOffer) != 10 || len(ev) != 0 {
+		t.Fatalf("count %d, events %v", r.Count(netd.RuleDHCPOffer), ev)
+	}
+}

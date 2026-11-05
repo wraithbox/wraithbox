@@ -87,9 +87,38 @@ const (
 	// complete.
 	RuleTCPHandshakeFailed Rule = "tcp-handshake-failed"
 	// RuleUDPUnbound: UDP the filter passed to a port nothing is bound
-	// to, such as DHCP before the DHCP server binds port 67. It is
-	// dropped without an ICMP port unreachable.
+	// to. It is dropped without an ICMP port unreachable.
 	RuleUDPUnbound Rule = "udp-unbound"
+)
+
+// The rules of the DHCP server, after S07-02-packet-path, "Addressing".
+// A request dropped with one of the first four gets no answer.
+const (
+	// RuleDHCPForm: a message that isn't a well-formed DHCP request. It
+	// is too short or too long, isn't a BOOTREQUEST for a 6-byte Ethernet
+	// address, has no magic cookie, has an option that runs past the
+	// message, repeats or is malformed, has no END, uses option overload,
+	// or has no message type.
+	RuleDHCPForm Rule = "dhcp-form"
+	// RuleDHCPMAC: a request whose chaddr isn't the guest's MAC.
+	RuleDHCPMAC Rule = "dhcp-mac"
+	// RuleDHCPType: a message type the server doesn't answer, such as an
+	// OFFER or ACK from the guest.
+	RuleDHCPType Rule = "dhcp-type"
+	// RuleDHCPDecline: a DHCPDECLINE. Something answered for the guest's
+	// address, so it is a finding.
+	RuleDHCPDecline Rule = "dhcp-decline"
+	// RuleDHCPSendFailed: a reply the stack didn't take.
+	RuleDHCPSendFailed Rule = "dhcp-send-failed"
+
+	// The rules a request the server answers or keeps is logged with
+	// (Recorder.Note). An INFORM is answered with an ACK, logged as
+	// dhcp-inform.
+	RuleDHCPOffer   Rule = "dhcp-offer"
+	RuleDHCPAck     Rule = "dhcp-ack"
+	RuleDHCPNak     Rule = "dhcp-nak"
+	RuleDHCPInform  Rule = "dhcp-inform"
+	RuleDHCPRelease Rule = "dhcp-release"
 )
 
 // Decision is what happened to a frame or connection: a drop, or a
@@ -157,7 +186,24 @@ func (r *Recorder) Record(d Decision, rule Rule, attrs ...slog.Attr) {
 	}
 }
 
-// Count returns how many drops and resets of a rule were recorded.
+// Note logs an event that is neither a drop nor a reset, such as a DHCP
+// request the server answered, with its rule. It is counted, and logged
+// at most once per rule per window like Record (S07-02-packet-path,
+// "Events and rate limits"), but not passed to Events.
+func (r *Recorder) Note(rule Rule, attrs ...slog.Attr) {
+	r.mu.Lock()
+	r.counts[rule]++
+	n := r.counts[rule]
+	r.mu.Unlock()
+	all := append([]slog.Attr{
+		slog.String("rule", string(rule)),
+		slog.Uint64("count", n),
+	}, attrs...)
+	r.log.LogAttrs(context.Background(), slog.LevelInfo, "netd "+string(rule), all...)
+}
+
+// Count returns how many drops, resets and notes of a rule were
+// recorded.
 func (r *Recorder) Count(rule Rule) uint64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()

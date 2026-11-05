@@ -14,7 +14,17 @@ S04-02-vm-provider ("The device set is fixed and checked")
   `FuzzLinkEndpoint` (`internal/netd/stack`) feeds frames through the
   link endpoint into the stack with the TCP rules and no hooks. The
   stack must send frames only to the guest's MAC or broadcast, answer
-  ARP only for the gateway, and send no SYN-ACK.
+  ARP only for the gateway, and send no SYN-ACK. A DHCP reply goes to
+  the guest's MAC, with the leased address or zero as `yiaddr`.
+- The DHCP server. `FuzzDHCP` (`internal/netd/dhcp`) feeds messages
+  through the parser, the reply and the server loop, with seeds from
+  the macOS client's DISCOVER and REQUEST. The parser must fail only
+  with a form error, which the server drops with `dhcp-form`. A reply
+  must go only to the
+  guest's MAC, hold the leased address or zero as `yiaddr`, and hold
+  only the message type and the six options of S07-02-packet-path,
+  "Addressing". Every string in a log record must be printable and cut
+  to its length.
 - The link filter of S07-egress-gateway and its ARP branch, with a
   corpus of frames from 0 to 65535 + 14 bytes, and seeds of truncated
   reads that fill the MTU + 15 byte buffer, which must be dropped.

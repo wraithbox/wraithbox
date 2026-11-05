@@ -194,7 +194,21 @@ RELEASE is logged. The lease stays with the guest's MAC, because there
 is only one.
 
 A `DHCPDECLINE` means something answered for the guest's address. It
-is logged as a finding.
+is logged as a finding, `dhcp-decline`.
+
+The server drops a message without an answer, logged with its rule:
+
+| Rule | Message |
+|---|---|
+| `dhcp-form` | over 1500 bytes, or not a BOOTREQUEST for a 6-byte Ethernet address with the magic cookie, a message type, and options that are well-formed, each at most once, and end in END. Option overload (52) is dropped too. |
+| `dhcp-mac` | `chaddr` other than the guest's MAC |
+| `dhcp-type` | a message type other than the five above and DECLINE |
+| `dhcp-decline` | DECLINE |
+
+Each request gets one log record with its message type and the rule.
+The answers are logged with `dhcp-offer`, `dhcp-ack`, `dhcp-nak`,
+`dhcp-inform` and `dhcp-release`, and all of them are rate-limited per
+rule ("Events and rate limits").
 
 Strings the guest sends are logged escaped and cut to the fixed length
 ("Events and rate limits"), never raw. Examples are the host name,

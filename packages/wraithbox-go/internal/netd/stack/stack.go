@@ -8,7 +8,8 @@
 // first SYN. TCP to an address or port no hook serves is reset at once,
 // on the read goroutine, before the guest can send the SYN again. TCP a
 // hook may serve goes through gVisor's forwarder, under the half-open
-// cap, and then to the hook, under the established cap.
+// cap, and then to the hook, under the established cap. The DHCP server
+// of internal/netd/dhcp answers on UDP port 67.
 package stack
 
 import (
@@ -34,6 +35,7 @@ import (
 	"gvisor.dev/gvisor/pkg/waiter"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/dhcp"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/link"
 )
 
@@ -72,6 +74,10 @@ type Stack struct {
 	gv    *gvstack.Stack
 	fwd   *tcp.Forwarder
 	dns   *gonet.UDPConn // the gateway's port 53, when DNSOverUDP is set
+	lease dhcp.Lease
+	dhcp  *gonet.UDPConn // UDP port 67, the DHCP server's
+	// dhcpDone is closed when the DHCP server's loop returns.
+	dhcpDone chan struct{}
 
 	mu        sync.Mutex
 	active    int // places taken under the established cap (place)
@@ -84,17 +90,24 @@ type Stack struct {
 // when cfg isn't valid. The stack owns t, and closes it when Run
 // returns.
 func New(cfg netd.Config, t link.Transport, hooks netd.Hooks) (*Stack, error) {
-	if err := cfg.Validate(); err != nil {
+	err := cfg.Validate()
+	var lease dhcp.Lease
+	if err == nil {
+		lease, err = dhcp.LeaseOf(&cfg)
+	}
+	if err != nil {
 		_ = t.Close()
 		return nil, err
 	}
 	rec := netd.NewRecorder(hooks.Log, hooks.Events)
 	s := &Stack{
-		cfg:   cfg,
-		hooks: hooks,
-		rec:   rec,
-		ep:    link.New(t, &cfg, rec),
-		conns: map[*conn]struct{}{},
+		cfg:      cfg,
+		hooks:    hooks,
+		rec:      rec,
+		ep:       link.New(t, &cfg, rec),
+		lease:    lease,
+		dhcpDone: make(chan struct{}),
+		conns:    map[*conn]struct{}{},
 	}
 	s.gv = gvstack.New(gvstack.Options{
 		NetworkProtocols:   []gvstack.NetworkProtocolFactory{ipv4.NewProtocol, arp.NewProtocol},
@@ -134,6 +147,9 @@ func (s *Stack) setup() error {
 	s.fwd = tcp.NewForwarder(s.gv, buf, s.cfg.Caps.HalfOpenTCP, s.accept)
 	s.gv.SetTransportProtocolHandler(tcp.ProtocolNumber, s.handleTCP)
 	s.gv.SetTransportProtocolHandler(udp.ProtocolNumber, s.handleUDP)
+	if err := s.bindDHCP(); err != nil {
+		return err
+	}
 	if s.hooks.DNSOverUDP == nil {
 		return nil
 	}
@@ -142,6 +158,31 @@ func (s *Stack) setup() error {
 		return fmt.Errorf("netd: bind the gateway's UDP port 53: %w", err)
 	}
 	s.dns = dns
+	return nil
+}
+
+// dhcpReceiveBuffer bounds the DHCP requests queued for the server, in
+// bytes. Past it the stack drops them (SEC13-bounded-resources).
+const dhcpReceiveBuffer = 64 << 10
+
+// bindDHCP binds the DHCP server's socket: UDP port 67 on the NIC, with
+// no address, so that it gets requests to the gateway and to limited and
+// subnet-directed broadcast, and may send to limited broadcast. The link
+// filter passes only DHCP from port 68 to it (S07-02-packet-path, "Link
+// filter").
+func (s *Stack) bindDHCP() error {
+	var wq waiter.Queue
+	ep, err := s.gv.NewEndpoint(udp.ProtocolNumber, ipv4.ProtocolNumber, &wq)
+	if err != nil {
+		return fmt.Errorf("netd: open the DHCP socket: %s", err)
+	}
+	ep.SocketOptions().SetBroadcast(true)
+	ep.SocketOptions().SetReceiveBufferSize(dhcpReceiveBuffer, false)
+	if err := ep.Bind(tcpip.FullAddress{NIC: nicID, Port: dhcp.ServerPort}); err != nil {
+		ep.Close()
+		return fmt.Errorf("netd: bind UDP port 67: %s", err)
+	}
+	s.dhcp = gonet.NewUDPConn(&wq, ep)
 	return nil
 }
 
@@ -178,9 +219,13 @@ func (s *Stack) setupNIC() error {
 }
 
 // Run moves frames until the transport fails or ctx is done. Then it
-// closes every connection, the DNS socket and the stack, and returns the
-// transport's error or ctx's. Run is called once.
+// closes every connection, the DNS and DHCP sockets and the stack, and
+// returns the transport's error or ctx's. Run is called once.
 func (s *Stack) Run(ctx context.Context) error {
+	go func() {
+		defer close(s.dhcpDone)
+		_ = dhcp.Serve(s.dhcp, s.lease, s.rec) // returns once stop closes s.dhcp
+	}()
 	if s.dns != nil {
 		go s.hooks.DNSOverUDP.ServeDNSOverUDP(s.dns)
 	}
@@ -207,6 +252,8 @@ func (s *Stack) stop() {
 	if s.dns != nil {
 		_ = s.dns.Close()
 	}
+	_ = s.dhcp.Close()
+	<-s.dhcpDone
 	s.gv.Close()
 	s.ep.Close()
 	s.waitAccepts()
@@ -354,10 +401,20 @@ func (s *Stack) decide(f netd.Flow) (func(net.Conn, netd.Flow), netd.Rule) {
 }
 
 // handleUDP drops UDP no socket takes, without the ICMP port unreachable
-// the stack would send. The filter passed it: DNS before the DNS server
-// binds, or DHCP before the DHCP server does.
+// the stack would send. The filter passed it: DNS while no DNS server is
+// bound. The DHCP server is bound from New on.
+//
+// gVisor also loops every broadcast the stack sends back to itself, such
+// as the DHCP server's replies to port 68. Those come from the gateway's
+// address, which the link filter never passes from the guest, so they
+// are dropped without being counted: they aren't guest drops
+// (S07-02-packet-path, "Events and rate limits").
 func (s *Stack) handleUDP(id gvstack.TransportEndpointID, _ *gvstack.PacketBuffer) bool {
-	s.rec.Record(netd.Drop, netd.RuleUDPUnbound, flowOf(id).LogAttrs()...)
+	f := flowOf(id)
+	if f.Guest.Addr() == s.cfg.Gateway {
+		return true
+	}
+	s.rec.Record(netd.Drop, netd.RuleUDPUnbound, f.LogAttrs()...)
 	return true
 }
 
