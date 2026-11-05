@@ -33,7 +33,12 @@ Spec: S07-07-hosts-and-modes, "Modes, per host".
 
 ## Fuzzing
 
-- Policy matching, and network policy YAML.
+- Policy matching, and network policy YAML. `FuzzLoadPolicy` in
+  `internal/policy/policyfile` loads arbitrary bytes as a global,
+  project and repository file. It never panics. An accepted file doesn't hold a
+  key outside the implemented keys or a string that isn't printable
+  ASCII, and one from a repository doesn't hold the `wraithbox` key or
+  `audit` (S09-01-policy-files).
 - The guest flow labels of S13-guest-confinement.
 - The decoder and the script check that show internationalized names in
   approval requests (S09-10-approval-flow).

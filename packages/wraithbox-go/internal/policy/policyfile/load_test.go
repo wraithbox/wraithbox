@@ -152,7 +152,7 @@ func TestLoadRefuses(t *testing.T) {
 		{"control byte in name", global, strings.Replace(withRule(ep), "  r:\n", "  r:\n    name: \"a\\tb\"\n", 1), RuleString, "a\tb"},
 		{"empty name", global, strings.Replace(withRule(ep), "  r:\n", "  r:\n    name: ''\n", 1), RuleString, ""},
 		{"underscore host", global, withRule("{host: my_host.example.com, port: 443}"), "dns-name-form", "my_host.example.com"},
-		{"non-ASCII host", global, withRule("{host: bücher.example, port: 443}"), "dns-name-form", "bücher.example"},
+		{"non-ASCII host", global, withRule("{host: \u00e9t\u00e9.example, port: 443}"), "dns-name-form", "\u00e9t\u00e9.example"},
 		{"port 0", global, withRule("{host: example.com, port: 0}"), RulePort, "0"},
 		{"port 65536", global, withRule("{host: example.com, port: 65536}"), RulePort, "65536"},
 		{"port string", global, withRule("{host: example.com, port: '443'}"), RulePort, "443"},
@@ -245,8 +245,8 @@ func TestLoadRefusalsCapped(t *testing.T) {
 // TestLoadEscapesValues checks that bytes from the file are escaped in
 // a refusal, and that a long value is cut.
 func TestLoadEscapesValues(t *testing.T) {
-	_, rs := loadString(t, global, "version: 1\n\"bad\\e[31mkey\": 1\n")
-	r := wantRefused(t, rs, RuleKeyUnknown, "bad\x1b[31mkey")
+	_, rs := loadString(t, global, "version: 1\n\"bad\\e[31m key\": 1\n")
+	r := wantRefused(t, rs, RuleKeyUnknown, "bad\x1b[31m key")
 	if strings.ContainsRune(r.Error(), 0x1b) {
 		t.Errorf("refusal %q holds a raw escape byte", r.Error())
 	}
