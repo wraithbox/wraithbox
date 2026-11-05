@@ -21,7 +21,7 @@ const (
 
 // isWrite reports whether a request on a git hosting host writes, as
 // SEC06-repo-writes limits writes to the project set
-// (S07-11-http-policy, "git hosting"). A write is:
+// (S07-19-request-decisions, "Writes to git hosting"). A write is:
 //   - a request whose query names a git service other than
 //     `git-upload-pack`, which is how git asks for the
 //     `git-receive-pack` advertisement, whatever its method and path;

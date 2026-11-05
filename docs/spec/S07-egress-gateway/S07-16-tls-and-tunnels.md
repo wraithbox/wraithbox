@@ -124,11 +124,11 @@ checked as above. No tool needs proxy settings (FR08-no-proxy-config).
 A host and port in `audit` relaxes exactly two refusals:
 `http-no-rule` and `http-deny-rule`, the method and path rules and the
 `deny_rules` of its sources. The request goes on, and is logged with
-the rule `audit-allowed` and the rule it broke (S07-11-http-policy,
-"Deciding a request"). Every other refusal applies on a host in
+the rule `audit-allowed` and the rule it broke
+(S07-19-request-decisions). Every other refusal applies on a host in
 `audit` too. Among them:
 
-- the built-in denies of S07-11-http-policy: `model-path-escape`,
+- the built-in denies of S07-19-request-decisions: `model-path-escape`,
   `git-archive`, `git-create-denied`, `model-event-log`,
   `registry-token`, `registry-publish` and
   `git-write-outside-project-set`;
