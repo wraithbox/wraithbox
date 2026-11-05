@@ -69,8 +69,14 @@ const (
 	// 53, or on port 53 while no DNS-over-TCP server is bound.
 	RuleGatewayPortRefused Rule = "gateway-port-refused"
 	// RuleSyntheticUnmapped: TCP to a synthetic address while no stream
-	// policy is bound.
+	// policy is bound, or to one with no live entry in the name mapping.
 	RuleSyntheticUnmapped Rule = "synthetic-unmapped"
+	// RulePortNotAllowed: TCP to a synthetic address on a port the
+	// effective policy doesn't allow for its name.
+	RulePortNotAllowed Rule = "port-not-allowed"
+	// RuleHandoffUnavailable: TCP to a synthetic address on an allowed
+	// port while no stream hand-off is bound.
+	RuleHandoffUnavailable Rule = "handoff-unavailable"
 	// RuleStreamRefused: the stream policy accepted a connection without
 	// a sink, or refused it without a rule.
 	RuleStreamRefused Rule = "stream-refused"
@@ -89,6 +95,20 @@ const (
 	// RuleUDPUnbound: UDP the filter passed to a port nothing is bound
 	// to. It is dropped without an ICMP port unreachable.
 	RuleUDPUnbound Rule = "udp-unbound"
+)
+
+// The rules of the synthetic pool, after S07-03-dns, "Synthetic pool",
+// and S07-04-dns-refusals, "Order at arrival". The DNS server refuses a
+// name with the rule the pool returns.
+const (
+	// RuleSyntheticPoolFull: a new name while no address is free.
+	RuleSyntheticPoolFull Rule = "synthetic-pool-full"
+	// RuleAccountingWriteFailed: an accounting record that failed or
+	// took more than 100 ms (S04-08-records-and-bounds).
+	RuleAccountingWriteFailed Rule = "accounting-write-failed"
+	// RuleHandoffSendFailed: a name report or release that failed or
+	// took more than 100 ms (S07-05-stream-hand-off, "Transport").
+	RuleHandoffSendFailed Rule = "handoff-send-failed"
 )
 
 // The rules of the DHCP server, after S07-02-packet-path, "Addressing".
