@@ -115,6 +115,34 @@ const (
 	RuleSyntheticRelease Rule = "synthetic-release"
 )
 
+// The rules of the hand-off socket and the control channel, after
+// S07-05-stream-hand-off and S04-07-supervision, "New hand-off sockets".
+// A stream whose send failed is reset with RuleHandoffSendFailed.
+const (
+	// RuleHandoffSocketRefused: a hand-off socket from wb-hostd whose
+	// descriptor isn't an AF_UNIX SOCK_DGRAM socket, or whose VM or
+	// generation isn't wb-netd's own. Its descriptor is closed.
+	RuleHandoffSocketRefused Rule = "handoff-socket-refused"
+	// RuleHandoffSocketEnded: the hand-off socket closed, failed, or was
+	// replaced by a new one. Every stream of it is reset.
+	RuleHandoffSocketEnded Rule = "handoff-socket-ended"
+	// RuleProxydMessageRefused: a message from wb-proxyd that fails its
+	// form check (egressmsg.DecodeProxydMessage) or its version record.
+	// wb-netd closes the hand-off socket.
+	RuleProxydMessageRefused Rule = "proxyd-message-refused"
+	// RuleStreamReset: a stream wb-proxyd reset. The guest gets an RST.
+	RuleStreamReset Rule = "stream-reset"
+	// RuleStreamResetUnknown: a StreamReset that names no open stream.
+	// It is logged and ignored.
+	RuleStreamResetUnknown Rule = "stream-reset-unknown"
+	// RuleControlMessageRefused: a control message from wb-hostd of the
+	// wrong form or order, a policy change wb-netd can't apply, or a
+	// record on the accounting channel, where wb-hostd sends none after
+	// its version record. A refused control message ends the control
+	// channel.
+	RuleControlMessageRefused Rule = "control-message-refused"
+)
+
 // The rules of the DNS server, after S07-03-dns and S07-04-dns-refusals.
 // Every refusal of a name is held and gets the same bytes, whatever its
 // rule. The rule is only logged and counted.

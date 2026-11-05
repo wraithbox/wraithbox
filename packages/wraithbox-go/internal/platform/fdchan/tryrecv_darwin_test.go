@@ -17,28 +17,27 @@ func TestTryRecv(t *testing.T) {
 		t.Fatalf("empty: %v, want ErrNoMessage", err)
 	}
 	r, _ := pipe(t)
-	for _, rec := range []string{"one", "two"} {
-		if err := a.Send([]byte(rec), nil); err != nil {
+	sends := []struct {
+		rec string
+		fd  syscall.Conn
+	}{{"one", nil}, {"two", nil}, {"three", r}}
+	for _, snd := range sends {
+		if err := a.Send([]byte(snd.rec), snd.fd); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if err := a.Send([]byte("three"), r); err != nil {
-		t.Fatal(err)
 	}
 	if err := b.SetReadDeadline(time.Now().Add(-time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"one", "two", "three"} {
+	for _, snd := range sends {
 		m, err := b.TryRecv()
-		if err != nil || string(m.Record) != want {
-			t.Fatalf("got %v, %v, want %q", m, err, want)
+		if err != nil || string(m.Record) != snd.rec || (m.File != nil) != (snd.fd != nil) {
+			t.Fatalf("got %v, %v, want %q", m, err, snd.rec)
 		}
-		if want == "three" {
-			if m.File == nil || !cloexec(t, m.File) {
-				t.Fatalf("descriptor %v missing or not close-on-exec", m.File)
-			}
-			_ = m.Close()
+		if m.File != nil && !cloexec(t, m.File) {
+			t.Fatal("the descriptor isn't close-on-exec")
 		}
+		_ = m.Close()
 	}
 	start := time.Now()
 	if _, err := b.TryRecv(); !errors.Is(err, ErrNoMessage) {
