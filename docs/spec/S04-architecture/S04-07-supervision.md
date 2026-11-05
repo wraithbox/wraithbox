@@ -220,13 +220,11 @@ it creates the VM's hand-off socket.
   a new hand-off socket for every running VM, each for that VM and its
   current generation.
 
-A new `wb-netd` gets its end at start. A running `wb-netd` gets its end
-on its control channel, in a message with exactly one descriptor and
-the VM and generation it is for. It refuses the message when the
-descriptor count isn't one, the socket type is wrong, or the VM or
-generation isn't its own. It then closes any descriptor in it and logs
-the refusal, as for the hand-off channel of `wb-vmd`
-(S04-02-vm-provider, "The VM provider passes descriptors, not bytes").
+A new `wb-netd` gets its end at start. A running `wb-netd` gets its end on its control channel, in a message with exactly one descriptor and
+the VM and generation it is for. It refuses the message when the socket type is wrong, or the VM or generation isn't its own. It then
+closes the descriptor and logs the refusal, as for the hand-off channel of `wb-vmd` (S04-02-vm-provider, "The VM provider passes descriptors,
+not bytes"), and the control channel goes on. A message with another descriptor count than one is of the wrong form: every descriptor in
+it is closed, and the control channel ends.
 
 On each new socket, `wb-netd` first replays the VM's live mapping, so
 that `wb-proxyd` has it again (S07-egress-gateway). The replay is the

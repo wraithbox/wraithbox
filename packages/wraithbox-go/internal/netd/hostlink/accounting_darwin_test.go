@@ -87,11 +87,7 @@ func TestAccountingEnds(t *testing.T) {
 				t.Fatal(err)
 			}
 			send(t, hostd, raw)
-			deadline := time.Now().Add(time.Second)
-			for a.Recorder().Count(netd.RuleControlMessageRefused) == 0 && time.Now().Before(deadline) {
-				time.Sleep(5 * time.Millisecond)
-			}
-			if n := a.Recorder().Count(netd.RuleControlMessageRefused); n != 1 {
+			if n := nt.WaitCount(a.Recorder(), netd.RuleControlMessageRefused); n != 1 {
 				t.Fatalf("control-message-refused counted %d, want 1", n)
 			}
 			if err := writeWithin(a); !errors.Is(err, hostlink.ErrChannelEnded) {

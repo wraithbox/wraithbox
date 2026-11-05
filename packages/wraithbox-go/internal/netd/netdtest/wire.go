@@ -12,6 +12,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostversion"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/fdchan"
 )
 
@@ -155,4 +156,14 @@ func TCPPair(t testing.TB) (ours TCPConn, guest *net.TCPConn) {
 	}
 	t.Cleanup(func() { _ = guest.Close(); _ = c.Close() })
 	return TCPConn{c}, guest
+}
+
+// WaitCount waits up to a second for rec to count rule, and returns the
+// count then.
+func WaitCount(rec *netd.Recorder, rule netd.Rule) uint64 {
+	deadline := time.Now().Add(time.Second)
+	for rec.Count(rule) == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	return rec.Count(rule)
 }

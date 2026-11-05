@@ -154,7 +154,7 @@ func (st *stream) toProxyd() {
 	for {
 		n, err := st.guest.Read(buf)
 		if n > 0 {
-			if _, werr := st.ours.Write(buf[:n]); werr != nil {
+			if _, err := st.ours.Write(buf[:n]); err != nil {
 				return
 			}
 		}
