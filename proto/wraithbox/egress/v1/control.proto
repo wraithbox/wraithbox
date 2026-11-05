@@ -1,0 +1,222 @@
+// The control channels between wb-hostd and the two egress daemons
+// (S04-07-supervision, "When `wb-hostd` stops"; S04-architecture,
+// "Control channels").
+//
+// Each of wb-netd and wb-proxyd inherits one control channel at spawn:
+// an AF_UNIX SOCK_DGRAM socketpair with no path, made with
+// fdchan.Socketpair(4096) (internal/platform/fdchan). A wb-netd serves
+// one VM, so its channel is that VM's. One wb-proxyd serves every VM,
+// and each message to or from it names the VM. End of file or an error
+// on the channel means wb-hostd is gone.
+//
+// Each datagram holds one record: the version record first, sent by
+// each end before anything else and checked with
+// hostversion.CheckRecord (S04-architecture, "The version record"),
+// then one protobuf message per record:
+//
+// | Direction                | Message       |
+// |--------------------------|---------------|
+// | wb-hostd to wb-proxyd    | HostdToProxyd |
+// | wb-proxyd to wb-hostd    | ProxydToHostd |
+// | wb-hostd to wb-netd      | HostdToNetd   |
+// | wb-netd to wb-hostd      | NetdToHostd   |
+//
+// The first message wb-hostd sends after the version record is the
+// start message of that daemon, ProxydStart or NetdStart, and it sends
+// it once. A daemon refuses another message before it, and a second
+// one.
+//
+// A record is at most 4096 bytes (S04-08-records-and-bounds) and
+// carries at most one descriptor. A payload that doesn't fit in 4096
+// bytes (an effective policy, a kept name mapping, the wildcard sets)
+// goes as a descriptor: the read end of a pipe, into which wb-hostd
+// writes one payload and then closes its end. A payload is a 4-byte
+// big-endian length and that many bytes of one protobuf message, and
+// nothing after it. The receiver reads it with egressmsg.ReadPayload,
+// which refuses a descriptor that isn't a pipe, a length over 64 MiB,
+// a payload that isn't whole within 10 seconds, and bytes after it.
+// The 64 MiB holds the largest payload the bounds below allow, which
+// egressmsg's TestMaxPayloads builds: a NetdStartPayload of 131,072
+// entries and 65,535 debited names of 253 bytes is under 50 MiB, a
+// ProxydStartPayload of both VM slots under 32 MiB, and the largest
+// EffectivePolicy that policy.FromProto allows under 41 MiB.
+//
+// The receiver of each message checks it with the egressmsg decoder of
+// its direction, and refuses one that:
+//
+// - is empty, over 4096 bytes, or truncated (the fdchan rules);
+// - doesn't decode, holds a field the message doesn't have at any
+//   depth, or sets no kind;
+// - carries a descriptor when its kind takes none, or none when its
+//   kind takes one;
+// - breaks a bound stated on a field below.
+//
+// wb-hostd treats a refused message from a daemon as a crash of that
+// daemon. A daemon that refuses a message from wb-hostd ends its
+// control channel. The VM of a message from wb-proxyd is checked
+// against what wb-hostd sent it, never trusted.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.egress.v1;
+
+import "wraithbox/egress/v1/accounting.proto";
+
+// HostdToProxyd is what wb-hostd sends wb-proxyd.
+message HostdToProxyd {
+  oneof kind {
+    // The first message, once. One descriptor: a ProxydStartPayload.
+    ProxydStart proxyd_start = 1;
+    // One descriptor: wb-proxyd's end of a hand-off socket.
+    HandoffSocket handoff_socket = 2;
+    // One descriptor: a wraithbox.policy.v1.EffectivePolicy.
+    PolicyChange policy_change = 3;
+  }
+}
+
+// ProxydToHostd is what wb-proxyd sends wb-hostd.
+message ProxydToHostd {
+  oneof kind {
+    // No descriptor.
+    HandoffSocketAck handoff_socket_ack = 1;
+    // No descriptor.
+    PolicyAck policy_ack = 2;
+    // No descriptor.
+    HandoffSocketClosed handoff_socket_closed = 3;
+  }
+}
+
+// HostdToNetd is what wb-hostd sends a wb-netd.
+message HostdToNetd {
+  oneof kind {
+    // The first message, once. One descriptor: a NetdStartPayload.
+    NetdStart netd_start = 1;
+    // One descriptor: a running wb-netd's end of a new hand-off socket
+    // (S04-07-supervision, "New hand-off sockets").
+    HandoffSocket handoff_socket = 2;
+    // One descriptor: a wraithbox.policy.v1.EffectivePolicy.
+    PolicyChange policy_change = 3;
+  }
+}
+
+// NetdToHostd is what a wb-netd sends wb-hostd.
+message NetdToHostd {
+  oneof kind {
+    // No descriptor.
+    PolicyAck policy_ack = 1;
+  }
+}
+
+// ProxydStart gives a new wb-proxyd what wb-hostd kept for it
+// (S04-07-supervision, "A new `wb-proxyd`"). Its descriptor is a
+// payload pipe that holds a ProxydStartPayload.
+message ProxydStart {}
+
+// ProxydStartPayload holds the wildcard names wb-proxyd accepted in
+// each VM's active period, which wb-hostd kept from its accounting
+// records (S07-06-name-mapping, "Wildcard budget, second layer").
+message ProxydStartPayload {
+  // At most one per VM slot.
+  repeated WildcardNames wildcard_names = 1;
+}
+
+// WildcardNames are the names of one VM's active period.
+message WildcardNames {
+  // The VM slot, `work` or `isolated` (S06-04-vms-and-placement).
+  // Another value is refused with the check `vm-slot`.
+  string vm = 1;
+  // At most 65,535 (the wildcard budget's maximum), each in the
+  // canonical name form of NameReport, none twice.
+  repeated string names = 2;
+}
+
+// NetdStart gives a new wb-netd what wb-hostd kept for its VM
+// (S04-07-supervision, "A new `wb-netd`", "What a restart keeps", "The
+// kept name mapping"). Its descriptor is a payload pipe that holds a
+// NetdStartPayload. The effective policy follows as a PolicyChange.
+message NetdStart {
+  // The VM slot the wb-netd serves, `work` or `isolated`.
+  string vm = 1;
+  // The VM generation, at least 1. A HandoffSocket for another VM or
+  // generation is refused.
+  uint64 generation = 2;
+}
+
+// NetdStartPayload is the kept state of one VM's active period.
+// Pending approval counts (S09-10-approval-flow) are added here when
+// they are built.
+message NetdStartPayload {
+  // The live mapping entries, at most 131,072, each as in a
+  // MappingEntry accounting record, no address twice.
+  repeated MappingEntry entries = 1;
+  // The names that debited the wildcard budget, at most 65,535, each in
+  // the canonical name form, none twice.
+  repeated string debited = 2;
+  // The count of debits, at most 65,535, for when the names aren't
+  // kept. The count spent is the larger of it and the number of names.
+  uint32 debit_count = 3;
+}
+
+// HandoffSocket gives a daemon its end of a VM's hand-off socket
+// (S07-05-stream-hand-off, "One hand-off socket per VM", "From
+// `wb-hostd`"). Its descriptor is the end: an AF_UNIX SOCK_DGRAM
+// socket. A newer or equal generation for the VM replaces the old
+// socket.
+message HandoffSocket {
+  // The VM slot, `work` or `isolated`. The build VM has no hand-off
+  // socket (S07-18-build-network).
+  string vm = 1;
+  // The VM generation, at least 1.
+  uint64 generation = 2;
+}
+
+// HandoffSocketAck says wb-proxyd holds its end. wb-hostd gives wb-netd
+// the other end only after it (S07-05-stream-hand-off, "One hand-off
+// socket per VM").
+message HandoffSocketAck {
+  // As in the HandoffSocket it acknowledges.
+  string vm = 1;
+  // As in the HandoffSocket it acknowledges, at least 1.
+  uint64 generation = 2;
+}
+
+// HandoffSocketClosed says wb-proxyd closed a VM's hand-off socket for
+// a malformed message from wb-netd (S07-06-name-mapping, "Malformed
+// reports"). wb-hostd then ends that VM's wb-netd.
+message HandoffSocketClosed {
+  // The VM slot, `work` or `isolated`.
+  string vm = 1;
+  // The socket's generation, at least 1.
+  uint64 generation = 2;
+  // The rule, `name-report-malformed`. Another value is refused with
+  // the check `message-form`.
+  string rule = 3;
+  // The check that failed: `message-form`, `name-form` or
+  // `synthetic-range`. Another value is refused with the check
+  // `message-form`.
+  string check = 4;
+}
+
+// PolicyChange gives a daemon a VM's new effective policy
+// (S07-05-stream-hand-off, "Policy order"). Its descriptor is a payload
+// pipe that holds a wraithbox.policy.v1.EffectivePolicy, which the
+// daemon checks with policy.FromProto.
+message PolicyChange {
+  // The VM slot, `work` or `isolated`. A wb-netd refuses another VM
+  // than its own.
+  string vm = 1;
+  // wb-hostd's number for the change, at least 1, increasing per VM.
+  uint64 sequence = 2;
+}
+
+// PolicyAck says a daemon applied a PolicyChange. wb-hostd sends a
+// change to wb-netd only after wb-proxyd acknowledged it.
+message PolicyAck {
+  // As in the PolicyChange.
+  string vm = 1;
+  // As in the PolicyChange, at least 1.
+  uint64 sequence = 2;
+}

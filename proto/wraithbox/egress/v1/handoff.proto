@@ -1,0 +1,117 @@
+// The messages of a VM's hand-off socket, between that VM's wb-netd and
+// the one wb-proxyd (S07-05-stream-hand-off, S07-06-name-mapping).
+//
+// The socket is an AF_UNIX SOCK_DGRAM socketpair with no path that
+// wb-hostd makes for one VM and generation, made with
+// fdchan.Socketpair(4096) (internal/platform/fdchan). wb-hostd gives
+// one end to wb-proxyd on its control channel and the other to wb-netd
+// (control.proto), so the VM of every message comes from the socket it
+// arrived on, never from a field (S07-05-stream-hand-off, "Identity from
+// `wb-hostd`"; SEC08-proj-isolation). No message here names a VM.
+//
+// Each datagram holds one record: the version record first, sent by
+// each end before anything else and checked with
+// hostversion.CheckRecord (S04-architecture, "The version record"),
+// then one protobuf message per record. wb-netd sends NetdMessage and
+// wb-proxyd sends ProxydMessage.
+//
+// Every NetdMessage is guest-influenced input: the names come from guest
+// queries, and wb-netd parses raw guest frames. wb-proxyd checks each
+// record with egressmsg.DecodeNetdMessage
+// (internal/egressmsg) before anything else, and refuses one that:
+//
+// - is empty, over 4096 bytes, or truncated (the fdchan rules);
+// - doesn't decode as a NetdMessage, holds a field the message doesn't
+//   have at any depth, or sets no kind;
+// - carries a descriptor when its kind takes none, or none when its
+//   kind takes one;
+// - breaks a bound stated on a field below.
+//
+// A message is at most 4096 bytes (S07-05-stream-hand-off, "Message
+// form"). The largest NetdMessage is a NameReport of a 253-byte name,
+// 264 bytes encoded.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.egress.v1;
+
+// NetdMessage is what wb-netd sends on the hand-off socket.
+message NetdMessage {
+  // Required: a record that sets none is refused with the check
+  // `message-form`.
+  oneof kind {
+    // No descriptor.
+    NameReport name_report = 1;
+    // No descriptor.
+    Release release = 2;
+    // Exactly one descriptor: the AF_UNIX SOCK_STREAM end of the stream.
+    Stream stream = 3;
+  }
+}
+
+// NameReport gives a synthetic address to a name, before the DNS answer
+// that holds the address leaves wb-netd (S07-06-name-mapping, "Name
+// reports").
+message NameReport {
+  // The name in canonical form: lowercase, without a trailing dot, and
+  // within the name form rule of S07-03-dns (internal/dnsname), so at
+  // most 253 bytes. Any other form is refused with the check
+  // `name-form`.
+  string name = 1;
+  // An IPv4 address as a 32-bit number whose most significant byte is
+  // the first octet (198.18.0.1 is 0xC6120001). An address outside
+  // 198.18.0.0/15 is refused with the check `synthetic-range`.
+  fixed32 address = 2;
+}
+
+// Release says an address no longer maps to a name
+// (S07-06-name-mapping, "Releases").
+message Release {
+  // As in NameReport, inside 198.18.0.0/15.
+  fixed32 address = 1;
+}
+
+// Stream hands one accepted TCP connection to wb-proxyd
+// (S07-05-stream-hand-off, "Streams"). Field 5 is kept for the guest's
+// label of X14-flow-attribution, and nothing else uses it. It isn't a
+// `reserved` field, because a later edit couldn't take a reservation
+// back without breaking `buf breaking`.
+message Stream {
+  // The VM generation of the hand-off socket, at least 1. wb-proxyd
+  // refuses a stream of another generation than the socket's.
+  uint64 generation = 1;
+  // The synthetic address the guest connected to, as in NameReport,
+  // inside 198.18.0.0/15.
+  fixed32 address = 2;
+  // The TCP port the guest connected to, 1 to 65535.
+  uint32 port = 3;
+  // wb-netd's number for the stream, at least 1, unique on this
+  // hand-off socket. A StreamReset names it.
+  uint64 stream_id = 4;
+}
+
+// ProxydMessage is what wb-proxyd sends on the hand-off socket.
+// wb-netd checks each record with egressmsg.DecodeProxydMessage: the
+// record bounds of NetdMessage, a kind set, and no descriptor.
+message ProxydMessage {
+  oneof kind {
+    // No descriptor.
+    StreamReset stream_reset = 1;
+  }
+}
+
+// StreamReset asks wb-netd to reset the guest's TCP connection of a
+// stream, so the guest sees a reset where a Unix stream socket can only
+// carry an end of file (S07-15-non-http-streams; S07-05-stream-hand-off,
+// "Resets"). wb-proxyd sends it before it closes the stream's socket,
+// so the record is queued before wb-netd can read the end of file.
+// wb-netd drains the records queued on the hand-off socket before it
+// answers an end of file with a FIN. A reset for a stream id wb-netd
+// doesn't hold is logged and ignored.
+message StreamReset {
+  // The stream's id from its Stream message, at least 1.
+  uint64 stream_id = 1;
+}
