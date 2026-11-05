@@ -35,7 +35,14 @@ The design needs two properties of the type:
 - a message that doesn't fit fails at the sender with an error, and is
   never dropped silently.
 
-I172 measures them on each host platform.
+On macOS the ordering test of C11-host-daemons ("Descriptor channels")
+shows both on a channel of `fdchan.Socketpair(4096)`. Every record of
+100,000 arrives once and in order, through a sender that retries a
+full channel and a receiver that falls behind. A send to a full
+channel fails with `ENOBUFS`. The channel queues 19 records of 4 KiB,
+or 292 name reports of a 253-byte name, before a send fails. A Linux
+or Windows host gets the same test when its channels are built
+(S12-platforms).
 
 A send that fails, or that blocks for more than 100 ms, counts as
 failed. A sender never retries out of order.
@@ -46,9 +53,25 @@ failed. A sender never retries out of order.
 
 Both are logged with the rule `handoff-send-failed`.
 
+### The contract
+
+The messages of the hand-off socket, the control channels and the
+accounting channels are in the package `wraithbox.egress.v1`
+(`proto/wraithbox/egress/v1`): `handoff.proto`, `control.proto` and
+`accounting.proto`. Their comments state each field's bounds.
+`internal/egressmsg` holds the form check of each direction, with a
+fuzz target each (C02-streams-and-tls, "Fuzzing"). Each channel is made with
+`fdchan.Socketpair(4096)`. Each end sends the version record first
+(S04-architecture, "The version record").
+
+A message doesn't name the VM where the socket it came on already says it.
+A hand-off message names none: its VM is the socket's. A wb-netd's
+control and accounting channels are its VM's. Only the messages
+between `wb-hostd` and `wb-proxyd`, which serves every VM, name one.
+
 ### Message form
 
-A message from `wb-netd` is one of three kinds:
+A message from `wb-netd` (`NetdMessage`) is one of three kinds:
 
 | Kind | Descriptors |
 |---|---|
@@ -76,6 +99,13 @@ may then hold descriptors that it can't name.
 
 It closes every descriptor that arrived with a refused message.
 
+Then `egressmsg.DecodeNetdMessage` refuses a message that doesn't
+decode, holds a field its kind doesn't have, doesn't set a kind, or breaks a
+field's bound. A name must already be in canonical form
+(S07-06-name-mapping, "Name reports"), and every address inside the
+synthetic range of S07-03-dns. A refused message is malformed
+(S07-06-name-mapping, "Malformed reports").
+
 The names and labels in hand-off messages are guest strings. A log
 record holds them escaped and cut (S07-02-packet-path, "Events and rate limits").
 
@@ -83,6 +113,18 @@ record holds them escaped and cut (S07-02-packet-path, "Events and rate limits")
 it read them. So a stream behind a report that waits on `wb-hostd`
 (the wildcard budget, S07-06-name-mapping) waits too. It isn't refused
 for a missing entry.
+
+### Resets
+
+`wb-proxyd` sends one message kind on the hand-off socket,
+`StreamReset`, with the stream id that `wb-netd` gave the stream. It
+sends it when it resets a stream it accepted, before it closes the
+stream's socket. So `wb-netd` knows to reset the guest's TCP
+connection, not to close it, when it reads end of file on that socket.
+
+`wb-netd` sends every byte it already queued for the guest, then
+answers end of file with a FIN, unless a `StreamReset` for the stream
+came first. Then it answers with a reset.
 
 ### One hand-off socket per VM
 
@@ -106,10 +148,12 @@ closes the old socket, and every stream that came on it.
 ### From `wb-hostd`
 
 `wb-hostd` passes these ends over a socketpair it gives `wb-proxyd` at
-spawn. `wb-netd` never holds an end of it.
+spawn, its control channel (S04-architecture, "Control channels").
+`wb-netd` never holds an end of it.
 
-Each message holds exactly one descriptor, and the fields VM and
-generation. `wb-hostd` keeps each VM's generation in `state.db`, and
+Each message (`HandoffSocket`) holds exactly one descriptor, and the
+fields VM and generation. `wb-proxyd` answers with a `HandoffSocketAck`
+that names both. `wb-hostd` keeps each VM's generation in `state.db`, and
 only increases it.
 
 `wb-proxyd` refuses the message when:
@@ -139,7 +183,9 @@ A stream message holds exactly one descriptor, a Unix domain
 
 - the generation;
 - the synthetic address and port;
-- once X14-flow-attribution delivers labels, the guest's label.
+- a stream id, which a `StreamReset` names ("Resets");
+- once X14-flow-attribution delivers labels, the guest's label. Its
+  field number is kept, and this build refuses a message that sets it.
 
 `wb-proxyd` refuses the stream when:
 
@@ -207,8 +253,9 @@ Every change to the effective policy goes to `wb-proxyd` first. Such
 a change is a session start or end, an approval, a policy file edit,
 or `wb allow`.
 
-1. `wb-hostd` sends the change to `wb-proxyd`.
-2. `wb-proxyd` applies it and acknowledges it.
+1. `wb-hostd` sends the change to `wb-proxyd` (`PolicyChange`, with a
+   sequence number per VM).
+2. `wb-proxyd` applies it and acknowledges it (`PolicyAck`).
 3. Only then does `wb-hostd` send it to `wb-netd`.
 
 So a report for a newly allowed name isn't refused. A narrowing

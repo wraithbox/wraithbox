@@ -36,7 +36,7 @@
 // which refuses a descriptor that isn't a pipe, a length over 64 MiB,
 // a payload that isn't whole within 10 seconds, and bytes after it.
 // The 64 MiB holds the largest payload the bounds below allow, which
-// egressmsg's TestMaxPayloads builds: a NetdStartPayload of 131,072
+// TestMaxPayloads in egressmsg builds: a NetdStartPayload of 131,072
 // entries and 65,535 debited names of 253 bytes is under 50 MiB, a
 // ProxydStartPayload of both VM slots under 32 MiB, and the largest
 // EffectivePolicy that policy.FromProto allows under 41 MiB.

@@ -9,13 +9,13 @@ processes, the bounds on host work a guest can cause, and logs.
 
 `wb-netd` and `wb-proxyd` send `wb-hostd` two kinds of record, on
 inherited sockets of type `SOCK_SEQPACKET` or `SOCK_DGRAM`. macOS uses
-`SOCK_DGRAM` (I172).
+`SOCK_DGRAM` (C11-host-daemons, "Descriptor channels"), a socket per kind.
 
 - One record goes in one message. A record arrives whole or not at
   all.
-- Each record is at most 4 KiB, in a fixed format.
-- `wb-hostd` parses them with a parser that has a fuzz target
-  (C11-host-daemons).
+- Each record is at most 4 KiB, in a fixed format (`AccountingRecord`).
+- `wb-hostd` parses them with `egressmsg.DecodeAccountingRecord`, which
+  has a fuzz target (C11-host-daemons) and refuses another daemon's kind.
 
 `wb-hostd` treats these as a crash of the process that sent them: a
 malformed record, an oversized record, and one received with
@@ -27,12 +27,12 @@ restart limit.
 Accounting records carry the counts and the name mapping of
 S04-07-supervision ("What a restart keeps", "The kept name mapping"):
 
-- each wildcard budget debit;
-- each new or renewed mapping entry, with its name and address;
-- each release.
+- each wildcard budget debit (`WildcardDebit`);
+- each new or renewed `MappingEntry`, with its name and address;
+- each release (`MappingRelease`).
 
-From `wb-proxyd` they carry the Go clock's accepted calibration point,
-each new verified tree head, and a `go-sumdb-inconsistent` finding.
+From `wb-proxyd` they carry each `ProxydWildcardName` (S07-06-name-mapping), the
+Go clock's accepted calibration point, each new verified tree head, and a `go-sumdb-inconsistent` finding.
 `wb-hostd` checks each of those, stamps it with its receipt time, keeps
 it in `state.db`, and passes it back at start (S07-13-publish-time, "Persisted state").
 

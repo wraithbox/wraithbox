@@ -160,7 +160,12 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   canonicalization.
 - The name reports, releases and stream messages `wb-proxyd` reads from
   `wb-netd`, and the hand-off messages it reads from `wb-hostd`
-  (S07-05-stream-hand-off).
+  (S07-05-stream-hand-off). `FuzzNetdMessage` checks that an accepted
+  message has a canonical name, an address inside 198.18.0.0/15, a
+  stream's generation, id and port of at least 1, and a descriptor on a
+  stream and no other message. The message encodes again within 4 KiB.
+  `FuzzProxydMessage` does the same for the `StreamReset` that
+  `wb-netd` reads, and `FuzzControlMessage` for `wb-hostd`'s messages.
 
 ## Conformance
 

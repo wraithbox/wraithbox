@@ -11,8 +11,8 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/vmbundle"
 )
 
-// The fuzz targets of the egress contract (C02-security, "Fuzzing";
-// C11-host-daemons, "Descriptor channels"). Each feeds arbitrary record
+// The fuzz targets of the egress contract (C02-streams-and-tls,
+// "Fuzzing"; C11-host-daemons, "Fuzzing"). Each feeds arbitrary record
 // bytes and a descriptor flag into a decoder and checks that it doesn't
 // panic, that every refusal names a check, that nothing it accepts is
 // outside the bounds the .proto comments state, and that an accepted
