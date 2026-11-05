@@ -1,6 +1,8 @@
 package match
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -8,9 +10,10 @@ import (
 // matcher (C03-policy-and-approvals, "Fuzzing": policy matching). The
 // path comes from the guest and the pattern from a policy file, so both
 // are adversarial. It checks that nothing panics, that canonical form
-// is a fixed point and matches what the raw path matches, and that a
-// match implies CanMatchPrefix for every prefix of the path, the
-// property the load checks of S09-02-precedence rely on.
+// is a fixed point, that other spellings of the same path have the same
+// canonical form, so every pattern matches them alike, and that a match implies CanMatchPrefix for
+// every prefix of the path, the property the load checks of
+// S09-02-precedence rely on.
 func FuzzPathMatch(f *testing.F) {
 	for _, seed := range []struct{ pattern, method, path string }{
 		{"/**", "*", "/graphql"},
@@ -37,17 +40,46 @@ func FuzzPathMatch(f *testing.F) {
 		if ar != nil || again != canon {
 			t.Fatalf("CanonicalPath(%q) = %q, then %q, %v", path, canon, again, ar)
 		}
-		matched := p.Match(canon)
-		if p.Match(again) != matched {
-			t.Fatalf("pattern %q matches %q and its canonical form differently", pattern, canon)
-		}
-		if matched {
+		checkSpellings(t, canon)
+		if p.Match(canon) {
 			checkPrefixes(t, p, canon)
 		}
 		if mr == nil && !m.Match(method) {
 			t.Fatalf("method %q doesn't match itself", method)
 		}
 	})
+}
+
+// spellings returns other spellings of a canonical path that
+// CanonicalPath must bring back to it: a byte that may appear literally
+// escaped with lowercase hex digits, a doubled slash, an inserted `/.`,
+// and an inserted `/x/..`.
+func spellings(canon string) []string {
+	out := []string{
+		"/" + canon,
+		"/." + canon,
+		"/x/.." + canon,
+	}
+	if i := strings.IndexAny(canon, "jklmnozJKLMNOZ:=@~"); i >= 0 {
+		out = append(out, canon[:i]+fmt.Sprintf("%%%02x", canon[i])+canon[i+1:])
+	}
+	return out
+}
+
+// checkSpellings checks that each spelling of a canonical path has that
+// canonical form. Patterns match the canonical form only, so the
+// spellings then match every pattern as canon does.
+func checkSpellings(t *testing.T, canon string) {
+	t.Helper()
+	for _, v := range spellings(canon) {
+		if len(v) > MaxPath {
+			continue
+		}
+		got, r := CanonicalPath(v)
+		if r != nil || got != canon {
+			t.Fatalf("CanonicalPath(%q) = %q, %v, want %q", v, got, r, canon)
+		}
+	}
 }
 
 // checkPrefixes checks that a pattern that matches a path can match

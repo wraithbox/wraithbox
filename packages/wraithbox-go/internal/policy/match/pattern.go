@@ -300,7 +300,7 @@ func advance(atoms []atom, states []bool, c byte) ([]bool, bool) {
 		case a == atomDoubleStar, a == atomStar && c != '/':
 			next[i] = true
 			live = true
-		case a >= 0 && foldCase(byte(a)) == foldCase(c):
+		case foldCase(a) == foldCase(atom(c)):
 			next[i+1] = true
 			live = true
 		}
@@ -308,11 +308,11 @@ func advance(atoms []atom, states []bool, c byte) ([]bool, bool) {
 	return next, live
 }
 
-// foldCase returns an ASCII letter in lowercase, and any other byte as
-// it is.
-func foldCase(c byte) byte {
-	if 'A' <= c && c <= 'Z' {
-		return c + ('a' - 'A')
+// foldCase returns the atom of an uppercase ASCII letter as its
+// lowercase letter, and any other atom, a wildcard included, as it is.
+func foldCase(a atom) atom {
+	if 'A' <= a && a <= 'Z' {
+		return a + ('a' - 'A')
 	}
-	return c
+	return a
 }
