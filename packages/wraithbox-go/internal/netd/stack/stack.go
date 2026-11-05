@@ -405,17 +405,25 @@ func (s *Stack) decide(f netd.Flow) (func(net.Conn, netd.Flow), netd.Rule) {
 // bound. The DHCP server is bound from New on.
 //
 // gVisor also loops every broadcast the stack sends back to itself, such
-// as the DHCP server's replies to port 68. Those come from the gateway's
-// address, which the link filter never passes from the guest, so they
-// are dropped without being counted: they aren't guest drops
-// (S07-02-packet-path, "Events and rate limits").
+// as the DHCP server's replies from port 67 to port 68. Those come from
+// the gateway's address, which the link filter never passes from the
+// guest (ipv4-source), so they are dropped without being counted: they
+// aren't guest drops (S07-02-packet-path, "Events and rate limits").
+// Any other UDP from the gateway's address is still counted.
 func (s *Stack) handleUDP(id gvstack.TransportEndpointID, _ *gvstack.PacketBuffer) bool {
 	f := flowOf(id)
-	if f.Guest.Addr() == s.cfg.Gateway {
+	if s.loopedDHCPReply(f) {
 		return true
 	}
 	s.rec.Record(netd.Drop, netd.RuleUDPUnbound, f.LogAttrs()...)
 	return true
+}
+
+// loopedDHCPReply reports whether a UDP packet is one of the DHCP
+// server's own broadcast replies, looped back by gVisor: from the
+// gateway's port 67 to port 68.
+func (s *Stack) loopedDHCPReply(f netd.Flow) bool {
+	return f.Guest.Addr() == s.cfg.Gateway && f.Guest.Port() == dhcp.ServerPort && f.Dest.Port() == dhcp.ClientPort
 }
 
 // enter counts an accept goroutine that stop waits for, or reports that
