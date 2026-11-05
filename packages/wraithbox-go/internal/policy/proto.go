@@ -56,9 +56,16 @@ func fromProto(m *policyv1.EffectivePolicy) (*Policy, *Refusal) {
 }
 
 // checkProtoCounts checks the bounds of every list before FromProto
-// reads one, so a message past a bound costs no more work.
+// reads one, so a message past a bound costs no more work. It reads only
+// lengths, and allocates nothing in proportion to the message.
 func checkProtoCounts(m *policyv1.EffectivePolicy) *Refusal {
-	total := 0
+	c := counts{
+		endpoints: len(m.GetEndpoints()), passHosts: len(m.GetPassHosts()), rawTCP: len(m.GetRawTcp()),
+		partsOff: len(m.GetPartsOff()), projects: len(m.GetProjects()), wildcardBudget: m.GetWildcardBudget(),
+	}
+	if r := c.check(); r != nil {
+		return r
+	}
 	for i, e := range m.GetEndpoints() {
 		f := at("endpoints", i)
 		for _, r := range []*Refusal{
@@ -70,25 +77,14 @@ func checkProtoCounts(m *policyv1.EffectivePolicy) *Refusal {
 				return r
 			}
 		}
-		total += len(e.GetRules()) + len(e.GetDenyRules())
+		c.rules += len(e.GetRules()) + len(e.GetDenyRules())
 	}
 	for i, pr := range m.GetProjects() {
 		if r := bound(at("projects", i)+".repositories", len(pr.GetRepositories()), MaxRepositories); r != nil {
 			return r
 		}
 	}
-	shell := Policy{
-		Endpoints: make([]Endpoint, len(m.GetEndpoints())),
-		PassHosts: make([]PassHost, len(m.GetPassHosts())),
-		RawTCP:    make([]RawTCP, len(m.GetRawTcp())),
-		PartsOff:  make([]PartOff, len(m.GetPartsOff())),
-		Projects:  make([]Project, len(m.GetProjects())),
-	}
-	if r := bound("endpoints[*].rules and deny_rules", total, MaxRules); r != nil {
-		return r
-	}
-	shell.WildcardBudget = m.GetWildcardBudget()
-	return shell.checkCounts()
+	return c.check()
 }
 
 func (p *Policy) listsFromProto(m *policyv1.EffectivePolicy) *Refusal {
