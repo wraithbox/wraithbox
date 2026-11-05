@@ -103,6 +103,10 @@ func TestDHCP(t *testing.T) {
 		h.waitRule(netd.RuleDHCPForm)
 		h.send(dhcpFrame(zero, limitedBroadcast, dhcpRequest(4, zero)))
 		h.waitRule(netd.RuleDHCPDecline)
+		// The gateway's address is the looped replies' source, and the
+		// filter drops it from the guest.
+		h.send(dhcpFrame(nt.Gateway, limitedBroadcast, dhcpRequest(1, zero)))
+		h.waitRule(netd.RuleIPv4Source)
 		h.quiet()
 	})
 	if n := h.s.Recorder().Count(netd.RuleUDPUnbound); n != 0 {

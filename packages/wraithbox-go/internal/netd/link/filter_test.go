@@ -92,6 +92,7 @@ func filterCases() []filterCase {
 		{"total length under 20", nt.FromGuest(ethIPv4, shortLen), netd.RuleIPv4Form},
 		{"short IPv4", nt.FromGuest(ethIPv4, nt.IPv4(nt.Leased, public, tcpNum, nil)[:19]), netd.RuleIPv4Form},
 		{"spoofed source", ip4(otherHost, public, tcpNum, syn), netd.RuleIPv4Source},
+		{"the gateway as source", nt.Ethernet(nt.Broadcast, nt.GuestMAC, ethIPv4, nt.IPv4(nt.Gateway, limited, udpNum, nt.UDP(67, 68, nil))), netd.RuleIPv4Source},
 		{"0.0.0.0 to TCP", ip4(zero, public, tcpNum, syn), netd.RuleIPv4Source},
 		{"0.0.0.0 to DNS", ip4(zero, nt.Gateway, udpNum, nt.UDP(5353, 53, nil)), netd.RuleIPv4Source},
 		{"TCP to the leased address", ip4(nt.Leased, nt.Leased, tcpNum, syn), netd.RuleIPv4Destination},
