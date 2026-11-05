@@ -30,27 +30,13 @@ Wraith Box parses and validates the schema in Go, with its own code.
 
 #### Extension keys
 
-Wraith Box's extensions go under one top-level key, `wraithbox`. It
-holds:
-
-- `pass`: the hosts in pass mode, each a mapping of `host` and
-  `reason` ("Pass hosts");
-- `raw_tcp`: the raw TCP entries, each `host`, `port` and `reason`
-  ("Raw TCP entries");
-- `wildcard_budget`: the wildcard budget (S07-03-dns, "Wildcard
-  budget");
-- `parts_off`: the profile parts turned off, each `profile`, `kind`
-  (for the git hosting profile) and `part` (S07-11-http-policy,
-  "Profile parts").
-
-The keys of extensions that aren't built yet are refused with
-`policy-key-unsupported`: `credential_bindings`, `dependency_gate` (the
-dependency-gate thresholds) and `git_hosts`. Any other key under
-`wraithbox` is unknown.
-
-Repository configuration can't hold the `wraithbox` key at all
-(S09-03-project-settings, "Closed keys"), and the key there is refused
-with `policy-source`.
+Wraith Box's extensions go under one top-level key, `wraithbox`:
+`pass` (host, reason), `raw_tcp` (host, port, reason),
+`wildcard_budget` (S07-03-dns) and `parts_off` (profile, kind, part:
+S07-11-http-policy, "Profile parts"). `credential_bindings`,
+`dependency_gate` and `git_hosts` aren't built yet, so they are refused
+with `policy-key-unsupported`. Repository configuration can't hold
+`wraithbox` (`policy-source`, S09-03-project-settings, "Closed keys").
 
 #### Pinned release
 
@@ -125,12 +111,9 @@ because it parses the same bytes (S09-04-boundary-check). The loader
 stays in `wb-hostd` because it is Go, bounded and fuzzed
 (`FuzzLoadPolicy`, C03-policy-and-approvals).
 
-- The file is read only when it is a regular file, so a FIFO doesn't
-  block the load. A missing file is an empty policy.
-- A file past a bound is refused with `policy-yaml-bound`: more than
-  4 MiB, checked before it is parsed, nesting deeper than 64, or more
-  than 100,000 nodes. These are the bounds of OpenShell's own parser
-  (X24-openshell-artifacts).
+- A file past OpenShell's own bounds is refused with
+  `policy-yaml-bound`: 4 MiB, checked before parsing, depth 64 and
+  100,000 nodes (X24-openshell-artifacts).
 - The YAML is decoded into a node tree first, which keeps an alias as
   a pointer and expands nothing. An anchor, an alias, a merge key, a
   tag outside YAML's core schema, a duplicate key, a key that isn't a
@@ -141,10 +124,6 @@ stays in `wb-hostd` because it is Go, bounded and fuzzed
 - Each refusal names its rule, the file, the line and key path, and the
   value at fault, escaped (NFR06-explained-refusals). One load reports
   the first refusal of each rule, at most 16.
-
-The checks that need more than one file, such as a pass host on a
-host a project's remote names, are made over the union of the sources
-(S09-02-precedence).
 
 ### Pass, raw TCP, and audit entries
 
