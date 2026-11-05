@@ -79,7 +79,7 @@ in `planning.md`, and spikes in `spikes.md`.
    agent that a coordinator spawned hands back once the pull request is
    open, and the coordinator watches the checks while the review runs.
    A failed check comes back to the agent with the review findings
-   (`orchestration.md`, "A wave", step 4).
+   (`orchestration.md`, "A wave", step 5).
 
 A spike follows `spikes.md`.
 

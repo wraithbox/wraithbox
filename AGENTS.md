@@ -256,4 +256,6 @@ it helps: `feat(go)`, `fix(swift)`, `docs(spec)`, `feat(netd)`.
 
 Work is not complete until every change is committed and `mise run ci`
 passes. When a remote exists: push, then `mise run ci-watch`; on failure
-`gh run view --log-failed`, fix, repeat.
+`gh run view --log-failed`, fix, repeat. An agent spawned in a wave
+hands back once its pull request is open, and the coordinator watches
+its CI (`docs/agents/orchestration.md`, "A wave", steps 4 and 5).

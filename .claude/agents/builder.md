@@ -49,7 +49,7 @@ the closing issue's labels.
    `S07-11-http-policy: …`. Don't wait for GitHub CI: the coordinator
    starts the review at once, watches the checks, and sends a failed
    check back to you with the review findings (`orchestration.md`, "A
-   wave", step 4). Only when your prompt asks you to watch CI, watch it
+   wave", step 5). Only when your prompt asks you to watch CI, watch it
    in the foreground with `mise run ci-watch` (Bash timeout 600000 ms).
    Never `sleep` and never end your turn to wait: nothing wakes you. On
    failure `gh run view --log-failed`, fix, push, repeat.
