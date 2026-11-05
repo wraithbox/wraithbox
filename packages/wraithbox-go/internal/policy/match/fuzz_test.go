@@ -41,16 +41,22 @@ func FuzzPathMatch(f *testing.F) {
 		if p.Match(again) != matched {
 			t.Fatalf("pattern %q matches %q and its canonical form differently", pattern, canon)
 		}
-		if !matched {
-			return
-		}
-		for i := range len(canon) + 1 {
-			if !p.CanMatchPrefix(canon[:i]) {
-				t.Fatalf("pattern %q matches %q but not CanMatchPrefix(%q)", pattern, canon, canon[:i])
-			}
+		if matched {
+			checkPrefixes(t, p, canon)
 		}
 		if mr == nil && !m.Match(method) {
 			t.Fatalf("method %q doesn't match itself", method)
 		}
 	})
+}
+
+// checkPrefixes checks that a pattern that matches a path can match
+// every prefix of it.
+func checkPrefixes(t *testing.T, p Pattern, path string) {
+	t.Helper()
+	for i := range len(path) + 1 {
+		if !p.CanMatchPrefix(path[:i]) {
+			t.Fatalf("pattern %q matches %q but not CanMatchPrefix(%q)", p, path, path[:i])
+		}
+	}
 }

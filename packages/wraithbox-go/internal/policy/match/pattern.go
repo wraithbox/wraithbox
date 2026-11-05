@@ -50,6 +50,9 @@ const (
 // String returns the pattern as written.
 func (p Pattern) String() string { return p.src }
 
+// All returns the pattern `**`, which matches every path.
+func All() Pattern { return Pattern{src: "**", all: true} }
+
 // Compile checks a path pattern and puts its literal parts in the
 // canonical form of CanonicalPath, so `/%67raphql` compiles to what
 // `/graphql` does. It refuses, with RulePathPattern:
@@ -74,8 +77,9 @@ func Compile(src string) (Pattern, *Refusal) {
 	p := Pattern{src: src}
 	segs := strings.Split(src[1:], "/")
 	for i, seg := range segs {
-		p.addLit("/")
-		if r := p.addSegment(seg, i, i == len(segs)-1); r != nil {
+		p.toks = addLit(p.toks, "/")
+		var r *Refusal
+		if p.toks, r = addSegment(p.toks, seg, i, i == len(segs)-1); r != nil {
 			return Pattern{}, r
 		}
 	}
@@ -104,50 +108,50 @@ func checkPattern(src string) *Refusal {
 
 // addSegment adds one segment of the pattern, the i-th, split on its
 // stars.
-func (p *Pattern) addSegment(seg string, i int, last bool) *Refusal {
+func addSegment(toks []token, seg string, i int, last bool) ([]token, *Refusal) {
 	if seg == "" && !last {
-		return refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern is empty")
+		return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern is empty")
 	}
 	if !strings.Contains(seg, "*") {
 		d, r := decodeSegment(seg, 0)
 		if r != nil {
-			return refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern: "+r.msg)
+			return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern: "+r.msg)
 		}
 		if seg == "." || seg == ".." || hasHiddenDot(d) {
-			return refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern is a . or .. segment, which no canonical path has")
+			return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern is a . or .. segment, which no canonical path has")
 		}
-		p.addLit(encodeSegment(d))
-		return nil
+		return addLit(toks, encodeSegment(d)), nil
 	}
 	for rest := seg; rest != ""; {
 		lit, after, star := strings.Cut(rest, "*")
 		d, r := decodeSegment(lit, 0)
 		if r != nil {
-			return refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern: "+r.msg)
+			return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern: "+r.msg)
 		}
-		p.addLit(encodeSegment(d))
+		toks = addLit(toks, encodeSegment(d))
 		rest = after
 		switch {
 		case !star:
 		case strings.HasPrefix(rest, "*"):
-			p.toks = append(p.toks, token{kind: tokDoubleStar})
+			toks = append(toks, token{kind: tokDoubleStar})
 			rest = rest[1:]
 		default:
-			p.toks = append(p.toks, token{kind: tokStar})
+			toks = append(toks, token{kind: tokStar})
 		}
 	}
-	return nil
+	return toks, nil
 }
 
-func (p *Pattern) addLit(s string) {
+// addLit appends a literal, merged with a literal before it.
+func addLit(toks []token, s string) []token {
 	if s == "" {
-		return
+		return toks
 	}
-	if n := len(p.toks); n > 0 && p.toks[n-1].kind == tokLit {
-		p.toks[n-1].lit += s
-		return
+	if n := len(toks); n > 0 && toks[n-1].kind == tokLit {
+		toks[n-1].lit += s
+		return toks
 	}
-	p.toks = append(p.toks, token{kind: tokLit, lit: s})
+	return append(toks, token{kind: tokLit, lit: s})
 }
 
 func encodeSegment(decoded string) string {
@@ -162,9 +166,10 @@ func appendAtoms(atoms []atom, t token) []atom {
 		return append(atoms, atomStar)
 	case tokDoubleStar:
 		return append(atoms, atomDoubleStar)
-	}
-	for i := range len(t.lit) {
-		atoms = append(atoms, atom(t.lit[i]))
+	case tokLit:
+		for i := range len(t.lit) {
+			atoms = append(atoms, atom(t.lit[i]))
+		}
 	}
 	return atoms
 }
@@ -195,26 +200,36 @@ func (p Pattern) Match(path string) bool {
 // step moves the set of positions a token can start at, cur, to the set
 // it can end at, next. It reports whether next has any position.
 func step(t token, path string, cur, next []bool) bool {
+	if t.kind == tokLit {
+		return stepLit(t.lit, path, cur, next)
+	}
+	return stepWild(t.kind == tokStar, path, cur, next)
+}
+
+// stepLit ends a literal right after each start where the path has it.
+func stepLit(lit, path string, cur, next []bool) bool {
+	live := false
+	for i := range cur {
+		if cur[i] && strings.HasPrefix(path[i:], lit) {
+			next[i+len(lit)] = true
+			live = true
+		}
+	}
+	return live
+}
+
+// stepWild ends a wildcard at every position from a start on. A `*`
+// runs within one segment, so a `/` ends its run, and a `**` runs to
+// the end of the path.
+func stepWild(oneSegment bool, path string, cur, next []bool) bool {
 	live := false
 	on := false
 	for i := range cur {
-		switch t.kind {
-		case tokLit:
-			on = cur[i] && strings.HasPrefix(path[i:], t.lit)
-			if on {
-				next[i+len(t.lit)] = true
-			}
-		case tokStar:
-			// A run within one segment: a `/` before i ends it.
-			if i > 0 && path[i-1] == '/' {
-				on = false
-			}
-			on = on || cur[i]
-			next[i] = next[i] || on
-		case tokDoubleStar:
-			on = on || cur[i]
-			next[i] = next[i] || on
+		if oneSegment && i > 0 && path[i-1] == '/' {
+			on = false
 		}
+		on = on || cur[i]
+		next[i] = next[i] || on
 		live = live || on
 	}
 	return live
@@ -277,7 +292,7 @@ func advance(atoms []atom, states []bool, c byte) ([]bool, bool) {
 		case a == atomDoubleStar, a == atomStar && c != '/':
 			next[i] = true
 			live = true
-		case a >= 0 && byte(a) == c:
+		case a == atom(c):
 			next[i+1] = true
 			live = true
 		}

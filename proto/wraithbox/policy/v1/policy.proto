@@ -1,0 +1,183 @@
+// The effective network policy of one VM, as wb-hostd computes it and
+// sends it to wb-netd and wb-proxyd (S07-01-per-vm-policy,
+// S09-01-policy-files, S09-02-precedence). This package holds the
+// message only. The PolicyChange that carries it to the daemons is
+// another package's (M3.4a).
+//
+// Each daemon treats the message as untrusted input and checks it with
+// policy.FromProto before it uses it. FromProto refuses a message that
+// breaks a bound or an invariant below, and never repairs one: the
+// daemon then keeps the policy it has and logs the refusal with its
+// rule. Bounds the receiver checks:
+// - at most 4096 endpoints, 256 rules and 256 deny rules in each, and
+//   16384 rules and deny rules in all;
+// - at most 64 ports per endpoint, each 1 to 65535, none twice;
+// - at most 256 pass hosts, 256 raw TCP entries, 64 parts off, and 64
+//   projects of at most 64 repositories each;
+// - a wildcard budget of at most 65535;
+// - rule names of 1 to 128 bytes, reasons of 1 to 256, repositories of
+//   1 to 2048, and profile, kind and part names of 1 to 64, all
+//   printable ASCII (S09-01-policy-files, "Strings");
+// - hosts, paths and methods in the forms package match checks, with
+//   the caps it names.
+//
+// Invariants FromProto checks:
+// - an enum is never UNSPECIFIED, except Endpoint.enforcement, where
+//   UNSPECIFIED is an endpoint without the field, which enforces;
+// - an endpoint's fields go together as OpenShell v0.1.2 requires;
+// - only a global or project source sets a pass host, a raw TCP entry,
+//   an audit endpoint or a part that is off;
+// - no pass host, raw TCP entry or audit endpoint is on a guarded host
+//   (S07-07-hosts-and-modes, "Guarded hosts");
+// - no host and port is both raw TCP and named by an endpoint
+//   (S07-15-non-http-streams, "One protocol per host and port");
+// - every part that is off is a part of its profile and kind.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.policy.v1;
+
+// EffectivePolicy is the union of every source for one VM.
+message EffectivePolicy {
+  // Increases with each recompute, so a daemon can tell a newer policy
+  // from an older one.
+  uint64 generation = 1;
+  // At most 4096.
+  repeated Endpoint endpoints = 2;
+  // At most 256.
+  repeated PassHost pass_hosts = 3;
+  // At most 256.
+  repeated RawTcpEntry raw_tcp = 4;
+  // The new names the VM may resolve under wildcards in an active
+  // period (S07-03-dns, "Wildcard budget"). At most 65535. 0 allows
+  // none.
+  uint32 wildcard_budget = 5;
+  // At most 64.
+  repeated PartOff parts_off = 6;
+  // The projects with a session in the VM. At most 64.
+  repeated Project projects = 7;
+}
+
+// SourceKind says where a rule or entry comes from (S09-02-precedence).
+enum SourceKind {
+  SOURCE_KIND_UNSPECIFIED = 0;
+  SOURCE_KIND_BUILTIN = 1;
+  SOURCE_KIND_GLOBAL = 2;
+  SOURCE_KIND_PROJECT = 3;
+  SOURCE_KIND_REPOSITORY = 4;
+  SOURCE_KIND_APPROVAL = 5;
+}
+
+// Source is the source of a rule or entry.
+message Source {
+  SourceKind kind = 1;
+  // The project id, 32 lowercase hexadecimal characters. Set for a
+  // project and a repository source, may be set for an approval, and
+  // empty for the others.
+  string project_id = 2;
+  // The repository's compare form (gitremote.Result.Compare), 1 to
+  // 2048 bytes. Set for a repository source only.
+  string repository = 3;
+}
+
+// Protocol is an endpoint's `protocol`.
+enum Protocol {
+  PROTOCOL_UNSPECIFIED = 0;
+  // No `protocol`, or `tcp`: no path, access, rules or deny rules.
+  PROTOCOL_L4 = 1;
+  // `rest`: rules or an access preset, not both.
+  PROTOCOL_REST = 2;
+}
+
+// Enforcement is an endpoint's `enforcement`.
+enum Enforcement {
+  // The endpoint has no `enforcement`, so it enforces.
+  ENFORCEMENT_UNSPECIFIED = 0;
+  ENFORCEMENT_ENFORCE = 1;
+  ENFORCEMENT_AUDIT = 2;
+}
+
+// Access is an endpoint's `access` preset.
+enum Access {
+  // No preset: the endpoint has rules, or is L4.
+  ACCESS_UNSPECIFIED = 0;
+  ACCESS_READ_ONLY = 1;
+  ACCESS_READ_WRITE = 2;
+  ACCESS_FULL = 3;
+}
+
+// Endpoint is one endpoint of a named rule (S09-01-policy-files,
+// "Implemented keys").
+message Endpoint {
+  Source source = 1;
+  // The rule's key under `network_policies`. 1 to 128 bytes.
+  string rule_name = 2;
+  // An exact host, or `*.` and a host, in canonical form.
+  string host = 3;
+  // 1 to 64 ports, each 1 to 65535, none twice.
+  repeated uint32 ports = 4;
+  // The endpoint-level path pattern, or empty for none.
+  string path = 5;
+  Protocol protocol = 6;
+  Enforcement enforcement = 7;
+  Access access = 8;
+  // At most 256.
+  repeated HttpRule rules = 9;
+  // At most 256.
+  repeated HttpRule deny_rules = 10;
+}
+
+// HttpRule is a method and a path pattern.
+message HttpRule {
+  // `*`, or an HTTP token of at most 32 bytes.
+  string method = 1;
+  // `**`, or a pattern that starts with `/`, at most 1024 bytes.
+  string path = 2;
+}
+
+// PassHost is a host in pass mode (S07-07-hosts-and-modes, "pass").
+message PassHost {
+  // One exact host in canonical form.
+  string host = 1;
+  // A global or project source.
+  Source source = 2;
+  // 1 to 256 bytes.
+  string reason = 3;
+}
+
+// RawTcpEntry is a raw TCP entry (S07-15-non-http-streams).
+message RawTcpEntry {
+  // One exact host in canonical form.
+  string host = 1;
+  // 1 to 65535.
+  uint32 port = 2;
+  // A global or project source.
+  Source source = 3;
+  // 1 to 256 bytes.
+  string reason = 4;
+}
+
+// PartOff is a built-in profile part a source turned off
+// (S07-11-http-policy, "Profile parts").
+message PartOff {
+  // Such as `git-hosting`.
+  string profile = 1;
+  // Such as `github`. Empty for a profile without kinds.
+  string kind = 2;
+  // Such as `graphql`.
+  string part = 3;
+  // A global or project source.
+  Source source = 4;
+}
+
+// Project is a project with a session in the VM.
+message Project {
+  // 32 lowercase hexadecimal characters, each project once.
+  string id = 1;
+  // The compare forms of its repositories, at most 64, each 1 to 2048
+  // bytes.
+  repeated string repositories = 2;
+}
