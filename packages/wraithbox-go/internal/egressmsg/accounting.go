@@ -63,6 +63,11 @@ type AccountingRecord struct {
 // and a kind the sender doesn't send is refused with CheckMessageForm.
 // wb-hostd treats any refusal as a crash of the sender
 // (S04-08-records-and-bounds, "Mapping entries are checked").
+//
+// With a refusal, the record returned holds only its Kind, when the
+// record decoded to one, and no fields. So wb-hostd can log a refused
+// mapping entry with the rule mapping-entry-invalid and any other
+// refusal as a malformed record.
 func DecodeAccountingRecord(record []byte, hasFD bool, from Sender) (AccountingRecord, *Refusal) {
 	m := &egressv1.AccountingRecord{}
 	if r := decode(record, m); r != nil {
@@ -73,37 +78,43 @@ func DecodeAccountingRecord(record []byte, hasFD bool, from Sender) (AccountingR
 	}
 	switch k := m.GetKind().(type) {
 	case *egressv1.AccountingRecord_WildcardDebit:
-		return fromNetd(from, "wildcard_debit", func() (AccountingRecord, *Refusal) {
+		return fromNetd(from, KindWildcardDebit, "wildcard_debit", func() (AccountingRecord, *Refusal) {
 			n, r := Name("wildcard_debit.name", k.WildcardDebit.GetName())
 			return AccountingRecord{Kind: KindWildcardDebit, Name: n}, r
 		})
 	case *egressv1.AccountingRecord_MappingEntry:
-		return fromNetd(from, "mapping_entry", func() (AccountingRecord, *Refusal) {
+		return fromNetd(from, KindMappingEntry, "mapping_entry", func() (AccountingRecord, *Refusal) {
 			return mappingEntry(k.MappingEntry)
 		})
 	case *egressv1.AccountingRecord_MappingRelease:
-		return fromNetd(from, "mapping_release", func() (AccountingRecord, *Refusal) {
+		return fromNetd(from, KindMappingRelease, "mapping_release", func() (AccountingRecord, *Refusal) {
 			a, r := Addr("mapping_release.address", k.MappingRelease.GetAddress())
 			return AccountingRecord{Kind: KindMappingRelease, Addr: a}, r
 		})
 	case *egressv1.AccountingRecord_ProxydWildcardName:
+		refused := AccountingRecord{Kind: KindProxydWildcardName}
 		if from != SenderProxyd {
-			return AccountingRecord{}, refuse(CheckMessageForm, "proxyd_wildcard_name", "a kind only wb-proxyd sends")
+			return refused, refuse(CheckMessageForm, "proxyd_wildcard_name", "a kind only wb-proxyd sends")
 		}
-		return proxydWildcardName(k.ProxydWildcardName)
+		rec, r := proxydWildcardName(k.ProxydWildcardName)
+		if r != nil {
+			return refused, r
+		}
+		return rec, nil
 	}
 	return AccountingRecord{}, refuse(CheckMessageForm, "kind", "no kind set")
 }
 
 // fromNetd refuses a kind only wb-netd sends from another sender, and
-// checks the record's fields otherwise.
-func fromNetd(from Sender, kind string, fields func() (AccountingRecord, *Refusal)) (AccountingRecord, *Refusal) {
+// checks the record's fields otherwise. A refused record holds only its
+// kind.
+func fromNetd(from Sender, kind AccountingKind, field string, fields func() (AccountingRecord, *Refusal)) (AccountingRecord, *Refusal) {
 	if from != SenderNetd {
-		return AccountingRecord{}, refuse(CheckMessageForm, kind, "a kind only wb-netd sends")
+		return AccountingRecord{Kind: kind}, refuse(CheckMessageForm, field, "a kind only wb-netd sends")
 	}
 	rec, r := fields()
 	if r != nil {
-		return AccountingRecord{}, r
+		return AccountingRecord{Kind: kind}, r
 	}
 	return rec, nil
 }
