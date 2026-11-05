@@ -129,6 +129,15 @@ func (p *Ports) Allow(name dnsname.Name, ports ...uint16) {
 	}
 }
 
+// Deny takes ports back from name.
+func (p *Ports) Deny(name dnsname.Name, ports ...uint16) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, port := range ports {
+		delete(p.allowed[name], port)
+	}
+}
+
 func (p *Ports) PortAllowed(name dnsname.Name, port uint16) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()

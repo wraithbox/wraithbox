@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
-	nt "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/netdtest"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd"
+	nt"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/netdtest"
 )
 
 // peers is wb-hostd's and wb-proxyd's view of the mapping, built from the
@@ -24,6 +26,7 @@ type peers struct {
 	proxyd map[netip.Addr]dnsname.Name
 	pins   map[netip.Addr]int
 	fail   [4]bool // entry, release, report, report release
+	deny   bool    // the port policy allows no port
 }
 
 var errFuzz = errors.New("fuzz fault")
@@ -86,8 +89,11 @@ func (r fuzzReports) Release(_ context.Context, addr netip.Addr) error {
 var fuzzPrefix = netip.MustParsePrefix("198.18.0.0/29")
 
 // FuzzPoolOps runs a sequence of operations the guest picks on a pool:
-// answers for names, connection opens and closes, clock steps, sweeps and
-// faults of the accounting channel and the hand-off socket. No address
+// answers for names, connection opens and closes, stream decisions and
+// the serves that follow them, clock steps, sweeps, a port policy that
+// takes every port back, and faults of the accounting channel and the
+// hand-off socket. A served stream goes on with the name both peers
+// hold for its address at serve time. No address
 // maps to two names at once, no address goes to another name before its
 // release was recorded and reported, no pinned entry is released, and the
 // live set never exceeds the pool (S07-03-dns, "Synthetic pool").
@@ -96,22 +102,26 @@ func FuzzPoolOps(f *testing.F) {
 	f.Add([]byte{0, 1, 1, 1, 3, 255, 3, 255, 4, 0x0f, 5, 4, 0, 0, 2, 4, 0, 0, 3})
 	f.Add([]byte{4, 0x01, 0, 7, 4, 0x00, 0, 7, 4, 0x02, 0, 8, 3, 200, 3, 200, 5})
 	f.Add([]byte{0, 0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 3, 250, 3, 250, 4, 0x08, 0, 9, 4, 0, 0, 10})
+	f.Add([]byte{0, 1, 6, 0, 6, 0, 7, 0, 3, 8, 5, 0, 7, 0, 2, 0, 3, 8, 5, 0, 0, 2, 4, 0x10, 6, 0})
 	f.Fuzz(func(t *testing.T, ops []byte) {
 		if len(ops) > 4096 {
 			return
 		}
 		pr := &peers{t: t, hostd: map[netip.Addr]dnsname.Name{}, proxyd: map[netip.Addr]dnsname.Name{}, pins: map[netip.Addr]int{}}
 		clk := newClock()
+		r := &fuzzRun{t: t, peers: pr, clock: clk}
 		p, err := New(fuzzPrefix, nil, Deps{
 			Accounting: fuzzAccounting{pr},
 			Reports:    fuzzReports{pr},
+			Ports:      fuzzPorts{pr},
+			HandOff:    fuzzHandOff{r},
 			Now:        clk.Now,
 			Log:        slog.New(slog.DiscardHandler),
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		r := &fuzzRun{t: t, p: p, peers: pr, clock: clk}
+		r.p = p
 		for i := 0; i+1 < len(ops); i += 2 {
 			r.step(ops[i], ops[i+1])
 			r.check()
@@ -125,17 +135,50 @@ type open struct {
 	done func()
 }
 
+// decided is a stream the pool accepted at its SYN, waiting for the
+// stack to serve it.
+type decided struct {
+	sink netd.StreamSink
+	flow netd.Flow
+}
+
 type fuzzRun struct {
-	t     *testing.T
-	p     *Pool
-	peers *peers
-	clock *clock
-	opens []open
+	t       *testing.T
+	p       *Pool
+	peers   *peers
+	clock   *clock
+	opens   []open
+	decided []decided
+}
+
+type fuzzPorts struct{ *peers }
+
+func (p fuzzPorts) PortAllowed(dnsname.Name, uint16) bool { return !p.deny }
+
+// fuzzHandOff takes a stream the pool served, and fails when its name
+// isn't the one both peers hold for its address. The stream is open
+// until the fuzzer closes it.
+type fuzzHandOff struct{ r *fuzzRun }
+
+func (h fuzzHandOff) HandOffStream(conn net.Conn, f netd.NamedFlow) {
+	addr, pr := f.Dest.Addr(), h.r.peers
+	if pr.hostd[addr] != f.Name || pr.proxyd[addr] != f.Name {
+		h.r.t.Fatalf("handed %v off for %s, which wb-hostd holds for %q and wb-proxyd for %q", addr, f.Name, pr.hostd[addr], pr.proxyd[addr])
+	}
+	pr.pins[addr]++
+	h.r.opens = append(h.r.opens, open{addr: addr, done: func() { _ = conn.Close() }})
+}
+
+// fuzzAddr is the address of the pool an argument picks.
+func fuzzAddr(arg byte) netip.Addr {
+	a := fuzzPrefix.Addr().As4()
+	a[3] += arg % 8
+	return netip.AddrFrom4(a)
 }
 
 // step runs one operation, op, with its argument.
 func (r *fuzzRun) step(op, arg byte) {
-	switch op % 6 {
+	switch op % 8 {
 	case 0:
 		r.answer(arg)
 	case 1:
@@ -148,9 +191,38 @@ func (r *fuzzRun) step(op, arg byte) {
 		for i := range r.peers.fail {
 			r.peers.fail[i] = arg&(1<<i) != 0
 		}
+		r.peers.deny = arg&(1<<len(r.peers.fail)) != 0
 	case 5:
 		r.p.Sweep(context.Background())
+	case 6:
+		r.decide(arg)
+	case 7:
+		r.serve(arg)
 	}
+}
+
+// decide asks the stream policy about a SYN to an address, and keeps an
+// accepted stream to serve later.
+func (r *fuzzRun) decide(arg byte) {
+	f := netd.Flow{Dest: netip.AddrPortFrom(fuzzAddr(arg), 443)}
+	d := r.p.DecideStream(f)
+	if d.Sink != nil {
+		r.decided = append(r.decided, decided{sink: d.Sink, flow: f})
+	}
+}
+
+// serve serves a stream decided earlier, as the stack does once its
+// handshake ends. fuzzHandOff checks the name it gets.
+func (r *fuzzRun) serve(arg byte) {
+	if len(r.decided) == 0 {
+		return
+	}
+	i := int(arg) % len(r.decided)
+	d := r.decided[i]
+	r.decided = append(r.decided[:i], r.decided[i+1:]...)
+	ours, theirs := net.Pipe()
+	defer func() { _ = theirs.Close() }()
+	d.sink.ServeStream(ours, d.flow)
 }
 
 func (r *fuzzRun) answer(arg byte) {
@@ -165,9 +237,7 @@ func (r *fuzzRun) answer(arg byte) {
 }
 
 func (r *fuzzRun) open(arg byte) {
-	a := fuzzPrefix.Addr().As4()
-	a[3] += arg % 8
-	addr := netip.AddrFrom4(a)
+	addr := fuzzAddr(arg)
 	name, done, ok := r.p.Open(addr)
 	if !ok {
 		return

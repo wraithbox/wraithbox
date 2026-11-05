@@ -418,26 +418,82 @@ func TestDecideStream(t *testing.T) {
 	f.wantCalls(releaseCalls(a)...)
 }
 
-// TestServeStreamAfterRelease checks that a connection accepted before
-// its entry was released, and served after, is closed and not handed
-// off.
-func TestServeStreamAfterRelease(t *testing.T) {
-	f := newFixture(t, "198.18.0.0/15")
-	a := f.answer("api.example.com")
-	f.ports.Allow(nt.Name("api.example.com"), 443)
-	fl := netd.Flow{Dest: netip.AddrPortFrom(a, 443)}
-	d := f.p.DecideStream(fl)
-	f.clock.advance(expire)
-	f.p.Sweep(context.Background())
-	ours, theirs := net.Pipe()
-	d.Sink.ServeStream(ours, fl)
-	if _, err := theirs.Read(make([]byte, 1)); err == nil {
-		t.Fatal("the connection is open")
+// TestServeStreamRechecks checks that a connection whose decision no
+// longer holds when the stack serves it is closed, recorded with its
+// rule, and not handed off: its entry was released, its address went to
+// another name, or its port was taken back during the handshake. The
+// close leaves no pin behind.
+func TestServeStreamRechecks(t *testing.T) {
+	api := nt.Name("api.example.com")
+	cases := []struct {
+		name   string
+		change func(f *fixture)
+		rule   netd.Rule
+	}{
+		{"released", func(f *fixture) {
+			f.clock.advance(expire)
+			f.p.Sweep(context.Background())
+		}, netd.RuleSyntheticUnmapped},
+		{"another name", func(f *fixture) {
+			f.clock.advance(expire)
+			f.p.Sweep(context.Background())
+			f.answer("other.example.com")
+		}, netd.RuleSyntheticUnmapped},
+		{"port taken back", func(f *fixture) { f.ports.Deny(api, 443) }, netd.RulePortNotAllowed},
 	}
-	select {
-	case s := <-f.handOff:
-		t.Fatalf("handed %+v", s.Flow)
-	default:
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newFixture(t, "198.18.0.0/31")
+			a := f.answer("api.example.com")
+			if b := f.answer("b.example.com"); b == a {
+				t.Fatal("two names share an address")
+			}
+			f.ports.Allow(api, 443)
+			f.ports.Allow(nt.Name("other.example.com"), 443)
+			fl := netd.Flow{Dest: netip.AddrPortFrom(a, 443)}
+			d := f.p.DecideStream(fl)
+			c.change(f)
+			ours, theirs := net.Pipe()
+			d.Sink.ServeStream(ours, fl)
+			if _, err := theirs.Read(make([]byte, 1)); err == nil {
+				t.Fatal("the connection is open")
+			}
+			select {
+			case s := <-f.handOff:
+				t.Fatalf("handed %+v", s.Flow)
+			default:
+			}
+			if n := f.p.Recorder().Count(c.rule); n != 1 {
+				t.Fatalf("%s count %d, want 1", c.rule, n)
+			}
+			f.clock.advance(expire)
+			f.p.Sweep(context.Background())
+			if n := f.p.Len(); n != 0 {
+				t.Fatalf("%d entries left pinned", n)
+			}
+		})
+	}
+}
+
+// TestFullPoolSweepsOnce checks that answers for new names in a full
+// pool don't sweep again until the clock moves.
+func TestFullPoolSweepsOnce(t *testing.T) {
+	f := newFixture(t, "198.18.0.0/31")
+	f.answer("a.example.com")
+	f.answer("b.example.com")
+	f.refused("c.example.com", netd.RuleSyntheticPoolFull)
+	if f.p.swept.IsZero() {
+		t.Fatal("a full pool didn't sweep")
+	}
+	swept := f.p.swept
+	f.refused("d.example.com", netd.RuleSyntheticPoolFull)
+	if f.p.swept != swept {
+		t.Fatal("swept again at the same clock reading")
+	}
+	f.clock.advance(time.Second)
+	f.refused("d.example.com", netd.RuleSyntheticPoolFull)
+	if !f.p.swept.After(swept) {
+		t.Fatal("didn't sweep once the clock moved")
 	}
 }
 

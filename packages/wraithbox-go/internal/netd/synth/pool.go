@@ -77,9 +77,13 @@ type Deps struct {
 	HandOff netd.StreamHandOff
 	// Now is the monotonic clock entries expire by. Nil means time.Now.
 	Now func() time.Time
-	// Log gets failed writes and sends, releases and refused streams,
+	// Log gets failed writes and sends, releases and closed streams,
 	// rate-limited per rule. Nil means slog.Default.
 	Log *slog.Logger
+	// Events gets each stream the pool closes after its handshake, as
+	// the stack's Hooks.Events gets its drops and resets. Nil means they
+	// are only logged and counted.
+	Events netd.Events
 }
 
 // entry is a live entry.
@@ -105,12 +109,17 @@ type Pool struct {
 	size   uint32
 	deps   Deps
 	log    *slog.Logger
+	// rec counts and logs the streams the pool closes, and passes them
+	// to Deps.Events (SEC10-audit).
+	rec *netd.Recorder
 
 	// send orders the writes and sends: answers and sweeps hold it from
 	// the first write to the last, so each release is recorded and
 	// reported before any later entry or report (S07-06-name-mapping,
 	// "Releases"). Open and DecideStream never take it.
 	send sync.Mutex
+	// swept is the clock's reading at the last sweep. send guards it.
+	swept time.Time
 
 	// mu guards the fields below. It is never held across a write or
 	// send.
@@ -148,6 +157,7 @@ func New(prefix netip.Prefix, kept []Entry, deps Deps) (*Pool, error) {
 		size:   uint32(1) << (32 - prefix.Bits()),
 		deps:   deps,
 		log:    ratelog.New(deps.Log),
+		rec:    netd.NewRecorder(deps.Log, deps.Events),
 		byName: map[dnsname.Name]*entry{},
 		byAddr: map[netip.Addr]*entry{},
 		skip:   map[netip.Addr]bool{},
@@ -242,17 +252,22 @@ func (p *Pool) Answer(ctx context.Context, name dnsname.Name) (netip.Addr, netd.
 	return addr, ""
 }
 
-// allocate takes a free address. When none is free it sweeps first. It
-// is called with send held.
+// allocate takes a free address. When none is free it sweeps first,
+// unless the clock hasn't moved since the last sweep: then no entry has
+// expired since, and a guest that asks for new names in a full pool
+// doesn't make each answer walk every entry. It is called with send
+// held.
 func (p *Pool) allocate(ctx context.Context) (netip.Addr, netd.Rule) {
 	if a, ok := p.takeFree(); ok {
 		return a, ""
 	}
-	if rule := p.sweep(ctx); rule != "" {
-		return netip.Addr{}, rule
-	}
-	if a, ok := p.takeFree(); ok {
-		return a, ""
+	if p.deps.Now().After(p.swept) {
+		if rule := p.sweep(ctx); rule != "" {
+			return netip.Addr{}, rule
+		}
+		if a, ok := p.takeFree(); ok {
+			return a, ""
+		}
 	}
 	p.log.LogAttrs(ctx, slog.LevelWarn, "netd synthetic pool full",
 		slog.String("rule", string(netd.RuleSyntheticPoolFull)), slog.Int("live", p.Len()))
@@ -317,6 +332,7 @@ func (p *Pool) Sweep(ctx context.Context) netd.Rule {
 // sweep is Sweep with send held.
 func (p *Pool) sweep(ctx context.Context) netd.Rule {
 	now := p.deps.Now()
+	p.swept = now
 	p.mu.Lock()
 	var expired []Entry
 	for _, e := range p.byAddr {
@@ -365,7 +381,8 @@ func (p *Pool) flush(ctx context.Context) netd.Rule {
 		p.pending = p.pending[1:]
 		p.free = append(p.free, r.Addr)
 		p.mu.Unlock()
-		p.log.LogAttrs(ctx, slog.LevelInfo, "netd synthetic release", r.LogAttrs()...)
+		p.log.LogAttrs(ctx, slog.LevelInfo, "netd synthetic release",
+			append([]slog.Attr{slog.String("rule", string(netd.RuleSyntheticRelease))}, r.LogAttrs()...)...)
 	}
 }
 
@@ -416,6 +433,10 @@ func (p *Pool) Live() []Entry {
 	slices.SortFunc(out, func(a, b Entry) int { return a.Addr.Compare(b.Addr) })
 	return out
 }
+
+// Recorder returns the recorder the pool counts the streams it closes
+// with.
+func (p *Pool) Recorder() *netd.Recorder { return p.rec }
 
 // Len returns the number of live entries.
 func (p *Pool) Len() int {
