@@ -140,12 +140,14 @@ with fakes and `testing/synctest` as the clock:
 - `TestRefusalsAreAlike`: every refusal reason gives the same bytes,
   sent at 4 seconds and not before, also with each accounting write
   taking 99 ms.
-- `TestBackground`: quiet refusals in mixed case, and an approval
-  event for a name one label longer.
+- `TestBackground` and `TestBackgroundPastBudget`: quiet refusals in
+  mixed case and past the budget, and an approval event for a name
+  one label longer.
 - `TestBudgetDebits`, `TestBudgetSpent` and `TestKeptBudget`: which
   lookups debit the wildcard budget, and what is refused once it is used up.
 - `TestHoldFull` and `TestClose`: the hold limit, and no held refusal
   sent after the server closes.
+- `TestFormFloodSpendsRate`: a name that fails the form spends a rate token.
 - `TestParseQueryRefuses`: every `dns-message-form` case is dropped
   without an answer.
 

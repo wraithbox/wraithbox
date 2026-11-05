@@ -181,12 +181,14 @@ type Outcome struct {
 // Decide decides one query that passed the message form, in the order of
 // S07-03-dns, "Order of checks":
 //  1. a name under arpa or local gets NXDOMAIN at once;
-//  2. the name form rule, on the labels as they are on the wire;
-//  3. the query rate;
+//  2. the query rate;
+//  3. the name form rule, on the labels as they are on the wire;
 //  4. the host state;
 //  5. the name's class in the effective policy, and the background list;
-//  6. the wildcard budget's debit and its accounting record;
-//  7. for an allowed name, the answer for its type.
+//  6. the wildcard budget's debit and its accounting record, for every
+//     name that isn't allowed by an exact entry, refused names included;
+//  7. the class's refusal, or for an allowed name the answer for its
+//     type.
 //
 // Every refusal after step 1 is held and has the bytes of
 // Query.Refusal.
@@ -201,6 +203,13 @@ func (r *Resolver) Decide(ctx context.Context, q Query) Outcome {
 			Attrs: []slog.Attr{typ, slog.String("name", q.LogName())},
 		}
 	}
+	// SEC13-bounded-resources: every query that isn't a local answer
+	// spends a token, a name that fails the form included, so a flood of
+	// bad names is refused with dns-query-rate like any other. The name
+	// is logged escaped, since it passed no check yet.
+	if !r.rate.take(time.Now()) {
+		return refuse(q, netd.RuleDNSQueryRate, []slog.Attr{typ, slog.String("name", q.LogName())})
+	}
 	// SEC14-no-fake-approvals: a name that fails the form reaches no event
 	// and no other check.
 	name, bad := dnsname.FromWire(q.Labels)
@@ -208,9 +217,6 @@ func (r *Resolver) Decide(ctx context.Context, q Query) Outcome {
 		return refuse(q, netd.RuleDNSNameForm, []slog.Attr{typ, slog.String("name", q.LogName()), slog.String("fault", string(bad.Fault))})
 	}
 	attrs := []slog.Attr{typ, slog.String("name", name.String())}
-	if !r.rate.take(time.Now()) {
-		return refuse(q, netd.RuleDNSQueryRate, attrs)
-	}
 	if r.cfg.Host != nil {
 		if rule := r.cfg.Host.Refusal(); rule != "" {
 			return refuse(q, rule, attrs)
@@ -232,6 +238,12 @@ func refuse(q Query, rule netd.Rule, attrs []slog.Attr) Outcome {
 // decideName takes steps 5 to 7 for a name that passed the form.
 func (r *Resolver) decideName(ctx context.Context, q Query, name dnsname.Name, class netd.NameClass, attrs []slog.Attr) Outcome {
 	refusal := r.refusalOf(name, class)
+	if refusal == netd.RuleGuestOSBackground {
+		// S07-04-dns-refusals, "Quiet refusals": a listed name is counted
+		// whichever rule refuses it from here, wildcard-budget and
+		// accounting-write-failed included.
+		r.countBackground(name)
+	}
 	debited := false
 	if class != netd.NameExact {
 		// S07-03-dns, "Wildcard budget": a new name under a wildcard and a
@@ -247,9 +259,6 @@ func (r *Resolver) decideName(ctx context.Context, q Query, name dnsname.Name, c
 		o := refuse(q, refusal, attrs)
 		o.Name, o.Debited = name, debited
 		o.Approve = refusal == netd.RuleNameNotAllowed
-		if refusal == netd.RuleGuestOSBackground {
-			r.countBackground(name)
-		}
 		return o
 	}
 	o := r.answer(ctx, q, name)
