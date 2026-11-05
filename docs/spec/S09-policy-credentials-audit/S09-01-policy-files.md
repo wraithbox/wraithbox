@@ -113,7 +113,12 @@ stays in `wb-hostd` because it is Go, bounded and fuzzed
 
 - A file past OpenShell's own bounds is refused with
   `policy-yaml-bound`: 4 MiB, checked before parsing, depth 64 and
-  100,000 nodes (X24-openshell-artifacts).
+  100,000 nodes (X24-openshell-artifacts). The depth and nodes are
+  counted on the node tree, so the decoder builds the whole tree of a
+  file within 4 MiB first.
+- An integer is decimal with no leading zero, because YAML reads `0443`
+  as octal. A panic in the loader refuses the file with
+  `policy-loader-panic`.
 - The YAML is decoded into a node tree first, which keeps an alias as
   a pointer and expands nothing. An anchor, an alias, a merge key, a
   tag outside YAML's core schema, a duplicate key, a key that isn't a

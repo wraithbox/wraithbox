@@ -10,9 +10,11 @@ and the parts a user can turn off.
 This page serves SEC06-repo-writes. Rules match, in the OpenShell
 policy schema (S09-policy-credentials-audit):
 
-- method and path, per host;
-- GraphQL operation type and name;
-- WebSocket messages.
+- method and path, per host. A WebSocket upgrade is matched as a `GET`
+  by its method and path, and its messages aren't matched in V1.
+- GraphQL operation type and name, in the built-in profiles only. A
+  user or repository file with any `protocol` but `rest` is refused at
+  load (S09-01-policy-files, "Implemented keys").
 
 Each inspected host enforces its rules by default. A host and port can
 be set to `audit` while a new rule is tried out. Violations are then
