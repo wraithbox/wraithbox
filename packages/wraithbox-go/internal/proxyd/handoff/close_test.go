@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -14,16 +15,25 @@ import (
 
 // tableFullConn is a Conn whose reads fail with fdchan-fd-table-full:
 // the same refusal each time, as fdchan returns after it ended the
-// channel, or a new one each time, as for messages it dropped.
+// channel, or a new one each time, as for messages it dropped. Its
+// second Recv closes again, so a test knows the reader decided on the
+// first refusal.
 type tableFullConn struct {
 	same   *fdchan.Refusal
 	closed chan struct{}
 	once   sync.Once
+
+	again     chan struct{}
+	calls     atomic.Int64
+	againOnce sync.Once
 }
 
 func (c *tableFullConn) Send([]byte, syscall.Conn) error { return nil }
 
 func (c *tableFullConn) Recv() (*fdchan.Message, error) {
+	if c.calls.Add(1) == 2 {
+		c.againOnce.Do(func() { close(c.again) })
+	}
 	if c.same != nil {
 		return nil, c.same
 	}
@@ -58,6 +68,7 @@ func TestTableFullEndsReads(t *testing.T) {
 				t.Fatal(err)
 			}
 			tc.conn.closed = make(chan struct{})
+			tc.conn.again = make(chan struct{})
 			st := &vmState{slot: "work", copy: newMapping()}
 			sock := newSocket(r, st, 1, tc.conn)
 			st.sock = sock
@@ -65,6 +76,7 @@ func TestTableFullEndsReads(t *testing.T) {
 			if !sock.run() {
 				t.Fatal("run refused an open socket")
 			}
+			waitClosed(t, tc.conn.again, "the reader didn't read again after the first refusal")
 			if tc.ends {
 				waitClosed(t, tc.conn.closed, "the socket didn't end")
 			}
