@@ -102,8 +102,9 @@ func forLease(req Request, l Lease) bool {
 // The reply holds the message type, the server identifier and, but in a
 // NAK, the subnet mask, router, DNS server, lease time and interface
 // MTU: nothing else, whatever the parameter request list asks for
-// (FR08-no-proxy-config). Only an OFFER and the ACK of a REQUEST carry
-// the leased address in yiaddr.
+// (FR08-no-proxy-config). The ACK of an INFORM leaves out the lease
+// time. Only an OFFER and the ACK of a REQUEST carry the leased address
+// in yiaddr.
 func Reply(req Request, l Lease) ([]byte, bool) {
 	out := Decide(req, l)
 	if out.Reply == 0 {
@@ -130,8 +131,12 @@ func Reply(req Request, l Lease) ([]byte, bool) {
 		b = append(b, mask...)
 		b = appendAddr(b, optRouter, l.Gateway)
 		b = appendAddr(b, optDNS, l.Gateway)
-		b = append(b, optLeaseTime, 4)
-		b = binary.BigEndian.AppendUint32(b, uint32(LeaseTime/time.Second))
+		if req.Type != MsgInform {
+			// An INFORM leases nothing, so its ACK has no lease time
+			// (RFC 2131, section 4.3.5).
+			b = append(b, optLeaseTime, 4)
+			b = binary.BigEndian.AppendUint32(b, uint32(LeaseTime/time.Second))
+		}
 		b = append(b, optMTU, 2)
 		b = binary.BigEndian.AppendUint16(b, l.MTU)
 	}

@@ -142,8 +142,11 @@ func (tc answerCase) check(t *testing.T, l Lease) {
 		t.Fatalf("yiaddr %s, want %s", y, tc.yiaddr)
 	}
 	want := offered
-	if tc.reply == MsgNak {
+	switch {
+	case tc.reply == MsgNak:
 		want = []byte{optMessageType, optServerID}
+	case req.Type == MsgInform:
+		want = slices.DeleteFunc(slices.Clone(offered), func(c byte) bool { return c == optLeaseTime })
 	}
 	if !slices.Equal(codes, want) {
 		t.Fatalf("options %v, want %v", codes, want)
@@ -171,7 +174,7 @@ func TestReplyOptions(t *testing.T) {
 				t.Fatalf("%v: the reply offers option %d", m, c)
 			}
 		}
-		checkOfferedValues(t, opts)
+		checkOfferedValues(t, m, opts)
 		if binary.BigEndian.Uint32(reply[nt.DHCPOffXID:]) != 7 {
 			t.Fatalf("%v: xid not copied", m)
 		}
@@ -179,16 +182,21 @@ func TestReplyOptions(t *testing.T) {
 }
 
 // checkOfferedValues checks the values of the six options of the test
-// link's lease.
-func checkOfferedValues(t *testing.T, opts map[byte][]byte) {
+// link's lease in the reply to a request of type m. The reply to an
+// INFORM has no lease time.
+func checkOfferedValues(t *testing.T, m MessageType, opts map[byte][]byte) {
 	t.Helper()
 	gw := nt.Gateway.As4()
+	lease := binary.BigEndian.AppendUint32(nil, 3600)
+	if m == MsgInform {
+		lease = nil
+	}
 	for code, want := range map[byte][]byte{
 		optSubnetMask: {255, 255, 255, 0},
 		optRouter:     gw[:],
 		optDNS:        gw[:],
 		optServerID:   gw[:],
-		optLeaseTime:  binary.BigEndian.AppendUint32(nil, 3600),
+		optLeaseTime:  lease,
 		optMTU:        binary.BigEndian.AppendUint16(nil, uint16(netd.DefaultMTU)),
 	} {
 		if !bytes.Equal(opts[code], want) {
@@ -289,6 +297,7 @@ func TestHandle(t *testing.T) {
 		{"request", macOSRequest(nt.GuestMAC, nt.Leased), fromZero, netd.RuleDHCPAck, bcast},
 		{"renewal", nt.DHCP(1, nt.Leased, nt.GuestMAC, typ(MsgRequest)), fromLeased, netd.RuleDHCPAck, fromLeased},
 		{"nak", macOSRequest(nt.GuestMAC, other), fromZero, netd.RuleDHCPNak, bcast},
+		{"nak from the leased address", macOSRequest(nt.GuestMAC, other), fromLeased, netd.RuleDHCPNak, bcast},
 		{"inform", nt.DHCP(1, nt.Leased, nt.GuestMAC, typ(MsgInform)), fromLeased, netd.RuleDHCPInform, fromLeased},
 	}
 	for _, tc := range tests {
@@ -425,7 +434,8 @@ func checkParsed(t *testing.T, msg []byte, l Lease) {
 
 // checkReply checks the properties every reply has: a BOOTREPLY to the
 // guest's MAC with the request's xid, yiaddr the leased address or zero,
-// and only the six options and the message type.
+// and only the six options and the message type, without the lease time
+// in the ACK of an INFORM.
 func checkReply(t *testing.T, reply []byte, req Request, l Lease) {
 	t.Helper()
 	if len(reply) < minReply || reply[offOp] != opReply {
@@ -448,6 +458,9 @@ func checkReply(t *testing.T, reply []byte, req Request, l Lease) {
 		if !slices.Contains(offered, c) {
 			t.Fatalf("option %d in a reply", c)
 		}
+	}
+	if req.Type == MsgInform && slices.Contains(codes, optLeaseTime) {
+		t.Fatal("a lease time in the ACK of an INFORM")
 	}
 }
 
