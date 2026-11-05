@@ -45,14 +45,12 @@ struct ConnectGuestTests {
         let (fixture, machine) = try await runningFixture()
         try await fixture.connector.connect(generation: 1, requestID: 7, port: 1023)
         let connection = try #require(machine.connections.first)
-        // Checked before the record is read, so no received descriptor
-        // can have taken the number.
         #expect(connection.closes == 1)
-        #expect(fcntl(connection.fileDescriptor, F_GETFD) == -1)
         #expect(fixture.connector.inFlight == 0)
 
         let received = try #require(receiveHandoff(fixture.handoff.host))
-        defer { closeAll(received.descriptors) }
+        var unclosed = received.descriptors
+        defer { closeAll(unclosed) }
         let message = try Wraithbox_Vmd_V1_HandoffMessage(serializedBytes: received.record)
         #expect(message.kind == .connection)
         #expect(message.requestID == 7)
@@ -68,6 +66,13 @@ struct ConnectGuestTests {
         #expect(read(connection.guest, &byte, 1) == 1 && byte == UInt8(ascii: "x"))
         #expect(receiveHandoff(fixture.handoff.host) == nil)
         #expect(!fixture.recorded.events("guest-connection-passed").isEmpty)
+
+        // wb-vmd's copy is closed: once the passed descriptor is closed
+        // too, the guest end reads end of file (closeShows).
+        closeAll(unclosed)
+        unclosed = []
+        let guest = connection.guest
+        #expect(try await closeShows { recv(guest, &byte, 1, MSG_DONTWAIT) == 0 })
     }
 
     @Test(
