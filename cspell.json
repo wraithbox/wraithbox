@@ -20,6 +20,7 @@
     "bun.lock",
     "mise.lock",
     "go.sum",
+    "go.work.sum",
     "Package.resolved",
     "LICENSE",
     "CODE_OF_CONDUCT.md",
