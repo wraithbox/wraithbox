@@ -94,7 +94,7 @@ func handle(conn net.PacketConn, msg []byte, from net.Addr, l Lease, rec *netd.R
 		rec.Note(out.Rule, attrs...)
 		return
 	}
-	to := replyTo(from, l)
+	to := replyTo(from, out.Reply, l)
 	attrs = append(attrs, slog.String("reply", out.Reply.String()), slog.String("to", to.String()))
 	if _, err := conn.WriteTo(reply, to); err != nil {
 		rec.Record(netd.Drop, netd.RuleDHCPSendFailed, append(attrs, slog.String("error", err.Error()))...)
@@ -105,13 +105,17 @@ func handle(conn net.PacketConn, msg []byte, from net.Addr, l Lease, rec *netd.R
 
 // replyTo is where a reply goes: by unicast to the leased address when
 // the request came from it, as a renewal does, and otherwise to the
-// limited broadcast address, since the guest has no address yet. Both
-// on the client port.
-func replyTo(from net.Addr, l Lease) *net.UDPAddr {
+// limited broadcast address, since the guest has no address yet. A NAK
+// is always broadcast (RFC 2131, section 4.1). Both on the client port.
+func replyTo(from net.Addr, reply MessageType, l Lease) *net.UDPAddr {
+	bcast := &net.UDPAddr{IP: net.IPv4bcast, Port: ClientPort}
+	if reply == MsgNak {
+		return bcast
+	}
 	if u, ok := from.(*net.UDPAddr); ok {
 		if a, ok := netip.AddrFromSlice(u.IP); ok && a.Unmap() == l.Addr {
 			return &net.UDPAddr{IP: l.Addr.AsSlice(), Port: ClientPort}
 		}
 	}
-	return &net.UDPAddr{IP: net.IPv4bcast, Port: ClientPort}
+	return bcast
 }

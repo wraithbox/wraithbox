@@ -184,7 +184,7 @@ The server answers each message and logs it with a rule:
 | DISCOVER | OFFER | `dhcp-offer` |
 | REQUEST for the leased address | ACK | `dhcp-ack` |
 | any other REQUEST | NAK | `dhcp-nak` |
-| INFORM | an ACK of the same options, with no address | `dhcp-inform` |
+| INFORM | an ACK of the same options but the lease time, with no address | `dhcp-inform` |
 | RELEASE | none. The lease stays with the guest's MAC, because there is only one | `dhcp-release` |
 | DECLINE: something answered for the guest's address | none, logged as a finding | `dhcp-decline` |
 | any other type | none, dropped | `dhcp-type` |
