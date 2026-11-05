@@ -38,7 +38,7 @@ func TestAccepted(t *testing.T) {
 		{"EXAMPLE.com.", "example.com"},
 		{"localhost", "localhost"},
 		{"a-b.c-d", "a-b.c-d"},
-		{"xn--bcher-kva.example", "xn--bcher-kva.example"},
+		{"xn--80ak6aa92e.example", "xn--80ak6aa92e.example"},
 		{"ab--cd.example", "ab--cd.example"},
 		{"123.example", "123.example"},
 		{"example.0xg", "example.0xg"},
@@ -86,16 +86,16 @@ func TestRefusedHost(t *testing.T) {
 		{".example", FaultLabelEmpty, 1, "dns-name-form: label 1 is empty"},
 		{label64 + ".example", FaultLabelLong, 1, "dns-name-form: label 1 is 64 bytes, longer than 63"},
 		{
-			"exa_mple.com", FaultLabelByte, 1,
-			`dns-name-form: label 1 has the byte "_" at offset 3: only ASCII letters, digits and hyphens are allowed`,
+			"my_host.com", FaultLabelByte, 1,
+			`dns-name-form: label 1 has the byte "_" at offset 2: only ASCII letters, digits and hyphens are allowed`,
 		},
 		{
 			"example.c\x00m", FaultLabelByte, 2,
 			`dns-name-form: label 2 has the byte "\x00" at offset 1: only ASCII letters, digits and hyphens are allowed`,
 		},
 		{
-			"b\xc3\xbccher.example", FaultLabelByte, 1,
-			`dns-name-form: label 1 has the byte "\xc3" at offset 1: only ASCII letters, digits and hyphens are allowed`,
+			"test\u00e9.example", FaultLabelByte, 1,
+			`dns-name-form: label 1 has the byte "\xc3" at offset 4: only ASCII letters, digits and hyphens are allowed`,
 		},
 		{
 			"\x1b[31m.example", FaultLabelByte, 1,
