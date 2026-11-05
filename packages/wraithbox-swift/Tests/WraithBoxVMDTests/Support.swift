@@ -374,8 +374,12 @@ func closeShows(
 
 /// Whether a send on the open datagram socket `fd` fails because its peer
 /// is closed. A send that succeeds, or fails with EBADF or ENOTSOCK
-/// because `fd` is not an open socket, is false.
+/// because `fd` is not an open socket, is false. SO_NOSIGPIPE is set
+/// first, so a send that fails with EPIPE returns the error instead of
+/// raising SIGPIPE, which would end the test process.
 func peerIsClosed(_ fd: Int32) -> Bool {
+    var on: Int32 = 1
+    _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
     guard send(fd, "x", 1, 0) == -1 else {
         return false
     }

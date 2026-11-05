@@ -62,7 +62,9 @@ struct PacketTransportTests {
         #expect(transport.hostEnd == -1)
         // The VM end is still an open socket, and its peer is gone.
         let vmEnd = transport.vmEnd
-        #expect(try await closeShows { peerIsClosed(vmEnd) })
+        #expect(
+            try await closeShows { peerIsClosed(vmEnd) },
+            "the VM end did not see the host end's close within 2 s")
     }
 
     @Test("closing closes the VM end")
@@ -74,7 +76,9 @@ struct PacketTransportTests {
         defer { Darwin.close(watcher) }
         transport.close()
         #expect(transport.vmEnd == -1 && transport.hostEnd == -1)
-        #expect(try await closeShows { peerIsClosed(watcher) })
+        #expect(
+            try await closeShows { peerIsClosed(watcher) },
+            "the host end did not see the VM end's close within 2 s")
     }
 
     @Test("the attachment has MTU 65535, the MAC address, and its own copy of the VM end")
