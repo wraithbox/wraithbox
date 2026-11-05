@@ -121,6 +121,24 @@ func TestCompileRefused(t *testing.T) {
 	}
 }
 
+// TestCompileRefusedOffset checks that a refusal names the offset of the
+// escape in the pattern, not in its segment (NFR06-explained-refusals).
+func TestCompileRefusedOffset(t *testing.T) {
+	for _, tc := range []struct {
+		src    string
+		offset string
+	}{
+		{"/api/v4/a%zz", "offset 9"},
+		{"/api/v4/a*b%zz", "offset 11"},
+		{"/api/**/x%00", "offset 9"},
+	} {
+		_, r := Compile(tc.src)
+		if r == nil || !strings.Contains(r.Error(), tc.offset) {
+			t.Errorf("Compile(%q) = %v, want it to name %s", tc.src, r, tc.offset)
+		}
+	}
+}
+
 func TestMethod(t *testing.T) {
 	for _, tc := range []struct {
 		rule, req string
