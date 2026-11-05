@@ -79,6 +79,7 @@ guestprocs
 procs
 packetlink
 netdtest
+guestos
 secretstore
 storeitem
 storetest
@@ -230,7 +231,18 @@ osproductversion
 bootout
 libkrun
 NXDOMAIN
+SERVFAIL
+serv
+rcode
+EDNS
+MNAME
+RNAME
+Additionals
+synctest
 SVCB
+gdmf
+gspe
+appleid
 WPAD
 CGNAT
 ALPN
