@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -136,4 +137,70 @@ func wantFileRefusal(t *testing.T, err error, path string) *Refusal {
 		t.Errorf("refusal %q doesn't name %s", r.Error(), path)
 	}
 	return r
+}
+
+// deepWide returns a file of MaxDepth-2 mappings inside each other, each
+// keyed by 64 control characters, around a flow list of n scalars that
+// ends with a tag outside the core schema. Built eagerly, the key path
+// of each list entry has about 16 KB.
+func deepWide(n int) string {
+	key := `"` + strings.Repeat(`\x01`, maxValueShown) + `"`
+	var b strings.Builder
+	b.WriteString("version: 1\nx: ")
+	for range MaxDepth - 2 {
+		b.WriteString("{" + key + ": ")
+	}
+	b.WriteString("[" + strings.Repeat("a,", n) + "!foo a]")
+	b.WriteString(strings.Repeat("}", MaxDepth-2) + "\n")
+	return b.String()
+}
+
+// TestBoundPathMemory checks that a deep file of long keys around a
+// wide list doesn't make a key path for each node. Built eagerly, those
+// paths took 1.57 GB for a 215 KB file. The bound leaves room for the
+// decoder's node tree.
+func TestBoundPathMemory(t *testing.T) {
+	const maxAlloc = 128 << 20
+	text := deepWide(MaxNodes - 4*MaxDepth)
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	_, rs := loadString(t, global, text)
+	runtime.ReadMemStats(&after)
+	if got := after.TotalAlloc - before.TotalAlloc; got > maxAlloc {
+		t.Errorf("Load of %d bytes allocated %d bytes, at most %d", len(text), got, maxAlloc)
+	}
+	wantRefused(t, rs, RuleYAMLForm, "!foo")
+	for _, r := range rs.List {
+		if len(r.Key) > maxKeyPath+len(pathCut) {
+			t.Errorf("key path of %d bytes, at most %d", len(r.Key), maxKeyPath+len(pathCut))
+		}
+	}
+}
+
+// TestKeyPathCut checks that child and index stop growing a key path at
+// maxKeyPath.
+func TestKeyPathCut(t *testing.T) {
+	p := ""
+	for i := range 1000 {
+		p = index(child(p, strings.Repeat("\x01", maxValueShown)), i)
+	}
+	if len(p) != maxKeyPath+len(pathCut) || !strings.HasSuffix(p, pathCut) {
+		t.Errorf("key path of %d bytes, want %d ending %q", len(p), maxKeyPath+len(pathCut), pathCut)
+	}
+}
+
+// TestGuardPanic checks that a panic in the loader refuses the file with
+// RuleLoaderPanic, and no File comes back.
+func TestGuardPanic(t *testing.T) {
+	f, rs := guard(testFile, func() (*File, *Refusals) {
+		panic("decoder fault \x00")
+	})
+	if f != nil {
+		t.Errorf("guard returned a File after a panic")
+	}
+	wantRefused(t, rs, RuleLoaderPanic, "")
+	if !strings.Contains(rs.Error(), `\x00`) {
+		t.Errorf("refusal %q doesn't escape the panic value", rs.Error())
+	}
 }

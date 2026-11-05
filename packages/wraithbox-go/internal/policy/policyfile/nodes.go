@@ -94,10 +94,15 @@ func (d *decoder) checkedStr(n *yaml.Node, path string, maxLen int) (string, boo
 }
 
 // uintValue returns the value of an integer scalar written in decimal
-// within 0 to maxV. ok is false, with no refusal, for anything else, so
-// the caller refuses it with its own rule.
+// with no leading zero, within 0 to maxV. ok is false, with no refusal,
+// for anything else, so the caller refuses it with its own rule.
 func uintValue(n *yaml.Node, maxV uint64) (uint64, bool) {
 	if n.Kind != yaml.ScalarNode || n.ShortTag() != "!!int" {
+		return 0, false
+	}
+	// A leading zero is refused: yaml.v3 reads 0443 as octal, and
+	// ParseUint as decimal, so the two would disagree.
+	if len(n.Value) > 1 && n.Value[0] == '0' {
 		return 0, false
 	}
 	v, err := strconv.ParseUint(n.Value, 10, 64)

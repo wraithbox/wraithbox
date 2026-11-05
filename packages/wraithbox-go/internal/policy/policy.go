@@ -124,8 +124,9 @@ type HTTPRule struct {
 // "Implemented keys").
 type Endpoint struct {
 	Source Source
-	// RuleName is the key of the rule under `network_policies`. Rules
-	// are keyed by source and rule name.
+	// RuleName is OpenShell's effective name of the rule: its `name`,
+	// else its key under `network_policies`. Rules are keyed by source
+	// and rule name.
 	RuleName    string
 	Host        match.Host
 	Ports       []uint16

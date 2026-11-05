@@ -56,7 +56,7 @@ func parse(c *collector, data []byte) *yaml.Node {
 		return nil
 	}
 	w := walker{c: c}
-	w.walk(&doc, "", 0)
+	w.walk(&doc, 0)
 	if c.failed() {
 		return nil
 	}
@@ -66,46 +66,77 @@ func parse(c *collector, data []byte) *yaml.Node {
 	return doc.Content[0]
 }
 
-// walker checks the bounds and the form of a node tree.
+// walker checks the bounds and the form of a node tree. It keeps the key
+// path as a stack of the keys and indexes above the node, and formats it
+// only for a refusal, so a wide or deep file doesn't make a string for
+// each node.
 type walker struct {
 	c     *collector
 	nodes int
+	stack []step
+}
+
+// step is one level of a key path: a mapping key, or a list index when
+// key is nil.
+type step struct {
+	key   *yaml.Node
+	index int
+}
+
+// path formats the key path of the node being walked.
+func (w *walker) path() string {
+	p := ""
+	for _, s := range w.stack {
+		if s.key != nil {
+			p = child(p, s.key.Value)
+		} else {
+			p = index(p, s.index)
+		}
+	}
+	return p
+}
+
+// within walks n with s pushed on the key path.
+func (w *walker) within(s step, n *yaml.Node, depth int) {
+	w.stack = append(w.stack, s)
+	w.walk(n, depth)
+	w.stack = w.stack[:len(w.stack)-1]
 }
 
 // walk checks one node and its children. depth is the number of
 // mappings and sequences above the node, so a mapping or sequence at
 // depth MaxDepth-1 is the deepest one that loads.
-func (w *walker) walk(n *yaml.Node, path string, depth int) {
+func (w *walker) walk(n *yaml.Node, depth int) {
 	if w.c.failed() {
 		return
 	}
 	if n.Kind != yaml.DocumentNode {
 		w.nodes++
 		if w.nodes > MaxNodes {
-			w.c.add(RuleYAMLBound, n.Line, path, "", "the file has more than %d nodes", MaxNodes)
+			w.c.add(RuleYAMLBound, n.Line, w.path(), "", "the file has more than %d nodes", MaxNodes)
 			return
 		}
 	}
-	if !w.form(n, path) {
+	if !w.form(n) {
 		return
 	}
 	switch n.Kind {
 	case yaml.MappingNode, yaml.SequenceNode:
 		depth++
 		if depth > MaxDepth {
-			w.c.add(RuleYAMLBound, n.Line, path, "", "the file nests deeper than %d", MaxDepth)
+			w.c.add(RuleYAMLBound, n.Line, w.path(), "", "the file nests deeper than %d", MaxDepth)
 			return
 		}
 		if n.Kind == yaml.MappingNode {
-			w.mapping(n, path, depth)
+			w.mapping(n, depth)
 			return
 		}
 		for i, e := range n.Content {
-			w.walk(e, index(path, i), depth)
+			w.within(step{index: i}, e, depth)
 		}
 	case yaml.DocumentNode:
 		for _, e := range n.Content {
-			w.walk(e, path, depth)
+			w.walk(e, depth)
 		}
 	case yaml.ScalarNode, yaml.AliasNode:
 		// A scalar has no children, and form has refused an alias.
@@ -115,16 +146,16 @@ func (w *walker) walk(n *yaml.Node, path string, depth int) {
 // form refuses an anchor, an alias and an explicit tag outside the core
 // schema. Aliases are how a small file becomes a large tree, and policy
 // needs none of these (I489, decision 3).
-func (w *walker) form(n *yaml.Node, path string) bool {
+func (w *walker) form(n *yaml.Node) bool {
 	switch {
 	case n.Kind == yaml.AliasNode:
-		w.c.add(RuleYAMLForm, n.Line, path, n.Value, "the file uses an alias, and policy files may not")
+		w.c.add(RuleYAMLForm, n.Line, w.path(), n.Value, "the file uses an alias, and policy files may not")
 		return false
 	case n.Anchor != "":
-		w.c.add(RuleYAMLForm, n.Line, path, n.Anchor, "the file sets an anchor, and policy files may not")
+		w.c.add(RuleYAMLForm, n.Line, w.path(), n.Anchor, "the file sets an anchor, and policy files may not")
 		return false
 	case n.Style&yaml.TaggedStyle != 0 && !coreTags[n.ShortTag()]:
-		w.c.add(RuleYAMLForm, n.Line, path, n.Tag, "the file uses a tag outside YAML's core schema")
+		w.c.add(RuleYAMLForm, n.Line, w.path(), n.Tag, "the file uses a tag outside YAML's core schema")
 		return false
 	}
 	return true
@@ -132,31 +163,31 @@ func (w *walker) form(n *yaml.Node, path string) bool {
 
 // mapping checks a mapping's keys: each a string, no merge key, none
 // twice. Then it walks the values.
-func (w *walker) mapping(n *yaml.Node, path string, depth int) {
+func (w *walker) mapping(n *yaml.Node, depth int) {
 	seen := make(map[string]bool, len(n.Content)/2)
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		k, v := n.Content[i], n.Content[i+1]
-		w.walk(k, path, depth)
+		w.walk(k, depth)
 		if w.c.failed() {
 			return
 		}
-		if !w.key(k, path, seen) {
+		if !w.key(k, seen) {
 			return
 		}
-		w.walk(v, child(path, k.Value), depth)
+		w.within(step{key: k}, v, depth)
 	}
 }
 
 // key refuses a key that isn't a string scalar, a merge key, and a
 // duplicate.
-func (w *walker) key(k *yaml.Node, path string, seen map[string]bool) bool {
+func (w *walker) key(k *yaml.Node, seen map[string]bool) bool {
 	switch {
 	case k.ShortTag() == "!!merge":
-		w.c.add(RuleYAMLForm, k.Line, path, k.Value, "the file uses a merge key, and policy files may not")
+		w.c.add(RuleYAMLForm, k.Line, w.path(), k.Value, "the file uses a merge key, and policy files may not")
 	case k.Kind != yaml.ScalarNode || k.ShortTag() != "!!str":
-		w.c.add(RuleYAMLForm, k.Line, path, k.Value, "a key isn't a string")
+		w.c.add(RuleYAMLForm, k.Line, w.path(), k.Value, "a key isn't a string")
 	case seen[k.Value]:
-		w.c.add(RuleYAMLForm, k.Line, child(path, k.Value), k.Value, "the key is there twice")
+		w.c.add(RuleYAMLForm, k.Line, child(w.path(), k.Value), k.Value, "the key is there twice")
 	default:
 		seen[k.Value] = true
 		return true
