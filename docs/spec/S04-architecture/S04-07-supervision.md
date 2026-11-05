@@ -190,7 +190,8 @@ last record.
 - `wb-netd` sends each new or renewed entry before the DNS answer that
   uses it. It refuses the lookup when the write fails.
 - `wb-netd` sends each release before it gives the address to another
-  name.
+  name. `wb-hostd` logs a release for an address it doesn't hold, and
+  ignores it.
 - A new `wb-netd` starts with the kept entries. It gives none of their
   addresses to another name until it has released that address.
 

@@ -64,9 +64,10 @@ doesn't change the copy.
 ### Releases
 
 An entry stays in the copy until `wb-netd` releases its address.
-`wb-netd` sends the release when it frees the address for another
-name. That is after the TTL plus the guard interval, with no
-connection to it open (S07-03-dns, "Synthetic pool").
+`wb-netd` sends the release when the entry expires: once its TTL
+plus the guard interval has passed since its last answer and no
+connection to it is open. It doesn't wait until another name needs
+the address (S07-03-dns, "Synthetic pool").
 
 So `wb-netd`'s clock governs. `wb-proxyd` doesn't expire entries on a
 clock of its own. A stream already open keeps the name it got at
