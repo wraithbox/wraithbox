@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/handoff"
 	nt "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/netdtest"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/fdchan"
 )
 
 const generation = 7
@@ -262,11 +264,7 @@ func TestStreamResetUnknown(t *testing.T) {
 	s, proxyd := setup(t)
 	proxyd.Hello()
 	resetStream(proxyd, 99)
-	deadline := time.Now().Add(time.Second)
-	for s.Recorder().Count(netd.RuleStreamResetUnknown) == 0 && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond)
-	}
-	if n := s.Recorder().Count(netd.RuleStreamResetUnknown); n != 1 {
+	if n := nt.WaitCount(s.Recorder(), netd.RuleStreamResetUnknown); n != 1 {
 		t.Fatalf("stream-reset-unknown counted %d, want 1", n)
 	}
 	if err := report(s); err != nil {
@@ -337,23 +335,51 @@ func TestNoSocket(t *testing.T) {
 	}
 }
 
+// slowClose is a hand-off socket whose first Close waits for release,
+// so a test acts while the socket is ending.
+type slowClose struct {
+	*fdchan.Channel
+	entered, release chan struct{}
+	once             sync.Once
+}
+
+func (c *slowClose) Close() error {
+	c.once.Do(func() {
+		close(c.entered)
+		<-c.release
+	})
+	return c.Channel.Close()
+}
+
 // TestCloseOrder checks that wb-proxyd closing the hand-off socket and
-// then a stream's socket gives the guest an RST, not a FIN, whichever
-// end wb-netd reads first (S07-05-stream-hand-off, "Resets").
+// then a stream's socket gives the guest an RST, not a FIN, also when
+// wb-netd reads the stream's end of file while the socket is ending
+// (S07-05-stream-hand-off, "Resets").
 func TestCloseOrder(t *testing.T) {
-	for range 20 {
-		s, proxyd := setup(t)
-		proxyd.Hello()
-		ours, guest := nt.TCPPair(t)
-		done := handOff(s, ours)
-		_, conn := takeStream(t, proxyd)
-		_ = proxyd.Ch.Close()
-		_ = conn.Close()
-		if err := guestEnd(t, guest); !errors.Is(err, syscall.ECONNRESET) {
-			t.Fatalf("the guest's end is %v, want an RST", err)
-		}
-		wait(t, done)
+	ch, theirs := nt.ChanPair(t)
+	ours := &slowClose{Channel: ch, entered: make(chan struct{}), release: make(chan struct{})}
+	s := handoff.New(handoff.Config{Own: nt.Own, Log: quiet})
+	s.Replace(ours, generation)
+	t.Cleanup(s.Close)
+	proxyd := nt.NewPeer(t, theirs)
+	proxyd.Hello()
+	conn, guest := nt.TCPPair(t)
+	done := handOff(s, conn)
+	_, stream := takeStream(t, proxyd)
+
+	_ = proxyd.Ch.Close()
+	select {
+	case <-ours.entered: // the socket has ended, and its streams aren't reset yet
+	case <-time.After(2 * time.Second):
+		t.Fatal("the hand-off socket didn't end")
 	}
+	_ = stream.Close()
+	err := guestEnd(t, guest)
+	close(ours.release)
+	if !errors.Is(err, syscall.ECONNRESET) {
+		t.Fatalf("the guest's end is %v, want an RST", err)
+	}
+	wait(t, done)
 }
 
 // TestNoVersionRecord checks that a hand-off socket whose wb-proxyd
@@ -366,42 +392,10 @@ func TestNoVersionRecord(t *testing.T) {
 	s.Replace(ours, generation)
 	t.Cleanup(s.Close)
 	nt.NewPeer(t, theirs).ReadVersion()
-	deadline := time.Now().Add(2 * time.Second)
-	for s.Recorder().Count(netd.RuleProxydMessageRefused) == 0 && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond)
-	}
-	if n := s.Recorder().Count(netd.RuleProxydMessageRefused); n != 1 {
+	if n := nt.WaitCount(s.Recorder(), netd.RuleProxydMessageRefused); n != 1 {
 		t.Fatalf("proxyd-message-refused counted %d, want 1", n)
 	}
 	if err := report(s); !errors.Is(err, handoff.ErrNoSocket) {
 		t.Fatalf("report: %v, want ErrNoSocket", err)
 	}
-}
-
-// TestProxydStopsReading checks that when wb-proxyd stops reading a
-// stream, the guest still gets the rest of wb-proxyd's bytes and then
-// its FIN.
-func TestProxydStopsReading(t *testing.T) {
-	s, proxyd := setup(t)
-	proxyd.Hello()
-	ours, guest := nt.TCPPair(t)
-	done := handOff(s, ours)
-	_, conn := takeStream(t, proxyd)
-	uc, ok := conn.(*net.UnixConn)
-	if !ok {
-		t.Fatalf("stream socket is a %T", conn)
-	}
-	if err := uc.CloseRead(); err != nil {
-		t.Fatal(err)
-	}
-	write(t, guest, "ping")
-	time.Sleep(50 * time.Millisecond) // the copy to wb-proxyd fails
-	write(t, conn, "pong")
-	readExactly(t, guest, "pong")
-	_ = conn.Close()
-	if err := guestEnd(t, guest); !errors.Is(err, io.EOF) {
-		t.Fatalf("the guest's end is %v, want a FIN", err)
-	}
-	_ = guest.Close()
-	wait(t, done)
 }

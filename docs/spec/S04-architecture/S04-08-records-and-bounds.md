@@ -20,7 +20,7 @@ inherited sockets of type `SOCK_SEQPACKET` or `SOCK_DGRAM`. macOS uses
 `wb-hostd` treats these as a crash of the process that sent them: a
 malformed record, an oversized record, and one received with
 `MSG_TRUNC`. It ends that process, and counts the exit toward the
-restart limit.
+restart limit. `wb-hostd` sends nothing on these sockets after its version record. A record or refused message from it after that ends `wb-netd`'s accounting channel, logged with `control-message-refused`, and later writes fail.
 
 ### Accounting records
 
