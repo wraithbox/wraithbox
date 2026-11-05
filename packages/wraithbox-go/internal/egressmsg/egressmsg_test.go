@@ -108,6 +108,9 @@ func TestDecodeNetdMessage(t *testing.T) {
 		{"port 0", marshal(t, streamMsg(func(s *egressv1.Stream) { s.Port = 0 })), true, CheckMessageForm},
 		{"port 65536", marshal(t, streamMsg(func(s *egressv1.Stream) { s.Port = 65536 })), true, CheckMessageForm},
 		{"stream outside range", marshal(t, streamMsg(func(s *egressv1.Stream) { s.Address = 0x7F000001 })), true, CheckSyntheticRange},
+		// Two kinds on the wire decode as the last, and its checks apply.
+		{"two kinds, last out of form", concat(report, marshal(t, nameReportMsg("API.example.com", addr1))), false, CheckNameForm},
+		{"two kinds, last a stream", concat(report, stream), false, CheckMessageForm},
 		{"another direction's message", marshal(t, &egressv1.ProxydMessage{Kind: &egressv1.ProxydMessage_StreamReset{StreamReset: &egressv1.StreamReset{StreamId: 1}}}), false, CheckMessageForm},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -138,6 +141,17 @@ func TestDecodeNetdMessageAccepts(t *testing.T) {
 			t.Errorf("decoded %q, want %q", got, tc.want)
 		}
 	}
+	// A stream then a release on the wire decodes as the release, which
+	// takes no descriptor.
+	m, r := DecodeNetdMessage(concat(marshal(t, streamMsg(nil)), marshal(t, release)), false)
+	if r != nil || m.Kind != KindRelease || m.Generation != 0 {
+		t.Fatalf("two kinds: %+v, %v, want the release", m, r)
+	}
+}
+
+// concat returns the bytes of a then b, as one record.
+func concat(a, b []byte) []byte {
+	return append(append([]byte{}, a...), b...)
 }
 
 // withNestedField appends an unknown field to the one message field of
