@@ -155,7 +155,10 @@ A record is at most 4 KiB and carries at most one descriptor. A
 payload that doesn't fit (an effective policy, a kept name mapping,
 the wildcard sets) goes as the read end of a pipe. It holds a 4-byte
 length and one protobuf message, and the reader refuses one over
-64 MiB or not whole within 10 seconds. `control.proto` lists the
+64 MiB or not whole within 10 seconds. `wb-hostd` sends the read end
+first, then writes the payload in a goroutine of its own under the same
+10-second bound. A write that fails or times out is a crash of that
+daemon. `control.proto` lists the
 messages of each direction, and `internal/egressmsg` checks them.
 
 ### Input from `wb`

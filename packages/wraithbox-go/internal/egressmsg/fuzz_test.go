@@ -310,12 +310,12 @@ func requireAccounting(t *testing.T, rec AccountingRecord) *egressv1.AccountingR
 // that came from a guest.
 func FuzzPayload(f *testing.F) {
 	var b bytes.Buffer
-	_ = WritePayload(&b, &egressv1.NetdStartPayload{
+	_ = writePayload(&b, &egressv1.NetdStartPayload{
 		Entries: []*egressv1.MappingEntry{{Name: "a.example", Address: addr1}}, Debited: []string{"a.example"}, DebitCount: 1,
 	})
 	f.Add(b.Bytes(), true)
 	b.Reset()
-	_ = WritePayload(&b, &egressv1.ProxydStartPayload{WildcardNames: []*egressv1.WildcardNames{{Vm: "work", Names: []string{"a.example"}}}})
+	_ = writePayload(&b, &egressv1.ProxydStartPayload{WildcardNames: []*egressv1.WildcardNames{{Vm: "work", Names: []string{"a.example"}}}})
 	f.Add(b.Bytes(), false)
 	f.Add([]byte{0, 0, 0, 0}, true)
 	f.Add([]byte{0xff, 0xff, 0xff, 0xff}, true)
