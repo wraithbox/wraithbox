@@ -1,0 +1,99 @@
+// The accounting records wb-netd and wb-proxyd write to wb-hostd
+// (S04-08-records-and-bounds, "Accounting and event channels",
+// "Accounting records"; S04-07-supervision, "What a restart keeps",
+// "The kept name mapping").
+//
+// Each daemon inherits one accounting channel at spawn: an AF_UNIX
+// SOCK_DGRAM socketpair with no path, made with
+// fdchan.Socketpair(4096) (internal/platform/fdchan). It is one-way:
+// the daemon writes and wb-hostd reads. Each datagram holds one record:
+// the version record first, sent by each end before anything else and
+// checked with hostversion.CheckRecord (S04-architecture, "The version
+// record"), then one AccountingRecord per record. Event records are on
+// another channel of their own (S04-08-records-and-bounds, "Event
+// records"), so a blocked event write never holds up an accounting
+// write, which nothing drops.
+//
+// wb-netd derives the names from guest queries, so every record is
+// guest-influenced input. wb-hostd checks each with
+// egressmsg.DecodeAccountingRecord (internal/egressmsg), and treats a
+// record it refuses as a crash of the daemon that sent it. It refuses a
+// record that:
+//
+// - is empty, over 4096 bytes, or truncated (the fdchan rules);
+// - carries a descriptor;
+// - doesn't decode as an AccountingRecord, holds a field the message
+//   doesn't have at any depth, or sets no kind;
+// - is of a kind its sender doesn't send;
+// - breaks a bound stated on a field below.
+//
+// A wb-netd record names no VM: wb-hostd knows the VM of each wb-netd's
+// channel. A wb-proxyd record names the VM, which wb-hostd checks
+// against the VMs it gave wb-proxyd hand-off sockets for.
+//
+// Field numbers 5 to 15 of AccountingRecord's kind are kept for the Go
+// clock records of S07-13-publish-time, and nothing else uses them.
+// They aren't `reserved`, because a later edit couldn't take a
+// reservation back without breaking `buf breaking`.
+//
+// A change an older peer can't read goes in a new major package next to
+// this one, never in an edit of it (S04-08-records-and-bounds, "`.proto`
+// packages").
+syntax = "proto3";
+
+package wraithbox.egress.v1;
+
+// AccountingRecord is one record on an accounting channel.
+message AccountingRecord {
+  oneof kind {
+    // From wb-netd.
+    WildcardDebit wildcard_debit = 1;
+    // From wb-netd.
+    MappingEntry mapping_entry = 2;
+    // From wb-netd.
+    MappingRelease mapping_release = 3;
+    // From wb-proxyd.
+    ProxydWildcardName proxyd_wildcard_name = 4;
+  }
+}
+
+// WildcardDebit records that a name debited the VM's wildcard budget
+// (S07-03-dns, "Wildcard budget"), written before the DNS answer.
+message WildcardDebit {
+  // The name in canonical form: lowercase, without a trailing dot, and
+  // within the name form rule of S07-03-dns (internal/dnsname), so at
+  // most 253 bytes. Any other form is refused with the check
+  // `name-form`.
+  string name = 1;
+}
+
+// MappingEntry records a new or renewed mapping entry, written before
+// the DNS answer that gives the address (S04-08-records-and-bounds,
+// "Mapping entries are checked").
+message MappingEntry {
+  // As in WildcardDebit.
+  string name = 1;
+  // An IPv4 address as a 32-bit number whose most significant byte is
+  // the first octet (198.18.0.1 is 0xC6120001). An address outside
+  // 198.18.0.0/15 is refused with the check `synthetic-range`.
+  fixed32 address = 2;
+}
+
+// MappingRelease records that an address no longer maps to a name,
+// written before the address goes to another name.
+message MappingRelease {
+  // As in MappingEntry, inside 198.18.0.0/15.
+  fixed32 address = 1;
+}
+
+// ProxydWildcardName records a name wb-proxyd accepted only under a
+// wildcard entry, new to the VM's active period, written before
+// wb-proxyd accepts the report (S07-06-name-mapping, "Wildcard budget,
+// second layer").
+message ProxydWildcardName {
+  // The VM slot, `work` or `isolated` (S06-04-vms-and-placement).
+  // Another value is refused with the check `vm-slot`.
+  string vm = 1;
+  // As in WildcardDebit.
+  string name = 2;
+}
