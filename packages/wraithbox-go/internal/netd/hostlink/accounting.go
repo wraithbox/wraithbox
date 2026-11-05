@@ -76,6 +76,9 @@ func NewAccounting(conn Conn, own string, log *slog.Logger) (*Accounting, error)
 	return a, nil
 }
 
+// Recorder returns the writer's recorder, for its counts.
+func (a *Accounting) Recorder() *netd.Recorder { return a.rec }
+
 // Entry writes a MappingEntry record.
 func (a *Accounting) Entry(ctx context.Context, name dnsname.Name, addr netip.Addr) error {
 	wire, ok := egressmsg.AddrToWire(addr)
