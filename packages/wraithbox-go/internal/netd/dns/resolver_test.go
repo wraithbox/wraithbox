@@ -27,20 +27,7 @@ func TestAllowedA(t *testing.T) {
 	msg := query(7, "API.Example.com", TypeA, true)
 	o := f.r.Handle(t.Context(), msg, time.Now(), "guest", func(b []byte) {
 		callsAtSend = len(f.calls.List())
-		p := parse(t, b)
-		if p.header.ID != 7 || !p.header.Response || p.header.RCode != dnsmessage.RCodeSuccess || !p.header.RecursionDesired {
-			t.Errorf("header %+v", p.header)
-		}
-		if p.question.Name.String() != "API.Example.com." {
-			t.Errorf("question %s, want the guest's case", p.question.Name)
-		}
-		if len(p.answers) != 1 || len(p.authority) != 0 {
-			t.Fatalf("%d answers, %d authority records", len(p.answers), len(p.authority))
-		}
-		a, ok := p.answers[0].Body.(*dnsmessage.AResource)
-		if !ok || !inPool(a.A) || p.answers[0].Header.TTL != ttl || ttl != 60 {
-			t.Errorf("answer %s", p.answers[0].GoString())
-		}
+		checkAnswerA(t, parse(t, b), 7, "API.Example.com.")
 	})
 	if o.Rule != netd.RuleDNSAnswer || o.When != SendNow || o.Debited {
 		t.Fatalf("outcome %+v", o)
@@ -48,6 +35,25 @@ func TestAllowedA(t *testing.T) {
 	calls := f.calls.List()
 	if callsAtSend != 2 || len(calls) != 2 || calls[0].Kind != nt.CallEntry || calls[1].Kind != nt.CallReport {
 		t.Fatalf("calls %+v, %d before the answer", calls, callsAtSend)
+	}
+}
+
+// checkAnswerA checks that p answers query id for name with one
+// synthetic address at a TTL of 60 seconds, and echoes name as sent.
+func checkAnswerA(t *testing.T, p parsed, id uint16, name string) {
+	t.Helper()
+	if p.header.ID != id || !p.header.Response || p.header.RCode != dnsmessage.RCodeSuccess || !p.header.RecursionDesired {
+		t.Errorf("header %+v", p.header)
+	}
+	if p.question.Name.String() != name {
+		t.Errorf("question %s, want %s in the guest's case", p.question.Name, name)
+	}
+	if len(p.answers) != 1 || len(p.authority) != 0 {
+		t.Fatalf("%d answers, %d authority records", len(p.answers), len(p.authority))
+	}
+	a, ok := p.answers[0].Body.(*dnsmessage.AResource)
+	if !ok || !inPool(a.A) || p.answers[0].Header.TTL != 60 {
+		t.Errorf("answer %s", p.answers[0].GoString())
 	}
 }
 
@@ -131,10 +137,7 @@ var refusalCases = []refusalCase{
 		f.names.set(refusedHost, netd.NameWildcard)
 		f.names.budget = 0
 	}},
-	{netd.RuleDNSQueryRate, func(f *fixture) {
-		for f.r.rate.take(time.Now()) {
-		}
-	}},
+	{netd.RuleDNSQueryRate, emptyRate},
 	{netd.RuleAccountingWriteFailed, func(f *fixture) {
 		f.calls.Fail(nt.CallDebit, nt.Fault{Err: errors.New("down")})
 	}},
@@ -271,16 +274,20 @@ func debits(f *fixture) []string {
 	return out
 }
 
-// TestBudget checks the wildcard budget (S07-03-dns, "Wildcard budget",
-// "Order of checks"): a new name under a wildcard and a refused name
-// debit once each, an exact name never, and neither does a refusal for
-// the name form, the query rate or the host state. Past the budget a
-// new name is refused with wildcard-budget and raises no event. A new
-// active period clears the debits.
-func TestBudget(t *testing.T) {
+// emptyRate takes every token of f's query rate.
+func emptyRate(f *fixture) {
+	for f.r.rate.take(time.Now()) {
+	}
+}
+
+// TestBudgetDebits checks which lookups debit the wildcard budget
+// (S07-03-dns, "Wildcard budget", "Order of checks"): a new name under a
+// wildcard and a refused name once each, in any case and for any type,
+// and an exact name never. Neither does a refusal for the name form,
+// the host state or the query rate.
+func TestBudgetDebits(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newFixture(t, nil)
-		f.names.budget = 2
 		f.names.set("a.wild.example", netd.NameWildcard)
 		f.names.set("exact.example.com", netd.NameExact)
 		out := &outbox{}
@@ -289,23 +296,33 @@ func TestBudget(t *testing.T) {
 			f.ask(query(1, "A.Wild.Example", TypeAAAA, false), out)
 			f.ask(query(1, "refused.example.com", TypeA, false), out)
 			f.ask(query(1, "exact.example.com", TypeA, false), out)
-			f.ask(wireQuery(1, [][]byte{[]byte("bad_name"), []byte("com")}, TypeA, false), out)
+			f.ask(query(1, "bad_name.com", TypeA, false), out)
 		}
 		f.host.rule = netd.RuleAuditBudget
 		f.ask(query(1, "host.example.com", TypeA, false), out)
 		f.host.rule = ""
-		for f.r.rate.take(time.Now()) {
-		}
+		emptyRate(f)
 		f.ask(query(1, "rate.example.com", TypeA, false), out)
-		f.r.rate = newBucket(QueryRate, QueryBurst)
 		if got := debits(f); !slices.Equal(got, []string{"a.wild.example", "refused.example.com"}) {
 			t.Fatalf("debits %v", got)
 		}
 		if f.r.Spent() != 2 {
 			t.Fatalf("spent %d", f.r.Spent())
 		}
+	})
+}
 
+// TestBudgetSpent checks a spent wildcard budget (S07-03-dns, "Wildcard
+// budget"): a new name, under a wildcard or refused, is refused with
+// wildcard-budget and raises no event, a name debited before is still
+// answered, and a new active period starts the budget again.
+func TestBudgetSpent(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFixture(t, func(c *Config) { c.Debited = []dnsname.Name{nt.Name("a.wild.example")} })
+		f.names.budget = 1
+		f.names.set("a.wild.example", netd.NameWildcard)
 		f.names.set("b.wild.example", netd.NameWildcard)
+		out := &outbox{}
 		for _, host := range []string{"b.wild.example", "new.example.com"} {
 			if o := f.ask(query(1, host, TypeA, false), out); o.Rule != netd.RuleWildcardBudget || o.Approve || o.Debited {
 				t.Errorf("%s: outcome %+v", host, o)
@@ -314,12 +331,10 @@ func TestBudget(t *testing.T) {
 		if o := f.ask(query(1, "a.wild.example", TypeA, false), out); o.Rule != netd.RuleDNSAnswer || !o.Debited {
 			t.Errorf("a debited name past the budget: outcome %+v", o)
 		}
-		if got := f.approvals.list(); len(got) != 2 {
-			t.Errorf("approvals %v, want refused.example.com twice", got)
+		if got := f.approvals.list(); len(got) != 0 {
+			t.Errorf("approvals %v", got)
 		}
-
 		f.r.NewActivePeriod()
-		f.calls.Reset()
 		if o := f.ask(query(1, "b.wild.example", TypeA, false), out); o.Rule != netd.RuleDNSAnswer {
 			t.Errorf("after a new active period: outcome %+v", o)
 		}
@@ -351,6 +366,17 @@ func TestKeptBudget(t *testing.T) {
 	}
 }
 
+// fillHold sends n refusals for names that aren't allowed, and checks
+// that each is held.
+func fillHold(t *testing.T, f *fixture, n int, out *outbox) {
+	t.Helper()
+	for i := range n {
+		if o := f.ask(query(1, fmt.Sprintf("n%d.example.com", i), TypeA, false), out); o.When != SendHeld {
+			t.Fatalf("query %d: outcome %+v", i, o)
+		}
+	}
+}
+
 // TestHoldFull checks the cap on held queries (S07-04-dns-refusals,
 // "Over the cap"): with 1,024 refusals held, the next is dropped without
 // an answer and counted with dns-hold-full, after its debit, and raises
@@ -364,18 +390,13 @@ func TestHoldFull(t *testing.T) {
 		f.r.rate = newBucket(1e6, 1e6)
 		out := &outbox{}
 		limit := netd.DefaultCaps().HeldQueries
-		for i := range limit {
-			if o := f.ask(query(1, fmt.Sprintf("n%d.example.com", i), TypeA, false), out); o.When != SendHeld {
-				t.Fatalf("query %d: outcome %+v", i, o)
-			}
-		}
+		fillHold(t, f, limit, out)
 		last := fmt.Sprintf("n%d.example.com", limit)
 		o := f.ask(query(1, last, TypeA, false), out)
 		if o.When != SendNever || o.Rule != netd.RuleDNSHoldFull || !o.Debited {
 			t.Fatalf("outcome %+v", o)
 		}
-		d := debits(f)
-		if len(d) != limit+1 || d[limit] != last {
+		if d := debits(f); len(d) != limit+1 || d[limit] != last {
 			t.Fatalf("%d debits, the last %v", len(d), d[len(d)-1])
 		}
 		if n := len(f.approvals.list()); n != limit {
