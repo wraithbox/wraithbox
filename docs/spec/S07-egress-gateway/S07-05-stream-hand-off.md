@@ -100,8 +100,10 @@ may then hold descriptors that it can't name.
 It closes every descriptor that arrived with a refused message.
 
 Then `egressmsg.DecodeNetdMessage` refuses a message that doesn't
-decode, holds a field its kind doesn't have, doesn't set a kind, or breaks a
-field's bound. A name must already be in canonical form
+decode, holds a field number its message doesn't have at any depth,
+doesn't set a kind, or breaks a field's bound. A record with two kinds
+on the wire decodes as the last one, as protobuf decodes a `oneof`, and
+that kind's checks apply. A name must already be in canonical form
 (S07-06-name-mapping, "Name reports"), and every address inside the
 synthetic range of S07-03-dns. A refused message is malformed
 (S07-06-name-mapping, "Malformed reports").
@@ -124,7 +126,14 @@ connection, not to close it, when it reads end of file on that socket.
 
 `wb-netd` sends every byte it already queued for the guest, then
 answers end of file with a FIN, unless a `StreamReset` for the stream
-came first. Then it answers with a reset.
+came first. Then it answers with a reset. Before it answers end of
+file, it reads what is waiting on the hand-off socket.
+
+A `StreamReset` whose send fails, with `ENOBUFS` or past its deadline,
+makes `wb-proxyd` close the VM's hand-off socket before it closes the
+stream's socket. `wb-netd` resets every stream of a VM whose hand-off
+socket closed. So a stream cut short never reaches the guest as a
+clean FIN.
 
 ### One hand-off socket per VM
 

@@ -31,10 +31,10 @@ S04-07-supervision ("What a restart keeps", "The kept name mapping"):
 - each new or renewed `MappingEntry`, with its name and address;
 - each release (`MappingRelease`).
 
-From `wb-proxyd` they carry each `ProxydWildcardName` (S07-06-name-mapping), the
-Go clock's accepted calibration point, each new verified tree head, and a `go-sumdb-inconsistent` finding.
-`wb-hostd` checks each of those, stamps it with its receipt time, keeps
-it in `state.db`, and passes it back at start (S07-13-publish-time, "Persisted state").
+From `wb-proxyd` they carry each `ProxydWildcardName`, which `wb-hostd` keeps in memory per VM
+and active period and gives back in `ProxydStart` (S07-06-name-mapping). They also carry the Go
+clock's accepted calibration point, each new verified tree head, and a `go-sumdb-inconsistent` finding.
+`wb-hostd` checks each of those, stamps it with its receipt time, keeps it in `state.db`, and passes it back at start (S07-13-publish-time, "Persisted state").
 
 They aren't audit events. Nothing rate-limits, suppresses or drops
 them.
