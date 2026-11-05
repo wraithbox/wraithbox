@@ -28,13 +28,29 @@ method and path rules, and `enforce` or `audit`.
 
 Wraith Box parses and validates the schema in Go, with its own code.
 
-Wraith Box extensions go in separate top-level keys:
+#### Extension keys
 
-- per-host inspect or pass mode;
-- raw TCP entries;
-- the wildcard budget;
-- dependency-gate thresholds;
-- credential bindings.
+Wraith Box's extensions go under one top-level key, `wraithbox`. It
+holds:
+
+- `pass`: the hosts in pass mode, each a mapping of `host` and
+  `reason` ("Pass hosts");
+- `raw_tcp`: the raw TCP entries, each `host`, `port` and `reason`
+  ("Raw TCP entries");
+- `wildcard_budget`: the wildcard budget (S07-03-dns, "Wildcard
+  budget");
+- `parts_off`: the profile parts turned off, each `profile`, `kind`
+  (for the git hosting profile) and `part` (S07-11-http-policy,
+  "Profile parts").
+
+The keys of extensions that aren't built yet are refused with
+`policy-key-unsupported`: `credential_bindings`, `dependency_gate` (the
+dependency-gate thresholds) and `git_hosts`. Any other key under
+`wraithbox` is unknown.
+
+Repository configuration can't hold the `wraithbox` key at all
+(S09-03-project-settings, "Closed keys"), and the key there is refused
+with `policy-source`.
 
 #### Pinned release
 
@@ -56,6 +72,20 @@ and `network_policies`. It never hands over the user's file.
 
 Per endpoint, Wraith Box implements `host`, `port` or `ports`, `path`,
 `protocol`, `enforcement`, `access`, `rules` and `deny_rules`.
+
+- `protocol` is `rest` or absent. An endpoint without one is L4: it
+  allows every method and path on its host and port, still inspected.
+  Any other protocol, OpenShell's `tcp` included, is refused with
+  `policy-protocol-unsupported` (I489, maintainer decision 1).
+- An endpoint sets `port` or `ports`, not both. OpenShell takes
+  `ports` when both are set, so both is refused with `policy-port`.
+- A rule's name is OpenShell's effective name: its `name` when it has
+  one, and its key otherwise. A name that another rule in the file has,
+  and a name of the built-in profiles' rules, are refused with
+  `policy-rule-name`. The built-in names are the profile names and
+  every name that starts with `builtin`, in any case.
+- A rule that names the method `CONNECT`, in `rules` or `deny_rules`,
+  is refused with `http-tunnel` (S07-16-tls-and-tunnels).
 
 The built-in profiles need `deny_rules`, for denies such as the git
 hosting profile's archive deny. The prover's handling of `deny_rules`
@@ -85,6 +115,36 @@ Every rule name, host, path and method must:
 
 Otherwise the file is refused at load. The prover models ASCII values
 only, and its output repeats these strings (X24-openshell-artifacts).
+
+#### Loading
+
+`wb-hostd` loads each file with its own Go code
+(`internal/policy/policyfile`). A repository's file is repository
+data, so every byte is treated as hostile. The prover runs confined
+because it parses the same bytes (S09-04-boundary-check). The loader
+stays in `wb-hostd` because it is Go, bounded and fuzzed
+(`FuzzLoadPolicy`, C03-policy-and-approvals).
+
+- The file is read only when it is a regular file, so a FIFO doesn't
+  block the load. A missing file is an empty policy.
+- A file past a bound is refused with `policy-yaml-bound`: more than
+  4 MiB, checked before it is parsed, nesting deeper than 64, or more
+  than 100,000 nodes. These are the bounds of OpenShell's own parser
+  (X24-openshell-artifacts).
+- The YAML is decoded into a node tree first, which keeps an alias as
+  a pointer and expands nothing. An anchor, an alias, a merge key, a
+  tag outside YAML's core schema, a duplicate key, a key that isn't a
+  string and a second document are refused with `policy-yaml-form`.
+- Every level is then checked against its closed key list before any
+  value is read: `policy-key-unknown`, `policy-key-refused` and
+  `policy-key-unsupported`. `version` is 1 (`policy-version`).
+- Each refusal names its rule, the file, the line and key path, and the
+  value at fault, escaped (NFR06-explained-refusals). One load reports
+  the first refusal of each rule, at most 16.
+
+The checks that need more than one file, such as a pass host on a
+host a project's remote names, are made over the union of the sources
+(S09-02-precedence).
 
 ### Pass, raw TCP, and audit entries
 

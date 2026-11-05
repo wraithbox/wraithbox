@@ -28,7 +28,7 @@ or downloads and runs, such as a VMM on Linux.
 | State | SQLite (public domain), through the cgo-free Go driver `modernc.org/sqlite` (BSD-3-Clause). Every OS builds it the same way |
 | Settings files | TOML, read with `github.com/pelletier/go-toml/v2` (MIT) with unknown keys refused (S17-install-and-upgrade) |
 | Vulnerability data | OSV API |
-| Network policy schema | OpenShell's `network_policies` schema, version 1, with the keys of OpenShell v0.1.2 (commit `6648bd0c`, Apache-2.0), implemented in Go by this repo; YAML read with a size- and depth-bounded decoder (S09-policy-credentials-audit) |
+| Network policy schema | OpenShell's `network_policies` schema, version 1, with the keys of OpenShell v0.1.2 (commit `6648bd0c`, Apache-2.0), implemented in Go by this repo. YAML is read with `go.yaml.in/yaml/v3` (MIT and Apache-2.0) into a node tree, bounded in size, depth and nodes, with no anchors or aliases (S09-01-policy-files, "Loading") |
 | Policy prover | OpenShell's standalone `openshell-prover` 0.1.2 release binary ("Policy prover" below) |
 | Approval risk check | Go code in `wb-hostd` ("Approval risk check" below) |
 | Dependency-gate API | OpenShell's `supervisor_middleware.proto` and `extension.proto` ("Dependency-gate API" below) |

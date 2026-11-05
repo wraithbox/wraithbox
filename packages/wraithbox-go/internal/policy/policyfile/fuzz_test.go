@@ -37,9 +37,9 @@ func FuzzLoadPolicy(f *testing.F) {
 			f.Add([]byte(s), uint8(k))
 		}
 	}
-	srcs := []policy.Source{global, project, repo}
+	sources := []policy.Source{global, project, repo}
 	f.Fuzz(func(t *testing.T, data []byte, k uint8) {
-		src := srcs[int(k)%len(srcs)]
+		src := sources[int(k)%len(sources)]
 		file, err := Load(context.Background(), testFile, data, src)
 		if err != nil {
 			if _, ok := errors.AsType[*Refusals](err); !ok {
