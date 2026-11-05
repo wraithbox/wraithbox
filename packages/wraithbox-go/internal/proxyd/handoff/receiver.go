@@ -12,6 +12,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
 	egressv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1"
 	policyv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/policy/v1"
@@ -208,14 +209,19 @@ func (r *Receiver) start(f *os.File) error {
 		r.refused(Event{Rule: RuleControlRefused, Check: ref.Check}, refusalAttrs(ref)...)
 		return ref
 	}
+	sets := make(map[string][]dnsname.Name, len(p.GetWildcardNames()))
+	for _, set := range p.GetWildcardNames() {
+		names, ref := canonicalNames(set.GetNames())
+		if ref != nil {
+			r.refused(Event{VM: set.GetVm(), Rule: RuleControlRefused, Check: ref.Check}, refusalAttrs(ref)...)
+			return ref
+		}
+		sets[set.GetVm()] = append(sets[set.GetVm()], names...)
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, set := range p.GetWildcardNames() {
-		names, err := canonicalNames(set.GetNames())
-		if err != nil {
-			return err
-		}
-		r.vm(set.GetVm()).copy.countWildcard(names)
+	for slot, names := range sets {
+		r.vm(slot).copy.countWildcard(names)
 	}
 	return nil
 }
@@ -273,7 +279,9 @@ func (r *Receiver) addSocket(slot string, gen uint64, f *os.File) error {
 		s.close()
 		return fmt.Errorf("handoff: send the version record on the hand-off socket of %s: %w", slot, err)
 	}
-	s.run()
+	if !s.run() {
+		return errors.New("handoff: closed")
+	}
 	return r.sendHostd(&egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_HandoffSocketAck{
 		HandoffSocketAck: &egressv1.HandoffSocketAck{Vm: slot, Generation: gen},
 	}})

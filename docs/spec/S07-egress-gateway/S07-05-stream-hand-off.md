@@ -207,9 +207,10 @@ A stream message of the wrong form is malformed (S07-06-name-mapping).
 
 It then sends a `StreamReset` for the stream id and closes the
 descriptor. It logs the refusal with the rule `stream-handoff-refused`
-and the check that failed.
-
-It neither resolves the name upstream nor fetches a binding before
+and the check that failed. A stream dropped for a full descriptor table
+("Message form", `fdchan-fd-table-full`) gets no `StreamReset`, since
+its record is never read, and `wb-netd` sees that socket close.
+`wb-proxyd` resolves no name upstream and fetches no binding before
 these checks pass.
 
 ### Caps
