@@ -349,6 +349,21 @@ func TestCheckRecord(t *testing.T) {
 	}
 }
 
+// TestRecordTimeout checks that a datagram channel's missing record is
+// refused and logged with peer-version-timeout, and wraps the read's
+// error.
+func TestRecordTimeout(t *testing.T) {
+	log, buf := testLog()
+	err := RecordTimeout(log, "1.2.3", io.ErrNoProgress)
+	wantRule(t, err, RuleTimeout)
+	if !errors.Is(err, io.ErrNoProgress) {
+		t.Errorf("RecordTimeout = %v, want it to wrap the read's error", err)
+	}
+	if !strings.Contains(buf.String(), `"rule":"peer-version-timeout"`) {
+		t.Errorf("log = %s, want the rule", buf.String())
+	}
+}
+
 // boundedReader counts what is read from it.
 type boundedReader struct {
 	r io.Reader

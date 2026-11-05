@@ -91,7 +91,7 @@ func newWire(t *testing.T, prefix netip.Prefix, kept []synth.Entry) *wire {
 	w.proxyd.ReadVersion()
 
 	ours, theirs = nt.ChanPair(t)
-	acct, err := hostlink.NewAccounting(ours, nt.Own, log)
+	acct, err := hostlink.NewAccounting(hostlink.AccountingConfig{Conn: ours, Own: nt.Own, Log: log})
 	if err != nil {
 		t.Fatal(err)
 	}

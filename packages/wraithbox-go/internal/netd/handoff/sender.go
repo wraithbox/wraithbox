@@ -59,6 +59,9 @@ type Config struct {
 	// StreamPair makes the socketpair of one stream. Nil is
 	// fdchan.StreamPair.
 	StreamPair func() (ours, theirs *os.File, err error)
+	// VersionTimeout bounds the wait for wb-proxyd's version record on
+	// each socket. Zero is hostversion.Timeout.
+	VersionTimeout time.Duration
 }
 
 // Sender is wb-netd's end of the hand-off socket. It is safe for
@@ -68,6 +71,9 @@ type Sender struct {
 	log        *slog.Logger
 	rec        *netd.Recorder
 	streamPair func() (ours, theirs *os.File, err error)
+	// versionTimeout bounds the wait for the peer's version record
+	// (S04-architecture, "The version record").
+	versionTimeout time.Duration
 
 	// lock is held across each send, so the messages of all callers go
 	// out in one order (S07-05-stream-hand-off, "Transport"). It is a
@@ -91,12 +97,17 @@ func New(cfg Config) *Sender {
 	if pair == nil {
 		pair = fdchan.StreamPair
 	}
+	timeout := cfg.VersionTimeout
+	if timeout == 0 {
+		timeout = hostversion.Timeout
+	}
 	return &Sender{
-		own:        cfg.Own,
-		log:        log,
-		rec:        netd.NewRecorder(log, nil),
-		streamPair: pair,
-		lock:       make(chan struct{}, 1),
+		own:            cfg.Own,
+		log:            log,
+		rec:            netd.NewRecorder(log, nil),
+		streamPair:     pair,
+		versionTimeout: timeout,
+		lock:           make(chan struct{}, 1),
 	}
 }
 
@@ -191,6 +202,14 @@ func (s *Sender) acquire(ctx context.Context) (*socket, error) {
 	if sock == nil {
 		s.unlock()
 		return nil, ErrNoSocket
+	}
+	// A socket that ended fails the send, even when its version record
+	// passed: select picks among ready cases at random.
+	select {
+	case <-sock.done:
+		s.unlock()
+		return nil, fmt.Errorf("%w: %w", ErrNoSocket, sock.cause())
+	default:
 	}
 	select {
 	case <-sock.ready:

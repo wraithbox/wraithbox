@@ -2,9 +2,11 @@ package hostlink_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/netip"
 	"os"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -15,6 +17,7 @@ import (
 	policyv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/policy/v1"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostversion"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/handoff"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/netd/hostlink"
@@ -43,33 +46,64 @@ func (tg *targets) ApplyPolicy(p *policy.Policy) { tg.policies <- p }
 type control struct {
 	c     *hostlink.Control
 	hostd *nt.Peer
-	raw   int
+	raw   rawEnd
 	tg    *targets
 }
 
-func newControl(t *testing.T) *control {
+// rawEnd is a copy of wb-hostd's descriptor, for a send fdchan's Send
+// doesn't make. Close closes it once.
+type rawEnd struct {
+	fd    int
+	Close func()
+}
+
+// rawPair returns two connected fdchan channels, wb-hostd's end and
+// wb-netd's, and a copy of wb-hostd's descriptor.
+func rawPair(t *testing.T) (hostd, ours *fdchan.Channel, raw rawEnd) {
 	t.Helper()
 	fa, fb, err := fdchan.Socketpair(egressmsg.MaxRecord)
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := syscall.Dup(int(fa.Fd()))
+	fd, err := syscall.Dup(int(fa.Fd()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = syscall.Close(raw) })
-	hostd, err := fdchan.New(fa, egressmsg.MaxRecord)
+	raw = rawEnd{fd: fd, Close: sync.OnceFunc(func() { _ = syscall.Close(fd) })}
+	t.Cleanup(raw.Close)
+	hostd, err = fdchan.New(fa, egressmsg.MaxRecord)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ours, err := fdchan.New(fb, egressmsg.MaxRecord)
+	ours, err = fdchan.New(fb, egressmsg.MaxRecord)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = hostd.Close(); _ = ours.Close() })
+	return hostd, ours, raw
+}
+
+// sendTwo sends rec with two descriptors on raw. fdchan refuses it at
+// the far end.
+func sendTwo(t *testing.T, raw rawEnd, rec []byte) {
+	t.Helper()
+	a, b := datagramEnd(t), datagramEnd(t)
+	if err := syscall.Sendmsg(raw.fd, rec, syscall.UnixRights(int(a.Fd()), int(b.Fd())), nil, 0); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newControl(t *testing.T) *control { return newControlTimeout(t, 0) }
+
+// newControlTimeout returns a control whose wait for wb-hostd's version
+// record is bounded by d, zero for hostversion.Timeout.
+func newControlTimeout(t *testing.T, d time.Duration) *control {
+	t.Helper()
+	hostd, ours, raw := rawPair(t)
 	tg := &targets{replaced: make(chan uint64, 8), policies: make(chan *policy.Policy, 8)}
 	c, err := hostlink.NewControl(hostlink.ControlConfig{
 		Conn: ours, Own: nt.Own, Log: slog.New(slog.DiscardHandler), Handoff: tg, Policy: tg,
+		VersionTimeout: d,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -250,10 +284,7 @@ func TestControlEnds(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			a, b := datagramEnd(t), datagramEnd(t)
-			if err := syscall.Sendmsg(c.raw, rec, syscall.UnixRights(int(a.Fd()), int(b.Fd())), nil, 0); err != nil {
-				t.Fatal(err)
-			}
+			sendTwo(t, c.raw, rec)
 		},
 		"second start": func(t *testing.T, c *control) {
 			withPayload(t, c.hostd, netdStart(), &egressv1.NetdStartPayload{})
@@ -321,12 +352,46 @@ func ended(t *testing.T, done chan error) {
 	}
 }
 
-// TestServeStops checks that Serve returns when its context ends.
+// TestServeStops checks that Serve returns when its context ends or
+// wb-hostd closes the channel, and logs neither as a refused message.
 func TestServeStops(t *testing.T) {
-	c, _ := started(t, nil)
-	ctx, cancel := context.WithCancel(context.Background())
+	for name, stop := range map[string]func(c *control, cancel context.CancelFunc){
+		"context ends":    func(_ *control, cancel context.CancelFunc) { cancel() },
+		"wb-hostd closes": func(c *control, _ context.CancelFunc) { _ = c.hostd.Ch.Close(); c.raw.Close() },
+	} {
+		t.Run(name, func(t *testing.T) {
+			c, _ := started(t, nil)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- c.c.Serve(ctx) }()
+			stop(c, cancel)
+			ended(t, done)
+			if n := c.c.Recorder().Count(netd.RuleControlMessageRefused); n != 0 {
+				t.Errorf("control-message-refused counted %d, want 0", n)
+			}
+		})
+	}
+}
+
+// TestStartNoVersion checks that a wb-hostd that sends no version
+// record within the version timeout is refused with
+// peer-version-timeout, and Start returns (S04-architecture, "The
+// version record").
+func TestStartNoVersion(t *testing.T) {
+	c := newControlTimeout(t, 50*time.Millisecond)
 	done := make(chan error, 1)
-	go func() { done <- c.c.Serve(ctx) }()
-	cancel()
-	ended(t, done)
+	go func() {
+		_, err := c.c.Start()
+		done <- err
+	}()
+	c.hostd.ReadVersion()
+	select {
+	case err := <-done:
+		if r, ok := errors.AsType[*hostversion.Refusal](err); !ok || r.Rule != hostversion.RuleTimeout {
+			t.Fatalf("Start: %v, want a %s refusal", err, hostversion.RuleTimeout)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Start didn't return")
+	}
 }

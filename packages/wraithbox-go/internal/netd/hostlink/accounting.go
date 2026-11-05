@@ -10,8 +10,10 @@ import (
 	"io"
 	"log/slog"
 	"net/netip"
+	"os"
 	"sync"
 	"syscall"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -33,7 +35,37 @@ var ErrChannelEnded = errors.New("hostlink: the accounting channel ended")
 type Conn interface {
 	Send(record []byte, fd syscall.Conn) error
 	Recv() (*fdchan.Message, error)
+	SetReadDeadline(t time.Time) error
 	Close() error
+}
+
+// versionRecord reads and checks the peer's version record, the first
+// record on a channel from wb-hostd, within timeout (S04-architecture,
+// "The version record"). The check names what failed. hostversion logs
+// its own refusals with their rules.
+func versionRecord(conn Conn, log *slog.Logger, own string, timeout time.Duration) (check string, err error) {
+	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
+		return "deadline", err
+	}
+	m, err := conn.Recv()
+	switch {
+	case errors.Is(err, os.ErrDeadlineExceeded):
+		return hostversion.RuleTimeout, hostversion.RecordTimeout(log, own, err)
+	case err != nil:
+		return "recv", err
+	}
+	hasFD := m.File != nil
+	_ = m.Close()
+	if hasFD {
+		return "version-record", errors.New("the version record carries a descriptor")
+	}
+	if _, err := hostversion.CheckRecord(log, own, m.Record); err != nil {
+		return "version-record", err
+	}
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		return "deadline", err
+	}
+	return "", nil
 }
 
 // Accounting writes wb-netd's accounting records to wb-hostd
@@ -57,22 +89,40 @@ type Accounting struct {
 	err  error // why the channel ended
 }
 
-// NewAccounting sends the version record on conn and starts reading
-// wb-hostd's version record from it. Writes wait for that record, within
-// their deadline. log nil is slog.Default.
-func NewAccounting(conn Conn, own string, log *slog.Logger) (*Accounting, error) {
+// AccountingConfig is what an Accounting writer needs.
+type AccountingConfig struct {
+	// Conn is the accounting channel wb-netd inherited.
+	Conn Conn
+	// Own is the build version the version record carries.
+	Own string
+	// Log takes the log records. Nil is slog.Default.
+	Log *slog.Logger
+	// VersionTimeout bounds the wait for wb-hostd's version record.
+	// Zero is hostversion.Timeout.
+	VersionTimeout time.Duration
+}
+
+// NewAccounting sends the version record on the channel and starts
+// reading wb-hostd's version record from it. Writes wait for that
+// record, within their deadline.
+func NewAccounting(cfg AccountingConfig) (*Accounting, error) {
+	log := cfg.Log
 	if log == nil {
 		log = slog.Default()
 	}
+	timeout := cfg.VersionTimeout
+	if timeout == 0 {
+		timeout = hostversion.Timeout
+	}
 	a := &Accounting{
-		conn: conn, own: own, log: log, rec: netd.NewRecorder(log, nil),
+		conn: cfg.Conn, own: cfg.Own, log: log, rec: netd.NewRecorder(log, nil),
 		lock: make(chan struct{}, 1), ready: make(chan struct{}), done: make(chan struct{}),
 	}
-	if err := conn.Send(hostversion.Record(own), nil); err != nil {
-		_ = conn.Close()
+	if err := cfg.Conn.Send(hostversion.Record(cfg.Own), nil); err != nil {
+		_ = cfg.Conn.Close()
 		return nil, fmt.Errorf("hostlink: send the version record: %w", err)
 	}
-	go a.read()
+	go a.read(timeout)
 	return a, nil
 }
 
@@ -128,6 +178,13 @@ func (a *Accounting) write(ctx context.Context, m proto.Message) error {
 		return fmt.Errorf("hostlink: wait for the write lock: %w", context.Cause(ctx))
 	}
 	defer func() { <-a.lock }()
+	// A channel that ended fails the write, even when the version record
+	// passed: select picks among ready cases at random.
+	select {
+	case <-a.done:
+		return fmt.Errorf("%w: %w", ErrChannelEnded, a.cause())
+	default:
+	}
 	select {
 	case <-a.ready:
 	case <-a.done:
@@ -146,48 +203,41 @@ func (a *Accounting) write(ctx context.Context, m proto.Message) error {
 
 // read checks wb-hostd's version record, then reads until the channel
 // ends. wb-hostd sends nothing after its version record, so a record
-// after it is logged and dropped.
-func (a *Accounting) read() {
-	first := true
-	for {
-		m, err := a.conn.Recv()
-		var refusal *fdchan.Refusal
-		switch {
-		case errors.Is(err, io.EOF):
-			a.end(errors.New("wb-hostd closed the accounting channel"))
-			return
-		case errors.As(err, &refusal) && !first:
-			// fdchan logged it and closed its descriptors.
-			continue
-		case err != nil:
-			a.end(fmt.Errorf("read: %w", err))
-			return
-		}
-		hasFD := m.File != nil
+// after it, or a message fdchan refused, ends the channel
+// (S04-08-records-and-bounds, "Accounting and event channels").
+func (a *Accounting) read(timeout time.Duration) {
+	if check, err := versionRecord(a.conn, a.log, a.own, timeout); err != nil {
+		a.refuse(check, err)
+		return
+	}
+	close(a.ready)
+	m, err := a.conn.Recv()
+	switch {
+	case errors.Is(err, io.EOF):
+		a.end(errors.New("wb-hostd closed the accounting channel"))
+	case errors.As(err, new(*fdchan.Refusal)):
+		// fdchan logged it and closed its descriptors.
+		a.refuse("message-form", err)
+	case err != nil:
+		a.end(fmt.Errorf("read: %w", err))
+	default:
 		_ = m.Close()
-		if !first {
-			a.rec.Note(netd.RuleControlMessageRefused, slog.String("channel", "accounting"),
-				slog.String("decision", "drop"), slog.Int("bytes", len(m.Record)), slog.Bool("descriptor", hasFD))
-			continue
-		}
-		first = false
-		if err := a.version(m.Record, hasFD); err != nil {
-			a.end(err)
-			return
-		}
-		close(a.ready)
+		a.refuse("no-record-expected", fmt.Errorf("a record of %d bytes after the version record", len(m.Record)))
 	}
 }
 
-// version checks wb-hostd's version record.
-func (a *Accounting) version(rec []byte, hasFD bool) error {
-	if hasFD {
-		a.rec.Note(netd.RuleControlMessageRefused, slog.String("channel", "accounting"),
-			slog.String("check", "version-record"), slog.String("decision", "close"))
-		return errors.New("the version record carries a descriptor")
+// refuse logs what wb-hostd sent that failed check, with the rule
+// control-message-refused, and ends the channel. A read error of a
+// channel that already ended isn't logged.
+func (a *Accounting) refuse(check string, err error) {
+	select {
+	case <-a.done:
+		return
+	default:
 	}
-	_, err := hostversion.CheckRecord(a.log, a.own, rec)
-	return err
+	a.rec.Note(netd.RuleControlMessageRefused, slog.String("channel", "accounting"),
+		slog.String("check", check), slog.String("decision", "end-channel"), slog.String("error", err.Error()))
+	a.end(fmt.Errorf("%s: %w", check, err))
 }
 
 func (a *Accounting) cause() error {
