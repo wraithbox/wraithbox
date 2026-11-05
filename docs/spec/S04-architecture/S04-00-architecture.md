@@ -131,11 +131,32 @@ The `.proto` files in `proto/` are the one contract for every language
 | `proto/wraithbox/hostd/v1/project.proto` | `wraithbox.hostd.v1` | `ProjectService`, served by `wb-hostd` on the same endpoint and called by `wb`, for project records (S05-04-naming) |
 | `proto/wraithbox/terminal/v1/terminal.proto` | `wraithbox.terminal.v1` | The frames of the terminal stream (S16-terminal-stream, S05-02-exit-status-and-signals), the same on both hops. `wb-hostd` builds each frame it passes on new from a checked one |
 | `proto/wraithbox/diskfmt/v1/diskfmt.proto` | `wraithbox.diskfmt.v1` | The messages between `wb-hostd` and `wb-diskfmt`, one per datagram on `wb-diskfmt`'s socketpair (S04-04-vm-processes, "`wb-diskfmt`") |
+| `proto/wraithbox/egress/v1/handoff.proto` | `wraithbox.egress.v1` | The messages of a VM's hand-off socket between `wb-netd` and `wb-proxyd` (S07-05-stream-hand-off, S07-06-name-mapping) |
+| `proto/wraithbox/egress/v1/control.proto` | `wraithbox.egress.v1` | The messages of the control channels between `wb-hostd` and `wb-netd` and `wb-proxyd` ("Control channels") |
+| `proto/wraithbox/egress/v1/accounting.proto` | `wraithbox.egress.v1` | The accounting records that `wb-netd` and `wb-proxyd` write to `wb-hostd` (S04-08-records-and-bounds, "Accounting and event channels") |
 
 A refusal over gRPC names its rule in a `google.rpc.ErrorInfo` detail,
 as the `reason`, so the caller needn't parse the message text. The
-comments on each message from the guest, and on `HandoffMessage`, state
-the bounds the receiver checks.
+comments on each message from the guest, on `HandoffMessage`, and in
+`wraithbox.egress.v1` state the bounds the receiver checks.
+
+### Control channels
+
+`wb-netd` and `wb-proxyd` each inherit a control channel from
+`wb-hostd` at spawn: a socketpair of `fdchan.Socketpair(4096)`, as for
+the other descriptor channels. Each end sends the version record
+first. The first message from `wb-hostd` is the daemon's start
+message, `ProxydStart` or `NetdStart`, and it comes once. A daemon
+refuses another message before it, and a second one, and ends the
+channel. `wb-hostd` treats a message from a daemon that it refuses as a
+crash of that daemon (S04-07-supervision).
+
+A record is at most 4 KiB and carries at most one descriptor. A
+payload that doesn't fit (an effective policy, a kept name mapping,
+the wildcard sets) goes as the read end of a pipe. It holds a 4-byte
+length and one protobuf message, and the reader refuses one over
+64 MiB or not whole within 10 seconds. `control.proto` lists the
+messages of each direction, and `internal/egressmsg` checks them.
 
 ### Input from `wb`
 

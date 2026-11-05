@@ -173,6 +173,8 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 ### Descriptor channels
 
 - **One descriptor per message** (S07-05-stream-hand-off, "Message form"). Over real socketpairs, records with and without a descriptor round-trip. An oversized record, two, three and 254 descriptors are each refused with every descriptor closed. A message whose descriptors don't fit the full descriptor table is dropped, and a send to a full peer fails at once.
+- **Order and no silent drop** (S07-05-stream-hand-off, "Transport"). On macOS, `TestOrderUnderLoad` in `internal/platform/fdchan` sends 100,000 numbered records of mixed sizes up to 4 KiB, every tenth with a pipe, over `Socketpair(4096)`. The sender gives each record a 100 ms deadline and retries a send that fails with `ENOBUFS` or `EAGAIN` before it sends the next. A receiver that pauses now and then sees every record once, in order, with its bytes, and reads each pipe under a read deadline. The counts sent and received are equal, and at least one send found the channel full. `TestQueueDepth` sends with no retry until a send fails with `ENOBUFS` or `EAGAIN`, and logs the depth: 19 records of 4 KiB, 292 of 264 bytes.
+- **Egress contract form** (S07-05-stream-hand-off, "The contract"). In `internal/egressmsg`, each decoder refuses a record that is empty or over 4 KiB, doesn't decode, holds a field of another message or of a later build at any depth, doesn't set a kind, or carries a descriptor its kind doesn't take or lacks one it does. A name in another form than canonical is refused with `name-form`, an address outside 198.18.0.0/15 with `synthetic-range`, and a VM that isn't a slot with `vm-slot`. A `HandoffSocketClosed` with another rule than `name-report-malformed` or another check is refused. A control message before the start message, and a second start message, are refused. A payload pipe that isn't a pipe, has a length over 64 MiB, isn't whole by its deadline, or has a byte after it is refused with `payload-read`. `TestMaxPayloads` builds the largest payloads the bounds allow and sees each under 64 MiB.
 - **Hand-off receiver** (S04-02-vm-provider, "Hand-off on macOS"). Tests in `internal/platform/vmhandoff` and `internal/vmdlink`: over a real socketpair, each refusal of the receiver and of `fdchan` has its rule, and no descriptor of the record is open after it (`fcntl`). A record without a kind, or of an unknown one, is refused with `handoff-kind`. A good record gives its request a working connection, and the hello runs over it end to end with a fake `wb-vmd`. `FuzzHandoffMessage` checks that no record of arbitrary bytes, the empty one included, is accepted unless it names the open request, the current generation, the host's direction and the requested port, or is the one packet transport of the current generation.
 - **Packet transport hand-off** (S07-02-packet-path, "Packet transport"). In `internal/platform/vmhandoff`: a `KIND_NETWORK` record of the current generation with an `AF_UNIX` datagram socket gives the waiter a `Transport` whose only method is `Close`. A record of generation 0 or another generation, one nobody asked for, a generation's second one, one with a request ID, direction or port, and one with a stream socket are each refused with `handoff-network-refused`, with no descriptor left open. A newer generation's request closes the older one's. In `internal/vmdlink`: `Start` returns the transport, a refused or missing one is refused with its rule and doesn't leave a descriptor open, and a refused `Start` returns `wb-vmd`'s error.
 
@@ -609,6 +611,10 @@ and one before it detaches nothing.
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
   (S04-08-records-and-bounds, "Accounting and event channels").
+  `FuzzAccountingRecord` checks that an accepted record has no
+  descriptor, is of a kind its sender sends, has a canonical name, an
+  address inside 198.18.0.0/15 and a VM slot, and encodes again within
+  4 KiB.
   `FuzzEventRecord` checks that no record is written after a refused
   one, that every written record marshals, and that an accepted record
   has no unknown field, a known class, every field within its bound,
@@ -637,6 +643,14 @@ and one before it detaches nothing.
   there: arbitrary bytes as the answer to `MountData` and as its status
   details. A refusal names a listed rule or `guest-reply-invalid`, and
   its text doesn't hold a control byte.
+- The control channels between `wb-hostd` and `wb-netd` and
+  `wb-proxyd`, `FuzzControlMessage`: each direction, with and without a
+  descriptor. An accepted message has the descriptor its kind takes, a
+  VM slot, a generation or sequence of at least 1, and encodes again
+  within 4 KiB. `FuzzPayload` reads arbitrary payloads and checks the
+  start payloads: nothing accepted holds a name out of form, an address
+  outside the range, or more entries or names than the bounds allow
+  (S04-architecture, "Control channels").
 - The stream framing that multiplexes guest requests on a host-opened
   connection, with the project each request is attributed to
   (S04-architecture, B29-vsock-handoff).

@@ -42,7 +42,10 @@ because `wb-hostd` checks the same entry first. For a malformed
 message, `wb-proxyd` also:
 
 1. closes the VM's hand-off socket, and every stream that came on it;
-2. tells `wb-hostd` on its control channel.
+2. tells `wb-hostd` on its control channel with a `HandoffSocketClosed`
+   message (S07-05-stream-hand-off, "The contract"). It names the VM,
+   the socket's generation, the rule `name-report-malformed`, and the
+   check that failed: `message-form`, `name-form` or `synthetic-range`.
 
 `wb-hostd` ends that `wb-netd`, and counts the exit toward the restart
 limit, as for a malformed accounting record
@@ -121,14 +124,14 @@ names it accepted only under a wildcard entry, per VM and active
 period. A replayed or repeated name isn't counted again.
 
 Before it accepts a name that adds to the count, `wb-proxyd` writes
-the name to `wb-hostd` as an accounting record
+the name to `wb-hostd` as an accounting record, `ProxydWildcardName`
 (S04-08-records-and-bounds, "Accounting and event channels"). A write
 that fails, or that blocks for more than 100 ms, counts as failed. The
 report is then refused with the rule `name-report-refused` and the
 check `wildcard-budget`.
 
 `wb-hostd` keeps the set per VM and active period, and gives it to a
-new `wb-proxyd` at start. A `wb-proxyd` restart thus keeps the count.
+new `wb-proxyd` at start, in the payload of its `ProxydStart` message. A `wb-proxyd` restart thus keeps the count.
 
 Refused lookups never reach `wb-proxyd`, so its count is at most
 `wb-netd`'s.

@@ -192,8 +192,8 @@ last record.
 - `wb-netd` sends each release before it gives the address to another
   name. `wb-hostd` logs a release for an address it doesn't hold, and
   ignores it.
-- A new `wb-netd` starts with the kept entries. It gives none of their
-  addresses to another name until it has released that address.
+- A new `wb-netd` starts with the kept entries (`NetdStart`). It gives
+  none of their addresses to another name until it has released that address.
 
 Without them, an address the guest still has cached for one name could
 go to another. A raw or pass-mode stream meant for the first would then
