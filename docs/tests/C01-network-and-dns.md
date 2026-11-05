@@ -4,7 +4,7 @@
 endpoint, addressing, and the DNS gateway with its hold, quiet
 refusals, and negative answers.
 
-**Verifies:** S07-02-packet-path ("Addressing"), S07-18-build-network, S07-03-dns ("Name form", "Synthetic pool", "Negative answers"),
+**Verifies:** S07-02-packet-path ("Addressing"), S07-18-build-network, S07-03-dns ("Messages", "Order of checks", "Name form", "Synthetic pool", "Local answers", "Negative answers", "Wildcard budget"),
 S07-04-dns-refusals ("Hold", "Widening during the hold"),
 S04-02-vm-provider ("The device set is fixed and checked")
 
@@ -45,6 +45,18 @@ S04-02-vm-provider ("The device set is fixed and checked")
   maps to one name at a time, and goes to another name only after its
   release was recorded and reported. The pool never releases a pinned
   entry, and holds at most 8 live entries.
+- The DNS server (S07-03-dns, "Messages", "Order of checks").
+  `FuzzDNSQuery` (`internal/netd/dns`) feeds message bytes through the
+  parser, the decision and the hold, with a fake policy that allows one
+  name. The corpus holds a dot byte inside a wire label, a label of 0
+  and of 64 bytes, a name of 254 bytes and one over 255, a compression
+  pointer in the question, and the queries an idle macOS guest sent in
+  X03-network-path, with and without an OPT record. A message that
+  fails the form gets no response. A response's question must be the
+  query's wire bytes, an `A` record must be for the allowed name and in
+  198.18.0.0/15, and every `NXDOMAIN` must hold the zero SOA. A held
+  refusal and a local answer must be the same bytes for one query
+  whatever the rule.
 
 ## Conformance
 
@@ -115,6 +127,31 @@ S04-02-vm-provider ("The device set is fixed and checked")
   learn entries or lookup counts.
 - Close a DNS-over-TCP connection for `dns-hold-full` while it has held
   queries, and see their timers not fire (S07-04-dns-refusals, "Hold").
+
+### Host-side DNS tests
+
+The host-side parts of "Lookups", "Negative answers and approvals
+during a lookup" and "Hold" run as Go tests in `internal/netd/dns`,
+with fakes and `testing/synctest` as the clock:
+
+- `TestAllowedA`, `TestOtherTypes` and `TestPoolFull`: the answers to
+  an allowed name, and `REFUSED` at once for `TXT`.
+- `TestLocalAnswers`: the local answers, at once with the zero SOA.
+- `TestRefusalsAreAlike`: every refusal reason gives the same bytes,
+  sent at 4 seconds and not before, also with each accounting write
+  taking 99 ms.
+- `TestBackground`: quiet refusals in mixed case, and an approval
+  event for a name one label longer.
+- `TestBudgetDebits`, `TestBudgetSpent` and `TestKeptBudget`: which
+  lookups debit the wildcard budget, and what is refused once it is used up.
+- `TestHoldFull` and `TestClose`: the hold limit, and no held refusal
+  sent after the server closes.
+- `TestParseQueryRefuses`: every `dns-message-form` case is dropped
+  without an answer.
+
+`TestDNSOverUDP` (`internal/netd/stack`) sends real UDP queries
+through the stack: an allowed name resolves at the gateway, and a
+query to another server is dropped with `udp-not-dns`.
 
 ### The build VM's network
 
