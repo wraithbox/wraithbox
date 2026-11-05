@@ -59,7 +59,7 @@ func TestPatternMatch(t *testing.T) {
 		{"/repos/*/*/pulls", "/repos/o/r/pulls", true},
 		{"/repos/*/*/pulls", "/repos/o/r/x/pulls", false},
 		{"/a*b", "/ab", true},
-		{"/a*b", "/axxb", true},
+		{"/a*b", "/a-to-b", true},
 		{"/a*b", "/ax/b", false},
 		{"/a**b", "/ax/b", true},
 		// A trailing slash is part of the path.
@@ -170,7 +170,7 @@ func TestHost(t *testing.T) {
 		{"*.github.com", "github.com", false},
 		{"*.github.com", "a.b.github.com", false},
 		{"*.anthropic.com", "api.anthropic.com", true},
-		{"*.github.com", "evilgithub.com", false},
+		{"*.github.com", "evil-github.com", false},
 	} {
 		h := mustHost(t, tc.pattern)
 		if got := h.Match(mustName(t, tc.host)); got != tc.want {

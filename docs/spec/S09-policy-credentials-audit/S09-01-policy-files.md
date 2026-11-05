@@ -209,6 +209,22 @@ apply: a missing or malformed label matches no narrowed rule.
 
 Until then nothing is narrowed by project.
 
+### The effective policy on the wire
+
+`wb-hostd` merges the files into one effective policy per VM
+(S09-02-precedence). It reaches `wb-netd` and `wb-proxyd` as a
+`wraithbox.policy.v1.EffectivePolicy` message
+(`proto/wraithbox/policy/v1/policy.proto`).
+
+- Each rule names its source: built-in, global, project, repository
+  or approval.
+- Hosts are in canonical form, and path patterns as written.
+- The proto file names a bound for every list and string.
+- The receiver checks the message before it uses it. A message past a
+  bound, or one that breaks a rule of this page, is refused whole and
+  never repaired. The refusal is logged with its rule
+  (NFR06-explained-refusals).
+
 ## Decisions
 
 ### Reuse OpenShell's network policy schema

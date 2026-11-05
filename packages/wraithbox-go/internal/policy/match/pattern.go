@@ -18,9 +18,9 @@ const MaxPattern = 1024
 // bytes inside its segment, so `*` matches across it
 // (S07-08-requests-and-credentials, "Encoded slashes").
 type Pattern struct {
-	src  string
-	all  bool
-	toks []token
+	src    string
+	all    bool
+	tokens []token
 	// atoms is the pattern one byte or wildcard at a time, for
 	// CanMatchPrefix.
 	atoms []atom
@@ -75,15 +75,15 @@ func Compile(src string) (Pattern, *Refusal) {
 		return Pattern{}, r
 	}
 	p := Pattern{src: src}
-	segs := strings.Split(src[1:], "/")
-	for i, seg := range segs {
-		p.toks = addLit(p.toks, "/")
+	segments := strings.Split(src[1:], "/")
+	for i, seg := range segments {
+		p.tokens = addLit(p.tokens, "/")
 		var r *Refusal
-		if p.toks, r = addSegment(p.toks, seg, i, i == len(segs)-1); r != nil {
+		if p.tokens, r = addSegment(p.tokens, seg, i, i == len(segments)-1); r != nil {
 			return Pattern{}, r
 		}
 	}
-	for _, t := range p.toks {
+	for _, t := range p.tokens {
 		p.atoms = appendAtoms(p.atoms, t)
 	}
 	return p, nil
@@ -108,7 +108,7 @@ func checkPattern(src string) *Refusal {
 
 // addSegment adds one segment of the pattern, the i-th, split on its
 // stars.
-func addSegment(toks []token, seg string, i int, last bool) ([]token, *Refusal) {
+func addSegment(tokens []token, seg string, i int, last bool) ([]token, *Refusal) {
 	if seg == "" && !last {
 		return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern is empty")
 	}
@@ -120,7 +120,7 @@ func addSegment(toks []token, seg string, i int, last bool) ([]token, *Refusal) 
 		if seg == "." || seg == ".." || hasHiddenDot(d) {
 			return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern is a . or .. segment, which no canonical path has")
 		}
-		return addLit(toks, encodeSegment(d)), nil
+		return addLit(tokens, encodeSegment(d)), nil
 	}
 	for rest := seg; rest != ""; {
 		lit, after, star := strings.Cut(rest, "*")
@@ -128,30 +128,30 @@ func addSegment(toks []token, seg string, i int, last bool) ([]token, *Refusal) 
 		if r != nil {
 			return nil, refuse(RulePathPattern, "segment "+strconv.Itoa(i+1)+" of the path pattern: "+r.msg)
 		}
-		toks = addLit(toks, encodeSegment(d))
+		tokens = addLit(tokens, encodeSegment(d))
 		rest = after
 		switch {
 		case !star:
 		case strings.HasPrefix(rest, "*"):
-			toks = append(toks, token{kind: tokDoubleStar})
+			tokens = append(tokens, token{kind: tokDoubleStar})
 			rest = rest[1:]
 		default:
-			toks = append(toks, token{kind: tokStar})
+			tokens = append(tokens, token{kind: tokStar})
 		}
 	}
-	return toks, nil
+	return tokens, nil
 }
 
 // addLit appends a literal, merged with a literal before it.
-func addLit(toks []token, s string) []token {
+func addLit(tokens []token, s string) []token {
 	if s == "" {
-		return toks
+		return tokens
 	}
-	if n := len(toks); n > 0 && toks[n-1].kind == tokLit {
-		toks[n-1].lit += s
-		return toks
+	if n := len(tokens); n > 0 && tokens[n-1].kind == tokLit {
+		tokens[n-1].lit += s
+		return tokens
 	}
-	return append(toks, token{kind: tokLit, lit: s})
+	return append(tokens, token{kind: tokLit, lit: s})
 }
 
 func encodeSegment(decoded string) string {
@@ -181,13 +181,13 @@ func (p Pattern) Match(path string) bool {
 	if p.all {
 		return true
 	}
-	if len(p.toks) == 0 {
+	if len(p.tokens) == 0 {
 		return false
 	}
 	n := len(path)
 	cur, next := make([]bool, n+1), make([]bool, n+1)
 	cur[0] = true
-	for _, t := range p.toks {
+	for _, t := range p.tokens {
 		clear(next)
 		if !step(t, path, cur, next) {
 			return false

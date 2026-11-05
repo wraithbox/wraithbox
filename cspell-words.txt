@@ -561,3 +561,12 @@ unfiled
 Stratton
 ASOS
 Vacanti
+altssh
+dotdot
+gobwas
+jsessionid
+npmjs
+pchar
+policyv
+pypi
+pythonhosted

@@ -22,20 +22,31 @@ a request it builds itself:
 
 Policy, bindings and the credential rules match on the canonical path.
 That path is also the one sent upstream. Literal dot segments are
-removed.
+removed. As in OpenShell v0.1.2, repeated slashes are collapsed into
+one. A percent-escape of a letter, a digit or another byte that may
+appear literally in a segment is decoded. Every other escape is
+written with uppercase hexadecimal digits. `;` parameters stay in
+the path.
 
-A request is refused if its path has:
+A request is refused, with the rule `http-path-form`, if its path has:
 
 - a control byte or a backslash;
+- a raw byte that isn't ASCII, a `#`, or a `?` left in the path;
 - malformed percent-encoding (`%zz`, a lone `%`);
+- a `..` segment above the root;
 - a segment whose percent-decoded value, split on `/`, has a `.` or
   `..` component (`%2e%2e`, `wget%2F..%2Fcurl`,
-  `wget%2F%2e%2e%2Fcurl`).
+  `wget%2F%2e%2e%2Fcurl`), or such a component before a `;`
+  (`..;`);
+- more than 8 KiB, as received or in canonical form.
+
+Path patterns in policy are put in the same canonical form before
+they match, so `/%67raphql` in a rule matches what `/graphql` does.
 
 #### Encoded slashes
 
 An encoded `/` is data inside its segment, never a separator. Rules
-match it that way, and it goes upstream as received.
+match it that way, and it goes upstream encoded, as `%2F`.
 
 - npm's scoped `/@scope%2fname` and GitLab's
   `/api/v4/projects/group%2Fproject` match their rules as one segment.
