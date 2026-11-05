@@ -15,15 +15,19 @@ The first step that decides the request ends it.
    or `*`, is refused with `http-method-form`. A path that doesn't
    canonicalize is refused with `http-path-form`
    (S07-08-requests-and-credentials, "Request form"). A WebSocket
-   upgrade then matches as a `GET` on its path.
+   upgrade matches as a `GET` on its path, and one with another method
+   is refused with `http-method-form`.
 2. *Built-in denies.* On a covered host: `model-path-escape`,
    `git-archive`, `git-create-denied`, `model-event-log`,
    `registry-token`, `registry-publish` and
    `git-write-outside-project-set`. They match the canonical path in
-   lowercase. They hold in every mode and on every port, against any
+   lowercase, and its stem: each segment cut at its first `;`, `.` or
+   `%`, without a trailing `/`. So `/forks;x`, `/forks.json`,
+   `/forks%2F` and `/forks/` meet the deny of `/forks`. They hold in every mode and on every port, against any
    rule that allows the request.
 3. *Parts.* The first built-in allow rule that matches puts the
-   request in its part. A part that is off refuses it with
+   request in its part. A rule of git's transport matches only a
+   transport path ("Writes to git hosting"). A part that is off refuses it with
    `profile-part-off`.
 4. *GraphQL.* Until the operation filter is in place, every request
    to the GraphQL path of a built-in host is refused with
@@ -37,8 +41,10 @@ The first step that decides the request ends it.
 A host and port in `audit` relaxes only `http-no-rule` and
 `http-deny-rule`. The request goes on, and is logged with the rule
 `audit-allowed` and the rule it broke (S07-16-tls-and-tunnels, "Not
-relaxed by audit mode or approvals"). A covered host is held in
-`enforce`, even if a policy put it in `audit`.
+relaxed by audit mode or approvals"). A guarded host can't be in
+`audit` (S07-07-hosts-and-modes, "Guarded hosts"), and `wb-proxyd`
+holds each host a profile covers in `enforce`, even if a policy put it
+in `audit`.
 
 Each decision is one log line (SEC10-audit). It holds the VM, policy
 generation, host, port, method, canonical path, rule, the source of
@@ -58,13 +64,16 @@ the archive denies of every kind.
 S07-11-http-policy, "git hosting", allows writes only to the project
 set. A write is any method other than `GET`, `HEAD` and `OPTIONS`,
 and any request whose query names a `service` other than `git-upload-pack`.
-A `POST` of `git-upload-pack` is a fetch, and a request to the GraphQL
+A `POST` of `git-upload-pack` on a transport path is a fetch, and a request to the GraphQL
 path is left to the operation filter. A write is allowed only when
 `wb-proxyd` reads its repository from the path, and that repository is
 in the project set:
 
 - git's transport: the path before `/info/refs`, `/git-upload-pack` or
-  `/git-receive-pack`, without a trailing `.git`;
+  `/git-receive-pack`, without a trailing `.git`. It is
+  `/<owner>/<repo>` on GitHub and Gitea. On GitLab and a host a remote
+  names, it has two segments or more, and the first isn't `api`. So
+  an API path that ends in `/git-upload-pack` isn't a fetch;
 - GitHub's REST API: `/repos/<owner>/<repo>` on `api.github.com` and
   `uploads.github.com`;
 - Gitea and Forgejo: `/api/v1/repos/<owner>/<repo>`;

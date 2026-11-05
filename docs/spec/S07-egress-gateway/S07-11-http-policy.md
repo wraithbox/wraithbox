@@ -211,8 +211,8 @@ off therefore can't remove a deny.
   whose part is off is a load error that names the part
   (NFR06-explained-refusals).
 - *Effect.* A part that is off is not in the effective policy. The
-  requests its rules would allow are refused, whatever other rule
-  allows them, from any project or approval.
+  requests put in the part (S07-19-request-decisions) are refused,
+  whatever other rule allows them, from any project or approval.
   - A request refused this way is logged with the rule
     `profile-part-off`.
   - A host whose built-in rules are all in parts that are off is

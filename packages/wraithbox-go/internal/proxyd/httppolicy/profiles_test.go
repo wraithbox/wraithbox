@@ -67,6 +67,16 @@ func TestProjectSet(t *testing.T) {
 				{"POST github.com/repos/acme/app/issues", false, RuleWriteOutside},
 				{"POST objects.githubusercontent.com/x", false, RuleWriteOutside},
 				{"PROPFIND github.com/acme/app", false, RuleWriteOutside},
+				// An API path that ends like git's transport is no fetch.
+				{"POST codeberg.org/api/v1/repos/victim/repo/contents/git-upload-pack", false, RuleWriteOutside},
+				{"POST gitlab.com/api/v4/projects/123/repository/files/git-upload-pack", false, RuleWriteOutside},
+				{"POST gitlab.com/api/v4/projects/other%2Frepo/repository/files/git-upload-pack", false, RuleWriteOutside},
+				{"POST gitlab.com/api/v4/projects/group%2Fsub%2Fproj/repository/files/git-receive-pack", true, RuleAllowed},
+				{"POST git.example.net/api/v1/repos/victim/repo/contents/git-upload-pack", false, RuleWriteOutside},
+				{"POST api.github.com/repos/other/repo/x/git-upload-pack", false, RuleWriteOutside},
+				{"POST github.com/other/repo/x/git-upload-pack", false, RuleWriteOutside},
+				{"GET git.example.net/api/x/info/refs", false, RuleNoRule},
+				{"POST codeberg.org/other/repo/x/git-upload-pack", false, RuleWriteOutside},
 				// Gists, creation and forks, even of a project's repository.
 				{"POST gist.github.com/acme/app.git/git-receive-pack", false, builtin.RuleCreate},
 				{"POST api.github.com/user/repos", false, builtin.RuleCreate},
@@ -256,8 +266,77 @@ func TestWebSocket(t *testing.T) {
 	r := req("GET ws.example.com/socket")
 	r.WebSocket = true
 	want(t, e, r, true, RuleAllowed)
-	r.Method = "CONNECT"
-	want(t, e, r, true, RuleAllowed)
-	r.Path = "/other"
+	// Another method would reach the server as itself, past rules that
+	// matched a GET.
+	for _, m := range []string{"CONNECT", "POST"} {
+		r.Method = m
+		want(t, e, r, false, RuleMethodForm)
+	}
+	e = quietEngine(t, broadPolicy())
+	for _, s := range []string{
+		"POST github.com/other/repo.git/git-receive-pack",
+		"PUT registry.npmjs.org/left-pad",
+	} {
+		r := req(s)
+		r.WebSocket = true
+		want(t, e, r, false, RuleMethodForm)
+	}
+	r = req("GET ws.example.com/other")
+	r.WebSocket = true
 	want(t, e, r, false, RuleNoRule)
+}
+
+// TestDenySuffixForms is each built-in deny in the forms a server may
+// route to its path: with a `/`, a `;` parameter, a `.` format suffix
+// or an escape after the segment.
+func TestDenySuffixForms(t *testing.T) {
+	e := quietEngine(t, broadPolicy())
+	for _, tc := range []struct{ req, rule string }{
+		{"POST api.github.com/repos/acme/app/forks/", builtin.RuleCreate},
+		{"POST api.github.com/repos/acme/app/forks;x", builtin.RuleCreate},
+		{"POST api.github.com/repos/acme/app/forks.json", builtin.RuleCreate},
+		{"POST api.github.com/repos/acme/app/forks%2F", builtin.RuleCreate},
+		{"POST api.github.com/repos/acme/app/Forks%2fx", builtin.RuleCreate},
+		{"POST api.github.com/repos/acme/app/generate/", builtin.RuleCreate},
+		{"POST api.github.com/repos/acme/app/generate;x", builtin.RuleCreate},
+		{"POST api.github.com/user/repos.json", builtin.RuleCreate},
+		{"POST api.github.com/orgs/acme/repos;x", builtin.RuleCreate},
+		{"GET api.github.com/repos/acme/app/tarball;x", builtin.RuleArchive},
+		{"GET api.github.com/repos/acme/app/tarball.json", builtin.RuleArchive},
+		{"GET api.github.com/repos/acme/app/zipball%2Fmain", builtin.RuleArchive},
+		{"GET github.com/acme/app/archive;x/main.zip", builtin.RuleArchive},
+		{"GET github.com/acme/app/archive.x/main.zip", builtin.RuleArchive},
+		{"GET gitlab.com/group/sub/proj/-/archive;x/main/proj.zip", builtin.RuleArchive},
+		{"GET gitlab.com/api/v4/projects/group%2Fsub%2Fproj/repository/archive;x", builtin.RuleArchive},
+		{"POST gitlab.com/api/v4/projects/group%2Fsub%2Fproj/fork;x", builtin.RuleCreate},
+		{"POST gitlab.com/api/v4/projects.json", builtin.RuleCreate},
+		{"GET codeberg.org/owner/lib/archive;x/main.zip", builtin.RuleArchive},
+		{"GET codeberg.org/api/v1/repos/owner/lib/archive.x/main.zip", builtin.RuleArchive},
+		{"POST codeberg.org/api/v1/repos/owner/lib/forks;x", builtin.RuleCreate},
+		{"POST codeberg.org/api/v1/repos/owner/lib/generate.json", builtin.RuleCreate},
+		{"POST codeberg.org/api/v1/repos/migrate/", builtin.RuleCreate},
+		{"POST api.anthropic.com/api/event_logging.json", builtin.RuleEventLog},
+		{"GET ghcr.io/token.json", builtin.RuleRegistryToken},
+		{"GET ghcr.io/token/", builtin.RuleRegistryToken},
+	} {
+		want(t, e, req(tc.req), false, tc.rule)
+	}
+	// A repository whose name has a `.` isn't cut into a deny.
+	want(t, e, req("GET github.com/acme/app.forks"), true, RuleAllowed)
+}
+
+func TestDenyStem(t *testing.T) {
+	for in, out := range map[string]string{
+		"/":              "/",
+		"/a/forks/":      "/a/forks",
+		"/a/forks;x/b":   "/a/forks/b",
+		"/a/forks.json":  "/a/forks",
+		"/a/forks%2fx":   "/a/forks",
+		"/.well-known/x": "/.well-known/x",
+		"/a/b.c;d%2f":    "/a/b",
+	} {
+		if got := denyStem(in); got != out {
+			t.Errorf("denyStem(%q) = %q, want %q", in, got, out)
+		}
+	}
 }

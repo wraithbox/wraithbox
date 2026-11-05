@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/builtin"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/match"
@@ -27,25 +28,26 @@ func (e *Engine) Decide(req Request) Decision {
 }
 
 func (e *Engine) decide(req Request) Decision {
-	d := Decision{Generation: e.generation, Host: req.Host, Port: req.Port}
+	h := e.hosts[req.Host]
+	d := Decision{Generation: e.generation, Host: req.Host, Port: req.Port, Mode: e.mode(h, req)}
 	method, ok := checkMethod(req.Method)
 	if !ok {
 		return refused(d, RuleMethodForm, "the method is not 1 to 32 token characters in upper case")
 	}
 	d.Method = method
+	// An upgrade matches as a GET on its path (S07-11-http-policy,
+	// "HTTP policy"), so it must be one: another method would reach the
+	// server as itself past rules that saw a GET.
+	if req.WebSocket && method != "GET" {
+		return refused(d, RuleMethodForm, "a WebSocket upgrade is a GET")
+	}
 	path, r := match.CanonicalPath(req.Path)
 	if r != nil {
 		// The refusal's message holds offsets, never the path's bytes.
 		return refused(d, RulePathForm, strings.TrimPrefix(r.Error(), r.Rule+": "))
 	}
 	d.Path = path
-	if req.WebSocket {
-		// An upgrade matches as a GET on its path (S07-11-http-policy,
-		// "HTTP policy"). Message rules are refused at load.
-		method = "GET"
-	}
-	c := call{req: req, method: method, path: path, host: e.hosts[req.Host]}
-	d.Mode = e.mode(c)
+	c := call{req: req, method: method, path: path, host: h}
 	if rule, ok := c.builtinDeny(); ok {
 		return refused(d, rule, "")
 	}
@@ -106,11 +108,11 @@ func checkMethod(s string) (string, bool) {
 // is never in `audit` (S07-07-hosts-and-modes, "audit"). Check refuses
 // a policy that puts one there, and the engine holds it in `enforce`
 // too, so that no built-in host is ever relaxed.
-func (e *Engine) mode(c call) policy.HostMode {
-	if c.host != nil {
+func (e *Engine) mode(h *hostRules, req Request) policy.HostMode {
+	if h != nil {
 		return policy.ModeEnforce
 	}
-	return policy.Mode(e.policy.Endpoints, c.req.Host, c.req.Port)
+	return policy.Mode(e.policy.Endpoints, req.Host, req.Port)
 }
 
 // builtinDeny returns the rule of the first built-in deny the request
@@ -126,13 +128,8 @@ func (c call) builtinDeny() (string, bool) {
 	if h.profile == builtin.ModelAPI && strings.Contains(c.req.Path, "%") {
 		return RuleModelPathEscape, true
 	}
-	// The denies match the path in lowercase, so a server that routes
-	// without regard to case can't be reached past them.
-	lower := strings.ToLower(c.path)
-	for _, d := range h.denies {
-		if d.Rule.Match(c.req.Host, c.method, lower) {
-			return d.Name, true
-		}
+	if name, ok := h.deny(c.req.Host, c.method, c.path); ok {
+		return name, true
 	}
 	// S07-11-http-policy, "package registries": metadata and downloads
 	// only.
@@ -167,11 +164,52 @@ func (c call) firstBuiltin() (builtin.Allow, bool) {
 		return builtin.Allow{}, false
 	}
 	for _, a := range h.allows {
+		// git's transport rules match a transport path only, so an API
+		// path that ends like one isn't put in the `git` part.
+		if a.Part == partGit && !h.isTransport(c.path) {
+			continue
+		}
 		if a.Rule.Match(c.req.Host, c.method, c.path) {
 			return a, true
 		}
 	}
 	return builtin.Allow{}, false
+}
+
+// deny returns the name of the first built-in deny of the host that
+// matches the request. The denies match the path in lowercase, so a
+// server that routes without regard to case can't be reached past
+// them. They match its stem too (denyStem), so a suffix a server may
+// strip doesn't either.
+func (h *hostRules) deny(host dnsname.Name, method, path string) (string, bool) {
+	lower := strings.ToLower(path)
+	stem := denyStem(lower)
+	for _, d := range h.denies {
+		if d.Rule.Match(host, method, lower) || d.Rule.Match(host, method, stem) {
+			return d.Name, true
+		}
+	}
+	return "", false
+}
+
+// denyStem cuts each segment of a canonical path at its first `;`, `.`
+// or `%`, and drops a trailing `/`. These are the forms in which a
+// server may route `/forks;x`, `/forks.json`, `/forks%2Fx` or `/forks/`
+// to `/forks`, as isGraphQL accepts them for the GraphQL path. A
+// segment the cut leaves empty stays as it was, so the stem is a path
+// a pattern can match.
+func denyStem(path string) string {
+	segments := strings.Split(path, "/")
+	for i, s := range segments {
+		if j := strings.IndexAny(s, ";.%"); j > 0 {
+			segments[i] = s[:j]
+		}
+	}
+	out := strings.Join(segments, "/")
+	if len(out) > 1 {
+		out = strings.TrimSuffix(out, "/")
+	}
+	return out
 }
 
 // offBy returns the sources that turned a rule's part off. A remote
