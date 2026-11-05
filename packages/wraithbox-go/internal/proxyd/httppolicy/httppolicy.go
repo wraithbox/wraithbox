@@ -1,5 +1,6 @@
 // Package httppolicy decides each request on an inspected host by the
-// VM's HTTP policy (S07-11-http-policy). It is step 4 of
+// VM's HTTP policy (S07-11-http-policy), in the order of
+// S07-19-request-decisions. It is step 4 of
 // S07-08-requests-and-credentials, "Order of the steps": wb-proxyd
 // calls Engine.Decide after it has parsed the request, and before the
 // dependency gate and credential injection.
