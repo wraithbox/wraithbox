@@ -8,7 +8,7 @@ writer, free space, and the data disk steps.
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024", "Hand-off on macOS", "The host opens every connection", "Caps and closing"), S06-12-guest-agent ("The hello"),
 S06-11-reconnect-and-recovery ("Reconnect"), S06-06-devices-and-warm-start ("When the host sends the time", "Network device per slot", "MAC address"), S07-02-packet-path ("Packet transport", "MTU"), S04-08-records-and-bounds ("Host work the guest can cause"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
-S04-07-supervision, S04-05-helper-programs ("`wb-build-ssh`"), S07-05-stream-hand-off ("Message form"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
+S04-07-supervision, S04-05-helper-programs ("`wb-build-ssh`"), S07-05-stream-hand-off ("Message form", "Streams", "Resets"), S07-06-name-mapping ("Name reports", "Releases"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
 S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
 
 ## Unit tests
@@ -177,6 +177,16 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 - **Egress contract form** (S07-05-stream-hand-off, "The contract"). In `internal/egressmsg`, each decoder refuses a record that is empty or over 4 KiB, doesn't decode, holds a field of another message or of a later build at any depth, doesn't set a kind, or carries a descriptor its kind doesn't take or lacks one it does. A name in another form than canonical is refused with `name-form`, an address outside 198.18.0.0/15 with `synthetic-range`, and a VM that isn't a slot with `vm-slot`. A `HandoffSocketClosed` with another rule than `name-report-malformed` or another check is refused. A control message before the start message, and a second start message, are refused. A payload pipe that isn't a pipe, has a length over 64 MiB, isn't whole by its deadline, or has a byte after it is refused with `payload-read`. `TestMaxPayloads` builds the largest payloads the bounds allow and sees each under 64 MiB.
 - **Hand-off receiver** (S04-02-vm-provider, "Hand-off on macOS"). Tests in `internal/platform/vmhandoff` and `internal/vmdlink`: over a real socketpair, each refusal of the receiver and of `fdchan` has its rule, and no descriptor of the record is open after it (`fcntl`). A record without a kind, or of an unknown one, is refused with `handoff-kind`. A good record gives its request a working connection, and the hello runs over it end to end with a fake `wb-vmd`. `FuzzHandoffMessage` checks that no record of arbitrary bytes, the empty one included, is accepted unless it names the open request, the current generation, the host's direction and the requested port, or is the one packet transport of the current generation.
 - **Packet transport hand-off** (S07-02-packet-path, "Packet transport"). In `internal/platform/vmhandoff`: a `KIND_NETWORK` record of the current generation with an `AF_UNIX` datagram socket gives the waiter a `Transport` whose only method is `Close`. A record of generation 0 or another generation, one nobody asked for, a generation's second one, one with a request ID, direction or port, and one with a stream socket are each refused with `handoff-network-refused`, with no descriptor left open. A newer generation's request closes the older one's. In `internal/vmdlink`: `Start` returns the transport, a refused or missing one is refused with its rule and doesn't leave a descriptor open, and a refused `Start` returns `wb-vmd`'s error.
+
+### wb-netd hand-off sender and accounting
+
+Spec: S07-05-stream-hand-off, S07-06-name-mapping, S04-08-records-and-bounds ("Accounting and event channels"). Tests in `internal/netd/handoff` and `internal/netd/hostlink`, over real `fdchan` socketpairs on macOS:
+
+- **Records before the answer** (S07-06-name-mapping, "Name reports"). `TestAnswerAfterRecords`: when a DNS answer is decided, its mapping entry is already on the accounting channel and its name report on the hand-off socket. `TestAnswerBlocked`: a peer that holds back its version record blocks the write or the send, and after at least 100 ms the name gets the answer every refusal gets, with `accounting-write-failed` or `handoff-send-failed` logged and no approval event. No report goes out after a failed accounting write.
+- **Releases** (S07-06-name-mapping, "Releases"). `TestReleaseRetried`: a release that fails on a new hand-off socket keeps its address out of the pool, and is sent before the next name report once the socket works. Its accounting release is written once. `TestKeptMapping`: a pool started with kept entries answers them with their kept addresses, and gives a kept address out again only after its release reached both peers.
+- **Streams** (S07-05-stream-hand-off, "Streams", "Resets"). `TestStreamEnds`: the guest sees a FIN when the proxy's end closes, and an RST when a `StreamReset` came first. `TestStreamSendFails`: a stream send that fails resets the guest and logs `handoff-send-failed`. `TestSocketEnds`: a closed hand-off socket, a malformed message on it, a message with a descriptor, and a new socket each reset the old socket's streams. `TestStreamResetUnknown`: a `StreamReset` for an unknown stream is logged and ignored. `TestVersionRecordRefused` and `TestNoSocket` cover a refused version record and a send with no socket.
+- **Control channel** (S04-07-supervision, S07-05-stream-hand-off, "One hand-off socket per VM"). `TestStart` and `TestStartRefused`: the start message gives the kept entries and the wildcard counts, and a policy change first, an address outside the range, or a missing payload is refused. `TestHandoffSocketRefused`: a socket for another VM, for another generation, or of stream type is closed and logged, and the channel goes on to take a good one. `TestControlEnds`: two descriptors, a second start message, a sequence that doesn't increase, and a refused policy end the channel. `TestPolicyChange`: an accepted policy reaches the policy and gets a `PolicyAck`.
+- **Accounting channel.** `TestAccountingVersionRefused` and `TestAccountingDropsRecords`: a refused version record ends the channel, and a record `wb-hostd` sends after its version record is logged and dropped.
 
 ### Supervision
 
@@ -651,6 +661,13 @@ and one before it detaches nothing.
   start payloads: nothing accepted holds a name out of form, an address
   outside the range, or more entries or names than the bounds allow
   (S04-architecture, "Control channels").
+- What `wb-netd` reads from `wb-hostd` and `wb-proxyd`,
+  `FuzzNetdControl` in `internal/netd/hostlink`: arbitrary records,
+  with and without a payload pipe, on the control channel, the
+  accounting channel and the hand-off socket. `wb-netd` sends no name
+  report, release, stream or accounting record. Each channel gets its
+  version record only, and the control channel one `PolicyAck` per
+  policy applied (S07-05-stream-hand-off, "Message form").
 - The stream framing that multiplexes guest requests on a host-opened
   connection, with the project each request is attributed to
   (S04-architecture, B29-vsock-handoff).
