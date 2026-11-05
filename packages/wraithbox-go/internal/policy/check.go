@@ -159,24 +159,38 @@ func bound(field string, n, maxN int) *Refusal {
 }
 
 func (p *Policy) checkCounts() *Refusal {
-	total := 0
-	for i := range p.Endpoints {
-		total += len(p.Endpoints[i].Rules) + len(p.Endpoints[i].DenyRules)
+	c := counts{
+		endpoints: len(p.Endpoints), passHosts: len(p.PassHosts), rawTCP: len(p.RawTCP),
+		partsOff: len(p.PartsOff), projects: len(p.Projects), wildcardBudget: p.WildcardBudget,
 	}
+	for i := range p.Endpoints {
+		c.rules += len(p.Endpoints[i].Rules) + len(p.Endpoints[i].DenyRules)
+	}
+	return c.check()
+}
+
+// counts are the sizes of a policy's lists, so Policy.checkCounts and
+// FromProto check the same bounds, FromProto before it reads a list.
+type counts struct {
+	endpoints, rules, passHosts, rawTCP, partsOff, projects int
+	wildcardBudget                                          uint32
+}
+
+func (c counts) check() *Refusal {
 	for _, r := range []*Refusal{
-		bound("endpoints", len(p.Endpoints), MaxEndpoints),
-		bound("endpoints[*].rules and deny_rules", total, MaxRules),
-		bound("pass_hosts", len(p.PassHosts), MaxPassHosts),
-		bound("raw_tcp", len(p.RawTCP), MaxRawTCP),
-		bound("parts_off", len(p.PartsOff), MaxPartsOff),
-		bound("projects", len(p.Projects), MaxProjects),
+		bound("endpoints", c.endpoints, MaxEndpoints),
+		bound("endpoints[*].rules and deny_rules", c.rules, MaxRules),
+		bound("pass_hosts", c.passHosts, MaxPassHosts),
+		bound("raw_tcp", c.rawTCP, MaxRawTCP),
+		bound("parts_off", c.partsOff, MaxPartsOff),
+		bound("projects", c.projects, MaxProjects),
 	} {
 		if r != nil {
 			return r
 		}
 	}
-	if p.WildcardBudget > MaxWildcardBudget {
-		return refuse(RuleBound, "wildcard_budget", "is %d, at most %d", p.WildcardBudget, MaxWildcardBudget)
+	if c.wildcardBudget > MaxWildcardBudget {
+		return refuse(RuleBound, "wildcard_budget", "is %d, at most %d", c.wildcardBudget, MaxWildcardBudget)
 	}
 	return nil
 }
