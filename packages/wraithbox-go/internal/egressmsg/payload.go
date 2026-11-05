@@ -18,16 +18,36 @@ import (
 // bounds allow and checks that each fits.
 const MaxPayload = 64 << 20
 
-// PayloadDeadline bounds the read of a whole payload.
+// PayloadDeadline bounds the read of a whole payload, and its write.
 const PayloadDeadline = 10 * time.Second
 
 // payloadPrefix is the size of a payload's length.
 const payloadPrefix = 4
 
-// WritePayload writes m to w as a payload: its length as 4 big-endian
-// bytes, then its encoding. The caller closes w after it, so the reader
-// sees end of file.
-func WritePayload(w io.Writer, m proto.Message) error {
+// WritePayload writes m to f, the write end of a payload pipe, within
+// PayloadDeadline: its length as 4 big-endian bytes, then its encoding.
+// The caller closes f after it, so the reader sees end of file.
+//
+// wb-hostd sends the read end in a control message first, then writes
+// each payload in a goroutine of its own, so a daemon that doesn't read
+// holds up nothing else. A write that fails or passes the deadline is a
+// crash of that daemon (S04-architecture, "Control channels").
+func WritePayload(f *os.File, m proto.Message) error {
+	return writePipe(f, m, time.Now().Add(PayloadDeadline))
+}
+
+// writePipe is WritePayload with the deadline as a parameter, for a
+// test.
+func writePipe(f *os.File, m proto.Message, deadline time.Time) error {
+	if err := f.SetWriteDeadline(deadline); err != nil {
+		return fmt.Errorf("egressmsg: the payload pipe takes no write deadline: %w", err)
+	}
+	return writePayload(f, m)
+}
+
+// writePayload writes the length of m's encoding and then the encoding
+// to w, with no copy of the encoding.
+func writePayload(w io.Writer, m proto.Message) error {
 	b, err := proto.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("egressmsg: %w", err)
@@ -35,9 +55,12 @@ func WritePayload(w io.Writer, m proto.Message) error {
 	if len(b) > MaxPayload {
 		return fmt.Errorf("egressmsg: a payload of %d bytes, the cap is %d", len(b), MaxPayload)
 	}
-	buf := make([]byte, payloadPrefix, payloadPrefix+len(b))
-	binary.BigEndian.PutUint32(buf, uint32(len(b))) //nolint:gosec // G115: len(b) is at most MaxPayload, checked above
-	if _, err := w.Write(append(buf, b...)); err != nil {
+	var prefix [payloadPrefix]byte
+	binary.BigEndian.PutUint32(prefix[:], uint32(len(b))) //nolint:gosec // G115: len(b) is at most MaxPayload, checked above
+	if _, err := w.Write(prefix[:]); err != nil {
+		return fmt.Errorf("egressmsg: write payload length: %w", err)
+	}
+	if _, err := w.Write(b); err != nil {
 		return fmt.Errorf("egressmsg: write payload: %w", err)
 	}
 	return nil

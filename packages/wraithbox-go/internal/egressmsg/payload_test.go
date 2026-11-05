@@ -18,7 +18,7 @@ import (
 func payloadBytes(t *testing.T, m proto.Message) []byte {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := WritePayload(&buf, m); err != nil {
+	if err := writePayload(&buf, m); err != nil {
 		t.Fatal(err)
 	}
 	return buf.Bytes()

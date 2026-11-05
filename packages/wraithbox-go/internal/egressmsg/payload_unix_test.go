@@ -3,8 +3,10 @@
 package egressmsg
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,13 +58,36 @@ func TestReadPayloadDeadline(t *testing.T) {
 	}
 }
 
+// A reader that never reads holds the writer only until its deadline.
+// The payload is larger than a pipe's buffer, so the write blocks.
+func TestWritePayloadDeadline(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+	big := &egressv1.ProxydStartPayload{WildcardNames: []*egressv1.WildcardNames{{Vm: "work", Names: []string{strings.Repeat("a", 4<<20)}}}}
+	start := time.Now()
+	err = writePipe(w, big, time.Now().Add(50*time.Millisecond))
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("write to a pipe nobody reads: %v, want a deadline error", err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("returned after %v", d)
+	}
+}
+
 func TestReadPayloadNotAPipe(t *testing.T) {
 	f, err := os.Create(filepath.Join(t.TempDir(), "payload"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	if err := WritePayload(f, &egressv1.NetdStartPayload{}); err != nil {
+	if err := WritePayload(f, &egressv1.NetdStartPayload{}); err == nil {
+		t.Fatal("WritePayload wrote to a file that takes no write deadline")
+	}
+	if err := writePayload(f, &egressv1.NetdStartPayload{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.Seek(0, 0); err != nil {
