@@ -64,8 +64,8 @@ fuzz target each (C02-streams-and-tls, "Fuzzing"). Each channel is made with
 `fdchan.Socketpair(4096)`. Each end sends the version record first
 (S04-architecture, "The version record").
 
-A message doesn't name the VM where the socket it came on already says it.
-A hand-off message names none: its VM is the socket's. A wb-netd's
+A message doesn't name a VM when the socket it came on already does.
+A hand-off message names none: its VM is the socket's. A `wb-netd`'s
 control and accounting channels are its VM's. Only the messages
 between `wb-hostd` and `wb-proxyd`, which serves every VM, name one.
 
