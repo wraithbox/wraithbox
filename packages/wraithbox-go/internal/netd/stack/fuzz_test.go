@@ -34,6 +34,11 @@ func FuzzLinkEndpoint(f *testing.F) {
 		{syn(synthetic, 443), syn(nt.Gateway, 53), nt.FromGuest(ip4, nt.IPv4(nt.Leased, nt.Gateway, tcpNum, nt.TCPSegment(nt.Leased, nt.Gateway, 40000, 80, header.TCPFlagAck)))},
 		{nt.FromGuest(ip4, nt.IPv4(nt.Leased, nt.Gateway, icmpNum, nt.ICMP(header.ICMPv4Echo, 0))), nt.FromGuest(ip4, nt.IPv4(nt.Leased, nt.Gateway, udpNum, nt.UDP(5353, 53, []byte("q")))), nil},
 		{nt.Ethernet(nt.Broadcast, nt.GuestMAC, ip4, nt.IPv4(netip.IPv4Unspecified(), netip.MustParseAddr("255.255.255.255"), udpNum, nt.UDP(68, 67, make([]byte, 300)))), arpReq, make([]byte, 65550)},
+		{
+			dhcpFrame(netip.IPv4Unspecified(), limitedBroadcast, dhcpRequest(1, netip.IPv4Unspecified())),
+			dhcpFrame(netip.IPv4Unspecified(), limitedBroadcast, dhcpRequest(3, netip.IPv4Unspecified(), nt.DHCPOpt(50, 192, 168, 127, 2))),
+			dhcpFrame(nt.Leased, nt.Gateway, dhcpRequest(8, nt.Leased)),
+		},
 	}
 	for _, s := range seeds {
 		f.Add(s[0], s[1], s[2])
@@ -93,13 +98,38 @@ func checkSent(frame []byte) string {
 			return "an ARP reply for an address but the gateway"
 		}
 	case header.IPv4ProtocolNumber:
-		ip := header.IPv4(p)
-		if !ip.IsValid(len(p)) || ip.TransportProtocol() != header.TCPProtocolNumber {
-			return ""
-		}
+		return checkSentIPv4(header.IPv4(p))
+	}
+	return ""
+}
+
+// checkSentIPv4 returns what is wrong with an IPv4 packet the stack
+// sent: a SYN-ACK, or a DHCP reply to another MAC or with an address
+// other than the leased one or zero.
+func checkSentIPv4(ip header.IPv4) string {
+	if !ip.IsValid(len(ip)) {
+		return ""
+	}
+	switch ip.TransportProtocol() {
+	case header.TCPProtocolNumber:
 		h := header.TCP(ip.Payload())
 		if len(h) >= header.TCPMinimumSize && h.Flags().Contains(header.TCPFlagSyn|header.TCPFlagAck) {
 			return "a SYN-ACK"
+		}
+	case header.UDPProtocolNumber:
+		u := header.UDP(ip.Payload())
+		if len(u) < header.UDPMinimumSize || u.SourcePort() != 67 {
+			return ""
+		}
+		msg := u.Payload()
+		if len(msg) < nt.DHCPOffOpts {
+			return "a short DHCP reply"
+		}
+		if string(msg[nt.DHCPOffCHAddr:nt.DHCPOffCHAddr+6]) != string(nt.GuestMAC) {
+			return "a DHCP reply to another MAC"
+		}
+		if y := nt.DHCPAddr(msg, nt.DHCPOffYIAddr); y != nt.Leased && !y.IsUnspecified() {
+			return "a DHCP reply with another address"
 		}
 	}
 	return ""
