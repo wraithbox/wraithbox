@@ -105,15 +105,18 @@ cross-platform Go (S12-platforms).
   because some pinned tools have no Windows build.
 - Locally, `mise run go:cross` vets, lints, and builds for all three
   GOOS values from one machine. It is part of `ci`.
-- `go:fuzz` runs every fuzz target briefly
+- `go:fuzz` runs every fuzz target briefly, within a time budget
   (S11-verification-and-spikes). `test` depends on it, and the task
   runs a Go program, which works on all three. CI runs it on Linux
   only, in the `fuzz` job and not the Go job. That job runs the targets in
   parallel shards, `go:fuzz -- -shard <i>/<n>`, and `ci.yml` sets the
   shard count. Each shard runs one part of the sorted list of targets.
-  The parts don't overlap and together hold the whole list. A target
-  fuzzes for the same time as locally. Without `-shard`, as under `ci`, the
-  task runs every target.
+  The parts don't overlap and together hold the whole list. Each shard
+  has the whole budget, so a target in CI fuzzes for as long as
+  locally or longer. Without `-shard`, as under `ci`, the task runs
+  every target.
+- `go:fuzz-long` is the daily fuzz run (S11-verification-and-spikes). The
+  `Fuzz` workflow runs it on Linux once a day. It isn't part of `ci`.
 - `go:vulncheck` analyzes each GOOS.
 
 Swift runs on macOS runners only. Docs, workflow linting, and the

@@ -183,22 +183,34 @@ dir = "packages/wraithbox-go"
 run = ["go tool -n covdata", "go test -race -cover ./..."]
 run_windows = ["go tool -n covdata", "go test -cover ./..."]
 
-# Runs every Go fuzz target for 10s, the fuzz smoke run of
+# Fuzzes every Go fuzz target for a share of 60s, the fuzz smoke run of
 # S11-verification-and-spikes. internal/tools/fuzzsmoke finds the targets
-# with `go test -list`, so a new target needs no change here. It is a Go
-# program rather than a shell loop so that it runs under cmd.exe
-# (S02-toolchain). CI runs it on Linux only, in the `fuzz` job of ci.yml,
-# as parallel shards: `mise run go:fuzz -- -shard <i>/<n>` runs part i of
-# n of the targets.
+# with `go test -list`, so a new target needs no change here. It fuzzes 4
+# targets at once, and each target fuzzes for 60s divided by the number
+# of rounds of 4, at most 10s. Building the test binaries takes time on
+# top. It is a Go program rather than a shell loop so that it runs under
+# cmd.exe (S02-toolchain). CI runs it on Linux only, in the `fuzz` job of
+# ci.yml, as parallel shards: `mise run go:fuzz -- -shard <i>/<n>` runs
+# part i of n of the targets, with the 60s for the shard.
 #
 # Fuzzing takes every CPU, so under `ci` this waits for go:test instead of
 # starving its -race run. wait_for orders without depending: `mise run
 # go:fuzz` alone does not pull in go:test.
 [tasks."go:fuzz"]
-description = "Run every Go fuzz target for 10s each (fuzz smoke run)"
+description = "Fuzz every Go fuzz target for a share of 60s (fuzz smoke run)"
 dir = "packages/wraithbox-go"
 wait_for = ["go:test"]
-run = "go run ./internal/tools/fuzzsmoke"
+run = "go run ./internal/tools/fuzzsmoke -budget 60s -fuzztime 10s -jobs 4"
+
+# Fuzzes every Go fuzz target for a share of 10 minutes, the daily fuzz
+# run of S11-verification-and-spikes. The smoke run is too short to find
+# much that is new, and this run is long enough to. The Fuzz workflow
+# (.github/workflows/fuzz.yml) runs it once a day on Linux. It is not part
+# of `ci`. -fuzztime 10m lets the budget alone decide each target's time.
+[tasks."go:fuzz-long"]
+description = "Fuzz every Go fuzz target for a share of 10m (daily fuzz run)"
+dir = "packages/wraithbox-go"
+run = "go run ./internal/tools/fuzzsmoke -budget 10m -fuzztime 10m -jobs 4"
 
 # `go build ./...` builds every package and keeps nothing. The second
 # command builds the programs into bin/, stamped with the run's version

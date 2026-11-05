@@ -105,13 +105,15 @@ jobs:
         run: mise run go:build
 
   # The fuzz smoke run (S11-verification-and-spikes, "Fuzzing"): every fuzz
-  # target for go:fuzz's 10s, split into shards that run in parallel
-  # (#528). Each shard runs one contiguous part of the sorted list of
-  # targets (internal/tools/fuzzsmoke, -shard), so every target runs in
-  # exactly one shard and a new target needs no change here. One OS is
-  # enough: the targets parse bytes the same way on every OS. The shard
-  # count comes from measurement: with 4, a shard takes about as long as
-  # the Go job on macOS. Change it in both the matrix and its names.
+  # target for a share of go:fuzz's 60s budget, at most 10s, split into
+  # shards that run in parallel (#528). Each shard runs one contiguous
+  # part of the sorted list of targets (internal/tools/fuzzsmoke, -shard)
+  # with the whole budget, so every target runs in exactly one shard and a
+  # new target needs no change here. One OS is enough: the targets parse
+  # bytes the same way on every OS. The shard count comes from a
+  # measurement made when every target fuzzed for 10s, one at a time:
+  # with 4, a shard took about as long as the Go job on macOS. Change it
+  # in both the matrix and its names. The daily fuzz run is fuzz.yml.
   #
   # Skipped under the same condition as the Go job.
   fuzz:
