@@ -31,8 +31,14 @@ S04-02-vm-provider ("The device set is fixed and checked")
   `FuzzLinkFilter` (`internal/netd/link`) checks that the filter agrees
   with a second check written with gVisor's header package on every
   frame, and never passes one longer than MTU + 14 bytes.
-- DNS, with a corpus that holds a dot byte inside a wire label, a label
-  of 0 and of 64 bytes, and a name of 254 bytes (S07-03-dns, "Name form").
+- The DNS name form, with a corpus that holds a dot byte inside a wire
+  label, a label of 0 and of 64 bytes, and a name of 254 bytes
+  (S07-03-dns, "Name form"). `FuzzNameForm` (`internal/dnsname`) feeds
+  lists of labels of 0 to 255 bytes. An accepted name must be lower
+  case letters, digits and hyphens, at most 253 bytes, without a hyphen
+  at either end of a label, and pass the check again unchanged as a
+  host. The wire and host checks must agree on every list a host can
+  hold, and a refusal message must be printable ASCII.
 
 ## Conformance
 
