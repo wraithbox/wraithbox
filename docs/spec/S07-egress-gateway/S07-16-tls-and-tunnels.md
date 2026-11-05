@@ -150,8 +150,9 @@ the rule `audit-allowed` and the rule it broke
   `http-transfer-coding`;
 - `upstream-address-refused`.
 
-A covered host is never in `audit` (S07-07-hosts-and-modes), and
-`wb-proxyd` holds it in `enforce` even if a policy put it there.
+A guarded host is never in `audit` (S07-07-hosts-and-modes), and
+`wb-proxyd` holds each host a profile covers in `enforce`, even if a
+policy put it there.
 
 A `CONNECT` request, or an `Upgrade` other than WebSocket, never
 raises an approval request.

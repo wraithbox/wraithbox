@@ -2,7 +2,10 @@ package httppolicy
 
 import (
 	"net/url"
+	"slices"
 	"strings"
+
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/builtin"
 )
 
 // isRead reports whether a method is a read: GET, HEAD or OPTIONS.
@@ -26,7 +29,7 @@ const (
 //     `git-upload-pack`, which is how git asks for the
 //     `git-receive-pack` advertisement, whatever its method and path;
 //   - any method but GET, HEAD and OPTIONS, except a `git-upload-pack`
-//     POST, which is a fetch, and a request to the host's GraphQL path,
+//     POST on a transport path (transportRepo), which is a fetch, and a request to the host's GraphQL path,
 //     which the GraphQL filter decides (M3.7b, refused until then).
 func (h *hostRules) isWrite(method, path, rawQuery string) bool {
 	if namesPushService(rawQuery) {
@@ -35,10 +38,56 @@ func (h *hostRules) isWrite(method, path, rawQuery string) bool {
 	if isRead(method) {
 		return false
 	}
-	if method == "POST" && strings.HasSuffix(path, uploadPack) {
+	if _, suffix, ok := h.transportRepo(path); ok && method == "POST" && suffix == uploadPack {
 		return false
 	}
 	return !h.isGraphQL(path)
+}
+
+// transportRepo reads the repository of a path of git's smart HTTP
+// transport, `{repo}/info/refs`, `{repo}/git-upload-pack` or
+// `{repo}/git-receive-pack`, and returns the suffix it found. It reads
+// one only on a host that serves the transport (repoForms.transport).
+// On GitHub and Gitea the repository is `/{owner}/{repo}`. On GitLab
+// and a host a remote names, it has two segments or more, and its first
+// segment isn't `api`. So an API path that ends in a transport suffix,
+// such as a file named `git-upload-pack`, isn't the transport.
+func (h *hostRules) transportRepo(path string) (repo, suffix string, ok bool) {
+	if !h.forms.transport {
+		return "", "", false
+	}
+	for _, s := range []string{infoRefs, uploadPack, receivePack} {
+		r, found := strings.CutSuffix(path, s)
+		if found && h.isTransportRepo(r) {
+			return r, s, true
+		}
+	}
+	return "", "", false
+}
+
+// partGit is the part of git's transport rules (S07-11-http-policy,
+// "GitHub parts").
+const partGit = "git"
+
+// isTransport reports whether a path is one of git's transport
+// (transportRepo).
+func (h *hostRules) isTransport(path string) bool {
+	_, _, ok := h.transportRepo(path)
+	return ok
+}
+
+// isTransportRepo reports whether a path is a repository path of git's
+// transport on this host (transportRepo).
+func (h *hostRules) isTransportRepo(repo string) bool {
+	rest, ok := strings.CutPrefix(repo, "/")
+	segments := strings.Split(rest, "/")
+	if !ok || len(segments) < 2 || slices.Contains(segments, "") {
+		return false
+	}
+	if h.kind == builtin.GitHub || h.kind == builtin.Gitea {
+		return len(segments) == 2
+	}
+	return !strings.EqualFold(segments[0], "api")
 }
 
 // namesPushService reports whether a query has a `service` parameter
@@ -110,14 +159,10 @@ func hasAPIRepoSuffix(name string) bool {
 //     numeric project id names no repository that can be checked;
 //   - the API of Gitea and Forgejo: `/api/v1/repos/{owner}/{repo}[/...]`.
 func (h *hostRules) repository(path string) (string, bool) {
-	f := h.forms
-	if f.transport {
-		for _, suffix := range []string{infoRefs, uploadPack, receivePack} {
-			if repo, ok := strings.CutSuffix(path, suffix); ok {
-				return repo, true
-			}
-		}
+	if repo, _, ok := h.transportRepo(path); ok {
+		return repo, true
 	}
+	f := h.forms
 	switch {
 	case f.githubAPI:
 		return ownerRepo(path, "/repos/")

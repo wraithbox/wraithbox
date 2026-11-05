@@ -1,6 +1,9 @@
 package httppolicy
 
 import (
+	"net/url"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -63,6 +66,10 @@ func FuzzHTTPDecision(f *testing.F) {
 		{"POST", "/team/tool.git/git-receive-pack", "", 12, 443, false},
 		{"DELETE", "/secret/x", "", 13, 443, false},
 		{"GET", "/socket", "", 14, 443, true},
+		{"POST", "/other/repo.git/git-receive-pack", "", 0, 443, true},
+		{"POST", "/api/v4/projects/123/repository/files/git-upload-pack", "", 5, 443, false},
+		{"POST", "/api/v1/repos/victim/repo/contents/git-upload-pack", "", 12, 443, false},
+		{"POST", "/repos/acme/app/forks;x", "", 1, 443, false},
 		{"get", "/a/../b", "", 15, 80, false},
 	} {
 		f.Add(s.method, s.path, s.query, s.host, s.port, s.ws)
@@ -98,6 +105,9 @@ func checkAllowed(t *testing.T, e *Engine, r Request, d Decision) {
 	if _, pr := match.CanonicalPath(r.Path); pr != nil {
 		t.Fatalf("allowed %+v with a path that isn't canonical", r)
 	}
+	if r.WebSocket && r.Method != "GET" {
+		t.Fatalf("allowed WebSocket upgrade %+v that isn't a GET", r)
+	}
 	h := e.hosts[r.Host]
 	if h == nil {
 		return
@@ -105,11 +115,7 @@ func checkAllowed(t *testing.T, e *Engine, r Request, d Decision) {
 	if d.Rule == RuleAuditAllowed {
 		t.Fatalf("audit allowed %+v on a covered host", r)
 	}
-	method := d.Method
-	if r.WebSocket {
-		method = "GET"
-	}
-	c := call{req: r, method: method, path: d.Path, host: h}
+	c := call{req: r, method: d.Method, path: d.Path, host: h}
 	if broken := e.brokenBuiltin(c); broken != "" {
 		t.Fatalf("allowed %+v past %s", r, broken)
 	}
@@ -122,7 +128,7 @@ func (e *Engine) brokenBuiltin(c call) string {
 	h := c.host
 	lower := strings.ToLower(c.path)
 	for _, dn := range h.denies {
-		if dn.Rule.Match(c.req.Host, c.method, lower) {
+		if dn.Rule.Match(c.req.Host, c.method, lower) || dn.Rule.Match(c.req.Host, c.method, denyStem(lower)) {
 			return "built-in deny " + dn.Name
 		}
 	}
@@ -131,7 +137,7 @@ func (e *Engine) brokenBuiltin(c call) string {
 		return "an escape on the model API"
 	case h.profile == builtin.PackageRegistries && !isRead(c.method):
 		return "a publish"
-	case h.profile == builtin.GitHosting && h.isWrite(c.method, c.path, c.req.RawQuery) && !h.inProjectSet(c.path):
+	case h.profile == builtin.GitHosting && oracleWrite(c) && !oracleInSet(c):
 		return "a write outside the project set"
 	case h.graphQLPath != "" && h.isGraphQL(c.path):
 		return "the GraphQL path"
@@ -140,4 +146,78 @@ func (e *Engine) brokenBuiltin(c call) string {
 		return "part " + a.Part + ", which is off"
 	}
 	return ""
+}
+
+// oracleWrite is FuzzHTTPDecision's own reading of a git hosting write
+// (S07-19-request-decisions, "Writes to git hosting"), apart from the
+// engine's isWrite: a query that names a `service` other than
+// `git-upload-pack`, or a method other than a read, unless it is a
+// `git-upload-pack` POST on a transport path or a request to the
+// GraphQL path, which the GraphQL refusal covers.
+func oracleWrite(c call) bool {
+	for pair := range strings.FieldsFuncSeq(c.req.RawQuery, func(r rune) bool { return r == '&' || r == ';' }) {
+		k, v, _ := strings.Cut(pair, "=")
+		key, keyErr := url.PathUnescape(strings.ReplaceAll(k, "+", " "))
+		value, valueErr := url.PathUnescape(strings.ReplaceAll(v, "+", " "))
+		if keyErr != nil || strings.EqualFold(strings.TrimSpace(key), "service") && (valueErr != nil || value != "git-upload-pack") {
+			return true
+		}
+	}
+	switch c.method {
+	case "GET", "HEAD", "OPTIONS":
+		return false
+	case "POST":
+		if oracleFetch(c.req.Host.String(), c.path) {
+			return false
+		}
+	}
+	return c.host.graphQLPath == "" || !strings.HasPrefix(strings.ToLower(c.path), c.host.graphQLPath)
+}
+
+// oracleFetch reports whether a POST is git's `git-upload-pack` on a
+// transport path: `/{owner}/{repo}/git-upload-pack` on GitHub and
+// Codeberg, and two segments or more, the first not `api`, on GitLab
+// and the remote host.
+func oracleFetch(host, path string) bool {
+	segments := strings.Split(path, "/")[1:]
+	if slices.Contains(segments, "") || segments[len(segments)-1] != "git-upload-pack" {
+		return false
+	}
+	switch host {
+	case "github.com", "codeberg.org":
+		return len(segments) == 3
+	case "gitlab.com", "git.example.net":
+		return len(segments) >= 3 && !strings.EqualFold(segments[0], "api")
+	}
+	return false
+}
+
+// oracleSets are fuzzPolicy's project set, as the paths of a write to
+// each host: git's transport and the API forms. GitHub's are matched in
+// lowercase.
+var oracleSets = map[string]*regexp.Regexp{
+	"github.com":         regexp.MustCompile(`^/acme/app(\.git)?` + oracleTransport),
+	"api.github.com":     regexp.MustCompile(`^/repos/acme/app(/|$)`),
+	"uploads.github.com": regexp.MustCompile(`^/repos/acme/app(/|$)`),
+	"gitlab.com": regexp.MustCompile(`^(/group/sub/proj(\.git)?` + oracleTransport +
+		`|/api/v4/projects/group%2Fsub%2Fproj(/|$))`),
+	"codeberg.org":    regexp.MustCompile(`^(/owner/lib(\.git)?` + oracleTransport + `|/api/v1/repos/owner/lib(/|$))`),
+	"git.example.net": regexp.MustCompile(`^/team/tool(\.git)?` + oracleTransport),
+}
+
+const oracleTransport = `/(info/refs|git-upload-pack|git-receive-pack)$`
+
+// oracleInSet reports whether a write names a repository of
+// fuzzPolicy's project set.
+func oracleInSet(c call) bool {
+	host := c.req.Host.String()
+	re, ok := oracleSets[host]
+	if !ok {
+		return false
+	}
+	path := c.path
+	if host == "github.com" || host == "api.github.com" || host == "uploads.github.com" {
+		path = strings.ToLower(path)
+	}
+	return re.MatchString(path)
 }

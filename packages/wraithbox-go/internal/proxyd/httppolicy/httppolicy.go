@@ -44,8 +44,8 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/match"
 )
 
-// The rules of the decisions of this package (S07-11-http-policy,
-// "Rule names"). The built-in denies of the catalog keep the rules of
+// The rules of the decisions of this package (S07-19-request-decisions,
+// "Order of evaluation"). The built-in denies of the catalog keep the rules of
 // package builtin.
 const (
 	// RuleAllowed: a rule allows the request.
@@ -95,7 +95,9 @@ type Request struct {
 	Path     string
 	RawQuery string
 	// WebSocket marks an upgrade to WebSocket, which matches as a GET
-	// on its path.
+	// on its path. An upgrade with any method but GET is refused with
+	// http-method-form, so the method a server sees is the one the rules
+	// matched.
 	WebSocket bool
 }
 
