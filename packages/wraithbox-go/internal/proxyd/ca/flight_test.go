@@ -3,6 +3,7 @@ package ca
 import (
 	"crypto"
 	"crypto/tls"
+	"errors"
 	"io"
 	"strings"
 	"sync/atomic"
@@ -122,4 +123,58 @@ func TestLeafSingleflight(t *testing.T) {
 	if n != 0 {
 		t.Errorf("%d flights left after the signature", n)
 	}
+}
+
+// brokenKey is a CA key whose first signature fails, or panics with
+// panics set, and whose later signatures succeed.
+type brokenKey struct {
+	hwkey.Key
+	panics bool
+	signs  atomic.Int32
+}
+
+func (k *brokenKey) Sign(r io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if k.signs.Add(1) > 1 {
+		return k.Key.Sign(r, digest, opts)
+	}
+	if k.panics {
+		panic("the key broke")
+	}
+	return nil, errors.New("the key refused")
+}
+
+// TestLeafFlightFails: a first signature that fails, or panics, ends its
+// flight, with a refusal when it fails, and the next call signs the
+// leaf.
+func TestLeafFlightFails(t *testing.T) {
+	for _, panics := range []bool{false, true} {
+		e := newEnv(t, team)
+		e.ready()
+		held := e.a.vms["work"].cas[caA].key
+		key := &brokenKey{Key: held.key, panics: panics}
+		held.mu.Lock()
+		held.key = key
+		held.mu.Unlock()
+
+		leaf, ref := forRecovered(e.a, leafReq("work", 1, "new.example.com"))
+		if leaf != nil || (!panics && (ref == nil || ref.Rule != RuleLeafRefused)) {
+			t.Errorf("panics=%v: first For = %v, %v, want a refusal", panics, leaf != nil, ref)
+		}
+		e.a.mu.Lock()
+		n := len(e.a.vms["work"].leaves.flights)
+		e.a.mu.Unlock()
+		if n != 0 {
+			t.Errorf("panics=%v: %d flights left after the failed signature", panics, n)
+		}
+		if leaf, ref := e.a.For(leafReq("work", 1, "new.example.com")); leaf == nil || ref != nil {
+			t.Errorf("panics=%v: next For = %v, %v, want a leaf", panics, leaf != nil, ref)
+		}
+	}
+}
+
+// forRecovered calls For, and returns no leaf and no refusal when it
+// panics.
+func forRecovered(a *Authority, req LeafRequest) (leaf *tls.Certificate, ref *Refusal) {
+	defer func() { _ = recover() }()
+	return a.For(req)
 }
