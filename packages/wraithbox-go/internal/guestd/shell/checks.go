@@ -2,6 +2,7 @@ package shell
 
 import (
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/trust"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/sessionid"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/termsetup"
@@ -80,13 +81,18 @@ const (
 )
 
 // environment builds a shell's whole environment from the checked host
-// values and u's record. Nothing comes from wb-guestd's own
-// environment. The helper adds TMPDIR, which it reads as the user.
+// values, u's record, and after them the trust variables
+// (S09-08-guest-trust, "Variables"). Nothing comes from wb-guestd's own
+// environment. checkStart refuses a host value of any name outside
+// termsetup.EnvNames, so no variable is set twice or merged. The helper
+// adds TMPDIR, which it reads as the user.
 func environment(u users.User, env []*terminalv1.EnvVar) []string {
-	out := make([]string, 0, len(env)+5)
+	tv := trust.Env()
+	out := make([]string, 0, len(env)+5+len(tv))
 	for _, v := range env {
 		out = append(out, v.GetName()+"="+v.GetValue())
 	}
-	return append(out,
+	out = append(out,
 		"HOME="+u.Home, "USER="+u.Name, "LOGNAME="+u.Name, "SHELL="+shellPath, "PATH="+envPath)
+	return append(out, tv...)
 }

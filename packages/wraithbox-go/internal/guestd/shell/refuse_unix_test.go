@@ -13,6 +13,7 @@ import (
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	terminalv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/terminal/v1"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/trust"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 )
 
@@ -26,7 +27,7 @@ func TestRefusals(t *testing.T) {
 		}
 		return s
 	}
-	tests := []struct {
+	type refusal struct {
 		name    string
 		id      string
 		user    string
@@ -34,7 +35,8 @@ func TestRefusals(t *testing.T) {
 		change  func(h *harness)
 		rule    string
 		invalid bool
-	}{
+	}
+	tests := []refusal{
 		{name: "shell id form", id: "proj-2026-1200-ab12", rule: RuleStartInvalid, invalid: true},
 		{name: "shell id dots", id: "a..b-20261030-1200-ab12", rule: RuleStartInvalid, invalid: true},
 		{name: "shell id length", id: strings.Repeat("a", 120) + "-20261030-1200-ab12", rule: RuleStartInvalid, invalid: true},
@@ -61,6 +63,11 @@ func TestRefusals(t *testing.T) {
 		{name: "helper start", change: func(h *harness) {
 			h.srv.cfg.Helper = []string{"/nonexistent/wb-guestd", HelperArg}
 		}, rule: RuleStartFailed},
+	}
+	// A host value never sets or merges with a trust variable
+	// (S09-08-guest-trust, "Variables").
+	for _, name := range trust.Names() {
+		tests = append(tests, refusal{name: "env " + name, setup: env(name, "/tmp/other.pem"), rule: RuleEnv, invalid: true})
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -15,6 +15,7 @@ require (
 	google.golang.org/protobuf v1.36.12
 	gvisor.dev/gvisor v0.0.0-20261031110703-16342efb9a78
 	modernc.org/sqlite v1.61.0
+	software.sslmate.com/src/go-pkcs12 v0.7.4
 )
 
 require (
