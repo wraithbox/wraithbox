@@ -1,6 +1,8 @@
 package egressmsg
 
 import (
+	"net"
+	"net/netip"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -64,7 +66,17 @@ func TestDecodeHostdToProxyd(t *testing.T) {
 
 func TestDecodeHostdToNetd(t *testing.T) {
 	start := func(vm string, gen uint64) proto.Message {
-		return &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: &egressv1.NetdStart{Vm: vm, Generation: gen}}}
+		return &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: NewNetdStart(vm, gen, testLink())}}
+	}
+	link := func(edit func(l *Link)) proto.Message {
+		l := testLink()
+		edit(&l)
+		return &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: NewNetdStart("work", 1, l)}}
+	}
+	wire := func(edit func(m *egressv1.NetdStart)) proto.Message {
+		m := NewNetdStart("work", 1, testLink())
+		edit(m)
+		return &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: m}}
 	}
 	sock := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{Vm: "work", Generation: 2}}}
 	change := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_PolicyChange{PolicyChange: &egressv1.PolicyChange{Vm: "isolated", Sequence: 1}}}
@@ -73,6 +85,17 @@ func TestDecodeHostdToNetd(t *testing.T) {
 		{"start without payload", start("work", 1), false, CheckMessageForm},
 		{"start generation 0", start("work", 0), true, CheckMessageForm},
 		{"start bad VM", start("../work", 1), true, CheckVMSlot},
+		{"no addressing", &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: &egressv1.NetdStart{Vm: "work", Generation: 1}}}, true, CheckAddressing},
+		{"short guest MAC", link(func(l *Link) { l.GuestMAC = l.GuestMAC[:5] }), true, CheckAddressing},
+		{"multicast gateway MAC", link(func(l *Link) { l.GatewayMAC = net.HardwareAddr{1, 0, 0, 0, 0, 1} }), true, CheckAddressing},
+		{"one MAC", link(func(l *Link) { l.GatewayMAC = l.GuestMAC }), true, CheckAddressing},
+		{"prefix 31", wire(func(m *egressv1.NetdStart) { m.PrefixLen = 31 }), true, CheckAddressing},
+		{"prefix 7", wire(func(m *egressv1.NetdStart) { m.PrefixLen = 7 }), true, CheckAddressing},
+		{"host bits", wire(func(m *egressv1.NetdStart) { m.Subnet++ }), true, CheckAddressing},
+		{"gateway outside", link(func(l *Link) { l.Gateway = netip.MustParseAddr("10.0.0.1") }), true, CheckAddressing},
+		{"leased network", link(func(l *Link) { l.Leased = netip.MustParseAddr("192.168.127.0") }), true, CheckAddressing},
+		{"leased broadcast", link(func(l *Link) { l.Leased = netip.MustParseAddr("192.168.127.255") }), true, CheckAddressing},
+		{"leased gateway", link(func(l *Link) { l.Leased = l.Gateway }), true, CheckAddressing},
 		{"socket", sock, true, ""},
 		{"socket without descriptor", sock, false, CheckMessageForm},
 		{"change", change, true, ""},
@@ -126,6 +149,29 @@ func TestDecodeNetdToHostd(t *testing.T) {
 		// doesn't have.
 		{"proxyd's message", &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_PolicyAck{PolicyAck: &egressv1.PolicyAck{Vm: "work", Sequence: 1}}}, false, CheckMessageForm},
 	})
+}
+
+// testLink is the link of the netd tests (internal/netd/netdtest).
+func testLink() Link {
+	return Link{
+		GuestMAC: net.HardwareAddr{2, 0, 0, 0, 0, 2}, GatewayMAC: net.HardwareAddr{2, 0, 0, 0, 0, 1},
+		Subnet:  netip.MustParsePrefix("192.168.127.0/24"),
+		Gateway: netip.MustParseAddr("192.168.127.1"), Leased: netip.MustParseAddr("192.168.127.2"),
+	}
+}
+
+// TestLinkRoundTrip checks that LinkOf returns the link NewNetdStart
+// wrote.
+func TestLinkRoundTrip(t *testing.T) {
+	want := testLink()
+	got, r := LinkOf(NewNetdStart("work", 1, want))
+	if r != nil {
+		t.Fatal(r)
+	}
+	if got.GuestMAC.String() != want.GuestMAC.String() || got.GatewayMAC.String() != want.GatewayMAC.String() ||
+		got.Subnet != want.Subnet || got.Gateway != want.Gateway || got.Leased != want.Leased {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
 }
 
 func TestStartOrder(t *testing.T) {

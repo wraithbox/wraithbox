@@ -161,6 +161,19 @@ message NetdStart {
   // The VM generation, at least 1. A HandoffSocket for another VM or
   // generation is refused.
   uint64 generation = 2;
+  // The link's addressing (S07-02-packet-path, "Addressing"). The MACs
+  // are 6 bytes each, unicast, and differ. The subnet is an IPv4
+  // network of prefix_len bits, 8 to 30, and the gateway and the
+  // leased address are two host addresses inside it, as fixed32 fields
+  // of the form of MappingEntry.address. wb-netd refuses a start
+  // message whose addressing doesn't describe one link with the check
+  // `addressing`.
+  bytes guest_mac = 3;
+  bytes gateway_mac = 4;
+  fixed32 subnet = 5;
+  uint32 prefix_len = 6;
+  fixed32 gateway = 7;
+  fixed32 leased = 8;
 }
 
 // NetdStartPayload is the kept state of one VM's active period.

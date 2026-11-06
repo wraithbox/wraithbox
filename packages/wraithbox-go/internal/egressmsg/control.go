@@ -134,7 +134,11 @@ func handoffSocket(m *egressv1.HandoffSocket, hasFD bool) *Refusal {
 }
 
 func netdStart(m *egressv1.NetdStart, hasFD bool) *Refusal {
-	return vmGeneration("netd_start", m.GetVm(), m.GetGeneration(), true, hasFD)
+	if r := vmGeneration("netd_start", m.GetVm(), m.GetGeneration(), true, hasFD); r != nil {
+		return r
+	}
+	_, r := LinkOf(m)
+	return r
 }
 
 func policyChange(m *egressv1.PolicyChange, hasFD bool) *Refusal {
