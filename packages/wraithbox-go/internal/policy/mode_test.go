@@ -129,6 +129,43 @@ func TestProtocol(t *testing.T) {
 	}
 }
 
+// TestInspectsTLS checks which host and port get a leaf: a TLS port of
+// a host that isn't a pass host, and no pass host, plain HTTP or raw TCP
+// port, unnamed port, or nil policy.
+func TestInspectsTLS(t *testing.T) {
+	p := &Policy{
+		Endpoints: []Endpoint{
+			l4(t, "a.example.com", EnforcementUnset, 443, 80),
+			l4(t, "pass.example.com", EnforcementUnset, 443),
+		},
+		PassHosts: []PassHost{{Host: name(t, "pass.example.com"), Source: Source{Kind: SourceGlobal}, Reason: "pinned"}},
+		RawTCP:    []RawTCP{{Host: name(t, "a.example.com"), Port: 22, Source: Source{Kind: SourceGlobal}, Reason: "ssh"}},
+	}
+	if r := p.Check(); r != nil {
+		t.Fatal(r)
+	}
+	for _, tc := range []struct {
+		host string
+		port uint16
+		want bool
+	}{
+		{"a.example.com", 443, true},
+		{"a.example.com", 80, false},
+		{"a.example.com", 22, false},
+		{"a.example.com", 8443, false},
+		{"pass.example.com", 443, false},
+		{"b.example.com", 443, false},
+	} {
+		if got := p.InspectsTLS(name(t, tc.host), tc.port); got != tc.want {
+			t.Errorf("InspectsTLS(%s, %d) = %v, want %v", tc.host, tc.port, got, tc.want)
+		}
+	}
+	var none *Policy
+	if none.InspectsTLS(name(t, "a.example.com"), 443) {
+		t.Error("a nil policy inspects a host")
+	}
+}
+
 // TestAllowsTokenPath checks the expansion of access presets and L4
 // endpoints against the model-token-path check of S09-02-precedence:
 // a rule that can allow a POST under /v1/oauth/token on a model API

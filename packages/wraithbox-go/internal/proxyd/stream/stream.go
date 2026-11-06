@@ -34,6 +34,7 @@ import (
 	"errors"
 	"log/slog"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
@@ -99,7 +100,7 @@ const (
 	// CheckEnded: the client ended the stream before its first bytes
 	// were decided.
 	CheckEnded egressmsg.Check = "first-bytes-ended"
-	// CheckALPN: an ALPN list that names neither h2 nor http/1.1.
+	// CheckALPN: a non-empty ALPN list that doesn't name http/1.1.
 	CheckALPN egressmsg.Check = "alpn"
 	// CheckEarlyData: an early_data extension, or application data,
 	// before a pass host's ServerHello.
@@ -195,11 +196,16 @@ type Inspected struct {
 	Conn net.Conn
 	// Control ends the stream and registers checks on it.
 	Control Control
+	// Began is the hand-off. The first-bytes deadline runs from it,
+	// through the TLS handshake to the first request's line
+	// (S07-15-non-http-streams, "Inside TLS on an inspected host").
+	Began time.Time
 }
 
-// Inspector takes each inspected stream: M3.6 terminates its TLS and
-// applies HTTP policy. It owns the stream, and ends it through Control.
-// It is called on the stream's own goroutine.
+// Inspector takes each inspected stream: internal/proxyd/inspect
+// terminates its TLS, and the HTTP handlers apply HTTP policy. It owns
+// the stream, and ends it through Control. It is called on the stream's
+// own goroutine.
 type Inspector interface {
 	Inspect(s *Inspected)
 }
@@ -314,7 +320,7 @@ func routeOf(p *policy.Policy, name dnsname.Name, port uint16) route {
 	r := route{protocol: p.Protocol(name, port)}
 	switch r.protocol {
 	case policy.StreamTLS:
-		if isPassHost(p, name) {
+		if p.IsPassHost(name) {
 			r.mode = ModePass
 			return r
 		}
@@ -331,11 +337,6 @@ func inspectMode(p *policy.Policy, name dnsname.Name, port uint16) Mode {
 		return ModeAudit
 	}
 	return ModeInspect
-}
-
-func isPassHost(p *policy.Policy, name dnsname.Name) bool {
-	_, ok := passEntry(p, name)
-	return ok
 }
 
 func passEntry(p *policy.Policy, name dnsname.Name) (policy.PassHost, bool) {
@@ -442,19 +443,17 @@ func sniCheck(ch *tlsparse.ClientHello, formOK bool) egressmsg.Check {
 	return "server-name-differs"
 }
 
-// alpnAllowsHTTP reports whether an ALPN list is empty or names h2 or
-// http/1.1, the only protocols wb-proxyd offers
-// (S07-15-non-http-streams, "Inside TLS on an inspected host").
+// ALPNHTTP1 is the one ALPN protocol wb-proxyd offers on a terminated
+// stream until HTTP/2 lands (S07-15-non-http-streams, "Inside TLS on an
+// inspected host"; I497).
+const ALPNHTTP1 = "http/1.1"
+
+// alpnAllowsHTTP reports whether an ALPN list is empty or names
+// http/1.1, the only protocol wb-proxyd offers. A list of only h2 is
+// refused here, before the handshake, rather than by a
+// no_application_protocol alert in it.
 func alpnAllowsHTTP(alpn []string) bool {
-	if len(alpn) == 0 {
-		return true
-	}
-	for _, p := range alpn {
-		if p == "h2" || p == "http/1.1" {
-			return true
-		}
-	}
-	return false
+	return len(alpn) == 0 || slices.Contains(alpn, ALPNHTTP1)
 }
 
 // plain checks a plain HTTP stream's request line and sends it to the
@@ -477,8 +476,8 @@ func (h *Handler) inspect(st *stream, r route, first firstBytes) {
 	h.inspector.Inspect(&Inspected{
 		VM: st.vm, Generation: st.gen, ID: st.id, Name: st.name, Port: st.port,
 		Protocol: r.protocol, Mode: r.mode, Hello: first.hello,
-		Conn:    &replayConn{Conn: st.conn, pending: first.buf},
-		Control: st.ctl,
+		Conn:    Replay(st.conn, first.buf),
+		Control: st.ctl, Began: st.began,
 	})
 }
 

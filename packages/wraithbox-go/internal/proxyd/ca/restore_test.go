@@ -199,7 +199,7 @@ func TestC02AcceptGating(t *testing.T) {
 		t.Fatalf("Accept of a VM with no CA set = %v, want ErrOutOfOrder", err)
 	}
 	e.accept("work", 1)
-	if leaf, ref := e.a.For("work", 1, "example.com"); leaf == nil {
+	if leaf, ref := e.a.For(leafReq("work", 1, "example.com")); leaf == nil {
 		t.Fatalf("For after the accept: %v", ref)
 	}
 
@@ -207,7 +207,7 @@ func TestC02AcceptGating(t *testing.T) {
 	// accepted (S09-07-ca-certificates, "Rotation", day 30).
 	derB := e.issue("work", caB)
 	e.loaded("work", 1, caA, caA, der, caB, derB)
-	if leaf, ref := e.a.For("work", 1, "example.com"); leaf == nil {
+	if leaf, ref := e.a.For(leafReq("work", 1, "example.com")); leaf == nil {
 		t.Fatalf("For after a CA set of the same generation: %v", ref)
 	}
 
@@ -215,7 +215,7 @@ func TestC02AcceptGating(t *testing.T) {
 	e.wantRefusal("work", 2, "example.com", RuleLeafRefused, ReasonNotAccepted)
 	e.wantRefusal("work", 1, "example.com", RuleLeafRefused, ReasonGeneration)
 	e.accept("work", 2)
-	if leaf, ref := e.a.For("work", 2, "example.com"); leaf == nil {
+	if leaf, ref := e.a.For(leafReq("work", 2, "example.com")); leaf == nil {
 		t.Fatalf("For after the second accept: %v", ref)
 	}
 
@@ -232,7 +232,7 @@ func TestC02AcceptGating(t *testing.T) {
 			t.Errorf("%q isn't logged with rule %s and decision=refuse:\n%s", msg, RuleControlRefused, e.logs)
 		}
 	}
-	if leaf, ref := e.a.For("work", 2, "example.com"); leaf == nil {
+	if leaf, ref := e.a.For(leafReq("work", 2, "example.com")); leaf == nil {
 		t.Fatalf("For after the refused CA set: %v", ref)
 	}
 }

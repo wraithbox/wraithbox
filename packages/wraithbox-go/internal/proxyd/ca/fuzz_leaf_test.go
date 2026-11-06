@@ -25,7 +25,7 @@ func FuzzLeafName(f *testing.F) {
 	e := newEnv(f, team)
 	ca := e.ready()
 	f.Fuzz(func(t *testing.T, name string) {
-		leaf, ref := e.a.For("work", 1, name)
+		leaf, ref := e.a.For(leafReq("work", 1, name))
 		if leaf == nil {
 			if ref == nil || ref.Rule == "" {
 				t.Fatalf("For(%q) gave neither a leaf nor a refusal with a rule", name)

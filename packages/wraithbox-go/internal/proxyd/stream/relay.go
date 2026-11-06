@@ -147,6 +147,12 @@ func closeWrite(c net.Conn) {
 	}
 }
 
+// Replay returns c with reads that return pending first: the bytes a
+// first-byte check read.
+func Replay(c net.Conn, pending []byte) net.Conn {
+	return &replayConn{Conn: c, pending: pending}
+}
+
 // replayConn is a stream's connection whose reads return the bytes the
 // first-byte check read first.
 type replayConn struct {
