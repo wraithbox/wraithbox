@@ -140,8 +140,9 @@ looked like, and reaches the audit hook.
 - Send a ClientHello split over three records, and a flight of exactly
   the byte cap, and see each taken. A flight one byte past the cap is
   reset (`TestC02ClientHelloRecords`).
-- Send an ALPN list of only `ftp`, and see it reset. `h2`, `http/1.1`
-  and no list go to the Inspector (`TestC02ALPN`). A host in audit
+- Send an ALPN list of only `ftp`, and one of only `h2`, and see each
+  reset. A list that names `http/1.1`, alone or with others, and no
+  list go to the Inspector (`TestC02ALPN`). A host in audit
   goes to the Inspector in audit mode, after the same checks
   (`TestC02AuditMode`).
 - To a pass host, send ClientHellos that hold an
@@ -181,6 +182,56 @@ looked like, and reaches the audit hook.
   check (`TestReadClientHelloRefuses`), and reads a server's records
   only to its ServerHello (`TestServerFlight`).
 
+### TLS termination
+
+Spec: S07-15-non-http-streams ("Inside TLS on an inspected host"),
+S07-07-hosts-and-modes ("inspect"), S07-16-tls-and-tunnels. The tests
+are in `internal/proxyd/inspect`, with Go test clients and servers on
+loopback, a CA made in the test, and fakes for the leaves, the
+stream's control and the HTTP handler. Each refusal is checked in
+`inspect` and in `audit` mode, and is the same in both.
+
+- A client that trusts the CA completes the handshake with TLS 1.2 and
+  1.3, offering `http/1.1`, `h2` and `http/1.1`, or no ALPN. It gets
+  HTTP/1.1, its first request reaches the HTTP handler, the leaf is
+  asked for the stream's VM, generation, name, port and policy, and
+  nothing is dialed (`TestC02InspectHandshake`). A plain HTTP stream
+  goes to the HTTP handler with no leaf (`TestC02InspectPlainHTTP`).
+- See that the client doesn't hold a session ticket after the handshake, with TLS
+  1.2 and 1.3 (`TestC02InspectNoSessionTickets`).
+- A refusal from the leaf interface resets the stream with its rule
+  (`TestC02InspectLeafRefused`). An `h2`-only client's handshake fails
+  (`TestC02InspectALPN`).
+- A Go client with an ECH configuration aborts with `ech_required`,
+  and the stream is reset with `tls-ech-refused`
+  (`TestC02InspectECH`).
+- A Go client that distrusts the CA, with TLS 1.2 and 1.3, or that
+  expects another name, aborts. The stream is reset with
+  `tls-client-rejected-leaf`, the alert's description and the known
+  gap of FR08-no-proxy-config (`TestC02InspectRejectedLeaf`). A client
+  that closes after the server's flight, during the handshake or
+  after it with no request byte, is logged the same way with `closed`
+  (`TestC02InspectClientClosed`). Every alert code classifies by its
+  structure, never by its text alone (`TestHandshakeErrorRule`).
+- After the handshake, send SSH, the HTTP/2 preface, a line past the
+  cap, a partial line and then the end, nothing, and a partial line.
+  See each reset with `stream-protocol-mismatch` or
+  `stream-first-bytes-timeout` and its check, and nothing dialed
+  (`TestC02InspectAfterHandshake`). A client that stalls in the
+  handshake meets the same deadline
+  (`TestC02InspectDeadlineCoversHandshake`).
+- Upstream, see the server verified for the stream's name, offered
+  `http/1.1` only, and that it doesn't get a client certificate when it asks for one
+  (`TestC02UpstreamTLS`). A plain HTTP stream gets the dialed
+  connection (`TestC02UpstreamPlain`), and a dialer's refusal comes
+  back with its rule (`TestC02UpstreamDialRefused`).
+- An upstream that requires a client certificate gives
+  `tls-client-cert-unsupported`, with TLS 1.2 in the handshake and
+  with TLS 1.3 on the first read (`TestC02UpstreamClientCert`). One
+  whose CA the roots don't trust, or whose certificate names another
+  host, gives `upstream-tls-verify` (`TestC02UpstreamVerify`). One that
+  isn't TLS gives `upstream-tls-failed` (`TestC02UpstreamFailed`).
+
 ### Leaf issuance
 
 Spec: S09-06-ca-keys.
@@ -198,6 +249,12 @@ Spec: S09-06-ca-keys.
     with no signing CA, and an expired CA with a leaf cached. See each
     refused with `ca-leaf-refused` and its reason, or
     `ca-not-installed`, and logged (`TestC02LeafRefusals`).
+  - Ask for a leaf for a pass host, plain HTTP, a raw TCP entry, a port
+    outside every endpoint and a stream with no policy. See each refused
+    with `ca-leaf-refused`, logged, and nothing signed
+    (`TestC02LeafNotInspected`).
+  - Ask for one new hostname's leaf from 8 calls at once, and see it
+    signed once and each call get it (`TestLeafSingleflight`).
   - See a leaf with exactly the leaf profile, a chain of the leaf only,
     and a validity cut to the CA's end, that verifies against its CA
     (`TestC02LeafProfile`).
@@ -389,6 +446,10 @@ a temporary directory, unless named otherwise.
   `FuzzPassInterleaved` steps the relay's client and server directions
   in any order, and checks that the checks end only when no second
   ClientHello is owed.
+- The guest handshake's errors: `FuzzHandshakeErrorRule` feeds any
+  error text, plain, wrapped or in a `*net.OpError` with any `Op`. It
+  never classifies as `tls-ech-refused` or `tls-client-rejected-leaf`
+  for anything but a received alert, and gives one of them for every received alert.
 - HTTP/1.1 and HTTP/2 request handling, and request path
   canonicalization.
 - The name reports, releases and stream messages `wb-proxyd` reads from

@@ -100,7 +100,7 @@ func TestC02UpstreamTLS(t *testing.T) {
 		t.Fatalf("Upstream read %q, %v, want ok; logs:\n%s", got, err, e.logs)
 	}
 	st := <-u.state
-	if st.NegotiatedProtocol != stream.ALPNHTTP1 || len(st.PeerCertificates) != 0 {
+	if st.NegotiatedProtocol != stream.NextProtoHTTP1 || len(st.PeerCertificates) != 0 {
 		t.Errorf("upstream saw ALPN %q and %d client certificates, want http/1.1 and none", st.NegotiatedProtocol, len(st.PeerCertificates))
 	}
 }

@@ -41,6 +41,10 @@ with the rule.
 
 - the hostname isn't a DNS name in canonical form, or is a wildcard or
   an IP address;
+- the stream's policy doesn't inspect its host and port: a pass host,
+  plain HTTP, a raw TCP entry, or a port outside every endpoint. The leaf
+  issuer checks this against the policy itself, apart from the stream
+  checks before it;
 - the VM has no CA set, or the stream's generation isn't the CA set's;
 - `wb-hostd` hasn't accepted the CA set's generation ("Messages");
 - the signing CA has expired;
@@ -49,6 +53,14 @@ with the rule.
 A VM with no signing CA is refused with `ca-not-installed`
 ("Rotation"), and one whose CA didn't restore with the rule of the
 restore (S09-06-ca-keys, "Restore").
+
+Parallel requests for one hostname that isn't cached wait for the
+first one's signature, so each new leaf is signed once. Signing is
+bounded by the stream admission caps (SEC13-bounded-resources): one
+request per stream, after its first-byte and SNI checks, so at most
+the hand-off socket's stream cap at once per VM. The names that need a
+signature are bounded by the policy's names and the wildcard budget
+of S07-03-dns.
 
 #### Leaf profile
 

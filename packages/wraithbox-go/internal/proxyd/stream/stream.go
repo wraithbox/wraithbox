@@ -443,17 +443,17 @@ func sniCheck(ch *tlsparse.ClientHello, formOK bool) egressmsg.Check {
 	return "server-name-differs"
 }
 
-// ALPNHTTP1 is the one ALPN protocol wb-proxyd offers on a terminated
-// stream until HTTP/2 lands (S07-15-non-http-streams, "Inside TLS on an
-// inspected host"; I497).
-const ALPNHTTP1 = "http/1.1"
+// NextProtoHTTP1 is the one ALPN protocol wb-proxyd offers on a
+// terminated stream, until I499 adds h2 (S07-15-non-http-streams,
+// "Inside TLS on an inspected host").
+const NextProtoHTTP1 = "http/1.1"
 
 // alpnAllowsHTTP reports whether an ALPN list is empty or names
 // http/1.1, the only protocol wb-proxyd offers. A list of only h2 is
 // refused here, before the handshake, rather than by a
 // no_application_protocol alert in it.
 func alpnAllowsHTTP(alpn []string) bool {
-	return len(alpn) == 0 || slices.Contains(alpn, ALPNHTTP1)
+	return len(alpn) == 0 || slices.Contains(alpn, NextProtoHTTP1)
 }
 
 // plain checks a plain HTTP stream's request line and sends it to the
