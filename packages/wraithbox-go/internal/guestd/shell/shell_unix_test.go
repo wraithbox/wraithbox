@@ -230,7 +230,8 @@ func TestHelperGone(t *testing.T) {
 }
 
 // TestEnvironment: the program's environment is exactly that of
-// decision 2 of #303, and it starts in the home directory.
+// decision 2 of #303 and the trust variables of S09-08-guest-trust,
+// "Variables", and it starts in the home directory.
 func TestEnvironment(t *testing.T) {
 	h := newHarness(t, "env")
 	h.start(&terminalv1.Setup{Env: []*terminalv1.EnvVar{
@@ -241,6 +242,12 @@ func TestEnvironment(t *testing.T) {
 	want := []string{
 		"HOME=" + u.Home, "LANG=en_US.UTF-8", "LOGNAME=" + u.Name, "PATH=/usr/bin:/bin:/usr/sbin:/sbin",
 		"SHELL=/bin/zsh", "TERM=xterm-256color", "USER=" + u.Name,
+		"SSL_CERT_FILE=/etc/wraithbox/trust/bundle.pem",
+		"REQUESTS_CA_BUNDLE=/etc/wraithbox/trust/bundle.pem",
+		"GIT_SSL_CAINFO=/etc/wraithbox/trust/bundle.pem",
+		"CARGO_HTTP_CAINFO=/etc/wraithbox/trust/bundle.pem",
+		"NODE_EXTRA_CA_CERTS=/etc/wraithbox/trust/ca.pem",
+		"JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStore=/etc/wraithbox/trust/java-truststore.p12",
 	}
 	tmp, err := sessionproc.UserTempDir(t.Context())
 	if err != nil {

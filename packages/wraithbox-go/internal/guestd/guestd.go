@@ -3,8 +3,8 @@
 // host-guest socket (S06-12-guest-agent, "`wb-guestd`").
 //
 // It serves Hello, SetTime, MountData, and the project users' calls:
-// EnsureUsers, UnlockUser, KillUser and RemoveUser, and Shell
-// (internal/guestd/shell). Exec and the git transport join it later. When the last
+// EnsureUsers, UnlockUser, KillUser and RemoveUser, Shell
+// (internal/guestd/shell), and InstallTrust (internal/guestd/trust). Exec and the git transport join it later. When the last
 // connection from the host ends, it runs the stop loop
 // (S13-01-process-hardening, "When the link drops").
 package guestd
@@ -19,6 +19,7 @@ import (
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/procs"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/shell"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/trust"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/users"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestmount"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/guestusers"
@@ -67,6 +68,9 @@ func NewServer(own string, log *slog.Logger, opts ...Option) *grpc.Server {
 	if svc.emptier == nil {
 		svc.emptier = &guestusers.System{Log: log}
 	}
+	if svc.trust == nil {
+		svc.trust = trust.NewInstaller(log)
+	}
 	if svc.openRoot == nil {
 		svc.openRoot = func() (guestusers.Root, error) { return guestusers.OpenRoot(HomePath) }
 	}
@@ -90,6 +94,7 @@ type service struct {
 	openRoot  func() (guestusers.Root, error)
 	helper    []string
 	shells    *shell.Server
+	trust     trustInstaller
 }
 
 // Hello reports wb-guestd's build version and the packages it serves.
