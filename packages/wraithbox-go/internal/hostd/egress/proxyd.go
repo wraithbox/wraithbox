@@ -35,6 +35,8 @@ const (
 	checkCanceled        = "canceled"
 	checkGenerationOlder = "generation-older"
 	checkPayloadWrite    = "payload-write"
+	checkNotStarted      = "vm-not-started"
+	checkPending         = "pending"
 )
 
 // SetupError is the error of a VM start's message to wb-proxyd that
@@ -78,6 +80,8 @@ type ProxydConfig struct {
 	AckTimeout time.Duration
 	// Socketpair makes a hand-off socketpair. Nil is fdchan.Socketpair.
 	Socketpair func(maxRecord int) (a, b *os.File, err error)
+	// Pipe makes a payload pipe. Nil is os.Pipe.
+	Pipe func() (r, w *os.File, err error)
 }
 
 // Proxyd is wb-hostd's end of wb-proxyd's control channel
@@ -93,9 +97,12 @@ type Proxyd struct {
 	endMu  sync.Once
 	done   chan struct{}
 
-	mu        sync.Mutex
-	waiters   map[waitKey]chan struct{}
-	abandoned map[waitKey]bool
+	mu      sync.Mutex
+	waiters map[waitKey]chan struct{}
+	// abandoned counts, per key, the messages whose call gave up before
+	// their acknowledgment came. wb-proxyd acknowledges in order, so
+	// the next acknowledgments of the key are theirs.
+	abandoned map[waitKey]int
 }
 
 // NewProxyd sends wb-hostd's version record on the control channel. A
@@ -110,9 +117,12 @@ func NewProxyd(cfg ProxydConfig) (*Proxyd, error) {
 	if cfg.Socketpair == nil {
 		cfg.Socketpair = fdchan.Socketpair
 	}
+	if cfg.Pipe == nil {
+		cfg.Pipe = os.Pipe
+	}
 	p := &Proxyd{
 		cfg: cfg, log: cfg.Log, done: make(chan struct{}),
-		waiters: map[waitKey]chan struct{}{}, abandoned: map[waitKey]bool{},
+		waiters: map[waitKey]chan struct{}{}, abandoned: map[waitKey]int{},
 	}
 	if err := cfg.Conn.Send(hostversion.Record(cfg.Own), nil); err != nil {
 		return nil, fmt.Errorf("egress: send the version record to wb-proxyd: %w", err)
@@ -212,27 +222,34 @@ func (p *Proxyd) message(m *fdchan.Message) error {
 		errors.New("a CA reply, and wb-hostd sends no CA message yet"))
 }
 
-// ack hands an acknowledgment to the call that waits for it. A late
-// one, for a call that gave up, is logged and ignored. One that no call
-// asked for ends wb-proxyd. An acknowledged hand-off socket is marked
-// in the State before the call sees it, so a HandoffSocketClosed that
+// ack hands an acknowledgment to the call that waits for it. One for a
+// message whose call gave up is logged and ignored, and one that no call
+// asked for ends wb-proxyd. An acknowledged hand-off socket is marked in
+// the State before the call sees it, so a HandoffSocketClosed that
 // follows it finds it.
 func (p *Proxyd) ack(k waitKey) error {
 	p.mu.Lock()
+	late := p.abandoned[k] > 0
 	w, ok := p.waiters[k]
-	late := p.abandoned[k]
-	delete(p.waiters, k)
-	delete(p.abandoned, k)
-	if ok && !k.policy {
-		p.cfg.State.served(k.vm, k.n)
+	switch {
+	case late:
+		p.abandoned[k]--
+		if p.abandoned[k] == 0 {
+			delete(p.abandoned, k)
+		}
+	case ok:
+		delete(p.waiters, k)
+		if !k.policy {
+			p.cfg.State.served(k.vm, k.n)
+		}
 	}
 	p.mu.Unlock()
 	switch {
-	case ok:
-		close(w)
-		return nil
 	case late:
 		p.log.Info("late acknowledgment ignored", "vm", k.vm, "number", k.n, "policy", k.policy)
+		return nil
+	case ok:
+		close(w)
 		return nil
 	}
 	return p.endProxyd(RuleControlRefused, "unexpected-ack",
@@ -290,12 +307,15 @@ func (p *Proxyd) Start(payload *egressv1.ProxydStartPayload) error {
 // order").
 func (p *Proxyd) Policy(ctx context.Context, vm string, seq uint64, policy *policyv1.EffectivePolicy) error {
 	k := waitKey{policy: true, vm: vm, n: seq}
-	w := p.expect(k)
+	w, err := p.expect(k)
+	if err != nil {
+		return err
+	}
 	m := &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_PolicyChange{
 		PolicyChange: &egressv1.PolicyChange{Vm: vm, Sequence: seq},
 	}}
 	if err := p.sendPayload(vm, m, policy); err != nil {
-		p.forget(k)
+		p.forget(k, w)
 		return err
 	}
 	return p.wait(ctx, k, w)
@@ -307,17 +327,30 @@ func (p *Proxyd) Policy(ctx context.Context, vm string, seq uint64, policy *poli
 // only then returns the other end, which the caller gives to wb-netd.
 // On any failure it closes both ends and returns a *SetupError, and the
 // start fails.
+//
+// The caller calls State.Start for vm first: Handoff refuses a VM that
+// isn't started, whose acknowledgment the State would drop. It also
+// refuses a second Handoff for the same VM and generation while one
+// waits.
 func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, error) {
-	if held := p.cfg.State.servedGeneration(vm); gen < held {
+	held, started := p.cfg.State.handoffState(vm)
+	if !started {
+		return nil, p.setupFailed(vm, checkNotStarted, errors.New("the VM isn't started"))
+	}
+	if gen < held {
 		// wb-proxyd would refuse it and end its control channel.
 		return nil, p.setupFailed(vm, checkGenerationOlder, fmt.Errorf("generation %d is older than %d", gen, held))
 	}
+	k := waitKey{vm: vm, n: gen}
+	w, err := p.expect(k)
+	if err != nil {
+		return nil, err
+	}
 	proxydEnd, netdEnd, err := p.cfg.Socketpair(egressmsg.MaxRecord)
 	if err != nil {
+		p.forget(k, w)
 		return nil, p.setupFailed(vm, checkSocketpair, err)
 	}
-	k := waitKey{vm: vm, n: gen}
-	w := p.expect(k)
 	m := &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_HandoffSocket{
 		HandoffSocket: &egressv1.HandoffSocket{Vm: vm, Generation: gen},
 	}}
@@ -326,7 +359,7 @@ func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, 
 	if err == nil {
 		err = p.wait(ctx, k, w)
 	} else {
-		p.forget(k)
+		p.forget(k, w)
 	}
 	if err != nil {
 		_ = netdEnd.Close()
@@ -336,25 +369,34 @@ func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, 
 }
 
 // expect registers a call's wait before its message is sent, so the
-// acknowledgment can't come first.
-func (p *Proxyd) expect(k waitKey) chan struct{} {
-	w := make(chan struct{})
+// acknowledgment can't come first. A second call for a key that a call
+// waits for is refused: their acknowledgments couldn't be told apart.
+func (p *Proxyd) expect(k waitKey) (chan struct{}, error) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.waiters[k] = w
-	delete(p.abandoned, k)
-	return w
+	_, pending := p.waiters[k]
+	w := make(chan struct{})
+	if !pending {
+		p.waiters[k] = w
+	}
+	p.mu.Unlock()
+	if pending {
+		return nil, p.setupFailed(k.vm, checkPending, fmt.Errorf("a call waits for the acknowledgment of %d", k.n))
+	}
+	return w, nil
 }
 
-// forget drops the wait of a call whose message wasn't sent.
-func (p *Proxyd) forget(k waitKey) {
+// forget drops the wait w of a call whose message wasn't sent.
+func (p *Proxyd) forget(k waitKey, w chan struct{}) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	delete(p.waiters, k)
+	if p.waiters[k] == w {
+		delete(p.waiters, k)
+	}
 }
 
 // wait waits for the acknowledgment of k within the ack timeout. A call
-// that gives up marks k abandoned, so a late acknowledgment is ignored.
+// that gives up counts its message abandoned, so its late
+// acknowledgment is ignored and not taken for a later call's.
 func (p *Proxyd) wait(ctx context.Context, k waitKey, w chan struct{}) error {
 	timer := time.NewTimer(p.cfg.AckTimeout)
 	defer timer.Stop()
@@ -371,10 +413,10 @@ func (p *Proxyd) wait(ctx context.Context, k waitKey, w chan struct{}) error {
 		check, cause = checkCanceled, ctx.Err()
 	}
 	p.mu.Lock()
-	_, waiting := p.waiters[k]
+	waiting := p.waiters[k] == w
 	if waiting {
 		delete(p.waiters, k)
-		p.abandoned[k] = true
+		p.abandoned[k]++
 	}
 	p.mu.Unlock()
 	if !waiting {
@@ -388,7 +430,7 @@ func (p *Proxyd) wait(ctx context.Context, k waitKey, w chan struct{}) error {
 // the payload in a goroutine of its own. A write that fails is a crash
 // of wb-proxyd (S04-architecture, "Control channels").
 func (p *Proxyd) sendPayload(vm string, m *egressv1.HostdToProxyd, payload proto.Message) error {
-	r, w, err := os.Pipe()
+	r, w, err := p.cfg.Pipe()
 	if err != nil {
 		return p.setupFailed(vm, checkSend, err)
 	}

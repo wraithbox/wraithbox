@@ -57,13 +57,16 @@ const (
 	// VM's current one, or one wb-hostd already acted on. It is logged
 	// and ignored (S07-06-name-mapping, "Malformed reports").
 	RuleNoticeStale = "handoff-notice-stale"
+	// RuleNameUnserved: a wb-proxyd wildcard name for a VM that is
+	// stopped, or whose hand-off socket wb-proxyd hasn't acknowledged
+	// since its start. It is kept and logged, rate-limited
+	// (S07-06-name-mapping, "Kept by wb-hostd").
+	RuleNameUnserved = "proxyd-name-unserved"
 )
 
 // The checks this package adds to those of egressmsg.
 const (
-	// CheckVMNotServed: a wb-netd record for a VM that wasn't started, or
-	// a ProxydWildcardName for a VM whose hand-off socket wb-proxyd hasn't
-	// acknowledged since the VM's start.
+	// CheckVMNotServed: a record for a VM slot wb-hostd never started.
 	CheckVMNotServed = "vm-not-served"
 	// CheckEntryCount: a new mapping entry past the bound on live
 	// entries per VM, egressmsg.MaxEntries.
