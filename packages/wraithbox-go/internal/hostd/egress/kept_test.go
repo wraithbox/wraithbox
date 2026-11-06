@@ -156,8 +156,9 @@ func TestRecordMalformed(t *testing.T) {
 // TestProxydNamesServedVM: wb-proxyd's wildcard names are kept per VM.
 // A name for a slot wb-hostd never started is refused with
 // vm-not-served. One for a VM that is stopped, or whose hand-off socket
-// wb-proxyd hasn't acknowledged since a restart, is kept and logged with
-// proxyd-name-unserved: wb-proxyd may have written it before
+// wb-proxyd hasn't acknowledged since a restore, is kept and logged with
+// proxyd-name-unserved, and one after a start that cleared the VM's
+// state is dropped: wb-proxyd may have written it before
 // (S07-06-name-mapping, "Kept by wb-hostd"; SEC08-proj-isolation).
 func TestProxydNamesServedVM(t *testing.T) {
 	s, _, buf := newState(t)
@@ -179,16 +180,43 @@ func TestProxydNamesServedVM(t *testing.T) {
 		t.Fatalf("wb-proxyd names %v after the stop", names(got))
 	}
 
-	s.Start("work", false)
+	s.Start("work", true)
 	mustRecord(t, s, ProxydSource(), proxydNameRecord(t, "work", "c.example.com"))
-	if _, _, got := s.Kept("work"); !slices.Equal(names(got), []string{"c.example.com"}) {
-		t.Fatalf("wb-proxyd names %v after the restart", names(got))
+	if _, _, got := s.Kept("work"); !slices.Equal(names(got), []string{"a.example.com", "b.example.com", "c.example.com"}) {
+		t.Fatalf("wb-proxyd names %v after the restore", names(got))
+	}
+
+	s.Start("work", false)
+	mustRecord(t, s, ProxydSource(), proxydNameRecord(t, "work", "d.example.com"))
+	if _, _, got := s.Kept("work"); len(got) != 0 {
+		t.Fatalf("wb-proxyd names %v after a start that cleared them", names(got))
+	}
+}
+
+// TestStaleProxydNameDropped: a wb-proxyd name from a VM's previous run,
+// read after a start that cleared the VM's state and before the
+// acknowledgment, is logged and dropped. Kept, it would fill the new
+// run's budget one name early, and wb-proxyd's last name would be
+// refused with wildcard-count, which ends wb-proxyd and every VM
+// (S07-06-name-mapping, "Kept by wb-hostd"; SEC08-proj-isolation).
+func TestStaleProxydNameDropped(t *testing.T) {
+	s, _, buf := newState(t)
+	s.maxNames = 1
+	s.Start("work", false)
+	s.Stop("work")
+	s.Start("work", false)
+	mustRecord(t, s, ProxydSource(), proxydNameRecord(t, "work", "old.example.com"))
+	expectLog(t, buf, `"rule":"proxyd-name-unserved"`, `"decision":"drop"`, `"vm":"work"`, `"name":"old.example.com"`, `"started":true`)
+	s.served("work", 1)
+	mustRecord(t, s, ProxydSource(), proxydNameRecord(t, "work", "new.example.com"))
+	if _, _, got := s.Kept("work"); !slices.Equal(names(got), []string{"new.example.com"}) {
+		t.Fatalf("wb-proxyd names %v", names(got))
 	}
 }
 
 // TestProxydNameAfterStopKeepsProxyd: VM A stops, or restarts, while
 // wb-proxyd's wildcard name for it is still in the accounting channel.
-// The reader keeps it and doesn't end wb-proxyd, which serves VM B too
+// The reader doesn't end wb-proxyd for it, which serves VM B too
 // (SEC08-proj-isolation).
 func TestProxydNameAfterStopKeepsProxyd(t *testing.T) {
 	for _, restart := range []bool{false, true} {

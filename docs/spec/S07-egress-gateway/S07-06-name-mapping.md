@@ -163,11 +163,15 @@ The other records are malformed (`accounting-record-malformed`) when:
   (`wildcard-count`). A repeated one counts once.
 
 `wb-proxyd` can write a `ProxydWildcardName` just before a VM stops or
-restarts, and `wb-hostd` reads it after. So a name for a VM that is
-stopped, or whose hand-off socket `wb-proxyd` hasn't acknowledged since
-its start, is kept and logged with `proxyd-name-unserved`,
-rate-limited. It only counts against that VM's budget, and ending
-`wb-proxyd` for it would stop the other VMs too (SEC08-proj-isolation).
+restarts, and `wb-hostd` reads it after. Ending `wb-proxyd` for it
+would stop the other VMs too (SEC08-proj-isolation). So a name for a
+VM that is stopped, or whose hand-off socket `wb-proxyd` hasn't
+acknowledged since its start, is logged with `proxyd-name-unserved`,
+rate-limited. `wb-hostd` keeps the name while the VM is stopped and
+after a restore, because it counts against the period the VM goes on
+with. After a start that cleared the VM's counts, `wb-hostd` drops it.
+The name came from the previous run, and `wb-proxyd`'s count for the
+new run doesn't hold it.
 
 A channel that fails ends its sender with `accounting-channel-failed`,
 but a sender that closes its own channel isn't ended.
