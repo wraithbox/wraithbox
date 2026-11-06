@@ -58,7 +58,14 @@ func runChild(exe string) int {
 			d.drop()
 		}
 	}()
-	if err := run(ctx, options{Paths: p, Executable: exe, Version: version.Build(), wrapVMs: d.wrap}); err != nil {
+	o := options{Paths: p, Executable: exe, Version: version.Build(), wrapVMs: d.wrap}
+	if dir := os.Getenv(trustVar); dir != "" {
+		if o.caTest, err = newFakeCA(dir, slog.New(slog.NewJSONHandler(os.Stderr, nil))); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+	}
+	if err := run(ctx, o); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
