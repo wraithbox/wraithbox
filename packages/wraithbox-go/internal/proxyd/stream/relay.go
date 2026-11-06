@@ -56,7 +56,6 @@ func (r *refusal) decision() string {
 // recompute, an address conflict or the socket's end, which logged it.
 const endedByHandoff = "hand-off"
 
-
 // relay is one allowed stream and its upstream connection.
 type relay struct {
 	h  *Handler
