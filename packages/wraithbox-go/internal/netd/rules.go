@@ -55,6 +55,11 @@ const (
 	// ICMP.
 	RuleIPProtocol Rule = "ip-protocol"
 
+	// RuleLinkNotStarted: a frame that arrived before wb-netd's stack
+	// started. It is read and dropped unparsed, so a guest that sends
+	// before the start can't fill the packet socket ("Packet
+	// transport").
+	RuleLinkNotStarted Rule = "link-not-started"
 	// RuleLinkQueueFull: an outbound frame over the queue's frame or
 	// byte cap ("Per-VM caps").
 	RuleLinkQueueFull Rule = "link-queue-full"
