@@ -131,16 +131,24 @@ confirm. It asks in its own terminal, never in a session's stream
 
 This command follows a `ca-key-restore` refusal.
 
-1. It prints the VM's CAs, and asks for confirmation.
-2. Then `wb-hostd`:
-   - drops the CAs from its record;
-   - writes a 5019 event with the command and their fingerprints;
-   - puts their keys on the removal list;
+1. It prints the VM's CAs, each with its SHA-256 fingerprint and its
+   dates, and asks for confirmation. A VM without a CA isn't asked
+   about.
+2. Then `wb-hostd`, asked over local IPC with the fingerprints the
+   person saw:
+   - refuses with `vm-running` unless the VM is stopped, and holds the
+     VM's start lock until it is done, so a start meanwhile is refused
+     with `vm-resetting`, as `wb vm reset-data` does;
+   - refuses with `ca-record-changed` unless the record holds exactly
+     the CAs the person saw;
+   - in one transaction, drops the CAs from its record, writes a 5019
+     event with the command and their fingerprints, and puts their keys
+     on the removal list;
    - deletes the VM's saved state.
 
 The next start then cold boots with a new CA (S09-06-ca-keys, "Valid CA").
 
-The command is refused while the VM runs. It is refused without a
+The command is refused without a
 terminal, because a person has to confirm. It asks in its own terminal,
 never in a session's stream (SEC14-no-fake-approvals). It is never
 part of a guest RPC.
