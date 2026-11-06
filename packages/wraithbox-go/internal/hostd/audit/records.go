@@ -65,6 +65,12 @@ type Fields struct {
 	Run *RunCount `json:"run,omitempty"`
 	// OpenRuns are the runs still open at a VM's stop, in its stop record.
 	OpenRuns []OpenRun `json:"open_runs,omitempty"`
+	// CAs are the inspection CAs of a CA record (S09-07-ca-certificates,
+	// "Audit").
+	CAs []CA `json:"cas,omitempty"`
+	// Store is the item and access of a store access record
+	// (S15-03-access-rules, rule 6).
+	Store *StoreItem `json:"store,omitempty"`
 }
 
 // Peer is the wb that asked, by the user ID and process ID localipc

@@ -96,6 +96,20 @@ func everyRecord() map[string]Record {
 		"RunFromChannel http open": RunFromChannel(channelFrom, ChannelRun{
 			ClassUID: ClassHTTPActivity, Decision: "refuse", Rule: "audit-bytes", Count: 9, WindowSeconds: 7, Open: true,
 		}),
+		"CAChanged issue": CAChanged(CAChange{
+			Slot: "work", Generation: 3, Decision: "accept", Rule: "ca-rotation", Message: "CA issued",
+			CAs: []CA{{ID: "0123456789abcdef0123456789abcdef", SHA256: strings.Repeat("ab", 32), NotBeforeUnix: 1, NotAfterUnix: 2}},
+		}),
+		"CAChanged drop": CAChanged(CAChange{
+			Slot: "isolated", Decision: "accept", Rule: "ca-reset", Command: "wb vm reset-ca", Message: "CA dropped",
+			CAs: []CA{{ID: "0123456789abcdef0123456789abcdef", SHA256: strings.Repeat("ab", 32)}},
+		}),
+		"CAChanged refused install": CAChanged(CAChange{
+			Slot: "work", Generation: 3, Decision: "refuse", Rule: "ca-install-refused", Message: "CA install refused",
+		}),
+		"StoreAccessed fetch":  StoreAccessed("work", 3, "ca-set", "wb-proxyd", "wraithbox/ca/work/0123456789abcdef0123456789abcdef", StoreFetch),
+		"StoreAccessed write":  StoreAccessed("work", 3, "ca-issue", "wb-proxyd", "wraithbox/ca/work/0123456789abcdef0123456789abcdef", StoreWrite),
+		"StoreAccessed delete": StoreAccessed("work", 0, "ca-remove", "wb-proxyd", "wraithbox/ca/work/0123456789abcdef0123456789abcdef", StoreDelete),
 		"RunFromChannel finding": RunFromChannel(channelFrom, ChannelRun{
 			ClassUID: ClassDetectionFinding, Decision: "refuse", Rule: "placeholder-refused", Count: 2, WindowSeconds: 60,
 		}),
@@ -117,6 +131,8 @@ func classKey(uid int) string {
 		return "network_activity"
 	case ClassHTTPActivity:
 		return "http_activity"
+	case ClassEntityManagement:
+		return "entity_management"
 	}
 	return ""
 }
@@ -125,7 +141,7 @@ func classKey(uid int) string {
 var objectOf = map[string]string{
 	"metadata": "metadata", "device": "device", "app": "product", "finding_info": "finding_info",
 	"src_endpoint": "network_endpoint", "dst_endpoint": "network_endpoint", "http_request": "http_request",
-	"traffic": "network_traffic",
+	"traffic": "network_traffic", "entity": "managed_entity", "actor": "actor",
 }
 
 // TestClassesRequired checks each record against OCSF 1.8.0: every
@@ -206,7 +222,7 @@ func checkAttrs(t *testing.T, what string, got map[string]json.RawMessage, requi
 func TestNoCredentialFields(t *testing.T) {
 	seen := map[reflect.Type]bool{}
 	var problems []string
-	for _, e := range []Event{&ConfigChange{}, &AppLifecycle{}, &Finding{}, &NetworkActivity{}, &HTTPActivity{}} {
+	for _, e := range []Event{&ConfigChange{}, &AppLifecycle{}, &Finding{}, &NetworkActivity{}, &HTTPActivity{}, &StoreAccess{}} {
 		typ := reflect.TypeOf(e).Elem()
 		problems = walk(typ, typ.Name(), seen, problems)
 	}
