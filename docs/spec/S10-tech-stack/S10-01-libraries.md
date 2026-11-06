@@ -19,6 +19,7 @@ or downloads and runs, such as a VMM on Linux.
 | DNS server | Wraith Box's own Go code in `internal/netd/dns`. It reads the one-question subset of S07-03-dns, "Messages", and writes its responses itself. `golang.org/x/net/dns/dnsmessage` (BSD-3-Clause) is the independent decoder in its tests and fuzz target |
 | TLS/HTTP proxying | Go standard library (`crypto/tls`, `net/http`, `httputil`), `golang.org/x/net/http2` |
 | SSH client (image build) | `golang.org/x/crypto/ssh` (BSD-3-Clause), in `wb-build-ssh` only (S04-05-helper-programs) |
+| TLS record and ClientHello parsing | `golang.org/x/crypto/cryptobyte` (BSD-3-Clause), in `wb-proxyd` (`internal/proxyd/tlsparse`), for the first-byte and pass relay checks of S07-15-non-http-streams and S07-16-tls-and-tunnels |
 | PTY | `creack/pty` (Unix), ConPTY through `golang.org/x/sys/windows`; `golang.org/x/term` |
 | Windows host APIs | `golang.org/x/sys/windows`; Microsoft's Go libraries for HCS and named pipes / Hyper-V sockets (MIT) |
 | Linux host APIs | `golang.org/x/sys/unix` (KVM device checks, Landlock, seccomp, vsock); a pure-Go D-Bus client (Secret Service, notifications) |
