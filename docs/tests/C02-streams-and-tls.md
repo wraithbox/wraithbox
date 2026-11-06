@@ -212,7 +212,8 @@ stream's control and the HTTP handler. Each refusal is checked in
   that closes after the server's flight, during the handshake or
   after it with no request byte, is logged the same way with `closed`
   (`TestC02InspectClientClosed`). Every alert code classifies by its
-  structure, never by its text alone (`TestHandshakeErrorRule`).
+  structure, never by its text alone, and a reset after the server's
+  flight is `closed` as a close is (`TestHandshakeErrorRule`).
 - After the handshake, send SSH, the HTTP/2 preface, a line past the
   cap, a partial line and then the end, nothing, and a partial line.
   See each reset with `stream-protocol-mismatch` or
@@ -231,6 +232,18 @@ stream's control and the HTTP handler. Each refusal is checked in
   whose CA the roots don't trust, or whose certificate names another
   host, gives `upstream-tls-verify` (`TestC02UpstreamVerify`). One that
   isn't TLS gives `upstream-tls-failed` (`TestC02UpstreamFailed`).
+- An upstream that asks for a client certificate with TLS 1.3 and
+  then closes with no alert gives `upstream-tls-failed`, and a first
+  read past its deadline returns the timeout with no refusal
+  (`TestC02UpstreamCertAskedThenFailed`). A timeout or a canceled
+  stream is `upstream-tls-failed` after a request, and only
+  `handshake_failure`, `bad_certificate` and `certificate_required`
+  count as a refused certificate on the first read
+  (`TestUpstreamRule`).
+- `New` refuses a configuration without leaves, a dialer or an HTTP
+  handler (`TestNew`), and a leaf interface that returns neither a
+  leaf nor a refusal resets the stream with `ca-leaf-refused`
+  (`TestC02InspectLeafRefused`).
 
 ### Leaf issuance
 
@@ -255,6 +268,9 @@ Spec: S09-06-ca-keys.
     (`TestC02LeafNotInspected`).
   - Ask for one new hostname's leaf from 8 calls at once, and see it
     signed once and each call get it (`TestLeafSingleflight`).
+  - Make the first signature of a new hostname's leaf fail, then
+    panic. See the flight end each time, with `ca-leaf-refused` when
+    it fails, and the next call sign the leaf (`TestLeafFlightFails`).
   - See a leaf with exactly the leaf profile, a chain of the leaf only,
     and a validity cut to the CA's end, that verifies against its CA
     (`TestC02LeafProfile`).

@@ -114,9 +114,11 @@ An upstream certificate that fails validation refuses the request
 with the rule `upstream-tls-verify`. Any other upstream handshake
 failure, such as no common TLS version, refuses it with
 `upstream-tls-failed`. A server that asks for a client certificate
-and fails without one gives `tls-client-cert-unsupported`
-(S07-16-tls-and-tunnels). Each one answers the guest's request with a
-`502` that names the rule.
+and then fails the handshake, or sends a certificate alert before its
+first byte, gives `tls-client-cert-unsupported`
+(S07-16-tls-and-tunnels). After such a request, a timeout, or an end
+with no alert before the first byte, is `upstream-tls-failed`. Each
+one answers the guest's request with a `502` that names the rule.
 
 #### pass
 

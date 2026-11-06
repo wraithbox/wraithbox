@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/proxyd/stream"
@@ -106,7 +107,8 @@ const alertClosed = "closed"
 //   - A received ech_required alert is tls-ech-refused.
 //   - Any other received alert is tls-client-rejected-leaf with its
 //     description, and so is the client's end after the server's flight,
-//     with "closed" (S09-08-guest-trust, "Fails closed").
+//     a close or a reset, with "closed" (S09-08-guest-trust, "Fails
+//     closed").
 //   - Anything else is stream-protocol-mismatch.
 //
 // A received alert is told apart by its structure, as crypto/tls makes
@@ -123,10 +125,17 @@ func handshakeErrorRule(err error, flightSent bool) refusal {
 		}
 		return refusal{rule: RuleClientRejectedLeaf, alert: desc}
 	}
-	if flightSent && (errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)) {
+	if flightSent && closedByClient(err) {
 		return refusal{rule: RuleClientRejectedLeaf, alert: alertClosed}
 	}
 	return refusal{rule: stream.RuleProtocolMismatch, check: CheckHandshake}
+}
+
+// closedByClient reports whether err is the client's end: a close, a
+// record cut short, or a reset. A client that aborts with SO_LINGER 0, or
+// whose socket closes with unread bytes, resets instead of closing.
+func closedByClient(err error) bool {
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET)
 }
 
 // alertTexts maps the text of each alert crypto/tls can report to its

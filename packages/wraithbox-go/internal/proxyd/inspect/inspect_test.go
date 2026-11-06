@@ -123,13 +123,37 @@ func TestC02InspectPlainHTTP(t *testing.T) {
 }
 
 // TestC02InspectLeafRefused: a refusal from the leaf interface resets
-// the stream with its rule.
+// the stream with its rule, and neither a leaf nor a refusal resets it
+// with ca-leaf-refused.
 func TestC02InspectLeafRefused(t *testing.T) {
 	for _, mode := range modes {
 		e := newEnv(t)
 		e.leaves.ref = &ca.Refusal{Rule: ca.RuleNotInstalled, Reason: "no signing CA"}
 		g := e.start(mode, policy.StreamTLS)
 		e.wantReset(g, mode, ca.RuleNotInstalled, `reason="no signing CA"`)
+
+		e = newEnv(t)
+		e.leaves.empty = true
+		g = e.start(mode, policy.StreamTLS)
+		e.wantReset(g, mode, ca.RuleLeafRefused, `reason="no leaf"`)
+	}
+}
+
+// TestNew: New refuses a Config without Leaves, a Dialer or an HTTP
+// handler.
+func TestNew(t *testing.T) {
+	e := newEnv(t)
+	for _, c := range []struct {
+		what string
+		cfg  Config
+	}{
+		{"no Leaves", Config{Dialer: e.dialer, HTTP: e.http}},
+		{"no Dialer", Config{Leaves: e.leaves, HTTP: e.http}},
+		{"no HTTP handler", Config{Leaves: e.leaves, Dialer: e.dialer}},
+	} {
+		if term, err := New(c.cfg); err == nil || term != nil {
+			t.Errorf("%s: New = %v, %v, want an error", c.what, term, err)
+		}
 	}
 }
 

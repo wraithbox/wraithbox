@@ -1,11 +1,13 @@
 package inspect
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +27,13 @@ type upstreamServer struct {
 
 func newUpstream(t *testing.T, name string, conf *tls.Config) *upstreamServer {
 	t.Helper()
+	return newUpstreamThen(t, name, conf, func(tc *tls.Conn) { _, _ = io.WriteString(tc, "ok") })
+}
+
+// newUpstreamThen is newUpstream with then in place of the answer, run
+// after each handshake and before the close.
+func newUpstreamThen(t *testing.T, name string, conf *tls.Config, then func(*tls.Conn)) *upstreamServer {
+	t.Helper()
 	u := &upstreamServer{ca: newTestCA(t), state: make(chan tls.ConnectionState, 1)}
 	conf.Certificates = []tls.Certificate{*u.ca.leaf(t, name)}
 	conf.NextProtos = []string{"h2", "http/1.1"}
@@ -43,7 +52,7 @@ func newUpstream(t *testing.T, name string, conf *tls.Config) *upstreamServer {
 			tc := tls.Server(c, conf)
 			if tc.HandshakeContext(t.Context()) == nil {
 				u.state <- tc.ConnectionState()
-				_, _ = io.WriteString(tc, "ok")
+				then(tc)
 			}
 			_ = tc.Close()
 		}
@@ -197,5 +206,72 @@ func TestC02UpstreamFailed(t *testing.T) {
 		_, err = e.open(e.tlsStream(mode))
 		e.wantRefusal(err, mode, RuleUpstreamFailed)
 		_ = ln.Close()
+	}
+}
+
+// TestC02UpstreamCertAskedThenFailed: after a certificate request, a
+// first read that ends with no alert gives upstream-tls-failed, and one
+// that times out returns its error as it is, with no refusal. Only a
+// certificate alert is tls-client-cert-unsupported.
+func TestC02UpstreamCertAskedThenFailed(t *testing.T) {
+	for _, mode := range modes {
+		e := newEnv(t)
+		u := newUpstreamThen(t, testName, &tls.Config{ClientAuth: tls.RequestClientCert, MaxVersion: tls.VersionTLS13}, func(*tls.Conn) {})
+		e.term.roots = u.ca.pool
+		e.dialer.addr = u.addr
+		_, err := e.open(e.tlsStream(mode))
+		e.wantRefusal(err, mode, RuleUpstreamFailed)
+	}
+
+	e := newEnv(t)
+	release := make(chan struct{})
+	defer close(release)
+	u := newUpstreamThen(t, testName, &tls.Config{ClientAuth: tls.RequestClientCert, MaxVersion: tls.VersionTLS13}, func(*tls.Conn) { <-release })
+	e.term.roots = u.ca.pool
+	e.dialer.addr = u.addr
+	conn, err := e.term.Upstream(t.Context(), e.tlsStream(stream.ModeInspect))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
+	_, err = conn.Read(make([]byte, 1))
+	var ref *Refusal
+	if !errors.Is(err, os.ErrDeadlineExceeded) || errors.As(err, &ref) {
+		t.Errorf("a first read past its deadline = %v, want the timeout and no refusal", err)
+	}
+}
+
+// TestUpstreamRule: a timeout or a canceled context is
+// upstream-tls-failed even after a certificate request, and the
+// first-read alerts that count as a refused certificate are the three
+// certRefused names.
+func TestUpstreamRule(t *testing.T) {
+	for _, c := range []struct {
+		what  string
+		err   error
+		asked bool
+		want  string
+	}{
+		{"a deadline after a request", context.DeadlineExceeded, true, RuleUpstreamFailed},
+		{"a canceled stream after a request", context.Canceled, true, RuleUpstreamFailed},
+		{"a socket timeout after a request", &net.OpError{Op: "read", Err: os.ErrDeadlineExceeded}, true, RuleUpstreamFailed},
+		{"another error after a request", io.EOF, true, RuleClientCertUnsupported},
+		{"another error with no request", io.EOF, false, RuleUpstreamFailed},
+		{"a verification failure", &tls.CertificateVerificationError{Err: errors.New("x")}, true, RuleUpstreamVerify},
+	} {
+		if got := upstreamRule(c.err, c.asked); got != c.want {
+			t.Errorf("%s: %s, want %s", c.what, got, c.want)
+		}
+	}
+	for code := range 256 {
+		err := &net.OpError{Op: "remote error", Err: tls.AlertError(code)}
+		want := code == 40 || code == 42 || code == 116
+		if got := certRefused(err); got != want {
+			t.Errorf("alert %d: certRefused = %v, want %v", code, got, want)
+		}
+	}
+	if certRefused(io.EOF) {
+		t.Error("certRefused(io.EOF) = true")
 	}
 }

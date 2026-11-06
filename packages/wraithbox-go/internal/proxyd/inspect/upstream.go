@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net"
+	"os"
 	"sync/atomic"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
@@ -14,7 +15,8 @@ import (
 
 // Refusal is the error of an upstream TLS connection that Upstream
 // refused, with its rule. The HTTP handler answers the guest's request
-// with a 502 that names it.
+// with a 502 that names Rule only, never Error(): the error can hold
+// text from the server, which the log cuts as guest text.
 type Refusal struct {
 	Rule string
 	err  error
@@ -35,10 +37,11 @@ func (r *Refusal) Unwrap() error { return r.err }
 // and verifies the server against the system trust store for the
 // stream's name (S07-07-hosts-and-modes, "inspect"). It presents no
 // client certificate (SEC04-no-guest-secrets): a server that asks for
-// one and then fails, in the handshake or on the first read, gives
-// tls-client-cert-unsupported (S07-16-tls-and-tunnels, "TLS with a client
-// certificate"). A certificate that fails verification gives
-// upstream-tls-verify, and another handshake failure upstream-tls-failed.
+// one and then fails the handshake, or sends a certRefused alert on the
+// first read, gives tls-client-cert-unsupported (S07-16-tls-and-tunnels,
+// "TLS with a client certificate"). A certificate that fails
+// verification gives upstream-tls-verify, and another handshake failure,
+// a timeout included, upstream-tls-failed.
 // A dial refusal is the dialer's error, with its rule.
 func (t *Terminator) Upstream(ctx context.Context, s *Stream) (net.Conn, error) {
 	host := s.Inspected.Name.String()
@@ -71,16 +74,43 @@ func (t *Terminator) Upstream(ctx context.Context, s *Stream) (net.Conn, error) 
 
 // upstreamRule classifies an upstream handshake error. asked reports
 // whether the server asked for a client certificate.
+// A timeout, or the stream's end, is upstream-tls-failed even after a
+// certificate request: the server didn't refuse the missing certificate.
 func upstreamRule(err error, asked bool) string {
 	var verify *tls.CertificateVerificationError
 	switch {
 	case errors.As(err, &verify):
 		return RuleUpstreamVerify
+	case timedOut(err):
+		return RuleUpstreamFailed
 	case asked:
 		return RuleClientCertUnsupported
 	}
 	return RuleUpstreamFailed
 }
+
+// timedOut reports whether err is a deadline, a timeout, or a canceled
+// context.
+func timedOut(err error) bool {
+	var ne net.Error
+	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) ||
+		errors.Is(err, os.ErrDeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout())
+}
+
+// certRefused reports whether err is an alert the server sends when it
+// refuses a client without a certificate: bad_certificate,
+// certificate_required or handshake_failure.
+func certRefused(err error) bool {
+	code, ok := receivedAlert(err)
+	return ok && (code == alertBadCertificate || code == alertCertificateRequired || code == alertHandshakeFailure)
+}
+
+// The alert codes of certRefused.
+const (
+	alertHandshakeFailure    = 40
+	alertBadCertificate      = 42
+	alertCertificateRequired = 116
+)
 
 // upstreamRefused logs a refused upstream connection with its rule, and
 // returns its Refusal.
@@ -93,9 +123,11 @@ func (t *Terminator) upstreamRefused(s *stream.Inspected, rule string, err error
 
 // upstreamConn is an upstream TLS connection whose first read fails with
 // tls-client-cert-unsupported when the server asked for a client
-// certificate and failed before its first byte. With TLS 1.3 the client's
-// handshake completes before the server checks its certificate, so the
-// server's refusal arrives on that read.
+// certificate and sent a certRefused alert before its first byte. With
+// TLS 1.3 the client's handshake completes before the server checks its
+// certificate, so the server's refusal arrives on that read. After a
+// certificate request, another error there, such as an end or a reset,
+// is upstream-tls-failed, and a timeout is returned as it is.
 type upstreamConn struct {
 	*tls.Conn
 	t     *Terminator
@@ -108,8 +140,12 @@ func (c *upstreamConn) Read(b []byte) (int, error) {
 	n, err := c.Conn.Read(b)
 	first := !c.read
 	c.read = c.read || n > 0 || err != nil
-	if err != nil && n == 0 && first && c.asked {
-		return 0, c.t.upstreamRefused(c.s, RuleClientCertUnsupported, err)
+	if err == nil || n > 0 || !first || !c.asked || timedOut(err) {
+		return n, err
 	}
-	return n, err
+	rule := RuleUpstreamFailed
+	if certRefused(err) {
+		rule = RuleClientCertUnsupported
+	}
+	return 0, c.t.upstreamRefused(c.s, rule, err)
 }
