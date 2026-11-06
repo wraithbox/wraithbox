@@ -173,11 +173,7 @@ func TestC02PassOneCCS(t *testing.T) {
 		t.Errorf("ended with %q", how)
 	}
 	<-x.done
-	for _, w := range []string{"rule=" + RulePassAllowed, "mode=pass", "pinned client", "end=closed"} {
-		if !strings.Contains(x.logs.String(), w) {
-			t.Errorf("log lacks %q:\n%s", w, x.logs.String())
-		}
-	}
+	x.wantAllowed(RulePassAllowed, "mode=pass", "pinned client", "end=closed")
 }
 
 // TestC02PassAlert sends an alert before the ServerHello, and sees both

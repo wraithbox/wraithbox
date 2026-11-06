@@ -163,7 +163,12 @@ looked like, and reaches the audit hook.
   (`TestC02UpstreamRefused`).
 - Remove the raw TCP entry of an open relay, and take an open pass
   relay's host out of the pass list, and see each relay end both ways
-  with `policy-recomputed` (`TestC02PolicyRecomputed`).
+  with `policy-recomputed` (`TestC02PolicyRecomputed`). Each logs its
+  one allowed record and no refusal of its own.
+- Reset a stream from the hand-off's side while its first bytes are
+  read, during its dial, and as its dial opens. See no refusal and no
+  allowed record logged by the handler, and nothing reach the
+  upstream server (`TestC02EndedByHandoff`).
 - `tlsparse` refuses each malformed record and ClientHello with its
   check (`TestReadClientHelloRefuses`), and reads a server's records
   only to its ServerHello (`TestServerFlight`).
@@ -295,6 +300,9 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   `FuzzPassClientRecords` checks that before the ServerHello a pass relay
   sends upstream at most one change cipher spec and, after a
   HelloRetryRequest, one ClientHello that passes the pass checks.
+  `FuzzPassInterleaved` steps the relay's client and server directions
+  in any order, and checks that the checks end only when no second
+  ClientHello is owed.
 - HTTP/1.1 and HTTP/2 request handling, and request path
   canonicalization.
 - The name reports, releases and stream messages `wb-proxyd` reads from

@@ -285,9 +285,10 @@ func (s *socket) report(name dnsname.Name, addr netip.Addr) {
 			slog.String("name", guesttext.LogField(name.String(), logCut)), slog.String("address", addr.String()))
 	}
 	for _, st := range o.conflicted {
-		s.r.refused(Event{VM: s.vm.slot, Generation: s.gen, Rule: RuleAddressConflict, Check: CheckAddressConflict},
-			streamAttrs(st)...)
-		st.Reset()
+		if st.Reset() {
+			s.r.refused(Event{VM: s.vm.slot, Generation: s.gen, Rule: RuleAddressConflict, Check: CheckAddressConflict},
+				streamAttrs(st)...)
+		}
 	}
 }
 

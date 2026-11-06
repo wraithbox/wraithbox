@@ -318,10 +318,10 @@ func (r *Receiver) applyPolicy(ctx context.Context, slot string, seq uint64, f *
 	}
 	r.mu.Unlock()
 	for _, s := range open {
-		if check := s.recheck(p); check != "" {
+		// A stream that something else ended first isn't logged again.
+		if check := s.recheck(p); check != "" && s.Reset() {
 			r.refused(Event{VM: slot, Generation: s.Generation, Rule: RulePolicyRecomputed, Check: check},
 				streamAttrs(s)...)
-			s.Reset()
 		}
 	}
 	return r.sendHostd(&egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_PolicyAck{

@@ -163,10 +163,15 @@ type Dialer interface {
 }
 
 // Control is what a handler does to a handed-off stream.
-// *handoff.Stream implements it.
+// *handoff.Stream implements it. Reset and Close report whether the
+// call ended the stream, so a stream that a recompute, an address
+// conflict or the socket's end ended first isn't logged again. Done is
+// closed when the stream ends. AddCheck resets the stream itself, and
+// logs it, when the check fails at once.
 type Control interface {
-	Reset()
-	Close()
+	Reset() bool
+	Close() bool
+	Done() <-chan struct{}
 	AddCheck(check func(*policy.Policy) egressmsg.Check) egressmsg.Check
 	Policy() *policy.Policy
 }
@@ -283,6 +288,9 @@ type stream struct {
 	ctl  Control
 	// began is the hand-off, which the first-bytes deadline runs from.
 	began time.Time
+	// policy is the effective policy the stream's route was read from.
+	// The pass and raw entries that allowed it are read from it too.
+	policy *policy.Policy
 	// looks is what the first bytes looked like, for the log.
 	looks string
 }
@@ -368,11 +376,24 @@ func sameRoute(name dnsname.Name, port uint16, was route) func(*policy.Policy) e
 	}
 }
 
-// serve decides one stream by its route.
+// isEnded reports whether the stream has ended, by this handler or by
+// the hand-off.
+func (st *stream) isEnded() bool {
+	select {
+	case <-st.ctl.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// serve decides one stream by its route. A route the policy changed
+// since the hand-off fails the check at once, and AddCheck resets and
+// logs the stream with policy-recomputed.
 func (h *Handler) serve(st *stream) {
-	r := routeOf(st.ctl.Policy(), st.name, st.port)
+	st.policy = st.ctl.Policy()
+	r := routeOf(st.policy, st.name, st.port)
 	if check := st.ctl.AddCheck(sameRoute(st.name, st.port, r)); check != "" {
-		h.reset(st, handoff.RulePolicyRecomputed, check)
 		return
 	}
 	switch r.protocol {
@@ -449,6 +470,9 @@ func (h *Handler) plain(st *stream, r route) {
 // inspect hands a stream to the Inspector, with its first bytes to read
 // again.
 func (h *Handler) inspect(st *stream, r route, first firstBytes) {
+	if st.isEnded() {
+		return
+	}
 	h.allowed(st, RuleInspectAllowed, r.mode, slog.String("protocol", r.protocol.String()))
 	h.inspector.Inspect(&Inspected{
 		VM: st.vm, Generation: st.gen, ID: st.id, Name: st.name, Port: st.port,
@@ -461,9 +485,28 @@ func (h *Handler) inspect(st *stream, r route, first firstBytes) {
 // dial opens the upstream connection of a pass or raw stream. A refusal
 // resets the stream with the dialer's rule (S07-07-hosts-and-modes,
 // "Upstream address"), and an error that isn't one with
-// upstream-connect-failed.
+// upstream-connect-failed. The dial is cancelled when the stream ends,
+// and a connection that opens after the stream ended is closed unused,
+// so a stream a recompute reset sends nothing upstream
+// (S07-01-per-vm-policy, "Open streams").
 func (h *Handler) dial(st *stream) (net.Conn, bool) {
-	up, err := h.dialer.Dial(context.Background(), st.name.String(), st.port)
+	if st.isEnded() {
+		return nil, false
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-st.ctl.Done():
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	up, err := h.dialer.Dial(ctx, st.name.String(), st.port)
+	if err == nil && st.isEnded() {
+		_ = up.Close()
+		return nil, false
+	}
 	if err == nil {
 		return up, true
 	}
