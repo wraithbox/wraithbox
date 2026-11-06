@@ -84,9 +84,15 @@ func LinkOf(m *egressv1.NetdStart) (Link, *Refusal) {
 }
 
 func checkMACs(guest, gateway net.HardwareAddr) *Refusal {
-	for field, mac := range map[string]net.HardwareAddr{"netd_start.guest_mac": guest, "netd_start.gateway_mac": gateway} {
-		if len(mac) != 6 || mac[0]&1 != 0 {
-			return refuse(CheckAddressing, field, fmt.Sprintf("%d bytes, want a unicast 6-byte MAC", len(mac)))
+	// In a fixed order, guest then gateway, so a message with both wrong
+	// is refused on the same field each time.
+	macs := []struct {
+		field string
+		mac   net.HardwareAddr
+	}{{"netd_start.guest_mac", guest}, {"netd_start.gateway_mac", gateway}}
+	for _, m := range macs {
+		if mac := m.mac; len(mac) != 6 || mac[0]&1 != 0 {
+			return refuse(CheckAddressing, m.field, fmt.Sprintf("%d bytes, want a unicast 6-byte MAC", len(mac)))
 		}
 	}
 	if string(guest) == string(gateway) {

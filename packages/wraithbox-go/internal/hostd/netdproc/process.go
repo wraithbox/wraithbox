@@ -278,7 +278,7 @@ func (p *proc) Exited() <-chan struct{} { return p.exited }
 
 // Stop implements vm.NetworkRun: it closes the control channel, which
 // ends wb-netd with status 0, and kills a wb-netd that doesn't exit
-// within StopTimeout. Its ends of the channels close with it, so the
+// within Config.StopTimeout. Its ends of the channels close with it, so the
 // readers end once they read what it left. Only then are the VM's runs
 // ended (events.Hub.End) and its accounting stopped.
 func (p *proc) Stop() []audit.OpenRun {
@@ -286,7 +286,7 @@ func (p *proc) Stop() []audit.OpenRun {
 	_ = p.control.Close()
 	select {
 	case <-p.exited:
-	case <-time.After(StopTimeout):
+	case <-time.After(p.s.cfg.StopTimeout):
 		p.log.LogAttrs(context.Background(), slog.LevelWarn, "wb-netd killed",
 			slog.String("rule", RuleStopTimeout), slog.String("decision", "kill"),
 			slog.String("slot", string(p.slot)), slog.Uint64("generation", p.generation))
