@@ -267,7 +267,7 @@ func wantRefusal(t *testing.T, err error, rule string, keepsRunning bool) *Refus
 func TestInstallRefusalLogsGuestText(t *testing.T) {
 	r := newRig(t)
 	bootDay0(t, r)
-	text := "bad\x1b[2Jtrust\n" + strings.Repeat("x", 2*guestTextCut)
+	text := "bad\x1b[0m trust\n" + strings.Repeat("x", 2*guestTextCut)
 	r.guest.installErr = errors.New(text)
 	r.at(30, 0)
 	ref := wantRefusal(t, r.k.Tick(t.Context(), "work", 1, r.guest), RuleInstallRefused, true)
@@ -275,7 +275,7 @@ func TestInstallRefusalLogsGuestText(t *testing.T) {
 		t.Errorf("refusal message %q carries the guest's text", ref.Message)
 	}
 	logs := r.logs.String()
-	if !strings.Contains(logs, `bad\\x1b[2Jtrust\\x0a`) {
+	if !strings.Contains(logs, `bad\\x1b[0m trust\\x0a`) {
 		t.Errorf("logs don't hold the escaped guest text:\n%s", logs)
 	}
 	if want := fmt.Sprintf("[cut from %d bytes]", len(text)); !strings.Contains(logs, want) {
