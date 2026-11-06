@@ -117,7 +117,15 @@ func newSetup(t *testing.T, program string) *setup {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Closed on exec, as the hand-off receiver's transport is: wb-netd
+	// refuses a descriptor beyond its start interface.
+	syscall.ForkLock.RLock()
 	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
+	if err == nil {
+		syscall.CloseOnExec(fds[0])
+		syscall.CloseOnExec(fds[1])
+	}
+	syscall.ForkLock.RUnlock()
 	if err != nil {
 		t.Fatal(err)
 	}
