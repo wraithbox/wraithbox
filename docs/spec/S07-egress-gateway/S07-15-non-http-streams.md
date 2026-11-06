@@ -88,14 +88,30 @@ after that is closed before any byte goes upstream.
 
 ### Inside TLS on an inspected host
 
-`wb-proxyd` offers only the ALPN protocols `h2` and `http/1.1`. A
-ClientHello whose ALPN list is non-empty and names neither is reset
-with `stream-protocol-mismatch`, before the handshake completes.
+`wb-proxyd` offers only the ALPN protocol `http/1.1`, until I499 adds
+`h2`. `wb-proxyd` resets a ClientHello whose ALPN list is non-empty
+and leaves `http/1.1` out with `stream-protocol-mismatch`, before the
+handshake completes.
+A client with no ALPN list gets HTTP/1.1.
 
-- **After the handshake** the bytes must start with an HTTP/1.1
-  request line, or the HTTP/2 connection preface. The byte cap
-  applies, and a deadline runs from the hand-off, as on a plain port.
-  Only then does `wb-proxyd` resolve and connect upstream.
+- **The handshake** runs under the deadline that runs from the
+  hand-off, as on a plain port. A handshake that fails resets the
+  stream:
+  - a received `ech_required` alert with `tls-ech-refused`
+    (S07-16-tls-and-tunnels, "Encrypted ClientHello");
+  - any other alert from the client, or the client's close after the
+    server's flight and before its first request byte, with
+    `tls-client-rejected-leaf`. The record holds the name, the port,
+    and the alert's description or `closed`. It names FR08-no-proxy-config,
+    whose known gap is the usual cause: a client that doesn't trust
+    the VM's CA (S09-08-guest-trust, "Fails closed");
+  - the deadline with `stream-first-bytes-timeout`, and anything else,
+    such as a malformed record, with `stream-protocol-mismatch`.
+- **After the handshake** the bytes must start with an HTTP/1.1 or
+  HTTP/1.0 request line. The byte cap applies, and the same deadline
+  runs on. Only then does `wb-proxyd` hand the stream to the HTTP
+  checks, which resolve and connect upstream at the first request
+  that passes them.
 - **Each later request** on the stream has a deadline fixed in code,
   from its first byte to the end of its headers. A request past it
   ends the stream with the rule `http-header-timeout`

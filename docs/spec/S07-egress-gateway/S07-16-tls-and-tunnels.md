@@ -51,8 +51,10 @@ certificate for the outer name.
 
 - A client that sent a real ECH extension then aborts with an
   `ech_required` alert, as the ECH RFC (RFC 9849) requires. The stream
-  fails closed. `wb-proxyd` logs that alert with the rule
-  `tls-ech-refused`.
+  fails closed. `wb-proxyd` resets it, and logs the rule
+  `tls-ech-refused` with the name and port. Any other alert from the
+  client is `tls-client-rejected-leaf` (S07-15-non-http-streams,
+  "Inside TLS on an inspected host").
 - A client that sends a GREASE ECH extension, which lacks an inner
   name, continues as usual.
 
@@ -155,7 +157,8 @@ the rule `audit-allowed` and the rule it broke
 - the `stream-*` resets;
 - `http-header-timeout`, `http-header-size` and
   `http-transfer-coding`;
-- `upstream-address-refused`.
+- `upstream-address-refused`, `upstream-tls-verify` and
+  `upstream-tls-failed`.
 
 A guarded host is never in `audit` (S07-07-hosts-and-modes), and
 `wb-proxyd` holds each host a profile covers in `enforce`, even if a

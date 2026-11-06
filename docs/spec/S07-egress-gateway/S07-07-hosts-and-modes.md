@@ -100,12 +100,23 @@ A TLS host has one of three modes.
 `inspect` is the default.
 
 1. `wb-proxyd` terminates TLS with a leaf certificate from the Wraith
-   Box CA (S09-policy-credentials-audit).
+   Box CA (S09-policy-credentials-audit). It doesn't issue session
+   tickets, so no stream resumes a session whose leaf came from a CA
+   that a rotation has since replaced.
 2. It applies HTTP policy and credential replacement.
 3. It opens a new TLS connection upstream, validated against the
-   host's system trust store.
+   host's system trust store, at the stream's first request that
+   passes its checks. It doesn't present a client certificate.
 
-It speaks HTTP/1.1 and HTTP/2.
+It speaks HTTP/1.1, and HTTP/2 once I499 adds it to both sides.
+
+An upstream certificate that fails validation refuses the request
+with the rule `upstream-tls-verify`. Any other upstream handshake
+failure, such as no common TLS version, refuses it with
+`upstream-tls-failed`. A server that asks for a client certificate
+and fails without one gives `tls-client-cert-unsupported`
+(S07-16-tls-and-tunnels). Each one answers the guest's request with a
+`502` that names the rule.
 
 #### pass
 

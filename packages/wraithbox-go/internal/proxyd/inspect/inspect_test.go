@@ -31,9 +31,9 @@ func TestC02InspectHandshake(t *testing.T) {
 			alpn []string
 			want string
 		}{
-			{[]string{"http/1.1"}, stream.ALPNHTTP1},
+			{[]string{"http/1.1"}, stream.NextProtoHTTP1},
 			{nil, ""},
-			{[]string{"h2", "http/1.1"}, stream.ALPNHTTP1},
+			{[]string{"h2", "http/1.1"}, stream.NextProtoHTTP1},
 		} {
 			handshakeServed(t, version, c.alpn, c.want)
 		}
@@ -160,7 +160,7 @@ func echConfigList(t *testing.T, publicName string) []byte {
 	pub := key.PublicKey().Bytes()
 	var c []byte
 	c = append(c, 1)                             // config_id
-	c = binary.BigEndian.AppendUint16(c, 0x0020) // DHKEM(X25519, HKDF-SHA256)
+	c = binary.BigEndian.AppendUint16(c, 0x0020) // the X25519 KEM
 	c = binary.BigEndian.AppendUint16(c, uint16(len(pub)))
 	c = append(c, pub...)
 	c = binary.BigEndian.AppendUint16(c, 4)

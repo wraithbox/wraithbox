@@ -215,7 +215,7 @@ func serverConfig(leaf *tls.Certificate) *tls.Config {
 		Certificates:           []tls.Certificate{*leaf},
 		MinVersion:             tls.VersionTLS12,
 		MaxVersion:             tls.VersionTLS13,
-		NextProtos:             []string{stream.ALPNHTTP1},
+		NextProtos:             []string{stream.NextProtoHTTP1},
 		ClientAuth:             tls.NoClientCert,
 		SessionTicketsDisabled: true,
 	}

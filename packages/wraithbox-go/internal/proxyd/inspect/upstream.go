@@ -54,15 +54,15 @@ func (t *Terminator) Upstream(ctx context.Context, s *Stream) (net.Conn, error) 
 		ServerName: host,
 		RootCAs:    t.roots,
 		MinVersion: tls.VersionTLS12,
-		NextProtos: []string{stream.ALPNHTTP1},
+		NextProtos: []string{stream.NextProtoHTTP1},
 		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			asked.Store(true)
 			return &tls.Certificate{}, nil
 		},
 	})
-	hctx, cancel := context.WithTimeout(ctx, upstreamHandshakeTimeout)
+	handshakeCtx, cancel := context.WithTimeout(ctx, upstreamHandshakeTimeout)
 	defer cancel()
-	if err := conn.HandshakeContext(hctx); err != nil {
+	if err := conn.HandshakeContext(handshakeCtx); err != nil {
 		_ = raw.Close()
 		return nil, t.upstreamRefused(s.Inspected, upstreamRule(err, asked.Load()), err)
 	}

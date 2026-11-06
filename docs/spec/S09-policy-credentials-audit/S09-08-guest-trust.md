@@ -146,6 +146,11 @@ Over TLS, these clients reach only pass hosts and raw TCP entries,
 never a guarded host (S07-07-hosts-and-modes, "Modes, per host", and
 S07-15-non-http-streams). Plain HTTP doesn't need the CA.
 
+On an inspected host such a client aborts the handshake with an alert,
+or closes. `wb-proxyd` resets the stream with the rule
+`tls-client-rejected-leaf`, and its record names this known gap
+(S07-15-non-http-streams, "Inside TLS on an inspected host").
+
 FR08-no-proxy-config names this gap. An attended step, in which the
 maintainer confirms trust in the guest's UI, is I213.
 
