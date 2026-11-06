@@ -387,14 +387,17 @@ func TestPolicyChangeRecheck(t *testing.T) {
 	h.expectStream()
 	checked := a.stream(genA, wire(2), 443, 2)
 	s := h.expectStream()
-	s.AddCheck(func(p *policy.Policy) egressmsg.Check {
-		if p.WildcardBudget < 5 {
+	budget4 := func(p *policy.Policy) egressmsg.Check {
+		if p.WildcardBudget == 4 {
 			return "test-check"
 		}
 		return ""
-	})
+	}
+	if check := s.AddCheck(budget4); check != "" {
+		t.Fatalf("AddCheck at hand-off = %q, want \"\"", check)
+	}
 	kept := a.stream(genA, wire(2), 443, 3)
-	h.expectStream()
+	keptStream := h.expectStream()
 
 	h.policy("work", 2, policyProto(5, endpoint("*.wild.example.com", 443)))
 	a.expectReset(1)
@@ -408,6 +411,14 @@ func TestPolicyChangeRecheck(t *testing.T) {
 	h.expectEvent("work", RulePolicyRecomputed, "test-check")
 	expectEOF(t, checked)
 	expectOpen(t, kept)
+	// A check registered after a recompute runs against the policy that
+	// recompute applied, not the one at hand-off.
+	if got := keptStream.Policy().WildcardBudget; got != 4 {
+		t.Fatalf("Policy() budget = %d, want 4", got)
+	}
+	if check := keptStream.AddCheck(budget4); check != "test-check" {
+		t.Fatalf("AddCheck after the recompute = %q, want test-check", check)
+	}
 
 	a.stream(genA, wire(1), 443, 4)
 	a.expectReset(4)

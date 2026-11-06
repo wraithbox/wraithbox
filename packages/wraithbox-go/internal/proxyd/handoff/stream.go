@@ -31,32 +31,55 @@ type Stream struct {
 	sock  *socket
 	ended atomic.Bool
 
-	mu     sync.Mutex
+	mu sync.Mutex
+	// policy is the effective policy the stream was last checked
+	// against: the one at hand-off, then each one a recompute applied.
+	policy *policy.Policy
 	checks []func(*policy.Policy) egressmsg.Check
 }
 
-// AddCheck registers a check that runs on the stream at each policy
-// change, after the name and port check. It returns "" when the new
-// policy still allows the stream, and the check that fails otherwise;
-// the stream is then reset with policy-recomputed
-// (S07-01-per-vm-policy, "Open streams"). The handler adds one for what
-// it learned after hand-off, such as the TLS mode of the host.
-func (s *Stream) AddCheck(check func(*policy.Policy) egressmsg.Check) {
+// Policy returns the effective policy the stream was last checked
+// against: the VM's policy at hand-off, or the latest one a recompute
+// applied since. The handler reads the stream's protocol and mode from
+// it (S07-15-non-http-streams, "One protocol per host and port").
+func (s *Stream) Policy() *policy.Policy {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.policy
+}
+
+// AddCheck registers a check that runs on the stream at each policy
+// change, after the name and port check. The check returns "" when the
+// new policy still allows the stream, and the check that fails
+// otherwise; the stream is then reset with policy-recomputed
+// (S07-01-per-vm-policy, "Open streams"). The handler adds one for what
+// it learned after hand-off, such as the TLS mode of the host.
+//
+// AddCheck also runs the check at once against Policy and returns its
+// result, so a recompute applied between the hand-off and the call
+// isn't missed: the policy is read under the same lock that registers
+// the check, and a recompute sets the policy and copies the checks
+// under that lock too. On a non-empty result the caller resets the
+// stream.
+func (s *Stream) AddCheck(check func(*policy.Policy) egressmsg.Check) egressmsg.Check {
+	s.mu.Lock()
 	s.checks = append(s.checks, check)
+	p := s.policy
+	s.mu.Unlock()
+	return check(p)
 }
 
 // recheck checks the stream against a new effective policy: its name
 // and port, then each registered check. It returns the first check that
 // fails, or "".
 func (s *Stream) recheck(p *policy.Policy) egressmsg.Check {
+	s.mu.Lock()
+	s.policy = p
+	checks := append([]func(*policy.Policy) egressmsg.Check(nil), s.checks...)
+	s.mu.Unlock()
 	if check := streamAllowed(p, s.Name, s.Port); check != "" {
 		return check
 	}
-	s.mu.Lock()
-	checks := append([]func(*policy.Policy) egressmsg.Check(nil), s.checks...)
-	s.mu.Unlock()
 	for _, c := range checks {
 		if check := c(p); check != "" {
 			return check
