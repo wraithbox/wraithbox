@@ -269,7 +269,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	aw.Attach(m)
 	return &host{
 		// The CA record has no wb-proxyd channel until wb-hostd starts
-		// wb-proxyd and runs the boot order (#512). `wb vm reset-ca` works, and its removal list
+		// wb-proxyd and runs the boot order (#583). `wb vm reset-ca` works, and its removal list
 		// waits for wb-proxyd.
 		server: &hostservice.Server{
 			VMs: m, Links: links, Audit: aw, Log: log,
