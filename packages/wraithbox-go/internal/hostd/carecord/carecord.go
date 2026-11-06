@@ -174,8 +174,9 @@ type Keeper struct {
 	// message and its reply at a time, and guards the fields below.
 	mu sync.Mutex
 	// inSet holds, per slot, the CA ids of the last CaSet this wb-proxyd
-	// took. Its removal check refuses an entry of one, so the batch
-	// holds those back until a new set or a new wb-proxyd.
+	// took, and those of entries it refused with in-record since. Its
+	// removal check refuses an entry of one, so the batch holds those
+	// back until a new set or a new wb-proxyd.
 	inSet map[string]map[string]bool
 	// held holds, per slot, the CA ids whose keys this wb-proxyd holds:
 	// a CaSet fetches only the others.

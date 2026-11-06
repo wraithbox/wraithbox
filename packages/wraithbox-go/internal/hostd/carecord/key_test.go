@@ -159,9 +159,9 @@ func addRemovals(t *testing.T, r *rig, n int) []string {
 }
 
 // TestC02CARemovalList: deleted entries leave the list with their store
-// access record, a refused entry leaves it logged, the rest go in the
-// next batch, and a batch holds at most 64 entries (C02, "CA removal
-// list").
+// access record, an entry refused for its form leaves it logged, the
+// rest go in the next batch, and a batch holds at most 64 entries (C02,
+// "CA removal list").
 func TestC02CARemovalList(t *testing.T) {
 	r := newRig(t)
 	items := addRemovals(t, r, 3)
@@ -183,6 +183,36 @@ func TestC02CARemovalList(t *testing.T) {
 	if got := r.removals(t); len(got) != 0 {
 		t.Errorf("removal list = %q, want it empty", got)
 	}
+}
+
+// TestC02CARemovalHeldBack: an entry wb-proxyd refuses because its CA is
+// in a CA set stays on the list, logged, and is held back from the
+// batches until the next CaSet of its VM (S15-03-access-rules,
+// "Removing CA keys").
+func TestC02CARemovalHeldBack(t *testing.T) {
+	r := newRig(t)
+	items := addRemovals(t, r, 3)
+	r.px.refuse = map[string]string{items[1]: egressmsg.CheckCAInRecord}
+	r.k.ProxydStarted(t.Context())
+	r.wantOrder(t, "remove 3", "remove 2")
+	if got := r.removals(t); !slices.Equal(got, []string{"b0 expired"}) {
+		t.Errorf("removal list = %q, want the refused entry", got)
+	}
+	if want := "held back until the next CA set"; !strings.Contains(r.logs.String(), want) {
+		t.Errorf("logs don't hold %q:\n%s", want, r.logs.String())
+	}
+	r.k.SendRemovals(t.Context())
+	r.wantOrder(t)
+
+	r.px.refuse = nil
+	if err := r.k.Boot(t.Context(), "isolated", 1, ReasonBoot, r.guest); err != nil {
+		t.Fatal(err)
+	}
+	r.wantOrder(t, "clock boot", "issue", "set a1 1", "remove 1", "install 1", "accept 1")
+	if got := r.removals(t); len(got) != 0 {
+		t.Errorf("removal list = %q, want it empty", got)
+	}
+	wantDeleteRecords(t, r, items[0], items[2], items[1])
 }
 
 func wantDeleteRecords(t *testing.T, r *rig, want ...string) {

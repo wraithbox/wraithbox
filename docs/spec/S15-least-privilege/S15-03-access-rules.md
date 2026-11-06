@@ -124,9 +124,11 @@ key's name in the platform crypto provider is the item name
 
 Otherwise `wb-proxyd` refuses the batch with the rule
 `ca-removal-refused`. It logs each entry that failed, and deletes
-nothing from that batch. `wb-hostd` then removes the refused entries
-from the list, and logs that. It sends the others in the next batch,
-so one refused entry doesn't hold back the rest.
+nothing from that batch. `wb-hostd` then removes the entries refused
+for their form from the list, and logs that. An entry refused because
+its CA is in the record stays, logged, and waits for that VM's next CA
+set. `wb-hostd` sends the others in the next batch, so one refused
+entry doesn't hold back the rest.
 
 - The form check is what limits a compromised `wb-hostd`
   (T16-hostd-landing), which faces the guest.
