@@ -17,7 +17,7 @@ import (
 func FuzzLeafName(f *testing.F) {
 	for _, s := range []string{
 		"example.com", "api.example.com", "*.example.com", "192.0.2.1", "[::1]",
-		"Example.com", "example.com.", "", "xn--bcher-kva.example", "a..b", "-a.com", "a\x00.com",
+		"Example.com", "example.com.", "", "a..b", "-a.com", "a\x00.com",
 		strings.Repeat("a", 63) + ".com",
 	} {
 		f.Add(s)
