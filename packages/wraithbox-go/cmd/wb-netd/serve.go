@@ -22,8 +22,15 @@ import (
 // channel full is still written.
 const closeTimeout = 3 * time.Second
 
-// ruleStopped is the rule wb-netd's end is logged with.
-const ruleStopped = "netd-stopped"
+// The rules of wb-netd's end (S04-09-netd-start, "Start interface").
+const (
+	// ruleStopped: wb-hostd closed the control channel, and wb-netd
+	// exits 0.
+	ruleStopped = "netd-stopped"
+	// ruleFailed: the start, the control channel or the packet transport
+	// failed or ended, and wb-netd exits 1.
+	ruleFailed = "netd-failed"
+)
 
 // daemon is one VM's wb-netd once its start message is read.
 type daemon struct {
@@ -124,24 +131,35 @@ func (d *daemon) run(ctx context.Context) int {
 	d.link.open()
 	stackDone := make(chan error, 1)
 	controlDone := make(chan error, 1)
-	go d.pool.Run(ctx)
+	poolDone := make(chan struct{})
+	go func() {
+		defer close(poolDone)
+		d.pool.Run(ctx)
+	}()
 	go func() { stackDone <- d.stack.Run(ctx) }()
 	go func() { controlDone <- d.control.Serve(ctx) }()
 	var end, after error
+	stopped := false
 	select {
 	case end = <-controlDone:
+		// Only wb-hostd closing the control channel is a stop
+		// (S04-09-netd-start, "Start interface").
+		stopped = errors.Is(end, io.EOF)
 		cancel()
 		after = <-stackDone
 	case err := <-stackDone:
+		// The transport's end, an EOF included, is a failure: the VM
+		// lost its network while wb-hostd still runs it.
 		end = fmt.Errorf("the packet transport ended: %w", err)
 		cancel()
 		after = <-controlDone
 	}
+	<-poolDone
 	if after != nil {
 		// The other half's end after the cancel, kept for the log only.
 		d.log.LogAttrs(ctx, slog.LevelDebug, "wb-netd half stopped", slog.String("reason", after.Error()))
 	}
-	if errors.Is(end, io.EOF) {
+	if stopped {
 		d.log.LogAttrs(ctx, slog.LevelInfo, "wb-netd stopped",
 			slog.String("rule", ruleStopped), slog.String("decision", "stop"),
 			slog.String("reason", end.Error()))
@@ -154,7 +172,7 @@ func (d *daemon) run(ctx context.Context) int {
 // fail logs why wb-netd ends early.
 func (d *daemon) fail(ctx context.Context, step string, err error) {
 	d.log.LogAttrs(ctx, slog.LevelError, "wb-netd failed",
-		slog.String("rule", ruleStopped), slog.String("decision", "exit"),
+		slog.String("rule", ruleFailed), slog.String("decision", "exit"),
 		slog.String("step", step), slog.String("reason", err.Error()))
 }
 

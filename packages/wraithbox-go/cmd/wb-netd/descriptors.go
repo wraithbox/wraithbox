@@ -55,7 +55,19 @@ func (c *channels) close() {
 // takes it. fdchan.New and packetlink.New refuse a descriptor that isn't
 // a connected AF_UNIX SOCK_DGRAM socket, a closed one included. On an
 // error every descriptor it took is closed.
+//
+// First it refuses any open descriptor above eventsFD: wb-netd inherits
+// the start interface's descriptors and no other (S04-09-netd-start,
+// "Start interface"; SEC12-least-privilege). The walk comes before
+// anything in wb-netd opens a descriptor of its own.
 func openDescriptors() (*channels, error) {
+	extra, err := fdchan.FirstOpenFrom(eventsFD + 1)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("the descriptors above %d: %w", eventsFD, err)
+	case extra >= 0:
+		return nil, fmt.Errorf("descriptor %d is open, and the start interface ends at %d", extra, eventsFD)
+	}
 	if _, err := os.NewFile(logFD, "log").Stat(); err != nil {
 		return nil, fmt.Errorf("descriptor %d, the log pipe: %w", logFD, err)
 	}

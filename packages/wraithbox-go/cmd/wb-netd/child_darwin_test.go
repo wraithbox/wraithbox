@@ -87,10 +87,18 @@ func spawn(t *testing.T, files []*os.File, env ...string) (stderr *lockedBuffer,
 	return stderr, done
 }
 
-// socketpair returns both ends of an AF_UNIX socketpair of typ.
+// socketpair returns both ends of an AF_UNIX socketpair of typ, each
+// closed on exec as fdchan's are: a child gets only its ExtraFiles, or
+// wb-netd refuses the extra descriptor.
 func socketpair(t *testing.T, typ int) (a, b *os.File) {
 	t.Helper()
+	syscall.ForkLock.RLock()
 	fds, err := syscall.Socketpair(syscall.AF_UNIX, typ, 0)
+	if err == nil {
+		syscall.CloseOnExec(fds[0])
+		syscall.CloseOnExec(fds[1])
+	}
+	syscall.ForkLock.RUnlock()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,6 +325,19 @@ func TestChildServes(t *testing.T) {
 	}
 }
 
+// TestChildTransportEnds: when the guest's end of the packet transport
+// closes, wb-netd exits 1 with netd-failed, not 0: only wb-hostd closing
+// the control channel is a stop (S04-09-netd-start, "Start interface").
+func TestChildTransportEnds(t *testing.T) {
+	c := startChild(t)
+	c.start()
+	_ = c.guest.Close()
+	code, stderr := c.wait()
+	if code != 1 || !strings.Contains(stderr, `"rule":"netd-failed"`) || strings.Contains(stderr, `"rule":"netd-stopped"`) {
+		t.Fatalf("exit %d, want 1 with netd-failed\n%s", code, stderr)
+	}
+}
+
 // flood sends n frames as the guest before the start, each retried
 // while the packet socket is full. Without the drain the socket stays
 // full and the flood fails.
@@ -389,6 +410,24 @@ func TestChildRefused(t *testing.T) {
 				a, b := socketpair(t, syscall.SOCK_STREAM)
 				t.Cleanup(func() { _ = a.Close() })
 				return []*os.File{control, b, accounting, events}
+			},
+			env:  []string{childOutside + "=" + outside},
+			rule: ruleDescriptorInvalid, probe: outsideDenied,
+		},
+		// Descriptor 7 is open beside a good start interface.
+		"leaked descriptor": {
+			files: func(t *testing.T) []*os.File {
+				_, control := channel(t)
+				_, accounting := channel(t)
+				_, events := channel(t)
+				a, b := socketpair(t, syscall.SOCK_DGRAM)
+				t.Cleanup(func() { _ = a.Close() })
+				r, w, err := os.Pipe()
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = w.Close() })
+				return []*os.File{control, b, accounting, events, r}
 			},
 			env:  []string{childOutside + "=" + outside},
 			rule: ruleDescriptorInvalid, probe: outsideDenied,
