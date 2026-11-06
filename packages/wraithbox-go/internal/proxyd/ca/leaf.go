@@ -111,19 +111,26 @@ func (a *Authority) For(req LeafRequest) (*tls.Certificate, *Refusal) {
 		<-l.flight.done
 		return l.flight.leaf, l.flight.ref
 	}
-	leaf, err := signLeaf(l.ca, name, now)
+	return a.lead(req, l, now)
+}
+
+// lead signs the leaf of a flight this call started, and lands it. The
+// flight lands in a defer, with a signature-error refusal until the
+// signature succeeds, so a signature that fails or panics still ends it
+// and no waiting call blocks (SEC13-bounded-resources).
+func (a *Authority) lead(req LeafRequest, l lookup, now time.Time) (leaf *tls.Certificate, ref *Refusal) {
+	ref = &Refusal{Rule: RuleLeafRefused, Reason: ReasonSignatureError}
+	defer func() { a.land(req.VM, req.Generation, l, leaf, ref, now) }()
+	signed, err := signLeaf(l.ca, req.Name, now)
 	if err != nil {
-		ref = a.refuseLeaf(req, l.ca.id, &Refusal{
+		return nil, a.refuseLeaf(req, l.ca.id, &Refusal{
 			Rule: RuleLeafRefused, Reason: ReasonSignatureError + ": " + err.Error(),
 		})
-		leaf = nil
-	} else {
-		a.log.LogAttrs(context.Background(), slog.LevelDebug, "leaf signed",
-			slog.String("vm", vm), slog.Uint64("generation", generation), slog.String("ca_id", l.ca.id),
-			slog.String("host", name), slog.String("sha256", fingerprint(leaf.Certificate[0])))
 	}
-	a.land(vm, generation, l, leaf, ref, now)
-	return leaf, ref
+	a.log.LogAttrs(context.Background(), slog.LevelDebug, "leaf signed",
+		slog.String("vm", req.VM), slog.Uint64("generation", req.Generation), slog.String("ca_id", l.ca.id),
+		slog.String("host", req.Name), slog.String("sha256", fingerprint(signed.Certificate[0])))
+	return signed, nil
 }
 
 // checkLeafName returns why a leaf for name is refused, or "". A leaf
