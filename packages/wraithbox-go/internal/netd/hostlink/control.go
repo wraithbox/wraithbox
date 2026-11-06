@@ -56,13 +56,15 @@ type ControlConfig struct {
 	VersionTimeout time.Duration
 }
 
-// Kept is what NetdStart gives a new wb-netd: its VM and generation, the
-// kept name mapping and the wildcard budget's state (S04-07-supervision,
+// Kept is what NetdStart gives a new wb-netd: its VM and generation, its
+// link's addressing (S07-02-packet-path, "Addressing"), the kept name
+// mapping and the wildcard budget's state (S04-07-supervision,
 // "The kept name mapping"). The pool holds each kept address for its
 // name until it is released (synth.New).
 type Kept struct {
 	VM         string
 	Generation uint64
+	Link       egressmsg.Link
 	Entries    []synth.Entry
 	Debited    []dnsname.Name
 	DebitCount int
@@ -144,7 +146,9 @@ func (c *Control) start(m *egressv1.NetdStart, file *os.File) (Kept, error) {
 	if ref := egressmsg.CheckNetdStart(p); ref != nil {
 		return Kept{}, c.fail(string(ref.Check), ref)
 	}
-	k := Kept{VM: m.GetVm(), Generation: m.GetGeneration(), DebitCount: int(p.GetDebitCount())}
+	// DecodeHostdToNetd checked the addressing (egressmsg.CheckAddressing).
+	link, _ := egressmsg.LinkOf(m)
+	k := Kept{VM: m.GetVm(), Generation: m.GetGeneration(), Link: link, DebitCount: int(p.GetDebitCount())}
 	for _, e := range p.GetEntries() {
 		// CheckNetdStart checked each name and address.
 		name, _ := egressmsg.Name("entries.name", e.GetName())

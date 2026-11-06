@@ -173,13 +173,14 @@ func (c *control) serve(t *testing.T) chan error {
 	return done
 }
 
-// TestStart checks that NetdStart's VM, generation, kept mapping and
+// TestStart checks that NetdStart's VM, generation, link, kept mapping and
 // wildcard budget come back from Start.
 func TestStart(t *testing.T) {
 	kept := []synth.Entry{{Name: nt.Name("kept.example.com"), Addr: netip.MustParseAddr("198.18.0.5")}}
 	k := start(t, kept)
 	if k.VM != vm || k.Generation != gen || len(k.Entries) != 1 || k.Entries[0] != kept[0] ||
-		len(k.Debited) != 1 || k.Debited[0] != nt.Name("x.example.com") || k.DebitCount != 4 {
+		len(k.Debited) != 1 || k.Debited[0] != nt.Name("x.example.com") || k.DebitCount != 4 ||
+		k.Link.Leased != link.Leased || k.Link.Subnet != link.Subnet || k.Link.GuestMAC.String() != link.GuestMAC.String() {
 		t.Fatalf("kept %+v", k)
 	}
 }

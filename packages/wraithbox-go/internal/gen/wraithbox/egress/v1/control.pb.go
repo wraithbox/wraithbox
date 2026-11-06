@@ -750,7 +750,20 @@ type NetdStart struct {
 	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
 	// The VM generation, at least 1. A HandoffSocket for another VM or
 	// generation is refused.
-	Generation    uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	Generation uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// The link's addressing (S07-02-packet-path, "Addressing"). The MACs
+	// are 6 bytes each, unicast, and differ. The subnet is an IPv4
+	// network of prefix_len bits, 8 to 30, and the gateway and the
+	// leased address are two host addresses inside it, as fixed32 fields
+	// of the form of MappingEntry.address. wb-netd refuses a start
+	// message whose addressing doesn't describe one link with the check
+	// `addressing`.
+	GuestMac      []byte `protobuf:"bytes,3,opt,name=guest_mac,json=guestMac,proto3" json:"guest_mac,omitempty"`
+	GatewayMac    []byte `protobuf:"bytes,4,opt,name=gateway_mac,json=gatewayMac,proto3" json:"gateway_mac,omitempty"`
+	Subnet        uint32 `protobuf:"fixed32,5,opt,name=subnet,proto3" json:"subnet,omitempty"`
+	PrefixLen     uint32 `protobuf:"varint,6,opt,name=prefix_len,json=prefixLen,proto3" json:"prefix_len,omitempty"`
+	Gateway       uint32 `protobuf:"fixed32,7,opt,name=gateway,proto3" json:"gateway,omitempty"`
+	Leased        uint32 `protobuf:"fixed32,8,opt,name=leased,proto3" json:"leased,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -795,6 +808,48 @@ func (x *NetdStart) GetVm() string {
 func (x *NetdStart) GetGeneration() uint64 {
 	if x != nil {
 		return x.Generation
+	}
+	return 0
+}
+
+func (x *NetdStart) GetGuestMac() []byte {
+	if x != nil {
+		return x.GuestMac
+	}
+	return nil
+}
+
+func (x *NetdStart) GetGatewayMac() []byte {
+	if x != nil {
+		return x.GatewayMac
+	}
+	return nil
+}
+
+func (x *NetdStart) GetSubnet() uint32 {
+	if x != nil {
+		return x.Subnet
+	}
+	return 0
+}
+
+func (x *NetdStart) GetPrefixLen() uint32 {
+	if x != nil {
+		return x.PrefixLen
+	}
+	return 0
+}
+
+func (x *NetdStart) GetGateway() uint32 {
+	if x != nil {
+		return x.Gateway
+	}
+	return 0
+}
+
+func (x *NetdStart) GetLeased() uint32 {
+	if x != nil {
+		return x.Leased
 	}
 	return 0
 }
@@ -1857,12 +1912,20 @@ const file_wraithbox_egress_v1_control_proto_rawDesc = "" +
 	"\x0ewildcard_names\x18\x01 \x03(\v2\".wraithbox.egress.v1.WildcardNamesR\rwildcardNames\"5\n" +
 	"\rWildcardNames\x12\x0e\n" +
 	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x14\n" +
-	"\x05names\x18\x02 \x03(\tR\x05names\";\n" +
+	"\x05names\x18\x02 \x03(\tR\x05names\"\xe2\x01\n" +
 	"\tNetdStart\x12\x0e\n" +
 	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x1e\n" +
 	"\n" +
 	"generation\x18\x02 \x01(\x04R\n" +
-	"generation\"\x8a\x01\n" +
+	"generation\x12\x1b\n" +
+	"\tguest_mac\x18\x03 \x01(\fR\bguestMac\x12\x1f\n" +
+	"\vgateway_mac\x18\x04 \x01(\fR\n" +
+	"gatewayMac\x12\x16\n" +
+	"\x06subnet\x18\x05 \x01(\aR\x06subnet\x12\x1d\n" +
+	"\n" +
+	"prefix_len\x18\x06 \x01(\rR\tprefixLen\x12\x18\n" +
+	"\agateway\x18\a \x01(\aR\agateway\x12\x16\n" +
+	"\x06leased\x18\b \x01(\aR\x06leased\"\x8a\x01\n" +
 	"\x10NetdStartPayload\x12;\n" +
 	"\aentries\x18\x01 \x03(\v2!.wraithbox.egress.v1.MappingEntryR\aentries\x12\x18\n" +
 	"\adebited\x18\x02 \x03(\tR\adebited\x12\x1f\n" +

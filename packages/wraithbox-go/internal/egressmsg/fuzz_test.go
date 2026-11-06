@@ -142,7 +142,7 @@ func FuzzControlMessage(f *testing.F) {
 	add := func(dir byte, m proto.Message, fd bool) { f.Add(append([]byte{dir}, marshal(f, m)...), fd) }
 	add(dirHostdToProxyd, &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_ProxydStart{ProxydStart: &egressv1.ProxydStart{}}}, true)
 	add(dirHostdToProxyd, &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{Vm: "work", Generation: 1}}}, true)
-	add(dirHostdToNetd, &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: &egressv1.NetdStart{Vm: "isolated", Generation: 2}}}, true)
+	add(dirHostdToNetd, &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: NewNetdStart("isolated", 2, testLink())}}, true)
 	add(dirHostdToNetd, &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_PolicyChange{PolicyChange: &egressv1.PolicyChange{Vm: "work", Sequence: 3}}}, true)
 	add(dirProxydToHostd, &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_HandoffSocketClosed{HandoffSocketClosed: &egressv1.HandoffSocketClosed{
 		Vm: "work", Generation: 1, Rule: RuleNameReportMalformed, Check: "name-form",

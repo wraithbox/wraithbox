@@ -1,6 +1,10 @@
 package hostlink_test
 
 import (
+	"net"
+	"net/netip"
+
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
 	egressv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1"
 	policyv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/policy/v1"
 )
@@ -10,10 +14,17 @@ const (
 	gen = 3
 )
 
-// netdStart is a NetdStart for vm and gen.
+// link is the addressing of every NetdStart of these tests.
+var link = egressmsg.Link{
+	GuestMAC: net.HardwareAddr{2, 0, 0, 0, 0, 2}, GatewayMAC: net.HardwareAddr{2, 0, 0, 0, 0, 1},
+	Subnet:  netip.MustParsePrefix("192.168.127.0/24"),
+	Gateway: netip.MustParseAddr("192.168.127.1"), Leased: netip.MustParseAddr("192.168.127.2"),
+}
+
+// netdStart is a NetdStart for vm, gen and link.
 func netdStart() *egressv1.HostdToNetd {
 	return &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{
-		NetdStart: &egressv1.NetdStart{Vm: vm, Generation: gen},
+		NetdStart: egressmsg.NewNetdStart(vm, gen, link),
 	}}
 }
 
