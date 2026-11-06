@@ -413,6 +413,15 @@ gitdir
 fsmonitor
 creack
 rumdl
+curlopt
+javax
+kwargs
+NSURL
+osascript
+tlsserver
+urllib
+urlopen
+urlsession
 
 # The app bundle build: Xcode settings, hdiutil flags, Info.plist keys
 appbundle
