@@ -2,6 +2,7 @@ package carecord
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -30,7 +31,11 @@ func (k *Keeper) Reset(ctx context.Context, slot string, confirmed []string, com
 		return err
 	})
 	if err != nil {
-		k.cfg.Log.Warn("CA reset refused", "vm", slot, "decision", "refuse", "error", err.Error())
+		rule := RuleReset
+		if ref, ok := errors.AsType[*Refusal](err); ok {
+			rule = ref.Rule
+		}
+		k.cfg.Log.Warn("CA reset refused", "vm", slot, "decision", "refuse", "rule", rule, "error", err.Error())
 		return nil, err
 	}
 	if len(dropped) == 0 {

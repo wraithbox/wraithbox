@@ -100,6 +100,9 @@ func TestResetRefused(t *testing.T) {
 	wantRefusal(t, err, RuleRecordChanged, false)
 	_, err = r.k.Reset(t.Context(), "work", nil, resetCommand)
 	wantRefusal(t, err, RuleRecordChanged, false)
+	if want := `"msg":"CA reset refused","vm":"work","decision":"refuse","rule":"` + RuleRecordChanged; !strings.Contains(r.logs.String(), want) {
+		t.Errorf("logs don't hold %s:\n%s", want, r.logs.String())
+	}
 
 	r.audit.RefuseWrites("audit-write", "the audit log can't be written")
 	if _, err = r.k.Reset(t.Context(), "work", fingerprints(t, r), resetCommand); err == nil {
