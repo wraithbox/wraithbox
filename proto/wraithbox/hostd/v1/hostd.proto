@@ -30,6 +30,22 @@ service HostService {
   // with vm-running unless the VM is stopped.
   rpc ResetVMData(ResetVMDataRequest) returns (ResetVMDataResponse);
 
+  // ListCAs returns the inspection CAs of a VM's record, for the list
+  // `wb vm reset-ca` prints before it asks (S05-03-management-commands,
+  // "`wb vm reset-ca`"). It changes nothing.
+  rpc ListCAs(ListCAsRequest) returns (ListCAsResponse);
+
+  // ResetCA drops a stopped VM's inspection CAs from wb-hostd's record,
+  // for `wb vm reset-ca`. wb calls it only after a person confirmed in
+  // wb's own terminal (SEC14-no-fake-approvals). It writes a Device
+  // Config State Change (5019) event with each dropped CA's
+  // fingerprint, puts their key items on the removal list, and deletes
+  // the VM's saved state (S09-06-ca-keys, "Recovery"). It is refused
+  // with vm-running unless the VM is stopped, and with
+  // ca-record-changed when the record's CAs aren't the ones the request
+  // names.
+  rpc ResetCA(ResetCARequest) returns (ResetCAResponse);
+
   // StartVM cold-starts a stopped VM, for `wb vm start`. It returns once
   // wb-vmd has started the VM, before the guest link is up: wb follows
   // the link with GetVMStatus. It is refused with vm-running unless the
@@ -68,6 +84,41 @@ message ResetVMDataResponse {
   string old_volume_uuid = 1;
   // The volume UUID of the new disk.
   string new_volume_uuid = 2;
+}
+
+message ListCAsRequest {
+  VM vm = 1;
+}
+
+message ListCAsResponse {
+  // The VM's CAs, oldest first. Empty when the record has none.
+  repeated InspectionCA cas = 1;
+}
+
+// InspectionCA is one CA of a VM's record, as `wb vm reset-ca` shows it.
+message InspectionCA {
+  // The SHA-256 fingerprint of the CA certificate, DER, as 64 lowercase
+  // hexadecimal characters.
+  string sha256 = 1;
+  // The certificate's validity, in Unix seconds.
+  int64 not_before_unix = 2;
+  int64 not_after_unix = 3;
+  // Whether wb-proxyd signs the VM's leaves with it.
+  bool signing = 4;
+}
+
+message ResetCARequest {
+  VM vm = 1;
+  // The fingerprints of the CAs the person confirmed, as ListCAs gave
+  // them, in any order. wb-hostd refuses the reset with
+  // ca-record-changed unless they are the record's CAs, so it drops
+  // only what the person saw.
+  repeated string sha256 = 2;
+}
+
+message ResetCAResponse {
+  // The fingerprints of the CAs dropped, oldest first.
+  repeated string dropped_sha256 = 1;
 }
 
 message StartVMRequest {

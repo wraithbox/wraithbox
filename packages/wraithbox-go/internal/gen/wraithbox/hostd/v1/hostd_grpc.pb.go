@@ -38,6 +38,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	HostService_ResetVMData_FullMethodName = "/wraithbox.hostd.v1.HostService/ResetVMData"
+	HostService_ListCAs_FullMethodName     = "/wraithbox.hostd.v1.HostService/ListCAs"
+	HostService_ResetCA_FullMethodName     = "/wraithbox.hostd.v1.HostService/ResetCA"
 	HostService_StartVM_FullMethodName     = "/wraithbox.hostd.v1.HostService/StartVM"
 	HostService_StopVM_FullMethodName      = "/wraithbox.hostd.v1.HostService/StopVM"
 	HostService_GetVMStatus_FullMethodName = "/wraithbox.hostd.v1.HostService/GetVMStatus"
@@ -57,6 +59,20 @@ type HostServiceClient interface {
 	// (S05-03-management-commands, "`wb vm reset-data`"). It is refused
 	// with vm-running unless the VM is stopped.
 	ResetVMData(ctx context.Context, in *ResetVMDataRequest, opts ...grpc.CallOption) (*ResetVMDataResponse, error)
+	// ListCAs returns the inspection CAs of a VM's record, for the list
+	// `wb vm reset-ca` prints before it asks (S05-03-management-commands,
+	// "`wb vm reset-ca`"). It changes nothing.
+	ListCAs(ctx context.Context, in *ListCAsRequest, opts ...grpc.CallOption) (*ListCAsResponse, error)
+	// ResetCA drops a stopped VM's inspection CAs from wb-hostd's record,
+	// for `wb vm reset-ca`. wb calls it only after a person confirmed in
+	// wb's own terminal (SEC14-no-fake-approvals). It writes a Device
+	// Config State Change (5019) event with each dropped CA's
+	// fingerprint, puts their key items on the removal list, and deletes
+	// the VM's saved state (S09-06-ca-keys, "Recovery"). It is refused
+	// with vm-running unless the VM is stopped, and with
+	// ca-record-changed when the record's CAs aren't the ones the request
+	// names.
+	ResetCA(ctx context.Context, in *ResetCARequest, opts ...grpc.CallOption) (*ResetCAResponse, error)
 	// StartVM cold-starts a stopped VM, for `wb vm start`. It returns once
 	// wb-vmd has started the VM, before the guest link is up: wb follows
 	// the link with GetVMStatus. It is refused with vm-running unless the
@@ -87,6 +103,26 @@ func (c *hostServiceClient) ResetVMData(ctx context.Context, in *ResetVMDataRequ
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ResetVMDataResponse)
 	err := c.cc.Invoke(ctx, HostService_ResetVMData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hostServiceClient) ListCAs(ctx context.Context, in *ListCAsRequest, opts ...grpc.CallOption) (*ListCAsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListCAsResponse)
+	err := c.cc.Invoke(ctx, HostService_ListCAs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hostServiceClient) ResetCA(ctx context.Context, in *ResetCARequest, opts ...grpc.CallOption) (*ResetCAResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResetCAResponse)
+	err := c.cc.Invoke(ctx, HostService_ResetCA_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -137,6 +173,20 @@ type HostServiceServer interface {
 	// (S05-03-management-commands, "`wb vm reset-data`"). It is refused
 	// with vm-running unless the VM is stopped.
 	ResetVMData(context.Context, *ResetVMDataRequest) (*ResetVMDataResponse, error)
+	// ListCAs returns the inspection CAs of a VM's record, for the list
+	// `wb vm reset-ca` prints before it asks (S05-03-management-commands,
+	// "`wb vm reset-ca`"). It changes nothing.
+	ListCAs(context.Context, *ListCAsRequest) (*ListCAsResponse, error)
+	// ResetCA drops a stopped VM's inspection CAs from wb-hostd's record,
+	// for `wb vm reset-ca`. wb calls it only after a person confirmed in
+	// wb's own terminal (SEC14-no-fake-approvals). It writes a Device
+	// Config State Change (5019) event with each dropped CA's
+	// fingerprint, puts their key items on the removal list, and deletes
+	// the VM's saved state (S09-06-ca-keys, "Recovery"). It is refused
+	// with vm-running unless the VM is stopped, and with
+	// ca-record-changed when the record's CAs aren't the ones the request
+	// names.
+	ResetCA(context.Context, *ResetCARequest) (*ResetCAResponse, error)
 	// StartVM cold-starts a stopped VM, for `wb vm start`. It returns once
 	// wb-vmd has started the VM, before the guest link is up: wb follows
 	// the link with GetVMStatus. It is refused with vm-running unless the
@@ -165,6 +215,12 @@ type UnimplementedHostServiceServer struct{}
 
 func (UnimplementedHostServiceServer) ResetVMData(context.Context, *ResetVMDataRequest) (*ResetVMDataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ResetVMData not implemented")
+}
+func (UnimplementedHostServiceServer) ListCAs(context.Context, *ListCAsRequest) (*ListCAsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListCAs not implemented")
+}
+func (UnimplementedHostServiceServer) ResetCA(context.Context, *ResetCARequest) (*ResetCAResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResetCA not implemented")
 }
 func (UnimplementedHostServiceServer) StartVM(context.Context, *StartVMRequest) (*StartVMResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartVM not implemented")
@@ -210,6 +266,42 @@ func _HostService_ResetVMData_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(HostServiceServer).ResetVMData(ctx, req.(*ResetVMDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HostService_ListCAs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListCAsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostServiceServer).ListCAs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HostService_ListCAs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostServiceServer).ListCAs(ctx, req.(*ListCAsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HostService_ResetCA_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetCARequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostServiceServer).ResetCA(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HostService_ResetCA_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostServiceServer).ResetCA(ctx, req.(*ResetCARequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -278,6 +370,14 @@ var HostService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResetVMData",
 			Handler:    _HostService_ResetVMData_Handler,
+		},
+		{
+			MethodName: "ListCAs",
+			Handler:    _HostService_ListCAs_Handler,
+		},
+		{
+			MethodName: "ResetCA",
+			Handler:    _HostService_ResetCA_Handler,
 		},
 		{
 			MethodName: "StartVM",
