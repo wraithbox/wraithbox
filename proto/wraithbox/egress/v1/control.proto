@@ -27,7 +27,9 @@
 // one.
 //
 // A record is at most 4096 bytes (S04-08-records-and-bounds) and
-// carries at most one descriptor. A payload that doesn't fit in 4096
+// carries at most one descriptor. The CA messages of
+// S09-07-ca-certificates, "Messages", carry none: each fits in one
+// record. A payload that doesn't fit in 4096
 // bytes (an effective policy, a kept name mapping, the wildcard sets)
 // goes as a descriptor: the read end of a pipe, into which wb-hostd
 // writes one payload and then closes its end. A payload is a 4-byte
@@ -74,6 +76,14 @@ message HostdToProxyd {
     HandoffSocket handoff_socket = 2;
     // One descriptor: a wraithbox.policy.v1.EffectivePolicy.
     PolicyChange policy_change = 3;
+    // No descriptor.
+    CaIssue ca_issue = 4;
+    // No descriptor.
+    CaSet ca_set = 5;
+    // No descriptor.
+    CaAccept ca_accept = 6;
+    // No descriptor.
+    CaRemove ca_remove = 7;
   }
 }
 
@@ -86,6 +96,14 @@ message ProxydToHostd {
     PolicyAck policy_ack = 2;
     // No descriptor.
     HandoffSocketClosed handoff_socket_closed = 3;
+    // No descriptor.
+    CaIssued ca_issued = 4;
+    // No descriptor.
+    CaLoaded ca_loaded = 5;
+    // No descriptor.
+    CaRestoreFailed ca_restore_failed = 6;
+    // No descriptor.
+    CaRemoved ca_removed = 7;
   }
 }
 
@@ -219,4 +237,124 @@ message PolicyAck {
   string vm = 1;
   // As in the PolicyChange, at least 1.
   uint64 sequence = 2;
+}
+
+// CaIssue asks wb-proxyd to issue a new inspection CA for a VM
+// (S09-06-ca-keys, "Issue"). wb-proxyd answers with a CaIssued.
+message CaIssue {
+  // The VM slot, `work` or `isolated`.
+  string vm = 1;
+  // The CA id wb-hostd picked: 32 lowercase hexadecimal characters
+  // from a cryptographic random source, so the record and the item name
+  // `ca/<vm>/<ca>` agree before the item exists. Another form is
+  // refused with the check `message-form`.
+  string ca_id = 2;
+}
+
+// CaIssued answers a CaIssue: the CA certificate, or the rule of the
+// failure. Exactly one of certificate and rule is set.
+message CaIssued {
+  // As in the CaIssue.
+  string vm = 1;
+  // As in the CaIssue.
+  string ca_id = 2;
+  // The CA certificate, DER, 1 to 1024 bytes.
+  bytes certificate = 3;
+  // `ca-key-restore`, `keychain-needs-team` or `ca-issue-refused`.
+  string rule = 4;
+}
+
+// CaSet gives wb-proxyd a VM's CAs from wb-hostd's record, and which
+// one signs (S09-06-ca-keys, "Valid CA"). wb-proxyd restores each CA it
+// doesn't hold yet, then answers with a CaLoaded, or with a
+// CaRestoreFailed for the first CA that didn't restore. A CaSet of a
+// newer generation than the VM's last one stops the VM's streams until
+// a CaAccept of that generation. wb-proxyd refuses a CaSet of an older
+// generation, and ends the channel.
+message CaSet {
+  // The VM slot, `work` or `isolated`.
+  string vm = 1;
+  // The VM generation, at least 1.
+  uint64 generation = 2;
+  // The VM's CAs, 1 to 3, no CA id twice. A VM has two from day 30 of
+  // each CA on (S09-07-ca-certificates, "Scope").
+  repeated InspectionCa cas = 3;
+  // The CA id of the CA that signs, one of cas, or "" when none does.
+  string signing_ca_id = 4;
+  // "" when signing_ca_id is set, and `ca-not-installed` when it isn't
+  // (S09-07-ca-certificates, "Rotation", day 58). wb-proxyd then refuses
+  // the VM's inspected streams with it.
+  string no_signing_rule = 5;
+}
+
+// InspectionCa is one CA of a CaSet.
+message InspectionCa {
+  // As in the CaIssue that issued it.
+  string ca_id = 1;
+  // The CA certificate from the CaIssued, DER, 1 to 1024 bytes.
+  bytes certificate = 2;
+}
+
+// CaLoaded says every CA of a CaSet restored, and wb-proxyd holds the
+// VM's new set.
+message CaLoaded {
+  // As in the CaSet.
+  string vm = 1;
+  // As in the CaSet, at least 1.
+  uint64 generation = 2;
+}
+
+// CaRestoreFailed says a CA of a CaSet didn't restore. wb-proxyd then
+// serves none of the VM's streams (S09-06-ca-keys, "Restore").
+message CaRestoreFailed {
+  // As in the CaSet.
+  string vm = 1;
+  // As in the CaSet, at least 1.
+  uint64 generation = 2;
+  // The CA that failed, of the form of CaIssue.ca_id.
+  string ca_id = 3;
+  // `ca-key-restore` or `keychain-needs-team`.
+  string rule = 4;
+}
+
+// CaAccept lets wb-proxyd accept the VM's streams of a generation, once
+// wb-hostd recorded the install of its CAs (S09-07-ca-certificates,
+// "Boot, restore and host wake", step 7). wb-proxyd refuses a CaAccept
+// of another generation than the VM's last CaSet, and ends the channel.
+message CaAccept {
+  // The VM slot, `work` or `isolated`.
+  string vm = 1;
+  // The VM generation, at least 1.
+  uint64 generation = 2;
+}
+
+// CaRemove is a batch of the removal list (S15-03-access-rules,
+// "Removing CA keys"). wb-proxyd answers with a CaRemoved.
+message CaRemove {
+  // 1 to 64 entries. wb-proxyd checks the form of each itself, so an
+  // entry of another form refuses the batch, not the message.
+  repeated string items = 1;
+}
+
+// CaRemoved answers a CaRemove: the items deleted, or the batch refused
+// with `ca-removal-refused` and each entry that failed its check.
+message CaRemoved {
+  // The entries deleted, an item already gone included, each one of the
+  // CaRemove's. Empty when the batch was refused. An entry whose delete
+  // failed is in neither list, and wb-hostd sends it again.
+  repeated string deleted = 1;
+  // "" or `ca-removal-refused`.
+  string rule = 2;
+  // Each entry that failed its check, when rule is set.
+  repeated CaRemovalRefusal refused = 3;
+}
+
+// CaRemovalRefusal is one entry of a refused CaRemove.
+message CaRemovalRefusal {
+  // The entry's position in CaRemove.items, from 0.
+  uint32 index = 1;
+  // `item-form`: not `ca/<vm>/<ca>` with the parts of
+  // S15-03-access-rules, "Declared access". `in-record`: a CA of a VM's
+  // last CaSet.
+  string check = 2;
 }

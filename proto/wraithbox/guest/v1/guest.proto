@@ -99,6 +99,20 @@ service GuestService {
   // until a REMOVED result for that project and UID comes back. A reply
   // never clears another project's record.
   rpc RemoveUser(RemoveUserRequest) returns (RemoveUserResponse);
+
+  // InstallTrust makes the VM's current inspection CAs the guest's
+  // Wraith Box trust, in place of the ones before (S09-08-guest-trust;
+  // S09-07-ca-certificates, "Boot, restore and host wake", step 5).
+  // wb-hostd sends the CAs from its own record, never from what the
+  // guest reports it has. The answer is empty: a success says the
+  // guest installed them, and wb-hostd records the install.
+  //
+  // A refusal is a gRPC status with a google.rpc.ErrorInfo detail of the
+  // domain `wraithbox.guest.v1`, whose reason is the rule. The host
+  // takes nothing else from a refusal, and the status message is guest
+  // text that it logs escaped and cut. The rules, and the host's checks
+  // of the answer, come with the guest's side (S09-08-guest-trust).
+  rpc InstallTrust(InstallTrustRequest) returns (InstallTrustResponse);
 }
 
 message HelloRequest {}
@@ -347,3 +361,14 @@ message RemoveUserResponse {
   // otherwise. wb-hostd logs it escaped.
   string rule = 5;
 }
+
+message InstallTrustRequest {
+  // The VM's current inspection CA certificates, DER, 1 to 3, each 1 to
+  // 1024 bytes, as wraithbox.egress.v1.CaIssued gave them. wb-guestd
+  // refuses a request outside these bounds.
+  repeated bytes ca_certificates = 1;
+}
+
+// InstallTrustResponse is empty, so the host reads nothing from the
+// guest on success.
+message InstallTrustResponse {}
