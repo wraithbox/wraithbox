@@ -20,7 +20,12 @@ inherited sockets of type `SOCK_SEQPACKET` or `SOCK_DGRAM`. macOS uses
 `wb-hostd` treats these as a crash of the process that sent them: a
 malformed record, an oversized record, and one received with
 `MSG_TRUNC`. It ends that process, and counts the exit toward the
-restart limit. `wb-hostd` sends nothing on these sockets after its version record. A record or refused message from it after that ends `wb-netd`'s accounting channel, logged with `control-message-refused`, and later writes fail.
+restart limit. It logs the record with `accounting-record-malformed`
+and the check that failed, or the rule of `fdchan` for a datagram the
+channel refuses, and a channel that fails with
+`accounting-channel-failed`. A record with a descriptor, another
+version record, and none within the version timeout end the sender too.
+A sender that closes its channel ends nothing. `wb-hostd` sends nothing on these sockets after its version record. A record or refused message from it after that ends `wb-netd`'s accounting channel, logged with `control-message-refused`, and later writes fail.
 
 ### Accounting records
 
@@ -56,12 +61,31 @@ each entry before it keeps it:
   is 1 to 63 bytes of letters, digits and hyphens, with no dot byte
   inside it.
 - **The address** is inside 198.18.0.0/15.
-- **The count** is at most 131,072 live entries per VM.
+- **The count** is at most 131,072 live entries per VM
+  (`entry-count`).
+- **The mapping** holds one address per name and one name per address
+  (`mapping-conflict`). An entry the VM already holds is a renewal,
+  which moves its receipt time.
 
 An entry that fails a check is logged with the rule
 `mapping-entry-invalid`, rate-limited. It ends the `wb-netd` that sent
 it, as a malformed record does. So `wb-netd` never runs on with a
 mapping that differs from the one `wb-hostd` keeps.
+
+A release of an address the VM doesn't hold is logged with
+`mapping-release-unheld`, rate-limited, and the mapping stays as it
+was. A
+`wb-netd` that restarts can send one for an entry it released before.
+
+The other records are checked too, and one that fails is malformed
+(`accounting-record-malformed`):
+
+- a record for a VM `wb-hostd` never started (`vm-not-served`). A
+  record a stopped VM's `wb-netd` left in the channel is still kept;
+- a `ProxydWildcardName` for a VM whose hand-off socket `wb-proxyd`
+  hasn't acknowledged since the VM's start (`vm-not-served`);
+- a debit or a `ProxydWildcardName` past 65,535 names per VM
+  (`wildcard-count`). A repeated one counts once.
 
 `wb-hostd` stamps each entry with its own receipt time. It never uses a
 time from `wb-netd`.

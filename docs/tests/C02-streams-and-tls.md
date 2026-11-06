@@ -78,6 +78,14 @@ On macOS, `internal/proxyd/handoff` runs the `wb-proxyd` cases over
 socketpairs (`receiver_darwin_test.go`), and the reset that can't be
 sent with a fake channel (`TestResetSendFails`).
 
+`TestMalformedReportEndsOneNetd` in `internal/hostd/egress`
+(`crossvm_darwin_test.go`) runs `wb-hostd`'s side with a real
+`wb-proxyd` receiver over socketpairs. VM A's `wb-netd` sends a name
+with a capital letter. `wb-proxyd` closes A's hand-off socket, and
+`wb-hostd` ends A's `wb-netd` with `name-report-malformed`. VM B's
+streams still pass, `wb-hostd` keeps B's wildcard name, and
+`wb-proxyd` isn't ended (SEC08-proj-isolation).
+
 ### Upstream addresses
 
 Spec: S07-07-hosts-and-modes, "Upstream address". The tests are in

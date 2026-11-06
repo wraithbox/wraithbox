@@ -309,12 +309,48 @@ Spec: S04-architecture.
   `TestRealChannelOversizeEndsSender` with `fdchan-record-size` for a
   record over 4 KiB.
 - Send a mapping entry with an uppercase or non-LDH name, a trailing
-  dot, an address outside 198.18.0.0/15, or one past 131,072 live
-  entries. See it logged with `mapping-entry-invalid`, and the
-  `wb-netd` that sent it ended, as for a record received with
-  `MSG_TRUNC`.
+  dot, an address outside 198.18.0.0/15, one past 131,072 live
+  entries, or one whose name or address the VM holds for another. See
+  it logged with `mapping-entry-invalid`, and the `wb-netd` that sent
+  it ended, as for a record received with `MSG_TRUNC`. In
+  `internal/hostd/egress`: `TestMappingEntryInvalid`, with the bounds
+  lowered.
 - See entries kept until their release record, with `wb-hostd`'s
-  receipt time.
+  receipt time: `TestEntriesKeptUntilRelease`. `TestReleaseUnheld`
+  logs a release of an address the VM doesn't hold with
+  `mapping-release-unheld`, and the mapping stays as it was.
+  `TestRepeatsCountOnce` and `TestLifetime` cover repeated debits and names, a stop, a
+  restore and a new active period.
+- **The other records** (S04-08-records-and-bounds, "Mapping entries
+  are checked"). In `internal/hostd/egress`, `TestRecordMalformed`
+  refuses a record that doesn't decode, has a descriptor, is of
+  another sender's kind, names a VM that wasn't started, or is a debit
+  past the name bound, with `accounting-record-malformed` and its
+  check. `TestProxydNamesServedVM` refuses a `ProxydWildcardName` for
+  a VM with no acknowledged hand-off socket since its start.
+- **The reader** (S04-08-records-and-bounds, "Accounting and event
+  channels"). In `internal/hostd/egress`, `TestReaderKeepsRecords`
+  keeps records after the version record, and a sender that closes
+  its channel ends nothing. `TestRefusedRecordEndsSender` ends the
+  sender once, logged with the rule and check, and doesn't read on.
+  `TestReaderVersionRefused` and `TestVersionSendFails` end the
+  sender for another version record, one with a descriptor, none
+  within the version timeout, and one that can't be sent.
+  `TestRecvErrorsEndSender` ends it with `fdchan`'s rule as the check,
+  or `accounting-channel-failed`.
+- **`wb-proxyd`'s control channel** (S07-05-stream-hand-off, "One
+  hand-off socket per VM"). In `internal/hostd/egress`, over a fake
+  channel: `TestHandoffAfterAck` returns `wb-netd`'s end only after the
+  `HandoffSocketAck`. `TestHandoffNoAck`, `TestHandoffProxydEnds`,
+  `TestHandoffSendFails` and `TestHandoffRefusedBeforeSend` fail the
+  start with `proxyd-setup-failed` and each check, with no end left
+  open, and ignore a late acknowledgment. `TestControlMessageRefused`
+  and `TestProxydVersionRefused` end `wb-proxyd` with
+  `control-message-refused` or the version rule.
+  `TestHandoffSocketClosed` ends the VM's `wb-netd` once with
+  `name-report-malformed`, and logs a stale notice with
+  `handoff-notice-stale`. `TestPolicyWaitsForAck` waits for the
+  `PolicyAck`.
 - Block an accounting write past 100 ms, and see the lookup refused
   with `accounting-write-failed`.
 
@@ -619,6 +655,15 @@ and one before it detaches nothing.
 
 ## Fuzzing
 
+- What `wb-hostd` keeps of the accounting records,
+  `FuzzAccountingRecords` in `internal/hostd/egress`: sequences of
+  records from `wb-netd` and `wb-proxyd`, with and without a
+  descriptor, between starts, stops, restores and acknowledged
+  hand-off sockets. The kept state stays within the bounds, with one
+  address per name and one name per address, each name in canonical
+  form and each address in the range. A record with a descriptor is
+  never kept (S04-08-records-and-bounds, "Mapping entries are
+  checked").
 - The receive decision of the descriptor channels, `FuzzRecvDecision`: at most one descriptor kept, and every other one closed (S07-05-stream-hand-off, "Message form").
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`
