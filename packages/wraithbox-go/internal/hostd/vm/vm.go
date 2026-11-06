@@ -112,7 +112,11 @@ type Config struct {
 	// refusing mode.
 	MACAddresses MACAddresses
 	Provider     Provider
-	Cloner       Cloner
+	// Network starts each run's wb-netd once the provider handed over
+	// the packet transport. nil starts none, and the transport is only
+	// held (S07-02-packet-path, "Packet transport").
+	Network Network
+	Cloner  Cloner
 	// DataDisks runs the data disk checks before each start, records the
 	// first start, and resets a disk (S06-13-data-disk-format). Only nil in
 	// refusing mode.

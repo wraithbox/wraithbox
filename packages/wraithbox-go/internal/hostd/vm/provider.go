@@ -64,6 +64,29 @@ type PacketTransport interface {
 	Close() error
 }
 
+// Network starts each run's wb-netd on the run's packet transport
+// (S04-07-supervision, "A new `wb-netd`"). internal/hostd/netdproc
+// implements it.
+type Network interface {
+	// Start starts the wb-netd of slot's run of generation, whose guest
+	// has the MAC address mac, and returns once wb-netd acknowledged its
+	// first policy. The transport stays the manager's: it closes it after
+	// the NetworkRun's Stop. A failed start returns an error, and has
+	// ended the wb-netd it started.
+	Start(ctx context.Context, slot Slot, generation uint64, mac []byte, t PacketTransport) (NetworkRun, error)
+}
+
+// NetworkRun is one run's wb-netd.
+type NetworkRun interface {
+	// Exited is closed when wb-netd exits, for any reason.
+	Exited() <-chan struct{}
+	// Stop closes wb-netd's control channel, waits for it to exit, reads
+	// what is left in its accounting and event channels, and returns the
+	// runs it left open, for the VM's stop record (S09-11-audit, "Runs
+	// with a count"). It is called once.
+	Stop() []audit.OpenRun
+}
+
 // ProviderRefusal is a refusal of the provider: wb-vmd's rule, from the
 // google.rpc.ErrorInfo reason of its gRPC error (proto/wraithbox/vmd/v1).
 // Every field is data a possibly compromised wb-vmd chose.

@@ -78,6 +78,16 @@ const (
 	// RuleStoppedUnexpectedly is logged, never returned: the VM reached
 	// STOPPED or ERROR, or its wb-vmd ended, without a stop request.
 	RuleStoppedUnexpectedly Rule = "vm-stopped-unexpectedly"
+	// RuleNetdStartFailed: the run's wb-netd didn't start, or didn't
+	// acknowledge its first policy. The run ends at once: a VM runs only
+	// with the wb-netd that reads its packet transport
+	// (S04-07-supervision, "A new `wb-netd`").
+	RuleNetdStartFailed Rule = "netd-start-failed"
+	// RuleNetdExited is logged and recorded, never returned: the run's
+	// wb-netd exited while the run was live, and the manager stopped the
+	// VM. wb-netd isn't restarted (S04-07-supervision, "Restarting a
+	// daemon").
+	RuleNetdExited Rule = "netd-exited"
 	// RuleResetting: a start or a second reset while `wb vm reset-data`
 	// or `wb vm reset-ca` changes the stopped slot
 	// (S05-03-management-commands, "`wb vm reset-data`").

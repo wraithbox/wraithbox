@@ -17,6 +17,11 @@ type run struct {
 	// transport is the host end of the VM's packet transport, from the
 	// provider's start. finish closes it after the instance.
 	transport PacketTransport
+	// mac is the guest's MAC address, for its wb-netd.
+	mac []byte
+	// network is the run's wb-netd, once it started. finish stops it
+	// before it closes the transport.
+	network NetworkRun
 	// vmStopped: the instance reported STOPPED or ERROR for this
 	// generation, or ended.
 	vmStopped bool
@@ -29,8 +34,8 @@ type run struct {
 	ended chan struct{}
 }
 
-func newRun(slot Slot, generation uint64, inst Instance) *run {
-	return &run{slot: slot, generation: generation, inst: inst, ended: make(chan struct{})}
+func newRun(slot Slot, generation uint64, mac []byte, inst Instance) *run {
+	return &run{slot: slot, generation: generation, mac: mac, inst: inst, ended: make(chan struct{})}
 }
 
 // ending says why a run ends.
@@ -49,6 +54,10 @@ const (
 	// endClosed: the VM didn't stop after the force stop's deadline, so
 	// the manager closed the instance.
 	endClosed
+	// endNetdExited: the run's wb-netd exited while the run was live,
+	// and the manager closed the instance at once (S04-07-supervision,
+	// "Restarting a daemon").
+	endNetdExited
 	// endForced: the audit writer stopped the VM, and the manager closed
 	// the instance at once (S09-11-audit, "Free space and failed
 	// writes").
@@ -76,6 +85,8 @@ func (e ending) String() string {
 		return "start failed"
 	case endClosed:
 		return "instance closed after the force stop's deadline"
+	case endNetdExited:
+		return "wb-netd exited"
 	case endForced:
 		return "stopped by the audit writer"
 	}
@@ -90,6 +101,8 @@ func (e ending) rule() Rule {
 		return RuleStoppedUnexpectedly
 	case endStartFailed:
 		return RuleStart
+	case endNetdExited:
+		return RuleNetdExited
 	case endNone, endRequested, endClosed, endForced:
 		return RuleStop
 	}
@@ -166,9 +179,19 @@ func (m *Manager) finish(ctx context.Context, r *run, why ending) {
 		return
 	}
 	r.finishing = true
+	network := r.network
+	r.network = nil
 	m.mu.Unlock()
 
 	closeErr := r.inst.Close()
+	// The VM is stopped, so no frame comes any more. wb-netd ends, and
+	// what it wrote is read, before the slot is stopped: a new start of
+	// the slot finds its records read and its runs ended
+	// (S04-07-supervision, "A new `wb-netd`").
+	var open []audit.OpenRun
+	if network != nil {
+		open = network.Stop()
+	}
 
 	m.mu.Lock()
 	rec := m.slots[r.slot]
@@ -190,9 +213,11 @@ func (m *Manager) finish(ctx context.Context, r *run, why ending) {
 	}
 	// The run's stop record: the writer syncs the log before it writes
 	// it (S09-11-audit). A run that ended without a stop request, or
-	// whose start failed, is a failure.
-	unexpected := why == endUnexpected || why == endStartFailed
-	m.cfg.Audit.Record(audit.VMStopped(string(r.slot), r.generation, string(rule), why.String(), unexpected))
+	// whose start failed, or whose wb-netd exited, is a failure. It holds
+	// the runs wb-netd left open (S09-11-audit, "Runs with a count").
+	unexpected := why == endUnexpected || why == endStartFailed || why == endNetdExited
+	stop := audit.VMStopped(string(r.slot), r.generation, string(rule), why.String(), unexpected)
+	m.cfg.Audit.Record(audit.WithOpenRuns(stop, open))
 	if m.cfg.OnEnded != nil {
 		// No run is saved yet, so every end is a cold stop. Warm start
 		// sets Cold to false for a save.

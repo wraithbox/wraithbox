@@ -217,7 +217,7 @@ func (m *Manager) boot(ctx context.Context, slot Slot, generation uint64, mac []
 	if ref != nil {
 		return m.abortStart(ctx, slot, generation, ref)
 	}
-	r := newRun(slot, generation, inst)
+	r := newRun(slot, generation, mac, inst)
 	m.mu.Lock()
 	rec := m.slots[slot]
 	rec.run, rec.generation, rec.lastErr = r, generation, nil
@@ -302,7 +302,10 @@ func (m *Manager) startVM(ctx context.Context, r *run, req *vmdv1.StartRequest) 
 			closeTransport(a.transport)
 			return providerRefusal(r.slot, r.generation, "start", a.err)
 		}
-		return m.holdTransport(r, a.transport)
+		if ref := m.holdTransport(r, a.transport); ref != nil {
+			return ref
+		}
+		return m.startNetwork(ctx, r, a.transport)
 	case <-callCtx.Done():
 		go func() { closeTransport((<-answer).transport) }()
 		if err := ctx.Err(); err != nil {
@@ -336,6 +339,67 @@ func (m *Manager) holdTransport(r *run, t PacketTransport) *Refusal {
 		closeTransport(t)
 	}
 	return nil
+}
+
+// startNetwork starts the run's wb-netd on t, after holdTransport. A
+// failed start is refused with netd-start-failed, and the run ends: a
+// VM runs only with the wb-netd that reads its packet transport
+// (S04-07-supervision, "A new `wb-netd`"). A run that is already ending
+// stops its wb-netd at once. Without Config.Network no wb-netd starts.
+func (m *Manager) startNetwork(ctx context.Context, r *run, t PacketTransport) *Refusal {
+	m.mu.Lock()
+	finishing := r.finishing
+	m.mu.Unlock()
+	if m.cfg.Network == nil || finishing {
+		return nil
+	}
+	nr, err := m.cfg.Network.Start(ctx, r.slot, r.generation, r.mac, t)
+	if err != nil {
+		return &Refusal{
+			Rule: RuleNetdStartFailed, Slot: r.slot, Generation: r.generation, err: err,
+			Message: fmt.Sprintf("the %s VM's network process didn't start, and the VM was stopped", r.slot),
+		}
+	}
+	m.mu.Lock()
+	finishing = r.finishing
+	if !finishing {
+		r.network = nr
+	}
+	m.mu.Unlock()
+	if finishing {
+		_ = nr.Stop()
+		return nil
+	}
+	m.runs.Go(func() { m.watchNetwork(context.WithoutCancel(ctx), r, nr) })
+	return nil
+}
+
+// watchNetwork stops the VM when its wb-netd exits while the run is
+// live. wb-netd isn't restarted, so the VM doesn't run on without its
+// network process (S04-07-supervision, "Restarting a daemon"). An exit
+// after finish began is the stop's own.
+func (m *Manager) watchNetwork(ctx context.Context, r *run, nr NetworkRun) {
+	select {
+	case <-r.ended:
+		return
+	case <-nr.Exited():
+	}
+	m.mu.Lock()
+	rec := m.slots[r.slot]
+	if r.finishing || rec.run != r {
+		m.mu.Unlock()
+		return
+	}
+	r.rule = RuleNetdExited
+	if rec.phase == PhaseRunning {
+		rec.phase = PhaseStopping
+	}
+	m.mu.Unlock()
+	m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop",
+		slog.String("rule", string(RuleNetdExited)), slog.String("decision", "stop-vm"),
+		slog.String("slot", string(r.slot)), slog.Uint64("generation", r.generation), slog.String("mode", "close"))
+	m.cfg.Audit.Record(audit.VMStopping(string(r.slot), r.generation, string(RuleNetdExited), "wb-netd exited"))
+	m.finish(ctx, r, endNetdExited)
 }
 
 // closeTransport closes t, if there is one. A failed close changes
