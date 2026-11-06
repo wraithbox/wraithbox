@@ -1,9 +1,9 @@
 // Package vmcmd is `wb vm` (S05-03-management-commands, "`wb vm`"):
 // `start`, `stop`, `suspend` and `status` of the work VM and the
-// isolated VM, and `reset-data`, which gives a stopped VM a new data
-// disk after a person confirms in wb's own terminal
-// (S05-03-management-commands, "`wb vm reset-data`";
-// SEC14-no-fake-approvals). Every command but `suspend` asks wb-hostd
+// isolated VM, `reset-data`, which gives a stopped VM a new data disk,
+// and `reset-ca`, which drops a stopped VM's inspection CAs, each after
+// a person confirms in wb's own terminal (S05-03-management-commands,
+// "`wb vm reset-data`" and "`wb vm reset-ca`"; SEC14-no-fake-approvals). Every command but `suspend` asks wb-hostd
 // over its local IPC endpoint (proto/wraithbox/hostd/v1).
 package vmcmd
 
@@ -47,6 +47,8 @@ type Hostd interface {
 	StopVM(ctx context.Context, vm hostdv1.VM) error
 	GetVMStatus(ctx context.Context, vm hostdv1.VM) (*hostdv1.VMStatus, error)
 	ResetVMData(ctx context.Context, vm hostdv1.VM) (*hostdv1.ResetVMDataResponse, error)
+	ListCAs(ctx context.Context, vm hostdv1.VM) ([]*hostdv1.InspectionCA, error)
+	ResetCA(ctx context.Context, vm hostdv1.VM, sha256 []string) ([]string, error)
 	Close() error
 }
 
@@ -87,6 +89,8 @@ func Run(ctx context.Context, env Env, args []string) int {
 		return vmStatus(ctx, env, args[1:])
 	case "reset-data":
 		return resetData(ctx, env, args[1:])
+	case "reset-ca":
+		return resetCA(ctx, env, args[1:])
 	}
 	return usage(env, fmt.Sprintf("wb vm has no subcommand %q", printable(args[0])))
 }
@@ -96,6 +100,7 @@ const usageText = `Usage: wb vm start <work|isolated>
        wb vm suspend <work|isolated>
        wb vm status [<work|isolated>]
        wb vm reset-data <work|isolated>
+       wb vm reset-ca <work|isolated>
 `
 
 func usage(env Env, msg string) int {

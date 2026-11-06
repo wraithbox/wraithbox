@@ -149,8 +149,10 @@ type Config struct {
 	// Proxyd is wb-proxyd's control channel. nil is none yet: List and
 	// Reset work, and the removal list waits for ProxydStarted.
 	Proxyd Proxyd
-	Ender  Ender
-	Audit  Audit
+	// Ender ends wb-proxyd for an invalid reply. A Keeper with a Proxyd
+	// needs one.
+	Ender Ender
+	Audit Audit
 	// DeleteSavedState deletes a VM's saved state, the last step of
 	// `wb vm reset-ca`. No saved state exists before M6.4, so nil does
 	// nothing.
