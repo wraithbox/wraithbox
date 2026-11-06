@@ -324,10 +324,13 @@ Spec: S04-architecture.
 - **The other records** (S07-06-name-mapping, "Kept by `wb-hostd`").
   In `internal/hostd/egress`, `TestRecordMalformed` refuses a record
   that doesn't decode, has a descriptor, is of another sender's kind,
-  names a VM that wasn't started, or is a debit past the name bound,
-  with `accounting-record-malformed` and its check.
-  `TestProxydNamesServedVM` refuses a `ProxydWildcardName` for a VM
-  with no acknowledged hand-off socket since its start.
+  names a VM that wasn't started, is a mapping entry from `wb-proxyd`,
+  or is a debit past the name bound, with `accounting-record-malformed`
+  and its check. `TestProxydNamesServedVM` keeps a `ProxydWildcardName`
+  for a stopped VM, or one restarted with no acknowledged hand-off
+  socket, logged with `proxyd-name-unserved`.
+  `TestProxydNameAfterStopKeepsProxyd` reads such a name after a stop
+  or a restart, and sees `wb-proxyd` go on serving the other VM.
 - **The reader** (S04-08-records-and-bounds, "Accounting and event
   channels"). In `internal/hostd/egress`, `TestReaderKeepsRecords`
   keeps records after the version record, and a sender that closes
@@ -350,7 +353,12 @@ Spec: S04-architecture.
   `TestHandoffSocketClosed` ends the VM's `wb-netd` once with
   `name-report-malformed`, and logs a stale notice with
   `handoff-notice-stale`. `TestPolicyWaitsForAck` waits for the
-  `PolicyAck`.
+  `PolicyAck`. `TestHandoffNotStarted` and `TestHandoffPending` fail
+  the start with `vm-not-started` or `pending` before anything is sent.
+  `TestHandoffRetryAfterTimeout` ignores the late acknowledgment of a
+  timed-out attempt and returns the retry on its own.
+  `TestPayloadWriteFails` ends `wb-proxyd` with
+  `control-channel-failed` and the check `payload-write`.
 - Block an accounting write past 100 ms, and see the lookup refused
   with `accounting-write-failed`.
 

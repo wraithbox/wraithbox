@@ -157,11 +157,17 @@ A release of an address the VM doesn't hold is logged with
 The other records are malformed (`accounting-record-malformed`) when:
 
 - the VM is one `wb-hostd` never started (`vm-not-served`). Records a
-  stopped VM's `wb-netd` left in the channel are still kept;
-- a `ProxydWildcardName` is for a VM whose hand-off socket `wb-proxyd`
-  hasn't acknowledged since the VM's start (`vm-not-served`);
+  stopped VM's daemons left in the channel are still kept;
+- a mapping entry comes from `wb-proxyd`;
 - a debit or a `ProxydWildcardName` goes past 65,535 names per VM
   (`wildcard-count`). A repeated one counts once.
+
+`wb-proxyd` can write a `ProxydWildcardName` just before a VM stops or
+restarts, and `wb-hostd` reads it after. So a name for a VM that is
+stopped, or whose hand-off socket `wb-proxyd` hasn't acknowledged since
+its start, is kept and logged with `proxyd-name-unserved`,
+rate-limited. It only counts against that VM's budget, and ending
+`wb-proxyd` for it would stop the other VMs too (SEC08-proj-isolation).
 
 A channel that fails ends its sender with `accounting-channel-failed`,
 but a sender that closes its own channel isn't ended.
