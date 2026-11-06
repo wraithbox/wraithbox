@@ -25,15 +25,17 @@ import (
 const (
 	// RuleRecordMalformed: an accounting record that isn't a mapping
 	// entry failed a check, or the channel refused a datagram. It ends
-	// the sender.
+	// the sender (S04-08-records-and-bounds, "Accounting and event
+	// channels"; S07-06-name-mapping, "Kept by wb-hostd").
 	RuleRecordMalformed = "accounting-record-malformed"
 	// RuleEntryInvalid: a mapping entry failed a check
-	// (S04-08-records-and-bounds, "Mapping entries are checked"). It ends
-	// the wb-netd that sent it. Its log records are rate-limited.
+	// (S04-08-records-and-bounds, "Mapping entries are checked";
+	// S07-06-name-mapping, "Kept by wb-hostd"). It ends the wb-netd that
+	// sent it. Its log records are rate-limited.
 	RuleEntryInvalid = "mapping-entry-invalid"
 	// RuleReleaseUnheld: a release for an address the kept mapping
-	// doesn't hold, logged and ignored (S04-07-supervision, "The kept
-	// name mapping"). Its log records are rate-limited.
+	// doesn't hold, logged and ignored (S07-06-name-mapping, "Kept by
+	// wb-hostd"). Its log records are rate-limited.
 	RuleReleaseUnheld = "mapping-release-unheld"
 	// RuleAccountingFailed: reading an accounting channel failed with an
 	// error that is neither a refusal nor the sender's exit, or the
@@ -53,7 +55,7 @@ const (
 	RuleSetupFailed = "proxyd-setup-failed"
 	// RuleNoticeStale: a HandoffSocketClosed for a socket that isn't the
 	// VM's current one, or one wb-hostd already acted on. It is logged
-	// and ignored.
+	// and ignored (S07-06-name-mapping, "Malformed reports").
 	RuleNoticeStale = "handoff-notice-stale"
 )
 

@@ -138,35 +138,11 @@ closes the VM's hand-off socket before the stream's socket, and
 restore, and at the restarts of S04-07-supervision, "Restarting a daemon".
 
 1. It passes one end to `wb-proxyd`.
-2. It waits for `wb-proxyd` to acknowledge it.
-3. Only then does it give the other end to `wb-netd`, as that section
-   says: at start to a new `wb-netd`, and on its control channel to a
-   running one.
+2. It waits 10 s for `wb-proxyd` to acknowledge it. Otherwise it closes
+   both ends and refuses the start with `proxyd-setup-failed`.
+3. Only then does it give the other end to `wb-netd`: at start to a new
+   `wb-netd`, and on its control channel to a running one.
 4. It starts or resumes the VM only after `wb-netd` holds its end.
-
-`wb-hostd` waits 10 s for the acknowledgment. It closes both ends and
-refuses the start, logged with `proxyd-setup-failed` and the check,
-when:
-
-- the socketpair can't be made (`socketpair`);
-- the generation is older than the one `wb-proxyd` acknowledged
-  (`generation-older`);
-- the send fails (`send`), and then it also ends `wb-proxyd`;
-- no acknowledgment comes in time (`ack-timeout`), or the start is
-  canceled first (`canceled`);
-- `wb-proxyd` ends first (`proxyd-ended`).
-
-A timeout doesn't end `wb-proxyd`, and an acknowledgment that comes
-after it is logged and ignored. An acknowledgment `wb-hostd` didn't ask
-for, a message that doesn't decode, and a CA reply end `wb-proxyd` with
-`control-message-refused`, because `wb-hostd` doesn't send a CA request
-yet (I583).
-A control channel that fails ends it with `control-channel-failed`.
-
-`wb-hostd` ends a VM's `wb-netd` on the first `HandoffSocketClosed` for
-the VM's acknowledged socket (S07-06-name-mapping, "Malformed
-reports"). A notice for an older socket, a repeated one, or a VM that
-isn't running is logged with `handoff-notice-stale` and ignored.
 
 The build VM gets no hand-off socket, and its `wb-netd` hands no
 stream (S07-18-build-network).
