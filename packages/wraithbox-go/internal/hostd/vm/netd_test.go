@@ -17,16 +17,44 @@ import (
 
 // fakeNetwork is a vm.Network whose runs record their stops.
 type fakeNetwork struct {
-	mu   sync.Mutex
-	err  error
-	runs []*fakeNetworkRun
-	macs [][]byte
+	mu sync.Mutex
+	// prepareErr fails Prepare, and err fails Start.
+	prepareErr error
+	err        error
+	runs       []*fakeNetworkRun
+	macs       [][]byte
+	// prepares counts the Prepare calls, and starts the provider's
+	// starts that came before each.
+	prepares int
+	starts   []int
+	provider *vmtest.Provider
 }
 
-func (n *fakeNetwork) Start(_ context.Context, _ vm.Slot, _ uint64, mac []byte, t vm.PacketTransport) (vm.NetworkRun, error) {
+func (n *fakeNetwork) Prepare(_ context.Context, _ vm.Slot, _ uint64, mac []byte) (vm.NetworkStart, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.macs = append(n.macs, mac)
+	n.prepares++
+	if n.provider != nil {
+		if inst := n.provider.Instances(); len(inst) > 0 {
+			n.starts = append(n.starts, len(inst[len(inst)-1].Starts()))
+		}
+	}
+	if n.prepareErr != nil {
+		return nil, n.prepareErr
+	}
+	return fakeStart{n: n, mac: mac}, nil
+}
+
+type fakeStart struct {
+	n   *fakeNetwork
+	mac []byte
+}
+
+func (s fakeStart) Start(_ context.Context, t vm.PacketTransport) (vm.NetworkRun, error) {
+	n := s.n
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.macs = append(n.macs, s.mac)
 	if n.err != nil {
 		return nil, n.err
 	}
@@ -125,6 +153,38 @@ func TestNetdStartFailedRefused(t *testing.T) {
 	}
 	waitStopRecord(t, h)
 	checkRecord(t, h, "vm stopped", string(vm.RuleNetdStartFailed), statusFailure)
+}
+
+// wb-netd's start is prepared, its policy loaded, before the provider's
+// start, so no packet transport waits unread on it (S04-09-netd-start,
+// "The held transport"). A failed prepare refuses the start with
+// netd-start-failed, and the VM isn't started.
+func TestNetdPreparedBeforeTheVM(t *testing.T) {
+	h := newHarness(t)
+	network := &fakeNetwork{provider: h.provider}
+	h.cfg.Network = network
+	m := h.manager()
+	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
+		t.Fatal(err)
+	}
+	if network.prepares != 1 || len(network.starts) != 1 || network.starts[0] != 0 {
+		t.Fatalf("prepares %d, provider starts before each %v; want 1, [0]", network.prepares, network.starts)
+	}
+	if err := m.Stop(t.Context(), vm.SlotWork); err != nil {
+		t.Fatal(err)
+	}
+
+	h = newHarness(t)
+	h.cfg.Network = &fakeNetwork{prepareErr: errors.New("no policy")}
+	m = h.manager()
+	err := m.Start(t.Context(), vm.SlotWork)
+	if ref, ok := errors.AsType[*vm.Refusal](err); !ok || ref.Rule != vm.RuleNetdStartFailed {
+		t.Fatalf("start = %v, want %s", err, vm.RuleNetdStartFailed)
+	}
+	waitStopped(t, m, vm.SlotWork)
+	if inst := h.provider.Last(); len(inst.Starts()) != 0 || !inst.Closed() {
+		t.Errorf("provider starts %v, closed %v: want none, closed", inst.Starts(), inst.Closed())
+	}
 }
 
 // A wb-netd that exits while the run is live stops the VM at once, with

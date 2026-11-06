@@ -174,6 +174,17 @@ func TestLinkRoundTrip(t *testing.T) {
 	}
 }
 
+// TestMACOrder: with both MACs wrong, the guest's is refused each time.
+func TestMACOrder(t *testing.T) {
+	l := testLink()
+	l.GuestMAC, l.GatewayMAC = l.GuestMAC[:5], l.GatewayMAC[:5]
+	for range 20 {
+		if _, r := LinkOf(NewNetdStart("work", 1, l)); r == nil || r.Field != "netd_start.guest_mac" {
+			t.Fatalf("refusal %v, want netd_start.guest_mac", r)
+		}
+	}
+}
+
 func TestStartOrder(t *testing.T) {
 	netdStart := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: &egressv1.NetdStart{}}}
 	netdPolicy := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_PolicyChange{PolicyChange: &egressv1.PolicyChange{}}}

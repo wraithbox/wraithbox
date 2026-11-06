@@ -37,14 +37,14 @@ const (
 	// control channel failed, and wb-netd was ended. The VM manager then
 	// stops the VM (vm.RuleNetdExited).
 	RuleEnded = "netd-ended"
-	// RuleStopTimeout: wb-netd didn't exit within StopTimeout after its
+	// RuleStopTimeout: wb-netd didn't exit within Config.StopTimeout after its
 	// control channel closed, and was killed.
 	RuleStopTimeout = "netd-stop-timeout"
 )
 
-// StopTimeout bounds the wait for wb-netd's exit after its control
-// channel closed. It outlasts wb-netd's own flush of its event channel.
-const StopTimeout = 10 * time.Second
+// DefaultStopTimeout is Config.StopTimeout when it is zero. It outlasts
+// wb-netd's own flush of its event channel.
+const DefaultStopTimeout = 10 * time.Second
 
 // The addressing of every VM's link (S04-09-netd-start, "Start
 // message and first policy").
@@ -76,6 +76,9 @@ type Config struct {
 	// AckTimeout bounds the wait for wb-netd's version record and its
 	// acknowledgment of the first policy. Zero is egress.AckTimeout.
 	AckTimeout time.Duration
+	// StopTimeout bounds the wait for wb-netd's exit after its control
+	// channel closed. Zero is DefaultStopTimeout.
+	StopTimeout time.Duration
 }
 
 // Starter starts each run's wb-netd.
@@ -102,6 +105,9 @@ func New(cfg Config) (*Starter, error) {
 	if cfg.AckTimeout == 0 {
 		cfg.AckTimeout = egress.AckTimeout
 	}
+	if cfg.StopTimeout == 0 {
+		cfg.StopTimeout = DefaultStopTimeout
+	}
 	return &Starter{cfg: cfg, log: cfg.Log}, nil
 }
 
@@ -111,14 +117,10 @@ type childTransport interface {
 	StartWith(cmd *exec.Cmd, index int) error
 }
 
-// Start implements vm.Network. It refuses a transport that can't hand
-// its descriptor to a child and a MAC address that isn't a unicast Ethernet address,
-// and logs every refusal with vm.RuleNetdStartFailed.
-func (s *Starter) Start(ctx context.Context, slot vm.Slot, generation uint64, mac []byte, t vm.PacketTransport) (vm.NetworkRun, error) {
-	ct, ok := t.(childTransport)
-	if !ok {
-		return nil, s.refuse(ctx, slot, generation, "transport", errors.New("the packet transport can't hand its descriptor to a child"))
-	}
+// Prepare implements vm.Network. It refuses a MAC address that isn't a
+// unicast Ethernet address and a policy that doesn't load, before the
+// VM starts, and logs every refusal with vm.RuleNetdStartFailed.
+func (s *Starter) Prepare(ctx context.Context, slot vm.Slot, generation uint64, mac []byte) (vm.NetworkStart, error) {
 	link, err := Link(mac)
 	if err != nil {
 		return nil, s.refuse(ctx, slot, generation, "link", err)
@@ -127,11 +129,32 @@ func (s *Starter) Start(ctx context.Context, slot vm.Slot, generation uint64, ma
 	if err != nil {
 		return nil, s.refuse(ctx, slot, generation, "policy", err)
 	}
+	return &prepared{s: s, slot: slot, generation: generation, link: link, pol: pol}, nil
+}
+
+// prepared is a start with its link and first policy.
+type prepared struct {
+	s          *Starter
+	slot       vm.Slot
+	generation uint64
+	link       egressmsg.Link
+	pol        *policy.Policy
+}
+
+// Start implements vm.NetworkStart. It refuses a transport that can't
+// hand its descriptor to a child, and logs every refusal with
+// vm.RuleNetdStartFailed.
+func (ps *prepared) Start(ctx context.Context, t vm.PacketTransport) (vm.NetworkRun, error) {
+	s, slot, generation := ps.s, ps.slot, ps.generation
+	ct, ok := t.(childTransport)
+	if !ok {
+		return nil, s.refuse(ctx, slot, generation, "transport", errors.New("the packet transport can't hand its descriptor to a child"))
+	}
 	p, err := s.spawn(ctx, slot, generation, ct)
 	if err != nil {
 		return nil, s.refuse(ctx, slot, generation, "spawn", err)
 	}
-	if err := p.start(link, pol); err != nil {
+	if err := p.start(ps.link, ps.pol); err != nil {
 		_ = p.Stop()
 		return nil, s.refuse(ctx, slot, generation, "start-message", err)
 	}

@@ -68,12 +68,21 @@ type PacketTransport interface {
 // (S04-09-netd-start). internal/hostd/netdproc
 // implements it.
 type Network interface {
-	// Start starts the wb-netd of slot's run of generation, whose guest
-	// has the MAC address mac, and returns once wb-netd acknowledged its
-	// first policy. The transport stays the manager's: it closes it after
-	// the NetworkRun's Stop. A failed start returns an error, and has
-	// ended the wb-netd it started.
-	Start(ctx context.Context, slot Slot, generation uint64, mac []byte, t PacketTransport) (NetworkRun, error)
+	// Prepare checks the guest's MAC address mac and loads the policy of
+	// slot's run of generation. The manager calls it before the
+	// provider's start, so no packet transport is held unread while the
+	// policy is read (S04-09-netd-start, "The held transport"). A failed
+	// prepare returns an error, and the VM doesn't start.
+	Prepare(ctx context.Context, slot Slot, generation uint64, mac []byte) (NetworkStart, error)
+}
+
+// NetworkStart is a prepared start of one run's wb-netd.
+type NetworkStart interface {
+	// Start starts the wb-netd on t and returns once wb-netd acknowledged
+	// its first policy. The transport stays the manager's: it closes it
+	// after the NetworkRun's Stop. A failed start returns an error, and
+	// has ended the wb-netd it started.
+	Start(ctx context.Context, t PacketTransport) (NetworkRun, error)
 }
 
 // NetworkRun is one run's wb-netd.

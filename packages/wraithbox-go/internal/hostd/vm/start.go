@@ -285,6 +285,10 @@ func (m *Manager) abortStart(ctx context.Context, slot Slot, generation uint64, 
 // ends at the latest when startFailed closes the instance, and a
 // transport it returns after the wait ended is closed.
 func (m *Manager) startVM(ctx context.Context, r *run, req *vmdv1.StartRequest) *Refusal {
+	prep, ref := m.prepareNetwork(ctx, r)
+	if ref != nil {
+		return ref
+	}
 	callCtx, cancel := context.WithTimeout(ctx, m.cfg.StartTimeout)
 	defer cancel()
 	type started struct {
@@ -305,7 +309,7 @@ func (m *Manager) startVM(ctx context.Context, r *run, req *vmdv1.StartRequest) 
 		if ref := m.holdTransport(r, a.transport); ref != nil {
 			return ref
 		}
-		return m.startNetwork(ctx, r, a.transport)
+		return m.startNetwork(ctx, r, prep, a.transport)
 	case <-callCtx.Done():
 		go func() { closeTransport((<-answer).transport) }()
 		if err := ctx.Err(); err != nil {
@@ -341,24 +345,43 @@ func (m *Manager) holdTransport(r *run, t PacketTransport) *Refusal {
 	return nil
 }
 
+// prepareNetwork prepares the run's wb-netd before the provider's start.
+// Without Config.Network no wb-netd starts, and it returns nil.
+func (m *Manager) prepareNetwork(ctx context.Context, r *run) (NetworkStart, *Refusal) {
+	if m.cfg.Network == nil {
+		return nil, nil
+	}
+	prep, err := m.cfg.Network.Prepare(ctx, r.slot, r.generation, r.mac)
+	if err != nil {
+		return nil, netdStartFailed(r, err)
+	}
+	return prep, nil
+}
+
+// netdStartFailed refuses a start whose wb-netd didn't start.
+func netdStartFailed(r *run, err error) *Refusal {
+	return &Refusal{
+		Rule: RuleNetdStartFailed, Slot: r.slot, Generation: r.generation, err: err,
+		Message: fmt.Sprintf("the %s VM's network process didn't start, so the VM doesn't run", r.slot),
+	}
+}
+
 // startNetwork starts the run's wb-netd on t, after holdTransport. A
 // failed start is refused with netd-start-failed, and the run ends: a
 // VM runs only with the wb-netd that reads its packet transport
 // (S04-09-netd-start). A run that is already ending
-// stops its wb-netd at once. Without Config.Network no wb-netd starts.
-func (m *Manager) startNetwork(ctx context.Context, r *run, t PacketTransport) *Refusal {
+// stops its wb-netd at once. Without a prepared start (prep nil) no
+// wb-netd starts.
+func (m *Manager) startNetwork(ctx context.Context, r *run, prep NetworkStart, t PacketTransport) *Refusal {
 	m.mu.Lock()
 	finishing := r.finishing
 	m.mu.Unlock()
-	if m.cfg.Network == nil || finishing {
+	if prep == nil || finishing {
 		return nil
 	}
-	nr, err := m.cfg.Network.Start(ctx, r.slot, r.generation, r.mac, t)
+	nr, err := prep.Start(ctx, t)
 	if err != nil {
-		return &Refusal{
-			Rule: RuleNetdStartFailed, Slot: r.slot, Generation: r.generation, err: err,
-			Message: fmt.Sprintf("the %s VM's network process didn't start, and the VM was stopped", r.slot),
-		}
+		return netdStartFailed(r, err)
 	}
 	m.mu.Lock()
 	finishing = r.finishing

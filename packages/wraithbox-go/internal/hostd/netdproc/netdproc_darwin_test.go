@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -97,7 +99,8 @@ type setup struct {
 	t       transport
 }
 
-func newSetup(t *testing.T, program string) *setup {
+// newSetup starts a Starter of program. Each edit changes its Config.
+func newSetup(t *testing.T, program string, edits ...func(*netdproc.Config)) *setup {
 	t.Helper()
 	s := &setup{log: &syncBuffer{}, netdLog: &syncBuffer{}}
 	logger := slog.New(slog.NewJSONHandler(s.log, nil))
@@ -105,15 +108,19 @@ func newSetup(t *testing.T, program string) *setup {
 		Source: policy.Source{Kind: policy.SourceGlobal}, RuleName: "api", Protocol: policy.ProtocolL4,
 		Host: match.ExactHost(nt.Name("api.example.com")), Ports: []uint16{443},
 	}}}
-	var err error
-	s.starter, err = netdproc.New(netdproc.Config{
+	cfg := netdproc.Config{
 		Program: program, Own: nt.Own, Log: logger,
 		Logs:       func(string) io.Writer { return s.netdLog },
 		Accounting: egress.NewState(egress.StateConfig{Log: logger}),
 		Events:     events.NewHub(&audittest.Recorder{}, logger),
 		Policy:     func(context.Context) (*policy.Policy, error) { return pol, nil },
 		AckTimeout: 10 * time.Second,
-	})
+	}
+	for _, edit := range edits {
+		edit(&cfg)
+	}
+	var err error
+	s.starter, err = netdproc.New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +160,7 @@ func netd(t *testing.T) string {
 // control channel, after which it exits 0 with netd-stopped.
 func TestC11NetdStartAndStop(t *testing.T) {
 	s := newSetup(t, netd(t))
-	run, err := s.starter.Start(t.Context(), vm.SlotWork, 3, guestMAC, s.t)
+	run, err := s.start(t.Context(), vm.SlotWork, 3, guestMAC, s.t)
 	if err != nil {
 		t.Fatalf("start: %v\n%s\n%s", err, s.log, s.netdLog)
 	}
@@ -174,7 +181,7 @@ func TestC11NetdStartAndStop(t *testing.T) {
 // manager then stops the VM (vm.RuleNetdExited).
 func TestNetdEndedExits(t *testing.T) {
 	s := newSetup(t, netd(t))
-	run, err := s.starter.Start(t.Context(), vm.SlotIsolated, 1, guestMAC, s.t)
+	run, err := s.start(t.Context(), vm.SlotIsolated, 1, guestMAC, s.t)
 	if err != nil {
 		t.Fatalf("start: %v\n%s", err, s.netdLog)
 	}
@@ -216,7 +223,7 @@ func TestStartRefused(t *testing.T) {
 			if c.noFile {
 				tr = closeOnly{}
 			}
-			run, err := s.starter.Start(t.Context(), vm.SlotWork, 1, c.mac, tr)
+			run, err := s.start(t.Context(), vm.SlotWork, 1, c.mac, tr)
 			if err == nil || run != nil {
 				t.Fatalf("start = %v, %v; want a refusal", run, err)
 			}
@@ -245,5 +252,40 @@ func waitFor(t *testing.T, b *syncBuffer, s string) {
 			t.Fatalf("no %q in\n%s", s, b)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// start prepares and starts a wb-netd, as the VM manager does.
+func (s *setup) start(ctx context.Context, slot vm.Slot, generation uint64, mac []byte, t vm.PacketTransport) (vm.NetworkRun, error) {
+	prep, err := s.starter.Prepare(ctx, slot, generation, mac)
+	if err != nil {
+		return nil, err
+	}
+	return prep.Start(ctx, t)
+}
+
+// A wb-netd that doesn't exit once its control channel closed, here a
+// stopped one, is killed after StopTimeout with netd-stop-timeout.
+func TestNetdStopTimeoutKills(t *testing.T) {
+	s := newSetup(t, netd(t), func(c *netdproc.Config) { c.StopTimeout = 100 * time.Millisecond })
+	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
+	if err != nil {
+		t.Fatalf("start: %v\n%s", err, s.netdLog)
+	}
+	m := regexp.MustCompile(`"msg":"wb-netd started".*"pid":(\d+)`).FindStringSubmatch(s.log.String())
+	if m == nil {
+		t.Fatalf("no pid logged\n%s", s.log)
+	}
+	pid, err := strconv.Atoi(m[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Kill(pid, syscall.SIGSTOP); err != nil {
+		t.Fatal(err)
+	}
+	_ = run.Stop()
+	<-run.Exited()
+	if !strings.Contains(s.log.String(), `"rule":"netd-stop-timeout","decision":"kill"`) {
+		t.Errorf("the kill isn't logged\n%s", s.log)
 	}
 }
