@@ -65,7 +65,7 @@ type PacketTransport interface {
 }
 
 // Network starts each run's wb-netd on the run's packet transport
-// (S04-07-supervision, "A new `wb-netd`"). internal/hostd/netdproc
+// (S04-09-netd-start). internal/hostd/netdproc
 // implements it.
 type Network interface {
 	// Start starts the wb-netd of slot's run of generation, whose guest

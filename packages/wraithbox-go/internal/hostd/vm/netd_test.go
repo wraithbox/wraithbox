@@ -80,7 +80,7 @@ func (r *fakeNetworkRun) stopped() (stops, closesAtStop int) {
 // manager": each run's wb-netd starts with the guest's MAC address once
 // the transport came, and at the stop it is stopped before the
 // transport is closed, its open runs in the stop record
-// (S04-07-supervision, "A new `wb-netd`").
+// (S04-09-netd-start, "No restart yet").
 func TestC11NetdStartsAndStopsWithTheRun(t *testing.T) {
 	h := newHarness(t)
 	network := &fakeNetwork{}

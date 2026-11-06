@@ -12,8 +12,8 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/packetlink"
 )
 
-// The descriptors of wb-netd's start interface (S04-07-supervision, "A
-// new `wb-netd`").
+// The descriptors of wb-netd's start interface (S04-09-netd-start,
+// "Start interface").
 const (
 	logFD        = 2
 	controlFD    = 3

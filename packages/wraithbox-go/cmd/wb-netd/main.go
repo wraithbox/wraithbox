@@ -3,7 +3,7 @@
 // hands accepted streams to wb-proxyd (S07-egress-gateway). It holds no
 // secrets and makes no outbound connections.
 //
-// wb-hostd starts one per VM (S04-07-supervision, "A new `wb-netd`").
+// wb-hostd starts one per VM (S04-09-netd-start).
 // Its start interface: no arguments, an empty environment, and these
 // descriptors, each an end of a Unix datagram socketpair but the log
 // pipe:

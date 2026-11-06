@@ -10,7 +10,7 @@ import (
 )
 
 // CheckAddressing: a NetdStart whose addressing doesn't describe one
-// link (control.proto, NetdStart; S07-02-packet-path, "Addressing").
+// link (control.proto, NetdStart; S04-09-netd-start, "Start message and first policy").
 const CheckAddressing Check = "addressing"
 
 // The bounds of a link's prefix length: a subnet of at most 2^24

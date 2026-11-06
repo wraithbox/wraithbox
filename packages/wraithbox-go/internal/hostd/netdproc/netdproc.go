@@ -1,5 +1,5 @@
 // Package netdproc starts and stops each VM run's wb-netd
-// (S04-07-supervision, "A new `wb-netd`"): it spawns the program with
+// (S04-09-netd-start): it spawns the program with
 // the start interface of cmd/wb-netd, sends the start message and the
 // first policy on the control channel, reads the accounting and event
 // channels, and at the stop closes the control channel, waits for the
@@ -46,7 +46,8 @@ const (
 // channel closed. It outlasts wb-netd's own flush of its event channel.
 const StopTimeout = 10 * time.Second
 
-// The addressing of every VM's link (S07-02-packet-path, "Addressing").
+// The addressing of every VM's link (S04-09-netd-start, "Start
+// message and first policy").
 // Each VM has its own link, so both use the same subnet.
 var (
 	linkSubnet  = netip.MustParsePrefix("192.168.127.0/24")

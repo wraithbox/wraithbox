@@ -44,7 +44,7 @@ func (f *fakeLink) Close() error {
 // TestGateDrains checks that frames before open are read and dropped
 // with link-not-started, so the sender never waits, and that the stack
 // reads the frames after open, the one in flight first
-// (S07-02-packet-path, "Packet transport").
+// (S04-09-netd-start, "Drain before the start").
 func TestGateDrains(t *testing.T) {
 	f := newFakeLink()
 	rec := netd.NewRecorderWith(slog.New(slog.DiscardHandler), nil)
