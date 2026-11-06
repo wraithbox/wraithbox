@@ -126,3 +126,79 @@ func checkSent(t *testing.T, p *passState, sent []byte, retried bool) {
 		t.Fatalf("sent %d change cipher specs and %d ClientHellos", changeCipherSpecs, hellos)
 	}
 }
+
+// FuzzPassInterleaved runs a pass relay's two directions on one
+// passState, in the order schedule gives: an even byte steps the client
+// direction, an odd one the server's (C02-streams-and-tls, "Fuzzing").
+// It checks that the client direction relays a ClientHello only after a
+// HelloRetryRequest, that the server direction ends the checks only
+// when no second ClientHello is owed, and that the client's records go
+// through unchecked only after that.
+func FuzzPassInterleaved(f *testing.F) {
+	name := "pass.example.com"
+	hello := tlstest.Hello{ServerName: name}.Records()
+	f.Add(cat(ccs, hello, appData), cat(retry, serverDone), []byte{1, 0, 0, 1, 0})
+	f.Add(cat(hello, appData), cat(retry, serverDone), []byte{0, 1, 1, 0})
+	f.Add(cat(ccs, appData), serverDone, []byte{0, 1, 0})
+	f.Fuzz(func(t *testing.T, client, srv, schedule []byte) {
+		n, ref := dnsname.FromHost(name)
+		if ref != nil {
+			t.Fatal(ref)
+		}
+		p := &passState{name: n, firstBytesCap: fuzzCap, flight: tlsparse.NewServerFlight(fuzzCap)}
+		var sent []byte
+		clientOpen, serverOpen := true, true
+		for _, turn := range schedule {
+			if turn%2 == 0 && clientOpen {
+				clientOpen = stepClient(t, p, &client, &sent)
+			}
+			if turn%2 == 1 && serverOpen {
+				serverOpen = stepServer(t, p, &srv)
+			}
+		}
+		checkSent(t, p, sent, p.retried)
+	})
+}
+
+// stepClient steps a pass relay's client direction once, adds what it
+// relays before the ServerHello to sent, and reports whether it goes on.
+func stepClient(t *testing.T, p *passState, buf, sent *[]byte) bool {
+	t.Helper()
+	retried, done := p.retried, p.done
+	s, err := p.nextClient(*buf)
+	switch {
+	case err != nil || s.more:
+		return false
+	case s.through != done:
+		t.Fatalf("client through = %v with the checks done = %v", s.through, done)
+	case s.through:
+		return false
+	case s.n <= 0 || s.n > len(*buf):
+		t.Fatalf("client step %+v on %d bytes", s, len(*buf))
+	case (*buf)[0] == tlsparse.TypeHandshake && !retried:
+		t.Fatal("relayed a ClientHello before a HelloRetryRequest")
+	}
+	*sent = append(*sent, (*buf)[:s.n]...)
+	*buf = (*buf)[s.n:]
+	return true
+}
+
+// stepServer steps a pass relay's server direction once, and reports
+// whether it goes on.
+func stepServer(t *testing.T, p *passState, buf *[]byte) bool {
+	t.Helper()
+	s, err := p.nextServer(*buf)
+	switch {
+	case err != nil || s.more:
+		return false
+	case s.through:
+		if p.retried && !p.secondHello {
+			t.Fatal("the checks ended with a second ClientHello owed")
+		}
+		return false
+	case s.n <= 0 || s.n > len(*buf):
+		t.Fatalf("server step %+v on %d bytes", s, len(*buf))
+	}
+	*buf = (*buf)[s.n:]
+	return true
+}

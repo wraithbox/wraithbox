@@ -53,9 +53,7 @@ func TestC02SNIBinding(t *testing.T) {
 		if _, err := io.ReadFull(s.Conn, got); err != nil || !bytes.Equal(got, hello) {
 			t.Errorf("replayed %x, %v; want the ClientHello", got, err)
 		}
-		if !strings.Contains(x.logs.String(), "rule="+RuleInspectAllowed) {
-			t.Errorf("no allowed record:\n%s", x.logs.String())
-		}
+		x.wantAllowed(RuleInspectAllowed, "mode=inspect")
 		x.wantNoDial()
 	})
 }
@@ -275,11 +273,7 @@ func TestC02RawRelay(t *testing.T) {
 		t.Errorf("ended with %q", how)
 	}
 	<-x.done
-	for _, w := range []string{"rule=" + RuleRawAllowed, "source=\"project demo\"", "database", "end=closed"} {
-		if !strings.Contains(x.logs.String(), w) {
-			t.Errorf("log lacks %q:\n%s", w, x.logs.String())
-		}
-	}
+	x.wantAllowed(RuleRawAllowed, "source=\"project demo\"", "database", "end=closed")
 	if got := srv.received(t); string(got) != "QUIT\r\n" {
 		t.Errorf("server got %q", got)
 	}
@@ -308,6 +302,10 @@ func TestC02PolicyRecomputed(t *testing.T) {
 		}
 		srv.received(t)
 		<-x.done
+		x.wantRecords(1, 0)
+		if !strings.Contains(x.logs.String(), "end="+endedByHandoff) {
+			t.Errorf("the relay's end isn't the hand-off's:\n%s", x.logs.String())
+		}
 	})
 	t.Run("host leaves the pass list", func(t *testing.T) {
 		hello := tlstest.Hello{ServerName: passHost}.Records()
@@ -327,6 +325,10 @@ func TestC02PolicyRecomputed(t *testing.T) {
 		}
 		srv.received(t)
 		<-x.done
+		x.wantRecords(1, 0)
+		if !strings.Contains(x.logs.String(), "end="+endedByHandoff) {
+			t.Errorf("the relay's end isn't the hand-off's:\n%s", x.logs.String())
+		}
 	})
 	t.Run("gone at the hand-off", func(t *testing.T) {
 		p := testPolicy(t)
@@ -335,6 +337,72 @@ func TestC02PolicyRecomputed(t *testing.T) {
 		x.start(p, rawHost, rawPort)
 		x.wantRefused("reset", RuleProtocolMismatch, CheckProtocol, "")
 	})
+}
+
+// TestC02EndedByHandoff ends streams from the hand-off's side, as a
+// recompute, an address conflict or the socket's end does, while the
+// handler reads the first bytes, during its dial, and as the dial
+// opens. The handler logs no refusal and no allowed stream, as the
+// hand-off logged the end, and sends nothing upstream.
+func TestC02EndedByHandoff(t *testing.T) {
+	hello := tlstest.Hello{ServerName: passHost}.Records()
+	t.Run("first bytes", func(t *testing.T) {
+		x := newHarness(t, "")
+		x.start(testPolicy(t), inspectHost, 443)
+		x.send(hello[:3])
+		x.ctl.handoffReset()
+		x.wantHandoffEnd()
+		x.wantNoDial()
+	})
+	t.Run("during the dial", func(t *testing.T) {
+		x := newHarness(t, "")
+		dialing := make(chan struct{})
+		x.dialer.block = true
+		x.dialer.onDial = func() { close(dialing) }
+		x.start(testPolicy(t), passHost, 443)
+		x.send(hello)
+		<-dialing
+		x.ctl.handoffReset()
+		x.wantHandoffEnd()
+	})
+	for _, tt := range []struct {
+		name string
+		host string
+		port uint16
+		send []byte
+	}{
+		{"pass dial opens", passHost, 443, hello},
+		{"raw dial opens", rawHost, rawPort, nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newServer(t, func(s *server, c net.Conn) { s.readRest(c) })
+			x := newHarness(t, srv.addr())
+			x.dialer.afterDial = func() { x.ctl.handoffReset() }
+			x.start(testPolicy(t), tt.host, tt.port)
+			if tt.send != nil {
+				x.send(tt.send)
+			}
+			x.wantHandoffEnd()
+			if got := srv.received(t); len(got) != 0 {
+				t.Errorf("upstream got %x, want nothing", got)
+			}
+		})
+	}
+}
+
+// wantHandoffEnd checks the hand-off ended the stream, and the handler
+// returned with no log record of its own.
+func (x *harness) wantHandoffEnd() {
+	x.t.Helper()
+	if how := x.ended(); how != handoffEnd {
+		x.t.Errorf("stream ended with %q, want the hand-off's end", how)
+	}
+	select {
+	case <-x.done:
+	case <-time.After(waitLong):
+		x.t.Fatal("the handler didn't return")
+	}
+	x.wantRecords(0, 0)
 }
 
 func waitFor(t *testing.T, ok func() bool) {

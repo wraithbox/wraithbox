@@ -15,7 +15,11 @@ import (
 // unchanged, so a server-first protocol works (S07-15-non-http-streams,
 // "Raw TCP entries").
 func (h *Handler) raw(st *stream) {
-	entry, _ := rawEntry(st.ctl.Policy(), st.name, st.port)
+	entry, ok := rawEntry(st.policy, st.name, st.port)
+	if !ok {
+		h.reset(st, RuleProtocolMismatch, CheckProtocol)
+		return
+	}
 	up, ok := h.dial(st)
 	if !ok {
 		return
@@ -40,6 +44,19 @@ type refusal struct {
 
 func (r *refusal) Error() string { return "stream: refused with " + r.rule }
 
+// decision is how the refusal ends the stream, for its log record.
+func (r *refusal) decision() string {
+	if r.close {
+		return decisionClose
+	}
+	return decisionReset
+}
+
+// endedByHandoff is a relay's end when the hand-off ended its stream: a
+// recompute, an address conflict or the socket's end, which logged it.
+const endedByHandoff = "hand-off"
+
+
 // relay is one allowed stream and its upstream connection.
 type relay struct {
 	h  *Handler
@@ -57,9 +74,10 @@ type direction func() error
 // run runs both directions, each on a goroutine, until both end. A
 // direction that ends cleanly has half-closed its peer. The first
 // refusal or error ends the stream and the upstream connection, which
-// ends the other direction too: a refusal is logged with its rule, and
-// resets the stream unless it asks for a close. Otherwise the stream is
-// closed once both directions are done.
+// ends the other direction too: a refusal resets the stream, or closes
+// it when it asks for a close, and is logged with its rule. Otherwise
+// the stream is closed once both directions are done. A stream that the
+// hand-off ended first isn't logged as refused.
 func (r *relay) run(toUpstream, toGuest direction) {
 	results := make(chan error, 2)
 	for _, d := range []direction{toUpstream, toGuest} {
@@ -72,30 +90,43 @@ func (r *relay) run(toUpstream, toGuest direction) {
 		if ended || err == nil {
 			continue
 		}
-		ended, how = true, "error"
-		if ref, ok := errors.AsType[*refusal](err); ok {
-			how = ref.rule
-			r.h.refused(r.st, ref.rule, ref.check, ref.attrs...)
-			r.endStream(ref.close)
-			continue
-		}
-		r.endStream(false)
+		ended = true
+		how = r.stop(err)
 	}
-	if !ended {
-		r.endStream(true)
+	if !ended && !r.endStream(true) {
+		how = endedByHandoff
 	}
 	r.h.ended(r.st, how, r.toUpstream.Load(), r.toGuest.Load())
 }
 
-// endStream ends the stream with a close or a reset, and closes the
-// upstream connection.
-func (r *relay) endStream(closeIt bool) {
+// stop ends the stream on a direction's error, logs a refusal, and
+// returns how the relay ended.
+func (r *relay) stop(err error) string {
+	ref, isRefusal := errors.AsType[*refusal](err)
+	if !isRefusal {
+		if !r.endStream(false) {
+			return endedByHandoff
+		}
+		return "error"
+	}
+	if !r.endStream(ref.close) {
+		return endedByHandoff
+	}
+	r.h.refused(r.st, ref.decision(), ref.rule, ref.check, ref.attrs...)
+	return ref.rule
+}
+
+// endStream ends the stream with a close or a reset, closes the
+// upstream connection, and reports whether this call ended the stream.
+func (r *relay) endStream(closeIt bool) bool {
+	var ended bool
 	if closeIt {
-		r.st.ctl.Close()
+		ended = r.st.ctl.Close()
 	} else {
-		r.st.ctl.Reset()
+		ended = r.st.ctl.Reset()
 	}
 	_ = r.up.Close()
+	return ended
 }
 
 // pipe copies src to dst unchanged until src ends, and then half-closes

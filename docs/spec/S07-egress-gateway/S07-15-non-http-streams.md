@@ -80,6 +80,12 @@ when a pass relay sends its ClientHello upstream, and
 entry's source and reason. Each relay logs its end, with the bytes
 it relayed each way.
 
+A stream's end is logged once, by what ended it. When a recompute
+(S07-01-per-vm-policy, "Open streams"), an address conflict or the
+hand-off socket's end resets a stream, `wb-proxyd` stops its checks
+and its dial and logs nothing more for it. A connection that opens
+after that is closed before any byte goes upstream.
+
 ### Inside TLS on an inspected host
 
 `wb-proxyd` offers only the ALPN protocols `h2` and `http/1.1`. A

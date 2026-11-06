@@ -58,12 +58,15 @@ func testPolicy(t testing.TB) *policy.Policy {
 
 // fakeCtl is the hand-off's side of a stream: Reset and Close close the
 // stream's connection, a reset with no linger, so the guest sees a TCP
-// reset, and record how the stream ended. setPolicy runs the checks as
-// a recompute does, and resets the stream with policy-recomputed when
-// one fails.
+// reset, and record how the stream ended. Only the first end counts, as
+// on a handoff.Stream. setPolicy runs the checks as a recompute does,
+// and resets the stream with policy-recomputed when one fails, and
+// AddCheck does when its check fails at once. The hand-off's own log
+// records aren't written.
 type fakeCtl struct {
 	conn  net.Conn
 	ended chan string
+	done  chan struct{}
 	once  sync.Once
 
 	mu     sync.Mutex
@@ -71,8 +74,11 @@ type fakeCtl struct {
 	checks []func(*policy.Policy) egressmsg.Check
 }
 
-func (c *fakeCtl) end(how string) {
+func (c *fakeCtl) end(how string) bool {
+	did := false
 	c.once.Do(func() {
+		did = true
+		close(c.done)
 		if how != "close" {
 			if tc, ok := c.conn.(*net.TCPConn); ok {
 				_ = tc.SetLinger(0)
@@ -81,17 +87,29 @@ func (c *fakeCtl) end(how string) {
 		_ = c.conn.Close()
 		c.ended <- how
 	})
+	return did
 }
 
-func (c *fakeCtl) Reset() { c.end("reset") }
-func (c *fakeCtl) Close() { c.end("close") }
+func (c *fakeCtl) Reset() bool           { return c.end("reset") }
+func (c *fakeCtl) Close() bool           { return c.end("close") }
+func (c *fakeCtl) Done() <-chan struct{} { return c.done }
+
+// handoffReset ends the stream as a recompute or the socket's end does.
+func (c *fakeCtl) handoffReset() { c.end(handoffEnd) }
+
+// handoffEnd is how fakeCtl records a stream the hand-off ended.
+const handoffEnd = "hand-off"
 
 func (c *fakeCtl) AddCheck(check func(*policy.Policy) egressmsg.Check) egressmsg.Check {
 	c.mu.Lock()
 	c.checks = append(c.checks, check)
 	p := c.p
 	c.mu.Unlock()
-	return check(p)
+	failed := check(p)
+	if failed != "" {
+		c.end(handoff.RulePolicyRecomputed)
+	}
+	return failed
 }
 
 func (c *fakeCtl) Policy() *policy.Policy {
@@ -153,19 +171,35 @@ func (i *fakeInspector) Inspect(s *Inspected) {
 
 // testDialer dials addr whatever the host, and counts its dials. With
 // inner set, it asks inner instead, for 127.0.0.1 and the stream's port.
+// onDial, when set, runs first, and afterDial once a dial opened. With
+// block set, a dial waits for its context to end and fails.
 type testDialer struct {
-	addr  string
-	inner Dialer
-	dials atomic.Int32
+	addr      string
+	inner     Dialer
+	onDial    func()
+	afterDial func()
+	block     bool
+	dials     atomic.Int32
 }
 
 func (d *testDialer) Dial(ctx context.Context, _ string, port uint16) (net.Conn, error) {
 	d.dials.Add(1)
+	if d.onDial != nil {
+		d.onDial()
+	}
+	if d.block {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	if d.inner != nil {
 		return d.inner.Dial(ctx, "127.0.0.1", port)
 	}
 	var dialer net.Dialer
-	return dialer.DialContext(ctx, "tcp", d.addr)
+	c, err := dialer.DialContext(ctx, "tcp", d.addr)
+	if err == nil && d.afterDial != nil {
+		d.afterDial()
+	}
+	return c, err
 }
 
 // harness is one handler and one stream to it.
@@ -209,7 +243,7 @@ func (x *harness) start(p *policy.Policy, host string, port uint16) {
 	x.t.Helper()
 	guest, proxy := tcpPair(x.t)
 	x.guest = guest
-	x.ctl = &fakeCtl{conn: proxy, ended: make(chan string, 1), p: p}
+	x.ctl = &fakeCtl{conn: proxy, ended: make(chan string, 1), done: make(chan struct{}), p: p}
 	st := &stream{
 		vm: "vm-1", gen: 3, id: 7, name: mustName(x.t, host), port: port,
 		conn: proxy, ctl: x.ctl, began: time.Now(),
@@ -233,15 +267,26 @@ func (x *harness) ended() string {
 }
 
 // wantRefused checks the stream was reset or closed and the refusal was
-// logged with the rule, check and what the bytes looked like.
+// logged once, with the rule, check and what the bytes looked like.
 func (x *harness) wantRefused(how, rule string, check egressmsg.Check, looks string) {
 	x.t.Helper()
 	if got := x.ended(); got != how {
 		x.t.Errorf("stream ended with %q, want %q", got, how)
 	}
 	<-x.done
+	// A relay's refusal after its dial follows its one allowed record,
+	// and its end is logged too. Any other refusal is the only record.
+	allowed := 0
+	if strings.Contains(x.logs.String(), "egress relay ended") {
+		allowed = 1
+	}
+	x.wantRecords(allowed, 1)
 	logs := x.logs.String()
-	want := []string{"decision=reset", "rule=" + rule}
+	decision := decisionReset
+	if how == "close" {
+		decision = decisionClose
+	}
+	want := []string{"decision=" + decision, "rule=" + rule}
 	if check != "" {
 		want = append(want, "check="+string(check))
 	}
@@ -255,8 +300,38 @@ func (x *harness) wantRefused(how, rule string, check egressmsg.Check, looks str
 	}
 	x.audit.mu.Lock()
 	defer x.audit.mu.Unlock()
-	if len(x.audit.events) == 0 || x.audit.events[0].Rule != rule {
-		x.t.Errorf("audit events = %+v, want rule %q", x.audit.events, rule)
+	if len(x.audit.events) != 1 || x.audit.events[0].Rule != rule {
+		x.t.Errorf("audit events = %+v, want one with rule %q", x.audit.events, rule)
+	}
+}
+
+// wantRecords checks the log holds exactly allowed records of an
+// allowed stream and refused records of a refusal, and the audit hook
+// as many refusals.
+func (x *harness) wantRecords(allowed, refused int) {
+	x.t.Helper()
+	logs := x.logs.String()
+	gotAllowed := strings.Count(logs, "egress stream allowed")
+	gotRefused := strings.Count(logs, "egress stream refused")
+	x.audit.mu.Lock()
+	events := len(x.audit.events)
+	x.audit.mu.Unlock()
+	if gotAllowed != allowed || gotRefused != refused || events != refused {
+		x.t.Errorf("%d allowed and %d refused records, %d audit events; want %d, %d and %d; log:\n%s",
+			gotAllowed, gotRefused, events, allowed, refused, refused, logs)
+	}
+}
+
+// wantAllowed checks the log holds exactly one allowed record, with the
+// rule and each of want, and no refusal.
+func (x *harness) wantAllowed(rule string, want ...string) {
+	x.t.Helper()
+	x.wantRecords(1, 0)
+	logs := x.logs.String()
+	for _, w := range append([]string{"rule=" + rule, "decision=allow"}, want...) {
+		if !strings.Contains(logs, w) {
+			x.t.Errorf("log lacks %q:\n%s", w, logs)
+		}
 	}
 }
 

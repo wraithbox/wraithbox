@@ -416,8 +416,21 @@ func TestPolicyChangeRecheck(t *testing.T) {
 	if got := keptStream.Policy().WildcardBudget; got != 4 {
 		t.Fatalf("Policy() budget = %d, want 4", got)
 	}
+	// A check that fails when it is added resets the stream itself, and
+	// logs it once. A later Reset doesn't end it again.
 	if check := keptStream.AddCheck(budget4); check != "test-check" {
 		t.Fatalf("AddCheck after the recompute = %q, want test-check", check)
+	}
+	a.expectReset(3)
+	h.expectEvent("work", RulePolicyRecomputed, "test-check")
+	expectEOF(t, kept)
+	select {
+	case <-keptStream.Done():
+	default:
+		t.Fatal("Done isn't closed after the stream ended")
+	}
+	if keptStream.Reset() || keptStream.Close() {
+		t.Fatal("Reset or Close of an ended stream reported that it ended it")
 	}
 
 	a.stream(genA, wire(1), 443, 4)

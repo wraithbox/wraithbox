@@ -27,7 +27,11 @@ func (h *Handler) pass(st *stream, first firstBytes) {
 		h.reset(st, ref.rule, ref.check, ref.attrs...)
 		return
 	}
-	entry, _ := passEntry(st.ctl.Policy(), st.name)
+	entry, ok := passEntry(st.policy, st.name)
+	if !ok {
+		h.reset(st, RuleProtocolMismatch, CheckPassMode)
+		return
+	}
 	up, ok := h.dial(st)
 	if !ok {
 		return
@@ -40,8 +44,11 @@ func (h *Handler) pass(st *stream, first firstBytes) {
 		flight:        tlsparse.NewServerFlight(h.serverFlightCap),
 	}
 	if err := r.send(up, first.buf[:first.n], &r.toUpstream); err != nil {
-		r.endStream(false)
-		h.ended(st, "error", r.toUpstream.Load(), 0)
+		how := "error"
+		if !r.endStream(false) {
+			how = endedByHandoff
+		}
+		h.ended(st, how, r.toUpstream.Load(), 0)
 		return
 	}
 	rest := append([]byte(nil), first.buf[first.n:]...)

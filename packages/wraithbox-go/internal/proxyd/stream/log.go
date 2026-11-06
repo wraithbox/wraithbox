@@ -28,24 +28,32 @@ func streamAttrs(st *stream) []slog.Attr {
 	}
 }
 
+// The decisions of a refusal's log record: how it ended the stream.
+const (
+	decisionReset = "reset"
+	decisionClose = "close"
+)
+
 // reset ends a stream with a reset, so the guest sees a TCP reset
-// (S07-15-non-http-streams, "Logging a reset"), and logs it.
+// (S07-15-non-http-streams, "Logging a reset"), and logs it. A stream
+// that the hand-off ended first was logged there, and isn't again.
 func (h *Handler) reset(st *stream, rule string, check egressmsg.Check, attrs ...slog.Attr) {
-	h.refused(st, rule, check, attrs...)
-	st.ctl.Reset()
+	if st.ctl.Reset() {
+		h.refused(st, decisionReset, rule, check, attrs...)
+	}
 }
 
 // refused logs a refusal through ratelog, per rule, with the stream, the
-// rule, the check and what the first bytes looked like, never the bytes
-// (S07-15-non-http-streams, "Logging a reset"; SEC10-audit), and gives
-// it to the audit hook.
-func (h *Handler) refused(st *stream, rule string, check egressmsg.Check, attrs ...slog.Attr) {
+// rule, how it ended the stream, the check and what the first bytes
+// looked like, never the bytes (S07-15-non-http-streams, "Logging a
+// reset"; SEC10-audit), and gives it to the audit hook.
+func (h *Handler) refused(st *stream, decision, rule string, check egressmsg.Check, attrs ...slog.Attr) {
 	looks := st.looks
 	if looks == "" {
 		looks = looksUnknown
 	}
 	all := make([]slog.Attr, 0, len(attrs)+9)
-	all = append(all, slog.String("rule", rule), slog.String("decision", "reset"))
+	all = append(all, slog.String("rule", rule), slog.String("decision", decision))
 	if check != "" {
 		all = append(all, slog.String("check", string(check)))
 	}

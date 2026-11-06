@@ -30,6 +30,10 @@ type Stream struct {
 
 	sock  *socket
 	ended atomic.Bool
+	// done is closed when the stream ends. doneOnce makes it, so a
+	// Stream built without it works.
+	doneOnce sync.Once
+	done     chan struct{}
 
 	mu sync.Mutex
 	// policy is the effective policy the stream was last checked
@@ -55,18 +59,24 @@ func (s *Stream) Policy() *policy.Policy {
 // (S07-01-per-vm-policy, "Open streams"). The handler adds one for what
 // it learned after hand-off, such as the TLS mode of the host.
 //
-// AddCheck also runs the check at once against Policy and returns its
-// result, so a recompute applied between the hand-off and the call
-// isn't missed: the policy is read under the same lock that registers
-// the check, and a recompute sets the policy and copies the checks
-// under that lock too. On a non-empty result the caller resets the
-// stream.
+// AddCheck also runs the check at once against Policy, so a recompute
+// applied between the hand-off and the call isn't missed: the policy is
+// read under the same lock that registers the check, and a recompute
+// sets the policy and copies the checks under that lock too. When the
+// check fails, AddCheck itself resets the stream with policy-recomputed
+// and logs it, as a recompute does, so no caller can let the stream go
+// on (SEC05-default-deny). It returns the check, or "" when it passed.
 func (s *Stream) AddCheck(check func(*policy.Policy) egressmsg.Check) egressmsg.Check {
 	s.mu.Lock()
 	s.checks = append(s.checks, check)
 	p := s.policy
 	s.mu.Unlock()
-	return check(p)
+	failed := check(p)
+	if failed != "" && s.end(true) {
+		s.sock.r.refused(Event{VM: s.VM, Generation: s.Generation, Rule: RulePolicyRecomputed, Check: failed},
+			streamAttrs(s)...)
+	}
+	return failed
 }
 
 // recheck checks the stream against a new effective policy: its name
@@ -90,24 +100,38 @@ func (s *Stream) recheck(p *policy.Policy) egressmsg.Check {
 
 // Reset ends the stream with a reset: it sends a StreamReset, so
 // wb-netd resets the guest's connection, and then closes Conn
-// (S07-05-stream-hand-off, "Resets"). A later Reset or Close does
-// nothing.
-func (s *Stream) Reset() { s.end(true) }
+// (S07-05-stream-hand-off, "Resets"). It reports whether this call
+// ended the stream. A later Reset or Close does nothing and returns
+// false, so only the caller that ended a stream logs why.
+func (s *Stream) Reset() bool { return s.end(true) }
 
 // Close ends the stream: it closes Conn, which wb-netd answers with a
-// FIN. A later Reset or Close does nothing.
-func (s *Stream) Close() { s.end(false) }
+// FIN. It reports whether this call ended the stream, as Reset does.
+func (s *Stream) Close() bool { return s.end(false) }
 
-// end ends the stream once. The StreamReset goes before Conn closes.
-func (s *Stream) end(reset bool) {
+// Done returns a channel that is closed when the stream ends: by its
+// handler, a recompute, an address conflict or the socket's end. The
+// handler stops its work on the stream then.
+func (s *Stream) Done() <-chan struct{} { return s.doneChan() }
+
+func (s *Stream) doneChan() chan struct{} {
+	s.doneOnce.Do(func() { s.done = make(chan struct{}) })
+	return s.done
+}
+
+// end ends the stream once, and reports whether this call did. The
+// StreamReset goes before Conn closes.
+func (s *Stream) end(reset bool) bool {
 	if !s.ended.CompareAndSwap(false, true) {
-		return
+		return false
 	}
+	close(s.doneChan())
 	s.sock.remove(s)
 	if reset {
 		s.sock.sendReset(s.ID)
 	}
 	_ = s.Conn.Close()
+	return true
 }
 
 // streamAttrs are a stream's log attributes. The name is escaped and

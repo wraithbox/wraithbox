@@ -415,7 +415,7 @@ func (h *harness) expectStream() *Stream {
 	h.t.Helper()
 	select {
 	case s := <-h.handler.streams:
-		h.t.Cleanup(s.Close)
+		h.t.Cleanup(func() { s.Close() })
 		return s
 	case <-time.After(wait):
 		h.t.Fatalf("the handler got no stream; log:\n%s", h.logs.String())
