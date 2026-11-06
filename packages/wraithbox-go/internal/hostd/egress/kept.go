@@ -143,7 +143,7 @@ func (s *State) Start(vm string, restore bool) {
 }
 
 // Stop marks vm as stopped. Its kept mapping and counts stay for a
-// restore. wb-proxyd's names for it are refused until its next start.
+// restore. Records its daemons wrote before the stop are still kept.
 func (s *State) Stop(vm string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -199,15 +199,15 @@ func (s *State) served(vm string, gen uint64) {
 	}
 }
 
-// servedGeneration returns the generation of vm's acknowledged hand-off
-// socket, and 0 for none.
-func (s *State) servedGeneration(vm string) uint64 {
+// handoffState returns the generation of vm's acknowledged hand-off
+// socket, 0 for none, and whether vm is started.
+func (s *State) handoffState(vm string) (served uint64, started bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if v, ok := s.vms[vm]; ok && v.started {
-		return v.served
+		return v.served, true
 	}
-	return 0
+	return 0, false
 }
 
 // endOnce reports whether a HandoffSocketClosed for vm and gen names
@@ -232,8 +232,10 @@ func (s *State) endOnce(vm string, gen uint64) bool {
 func (s *State) Record(src Source, record []byte, hasFD bool) *Refused {
 	rec, ref := egressmsg.DecodeAccountingRecord(record, hasFD, src.Sender)
 	if ref != nil {
+		// Only wb-netd sends mapping entries. One from wb-proxyd is
+		// malformed, and its log record isn't rate-limited.
 		rule := RuleRecordMalformed
-		if rec.Kind == egressmsg.KindMappingEntry {
+		if rec.Kind == egressmsg.KindMappingEntry && src.Sender == egressmsg.SenderNetd {
 			rule = RuleEntryInvalid
 		}
 		return &Refused{Rule: rule, Check: string(ref.Check), Kind: rec.Kind, Reason: ref.Error()}
@@ -245,8 +247,10 @@ func (s *State) Record(src Source, record []byte, hasFD bool) *Refused {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v, ok := s.vms[vm]
-	if bad := s.notServed(src, rec, v, ok); bad != nil {
-		return bad
+	if !ok {
+		// SEC08-proj-isolation: no record lands on a slot wb-hostd never
+		// started.
+		return &Refused{Rule: RuleRecordMalformed, Check: CheckVMNotServed, Kind: rec.Kind, Reason: "a record for a VM that wasn't started"}
 	}
 	switch rec.Kind {
 	case egressmsg.KindWildcardDebit:
@@ -257,29 +261,27 @@ func (s *State) Record(src Source, record []byte, hasFD bool) *Refused {
 		s.release(vm, v, rec.Addr)
 		return nil
 	case egressmsg.KindProxydWildcardName:
+		s.unserved(vm, v, rec)
 		return s.count(v.proxydNames, rec)
 	}
 	// DecodeAccountingRecord returns a kind with every record it accepts.
 	return &Refused{Rule: RuleRecordMalformed, Check: string(egressmsg.CheckMessageForm), Reason: "a record with no kind"}
 }
 
-// notServed refuses a wb-netd record for a VM that wasn't started, and
-// a wb-proxyd name for a VM whose hand-off socket wb-proxyd hasn't
-// acknowledged since the VM's start (SEC08-proj-isolation;
-// S07-06-name-mapping, "Kept by wb-hostd"). wb-netd
-// records that were in the channel when its VM stopped are still kept,
-// so a stop keeps them.
-func (s *State) notServed(src Source, rec egressmsg.AccountingRecord, v *vmState, ok bool) *Refused {
-	switch {
-	case !ok:
-		return &Refused{Rule: RuleRecordMalformed, Check: CheckVMNotServed, Kind: rec.Kind, Reason: "a record for a VM that wasn't started"}
-	case src.Sender == egressmsg.SenderProxyd && (!v.started || v.served == 0):
-		return &Refused{
-			Rule: RuleRecordMalformed, Check: CheckVMNotServed, Kind: rec.Kind,
-			Reason: "a wildcard name for a VM with no acknowledged hand-off socket",
-		}
+// unserved logs a wb-proxyd wildcard name for a VM that is stopped, or
+// whose hand-off socket wb-proxyd hasn't acknowledged since its start.
+// wb-proxyd may have written it before the stop or the restart, and the
+// accounting channel delivers it after, so the name is kept: it only
+// counts against that VM's budget. Ending wb-proxyd for it would stop
+// every other VM too (SEC08-proj-isolation; S07-06-name-mapping, "Kept
+// by wb-hostd").
+func (s *State) unserved(vm string, v *vmState, rec egressmsg.AccountingRecord) {
+	if v.started && v.served != 0 {
+		return
 	}
-	return nil
+	s.rate.LogAttrs(context.Background(), slog.LevelWarn, "wb-proxyd wildcard name for a VM it doesn't serve kept",
+		slog.String("rule", RuleNameUnserved), slog.String("decision", "keep"),
+		slog.String("vm", vm), slog.String("name", rec.Name.String()), slog.Bool("started", v.started))
 }
 
 // count adds a wildcard name to a set. A name the set holds is a

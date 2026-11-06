@@ -3,6 +3,7 @@ package egress
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"sync"
 	"testing"
@@ -46,6 +47,39 @@ func (p *pipes) last(t *testing.T) (a, b *os.File) {
 	return pair[0], pair[1]
 }
 
+// payloadPipe is a fake Pipe. wb-hostd gets the write end of a pipe the
+// test reads, and the read end of another pipe to send. With closeEarly
+// the test's reader is closed before wb-hostd writes.
+type payloadPipe struct{ closeEarly bool }
+
+func (pp *payloadPipe) pipe() (r, w *os.File, err error) {
+	ours, w, err := os.Pipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	r, other, err := os.Pipe()
+	if err != nil {
+		_ = ours.Close()
+		_ = w.Close()
+		return nil, nil, err
+	}
+	_ = other.Close()
+	if pp.closeEarly {
+		_ = ours.Close()
+		return r, w, nil
+	}
+	go func() {
+		_, _ = io.Copy(io.Discard, ours)
+		_ = ours.Close()
+	}()
+	return r, w, nil
+}
+
+func servedGen(s *State, vm string) uint64 {
+	gen, _ := s.handoffState(vm)
+	return gen
+}
+
 // isClosed reports whether wb-hostd closed f.
 func isClosed(f *os.File) bool { return errors.Is(f.Close(), os.ErrClosed) }
 
@@ -57,6 +91,7 @@ type proxydHarness struct {
 	netd   map[string]*ender
 	state  *State
 	pipes  *pipes
+	pay    *payloadPipe
 	logs   *syncBuffer
 	served chan error
 }
@@ -69,7 +104,7 @@ func newProxyd(t *testing.T, ackTimeout time.Duration) *proxydHarness {
 	h := &proxydHarness{
 		t: t, conn: newFakeConn(), proxyd: newEnder(),
 		netd:  map[string]*ender{"work": newEnder(), "isolated": newEnder()},
-		state: NewState(StateConfig{Log: log}), pipes: &pipes{}, logs: buf, served: make(chan error, 1),
+		state: NewState(StateConfig{Log: log}), pipes: &pipes{}, pay: &payloadPipe{}, logs: buf, served: make(chan error, 1),
 	}
 	h.state.Start("work", false)
 	h.state.Start("isolated", false)
@@ -82,6 +117,7 @@ func newProxyd(t *testing.T, ackTimeout time.Duration) *proxydHarness {
 			return nil
 		},
 		Socketpair: h.pipes.socketpair,
+		Pipe:       h.pay.pipe,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -183,7 +219,7 @@ func TestHandoffAfterAck(t *testing.T) {
 	if !isClosed(proxydEnd) {
 		t.Fatal("wb-hostd kept its copy of wb-proxyd's end")
 	}
-	if got := h.state.servedGeneration("work"); got != 4 {
+	if got := servedGen(h.state, "work"); got != 4 {
 		t.Fatalf("served generation %d, want 4", got)
 	}
 }
@@ -206,7 +242,7 @@ func TestHandoffNoAck(t *testing.T) {
 	expectLog(t, h.logs, `"rule":"proxyd-setup-failed"`, `"decision":"fail-start"`, `"check":"ack-timeout"`, `"vm":"work"`)
 	h.conn.pushMsg(t, ackOf("work", 1))
 	expectLog(t, h.logs, "late acknowledgment ignored")
-	if got := h.state.servedGeneration("work"); got != 0 {
+	if got := servedGen(h.state, "work"); got != 0 {
 		t.Fatalf("a late ack marked generation %d served", got)
 	}
 	h.acknowledge("work", 2)
@@ -370,5 +406,73 @@ func TestPolicyWaitsForAck(t *testing.T) {
 	err := h.p.Policy(context.Background(), "work", 2, &policyv1.EffectivePolicy{Generation: 1})
 	if se, ok := errors.AsType[*SetupError](err); !ok || se.Check != checkAckTimeout {
 		t.Fatalf("Policy: %v, want %s", err, checkAckTimeout)
+	}
+	if got := h.proxyd.got(); len(got) != 0 {
+		t.Fatalf("wb-proxyd ended with %q", got)
+	}
+}
+
+// TestPayloadWriteFails: a payload pipe whose reader closed before the
+// write ends wb-proxyd with control-channel-failed (S04-architecture,
+// "Control channels").
+func TestPayloadWriteFails(t *testing.T) {
+	h := newProxyd(t, wait)
+	h.pay.closeEarly = true
+	if err := h.p.Start(&egressv1.ProxydStartPayload{}); err != nil {
+		t.Fatal(err)
+	}
+	h.proxyd.expect(t, RuleControlFailed)
+	expectLog(t, h.logs, `"rule":"control-channel-failed"`, `"check":"payload-write"`)
+}
+
+// TestHandoffNotStarted: a Handoff for a VM the State doesn't hold as
+// started fails the start before anything is sent.
+func TestHandoffNotStarted(t *testing.T) {
+	h := newProxyd(t, wait)
+	h.state.Stop("work")
+	_, err := h.p.Handoff(context.Background(), "work", 1)
+	expectSetupError(t, err, checkNotStarted)
+	_, err = h.p.Handoff(context.Background(), "build", 1)
+	expectSetupError(t, err, checkNotStarted)
+	select {
+	case s := <-h.conn.sent:
+		t.Fatalf("sent %v", s)
+	default:
+	}
+}
+
+// TestHandoffPending: a second Handoff for a VM and generation that one
+// waits for is refused, and the first still gets its acknowledgment.
+func TestHandoffPending(t *testing.T) {
+	h := newProxyd(t, wait)
+	res := h.handoff("work", 1)
+	_, err := h.p.Handoff(context.Background(), "work", 1)
+	expectSetupError(t, err, checkPending)
+	h.conn.pushMsg(t, ackOf("work", 1))
+	if r := result(t, res); r.err != nil {
+		t.Fatal(r.err)
+	}
+}
+
+// TestHandoffRetryAfterTimeout: a retry with the generation of an
+// attempt that timed out isn't acknowledged by that attempt's late
+// acknowledgment, only by its own.
+func TestHandoffRetryAfterTimeout(t *testing.T) {
+	h := newProxyd(t, 200*time.Millisecond)
+	expectSetupError(t, result(t, h.handoff("work", 1)).err, checkAckTimeout)
+	res := h.handoff("work", 1)
+	h.conn.pushMsg(t, ackOf("work", 1))
+	expectLog(t, h.logs, "late acknowledgment ignored")
+	select {
+	case r := <-res:
+		t.Fatalf("the late acknowledgment ended the retry: %v", r)
+	case <-time.After(50 * time.Millisecond):
+	}
+	h.conn.pushMsg(t, ackOf("work", 1))
+	if r := result(t, res); r.err != nil {
+		t.Fatal(r.err)
+	}
+	if got := h.proxyd.got(); len(got) != 0 {
+		t.Fatalf("wb-proxyd ended with %q", got)
 	}
 }

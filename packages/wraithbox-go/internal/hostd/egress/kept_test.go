@@ -1,12 +1,15 @@
 package egress
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostversion"
 )
 
 // clock is a fake clock that a test moves.
@@ -129,7 +132,8 @@ func TestRecordMalformed(t *testing.T) {
 		{"release outside the range", NetdSource("work"), func(t *testing.T) []byte { t.Helper(); return releaseRecord(t, 10<<24|1) }, false, string(egressmsg.CheckSyntheticRange)},
 		{"proxyd names no slot", ProxydSource(), func(t *testing.T) []byte { t.Helper(); return proxydNameRecord(t, "build", "x.example.com") }, false, string(egressmsg.CheckVMSlot)},
 		{"netd of a VM never started", NetdSource("isolated"), func(t *testing.T) []byte { t.Helper(); return debitRecord(t, "x.example.com") }, false, CheckVMNotServed},
-		{"proxyd names a VM it doesn't serve", ProxydSource(), func(t *testing.T) []byte { t.Helper(); return proxydNameRecord(t, "work", "x.example.com") }, false, CheckVMNotServed},
+		{"proxyd names a VM never started", ProxydSource(), func(t *testing.T) []byte { t.Helper(); return proxydNameRecord(t, "isolated", "x.example.com") }, false, CheckVMNotServed},
+		{"proxyd sends a mapping entry", ProxydSource(), func(t *testing.T) []byte { t.Helper(); return entryRecord(t, "x.example.com", wire(9)) }, false, string(egressmsg.CheckMessageForm)},
 		{"debit past the count", NetdSource("work"), func(t *testing.T) []byte { t.Helper(); return debitRecord(t, "y.example.com") }, false, CheckWildcardCount},
 	}
 	for _, tt := range tests {
@@ -149,25 +153,68 @@ func TestRecordMalformed(t *testing.T) {
 	}
 }
 
-// TestProxydNamesServedVM: wb-proxyd's wildcard names are kept per VM
-// only once its hand-off socket was acknowledged since the VM's start,
-// and refused again after its stop (SEC08-proj-isolation).
+// TestProxydNamesServedVM: wb-proxyd's wildcard names are kept per VM.
+// A name for a slot wb-hostd never started is refused with
+// vm-not-served. One for a VM that is stopped, or whose hand-off socket
+// wb-proxyd hasn't acknowledged since a restart, is kept and logged with
+// proxyd-name-unserved: wb-proxyd may have written it before
+// (S07-06-name-mapping, "Kept by wb-hostd"; SEC08-proj-isolation).
 func TestProxydNamesServedVM(t *testing.T) {
-	s, _, _ := newState(t)
+	s, _, buf := newState(t)
 	s.Start("work", false)
-	s.Start("isolated", false)
 	s.served("work", 3)
 	mustRecord(t, s, ProxydSource(), proxydNameRecord(t, "work", "a.example.com"))
 	mustRecord(t, s, ProxydSource(), proxydNameRecord(t, "work", "a.example.com"))
 	if ref := s.Record(ProxydSource(), proxydNameRecord(t, "isolated", "a.example.com"), false); ref == nil || ref.Check != CheckVMNotServed {
-		t.Fatalf("a name for a VM with no acknowledged socket: %+v", ref)
+		t.Fatalf("a name for a VM never started: %+v", ref)
 	}
-	if _, _, got := s.Kept("work"); !slices.Equal(names(got), []string{"a.example.com"}) {
-		t.Fatalf("wb-proxyd names %v", names(got))
+	if strings.Contains(buf.String(), RuleNameUnserved) {
+		t.Fatalf("a name for a served VM logged %s", RuleNameUnserved)
 	}
+
 	s.Stop("work")
-	if ref := s.Record(ProxydSource(), proxydNameRecord(t, "work", "b.example.com"), false); ref == nil || ref.Check != CheckVMNotServed {
-		t.Fatalf("a name for a stopped VM: %+v", ref)
+	mustRecord(t, s, ProxydSource(), proxydNameRecord(t, "work", "b.example.com"))
+	expectLog(t, buf, `"rule":"proxyd-name-unserved"`, `"decision":"keep"`, `"vm":"work"`, `"name":"b.example.com"`, `"started":false`)
+	if _, _, got := s.Kept("work"); !slices.Equal(names(got), []string{"a.example.com", "b.example.com"}) {
+		t.Fatalf("wb-proxyd names %v after the stop", names(got))
+	}
+
+	s.Start("work", false)
+	mustRecord(t, s, ProxydSource(), proxydNameRecord(t, "work", "c.example.com"))
+	if _, _, got := s.Kept("work"); !slices.Equal(names(got), []string{"c.example.com"}) {
+		t.Fatalf("wb-proxyd names %v after the restart", names(got))
+	}
+}
+
+// TestProxydNameAfterStopKeepsProxyd: VM A stops, or restarts, while
+// wb-proxyd's wildcard name for it is still in the accounting channel.
+// The reader keeps it and doesn't end wb-proxyd, which serves VM B too
+// (SEC08-proj-isolation).
+func TestProxydNameAfterStopKeepsProxyd(t *testing.T) {
+	for _, restart := range []bool{false, true} {
+		t.Run(fmt.Sprintf("restart=%v", restart), func(t *testing.T) {
+			s, _, _ := newState(t)
+			s.Start("work", false)
+			s.Start("isolated", false)
+			s.served("work", 1)
+			s.served("isolated", 1)
+			conn, end, r := startReader(t, s, ProxydSource())
+			conn.push(hostversion.Record(own))
+			s.Stop("work")
+			if restart {
+				s.Start("work", false)
+			}
+			conn.push(proxydNameRecord(t, "work", "a.example.com"))
+			conn.push(proxydNameRecord(t, "isolated", "b.example.com"))
+			close(conn.in)
+			done(t, r)
+			if got := end.got(); len(got) != 0 {
+				t.Fatalf("wb-proxyd ended with %q", got)
+			}
+			if _, _, got := s.Kept("isolated"); !slices.Equal(names(got), []string{"b.example.com"}) {
+				t.Fatalf("VM B's names %v", names(got))
+			}
+		})
 	}
 }
 
