@@ -63,6 +63,11 @@ func newFixture(t *testing.T) *fixture {
 	if err := os.WriteFile(rootsPath, pemRoots.Bytes(), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The installer makes etc/wraithbox and etc/wraithbox/trust, as the
+	// guest has /etc.
+	if err := os.Mkdir(filepath.Join(base, "etc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	logs := &lockedBuffer{}
 	in := &Installer{
 		log:   slog.New(slog.NewJSONHandler(logs, nil)),

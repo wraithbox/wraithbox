@@ -4,13 +4,16 @@ package trust
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"errors"
 	"io/fs"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -81,8 +84,9 @@ func equalDERs(a, b [][]byte) bool { return slices.EqualFunc(a, b, bytes.Equal) 
 
 // TestC02TrustFiles: one CA and then two give the three files with the
 // right modes and owner, and an install with one CA after one with two
-// leaves only that CA in every file. The directory is made when it is
-// missing, under a umask that would take its mode below 0755.
+// leaves only that CA in every file. The directory and its parent are
+// made when they are missing, under a umask that would take their mode
+// below 0755.
 func TestC02TrustFiles(t *testing.T) {
 	old := syscall.Umask(0o077)
 	t.Cleanup(func() { syscall.Umask(old) })
@@ -90,6 +94,7 @@ func TestC02TrustFiles(t *testing.T) {
 	caA := selfSigned(t, "Wraith Box CA A", true, newP256(t))
 	caB := selfSigned(t, "Wraith Box CA B", true, newP256(t))
 	f.install(caA)
+	f.checkMode(filepath.Dir(f.in.dir), fs.ModeDir|0o755)
 	f.checkFiles(caA)
 	f.install(caA, caB)
 	f.checkFiles(caA, caB)
@@ -146,7 +151,8 @@ func TestC02TrustRefused(t *testing.T) {
 
 // TestC02TrustDirUnsafe: a trust directory that is a symbolic link, a
 // file, has mode 0777, the setgid bit, or another owner is refused with
-// trust-dir-unsafe, and nothing is written.
+// trust-dir-unsafe, and nothing is written. So is a parent that is a
+// symbolic link, writable by its group or others, or has another owner.
 func TestC02TrustDirUnsafe(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -180,6 +186,21 @@ func TestC02TrustDirUnsafe(t *testing.T) {
 			mustDo(t, os.Chmod(f.in.dir, 0o755))
 			f.in.owner++
 		}},
+		{name: "parent a symbolic link", make: func(t *testing.T, f *fixture, elsewhere string) {
+			parent := filepath.Dir(f.in.dir)
+			mustDo(t, os.Remove(parent))
+			mustDo(t, os.Chmod(elsewhere, 0o755))
+			mustDo(t, os.Symlink(elsewhere, parent))
+		}},
+		{name: "parent group-writable", make: func(t *testing.T, f *fixture, _ string) {
+			mustDo(t, os.Chmod(filepath.Dir(f.in.dir), 0o775))
+		}},
+		{name: "parent world-writable", make: func(t *testing.T, f *fixture, _ string) {
+			mustDo(t, os.Chmod(filepath.Dir(f.in.dir), 0o757))
+		}},
+		{name: "parent another owner", owner: true, make: func(t *testing.T, f *fixture, _ string) {
+			mustDo(t, os.Chown(filepath.Dir(f.in.dir), 1, -1))
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.owner && os.Geteuid() != 0 {
@@ -187,7 +208,8 @@ func TestC02TrustDirUnsafe(t *testing.T) {
 			}
 			f := newFixture(t)
 			elsewhere := t.TempDir()
-			mustDo(t, os.MkdirAll(strings.TrimSuffix(f.in.dir, "/trust"), 0o755))
+			mustDo(t, os.Mkdir(filepath.Dir(f.in.dir), 0o755))
+			mustDo(t, os.Chmod(filepath.Dir(f.in.dir), 0o755))
 			tc.make(t, f, elsewhere)
 			f.wantRefusal(f.in.Install(t.Context(), [][]byte{selfSigned(t, "Wraith Box CA", true, newP256(t))}), RuleDirUnsafe)
 			wantEmpty(t, elsewhere, f.in.dir)
@@ -196,8 +218,8 @@ func TestC02TrustDirUnsafe(t *testing.T) {
 }
 
 // TestInstallRootsFailed: public roots that are missing, not a regular
-// file, or hold no certificate fail the install with
-// trust-install-failed before anything is written.
+// file, a FIFO no one writes to, or hold no certificate fail the install
+// with trust-install-failed before anything is written.
 func TestInstallRootsFailed(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -207,6 +229,11 @@ func TestInstallRootsFailed(t *testing.T) {
 		{"directory", func(t *testing.T, path string) {
 			mustDo(t, os.Remove(path))
 			mustDo(t, os.Mkdir(path, 0o755))
+		}},
+		// Opening a FIFO with no writer would block the install.
+		{"FIFO", func(t *testing.T, path string) {
+			mustDo(t, os.Remove(path))
+			mustDo(t, syscall.Mkfifo(path, 0o644))
 		}},
 		{"no certificate", func(t *testing.T, path string) { mustDo(t, os.WriteFile(path, []byte("none"), 0o644)) }},
 		{"too large", func(t *testing.T, path string) {
@@ -221,6 +248,19 @@ func TestInstallRootsFailed(t *testing.T) {
 				t.Errorf("wrote %v", slices.Collect(maps.Keys(s)))
 			}
 		})
+	}
+}
+
+// TestInstallCanceled: a call whose context ended, as when the host
+// gave up while it waited for another install, fails and writes
+// nothing.
+func TestInstallCanceled(t *testing.T) {
+	f := newFixture(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	f.wantRefusal(f.in.Install(ctx, [][]byte{selfSigned(t, "Wraith Box CA", true, newP256(t))}), RuleFailed)
+	if _, err := os.Lstat(filepath.Dir(f.in.dir)); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("made the trust directory's parent: %v", err)
 	}
 }
 

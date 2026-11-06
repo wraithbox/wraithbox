@@ -68,10 +68,20 @@ root that parses fails the install.
 `CA:TRUE`, a P-256 public key, and no two the same. It refuses anything
 else with `trust-install-refused`.
 
-It creates a missing directory. It refuses with `trust-dir-unsafe`, and
-writes nothing, when the directory is a symlink or not a directory, is
-owned by another user than root, or has another mode than 0755,
-special bits included.
+A missing directory or parent (`/etc/wraithbox/`) is created with mode
+0755. `wb-guestd` refuses with `trust-dir-unsafe`, and doesn't write a
+file, when:
+
+- the parent is a symlink or not a directory, is owned by another user
+  than root, or its group or others can write it;
+- the directory is a symlink or not a directory, is owned by another
+  user than root, or has another mode than 0755, special bits
+  included.
+
+It reads the public roots only when they are a regular file, so a FIFO
+there can't block the install. A call whose caller gave up, before the
+install started or before the first rename, fails with
+`trust-install-failed` and doesn't write a file.
 
 It writes the CA file, the bundle and the Java trust store in that
 order. A failure after the checks answers with `trust-install-failed`
@@ -148,4 +158,3 @@ maintainer confirms trust in the guest's UI, is I213.
   can't enroll in MDM.
 - **Decided:** I185.
 
-**Status:** Draft

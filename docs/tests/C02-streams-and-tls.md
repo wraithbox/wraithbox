@@ -327,15 +327,22 @@ a temporary directory, unless named otherwise.
 - Install one CA, then two, then one of the two. See `ca.pem` hold the
   CAs in order, `bundle.pem` the public roots then the CAs, and
   `java-truststore.p12` parse back without a password to the bundle's
-  certificates, each file mode 0644 under a umask of 077
-  (`TestC02TrustFiles`).
+  certificates, each file mode 0644 and the directory and its parent
+  0755 under a umask of 077 (`TestC02TrustFiles`).
 - Send an empty list, four certificates, a leaf, an RSA CA, a P-384
   CA, garbage and the same CA twice. See each refused with
   `trust-install-refused`, logged with the rule, and the directory
   unchanged (`TestC02TrustRefused`).
 - Make the directory a symlink, a file, mode 0777, 0700 or setgid,
-  or owned by another user (as root only). See each refused with
-  `trust-dir-unsafe` and nothing written (`TestC02TrustDirUnsafe`).
+  or owned by another user (as root only). Make its parent a symlink,
+  writable by its group or by others, or owned by another user (as
+  root only). See each refused with `trust-dir-unsafe` and nothing
+  written (`TestC02TrustDirUnsafe`).
+- Make the public roots missing, a directory, a FIFO, empty of
+  certificates or over 4 MiB, and see each fail with
+  `trust-install-failed` and nothing written
+  (`TestInstallRootsFailed`). Cancel the call's context, and see the
+  same (`TestInstallCanceled`).
 - Install a CA that wb-proxyd's CA authority issued with the fake key,
   then a new one. A Go `tls.Client` in a child process with
   `SSL_CERT_FILE` set to the bundle accepts the new CA's leaf, and one

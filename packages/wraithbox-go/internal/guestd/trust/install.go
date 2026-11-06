@@ -84,7 +84,7 @@ func (in *Installer) Install(ctx context.Context, ders [][]byte) *Refusal {
 	in.mu.Lock()
 	defer in.mu.Unlock()
 	attrs := []slog.Attr{slog.Int("cas", len(ders)), slog.Any("ca_sha256", fingerprints(ders))}
-	b, ref := in.install(ders)
+	b, ref := in.install(ctx, ders)
 	if ref != nil {
 		level := slog.LevelWarn
 		if ref.Rule == RuleFailed {
@@ -101,8 +101,13 @@ func (in *Installer) Install(ctx context.Context, ders [][]byte) *Refusal {
 	return nil
 }
 
-// install runs one install and returns what it wrote.
-func (in *Installer) install(ders [][]byte) (built, *Refusal) {
+// install runs one install and returns what it wrote. A call the
+// caller gave up on, while it waited for the lock or before the first
+// rename, writes nothing.
+func (in *Installer) install(ctx context.Context, ders [][]byte) (built, *Refusal) {
+	if err := ctx.Err(); err != nil {
+		return built{}, &Refusal{Rule: RuleFailed, Detail: err.Error()}
+	}
 	cas, err := CheckCAs(ders)
 	if err != nil {
 		return built{}, &Refusal{Rule: RuleRefused, Detail: err.Error()}
@@ -116,6 +121,9 @@ func (in *Installer) install(ders [][]byte) (built, *Refusal) {
 		return built{}, ref
 	}
 	defer func() { _ = root.Close() }()
+	if err := ctx.Err(); err != nil {
+		return built{}, &Refusal{Rule: RuleFailed, Detail: err.Error()}
+	}
 	for _, f := range b.files {
 		if err := writeFile(root, f.name, f.data); err != nil {
 			return built{}, &Refusal{Rule: RuleFailed, Detail: fmt.Sprintf("%s: %v", f.name, err)}
@@ -154,8 +162,17 @@ func (in *Installer) build(cas []*x509.Certificate) (built, error) {
 }
 
 // readRoots reads the public roots file, which must be a regular file
-// of at most MaxRootsSize bytes.
+// of at most MaxRootsSize bytes. It checks the type before it opens the
+// file, because opening a FIFO blocks until a writer comes, and checks
+// again after that it opened the same file.
 func readRoots(path string) ([]byte, error) {
+	before, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("public roots: %w", err)
+	}
+	if !before.Mode().IsRegular() {
+		return nil, fmt.Errorf("public roots %s: not a regular file (%v)", path, before.Mode().Type())
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("public roots: %w", err)
@@ -165,8 +182,8 @@ func readRoots(path string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("public roots: %w", err)
 	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("public roots %s: not a regular file (%v)", path, info.Mode().Type())
+	if !info.Mode().IsRegular() || !os.SameFile(before, info) {
+		return nil, fmt.Errorf("public roots %s: replaced while it was opened", path)
 	}
 	data, err := io.ReadAll(io.LimitReader(f, MaxRootsSize+1))
 	if err != nil {
@@ -190,19 +207,25 @@ func javaTrustStore(certs []*x509.Certificate) ([]byte, error) {
 	return data, nil
 }
 
-// openDir makes the trust directory when it is missing, checks it, and
-// opens it. Every write goes through the returned os.Root, so no name
-// in it is followed out of the directory.
+// openDir makes the trust directory and its parent when they are
+// missing, checks both, and opens the trust directory. Every write goes
+// through the returned os.Root, so no name in it is followed out of the
+// directory.
 func (in *Installer) openDir() (*os.Root, *Refusal) {
-	if err := in.makeDir(); err != nil {
+	parent := filepath.Dir(in.dir)
+	// The parent is checked before anything is made in it.
+	if err := makeMissing(parent); err != nil {
 		return nil, &Refusal{Rule: RuleFailed, Detail: err.Error()}
 	}
-	info, err := os.Lstat(in.dir)
-	if err != nil {
+	if _, ref := in.check(parent, in.parentUnsafe); ref != nil {
+		return nil, ref
+	}
+	if err := makeMissing(in.dir); err != nil {
 		return nil, &Refusal{Rule: RuleFailed, Detail: err.Error()}
 	}
-	if reason := in.unsafe(info); reason != "" {
-		return nil, &Refusal{Rule: RuleDirUnsafe, Detail: in.dir + ": " + reason}
+	info, ref := in.check(in.dir, in.unsafe)
+	if ref != nil {
+		return nil, ref
 	}
 	root, err := os.OpenRoot(in.dir)
 	if err != nil {
@@ -216,36 +239,70 @@ func (in *Installer) openDir() (*os.Root, *Refusal) {
 	return root, nil
 }
 
-// makeDir makes the trust directory with mode 0755 when nothing is at
-// its path. Anything there already is left for the check.
-func (in *Installer) makeDir() error {
-	if _, err := os.Lstat(in.dir); !errors.Is(err, fs.ErrNotExist) {
+// makeMissing makes dir with mode 0755 when nothing is at its path. Its
+// own parent must exist. Anything there already is left for the
+// checks.
+func makeMissing(dir string) error {
+	if _, err := os.Lstat(dir); !errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(in.dir), dirMode); err != nil {
-		return err
-	}
-	if err := os.Mkdir(in.dir, dirMode); err != nil {
+	if err := os.Mkdir(dir, dirMode); err != nil {
 		return err
 	}
 	// Mkdir's mode is masked by the umask.
-	return os.Chmod(in.dir, dirMode)
+	return os.Chmod(dir, dirMode)
+}
+
+// check runs unsafe on what is at dir, not following a link, and
+// refuses with trust-dir-unsafe when it returns a reason.
+func (in *Installer) check(dir string, unsafe func(fs.FileInfo) string) (fs.FileInfo, *Refusal) {
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return nil, &Refusal{Rule: RuleFailed, Detail: err.Error()}
+	}
+	if reason := unsafe(info); reason != "" {
+		return nil, &Refusal{Rule: RuleDirUnsafe, Detail: dir + ": " + reason}
+	}
+	return info, nil
+}
+
+// parentUnsafe returns why the trust directory's parent isn't safe, or
+// "": a symbolic link, not a directory, another owner, or writable by
+// its group or by others (S09-08-guest-trust, "Install"). A user who
+// can write the parent can replace the trust directory.
+func (in *Installer) parentUnsafe(info fs.FileInfo) string {
+	if reason := in.ownedDir(info); reason != "" {
+		return reason
+	}
+	if perm := info.Mode().Perm(); perm&0o022 != 0 {
+		return fmt.Sprintf("mode %v, writable by its group or others", perm)
+	}
+	return ""
 }
 
 // unsafe returns why the trust directory isn't safe to write, or "":
-// a symbolic link, not a directory, another mode than 0755 (setuid,
-// setgid and sticky bits included), or another owner
-// (S09-08-guest-trust, "Files").
+// a symbolic link, not a directory, another owner, or another mode than
+// 0755, setuid, setgid and sticky bits included (S09-08-guest-trust,
+// "Install").
 func (in *Installer) unsafe(info fs.FileInfo) string {
+	if reason := in.ownedDir(info); reason != "" {
+		return reason
+	}
+	if perm := info.Mode() & (fs.ModePerm | fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky); perm != dirMode {
+		return fmt.Sprintf("mode %v, want %v", perm, dirMode)
+	}
+	return ""
+}
+
+// ownedDir returns "" when info is a directory, not a symbolic link,
+// that the installer's owner owns, and otherwise why not.
+func (in *Installer) ownedDir(info fs.FileInfo) string {
 	mode := info.Mode()
 	switch {
 	case mode&fs.ModeSymlink != 0:
 		return "a symbolic link"
 	case !mode.IsDir():
 		return "not a directory"
-	}
-	if perm := mode & (fs.ModePerm | fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky); perm != dirMode {
-		return fmt.Sprintf("mode %v, want %v", perm, dirMode)
 	}
 	uid, err := fileowner.UID(info)
 	if err != nil {
