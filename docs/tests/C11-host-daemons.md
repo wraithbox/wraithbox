@@ -319,15 +319,15 @@ Spec: S04-architecture.
   receipt time: `TestEntriesKeptUntilRelease`. `TestReleaseUnheld`
   logs a release of an address the VM doesn't hold with
   `mapping-release-unheld`, and the mapping stays as it was.
-  `TestRepeatsCountOnce` and `TestLifetime` cover repeated debits and names, a stop, a
-  restore and a new active period.
-- **The other records** (S04-08-records-and-bounds, "Mapping entries
-  are checked"). In `internal/hostd/egress`, `TestRecordMalformed`
-  refuses a record that doesn't decode, has a descriptor, is of
-  another sender's kind, names a VM that wasn't started, or is a debit
-  past the name bound, with `accounting-record-malformed` and its
-  check. `TestProxydNamesServedVM` refuses a `ProxydWildcardName` for
-  a VM with no acknowledged hand-off socket since its start.
+  `TestRepeatsCountOnce` and `TestLifetime` cover repeated debits and
+  names, a stop, a restore and a new active period.
+- **The other records** (S07-06-name-mapping, "Kept by `wb-hostd`").
+  In `internal/hostd/egress`, `TestRecordMalformed` refuses a record
+  that doesn't decode, has a descriptor, is of another sender's kind,
+  names a VM that wasn't started, or is a debit past the name bound,
+  with `accounting-record-malformed` and its check.
+  `TestProxydNamesServedVM` refuses a `ProxydWildcardName` for a VM
+  with no acknowledged hand-off socket since its start.
 - **The reader** (S04-08-records-and-bounds, "Accounting and event
   channels"). In `internal/hostd/egress`, `TestReaderKeepsRecords`
   keeps records after the version record, and a sender that closes
@@ -339,9 +339,9 @@ Spec: S04-architecture.
   `TestRecvErrorsEndSender` ends it with `fdchan`'s rule as the check,
   or `accounting-channel-failed`.
 - **`wb-proxyd`'s control channel** (S07-05-stream-hand-off, "One
-  hand-off socket per VM"). In `internal/hostd/egress`, over a fake
-  channel: `TestHandoffAfterAck` returns `wb-netd`'s end only after the
-  `HandoffSocketAck`. `TestHandoffNoAck`, `TestHandoffProxydEnds`,
+  hand-off socket per VM", S04-architecture, "Control channels"). In
+  `internal/hostd/egress`, over a fake channel, `TestHandoffAfterAck`
+  returns `wb-netd`'s end only after the `HandoffSocketAck`. `TestHandoffNoAck`, `TestHandoffProxydEnds`,
   `TestHandoffSendFails` and `TestHandoffRefusedBeforeSend` fail the
   start with `proxyd-setup-failed` and each check, with no end left
   open, and ignore a late acknowledgment. `TestControlMessageRefused`
@@ -662,8 +662,7 @@ and one before it detaches nothing.
   hand-off sockets. The kept state stays within the bounds, with one
   address per name and one name per address, each name in canonical
   form and each address in the range. A record with a descriptor is
-  never kept (S04-08-records-and-bounds, "Mapping entries are
-  checked").
+  never kept (S07-06-name-mapping, "Kept by `wb-hostd`").
 - The receive decision of the descriptor channels, `FuzzRecvDecision`: at most one descriptor kept, and every other one closed (S07-05-stream-hand-off, "Message form").
 - The accounting records (debits, mapping entries and releases) and the
   event records `wb-hostd` reads from `wb-netd` and `wb-proxyd`

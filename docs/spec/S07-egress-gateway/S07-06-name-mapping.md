@@ -2,7 +2,8 @@
 
 **Purpose:** How `wb-proxyd` keeps its own checked copy of the names
 `wb-netd` gave synthetic addresses: name reports, releases, replay,
-lifetime, and the second count of the wildcard budget.
+lifetime, the second count of the wildcard budget, and the copy
+`wb-hostd` keeps.
 
 ## Design
 
@@ -51,6 +52,9 @@ message, `wb-proxyd` also:
 `wb-hostd` ends that `wb-netd`, and counts the exit toward the restart
 limit, as for a malformed accounting record
 (S04-08-records-and-bounds, "Accounting and event channels").
+It does so on the first `HandoffSocketClosed` for the socket
+`wb-proxyd` last acknowledged for the VM. It ignores any other notice,
+logged with `handoff-notice-stale`.
 
 #### Address conflicts
 
@@ -136,6 +140,31 @@ new `wb-proxyd` at start, in the payload of its `ProxydStart` message. A `wb-pro
 
 Refused lookups never reach `wb-proxyd`, so its count is at most
 `wb-netd`'s.
+
+### Kept by `wb-hostd`
+
+`wb-hostd` builds a copy of each VM's mapping from `wb-netd`'s
+accounting records, with the checks of S04-08-records-and-bounds
+("Mapping entries are checked"). It also refuses an entry whose name or
+address the VM holds for another, with `mapping-entry-invalid` and the
+check `mapping-conflict`. An entry the VM holds already is a renewal,
+which moves its receipt time. A new entry past the count of 131,072
+has the check `entry-count`.
+
+A release of an address the VM doesn't hold is logged with
+`mapping-release-unheld`, rate-limited, and leaves the copy unchanged.
+
+The other records are malformed (`accounting-record-malformed`) when:
+
+- the VM is one `wb-hostd` never started (`vm-not-served`). Records a
+  stopped VM's `wb-netd` left in the channel are still kept;
+- a `ProxydWildcardName` is for a VM whose hand-off socket `wb-proxyd`
+  hasn't acknowledged since the VM's start (`vm-not-served`);
+- a debit or a `ProxydWildcardName` goes past 65,535 names per VM
+  (`wildcard-count`). A repeated one counts once.
+
+A channel that fails ends its sender with `accounting-channel-failed`,
+but a sender that closes its own channel isn't ended.
 
 The decision behind this design, I68, is on S07-05-stream-hand-off.
 

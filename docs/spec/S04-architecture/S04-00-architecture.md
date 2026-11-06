@@ -151,6 +151,12 @@ refuses another message before it, and a second one, and ends the
 channel. `wb-hostd` treats a message from a daemon that it refuses as a
 crash of that daemon (S04-07-supervision).
 
+`wb-hostd` logs a refused message with `control-message-refused`, and a
+channel that fails with `control-channel-failed`. From `wb-proxyd`, it
+also refuses an acknowledgment it didn't ask for and a CA reply,
+because it doesn't send a CA request yet (I583). An acknowledgment that
+comes after its call gave up is logged and ignored.
+
 A record is at most 4 KiB and carries at most one descriptor. A
 payload that doesn't fit (an effective policy, a kept name mapping,
 the wildcard sets) goes as the read end of a pipe. It holds a 4-byte

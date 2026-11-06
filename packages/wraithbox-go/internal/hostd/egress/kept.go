@@ -265,7 +265,8 @@ func (s *State) Record(src Source, record []byte, hasFD bool) *Refused {
 
 // notServed refuses a wb-netd record for a VM that wasn't started, and
 // a wb-proxyd name for a VM whose hand-off socket wb-proxyd hasn't
-// acknowledged since the VM's start (SEC08-proj-isolation). wb-netd
+// acknowledged since the VM's start (SEC08-proj-isolation;
+// S07-06-name-mapping, "Kept by wb-hostd"). wb-netd
 // records that were in the channel when its VM stopped are still kept,
 // so a stop keeps them.
 func (s *State) notServed(src Source, rec egressmsg.AccountingRecord, v *vmState, ok bool) *Refused {
@@ -300,7 +301,7 @@ func (s *State) count(set map[dnsname.Name]bool, rec egressmsg.AccountingRecord)
 
 // entry keeps a new mapping entry, or renews one. It refuses one past
 // the count and one that conflicts with a live entry
-// (S04-08-records-and-bounds, "Mapping entries are checked").
+// (S07-06-name-mapping, "Kept by wb-hostd").
 func (s *State) entry(v *vmState, rec egressmsg.AccountingRecord) *Refused {
 	held, addrHeld := v.byAddr[rec.Addr]
 	at, nameHeld := v.byName[rec.Name]
@@ -331,8 +332,8 @@ func (s *State) entry(v *vmState, rec egressmsg.AccountingRecord) *Refused {
 }
 
 // release removes the entry of addr. A release for an address the kept
-// mapping doesn't hold is logged and ignored (S04-07-supervision, "The
-// kept name mapping").
+// mapping doesn't hold is logged and ignored (S07-06-name-mapping,
+// "Kept by wb-hostd").
 func (s *State) release(vm string, v *vmState, addr netip.Addr) {
 	e, ok := v.byAddr[addr]
 	if !ok {
