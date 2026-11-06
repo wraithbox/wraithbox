@@ -519,7 +519,8 @@ real shells in the work VM through `wb-hostd`, piped, for two projects
 it adds. It checks:
 
 - the project user, and that it can run the installed `wb-guestd`;
-- the exact environment, with the host's `TERM` and `LANG` unchanged;
+- the exact environment, with the host's `TERM` and `LANG` unchanged
+  and the six trust variables of S09-08-guest-trust;
 - the login shell's `PATH`, which the guest's `path_helper` builds:
   it keeps `/usr/bin:/bin:/usr/sbin:/sbin`, and each entry that exists,
   or the nearest existing ancestor of one that doesn't, is owned by root
