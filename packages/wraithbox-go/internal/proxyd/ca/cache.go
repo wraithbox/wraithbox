@@ -12,6 +12,8 @@ import (
 type leafCache struct {
 	caID   string
 	byHost map[string]*leafEntry
+	// flights are the leaves being signed, by hostname.
+	flights map[string]*flight
 	// tick counts the uses, so the entry with the lowest used is the
 	// least recently used.
 	tick uint64
@@ -23,7 +25,7 @@ type leafEntry struct {
 }
 
 func newLeafCache(caID string) *leafCache {
-	return &leafCache{caID: caID, byHost: map[string]*leafEntry{}}
+	return &leafCache{caID: caID, byHost: map[string]*leafEntry{}, flights: map[string]*flight{}}
 }
 
 // get returns the cached leaf for host, or nil when there is none or it

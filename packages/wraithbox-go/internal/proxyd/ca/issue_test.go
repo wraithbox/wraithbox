@@ -151,7 +151,7 @@ func TestC02IssueRefused(t *testing.T) {
 	if n := len(e.backend.Calls()); n != calls {
 		t.Errorf("a refused issue made %d store calls", n-calls)
 	}
-	if leaf, ref := e.a.For("work", 1, "example.com"); leaf == nil {
+	if leaf, ref := e.a.For(leafReq("work", 1, "example.com")); leaf == nil {
 		t.Errorf("the live CA stopped signing after the refused issue: %v", ref)
 	}
 

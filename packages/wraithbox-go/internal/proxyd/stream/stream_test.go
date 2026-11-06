@@ -194,15 +194,17 @@ func flightOf(size int) []byte {
 	return tlstest.Split(tlstest.TypeHandshake, msg, len(msg)/2)
 }
 
-// TestC02ALPN sends ALPN lists to an inspected host: only ftp is reset,
-// and h2, http/1.1 and no list go to the Inspector
+// TestC02ALPN sends ALPN lists to an inspected host: ftp and h2 alone
+// are reset, and a list with http/1.1 and no list go to the Inspector
 // (S07-15-non-http-streams, "Inside TLS on an inspected host").
 func TestC02ALPN(t *testing.T) {
-	x := newHarness(t, "")
-	x.start(testPolicy(t), inspectHost, 443)
-	x.send(tlstest.Hello{ServerName: inspectHost, ALPN: []string{"ftp"}}.Records())
-	x.wantRefused("reset", RuleProtocolMismatch, CheckALPN, "tls")
-	for _, alpn := range [][]string{{"h2"}, {"ftp", "http/1.1"}, nil} {
+	for _, alpn := range [][]string{{"ftp"}, {"h2"}} {
+		x := newHarness(t, "")
+		x.start(testPolicy(t), inspectHost, 443)
+		x.send(tlstest.Hello{ServerName: inspectHost, ALPN: alpn}.Records())
+		x.wantRefused("reset", RuleProtocolMismatch, CheckALPN, "tls")
+	}
+	for _, alpn := range [][]string{{"h2", "http/1.1"}, {"ftp", "http/1.1"}, nil} {
 		x := newHarness(t, "")
 		x.start(testPolicy(t), inspectHost, 443)
 		x.send(tlstest.Hello{ServerName: inspectHost, ALPN: alpn}.Records())

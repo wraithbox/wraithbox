@@ -26,9 +26,9 @@ const (
 	looksUnknown = "unknown"
 )
 
-// looksLike names the protocol the first bytes look like, for the log
+// LooksLike names the protocol the first bytes look like, for the log
 // only: it decides nothing.
-func looksLike(b []byte) string {
+func LooksLike(b []byte) string {
 	switch {
 	case len(b) > 0 && b[0] == tlsparse.TypeHandshake:
 		return looksTLS
@@ -106,6 +106,16 @@ func (h *Handler) decideHTTP(b []byte) decision {
 	return decideHTTP(b, h.firstBytesCap)
 }
 
+// RequestLine decides the first bytes of an HTTP/1 stream, on port 80
+// or inside terminated TLS. It returns done false while b, within
+// maxBytes, can still start an HTTP/1.1 or HTTP/1.0 request line. Once
+// done, check is "" when b starts with one, and otherwise names what
+// failed: tlsparse.CheckCap at the cap, or CheckRequestLine.
+func RequestLine(b []byte, maxBytes int) (done bool, check egressmsg.Check) {
+	d := decideHTTP(b, maxBytes)
+	return d.verdict != verdictMore, d.check
+}
+
 func decideHTTP(b []byte, maxBytes int) decision {
 	if len(b) > maxBytes {
 		b = b[:maxBytes]
@@ -179,7 +189,7 @@ func (h *Handler) readFirst(st *stream, decide func([]byte) decision) (firstByte
 	buf := make([]byte, 0, initialRead)
 	for {
 		d := decide(buf)
-		st.looks = looksLike(buf)
+		st.looks = LooksLike(buf)
 		switch d.verdict {
 		case verdictAccept:
 			_ = st.conn.SetReadDeadline(time.Time{})

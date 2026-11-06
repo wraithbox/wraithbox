@@ -46,7 +46,7 @@ func TestC02LeafRefusals(t *testing.T) {
 
 	// An expired CA, even with a leaf cached.
 	e.loaded("work", 2, caA, caA, der)
-	if leaf, ref := e.a.For("work", 2, "example.com"); leaf == nil {
+	if leaf, ref := e.a.For(leafReq("work", 2, "example.com")); leaf == nil {
 		t.Fatal(ref)
 	}
 	e.advance(60*24*time.Hour + time.Second)
@@ -62,7 +62,7 @@ func TestC02LeafRefusals(t *testing.T) {
 func TestC02LeafProfile(t *testing.T) {
 	e := newEnv(t, team)
 	ca := e.ready()
-	leaf, ref := e.a.For("work", 1, "api.example.com")
+	leaf, ref := e.a.For(leafReq("work", 1, "api.example.com"))
 	if leaf == nil {
 		t.Fatal(ref)
 	}
@@ -84,7 +84,7 @@ func TestC02LeafProfile(t *testing.T) {
 
 	// Near the CA's end, the leaf ends with the CA.
 	e.advance(59*24*time.Hour + 12*time.Hour)
-	leaf, ref = e.a.For("work", 1, "end.example.com")
+	leaf, ref = e.a.For(leafReq("work", 1, "end.example.com"))
 	if leaf == nil {
 		t.Fatal(ref)
 	}
@@ -130,20 +130,20 @@ func verify(t *testing.T, ca, cert *x509.Certificate, name string, now time.Time
 func TestC02LeafCache(t *testing.T) {
 	e := newEnv(t, team)
 	e.ready()
-	first, _ := e.a.For("work", 1, "example.com")
-	if again, _ := e.a.For("work", 1, "example.com"); again != first {
+	first, _ := e.a.For(leafReq("work", 1, "example.com"))
+	if again, _ := e.a.For(leafReq("work", 1, "example.com")); again != first {
 		t.Error("a second leaf for the same host isn't the cached one")
 	}
-	if other, _ := e.a.For("work", 1, "example.org"); other == first {
+	if other, _ := e.a.For(leafReq("work", 1, "example.org")); other == first {
 		t.Error("another host got the same leaf")
 	}
 
 	e.advance(22*time.Hour + 59*time.Minute)
-	if again, _ := e.a.For("work", 1, "example.com"); again != first {
+	if again, _ := e.a.For(leafReq("work", 1, "example.com")); again != first {
 		t.Error("the leaf was replaced more than an hour before its end")
 	}
 	e.advance(time.Minute)
-	renewed, _ := e.a.For("work", 1, "example.com")
+	renewed, _ := e.a.For(leafReq("work", 1, "example.com"))
 	if renewed == first {
 		t.Error("the leaf wasn't replaced an hour before its end")
 	}
@@ -151,17 +151,17 @@ func TestC02LeafCache(t *testing.T) {
 	derA := e.a.vms["work"].cas[caA].cert.Raw
 	derB := e.issue("work", caB)
 	e.loaded("work", 1, caA, caA, derA, caB, derB)
-	if again, _ := e.a.For("work", 1, "example.com"); again != renewed {
+	if again, _ := e.a.For(leafReq("work", 1, "example.com")); again != renewed {
 		t.Error("a CA set with the same signing CA dropped the cache")
 	}
 	e.loaded("work", 1, caB, caA, derA, caB, derB)
-	switched, _ := e.a.For("work", 1, "example.com")
+	switched, _ := e.a.For(leafReq("work", 1, "example.com"))
 	if switched == renewed || switched.Leaf.Issuer.String() == renewed.Leaf.Issuer.String() {
 		t.Error("the leaf after the signing CA change isn't signed by the new CA")
 	}
 
 	for i := range maxLeavesPerVM + 10 {
-		if leaf, ref := e.a.For("work", 1, fmt.Sprintf("h%d.example.com", i)); leaf == nil {
+		if leaf, ref := e.a.For(leafReq("work", 1, fmt.Sprintf("h%d.example.com", i))); leaf == nil {
 			t.Fatal(ref)
 		}
 	}
@@ -185,7 +185,7 @@ func TestLeafConcurrent(t *testing.T) {
 	for g := range 4 {
 		wg.Go(func() {
 			for i := range 50 {
-				e.a.For("work", 1, fmt.Sprintf("h%d-%d.example.com", g, i%5))
+				e.a.For(leafReq("work", 1, fmt.Sprintf("h%d-%d.example.com", g, i%5)))
 			}
 		})
 	}
@@ -212,7 +212,7 @@ func TestC02VMScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	leaf, ref := e.a.For("isolated", 4, "example.com")
+	leaf, ref := e.a.For(leafReq("isolated", 4, "example.com"))
 	if leaf == nil {
 		t.Fatal(ref)
 	}

@@ -111,6 +111,27 @@ func (p *Policy) Protocol(host dnsname.Name, port uint16) StreamProtocol {
 	return StreamNone
 }
 
+// IsPassHost reports whether name is in the pass list
+// (S07-07-hosts-and-modes, "pass"). A pass host is in pass mode on
+// every TLS port.
+func (p *Policy) IsPassHost(name dnsname.Name) bool {
+	for _, h := range p.PassHosts {
+		if h.Host == name {
+			return true
+		}
+	}
+	return false
+}
+
+// InspectsTLS reports whether wb-proxyd terminates the TLS of host and
+// port: the port carries TLS and the host isn't a pass host
+// (S07-07-hosts-and-modes, "Modes, per host"). Only such a stream gets a
+// leaf (S09-07-ca-certificates, "Leaf issuance"). A nil policy inspects
+// nothing.
+func (p *Policy) InspectsTLS(host dnsname.Name, port uint16) bool {
+	return p != nil && p.Protocol(host, port) == StreamTLS && !p.IsPassHost(host)
+}
+
 // The methods of OpenShell's access presets (`expand_access_presets`
 // in OpenShell v0.1.2).
 var (

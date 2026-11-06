@@ -10,8 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	egressv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/hwkey/hwkeytest"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/match"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore/storetest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
@@ -194,11 +197,24 @@ func (e *env) ready() *x509.Certificate {
 	return cert
 }
 
+// leafPort is the port of every leafReq.
+const leafPort = 443
+
+// leafReq is a leaf request for name on leafPort, with a policy that
+// inspects name there. A name that isn't a host name gets no policy.
+func leafReq(vm string, gen uint64, name string) LeafRequest {
+	req := LeafRequest{VM: vm, Generation: gen, Name: name, Port: leafPort}
+	if n, ref := dnsname.FromHost(name); ref == nil {
+		req.Policy = &policy.Policy{Endpoints: []policy.Endpoint{{Host: match.ExactHost(n), Ports: []uint16{leafPort}}}}
+	}
+	return req
+}
+
 // wantRefusal fails the test unless For refuses with rule, and with
 // reason when it isn't "".
 func (e *env) wantRefusal(vm string, gen uint64, name, rule, reason string) {
 	e.t.Helper()
-	leaf, ref := e.a.For(vm, gen, name)
+	leaf, ref := e.a.For(leafReq(vm, gen, name))
 	if leaf != nil || ref == nil || ref.Rule != rule || (reason != "" && !strings.HasPrefix(ref.Reason, reason)) {
 		e.t.Fatalf("For(%s, %d, %q) = %v, %v, want refusal %s: %s", vm, gen, name, leaf != nil, ref, rule, reason)
 	}
