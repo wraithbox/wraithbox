@@ -153,6 +153,11 @@ func FuzzControlMessage(f *testing.F) {
 	add(dirHostdToProxyd, caSetMsg(nil), false)
 	add(dirHostdToProxyd, caAcceptMsg("isolated", 3), false)
 	add(dirHostdToProxyd, caRemoveMsg("wraithbox/ca/work/"+caA, "wraithbox/binding/x"), false)
+	add(dirProxydToHostd, caIssuedMsg(nil), false)
+	add(dirProxydToHostd, caIssuedMsg(func(m *egressv1.CaIssued) { m.Certificate, m.Rule = nil, RuleCAIssueRefused }), false)
+	add(dirProxydToHostd, caLoadedMsg("work", 1), false)
+	add(dirProxydToHostd, caRestoreFailedMsg(nil), false)
+	add(dirProxydToHostd, caRemovedMsg(&egressv1.CaRemoved{Rule: RuleCARemovalRefused, Refused: []*egressv1.CaRemovalRefusal{{Index: 1, Check: CheckCAInRecord}}}), false)
 	f.Add([]byte{dirNetdToHostd}, false)
 	f.Fuzz(func(t *testing.T, in []byte, hasFD bool) {
 		if len(in) == 0 {
@@ -217,6 +222,10 @@ func requireControl(t *testing.T, m proto.Message, hasFD bool) {
 			vmNumber{k.GetHandoffSocket().GetVm(), k.GetHandoffSocket().GetGeneration()},
 			vmNumber{k.GetPolicyChange().GetVm(), k.GetPolicyChange().GetSequence()})
 	case *egressv1.ProxydToHostd:
+		if requireCAReply(t, k) {
+			vm = "work"
+			break
+		}
 		c := k.GetHandoffSocketClosed()
 		if c != nil && (c.GetRule() != RuleNameReportMalformed || !closedChecks[c.GetCheck()]) {
 			t.Fatalf("accepted rule %q and check %q", c.GetRule(), c.GetCheck())
@@ -260,6 +269,58 @@ func requireCA(t *testing.T, m *egressv1.HostdToProxyd) bool {
 		return false
 	}
 	return true
+}
+
+// requireCAReply checks the bounds of an accepted CA reply from
+// wb-proxyd, and reports whether m is one.
+func requireCAReply(t *testing.T, m *egressv1.ProxydToHostd) bool {
+	t.Helper()
+	switch k := m.GetKind().(type) {
+	case *egressv1.ProxydToHostd_CaIssued:
+		requireVM(t, k.CaIssued.GetVm())
+		requireCAID(t, k.CaIssued.GetCaId())
+		cert, rule := k.CaIssued.GetCertificate(), k.CaIssued.GetRule()
+		if (len(cert) > 0) == issueRules[rule] || len(cert) > MaxCACert {
+			t.Fatalf("accepted a CaIssued of %d bytes with rule %q", len(cert), rule)
+		}
+	case *egressv1.ProxydToHostd_CaLoaded:
+		requireVM(t, k.CaLoaded.GetVm())
+		if k.CaLoaded.GetGeneration() == 0 {
+			t.Fatal("accepted a CaLoaded of generation 0")
+		}
+	case *egressv1.ProxydToHostd_CaRestoreFailed:
+		f := k.CaRestoreFailed
+		requireVM(t, f.GetVm())
+		requireCAID(t, f.GetCaId())
+		if f.GetGeneration() == 0 || (f.GetRule() != RuleCAKeyRestore && f.GetRule() != RuleCANeedsTeam) {
+			t.Fatalf("accepted a CaRestoreFailed of generation %d with rule %q", f.GetGeneration(), f.GetRule())
+		}
+	case *egressv1.ProxydToHostd_CaRemoved:
+		requireCARemoved(t, k.CaRemoved)
+	default:
+		return false
+	}
+	return true
+}
+
+func requireCARemoved(t *testing.T, m *egressv1.CaRemoved) {
+	t.Helper()
+	if len(m.GetDeleted()) > MaxRemoveItems || len(m.GetRefused()) > MaxRemoveItems {
+		t.Fatalf("accepted a CaRemoved of %d and %d entries", len(m.GetDeleted()), len(m.GetRefused()))
+	}
+	for _, s := range m.GetDeleted() {
+		if len(s) < 1 || len(s) > MaxCAItem {
+			t.Fatalf("accepted a deleted entry of %d bytes", len(s))
+		}
+	}
+	if (m.GetRule() == RuleCARemovalRefused) != (len(m.GetRefused()) > 0) || (len(m.GetRefused()) > 0 && len(m.GetDeleted()) > 0) {
+		t.Fatalf("accepted rule %q with %d refused and %d deleted", m.GetRule(), len(m.GetRefused()), len(m.GetDeleted()))
+	}
+	for _, r := range m.GetRefused() {
+		if r.GetIndex() >= MaxRemoveItems || (r.GetCheck() != CheckCAItemForm && r.GetCheck() != CheckCAInRecord) {
+			t.Fatalf("accepted refusal %d %q", r.GetIndex(), r.GetCheck())
+		}
+	}
 }
 
 func requireCAID(t *testing.T, id string) {

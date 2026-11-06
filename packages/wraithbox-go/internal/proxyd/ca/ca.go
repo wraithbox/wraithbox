@@ -39,17 +39,17 @@ const (
 	// RuleKeyRestore fails an issue or a restore whose round trip
 	// through the store and the key store failed (S09-06-ca-keys,
 	// "Valid CA").
-	RuleKeyRestore = "ca-key-restore"
+	RuleKeyRestore = egressmsg.RuleCAKeyRestore
 	// RuleNeedsTeam takes the place of RuleKeyRestore when the store
 	// refused the call because the build is ad-hoc signed
 	// (S09-06-ca-keys, "Ad-hoc signed builds").
-	RuleNeedsTeam = string(storeitem.RuleNeedsTeam)
+	RuleNeedsTeam = egressmsg.RuleCANeedsTeam
 	// RuleIssueRefused refuses a CaIssue for a CA id that is in use: a
 	// CA of a VM's last CaSet, a key wb-proxyd holds, or an item the
 	// store has already. It is decided before the key is made, so a
 	// repeated id can't replace or delete a live CA's item
 	// (S09-06-ca-keys, "Issue").
-	RuleIssueRefused = "ca-issue-refused"
+	RuleIssueRefused = egressmsg.RuleCAIssueRefused
 	// RuleControlRefused is the rule of a CaSet or CaAccept out of order
 	// (S09-07-ca-certificates, "Messages"), which ends the control
 	// channel. It is the hand-off receiver's rule for a refused control
@@ -63,7 +63,7 @@ const (
 	RuleLeafRefused = "ca-leaf-refused"
 	// RuleRemovalRefused refuses a whole removal batch
 	// (S15-03-access-rules, "Removing CA keys").
-	RuleRemovalRefused = "ca-removal-refused"
+	RuleRemovalRefused = egressmsg.RuleCARemovalRefused
 )
 
 // defaultUnlockPoll is how often a call that found the store locked
