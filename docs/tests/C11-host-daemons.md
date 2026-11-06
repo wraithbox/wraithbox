@@ -327,8 +327,10 @@ Spec: S04-architecture.
   names a VM that wasn't started, is a mapping entry from `wb-proxyd`,
   or is a debit past the name bound, with `accounting-record-malformed`
   and its check. `TestProxydNamesServedVM` keeps a `ProxydWildcardName`
-  for a stopped VM, or one restarted with no acknowledged hand-off
-  socket, logged with `proxyd-name-unserved`.
+  for a stopped VM, or one restored with no acknowledged hand-off
+  socket, logged with `proxyd-name-unserved`, and drops one after a
+  start that cleared the counts. `TestStaleProxydNameDropped` sees the
+  new run's last name kept at the full budget.
   `TestProxydNameAfterStopKeepsProxyd` reads such a name after a stop
   or a restart, and sees `wb-proxyd` go on serving the other VM.
 - **The reader** (S04-08-records-and-bounds, "Accounting and event

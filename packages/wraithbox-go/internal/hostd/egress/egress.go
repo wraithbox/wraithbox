@@ -59,8 +59,9 @@ const (
 	RuleNoticeStale = "handoff-notice-stale"
 	// RuleNameUnserved: a wb-proxyd wildcard name for a VM that is
 	// stopped, or whose hand-off socket wb-proxyd hasn't acknowledged
-	// since its start. It is kept and logged, rate-limited
-	// (S07-06-name-mapping, "Kept by wb-hostd").
+	// since its start. It is logged, rate-limited, and kept, or dropped
+	// after a start that cleared the VM's state (S07-06-name-mapping,
+	// "Kept by wb-hostd").
 	RuleNameUnserved = "proxyd-name-unserved"
 )
 

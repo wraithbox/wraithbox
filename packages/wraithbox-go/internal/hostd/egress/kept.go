@@ -64,6 +64,9 @@ type vmState struct {
 	served uint64
 	// ended is the generation whose wb-netd a HandoffSocketClosed ended.
 	ended uint64
+	// cleared is set when the VM's last start cleared its state: a start
+	// that isn't a restore, or a restore of a VM wb-hostd held nothing for.
+	cleared bool
 
 	byAddr map[netip.Addr]Entry
 	byName map[dnsname.Name]netip.Addr
@@ -133,10 +136,12 @@ func (s *State) Start(vm string, restore bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v, ok := s.vms[vm]
-	if !ok || !restore {
+	cleared := !ok || !restore
+	if cleared {
 		v = newVMState()
 		s.vms[vm] = v
 	}
+	v.cleared = cleared
 	v.started = true
 	v.served = 0
 	v.ended = 0
@@ -261,7 +266,9 @@ func (s *State) Record(src Source, record []byte, hasFD bool) *Refused {
 		s.release(vm, v, rec.Addr)
 		return nil
 	case egressmsg.KindProxydWildcardName:
-		s.unserved(vm, v, rec)
+		if s.unserved(vm, v, rec) {
+			return nil
+		}
 		return s.count(v.proxydNames, rec)
 	}
 	// DecodeAccountingRecord returns a kind with every record it accepts.
@@ -269,19 +276,30 @@ func (s *State) Record(src Source, record []byte, hasFD bool) *Refused {
 }
 
 // unserved logs a wb-proxyd wildcard name for a VM that is stopped, or
-// whose hand-off socket wb-proxyd hasn't acknowledged since its start.
-// wb-proxyd may have written it before the stop or the restart, and the
-// accounting channel delivers it after, so the name is kept: it only
-// counts against that VM's budget. Ending wb-proxyd for it would stop
-// every other VM too (SEC08-proj-isolation; S07-06-name-mapping, "Kept
-// by wb-hostd").
-func (s *State) unserved(vm string, v *vmState, rec egressmsg.AccountingRecord) {
+// whose hand-off socket wb-proxyd hasn't acknowledged since its start,
+// and returns whether to drop it. wb-proxyd may have written it before
+// the stop or the start, and the accounting channel delivers it after.
+// Ending wb-proxyd for it would stop every other VM too
+// (SEC08-proj-isolation; S07-06-name-mapping, "Kept by wb-hostd").
+//
+// While the VM is stopped, or after a restore, the name is of the period
+// the VM goes on with, so it is kept. After a start that cleared the
+// state it is of the previous run, which wb-proxyd's count for the new
+// run doesn't hold, so it is dropped: kept, it would make wb-hostd's
+// count one more than wb-proxyd's.
+func (s *State) unserved(vm string, v *vmState, rec egressmsg.AccountingRecord) (drop bool) {
 	if v.started && v.served != 0 {
-		return
+		return false
 	}
-	s.rate.LogAttrs(context.Background(), slog.LevelWarn, "wb-proxyd wildcard name for a VM it doesn't serve kept",
-		slog.String("rule", RuleNameUnserved), slog.String("decision", "keep"),
+	drop = v.started && v.cleared
+	decision := "keep"
+	if drop {
+		decision = "drop"
+	}
+	s.rate.LogAttrs(context.Background(), slog.LevelWarn, "wb-proxyd wildcard name for a VM it doesn't serve",
+		slog.String("rule", RuleNameUnserved), slog.String("decision", decision),
 		slog.String("vm", vm), slog.String("name", rec.Name.String()), slog.Bool("started", v.started))
+	return drop
 }
 
 // count adds a wildcard name to a set. A name the set holds is a
