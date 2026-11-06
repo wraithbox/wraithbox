@@ -73,10 +73,10 @@ holds the bytes themselves.
 - The guest sees a TCP reset.
 
 A stream that passes its checks is logged too, once, with the rule
-that let it on: `inspect-allowed` when it goes to the HTTP checks of
-S07-08-requests-and-credentials, `pass-allowed` when a pass relay
-sends its ClientHello upstream, and `raw-tcp-allowed` when a raw TCP
-relay connects. A pass and a raw TCP record also name the policy
+that let it on. That rule is `inspect-allowed` when the stream goes to
+the HTTP checks of S07-08-requests-and-credentials, `pass-allowed`
+when a pass relay sends its ClientHello upstream, and
+`raw-tcp-allowed` when a raw TCP relay connects. A pass and a raw TCP record also name the policy
 entry's source and reason. Each relay logs its end, with the bytes
 it relayed each way.
 
