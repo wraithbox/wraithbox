@@ -2,7 +2,9 @@ package carecord
 
 import (
 	"errors"
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -257,4 +259,26 @@ func wantRefusal(t *testing.T, err error, rule string, keepsRunning bool) *Refus
 		t.Fatalf("refusal %s (keeps running %v), want %s (%v): %s", ref.Rule, ref.KeepsRunning, rule, keepsRunning, ref.Message)
 	}
 	return ref
+}
+
+// TestInstallRefusalLogsGuestText: the guest's text about a refused
+// install is logged escaped and cut (proto/wraithbox/guest/v1,
+// InstallTrust), and the refusal's message doesn't carry it.
+func TestInstallRefusalLogsGuestText(t *testing.T) {
+	r := newRig(t)
+	bootDay0(t, r)
+	text := "bad\x1b[2Jtrust\n" + strings.Repeat("x", 2*guestTextCut)
+	r.guest.installErr = errors.New(text)
+	r.at(30, 0)
+	ref := wantRefusal(t, r.k.Tick(t.Context(), "work", 1, r.guest), RuleInstallRefused, true)
+	if strings.Contains(ref.Message, "bad") {
+		t.Errorf("refusal message %q carries the guest's text", ref.Message)
+	}
+	logs := r.logs.String()
+	if !strings.Contains(logs, `bad\\x1b[2Jtrust\\x0a`) {
+		t.Errorf("logs don't hold the escaped guest text:\n%s", logs)
+	}
+	if want := fmt.Sprintf("[cut from %d bytes]", len(text)); !strings.Contains(logs, want) {
+		t.Errorf("logs don't hold %s:\n%s", want, logs)
+	}
 }
