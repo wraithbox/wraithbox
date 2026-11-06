@@ -141,6 +141,8 @@ build VM's ("A new `wb-netd`", below), after an exit it didn't ask for.
   is down, never a path around it. Nothing else on the host forwards
   guest traffic.
 
+Until V1-M6 (I480) none is restarted (S04-09-netd-start, "No restart yet").
+
 ### A new `wb-netd`
 
 A new `wb-netd` gets the same start as the first one:
@@ -220,7 +222,7 @@ it creates the VM's hand-off socket.
   a new hand-off socket for every running VM, each for that VM and its
   current generation.
 
-A new `wb-netd` gets its end at start. A running `wb-netd` gets its end on its control channel, in a message with exactly one descriptor and
+Every `wb-netd` gets its end on its control channel after its start message (S04-09-netd-start), in a message with exactly one descriptor and
 the VM and generation it is for. It refuses the message when the socket type is wrong, or the VM or generation isn't its own. It then
 closes the descriptor and logs the refusal, as for the hand-off channel of `wb-vmd` (S04-02-vm-provider, "The VM provider passes descriptors,
 not bytes"), and the control channel goes on. A message with another descriptor count than one is of the wrong form: every descriptor in

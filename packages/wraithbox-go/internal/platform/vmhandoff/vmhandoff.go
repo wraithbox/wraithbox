@@ -109,14 +109,15 @@ func (r *Refusal) Unwrap() error { return r.err }
 // Transport is wb-hostd's end of one VM generation's packet transport:
 // an AF_UNIX datagram socket whose other end is the VM's network device
 // (S07-02-packet-path, "Packet transport"). It has no method to read or
-// write a frame: the only thing its holder can do is close it.
+// write a frame: its holder can only close it or start a child with it
+// (S04-09-netd-start, "The held transport").
 type Transport struct {
 	f *os.File
 }
 
 // StartWith starts cmd with the descriptor as its ExtraFiles[index],
 // which must be a nil placeholder, for the VM's wb-netd to inherit
-// (S04-07-supervision, "A new `wb-netd`"). The placeholder is nil again
+// (S04-09-netd-start, "The held transport"). The placeholder is nil again
 // when it returns, so the caller never holds the descriptor: the type
 // keeps no read or write path (S07-02-packet-path, "Packet
 // transport"). The descriptor stays the Transport's.

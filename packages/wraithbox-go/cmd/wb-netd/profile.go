@@ -3,7 +3,7 @@ package main
 import "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/selfsandbox"
 
 // profile is wb-netd's compiled-in Seatbelt profile
-// (S04-03-self-sandboxing, "`wb-netd`"; SEC12-least-privilege). It has
+// (S04-09-netd-start, "Profile"; SEC12-least-privilege). It has
 // no parameters.
 //
 // It allows nothing beyond what (deny default) leaves: wb-netd works only
@@ -16,7 +16,7 @@ import "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/s
 // The child tests of this package run a confined wb-netd through a DHCP
 // lease, a DNS answer, a stream hand-off and its end with this profile
 // (child_darwin_test.go). A rule beyond this list is a change to
-// S04-03-self-sandboxing first.
+// S04-09-netd-start first.
 var profile = selfsandbox.Profile{
 	Name: "wb-netd",
 	Text: `(version 1)

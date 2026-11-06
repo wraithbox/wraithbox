@@ -81,12 +81,12 @@ const (
 	// RuleNetdStartFailed: the run's wb-netd didn't start, or didn't
 	// acknowledge its first policy. The run ends at once: a VM runs only
 	// with the wb-netd that reads its packet transport
-	// (S04-07-supervision, "A new `wb-netd`").
+	// (S04-09-netd-start, "Start message and first policy").
 	RuleNetdStartFailed Rule = "netd-start-failed"
 	// RuleNetdExited is logged and recorded, never returned: the run's
 	// wb-netd exited while the run was live, and the manager stopped the
-	// VM. wb-netd isn't restarted (S04-07-supervision, "Restarting a
-	// daemon").
+	// VM. wb-netd isn't restarted (S04-09-netd-start, "No restart
+	// yet").
 	RuleNetdExited Rule = "netd-exited"
 	// RuleResetting: a start or a second reset while `wb vm reset-data`
 	// or `wb vm reset-ca` changes the stopped slot

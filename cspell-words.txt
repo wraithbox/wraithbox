@@ -81,6 +81,7 @@ guestprocs
 procs
 packetlink
 netdtest
+netdproc
 guestos
 secretstore
 storeitem

@@ -344,7 +344,7 @@ func (m *Manager) holdTransport(r *run, t PacketTransport) *Refusal {
 // startNetwork starts the run's wb-netd on t, after holdTransport. A
 // failed start is refused with netd-start-failed, and the run ends: a
 // VM runs only with the wb-netd that reads its packet transport
-// (S04-07-supervision, "A new `wb-netd`"). A run that is already ending
+// (S04-09-netd-start). A run that is already ending
 // stops its wb-netd at once. Without Config.Network no wb-netd starts.
 func (m *Manager) startNetwork(ctx context.Context, r *run, t PacketTransport) *Refusal {
 	m.mu.Lock()

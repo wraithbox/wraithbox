@@ -11,8 +11,8 @@ import (
 // gate is the packet transport from the moment wb-netd holds it. Until
 // open it reads every frame and drops it unparsed with the rule
 // link-not-started, so a guest that sends before the stack starts can't
-// fill the packet socket and stall its NIC (S07-02-packet-path, "Packet
-// transport"). After open the stack reads it: first the frame the drain
+// fill the packet socket and stall its NIC (S04-09-netd-start, "Drain
+// before the start"). After open the stack reads it: first the frame the drain
 // had in flight, then the transport directly.
 type gate struct {
 	t   link.Transport
