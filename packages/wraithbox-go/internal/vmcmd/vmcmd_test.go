@@ -21,6 +21,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/config"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/carecord"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk/datadisktest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
@@ -60,6 +61,7 @@ type fixture struct {
 	stdout  bytes.Buffer
 	stderr  bytes.Buffer
 	hostLog syncBuffer
+	caAudit *audittest.Recorder
 	lis     *bufconn.Listener
 	links   *fakeLinks
 	// live is the sessions the manager's Sessions hook lists. Set it
@@ -98,7 +100,9 @@ func newFixture(t *testing.T, typed string) *fixture {
 	}
 	f.lis = bufconn.Listen(1 << 16)
 	srv := grpc.NewServer()
-	hostdv1.RegisterHostServiceServer(srv, &hostservice.Server{VMs: f.vms, Links: f.links, Log: log})
+	f.caAudit = &audittest.Recorder{}
+	cas := carecord.New(carecord.Config{Records: db, Audit: f.caAudit, Log: log})
+	hostdv1.RegisterHostServiceServer(srv, &hostservice.Server{VMs: f.vms, CAs: cas, Links: f.links, Log: log})
 	go func() { _ = srv.Serve(f.lis) }()
 	t.Cleanup(srv.Stop)
 	return f
@@ -125,6 +129,16 @@ func (c *client) StopVM(ctx context.Context, v hostdv1.VM) error {
 func (c *client) GetVMStatus(ctx context.Context, v hostdv1.VM) (*hostdv1.VMStatus, error) {
 	res, err := c.c.GetVMStatus(ctx, &hostdv1.GetVMStatusRequest{Vm: v})
 	return res.GetStatus(), err
+}
+
+func (c *client) ListCAs(ctx context.Context, v hostdv1.VM) ([]*hostdv1.InspectionCA, error) {
+	res, err := c.c.ListCAs(ctx, &hostdv1.ListCAsRequest{Vm: v})
+	return res.GetCas(), err
+}
+
+func (c *client) ResetCA(ctx context.Context, v hostdv1.VM, sha256 []string) ([]string, error) {
+	res, err := c.c.ResetCA(ctx, &hostdv1.ResetCARequest{Vm: v, Sha256: sha256})
+	return res.GetDroppedSha256(), err
 }
 
 func (c *client) Close() error { return c.conn.Close() }
@@ -182,6 +196,9 @@ func TestUsage(t *testing.T) {
 		{"reset-data", "work", "isolated"},
 		{"reset-data", "--yes", "work"},
 		{"reset-data", "work", "--yes"},
+		{"reset-ca"},
+		{"reset-ca", "--yes", "work"},
+		{"reset-ca", "work", "isolated"},
 	} {
 		f := newFixture(t, "yes\n")
 		if code := f.run(args...); code != 2 {
@@ -347,6 +364,14 @@ func (f failing) GetVMStatus(context.Context, hostdv1.VM) (*hostdv1.VMStatus, er
 }
 
 func (f failing) ResetVMData(context.Context, hostdv1.VM) (*hostdv1.ResetVMDataResponse, error) {
+	return nil, f.err
+}
+
+func (f failing) ListCAs(context.Context, hostdv1.VM) ([]*hostdv1.InspectionCA, error) {
+	return nil, f.err
+}
+
+func (f failing) ResetCA(context.Context, hostdv1.VM, []string) ([]string, error) {
 	return nil, f.err
 }
 

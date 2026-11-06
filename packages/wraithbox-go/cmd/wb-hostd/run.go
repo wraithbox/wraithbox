@@ -16,6 +16,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/carecord"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
@@ -267,7 +268,13 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	registry = shells.NewRegistry(links, log)
 	aw.Attach(m)
 	return &host{
-		server: &hostservice.Server{VMs: m, Links: links, Audit: aw, Log: log},
+		// The CA record has no wb-proxyd channel until wb-hostd starts
+		// wb-proxyd and runs the boot order (#512). `wb vm reset-ca` works, and its removal list
+		// waits for wb-proxyd.
+		server: &hostservice.Server{
+			VMs: m, Links: links, Audit: aw, Log: log,
+			CAs: carecord.New(carecord.Config{Records: ready.State, Audit: aw, Log: log}),
+		},
 		projects: &hostservice.ProjectServer{
 			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git, aw), Audit: aw, Log: log,
 			UsersRemoved: links.SendUserRemovals,

@@ -78,6 +78,16 @@ func (h *grpcHostd) ResetVMData(ctx context.Context, vm hostdv1.VM) (*hostdv1.Re
 	return res, h.versionChecked(err)
 }
 
+func (h *grpcHostd) ListCAs(ctx context.Context, vm hostdv1.VM) ([]*hostdv1.InspectionCA, error) {
+	res, err := h.client.ListCAs(ctx, &hostdv1.ListCAsRequest{Vm: vm}, grpc.WaitForReady(false))
+	return res.GetCas(), h.versionChecked(err)
+}
+
+func (h *grpcHostd) ResetCA(ctx context.Context, vm hostdv1.VM, sha256 []string) ([]string, error) {
+	res, err := h.client.ResetCA(ctx, &hostdv1.ResetCARequest{Vm: vm, Sha256: sha256}, grpc.WaitForReady(false))
+	return res.GetDroppedSha256(), h.versionChecked(err)
+}
+
 // versionChecked returns err, or in its place the connection's build
 // version refusal (S04-08-records-and-bounds, "Between host
 // processes"). A refused connection never carried the request.
