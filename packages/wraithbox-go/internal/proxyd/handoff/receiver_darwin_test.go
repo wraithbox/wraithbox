@@ -506,6 +506,23 @@ func TestControlOrder(t *testing.T) {
 	h.expectServeEnded()
 }
 
+// TestCAMessageRefused: the receiver has no CA handler yet, so a CA
+// message after ProxydStart is refused with control-message-refused and
+// ends the control channel, and with it every hand-off socket
+// (SEC05-default-deny).
+func TestCAMessageRefused(t *testing.T) {
+	h := newHarness(t, DefaultCaps())
+	h.start()
+	h.policy("work", 1, policyProto(0, endpoint("a.example.com", 443)))
+	a := h.addVM("work", genA)
+	h.send(&egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_CaAccept{
+		CaAccept: &egressv1.CaAccept{Vm: "work", Generation: 1},
+	}}, nil)
+	h.expectEvent("", RuleControlRefused, egressmsg.CheckMessageForm)
+	h.expectServeEnded()
+	a.expectEnded()
+}
+
 // TestStartCountsWildcardNames: names in ProxydStart count toward the
 // budget, so a report of one passes without a write and a new name past
 // the budget is refused.
