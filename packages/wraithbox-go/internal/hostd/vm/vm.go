@@ -199,9 +199,10 @@ type slotRecord struct {
 	// starting and had no run yet. The start ends with it once it
 	// reaches a check (SEC10-audit).
 	forced string
-	// resetting: the slot's data disk is being reset, so a start is
-	// refused.
-	resetting bool
+	// resetting is the command that holds the stopped slot's start lock,
+	// such as `wb vm reset-data work`, or "". A start is refused while
+	// one does.
+	resetting string
 }
 
 // New returns a manager with every slot stopped. It starts no VM.
