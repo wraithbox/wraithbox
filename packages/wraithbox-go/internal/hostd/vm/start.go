@@ -74,8 +74,8 @@ func (m *Manager) reserve(slot Slot) *Refusal {
 			Message: fmt.Sprintf("the %s VM is already %s", slot, rec.phase),
 		}
 	}
-	if rec.resetting {
-		return resettingRefusal(slot, "start")
+	if rec.resetting != "" {
+		return resettingRefusal(slot, fmt.Sprintf("start the %s VM", slot), rec.resetting)
 	}
 	rec.phase = PhaseStarting
 	return nil

@@ -78,9 +78,9 @@ const (
 	// RuleStoppedUnexpectedly is logged, never returned: the VM reached
 	// STOPPED or ERROR, or its wb-vmd ended, without a stop request.
 	RuleStoppedUnexpectedly Rule = "vm-stopped-unexpectedly"
-	// RuleResetting: a start or a second reset while the slot's data
-	// disk is being reset (S05-03-management-commands, "`wb vm
-	// reset-data`").
+	// RuleResetting: a start or a second reset while `wb vm reset-data`
+	// or `wb vm reset-ca` changes the stopped slot
+	// (S05-03-management-commands, "`wb vm reset-data`").
 	RuleResetting Rule = "vm-resetting"
 	// RuleDataDiskFailed: the data disk step failed without a rule of
 	// its own.
@@ -265,10 +265,12 @@ func auditRefusal(slot Slot, generation uint64, err error) *Refusal {
 	}
 }
 
-func resettingRefusal(slot Slot, op string) *Refusal {
+// resettingRefusal refuses what, an action on slot, while command
+// holds its start lock.
+func resettingRefusal(slot Slot, what, command string) *Refusal {
 	return &Refusal{
 		Rule: RuleResetting, Slot: slot, Phase: PhaseStopped,
-		Message: fmt.Sprintf("can't %s the %s VM: its data disk is being reset. Try again once wb vm reset-data %s ends", op, slot, slot),
+		Message: fmt.Sprintf("can't %s: %s runs. Try again once it ends", what, command),
 	}
 }
 
