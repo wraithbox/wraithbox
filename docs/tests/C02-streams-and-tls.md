@@ -319,6 +319,40 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   because its CA is in the record stays, logged, and goes out after the
   VM's next CA set (`TestC02CARemovalHeldBack`).
 
+### Guest trust
+
+Spec: S09-08-guest-trust. The tests are in `internal/guestd/trust`, in
+a temporary directory, unless named otherwise.
+
+- Install one CA, then two, then one of the two. See `ca.pem` hold the
+  CAs in order, `bundle.pem` the public roots then the CAs, and
+  `java-truststore.p12` parse back without a password to the bundle's
+  certificates, each file mode 0644 under a umask of 077
+  (`TestC02TrustFiles`).
+- Send an empty list, four certificates, a leaf, an RSA CA, a P-384
+  CA, garbage and the same CA twice. See each refused with
+  `trust-install-refused`, logged with the rule, and the directory
+  unchanged (`TestC02TrustRefused`).
+- Make the directory a symlink, a file, mode 0777, 0700 or setgid,
+  or owned by another user (as root only). See each refused with
+  `trust-dir-unsafe` and nothing written (`TestC02TrustDirUnsafe`).
+- Install a CA that wb-proxyd's CA authority issued with the fake key,
+  then a new one. A Go `tls.Client` in a child process with
+  `SSL_CERT_FILE` set to the bundle accepts the new CA's leaf, and one
+  with the first install's bundle refuses it
+  (`TestC02TrustTLSClient`).
+- When a JDK's `keytool` is on `PATH`, it lists the Java trust store
+  without a password, every entry trusted (`TestC02TrustKeytool`).
+- The trust variables have their exact values (`TestC02TrustEnv`), and
+  `internal/guestd/shell` puts them after the account's variables
+  (`TestEnvironment`) and refuses a host value of any of their names
+  (`TestRefusals`).
+- No Go file of wb-guestd names a call that adds a CA to the system
+  trust store (`TestC02NoSystemTrustStore`).
+- In `internal/guestd`, InstallTrust hands the certificates on in order
+  and answers each rule with its code and ErrorInfo
+  (`TestC02InstallTrustRPC`).
+
 ## Fuzzing
 
 - Upstream addresses: arbitrary 16-byte addresses, checked against a
@@ -365,6 +399,10 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   `FuzzProxydCAReply` feeds any bytes to the check of a *CA issued*
   reply. It never panics, and a reply that passes has a certificate of
   the CA profile: a P-256 key, self-signed, and 60 days of validity.
+- Guest trust: `FuzzCheckCAs` feeds any certificates to the request
+  check, and a set it accepts has 1 to 3 P-256 CAs.
+  `FuzzParseRoots` feeds any bytes as the public roots file, and sees
+  a root or an error.
 
 ## Conformance
 
