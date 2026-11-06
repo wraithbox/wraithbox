@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -43,10 +44,17 @@ const (
 	// refused the call because the build is ad-hoc signed
 	// (S09-06-ca-keys, "Ad-hoc signed builds").
 	RuleNeedsTeam = string(storeitem.RuleNeedsTeam)
-	// RuleIssueRefused refuses a CaIssue for a CA id that wb-proxyd
-	// holds already, before any store call, so a repeated id can't
-	// replace or delete a live CA's item (S09-06-ca-keys, "Issue").
+	// RuleIssueRefused refuses a CaIssue for a CA id that is in use: a
+	// CA of a VM's last CaSet, a key wb-proxyd holds, or an item the
+	// store has already. It is decided before the key is made, so a
+	// repeated id can't replace or delete a live CA's item
+	// (S09-06-ca-keys, "Issue").
 	RuleIssueRefused = "ca-issue-refused"
+	// RuleControlRefused is the rule of a CaSet or CaAccept out of order
+	// (S09-07-ca-certificates, "Messages"), which ends the control
+	// channel. It is the hand-off receiver's rule for a refused control
+	// message (S07-05-stream-hand-off).
+	RuleControlRefused = "control-message-refused"
 	// RuleNotInstalled refuses the leaves of a VM whose CaSet names no
 	// signing CA (S09-07-ca-certificates, "Rotation", day 58).
 	RuleNotInstalled = egressmsg.RuleCANotInstalled
@@ -146,10 +154,13 @@ func (a *Authority) Handle(ctx context.Context, m *egressv1.HostdToProxyd) (*egr
 	}
 }
 
-// itemName returns the store item of a VM's CA. vm and id were checked
-// by egressmsg, so the name parses, and an error is a bug that fails
-// the call closed.
+// itemName returns the store item of a VM's CA. egressmsg checked vm
+// and id already. The check here repeats the CA id's, so that a direct
+// caller with a short id fails closed and nothing slices it.
 func itemName(vm, id string) (storeitem.Name, error) {
+	if !egressmsg.ValidCAID(id) {
+		return storeitem.Name{}, fmt.Errorf("ca: %q isn't a CA id", id)
+	}
 	return storeitem.Parse(storeitem.Prefix + "ca/" + vm + "/" + id)
 }
 

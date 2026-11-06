@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
 	egressv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/hwkey"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
 )
 
@@ -28,10 +30,12 @@ const (
 // Issue issues a new CA for a VM (S09-06-ca-keys, "Issue"): it makes
 // the key, self-signs the CA certificate, writes the key's wrapped form
 // as the item `ca/<vm>/<ca>`, fetches the item back, restores the key
-// from it and compares the public keys. A failed step deletes the item
-// and fails the issue with ca-key-restore, or keychain-needs-team in an
-// ad-hoc signed build. wb-proxyd keeps the restored key, so the CaSet
-// that names the new CA doesn't restore it again.
+// from it and compares the public keys. A failed step after the write
+// deletes the item. A failure fails the issue with ca-key-restore, or
+// keychain-needs-team in an ad-hoc signed build. An id in use, or an
+// item the store holds already, is refused with ca-issue-refused before
+// the key is made. wb-proxyd keeps the restored key, so the CaSet that
+// names the new CA doesn't restore it again.
 func (a *Authority) Issue(ctx context.Context, m *egressv1.CaIssue) *egressv1.CaIssued {
 	a.ctl.Lock()
 	defer a.ctl.Unlock()
@@ -43,9 +47,19 @@ func (a *Authority) Issue(ctx context.Context, m *egressv1.CaIssue) *egressv1.Ca
 		a.logCA(slog.LevelError, "CA issue failed", vm, id, out.Rule, slog.String("reason", err.Error()))
 		return out
 	}
-	if reason := a.issued(vm, id, item); reason != "" {
+	reason := a.issued(vm, id)
+	if reason == "" {
+		reason, err = a.stored(ctx, item)
+	}
+	if err != nil {
+		out.Rule = failureRule(err)
+		a.logCA(slog.LevelError, "CA issue failed", vm, id, out.Rule, slog.String("reason", err.Error()))
+		return out
+	}
+	if reason != "" {
 		out.Rule = RuleIssueRefused
-		a.logCA(slog.LevelWarn, "CA issue refused", vm, id, out.Rule, slog.String("reason", reason))
+		a.logCA(slog.LevelWarn, "CA issue refused", vm, id, out.Rule, slog.String("decision", "refuse"),
+			slog.String("reason", reason))
 		return out
 	}
 	der, held, err := a.issue(ctx, vm, id, item)
@@ -62,26 +76,46 @@ func (a *Authority) Issue(ctx context.Context, m *egressv1.CaIssue) *egressv1.Ca
 	return out
 }
 
-// issued returns why a CA id may not be issued, or "": the item is held
-// already, or the id is a CA of some VM's last CaSet. The caller holds
-// ctl.
-func (a *Authority) issued(vm, id string, item storeitem.Name) string {
+// issued returns why a CA id may not be issued, or "": this process
+// holds a key of the id for any VM slot, or the id is in some VM's last
+// CaSet. The caller holds ctl.
+func (a *Authority) issued(vm, id string) string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if _, ok := a.held[item.String()]; ok {
-		return "wb-proxyd holds the key of " + item.String() + " already"
+	for name := range a.held {
+		if strings.HasSuffix(name, "/"+id) {
+			return "wb-proxyd holds the key of " + name + " already"
+		}
 	}
 	for other, st := range a.vms {
-		if _, ok := st.cas[id]; ok {
+		if st.record[id] {
 			return "the CA id is a CA of VM " + other + "'s last CA set, not a new one for " + vm
 		}
 	}
 	return ""
 }
 
+// stored returns why the item may not be written, or "": the store holds
+// it already, so it may be a CA a process before a restart issued. A
+// store error other than a missing item is returned, and the issue
+// fails closed with it.
+func (a *Authority) stored(ctx context.Context, item storeitem.Name) (string, error) {
+	wrapped, err := a.fetch(ctx, item)
+	clear(wrapped)
+	switch {
+	case err == nil:
+		return "the store holds " + item.String() + " already", nil
+	case errors.Is(err, secretstore.ErrNotFound):
+		return "", nil
+	default:
+		return "", fmt.Errorf("check that %s is new: %w", item, err)
+	}
+}
+
 // issue runs the steps of an issue and returns the CA certificate and
-// the restored key. Once the write was tried, a failed step deletes the
-// item.
+// the restored key. Once the write succeeded, a failed step deletes the
+// item. A failed write deletes nothing, so it never removes an item it
+// didn't write.
 func (a *Authority) issue(ctx context.Context, vm, id string, item storeitem.Name) ([]byte, *heldKey, error) {
 	gen, err := a.keys.Generate(ctx)
 	if err != nil {
@@ -92,6 +126,9 @@ func (a *Authority) issue(ctx context.Context, vm, id string, item storeitem.Nam
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := a.write(ctx, item, gen.Wrapped()); err != nil {
+		return nil, nil, fmt.Errorf("write the item: %w", err)
+	}
 	restored, err := a.roundTrip(ctx, item, gen, der)
 	if err != nil {
 		a.deleteFailed(ctx, vm, id, item)
@@ -100,13 +137,10 @@ func (a *Authority) issue(ctx context.Context, vm, id string, item storeitem.Nam
 	return der, &heldKey{key: restored}, nil
 }
 
-// roundTrip writes the wrapped form of gen as item, fetches it back,
-// restores the key from what it fetched, and compares the restored
-// public key with gen's and the certificate's.
+// roundTrip fetches the item an issue wrote, restores the key from what
+// it fetched, and compares the restored public key with gen's and the
+// certificate's.
 func (a *Authority) roundTrip(ctx context.Context, item storeitem.Name, gen hwkey.Key, der []byte) (hwkey.Key, error) {
-	if err := a.write(ctx, item, gen.Wrapped()); err != nil {
-		return nil, fmt.Errorf("write the item: %w", err)
-	}
 	wrapped, err := a.fetch(ctx, item)
 	if err != nil {
 		return nil, fmt.Errorf("fetch the item back: %w", err)

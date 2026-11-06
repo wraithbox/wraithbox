@@ -2,6 +2,7 @@ package ca
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"log/slog"
 	"strings"
@@ -44,11 +45,27 @@ func (b *lockedBuffer) String() string {
 	return b.buf.String()
 }
 
+// hookedBackend is the fake store with a hook that runs after each
+// write that succeeded, so a test can fail a later call of one issue.
+type hookedBackend struct {
+	*storetest.Fake
+	afterWrite func()
+}
+
+func (h *hookedBackend) Write(ctx context.Context, group, item string, value []byte) secretstore.Status {
+	st := h.Fake.Write(ctx, group, item, value)
+	if st == secretstore.StatusOK && h.afterWrite != nil {
+		h.afterWrite()
+	}
+	return st
+}
+
 // env is an Authority over the fake store and the fake key store, on a
 // fake clock.
 type env struct {
 	t       testing.TB
 	backend *storetest.Fake
+	hooked  *hookedBackend
 	keys    *hwkeytest.Fake
 	logs    *lockedBuffer
 	a       *Authority
@@ -68,8 +85,9 @@ func newEnv(t testing.TB, team string) *env {
 		logs:    &lockedBuffer{},
 		now:     start,
 	}
+	e.hooked = &hookedBackend{Fake: e.backend}
 	log := slog.New(slog.NewTextHandler(e.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	store, err := secretstore.New(storeitem.ProgramProxyd, e.backend, log)
+	store, err := secretstore.New(storeitem.ProgramProxyd, e.hooked, log)
 	if team != "" && err != nil {
 		t.Fatalf("secretstore.New: %v", err)
 	}

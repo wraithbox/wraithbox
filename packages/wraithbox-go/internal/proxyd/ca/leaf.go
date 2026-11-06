@@ -66,6 +66,11 @@ func (r *Refusal) Error() string { return r.Rule + ": " + r.Reason }
 //   - the rule of the CA set's failed restore.
 //
 // A leaf is reused from the cache until an hour before its end.
+//
+// For doesn't read the policy. The caller passes only a stream that
+// passed the SNI check and whose VM's effective policy inspects the
+// host (S09-07-ca-certificates, "Leaf issuance"). A pass-mode stream
+// never reaches For.
 func (a *Authority) For(vm string, generation uint64, name string) (*tls.Certificate, *Refusal) {
 	if reason := checkLeafName(name); reason != "" {
 		return nil, a.refuseLeaf(vm, generation, name, "", &Refusal{Rule: RuleLeafRefused, Reason: reason})

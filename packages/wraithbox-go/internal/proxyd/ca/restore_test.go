@@ -226,6 +226,12 @@ func TestC02AcceptGating(t *testing.T) {
 	if !errors.Is(err, ErrOutOfOrder) {
 		t.Fatalf("SetCAs of an older generation = %v, want ErrOutOfOrder", err)
 	}
+	for _, msg := range []string{"CA accept refused", "CA set refused"} {
+		if !strings.Contains(e.logs.String(), msg+`" vm=`) ||
+			strings.Count(e.logs.String(), "rule="+RuleControlRefused+" decision=refuse") < 3 {
+			t.Errorf("%q isn't logged with rule %s and decision=refuse:\n%s", msg, RuleControlRefused, e.logs)
+		}
+	}
 	if leaf, ref := e.a.For("work", 2, "example.com"); leaf == nil {
 		t.Fatalf("For after the refused CA set: %v", ref)
 	}
