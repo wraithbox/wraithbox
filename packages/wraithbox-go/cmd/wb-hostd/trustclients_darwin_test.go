@@ -167,7 +167,12 @@ have git && run git git -c "http.curloptResolve=` + leafHost + `:$tls:127.0.0.1"
 have python3 && run python3 python3 -c "$(cat "$d/probe.py")" "$tls" || echo --missing python3--
 have node && run node node -e "$(cat "$d/probe.js")" "$tls" || echo --missing node--
 /usr/libexec/java_home >/dev/null 2>&1 && run java java "$d/Probe.java" "$tls" || echo --missing java--
+before=$(grep -c "http: TLS handshake error" "$d/server.log")
 run urlsession osascript -l JavaScript "$d/urlsession.js" "$proxy"
+# Give the server up to 5s to log URLSession's failed handshake. The
+# check reports it if it never does.
+i=0
+while [ "$(grep -c "http: TLS handshake error" "$d/server.log")" -le "$before" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
 kill $server_pid
 echo --server--; cat "$d/server.log"; echo --end-server--
 rm -rf "$d"
