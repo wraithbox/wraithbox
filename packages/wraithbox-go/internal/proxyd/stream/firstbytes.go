@@ -200,7 +200,7 @@ func (h *Handler) readFirst(st *stream, decide func([]byte) decision) (firstByte
 		case verdictMore:
 		}
 		var err error
-		buf, err = readMore(st.conn, buf, h.firstBytesCap)
+		buf, err = ReadMore(st.conn, buf, h.firstBytesCap)
 		if err != nil {
 			h.firstReadFailed(st, err)
 			return firstBytes{}, false
@@ -212,10 +212,12 @@ func (h *Handler) readFirst(st *stream, decide func([]byte) decision) (firstByte
 // only for a stream that sends that much.
 const initialRead = 2 << 10
 
-// readMore reads once into buf's spare room, first growing it up to
-// maxBytes. The decide functions refuse a buffer at the cap that isn't
-// decided, so readMore is never called with a full one.
-func readMore(c net.Conn, buf []byte, maxBytes int) ([]byte, error) {
+// ReadMore reads once into buf's spare room, first growing it up to
+// maxBytes. The decide functions and RequestLine refuse a buffer at the
+// cap that isn't decided, so ReadMore is never called with a full one.
+// Bytes that came with an error are returned with a nil error, and the
+// next read returns the error again.
+func ReadMore(c net.Conn, buf []byte, maxBytes int) ([]byte, error) {
 	if len(buf) == cap(buf) {
 		grown := make([]byte, len(buf), min(2*cap(buf), maxBytes))
 		copy(grown, buf)
