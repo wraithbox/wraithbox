@@ -400,6 +400,7 @@ func (s *socket) stream(msg egressmsg.NetdMessage, f *os.File) {
 	st := &Stream{
 		VM: s.vm.slot, Generation: s.gen, ID: msg.StreamID,
 		Name: name, Addr: msg.Addr, Port: msg.Port, Conn: conn, sock: s,
+		policy: s.vm.policy,
 	}
 	s.streams[st] = struct{}{}
 	s.r.mu.Unlock()
