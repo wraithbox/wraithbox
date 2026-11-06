@@ -24,6 +24,7 @@ import (
 
 	hostdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/hostd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/carecord"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
@@ -50,6 +51,7 @@ type VMs interface {
 	Stop(ctx context.Context, slot vm.Slot) error
 	Status(slot vm.Slot) vm.Status
 	ResetData(ctx context.Context, slot vm.Slot) (datadisk.ResetResult, error)
+	WhileStopped(ctx context.Context, slot vm.Slot, command, what string, fn func(context.Context) error) error
 }
 
 // Links is the state of each VM's guest link. *guestconn.Links
@@ -63,6 +65,9 @@ type Server struct {
 	hostdv1.UnimplementedHostServiceServer
 
 	VMs VMs
+	// CAs is each VM's record of inspection CAs. nil refuses ListCAs and
+	// ResetCA with hostd-ca-unavailable.
+	CAs CARecords
 	// Links has the guest link states. nil reads every link as down.
 	Links Links
 	// Audit has the audit log's refusal of VM starts and new sessions,
@@ -181,11 +186,14 @@ func SlotOf(v hostdv1.VM) (vm.Slot, bool) {
 	return "", false
 }
 
-// fromError turns the manager's refusal into a status with its rule.
-// The manager logged the refusal.
+// fromError turns the VM manager's or the CA record's refusal into a
+// status with its rule. Each logged its refusal.
 func (s *Server) fromError(ctx context.Context, method string, err error) error {
 	if r, ok := errors.AsType[*vm.Refusal](err); ok {
 		return withRule(codes.FailedPrecondition, string(r.Rule), r.Message)
+	}
+	if r, ok := errors.AsType[*carecord.Refusal](err); ok {
+		return withRule(codes.FailedPrecondition, r.Rule, r.Message)
 	}
 	return s.refuse(ctx, method, codes.Internal, RuleInternal, "wb-hostd failed: "+err.Error())
 }

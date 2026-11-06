@@ -89,6 +89,13 @@ func (f *fakeVMs) ResetData(_ context.Context, slot vm.Slot) (datadisk.ResetResu
 	return datadisk.ResetResult{OldVolumeUUID: "A", NewVolumeUUID: "B"}, nil
 }
 
+func (f *fakeVMs) WhileStopped(ctx context.Context, slot vm.Slot, command, _ string, fn func(context.Context) error) error {
+	if err := f.record("while-stopped "+command, slot); err != nil {
+		return err
+	}
+	return fn(ctx)
+}
+
 func (f *fakeVMs) Calls() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -393,6 +400,10 @@ func TestRefusals(t *testing.T) {
 			_, err := c.ResetVMData(context.Background(), &hostdv1.ResetVMDataRequest{Vm: v})
 			return err
 		},
+		"ResetCA": func(c hostdv1.HostServiceClient, v hostdv1.VM) error {
+			_, err := c.ResetCA(context.Background(), &hostdv1.ResetCARequest{Vm: v})
+			return err
+		},
 	}
 	for _, tc := range []struct {
 		name string
@@ -410,7 +421,8 @@ func TestRefusals(t *testing.T) {
 		for method, call := range calls {
 			t.Run(tc.name+" "+method, func(t *testing.T) {
 				vms := &fakeVMs{err: tc.err}
-				code, rule, _ := ruleOf(t, call(serve(t, &hostservice.Server{VMs: vms, Log: slog.New(slog.DiscardHandler)}), tc.vm))
+				s := &hostservice.Server{VMs: vms, CAs: &fakeCAs{}, Log: slog.New(slog.DiscardHandler)}
+				code, rule, _ := ruleOf(t, call(serve(t, s), tc.vm))
 				if code != tc.code || rule != tc.rule {
 					t.Errorf("code %s rule %s, want %s %s", code, rule, tc.code, tc.rule)
 				}
@@ -450,6 +462,8 @@ func TestRefusingMode(t *testing.T) {
 			_, err := c.ResetVMData(t.Context(), &hostdv1.ResetVMDataRequest{Vm: work})
 			return err
 		},
+		"ListCAs": func() error { _, err := c.ListCAs(t.Context(), &hostdv1.ListCAsRequest{Vm: work}); return err },
+		"ResetCA": func() error { _, err := c.ResetCA(t.Context(), &hostdv1.ResetCARequest{Vm: work}); return err },
 	} {
 		code, rule, msg := ruleOf(t, call())
 		if code != codes.FailedPrecondition || rule != "state-db-newer" || !strings.Contains(msg, "version 9") {
