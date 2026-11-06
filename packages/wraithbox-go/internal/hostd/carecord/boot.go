@@ -214,9 +214,9 @@ func (k *Keeper) dropExpired(ctx context.Context, slot string, generation uint64
 // *Refusal with KeepsRunning set (S09-07-ca-certificates, "Rotation": a
 // guest that doesn't report the install only cuts off its own traffic).
 func (k *Keeper) install(ctx context.Context, slot string, generation uint64, g Guest, live []state.CA) error {
-	ictx, cancel := context.WithTimeout(ctx, k.cfg.InstallTimeout)
-	err := g.InstallTrust(ictx, certs(live))
-	timedOut := ictx.Err() != nil
+	installCtx, cancel := context.WithTimeout(ctx, k.cfg.InstallTimeout)
+	err := g.InstallTrust(installCtx, certs(live))
+	timedOut := installCtx.Err() != nil
 	cancel()
 	if err != nil {
 		rule, what := RuleInstallRefused, "refused"

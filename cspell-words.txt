@@ -46,6 +46,7 @@ vmbundle
 projectuser
 datadisk
 datadisktest
+carecord
 procgroup
 diskimage
 diskfmtv

@@ -310,14 +310,14 @@ func TestLoadReplyInvalid(t *testing.T) {
 // before anything else runs.
 func TestBootGuestClock(t *testing.T) {
 	r := newRig(t)
-	err := r.k.Boot(t.Context(), "work", 1, ReasonBoot, clockless{})
+	err := r.k.Boot(t.Context(), "work", 1, ReasonBoot, noClockGuest{})
 	wantRefusal(t, err, RuleGuestClock, false)
 	r.wantOrder(t)
 	r.wantRecord(t, "")
 }
 
-type clockless struct{}
+type noClockGuest struct{}
 
-func (clockless) SetClock(context.Context, Reason) error { return errors.New("no guest link") }
+func (noClockGuest) SetClock(context.Context, Reason) error { return errors.New("no guest link") }
 
-func (clockless) InstallTrust(context.Context, [][]byte) error { return nil }
+func (noClockGuest) InstallTrust(context.Context, [][]byte) error { return nil }

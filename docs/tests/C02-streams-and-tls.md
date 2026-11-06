@@ -154,6 +154,25 @@ On a fake clock, with each step checking its 5019 event:
   CA.
 - A host that sleeps from day 50 to day 61 removes the old CA before it
   accepts a stream.
+- In `internal/hostd/carecord`, over a fake `wb-proxyd`, a fake guest
+  and a fake clock, each with its 5019 events:
+  - Day 30 issues the successor, sends both in the CA set and records
+    the install (`TestC02RotationDay30`).
+  - Day 58 switches once the install is recorded
+    (`TestC02RotationDay58`), and otherwise leaves the VM without a signer and logs
+    `ca-not-installed` (`TestC02RotationDay58NotInstalled`).
+  - Day 60 drops the old CA and puts its item on the removal list
+    (`TestC02RotationDay60`).
+  - A boot runs the seven steps in order (`TestC02RotationBootOrder`).
+    A restore and a wake keep the old signer
+    (`TestC02RotationRestoreAndWakeKeepSigner`), also from a save on
+    day 40 to a restore on day 45
+    (`TestC02RotationSaveDay40RestoreDay45`).
+  - A sleep from day 50 to day 61 drops the old CA before the accept
+    (`TestC02RotationSleepDay50To61`).
+  - An install the guest doesn't report in time refuses the VM's
+    streams with `ca-install-unreported`
+    (`TestC02RotationInstallUnreported`).
 
 ### CA key
 
@@ -195,6 +214,16 @@ Spec: S09-06-ca-keys, "Valid CA".
     ends (`TestC02StoreLockedCancel`). See an ad-hoc signed build fail
     with `keychain-needs-team` (`TestC02AdHocStore`).
   - See a new CA with exactly the CA profile (`TestC02IssueProfile`).
+- In `internal/hostd/carecord`, see a restore failure refuse the start
+  with `ca-key-restore` and issue nothing, and after `wb vm reset-ca`
+  the next boot issue a new CA and remove the old one's item
+  (`TestC02CAKeyRestoreFailed`).
+- In `internal/vmcmd`, against the real service and CA record, see `wb
+  vm reset-ca` refused without a terminal, on a wrong answer and while
+  the VM runs, each leaving the record as it was
+  (`TestResetCARefusals`). On success see the record empty, both items
+  on the removal list and one 5019 event with the command
+  (`TestResetCAAccepted`).
 
 ### CA removal list
 
@@ -212,6 +241,10 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   them (`TestC02RemovalRefused`), and the
   deletes, an item already gone and a failed delete
   (`TestC02RemovalDeletes`).
+- `internal/hostd/carecord` covers the `wb-hostd` side: a list of 3
+  entries, and one of 70 sent as batches of 64 and 6, with deleted
+  entries dropped, refused entries dropped and logged, and the rest
+  sent next (`TestC02CARemovalList`).
 
 ## Fuzzing
 
@@ -241,6 +274,10 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   `dNSName`, equal to the input and neither a wildcard nor an IP
   address. It is `CA:FALSE`, signed by the VM's CA, and valid within
   the CA's validity.
+- `wb-proxyd`'s CA replies as `wb-hostd` reads them:
+  `FuzzProxydCAReply` feeds any bytes to the check of a *CA issued*
+  reply. It never panics, and a reply that passes has a certificate of
+  the CA profile: a P-256 key, self-signed, and 60 days of validity.
 
 ## Conformance
 
