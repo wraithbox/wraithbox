@@ -362,6 +362,269 @@ func (x *ResetVMDataResponse) GetNewVolumeUuid() string {
 	return ""
 }
 
+type ListCAsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Vm            VM                     `protobuf:"varint,1,opt,name=vm,proto3,enum=wraithbox.hostd.v1.VM" json:"vm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCAsRequest) Reset() {
+	*x = ListCAsRequest{}
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCAsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCAsRequest) ProtoMessage() {}
+
+func (x *ListCAsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCAsRequest.ProtoReflect.Descriptor instead.
+func (*ListCAsRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListCAsRequest) GetVm() VM {
+	if x != nil {
+		return x.Vm
+	}
+	return VM_VM_UNSPECIFIED
+}
+
+type ListCAsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The VM's CAs, oldest first. Empty when the record has none.
+	Cas           []*InspectionCA `protobuf:"bytes,1,rep,name=cas,proto3" json:"cas,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCAsResponse) Reset() {
+	*x = ListCAsResponse{}
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCAsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCAsResponse) ProtoMessage() {}
+
+func (x *ListCAsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCAsResponse.ProtoReflect.Descriptor instead.
+func (*ListCAsResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListCAsResponse) GetCas() []*InspectionCA {
+	if x != nil {
+		return x.Cas
+	}
+	return nil
+}
+
+// InspectionCA is one CA of a VM's record, as `wb vm reset-ca` shows it.
+type InspectionCA struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The SHA-256 fingerprint of the CA certificate, DER, as 64 lowercase
+	// hexadecimal characters.
+	Sha256 string `protobuf:"bytes,1,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	// The certificate's validity, in Unix seconds.
+	NotBeforeUnix int64 `protobuf:"varint,2,opt,name=not_before_unix,json=notBeforeUnix,proto3" json:"not_before_unix,omitempty"`
+	NotAfterUnix  int64 `protobuf:"varint,3,opt,name=not_after_unix,json=notAfterUnix,proto3" json:"not_after_unix,omitempty"`
+	// Whether wb-proxyd signs the VM's leaves with it.
+	Signing       bool `protobuf:"varint,4,opt,name=signing,proto3" json:"signing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectionCA) Reset() {
+	*x = InspectionCA{}
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectionCA) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectionCA) ProtoMessage() {}
+
+func (x *InspectionCA) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectionCA.ProtoReflect.Descriptor instead.
+func (*InspectionCA) Descriptor() ([]byte, []int) {
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *InspectionCA) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *InspectionCA) GetNotBeforeUnix() int64 {
+	if x != nil {
+		return x.NotBeforeUnix
+	}
+	return 0
+}
+
+func (x *InspectionCA) GetNotAfterUnix() int64 {
+	if x != nil {
+		return x.NotAfterUnix
+	}
+	return 0
+}
+
+func (x *InspectionCA) GetSigning() bool {
+	if x != nil {
+		return x.Signing
+	}
+	return false
+}
+
+type ResetCARequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Vm    VM                     `protobuf:"varint,1,opt,name=vm,proto3,enum=wraithbox.hostd.v1.VM" json:"vm,omitempty"`
+	// The fingerprints of the CAs the person confirmed, as ListCAs gave
+	// them, in any order. wb-hostd refuses the reset with
+	// ca-record-changed unless they are the record's CAs, so it drops
+	// only what the person saw.
+	Sha256        []string `protobuf:"bytes,2,rep,name=sha256,proto3" json:"sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResetCARequest) Reset() {
+	*x = ResetCARequest{}
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetCARequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetCARequest) ProtoMessage() {}
+
+func (x *ResetCARequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetCARequest.ProtoReflect.Descriptor instead.
+func (*ResetCARequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ResetCARequest) GetVm() VM {
+	if x != nil {
+		return x.Vm
+	}
+	return VM_VM_UNSPECIFIED
+}
+
+func (x *ResetCARequest) GetSha256() []string {
+	if x != nil {
+		return x.Sha256
+	}
+	return nil
+}
+
+type ResetCAResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The fingerprints of the CAs dropped, oldest first.
+	DroppedSha256 []string `protobuf:"bytes,1,rep,name=dropped_sha256,json=droppedSha256,proto3" json:"dropped_sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResetCAResponse) Reset() {
+	*x = ResetCAResponse{}
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetCAResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetCAResponse) ProtoMessage() {}
+
+func (x *ResetCAResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetCAResponse.ProtoReflect.Descriptor instead.
+func (*ResetCAResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ResetCAResponse) GetDroppedSha256() []string {
+	if x != nil {
+		return x.DroppedSha256
+	}
+	return nil
+}
+
 type StartVMRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Vm            VM                     `protobuf:"varint,1,opt,name=vm,proto3,enum=wraithbox.hostd.v1.VM" json:"vm,omitempty"`
@@ -371,7 +634,7 @@ type StartVMRequest struct {
 
 func (x *StartVMRequest) Reset() {
 	*x = StartVMRequest{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[2]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -383,7 +646,7 @@ func (x *StartVMRequest) String() string {
 func (*StartVMRequest) ProtoMessage() {}
 
 func (x *StartVMRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[2]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -396,7 +659,7 @@ func (x *StartVMRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartVMRequest.ProtoReflect.Descriptor instead.
 func (*StartVMRequest) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{2}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StartVMRequest) GetVm() VM {
@@ -416,7 +679,7 @@ type StartVMResponse struct {
 
 func (x *StartVMResponse) Reset() {
 	*x = StartVMResponse{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[3]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -428,7 +691,7 @@ func (x *StartVMResponse) String() string {
 func (*StartVMResponse) ProtoMessage() {}
 
 func (x *StartVMResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[3]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -441,7 +704,7 @@ func (x *StartVMResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartVMResponse.ProtoReflect.Descriptor instead.
 func (*StartVMResponse) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{3}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *StartVMResponse) GetGeneration() uint64 {
@@ -460,7 +723,7 @@ type StopVMRequest struct {
 
 func (x *StopVMRequest) Reset() {
 	*x = StopVMRequest{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[4]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -472,7 +735,7 @@ func (x *StopVMRequest) String() string {
 func (*StopVMRequest) ProtoMessage() {}
 
 func (x *StopVMRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[4]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -485,7 +748,7 @@ func (x *StopVMRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopVMRequest.ProtoReflect.Descriptor instead.
 func (*StopVMRequest) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{4}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StopVMRequest) GetVm() VM {
@@ -503,7 +766,7 @@ type StopVMResponse struct {
 
 func (x *StopVMResponse) Reset() {
 	*x = StopVMResponse{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[5]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -515,7 +778,7 @@ func (x *StopVMResponse) String() string {
 func (*StopVMResponse) ProtoMessage() {}
 
 func (x *StopVMResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[5]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -528,7 +791,7 @@ func (x *StopVMResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopVMResponse.ProtoReflect.Descriptor instead.
 func (*StopVMResponse) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{5}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{10}
 }
 
 type GetVMStatusRequest struct {
@@ -540,7 +803,7 @@ type GetVMStatusRequest struct {
 
 func (x *GetVMStatusRequest) Reset() {
 	*x = GetVMStatusRequest{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[6]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -552,7 +815,7 @@ func (x *GetVMStatusRequest) String() string {
 func (*GetVMStatusRequest) ProtoMessage() {}
 
 func (x *GetVMStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[6]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -565,7 +828,7 @@ func (x *GetVMStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVMStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetVMStatusRequest) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{6}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetVMStatusRequest) GetVm() VM {
@@ -584,7 +847,7 @@ type GetVMStatusResponse struct {
 
 func (x *GetVMStatusResponse) Reset() {
 	*x = GetVMStatusResponse{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[7]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -596,7 +859,7 @@ func (x *GetVMStatusResponse) String() string {
 func (*GetVMStatusResponse) ProtoMessage() {}
 
 func (x *GetVMStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[7]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -609,7 +872,7 @@ func (x *GetVMStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVMStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetVMStatusResponse) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{7}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetVMStatusResponse) GetStatus() *VMStatus {
@@ -656,7 +919,7 @@ type VMStatus struct {
 
 func (x *VMStatus) Reset() {
 	*x = VMStatus{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[8]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -668,7 +931,7 @@ func (x *VMStatus) String() string {
 func (*VMStatus) ProtoMessage() {}
 
 func (x *VMStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[8]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -681,7 +944,7 @@ func (x *VMStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMStatus.ProtoReflect.Descriptor instead.
 func (*VMStatus) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{8}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *VMStatus) GetVm() VM {
@@ -779,7 +1042,7 @@ type AuditBudget struct {
 
 func (x *AuditBudget) Reset() {
 	*x = AuditBudget{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[9]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -791,7 +1054,7 @@ func (x *AuditBudget) String() string {
 func (*AuditBudget) ProtoMessage() {}
 
 func (x *AuditBudget) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[9]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -804,7 +1067,7 @@ func (x *AuditBudget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditBudget.ProtoReflect.Descriptor instead.
 func (*AuditBudget) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{9}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AuditBudget) GetRule() string {
@@ -873,7 +1136,7 @@ type AuditRefusal struct {
 
 func (x *AuditRefusal) Reset() {
 	*x = AuditRefusal{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[10]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -885,7 +1148,7 @@ func (x *AuditRefusal) String() string {
 func (*AuditRefusal) ProtoMessage() {}
 
 func (x *AuditRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[10]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -898,7 +1161,7 @@ func (x *AuditRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditRefusal.ProtoReflect.Descriptor instead.
 func (*AuditRefusal) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{10}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AuditRefusal) GetRule() string {
@@ -944,7 +1207,7 @@ type DataMount struct {
 
 func (x *DataMount) Reset() {
 	*x = DataMount{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[11]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -956,7 +1219,7 @@ func (x *DataMount) String() string {
 func (*DataMount) ProtoMessage() {}
 
 func (x *DataMount) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[11]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -969,7 +1232,7 @@ func (x *DataMount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataMount.ProtoReflect.Descriptor instead.
 func (*DataMount) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{11}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DataMount) GetState() DataMountState {
@@ -1012,7 +1275,7 @@ type LinkRefusal struct {
 
 func (x *LinkRefusal) Reset() {
 	*x = LinkRefusal{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[12]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1287,7 @@ func (x *LinkRefusal) String() string {
 func (*LinkRefusal) ProtoMessage() {}
 
 func (x *LinkRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[12]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1300,7 @@ func (x *LinkRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkRefusal.ProtoReflect.Descriptor instead.
 func (*LinkRefusal) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{12}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *LinkRefusal) GetRule() string {
@@ -1087,7 +1350,7 @@ type VMError struct {
 
 func (x *VMError) Reset() {
 	*x = VMError{}
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[13]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1099,7 +1362,7 @@ func (x *VMError) String() string {
 func (*VMError) ProtoMessage() {}
 
 func (x *VMError) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[13]
+	mi := &file_wraithbox_hostd_v1_hostd_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1112,7 +1375,7 @@ func (x *VMError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMError.ProtoReflect.Descriptor instead.
 func (*VMError) Descriptor() ([]byte, []int) {
-	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{13}
+	return file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *VMError) GetCode() int64 {
@@ -1153,6 +1416,20 @@ const file_wraithbox_hostd_v1_hostd_proto_rawDesc = "" +
 	"\x13ResetVMDataResponse\x12&\n" +
 	"\x0fold_volume_uuid\x18\x01 \x01(\tR\roldVolumeUuid\x12&\n" +
 	"\x0fnew_volume_uuid\x18\x02 \x01(\tR\rnewVolumeUuid\"8\n" +
+	"\x0eListCAsRequest\x12&\n" +
+	"\x02vm\x18\x01 \x01(\x0e2\x16.wraithbox.hostd.v1.VMR\x02vm\"E\n" +
+	"\x0fListCAsResponse\x122\n" +
+	"\x03cas\x18\x01 \x03(\v2 .wraithbox.hostd.v1.InspectionCAR\x03cas\"\x8e\x01\n" +
+	"\fInspectionCA\x12\x16\n" +
+	"\x06sha256\x18\x01 \x01(\tR\x06sha256\x12&\n" +
+	"\x0fnot_before_unix\x18\x02 \x01(\x03R\rnotBeforeUnix\x12$\n" +
+	"\x0enot_after_unix\x18\x03 \x01(\x03R\fnotAfterUnix\x12\x18\n" +
+	"\asigning\x18\x04 \x01(\bR\asigning\"P\n" +
+	"\x0eResetCARequest\x12&\n" +
+	"\x02vm\x18\x01 \x01(\x0e2\x16.wraithbox.hostd.v1.VMR\x02vm\x12\x16\n" +
+	"\x06sha256\x18\x02 \x03(\tR\x06sha256\"8\n" +
+	"\x0fResetCAResponse\x12%\n" +
+	"\x0edropped_sha256\x18\x01 \x03(\tR\rdroppedSha256\"8\n" +
 	"\x0eStartVMRequest\x12&\n" +
 	"\x02vm\x18\x01 \x01(\x0e2\x16.wraithbox.hostd.v1.VMR\x02vm\"1\n" +
 	"\x0fStartVMResponse\x12\x1e\n" +
@@ -1232,9 +1509,11 @@ const file_wraithbox_hostd_v1_hostd_proto_rawDesc = "" +
 	"\x0fLINK_STATE_DOWN\x10\x01\x12\x19\n" +
 	"\x15LINK_STATE_CONNECTING\x10\x02\x12\x15\n" +
 	"\x11LINK_STATE_LINKED\x10\x03\x12\x16\n" +
-	"\x12LINK_STATE_REFUSED\x10\x042\xf2\x02\n" +
+	"\x12LINK_STATE_REFUSED\x10\x042\x9a\x04\n" +
 	"\vHostService\x12^\n" +
 	"\vResetVMData\x12&.wraithbox.hostd.v1.ResetVMDataRequest\x1a'.wraithbox.hostd.v1.ResetVMDataResponse\x12R\n" +
+	"\aListCAs\x12\".wraithbox.hostd.v1.ListCAsRequest\x1a#.wraithbox.hostd.v1.ListCAsResponse\x12R\n" +
+	"\aResetCA\x12\".wraithbox.hostd.v1.ResetCARequest\x1a#.wraithbox.hostd.v1.ResetCAResponse\x12R\n" +
 	"\aStartVM\x12\".wraithbox.hostd.v1.StartVMRequest\x1a#.wraithbox.hostd.v1.StartVMResponse\x12O\n" +
 	"\x06StopVM\x12!.wraithbox.hostd.v1.StopVMRequest\x1a\".wraithbox.hostd.v1.StopVMResponse\x12^\n" +
 	"\vGetVMStatus\x12&.wraithbox.hostd.v1.GetVMStatusRequest\x1a'.wraithbox.hostd.v1.GetVMStatusResponseB\xec\x01\n" +
@@ -1254,7 +1533,7 @@ func file_wraithbox_hostd_v1_hostd_proto_rawDescGZIP() []byte {
 }
 
 var file_wraithbox_hostd_v1_hostd_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_wraithbox_hostd_v1_hostd_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_wraithbox_hostd_v1_hostd_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_wraithbox_hostd_v1_hostd_proto_goTypes = []any{
 	(VM)(0),                     // 0: wraithbox.hostd.v1.VM
 	(DataMountState)(0),         // 1: wraithbox.hostd.v1.DataMountState
@@ -1262,47 +1541,59 @@ var file_wraithbox_hostd_v1_hostd_proto_goTypes = []any{
 	(LinkState)(0),              // 3: wraithbox.hostd.v1.LinkState
 	(*ResetVMDataRequest)(nil),  // 4: wraithbox.hostd.v1.ResetVMDataRequest
 	(*ResetVMDataResponse)(nil), // 5: wraithbox.hostd.v1.ResetVMDataResponse
-	(*StartVMRequest)(nil),      // 6: wraithbox.hostd.v1.StartVMRequest
-	(*StartVMResponse)(nil),     // 7: wraithbox.hostd.v1.StartVMResponse
-	(*StopVMRequest)(nil),       // 8: wraithbox.hostd.v1.StopVMRequest
-	(*StopVMResponse)(nil),      // 9: wraithbox.hostd.v1.StopVMResponse
-	(*GetVMStatusRequest)(nil),  // 10: wraithbox.hostd.v1.GetVMStatusRequest
-	(*GetVMStatusResponse)(nil), // 11: wraithbox.hostd.v1.GetVMStatusResponse
-	(*VMStatus)(nil),            // 12: wraithbox.hostd.v1.VMStatus
-	(*AuditBudget)(nil),         // 13: wraithbox.hostd.v1.AuditBudget
-	(*AuditRefusal)(nil),        // 14: wraithbox.hostd.v1.AuditRefusal
-	(*DataMount)(nil),           // 15: wraithbox.hostd.v1.DataMount
-	(*LinkRefusal)(nil),         // 16: wraithbox.hostd.v1.LinkRefusal
-	(*VMError)(nil),             // 17: wraithbox.hostd.v1.VMError
+	(*ListCAsRequest)(nil),      // 6: wraithbox.hostd.v1.ListCAsRequest
+	(*ListCAsResponse)(nil),     // 7: wraithbox.hostd.v1.ListCAsResponse
+	(*InspectionCA)(nil),        // 8: wraithbox.hostd.v1.InspectionCA
+	(*ResetCARequest)(nil),      // 9: wraithbox.hostd.v1.ResetCARequest
+	(*ResetCAResponse)(nil),     // 10: wraithbox.hostd.v1.ResetCAResponse
+	(*StartVMRequest)(nil),      // 11: wraithbox.hostd.v1.StartVMRequest
+	(*StartVMResponse)(nil),     // 12: wraithbox.hostd.v1.StartVMResponse
+	(*StopVMRequest)(nil),       // 13: wraithbox.hostd.v1.StopVMRequest
+	(*StopVMResponse)(nil),      // 14: wraithbox.hostd.v1.StopVMResponse
+	(*GetVMStatusRequest)(nil),  // 15: wraithbox.hostd.v1.GetVMStatusRequest
+	(*GetVMStatusResponse)(nil), // 16: wraithbox.hostd.v1.GetVMStatusResponse
+	(*VMStatus)(nil),            // 17: wraithbox.hostd.v1.VMStatus
+	(*AuditBudget)(nil),         // 18: wraithbox.hostd.v1.AuditBudget
+	(*AuditRefusal)(nil),        // 19: wraithbox.hostd.v1.AuditRefusal
+	(*DataMount)(nil),           // 20: wraithbox.hostd.v1.DataMount
+	(*LinkRefusal)(nil),         // 21: wraithbox.hostd.v1.LinkRefusal
+	(*VMError)(nil),             // 22: wraithbox.hostd.v1.VMError
 }
 var file_wraithbox_hostd_v1_hostd_proto_depIdxs = []int32{
 	0,  // 0: wraithbox.hostd.v1.ResetVMDataRequest.vm:type_name -> wraithbox.hostd.v1.VM
-	0,  // 1: wraithbox.hostd.v1.StartVMRequest.vm:type_name -> wraithbox.hostd.v1.VM
-	0,  // 2: wraithbox.hostd.v1.StopVMRequest.vm:type_name -> wraithbox.hostd.v1.VM
-	0,  // 3: wraithbox.hostd.v1.GetVMStatusRequest.vm:type_name -> wraithbox.hostd.v1.VM
-	12, // 4: wraithbox.hostd.v1.GetVMStatusResponse.status:type_name -> wraithbox.hostd.v1.VMStatus
-	0,  // 5: wraithbox.hostd.v1.VMStatus.vm:type_name -> wraithbox.hostd.v1.VM
-	2,  // 6: wraithbox.hostd.v1.VMStatus.phase:type_name -> wraithbox.hostd.v1.VMPhase
-	3,  // 7: wraithbox.hostd.v1.VMStatus.link_state:type_name -> wraithbox.hostd.v1.LinkState
-	16, // 8: wraithbox.hostd.v1.VMStatus.link_refusal:type_name -> wraithbox.hostd.v1.LinkRefusal
-	17, // 9: wraithbox.hostd.v1.VMStatus.last_error:type_name -> wraithbox.hostd.v1.VMError
-	15, // 10: wraithbox.hostd.v1.VMStatus.data_mount:type_name -> wraithbox.hostd.v1.DataMount
-	14, // 11: wraithbox.hostd.v1.VMStatus.audit_refusal:type_name -> wraithbox.hostd.v1.AuditRefusal
-	13, // 12: wraithbox.hostd.v1.VMStatus.audit_budget:type_name -> wraithbox.hostd.v1.AuditBudget
-	1,  // 13: wraithbox.hostd.v1.DataMount.state:type_name -> wraithbox.hostd.v1.DataMountState
-	4,  // 14: wraithbox.hostd.v1.HostService.ResetVMData:input_type -> wraithbox.hostd.v1.ResetVMDataRequest
-	6,  // 15: wraithbox.hostd.v1.HostService.StartVM:input_type -> wraithbox.hostd.v1.StartVMRequest
-	8,  // 16: wraithbox.hostd.v1.HostService.StopVM:input_type -> wraithbox.hostd.v1.StopVMRequest
-	10, // 17: wraithbox.hostd.v1.HostService.GetVMStatus:input_type -> wraithbox.hostd.v1.GetVMStatusRequest
-	5,  // 18: wraithbox.hostd.v1.HostService.ResetVMData:output_type -> wraithbox.hostd.v1.ResetVMDataResponse
-	7,  // 19: wraithbox.hostd.v1.HostService.StartVM:output_type -> wraithbox.hostd.v1.StartVMResponse
-	9,  // 20: wraithbox.hostd.v1.HostService.StopVM:output_type -> wraithbox.hostd.v1.StopVMResponse
-	11, // 21: wraithbox.hostd.v1.HostService.GetVMStatus:output_type -> wraithbox.hostd.v1.GetVMStatusResponse
-	18, // [18:22] is the sub-list for method output_type
-	14, // [14:18] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	0,  // 1: wraithbox.hostd.v1.ListCAsRequest.vm:type_name -> wraithbox.hostd.v1.VM
+	8,  // 2: wraithbox.hostd.v1.ListCAsResponse.cas:type_name -> wraithbox.hostd.v1.InspectionCA
+	0,  // 3: wraithbox.hostd.v1.ResetCARequest.vm:type_name -> wraithbox.hostd.v1.VM
+	0,  // 4: wraithbox.hostd.v1.StartVMRequest.vm:type_name -> wraithbox.hostd.v1.VM
+	0,  // 5: wraithbox.hostd.v1.StopVMRequest.vm:type_name -> wraithbox.hostd.v1.VM
+	0,  // 6: wraithbox.hostd.v1.GetVMStatusRequest.vm:type_name -> wraithbox.hostd.v1.VM
+	17, // 7: wraithbox.hostd.v1.GetVMStatusResponse.status:type_name -> wraithbox.hostd.v1.VMStatus
+	0,  // 8: wraithbox.hostd.v1.VMStatus.vm:type_name -> wraithbox.hostd.v1.VM
+	2,  // 9: wraithbox.hostd.v1.VMStatus.phase:type_name -> wraithbox.hostd.v1.VMPhase
+	3,  // 10: wraithbox.hostd.v1.VMStatus.link_state:type_name -> wraithbox.hostd.v1.LinkState
+	21, // 11: wraithbox.hostd.v1.VMStatus.link_refusal:type_name -> wraithbox.hostd.v1.LinkRefusal
+	22, // 12: wraithbox.hostd.v1.VMStatus.last_error:type_name -> wraithbox.hostd.v1.VMError
+	20, // 13: wraithbox.hostd.v1.VMStatus.data_mount:type_name -> wraithbox.hostd.v1.DataMount
+	19, // 14: wraithbox.hostd.v1.VMStatus.audit_refusal:type_name -> wraithbox.hostd.v1.AuditRefusal
+	18, // 15: wraithbox.hostd.v1.VMStatus.audit_budget:type_name -> wraithbox.hostd.v1.AuditBudget
+	1,  // 16: wraithbox.hostd.v1.DataMount.state:type_name -> wraithbox.hostd.v1.DataMountState
+	4,  // 17: wraithbox.hostd.v1.HostService.ResetVMData:input_type -> wraithbox.hostd.v1.ResetVMDataRequest
+	6,  // 18: wraithbox.hostd.v1.HostService.ListCAs:input_type -> wraithbox.hostd.v1.ListCAsRequest
+	9,  // 19: wraithbox.hostd.v1.HostService.ResetCA:input_type -> wraithbox.hostd.v1.ResetCARequest
+	11, // 20: wraithbox.hostd.v1.HostService.StartVM:input_type -> wraithbox.hostd.v1.StartVMRequest
+	13, // 21: wraithbox.hostd.v1.HostService.StopVM:input_type -> wraithbox.hostd.v1.StopVMRequest
+	15, // 22: wraithbox.hostd.v1.HostService.GetVMStatus:input_type -> wraithbox.hostd.v1.GetVMStatusRequest
+	5,  // 23: wraithbox.hostd.v1.HostService.ResetVMData:output_type -> wraithbox.hostd.v1.ResetVMDataResponse
+	7,  // 24: wraithbox.hostd.v1.HostService.ListCAs:output_type -> wraithbox.hostd.v1.ListCAsResponse
+	10, // 25: wraithbox.hostd.v1.HostService.ResetCA:output_type -> wraithbox.hostd.v1.ResetCAResponse
+	12, // 26: wraithbox.hostd.v1.HostService.StartVM:output_type -> wraithbox.hostd.v1.StartVMResponse
+	14, // 27: wraithbox.hostd.v1.HostService.StopVM:output_type -> wraithbox.hostd.v1.StopVMResponse
+	16, // 28: wraithbox.hostd.v1.HostService.GetVMStatus:output_type -> wraithbox.hostd.v1.GetVMStatusResponse
+	23, // [23:29] is the sub-list for method output_type
+	17, // [17:23] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_hostd_v1_hostd_proto_init() }
@@ -1316,7 +1607,7 @@ func file_wraithbox_hostd_v1_hostd_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_hostd_v1_hostd_proto_rawDesc), len(file_wraithbox_hostd_v1_hostd_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   14,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

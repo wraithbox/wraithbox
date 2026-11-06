@@ -5,6 +5,7 @@ package contracttest_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -163,6 +164,13 @@ func messages() []proto.Message {
 		&guestv1.InstallTrustResponse{},
 		&hostdv1.ResetVMDataRequest{Vm: hostdv1.VM_VM_ISOLATED},
 		&hostdv1.ResetVMDataResponse{OldVolumeUuid: "A", NewVolumeUuid: "B"},
+		&hostdv1.ListCAsRequest{Vm: hostdv1.VM_VM_WORK},
+		&hostdv1.ListCAsResponse{Cas: []*hostdv1.InspectionCA{
+			{Sha256: strings.Repeat("ab", 32), NotBeforeUnix: 1700000000, NotAfterUnix: 1705184000, Signing: true},
+		}},
+		&hostdv1.InspectionCA{Sha256: strings.Repeat("ef", 32), NotBeforeUnix: 1, NotAfterUnix: 2, Signing: true},
+		&hostdv1.ResetCARequest{Vm: hostdv1.VM_VM_ISOLATED, Sha256: []string{strings.Repeat("cd", 32)}},
+		&hostdv1.ResetCAResponse{DroppedSha256: []string{strings.Repeat("cd", 32)}},
 		&hostdv1.StartVMRequest{Vm: hostdv1.VM_VM_WORK},
 		&hostdv1.StartVMResponse{Generation: 7},
 		&hostdv1.StopVMRequest{Vm: hostdv1.VM_VM_ISOLATED},
