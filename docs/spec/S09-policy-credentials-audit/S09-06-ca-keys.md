@@ -128,6 +128,10 @@ Only after that round trip does `wb-hostd` record the CA. A failed
 step deletes the item, leaves the record unchanged, and fails the issue
 with `ca-key-restore`.
 
+An issue for a CA id that is in a VM's CA set, or whose key this
+`wb-proxyd` holds, fails with `ca-issue-refused` before step 1. It
+doesn't touch the store, so it can't overwrite the item of a CA in use.
+
 #### Restore
 
 In every build and on every backend, a read that fails because the

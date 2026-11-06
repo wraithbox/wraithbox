@@ -37,6 +37,19 @@ A pass-mode stream is relayed unchanged, and `wb-proxyd` doesn't sign a
 leaf for it. Any other stream that fails this rule is reset, and logged
 with the rule.
 
+`wb-proxyd` refuses a leaf with `ca-leaf-refused`, and the reason, when:
+
+- the hostname isn't a DNS name in canonical form, or is a wildcard or
+  an IP address;
+- the VM has no CA set, or the stream's generation isn't the CA set's;
+- `wb-hostd` hasn't accepted the CA set's generation ("Messages");
+- the signing CA has expired;
+- the signature fails.
+
+A VM with no signing CA is refused with `ca-not-installed`
+("Rotation"), and one whose CA didn't restore with the rule of the
+restore (S09-06-ca-keys, "Restore").
+
 #### Leaf profile
 
 - Exactly one `dNSName` subject alternative name, equal to the stream's
@@ -58,6 +71,32 @@ Wraith Box CA, whatever the host's trust store holds.
 
 `wb-hostd` schedules each step. `wb-proxyd` issues, switches and
 deletes key items.
+
+#### Messages
+
+`wb-hostd` sends each step to `wb-proxyd` over the control channel
+(S04-architecture, "Control channels"). Each request has its reply:
+
+- `CaIssue` names the VM and a new CA id, 32 lowercase hexadecimal
+  characters. `CaIssued` gives the CA certificate after the round trip
+  of S09-06-ca-keys, "Issue", or the rule it failed with.
+- `CaSet` gives the VM's CAs from `wb-hostd`'s record, at most three
+  certificates of at most 1024 bytes, with the generation and the
+  signing CA, or none with `ca-not-installed`. `wb-proxyd` restores
+  each CA it doesn't hold. It replies `CaLoaded`, or
+  `CaRestoreFailed` with the CA and the rule.
+- `CaAccept` follows the recorded install (step 7 of "Boot, restore
+  and host wake"). Before the first accept of a CA set's generation,
+  `wb-proxyd` refuses the VM's inspected streams.
+- `CaRemove` lists at most 64 key items of the removal list. If any
+  entry isn't a CA item of a VM slot, or names a CA in a VM's CA set,
+  `wb-proxyd` refuses the whole batch with `ca-removal-refused` and
+  each such entry's index and check, and deletes none. Otherwise it
+  deletes each item. `CaRemoved` lists those it deleted, an item
+  already gone among them.
+
+A `CaSet` of an older generation, or a `CaAccept` of a generation that
+isn't the VM's CA set's, ends the control channel.
 
 #### Rotation
 

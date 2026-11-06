@@ -26,7 +26,7 @@ func TestC02LeafRefusals(t *testing.T) {
 		{"Example.com", ReasonNotDNSName},
 		{"example.com.", ReasonNotDNSName},
 		{"", ReasonNotDNSName},
-		{"exa mple.com", ReasonNotDNSName},
+		{"two words.com", ReasonNotDNSName},
 		{strings.Repeat("a", 64) + ".com", ReasonNotDNSName},
 	} {
 		e.wantRefusal("work", 1, c.name, RuleLeafRefused, c.reason)

@@ -84,6 +84,8 @@ guestos
 secretstore
 storeitem
 storetest
+hwkey
+hwkeytest
 
 # Virtualization, networking and OS facilities
 gvisor
@@ -463,6 +465,8 @@ halfwidth
 oneofs
 linkdrop
 dnsname
+tmpl
+CAID
 
 # Vale rule names quoted in .vale.ini
 Cataphoric

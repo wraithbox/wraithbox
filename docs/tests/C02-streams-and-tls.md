@@ -114,6 +114,29 @@ Spec: S09-06-ca-keys.
   In every case `wb-proxyd` doesn't sign a leaf. The pass-mode stream
   is relayed unchanged, and each other stream is reset and logged with
   its rule.
+- In `internal/proxyd/ca`, over the fake key store and the fake secret
+  store (S09-07-ca-certificates, "Leaf issuance"):
+  - Ask for a leaf for a wildcard, an IP address, a name not in
+    canonical form, a VM with no CA set, an older generation, a VM
+    with no signing CA, and an expired CA with a leaf cached. See each
+    refused with `ca-leaf-refused` and its reason, or
+    `ca-not-installed`, and logged (`TestC02LeafRefusals`).
+  - See a leaf with exactly the leaf profile, a chain of the leaf only,
+    and a validity cut to the CA's end, that verifies against its CA
+    (`TestC02LeafProfile`).
+  - See the cache return the same leaf for the same VM, CA and
+    hostname, a new one an hour before its end and after a signing CA
+    change, and drop the least recently used leaf at its cap
+    (`TestC02LeafCache`).
+  - See a leaf signed for one VM fail to verify against another VM's CA
+    (`TestC02VMScope`), and the package's API give or take no
+    `x509.CertPool` (`TestNoCertPool`).
+  - See a VM's streams refused until `wb-hostd` accepts the CA set's
+    generation, and a CA set of an older generation end the control
+    channel (`TestC02AcceptGating`).
+  - See `wb-proxyd`'s hand-off receiver, which has no CA handler yet,
+    refuse a CA message and end the control channel
+    (`TestCAMessageRefused`).
 
 ### CA rotation
 
@@ -153,6 +176,21 @@ Spec: S09-06-ca-keys, "Valid CA".
 - Run `wb vm reset-ca` and `wb setup --ca-key-store`, and see each
   write a 5019 event with the command and each dropped CA's
   fingerprint.
+- In `internal/proxyd/ca`, over the fakes:
+  - Restore from the wrapped form of another key, a token of another
+    key, random bytes, a missing item, and a restore error. See each
+    CA set fail with `ca-key-restore`, the VM get no leaf, and no key
+    made or left open (`TestC02RestoreFails`). A CA set whose
+    certificate isn't the item's fails the same way
+    (`TestC02RestoreBadCertificate`).
+  - Fail an issue's read-back and restore, and see its item deleted
+    (`TestC02IssueRoundTripFails`). An issue for a CA id in use fails
+    with `ca-issue-refused` and no store call (`TestC02IssueRefused`).
+  - See a locked store wait, log the wait once and continue at the
+    unlock (`TestC02StoreLockedWaits`), and fail closed when the wait
+    ends (`TestC02StoreLockedCancel`). See an ad-hoc signed build fail
+    with `keychain-needs-team` (`TestC02AdHocStore`).
+  - See a new CA with exactly the CA profile (`TestC02IssueProfile`).
 
 ### CA removal list
 
@@ -164,6 +202,11 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   `ca-removal-refused` and nothing deleted. Then see `wb-hostd` drop the
   refused entry and log it, and the next batch delete the valid one.
 - Report an entry whose item is gone, and see it counted as deleted.
+- `internal/proxyd/ca` covers the `wb-proxyd` side: the refused
+  batches, each entry before and after the valid one, an entry of
+  another VM's CA set among them (`TestC02RemovalRefused`), and the
+  deletes, an item already gone and a failed delete
+  (`TestC02RemovalDeletes`).
 
 ## Fuzzing
 
@@ -184,6 +227,10 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   `wb-netd` reads, and `FuzzControlMessage` for `wb-hostd`'s messages.
   `FuzzHandoffDecision` drives `wb-proxyd`'s decisions on them and
   checks its copy of the name mapping after each.
+- The CA messages of the control channel: `FuzzCAControlMessage` feeds
+  any bytes through the decoder to `wb-proxyd`'s CA authority over the
+  fakes. A message that parses has a VM slot and CA ids of the fixed
+  form, and each reply has the form `control.proto` gives it.
 
 ## Conformance
 

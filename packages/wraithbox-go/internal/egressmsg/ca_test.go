@@ -148,7 +148,7 @@ func TestValidCAID(t *testing.T) {
 			t.Errorf("%q refused", s)
 		}
 	}
-	for _, s := range []string{"", caA[:31], caA + "0", "0123456789ABCDEF0123456789abcdef", "0123456789abcdeg0123456789abcdef", "-123456789abcdef0123456789abcdef"} {
+	for _, s := range []string{"", caA[:31], caA + "0", "0123456789ABCDEF0123456789abcdef", caA[:15] + "g" + caA[16:], "-123456789abcdef0123456789abcdef"} {
 		if ValidCAID(s) {
 			t.Errorf("%q accepted", s)
 		}
