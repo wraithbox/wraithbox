@@ -21,11 +21,13 @@ descriptors, and no other:
 | 5 | its accounting channel (S04-08-records-and-bounds) |
 | 6 | its event channel |
 
-After its confinement it checks that each descriptor is open, and that
-3 to 6 are connected `AF_UNIX` datagram sockets. It exits with
+Descriptors 0 and 1 are `/dev/null`. After its confinement it refuses
+any open descriptor above 6. Then it checks that each of 2 to 6 is
+open, and that 3 to 6 are connected `AF_UNIX` datagram sockets. It exits with
 `netd-descriptor-invalid` when one is wrong, and with `netd-arguments`
-when it got an argument. It exits 0 with `netd-stopped` when
-`wb-hostd` closes the control channel, and 1 after any other end.
+when it got an argument. It exits 0 with `netd-stopped` only when
+`wb-hostd` closes the control channel. Any other end, the packet
+transport's included, is logged with `netd-failed`, and it exits 1.
 
 The hand-off socket to `wb-proxyd` isn't among them. It comes on the
 control channel, after the start message (S04-07-supervision, "New
@@ -55,9 +57,15 @@ for its acknowledgment. If a step before the acknowledgment fails,
 MAC address, the subnet, the gateway and the leased address. Each VM
 has its own link. Every VM gets 192.168.127.0/24, the gateway .1 and
 the lease .2. The gateway's MAC is the guest's with its last byte
-inverted, another unicast address of the same kind. `wb-netd` refuses
-addressing that doesn't describe one such link with the check
-`addressing`.
+inverted, another unicast address of the same kind.
+
+`wb-netd` refuses with the check `addressing` a MAC that isn't a
+unicast 6-byte address, and the same MAC twice. It also refuses a
+prefix length outside 8 to 30, a subnet with host bits set, and a
+gateway or leased address that isn't a host address of the subnet or
+is the other's. `wb-hostd` checks the guest's MAC and loads the policy
+before the VM starts, so the transport isn't held unread while it reads
+the policy file.
 
 ### Drain before the start
 
@@ -92,7 +100,13 @@ before then, so `wb-netd` can still confine itself.
   `netd-stop-timeout`. It then reads what is left on the accounting
   and event channels, and only then ends the VM's event stream and
   closes its copy of the transport.
+- **Hang.** `wb-hostd` doesn't check that a running `wb-netd` is live.
+  One that hangs leaves its VM without a network, which fails closed.
+  Liveness checks come with the restarts (I480).
 
-The VM manager has no restore path yet, so each start is a new run
-with a new `wb-netd`. `wb-netd` refuses a second `NetdStart`, so a new transport
-can't reach a running one.
+An exit while the VM is already stopping, by request or forced, doesn't
+take over that stop's rule. The VM manager has no restore path yet, so
+each start is a new run with a new `wb-netd`. `wb-netd` refuses a second
+`NetdStart`, so a new transport can't reach a running one.
+
+**Status:** Draft

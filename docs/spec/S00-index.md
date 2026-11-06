@@ -17,7 +17,7 @@ Wraith Box works and why.
 | S04-06-git-confinement | Git and the `wb-hostd` Profile | Draft |
 | S04-07-supervision | Supervision | Draft |
 | S04-08-records-and-bounds | Records, Versions and Bounds | Draft |
-| S04-09-netd-start | Starting `wb-netd` |  |
+| S04-09-netd-start | Starting `wb-netd` | Draft |
 | S05-cli | Command Line Interface | Draft |
 | S05-01-agent-commands | Agent Commands | Draft |
 | S05-02-exit-status-and-signals | Exit Status and Signals | Draft |
