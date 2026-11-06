@@ -14,10 +14,13 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	egressv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/hwkey/hwkeytest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore/storetest"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/match"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/proxyd/ca"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
 )
@@ -146,7 +149,14 @@ func (a *authority) leaf(t *testing.T, id string, der []byte) *tls.Certificate {
 	if err := a.a.Accept(&egressv1.CaAccept{Vm: testVM, Generation: a.gen}); err != nil {
 		t.Fatal(err)
 	}
-	leaf, ref := a.a.For(testVM, a.gen, leafHost)
+	name, nameRef := dnsname.FromHost(leafHost)
+	if nameRef != nil {
+		t.Fatal(nameRef)
+	}
+	leaf, ref := a.a.For(ca.LeafRequest{
+		VM: testVM, Generation: a.gen, Name: leafHost, Port: 443,
+		Policy: &policy.Policy{Endpoints: []policy.Endpoint{{Host: match.ExactHost(name), Ports: []uint16{443}}}},
+	})
 	if ref != nil {
 		t.Fatal(ref)
 	}
