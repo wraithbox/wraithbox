@@ -98,6 +98,8 @@ type fakeLeaves struct {
 	t   *testing.T
 	ca  *testCA
 	ref *ca.Refusal
+	// empty makes For return neither a leaf nor a refusal.
+	empty bool
 
 	mu   sync.Mutex
 	reqs []ca.LeafRequest
@@ -107,7 +109,7 @@ func (l *fakeLeaves) For(req ca.LeafRequest) (*tls.Certificate, *ca.Refusal) {
 	l.mu.Lock()
 	l.reqs = append(l.reqs, req)
 	l.mu.Unlock()
-	if l.ref != nil {
+	if l.ref != nil || l.empty {
 		return nil, l.ref
 	}
 	return l.ca.leaf(l.t, req.Name), nil
@@ -216,7 +218,11 @@ func newEnv(t *testing.T) *env {
 		logs:   &lockedBuffer{},
 	}
 	log := slog.New(slog.NewTextHandler(e.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	e.term = New(Config{Leaves: e.leaves, Dialer: e.dialer, HTTP: e.http, Log: log})
+	term, err := New(Config{Leaves: e.leaves, Dialer: e.dialer, HTTP: e.http, Log: log})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.term = term
 	return e
 }
 

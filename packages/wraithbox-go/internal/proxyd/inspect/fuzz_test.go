@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"syscall"
 	"testing"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/proxyd/stream"
@@ -38,6 +39,8 @@ func TestHandshakeErrorRule(t *testing.T) {
 		{"a close after the flight", io.EOF, true, refusal{rule: RuleClientRejectedLeaf, alert: alertClosed}},
 		{"a cut record after the flight", io.ErrUnexpectedEOF, true, refusal{rule: RuleClientRejectedLeaf, alert: alertClosed}},
 		{"a close before the flight", io.EOF, false, refusal{rule: stream.RuleProtocolMismatch, check: CheckHandshake}},
+		{"a reset after the flight", &net.OpError{Op: "read", Err: os.NewSyscallError("read", syscall.ECONNRESET)}, true, refusal{rule: RuleClientRejectedLeaf, alert: alertClosed}},
+		{"a reset before the flight", &net.OpError{Op: "read", Err: os.NewSyscallError("read", syscall.ECONNRESET)}, false, refusal{rule: stream.RuleProtocolMismatch, check: CheckHandshake}},
 		{"a malformed record", errors.New("tls: first record does not look like a TLS handshake"), true, refusal{rule: stream.RuleProtocolMismatch, check: CheckHandshake}},
 		{"an alert's text alone", errors.New("remote error: tls: bad certificate"), true, refusal{rule: stream.RuleProtocolMismatch, check: CheckHandshake}},
 		{"a local alert", &net.OpError{Op: "local error", Err: tls.AlertError(42)}, true, refusal{rule: stream.RuleProtocolMismatch, check: CheckHandshake}},

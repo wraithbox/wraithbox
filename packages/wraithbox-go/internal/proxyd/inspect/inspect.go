@@ -32,6 +32,7 @@ package inspect
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"log/slog"
 	"net"
 	"time"
@@ -92,7 +93,14 @@ var _ Leaves = (*ca.Authority)(nil)
 
 // HTTPHandler takes each stream whose first request line arrived: M3.6b
 // serves HTTP/1.1 on it. It owns the stream, and ends it through
-// s.Inspected.Control.
+// s.Inspected.Control. Its contract:
+//
+//   - It applies http-header-timeout to the first request's headers too:
+//     the first-byte deadline is cleared once the request line arrived,
+//     by Inspect on TLS and by the stream package on plain HTTP
+//     (S07-15-non-http-streams, "Inside TLS on an inspected host").
+//   - It calls Terminator.Upstream only after a request passed its
+//     checks, so no byte of a refused request leaves the host.
 type HTTPHandler interface {
 	Serve(s *Stream)
 }
@@ -150,8 +158,12 @@ type Terminator struct {
 
 var _ stream.Inspector = (*Terminator)(nil)
 
-// New returns a Terminator. Leaves, Dialer and HTTP are required.
-func New(cfg Config) *Terminator {
+// New returns a Terminator, or an error when Leaves, Dialer or HTTP is
+// nil.
+func New(cfg Config) (*Terminator, error) {
+	if cfg.Leaves == nil || cfg.Dialer == nil || cfg.HTTP == nil {
+		return nil, errors.New("inspect: Leaves, a Dialer and an HTTP handler are required")
+	}
 	log := cfg.Log
 	if log == nil {
 		log = slog.Default()
@@ -169,7 +181,7 @@ func New(cfg Config) *Terminator {
 		refusals:          ratelog.NewAt(log, window, time.Now),
 		firstBytesTimeout: stream.FirstBytesTimeout,
 		firstBytesCap:     stream.FirstBytesCap,
-	}
+	}, nil
 }
 
 // Inspect takes an inspected stream. A plain HTTP stream goes to the
@@ -188,6 +200,11 @@ func (t *Terminator) Inspect(s *stream.Inspected) {
 		Port:       s.Port,
 		Policy:     s.Control.Policy(),
 	})
+	if ref == nil && leaf == nil {
+		// A Leaves that returns neither breaks its contract. The stream
+		// fails closed (S09-07-ca-certificates, "Leaf issuance").
+		ref = &ca.Refusal{Rule: ca.RuleLeafRefused, Reason: "no leaf"}
+	}
 	if ref != nil {
 		t.reset(s, ref.Rule, "", slog.String("reason", ref.Reason))
 		return
