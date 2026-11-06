@@ -42,6 +42,8 @@ func TestC02CAKeyRestoreFailed(t *testing.T) {
 	bootDay0(t, r)
 	r.px.restoreFail = "a1" + zeros
 	r.at(1, 0)
+	// A new wb-proxyd holds no key, so it fetches a1's item.
+	r.k.ProxydStarted(t.Context())
 	err := r.k.Boot(t.Context(), "work", 2, ReasonBoot, r.guest)
 	ref := wantRefusal(t, err, egressmsg.RuleCAKeyRestore, false)
 	if !strings.Contains(ref.Message, "wb vm reset-ca work") {
@@ -49,6 +51,9 @@ func TestC02CAKeyRestoreFailed(t *testing.T) {
 	}
 	r.wantOrder(t, "clock boot", "set a1 1")
 	r.wantRecord(t, "a1 signing installed 1")
+	if got, want := storeAccesses(r, egressmsg.RuleCAKeyRestore), []string{"2 a1"}; !slices.Equal(got, want) {
+		t.Errorf("store access records = %q, want %q", got, want)
+	}
 
 	sums := fingerprints(t, r)
 	dropped, err := r.k.Reset(t.Context(), "work", sums, resetCommand)
@@ -270,14 +275,17 @@ func mustMarshal(t *testing.T, m proto.Message) []byte {
 // unless wb-proxyd refused the id as one in use. An invalid reply ends
 // wb-proxyd, and its item waits on the list for the next one.
 func TestIssueFailed(t *testing.T) {
+	roundTrip := []string{"3 a1", "2 a1", "4 a1"}
 	for _, tc := range []struct {
 		rule, reply string
 		calls       []string
 		removals    []string
+		// accesses are the store access records of the rule.
+		accesses []string
 	}{
-		{rule: egressmsg.RuleCAKeyRestore, calls: []string{"clock boot", "issue", "remove 1"}},
-		{rule: egressmsg.RuleCANeedsTeam, calls: []string{"clock boot", "issue", "remove 1"}},
-		{rule: egressmsg.RuleCAIssueRefused, calls: []string{"clock boot", "issue"}},
+		{rule: egressmsg.RuleCAKeyRestore, calls: []string{"clock boot", "issue", "remove 1"}, accesses: roundTrip},
+		{rule: egressmsg.RuleCANeedsTeam, calls: []string{"clock boot", "issue", "remove 1"}, accesses: roundTrip},
+		{rule: egressmsg.RuleCAIssueRefused, calls: []string{"clock boot", "issue"}, accesses: []string{"2 a1"}},
 		{rule: RuleReplyInvalid, reply: "expired certificate", calls: []string{"clock boot", "issue"}, removals: []string{"a1 failed-issue"}},
 	} {
 		t.Run(tc.rule, func(t *testing.T) {
@@ -299,8 +307,26 @@ func TestIssueFailed(t *testing.T) {
 			if ended := r.ender.ended(); (tc.reply != "") != (len(ended) == 1) {
 				t.Errorf("ended = %q", ended)
 			}
+			if got := storeAccesses(r, tc.rule); !slices.Equal(got, tc.accesses) {
+				t.Errorf("store access records = %q, want %q", got, tc.accesses)
+			}
 		})
 	}
+}
+
+// storeAccesses is each 3004 record of rule, as its activity id and the
+// first two characters of its item's CA id.
+func storeAccesses(r *rig, rule string) []string {
+	var out []string
+	for _, rec := range r.audit.Records() {
+		m := audittest.AsMap(rec.Event)
+		if m["class_uid"] != float64(3004) || lookup(m, "unmapped", "rule") != rule {
+			continue
+		}
+		name := fmt.Sprint(lookup(m, "entity", "name"))
+		out = append(out, fmt.Sprintf("%v %s", m["activity_id"], name[strings.LastIndexByte(name, '/')+1:][:2]))
+	}
+	return out
 }
 
 func issuedReply(m *egressv1.HostdToProxyd, cert []byte) *egressv1.ProxydToHostd {
@@ -354,3 +380,22 @@ type noClockGuest struct{}
 func (noClockGuest) SetClock(context.Context, Reason) error { return errors.New("no guest link") }
 
 func (noClockGuest) InstallTrust(context.Context, [][]byte) error { return nil }
+
+// TestFetches: a CA set fetches the items of the keys wb-proxyd doesn't
+// hold, in order, and a failed restore stops after the CA that failed.
+func TestFetches(t *testing.T) {
+	set := []string{"a", "b", "c", "d"}
+	held := map[string]bool{"b": true}
+	for _, tc := range []struct {
+		last string
+		want []string
+	}{
+		{"", []string{"a", "c", "d"}},
+		{"c", []string{"a", "c"}},
+		{"a", []string{"a"}},
+	} {
+		if got := fetches(set, held, tc.last); !slices.Equal(got, tc.want) {
+			t.Errorf("fetches through %q = %q, want %q", tc.last, got, tc.want)
+		}
+	}
+}

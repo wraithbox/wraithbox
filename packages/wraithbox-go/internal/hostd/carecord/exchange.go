@@ -54,6 +54,7 @@ func (k *Keeper) issue(ctx context.Context, slot string, generation uint64) (sta
 		return state.CA{}, k.replyInvalid(slot, generation, "CaIssue", err)
 	}
 	if got.Rule != "" {
+		k.failedIssueAccesses(slot, generation, id, got.Rule)
 		if got.Rule != egressmsg.RuleCAIssueRefused {
 			k.failedIssue(ctx, slot, generation, id, got.Rule)
 			k.SendRemovals(ctx)
@@ -91,6 +92,22 @@ func (k *Keeper) failedIssue(ctx context.Context, slot string, generation uint64
 	if err != nil {
 		k.cfg.Log.Error("CA item of a failed issue not on the removal list", "vm", slot, "item", item(slot, id),
 			"rule", RuleIssueFailed, "reason", err.Error())
+	}
+}
+
+// failedIssueAccesses writes the store access records of an issue
+// wb-proxyd failed with rule (S15-03-access-rules, rule 6). Its check
+// that the id is free fetched the item, and ca-issue-refused stops
+// there. Otherwise a step of the round trip failed after it wrote and
+// fetched the item, and the item was deleted (S09-06-ca-keys, "Issue").
+func (k *Keeper) failedIssueAccesses(slot string, generation uint64, id, rule string) {
+	it := item(slot, id)
+	if rule == egressmsg.RuleCAIssueRefused {
+		k.accessed(slot, generation, rule, it, audit.StoreFetch)
+		return
+	}
+	for _, access := range []string{audit.StoreWrite, audit.StoreFetch, audit.StoreDelete} {
+		k.accessed(slot, generation, rule, it, access)
 	}
 }
 
@@ -136,13 +153,7 @@ func (k *Keeper) loaded(m *egressv1.ProxydToHostd, slot string, generation uint6
 			return invalid("CaLoaded of another VM or generation")
 		}
 		k.mu.Lock()
-		held := k.setOf(k.held, slot)
-		var fetched []string
-		for _, id := range setIDs {
-			if !held[id] {
-				fetched = append(fetched, id)
-			}
-		}
+		fetched := fetches(setIDs, k.setOf(k.held, slot), "")
 		k.held[slot] = setFrom(setIDs)
 		k.inSet[slot] = setFrom(setIDs)
 		k.mu.Unlock()
@@ -156,13 +167,34 @@ func (k *Keeper) loaded(m *egressv1.ProxydToHostd, slot string, generation uint6
 			return invalid("CaRestoreFailed of another VM, generation or CA")
 		}
 		k.mu.Lock()
+		fetched := fetches(setIDs, k.setOf(k.held, slot), f.GetCaId())
 		k.held[slot] = map[string]bool{}
 		k.inSet[slot] = setFrom(setIDs)
 		k.mu.Unlock()
+		for _, id := range fetched {
+			k.accessed(slot, generation, f.GetRule(), item(slot, id), audit.StoreFetch)
+		}
 		return k.restoreFailed(slot, generation, live, f)
 	default:
 		return invalid("answered a CaSet with %s", kindName(m))
 	}
+}
+
+// fetches returns the ids of setIDs whose items wb-proxyd fetches to
+// restore a CA set: those whose keys it doesn't hold, in the set's
+// order. With last set, it stops after last, the CA that didn't
+// restore.
+func fetches(setIDs []string, held map[string]bool, last string) []string {
+	var out []string
+	for _, id := range setIDs {
+		if !held[id] {
+			out = append(out, id)
+		}
+		if id == last {
+			break
+		}
+	}
+	return out
 }
 
 // restoreFailed logs a CA whose key didn't restore and returns the
