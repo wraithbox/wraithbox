@@ -250,7 +250,7 @@ type rig struct {
 	// logs holds the Keeper's log records, as JSON lines.
 	logs *bytes.Buffer
 	now  time.Time
-	ids   int
+	ids  int
 	// seen is how many 5019 records wantChanges read before.
 	seen int
 }

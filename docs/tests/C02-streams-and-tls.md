@@ -232,8 +232,10 @@ Spec: S09-07-ca-certificates, "Lifetimes".
 - Hand `wb-proxyd` batches with `binding/x`, `wbadmin/build/x`, a name
   with a part outside the fixed form, and an entry whose CA is still in
   the record, each next to a valid entry. See each batch refused with
-  `ca-removal-refused` and nothing deleted. Then see `wb-hostd` drop the
-  refused entry and log it, and the next batch delete the valid one.
+  `ca-removal-refused` and nothing deleted. Then see `wb-hostd` drop an
+  entry refused for its form and log it, keep one refused because its
+  CA is in the record until the VM's next CA set, and the next batch
+  delete the valid one.
 - Report an entry whose item is gone, and see it counted as deleted.
 - `internal/proxyd/ca` covers the `wb-proxyd` side: the refused
   batches, each entry before and after the valid one, an entry of
@@ -243,8 +245,10 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   (`TestC02RemovalDeletes`).
 - `internal/hostd/carecord` covers the `wb-hostd` side: a list of 3
   entries, and one of 70 sent as batches of 64 and 6, with deleted
-  entries dropped, refused entries dropped and logged, and the rest
-  sent next (`TestC02CARemovalList`).
+  entries dropped, entries refused for their form dropped and logged,
+  and the rest sent next (`TestC02CARemovalList`). An entry refused
+  because its CA is in the record stays, logged, and goes out after the
+  VM's next CA set (`TestC02CARemovalHeldBack`).
 
 ## Fuzzing
 

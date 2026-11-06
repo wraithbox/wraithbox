@@ -21,8 +21,10 @@ import (
 //
 //   - a deleted entry leaves the list, with the store access record of
 //     the delete;
-//   - a refused entry leaves the list, logged with the rule, and the
-//     rest go in the next batch.
+//   - an entry refused for its form leaves the list, logged with the
+//     rule, and the rest go in the next batch;
+//   - an entry refused because its CA is in a CA set stays, logged,
+//     and is held back until the next CaSet of its VM.
 //
 // An entry whose CA is in a CA set wb-proxyd holds stays back: its
 // check would refuse it. A failure is logged, and the next call tries
@@ -42,7 +44,7 @@ func (k *Keeper) SendRemovals(ctx context.Context) {
 }
 
 // sendBatch sends one batch, and reports whether an entry left the
-// list.
+// list or was held back, so the next batch differs.
 func (k *Keeper) sendBatch(ctx context.Context) (bool, error) {
 	var list []state.Removal
 	err := k.cfg.Records.CAs(ctx, func(tx *state.CATx) error {
@@ -66,14 +68,15 @@ func (k *Keeper) sendBatch(ctx context.Context) (bool, error) {
 		}
 	}
 	var gone []string
+	held := 0
 	if err == nil {
-		gone, err = k.removed(batch, r)
+		gone, held, err = k.removed(batch, r)
 	}
 	if err != nil {
 		return false, k.replyInvalid("", 0, "CaRemove", err)
 	}
 	if len(gone) == 0 {
-		return false, nil
+		return held > 0, nil
 	}
 	err = k.cfg.Records.CAs(ctx, func(tx *state.CATx) error {
 		for _, it := range gone {
@@ -121,22 +124,23 @@ func (k *Keeper) callRemove(ctx context.Context, list []state.Removal) ([]string
 }
 
 // removed checks r as the answer to batch, and returns the entries that
-// leave the list: those deleted, or those refused. Each refused entry
-// is logged with the rule, and each deleted one gets the store access
-// record of its delete (S15-03-access-rules, rule 6).
-func (k *Keeper) removed(batch []string, r *egressv1.CaRemoved) ([]string, error) {
+// leave the list: those deleted, or those refused for their form. An
+// entry refused because its CA is in a CA set stays, held back until
+// the next set. Each refused entry is logged with the rule, and each
+// deleted one gets the store access record of its delete
+// (S15-03-access-rules, rule 6, and "Removing CA keys").
+func (k *Keeper) removed(batch []string, r *egressv1.CaRemoved) (gone []string, held int, err error) {
 	sent := setFrom(batch)
 	for _, it := range r.GetDeleted() {
 		if !sent[it] {
-			return nil, invalid("CaRemoved names an entry not in the batch")
+			return nil, 0, invalid("CaRemoved names an entry not in the batch")
 		}
 	}
 	for _, ref := range r.GetRefused() {
 		if int(ref.GetIndex()) >= len(batch) {
-			return nil, invalid("CaRemoved refuses entry %d of a batch of %d", ref.GetIndex(), len(batch))
+			return nil, 0, invalid("CaRemoved refuses entry %d of a batch of %d", ref.GetIndex(), len(batch))
 		}
 	}
-	var gone []string
 	for _, it := range r.GetDeleted() {
 		slot := itemSlot(it)
 		k.accessed(slot, 0, RuleRemoved, it, audit.StoreDelete)
@@ -144,12 +148,32 @@ func (k *Keeper) removed(batch []string, r *egressv1.CaRemoved) ([]string, error
 	}
 	for _, ref := range r.GetRefused() {
 		it := batch[ref.GetIndex()]
-		k.cfg.Log.LogAttrs(context.Background(), slog.LevelWarn, "CA removal entry refused, dropped from the list",
+		msg := "CA removal entry refused, dropped from the list"
+		if ref.GetCheck() == egressmsg.CheckCAInRecord {
+			msg = "CA removal entry refused, held back until the next CA set"
+			k.holdBack(it)
+			held++
+		} else {
+			gone = append(gone, it)
+		}
+		k.cfg.Log.LogAttrs(context.Background(), slog.LevelWarn, msg,
 			slog.String("item", it), slog.String("check", ref.GetCheck()),
 			slog.String("decision", "refuse"), slog.String("rule", egressmsg.RuleCARemovalRefused))
-		gone = append(gone, it)
 	}
-	return gone, nil
+	return gone, held, nil
+}
+
+// holdBack keeps item on the removal list out of the batches until
+// the next CaSet of its VM, or a new wb-proxyd: wb-proxyd refused it
+// because its CA is in a CA set it holds.
+func (k *Keeper) holdBack(it string) {
+	slot := itemSlot(it)
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.inSet[slot] == nil {
+		k.inSet[slot] = map[string]bool{}
+	}
+	k.inSet[slot][it[strings.LastIndexByte(it, '/')+1:]] = true
 }
 
 // inASet reports whether the CA of item is in a CA set wb-proxyd holds.
