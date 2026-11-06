@@ -55,6 +55,8 @@ type vmRun struct {
 	scratch string
 	app     string
 	child   *exec.Cmd
+	// childEnv is added to the child's environment.
+	childEnv []string
 	// started is when the test ran, so the log records of an earlier run
 	// are never read.
 	started time.Time
@@ -378,6 +380,7 @@ func (r *vmRun) startChild(exe string) {
 	// Not t.Context: the test stops the child itself, with SIGTERM.
 	cmd := exec.CommandContext(context.WithoutCancel(t.Context()), os.Args[0], "-test.run=^$")
 	cmd.Env = append(os.Environ(), childVar+"="+exe, configVar+"="+r.paths.Config, logsVar+"="+r.paths.Logs)
+	cmd.Env = append(cmd.Env, r.childEnv...)
 	cmd.Stdout, cmd.Stderr = out, out
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)

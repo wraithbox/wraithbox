@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guestd/trust"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/tty"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectcmd"
@@ -120,8 +121,9 @@ var shellOwnVars = []string{"OLDPWD", "PWD", "SHLVL", "_"}
 
 // checkEnv checks the `env` output between the markers: the host's
 // terminal variables unchanged, the fixed ones of
-// internal/guestd/shell, TMPDIR from the helper, and nothing else but
-// zsh's own. PATH is checked by checkPath, because the login shell's
+// internal/guestd/shell, the trust variables with their exact values
+// (S09-08-guest-trust, "Variables"), TMPDIR from the helper, and
+// nothing else but zsh's own. PATH is checked by checkPath, because the login shell's
 // /etc/zprofile rebuilds it with path_helper.
 func checkEnv(t *testing.T, stdout, user string) {
 	t.Helper()
@@ -135,6 +137,10 @@ func checkEnv(t *testing.T, stdout, user string) {
 	want := map[string]string{
 		"TERM": hostTerm, "LANG": hostLang, "USER": user, "LOGNAME": user,
 		"SHELL": "/bin/zsh",
+	}
+	for _, kv := range trust.Env() {
+		name, value, _ := strings.Cut(kv, "=")
+		want[name] = value
 	}
 	for name, value := range want {
 		if got[name] != value {
