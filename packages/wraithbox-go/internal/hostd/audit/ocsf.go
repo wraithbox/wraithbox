@@ -3,7 +3,8 @@ package audit
 // The OCSF 1.8.0 classes the writer writes (S09-11-audit, "Classes";
 // X24-openshell-artifacts). Each has one Go type, with the OCSF
 // attribute names. Network Activity (4001) and HTTP Activity (4002)
-// come on the event channel, and their types are in channel.go.
+// come on the event channel, and their types are in channel.go. Entity
+// Management (3004) is the store access record, in ca.go.
 const (
 	OCSFVersion = "1.8.0"
 
@@ -12,8 +13,10 @@ const (
 	ClassApplicationLifecycle    = 6002
 	ClassNetworkActivity         = 4001
 	ClassHTTPActivity            = 4002
+	ClassEntityManagement        = 3004
 
 	categoryFindings    = 2
+	categoryIAM         = 3
 	categoryNetwork     = 4
 	categoryDiscovery   = 5
 	categoryApplication = 6

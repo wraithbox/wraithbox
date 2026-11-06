@@ -344,6 +344,76 @@
         "type_uid",
         "unmapped"
       ]
+    },
+    "entity_management": {
+      "uid": 3004,
+      "category_uid": 3,
+      "required": [
+        "activity_id",
+        "category_uid",
+        "class_uid",
+        "entity",
+        "metadata",
+        "severity_id",
+        "time",
+        "type_uid"
+      ],
+      "activity_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        99
+      ],
+      "attributes": [
+        "access_list",
+        "access_mask",
+        "activity_id",
+        "activity_name",
+        "actor",
+        "category_name",
+        "category_uid",
+        "class_name",
+        "class_uid",
+        "comment",
+        "count",
+        "duration",
+        "end_time",
+        "enrichments",
+        "entity",
+        "entity_result",
+        "http_request",
+        "http_response",
+        "message",
+        "metadata",
+        "observables",
+        "raw_data",
+        "raw_data_hash",
+        "raw_data_size",
+        "severity",
+        "severity_id",
+        "src_endpoint",
+        "start_time",
+        "status",
+        "status_code",
+        "status_detail",
+        "status_id",
+        "time",
+        "timezone_offset",
+        "type_name",
+        "type_uid",
+        "unmapped"
+      ]
     }
   },
   "objects": {
@@ -630,6 +700,54 @@
         "packets_out",
         "start_time",
         "timespan"
+      ]
+    },
+    "managed_entity": {
+      "required": [],
+      "at_least_one": [
+        "device",
+        "group",
+        "name",
+        "org",
+        "policy",
+        "uid",
+        "user"
+      ],
+      "attributes": [
+        "data",
+        "device",
+        "email",
+        "group",
+        "location",
+        "name",
+        "org",
+        "policy",
+        "type",
+        "type_id",
+        "uid",
+        "user",
+        "version"
+      ]
+    },
+    "actor": {
+      "required": [],
+      "at_least_one": [
+        "app_name",
+        "app_uid",
+        "invoked_by",
+        "process",
+        "session",
+        "user"
+      ],
+      "attributes": [
+        "app_name",
+        "app_uid",
+        "authorizations",
+        "idp",
+        "invoked_by",
+        "process",
+        "session",
+        "user"
       ]
     }
   }
