@@ -13,10 +13,10 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	egressv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/hwkey/hwkeytest"
-	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
-	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/match"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore/storetest"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/match"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
 )
 
