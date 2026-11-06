@@ -1,0 +1,392 @@
+package stream
+
+import (
+	"bytes"
+	"context"
+	"io"
+	"log/slog"
+	"net"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/match"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/proxyd/handoff"
+)
+
+// The hosts and ports of the test policies.
+const (
+	inspectHost = "api.example.com"
+	passHost    = "pass.example.com"
+	rawHost     = "db.example.com"
+	rawPort     = 5432
+	waitLong    = 10 * time.Second
+)
+
+func mustName(t testing.TB, s string) dnsname.Name {
+	t.Helper()
+	n, ref := dnsname.FromHost(s)
+	if ref != nil {
+		t.Fatalf("FromHost(%q): %v", s, ref)
+	}
+	return n
+}
+
+// testPolicy inspects inspectHost on 80 and 443, passes passHost on 443,
+// and has a raw TCP entry for rawHost on rawPort.
+func testPolicy(t testing.TB) *policy.Policy {
+	t.Helper()
+	return &policy.Policy{
+		Generation: 1,
+		Endpoints: []policy.Endpoint{
+			{Host: match.ExactHost(mustName(t, inspectHost)), Ports: []uint16{80, 443}},
+			{Host: match.ExactHost(mustName(t, passHost)), Ports: []uint16{443}},
+		},
+		PassHosts: []policy.PassHost{{
+			Host: mustName(t, passHost), Source: policy.Source{Kind: policy.SourceProject, Project: "demo"}, Reason: "pinned client",
+		}},
+		RawTCP: []policy.RawTCP{{
+			Host: mustName(t, rawHost), Port: rawPort, Source: policy.Source{Kind: policy.SourceProject, Project: "demo"}, Reason: "database",
+		}},
+	}
+}
+
+// fakeCtl is the hand-off's side of a stream: Reset and Close close the
+// stream's connection, a reset with no linger, so the guest sees a TCP
+// reset, and record how the stream ended. setPolicy runs the checks as
+// a recompute does, and resets the stream with policy-recomputed when
+// one fails.
+type fakeCtl struct {
+	conn  net.Conn
+	ended chan string
+	once  sync.Once
+
+	mu     sync.Mutex
+	p      *policy.Policy
+	checks []func(*policy.Policy) egressmsg.Check
+}
+
+func (c *fakeCtl) end(how string) {
+	c.once.Do(func() {
+		if how != "close" {
+			if tc, ok := c.conn.(*net.TCPConn); ok {
+				_ = tc.SetLinger(0)
+			}
+		}
+		_ = c.conn.Close()
+		c.ended <- how
+	})
+}
+
+func (c *fakeCtl) Reset() { c.end("reset") }
+func (c *fakeCtl) Close() { c.end("close") }
+
+func (c *fakeCtl) AddCheck(check func(*policy.Policy) egressmsg.Check) egressmsg.Check {
+	c.mu.Lock()
+	c.checks = append(c.checks, check)
+	p := c.p
+	c.mu.Unlock()
+	return check(p)
+}
+
+func (c *fakeCtl) Policy() *policy.Policy {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.p
+}
+
+func (c *fakeCtl) setPolicy(p *policy.Policy) {
+	c.mu.Lock()
+	c.p = p
+	checks := append([]func(*policy.Policy) egressmsg.Check(nil), c.checks...)
+	c.mu.Unlock()
+	for _, check := range checks {
+		if check(p) != "" {
+			c.end(handoff.RulePolicyRecomputed)
+			return
+		}
+	}
+}
+
+// syncBuffer is a log destination the handler and the test share.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+type fakeAudit struct {
+	mu     sync.Mutex
+	events []handoff.Event
+}
+
+func (a *fakeAudit) Refused(e handoff.Event) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.events = append(a.events, e)
+}
+
+// fakeInspector takes inspected streams and closes them.
+type fakeInspector struct {
+	got chan *Inspected
+}
+
+func (i *fakeInspector) Inspect(s *Inspected) {
+	i.got <- s
+}
+
+// testDialer dials addr whatever the host, and counts its dials. With
+// inner set, it asks inner instead, for 127.0.0.1 and the stream's port.
+type testDialer struct {
+	addr  string
+	inner Dialer
+	dials atomic.Int32
+}
+
+func (d *testDialer) Dial(ctx context.Context, _ string, port uint16) (net.Conn, error) {
+	d.dials.Add(1)
+	if d.inner != nil {
+		return d.inner.Dial(ctx, "127.0.0.1", port)
+	}
+	var dialer net.Dialer
+	return dialer.DialContext(ctx, "tcp", d.addr)
+}
+
+// harness is one handler and one stream to it.
+type harness struct {
+	t         *testing.T
+	h         *Handler
+	logs      *syncBuffer
+	audit     *fakeAudit
+	dialer    *testDialer
+	inspector *fakeInspector
+	ctl       *fakeCtl
+	// guest is the guest's end of the stream.
+	guest net.Conn
+	done  chan struct{}
+}
+
+// newHarness returns a handler that dials upstream at addr.
+func newHarness(t *testing.T, addr string) *harness {
+	t.Helper()
+	logs := &syncBuffer{}
+	x := &harness{
+		t: t, logs: logs, audit: &fakeAudit{},
+		dialer:    &testDialer{addr: addr},
+		inspector: &fakeInspector{got: make(chan *Inspected, 1)},
+		done:      make(chan struct{}),
+	}
+	h, err := New(Config{
+		Dialer: x.dialer, Inspector: x.inspector, Audit: x.audit,
+		Log: slog.New(slog.NewTextHandler(logs, nil)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	x.h = h
+	return x
+}
+
+// start serves one stream to host and port under p, and returns once
+// the handler runs.
+func (x *harness) start(p *policy.Policy, host string, port uint16) {
+	x.t.Helper()
+	guest, proxy := tcpPair(x.t)
+	x.guest = guest
+	x.ctl = &fakeCtl{conn: proxy, ended: make(chan string, 1), p: p}
+	st := &stream{
+		vm: "vm-1", gen: 3, id: 7, name: mustName(x.t, host), port: port,
+		conn: proxy, ctl: x.ctl, began: time.Now(),
+	}
+	go func() {
+		defer close(x.done)
+		x.h.serve(st)
+	}()
+}
+
+// ended waits for the stream to end and returns how.
+func (x *harness) ended() string {
+	x.t.Helper()
+	select {
+	case how := <-x.ctl.ended:
+		return how
+	case <-time.After(waitLong):
+		x.t.Fatalf("the stream didn't end; log:\n%s", x.logs.String())
+	}
+	return ""
+}
+
+// wantRefused checks the stream was reset or closed and the refusal was
+// logged with the rule, check and what the bytes looked like.
+func (x *harness) wantRefused(how, rule string, check egressmsg.Check, looks string) {
+	x.t.Helper()
+	if got := x.ended(); got != how {
+		x.t.Errorf("stream ended with %q, want %q", got, how)
+	}
+	<-x.done
+	logs := x.logs.String()
+	want := []string{"decision=reset", "rule=" + rule}
+	if check != "" {
+		want = append(want, "check="+string(check))
+	}
+	if looks != "" {
+		want = append(want, "looks_like="+looks)
+	}
+	for _, w := range want {
+		if !strings.Contains(logs, w) {
+			x.t.Errorf("log lacks %q:\n%s", w, logs)
+		}
+	}
+	x.audit.mu.Lock()
+	defer x.audit.mu.Unlock()
+	if len(x.audit.events) == 0 || x.audit.events[0].Rule != rule {
+		x.t.Errorf("audit events = %+v, want rule %q", x.audit.events, rule)
+	}
+}
+
+// wantInspected waits for the stream at the Inspector.
+func (x *harness) wantInspected() *Inspected {
+	x.t.Helper()
+	select {
+	case s := <-x.inspector.got:
+		return s
+	case how := <-x.ctl.ended:
+		x.t.Fatalf("stream ended with %q; log:\n%s", how, x.logs.String())
+	case <-time.After(waitLong):
+		x.t.Fatal("no stream at the Inspector")
+	}
+	return nil
+}
+
+func (x *harness) wantNoDial() {
+	x.t.Helper()
+	if n := x.dialer.dials.Load(); n != 0 {
+		x.t.Errorf("%d upstream dials, want none", n)
+	}
+}
+
+func (x *harness) send(b []byte) {
+	x.t.Helper()
+	if _, err := x.guest.Write(b); err != nil {
+		x.t.Fatalf("guest write: %v", err)
+	}
+}
+
+// tcpPair returns the two ends of a loopback TCP connection.
+func tcpPair(t *testing.T) (net.Conn, net.Conn) {
+	t.Helper()
+	ln := listen(t)
+	defer func() { _ = ln.Close() }()
+	type result struct {
+		c   net.Conn
+		err error
+	}
+	accepted := make(chan result, 1)
+	go func() {
+		c, err := ln.Accept()
+		accepted <- result{c, err}
+	}()
+	var dialer net.Dialer
+	a, err := dialer.DialContext(t.Context(), "tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := <-accepted
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	t.Cleanup(func() { _ = a.Close(); _ = r.c.Close() })
+	return a, r.c
+}
+
+// server is an upstream test server that takes one connection and runs
+// script on it. got holds every byte it read with readUntil and
+// readRest.
+type server struct {
+	ln   net.Listener
+	got  syncBuffer
+	done chan struct{}
+}
+
+func newServer(t *testing.T, script func(s *server, c net.Conn)) *server {
+	t.Helper()
+	ln := listen(t)
+	s := &server{ln: ln, done: make(chan struct{})}
+	go func() {
+		defer close(s.done)
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = c.Close() }()
+		_ = c.SetDeadline(time.Now().Add(waitLong))
+		script(s, c)
+	}()
+	t.Cleanup(func() { _ = ln.Close() })
+	return s
+}
+
+func (s *server) addr() string { return s.ln.Addr().String() }
+
+// read reads n bytes and records them.
+func (s *server) read(c net.Conn, n int) {
+	b := make([]byte, n)
+	k, _ := io.ReadFull(c, b)
+	_, _ = s.got.Write(b[:k])
+}
+
+// readRest reads until the connection ends and records the bytes.
+func (s *server) readRest(c net.Conn) {
+	b, _ := io.ReadAll(c)
+	_, _ = s.got.Write(b)
+}
+
+// received waits for the script to end and returns what it read.
+func (s *server) received(t *testing.T) []byte {
+	t.Helper()
+	select {
+	case <-s.done:
+	case <-time.After(waitLong):
+		t.Fatal("the upstream server didn't end")
+	}
+	return []byte(s.got.String())
+}
+
+// listen listens on a loopback port.
+func listen(t *testing.T) net.Listener {
+	t.Helper()
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ln
+}
+
+// closeWrite half-closes the guest's end of the stream.
+func (x *harness) closeWrite() {
+	x.t.Helper()
+	tc, ok := x.guest.(*net.TCPConn)
+	if !ok {
+		x.t.Fatalf("guest is a %T", x.guest)
+	}
+	if err := tc.CloseWrite(); err != nil {
+		x.t.Fatal(err)
+	}
+}

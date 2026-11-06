@@ -145,8 +145,8 @@ func (c Caps) Validate() error {
 	return nil
 }
 
-// StreamHandler takes each stream that passed the checks. M3.5b
-// implements it. HandleStream owns the stream: it ends it with
+// StreamHandler takes each stream that passed the checks.
+// internal/proxyd/stream implements it. HandleStream owns the stream: it ends it with
 // Stream.Reset or Stream.Close. It is called on the socket's own
 // goroutine, which decides the socket's next message only after it
 // returns, so it returns promptly and does its work on a goroutine of

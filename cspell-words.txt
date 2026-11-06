@@ -86,12 +86,16 @@ storeitem
 storetest
 hwkey
 hwkeytest
+tlsparse
+tlstest
 
 # Virtualization, networking and OS facilities
 gvisor
 tcpip
 gvstack
 gonet
+ciphertext
+ESNI
 NICID
 ethertype
 SCTP
