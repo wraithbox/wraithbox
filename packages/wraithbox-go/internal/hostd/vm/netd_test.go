@@ -7,7 +7,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm/vmtest"
@@ -150,5 +152,40 @@ func TestNetdExitStopsTheVM(t *testing.T) {
 	}
 	if n := len(network.runs); n != 1 {
 		t.Errorf("%d wb-netd starts, want 1: no restart", n)
+	}
+}
+
+// A wb-netd that exits while a requested stop is under way leaves that
+// stop and its vm-stop rule as they are: netd-exited doesn't take over.
+func TestNetdExitDuringStopKeepsTheStop(t *testing.T) {
+	h := newHarness(t)
+	network := &fakeNetwork{}
+	h.cfg.Network = network
+	h.provider.OnStop = func(_ context.Context, i *vmtest.Instance, req *vmdv1.StopRequest) error {
+		network.last(t).exit()
+		deadline := time.Now().Add(5 * time.Second)
+		for !strings.Contains(h.logs.String(), `"msg":"vm stop not needed","rule":"netd-exited","decision":"none"`) {
+			if time.Now().After(deadline) {
+				return errors.New("the exit wasn't seen")
+			}
+			time.Sleep(time.Millisecond)
+		}
+		i.Publish(req.GetGeneration(), vmdv1.State_STATE_STOPPED, nil)
+		return nil
+	}
+	m := h.manager()
+	if err := m.Start(t.Context(), vm.SlotWork); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Stop(t.Context(), vm.SlotWork); err != nil {
+		t.Fatal(err)
+	}
+	waitStopRecord(t, h)
+	checkRecord(t, h, "vm stopped", string(vm.RuleStop), statusSuccess)
+	if strings.Contains(h.logs.String(), `"rule":"netd-exited","decision":"stop-vm"`) {
+		t.Errorf("netd-exited took over the stop:\n%s", h.logs.String())
+	}
+	if stops := h.provider.Last().Stops(); len(stops) != 1 {
+		t.Errorf("stops = %v, want the request only", stops)
 	}
 }

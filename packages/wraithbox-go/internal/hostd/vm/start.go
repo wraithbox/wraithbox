@@ -377,7 +377,9 @@ func (m *Manager) startNetwork(ctx context.Context, r *run, t PacketTransport) *
 // watchNetwork stops the VM when its wb-netd exits while the run is
 // live. wb-netd isn't restarted, so the VM doesn't run on without its
 // network process (S04-07-supervision, "Restarting a daemon"). An exit
-// after finish began is the stop's own.
+// after finish began is the stop's own. So is an exit once the run is
+// ending another way: a requested stop, a forced stop, or a VM that
+// stopped by itself. That stop goes on with its own rule.
 func (m *Manager) watchNetwork(ctx context.Context, r *run, nr NetworkRun) {
 	select {
 	case <-r.ended:
@@ -390,10 +392,16 @@ func (m *Manager) watchNetwork(ctx context.Context, r *run, nr NetworkRun) {
 		m.mu.Unlock()
 		return
 	}
-	r.rule = RuleNetdExited
-	if rec.phase == PhaseRunning {
-		rec.phase = PhaseStopping
+	if rec.phase != PhaseRunning || r.vmStopped || r.rule != "" {
+		m.mu.Unlock()
+		m.log.LogAttrs(ctx, slog.LevelInfo, "vm stop not needed",
+			slog.String("rule", string(RuleNetdExited)), slog.String("decision", "none"),
+			slog.String("slot", string(r.slot)), slog.Uint64("generation", r.generation),
+			slog.String("reason", "the run is already ending"))
+		return
 	}
+	r.rule = RuleNetdExited
+	rec.phase = PhaseStopping
 	m.mu.Unlock()
 	m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop",
 		slog.String("rule", string(RuleNetdExited)), slog.String("decision", "stop-vm"),
