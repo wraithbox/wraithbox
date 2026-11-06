@@ -27,7 +27,9 @@
 // one.
 //
 // A record is at most 4096 bytes (S04-08-records-and-bounds) and
-// carries at most one descriptor. A payload that doesn't fit in 4096
+// carries at most one descriptor. The CA messages of
+// S09-07-ca-certificates, "Messages", carry none: each fits in one
+// record. A payload that doesn't fit in 4096
 // bytes (an effective policy, a kept name mapping, the wildcard sets)
 // goes as a descriptor: the read end of a pipe, into which wb-hostd
 // writes one payload and then closes its end. A payload is a 4-byte
@@ -91,6 +93,10 @@ type HostdToProxyd struct {
 	//	*HostdToProxyd_ProxydStart
 	//	*HostdToProxyd_HandoffSocket
 	//	*HostdToProxyd_PolicyChange
+	//	*HostdToProxyd_CaIssue
+	//	*HostdToProxyd_CaSet
+	//	*HostdToProxyd_CaAccept
+	//	*HostdToProxyd_CaRemove
 	Kind          isHostdToProxyd_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -160,6 +166,42 @@ func (x *HostdToProxyd) GetPolicyChange() *PolicyChange {
 	return nil
 }
 
+func (x *HostdToProxyd) GetCaIssue() *CaIssue {
+	if x != nil {
+		if x, ok := x.Kind.(*HostdToProxyd_CaIssue); ok {
+			return x.CaIssue
+		}
+	}
+	return nil
+}
+
+func (x *HostdToProxyd) GetCaSet() *CaSet {
+	if x != nil {
+		if x, ok := x.Kind.(*HostdToProxyd_CaSet); ok {
+			return x.CaSet
+		}
+	}
+	return nil
+}
+
+func (x *HostdToProxyd) GetCaAccept() *CaAccept {
+	if x != nil {
+		if x, ok := x.Kind.(*HostdToProxyd_CaAccept); ok {
+			return x.CaAccept
+		}
+	}
+	return nil
+}
+
+func (x *HostdToProxyd) GetCaRemove() *CaRemove {
+	if x != nil {
+		if x, ok := x.Kind.(*HostdToProxyd_CaRemove); ok {
+			return x.CaRemove
+		}
+	}
+	return nil
+}
+
 type isHostdToProxyd_Kind interface {
 	isHostdToProxyd_Kind()
 }
@@ -179,11 +221,39 @@ type HostdToProxyd_PolicyChange struct {
 	PolicyChange *PolicyChange `protobuf:"bytes,3,opt,name=policy_change,json=policyChange,proto3,oneof"`
 }
 
+type HostdToProxyd_CaIssue struct {
+	// No descriptor.
+	CaIssue *CaIssue `protobuf:"bytes,4,opt,name=ca_issue,json=caIssue,proto3,oneof"`
+}
+
+type HostdToProxyd_CaSet struct {
+	// No descriptor.
+	CaSet *CaSet `protobuf:"bytes,5,opt,name=ca_set,json=caSet,proto3,oneof"`
+}
+
+type HostdToProxyd_CaAccept struct {
+	// No descriptor.
+	CaAccept *CaAccept `protobuf:"bytes,6,opt,name=ca_accept,json=caAccept,proto3,oneof"`
+}
+
+type HostdToProxyd_CaRemove struct {
+	// No descriptor.
+	CaRemove *CaRemove `protobuf:"bytes,7,opt,name=ca_remove,json=caRemove,proto3,oneof"`
+}
+
 func (*HostdToProxyd_ProxydStart) isHostdToProxyd_Kind() {}
 
 func (*HostdToProxyd_HandoffSocket) isHostdToProxyd_Kind() {}
 
 func (*HostdToProxyd_PolicyChange) isHostdToProxyd_Kind() {}
+
+func (*HostdToProxyd_CaIssue) isHostdToProxyd_Kind() {}
+
+func (*HostdToProxyd_CaSet) isHostdToProxyd_Kind() {}
+
+func (*HostdToProxyd_CaAccept) isHostdToProxyd_Kind() {}
+
+func (*HostdToProxyd_CaRemove) isHostdToProxyd_Kind() {}
 
 // ProxydToHostd is what wb-proxyd sends wb-hostd.
 type ProxydToHostd struct {
@@ -193,6 +263,10 @@ type ProxydToHostd struct {
 	//	*ProxydToHostd_HandoffSocketAck
 	//	*ProxydToHostd_PolicyAck
 	//	*ProxydToHostd_HandoffSocketClosed
+	//	*ProxydToHostd_CaIssued
+	//	*ProxydToHostd_CaLoaded
+	//	*ProxydToHostd_CaRestoreFailed
+	//	*ProxydToHostd_CaRemoved
 	Kind          isProxydToHostd_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -262,6 +336,42 @@ func (x *ProxydToHostd) GetHandoffSocketClosed() *HandoffSocketClosed {
 	return nil
 }
 
+func (x *ProxydToHostd) GetCaIssued() *CaIssued {
+	if x != nil {
+		if x, ok := x.Kind.(*ProxydToHostd_CaIssued); ok {
+			return x.CaIssued
+		}
+	}
+	return nil
+}
+
+func (x *ProxydToHostd) GetCaLoaded() *CaLoaded {
+	if x != nil {
+		if x, ok := x.Kind.(*ProxydToHostd_CaLoaded); ok {
+			return x.CaLoaded
+		}
+	}
+	return nil
+}
+
+func (x *ProxydToHostd) GetCaRestoreFailed() *CaRestoreFailed {
+	if x != nil {
+		if x, ok := x.Kind.(*ProxydToHostd_CaRestoreFailed); ok {
+			return x.CaRestoreFailed
+		}
+	}
+	return nil
+}
+
+func (x *ProxydToHostd) GetCaRemoved() *CaRemoved {
+	if x != nil {
+		if x, ok := x.Kind.(*ProxydToHostd_CaRemoved); ok {
+			return x.CaRemoved
+		}
+	}
+	return nil
+}
+
 type isProxydToHostd_Kind interface {
 	isProxydToHostd_Kind()
 }
@@ -281,11 +391,39 @@ type ProxydToHostd_HandoffSocketClosed struct {
 	HandoffSocketClosed *HandoffSocketClosed `protobuf:"bytes,3,opt,name=handoff_socket_closed,json=handoffSocketClosed,proto3,oneof"`
 }
 
+type ProxydToHostd_CaIssued struct {
+	// No descriptor.
+	CaIssued *CaIssued `protobuf:"bytes,4,opt,name=ca_issued,json=caIssued,proto3,oneof"`
+}
+
+type ProxydToHostd_CaLoaded struct {
+	// No descriptor.
+	CaLoaded *CaLoaded `protobuf:"bytes,5,opt,name=ca_loaded,json=caLoaded,proto3,oneof"`
+}
+
+type ProxydToHostd_CaRestoreFailed struct {
+	// No descriptor.
+	CaRestoreFailed *CaRestoreFailed `protobuf:"bytes,6,opt,name=ca_restore_failed,json=caRestoreFailed,proto3,oneof"`
+}
+
+type ProxydToHostd_CaRemoved struct {
+	// No descriptor.
+	CaRemoved *CaRemoved `protobuf:"bytes,7,opt,name=ca_removed,json=caRemoved,proto3,oneof"`
+}
+
 func (*ProxydToHostd_HandoffSocketAck) isProxydToHostd_Kind() {}
 
 func (*ProxydToHostd_PolicyAck) isProxydToHostd_Kind() {}
 
 func (*ProxydToHostd_HandoffSocketClosed) isProxydToHostd_Kind() {}
+
+func (*ProxydToHostd_CaIssued) isProxydToHostd_Kind() {}
+
+func (*ProxydToHostd_CaLoaded) isProxydToHostd_Kind() {}
+
+func (*ProxydToHostd_CaRestoreFailed) isProxydToHostd_Kind() {}
+
+func (*ProxydToHostd_CaRemoved) isProxydToHostd_Kind() {}
 
 // HostdToNetd is what wb-hostd sends a wb-netd.
 type HostdToNetd struct {
@@ -1040,21 +1178,669 @@ func (x *PolicyAck) GetSequence() uint64 {
 	return 0
 }
 
+// CaIssue asks wb-proxyd to issue a new inspection CA for a VM
+// (S09-06-ca-keys, "Issue"). wb-proxyd answers with a CaIssued.
+type CaIssue struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The VM slot, `work` or `isolated`.
+	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
+	// The CA id wb-hostd picked: 32 lowercase hexadecimal characters
+	// from a cryptographic random source, so the record and the item name
+	// `ca/<vm>/<ca>` agree before the item exists. Another form is
+	// refused with the check `message-form`.
+	CaId          string `protobuf:"bytes,2,opt,name=ca_id,json=caId,proto3" json:"ca_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaIssue) Reset() {
+	*x = CaIssue{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaIssue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaIssue) ProtoMessage() {}
+
+func (x *CaIssue) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaIssue.ProtoReflect.Descriptor instead.
+func (*CaIssue) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CaIssue) GetVm() string {
+	if x != nil {
+		return x.Vm
+	}
+	return ""
+}
+
+func (x *CaIssue) GetCaId() string {
+	if x != nil {
+		return x.CaId
+	}
+	return ""
+}
+
+// CaIssued answers a CaIssue: the CA certificate, or the rule of the
+// failure. Exactly one of certificate and rule is set.
+type CaIssued struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As in the CaIssue.
+	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
+	// As in the CaIssue.
+	CaId string `protobuf:"bytes,2,opt,name=ca_id,json=caId,proto3" json:"ca_id,omitempty"`
+	// The CA certificate, DER, 1 to 1024 bytes.
+	Certificate []byte `protobuf:"bytes,3,opt,name=certificate,proto3" json:"certificate,omitempty"`
+	// `ca-key-restore`, `keychain-needs-team` or `ca-issue-refused`.
+	Rule          string `protobuf:"bytes,4,opt,name=rule,proto3" json:"rule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaIssued) Reset() {
+	*x = CaIssued{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaIssued) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaIssued) ProtoMessage() {}
+
+func (x *CaIssued) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaIssued.ProtoReflect.Descriptor instead.
+func (*CaIssued) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CaIssued) GetVm() string {
+	if x != nil {
+		return x.Vm
+	}
+	return ""
+}
+
+func (x *CaIssued) GetCaId() string {
+	if x != nil {
+		return x.CaId
+	}
+	return ""
+}
+
+func (x *CaIssued) GetCertificate() []byte {
+	if x != nil {
+		return x.Certificate
+	}
+	return nil
+}
+
+func (x *CaIssued) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
+// CaSet gives wb-proxyd a VM's CAs from wb-hostd's record, and which
+// one signs (S09-06-ca-keys, "Valid CA"). wb-proxyd restores each CA it
+// doesn't hold yet, then answers with a CaLoaded, or with a
+// CaRestoreFailed for the first CA that didn't restore. A CaSet of a
+// newer generation than the VM's last one stops the VM's streams until
+// a CaAccept of that generation. wb-proxyd refuses a CaSet of an older
+// generation, and ends the channel.
+type CaSet struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The VM slot, `work` or `isolated`.
+	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
+	// The VM generation, at least 1.
+	Generation uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// The VM's CAs, 1 to 3, no CA id twice. A VM has two from day 30 of
+	// each CA on (S09-07-ca-certificates, "Scope").
+	Cas []*InspectionCa `protobuf:"bytes,3,rep,name=cas,proto3" json:"cas,omitempty"`
+	// The CA id of the CA that signs, one of cas, or "" when none does.
+	SigningCaId string `protobuf:"bytes,4,opt,name=signing_ca_id,json=signingCaId,proto3" json:"signing_ca_id,omitempty"`
+	// "" when signing_ca_id is set, and `ca-not-installed` when it isn't
+	// (S09-07-ca-certificates, "Rotation", day 58). wb-proxyd then refuses
+	// the VM's inspected streams with it.
+	NoSigningRule string `protobuf:"bytes,5,opt,name=no_signing_rule,json=noSigningRule,proto3" json:"no_signing_rule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaSet) Reset() {
+	*x = CaSet{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaSet) ProtoMessage() {}
+
+func (x *CaSet) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaSet.ProtoReflect.Descriptor instead.
+func (*CaSet) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *CaSet) GetVm() string {
+	if x != nil {
+		return x.Vm
+	}
+	return ""
+}
+
+func (x *CaSet) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *CaSet) GetCas() []*InspectionCa {
+	if x != nil {
+		return x.Cas
+	}
+	return nil
+}
+
+func (x *CaSet) GetSigningCaId() string {
+	if x != nil {
+		return x.SigningCaId
+	}
+	return ""
+}
+
+func (x *CaSet) GetNoSigningRule() string {
+	if x != nil {
+		return x.NoSigningRule
+	}
+	return ""
+}
+
+// InspectionCa is one CA of a CaSet.
+type InspectionCa struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As in the CaIssue that issued it.
+	CaId string `protobuf:"bytes,1,opt,name=ca_id,json=caId,proto3" json:"ca_id,omitempty"`
+	// The CA certificate from the CaIssued, DER, 1 to 1024 bytes.
+	Certificate   []byte `protobuf:"bytes,2,opt,name=certificate,proto3" json:"certificate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectionCa) Reset() {
+	*x = InspectionCa{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectionCa) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectionCa) ProtoMessage() {}
+
+func (x *InspectionCa) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectionCa.ProtoReflect.Descriptor instead.
+func (*InspectionCa) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *InspectionCa) GetCaId() string {
+	if x != nil {
+		return x.CaId
+	}
+	return ""
+}
+
+func (x *InspectionCa) GetCertificate() []byte {
+	if x != nil {
+		return x.Certificate
+	}
+	return nil
+}
+
+// CaLoaded says every CA of a CaSet restored, and wb-proxyd holds the
+// VM's new set.
+type CaLoaded struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As in the CaSet.
+	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
+	// As in the CaSet, at least 1.
+	Generation    uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaLoaded) Reset() {
+	*x = CaLoaded{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaLoaded) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaLoaded) ProtoMessage() {}
+
+func (x *CaLoaded) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaLoaded.ProtoReflect.Descriptor instead.
+func (*CaLoaded) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *CaLoaded) GetVm() string {
+	if x != nil {
+		return x.Vm
+	}
+	return ""
+}
+
+func (x *CaLoaded) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+// CaRestoreFailed says a CA of a CaSet didn't restore. wb-proxyd then
+// serves none of the VM's streams (S09-06-ca-keys, "Restore").
+type CaRestoreFailed struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As in the CaSet.
+	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
+	// As in the CaSet, at least 1.
+	Generation uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// The CA that failed, of the form of CaIssue.ca_id.
+	CaId string `protobuf:"bytes,3,opt,name=ca_id,json=caId,proto3" json:"ca_id,omitempty"`
+	// `ca-key-restore` or `keychain-needs-team`.
+	Rule          string `protobuf:"bytes,4,opt,name=rule,proto3" json:"rule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaRestoreFailed) Reset() {
+	*x = CaRestoreFailed{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaRestoreFailed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaRestoreFailed) ProtoMessage() {}
+
+func (x *CaRestoreFailed) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaRestoreFailed.ProtoReflect.Descriptor instead.
+func (*CaRestoreFailed) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CaRestoreFailed) GetVm() string {
+	if x != nil {
+		return x.Vm
+	}
+	return ""
+}
+
+func (x *CaRestoreFailed) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *CaRestoreFailed) GetCaId() string {
+	if x != nil {
+		return x.CaId
+	}
+	return ""
+}
+
+func (x *CaRestoreFailed) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
+// CaAccept lets wb-proxyd accept the VM's streams of a generation, once
+// wb-hostd recorded the install of its CAs (S09-07-ca-certificates,
+// "Boot, restore and host wake", step 7). wb-proxyd refuses a CaAccept
+// of another generation than the VM's last CaSet, and ends the channel.
+type CaAccept struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The VM slot, `work` or `isolated`.
+	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
+	// The VM generation, at least 1.
+	Generation    uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaAccept) Reset() {
+	*x = CaAccept{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaAccept) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaAccept) ProtoMessage() {}
+
+func (x *CaAccept) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaAccept.ProtoReflect.Descriptor instead.
+func (*CaAccept) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CaAccept) GetVm() string {
+	if x != nil {
+		return x.Vm
+	}
+	return ""
+}
+
+func (x *CaAccept) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+// CaRemove is a batch of the removal list (S15-03-access-rules,
+// "Removing CA keys"). wb-proxyd answers with a CaRemoved.
+type CaRemove struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 1 to 64 entries. wb-proxyd checks the form of each itself, so an
+	// entry of another form refuses the batch, not the message.
+	Items         []string `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaRemove) Reset() {
+	*x = CaRemove{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaRemove) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaRemove) ProtoMessage() {}
+
+func (x *CaRemove) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaRemove.ProtoReflect.Descriptor instead.
+func (*CaRemove) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CaRemove) GetItems() []string {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+// CaRemoved answers a CaRemove: the items deleted, or the batch refused
+// with `ca-removal-refused` and each entry that failed its check.
+type CaRemoved struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The entries deleted, an item already gone included, each one of the
+	// CaRemove's. Empty when the batch was refused. An entry whose delete
+	// failed is in neither list, and wb-hostd sends it again.
+	Deleted []string `protobuf:"bytes,1,rep,name=deleted,proto3" json:"deleted,omitempty"`
+	// "" or `ca-removal-refused`.
+	Rule string `protobuf:"bytes,2,opt,name=rule,proto3" json:"rule,omitempty"`
+	// Each entry that failed its check, when rule is set.
+	Refused       []*CaRemovalRefusal `protobuf:"bytes,3,rep,name=refused,proto3" json:"refused,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaRemoved) Reset() {
+	*x = CaRemoved{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaRemoved) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaRemoved) ProtoMessage() {}
+
+func (x *CaRemoved) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaRemoved.ProtoReflect.Descriptor instead.
+func (*CaRemoved) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *CaRemoved) GetDeleted() []string {
+	if x != nil {
+		return x.Deleted
+	}
+	return nil
+}
+
+func (x *CaRemoved) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
+func (x *CaRemoved) GetRefused() []*CaRemovalRefusal {
+	if x != nil {
+		return x.Refused
+	}
+	return nil
+}
+
+// CaRemovalRefusal is one entry of a refused CaRemove.
+type CaRemovalRefusal struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The entry's position in CaRemove.items, from 0.
+	Index uint32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	// `item-form`: not `ca/<vm>/<ca>` with the parts of
+	// S15-03-access-rules, "Declared access". `in-record`: a CA of a VM's
+	// last CaSet.
+	Check         string `protobuf:"bytes,2,opt,name=check,proto3" json:"check,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaRemovalRefusal) Reset() {
+	*x = CaRemovalRefusal{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaRemovalRefusal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaRemovalRefusal) ProtoMessage() {}
+
+func (x *CaRemovalRefusal) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaRemovalRefusal.ProtoReflect.Descriptor instead.
+func (*CaRemovalRefusal) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *CaRemovalRefusal) GetIndex() uint32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *CaRemovalRefusal) GetCheck() string {
+	if x != nil {
+		return x.Check
+	}
+	return ""
+}
+
 var File_wraithbox_egress_v1_control_proto protoreflect.FileDescriptor
 
 const file_wraithbox_egress_v1_control_proto_rawDesc = "" +
 	"\n" +
-	"!wraithbox/egress/v1/control.proto\x12\x13wraithbox.egress.v1\x1a$wraithbox/egress/v1/accounting.proto\"\xf5\x01\n" +
+	"!wraithbox/egress/v1/control.proto\x12\x13wraithbox.egress.v1\x1a$wraithbox/egress/v1/accounting.proto\"\xe1\x03\n" +
 	"\rHostdToProxyd\x12E\n" +
 	"\fproxyd_start\x18\x01 \x01(\v2 .wraithbox.egress.v1.ProxydStartH\x00R\vproxydStart\x12K\n" +
 	"\x0ehandoff_socket\x18\x02 \x01(\v2\".wraithbox.egress.v1.HandoffSocketH\x00R\rhandoffSocket\x12H\n" +
-	"\rpolicy_change\x18\x03 \x01(\v2!.wraithbox.egress.v1.PolicyChangeH\x00R\fpolicyChangeB\x06\n" +
-	"\x04kind\"\x8f\x02\n" +
+	"\rpolicy_change\x18\x03 \x01(\v2!.wraithbox.egress.v1.PolicyChangeH\x00R\fpolicyChange\x129\n" +
+	"\bca_issue\x18\x04 \x01(\v2\x1c.wraithbox.egress.v1.CaIssueH\x00R\acaIssue\x123\n" +
+	"\x06ca_set\x18\x05 \x01(\v2\x1a.wraithbox.egress.v1.CaSetH\x00R\x05caSet\x12<\n" +
+	"\tca_accept\x18\x06 \x01(\v2\x1d.wraithbox.egress.v1.CaAcceptH\x00R\bcaAccept\x12<\n" +
+	"\tca_remove\x18\a \x01(\v2\x1d.wraithbox.egress.v1.CaRemoveH\x00R\bcaRemoveB\x06\n" +
+	"\x04kind\"\xa0\x04\n" +
 	"\rProxydToHostd\x12U\n" +
 	"\x12handoff_socket_ack\x18\x01 \x01(\v2%.wraithbox.egress.v1.HandoffSocketAckH\x00R\x10handoffSocketAck\x12?\n" +
 	"\n" +
 	"policy_ack\x18\x02 \x01(\v2\x1e.wraithbox.egress.v1.PolicyAckH\x00R\tpolicyAck\x12^\n" +
-	"\x15handoff_socket_closed\x18\x03 \x01(\v2(.wraithbox.egress.v1.HandoffSocketClosedH\x00R\x13handoffSocketClosedB\x06\n" +
+	"\x15handoff_socket_closed\x18\x03 \x01(\v2(.wraithbox.egress.v1.HandoffSocketClosedH\x00R\x13handoffSocketClosed\x12<\n" +
+	"\tca_issued\x18\x04 \x01(\v2\x1d.wraithbox.egress.v1.CaIssuedH\x00R\bcaIssued\x12<\n" +
+	"\tca_loaded\x18\x05 \x01(\v2\x1d.wraithbox.egress.v1.CaLoadedH\x00R\bcaLoaded\x12R\n" +
+	"\x11ca_restore_failed\x18\x06 \x01(\v2$.wraithbox.egress.v1.CaRestoreFailedH\x00R\x0fcaRestoreFailed\x12?\n" +
+	"\n" +
+	"ca_removed\x18\a \x01(\v2\x1e.wraithbox.egress.v1.CaRemovedH\x00R\tcaRemovedB\x06\n" +
 	"\x04kind\"\xed\x01\n" +
 	"\vHostdToNetd\x12?\n" +
 	"\n" +
@@ -1104,7 +1890,52 @@ const file_wraithbox_egress_v1_control_proto_rawDesc = "" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\"7\n" +
 	"\tPolicyAck\x12\x0e\n" +
 	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x1a\n" +
-	"\bsequence\x18\x02 \x01(\x04R\bsequenceB\xf5\x01\n" +
+	"\bsequence\x18\x02 \x01(\x04R\bsequence\".\n" +
+	"\aCaIssue\x12\x0e\n" +
+	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x13\n" +
+	"\x05ca_id\x18\x02 \x01(\tR\x04caId\"e\n" +
+	"\bCaIssued\x12\x0e\n" +
+	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x13\n" +
+	"\x05ca_id\x18\x02 \x01(\tR\x04caId\x12 \n" +
+	"\vcertificate\x18\x03 \x01(\fR\vcertificate\x12\x12\n" +
+	"\x04rule\x18\x04 \x01(\tR\x04rule\"\xb8\x01\n" +
+	"\x05CaSet\x12\x0e\n" +
+	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\x04R\n" +
+	"generation\x123\n" +
+	"\x03cas\x18\x03 \x03(\v2!.wraithbox.egress.v1.InspectionCaR\x03cas\x12\"\n" +
+	"\rsigning_ca_id\x18\x04 \x01(\tR\vsigningCaId\x12&\n" +
+	"\x0fno_signing_rule\x18\x05 \x01(\tR\rnoSigningRule\"E\n" +
+	"\fInspectionCa\x12\x13\n" +
+	"\x05ca_id\x18\x01 \x01(\tR\x04caId\x12 \n" +
+	"\vcertificate\x18\x02 \x01(\fR\vcertificate\":\n" +
+	"\bCaLoaded\x12\x0e\n" +
+	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\x04R\n" +
+	"generation\"j\n" +
+	"\x0fCaRestoreFailed\x12\x0e\n" +
+	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\x04R\n" +
+	"generation\x12\x13\n" +
+	"\x05ca_id\x18\x03 \x01(\tR\x04caId\x12\x12\n" +
+	"\x04rule\x18\x04 \x01(\tR\x04rule\":\n" +
+	"\bCaAccept\x12\x0e\n" +
+	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\x04R\n" +
+	"generation\" \n" +
+	"\bCaRemove\x12\x14\n" +
+	"\x05items\x18\x01 \x03(\tR\x05items\"z\n" +
+	"\tCaRemoved\x12\x18\n" +
+	"\adeleted\x18\x01 \x03(\tR\adeleted\x12\x12\n" +
+	"\x04rule\x18\x02 \x01(\tR\x04rule\x12?\n" +
+	"\arefused\x18\x03 \x03(\v2%.wraithbox.egress.v1.CaRemovalRefusalR\arefused\">\n" +
+	"\x10CaRemovalRefusal\x12\x14\n" +
+	"\x05index\x18\x01 \x01(\rR\x05index\x12\x14\n" +
+	"\x05check\x18\x02 \x01(\tR\x05checkB\xf5\x01\n" +
 	"\x17com.wraithbox.egress.v1B\fControlProtoP\x01Z^github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1;egressv1\xa2\x02\x03WEX\xaa\x02\x13Wraithbox.Egress.V1\xca\x02\x13Wraithbox\\Egress\\V1\xe2\x02\x1fWraithbox\\Egress\\V1\\GPBMetadata\xea\x02\x15Wraithbox::Egress::V1b\x06proto3"
 
 var (
@@ -1119,7 +1950,7 @@ func file_wraithbox_egress_v1_control_proto_rawDescGZIP() []byte {
 	return file_wraithbox_egress_v1_control_proto_rawDescData
 }
 
-var file_wraithbox_egress_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_wraithbox_egress_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_wraithbox_egress_v1_control_proto_goTypes = []any{
 	(*HostdToProxyd)(nil),       // 0: wraithbox.egress.v1.HostdToProxyd
 	(*ProxydToHostd)(nil),       // 1: wraithbox.egress.v1.ProxydToHostd
@@ -1135,26 +1966,46 @@ var file_wraithbox_egress_v1_control_proto_goTypes = []any{
 	(*HandoffSocketClosed)(nil), // 11: wraithbox.egress.v1.HandoffSocketClosed
 	(*PolicyChange)(nil),        // 12: wraithbox.egress.v1.PolicyChange
 	(*PolicyAck)(nil),           // 13: wraithbox.egress.v1.PolicyAck
-	(*MappingEntry)(nil),        // 14: wraithbox.egress.v1.MappingEntry
+	(*CaIssue)(nil),             // 14: wraithbox.egress.v1.CaIssue
+	(*CaIssued)(nil),            // 15: wraithbox.egress.v1.CaIssued
+	(*CaSet)(nil),               // 16: wraithbox.egress.v1.CaSet
+	(*InspectionCa)(nil),        // 17: wraithbox.egress.v1.InspectionCa
+	(*CaLoaded)(nil),            // 18: wraithbox.egress.v1.CaLoaded
+	(*CaRestoreFailed)(nil),     // 19: wraithbox.egress.v1.CaRestoreFailed
+	(*CaAccept)(nil),            // 20: wraithbox.egress.v1.CaAccept
+	(*CaRemove)(nil),            // 21: wraithbox.egress.v1.CaRemove
+	(*CaRemoved)(nil),           // 22: wraithbox.egress.v1.CaRemoved
+	(*CaRemovalRefusal)(nil),    // 23: wraithbox.egress.v1.CaRemovalRefusal
+	(*MappingEntry)(nil),        // 24: wraithbox.egress.v1.MappingEntry
 }
 var file_wraithbox_egress_v1_control_proto_depIdxs = []int32{
 	4,  // 0: wraithbox.egress.v1.HostdToProxyd.proxyd_start:type_name -> wraithbox.egress.v1.ProxydStart
 	9,  // 1: wraithbox.egress.v1.HostdToProxyd.handoff_socket:type_name -> wraithbox.egress.v1.HandoffSocket
 	12, // 2: wraithbox.egress.v1.HostdToProxyd.policy_change:type_name -> wraithbox.egress.v1.PolicyChange
-	10, // 3: wraithbox.egress.v1.ProxydToHostd.handoff_socket_ack:type_name -> wraithbox.egress.v1.HandoffSocketAck
-	13, // 4: wraithbox.egress.v1.ProxydToHostd.policy_ack:type_name -> wraithbox.egress.v1.PolicyAck
-	11, // 5: wraithbox.egress.v1.ProxydToHostd.handoff_socket_closed:type_name -> wraithbox.egress.v1.HandoffSocketClosed
-	7,  // 6: wraithbox.egress.v1.HostdToNetd.netd_start:type_name -> wraithbox.egress.v1.NetdStart
-	9,  // 7: wraithbox.egress.v1.HostdToNetd.handoff_socket:type_name -> wraithbox.egress.v1.HandoffSocket
-	12, // 8: wraithbox.egress.v1.HostdToNetd.policy_change:type_name -> wraithbox.egress.v1.PolicyChange
-	13, // 9: wraithbox.egress.v1.NetdToHostd.policy_ack:type_name -> wraithbox.egress.v1.PolicyAck
-	6,  // 10: wraithbox.egress.v1.ProxydStartPayload.wildcard_names:type_name -> wraithbox.egress.v1.WildcardNames
-	14, // 11: wraithbox.egress.v1.NetdStartPayload.entries:type_name -> wraithbox.egress.v1.MappingEntry
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	14, // 3: wraithbox.egress.v1.HostdToProxyd.ca_issue:type_name -> wraithbox.egress.v1.CaIssue
+	16, // 4: wraithbox.egress.v1.HostdToProxyd.ca_set:type_name -> wraithbox.egress.v1.CaSet
+	20, // 5: wraithbox.egress.v1.HostdToProxyd.ca_accept:type_name -> wraithbox.egress.v1.CaAccept
+	21, // 6: wraithbox.egress.v1.HostdToProxyd.ca_remove:type_name -> wraithbox.egress.v1.CaRemove
+	10, // 7: wraithbox.egress.v1.ProxydToHostd.handoff_socket_ack:type_name -> wraithbox.egress.v1.HandoffSocketAck
+	13, // 8: wraithbox.egress.v1.ProxydToHostd.policy_ack:type_name -> wraithbox.egress.v1.PolicyAck
+	11, // 9: wraithbox.egress.v1.ProxydToHostd.handoff_socket_closed:type_name -> wraithbox.egress.v1.HandoffSocketClosed
+	15, // 10: wraithbox.egress.v1.ProxydToHostd.ca_issued:type_name -> wraithbox.egress.v1.CaIssued
+	18, // 11: wraithbox.egress.v1.ProxydToHostd.ca_loaded:type_name -> wraithbox.egress.v1.CaLoaded
+	19, // 12: wraithbox.egress.v1.ProxydToHostd.ca_restore_failed:type_name -> wraithbox.egress.v1.CaRestoreFailed
+	22, // 13: wraithbox.egress.v1.ProxydToHostd.ca_removed:type_name -> wraithbox.egress.v1.CaRemoved
+	7,  // 14: wraithbox.egress.v1.HostdToNetd.netd_start:type_name -> wraithbox.egress.v1.NetdStart
+	9,  // 15: wraithbox.egress.v1.HostdToNetd.handoff_socket:type_name -> wraithbox.egress.v1.HandoffSocket
+	12, // 16: wraithbox.egress.v1.HostdToNetd.policy_change:type_name -> wraithbox.egress.v1.PolicyChange
+	13, // 17: wraithbox.egress.v1.NetdToHostd.policy_ack:type_name -> wraithbox.egress.v1.PolicyAck
+	6,  // 18: wraithbox.egress.v1.ProxydStartPayload.wildcard_names:type_name -> wraithbox.egress.v1.WildcardNames
+	24, // 19: wraithbox.egress.v1.NetdStartPayload.entries:type_name -> wraithbox.egress.v1.MappingEntry
+	17, // 20: wraithbox.egress.v1.CaSet.cas:type_name -> wraithbox.egress.v1.InspectionCa
+	23, // 21: wraithbox.egress.v1.CaRemoved.refused:type_name -> wraithbox.egress.v1.CaRemovalRefusal
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_egress_v1_control_proto_init() }
@@ -1167,11 +2018,19 @@ func file_wraithbox_egress_v1_control_proto_init() {
 		(*HostdToProxyd_ProxydStart)(nil),
 		(*HostdToProxyd_HandoffSocket)(nil),
 		(*HostdToProxyd_PolicyChange)(nil),
+		(*HostdToProxyd_CaIssue)(nil),
+		(*HostdToProxyd_CaSet)(nil),
+		(*HostdToProxyd_CaAccept)(nil),
+		(*HostdToProxyd_CaRemove)(nil),
 	}
 	file_wraithbox_egress_v1_control_proto_msgTypes[1].OneofWrappers = []any{
 		(*ProxydToHostd_HandoffSocketAck)(nil),
 		(*ProxydToHostd_PolicyAck)(nil),
 		(*ProxydToHostd_HandoffSocketClosed)(nil),
+		(*ProxydToHostd_CaIssued)(nil),
+		(*ProxydToHostd_CaLoaded)(nil),
+		(*ProxydToHostd_CaRestoreFailed)(nil),
+		(*ProxydToHostd_CaRemoved)(nil),
 	}
 	file_wraithbox_egress_v1_control_proto_msgTypes[2].OneofWrappers = []any{
 		(*HostdToNetd_NetdStart)(nil),
@@ -1187,7 +2046,7 @@ func file_wraithbox_egress_v1_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_egress_v1_control_proto_rawDesc), len(file_wraithbox_egress_v1_control_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

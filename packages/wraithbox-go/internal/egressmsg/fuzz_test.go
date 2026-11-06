@@ -149,6 +149,10 @@ func FuzzControlMessage(f *testing.F) {
 	}}}, false)
 	add(dirProxydToHostd, &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_PolicyAck{PolicyAck: &egressv1.PolicyAck{Vm: "work", Sequence: 1}}}, false)
 	add(dirNetdToHostd, &egressv1.NetdToHostd{Kind: &egressv1.NetdToHostd_PolicyAck{PolicyAck: &egressv1.PolicyAck{Vm: "work", Sequence: 1}}}, false)
+	add(dirHostdToProxyd, caIssueMsg("work", caA), false)
+	add(dirHostdToProxyd, caSetMsg(nil), false)
+	add(dirHostdToProxyd, caAcceptMsg("isolated", 3), false)
+	add(dirHostdToProxyd, caRemoveMsg("wraithbox/ca/work/"+caA, "wraithbox/binding/x"), false)
 	f.Add([]byte{dirNetdToHostd}, false)
 	f.Fuzz(func(t *testing.T, in []byte, hasFD bool) {
 		if len(in) == 0 {
@@ -194,6 +198,10 @@ func requireControl(t *testing.T, m proto.Message, hasFD bool) {
 	var num uint64 = 1
 	switch k := m.(type) {
 	case *egressv1.HostdToProxyd:
+		if requireCA(t, k) {
+			wantFD, vm = false, "work"
+			break
+		}
 		wantFD = true
 		if s := k.GetHandoffSocket(); s != nil {
 			vm, num = s.GetVm(), s.GetGeneration()
@@ -226,6 +234,58 @@ func requireControl(t *testing.T, m proto.Message, hasFD bool) {
 	requireVM(t, vm)
 	if num == 0 {
 		t.Fatalf("accepted %T with a generation or sequence of 0", m)
+	}
+}
+
+// requireCA checks the bounds of an accepted CA message from wb-hostd,
+// and reports whether m is one.
+func requireCA(t *testing.T, m *egressv1.HostdToProxyd) bool {
+	t.Helper()
+	switch k := m.GetKind().(type) {
+	case *egressv1.HostdToProxyd_CaIssue:
+		requireVM(t, k.CaIssue.GetVm())
+		requireCAID(t, k.CaIssue.GetCaId())
+	case *egressv1.HostdToProxyd_CaSet:
+		requireCASet(t, k.CaSet)
+	case *egressv1.HostdToProxyd_CaAccept:
+		requireVM(t, k.CaAccept.GetVm())
+		if k.CaAccept.GetGeneration() == 0 {
+			t.Fatal("accepted a CaAccept of generation 0")
+		}
+	case *egressv1.HostdToProxyd_CaRemove:
+		if n := len(k.CaRemove.GetItems()); n < 1 || n > MaxRemoveItems {
+			t.Fatalf("accepted a CaRemove of %d entries", n)
+		}
+	default:
+		return false
+	}
+	return true
+}
+
+func requireCAID(t *testing.T, id string) {
+	t.Helper()
+	if !ValidCAID(id) {
+		t.Fatalf("accepted CA id %q", id)
+	}
+}
+
+func requireCASet(t *testing.T, s *egressv1.CaSet) {
+	t.Helper()
+	requireVM(t, s.GetVm())
+	if s.GetGeneration() == 0 || len(s.GetCas()) < 1 || len(s.GetCas()) > MaxCAs {
+		t.Fatalf("accepted a CaSet of generation %d with %d CAs", s.GetGeneration(), len(s.GetCas()))
+	}
+	ids := map[string]bool{}
+	for _, ca := range s.GetCas() {
+		requireCAID(t, ca.GetCaId())
+		if ids[ca.GetCaId()] || len(ca.GetCertificate()) < 1 || len(ca.GetCertificate()) > MaxCACert {
+			t.Fatalf("accepted CA %q twice or with a certificate of %d bytes", ca.GetCaId(), len(ca.GetCertificate()))
+		}
+		ids[ca.GetCaId()] = true
+	}
+	signing := s.GetSigningCaId()
+	if (signing == "") != (s.GetNoSigningRule() == RuleCANotInstalled) || (signing != "" && !ids[signing]) {
+		t.Fatalf("accepted signing CA %q with rule %q", signing, s.GetNoSigningRule())
 	}
 }
 

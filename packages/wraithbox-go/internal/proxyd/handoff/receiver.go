@@ -174,9 +174,14 @@ func (r *Receiver) control(ctx context.Context, order *egressmsg.StartOrder, m *
 	case *egressv1.HostdToProxyd_PolicyChange:
 		return r.applyPolicy(ctx, k.PolicyChange.GetVm(), k.PolicyChange.GetSequence(), m.File)
 	}
-	// DecodeHostdToProxyd refuses a record with no kind.
+	// DecodeHostdToProxyd refuses a record with no kind, so this is a CA
+	// message (internal/proxyd/ca). The receiver has no CA handler yet,
+	// so it refuses the message and ends the channel, and no stream is
+	// served without a CA (SEC05-default-deny).
 	_ = m.Close()
-	return errors.New("handoff: a control message of no kind")
+	r.refused(Event{Rule: RuleControlRefused, Check: egressmsg.CheckMessageForm},
+		slog.String("reason", "a CA message, and the receiver has no CA handler"))
+	return errors.New("handoff: a CA message, and the receiver has no CA handler")
 }
 
 // controlKindIsHandoffSocket reports whether a refused control record

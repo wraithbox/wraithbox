@@ -1474,6 +1474,91 @@ func (x *RemoveUserResponse) GetRule() string {
 	return ""
 }
 
+type InstallTrustRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The VM's current inspection CA certificates, DER, 1 to 3, each 1 to
+	// 1024 bytes, as wraithbox.egress.v1.CaIssued gave them. wb-guestd
+	// refuses a request outside these bounds.
+	CaCertificates [][]byte `protobuf:"bytes,1,rep,name=ca_certificates,json=caCertificates,proto3" json:"ca_certificates,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *InstallTrustRequest) Reset() {
+	*x = InstallTrustRequest{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallTrustRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallTrustRequest) ProtoMessage() {}
+
+func (x *InstallTrustRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallTrustRequest.ProtoReflect.Descriptor instead.
+func (*InstallTrustRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *InstallTrustRequest) GetCaCertificates() [][]byte {
+	if x != nil {
+		return x.CaCertificates
+	}
+	return nil
+}
+
+// InstallTrustResponse is empty, so the host reads nothing from the
+// guest on success.
+type InstallTrustResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallTrustResponse) Reset() {
+	*x = InstallTrustResponse{}
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallTrustResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallTrustResponse) ProtoMessage() {}
+
+func (x *InstallTrustResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_guest_v1_guest_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallTrustResponse.ProtoReflect.Descriptor instead.
+func (*InstallTrustResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_guest_v1_guest_proto_rawDescGZIP(), []int{21}
+}
+
 var File_wraithbox_guest_v1_guest_proto protoreflect.FileDescriptor
 
 const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
@@ -1556,7 +1641,10 @@ const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
 	"\x03uid\x18\x02 \x01(\rR\x03uid\x128\n" +
 	"\x06result\x18\x03 \x01(\x0e2 .wraithbox.guest.v1.RemoveResultR\x06result\x12%\n" +
 	"\x0eprocesses_left\x18\x04 \x01(\rR\rprocessesLeft\x12\x12\n" +
-	"\x04rule\x18\x05 \x01(\tR\x04rule*\x88\x01\n" +
+	"\x04rule\x18\x05 \x01(\tR\x04rule\">\n" +
+	"\x13InstallTrustRequest\x12'\n" +
+	"\x0fca_certificates\x18\x01 \x03(\fR\x0ecaCertificates\"\x16\n" +
+	"\x14InstallTrustResponse*\x88\x01\n" +
 	"\n" +
 	"TimeReason\x12\x1b\n" +
 	"\x17TIME_REASON_UNSPECIFIED\x10\x00\x12\x14\n" +
@@ -1577,7 +1665,7 @@ const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
 	"\x19REMOVE_RESULT_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15REMOVE_RESULT_REMOVED\x10\x01\x12 \n" +
 	"\x1cREMOVE_RESULT_PROCESSES_LEFT\x10\x02\x12\x19\n" +
-	"\x15REMOVE_RESULT_REFUSED\x10\x032\xcd\x05\n" +
+	"\x15REMOVE_RESULT_REFUSED\x10\x032\xb0\x06\n" +
 	"\fGuestService\x12L\n" +
 	"\x05Hello\x12 .wraithbox.guest.v1.HelloRequest\x1a!.wraithbox.guest.v1.HelloResponse\x12P\n" +
 	"\x05Shell\x12 .wraithbox.guest.v1.ShellRequest\x1a!.wraithbox.guest.v1.ShellResponse(\x010\x01\x12R\n" +
@@ -1588,7 +1676,8 @@ const file_wraithbox_guest_v1_guest_proto_rawDesc = "" +
 	"UnlockUser\x12%.wraithbox.guest.v1.UnlockUserRequest\x1a&.wraithbox.guest.v1.UnlockUserResponse\x12U\n" +
 	"\bKillUser\x12#.wraithbox.guest.v1.KillUserRequest\x1a$.wraithbox.guest.v1.KillUserResponse\x12[\n" +
 	"\n" +
-	"RemoveUser\x12%.wraithbox.guest.v1.RemoveUserRequest\x1a&.wraithbox.guest.v1.RemoveUserResponseB\xec\x01\n" +
+	"RemoveUser\x12%.wraithbox.guest.v1.RemoveUserRequest\x1a&.wraithbox.guest.v1.RemoveUserResponse\x12a\n" +
+	"\fInstallTrust\x12'.wraithbox.guest.v1.InstallTrustRequest\x1a(.wraithbox.guest.v1.InstallTrustResponseB\xec\x01\n" +
 	"\x16com.wraithbox.guest.v1B\n" +
 	"GuestProtoP\x01Z\\github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1;guestv1\xa2\x02\x03WGX\xaa\x02\x12Wraithbox.Guest.V1\xca\x02\x12Wraithbox\\Guest\\V1\xe2\x02\x1eWraithbox\\Guest\\V1\\GPBMetadata\xea\x02\x14Wraithbox::Guest::V1b\x06proto3"
 
@@ -1605,41 +1694,43 @@ func file_wraithbox_guest_v1_guest_proto_rawDescGZIP() []byte {
 }
 
 var file_wraithbox_guest_v1_guest_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_wraithbox_guest_v1_guest_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_wraithbox_guest_v1_guest_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_wraithbox_guest_v1_guest_proto_goTypes = []any{
-	(TimeReason)(0),             // 0: wraithbox.guest.v1.TimeReason
-	(EnsureResult)(0),           // 1: wraithbox.guest.v1.EnsureResult
-	(KillResult)(0),             // 2: wraithbox.guest.v1.KillResult
-	(RemoveResult)(0),           // 3: wraithbox.guest.v1.RemoveResult
-	(*HelloRequest)(nil),        // 4: wraithbox.guest.v1.HelloRequest
-	(*HelloResponse)(nil),       // 5: wraithbox.guest.v1.HelloResponse
-	(*ShellRequest)(nil),        // 6: wraithbox.guest.v1.ShellRequest
-	(*ShellStart)(nil),          // 7: wraithbox.guest.v1.ShellStart
-	(*ShellResponse)(nil),       // 8: wraithbox.guest.v1.ShellResponse
-	(*SetTimeRequest)(nil),      // 9: wraithbox.guest.v1.SetTimeRequest
-	(*SetTimeResponse)(nil),     // 10: wraithbox.guest.v1.SetTimeResponse
-	(*MountDataRequest)(nil),    // 11: wraithbox.guest.v1.MountDataRequest
-	(*MountDataResponse)(nil),   // 12: wraithbox.guest.v1.MountDataResponse
-	(*ProjectUser)(nil),         // 13: wraithbox.guest.v1.ProjectUser
-	(*EnsureUsersRequest)(nil),  // 14: wraithbox.guest.v1.EnsureUsersRequest
-	(*EnsureUsersResponse)(nil), // 15: wraithbox.guest.v1.EnsureUsersResponse
-	(*EnsureUserResult)(nil),    // 16: wraithbox.guest.v1.EnsureUserResult
-	(*UnlockUserRequest)(nil),   // 17: wraithbox.guest.v1.UnlockUserRequest
-	(*UnlockUserResponse)(nil),  // 18: wraithbox.guest.v1.UnlockUserResponse
-	(*KillUserRequest)(nil),     // 19: wraithbox.guest.v1.KillUserRequest
-	(*KillUserResponse)(nil),    // 20: wraithbox.guest.v1.KillUserResponse
-	(*CleanupRecord)(nil),       // 21: wraithbox.guest.v1.CleanupRecord
-	(*RemoveUserRequest)(nil),   // 22: wraithbox.guest.v1.RemoveUserRequest
-	(*RemoveUserResponse)(nil),  // 23: wraithbox.guest.v1.RemoveUserResponse
-	(*v1.ClientFrame)(nil),      // 24: wraithbox.terminal.v1.ClientFrame
-	(*v1.Setup)(nil),            // 25: wraithbox.terminal.v1.Setup
-	(*v1.ServerFrame)(nil),      // 26: wraithbox.terminal.v1.ServerFrame
+	(TimeReason)(0),              // 0: wraithbox.guest.v1.TimeReason
+	(EnsureResult)(0),            // 1: wraithbox.guest.v1.EnsureResult
+	(KillResult)(0),              // 2: wraithbox.guest.v1.KillResult
+	(RemoveResult)(0),            // 3: wraithbox.guest.v1.RemoveResult
+	(*HelloRequest)(nil),         // 4: wraithbox.guest.v1.HelloRequest
+	(*HelloResponse)(nil),        // 5: wraithbox.guest.v1.HelloResponse
+	(*ShellRequest)(nil),         // 6: wraithbox.guest.v1.ShellRequest
+	(*ShellStart)(nil),           // 7: wraithbox.guest.v1.ShellStart
+	(*ShellResponse)(nil),        // 8: wraithbox.guest.v1.ShellResponse
+	(*SetTimeRequest)(nil),       // 9: wraithbox.guest.v1.SetTimeRequest
+	(*SetTimeResponse)(nil),      // 10: wraithbox.guest.v1.SetTimeResponse
+	(*MountDataRequest)(nil),     // 11: wraithbox.guest.v1.MountDataRequest
+	(*MountDataResponse)(nil),    // 12: wraithbox.guest.v1.MountDataResponse
+	(*ProjectUser)(nil),          // 13: wraithbox.guest.v1.ProjectUser
+	(*EnsureUsersRequest)(nil),   // 14: wraithbox.guest.v1.EnsureUsersRequest
+	(*EnsureUsersResponse)(nil),  // 15: wraithbox.guest.v1.EnsureUsersResponse
+	(*EnsureUserResult)(nil),     // 16: wraithbox.guest.v1.EnsureUserResult
+	(*UnlockUserRequest)(nil),    // 17: wraithbox.guest.v1.UnlockUserRequest
+	(*UnlockUserResponse)(nil),   // 18: wraithbox.guest.v1.UnlockUserResponse
+	(*KillUserRequest)(nil),      // 19: wraithbox.guest.v1.KillUserRequest
+	(*KillUserResponse)(nil),     // 20: wraithbox.guest.v1.KillUserResponse
+	(*CleanupRecord)(nil),        // 21: wraithbox.guest.v1.CleanupRecord
+	(*RemoveUserRequest)(nil),    // 22: wraithbox.guest.v1.RemoveUserRequest
+	(*RemoveUserResponse)(nil),   // 23: wraithbox.guest.v1.RemoveUserResponse
+	(*InstallTrustRequest)(nil),  // 24: wraithbox.guest.v1.InstallTrustRequest
+	(*InstallTrustResponse)(nil), // 25: wraithbox.guest.v1.InstallTrustResponse
+	(*v1.ClientFrame)(nil),       // 26: wraithbox.terminal.v1.ClientFrame
+	(*v1.Setup)(nil),             // 27: wraithbox.terminal.v1.Setup
+	(*v1.ServerFrame)(nil),       // 28: wraithbox.terminal.v1.ServerFrame
 }
 var file_wraithbox_guest_v1_guest_proto_depIdxs = []int32{
 	7,  // 0: wraithbox.guest.v1.ShellRequest.start:type_name -> wraithbox.guest.v1.ShellStart
-	24, // 1: wraithbox.guest.v1.ShellRequest.frame:type_name -> wraithbox.terminal.v1.ClientFrame
-	25, // 2: wraithbox.guest.v1.ShellStart.setup:type_name -> wraithbox.terminal.v1.Setup
-	26, // 3: wraithbox.guest.v1.ShellResponse.frame:type_name -> wraithbox.terminal.v1.ServerFrame
+	26, // 1: wraithbox.guest.v1.ShellRequest.frame:type_name -> wraithbox.terminal.v1.ClientFrame
+	27, // 2: wraithbox.guest.v1.ShellStart.setup:type_name -> wraithbox.terminal.v1.Setup
+	28, // 3: wraithbox.guest.v1.ShellResponse.frame:type_name -> wraithbox.terminal.v1.ServerFrame
 	0,  // 4: wraithbox.guest.v1.SetTimeRequest.reason:type_name -> wraithbox.guest.v1.TimeReason
 	13, // 5: wraithbox.guest.v1.EnsureUsersRequest.users:type_name -> wraithbox.guest.v1.ProjectUser
 	16, // 6: wraithbox.guest.v1.EnsureUsersResponse.results:type_name -> wraithbox.guest.v1.EnsureUserResult
@@ -1655,16 +1746,18 @@ var file_wraithbox_guest_v1_guest_proto_depIdxs = []int32{
 	17, // 16: wraithbox.guest.v1.GuestService.UnlockUser:input_type -> wraithbox.guest.v1.UnlockUserRequest
 	19, // 17: wraithbox.guest.v1.GuestService.KillUser:input_type -> wraithbox.guest.v1.KillUserRequest
 	22, // 18: wraithbox.guest.v1.GuestService.RemoveUser:input_type -> wraithbox.guest.v1.RemoveUserRequest
-	5,  // 19: wraithbox.guest.v1.GuestService.Hello:output_type -> wraithbox.guest.v1.HelloResponse
-	8,  // 20: wraithbox.guest.v1.GuestService.Shell:output_type -> wraithbox.guest.v1.ShellResponse
-	10, // 21: wraithbox.guest.v1.GuestService.SetTime:output_type -> wraithbox.guest.v1.SetTimeResponse
-	12, // 22: wraithbox.guest.v1.GuestService.MountData:output_type -> wraithbox.guest.v1.MountDataResponse
-	15, // 23: wraithbox.guest.v1.GuestService.EnsureUsers:output_type -> wraithbox.guest.v1.EnsureUsersResponse
-	18, // 24: wraithbox.guest.v1.GuestService.UnlockUser:output_type -> wraithbox.guest.v1.UnlockUserResponse
-	20, // 25: wraithbox.guest.v1.GuestService.KillUser:output_type -> wraithbox.guest.v1.KillUserResponse
-	23, // 26: wraithbox.guest.v1.GuestService.RemoveUser:output_type -> wraithbox.guest.v1.RemoveUserResponse
-	19, // [19:27] is the sub-list for method output_type
-	11, // [11:19] is the sub-list for method input_type
+	24, // 19: wraithbox.guest.v1.GuestService.InstallTrust:input_type -> wraithbox.guest.v1.InstallTrustRequest
+	5,  // 20: wraithbox.guest.v1.GuestService.Hello:output_type -> wraithbox.guest.v1.HelloResponse
+	8,  // 21: wraithbox.guest.v1.GuestService.Shell:output_type -> wraithbox.guest.v1.ShellResponse
+	10, // 22: wraithbox.guest.v1.GuestService.SetTime:output_type -> wraithbox.guest.v1.SetTimeResponse
+	12, // 23: wraithbox.guest.v1.GuestService.MountData:output_type -> wraithbox.guest.v1.MountDataResponse
+	15, // 24: wraithbox.guest.v1.GuestService.EnsureUsers:output_type -> wraithbox.guest.v1.EnsureUsersResponse
+	18, // 25: wraithbox.guest.v1.GuestService.UnlockUser:output_type -> wraithbox.guest.v1.UnlockUserResponse
+	20, // 26: wraithbox.guest.v1.GuestService.KillUser:output_type -> wraithbox.guest.v1.KillUserResponse
+	23, // 27: wraithbox.guest.v1.GuestService.RemoveUser:output_type -> wraithbox.guest.v1.RemoveUserResponse
+	25, // 28: wraithbox.guest.v1.GuestService.InstallTrust:output_type -> wraithbox.guest.v1.InstallTrustResponse
+	20, // [20:29] is the sub-list for method output_type
+	11, // [11:20] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name
@@ -1685,7 +1778,7 @@ func file_wraithbox_guest_v1_guest_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_guest_v1_guest_proto_rawDesc), len(file_wraithbox_guest_v1_guest_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   20,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

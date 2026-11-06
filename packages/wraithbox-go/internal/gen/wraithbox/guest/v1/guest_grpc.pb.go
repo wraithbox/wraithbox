@@ -34,14 +34,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GuestService_Hello_FullMethodName       = "/wraithbox.guest.v1.GuestService/Hello"
-	GuestService_Shell_FullMethodName       = "/wraithbox.guest.v1.GuestService/Shell"
-	GuestService_SetTime_FullMethodName     = "/wraithbox.guest.v1.GuestService/SetTime"
-	GuestService_MountData_FullMethodName   = "/wraithbox.guest.v1.GuestService/MountData"
-	GuestService_EnsureUsers_FullMethodName = "/wraithbox.guest.v1.GuestService/EnsureUsers"
-	GuestService_UnlockUser_FullMethodName  = "/wraithbox.guest.v1.GuestService/UnlockUser"
-	GuestService_KillUser_FullMethodName    = "/wraithbox.guest.v1.GuestService/KillUser"
-	GuestService_RemoveUser_FullMethodName  = "/wraithbox.guest.v1.GuestService/RemoveUser"
+	GuestService_Hello_FullMethodName        = "/wraithbox.guest.v1.GuestService/Hello"
+	GuestService_Shell_FullMethodName        = "/wraithbox.guest.v1.GuestService/Shell"
+	GuestService_SetTime_FullMethodName      = "/wraithbox.guest.v1.GuestService/SetTime"
+	GuestService_MountData_FullMethodName    = "/wraithbox.guest.v1.GuestService/MountData"
+	GuestService_EnsureUsers_FullMethodName  = "/wraithbox.guest.v1.GuestService/EnsureUsers"
+	GuestService_UnlockUser_FullMethodName   = "/wraithbox.guest.v1.GuestService/UnlockUser"
+	GuestService_KillUser_FullMethodName     = "/wraithbox.guest.v1.GuestService/KillUser"
+	GuestService_RemoveUser_FullMethodName   = "/wraithbox.guest.v1.GuestService/RemoveUser"
+	GuestService_InstallTrust_FullMethodName = "/wraithbox.guest.v1.GuestService/InstallTrust"
 )
 
 // GuestServiceClient is the client API for GuestService service.
@@ -122,6 +123,19 @@ type GuestServiceClient interface {
 	// until a REMOVED result for that project and UID comes back. A reply
 	// never clears another project's record.
 	RemoveUser(ctx context.Context, in *RemoveUserRequest, opts ...grpc.CallOption) (*RemoveUserResponse, error)
+	// InstallTrust makes the VM's current inspection CAs the guest's
+	// Wraith Box trust, in place of the ones before (S09-08-guest-trust;
+	// S09-07-ca-certificates, "Boot, restore and host wake", step 5).
+	// wb-hostd sends the CAs from its own record, never from what the
+	// guest reports it has. The answer is empty: a success says the
+	// guest installed them, and wb-hostd records the install.
+	//
+	// A refusal is a gRPC status with a google.rpc.ErrorInfo detail of the
+	// domain `wraithbox.guest.v1`, whose reason is the rule. The host
+	// takes nothing else from a refusal, and the status message is guest
+	// text that it logs escaped and cut. The rules, and the host's checks
+	// of the answer, come with the guest's side (S09-08-guest-trust).
+	InstallTrust(ctx context.Context, in *InstallTrustRequest, opts ...grpc.CallOption) (*InstallTrustResponse, error)
 }
 
 type guestServiceClient struct {
@@ -215,6 +229,16 @@ func (c *guestServiceClient) RemoveUser(ctx context.Context, in *RemoveUserReque
 	return out, nil
 }
 
+func (c *guestServiceClient) InstallTrust(ctx context.Context, in *InstallTrustRequest, opts ...grpc.CallOption) (*InstallTrustResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InstallTrustResponse)
+	err := c.cc.Invoke(ctx, GuestService_InstallTrust_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GuestServiceServer is the server API for GuestService service.
 // All implementations must embed UnimplementedGuestServiceServer
 // for forward compatibility.
@@ -293,6 +317,19 @@ type GuestServiceServer interface {
 	// until a REMOVED result for that project and UID comes back. A reply
 	// never clears another project's record.
 	RemoveUser(context.Context, *RemoveUserRequest) (*RemoveUserResponse, error)
+	// InstallTrust makes the VM's current inspection CAs the guest's
+	// Wraith Box trust, in place of the ones before (S09-08-guest-trust;
+	// S09-07-ca-certificates, "Boot, restore and host wake", step 5).
+	// wb-hostd sends the CAs from its own record, never from what the
+	// guest reports it has. The answer is empty: a success says the
+	// guest installed them, and wb-hostd records the install.
+	//
+	// A refusal is a gRPC status with a google.rpc.ErrorInfo detail of the
+	// domain `wraithbox.guest.v1`, whose reason is the rule. The host
+	// takes nothing else from a refusal, and the status message is guest
+	// text that it logs escaped and cut. The rules, and the host's checks
+	// of the answer, come with the guest's side (S09-08-guest-trust).
+	InstallTrust(context.Context, *InstallTrustRequest) (*InstallTrustResponse, error)
 	mustEmbedUnimplementedGuestServiceServer()
 }
 
@@ -326,6 +363,9 @@ func (UnimplementedGuestServiceServer) KillUser(context.Context, *KillUserReques
 }
 func (UnimplementedGuestServiceServer) RemoveUser(context.Context, *RemoveUserRequest) (*RemoveUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveUser not implemented")
+}
+func (UnimplementedGuestServiceServer) InstallTrust(context.Context, *InstallTrustRequest) (*InstallTrustResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InstallTrust not implemented")
 }
 func (UnimplementedGuestServiceServer) mustEmbedUnimplementedGuestServiceServer() {}
 func (UnimplementedGuestServiceServer) testEmbeddedByValue()                      {}
@@ -481,6 +521,24 @@ func _GuestService_RemoveUser_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GuestService_InstallTrust_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InstallTrustRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GuestServiceServer).InstallTrust(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GuestService_InstallTrust_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GuestServiceServer).InstallTrust(ctx, req.(*InstallTrustRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GuestService_ServiceDesc is the grpc.ServiceDesc for GuestService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -515,6 +573,10 @@ var GuestService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveUser",
 			Handler:    _GuestService_RemoveUser_Handler,
+		},
+		{
+			MethodName: "InstallTrust",
+			Handler:    _GuestService_InstallTrust_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

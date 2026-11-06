@@ -19,7 +19,8 @@ var closedChecks = map[string]bool{
 
 // DecodeHostdToProxyd checks one record that wb-proxyd read from its
 // control channel, and whether a descriptor came with it, against the
-// comments in control.proto. Each kind takes exactly one descriptor.
+// comments in control.proto. The start, a hand-off socket and a policy
+// change each take exactly one descriptor, and the CA messages none.
 func DecodeHostdToProxyd(record []byte, hasFD bool) (*egressv1.HostdToProxyd, *Refusal) {
 	m := &egressv1.HostdToProxyd{}
 	if r := decode(record, m); r != nil {
@@ -33,6 +34,14 @@ func DecodeHostdToProxyd(record []byte, hasFD bool) (*egressv1.HostdToProxyd, *R
 		r = handoffSocket(k.HandoffSocket, hasFD)
 	case *egressv1.HostdToProxyd_PolicyChange:
 		r = policyChange(k.PolicyChange, hasFD)
+	case *egressv1.HostdToProxyd_CaIssue:
+		r = caIssue(k.CaIssue, hasFD)
+	case *egressv1.HostdToProxyd_CaSet:
+		r = caSet(k.CaSet, hasFD)
+	case *egressv1.HostdToProxyd_CaAccept:
+		r = caAccept(k.CaAccept, hasFD)
+	case *egressv1.HostdToProxyd_CaRemove:
+		r = caRemove(k.CaRemove, hasFD)
 	default:
 		r = refuse(CheckMessageForm, "kind", "no kind set")
 	}
@@ -72,6 +81,10 @@ func DecodeHostdToNetd(record []byte, hasFD bool) (*egressv1.HostdToNetd, *Refus
 // wb-proxyd's control channel, and whether a descriptor came with it.
 // No kind takes a descriptor. Whether the VM, generation and sequence
 // match what wb-hostd sent is wb-hostd's check.
+//
+// The CA replies (CaIssued, CaLoaded, CaRestoreFailed, CaRemoved) are
+// refused until wb-hostd keeps the CA record and checks them, so no
+// reply of a CA wb-hostd didn't ask for is taken.
 func DecodeProxydToHostd(record []byte, hasFD bool) (*egressv1.ProxydToHostd, *Refusal) {
 	m := &egressv1.ProxydToHostd{}
 	if r := decode(record, m); r != nil {
@@ -85,6 +98,9 @@ func DecodeProxydToHostd(record []byte, hasFD bool) (*egressv1.ProxydToHostd, *R
 		r = policyAck(k.PolicyAck, hasFD)
 	case *egressv1.ProxydToHostd_HandoffSocketClosed:
 		r = handoffSocketClosed(k.HandoffSocketClosed, hasFD)
+	case *egressv1.ProxydToHostd_CaIssued, *egressv1.ProxydToHostd_CaLoaded,
+		*egressv1.ProxydToHostd_CaRestoreFailed, *egressv1.ProxydToHostd_CaRemoved:
+		r = refuse(CheckMessageForm, "kind", "a CA reply, which wb-hostd doesn't read yet")
 	default:
 		r = refuse(CheckMessageForm, "kind", "no kind set")
 	}
