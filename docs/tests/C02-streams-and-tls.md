@@ -471,21 +471,27 @@ checks:
   ls-remote` (dumb HTTP), `python3` with urllib, `node` with
   `https.get`, and, when the image has a JDK, Java with only
   `JAVA_TOOL_OPTIONS`. Each client runs with the shell's environment
-  and nothing the test adds, and is told the server's address. A
-  client the image doesn't have is logged as not run;
+  and nothing the test adds, and is told the server's address. curl is
+  in the base system and must run. Any other client the script marks
+  missing is logged as not run, and a client with no whole block in the
+  output fails the test;
 - URLSession, from `osascript -l JavaScript` through the server's
-  CONNECT proxy, refuses the leaf with an untrusted certificate error;
+  CONNECT proxy, refuses the leaf with NSURLError -1202 or -1203, and
+  the server logs a failed handshake after that tunnel;
 - after `wb vm stop`, `wb vm reset-ca work` and a new start, the record
   holds one new CA, no trust file holds the old one, every client
-  refuses the old leaf and accepts the new one.
+  refuses the old leaf with its certificate error and accepts the new
+  one.
 
 The test sends the server, the leaf and its key to the guest only on
 the shell's standard input (SEC02-no-host-fs-share), and logs each
-client's outcome with `result:`. Unit tests of the same package check the fake
-against the CA record, a reset included (`TestFakeCABootWritesLeaf`,
-`TestFakeCAResetWritesNewLeaf`, `TestFakeCABootHook`), the server
-(`TestTLSServer`), and the script and its output
-(`TestParseClients`, `TestClientsScriptCarriesServerAndLeaf`).
+client's outcome with `result:`. Unit tests of the same package check
+the fake against the CA record, a reset included
+(`TestFakeCABootWritesLeaf`, `TestFakeCAResetWritesNewLeaf`,
+`TestFakeCABootHook`), the server (`TestTLSServer`), the script and
+its output (`TestParseClients`,
+`TestClientsScriptCarriesServerAndLeaf`), and the judgment of each
+client's outcome (`TestJudgeProbeFailsClosed`).
 
 Runs: none yet.
 

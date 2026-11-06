@@ -2,17 +2,22 @@ package main
 
 import (
 	"encoding/base64"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 )
 
-// probe is one TLS client TestC02GuestTrustVM runs in the guest, and
-// what it prints when the handshake and the request succeed.
+// probe is one TLS client TestC02GuestTrustVM runs in the guest: what
+// it prints when the handshake and the request succeed, and what it
+// prints when it refuses the server's certificate. A required probe
+// must run: macOS has curl in the base system.
 type probe struct {
-	name string
-	ok   string
+	name     string
+	ok       string
+	refused  []string
+	required bool
 }
 
 // probes are the clients that must trust the CA the guest installed
@@ -20,11 +25,16 @@ type probe struct {
 // the shell's environment and nothing the test adds, and is told the
 // server's address in its own way, since leafHost never resolves.
 var probes = []probe{
-	{"curl", "wbtest-ok"},
-	{"git", "refs/heads/main"},
-	{"python3", "wbtest-ok"},
-	{"node", "wbtest-ok"},
-	{"java", "java-handshake-ok"},
+	{name: "curl", ok: "wbtest-ok", refused: []string{"curl: (60)"}, required: true},
+	// libcurl's wording differs between versions.
+	{name: "git", ok: "refs/heads/main", refused: []string{
+		"SSL certificate problem", "SSL certificate OpenSSL verify result", "server certificate verification failed",
+	}},
+	{name: "python3", ok: "wbtest-ok", refused: []string{"SSLCertVerificationError", "CERTIFICATE_VERIFY_FAILED"}},
+	{name: "node", ok: "wbtest-ok", refused: []string{
+		"UNABLE_TO_VERIFY_LEAF_SIGNATURE", "UNABLE_TO_GET_ISSUER_CERT", "SELF_SIGNED_CERT_IN_CHAIN",
+	}},
+	{name: "java", ok: "java-handshake-ok", refused: []string{"PKIX path"}},
 }
 
 // urlSessionProbe is URLSession, which reads only the system trust
@@ -32,10 +42,9 @@ var probes = []probe{
 // store").
 const urlSessionProbe = "urlsession"
 
-// trustErrors are the NSURLError codes of a refused server certificate:
-// untrusted, bad date, not yet valid, unknown root, and the rejection
-// of the secure connection as a whole.
-var trustErrors = []string{"-1202", "-1201", "-1203", "-1204", "-1200"}
+// trustErrors are the NSURLError codes of a refused server
+// certificate: untrusted (-1202) and unknown root (-1203).
+var trustErrors = []string{"-1202", "-1203"}
 
 // pythonProbe fetches the server's root with urllib, and resolves
 // leafHost to loopback.
@@ -58,7 +67,8 @@ https.get({ host: "` + leafHost + `", port: Number(process.argv[1]), path: "/", 
   res.setEncoding("utf8");
   res.on("data", (d) => process.stdout.write(d));
   res.on("end", () => process.exit(0));
-}).on("error", (e) => { console.log("error " + (e.code || e.message)); process.exit(1); });
+}).on("timeout", function () { this.destroy(new Error("timeout")); })
+  .on("error", (e) => { console.log("error " + (e.code || e.message)); process.exit(1); });
 `
 
 // javaProbe completes a handshake with the server, with leafHost as the
@@ -152,7 +162,7 @@ run() {
   name=$1; shift
   echo "--client $name--"; "$@" </dev/null 2>&1; echo "--exit $name $?--"
 }
-have curl && run curl curl -sS --max-time 20 --resolve "` + leafHost + `:$tls:127.0.0.1" "https://` + leafHost + `:$tls/" || echo --missing curl--
+command -v curl >/dev/null && run curl curl -sS --max-time 20 --resolve "` + leafHost + `:$tls:127.0.0.1" "https://` + leafHost + `:$tls/" || echo --missing curl--
 have git && run git git -c "http.curloptResolve=` + leafHost + `:$tls:127.0.0.1" ls-remote "https://` + leafHost + `:$tls/repo.git" || echo --missing git--
 have python3 && run python3 python3 -c "$(cat "$d/probe.py")" "$tls" || echo --missing python3--
 have node && run node node -e "$(cat "$d/probe.js")" "$tls" || echo --missing node--
@@ -178,43 +188,55 @@ func wrap76(s string) string {
 
 // clientResult is one client's run in clientsScript's output.
 type clientResult struct {
-	ran  bool
 	code int
 	out  string
 }
 
-// parseClients returns each client's result in clientsScript's output.
-// A client that is missing, or whose block is cut, has ran false.
-func parseClients(stdout string) map[string]clientResult {
-	results := map[string]clientResult{}
+// clientsOutput is clientsScript's output, read: the result of each
+// client that ran, and the clients the script marked as missing. A
+// client in neither has no whole block, which the checks report.
+type clientsOutput struct {
+	ran     map[string]clientResult
+	missing map[string]bool
+}
+
+// parseClients reads clientsScript's output. It stops at the first
+// block that is cut.
+func parseClients(stdout string) clientsOutput {
+	c := clientsOutput{ran: map[string]clientResult{}, missing: map[string]bool{}}
+	for line := range strings.Lines(stdout) {
+		if name, ok := strings.CutPrefix(strings.TrimSuffix(line, "\n"), "--missing "); ok {
+			c.missing[strings.TrimSuffix(name, "--")] = true
+		}
+	}
 	rest := stdout
 	for {
 		_, after, ok := strings.Cut(rest, "--client ")
 		if !ok {
-			return results
+			return c
 		}
 		name, body, ok := strings.Cut(after, "--\n")
 		if !ok {
-			return results
+			return c
 		}
 		out, tail, ok := strings.Cut(body, "--exit "+name+" ")
 		if !ok {
-			return results
+			return c
 		}
 		codeText, next, _ := strings.Cut(tail, "--")
 		code, err := strconv.Atoi(codeText)
 		if err != nil {
-			return results
+			return c
 		}
-		results[name] = clientResult{ran: true, code: code, out: out}
+		c.ran[name] = clientResult{code: code, out: out}
 		rest = next
 	}
 }
 
 // checkClients starts the server with leaf in a shell of project id,
 // and checks that each client of probes accepts it when accept is true
-// and refuses it when false, and that URLSession refuses it either way.
-// what names the leaf in the test's log.
+// and refuses it for its certificate when false, and that URLSession
+// refuses it either way. what names the leaf in the test's log.
 func (r *vmRun) checkClients(id string, server, leaf []byte, what string, accept bool) {
 	t := r.t
 	res := r.runShell(id, shellIO{stdin: strings.NewReader(clientsScript(server, leaf))})
@@ -222,38 +244,57 @@ func (r *vmRun) checkClients(id string, server, leaf []byte, what string, accept
 	if res.code != 0 {
 		t.Errorf("the clients script against %s: exit %d, want 0", what, res.code)
 	}
-	results := parseClients(res.stdout)
-	checkProbes(t, results, what, accept)
-	checkURLSession(t, results[urlSessionProbe], between(res.stdout, "--server--\n", "--end-server--"), what)
+	c := parseClients(res.stdout)
+	for _, p := range probes {
+		line, err := judgeProbe(p, c, what, accept)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		t.Log(line)
+	}
+	checkURLSession(t, c, between(res.stdout, "--server--\n", "--end-server--"), what)
 }
 
-// checkProbes checks the result of each client of probes against what.
-func checkProbes(t *testing.T, results map[string]clientResult, what string, accept bool) {
-	t.Helper()
-	for _, p := range probes {
-		got, found := results[p.name]
-		switch {
-		case !found:
-			t.Logf("result: %s against %s: not run, the image doesn't have it", p.name, what)
-		case accept && (got.code != 0 || !strings.Contains(got.out, p.ok)):
-			t.Errorf("%s refused %s: exit %d\n%s", p.name, what, got.code, got.out)
-		case !accept && (got.code == 0 || strings.Contains(got.out, p.ok)):
-			t.Errorf("%s accepted %s: exit %d\n%s", p.name, what, got.code, got.out)
-		default:
-			t.Logf("result: %s against %s: exit %d, as expected", p.name, what, got.code)
-		}
+// judgeProbe judges the result of the client p against what: the
+// line to log, or the error to report. A client the script marked
+// missing is not run, unless p is required.
+func judgeProbe(p probe, c clientsOutput, what string, accept bool) (string, error) {
+	got, ran := c.ran[p.name]
+	switch {
+	case !ran && c.missing[p.name] && !p.required:
+		return fmt.Sprintf("result: %s against %s: not run, the image doesn't have it", p.name, what), nil
+	case !ran:
+		return "", fmt.Errorf("%s against %s: no whole block in the output, or missing though required", p.name, what)
+	case accept && (got.code != 0 || !strings.Contains(got.out, p.ok)):
+		return "", fmt.Errorf("%s refused %s: exit %d\n%s", p.name, what, got.code, got.out)
+	case !accept && (got.code == 0 || !containsAny(got.out, p.refused)):
+		return "", fmt.Errorf("%s didn't refuse %s for its certificate (one of %q): exit %d\n%s",
+			p.name, what, p.refused, got.code, got.out)
 	}
+	return fmt.Sprintf("result: %s against %s: exit %d, as expected", p.name, what, got.code), nil
+}
+
+func containsAny(s string, subs []string) bool {
+	return slices.ContainsFunc(subs, func(sub string) bool { return strings.Contains(s, sub) })
 }
 
 // checkURLSession checks that URLSession reached the server through its
-// proxy and refused the leaf for its trust.
-func checkURLSession(t *testing.T, got clientResult, serverLog, what string) {
+// proxy, that the handshake on that tunnel failed, and that URLSession
+// refused the leaf for its trust. URLSession closes the connection
+// without an alert, so the server logs the failed handshake as EOF.
+func checkURLSession(t *testing.T, c clientsOutput, serverLog, what string) {
 	t.Helper()
-	if !strings.Contains(serverLog, "CONNECT "+leafHost+":443") {
+	connect := "CONNECT " + leafHost + ":443"
+	i := strings.LastIndex(serverLog, connect)
+	if i < 0 {
 		t.Errorf("URLSession didn't reach the server through its proxy, server log:\n%s", serverLog)
+	} else if !strings.Contains(serverLog[i:], "http: TLS handshake error") {
+		t.Errorf("no failed handshake after URLSession's tunnel, server log:\n%s", serverLog)
 	}
+	got, ran := c.ran[urlSessionProbe]
 	code, refused := strings.CutPrefix(strings.TrimSpace(got.out), "error ")
-	if !got.ran || !refused || !slices.Contains(trustErrors, code) {
+	if !ran || !refused || !slices.Contains(trustErrors, code) {
 		t.Errorf("URLSession against %s: %q, want the refusal of an untrusted certificate, one of %v", what, got.out, trustErrors)
 		return
 	}
@@ -267,17 +308,54 @@ func TestParseClients(t *testing.T) {
 		"--client node--\ncut off"
 	got := parseClients(stdout)
 	want := map[string]clientResult{
-		"curl":    {ran: true, code: 0, out: "wbtest-ok\n"},
-		"python3": {ran: true, code: 1, out: "Traceback\nssl.SSLCertVerificationError\n"},
+		"curl":    {code: 0, out: "wbtest-ok\n"},
+		"python3": {code: 1, out: "Traceback\nssl.SSLCertVerificationError\n"},
 	}
-	if len(got) != len(want) {
-		t.Fatalf("parseClients = %v, want %v", got, want)
+	if len(got.ran) != len(want) {
+		t.Fatalf("parseClients ran = %v, want %v", got.ran, want)
 	}
 	for name, w := range want {
-		if got[name] != w {
-			t.Errorf("parseClients[%s] = %+v, want %+v", name, got[name], w)
+		if got.ran[name] != w {
+			t.Errorf("parseClients ran[%s] = %+v, want %+v", name, got.ran[name], w)
 		}
 	}
+	if len(got.missing) != 1 || !got.missing["git"] {
+		t.Errorf("parseClients missing = %v, want only git", got.missing)
+	}
+}
+
+// TestJudgeProbeFailsClosed feeds judgeProbe the outcomes it must
+// report: a cut block, a required client missing, an accept that should
+// be a refusal, and a refusal that isn't for the certificate.
+func TestJudgeProbeFailsClosed(t *testing.T) {
+	curl, git := probes[0], probes[1]
+	for _, tc := range []struct {
+		name   string
+		p      probe
+		c      clientsOutput
+		accept bool
+		fails  bool
+	}{
+		{"cut block", git, clientsOutput{}, true, true},
+		{"git missing", git, clientsOutput{missing: map[string]bool{"git": true}}, true, false},
+		{"curl missing", curl, clientsOutput{missing: map[string]bool{"curl": true}}, true, true},
+		{"accepted", curl, curlRan(0, "wbtest-ok\n"), true, false},
+		{"refused, want accept", curl, curlRan(60, "curl: (60) SSL certificate problem\n"), true, true},
+		{"accepted, want refusal", curl, curlRan(0, "wbtest-ok\n"), false, true},
+		{"refused for a timeout", curl, curlRan(28, "curl: (28) Operation timed out\n"), false, true},
+		{"refused for the certificate", curl, curlRan(60, "curl: (60) SSL certificate problem\n"), false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := judgeProbe(tc.p, tc.c, "a leaf", tc.accept)
+			if (err != nil) != tc.fails {
+				t.Errorf("judgeProbe = %v, want an error: %v", err, tc.fails)
+			}
+		})
+	}
+}
+
+func curlRan(code int, out string) clientsOutput {
+	return clientsOutput{ran: map[string]clientResult{"curl": {code: code, out: out}}}
 }
 
 func TestClientsScriptCarriesServerAndLeaf(t *testing.T) {
