@@ -62,6 +62,21 @@ type options struct {
 	// open connections through, so the test can close wb-hostd's end of
 	// the control link. main leaves it nil.
 	wrapVMs func(guestconn.VMs) guestconn.VMs
+	// caTest, set only by the needs-vm test of the guest trust
+	// (TestC02GuestTrustVM), gives the CA record a fake wb-proxyd end
+	// and runs its boot order from each link's boot time call. #583
+	// wires the real wb-proxyd and the boot order. main leaves it nil.
+	caTest *caTest
+}
+
+// caTest is the CA record's test end: the wb-proxyd channel and Ender
+// of its carecord.Config, and Boot, which wraps the guest link's time
+// hook so that a boot time call runs the record's boot order
+// (S09-07-ca-certificates, "Boot, restore and host wake").
+type caTest struct {
+	Proxyd carecord.Proxyd
+	Ender  carecord.Ender
+	Boot   func(*carecord.Keeper, guestconn.TimeHook) guestconn.TimeHook
 }
 
 // run runs wb-hostd until ctx is done. Its steps, in order: the logs,
@@ -257,8 +272,9 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	if o.wrapVMs != nil {
 		vms = o.wrapVMs(m)
 	}
+	cas, timeHook := caKeeper(o, ready, aw, log)
 	links, err = guestconn.New(guestconn.Config{
-		VMs: vms, Version: o.Version, TimeHook: guestconn.SendTime,
+		VMs: vms, Version: o.Version, TimeHook: timeHook,
 		MountHook: guestconn.SendMount(ready.State, time.Now, log), Users: ready.State, Kills: tracker, Logger: log,
 		// Each connection kills the users of the shells the last one lost
 		// (S13-01-process-hardening, "When the link drops").
@@ -270,13 +286,7 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	registry = shells.NewRegistry(links, log)
 	aw.Attach(m)
 	return &host{
-		// The CA record has no wb-proxyd channel until wb-hostd starts
-		// wb-proxyd and runs the boot order (#583). `wb vm reset-ca` works, and its removal list
-		// waits for wb-proxyd.
-		server: &hostservice.Server{
-			VMs: m, Links: links, Audit: aw, Log: log,
-			CAs: carecord.New(carecord.Config{Records: ready.State, Audit: aw, Log: log}),
-		},
+		server: &hostservice.Server{VMs: m, Links: links, Audit: aw, Log: log, CAs: cas},
 		projects: &hostservice.ProjectServer{
 			Store: ready.State, Git: hostservice.CheckGit(ctx, ready.Config.Git, aw), Audit: aw, Log: log,
 			UsersRemoved: links.SendUserRemovals,
@@ -314,6 +324,21 @@ func newNetwork(o options, macos string, aw *audit.Writer, log *slog.Logger, fil
 		Accounting: egress.NewState(egress.StateConfig{Log: log}), Events: events.NewHub(aw, log),
 		Policy: func(ctx context.Context) (*policy.Policy, error) { return policyfile.Static(ctx, o.Paths.Config) },
 	})
+}
+
+// caKeeper returns the CA record and the guest links' time hook. The
+// CA record has no wb-proxyd channel until wb-hostd starts wb-proxyd
+// and runs the boot order (#583): `wb vm reset-ca` works, and its
+// removal list waits for wb-proxyd. Only the needs-vm test's caTest
+// gives it a channel, and a time hook that runs the boot order.
+func caKeeper(o options, ready *startup.Host, aw *audit.Writer, log *slog.Logger) (*carecord.Keeper, guestconn.TimeHook) {
+	cfg := carecord.Config{Records: ready.State, Audit: aw, Log: log}
+	if o.caTest == nil {
+		return carecord.New(cfg), guestconn.SendTime
+	}
+	cfg.Proxyd, cfg.Ender = o.caTest.Proxyd, o.caTest.Ender
+	k := carecord.New(cfg)
+	return k, o.caTest.Boot(k, guestconn.SendTime)
 }
 
 // close ends every wb-vmd by its lifeline, which stops its VM at once
