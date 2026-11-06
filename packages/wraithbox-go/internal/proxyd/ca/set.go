@@ -22,6 +22,11 @@ type vmState struct {
 	accepted bool
 	// cas are the VM's restored CAs, by CA id. None when failed is set.
 	cas map[string]*caCert
+	// record holds the CA ids the CaSet named, whether they restored or
+	// not. They are wb-hostd's record of the VM, so neither a removal
+	// nor an issue may touch their items (S09-07-ca-certificates,
+	// "Messages").
+	record map[string]bool
 	// signing is the CA id that signs, or "" when the CaSet said
 	// ca-not-installed.
 	signing string
@@ -70,23 +75,30 @@ func (a *Authority) SetCAs(ctx context.Context, m *egressv1.CaSet) (*egressv1.Pr
 	defer a.ctl.Unlock()
 	vm, gen := m.GetVm(), m.GetGeneration()
 	if last := a.generation(vm); gen < last {
-		a.logCA(slog.LevelError, "CA set refused", vm, "", "", slog.Uint64("generation", gen),
-			slog.Uint64("last_generation", last), slog.String("reason", "a CA set of an older generation"))
+		a.logCA(slog.LevelError, "CA set refused", vm, "", RuleControlRefused, slog.String("decision", "refuse"),
+			slog.Uint64("generation", gen), slog.Uint64("last_generation", last),
+			slog.String("reason", "a CA set of an older generation"))
 		return nil, fmt.Errorf("%w: CA set of generation %d for VM %s after generation %d", ErrOutOfOrder, gen, vm, last)
+	}
+	record := make(map[string]bool, len(m.GetCas()))
+	for _, in := range m.GetCas() {
+		record[in.GetCaId()] = true
 	}
 	cas, err := a.restoreAll(ctx, vm, m.GetCas())
 	if err != nil {
 		var re *restoreError
 		errors.As(err, &re)
 		rule := failureRule(err)
-		a.commit(vm, &vmState{generation: gen, failed: rule})
+		// The failed state keeps the record, so the CAs that did restore
+		// stay safe from a removal or an issue of their id.
+		a.commit(vm, &vmState{generation: gen, record: record, failed: rule})
 		a.logCA(slog.LevelError, "CA restore failed, the VM gets no streams", vm, re.id, rule,
 			slog.Uint64("generation", gen), slog.String("reason", err.Error()))
 		return &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_CaRestoreFailed{CaRestoreFailed: &egressv1.CaRestoreFailed{
 			Vm: vm, Generation: gen, CaId: re.id, Rule: rule,
 		}}}, nil
 	}
-	a.commit(vm, &vmState{generation: gen, cas: cas, signing: m.GetSigningCaId()})
+	a.commit(vm, &vmState{generation: gen, cas: cas, record: record, signing: m.GetSigningCaId()})
 	for _, ca := range cas {
 		a.logCA(slog.LevelInfo, "CA loaded", vm, ca.id, "", sha256Attr(ca.cert.Raw), slog.Uint64("generation", gen),
 			slog.Bool("signing", ca.id == m.GetSigningCaId()))
@@ -258,8 +270,9 @@ func (a *Authority) Accept(m *egressv1.CaAccept) error {
 		if st != nil {
 			last = st.generation
 		}
-		a.logCA(slog.LevelError, "CA accept refused", vm, "", "", slog.Uint64("generation", gen),
-			slog.Uint64("last_generation", last), slog.String("reason", "not the generation of the VM's last CA set"))
+		a.logCA(slog.LevelError, "CA accept refused", vm, "", RuleControlRefused, slog.String("decision", "refuse"),
+			slog.Uint64("generation", gen), slog.Uint64("last_generation", last),
+			slog.String("reason", "not the generation of the VM's last CA set"))
 		return fmt.Errorf("%w: CA accept of generation %d for VM %s, whose last CA set is of generation %d", ErrOutOfOrder, gen, vm, last)
 	}
 	st.accepted = true

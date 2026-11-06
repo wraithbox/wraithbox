@@ -184,8 +184,12 @@ Spec: S09-06-ca-keys, "Valid CA".
     certificate isn't the item's fails the same way
     (`TestC02RestoreBadCertificate`).
   - Fail an issue's read-back and restore, and see its item deleted
-    (`TestC02IssueRoundTripFails`). An issue for a CA id in use fails
-    with `ca-issue-refused` and no store call (`TestC02IssueRefused`).
+    (`TestC02IssueRoundTripFails`). An issue for a CA id in use, for
+    either VM and also after a CA set that failed to restore, fails with
+    `ca-issue-refused` and no store call (`TestC02IssueRefused`). After
+    a restart, an issue for an id whose item the store holds fails with
+    `ca-issue-refused` and leaves the item, and a failed write deletes
+    nothing (`TestC02IssueStored`).
   - See a locked store wait, log the wait once and continue at the
     unlock (`TestC02StoreLockedWaits`), and fail closed when the wait
     ends (`TestC02StoreLockedCancel`). See an ad-hoc signed build fail
@@ -204,7 +208,8 @@ Spec: S09-07-ca-certificates, "Lifetimes".
 - Report an entry whose item is gone, and see it counted as deleted.
 - `internal/proxyd/ca` covers the `wb-proxyd` side: the refused
   batches, each entry before and after the valid one, an entry of
-  another VM's CA set among them (`TestC02RemovalRefused`), and the
+  another VM's CA set and one of a CA set that failed to restore among
+  them (`TestC02RemovalRefused`), and the
   deletes, an item already gone and a failed delete
   (`TestC02RemovalDeletes`).
 
@@ -231,6 +236,11 @@ Spec: S09-07-ca-certificates, "Lifetimes".
   any bytes through the decoder to `wb-proxyd`'s CA authority over the
   fakes. A message that parses has a VM slot and CA ids of the fixed
   form, and each reply has the form `control.proto` gives it.
+- Leaf hostnames: `FuzzLeafName` feeds any hostname to `wb-proxyd`'s
+  leaf signing over the fakes. A leaf it signs has exactly one
+  `dNSName`, equal to the input and neither a wildcard nor an IP
+  address. It is `CA:FALSE`, signed by the VM's CA, and valid within
+  the CA's validity.
 
 ## Conformance
 

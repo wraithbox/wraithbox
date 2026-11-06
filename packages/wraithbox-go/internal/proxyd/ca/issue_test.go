@@ -95,7 +95,9 @@ func TestC02IssueRoundTripFails(t *testing.T) {
 		fail func(e *env)
 	}{
 		{"read-back", func(e *env) {
-			e.backend.SetStatus(storeitem.AccessFetch, item("work", caA), secretstore.StatusMissingEntitlement)
+			e.hooked.afterWrite = func() {
+				e.backend.SetStatus(storeitem.AccessFetch, item("work", caA), secretstore.StatusMissingEntitlement)
+			}
 		}},
 		{"restore", func(e *env) { e.keys.FailRestore(errors.New("no such key")) }},
 		{"restore of another key", func(e *env) { e.keys.RestoreOther(true) }},
@@ -121,6 +123,7 @@ func TestC02IssueRoundTripFails(t *testing.T) {
 			// No CA is left: the same id issues again.
 			e.keys.FailRestore(nil)
 			e.keys.RestoreOther(false)
+			e.hooked.afterWrite = nil
 			e.issue("work", caA)
 		})
 	}
@@ -151,18 +154,66 @@ func TestC02IssueRefused(t *testing.T) {
 	if leaf, ref := e.a.For("work", 1, "example.com"); leaf == nil {
 		t.Errorf("the live CA stopped signing after the refused issue: %v", ref)
 	}
+
+	// A CA set whose second CA doesn't restore still records both ids:
+	// an issue of either, for either VM, is refused before any store
+	// call.
+	failRestoreOfB(e)
+	calls = len(e.backend.Calls())
+	for _, vm := range []string{"work", "isolated"} {
+		for _, id := range []string{caA, caB} {
+			if got := e.a.Issue(t.Context(), &egressv1.CaIssue{Vm: vm, CaId: id}); got.GetRule() != RuleIssueRefused {
+				t.Errorf("Issue(%s, %s) after a failed restore = rule %q, want %s", vm, id, got.GetRule(), RuleIssueRefused)
+			}
+		}
+	}
+	if n := len(e.backend.Calls()); n != calls {
+		t.Errorf("an issue of a recorded id made %d store calls", n-calls)
+	}
 }
 
 // TestC02IssueGenerateFails: a key store that can't make a key fails the
-// issue with ca-key-restore, and writes no item.
+// issue with ca-key-restore, and writes no item. The only store call is
+// the check that the item is new.
 func TestC02IssueGenerateFails(t *testing.T) {
 	e := newEnv(t, team)
 	e.keys.FailGenerate(errors.ErrUnsupported)
 	if got := e.a.Issue(t.Context(), &egressv1.CaIssue{Vm: "work", CaId: caA}); got.GetRule() != RuleKeyRestore {
 		t.Fatalf("Issue = rule %q, want %s", got.GetRule(), RuleKeyRestore)
 	}
-	if calls := e.backend.Calls(); len(calls) != 0 {
-		t.Errorf("store calls = %v, want none", calls)
+	want := []storetest.Call{{Access: storeitem.AccessFetch, Group: storeitem.Group(team, storeitem.RoleCA), Item: item("work", caA)}}
+	if calls := e.backend.Calls(); !slices.Equal(calls, want) {
+		t.Errorf("store calls = %v, want %v", calls, want)
+	}
+}
+
+// TestC02IssueStored: after a restart, an issue for an id whose item the
+// store holds is refused with ca-issue-refused, and the item stays. A
+// store error on that check fails the issue closed, and a failed write
+// deletes nothing (S09-06-ca-keys, "Issue").
+func TestC02IssueStored(t *testing.T) {
+	e := newEnv(t, team)
+	e.issue("work", caA)
+	e.restart()
+	if got := e.a.Issue(t.Context(), &egressv1.CaIssue{Vm: "work", CaId: caA}); got.GetRule() != RuleIssueRefused {
+		t.Errorf("Issue of a stored id = rule %q, want %s", got.GetRule(), RuleIssueRefused)
+	}
+	if !e.has(item("work", caA)) || deleted(e, item("work", caA)) {
+		t.Error("a refused issue removed the stored item")
+	}
+
+	e.backend.SetStatus(storeitem.AccessFetch, item("work", caB), secretstore.StatusMissingEntitlement)
+	if got := e.a.Issue(t.Context(), &egressv1.CaIssue{Vm: "work", CaId: caB}); got.GetRule() != RuleKeyRestore {
+		t.Errorf("Issue with a failing check = rule %q, want %s", got.GetRule(), RuleKeyRestore)
+	}
+	e.backend.SetStatus(storeitem.AccessFetch, item("work", caB), secretstore.StatusOK)
+
+	e.backend.SetStatus(storeitem.AccessWrite, item("work", caB), secretstore.StatusMissingEntitlement)
+	if got := e.a.Issue(t.Context(), &egressv1.CaIssue{Vm: "work", CaId: caB}); got.GetRule() != RuleKeyRestore {
+		t.Errorf("Issue with a failing write = rule %q, want %s", got.GetRule(), RuleKeyRestore)
+	}
+	if deleted(e, item("work", caB)) {
+		t.Error("a failed write deleted the item")
 	}
 }
 

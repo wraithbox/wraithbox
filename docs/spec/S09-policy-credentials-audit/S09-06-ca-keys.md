@@ -128,9 +128,18 @@ Only after that round trip does `wb-hostd` record the CA. A failed
 step deletes the item, leaves the record unchanged, and fails the issue
 with `ca-key-restore`.
 
-An issue for a CA id that is in a VM's CA set, or whose key this
-`wb-proxyd` holds, fails with `ca-issue-refused` before step 1. It
-doesn't touch the store, so it can't overwrite the item of a CA in use.
+Before step 1, an issue is refused with `ca-issue-refused` when its
+CA id is in use:
+
+- the id is in a VM's last CA set, whether or not that set restored;
+- this `wb-proxyd` holds a key of the id, for either VM;
+- the store already holds the item, so a process before a restart may
+  have issued it.
+
+That last check fetches the item. A missing item lets the issue go on,
+and any other store error fails it as a failed step does. Only a
+failure after a successful write deletes the item, so an issue never
+overwrites or deletes the item of a CA in use.
 
 #### Restore
 

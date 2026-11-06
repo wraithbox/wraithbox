@@ -117,7 +117,7 @@ func (a *Authority) Remove(ctx context.Context, m *egressv1.CaRemove) *egressv1.
 // caller holds mu.
 func (a *Authority) inRecord(id string) bool {
 	for _, st := range a.vms {
-		if _, ok := st.cas[id]; ok {
+		if st.record[id] {
 			return true
 		}
 	}

@@ -18,28 +18,44 @@ import (
 func TestC02RemovalRefused(t *testing.T) {
 	cases := []struct {
 		name, entry, check string
+		setup              func(e *env)
 	}{
-		{"binding", "wraithbox/binding/x", CheckItemForm},
-		{"wbadmin build", "wraithbox/wbadmin/build/x", CheckItemForm},
-		{"no prefix", "ca/work/" + caB, CheckItemForm},
-		{"not a VM slot", item("other", caB), CheckItemForm},
-		{"not a CA id", item("work", "x"), CheckItemForm},
-		{"upper case CA id", item("work", strings.ToUpper(caB)), CheckItemForm},
-		{"a part outside the form", item("work", caB) + "/x", CheckItemForm},
-		{"a CA in the record", item("work", caA), CheckInRecord},
-		{"a CA in another VM's record", item("isolated", caA), CheckInRecord},
+		{"binding", "wraithbox/binding/x", CheckItemForm, nil},
+		{"wbadmin build", "wraithbox/wbadmin/build/x", CheckItemForm, nil},
+		{"no prefix", "ca/work/" + caB, CheckItemForm, nil},
+		{"not a VM slot", item("other", caB), CheckItemForm, nil},
+		{"not a CA id", item("work", "x"), CheckItemForm, nil},
+		{"upper case CA id", item("work", strings.ToUpper(caB)), CheckItemForm, nil},
+		{"a part outside the form", item("work", caB) + "/x", CheckItemForm, nil},
+		{"a CA in the record", item("work", caA), CheckInRecord, nil},
+		{"a CA in another VM's record", item("isolated", caA), CheckInRecord, nil},
+		{"a CA in the record after a failed restore", item("work", caA), CheckInRecord, failRestoreOfB},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) { checkRefusedBatch(t, c.entry, c.check) })
+		t.Run(c.name, func(t *testing.T) { checkRefusedBatch(t, c.entry, c.check, c.setup) })
 	}
 }
 
-// checkRefusedBatch sends entry before and after a valid entry, and sees
-// each batch refused with check and nothing deleted. Then it sees the
-// valid entry alone deleted.
-func checkRefusedBatch(t *testing.T, entry, check string) {
+// failRestoreOfB sends VM work a CA set of caA and caB in which caB's
+// certificate is caA's, so caB doesn't restore and the set fails.
+func failRestoreOfB(e *env) {
+	e.t.Helper()
+	derA := e.a.vms["work"].cas[caA].cert.Raw
+	e.issue("work", caB)
+	if reply := e.set("work", 2, caA, caA, derA, caB, derA); reply.GetCaRestoreFailed() == nil {
+		e.t.Fatalf("SetCAs with caB's certificate wrong = %v, want CaRestoreFailed", reply)
+	}
+}
+
+// checkRefusedBatch runs setup, if any, sends entry before and after a
+// valid entry, and sees each batch refused with check and nothing
+// deleted. Then it sees the valid entry alone deleted.
+func checkRefusedBatch(t *testing.T, entry, check string, setup func(e *env)) {
 	e := newEnv(t, team)
 	e.ready()
+	if setup != nil {
+		setup(e)
+	}
 	e.issue("isolated", caC)
 	valid := item("isolated", caC)
 	for _, items := range [][]string{{entry, valid}, {valid, entry}} {
