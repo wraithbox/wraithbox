@@ -41,20 +41,46 @@ Project users read the directory under S13-02-filesystem-profile, "Profile".
 
 The files:
 
-- **The CA file:** every current CA of the VM.
-- **The bundle:** the guest's public roots (`/etc/ssl/cert.pem` on
-  macOS) and every current CA. `wb-guestd` rebuilds it from the current
-  public roots on every write. A variable that replaces a client's
-  roots points here, because pass hosts and raw TCP relays present
-  public certificates (S07-07-hosts-and-modes, "Modes, per host").
-- **The Java trust store:** a PKCS12 file without a password, with the
-  same certificates as the bundle. `wb-guestd` builds it itself, in
-  Go.
+- **The CA file**, `ca.pem`: every current CA of the VM, as PEM, in
+  the order of the request.
+- **The bundle**, `bundle.pem`: the guest's public roots
+  (`/etc/ssl/cert.pem` on macOS) and every current CA. `wb-guestd`
+  rebuilds it from the current public roots on every write. A variable
+  that replaces a client's roots points here, because pass hosts and
+  raw TCP relays present public certificates (S07-07-hosts-and-modes,
+  "Modes, per host").
+- **The Java trust store**, `java-truststore.p12`: a PKCS12 file
+  without a password, with the same certificates as the bundle.
+  `wb-guestd` builds it itself, in Go, with
+  `software.sslmate.com/src/go-pkcs12` (S10-01-libraries). Neither the
+  standard library nor `golang.org/x/crypto/pkcs12` can write PKCS12.
 
-Neither the standard library nor `golang.org/x/crypto/pkcs12` can
-write PKCS12. So this needs a writer with a permissive license, such as
-`software.sslmate.com/src/go-pkcs12` (BSD-3-Clause). S10-tech-stack
-records it when the code is merged.
+The bundle holds the public roots as `wb-guestd` parsed them, encoded
+again as PEM, and then the CAs. A block that isn't a certificate, or a
+certificate that doesn't parse, is left out, and the install log counts
+it. A roots file that isn't a regular file, is over 4 MiB or doesn't hold a
+root that parses fails the install.
+
+### Install
+
+`wb-guestd` checks the request before it writes anything. It takes 1 to
+3 certificates, each a DER X.509 certificate that parses, with
+`CA:TRUE`, a P-256 public key, and no two the same. It refuses anything
+else with `trust-install-refused`.
+
+It creates a missing directory. It refuses with `trust-dir-unsafe`, and
+writes nothing, when the directory is a symlink or not a directory, is
+owned by another user than root, or has another mode than 0755,
+special bits included.
+
+It writes the CA file, the bundle and the Java trust store in that
+order. A failure after the checks answers with `trust-install-failed`
+and leaves the files renamed before it in place. The next install
+writes them all again. Success is an empty answer after the last
+rename.
+
+Each install logs one line with the SHA-256 fingerprint of each CA,
+the rule and the decision.
 
 ### Variables
 
