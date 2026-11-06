@@ -17,14 +17,14 @@ import (
 const (
 	// CheckItemForm: the entry isn't `ca/<vm>/<ca>` with a VM slot and a
 	// CA id.
-	CheckItemForm = "item-form"
+	CheckItemForm = egressmsg.CheckCAItemForm
 	// CheckInRecord: the entry's CA is a CA of a VM's last CaSet.
-	CheckInRecord = "in-record"
+	CheckInRecord = egressmsg.CheckCAInRecord
 )
 
 // maxItemLog bounds an entry in a log line: Prefix and three parts of
 // at most storeitem.MaxPart characters.
-const maxItemLog = len(storeitem.Prefix) + 3*storeitem.MaxPart + 2
+const maxItemLog = egressmsg.MaxCAItem
 
 // removal is one entry of a batch that passed its checks.
 type removal struct {

@@ -128,18 +128,84 @@ func TestCAMessagesFit(t *testing.T) {
 	}
 }
 
-// TestCARepliesRefused sees wb-hostd's decoder refuse each CA reply
-// until it reads them.
-func TestCARepliesRefused(t *testing.T) {
-	for _, m := range []*egressv1.ProxydToHostd{
-		{Kind: &egressv1.ProxydToHostd_CaIssued{CaIssued: &egressv1.CaIssued{Vm: "work", CaId: caA, Certificate: []byte{1}}}},
-		{Kind: &egressv1.ProxydToHostd_CaLoaded{CaLoaded: &egressv1.CaLoaded{Vm: "work", Generation: 1}}},
-		{Kind: &egressv1.ProxydToHostd_CaRestoreFailed{CaRestoreFailed: &egressv1.CaRestoreFailed{Vm: "work", Generation: 1, CaId: caA, Rule: "ca-key-restore"}}},
-		{Kind: &egressv1.ProxydToHostd_CaRemoved{CaRemoved: &egressv1.CaRemoved{Deleted: []string{"wraithbox/ca/work/" + caA}}}},
-	} {
-		_, r := DecodeProxydToHostd(marshal(t, m), false)
-		wantCheck(t, r, CheckMessageForm)
+func caIssuedMsg(edit func(*egressv1.CaIssued)) proto.Message {
+	m := &egressv1.CaIssued{Vm: "work", CaId: caA, Certificate: []byte{0x30, 1}}
+	if edit != nil {
+		edit(m)
 	}
+	return &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_CaIssued{CaIssued: m}}
+}
+
+func caRestoreFailedMsg(edit func(*egressv1.CaRestoreFailed)) proto.Message {
+	m := &egressv1.CaRestoreFailed{Vm: "work", Generation: 2, CaId: caA, Rule: RuleCAKeyRestore}
+	if edit != nil {
+		edit(m)
+	}
+	return &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_CaRestoreFailed{CaRestoreFailed: m}}
+}
+
+func caLoadedMsg(vm string, gen uint64) proto.Message {
+	return &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_CaLoaded{CaLoaded: &egressv1.CaLoaded{Vm: vm, Generation: gen}}}
+}
+
+func caRemovedMsg(m *egressv1.CaRemoved) proto.Message {
+	return &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_CaRemoved{CaRemoved: m}}
+}
+
+// TestCAReplies checks the form of each CA reply wb-hostd reads from
+// wb-proxyd (control.proto).
+func TestCAReplies(t *testing.T) {
+	item := "wraithbox/ca/work/" + caA
+	full := make([]string, MaxRemoveItems)
+	for i := range full {
+		full[i] = item
+	}
+	refusal := func(index uint32, check string) []*egressv1.CaRemovalRefusal {
+		return []*egressv1.CaRemovalRefusal{{Index: index, Check: check}}
+	}
+	refused := func(r []*egressv1.CaRemovalRefusal) *egressv1.CaRemoved {
+		return &egressv1.CaRemoved{Rule: RuleCARemovalRefused, Refused: r}
+	}
+	runControl(t, func(b []byte, fd bool) *Refusal { _, r := DecodeProxydToHostd(b, fd); return r }, []controlCase{
+		{"issued", caIssuedMsg(nil), false, ""},
+		{"issued largest certificate", caIssuedMsg(func(m *egressv1.CaIssued) { m.Certificate = bytes.Repeat([]byte{1}, MaxCACert) }), false, ""},
+		{"issued long certificate", caIssuedMsg(func(m *egressv1.CaIssued) { m.Certificate = bytes.Repeat([]byte{1}, MaxCACert+1) }), false, CheckMessageForm},
+		{"issued key restore", caIssuedMsg(func(m *egressv1.CaIssued) { m.Certificate, m.Rule = nil, RuleCAKeyRestore }), false, ""},
+		{"issued needs team", caIssuedMsg(func(m *egressv1.CaIssued) { m.Certificate, m.Rule = nil, RuleCANeedsTeam }), false, ""},
+		{"issued refused", caIssuedMsg(func(m *egressv1.CaIssued) { m.Certificate, m.Rule = nil, RuleCAIssueRefused }), false, ""},
+		{"issued other rule", caIssuedMsg(func(m *egressv1.CaIssued) { m.Certificate, m.Rule = nil, "ca-leaf-refused" }), false, CheckMessageForm},
+		{"issued neither", caIssuedMsg(func(m *egressv1.CaIssued) { m.Certificate = nil }), false, CheckMessageForm},
+		{"issued both", caIssuedMsg(func(m *egressv1.CaIssued) { m.Rule = RuleCAKeyRestore }), false, CheckMessageForm},
+		{"issued bad VM", caIssuedMsg(func(m *egressv1.CaIssued) { m.Vm = "x" }), false, CheckVMSlot},
+		{"issued bad id", caIssuedMsg(func(m *egressv1.CaIssued) { m.CaId = "X" }), false, CheckMessageForm},
+		{"issued with descriptor", caIssuedMsg(nil), true, CheckMessageForm},
+		{"loaded", caLoadedMsg("isolated", 1), false, ""},
+		{"loaded generation 0", caLoadedMsg("work", 0), false, CheckMessageForm},
+		{"loaded bad VM", caLoadedMsg("", 1), false, CheckVMSlot},
+		{"loaded with descriptor", caLoadedMsg("work", 1), true, CheckMessageForm},
+		{"restore failed", caRestoreFailedMsg(nil), false, ""},
+		{"restore failed needs team", caRestoreFailedMsg(func(m *egressv1.CaRestoreFailed) { m.Rule = RuleCANeedsTeam }), false, ""},
+		{"restore failed issue rule", caRestoreFailedMsg(func(m *egressv1.CaRestoreFailed) { m.Rule = RuleCAIssueRefused }), false, CheckMessageForm},
+		{"restore failed no rule", caRestoreFailedMsg(func(m *egressv1.CaRestoreFailed) { m.Rule = "" }), false, CheckMessageForm},
+		{"restore failed bad id", caRestoreFailedMsg(func(m *egressv1.CaRestoreFailed) { m.CaId = "" }), false, CheckMessageForm},
+		{"restore failed generation 0", caRestoreFailedMsg(func(m *egressv1.CaRestoreFailed) { m.Generation = 0 }), false, CheckMessageForm},
+		{"restore failed with descriptor", caRestoreFailedMsg(nil), true, CheckMessageForm},
+		{"removed", caRemovedMsg(&egressv1.CaRemoved{Deleted: []string{item}}), false, ""},
+		{"removed none", caRemovedMsg(&egressv1.CaRemoved{}), false, ""},
+		{"removed full", caRemovedMsg(&egressv1.CaRemoved{Deleted: full}), false, ""},
+		{"removed too many", caRemovedMsg(&egressv1.CaRemoved{Deleted: append(full, item)}), false, CheckMessageForm},
+		{"removed empty entry", caRemovedMsg(&egressv1.CaRemoved{Deleted: []string{""}}), false, CheckMessageForm},
+		{"removed long entry", caRemovedMsg(&egressv1.CaRemoved{Deleted: []string{strings.Repeat("a", MaxCAItem+1)}}), false, CheckMessageForm},
+		{"removed refusal with no rule", caRemovedMsg(&egressv1.CaRemoved{Refused: refusal(0, CheckCAItemForm)}), false, CheckMessageForm},
+		{"removed other rule", caRemovedMsg(&egressv1.CaRemoved{Rule: "ca-issue-refused"}), false, CheckMessageForm},
+		{"refused item form", caRemovedMsg(refused(refusal(0, CheckCAItemForm))), false, ""},
+		{"refused in record", caRemovedMsg(refused(refusal(MaxRemoveItems-1, CheckCAInRecord))), false, ""},
+		{"refused index past the batch", caRemovedMsg(refused(refusal(MaxRemoveItems, CheckCAInRecord))), false, CheckMessageForm},
+		{"refused other check", caRemovedMsg(refused(refusal(0, "vm-slot"))), false, CheckMessageForm},
+		{"refused no entries", caRemovedMsg(refused(nil)), false, CheckMessageForm},
+		{"refused with deleted", caRemovedMsg(&egressv1.CaRemoved{Rule: RuleCARemovalRefused, Deleted: []string{item}, Refused: refusal(0, CheckCAItemForm)}), false, CheckMessageForm},
+		{"removed with descriptor", caRemovedMsg(&egressv1.CaRemoved{}), true, CheckMessageForm},
+	})
 }
 
 func TestValidCAID(t *testing.T) {

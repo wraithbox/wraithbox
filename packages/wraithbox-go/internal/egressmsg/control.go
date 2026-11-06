@@ -80,11 +80,8 @@ func DecodeHostdToNetd(record []byte, hasFD bool) (*egressv1.HostdToNetd, *Refus
 // DecodeProxydToHostd checks one record that wb-hostd read from
 // wb-proxyd's control channel, and whether a descriptor came with it.
 // No kind takes a descriptor. Whether the VM, generation and sequence
-// match what wb-hostd sent is wb-hostd's check.
-//
-// The CA replies (CaIssued, CaLoaded, CaRestoreFailed, CaRemoved) are
-// refused until wb-hostd keeps the CA record and checks them, so no
-// reply of a CA wb-hostd didn't ask for is taken.
+// match what wb-hostd sent is wb-hostd's check, and so is whether a CA
+// reply answers a CA message wb-hostd sent (internal/hostd/carecord).
 func DecodeProxydToHostd(record []byte, hasFD bool) (*egressv1.ProxydToHostd, *Refusal) {
 	m := &egressv1.ProxydToHostd{}
 	if r := decode(record, m); r != nil {
@@ -98,9 +95,14 @@ func DecodeProxydToHostd(record []byte, hasFD bool) (*egressv1.ProxydToHostd, *R
 		r = policyAck(k.PolicyAck, hasFD)
 	case *egressv1.ProxydToHostd_HandoffSocketClosed:
 		r = handoffSocketClosed(k.HandoffSocketClosed, hasFD)
-	case *egressv1.ProxydToHostd_CaIssued, *egressv1.ProxydToHostd_CaLoaded,
-		*egressv1.ProxydToHostd_CaRestoreFailed, *egressv1.ProxydToHostd_CaRemoved:
-		r = refuse(CheckMessageForm, "kind", "a CA reply, which wb-hostd doesn't read yet")
+	case *egressv1.ProxydToHostd_CaIssued:
+		r = caIssued(k.CaIssued, hasFD)
+	case *egressv1.ProxydToHostd_CaLoaded:
+		r = caLoaded(k.CaLoaded, hasFD)
+	case *egressv1.ProxydToHostd_CaRestoreFailed:
+		r = caRestoreFailed(k.CaRestoreFailed, hasFD)
+	case *egressv1.ProxydToHostd_CaRemoved:
+		r = caRemoved(k.CaRemoved, hasFD)
 	default:
 		r = refuse(CheckMessageForm, "kind", "no kind set")
 	}
