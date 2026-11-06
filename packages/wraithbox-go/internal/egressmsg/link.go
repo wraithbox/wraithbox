@@ -1,6 +1,7 @@
 package egressmsg
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"net/netip"
@@ -36,11 +37,15 @@ func NewNetdStart(vm string, generation uint64, l Link) *egressv1.NetdStart {
 	subnet, _ := AddrToWire(l.Subnet.Addr())
 	gateway, _ := AddrToWire(l.Gateway)
 	leased, _ := AddrToWire(l.Leased)
-	bits := l.Subnet.Bits()
+	// Bits is -1 for an invalid prefix, which leaves 0 and is refused.
+	var bits uint32
+	if b := l.Subnet.Bits(); b > 0 && b <= 32 {
+		bits = uint32(b)
+	}
 	return &egressv1.NetdStart{
 		Vm: vm, Generation: generation,
 		GuestMac: append([]byte(nil), l.GuestMAC...), GatewayMac: append([]byte(nil), l.GatewayMAC...),
-		Subnet: subnet, PrefixLen: uint32(max(bits, 0)), Gateway: gateway, Leased: leased,
+		Subnet: subnet, PrefixLen: bits, Gateway: gateway, Leased: leased,
 	}
 }
 
@@ -93,11 +98,10 @@ func checkMACs(guest, gateway net.HardwareAddr) *Refusal {
 // checkHost refuses an address that isn't in the subnet, or is its
 // network or broadcast address.
 func checkHost(field string, a netip.Addr, subnet netip.Prefix) *Refusal {
-	last := subnet.Addr().As4()
+	network := subnet.Addr().As4()
 	host := uint32(1)<<(32-subnet.Bits()) - 1
-	for i := range 4 {
-		last[i] |= byte(host >> (8 * (3 - i)))
-	}
+	var last [4]byte
+	binary.BigEndian.PutUint32(last[:], binary.BigEndian.Uint32(network[:])|host)
 	if !subnet.Contains(a) || a == subnet.Addr() || a == netip.AddrFrom4(last) {
 		return refuse(CheckAddressing, field, fmt.Sprintf("%s isn't a host address in %s", a, subnet))
 	}
