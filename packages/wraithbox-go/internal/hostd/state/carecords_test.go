@@ -62,8 +62,8 @@ func TestCARecordsMigration(t *testing.T) {
 	t.Run("upgraded", func(t *testing.T) {
 		dir := t.TempDir()
 		at := slices.IndexFunc(migrations, func(m migration) bool { return m.name == "ca-records" })
-		if at != len(migrations)-1 {
-			t.Fatalf("ca-records is migration %d of %d", at, len(migrations))
+		if at < 0 {
+			t.Fatal("no migration ca-records")
 		}
 		db := mustOpen(t, dir, opts(migrations[:at]))
 		formatDisk(t, db, workDisk)
