@@ -18,11 +18,14 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/carecord"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/datadisk"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/egress"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/events"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/guestconn"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/hostservice"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/kills"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/launch"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/logpipe"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/netdproc"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/shells"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/startup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/vm"
@@ -31,6 +34,8 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/diskclone"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/localipc"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/paths"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/policyfile"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
@@ -212,17 +217,9 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	if err != nil {
 		return nil, err
 	}
-	provider, err := vmdprovider.New(vmdprovider.Config{
-		Program: filepath.Join(macos, "wb-vmd"), RunDir: o.Paths.Run, Version: o.Version,
-		Logs: files.Writer, Logger: log,
-	})
+	provider, err := newProvider(ctx, o, macos, log, files)
 	if err != nil {
 		return nil, err
-	}
-	// A leftover takes only its directory entry: each run's socket has a
-	// new name, so the start goes on when one can't be removed.
-	if _, err := provider.ClearLeftovers(ctx); err != nil {
-		log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd leftover sockets not all removed", slog.String("error", err.Error()))
 	}
 	var (
 		links    *guestconn.Links
@@ -234,9 +231,14 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 	if err != nil {
 		return nil, err
 	}
+	network, err := newNetwork(o, macos, aw, log, files)
+	if err != nil {
+		return nil, err
+	}
 	m, err := vm.New(vm.Config{
 		DataDir: o.Paths.Data, ToolsImage: filepath.Join(bundle, filepath.FromSlash(appbundle.ToolsDiskPath)),
 		Resources: ready.Config, Generations: ready.State, MACAddresses: ready.State, Provider: provider, Cloner: diskclone.Cloner{},
+		Network:   network,
 		DataDisks: disks, Audit: aw, Logger: log,
 		OnRunning: func(slot vm.Slot, generation uint64, ended <-chan struct{}) { links.Run(slot, generation, ended) },
 		// A stop is refused while the VM has an open debug shell
@@ -283,6 +285,35 @@ func newHost(ctx context.Context, o options, bundle string, ready *startup.Host,
 		registry: registry,
 		vms:      m, provider: provider, links: links, audit: aw, closeDB: ready.State.Close,
 	}, nil
+}
+
+// newProvider returns the VM provider, which starts a wb-vmd for each
+// run, and clears the sockets a crashed wb-hostd's runs left.
+func newProvider(ctx context.Context, o options, macos string, log *slog.Logger, files *logpipe.Files) (*vmdprovider.Provider, error) {
+	provider, err := vmdprovider.New(vmdprovider.Config{
+		Program: filepath.Join(macos, "wb-vmd"), RunDir: o.Paths.Run, Version: o.Version,
+		Logs: files.Writer, Logger: log,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// A leftover takes only its directory entry: each run's socket has a
+	// new name, so the start goes on when one can't be removed.
+	if _, err := provider.ClearLeftovers(ctx); err != nil {
+		log.LogAttrs(ctx, slog.LevelWarn, "wb-vmd leftover sockets not all removed", slog.String("error", err.Error()))
+	}
+	return provider, nil
+}
+
+// newNetwork returns the starter of each run's wb-netd, which reads the
+// run's packet transport (S04-07-supervision, "A new `wb-netd`"). Its
+// policy is the static one until the per-VM union replaces it.
+func newNetwork(o options, macos string, aw *audit.Writer, log *slog.Logger, files *logpipe.Files) (*netdproc.Starter, error) {
+	return netdproc.New(netdproc.Config{
+		Program: filepath.Join(macos, netdproc.Process), Own: o.Version, Logs: files.Writer, Log: log,
+		Accounting: egress.NewState(egress.StateConfig{Log: log}), Events: events.NewHub(aw, log),
+		Policy: func(ctx context.Context) (*policy.Policy, error) { return policyfile.Static(ctx, o.Paths.Config) },
+	})
 }
 
 // close ends every wb-vmd by its lifeline, which stops its VM at once

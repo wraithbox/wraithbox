@@ -3,6 +3,8 @@ package vmhandoff
 import (
 	"context"
 	"maps"
+	"os"
+	"os/exec"
 	"reflect"
 	"slices"
 	"strings"
@@ -198,16 +200,58 @@ func TestNetworkCancelAndClose(t *testing.T) {
 	}
 }
 
-// TestTransportHasNoReadOrWrite: the only method of the type that holds
-// the packet transport is Close (S07-02-packet-path, "Packet transport").
+// TestTransportHasNoReadOrWrite: the methods of the type that holds the
+// packet transport are Close and StartWith, which hands the descriptor
+// to a child and never to the caller (S07-02-packet-path, "Packet
+// transport").
 func TestTransportHasNoReadOrWrite(t *testing.T) {
 	typ := reflect.TypeFor[*Transport]()
 	var names []string
 	for m := range typ.Methods() {
 		names = append(names, m.Name)
 	}
-	if !slices.Equal(names, []string{"Close"}) {
-		t.Fatalf("*Transport has methods %v, want only Close", names)
+	if !slices.Equal(names, []string{"Close", "StartWith"}) {
+		t.Fatalf("*Transport has methods %v, want only Close and StartWith", names)
+	}
+}
+
+// TestStartWith: the child inherits the descriptor at the placeholder,
+// and the placeholder is nil again after the start, also after a failed
+// one. A slot that isn't a nil placeholder is refused.
+func TestStartWith(t *testing.T) {
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := &Transport{f: os.NewFile(uintptr(fds[0]), "host")}
+	t.Cleanup(func() { _ = tr.Close() })
+	other := os.NewFile(uintptr(fds[1]), "guest")
+	t.Cleanup(func() { _ = other.Close() })
+
+	// The child checks that descriptor 3 is open.
+	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "exec 9<&3")
+	cmd.ExtraFiles = []*os.File{nil}
+	if err := tr.StartWith(cmd, 0); err != nil {
+		t.Fatal(err)
+	}
+	if cmd.ExtraFiles[0] != nil {
+		t.Fatal("the placeholder holds the descriptor after the start")
+	}
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("the child didn't inherit the descriptor: %v", err)
+	}
+
+	missing := exec.CommandContext(t.Context(), "/nonexistent/wb-netd")
+	missing.ExtraFiles = []*os.File{nil}
+	if err := tr.StartWith(missing, 0); err == nil || missing.ExtraFiles[0] != nil {
+		t.Fatalf("failed start: %v, placeholder %v", err, missing.ExtraFiles[0])
+	}
+	for _, files := range [][]*os.File{nil, {other}} {
+		c := exec.CommandContext(t.Context(), "/usr/bin/true")
+		c.ExtraFiles = files
+		if err := tr.StartWith(c, 0); err == nil {
+			t.Fatalf("ExtraFiles %v: StartWith accepted", files)
+		}
 	}
 }
 

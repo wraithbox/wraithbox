@@ -32,6 +32,7 @@ package vmhandoff
 import (
 	"fmt"
 	"os"
+	"os/exec"
 
 	"google.golang.org/protobuf/proto"
 
@@ -111,6 +112,24 @@ func (r *Refusal) Unwrap() error { return r.err }
 // write a frame: the only thing its holder can do is close it.
 type Transport struct {
 	f *os.File
+}
+
+// StartWith starts cmd with the descriptor as its ExtraFiles[index],
+// which must be a nil placeholder, for the VM's wb-netd to inherit
+// (S04-07-supervision, "A new `wb-netd`"). The placeholder is nil again
+// when it returns, so the caller never holds the descriptor: the type
+// keeps no read or write path (S07-02-packet-path, "Packet
+// transport"). The descriptor stays the Transport's.
+func (t *Transport) StartWith(cmd *exec.Cmd, index int) error {
+	if index < 0 || index >= len(cmd.ExtraFiles) || cmd.ExtraFiles[index] != nil {
+		return fmt.Errorf("vmhandoff: packet transport: ExtraFiles[%d] isn't a nil placeholder", index)
+	}
+	cmd.ExtraFiles[index] = t.f
+	defer func() { cmd.ExtraFiles[index] = nil }()
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("vmhandoff: packet transport: start %s: %w", cmd.Path, err)
+	}
+	return nil
 }
 
 // Close closes the descriptor. A second Close returns an error.
