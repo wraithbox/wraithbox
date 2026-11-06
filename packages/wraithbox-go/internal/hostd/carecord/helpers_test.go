@@ -1,6 +1,7 @@
 package carecord
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -246,7 +247,9 @@ type rig struct {
 	guest *fakeGuest
 	ender *fakeEnder
 	audit *audittest.Recorder
-	now   time.Time
+	// logs holds the Keeper's log records, as JSON lines.
+	logs *bytes.Buffer
+	now  time.Time
 	ids   int
 	// seen is how many 5019 records wantChanges read before.
 	seen int
@@ -259,13 +262,13 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	r := &rig{db: db, o: &order{}, ender: &fakeEnder{}, audit: &audittest.Recorder{}, now: start}
+	r := &rig{db: db, o: &order{}, ender: &fakeEnder{}, audit: &audittest.Recorder{}, logs: &bytes.Buffer{}, now: start}
 	r.px = &fakeProxyd{o: r.o, now: r.clock}
 	r.guest = &fakeGuest{o: r.o}
 	r.k = New(Config{
 		Records: db, Proxyd: r.px, Ender: r.ender, Audit: r.audit, Clock: r.clock,
 		NewID: r.newID, InstallTimeout: 50 * time.Millisecond,
-		Log: slog.New(slog.DiscardHandler),
+		Log: slog.New(slog.NewJSONHandler(r.logs, nil)),
 	})
 	return r
 }

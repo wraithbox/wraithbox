@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/guesttext"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/state"
 )
 
@@ -29,8 +30,9 @@ import (
 // valid, also past day 58. Only a boot moves signing to the successor.
 //
 // A *Refusal refuses the start, unless its KeepsRunning is set: the
-// guest refused or didn't report the install, and the VM runs with its
-// inspected streams refused, because no CaAccept was sent.
+// guest refused or didn't report the install, and the VM runs, but
+// wb-proxyd doesn't accept its inspected streams, because no CaAccept
+// was sent.
 func (k *Keeper) Boot(ctx context.Context, slot string, generation uint64, reason Reason, g Guest) error {
 	if err := g.SetClock(ctx, reason); err != nil {
 		k.cfg.Log.Error("guest clock not set, the VM doesn't start", "vm", slot, "generation", generation,
@@ -59,7 +61,7 @@ func (k *Keeper) Boot(ctx context.Context, slot string, generation uint64, reaso
 	if err := k.load(ctx, slot, generation, r.live, signing); err != nil {
 		return err
 	}
-	if err := k.install(ctx, slot, generation, g, r.live); err != nil {
+	if err := k.install(ctx, slot, generation, g, r.live, "so wb-proxyd doesn't accept this run's inspected streams"); err != nil {
 		return err
 	}
 	if err := k.recordSigner(ctx, slot, generation, r, signing); err != nil {
@@ -112,7 +114,7 @@ func (k *Keeper) Tick(ctx context.Context, slot string, generation uint64, g Gue
 		return err
 	}
 	if r.issued != nil {
-		if err := k.install(ctx, slot, generation, g, r.live); err != nil {
+		if err := k.install(ctx, slot, generation, g, r.live, "so the successor never signs on this run"); err != nil {
 			return err
 		}
 	}
@@ -208,27 +210,34 @@ func (k *Keeper) dropExpired(ctx context.Context, slot string, generation uint64
 	return nil
 }
 
+// guestTextCut is how many bytes of the guest's text about a refused
+// install a log record keeps.
+const guestTextCut = 256
+
 // install asks the guest to install live, the record's CAs, and records
 // the install when it reports it (steps 5 and 6 of the boot order). A
 // refused or unreported install is logged and audited, and returns a
 // *Refusal with KeepsRunning set (S09-07-ca-certificates, "Rotation": a
 // guest that doesn't report the install only cuts off its own traffic).
-func (k *Keeper) install(ctx context.Context, slot string, generation uint64, g Guest, live []state.CA) error {
+// consequence says what that means for the run, for the message.
+func (k *Keeper) install(ctx context.Context, slot string, generation uint64, g Guest, live []state.CA, consequence string) error {
 	installCtx, cancel := context.WithTimeout(ctx, k.cfg.InstallTimeout)
 	err := g.InstallTrust(installCtx, certs(live))
 	timedOut := installCtx.Err() != nil
 	cancel()
 	if err != nil {
-		rule, what := RuleInstallRefused, "refused"
+		rule, what, did := RuleInstallRefused, "refused", "refused"
 		if timedOut || errors.Is(err, context.DeadlineExceeded) {
-			rule, what = RuleInstallUnreported, "not reported"
+			rule, what, did = RuleInstallUnreported, "not reported", "didn't report"
 		}
+		// The error text is the guest's: it is logged escaped and cut
+		// (proto/wraithbox/guest/v1, InstallTrust).
 		k.cfg.Log.LogAttrs(ctx, slog.LevelWarn, "CA install "+what, slog.String("vm", slot),
 			slog.Uint64("generation", generation), slog.String("decision", "refuse"), slog.String("rule", rule),
-			slog.String("error", err.Error()))
+			slog.String("error", guesttext.LogField(err.Error(), guestTextCut)))
 		k.changed(slot, generation, "refuse", rule, "CA install "+what, live...)
 		return &Refusal{Rule: rule, KeepsRunning: true, Message: fmt.Sprintf(
-			"the guest of VM %s %s the install of its CAs, so its inspected streams are refused", slot, what)}
+			"the guest of VM %s %s the install of its CAs, %s", slot, did, consequence)}
 	}
 	err = k.cfg.Records.CAs(ctx, func(tx *state.CATx) error {
 		return tx.MarkInstalled(slot, ids(live), generation, k.cfg.Clock())
