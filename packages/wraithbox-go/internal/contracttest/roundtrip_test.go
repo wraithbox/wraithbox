@@ -159,6 +159,8 @@ func messages() []proto.Message {
 		&guestv1.SetTimeResponse{},
 		&guestv1.MountDataRequest{VolumeUuid: "0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0", FirstMount: true},
 		&guestv1.MountDataResponse{},
+		&guestv1.InstallTrustRequest{CaCertificates: [][]byte{{0x30, 0x82, 0x01, 0x0a}, {0x30, 0x03, 0x02, 0x01, 0x01}}},
+		&guestv1.InstallTrustResponse{},
 		&hostdv1.ResetVMDataRequest{Vm: hostdv1.VM_VM_ISOLATED},
 		&hostdv1.ResetVMDataResponse{OldVolumeUuid: "A", NewVolumeUuid: "B"},
 		&hostdv1.StartVMRequest{Vm: hostdv1.VM_VM_WORK},
