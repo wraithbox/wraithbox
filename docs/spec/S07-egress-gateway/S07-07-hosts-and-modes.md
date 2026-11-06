@@ -11,7 +11,13 @@ The hostname of a stream is the name `wb-proxyd`'s copy holds for the
 synthetic address (S07-06-name-mapping).
 
 - For TLS, the ClientHello SNI must equal that hostname, or the stream
-  is reset.
+  is reset with the rule `tls-sni-mismatch`. The SNI is folded to
+  lower case and must be in the name form of S07-03-dns. A ClientHello
+  without an SNI, or with an SNI that ends in a dot or is an IP
+  address, is reset with the same rule. A `server_name` extension that
+  doesn't hold exactly one host name fails the ClientHello parser, and
+  the first-byte check resets the stream (S07-15-non-http-streams,
+  "First bytes").
 - For inspected plain HTTP, the `Host` header must equal that hostname
   (S07-03-dns, "Synthetic pool").
 

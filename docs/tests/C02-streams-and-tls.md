@@ -104,6 +104,70 @@ Spec: S07-07-hosts-and-modes, "Upstream address". The tests are in
 - A name that resolves to `127.0.0.1` reaches no listener there
   (`TestDialLoopback`).
 
+### Stream checks
+
+Spec: S07-15-non-http-streams, S07-07-hosts-and-modes ("Name
+binding"), S07-16-tls-and-tunnels ("Pass"). The tests are in
+`internal/proxyd/stream`, with a fake hand-off side for each stream
+and loopback upstream servers, and in `internal/proxyd/tlsparse`. Each
+reset is logged with its rule, its check and what the first bytes
+looked like, and reaches the audit hook.
+
+- Send a ClientHello whose SNI differs from the stream's name, one
+  without an SNI, one with an IP address and one with a trailing dot,
+  and see each reset with `tls-sni-mismatch` and nothing dialed. An
+  SNI in upper case goes to the Inspector, with its bytes to read again
+  (`TestC02SNIBinding`).
+- Send SSH, a PostgreSQL startup message, an `SSLRequest`, a cleartext
+  HTTP/2 preface and an HTTP request line to a TLS port, and an HTTP/2
+  preface, a ClientHello, SSH and an HTTP/0.9 request line to port 80.
+  See each reset with `stream-protocol-mismatch` and the protocol it
+  looked like, and nothing dialed (`TestC02FirstBytesMismatch`).
+  HTTP/1.1 and HTTP/1.0 request lines sent a byte at a time go to the
+  Inspector (`TestC02PlainHTTP`). A port with no protocol is reset
+  (`TestC02NoProtocol`).
+- Open a stream and don't send, and send a ClientHello a byte at a
+  time, and see each reset with `stream-first-bytes-timeout`
+  (`TestC02FirstBytesTimeout`).
+- Send a ClientHello split over three records, and a flight of exactly
+  the byte cap, and see each taken. A flight one byte past the cap is
+  reset (`TestC02ClientHelloRecords`).
+- Send an ALPN list of only `ftp`, and see it reset. `h2`, `http/1.1`
+  and no list go to the Inspector (`TestC02ALPN`). A host in audit
+  goes to the Inspector in audit mode, after the same checks
+  (`TestC02AuditMode`).
+- To a pass host, send ClientHellos that hold an
+  `encrypted_client_hello` or encrypted SNI extension
+  (`tls-ech-pass`), `early_data`, an unknown extension
+  (`tls-extension-unknown`), or another SNI. See each reset before any
+  dial (`TestC02PassHello`).
+- To a pass host, before the ServerHello, send application data, a
+  handshake record that isn't a ClientHello, a second ClientHello
+  without a HelloRetryRequest, a second change cipher spec, one that
+  isn't the byte `0x01`, and after a HelloRetryRequest a second
+  ClientHello with another SNI or with ECH. See each reset with its
+  rule, and the server get only the records that passed
+  (`TestC02PassRecords`). A ServerHello after a HelloRetryRequest and
+  before the second ClientHello (`TestC02PassServerHelloEarly`), and a
+  server's application data, second HelloRetryRequest or bytes that
+  aren't TLS (`TestC02PassServerRecords`), are reset too.
+- See one change cipher spec relayed, and the bytes after the
+  ServerHello relayed unchanged both ways (`TestC02PassOneCCS`). See an
+  alert close both ways with `tls-client-alert`, its level and
+  description logged, and the alert not relayed (`TestC02PassAlert`).
+- Run a full TLS 1.3 handshake of `crypto/tls`, with a
+  HelloRetryRequest, through a pass relay (`TestC02PassHandshake`).
+- Relay a server-first protocol through a raw TCP entry
+  (`TestC02RawRelay`). A pass and a raw TCP stream to a name that
+  resolves to `127.0.0.1` are reset with `upstream-address-refused`
+  (`TestC02UpstreamRefused`).
+- Remove the raw TCP entry of an open relay, and take an open pass
+  relay's host out of the pass list, and see each relay end both ways
+  with `policy-recomputed` (`TestC02PolicyRecomputed`).
+- `tlsparse` refuses each malformed record and ClientHello with its
+  check (`TestReadClientHelloRefuses`), and reads a server's records
+  only to its ServerHello (`TestServerFlight`).
+
 ### Leaf issuance
 
 Spec: S09-06-ca-keys.
@@ -218,8 +282,19 @@ Spec: S09-07-ca-certificates, "Lifetimes".
 - Upstream addresses: arbitrary 16-byte addresses, checked against a
   second reading of the ranges (`FuzzUpstreamAddress`).
 - TLS ClientHello parsing, a ClientHello split across TLS records
-  included.
-- The first-byte protocol check of S07-15-non-http-streams.
+  included: `FuzzClientHello` feeds any bytes, whole and split into
+  records at any points. The parser doesn't panic, decides the same on
+  the bytes cut at the cap, so it doesn't read past it, and a server
+  name it accepts is in the name form. `FuzzServerFlight` checks that
+  the server's records are read within the cap with at most one
+  HelloRetryRequest.
+- The first-byte protocol check of S07-15-non-http-streams:
+  `FuzzFirstBytes` checks that a TLS port takes nothing the
+  ClientHello parser refuses, that port 80 never takes the HTTP/2
+  preface, and that a decision on a prefix holds for the whole.
+  `FuzzPassClientRecords` checks that before the ServerHello a pass relay
+  sends upstream at most one change cipher spec and, after a
+  HelloRetryRequest, one ClientHello that passes the pass checks.
 - HTTP/1.1 and HTTP/2 request handling, and request path
   canonicalization.
 - The name reports, releases and stream messages `wb-proxyd` reads from

@@ -66,6 +66,13 @@ ServerHello that isn't a HelloRetryRequest. That includes a second
 ClientHello after a HelloRetryRequest, whose SNI must equal the bound
 host too.
 
+The server's records are read only up to that ServerHello, within a
+byte cap fixed in code (SEC13-bounded-resources). A server record
+before it that isn't a handshake, alert or Change Cipher Spec record,
+a second HelloRetryRequest, or a ServerHello that comes after a
+HelloRetryRequest but before the client's second ClientHello, resets
+the stream with `stream-protocol-mismatch`.
+
 Before that ServerHello, the client's records are handled like this:
 
 - **Other records.** A handshake record that isn't a ClientHello, or

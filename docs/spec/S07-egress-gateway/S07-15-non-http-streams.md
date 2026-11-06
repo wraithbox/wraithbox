@@ -72,6 +72,14 @@ holds the bytes themselves.
   change that would allow it, if any (NFR06-explained-refusals).
 - The guest sees a TCP reset.
 
+A stream that passes its checks is logged too, once, with the rule
+that let it on: `inspect-allowed` when it goes to the HTTP checks of
+S07-08-requests-and-credentials, `pass-allowed` when a pass relay
+sends its ClientHello upstream, and `raw-tcp-allowed` when a raw TCP
+relay connects. A pass and a raw TCP record also name the policy
+entry's source and reason. Each relay logs its end, with the bytes
+it relayed each way.
+
 ### Inside TLS on an inspected host
 
 `wb-proxyd` offers only the ALPN protocols `h2` and `http/1.1`. A
