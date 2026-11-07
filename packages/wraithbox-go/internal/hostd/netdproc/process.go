@@ -84,6 +84,9 @@ func (s *Starter) spawn(ctx context.Context, slot vm.Slot, generation uint64, tr
 	if err == nil {
 		p.events, err = channel(eventchan.MaxRecord, &child)
 	}
+	if err == nil {
+		err = s.closeInherited(ctx, slot, generation)
+	}
 	var logRead, logWrite *os.File
 	if err == nil {
 		logRead, logWrite, err = os.Pipe()
@@ -115,6 +118,24 @@ func (s *Starter) spawn(ctx context.Context, slot vm.Slot, generation uint64, tr
 	s.cfg.Accounting.Start(string(slot), false)
 	p.reader = s.cfg.Accounting.Read(p.accounting, egress.NetdSource(string(slot)), p, s.cfg.Own)
 	return p, nil
+}
+
+// closeInherited marks every descriptor of wb-hostd from 3 on
+// close-on-exec before a spawn. wb-hostd may have inherited one without
+// the flag from launchd or a shell, and wb-netd refuses any descriptor
+// beyond its start interface (S04-09-netd-start, "Start interface",
+// SEC12-least-privilege). A walk that fails fails the spawn.
+func (s *Starter) closeInherited(ctx context.Context, slot vm.Slot, generation uint64) error {
+	marked, err := fdchan.CloseOnExecFrom(3)
+	if err != nil {
+		return err
+	}
+	if marked > 0 {
+		s.log.LogAttrs(ctx, slog.LevelWarn, "descriptors closed on exec",
+			slog.String("rule", RuleInheritedDescriptor), slog.String("decision", "close-on-exec"),
+			slog.String("slot", string(slot)), slog.Uint64("generation", generation), slog.Int("count", marked))
+	}
+	return nil
 }
 
 func (p *proc) closeChannels() {

@@ -177,6 +177,29 @@ func TestC11NetdStartAndStop(t *testing.T) {
 	waitFor(t, s.netdLog, `netd-stopped`)
 }
 
+// A descriptor wb-hostd inherited without close-on-exec doesn't reach
+// wb-netd, which would refuse it: the spawn marks it, with
+// inherited-descriptor, and wb-netd starts.
+func TestInheritedDescriptorNotPassed(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = r.Close(), w.Close() }()
+	if _, _, errno := syscall.Syscall(syscall.SYS_FCNTL, w.Fd(), syscall.F_SETFD, 0); errno != 0 {
+		t.Fatal(errno)
+	}
+	s := newSetup(t, netd(t))
+	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
+	if err != nil {
+		t.Fatalf("start: %v\n%s\n%s", err, s.log, s.netdLog)
+	}
+	_ = run.Stop()
+	if !strings.Contains(s.log.String(), `"rule":"inherited-descriptor","decision":"close-on-exec"`) {
+		t.Errorf("the mark isn't logged\n%s", s.log)
+	}
+}
+
 // A wb-netd that a reader ends exits, and Exited says so: the VM
 // manager then stops the VM (vm.RuleNetdExited).
 func TestNetdEndedExits(t *testing.T) {

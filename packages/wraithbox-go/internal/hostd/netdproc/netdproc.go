@@ -40,6 +40,10 @@ const (
 	// RuleStopTimeout: wb-netd didn't exit within Config.StopTimeout after its
 	// control channel closed, and was killed.
 	RuleStopTimeout = "netd-stop-timeout"
+	// RuleInheritedDescriptor: wb-hostd held descriptors without
+	// close-on-exec, and marked them before it started wb-netd, so they
+	// don't reach it.
+	RuleInheritedDescriptor = "inherited-descriptor"
 )
 
 // DefaultStopTimeout is Config.StopTimeout when it is zero. It outlasts
