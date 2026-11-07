@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
 	egressv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/egress/v1"
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
@@ -23,6 +24,8 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/hwkey/hwkeytest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore/storetest"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy/match"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/proxyd/ca"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
 )
@@ -126,9 +129,17 @@ func (p *fakeProxyd) Send(ctx context.Context, m *egressv1.HostdToProxyd) error 
 }
 
 // writeLeaf signs a leaf of leafHost for vm's run of generation, and
-// writes it to leafPath whole.
+// writes it to leafPath whole. The leaf is tied to the inspect decision
+// (#497), so the request carries a policy that inspects leafHost:443.
 func (p *fakeProxyd) writeLeaf(vmName string, generation uint64) error {
-	leaf, ref := p.authority.For(vmName, generation, leafHost)
+	name, nameRef := dnsname.FromHost(leafHost)
+	if nameRef != nil {
+		return fmt.Errorf("fake wb-proxyd: %s: %w", leafHost, nameRef)
+	}
+	leaf, ref := p.authority.For(ca.LeafRequest{
+		VM: vmName, Generation: generation, Name: leafHost, Port: 443,
+		Policy: &policy.Policy{Endpoints: []policy.Endpoint{{Host: match.ExactHost(name), Ports: []uint16{443}}}},
+	})
 	if ref != nil {
 		return fmt.Errorf("fake wb-proxyd: no leaf for %s (%s): %s", leafHost, ref.Rule, ref.Reason)
 	}
