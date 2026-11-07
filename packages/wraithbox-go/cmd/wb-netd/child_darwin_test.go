@@ -76,6 +76,12 @@ func spawn(t *testing.T, files []*os.File, env ...string) (stderr *lockedBuffer,
 	cmd.ExtraFiles = files
 	stderr = &lockedBuffer{}
 	cmd.Stderr = stderr
+	// The test process may have inherited a descriptor without
+	// close-on-exec from its runner. wb-hostd marks its own before each
+	// spawn (netdproc), and the harness does the same.
+	if _, err := fdchan.CloseOnExecFrom(3); err != nil {
+		t.Fatal(err)
+	}
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
