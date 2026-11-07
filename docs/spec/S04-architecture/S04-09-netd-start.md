@@ -29,6 +29,12 @@ when it got an argument. It exits 0 with `netd-stopped` only when
 `wb-hostd` closes the control channel. Any other end, the packet
 transport's included, is logged with `netd-failed`, and it exits 1.
 
+`wb-hostd` may inherit a descriptor without close-on-exec from launchd
+or a shell. Before each spawn it marks every descriptor from 3 on
+close-on-exec, logged with `inherited-descriptor`, so only the start
+interface reaches `wb-netd`. A walk that fails refuses the start with
+`netd-start-failed`.
+
 The hand-off socket to `wb-proxyd` isn't among them. It comes on the
 control channel, after the start message (S04-07-supervision, "New
 hand-off sockets"). `wb-proxyd` doesn't run yet (I512), so for now no
@@ -105,8 +111,9 @@ before then, so `wb-netd` can still confine itself.
   Liveness checks come with the restarts (I480).
 
 An exit while the VM is already stopping, by request or forced, doesn't
-take over that stop's rule. The VM manager has no restore path yet, so
-each start is a new run with a new `wb-netd`. `wb-netd` refuses a second
-`NetdStart`, so a new transport can't reach a running one.
+take over that stop's rule. `wb-netd` refuses a second `NetdStart`, so
+a new transport can't reach a running one. Each generation, a restore's
+included, gets a new `wb-netd` (S04-02-vm-provider, I590). The VM
+manager has no restore path yet, so today each start is a new run.
 
 **Status:** Draft

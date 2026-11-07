@@ -205,7 +205,7 @@ restored VM resumes.
 A frame written to the old network descriptor raises no error and draws
 no answer. So before `resume`, `wb-hostd`:
 
-1. passes the new network descriptor to `wb-netd`;
+1. starts a new `wb-netd` on the new descriptor (S04-09-netd-start, I590);
 2. resets that VM's TCP flows and their `wb-proxyd` streams.
 
 It doesn't reset the guest's DHCP lease or the synthetic DNS name
