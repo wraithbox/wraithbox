@@ -398,8 +398,8 @@ func (m *Manager) startNetwork(ctx context.Context, r *run, prep NetworkStart, t
 }
 
 // watchNetwork stops the VM when its wb-netd exits while the run is
-// live. wb-netd isn't restarted, so the VM doesn't run on without its
-// network process (S04-07-supervision, "Restarting a daemon"). An exit
+// live, its start included. wb-netd isn't restarted, so the VM doesn't
+// run on without its network process (S04-07-supervision, "Restarting a daemon"). An exit
 // after finish began is the stop's own. So is an exit once the run is
 // ending another way: a requested stop, a forced stop, or a VM that
 // stopped by itself. That stop goes on with its own rule.
@@ -415,7 +415,7 @@ func (m *Manager) watchNetwork(ctx context.Context, r *run, nr NetworkRun) {
 		m.mu.Unlock()
 		return
 	}
-	if rec.phase != PhaseRunning || r.vmStopped || r.rule != "" {
+	if rec.phase == PhaseStopping || rec.phase == PhaseStopped || r.vmStopped || r.rule != "" {
 		m.mu.Unlock()
 		m.log.LogAttrs(ctx, slog.LevelInfo, "vm stop not needed",
 			slog.String("rule", string(RuleNetdExited)), slog.String("decision", "none"),
@@ -424,7 +424,10 @@ func (m *Manager) watchNetwork(ctx context.Context, r *run, nr NetworkRun) {
 		return
 	}
 	r.rule = RuleNetdExited
-	rec.phase = PhaseStopping
+	if rec.phase == PhaseRunning {
+		// A run still starting stays starting: started sees it finishing.
+		rec.phase = PhaseStopping
+	}
 	m.mu.Unlock()
 	m.log.LogAttrs(ctx, slog.LevelWarn, "vm stop",
 		slog.String("rule", string(RuleNetdExited)), slog.String("decision", "stop-vm"),
@@ -467,7 +470,9 @@ func (m *Manager) startFailed(ctx context.Context, r *run, ref *Refusal) *Refusa
 func (m *Manager) started(ctx context.Context, r *run) {
 	m.mu.Lock()
 	rec := m.slots[r.slot]
-	running := rec.run == r && rec.phase == PhaseStarting
+	// A run that began to finish during its start, a wb-netd that exited
+	// or a forced stop, doesn't become running.
+	running := rec.run == r && rec.phase == PhaseStarting && !r.finishing && r.rule == ""
 	if running {
 		rec.phase = PhaseRunning
 	}
