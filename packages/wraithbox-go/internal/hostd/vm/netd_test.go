@@ -28,6 +28,8 @@ type fakeNetwork struct {
 	prepares int
 	starts   []int
 	provider *vmtest.Provider
+	// exitAtStart: each run exits before Start returns.
+	exitAtStart bool
 }
 
 func (n *fakeNetwork) Prepare(_ context.Context, _ vm.Slot, _ uint64, mac []byte) (vm.NetworkStart, error) {
@@ -61,6 +63,9 @@ func (s fakeStart) Start(_ context.Context, t vm.PacketTransport) (vm.NetworkRun
 	tr, _ := t.(*vmtest.Transport)
 	r := &fakeNetworkRun{exited: make(chan struct{}), transport: tr}
 	n.runs = append(n.runs, r)
+	if n.exitAtStart {
+		r.exit()
+	}
 	return r, nil
 }
 
@@ -184,6 +189,25 @@ func TestNetdPreparedBeforeTheVM(t *testing.T) {
 	waitStopped(t, m, vm.SlotWork)
 	if inst := h.provider.Last(); len(inst.Starts()) != 0 || !inst.Closed() {
 		t.Errorf("provider starts %v, closed %v: want none, closed", inst.Starts(), inst.Closed())
+	}
+}
+
+// A wb-netd that exits before the VM is running, here before its Start
+// returned, still stops the VM with netd-exited: the VM doesn't run on
+// without it.
+func TestNetdExitDuringStartStopsTheVM(t *testing.T) {
+	h := newHarness(t)
+	h.cfg.Network = &fakeNetwork{exitAtStart: true}
+	m := h.manager()
+	_ = m.Start(t.Context(), vm.SlotWork)
+	waitStopped(t, m, vm.SlotWork)
+	waitStopRecord(t, h)
+	checkRecord(t, h, "vm stopped", string(vm.RuleNetdExited), statusFailure)
+	if !strings.Contains(h.logs.String(), `"rule":"netd-exited","decision":"stop-vm"`) {
+		t.Errorf("the stop isn't logged:\n%s", h.logs.String())
+	}
+	if !h.provider.Last().Closed() {
+		t.Error("the instance isn't closed")
 	}
 }
 
