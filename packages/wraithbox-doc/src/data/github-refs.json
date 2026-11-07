@@ -2956,25 +2956,25 @@
 	},
 	"483": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: DHCP server that leases the one guest address and offers only the listed options",
 		"summary": "Package M3.1 of docs/implementation-plan.md, part 2 of 2 (M3.1b)."
 	},
 	"484": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "dnsname: the DNS name form rule and canonical names, shared by wb-netd and the policy loader",
 		"summary": "Package M3.2 of docs/implementation-plan.md, part 1 of 4 (M3.2a)."
 	},
 	"485": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: synthetic address pool with ordered releases, connection pins and the port rule",
 		"summary": "Package M3.2 of docs/implementation-plan.md, part 2 of 4 (M3.2b)."
 	},
 	"486": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: DNS over UDP with synthetic answers, local and negative answers, the 4-second hold, the wildcard budget and the background list",
 		"summary": "Package M3.2 of docs/implementation-plan.md, part 3 of 4 (M3.2c)."
 	},
@@ -2986,13 +2986,13 @@
 	},
 	"488": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "policy: the network policy model, the path matcher, the built-in host catalog and the wraithbox.policy.v1 contract",
 		"summary": "Package M3.3 of docs/implementation-plan.md, part 1 of 3 (M3.3a)."
 	},
 	"489": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "policy: load network policy YAML with a bounded decoder, closed keys and the load-time refusals",
 		"summary": "Package M3.3 of docs/implementation-plan.md, part 2 of 3 (M3.3b)."
 	},
@@ -3004,25 +3004,25 @@
 	},
 	"491": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "egress contract: the hand-off, control and accounting messages of wb-netd, wb-proxyd and wb-hostd, and the channel ordering test",
 		"summary": "Package M3.4 of docs/implementation-plan.md, part 1 of 4 (M3.4a)."
 	},
 	"492": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: the hand-off receiver, its checked copy of the name mapping, and the stream checks",
 		"summary": "Package M3.4 of docs/implementation-plan.md, part 2 of 4 (M3.4b)."
 	},
 	"493": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: name reports, releases, replay and streams on the hand-off socket, and the accounting writes",
 		"summary": "Package M3.4 of docs/implementation-plan.md, part 3 of 4 (M3.4c)."
 	},
 	"494": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: accounting records, the kept name mapping, hand-off socket setup and the policy order",
 		"summary": "Package M3.4 of docs/implementation-plan.md, part 4 of 4 (M3.4d)."
 	},
@@ -3034,13 +3034,13 @@
 	},
 	"496": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: stream checks: first bytes, the ClientHello and SNI binding, pass and raw TCP relays",
 		"summary": "Package M3.5 of docs/implementation-plan.md, part 2 of 2 (M3.5b)."
 	},
 	"497": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: TLS termination on inspected hosts, the tls-* refusals, and upstream TLS",
 		"summary": "Package M3.6 of docs/implementation-plan.md, part 1 of 4 (M3.6a)."
 	},
@@ -3064,7 +3064,7 @@
 	},
 	"501": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: decide each inspected request by HTTP policy, with the built-in profiles, their parts, and a closed list of what audit mode relaxes",
 		"summary": "Package M3.7 of docs/implementation-plan.md, part 1 of 2 (M3.7a)."
 	},
@@ -3094,19 +3094,19 @@
 	},
 	"506": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: inspection CA issue, restore and leaf signing behind a hardware key interface, with the CA messages of the control channel",
 		"summary": "Package M3.9 of docs/implementation-plan.md, part 1 of 5 (M3.9a)."
 	},
 	"507": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: CA record, rotation schedule, boot order, removal list and wb vm reset-ca",
 		"summary": "Package M3.9 of docs/implementation-plan.md, part 2 of 5 (M3.9b)."
 	},
 	"508": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-guestd: install the VM's CAs in the trust files, the Java trust store and the client variables",
 		"summary": "Package M3.9 of docs/implementation-plan.md, part 3 of 5 (M3.9c)."
 	},
@@ -3310,13 +3310,13 @@
 	},
 	"542": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "test(vmd): NetworkTransportTests can see a reused descriptor number after close",
 		"summary": "Main CI run 41344481773 (6138336c) failed in the Swift job:"
 	},
 	"543": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X32-project-metrics: Measuring V1 progress, effort and quality",
 		"summary": "Can progress toward V1, human and AI effort, velocity and quality be measured repeatably from git, GitHub and Claude Code transcripts, at a cost worth paying each release or month?",
 		"brief": "B543-project-metrics"
@@ -3326,5 +3326,324 @@
 		"state": "open",
 		"title": "Repeatable project metrics: mise task, metrics-gatherer agent and a time log",
 		"summary": "Follow-up of X32-project-metrics (#543)."
+	},
+	"545": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(research): R09-v1-progress-and-quality, V1 after its first month, and the X32 result",
+		"summary": "Measures V1-initial after its first month and answers X32-project-metrics.",
+		"brief": "B543-project-metrics"
+	},
+	"546": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Implementation plan: refresh its status and package sizes, fix the M4.1 edge, add the secret scanner package and the V1-M6 dependencies",
+		"summary": "Follow-up of X32-project-metrics (#543)."
+	},
+	"547": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Investigate the flaky CI runs of the week of 2026-10-26 (7.4%)",
+		"summary": "Follow-up of X32-project-metrics (#543)."
+	},
+	"548": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Mutation testing and deeper fuzz corpora for the wb-netd and wb-proxyd parsers",
+		"summary": "Follow-up of X32-project-metrics (#543)."
+	},
+	"549": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Run 2026-11-05 (V1-M3-network-floor, lane mac)",
+		"summary": "Approval: the maintainer typed --merge in this session (2026-11-05), the standing approval for this run."
+	},
+	"550": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build(go): budget the fuzz smoke run, add a daily fuzz run, commit go.work.sum",
+		"summary": "- Fuzz smoke run with a budget."
+	},
+	"551": {
+		"kind": "issue",
+		"state": "open",
+		"title": "netd/stack: TestStreamPolicy can read the refusal count before refuse() records it",
+		"summary": "TestStreamPolicy (internal/netd/stack/stack_test.go) failed once on Go (windows-2025) in the CI run of #550, a pull request that doesn't touch netd:"
+	},
+	"552": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(netd): DHCP server that leases the one guest address",
+		"summary": "wb-netd now answers DHCP on the stack's UDP port 67."
+	},
+	"553": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(swift): see a closed descriptor from its peer, not its number",
+		"summary": "Two WraithBoxVMDTests tests concluded that a descriptor was closed because fcntl(fd, F_GETFD) failed on its number."
+	},
+	"554": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Agents: review in parallel with GitHub CI, the builder hands back at PR open",
+		"summary": "In a wave, a builder (and a spike builder or researcher) hands back only after GitHub CI is green."
+	},
+	"555": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(agents): review in parallel with GitHub CI, hand back at PR open",
+		"summary": "In a wave, the builder, spike builder and researcher now hand back as soon as the pull request is open and mise run ci has passed locally."
+	},
+	"556": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(go): dnsname, the DNS name form rule shared by wb-netd and the policy loader",
+		"summary": "Adds internal/dnsname: the name form rule of S07-03-dns (\"Name form\", \"IP literals\") and the canonical form of S07-06-name-mapping (\"Name reports\"), written once so wb-netd (M3.2c/d, #486 #487), the policy loader and…"
+	},
+	"557": {
+		"kind": "issue",
+		"state": "open",
+		"title": "gitremote: use the shared dnsname rule instead of its own host name check",
+		"summary": "internal/gitremote/gitremote.go (isDNSName and isIPHost, around lines 246-275) has its own copy of the DNS name form rule."
+	},
+	"558": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(netd): synthetic address pool with ordered releases, pins and the port rule",
+		"summary": "M3.2b of the implementation plan: the per-VM synthetic address pool in internal/netd/synth, its accounting and hand-off interfaces in internal/netd, and the first StreamPolicy for the stack."
+	},
+	"559": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(go): policy model, path matcher, host catalog and wraithbox.policy.v1",
+		"summary": "Adds internal/policy (the effective network policy model and its invariants), internal/policy/match (path canonicalization, path, method and host patterns), internal/policy/builtin (the covered-host catalog and…"
+	},
+	"560": {
+		"kind": "issue",
+		"state": "open",
+		"title": "policy: cover raw.githubusercontent.com under the GitHub kind?",
+		"summary": "Follow-up from the reviews of PR #559 (#488, the built-in host catalog)."
+	},
+	"561": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(proxyd): decide each inspected request by HTTP policy",
+		"summary": "wb-proxyd decides each request on an inspected host by the VM's HTTP policy."
+	},
+	"562": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(policy): load network policy YAML with a bounded decoder and closed keys",
+		"summary": "Loads one network policy file (internal/policy/policyfile): Load and LoadFile, and Static, which builds a VM's effective policy at start from the global file (the maintainer's 2026-10-31 comment, for #511 and #512)."
+	},
+	"563": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(netd): DNS over UDP with synthetic, local and held negative answers",
+		"summary": "wb-netd's DNS server over UDP, in internal/netd/dns."
+	},
+	"564": {
+		"kind": "issue",
+		"state": "open",
+		"title": "SEC06-repo-writes: decide whether in-set repository administration API calls are denied",
+		"summary": "Review of #561 (#501) found that SEC06-repo-writes, as written, allows every repository-mutating API call on a repository in the project set, administration calls included."
+	},
+	"565": {
+		"kind": "issue",
+		"state": "open",
+		"title": "registry-publish refuses npm audit's bulk advisory POST",
+		"summary": "Review of #561 (#501) found that the registry-publish built-in deny refuses every method other than GET, HEAD and OPTIONS on a registry host."
+	},
+	"566": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-04-dns-refusals: decide whether rate refusals are held",
+		"summary": "Raised in round 1 of #563 (#486)."
+	},
+	"567": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Inject a remote host's git credential only on recognized transport paths (M4.10)",
+		"summary": "Round 2 of the review of #561 (#501) found that, on a remote host of unknown kind, isTransportRepo (internal/proxyd/httppolicy/write.go) counts any path of two or more segments that doesn't start with api as a git…"
+	},
+	"568": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Remote repositories with a one-segment path are refused by wb-proxyd",
+		"summary": "Since round 1 of #561 (#501), S07-19-request-decisions reads a remote host's transport repository only from a path of two segments or more."
+	},
+	"569": {
+		"kind": "issue",
+		"state": "open",
+		"title": "fix(netd): record a refusal before the reset reaches the guest (TestSyntheticPool flake)",
+		"summary": "Main CI run 42081852685 (01d58e8) failed in Go (windows-2025):"
+	},
+	"570": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(egress): wraithbox.egress.v1 contract, form checks, fuzz targets and the channel ordering test",
+		"summary": "The wraithbox.egress.v1 contract between wb-netd, wb-proxyd and wb-hostd."
+	},
+	"571": {
+		"kind": "issue",
+		"state": "open",
+		"title": "egress contract: HandoffSocketClosed rule for a StreamReset that can't be sent",
+		"summary": "PR #570 (#491) added a rule to S07-05-stream-hand-off, \"Resets\": when a StreamReset send fails (ENOBUFS or past its deadline), wb-proxyd closes the VM's hand-off socket before the stream's socket, and wb-netd resets…"
+	},
+	"572": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Run 2026-11-05 (V1-M3-network-floor, lane mac)",
+		"summary": "Approval: the maintainer typed --merge in this session (2026-11-05), the standing approval of orchestration.md, \"Runs\"."
+	},
+	"573": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-proxyd: no control message says a VM started fresh or a new active period began",
+		"summary": "S07-06-name-mapping, \"Lifetime\", says the copy of the name mapping is cleared only at a start that isn't a restore."
+	},
+	"574": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(proxyd): hand-off receiver, its checked name mapping copy and stream checks",
+		"summary": "wb-proxyd's end of the control channel from wb-hostd and of each VM's hand-off socket, in the new internal/proxyd/handoff package."
+	},
+	"575": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(netd): hand-off sender, accounting writer and control channel",
+		"summary": "wb-netd's side of the egress channels."
+	},
+	"576": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-proxyd: one VM's failed hand-off socket ends the control channel for every VM",
+		"summary": "In wb-proxyd's hand-off receiver (#492, PR #574), a failure on one VM's new hand-off socket ends the whole control channel, and with it every VM's sockets and streams."
+	},
+	"577": {
+		"kind": "issue",
+		"state": "open",
+		"title": "httppolicy: FuzzHTTPDecision fails on main for a GitLab project id with a trailing %2F",
+		"summary": "FuzzHTTPDecision (internal/proxyd/httppolicy/fuzz_test.go) fails on main at 5adc7c3."
+	},
+	"578": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(proxyd): inspection CA issue, restore and leaf signing behind a hardware key interface",
+		"summary": "wb-proxyd's inspection CA, behind a hardware key interface:"
+	},
+	"579": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(proxyd): stream checks: first bytes, ClientHello and SNI binding, pass and raw relays",
+		"summary": "wb-proxyd's stream handler: dispatch by the policy's protocol and mode, the first-byte checks, the ClientHello parser and SNI binding, the pass relay's record checks and the raw TCP relay."
+	},
+	"580": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: ConnectGuest sendFailed test is flaky in CI",
+		"summary": "The Swift test \"a send that fails is refused with handoff-send-failed, and the connection is closed\" (packages/wraithbox-swift/Tests/WraithBoxVMDTests/ConnectGuestTests.swift, sendFailed) failed in CI on #579, a pull…"
+	},
+	"581": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): CA record, rotation schedule, boot order, removal list and wb vm reset-ca",
+		"summary": "wb-hostd keeps each VM's inspection CA record and drives wb-proxyd's CA messages."
+	},
+	"582": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd: TestClosedConnHoldsCap reads the tcp-cap count before it is recorded (flaky on Windows)",
+		"summary": "TestClosedConnHoldsCap (packages/wraithbox-go/internal/netd/stack/stack_test.go) failed on Go (windows-2025) in CI on #581, a pull request that doesn't touch internal/netd:"
+	},
+	"583": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: run the CA keeper: boot order at VM start, ProxydStarted, the rotation tick and host wake",
+		"summary": "Named by the code review of #581 (finding 1), which builds #507."
+	},
+	"584": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(guestd): install the VM's CAs in the trust files, the Java trust store and the client variables",
+		"summary": "wb-guestd's InstallTrust checks the VM's CAs and writes ca.pem, bundle.pem and java-truststore.p12 in /etc/wraithbox/trust/, each by an atomic rename."
+	},
+	"585": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): accounting records, the kept name mapping, and hand-off socket setup",
+		"summary": "This adds internal/hostd/egress, wb-hostd's side of the accounting channels and of wb-proxyd's control channel."
+	},
+	"586": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-proxyd: TestVersionRecordFirst/a_name_report gets a connection reset on send (flaky on macOS)",
+		"summary": "TestVersionRecordFirst/a_name_report (packages/wraithbox-go/internal/proxyd/handoff/receiver_darwin_test.go) failed on Go (xcode-27) in CI on #585, a pull request that doesn't change internal/proxyd/handoff or any…"
+	},
+	"587": {
+		"kind": "pr",
+		"state": "open",
+		"title": "test(hostd): C02 guest trust on a macOS VM with a fake wb-proxyd end",
+		"summary": "Implements the needs-vm test of S09-08-guest-trust and S09-07-ca-certificates (\"Boot, restore and host wake\") for X04-tls-inspection, in C02-streams-and-tls."
+	},
+	"588": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(proxyd): TLS termination on inspected hosts, the tls-* refusals, and upstream TLS",
+		"summary": "Implements, in internal/proxyd/inspect (with changes in stream and ca):"
+	},
+	"589": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd: TestAnswerFails/report_slow answers instead of timing out (flaky on macOS)",
+		"summary": "TestAnswerFails/report_slow (packages/wraithbox-go/internal/netd/synth/pool_test.go:161) failed on Go (xcode-27) in CI on #588, a pull request that doesn't change internal/netd or any package its tests build:"
+	},
+	"590": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd: hand a running wb-netd a new packet transport and reset its flows on restore",
+		"summary": "Follow-up from #511, its decision 6, which the PR for #511 doesn't build."
+	},
+	"591": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(netd): run wb-netd per VM, started and stopped by wb-hostd",
+		"summary": "cmd/wb-netd is now a real program, and wb-hostd starts one per VM run on the run's packet transport."
+	},
+	"592": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump jdx/mise-action from 5.2.3 to 5.2.5",
+		"summary": "Bumps jdx/mise-action from 5.2.3 to 5.2.5."
+	},
+	"593": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump google.golang.org/grpc from 1.84.0 to 1.85.0 in /packages/wraithbox-go",
+		"summary": "Bumps google.golang.org/grpc from 1.84.0 to 1.85.0."
+	},
+	"594": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump golang.org/x/net from 0.61.0 to 0.62.0 in /packages/wraithbox-go",
+		"summary": "Bumps golang.org/x/net from 0.61.0 to 0.62.0."
+	},
+	"595": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump @astrojs/markdown-remark from 7.3.4 to 7.3.5 in /packages/wraithbox-doc",
+		"summary": "Bumps @astrojs/markdown-remark from 7.3.4 to 7.3.5."
+	},
+	"596": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump astro from 7.4.2 to 7.4.4 in /packages/wraithbox-doc",
+		"summary": "Bumps astro from 7.4.2 to 7.4.4."
+	},
+	"597": {
+		"kind": "pr",
+		"state": "open",
+		"title": "chore(deps): Bump @astrojs/starlight from 0.42.7 to 0.42.8 in /packages/wraithbox-doc",
+		"summary": "Bumps @astrojs/starlight from 0.42.7 to 0.42.8."
 	}
 }
