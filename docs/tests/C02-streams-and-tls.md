@@ -441,6 +441,60 @@ a temporary directory, unless named otherwise.
   and answers each rule with its code and ErrorInfo
   (`TestC02InstallTrustRPC`).
 
+### Guest trust on a VM (needs-vm)
+
+`TestC02GuestTrustVM` in `cmd/wb-hostd`, needs-vm and needs-host, as
+`TestC11HostdVM` in C11-host-daemons: it claims and removes the real
+`<data>` the same way. It runs with the variables and the `go test`
+command of `mise run go:test-vm`, with `-run '^TestC02GuestTrustVM$'`.
+wb-proxyd doesn't run. The child `wb-hostd` gets a fake wb-proxyd end
+of the control channel, wb-proxyd's CA authority over the fake secret
+store and the software fake key, so no Keychain item is made. The boot
+time call runs the CA record's boot order (S09-07-ca-certificates,
+"Boot, restore and host wake"), until I583 wires it in `wb-hostd`. The
+fake writes a leaf for `wbtest.invalid` to `.scratch/go-test-vm/trust`
+for each accepted CA set. In `wb shell`s of a project it adds, the test
+checks:
+
+- the project user's environment holds the six trust variables with
+  their values;
+- `/etc/wraithbox/trust` is mode 0755 and holds exactly the three
+  files, each owned by root with mode 0644, and its parent is owned by
+  root and not writable by its group or others;
+- `ca.pem` is the record's CAs in order, `bundle.pem` ends with them
+  after the public roots, and `java-truststore.p12` holds the bundle's
+  certificates;
+- `security find-certificate -a -Z` over the system keychains lists
+  certificates, and none is a CA of the record or names Wraith Box;
+- a TLS server (`testdata/tlsserver`, built for darwin/arm64) on the
+  guest's loopback, with the leaf, is accepted by curl, `git
+  ls-remote` (dumb HTTP), `python3` with urllib, `node` with
+  `https.get`, and, when the image has a JDK, Java with only
+  `JAVA_TOOL_OPTIONS`. Each client runs with the shell's environment
+  and nothing the test adds, and is told the server's address. curl is
+  in the base system and must run. Any other client the script marks
+  missing is logged as not run, and a client with no whole block in the
+  output fails the test;
+- URLSession, from `osascript -l JavaScript` through the server's
+  CONNECT proxy, refuses the leaf with NSURLError -1202 or -1203, and
+  the server logs a failed handshake after that tunnel;
+- after `wb vm stop`, `wb vm reset-ca work` and a new start, the record
+  holds one new CA, no trust file holds the old one, every client
+  refuses the old leaf with its certificate error and accepts the new
+  one.
+
+The test sends the server, the leaf and its key to the guest only on
+the shell's standard input (SEC02-no-host-fs-share), and logs each
+client's outcome with `result:`. Unit tests of the same package check
+the fake against the CA record, a reset included
+(`TestFakeCABootWritesLeaf`, `TestFakeCAResetWritesNewLeaf`,
+`TestFakeCABootHook`), the server (`TestTLSServer`), the script and
+its output (`TestParseClients`,
+`TestClientsScriptCarriesServerAndLeaf`), and the judgment of each
+client's outcome (`TestJudgeProbeFailsClosed`).
+
+Runs: none yet.
+
 ## Fuzzing
 
 - Upstream addresses: arbitrary 16-byte addresses, checked against a
