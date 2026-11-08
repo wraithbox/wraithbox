@@ -45,7 +45,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/sp
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |
 | X29-dev-signing | Keychain access group for development builds | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15 (I248): no Keychain backend for a build without a team signature |
 | X30-installer-trust | Installer refusal of a changed restore image | Open |
-| X31-admin-channel | A root shell from a second guest daemon | Open |
+| X31-admin-channel | A root shell from a second guest daemon | Answered 2026-11-08: yes, with conditions |
 | X32-project-metrics | Measuring V1 progress, effort and quality | Answered 2026-11-02: yes, with conditions. Repeat it at each milestone close through I544, using `cost-state` for cost and a time log to calibrate the human model |
 
 ## Spikes
@@ -350,7 +350,12 @@ assumption that v1 work would otherwise build on. They block v1.
   at one boot (S06-12-guest-agent, "Update at start") collide? The admin path of
   S15-05-admin-path relies on it (SEC08-proj-isolation,
   SEC11-root-gains-nothing). Found while drafting B419-admin-path.
-  Needs a VM. Tracked in I448.
+  Needs a VM. Answered yes, with conditions, in the result page
+  X31-admin-channel: the shell answered with `wb-guestd` booted out,
+  stopped or crash-looping, a standard user never bound the port, and
+  the two updates need no lock. The shell has no Full Disk Access, and
+  a standard user's vsock connect to the guest's own CID panicked the
+  guest's kernel.
 - **X32-project-metrics: Measuring V1 progress, effort and quality.**
   Can progress toward V1, human and AI effort, velocity and quality be
   measured again and again from git, GitHub and Claude Code
