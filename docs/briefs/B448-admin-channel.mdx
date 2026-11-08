@@ -50,7 +50,7 @@ Figure 1. The admin path of S15-05-admin-path reaches `wb-guestroot` on a port o
 
 ## The open decision: Full Disk Access for wb-guestroot
 
-TCC, macOS's privacy control, applies to root too. A root daemon gets Full Disk Access only when it is granted, and with System Integrity Protection on, root in the guest can't grant it. The spike's shell couldn't delete a user record, while `sudo` over SSH could, because Remote Login has Full Disk Access.
+TCC, macOS's privacy control, applies to root too. A root daemon gets Full Disk Access only when it is granted, and with System Integrity Protection on, root in the guest can't grant it to itself. Root can probably still reach that access through `ssh localhost`, since Remote Login holds the grant, so it isn't a boundary. That route is inferred, and the spike didn't try it. The spike's shell couldn't delete a user record, while `sudo` over SSH could, because Remote Login has Full Disk Access.
 
 <div class="wb-options">
 <div class="wb-option" data-recommended>

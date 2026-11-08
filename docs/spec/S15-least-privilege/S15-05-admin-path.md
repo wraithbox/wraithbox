@@ -140,7 +140,9 @@ By default the shell has no Full Disk Access. TCC holds
 may do, so what TCC guards fails in the shell, such as deleting a user
 record or reading TCC's own files. `sudo` over SSH can do both, since
 Remote Login has Full Disk Access (X31-admin-channel). This isn't a
-boundary: root in the shell can obtain that access.
+boundary. With SIP on, root can't grant itself the access, but it can
+probably reach it through `ssh localhost`, since Remote Login holds the
+grant. X31-admin-channel infers that route and didn't try it.
 
 ### In the image
 
