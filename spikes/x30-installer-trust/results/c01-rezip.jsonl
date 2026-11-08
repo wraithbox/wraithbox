@@ -1,0 +1,8 @@
+{"cacheDir":"\/var\/folders\/8p\/l41bnx0d65jc4rfjmsy5phd00000gn\/C\/","step":"pre-confine"}
+{"ms":3.4775420208461583,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x30\/c01-rezip","CACHE=\/private\/var\/folders\/8p\/l41bnx0d65jc4rfjmsy5phd00000gn\/C","IPSW=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x30\/c01-rezip.ipsw"],"profile":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-a1b15acd2e45c08d8\/spikes\/x30-installer-trust\/profiles\/vmd-install.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"No such file or directory","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"ipsw":"\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x30\/c01-rezip.ipsw","step":"load-start"}
+{"build":"26B123","seconds":0.21668416704051197,"step":"restore-image-loaded"}
+{"seconds":0.21733587502967566,"step":"bundle-created"}
+{"seconds":0.2256702920421958,"step":"install-start"}
+{"mac":"26:f7:28:ea:24:df","seconds":142.62962725001853,"step":"installed"}

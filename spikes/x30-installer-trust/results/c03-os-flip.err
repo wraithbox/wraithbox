@@ -1,0 +1,5 @@
+[348165.344] install 16%
+[348171.827] install 20%
+[348182.348] install 30%
+[348191.344] install 40%
+[348362.041] error: Error Domain=VZErrorDomain Code=10007 "Installation failed." UserInfo={NSLocalizedFailure=An error occurred during installation., NSLocalizedFailureReason=Installation failed., NSUnderlyingError=0x74fb1003c0 {Error Domain=com.apple.MobileDevice.MobileRestore Code=-1 "AMRestorePerformRestoreModeRestoreWithError failed with error: 1106" UserInfo={NSLocalizedDescription=AMRestorePerformRestoreModeRestoreWithError failed with error: 1106, NSLocalizedFailureReason=An unknown error occurred during installation.}}}

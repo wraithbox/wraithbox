@@ -1,0 +1,8 @@
+{"cacheDir":"\/var\/folders\/8p\/l41bnx0d65jc4rfjmsy5phd00000gn\/C\/","step":"pre-confine"}
+{"ms":4.8001670511439443,"ok":true,"params":["BUNDLE=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/x30-r2\/c00-original","CACHE=\/private\/var\/folders\/8p\/l41bnx0d65jc4rfjmsy5phd00000gn\/C","IPSW=\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/restore-images\/UniversalMac_27.2_26B123_Restore.ipsw"],"profile":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-a1b15acd2e45c08d8\/spikes\/x30-installer-trust\/profiles\/vmd-install.sb","step":"sandbox_init"}
+{"confined":true,"read \/etc\/passwd":"Operation not permitted","read ~\/.ssh\/known_hosts":"No such file or directory","spawn \/usr\/bin\/true":"Operation not permitted","step":"probes","tcp connect 127.0.0.1:1":"Operation not permitted","write \/tmp\/x25-probe":"Operation not permitted"}
+{"ipsw":"\/Users\/lsimons\/Library\/Caches\/wraithbox-spikes\/restore-images\/UniversalMac_27.2_26B123_Restore.ipsw","step":"load-start"}
+{"build":"26B123","seconds":0.29135750001296401,"step":"restore-image-loaded"}
+{"seconds":0.29230262502096593,"step":"bundle-created"}
+{"seconds":0.30224749998888001,"step":"install-start"}
+{"mac":"da:89:39:62:cb:4f","seconds":445.9316812910256,"step":"installed"}

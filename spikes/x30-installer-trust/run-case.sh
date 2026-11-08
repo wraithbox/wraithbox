@@ -11,7 +11,7 @@ cache=$(getconf DARWIN_USER_CACHE_DIR | sed 's:/$::')
 cache=$(cd "$cache" && pwd -P)
 "$here/netwatch.sh" "$res/$name.net.csv" &
 nw=$!
-/usr/bin/log stream --style ndjson --level debug --predicate \
+/usr/bin/log stream --style ndjson --level info --predicate \
   'subsystem BEGINSWITH "com.apple.Virtualization" OR process BEGINSWITH "com.apple.Virtualization" OR subsystem CONTAINS "restore" OR eventMessage CONTAINS[c] "personaliz" OR eventMessage CONTAINS[c] "tss" OR eventMessage CONTAINS[c] "wkms" OR eventMessage CONTAINS[c] "img4"' \
   >"$res/$name.log.ndjson" 2>/dev/null &
 lg=$!
