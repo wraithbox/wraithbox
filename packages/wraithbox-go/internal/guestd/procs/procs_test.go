@@ -182,10 +182,10 @@ func TestKillBootsOutWithNoProcess(t *testing.T) {
 }
 
 // TestKillFindsJobs: each round checks for the user's crontab after its
-// kill, and a crontab found makes the kill not clean with the user's
-// processes gone. It logs both rules, removes nothing, and another
-// user's crontab doesn't count (S13-01-process-hardening, "Cron and
-// at").
+// kill. A crontab found once the user's processes are gone ends the
+// loop at once, not clean, since nothing removes it. It logs both
+// rules, removes nothing, and another user's crontab doesn't count
+// (S13-01-process-hardening, "Cron and at").
 func TestKillFindsJobs(t *testing.T) {
 	table := &fakeTable{
 		procs: []gp.Proc{proc(100, 10000, "cron-job")},
@@ -193,12 +193,11 @@ func TestKillFindsJobs(t *testing.T) {
 	}
 	l, _, log := newLoops(t, table)
 	res := l.Kill(t.Context(), 10000)
-	if res.Clean() || res.Left != 1 || res.Rounds != procs.MaxRounds {
-		t.Fatalf("Kill = %+v, want 1 left after MaxRounds", res)
+	if res.Clean() || res.Left != 1 || res.Rounds != 1 {
+		t.Fatalf("Kill = %+v, want 1 left after one round", res)
 	}
-	want := []string{"SIGKILL", "bootout", "find wbp10000", "bootout", "find wbp10000"}
-	if !slices.Equal(table.calls[:len(want)], want) {
-		t.Errorf("calls %v, want them to start with %v", table.calls, want)
+	if want := []string{"SIGKILL", "bootout", "find wbp10000"}; !slices.Equal(table.calls, want) {
+		t.Errorf("calls %v, want %v", table.calls, want)
 	}
 	if !table.tabs["wbp10000"] || !table.tabs["wbp10001"] {
 		t.Errorf("tabs %v, want both left", table.tabs)
@@ -218,6 +217,22 @@ func TestKillFindsJobs(t *testing.T) {
 	}
 	if want := []string{"bootout", "find wbp10002"}; !slices.Equal(table.calls, want) {
 		t.Errorf("calls %v, want %v", table.calls, want)
+	}
+}
+
+// TestKillJobsAndProcesses: a crontab found while a process of the user
+// still runs doesn't end the loop early. It runs to its bounds, killing
+// in every round, and ends not clean.
+func TestKillJobsAndProcesses(t *testing.T) {
+	table := &fakeTable{
+		procs:  []gp.Proc{proc(100, 10000, "stuck")},
+		sticky: map[int32]bool{100: true},
+		tabs:   map[string]bool{"wbp10000": true},
+	}
+	l, _, _ := newLoops(t, table)
+	res := l.Kill(t.Context(), 10000)
+	if res.Clean() || res.Left != 1 || res.Rounds != procs.MaxRounds {
+		t.Errorf("Kill = %+v, want 1 left after MaxRounds", res)
 	}
 }
 

@@ -20,9 +20,9 @@ func TestCheckSchedulersClosed(t *testing.T) {
 		want     bool
 		decision string
 	}{
-		"closed": {nil, true, "closed"},
-		"denied": {errors.New("create .wb-cron.allow.tmp: operation not permitted"), false, "refuse"},
-		"wrong":  {errors.New(`/private/var/at/cron.allow: content "root\nadmin\n", want "root\n"`), false, "refuse"},
+		"closed":  {nil, true, "closed"},
+		"missing": {errors.New("guestsched: /private/var/at/at.allow: open: no such file or directory"), false, "refuse"},
+		"wrong":   {errors.New(`/private/var/at/cron.allow: content "root\nadmin\n", want "root\n"`), false, "refuse"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			var buf bytes.Buffer

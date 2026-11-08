@@ -277,17 +277,18 @@ func fullDir(t *testing.T, sub string) string {
 }
 
 // TestScanTabs: the start scan counts each tab with a project user's
-// name, and removes none. A tab of another name doesn't count.
+// name, in any case, and removes none. A tab of another name doesn't
+// count.
 func TestScanTabs(t *testing.T) {
 	dir := t.TempDir()
 	tabs := filepath.Join(dir, Tabs)
-	names := []string{"wbp10000", "wbp999999999", "root", "wbp9999", "wbp010000"}
+	names := []string{"wbp10000", "WBP10001", "Wbp10002", "wbp999999999", "root", "wbp9999", "wbp010000"}
 	for _, name := range names {
 		writeFile(t, filepath.Join(tabs, name), "* * * * * true\n")
 	}
 	f, err := scanIn(dir, projectuser.IsUserName, projectuser.InRange)
-	if err != nil || f != (Found{Tabs: 2}) {
-		t.Fatalf("scanIn = %+v, %v, want 2 tabs", f, err)
+	if err != nil || f != (Found{Tabs: 4}) {
+		t.Fatalf("scanIn = %+v, %v, want 4 tabs", f, err)
 	}
 	if entries, err := os.ReadDir(tabs); err != nil || len(entries) != len(names) {
 		t.Errorf("tabs %v, %v, want all left", entries, err)
