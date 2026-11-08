@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,7 +105,7 @@ func TestResolveAcceptsGitDirLinksInside(t *testing.T) {
 // TestResolveRefusesLinksInWorktreeAndSubmodule: the git directory a
 // `.git` file names is checked too. A linked worktree's `config.worktree`
 // linked out of the common directory, and a submodule's `objects`
-// linked into its parent repository's, are refused before git reads
+// linked into its parent repository's, are refused before wb reads
 // their core.worktree (C04-projects, "Git directories that point
 // elsewhere").
 func TestResolveRefusesLinksInWorktreeAndSubmodule(t *testing.T) {
@@ -131,10 +132,66 @@ func TestResolveRefusesLinksInWorktreeAndSubmodule(t *testing.T) {
 			if repo != nil {
 				t.Fatalf("Resolve = %+v, want a refusal", repo)
 			}
-			// Had git read core.worktree first, the config.worktree link
+			// Had wb read core.worktree first, the config.worktree link
 			// would be refused as a config file that isn't a regular
 			// file, with another rule.
 			requireRule(t, err, RuleGitDirLinkOutside, log)
+		})
+	}
+}
+
+// TestResolveRefusesGitDirUnchecked: a git directory whose links can't
+// all be checked is refused, before git runs. A link loop can't be
+// resolved, a subdirectory that can't be read can't be walked, and a
+// walk past its entry cap, or for a canceled request, stops short
+// (C04-projects, "Git directories that point elsewhere";
+// SEC13-bounded-resources).
+func TestResolveRefusesGitDirUnchecked(t *testing.T) {
+	tmp := tempDir(t)
+	tests := []struct {
+		name string
+		// setup changes the `.git` directory, and the resolver.
+		setup func(t *testing.T, r *Resolver, gitDir string)
+		// canceled resolves with a context that is already canceled.
+		canceled bool
+		rule     Rule
+	}{
+		{"link loop", func(t *testing.T, _ *Resolver, gitDir string) {
+			symlink(t, "loop-b", filepath.Join(gitDir, "info", "loop-a"))
+			symlink(t, "loop-a", filepath.Join(gitDir, "info", "loop-b"))
+		}, false, RuleGitDirLinkUnresolved},
+		{"unreadable subdirectory", func(t *testing.T, _ *Resolver, gitDir string) {
+			logs := filepath.Join(gitDir, "logs")
+			mkdir(t, logs)
+			if err := os.Chmod(logs, 0); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(logs, 0o755) })
+		}, false, RuleDirUnreadable},
+		{"entry cap", func(_ *testing.T, r *Resolver, _ string) {
+			r.gitDirEntries = 5
+		}, false, RuleGitDirWalkIncomplete},
+		{"canceled", func(*testing.T, *Resolver, string) {}, true, RuleGitDirWalkIncomplete},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := newRepo(t, filepath.Join(tmp, "x"+string(rune('a'+i))))
+			r, log := testResolver(t, emptyGlobal(t))
+			tt.setup(t, r, filepath.Join(dir, ".git"))
+			// A git that doesn't exist: the refusal comes before git runs.
+			r.Git = filepath.Join(tmp, "no-git")
+			ctx := t.Context()
+			if tt.canceled {
+				c, cancel := context.WithCancel(ctx)
+				cancel()
+				ctx = c
+			}
+			repo, err := r.Resolve(ctx, dir)
+			if repo != nil {
+				t.Fatalf("Resolve = %+v, want a refusal", repo)
+			}
+			requireRule(t, err, tt.rule, log)
+			t.Logf("refused: %v", err)
 		})
 	}
 }

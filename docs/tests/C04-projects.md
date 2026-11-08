@@ -64,15 +64,20 @@ again or changes its remote, and the project commands.
   `worktrees` and `packed-refs`, once for a nested `refs/heads/<name>`
   and `objects/<name>`, and once for a link to its own working tree.
   See each refused with `project-git-dir-link-outside` before git
-  runs, and nothing registered. A link whose target doesn't exist is
-  refused with `project-git-dir-link-unresolved`.
+  runs, and nothing registered. A link whose target doesn't exist, or
+  a link loop, is refused with `project-git-dir-link-unresolved`.
 - Start a session in a directory whose `.git` directory holds links
-  that stay inside it, and a `hooks` entry linked to the working tree,
-  and see it resolve to the directory's own repository.
+  that stay inside it, and a top-level `hooks` entry linked to the
+  working tree, and see it resolve to the directory's own repository.
+- Start a session in a directory whose `.git` directory has a
+  subdirectory that can't be read, and see it refused with
+  `project-dir-unreadable` before git runs. With more entries than
+  the walk's cap, or a request canceled during the walk, see it
+  refused with `project-git-dir-walk-incomplete`.
 - Start a session in a linked worktree whose `config.worktree` is a
   link out of the common directory, and in a submodule whose `objects`
   is a link into its parent repository's `.git`. See both refused with
-  `project-git-dir-link-outside` before git reads their `core.worktree`.
+  `project-git-dir-link-outside` before `wb` reads their `core.worktree`.
 - Start a session with `GIT_DIR`, `GIT_CONFIG_PARAMETERS` or
   `GIT_CONFIG_COUNT` set in the environment to point at project A or
   rewrite its configuration, and see it resolve to the directory's own
