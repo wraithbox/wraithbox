@@ -1,0 +1,25 @@
+{
+  "counts": {
+    "missing-or-wrong:wb-guestd": 80,
+    "missing-or-wrong:wb-guestroot": 66,
+    "temp-files-left": 0,
+    "wb-guestd:installed wb-guestroot:installed": 54,
+    "wb-guestd:installed wb-guestroot:refused": 66,
+    "wb-guestd:refused wb-guestroot:installed": 80
+  },
+  "examples": {
+    "wb-guestd:refused": "{\"err\":\"guesttools: /private/var/x31-race/fresh/191: mkdir /private/var/x31-race/fresh/191: file exists (guestd-install-dir-failed)\",\"outcome\":\"refused\",\"self\":\"wb-guestd\"}",
+    "wb-guestroot:refused": "{\"err\":\"guesttools: /private/var/x31-race/fresh/196: mkdir /private/var/x31-race/fresh/196: file exists (guestd-install-dir-failed)\",\"outcome\":\"refused\",\"self\":\"wb-guestroot\"}"
+  },
+  "mode": "fresh",
+  "rounds": 200
+}
+{
+  "counts": {
+    "temp-files-left": 0,
+    "wb-guestd:installed wb-guestroot:installed": 200
+  },
+  "examples": {},
+  "mode": "existing",
+  "rounds": 200
+}

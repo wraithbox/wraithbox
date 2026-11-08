@@ -1,0 +1,20 @@
+2026-11-08 12:03:48.229 sysadminctl[604:4142] ----------------------------
+2026-11-08 12:03:48.229 sysadminctl[604:4142] No clear text password or interactive option was specified (adduser, change/reset password will not allow user to use FDE) !
+2026-11-08 12:03:48.229 sysadminctl[604:4142] ----------------------------
+IOServiceMatchingfailed for: AppleM2ScalerParavirtDriver
+2026-11-08 12:03:48.829 sysadminctl[604:4142] Creating user record…
+2026-11-08 12:03:49.378 sysadminctl[604:4142] Assigning UID: 502 GID: 20
+2026-11-08 12:03:50.090 sysadminctl[604:4142] Creating home directory at /Users/proj1
+uid=502(proj1) gid=20(staff) groups=20(staff),12(everyone),61(localaccounts),702(com.apple.sharepoint.group.2),100(_lpoperator),701(com.apple.sharepoint.group.1)
+no proj1 is NOT a member of admin
+--- wb-guestd.log
+{"time":"2026-11-08T12:03:51.694407-08:00","level":"INFO","msg":"starting","version":"\"0.0.0-x31.1\"","pid":618}
+{"time":"2026-11-08T12:03:51.694661-08:00","level":"INFO","msg":"waiting for the tools disk","path":"/Volumes/wb-guest-tools","wait":30000000000,"error":"guesttools: /Volumes/wb-guest-tools: open /Volumes/wb-guest-tools: no such file or directory (guestd-tools-not-mounted)"}
+--- wb-guestroot.log
+{"ev":"start","pid":621,"port":1022,"prog":"guestroot","t":1794168231.625971,"uid":0,"version":"0.0.0-x31.1"}
+{"time":"2026-11-08T12:03:51.626554-08:00","level":"INFO","msg":"waiting for the tools disk","prog":"guestroot","pid":621,"path":"/Volumes/wb-guest-tools","wait":30000000000,"error":"guesttools: /Volumes/wb-guest-tools: open /Volumes/wb-guest-tools: no such file or directory (guestd-tools-not-mounted)"}
+total 43088
+drwxr-xr-x  4 root  wheel       128 Nov  8 12:03 .
+drwxr-xr-x  3 root  wheel        96 Nov  8 12:03 ..
+-rwxr-xr-x  1 root  wheel  17530642 Nov  8 12:03 wb-guestd
+-rwxr-xr-x  1 root  wheel   4528578 Nov  8 12:03 wb-guestroot
