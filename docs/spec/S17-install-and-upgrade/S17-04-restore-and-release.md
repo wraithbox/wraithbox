@@ -77,7 +77,30 @@ system trust store. It binds the file to that entry.
 
 The catalog isn't signed, so a compromised `wb-download` can report
 any entry. Against that, the design relies on Virtualization's
-installer refusing a restore image that Apple didn't sign (I262).
+installer, which refuses a changed restore image
+(X30-installer-trust):
+
+- For the boot components (the kernel cache, the boot loaders, the
+  ramdisk, the device tree and the trust caches), the installer hashes
+  each file in the image and asks Apple's signing server for a ticket.
+  The server declines a digest that Apple didn't sign for the VM's
+  platform and build, and the install fails. A matching change to the
+  image's build manifest doesn't change the digest the installer
+  sends.
+- The restore OS in the VM checks the system volume image while it
+  copies it, and the install fails at a changed byte.
+
+So every install needs Apple's signing server. The installation
+service asks it, over the host's network. That service is Apple's own
+process, and `wb-vmd-install`'s profile doesn't confine it, so the
+image build uses the host's network outside `wb-download`, while
+`wb-vmd-install` itself still has none (S04-04-vm-processes). Each
+request holds the VM's chip identity and the components' digests.
+
+An older build that the signing server still signs passes both
+checks, and the SHA-1 doesn't stop it either. The floor and the
+rollback check above compare the version that the entry reports,
+which comes from `wb-download` too (I618).
 
 ### A Claude Code release
 
