@@ -68,10 +68,12 @@ URLs resolve as the user's git resolves them (`url.<base>.insteadOf`).
 with a `.git` entry, as git does. The key must belong to that directory. A
 `.git` directory must be both `--git-dir` and `--git-common-dir`. Any type
 other than a directory or a file refuses the command. A symbolic link, for
-one, could name another project's `.git`. A link in the git directory but the
-top-level `hooks`, or in a `.git` file's common directory, that resolves out
-of it refuses the command too (`project-git-dir-link-outside`, `project-git-dir-link-unresolved`).
-So does a directory with too many entries to check in time (`project-git-dir-walk-incomplete`).
+one, could name another project's `.git`.
+
+A link in the git directory but the top-level `hooks`, or in a `.git` file's
+common directory, that resolves out of it refuses the command too
+(`project-git-dir-link-outside`, `project-git-dir-link-unresolved`). So does a
+directory with too many entries to check in time (`project-git-dir-walk-incomplete`).
 `wb` checks before git runs, or for a `.git` file before it reads `core.worktree`.
 `git rev-parse` reads its `config` first, which adds no reach: the `.git` file
 can name any git directory.
@@ -103,9 +105,9 @@ here says why (NFR06-explained-refusals), and nothing is registered.
 #### Which commands
 
 Every command that resolves a project from a directory resolves it this
-way: `wb claude`, `wb trust`, `wb untrust`, `wb land` and `wb diff`, the
-`wb project` commands and `wb shell` without `--project`, and `wb project
-move` for its `<dir>` even with `--project`.
+way: `wb claude`, `wb trust`, `wb untrust`, `wb land`, `wb diff`, and the
+`wb project` commands and `wb shell` without `--project`. `wb project move`
+resolves its `<dir>` this way even with `--project`.
 
 `wb land` and `wb diff` find the user's repository only this way, never
 from a path in `state.db` or from `wb-hostd`. They refuse a session
@@ -151,9 +153,8 @@ session start, and the URLs already tell repositories apart.
 
 ### Grow-only
 
-At a session start, the recorded identity can be empty while the
-repository now has a remote or a root commit. `wb` then records it, with
-a 5019 event.
+At a session start, the recorded identity can be empty while the repository
+now has a remote or a root commit. `wb` then records it, with a 5019 event.
 
 A repository that has had neither a remote nor a commit at any session
 start has nothing recorded. So a replacement at its path before then is
@@ -244,8 +245,7 @@ them, and another project may use the same item. `rm` lists them, and
 
 #### The project user
 
-`rm` asks `wb-guestd` in each VM to remove the project user and its
-home.
+`rm` asks `wb-guestd` in each VM to remove the project user and its home.
 
 - The pending removal is a record in `state.db` that survives restarts.
 - `wb-hostd` sends it when the VM runs, and otherwise at its next start.
