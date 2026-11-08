@@ -3714,8 +3714,26 @@
 	},
 	"609": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Campaign waves end after 10 minutes: claude -p stops the background wave-lead",
 		"summary": "Wave 1 of campaign #604 ran claude -p \"/wave --campaign 604 ...\" through scripts/campaign.mjs."
+	},
+	"610": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(scripts): a headless campaign wave waits for its background lead",
+		"summary": "scripts/campaign.mjs starts each headless wave with CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 (waveEnv, with a test)."
+	},
+	"611": {
+		"kind": "issue",
+		"state": "open",
+		"title": "User docs: list the V1 limits, starting with the GUI-session limit of S06-04",
+		"summary": "Found in the code review of #608 (#224)."
+	},
+	"612": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(wb): refuse a git directory that holds a link resolving outside it",
+		"summary": "The project resolver refuses a project whose git directory holds a symbolic link that resolves outside it, as the decision of 2026-10-26 on #388 says."
 	}
 }

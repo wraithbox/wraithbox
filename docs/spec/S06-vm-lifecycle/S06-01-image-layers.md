@@ -40,7 +40,9 @@ and a new release rebuilds only that layer.
    contact `wbadmin`'s password is rotated from the parent's password
    to the new image's (S15-04-guest-admin, "One password per VM").
 4. `wb-guestd` installs the checked Claude Code binary through its
-   named operation (S14-01-install, "Into the image").
+   named operation (S14-01-install, "Into the image"). The operation
+   also installs the managed `CLAUDE.md` (S14-04-commands-and-endpoints,
+   "Guest instructions").
 5. The clone is sealed again, with the same scan, before any project
    code runs (S06-02-image-build, "Sealing"). `wb-hostd` takes it from
    the build bundle as "Taking the sealed image" says.

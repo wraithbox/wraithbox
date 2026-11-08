@@ -50,8 +50,11 @@ Such a test fails with a `testmanagerd` error, which doesn't name the
 limit. No host process rewrites that error:
 
 - `xcodebuild` runs in a Claude Code tool call. Its output goes to
-  Claude Code in the guest, and from there to the model. `wb` and
-  `wb-hostd` never see it.
+  Claude Code in the guest, and from there to the model. Claude Code's
+  terminal interface draws it, and the terminal stream carries it
+  through `wb-hostd` and `wb` to the user (S16-terminal-stream). The
+  host passes those bytes on as opaque terminal frames and never
+  parses them.
 - To see it, the host would parse output a guest-side wrapper sends.
   That is guest-controlled input, and a parser for it buys only a
   message.
