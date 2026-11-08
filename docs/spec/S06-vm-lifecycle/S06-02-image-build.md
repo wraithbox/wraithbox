@@ -84,8 +84,7 @@ The first stage is the provisioning boot.
 - The options create the user `wbadmin`, and turn Remote Login on.
   They get the guest past Setup Assistant with no clicks.
 - One SSH session as `wbadmin` installs `wb-guestd` as a root
-  LaunchDaemon and writes `cron.allow` and `at.allow`, and does nothing
-  else. `wb-guestd` can't write those two files ("Guest confinement").
+  LaunchDaemon, writes cron's and at's allow files, and nothing else.
 - That session runs on the build VM's own file-handle network, through
   the host's userspace stack. Only the host and the build guest can
   join that network. The channel therefore authenticates the guest.
@@ -157,14 +156,11 @@ every layer, and a new Claude Code release only the Claude Code layer.
 
 ### Guest confinement
 
-The build's SSH session writes `cron.allow` and `at.allow` in
-`/private/var/at`, each with `root` only, owned by root and not
-writable by group or others. TCC protects that directory, and only a
-process with Full Disk Access, such as a Remote Login session, can
-write it. So the image has the files, and `wb-guestd` checks them at
-each start (S13-01-process-hardening, "Cron and at"). The base image includes the
-Network Extension of S13-guest-confinement, approved during the build,
-once spike X14-flow-attribution allows it.
+The build's SSH session writes `cron.allow` and `at.allow` with `root`
+only, since TCC lets only a process with Full Disk Access write them.
+`wb-guestd` checks them (S13-01-process-hardening, "Cron and at"). The
+base image includes the Network Extension of S13-guest-confinement,
+approved during the build, once spike X14-flow-attribution allows it.
 
 ### Terminfo
 
