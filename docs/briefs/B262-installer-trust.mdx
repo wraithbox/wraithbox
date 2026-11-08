@@ -1,0 +1,107 @@
+---
+title: Does the macOS installer refuse a changed restore image?
+description: Yes, with conditions. Apple's signing server declines changed boot components and the restore OS a changed system volume, but every install contacts Apple from a service the wb-vmd-install profile doesn't confine, and an older build that Apple still signs isn't caught.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Answered 2026-11-08.** Source: I262, X30-installer-trust. Affects S17-04-restore-and-release and S04-04-vm-processes. Follow-up: I618.
+
+<Aside type="tip" title="What we learned">
+**Yes, with conditions.** A changed kernel cache (three ways) and a changed system volume image failed to install, and Apple's unchanged image installed under the same profile. The refusal comes from Apple's signing server, which `wb-vmd-install` can't reach but Apple's installation service does, on every install. Approving records that in S17-04-restore-and-release and S04-04-vm-processes. An older build that Apple still signs is the gap left, and I618 follows it up.
+</Aside>
+
+## The picture
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="wb-download fetches the restore image and wb-hostd checks its SHA-1, which only binds it to the catalog entry wb-download reported. wb-vmd-install, confined with no network, asks Apple's installation service to install. That service hashes the boot components and asks Apple's signing server over the host's network for a ticket, which the server declines for a changed component. The restore OS in the VM checks the system volume while copying it.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="20" y="30" width="150" height="56" rx="10" />
+  <text class="label" x="95" y="55" text-anchor="middle">wb-download</text>
+  <text class="note" x="95" y="73" text-anchor="middle">image and entry</text>
+
+  <rect class="box host" x="20" y="130" width="150" height="56" rx="10" />
+  <text class="label" x="95" y="155" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="95" y="173" text-anchor="middle">SHA-1 of the entry</text>
+  <line class="edge" x1="95" y1="86" x2="95" y2="128" marker-end="url(#f1-arrow)" />
+
+  <rect class="boundary" x="210" y="115" width="180" height="90" rx="12" />
+  <text class="boundary-label" x="222" y="133">profile: no network</text>
+  <rect class="box host" x="225" y="142" width="150" height="50" rx="10" />
+  <text class="label" x="300" y="172" text-anchor="middle">wb-vmd-install</text>
+  <line class="edge" x1="170" y1="158" x2="223" y2="164" marker-end="url(#f1-arrow)" />
+
+  <rect class="box host" x="430" y="130" width="160" height="70" rx="10" />
+  <text class="label" x="510" y="155" text-anchor="middle">installation</text>
+  <text class="note" x="510" y="173" text-anchor="middle">Apple's service</text>
+  <text class="note" x="510" y="189" text-anchor="middle">hashes boot files</text>
+  <line class="edge" x1="375" y1="166" x2="428" y2="166" marker-end="url(#f1-arrow)" />
+
+  <rect class="box host" x="600" y="20" width="150" height="66" rx="10" />
+  <text class="label" x="675" y="47" text-anchor="middle">signing server</text>
+  <text class="note" x="675" y="65" text-anchor="middle">Apple, internet</text>
+  <line class="edge" x1="560" y1="130" x2="640" y2="88" marker-end="url(#f1-arrow)" />
+  <text class="note" x="520" y="100">digests, chip ID</text>
+
+  <rect class="boundary" x="420" y="235" width="200" height="85" rx="12" />
+  <text class="boundary-label" x="432" y="253">VM</text>
+  <rect class="box guest" x="440" y="260" width="160" height="50" rx="10" />
+  <text class="label" x="520" y="282" text-anchor="middle">restore OS</text>
+  <text class="note" x="520" y="300" text-anchor="middle">checks system volume</text>
+  <line class="edge" x1="510" y1="200" x2="515" y2="258" marker-end="url(#f1-arrow)" />
+
+  <text class="note" x="20" y="250">changed kernel: declined by the server</text>
+  <text class="note" x="20" y="272">changed system volume: stopped in the VM</text>
+  <text class="note" x="20" y="294">older build Apple still signs: passes</text>
+</svg>
+<figcaption>
+Figure 1. Where a changed restore image is refused. `wb-hostd`'s SHA-1 only ties the file to the entry that `wb-download` reported (S17-04-restore-and-release). Apple's installation service, which `wb-vmd-install`'s profile doesn't confine, asks Apple's signing server for a ticket over the host's network. The restore OS in the VM checks the system volume.
+</figcaption>
+</figure>
+
+## What approving commits to
+
+No options to choose from: the installer is Apple's, and the spike measured what it does. Approving accepts the answer and the two spec changes:
+
+- S17-04-restore-and-release, "The trust base", names the two checks. It says every install needs Apple's signing server, which Apple's installation service calls over the host's network, outside the profile, while `wb-vmd-install` itself still has no network. It says an older build that the server still signs passes, with the follow-up I618.
+- S04-04-vm-processes, "`wb-vmd-install`", says the installation service rule reaches a service that calls Apple.
+
+<Badge text="SEC12-least-privilege" variant="success" /> kept: `wb-vmd-install`'s profile is unchanged, and the spike's probe confirmed it had no network. The network use belongs to Apple's service. <Badge text="SEC08-proj-isolation" variant="caution" /> kept with a condition: a changed image doesn't install. The guest OS is Apple's, but it can be an older Apple build (I618).
+
+Confidence is high for the refusals, measured once each. A finding that an install goes on without the signing server would change it.
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Apple's 27.2 (26B123) image installed under the `wb-vmd-install` profile in 446 s, and the same image with every entry stored again installed in 143 s (X30-installer-trust, "Answer", and [`results/README.md`](https://github.com/wraithbox/wraithbox/tree/dfe4e28031b4be30154130491eb27cef6e9a9bc1/spikes/x30-installer-trust/results/README.md)).
+- <Badge text="verified" variant="success" /> One changed byte in the kernel cache was declined by the signing server after 9.4 s (server error 94, MobileRestore 3194). The digest the installer sent was the changed file's, not the manifest's ([`c02-kernel-flip.summary.txt`](https://github.com/wraithbox/wraithbox/tree/dfe4e28031b4be30154130491eb27cef6e9a9bc1/spikes/x30-installer-trust/results/c02-kernel-flip.summary.txt)).
+- <Badge text="verified" variant="success" /> Rewriting the manifest's kernel digests to match didn't help (c06), and neither did a kernel cache Apple signed for a physical Mac of the same build (c04) ([`c06-kernel-flip-manifest.summary.txt`](https://github.com/wraithbox/wraithbox/tree/dfe4e28031b4be30154130491eb27cef6e9a9bc1/spikes/x30-installer-trust/results/c06-kernel-flip-manifest.summary.txt), [`c04-kernel-swap.summary.txt`](https://github.com/wraithbox/wraithbox/tree/dfe4e28031b4be30154130491eb27cef6e9a9bc1/spikes/x30-installer-trust/results/c04-kernel-swap.summary.txt)).
+- <Badge text="verified" variant="success" /> One changed byte in the middle of the system volume image failed the install at 48 %, after 219 s, with "failed to restore APFS image" ([`c03-os-flip.summary.txt`](https://github.com/wraithbox/wraithbox/tree/dfe4e28031b4be30154130491eb27cef6e9a9bc1/spikes/x30-installer-trust/results/c03-os-flip.summary.txt)).
+- <Badge text="verified" variant="success" /> Apple's installation service made five signing server requests in the unchanged install, over the host's network, while the profile denied the calling process a TCP connection ([`c00-original.summary.txt`](https://github.com/wraithbox/wraithbox/tree/dfe4e28031b4be30154130491eb27cef6e9a9bc1/spikes/x30-installer-trust/results/c00-original.summary.txt)).
+- <Badge text="inferred" variant="note" /> The restore OS refuses the system volume because the archive's authentication fails. The guest's own log isn't on the host.
+- <Badge text="assumed" variant="caution" /> An install fails when the signing server can't be reached. The spike didn't cut the host's network. The log shows the installer retries on "server not reachable".
+- <Badge text="assumed" variant="caution" /> Which older builds the server still signs for a VM. Not measured, I618.
+
+## What this unblocks
+
+- The image build of V1-M7-image-build: the trust base of S17-04-restore-and-release is measured.
+- I618: the downgrade gap, filed from this result.
+
+<details>
+<summary>Details and glossary</summary>
+
+**How the spike changed an image.** A restore image is a zip archive. The spike wrote a copy with every entry stored uncompressed in the original order, and changed only the entries the case names. A copy with no change (c01) installed, so the zip rewrite isn't what made the other cases fail.
+
+**Why the manifest doesn't matter.** The image's `BuildManifest.plist` lists a digest for each component, but nothing signs it. The installer doesn't trust it: it hashes the files itself and sends those digests to Apple. In the spike, the server declined every digest that wasn't the original file's, an Apple-signed kernel cache of another device among them. Apple documents that the boot chain then checks each component against the ticket. The spike didn't test that part, because no changed image got that far.
+
+**Glossary**
+
+- **Restore image (IPSW):** Apple's archive that macOS installs from.
+- **Signing server (TSS):** Apple's service that personalizes an install: it signs a ticket that lists the component digests for one device, here the VM.
+- **Chip identity (ECID):** the device identifier the ticket is bound to.
+- **Restore OS:** the small macOS that runs inside the VM during the install and writes the system volume.
+
+</details>

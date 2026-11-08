@@ -88,7 +88,7 @@ the three rules an install needs:
 
 - reading the restore image;
 - a read extension for it;
-- the installation service.
+- the installation service, which calls Apple (S17-04-restore-and-release).
 
 Only the image build needs those rules. The session VMs' `wb-vmd`
 instances don't have them (SEC12-least-privilege).
