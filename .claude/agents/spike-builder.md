@@ -22,10 +22,16 @@ open result pull request that passed `mise run ci` locally.
 Your prompt names the issue, the spike branch, and what other builders
 are changing at the same time. Everything else is here.
 
+`<base>` is `main`, or in a campaign the train your prompt names
+(`docs/agents/campaigns.md`), and a pull request that changes a harness
+path goes against `main` whatever the prompt says (`campaigns.md`, "What
+may ride the train"). Add the line `Campaign: #<n>` to the pull request
+body when your prompt names a campaign.
+
 ## Steps
 
 1. You start in a fresh worktree. Run `git fetch origin` and
-   `git checkout -b spike/x<NN>-<slug> origin/main` (or check out the
+   `git checkout -b spike/x<NN>-<slug> origin/<base>` (or check out the
    branch if it exists). Use absolute paths or
    `cd <worktree> && <command>`: in a subagent a `cd` does not carry
    over to the next Bash call.
@@ -39,13 +45,13 @@ are changing at the same time. Everything else is here.
    `spike/x<NN>-<slug>`, no project gates. Commit the code and the
    numbers you measured, push the branch, and keep it.
 6. Write the result. On a second branch `docs/x<NN>-<slug>-result`
-   from `origin/main`, write `docs/spikes/X<NN>-<slug>.md` with the
+   from `origin/<base>`, write `docs/spikes/X<NN>-<slug>.md` with the
    answer and a permalink to the head of the spike branch (`spikes.md`,
    "Result"). Update the specs the answer affects, link the result from
    X00-index, and write the review brief with the `brief` skill. Run
    `mise run ci` in the foreground (Bash timeout 600000 ms) before
    every push.
-7. Open that pull request against `main`: Conventional Commits title,
+7. Open that pull request against `<base>`: Conventional Commits title,
    `Closes #<issue>`, the requirement IDs the answer affects, a "Choices
    made" list with one line per two-way decision, and the attribution
    lines. A choice that changes a spec page or a `SEC*` control comes
@@ -139,7 +145,7 @@ yourself. Hand back the new head's full hash, the result of
 - After every `git commit`, check `git log -1 --oneline` shows your
   message.
 - If `mise run ci` fails on a file you didn't touch, check it on
-  `origin/main` in a detached worktree. If it fails there too, stop and
+  `origin/<base>` in a detached worktree. If it fails there too, stop and
   report the failing task and file. Don't fix it on your branch.
 - Past about 150 turns, stop: commit, push, comment
   `Unfinished: <branch>` on the issue with what is left, and hand back

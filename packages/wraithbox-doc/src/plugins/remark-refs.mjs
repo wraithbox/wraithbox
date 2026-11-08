@@ -66,7 +66,7 @@ export const SLUG = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*`;
  * A design ID: S07, SEC06, X14, B36, C03, V1, V1-01, V1-M2, and a page
  * of a spec, S07-04 (S01-spec-based-development, "Spec tree").
  */
-export const DESIGN_ID = String.raw`(?:FR|NFR|SEC|[BCTXR])\d{2,}|S\d{2,}(?:-\d{2})?|V\d+(?:-(?:M\d+|\d{2,}))?`;
+export const DESIGN_ID = String.raw`(?:FR|NFR|SEC|W|[BCTXR])\d{2,}|S\d{2,}(?:-\d{2})?|V\d+(?:-(?:M\d+|\d{2,}))?`;
 /** A definition list item: `- **SEC06-repo-writes: Name.** text`. */
 export const DEFINITION = new RegExp(
 	String.raw`^- \*\*(${DESIGN_ID})-(${SLUG}):\s*([^*]*?)\.?\*\*([\s\S]*?)(?=\n- \*\*|\n\n|(?![\s\S]))`,

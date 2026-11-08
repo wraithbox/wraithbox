@@ -23,6 +23,7 @@ out how to implement it.
 | `X<NN>-<slug>` | Spike | `docs/spikes/` | X00-index |
 | `R<NN>-<slug>` | Research note | `docs/research/` | R00-index |
 | `B<NN>-<slug>` | Review brief, numbered after its issue | `docs/briefs/` | B00-index |
+| `W<NN>-<slug>` | Campaign report, numbered after its campaign issue | `docs/campaigns/` | W00-index |
 | `V<N>-<slug>` | Version | `docs/versions/` | V00-index |
 | `V<N>-<NN>-<slug>` | Decision scoping version N | its version page | |
 | `V<N>-M<N>-<slug>` | Milestone of version N | its version page | |

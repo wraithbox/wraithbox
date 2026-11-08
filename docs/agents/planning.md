@@ -25,6 +25,12 @@ Order of work, top down:
    version page's order ("Milestones" below).
 2. Within it, **spikes** before anything that depends on them.
 3. Then by `priority:` label, then by issue number.
+4. In a campaign (`campaigns.md`), a wave that the current milestone
+   fills less than half takes the rest from the next milestone in the
+   version page's order, by the same rules. A focused milestone has
+   many issues on one component, and the collision rules
+   (`orchestration.md`, "Hot files and collisions") would leave the
+   wave nearly empty.
 
 ## Milestones
 

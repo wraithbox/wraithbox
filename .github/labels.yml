@@ -80,3 +80,11 @@
 - name: run
   color: "d4c5f9"
   description: Run issue of a /wave run, which holds the run's state
+# The campaign issue of a /campaign campaign (docs/agents/campaigns.md).
+- name: campaign
+  color: "c5def5"
+  description: Campaign issue of a /campaign campaign, which holds its limits and wave results
+# An issue closed by a pull request on a train that hasn't landed on main yet.
+- name: on-train
+  color: "c2e0c6"
+  description: Done on a campaign's train; lands on main when the train merges

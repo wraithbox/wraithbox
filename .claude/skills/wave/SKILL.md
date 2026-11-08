@@ -1,7 +1,7 @@
 ---
 name: wave
 description: Run Wraith Box waves as one run. Opens a run issue, picks each wave of ready, unblocked issues from the current milestone (spikes first), hands it to a wave-lead agent, merges what the maintainer's standing approval covers, and repeats until a stop condition.
-argument-hint: "[size] [waves N] [lane any|mac] [merge] [milestone M<n>] [only N,N,...] [area LABEL] [resume N]"
+argument-hint: "[size] [waves N] [lane any|mac] [merge] [milestone M<n>] [only N,N,...] [area LABEL] [resume N] | campaign mode: [size] campaign N train B lane L vm-slots K until T wave-file F"
 disable-model-invocation: true
 ---
 
@@ -31,6 +31,9 @@ start. Don't ask the maintainer anything until the run ends.
 - `--only`: pick only these issues (still skipping ones that are taken
   or blocked, and saying why).
 - `--area`: pick only issues with this `area:` or `comp:` label.
+- `--campaign`, `--train`, `--vm-slots`, `--until`, `--wave-file`:
+  campaign mode, set by `scripts/campaign.mjs` and never typed by the
+  maintainer ("Campaign mode").
 - `--resume`: continue the open run with this issue number, with the
   arguments in its body, except `--merge`: without a new `--merge` in
   the maintainer's message, the resumed run merges nothing. An
@@ -168,3 +171,88 @@ it `needs-triage` with `--parent` the research issue (`working.md`,
 `spike-x<NN>-<slug>` (`spikes.md`, "Tag"), and run `mise run spike:clean x<NN>`
 unless an open issue still needs its VM bundles (`spikes.md`,
 "VM bundles").
+
+## Campaign mode
+
+With `--campaign <n>`, you are one wave of campaign `<n>`
+(`docs/agents/campaigns.md`), started headless by `scripts/campaign.mjs`.
+Read `campaigns.md` too. Nobody reads this session live. Everything
+above holds, except:
+
+- **One wave, no run issue.** The campaign issue `<n>` is the record.
+  Don't open, resume or close a run issue, don't start `caffeinate`,
+  and ignore `--waves` and `--merge`. The cutoff is the campaign issue:
+  pick only issues numbered below `<n>`.
+- **Fill the wave.** When the milestone fills fewer than half of the
+  wave's places, take issues from the next milestone in the version
+  page's order, with the same rules (`planning.md`, "Where work comes from").
+- **VM slots.** In lane `mac`, take up to `--vm-slots` `needs-vm`
+  issues, counting every open, assigned `needs-vm` issue as running.
+- **The train is the base.** Tell the lead the base is `<train>`, the
+  `--until` time, and that each pull request body has the line
+  `Campaign: #<n>`. A builder branches from `origin/<train>` and opens
+  its pull request against it, except one whose work changes a harness
+  path (`campaigns.md`, "What may ride the train"), which opens it
+  against `main`.
+- **Until.** Pass `--until` to the lead: after it, the lead sends no
+  new fix round and reviews nothing new, and reports.
+- **Merge into the train, not `main`.** For each `Ready` pull request
+  against the train, check the train merge check (`campaigns.md`, "What
+  may ride the train") on GitHub, never from the report:
+
+  ```bash
+  gh pr view <n> --json headRefOid,changedFiles,mergeable,statusCheckRollup,closingIssuesReferences,reviews,comments --jq "$(cat .claude/skills/wave/merge-check.jq)"
+  gh pr view <n> --json baseRefName,body --jq '{base: .baseRefName, closes: [.body | scan("(?i)\\b(?:closes|fixes|resolves) #([0-9]+)") | .[0] | tonumber]}'
+  gh issue view <issue> --json labels -q '[.labels[].name | select(. == "needs-vm" or . == "needs-host" or startswith("comp:"))]'
+  gh api --paginate repos/wraithbox/wraithbox/pulls/<n>/files --jq '.[] | .filename, (.previous_filename // empty)' > .scratch/files-<n>.txt
+  grep -E '^(\.claude/|AGENTS\.md$|CLAUDE\.md$|\.github/|\.mise\.toml$|\.golangci\.yml$|\.swiftlint\.yml$|\.vale\.ini$|osv-scanner\.toml$|scripts/)|\.entitlements$' .scratch/files-<n>.txt
+  grep -E '^\.vale/' .scratch/files-<n>.txt | grep -v -E '^\.vale/styles/config/vocabularies/wraithbox/accept\.txt$'
+  git fetch origin <train> <head>
+  diff <(git show origin/<train>:packages/wraithbox-go/go.mod | awk '/^\t[a-z]/{print $1} $1=="require" && NF>=3 {print $2}' | sort -u) <(git show <head>:packages/wraithbox-go/go.mod | awk '/^\t[a-z]/{print $1} $1=="require" && NF>=3 {print $2}' | sort -u) | grep '^>'
+  git diff origin/<train>...<head> -- packages/wraithbox-swift/Package.swift | grep -E '^\+.*\.package\('
+  ```
+
+  It holds only when `base` is `<train>`, the `closes` list isn't
+  empty, no issue has `needs-host` or `comp:wb-vmd`, a `needs-vm`
+  issue's pull request body records its VM test run, every `grep` and
+  the `diff` print nothing, and the conditions of "Each wave", step 4
+  hold except the file list and the label conditions. Ignore the
+  `issues` field: GitHub fills it only for pull requests into `main`.
+  Then merge with `gh pr merge <n> --rebase --match-head-commit <head>`,
+  and for each issue in the `closes` list:
+
+  ```bash
+  gh issue close <issue> --reason completed --comment "Done on <train> by #<n>. Lands on main with the train.
+
+  Co-Authored-By: lsimons-bot <bot@leosimons.com>
+  Assisted-by: Claude:<model>"
+  gh issue edit <issue> --add-label on-train
+  ```
+
+  Otherwise the pull request stays open, and goes on the wave file's
+  `open` list with the condition that failed. Never merge anything into
+  `main`.
+- **After a merge.** A pull request against the train that turns
+  `CONFLICTING` goes on the wave file's `open` list as a rebase item for
+  the next wave, which gets it with the base `<train>`. Step 5 checks
+  the newest CI run on `<train>`, not `main`.
+- **End.** Write the wave file and end. Don't ask the maintainer
+  anything. The wave file, at the `--wave-file` path, is JSON:
+
+  ```json
+  {
+    "issues": [<every issue handed to an agent>],
+    "prs": [<every pull request opened, against the train or main>],
+    "merged": [<pull requests merged into the train>],
+    "open": [{"pr": 0, "issue": 0, "reason": "..."}],
+    "filed": [<follow-up issues filed>],
+    "flaky": [<flaky-test issues filed>],
+    "choices": ["PR<n>: a two-way choice the agents made"],
+    "waiting": ["a decision, refused command or harness pull request for the maintainer"],
+    "attended": ["a needs-host or attended step, with its command"],
+    "report": "<the lead's report>"
+  }
+  ```
+
+  Your final text is the wave's line, `wave <k>: merged #a #b, open #c`,
+  and the stop reason when nothing was pickable, in at most 100 words.

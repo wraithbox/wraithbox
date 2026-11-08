@@ -6,15 +6,22 @@ identity, the `wbtest` user, `sudo`, or a dialog only the maintainer can
 answer. This page says which machine does what, how the labels mark it,
 and what agents must not do on a host.
 
-## Two machines
+## Machines
 
 | Machine | Runs | Labels it takes |
 |---|---|---|
+| The dedicated Mac, an M6 with 24 GB, for Wraith Box only | campaigns (`campaigns.md`) and everything the personal Mac runs | any, with up to two `needs-vm` builders at a time and `needs-host` only attended |
 | The maintainer's personal Mac | everything, attended or not | any, `needs-vm` and `needs-host` included |
 | The maintainer's work laptop | code, specs, docs, CI chores | issues with neither `needs-vm` nor `needs-host` |
 
 The work laptop doesn't run spike VMs, test users, Keychain
-experiments or long VM test loads. One run at a time per machine.
+experiments or long VM test loads. One run or campaign at a time per
+machine.
+
+The maintainer runs no guests of their own on the dedicated Mac, so its
+agents may use both guests that NFR05-two-macos-vms allows
+(`--vm-slots 2`). On the personal Mac they share it with the
+maintainer's guests, and take one.
 
 The reference machine for performance and resource defaults is a 2022
 M2 MacBook Air with 16 GB of memory and a 512 GB disk (NFR01-startup).
@@ -39,8 +46,9 @@ before Wraith Box works end to end.
 
 ## The labels
 
-- **`needs-vm`:** the work boots a macOS guest. It runs on the personal
-  Mac, one such builder at a time (`orchestration.md`, "A wave", step
+- **`needs-vm`:** the work boots a macOS guest. It runs on the
+  dedicated Mac, two such builders at a time, or on the personal Mac,
+  one at a time (`orchestration.md`, "A wave", step
   2), and macOS allows two guests per host (NFR05-two-macos-vms).
 - **`needs-host`:** the work touches the host outside a worktree:
   Keychain items, team or identity signing, the `wbtest` user, `sudo`,

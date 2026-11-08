@@ -17,10 +17,17 @@ wave", "Hot files and collisions" and "Working with the platform"; in
 `working.md`, "Stacked pull requests", "Follow-ups", "Decisions" and
 "Working with the platform".
 
-Your prompt gives the wave number, the run issue, and per issue its
+Your prompt gives the wave number, the run issue (or in a campaign, the
+campaign issue, the train and an `until` time), and per issue its
 branch, its agent, the `R` number of a research issue and the files it
 likely touches. It may add rebase items: an open pull request whose
-branch needs a rebase onto `main`.
+branch needs a rebase onto its base.
+
+The base is `main`, or in a campaign the train
+(`docs/agents/campaigns.md`). Give it to every builder, spike builder,
+researcher and reviewer you spawn, with the line `Campaign: #<n>` for
+pull request bodies. After the `until` time, send no new fix round and
+spawn no new review, and report.
 
 You run in the main checkout, on `main`. Don't edit tracked files
 there, and never run `git stash`, `git checkout` or `git reset` in it.
@@ -37,8 +44,8 @@ Write scratch files only to `.scratch/`.
    other builders change and which files they share, and "hand back in
    at most 150 words". A rebase item always goes to `builder`, whatever
    the closing issue's labels. The builder checks out the existing
-   branch, rebases it on `origin/main`, diffs the generated and list
-   files against `main` and
+   branch, rebases it on `origin/<base>`, diffs the generated and list
+   files against the base and
    reruns `mise run doc:index` and `doc:refs` (`orchestration.md`, "A
    wave", step 6), runs `mise run ci`, pushes with `--force-with-lease`,
    and hands back. You watch its checks as in step 2. The rebased head
@@ -47,7 +54,8 @@ Write scratch files only to `.scratch/`.
 2. When a builder hands back a pull request, spawn `code-reviewer`, and
    `security-reviewer` when `orchestration.md`, "A wave", step 4 says
    so, each with `isolation: "worktree"` and no `effort`.
-   Name the pull request, the branch, the issue and the risks to probe.
+   Name the pull request, the branch, the base, the issue and the risks
+   to probe.
    Don't wait for GitHub CI first. In the same turn, start a check
    watch on the pull request ("Waiting").
 3. Post each review before you send anything to the builder, with

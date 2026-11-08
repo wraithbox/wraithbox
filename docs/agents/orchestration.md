@@ -14,6 +14,7 @@ leaves out and when to add it.
 
 | Role | Agent | How many | Works in |
 |---|---|---|---|
+| Campaign manager | the session that runs `/campaign` (`campaigns.md`) | one | the main checkout, on `main`, and the train's worktree |
 | Coordinator | the session itself, or the `/wave` skill | one | the main checkout, on `main` |
 | Wave lead | `wave-lead`, one per wave of a run ("Runs") | one at a time | the main checkout, writing only `.scratch/` |
 | Builder | `builder` | one per issue | its own worktree and branch |
@@ -50,7 +51,7 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
 2. **Choose the wave.** Up to six issues. Avoid two issues with the same
    `comp:` label, or two that both change a hot file (below), unless one
    is stacked on the other. At most one `needs-vm` builder runs at a
-   time. Every open, assigned `needs-vm` issue counts as running until
+   time, or two on the dedicated Mac (`host-work.md`, "Machines"). Every open, assigned `needs-vm` issue counts as running until
    it closes (its pull request merges) or is released. The count
    includes builders of other sessions and a builder sent back to fix
    review findings
@@ -217,6 +218,16 @@ machine, can see it and resume it.
 - **Keep the Mac awake.** The dispatcher starts `caffeinate -i` in the
   background at the start and stops it at the end.
 
+## Campaigns
+
+A campaign (`campaigns.md`) runs waves unattended within a budget, one
+headless `/wave` session per wave, and merges into a train branch
+instead of `main`. Its waves follow this page, except where
+`campaigns.md` and the `wave` skill's "Campaign mode" say otherwise:
+no run issue, the train as the base, the train merge check instead of
+the standing approval, and up to two `needs-vm` builders on the
+dedicated Mac. The maintainer merges the train.
+
 ## Effort
 
 Each agent runs at the effort in its file, and a spawn doesn't set
@@ -295,8 +306,6 @@ Left out on purpose, to add when the need shows:
   Bash for reviewers, a trusted-comments issue reader, a deny rule on
   editing `.claude/settings.json`, and an auto-formatter after edits.
   Add a hook only when a run breaks the rule it would enforce.
-- **Integration branches**, which batch many small approved branches
-  into one pull request. Pull requests here merge one by one.
 - **Periodic harness reviews.** Instead, each milestone gets one review
   when it closes: pull requests merged, first-review approve rate,
   rounds per pull request, follow-ups filed per issue closed,

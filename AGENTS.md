@@ -60,6 +60,7 @@ Fresh clone: `mise trust && mise install`, then `mise run install`.
 | `mise run vuln` | osv-scanner + govulncheck; network, no token |
 | `mise run doc:index` | Rewrite the tables of the indexes in `docs/` (S00-index, …); the build fails when one is stale |
 | `mise run gh:labels` | Create/update GitHub labels from `.github/labels.yml` |
+| `mise run campaign <cmd> <n>` | A campaign's ledger, limits, headless waves and report (`docs/agents/campaigns.md`) |
 
 Tasks are namespaced `<lang>:<verb>`: `go:test`, `swift:lint`,
 `doc:build`. `mise tasks` lists them all.
@@ -220,6 +221,10 @@ before the work they unblock. Besides the labels above, issues carry
   `code-reviewer`, `security-reviewer`, `wave-lead`); a run of one or
   more waves: `/wave`, started only by the maintainer. Each agent file
   names the pages its agent reads.
+- Campaigns: `/campaign`, started only by the maintainer, runs waves
+  unattended within a budget, merges into a train branch instead of
+  `main`, and writes one report page per campaign
+  (`docs/agents/campaigns.md`). Harness changes never ride a train.
 - What needs a VM or the maintainer's Mac, and what agents never do on
   a host: `docs/agents/host-work.md`. Finishing a session:
   `docs/agents/complete.md`.

@@ -88,6 +88,7 @@ export default defineConfig({
 				// group per kind of ID (S01-spec-based-development).
 				...[
 					['Review briefs', 'briefs'],
+					['Campaign reports', 'campaigns'],
 					['Specs', 'spec'],
 					['Test cases', 'tests'],
 					['Requirements', 'requirements'],
