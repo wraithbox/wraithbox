@@ -99,8 +99,8 @@ func isUserinfo(s string) bool {
 		if c == '%' && (i+2 >= len(s) || !isHex(s[i+1]) || !isHex(s[i+2])) {
 			return false
 		}
-		alnum := 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9'
-		if !alnum && strings.IndexByte("-._~!$&'()*+,;=:%", c) < 0 {
+		alphanumeric := 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9'
+		if !alphanumeric && strings.IndexByte("-._~!$&'()*+,;=:%", c) < 0 {
 			return false
 		}
 	}
