@@ -1395,7 +1395,7 @@
 	},
 	"224": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: which process explains the testmanagerd failure in the guest (B20 decision 1A)",
 		"summary": "S06-vm-lifecycle, \"No GUI login session\" (B20-guest-xcode decision 1A, #20, PR #221) says wb replaces the testmanagerd error from xcodebuild with a message that names the v1 limit (NFR06-explained-refusals)."
 	},
@@ -2747,7 +2747,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "X31-admin-channel: a root shell from a second guest daemon while wb-guestd is down",
-		"summary": "Can a second root LaunchDaemon in a macOS guest, wb-guestroot, give the host a root shell on a PTY over its own vsock port below 1024, while wb-guestd is dead, wedged or restarting?"
+		"summary": "Can a second root LaunchDaemon in a macOS guest, wb-guestroot, give the host a root shell on a PTY over its own vsock port below 1024, while wb-guestd is dead, wedged or restarting?",
+		"brief": "B448-admin-channel"
 	},
 	"449": {
 		"kind": "pr",
@@ -3708,7 +3709,7 @@
 	},
 	"608": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): explain the testmanagerd failure in the guest instructions, not on the host",
 		"summary": "Settles how the testmanagerd failure of an xcodebuild test in the guest is explained (B20 decision 1A, #20), as the maintainer's triage on #224 directed: no host parsing."
 	},
@@ -3735,5 +3736,48 @@
 		"state": "open",
 		"title": "feat(wb): refuse a git directory that holds a link resolving outside it",
 		"summary": "The project resolver refuses a project whose git directory holds a symbolic link that resolves outside it, as the decision of 2026-10-26 on #388 says."
+	},
+	"613": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(proxyd): strict HTTP/1.1 request head, request form and steps",
+		"summary": "Part of #498."
+	},
+	"614": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Build the admin path: wb-guestroot, the admin service and wb vm admin",
+		"summary": "Follow-up of #448 (X31-admin-channel), as the triage of #448 asked: no issue exists yet for building the admin path of S15-05-admin-path."
+	},
+	"615": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Guest kernel panic on a standard user's vsock connect to the guest's own CID",
+		"summary": "Found in #448 (X31-admin-channel), by chance."
+	},
+	"616": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project resolution: alternates and config includes in a .git that point into another project",
+		"summary": "Found in the code review of #612 (#388), finding 1."
+	},
+	"617": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project resolution on Windows: junctions inside .git pass the link walk",
+		"summary": "Found in the code review of #612 (#388), finding 5."
+	},
+	"618": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Restore image downgrade by a compromised wb-download",
+		"summary": "Follow-up from #262 (X30-installer-trust)."
+	},
+	"619": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spikes): X31-admin-channel answered yes, with conditions",
+		"summary": "X31-admin-channel answered yes, with conditions.",
+		"brief": "B448-admin-channel"
 	}
 }

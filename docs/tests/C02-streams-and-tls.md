@@ -602,4 +602,27 @@ Spec: S07-08-requests-and-credentials, "Request form".
   the announced `SETTINGS_MAX_HEADER_LIST_SIZE` over HTTP/2, and see a
   `431` with `http-header-size` and nothing sent upstream.
 
+Unit tests in `internal/proxyd/httpreq`, below the HTTP/1.1 connection
+loop:
+
+- Each head form the parser refuses gets a `400` with
+  `http-request-form` (`TestC02RequestHeadRefusals`). A head over
+  64 KiB gets a `431` with `http-header-size`, and the parser takes no
+  byte past the cap (`TestC02HeadOverCap`).
+- Origin form, absolute form with its userinfo dropped, and
+  `Host: example.com:443` on port 443 pass (`TestC02RequestFormAccepted`).
+- The canonical path: `/a/./b/../c` becomes `/a/c`, `/@scope%2fname`
+  stays one segment, and `%2e%2e` and `wget%2F..%2Fcurl` are refused
+  with `http-path-form` (`TestC02CanonicalPath`).
+- The transfer codings above get a `400` with `http-transfer-coding`
+  before the HTTP policy step (`TestC02TransferCoding`). A chunked
+  framing that fails to decode ends the body with the same rule
+  (`TestC02ChunkedFraming`).
+- `CONNECT` and `Upgrade: h2c` get a `403` with `http-tunnel` before
+  any step (`TestC02Tunnels`). Without the credential removal step or
+  the HTTP policy step, a request gets `http-step-missing`
+  (`TestC02StepMissing`).
+- `FuzzHTTP1RequestHead` and `FuzzCanonicalPath` fuzz the head parser
+  and the canonicalize step.
+
 **Status:** Draft

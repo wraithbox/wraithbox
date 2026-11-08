@@ -1,0 +1,3 @@
+go test fuzz v1
+[]byte("0 https://\"@eXAmple.Com HTTP/1.0\r\nHost:eXAmple.Com\r\n\r\n")
+[]byte("0")
