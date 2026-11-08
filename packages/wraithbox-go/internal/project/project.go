@@ -135,6 +135,13 @@ const (
 	// RuleGitFileElsewhere: the `.git` file names a repository that is
 	// neither this directory's linked worktree nor its submodule.
 	RuleGitFileElsewhere Rule = "project-git-file-elsewhere"
+	// RuleGitDirLinkOutside: a symbolic link in the git directory
+	// resolves outside it, so git could read another project's
+	// repository through it.
+	RuleGitDirLinkOutside Rule = "project-git-dir-link-outside"
+	// RuleGitDirLinkUnresolved: a symbolic link in the git directory
+	// can't be resolved, so where it leads can't be checked.
+	RuleGitDirLinkUnresolved Rule = "project-git-dir-link-unresolved"
 	// RuleOwnDirectory: the key is under <data>, <config> or <logs>.
 	RuleOwnDirectory Rule = "project-own-directory"
 

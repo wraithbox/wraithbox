@@ -31,7 +31,11 @@ const gitEntry = ".git"
 //     back-link names D's `.git` and whose core.worktree, when set, is
 //     D, or a submodule whose core.worktree is D;
 //   - a `.git` symbolic link, or any other type, is refused, because a
-//     link could name another project's `.git`.
+//     link could name another project's `.git`;
+//   - a git directory that holds a symbolic link resolving outside it
+//     is refused (checkGitDirLinks): for a `.git` directory before git
+//     runs, and for a `.git` file once git rev-parse has named the git
+//     directory, before git reads its core.worktree.
 //
 // A key under <data>, <config> or <logs> is refused. Every refusal is
 // logged with its rule and returned as a *Refusal, before any identity
@@ -59,6 +63,12 @@ func (r *Resolver) resolve(ctx context.Context, dir string) (*Repo, *Refusal) {
 	d, isFile, ref := r.findGitEntry(dir)
 	if ref != nil {
 		return nil, ref
+	}
+	if !isFile {
+		// Before git runs: git would follow a link out of the `.git`.
+		if ref := checkOwnGitDirLinks(ctx, d); ref != nil {
+			return nil, ref
+		}
 	}
 	out, ref := r.run(ctx, gitRun{
 		dir: d, timeout: gitTimeout, limit: 2 * (maxPathLen + 1),
@@ -209,9 +219,19 @@ func (r *Resolver) checkGitFile(ctx context.Context, d, common, gitDir string) (
 	}
 	switch {
 	case cg == cc:
+		// git rev-parse named the git directory. Its links are checked
+		// before git reads core.worktree from it.
+		if ref := checkGitDirLinks(ctx, cg); ref != nil {
+			return "", ref
+		}
 		return KindSubmodule, r.checkSubmodule(ctx, d, gitDir)
 	case filepath.Dir(cg) == filepath.Join(cc, "worktrees"):
 		if ref := checkWorktree(d, cg); ref != nil {
+			return "", ref
+		}
+		// The worktree's git directory is in the common directory, so
+		// one walk checks both.
+		if ref := checkGitDirLinks(ctx, cc); ref != nil {
 			return "", ref
 		}
 		return KindWorktree, r.checkCoreWorktree(ctx, d, common, gitDir)
