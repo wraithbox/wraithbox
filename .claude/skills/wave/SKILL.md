@@ -213,7 +213,7 @@ above holds, except:
   ```
 
   It holds only when `base` is `<train>`, the `closes` list isn't
-  empty, no issue has `needs-host` or `comp:wb-vmd`, a `needs-vm`
+  empty, no issue has `needs-host` (`comp:wb-vmd` may ride), a `needs-vm`
   issue's pull request body records its VM test run, every `grep` and
   the `diff` print nothing, and the conditions of "Each wave", step 4
   hold except the file list and the label conditions. Ignore the

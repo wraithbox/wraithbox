@@ -37,6 +37,7 @@ Needs a token with `repo` scope and admin rights on the repository.
 | Suggest updating PR branches | on | |
 | Wiki, Projects | off | Unused; the design is in `docs/spec/` |
 | Ruleset `main` on the default branch | active | See [Default branch ruleset](#default-branch-ruleset) |
+| Ruleset `train` on `train/**` | active | See [Train ruleset](#train-ruleset) |
 
 ```sh
 R=repos/wraithbox/wraithbox
@@ -77,6 +78,29 @@ pushing feature branches and opening pull requests are unaffected. It:
 
 The ruleset deliberately leaves out `required_linear_history`: it would
 forbid the merge commits that stacked branches need.
+
+### Train ruleset
+
+The ruleset `train` (ID 26807128) covers `refs/heads/train/**`, the
+integration branches of campaigns (`docs/agents/campaigns.md`). It
+blocks deletion and force pushes, and nothing else. It requires no pull
+request and no checks, because the campaign manager pushes report
+commits, reverts and merges from `main` to a train directly. CI runs
+on every push to `train/**`. Blocking deletion also keeps "Delete
+branch on merge" from deleting a train after it merges, so trains are
+kept.
+
+```sh
+gh api -X POST repos/wraithbox/wraithbox/rulesets --input - <<'JSON'
+{
+  "name": "train",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["refs/heads/train/**"], "exclude": [] } },
+  "rules": [{ "type": "deletion" }, { "type": "non_fast_forward" }]
+}
+JSON
+```
 
 `CI result` is the only required check. On a pull request, the
 `changes` job of `.github/workflows/ci.yml` runs `scripts/ci-changes.mjs`
