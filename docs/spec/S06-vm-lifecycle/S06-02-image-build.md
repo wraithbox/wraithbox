@@ -141,8 +141,8 @@ who may write, fetch, or receive it.
 
 The host never mounts a guest disk to build an image
 (SEC15-no-guest-disk-mount). `wb-guestd` provisions through named
-operations instead. None of them runs an arbitrary command as root,
-and each takes secrets on standard input, never in arguments.
+operations instead. Each runs one fixed task, never an arbitrary
+command as root, and takes secrets on standard input, not arguments.
 
 Every clone of an image starts with the same per-machine keys. So
 sealing deletes the SSH host keys (`/etc/ssh/ssh_host_*_key`). The

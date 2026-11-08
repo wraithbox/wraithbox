@@ -215,10 +215,11 @@ range. Both checks run before it makes or unlocks any project user.
 When one fails, `wb-guestd` logs it with its rule and exits without
 serving the host.
 
-In each round of the kill loop, after the signals and the `bootout`
-and before it lists the processes, the check also looks for the
-user's crontab, `/private/var/at/tabs/<name>`, and for a regular file
-in `/private/var/at/jobs` that the user owns, which is an `at` job.
+Each round of the kill loop also checks for the user's jobs, after
+the signals and the `bootout` and before it lists the processes. It
+looks for the user's crontab, `/private/var/at/tabs/<name>`, and for a
+regular file in `/private/var/at/jobs` that the user owns, which is an
+`at` job.
 One found, or a check that fails, counts as a process left, and the
 loop logs it with its rule. When no process of the user is left but a
 job is found, the loop ends at once: nothing removes the job, so

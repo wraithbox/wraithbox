@@ -154,7 +154,7 @@ Then it:
    allow files (S06-02-image-build, "Provisioning stages"). Each file
    is written with `install`, which removes a file or link at the
    target first, and then compared with `root` and a newline. The
-   commands stop at the first one that fails, so the session fails;
+   first command that fails stops the commands and fails the session;
 5. writes the password and a newline into that session's standard
    input, for the guest's `sudo -S`, and closes it, so the install
    commands run under one `sudo -S`;
