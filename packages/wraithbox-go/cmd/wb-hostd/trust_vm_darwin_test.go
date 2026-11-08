@@ -227,7 +227,7 @@ const trustScript = "id -un\n" +
 // (S09-08-guest-trust, "System trust store").
 func (r *vmRun) checkTrustFiles(id string, cas, dropped []state.CA) {
 	t := r.t
-	res := r.runShell(id, shellIO{stdin: strings.NewReader(trustScript)})
+	res := r.runShell(id, shellIO{stdin: strings.NewReader(trustScript), lookup: hostVars})
 	if res.code != 0 {
 		t.Errorf("the trust script: exit %d\n%s", res.code, res.stderr)
 	}
