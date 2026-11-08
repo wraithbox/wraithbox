@@ -7,13 +7,13 @@ description: "A two-hour campaign of waves of five on the dedicated Mac, in V1-M
 
 ## Summary
 
-Nothing merged into the train. Wave 1 picked I498, I448, I262, I224 and I388 and handed them to a wave-lead in the background. The headless session then ended its turn, and claude -p stopped the lead and its builders 10 minutes later (I609). One pull request, PR608 for I224, is open against the train and unreviewed, and four issues were left half built in their worktrees. The campaign spent 11.89 dollars of 30 and ended under the rule for a wave that merges nothing, since another wave would hit the same defect.
+The campaign didn't put a pull request on the train. Wave 1 picked I498, I448, I262, I224 and I388 and handed them to a wave-lead in the background. The headless session then ended its turn, and claude -p stopped the lead and its builders 10 minutes later (I609). One pull request, PR608 for I224, is open against the train and not reviewed, and four issues were left half built in their worktrees. The campaign spent 11.89 dollars of 30 and ended under the rule for a wave that merges nothing, since another wave would hit the same defect.
 
 ## Budget
 
 | Limit | Spent | Of |
 |---|---|---|
-| Hours | 0.2 | 2 |
+| Hours | 0.3 | 2 |
 | Dollars | $11.89 | $30.00 |
 | Issues | 0 | 10 |
 | Pull requests | 1 | 10 |
@@ -32,13 +32,13 @@ None.
 
 ## Waiting for you
 
-- I609: harness fix, so a headless wave waits for its lead. For example, set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` in the environment of the `claude` child in `scripts/campaign.mjs`. Until it lands, campaigns can't run.
+- I609 asks for a harness fix that makes a headless wave wait for its lead. For example, `scripts/campaign.mjs` can set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` in the environment of the `claude` child. Campaigns can't run before that fix merges into `main`.
 - Wave 1's session ended `success` with no wave file, after its background tasks were stopped. Session 047fca59-9075-455b-acd4-fe7356be635c.
-- PR608 (I224) is open against `train/604` and unreviewed. Review and merge it in a later wave, or retarget it to `main` once this train lands or closes.
+- PR608 (I224) is open against `train/604` and not reviewed. Review and merge it in a later wave, or retarget it to `main` once this train merges or closes.
 - I498: uncommitted work in worktree `.claude/worktrees/agent-a213d532808b3f9e0`, branch `feat/498-proxyd-http1-inspected`. Still assigned.
 - I448 (X31-admin-channel): untracked spike files in worktree `.claude/worktrees/agent-a34c99e68dab14fa1`. Still assigned.
 - I262 (X30-installer-trust): untracked spike files in worktree `.claude/worktrees/agent-a1b15acd2e45c08d8`. Its VM case run was stopped, and no VM process is left. Still assigned.
-- I388: two unpushed commits and uncommitted changes in worktree `.claude/worktrees/agent-a674ee2945135b906`, branch `feat/388-git-dir-symlinks`. Still assigned.
+- I388: two commits that are not pushed, and uncommitted changes, in worktree `.claude/worktrees/agent-a674ee2945135b906`, branch `feat/388-git-dir-symlinks`. Still assigned.
 - Worktree `.claude/worktrees/agent-a3b7c2cf5e72616e5` holds PR608's branch, which is kept while PR608 is open.
 
 ## Attended queue
