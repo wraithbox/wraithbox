@@ -1,26 +1,28 @@
 ---
 title: "Campaign 604: network floor, lane mac"
-description: "A two-hour campaign of waves of five on the dedicated Mac, in V1-M3-network-floor."
+description: "A two-hour campaign of waves of five on the dedicated Mac, in V1-M3-network-floor. It ended after one wave that merged nothing."
 ---
 
-**Running.** Campaign I604, train `train/604` in PR605, started 2026-11-08 19:53 UTC. Rendered by `scripts/campaign.mjs` (docs/agents/campaigns.md).
+**Ended 2026-11-08: wave 1 merged nothing into the train, because claude -p stopped its background wave-lead after 10 minutes (I609).** Campaign I604, train `train/604` in PR605, started 2026-11-08 19:53 UTC. Rendered by `scripts/campaign.mjs` (docs/agents/campaigns.md).
 
 ## Summary
 
-The campaign has started. No wave has run yet.
+Nothing merged into the train. Wave 1 picked I498, I448, I262, I224 and I388 and handed them to a wave-lead in the background. The headless session then ended its turn, and claude -p stopped the lead and its builders 10 minutes later (I609). One pull request, PR608 for I224, is open against the train and unreviewed, and four issues were left half built in their worktrees. The campaign spent 11.89 dollars of 30 and ended under the rule for a wave that merges nothing, since another wave would hit the same defect.
 
 ## Budget
 
 | Limit | Spent | Of |
 |---|---|---|
-| Hours | 0.0 | 2 |
-| Dollars | $0.00 | $30.00 |
+| Hours | 0.2 | 2 |
+| Dollars | $11.89 | $30.00 |
 | Issues | 0 | 10 |
-| Pull requests | 0 | 10 |
+| Pull requests | 1 | 10 |
 
 ## Pull requests
 
-No pull requests yet.
+| Pull request | Closes | Title | Where | Rounds | Specs and contracts | Files |
+|---|---|---|---|---|---|---|
+| PR608 | I224 | docs(spec): explain the testmanagerd failure in the guest instructions, not on the host | open | 0 | S06-04, S14, S14-01, S14-04 | 4 |
 
 ## Choices to veto
 
@@ -30,7 +32,14 @@ None.
 
 ## Waiting for you
 
-Nothing.
+- I609: harness fix, so a headless wave waits for its lead. For example, set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` in the environment of the `claude` child in `scripts/campaign.mjs`. Until it lands, campaigns can't run.
+- Wave 1's session ended `success` with no wave file, after its background tasks were stopped. Session 047fca59-9075-455b-acd4-fe7356be635c.
+- PR608 (I224) is open against `train/604` and unreviewed. Review and merge it in a later wave, or retarget it to `main` once this train lands or closes.
+- I498: uncommitted work in worktree `.claude/worktrees/agent-a213d532808b3f9e0`, branch `feat/498-proxyd-http1-inspected`. Still assigned.
+- I448 (X31-admin-channel): untracked spike files in worktree `.claude/worktrees/agent-a34c99e68dab14fa1`. Still assigned.
+- I262 (X30-installer-trust): untracked spike files in worktree `.claude/worktrees/agent-a1b15acd2e45c08d8`. Its VM case run was stopped, and no VM process is left. Still assigned.
+- I388: two unpushed commits and uncommitted changes in worktree `.claude/worktrees/agent-a674ee2945135b906`, branch `feat/388-git-dir-symlinks`. Still assigned.
+- Worktree `.claude/worktrees/agent-a3b7c2cf5e72616e5` holds PR608's branch, which is kept while PR608 is open.
 
 ## Attended queue
 
@@ -40,8 +49,10 @@ Nothing.
 
 - First code review approved: 0 of 0 pull requests.
 - Code review rounds per reviewed pull request: none.
-- Follow-ups filed: 0.
+- Follow-ups filed: 1.
 - Flaky tests filed: none.
 - The campaign manager's own session isn't metered. The 5 percent reserve of the dollar limit pays for it.
 
-No waves yet.
+| Wave | Length | Cost | Issues | Pull requests | Session ended |
+|---|---|---|---|---|---|
+| 1 | 11 min | $11.89 | 0 | 0 | success |
