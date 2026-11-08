@@ -5,7 +5,7 @@ description: Yes, with conditions. It answered in every state of wb-guestd and n
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Answered 2026-11-08: yes, with conditions.** Source: X31-admin-channel (I448). Changes S15-05-admin-path and S06-12-guest-agent. Follow-ups: I614 builds the admin path, I615 tracks the kernel panic.
+**Answered 2026-11-08: yes, with conditions. Awaiting decision: Full Disk Access for wb-guestroot.** Source: X31-admin-channel (I448). Changes S15-05-admin-path and S06-12-guest-agent. Follow-ups: I614 builds the admin path, I615 tracks the kernel panic.
 
 <Aside type="tip" title="What we learned">
 **Yes, with conditions.** A second root daemon on its own vsock port gave the host a root shell while `wb-guestd` was booted out, stopped, or killed in a loop, and a standard user never bound its port. Its shell can't do what macOS's privacy controls (TCC) guard, such as deleting a user record. One decision is open: whether to give `wb-guestroot` Full Disk Access. The spec now says it has none.
@@ -60,7 +60,7 @@ TCC, macOS's privacy control, applies to root too. A root daemon gets Full Disk 
 The admin shell does root checks such as the data mount cases, and not what TCC guards.
 
 - **Cost:** none. A check that needs a TCC-guarded file is done another way, or not through the admin path.
-- **Keeps:** <Badge text="SEC12-least-privilege" variant="success" /> <Badge text="SEC11-root-gains-nothing" variant="success" />
+- **Trade-off:** the narrower daemon, at the cost of a shell that fails where TCC guards.
 
 </div>
 <div class="wb-option">
@@ -70,14 +70,14 @@ The admin shell does root checks such as the data mount cases, and not what TCC 
 The image build grants `wb-guestroot` Full Disk Access, so its shell matches `sudo` over SSH.
 
 - **Cost:** a grant needs the System Settings dialog in the build VM or a configuration profile, and neither was tried. Each image build would carry that step.
-- **Keeps:** <Badge text="SEC12-least-privilege" variant="caution" /> a broader daemon than the checks need.
+- **Trade-off:** a shell as capable as `sudo` over SSH, at the cost of a broader daemon in the guest. No `SEC*` requirement covers that breadth, since the guest is untrusted either way.
 
 </div>
 </div>
 
 **The case for B.** "A look inside a VM whose `wb-guestd` is dead" may need logs or files TCC guards, and a shell that fails there sends the person to SSH, which the product doesn't offer. B makes the admin path the one full root shell. The VM is marked and its system disk replaced after use either way.
 
-Confidence in A is high for V1: the checks I420 needs (mounts, users, groups) all worked. A check in I420 that needs Full Disk Access would change it.
+Confidence in A is moderate. In the shell, `dsmemberutil`, `diskutil list` and `info`, `mount -u` on an attached image, and `sysadminctl -addUser` worked, and deleting a user failed. Reformatting the data volume, step 4 of I420, wasn't tried. If that or another I420 step needs Full Disk Access, B gains.
 
 ## Impact
 
@@ -86,7 +86,6 @@ Confidence in A is high for V1: the checks I420 needs (mounts, users, groups) al
 <tr><th>Requirement</th><th>A. No Full Disk Access</th><th>B. Grant it</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>SEC12-least-privilege</strong> each process gets only the rights it needs</td><td class="yes">daemon gets no extra right</td><td class="partial">daemon broader than its checks</td></tr>
 <tr><td><strong>SEC08-proj-isolation</strong> one project can't reach another</td><td class="yes">unchanged</td><td class="yes">unchanged: VM is marked</td></tr>
 <tr><td><strong>SEC11-root-gains-nothing</strong> guest root grants no host control</td><td class="na">same as today</td><td class="na">same as today</td></tr>
 </tbody>
@@ -94,7 +93,7 @@ Confidence in A is high for V1: the checks I420 needs (mounts, users, groups) al
 
 ## Evidence
 
-- <Badge text="verified" variant="success" /> The stand-in gave a root shell (uid 0, on a PTY) with `wb-guestd` running, booted out, stopped with `SIGSTOP`, and killed whenever it ran for 40 s. In that loop, 44 of 44 tries on its port answered and 44 of 44 on `wb-guestd`'s port were reset. Source: X31-admin-channel, "Answer" item 1, `results/state-*.out`, `results/crash-poll*.jsonl`.
+- <Badge text="verified" variant="success" /> The stand-in gave a root shell (uid 0, on a PTY) with `wb-guestd` running, booted out, stopped with `SIGSTOP`, and killed whenever it ran, in a 40 s window. In that loop, 44 of 44 tries on its port answered and 44 of 44 on `wb-guestd`'s port were reset. Source: X31-admin-channel, "Answer" item 1, `results/state-*.out`, `results/crash-poll*.jsonl`.
 - <Badge text="verified" variant="success" /> A standard user's `bind` of port 1022 failed with `EACCES` on every one of 12,646 tries, during restarts and while the daemon was booted out. Root bound it at once. Source: "Answer" item 2, `results/squat*.out`.
 - <Badge text="verified" variant="success" /> `dsmemberutil`, `diskutil` and `mount -u` behaved the same in the admin shell and under `sudo` over SSH. Deleting a user failed in the admin shell with `eDSPermissionError`. The guest's TCC database denies `wb-guestroot` Full Disk Access and allows `sshd-keygen-wrapper`. Source: "Answer" item 4, `results/s1-*.out`, `results/tcc.out`.
 - <Badge text="verified" variant="success" /> The two updates at one boot both installed, about 0.2 s apart, and 400 rounds at the same instant left no temporary file. Source: "Answer" item 5, `results/boot5.out`, `results/race.json`.

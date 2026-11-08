@@ -703,8 +703,10 @@ Spec: S15-05-admin-path.
 - An ask for `wb-guestroot`'s port from anything but the admin service
   is refused with `admin-port-unrequested`.
 - In a guest, a project user can't bind `wb-guestroot`'s port while it
-  restarts, and a connection from the guest's own CID is closed. The
-  root shell opens while `wb-guestd` is stopped.
+  restarts. The case of a connection from the guest's own CID waits on
+  I615, because that connect panicked macOS 27.2 guests
+  (X31-admin-channel). The root shell opens while `wb-guestd` is
+  stopped.
 - Each use writes the two 5019 events, the end event with its cause.
 
 **Status:** Draft

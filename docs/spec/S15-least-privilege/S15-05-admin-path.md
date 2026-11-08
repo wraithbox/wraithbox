@@ -135,11 +135,12 @@ LaunchDaemon gave the host a root shell while `wb-guestd` was booted
 out, stopped, and killed in a loop, and a standard user never bound
 its port.
 
-The shell has no Full Disk Access. TCC holds `wb-guestroot`, the
-responsible process, to what a root LaunchDaemon may do, so what TCC
-guards fails in the shell, such as deleting a user record or reading
-TCC's own files. `sudo` over SSH can do both, since Remote Login has
-Full Disk Access (X31-admin-channel).
+By default the shell has no Full Disk Access. TCC holds
+`wb-guestroot`, the responsible process, to what a root LaunchDaemon
+may do, so what TCC guards fails in the shell, such as deleting a user
+record or reading TCC's own files. `sudo` over SSH can do both, since
+Remote Login has Full Disk Access (X31-admin-channel). This isn't a
+boundary: root in the shell can obtain that access.
 
 ### In the image
 

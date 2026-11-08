@@ -53,25 +53,29 @@ does when vsock is open to project users.
    | running | answers | shell |
    | `launchctl bootout` | `ECONNRESET` | shell |
    | stopped with `SIGSTOP` (`Ts`) | connects, sends nothing in 1 s | shell |
-   | killed whenever it runs, 40 s, 4 kills under launchd's throttle | 44 of 44 tries `ECONNRESET` | 44 of 44 tries answer, shell |
+   | killed whenever it ran, in a 40 s window, 4 kills under launchd's throttle | 44 of 44 tries `ECONNRESET` | 44 of 44 tries answer, shell |
 
 2. **A standard user can't bind the port: yes.** As the standard user
    `proj1`, every `bind` of port 1022 failed with `EACCES`: 2902 tries
-   in 8 s while root killed the stand-in and launchd restarted it,
-   2883 tries in 5 s while it was booted out, and 6861 tries in 15 s
-   across another restart. Root bound the free port on its first try,
-   and `proj1` bound port 5022 on its first. That is the rule of
-   X27-vsock-confinement. After `kill -9`, launchd ran the new
-   stand-in within 0.5 s in 1 run, and by the first 100 ms check in 3
-   of 3 more.
+   in 8 s after root killed the stand-in, which launchd didn't restart
+   in that boot, so no process listened on the port, 2883 tries in 5 s
+   while it was booted out, and 6861 tries in 15 s across a restart.
+   Root bound the free port on its first try, and `proj1` bound port
+   5022 on its first. That is the rule of X27-vsock-confinement. After
+   `kill -9` in the later boots, launchd ran the new stand-in within
+   0.5 s in 1 run, and by the first 100 ms check in 3 of 3 more.
 3. **Condition: the guest's kernel panics on a project user's vsock
    connect.** From inside the guest, `proj1`'s connects to port 1022
    failed for CID 1 (`EFAULT`) and CID 2, the host, with no listener (`EAGAIN`). A
-   connect to CID 3, the guest's own, hung. Within seconds the guest's
+   connect to CID 3, the guest's own, hung. Soon after, the guest's
    kernel panicked with "corrupt list", panicked task the probe, 2
-   times in 2 tries (12:49:22 and 12:51:35 guest time), and the guest
-   rebooted. The second time, the hung probe was killed 3 s after its
-   connect began. A standard user can so stop a VM. The
+   times in 2 tries, and the guest rebooted. The times are only known
+   from the panic reports' file names (12:49:22 and 12:51:35 guest
+   time), which come after the reboot: the second boot began at
+   12:51:29. The spike's helper meant to kill a probe hung over 3 s,
+   but it logged no kill, so it's unknown whether the connect or the
+   kill of the probe panics the kernel. A standard user can so stop a
+   VM. The
    session profile already denies `AF_VSOCK` (S13-02-filesystem-profile),
    which keeps project users off this path. The panic was found by
    chance and not narrowed down. I615 tracks it.
@@ -127,9 +131,13 @@ tools disk held version `0.0.0-x31.2` of both.
   failed `socket(AF_VSOCK)` with `ENODEV` and launchd restarted them.
 - In the first boot, after one `kill -9`, launchd hadn't started a new
   stand-in 9 s later, and a `launchctl bootstrap` started one that
-  logged nothing. That boot panicked 25 s later (Answer, item 3). In
-  the next boots, the 4 restarts were at once (Answer, item 2). The first boot's
-  behavior isn't explained.
+  logged nothing. That boot panicked soon after (Answer, item 3). In
+  the next boots, all 4 restarts came within 0.5 s (Answer, item 2).
+  The first boot's behavior isn't explained.
+- `results/race.json` (the 400 rounds of item 5) and
+  `results/install.log` (the provisioning boot) come from the stopped
+  builder's run, WIP commit 17b253e on the spike branch. This run
+  reran every other step.
 
 ## What was not measured
 
@@ -157,6 +165,13 @@ tools disk held version `0.0.0-x31.2` of both.
 - **S13-02-filesystem-profile**: unchanged. The `AF_VSOCK` deny there
   also keeps project users off the kernel panic of item 3. I615
   asks for a threat entry and a report to Apple.
+- **Drift, left to I615:** S04-02-vm-provider, "Guest ports below
+  1024", says a connect to the guest's own CID makes `wb-guestd`'s
+  `accept` fail and that `wb-guestd` skips it. The header of
+  `internal/platform/guestsock/guestsock.go` says the same, and the
+  self-CID tests of C09-guest-and-sessions (`TestSelfCIDFlood`) make
+  such connects. On macOS 27.2 that connect panicked the guest. This
+  pull request doesn't change those files.
 
 ## Spike code
 
