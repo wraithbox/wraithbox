@@ -462,6 +462,7 @@ unifont
 respawn
 stdlib
 startswith
+tonumber
 subpackages
 lockfiles
 worktrees

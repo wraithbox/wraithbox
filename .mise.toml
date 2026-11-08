@@ -850,6 +850,12 @@ description = "Remove a directory of test bundles from the spike cache (args: <d
 run_windows = "echo vm:clean: test VMs need macOS; skipped on Windows"
 run = 'b=packages/wraithbox-swift/.build/dev-bundle/wb-dev-bundle; [ -x "$b" ] || mise run vm:build; "$b" clean'
 
+# The deterministic layer of a campaign (docs/agents/campaigns.md):
+# ledger, limits, one headless wave, the report. Run by the campaign skill.
+[tasks.campaign]
+description = "Campaign ledger, limits, headless waves and report (args: start|status|wave|report <campaign issue> ...)"
+run = "bun scripts/campaign.mjs"
+
 # Tests for the scripts in scripts/. Not in `test` yet: the CI workflow
 # runs each task by name, and both lists must name the same checks.
 [tasks."scripts:test"]

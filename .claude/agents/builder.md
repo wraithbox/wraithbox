@@ -23,10 +23,16 @@ changing at the same time. Everything else is here. An issue labeled
 and report it, unless it is a rebase item: a rebase is yours whatever
 the closing issue's labels.
 
+`<base>` is `main`, or in a campaign the train your prompt names
+(`docs/agents/campaigns.md`), and a pull request that changes a harness
+path goes against `main` whatever the prompt says (`campaigns.md`, "What
+may ride the train"). Add the line `Campaign: #<n>` to the pull request
+body when your prompt names a campaign.
+
 ## Steps
 
 1. You start in a fresh worktree. Run `git fetch origin` and
-   `git checkout -b <branch> origin/main` (or check out the branch if it
+   `git checkout -b <branch> origin/<base>` (or check out the branch if it
    exists). Use absolute paths or `cd <worktree> && <command>`: in a
    subagent a `cd` does not carry over to the next Bash call.
 2. Read the issue as `working.md`, "Picking up an issue", step 2 says:
@@ -41,7 +47,7 @@ the closing issue's labels.
 5. Build. Run the area's `mise` tasks (`working.md`, "Area") while
    working, and `mise run ci` in the foreground (Bash timeout 600000 ms)
    before every push.
-6. Rebase on `origin/main`, push, and open the PR against `main`:
+6. Rebase on `origin/<base>`, push, and open the PR against `<base>`:
    Conventional Commits title, `Closes #<issue>`, the requirement IDs it
    implements, a "Choices made" list with one line per two-way decision,
    and the attribution lines. A choice that changes a spec page or a
@@ -124,7 +130,7 @@ the result of `mise run ci`, and the follow-ups you filed.
 - After every `git commit`, check `git log -1 --oneline` shows your
   message.
 - If `mise run ci` fails on a file you didn't touch, check it on
-  `origin/main` in a detached worktree. If it fails there too, stop and
+  `origin/<base>` in a detached worktree. If it fails there too, stop and
   report the failing task and file; don't fix it on your branch.
 - Past about 150 turns, stop: commit, push, comment
   `Unfinished: <branch>` on the issue with what is left, and hand back

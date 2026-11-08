@@ -1,10 +1,11 @@
 name: CI
 
 on:
+  # train/** is a campaign's integration branch (docs/agents/campaigns.md).
   push:
-    branches: [main]
+    branches: [main, 'train/**']
   pull_request:
-    branches: [main]
+    branches: [main, 'train/**']
   workflow_dispatch:
 
 permissions:

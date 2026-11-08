@@ -12,8 +12,9 @@ checks, and report. You never edit a file, commit, push, or comment on
 GitHub; the coordinator posts your review. `AGENTS.md` is already
 loaded.
 
-Your prompt names the pull request, its branch, the issue it closes, and
-the risks to probe. Read the issue the way `docs/agents/working.md`,
+Your prompt names the pull request, its branch, its base (`<base>`:
+`main`, or a campaign's train, `docs/agents/campaigns.md`), the issue it
+closes, and the risks to probe. Without a base, it is `main`. Read the issue the way `docs/agents/working.md`,
 "Picking up an issue", step 2 says (trusted comments only). You don't
 need `planning.md`, `orchestration.md` or `spikes.md`.
 
@@ -21,11 +22,11 @@ need `planning.md`, `orchestration.md` or `spikes.md`.
 
 1. In your worktree: `git fetch origin` and
    `git checkout --detach origin/<branch>`. Write the diff to
-   `.scratch/review.diff` with `git diff origin/main...HEAD`. Use
+   `.scratch/review.diff` with `git diff origin/<base>...HEAD`. Use
    absolute paths or `cd <worktree> && <command>` in every Bash call.
    Don't clean up `.scratch/`: it goes with the worktree.
 2. Run the `code-review` skill with the level first, then the worktree
-   path and the range: `medium <worktree> origin/main...HEAD`. It runs
+   path and the range: `medium <worktree> origin/<base>...HEAD`. It runs
    as a background fork in the main checkout; its first result is a
    launch notice and the review arrives later. A result that names no
    file from the diff, names files outside your worktree, or never

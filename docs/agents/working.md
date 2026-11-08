@@ -65,14 +65,16 @@ in `planning.md`, and spikes in `spikes.md`.
    An issue with an assignee or an open pull request that closes it is
    taken. If you stop without finishing, comment
    `Released: <branch>` with what is left, and unassign.
-4. **Branch.** `<type>/<n>-<slug>` from `origin/main`, where `<type>` is
+4. **Branch.** `<type>/<n>-<slug>` from `origin/<base>`. The base is
+   `main`, or in a campaign its train (`campaigns.md`), and a change to a
+   harness path always goes against `main`. `<type>` is
    the Conventional Commits type (`feat/14-netd-dhcp`,
    `fix/21-relay-resize`, `docs/30-spec-007-dns`). Spikes use
    `spike/x<k>-<slug>` (`spikes.md`).
 5. **Build.** Specs first: read the spec sections and requirement IDs
    the issue names. Run the area's `mise` tasks while working and
    `mise run ci` before every push.
-6. **Open the pull request** against `main` with `Closes #<n>` in the
+6. **Open the pull request** against `<base>` with `Closes #<n>` in the
    body, a summary, which requirement IDs it implements, and the
    attribution lines. Do not merge. A session working alone watches CI
    (`mise run ci-watch`) and fixes failures before it reports done. An
@@ -165,8 +167,8 @@ small: a label nobody filters on is noise.
 
 A builder whose issue depends on an unmerged branch starts from it and
 opens its PR with `--base <that branch>`. CI runs on `pull_request`
-against `main` only, so the builder triggers
-`gh workflow run ci.yml --ref <branch>`. When the base merges (by rebase,
+against `main` and `train/**` only, so for any other base the builder
+triggers `gh workflow run ci.yml --ref <branch>`. When the base merges (by rebase,
 so its commits get new SHAs), retarget with `gh pr edit <n> --base main`
 and rebase. Never amend or force-push a branch another branch is stacked
 on; append a commit instead.
@@ -250,7 +252,7 @@ that needs its own issue.
   absolute paths, `git -C <worktree>`, or `cd <worktree> && <command>`.
 - **The `code-review` skill runs as a forked agent in the main
   checkout**, not the caller's worktree. Pass the level first, then the
-  worktree path and the range (`medium <worktree> origin/main...HEAD`).
+  worktree path and the range (`medium <worktree> origin/<base>...HEAD`).
   Its first result is a launch notice; the review comes later in a task
   notification. A result that names no file from the diff, or that never
   arrives, is a failed run: review by hand instead and say so.
