@@ -149,8 +149,9 @@ Then it:
 2. reads one line, the build password, from its standard input;
 3. logs in as `wbadmin` with that password, offering password
    authentication only, and not a key, an agent or keyboard-interactive;
-4. starts one session, with no terminal, that runs the install
-   commands compiled into it;
+4. starts one session, with no terminal, that runs the commands
+   compiled into it: they install `wb-guestd` and write cron's and at's
+   allow files (S06-02-image-build, "Provisioning stages");
 5. writes the password and a newline into that session's standard
    input, for the guest's `sudo -S`, and closes it, so the install
    commands run under one `sudo -S`;

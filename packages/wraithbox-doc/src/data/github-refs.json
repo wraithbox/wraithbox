@@ -3124,7 +3124,7 @@
 	},
 	"511": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd per VM: the program, its confinement and start, its channels, restarts, and the flow reset on restore",
 		"summary": "Package M3.12 of docs/implementation-plan.md, part 2 of 4 (M3.12b)."
 	},
@@ -3516,7 +3516,7 @@
 	},
 	"576": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: one VM's failed hand-off socket ends the control channel for every VM",
 		"summary": "In wb-proxyd's hand-off receiver (#492, PR #574), a failure on one VM's new hand-off socket ends the whole control channel, and with it every VM's sockets and streams."
 	},
@@ -3558,7 +3558,7 @@
 	},
 	"583": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: run the CA keeper: boot order at VM start, ProxydStarted, the rotation tick and host wake",
 		"summary": "Named by the code review of #581 (finding 1), which builds #507."
 	},
@@ -3606,7 +3606,7 @@
 	},
 	"591": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(netd): run wb-netd per VM, started and stopped by wb-hostd",
 		"summary": "cmd/wb-netd is now a real program, and wb-hostd starts one per VM run on the run's packet transport."
 	},
@@ -3645,5 +3645,17 @@
 		"state": "open",
 		"title": "chore(deps): Bump @astrojs/starlight from 0.42.7 to 0.42.8 in /packages/wraithbox-doc",
 		"summary": "Bumps @astrojs/starlight from 0.42.7 to 0.42.8."
+	},
+	"598": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-proxyd: a reset between the post-dial check and the ClientHello send still lets the ClientHello out",
+		"summary": "S07-15 says a connection opened after a stream reset is closed before any byte goes upstream."
+	},
+	"599": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: can't write /private/var/at/cron.allow in a real macOS guest, so it never serves the host",
+		"summary": "In a real macOS 27.2 guest (26B123), wb-guestd at cbbc5ce never serves the host."
 	}
 }

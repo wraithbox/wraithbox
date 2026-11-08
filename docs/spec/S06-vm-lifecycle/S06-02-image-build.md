@@ -5,7 +5,7 @@ its two provisioning stages, terminfo, sealing, and storage.
 
 ## Design
 
-![The image build. wb-download fetches the restore image, and wb-hostd checks its hash before it starts wb-vmd-install, which installs macOS and runs the build's boots. In the provisioning boot, the provisioning options create wbadmin and turn Remote Login on, and wb-build-ssh's one SSH session, on a connection wb-netd opens for the build VM only, with the password from wb-guestadmin, installs wb-guestd. Everything after goes through wb-guestd over the host-guest socket, from the password rotation to the sealing scan. After wb-vmd-install exits, wb-hostd clones the checked disks into the sealed image. The host never mounts a guest disk.](S06-02-image-build.svg)
+![The image build. wb-download fetches the restore image, and wb-hostd checks its hash before it starts wb-vmd-install, which installs macOS and runs the build's boots. In the provisioning boot, the provisioning options create wbadmin and turn Remote Login on, and wb-build-ssh's one SSH session, on a connection wb-netd opens for the build VM only, with the password from wb-guestadmin, installs wb-guestd and writes cron's and at's allow files. Everything after goes through wb-guestd over the host-guest socket, from the password rotation to the sealing scan. After wb-vmd-install exits, wb-hostd clones the checked disks into the sealed image. The host never mounts a guest disk.](S06-02-image-build.svg)
 
 ### Built by Wraith Box
 
@@ -84,7 +84,8 @@ The first stage is the provisioning boot.
 - The options create the user `wbadmin`, and turn Remote Login on.
   They get the guest past Setup Assistant with no clicks.
 - One SSH session as `wbadmin` installs `wb-guestd` as a root
-  LaunchDaemon, and nothing else.
+  LaunchDaemon and writes `cron.allow` and `at.allow`, and does nothing
+  else. `wb-guestd` can't write those two files ("Guest confinement").
 - That session runs on the build VM's own file-handle network, through
   the host's userspace stack. Only the host and the build guest can
   join that network. The channel therefore authenticates the guest.
@@ -156,9 +157,12 @@ every layer, and a new Claude Code release only the Claude Code layer.
 
 ### Guest confinement
 
-`wb-guestd` writes `cron.allow` and `at.allow` with `root` only when
-it starts in the second stage, so the image has them
-(S13-01-process-hardening, "Cron and at"). The base image includes the
+The build's SSH session writes `cron.allow` and `at.allow` in
+`/private/var/at`, each with `root` only, owned by root and not
+writable by group or others. TCC protects that directory, and only a
+process with Full Disk Access, such as a Remote Login session, can
+write it. So the image has the files, and `wb-guestd` checks them at
+each start (S13-01-process-hardening, "Cron and at"). The base image includes the
 Network Extension of S13-guest-confinement, approved during the build,
 once spike X14-flow-attribution allows it.
 
