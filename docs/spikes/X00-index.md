@@ -342,6 +342,12 @@ assumption that v1 work would otherwise build on. They block v1.
   S17-04-restore-and-release rests on the installer's own check
   (SEC12-least-privilege, SEC08-proj-isolation). Found while deciding
   B49-install-upgrade. Tracked in I262.
+  Answered yes, with conditions, in the result page
+  X30-installer-trust: Apple's signing server declines changed boot
+  components, and the restore OS a changed system volume. Every install
+  contacts that server from Apple's installation service, which the
+  profile doesn't confine, and an older build Apple still signs isn't
+  caught.
 - **X31-admin-channel: A root shell from a second guest daemon.**
   Can `wb-guestroot`, a root LaunchDaemon apart from `wb-guestd` on a
   vsock port of its own below 1024, give the host a root shell on a PTY
