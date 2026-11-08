@@ -105,6 +105,9 @@ Claude Code layer build, before that layer is sealed
 `wb-guestd` starts Claude Code by that absolute path, never through
 `PATH`.
 
+The same operation installs the guest instructions, a managed
+`CLAUDE.md` (S14-04-commands-and-endpoints, "Guest instructions").
+
 ### Version
 
 The image sets the Claude Code version. The installed binary can't
