@@ -1627,7 +1627,7 @@
 	},
 	"262": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X30-installer-trust: Installer refusal of a changed restore image",
 		"summary": "S17-install-and-upgrade (#49) checks a downloaded macOS restore image against the SHA-1 that Apple's catalog (mesu.apple.com) lists, the only hash it lists.",
 		"brief": "B262-installer-trust"
@@ -3783,7 +3783,7 @@
 	},
 	"620": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X30 result, the installer refuses a changed restore image",
 		"summary": "Result of spike X30-installer-trust: yes, with conditions.",
 		"brief": "B262-installer-trust"

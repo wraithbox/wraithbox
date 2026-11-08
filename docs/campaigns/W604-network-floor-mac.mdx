@@ -1,55 +1,61 @@
 ---
 title: "Campaign 604: network floor, lane mac"
-description: "A two-hour campaign of waves of five on the dedicated Mac, in V1-M3-network-floor. It ended after one wave that merged nothing."
+description: "A campaign on the dedicated Mac, in V1-M3-network-floor. Its one wave was stopped by a harness defect, then finished by hand in the same worktrees."
 ---
 
-**Ended 2026-11-08: wave 1 merged nothing into the train, because claude -p stopped its background wave-lead after 10 minutes (I609).** Campaign I604, train `train/604` in PR605, started 2026-11-08 19:53 UTC. Rendered by `scripts/campaign.mjs` (docs/agents/campaigns.md).
+**Ended 2026-11-08: the resumed wave 1 put four of its five picked issues on the train, and PR613 is open as part of I498.** Campaign I604, train `train/604` in PR605, started 2026-11-08 19:53 UTC. Rendered by `scripts/campaign.mjs` (docs/agents/campaigns.md).
 
 ## Summary
 
-The campaign didn't put a pull request on the train. Wave 1 picked I498, I448, I262, I224 and I388 and handed them to a wave-lead in the background. The headless session then ended its turn, and claude -p stopped the lead and its builders 10 minutes later (I609). One pull request, PR608 for I224, is open against the train and not reviewed, and four issues were left half built in their worktrees. The campaign spent 11.89 dollars of 30 and ended under the rule for a wave that merges nothing, since another wave would hit the same defect.
+Wave 1 picked I498, I448, I262, I224, and I388. Its headless session ended after 10 minutes, and claude -p stopped the wave-lead and its builders (I609). The campaign ended there with nothing on the train. PR610 fixed the harness on `main`. The maintainer then had the campaign resumed for 90 minutes and 50 dollars, only to finish the five picked issues. The manager acted as wave lead in its own session, without a new headless wave, and builders continued in the existing worktrees from their pushed WIP commits. PR608 (I224), PR612 (I388), PR619 (I448, X31-admin-channel) and PR620 (I262, X30-installer-trust) merged into the train. PR613 is the first part of I498, and both reviews approve it with every check passing. It isn't merged, since the rest of I498 is still to build.
 
 ## Budget
 
 | Limit | Spent | Of |
 |---|---|---|
-| Hours | 0.3 | 2 |
-| Dollars | $11.89 | $30.00 |
+| Hours | 1.9 | 2.31 |
+| Dollars | $11.89 | $50.00 |
 | Issues | 0 | 10 |
-| Pull requests | 1 | 10 |
+| Pull requests | 5 | 10 |
 
 ## Pull requests
 
 | Pull request | Closes | Title | Where | Rounds | Specs and contracts | Files |
 |---|---|---|---|---|---|---|
-| PR608 | I224 | docs(spec): explain the testmanagerd failure in the guest instructions, not on the host | open | 0 | S06-04, S14, S14-01, S14-04 | 4 |
+| PR608 | I224 | docs(spec): explain the testmanagerd failure in the guest instructions, not on the host | on the train | 1 | S06-01, S06-04, S14, S14-01, S14-04 | 7 |
+| PR612 | I388 | feat(wb): refuse a git directory that holds a link resolving outside it | on the train | 1 | S05-04 | 9 |
+| PR613 | none | feat(proxyd): strict HTTP/1.1 request head, request form and steps | open | 3 | S07-08, S07-16 | 16 |
+| PR619 | I448 | docs(spikes): X31-admin-channel answered yes, with conditions | on the train | 3 | S06-12, S15-05 | 8 |
+| PR620 | I262 | docs(spikes): X30 result, the installer refuses a changed restore image | on the train | 2 | S04-04, S04-08, S12-01, S17-03, S17-04 | 11 |
 
 ## Choices to veto
 
 To veto a pull request on the train, comment `veto #<pr>` on PR605.
 
-None.
+- PR608: the testmanagerd explanation is a managed `CLAUDE.md` in the guest, installed with the Claude Code layer. It's guidance, not a control, and the host parses no tool output.
+- PR612: every link in a `.git` directory, at any depth except the top-level `hooks`, must resolve inside it, and a walk over 500000 entries or 10 s refuses the project. The check compares paths by string prefix, so a link that reaches the git directory through another letter case or mount is refused.
+- PR619: S15-05-admin-path states that the admin shell has no Full Disk Access, the stricter option. Whether to grant it is open in B448-admin-channel.
+- PR620: S17-03 now amends the I49 decision "Only `wb-download` fetches". Every macOS install contacts Apple's signing server from Apple's installation service, which Wraith Box neither bounds nor audits. B262-installer-trust names the exception.
+- PR620: the spec has no rule for an older build that Apple still signs, which passes the check. I618 tracks that gap.
+- PR613: refused request forms are listed in code and stricter than the issue asked: field values with bytes over 0x7E, bad userinfo in an absolute-form target, and two `Content-Length` fields even when they agree.
 
 ## Waiting for you
 
-- I609 asks for a harness fix that makes a headless wave wait for its lead. For example, `scripts/campaign.mjs` can set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` in the environment of the `claude` child. Campaigns can't run before that fix merges into `main`.
-- Wave 1's session ended `success` with no wave file, after its background tasks were stopped. Session 047fca59-9075-455b-acd4-fe7356be635c.
-- PR608 (I224) is open against `train/604` and not reviewed. Review and merge it in a later wave, or retarget it to `main` once this train merges or closes.
-- I498: uncommitted work in worktree `.claude/worktrees/agent-a213d532808b3f9e0`, branch `feat/498-proxyd-http1-inspected`. Still assigned.
-- I448 (X31-admin-channel): untracked spike files in worktree `.claude/worktrees/agent-a34c99e68dab14fa1`. Still assigned.
-- I262 (X30-installer-trust): untracked spike files in worktree `.claude/worktrees/agent-a1b15acd2e45c08d8`. Its VM case run was stopped, and no VM process is left. Still assigned.
-- I388: two commits that are not pushed, and uncommitted changes, in worktree `.claude/worktrees/agent-a674ee2945135b906`, branch `feat/388-git-dir-symlinks`. Still assigned.
-- Worktree `.claude/worktrees/agent-a3b7c2cf5e72616e5` holds PR608's branch, which is kept while PR608 is open.
+- B448-admin-channel: decide whether `wb-guestroot` gets Full Disk Access (X31-admin-channel).
+- B262-installer-trust: approve the exception to "Only `wb-download` fetches" for Apple's signing server (X30-installer-trust).
+- I615 is public and describes a guest kernel panic from a standard user's vsock connect to the guest's own CID. It may be an Apple bug to report, and you may want the issue private.
+- PR613 (part of I498) is approved and green, and open against `train/604`. The rest of I498, the HTTP/1.1 connection loop, is on its body's Unfinished list. Merge it with that work, or retarget it to `main` after the train.
+- This resume ran in the manager's own interactive session, so the ledger doesn't count its cost. The ledger's 11.89 dollars is wave 1's headless session only.
 
 ## Attended queue
 
-Nothing.
+- I618 and I615 are `needs-vm`: each needs a macOS guest to reproduce.
 
 ## Health
 
-- First code review approved: 0 of 0 pull requests.
-- Code review rounds per reviewed pull request: none.
-- Follow-ups filed: 1.
+- First code review approved: 2 of 5 pull requests.
+- Code review rounds per reviewed pull request: 2.0.
+- Follow-ups filed: 8.
 - Flaky tests filed: none.
 - The campaign manager's own session isn't metered. The 5 percent reserve of the dollar limit pays for it.
 

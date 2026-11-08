@@ -16,4 +16,4 @@ report, and it reaches `main` and this site when its train merges.
 
 | ID | Description | Status |
 |----|-------------|--------|
-| W604-network-floor-mac | Campaign 604: network floor, lane mac | Ended 2026-11-08: wave 1 merged nothing into the train, because claude -p stopped its background wave-lead after 10 minutes (I609) |
+| W604-network-floor-mac | Campaign 604: network floor, lane mac | Ended 2026-11-08: the resumed wave 1 put four of its five picked issues on the train, and PR613 is open as part of I498 |
