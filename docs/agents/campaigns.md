@@ -97,12 +97,16 @@ these hold, checked on GitHub (the `wave` skill has the commands):
   `Verdict: approve` on the head commit or a commit a `re-checked:`
   comment names;
 - its body names at least one issue with `Closes #<k>`, and none of
-  them has `needs-host` or `comp:wb-vmd`;
+  them has `needs-host`;
 - an issue with `needs-vm` has its VM test run in the pull request body:
   the command, the guest, and the result;
 - it changes no harness path.
 
-Specs, briefs, contracts, code, tests and the docs site ride the train.
+Specs, briefs, contracts, code, tests and the docs site ride the train,
+`wb-vmd` included. Later `needs-vm` builders run what is on the train on
+the dedicated Mac before the maintainer reviews it, and the dedicated
+Mac exists so that this is acceptable. Its entitlements stay a harness
+path.
 The **harness paths** never do: `.claude/`, `AGENTS.md` and `CLAUDE.md`,
 `.github/`, `.mise.toml`, `.golangci.yml`, `.swiftlint.yml`, `.vale.ini`
 and `.vale/` except its vocabulary, `osv-scanner.toml`, `scripts/`, any

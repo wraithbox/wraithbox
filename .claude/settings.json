@@ -59,7 +59,9 @@
       "Bash(mise run vm:provision *)",
       "Bash(mise run vm:stop *)",
       "Bash(mise run vm:clean *)",
-      "Bash(codesign -f -s - --entitlements spikes/vm.entitlements .scratch/*)"
+      "Bash(codesign -f -s - --entitlements spikes/vm.entitlements .scratch/*)",
+      "Bash(mise run campaign)",
+      "Bash(mise run campaign *)"
     ],
     "deny": [
       "Bash(mise run * ::: *)",
