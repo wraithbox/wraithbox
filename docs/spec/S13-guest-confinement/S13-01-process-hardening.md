@@ -215,13 +215,19 @@ range. Both checks run before it makes or unlocks any project user.
 When one fails, `wb-guestd` logs it with its rule and exits without
 serving the host.
 
-In each round of the kill loop, after the signals and the `bootout`,
-the check also looks for the user's crontab,
-`/private/var/at/tabs/<name>`, and for a regular file in
-`/private/var/at/jobs` that the user owns, which is an `at` job. One
-found, or a check that fails, counts as a process left. The loop goes
-on to its bounds and logs it with its rule. It then reports the user
-as not clean ("Per-user launchd services").
+In each round of the kill loop, after the signals and the `bootout`
+and before it lists the processes, the check also looks for the
+user's crontab, `/private/var/at/tabs/<name>`, and for a regular file
+in `/private/var/at/jobs` that the user owns, which is an `at` job.
+One found, or a check that fails, counts as a process left, and the
+loop logs it with its rule. When no process of the user is left but a
+job is found, the loop ends at once: nothing removes the job, so
+another round can't change the result. Otherwise it goes on to its
+bounds. Either way it reports the user as not clean ("Per-user
+launchd services").
+
+The start check matches a crontab's name to a project user without
+regard to case, as APFS and cron's lookup of the name do.
 
 `wb-guestd` follows no symbolic link at a name it checks there. The
 paths and the bound on the entries it reads are in code, in

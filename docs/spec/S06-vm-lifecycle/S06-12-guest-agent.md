@@ -75,8 +75,8 @@ endpoint") decide how a project user is kept from posing as
   (S13-01-process-hardening, "When the link drops").
 - When it starts, it checks that cron and `at` are closed to project
   users and that no project user has a crontab or `at` job, and doesn't
-  serve when either check fails. The kill loop checks the user's in
-  each round (S13-01-process-hardening, "Cron and at").
+  serve when either check fails. The kill loop checks the user's
+  crontab and `at` jobs in each round (S13-01-process-hardening, "Cron and at").
 - It runs commands as a project user, with:
   - a PTY or pipes;
   - a sanitized environment: an explicit allowlist, with placeholders
