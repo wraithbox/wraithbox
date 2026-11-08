@@ -2746,7 +2746,7 @@
 	},
 	"448": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X31-admin-channel: a root shell from a second guest daemon while wb-guestd is down",
 		"summary": "Can a second root LaunchDaemon in a macOS guest, wb-guestroot, give the host a root shell on a PTY over its own vsock port below 1024, while wb-guestd is dead, wedged or restarting?",
 		"brief": "B448-admin-channel"
@@ -3776,7 +3776,7 @@
 	},
 	"619": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spikes): X31-admin-channel answered yes, with conditions",
 		"summary": "X31-admin-channel answered yes, with conditions.",
 		"brief": "B448-admin-channel"
