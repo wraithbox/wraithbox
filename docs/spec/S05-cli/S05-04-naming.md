@@ -64,14 +64,17 @@ URLs resolve as the user's git resolves them (`url.<base>.insteadOf`).
 
 #### Which directory
 
-`wb` walks up from the current directory, in canonical form, to the first
-one with a `.git` entry, as git does. The key must belong to that directory.
-A `.git` directory must be both `--git-dir` and `--git-common-dir`. Any type
+`wb` walks up from the current directory, in canonical form, to the first one
+with a `.git` entry, as git does. The key must belong to that directory. A
+`.git` directory must be both `--git-dir` and `--git-common-dir`. Any type
 other than a directory or a file refuses the command. A symbolic link, for
-one, could name another project's `.git`. A link at any depth but `hooks`
-that resolves out of the git directory, or a `.git` file's common directory,
-refuses the command too, before git runs, or for a `.git` file before git
-reads `core.worktree` (`project-git-dir-link-outside`, `project-git-dir-link-unresolved`).
+one, could name another project's `.git`. A link in the git directory but the
+top-level `hooks`, or in a `.git` file's common directory, that resolves out
+of it refuses the command too (`project-git-dir-link-outside`, `project-git-dir-link-unresolved`).
+So does a directory with too many entries to check in time (`project-git-dir-walk-incomplete`).
+`wb` checks before git runs, or for a `.git` file before it reads `core.worktree`.
+`git rev-parse` reads its `config` first, which adds no reach: the `.git` file
+can name any git directory.
 
 git works in the tree `core.worktree` names. Each value of it, in the
 common directory's `config` or the git directory's `config.worktree`, read
@@ -100,12 +103,9 @@ here says why (NFR06-explained-refusals), and nothing is registered.
 #### Which commands
 
 Every command that resolves a project from a directory resolves it this
-way:
-
-- `wb claude`, `wb trust` and `wb untrust`;
-- the `wb project` commands and `wb shell`, without `--project`;
-- `wb project move` for its `<dir>`, also when `--project` is given;
-- `wb land` and `wb diff`.
+way: `wb claude`, `wb trust`, `wb untrust`, `wb land` and `wb diff`, the
+`wb project` commands and `wb shell` without `--project`, and `wb project
+move` for its `<dir>` even with `--project`.
 
 `wb land` and `wb diff` find the user's repository only this way, never
 from a path in `state.db` or from `wb-hostd`. They refuse a session
