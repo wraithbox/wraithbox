@@ -1,0 +1,44 @@
+# Log lines quoted in the X30 result, grepped from the full logs (logfind.py)
+== c00-original: Personalize OS image
+21:44:37.832 com.apple.Virtualization.Installation amai: AMAuthInstallBundleShouldPersonalizeOSImage: Personalize OS image = No
+21:44:39.702 com.apple.Virtualization.Installation amai: AMAuthInstallBundleShouldPersonalizeOSImage: Personalize OS image = No
+21:44:41.557 com.apple.Virtualization.Installation amai: AMAuthInstallBundleShouldPersonalizeOSImage: Personalize OS image = No
+21:44:48.885 com.apple.Virtualization.Installation amai: AMAuthInstallBundleShouldPersonalizeOSImage: Personalize OS image = No
+== c00-original: TSS requests and responses
+21:44:38.465 com.apple.Virtualization.Installation amai: tss_submit_job_with_retry: TSS Connection attempt 1 of 3.  (Will retry if TSS_ERR_SERVER_NOT_REACHABLE.)
+21:44:38.883 com.apple.Virtualization.Installation Task <0ACEB6F6-E242-4ACF-9308-EEA22784A2C1>.<1> summary for task success {transaction_duration_ms=410, response_status=200, connection=1, protocol="http/1.1", domain_lookup_duration_ms=11, connect_duration_ms=226, secure
+21:44:38.885 com.apple.Virtualization.Installation amai: tss_submit_job_with_retry: TSS Connection attempt 1 of 3.  (Will retry if TSS_ERR_SERVER_NOT_REACHABLE.)
+21:44:39.227 com.apple.Virtualization.Installation Task <9926910B-CD5B-4ABB-8055-8ECCFEC34A75>.<1> summary for task success {transaction_duration_ms=340, response_status=200, connection=2, protocol="http/1.1", domain_lookup_duration_ms=0, connect_duration_ms=205, secure_
+21:44:39.763 com.apple.Virtualization.Installation amai: tss_submit_job_with_retry: TSS Connection attempt 1 of 3.  (Will retry if TSS_ERR_SERVER_NOT_REACHABLE.)
+21:44:40.114 com.apple.Virtualization.Installation Task <FF9A8614-513B-4D8C-A60F-EF85BAAC1EEF>.<1> summary for task success {transaction_duration_ms=350, response_status=200, connection=3, protocol="http/1.1", domain_lookup_duration_ms=0, connect_duration_ms=211, secure_
+21:44:51.993 com.apple.Virtualization.Installation Task <80D2F241-F77D-440E-ACFA-632BBA7E363E>.<1> summary for task success {transaction_duration_ms=28, response_status=200, connection=5, protocol="h2", domain_lookup_duration_ms=0, connect_duration_ms=17, secure_connecti
+21:46:06.895 com.apple.Virtualization.Installation amai: tss_submit_job_with_retry: TSS Connection attempt 1 of 3.  (Will retry if TSS_ERR_SERVER_NOT_REACHABLE.)
+21:46:07.359 com.apple.Virtualization.Installation Task <C646BAF5-CD4A-4E56-B264-F2E0E5BAAC13>.<1> summary for task success {transaction_duration_ms=462, response_status=200, connection=7, protocol="http/1.1", domain_lookup_duration_ms=11, connect_duration_ms=286, secure
+21:49:57.652 com.apple.Virtualization.Installation amai: tss_submit_job_with_retry: TSS Connection attempt 1 of 3.  (Will retry if TSS_ERR_SERVER_NOT_REACHABLE.)
+21:49:58.120 com.apple.Virtualization.Installation Task <FD263C1F-0DF9-4BA7-A22D-BA0AE508CB14>.<1> summary for task success {transaction_duration_ms=466, response_status=200, connection=8, protocol="http/1.1", domain_lookup_duration_ms=10, connect_duration_ms=288, secure
+== c00-original: interfaces of the service's connections
+  35 interface: en0
+== c03-os-flip: restore failure
+21:52:09.603 com.apple.Virtualization.Installation amai: AMAuthInstallBundleShouldPersonalizeOSImage: Personalize OS image = No
+21:52:12.150 com.apple.Virtualization.Installation amai: AMAuthInstallBundleShouldPersonalizeOSImage: Personalize OS image = No
+21:52:14.348 com.apple.Virtualization.Installation amai: AMAuthInstallBundleShouldPersonalizeOSImage: Personalize OS image = No
+21:52:24.007 com.apple.Virtualization.Installation amai: AMAuthInstallBundleShouldPersonalizeOSImage: Personalize OS image = No
+21:52:59.919 com.apple.Virtualization.Installation sock  16: send(131072) failed: Broken pipe
+21:52:59.919 com.apple.Virtualization.Installation ASR progress: Broken pipe
+21:52:59.919 com.apple.Virtualization.Installation ASRServerHandleConnection failed: 32 (Broken pipe)
+21:53:27.458 com.apple.Virtualization.Installation sock  16: send(131072) failed: Broken pipe
+21:53:27.458 com.apple.Virtualization.Installation ASR progress: Broken pipe
+21:53:27.458 com.apple.Virtualization.Installation ASRServerHandleConnection failed: 32 (Broken pipe)
+21:53:53.545 com.apple.Virtualization.Installation sock  16: send(131072) failed: Broken pipe
+21:53:53.546 com.apple.Virtualization.Installation ASR progress: Broken pipe
+21:53:53.546 com.apple.Virtualization.Installation ASRServerHandleConnection failed: 32 (Broken pipe)
+21:55:35.748 com.apple.Virtualization.Installation sock  16: send(131072) failed: Broken pipe
+21:55:35.748 com.apple.Virtualization.Installation ASR progress: Broken pipe
+21:55:35.750 com.apple.Virtualization.Installation ASRServerHandleConnection failed: 32 (Broken pipe)
+21:55:35.751 com.apple.Virtualization.Installation Checkpoint 0x6B4 (await_system_image_invert_retry) failed with result: 1106
+21:55:35.751 com.apple.Virtualization.Installation Checkpoint 0x67B (perform_restore_installing) failed with result: 1106
+21:55:35.755 com.apple.Virtualization.Installation device returned CFError with code 1106
+21:55:35.755 com.apple.Virtualization.Installation CFError domain:AMRestoreErrorDomain code:1106 description:failed to restore APFS image
+21:55:44.576 com.apple.Virtualization.Installation <Restore Device 0x6000077769d8000>: Restore failed (result = 1106)
+21:55:44.576 com.apple.Virtualization.Installation AMRestorePerformRestoreModeRestoreWithError failed with error: 1106
+21:55:44.576 com.apple.Virtualization.Installation State is now set to error: AMRestorePerformRestoreModeRestoreWithError failed with error: 1106

@@ -15,3 +15,9 @@ the full logs (`*.log.ndjson`, 1 MB to 6 MB) and nettop samples stay out of git.
 | c03-os-flip | 1 byte in the middle of 141-12228-170.dmg.aea (system volume, 11 GB) | 1 | 219 s, 48 % | MobileRestore -1 / AMRestore 1106 "failed to restore APFS image" |
 
 c05-kernel-swap-manifest was not run (c04 and c06 cover it).
+
+`quoted-lines.txt` has the full-log lines the result quotes that the
+summaries lack: "Personalize OS image = No", the TSS requests of c00,
+the interface of each connection the installation service opened in
+c00 (from its `path:satisfied` events), and the c03 failure. Made with
+`logfind.py` over the full logs.
