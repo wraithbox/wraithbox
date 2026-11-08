@@ -71,7 +71,7 @@ does when vsock is open to project users.
    kernel panicked with "corrupt list", panicked task the probe, 2
    times in 2 tries, and the guest rebooted. The times are only known
    from the panic reports' file names (12:49:22 and 12:51:35 guest
-   time), which come after the reboot: the second boot began at
+   time), which come after the reboot: the next boot began at
    12:51:29. The spike's helper meant to kill a probe hung over 3 s,
    but it logged no kill, so it's unknown whether the connect or the
    kill of the probe panics the kernel. A standard user can so stop a
@@ -83,7 +83,9 @@ does when vsock is open to project users.
    daemon as the responsible process, and the guest's TCC database
    holds `wb-guestroot` denied for `kTCCServiceSystemPolicyAllFiles`,
    with `sshd-keygen-wrapper` allowed. SIP is on, so root can't change
-   that from inside. Compared with `sudo` over SSH:
+   that entry from inside. Root can probably still reach the access
+   through `ssh localhost`, which the spike didn't try, so the missing
+   access isn't a boundary. Compared with `sudo` over SSH:
 
    | Command, as root | Admin shell | `sudo` over SSH |
    |---|---|---|
@@ -146,6 +148,11 @@ tools disk held version `0.0.0-x31.2` of both.
 - **Whether Full Disk Access can be given to `wb-guestroot`.** SIP
   keeps root from writing the TCC database. A configuration profile
   or the System Settings dialog weren't tried.
+- **Whether root in the admin shell can reach Full Disk Access
+  another way.** Root can't grant it to itself, but
+  `sshd-keygen-wrapper` holds a grant (`results/tcc.out`), so root can
+  probably run a command with that access through `ssh localhost`. That
+  is inferred, and the spike didn't try it.
 - **The panic's cause.** Only the connect to the guest's own CID was
   seen to hang and then panic. Root's connect to it wasn't tried after
   the second panic, and the hang wasn't checked without the kill.
