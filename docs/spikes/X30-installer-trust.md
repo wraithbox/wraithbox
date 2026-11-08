@@ -87,15 +87,17 @@ server and the restore OS in the VM make it:
   for the device and build it belongs to.
 - **The restore OS in the VM, for the system volume.** The installer
   doesn't send a digest of the system volume image
-  (`Personalize OS image = No` in the log). It sends the volume's root
+  (`Personalize OS image = No` in the log,
+  [`quoted-lines.txt`](https://github.com/wraithbox/wraithbox/tree/ddc9d33177d34209b5c4d1c2ed17d777a608ed9b/spikes/x30-installer-trust/results/quoted-lines.txt)). It sends the volume's root
   hash from the manifest. The restore OS boots from the personalized
   components, which the server has checked. It receives the image, and
   stopped the copy at the changed byte (c03).
 
 The install contacts Apple on every run. In c00, Apple's installation
 service (`com.apple.Virtualization.Installation`) made five TSS
-requests and two other HTTPS requests to Apple, all from the host's
-network (`en0`). `wb-vmd-install`'s profile denied `x30` the network
+requests and two other HTTPS requests to Apple. Every connection the
+log shows it open went over the host's network: its 35 `path:satisfied`
+events all name `en0` ([`quoted-lines.txt`](https://github.com/wraithbox/wraithbox/tree/ddc9d33177d34209b5c4d1c2ed17d777a608ed9b/spikes/x30-installer-trust/results/quoted-lines.txt)). `wb-vmd-install`'s profile denied `x30` the network
 the whole time (its probe of `connect` to `127.0.0.1` got
 `Operation not permitted`). The service is a separate process, an XPC
 service of the framework, and the profile of the process that calls it
@@ -118,7 +120,8 @@ rest. `run-case.sh` then runs one install, and records
 `x30`'s result lines, the unified log of the Virtualization processes
 (`log stream --level info`), and the host's flows once a second
 (`nettop`). `summarize.sh` keeps the lines of the log that the result
-rests on in `results/<case>.summary.txt`. The full logs (1 MB to
+rests on in `results/<case>.summary.txt`, and
+`results/quoted-lines.txt` has the other log lines this page quotes. The full logs (1 MB to
 6 MB each) stay out of the branch.
 
 c01 installed in a third of c00's time. The spike didn't look into why.
@@ -133,9 +136,10 @@ Both installs completed, which is what the control is for.
 | c04-kernel-swap | 20:56:39Z | 12.5 s | 0 % |
 | c01-rezip | 20:56:54Z | 143 s | 100 % |
 
-`nettop`'s one-second samples caught one of the service's
-connections (to an Apple address on port 443). The log has every one,
-with their HTTP status.
+The log has every request, with its HTTP status. `nettop`'s one-second
+samples caught only some of the service's flows: three, to three Apple
+addresses on port 443, all on `en0` (`c00-original.summary.txt`, "host
+flows").
 
 ## Not covered
 
@@ -164,7 +168,7 @@ with their HTTP status.
 ## Spike code
 
 Throwaway code on branch `spike/x30-installer-trust`, commit
-[`dfe4e28`](https://github.com/wraithbox/wraithbox/tree/dfe4e28031b4be30154130491eb27cef6e9a9bc1/spikes/x30-installer-trust):
+[`ddc9d33`](https://github.com/wraithbox/wraithbox/tree/ddc9d33177d34209b5c4d1c2ed17d777a608ed9b/spikes/x30-installer-trust):
 `x30` (`Sources/x30/main.swift`, from X25-vmd-sandbox), the install
 profile (`profiles/vmd-install.sb`), `mkipsw.py` and `manifest.py`,
 which write the changed images, and `run-case.sh`, `run-all.sh` and
