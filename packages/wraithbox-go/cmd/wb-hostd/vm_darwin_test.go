@@ -31,8 +31,9 @@ import (
 // The variables of the needs-vm test. `mise run go:test-vm` sets the
 // last two.
 const (
-	// bundleVar names a provisioned test bundle, such as the fixture of
-	// I379 in the spike cache (docs/agents/host-work.md, "VM bundles").
+	// bundleVar names a provisioned test bundle with wb-guestd installed,
+	// the fixture each Mac makes in its spike cache
+	// (docs/agents/host-work.md, "Fixture").
 	bundleVar = "WB_VM_TEST_BUNDLE"
 	// appVar is the built Wraith Box.app, whose wb-vmd, wb-diskfmt and
 	// guest tools disk the child uses.

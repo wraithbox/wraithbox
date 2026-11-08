@@ -139,7 +139,8 @@ Outside a `needs-host` issue, in an attended session:
   never do. The guest's address is its lease in `/var/db/dhcpd_leases`,
   for the MAC address the task prints. The task runs until the guest
   shuts down, `vm:stop`, or the time limit (60 minutes by default), so
-  run it in the background.
+  run it in the background. The lease appears before `sshd` answers,
+  so retry the first login for a minute.
 - **Guests that run `wb-guestd`:** `wb-guestd` only checks
   `cron.allow` and `at.allow` in `/private/var/at`, and doesn't serve
   until both hold `root` only (S13-01-process-hardening, "Cron and
@@ -158,6 +159,75 @@ Outside a `needs-host` issue, in an attended session:
   done
   rm ~/allow
   ```
+- **Fixture:** `mise run go:test-vm` clones `WB_VM_TEST_BUNDLE`, a
+  provisioned bundle with `wb-guestd` installed as a root LaunchDaemon
+  and the allow files of the bullet above.
+  Each Mac makes its own fixture in its own spike cache, so the path
+  differs per machine. `dev/fixture`, next to `dev/base`, is the usual
+  place, kept by a `KEEP` file in `dev/`. That `KEEP` file also refuses
+  the clone and the provisioning, so the maintainer moves it aside for
+  these steps. `wb-guestd` updates itself from the tools disk at each
+  boot (S06-12-guest-agent), so the fixture works with later builds.
+  Make it again for a new macOS release or a change to how the guest
+  starts `wb-guestd`. From the repository root, with the plist below in
+  `.scratch/fixture/nl.wraithbox.guestd.plist`:
+
+  ```bash
+  mise run app:bundle
+  S=.scratch/fixture; mkdir -p $S/mnt
+  cp -c "packages/wraithbox-swift/.build/Wraith Box.app/Contents/Resources/wb-guest-tools.img" $S/
+  hdiutil attach -quiet -readonly -nobrowse -noautoopen -mountpoint $S/mnt $S/wb-guest-tools.img
+  cp $S/mnt/wb-guestd $S/ && hdiutil detach -quiet $S/mnt
+  printf 'root\n' > $S/allow
+  mise run vm:clone dev/base dev/fixture
+  mise run vm:provision dev/fixture 30 &  # prints the hw_address of the lease
+  B=~/Library/Caches/wraithbox-spikes/dev/fixture IP=<ip_address of that lease>
+  printf '#!/bin/sh\ncat %s\n' "$B/ssh-password" >$S/askpass && chmod 700 $S/askpass
+  export SSH_ASKPASS=$PWD/$S/askpass SSH_ASKPASS_REQUIRE=force DISPLAY=none
+  o=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no)
+  scp "${o[@]}" $S/wb-guestd $S/nl.wraithbox.guestd.plist $S/allow wbdev@$IP:/tmp/
+  ssh "${o[@]}" wbdev@$IP "sudo -S -p '' sh -c '
+    install -d -m 755 -o root -g wheel /Library/WraithBox /Library/WraithBox/libexec &&
+    install -m 755 -o root -g wheel /tmp/wb-guestd /Library/WraithBox/libexec/ &&
+    install -m 644 -o root -g wheel /tmp/nl.wraithbox.guestd.plist /Library/LaunchDaemons/ &&
+    install -m 644 -o root -g wheel /tmp/allow /private/var/at/cron.allow &&
+    install -m 644 -o root -g wheel /tmp/allow /private/var/at/at.allow &&
+    cmp /tmp/allow /private/var/at/cron.allow && cmp /tmp/allow /private/var/at/at.allow &&
+    launchctl bootstrap system /Library/LaunchDaemons/nl.wraithbox.guestd.plist &&
+    sleep 3 && cat /var/log/wb-guestd.log &&
+    launchctl bootout system/nl.wraithbox.guestd && : >/var/log/wb-guestd.log &&
+    shutdown -h now'" <$B/ssh-password
+  rm $S/askpass
+  ```
+
+  Keep the SSH options in an array: zsh doesn't split a plain variable
+  into words. The log shows `starting` and then
+  `guestd-tools-not-mounted`, because the provisioning boot has no tools
+  disk. `vm:provision` ends with `the guest stopped`. Then run
+  `go:test-vm` with `WB_VM_TEST_BUNDLE` set to the fixture's absolute
+  path. The plist:
+
+  ```xml
+  <?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+  <plist version="1.0">
+  <dict>
+  	<key>Label</key>
+  	<string>nl.wraithbox.guestd</string>
+  	<key>ProgramArguments</key>
+  	<array>
+  		<string>/Library/WraithBox/libexec/wb-guestd</string>
+  	</array>
+  	<key>RunAtLoad</key>
+  	<true/>
+  	<key>KeepAlive</key>
+  	<true/>
+  	<key>StandardErrorPath</key>
+  	<string>/var/log/wb-guestd.log</string>
+  </dict>
+  </plist>
+  ```
+
 - **Slots:** a clone of a `vm:install` bundle has the file names
   `wb-vmd` opens (S06-05-disks, "Bundle files"). An older spike bundle
   has `.img` names, which have to be renamed when its clone goes to a
