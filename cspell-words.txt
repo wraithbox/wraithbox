@@ -387,6 +387,7 @@ Forgejo
 Codeberg
 codesign
 codesigning
+commondir
 protoc
 protoreflect
 protowire

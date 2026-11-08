@@ -45,11 +45,10 @@ It sets only these variables:
 - `TMPDIR`, the caller's temporary directory, an absolute path;
 - `LC_ALL=C`.
 
-So no `GIT_*` variable, from the user's shell or a `.envrc`, can point
-the directory at another repository or add configuration. On Windows,
-Go's `os/exec` adds the caller's `SYSTEMROOT`, and reads `PATHEXT` for
-the binary's extension. The Windows host work (S12-platforms) sets
-`SYSTEMROOT` itself.
+So no `GIT_*` variable, from the user's shell or a `.envrc`, can point the
+directory at another repository or add configuration. On Windows, Go's
+`os/exec` adds the caller's `SYSTEMROOT`, and reads `PATHEXT` for the
+binary's extension. The Windows host work (S12-platforms) sets it itself.
 
 The login environment belongs to the user's login session. A variable
 exported in a shell, or set by a `.envrc`, doesn't reach it. On macOS,
@@ -65,15 +64,19 @@ URLs resolve as the user's git resolves them (`url.<base>.insteadOf`).
 
 #### Which directory
 
-`wb` walks up from the current directory, in canonical form, to the
-first one with a `.git` entry, as git does. The key must belong to that
-directory. A `.git` directory must be both `--git-dir` and
-`--git-common-dir`. Any type other than a directory or a file refuses
-the command. A symbolic link, for one, could name another project's `.git`.
+`wb` walks up from the current directory, in canonical form, to the first
+one with a `.git` entry, as git does. The key must belong to that directory.
+A `.git` directory must be both `--git-dir` and `--git-common-dir`. Any type
+other than a directory or a file refuses the command. A symbolic link, for
+one, could name another project's `.git`. A link at any depth but `hooks`
+that resolves out of the git directory, or a `.git` file's common directory,
+refuses the command too, before git runs, or for a `.git` file before git
+reads `core.worktree` (`project-git-dir-link-outside`, `project-git-dir-link-unresolved`).
+
 git works in the tree `core.worktree` names. Each value of it, in the
-common directory's `config` or the git directory's `config.worktree`,
-read with includes off, must canonicalize, relative to `--git-dir`, to
-the directory holding `.git`, for every kind of `.git` entry.
+common directory's `config` or the git directory's `config.worktree`, read
+with includes off, must canonicalize, relative to `--git-dir`, to the
+directory holding `.git`, for every kind of `.git` entry.
 
 #### A `.git` file
 
@@ -85,9 +88,8 @@ submodule:
 - A submodule's `--git-dir` is the common directory. It sets `core.worktree`.
 
 `wb` doesn't use `--show-toplevel`, which git derives from
-`core.worktree`. Anything else refuses the command, such as a `.git`
-file in a downloaded archive that names another project's repository,
-or one of its submodules.
+`core.worktree`. Anything else refuses the command, such as a `.git` file
+in a downloaded archive that names another project's repository or submodule.
 
 #### Failure
 
@@ -197,8 +199,7 @@ landing repository stay with it.
 It runs the identity comparison for `<dir>`, and prints any difference.
 The next session start then refuses until `wb project confirm`.
 
-A move to a key that another project has is refused, with that project
-named.
+A move to another project's key is refused, with that project named.
 
 ### Registration
 
@@ -220,10 +221,9 @@ remote, a shared root commit.
   `placement` (NFR06-explained-refusals).
 
 When any matching project has `placement = isolated`, the new project
-starts with `placement = isolated` too. So a clone of a repository the
-user isolated doesn't land in the work VM (T13-new-project-grants).
-Only the placement is copied, never approvals, bindings, policy or
-`config_trust`.
+starts with `placement = isolated` too. So a clone of a repository the user
+isolated doesn't land in the work VM (T13-new-project-grants). Only the
+placement is copied, never approvals, bindings, policy or `config_trust`.
 
 ### Removing
 
