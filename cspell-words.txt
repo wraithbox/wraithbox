@@ -604,6 +604,7 @@ policyv
 pypi
 pythonhosted
 httppolicy
+httpreq
 zipball
 egressmsg
 egressv

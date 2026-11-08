@@ -20,6 +20,15 @@ a request it builds itself:
 - with a `Host` or `:authority` that must equal the stream's hostname,
   or the request is refused.
 
+The `Host`, and the host of an absolute-form target, equal the
+stream's hostname compared without ASCII case. The only port either
+may name is the stream's own, so `Host: example.com:443` passes on
+port 443. A request is refused with a `400` and the rule
+`http-request-form` when its head isn't in the form of RFC 9112, or its
+`Host` or target host differs from the stream's. The head parser is
+strict: each form it refuses is listed in code, and none reaches a
+library that would normalize the request first.
+
 Policy, bindings and the credential rules match on the canonical path.
 That path is also the one sent upstream. Literal dot segments are
 removed. As in OpenShell v0.1.2, repeated slashes are collapsed into
@@ -102,6 +111,12 @@ Each request then goes through these steps in order:
 5. the dependency gate;
 6. credential injection;
 7. the streaming placeholder scan of the body, as it goes upstream.
+
+Credential removal and HTTP policy can't be skipped. When either step
+isn't in place, every request is refused with a `500` and the rule
+`http-step-missing`, so no wiring mistake sends a request upstream
+with the guest's credentials or without HTTP policy. The other steps
+only add checks or credentials.
 
 ### Credential replacement
 

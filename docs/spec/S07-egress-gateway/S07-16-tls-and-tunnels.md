@@ -142,8 +142,10 @@ the rule `audit-allowed` and the rule it broke
   `registry-token`, `registry-publish` and
   `git-write-outside-project-set`;
 - `profile-part-off` and `graphql-operation`;
-- the request form refusals: `http-method-form`, `http-path-form`, and
-  the other checks of S07-08-requests-and-credentials, "Request form";
+- the request form refusals: `http-method-form`, `http-path-form`,
+  `http-request-form`, and the other checks of
+  S07-08-requests-and-credentials, "Request form";
+- `http-step-missing`;
 - the removal of guest credentials, and the refusal of a named
   credential parameter (S07-08-requests-and-credentials, "Credential
   replacement");
