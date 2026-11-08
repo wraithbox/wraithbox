@@ -36,9 +36,9 @@ const gitEntry = ".git"
 //     is refused (checkGitDirLinks): for a `.git` directory before git
 //     runs, and for a `.git` file once git rev-parse has named the git
 //     directory, before wb reads its core.worktree. rev-parse reads that
-//     directory's config first. That adds no reach: the `.git` file
-//     can already name any git directory, so a link inside that
-//     directory reaches no further.
+//     directory's config first. That doesn't widen its reach: the
+//     `.git` file can already name any git directory, so a link inside
+//     that directory reaches no further.
 //
 // A key under <data>, <config> or <logs> is refused. Every refusal is
 // logged with its rule and returned as a *Refusal, before any identity

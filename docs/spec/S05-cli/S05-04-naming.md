@@ -75,8 +75,8 @@ common directory, that resolves out of it refuses the command too
 (`project-git-dir-link-outside`, `project-git-dir-link-unresolved`). So does a
 directory with too many entries to check in time (`project-git-dir-walk-incomplete`).
 `wb` checks before git runs, or for a `.git` file before it reads `core.worktree`.
-`git rev-parse` reads its `config` first, which adds no reach: the `.git` file
-can name any git directory.
+`git rev-parse` reads its `config` first. That doesn't widen its reach: the
+`.git` file can name any git directory.
 
 git works in the tree `core.worktree` names. Each value of it, in the
 common directory's `config` or the git directory's `config.worktree`, read
