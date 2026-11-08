@@ -69,11 +69,12 @@ func run() int {
 
 	// cron and atrun run as root and start a user's jobs outside the
 	// kill loop's reach. So no project user may add one, and none may
-	// keep one from before. A failure exits before any project user is
-	// made or unlocked (S13-01-process-hardening, "Cron and at";
-	// SEC08-proj-isolation).
-	if !guestd.LockSchedulers(ctx, log, guestsched.Lock) ||
-		!guestd.SweepSchedulers(ctx, log, guestsched.Sweep) {
+	// have one. TCC keeps wb-guestd from writing there, so it only
+	// checks what the image build wrote. A failure exits before any
+	// project user is made or unlocked (S13-01-process-hardening, "Cron
+	// and at"; SEC08-proj-isolation).
+	if !guestd.CheckSchedulersClosed(ctx, log, guestsched.CheckAllow) ||
+		!guestd.CheckSchedulersClean(ctx, log, guestsched.Scan) {
 		return 1
 	}
 

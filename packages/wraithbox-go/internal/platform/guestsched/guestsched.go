@@ -1,18 +1,20 @@
-// Package guestsched closes the guest's cron and at to project users,
-// for wb-guestd (S13-01-process-hardening, "Cron and at";
+// Package guestsched checks that the guest's cron and at are closed to
+// project users, for wb-guestd (S13-01-process-hardening, "Cron and at";
 // SEC08-proj-isolation). cron and atrun run as root and start a user's
 // jobs as that user, outside its launchd domain. So neither the kill
 // loop's SIGKILL nor its launchctl bootout reaches them, and neither
 // the disabled account nor its shell stops them.
 //
-// Lock writes cron's and at's allow files with root only, so a project
-// user can't add a crontab or an at job. Sweep removes every project
-// user's crontab and at jobs, for wb-guestd's start. System.Clear
-// removes one user's, for the kill loop. The decisions are in
-// internal/guestd and internal/guestd/procs. This package only makes
-// the calls: on darwin, openat, renameat and unlinkat relative to a
-// descriptor of the directory, through golang.org/x/sys/unix. It never
-// follows a symbolic link at a name it writes or removes.
+// TCC protects the directory: a root LaunchDaemon such as wb-guestd can
+// read it, but can't create or remove a file in it. So the image
+// build's SSH session writes cron's and at's allow files
+// (S06-02-image-build, "Guest confinement"), and this package only
+// reads. CheckAllow checks the allow files. Scan counts the crontabs
+// and at jobs of every project user, for wb-guestd's start. System.Find
+// counts one user's, for the kill loop. The decisions are in
+// internal/guestd and internal/guestd/procs. On darwin the calls are
+// openat and fstatat relative to a descriptor of the directory, through
+// golang.org/x/sys/unix, and none of them follows a symbolic link.
 //
 // Linux and Windows guests are later (S12-platforms). Until they are
 // built, every call there returns an error that wraps
@@ -20,7 +22,7 @@
 // platforms fail clearly").
 package guestsched
 
-// Allowed is the whole content of each allow file: root only.
+// Allowed is the whole content each allow file must have: root only.
 const Allowed = "root\n"
 
 // The names in the directory, as cron and at read them.
@@ -38,30 +40,23 @@ const (
 	Jobs = "jobs"
 )
 
-// MaxEntries bounds how many entries Clear and Sweep read in the jobs
-// or tabs directory (SEC13-bounded-resources). A directory with more
-// fails the call: the kill loop then reports the user as not clean,
-// and wb-guestd doesn't start.
+// MaxEntries bounds how many entries Find and Scan read in the jobs or
+// tabs directory (SEC13-bounded-resources). A directory with more fails
+// the call: the kill loop then reports the user as not clean, and
+// wb-guestd doesn't start.
 const MaxEntries = 10000
 
-// Cleared is what Clear removed.
-type Cleared struct {
-	// Tab is set when the user had a crontab, and it is gone.
-	Tab bool
-	// Jobs is how many at jobs of the user were removed.
-	Jobs int
-}
-
-// Any reports whether Clear removed anything.
-func (c Cleared) Any() bool { return c.Tab || c.Jobs > 0 }
-
-// Swept is what Sweep removed.
-type Swept struct {
-	// Tabs is how many crontabs of project users were removed.
+// Found is what Find or Scan found.
+type Found struct {
+	// Tabs is how many crontabs of project users are there. Find
+	// counts at most one.
 	Tabs int
-	// Jobs is how many at jobs of project users were removed.
+	// Jobs is how many at jobs of project users are there.
 	Jobs int
 }
+
+// Any reports whether anything was found.
+func (f Found) Any() bool { return f.Tabs > 0 || f.Jobs > 0 }
 
 // System is the guest's own cron and at.
 type System struct{}

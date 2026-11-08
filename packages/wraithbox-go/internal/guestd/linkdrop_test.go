@@ -36,8 +36,8 @@ func (t *stubbornTable) Signal(gp.Proc, gp.Signal) error {
 
 func (*stubbornTable) Bootout(context.Context, uint32) error { return nil }
 
-func (*stubbornTable) Clear(string, uint32) (guestsched.Cleared, error) {
-	return guestsched.Cleared{}, nil
+func (*stubbornTable) Find(string, uint32) (guestsched.Found, error) {
+	return guestsched.Found{}, nil
 }
 
 // gateClock moves only when a loop sleeps. Its first Sleep closes in

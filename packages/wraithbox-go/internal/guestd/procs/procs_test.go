@@ -43,12 +43,12 @@ type fakeTable struct {
 	respawn  int
 	nextPID  int32
 	bootouts []uint32
-	// calls lists the signals, bootouts and clears in order.
+	// calls lists the signals, bootouts and job checks in order.
 	calls   []string
 	listErr error
 	ranges  [][2]uint32
 	// tabs holds the users with a crontab, and jobsFails is how many
-	// Clear calls fail.
+	// Find calls fail.
 	tabs      map[string]bool
 	jobsFails int
 }
@@ -116,19 +116,20 @@ func (f *fakeTable) Bootout(_ context.Context, uid uint32) error {
 	return errors.New("no such domain")
 }
 
-// Clear is the kill loop's procs.Jobs: it removes the crontab of name
-// when tabs holds one, or fails with jobsErr for jobsFails calls.
-func (f *fakeTable) Clear(name string, _ uint32) (guestsched.Cleared, error) {
+// Find is the kill loop's procs.Jobs: it finds the crontab of name
+// when tabs holds one, or fails for jobsFails calls.
+func (f *fakeTable) Find(name string, _ uint32) (guestsched.Found, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.calls = append(f.calls, "clear "+name)
+	f.calls = append(f.calls, "find "+name)
 	if f.jobsFails > 0 {
 		f.jobsFails--
-		return guestsched.Cleared{}, errors.New("unlink: operation not permitted")
+		return guestsched.Found{}, errors.New("open tabs: operation not permitted")
 	}
-	c := guestsched.Cleared{Tab: f.tabs[name]}
-	delete(f.tabs, name)
-	return c, nil
+	if f.tabs[name] {
+		return guestsched.Found{Tabs: 1}, nil
+	}
+	return guestsched.Found{}, nil
 }
 
 func proc(pid int32, uid uint32, name string) gp.Proc {
@@ -180,33 +181,48 @@ func TestKillBootsOutWithNoProcess(t *testing.T) {
 	}
 }
 
-// TestKillClearsJobs: each round removes the user's crontab before its
-// first signal, logs the removal with RuleJobs, and leaves another
-// user's crontab (S13-01-process-hardening, "Cron and at").
-func TestKillClearsJobs(t *testing.T) {
+// TestKillFindsJobs: each round checks for the user's crontab after its
+// kill, and a crontab found makes the kill not clean with the user's
+// processes gone. It logs both rules, removes nothing, and another
+// user's crontab doesn't count (S13-01-process-hardening, "Cron and
+// at").
+func TestKillFindsJobs(t *testing.T) {
 	table := &fakeTable{
-		procs: []gp.Proc{proc(100, 10000, "cron-job")}, respawn: 1, nextPID: 500,
-		tabs: map[string]bool{"wbp10000": true, "wbp10001": true},
+		procs: []gp.Proc{proc(100, 10000, "cron-job")},
+		tabs:  map[string]bool{"wbp10000": true, "wbp10001": true},
 	}
 	l, _, log := newLoops(t, table)
-	if res := l.Kill(t.Context(), 10000); !res.Clean() || res.Rounds != 2 {
-		t.Fatalf("Kill = %+v, want clean in two rounds", res)
+	res := l.Kill(t.Context(), 10000)
+	if res.Clean() || res.Left != 1 || res.Rounds != procs.MaxRounds {
+		t.Fatalf("Kill = %+v, want 1 left after MaxRounds", res)
 	}
-	want := []string{"clear wbp10000", "SIGKILL", "bootout", "clear wbp10000", "SIGKILL", "bootout"}
-	if !slices.Equal(table.calls, want) {
+	want := []string{"SIGKILL", "bootout", "find wbp10000", "bootout", "find wbp10000"}
+	if !slices.Equal(table.calls[:len(want)], want) {
+		t.Errorf("calls %v, want them to start with %v", table.calls, want)
+	}
+	if !table.tabs["wbp10000"] || !table.tabs["wbp10001"] {
+		t.Errorf("tabs %v, want both left", table.tabs)
+	}
+	for _, s := range []string{
+		`"rule":"` + procs.RuleJobs + `"`, `"decision":"jobs-left"`, `"crontabs":1`,
+		`"rule":"` + procs.RuleKillIncomplete + `"`, `"jobs_error":`,
+	} {
+		if !strings.Contains(log.String(), s) {
+			t.Errorf("log lacks %s: %s", s, log)
+		}
+	}
+
+	table.calls = nil
+	if res := l.Kill(t.Context(), 10002); !res.Clean() || res.Rounds != 1 {
+		t.Errorf("Kill of a user without a crontab = %+v, want clean in one round", res)
+	}
+	if want := []string{"bootout", "find wbp10002"}; !slices.Equal(table.calls, want) {
 		t.Errorf("calls %v, want %v", table.calls, want)
-	}
-	if !table.tabs["wbp10001"] || table.tabs["wbp10000"] {
-		t.Errorf("tabs left %v, want only wbp10001's", table.tabs)
-	}
-	if !strings.Contains(log.String(), `"rule":"`+procs.RuleJobs+`"`) ||
-		!strings.Contains(log.String(), `"decision":"removed"`) {
-		t.Errorf("log %s", log)
 	}
 }
 
-// TestKillJobsLeft: a clear that fails in every round makes the kill
-// not clean, with no process left, and logs both rules. A clear that
+// TestKillJobsLeft: a check that fails in every round makes the kill
+// not clean, with no process left, and logs both rules. A check that
 // fails once and then succeeds makes it clean.
 func TestKillJobsLeft(t *testing.T) {
 	table := &fakeTable{jobsFails: procs.MaxRounds}
@@ -227,7 +243,7 @@ func TestKillJobsLeft(t *testing.T) {
 	table = &fakeTable{jobsFails: 1}
 	l, _, _ = newLoops(t, table)
 	if res := l.Kill(t.Context(), 10000); !res.Clean() || res.Rounds != 2 {
-		t.Errorf("Kill after one failed clear = %+v, want clean in two rounds", res)
+		t.Errorf("Kill after one failed check = %+v, want clean in two rounds", res)
 	}
 }
 

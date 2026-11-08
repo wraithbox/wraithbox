@@ -82,28 +82,30 @@ func (e *memEmptier) EmptyHome(_ context.Context, _, _ uint32, home string) erro
 
 // procTable is a process table: SIGKILL ends a process unless it is
 // sticky, and SIGSTOP stops it and closes stopped. It is the kill
-// loop's procs.Jobs too: Clear records the name and fails with jobsErr.
+// loop's procs.Jobs too: Find records the name, and returns found and
+// jobsErr.
 type procTable struct {
 	mu       sync.Mutex
 	procs    []gp.Proc
 	sticky   bool
 	bootouts []uint32
 	stopped  chan struct{}
-	cleared  []string
+	checked  []string
+	found    guestsched.Found
 	jobsErr  error
 }
 
-func (f *procTable) Clear(name string, _ uint32) (guestsched.Cleared, error) {
+func (f *procTable) Find(name string, _ uint32) (guestsched.Found, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.cleared = append(f.cleared, name)
-	return guestsched.Cleared{}, f.jobsErr
+	f.checked = append(f.checked, name)
+	return f.found, f.jobsErr
 }
 
-func (f *procTable) clearedNames() []string {
+func (f *procTable) checkedNames() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return slices.Clone(f.cleared)
+	return slices.Clone(f.checked)
 }
 
 func (f *procTable) add(pid int32, uid uint32) {
@@ -208,24 +210,35 @@ func TestKillUserRPC(t *testing.T) {
 	if rec.KillID != 7 || rec.ProjectID != testProject || rec.Left != 0 {
 		t.Errorf("record %+v", rec)
 	}
-	if got := e.table.clearedNames(); len(got) == 0 || got[0] != "wbp10000" {
-		t.Errorf("cleared jobs of %v, want wbp10000", got)
+	if got := e.table.checkedNames(); len(got) == 0 || got[0] != "wbp10000" {
+		t.Errorf("checked jobs of %v, want wbp10000", got)
 	}
 }
 
-// TestKillUserJobsLeft: a crontab or at jobs the kill loop can't
-// remove make the kill a result of processes left, in the answer and
-// in the record, with no process listed (S13-01-process-hardening,
-// "Cron and at").
+// TestKillUserJobsLeft: a crontab or at job the kill loop finds, or a
+// check that fails, makes the kill a result of processes left, in the
+// answer and in the record, with no process listed
+// (S13-01-process-hardening, "Cron and at").
 func TestKillUserJobsLeft(t *testing.T) {
-	e := newUsersEnv(t, true, goodMount(testDevice))
-	e.table.jobsErr = errors.New("unlink: operation not permitted")
-	out, err := e.link.KillUser(t.Context(), &guestv1.KillUserRequest{KillId: 9, ProjectId: testProject, Uid: 10000}, slog.New(slog.DiscardHandler))
-	if err != nil || out.Clean || out.ProcessesLeft != 1 {
-		t.Fatalf("KillUser = %+v, %v", out, err)
-	}
-	if rec := e.record(t, 10000); rec.Left != 1 || rec.KillID != 9 {
-		t.Errorf("record %+v", rec)
+	for name, c := range map[string]struct {
+		found guestsched.Found
+		err   error
+	}{
+		"crontab": {found: guestsched.Found{Tabs: 1}},
+		"at job":  {found: guestsched.Found{Jobs: 1}},
+		"failed":  {err: errors.New("open tabs: operation not permitted")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newUsersEnv(t, true, goodMount(testDevice))
+			e.table.found, e.table.jobsErr = c.found, c.err
+			out, err := e.link.KillUser(t.Context(), &guestv1.KillUserRequest{KillId: 9, ProjectId: testProject, Uid: 10000}, slog.New(slog.DiscardHandler))
+			if err != nil || out.Clean || out.ProcessesLeft != 1 {
+				t.Fatalf("KillUser = %+v, %v", out, err)
+			}
+			if rec := e.record(t, 10000); rec.Left != 1 || rec.KillID != 9 {
+				t.Errorf("record %+v", rec)
+			}
+		})
 	}
 }
 

@@ -12,127 +12,169 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectuser"
 )
 
-// The tests run lockIn, clearIn and sweepIn against a temporary directory laid
-// out as /private/var/at, never against the guest's own. The
-// conformance check of a real guest is the attended step of I442.
+// The tests run checkAllowIn, findIn and scanIn against a temporary
+// directory laid out as /private/var/at, never against the guest's own.
+// The test user owns the files, so checkAllowIn takes its ID as the
+// owner. The conformance check of a real guest is the attended step of
+// I599.
 
 func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	writeMode(t, path, content, 0o600)
+}
+
+func writeMode(t *testing.T, path, content string, mode os.FileMode) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(content), mode); err != nil {
+		t.Fatal(err)
+	}
+	// The umask may have taken bits off the mode.
+	if err := os.Chmod(path, mode); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func checkAllow(t *testing.T, dir, name string) {
+// me is the test user's ID, the owner of the files the tests write.
+func me() uint32 { return uint32(os.Getuid()) }
+
+// allowDir returns a directory with both allow files as the build
+// writes them.
+func allowDir(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join(dir, name)
-	fi, err := os.Lstat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !fi.Mode().IsRegular() || fi.Mode().Perm() != 0o644 {
-		t.Errorf("%s: mode %v, want a regular file with mode 0644", name, fi.Mode())
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(b) != Allowed {
-		t.Errorf("%s = %q, want %q", name, b, Allowed)
-	}
-}
-
-// TestLock: both allow files hold root only and have mode 0644, an
-// earlier list and an earlier start's temporary file are replaced, and
-// no temporary file is left.
-func TestLock(t *testing.T) {
 	dir := t.TempDir()
-	writeFile(t, filepath.Join(dir, CronAllow), "root\n"+"wbp10000\n")
-	writeFile(t, filepath.Join(dir, ".wb-"+AtAllow+".tmp"), "wbp10000\n")
+	writeMode(t, filepath.Join(dir, CronAllow), Allowed, 0o644)
+	writeMode(t, filepath.Join(dir, AtAllow), Allowed, 0o644)
 	writeFile(t, filepath.Join(dir, "cron.deny"), "Guest\n")
-	if err := lockIn(dir); err != nil {
-		t.Fatal(err)
-	}
-	checkAllow(t, dir, CronAllow)
-	checkAllow(t, dir, AtAllow)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 3 {
-		t.Errorf("entries %v, want cron.allow, at.allow and cron.deny only", entries)
-	}
-	// A second start writes the same.
-	if err := lockIn(dir); err != nil {
-		t.Fatal(err)
-	}
-	checkAllow(t, dir, CronAllow)
+	return dir
 }
 
-// TestLockReplacesLink: a symbolic link at an allow file is replaced by
-// the file, and its target is left alone.
-func TestLockReplacesLink(t *testing.T) {
-	dir, outside := t.TempDir(), t.TempDir()
-	target := filepath.Join(outside, "target")
-	writeFile(t, target, "kept\n")
-	if err := os.Symlink(target, filepath.Join(dir, CronAllow)); err != nil {
-		t.Fatal(err)
-	}
-	if err := lockIn(dir); err != nil {
-		t.Fatal(err)
-	}
-	checkAllow(t, dir, CronAllow)
-	if b, err := os.ReadFile(target); err != nil || string(b) != "kept\n" {
-		t.Errorf("link target = %q, %v, want it unchanged", b, err)
-	}
-}
-
-// TestLockFailsClosed: a directory that is missing or a symbolic link
-// fails the lock, and nothing is written through the link.
-func TestLockFailsClosed(t *testing.T) {
-	dir := t.TempDir()
-	link := filepath.Join(t.TempDir(), "at")
-	if err := os.Symlink(dir, link); err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{filepath.Join(dir, "missing"), link} {
-		if err := lockIn(path); err == nil {
-			t.Errorf("lockIn(%s) = nil, want an error", path)
+// TestCheckAllow: allow files with root only, owned by the owner and
+// writable by it alone, pass, and the check changes nothing.
+func TestCheckAllow(t *testing.T) {
+	dir := allowDir(t)
+	for _, mode := range []os.FileMode{0o644, 0o600, 0o400} {
+		if err := os.Chmod(filepath.Join(dir, AtAllow), mode); err != nil {
+			t.Fatal(err)
+		}
+		if err := checkAllowIn(dir, me()); err != nil {
+			t.Errorf("checkAllowIn with at.allow mode %#o = %v, want nil", mode, err)
 		}
 	}
-	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
-		t.Errorf("wrote %v through the link", entries)
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 3 {
+		t.Errorf("entries %v, %v, want the three files only", entries, err)
+	}
+	if b, err := os.ReadFile(filepath.Join(dir, CronAllow)); err != nil || string(b) != Allowed {
+		t.Errorf("cron.allow = %q, %v, want it unchanged", b, err)
 	}
 }
 
-// TestClearTab: the user's crontab goes, another user's stays, and a
-// second clear finds none.
-func TestClearTab(t *testing.T) {
+// TestCheckAllowFailsClosed: every way an allow file can be wrong
+// fails the check (S13-01-process-hardening, "Cron and at").
+func TestCheckAllowFailsClosed(t *testing.T) {
+	for name, c := range map[string]struct {
+		file  string
+		setup func(t *testing.T, path string)
+		owner uint32
+	}{
+		"cron.allow missing": {CronAllow, func(t *testing.T, path string) { remove(t, path) }, me()},
+		"at.allow missing":   {AtAllow, func(t *testing.T, path string) { remove(t, path) }, me()},
+		"another user":       {CronAllow, func(t *testing.T, path string) { writeMode(t, path, "root\nwbp10000\n", 0o644) }, me()},
+		"no newline":         {AtAllow, func(t *testing.T, path string) { writeMode(t, path, "root", 0o644) }, me()},
+		"empty":              {AtAllow, func(t *testing.T, path string) { writeMode(t, path, "", 0o644) }, me()},
+		"longer":             {CronAllow, func(t *testing.T, path string) { writeMode(t, path, "root\n\n", 0o644) }, me()},
+		"group writable":     {CronAllow, func(t *testing.T, path string) { writeMode(t, path, Allowed, 0o664) }, me()},
+		"others writable":    {AtAllow, func(t *testing.T, path string) { writeMode(t, path, Allowed, 0o646) }, me()},
+		"another owner":      {CronAllow, func(*testing.T, string) {}, me() + 1},
+		"directory": {AtAllow, func(t *testing.T, path string) {
+			remove(t, path)
+			if err := os.Mkdir(path, 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}, me()},
+		"fifo": {CronAllow, func(t *testing.T, path string) {
+			remove(t, path)
+			if err := unix.Mkfifo(path, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}, me()},
+		"symbolic link": {CronAllow, func(t *testing.T, path string) {
+			target := filepath.Join(t.TempDir(), "target")
+			writeMode(t, target, Allowed, 0o644)
+			remove(t, path)
+			if err := os.Symlink(target, path); err != nil {
+				t.Fatal(err)
+			}
+		}, me()},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := allowDir(t)
+			c.setup(t, filepath.Join(dir, c.file))
+			if err := checkAllowIn(dir, c.owner); err == nil {
+				t.Errorf("checkAllowIn = nil, want an error")
+			}
+		})
+	}
+}
+
+// TestCheckAllowDir: a directory that is missing or a symbolic link
+// fails the check.
+func TestCheckAllowDir(t *testing.T) {
+	link := filepath.Join(t.TempDir(), "at")
+	if err := os.Symlink(allowDir(t), link); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{filepath.Join(t.TempDir(), "missing"), link} {
+		if err := checkAllowIn(path, me()); err == nil {
+			t.Errorf("checkAllowIn(%s) = nil, want an error", path)
+		}
+	}
+}
+
+func remove(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestFindTab: the user's crontab counts and stays, another user's
+// doesn't count, and any entry at the name counts.
+func TestFindTab(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, Tabs, "wbp10000"), "* * * * * /bin/sh -c x\n")
 	writeFile(t, filepath.Join(dir, Tabs, "wbp10001"), "* * * * * /bin/sh -c y\n")
-	c, err := clearIn(dir, "wbp10000", 10000)
-	if err != nil || !c.Tab || c.Jobs != 0 || !c.Any() {
-		t.Fatalf("clearIn = %+v, %v, want the tab removed", c, err)
+	f, err := findIn(dir, "wbp10000", 10000)
+	if err != nil || f != (Found{Tabs: 1}) || !f.Any() {
+		t.Fatalf("findIn = %+v, %v, want the tab", f, err)
 	}
-	if _, err := os.Lstat(filepath.Join(dir, Tabs, "wbp10000")); !os.IsNotExist(err) {
-		t.Errorf("tab still there: %v", err)
+	if _, err := os.Lstat(filepath.Join(dir, Tabs, "wbp10000")); err != nil {
+		t.Errorf("tab: %v, want it left", err)
 	}
-	if _, err := os.Lstat(filepath.Join(dir, Tabs, "wbp10001")); err != nil {
-		t.Errorf("another user's tab: %v", err)
+	f, err = findIn(dir, "wbp10002", 10002)
+	if err != nil || f.Any() {
+		t.Errorf("findIn of a user without a tab = %+v, %v, want nothing", f, err)
 	}
-	c, err = clearIn(dir, "wbp10000", 10000)
-	if err != nil || c.Any() {
-		t.Errorf("second clearIn = %+v, %v, want nothing removed", c, err)
+	if err := os.Symlink("wbp10001", filepath.Join(dir, Tabs, "wbp10003")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, Tabs, "wbp10004"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"wbp10003", "wbp10004"} {
+		if f, err := findIn(dir, name, 0); err != nil || f.Tabs != 1 {
+			t.Errorf("findIn(%s) = %+v, %v, want the entry counted", name, f, err)
+		}
 	}
 }
 
-// TestClearJobs: each regular file in jobs that the user owns goes. A
-// file of another owner, a directory and a symbolic link stay.
-func TestClearJobs(t *testing.T) {
+// TestFindJobs: each regular file in jobs that the user owns counts. A
+// file of another owner, a directory and a symbolic link don't, and
+// nothing is removed.
+func TestFindJobs(t *testing.T) {
 	dir := t.TempDir()
 	jobs := filepath.Join(dir, Jobs)
 	writeFile(t, filepath.Join(jobs, "a0000101a2b3c4"), "#!/bin/sh\n")
@@ -143,62 +185,47 @@ func TestClearJobs(t *testing.T) {
 	if err := os.Symlink("a0000101a2b3c4", filepath.Join(jobs, "link")); err != nil {
 		t.Fatal(err)
 	}
-	me := uint32(os.Getuid())
-	c, err := clearIn(dir, "wbp10000", me+1)
-	if err != nil || c.Any() {
-		t.Fatalf("clearIn of another uid = %+v, %v, want nothing removed", c, err)
+	f, err := findIn(dir, "wbp10000", me()+1)
+	if err != nil || f.Any() {
+		t.Fatalf("findIn of another uid = %+v, %v, want nothing", f, err)
 	}
-	c, err = clearIn(dir, "wbp10000", me)
-	if err != nil || c.Jobs != 2 || c.Tab {
-		t.Fatalf("clearIn = %+v, %v, want 2 jobs removed", c, err)
+	f, err = findIn(dir, "wbp10000", me())
+	if err != nil || f != (Found{Jobs: 2}) {
+		t.Fatalf("findIn = %+v, %v, want 2 jobs", f, err)
 	}
 	entries, err := os.ReadDir(jobs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 2 {
-		t.Errorf("jobs left %v, want sub and link", entries)
+	if err != nil || len(entries) != 4 {
+		t.Errorf("jobs %v, %v, want all four entries left", entries, err)
 	}
 }
 
-// TestClearNothing: a directory without tabs or jobs holds nothing to
-// clear.
-func TestClearNothing(t *testing.T) {
-	c, err := clearIn(t.TempDir(), "wbp10000", 10000)
-	if err != nil || c.Any() {
-		t.Errorf("clearIn = %+v, %v, want nothing and no error", c, err)
+// TestFindNothing: a directory without tabs or jobs holds nothing.
+func TestFindNothing(t *testing.T) {
+	f, err := findIn(t.TempDir(), "wbp10000", 10000)
+	if err != nil || f.Any() {
+		t.Errorf("findIn = %+v, %v, want nothing and no error", f, err)
 	}
 }
 
-// TestClearFailsClosed: a name that isn't a file name, a missing
-// directory, a symbolic link at tabs or jobs, a tab that can't be
-// unlinked and a jobs directory over the bound each fail the clear.
-func TestClearFailsClosed(t *testing.T) {
+// TestFindFailsClosed: a name that isn't a file name, a missing
+// directory, a symbolic link at tabs or jobs and a jobs directory over
+// the bound each fail the check.
+func TestFindFailsClosed(t *testing.T) {
 	for _, name := range []string{"", ".", "..", "../wbp10000", "a/b", "a\x00b"} {
-		if _, err := clearIn(t.TempDir(), name, 10000); err == nil {
-			t.Errorf("clearIn(%q) = nil, want an error", name)
+		if _, err := findIn(t.TempDir(), name, 10000); err == nil {
+			t.Errorf("findIn(%q) = nil, want an error", name)
 		}
 	}
-	if _, err := clearIn(filepath.Join(t.TempDir(), "missing"), "wbp10000", 10000); err == nil {
-		t.Error("clearIn of a missing directory = nil, want an error")
+	if _, err := findIn(filepath.Join(t.TempDir(), "missing"), "wbp10000", 10000); err == nil {
+		t.Error("findIn of a missing directory = nil, want an error")
 	}
-
 	for _, sub := range []string{Tabs, Jobs} {
 		dir, target := linkedDir(t, sub)
-		_, err := clearIn(dir, "wbp10000", uint32(os.Getuid()))
+		_, err := findIn(dir, "wbp10000", me())
 		checkLinkRefused(t, err, target)
 	}
-
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, Tabs, "wbp10000"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := clearIn(dir, "wbp10000", 10000); err == nil {
-		t.Error("clearIn with a directory at the tab = nil, want an error")
-	}
-
-	if _, err := clearIn(fullDir(t, Jobs), "wbp10000", 10000); err == nil {
-		t.Error("clearIn over MaxEntries = nil, want an error")
+	if _, err := findIn(fullDir(t, Jobs), "wbp10000", 10000); err == nil {
+		t.Error("findIn over MaxEntries = nil, want an error")
 	}
 }
 
@@ -249,34 +276,32 @@ func fullDir(t *testing.T, sub string) string {
 	return dir
 }
 
-// TestSweepTabs: the start sweep removes each tab with a project user's
-// name. A tab of another name stays.
-func TestSweepTabs(t *testing.T) {
+// TestScanTabs: the start scan counts each tab with a project user's
+// name, and removes none. A tab of another name doesn't count.
+func TestScanTabs(t *testing.T) {
 	dir := t.TempDir()
 	tabs := filepath.Join(dir, Tabs)
-	keep := map[string]bool{"wbp10000": false, "wbp999999999": false, "root": true, "wbp9999": true, "wbp010000": true}
-	for name := range keep {
+	names := []string{"wbp10000", "wbp999999999", "root", "wbp9999", "wbp010000"}
+	for _, name := range names {
 		writeFile(t, filepath.Join(tabs, name), "* * * * * true\n")
 	}
-	s, err := sweepIn(dir, projectuser.IsUserName, projectuser.InRange)
-	if err != nil || s.Tabs != 2 || s.Jobs != 0 {
-		t.Fatalf("sweepIn = %+v, %v, want 2 tabs removed", s, err)
+	f, err := scanIn(dir, projectuser.IsUserName, projectuser.InRange)
+	if err != nil || f != (Found{Tabs: 2}) {
+		t.Fatalf("scanIn = %+v, %v, want 2 tabs", f, err)
 	}
-	for name, want := range keep {
-		if _, err := os.Lstat(filepath.Join(tabs, name)); (err == nil) != want {
-			t.Errorf("tab %s: %v, want kept %v", name, err, want)
-		}
+	if entries, err := os.ReadDir(tabs); err != nil || len(entries) != len(names) {
+		t.Errorf("tabs %v, %v, want all left", entries, err)
 	}
-	s, err = sweepIn(t.TempDir(), projectuser.IsUserName, projectuser.InRange)
-	if err != nil || s != (Swept{}) {
-		t.Errorf("sweepIn of an empty directory = %+v, %v, want nothing and no error", s, err)
+	f, err = scanIn(t.TempDir(), projectuser.IsUserName, projectuser.InRange)
+	if err != nil || f.Any() {
+		t.Errorf("scanIn of an empty directory = %+v, %v, want nothing and no error", f, err)
 	}
 }
 
-// TestSweepJobs: the start sweep removes each regular file in jobs whose
+// TestScanJobs: the start scan counts each regular file in jobs whose
 // owner it accepts. A job of another owner, a directory and a symbolic
-// link stay.
-func TestSweepJobs(t *testing.T) {
+// link don't count.
+func TestScanJobs(t *testing.T) {
 	dir := t.TempDir()
 	jobs := filepath.Join(dir, Jobs)
 	writeFile(t, filepath.Join(jobs, "a0000101a2b3c4"), "#!/bin/sh\n")
@@ -286,46 +311,32 @@ func TestSweepJobs(t *testing.T) {
 	if err := os.Symlink("a0000101a2b3c4", filepath.Join(jobs, "link")); err != nil {
 		t.Fatal(err)
 	}
-	me := uint32(os.Getuid())
-	other := func(uid uint32) bool { return uid == me+1 }
-	s, err := sweepIn(dir, projectuser.IsUserName, other)
-	if err != nil || s != (Swept{}) {
-		t.Fatalf("sweepIn of another owner = %+v, %v, want nothing removed", s, err)
+	f, err := scanIn(dir, projectuser.IsUserName, func(uid uint32) bool { return uid == me()+1 })
+	if err != nil || f.Any() {
+		t.Fatalf("scanIn of another owner = %+v, %v, want nothing", f, err)
 	}
-	s, err = sweepIn(dir, projectuser.IsUserName, func(uid uint32) bool { return uid == me })
-	if err != nil || s.Tabs != 0 || s.Jobs != 1 {
-		t.Fatalf("sweepIn = %+v, %v, want 1 job removed", s, err)
+	f, err = scanIn(dir, projectuser.IsUserName, func(uid uint32) bool { return uid == me() })
+	if err != nil || f != (Found{Jobs: 1}) {
+		t.Fatalf("scanIn = %+v, %v, want 1 job", f, err)
 	}
-	entries, err := os.ReadDir(jobs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 2 {
-		t.Errorf("jobs left %v, want sub and link", entries)
+	if entries, err := os.ReadDir(jobs); err != nil || len(entries) != 3 {
+		t.Errorf("jobs %v, %v, want all three entries left", entries, err)
 	}
 }
 
-// TestSweepFailsClosed: a missing directory, a symbolic link at tabs or
-// jobs, a tab that can't be unlinked and a directory over the bound each
-// fail the sweep.
-func TestSweepFailsClosed(t *testing.T) {
+// TestScanFailsClosed: a missing directory, a symbolic link at tabs or
+// jobs and a directory over the bound each fail the scan.
+func TestScanFailsClosed(t *testing.T) {
 	all := func(uint32) bool { return true }
-	if _, err := sweepIn(filepath.Join(t.TempDir(), "missing"), projectuser.IsUserName, all); err == nil {
-		t.Error("sweepIn of a missing directory = nil, want an error")
+	if _, err := scanIn(filepath.Join(t.TempDir(), "missing"), projectuser.IsUserName, all); err == nil {
+		t.Error("scanIn of a missing directory = nil, want an error")
 	}
 	for _, sub := range []string{Tabs, Jobs} {
 		dir, target := linkedDir(t, sub)
-		_, err := sweepIn(dir, projectuser.IsUserName, all)
+		_, err := scanIn(dir, projectuser.IsUserName, all)
 		checkLinkRefused(t, err, target)
-		if _, err := sweepIn(fullDir(t, sub), projectuser.IsUserName, all); err == nil {
-			t.Errorf("sweepIn over MaxEntries in %s = nil, want an error", sub)
+		if _, err := scanIn(fullDir(t, sub), projectuser.IsUserName, all); err == nil {
+			t.Errorf("scanIn over MaxEntries in %s = nil, want an error", sub)
 		}
-	}
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, Tabs, "wbp10000", "x"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := sweepIn(dir, projectuser.IsUserName, all); err == nil {
-		t.Error("sweepIn with a directory at a tab = nil, want an error")
 	}
 }
