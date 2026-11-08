@@ -83,19 +83,24 @@ installer, which refuses a changed restore image
 - For the boot components (the kernel cache, the boot loaders, the
   ramdisk, the device tree and the trust caches), the installer hashes
   each file in the image and asks Apple's signing server for a ticket.
-  The server declines a digest that Apple didn't sign for the VM's
-  platform and build, and the install fails. A matching change to the
-  image's build manifest doesn't change the digest the installer
-  sends.
+  The spike changed the kernel cache. The server declined its digest,
+  and the digest of Apple's kernel cache for another device too, and
+  the install failed. A matching change to the image's build manifest
+  didn't change the digest the installer sent. The spike didn't change
+  the other boot components, which go in the same request.
 - The restore OS in the VM checks the system volume image while it
-  copies it, and the install fails at a changed byte.
+  copies it. One changed byte in the middle of it failed the install.
 
-So every install needs Apple's signing server. The installation
-service asks it, over the host's network. That service is Apple's own
-process, and `wb-vmd-install`'s profile doesn't confine it, so the
-image build uses the host's network outside `wb-download`, while
-`wb-vmd-install` itself still has none (S04-04-vm-processes). Each
-request holds the VM's chip identity and the components' digests.
+The installation service asks the signing server on every install,
+over the host's network. It is Apple's own process, and
+`wb-vmd-install`'s profile doesn't confine it. `wb-vmd-install` itself
+still has no network (S04-04-vm-processes). These requests are the one
+part of an image build that reaches the internet without `wb-download`
+(S17-03-downloads, "Only `wb-download` fetches"). Wraith Box neither
+bounds nor audits them (S04-08-records-and-bounds). Each request holds
+the VM's chip identity and the components' digests. When the server
+can't be reached, the install is assumed to fail. The spike didn't
+test that.
 
 An older build that the signing server still signs passes both
 checks, and the SHA-1 doesn't stop it either. The floor and the

@@ -1,14 +1,19 @@
 # S17-03 - Downloads
 
-**Purpose:** How `wb-download`, and only it, fetches what an image build
-needs from the internet.
+**Purpose:** How `wb-download` fetches what an image build needs from
+the internet. Apple's installation service, which asks Apple's signing
+server, is the one exception (X30-installer-trust).
 
 ## Design
 
 ![wb-hostd opens the files, then starts wb-download through wb-launcher. wb-download fetches Apple's catalog and a restore image, or a Claude Code release, over HTTPS from the hosts compiled into its entry, into those descriptors. wb-hostd checks the restore image's hash, and wb-release-check checks the Claude Code release, before wb-vmd-install or wb-guestd uses them. wb-hostd itself has no network.](S17-03-downloads.svg)
 
 Only `wb-download` fetches what an image build needs. `wb-hostd` has
-no network, and `wb-proxyd` serves guests.
+no network, and `wb-proxyd` serves guests. On macOS, Apple's
+installation service also asks Apple's signing server for a ticket
+during each install, over the host's network. Wraith Box neither bounds
+nor audits those requests (S17-04-restore-and-release, "The trust
+base").
 
 ### Entries
 
@@ -158,5 +163,12 @@ What an image build needs from the internet is fetched by one
 confined program, `wb-download`, not by `wb-hostd` or `wb-proxyd`.
 
 - **Decided:** I49.
+- **Amended:** X30-installer-trust. Apple's installation service, which
+  `wb-vmd-install`'s profile doesn't confine, sends the TSS requests
+  for an install's ticket to Apple's signing server itself, over the
+  host's network. The installer refuses a changed restore image only
+  through those requests, so they stay, outside `wb-download`, and
+  Wraith Box neither bounds nor audits them. Everything else an image
+  build fetches still goes through `wb-download`.
 
 **Status:** Draft
