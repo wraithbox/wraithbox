@@ -82,7 +82,7 @@ func TestCheckAllowFailsClosed(t *testing.T) {
 	}{
 		"cron.allow missing": {CronAllow, func(t *testing.T, path string) { remove(t, path) }, me()},
 		"at.allow missing":   {AtAllow, func(t *testing.T, path string) { remove(t, path) }, me()},
-		"another user":       {CronAllow, func(t *testing.T, path string) { writeMode(t, path, "root\nwbp10000\n", 0o644) }, me()},
+		"another user":       {CronAllow, func(t *testing.T, path string) { writeMode(t, path, "root\nadmin\n", 0o644) }, me()},
 		"no newline":         {AtAllow, func(t *testing.T, path string) { writeMode(t, path, "root", 0o644) }, me()},
 		"empty":              {AtAllow, func(t *testing.T, path string) { writeMode(t, path, "", 0o644) }, me()},
 		"longer":             {CronAllow, func(t *testing.T, path string) { writeMode(t, path, "root\n\n", 0o644) }, me()},
