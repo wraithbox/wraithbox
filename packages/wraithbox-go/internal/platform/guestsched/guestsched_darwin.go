@@ -179,7 +179,9 @@ func listDir(dfd int, sub string) (*os.File, []string, error) {
 }
 
 // countTabs counts the entries of Tabs whose name user accepts, of any
-// type. It reads at most MaxEntries entries.
+// type. It lowercases each name first: APFS ignores case, and so does
+// cron's getpwnam lookup of the name, so a crontab named WBP10000 runs
+// as wbp10000. It reads at most MaxEntries entries.
 func countTabs(dfd int, user func(name string) bool) (int, error) {
 	f, names, err := listDir(dfd, Tabs)
 	if f == nil {
@@ -188,7 +190,7 @@ func countTabs(dfd int, user func(name string) bool) (int, error) {
 	defer func() { _ = f.Close() }()
 	n := 0
 	for _, name := range names {
-		if user(name) {
+		if user(strings.ToLower(name)) {
 			n++
 		}
 	}

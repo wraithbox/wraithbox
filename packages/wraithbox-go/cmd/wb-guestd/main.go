@@ -6,9 +6,10 @@
 // the disk's version isn't its own (internal/guestupdate), and runs the
 // installed wb-guestd in its place. Then it runs the stop loop, so no
 // project user's process runs on while no host is connected
-// (S13-01-process-hardening, "When the link drops"). It closes cron and
-// at to every user but root, and removes every crontab and at job a
-// project user left (S13-01-process-hardening, "Cron and at").
+// (S13-01-process-hardening, "When the link drops"). It checks that
+// cron and at are closed to every user but root and that no project
+// user has a crontab or at job, and exits without serving when either
+// check fails (S13-01-process-hardening, "Cron and at").
 //
 // It logs one JSON object per line on standard error, as wb-vmd does.
 // The service manager sends standard error to a file in the guest.

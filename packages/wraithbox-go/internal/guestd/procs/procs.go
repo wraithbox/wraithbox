@@ -15,6 +15,7 @@ package procs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -174,16 +175,17 @@ func (r KillResult) Clean() bool { return r.Left == 0 }
 
 // Kill runs the kill loop for uid: each round sends SIGKILL to every
 // process of the user, runs `launchctl bootout user/<uid>`, and checks
-// again for processes and for a crontab or at job of the user. So a
+// again for a crontab or at job of the user and for its processes. So a
 // KeepAlive agent launchd would start again goes with its domain. At
-// least one
-// round runs, even when the first check finds nothing, because a domain
-// can hold a job between two starts. It stops at the first clean
-// check, after MaxRounds, or past MaxTime, and then logs the processes
-// left with RuleKillIncomplete. A check that couldn't read the process
-// table counts as MaxLeft processes left, and a ctx done before the
-// first round, or a crontab or at job the last check found or couldn't
-// look for, as at least one.
+// least one round runs, even when the first check finds nothing,
+// because a domain can hold a job between two starts. It stops at the
+// first clean check, after MaxRounds, or past MaxTime, and then logs
+// the processes left with RuleKillIncomplete. It also stops when the
+// user has no process left but a crontab or at job: nothing removes
+// one, so another round can't make the kill clean. A check that
+// couldn't read the process table counts as MaxLeft processes left,
+// and a ctx done before the first round, or a crontab or at job the
+// last check found or couldn't look for, as at least one.
 func (l *Loops) Kill(ctx context.Context, uid uint32) KillResult {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -204,17 +206,19 @@ func (l *Loops) Kill(ctx context.Context, uid uint32) KillResult {
 				slog.Uint64("uid", uint64(uid)), slog.Int("round", round), slog.String("error", err.Error()))
 		}
 		l.clock.Sleep(ctx, settle(round))
-		procs, err = l.byUID(uid)
 		// cron or atrun may start a job of the user after the kill, so a
 		// job found counts as a process left (S13-01-process-hardening,
-		// "Cron and at").
+		// "Cron and at"). The jobs are checked before the processes, so
+		// a process a job starts between the two checks is found.
 		jobsErr = l.checkJobs(ctx, uid, round)
-		if err == nil && len(procs) == 0 && jobsErr == nil {
+		procs, err = l.byUID(uid)
+		gone := err == nil && len(procs) == 0
+		if gone && jobsErr == nil {
 			l.log.LogAttrs(ctx, slog.LevelInfo, "project user killed",
 				slog.Uint64("uid", uint64(uid)), slog.String("decision", "clean"), slog.Int("rounds", round))
 			return KillResult{Rounds: round}
 		}
-		if l.clock.Now().Sub(start) >= MaxTime {
+		if (gone && errors.Is(jobsErr, errJobsFound)) || l.clock.Now().Sub(start) >= MaxTime {
 			break
 		}
 	}
@@ -260,13 +264,17 @@ func (l *Loops) killLeft(ctx context.Context, uid uint32, e killEnd) KillResult 
 	return KillResult{Left: left, Rounds: e.round}
 }
 
+// errJobsFound is checkJobs's error when it found a crontab or at job,
+// which nothing removes. A check that failed may pass in a later round.
+var errJobsFound = errors.New("crontab or at jobs of the project user found")
+
 // checkJobs looks for uid's crontab and at jobs, and logs with RuleJobs
 // what it found, or why it couldn't look. It returns an error in both
 // cases.
 func (l *Loops) checkJobs(ctx context.Context, uid uint32, round int) error {
 	f, err := l.jobs.Find(projectuser.UserName(uid), uid)
 	if err == nil && f.Any() {
-		err = fmt.Errorf("found %d crontab and %d at jobs", f.Tabs, f.Jobs)
+		err = fmt.Errorf("%w: %d crontab, %d at jobs", errJobsFound, f.Tabs, f.Jobs)
 	}
 	if err != nil {
 		l.log.LogAttrs(ctx, slog.LevelError, "scheduled jobs of a project user left",
