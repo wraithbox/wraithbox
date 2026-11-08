@@ -50,6 +50,15 @@ hours left. The dispatcher starts no new review round after `--until`.
 The script ends a wave that runs an hour past it, and counts that wave
 at its full dollar share, since its cost is unknown.
 
+The wave's dispatcher hands the wave to a lead in the background and
+ends its turn. `claude -p` stops background tasks 10 minutes after the
+last turn by default, which ended the first wave of I604 with nothing
+built (I609). The script starts each wave with
+`CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`. The session then waits for
+the lead and resumes when the lead reports, and the timeout above
+bounds it. The final result's `total_cost_usd` counts every turn of the
+session.
+
 The reserve pays for the manager's own session and for finishing up.
 The manager's session isn't metered by the script, and the report says
 so. After a limit is hit the manager still finishes up ("Ending").

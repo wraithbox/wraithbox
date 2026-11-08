@@ -16,6 +16,7 @@ import {
 	readSession,
 	readWaveFile,
 	spentOf,
+	waveEnv,
 	wavePrompt,
 } from './campaign.mjs';
 
@@ -122,6 +123,10 @@ describe('the headless wave', () => {
 		expect(args.slice(args.indexOf('--max-budget-usd'), args.indexOf('--max-budget-usd') + 2)).toEqual(['--max-budget-usd', '128.50']);
 		expect(args).toContain('--session-id');
 		expect(args[0]).toBe('-p');
+	});
+	test('the wave session waits for its background lead without a ceiling', () => {
+		const env = waveEnv({ PATH: '/bin', CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: '600000' });
+		expect(env).toEqual({ PATH: '/bin', CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: '0' });
 	});
 });
 

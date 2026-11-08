@@ -15,7 +15,10 @@
 // reads a result, not prose. A wave runs as
 // `claude -p "/wave ... --campaign <n>" --output-format json
 // --max-budget-usd <share>`, whose `total_cost_usd` counts the wave's
-// subagents too, at list prices.
+// subagents too, at list prices. The dispatcher hands the wave to a
+// background lead and ends its turn, so the session must wait for
+// background tasks without a ceiling (waveEnv, #609). The script's own
+// timeout bounds the wave instead.
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -179,6 +182,19 @@ export function claudeArgs(prompt, allowance, sessionId) {
 }
 
 /**
+ * The environment of a headless wave. `claude -p` stops background tasks
+ * 10 minutes after the last turn unless this ceiling is 0, and the
+ * dispatcher's turn ends while its wave-lead runs (#609). With it, the
+ * session resumes when the lead reports, and the final result's
+ * `total_cost_usd` counts every turn.
+ * @param {NodeJS.ProcessEnv} base
+ * @returns {NodeJS.ProcessEnv}
+ */
+export function waveEnv(base) {
+	return { ...base, CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: '0' };
+}
+
+/**
  * Reads a headless session's JSON result. A session that was ended, or
  * printed no JSON, is counted at its full dollar allowance.
  * @param {string} stdout @param {boolean} timedOut @param {Allowance} allowance
@@ -290,6 +306,7 @@ function runWave(ledger, flags) {
 		encoding: 'utf8',
 		maxBuffer: 64 * 1024 * 1024,
 		timeout,
+		env: waveEnv(process.env),
 		stdio: ['ignore', 'pipe', 'inherit'],
 	});
 	// spawnSync ends the session with SIGTERM at the timeout and sets
