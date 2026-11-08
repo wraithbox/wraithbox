@@ -14,21 +14,23 @@ import (
 
 // Dir holds cron's and at's allow files, the crontabs and the at jobs.
 // /usr/lib/cron, where crontab and at look, is a symbolic link to it.
-// It is on the data volume, not the sealed system volume, so wb-guestd
-// can write it.
+// TCC protects it: only a process with Full Disk Access, such as a
+// Remote Login session, can create or remove a file in it.
 const Dir = "/private/var/at"
 
-// Lock writes CronAllow and AtAllow in Dir, each with Allowed only.
-func Lock() error { return lockIn(Dir) }
+// CheckAllow checks CronAllow and AtAllow in Dir: each is a regular
+// file owned by root, not writable by group or others, that holds
+// Allowed and nothing else (S13-01-process-hardening, "Cron and at").
+func CheckAllow() error { return checkAllowIn(Dir, 0) }
 
-// Clear removes name's crontab from Dir, and every at job whose file
-// uid owns.
-func (System) Clear(name string, uid uint32) (Cleared, error) { return clearIn(Dir, name, uid) }
+// Find counts name's crontab in Dir, and every at job whose file uid
+// owns.
+func (System) Find(name string, uid uint32) (Found, error) { return findIn(Dir, name, uid) }
 
-// Sweep removes from Dir the crontab of every project user, and every
-// at job whose file a project user's ID owns.
-func Sweep() (Swept, error) {
-	return sweepIn(Dir, projectuser.IsUserName, projectuser.InRange)
+// Scan counts in Dir the crontab of every project user, and every at
+// job whose file a project user's ID owns.
+func Scan() (Found, error) {
+	return scanIn(Dir, projectuser.IsUserName, projectuser.InRange)
 }
 
 // openDir opens path relative to parent as a directory, and refuses a
@@ -37,124 +39,119 @@ func openDir(parent int, path string) (int, error) {
 	return unix.Openat(parent, path, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 }
 
-// lockIn writes both allow files in dir.
-func lockIn(dir string) error {
+// checkAllowIn checks both allow files in dir, each owned by owner.
+func checkAllowIn(dir string, owner uint32) error {
 	dfd, err := openDir(unix.AT_FDCWD, dir)
 	if err != nil {
 		return fmt.Errorf("guestsched: open %s: %w", dir, err)
 	}
 	defer func() { _ = unix.Close(dfd) }()
 	for _, name := range []string{CronAllow, AtAllow} {
-		if err := writeAllow(dfd, name); err != nil {
-			return fmt.Errorf("guestsched: write %s/%s: %w", dir, name, err)
+		if err := checkAllow(dfd, name, owner); err != nil {
+			return fmt.Errorf("guestsched: %s/%s: %w", dir, name, err)
 		}
-	}
-	if err := unix.Fsync(dfd); err != nil {
-		return fmt.Errorf("guestsched: sync %s: %w", dir, err)
 	}
 	return nil
 }
 
-// writeAllow writes Allowed to a new file, created exclusively under a
-// temporary name, made mode 0644 and synced, and renames it over name.
-// So a symbolic link at either name is replaced, never followed.
-func writeAllow(dfd int, name string) (err error) {
-	tmp := ".wb-" + name + ".tmp"
-	// A temporary file an earlier start left. A failure here shows at
-	// the exclusive create below.
-	_ = unix.Unlinkat(dfd, tmp, 0)
-	fd, err := unix.Openat(dfd, tmp, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0o644)
+// checkAllow opens name without following a symbolic link, and checks
+// that it is a regular file owned by owner, not writable by group or
+// others, whose content is Allowed. O_NONBLOCK keeps the open of a FIFO
+// from waiting for a writer. The type check then refuses it.
+func checkAllow(dfd int, name string, owner uint32) error {
+	fd, err := unix.Openat(dfd, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return fmt.Errorf("create %s: %w", tmp, err)
+		return fmt.Errorf("open: %w", err)
 	}
-	f := os.NewFile(uintptr(fd), tmp)
-	defer func() {
-		if err != nil {
-			_ = unix.Unlinkat(dfd, tmp, 0)
-		}
-	}()
-	_, err = io.WriteString(f, Allowed)
-	if err == nil {
-		// The umask may have taken bits off the mode of the create.
-		err = f.Chmod(0o644)
+	f := os.NewFile(uintptr(fd), name)
+	defer func() { _ = f.Close() }()
+	var st unix.Stat_t
+	if err := unix.Fstat(fd, &st); err != nil {
+		return fmt.Errorf("stat: %w", err)
 	}
-	if err == nil {
-		err = f.Sync()
+	switch {
+	case st.Mode&unix.S_IFMT != unix.S_IFREG:
+		return fmt.Errorf("not a regular file (mode %#o)", st.Mode)
+	case st.Uid != owner:
+		return fmt.Errorf("owned by uid %d, want %d", st.Uid, owner)
+	case st.Mode&0o022 != 0:
+		return fmt.Errorf("mode %#o is writable by group or others", st.Mode&0o7777)
 	}
-	if closeErr := f.Close(); err == nil {
-		err = closeErr
-	}
+	// One byte more than Allowed shows a longer file.
+	b, err := io.ReadAll(io.LimitReader(f, int64(len(Allowed))+1))
 	if err != nil {
-		return fmt.Errorf("write %s: %w", tmp, err)
+		return fmt.Errorf("read: %w", err)
 	}
-	if err = unix.Renameat(dfd, tmp, dfd, name); err != nil {
-		return fmt.Errorf("rename %s: %w", tmp, err)
+	if string(b) != Allowed {
+		return fmt.Errorf("content %q, want %q", b, Allowed)
 	}
 	return nil
 }
 
-// clearIn removes name's crontab from dir's Tabs, and uid's at jobs
-// from its Jobs. A missing Tabs or Jobs directory holds nothing.
-func clearIn(dir, name string, uid uint32) (Cleared, error) {
-	var c Cleared
+// findIn counts name's crontab in dir's Tabs, and uid's at jobs in its
+// Jobs. A missing Tabs or Jobs directory holds nothing.
+func findIn(dir, name string, uid uint32) (Found, error) {
+	var f Found
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\x00") {
-		return c, fmt.Errorf("guestsched: user name %q is not a file name", name)
+		return f, fmt.Errorf("guestsched: user name %q is not a file name", name)
 	}
 	dfd, err := openDir(unix.AT_FDCWD, dir)
 	if err != nil {
-		return c, fmt.Errorf("guestsched: open %s: %w", dir, err)
+		return f, fmt.Errorf("guestsched: open %s: %w", dir, err)
 	}
 	defer func() { _ = unix.Close(dfd) }()
-	c.Tab, err = removeTab(dfd, name)
+	f.Tabs, err = findTab(dfd, name)
 	if err != nil {
-		return c, fmt.Errorf("guestsched: crontab of %s in %s: %w", name, dir, err)
+		return f, fmt.Errorf("guestsched: crontab of %s in %s: %w", name, dir, err)
 	}
-	c.Jobs, err = removeJobs(dfd, func(owner uint32) bool { return owner == uid })
+	f.Jobs, err = countJobs(dfd, func(owner uint32) bool { return owner == uid })
 	if err != nil {
-		return c, fmt.Errorf("guestsched: at jobs of uid %d in %s: %w", uid, dir, err)
+		return f, fmt.Errorf("guestsched: at jobs of uid %d in %s: %w", uid, dir, err)
 	}
-	return c, nil
+	return f, nil
 }
 
-// removeTab unlinks Tabs/name, and reports whether it was there.
-func removeTab(dfd int, name string) (bool, error) {
+// findTab returns 1 when Tabs holds an entry named name, of any type,
+// and 0 when it doesn't.
+func findTab(dfd int, name string) (int, error) {
 	tfd, err := openDir(dfd, Tabs)
 	if errors.Is(err, unix.ENOENT) {
-		return false, nil
+		return 0, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("open %s: %w", Tabs, err)
+		return 0, fmt.Errorf("open %s: %w", Tabs, err)
 	}
 	defer func() { _ = unix.Close(tfd) }()
-	err = unix.Unlinkat(tfd, name, 0)
+	var st unix.Stat_t
+	err = unix.Fstatat(tfd, name, &st, unix.AT_SYMLINK_NOFOLLOW)
 	switch {
 	case errors.Is(err, unix.ENOENT):
-		return false, nil
+		return 0, nil
 	case err != nil:
-		return false, fmt.Errorf("unlink: %w", err)
+		return 0, fmt.Errorf("stat: %w", err)
 	}
-	return true, nil
+	return 1, nil
 }
 
-// sweepIn removes, from dir, each crontab whose name user accepts, and
-// each at job whose owner's ID owner accepts. A missing Tabs or Jobs
+// scanIn counts, in dir, each crontab whose name user accepts, and each
+// at job whose owner's ID owner accepts. A missing Tabs or Jobs
 // directory holds nothing.
-func sweepIn(dir string, user func(name string) bool, owner func(uid uint32) bool) (Swept, error) {
-	var s Swept
+func scanIn(dir string, user func(name string) bool, owner func(uid uint32) bool) (Found, error) {
+	var f Found
 	dfd, err := openDir(unix.AT_FDCWD, dir)
 	if err != nil {
-		return s, fmt.Errorf("guestsched: open %s: %w", dir, err)
+		return f, fmt.Errorf("guestsched: open %s: %w", dir, err)
 	}
 	defer func() { _ = unix.Close(dfd) }()
-	s.Tabs, err = removeTabs(dfd, user)
+	f.Tabs, err = countTabs(dfd, user)
 	if err != nil {
-		return s, fmt.Errorf("guestsched: crontabs of project users in %s: %w", dir, err)
+		return f, fmt.Errorf("guestsched: crontabs of project users in %s: %w", dir, err)
 	}
-	s.Jobs, err = removeJobs(dfd, owner)
+	f.Jobs, err = countJobs(dfd, owner)
 	if err != nil {
-		return s, fmt.Errorf("guestsched: at jobs of project users in %s: %w", dir, err)
+		return f, fmt.Errorf("guestsched: at jobs of project users in %s: %w", dir, err)
 	}
-	return s, nil
+	return f, nil
 }
 
 // listDir opens sub in dfd as a directory, without following a
@@ -181,57 +178,45 @@ func listDir(dfd int, sub string) (*os.File, []string, error) {
 	return f, names, nil
 }
 
-// removeTabs unlinks each entry of Tabs whose name user accepts, and
-// returns how many it removed. It reads at most MaxEntries entries.
-func removeTabs(dfd int, user func(name string) bool) (int, error) {
+// countTabs counts the entries of Tabs whose name user accepts, of any
+// type. It reads at most MaxEntries entries.
+func countTabs(dfd int, user func(name string) bool) (int, error) {
 	f, names, err := listDir(dfd, Tabs)
 	if f == nil {
 		return 0, err
 	}
 	defer func() { _ = f.Close() }()
-	removed := 0
-	for _, n := range names {
-		if !user(n) {
-			continue
+	n := 0
+	for _, name := range names {
+		if user(name) {
+			n++
 		}
-		err := unix.Unlinkat(int(f.Fd()), n, 0)
-		switch {
-		case errors.Is(err, unix.ENOENT):
-			continue
-		case err != nil:
-			return removed, fmt.Errorf("unlink %s/%s: %w", Tabs, n, err)
-		}
-		removed++
 	}
-	return removed, nil
+	return n, nil
 }
 
-// removeJobs unlinks each regular file in Jobs whose owner's ID owner
-// accepts, and returns how many it removed. It reads at most MaxEntries
-// entries.
-func removeJobs(dfd int, owner func(uid uint32) bool) (int, error) {
+// countJobs counts the regular files in Jobs whose owner's ID owner
+// accepts. It reads at most MaxEntries entries. at writes each job as a regular
+// file, so it skips an entry of any other type.
+func countJobs(dfd int, owner func(uid uint32) bool) (int, error) {
 	f, names, err := listDir(dfd, Jobs)
 	if f == nil {
 		return 0, err
 	}
 	defer func() { _ = f.Close() }()
 	jfd := int(f.Fd())
-	removed := 0
-	for _, n := range names {
+	n := 0
+	for _, name := range names {
 		var st unix.Stat_t
-		err := unix.Fstatat(jfd, n, &st, unix.AT_SYMLINK_NOFOLLOW)
+		err := unix.Fstatat(jfd, name, &st, unix.AT_SYMLINK_NOFOLLOW)
 		switch {
 		case errors.Is(err, unix.ENOENT):
 			continue // atrun ran it meanwhile
 		case err != nil:
-			return removed, fmt.Errorf("stat %s/%s: %w", Jobs, n, err)
-		case st.Mode&unix.S_IFMT != unix.S_IFREG || !owner(st.Uid):
-			continue
+			return n, fmt.Errorf("stat %s/%s: %w", Jobs, name, err)
+		case st.Mode&unix.S_IFMT == unix.S_IFREG && owner(st.Uid):
+			n++
 		}
-		if err := unix.Unlinkat(jfd, n, 0); err != nil && !errors.Is(err, unix.ENOENT) {
-			return removed, fmt.Errorf("unlink %s/%s: %w", Jobs, n, err)
-		}
-		removed++
 	}
-	return removed, nil
+	return n, nil
 }
