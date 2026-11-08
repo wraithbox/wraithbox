@@ -140,6 +140,17 @@ Outside a `needs-host` issue, in an attended session:
   for the MAC address the task prints. The task runs until the guest
   shuts down, `vm:stop`, or the time limit (60 minutes by default), so
   run it in the background.
+- **Guests that run `wb-guestd`:** `wb-guestd` only checks
+  `cron.allow` and `at.allow` in `/private/var/at`, and doesn't serve
+  until both hold `root` only (S13-01-process-hardening, "Cron and
+  at"). TCC lets only a Remote Login session write there, so write
+  them over SSH in the step that installs `wb-guestd`:
+
+  ```bash
+  printf 'root\n' | sudo tee /private/var/at/cron.allow /private/var/at/at.allow >/dev/null
+  sudo chown root:wheel /private/var/at/cron.allow /private/var/at/at.allow
+  sudo chmod 644 /private/var/at/cron.allow /private/var/at/at.allow
+  ```
 - **Slots:** a clone of a `vm:install` bundle has the file names
   `wb-vmd` opens (S06-05-disks, "Bundle files"). An older spike bundle
   has `.img` names, which have to be renamed when its clone goes to a

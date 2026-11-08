@@ -188,37 +188,43 @@ locked project user.
 `cron` and `atrun` run as root and start a user's crontab and `at` jobs
 as that user, outside its launchd domain. So `bootout` doesn't reach
 them, and neither the disabled account nor its shell stops them.
-`wb-guestd` closes both schedulers to project users at its start, and
-clears a user's jobs in the kill loop.
+`cron.allow` and `at.allow` in `/private/var/at`, with `root` only,
+close both schedulers to project users. `crontab` and `at` read the
+files through `/usr/lib/cron`, a symbolic link to that directory. With
+an allow file there, each ignores its deny file and refuses every user
+the file doesn't name. The image build writes the two files
+(S06-02-image-build, "Guest confinement"). `wb-guestd` only checks
+them, and never writes or removes a file in that directory.
 
-At each start, after its stop loop and before it serves the host, it
-writes `cron.allow` and `at.allow` in `/private/var/at` with `root`
-only. That is before it makes or unlocks any project user. `crontab`
-and `at` read the files through `/usr/lib/cron`, a symbolic link to
-that directory, which is on the data volume and not the sealed system
-volume. With an allow file there, each ignores its deny file and
-refuses every user the file doesn't name. The image has the same two
-files (S06-02-image-build, "Guest confinement"), so a guest is closed
-before `wb-guestd` makes its first project user.
+- **Why:** TCC protects `/private/var/at`. In a macOS 27.2 guest, a
+  root LaunchDaemon, where `wb-guestd` runs, could read and list the
+  directory, `tabs/` and `jobs/`, but each create there failed with
+  `EPERM`. A Remote Login session has Full Disk Access, and over SSH
+  `sudo` wrote both files (I599).
 
-Right after the lock, it sweeps the directory. It removes each crontab
-in `tabs/` whose name is a project user's, and each regular file in
-`jobs/` whose owner has an ID in the project range. A guest made before
-the lock, or a kill loop that stopped at its bounds, can have left one.
-When the lock or the sweep fails, `wb-guestd` logs it with its rule and
-exits without serving the host.
+At each start, after its stop loop and before it serves the host,
+`wb-guestd` checks that each allow file:
 
-In each round of the kill loop, before the first signal, it removes the
-user's crontab, `/private/var/at/tabs/<name>`, and each regular file in
-`/private/var/at/jobs` that the user owns, which is an `at` job. So a
-crontab written by root goes with the kill, and `cron` and `atrun`
-don't find a job of the user when they next look. A removal that fails
-counts as a process left. The loop goes on to its bounds and logs the
-failure with its rule. It then reports the user as not clean
-("Per-user launchd services").
+- is a regular file, opened without following a symbolic link;
+- is owned by root, and not writable by group or others;
+- holds exactly `root` and a newline.
 
-`wb-guestd` follows no symbolic link at a name it writes or removes
-there. The paths and the bound on the entries it reads are in code, in
+It then checks that no crontab in `tabs/` has a project user's name,
+and no regular file in `jobs/` has an owner whose ID is in the project
+range. Both checks run before it makes or unlocks any project user.
+When one fails, `wb-guestd` logs it with its rule and exits without
+serving the host.
+
+In each round of the kill loop, after the signals and the `bootout`,
+the check also looks for the user's crontab,
+`/private/var/at/tabs/<name>`, and for a regular file in
+`/private/var/at/jobs` that the user owns, which is an `at` job. One
+found, or a check that fails, counts as a process left. The loop goes
+on to its bounds and logs it with its rule. It then reports the user
+as not clean ("Per-user launchd services").
+
+`wb-guestd` follows no symbolic link at a name it checks there. The
+paths and the bound on the entries it reads are in code, in
 `internal/platform/guestsched`.
 
 This holds against a process without guest root only, as the rest of

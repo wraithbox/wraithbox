@@ -61,6 +61,11 @@ askpass helper.
   the guest's `sudo -S` reads it.
 - It doesn't request a terminal.
 
+The session installs `wb-guestd` and writes cron's and at's allow
+files, and does nothing else. As a Remote Login session it has Full
+Disk Access, which writing those files needs and `wb-guestd` lacks
+(S06-02-image-build, "Guest confinement").
+
 The session runs only on the build VM's own file-handle network,
 through the host's userspace stack. `wb-netd` connects to the guest's
 port 22 for the build VM only, and hands the socket on
