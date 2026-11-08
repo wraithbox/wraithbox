@@ -1,0 +1,39 @@
+ROOTSHELL
+uid=0(root) gid=0(wheel) groups=0(wheel),1(daemon),2(kmem),3(sys),4(tty),5(operator),8(procview),9(procmod),12(everyone),20(staff),29(certusers),61(localaccounts),80(admin),703(com.apple.sharepoint.group.3),702(com.apple.sharepoint.group.2),33(_appstore),98(_lpadmin),100(_lpoperator),204(_developer),250(_analyticsusers),395(com.apple.access_ftp),398(com.apple.access_screensharing),399(com.apple.access_ssh),400(com.apple.access_remote_ae),701(com.apple.sharepoint.group.1)
+not a tty
+  PID  PPID USER COMMAND
+  453   450 root sh /tmp/x31-step.sh
+	state = running
+	pid = 329
+		state = active
+--- dsmemberutil
+user is not a member of the group
+rc=0
+--- sysadminctl
+2026-11-08 12:45:03.177 sysadminctl[461:2886] Assigning UID: 504 GID: 20
+2026-11-08 12:45:03.892 sysadminctl[461:2886] Creating home directory at /Users/x31tmq
+uid=504(x31tmq) gid=20(staff) groups=20(staff),12(everyone),61(localaccounts),703(com.apple.sharepoint.group.3),704(com.apple.sharepoint.group.4),702(com.apple.sharepoint.group.2),100(_lpoperator),701(com.apple.sharepoint.group.1)
+2026-11-08 12:45:04.322 sysadminctl[474:2958] Deleting record for x31tmq
+id: x31tmq: no such user
+rc=1
+--- diskutil
+/dev/disk0 (internal, physical):
+   #:                       TYPE NAME                    SIZE       IDENTIFIER
+   0:                                                   *8.6 GB     disk0
+
+/dev/disk1 (internal, physical):
+   #:                       TYPE NAME                    SIZE       IDENTIFIER
+   0:      GUID_partition_scheme                        *68.7 GB    disk1
+   1:             Apple_APFS_ISC Container disk4         524.3 MB   disk1s1
+   2:                 Apple_APFS Container disk6         62.8 GB    disk1s2
+   3:        Apple_APFS_Recovery Container disk5         5.4 GB     disk1s3
+
+/dev/disk2 (internal, physical):
+rc=0
+--- mount
+/dev/disk6s1s1 on / (apfs, sealed, local, read-only, journaled)
+/dev/disk3s1 on /Volumes/wb-guest-tools (apfs, local, read-only, journaled)
+mount_apfs: volume could not be mounted: Permission denied
+mount: /Volumes/wb-guest-tools failed with 66
+rc=66
+/dev/disk3s1 on /Volumes/wb-guest-tools (apfs, local, read-only, journaled)

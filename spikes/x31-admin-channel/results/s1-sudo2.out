@@ -1,0 +1,31 @@
+--- tcc
+REG.db
+TCC.db
+--- dscl-delete
+UniqueID: 503
+rc=0
+id: x31tmp: no such user
+rmrc=0
+--- sysadminctl2
+2026-11-08 12:45:45.734 sysadminctl[579:3801] Creating user record…
+2026-11-08 12:45:46.946 sysadminctl[579:3801] Creating home directory at /Users/x31tms
+2026-11-08 12:45:47.373 sysadminctl[590:3853] Deleting Public share point for x31tms
+2026-11-08 12:45:47.395 sysadminctl[590:3853] Deleting record for x31tms
+id: x31tms: no such user
+delete: Invalid Path
+<dscl_cmd> DS Error: -14009 (eDSUnknownNodeName)
+--- mount-u
+crc=0
+hdiutil: WARNING: 'hdiutil attach -nobrowse ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse ...' instead.
+/dev/disk8s1        	41504653-0000-11AA-AA11-0030654	/Volumes/x31m
+mount_apfs: volume could not be mounted: Invalid argument
+mount: /Volumes/x31m failed with 66
+rc=66
+/dev/disk8s1 on /Volumes/x31m (apfs, local, nodev, nosuid, journaled, noowners, nobrowse)
+rc=0
+/dev/disk8s1 on /Volumes/x31m (apfs, local, journaled)
+--- diskutil-info
+   Volume Name:               wb-guest-tools
+   Media Read-Only:           Yes
+   Volume Read-Only:          Yes (read-only mount flag set)
+18

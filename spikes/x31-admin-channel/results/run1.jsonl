@@ -1,0 +1,112 @@
+{"event":"started","mac":"c6:9d:34:2e:79:8b","seconds":0.16585124999983236,"tools":"\/Users\/lsimons\/git\/wraithbox\/wraithbox\/.claude\/worktrees\/agent-a34c99e68dab14fa1\/.scratch\/x31\/tools.cdr"}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"connect","connectMs":0.56312500964850187,"port":1022,"src":799506376,"wall":1794170658.5637031}}
+{"ctl":{"banner":"\u0000\u0000\u0006\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0005\u0000\u0000@\u0000","cmd":"connect","connectMs":0.58391602942720056,"port":1023,"src":2107419618,"wall":1794170658.569608}}
+{"ctl":{"cmd":"relay","port":1022,"src":633604135,"wall":1794170675.0002031}}
+{"event":"relay ended","port":1022,"wall":1794170692.009203}
+{"ctl":{"cmd":"relay","port":1022,"src":4041862203,"wall":1794170719.6685801}}
+{"event":"relay ended","port":1022,"wall":1794170736.6868339}
+{"ctl":{"cmd":"connect","connectMs":1.8165829824283719,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","port":1023,"wall":1794170795.912118}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"connect","connectMs":0.53883402142673731,"port":1022,"src":982347268,"wall":1794170795.925878}}
+{"ctl":{"cmd":"relay","port":1022,"src":1000859908,"wall":1794170795.943485}}
+{"event":"relay ended","port":1022,"wall":1794170812.9567111}
+{"ctl":{"banner":"","cmd":"connect","connectMs":0.67370804026722908,"port":1023,"src":1124375361,"wall":1794170822.7580152}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"connect","connectMs":0.37654204061254859,"port":1022,"src":1474804165,"wall":1794170823.767529}}
+{"ctl":{"cmd":"relay","port":1022,"src":4086147508,"wall":1794170823.781651}}
+{"event":"relay ended","port":1022,"wall":1794170840.797291}
+{"ctl":{"banner":"\u0000\u0000\u0006\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0005\u0000\u0000@\u0000","cmd":"connect","connectMs":1.0033329599536955,"port":1023,"src":4147859287,"wall":1794170843.8671379}}
+{"ctl":{"cmd":"poll","connectMs":209.54125002026558,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":0,"port":1023,"wall":1794170860.2200899}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":200.20562503486872,"i":0,"port":1022,"src":1357515504,"wall":1794170860.229409}}
+{"ctl":{"cmd":"poll","connectMs":2.4809580063447356,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":1,"port":1023,"wall":1794170861.253921}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":3.6529999924823642,"i":1,"port":1022,"src":3551040919,"wall":1794170861.253989}}
+{"ctl":{"cmd":"poll","connectMs":13.53970798663795,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":2,"port":1023,"wall":1794170862.3155489}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":13.480749970767647,"i":2,"port":1022,"src":2288108235,"wall":1794170862.3156018}}
+{"ctl":{"cmd":"poll","connectMs":1.5748330042697489,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":3,"port":1023,"wall":1794170863.3525651}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.5032920055091381,"i":3,"port":1022,"src":53026611,"wall":1794170863.3526301}}
+{"ctl":{"cmd":"poll","connectMs":94.058750022668391,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":4,"port":1023,"wall":1794170864.35724}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":94.028292049188167,"i":4,"port":1022,"src":2040193747,"wall":1794170864.3573542}}
+{"ctl":{"cmd":"poll","connectMs":33.876041998155415,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":5,"port":1023,"wall":1794170865.363719}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":34.115916001610458,"i":5,"port":1022,"src":54412095,"wall":1794170865.3637829}}
+{"ctl":{"cmd":"poll","connectMs":45.354250003583729,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":6,"port":1023,"wall":1794170866.3824911}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":45.428915997035801,"i":6,"port":1022,"src":1963152345,"wall":1794170866.3825431}}
+{"ctl":{"cmd":"poll","connectMs":0.60462503461167216,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":7,"port":1023,"wall":1794170867.395808}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.77912502456456423,"i":7,"port":1022,"src":2116675970,"wall":1794170867.395864}}
+{"ctl":{"cmd":"poll","connectMs":158.46529201371595,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":8,"port":1023,"wall":1794170868.4493198}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":158.39950001100078,"i":8,"port":1022,"src":3036316702,"wall":1794170868.4493809}}
+{"ctl":{"cmd":"poll","connectMs":21.662125014699996,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":9,"port":1023,"wall":1794170869.5021009}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":21.582790999673307,"i":9,"port":1022,"src":1686526953,"wall":1794170869.5021701}}
+{"ctl":{"cmd":"poll","connectMs":5.262542050331831,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":10,"port":1023,"wall":1794170870.5165451}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":5.3019169718027115,"i":10,"port":1022,"src":1866584985,"wall":1794170870.5165019}}
+{"ctl":{"cmd":"poll","connectMs":2.038208011072129,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":11,"port":1023,"wall":1794170871.579325}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":2.1004999871365726,"i":11,"port":1022,"src":3400148825,"wall":1794170871.5792551}}
+{"ctl":{"cmd":"poll","connectMs":4.5781660010106862,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":12,"port":1023,"wall":1794170872.64221}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":4.7690829960629344,"i":12,"port":1022,"src":3066363086,"wall":1794170872.642148}}
+{"ctl":{"cmd":"poll","connectMs":2.2110829595476389,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":13,"port":1023,"wall":1794170873.688354}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":2.2670420003123581,"i":13,"port":1022,"src":1697893360,"wall":1794170873.6882901}}
+{"ctl":{"cmd":"poll","connectMs":2.5854999548755586,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":14,"port":1023,"wall":1794170874.7112842}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.5622920473106205,"i":14,"port":1022,"src":3657271880,"wall":1794170874.7112091}}
+{"ctl":{"cmd":"poll","connectMs":2.4150409735739231,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":15,"port":1023,"wall":1794170875.71257}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":2.6531670009717345,"i":15,"port":1022,"src":1676704460,"wall":1794170875.7124519}}
+{"ctl":{"cmd":"poll","connectMs":1.286374987103045,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":16,"port":1023,"wall":1794170876.7244649}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.3338329736143351,"i":16,"port":1022,"src":1648948983,"wall":1794170876.7244081}}
+{"ctl":{"cmd":"poll","connectMs":1.2873340165242553,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":17,"port":1023,"wall":1794170877.7893739}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.3473329599946737,"i":17,"port":1022,"src":755162452,"wall":1794170877.7893081}}
+{"ctl":{"cmd":"poll","connectMs":9.536875004414469,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":18,"port":1023,"wall":1794170878.7963929}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":9.7895420040003955,"i":18,"port":1022,"src":3132228891,"wall":1794170878.796298}}
+{"ctl":{"cmd":"poll","connectMs":1.2802090495824814,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":19,"port":1023,"wall":1794170879.8372989}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.3292080257087946,"i":19,"port":1022,"src":662778457,"wall":1794170879.837353}}
+{"ctl":{"cmd":"poll","connectMs":27.969125017989427,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":20,"port":1023,"wall":1794170880.902271}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":27.897415973711759,"i":20,"port":1022,"src":2615471717,"wall":1794170880.902333}}
+{"ctl":{"cmd":"poll","connectMs":0.45204197522252798,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":21,"port":1023,"wall":1794170881.96014}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.48116600373759866,"i":21,"port":1022,"src":3675156658,"wall":1794170881.9601901}}
+{"ctl":{"cmd":"connect","connectMs":0.65395800629630685,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","port":1023,"wall":1794170882.9857531}}
+{"ctl":{"cmd":"poll","connectMs":0.65941701177507639,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":22,"port":1023,"wall":1794170882.9862928}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.67049998324364424,"i":22,"port":1022,"src":2319687592,"wall":1794170882.9863319}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"connect","connectMs":1.3272500364109874,"port":1022,"src":1901188336,"wall":1794170882.9945431}}
+{"ctl":{"cmd":"relay","port":1022,"src":41857439,"wall":1794170883.0117841}}
+{"ctl":{"cmd":"poll","connectMs":27.866958000231534,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":23,"port":1023,"wall":1794170884.035373}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":27.799832983873785,"i":23,"port":1022,"src":784421491,"wall":1794170884.0354218}}
+{"ctl":{"cmd":"poll","connectMs":166.65895900223404,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":24,"port":1023,"wall":1794170885.0360708}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":166.71245801262558,"i":24,"port":1022,"src":2133149231,"wall":1794170885.036011}}
+{"ctl":{"cmd":"poll","connectMs":1.2920409790240228,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":25,"port":1023,"wall":1794170886.0449359}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.3306660111993551,"i":25,"port":1022,"src":217346791,"wall":1794170886.044884}}
+{"ctl":{"cmd":"poll","connectMs":1.3004170032218099,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":26,"port":1023,"wall":1794170887.0875001}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.3929170090705156,"i":26,"port":1022,"src":3313006336,"wall":1794170887.0875502}}
+{"ctl":{"cmd":"poll","connectMs":0.41979097295552492,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":27,"port":1023,"wall":1794170888.092586}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.4348339862190187,"i":27,"port":1022,"src":1852941111,"wall":1794170888.0926509}}
+{"ctl":{"cmd":"poll","connectMs":1.2585000367835164,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":28,"port":1023,"wall":1794170889.132308}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.3522090157493949,"i":28,"port":1022,"src":4014322776,"wall":1794170889.1323671}}
+{"ctl":{"cmd":"poll","connectMs":52.717625047080219,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":29,"port":1023,"wall":1794170890.166091}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":52.644499985035509,"i":29,"port":1022,"src":2206508565,"wall":1794170890.166158}}
+{"ctl":{"cmd":"poll","connectMs":0.29862497467547655,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":30,"port":1023,"wall":1794170891.1710839}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.35208300687372684,"i":30,"port":1022,"src":4101544063,"wall":1794170891.1710229}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":79.485166992526501,"i":31,"port":1022,"src":4177232127,"wall":1794170892.174228}}
+{"ctl":{"cmd":"poll","connectMs":87.757333007175475,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":31,"port":1023,"wall":1794170892.1743541}}
+{"ctl":{"cmd":"poll","connectMs":32.404790981672704,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":32,"port":1023,"wall":1794170893.2414279}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":31.497332965955138,"i":32,"port":1022,"src":1080829035,"wall":1794170893.241267}}
+{"ctl":{"cmd":"poll","connectMs":27.122416999191046,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":33,"port":1023,"wall":1794170894.2667971}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":27.17854204820469,"i":33,"port":1022,"src":3696587087,"wall":1794170894.266731}}
+{"ctl":{"cmd":"poll","connectMs":0.31379202846437693,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":34,"port":1023,"wall":1794170895.3216259}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.50441600615158677,"i":34,"port":1022,"src":2319202619,"wall":1794170895.3215561}}
+{"ctl":{"cmd":"poll","connectMs":1.249082968570292,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":35,"port":1023,"wall":1794170896.3509021}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.2896250118501484,"i":35,"port":1022,"src":1359479832,"wall":1794170896.3508539}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":14.566708996426314,"i":36,"port":1022,"src":2780872369,"wall":1794170897.3912969}}
+{"ctl":{"cmd":"poll","connectMs":14.778957993257791,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":36,"port":1023,"wall":1794170897.3913631}}
+{"ctl":{"cmd":"poll","connectMs":0.46449998626485467,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":37,"port":1023,"wall":1794170898.429101}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.5240830359980464,"i":37,"port":1022,"src":3593152570,"wall":1794170898.429034}}
+{"ctl":{"cmd":"poll","connectMs":1.249458990059793,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":38,"port":1023,"wall":1794170899.43715}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.4356249594129622,"i":38,"port":1022,"src":283482190,"wall":1794170899.4370899}}
+{"event":"relay ended","port":1022,"wall":1794170900.0198622}
+{"ctl":{"cmd":"poll","connectMs":1.6043329960666597,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":39,"port":1023,"wall":1794170900.440465}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.6544589889235795,"i":39,"port":1022,"src":247110283,"wall":1794170900.4404058}}
+{"ctl":{"cmd":"poll","connectMs":83.396125002764165,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":40,"port":1023,"wall":1794170901.488472}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":83.317374985199422,"i":40,"port":1022,"src":3045630230,"wall":1794170901.4885411}}
+{"ctl":{"cmd":"poll","connectMs":0.89749996550381184,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":41,"port":1023,"wall":1794170902.507154}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.9288329747505486,"i":41,"port":1022,"src":241851828,"wall":1794170902.507112}}
+{"ctl":{"cmd":"poll","connectMs":0.29566697776317596,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":42,"port":1023,"wall":1794170903.5359321}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":0.3542909980751574,"i":42,"port":1022,"src":1289224424,"wall":1794170903.535867}}
+{"ctl":{"cmd":"poll","connectMs":1.3999580405652523,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","i":43,"port":1023,"wall":1794170904.576453}}
+{"ctl":{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"poll","connectMs":1.4553340151906013,"i":43,"port":1022,"src":2944321269,"wall":1794170904.576391}}
+{"ctl":{"cmd":"poll","done":true}}
+{"ctl":{"cmd":"poll","done":true}}
+{"ctl":{"banner":"guestroot pid=490 uid=0 version=0.0.0-x31.2","cmd":"connect","connectMs":2.6788749964907765,"port":1022,"src":2930452157,"wall":1794171280.6470699}}
+{"ctl":{"cmd":"stop"}}

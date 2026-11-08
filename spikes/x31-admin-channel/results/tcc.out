@@ -1,0 +1,6 @@
+System Integrity Protection status: enabled.
+kTCCServiceSystemPolicyAllFiles|/usr/libexec/sshd-keygen-wrapper|2
+kTCCServiceSystemPolicyAllFiles|/Library/WraithBox/libexec/wb-guestroot|0
+Remote Login: On
+id: x31tmp: no such user
+id: x31tmr: no such user

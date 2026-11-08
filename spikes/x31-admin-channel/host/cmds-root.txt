@@ -1,0 +1,6 @@
+echo ROOTSHELL; id; tty; ps -o pid,ppid,user,command -p $$
+launchctl print system/nl.wraithbox.guestd | grep -E 'state|pid' | head -3
+echo --- dsmemberutil; dsmemberutil checkmembership -U proj1 -G admin; echo rc=$?
+echo --- sysadminctl; sysadminctl -addUser x31tmp -fullName x31tmp -password "$(openssl rand -hex 12)" 2>&1 | tail -2; id x31tmp; sysadminctl -deleteUser x31tmp 2>&1 | tail -1; id x31tmp; echo rc=$?
+echo --- diskutil; diskutil list internal | head -12; echo rc=$?
+echo --- mount; mount | grep -E 'wb-guest-tools| / '; mount -u -o nobrowse /Volumes/wb-guest-tools; echo rc=$?; mount | grep wb-guest-tools

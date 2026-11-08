@@ -1,0 +1,1 @@
+echo ROOTSHELL; id; ps -o pid,stat,command -p $(pgrep -d, -f libexec/wb-guestd) 2>&1; launchctl print system/nl.wraithbox.guestd 2>&1 | grep -E '^\s*(state|pid|runs|last exit)' | head -5

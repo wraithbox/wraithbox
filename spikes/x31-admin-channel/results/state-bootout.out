@@ -1,0 +1,17 @@
+=== bootout: step
+bootout rc=0
+no wb-guestd process
+=== bootout: connect 1023 (wb-guestd)
+{"cmd":"connect","connectMs":1.8165829824283719,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","port":1023,"wall":1794170795.912118}
+=== bootout: connect 1022 (guestroot)
+{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"connect","connectMs":0.53883402142673731,"port":1022,"src":982347268,"wall":1794170795.925878}
+=== bootout: admin shell
+{"cmd":"relay","port":1022,"src":1000859908,"wall":1794170795.943485}
+guestroot pid=330 uid=0 version=0.0.0-x31.2
+ROOTSHELL
+uid=0(root) gid=0(wheel) groups=0(wheel),1(daemon),2(kmem),3(sys),4(tty),5(operator),8(procview),9(procmod),12(everyone),20(staff),29(certusers),61(localaccounts),80(admin),705(com.apple.sharepoint.group.5),703(com.apple.sharepoint.group.3),704(com.apple.sharepoint.group.4),706(com.apple.sharepoint.group.6),702(com.apple.sharepoint.group.2),33(_appstore),98(_lpadmin),100(_lpoperator),204(_developer),250(_analyticsusers),395(com.apple.access_ftp),398(com.apple.access_screensharing),399(com.apple.access_ssh),400(com.apple.access_remote_ae),701(com.apple.sharepoint.group.1)
+ps: option requires an argument -- p
+usage: ps [-AaCcEefhjlMmrSTvwXx] [-O fmt | -o fmt] [-G gid[,gid...]]
+          [-g grp[,grp...]] [-u [uid,uid...]]
+          [-p pid[,pid...]] [-t tty[,tty...]] [-U user[,user...]]
+       ps [-L]

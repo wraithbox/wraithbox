@@ -1,0 +1,27 @@
+=== crashloop: step
+	state = spawn scheduled
+	runs = 4
+	last terminating signal = Killed: 9
+		state = active
+		state = active
+12:47:40 kill 2
+12:47:51 kill 3
+12:48:01 kill 4
+{"time":"2026-11-08T12:48:01.128301-08:00","level":"INFO","msg":"cron and at closed to project users","rule":"guest-schedulers-closed","decision":"closed"}
+{"time":"2026-11-08T12:48:01.128347-08:00","level":"INFO","msg":"no project user's crontab or at job left","rule":"guest-schedulers-clean","crontabs":0,"at_jobs
+{"time":"2026-11-08T12:48:01.189752-08:00","level":"INFO","msg":"listening","port":1023}
+=== crashloop: connect 1023 (wb-guestd)
+{"cmd":"connect","connectMs":0.65395800629630685,"error":"Error Domain=NSPOSIXErrorDomain Code=54 \"Connection reset by peer\"","port":1023,"wall":1794170882.9857531}
+=== crashloop: connect 1022 (guestroot)
+{"banner":"guestroot pid=330 uid=0 version=0.0.0-x31.2","cmd":"connect","connectMs":1.3272500364109874,"port":1022,"src":1901188336,"wall":1794170882.9945431}
+=== crashloop: admin shell
+{"cmd":"relay","port":1022,"src":41857439,"wall":1794170883.0117841}
+guestroot pid=330 uid=0 version=0.0.0-x31.2
+ROOTSHELL
+uid=0(root) gid=0(wheel) groups=0(wheel),1(daemon),2(kmem),3(sys),4(tty),5(operator),8(procview),9(procmod),12(everyone),20(staff),29(certusers),61(localaccounts),80(admin),705(com.apple.sharepoint.group.5),703(com.apple.sharepoint.group.3),704(com.apple.sharepoint.group.4),706(com.apple.sharepoint.group.6),702(com.apple.sharepoint.group.2),33(_appstore),98(_lpadmin),100(_lpoperator),204(_developer),250(_analyticsusers),395(com.apple.access_ftp),398(com.apple.access_screensharing),399(com.apple.access_ssh),400(com.apple.access_remote_ae),701(com.apple.sharepoint.group.1)
+  PID STAT COMMAND
+  722 S    sh -c end=$(($(date +%s)+70)); n=0; while [ $(date +%s) -lt $end ]; do if pkill -9 -f libexec/wb-guestd; then n=$((n+1)); echo "$(date +%T) kill $n"
+	state = spawn scheduled
+	runs = 4
+		state = active
+		state = active

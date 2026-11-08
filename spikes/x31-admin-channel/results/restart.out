@@ -1,0 +1,8 @@
+round 1: killed 310, new '480' after ~0 ms
+round 2: killed 480, new '484' after ~0 ms
+round 3: killed 484, new '490' after ~0 ms
+	state = running
+	runs = 4
+	pid = 490
+		state = active
+		state = active

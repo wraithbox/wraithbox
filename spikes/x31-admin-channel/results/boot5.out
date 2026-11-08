@@ -1,0 +1,43 @@
+--- guestd log
+{"time":"2026-11-08T12:04:52.058816-08:00","level":"ERROR","msg":"bind failed","error":"socket: operation not supported by device","errno":19,"rule":"guestd-bind-failed","decision":"exit","port":1023}
+{"time":"2026-11-08T12:04:52.113744-08:00","level":"INFO","msg":"starting","version":"\"0.0.0-x31.1\"","pid":1450}
+{"time":"2026-11-08T12:04:52.113864-08:00","level":"INFO","msg":"waiting for the tools disk","path":"/Volumes/wb-guest-tools","wait":30000000000,"error":"guesttools: /Volumes/wb-guest-tools: open /Volumes/wb-guest-tools: no such file or directory (guestd-tools-not-mounted)"}
+{"time":"2026-11-08T12:44:09.926487-08:00","level":"INFO","msg":"starting","version":"\"0.0.0-x31.1\"","pid":329}
+{"time":"2026-11-08T12:44:09.970812-08:00","level":"INFO","msg":"update installed","from":"\"0.0.0-x31.1\"","to":"\"0.0.0-x31.2\"","programs":["wb-guestd"],"dir":"/Library/WraithBox/libexec"}
+{"time":"2026-11-08T12:44:10.198634-08:00","level":"INFO","msg":"starting","version":"\"0.0.0-x31.2\"","pid":329}
+{"time":"2026-11-08T12:44:10.198838-08:00","level":"INFO","msg":"tools disk is current","version":"\"0.0.0-x31.2\""}
+{"time":"2026-11-08T12:44:10.20333-08:00","level":"INFO","msg":"project users stopped","reason":"start","rounds":0,"stopped":0,"already_stopped":0,"under_removal":0,"took":4451167,"decision":"stopped"}
+{"time":"2026-11-08T12:44:10.219145-08:00","level":"INFO","msg":"cron and at closed to project users","rule":"guest-schedulers-closed","decision":"closed"}
+{"time":"2026-11-08T12:44:10.219277-08:00","level":"INFO","msg":"no project user's crontab or at job left","rule":"guest-schedulers-clean","crontabs":0,"at_jobs":0,"decision":"clean"}
+{"time":"2026-11-08T12:44:10.21932-08:00","level":"INFO","msg":"listening","port":1023}
+{"time":"2026-11-08T12:44:18.571194-08:00","level":"INFO","msg":"connection accepted","decision":"serve","peer_cid":2,"peer_port":2107419618}
+--- guestroot log
+{"time":"2026-11-08T12:04:51.765374-08:00","level":"WARN","msg":"update refused","prog":"guestroot","pid":1006,"rule":"guestd-update-install-failed","decision":"serve as it is","version":"\"0.0.0-x31.1\"","error":"guesttools: /Volumes/wb-guest-tools: open /Volumes/wb-guest-tools: no such file or directory (guestd-tools-not-mounted)"}
+{"ev":"update-done","pid":1006,"prog":"guestroot","t":1794168291.776832,"version":"0.0.0-x31.1"}
+{"err":"operation not supported by device","ev":"socket-failed","pid":1006,"prog":"guestroot","t":1794168291.777012,"version":"0.0.0-x31.1"}
+{"ev":"start","pid":1442,"port":1022,"prog":"guestroot","t":1794168291.806078,"uid":0,"version":"0.0.0-x31.1"}
+{"time":"2026-11-08T12:04:51.806235-08:00","level":"INFO","msg":"waiting for the tools disk","prog":"guestroot","pid":1442,"path":"/Volumes/wb-guest-tools","wait":30000000000,"error":"guesttools: /Volumes/wb-guest-tools: open /Volumes/wb-guest-tools: no such file or directory (guestd-tools-not-mounted)"}
+{"ev":"start","pid":330,"port":1022,"prog":"guestroot","t":1794170649.764051,"uid":0,"version":"0.0.0-x31.1"}
+{"time":"2026-11-08T12:44:09.788085-08:00","level":"INFO","msg":"update installed","prog":"guestroot","pid":330,"from":"\"0.0.0-x31.1\"","to":"\"0.0.0-x31.2\"","programs":["wb-guestroot"],"dir":"/Library/WraithBox/libexec"}
+{"ev":"start","pid":330,"port":1022,"prog":"guestroot","t":1794170650.133263,"uid":0,"version":"0.0.0-x31.2"}
+{"time":"2026-11-08T12:44:10.133554-08:00","level":"INFO","msg":"tools disk is current","prog":"guestroot","pid":330,"version":"\"0.0.0-x31.2\""}
+{"ev":"update-done","pid":330,"prog":"guestroot","t":1794170650.133661,"version":"0.0.0-x31.2"}
+{"ev":"listening","pid":330,"prog":"guestroot","t":1794170650.133673,"version":"0.0.0-x31.2"}
+{"ev":"accepted","peer":"2:799506376","pid":330,"prog":"guestroot","t":1794170658.565282,"version":"0.0.0-x31.2"}
+{"ev":"shell-started","pid":330,"prog":"guestroot","shell_pid":391,"t":1794170658.581922,"version":"0.0.0-x31.2"}
+{"err":"signal: hangup","ev":"shell-ended","pid":330,"prog":"guestroot","t":1794170658.587219,"version":"0.0.0-x31.2"}
+/Library/WraithBox:
+total 0
+drwxr-xr-x   3 root  wheel    96 Nov  8 12:03 .
+drwxr-xr-x  64 root  wheel  2048 Nov  8 12:04 ..
+drwxr-xr-x   4 root  wheel   128 Nov  8 12:44 libexec
+
+/Library/WraithBox/libexec:
+total 43088
+drwxr-xr-x  4 root  wheel       128 Nov  8 12:44 .
+drwxr-xr-x  3 root  wheel        96 Nov  8 12:03 ..
+-rwxr-xr-x  1 root  wheel  17530642 Nov  8 12:44 wb-guestd
+-rwxr-xr-x  1 root  wheel   4528578 Nov  8 12:44 wb-guestroot
+/dev/disk3s1 on /Volumes/wb-guest-tools (apfs, local, read-only, journaled)
+329 /Library/WraithBox/libexec/wb-guestd
+330 /Library/WraithBox/libexec/wb-guestroot

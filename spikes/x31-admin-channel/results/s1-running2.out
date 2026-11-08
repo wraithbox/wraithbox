@@ -1,0 +1,42 @@
+{"cmd":"relay","port":1022,"src":4041862203,"wall":1794170719.6685801}
+guestroot pid=330 uid=0 version=0.0.0-x31.2
+[1m[7m#[27m[1m[0m                                                                                                                                                                [0m[27m[24m[Jroot@Wraiths-Virtual-Machine ~ # [K[?2004heecho --- tcc; ls /Library/Application\ Support/com.apple.TCC/ 2>&1 | head -3; ls /var/root/Library/Mail 2>&1 | head -2[?2004l
+--- tcc
+ls: /Library/Application Support/com.apple.TCC/: Operation not permitted
+[1m[7m#[27m[1m[0m                                                                                                                                                                [0m[27m[24m[Jroot@Wraiths-Virtual-Machine ~ # [K[?2004heecho --- dscl-delete; dscl . -read /Users/x31tmp UniqueID 2>&1; dscl . -delete /Users/x31tmp; echo rc=$?; id x31tmp; rm -rf /Us [Keers/x31tmp; echo rmrc=$?[?2004l
+--- dscl-delete
+UniqueID: 503
+<main> delete status: eDSPermissionError
+<dscl_cmd> DS Error: -14120 (eDSPermissionError)
+rc=40
+uid=503(x31tmp) gid=20(staff) groups=20(staff),12(everyone),61(localaccounts),703(com.apple.sharepoint.group.3),704(com.apple.sharepoint.group.4),702(com.apple.sharepoint.group.2),100(_lpoperator),701(com.apple.sharepoint.group.1)
+rmrc=0
+[1m[7m#[27m[1m[0m                                                                                                                                                                [0m[27m[24m[Jroot@Wraiths-Virtual-Machine ~ # [K[?2004heecho --- sysadminctl2; sysadminctl -addUser x31tmr -fullName x31tmr -password "$(openssl rand -hex 12)" 2>&1 | grep -E 'Error|C [Krreating'; sysadminctl -deleteUser x31tmr 2>&1 | grep -E 'Error|Deleting'; id x31tmr; dscl . -delete /Users/x31tmr; rm -rf /Users/x31tmr[?2004l
+--- sysadminctl2
+2026-11-08 12:45:21.934 sysadminctl[505:3165] Creating user record…
+2026-11-08 12:45:22.542 sysadminctl[505:3165] ### Error:-14120 File:/AppleInternal/Library/BuildRoots/4~CZ9dugA394NA-rTDqu0D8tw06l6GdGZyEGb19bg/Library/Caches/com.apple.xbs/TemporaryDirectory.WBW87s/Sources/Admin/DSRecord.m Line:418
+2026-11-08 12:45:23.285 sysadminctl[505:3165] Creating home directory at /Users/x31tmr
+2026-11-08 12:45:23.770 sysadminctl[517:3239] Deleting Public share point for x31tmr
+2026-11-08 12:45:23.791 sysadminctl[517:3239] Deleting record for x31tmr
+2026-11-08 12:45:23.810 sysadminctl[517:3239] ### Error:-14120 File:/AppleInternal/Library/BuildRoots/4~CZ9dugA394NA-rTDqu0D8tw06l6GdGZyEGb19bg/Library/Caches/com.apple.xbs/TemporaryDirectory.WBW87s/Sources/Admin/DSRecord.m Line:563
+uid=504(x31tmr) gid=20(staff) groups=20(staff),12(everyone),61(localaccounts),705(com.apple.sharepoint.group.5),703(com.apple.sharepoint.group.3),704(com.apple.sharepoint.group.4),702(com.apple.sharepoint.group.2),100(_lpoperator),701(com.apple.sharepoint.group.1)
+<main> delete status: eDSPermissionError
+<dscl_cmd> DS Error: -14120 (eDSPermissionError)
+[1m[7m#[27m[1m[0m                                                                                                                                                                [0m[27m[24m[Jroot@Wraiths-Virtual-Machine ~ # [K[?2004heecho --- mount-u; hdiutil create -quiet -size 20m -fs APFS -volname x31m /var/root/x31m.dmg; echo crc=$?; hdiutil attach -nobro [Kwwse /var/root/x31m.dmg | tail -1; mount -u -o rdonly /Volumes/x31m; echo rc=$?; mount | grep x31m; mount -u -o rw /Volumes/x31m; echo rc=$?; mount | grep x31m;  [Khhdiutil detach -quiet /Volumes/x31m; rm -f /var/root/x31m.dmg[?2004l
+--- mount-u
+crc=0
+hdiutil: WARNING: 'hdiutil attach -nobrowse ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse ...' instead.
+/dev/disk8s1        	41504653-0000-11AA-AA11-0030654	/Volumes/x31m
+mount_apfs: volume could not be mounted: Invalid argument
+mount: /Volumes/x31m failed with 66
+rc=66
+/dev/disk8s1 on /Volumes/x31m (apfs, local, nodev, nosuid, journaled, noowners, nobrowse)
+rc=0
+/dev/disk8s1 on /Volumes/x31m (apfs, local, journaled)
+[1m[7m#[27m[1m[0m                                                                                                                                                                [0m[27m[24m[Jroot@Wraiths-Virtual-Machine ~ # [K[?2004heecho --- diskutil-info; diskutil info /Volumes/wb-guest-tools | grep -E 'Volume Name|Read-Only'; diskutil apfs list | grep -c V [Koolume[?2004l
+--- diskutil-info
+   Volume Name:               wb-guest-tools
+   Media Read-Only:           Yes
+   Volume Read-Only:          Yes (read-only mount flag set)
+18
+[1m[7m#[27m[1m[0m                                                                                                                                                                [0m[27m[24m[Jroot@Wraiths-Virtual-Machine ~ # [K[?2004heexit[?2004l

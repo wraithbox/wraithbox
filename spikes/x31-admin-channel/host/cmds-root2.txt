@@ -1,0 +1,5 @@
+echo --- tcc; ls /Library/Application\ Support/com.apple.TCC/ 2>&1 | head -3; ls /var/root/Library/Mail 2>&1 | head -2
+echo --- dscl-delete; dscl . -read /Users/x31tmp UniqueID 2>&1; dscl . -delete /Users/x31tmp; echo rc=$?; id x31tmp; rm -rf /Users/x31tmp; echo rmrc=$?
+echo --- sysadminctl2; sysadminctl -addUser x31tmr -fullName x31tmr -password "$(openssl rand -hex 12)" 2>&1 | grep -E 'Error|Creating'; sysadminctl -deleteUser x31tmr 2>&1 | grep -E 'Error|Deleting'; id x31tmr; dscl . -delete /Users/x31tmr; rm -rf /Users/x31tmr
+echo --- mount-u; hdiutil create -quiet -size 20m -fs APFS -volname x31m /var/root/x31m.dmg; echo crc=$?; hdiutil attach -nobrowse /var/root/x31m.dmg | tail -1; mount -u -o rdonly /Volumes/x31m; echo rc=$?; mount | grep x31m; mount -u -o rw /Volumes/x31m; echo rc=$?; mount | grep x31m; hdiutil detach -quiet /Volumes/x31m; rm -f /var/root/x31m.dmg
+echo --- diskutil-info; diskutil info /Volumes/wb-guest-tools | grep -E 'Volume Name|Read-Only'; diskutil apfs list | grep -c Volume

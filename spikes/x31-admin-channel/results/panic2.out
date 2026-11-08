@@ -1,0 +1,26 @@
+== panic-full-2026-11-08-124922.0002.panic
+  "panicString" : "panic(cpu 3 caller 0xfffffe001ae154e8): panic: corrupt list around element 0xfffffe1f0b8fa5c0 at pc 0xfffffe001ab2d5c4, lr 0x2995fe001ab2d510 (saved state: 0xfffffe4be273b850)
+Panicked task 0xfffffe1f0b692ae0: 293 pages, 6 threads: pid 1889: x31-probe
+Panicked thread: 0xfffffe20107b8ba0, backtrace: 0xfffffe4be273af20, tid: 7503
+    lr: 0xfffffe001a4f2bf8  fp: 0xfffffe4be273afb0
+    lr: 0xfffffe001a6726c0  fp: 0xfffffe4be273b020
+    lr: 0xfffffe001a67083c  fp: 0xfffffe4be273b0e0
+    lr: 0xfffffe001a49a5ac  fp: 0xfffffe4be273b0f0
+    lr: 0xfffffe001a4f2ea8  fp: 0xfffffe4be273b5d0
+    lr: 0xfffffe001ae05fc4  fp: 0xfffffe4be273b5f0
+    lr: 0xfffffe001ae154e8  fp: 0xfffffe4be273b770
+    lr: 0xfffffe001a671004  fp: 0xfffffe4be273b830
+    lr: 0xfffffe001a49a5ac  fp: 0xfffffe4be273b840
+== panic-full-2026-11-08-125135.0002.panic
+  "panicString" : "panic(cpu 1 caller 0xfffffe00248814e8): panic: corrupt list around element 0xfffffe2aee6c7900 at pc 0xfffffe00245995c4, lr 0xe3e8fe0024599510 (saved state: 0xfffffe5de87ab850)
+Panicked task 0xfffffe1e50665c70: 294 pages, 5 threads: pid 439: x31-probe
+Panicked thread: 0xfffffe198af677b0, backtrace: 0xfffffe5de87aaf20, tid: 2873
+    lr: 0xfffffe0023f5ebf8  fp: 0xfffffe5de87aafb0
+    lr: 0xfffffe00240de6c0  fp: 0xfffffe5de87ab020
+    lr: 0xfffffe00240dc83c  fp: 0xfffffe5de87ab0e0
+    lr: 0xfffffe0023f065ac  fp: 0xfffffe5de87ab0f0
+    lr: 0xfffffe0023f5eea8  fp: 0xfffffe5de87ab5d0
+    lr: 0xfffffe0024871fc4  fp: 0xfffffe5de87ab5f0
+    lr: 0xfffffe00248814e8  fp: 0xfffffe5de87ab770
+    lr: 0xfffffe00240dd004  fp: 0xfffffe5de87ab830
+    lr: 0xfffffe0023f065ac  fp: 0xfffffe5de87ab840

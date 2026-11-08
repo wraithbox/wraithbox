@@ -1,0 +1,16 @@
+kern.boottime: { sec = 1794171089, usec = 530757 } Sun Nov  8 12:51:29 2026
+-rw-rw-rw-@ 1 root  _analyticsusers     4819 Nov  8 12:51:42 2026 .contents.panic
+-rw-rw-rw-@ 1 root  _analyticsusers   446009 Nov  8 12:49:28 2026 panic-full-2026-11-08-124922.0002.panic
+-rw-rw-rw-@ 1 root  _analyticsusers   426461 Nov  8 12:51:42 2026 panic-full-2026-11-08-125135.0002.panic
+-rw-rw----@ 1 root  _analyticsusers     4778 Nov  8 12:48:57 2026 wb-guestroot-2026-11-08-124857.ips
+{"ev":"start","pid":621,"port":1022,"prog":"guestroot","t":1794168231.625971,"uid":0,"vers
+{"ev":"start","pid":1006,"port":1022,"prog":"guestroot","t":1794168261.671741,"uid":0,"ver
+{"ev":"start","pid":1442,"port":1022,"prog":"guestroot","t":1794168291.806078,"uid":0,"ver
+{"ev":"start","pid":330,"port":1022,"prog":"guestroot","t":1794170649.764051,"uid":0,"vers
+{"ev":"start","pid":330,"port":1022,"prog":"guestroot","t":1794170650.133263,"uid":0,"vers
+{"ev":"start","pid":323,"port":1022,"prog":"guestroot","t":1794170967.99059,"uid":0,"versi
+{"ev":"start","pid":421,"port":1022,"prog":"guestroot","t":1794171071.350479,"uid":0,"vers
+{"ev":"start","pid":310,"port":1022,"prog":"guestroot","t":1794171102.449952,"uid":0,"vers
+{"ev":"start","pid":480,"port":1022,"prog":"guestroot","t":1794171234.733449,"uid":0,"vers
+{"ev":"start","pid":484,"port":1022,"prog":"guestroot","t":1794171250.153389,"uid":0,"vers
+{"ev":"start","pid":490,"port":1022,"prog":"guestroot","t":1794171265.493923,"uid":0,"vers

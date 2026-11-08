@@ -1,0 +1,24 @@
+--- wb-guestd back after the crash loop
+	state = running
+	runs = 9
+	pid = 1849
+--- a: proj1 squats 1022 for 8 s while root kills wb-guestroot (KeepAlive restarts it)
+killed wb-guestroot 330
+{"errors":{"permission denied":2902},"euid":502,"ev":"squat-done","port":1022,"t":1794170945.466561,"tries":2902,"uid":502}
+wb-guestroot now: 
+{"ev":"shell-started","pid":330,"prog":"guestroot","shell_pid":1481,"t":1794170904.579133,"version":"0.0.0-x31.2"}
+{"err":"signal: hangup","ev":"shell-ended","pid":330,"prog":"guestroot","t":1794170904.579496,"version":"0.0.0-x31.2"}
+--- b: proj1 squats 1022 for 5 s while wb-guestroot is booted out
+bootout rc=0
+{"errors":{"permission denied":2883},"euid":502,"ev":"squat-done","port":1022,"t":1794170952.43879,"tries":2883,"uid":502}
+--- c: root squats 1022 for 1 s while booted out (control)
+{"euid":0,"ev":"BOUND","port":1022,"t":1794170952.444939,"tries":1,"uid":0}
+/tmp/x31-step.sh: line 15:  1875 Terminated: 15          $P squat 1022 1
+bootstrap rc=0
+1878 /Library/WraithBox/libexec/wb-guestroot
+--- d: proj1 binds 5022 (above 1024, control)
+{"euid":502,"ev":"BOUND","port":5022,"t":1794170956.484399,"tries":1,"uid":502}
+--- e: proj1 and root connect to 1022 from inside the guest
+/tmp/x31-step.sh: line 18:  1881 Terminated: 15          sudo -u proj1 $P squat 5022 1
+{"cid":1,"err":"bad address","euid":502,"ev":"connect-failed","port":1022,"t":1794170958.496752,"uid":502}
+{"cid":2,"err":"resource temporarily unavailable","euid":502,"ev":"connect-failed","port":1022,"t":1794170958.512153,"uid":502}

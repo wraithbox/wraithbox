@@ -1,0 +1,17 @@
+leftover probes killed
+--- a2: proj1 squats 1022 for 15 s; root kills wb-guestroot at 1 s; pgrep every 0.5 s
+killed wb-guestroot 323
+new wb-guestroot 421 after 0 s
+{"errors":{"permission denied":6861},"euid":502,"ev":"squat-done","port":1022,"t":1794171085.425669,"tries":6861,"uid":502}
+	state = running
+	runs = 2
+	pid = 421
+	last terminating signal = Killed: 9
+		state = active
+		state = active
+{"time":"2026-11-08T12:51:11.350798-08:00","level":"INFO","msg":"tools disk is current","prog":"guestroot","pid":421,"version":"\"0.0.0-x31.2\""}
+{"ev":"update-done","pid":421,"prog":"guestroot","t":1794171071.350897,"version":"0.0.0-x31.2"}
+{"ev":"listening","pid":421,"prog":"guestroot","t":1794171071.350918,"version":"0.0.0-x31.2"}
+--- e: connects from inside the guest to 1022 (proj1, then root)
+{"cid":1,"err":"bad address","euid":502,"ev":"connect-failed","port":1022,"t":1794171085.57454,"uid":502}
+{"cid":2,"err":"resource temporarily unavailable","euid":502,"ev":"connect-failed","port":1022,"t":1794171085.683046,"uid":502}

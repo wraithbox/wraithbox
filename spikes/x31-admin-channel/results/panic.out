@@ -1,0 +1,20 @@
+== panic-full-2026-11-08-124922.0002.panic
+{"bug_type":"210","timestamp":"2026-11-08 12:49:22.00 -0800","os_version":"macOS 27.2 (26B123)","roots_installed":0,"incident_id":"D083522C-2AED-4BA8-ABE2-372A325E4A9D"}
+{
+  "crashReporterKey" : "70A3A446-6037-D1F7-ECFE-DA31A09CE6A0",
+  "panicProcessingFlags" : "0x0",
+  "product" : "VirtualMac2,1",
+  "kernel" : "Darwin Kernel Version 27.2.0: Wed Oct 14 23:44:09 PDT 2026; root:xnu-13432.41.4~25\/RELEASE_ARM64_VMAPPLE",
+  "socRevision" : "0",
+  "panicString" : "panic(cpu 3 caller 0xfffffe001ae154e8): panic: corrupt list around element 0xfffffe1f0b8fa5c0 at pc 0xfffffe001ab2d5c4, lr 0x2995fe001ab2d510 (saved state: 0xfffffe4be273b850)\n\t  x0:  0xfffffe2aa3886980 x1:  0x0000000000000000  x2:  0xfffffe001ab2d510  x3:  0x0000000000000000\n\t  x4:  0x0000000000000000 x5:  0x0000000000000000  x6:  0x0000000000000003  x7:  0x0000000000000000\n\t  x8:  0xfffffe1f0b8fa5c0 x9:  0xfffffe1f0b8fa630  x10: 0x0000000000000000  x11: 0x0000000000000000\n\t  x12: 0x0000000000000000 x13: 0xfffffe001b154bc0  x14: 0xfffffe200fa0df10  x15: 0x00000000338d49f5\n\t  x16: 0x000000000000392e x17: 0xfffffe00181f1868  x18: 0x0000000000000000  x19: 0xfffffe1f0b8fa5c0\n\t  x20: 0xfffffe001b2471b8 x21: 0xfffffe2aa3886980  x22: 0xfffffe001b2471b8  x23: 0x0000000000000020\n\t  x24: 0xfffffe306f6b4d78 x25: 0x0000000000000001  x26: 0xfffffe1f0b692400  x27: 0xfffffe20107b8ba0\n\t  x28: 0xfffffe001b1b1000 fp:  0xfffffe4be273bbc0  lr:  0x2995fe001ab2d510  sp:  0xfffffe4be273bba0\n\t  pc:  0xfffffe001ab2d5c4 cpsr: 0== panic-full-2026-11-08-125135.0002.panic
+{"bug_type":"210","timestamp":"2026-11-08 12:51:35.00 -0800","os_version":"macOS 27.2 (26B123)","roots_installed":0,"incident_id":"1AF29B36-3BA8-4F81-BC42-5BC7EE501FEF"}
+{
+  "crashReporterKey" : "70A3A446-6037-D1F7-ECFE-DA31A09CE6A0",
+  "panicProcessingFlags" : "0x0",
+  "product" : "VirtualMac2,1",
+  "kernel" : "Darwin Kernel Version 27.2.0: Wed Oct 14 23:44:09 PDT 2026; root:xnu-13432.41.4~25\/RELEASE_ARM64_VMAPPLE",
+  "socRevision" : "0",
+  "panicString" : "panic(cpu 1 caller 0xfffffe00248814e8): panic: corrupt list around element 0xfffffe2aee6c7900 at pc 0xfffffe00245995c4, lr 0xe3e8fe0024599510 (saved state: 0xfffffe5de87ab850)\n\t  x0:  0xfffffe198b41a5c0 x1:  0x0000000000000000  x2:  0xfffffe0024599510  x3:  0x0000000000000000\n\t  x4:  0x0000000000000000 x5:  0x0000000000000000  x6:  0x0000000000000003  x7:  0x0000000000000000\n\t  x8:  0xfffffe2aee6c7900 x9:  0xfffffe2aee6c7970  x10: 0x0000000000000000  x11: 0x0000000000000000\n\t  x12: 0x0000000000000000 x13: 0xfffffe0024bc0bc0  x14: 0xfffffe25220cb910  x15: 0x00000000185f8210\n\t  x16: 0x000000000000392e x17: 0xfffffe0021c5d868  x18: 0x0000000000000000  x19: 0xfffffe2aee6c7900\n\t  x20: 0xfffffe0024cb31b8 x21: 0xfffffe198b41a5c0  x22: 0xfffffe0024cb31b8  x23: 0x0000000000000020\n\t  x24: 0xfffffe198ba89610 x25: 0x0000000000000001  x26: 0xfffffe1e50665590  x27: 0xfffffe198af677b0\n\t  x28: 0xfffffe0024c1d000 fp:  0xfffffe5de87abbc0  lr:  0xe3e8fe0024599510  sp:  0xfffffe5de87abba0\n\t  pc:  0xfffffe00245995c4 cpsr: 0== ips
+  "procExitAbsTime" : 7067733429
+  "exception" : {"codes":"0x0000000000000000
+"type":"EXC_CRAS
