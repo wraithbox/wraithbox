@@ -40,8 +40,10 @@ These fail in the guest, by I60 and SEC05-default-deny:
 Some tools fail in the guest with an error that doesn't name the
 reason. An `xcodebuild test` of a macOS target fails with a
 `testmanagerd` error, because the guest has no GUI login session
-(S06-04-vms-and-placement, "No GUI login session"). Only Claude Code
-and the model see that output. The explanation goes to them.
+(S06-04-vms-and-placement, "No GUI login session"). The host passes
+that output on as opaque terminal frames and never parses it
+(S16-terminal-stream). The explanation goes to Claude Code and the
+model.
 
 The image installs a managed `CLAUDE.md` that names these limits:
 
@@ -67,7 +69,8 @@ can't exclude a managed `CLAUDE.md`, and the user's own `CLAUDE.md`
 
 The file is guidance for the model, not a control. A session that
 turns off `CLAUDE.md` loading doesn't get it, and the test still
-fails, with the `testmanagerd` error.
+fails, with the `testmanagerd` error. A user or project `CLAUDE.md`
+loads after the managed one and can contradict it.
 
 ### Browser login
 
