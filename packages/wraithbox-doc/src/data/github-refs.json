@@ -3118,7 +3118,7 @@
 	},
 	"510": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd on a VM: install the CAs in a macOS guest, and check that its clients trust a leaf and URLSession doesn't",
 		"summary": "Package M3.9 of docs/implementation-plan.md, part 5 of 5 (M3.9e)."
 	},
@@ -3582,7 +3582,7 @@
 	},
 	"587": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "test(hostd): C02 guest trust on a macOS VM with a fake wb-proxyd end",
 		"summary": "Implements the needs-vm test of S09-08-guest-trust and S09-07-ca-certificates (\"Boot, restore and host wake\") for X04-tls-inspection, in C02-streams-and-tls."
 	},
@@ -3654,8 +3654,68 @@
 	},
 	"599": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-guestd: can't write /private/var/at/cron.allow in a real macOS guest, so it never serves the host",
 		"summary": "In a real macOS 27.2 guest (26B123), wb-guestd at cbbc5ce never serves the host."
+	},
+	"600": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(guestd): check cron's and at's allow files instead of writing them, so wb-guestd serves in a real guest",
+		"summary": "TCC protects /private/var/at: a root LaunchDaemon such as wb-guestd can read and list it, but can't create or remove a file there (probe in #599)."
+	},
+	"601": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(agents): how each Mac makes its go:test-vm fixture",
+		"summary": "go:test-vm boots a clone of WB_VM_TEST_BUNDLE: a provisioned bundle with wb-guestd installed as a root LaunchDaemon and cron's and at's allow files (#599)."
+	},
+	"602": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Campaigns: unattended runs that merge into a train, with a budget and a report",
+		"summary": "Runs (/wave) need the maintainer at every merge, because nearly every pull request touches a spec, a contract or go.mod, so the standing approval covers little (run #572: waves of one or two issues, each merge…"
+	},
+	"603": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(agents): campaigns, unattended waves that merge into a train (#602)",
+		"summary": "Campaigns run waves unattended within a budget, and merge into a train branch instead of main."
+	},
+	"604": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Campaign 2026-11-08 (V1-M3-network-floor, lane mac)",
+		"summary": "/campaign 5 --lane mac --vm-slots 2 --hours 2 --usd 30 --issues 10 --prs 10"
+	},
+	"605": {
+		"kind": "pr",
+		"state": "open",
+		"title": "Train 604: Campaign 2026-11-08 (V1-M3-network-floor, lane mac)",
+		"summary": "Train of campaign #604 (docs/agents/campaigns.md)."
+	},
+	"606": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project resolution: objects/info/alternates that names another project's objects",
+		"summary": "Found while building #388."
+	},
+	"607": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Claude Code layer: install the managed guest instructions CLAUDE.md (S14-04 Guest instructions)",
+		"summary": "S14-04-commands-and-endpoints, \"Guest instructions\" (#224) specifies a managed CLAUDE.md that the Claude Code layer installs at /Library/Application Support/ClaudeCode/CLAUDE.md in a macOS guest: owned by root, mode…"
+	},
+	"608": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): explain the testmanagerd failure in the guest instructions, not on the host",
+		"summary": "Settles how the testmanagerd failure of an xcodebuild test in the guest is explained (B20 decision 1A, #20), as the maintainer's triage on #224 directed: no host parsing."
+	},
+	"609": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Campaign waves end after 10 minutes: claude -p stops the background wave-lead",
+		"summary": "Wave 1 of campaign #604 ran claude -p \"/wave --campaign 604 ...\" through scripts/campaign.mjs."
 	}
 }
