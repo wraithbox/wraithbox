@@ -151,7 +151,10 @@ Then it:
    authentication only, and not a key, an agent or keyboard-interactive;
 4. starts one session, with no terminal, that runs the commands
    compiled into it: they install `wb-guestd` and write cron's and at's
-   allow files (S06-02-image-build, "Provisioning stages");
+   allow files (S06-02-image-build, "Provisioning stages"). Each file
+   is written with `install`, which removes a file or link at the
+   target first, and then compared with `root` and a newline. The
+   commands stop at the first one that fails, so the session fails;
 5. writes the password and a newline into that session's standard
    input, for the guest's `sudo -S`, and closes it, so the install
    commands run under one `sudo -S`;

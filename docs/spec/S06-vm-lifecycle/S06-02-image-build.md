@@ -141,10 +141,8 @@ who may write, fetch, or receive it.
 
 The host never mounts a guest disk to build an image
 (SEC15-no-guest-disk-mount). `wb-guestd` provisions through named
-operations instead:
-
-- it has no operation that runs an arbitrary command as root;
-- it takes secrets on standard input, never in arguments.
+operations instead. None of them runs an arbitrary command as root,
+and each takes secrets on standard input, never in arguments.
 
 Every clone of an image starts with the same per-machine keys. So
 sealing deletes the SSH host keys (`/etc/ssh/ssh_host_*_key`). The
@@ -238,6 +236,8 @@ project code has run. The host parses no guest filesystem
   TCP port 22), screen sharing or remote management, and automatic
   login (SEC04-no-guest-secrets, SEC05-default-deny);
 - an `~/.ssh/authorized_keys` of any user, root included;
+- a `cron.allow` or `at.allow` that isn't a regular file owned by root
+  holding `root` only (S13-01-process-hardening, "Cron and at");
 - a change to `sshd_config`, or a file in `sshd_config.d` that macOS
   doesn't ship, and SSH host keys left in `/etc/ssh`;
 - files outside `/Users` owned by a non-system user ID, other than the

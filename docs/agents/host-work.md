@@ -144,12 +144,19 @@ Outside a `needs-host` issue, in an attended session:
   `cron.allow` and `at.allow` in `/private/var/at`, and doesn't serve
   until both hold `root` only (S13-01-process-hardening, "Cron and
   at"). TCC lets only a Remote Login session write there, so write
-  them over SSH in the step that installs `wb-guestd`:
+  them over SSH in the step that installs `wb-guestd`. `install`
+  removes a file or link at the target before it writes, so it follows
+  no link there, and `cmp` checks what it wrote. `set -e` stops at the
+  first step that fails:
 
   ```bash
-  printf 'root\n' | sudo tee /private/var/at/cron.allow /private/var/at/at.allow >/dev/null
-  sudo chown root:wheel /private/var/at/cron.allow /private/var/at/at.allow
-  sudo chmod 644 /private/var/at/cron.allow /private/var/at/at.allow
+  set -e
+  printf 'root\n' > ~/allow
+  for f in cron.allow at.allow; do
+    sudo install -m 0644 -o root -g wheel ~/allow "/private/var/at/$f"
+    printf 'root\n' | sudo cmp - "/private/var/at/$f"
+  done
+  rm ~/allow
   ```
 - **Slots:** a clone of a `vm:install` bundle has the file names
   `wb-vmd` opens (S06-05-disks, "Bundle files"). An older spike bundle
