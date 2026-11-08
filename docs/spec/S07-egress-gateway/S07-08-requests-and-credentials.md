@@ -104,8 +104,8 @@ Each request then goes through these steps in order:
 
 1. canonicalize;
 2. classify and remove guest credentials (audited);
-3. the checks on the request head: the placeholder scan of the target
-   and the remaining headers, `http-transfer-coding` and
+3. the checks on the request head: `http-transfer-coding`, the
+   placeholder scan of the target and the remaining headers, and
    `model-content-encoding`;
 4. HTTP policy;
 5. the dependency gate;
