@@ -112,6 +112,10 @@ Each request then goes through these steps in order:
 6. credential injection;
 7. the streaming placeholder scan of the body, as it goes upstream.
 
+A request stops at the first step that refuses it. Step 3 runs its
+checks in the order listed, and refuses with the rule of the first one
+that fails.
+
 Credential removal and HTTP policy can't be skipped. When either step
 isn't in place, every request is refused with a `500` and the rule
 `http-step-missing`, so no wiring mistake sends a request upstream

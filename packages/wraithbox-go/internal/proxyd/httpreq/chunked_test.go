@@ -53,3 +53,17 @@ func TestC02ChunkedFraming(t *testing.T) {
 		})
 	}
 }
+
+// TestTrailersAtCap sees a trailer section of exactly maxTrailers
+// bytes accepted, and one byte more refused.
+func TestTrailersAtCap(t *testing.T) {
+	const field = "X-T: "
+	pad := maxTrailers - len(field) - len("\r\n\r\n")
+	for extra, ok := range []bool{true, false} {
+		body := "0\r\n" + field + strings.Repeat("a", pad+extra) + "\r\n\r\n"
+		_, err := io.ReadAll(NewChunkedReader(bufio.NewReader(strings.NewReader(body))))
+		if (err == nil) != ok {
+			t.Fatalf("a trailer section %d bytes over the cap: %v", extra, err)
+		}
+	}
+}

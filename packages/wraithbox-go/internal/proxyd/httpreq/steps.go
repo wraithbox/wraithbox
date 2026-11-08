@@ -75,6 +75,9 @@ func (s *Steps) Run(req *Request) *Refusal {
 		return ref
 	}
 	for _, step := range s.HeadChecks {
+		if step == nil {
+			continue
+		}
 		if ref := step.Apply(req); ref != nil {
 			return ref
 		}

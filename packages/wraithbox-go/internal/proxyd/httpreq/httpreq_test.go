@@ -92,6 +92,7 @@ func TestC02RequestHeadRefusals(t *testing.T) {
 		{"field name not a token", "GET / HTTP/1.1\r\n" + host + "X(A: 1\r\n\r\n"},
 		{"field with no colon", "GET / HTTP/1.1\r\n" + host + "X-A\r\n\r\n"},
 		{"control byte in a value", "GET / HTTP/1.1\r\n" + host + "X-A: a\x01b\r\n\r\n"},
+		{"byte over 0x7E in a value", "GET / HTTP/1.1\r\n" + host + "X-A: caf\xc3\xa9\r\n\r\n"},
 		{"CR in a value", "GET / HTTP/1.1\r\n" + host + "X-A: a\rb\r\n\r\n"},
 		{"no Host", "GET / HTTP/1.1\r\n\r\n"},
 		{"two Host", "GET / HTTP/1.1\r\n" + host + host + "\r\n"},
@@ -107,6 +108,9 @@ func TestC02RequestHeadRefusals(t *testing.T) {
 		{"Content-Length too long", "POST / HTTP/1.1\r\n" + host + "Content-Length: 9999999999999999999\r\n\r\n"},
 		{"absolute form of another host", "GET https://example.org/ HTTP/1.1\r\n" + host + "\r\n"},
 		{"absolute form of another scheme", "GET http://example.com/ HTTP/1.1\r\n" + host + "\r\n"},
+		{"absolute form with a quote in userinfo", "GET https://\"@example.com/ HTTP/1.1\r\n" + host + "\r\n"},
+		{"absolute form with a lone % in userinfo", "GET https://a%2@example.com/ HTTP/1.1\r\n" + host + "\r\n"},
+		{"absolute form with an @ in userinfo", "GET https://a@b@example.com/ HTTP/1.1\r\n" + host + "\r\n"},
 		{"query with a space byte", "GET /?a\x7f HTTP/1.1\r\n" + host + "\r\n"},
 		{"query with a fragment", "GET /?a#b HTTP/1.1\r\n" + host + "\r\n"},
 		{"Expect other than 100-continue", "GET / HTTP/1.1\r\n" + host + "Expect: 200-ok\r\n\r\n"},
@@ -384,5 +388,39 @@ func TestRefusalHoldsNoGuestBytes(t *testing.T) {
 		if err == nil || strings.Contains(strings.ToLower(err.Error()), secret) {
 			t.Fatalf("refusal %v for %q", err, head)
 		}
+	}
+}
+
+// TestHeaderWithoutRecorded sees the recorded and hop-by-hop fields
+// gone from an accepted request's Header, with each field `Connection`
+// names, and the other fields kept.
+func TestHeaderWithoutRecorded(t *testing.T) {
+	req := mustRead(t, "POST / HTTP/1.1\r\n"+host+"Content-Length: 3\r\nExpect: 100-continue\r\n"+
+		"Upgrade: websocket\r\nConnection: Upgrade, X-Hop\r\nX-Hop: 1\r\nKeep-Alive: 5\r\nTE: trailers\r\n"+
+		"Trailer: X-T\r\nProxy-Connection: close\r\nAccept: */*\r\n\r\n")
+	if len(req.Header) != 1 || req.Header.Get("Accept") != "*/*" {
+		t.Fatalf("Header = %v, want only Accept", req.Header)
+	}
+	if req.ContentLength != 3 || !req.ExpectContinue || !req.WebSocket {
+		t.Fatalf("recorded length %d, expect %v, WebSocket %v", req.ContentLength, req.ExpectContinue, req.WebSocket)
+	}
+}
+
+// TestExpectOnHTTP10 sees an `Expect` on HTTP/1.0 ignored, as RFC 9110,
+// section 10.1.1, asks.
+func TestExpectOnHTTP10(t *testing.T) {
+	req := mustRead(t, "POST / HTTP/1.0\r\n"+host+"Expect: 100-continue\r\n\r\n")
+	if req.ExpectContinue || req.Header.Get("Expect") != "" {
+		t.Fatalf("ExpectContinue %v, Header %v", req.ExpectContinue, req.Header)
+	}
+}
+
+// TestNilHeadCheck sees a nil head check skipped.
+func TestNilHeadCheck(t *testing.T) {
+	var calls []string
+	s := steps(&calls)
+	s.HeadChecks = []Step{nil}
+	if ref := s.Run(mustRead(t, "GET / HTTP/1.1\r\n"+host+"\r\n")); ref != nil {
+		t.Fatalf("Run = %v", ref)
 	}
 }

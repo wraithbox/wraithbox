@@ -50,6 +50,9 @@ func absoluteTarget(target string, b Binding) (string, *Refusal) {
 	}
 	authority, path := rest[:end], rest[end:]
 	if at := strings.LastIndexByte(authority, '@'); at >= 0 {
+		if !isUserinfo(authority[:at]) {
+			return "", formError("the target's userinfo has a byte RFC 3986 doesn't allow there")
+		}
 		authority = authority[at+1:]
 	}
 	if ref := checkAuthority(authority, b, "the target's host"); ref != nil {
@@ -83,4 +86,23 @@ func checkAuthority(authority string, b Binding, what string) *Refusal {
 		return formError(what + " has a port that is not the stream's, " + strconv.Itoa(int(b.Port)))
 	}
 	return nil
+}
+
+// isUserinfo reports whether s holds only the bytes RFC 3986, section
+// 3.2.1, allows in userinfo: unreserved, sub-delims, `:` and
+// percent-encoding of two hexadecimal digits. It is dropped, but a
+// userinfo another parser reads another way could move where it thinks
+// the host starts.
+func isUserinfo(s string) bool {
+	for i := range len(s) {
+		c := s[i]
+		if c == '%' && (i+2 >= len(s) || !isHex(s[i+1]) || !isHex(s[i+2])) {
+			return false
+		}
+		alnum := 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9'
+		if !alnum && strings.IndexByte("-._~!$&'()*+,;=:%", c) < 0 {
+			return false
+		}
+	}
+	return true
 }

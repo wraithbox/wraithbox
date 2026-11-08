@@ -128,9 +128,11 @@ func parseChunkSize(line string) (int64, error) {
 // dropTrailers reads the trailer section up to its empty line, within
 // maxTrailers, and checks each field line as a header field.
 func dropTrailers(r *bufio.Reader) error {
+	// left counts every byte of the section, the CRLF of each line and
+	// of the empty line at its end among them.
 	left := maxTrailers
 	for {
-		line, err := chunkLine(r, left)
+		line, err := chunkLine(r, left-2)
 		if err != nil {
 			return err
 		}
@@ -145,7 +147,8 @@ func dropTrailers(r *bufio.Reader) error {
 }
 
 // chunkLine reads one line ended by CRLF, of at most limit bytes before
-// its end. A limit of 0 reads only an empty line.
+// its end. A limit of 0 reads only an empty line, and a negative one no
+// line.
 func chunkLine(r *bufio.Reader, limit int) (string, error) {
 	var b []byte
 	for {

@@ -116,8 +116,12 @@ type Request struct {
 	// step sets. It is the path every later step matches and the one
 	// sent upstream (S07-08-requests-and-credentials, "Request form").
 	CanonicalPath string
-	// Header holds every header field as received, under canonical
-	// names. The steps remove and add fields.
+	// Header holds the header fields as received, under canonical
+	// names, without the ones recorded in the fields below and the
+	// hop-by-hop ones: `Host`, `Content-Length`, `Transfer-Encoding`,
+	// `Upgrade`, `Expect`, `Connection` and each field it names,
+	// `Keep-Alive`, `TE`, `Trailer` and `Proxy-Connection`. The steps
+	// remove and add fields.
 	Header http.Header
 	// Binding is the stream's.
 	Binding Binding
@@ -137,5 +141,7 @@ type Request struct {
 	Close bool
 }
 
-// HasBody reports whether the request has a body to send upstream.
+// HasBody reports whether the request has a body to send upstream. It
+// reads Chunked, which the transfer coding step sets, so it holds only
+// after Steps.Run accepted the request.
 func (r *Request) HasBody() bool { return r.Chunked || r.ContentLength > 0 }

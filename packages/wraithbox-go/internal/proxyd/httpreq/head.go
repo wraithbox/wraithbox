@@ -136,9 +136,11 @@ func parseField(line string) (string, string, *Refusal) {
 	}
 	value = strings.Trim(value, " \t")
 	for i := range len(value) {
-		if c := value[i]; (c < 0x20 && c != '\t') || c == 0x7f {
+		// obs-text, bytes over 0x7F, is refused too: a server may read
+		// it as another charset, and no field wb-proxyd sends needs it.
+		if c := value[i]; (c < 0x20 && c != '\t') || c >= 0x7f {
 			// The name is the guest's, so the detail leaves it out.
-			return "", "", formError("a header field value has a control byte at offset " + strconv.Itoa(i))
+			return "", "", formError("a header field value has a control byte or a byte over 0x7E at offset " + strconv.Itoa(i))
 		}
 	}
 	return http.CanonicalHeaderKey(name), value, nil
@@ -167,7 +169,29 @@ func checkFields(req *Request) *Refusal {
 		return ref
 	}
 	req.Close = wantsClose(req)
+	removeRecorded(req.Header)
 	return nil
+}
+
+// recorded are the fields checkFields records in Request, and the
+// hop-by-hop fields of RFC 9110, section 7.6.1. None is sent upstream as
+// the guest wrote it: the request sent upstream sets `Host` from the
+// binding, and its framing and connection fields from the request it
+// builds.
+var recorded = []string{
+	"Host", "Content-Length", "Transfer-Encoding", "Upgrade", "Expect",
+	"Connection", "Keep-Alive", "Te", "Trailer", "Proxy-Connection",
+}
+
+// removeRecorded deletes the recorded fields from h, and each field a
+// `Connection` field names, which is hop-by-hop too.
+func removeRecorded(h http.Header) {
+	for t := range connectionTokens(h) {
+		h.Del(t)
+	}
+	for _, name := range recorded {
+		h.Del(name)
+	}
 }
 
 // maxLengthDigits keeps a Content-Length within an int64.
@@ -218,6 +242,9 @@ func parseUpgrade(req *Request) *Refusal {
 func parseExpect(req *Request) *Refusal {
 	values := req.Header.Values("Expect")
 	switch {
+	case req.Proto == "HTTP/1.0":
+		// RFC 9110, section 10.1.1: an HTTP/1.0 server ignores it.
+		return nil
 	case len(values) == 0:
 		return nil
 	case len(values) == 1 && equalFold(values[0], "100-continue"):
