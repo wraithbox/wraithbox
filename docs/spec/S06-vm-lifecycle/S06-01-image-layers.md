@@ -98,11 +98,14 @@ base, and on top of each named image. A new restore image
 rebuilds the base, every image above it, and their Claude Code layers.
 
 A named image with Xcode is built in two sealed steps. Its Xcode step
-clones the sealed base and installs Xcode. The recipe's own steps then
-start from that step's sealed result, and the image they seal is the
-parent the Claude Code layer clones (S06-14-xcode-image, "Where Xcode
-comes from"). The Xcode step is part of the named image, not an image
-of its own, so images still don't chain.
+clones the sealed base and installs Xcode. After its `wb-vmd-layer`
+exits, `wb-hostd` takes the sealed result into a new, empty build
+bundle as in S06-02-image-build, "Taking the sealed image". The
+recipe's own steps then start from it, in a VM started without the
+Xcode flag, and the image they seal is the parent the Claude Code
+layer clones (S06-14-xcode-image, "Where Xcode comes from"). The Xcode
+step's result is never listed as an image. It is part of the named
+image, not an image of its own, so images still don't chain.
 
 ### Toolchain prefix
 

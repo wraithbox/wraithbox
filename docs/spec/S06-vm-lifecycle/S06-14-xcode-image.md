@@ -23,11 +23,14 @@ Recipes come from user settings only, never from a repository's
 `.wraithbox/` (I150, SEC09-host-policy).
 
 The Xcode step clones the sealed base image, installs Xcode and the
-runtimes, and is sealed. The recipe's own steps then run on that sealed
-result, so they can use Xcode. The image they seal is the parent that
-the Claude Code layer clones (S06-01-image-layers, "The Claude Code
-layer"). When the recipe has no other step, the Xcode step's sealed
-result is that parent.
+runtimes, and is sealed. After `wb-vmd-layer` exits, `wb-hostd` takes
+that sealed result into a new, empty build bundle as in
+S06-02-image-build, "Taking the sealed image". It is never listed as an
+image. The recipe's own steps then run on it, in a VM started without
+the Xcode flag, so they can use Xcode. The image they seal is the
+parent that the Claude Code layer clones (S06-01-image-layers, "The
+Claude Code layer"). When the recipe has no other step, the Xcode
+step's sealed result is that parent.
 
 The image build copies the Xcode installed on the host. It never
 downloads Xcode, because Apple serves Xcode only after an Apple ID
@@ -132,7 +135,8 @@ in place of the data disk's names, plus:
 - reading the Xcode app and the runtime images, and the license record
   ("The checks on the host"), and no other file outside the build
   bundle;
-- writing under the mount point `xcode-mnt` in the build bundle;
+- creating the directory `xcode-mnt` in the build bundle, by that
+  literal name, and writing under it;
 - starting `/usr/bin/ditto` and `/usr/bin/codesign`.
 
 As for a data disk (S06-13-data-disk-format, "The shim"), the shim:
@@ -142,12 +146,13 @@ As for a data disk (S06-13-data-disk-format, "The shim"), the shim:
    inputs plus slack, within a bound in code;
 2. attaches it, formats it APFS with the volume name `wb-xcode`, and
    mounts the new, empty volume once with `diskutil mount -mountPoint`
-   on `xcode-mnt`, a directory it creates in the build bundle. Before
+   on `xcode-mnt`, a directory it creates new in the build bundle. An
+   existing `xcode-mnt` refuses the build (`xcode-mnt-exists`). Before
    any write, `statfs` on `xcode-mnt` has to give the device it
    attached as `f_mntfromname` and that path as `f_mntonname`
    (`xcode-mount-mismatch`);
 3. copies the app to `Xcode.app` on the volume with
-   `ditto --noextattr --noqtn --noacl`, leaving out
+   `ditto --norsrc --noextattr --noacl --noqtn`, leaving out
    `Contents/_MASReceipt`, and each runtime image to `Runtimes/` on it.
    An App Store install's extended attributes and receipt name the
    host's purchase and device, and the copy leaves them behind. I624
@@ -168,7 +173,10 @@ data disk (S06-05-disks, "Formatting a data disk"): a blank image the
 host itself created, before any guest has run with it. The shim also
 fills the volume, as the bundle build fills the guest tools disk. The
 host never mounts or opens the file again once a guest had it, and it
-is deleted with the build bundle.
+is deleted with the build bundle. That delete doesn't follow links, and
+stops at a directory whose `st_dev` isn't the bundle's. A volume left
+mounted there refuses the build with `xcode-mount-left`, which names
+the mount point.
 
 ### What the build records
 
@@ -180,7 +188,8 @@ treats every answer of the shim. `state.db` records them for the image.
 itself. Before it decides between the layer-only path of
 S06-01-image-layers, "Only the layer", and a full build, it starts the
 shim in a check-only run, which makes the checks above, reports the
-same values, and builds no disk. The layer-only path requires them to
+same values, and builds no disk. That run also gets a new, empty build
+bundle. The layer-only path requires them to
 equal the recorded ones. A new Xcode on the host changes nothing until
 the next `wb image build`. That build then builds every layer.
 
@@ -192,7 +201,8 @@ device set adds the Xcode disk, read-only, and only for this step
 (S06-06-devices-and-warm-start, "Devices"). `wb-vmd-layer` attaches
 `xcode.img` from the build bundle only when the start call sets its
 Xcode flag. The call never names a path. `wb-vmd` refuses the flag in
-any other slot or entry, and logs the rule (S04-02-vm-provider, "The
+any other slot or entry, and logs `vmd-xcode-disk-refused`
+(S04-04-vm-processes, "Slot checks", and S04-02-vm-provider, "The
 device set is fixed and checked").
 
 A named `wb-guestd` operation, `install-xcode`, then runs as root
@@ -202,7 +212,8 @@ A named `wb-guestd` operation, `install-xcode`, then runs as root
    tools disk: APFS, read-only, and mounted by root
    (S06-12-guest-agent, "Update at start").
 2. It copies `Xcode.app` to `/Applications/Xcode.app` with
-   `ditto --noextattr --noqtn --noacl`, with owner `root:wheel`, and
+   `ditto --norsrc --noextattr --noacl --noqtn`, with owner
+   `root:wheel`, and
    no write permission for group or others. The sealing scan refuses
    files outside `/Users` that a non-system user owns
    (S06-02-image-build, "Sealing").
