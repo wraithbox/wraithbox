@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -496,5 +497,24 @@ func TestNewActivePeriod(t *testing.T) {
 	m, hasFD := h.conn.nextControl(t)
 	if m.GetActivePeriodStart().GetVm() != "work" || hasFD {
 		t.Fatalf("sent %v (descriptor %v), want an ActivePeriodStart for work", m, hasFD)
+	}
+}
+
+// TestNewActivePeriodSendFails: a failed ActivePeriodStart ends
+// wb-proxyd, and isn't logged or returned as a failed VM start.
+func TestNewActivePeriodSendFails(t *testing.T) {
+	h := newProxyd(t, wait)
+	h.conn.mu.Lock()
+	h.conn.sendErr = errors.New("broken")
+	h.conn.mu.Unlock()
+	err := h.p.NewActivePeriod("work")
+	var se *SetupError
+	if err == nil || errors.As(err, &se) {
+		t.Fatalf("NewActivePeriod = %v, want an error that isn't a *SetupError", err)
+	}
+	h.proxyd.expect(t, RuleControlFailed)
+	expectLog(t, h.logs, "new active period's message to wb-proxyd failed", `"rule":"control-channel-failed"`, `"vm":"work"`)
+	if strings.Contains(h.logs.String(), "fail-start") {
+		t.Fatalf("logged as a failed start:\n%s", h.logs.String())
 	}
 }
