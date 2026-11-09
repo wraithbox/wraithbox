@@ -77,7 +77,8 @@ so. After a limit is hit the manager still finishes up ("Ending").
 - **Builders branch from the train.** A wave's builders branch from
   `origin/train/<n>` and open their pull requests against it, with a
   `Campaign: #<n>` line in the body. CI runs on pull requests into
-  `train/**` and on pushes to it.
+  `train/**`, and on a push to the train as the train's own pull
+  request, never twice per commit.
 - **Merging into the train.** The wave's dispatcher merges a pull
   request into the train with `gh pr merge <n> --rebase` when the train
   merge check holds ("What may ride the train"). No standing approval is

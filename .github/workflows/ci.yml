@@ -2,8 +2,11 @@ name: CI
 
 on:
   # train/** is a campaign's integration branch (docs/agents/campaigns.md).
+  # A train has its pull request open from its first commit, so its
+  # pushes run as that pull request. A push trigger on train/** too ran
+  # CI twice per commit (#622).
   push:
-    branches: [main, 'train/**']
+    branches: [main]
   pull_request:
     branches: [main, 'train/**']
   workflow_dispatch:
