@@ -79,10 +79,23 @@ The Xcode disk is a disk image the host builds. It isn't a shared
 directory (SEC02-no-host-fs-share).
 
 `wb-diskfmt` builds it, started through a third fixed `wb-launcher`
-entry, `wb-diskfmt-xcode` (S04-04-vm-processes, "`wb-diskfmt`"). The
-entry's profile parameters are the build bundle,
-`<data>/images/macos-build.noindex`, the real path of the Xcode app and
-`<data>/xcode-runtimes`. None is a path from the request.
+entry, `wb-diskfmt-xcode`, whose `WB_DISKFMT_SLOT` is `xcode`
+(S04-04-vm-processes, "`wb-diskfmt`"). Only `wb-hostd` starts it,
+during an image build. The entry's profile parameters are the build
+bundle, `<data>/images/macos-build.noindex`, the real path of the Xcode
+app and `<data>/xcode-runtimes`. None is a path from the request.
+
+The profile is `wb-diskfmt`'s (S04-04-vm-processes, "`wb-diskfmt`'s
+profile"), with `xcode.img` and its temporary name in the build bundle
+in place of the data disk's names, plus:
+
+- reading the Xcode app and the runtime images, and no other file
+  outside the build bundle;
+- writing the `wb-xcode` volume it made, while it is mounted;
+- starting `/usr/bin/ditto` and `/usr/bin/codesign`.
+
+The kill of S06-13-data-disk-format, "When `wb-diskfmt` doesn't exit",
+applies to it as to the data disk entries. I624 measures the profile.
 
 As for a data disk (S06-13-data-disk-format, "The shim"), the shim:
 
@@ -97,9 +110,10 @@ As for a data disk (S06-13-data-disk-format, "The shim"), the shim:
 5. unmounts and detaches the volume, and renames the file to
    `xcode.img`.
 
-`wb-hostd` records the SHA-256 of `xcode.img`. The host writes the
-disk, and no guest has run with it, so the mount in step 2 is no
-exception to SEC15-no-guest-disk-mount. The host never mounts or opens
+The shim reports Xcode's version and build and the SHA-256 of each
+runtime image to `wb-hostd`, which treats them as untrusted, as it
+treats every answer of the shim. The host writes the disk, and no guest
+has run with it. The mount in step 2 is no exception to SEC15-no-guest-disk-mount. The host never mounts or opens
 the file again once a guest had it. It is deleted with the build
 bundle.
 

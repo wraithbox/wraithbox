@@ -268,9 +268,7 @@ The sealing scan accepts `wbadmin` only if all of these hold:
 
 Images are stored locally. They are cloned copy-on-write into VM
 bundles: APFS clones on macOS (S12-platforms). Sharing images between
-machines as OCI artifacts in a registry is a later addition. An image
-with Xcode stays on the Mac that built it (S06-14-xcode-image, "Kept
-on this Mac").
+machines as OCI artifacts in a registry is a later addition.
 
 ## Decisions
 
