@@ -265,7 +265,23 @@ type netd struct {
 // version records on it, and waits for the HandoffSocketAck.
 func (h *harness) addVM(vm string, gen uint64) *netd {
 	h.t.Helper()
-	nd := h.handoff(vm, gen)
+	return h.addVMWith(handoffSocket(vm, gen))
+}
+
+// addFreshVM is addVM with a fresh HandoffSocket, as at a start that
+// cleared the VM's state.
+func (h *harness) addFreshVM(vm string, gen uint64) *netd {
+	h.t.Helper()
+	m := handoffSocket(vm, gen)
+	m.GetHandoffSocket().Fresh = true
+	return h.addVMWith(m)
+}
+
+// addVMWith is addVM with the HandoffSocket m.
+func (h *harness) addVMWith(m *egressv1.HostdToProxyd) *netd {
+	h.t.Helper()
+	vm, gen := m.GetHandoffSocket().GetVm(), m.GetHandoffSocket().GetGeneration()
+	nd := h.handoffWith(m)
 	if err := nd.ch.Send(hostversion.Record(testVersion), nil); err != nil {
 		h.t.Fatal(err)
 	}
@@ -280,11 +296,18 @@ func (h *harness) addVM(vm string, gen uint64) *netd {
 // the new socket, which comes before the ack.
 func (h *harness) handoff(vm string, gen uint64) *netd {
 	h.t.Helper()
+	return h.handoffWith(handoffSocket(vm, gen))
+}
+
+// handoffWith is handoff with the HandoffSocket m.
+func (h *harness) handoffWith(m *egressv1.HostdToProxyd) *netd {
+	h.t.Helper()
+	vm, gen := m.GetHandoffSocket().GetVm(), m.GetHandoffSocket().GetGeneration()
 	a, b, err := fdchan.Socketpair(egressmsg.MaxRecord)
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	h.send(handoffSocket(vm, gen), a)
+	h.send(m, a)
 	_ = a.Close()
 	nd := &netd{t: h.t, raw: dup(h.t, b), vm: vm, gen: gen, next: 1 << 40}
 	nd.ch = newChannel(h.t, b)

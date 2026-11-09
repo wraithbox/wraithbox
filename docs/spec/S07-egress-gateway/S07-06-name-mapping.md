@@ -121,6 +121,26 @@ The copy and `wb-netd`'s mapping are both cleared only at a start that
 isn't a restore. Otherwise releases alone remove entries. So a VM that
 idles and is saved and restored keeps the answers its guest cached.
 
+`wb-proxyd` learns of such a start from a *fresh* `HandoffSocket`
+(S07-05-stream-hand-off, "From `wb-hostd`"). `wb-hostd` sets its
+`fresh` field on each `HandoffSocket` after such a start until
+`wb-proxyd` acknowledges one, so a retry after an acknowledgment
+timeout is fresh too. It sends that message before the run's first
+`PolicyChange`. `wb-netd` refuses a `HandoffSocket` that sets `fresh`
+with `message-form`, since its own start clears its mapping.
+
+`wb-proxyd` checks a fresh message like any other. It then closes the
+VM's old socket and every stream that came on it, so no message of the
+previous run reaches the cleared state. Then it clears the copy, the
+wildcard names, and the VM's effective policy and sequence. It keeps
+the generation, and logs the clear with the rule `vm-fresh-start`.
+
+Until the run's first `PolicyChange`, `wb-proxyd` doesn't hold a policy for
+the VM, so every report and stream is refused (SEC05-default-deny).
+That `PolicyChange` may start at sequence 1 again. A new `wb-netd`
+gives out addresses the previous run held, and none of them conflicts
+with an entry of that run.
+
 ### Wildcard budget, second layer
 
 `wb-netd` debits the wildcard budget before it answers (S07-03-dns).
@@ -137,6 +157,16 @@ check `wildcard-budget`.
 
 `wb-hostd` keeps the set per VM and active period, and gives it to a
 new `wb-proxyd` at start, in the payload of its `ProxydStart` message. A `wb-proxyd` restart thus keeps the count.
+
+At the start of a new active period (S07-01-per-vm-policy), `wb-hostd`
+clears its set for the VM, then sends `wb-proxyd` an
+`ActivePeriodStart` that names the VM and doesn't hold a descriptor.
+`wb-proxyd` clears its count for the VM and logs it with the rule
+`active-period-start`. The copy keeps its entries, as `wb-netd`'s
+mapping does. `wb-proxyd` doesn't acknowledge the message. It decides
+control messages in order, so the acknowledgment of a later message
+says this one applied. A fresh `HandoffSocket` clears the count too
+("Lifetime").
 
 Refused lookups never reach `wb-proxyd`, so its count is at most
 `wb-netd`'s.

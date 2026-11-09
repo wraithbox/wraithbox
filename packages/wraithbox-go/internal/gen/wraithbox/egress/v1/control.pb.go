@@ -97,6 +97,7 @@ type HostdToProxyd struct {
 	//	*HostdToProxyd_CaSet
 	//	*HostdToProxyd_CaAccept
 	//	*HostdToProxyd_CaRemove
+	//	*HostdToProxyd_ActivePeriodStart
 	Kind          isHostdToProxyd_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -202,6 +203,15 @@ func (x *HostdToProxyd) GetCaRemove() *CaRemove {
 	return nil
 }
 
+func (x *HostdToProxyd) GetActivePeriodStart() *ActivePeriodStart {
+	if x != nil {
+		if x, ok := x.Kind.(*HostdToProxyd_ActivePeriodStart); ok {
+			return x.ActivePeriodStart
+		}
+	}
+	return nil
+}
+
 type isHostdToProxyd_Kind interface {
 	isHostdToProxyd_Kind()
 }
@@ -241,6 +251,11 @@ type HostdToProxyd_CaRemove struct {
 	CaRemove *CaRemove `protobuf:"bytes,7,opt,name=ca_remove,json=caRemove,proto3,oneof"`
 }
 
+type HostdToProxyd_ActivePeriodStart struct {
+	// No descriptor.
+	ActivePeriodStart *ActivePeriodStart `protobuf:"bytes,8,opt,name=active_period_start,json=activePeriodStart,proto3,oneof"`
+}
+
 func (*HostdToProxyd_ProxydStart) isHostdToProxyd_Kind() {}
 
 func (*HostdToProxyd_HandoffSocket) isHostdToProxyd_Kind() {}
@@ -254,6 +269,8 @@ func (*HostdToProxyd_CaSet) isHostdToProxyd_Kind() {}
 func (*HostdToProxyd_CaAccept) isHostdToProxyd_Kind() {}
 
 func (*HostdToProxyd_CaRemove) isHostdToProxyd_Kind() {}
+
+func (*HostdToProxyd_ActivePeriodStart) isHostdToProxyd_Kind() {}
 
 // ProxydToHostd is what wb-proxyd sends wb-hostd.
 type ProxydToHostd struct {
@@ -934,7 +951,18 @@ type HandoffSocket struct {
 	// socket (S07-18-build-network).
 	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
 	// The VM generation, at least 1.
-	Generation    uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	Generation uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// Set on the first HandoffSocket after a start that cleared the VM's
+	// kept state: a start that isn't a restore, or a restore of a VM
+	// wb-hostd held nothing for (S07-06-name-mapping, "Lifetime").
+	// wb-proxyd then closes the VM's old socket and its streams, and
+	// clears the VM's copy of the name mapping, its wildcard names, its
+	// effective policy and its policy sequence before it holds the new
+	// socket. wb-hostd sends it before the run's first PolicyChange. Only
+	// wb-proxyd takes it: a wb-netd refuses a HandoffSocket that sets it
+	// with the check `message-form`, as its fresh state comes with
+	// NetdStart.
+	Fresh         bool `protobuf:"varint,3,opt,name=fresh,proto3" json:"fresh,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -983,6 +1011,65 @@ func (x *HandoffSocket) GetGeneration() uint64 {
 	return 0
 }
 
+func (x *HandoffSocket) GetFresh() bool {
+	if x != nil {
+		return x.Fresh
+	}
+	return false
+}
+
+// ActivePeriodStart says a VM's new active period began
+// (S07-01-per-vm-policy, "Active period"). wb-proxyd clears the VM's
+// wildcard names, the second count of S07-06-name-mapping, "Wildcard
+// budget, second layer", and keeps its copy of the name mapping.
+// wb-hostd clears its own set of the VM's names before it sends it.
+// There is no acknowledgment: wb-proxyd decides its control messages
+// in order, so an acknowledgment of a later message says it applied.
+type ActivePeriodStart struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The VM slot, `work` or `isolated`.
+	Vm            string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivePeriodStart) Reset() {
+	*x = ActivePeriodStart{}
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivePeriodStart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivePeriodStart) ProtoMessage() {}
+
+func (x *ActivePeriodStart) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivePeriodStart.ProtoReflect.Descriptor instead.
+func (*ActivePeriodStart) Descriptor() ([]byte, []int) {
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ActivePeriodStart) GetVm() string {
+	if x != nil {
+		return x.Vm
+	}
+	return ""
+}
+
 // HandoffSocketAck says wb-proxyd holds its end. wb-hostd gives wb-netd
 // the other end only after it (S07-05-stream-hand-off, "One hand-off
 // socket per VM").
@@ -998,7 +1085,7 @@ type HandoffSocketAck struct {
 
 func (x *HandoffSocketAck) Reset() {
 	*x = HandoffSocketAck{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[10]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1010,7 +1097,7 @@ func (x *HandoffSocketAck) String() string {
 func (*HandoffSocketAck) ProtoMessage() {}
 
 func (x *HandoffSocketAck) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[10]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1023,7 +1110,7 @@ func (x *HandoffSocketAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandoffSocketAck.ProtoReflect.Descriptor instead.
 func (*HandoffSocketAck) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{10}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *HandoffSocketAck) GetVm() string {
@@ -1062,7 +1149,7 @@ type HandoffSocketClosed struct {
 
 func (x *HandoffSocketClosed) Reset() {
 	*x = HandoffSocketClosed{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[11]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1074,7 +1161,7 @@ func (x *HandoffSocketClosed) String() string {
 func (*HandoffSocketClosed) ProtoMessage() {}
 
 func (x *HandoffSocketClosed) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[11]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1087,7 +1174,7 @@ func (x *HandoffSocketClosed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandoffSocketClosed.ProtoReflect.Descriptor instead.
 func (*HandoffSocketClosed) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{11}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *HandoffSocketClosed) GetVm() string {
@@ -1135,7 +1222,7 @@ type PolicyChange struct {
 
 func (x *PolicyChange) Reset() {
 	*x = PolicyChange{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[12]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1147,7 +1234,7 @@ func (x *PolicyChange) String() string {
 func (*PolicyChange) ProtoMessage() {}
 
 func (x *PolicyChange) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[12]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1160,7 +1247,7 @@ func (x *PolicyChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyChange.ProtoReflect.Descriptor instead.
 func (*PolicyChange) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{12}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PolicyChange) GetVm() string {
@@ -1191,7 +1278,7 @@ type PolicyAck struct {
 
 func (x *PolicyAck) Reset() {
 	*x = PolicyAck{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[13]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1290,7 @@ func (x *PolicyAck) String() string {
 func (*PolicyAck) ProtoMessage() {}
 
 func (x *PolicyAck) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[13]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1303,7 @@ func (x *PolicyAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyAck.ProtoReflect.Descriptor instead.
 func (*PolicyAck) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{13}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PolicyAck) GetVm() string {
@@ -1250,7 +1337,7 @@ type CaIssue struct {
 
 func (x *CaIssue) Reset() {
 	*x = CaIssue{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[14]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1262,7 +1349,7 @@ func (x *CaIssue) String() string {
 func (*CaIssue) ProtoMessage() {}
 
 func (x *CaIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[14]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1275,7 +1362,7 @@ func (x *CaIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaIssue.ProtoReflect.Descriptor instead.
 func (*CaIssue) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{14}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CaIssue) GetVm() string {
@@ -1310,7 +1397,7 @@ type CaIssued struct {
 
 func (x *CaIssued) Reset() {
 	*x = CaIssued{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[15]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1322,7 +1409,7 @@ func (x *CaIssued) String() string {
 func (*CaIssued) ProtoMessage() {}
 
 func (x *CaIssued) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[15]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1335,7 +1422,7 @@ func (x *CaIssued) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaIssued.ProtoReflect.Descriptor instead.
 func (*CaIssued) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{15}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CaIssued) GetVm() string {
@@ -1394,7 +1481,7 @@ type CaSet struct {
 
 func (x *CaSet) Reset() {
 	*x = CaSet{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[16]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1406,7 +1493,7 @@ func (x *CaSet) String() string {
 func (*CaSet) ProtoMessage() {}
 
 func (x *CaSet) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[16]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1419,7 +1506,7 @@ func (x *CaSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaSet.ProtoReflect.Descriptor instead.
 func (*CaSet) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{16}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CaSet) GetVm() string {
@@ -1470,7 +1557,7 @@ type InspectionCa struct {
 
 func (x *InspectionCa) Reset() {
 	*x = InspectionCa{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[17]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1482,7 +1569,7 @@ func (x *InspectionCa) String() string {
 func (*InspectionCa) ProtoMessage() {}
 
 func (x *InspectionCa) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[17]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1495,7 +1582,7 @@ func (x *InspectionCa) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectionCa.ProtoReflect.Descriptor instead.
 func (*InspectionCa) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{17}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *InspectionCa) GetCaId() string {
@@ -1526,7 +1613,7 @@ type CaLoaded struct {
 
 func (x *CaLoaded) Reset() {
 	*x = CaLoaded{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[18]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1538,7 +1625,7 @@ func (x *CaLoaded) String() string {
 func (*CaLoaded) ProtoMessage() {}
 
 func (x *CaLoaded) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[18]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1551,7 +1638,7 @@ func (x *CaLoaded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaLoaded.ProtoReflect.Descriptor instead.
 func (*CaLoaded) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{18}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CaLoaded) GetVm() string {
@@ -1586,7 +1673,7 @@ type CaRestoreFailed struct {
 
 func (x *CaRestoreFailed) Reset() {
 	*x = CaRestoreFailed{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[19]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1598,7 +1685,7 @@ func (x *CaRestoreFailed) String() string {
 func (*CaRestoreFailed) ProtoMessage() {}
 
 func (x *CaRestoreFailed) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[19]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1611,7 +1698,7 @@ func (x *CaRestoreFailed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaRestoreFailed.ProtoReflect.Descriptor instead.
 func (*CaRestoreFailed) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{19}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CaRestoreFailed) GetVm() string {
@@ -1658,7 +1745,7 @@ type CaAccept struct {
 
 func (x *CaAccept) Reset() {
 	*x = CaAccept{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[20]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1670,7 +1757,7 @@ func (x *CaAccept) String() string {
 func (*CaAccept) ProtoMessage() {}
 
 func (x *CaAccept) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[20]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1683,7 +1770,7 @@ func (x *CaAccept) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaAccept.ProtoReflect.Descriptor instead.
 func (*CaAccept) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{20}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CaAccept) GetVm() string {
@@ -1713,7 +1800,7 @@ type CaRemove struct {
 
 func (x *CaRemove) Reset() {
 	*x = CaRemove{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[21]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1725,7 +1812,7 @@ func (x *CaRemove) String() string {
 func (*CaRemove) ProtoMessage() {}
 
 func (x *CaRemove) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[21]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1738,7 +1825,7 @@ func (x *CaRemove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaRemove.ProtoReflect.Descriptor instead.
 func (*CaRemove) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{21}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CaRemove) GetItems() []string {
@@ -1766,7 +1853,7 @@ type CaRemoved struct {
 
 func (x *CaRemoved) Reset() {
 	*x = CaRemoved{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[22]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1778,7 +1865,7 @@ func (x *CaRemoved) String() string {
 func (*CaRemoved) ProtoMessage() {}
 
 func (x *CaRemoved) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[22]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1791,7 +1878,7 @@ func (x *CaRemoved) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaRemoved.ProtoReflect.Descriptor instead.
 func (*CaRemoved) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{22}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CaRemoved) GetDeleted() []string {
@@ -1830,7 +1917,7 @@ type CaRemovalRefusal struct {
 
 func (x *CaRemovalRefusal) Reset() {
 	*x = CaRemovalRefusal{}
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[23]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1842,7 +1929,7 @@ func (x *CaRemovalRefusal) String() string {
 func (*CaRemovalRefusal) ProtoMessage() {}
 
 func (x *CaRemovalRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[23]
+	mi := &file_wraithbox_egress_v1_control_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1855,7 +1942,7 @@ func (x *CaRemovalRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaRemovalRefusal.ProtoReflect.Descriptor instead.
 func (*CaRemovalRefusal) Descriptor() ([]byte, []int) {
-	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{23}
+	return file_wraithbox_egress_v1_control_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CaRemovalRefusal) GetIndex() uint32 {
@@ -1876,7 +1963,7 @@ var File_wraithbox_egress_v1_control_proto protoreflect.FileDescriptor
 
 const file_wraithbox_egress_v1_control_proto_rawDesc = "" +
 	"\n" +
-	"!wraithbox/egress/v1/control.proto\x12\x13wraithbox.egress.v1\x1a$wraithbox/egress/v1/accounting.proto\"\xe1\x03\n" +
+	"!wraithbox/egress/v1/control.proto\x12\x13wraithbox.egress.v1\x1a$wraithbox/egress/v1/accounting.proto\"\xbb\x04\n" +
 	"\rHostdToProxyd\x12E\n" +
 	"\fproxyd_start\x18\x01 \x01(\v2 .wraithbox.egress.v1.ProxydStartH\x00R\vproxydStart\x12K\n" +
 	"\x0ehandoff_socket\x18\x02 \x01(\v2\".wraithbox.egress.v1.HandoffSocketH\x00R\rhandoffSocket\x12H\n" +
@@ -1884,7 +1971,8 @@ const file_wraithbox_egress_v1_control_proto_rawDesc = "" +
 	"\bca_issue\x18\x04 \x01(\v2\x1c.wraithbox.egress.v1.CaIssueH\x00R\acaIssue\x123\n" +
 	"\x06ca_set\x18\x05 \x01(\v2\x1a.wraithbox.egress.v1.CaSetH\x00R\x05caSet\x12<\n" +
 	"\tca_accept\x18\x06 \x01(\v2\x1d.wraithbox.egress.v1.CaAcceptH\x00R\bcaAccept\x12<\n" +
-	"\tca_remove\x18\a \x01(\v2\x1d.wraithbox.egress.v1.CaRemoveH\x00R\bcaRemoveB\x06\n" +
+	"\tca_remove\x18\a \x01(\v2\x1d.wraithbox.egress.v1.CaRemoveH\x00R\bcaRemove\x12X\n" +
+	"\x13active_period_start\x18\b \x01(\v2&.wraithbox.egress.v1.ActivePeriodStartH\x00R\x11activePeriodStartB\x06\n" +
 	"\x04kind\"\xa0\x04\n" +
 	"\rProxydToHostd\x12U\n" +
 	"\x12handoff_socket_ack\x18\x01 \x01(\v2%.wraithbox.egress.v1.HandoffSocketAckH\x00R\x10handoffSocketAck\x12?\n" +
@@ -1930,12 +2018,15 @@ const file_wraithbox_egress_v1_control_proto_rawDesc = "" +
 	"\aentries\x18\x01 \x03(\v2!.wraithbox.egress.v1.MappingEntryR\aentries\x12\x18\n" +
 	"\adebited\x18\x02 \x03(\tR\adebited\x12\x1f\n" +
 	"\vdebit_count\x18\x03 \x01(\rR\n" +
-	"debitCount\"?\n" +
+	"debitCount\"U\n" +
 	"\rHandoffSocket\x12\x0e\n" +
 	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x1e\n" +
 	"\n" +
 	"generation\x18\x02 \x01(\x04R\n" +
-	"generation\"B\n" +
+	"generation\x12\x14\n" +
+	"\x05fresh\x18\x03 \x01(\bR\x05fresh\"#\n" +
+	"\x11ActivePeriodStart\x12\x0e\n" +
+	"\x02vm\x18\x01 \x01(\tR\x02vm\"B\n" +
 	"\x10HandoffSocketAck\x12\x0e\n" +
 	"\x02vm\x18\x01 \x01(\tR\x02vm\x12\x1e\n" +
 	"\n" +
@@ -2013,7 +2104,7 @@ func file_wraithbox_egress_v1_control_proto_rawDescGZIP() []byte {
 	return file_wraithbox_egress_v1_control_proto_rawDescData
 }
 
-var file_wraithbox_egress_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_wraithbox_egress_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_wraithbox_egress_v1_control_proto_goTypes = []any{
 	(*HostdToProxyd)(nil),       // 0: wraithbox.egress.v1.HostdToProxyd
 	(*ProxydToHostd)(nil),       // 1: wraithbox.egress.v1.ProxydToHostd
@@ -2025,50 +2116,52 @@ var file_wraithbox_egress_v1_control_proto_goTypes = []any{
 	(*NetdStart)(nil),           // 7: wraithbox.egress.v1.NetdStart
 	(*NetdStartPayload)(nil),    // 8: wraithbox.egress.v1.NetdStartPayload
 	(*HandoffSocket)(nil),       // 9: wraithbox.egress.v1.HandoffSocket
-	(*HandoffSocketAck)(nil),    // 10: wraithbox.egress.v1.HandoffSocketAck
-	(*HandoffSocketClosed)(nil), // 11: wraithbox.egress.v1.HandoffSocketClosed
-	(*PolicyChange)(nil),        // 12: wraithbox.egress.v1.PolicyChange
-	(*PolicyAck)(nil),           // 13: wraithbox.egress.v1.PolicyAck
-	(*CaIssue)(nil),             // 14: wraithbox.egress.v1.CaIssue
-	(*CaIssued)(nil),            // 15: wraithbox.egress.v1.CaIssued
-	(*CaSet)(nil),               // 16: wraithbox.egress.v1.CaSet
-	(*InspectionCa)(nil),        // 17: wraithbox.egress.v1.InspectionCa
-	(*CaLoaded)(nil),            // 18: wraithbox.egress.v1.CaLoaded
-	(*CaRestoreFailed)(nil),     // 19: wraithbox.egress.v1.CaRestoreFailed
-	(*CaAccept)(nil),            // 20: wraithbox.egress.v1.CaAccept
-	(*CaRemove)(nil),            // 21: wraithbox.egress.v1.CaRemove
-	(*CaRemoved)(nil),           // 22: wraithbox.egress.v1.CaRemoved
-	(*CaRemovalRefusal)(nil),    // 23: wraithbox.egress.v1.CaRemovalRefusal
-	(*MappingEntry)(nil),        // 24: wraithbox.egress.v1.MappingEntry
+	(*ActivePeriodStart)(nil),   // 10: wraithbox.egress.v1.ActivePeriodStart
+	(*HandoffSocketAck)(nil),    // 11: wraithbox.egress.v1.HandoffSocketAck
+	(*HandoffSocketClosed)(nil), // 12: wraithbox.egress.v1.HandoffSocketClosed
+	(*PolicyChange)(nil),        // 13: wraithbox.egress.v1.PolicyChange
+	(*PolicyAck)(nil),           // 14: wraithbox.egress.v1.PolicyAck
+	(*CaIssue)(nil),             // 15: wraithbox.egress.v1.CaIssue
+	(*CaIssued)(nil),            // 16: wraithbox.egress.v1.CaIssued
+	(*CaSet)(nil),               // 17: wraithbox.egress.v1.CaSet
+	(*InspectionCa)(nil),        // 18: wraithbox.egress.v1.InspectionCa
+	(*CaLoaded)(nil),            // 19: wraithbox.egress.v1.CaLoaded
+	(*CaRestoreFailed)(nil),     // 20: wraithbox.egress.v1.CaRestoreFailed
+	(*CaAccept)(nil),            // 21: wraithbox.egress.v1.CaAccept
+	(*CaRemove)(nil),            // 22: wraithbox.egress.v1.CaRemove
+	(*CaRemoved)(nil),           // 23: wraithbox.egress.v1.CaRemoved
+	(*CaRemovalRefusal)(nil),    // 24: wraithbox.egress.v1.CaRemovalRefusal
+	(*MappingEntry)(nil),        // 25: wraithbox.egress.v1.MappingEntry
 }
 var file_wraithbox_egress_v1_control_proto_depIdxs = []int32{
 	4,  // 0: wraithbox.egress.v1.HostdToProxyd.proxyd_start:type_name -> wraithbox.egress.v1.ProxydStart
 	9,  // 1: wraithbox.egress.v1.HostdToProxyd.handoff_socket:type_name -> wraithbox.egress.v1.HandoffSocket
-	12, // 2: wraithbox.egress.v1.HostdToProxyd.policy_change:type_name -> wraithbox.egress.v1.PolicyChange
-	14, // 3: wraithbox.egress.v1.HostdToProxyd.ca_issue:type_name -> wraithbox.egress.v1.CaIssue
-	16, // 4: wraithbox.egress.v1.HostdToProxyd.ca_set:type_name -> wraithbox.egress.v1.CaSet
-	20, // 5: wraithbox.egress.v1.HostdToProxyd.ca_accept:type_name -> wraithbox.egress.v1.CaAccept
-	21, // 6: wraithbox.egress.v1.HostdToProxyd.ca_remove:type_name -> wraithbox.egress.v1.CaRemove
-	10, // 7: wraithbox.egress.v1.ProxydToHostd.handoff_socket_ack:type_name -> wraithbox.egress.v1.HandoffSocketAck
-	13, // 8: wraithbox.egress.v1.ProxydToHostd.policy_ack:type_name -> wraithbox.egress.v1.PolicyAck
-	11, // 9: wraithbox.egress.v1.ProxydToHostd.handoff_socket_closed:type_name -> wraithbox.egress.v1.HandoffSocketClosed
-	15, // 10: wraithbox.egress.v1.ProxydToHostd.ca_issued:type_name -> wraithbox.egress.v1.CaIssued
-	18, // 11: wraithbox.egress.v1.ProxydToHostd.ca_loaded:type_name -> wraithbox.egress.v1.CaLoaded
-	19, // 12: wraithbox.egress.v1.ProxydToHostd.ca_restore_failed:type_name -> wraithbox.egress.v1.CaRestoreFailed
-	22, // 13: wraithbox.egress.v1.ProxydToHostd.ca_removed:type_name -> wraithbox.egress.v1.CaRemoved
-	7,  // 14: wraithbox.egress.v1.HostdToNetd.netd_start:type_name -> wraithbox.egress.v1.NetdStart
-	9,  // 15: wraithbox.egress.v1.HostdToNetd.handoff_socket:type_name -> wraithbox.egress.v1.HandoffSocket
-	12, // 16: wraithbox.egress.v1.HostdToNetd.policy_change:type_name -> wraithbox.egress.v1.PolicyChange
-	13, // 17: wraithbox.egress.v1.NetdToHostd.policy_ack:type_name -> wraithbox.egress.v1.PolicyAck
-	6,  // 18: wraithbox.egress.v1.ProxydStartPayload.wildcard_names:type_name -> wraithbox.egress.v1.WildcardNames
-	24, // 19: wraithbox.egress.v1.NetdStartPayload.entries:type_name -> wraithbox.egress.v1.MappingEntry
-	17, // 20: wraithbox.egress.v1.CaSet.cas:type_name -> wraithbox.egress.v1.InspectionCa
-	23, // 21: wraithbox.egress.v1.CaRemoved.refused:type_name -> wraithbox.egress.v1.CaRemovalRefusal
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	13, // 2: wraithbox.egress.v1.HostdToProxyd.policy_change:type_name -> wraithbox.egress.v1.PolicyChange
+	15, // 3: wraithbox.egress.v1.HostdToProxyd.ca_issue:type_name -> wraithbox.egress.v1.CaIssue
+	17, // 4: wraithbox.egress.v1.HostdToProxyd.ca_set:type_name -> wraithbox.egress.v1.CaSet
+	21, // 5: wraithbox.egress.v1.HostdToProxyd.ca_accept:type_name -> wraithbox.egress.v1.CaAccept
+	22, // 6: wraithbox.egress.v1.HostdToProxyd.ca_remove:type_name -> wraithbox.egress.v1.CaRemove
+	10, // 7: wraithbox.egress.v1.HostdToProxyd.active_period_start:type_name -> wraithbox.egress.v1.ActivePeriodStart
+	11, // 8: wraithbox.egress.v1.ProxydToHostd.handoff_socket_ack:type_name -> wraithbox.egress.v1.HandoffSocketAck
+	14, // 9: wraithbox.egress.v1.ProxydToHostd.policy_ack:type_name -> wraithbox.egress.v1.PolicyAck
+	12, // 10: wraithbox.egress.v1.ProxydToHostd.handoff_socket_closed:type_name -> wraithbox.egress.v1.HandoffSocketClosed
+	16, // 11: wraithbox.egress.v1.ProxydToHostd.ca_issued:type_name -> wraithbox.egress.v1.CaIssued
+	19, // 12: wraithbox.egress.v1.ProxydToHostd.ca_loaded:type_name -> wraithbox.egress.v1.CaLoaded
+	20, // 13: wraithbox.egress.v1.ProxydToHostd.ca_restore_failed:type_name -> wraithbox.egress.v1.CaRestoreFailed
+	23, // 14: wraithbox.egress.v1.ProxydToHostd.ca_removed:type_name -> wraithbox.egress.v1.CaRemoved
+	7,  // 15: wraithbox.egress.v1.HostdToNetd.netd_start:type_name -> wraithbox.egress.v1.NetdStart
+	9,  // 16: wraithbox.egress.v1.HostdToNetd.handoff_socket:type_name -> wraithbox.egress.v1.HandoffSocket
+	13, // 17: wraithbox.egress.v1.HostdToNetd.policy_change:type_name -> wraithbox.egress.v1.PolicyChange
+	14, // 18: wraithbox.egress.v1.NetdToHostd.policy_ack:type_name -> wraithbox.egress.v1.PolicyAck
+	6,  // 19: wraithbox.egress.v1.ProxydStartPayload.wildcard_names:type_name -> wraithbox.egress.v1.WildcardNames
+	25, // 20: wraithbox.egress.v1.NetdStartPayload.entries:type_name -> wraithbox.egress.v1.MappingEntry
+	18, // 21: wraithbox.egress.v1.CaSet.cas:type_name -> wraithbox.egress.v1.InspectionCa
+	24, // 22: wraithbox.egress.v1.CaRemoved.refused:type_name -> wraithbox.egress.v1.CaRemovalRefusal
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_egress_v1_control_proto_init() }
@@ -2085,6 +2178,7 @@ func file_wraithbox_egress_v1_control_proto_init() {
 		(*HostdToProxyd_CaSet)(nil),
 		(*HostdToProxyd_CaAccept)(nil),
 		(*HostdToProxyd_CaRemove)(nil),
+		(*HostdToProxyd_ActivePeriodStart)(nil),
 	}
 	file_wraithbox_egress_v1_control_proto_msgTypes[1].OneofWrappers = []any{
 		(*ProxydToHostd_HandoffSocketAck)(nil),
@@ -2109,7 +2203,7 @@ func file_wraithbox_egress_v1_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_egress_v1_control_proto_rawDesc), len(file_wraithbox_egress_v1_control_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
