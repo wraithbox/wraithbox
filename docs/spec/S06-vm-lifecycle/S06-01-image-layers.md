@@ -10,8 +10,9 @@ project layers install into.
 A guest image has four layers:
 
 1. *Base*: macOS installed from an Apple restore image, plus
-   `wb-guestd`, Homebrew and the Xcode command line tools. An Xcode
-   variant adds full Xcode.
+   `wb-guestd`, Homebrew and the Xcode command line tools. Full Xcode
+   isn't in the base. A named image gets it from the host's Xcode
+   (S06-14-xcode-image).
 2. *Org layer*, optional: a shared Brewfile and settings.
 3. *Claude Code layer*: Claude Code (S14-01-install), the top layer
    of the sealed image ("The Claude Code layer" below).
@@ -60,7 +61,10 @@ install macOS, or run a provisioning boot.
   (S17-04-restore-and-release, "The entry");
 - the Wraith Box build version of the bundle that built it;
 - the hash of the org layer's inputs;
-- for a named image, the hash of its recipe (I150).
+- for a named image, the hash of its recipe (I150);
+- for an image with Xcode, Xcode's version and build and the hash of
+  each simulator runtime (S06-14-xcode-image, "What the build
+  records").
 
 `wb image build` takes the layer-only path only when every one of them
 equals the current build's. Otherwise it builds every layer. So a

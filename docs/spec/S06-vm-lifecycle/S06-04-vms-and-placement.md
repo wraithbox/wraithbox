@@ -26,7 +26,9 @@ Layer 2 profiles of S13-guest-confinement (X06-guest-xcode):
 - signing to run locally.
 
 They run in the VM that the project's `placement` picks, and take no
-slot of their own.
+slot of their own. Full Xcode is in an image built with the host's
+Xcode, and root ran Xcode's first launch in the image build, so a
+session never runs it (S06-14-xcode-image).
 
 X06-guest-xcode also ran iOS simulators and their tests for a project
 user without a GUI session. Under the Layer 2 profiles specified there,
