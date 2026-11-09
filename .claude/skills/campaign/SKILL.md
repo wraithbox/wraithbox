@@ -72,7 +72,10 @@ ledger), or `/campaign land <n>` ("Land").
    what merged into the train, what is open, and what was filed.
 5. Check the train's CI: the newest completed run on `train/<n>` that
    wasn't cancelled (`gh run list --branch train/<n> --workflow ci.yml`).
-   A failure ends the campaign.
+   A failure in a test the train doesn't change that matches an open
+   `flaky` issue gets one `gh run rerun <run> --failed`. Note the rerun
+   for the train reporter. Any other failure, or a second one, ends the
+   campaign.
 6. When a pull request merged into `main` that the train needs (a
    harness change), merge `main` into the train in its worktree with
    `git merge --no-ff origin/main`, run `mise run ci` there, and push. A

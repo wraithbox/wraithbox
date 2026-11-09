@@ -43,18 +43,23 @@ Read the work itself first, then what was said about it:
    tables).
 2. **The pull requests** of the campaign, merged and open, against the
    train and `main`: `gh pr list --search "<n> in:body" --state all`
-   and the ledger's `prs`. For each, its body ("Summary", "Choices
-   made", "Unfinished") and its files.
+   and the ledger's `prs`. For each, its body, and its files. "In plain
+   words" and its `Size` and `Security` lines (`complete.md`, "Pull
+   request") are the start of each change's section: check the size
+   against the diff, and the claims against the code. Then "Choices
+   made" and "Unfinished".
 3. **Every review and re-check** on each pull request
-   (`gh pr view <k> --json reviews,comments`). Sort each finding: fixed
-   in a later commit (check the commit), filed as an issue, or left.
+   (`gh pr view <k> --json reviews,comments`). Findings are numbered
+   `F<k>`, and each later round marks the earlier ones fixed, open or
+   deferred. The waves' `findings` lists say which were filed as an
+   issue and which were left. Check a `fixed` mark against its commit.
 4. **The issues** the campaign filed (`gh issue list --search
    "created:>=<start date>"`), and the briefs and spike results on the
    train.
-5. **CI.** Reruns on the pull requests and the train (`gh run list
-   --branch <branch> --json attempt,conclusion,name`, `attempt > 1`),
-   and which test failed (`gh run view <id> --log-failed`). The flaky
-   test issues they match.
+5. **CI.** The waves' `reruns` lists and the manager's reruns on the
+   train. Look for reruns nobody recorded too (`gh run list --branch
+   <branch> --json attempt,conclusion,name`, `attempt > 1`), and which
+   test failed (`gh run view <id> --log-failed`).
 6. **How the run went.** The waves' reports and the manager's notes: what
    stopped, what was redone, what cost more than planned.
 

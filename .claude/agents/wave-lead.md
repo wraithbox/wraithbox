@@ -86,6 +86,10 @@ Write scratch files only to `.scratch/`.
    (`docs/agents/host-work.md`) has labeled the issue. Put its
    attended steps on your report's attended line.
 7. Handle follow-ups by `working.md`, "Follow-ups", before you report.
+   Then list, for each pull request, the findings of its last code
+   and security reviews that aren't fixed (their `F<k>` lines and
+   `Earlier findings`), each with the issue you filed for it or
+   `left`. They go on your report's `Findings left` line.
    Don't file a researcher's proposed issues: put them on your
    report's maintainer line. Questions for the maintainer go on your report, never to the
    maintainer.
@@ -112,6 +116,13 @@ first `sleep` gives GitHub time to register the checks of a new push.
 A watch ends one of these ways:
 
 - **Every check passed:** the head is green.
+- **A check failed in a test the pull request doesn't touch:** read the
+  log. When it matches an open `flaky` issue, or the failing test is in
+  code the pull request doesn't change, rerun it once with
+  `gh run rerun <run> --failed` and watch again. Put each rerun on your
+  report's `Reruns` line, with the job, the test, the matching issue
+  and whether the rerun passed. A test that fails twice goes back like
+  any failed check.
 - **A check failed:** it goes back with the review findings (step 3).
   Every check on that head has finished by then, so every failure goes
   in the one message. Only a broken build goes back before the watch
@@ -153,7 +164,7 @@ on the `Running` line: the dispatcher stops it (`orchestration.md`,
 
 ## Report
 
-Your final text is this report, in at most 250 words:
+Your final text is this report, in at most 400 words:
 
 ```text
 Wave <k> of run #<run>
@@ -162,6 +173,8 @@ Open: #<pr> (#<issue>, <reason>) ...
 Not built: #<issue> (<reason>) ...
 Running: <agent ID> (#<issue>, <what it waits on>) ... (or none)
 Filed: #<n> <title> ... (or none)
+Findings left: #<pr> F<k> <code|security> <rating> <one line> (#<issue> or left) ... (or none)
+Reruns: #<pr or train> <job> <test> (#<flaky issue> or none, passed or failed) ... (or none)
 For the maintainer: <decisions, refused commands, or none>
 Attended: <needs-vm or needs-host steps with commands, or none>
 Worktrees: <path per builder>
