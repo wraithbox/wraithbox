@@ -3861,5 +3861,41 @@
 		"state": "open",
 		"title": "Flaky: TestStreamPolicy reads stream-refused count 0 on Windows",
 		"summary": "TestStreamPolicy in internal/netd/stack failed once on windows-2025 in the train CI of campaign #622:"
+	},
+	"633": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "TestFreshStartClears fails intermittently: fdchan send EINVAL on the train's fresh hand-off",
+		"summary": "TestFreshStartClears (internal/proxyd/handoff/fresh_darwin_test.go), added by #628 for #573, fails intermittently with fdchan: send: invalid argument:"
+	},
+	"634": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Flaky: TestShellOpenHeld on Linux and ConnectGuest handoff-send-failed in Swift",
+		"summary": "Two intermittent failures in the CI of train/622 (campaign #622), in code the train doesn't change:"
+	},
+	"635": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "fdchan sends fail with EINVAL on macOS under parallel test load (TestReceiveNetwork on main)",
+		"summary": "On the dedicated Mac, mise run go:test on main (Go code as on main at 28d76f3) failed twice in a row with:"
+	},
+	"636": {
+		"kind": "pr",
+		"state": "open",
+		"title": "ci: run CI once per train commit, as the train's pull request",
+		"summary": "Every commit on a train ran CI twice."
+	},
+	"637": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Descriptor senders close their copy before the receiver holds it (darwin socket GC)",
+		"summary": "Found while fixing #633."
+	},
+	"638": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(go): keep a passed socket open until its receiver holds it",
+		"summary": "The intermittent invalid argument failures in the proxy's hand-off tests come from macOS, not from the proxy's replacement path."
 	}
 }

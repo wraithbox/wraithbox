@@ -1,10 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-label="The components the train touches. On the host, wb-hostd, wb-proxyd and wb-netd changed in code, so that a fresh start clears wb-proxyd's state for a VM and a new active period clears its wildcard count. wb-vmd changed in code to give wb-vmd-layer a layer slot that refuses provisioning options, and its spec takes an Xcode disk in that slot only. The specs add a third entry of wb-diskfmt, a new component, which copies the host's Xcode and exported runtimes onto a disk image. A build VM with no network gets it read-only, and wb-guestd installs them as root.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-label="The components the train touches. On the host, wb-hostd, wb-proxyd and wb-netd changed in code, so that a fresh start clears wb-proxyd's state for a VM and a new active period clears its wildcard count. wb-vmd changed in code to give wb-vmd-layer a layer slot that refuses provisioning options, and its spec takes an Xcode disk in that slot only. The specs add a third entry of wb-diskfmt, a new component, which copies the host's Xcode and exported runtimes onto a disk image. A build VM with no network gets it read-only, and wb-guestd installs them as root. The macOS kernel was found to flush a passed Unix socket whose sender closed its copy too early. The tests now keep it open, and the daemons' senders are still to be fixed.">
 <style>
 svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
 .box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
 .change-code { fill: #fde7c4; stroke: #c64600; stroke-width: 2.5; }
 .change-spec { fill: #e8eef8; stroke: #1c71d8; stroke-width: 2; }
 .change-new { fill: #e6f4ea; stroke: #26a269; stroke-width: 2; stroke-dasharray: 7 4; }
+.change-bug { fill: #fbe3e4; stroke: #c01c28; stroke-width: 2.5; }
 .region { fill: none; stroke: #9a9996; stroke-width: 1.5; }
 .boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
 .edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
@@ -17,6 +18,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 .change-code { fill: #4a3214; stroke: #ffa348; }
 .change-spec { fill: #1f2d42; stroke: #62a0ea; }
 .change-new { fill: #1d3a28; stroke: #57e389; }
+.change-bug { fill: #4a1e22; stroke: #ff7b7b; }
 .region { stroke: #77767b; }
 .boundary { stroke: #ff7b7b; }
 .edge { stroke: #c0bfbc; }
@@ -75,8 +77,13 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <path class="edge" d="M130,158 L130,208" marker-end="url(#w622-arrow)" />
 <text class="note" x="142" y="181">fresh HandoffSocket,</text>
 <text class="note" x="142" y="197">ActivePeriodStart</text>
-<path class="edge" d="M230,114 L580,114 L580,208" marker-end="url(#w622-arrow)" />
-<text class="note" x="262" y="105">HandoffSocket, fresh refused</text>
+<path class="edge" d="M230,125 L440,125 L440,185 L580,185 L580,208" marker-end="url(#w622-arrow)" />
+<text class="note" x="250" y="116">HandoffSocket, fresh refused</text>
+<rect class="change-bug" x="470" y="70" width="220" height="88" rx="6" />
+<text class="label" x="485" y="94">macOS kernel</text>
+<text class="note" x="485" y="114">found: may flush a passed</text>
+<text class="note" x="485" y="130">socket its sender closed early,</text>
+<text class="note" x="485" y="146">tests fixed, 31 lines</text>
 <path class="edge" d="M470,254 L252,254" marker-end="url(#w622-arrow)" />
 <text class="note" x="272" y="245">hand-off socket, the old</text>
 <text class="note" x="272" y="272">one closed under one lock</text>
@@ -95,4 +102,6 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="760" y="513">unchanged, shown for context</text>
 <path class="edge" d="M20,540 L42,540" marker-end="url(#w622-arrow)" />
 <text class="note" x="50" y="545">a flow the changes touch</text>
+<rect class="change-bug" x="250" y="532" width="22" height="16" rx="3" />
+<text class="note" x="280" y="545">defect found, daemons not fixed</text>
 </svg>

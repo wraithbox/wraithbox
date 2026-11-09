@@ -1,17 +1,18 @@
 ---
 title: "Campaign 622: network floor, lane mac"
-description: "wb-proxyd clears a VM's state at a fresh start, the image build gets Xcode from the host on a read-only disk, and wb-vmd-layer gets its own slot, which refuses provisioning options."
+description: "wb-proxyd clears a VM's state at a fresh start, the image build gets Xcode from the host on a read-only disk, wb-vmd-layer gets its own slot, and the tests keep a passed socket open past a macOS race."
 ---
 
 **Ended 2026-11-09: wave 1 merged nothing into the train itself: its headless session exited while the wave lead waited on its own check watches (I631).** Train `train/622` in PR623. To veto a pull request on the train, comment `veto #<pr>` on PR623.
 
 ## In short
 
-The train makes `wb-proxyd` forget a VM's previous run when the VM starts fresh. It also designs how an image gets Xcode from the host, and gives the daemon that builds the Claude Code layer a VM slot of its own.
+The train makes `wb-proxyd` forget a VM's previous run when the VM starts fresh. It also designs how an image gets Xcode from the host, and gives the daemon that builds the Claude Code layer a VM slot of its own. A test fix at landing found a macOS race in passing sockets between processes.
 
 - **`wb-proxyd` clears a VM's state at a fresh start, and its wildcard count at a new active period.** Until now nothing told `wb-proxyd` about either event, so it kept the last run's names, wildcard count, and policy for the next run. A fresh `wb-netd` then had its first lookup at each reused address refused as a conflict. The control contract between `wb-hostd` and `wb-proxyd` gains a field and a message kind, which **needs your approval**. 531 lines of Go and proto, two thirds of them tests.
 - **An image gets full Xcode from the host's own Xcode, on a read-only disk.** Wraith Box checks Apple's signature on the host's Xcode and on simulator runtimes the user exported, copies them onto a disk image, and root installs them in a build VM with no network. It's a design without code yet, and its measurements wait for a Mac with Xcode. **Two one-way decisions in it wait for you.**
 - **`wb-vmd-layer` runs in a `layer` slot, apart from the installer's `build` slot.** With a shared slot, the layer build would have taken the provisioning options that create the guest admin user with a password. Now only the `build` slot accepts them. 112 lines of Swift. The new check isn't called from a start request yet, because no request has provisioning options yet.
+- **Tests keep a passed socket open until its receiver holds it.** The proxy change's new tests failed now and then at landing, and you held the train. On macOS, the kernel can flush a Unix socket passed to another process when its sender closes its copy too early. 31 lines of test code fix the tests. The daemons' own senders have the same pattern and still need the fix, which fails closed meanwhile. **You decide whether that fix rides this train.**
 
 ## What needs you
 
@@ -21,13 +22,16 @@ The train makes `wb-proxyd` forget a VM's previous run when the VM starts fresh.
 - **Xcode image, the wording of the disk mount control.** The host may format a blank disk image it made before any guest has run with it. The Xcode disk relies on that exception, as the data disk does, but its shim also fills the volume. The spec reads the exception as covering that and leaves the control's text alone. The brief asks whether it should say "format and fill". (SEC15-no-guest-disk-mount, B194-xcode-image)
 - **The harness defect that ended the campaign.** When a wave lead ends a turn while its own background work runs, the dispatcher gets a `completed` notification for it and ends its turn. Then `claude -p` exits and stops the lead. Wave 1 ended that way after 50 minutes and didn't write a wave report, so this page comes from the pull requests and their reviews. The fix is in harness paths, so it goes to `main` and waits for you. (I631)
 - **Merges by the manager, not the wave.** The wave merged nothing. After its session exited, the campaign manager merged the proxy change, the layer slot change and, at your request, the Xcode design into the train. The Xcode design was first rebased onto the train and got a third round of both reviews. For each, the manager checked the train merge check on GitHub: approved, re-checked head, checks green, mergeable, and no harness path changed. Veto them like any other pull request on the train. (PR628, PR625, PR626)
-- **A flaky test, and a label the campaign skill expects.** `TestStreamPolicy` failed once on Windows on the train, in a package the train doesn't change, and passed on a rerun (I632). The campaign skill files flaky tests with a `flaky` label that the label file doesn't define, so I632 is a bug whose title starts with `Flaky:`. Adding the label or changing the skill is a harness change for `main`.
+- **Whether the daemons' socket fix rides this train.** `wb-hostd` and `wb-netd` close a socket they pass before the receiver holds it, the pattern the test fix removed from the tests. It fails closed and nothing calls these senders in production yet, but it can leave a VM without network and record the wrong cause in the audit. Both reviews rate it a robustness bug. The security review says the train doesn't have to wait for it. Until it's merged, two tests flake under load. The options: hold this train for the fix, or merge the train and fix it on the next one. (I637)
+- **Run CI once per train commit.** Each train commit ran CI twice, on the push and as the train's pull request. A harness change against `main` drops the push trigger on train branches, so it waits for you. (PR636)
+- **Close the old proxy flaky test?** A connection reset in the proxy's version record test has the same cause. The code review saw the failing line fail before the test fix and pass after it. The builder left closing the issue to you. (I586)
+- **Flaky tests outside the train's changes.** `TestStreamPolicy` failed on Windows and later on macOS (I632). `TestShellOpenHeld` failed on Linux, and a Swift send failure test failed once (I634). The campaign skill files flaky tests with a `flaky` label that the label file doesn't define, so both are bugs whose titles start with `Flaky:`. Adding the label or changing the skill is a harness change for `main`.
 - **The next campaign in this lane.** The network floor milestone had one issue left that a wave could take, so two of the wave's three issues came from the image build milestone. A next campaign here would take its issues from the image build milestone, unless the network floor gets more issues ready for agents. (V1-M3-network-floor, V1-M7-image-build)
 - **Attended: measure what the Xcode design assumes,** on a Mac with Xcode installed and in a guest: the host export of a runtime, the signature checks on an App Store Xcode, a developer site Xcode and a runtime image, where the host records the license, and the offline guest steps. The design refuses the build until each is known. (I624, `needs-vm`, `needs-host`)
 
 ## What changed where
 
-![The components the train touches. On the host, wb-hostd, wb-proxyd and wb-netd changed in code, so that a fresh start clears wb-proxyd's state for a VM and a new active period clears its wildcard count. wb-vmd changed in code to give wb-vmd-layer a layer slot that refuses provisioning options, and its spec takes an Xcode disk in that slot only. The specs add a third entry of wb-diskfmt, a new component, which copies the host's Xcode and exported runtimes onto a disk image. A build VM with no network gets it read-only, and wb-guestd installs them as root.](W622-network-floor-mac.svg)
+![The components the train touches. On the host, wb-hostd, wb-proxyd and wb-netd changed in code, so that a fresh start clears wb-proxyd's state for a VM and a new active period clears its wildcard count. wb-vmd changed in code to give wb-vmd-layer a layer slot that refuses provisioning options, and its spec takes an Xcode disk in that slot only. The specs add a third entry of wb-diskfmt, a new component, which copies the host's Xcode and exported runtimes onto a disk image. A build VM with no network gets it read-only, and wb-guestd installs them as root. The macOS kernel was found to flush a passed Unix socket whose sender closed its copy too early. The tests now keep it open, and the daemons' senders are still to be fixed.](W622-network-floor-mac.svg)
 
 ## The changes, largest first
 
@@ -60,7 +64,7 @@ The message checks are in `internal/egressmsg` and the receiver in `internal/pro
 - `ActivePeriodStart` has no acknowledgment. `wb-proxyd` decides control messages in order, so the acknowledgment of a later message confirms it.
 - `wb-netd` refuses the `fresh` field, because its own start clears its mapping.
 
-**Not covered yet.** The session wiring that calls `NewActivePeriod`, keeps the fresh hand-off before the run's first policy, and refuses a policy while a fresh hand-off is pending (I490). `wb-netd` has no message that starts a new active period. So a running `wb-netd` keeps its debited wildcard names until it restarts, though the DNS spec says a new period clears them, and fixing that is another contract change (I627). A failed policy send is still logged as a failed VM start.
+**Not covered yet.** The session wiring that calls `NewActivePeriod`, keeps the fresh hand-off before the run's first policy, and refuses a policy while a fresh hand-off is pending (I490). `wb-netd` has no message that starts a new active period. So a running `wb-netd` keeps its debited wildcard names until it restarts, though the DNS spec says a new period clears them, and fixing that is another contract change (I627). A failed policy send is still logged as a failed VM start. The new tests flaked at landing from a race in passing sockets, which the last change below fixes in the tests.
 
 ### The Xcode image comes from the host's own Xcode
 
@@ -118,12 +122,25 @@ The specs for the VM processes, image layers, image build and guest admin, and t
 
 **Not covered yet.** Only the tests call `ProvisioningCheck`, because no start request has provisioning options yet. When `wb-vmd-install` gets them, its start path has to call the check first (I629). Today the path can't fail open, because both build slots refuse to start. The Xcode design above makes `layer` the only slot that takes its Xcode flag. The `build` and `layer` slots now share a bundle, so `wb-vmd`'s bundle check can't keep them from running at once. The slot admission in `wb-hostd` does that (S06-07-slot-admission).
 
+### Tests keep a passed socket open until its receiver holds it
+
+*Test code only, in four Go test files: 31 lines added and 8 removed. Not a security change: in the daemons the race fails closed.*
+
+**The problem.** At landing, the proxy change's new fresh start test failed now and then with `fdchan: send: invalid argument`, and the maintainer held the train (I633). A hand-off test on `main` failed the same way under parallel load (I635).
+
+**The cause, a macOS kernel race.** A process passes a Unix socket to another and closes its own copy before the receiver holds it. The kernel's collector of sockets in flight can then take the socket for garbage and flush it. The receiver reads an empty record, and sends to the socket fail with `EINVAL`, or with `ECONNRESET` once the receiver closes it. A standalone probe with no project code reproduced it: in the code review's run under load, 57 of 200,000 sends failed when the sender closed at once, and 0 of 200,000 when it waited. The proxy's own replacement path was ruled out, because no close of the socket ran before a failure.
+
+**The fix.** The tests keep their copy until the receiver shows it holds the socket: `wb-proxyd`'s version record arrives, or `Receive` returns. One test now reads the acknowledgment before its bad first record, as production does. Each test waits on that signal, without retries or sleeps. In the code review's runs under load, the proxy's hand-off tests went from 284 failures to none, and the VM hand-off test from 1,628 to none. Both reviews approved in round 1. The security review looked for a path that fails open and didn't find one.
+
+**What it means for the daemons.** `wb-hostd` and `wb-netd` also close their copy at once (`hostd/egress/proxyd.go`, `netd/handoff/stream.go`). `wb-proxyd` starts reading a new socket before it sends its acknowledgment. Its notice that the socket closed can then come first, and `wb-hostd` drops it as stale. The VM loses its network until a daemon restarts, and the audit records the wrong cause. It fails closed, and nothing calls these senders in production yet (I637). The spike result that let `wb-vmd` close each passed descriptor at once, and the VM provider spec built on it, are wrong on macOS 27 (X18-vsock-handoff, S04-02-vm-provider). The same cause explains an older flaky test (I586).
+
 ## Review findings not resolved
 
 The must-fix findings were fixed before merge. These remain, most serious first.
 
 **Security:**
 
+- **The daemons close a passed socket too early.** When the kernel race hits a hand-off, `wb-hostd` can drop `wb-proxyd`'s notice as stale and hand `wb-netd` a dead socket. The VM has no network until a daemon restarts, and the audit gets the wrong cause. The security review rates it medium, for availability and the audit, and not exploitable. The fix also restores a test that the acknowledgment comes before that notice, and corrects the spike result and the VM provider spec (I637).
 - **A wildcard name in flight across a new active period** is counted by `wb-proxyd` in the new period and by `wb-hostd` in the old one. After a `wb-proxyd` restart, the second layer of the wildcard budget can admit one name past the budget for that period. `wb-netd`'s first layer still bounds it. Reasoned from the code, not reproduced (I630).
 - **A policy sent before the fresh hand-off is lost.** If the session wiring sends the run's first policy before the fresh socket, `wb-proxyd` drops it, `wb-hostd` believes it applied, and every flow of the run is refused until the next policy change. It fails closed but silently. The proposed fix, refusing a policy while a fresh hand-off is pending, goes with the wiring (I490).
 - **The provisioning check isn't called.** A builder who adds provisioning options to `wb-vmd` without calling it would let a session or layer VM set the guest admin's password without the refusal. That path doesn't exist yet (I629).
@@ -134,6 +151,7 @@ The must-fix findings were fixed before merge. These remain, most serious first.
 - A failed policy send to `wb-proxyd` is still logged as a failed VM start and returns a setup error.
 - The `vm-fresh-start` and `active-period-start` log entries don't say what they cleared.
 - The `build` and `layer` slots share a bundle, so only `wb-hostd`'s admission keeps them apart. A lock in `wb-vmd` could follow when the two entries are built.
+- A test helper's comment says it keeps the socket until the version record arrives. The code closes it when the function returns, right after that record.
 - `vmd-provisioning-refused` is in a list of rules that start with `vm-`. The slot's answer is in the `WraithBoxVM` library and the check in `WraithBoxVMD`, and a test repeats the one-line predicate.
 - In the Xcode design, the guest doesn't check runtimes against their recorded hashes, and any change to the host's Xcode rebuilds every layer. The disks spec's table of bundle files lacks `xcode.img`.
 - The image layers spec doesn't say where the Xcode step's sealed result waits between the two steps, or when it's removed. Deferred to the work on image recipes (I150).
@@ -142,9 +160,10 @@ The must-fix findings were fixed before merge. These remain, most serious first.
 
 - **The headless wave stopped after 50 minutes,** while its wave lead waited on its own check watches (I631). The lead and its builders stopped with it, with all three pull requests approved and nothing merged. The wave didn't write its report. Its findings, follow-ups, and reruns on this page come from GitHub. The campaign manager merged the pull requests afterward.
 - **CI runs failed four times on pull request branches, none on a test.** In three runs GitHub abandoned jobs, among them change detection, so the summary job failed: on the proxy change's first commit and on the review fix commits of the proxy change and the layer slot change. The last two were rerun during the wave and passed, and nobody recorded the reruns. One run on the Xcode design's second commit failed before any job started, and a later push replaced it. No flaky test showed on them.
-- **A flaky test on the train.** After the report commit, `TestStreamPolicy` in the `wb-netd` stack failed once on Windows, in a package the train doesn't change. The same code had passed one commit earlier. The manager filed I632 and reran the failed job once, and it passed. The campaign skill names a `flaky` label that the label file doesn't define, so I632 is a bug with a title that starts with `Flaky:`.
+- **CI ran twice per train commit, and one run was misread.** Each train commit ran CI on the push and as the train's pull request. The manager read only the pull request runs, which passed, and reported the train green. The push runs on two report commits had failed (PR636 drops the push trigger).
+- **Flaky tests under load, and a hold.** On the train, `TestStreamPolicy` failed on Windows and then on macOS (I632), `TestShellOpenHeld` on Linux and a Swift send failure test once (I634), and the proxy change's `TestFreshStartClears` on macOS (I633). None of the first three is in code the train changes. The Windows failure passed on one rerun. The fresh start failure made the maintainer hold the train during landing, until the test fix found the kernel race and merged. Until the daemons' fix is merged, `TestMalformedReportEndsOneNetd` and `TestStreamEnds` still flake under load (I637).
 - **A spec conflict and a rebase.** The layer slot change and the Xcode design both edit the `wb-vmd-layer` text of the VM processes spec. The Xcode design left the image build spec alone because the layer slot change edited it. It still changed the VM processes spec, and conflicted there once the layer slot change merged. The manager rebased it onto the train and kept both texts, and the reviews checked that nothing was lost.
-- **Review rounds.** 9 reviews and 5 re-checks for 3 pull requests. The proxy change and the layer slot change were approved in round 1, and their fixes were re-checked without a new round. The Xcode design took three rounds of each review. Rounds 1 and 2 dealt with two must-fix findings and ten security folds. Round 3, after the rebase, added five code findings and four security folds, which a fresh builder applied in one commit.
+- **Review rounds.** 11 reviews and 5 re-checks for 4 pull requests. The proxy change, the layer slot change and the test fix were approved in round 1, and the first two had their fixes re-checked without a new round. The Xcode design took three rounds of each review. Rounds 1 and 2 dealt with two must-fix findings and ten security folds. Round 3, after the rebase, added five code findings and four security folds, which a fresh builder applied in one commit.
 - **Checks reviewers couldn't run.** The code reviews of the proxy change and the layer slot change skipped `prose:spell`, and one also `doc:build` and `doc:check`, because the docs dependencies weren't installed in their worktrees. CI ran them.
 - **A thin milestone.** The network floor milestone had one issue a wave could take, so the wave filled up from the image build milestone.
 
@@ -157,19 +176,20 @@ Campaign I622, started 2026-11-09 17:52 UTC. Rendered by `scripts/campaign.mjs` 
 
 | Limit | Spent | Of |
 |---|---|---|
-| Hours | 2.4 | 3 |
+| Hours | 3.5 | 3 |
 | Dollars | $32.11 | $300.00 |
 | Issues | 0 | 30 |
-| Pull requests | 3 | 30 |
+| Pull requests | 4 | 30 |
 
 | Pull request | Closes | Title | Where | Rounds | Specs and contracts | Files |
 |---|---|---|---|---|---|---|
 | PR625 | I463 | fix(swift): wb-vmd-layer gets a layer slot of its own | on the train | 1 | S04-04, S06-01, S06-02, S15-04 | 13 |
 | PR626 | I194 | docs(spec): Xcode image from a host-built read-only disk | on the train | 3 | S00, S04, S04-04, S06, S06-01, S06-04, S06-06, S06-12, S06-14 | 15 |
 | PR628 | I573 | feat(proxyd): a fresh hand-off socket and ActivePeriodStart clear a VM's state | on the train | 1 | S07-05, S07-06, `control.proto` | 18 |
+| PR638 | I633, I635 | fix(go): keep a passed socket open until its receiver holds it | on the train | 1 | none | 4 |
 
-- First code review approved: 2 of 3 pull requests.
-- Code review rounds per reviewed pull request: 1.7.
+- First code review approved: 3 of 4 pull requests.
+- Code review rounds per reviewed pull request: 1.5.
 - Follow-ups filed: 6.
 - Flaky tests filed: I632.
 - The campaign manager's own session isn't metered. The 5 percent reserve of the dollar limit pays for it.
