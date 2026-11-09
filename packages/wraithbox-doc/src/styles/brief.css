@@ -201,6 +201,64 @@
 	font-weight: 600;
 }
 
+/* Change maps: what a campaign or pull request did to each component.
+   `change-code` code changed, `change-spec` spec changed without code,
+   `change-new` a new component designed, `change-open` a change not
+   merged yet, `change-bug` a defect found, `region` a group of
+   components that isn't a trust boundary, with `region-label`, and
+   `edge-outside` a flow the design accepts outside its own controls,
+   with `arrow-outside` and `outside-label`. */
+.wb-figure .change-code {
+	fill: var(--wb-mid-bg);
+	stroke: var(--wb-mid);
+	stroke-width: 2.5;
+}
+.wb-figure .change-spec {
+	fill: var(--wb-guest-fill);
+	stroke: var(--sl-color-blue);
+	stroke-width: 2;
+}
+.wb-figure .change-new {
+	fill: var(--wb-good-bg);
+	stroke: var(--wb-good);
+	stroke-width: 2;
+	stroke-dasharray: 7 4;
+}
+.wb-figure .change-open {
+	fill: var(--wb-surface);
+	stroke: var(--sl-color-gray-3);
+	stroke-width: 2;
+	stroke-dasharray: 3 3;
+}
+.wb-figure .change-bug {
+	fill: var(--wb-bad-bg);
+	stroke: var(--wb-bad);
+	stroke-width: 2.5;
+}
+.wb-figure .region {
+	fill: none;
+	stroke: var(--sl-color-gray-4);
+	stroke-width: 1.5;
+}
+.wb-figure .region-label {
+	fill: var(--sl-color-gray-3);
+	font-size: 13px;
+	font-weight: 600;
+}
+.wb-figure .edge-outside {
+	fill: none;
+	stroke: var(--wb-boundary);
+	stroke-width: 2;
+}
+.wb-figure .arrow-outside {
+	fill: var(--wb-boundary);
+}
+.wb-figure .outside-label {
+	fill: var(--wb-boundary);
+	font-size: 12px;
+	font-weight: 600;
+}
+
 /* Charts: bars and axes for figures that show measurements. `bar` is a
    measured value, `bar-past` a value already spent next to a forecast,
    `bar-soft` the uncertain part of a range, `track` the full scale

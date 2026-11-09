@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" role="img" aria-label="The components the campaign touched. On the host, wb changed in code to refuse a .git that links out of itself. wb-proxyd has an approved change that isn't on the train. The specs now say Apple's installation service contacts Apple's signing server on every install, outside wb-download. In the guest, wb-guestroot is a new component designed for the admin shell, Claude Code gets a managed CLAUDE.md, and the guest kernel panics on a vsock connect to its own CID.">
+<style>
+svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
+.box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
+.change-code { fill: #fde7c4; stroke: #c64600; stroke-width: 2.5; }
+.change-spec { fill: #e8eef8; stroke: #1c71d8; stroke-width: 2; }
+.change-new { fill: #e6f4ea; stroke: #26a269; stroke-width: 2; stroke-dasharray: 7 4; }
+.change-open { fill: #f6f5f4; stroke: #77767b; stroke-width: 2; stroke-dasharray: 3 3; }
+.change-bug { fill: #fbe3e4; stroke: #c01c28; stroke-width: 2.5; }
+.region { fill: none; stroke: #9a9996; stroke-width: 1.5; }
+.boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
+.edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
+.edge-outside { fill: none; stroke: #c01c28; stroke-width: 2; }
+.arrow { fill: #5e5c64; }
+.arrow-outside { fill: #c01c28; }
+.label { fill: #242428; font-weight: 600; }
+.note { fill: #3d3846; font-size: 12.5px; }
+.region-label { fill: #5e5c64; font-size: 13px; font-weight: 600; }
+.outside-label { fill: #c01c28; font-size: 12px; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+.box { fill: #343437; stroke: #9a9996; }
+.change-code { fill: #4a3214; stroke: #ffa348; }
+.change-spec { fill: #1f2d42; stroke: #62a0ea; }
+.change-new { fill: #1d3a28; stroke: #57e389; }
+.change-open { fill: #2e2e31; stroke: #9a9996; }
+.change-bug { fill: #4a1e22; stroke: #ff7b7b; }
+.region { stroke: #77767b; }
+.boundary { stroke: #ff7b7b; }
+.edge { stroke: #c0bfbc; }
+.edge-outside { stroke: #ff7b7b; }
+.arrow { fill: #c0bfbc; }
+.arrow-outside { fill: #ff7b7b; }
+.label { fill: #ffffff; }
+.note { fill: #deddda; }
+.region-label { fill: #c0bfbc; }
+.outside-label { fill: #ff7b7b; }
+}
+</style>
+<defs>
+<marker id="w604-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+<marker id="w604-arrow-outside" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-outside" d="M0,0 L10,5 L0,10 z" /></marker>
+</defs>
+
+<!-- Regions -->
+<rect class="region" x="15" y="30" width="450" height="440" rx="10" />
+<text class="region-label" x="30" y="52">host, runs as the user</text>
+<rect class="boundary" x="530" y="30" width="240" height="440" rx="10" />
+<text class="region-label" x="545" y="52">macOS guest VM</text>
+<rect class="region" x="795" y="30" width="190" height="440" rx="10" />
+<text class="region-label" x="810" y="52">internet</text>
+
+<!-- Host -->
+<rect class="change-code" x="30" y="70" width="200" height="80" rx="6" />
+<text class="label" x="45" y="94">wb</text>
+<text class="note" x="45" y="114">code: refuses a .git whose</text>
+<text class="note" x="45" y="130">links resolve outside it,</text>
+<text class="note" x="45" y="146">391 lines of Go</text>
+<rect class="change-spec" x="250" y="70" width="200" height="80" rx="6" />
+<text class="label" x="265" y="94">wb-hostd</text>
+<text class="note" x="265" y="114">spec: passes tool output on</text>
+<text class="note" x="265" y="130">unparsed, opens the admin</text>
+<text class="note" x="265" y="146">port</text>
+<rect class="change-spec" x="30" y="190" width="200" height="80" rx="6" />
+<text class="label" x="45" y="214">wb-download</text>
+<text class="note" x="45" y="234">spec: no longer the only</text>
+<text class="note" x="45" y="250">process that fetches for</text>
+<text class="note" x="45" y="266">an image build</text>
+<rect class="change-open" x="250" y="190" width="200" height="80" rx="6" />
+<text class="label" x="265" y="214">wb-proxyd</text>
+<text class="note" x="265" y="234">open, not on the train:</text>
+<text class="note" x="265" y="250">strict HTTP/1.1 request</text>
+<text class="note" x="265" y="266">reader, 1,709 lines</text>
+<rect class="box" x="30" y="310" width="200" height="80" rx="6" />
+<text class="label" x="45" y="334">wb-vmd-install</text>
+<text class="note" x="45" y="354">unchanged: starts the</text>
+<text class="note" x="45" y="370">install, no network, its</text>
+<text class="note" x="45" y="386">profile held</text>
+<rect class="change-spec" x="250" y="310" width="200" height="80" rx="6" />
+<text class="label" x="265" y="334">Apple installation svc</text>
+<text class="note" x="265" y="354">spec: asks Apple to sign</text>
+<text class="note" x="265" y="370">every install, unbounded,</text>
+<text class="note" x="265" y="386">unaudited</text>
+
+<!-- Guest -->
+<rect class="change-spec" x="545" y="70" width="210" height="70" rx="6" />
+<text class="label" x="560" y="94">wb-guestd</text>
+<text class="note" x="560" y="114">spec: installs the managed</text>
+<text class="note" x="560" y="130">CLAUDE.md, updates at boot</text>
+<rect class="change-new" x="545" y="160" width="210" height="70" rx="6" />
+<text class="label" x="560" y="184">wb-guestroot (new)</text>
+<text class="note" x="560" y="204">designed: root shell on port</text>
+<text class="note" x="560" y="220">1022 when wb-guestd is down</text>
+<rect class="change-spec" x="545" y="250" width="210" height="70" rx="6" />
+<text class="label" x="560" y="274">Claude Code</text>
+<text class="note" x="560" y="294">spec: managed CLAUDE.md</text>
+<text class="note" x="560" y="310">explains Xcode test failures</text>
+<rect class="change-bug" x="545" y="340" width="210" height="70" rx="6" />
+<text class="label" x="560" y="364">guest kernel (macOS 27.2)</text>
+<text class="note" x="560" y="384">found: panics on a vsock</text>
+<text class="note" x="560" y="400">connect to its own CID</text>
+
+<!-- Internet -->
+<rect class="box" x="810" y="70" width="160" height="70" rx="6" />
+<text class="label" x="825" y="94">Apple CDN</text>
+<text class="note" x="825" y="114">restore images,</text>
+<text class="note" x="825" y="130">catalog</text>
+<rect class="box" x="810" y="310" width="160" height="80" rx="6" />
+<text class="label" x="825" y="334">Apple signing</text>
+<text class="label" x="825" y="352">server (TSS)</text>
+<text class="note" x="825" y="372">declined every</text>
+<text class="note" x="825" y="388">changed image</text>
+
+<!-- Edges -->
+<path class="edge" d="M230,110 L248,110" marker-end="url(#w604-arrow)" />
+<path class="edge" d="M230,350 L248,350" marker-end="url(#w604-arrow)" />
+<path class="edge" d="M450,100 L543,100" marker-end="url(#w604-arrow)" />
+<text class="note" x="468" y="92">port 1023</text>
+<path class="edge" d="M450,135 L543,190" marker-end="url(#w604-arrow)" />
+<text class="note" x="462" y="196">port 1022,</text>
+<text class="note" x="462" y="211">admin</text>
+<path class="edge" d="M30,230 L8,230 L8,20 L890,20 L890,68" marker-end="url(#w604-arrow)" />
+<text class="note" x="600" y="14">HTTPS, bounded and audited</text>
+<path class="edge-outside" d="M450,375 L490,375 L490,484 L785,484 L785,350 L808,350" marker-end="url(#w604-arrow-outside)" />
+<text class="outside-label" x="520" y="502">TSS requests: chip identity and image digests</text>
+
+<!-- Legend -->
+<rect class="change-code" x="20" y="520" width="22" height="16" rx="3" />
+<text class="note" x="50" y="533">code changed on the train</text>
+<rect class="change-spec" x="250" y="520" width="22" height="16" rx="3" />
+<text class="note" x="280" y="533">spec changed, no code yet</text>
+<rect class="change-new" x="480" y="520" width="22" height="16" rx="3" />
+<text class="note" x="510" y="533">new component, designed</text>
+<rect class="change-open" x="20" y="555" width="22" height="16" rx="3" />
+<text class="note" x="50" y="568">approved, open beside the train</text>
+<rect class="change-bug" x="250" y="555" width="22" height="16" rx="3" />
+<text class="note" x="280" y="568">defect found, not fixed</text>
+<path class="edge-outside" d="M480,563 L502,563" />
+<text class="note" x="510" y="568">traffic outside wb-download, newly in the spec</text>
+<rect class="box" x="20" y="585" width="22" height="16" rx="3" />
+<text class="note" x="50" y="598">unchanged, shown for context</text>
+</svg>
