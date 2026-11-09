@@ -3855,5 +3855,11 @@
 		"state": "open",
 		"title": "Campaign waves end when the wave lead waits on its own background work: claude -p exits on its interim result",
 		"summary": "Wave 1 of campaign #622 ran claude -p \"/wave ..."
+	},
+	"632": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Flaky: TestStreamPolicy reads stream-refused count 0 on Windows",
+		"summary": "TestStreamPolicy in internal/netd/stack failed once on windows-2025 in the train CI of campaign #622:"
 	}
 }
