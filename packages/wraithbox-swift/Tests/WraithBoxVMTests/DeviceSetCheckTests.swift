@@ -101,7 +101,7 @@ struct DeviceSetAcceptedTests {
         let bundle = try BundleFixture()
         let log = LogSink()
         try bundle.check(slot: slot, log: log)
-        let devices = slot == .build ? 8 : 9
+        let devices = 8 + DeviceSet.fixed(for: slot).fileHandleNetworks
         #expect(
             log.lines == [
                 "device-set: accepted slot=\(slot.rawValue) devices=\(devices) bundle=\(bundle.path)"
@@ -109,8 +109,8 @@ struct DeviceSetAcceptedTests {
     }
 
     @Test(
-        "the work and isolated sets have one file-handle network, the build set none",
-        arguments: [(VMSlot.work, 1), (.isolated, 1), (.build, 0)])
+        "the work and isolated sets have one file-handle network, the build and layer sets none",
+        arguments: [(VMSlot.work, 1), (.isolated, 1), (.build, 0), (.layer, 0)])
     func networks(slot: VMSlot, count: Int) {
         #expect(DeviceSet.fixed(for: slot).fileHandleNetworks == count)
         let description = VMDescription.fixedSet(bundlePath: "/", slot: slot)
@@ -158,12 +158,14 @@ struct DeviceSetNetworkTests {
         #expect(error?.rule == .network)
     }
 
-    @Test("the build slot still refuses a file-handle network device")
-    func buildRefusesNetwork() throws {
+    @Test(
+        "the build and layer slots refuse a file-handle network device",
+        arguments: [VMSlot.build, .layer])
+    func buildRefusesNetwork(slot: VMSlot) throws {
         let bundle = try BundleFixture()
         let error = #expect(throws: DeviceSetRefusal.self) {
             try bundle.check(
-                fixedSet(bundle, slot: .build, adding: [.network(.fileHandle)]), slot: .build)
+                fixedSet(bundle, slot: slot, adding: [.network(.fileHandle)]), slot: slot)
         }
         #expect(error?.rule == .network)
     }
@@ -175,7 +177,7 @@ struct DeviceSetNetworkTests {
         let bundle = try BundleFixture()
         for attachment in [NetworkAttachment.nat, .bridged, .vmnet] {
             var descriptions = [fixedSet(bundle, slot: slot, adding: [.network(attachment)])]
-            if slot != .build {
+            if DeviceSet.fixed(for: slot).fileHandleNetworks > 0 {
                 descriptions.append(
                     VMDescription.fixedSet(bundlePath: bundle.path, slot: slot)
                         .replacingNetwork(with: attachment))
