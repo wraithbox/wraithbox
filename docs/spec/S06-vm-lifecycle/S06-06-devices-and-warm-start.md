@@ -14,7 +14,9 @@ A VM has these devices:
   attachment;
 - one host-guest socket device (vsock);
 - storage: the system disk, the data disk, and the guest tools disk,
-  read-only (S06-12-guest-agent, "`wb-guestd`");
+  read-only (S06-12-guest-agent, "`wb-guestd`"). In the Xcode step of
+  an image build, the build VM in `wb-vmd-layer` also has the Xcode
+  disk `xcode.img`, read-only (S06-14-xcode-image);
 - entropy;
 - a Mac graphics device with one display, and a USB keyboard and
   pointer.

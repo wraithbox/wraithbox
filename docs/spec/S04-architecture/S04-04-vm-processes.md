@@ -152,8 +152,9 @@ isn't `build`, `layer` included, refuses them and logs `vmd-provisioning-refused
 ### `wb-diskfmt`
 
 `wb-diskfmt` formats a VM's new data disk (S06-13-data-disk-format,
-X08-data-disk). `wb-launcher` has two fixed entries,
-`wb-diskfmt-work` and `wb-diskfmt-isolated`. Each has that VM's bundle
+X08-data-disk). `wb-launcher` has two fixed entries for data disks,
+`wb-diskfmt-work` and `wb-diskfmt-isolated`, and one for the Xcode
+disk ("The Xcode entry" below). Each data disk entry has that VM's bundle
 as its profile parameter, so the shim learns which bundle to format
 without arguments. Each has an instance cap of one, and its shim is
 started as the leader of a new process group, so that its parent can kill
@@ -165,7 +166,7 @@ fixed environment and descriptors, as it starts `wb-vmd`.
 Its start interface:
 
 - no arguments;
-- `WB_DISKFMT_SLOT`, `work` or `isolated`, in the entry's fixed
+- `WB_DISKFMT_SLOT`, `work`, `isolated` or `xcode`, in the entry's fixed
   environment, as `WB_VMD_SLOT` is for `wb-vmd` ("The slot" above);
 - descriptor 2, its log pipe (S04-03-self-sandboxing, "Daemon logs");
 - descriptor 3, one end of a Unix datagram socketpair for the exchange
@@ -237,6 +238,25 @@ network and every other file. `wb-diskfmt` exits after
 one format, and is never restarted. The service names are in code.
 They were measured on macOS 27 with the opt-in host test, which runs a
 confined format (I228).
+
+#### The Xcode entry
+
+A third entry, `wb-diskfmt-xcode`, builds the Xcode disk of an image
+build (S06-14-xcode-image, "The Xcode disk"). The slot is `xcode`, and
+the profile parameters are the build bundle, the real path of the host's
+Xcode app and `<data>/xcode-runtimes`. Its profile is the one above,
+with the build bundle's `xcode.img` and its temporary name in place of
+the data disk's names, plus:
+
+- reading the Xcode app and the runtime images, and no other file
+  outside the build bundle;
+- writing the `wb-xcode` volume it just made, while it is mounted;
+- starting `/usr/bin/ditto` and `/usr/bin/codesign`.
+
+It takes the Xcode build and the runtime hashes it found back to
+`wb-hostd` on the same socketpair. Only `wb-hostd` starts it, during an
+image build, and the `wb-diskfmt` kill applies to it as to the other
+two entries. I624 measures the profile.
 
 #### `wb-diskfmt`'s kill
 
