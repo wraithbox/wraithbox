@@ -14,8 +14,6 @@ them, `wb-vmd-work` and `wb-vmd-isolated`:
   `<data>/vms/macos-work.noindex` or `<data>/vms/macos-isolated.noindex`.
 - Each has an instance cap of one.
 
-While both VMs run, two `wb-vmd` instances run.
-
 ### The slot
 
 Each instance learns its slot from the `WB_VMD_SLOT` environment
@@ -27,7 +25,7 @@ environment:
 | `wb-vmd-work` | `work` |
 | `wb-vmd-isolated` | `isolated` |
 | `wb-vmd-install` ("`wb-vmd-install`", below) | `build` |
-| `wb-vmd-layer` ("`wb-vmd-layer`", below) | `build` |
+| `wb-vmd-layer` ("`wb-vmd-layer`", below) | `layer` |
 
 The slot never comes from the program path or a request. So the slot
 and the bundle come from the same table entry. On hosts without
@@ -54,14 +52,14 @@ and exits:
   bundle that is a symbolic link to another VM's bundle.
 
 So it never confines itself to a bundle its slot doesn't own
-(SEC08-proj-isolation). C11-host-daemons has a test for each rule.
+(SEC08-proj-isolation). C11-host-daemons tests each rule.
 
 Until the image build is built (V1-M7-image-build), `wb-vmd` also
-refuses the `build` slot, with `vmd-slot-build-unsupported`. Only
-`wb-vmd-install` and `wb-vmd-layer` serve that slot.
-`wb-vmd-install` has its install rules and its restore image check
-("`wb-vmd-install`", below). `wb-vmd-layer` has neither
-("`wb-vmd-layer`", below).
+refuses the `build` slot (`vmd-slot-build-unsupported`) and the `layer`
+slot (`vmd-slot-layer-unsupported`). `wb-vmd-install` serves `build`. It
+has the install rules and the restore image check ("`wb-vmd-install`",
+below). `wb-vmd-layer` alone serves `layer`. It has no install rules and
+no restore image check, and it uses the build bundle too ("`wb-vmd-layer`", below).
 
 ### Reaching an instance
 
@@ -100,9 +98,8 @@ The install reads the restore image only at the fixed path
 `wb-hostd` checks its hash before it starts `wb-vmd-install`
 (S17-03-downloads).
 
-Before it confines itself, `wb-vmd-install` also refuses to start,
-logs the rule and exits unless both hold
-(`vmd-restore-image-mismatch`):
+Before it confines itself, `wb-vmd-install` also refuses to start, logs
+the rule and exits unless both hold (`vmd-restore-image-mismatch`):
 
 - the real path of the restore image is `images/macos-restore.ipsw`
   under the real path of `<data>`;
@@ -119,18 +116,18 @@ in a fourth fixed entry, `wb-vmd-layer`:
   without any of the install rules (SEC12-least-privilege).
 - Its profile parameter is the build bundle,
   `<data>/images/macos-build.noindex`, and its `WB_VMD_SLOT` is
-  `build`. It doesn't check for a restore image.
+  `layer`, a slot of its own. It doesn't check for a restore image.
 - Its instance cap is one. `wb-hostd` never starts it while
   `wb-vmd-install` runs, because the two share the bundle and one
   maintenance VM runs at a time (S06-07-slot-admission).
 - The VM it boots has no network device. `wb-guestd` gets the binary
-  over the host-guest socket.
-- It refuses provisioning options, and logs `vmd-provisioning-refused`,
-  as a session VM's `wb-vmd` does.
+  over the host-guest socket. Only when the start call's Xcode flag is
+  set, it attaches `xcode.img` read-only (S06-14-xcode-image).
+- Its slot refuses provisioning options, and it logs
+  `vmd-provisioning-refused`, as a session VM's `wb-vmd` does.
 
-`wb-hostd` creates a new, empty build bundle before it starts the
-entry, and clones the parent into it with the identity check of
-S06-02-image-build, "Taking the sealed image".
+`wb-hostd` clones the parent into the new, empty build bundle with the
+identity check of S06-02-image-build, "Taking the sealed image".
 
 ### The build bundle
 
@@ -146,26 +143,30 @@ is one, because one maintenance VM runs at a time
 (S06-07-slot-admission).
 
 Only this entry accepts provisioning options. An instance whose slot
-isn't `build` refuses them and logs `vmd-provisioning-refused`
-(S15-04-guest-admin, "Refused outside the path").
+isn't `build`, `layer` included, refuses them and logs `vmd-provisioning-refused`
+(S15-04-guest-admin, "Refused outside the path"). A start call with
+the Xcode flag in any slot but `layer` is refused before any device is
+created, and logs `vmd-xcode-disk-refused` (S06-14-xcode-image).
 
 ### `wb-diskfmt`
 
 `wb-diskfmt` formats a VM's new data disk (S06-13-data-disk-format,
-X08-data-disk). `wb-launcher` has two fixed entries,
-`wb-diskfmt-work` and `wb-diskfmt-isolated`. Each has that VM's bundle
-as its profile parameter, so the shim learns which bundle to format
-without arguments. Each has an instance cap of one, and its shim is
-started as the leader of a new process group, so that its parent can kill
-the shim with the `diskutil` it runs (S06-13-data-disk-format, "When
-`wb-diskfmt` doesn't exit"). On hosts without
-`wb-launcher`, `wb-hostd` starts the entry itself, with the entry's
-fixed environment and descriptors, as it starts `wb-vmd`.
+X08-data-disk), or an image build's Xcode disk (S06-14-xcode-image).
+`wb-launcher` has three fixed entries, `wb-diskfmt-work`,
+`wb-diskfmt-isolated` and `wb-diskfmt-xcode`. Each takes no arguments,
+and has its slot's bundle as its profile parameter (the build bundle
+and, for `xcode`, the parameters in S06-14-xcode-image), and an
+instance cap of one. Its shim is started as the
+leader of a new process group, so that its parent can kill the shim
+with the `diskutil` it runs (S06-13-data-disk-format, "When
+`wb-diskfmt` doesn't exit"). On hosts without `wb-launcher`,
+`wb-hostd` starts the entry itself, with the entry's fixed environment
+and descriptors, as it starts `wb-vmd`.
 
 Its start interface:
 
 - no arguments;
-- `WB_DISKFMT_SLOT`, `work` or `isolated`, in the entry's fixed
+- `WB_DISKFMT_SLOT`, `work`, `isolated` or `xcode`, in the entry's fixed
   environment, as `WB_VMD_SLOT` is for `wb-vmd` ("The slot" above);
 - descriptor 2, its log pipe (S04-03-self-sandboxing, "Daemon logs");
 - descriptor 3, one end of a Unix datagram socketpair for the exchange
@@ -190,11 +191,13 @@ It finds `<data>` from the home directory in the user database, never
    its profile parameter. It reads nothing from `wb-hostd` before it
    confines itself.
 2. After that, it exchanges version records with `wb-hostd`
-   (S04-08-records-and-bounds, "Between host processes"), and receives
-   the disk's size in GiB. A size outside the bounds in code is refused
-   with `diskfmt-size-invalid`.
-3. It sends the volume UUID back on the same socketpair. It renames the
-   file when `wb-hostd` asks, and then exits.
+   (S04-08-records-and-bounds, "Between host processes"). A data disk
+   entry receives the disk's size in GiB, and refuses a size outside
+   the bounds in code with `diskfmt-size-invalid`.
+3. A data disk entry sends the volume UUID back, renames the file when
+   `wb-hostd` asks, and exits. The Xcode entry's exchange (its size,
+   the check-only request, and the version, build and hashes it
+   reports) is in S06-14-xcode-image, and joins `diskfmt/v1` in IMG.8.
 
 `wb-hostd` treats each answer as untrusted. It accepts a volume UUID
 only in canonical form, and a name only when it is the fixed one, and
@@ -205,9 +208,8 @@ it cuts a refusal's text to a fixed bound.
 The compiled-in profile allows:
 
 - reading and writing the data disk's temporary and final names in
-  that bundle, and reading the bundle directory's metadata. The
-  bundle's other files are guest-written, and the shim can't open
-  them;
+  that bundle, and reading the bundle directory's metadata. The bundle's
+  other files are guest-written, and the shim can't open them;
 - its inherited descriptors;
 - starting `/usr/sbin/diskutil` and no other program, with the
   system's libraries and settings read-only, and listing the root
@@ -232,9 +234,9 @@ dialog, which is within the host user's own powers. `diskutil` can't
 attach an image without that service (I353).
 
 These rest on the shim's inputs: it takes no guest input, only
-`wb-hostd`'s request, and it exits after one format. It denies the
-network and every other file. `wb-diskfmt` exits after
-one format, and is never restarted. The service names are in code.
+`wb-hostd`'s request, and it exits after one format and is never
+restarted. It denies the network and every other file, except the
+Xcode entry's reads in S06-14-xcode-image. The service names are in code.
 They were measured on macOS 27 with the opt-in host test, which runs a
 confined format (I228).
 
@@ -264,16 +266,14 @@ entry and the instance ID (S04-07-supervision, "Who starts whom").
   the answer or after it, and `wb-hostd` matches the two by instance ID.
 
 Where `wb-launcher` writes the lines for `launcher-kill` and
-`launcher-kill-refused` is decided in M3.11. They don't go only
-through `wb-hostd`, so the `wb-hostd` that asked for a kill can't hide
-it.
+`launcher-kill-refused` is decided in M3.11. They don't go only through
+`wb-hostd`, so the `wb-hostd` that asked for a kill can't hide it.
 
 `wb-hostd` bounds its wait for the answer and for the exit report. No
 answer in time, or the end of the request channel, counts as a kill
 that failed. `wb-hostd` then logs `data-disk-shim-exit` with that
-outcome, as it does when its own kill fails today. Each outcome,
-the launcher's rule included, is in that line
-(NFR06-explained-refusals).
+outcome, as it does when its own kill fails today. Each outcome, the
+launcher's rule included, is in that line (NFR06-explained-refusals).
 
 Without `wb-launcher`, `wb-hostd` is the parent, and sends the kill
 itself under the same gate.

@@ -45,10 +45,11 @@ distributions on Windows; Wraith Box host binaries; the platform's
 credential store and hardware key store (Keychain and Secure Enclave on
 macOS); the operators of allowlisted services (as services, not their
 content); Apple's macOS restore images, as the system trust store and
-the Virtualization installer's signature check accept them, and
+the Virtualization installer's signature check accept them;
 Claude Code releases, as Anthropic's release key signs them
 (S17-03-downloads, and I262 for the installer's
-check).
+check); and the host's Xcode and the simulator runtimes the user
+exported, as Apple's code signature accepts them (S06-14-xcode-image).
 
 **Boundaries.** (1) the VM; (2) the host-guest socket RPC surface to
 `wb-guestd` (vsock or the platform equivalent); (3) the virtual NIC

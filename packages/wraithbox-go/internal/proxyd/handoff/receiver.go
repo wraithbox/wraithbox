@@ -80,8 +80,9 @@ func NewReceiver(cfg Config) (*Receiver, error) {
 }
 
 // Serve runs the control channel from wb-hostd until it ends: the
-// version record each way, then ProxydStart, then HandoffSocket and
-// PolicyChange messages in the order they arrive. It refuses a message
+// version record each way, then ProxydStart, then HandoffSocket,
+// PolicyChange and ActivePeriodStart messages in the order they
+// arrive. It refuses a message
 // as control.proto says and then ends the channel. When it returns it
 // closes every hand-off socket and every stream: with no control
 // channel a narrowing policy can't arrive, so nothing may carry on
@@ -170,9 +171,12 @@ func (r *Receiver) control(ctx context.Context, order *egressmsg.StartOrder, m *
 	case *egressv1.HostdToProxyd_ProxydStart:
 		return r.start(m.File)
 	case *egressv1.HostdToProxyd_HandoffSocket:
-		return r.addSocket(k.HandoffSocket.GetVm(), k.HandoffSocket.GetGeneration(), m.File)
+		return r.addSocket(k.HandoffSocket, m.File)
 	case *egressv1.HostdToProxyd_PolicyChange:
 		return r.applyPolicy(ctx, k.PolicyChange.GetVm(), k.PolicyChange.GetSequence(), m.File)
+	case *egressv1.HostdToProxyd_ActivePeriodStart:
+		r.newActivePeriod(k.ActivePeriodStart.GetVm())
+		return nil
 	}
 	// DecodeHostdToProxyd refuses a record with no kind, so this is a CA
 	// message (internal/proxyd/ca). The receiver has no CA handler yet,
@@ -245,10 +249,12 @@ func (r *Receiver) vm(slot string) *vmState {
 // addSocket checks a HandoffSocket and holds its socket as the VM's
 // (S07-05-stream-hand-off, "From `wb-hostd`", SEC08-proj-isolation). The
 // form and the VM slot are checked; this checks the descriptor's type
-// and the generation. It sends wb-proxyd's version record on the new
-// socket, then the HandoffSocketAck to wb-hostd. A refusal ends the
-// control channel, as control.proto says.
-func (r *Receiver) addSocket(slot string, gen uint64, f *os.File) error {
+// and the generation. A fresh one first clears what the VM's previous
+// run left (S07-06-name-mapping, "Lifetime"). It sends wb-proxyd's
+// version record on the new socket, then the HandoffSocketAck to
+// wb-hostd. A refusal ends the control channel, as control.proto says.
+func (r *Receiver) addSocket(m *egressv1.HandoffSocket, f *os.File) error {
+	slot, gen := m.GetVm(), m.GetGeneration()
 	ch, err := fdchan.New(f, egressmsg.MaxRecord)
 	if err != nil {
 		r.refused(Event{VM: slot, Generation: gen, Rule: RuleHandoffSocketRefused, Check: CheckSocketType},
@@ -271,6 +277,15 @@ func (r *Receiver) addSocket(slot string, gen uint64, f *os.File) error {
 		return fmt.Errorf("handoff: HandoffSocket for %s: generation %d is older than %d", slot, gen, held)
 	}
 	old := st.sock
+	// The old socket is marked closed under the same lock that holds the
+	// new one, so no message of it changes the VM's state after this.
+	finishOld := func() {}
+	if old != nil {
+		finishOld = old.markClosed()
+	}
+	if m.GetFresh() {
+		st.clear()
+	}
 	st.generation = gen
 	s := newSocket(r, st, gen, ch)
 	st.sock = s
@@ -278,8 +293,13 @@ func (r *Receiver) addSocket(slot string, gen uint64, f *os.File) error {
 	if old != nil {
 		r.log.LogAttrs(context.Background(), slog.LevelInfo, "hand-off socket replaced",
 			slog.String("vm", slot), slog.Uint64("old_generation", old.gen), slog.Uint64("generation", gen))
-		old.close()
 	}
+	if m.GetFresh() {
+		r.log.LogAttrs(context.Background(), slog.LevelInfo, "VM state cleared at a fresh start",
+			slog.String("rule", RuleFreshStart), slog.String("decision", "clear"),
+			slog.String("vm", slot), slog.Uint64("generation", gen))
+	}
+	finishOld()
 	if err := ch.Send(hostversion.Record(r.cfg.Version), nil); err != nil {
 		s.close()
 		return fmt.Errorf("handoff: send the version record on the hand-off socket of %s: %w", slot, err)
@@ -290,6 +310,31 @@ func (r *Receiver) addSocket(slot string, gen uint64, f *os.File) error {
 	return r.sendHostd(&egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_HandoffSocketAck{
 		HandoffSocketAck: &egressv1.HandoffSocketAck{Vm: slot, Generation: gen},
 	}})
+}
+
+// clear drops what a VM's previous run left at a start that cleared its
+// state (S07-06-name-mapping, "Lifetime"): the copy of the name mapping,
+// the wildcard names, the effective policy and its sequence. With no
+// policy every report and stream is refused until the run's first
+// PolicyChange (SEC05-default-deny), whose sequence may start at 1
+// again. The generation stays: wb-hostd only increases it. The caller
+// holds the lock and has closed the VM's socket.
+func (st *vmState) clear() {
+	st.copy = newMapping()
+	st.policy = nil
+	st.sequence = 0
+}
+
+// newActivePeriod applies an ActivePeriodStart: it clears the VM's
+// wildcard names, the second count of S07-06-name-mapping, "Wildcard
+// budget, second layer". The copy of the name mapping stays, as
+// wb-netd's mapping does.
+func (r *Receiver) newActivePeriod(slot string) {
+	r.mu.Lock()
+	r.vm(slot).copy.newPeriod()
+	r.mu.Unlock()
+	r.log.LogAttrs(context.Background(), slog.LevelInfo, "wildcard names cleared for a new active period",
+		slog.String("rule", RuleActivePeriodStart), slog.String("decision", "clear"), slog.String("vm", slot))
 }
 
 // applyPolicy applies a PolicyChange (S07-05-stream-hand-off, "Policy

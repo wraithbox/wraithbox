@@ -6,7 +6,18 @@
 public enum VMSlot: String, Sendable, Equatable, CaseIterable {
     case work
     case isolated
+    /// The slot of `wb-vmd-install`: the install and the build's boots.
     case build
+    /// The slot of `wb-vmd-layer`: the Claude Code layer build, in the
+    /// build bundle, without the install rules or provisioning options.
+    case layer
+
+    /// Whether an instance in this slot accepts provisioning options.
+    /// Only `wb-vmd-install`'s slot does (S04-04-vm-processes, "The build
+    /// bundle"; S15-04-guest-admin, "Refused outside the path").
+    public var acceptsProvisioning: Bool {
+        self == .build
+    }
 }
 
 /// What a slot's VM has beyond the devices every VM has exactly one of: a
@@ -21,12 +32,13 @@ public struct DeviceSet: Sendable, Equatable {
     /// device, whose file-handle attachment leads to `wb-netd`
     /// (S07-02-packet-path, "Packet transport"), the guest's only network
     /// path (SEC05-default-deny). The build VM has none until its build
-    /// network comes with V1-M7-image-build.
+    /// network comes with V1-M7-image-build. The layer VM has none
+    /// (S04-04-vm-processes, "`wb-vmd-layer`").
     public static func fixed(for slot: VMSlot) -> DeviceSet {
         switch slot {
         case .work, .isolated:
             DeviceSet(fileHandleNetworks: 1)
-        case .build:
+        case .build, .layer:
             DeviceSet(fileHandleNetworks: 0)
         }
     }

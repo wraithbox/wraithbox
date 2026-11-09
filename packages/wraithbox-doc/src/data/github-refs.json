@@ -1215,9 +1215,10 @@
 	},
 	"194": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Xcode image variant: getting Xcode and simulator runtimes into the image",
-		"summary": "From the X06-guest-xcode result (#20)."
+		"summary": "From the X06-guest-xcode result (#20).",
+		"brief": "B194-xcode-image"
 	},
 	"195": {
 		"kind": "issue",
@@ -2838,7 +2839,7 @@
 	},
 	"463": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-vmd-layer: a layer slot of its own, apart from the build slot",
 		"summary": "The code review of #449 (#220, cheap image rebuild) asked for changes in its last round: wb-vmd-layer shares WB_VMD_SLOT=build with wb-vmd-install, so wb-vmd can't tell the two apart, and a layer build would accept…"
 	},
@@ -3500,7 +3501,7 @@
 	},
 	"573": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: no control message says a VM started fresh or a new active period began",
 		"summary": "S07-06-name-mapping, \"Lifetime\", says the copy of the name mapping is cleared only at a start that isn't a restore."
 	},
@@ -3686,13 +3687,13 @@
 	},
 	"604": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Campaign 2026-11-08 (V1-M3-network-floor, lane mac)",
 		"summary": "/campaign 5 --lane mac --vm-slots 2 --hours 2 --usd 30 --issues 10 --prs 10"
 	},
 	"605": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "Train 604: Campaign 2026-11-08 (V1-M3-network-floor, lane mac)",
 		"summary": "Train of campaign #604 (docs/agents/campaigns.md)."
 	},
@@ -3787,5 +3788,114 @@
 		"title": "docs(spikes): X30 result, the installer refuses a changed restore image",
 		"summary": "Result of spike X30-installer-trust: yes, with conditions.",
 		"brief": "B262-installer-trust"
+	},
+	"621": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(agents): a train reporter writes the campaign report by content",
+		"summary": "Harness change, so it goes to main and waits for the maintainer (campaigns.md, \"The train\")."
+	},
+	"622": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Campaign 2026-11-09 (V1-M3-network-floor, lane mac)",
+		"summary": "/campaign 5 --lane mac --vm-slots 2 --hours 3 --usd 300 --issues 30 --prs 30"
+	},
+	"623": {
+		"kind": "pr",
+		"state": "open",
+		"title": "Train 622: Campaign 2026-11-09 (V1-M3-network-floor, lane mac)",
+		"summary": "Train of campaign #622."
+	},
+	"624": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S06-14-xcode-image: measure the host export, signature checks and offline import of Xcode and runtimes",
+		"summary": "From #194 (S06-14-xcode-image, the Xcode image variant)."
+	},
+	"625": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(swift): wb-vmd-layer gets a layer slot of its own",
+		"summary": "The VM daemon that builds the Claude Code layer of an image used to share its slot with the daemon that installs macOS, so the daemon couldn't tell the two apart and a layer build would have taken the provisioning…"
+	},
+	"626": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): Xcode image from a host-built read-only disk",
+		"summary": "An image that needs full Xcode now gets it from the Mac it runs on, never from the internet.",
+		"brief": "B194-xcode-image"
+	},
+	"627": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd: no control message starts a new active period",
+		"summary": "This is a contract change to proto/wraithbox/egress/v1/control.proto (a HostdToNetd kind, its check in internal/egressmsg, a fuzz seed), so the maintainer approves it in review as for #573."
+	},
+	"628": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(proxyd): a fresh hand-off socket and ActivePeriodStart clear a VM's state",
+		"summary": "wb-proxyd keeps its own checked copy of each VM's DNS names, a count of the wildcard names it accepted, and the VM's policy."
+	},
+	"629": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: call ProvisioningCheck where provisioning options reach a VM",
+		"summary": "Found in the review of #625 (#463), code review F1."
+	},
+	"630": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-proxyd: a wildcard report in flight across ActivePeriodStart undercounts the second layer in wb-hostd",
+		"summary": "Found in the review of #628 (#573): code review F2 and security review F1."
+	},
+	"631": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Campaign waves end when the wave lead waits on its own background work: claude -p exits on its interim result",
+		"summary": "Wave 1 of campaign #622 ran claude -p \"/wave ..."
+	},
+	"632": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Flaky: TestStreamPolicy reads stream-refused count 0 on Windows",
+		"summary": "TestStreamPolicy in internal/netd/stack failed once on windows-2025 in the train CI of campaign #622:"
+	},
+	"633": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "TestFreshStartClears fails intermittently: fdchan send EINVAL on the train's fresh hand-off",
+		"summary": "TestFreshStartClears (internal/proxyd/handoff/fresh_darwin_test.go), added by #628 for #573, fails intermittently with fdchan: send: invalid argument:"
+	},
+	"634": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Flaky: TestShellOpenHeld on Linux and ConnectGuest handoff-send-failed in Swift",
+		"summary": "Two intermittent failures in the CI of train/622 (campaign #622), in code the train doesn't change:"
+	},
+	"635": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "fdchan sends fail with EINVAL on macOS under parallel test load (TestReceiveNetwork on main)",
+		"summary": "On the dedicated Mac, mise run go:test on main (Go code as on main at 28d76f3) failed twice in a row with:"
+	},
+	"636": {
+		"kind": "pr",
+		"state": "open",
+		"title": "ci: run CI once per train commit, as the train's pull request",
+		"summary": "Every commit on a train ran CI twice."
+	},
+	"637": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Descriptor senders close their copy before the receiver holds it (darwin socket GC)",
+		"summary": "Found while fixing #633."
+	},
+	"638": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(go): keep a passed socket open until its receiver holds it",
+		"summary": "The intermittent invalid argument failures in the proxy's hand-off tests come from macOS, not from the proxy's replacement path."
 	}
 }

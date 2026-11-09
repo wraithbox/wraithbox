@@ -175,7 +175,8 @@ terminal uses the admin path, whose guest end runs apart from
 
 `wb-vmd` refuses provisioning options unless its slot is `build`. That
 is the slot of `wb-vmd-install`, whose only bundle is the new build
-bundle under `<data>/images/`. It logs `vmd-provisioning-refused`
+bundle under `<data>/images/`. The `layer` slot of `wb-vmd-layer` uses
+the same bundle and refuses them. It logs `vmd-provisioning-refused`
 (S04-architecture).
 
 `wb-launcher` and `wb-guestadmin` accept only requests whose fields

@@ -217,11 +217,13 @@ func TestVersionRecordFirst(t *testing.T) {
 			h := newHarness(t, DefaultCaps())
 			h.start()
 			nd := h.handoff("work", 1)
-			if err := nd.ch.Send(tc.record, nil); err != nil {
-				t.Fatal(err)
-			}
+			// wb-hostd gives wb-netd its end after the ack, so wb-netd's
+			// first record never comes before it.
 			if ack := h.recvHostd().GetHandoffSocketAck(); ack.GetVm() != "work" {
 				t.Fatalf("no HandoffSocketAck first: %v", ack)
+			}
+			if err := nd.ch.Send(tc.record, nil); err != nil {
+				t.Fatal(err)
 			}
 			h.expectEvent("work", RuleNameReportMalformed, CheckVersion)
 			closed := h.recvHostd().GetHandoffSocketClosed()

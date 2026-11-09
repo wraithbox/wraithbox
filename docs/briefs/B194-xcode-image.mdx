@@ -1,0 +1,146 @@
+---
+title: How does an image get full Xcode and the simulator runtimes?
+description: From the host. Wraith Box copies the host's own Xcode, and runtimes the user exported on the host, onto a read-only disk it builds, and root installs both in the guest during the image build, first launch included.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I194, S06-14-xcode-image. Changes S06-01-image-layers, S06-04-vms-and-placement, S06-06-devices-and-warm-start, S06-12-guest-agent, S04-architecture (`wb-diskfmt-xcode`), T00-index ("Trusted"). Follows B20-guest-xcode. Follow-up: I624 (measurements).
+
+<Aside type="tip" title="You are deciding">
+The maintainer already decided that Xcode comes from a read-only disk image the host builds (I194, 2026-10-16). This change says how. Still open: whether the build **requires that you accepted Xcode's license on the host** (recommended: yes, A), and whether the **simulator runtimes also come from the host** (recommended: yes, the user exports them with one `xcodebuild` command, C). Accepting both puts S06-14-xcode-image in the specs as written and unblocks IMG.8, once I624 has measured the signature checks.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 280" role="img" aria-label="On the host, wb-diskfmt-xcode checks Apple's signature on /Applications/Xcode.app and on the runtimes in data/xcode-runtimes, checks the accepted license, and copies both onto a new disk image, xcode.img, in the build bundle. In the guest, which has no network device, wb-guestd as root copies Xcode from that read-only disk, checks the signature again, accepts the license, runs the first launch, and imports the runtimes. Then the image is sealed.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+  <text class="note" x="20" y="30">host</text>
+  <rect class="box host" x="20" y="50" width="200" height="60" rx="10" />
+  <text class="label" x="120" y="76" text-anchor="middle">/Applications/Xcode.app</text>
+  <text class="note" x="120" y="96" text-anchor="middle">the user's own Xcode</text>
+  <rect class="box host" x="20" y="170" width="200" height="60" rx="10" />
+  <text class="label" x="120" y="196" text-anchor="middle">runtimes folder</text>
+  <text class="note" x="120" y="216" text-anchor="middle">exported by the user</text>
+  <rect class="box host" x="280" y="100" width="190" height="80" rx="10" />
+  <text class="label" x="375" y="128" text-anchor="middle">wb-diskfmt, Xcode entry</text>
+  <text class="note" x="375" y="148" text-anchor="middle">checks signatures, license</text>
+  <text class="note" x="375" y="166" text-anchor="middle">writes the Xcode disk</text>
+  <line class="edge" x1="222" y1="80" x2="278" y2="125" marker-end="url(#f1-arrow)" />
+  <line class="edge" x1="222" y1="200" x2="278" y2="155" marker-end="url(#f1-arrow)" />
+  <rect class="boundary" x="520" y="40" width="220" height="210" rx="12" />
+  <text class="boundary-label" x="532" y="60">build VM, no network</text>
+  <rect class="box guest" x="540" y="90" width="180" height="120" rx="10" />
+  <text class="label" x="630" y="116" text-anchor="middle">wb-guestd, as root</text>
+  <text class="note" x="630" y="138" text-anchor="middle">copy, check signature</text>
+  <text class="note" x="630" y="158" text-anchor="middle">license, first launch</text>
+  <text class="note" x="630" y="178" text-anchor="middle">import runtimes, seal</text>
+  <line class="edge" x1="472" y1="140" x2="538" y2="140" marker-end="url(#f1-arrow)" />
+  <text class="boundary-label" x="476" y="130">read-only</text>
+</svg>
+<figcaption>
+Figure 1. The host checks and copies, and the guest installs. No directory of the host is shared with the guest. The guest doesn't reach Apple's servers either.
+</figcaption>
+</figure>
+
+## Options
+
+### The license
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Require the host's acceptance
+
+The build refuses with `xcode-license-not-accepted` unless the host's record says you accepted the license of this exact Xcode build. The guest then accepts it for the copy. An image with Xcode never leaves this Mac, and `wb image build` says once that it copies your Xcode into the image.
+
+- **Cost:** after each Xcode update you open Xcode once, or run `sudo xcodebuild -license`, before the next build.
+- **Controls:** none touched.
+
+</div>
+<div class="wb-option">
+
+### B. Accept in the guest only
+
+The build runs `xcodebuild -license accept` in the guest without looking at the host, and says so.
+
+- **Cost:** none for you. Wraith Box accepts a license on your behalf that you may never have seen for that version.
+- **Controls:** none touched.
+
+</div>
+</div>
+
+**The case for B.** A host that has Xcode installed and has run it has almost always accepted the license. A adds a check that rarely fails. Recommendation A, with medium confidence. It would change if I624 finds the host's record too hard to read without running `xcodebuild`.
+
+### The runtimes
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### C. Exported on the host
+
+You run `xcodebuild -downloadPlatform iOS -exportPath <data>/xcode-runtimes` once on the host. The build checks Apple's signature on each runtime and puts it on the same read-only disk, and root imports it in the guest.
+
+- **Cost:** one command per runtime version, and the runtime (about 8 GB) is stored twice on the host.
+- **Keeps:** <Badge text="SEC05-default-deny" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### D. Downloaded in the guest
+
+The build VM gets a network and downloads the runtime itself, as X06-guest-xcode did.
+
+- **Cost:** Apple's runtime hosts are expected to refuse an inspected connection, so they would need pass mode, which Wraith Box never sets itself. Each would be an uninspected channel out of the guest.
+- **Weakens:** <Badge text="SEC05-default-deny" variant="danger" />, by a spec change to the pass rules.
+
+</div>
+</div>
+
+**The case for D.** No step for the user, and the guest gets exactly what Xcode asks for. Recommendation C, with high confidence: D needs the build VM's network and a pass exception that today's rules forbid.
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A + C</th><th>B + D</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC02-no-host-fs-share</strong> no host directory in the guest</td><td class="yes">a disk image, read-only</td><td class="yes">same</td></tr>
+<tr><td><strong>SEC05-default-deny</strong> only allowlisted hosts are reachable</td><td class="yes">build VM has no network</td><td class="partial">pass hosts in the build</td></tr>
+<tr><td><strong>SEC15-no-guest-disk-mount</strong> the host never mounts a guest-written disk</td><td class="yes">host-made, never reopened</td><td class="yes">same</td></tr>
+<tr><td><strong>FR06-native-tools</strong> full Xcode in the guest</td><td class="yes">builds and simulators</td><td class="yes">same</td></tr>
+</tbody>
+</table>
+
+**A question on SEC15.** SEC15-no-guest-disk-mount lets the host format a blank image it created before any guest has run with it. The Xcode disk relies on that exception, as the data disk does, but the shim also fills the volume before any guest runs with it, as the bundle build fills the guest tools disk. The spec reads the exception as covering that fill, and doesn't change SEC15's text. Should SEC15 say "format and fill", to match what both disks do?
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> Copying the host's Xcode from a read-only raw disk, then `-license accept` and `-runFirstLaunch` as root, worked without an Apple ID in 202 s. Source: X06-guest-xcode, "Measurements".
+- <Badge text="verified" variant="success" /> `xcodebuild -downloadPlatform iOS` didn't need an Apple ID in the guest (8.05 GB, 1202 s). Source: same.
+- <Badge text="verified" variant="success" /> The Layer 2 build profile reads `/Library/Developer`, which the first launch fills. Source: S13-02-filesystem-profile, "Xcode build profile".
+- <Badge text="inferred" variant="note" /> Only root can write `/Library/Developer`, so a project user can't run the first launch. Source: S06-08-projects-and-sessions (project users aren't admins).
+- <Badge text="assumed" variant="caution" /> That Xcode from the App Store and from Apple's developer site both meet the code requirement in S06-14-xcode-image, "The checks on the host": Apple's App Store signature, or a Developer ID with Apple's team `59GAB85EFG`. A plain `anchor apple generic` is never accepted, because any developer's Developer ID meets it. I624 measures both installs.
+- <Badge text="assumed" variant="caution" /> That `-exportPath` works on the host without an Apple ID, that an exported runtime has a signature the host can check, and that `-importPlatform` works offline from a read-only disk. I624 measures each, and the build refuses until the checks are known.
+
+## What this unblocks
+
+- IMG.8, the Xcode variant, in V1-M7-image-build.
+- The simulator profile of B20-guest-xcode decision 2 (I196) gets images with runtimes.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why not a shared folder.** Sharing a host folder with the guest is what SEC02-no-host-fs-share forbids. A disk image the host builds is a copy, attached read-only, and deleted after the build.
+
+**Why copy the app again in the guest.** The guest disk is read-only and is detached after the build. Xcode has to be on the image's own disk.
+
+**Glossary**
+
+- **Simulator runtime:** the iOS system that the iOS simulator boots, about 8 GB, installed separately from Xcode.
+- **First launch:** `xcodebuild -runFirstLaunch`, which installs the system parts Xcode needs into `/Library`.
+- **Pass mode:** a host whose TLS traffic `wb-proxyd` forwards without inspecting it (S07-07-hosts-and-modes).
+
+</details>

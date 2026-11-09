@@ -484,6 +484,7 @@ linkdrop
 dnsname
 tmpl
 CAID
+undercounts
 
 # Vale rule names quoted in .vale.ini
 Cataphoric
@@ -619,3 +620,4 @@ sslmate
 storetype
 ECID
 ramdisk
+undercounts

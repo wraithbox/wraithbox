@@ -77,15 +77,26 @@ func newFixture(t *testing.T) *fixture {
 // copies of fds, so that only the receiver's copies remain.
 func (f *fixture) sendRaw(t *testing.T, record []byte, fds ...int) {
 	t.Helper()
+	f.sendKeep(t, record, fds...)
+	for _, fd := range fds {
+		_ = syscall.Close(fd)
+	}
+}
+
+// sendKeep sends one datagram with fds attached, and keeps the test's
+// copies open. A test that sends data to a socket it passes closes its
+// copy only once the receiver holds the socket: darwin's garbage
+// collector of Unix sockets in flight can take a socket whose every
+// reference is in a message for garbage while recvmsg passes it on, and
+// then the socket drops what is sent to it, with EINVAL (I633).
+func (f *fixture) sendKeep(t *testing.T, record []byte, fds ...int) {
+	t.Helper()
 	var oob []byte
 	if len(fds) > 0 {
 		oob = syscall.UnixRights(fds...)
 	}
 	if err := syscall.Sendmsg(f.send, record, oob, nil, 0); err != nil {
 		t.Fatalf("sendmsg: %v", err)
-	}
-	for _, fd := range fds {
-		_ = syscall.Close(fd)
 	}
 }
 

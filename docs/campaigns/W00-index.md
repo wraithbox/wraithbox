@@ -17,3 +17,4 @@ report, and it reaches `main` and this site when its train merges.
 | ID | Description | Status |
 |----|-------------|--------|
 | W604-network-floor-mac | Campaign 604: network floor, lane mac | Ended 2026-11-08 |
+| W622-network-floor-mac | Campaign 622: network floor, lane mac | Ended 2026-11-09: wave 1 merged nothing into the train itself: its headless session exited while the wave lead waited on its own check watches (I631) |

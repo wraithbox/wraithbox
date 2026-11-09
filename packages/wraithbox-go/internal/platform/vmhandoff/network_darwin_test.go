@@ -45,11 +45,14 @@ func TestReceiveNetwork(t *testing.T) {
 	}
 	host, vm := dgramPair(t)
 	defer func() { _ = syscall.Close(vm) }()
-	f.sendRaw(t, networkRecord(t, nil), host)
+	f.sendKeep(t, networkRecord(t, nil), host)
 	before := openFDs()
 	if err := f.rx.Receive(); err != nil {
 		t.Fatal(err)
 	}
+	// The receiver holds the descriptor now, so the test's copy goes.
+	_ = syscall.Close(host)
+	delete(before, host)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	transport, err := p.Wait(ctx)

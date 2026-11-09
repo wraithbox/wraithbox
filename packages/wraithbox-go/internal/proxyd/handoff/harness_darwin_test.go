@@ -265,7 +265,23 @@ type netd struct {
 // version records on it, and waits for the HandoffSocketAck.
 func (h *harness) addVM(vm string, gen uint64) *netd {
 	h.t.Helper()
-	nd := h.handoff(vm, gen)
+	return h.addVMWith(handoffSocket(vm, gen))
+}
+
+// addFreshVM is addVM with a fresh HandoffSocket, as at a start that
+// cleared the VM's state.
+func (h *harness) addFreshVM(vm string, gen uint64) *netd {
+	h.t.Helper()
+	m := handoffSocket(vm, gen)
+	m.GetHandoffSocket().Fresh = true
+	return h.addVMWith(m)
+}
+
+// addVMWith is addVM with the HandoffSocket m.
+func (h *harness) addVMWith(m *egressv1.HostdToProxyd) *netd {
+	h.t.Helper()
+	vm, gen := m.GetHandoffSocket().GetVm(), m.GetHandoffSocket().GetGeneration()
+	nd := h.handoffWith(m)
 	if err := nd.ch.Send(hostversion.Record(testVersion), nil); err != nil {
 		h.t.Fatal(err)
 	}
@@ -280,12 +296,26 @@ func (h *harness) addVM(vm string, gen uint64) *netd {
 // the new socket, which comes before the ack.
 func (h *harness) handoff(vm string, gen uint64) *netd {
 	h.t.Helper()
+	return h.handoffWith(handoffSocket(vm, gen))
+}
+
+// handoffWith is handoff with the HandoffSocket m.
+func (h *harness) handoffWith(m *egressv1.HostdToProxyd) *netd {
+	h.t.Helper()
+	vm, gen := m.GetHandoffSocket().GetVm(), m.GetHandoffSocket().GetGeneration()
 	a, b, err := fdchan.Socketpair(egressmsg.MaxRecord)
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	h.send(handoffSocket(vm, gen), a)
-	_ = a.Close()
+	// The harness keeps its copy of wb-proxyd's end until wb-proxyd's
+	// version record arrives on the new socket, which shows wb-proxyd
+	// holds the descriptor. darwin's garbage collector of Unix sockets in
+	// flight can take a socket whose every reference is in a message for
+	// garbage while recvmsg passes it on: it flushes the socket's receive
+	// buffer and marks it to drop what comes. wb-proxyd then reads a
+	// 0-byte record on it, and each send to it fails with EINVAL (I633).
+	defer func() { _ = a.Close() }()
+	h.send(m, a)
 	nd := &netd{t: h.t, raw: dup(h.t, b), vm: vm, gen: gen, next: 1 << 40}
 	nd.ch = newChannel(h.t, b)
 	h.t.Cleanup(func() { _ = nd.ch.Close() })

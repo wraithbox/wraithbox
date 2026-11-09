@@ -10,8 +10,9 @@ project layers install into.
 A guest image has four layers:
 
 1. *Base*: macOS installed from an Apple restore image, plus
-   `wb-guestd`, Homebrew and the Xcode command line tools. An Xcode
-   variant adds full Xcode.
+   `wb-guestd`, Homebrew and the Xcode command line tools. Full Xcode
+   isn't in the base. A named image gets it from the host's Xcode
+   (S06-14-xcode-image).
 2. *Org layer*, optional: a shared Brewfile and settings.
 3. *Claude Code layer*: Claude Code (S14-01-install), the top layer
    of the sealed image ("The Claude Code layer" below).
@@ -35,8 +36,9 @@ and a new release rebuilds only that layer.
    `<data>/images/` as the layer's parent.
 2. It clones the parent into a new build bundle, with the identity
    check of S06-02-image-build, "Taking the sealed image".
-3. It boots the clone in `wb-vmd-layer`, which has no install rules
-   and gives the VM no network device (S04-04-vm-processes). At first
+3. It boots the clone in `wb-vmd-layer`, in the `layer` slot, which
+   has no install rules, refuses provisioning options, and gives the VM
+   no network device (S04-04-vm-processes). At first
    contact `wbadmin`'s password is rotated from the parent's password
    to the new image's (S15-04-guest-admin, "One password per VM").
 4. `wb-guestd` installs the checked Claude Code binary through its
@@ -59,7 +61,10 @@ install macOS, or run a provisioning boot.
   (S17-04-restore-and-release, "The entry");
 - the Wraith Box build version of the bundle that built it;
 - the hash of the org layer's inputs;
-- for a named image, the hash of its recipe (I150).
+- for a named image, the hash of its recipe (I150);
+- for an image with Xcode, Xcode's version and build and the hash of
+  each simulator runtime (S06-14-xcode-image, "What the build
+  records").
 
 `wb image build` takes the layer-only path only when every one of them
 equals the current build's. Otherwise it builds every layer. So a
@@ -91,6 +96,16 @@ A named image derives from the base, and images don't chain (I150).
 The Claude Code layer is the only exception. It goes on top of the
 base, and on top of each named image. A new restore image
 rebuilds the base, every image above it, and their Claude Code layers.
+
+A named image with Xcode is built in two sealed steps. Its Xcode step
+clones the sealed base and installs Xcode. After its `wb-vmd-layer`
+exits, `wb-hostd` takes the sealed result into a new, empty build
+bundle as in S06-02-image-build, "Taking the sealed image". The
+recipe's own steps then start from it, in a VM started without the
+Xcode flag, and the image they seal is the parent the Claude Code
+layer clones (S06-14-xcode-image, "Where Xcode comes from"). The Xcode
+step's result is never listed as an image. It is part of the named
+image, not an image of its own, so images still don't chain.
 
 ### Toolchain prefix
 

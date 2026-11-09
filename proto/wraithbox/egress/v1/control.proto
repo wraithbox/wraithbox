@@ -84,6 +84,8 @@ message HostdToProxyd {
     CaAccept ca_accept = 6;
     // No descriptor.
     CaRemove ca_remove = 7;
+    // No descriptor.
+    ActivePeriodStart active_period_start = 8;
   }
 }
 
@@ -202,6 +204,29 @@ message HandoffSocket {
   string vm = 1;
   // The VM generation, at least 1.
   uint64 generation = 2;
+  // Set on the first HandoffSocket after a start that cleared the VM's
+  // kept state: a start that isn't a restore, or a restore of a VM
+  // wb-hostd held nothing for (S07-06-name-mapping, "Lifetime").
+  // wb-proxyd then closes the VM's old socket and its streams, and
+  // clears the VM's copy of the name mapping, its wildcard names, its
+  // effective policy and its policy sequence before it holds the new
+  // socket. wb-hostd sends it before the run's first PolicyChange. Only
+  // wb-proxyd takes it: a wb-netd refuses a HandoffSocket that sets it
+  // with the check `message-form`, as its fresh state comes with
+  // NetdStart.
+  bool fresh = 3;
+}
+
+// ActivePeriodStart says a VM's new active period began
+// (S07-01-per-vm-policy, "Active period"). wb-proxyd clears the VM's
+// wildcard names, the second count of S07-06-name-mapping, "Wildcard
+// budget, second layer", and keeps its copy of the name mapping.
+// wb-hostd clears its own set of the VM's names before it sends it.
+// There is no acknowledgment: wb-proxyd decides its control messages
+// in order, so an acknowledgment of a later message says it applied.
+message ActivePeriodStart {
+  // The VM slot, `work` or `isolated`.
+  string vm = 1;
 }
 
 // HandoffSocketAck says wb-proxyd holds its end. wb-hostd gives wb-netd
@@ -239,7 +264,9 @@ message PolicyChange {
   // The VM slot, `work` or `isolated`. A wb-netd refuses another VM
   // than its own.
   string vm = 1;
-  // wb-hostd's number for the change, at least 1, increasing per VM.
+  // wb-hostd's number for the change, at least 1, increasing per VM
+  // run. wb-proxyd starts again from 0 after a fresh HandoffSocket, so
+  // the first change of a run may be 1 again.
   uint64 sequence = 2;
 }
 

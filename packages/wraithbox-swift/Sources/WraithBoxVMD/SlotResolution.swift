@@ -22,6 +22,9 @@ public enum StartupRule: String, Sendable, Equatable, CaseIterable {
     /// rules and checks that aren't built yet (S04-04-vm-processes,
     /// "`wb-vmd-install`").
     case slotBuildUnsupported = "vmd-slot-build-unsupported"
+    /// The layer slot, which only wb-vmd-layer serves, and wb-vmd-layer
+    /// isn't built yet (S04-04-vm-processes, "`wb-vmd-layer`").
+    case slotLayerUnsupported = "vmd-slot-layer-unsupported"
     /// The slot's bundle path doesn't exist or isn't a directory.
     case bundleMissing = "vmd-bundle-missing"
     /// The bundle's real path isn't the slot's bundle under the real path
@@ -67,12 +70,14 @@ public enum HostPaths {
     }
 
     /// A slot's bundle, relative to `<data>` (S04-04-vm-processes, "One
-    /// `wb-vmd` per VM", "The build bundle").
+    /// `wb-vmd` per VM", "The build bundle"). The build and layer slots
+    /// share the build bundle, and wb-hostd never runs both at once
+    /// (S04-04-vm-processes, "`wb-vmd-layer`").
     public static func bundle(of slot: VMSlot) -> String {
         switch slot {
         case .work: "vms/macos-work.noindex"
         case .isolated: "vms/macos-isolated.noindex"
-        case .build: "images/macos-build.noindex"
+        case .build, .layer: "images/macos-build.noindex"
         }
     }
 }
@@ -127,12 +132,18 @@ public enum SlotResolution {
         guard let slot = VMSlot(rawValue: value) else {
             throw StartupRefusal(.slotUnknown, "\(variable) is \"\(value)\"")
         }
-        guard slot != .build else {
+        switch slot {
+        case .work, .isolated:
+            return slot
+        case .build:
             throw StartupRefusal(
                 .slotBuildUnsupported, "the build slot needs wb-vmd-install, which is not built yet"
             )
+        case .layer:
+            throw StartupRefusal(
+                .slotLayerUnsupported, "the layer slot needs wb-vmd-layer, which is not built yet"
+            )
         }
-        return slot
     }
 
     /// The home directory from the user database, never from HOME

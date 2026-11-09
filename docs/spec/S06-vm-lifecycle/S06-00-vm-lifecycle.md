@@ -9,7 +9,7 @@ projects and sessions map onto guests, and what `wb-guestd` does.
 
 Briefs: B16-warm-start, B20-guest-xcode, B42-trust-placement,
 B43-vm-slot-admission, B45-claude-in-guest, B46-session-lifecycle,
-B60-model-credential
+B60-model-credential, B194-xcode-image
 
 ## Design
 
@@ -36,6 +36,7 @@ in S12-platforms.
 | S06-11-reconnect-and-recovery | Reconnecting after a dropped link, lost sessions and their recovery |
 | S06-12-guest-agent | What `wb-guestd` does, and how it updates itself |
 | S06-13-data-disk-format | How the host formats a new data disk, and the checks before a VM starts with it |
+| S06-14-xcode-image | Full Xcode and the simulator runtimes from the host, on a read-only disk the host builds, and who runs Xcode's first launch |
 
 ## Out of scope
 

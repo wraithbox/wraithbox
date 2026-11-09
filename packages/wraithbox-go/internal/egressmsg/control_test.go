@@ -41,7 +41,17 @@ func TestDecodeHostdToProxyd(t *testing.T) {
 	change := func(vm string, seq uint64) proto.Message {
 		return &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_PolicyChange{PolicyChange: &egressv1.PolicyChange{Vm: vm, Sequence: seq}}}
 	}
+	fresh := &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{Vm: "work", Generation: 3, Fresh: true}}}
+	period := func(vm string) proto.Message {
+		return &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_ActivePeriodStart{ActivePeriodStart: &egressv1.ActivePeriodStart{Vm: vm}}}
+	}
 	runControl(t, func(b []byte, fd bool) *Refusal { _, r := DecodeHostdToProxyd(b, fd); return r }, []controlCase{
+		{"fresh socket", fresh, true, ""},
+		{"fresh socket without descriptor", fresh, false, CheckMessageForm},
+		{"active period", period("isolated"), false, ""},
+		{"active period with descriptor", period("work"), true, CheckMessageForm},
+		{"active period for build VM", period("build"), false, CheckVMSlot},
+		{"active period for no VM", period(""), false, CheckVMSlot},
 		{"start", start, true, ""},
 		{"start without payload", start, false, CheckMessageForm},
 		{"socket", sock("work", 1), true, ""},
@@ -80,6 +90,10 @@ func TestDecodeHostdToNetd(t *testing.T) {
 	}
 	sock := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{Vm: "work", Generation: 2}}}
 	change := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_PolicyChange{PolicyChange: &egressv1.PolicyChange{Vm: "isolated", Sequence: 1}}}
+	// Only wb-proxyd takes a fresh hand-off socket (control.proto).
+	freshSock := &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{Vm: "work", Generation: 2, Fresh: true}}}
+	// HostdToNetd has no ActivePeriodStart: its field 8 is unknown there.
+	period := &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_ActivePeriodStart{ActivePeriodStart: &egressv1.ActivePeriodStart{Vm: "work"}}}
 	runControl(t, func(b []byte, fd bool) *Refusal { _, r := DecodeHostdToNetd(b, fd); return r }, []controlCase{
 		{"start", start("work", 1), true, ""},
 		{"start without payload", start("work", 1), false, CheckMessageForm},
@@ -98,6 +112,8 @@ func TestDecodeHostdToNetd(t *testing.T) {
 		{"leased gateway", link(func(l *Link) { l.Leased = l.Gateway }), true, CheckAddressing},
 		{"socket", sock, true, ""},
 		{"socket without descriptor", sock, false, CheckMessageForm},
+		{"fresh socket", freshSock, true, CheckMessageForm},
+		{"active period", period, false, CheckMessageForm},
 		{"change", change, true, ""},
 		{"change without payload", change, false, CheckMessageForm},
 		{"no kind", &egressv1.HostdToNetd{}, false, CheckMessageForm},

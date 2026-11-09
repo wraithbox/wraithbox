@@ -284,7 +284,9 @@ it again.
 only when root mounted it read-only.
 
 - **Why:** a project user can't mount a volume as root, and the tools
-  disk is the only read-only disk Wraith Box attaches. The update runs
+  disk is the only read-only disk a session's VM gets. The Xcode disk
+  goes only to a build VM, which has no project users
+  (S06-14-xcode-image). The update runs
   before the host link, so `wb-guestd` can't ask the host which disk it
   is.
 - **Rejected:** finding the disk by its volume name alone, which any

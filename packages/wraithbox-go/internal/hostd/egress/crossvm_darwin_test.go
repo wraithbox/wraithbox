@@ -189,17 +189,19 @@ func newCrossVM(t *testing.T) *crossVM {
 	return c
 }
 
-// setUp sends the VM's policy, which allows *.wild.example.com on 443,
-// and its hand-off socket, and returns wb-netd's end.
+// setUp sends the VM's hand-off socket and its policy, which allows
+// *.wild.example.com on 443, and returns wb-netd's end.
 func setUp(t *testing.T, p *Proxyd, vm string, gen uint64) *netdEnd {
 	t.Helper()
 	ctx := context.Background()
 	wild := &policyv1.EffectivePolicy{Generation: 1, WildcardBudget: 4, Endpoints: []*policyv1.Endpoint{endpoint("*.wild.example.com")}}
-	if err := p.Policy(ctx, vm, 1, wild); err != nil {
-		t.Fatal(err)
-	}
+	// The run's first HandoffSocket is fresh and comes before its first
+	// PolicyChange (S07-05-stream-hand-off, "From wb-hostd").
 	f, err := p.Handoff(ctx, vm, gen)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Policy(ctx, vm, 1, wild); err != nil {
 		t.Fatal(err)
 	}
 	return newNetdEnd(t, f)
