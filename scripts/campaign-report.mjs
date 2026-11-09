@@ -15,6 +15,12 @@
 //   followUps                  issues filed as follow-ups, a count
 //   flaky                      flaky-test issues filed, numbers
 //
+// At the end of a campaign the `train-reporter` agent writes the page's
+// body, `.scratch/campaign/<n>/report-body.md`: what the train changes,
+// by content (docs/agents/campaigns.md, "The report"). With a body, the
+// page is the status line, the body, and the figures below folded into
+// "The run" at the bottom. Without one, the page is the running layout.
+//
 // Pull requests and issues are written `PR<n>` and `I<n>`, and specs as
 // bare IDs (`S07-15`), so the docs site links them with a hover card. A
 // bare ID can't fail the build on a renamed slug, and an unknown one
@@ -162,15 +168,17 @@ function healthList(prs, narrative) {
 /**
  * The report page.
  * @param {{ ledger: import('./campaign.mjs').Ledger, narrative: Narrative, prs: Pr[],
- *   spent: { hours: number, usd: number, issues: number, prs: number }, now: Date }} data
+ *   spent: { hours: number, usd: number, issues: number, prs: number }, now: Date,
+ *   body?: string | null }} data
  */
-export function renderReport({ ledger, narrative, prs, spent, now }) {
+export function renderReport({ ledger, narrative, prs, spent, now, body = null }) {
 	const day = now.toISOString().slice(0, 10);
 	const status = narrative.ended ? `Ended ${day}: ${escape(narrative.ended)}` : 'Running';
 	const sorted = [...prs].sort((a, b) => a.number - b.number);
 	// The first render comes before the train pull request exists, and
 	// `PR0` would fail the docs build (a one-digit ID).
 	const trainPr = narrative.trainPr > 0 ? `PR${narrative.trainPr}` : 'its pull request, not opened yet';
+	if (body?.trim()) return bodyReport({ ledger, narrative, sorted, spent, status, trainPr, body });
 	return `---
 title: ${JSON.stringify(narrative.title)}
 description: ${JSON.stringify(narrative.description)}
@@ -209,5 +217,41 @@ ${list(narrative.attended, 'Nothing.')}
 ${healthList(sorted, narrative)}
 
 ${waveTable(ledger.waves)}
+`;
+}
+
+/**
+ * The page once the train reporter has written its body: the content
+ * first, and the figures the script counts folded at the bottom.
+ * @param {{ ledger: import('./campaign.mjs').Ledger, narrative: Narrative, sorted: Pr[],
+ *   spent: { hours: number, usd: number, issues: number, prs: number }, status: string,
+ *   trainPr: string, body: string }} data
+ */
+function bodyReport({ ledger, narrative, sorted, spent, status, trainPr, body }) {
+	return `---
+title: ${JSON.stringify(narrative.title)}
+description: ${JSON.stringify(narrative.description)}
+---
+
+**${status}.** Train \`${ledger.train}\` in ${trainPr}. To veto a pull request on the train, comment \`veto #<pr>\` on ${trainPr}.
+
+${body.trim()}
+
+## The run
+
+<details>
+<summary>Budget, pull requests, and waves</summary>
+
+Campaign I${ledger.campaign}, started ${ledger.startedAt.slice(0, 16).replace('T', ' ')} UTC. Rendered by \`scripts/campaign.mjs\` (docs/agents/campaigns.md), with the body above from the \`train-reporter\` agent.
+
+${budgetTable(ledger, spent)}
+
+${prTable(sorted)}
+
+${healthList(sorted, narrative)}
+
+${waveTable(ledger.waves)}
+
+</details>
 `;
 }

@@ -22,6 +22,7 @@ leaves out and when to add it.
 | Researcher | `researcher` | one per `area:research` issue | its own worktree and branch |
 | Reviewer | `code-reviewer` | one per pull request | its own worktree, detached at the PR head |
 | Security reviewer | `security-reviewer` | per security-sensitive pull request, or a periodic pass | its own worktree |
+| Train reporter | `train-reporter` | one per campaign, when it ends (`campaigns.md`, "The report") | the main checkout's `.scratch/` and the train's worktree, without committing |
 
 The agents are defined in `.claude/agents/`, so model, effort, turn limit
 and tools come from the file and not from the prompt. Spawn them by name
@@ -233,7 +234,7 @@ dedicated Mac. The maintainer merges the train.
 Each agent runs at the effort in its file, and a spawn doesn't set
 one. Builders, spike builders, researchers and code reviewers run at
 medium. Security reviewers run on Fable at high, or on Opus when Fable has no
-credits. Wave leads run at high. R02-builder-effort has the trial
+credits. Wave leads and the train reporter run at high. R02-builder-effort has the trial
 behind this.
 
 ## Hot files and collisions

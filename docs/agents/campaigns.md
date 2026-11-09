@@ -13,6 +13,7 @@ a campaign. The maintainer decided this way of working in I602.
 |---|---|---|
 | Maintainer | a person | types `/campaign`, reads the report, vetoes, merges the train |
 | Campaign manager | the session that runs the `campaign` skill, in the main checkout on `main` | opens the campaign, runs each wave through the script, handles vetoes, rebases and stops, writes the report, finishes up |
+| Train reporter | the `train-reporter` agent, spawned by the manager when the campaign ends | writes the report's body: what the train changes, by content, with a change map |
 | `scripts/campaign.mjs` | a deterministic script (`mise run campaign`) | keeps the ledger, checks the limits, starts one headless wave with its share of the budget, counts what it cost and made, renders the report |
 | Wave | `claude -p "/wave --campaign <n> ..."`, one headless session per wave | the dispatcher of `orchestration.md`, "Runs", for one wave, merging into the train instead of `main` |
 
@@ -166,7 +167,50 @@ The script renders it from the ledger, GitHub, and a narrative file the
 manager writes, and the manager commits it after each wave. Until the
 train merges, `mise run doc:dev` on the train shows it.
 
+The page has two layouts. While the campaign runs, the page shows the status
+in the order below ("While it runs"). When the campaign ends, the
+manager spawns the `train-reporter` agent, a fresh session that reads
+the train's diff, the pull requests and every review, and writes the
+page's body by content ("When it ends"). A fresh agent writes it, not
+the manager: the manager's context is ordered by wave and pull request,
+which is the order the maintainer can't review in, and reading every
+diff and review would fill the manager's context at its end. Its cost
+comes out of the manager's reserve.
+
+### When it ends
+
+The maintainer reads this page to decide whether to merge the train.
+They know the design but not where the implementation stands. So the page describes the
+changes in words that stand alone, and IDs only follow in brackets.
 Top to bottom:
+
+1. **Status line.** What ended the campaign, the train pull request, and
+   how to veto.
+2. **In short.** One bullet per change, biggest first, and the change
+   beside the train that isn't merged.
+3. **What needs you.** Decisions, approvals and attended steps, with
+   the options.
+4. **What changed where.** A change map: the components the train
+   touches on the host, in the guest and on the internet, each marked
+   as code changed, spec changed, newly designed, open beside the
+   train, or a defect found.
+5. **The changes, largest first.** One section per change, ordered and
+   sized by lines of code, then spec size, then security weight: the
+   problem, what was built or measured, the choices the maintainer can
+   veto, inline, and what isn't covered.
+6. **Review findings not resolved.** Security first, then optional code
+   and docs findings, each with the issue that tracks it.
+7. **Friction.** Flaky tests, VM instability, harness defects, conflicts
+   and long review rounds.
+8. **The run**, folded: the budget, the pull request table, the health
+   figures and the waves, which the script renders.
+
+The agent writes items 2 to 7 to `.scratch/campaign/<n>/report-body.md`
+and the map to `docs/campaigns/W<n>-<slug>.svg`. The script puts the
+rest around them (`.claude/agents/train-reporter.md`).
+
+### While it runs
+
 
 1. **Status line.** `Running`, or `Ended YYYY-MM-DD: <what ended it>`,
    then `Train: PR<k>`.
@@ -194,15 +238,17 @@ nothing, a wave leaves nothing merged into the train, CI fails on the
 train after a wave, or the maintainer says so. Then it:
 
 1. Lets the running wave finish, or ends it ("Budget").
-2. Renders the final report and commits it on the train.
-3. Marks the train pull request ready, with the report's link and the
+2. Removes the worktrees of merged pull requests, and puts the rest on
+   the narrative's `waiting` list.
+3. Spawns the `train-reporter` agent, renders the final report with its
+   body, and commits it on the train.
+4. Marks the train pull request ready, with the report's link and the
    list of issues and pull requests on it.
-4. Updates the campaign issue, comments why it ended, and closes it.
-5. Removes the worktrees of merged pull requests, and lists the rest
-   on the report.
+5. Updates the campaign issue, comments why it ended, and closes it.
 6. Posts a macOS notification and gives the maintainer the report link
    in the session.
 
 `/campaign land <n>` is the attended step before the maintainer merges:
-it applies vetoes, merges `main` into the train when it conflicts, waits
-for the train's CI and asks the maintainer to merge.
+it applies vetoes and merges `main` into the train when it conflicts.
+When a veto reverted a change, the train reporter updates the body.
+Then it waits for the train's CI and asks the maintainer to merge.
