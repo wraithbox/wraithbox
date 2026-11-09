@@ -63,6 +63,9 @@ public enum VMRule: String, Sendable, CaseIterable {
     /// The packet transport's socketpair couldn't be made or set up
     /// (S07-02-packet-path, "Packet transport").
     case networkFailed = "vm-network-failed"
+    /// Provisioning options in a slot that isn't `build`
+    /// (ProvisioningCheck).
+    case provisioningRefused = "vmd-provisioning-refused"
 }
 
 /// A refused request.

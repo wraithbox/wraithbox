@@ -27,7 +27,7 @@ environment:
 | `wb-vmd-work` | `work` |
 | `wb-vmd-isolated` | `isolated` |
 | `wb-vmd-install` ("`wb-vmd-install`", below) | `build` |
-| `wb-vmd-layer` ("`wb-vmd-layer`", below) | `build` |
+| `wb-vmd-layer` ("`wb-vmd-layer`", below) | `layer` |
 
 The slot never comes from the program path or a request. So the slot
 and the bundle come from the same table entry. On hosts without
@@ -57,11 +57,13 @@ So it never confines itself to a bundle its slot doesn't own
 (SEC08-proj-isolation). C11-host-daemons has a test for each rule.
 
 Until the image build is built (V1-M7-image-build), `wb-vmd` also
-refuses the `build` slot, with `vmd-slot-build-unsupported`. Only
-`wb-vmd-install` and `wb-vmd-layer` serve that slot.
-`wb-vmd-install` has its install rules and its restore image check
-("`wb-vmd-install`", below). `wb-vmd-layer` has neither
-("`wb-vmd-layer`", below).
+refuses the `build` slot, with `vmd-slot-build-unsupported`, and the
+`layer` slot, with `vmd-slot-layer-unsupported`. Only `wb-vmd-install`
+serves the `build` slot, with its install rules and its restore image
+check ("`wb-vmd-install`", below). Only `wb-vmd-layer` serves the
+`layer` slot, which has neither ("`wb-vmd-layer`", below). Both slots
+use the build bundle, so `wb-vmd` tells the two entries apart by the
+slot alone.
 
 ### Reaching an instance
 
@@ -119,14 +121,14 @@ in a fourth fixed entry, `wb-vmd-layer`:
   without any of the install rules (SEC12-least-privilege).
 - Its profile parameter is the build bundle,
   `<data>/images/macos-build.noindex`, and its `WB_VMD_SLOT` is
-  `build`. It doesn't check for a restore image.
+  `layer`, a slot of its own. It doesn't check for a restore image.
 - Its instance cap is one. `wb-hostd` never starts it while
   `wb-vmd-install` runs, because the two share the bundle and one
   maintenance VM runs at a time (S06-07-slot-admission).
 - The VM it boots has no network device. `wb-guestd` gets the binary
   over the host-guest socket.
-- It refuses provisioning options, and logs `vmd-provisioning-refused`,
-  as a session VM's `wb-vmd` does.
+- Its slot refuses provisioning options, and it logs
+  `vmd-provisioning-refused`, as a session VM's `wb-vmd` does.
 
 `wb-hostd` creates a new, empty build bundle before it starts the
 entry, and clones the parent into it with the identity check of
@@ -146,7 +148,7 @@ is one, because one maintenance VM runs at a time
 (S06-07-slot-admission).
 
 Only this entry accepts provisioning options. An instance whose slot
-isn't `build` refuses them and logs `vmd-provisioning-refused`
+isn't `build`, `layer` included, refuses them and logs `vmd-provisioning-refused`
 (S15-04-guest-admin, "Refused outside the path").
 
 ### `wb-diskfmt`

@@ -33,9 +33,10 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 - **Host.** On a macOS older than 27, `wb-vmd` is refused with
   `vmd-host-unsupported` before `sandbox_init`, whatever its slot.
 - **Slot.** Start `wb-vmd` with `WB_VMD_SLOT` unset, with an unknown
-  value, with the `build` slot, with its bundle a symbolic link to the
-  other slot's bundle, and with its bundle missing. See
-  `vmd-slot-missing`, `vmd-slot-unknown`, `vmd-slot-build-unsupported`,
+  value, with the `build` slot, with the `layer` slot, with its bundle a
+  symbolic link to the other slot's bundle, and with its bundle missing.
+  See `vmd-slot-missing`, `vmd-slot-unknown`,
+  `vmd-slot-build-unsupported`, `vmd-slot-layer-unsupported`,
   `vmd-slot-bundle-mismatch` and `vmd-bundle-missing` logged before
   `sandbox_init`.
 - **Start interface** (S04-03-self-sandboxing, "How `wb-vmd` is
@@ -127,8 +128,9 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 - **Restore image.** A `wb-vmd-install` whose restore image is a
   symbolic link, or not at the fixed path, logs
   `vmd-restore-image-mismatch` before `sandbox_init`.
-- **Provisioning.** An instance in the `work` or `isolated` slot
-  refuses provisioning options with `vmd-provisioning-refused`.
+- **Provisioning.** An instance in the `work`, `isolated` or `layer`
+  slot refuses provisioning options with `vmd-provisioning-refused`,
+  and the `build` slot accepts them (`ProvisioningCheckTests`).
 - **Launcher table.** A table test on the `wb-launcher` entries checks
   that each `wb-vmd` entry's `WB_VMD_SLOT` value and its bundle
   parameter belong to the same slot. `TestDiskfmtEntries` checks the
