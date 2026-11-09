@@ -264,7 +264,9 @@ message PolicyChange {
   // The VM slot, `work` or `isolated`. A wb-netd refuses another VM
   // than its own.
   string vm = 1;
-  // wb-hostd's number for the change, at least 1, increasing per VM.
+  // wb-hostd's number for the change, at least 1, increasing per VM
+  // run. wb-proxyd starts again from 0 after a fresh HandoffSocket, so
+  // the first change of a run may be 1 again.
   uint64 sequence = 2;
 }
 

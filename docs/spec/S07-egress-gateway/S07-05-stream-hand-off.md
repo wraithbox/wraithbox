@@ -260,8 +260,8 @@ Every change to the effective policy goes to `wb-proxyd` first. Such
 a change is a session start or end, an approval, a policy file edit,
 or `wb allow`.
 
-1. `wb-hostd` sends the change to `wb-proxyd` (`PolicyChange`, with a
-   sequence number per VM).
+1. `wb-hostd` sends the change to `wb-proxyd` (`PolicyChange`, its
+   sequence rising per VM run, from 1 again after a fresh `HandoffSocket`).
 2. `wb-proxyd` applies it and acknowledges it (`PolicyAck`).
 3. Only then does `wb-hostd` send it to `wb-netd`.
 

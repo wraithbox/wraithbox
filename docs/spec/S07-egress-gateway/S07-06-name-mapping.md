@@ -131,9 +131,10 @@ with `message-form`, since its own start clears its mapping.
 
 `wb-proxyd` checks a fresh message like any other. It then closes the
 VM's old socket and every stream that came on it, so no message of the
-previous run reaches the cleared state. Then it clears the copy, the
-wildcard names, and the VM's effective policy and sequence. It keeps
-the generation, and logs the clear with the rule `vm-fresh-start`.
+previous run reaches the cleared state. Then it clears the copy and
+the wildcard names, and drops the VM's effective policy and sequence.
+It keeps the generation, and logs the clear with the rule
+`vm-fresh-start`.
 
 Until the run's first `PolicyChange`, `wb-proxyd` doesn't hold a policy for
 the VM, so every report and stream is refused (SEC05-default-deny).

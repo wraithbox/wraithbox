@@ -1214,7 +1214,9 @@ type PolicyChange struct {
 	// The VM slot, `work` or `isolated`. A wb-netd refuses another VM
 	// than its own.
 	Vm string `protobuf:"bytes,1,opt,name=vm,proto3" json:"vm,omitempty"`
-	// wb-hostd's number for the change, at least 1, increasing per VM.
+	// wb-hostd's number for the change, at least 1, increasing per VM
+	// run. wb-proxyd starts again from 0 after a fresh HandoffSocket, so
+	// the first change of a run may be 1 again.
 	Sequence      uint64 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
