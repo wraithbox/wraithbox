@@ -307,8 +307,15 @@ func (h *harness) handoffWith(m *egressv1.HostdToProxyd) *netd {
 	if err != nil {
 		h.t.Fatal(err)
 	}
+	// The harness keeps its copy of wb-proxyd's end until wb-proxyd's
+	// version record arrives on the new socket, which shows wb-proxyd
+	// holds the descriptor. darwin's garbage collector of Unix sockets in
+	// flight can take a socket whose every reference is in a message for
+	// garbage while recvmsg passes it on: it flushes the socket's receive
+	// buffer and marks it to drop what comes. wb-proxyd then reads a
+	// 0-byte record on it, and each send to it fails with EINVAL (I633).
+	defer func() { _ = a.Close() }()
 	h.send(m, a)
-	_ = a.Close()
 	nd := &netd{t: h.t, raw: dup(h.t, b), vm: vm, gen: gen, next: 1 << 40}
 	nd.ch = newChannel(h.t, b)
 	h.t.Cleanup(func() { _ = nd.ch.Close() })
