@@ -86,7 +86,7 @@ integration branches of campaigns (`docs/agents/campaigns.md`). It
 blocks deletion and force pushes, and nothing else. It requires no pull
 request and no checks, because the campaign manager pushes report
 commits, reverts and merges from `main` to a train directly. CI runs
-on every push to `train/**`. Blocking deletion also keeps "Delete
+on every push to `train/**` as the train's pull request. Blocking deletion also keeps "Delete
 branch on merge" from deleting a train after it merges, so trains are
 kept.
 
