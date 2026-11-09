@@ -95,7 +95,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="560" y="294">spec: managed CLAUDE.md</text>
 <text class="note" x="560" y="310">explains Xcode test failures</text>
 <rect class="change-bug" x="545" y="340" width="210" height="70" rx="6" />
-<text class="label" x="560" y="364">guest kernel (macOS 27.2)</text>
+<text class="label" x="560" y="364">kernel, macOS 27.2</text>
 <text class="note" x="560" y="384">found: panics on a vsock</text>
 <text class="note" x="560" y="400">connect to its own CID</text>
 
@@ -104,7 +104,7 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="label" x="825" y="94">Apple CDN</text>
 <text class="note" x="825" y="114">restore images,</text>
 <text class="note" x="825" y="130">catalog</text>
-<rect class="box" x="810" y="310" width="160" height="80" rx="6" />
+<rect class="box" x="810" y="310" width="160" height="92" rx="6" />
 <text class="label" x="825" y="334">Apple signing</text>
 <text class="label" x="825" y="352">server (TSS)</text>
 <text class="note" x="825" y="372">declined every</text>
