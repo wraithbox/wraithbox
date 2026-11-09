@@ -332,8 +332,14 @@ func (p *Proxyd) Policy(ctx context.Context, vm string, seq uint64, policy *poli
 // isn't started, whose acknowledgment the State would drop. It also
 // refuses a second Handoff for the same VM and generation while one
 // waits.
+//
+// The first Handoff after a start that cleared the VM's state sets
+// fresh, so wb-proxyd clears what the VM's previous run left
+// (S07-06-name-mapping, "Lifetime"). The caller sends the run's first
+// Policy after it, as wb-proxyd drops the VM's policy at a fresh
+// socket.
 func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, error) {
-	held, started := p.cfg.State.handoffState(vm)
+	held, started, fresh := p.cfg.State.handoffState(vm)
 	if !started {
 		return nil, p.setupFailed(vm, checkNotStarted, errors.New("the VM isn't started"))
 	}
@@ -352,7 +358,7 @@ func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, 
 		return nil, p.setupFailed(vm, checkSocketpair, err)
 	}
 	m := &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_HandoffSocket{
-		HandoffSocket: &egressv1.HandoffSocket{Vm: vm, Generation: gen},
+		HandoffSocket: &egressv1.HandoffSocket{Vm: vm, Generation: gen, Fresh: fresh},
 	}}
 	err = p.send(vm, m, proxydEnd)
 	_ = proxydEnd.Close()
@@ -366,6 +372,19 @@ func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, 
 		return nil, err
 	}
 	return netdEnd, nil
+}
+
+// NewActivePeriod starts vm's new active period (S07-01-per-vm-policy,
+// "Active period"): it clears the VM's wildcard counts in the State, then
+// sends wb-proxyd an ActivePeriodStart, so a name wb-proxyd counts in the
+// new period is never cleared from wb-hostd's set after it
+// (S07-06-name-mapping, "Wildcard budget, second layer"). It has no
+// acknowledgment. A failed send ends wb-proxyd.
+func (p *Proxyd) NewActivePeriod(vm string) error {
+	p.cfg.State.NewActivePeriod(vm)
+	return p.send(vm, &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_ActivePeriodStart{
+		ActivePeriodStart: &egressv1.ActivePeriodStart{Vm: vm},
+	}}, nil)
 }
 
 // expect registers a call's wait before its message is sent, so the

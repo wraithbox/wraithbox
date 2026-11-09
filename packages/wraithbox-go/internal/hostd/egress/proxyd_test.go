@@ -75,7 +75,7 @@ func (pp *payloadPipe) pipe() (r, w *os.File, err error) {
 }
 
 func servedGen(s *State, vm string) uint64 {
-	gen, _ := s.handoffState(vm)
+	gen, _, _ := s.handoffState(vm)
 	return gen
 }
 
@@ -93,6 +93,8 @@ type proxydHarness struct {
 	pay    *payloadPipe
 	logs   *syncBuffer
 	served chan error
+	// sent is the last HandoffSocket a Handoff sent.
+	sent *egressv1.HandoffSocket
 }
 
 // newProxyd starts a Proxyd on a fake channel whose wb-proxyd sent its
@@ -159,6 +161,7 @@ func (h *proxydHarness) handoff(vm string, gen uint64) chan handoffResult {
 	if s := m.GetHandoffSocket(); s.GetVm() != vm || s.GetGeneration() != gen || !hasFD {
 		h.t.Fatalf("sent %v (descriptor %v), want a HandoffSocket for %s %d", m, hasFD, vm, gen)
 	}
+	h.sent = m.GetHandoffSocket()
 	return res
 }
 
@@ -431,5 +434,67 @@ func TestHandoffRetryAfterTimeout(t *testing.T) {
 	}
 	if got := h.proxyd.got(); len(got) != 0 {
 		t.Fatalf("wb-proxyd ended with %q", got)
+	}
+}
+
+// TestHandoffFresh: the first HandoffSocket after a start that cleared
+// the VM's state is fresh, and so is a retry after a timeout. A
+// replacement after an acknowledged one and the first after a restore
+// aren't (S07-06-name-mapping, "Lifetime").
+func TestHandoffFresh(t *testing.T) {
+	h := newProxyd(t, 200*time.Millisecond)
+	for _, step := range []struct {
+		name    string
+		restart func()
+		gen     uint64
+		ack     bool
+		fresh   bool
+	}{
+		{"start", nil, 1, false, true},
+		{"retry after a timeout", nil, 1, true, true},
+		{"wb-netd restart", nil, 1, true, false},
+		{"restore", func() { h.state.Stop("work"); h.state.Start("work", true) }, 2, true, false},
+		{"start after a stop", func() { h.state.Stop("work"); h.state.Start("work", false) }, 3, true, true},
+	} {
+		if step.restart != nil {
+			step.restart()
+		}
+		res := h.handoff("work", step.gen)
+		if h.sent.GetFresh() != step.fresh {
+			t.Fatalf("%s: fresh = %v, want %v", step.name, h.sent.GetFresh(), step.fresh)
+		}
+		if !step.ack {
+			expectSetupError(t, result(t, res).err, checkAckTimeout)
+			// The abandoned attempt's acknowledgment comes late, and the
+			// retry ignores it.
+			h.conn.pushMsg(t, ackOf("work", step.gen))
+			continue
+		}
+		h.conn.pushMsg(t, ackOf("work", step.gen))
+		if r := result(t, res); r.err != nil {
+			t.Fatalf("%s: %v", step.name, r.err)
+		}
+	}
+}
+
+// TestNewActivePeriod: wb-hostd clears its own set of the VM's
+// wildcard names, then sends wb-proxyd an ActivePeriodStart with no
+// descriptor.
+func TestNewActivePeriod(t *testing.T) {
+	h := newProxyd(t, wait)
+	h.acknowledge("work", 1)
+	mustRecord(t, h.state, ProxydSource(), proxydNameRecord(t, "work", "x.wild.example.com"))
+	if _, _, kept := h.state.Kept("work"); len(kept) != 1 {
+		t.Fatalf("wb-proxyd's names before the new period: %v", names(kept))
+	}
+	if err := h.p.NewActivePeriod("work"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, kept := h.state.Kept("work"); len(kept) != 0 {
+		t.Fatalf("wb-proxyd's names after the new period: %v", names(kept))
+	}
+	m, hasFD := h.conn.nextControl(t)
+	if m.GetActivePeriodStart().GetVm() != "work" || hasFD {
+		t.Fatalf("sent %v (descriptor %v), want an ActivePeriodStart for work", m, hasFD)
 	}
 }

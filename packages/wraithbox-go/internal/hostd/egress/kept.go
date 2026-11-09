@@ -205,14 +205,16 @@ func (s *State) served(vm string, gen uint64) {
 }
 
 // handoffState returns the generation of vm's acknowledged hand-off
-// socket, 0 for none, and whether vm is started.
-func (s *State) handoffState(vm string) (served uint64, started bool) {
+// socket, 0 for none, whether vm is started, and whether the next
+// hand-off socket is fresh: the first since a start that cleared the
+// VM's state (control.proto, HandoffSocket.fresh).
+func (s *State) handoffState(vm string) (served uint64, started, fresh bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if v, ok := s.vms[vm]; ok && v.started {
-		return v.served, true
+		return v.served, true, v.cleared && v.served == 0
 	}
-	return 0, false
+	return 0, false, false
 }
 
 // endOnce reports whether a HandoffSocketClosed for vm and gen names

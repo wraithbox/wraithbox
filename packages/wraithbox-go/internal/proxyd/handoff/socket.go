@@ -474,20 +474,30 @@ func (s *socket) remove(st *Stream) {
 // to call more than once.
 func (s *socket) close() {
 	s.r.mu.Lock()
+	finish := s.markClosed()
+	s.r.mu.Unlock()
+	finish()
+}
+
+// markClosed marks the socket closed, so its decider changes nothing of
+// the VM's state from then on, and returns what closes the channel and
+// the streams, which the caller runs after it releases the lock. The
+// caller holds the lock. A second call returns a no-op.
+func (s *socket) markClosed() (finish func()) {
 	if s.closed {
-		s.r.mu.Unlock()
-		return
+		return func() {}
 	}
 	s.closed = true
 	open := s.openStreams()
 	if s.vm.sock == s {
 		s.vm.sock = nil
 	}
-	s.r.mu.Unlock()
-	close(s.done)
-	_ = s.ch.Close()
-	for _, st := range open {
-		st.end(false)
+	return func() {
+		close(s.done)
+		_ = s.ch.Close()
+		for _, st := range open {
+			st.end(false)
+		}
 	}
 }
 

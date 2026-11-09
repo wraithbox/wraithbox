@@ -142,6 +142,9 @@ func FuzzControlMessage(f *testing.F) {
 	add := func(dir byte, m proto.Message, fd bool) { f.Add(append([]byte{dir}, marshal(f, m)...), fd) }
 	add(dirHostdToProxyd, &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_ProxydStart{ProxydStart: &egressv1.ProxydStart{}}}, true)
 	add(dirHostdToProxyd, &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{Vm: "work", Generation: 1}}}, true)
+	add(dirHostdToProxyd, &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{Vm: "work", Generation: 2, Fresh: true}}}, true)
+	add(dirHostdToProxyd, &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_ActivePeriodStart{ActivePeriodStart: &egressv1.ActivePeriodStart{Vm: "isolated"}}}, false)
+	add(dirHostdToNetd, &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_HandoffSocket{HandoffSocket: &egressv1.HandoffSocket{Vm: "work", Generation: 2, Fresh: true}}}, true)
 	add(dirHostdToNetd, &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_NetdStart{NetdStart: NewNetdStart("isolated", 2, testLink())}}, true)
 	add(dirHostdToNetd, &egressv1.HostdToNetd{Kind: &egressv1.HostdToNetd_PolicyChange{PolicyChange: &egressv1.PolicyChange{Vm: "work", Sequence: 3}}}, true)
 	add(dirProxydToHostd, &egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_HandoffSocketClosed{HandoffSocketClosed: &egressv1.HandoffSocketClosed{
@@ -203,20 +206,12 @@ func requireControl(t *testing.T, m proto.Message, hasFD bool) {
 	var num uint64 = 1
 	switch k := m.(type) {
 	case *egressv1.HostdToProxyd:
-		if requireCA(t, k) {
-			wantFD, vm = false, "work"
-			break
-		}
-		wantFD = true
-		if s := k.GetHandoffSocket(); s != nil {
-			vm, num = s.GetVm(), s.GetGeneration()
-		} else if c := k.GetPolicyChange(); c != nil {
-			vm, num = c.GetVm(), c.GetSequence()
-		} else {
-			vm = "work"
-		}
+		wantFD, vm, num = proxydControl(t, k)
 	case *egressv1.HostdToNetd:
 		wantFD = true
+		if k.GetHandoffSocket().GetFresh() {
+			t.Fatal("wb-netd accepted a fresh HandoffSocket")
+		}
 		vm, num = vmNum(
 			vmNumber{k.GetNetdStart().GetVm(), k.GetNetdStart().GetGeneration()},
 			vmNumber{k.GetHandoffSocket().GetVm(), k.GetHandoffSocket().GetGeneration()},
@@ -244,6 +239,26 @@ func requireControl(t *testing.T, m proto.Message, hasFD bool) {
 	if num == 0 {
 		t.Fatalf("accepted %T with a generation or sequence of 0", m)
 	}
+}
+
+// proxydControl returns whether an accepted message from wb-hostd to
+// wb-proxyd holds a descriptor, the VM it names, and its generation or
+// sequence (1 when it has none). It checks a CA message's bounds.
+func proxydControl(t *testing.T, k *egressv1.HostdToProxyd) (wantFD bool, vm string, num uint64) {
+	t.Helper()
+	if requireCA(t, k) {
+		return false, "work", 1
+	}
+	if p := k.GetActivePeriodStart(); p != nil {
+		return false, p.GetVm(), 1
+	}
+	if s := k.GetHandoffSocket(); s != nil {
+		return true, s.GetVm(), s.GetGeneration()
+	}
+	if c := k.GetPolicyChange(); c != nil {
+		return true, c.GetVm(), c.GetSequence()
+	}
+	return true, "work", 1
 }
 
 // requireCA checks the bounds of an accepted CA message from wb-hostd,

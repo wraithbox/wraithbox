@@ -100,6 +100,41 @@ func TestCountWildcard(t *testing.T) {
 	}
 }
 
+// TestClearAndNewPeriod: a fresh start drops the copy, the wildcard
+// names, the policy and its sequence, and keeps the generation. A new
+// active period drops only the wildcard names (S07-06-name-mapping,
+// "Lifetime", "Wildcard budget, second layer").
+func TestClearAndNewPeriod(t *testing.T) {
+	p := mustPolicy(t, policyProto(1, endpoint("*.wild.example.com", 443)))
+	x, y := mustName(t, "x.wild.example.com"), mustName(t, "y.wild.example.com")
+	fill := func() *vmState {
+		st := &vmState{slot: "work", generation: 4, policy: p, sequence: 9, copy: newMapping()}
+		st.copy.apply(reportAddWildcard, x, synth(1))
+		return st
+	}
+
+	st := fill()
+	st.copy.newPeriod()
+	if _, ok := st.copy.lookup(synth(1)); !ok {
+		t.Fatal("a new active period dropped an entry")
+	}
+	if a, check := st.copy.decideReport(p, y, synth(2)); a != reportAddWildcard {
+		t.Fatalf("after a new active period: %d %q, want a counted name", a, check)
+	}
+
+	st = fill()
+	st.clear()
+	if _, ok := st.copy.lookup(synth(1)); ok || len(st.copy.wildcard) != 0 {
+		t.Fatalf("a fresh start kept the copy: %+v", st.copy)
+	}
+	if st.policy != nil || st.sequence != 0 || st.generation != 4 {
+		t.Fatalf("after a fresh start: policy %v, sequence %d, generation %d", st.policy, st.sequence, st.generation)
+	}
+	if a, check := st.copy.decideReport(st.policy, x, synth(1)); a != reportRefuse || check != CheckNotAllowed {
+		t.Fatalf("a report with no policy after a fresh start: %d %q", a, check)
+	}
+}
+
 // TestDecideStream feeds decideStream a violation of each check of
 // S07-05-stream-hand-off, "Streams", and sees each refused with its
 // check and no name.

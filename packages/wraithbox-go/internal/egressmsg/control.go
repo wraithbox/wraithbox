@@ -20,7 +20,8 @@ var closedChecks = map[string]bool{
 // DecodeHostdToProxyd checks one record that wb-proxyd read from its
 // control channel, and whether a descriptor came with it, against the
 // comments in control.proto. The start, a hand-off socket and a policy
-// change each take exactly one descriptor, and the CA messages none.
+// change each take exactly one descriptor, and the CA messages and
+// ActivePeriodStart none.
 func DecodeHostdToProxyd(record []byte, hasFD bool) (*egressv1.HostdToProxyd, *Refusal) {
 	m := &egressv1.HostdToProxyd{}
 	if r := decode(record, m); r != nil {
@@ -42,6 +43,8 @@ func DecodeHostdToProxyd(record []byte, hasFD bool) (*egressv1.HostdToProxyd, *R
 		r = caAccept(k.CaAccept, hasFD)
 	case *egressv1.HostdToProxyd_CaRemove:
 		r = caRemove(k.CaRemove, hasFD)
+	case *egressv1.HostdToProxyd_ActivePeriodStart:
+		r = activePeriodStart(k.ActivePeriodStart, hasFD)
 	default:
 		r = refuse(CheckMessageForm, "kind", "no kind set")
 	}
@@ -53,7 +56,9 @@ func DecodeHostdToProxyd(record []byte, hasFD bool) (*egressv1.HostdToProxyd, *R
 
 // DecodeHostdToNetd checks one record that a wb-netd read from its
 // control channel, and whether a descriptor came with it. Each kind
-// takes exactly one descriptor. Whether the VM and generation are the
+// takes exactly one descriptor. A HandoffSocket that sets fresh is
+// refused: only wb-proxyd takes it, as a new wb-netd's fresh state comes
+// with NetdStart (control.proto). Whether the VM and generation are the
 // wb-netd's own is its check.
 func DecodeHostdToNetd(record []byte, hasFD bool) (*egressv1.HostdToNetd, *Refusal) {
 	m := &egressv1.HostdToNetd{}
@@ -66,6 +71,9 @@ func DecodeHostdToNetd(record []byte, hasFD bool) (*egressv1.HostdToNetd, *Refus
 		r = netdStart(k.NetdStart, hasFD)
 	case *egressv1.HostdToNetd_HandoffSocket:
 		r = handoffSocket(k.HandoffSocket, hasFD)
+		if r == nil && k.HandoffSocket.GetFresh() {
+			r = refuse(CheckMessageForm, "handoff_socket.fresh", "set on a message to wb-netd")
+		}
 	case *egressv1.HostdToNetd_PolicyChange:
 		r = policyChange(k.PolicyChange, hasFD)
 	default:
@@ -131,6 +139,16 @@ func DecodeNetdToHostd(record []byte, hasFD bool) (*egressv1.NetdToHostd, *Refus
 
 func handoffSocket(m *egressv1.HandoffSocket, hasFD bool) *Refusal {
 	return vmGeneration("handoff_socket", m.GetVm(), m.GetGeneration(), true, hasFD)
+}
+
+// activePeriodStart checks an ActivePeriodStart: a VM slot and no
+// descriptor.
+func activePeriodStart(m *egressv1.ActivePeriodStart, hasFD bool) *Refusal {
+	if r := descriptors("active_period_start", false, hasFD); r != nil {
+		return r
+	}
+	_, r := VM("active_period_start.vm", m.GetVm())
+	return r
 }
 
 func netdStart(m *egressv1.NetdStart, hasFD bool) *Refusal {

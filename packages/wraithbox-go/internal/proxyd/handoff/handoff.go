@@ -72,6 +72,13 @@ const (
 	// RuleHandoffSocketEnded: wb-netd closed its end, or the socket ended
 	// with a receive error. Every stream that came on it is closed.
 	RuleHandoffSocketEnded = "handoff-socket-ended"
+	// RuleFreshStart: a fresh HandoffSocket cleared the VM's copy, its
+	// wildcard names and its policy (S07-06-name-mapping, "Lifetime").
+	RuleFreshStart = "vm-fresh-start"
+	// RuleActivePeriodStart: an ActivePeriodStart cleared the VM's
+	// wildcard names (S07-06-name-mapping, "Wildcard budget, second
+	// layer").
+	RuleActivePeriodStart = "active-period-start"
 )
 
 // The checks this package adds to those of egressmsg (message-form,

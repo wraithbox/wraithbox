@@ -107,6 +107,12 @@ func (m *mapping) release(addr netip.Addr) bool {
 	return ok
 }
 
+// newPeriod clears the wildcard names at the start of a new active
+// period. The entries stay.
+func (m *mapping) newPeriod() {
+	m.wildcard = map[dnsname.Name]struct{}{}
+}
+
 // countWildcard adds the names wb-hostd kept for the VM's active period,
 // from ProxydStart. egressmsg.CheckProxydStart checked their form.
 func (m *mapping) countWildcard(names []dnsname.Name) {

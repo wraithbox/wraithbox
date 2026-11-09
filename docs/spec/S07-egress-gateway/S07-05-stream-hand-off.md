@@ -159,8 +159,8 @@ spawn, its control channel (S04-architecture, "Control channels").
 
 Each message (`HandoffSocket`) holds exactly one descriptor, and the
 fields VM and generation. `wb-proxyd` answers with a `HandoffSocketAck`
-that names both. `wb-hostd` keeps each VM's generation in `state.db`, and
-only increases it.
+that names both. `wb-hostd` keeps each VM's generation in `state.db`,
+and only increases it. S07-06-name-mapping ("Lifetime") has the `fresh` field.
 
 `wb-proxyd` refuses the message when:
 
