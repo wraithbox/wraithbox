@@ -57,13 +57,11 @@ So it never confines itself to a bundle its slot doesn't own
 (SEC08-proj-isolation). C11-host-daemons has a test for each rule.
 
 Until the image build is built (V1-M7-image-build), `wb-vmd` also
-refuses the `build` slot, with `vmd-slot-build-unsupported`, and the
-`layer` slot, with `vmd-slot-layer-unsupported`. Only `wb-vmd-install`
-serves the `build` slot, with its install rules and its restore image
-check ("`wb-vmd-install`", below). Only `wb-vmd-layer` serves the
-`layer` slot, which has neither ("`wb-vmd-layer`", below). Both slots
-use the build bundle, so `wb-vmd` tells the two entries apart by the
-slot alone.
+refuses the `build` slot (`vmd-slot-build-unsupported`) and the `layer`
+slot (`vmd-slot-layer-unsupported`). The `build` slot is
+`wb-vmd-install`'s, with its install rules and restore image check
+("`wb-vmd-install`", below). `wb-vmd-layer` alone serves `layer`, without
+either, though both slots use the build bundle ("`wb-vmd-layer`", below).
 
 ### Reaching an instance
 
