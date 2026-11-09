@@ -247,4 +247,18 @@ describe('renderReport', () => {
 		const ended = renderReport({ ledger, narrative: { ...narrative, ended: 'dollars: 229.00 of 240' }, prs, spent: spentOf(ledger, hoursLater(2)), now: hoursLater(2) });
 		expect(ended).toContain('**Ended 2026-11-08: dollars: 229.00 of 240.**');
 	});
+	test("with the train reporter's body, the content comes first and the figures fold at the bottom", () => {
+		const body = '## In short\n\nThe train adds one control.\n';
+		const ended = renderReport({ ledger, narrative: { ...narrative, ended: 'the issues were done' }, prs, spent: spentOf(ledger, hoursLater(2)), now: hoursLater(2), body });
+		expect(ended).toContain('**Ended 2026-11-08: the issues were done.** Train `train/602` in PR700. To veto a pull request on the train, comment `veto #<pr>` on PR700.\n\n## In short\n');
+		expect(ended.indexOf('## In short')).toBeLessThan(ended.indexOf('## The run\n\n<details>'));
+		expect(ended).toContain('| Dollars | $30.00 | $240.00 |');
+		expect(ended).toContain('| PR7 | I5 |');
+		expect(ended).not.toContain('## Choices to veto');
+		expect(ended.trimEnd().endsWith('</details>')).toBe(true);
+	});
+	test('an empty body keeps the running layout', () => {
+		const page2 = renderReport({ ledger, narrative, prs, spent: spentOf(ledger, hoursLater(2)), now: hoursLater(2), body: '  ' });
+		expect(page2).toContain('## Choices to veto');
+	});
 });

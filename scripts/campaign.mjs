@@ -338,7 +338,11 @@ function writeReport(ledger, flags) {
 		gh(['pr', 'view', String(n), '--json', 'number,title,state,baseRefName,body,files,reviews']),
 	);
 	const now = new Date();
-	const page = renderReport({ ledger, narrative, prs, spent: spentOf(ledger, now, numbers), now });
+	// The train reporter's body, once the campaign has ended
+	// (docs/agents/campaigns.md, "The report").
+	const bodyFile = path.join(dir, 'report-body.md');
+	const body = fs.existsSync(bodyFile) ? fs.readFileSync(bodyFile, 'utf8') : null;
+	const page = renderReport({ ledger, narrative, prs, spent: spentOf(ledger, now, numbers), now, body });
 	const file = path.join(flags.out, 'docs', 'campaigns', `W${ledger.campaign}-${narrative.slug}.mdx`);
 	fs.mkdirSync(path.dirname(file), { recursive: true });
 	fs.writeFileSync(file, page);

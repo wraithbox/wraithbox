@@ -218,7 +218,7 @@ before the work they unblock. Besides the labels above, issues carry
   `docs/agents/planning.md`, and how a coordinator runs builders and
   reviewers in parallel, `docs/agents/orchestration.md`. Agents:
   `.claude/agents/` (`builder`, `spike-builder`, `researcher`,
-  `code-reviewer`, `security-reviewer`, `wave-lead`); a run of one or
+  `code-reviewer`, `security-reviewer`, `wave-lead`, `train-reporter`); a run of one or
   more waves: `/wave`, started only by the maintainer. Each agent file
   names the pages its agent reads.
 - Campaigns: `/campaign`, started only by the maintainer, runs waves

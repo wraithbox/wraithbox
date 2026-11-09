@@ -112,24 +112,35 @@ waves' reports:
 - `attended`: `needs-host` and attended steps, with the commands.
 
 `mise run campaign report <n> --out .claude/worktrees/train-<n>` writes
-the page.
+the page. While the campaign runs, that is the status layout. At the
+end, the `train-reporter` agent writes the body
+(`.scratch/campaign/<n>/report-body.md`) and the change map, and the
+same command puts them first ("End", step 4).
 
 ## End
 
 1. Wait for a running wave. Don't start another.
 2. Handle vetoes once more.
-3. Set `ended` in the narrative to what ended the campaign, render the
-   report, run `mise run doc:index` and `doc:refs`, commit, push, and
-   wait for the train's CI.
-4. Mark the train pull request ready (`gh pr ready`). Its body: the
+3. Remove the worktrees of merged pull requests with
+   `git worktree remove`. Put the others on the narrative's `waiting`
+   list.
+4. Set `ended` in the narrative to what ended the campaign. Spawn the
+   `train-reporter` agent, without `isolation`, and wait for it. Its
+   prompt: the campaign number, the train branch and its base, the
+   train's worktree, the slug, and what you know that GitHub doesn't
+   (a wave run by hand, spend the ledger doesn't see, refused
+   commands). Set `description` in the narrative from its final text,
+   render the report, and read the page: every item of `waiting` and
+   `attended` is under "What needs you". Run `mise run doc:index` and
+   `doc:refs`, commit `docs(campaigns): W<n> report (#<n>)` with the
+   SVG, push, and wait for the train's CI. When the agent fails, render
+   the status layout and say so in the summary.
+5. Mark the train pull request ready (`gh pr ready`). Its body: the
    report's site path, the summary, the pull requests on it and
    the issues they closed as `Refs #<k>`, the harness pull requests
    that wait on `main`, and the attribution lines.
-5. Comment on the campaign issue why it ended, with the final counts,
+6. Comment on the campaign issue why it ended, with the final counts,
    and close it.
-6. Remove the worktrees of merged pull requests with
-   `git worktree remove`. List the others on the report's `waiting`
-   list, which you committed in step 3, so list them before it.
 7. Stop `caffeinate`. Post
    `osascript -e 'display notification "Campaign <n> ended: <reason>" with title "Wraith Box"'`.
 8. Report to the maintainer in at most 150 words: what ended it, the
@@ -143,8 +154,9 @@ the page.
 1. Handle vetoes ("Vetoes").
 2. When the train pull request conflicts with its base, merge the base
    into the train in its worktree, run `mise run ci`, and push.
-3. Render the report once more if anything changed, and wait for the
-   train's CI.
+3. When a veto reverted a change, spawn `train-reporter` again, as in
+   "End", step 4. Render the report once more if anything changed, and
+   wait for the train's CI.
 4. Ask the maintainer to merge, naming the pull request. After they
    approve, run `gh pr merge <train pr> --merge`. When a later train is
    stacked on it, check that GitHub changed that pull request's base to
