@@ -6,8 +6,9 @@
 // SEC12-least-privilege).
 import WraithBoxVM
 
-/// Decides whether an instance's slot takes provisioning options. wb-vmd
-/// runs it before it sets provisioning options on a VM it starts.
+/// Decides whether an instance's slot takes provisioning options. Nothing
+/// calls it yet: once wb-vmd-install adds provisioning options to a start,
+/// wb-vmd runs it before it sets them on the VM (#629).
 public enum ProvisioningCheck {
     /// Accepts provisioning options in `slot`, or throws
     /// `vmd-provisioning-refused`. Both decisions are logged with the slot,

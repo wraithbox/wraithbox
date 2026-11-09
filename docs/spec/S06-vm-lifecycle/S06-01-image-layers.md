@@ -36,7 +36,7 @@ and a new release rebuilds only that layer.
 2. It clones the parent into a new build bundle, with the identity
    check of S06-02-image-build, "Taking the sealed image".
 3. It boots the clone in `wb-vmd-layer`, in the `layer` slot, which
-   has no install rules, refuses provisioning options and gives the VM
+   has no install rules, refuses provisioning options, and gives the VM
    no network device (S04-04-vm-processes). At first
    contact `wbadmin`'s password is rotated from the parent's password
    to the new image's (S15-04-guest-admin, "One password per VM").

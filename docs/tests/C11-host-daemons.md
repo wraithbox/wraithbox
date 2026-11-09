@@ -17,7 +17,7 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 
 - **Device set** (S04-02-vm-provider, "The device set is fixed and checked", X25-vmd-sandbox). Pass the check each of these, and see
   each refused with its rule: a NAT network, a bridged network, a
-  file-handle network in the build slot, a shared directory, a
+  file-handle network in the build or layer slot, a shared directory, a
   console or SPICE device, an audio device, a disk or serial port file
   outside the VM's bundle, a second network device, a symbolic link at
   a bundle file's name, and a missing bundle file. The fixed set of
