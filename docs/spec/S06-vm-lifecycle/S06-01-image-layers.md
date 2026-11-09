@@ -97,6 +97,13 @@ The Claude Code layer is the only exception. It goes on top of the
 base, and on top of each named image. A new restore image
 rebuilds the base, every image above it, and their Claude Code layers.
 
+A named image with Xcode is built in two sealed steps. Its Xcode step
+clones the sealed base and installs Xcode. The recipe's own steps then
+start from that step's sealed result, and the image they seal is the
+parent the Claude Code layer clones (S06-14-xcode-image, "Where Xcode
+comes from"). The Xcode step is part of the named image, not an image
+of its own, so images still don't chain.
+
 ### Toolchain prefix
 
 A guest has one tool prefix, `/opt/homebrew` on macOS
