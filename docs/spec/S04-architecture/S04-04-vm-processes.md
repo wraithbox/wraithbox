@@ -58,10 +58,10 @@ So it never confines itself to a bundle its slot doesn't own
 
 Until the image build is built (V1-M7-image-build), `wb-vmd` also
 refuses the `build` slot (`vmd-slot-build-unsupported`) and the `layer`
-slot (`vmd-slot-layer-unsupported`). The `build` slot is
-`wb-vmd-install`'s, with its install rules and restore image check
-("`wb-vmd-install`", below). `wb-vmd-layer` alone serves `layer`, without
-either, though both slots use the build bundle ("`wb-vmd-layer`", below).
+slot (`vmd-slot-layer-unsupported`). `wb-vmd-install` serves `build`. It
+has the install rules and the restore image check ("`wb-vmd-install`",
+below). `wb-vmd-layer` alone serves `layer`. It has no install rules and
+no restore image check, and it uses the build bundle too ("`wb-vmd-layer`", below).
 
 ### Reaching an instance
 
