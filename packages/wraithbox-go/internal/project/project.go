@@ -87,6 +87,9 @@ type Resolver struct {
 	testEnv []string
 	// limits replaces defaultLimits when set. Only the tests set it.
 	limits *limits
+	// gitDirEntries replaces maxGitDirEntries when above zero. Only the
+	// tests set it.
+	gitDirEntries int
 }
 
 // Rule names the rule behind a decision, for the log and later the audit
@@ -135,6 +138,17 @@ const (
 	// RuleGitFileElsewhere: the `.git` file names a repository that is
 	// neither this directory's linked worktree nor its submodule.
 	RuleGitFileElsewhere Rule = "project-git-file-elsewhere"
+	// RuleGitDirLinkOutside: a symbolic link in the git directory
+	// resolves outside it, so git could read another project's
+	// repository through it.
+	RuleGitDirLinkOutside Rule = "project-git-dir-link-outside"
+	// RuleGitDirLinkUnresolved: a symbolic link in the git directory
+	// can't be resolved, so where it leads can't be checked.
+	RuleGitDirLinkUnresolved Rule = "project-git-dir-link-unresolved"
+	// RuleGitDirWalkIncomplete: the check of the git directory's links
+	// stopped before it finished, at the entry cap, the deadline, or a
+	// canceled request, so a link that leaves it could be missed.
+	RuleGitDirWalkIncomplete Rule = "project-git-dir-walk-incomplete"
 	// RuleOwnDirectory: the key is under <data>, <config> or <logs>.
 	RuleOwnDirectory Rule = "project-own-directory"
 

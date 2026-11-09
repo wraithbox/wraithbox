@@ -22,7 +22,7 @@ Brief: B45-claude-in-guest
 | S14-01-install | How the image build downloads, checks and installs Claude Code, and its version |
 | S14-02-user-configuration | Which of the user's `~/.claude/` entries `wb` reads, and how it treats symbolic links |
 | S14-03-configuration-filter | The filter, scan and caps the copy passes, and how `wb-guestd` writes it |
-| S14-04-commands-and-endpoints | The permission mode, the commands that don't work in a guest, and the endpoints Claude Code may reach |
+| S14-04-commands-and-endpoints | The permission mode, the commands that don't work in a guest, the guest instructions, and the endpoints Claude Code may reach |
 
 ### Agent interface
 
@@ -41,6 +41,9 @@ through the interface in `internal/agent`. An agent supplies:
 - **Launch.** The environment variables `wb-guestd` adds to the
   session's allowlist, and the state the agent keeps per project
   (S06-08-projects-and-sessions, "Claude Code in the guest").
+- **Guest instructions.** The managed instructions file the image
+  installs, and its text (S14-04-commands-and-endpoints, "Guest
+  instructions").
 - **Credential bindings.** The kinds of model credential, the guest
   variable that holds each placeholder, and the header each binding
   injects (S09-05-credentials, "Model credential").

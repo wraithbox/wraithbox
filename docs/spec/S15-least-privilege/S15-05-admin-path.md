@@ -130,7 +130,19 @@ A project user and the proxy can't reach `wb-guestroot`:
 - no request from the guest makes `wb-hostd` open the admin port.
 
 The design relies on `wb-guestroot` answering while `wb-guestd` is
-dead, wedged or restarting. X31-admin-channel measures that.
+dead, wedged or restarting. In X31-admin-channel, a second root
+LaunchDaemon gave the host a root shell while `wb-guestd` was booted
+out, stopped, and killed in a loop, and a standard user never bound
+its port.
+
+By default the shell has no Full Disk Access. TCC holds
+`wb-guestroot`, the responsible process, to what a root LaunchDaemon
+may do, so what TCC guards fails in the shell, such as deleting a user
+record or reading TCC's own files. `sudo` over SSH can do both, since
+Remote Login has Full Disk Access (X31-admin-channel). This isn't a
+boundary. With SIP on, root can't grant itself the access, but it can
+probably reach it through `ssh localhost`, since Remote Login holds the
+grant. X31-admin-channel infers that route and didn't try it.
 
 ### In the image
 

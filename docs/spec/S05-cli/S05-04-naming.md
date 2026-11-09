@@ -45,11 +45,10 @@ It sets only these variables:
 - `TMPDIR`, the caller's temporary directory, an absolute path;
 - `LC_ALL=C`.
 
-So no `GIT_*` variable, from the user's shell or a `.envrc`, can point
-the directory at another repository or add configuration. On Windows,
-Go's `os/exec` adds the caller's `SYSTEMROOT`, and reads `PATHEXT` for
-the binary's extension. The Windows host work (S12-platforms) sets
-`SYSTEMROOT` itself.
+So no `GIT_*` variable, from the user's shell or a `.envrc`, can point the
+directory at another repository or add configuration. On Windows, Go's
+`os/exec` adds the caller's `SYSTEMROOT`, and reads `PATHEXT` for the
+binary's extension. The Windows host work (S12-platforms) sets it itself.
 
 The login environment belongs to the user's login session. A variable
 exported in a shell, or set by a `.envrc`, doesn't reach it. On macOS,
@@ -65,15 +64,24 @@ URLs resolve as the user's git resolves them (`url.<base>.insteadOf`).
 
 #### Which directory
 
-`wb` walks up from the current directory, in canonical form, to the
-first one with a `.git` entry, as git does. The key must belong to that
-directory. A `.git` directory must be both `--git-dir` and
-`--git-common-dir`. Any type other than a directory or a file refuses
-the command. A symbolic link, for one, could name another project's `.git`.
+`wb` walks up from the current directory, in canonical form, to the first one
+with a `.git` entry, as git does. The key must belong to that directory. A
+`.git` directory must be both `--git-dir` and `--git-common-dir`. Any type
+other than a directory or a file refuses the command. A symbolic link, for
+one, could name another project's `.git`.
+
+A link in the git directory but the top-level `hooks`, or in a `.git` file's
+common directory, that resolves out of it refuses the command too
+(`project-git-dir-link-outside`, `project-git-dir-link-unresolved`). So does a
+directory with too many entries to check in time (`project-git-dir-walk-incomplete`).
+`wb` checks before git runs, or for a `.git` file before it reads `core.worktree`.
+`git rev-parse` reads its `config` first. That doesn't widen its reach: the
+`.git` file can name any git directory.
+
 git works in the tree `core.worktree` names. Each value of it, in the
-common directory's `config` or the git directory's `config.worktree`,
-read with includes off, must canonicalize, relative to `--git-dir`, to
-the directory holding `.git`, for every kind of `.git` entry.
+common directory's `config` or the git directory's `config.worktree`, read
+with includes off, must canonicalize, relative to `--git-dir`, to the
+directory holding `.git`, for every kind of `.git` entry.
 
 #### A `.git` file
 
@@ -85,9 +93,8 @@ submodule:
 - A submodule's `--git-dir` is the common directory. It sets `core.worktree`.
 
 `wb` doesn't use `--show-toplevel`, which git derives from
-`core.worktree`. Anything else refuses the command, such as a `.git`
-file in a downloaded archive that names another project's repository,
-or one of its submodules.
+`core.worktree`. Anything else refuses the command, such as a `.git` file
+in a downloaded archive that names another project's repository or submodule.
 
 #### Failure
 
@@ -98,12 +105,9 @@ here says why (NFR06-explained-refusals), and nothing is registered.
 #### Which commands
 
 Every command that resolves a project from a directory resolves it this
-way:
-
-- `wb claude`, `wb trust` and `wb untrust`;
-- the `wb project` commands and `wb shell`, without `--project`;
-- `wb project move` for its `<dir>`, also when `--project` is given;
-- `wb land` and `wb diff`.
+way: `wb claude`, `wb trust`, `wb untrust`, `wb land`, `wb diff`, and the
+`wb project` commands and `wb shell` without `--project`. `wb project move`
+resolves its `<dir>` this way even with `--project`.
 
 `wb land` and `wb diff` find the user's repository only this way, never
 from a path in `state.db` or from `wb-hostd`. They refuse a session
@@ -149,9 +153,8 @@ session start, and the URLs already tell repositories apart.
 
 ### Grow-only
 
-At a session start, the recorded identity can be empty while the
-repository now has a remote or a root commit. `wb` then records it, with
-a 5019 event.
+At a session start, the recorded identity can be empty while the repository
+now has a remote or a root commit. `wb` then records it, with a 5019 event.
 
 A repository that has had neither a remote nor a commit at any session
 start has nothing recorded. So a replacement at its path before then is
@@ -197,8 +200,7 @@ landing repository stay with it.
 It runs the identity comparison for `<dir>`, and prints any difference.
 The next session start then refuses until `wb project confirm`.
 
-A move to a key that another project has is refused, with that project
-named.
+A move to another project's key is refused, with that project named.
 
 ### Registration
 
@@ -220,10 +222,9 @@ remote, a shared root commit.
   `placement` (NFR06-explained-refusals).
 
 When any matching project has `placement = isolated`, the new project
-starts with `placement = isolated` too. So a clone of a repository the
-user isolated doesn't land in the work VM (T13-new-project-grants).
-Only the placement is copied, never approvals, bindings, policy or
-`config_trust`.
+starts with `placement = isolated` too. So a clone of a repository the user
+isolated doesn't land in the work VM (T13-new-project-grants). Only the
+placement is copied, never approvals, bindings, policy or `config_trust`.
 
 ### Removing
 
@@ -244,8 +245,7 @@ them, and another project may use the same item. `rm` lists them, and
 
 #### The project user
 
-`rm` asks `wb-guestd` in each VM to remove the project user and its
-home.
+`rm` asks `wb-guestd` in each VM to remove the project user and its home.
 
 - The pending removal is a record in `state.db` that survives restarts.
 - `wb-hostd` sends it when the VM runs, and otherwise at its next start.

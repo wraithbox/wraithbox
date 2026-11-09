@@ -258,9 +258,8 @@ Leftover-process results, in `wb-hostd`:
 
 ### Input from the internet
 
-The internet is a second source of input, through `wb-download` only.
-It runs during an image build, which the user starts. Its bounds are
-in S17-03-downloads:
+An image build, which the user starts, takes input from the internet
+through `wb-download` (S17-03-downloads) and Apple's installation service:
 
 | Internet input | Process | Limits |
 |---|---|---|
@@ -268,6 +267,7 @@ in S17-03-downloads:
 | The restore image and the Claude Code binary | `wb-download` | the size from the catalog's entry, at most 40 GiB, and 1 GiB; a file size limit set by `wb-launcher`; 12 hours and 30 minutes; free space checked before the run |
 | The result records | `wb-hostd` | a fixed form per field, at most 16 requests per run |
 | Audit records of downloads | `wb-hostd` | one per request or refusal, at most 16 per run, never dropped |
+| Apple's signing server's replies to the TSS requests (S17-04-restore-and-release) | Apple's installation service, outside Wraith Box | none set by Wraith Box, and not audited |
 
 ### Logs and health
 

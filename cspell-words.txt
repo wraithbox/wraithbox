@@ -387,6 +387,7 @@ Forgejo
 Codeberg
 codesign
 codesigning
+commondir
 protoc
 protoreflect
 protowire
@@ -616,3 +617,5 @@ keytool
 passwordless
 sslmate
 storetype
+ECID
+ramdisk

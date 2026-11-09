@@ -44,10 +44,29 @@ Neither VM gives a project user one. Sealing refuses an image with
 automatic login or an `/etc/kcpassword` (S06-02-image-build, "Sealing"). So V1 doesn't offer macOS tests through `xcodebuild`, or
 launching a macOS app. `swift test` is unaffected.
 
-When such a test fails because `testmanagerd` can't reach a GUI
-session, `wb` replaces the error with a message that names this limit
-(NFR06-explained-refusals). How `wb` detects the failure, and which
-process does it, is I224.
+#### Explaining the limit
+
+Such a test fails with a `testmanagerd` error, which doesn't name the
+limit. No host process rewrites that error:
+
+- `xcodebuild` runs in a Claude Code tool call. Its output goes to
+  Claude Code in the guest, and from there to the model. Claude Code's
+  terminal interface draws it, and the terminal stream carries it
+  through `wb-hostd` and `wb` to the user (S16-terminal-stream). The
+  host passes those bytes on as opaque terminal frames and never
+  parses them.
+- To see it, the host would parse output a guest-side wrapper sends.
+  That is guest-controlled input, and a parser for it buys only a
+  message.
+
+Claude Code meets the limit in the guest, and the explanation goes there
+(NFR06-explained-refusals):
+
+- The image's guest instructions tell Claude Code that macOS tests
+  through `xcodebuild` and launching a macOS app fail in the guest,
+  why, and that `swift test` works. Claude Code can then tell the user
+  (S14-04-commands-and-endpoints, "Guest instructions").
+- The user documentation lists the limit with the V1 limits.
 
 No V1 work needs a console session, so S06-07-slot-admission has no
 rule for one. I195 holds the console session design for after V1.
@@ -126,6 +145,16 @@ V1 doesn't offer macOS tests through `xcodebuild`, or launching a macOS
 app, because neither VM has a GUI login session.
 
 - **Decided:** B20-guest-xcode, decision 1A (I20).
+
+### Guest instructions explain the `testmanagerd` error
+
+The guest instructions and the user documentation explain the limit.
+No process rewrites the error.
+
+- **Rejected:** an `xcodebuild` wrapper in the image whose output
+  `wb-hostd` parses. The host would parse guest-controlled bytes for a
+  message, and the output reaches the model, not `wb`.
+- **Decided:** I224, triage of 2026-10-16.
 
 ### `work` as the default placement
 

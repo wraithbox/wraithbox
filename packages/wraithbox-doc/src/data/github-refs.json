@@ -1395,7 +1395,7 @@
 	},
 	"224": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: which process explains the testmanagerd failure in the guest (B20 decision 1A)",
 		"summary": "S06-vm-lifecycle, \"No GUI login session\" (B20-guest-xcode decision 1A, #20, PR #221) says wb replaces the testmanagerd error from xcodebuild with a message that names the v1 limit (NFR06-explained-refusals)."
 	},
@@ -1627,9 +1627,10 @@
 	},
 	"262": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X30-installer-trust: Installer refusal of a changed restore image",
-		"summary": "S17-install-and-upgrade (#49) checks a downloaded macOS restore image against the SHA-1 that Apple's catalog (mesu.apple.com) lists, the only hash it lists."
+		"summary": "S17-install-and-upgrade (#49) checks a downloaded macOS restore image against the SHA-1 that Apple's catalog (mesu.apple.com) lists, the only hash it lists.",
+		"brief": "B262-installer-trust"
 	},
 	"263": {
 		"kind": "issue",
@@ -2383,7 +2384,7 @@
 	},
 	"388": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Project resolution: symbolic links inside a .git directory that point into another project",
 		"summary": "Found during the security review of #387 (#374)."
 	},
@@ -2745,9 +2746,10 @@
 	},
 	"448": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "X31-admin-channel: a root shell from a second guest daemon while wb-guestd is down",
-		"summary": "Can a second root LaunchDaemon in a macOS guest, wb-guestroot, give the host a root shell on a PTY over its own vsock port below 1024, while wb-guestd is dead, wedged or restarting?"
+		"summary": "Can a second root LaunchDaemon in a macOS guest, wb-guestroot, give the host a root shell on a PTY over its own vsock port below 1024, while wb-guestd is dead, wedged or restarting?",
+		"brief": "B448-admin-channel"
 	},
 	"449": {
 		"kind": "pr",
@@ -3118,7 +3120,7 @@
 	},
 	"510": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd on a VM: install the CAs in a macOS guest, and check that its clients trust a leaf and URLSession doesn't",
 		"summary": "Package M3.9 of docs/implementation-plan.md, part 5 of 5 (M3.9e)."
 	},
@@ -3582,7 +3584,7 @@
 	},
 	"587": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "test(hostd): C02 guest trust on a macOS VM with a fake wb-proxyd end",
 		"summary": "Implements the needs-vm test of S09-08-guest-trust and S09-07-ca-certificates (\"Boot, restore and host wake\") for X04-tls-inspection, in C02-streams-and-tls."
 	},
@@ -3654,8 +3656,136 @@
 	},
 	"599": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-guestd: can't write /private/var/at/cron.allow in a real macOS guest, so it never serves the host",
 		"summary": "In a real macOS 27.2 guest (26B123), wb-guestd at cbbc5ce never serves the host."
+	},
+	"600": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(guestd): check cron's and at's allow files instead of writing them, so wb-guestd serves in a real guest",
+		"summary": "TCC protects /private/var/at: a root LaunchDaemon such as wb-guestd can read and list it, but can't create or remove a file there (probe in #599)."
+	},
+	"601": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(agents): how each Mac makes its go:test-vm fixture",
+		"summary": "go:test-vm boots a clone of WB_VM_TEST_BUNDLE: a provisioned bundle with wb-guestd installed as a root LaunchDaemon and cron's and at's allow files (#599)."
+	},
+	"602": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Campaigns: unattended runs that merge into a train, with a budget and a report",
+		"summary": "Runs (/wave) need the maintainer at every merge, because nearly every pull request touches a spec, a contract or go.mod, so the standing approval covers little (run #572: waves of one or two issues, each merge…"
+	},
+	"603": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(agents): campaigns, unattended waves that merge into a train (#602)",
+		"summary": "Campaigns run waves unattended within a budget, and merge into a train branch instead of main."
+	},
+	"604": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Campaign 2026-11-08 (V1-M3-network-floor, lane mac)",
+		"summary": "/campaign 5 --lane mac --vm-slots 2 --hours 2 --usd 30 --issues 10 --prs 10"
+	},
+	"605": {
+		"kind": "pr",
+		"state": "open",
+		"title": "Train 604: Campaign 2026-11-08 (V1-M3-network-floor, lane mac)",
+		"summary": "Train of campaign #604 (docs/agents/campaigns.md)."
+	},
+	"606": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project resolution: objects/info/alternates that names another project's objects",
+		"summary": "Found while building #388."
+	},
+	"607": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Claude Code layer: install the managed guest instructions CLAUDE.md (S14-04 Guest instructions)",
+		"summary": "S14-04-commands-and-endpoints, \"Guest instructions\" (#224) specifies a managed CLAUDE.md that the Claude Code layer installs at /Library/Application Support/ClaudeCode/CLAUDE.md in a macOS guest: owned by root, mode…"
+	},
+	"608": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): explain the testmanagerd failure in the guest instructions, not on the host",
+		"summary": "Settles how the testmanagerd failure of an xcodebuild test in the guest is explained (B20 decision 1A, #20), as the maintainer's triage on #224 directed: no host parsing."
+	},
+	"609": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Campaign waves end after 10 minutes: claude -p stops the background wave-lead",
+		"summary": "Wave 1 of campaign #604 ran claude -p \"/wave --campaign 604 ...\" through scripts/campaign.mjs."
+	},
+	"610": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(scripts): a headless campaign wave waits for its background lead",
+		"summary": "scripts/campaign.mjs starts each headless wave with CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 (waveEnv, with a test)."
+	},
+	"611": {
+		"kind": "issue",
+		"state": "open",
+		"title": "User docs: list the V1 limits, starting with the GUI-session limit of S06-04",
+		"summary": "Found in the code review of #608 (#224)."
+	},
+	"612": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(wb): refuse a git directory that holds a link resolving outside it",
+		"summary": "The project resolver refuses a project whose git directory holds a symbolic link that resolves outside it, as the decision of 2026-10-26 on #388 says."
+	},
+	"613": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(proxyd): strict HTTP/1.1 request head, request form and steps",
+		"summary": "Part of #498."
+	},
+	"614": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Build the admin path: wb-guestroot, the admin service and wb vm admin",
+		"summary": "Follow-up of #448 (X31-admin-channel), as the triage of #448 asked: no issue exists yet for building the admin path of S15-05-admin-path."
+	},
+	"615": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Guest kernel panic on a standard user's vsock connect to the guest's own CID",
+		"summary": "Found in #448 (X31-admin-channel), by chance."
+	},
+	"616": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project resolution: alternates and config includes in a .git that point into another project",
+		"summary": "Found in the code review of #612 (#388), finding 1."
+	},
+	"617": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Project resolution on Windows: junctions inside .git pass the link walk",
+		"summary": "Found in the code review of #612 (#388), finding 5."
+	},
+	"618": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Restore image downgrade by a compromised wb-download",
+		"summary": "Follow-up from #262 (X30-installer-trust)."
+	},
+	"619": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spikes): X31-admin-channel answered yes, with conditions",
+		"summary": "X31-admin-channel answered yes, with conditions.",
+		"brief": "B448-admin-channel"
+	},
+	"620": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spikes): X30 result, the installer refuses a changed restore image",
+		"summary": "Result of spike X30-installer-trust: yes, with conditions.",
+		"brief": "B262-installer-trust"
 	}
 }

@@ -1,8 +1,9 @@
 # S14-04 - Commands and Endpoints
 
 **Purpose:** Which permission mode Claude Code runs in, the commands
-that don't work in a guest, and the endpoints Claude Code in the guest
-may reach.
+that don't work in a guest, the guest instructions that explain the
+guest's limits to Claude Code, and the endpoints Claude Code in the
+guest may reach.
 
 ## Design
 
@@ -33,6 +34,43 @@ These fail in the guest, by I60 and SEC05-default-deny:
 - **`/ide`** can't reach an editor on the host. The guest has no route
   to the host or the LAN (SEC05-default-deny), and V1 has no port
   forwarding (V1-08-no-forward-clipboard).
+
+### Guest instructions
+
+Some tools fail in the guest with an error that doesn't name the
+reason. An `xcodebuild test` of a macOS target fails with a
+`testmanagerd` error, because the guest has no GUI login session
+(S06-04-vms-and-placement, "No GUI login session"). The host passes
+that output on as opaque terminal frames and never parses it
+(S16-terminal-stream). The explanation goes to Claude Code and the
+model.
+
+The image installs a managed `CLAUDE.md` that names these limits:
+
+- macOS tests through `xcodebuild`, and launching a macOS app, fail in
+  a Wraith Box guest, because it has no GUI login session;
+- `swift test` works;
+- the failure is a Wraith Box V1 limit, which Claude Code tells the
+  user about instead of working around it.
+
+The file:
+
+- is at Claude Code's managed policy path, `/Library/Application
+  Support/ClaudeCode/CLAUDE.md` on a macOS guest;
+- is owned by root, with mode 644, in a directory that project users
+  and the toolchain user can't write to;
+- is installed by `wb-guestd` with the binary, in the Claude Code
+  layer (S14-01-install, "Into the image").
+
+Its text is compiled into `internal/agent/claude`, and the wording is
+in code. No user setting replaces it. Claude Code's `claudeMdExcludes`
+can't exclude a managed `CLAUDE.md`, and the user's own `CLAUDE.md`
+(S14-02-user-configuration) loads after it.
+
+The file is guidance for the model, not a control. A session that
+turns off `CLAUDE.md` loading doesn't get it, and the test still
+fails, with the `testmanagerd` error. A user or project `CLAUDE.md`
+loads after the managed one and can contradict it.
 
 ### Browser login
 
@@ -104,6 +142,18 @@ Wraith Box doesn't set a permission mode of its own.
 - **Rejected:** defaulting to `bypassPermissions`. It changes Claude
   Code's behavior behind the user's settings, and breaks FR01-drop-in.
 - **Decided:** I45, row 2.
+
+### Explain guest limits in a managed `CLAUDE.md`
+
+- **Why:** the `testmanagerd` error reaches only Claude Code and the
+  model. The host never sees it, and parsing it there would add a
+  parser of guest output.
+- **Rejected:** an `xcodebuild` wrapper in the image whose output
+  `wb-hostd` rewrites.
+- **Rejected:** writing the note into the project user's
+  `~/.claude/CLAUDE.md`. That file is the user's copy
+  (S14-02-user-configuration), and the project user can change it.
+- **Decided:** I224, triage of 2026-10-16.
 
 ### The model API profile lists every endpoint
 

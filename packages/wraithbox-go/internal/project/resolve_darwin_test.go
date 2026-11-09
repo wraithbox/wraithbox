@@ -420,7 +420,9 @@ func TestResolveCoreWorktreeUnreadable(t *testing.T) {
 				t.Fatal(err)
 			}
 		},
-		"link": func(p string) { symlink(t, filepath.Join(tmp, "elsewhere"), p) },
+		// A link that stays in the `.git` passes checkGitDirLinks, and
+		// is still not a regular file.
+		"link": func(p string) { symlink(t, "config", p) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			x := newRepo(t, filepath.Join(tmp, strings.ReplaceAll(name, " ", "-")))

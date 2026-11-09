@@ -73,7 +73,7 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
 		const id = path.basename(rel).match(/^([A-Z]+\d+)-/)?.[1];
 		const title = source.match(/^title: (.+)$/m)?.[1].replace(/^"(.*)"$/, '$1');
 		const label = id && title ? `\nsidebar:\n  label: ${JSON.stringify(`${id} - ${title}`)}` : '';
-		return source.replace(/\n---\n/, `\n${editUrl}${label}\n---\n`);
+		return inlineFigures(rel, source.replace(/\n---\n/, `\n${editUrl}${label}\n---\n`));
 	}
 	const heading = source.match(/^# (.+)$/m);
 	if (!heading) throw new Error(`docs/${rel}: no "# " title heading`);
@@ -108,7 +108,8 @@ export function toPage(/** @type {string} */ rel, /** @type {string} */ source) 
  * Replaces `![caption](name.svg)` for an SVG next to the document with the
  * SVG itself in a `wb-figure`, so its classes take the site's theme colors
  * (src/styles/brief.css). The SVG's own <style> is for viewers that show
- * the file alone, such as GitHub, and is dropped here.
+ * the file alone, such as GitHub, and is dropped here, as are comments,
+ * which an `.mdx` page can't hold.
  */
 function inlineFigures(/** @type {string} */ rel, /** @type {string} */ body) {
 	return body.replace(/^!\[([^\]]*)\]\(([^)\s]+\.svg)\)$/gm, (whole, caption, file) => {
@@ -118,6 +119,7 @@ function inlineFigures(/** @type {string} */ rel, /** @type {string} */ body) {
 			.readFileSync(svgPath, 'utf8')
 			.replace(/<\?xml[^>]*>/, '')
 			.replace(/<style>[\s\S]*?<\/style>/, '')
+			.replace(/<!--[\s\S]*?-->/g, '')
 			.split('\n')
 			.filter((line) => line.trim())
 			.join('\n');

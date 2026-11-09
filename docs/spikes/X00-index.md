@@ -44,8 +44,8 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/sp
 | X27-vsock-confinement | vsock confinement of project users | Answered 2026-10-06: yes, with conditions |
 | X28-git-alloc-limit | git's allocation cap against delta bombs | Answered 2026-10-06: yes, with conditions |
 | X29-dev-signing | Keychain access group for development builds | Answered 2026-10-15: yes, with conditions. Decided 2026-10-15 (I248): no Keychain backend for a build without a team signature |
-| X30-installer-trust | Installer refusal of a changed restore image | Open |
-| X31-admin-channel | A root shell from a second guest daemon | Open |
+| X30-installer-trust | Installer refusal of a changed restore image | Answered 2026-11-08: yes, with conditions. The signing server and the restore OS refuse a changed image, and the install contacts Apple from a service the profile doesn't confine |
+| X31-admin-channel | A root shell from a second guest daemon | Answered 2026-11-08: yes, with conditions |
 | X32-project-metrics | Measuring V1 progress, effort and quality | Answered 2026-11-02: yes, with conditions. Repeat it at each milestone close through I544, using `cost-state` for cost and a time log to calibrate the human model |
 
 ## Spikes
@@ -342,6 +342,12 @@ assumption that v1 work would otherwise build on. They block v1.
   S17-04-restore-and-release rests on the installer's own check
   (SEC12-least-privilege, SEC08-proj-isolation). Found while deciding
   B49-install-upgrade. Tracked in I262.
+  Answered yes, with conditions, in the result page
+  X30-installer-trust: Apple's signing server declines changed boot
+  components, and the restore OS a changed system volume. Every install
+  contacts that server from Apple's installation service, which the
+  profile doesn't confine, and an older build Apple still signs isn't
+  caught.
 - **X31-admin-channel: A root shell from a second guest daemon.**
   Can `wb-guestroot`, a root LaunchDaemon apart from `wb-guestd` on a
   vsock port of its own below 1024, give the host a root shell on a PTY
@@ -350,7 +356,12 @@ assumption that v1 work would otherwise build on. They block v1.
   at one boot (S06-12-guest-agent, "Update at start") collide? The admin path of
   S15-05-admin-path relies on it (SEC08-proj-isolation,
   SEC11-root-gains-nothing). Found while drafting B419-admin-path.
-  Needs a VM. Tracked in I448.
+  Needs a VM. Answered yes, with conditions, in the result page
+  X31-admin-channel: the shell answered with `wb-guestd` booted out,
+  stopped or crash-looping, a standard user never bound the port, and
+  the two updates need no lock. The shell has no Full Disk Access, and
+  a standard user's vsock connect to the guest's own CID panicked the
+  guest's kernel.
 - **X32-project-metrics: Measuring V1 progress, effort and quality.**
   Can progress toward V1, human and AI effort, velocity and quality be
   measured again and again from git, GitHub and Claude Code

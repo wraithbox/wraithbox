@@ -235,6 +235,11 @@ doesn't install again then, so it can't loop.
 start for itself only, and in step 6 runs the installed
 `wb-guestroot`. So each program has one installer.
 
+The two run at one boot without a lock: launchd runs both from the
+install directory, so it exists, and each renames only its own files
+(X31-admin-channel). Where the directory is missing, one of two updates
+at once can refuse with `guestd-install-dir-failed`.
+
 Each refusal is logged with its rule, and `wb-guestd` then serves as it
 is. The values are in code: the paths and the checks of the mount and
 the directory in `internal/platform/guesttools`, and the wait, the size

@@ -77,7 +77,35 @@ system trust store. It binds the file to that entry.
 
 The catalog isn't signed, so a compromised `wb-download` can report
 any entry. Against that, the design relies on Virtualization's
-installer refusing a restore image that Apple didn't sign (I262).
+installer, which refuses a changed restore image
+(X30-installer-trust):
+
+- For the boot components (the kernel cache, the boot loaders, the
+  ramdisk, the device tree and the trust caches), the installer hashes
+  each file in the image and asks Apple's signing server for a ticket.
+  The spike changed the kernel cache. The server declined its digest,
+  and the digest of Apple's kernel cache for another device too, and
+  the install failed. A matching change to the image's build manifest
+  didn't change the digest the installer sent. The spike didn't change
+  the other boot components, which go in the same request.
+- The restore OS in the VM checks the system volume image while it
+  copies it. One changed byte in the middle of it failed the install.
+
+The installation service asks the signing server on every install,
+over the host's network. It is Apple's own process, and
+`wb-vmd-install`'s profile doesn't confine it. `wb-vmd-install` itself
+still has no network (S04-04-vm-processes). These requests are the one
+part of an image build that reaches the internet without `wb-download`
+(S17-03-downloads, "Only `wb-download` fetches"). Wraith Box neither
+bounds nor audits them (S04-08-records-and-bounds). Each request holds
+the VM's chip identity and the components' digests. When the server
+can't be reached, the install is assumed to fail. The spike didn't
+test that.
+
+An older build that the signing server still signs passes both
+checks, and the SHA-1 doesn't stop it either. The floor and the
+rollback check above compare the version that the entry reports,
+which comes from `wb-download` too (I618).
 
 ### A Claude Code release
 

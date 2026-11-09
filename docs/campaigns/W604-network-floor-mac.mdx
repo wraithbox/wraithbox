@@ -1,0 +1,169 @@
+---
+title: "Campaign 604: network floor, lane mac"
+description: "wb refuses a project whose .git links into another, the macOS installer trusts Apple's signing server outside wb-download, a root admin shell in the guest works without wb-guestd, and guest instructions explain a known Xcode failure."
+---
+
+**Ended 2026-11-08.** Train `train/604`, which PR605 merges into `main`. Decisions wait for you below, and an approved proxy change is open beside the train.
+
+## In short
+
+The train adds one host control in code and answers three design questions with measurements in a VM.
+
+- **`wb` refuses a project whose `.git` reaches into another project.** When a symbolic link inside a project's git directory resolves outside it, every command that resolves a project refuses to run. A downloaded repository could otherwise read another project's objects and remotes. It's the only code on the train: 391 lines of Go, about half of them tests.
+- **The macOS installer refuses a tampered restore image, but only by asking Apple.** On every install, Apple's installation service sends the image's digests to Apple's signing server. That traffic leaves the host outside `wb-download`, and Wraith Box neither bounds nor audits it. The specs now name it as the one exception. **It needs your approval.**
+- **A root admin shell in the guest can work while `wb-guestd` is down.** A second root daemon on its own privileged vsock port answered in every state of `wb-guestd`, and no standard user could take its port. The spike also found a guest kernel panic. **You decide** whether the admin shell gets Full Disk Access.
+- **Claude Code in the guest learns why Xcode UI tests fail** from a managed `CLAUDE.md`. The host no longer plans to rewrite the error.
+
+Beside the train, an approved change of 1,709 lines gives `wb-proxyd` a strict HTTP/1.1 request reader. It isn't merged, because the connection loop that uses it isn't built yet.
+
+## What needs you
+
+- **Approve the installer exception** (B262-installer-trust). The installer's check works only through those requests. The brief has one option. Approving amends the decision "Only `wb-download` fetches" from I49.
+- **Full Disk Access for the admin shell** (B448-admin-channel). The spec now takes the stricter option, none. Without it the shell can't delete a user record or read TCC's files, and you'd use `sudo` over SSH for those.
+- **The guest kernel panic is described in a public issue** (I615). It's kernel memory corruption, which may be an Apple security bug. Decide whether to make it private and report it to Apple first.
+- **The open proxy change** (PR613) targets `train/604`. Merge it later with the connection loop, or retarget it to `main` after the train is merged.
+
+## What changed where
+
+![The components the campaign touched. On the host, wb changed in code to refuse a .git that links out of itself. wb-proxyd has an approved change that isn't on the train. The specs now say Apple's installation service contacts Apple's signing server on every install, outside wb-download. In the guest, wb-guestroot is a new component designed for the admin shell, Claude Code gets a managed CLAUDE.md, and the guest kernel of macOS 27.2 panics on a vsock connect to its own CID.](W604-network-floor-mac.svg)
+
+## The changes, largest first
+
+### `wb` refuses a `.git` that links out of itself
+
+*Code and spec. Security: project isolation (SEC08-proj-isolation). 447 lines added, 391 of them Go.*
+
+**The threat.** A project's `.git` can come from an archive or a clone the user didn't inspect. If its `objects`, `refs` or `config` is a symbolic link into `~/other-project/.git`, git follows it. A Claude session in that project would then read the other project's objects and remotes. `wb` already refused a `.git` that is itself a link and checked `core.worktree`, but it didn't look inside the directory.
+
+**What `wb` does now.** Before git touches the repository, `wb` walks the git directory, or a `.git` file's common directory, and resolves each link it finds. A link must resolve inside the directory, or the command is refused:
+
+| Rule | When |
+|---|---|
+| `project-git-dir-link-outside` | a link resolves outside the git directory |
+| `project-git-dir-link-unresolved` | a link dangles or loops |
+| `project-git-dir-walk-incomplete` | over 500,000 entries, or the walk passes the 10 s git timeout |
+
+This applies to every command that resolves a project: `wb claude`, `wb trust`, `wb untrust`, `wb land`, `wb diff`, `wb project` and `wb shell`. Each refusal is logged with its rule. Tests on macOS cover each rule, a link loop and a directory that can't be read. The code is in `internal/project/gitlinks.go`.
+
+**Choices made, which you can veto:**
+
+- The top-level `hooks` directory is skipped. `wb` runs git with `core.hooksPath` set to `/dev/null`, so git doesn't read it, and hooks linked to scripts in the working tree are common.
+- Paths are compared as strings after resolving. A link that reaches back into the directory through another letter case or another mount is refused, which is the strict side.
+- A dangling link anywhere refuses the project, even in an unrelated old `worktrees/` entry. Also strict.
+- `git rev-parse` still runs before the walk and reads `.git/config`. That gives git no new reach, because a `.git` file can name any git directory already.
+
+**Not covered yet.** The walk checks links, not file contents. `objects/info/alternates` and an `[include] path =` in `config` can still point into another project (I616, I606). On Windows, a junction looks like an irregular file to Go and the walk skips it (I617). Windows can't hit that today, because project resolution refuses on Windows.
+
+### Image builds trust Apple's signing server
+
+*Spec change from spike X30-installer-trust. Security: changes the internet inputs of an image build. 346 lines of docs.*
+
+**The question.** `wb-download` fetches the restore image, and `wb-hostd` checks its hash against a catalog that `wb-download` fetches too. Does Apple's installer catch an image that isn't Apple's?
+
+**What the spike measured.**
+
+- A changed kernel cache: the installer hashed it and sent the digest to Apple's signing server (TSS). The server declined it, and the install failed. Making the build manifest match didn't help, because the installer computes the digest itself.
+- One flipped byte in the middle of the system volume: the restore OS in the VM checks the volume while copying it, and the install failed.
+- The other boot components (boot loaders, ramdisk, device tree, trust caches) go in the same request but weren't changed. An unreachable signing server is assumed to fail the install, untested.
+
+**What it means.** Apple's installation service, not `wb-vmd-install`, sends those requests. Apple's own process, outside `wb-vmd-install`'s sandbox profile, sends them over the host's network on every install. Each request holds the VM's chip identity and the components' digests. `wb-vmd-install` itself still has no network, and the spike's probe confirmed its profile holds, so no `SEC*` control is weaker. These specs stated that only `wb-download` reaches the internet, and each now names the exception: the downloads spec (S17-03), restore and release (S17-04), the table of internet inputs (S04-08), and the platform table (S12-01).
+
+**Gap.** An older build that Apple still signs passes both the installer's check and the hash check. The version floor relies on the catalog, which comes from `wb-download` (I618, needs a VM).
+
+### A root admin shell that doesn't depend on `wb-guestd`
+
+*Spec change from spike X31-admin-channel. Security: a new root entry point into the guest. 402 lines of docs.*
+
+**The design.** `wb vm admin` gives the person at the keyboard a root shell in the guest for repair (S15-05-admin-path). It must work when `wb-guestd` is wedged. The plan is a second root daemon, `wb-guestroot`, on its own vsock port below 1024. The host opens the connection, as it does for `wb-guestd`.
+
+**What the spike measured,** with a stand-in daemon on port 1022:
+
+- It served a root `zsh` with `wb-guestd` running, booted out, stopped with `SIGSTOP`, and killed in a loop (44 of 44 tries).
+- A standard user's `bind` of port 1022 failed with `EACCES` about 12,600 times, with a listener, without one, and across a restart. Root bound it on the first try. launchd restarted the daemon within 0.5 s.
+- `wb-guestd` and `wb-guestroot` can update at one boot without a lock, because each renames only its own files. On a fresh install directory, two at once can fail closed with `guestd-install-dir-failed` (146 of 200 tries).
+
+**Full Disk Access, the open choice.** TCC holds the shell to what a root LaunchDaemon may do, so it has no Full Disk Access by default. That isn't a boundary: root can probably reach it through `ssh localhost`, since Remote Login holds the grant. The spike inferred that route and didn't try it. The spec states "no Full Disk Access", and B448-admin-channel asks you.
+
+**Found on the way: a guest kernel panic.** On macOS 27.2, a standard user's vsock connect to the guest's own CID panicked the kernel, "corrupt list around element", 2 of 2 times. The guest rebooted. The session profile's `AF_VSOCK` deny keeps project users off this path. Processes outside the profile aren't covered, such as a Homebrew formula's `post_install` during a toolchain step. One bad formula would then reboot the VM for every project in it. The panic contradicts what X27 found on 27.0.1 and S04-02 states, and two conformance tests (`TestGuestdPortRefused`, `TestSelfCIDFlood`) are expected to panic a 27.2 test VM (I615).
+
+Building the admin path is I614.
+
+### Guest instructions explain Xcode UI test failures
+
+*Spec only. 115 lines of docs. Not security-relevant.*
+
+An `xcodebuild test` of a macOS target fails in the guest with a `testmanagerd` error, because the guest has no GUI login session. The spec said `wb` would rewrite that error. That would make the host parse output from the guest, and the host passes the terminal stream through as opaque frames without reading the error.
+
+Now the image installs a managed `CLAUDE.md` at `/Library/Application Support/ClaudeCode/CLAUDE.md`, owned by root with mode 644, from text compiled into `internal/agent/claude`. It says that `xcodebuild` tests and macOS app launches fail while `swift test` works. Claude Code should tell the user instead of working around it. The file is guidance, not a control: a project's `CLAUDE.md` loads later and can contradict it. Rejected: a wrapper whose output `wb-hostd` parses, and writing into the project user's own `~/.claude/CLAUDE.md`. I607 builds it, and I611 adds a user docs page of V1 limits.
+
+### Beside the train: strict HTTP/1.1 requests in `wb-proxyd`
+
+*Code, approved, not merged. Security: parses guest bytes on the egress path. 1,709 lines, 16 files.*
+
+A new package, `internal/proxyd/httpreq`, reads an HTTP/1.1 request head from the guest and refuses anything ambiguous before a policy step runs:
+
+- a 64 KiB head cap (`431`), and `CONNECT` or a non-WebSocket `Upgrade` refused as a tunnel (`403`);
+- origin or absolute form only, with `Host` and the target's host bound to the stream's name and port;
+- the path canonicalized with the same function the policy matches on, so the path that's checked is the path that goes upstream;
+- a strict chunked decoder;
+- the seven request steps of S07-08 run in order, and the request is refused if the credential removal or policy step is missing.
+
+Choices stricter than the issue asked: field values with bytes over 0x7E, malformed userinfo in an absolute-form target, and two `Content-Length` fields even when they agree are all refused. A fuzz target compares the reader with Go's `net/http`: in 15 million runs the two didn't diverge.
+
+The connection loop that serves these requests is still to build: deadlines, refusal answers and their logging, keep-alive upstream, the WebSocket relay, and body size caps (I498).
+
+## Review findings not resolved
+
+The must-fix findings were fixed before merge. These remain, most serious first.
+
+**Security:**
+
+- **Guest kernel panic** on a self-CID vsock connect, reachable from toolchain steps. A VM-wide denial of service, and memory corruption that may be an Apple security bug (I615).
+- **`.git` file contents** can still point into another project, through `alternates` or a config `include` (I616, I606).
+- **A `Connection` header can drop a credential header** before the audited credential removal step sees it. The credential never goes upstream, but the audit log misses the removal. In the open proxy change, for I500.
+- **An older Apple-signed restore image passes** the installer's check (I618).
+- **The admin path has no limit** on concurrent admin sessions, and doesn't say how sessions end when `wb-guestd` is wedged. The sealed image also holds a stale Full Disk Access grant for `sshd-keygen-wrapper` (I614).
+- **Windows junctions** inside `.git` would pass the link walk, once Windows resolves projects (I617).
+
+**Code and docs, which reviewers marked as optional:**
+
+- The downloads spec still opens with "Only `wb-download` fetches what an image build needs" before it names the exception, and its diagram doesn't show the signing server traffic.
+- The `testmanagerd` decision is recorded in two specs with slightly different rejected options.
+- `gitlinks.go` repeats the "equal or under" path test of `resolve.go`.
+- The admin channel brief calls the `ssh localhost` route inferred in its prose but not in its evidence list.
+
+## Friction
+
+- **Flaky tests, both known.** Go `TestStreamPolicy` (I551) failed once on CI and passed on rerun. The Swift `ConnectGuest` send failure test (I580) failed on the train's CI, although the train doesn't change Swift code, and passed on rerun.
+- **VM instability.** The guest kernel panic above rebooted the spike VM twice. The conformance suite is expected to trigger it on macOS 27.2 until I615 gates those tests.
+- **The headless wave stopped after 10 minutes.** `claude -p` ended the background wave lead and its builders (I609, fixed on `main` by PR610). The work was finished by hand in the same worktrees.
+- **Generated indexes conflict on every rebase.** One rebase dropped the X30 answer from the spike index, which the builder restored by hand.
+- **Review rounds.** 13 reviews for 5 pull requests. The admin channel and the proxy change each took 3 code review rounds, over spec wording that contradicted other specs or the code.
+
+## The run
+
+<details>
+<summary>Budget, timeline, and pull requests</summary>
+
+**Cost: $63.87 against a $50 limit.** The headless wave cost $11.89 on the ledger. The resume ran in the manager's interactive session, which cost $51.98 by the maintainer's count. The ledger doesn't see an interactive session, so the manager couldn't stop at the limit.
+
+| Limit | Spent | Of |
+|---|---|---|
+| Hours | 2.3 | 2.31 |
+| Dollars | $63.87 | $50.00 |
+| Issues filed | 8 | 10 |
+| Pull requests | 5 | 10 |
+
+**Timeline.** The campaign started 2026-11-08 19:53 UTC on the dedicated Mac, in V1-M3-network-floor. Wave 1 picked five issues. Its headless session ended after 10 minutes with nothing on the train. After the harness fix, the maintainer had the campaign resumed for 90 minutes, only to finish those issues. The manager acted as wave lead in its own session.
+
+| Pull request | Change | Where | Code review rounds | Security reviews |
+|---|---|---|---|---|
+| PR612 | `wb` refuses a `.git` that links out of itself (I388) | on the train | 1 | none required |
+| PR620 | Image builds trust Apple's signing server (I262, X30) | on the train | 2 | none required |
+| PR619 | Root admin shell (I448, X31) | on the train | 3 | 1 |
+| PR608 | Guest instructions for Xcode failures (I224) | on the train | 1 | none required |
+| PR613 | Strict HTTP/1.1 requests in `wb-proxyd` (part of I498) | open | 3 | 2 |
+
+This page was written by hand. `scripts/campaign.mjs` renders a page ordered by pull request, which this one replaces.
+
+</details>
