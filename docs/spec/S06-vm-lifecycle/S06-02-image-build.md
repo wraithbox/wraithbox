@@ -107,8 +107,7 @@ The second stage goes over the host-guest socket to `wb-guestd`:
 
 That sealed image is the parent of the Claude Code layer. The build
 clones it into a new build bundle, boots the clone in `wb-vmd-layer`
-in the `layer` slot, without the install rules or provisioning options
-(S04-04-vm-processes), makes the layer, and
+in its `layer` slot (S04-04-vm-processes), makes the layer, and
 seals it again (S06-01-image-layers, "The Claude Code layer"). A build
 for a new Claude Code release does only that part.
 
