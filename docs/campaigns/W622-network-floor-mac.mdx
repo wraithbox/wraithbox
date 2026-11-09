@@ -1,47 +1,177 @@
 ---
 title: "Campaign 622: network floor, lane mac"
-description: "A three-hour campaign on the dedicated Mac, in V1-M3-network-floor, with waves of five issues and two VM slots."
+description: "wb-proxyd clears a VM's state at a fresh start and its wildcard count at a new active period, and wb-vmd-layer gets its own slot, which refuses provisioning options."
 ---
 
-**Running.** Campaign I622, train `train/622` in PR623, started 2026-11-09 17:52 UTC. Rendered by `scripts/campaign.mjs` (docs/agents/campaigns.md).
+**Ended 2026-11-09: wave 1 merged nothing into the train itself: its headless session exited while the wave lead waited on its own check watches (I631).** Train `train/622` in PR623. To veto a pull request on the train, comment `veto #<pr>` on PR623.
 
-## Summary
+## In short
 
-The campaign has started. No wave has run yet.
+The train makes `wb-proxyd` forget a VM's previous run when the VM starts fresh, and gives the daemon that builds the Claude Code layer a VM slot of its own.
 
-## Budget
+- **`wb-proxyd` clears a VM's state at a fresh start, and its wildcard count at a new active period.** Until now nothing told `wb-proxyd` about either event, so it kept the last run's names, wildcard count, and policy for the next run. A fresh `wb-netd` then had its first lookup at each reused address refused as a conflict. The control contract between `wb-hostd` and `wb-proxyd` gains a field and a message kind, which **needs your approval**. 531 lines of Go and proto, two thirds of them tests.
+- **`wb-vmd-layer` runs in a `layer` slot, apart from the installer's `build` slot.** With a shared slot, the layer build would have taken the provisioning options that create the guest admin user with a password. Now only the `build` slot accepts them. 112 lines of Swift. The new check isn't called from a start request yet, because no request has provisioning options yet.
+
+Beside the train, an approved design for the Xcode image copies the host's own Xcode and exported simulator runtimes onto a read-only disk for the image build. It conflicts with the layer slot change and needs a rebase and a new review round. **Its brief puts two one-way decisions to you.**
+
+## What needs you
+
+- **Approve the control contract change.** `HandoffSocket` gains a `fresh` field, and the messages from `wb-hostd` to `wb-proxyd` gain a kind, `ActivePeriodStart`, which doesn't hold a descriptor and isn't acknowledged. The issue decided that you approve this contract change in review. Merging the train approves it, and `veto #628` on the train pull request removes it. (PR628, I573)
+- **Xcode image, the license.** Option A: the build refuses with `xcode-license-not-accepted` unless the host's record says you accepted the license of that exact Xcode build, and the guest then accepts it for the copy. You open Xcode once after each update. Option B: the guest accepts the license without looking at the host. The agent recommends A, with medium confidence. (B194-xcode-image, PR626)
+- **Xcode image, the runtimes.** Option C: you export each simulator runtime on the host once, with `xcodebuild -downloadPlatform iOS -exportPath`. The build puts it on the same read-only disk. Option D: the build VM gets a network and downloads runtimes, which needs pass mode for Apple's hosts and weakens SEC05-default-deny. The agent recommends C, with high confidence. (B194-xcode-image)
+- **Xcode image, the wording of the disk mount control.** The host may format a blank disk image it made before any guest has run with it. The Xcode disk relies on that exception, as the data disk does, but its shim also fills the volume. The spec reads the exception as covering that and leaves the control's text alone. The brief asks whether it should say "format and fill". (SEC15-no-guest-disk-mount, B194-xcode-image)
+- **What happens to the open Xcode design.** Both reviews approve it and its checks pass. It conflicts with the layer slot change in the VM processes spec, where both edit the `wb-vmd-layer` text. It needs a rebase onto the train and a new review round before it can ride a train. The alternative is to retarget it to `main` once this train is merged. Its worktree is `.claude/worktrees/agent-a27a4a2f34bad6e7b`. (PR626, I194, S04-04-vm-processes)
+- **The harness defect that ended the campaign.** When a wave lead ends a turn while its own background work runs, the dispatcher gets a `completed` notification for it and ends its turn. Then `claude -p` exits and stops the lead. Wave 1 ended that way after 50 minutes and didn't write a wave report, so this page comes from the pull requests and their reviews. The fix is in harness paths, so it goes to `main` and waits for you. (I631)
+- **Merges by the manager, not the wave.** The wave merged nothing. After its session exited, the campaign manager merged the proxy change and the layer slot change into the train, having checked the train merge check on GitHub: approved, re-checked head, checks green, mergeable, and no harness path changed. Veto them like any other pull request on the train. (PR628, PR625)
+- **The next campaign in this lane.** The network floor milestone had one issue left that a wave could take, so two of the wave's three issues came from the image build milestone. A next campaign here would take its issues from the image build milestone, unless the network floor gets more issues ready for agents. (V1-M3-network-floor, V1-M7-image-build)
+- **Attended: measure what the Xcode design assumes,** on a Mac with Xcode installed and in a guest: the host export of a runtime, the signature checks on an App Store Xcode, a developer site Xcode and a runtime image, where the host records the license, and the offline guest steps. The design refuses the build until each is known. (I624, `needs-vm`, `needs-host`)
+
+## What changed where
+
+![The components the train touches. On the host, wb-hostd, wb-proxyd and wb-netd changed in code, so that a fresh start clears wb-proxyd's state for a VM and a new active period clears its wildcard count. wb-vmd changed in code to give wb-vmd-layer a layer slot that refuses provisioning options. Beside the train, an open design adds a third entry of wb-diskfmt, which copies the host's Xcode and exported runtimes onto a disk image that a build VM with no network gets read-only, where wb-guestd installs them as root.](W622-network-floor-mac.svg)
+
+## The changes, largest first
+
+### `wb-proxyd` forgets a VM's previous run
+
+*Code and spec. Security: default deny (SEC05-default-deny), project isolation (SEC08-proj-isolation), and the control contract from `wb-hostd` to `wb-proxyd`. 531 lines of Go and proto added, 354 of them tests, and 46 removed. 35 lines of spec added and 4 removed. The generated proto code is left out.*
+
+**The problem.** For each VM, `wb-proxyd` keeps a checked copy of the name mapping, the wildcard names it accepted in the active period (the second layer of the wildcard budget), and the effective policy with its sequence number. Nothing told it when a VM started from scratch or when a new active period began. So it kept the last run's names, count, and policy for the next run. A fresh `wb-netd` gives out addresses from the start again, and its first lookup at each address the previous run held was refused as a conflict. The wildcard count never reset.
+
+**What was built.**
+
+- **A fresh hand-off socket.** `wb-hostd` sets a new `fresh` field on each `HandoffSocket` after a start that cleared the VM's state, until `wb-proxyd` acknowledges one. So a retry after a timeout is fresh too, and a `wb-netd` restart or a restore isn't. `wb-hostd` sends it before the run's first policy change. `wb-proxyd` checks it like any other message. Then it closes the VM's old socket and every stream on it. It clears the copy and the wildcard names, and drops the policy and its sequence. Every report and stream is then refused until the run's first `PolicyChange`, which may start at sequence 1 again.
+- **A new active period.** `Proxyd.NewActivePeriod` in `wb-hostd` clears its own set of the VM's wildcard names, then sends `ActivePeriodStart`. `wb-proxyd` clears its count and keeps the copy's entries. Calling `NewActivePeriod` is left to the session wiring (I490).
+- **A race fixed on the way.** At any socket replacement, fresh or not, the old socket is now marked closed under the same lock that installs the new one. Before, a report on the old socket could land after the swap.
+
+| Rule or check | Decision |
+|---|---|
+| `vm-fresh-start` | logged when a fresh socket cleared the VM's state |
+| `active-period-start` | logged when `ActivePeriodStart` cleared the wildcard count |
+| `message-form` | `wb-netd` refuses a `HandoffSocket` with `fresh` set. `wb-proxyd` refuses an `ActivePeriodStart` with a descriptor or before its start message. Each refusal ends the channel. |
+| `vm-slot` | `ActivePeriodStart` names neither `work` nor `isolated` |
+| `control-channel-failed` | the `ActivePeriodStart` send failed. `wb-hostd` logs it as its own failure rather than a failed VM start, because the VM is running. |
+
+The message checks are in `internal/egressmsg` and the receiver in `internal/proxyd/handoff/receiver.go` and `socket.go`. Tests cover a fresh start, a plain replacement that keeps the state, a fresh socket at an older generation, `ActivePeriodStart` accepted and refused, and the fresh flag through a retry, a restore and a stop and start in `wb-hostd`. The fuzz target for control messages has new seeds, and the security review ran it for 60 seconds, 7.4 million runs without a failure. The new messages come only from `wb-hostd`: the guest and a compromised `wb-netd` can't send them, and the new code parses no guest bytes.
+
+**Choices made, which you can veto:**
+
+- A `fresh` field on the existing message rather than a separate message, so the clear and the new socket land under one lock with no window between them.
+- A fresh start keeps the generation, and a fresh socket at the same generation passes as a replacement, so a retry after an acknowledgment timeout is accepted.
+- `ActivePeriodStart` has no acknowledgment. `wb-proxyd` decides control messages in order, so the acknowledgment of a later message confirms it.
+- `wb-netd` refuses the `fresh` field, because its own start clears its mapping.
+
+**Not covered yet.** The session wiring that calls `NewActivePeriod`, keeps the fresh hand-off before the run's first policy, and refuses a policy while a fresh hand-off is pending (I490). `wb-netd` has no message that starts a new active period. So a running `wb-netd` keeps its debited wildcard names until it restarts, though the DNS spec says a new period clears them, and fixing that is another contract change (I627). A failed policy send is still logged as a failed VM start.
+
+### `wb-vmd-layer` gets a slot of its own
+
+*Code and spec. Security: least privilege for the guest admin's provisioning (SEC12-least-privilege). 112 lines of Swift added, 53 of them tests, and 14 removed. 24 lines of spec and test plan added and 20 removed, in five pages.*
+
+**The problem.** `wb-vmd-layer` boots a clone of the image to build the Claude Code layer. The VM processes spec gave it the same `build` slot as `wb-vmd-install`, which installs macOS. `wb-vmd` decides by its slot, so it couldn't tell the two apart, and a layer build would have accepted the provisioning options that create the guest admin `wbadmin` with a password.
+
+**What was built.** A slot `layer` in `WraithBoxVM/DeviceSet.swift`, which uses the build bundle and whose fixed device set has no network device. Only `build` accepts provisioning options. A new `ProvisioningCheck` in `WraithBoxVMD` refuses them in any other slot and logs the rule with the slot. Both build daemons are still to be built, so `wb-vmd` still refuses to start in either slot, each with its own rule.
+
+| Rule | When |
+|---|---|
+| `vmd-slot-build-unsupported` | started in the `build` slot, until `wb-vmd-install` is built (unchanged) |
+| `vmd-slot-layer-unsupported` | started in the `layer` slot, until `wb-vmd-layer` is built (new) |
+| `vmd-provisioning-refused` | provisioning options in the `work`, `isolated` or `layer` slot, with gRPC code `permission_denied` (new) |
+
+The specs for the VM processes, image layers, image build and guest admin, and the host daemons' test plan, now name the `layer` slot. `ProvisioningCheckTests` covers the `work`, `isolated`, `layer`, and `build` slots, `StartupTests` and `ProcessTests` the start refusal in the built daemon, and the device set tests the `layer` slot. No Go code changed: the Go side knows only `work` and `isolated`, and starts only those entries.
+
+**Choices made, which you can veto:** the layer slot's start refusal has a rule of its own rather than the build slot's. The refusal's gRPC code is `permission_denied`. The check is a separate `ProvisioningCheck`, and its rule goes back in a `VMRefusal` like the other request refusals. The image build spec's layer paragraph now points to the VM processes spec for the slot's rules, to stay under its 300-line page limit.
+
+**Not covered yet.** Only the tests call `ProvisioningCheck`, because no start request has provisioning options yet. When `wb-vmd-install` gets them, its start path has to call the check first (I629). Today the path can't fail open, because both build slots refuse to start. The `build` and `layer` slots now share a bundle, so `wb-vmd`'s bundle check can't keep them from running at once. The slot admission in `wb-hostd` does that (S06-07-slot-admission).
+
+### Not merged: the Xcode image, from the host's own Xcode
+
+*Spec and brief, approved, and open beside the train. Security: the image build now trusts the host's Xcode and exported runtimes as far as Apple's signature accepts them, and the design depends on the controls against host folder sharing and disk mounts (SEC02-no-host-fs-share, SEC15-no-guest-disk-mount). A new 281-line spec page and a 146-line brief, and 67 lines added in eight other pages, with no code.*
+
+**The question.** An image with full Xcode needs Xcode and its simulator runtimes, and a runtime alone is about 8 GB. You decided on 2026-10-16 that Xcode comes from a read-only disk the host builds (I194). This design says how (S06-14-xcode-image).
+
+**The design.**
+
+- A third `wb-diskfmt` entry, `wb-diskfmt-xcode`, checks Apple's signature on `/Applications/Xcode.app` and on each runtime image in the exported runtimes folder, and checks the host's license record. Then it copies both onto a new disk image, `xcode.img`, in the build bundle. `wb-hostd` never reads Xcode, the runtimes or the license record itself, and learns their versions and hashes only from the shim.
+- Xcode has to meet Apple's App Store signature or Apple's own Developer ID team, `59GAB85EFG`, with the identifier `com.apple.dt.Xcode`. A bare `anchor apple generic` is never accepted, because any developer's Developer ID meets it.
+- `wb-vmd-layer` attaches `xcode.img` read-only only when the start call sets an Xcode flag, never from a path. The build VM has no network device.
+- In that VM, root copies Xcode to `/Applications` as `root:wheel`, checks its signature again, accepts the license, runs the first launch, and imports the runtimes. The image is sealed, the recipe's own steps run on it, and their sealed result is the parent of the Claude Code layer.
+- Xcode's version and build and each runtime's hash join the inputs of the layer-only rebuild check, so a new Xcode on the host means a full rebuild at the next `wb image build`.
+- Both copies leave out extended attributes and Xcode's App Store receipt, which name the host's purchase and device. An image with Xcode is never shared with another machine.
+
+| Rule | The build refuses when |
+|---|---|
+| `xcode-not-found` | the source isn't an `.app` directly in `/Applications` |
+| `xcode-signature-invalid` | Xcode, or its copy, fails the code requirement |
+| `xcode-runtime-signature-invalid` | a runtime image's signature fails or can't be checked |
+| `xcode-license-not-accepted` | the host's record doesn't show the license accepted for that build |
+| `xcode-too-new-for-guest` | Xcode needs a newer macOS than the parent image |
+| `xcode-runtime-not-regular`, `xcode-runtime-name`, `xcode-runtime-too-many`, `xcode-runtime-too-large` | an entry in the runtimes folder breaks the form or the caps |
+| `xcode-disk-no-space` | the host's data directory has no room |
+| `xcode-mnt-exists`, `xcode-mount-mismatch`, `xcode-mount-left` | the shim's mount point exists already, isn't the device it attached, or is still mounted from a killed run |
+| `vmd-xcode-disk-refused` | the Xcode flag comes to any other slot or entry |
+
+**Choices in the design, beyond the two decisions above:** root runs the first launch in the build, because it writes `/Library/Developer` and no project user may. Each `ditto` and `codesign` run has a deadline in code. The shim mounts the volume on a fixed directory in the build bundle and checks it with `statfs` before any write.
+
+**Reviews.** The first code review asked for two changes: the page didn't say where the Xcode step comes in the order of image layers, and the VM processes spec didn't give `wb-vmd-layer` and `wb-diskfmt` the work the page gives them. The first security review found on the host that the code requirement then written, `anchor apple`, rejects an App Store Xcode, and warned that loosening it to `anchor apple generic` would accept any developer's Developer ID. Both were fixed, and both second rounds approve.
+
+**Not covered yet.** The host export of a runtime, the signature checks on both kinds of Xcode install and on runtime images, the license record, and the offline steps in the guest are still to be measured. The design refuses the build until each is known (I624). The `wb-diskfmt` code accepts only the `work` and `isolated` slots, and the Xcode build itself is later image build work. The rebase has to fit the Xcode step into the `layer` slot that this train adds.
+
+## Review findings not resolved
+
+The must-fix findings were fixed before merge. These remain, most serious first.
+
+**Security:**
+
+- **A wildcard name in flight across a new active period** is counted by `wb-proxyd` in the new period and by `wb-hostd` in the old one. After a `wb-proxyd` restart, the second layer of the wildcard budget can admit one name past the budget for that period. `wb-netd`'s first layer still bounds it. Reasoned from the code, not reproduced (I630).
+- **A policy sent before the fresh hand-off is lost.** If the session wiring sends the run's first policy before the fresh socket, `wb-proxyd` drops it, `wb-hostd` believes it applied, and every flow of the run is refused until the next policy change. It fails closed but silently. The proposed fix, refusing a policy while a fresh hand-off is pending, goes with the wiring (I490).
+- **The provisioning check isn't called.** A builder who adds provisioning options to `wb-vmd` without calling it would let a session or layer VM set the guest admin's password without the refusal. That path doesn't exist yet (I629).
+- **Beside the train: a developer site Xcode may fail the code requirement.** If Apple signs it with its own software signing certificate rather than the Developer ID the requirement names, every build on such a host fails closed with `xcode-signature-invalid` (I624).
+
+**Code and docs, which reviewers marked as optional:**
+
+- A failed policy send to `wb-proxyd` is still logged as a failed VM start and returns a setup error.
+- The `vm-fresh-start` and `active-period-start` log entries don't say what they cleared.
+- The `build` and `layer` slots share a bundle, so only `wb-hostd`'s admission keeps them apart. A lock in `wb-vmd` could follow when the two entries are built.
+- `vmd-provisioning-refused` is in a list of rules that start with `vm-`. The slot's answer is in the `WraithBoxVM` library and the check in `WraithBoxVMD`, and a test repeats the one-line predicate.
+- Beside the train: the guest doesn't check runtimes against their recorded hashes, and any change to the host's Xcode rebuilds every layer. In the specs, the disks spec's table of bundle files lacks `xcode.img`, and the image layers spec doesn't say where the Xcode step's sealed result waits between the two steps.
+
+## Friction
+
+- **The headless wave stopped after 50 minutes,** while its wave lead waited on its own check watches (I631). The lead and its builders stopped with it, with all three pull requests approved and nothing merged. The wave didn't write its report. Its findings, follow-ups, and reruns on this page come from GitHub. The campaign manager merged two pull requests by hand afterward.
+- **CI runs failed four times on pull request branches, none on a test.** In three runs GitHub abandoned jobs, among them change detection, so the summary job failed: on the proxy change's first commit and on the review fix commits of the proxy change and the layer slot change. The last two were rerun during the wave and passed, and nobody recorded the reruns. One run on the Xcode design's second commit failed before any job started, and a later push replaced it. No flaky test showed.
+- **A spec conflict.** The layer slot change and the Xcode design both edit the `wb-vmd-layer` text of the VM processes spec. The Xcode design left the image build spec alone because the layer slot change edited it. It still changed the VM processes spec, and conflicted there once the layer slot change merged.
+- **Review rounds.** 6 reviews and 3 re-checks for 3 pull requests. The proxy change and the layer slot change were approved in round 1, and their fixes were re-checked without a new round. The Xcode design took two rounds of each review, over two must-fix findings and ten security folds.
+- **Checks reviewers couldn't run.** The code reviews of the proxy change and the layer slot change skipped `prose:spell`, and one also `doc:build` and `doc:check`, because the docs dependencies weren't installed in their worktrees. CI ran them.
+- **A thin milestone.** The network floor milestone had one issue a wave could take, so the wave filled up from the image build milestone.
+
+## The run
+
+<details>
+<summary>Budget, pull requests, and waves</summary>
+
+Campaign I622, started 2026-11-09 17:52 UTC. Rendered by `scripts/campaign.mjs` (docs/agents/campaigns.md), with the body above from the `train-reporter` agent.
 
 | Limit | Spent | Of |
 |---|---|---|
-| Hours | 0.0 | 3 |
-| Dollars | $0.00 | $300.00 |
+| Hours | 1.2 | 3 |
+| Dollars | $32.11 | $300.00 |
 | Issues | 0 | 30 |
-| Pull requests | 0 | 30 |
+| Pull requests | 3 | 30 |
 
-## Pull requests
+| Pull request | Closes | Title | Where | Rounds | Specs and contracts | Files |
+|---|---|---|---|---|---|---|
+| PR625 | I463 | fix(swift): wb-vmd-layer gets a layer slot of its own | on the train | 1 | S04-04, S06-01, S06-02, S15-04 | 13 |
+| PR626 | I194 | docs(spec): Xcode image from a host-built read-only disk | open | 2 | S00, S04, S04-04, S06, S06-01, S06-04, S06-06, S06-12, S06-14 | 14 |
+| PR628 | I573 | feat(proxyd): a fresh hand-off socket and ActivePeriodStart clear a VM's state | on the train | 1 | S07-05, S07-06, `control.proto` | 18 |
 
-No pull requests yet.
-
-## Choices to veto
-
-To veto a pull request on the train, comment `veto #<pr>` on PR623.
-
-None.
-
-## Waiting for you
-
-Nothing.
-
-## Attended queue
-
-Nothing.
-
-## Health
-
-- First code review approved: 0 of 0 pull requests.
-- Code review rounds per reviewed pull request: none.
-- Follow-ups filed: 0.
+- First code review approved: 2 of 3 pull requests.
+- Code review rounds per reviewed pull request: 1.3.
+- Follow-ups filed: 5.
 - Flaky tests filed: none.
 - The campaign manager's own session isn't metered. The 5 percent reserve of the dollar limit pays for it.
 
-No waves yet.
+| Wave | Length | Cost | Issues | Pull requests | Session ended |
+|---|---|---|---|---|---|
+| 1 | 50 min | $32.11 | 0 | 0 | success |
+
+</details>
