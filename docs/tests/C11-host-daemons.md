@@ -6,7 +6,7 @@ the accounting and event channels, the daemon log pipes, the audit
 writer, free space, and the data disk steps.
 
 **Verifies:** S04-02-vm-provider ("The device set is fixed and checked", "Guest ports below 1024", "Hand-off on macOS", "The host opens every connection", "Caps and closing"), S06-12-guest-agent ("The hello"),
-S06-11-reconnect-and-recovery ("Reconnect"), S06-06-devices-and-warm-start ("When the host sends the time", "Network device per slot", "MAC address"), S07-02-packet-path ("Packet transport", "MTU"), S04-08-records-and-bounds ("Host work the guest can cause"),
+S06-11-reconnect-and-recovery ("Reconnect"), S06-06-devices-and-warm-start ("When the host sends the time", "Network device per slot", "The Xcode disk", "MAC address"), S07-02-packet-path ("Packet transport", "MTU"), S04-08-records-and-bounds ("Host work the guest can cause"),
 S04-03-self-sandboxing ("Each host daemon is self-sandboxed", "Confined first thing in `main`"),
 S04-07-supervision, S04-05-helper-programs ("`wb-build-ssh`"), S07-05-stream-hand-off ("Message form", "Streams", "Resets"), S07-06-name-mapping ("Name reports", "Releases"), S04-08-records-and-bounds ("Accounting and event channels", "Logs and health"), S06-05-disks, S06-13-data-disk-format,
 S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-07-slot-admission ("Other software"), S06-12-guest-agent ("Guest tools disk")
@@ -25,6 +25,16 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   without its file-handle network device is refused with
   `device-set-count`, and every other attachment is refused in every
   slot, in place of the file handle too (`DeviceSetNetworkTests`).
+- **Xcode disk** (S06-06-devices-and-warm-start, "The Xcode disk"). In
+  the `layer` slot with the Xcode flag, the set with the read-only
+  Xcode disk on `xcode.img` is accepted. The check refuses with
+  `device-set-count` a set with the Xcode disk but without the flag, or
+  in the `work`, `isolated` or `build` slot, a set with it twice, and a
+  set without it when the flag is set. It refuses a writable one with
+  `device-set-disk`, and one outside the bundle with
+  `device-set-file-outside-bundle`. A start call with the flag in any
+  slot but `layer` is refused with `vmd-xcode-disk-refused` before any
+  device is created.
 - **Bundle file names** (S06-05-disks, "Names on the host"). Each
   guest-written bundle file has an extension that maps to a dynamic
   type, so Launch Services doesn't open it as a disk image. A clone of a spike

@@ -16,7 +16,7 @@ A VM has these devices:
 - storage: the system disk, the data disk, and the guest tools disk,
   read-only (S06-12-guest-agent, "`wb-guestd`"). In the Xcode step of
   an image build, the build VM in `wb-vmd-layer` also has the Xcode
-  disk `xcode.img`, read-only (S06-14-xcode-image);
+  disk, read-only ("The Xcode disk", below);
 - entropy;
 - a Mac graphics device with one display, and a USB keyboard and
   pointer.
@@ -53,6 +53,19 @@ of it that comes late is closed and logged at info as
 `handoff-network-refused`. The VM manager
 holds the descriptor in a type with no read or write method, and
 closes it when the run ends.
+
+#### The Xcode disk
+
+The Xcode disk is a disk role of its own: read-only, from the bundle
+file `xcode.img` (S06-14-xcode-image). The set has it exactly once in
+the `layer` slot when the start call sets the Xcode flag, and in no
+other case. Without the flag, in any other slot, twice, or missing
+when the flag is set, `wb-vmd` refuses the set with `device-set-count`.
+A writable Xcode disk, or one on another bundle file, is refused with
+`device-set-disk`, and one outside the bundle with
+`device-set-file-outside-bundle`. Before this check, a start call with
+the flag in any slot but `layer` is refused with
+`vmd-xcode-disk-refused` (S04-04-vm-processes, "The build bundle").
 
 #### MAC address
 
