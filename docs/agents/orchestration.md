@@ -84,9 +84,9 @@ In a run ("Runs"), the dispatcher does steps 1, 2, 6 and 7, and a
    The prompt names the PR, the branch, and the specific risks to probe
    (a new parser of guest bytes without a fuzz target, a policy check
    that fails open, a `SEC*` control weakened). The reviewer returns its
-   review as its final text: findings rated `must-fix`, `fold` or
-   `drop` (`working.md`, "Follow-ups"), each with `file:line` and a
-   concrete failure scenario, then `Verdict: approve` or
+   review as its final text: findings numbered `F<k>` across rounds and
+   rated `must-fix`, `fold` or `drop` (`working.md`, "Follow-ups"), each
+   with `file:line` and a concrete failure scenario, then `Verdict: approve` or
    `Verdict: needs changes`, then the attribution lines. The coordinator
    adds the first line `Code review, round <k>` or
    `Security review, round <k>`, and posts it with

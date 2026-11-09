@@ -52,7 +52,7 @@ body when your prompt names a campaign.
    implements, a "Choices made" list with one line per two-way decision,
    and the attribution lines. A choice that changes a spec page or a
    `SEC*` control comes first and starts with its ID, as in
-   `S07-11-http-policy: …`. Don't wait for GitHub CI: the coordinator
+   `S07-11-http-policy: …`. Open the body with "In plain words" and its size and security lines (`complete.md`, "Pull request"). Don't wait for GitHub CI: the coordinator
    starts the review at once, watches the checks, and sends a failed
    check back to you with the review findings (`orchestration.md`, "A
    wave", step 5). Only when your prompt asks you to watch CI, watch it
@@ -75,7 +75,8 @@ The old builder's worktree still has the branch checked out, so make a
 local branch of another name from `origin/<branch>` and push with
 `git push origin HEAD:<branch>`. Read the pull request body, its
 reviews and the issue before you change anything. Keep the choices in
-"Choices made" that the review didn't question. Fix the findings in new
+"Choices made" that the review didn't question, and update "In plain
+words" when the round changes what the pull request does. Fix the findings in new
 commits and run `mise run ci`. A failed GitHub check in the findings
 is fixed in the same round: read it with `gh run view --log-failed`.
 Don't rebase and don't force-push: add commits on top and push. Don't

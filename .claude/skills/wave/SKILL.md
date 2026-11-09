@@ -250,9 +250,16 @@ above holds, except:
     "choices": ["PR<n>: a two-way choice the agents made"],
     "waiting": ["a decision, refused command or harness pull request for the maintainer"],
     "attended": ["a needs-host or attended step, with its command"],
+    "findings": [{"pr": 0, "id": "F1", "review": "code or security", "rating": "fold", "severity": "low, for a security finding", "summary": "...", "issue": 0}],
+    "reruns": [{"pr": 0, "job": "...", "test": "...", "issue": 0, "passed": true}],
     "report": "<the lead's report>"
   }
   ```
+
+  `findings` and `reruns` come from the lead's `Findings left` and
+  `Reruns` lines. A finding's `issue` is the follow-up filed for it, or
+  0 when the lead left it, and a rerun's `issue` the `flaky` issue it
+  matches, or 0.
 
   Your final text is the wave's line, `wave <k>: merged #a #b, open #c`,
   and the stop reason when nothing was pickable, in at most 100 words.

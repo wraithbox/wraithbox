@@ -67,6 +67,14 @@ input or state, and the wrong result), and a rating
   issue.
 - `drop`: taste, or a nit a reader wouldn't notice.
 
+Number the findings `F1`, `F2`, and so on, and open each with one line:
+`F<k> · <rating> · <file:line>`. In a later round, continue the numbers
+of the earlier rounds, and open the review with `Earlier findings`, one
+line for each earlier finding not yet marked fixed: `F<k>: fixed in
+<short hash>`, `F<k>: open`, or `F<k>: deferred, <the builder's
+reason>`. The campaign report lists the findings left open from these
+lines (`campaigns.md`, "The report").
+
 Say which `fold` findings would need an issue of their own by the
 rules in "Follow-ups". The rest never become issues. Then a
 `Branch: <branch>` line, exactly one `Verdict: approve` or

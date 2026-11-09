@@ -54,7 +54,13 @@ proposed hardening, and a rating of `must-fix`, `fold` or `drop`
 (`docs/agents/working.md`, "Follow-ups"). A weakened `SEC*` control
 or a check that fails open is always `must-fix`. Mark each finding
 that is an exploitable vulnerability: the coordinator writes those up
-as draft security advisories, never public issues. Then the parts of the scope you did not
-cover and why. End with a `Verdict: approve` or `Verdict: needs changes`
+as draft security advisories, never public issues. Number the findings `F1`, `F2`, and so on, and open each with one line:
+`F<k> · <severity> · <rating> · <file:line>`. In a later round, continue the numbers
+of the earlier rounds, and open the review with `Earlier findings`, one
+line for each earlier finding not yet marked fixed: `F<k>: fixed in
+<short hash>`, `F<k>: open`, or `F<k>: deferred, <the builder's
+reason>`. The campaign report lists the findings left open from these
+lines (`campaigns.md`, "The report").
+Then the parts of the scope you did not cover and why. End with a `Verdict: approve` or `Verdict: needs changes`
 line (for a pull request; `needs changes` only for an open `must-fix`
 finding) and the attribution lines from `AGENTS.md`.

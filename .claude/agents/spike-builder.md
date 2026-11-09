@@ -55,8 +55,9 @@ body when your prompt names a campaign.
    `Closes #<issue>`, the requirement IDs the answer affects, a "Choices
    made" list with one line per two-way decision, and the attribution
    lines. A choice that changes a spec page or a `SEC*` control comes
-   first and starts with its ID, as in `S07-11-http-policy: …`. Don't
-   wait for GitHub CI: the coordinator starts the review at once,
+   first and starts with its ID, as in `S07-11-http-policy: …`.
+   Open the body with "In plain words" and its size and security lines (`complete.md`, "Pull request"). For a spike, it says what was measured and what the
+   answer changes. Don't wait for GitHub CI: the coordinator starts the review at once,
    watches the checks, and sends a failed check back to you with the
    review findings (`orchestration.md`, "A wave", step 5). Only when your
    prompt asks you to watch CI, watch it in the foreground with

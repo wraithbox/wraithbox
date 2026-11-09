@@ -28,6 +28,21 @@ A session the maintainer works in directly.
    attribution lines. A choice that changes a spec page or a `SEC*`
    control comes first and starts with its ID, as in
    `S07-11-http-policy: …`.
+
+   The body opens with `## In plain words`, the paragraph the campaign
+   report is built from (`campaigns.md`, "The report"). Its reader
+   knows the design but not the code, and won't open a spec or an
+   issue. Say what changes, in behavior or in the design, why, and what
+   it doesn't cover yet, in three to six sentences without IDs or file
+   paths. Under it, two lines:
+
+   ```text
+   Size: <lines of code> code, <lines> tests, <lines> spec and docs, from git diff --stat, generated files left out
+   Security: <the SEC* control or trust boundary and what changes>, or none
+   ```
+
+   A fix round that changes what the pull request does updates the
+   paragraph and the two lines.
 7. **CI.** `mise run ci-watch`. On a failure, `gh run view <id>
    --log-failed`, fix, push, watch again.
 8. **Merge**, on the maintainer's word: `gh pr merge <n> --rebase`, or
