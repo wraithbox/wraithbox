@@ -14,8 +14,6 @@ them, `wb-vmd-work` and `wb-vmd-isolated`:
   `<data>/vms/macos-work.noindex` or `<data>/vms/macos-isolated.noindex`.
 - Each has an instance cap of one.
 
-While both VMs run, two `wb-vmd` instances run.
-
 ### The slot
 
 Each instance learns its slot from the `WB_VMD_SLOT` environment
@@ -54,8 +52,7 @@ and exits:
   bundle that is a symbolic link to another VM's bundle.
 
 So it never confines itself to a bundle its slot doesn't own
-(SEC08-proj-isolation). Any entry but `wb-vmd-layer` refuses the Xcode
-flag (`vmd-xcode-disk-refused`). C11-host-daemons tests each rule.
+(SEC08-proj-isolation). C11-host-daemons tests each rule.
 
 Until the image build is built (V1-M7-image-build), `wb-vmd` also
 refuses the `build` slot (`vmd-slot-build-unsupported`) and the `layer`
@@ -147,7 +144,9 @@ is one, because one maintenance VM runs at a time
 
 Only this entry accepts provisioning options. An instance whose slot
 isn't `build`, `layer` included, refuses them and logs `vmd-provisioning-refused`
-(S15-04-guest-admin, "Refused outside the path").
+(S15-04-guest-admin, "Refused outside the path"). A start call with
+the Xcode flag in any slot but `layer` is refused before any device is
+created, and logs `vmd-xcode-disk-refused` (S06-14-xcode-image).
 
 ### `wb-diskfmt`
 
@@ -155,8 +154,9 @@ isn't `build`, `layer` included, refuses them and logs `vmd-provisioning-refused
 X08-data-disk), or an image build's Xcode disk (S06-14-xcode-image).
 `wb-launcher` has three fixed entries, `wb-diskfmt-work`,
 `wb-diskfmt-isolated` and `wb-diskfmt-xcode`. Each takes no arguments,
-and has its slot's bundle as its profile parameter, the build bundle
-for `xcode`, and an instance cap of one. Its shim is started as the
+and has its slot's bundle as its profile parameter (the build bundle
+and, for `xcode`, the parameters in S06-14-xcode-image), and an
+instance cap of one. Its shim is started as the
 leader of a new process group, so that its parent can kill the shim
 with the `diskutil` it runs (S06-13-data-disk-format, "When
 `wb-diskfmt` doesn't exit"). On hosts without `wb-launcher`,
@@ -236,7 +236,7 @@ attach an image without that service (I353).
 These rest on the shim's inputs: it takes no guest input, only
 `wb-hostd`'s request, and it exits after one format and is never
 restarted. It denies the network and every other file, except the
-Xcode entry's (S06-14-xcode-image). The service names are in code.
+Xcode entry's reads in S06-14-xcode-image. The service names are in code.
 They were measured on macOS 27 with the opt-in host test, which runs a
 confined format (I228).
 

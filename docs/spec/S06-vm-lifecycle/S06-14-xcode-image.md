@@ -5,7 +5,7 @@ from the host, as a read-only disk the host builds, and who runs
 Xcode's first launch.
 
 **Requirements:** FR06-native-tools, SEC02-no-host-fs-share,
-SEC04-no-guest-secrets, SEC09-host-policy, SEC12-least-privilege,
+SEC04-no-guest-secrets, SEC05-default-deny, SEC09-host-policy, SEC12-least-privilege,
 SEC13-bounded-resources, SEC15-no-guest-disk-mount
 
 **Tests:** C09-guest-and-sessions, C11-host-daemons
@@ -119,12 +119,18 @@ directory (SEC02-no-host-fs-share).
 `wb-diskfmt` builds it, started through a third fixed `wb-launcher`
 entry, `wb-diskfmt-xcode`, whose `WB_DISKFMT_SLOT` is `xcode`
 (S04-04-vm-processes, "`wb-diskfmt`"). Only `wb-hostd` starts it,
-during an image build. As for the data disk entries, its instance cap
+during an image build. `wb-hostd` clones the parent into the new,
+empty build bundle, then starts `wb-diskfmt-xcode`, and starts no
+`wb-vmd` in that bundle until `wb-launcher` has reported the shim's
+exit. Then it starts `wb-vmd-layer`. As for the data disk entries, its instance cap
 is one, and its shim is started as the leader of a new process group.
 
 The entry's profile parameters are the build bundle,
 `<data>/images/macos-build.noindex`, the real path of the Xcode app and
-`<data>/xcode-runtimes`. None is a path from the request. For the
+`<data>/xcode-runtimes`. The shim resolves `/Applications/Xcode.app`
+with `realpath` itself before it confines itself, and applies the
+`/Applications/*.app` rule ("Where Xcode comes from"). The shim takes
+none of these paths from the request or the environment. For the
 `xcode` slot, the slot's bundle of `diskfmt-slot-bundle-mismatch` is
 the build bundle.
 
@@ -200,10 +206,11 @@ device, cloned as for the Claude Code layer (S06-01-image-layers). Its
 device set adds the Xcode disk, read-only, and only for this step
 (S06-06-devices-and-warm-start, "Devices"). `wb-vmd-layer` attaches
 `xcode.img` from the build bundle only when the start call sets its
-Xcode flag. The call never names a path. `wb-vmd` refuses the flag in
-any other slot or entry, and logs `vmd-xcode-disk-refused`
-(S04-04-vm-processes, "Slot checks", and S04-02-vm-provider, "The
-device set is fixed and checked").
+Xcode flag. The call never names a path. A start call with the Xcode
+flag in any other slot is refused before any device is created, and
+logs `vmd-xcode-disk-refused`. The flag is never dropped to let the
+start go on (S04-04-vm-processes, "The build bundle", and
+S06-06-devices-and-warm-start, "The Xcode disk").
 
 A named `wb-guestd` operation, `install-xcode`, then runs as root
 (S06-02-image-build, "No guest disk mounts"):
