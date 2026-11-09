@@ -1,9 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-label="The components the train touches. On the host, wb-hostd, wb-proxyd and wb-netd changed in code, so that a fresh start clears wb-proxyd's state for a VM and a new active period clears its wildcard count. wb-vmd changed in code to give wb-vmd-layer a layer slot that refuses provisioning options. Beside the train, an open design adds a third entry of wb-diskfmt, which copies the host's Xcode and exported runtimes onto a disk image that a build VM with no network gets read-only, where wb-guestd installs them as root.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-label="The components the train touches. On the host, wb-hostd, wb-proxyd and wb-netd changed in code, so that a fresh start clears wb-proxyd's state for a VM and a new active period clears its wildcard count. wb-vmd changed in code to give wb-vmd-layer a layer slot that refuses provisioning options, and its spec takes an Xcode disk in that slot only. The specs add a third entry of wb-diskfmt, a new component, which copies the host's Xcode and exported runtimes onto a disk image. A build VM with no network gets it read-only, and wb-guestd installs them as root.">
 <style>
 svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
 .box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
 .change-code { fill: #fde7c4; stroke: #c64600; stroke-width: 2.5; }
-.change-open { fill: #f6f5f4; stroke: #77767b; stroke-width: 2; stroke-dasharray: 3 3; }
+.change-spec { fill: #e8eef8; stroke: #1c71d8; stroke-width: 2; }
+.change-new { fill: #e6f4ea; stroke: #26a269; stroke-width: 2; stroke-dasharray: 7 4; }
 .region { fill: none; stroke: #9a9996; stroke-width: 1.5; }
 .boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
 .edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
@@ -14,7 +15,8 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 @media (prefers-color-scheme: dark) {
 .box { fill: #343437; stroke: #9a9996; }
 .change-code { fill: #4a3214; stroke: #ffa348; }
-.change-open { fill: #2e2e31; stroke: #9a9996; }
+.change-spec { fill: #1f2d42; stroke: #62a0ea; }
+.change-new { fill: #1d3a28; stroke: #57e389; }
 .region { stroke: #77767b; }
 .boundary { stroke: #ff7b7b; }
 .edge { stroke: #c0bfbc; }
@@ -51,25 +53,25 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="45" y="394">the user's own, on the</text>
 <text class="note" x="45" y="410">host, checked for Apple's</text>
 <text class="note" x="45" y="426">signature</text>
-<rect class="change-open" x="255" y="350" width="195" height="88" rx="6" />
+<rect class="change-new" x="255" y="350" width="195" height="88" rx="6" />
 <text class="label" x="270" y="374">wb-diskfmt-xcode</text>
-<text class="note" x="270" y="394">open beside the train:</text>
-<text class="note" x="270" y="410">builds xcode.img,</text>
-<text class="note" x="270" y="426">spec only</text>
+<text class="note" x="270" y="394">new, designed: copies</text>
+<text class="note" x="270" y="410">Xcode and runtimes</text>
+<text class="note" x="270" y="426">into xcode.img</text>
 <rect class="change-code" x="475" y="350" width="215" height="88" rx="6" />
 <text class="label" x="490" y="374">wb-vmd</text>
-<text class="note" x="490" y="394">code: a layer slot for</text>
-<text class="note" x="490" y="410">wb-vmd-layer refuses</text>
-<text class="note" x="490" y="426">provisioning, 112 lines</text>
+<text class="note" x="490" y="394">code: a layer slot without</text>
+<text class="note" x="490" y="410">provisioning, 112 lines,</text>
+<text class="note" x="490" y="426">spec: Xcode disk there only</text>
 <rect class="box" x="745" y="210" width="225" height="88" rx="6" />
 <text class="label" x="760" y="234">session VM</text>
 <text class="note" x="760" y="254">unchanged: its packets</text>
 <text class="note" x="760" y="270">go to wb-netd</text>
-<rect class="change-open" x="745" y="350" width="225" height="88" rx="6" />
+<rect class="change-spec" x="745" y="350" width="225" height="88" rx="6" />
 <text class="label" x="760" y="374">wb-guestd, build VM</text>
-<text class="note" x="760" y="394">open beside the train: root</text>
-<text class="note" x="760" y="410">installs Xcode and runtimes,</text>
-<text class="note" x="760" y="426">no network device</text>
+<text class="note" x="760" y="394">spec: root installs Xcode</text>
+<text class="note" x="760" y="410">and runtimes offline,</text>
+<text class="note" x="760" y="426">before the image is sealed</text>
 <path class="edge" d="M130,158 L130,208" marker-end="url(#w622-arrow)" />
 <text class="note" x="142" y="181">fresh HandoffSocket,</text>
 <text class="note" x="142" y="197">ActivePeriodStart</text>
@@ -85,10 +87,12 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="300" y="458">xcode.img, attached read-only to the build VM</text>
 <rect class="change-code" x="20" y="500" width="22" height="16" rx="3" />
 <text class="note" x="50" y="513">code changed on the train</text>
-<rect class="change-open" x="270" y="500" width="22" height="16" rx="3" />
-<text class="note" x="300" y="513">designed, open beside the train</text>
-<rect class="box" x="560" y="500" width="22" height="16" rx="3" />
-<text class="note" x="590" y="513">unchanged, shown for context</text>
+<rect class="change-spec" x="250" y="500" width="22" height="16" rx="3" />
+<text class="note" x="280" y="513">spec changed, no code yet</text>
+<rect class="change-new" x="480" y="500" width="22" height="16" rx="3" />
+<text class="note" x="510" y="513">new component, designed</text>
+<rect class="box" x="730" y="500" width="22" height="16" rx="3" />
+<text class="note" x="760" y="513">unchanged, shown for context</text>
 <path class="edge" d="M20,540 L42,540" marker-end="url(#w622-arrow)" />
 <text class="note" x="50" y="545">a flow the changes touch</text>
 </svg>

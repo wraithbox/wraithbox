@@ -1215,7 +1215,7 @@
 	},
 	"194": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Xcode image variant: getting Xcode and simulator runtimes into the image",
 		"summary": "From the X06-guest-xcode result (#20).",
 		"brief": "B194-xcode-image"
@@ -3821,7 +3821,7 @@
 	},
 	"626": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): Xcode image from a host-built read-only disk",
 		"summary": "An image that needs full Xcode now gets it from the Mac it runs on, never from the internet.",
 		"brief": "B194-xcode-image"
