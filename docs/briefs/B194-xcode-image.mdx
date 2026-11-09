@@ -5,7 +5,7 @@ description: From the host. Wraith Box copies the host's own Xcode, and runtimes
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I194, S06-14-xcode-image. Changes S06-01-image-layers, S06-02-image-build ("Storage and distribution"), S06-04-vms-and-placement, S06-06-devices-and-warm-start, S04-architecture (`wb-diskfmt-xcode`). Follows B20-guest-xcode. Follow-up: I624 (measurements).
+**Awaiting decision.** Source: I194, S06-14-xcode-image. Changes S06-01-image-layers, S06-04-vms-and-placement, S06-06-devices-and-warm-start, S06-12-guest-agent, S04-architecture (`wb-diskfmt-xcode`), T00-index ("Trusted"). Follows B20-guest-xcode. Follow-up: I624 (measurements).
 
 <Aside type="tip" title="You are deciding">
 The maintainer already decided that Xcode comes from a read-only disk image the host builds (I194, 2026-10-16). This change says how. Still open: whether the build **requires that you accepted Xcode's license on the host** (recommended: yes, A), and whether the **simulator runtimes also come from the host** (recommended: yes, the user exports them with one `xcodebuild` command, C). Accepting both puts S06-14-xcode-image in the specs as written and unblocks IMG.8, once I624 has measured the signature checks.
@@ -93,7 +93,7 @@ You run `xcodebuild -downloadPlatform iOS -exportPath <data>/xcode-runtimes` onc
 The build VM gets a network and downloads the runtime itself, as X06-guest-xcode did.
 
 - **Cost:** Apple's runtime hosts are expected to refuse an inspected connection, so they would need pass mode, which Wraith Box never sets itself. Each would be an uninspected channel out of the guest.
-- **Weakens:** <Badge text="SEC05-default-deny" variant="caution" />, by a spec change to the pass rules.
+- **Weakens:** <Badge text="SEC05-default-deny" variant="danger" />, by a spec change to the pass rules.
 
 </div>
 </div>
@@ -114,12 +114,15 @@ The build VM gets a network and downloads the runtime itself, as X06-guest-xcode
 </tbody>
 </table>
 
+**A question on SEC15.** SEC15-no-guest-disk-mount lets the host format a blank image it created before any guest has run with it. The Xcode disk relies on that exception, as the data disk does, but the shim also fills the volume before any guest runs with it, as the bundle build fills the guest tools disk. The spec reads the exception as covering that fill, and doesn't change SEC15's text. Should SEC15 say "format and fill", to match what both disks do?
+
 ## Evidence
 
 - <Badge text="verified" variant="success" /> Copying the host's Xcode from a read-only raw disk, then `-license accept` and `-runFirstLaunch` as root, worked without an Apple ID in 202 s. Source: X06-guest-xcode, "Measurements".
 - <Badge text="verified" variant="success" /> `xcodebuild -downloadPlatform iOS` didn't need an Apple ID in the guest (8.05 GB, 1202 s). Source: same.
 - <Badge text="verified" variant="success" /> The Layer 2 build profile reads `/Library/Developer`, which the first launch fills. Source: S13-02-filesystem-profile, "Xcode build profile".
 - <Badge text="inferred" variant="note" /> Only root can write `/Library/Developer`, so a project user can't run the first launch. Source: S06-08-projects-and-sessions (project users aren't admins).
+- <Badge text="assumed" variant="caution" /> That Xcode from the App Store and from Apple's developer site both meet the code requirement in S06-14-xcode-image, "The checks on the host": Apple's App Store signature, or a Developer ID with Apple's team `59GAB85EFG`. A plain `anchor apple generic` is never accepted, because any developer's Developer ID meets it. I624 measures both installs.
 - <Badge text="assumed" variant="caution" /> That `-exportPath` works on the host without an Apple ID, that an exported runtime has a signature the host can check, and that `-importPlatform` works offline from a read-only disk. I624 measures each, and the build refuses until the checks are known.
 
 ## What this unblocks

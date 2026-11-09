@@ -2839,7 +2839,7 @@
 	},
 	"463": {
 		"kind": "issue",
-		"state": "closed",
+		"state": "open",
 		"title": "wb-vmd-layer: a layer slot of its own, apart from the build slot",
 		"summary": "The code review of #449 (#220, cheap image rebuild) asked for changes in its last round: wb-vmd-layer shares WB_VMD_SLOT=build with wb-vmd-install, so wb-vmd can't tell the two apart, and a layer build would accept…"
 	},
@@ -3501,7 +3501,7 @@
 	},
 	"573": {
 		"kind": "issue",
-		"state": "closed",
+		"state": "open",
 		"title": "wb-proxyd: no control message says a VM started fresh or a new active period began",
 		"summary": "S07-06-name-mapping, \"Lifetime\", says the copy of the name mapping is cleared only at a start that isn't a restore."
 	},
@@ -3815,7 +3815,7 @@
 	},
 	"625": {
 		"kind": "pr",
-		"state": "merged",
+		"state": "open",
 		"title": "fix(swift): wb-vmd-layer gets a layer slot of its own",
 		"summary": "The VM daemon that builds the Claude Code layer of an image used to share its slot with the daemon that installs macOS, so the daemon couldn't tell the two apart and a layer build would have taken the provisioning…"
 	},
@@ -3834,7 +3834,7 @@
 	},
 	"628": {
 		"kind": "pr",
-		"state": "merged",
+		"state": "open",
 		"title": "feat(proxyd): a fresh hand-off socket and ActivePeriodStart clear a VM's state",
 		"summary": "wb-proxyd keeps its own checked copy of each VM's DNS names, a count of the wildcard names it accepted, and the VM's policy."
 	},
@@ -3849,17 +3849,5 @@
 		"state": "open",
 		"title": "wb-proxyd: a wildcard report in flight across ActivePeriodStart undercounts the second layer in wb-hostd",
 		"summary": "Found in the review of #628 (#573): code review F2 and security review F1."
-	},
-	"631": {
-		"kind": "issue",
-		"state": "open",
-		"title": "Campaign waves end when the wave lead waits on its own background work: claude -p exits on its interim result",
-		"summary": "Wave 1 of campaign #622 ran claude -p \"/wave ..."
-	},
-	"632": {
-		"kind": "issue",
-		"state": "open",
-		"title": "Flaky: TestStreamPolicy reads stream-refused count 0 on Windows",
-		"summary": "TestStreamPolicy in internal/netd/stack failed once on windows-2025 in the train CI of campaign #622:"
 	}
 }

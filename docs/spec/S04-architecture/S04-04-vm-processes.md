@@ -124,13 +124,13 @@ in a fourth fixed entry, `wb-vmd-layer`:
   `wb-vmd-install` runs, because the two share the bundle and one
   maintenance VM runs at a time (S06-07-slot-admission).
 - The VM it boots has no network device. `wb-guestd` gets the binary
-  over the host-guest socket.
+  over the host-guest socket. Only when the start call's Xcode flag is
+  set, it attaches `xcode.img` read-only (S06-14-xcode-image).
 - Its slot refuses provisioning options, and it logs
   `vmd-provisioning-refused`, as a session VM's `wb-vmd` does.
 
-`wb-hostd` creates a new, empty build bundle before it starts the
-entry, and clones the parent into it with the identity check of
-S06-02-image-build, "Taking the sealed image".
+`wb-hostd` clones the parent into the new, empty build bundle with the
+identity check of S06-02-image-build, "Taking the sealed image".
 
 ### The build bundle
 
@@ -152,15 +152,17 @@ isn't `build`, `layer` included, refuses them and logs `vmd-provisioning-refused
 ### `wb-diskfmt`
 
 `wb-diskfmt` formats a VM's new data disk (S06-13-data-disk-format,
-X08-data-disk). `wb-launcher` has two fixed entries for data disks,
-`wb-diskfmt-work` and `wb-diskfmt-isolated`, and `wb-diskfmt-xcode`
-(S06-14-xcode-image). Each data disk entry has that VM's bundle as its
-profile parameter, so the shim learns which bundle to format without
-arguments. Each has an instance cap of one, and its shim is started as
-the leader of a new process group, so that its parent can kill the shim with the `diskutil` it runs (S06-13-data-disk-format, "When
-`wb-diskfmt` doesn't exit"). On hosts without
-`wb-launcher`, `wb-hostd` starts the entry itself, with the entry's
-fixed environment and descriptors, as it starts `wb-vmd`.
+X08-data-disk), or an image build's Xcode disk (S06-14-xcode-image has
+that entry's parameters, rules and exchange). `wb-launcher` has three
+fixed entries, `wb-diskfmt-work`, `wb-diskfmt-isolated` and
+`wb-diskfmt-xcode`. Each has its slot's bundle as its profile
+parameter, the build bundle for `xcode`. The shim takes no arguments
+to learn its bundle. Each has an instance cap of one, and its shim is
+started as the leader of a new process group, so that its parent can
+kill the shim with the `diskutil` it runs (S06-13-data-disk-format,
+"When `wb-diskfmt` doesn't exit"). On hosts without `wb-launcher`,
+`wb-hostd` starts the entry itself, with the entry's fixed environment
+and descriptors, as it starts `wb-vmd`.
 
 Its start interface:
 
@@ -232,9 +234,9 @@ dialog, which is within the host user's own powers. `diskutil` can't
 attach an image without that service (I353).
 
 These rest on the shim's inputs: it takes no guest input, only
-`wb-hostd`'s request, and it exits after one format. It denies the
-network and every other file. `wb-diskfmt` exits after
-one format, and is never restarted. The service names are in code.
+`wb-hostd`'s request, and it exits after one format and is never
+restarted. It denies the network and every other file, except the
+Xcode entry's (S06-14-xcode-image). The service names are in code.
 They were measured on macOS 27 with the opt-in host test, which runs a
 confined format (I228).
 
@@ -264,16 +266,14 @@ entry and the instance ID (S04-07-supervision, "Who starts whom").
   the answer or after it, and `wb-hostd` matches the two by instance ID.
 
 Where `wb-launcher` writes the lines for `launcher-kill` and
-`launcher-kill-refused` is decided in M3.11. They don't go only
-through `wb-hostd`, so the `wb-hostd` that asked for a kill can't hide
-it.
+`launcher-kill-refused` is decided in M3.11. They don't go only through
+`wb-hostd`, so the `wb-hostd` that asked for a kill can't hide it.
 
 `wb-hostd` bounds its wait for the answer and for the exit report. No
 answer in time, or the end of the request channel, counts as a kill
 that failed. `wb-hostd` then logs `data-disk-shim-exit` with that
-outcome, as it does when its own kill fails today. Each outcome,
-the launcher's rule included, is in that line
-(NFR06-explained-refusals).
+outcome, as it does when its own kill fails today. Each outcome, the
+launcher's rule included, is in that line (NFR06-explained-refusals).
 
 Without `wb-launcher`, `wb-hostd` is the parent, and sends the kill
 itself under the same gate.
