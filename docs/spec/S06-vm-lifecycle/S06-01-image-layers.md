@@ -62,9 +62,9 @@ install macOS, or run a provisioning boot.
 - the Wraith Box build version of the bundle that built it;
 - the hash of the org layer's inputs;
 - for a named image, the hash of its recipe (I150);
-- for an image with Xcode, Xcode's version and build and the hash of
-  each simulator runtime (S06-14-xcode-image, "What the build
-  records").
+- for an image with Xcode, Xcode's version and build and the SHA-256
+  of each simulator runtime's disk image (S06-15-xcode-disk, "What the
+  build records").
 
 `wb image build` takes the layer-only path only when every one of them
 equals the current build's. Otherwise it builds every layer. So a
