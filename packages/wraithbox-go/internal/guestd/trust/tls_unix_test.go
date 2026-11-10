@@ -116,7 +116,7 @@ const (
 func newAuthority(t *testing.T) *authority {
 	t.Helper()
 	log := slog.New(slog.DiscardHandler)
-	backend := storetest.New(testTeam, storeitem.Group(testTeam, storeitem.RoleCA))
+	backend := storetest.New(storeitem.ProgramProxyd, testTeam, storeitem.Group(testTeam, storeitem.RoleCA))
 	store, err := secretstore.New(storeitem.ProgramProxyd, backend, log)
 	if err != nil {
 		t.Fatal(err)

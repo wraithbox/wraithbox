@@ -248,6 +248,7 @@ MNAME
 RNAME
 Additionals
 synctest
+synchronizable
 SVCB
 gdmf
 gspe

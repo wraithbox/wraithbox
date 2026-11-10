@@ -51,6 +51,10 @@ Spec: S15-02-secret-store, "Keychain".
   refused with `store-group-mismatch` before any Keychain call.
 - A shim whose own entitlements can't be read refuses every call with
   `store-group-mismatch`.
+- Open the store as one program in a process whose signed Info.plist
+  names another program's executable, or none, or can't be read, and
+  see every call refused with `store-program-mismatch`
+  (`TestC05StoreProgramMismatch`, over the fake).
 - `TestC05AccessGroups` in `internal/storeitem` is the table test.
   `TestC05AccessGroupsMismatch` and `TestC05AccessGroupsUnreadable` in
   `internal/platform/secretstore` are the refusals, over the fake.
@@ -89,7 +93,9 @@ Spec: S15-02-secret-store, "Keychain".
   The store's own refusal is `TestC05StoreNeedsTeam` in
   `internal/platform/secretstore`, over the fake, and
   `TestC05AdhocShim`, which opens the darwin backend from the ad-hoc
-  test binary on macOS CI.
+  test binary on macOS CI. `TestNoShim`, which `go:test` runs
+  with `CGO_ENABLED=0`, sees a darwin build without cgo refuse every
+  call with `store-shim-missing`.
 - In a development build, see `wb setup`, `wb cred list` and the
   session-start audit record name the signing team and say the grant is
   team-wide. The `wb setup` case is `TestC05SetupTeamReport`, which
@@ -131,6 +137,52 @@ Spec: S12-03-host-prerequisites, "Development builds on macOS".
 - See `wb-launcher` accept a table whose entries name
   `Contents/Helpers/<name>.app/Contents/MacOS/<name>` in the installed
   bundle, and still refuse one under `<data>`.
+
+### Host tests
+
+Spec: S15-02-secret-store, "Keychain" and "The group of each call";
+S15-03-access-rules, "No Keychain dialogs" and rule 7.
+
+These need the data protection keychain, so they run only on a Mac
+with a team and its profile, in an attended session
+(`docs/agents/host-work.md`). `mise run store:host-test`, with
+`WB_TEAM_ID` set and after a team build of `app:bundle`, signs the
+test binary of `internal/platform/secretstore` with the team's
+identity into `.scratch/store-test/wb-store-test.app`, with the
+`binding` and `ca` groups, and into `wb-store-test-binding.app`, with
+`binding` alone. Each bundle gets a copy of the app's profile. It runs
+them with an empty environment but for `WB_STORE_HOST_TEST=1` and
+`WB_STORE_HOST_STEP`. Elsewhere, CI included, the tests skip. Each test
+item is `wraithbox/binding/wbtest-<random>` or
+`wraithbox/ca/wbtest-<random>/wbtest-<random>`, removed when its test
+ends, and the run fails when a `wbtest-` item is left. The maintainer
+sees no dialog at any step.
+
+- `TestC05HostEnvironment`: the environment holds only the two
+  variables, the bundle holds its two groups, and dialogs are off after
+  an open.
+- `TestC05HostProgramMismatch`: the real shim reads the bundle's own
+  executable and signing identifier, and an open as `wb-credset` is
+  refused with `store-program-mismatch`.
+- `TestC05HostBindingRoundTrip`: write, fetch, update by a second
+  write, list and delete of a `binding/` item, as `wb-credset` and
+  `wb-proxyd`, with the value read back equal and the list holding
+  names only. `TestC05HostCARoundTrip` does the same for a `ca/` item.
+  Both read the item's attributes back: one item, in the group of its
+  role, with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and not
+  synchronizable.
+- `TestC05HostNotFound`: a fetch of a missing item gives `ErrNotFound`.
+- `TestC05HostGroupMismatch`, in the `binding`-only bundle: a fetch of
+  a `ca/` item is refused with `store-group-mismatch`, and the same
+  fetch and a list made on the backend past the checks get -34018 from
+  the Keychain.
+- `TestC05HostLocked`, with `-- --lock` alone: the test waits while
+  the maintainer locks the screen, sees a fetch give `ErrLocked`
+  (-25308), then waits for the unlock and sees the same fetch succeed.
+- `TestC05HostConfineAfterOpen` opens the store, confines the process
+  with the store-only profile of S04-03-self-sandboxing, and makes a
+  round trip. `TestC05HostConfineFirst` confines first, then opens and
+  makes a round trip, and records what worked.
 
 ## Fuzzing
 

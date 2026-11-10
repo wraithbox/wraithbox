@@ -58,6 +58,18 @@ of bindings, is enforced by our code (S15-03-access-rules, rule 1).
 
 `wb` doesn't hold a group ("`wb` doesn't hold a group" below).
 
+Each item is a generic password whose service attribute is the item
+name. Every call names the data protection keychain
+(`kSecUseDataProtectionKeychain`), the item's group, and
+`kSecAttrSynchronizable` false. A write sets the protection class
+`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. An item with it stays
+on this Mac and can be read only while the Mac is unlocked. A write of an
+item that exists updates its value in place, so there is no moment
+without the item. A list asks for the items' attributes, never their
+values. The cgo shim returns the call's status and nothing else: a
+message from Security.framework can name an item's attributes, so Go
+writes the log line ("Failed store calls").
+
 #### `wb-credset`
 
 `wb-credset` is the helper that `wb cred set`, `wb cred rm` and `wb
@@ -109,6 +121,18 @@ call, the shim refuses in each of these cases with the rule
 - the process's entitlements don't hold the group.
 
 An entitlement set the shim can't read counts as not holding it.
+
+The program a caller opens the store as decides which accesses the
+checks allow (S15-03-access-rules, "Declared access"). So the shim
+also reads the `CFBundleExecutable` of the Info.plist that the
+process's own signature seals, once at start. When it isn't the
+program's executable (`wb-credset`, `wb-proxyd` or `wb-guestadmin`),
+or there is none, every call is refused with the rule
+`store-program-mismatch`. The signing identifier can't tell the
+programs apart: each helper bundle has the app's bundle identifier,
+which its profile matches (X29-dev-signing). The shim logs the
+identifier and the executable when it opens. An ad-hoc build is
+refused with `keychain-needs-team` first.
 
 ### Ad-hoc signed builds
 
