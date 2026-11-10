@@ -1070,9 +1070,11 @@ func (x *ActivePeriodStart) GetVm() string {
 	return ""
 }
 
-// HandoffSocketAck says wb-proxyd holds its end. wb-hostd gives wb-netd
-// the other end only after it (S07-05-stream-hand-off, "One hand-off
-// socket per VM").
+// HandoffSocketAck says wb-proxyd holds its end. wb-proxyd sends it
+// before it reads anything from the socket, so no HandoffSocketClosed
+// for the socket comes before it. wb-hostd keeps its copy of wb-proxyd's
+// end until it, and gives wb-netd the other end only after it
+// (S07-05-stream-hand-off, "Transport", "One hand-off socket per VM").
 type HandoffSocketAck struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// As in the HandoffSocket it acknowledges.
@@ -1129,7 +1131,9 @@ func (x *HandoffSocketAck) GetGeneration() uint64 {
 
 // HandoffSocketClosed says wb-proxyd closed a VM's hand-off socket for
 // a malformed message from wb-netd (S07-06-name-mapping, "Malformed
-// reports"). wb-hostd then ends that VM's wb-netd.
+// reports"). wb-hostd then ends that VM's wb-netd. One that comes before
+// wb-netd holds its end fails the VM's start with proxyd-setup-failed
+// (S07-05-stream-hand-off, "One hand-off socket per VM").
 type HandoffSocketClosed struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The VM slot, `work` or `isolated`.

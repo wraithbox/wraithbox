@@ -53,11 +53,11 @@ failed. A sender never retries out of order.
 
 Both are logged with the rule `handoff-send-failed`.
 
-A process that passes a socket in a message keeps its copy until the
-receiver holds it. The receiver shows that with an acknowledgment, or
-with its first record or byte on the socket. On macOS 27 the kernel can collect
-a socket in flight that has no other reference, and the receiver gets
-it dead (I637). Pipes and descriptors inherited at spawn are exempt.
+A process that passes a socket in a message keeps its copy until an
+acknowledgment or the receiver's first record or byte on the socket
+shows the receiver holds it (I647, I648). On macOS 27 the kernel can collect
+a socket in flight with no other reference, and it arrives dead (I637).
+Pipes and descriptors inherited at spawn are exempt.
 
 ### The contract
 

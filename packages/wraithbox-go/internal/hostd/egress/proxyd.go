@@ -38,6 +38,7 @@ const (
 	checkNotStarted      = "vm-not-started"
 	checkPending         = "pending"
 	checkHandoffClosed   = "handoff-closed"
+	checkNotServed       = "handoff-not-served"
 )
 
 // SetupError is the error of a VM start's message to wb-proxyd that
@@ -279,7 +280,9 @@ func (p *Proxyd) ack(k waitKey) error {
 // Handoff, and one for the current socket while no wb-netd runs fails
 // the start at Confirm. Either way wb-hostd gives no wb-netd a socket
 // wb-proxyd closed (S07-05-stream-hand-off, "One hand-off socket per
-// VM").
+// VM"). A notice for an awaited generation is taken as the new
+// socket's, also when it may be for an older socket of the same
+// generation that a replacement Handoff sends again: the strict reading.
 func (p *Proxyd) closed(m *egressv1.HandoffSocketClosed) {
 	vm, gen := m.GetVm(), m.GetGeneration()
 	attrs := []slog.Attr{
@@ -298,10 +301,9 @@ func (p *Proxyd) closed(m *egressv1.HandoffSocketClosed) {
 	}
 	end := p.cfg.Netd(vm)
 	if end == nil {
-		// endOnce marked the generation ended, so Confirm fails the start
-		// that holds wb-netd's end.
-		p.log.LogAttrs(context.Background(), slog.LevelError, "hand-off socket closed before wb-netd runs",
-			append(attrs, slog.String("rule", RuleSetupFailed), slog.String("decision", "fail-start"))...)
+		// endOnce marked the generation ended, so Confirm refuses it.
+		p.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off socket closed, no wb-netd runs for the VM",
+			append(attrs, slog.String("rule", egressmsg.RuleNameReportMalformed), slog.String("decision", "mark-ended"))...)
 		return
 	}
 	p.log.LogAttrs(context.Background(), slog.LevelError, "wb-netd ended",
@@ -425,16 +427,19 @@ func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, 
 
 // Confirm is the last step of a hand-off socket's setup, after the
 // caller gave the end Handoff returned to vm's wb-netd and that wb-netd
-// is what ProxydConfig.Netd returns for vm. It fails the start with a
-// *SetupError when wb-proxyd closed the socket of generation gen before
-// then: a notice that came while no wb-netd ran ended no process, and
-// the VM would have no network (S07-05-stream-hand-off, "One hand-off
-// socket per VM", step 4). A notice after Confirm ends that wb-netd.
+// is what ProxydConfig.Netd returns for vm. It passes only for the VM's
+// current socket: the VM is started, gen is the generation wb-proxyd
+// acknowledged last, and no HandoffSocketClosed ended it. Otherwise it
+// fails the start with a *SetupError. A notice that came while no
+// wb-netd ran ended no process, and the VM would have no network
+// (S07-05-stream-hand-off, "One hand-off socket per VM", step 4). A
+// notice after Confirm ends that wb-netd.
 func (p *Proxyd) Confirm(vm string, gen uint64) error {
-	if p.cfg.State.handoffEnded(vm, gen) {
-		return p.setupFailed(vm, checkHandoffClosed, fmt.Errorf("wb-proxyd closed the hand-off socket of generation %d", gen))
+	check := p.cfg.State.confirmCheck(vm, gen)
+	if check == "" {
+		return nil
 	}
-	return nil
+	return p.setupFailed(vm, check, fmt.Errorf("the hand-off socket of generation %d isn't the VM's current one", gen))
 }
 
 // NewActivePeriod starts vm's new active period (S07-01-per-vm-policy,
