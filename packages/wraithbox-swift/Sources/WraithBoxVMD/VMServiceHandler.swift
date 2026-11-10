@@ -64,10 +64,19 @@ public struct VMServiceHandler: Wraithbox_Vmd_V1_VMService.SimpleServiceProtocol
                 return error
             }
         }
-        for await percent in percents {
+        // A caller that is gone stops the percents, not the install: the
+        // loop still waits for the end, so a refusal below is logged with
+        // its rule.
+        var callerGone = false
+        for await percent in percents where !callerGone {
             var message = Wraithbox_Vmd_V1_InstallResponse()
             message.percent = percent
-            try await response.write(message)
+            do {
+                try await response.write(message)
+            } catch {
+                callerGone = true
+                log.info("install-progress-unsent", ["percent": .uint(percent)])
+            }
         }
         guard let refusal = await run.value else {
             return
