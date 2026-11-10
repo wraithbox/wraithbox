@@ -49,21 +49,26 @@ public final class ProvisioningInput {
     }
 
     /// The bytes up to end of file, at most maxBytes, before the deadline.
+    /// It reads into one buffer of maxBytes + 1 that never grows, so no
+    /// reallocation leaves a copy behind, and wipes it on every exit. The
+    /// one copy it returns is the caller's to wipe.
     static func readToEnd(_ fd: Int32, deadline: Duration) throws(VMRefusal) -> [UInt8] {
         let clock = ContinuousClock()
         let end = clock.now + deadline
-        var bytes: [UInt8] = []
         var buffer = [UInt8](repeating: 0, count: maxBytes + 1)
         defer { wipe(&buffer) }
+        var filled = 0
         while true {
             // A poll that a signal interrupted waits again, so the read
             // never blocks past the deadline.
             guard try waitReadable(fd, remaining: end - clock.now) else {
                 continue
             }
-            let count = buffer.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress, $0.count) }
+            let count = buffer.withUnsafeMutableBytes {
+                Darwin.read(fd, $0.baseAddress! + filled, $0.count - filled)
+            }
             if count == 0 {
-                return bytes
+                return Array(buffer[..<filled])
             }
             guard count > 0 else {
                 if errno == EINTR || errno == EAGAIN {
@@ -71,9 +76,8 @@ public final class ProvisioningInput {
                 }
                 throw refusal("read failed: \(String(cString: strerror(errno)))")
             }
-            bytes += buffer[..<count]
-            guard bytes.count <= maxBytes else {
-                wipe(&bytes)
+            filled += count
+            guard filled <= maxBytes else {
                 throw refusal("the password is over \(maxBytes) bytes")
             }
         }
