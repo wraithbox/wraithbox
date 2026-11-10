@@ -264,8 +264,7 @@ public final class VMSupervisor {
         if let failed = handoff.send(message, descriptor: hostEnd, close: { Darwin.close(hostEnd) })
         {
             Darwin.close(hostEnd)
-            let detail =
-                failed == EINVAL ? "encode failed" : "sendmsg: \(String(cString: strerror(failed)))"
+            let detail = failed.detail
             publish(
                 VMStatus(
                     generation: generation, state: .error,

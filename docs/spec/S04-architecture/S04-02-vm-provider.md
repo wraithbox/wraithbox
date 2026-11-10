@@ -48,24 +48,23 @@ through the channel of `internal/platform/fdchan`, which refuses a
 record over 256 bytes or truncated (`fdchan-record-size`,
 `fdchan-control-truncated`) and two or more descriptors
 (`fdchan-fd-count`). It treats each record as untrusted input, because
-`wb-vmd` runs framework code on the guest's behalf. It refuses each case
-the comment on `HandoffMessage` lists, with the rules `handoff-fd-count`,
-`handoff-kind`, `handoff-socket-type`, `handoff-malformed`,
-`handoff-generation`, `handoff-unexpected`, `handoff-direction` and
-`handoff-network-refused`. A refused record ends the open request it
-names. A request of a newer generation ends every open request of the
-older one.
+`wb-vmd` runs framework code on the guest's behalf, and refuses each
+case the comment on `HandoffMessage` lists with the rule it names there.
+A refused record ends the open request it names. A request of a newer
+generation ends every open request of the older one.
 
 Records go both ways on the channel. The receiver answers each record
 that decodes, accepted or refused, with a `HandoffAck` once `recvmsg`
 has returned. `wb-vmd` keeps its copy of each descriptor it sent until
 that acknowledgment, or for the connect timeout of 5 s at most, as
-S07-05-stream-hand-off ("Transport") asks. `wb-vmd` checks each
-acknowledgment as input: it refuses one of the wrong form
+S07-05-stream-hand-off ("Transport") asks. It checks each
+acknowledgment as input and refuses one of the wrong form
 (`handoff-ack-malformed`) or for a descriptor it doesn't keep
-(`handoff-ack-unexpected`), and logs a deadline that passes
-(`handoff-ack-timeout`). `wb-hostd` logs an acknowledgment it can't send
-(`handoff-ack-send-failed`). `HandoffAck`'s comments list every rule.
+(`handoff-ack-unexpected`). It logs a deadline that passes
+(`handoff-ack-timeout`), and a channel it can't read any more
+(`handoff-ack-channel-ended`), after which each kept copy closes at its
+deadline. `wb-hostd` logs an acknowledgment it can't send
+(`handoff-ack-send-failed`). `HandoffAck`'s comments list these rules.
 
 ### The host opens every connection
 
@@ -175,7 +174,7 @@ install is broken.
 - Both log each refusal (SEC13-bounded-resources), `wb-hostd` at most
   once per rule per VM in a window, with the count it held back.
 - Every connection of a VM closes when its run ends, so before its
-  generation changes.
+  generation changes. A copy `wb-vmd` keeps closes up to 5 s later.
 - `wb-vmd` answers `ConnectGuest` after it passed the descriptor, and
   keeps its copy until `wb-hostd` holds it ("Hand-off on macOS"). The
   descriptor then works while `wb-vmd` is stopped too.

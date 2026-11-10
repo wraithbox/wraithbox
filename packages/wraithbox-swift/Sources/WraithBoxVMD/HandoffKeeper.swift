@@ -10,6 +10,7 @@
 // is refused and logged with its rule, and the wait it might have ended
 // goes on to the deadline. wb-vmd never reads or writes the descriptor it
 // keeps (SEC12-least-privilege).
+import Darwin
 import Dispatch
 import SwiftProtobuf
 import WraithBoxRPC
@@ -30,14 +31,34 @@ public enum HandoffAckRule: String, Sendable, CaseIterable {
     case channelEnded = "handoff-ack-channel-ended"
 }
 
+/// Why HandoffKeeper.send sent nothing. The caller still owns the
+/// descriptor.
+public enum HandoffSendFailure: Error, Equatable, Sendable {
+    /// The HandoffMessage didn't encode.
+    case encode
+    /// sendmsg failed with this errno.
+    case sendmsg(Int32)
+    /// The keeper is closed.
+    case closed
+
+    /// The failure in words, for the log and the refusal.
+    public var detail: String {
+        switch self {
+        case .encode: "encode failed"
+        case .sendmsg(let errno): "sendmsg: \(String(cString: strerror(errno)))"
+        case .closed: "the hand-off keeper is closed"
+        }
+    }
+}
+
 /// Sends hand-off records and keeps each record's descriptor until
 /// wb-hostd acknowledges it, or until the deadline.
 @MainActor
 public final class HandoffKeeper {
     /// How long wb-vmd keeps a sent descriptor without an acknowledgment:
     /// the exchange's deadline, the connect timeout (S04-02-vm-provider,
-    /// "Hand-off on macOS"). A value in code.
-    public nonisolated static let defaultDeadline = Duration.seconds(5)
+    /// "Hand-off on macOS").
+    public nonisolated static let defaultDeadline = GuestConnector.defaultTimeout
 
     /// What an acknowledgment names: the kind, request ID and generation
     /// of the record it answers.
@@ -63,6 +84,7 @@ public final class HandoffKeeper {
     /// oldest of its key.
     private var kept: [Key: [Kept]] = [:]
     private var nextToken: UInt64 = 0
+    private var closed = false
 
     /// How many descriptors wb-vmd keeps now.
     public var keptCount: Int {
@@ -84,24 +106,44 @@ public final class HandoffKeeper {
         reader.resume()
     }
 
-    deinit {
+    isolated deinit {
+        close()
+    }
+
+    /// Stops reading the channel and closes every kept descriptor now,
+    /// without waiting for its acknowledgment or deadline. Later sends
+    /// fail with `.closed`. The channel's descriptor stays open: its owner
+    /// closes it after this.
+    public func close() {
+        guard !closed else {
+            return
+        }
+        closed = true
         reader.cancel()
+        let entries = Array(kept.values.joined())
+        kept = [:]
+        for entry in entries {
+            entry.timer.cancel()
+            entry.close()
+        }
     }
 
     /// Sends `message` with `descriptor`. On success the keeper owns the
-    /// descriptor: it calls `close` once, when the acknowledgment comes or
-    /// the deadline passes. On failure it returns the errno, or EINVAL
-    /// when the message doesn't encode, and the caller still owns the
-    /// descriptor.
+    /// descriptor: it calls `close` once, when the acknowledgment comes,
+    /// the deadline passes, or the keeper is closed. On failure it
+    /// returns why, and the caller still owns the descriptor.
     public func send(
         _ message: Wraithbox_Vmd_V1_HandoffMessage, descriptor: Int32,
         close: @escaping @MainActor () -> Void
-    ) -> Int32? {
+    ) -> HandoffSendFailure? {
+        guard !closed else {
+            return .closed
+        }
         guard let record = try? message.serializedBytes() as [UInt8] else {
-            return EINVAL
+            return .encode
         }
         if let failed = channel.send(record, descriptor: descriptor) {
-            return failed
+            return .sendmsg(failed)
         }
         keep(
             Key(kind: message.kind, requestID: message.requestID, generation: message.generation),

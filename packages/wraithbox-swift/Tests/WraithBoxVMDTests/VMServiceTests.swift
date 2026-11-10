@@ -57,10 +57,24 @@ final class ServiceFixture {
     /// Whether the test closed wb-hostd's end already.
     private nonisolated let hostClosed = Mutex(false)
 
-    deinit {
+    isolated deinit {
+        // Stops the read source before its descriptor is closed.
+        keeper.close()
         close(handoff.vmd)
         if !hostClosed.withLock({ $0 }) {
             close(handoff.host)
+        }
+    }
+
+    /// Closes wb-hostd's end and doesn't wait. A send on wb-vmd's end
+    /// would take the reset that the close leaves there, so a test of how
+    /// wb-vmd reads the close uses this one.
+    nonisolated func closeHostEndOnly() {
+        hostClosed.withLock { closed in
+            if !closed {
+                close(handoff.host)
+                closed = true
+            }
         }
     }
 
@@ -72,12 +86,7 @@ final class ServiceFixture {
     /// copy of wb-hostd's end until posix_spawn closes it (closeShows),
     /// and the record lands in that copy's buffer.
     func closeHostEnd() async throws -> Bool {
-        hostClosed.withLock { closed in
-            if !closed {
-                close(handoff.host)
-                closed = true
-            }
-        }
+        closeHostEndOnly()
         let vmd = handoff.vmd
         return try await closeShows { peerIsClosed(vmd) }
     }

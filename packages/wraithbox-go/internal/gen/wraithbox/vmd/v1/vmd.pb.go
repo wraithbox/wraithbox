@@ -1018,26 +1018,40 @@ func (x *InstallResponse) GetError() *VMError {
 // HandoffAck, and wb-vmd keeps its copy of the descriptor until then.
 //
 // The receiver refuses the record, closes every descriptor that came
-// with it, and logs the refusal with its rule, when:
+// with it, and logs the refusal with its rule. internal/platform/fdchan
+// refuses, before the record is decoded:
 //
-//   - the record is over 256 bytes, or arrived truncated (MSG_TRUNC or
-//     MSG_CTRUNC);
-//   - it doesn't decode as a HandoffMessage;
-//   - it carries other than exactly one descriptor;
-//   - `kind` is neither KIND_CONNECTION nor KIND_NETWORK;
-//   - the descriptor isn't a socket of the type its kind names;
-//   - `generation` is 0, or isn't the VM's current generation.
+//   - a record over 256 bytes (`fdchan-record-size`), or one whose control
+//     data arrived truncated (`fdchan-control-truncated`);
+//   - a record with two or more descriptors (`fdchan-fd-count`).
+//
+// The receiver then refuses:
+//
+//   - a record that doesn't decode as a HandoffMessage, or that holds a
+//     field this message doesn't have (`handoff-malformed`);
+//   - a `kind` that is neither KIND_CONNECTION nor KIND_NETWORK
+//     (`handoff-kind`);
+//   - a record without a descriptor (`handoff-fd-count`).
 //
 // A KIND_CONNECTION record is also refused when:
 //
-//   - `request_id` is 0, or doesn't name an open ConnectGuest request of
-//     that generation;
-//   - `direction` isn't DIRECTION_HOST_TO_GUEST;
-//   - `destination_port` isn't the guest port that request asked for.
+//   - `generation` is 0, or isn't the VM's current generation
+//     (`handoff-generation`);
+//   - `request_id` is 0, or doesn't name an open ConnectGuest request
+//     (`handoff-unexpected`). A newer generation's request closes every
+//     open request of the older one, so an older generation's request is
+//     refused with `handoff-generation` above;
+//   - `direction` isn't DIRECTION_HOST_TO_GUEST (`handoff-direction`);
+//   - `destination_port` isn't the guest port that request asked for
+//     (`handoff-unexpected`);
+//   - the descriptor isn't an AF_UNIX stream socket
+//     (`handoff-socket-type`).
 //
-// A KIND_NETWORK record is also refused when `request_id`, `direction`,
-// `source_port` or `destination_port` is set, or when the generation
-// already had one.
+// A KIND_NETWORK record is refused with `handoff-network-refused` when
+// `generation` is 0 or isn't the current one, when the generation's start
+// was cancelled, already had its packet transport or asked for none, when
+// `request_id`, `direction`, `source_port` or `destination_port` is set,
+// or when the descriptor isn't an AF_UNIX datagram socket.
 type HandoffMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The ConnectGuest request this connection answers, at least 1. 0 in a
@@ -1147,10 +1161,15 @@ func (x *HandoffMessage) GetKind() Kind {
 // kernel can collect a socket in flight that no process holds, and it
 // then arrives dead.
 //
+// A refused record is answered with the fields it had. One with fields
+// wb-vmd never builds, such as KIND_UNSPECIFIED or generation 0, gets an
+// acknowledgment that wb-vmd refuses as `handoff-ack-malformed`, and its
+// copy, if any, closes at the deadline.
+//
 // wb-vmd refuses the record and logs the refusal with its rule, and its
 // wait goes on to the deadline, when:
 //
-//   - the record is over 256 bytes, arrived truncated, or carries a
+//   - the record is empty, over 256 bytes, arrived truncated, or carries a
 //     descriptor, which it closes (`handoff-ack-malformed`);
 //   - it doesn't decode as a HandoffAck, or holds a field the message
 //     doesn't have (`handoff-ack-malformed`);
@@ -1158,6 +1177,20 @@ func (x *HandoffMessage) GetKind() Kind {
 //     0, a KIND_CONNECTION record has `request_id` 0, or a KIND_NETWORK
 //     record has it set (`handoff-ack-malformed`);
 //   - it names no descriptor wb-vmd still keeps (`handoff-ack-unexpected`).
+//
+// wb-vmd also logs, each with its rule:
+//
+//   - a deadline that passes without a HandoffAck, with the record's kind,
+//     request ID and generation (`handoff-ack-timeout`);
+//   - a channel it can't read any more: a receive failed, such as with
+//     ECONNRESET after wb-hostd closed its end, control data arrived
+//     truncated, or a wake found nothing to read and wb-hostd's end closed
+//     (`handoff-ack-channel-ended`). It stops reading, and every copy it
+//     keeps closes at its deadline. darwin doesn't wake the reader for the
+//     close of wb-hostd's end alone, and the copies close at their
+//     deadlines then too.
+//
+// wb-hostd logs a HandoffAck it can't send (`handoff-ack-send-failed`).
 type HandoffAck struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The request_id of the HandoffMessage. 0 for KIND_NETWORK.
