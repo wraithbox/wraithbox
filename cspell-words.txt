@@ -473,6 +473,7 @@ smol
 unifont
 
 # Engineering jargon the dictionaries lack
+acks
 respawn
 stdlib
 startswith

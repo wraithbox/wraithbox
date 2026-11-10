@@ -4592,7 +4592,8 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "S07-05-stream-hand-off and S04: settle the hand-off contract end to end (descriptor passing, acks, identity, close, restarts, audit)",
-		"summary": "The hand-off of sockets and streams between host processes keeps getting patched one review at a time:"
+		"summary": "The hand-off of sockets and streams between host processes keeps getting patched one review at a time:",
+		"brief": "B754-handoff-contract"
 	},
 	"755": {
 		"kind": "pr",
