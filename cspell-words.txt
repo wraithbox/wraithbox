@@ -452,6 +452,7 @@ LSUI
 mountpoint
 noautoopen
 nobrowse
+nomount
 OBJROOT
 pbxproj
 plists
