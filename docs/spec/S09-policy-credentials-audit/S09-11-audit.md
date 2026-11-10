@@ -111,8 +111,8 @@ A notice that doesn't arrive is sent again with the next record.
 A sender that ignores the notice is held back, and none of its records
 is dropped. `wb-hostd` stops reading a sender's channel while the audit
 writer's queue is at its cap, or while the VM of the last record is
-past a budget by a margin, which leaves room for the records of work
-admitted before the notice. The sender's writes then fail, and it
+past a budget by a margin. The margin leaves room for the records of
+work admitted before the notice. The sender's writes then fail, and it
 refuses new work with `event-channel-blocked`. `wb-proxyd` serves every
 VM, so a hold for one VM holds it for every VM. Once a sender exits,
 `wb-hostd` reads what it left without a hold, so a VM stop doesn't wait

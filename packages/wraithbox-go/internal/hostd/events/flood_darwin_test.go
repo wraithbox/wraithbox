@@ -79,7 +79,7 @@ func watchQueue(w *audit.Writer, stop <-chan struct{}) <-chan int {
 
 // floodSetup is a real audit writer whose file takes no writes until
 // gate is closed, and a receiver on a real socketpair. raw is the
-// sender's end, nonblocking.
+// sender's end, set not to block.
 type floodSetup struct {
 	w    *audit.Writer
 	dir  string
