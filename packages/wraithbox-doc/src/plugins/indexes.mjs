@@ -23,9 +23,13 @@ const HEADER = '| ID | Description | Status |';
 
 /** @typedef {{ id: string, full: string, description: string, status: string }} Row */
 
-/** Text for one table cell: one line, with pipes escaped. */
+/**
+ * Text for one table cell: one line, with backslashes and pipes escaped.
+ * Backslashes go first: otherwise a `\|` in the text would become `\\|`,
+ * an escaped backslash followed by a pipe that ends the cell.
+ */
 function cell(/** @type {string} */ text) {
-	return text.replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim();
+	return text.replace(/\s+/g, ' ').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').trim();
 }
 
 /** The number in an ID, for sorting: S07 is 7, V1-initial is 1. */
