@@ -24,7 +24,7 @@
 | `wb project place work\|isolated [--project P]` | Set the project's `placement` ("`wb project place`") |
 | `wb project confirm` | Accept the current remote URLs and root commits of the repository in the directory as the project's, and clear `config_trust` (S05-04-naming). It takes no `--project`, because it reads the identity from a repository and `--project` names none |
 | `wb project rm [--project P]` | Remove a project and everything Wraith Box holds for it (S05-04-naming) |
-| `wb cred set/list/rm <binding>` | Manage the binding credentials in the secret store ("`wb cred`") |
+| `wb cred set/rm <binding>`, `wb cred list` | Manage the binding credentials in the secret store ("`wb cred`") |
 | `wb audit tail/search` | Read the audit log (SEC10-audit) |
 | `wb gate reset go-clock` | Reset the Go clock after a `go-sumdb-inconsistent` finding ("`wb gate reset go-clock`") |
 | `wb vm reset-ca <vm>` | Replace a VM's CAs after a `ca-key-restore` refusal ("`wb vm reset-ca`") |
@@ -94,14 +94,14 @@ the second-clone placement. So a new clone can start isolated.
 
 ### `wb cred`
 
-`wb cred set/list/rm <binding>` manages the binding credentials in the
-secret store. `wb-proxyd` fetches them when proxying needs them
-(S09-policy-credentials-audit, S15-least-privilege).
+`wb cred set <binding>`, `wb cred list` and `wb cred rm <binding>`
+manage the binding credentials in the secret store. `wb-proxyd`
+fetches them when proxying needs them (S09-policy-credentials-audit).
 
 - `wb` itself doesn't have store access.
 - Each command runs `wb-credset` for one operation.
 - `set` passes the value on `wb-credset`'s standard input
-  (S15-02-secret-store, "Keychain").
+  (S15-02-secret-store, "`wb cred`").
 
 ### `wb gate reset go-clock`
 
