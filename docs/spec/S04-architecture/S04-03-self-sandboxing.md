@@ -215,6 +215,10 @@ groups in the program's code signature decide which items it reaches
 (S15-02-secret-store). The profile decides only whether it reaches the
 store at all.
 
+The store-only profile blocks the read of the process's own signature,
+which the store's open needs (I505). So a program with store access
+opens the store, which reads nothing else, just before it confines.
+
 The `wb-proxyd` profile allows outbound TCP to any port, DNS, the
 resolver files and `mDNSResponder` as in S17-03-downloads
 ("Confinement"), certificate checks, and the two store services. Its

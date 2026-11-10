@@ -59,9 +59,14 @@ of bindings, is enforced by our code (S15-03-access-rules, rule 1).
 `wb` doesn't hold a group ("`wb` doesn't hold a group" below).
 
 Each item is a generic password whose service attribute is the item
-name. Every call names the data protection keychain
-(`kSecUseDataProtectionKeychain`), the item's group, and
-`kSecAttrSynchronizable` false. A write sets the protection class
+name and whose account attribute is the fixed `wraithbox`. Every call
+names the data protection keychain (`kSecUseDataProtectionKeychain`),
+the item's group, the account, and `kSecAttrSynchronizable` false. A
+query without an account matches every account. With the fixed one,
+each item name is one item, and no call matches an item another
+program of the team wrote in the group under another account.
+
+A write sets the protection class
 `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. An item with it stays
 on this Mac and can be read only while the Mac is unlocked. A write of an
 item that exists updates its value in place, so there is no moment
@@ -78,10 +83,17 @@ cred list` run as the user.
 - `wb` starts it from the installed bundle (S10-tech-stack).
 - Its arguments are the operation and the binding name, never the
   value.
-- It confines itself first thing, from a compiled-in profile. The
-  profile allows the secret store service and its standard streams. It
-  denies files, the network and starting programs
-  (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
+- Before it reads its arguments or standard input, it opens the store
+  and then confines itself, from a compiled-in profile. The profile
+  allows the secret store service and its standard streams. It denies
+  files, the network and starting programs (S04-03-self-sandboxing,
+  "Each host daemon is self-sandboxed").
+- The open comes first because the profile blocks the read of the
+  process's own signature, which the open needs ("The group of each
+  call"). On the maintainer's Mac, an open after the confinement got
+  OSStatus 100001 and was refused with `keychain-needs-team`. The
+  Keychain item calls still worked after it
+  (`TestC05HostConfineFirst` and `TestC05HostConfineAfterOpen`, I505).
 
 It does one operation and exits:
 
@@ -91,7 +103,9 @@ It does one operation and exits:
 
 It takes exactly two arguments, the operation and the binding name.
 Its environment has only the variable names on a fixed list compiled
-into it, which `wb` also uses when it starts it. Before any store call,
+into it, which `wb` also uses when it starts it. The store doesn't need a
+variable: the host tests ran every Keychain call with an empty
+environment but for their own (I505). Before any store call,
 it refuses each of these with the rule `credset-refused`:
 
 - any other argument count;
@@ -108,6 +122,15 @@ Each Keychain call names its group. The cgo shim (S12-platforms) sets
 - `<TEAMID>` is the team identifier of the process's own code
   signature. The shim reads it once at start, and never takes it from
   configuration or a request.
+
+The signature is read from the files on disk, which can change while
+the process runs. So the shim first checks that the files still match
+the running code (`SecCodeCheckValidity`), the Info.plist and the
+other sealed files included. A signature that fails the check counts
+as unreadable, which every check refuses: the team is then none, with
+`keychain-needs-team`. The groups come from the kernel's copy of the
+process's entitlements (`SecTaskCopyValueForEntitlement`), the one
+the Keychain checks, never from the files.
 
 Without the attribute, a write by a process with two groups, such as
 `wb-proxyd`, would go to the first group of its entitlements. A `ca/`

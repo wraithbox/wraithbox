@@ -6,7 +6,8 @@
 // S15-03-access-rules before the backend runs, in this order:
 //
 //  1. the call that turns dialogs off failed at Open: store-dialogs-on;
-//  2. the process's own signature has no team: keychain-needs-team;
+//  2. the process's own signature has no team, or its files on disk no
+//     longer match the running code: keychain-needs-team;
 //  3. the executable of the Info.plist the process's own signature seals
 //     isn't the program's: store-program-mismatch;
 //  4. the item's role isn't the role the call names, or the process's
@@ -56,9 +57,6 @@ type Status int32
 // calls").
 const (
 	StatusOK Status = 0
-	// StatusUnimplemented is errSecUnimplemented: the backend has no such
-	// call yet.
-	StatusUnimplemented Status = -4
 	// StatusNotFound is errSecItemNotFound.
 	StatusNotFound Status = -25300
 	// StatusLocked is errSecInteractionNotAllowed, which a locked
@@ -82,7 +80,8 @@ type Backend interface {
 	// when it has none. It runs once, at Open.
 	Team() (string, error)
 	// Groups returns the access groups the process's own entitlements
-	// hold. It runs once, at Open. An error means they can't be read,
+	// hold, on macOS from the kernel's copy of them. It runs once, at
+	// Open. An error means they can't be read,
 	// and the process holds no group.
 	Groups() ([]string, error)
 	// Code returns the signing identifier and the main executable of the
@@ -105,7 +104,10 @@ type Code struct {
 	// Executable is the CFBundleExecutable of the Info.plist the
 	// signature seals, or "" when the code has none. It names the
 	// program: renaming a helper's executable breaks its bundle's
-	// signature.
+	// signature. On macOS the shim reads it only after
+	// SecCodeCheckValidity sees the bundle's files, the Info.plist
+	// included, still match the running code, so a bundle signed again
+	// after the start can't change it.
 	Executable string
 }
 

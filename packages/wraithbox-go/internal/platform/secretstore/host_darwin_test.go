@@ -1,4 +1,4 @@
-//go:build darwin && cgo
+//go:build darwin && cgo && wbstorehost
 
 package secretstore
 
@@ -6,8 +6,10 @@ package secretstore
 // "Host tests"). They need the data protection keychain, so they run
 // only in a test binary that `mise run store:host-test` signs with the
 // team's identity into a bundle of its own, with the app's profile, and
-// starts with an empty environment but for WB_STORE_HOST_TEST=1 and
-// WB_STORE_HOST_STEP. Elsewhere, CI included, each one skips.
+// starts with an empty environment but for WB_STORE_HOST_TEST=1,
+// WB_STORE_HOST_STEP and WB_STORE_HOST_G2_OUT. They build only with the
+// wbstorehost tag, which that task sets, and without the variables each
+// one skips.
 
 import (
 	"bytes"
@@ -33,8 +35,11 @@ const (
 	hostEnv = "WB_STORE_HOST_TEST"
 	// stepEnv names the step of the run: "" for the bundle with the
 	// binding and ca groups, binding-only for the bundle with binding
-	// alone, and confine-after, confine-first and lock.
+	// alone, and confine-after, confine-first, lock and g2.
 	stepEnv = "WB_STORE_HOST_STEP"
+	// g2OutEnv is the file the maintainer's run of Apple's security tool
+	// writes to in the g2 step.
+	g2OutEnv = "WB_STORE_HOST_G2_OUT"
 	// hostPrefix is the prefix of every item a host test makes. TestMain
 	// fails a run that leaves one behind.
 	hostPrefix = "wbtest-"
@@ -53,18 +58,26 @@ var storeOnly = selfsandbox.Profile{
 }
 
 func TestMain(m *testing.M) {
+	// The groups are read before any test confines the process: under the
+	// store-only profile the process can't read its own signature
+	// (OSStatus 100001), and the Keychain calls of the check still work.
+	var groups []string
+	var groupsErr error
+	if os.Getenv(hostEnv) == "1" {
+		groups, groupsErr = (&keychain{}).Groups()
+	}
 	code := m.Run()
-	if os.Getenv(hostEnv) == "1" && leftovers() {
+	if os.Getenv(hostEnv) == "1" && leftovers(groups, groupsErr) {
 		code = 1
 	}
 	os.Exit(code)
 }
 
-// leftovers lists the items with hostPrefix in the groups the process
-// holds, reports each, and returns whether there was one.
-func leftovers() bool {
+// leftovers lists the items with hostPrefix in groups, the groups the
+// process holds or the error of reading them, reports each, and returns
+// whether there was one.
+func leftovers(groups []string, err error) bool {
 	k := &keychain{}
-	groups, err := k.Groups()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "host test: reading the groups: %v\n", err)
 		return true
@@ -284,8 +297,8 @@ func TestC05HostCARoundTrip(t *testing.T) {
 }
 
 // checkAttributes reads back the attributes of item and sees one item, in
-// the group of role, of the protection class of every write, that
-// doesn't synchronize (G4, S15-02-secret-store, "Backend guarantees").
+// the group of role, with the fixed account, of the protection class of
+// every write, that doesn't synchronize (G4, S15-02-secret-store, "Backend guarantees").
 func checkAttributes(t *testing.T, item storeitem.Name, role storeitem.Role) {
 	t.Helper()
 	a, st := readItemAttributes(item.String())
@@ -295,6 +308,10 @@ func checkAttributes(t *testing.T, item storeitem.Name, role storeitem.Role) {
 	t.Logf("attributes of %s: %+v", item, a)
 	if want := storeitem.Group(team(t), role); a.Count != 1 || a.Group != want {
 		t.Errorf("%d items, the first in %q; want 1 in %q", a.Count, a.Group, want)
+	}
+	// WB_ACCOUNT of items_darwin.go.
+	if a.Account != "wraithbox" {
+		t.Errorf("account %q, want wraithbox", a.Account)
 	}
 	if !a.WhenUnlockedThisDeviceOnly {
 		t.Errorf("protection class %q, want kSecAttrAccessibleWhenUnlockedThisDeviceOnly", a.Accessible)
@@ -373,6 +390,44 @@ func TestC05HostLocked(t *testing.T) {
 	t.Log(">>> UNLOCKED: the same fetch succeeded")
 }
 
+// TestC05HostG2 holds a binding item while the maintainer looks for it
+// with Apple's security tool, which names no group, from another
+// terminal. The tool must not find it (G2, S15-02-secret-store,
+// "Backend guarantees"). The test writes the item, prints the command,
+// waits for the command's output in the file of g2OutEnv, reads it, and
+// sees the item still there afterwards. Agents never run security
+// (docs/agents/host-work.md), so the maintainer does.
+func TestC05HostG2(t *testing.T) {
+	hostStep(t, "g2")
+	out := os.Getenv(g2OutEnv)
+	if out == "" {
+		t.Fatalf("%s names no file", g2OutEnv)
+	}
+	ctx := t.Context()
+	proxyd := openAs(t, storeitem.ProgramProxyd)
+	item := testItem(t, storeitem.FormBinding)
+	if err := proxyd.Write(ctx, item, storeitem.RoleBinding, []byte("g2")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	t.Logf(">>> IN ANOTHER TERMINAL, RUN:\n\n/usr/bin/security find-generic-password -s %s 2>&1 | tee %s\n", item, out)
+	var text string
+	err := poll(t, func() bool {
+		b, err := os.ReadFile(out)
+		text = string(b)
+		return err == nil && strings.Contains(text, "\n")
+	})
+	if err != nil {
+		t.Fatalf("no output in %s: %v", out, err)
+	}
+	t.Logf("security's output:\n%s", text)
+	if !strings.Contains(text, "could not be found") || strings.Contains(text, item.String()) {
+		t.Errorf("security found %s, or said something else", item)
+	}
+	if got, err := proxyd.Fetch(ctx, item, storeitem.RoleBinding); err != nil || string(got) != "g2" {
+		t.Errorf("the item after the search: %q, %v; want g2", got, err)
+	}
+}
+
 // poll calls ok every two seconds until it returns true, for at most
 // three minutes.
 func poll(t *testing.T, ok func() bool) error {
@@ -404,30 +459,27 @@ func TestC05HostConfineAfterOpen(t *testing.T) {
 }
 
 // TestC05HostConfineFirst confines the process with the store-only
-// profile, then opens the store and makes a binding round trip. It
-// records what worked for decision 7 on I505 and passes either way.
+// profile, then opens the store, and sees the open refused with
+// keychain-needs-team: the profile blocks the read of the process's own
+// signature (OSStatus 100001), so a program opens the store before it
+// confines itself (decision 7 on I505; S15-02-secret-store,
+// "`wb-credset`"). If this starts to pass, the order can change.
 func TestC05HostConfineFirst(t *testing.T) {
 	hostStep(t, "confine-first")
-	item := testItem(t, storeitem.FormBinding)
 	if err := selfsandbox.Confine(storeOnly, nil); err != nil {
 		t.Fatalf("confine: %v", err)
 	}
 	log := slog.New(slog.NewTextHandler(t.Output(), nil))
-	credset, err := New(storeitem.ProgramCredset, hostBackend{&keychain{}, storeitem.ProgramCredset}, log)
-	if err != nil {
-		t.Logf("DECISION 7: open after confine FAILED: %v", err)
-		return
+	_, err := New(storeitem.ProgramCredset, hostBackend{&keychain{}, storeitem.ProgramCredset}, log)
+	wantRule(t, "open after confine", err, storeitem.RuleNeedsTeam)
+	// 100001 was measured before the shim checked the signature's
+	// validity, which may now be the call that fails, so any status is
+	// the refusal, and the log names it.
+	_, err = (&keychain{}).Team()
+	t.Logf("reading the signature after confine: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "OSStatus") {
+		t.Errorf("reading the signature after confine: %v, want an OSStatus", err)
 	}
-	proxyd, err := New(storeitem.ProgramProxyd, hostBackend{&keychain{}, storeitem.ProgramProxyd}, log)
-	if err != nil {
-		t.Logf("DECISION 7: open after confine FAILED: %v", err)
-		return
-	}
-	if err := roundTrip(t, credset, proxyd, item); err != nil {
-		t.Logf("DECISION 7: open after confine worked, the round trip FAILED: %v", err)
-		return
-	}
-	t.Log("DECISION 7: open after confine and the round trip WORKED")
 }
 
 // roundTrip writes item as credset, fetches it as proxyd, and deletes it

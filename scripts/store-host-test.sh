@@ -6,19 +6,27 @@
 # runs it from the repository root. It is needs-host and attended
 # (docs/agents/host-work.md): agents write it, the maintainer runs it.
 #
-#   WB_TEAM_ID=<team> sh scripts/store-host-test.sh          # every step but the lock
+#   WB_TEAM_ID=<team> sh scripts/store-host-test.sh          # every step but lock and g2
 #   WB_TEAM_ID=<team> sh scripts/store-host-test.sh --lock   # the lock step alone
+#   WB_TEAM_ID=<team> sh scripts/store-host-test.sh --g2     # the g2 step alone
+#
+# The lock and g2 steps wait for the maintainer: to lock and unlock the
+# screen, and to run Apple's security tool in another terminal, with its
+# output in .scratch/attended/g2.txt.
 #
 # It needs a team build of the app first (WB_TEAM_ID=<team> mise run
 # app:bundle): each test bundle gets a copy of that app's profile, which
 # macOS matches by the bundle identifier, the app's, as for a helper
 # (S10-02-packaging-and-signing, "Helper bundles"; X29-dev-signing).
 #
-# Each test bundle is .scratch/store-test/<bundle>.app, with the test
-# binary as its executable <bundle> and keychain-access-groups with the
-# groups of its roles and nothing else. Each run starts the binary with
-# an empty environment but for WB_STORE_HOST_TEST=1 and
-# WB_STORE_HOST_STEP (decision 8 on I505). A test package for another
+# Each test bundle is .scratch/store-test/<bundle>.app, removed when the
+# run ends, with the test binary as its executable <bundle> and
+# keychain-access-groups with the groups of its roles and nothing else.
+# Each run starts the binary with an empty environment but for
+# WB_STORE_HOST_TEST=1, WB_STORE_HOST_STEP and WB_STORE_HOST_G2_OUT
+# (decision 8 on I505). The tests and the read-back of an item's
+# attributes they use are behind the wbstorehost build tag, so no
+# program's build holds that read-back. A test package for another
 # backend call is one more line in each table below.
 set -eu
 
@@ -27,12 +35,13 @@ if [ "$(uname -s)" != Darwin ]; then
 	exit 0
 fi
 
-lock=no
+only=
 case ${1:-} in
 '') ;;
---lock) lock=yes ;;
+--lock) only=lock ;;
+--g2) only=g2 ;;
 *)
-	echo "usage: sh scripts/store-host-test.sh [--lock]" >&2
+	echo "usage: sh scripts/store-host-test.sh [--lock | --g2]" >&2
 	exit 2
 	;;
 esac
@@ -48,8 +57,14 @@ go_dir=$root/packages/wraithbox-go
 app="$root/packages/wraithbox-swift/.build/Wraith Box.app"
 work=$root/.scratch/store-test
 dev=$work/wb-dev-app
+# The file the security tool's output goes to in the g2 step.
+g2_out=$root/.scratch/attended/g2.txt
 
 rm -rf "$work"
+# The bundles are signed with the team's identity and hold its groups:
+# they don't outlive the run. Each build prints its signature first.
+trap 'rm -rf "$work"' EXIT
+trap 'exit 130' INT TERM
 mkdir -p "$work"
 go -C "$go_dir" build -o "$dev" ./cmd/wb-dev-app
 # Refuses a WB_TEAM_ID that isn't a team ID.
@@ -65,7 +80,7 @@ identity=$("$dev" sign-identity -team "$team")
 build() {
 	bundle=$work/$1.app
 	mkdir -p "$bundle/Contents/MacOS"
-	(cd "$go_dir" && CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go test -c -o "$bundle/Contents/MacOS/$1" "$2")
+	(cd "$go_dir" && CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go test -c -tags wbstorehost -o "$bundle/Contents/MacOS/$1" "$2")
 	plist=$bundle/Contents/Info.plist
 	plutil -create xml1 "$plist"
 	plutil -insert CFBundleIdentifier -string "$bundle_id" "$plist"
@@ -77,7 +92,7 @@ build() {
 	"$dev" entitlements -team "$team" -roles "$3" >"$entitlements"
 	codesign --force --sign "$identity" --options runtime --timestamp=none --entitlements "$entitlements" "$bundle"
 	codesign --verify --strict "$bundle"
-	codesign -d --entitlements - "$bundle" 2>&1
+	codesign -dv --entitlements - "$bundle" 2>&1
 }
 
 # run <bundle> <step> <tests>: the bundle's binary with the step, running
@@ -86,7 +101,7 @@ build() {
 failed=
 run() {
 	echo "store:host-test: $1, step '${2}'"
-	if ! env -i WB_STORE_HOST_TEST=1 WB_STORE_HOST_STEP="$2" "$work/$1.app/Contents/MacOS/$1" \
+	if ! env -i WB_STORE_HOST_TEST=1 WB_STORE_HOST_STEP="$2" WB_STORE_HOST_G2_OUT="$g2_out" "$work/$1.app/Contents/MacOS/$1" \
 		-test.v -test.count=1 -test.timeout=15m -test.run "$3"; then
 		failed="$failed $1/${2:-main}"
 	fi
@@ -95,14 +110,20 @@ run() {
 build wb-store-test ./internal/platform/secretstore binding,ca
 build wb-store-test-binding ./internal/platform/secretstore binding
 
-if [ "$lock" = yes ]; then
-	run wb-store-test lock '^TestC05HostLocked$'
-else
+case $only in
+lock) run wb-store-test lock '^TestC05HostLocked$' ;;
+g2)
+	mkdir -p "$(dirname "$g2_out")"
+	rm -f "$g2_out"
+	run wb-store-test g2 '^TestC05HostG2$'
+	;;
+*)
 	run wb-store-test '' '^TestC05Host'
 	run wb-store-test-binding binding-only '^TestC05HostGroupMismatch$'
 	run wb-store-test confine-after '^TestC05HostConfineAfterOpen$'
 	run wb-store-test confine-first '^TestC05HostConfineFirst$'
-fi
+	;;
+esac
 
 if [ -n "$failed" ]; then
 	echo "store:host-test: FAIL:$failed" >&2
