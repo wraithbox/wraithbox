@@ -28,7 +28,7 @@ Needs a token with `repo` scope and admin rights on the repository.
 | Dependabot alerts | on | Supply-chain policy (S10-tech-stack). Renovate reads them and opens the fixes |
 | Dependabot security updates | off | Renovate opens version and security updates ([Renovate](#renovate)) |
 | Secret scanning and push protection | on | A pushed credential raises an alert, and push protection rejects a push that contains a known token format |
-| Code scanning | advanced setup | CodeQL for Go, Swift, JavaScript/TypeScript and Actions, from `.github/workflows/codeql.yml` and `codeql-swift.yml`. They run on a push to `main`, weekly and by hand, never on a pull request, because the Swift scan of each pull request held a macOS runner for 12 to 17 minutes (I752). Swift runs on a push only when it changes a Swift input (the workflow's `paths`), and every week |
+| Code scanning | advanced setup | CodeQL for Go, Swift, JavaScript/TypeScript and Actions, from `.github/workflows/codeql.yml` and `codeql-swift.yml`. They scan `main` on each push and once a week, and `workflow_dispatch` starts them by hand. Pull requests aren't scanned, because the Swift scan of each one held a macOS runner for 12 to 17 minutes (I752). A push runs the Swift scan only when it changes a Swift input (the workflow's `paths`). The weekly run always scans Swift |
 | Private vulnerability reporting | on | `SECURITY.md` sends reporters here, because a vulnerability is never a public issue |
 | Actions allowed | GitHub-owned plus `jdx/mise-action@*`, `zizmorcore/zizmor-action@*` | Only actions the workflows use; a new third-party action needs an explicit entry here |
 | Actions SHA pinning required | on | Enforces the "pin to full-length commit SHA" rule from `AGENTS.md` |
