@@ -88,8 +88,9 @@ type Config struct {
 	// ProvisioningPipe is the read end of the build password pipe, which
 	// wb-vmd gets as descriptor 5. The build slot needs it, and every
 	// other slot refuses it (S04-03-self-sandboxing, "How `wb-vmd` is
-	// started"). Start doesn't close it: wb-vmd gets a copy, and the
-	// caller closes its own after Start returns.
+	// started"). It must be a pipe. Start owns it: it closes it once
+	// wb-vmd has its copy, or when the start fails, so the parent never
+	// holds the read end afterwards.
 	ProvisioningPipe *os.File
 }
 
@@ -162,13 +163,27 @@ func (c *Config) check() error {
 	if c.Slot != buildSlot && c.ProvisioningPipe != nil {
 		errs = append(errs, fmt.Errorf("vmdspawn: the %s slot gets no build password pipe", c.Slot))
 	}
+	if c.ProvisioningPipe != nil && !isPipe(c.ProvisioningPipe) {
+		errs = append(errs, errors.New("vmdspawn: the build password descriptor isn't a pipe"))
+	}
 	return errors.Join(errs...)
+}
+
+// isPipe reports whether f is a pipe: a file would leave the password
+// on disk (SEC04-no-guest-secrets).
+func isPipe(f *os.File) bool {
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeNamedPipe != 0
 }
 
 // Start starts wb-vmd and makes its client. It doesn't wait for wb-vmd:
 // the first call on Client does. ctx bounds only the start: the
-// lifeline, closed by Close, ends wb-vmd.
+// lifeline, closed by Close, ends wb-vmd. Start closes
+// cfg.ProvisioningPipe before it returns.
 func Start(ctx context.Context, cfg Config) (*Process, error) {
+	if cfg.ProvisioningPipe != nil {
+		defer func() { _ = cfg.ProvisioningPipe.Close() }()
+	}
 	if err := cfg.check(); err != nil {
 		return nil, err
 	}
