@@ -84,6 +84,14 @@ package that ships it. V1-M6-release-gate keeps the profiles of
   the session summary, `wb diff` and `wb land`, on a sealed image. A
   first prompt on the fixture bundle comes before the git work. Covers FR01-drop-in to FR05-parallel-sessions,
   FR13-claude-state, SEC03-no-host-exec, SEC04-no-guest-secrets, SEC06-repo-writes.
+- **V1-M8-hardening: Hardening.** The hardening follow-ups named while
+  the earlier milestones were built are closed, or moved to
+  V1-M6-release-gate or `post-V1` with a reason. Mutation testing and
+  deeper fuzz corpora cover the parsers of `wb-netd` and `wb-proxyd`.
+  Defects never go here (`docs/agents/planning.md`, "Defect or
+  hardening"). Covers no requirement by itself. It strengthens the
+  controls the earlier milestones cover. Added on 2026-11-11, so that
+  hardening doesn't hold up the milestone that found it.
 - **V1-M5-approvals: Approvals and policy.** Approvals with notifications and
   `wb approve`, learn mode, credential bindings, the dependency gate,
   `wb trust` with the boundary check, `wb policy explain`, and the

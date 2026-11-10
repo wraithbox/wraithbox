@@ -54,7 +54,19 @@ and is a GitHub milestone of the same name, not a label.
   milestone. An issue without one is not picked. Follow-ups found during
   a milestone go into it if they block its exit criterion, otherwise
   into the next one in the version page's order, or none
-  (`needs-triage`).
+  (`needs-triage`). A hardening follow-up goes into the next hardening
+  milestone instead (below).
+- **Defect or hardening:** a defect is code that breaks its spec, a
+  requirement or a `SEC*` control. A control the spec names but the
+  code doesn't enforce yet counts as a defect, and so does a failing or
+  flaky test. Defects stay in the milestone that found them, or the
+  current one if that milestone is closed, and never move to a
+  hardening milestone. Hardening changes code that already meets its
+  spec, to make it harder to break later. Examples are a second copy of
+  a rule replaced by the shared one, a stricter check where the code
+  already fails closed, and a guard against a case nothing reaches
+  today. A follow-up that needs a maintainer decision is neither. It
+  goes to the milestone whose work the decision unblocks.
 - **`post-V1`:** a GitHub milestone for work deferred past the version,
   not a milestone of the version page. Its issues have no triage
   status label, and no run picks from it. They are triaged again when
