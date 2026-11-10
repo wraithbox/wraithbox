@@ -59,6 +59,16 @@ shows the receiver holds it (I647, I648). On macOS 27 the kernel can collect
 a socket in flight with no other reference, and it arrives dead (I637).
 Pipes and descriptors inherited at spawn are exempt.
 
+`wb-netd` keeps its copy of a stream's socket until `wb-proxyd`'s
+first byte on it or a `StreamReset` for it, and no longer than a
+deadline fixed in code (SEC13-bounded-resources). The deadline closes
+the copy without a reset, logged with `stream-hold-expired`. That is
+routine on an idle stream whose client speaks first. While `wb-netd`
+holds the copy, it doesn't read end of file on the socket. The guest
+gets its FIN only once the deadline passes when `wb-proxyd` closes a
+stream before it writes or resets it, or drops its message for a full
+descriptor table ("Message form").
+
 ### The contract
 
 The messages of the hand-off socket, the control channels and the
@@ -132,7 +142,16 @@ connection, not to close it, when it reads end of file on that socket.
 
 `wb-netd` reads what waits on the hand-off socket and sends every byte
 it already queued for the guest. Then it answers end of file with a
-FIN, or with a reset when a `StreamReset` for the stream came first.
+FIN, or with a reset when a `StreamReset` for the stream came first
+(`stream-reset`). It answers any other read error on the stream's
+socket the same way, but with a reset logged `proxyd-stream-read-failed`
+when no `StreamReset` came.
+
+`wb-netd` also resets a stream whose guest takes none of its bytes
+within a deadline fixed in code (`guest-write-timeout`,
+SEC13-bounded-resources), or whose write to the guest fails
+(`guest-write-failed`). A stream that another path already reset,
+such as the end of its hand-off socket, isn't logged again.
 
 When a `StreamReset` send fails (`ENOBUFS` or its deadline), `wb-proxyd`
 closes the VM's hand-off socket before the stream's socket, and

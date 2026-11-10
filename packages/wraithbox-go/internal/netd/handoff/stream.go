@@ -30,15 +30,17 @@ const GuestWriteTimeout = 60 * time.Second
 // that wb-proxyd holds the end (S07-05-stream-hand-off, "Transport"):
 // on macOS the kernel can collect a socket whose every reference is in
 // a message, and wb-proxyd then reads end of file at once (I637). The
-// deadline, counted from the send, keeps a wb-proxyd that never answers
-// from tying up a descriptor of wb-netd for the stream's life
-// (SEC13-bounded-resources). wb-proxyd reads messages ahead of its
+// deadline, counted from when the send returned, keeps a wb-proxyd that
+// never answers from tying up a descriptor of wb-netd for the stream's
+// life (SEC13-bounded-resources). wb-proxyd reads messages ahead of its
 // decisions (its Pending cap), so it normally holds the end long before
-// the deadline.
+// the deadline. The deadline releases the copy without a reset.
 //
 // While wb-netd keeps the copy, a wb-proxyd that closes the stream
 // without writing gives wb-netd no end of file: the guest gets its FIN
-// once the deadline passes.
+// once the deadline passes. On a stream whose client speaks first, such
+// as TLS, wb-proxyd writes nothing until the guest does, so the deadline
+// releasing the copy is routine there.
 const StreamHoldTimeout = 10 * time.Second
 
 // copyBuffer is the size of the buffer of each direction of a stream.
@@ -55,6 +57,7 @@ type halfCloser interface {
 type stream struct {
 	id    uint64
 	flow  netd.NamedFlow
+	rec   *netd.Recorder
 	guest netd.StreamConn
 	ours  halfCloser // our end of the stream's socketpair
 	// theirs is our copy of wb-proxyd's end, kept until wb-proxyd holds
@@ -66,9 +69,23 @@ type stream struct {
 }
 
 // reset sends the guest an RST and closes our end, which ends both
-// copies.
-func (st *stream) reset() {
+// copies. It records nothing: the caller's path made the decision and
+// recorded it, or the guest ended the connection itself.
+func (st *stream) reset() { st.resetWith("", nil) }
+
+// resetWith is reset with wb-netd's rule. Only the first reset of the
+// stream records its rule, before the guest sees the RST, so a stream
+// another path already reset isn't recorded twice. err, when not nil,
+// goes in the record.
+func (st *stream) resetWith(rule netd.Rule, err error) {
 	st.resetOnce.Do(func() {
+		if rule != "" {
+			attrs := append(st.flow.LogAttrs(), slog.Uint64("stream_id", st.id))
+			if err != nil {
+				attrs = append(attrs, slog.String("error", err.Error()))
+			}
+			st.rec.Record(netd.Reset, rule, attrs...)
+		}
 		st.guest.Reset()
 		_ = st.ours.Close()
 	})
@@ -113,7 +130,8 @@ func (s *Sender) HandOffStream(conn netd.StreamConn, f netd.NamedFlow) {
 	hold := time.AfterFunc(s.streamHold, func() {
 		if st.release() {
 			s.rec.Note(netd.RuleStreamHoldExpired,
-				append(f.LogAttrs(), slog.Uint64("stream_id", st.id), slog.Duration("hold", s.streamHold))...)
+				append(f.LogAttrs(), slog.Uint64("stream_id", st.id), slog.Duration("hold", s.streamHold),
+					slog.String("decision", "release-copy"))...)
 		}
 	})
 	defer hold.Stop()
@@ -146,7 +164,7 @@ func (s *Sender) sendStream(conn netd.StreamConn, f netd.NamedFlow) (*socket, *s
 	}
 	// The stream keeps theirs after the send, so a StreamReset that
 	// comes before HandOffStream starts the hold deadline releases it.
-	st := &stream{id: s.nextID.Add(1), flow: f, guest: conn, ours: ours}
+	st := &stream{id: s.nextID.Add(1), flow: f, rec: s.rec, guest: conn, ours: ours}
 	st.theirs.Store(theirs)
 	sock, err := s.acquire(ctx)
 	if err != nil {
@@ -194,7 +212,8 @@ func fileConn(f *os.File) (halfCloser, error) {
 
 // toProxyd copies the guest's bytes to wb-proxyd. At the guest's FIN it
 // sends wb-proxyd a FIN. When the guest resets or the read fails, it
-// closes our end (S07-05-stream-hand-off, "Streams"). When a write to
+// closes our end with reset, unrecorded: the guest ended the connection,
+// not wb-netd (S07-05-stream-hand-off, "Streams"). When a write to
 // wb-proxyd fails it stops and leaves our end open, so the rest of
 // wb-proxyd's bytes still reaches the guest, and toGuest ends the
 // stream.
@@ -212,7 +231,7 @@ func (st *stream) toProxyd() {
 			_ = st.ours.CloseWrite()
 			return
 		case err != nil:
-			_ = st.ours.Close()
+			st.reset()
 			return
 		}
 	}
@@ -220,13 +239,10 @@ func (st *stream) toProxyd() {
 
 // toGuest copies wb-proxyd's bytes to the guest, each write within
 // GuestWriteTimeout. wb-proxyd's first byte shows it holds its end, so
-// wb-netd closes its copy then. At end of file from wb-proxyd it reads
-// every message queued on the hand-off socket, then sends the guest an
-// RST when a StreamReset named the stream, and a FIN otherwise
-// (S07-05-stream-hand-off, "Resets"). Any other end resets the guest:
-// a guest write that fails or passes GuestWriteTimeout
-// (SEC13-bounded-resources) and a failed read from wb-proxyd are
-// recorded with their rule first.
+// wb-netd closes its copy then. When the read from wb-proxyd ends, end
+// decides how the guest's connection ends. A guest write that fails or
+// passes GuestWriteTimeout (SEC13-bounded-resources) resets the guest,
+// recorded with its rule (S07-05-stream-hand-off, "Resets").
 func (st *stream) toGuest(sock *socket) {
 	buf := make([]byte, copyBuffer)
 	for {
@@ -234,7 +250,7 @@ func (st *stream) toGuest(sock *socket) {
 		if n > 0 {
 			st.release()
 			if wErr := st.writeGuest(buf[:n]); wErr != nil {
-				st.resetFor(sock, guestWriteRule(wErr), wErr)
+				st.resetWith(guestWriteRule(wErr), wErr)
 				return
 			}
 		}
@@ -247,49 +263,43 @@ func (st *stream) toGuest(sock *socket) {
 			// decision.
 			st.reset()
 			return
-		case !errors.Is(err, io.EOF):
-			st.resetFor(sock, netd.RuleProxydStreamReadFailed, err)
-			return
 		}
-		st.end(sock)
+		st.end(sock, err)
 		return
 	}
 }
 
-// guestWriteRule names the rule of a failed write to the guest.
+// guestWriteRule names the rule of a failed write to the guest. The
+// stack's connection reports its deadline as a net.Error whose Timeout
+// is true, which isn't os.ErrDeadlineExceeded.
 func guestWriteRule(err error) netd.Rule {
-	if errors.Is(err, os.ErrDeadlineExceeded) {
+	var ne net.Error
+	if errors.Is(err, os.ErrDeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
 		return netd.RuleGuestWriteTimeout
 	}
 	return netd.RuleGuestWriteFailed
 }
 
-// resetFor records wb-netd's reset of the stream with its rule, then
-// resets the guest.
-func (st *stream) resetFor(sock *socket, rule netd.Rule, err error) {
-	sock.s.rec.Record(netd.Reset, rule,
-		append(st.flow.LogAttrs(), slog.Uint64("stream_id", st.id), slog.String("error", err.Error()))...)
-	st.reset()
-}
-
-// end ends the stream at end of file from wb-proxyd, once every message
-// queued on the hand-off socket was read. A StreamReset that named the
-// stream, or a hand-off socket that ended, gives the guest an RST:
-// wb-proxyd closes the hand-off socket before a stream's socket so that
-// wb-netd resets it (S07-05-stream-hand-off, "Resets"). Otherwise the
-// guest gets a FIN.
-func (st *stream) end(sock *socket) {
+// end ends the stream when the read from wb-proxyd returned readErr,
+// io.EOF or another error, once every message queued on the hand-off
+// socket was read. A StreamReset that named the stream, or a hand-off
+// socket that ended, gives the guest an RST: wb-proxyd closes the
+// hand-off socket before a stream's socket so that wb-netd resets it
+// (S07-05-stream-hand-off, "Resets"). Otherwise end of file gives the
+// guest a FIN, and any other error an RST recorded with
+// proxyd-stream-read-failed.
+func (st *stream) end(sock *socket, readErr error) {
 	sock.drain()
 	switch {
 	case st.resetByProxyd.Load():
-		sock.s.rec.Record(netd.Reset, netd.RuleStreamReset,
-			append(st.flow.LogAttrs(), slog.Uint64("stream_id", st.id))...)
-		st.reset()
+		st.resetWith(netd.RuleStreamReset, nil)
 	case sock.isEnded():
 		// isEnded returned after the socket's end noted
 		// handoff-socket-ended, so this reset comes after the note. The
 		// end resets the stream too, and reset runs once.
 		st.reset()
+	case !errors.Is(readErr, io.EOF):
+		st.resetWith(netd.RuleProxydStreamReadFailed, readErr)
 	default:
 		_ = st.guest.CloseWrite()
 	}
