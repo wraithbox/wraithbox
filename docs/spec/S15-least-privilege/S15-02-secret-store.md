@@ -90,10 +90,11 @@ cred list` run as the user.
   "Each host daemon is self-sandboxed").
 - The open comes first because the profile blocks the read of the
   process's own signature, which the open needs ("The group of each
-  call"). On the maintainer's Mac, an open after the confinement got
-  OSStatus 100001 and was refused with `keychain-needs-team`. The
-  Keychain item calls still worked after it
-  (`TestC05HostConfineFirst` and `TestC05HostConfineAfterOpen`, I505).
+  call"). On the maintainer's Mac on 2026-11-10, an open after the
+  confinement got OSStatus 100001 and was refused with
+  `keychain-needs-team`. The Keychain item calls still worked after
+  it (`TestC05HostConfineFirst` and `TestC05HostConfineAfterOpen`,
+  C05-credentials-and-store, "Host tests").
 
 It does one operation and exits:
 
