@@ -219,7 +219,9 @@ enum Kind {
 // passes to wb-vmd at spawn (S04-02-vm-provider, "Hand-off on macOS").
 // The record is this message's protobuf encoding, with exactly one
 // descriptor attached by SCM_RIGHTS: a connection (KIND_CONNECTION) or
-// the packet transport (KIND_NETWORK).
+// the packet transport (KIND_NETWORK). The channel carries records both
+// ways: wb-hostd answers each HandoffMessage it decodes with a
+// HandoffAck, and wb-vmd keeps its copy of the descriptor until then.
 //
 // The receiver refuses the record, closes every descriptor that came
 // with it, and logs the refusal with its rule, when:
@@ -259,4 +261,43 @@ message HandoffMessage {
   // Required. KIND_UNSPECIFIED, or a kind this message doesn't name, is
   // refused with `handoff-kind`.
   Kind kind = 6;
+}
+
+// HandoffAck is not part of any RPC. wb-hostd's receiver sends one on
+// the hand-off channel for each HandoffMessage record it accepts or
+// refuses, once its recvmsg has returned, as one record with no
+// descriptor: this message's protobuf encoding, at most 256 bytes. It
+// repeats the record's `kind`, `request_id` and `generation`. A record
+// that doesn't decode as a HandoffMessage, or that the channel refuses
+// before it is decoded, names nothing and gets no acknowledgment.
+//
+// wb-vmd keeps its copy of a descriptor it sent until the HandoffAck for
+// it arrives, or until the exchange's deadline passes, the connect
+// timeout of 5 s, and then closes it (S07-05-stream-hand-off,
+// "Transport"; S04-02-vm-provider, "Hand-off on macOS"). On macOS 27 the
+// kernel can collect a socket in flight that no process holds, and it
+// then arrives dead.
+//
+// wb-vmd refuses the record and logs the refusal with its rule, and its
+// wait goes on to the deadline, when:
+//
+// - the record is over 256 bytes, arrived truncated, or carries a
+//   descriptor, which it closes (`handoff-ack-malformed`);
+// - it doesn't decode as a HandoffAck, or holds a field the message
+//   doesn't have (`handoff-ack-malformed`);
+// - `kind` is neither KIND_CONNECTION nor KIND_NETWORK, `generation` is
+//   0, a KIND_CONNECTION record has `request_id` 0, or a KIND_NETWORK
+//   record has it set (`handoff-ack-malformed`);
+// - it names no descriptor wb-vmd still keeps (`handoff-ack-unexpected`).
+message HandoffAck {
+  // The request_id of the HandoffMessage. 0 for KIND_NETWORK.
+  uint64 request_id = 1;
+  // The generation of the HandoffMessage.
+  uint64 generation = 2;
+  // The kind of the HandoffMessage.
+  Kind kind = 3;
+  // True when wb-hostd accepted the record and holds its descriptor,
+  // false when it refused the record and closed the descriptor. wb-vmd
+  // only logs it: either way wb-hostd's recvmsg has returned.
+  bool accepted = 4;
 }

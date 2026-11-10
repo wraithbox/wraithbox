@@ -117,15 +117,25 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   `vm-request-id`, `vm-generation`, `vm-not-running`, `connect-cap`,
   `vm-connect-failed`, `vm-connect-timeout` and `handoff-send-failed`
   each come before any record is sent. A connection is sent once with
-  the request's fields, and `wb-vmd`'s copy is closed before the record
-  is read.
+  the request's fields, and `wb-vmd`'s copy is closed once the test
+  acknowledges the record. A passed connection keeps its place under
+  `connect-cap` until then.
+- **Hand-off acknowledgment** (S04-02-vm-provider, "Hand-off on macOS";
+  S07-05-stream-hand-off, "Transport"; `HandoffKeeperTests`). A sent
+  connection and a sent packet transport are kept until their
+  `HandoffAck`, accepted or refused, and closed at a short deadline
+  without one, logged with `handoff-ack-timeout`. An acknowledgment that
+  comes late, names another request or generation, is of the wrong form,
+  is empty, over 256 bytes, or carries a descriptor is refused with
+  `handoff-ack-unexpected` or `handoff-ack-malformed`, and the right
+  one still closes the copy.
 - **Packet transport** (S07-02-packet-path, "Packet transport", "MTU";
   `NetworkTransportTests`). Both ends of the socketpair are `AF_UNIX`
   datagram sockets, close-on-exec, with `SO_RCVBUF` at least twice
   `SO_SNDBUF`. The attachment has MTU 65535, the VM's MAC address and
   its own copy of the VM end. `Start` sends one `KIND_NETWORK` record
   with the host end and the generation only before the VM starts, and
-  `wb-vmd`'s copy is closed. A record that can't be sent refuses the
+  `wb-vmd` keeps its copy until the record's acknowledgment. A record that can't be sent refuses the
   start with `handoff-send-failed`.
 - **MAC address** (S06-06-devices-and-warm-start, "MAC address"). A
   multicast, a universally administered, a broadcast, a short, and an
@@ -245,7 +255,12 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 - **One descriptor per message** (S07-05-stream-hand-off, "Message form"). Over real socketpairs, records with and without a descriptor round-trip. An oversized record, two, three and 254 descriptors are each refused with every descriptor closed. A message whose descriptors don't fit the full descriptor table is dropped, and a send to a full peer fails at once.
 - **Order and no silent drop** (S07-05-stream-hand-off, "Transport"). On macOS, `TestOrderUnderLoad` in `internal/platform/fdchan` sends 100,000 numbered records of mixed sizes up to 4 KiB, every tenth with a pipe, over `Socketpair(4096)`. The sender gives each record a 5 s deadline and retries a send that fails with `ENOBUFS` or `EAGAIN` before it sends the next. A receiver that pauses now and then sees every record once, in order, with its bytes, and reads each pipe under a read deadline. The counts sent and received are equal, and at least one send found the channel full. `TestQueueDepth` sends with no retry until a send fails with `ENOBUFS` or `EAGAIN`, and logs the depth: 19 records of 4 KiB, 292 of 264 bytes.
 - **Egress contract form** (S07-05-stream-hand-off, "The contract"). In `internal/egressmsg`, each decoder refuses a record that is empty or over 4 KiB, doesn't decode, holds a field of another message or of a later build at any depth, doesn't set a kind, or carries a descriptor its kind doesn't take or lacks one it does. A name in another form than canonical is refused with `name-form`, an address outside 198.18.0.0/15 with `synthetic-range`, and a VM that isn't a slot with `vm-slot`. A `HandoffSocketClosed` with another rule than `name-report-malformed` or another check is refused. A control message before the start message, and a second start message, are refused. `TestLinkRoundTrip`: a `NetdStart` gives back the link it was written from. `TestDecodeHostdToNetd`: one with no addressing, a short or multicast MAC address, one MAC for both ends, a prefix length outside 8 to 30, host bits in the subnet, a gateway outside it, or the network or broadcast address as the lease is refused with the check `addressing`. `TestMACOrder`: with both MACs wrong, the guest's is the one refused. A payload pipe that isn't a pipe, has a length over 64 MiB, isn't whole by its deadline, or has a byte after it is refused with `payload-read`. `TestMaxPayloads` builds the largest payloads the bounds allow and sees each under 64 MiB.
-- **Hand-off receiver** (S04-02-vm-provider, "Hand-off on macOS"). Tests in `internal/platform/vmhandoff` and `internal/vmdlink`: over a real socketpair, each refusal of the receiver and of `fdchan` has its rule, and no descriptor of the record is open after it (`fcntl`). A record without a kind, or of an unknown one, is refused with `handoff-kind`. A good record gives its request a working connection, and the hello runs over it end to end with a fake `wb-vmd`. `FuzzHandoffMessage` checks that no record of arbitrary bytes, the empty one included, is accepted unless it names the open request, the current generation, the host's direction and the requested port, or is the one packet transport of the current generation.
+- **Hand-off receiver** (S04-02-vm-provider, "Hand-off on macOS"). Tests in `internal/platform/vmhandoff` and `internal/vmdlink`: over a real socketpair, each refusal of the receiver and of `fdchan` has its rule, and no descriptor of the record is open after it (`fcntl`). A record without a kind, or of an unknown one, is refused with `handoff-kind`. A good record gives its request a working connection, and the hello runs over it end to end with a fake `wb-vmd`. `FuzzHandoffMessage` checks that no record of arbitrary bytes, the empty one included, is accepted unless it names the open request, the current generation, the host's direction and the requested port, or is the one packet transport of the current generation, and that every
+  record that decodes has a `HandoffAck` that names it. `TestAckAccepted` and
+  `TestAckRefused`: an accepted connection, an accepted packet transport and a
+  refused record are each acknowledged, and a record that doesn't decode isn't.
+  `TestAckSendFailed`: an acknowledgment that can't be sent is logged with
+  `handoff-ack-send-failed`.
 - **Packet transport hand-off** (S07-02-packet-path, "Packet transport"). In `internal/platform/vmhandoff`: a `KIND_NETWORK` record of the current generation with an `AF_UNIX` datagram socket gives the waiter a `Transport` whose only methods are `Close` and `StartWith`. `TestStartWith`: a child started with it inherits the descriptor in the given slot, the slot is empty again after the start, a failed one included, and a slot that isn't an empty placeholder is refused. A record of generation 0 or another generation, one nobody asked for, a generation's second one, one with a request ID, direction or port, and one with a stream socket are each refused with `handoff-network-refused`, with no descriptor left open. A newer generation's request closes the older one's. In `internal/vmdlink`: `Start` returns the transport, a refused or missing one is refused with its rule and doesn't leave a descriptor open, and a refused `Start` returns `wb-vmd`'s error.
 
 ### Hand-off sender and accounting in `wb-netd`

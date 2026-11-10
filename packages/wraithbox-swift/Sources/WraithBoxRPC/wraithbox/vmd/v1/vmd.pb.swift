@@ -522,7 +522,9 @@ public nonisolated struct Wraithbox_Vmd_V1_InstallResponse: Sendable {
 /// passes to wb-vmd at spawn (S04-02-vm-provider, "Hand-off on macOS").
 /// The record is this message's protobuf encoding, with exactly one
 /// descriptor attached by SCM_RIGHTS: a connection (KIND_CONNECTION) or
-/// the packet transport (KIND_NETWORK).
+/// the packet transport (KIND_NETWORK). The channel carries records both
+/// ways: wb-hostd answers each HandoffMessage it decodes with a
+/// HandoffAck, and wb-vmd keeps its copy of the descriptor until then.
 ///
 /// The receiver refuses the record, closes every descriptor that came
 /// with it, and logs the refusal with its rule, when:
@@ -571,6 +573,56 @@ public nonisolated struct Wraithbox_Vmd_V1_HandoffMessage: Sendable {
   /// Required. KIND_UNSPECIFIED, or a kind this message doesn't name, is
   /// refused with `handoff-kind`.
   public var kind: Wraithbox_Vmd_V1_Kind = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// HandoffAck is not part of any RPC. wb-hostd's receiver sends one on
+/// the hand-off channel for each HandoffMessage record it accepts or
+/// refuses, once its recvmsg has returned, as one record with no
+/// descriptor: this message's protobuf encoding, at most 256 bytes. It
+/// repeats the record's `kind`, `request_id` and `generation`. A record
+/// that doesn't decode as a HandoffMessage, or that the channel refuses
+/// before it is decoded, names nothing and gets no acknowledgment.
+///
+/// wb-vmd keeps its copy of a descriptor it sent until the HandoffAck for
+/// it arrives, or until the exchange's deadline passes, the connect
+/// timeout of 5 s, and then closes it (S07-05-stream-hand-off,
+/// "Transport"; S04-02-vm-provider, "Hand-off on macOS"). On macOS 27 the
+/// kernel can collect a socket in flight that no process holds, and it
+/// then arrives dead.
+///
+/// wb-vmd refuses the record and logs the refusal with its rule, and its
+/// wait goes on to the deadline, when:
+///
+/// - the record is over 256 bytes, arrived truncated, or carries a
+///   descriptor, which it closes (`handoff-ack-malformed`);
+/// - it doesn't decode as a HandoffAck, or holds a field the message
+///   doesn't have (`handoff-ack-malformed`);
+/// - `kind` is neither KIND_CONNECTION nor KIND_NETWORK, `generation` is
+///   0, a KIND_CONNECTION record has `request_id` 0, or a KIND_NETWORK
+///   record has it set (`handoff-ack-malformed`);
+/// - it names no descriptor wb-vmd still keeps (`handoff-ack-unexpected`).
+public nonisolated struct Wraithbox_Vmd_V1_HandoffAck: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The request_id of the HandoffMessage. 0 for KIND_NETWORK.
+  public var requestID: UInt64 = 0
+
+  /// The generation of the HandoffMessage.
+  public var generation: UInt64 = 0
+
+  /// The kind of the HandoffMessage.
+  public var kind: Wraithbox_Vmd_V1_Kind = .unspecified
+
+  /// True when wb-hostd accepted the record and holds its descriptor,
+  /// false when it refused the record and closed the descriptor. wb-vmd
+  /// only logs it: either way wb-hostd's recvmsg has returned.
+  public var accepted: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1098,6 +1150,51 @@ nonisolated extension Wraithbox_Vmd_V1_HandoffMessage: SwiftProtobuf.Message, Sw
     if lhs.sourcePort != rhs.sourcePort {return false}
     if lhs.destinationPort != rhs.destinationPort {return false}
     if lhs.kind != rhs.kind {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wraithbox_Vmd_V1_HandoffAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".HandoffAck"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}generation\0\u{1}kind\0\u{1}accepted\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.requestID) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.generation) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.kind) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.accepted) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.requestID != 0 {
+      try visitor.visitSingularUInt64Field(value: self.requestID, fieldNumber: 1)
+    }
+    if self.generation != 0 {
+      try visitor.visitSingularUInt64Field(value: self.generation, fieldNumber: 2)
+    }
+    if self.kind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.kind, fieldNumber: 3)
+    }
+    if self.accepted != false {
+      try visitor.visitSingularBoolField(value: self.accepted, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wraithbox_Vmd_V1_HandoffAck, rhs: Wraithbox_Vmd_V1_HandoffAck) -> Bool {
+    if lhs.requestID != rhs.requestID {return false}
+    if lhs.generation != rhs.generation {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.accepted != rhs.accepted {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

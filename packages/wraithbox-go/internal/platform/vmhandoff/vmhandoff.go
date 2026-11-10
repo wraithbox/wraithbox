@@ -87,6 +87,10 @@ const (
 	RuleRequest Rule = "handoff-request-invalid"
 	// RuleClosed: the receiver was closed while the request was open.
 	RuleClosed Rule = "handoff-closed"
+	// RuleAckSendFailed: the HandoffAck for a record couldn't be sent.
+	// wb-vmd then keeps its copy of the descriptor until its deadline
+	// (S07-05-stream-hand-off, "Transport").
+	RuleAckSendFailed Rule = "handoff-ack-send-failed"
 )
 
 // Refusal is the error of every refusal in this package.
@@ -139,6 +143,20 @@ func (t *Transport) Close() error {
 		return fmt.Errorf("vmhandoff: packet transport: %w", err)
 	}
 	return nil
+}
+
+// ack is the HandoffAck that answers a record that decoded as msg: it
+// repeats the record's kind, request ID and generation, so wb-vmd can
+// close its copy of the descriptor (S07-05-stream-hand-off, "Transport";
+// S04-02-vm-provider, "Hand-off on macOS"). A record that didn't decode
+// names nothing and gets none.
+func ack(msg *vmdv1.HandoffMessage, accepted bool) *vmdv1.HandoffAck {
+	return &vmdv1.HandoffAck{
+		RequestId:  msg.GetRequestId(),
+		Generation: msg.GetGeneration(),
+		Kind:       msg.GetKind(),
+		Accepted:   accepted,
+	}
 }
 
 // request is one open ConnectGuest request, or the open request for a

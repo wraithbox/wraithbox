@@ -66,11 +66,14 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
+	f := &fixture{rx: rx, send: fds[0], log: log}
 	t.Cleanup(func() {
 		_ = rx.Close()
-		_ = syscall.Close(fds[0])
+		if f.send >= 0 {
+			_ = syscall.Close(f.send)
+		}
 	})
-	return &fixture{rx: rx, send: fds[0], log: log}
+	return f
 }
 
 // sendRaw sends one datagram with fds attached, and closes the test's

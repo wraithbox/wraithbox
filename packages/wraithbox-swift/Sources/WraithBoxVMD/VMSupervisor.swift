@@ -146,7 +146,7 @@ public final class VMSupervisor {
     private let engine: any VMEngine
     private let slot: VMSlot
     private let bundlePath: String
-    private let handoff: HandoffChannel
+    private let handoff: HandoffKeeper
     private let log: EventLog
     private var vm: (any EngineVM)?
     private var starting = false
@@ -166,7 +166,7 @@ public final class VMSupervisor {
     /// restore image installs.
     public init(
         engine: any VMEngine, slot: VMSlot, bundlePath: String, restoreImagePath: String?,
-        handoff: HandoffChannel, log: EventLog
+        handoff: HandoffKeeper, log: EventLog
     ) {
         self.engine = engine
         self.slot = slot
@@ -247,26 +247,25 @@ public final class VMSupervisor {
     }
 
     /// Sends the host end of the packet transport to wb-hostd in one
-    /// KIND_NETWORK record for `generation`, and closes wb-vmd's copy
-    /// (S07-02-packet-path, "Packet transport"; X18-vsock-handoff,
-    /// condition 4). A failed send publishes the error state: the VM
-    /// doesn't start without the far end of its network device.
+    /// KIND_NETWORK record for `generation` (S07-02-packet-path, "Packet
+    /// transport"). HandoffKeeper then owns wb-vmd's copy of it, and
+    /// closes it when wb-hostd acknowledges the record, or after 5 s
+    /// (S07-05-stream-hand-off, "Transport"; X18-vsock-handoff,
+    /// condition 4). A failed send closes the copy at once and publishes
+    /// the error state: the VM doesn't start without the far end of its
+    /// network device.
     private func passTransport(_ transport: PacketTransport, generation: UInt64, mac: MACAddress)
         throws(VMRefusal)
     {
-        defer { transport.closeHostEnd() }
         var message = Wraithbox_Vmd_V1_HandoffMessage()
         message.kind = .network
         message.generation = generation
-        var detail = ""
-        if let record = try? message.serializedBytes() as [UInt8] {
-            if let failed = handoff.send(record, descriptor: transport.hostEnd) {
-                detail = "sendmsg: \(String(cString: strerror(failed)))"
-            }
-        } else {
-            detail = "encode failed"
-        }
-        guard detail.isEmpty else {
+        let hostEnd = transport.takeHostEnd()
+        if let failed = handoff.send(message, descriptor: hostEnd, close: { Darwin.close(hostEnd) })
+        {
+            Darwin.close(hostEnd)
+            let detail =
+                failed == EINVAL ? "encode failed" : "sendmsg: \(String(cString: strerror(failed)))"
             publish(
                 VMStatus(
                     generation: generation, state: .error,
