@@ -309,7 +309,9 @@ descend from them.
 
 - **Decides:** nothing new. It measures the steps S06-14-xcode-image
   specifies, on the host and in a guest, and corrects the spec where a
-  measurement contradicts it.
+  measurement contradicts it. After the attended steps, the license
+  check drops the Xcode version, and the Xcode code requirement gets a
+  third branch.
 - **You are approving:** the corrections to S06-14-xcode-image listed
   in "What it means for the specs" below. The largest: an exported
   runtime is a directory with a signed disk image in it, and the
@@ -320,16 +322,15 @@ descend from them.
   file sizes, and the build VM needs room for every runtime.
   SEC15-no-guest-disk-mount: unchanged. The runtime's disk image has an
   Apple signature, which the shim now checks with `identifier image and
-  anchor apple`, and a changed byte fails it.
-- **Assumed:** that an install of Xcode from Apple's developer site
-  meets the requirement's second branch or fails closed. It wasn't
-  measured (attended step 3 below).
-- **Open decision:** whether the license check keeps comparing the
-  Xcode version. The record names the version that accepted the
-  license, not a build, and says 27.0 on a Mac with Xcode 27.2. The
-  spec keeps the version check, which refuses that Mac until the user
-  accepts the license again. Attended step 1 shows whether Xcode itself
-  counts the older record as accepted.
+  anchor apple`, and a changed byte fails it. The Xcode requirement's
+  new third branch uses `anchor apple`, which only Apple's own signing
+  certificates meet, not `anchor apple generic`, which every Developer
+  ID meets.
+- **Assumed:** nothing beyond the measurements. The maintainer ran the
+  attended steps on 2026-11-10, and their results settle what this
+  section first left open: the license check compares the license ID
+  only, and the code requirement has a third branch for the
+  developer-site install.
 
 ### Question
 
@@ -355,25 +356,36 @@ From I624, for S06-14-xcode-image as written:
    disk image, `BuildManifest.plist` and `Restore.plist`, and
    `Restore/Firmware/` holds the image's `.cryptex_info`, `.root_hash`
    and `.trustcache` files. `ExportedMetadata.plist` is at the top. The
-   whole download and export took 542 s. Its log also says
-   "Installing..." and prints a runtime UUID for each, so the export
-   may also have installed both runtimes on the host. That is attended
-   step 2.
-2. **Yes, both.** On the App Store Xcode, S06-14-xcode-image's code
-   requirement holds, and plain `anchor apple` exits 3. The runtime's
-   disk image is signed with identifier `image` by Apple's macOS
-   Software Signing certificate, and `identifier image and anchor
-   apple` holds. One byte changed in a framework of a copy of Xcode
-   fails the check with "invalid signature (code or signature have been
-   modified)", and so does one byte changed in a copy of the disk image.
-   `codesign` doesn't find a signature on the other files of an export.
+   whole download and export took 542 s. The same run also installed
+   both runtimes on the host: `xcrun simctl runtime list` there shows
+   `iOS 27.2 (24B8117)` and `iOS 27.2 (24B91016s)`, both Ready, two
+   disk images of 15.5 GB in total (attended step 2).
+2. **Yes, with a third branch.** On the App Store Xcode,
+   S06-14-xcode-image's first code requirement holds, and plain `anchor
+   apple` exits 3. Xcode 27.2 from the developer site's `.xip` is signed
+   differently: its leaf is Apple's Software Signing certificate, under
+   Apple Code Signing Certification Authority and Apple Root CA, with
+   team `59GAB85EFG`. Its designated requirement is `identifier
+   "com.apple.dt.Xcode" and anchor apple`. The first and second
+   branches exit 3 on it, and that requirement as a third branch exits
+   0. The requirement with all three branches holds on both installs.
+   `pkgutil --check-signature` calls the `.xip` "signed Apple Software",
+   under Software Update, Apple Software Update Certification Authority
+   and Apple Root CA. The runtime's disk image is signed with identifier
+   `image` by Apple's macOS Software Signing certificate, and
+   `identifier image and anchor apple` holds. One byte changed in a
+   framework of a copy of the App Store Xcode fails the check with
+   "invalid signature (code or signature have been modified)", and so
+   does one byte changed in a copy of the disk image. `codesign` doesn't
+   find a signature on the other files of an export.
 3. **`/Library/Preferences/com.apple.dt.Xcode.plist`**, owned by
    root, mode 0644. It holds the accepted license's ID per type
    (`IDELastGMLicenseAgreedTo = EA2002`) and the Xcode version that
    accepted it (`27.0`, while the host runs 27.2). The app names its
    license in `Contents/Resources/LicenseInfo.plist`: `licenseID`
-   `EA2002`, `licenseType` `GM`. Whether the host's 27.2 counts the
-   record as accepted is attended step 1.
+   `EA2002`, `licenseType` `GM`. Xcode 27.2 counts the record from
+   27.0 as accepted: `xcodebuild -license check` exits 0 on the host
+   (attended step 1).
 4. **Yes, with another import command.** With every interface down
    and the volume mounted read-only, the copy, the signature check,
    `xcodebuild`, the license, the first launch and the runtime import
@@ -408,8 +420,34 @@ On the host, unconfined:
 | the same with `-R='anchor apple'` | exit 3, "code failed to satisfy specified code requirement(s)" | 15.2 s |
 | the same on a `ditto` copy without `_MASReceipt` and extended attributes | exit 0 | 15.0 s |
 | the same on a copy with one byte of `IDEFoundation` changed | exit 1, "invalid signature (code or signature have been modified)" | |
+| the three-branch requirement on the App Store Xcode | exit 0 | 37.3 s |
 | `codesign --verify --strict -R='identifier image and anchor apple'` on the runtime disk image | exit 0, `spctl`: accepted, source Apple System | 22 to 24 s |
 | the same on a copy with one byte changed | exit 1, "invalid signature" | 22.6 s |
+
+On Xcode 27.2 (27B52) expanded from the developer site's `.xip`, on the
+host, unconfined:
+
+| Requirement | Result | Time |
+|---|---|---|
+| first branch, App Store leaf | exit 3 | 15.2 s |
+| second branch, Developer ID with Apple's team | exit 3 | 13.8 s |
+| third branch, `identifier "com.apple.dt.Xcode" and anchor apple` | exit 0 | 15.9 s |
+| all three branches | exit 0 | 20.4 s |
+| `anchor apple generic and identifier "com.apple.dt.Xcode"`, never accepted, for reference | exit 0 | 67.7 s |
+
+The attended steps on the host, run by the maintainer:
+
+| Command | Result |
+|---|---|
+| `xcodebuild -license check`, record at `27.0`, Xcode 27.2 (27B52) | exit 0 |
+| `xcrun simctl runtime list` | both iOS 27.2 runtimes Ready, 2 disk images, 15.5 GB |
+| `pkgutil --check-signature` on the `.xip` | "signed Apple Software" |
+| `codesign -d -r-` on the expanded app | leaf Software Signing, team `59GAB85EFG` |
+
+The runtime list's output began with "Install Started" and "Install
+Succeeded", and with a line from `CoreSimulator`: "Framework version
+(1174.21) does not match existing job version (1174.9.2)". It is
+recorded as seen. What caused it wasn't looked into.
 
 The shim's steps, confined, over five runs:
 
@@ -471,11 +509,9 @@ exists".
 
 ### What was not measured
 
-- **A Developer ID install** from Apple's developer site, which needs
-  an Apple ID sign-in (attended step 3).
-- **Whether a later Xcode counts an older record as accepted** on the
-  host (attended step 1), and whether the export installed the
-  runtimes on the host (attended step 2).
+- **A Developer ID install.** The developer-site install is signed
+  with Software Signing, so the second branch matched no install
+  measured here.
 - **A guest with no network device.** The guest had a NAT device with
   its interfaces turned down. `wb-dev-bundle` attaches a network to
   every VM it starts, and a start without one is a new option there.
@@ -487,7 +523,8 @@ exists".
 ### Attended steps
 
 `.scratch/attended/624-host.sh` on the branch's worktree, run by the
-maintainer, each step writing a file that the builder reads:
+maintainer on 2026-11-10, each step writing a file that the builder
+read. The `.xip` and the expanded app were deleted afterward:
 
 ```sh
 { xcodebuild -version; xcodebuild -license check; echo "license check rc=$?"; } 2>&1 | tee .scratch/m/attended-license-check.txt
@@ -507,13 +544,14 @@ S06-14-xcode-image, changed in this pull request:
   and the size cap counts the sum of the files' sizes. One export can
   write more than one runtime.
 - "The checks on the host": the runtime's check is `codesign` with
-  `identifier image and anchor apple` on its disk image. The record
-  doesn't name a build. The license check compares the license ID
-  for the app's type and the recorded Xcode version. On this Mac that
-  refuses until `sudo xcodebuild -license accept` runs again. Whether
-  the version check can go waits on attended step 1, and is the
-  maintainer's decision. An install from the developer site that isn't
-  signed as the requirement's second branch expects fails closed.
+  `identifier image and anchor apple` on its disk image. The code
+  requirement for Xcode gets a third branch, `identifier
+  "com.apple.dt.Xcode" and anchor apple`, for the developer-site
+  install. The license record doesn't name a build, and Xcode accepts a
+  record from an older version. The license check compares the license
+  ID for the app's type only.
+- "Where the runtimes come from": the export also installs each
+  runtime on the host.
 - "In the build VM": the guest copies Xcode with `--hfsCompression`
   and sets the owner itself, imports each runtime with `xcrun simctl
   runtime add` on its disk image, and needs room for Xcode and every
@@ -537,4 +575,4 @@ The throwaway shim (`main.go`, `profile.go`) and the guest scripts
 stayed in the builder's worktree under `.scratch/`, and were not
 committed.
 
-**Status:** Answered 2026-10-08: yes, with conditions. Follow-up measured 2026-11-10 (I624): the export is a directory per runtime with a signed disk image, both code requirements hold and fail on a changed byte, the confined shim builds the Xcode disk, and the guest steps work offline with `simctl runtime add`. The license version check and a developer-site install await attended steps
+**Status:** Answered 2026-10-08: yes, with conditions. Follow-up measured 2026-11-10 (I624): the export is a directory per runtime with a signed disk image, both code requirements hold and fail on a changed byte, the confined shim builds the Xcode disk, and the guest steps work offline with `simctl runtime add`. Attended steps 2026-11-10: Xcode accepts an older license record, and the check compares the license ID only. The developer-site install needs a third requirement branch, `identifier "com.apple.dt.Xcode" and anchor apple`
