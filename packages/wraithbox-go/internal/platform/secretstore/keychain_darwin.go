@@ -187,11 +187,14 @@ static void wb_fill_self(wb_self *out) {
 	}
 	// The signing information below comes from the files on disk, which
 	// can change after the process started: a bundle signed again by
-	// another team would name that team. The check sees the files still
-	// match the running code, the Info.plist and the other sealed files
-	// included, before anything is read from them (S15-02-secret-store,
-	// "The group of each call"). A failure is an unreadable signature,
-	// which every check refuses.
+	// another team would name that team. With the default flags the
+	// check sees that the code directory on disk, and what it hashes,
+	// the Info.plist among them, still match the running code. It
+	// doesn't cover the bundle's resource files, and nothing here reads
+	// one: the team, the identifier and the executable come from the
+	// code directory and the Info.plist, and the groups from the kernel
+	// (S15-02-secret-store, "The group of each call"). A failure is an
+	// unreadable signature, which every check refuses.
 	st = SecCodeCheckValidity(self, kSecCSDefaultFlags, NULL);
 	if (st != errSecSuccess) {
 		CFRelease(self);

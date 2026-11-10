@@ -125,9 +125,12 @@ Each Keychain call names its group. The cgo shim (S12-platforms) sets
   configuration or a request.
 
 The signature is read from the files on disk, which can change while
-the process runs. So the shim first checks that the files still match
-the running code (`SecCodeCheckValidity`), the Info.plist and the
-other sealed files included. A signature that fails the check counts
+the process runs. So the shim first checks that the code directory on
+disk still matches the running code, with what it hashes, the
+Info.plist among them (`SecCodeCheckValidity`). The check doesn't
+cover the bundle's resource files, and the shim reads nothing from
+them: the team, the identifier and the executable come from the code
+directory and the Info.plist. A signature that fails the check counts
 as unreadable, which every check refuses: the team is then none, with
 `keychain-needs-team`. The groups come from the kernel's copy of the
 process's entitlements (`SecTaskCopyValueForEntitlement`), the one

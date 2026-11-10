@@ -105,9 +105,10 @@ type Code struct {
 	// signature seals, or "" when the code has none. It names the
 	// program: renaming a helper's executable breaks its bundle's
 	// signature. On macOS the shim reads it only after
-	// SecCodeCheckValidity sees the bundle's files, the Info.plist
-	// included, still match the running code, so a bundle signed again
-	// after the start can't change it.
+	// SecCodeCheckValidity sees that the code directory on disk, and the
+	// Info.plist it hashes, still match the running code, so a bundle
+	// signed again after the start can't change it. The check doesn't
+	// cover resource files, and the shim reads none.
 	Executable string
 }
 
