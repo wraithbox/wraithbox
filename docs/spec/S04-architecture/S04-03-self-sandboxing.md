@@ -79,10 +79,10 @@ itself, it:
   the profile denies. libSystem keeps the answer.
 - reads its slot from the `WB_VMD_SLOT` environment variable that its
   launcher entry sets (S04-04-vm-processes);
-- looks up the user's home directory with `getpwuid(getuid())`, never
-  from `HOME`;
-- resolves its slot's bundle path with `realpath`, to get its profile
-  parameter.
+- looks up the user's home directory with `getpwuid(getuid())`, never from `HOME`;
+- resolves its slot's bundle path with `realpath`, for its profile parameter;
+- in the `build` slot, opens the restore image once and checks that
+  descriptor (S04-10-vmd-install, "The restore image").
 
 It doesn't read anything from the guest or `wb-hostd` before it
 confines itself.

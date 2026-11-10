@@ -28,7 +28,7 @@ The install reads the restore image only at the fixed path
 
 Before it confines itself, `wb-vmd-install` opens the restore image
 once, without following a symbolic link, and checks that descriptor.
-It refuses to start, logs the rule and exits unless all of these hold
+It refuses to start, logs the rule and exits unless these hold
 (`vmd-restore-image-mismatch`):
 
 - the descriptor is a regular file;
@@ -62,7 +62,11 @@ created, and logs `vmd-xcode-disk-refused` (S06-14-xcode-image).
 
 In the `build` slot, `wb-vmd` inherits descriptor 5, the read end of
 the build password pipe (S04-03-self-sandboxing, "How `wb-vmd` is
-started"). `wb-vmd` reads the password from it only for a start with
+started"). It refuses to start with `vmd-descriptor-invalid` when
+descriptor 5 isn't a pipe opened for reading only, and `wb-hostd`
+refuses to pass anything but a pipe.
+
+`wb-vmd` reads the password from it only for a start with
 provisioning set. The password is read to end of file within a
 deadline, and must be 1 to 256 bytes of printable ASCII. Anything else
 refuses the start with `vmd-provisioning-password-invalid`. `wb-vmd`
@@ -107,7 +111,9 @@ instance then serves boots of the bundle with `Start`, each a new
 generation, as the other slots do. A closed lifeline during an
 install ends `wb-vmd` within its exit deadline, and the install with
 it. The build then fails, and `wb-hostd` deletes the build bundle
-(S06-02-image-build, "The build bundle").
+(S06-02-image-build, "The build bundle"). A caller that abandons the
+stream doesn't stop the install. It runs on until `wb-hostd` closes
+the lifeline, and the build then fails the same way (I655).
 
 ## Decisions
 
