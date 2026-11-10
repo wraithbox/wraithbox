@@ -49,6 +49,12 @@ const (
 	// RuleOutputFailed: the list ran, and writing the names to standard
 	// output failed.
 	RuleOutputFailed = "credset-output-failed"
+	// RuleNoCore: wb-credset can't set its core file limit to 0, so it
+	// reads nothing (S13-01-process-hardening, "Limits and environment").
+	RuleNoCore = "credset-no-core"
+	// RuleNotConfined: wb-credset can't confine itself, and the sandbox's
+	// error names no rule of its own (SEC12-least-privilege).
+	RuleNotConfined = "credset-not-confined"
 )
 
 // environment is the fixed list of the variable names wb-credset takes

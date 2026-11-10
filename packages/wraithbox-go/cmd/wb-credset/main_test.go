@@ -59,18 +59,40 @@ func (r failReader) Read([]byte) (int, error) {
 	return 0, errors.New("read")
 }
 
-// TestC05CredsetConfineRefused sees wb-credset exit 1 when it can't
-// confine itself, before it reads its standard input or logs a
-// decision, so it makes no store call (SEC12-least-privilege).
-func TestC05CredsetConfineRefused(t *testing.T) {
-	defer func(c func(selfsandbox.Profile, map[string]string) error) { confine = c }(confine)
-	confine = func(selfsandbox.Profile, map[string]string) error { return errors.New("refused") }
-	var stdout, stderr bytes.Buffer
-	code := run(t.Context(), credset.Process{Args: []string{credset.OpWrite, "github"}, Stdin: failReader{t}, Stdout: &stdout, Stderr: &stderr})
-	if code != 1 {
-		t.Errorf("exit %d, want 1", code)
-	}
-	if _, ok := credset.ParseDecision(stderr.Bytes()); ok || stdout.Len() != 0 {
-		t.Errorf("wb-credset went on after the refusal: stdout %q, stderr %q", stdout.String(), stderr.String())
+// TestC05CredsetStartRefused sees wb-credset exit 1 when it can't set
+// its core file limit to 0 or can't confine itself, before it reads its
+// standard input or makes a store call, with a refusal decision that
+// names the rule, so wb prints that rule (SEC12-least-privilege).
+func TestC05CredsetStartRefused(t *testing.T) {
+	refusal := &selfsandbox.Refusal{Rule: selfsandbox.RuleProbeAllowed, Profile: "wb-credset"}
+	for _, tc := range []struct {
+		name       string
+		noCore     error
+		confineErr error
+		rule       string
+	}{
+		{"no core limit", errors.New("setrlimit: not allowed"), nil, credset.RuleNoCore},
+		{"sandbox rule", nil, refusal, string(selfsandbox.RuleProbeAllowed)},
+		{"other error", nil, errors.New("refused"), credset.RuleNotConfined},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func(n func() error, c func(selfsandbox.Profile, map[string]string) error) { noCore, confine = n, c }(noCore, confine)
+			noCore = func() error { return tc.noCore }
+			confine = func(selfsandbox.Profile, map[string]string) error {
+				if tc.noCore != nil {
+					t.Error("wb-credset confined itself after the core limit failed")
+				}
+				return tc.confineErr
+			}
+			var stdout, stderr bytes.Buffer
+			code := run(t.Context(), credset.Process{Args: []string{credset.OpWrite, "github"}, Stdin: failReader{t}, Stdout: &stdout, Stderr: &stderr})
+			d, ok := credset.ParseDecision(stderr.Bytes())
+			if code != 1 || !ok || d.Decision != credset.DecisionRefuse || d.Rule != tc.rule || d.Op != "" || d.Binding != "" {
+				t.Errorf("exit %d, decision %+v (found %v), stderr %q", code, d, ok, stderr.String())
+			}
+			if stdout.Len() != 0 {
+				t.Errorf("stdout %q", stdout.String())
+			}
+		})
 	}
 }

@@ -132,8 +132,10 @@ searches the output for the value and finds none.
 `TestC05CredsetAdhocWrite` and `TestC05CredsetAdhocRefused` in
 `cmd/wb-credset` run the test binary as `wb-credset` on macOS. They see
 it confine itself, and refuse with `keychain-needs-team` and
-`credset-refused`. `TestC05CredsetConfineRefused` sees it exit 1 when
-it can't confine itself, before it reads its standard input.
+`credset-refused`. `TestC05CredsetStartRefused` sees it exit 1 when it
+can't set its core file limit to 0 or can't confine itself, before it
+reads its standard input. It logs a refusal with `credset-no-core`,
+the sandbox's rule, or `credset-not-confined`.
 
 The `wb cred` side is in `internal/credcmd`. Its tests put a copy of the
 test binary at `wb-credset`'s place in a bundle, and run it as the
