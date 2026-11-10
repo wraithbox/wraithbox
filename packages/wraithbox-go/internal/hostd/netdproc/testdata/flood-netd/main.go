@@ -4,8 +4,9 @@
 // channel refuses new work. At the stop it ends its VM's runs on the
 // channel and closes it as cmd/wb-netd does, with the same timeout, so
 // the open run reaches wb-hostd only when wb-hostd reads it. Built with
-// -X main.mode=ignore-stop, it ignores the stop instead, and keeps
-// sending until it is killed.
+// -X main.mode=ignore-stop, it ignores the stop instead, keeps sending
+// until it is killed, and logs once it has written past the stop
+// allowance.
 package main
 
 import (
@@ -28,6 +29,13 @@ import (
 const closeTimeout = 3 * time.Second
 
 const network = auditv1.EventClass_EVENT_CLASS_NETWORK_ACTIVITY
+
+// pastAllowance is the records written, those before the stop included,
+// after which wb-hostd's receiver has a record left past its stop
+// allowance: the allowance (events.stopAllowance, 2 *
+// eventchan.DefaultQueueCap), the slack of records it reads before its
+// hold, which TestStopBoundsASenderThatIgnoresIt checks, and one.
+const pastAllowance = 2*eventchan.DefaultQueueCap + 2 + 1
 
 // mode is set by the linker: "ignore-stop", or empty.
 var mode string
@@ -87,7 +95,7 @@ func run(log *slog.Logger) error {
 	err = <-served
 	log.Info("flood-netd stopping", "reason", err.Error(), "mode", mode)
 	if mode == "ignore-stop" {
-		ignoreStop(sender, vm)
+		ignoreStop(log, sender, vm, sent)
 	}
 	sender.EndVM(vm)
 	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
@@ -96,11 +104,20 @@ func run(log *slog.Logger) error {
 }
 
 // ignoreStop keeps the sender's queue full until the process is killed,
-// so every write the receiver lets through is taken at once.
-func ignoreStop(sender *eventchan.Sender, vm eventchan.VM) {
+// so every write the receiver lets through is taken at once. sent is
+// the records queued so far. It logs once the records written reach
+// pastAllowance, so a test kills it only then.
+func ignoreStop(log *slog.Logger, sender *eventchan.Sender, vm eventchan.VM, sent int) {
+	logged := false
 	for {
-		if sender.Queued() < eventchan.DefaultQueueCap {
+		queued := sender.Queued()
+		if written := sent - queued; !logged && written >= pastAllowance {
+			log.Info("flood-netd wrote past the allowance", "written", written)
+			logged = true
+		}
+		if queued < eventchan.DefaultQueueCap {
 			sender.Emit(vm, event())
+			sent++
 			continue
 		}
 		time.Sleep(time.Millisecond)
