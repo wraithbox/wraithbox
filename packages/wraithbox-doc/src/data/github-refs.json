@@ -3085,7 +3085,7 @@
 	},
 	"504": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-credset and wb cred: write, delete and list binding secrets through the helper, with the value on its standard input only",
 		"summary": "Package M3.8 of docs/implementation-plan.md, part 2 of 3 (M3.8b)."
 	},
@@ -3307,7 +3307,7 @@
 	},
 	"541": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Audit event channel: bound the receiver and the writer queue against a sender that ignores its budget",
 		"summary": "The event channel receiver of #540 (#477) reads records as fast as a sender writes them, and the audit writer appends each one to a queue with no cap (internal/hostd/events/events.go:148-161,210,…"
 	},
@@ -3948,13 +3948,13 @@
 	},
 	"647": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: keep a handed-off stream's end open until wb-proxyd holds it (macOS socket GC)",
 		"summary": "wb-netd closes the stream end it hands to wb-proxyd right after the send: internal/netd/handoff/stream.go:98 (defer theirs.Close()), as the comment on StreamPair (internal/platform/fdchan/fdchan_darwin.go, around line…"
 	},
 	"648": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-vmd: keep a passed descriptor open until wb-hostd holds it (macOS socket GC)",
 		"summary": "wb-vmd hands descriptors to wb-hostd and closes its copy at once: VMSupervisor.swift (the handoff.send(record, descriptor: transport.hostEnd) call, around line 219) and GuestConnector.swift (send(:descriptor:), which…"
 	},
@@ -4506,7 +4506,7 @@
 	},
 	"740": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(hostd): hold back an event sender that ignores its budget",
 		"summary": "A compromised network daemon could send well-formed audit records as fast as it liked and ignore every budget notice, and the host daemon would queue them all in memory."
 	},
@@ -4530,7 +4530,7 @@
 	},
 	"744": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(wb): wb cred set, list and rm through wb-credset",
 		"summary": "wb cred set, wb cred list and wb cred rm now manage the binding secrets in the store."
 	},
@@ -4542,13 +4542,13 @@
 	},
 	"746": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "fix(netd): keep a handed-off stream's end open until wb-proxyd holds it",
 		"summary": "The network daemon used to close its own copy of each connection's socket the moment it passed that socket to the proxy."
 	},
 	"747": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "fix(vmd): keep a passed descriptor until wb-hostd acknowledges it",
 		"summary": "On the newest macOS the kernel can throw away a socket that is in transit between two processes once the sender has closed its copy, so a guest connection or the VM's network link could reach the host daemon already…"
 	},
@@ -4563,5 +4563,17 @@
 		"state": "open",
 		"title": "feat(go): Secure Enclave CA key kept as its wrapped form, with host tests",
 		"summary": "On a Mac, the inspection CA's private key is now made inside the Secure Enclave and never leaves it."
+	},
+	"750": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): move \"How wb-vmd is started\" out of S04-03 to keep it under 300 lines",
+		"summary": "A spec page on main grew past the 300-line limit, which broke the docs deploy and every pull request's mise run ci."
+	},
+	"751": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: one bad hand-off ack ends the ack reader, so later hand-offs hold their slot for 5 s",
+		"summary": "Follow-up from the code re-review of #747 (#648), on the design it added."
 	}
 }
