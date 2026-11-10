@@ -171,7 +171,9 @@ func (r *Receiver) holdQueue() {
 
 // drain reads what a gone sender left, until the channel is empty, the
 // stop allowance is spent, or a record ends the receiver. It logs the
-// records it read, and the rule when the allowance cut it short.
+// records it read. When the allowance cut it short, it reads one record
+// more to know that one is left, drops it, and logs the drop with the
+// rule.
 func (r *Receiver) drain() {
 	read := 0
 	defer func() {
@@ -198,6 +200,6 @@ func (r *Receiver) drain() {
 		return
 	}
 	_ = m.Close()
-	r.hub.logger.Warn("event records left unread, the sender sent past its stop allowance", "rule", RuleStopAllowance,
+	r.hub.logger.Warn("an event record past the stop allowance read and dropped, the rest left unread", "rule", RuleStopAllowance,
 		"decision", "drop", "sender", r.src.Sender, "allowance", r.hub.allowance, "after_sequence", r.last)
 }

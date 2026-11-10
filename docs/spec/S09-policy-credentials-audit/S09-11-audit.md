@@ -126,6 +126,10 @@ the holds, up to a bound, and once the sender exits it reads what it
 left, up to the same bound. So the stop record gets the runs `wb-netd`
 flushes at its close, and a VM stop doesn't wait for the queue or the
 budget (S04-08-records-and-bounds, "Host work the guest can cause").
+The bound is the one exception to holding records back without a drop.
+A sender that keeps sending after its stop began has the records past
+the bound left unread, and `wb-hostd` logs that with
+`event-stop-allowance`.
 
 Each sender queues its records until a write succeeds, and drops none.
 The queue holds at most 4096 records of up to 4 KiB each, so 16 MiB. At
@@ -275,5 +279,8 @@ Credential values, and request or response bodies.
 
 - **Why:** no guest keeps its network while its decisions aren't
   recorded (SEC10-audit).
+- **Exception:** the records a sender sends past the stop allowance
+  after its VM's stop began are left unread and logged ("Telling the
+  senders").
 
 **Status:** Draft

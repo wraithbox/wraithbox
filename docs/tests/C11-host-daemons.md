@@ -408,6 +408,16 @@ Spec: S04-architecture.
   return its open run before `StopTimeout`, with no record dropped at
   its close. `TestQueueCapRoom` and `TestRoomOnClose` in
   `internal/hostd/audit` check the writer's cap.
+- A `wb-netd` that ignores its stop gets no more than the stop
+  allowance read (S09-11-audit, "Telling the senders").
+  `TestStopBoundsASenderThatIgnoresIt` in `internal/hostd/netdproc`
+  starts the stand-in built to keep sending after its control channel
+  closes. It sees the stop kill it at `StopTimeout` and return, the
+  records past the allowance logged with `event-stop-allowance`, and
+  no more than the allowance read. `TestRoomCountsUnsynced` and
+  `TestRoomAfterFailedSyncAtCap` in `internal/hostd/audit` see the
+  records written but not synced count against the writer's cap, and
+  `Room` open again once a failed sync at the cap is retried.
 - Send a mapping entry with an uppercase or non-LDH name, a trailing
   dot, an address outside 198.18.0.0/15, one past 131,072 live
   entries, or one whose name or address the VM holds for another. See
