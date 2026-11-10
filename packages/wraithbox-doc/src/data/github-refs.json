@@ -3271,7 +3271,7 @@
 	},
 	"535": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "ci: limit fuzz input minimization in the fuzz smoke run",
 		"summary": "The security review of PR #534 (#482) found that FuzzLinkEndpoint spends most of its 10 s smoke-run budget minimizing 65 KB inputs."
 	},
@@ -3369,7 +3369,7 @@
 	},
 	"551": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "netd/stack: TestStreamPolicy can read the refusal count before refuse() records it",
 		"summary": "TestStreamPolicy (internal/netd/stack/stack_test.go) failed once on Go (windows-2025) in the CI run of #550, a pull request that doesn't touch netd:"
 	},
@@ -3555,7 +3555,7 @@
 	},
 	"582": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: TestClosedConnHoldsCap reads the tcp-cap count before it is recorded (flaky on Windows)",
 		"summary": "TestClosedConnHoldsCap (packages/wraithbox-go/internal/netd/stack/stack_test.go) failed on Go (windows-2025) in CI on #581, a pull request that doesn't touch internal/netd:"
 	},
@@ -3579,7 +3579,7 @@
 	},
 	"586": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: TestVersionRecordFirst/a_name_report gets a connection reset on send (flaky on macOS)",
 		"summary": "TestVersionRecordFirst/a_name_report (packages/wraithbox-go/internal/proxyd/handoff/receiver_darwin_test.go) failed on Go (xcode-27) in CI on #585, a pull request that doesn't change internal/proxyd/handoff or any…"
 	},
@@ -3604,7 +3604,7 @@
 	"590": {
 		"kind": "issue",
 		"state": "open",
-		"title": "wb-netd: hand a running wb-netd a new packet transport and reset its flows on restore",
+		"title": "S04-02-vm-provider: a restore starts a fresh wb-netd for its generation",
 		"summary": "Follow-up from #511, its decision 6, which the PR for #511 doesn't build."
 	},
 	"591": {
@@ -3615,37 +3615,37 @@
 	},
 	"592": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "chore(deps): Bump jdx/mise-action from 5.2.3 to 5.2.5",
 		"summary": "Bumps jdx/mise-action from 5.2.3 to 5.2.5."
 	},
 	"593": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "chore(deps): Bump google.golang.org/grpc from 1.84.0 to 1.85.0 in /packages/wraithbox-go",
 		"summary": "Bumps google.golang.org/grpc from 1.84.0 to 1.85.0."
 	},
 	"594": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "chore(deps): Bump golang.org/x/net from 0.61.0 to 0.62.0 in /packages/wraithbox-go",
 		"summary": "Bumps golang.org/x/net from 0.61.0 to 0.62.0."
 	},
 	"595": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "chore(deps): Bump @astrojs/markdown-remark from 7.3.4 to 7.3.5 in /packages/wraithbox-doc",
 		"summary": "Bumps @astrojs/markdown-remark from 7.3.4 to 7.3.5."
 	},
 	"596": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "chore(deps): Bump astro from 7.4.2 to 7.4.4 in /packages/wraithbox-doc",
 		"summary": "Bumps astro from 7.4.2 to 7.4.4."
 	},
 	"597": {
 		"kind": "pr",
-		"state": "open",
+		"state": "closed",
 		"title": "chore(deps): Bump @astrojs/starlight from 0.42.7 to 0.42.8 in /packages/wraithbox-doc",
 		"summary": "Bumps @astrojs/starlight from 0.42.7 to 0.42.8."
 	},
@@ -3699,7 +3699,7 @@
 	},
 	"606": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Project resolution: objects/info/alternates that names another project's objects",
 		"summary": "Found while building #388."
 	},
@@ -3754,7 +3754,7 @@
 	"615": {
 		"kind": "issue",
 		"state": "open",
-		"title": "Guest kernel panic on a standard user's vsock connect to the guest's own CID",
+		"title": "Guest kernel panic found in X31-admin-channel: narrow it down and gate the conformance cases",
 		"summary": "Found in #448 (X31-admin-channel), by chance."
 	},
 	"616": {
@@ -3772,7 +3772,7 @@
 	"618": {
 		"kind": "issue",
 		"state": "open",
-		"title": "Restore image downgrade by a compromised wb-download",
+		"title": "X33-restore-downgrade: Restore image downgrade by a compromised wb-download",
 		"summary": "Follow-up from #262 (X30-installer-trust)."
 	},
 	"619": {
@@ -3803,7 +3803,7 @@
 	},
 	"623": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "Train 622: Campaign 2026-11-09 (V1-M3-network-floor, lane mac)",
 		"summary": "Train of campaign #622."
 	},
@@ -3858,7 +3858,7 @@
 	},
 	"632": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Flaky: TestStreamPolicy reads stream-refused count 0 on Windows",
 		"summary": "TestStreamPolicy in internal/netd/stack failed once on windows-2025 in the train CI of campaign #622:"
 	},
@@ -3871,7 +3871,7 @@
 	"634": {
 		"kind": "issue",
 		"state": "open",
-		"title": "Flaky: TestShellOpenHeld on Linux and ConnectGuest handoff-send-failed in Swift",
+		"title": "Flaky: TestShellOpenHeld reads kills = [] on Linux",
 		"summary": "Two intermittent failures in the CI of train/622 (campaign #622), in code the train doesn't change:"
 	},
 	"635": {
@@ -3882,7 +3882,7 @@
 	},
 	"636": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "ci: run CI once per train commit, as the train's pull request",
 		"summary": "Every commit on a train ran CI twice."
 	},
@@ -3897,5 +3897,65 @@
 		"state": "merged",
 		"title": "fix(go): keep a passed socket open until its receiver holds it",
 		"summary": "The intermittent invalid argument failures in the proxy's hand-off tests come from macOS, not from the proxy's replacement path."
+	},
+	"639": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build(deps): move from Dependabot to Renovate",
+		"summary": "Replaces Dependabot with a self-hosted Renovate, modeled on the maintainer's lsimons/.github setup but fully independent of it: its own config, workflow, GitHub App and secrets."
+	},
+	"640": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "ci: run Linux jobs on ubuntu-26.04, and keep runner bumps out of automerge",
+		"summary": "Follow-up to #639, from the first Renovate dry run (run 42782208920)."
+	},
+	"641": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(deps): update module golang.org/x/net to v0.62.0 [security]",
+		"summary": "This PR contains the following updates:"
+	},
+	"642": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(deps): update all non-major dependencies",
+		"summary": "This PR contains the following updates:"
+	},
+	"643": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Dependency Dashboard",
+		"summary": "This issue lists Renovate updates and detected dependencies."
+	},
+	"644": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "ci(renovate): title commits and PRs build(deps), not fix(deps)",
+		"summary": "The first live Renovate run titled its PRs fix(deps): ..."
+	},
+	"645": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: record the GitHub security settings now applied",
+		"summary": "The maintainer approved switching on the settings that were listed under \"Repository: to apply\" in docs/github-settings.md."
+	},
+	"646": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(doc): escape backslashes in generated index table cells",
+		"summary": "CodeQL's first scan (code scanning alert 1, js/incomplete-sanitization) flagged cell() in packages/wraithbox-doc/src/plugins/indexes.mjs."
+	},
+	"647": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd: keep a handed-off stream's end open until wb-proxyd holds it (macOS socket GC)",
+		"summary": "wb-netd closes the stream end it hands to wb-proxyd right after the send: internal/netd/handoff/stream.go:98 (defer theirs.Close()), as the comment on StreamPair (internal/platform/fdchan/fdchan_darwin.go, around line…"
+	},
+	"648": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: keep a passed descriptor open until wb-hostd holds it (macOS socket GC)",
+		"summary": "wb-vmd hands descriptors to wb-hostd and closes its copy at once: VMSupervisor.swift (the handoff.send(record, descriptor: transport.hostEnd) call, around line 219) and GuestConnector.swift (send(:descriptor:), which…"
 	}
 }
