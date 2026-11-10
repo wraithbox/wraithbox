@@ -72,6 +72,8 @@ func TestProjectSet(t *testing.T) {
 				{"PUT gitlab.com/api/v4/projects/%2F/repository/files/a", false, RuleWriteOutside},
 				{"PUT gitlab.com/api/v4/projects/%2F%2F/repository/files/a", false, RuleWriteOutside},
 				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2Fproj%2F%2F/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2Fproj.git%2F/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2Fproj%2f/repository/files/a", false, RuleWriteOutside},
 				{"POST api.github.com/user/keys", false, RuleWriteOutside},
 				{"POST github.com/acme/app/issues", false, RuleWriteOutside},
 				{"POST github.com/repos/acme/app/issues", false, RuleWriteOutside},
