@@ -137,7 +137,6 @@ var refusalCases = []refusalCase{
 		f.names.set(refusedHost, netd.NameWildcard)
 		f.names.budget = 0
 	}},
-	{netd.RuleDNSQueryRate, emptyRate},
 	{netd.RuleAccountingWriteFailed, func(f *fixture) {
 		f.calls.Fail(nt.CallDebit, nt.Fault{Err: errors.New("down")})
 	}},
@@ -283,9 +282,8 @@ func TestBackgroundPastBudget(t *testing.T) {
 // TestFormFloodSpendsRate checks that a name that fails the form spends
 // a rate token (S07-03-dns, "Order of checks", SEC13-bounded-resources):
 // of a burst of bad names, QueryBurst are refused for their form and the
-// rest with dns-query-rate, and a good name after them is refused with
-// dns-query-rate too. The refusals of both rules are held, so the hold
-// table's cap, not the rate, bounds what a burst holds.
+// rest dropped with dns-query-rate, and a good name after them is
+// dropped with dns-query-rate too.
 func TestFormFloodSpendsRate(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newFixture(t, nil)
@@ -304,6 +302,87 @@ func TestFormFloodSpendsRate(t *testing.T) {
 			t.Fatalf("calls %+v, approvals %v", f.calls.List(), f.approvals.list())
 		}
 	})
+}
+
+// TestRateDrops checks that a query over the query rate is dropped at
+// once and never answered (S07-04-dns-refusals, "Over the rate",
+// SEC13-bounded-resources): it isn't held, doesn't debit, raises no
+// approval event, and is passed to Events as a drop with the rule
+// dns-query-rate (SEC10-audit).
+func TestRateDrops(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ev := &events{}
+		f := newFixture(t, func(c *Config) { c.Events = ev })
+		emptyRate(f)
+		out := &outbox{}
+		o := f.ask(query(1, "x.example.com", TypeA, false), out)
+		if o.When != SendNever || o.Rule != netd.RuleDNSQueryRate || o.Response != nil || o.Approve || o.Debited {
+			t.Fatalf("outcome %+v", o)
+		}
+		if f.r.HeldCount() != 0 {
+			t.Fatalf("%d held", f.r.HeldCount())
+		}
+		time.Sleep(2 * Hold)
+		synctest.Wait()
+		if len(out.list()) != 0 || len(f.calls.List()) != 0 || len(f.approvals.list()) != 0 {
+			t.Fatalf("sent %d, calls %+v, approvals %v", len(out.list()), f.calls.List(), f.approvals.list())
+		}
+		if got := ev.list(); len(got) != 1 || got[0] != (event{netd.Drop, netd.RuleDNSQueryRate}) {
+			t.Fatalf("events %+v", got)
+		}
+	})
+}
+
+// TestRateFloodLeavesHoldRoom checks that a flood over the query rate
+// can't fill the held-query table (S07-04-dns-refusals, "Over the
+// rate", T11-shared-vm-grants). For a whole hold the guest sends twenty
+// times the rate, of names that fail the form and of names that aren't
+// allowed. At most the burst and the rate for one hold are held, none
+// is dropped with dns-hold-full, and a name that isn't allowed, sent
+// when the rate has a token again, is held and raises an approval
+// event.
+func TestRateFloodLeavesHoldRoom(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFixture(t, nil)
+		out := &outbox{}
+		flood(f, out, 20*QueryRate, Hold)
+		rec := f.r.Recorder()
+		most := QueryBurst + QueryRate*int(Hold/time.Second)
+		if held := f.r.HeldCount(); held > most || held >= netd.DefaultCaps().HeldQueries {
+			t.Fatalf("%d held, want at most %d", held, most)
+		}
+		if n := rec.Count(netd.RuleDNSQueryRate); n == 0 {
+			t.Fatal("no query dropped with dns-query-rate")
+		}
+		before := len(f.approvals.list())
+		if o := f.ask(query(1, "wanted.example.com", TypeA, false), out); o.When != SendHeld || o.Rule != netd.RuleNameNotAllowed {
+			t.Fatalf("outcome %+v", o)
+		}
+		if got := f.approvals.list(); len(got) != before+1 || got[len(got)-1] != nt.Name("wanted.example.com") {
+			t.Fatalf("approvals %v", got[before:])
+		}
+		if n := rec.Count(netd.RuleDNSHoldFull); n != 0 {
+			t.Fatalf("%d dropped with dns-hold-full", n)
+		}
+	})
+}
+
+// flood sends perSecond queries a second for d, in steps of 100 ms,
+// half of names that fail the form and half of a name that isn't
+// allowed.
+func flood(f *fixture, out *outbox, perSecond int, d time.Duration) {
+	const step = 100 * time.Millisecond
+	perStep := perSecond * int(step) / int(time.Second)
+	for s := range int(d / step) {
+		for i := range perStep {
+			host := "flood.example.com"
+			if i%2 == 0 {
+				host = fmt.Sprintf("bad_%d.example.com", i)
+			}
+			f.ask(query(uint16(s), host, TypeA, false), out)
+		}
+		time.Sleep(step)
+	}
 }
 
 // debits returns the names of the debit calls.

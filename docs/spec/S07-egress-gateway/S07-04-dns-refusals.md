@@ -31,7 +31,8 @@ is refused the same way, with the rule `approval-pending-cap` or
 
 `wb-netd` sends the answer to a refused query 4 seconds after the
 query arrived, not before. That holds whatever the reason in the list
-under "Same answer for every refusal".
+under "Same answer for every refusal". A query over the query rate
+isn't refused this way: it is dropped at once ("Over the rate").
 
 Every step that depends on the reason runs when the query arrives:
 
@@ -58,7 +59,9 @@ budgets, and the event channel.
 
 - Each re-run query counts against the query rate limit. A burst of
   re-runs over the limit is refused with `dns-query-rate`, and those
-  queries keep their timers.
+  queries keep their refusal bytes and their timers. They are held
+  already, so this adds nothing to the held-query table, unlike a new
+  query over the rate ("Over the rate").
 - A debit already made for the query isn't made again.
 - The re-run doesn't add to an open event's lookup count, doesn't
   raise a request, and doesn't add a learn list entry.
@@ -103,13 +106,36 @@ Over UDP the guest's resolver sends it again after its own timeout.
 Over TCP `wb-netd` closes the DNS-over-TCP connection that sent it, so
 the client doesn't wait on an open connection.
 
+#### Over the rate
+
+A query over the VM's query rate (S07-03-dns, "Wildcard budget") is
+dropped at once without an answer, and isn't held.
+
+- It is the first check that can refuse after the local answers
+  ("Order at arrival"), so it makes no debit and no accounting record.
+- It doesn't raise or join an approval event, and doesn't go on a
+  learn list.
+- It is logged and counted with the rule `dns-query-rate`, in runs per
+  rule (S07-02-packet-path, "Events and rate limits").
+
+So the held-query table fills only at the query rate. A flood over the
+rate holds at most the burst and the rate for one hold, well under
+the cap, and leaves room for the queries of names that raise an
+approval event (T11-shared-vm-grants). The guest can tell a rate
+refusal from the others: it gets no answer at all. That tells it only
+that it sent too many queries, not anything about a name.
+
+Over UDP the guest's resolver sends it again after its own timeout.
+Over TCP `wb-netd` closes the DNS-over-TCP connection that sent it, as
+for a query over the cap.
+
 #### TCP
 
 `wb-netd` keeps a DNS-over-TCP connection open while it has a held
 query. It counts the connection in the per-VM cap on DNS-over-TCP
 connections until its last held answer is sent.
 
-An over-cap query closes the connection anyway. The connection's held
+An over-cap query, or one over the rate, closes the connection anyway. The connection's held
 queries leave the table at the close, and their timers don't fire.
 
 ### Deny duration
@@ -182,13 +208,14 @@ refused, and so is the time of sending ("Hold"). The reasons are:
 - `learn-collected` and `learn-list-full`;
 - `approval-pending-cap` and `approval-rate`;
 - `wildcard-budget`, when the budget is used up;
-- `dns-query-rate`;
 - `accounting-write-failed`;
 - `handoff-send-failed` (S07-05-stream-hand-off);
 - `audit-budget`, `audit-bytes` and `event-channel-blocked`.
 
 Each of them can be held. A held query costs only an entry in the
 held-query table, whose cap drops what doesn't fit ("Hold limits").
+A query over the query rate is dropped, not refused with this answer
+("Over the rate").
 
 The last three come from the host's own state, not from the name
 (S04-08-records-and-bounds, "Accounting and event channels",
@@ -200,7 +227,7 @@ wildcard budget.
 When the query arrives, `wb-netd`:
 
 1. checks the query rate (`dns-query-rate`) before anything else that
-   can debit;
+   can debit, and drops a query over it ("Over the rate");
 2. debits the wildcard budget;
 3. writes the debit's accounting record to `wb-hostd`;
 4. takes the one-open-event-per-name check and the checks of the
@@ -249,6 +276,20 @@ request.
   the guest tell them apart by the timing of the refusal, which "Same
   answer for every refusal" rules out.
 - **Decided:** I51 (B51-approval-flow).
+
+### Drop a query over the rate at once
+
+A query over the query rate is dropped without a hold, as an
+exception to "Hold every refusal for 4 seconds".
+
+- **Why:** a held rate refusal takes an entry in the held-query table.
+  A burst over the rate then filled the table, and `dns-hold-full`
+  dropped what didn't fit, the queries of names that raise an approval
+  event included. The cap bounded memory, not the rate.
+- **Cost:** the guest can tell a rate refusal from the others, since
+  it gets no answer. That reveals its own query rate, nothing about a
+  name or the policy.
+- **Decided:** I566.
 
 ### A quiet list for the guest OS
 
