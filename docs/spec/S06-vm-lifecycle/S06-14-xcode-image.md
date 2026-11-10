@@ -139,8 +139,8 @@ and refuses with the rule:
   The disk image has its own code signature, made with Apple's "macOS
   Software Signing" certificate, with one hash over the whole image. The
   other files of an exported runtime have no signature the host can
-  check. The guest's import reads only the disk image ("In the build
-  VM");
+  check. The guest's import is given only the disk image ("In the
+  build VM", and S06-15-xcode-disk for the files beside it);
 - that `<data>` has room for the disk and the image
   (SEC13-bounded-resources, `xcode-disk-no-space`).
 
@@ -195,16 +195,16 @@ A named `wb-guestd` operation, `install-xcode`, then runs as root
    `ditto --norsrc --noextattr --noacl --noqtn --hfsCompression`, then
    sets owner `root:wheel` with `chown -R` and takes write permission
    from group and others with `chmod -R go-w`. The files on the volume
-   belong to user 99, and the sealing scan refuses files outside
+   don't belong to root, and the sealing scan refuses files outside
    `/Users` that a non-system user owns (S06-02-image-build,
    "Sealing"). `--hfsCompression` keeps the copy at the 4.0 GB it
    takes on the host instead of 10 GB;
 3. It checks the copy's signature with the same requirement. That
-   check accepts a planted `_MASReceipt` or `.DS_Store` and changed
-   mode bits (X06-guest-xcode, "Follow-up (I624)"). So the step also
-   refuses a copy that holds either name at any depth, or a file not
-   owned by `root` (`xcode-copy-invalid`), and clears every setuid and
-   setgid bit.
+   check accepts changed mode bits and files its seal leaves out
+   (X06-guest-xcode, "Follow-up (I624)"). So the step also makes the
+   checks of S06-15-xcode-disk, "What the signature doesn't seal",
+   refuses a file not owned by `root` (`xcode-copy-invalid`), and
+   clears every setuid and setgid bit.
 4. It runs `xcode-select -s`, `xcodebuild -license accept` and
    `xcodebuild -runFirstLaunch`.
 5. It checks each runtime's disk image, the one `.dmg` in its
@@ -231,10 +231,13 @@ jobs with no file in `/Library/LaunchDaemons`:
 `com.apple.CoreDevice.CoreDeviceDDIUpdaterService.job`,
 `com.apple.CoreSimulator.simdiskimaged` and
 `com.apple.PerformanceTrace.PerformanceTraceService`. The sealing scan
-accepts these labels only in an image with the Xcode step, and only
-for a program under `/Library/Developer/PrivateFrameworks` that root
-owns (S06-02-image-build, "Sealing"). X06-guest-xcode didn't record
-the program paths. I683's run records them, and they are in code.
+accepts these labels only in an image with the Xcode step, and never
+on the label alone (S06-02-image-build, "Sealing"). X06-guest-xcode
+recorded neither the program paths nor how launchd registers these
+jobs. I684, the first real guest run, records both, and the exact
+paths go into code. Until then, the scan requires a program whose
+real path is under `/Library/Developer/PrivateFrameworks`, owned by
+root, with no group or other write permission.
 
 ### Who runs the first launch
 

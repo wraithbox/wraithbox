@@ -581,10 +581,19 @@ App Store app signed like Xcode. A planted executable in
 `Contents/_MASReceipt`, a new `_MASReceipt` in a nested `.appex` or
 framework, a `.DS_Store` with arbitrary bytes in `Resources`, mode 6755
 on the main executable, and mode 0777 on `Info.plist` and `Frameworks`
-all passed with exit 0. A new file in `Resources` and a file in
-`_CodeSignature` failed with exit 1. S06-15-xcode-disk removes
-`_MASReceipt` and `.DS_Store` at any depth, and `install-xcode` refuses
-them and clears setuid and setgid bits.
+all passed with exit 0. Its second round found the same for arbitrary
+bytes in `Contents/PkgInfo` and in a `locversion.plist` directly in a
+`Resources/*.lproj`, in every nested bundle. A new file in `Resources`
+and a file in `_CodeSignature` failed with exit 1.
+
+Those files are the `omit` rules of each bundle's `rules2` in
+`_CodeSignature/CodeResources`, plus `_MASReceipt`. In the host's
+Xcode, all 996 bundles with a `CodeResources` omit `^(.*/)?\.DS_Store$`,
+`^Info\.plist$` and `^PkgInfo$`. 834 omit
+`^Resources/.*\.lproj/locversion.plist$`, and the other 162
+`^.*\.lproj/locversion.plist$`. Its 33 `PkgInfo` files are regular
+files of 8 bytes. S06-15-xcode-disk, "What the signature doesn't
+seal", turns that into checks in the shim and in `install-xcode`.
 
 ### Attended steps
 
