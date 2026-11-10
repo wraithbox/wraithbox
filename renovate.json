@@ -104,6 +104,13 @@
       ],
       "overrideDatasource": "npm",
       "overridePackageName": "renovate"
+    },
+    {
+      "description": "Commit and PR titles are build(deps): ..., as in the rest of the history. config:recommended's semantic prefix preset sets fix for production dependencies and chore for the rest in packageRules, which override the top-level semanticCommitType, so this rule, last, sets it back.",
+      "matchPackageNames": [
+        "*"
+      ],
+      "semanticCommitType": "build"
     }
   ],
   "customManagers": [
