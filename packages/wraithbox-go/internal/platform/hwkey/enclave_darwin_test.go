@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"io"
 	"slices"
 	"strings"
 	"syscall"
@@ -88,6 +89,58 @@ func TestSignRefuses(t *testing.T) {
 	}
 }
 
+// swappedKey reports one public key and signs with another.
+type swappedKey struct {
+	pub    *ecdsa.PublicKey
+	signer *ecdsa.PrivateKey
+	fail   error
+}
+
+func (k swappedKey) Public() crypto.PublicKey { return k.pub }
+
+func (k swappedKey) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if k.fail != nil {
+		return nil, k.fail
+	}
+	return k.signer.Sign(rand.Reader, digest, opts)
+}
+
+func (swappedKey) Wrapped() []byte { return nil }
+
+func (swappedKey) Close() {}
+
+// TestCheckPossession: Restore's check refuses a key whose signature
+// doesn't verify with its public key, and one that fails to sign, and
+// takes a key that signs for its public key (S09-06-ca-keys,
+// "`kSecAttrTokenOID` is undocumented").
+func TestCheckPossession(t *testing.T) {
+	a, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		key  swappedKey
+		ok   bool
+	}{
+		{"same key", swappedKey{pub: &a.PublicKey, signer: a}, true},
+		{"another key signs", swappedKey{pub: &a.PublicKey, signer: b}, false},
+		{"sign fails", swappedKey{pub: &a.PublicKey, signer: a, fail: errClosed}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkPossession(tc.key)
+			if (err == nil) != tc.ok {
+				t.Fatalf("checkPossession = %v, want ok %v", err, tc.ok)
+			}
+			t.Log(err)
+		})
+	}
+}
+
 // TestC02VMRoundTrip runs the real shim on a Mac VM, as CI's macOS
 // runners are (decision 5 on I509, as replaced on 2026-11-10). The VM's
 // Secure Enclave token is the hypervisor's virtual one, and it gives
@@ -149,7 +202,8 @@ func restoreChanged(t *testing.T, pub *ecdsa.PublicKey, wrapped []byte) {
 	}
 	defer other.Close()
 	if pub.Equal(other.Public()) {
-		t.Fatal("Restore of changed bytes gave the first key")
+		// Restore's checkPossession passed, so this key signs for pub.
+		t.Fatal("Restore of changed bytes gave the first key, and it signs for its public key")
 	}
 	t.Log("Restore of changed bytes gave a key with another public key")
 }

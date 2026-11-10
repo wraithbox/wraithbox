@@ -380,6 +380,10 @@ Spec: S09-06-ca-keys, "Valid CA".
   Keychain call and stores nothing, and it skips on a Mac that isn't a
   VM. A Mac without a Secure Enclave, whose generate and restore give
   the framework's error, has no test: CI has no such Mac.
+- In `internal/platform/hwkey`, see the check that each restore runs
+  refuse a key whose signature doesn't verify with its public key, and
+  one that fails to sign (`TestCheckPossession`, S09-06-ca-keys,
+  "`kSecAttrTokenOID` is undocumented").
 - On the maintainer's Mac, with the real store and Secure Enclave, in
   the bundles of `mise run store:host-test` (C05-credentials-and-store,
   "Host tests"). The run skips them on a Mac VM,

@@ -286,7 +286,10 @@ func (enclave) Generate(ctx context.Context) (Key, error) {
 // Restore rebuilds a key from its token object ID. It refuses an empty
 // wrapped form and one longer than maxWrapped before it calls the
 // Secure Enclave. The key it gives may be a new one, and the caller
-// compares its public key (S09-06-ca-keys, "Restore").
+// compares its public key (S09-06-ca-keys, "Restore"). That public key
+// is read from the token object ID's bytes, so Restore also signs a
+// fixed digest with the key and fails unless the signature verifies
+// with it (S09-06-ca-keys, "`kSecAttrTokenOID` is undocumented").
 func (enclave) Restore(ctx context.Context, wrapped []byte) (Key, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -297,7 +300,36 @@ func (enclave) Restore(ctx context.Context, wrapped []byte) (Key, error) {
 	if len(wrapped) > maxWrapped {
 		return nil, fmt.Errorf("hwkey: restore: the wrapped form is %d bytes, more than %d", len(wrapped), maxWrapped)
 	}
-	return newKey("restore", C.wb_restore(unsafe.Pointer(&wrapped[0]), C.long(len(wrapped))))
+	k, err := newKey("restore", C.wb_restore(unsafe.Pointer(&wrapped[0]), C.long(len(wrapped))))
+	if err != nil {
+		return nil, err
+	}
+	if err := checkPossession(k); err != nil {
+		k.Close()
+		return nil, err
+	}
+	return k, nil
+}
+
+// possessionDigest is what checkPossession signs.
+var possessionDigest = sha256.Sum256([]byte("wraithbox hwkey restore check"))
+
+// checkPossession signs possessionDigest with k and returns an error
+// unless the signature verifies with k's public key: the key that signs
+// is the key of that public key.
+func checkPossession(k Key) error {
+	pub, ok := k.Public().(*ecdsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("hwkey: restore: the public key is a %T", k.Public())
+	}
+	sig, err := k.Sign(nil, possessionDigest[:], crypto.SHA256)
+	if err != nil {
+		return fmt.Errorf("hwkey: restore: the check signature: %w", err)
+	}
+	if !ecdsa.VerifyASN1(pub, possessionDigest[:], sig) {
+		return errors.New("hwkey: restore: the key's signature doesn't verify with its public key")
+	}
+	return nil
 }
 
 // newKey makes a Key of the result of a generate or a restore: it reads

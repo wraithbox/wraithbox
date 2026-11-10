@@ -85,6 +85,14 @@ Passed without that attribute, the ID gives a new key without an error
 checks that the key's public key equals the one in the CA certificate
 before it signs.
 
+The public key a restored key reports comes from the token object ID's
+own bytes. On CI's Mac VM, a token object ID with one byte of its
+wrapped key changed restored with no error and the same public key
+(I509). So the restore signs a fixed digest with the key and verifies
+the signature with that public key, and an error or a signature that
+doesn't verify fails the restore. With that, the public key check is a
+check of the key that signs.
+
 #### Windows
 
 The key is a TPM key through the CNG platform crypto provider.
@@ -169,7 +177,8 @@ Any other failure is `ca-key-restore`:
 
 - a missing item;
 - a store error;
-- an error from the restore;
+- an error from the restore, including a key whose signature doesn't
+  verify with its own public key;
 - a public key that differs.
 
 Then `wb-proxyd` serves none of the VM's streams, and the VM's start or
