@@ -9,7 +9,7 @@
 //	wb-dev-vm hello [-port N] [-hold] [-guest-version V] [-time] [flags]  # boot, run wb-guestd's hello, print its version, stop
 //	wb-dev-vm connect -port N -listen PATH [flags]   # boot, relay each client of PATH to guest port N
 //
-// It starts wb-vmd as wb-launcher is to (S04-03-self-sandboxing, "How
+// It starts wb-vmd as wb-launcher is to (S04-11-vmd-start, "How
 // `wb-vmd` is started"): no arguments, the environment WB_VMD_SLOT=work
 // and nothing else, and the descriptors 0 (lifeline), 2 (log), 3 (a
 // listening gRPC socket in a new private directory) and 4 (the hand-off

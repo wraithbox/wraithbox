@@ -59,7 +59,7 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   and mention neither `IPSW` nor the installation service. Only the build
   slot passes `IPSW`, and a build slot without a restore image path is refused
   with `vmd-sandbox-param-invalid`.
-- **Start interface** (S04-03-self-sandboxing, "How `wb-vmd` is
+- **Start interface** (S04-11-vmd-start, "How `wb-vmd` is
   started"). An argument is refused with `vmd-arguments`, and a missing
   descriptor or one of the wrong kind with `vmd-descriptor-invalid`.
   Closing the lifeline stops the VM. Unconfined, the deny probe refuses.

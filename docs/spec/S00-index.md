@@ -19,6 +19,7 @@ Wraith Box works and why.
 | S04-08-records-and-bounds | Records, Versions and Bounds | Draft |
 | S04-09-netd-start | Starting `wb-netd` | Draft |
 | S04-10-vmd-install | Installing macOS in `wb-vmd` | Draft |
+| S04-11-vmd-start | Starting `wb-vmd` | Draft |
 | S05-cli | Command Line Interface | Draft |
 | S05-01-agent-commands | Agent Commands | Draft |
 | S05-02-exit-status-and-signals | Exit Status and Signals | Draft |

@@ -35,6 +35,7 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | S04-08-records-and-bounds | Accounting and event records, version skew, host work the guest can cause, logs |
 | S04-09-netd-start | How `wb-hostd` starts and stops each VM's `wb-netd`, its descriptors, profile and first frames |
 | S04-10-vmd-install | `wb-vmd-install`: the install rules, the restore image, the build bundle, the build password pipe and the `Install` call |
+| S04-11-vmd-start | How `wb-vmd` is started: its descriptors, its gRPC socket, the lifeline and the peer checks |
 
 ## Processes
 

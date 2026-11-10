@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 }
 
 // checkStartInterface checks, inside wb-vmd, the start interface of
-// S04-03-self-sandboxing, "How `wb-vmd` is started": no arguments,
+// S04-11-vmd-start, "How `wb-vmd` is started": no arguments,
 // WB_VMD_SLOT=work, isolated or build as the whole environment, a
 // blocking lifeline, and descriptors 0, 2, 3 and 4, and 5 a pipe in the
 // build slot, and no others.

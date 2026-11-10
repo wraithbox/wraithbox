@@ -27,7 +27,7 @@ public protocol GuestConnection: AnyObject, Sendable {
 public typealias GuestConnectHandler = @MainActor (Result<any GuestConnection, VMFailure>) -> Void
 
 /// The hand-off channel: an AF_UNIX SOCK_DGRAM socket that wb-hostd
-/// passed as fd 4 (S04-03-self-sandboxing, "How `wb-vmd` is started").
+/// passed as fd 4 (S04-11-vmd-start, "How `wb-vmd` is started").
 public struct HandoffChannel: Sendable {
     public let fd: Int32
 

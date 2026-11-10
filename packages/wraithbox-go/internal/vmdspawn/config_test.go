@@ -32,7 +32,7 @@ func TestConfigRefused(t *testing.T) {
 	}
 	for name, change := range map[string]func(*Config){
 		// Descriptor 5 is the build slot's alone, and the build slot
-		// needs it (S04-03-self-sandboxing, "How `wb-vmd` is started").
+		// needs it (S04-11-vmd-start, "How `wb-vmd` is started").
 		"build without the password pipe": func(c *Config) { c.Slot = "build" },
 		"password pipe in the work slot":  func(c *Config) { c.ProvisioningPipe = newPipe(t) },
 		"password pipe in the layer slot": func(c *Config) { c.Slot, c.ProvisioningPipe = "layer", newPipe(t) },

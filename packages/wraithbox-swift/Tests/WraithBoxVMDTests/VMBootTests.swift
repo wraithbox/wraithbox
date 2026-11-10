@@ -200,7 +200,7 @@ final class WorkSlot {
 }
 
 /// wb-vmd started with the descriptors of its start interface
-/// (S04-03-self-sandboxing, "How `wb-vmd` is started").
+/// (S04-11-vmd-start, "How `wb-vmd` is started").
 final class SpawnedDaemon: Sendable {
     let pid: pid_t
     let socketPath: String

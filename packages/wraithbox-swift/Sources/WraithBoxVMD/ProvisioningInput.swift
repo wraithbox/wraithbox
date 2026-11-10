@@ -1,5 +1,5 @@
 // The build password's input: the read end of the build password pipe,
-// descriptor 5 in the build slot only (S04-03-self-sandboxing, "How
+// descriptor 5 in the build slot only (S04-11-vmd-start, "How
 // `wb-vmd` is started"; S15-04-guest-admin, "Build"). wb-vmd reads it once,
 // for a start with provisioning options, and closes it. The bytes come
 // from wb-guestadmin-build through wb-launcher, but the reader bounds and
