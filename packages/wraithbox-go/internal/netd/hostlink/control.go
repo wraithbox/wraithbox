@@ -222,9 +222,9 @@ func (c *Control) handoffSocket(m *egressv1.HandoffSocket, file *os.File) {
 		slog.String("vm", m.GetVm()), slog.Uint64("generation", m.GetGeneration()),
 	}
 	refuse := func(check string, err error) {
-		_ = file.Close()
 		c.rec.Note(netd.RuleHandoffSocketRefused, append(attrs,
 			slog.String("check", check), slog.String("decision", "refuse"), slog.String("error", err.Error()))...)
+		_ = file.Close()
 	}
 	switch {
 	case m.GetVm() != c.kept.VM:

@@ -77,6 +77,10 @@ func (k *socket) end(why error) {
 		drains := k.drains
 		k.drains = nil
 		k.mu.Unlock()
+		// Noted before any stream's reset reaches the guest (SEC10-audit).
+		k.s.rec.Note(netd.RuleHandoffSocketEnded,
+			slog.Uint64("generation", k.generation), slog.Int("streams_reset", len(streams)),
+			slog.String("reason", why.Error()))
 		close(k.done)
 		_ = k.conn.Close()
 		for _, st := range streams {
@@ -85,9 +89,6 @@ func (k *socket) end(why error) {
 		for _, ch := range drains {
 			close(ch)
 		}
-		k.s.rec.Note(netd.RuleHandoffSocketEnded,
-			slog.Uint64("generation", k.generation), slog.Int("streams_reset", len(streams)),
-			slog.String("reason", why.Error()))
 	})
 }
 

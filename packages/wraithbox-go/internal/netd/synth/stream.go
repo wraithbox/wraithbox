@@ -62,8 +62,9 @@ func (s *pinSink) ServeStream(conn netd.StreamConn, f netd.Flow) {
 		rule = netd.RulePortNotAllowed
 	}
 	if rule != "" {
-		_ = conn.Close()
+		// Record before the guest sees the close (SEC10-audit).
 		s.p.rec.Record(netd.Close, rule, append(f.LogAttrs(), slog.String("name", s.name.String()))...)
+		_ = conn.Close()
 		return
 	}
 	s.p.deps.HandOff.HandOffStream(&pinnedConn{StreamConn: conn, done: done}, netd.NamedFlow{Flow: f, Name: name})

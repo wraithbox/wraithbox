@@ -380,8 +380,10 @@ func (s *Stack) accept(req *tcp.ForwarderRequest) {
 	ep, err := req.CreateEndpoint(&wq)
 	if err != nil {
 		s.release()
-		req.Complete(true)
+		// Record before the reset reaches the guest, so a guest that
+		// sees it can rely on the decision being logged (SEC10-audit).
 		s.rec.Record(netd.Reset, netd.RuleTCPHandshakeFailed, append(f.LogAttrs(), slog.String("error", err.String()))...)
+		req.Complete(true)
 		return
 	}
 	req.Complete(false)
@@ -394,9 +396,13 @@ func (s *Stack) accept(req *tcp.ForwarderRequest) {
 	go serve(c, f)
 }
 
+// refuse resets a SYN the stack refused under rule. The decision is
+// recorded before the reset reaches the guest, so a guest that sees the
+// refusal can rely on it being logged with its rule (SEC05-default-deny,
+// SEC10-audit).
 func (s *Stack) refuse(req *tcp.ForwarderRequest, rule netd.Rule, f netd.Flow) {
-	req.Complete(true)
 	s.rec.Record(netd.Reset, rule, f.LogAttrs()...)
+	req.Complete(true)
 }
 
 // decide asks the hook for a flow route let through. It returns the
@@ -569,8 +575,8 @@ func (c *conn) closeOnce() error {
 		// Without the timeout the place isn't bounded, so reset instead.
 		// Defensive: gVisor's tcp Endpoint.SetSockOpt only stores this value
 		// and returns nil, so the branch isn't reached, and would log tcp-cap.
-		c.ep.Abort()
 		c.s.rec.Record(netd.Reset, netd.RuleTCPCap, append(c.flow.LogAttrs(), slog.String("error", err.String()))...)
+		c.ep.Abort()
 	}
 	err := c.TCPConn.Close()
 	c.s.mu.Lock()
