@@ -5,7 +5,7 @@
 // `vmd-final-narrow.sb`, measured with the X18-vsock-handoff device set.
 // The build slot's profile adds the three install rules X30-installer-trust
 // measured, with a third parameter, the restore image's real path
-// (S04-04-vm-processes, "`wb-vmd-install`").
+// (S04-10-vmd-install, "`wb-vmd-install`").
 import Darwin
 import WraithBoxVM
 
@@ -77,8 +77,8 @@ public enum Confinement {
         """
 
     /// The profile text of a slot: the `wb-vmd` profile, plus the install
-    /// rules in the build slot only (S04-04-vm-processes,
-    /// "`wb-vmd-install`", "`wb-vmd-layer`").
+    /// rules in the build slot only (S04-10-vmd-install,
+    /// "`wb-vmd-install`"; S04-04-vm-processes, "`wb-vmd-layer`").
     public static func profile(for slot: VMSlot) -> String {
         switch slot {
         case .build: profile + installRules

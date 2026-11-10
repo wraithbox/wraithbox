@@ -65,7 +65,7 @@ A writable Xcode disk, or one on another bundle file, is refused with
 `device-set-disk`, and one outside the bundle with
 `device-set-file-outside-bundle`. Before this check, a start call with
 the flag in any slot but `layer` is refused with
-`vmd-xcode-disk-refused` (S04-04-vm-processes, "The build bundle").
+`vmd-xcode-disk-refused` (S04-10-vmd-install, "The build bundle").
 
 #### MAC address
 

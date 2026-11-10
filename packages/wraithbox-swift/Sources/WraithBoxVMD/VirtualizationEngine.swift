@@ -3,7 +3,7 @@
 // (S04-02-vm-provider, "The device set is fixed and checked"), and
 // creates no device the description doesn't name. Boot and stop use
 // APIs from macOS 12 to 14. The build slot's install uses the restore
-// image and installer APIs of macOS 12 (S04-04-vm-processes,
+// image and installer APIs of macOS 12 (S04-10-vmd-install,
 // "`wb-vmd-install`").
 import Foundation
 import Virtualization

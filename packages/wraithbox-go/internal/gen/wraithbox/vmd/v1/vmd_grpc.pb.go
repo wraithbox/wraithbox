@@ -73,7 +73,7 @@ type VMServiceClient interface {
 	// on macOS").
 	ConnectGuest(ctx context.Context, in *ConnectGuestRequest, opts ...grpc.CallOption) (*ConnectGuestResponse, error)
 	// Install installs macOS into the build bundle from the restore image
-	// at its fixed path, and streams the progress (S04-04-vm-processes,
+	// at its fixed path, and streams the progress (S04-10-vmd-install,
 	// "`wb-vmd-install`"). The request names no path and no image. Only
 	// the build slot serves it. Every other slot refuses it with
 	// `vmd-install-refused` before it touches a file, and the build slot
@@ -198,7 +198,7 @@ type VMServiceServer interface {
 	// on macOS").
 	ConnectGuest(context.Context, *ConnectGuestRequest) (*ConnectGuestResponse, error)
 	// Install installs macOS into the build bundle from the restore image
-	// at its fixed path, and streams the progress (S04-04-vm-processes,
+	// at its fixed path, and streams the progress (S04-10-vmd-install,
 	// "`wb-vmd-install`"). The request names no path and no image. Only
 	// the build slot serves it. Every other slot refuses it with
 	// `vmd-install-refused` before it touches a file, and the build slot

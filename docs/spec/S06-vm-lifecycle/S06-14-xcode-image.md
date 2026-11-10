@@ -209,7 +209,7 @@ device set adds the Xcode disk, read-only, and only for this step
 Xcode flag. The call never names a path. A start call with the Xcode
 flag in any other slot is refused before any device is created, and
 logs `vmd-xcode-disk-refused`. The flag is never dropped to let the
-start go on (S04-04-vm-processes, "The build bundle", and
+start go on (S04-10-vmd-install, "The build bundle", and
 S06-06-devices-and-warm-start, "The Xcode disk").
 
 A named `wb-guestd` operation, `install-xcode`, then runs as root

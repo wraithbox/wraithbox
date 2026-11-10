@@ -341,7 +341,7 @@ print about returned work after `wb land` is outside it
 
   The build VM shares the cache too. The `wb-vmd-install` profile is
   the `wb-vmd` profile plus the install rules
-  (S04-04-vm-processes, "`wb-vmd-install`"), and the entries stay on
+  (S04-10-vmd-install, "`wb-vmd-install`"), and the entries stay on
   the host's disk between runs. So a work or isolated VM can leave
   entries that a later `wb image build` may read, in the service process
   of the build VM. The disks of that VM become the sealed image that

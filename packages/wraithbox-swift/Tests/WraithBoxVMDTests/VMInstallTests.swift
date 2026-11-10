@@ -91,7 +91,7 @@ struct VMInstallTests {
 
 /// The build slot: a new build bundle with the two files wb-hostd puts in
 /// it, and an APFS clone of a restore image at the fixed path
-/// (S04-04-vm-processes, "The build bundle", "The restore image").
+/// (S04-10-vmd-install, "The build bundle", "The restore image").
 final class BuildSlot {
     let path: String
     private let restoreImagePath: String

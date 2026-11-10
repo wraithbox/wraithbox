@@ -75,7 +75,7 @@ public enum VMRule: String, Sendable, CaseIterable {
     /// An Install in a slot that isn't `build`, a second Install in an
     /// instance, an Install while the VM runs, or one into a bundle that
     /// holds a file the install creates. Refused before any file is
-    /// touched (S04-04-vm-processes, "`wb-vmd-install`").
+    /// touched (S04-10-vmd-install, "`wb-vmd-install`").
     case installRefused = "vmd-install-refused"
     /// The restore image holds no configuration this host can run.
     case restoreImageUnsupported = "vmd-restore-image-unsupported"
@@ -283,7 +283,7 @@ public final class VMSupervisor {
 
     /// Installs macOS from the restore image into the build bundle, and
     /// calls `percent` with each whole percent as it rises, and with 100
-    /// once the install succeeded (S04-04-vm-processes, "`wb-vmd-install`").
+    /// once the install succeeded (S04-10-vmd-install, "`wb-vmd-install`").
     /// Every refusal before the restore image is read touches no file.
     public func install(
         cpuCount: UInt32, memoryMiB: UInt64, percent: @escaping @MainActor (UInt32) -> Void

@@ -28,12 +28,13 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | S04-01-design-principles | The rules every process follows: one CLI, a Go core, an untrusted guest, policy checked twice, one work VM |
 | S04-02-vm-provider | How `wb-vmd` hands over guest connections and the NIC, the fixed device set, and stream identity in `wb-proxyd` |
 | S04-03-self-sandboxing | How each host daemon confines itself, and `wb-launcher` |
-| S04-04-vm-processes | One `wb-vmd` per VM, `wb-vmd-install` and `wb-diskfmt` |
+| S04-04-vm-processes | One `wb-vmd` per VM, `wb-vmd-layer` and `wb-diskfmt` |
 | S04-05-helper-programs | `wb-guestadmin`, `wb-release-check`, `wb-download` and `wb-build-ssh` |
 | S04-06-git-confinement | The `wb-git` shim, the `wb-hostd` profile, and what `wb` takes from `wb-hostd` |
 | S04-07-supervision | Who starts whom, when `wb-hostd` stops, upgrades and daemon restarts |
 | S04-08-records-and-bounds | Accounting and event records, version skew, host work the guest can cause, logs |
 | S04-09-netd-start | How `wb-hostd` starts and stops each VM's `wb-netd`, its descriptors, profile and first frames |
+| S04-10-vmd-install | `wb-vmd-install`: the install rules, the restore image, the build bundle, the build password pipe and the `Install` call |
 
 ## Processes
 
