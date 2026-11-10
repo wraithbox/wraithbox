@@ -370,13 +370,19 @@ Spec: S09-06-ca-keys, "Valid CA".
     ends (`TestC02StoreLockedCancel`). See an ad-hoc signed build fail
     with `keychain-needs-team` (`TestC02AdHocStore`).
   - See a new CA with exactly the CA profile (`TestC02IssueProfile`).
-- In `internal/platform/hwkey`, in a macOS VM such as CI's runners,
-  which has no Secure Enclave, see `Generate` and a `Restore` of 324
-  bytes each give an error and no key (`TestNoEnclave`). It skips on a
-  Mac that isn't a VM.
+- In `internal/platform/hwkey`, on a Mac VM such as CI's macOS
+  runners, run the real shim unsigned against the VM's virtual Secure
+  Enclave (S09-06-ca-keys, "macOS, every build"). Generate a key, and
+  sign a SHA-256 digest that Go verifies. Restore the key from its
+  wrapped form, and see the same public key and a signature that
+  verifies. Changed bytes give an error or another key, and a closed
+  key refuses to sign (`TestC02VMRoundTrip`). It makes no
+  Keychain call and stores nothing, and it skips on a Mac that isn't a
+  VM. A Mac without a Secure Enclave, whose generate and restore give
+  the framework's error, has no test: CI has no such Mac.
 - On the maintainer's Mac, with the real store and Secure Enclave, in
   the bundles of `mise run store:host-test` (C05-credentials-and-store,
-  "Host tests"). The run skips them on a Mac without a Secure Enclave,
+  "Host tests"). The run skips them on a Mac VM,
   and the maintainer watches for a dialog or a Touch ID prompt, which
   fails them.
   - In `internal/platform/hwkey`, generate a key, sign and verify with

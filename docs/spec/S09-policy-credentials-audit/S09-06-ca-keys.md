@@ -42,6 +42,16 @@ and on the 1Password backend after V1 (S15-02-secret-store).
 A permanent Secure Enclave key in the access group also works in a
 team-signed build (X29-dev-signing). Wraith Box doesn't use one.
 
+`wb-proxyd` takes any key the Secure Enclave token gives. On a Mac VM
+that token is the hypervisor's virtual Secure Enclave, so a key there
+is only as strong as the hypervisor and its host. Wraith Box doesn't
+support a Mac VM as its host (I509), and no rule refuses one. CI's macOS runners
+are such VMs, and give working keys to an unsigned test binary, so CI
+runs the shim's round trip there (C02-streams-and-tls, "CA key"). A
+Mac without a Secure Enclave gets the error of Security.framework from
+generate and restore. No test covers that error path, because CI has
+no such Mac.
+
 #### Attributes
 
 The key and its item have the attributes X09-keychain-unsigned
@@ -198,5 +208,20 @@ The same wrapped key is used in every build, on the Keychain backend
 and on the 1Password backend after V1 (S15-02-secret-store).
 
 - **Decided:** I23 (B23-keychain-unsigned, decision 2A).
+
+### A Mac VM's virtual Secure Enclave is accepted and tested on CI
+
+`wb-proxyd` takes the key a Mac VM's virtual Secure Enclave gives, and
+CI's macOS runners run the shim's round trip with it. This replaces
+decision 5 on I509, which took a VM to have no Secure Enclave and
+expected generate and restore to fail there. CI's runner
+(`VirtualMac2,1`) gave a working key.
+
+- **Why:** a run on a Mac VM is unsupported, and the round trip on CI
+  is the only CI test of the shim's real calls.
+- **Rejected:** refusing a key on a `VirtualMac` host, because it adds
+  a rule for a case nobody runs. Dropping the test, because the shim
+  then has no CI coverage.
+- **Decided:** I509, by the maintainer, 2026-11-10.
 
 **Status:** Draft

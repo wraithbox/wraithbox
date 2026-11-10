@@ -266,8 +266,9 @@ const maxWrapped = 4096
 // Open returns the hardware key store of darwin: a Secure Enclave key
 // that isn't stored in the Keychain, whose wrapped form is its token
 // object ID (S09-06-ca-keys, "macOS, every build"). Without a Secure
-// Enclave, as in a VM, Generate and Restore return the error of
-// Security.framework.
+// Enclave, Generate and Restore return the error of Security.framework.
+// On a Mac VM the Secure Enclave is the hypervisor's virtual one, and
+// its keys are taken like any other.
 func Open() Provider { return enclave{} }
 
 // enclave is the Secure Enclave key store.

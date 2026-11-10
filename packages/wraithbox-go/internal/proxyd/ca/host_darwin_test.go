@@ -93,7 +93,7 @@ func TestMain(m *testing.M) {
 }
 
 // hostStep skips the test unless the host tests are on, the run's step
-// is step, the store opened, and the Mac has a Secure Enclave.
+// is step, the store opened, and the Mac isn't a VM.
 func hostStep(tb testing.TB, step string) {
 	tb.Helper()
 	if os.Getenv(hostEnv) != "1" {
@@ -103,7 +103,7 @@ func hostStep(tb testing.TB, step string) {
 		tb.Skipf("the run's step is %q, and this test's %q", got, step)
 	}
 	if model, err := syscall.Sysctl("hw.model"); err != nil || strings.HasPrefix(model, "VirtualMac") {
-		tb.Skipf("no Secure Enclave: hw.model is %q (%v), a VM (decision 5 on I509)", model, err)
+		tb.Skipf("a Mac VM: hw.model is %q (%v), and its Secure Enclave is the hypervisor's (S09-06-ca-keys)", model, err)
 	}
 	if hostStore == nil {
 		tb.Fatal("the store didn't open")
