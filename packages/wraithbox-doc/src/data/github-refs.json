@@ -3525,7 +3525,7 @@
 	},
 	"577": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "httppolicy: FuzzHTTPDecision fails on main for a GitLab project id with a trailing %2F",
 		"summary": "FuzzHTTPDecision (internal/proxyd/httppolicy/fuzz_test.go) fails on main at 5adc7c3."
 	},
@@ -3597,7 +3597,7 @@
 	},
 	"589": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: TestAnswerFails/report_slow answers instead of timing out (flaky on macOS)",
 		"summary": "TestAnswerFails/report_slow (packages/wraithbox-go/internal/netd/synth/pool_test.go:161) failed on Go (xcode-27) in CI on #588, a pull request that doesn't change internal/netd or any package its tests build:"
 	},
@@ -3870,7 +3870,7 @@
 	},
 	"634": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Flaky: TestShellOpenHeld reads kills = [] on Linux",
 		"summary": "Two intermittent failures in the CI of train/622 (campaign #622), in code the train doesn't change:"
 	},
@@ -4435,12 +4435,12 @@
 	"728": {
 		"kind": "issue",
 		"state": "open",
-		"title": "Hand-off socket notices can't tell a replacement socket from the one it replaces",
+		"title": "Hand-off socket contract: a per-socket number, and wb-netd acknowledges its end (with #729)",
 		"summary": "Follow-up from the security review of #727 (F1, parts c and d), for #637."
 	},
 	"729": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd can't acknowledge that it holds its end of the hand-off socket",
 		"summary": "Follow-up from the security review of #727 (F2), for #637."
 	},
@@ -4461,5 +4461,35 @@
 		"state": "open",
 		"title": "Renovate: vulnerability fixes skip the 7-day release-age wait",
 		"summary": "Renovate's built-in vulnerabilityAlerts config sets minimumReleaseAge: null."
+	},
+	"733": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(netd): decide TestAnswerFails slow cases with a synctest clock",
+		"summary": "A test that checks the address pool refuses a name when the proxy or host answers too slowly sometimes passed the answer through on a busy CI machine."
+	},
+	"734": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(hostd): TestShellOpenHeld waits for the handler's end before the kills",
+		"summary": "TestShellOpenHeld sometimes failed on Linux with kills = []."
+	},
+	"735": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(proxyd): refuse a GitLab project id with an empty segment",
+		"summary": "The proxy reads the repository a GitLab API write names from the project id in its path, which spells each / as %2F."
+	},
+	"736": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd: Pool.within misses a call that returns after the deadline before the timer fires",
+		"summary": "Pool.within (packages/wraithbox-go/internal/netd/synth/pool.go:390) decides whether an accounting write or a name report was late by reading ctx.Err() after the call returns."
+	},
+	"737": {
+		"kind": "issue",
+		"state": "open",
+		"title": "httppolicy: repoKey trims request-derived repository paths like policy input",
+		"summary": "repoKey (packages/wraithbox-go/internal/proxyd/httppolicy/hosts.go:170 and :174) trims a trailing / and .git."
 	}
 }

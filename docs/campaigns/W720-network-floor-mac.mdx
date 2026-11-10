@@ -7,16 +7,16 @@ description: "A campaign of waves on the dedicated Mac, lane mac with two VM slo
 
 ## Summary
 
-Wave 1 picked four issues and merged all four pull requests into the train, at 27 dollars. `wb-netd` now records a refusal before the guest can see the reset (PR722, I569), and `wb-hostd` keeps a passed hand-off socket open until `wb-proxyd` holds it (PR727, I637). Two flaky tests were fixed (PR725, I580, and PR726, I547). The reviews led to three follow-ups on the hand-off socket and its audit records (I728, I729, I730), and two of them propose a change to the `control.proto` contract that needs a decision.
+Two waves merged seven pull requests into the train, at 46 dollars. `wb-netd` records a refusal before the guest can see the reset (PR722), `wb-hostd` keeps a passed hand-off socket open until `wb-proxyd` holds it (PR727), and `wb-proxyd` refuses a GitLab project id with an empty segment (PR735). Four flaky tests were fixed (PR725, PR726, PR733, PR734). The maintainer decided I728 and I729 during the campaign: a per-socket number on the hand-off socket and an ack from `wb-netd`, built as one contract change in I728, which now blocks I480, I490 and I512. I648 wasn't built, because its fix needs a `vmd.proto` change of the same keep-until-held kind.
 
 ## Budget
 
 | Limit | Spent | Of |
 |---|---|---|
-| Hours | 1.3 | 12 |
-| Dollars | $27.04 | $240.00 |
-| Issues | 4 | 50 |
-| Pull requests | 4 | 50 |
+| Hours | 2.5 | 12 |
+| Dollars | $46.34 | $240.00 |
+| Issues | 8 | 50 |
+| Pull requests | 7 | 50 |
 
 ## Pull requests
 
@@ -26,6 +26,9 @@ Wave 1 picked four issues and merged all four pull requests into the train, at 2
 | PR725 | I580 | test(swift): wait for wb-hostd's close before the hand-off send fails | on the train | 1 | none | 3 |
 | PR726 | I547 | test(guestlink): wait through CONNECTING before the drop in TestDialerRefusesSecondCall | on the train | 1 | none | 1 |
 | PR727 | I637 | fix(hostd): keep a passed hand-off socket until wb-proxyd holds it | on the train | 1 | S04-02, S07-05, `control.proto` | 14 |
+| PR733 | I589 | test(netd): decide TestAnswerFails slow cases with a synctest clock | on the train | 1 | none | 1 |
+| PR734 | I634 | test(hostd): TestShellOpenHeld waits for the handler's end before the kills | on the train | 1 | none | 1 |
+| PR735 | I577 | fix(proxyd): refuse a GitLab project id with an empty segment | on the train | 1 | S07-19 | 5 |
 
 ## Choices to veto
 
@@ -37,11 +40,14 @@ To veto a pull request on the train, comment `veto #<pr>` on PR721.
 - PR722: the reset that accept sends after stop begins stays unrecorded, as a shutdown and not a policy refusal.
 - PR722: the DNS resolver keeps recording a held refusal after the hold is added, not before.
 - PR726: only `TestDialerRefusesSecondCall` is fixed on the train. The module cache (I723) and the fuzz deadline (I724) are issues, because they touch `.github/` or need a decision.
+- PR733: a synctest bubble instead of a fake that blocks until the context ends, which would hang rather than fail without the timeout. `TestDecideStreamDuringSend` stays on the wall clock.
+- PR734: the test waits for the stream end with the wanted code, instead of changing the server to order the kill before the failure frame, which no spec asks for.
+- PR735: S07-19-request-decisions refuses a GitLab project id with any empty segment (leading, trailing or doubled `%2F`) as malformed. Dot segments are left to `CanonicalPath`.
 
 ## Waiting for you
 
-- I728 and I729: each proposes a `control.proto` change (a per-socket number for hand-off socket notices, and an ack from `wb-netd` that it holds its end). One decision is needed before I480 or I490 and I512.
-- Triage is due for I723, I724, I728, I729, I730 and I731.
+- I648: needs a `vmd.proto` decision. The builder recommends an ack record from `wb-hostd` on the hand-off channel, with `wb-vmd` keeping its copy for at most the 5 s connect timeout. The same pattern as I728, decided for `control.proto`.
+- Triage is due for I723, I724, I730, I731, I736 and I737.
 
 ## Attended queue
 
@@ -49,12 +55,13 @@ Nothing.
 
 ## Health
 
-- First code review approved: 3 of 4 pull requests.
-- Code review rounds per reviewed pull request: 1.3.
-- Follow-ups filed: 3.
+- First code review approved: 6 of 7 pull requests.
+- Code review rounds per reviewed pull request: 1.1.
+- Follow-ups filed: 5.
 - Flaky tests filed: I731, I723, I724.
 - The campaign manager's own session isn't metered. The 5 percent reserve of the dollar limit pays for it.
 
 | Wave | Length | Cost | Issues | Pull requests | Session ended |
 |---|---|---|---|---|---|
 | 1 | 76 min | $27.04 | 4 | 4 | success |
+| 2 | 74 min | $19.31 | 4 | 3 | success |
