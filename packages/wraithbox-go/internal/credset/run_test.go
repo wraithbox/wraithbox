@@ -43,7 +43,7 @@ func runWith(t *testing.T, fake *storetest.Fake, args, environ []string, stdin i
 }
 
 func newFake() *storetest.Fake {
-	return storetest.New(team, storeitem.Group(team, storeitem.RoleBinding))
+	return storetest.New(storeitem.ProgramCredset, team, storeitem.Group(team, storeitem.RoleBinding))
 }
 
 // decision returns the run's decision line, and fails the test without
@@ -68,7 +68,7 @@ func (r run) noSecret(t *testing.T) {
 
 // TestC05CredsetRefused feeds wb-credset each argument and environment
 // it refuses, and sees credset-refused with exit 1 and no store call
-// (C05-credentials-and-store, "wb-credset"; S15-02-secret-store,
+// (C05-credentials-and-store, "wb-credset"; S15-06-binding-commands,
 // "`wb-credset`").
 func TestC05CredsetRefused(t *testing.T) {
 	for _, tc := range []struct {
@@ -247,7 +247,7 @@ func TestC05CredsetStoreErrors(t *testing.T) {
 // write with keychain-needs-team before any backend call
 // (C05-credentials-and-store, "Builds without a team").
 func TestC05CredsetNeedsTeam(t *testing.T) {
-	fake := storetest.New("")
+	fake := storetest.New(storeitem.ProgramCredset, "")
 	r := runWith(t, fake, []string{"write", "github"}, nil, strings.NewReader(secret))
 	if r.code != 1 {
 		t.Errorf("exit %d, want 1", r.code)

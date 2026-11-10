@@ -27,6 +27,7 @@ B28-image-build, B419-admin-path
 | S15-03-access-rules | The rules for store access, and which process may access which item |
 | S15-04-guest-admin | The guest admin user `wbadmin` and its password, from the build to each VM |
 | S15-05-admin-path | The root shell for the person at the host's terminal, apart from every agent path |
+| S15-06-binding-commands | `wb cred` and its `wb-credset` helper, which set, list and remove the binding secrets |
 
 ## Out of scope
 

@@ -69,9 +69,9 @@ None of that reads anything the guest sent.
 
 ### Store programs before they confine themselves
 
-`wb-credset` opens the store before it confines itself. The open turns
-dialogs off and reads only its own signature, no argument, variable or
-descriptor. Opened after the profile, it fails with OSStatus 100001 (I505).
+The store-only profile blocks the signature read that the store's open
+needs, so `wb-credset` opens the store, which reads no argument, variable
+or descriptor, just before it confines (S15-06-binding-commands, I505).
 
 ### `wb-vmd` before it confines itself
 
@@ -162,10 +162,6 @@ Those two alone make the store-only profile of `wb-credset` and
 groups in the program's code signature decide which items it reaches
 (S15-02-secret-store). The profile decides only whether it reaches the
 store at all.
-
-The store-only profile blocks the read of the process's own signature,
-which the store's open needs (I505). So a program with store access
-opens the store, which reads nothing else, just before it confines.
 
 The `wb-proxyd` profile allows outbound TCP to any port, DNS, the
 resolver files and `mDNSResponder` as in S17-03-downloads

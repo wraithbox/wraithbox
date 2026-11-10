@@ -5,7 +5,7 @@ signing setup that gives development builds their Keychain groups, and
 the credential checks `wb-proxyd` makes on guest requests and server
 responses.
 
-**Verifies:** S15-02-secret-store ("Keychain"),
+**Verifies:** S15-02-secret-store ("Keychain"), S15-06-binding-commands,
 S15-03-access-rules ("Declared access"), S09-05-credentials, S12-03-host-prerequisites ("Development builds on macOS"),
 S10-02-packaging-and-signing, S07-08-requests-and-credentials ("Credential replacement")
 
@@ -112,6 +112,8 @@ Spec: S15-02-secret-store, "Keychain".
   the install, and a nonzero exit (`TestC05SetupTeamMixed`).
 
 ### wb-credset
+
+Spec: S15-06-binding-commands.
 
 - Pass a third argument, one argument, an environment variable not on
   its fixed list, an unknown operation, and a binding name outside the

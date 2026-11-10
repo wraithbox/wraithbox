@@ -1,6 +1,6 @@
 // Package credset is wb-credset, the helper that `wb cred set`, `wb cred
 // rm` and `wb cred list` run for one store operation, and the parts of
-// its start interface that wb uses to start it (S15-02-secret-store,
+// its start interface that wb uses to start it (S15-06-binding-commands,
 // "`wb-credset`"; S15-03-access-rules, rules 1 and 5).
 //
 // cmd/wb-credset opens the store and confines itself, then calls Run,
@@ -17,7 +17,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
 )
 
-// The operations, wb-credset's first argument (S15-02-secret-store,
+// The operations, wb-credset's first argument (S15-06-binding-commands,
 // "`wb-credset`"). They are the access kinds of the declared access table
 // (S15-03-access-rules, "Declared access").
 const (
@@ -27,13 +27,13 @@ const (
 )
 
 // ListArg is the second argument of list, which names no binding.
-// wb-credset always takes exactly two arguments (S15-02-secret-store,
+// wb-credset always takes exactly two arguments (S15-06-binding-commands,
 // "`wb-credset`").
 const ListArg = "-"
 
 // MaxValue is the longest value wb-credset writes, and the longest one
 // wb reads for `wb cred set`. A longer value is refused, and nothing is
-// written (S15-02-secret-store, "`wb-credset`"; S04-08-records-and-bounds:
+// written (S15-06-binding-commands, "`wb-credset`"; S04-08-records-and-bounds:
 // every input has a bound). A token or a key fits well below it.
 const MaxValue = 16 << 10
 
@@ -42,7 +42,7 @@ const MaxValue = 16 << 10
 const (
 	// RuleRefused: the arguments, the environment, the operation, the
 	// name or the value aren't what wb-credset takes, so it makes no
-	// store call (S15-02-secret-store, "`wb-credset`").
+	// store call (S15-06-binding-commands, "`wb-credset`").
 	RuleRefused = "credset-refused"
 	// RuleDone: the operation ran.
 	RuleDone = "credset-done"
@@ -52,7 +52,7 @@ const (
 )
 
 // environment is the fixed list of the variable names wb-credset takes
-// (S15-02-secret-store, "`wb-credset`"). It is empty: wb-credset reads
+// (S15-06-binding-commands, "`wb-credset`"). It is empty: wb-credset reads
 // no variable, and wb starts it with an empty environment. A name added
 // here needs a comment that says what needs it.
 var environment = []string{}
