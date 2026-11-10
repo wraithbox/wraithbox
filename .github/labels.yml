@@ -9,12 +9,12 @@
 #     .github/labels-areas.yml, applied by the same task, and explained
 #     in docs/agents/working.md, "Labels".
 #   - GitHub's defaults (duplicate, invalid, question, good first issue,
-#     help wanted, accessibility) and the labels dependabot creates for
-#     its own pull requests (dependencies, javascript, ...). They stay as
-#     GitHub made them.
+#     help wanted, accessibility) and the labels dependabot created for
+#     its pull requests (dependencies, javascript, ...). They stay as
+#     GitHub made them. Renovate labels its pull requests `dependencies`.
 #
 # Names are unprefixed where GitHub's default already uses that name (bug,
-# documentation, enhancement, wontfix), so issues, dependabot and the
+# documentation, enhancement, wontfix), so issues, Renovate and the
 # triage workflow all agree. Colors are quoted hex without the leading
 # `#`: unquoted, YAML reads 000000 or 5319e7 as a number.
 

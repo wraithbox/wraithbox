@@ -396,7 +396,7 @@ jobs:
           # The action's own defaults are version "latest", collect
           # "default" and inputs ".". Pin the version so a zizmor release
           # cannot turn CI red on its own, and set collect: all so
-          # .github/dependabot.yml is audited too. Scope inputs to
+          # files besides workflows are audited too. Scope inputs to
           # .github because --collect=all otherwise walks node_modules
           # once the docs site is installed. All three must match
           # `mise run audit` for that task to be a real local mirror.
@@ -404,6 +404,11 @@ jobs:
           version: "1.31.1"
           collect: all
           inputs: .github
+
+      # renovate.json, with Renovate's validator from the image the
+      # Renovate workflow runs. Docker is on the runner.
+      - name: Validate Renovate config
+        run: mise run renovate:validate
 
   # The one required check (docs/github-settings.md). A skipped matrix job
   # never reports its per-OS check names, so the ruleset cannot require

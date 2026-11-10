@@ -55,7 +55,7 @@ describe('decide', () => {
 		'.github/workflows/ci.yml',
 		'.github/workflows/deploy.yml',
 		'.github/actions/x/action.yml',
-		'.github/dependabot.yml',
+		'renovate.json',
 		'scripts/ci-changes.mjs',
 		// No rule: fail closed.
 		'LICENSE',

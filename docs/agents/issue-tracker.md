@@ -67,5 +67,6 @@ the same `mise run gh:labels`, and explained in
 [`working.md`](working.md), with milestones in
 [`planning.md`](planning.md) and spikes in [`spikes.md`](spikes.md). GitHub's
 default labels (`duplicate`, `invalid`, `question`, `good first issue`,
-`help wanted`, `accessibility`) and the ones dependabot adds to its pull
-requests (`dependencies`, ...) also exist.
+`help wanted`, `accessibility`) and the ones dependabot added to its pull
+requests (`dependencies`, ...) also exist. Renovate labels its pull
+requests `dependencies`.

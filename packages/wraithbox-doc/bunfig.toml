@@ -1,0 +1,7 @@
+# bun only resolves to releases at least 7 days old (in seconds), the same
+# cooldown as `minimum_release_age` in .mise.toml and Renovate's
+# minimumReleaseAge. Renovate ages the packages it proposes itself, so this
+# ages the transitive packages its weekly bun.lock maintenance pulls in
+# (docs/spec/S02-toolchain.md, "Dependency updates").
+[install]
+minimumReleaseAge = 604800

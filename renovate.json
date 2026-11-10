@@ -1,0 +1,114 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate policy for wraithbox/wraithbox; see docs/spec/S02-toolchain.md, \"Dependency updates\". Run by .github/workflows/renovate.yml.",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    "group:allNonMajor"
+  ],
+  "timezone": "Europe/Amsterdam",
+  "schedule": [
+    "* * * * 1"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "build",
+  "semanticCommitScope": "deps",
+  "rangeStrategy": "pin",
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "automerge": true,
+  "automergeType": "pr",
+  "automergeStrategy": "rebase",
+  "platformAutomerge": false,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true,
+    "schedule": [
+      "* * * * 1"
+    ]
+  },
+  "osvVulnerabilityAlerts": true,
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "packageRules": [
+    {
+      "description": "Never move TypeScript to a new major (6 -> 7 needs the maintainer's explicit agreement; `astro check` needs the TypeScript 6 API: https://github.com/withastro/roadmap/discussions/1321).",
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Lock file maintenance has no release timestamp, and by default (timestamp-required) a minimumReleaseAge without a timestamp is pending forever, so it never automerges. The transitives it pulls in are aged by each ecosystem's own cooldown (packages/wraithbox-doc/bunfig.toml, mise minimum_release_age).",
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
+      "description": "Overrides in packages/wraithbox-doc/package.json are hand-maintained advisory floors (\"fast-uri\": \"^3.1.9\"), not dependencies: pinning would turn the floor into an exact version, and a major would leave the parents' range. Renovate's vulnerability fixes still raise them when an advisory needs it.",
+      "matchDepTypes": [
+        "overrides"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "zizmor-action's version input is looked up on GHCR, which has no release timestamps (so no 7-day wait). Look it up on zizmor's GitHub releases instead: the same 7-day wait as the mise zizmor pin, so both land in the same non-major PR, as .github/workflows/ci.yml requires.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/zizmorcore/zizmor"
+      ],
+      "overrideDatasource": "github-releases",
+      "overridePackageName": "zizmorcore/zizmor",
+      "extractVersion": "^v(?<version>.+)$",
+      "versioning": "semver"
+    },
+    {
+      "description": "Renovate's own image (in .github/workflows/renovate.yml and the renovate:validate task in .mise.toml) is on GHCR, which has no release timestamps, so the 7-day wait would not apply. Look it up on npm instead, which has them; same versions.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/renovatebot/renovate"
+      ],
+      "overrideDatasource": "npm",
+      "overridePackageName": "renovate"
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "The go directive of go.work, an exact pin that must equal the mise go pin and the go.mod go directive (S02-toolchain, \"Native pin files\"). All three are non-major updates of go, so group:allNonMajor puts them in one PR.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^go\\.work$/"
+      ],
+      "matchStrings": [
+        "(?m)^go (?<currentValue>\\d+\\.\\d+\\.\\d+)$"
+      ],
+      "depNameTemplate": "go",
+      "datasourceTemplate": "golang-version"
+    },
+    {
+      "description": "Renovate's image (`ghcr.io/renovatebot/renovate:<version>`) in the workflow that runs it and in the renovate:validate task. Both must be the same version.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.mise\\.toml$/",
+        "/^\\.github/workflows/renovate\\.yml$/"
+      ],
+      "matchStrings": [
+        "ghcr\\.io/renovatebot/renovate:(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "ghcr.io/renovatebot/renovate",
+      "datasourceTemplate": "docker"
+    }
+  ]
+}
