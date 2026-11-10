@@ -37,6 +37,7 @@ in S12-platforms.
 | S06-12-guest-agent | What `wb-guestd` does, and how it updates itself |
 | S06-13-data-disk-format | How the host formats a new data disk, and the checks before a VM starts with it |
 | S06-14-xcode-image | Full Xcode and the simulator runtimes from the host, on a read-only disk the host builds, and who runs Xcode's first launch |
+| S06-15-xcode-disk | How the host builds the read-only Xcode disk under the `wb-diskfmt` shim, and what the build records |
 
 ## Out of scope
 

@@ -190,6 +190,9 @@ winget
 cdhash
 dyld
 Cryptexes
+cryptex
+trustcache
+iphonesimulator
 Preboot
 reinit
 ncpu
