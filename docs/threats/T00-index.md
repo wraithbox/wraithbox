@@ -228,7 +228,11 @@ print about returned work after `wb land` is outside it
   also shares `wb-proxyd`'s blocked event channel
   (`event-channel-blocked`) and the secret store prompts its restarts
   cause. This costs availability, not egress: while `wb-proxyd` is
-  down or blocked, both guests get resets and refusals. Proposed in PR171 (B48-process-supervision).
+  down or blocked, both guests get resets and refusals. A VM's audit
+  budget counts the records of its `wb-netd` too, so a guest whose
+  `wb-netd` ignores its budget notices can have `wb-hostd` hold
+  `wb-proxyd`'s event channel, and so the other VM's network, until the
+  budget's minute or day turns (S09-11-audit, "Telling the senders"). Proposed in PR171 (B48-process-supervision).
 - **T15-shared-toolchain: Projects in one guest share the toolchain
   prefix.** Every project user runs tools from the one prefix that
   the toolchain user owns (S06-01-image-layers, "Toolchain prefix"). So
