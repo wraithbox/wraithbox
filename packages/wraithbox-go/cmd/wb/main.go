@@ -46,8 +46,8 @@ func run(args []string) int {
 		return runInProject(inv)
 	case inv.Command.Name == "cred":
 		// Each refusal and its fix go to standard error from credcmd. The
-		// log shows warnings, and the access record of I514 at info level
-		// once wb-hostd writes it.
+		// log shows warnings, which include the access lines that stand
+		// in for the audit record until wb-hostd writes it (I514).
 		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 		return credcmd.Run(context.Background(), credcmd.SystemEnv(log), inv.Args)
 	}

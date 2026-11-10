@@ -46,6 +46,9 @@ const (
 	// RuleHelperFailed: wb-credset couldn't be started, or exited without
 	// a decision.
 	RuleHelperFailed = "cred-helper-failed"
+	// RuleNoCore: wb can't turn its core files off before it reads the
+	// value.
+	RuleNoCore = "cred-no-core"
 	// RuleHelperSignaled: wb-credset ended on a signal.
 	RuleHelperSignaled = "cred-helper-signaled"
 )
@@ -69,6 +72,11 @@ type Env struct {
 	// ReadTeam reads the team of a code signature
 	// (internal/platform/codesign).
 	ReadTeam func(ctx context.Context, path string) (string, error)
+	// Version is wb's stamped build version, "" when unstamped, which
+	// its bundle's must equal.
+	Version string
+	// NoCore sets wb's core file limit to 0 (internal/platform/sessionproc).
+	NoCore func() error
 	// Unavailable is set when wb's own path can't be found.
 	Unavailable error
 	Log         *slog.Logger
@@ -139,6 +147,12 @@ func runCommand(ctx context.Context, env Env, c command) int {
 	}
 	var value []byte
 	if c.op == credset.OpWrite {
+		// No core file of wb can hold the value (S13-01-process-hardening,
+		// "Limits and environment"). The helper inherits the limit, and
+		// sets it again itself.
+		if err := env.NoCore(); err != nil {
+			return fail(env, RuleNoCore, "wb can't turn its core files off before it reads the secret: "+err.Error(), "")
+		}
 		buf, v, reason := readValue(env, c.binding)
 		defer clear(buf)
 		if reason != "" {
@@ -157,14 +171,15 @@ func runCommand(ctx context.Context, env Env, c command) int {
 // wb-credset runs, with rule "", and with its outcome after. The record
 // holds the operation and the binding name, never the value. wb is to
 // ask wb-hostd to write it, and refuse before wb-credset runs when the
-// first record can't be written (I514). Until then wb logs the access,
-// and wb-credset logs its decision.
+// first record can't be written (I514). Until then wb logs the access
+// at warning level, which wb's log for `wb cred` shows on standard
+// error, and wb-credset logs its decision.
 func recordAccess(ctx context.Context, env Env, c command, rule string) {
 	phase := "start"
 	if rule != "" {
 		phase = "end"
 	}
-	env.Log.LogAttrs(ctx, slog.LevelInfo, "wb cred access",
+	env.Log.LogAttrs(ctx, slog.LevelWarn, "wb cred access",
 		slog.String("phase", phase),
 		slog.String("op", c.op),
 		slog.String("binding", c.binding),
