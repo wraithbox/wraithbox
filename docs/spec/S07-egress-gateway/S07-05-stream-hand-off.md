@@ -29,45 +29,30 @@ type `SOCK_SEQPACKET` or `SOCK_DGRAM`, as for the other descriptor
 channels (S04-architecture). macOS has no `SOCK_SEQPACKET` for Unix
 domain sockets, so it uses `SOCK_DGRAM`.
 
-The design needs two properties of the type:
-
-- messages arrive in the order they were sent;
-- a message that doesn't fit fails at the sender with an error, and is
-  never dropped silently.
-
+The design needs messages in the order they were sent, and a message
+that doesn't fit to fail at the sender instead of being dropped.
 On macOS the ordering test of C11-host-daemons ("Descriptor channels")
-shows both on a channel of `fdchan.Socketpair(4096)`. Every record of
-100,000 arrives once and in order, through a sender that retries a
-full channel and a receiver that falls behind. A send to a full
-channel fails with `ENOBUFS`. The channel queues 19 records of 4 KiB,
-or 292 name reports of a 253-byte name, before a send fails. A Linux
-or Windows host gets the same test when its channels are built
+shows both on a channel of `fdchan.Socketpair(4096)`, and how many
+records it queues before a send fails with `ENOBUFS`. A Linux or
+Windows host gets the same test when its channels are built
 (S12-platforms).
 
 A send that fails, or that blocks for more than 100 ms, counts as
-failed. A sender never retries out of order.
-
-- When a name report fails, `wb-netd` refuses the name with the same
-  answer as every refusal (S07-04-dns-refusals).
-- When a stream fails, `wb-netd` resets the TCP connection.
-
-Both are logged with the rule `handoff-send-failed`.
+failed. A sender never retries out of order. `wb-netd` then refuses
+the name of a report with the answer every refusal gets
+(S07-04-dns-refusals), or resets a stream's TCP connection. Both are
+logged with the rule `handoff-send-failed`.
 
 A process that passes a socket in a message keeps its copy until an
 acknowledgment or the receiver's first record or byte on the socket
 shows the receiver holds it (I647, I648). On macOS 27 the kernel can collect
 a socket in flight with no other reference, and it arrives dead (I637).
-Pipes and descriptors inherited at spawn are exempt.
-
-`wb-netd` keeps its copy of a stream's socket until `wb-proxyd`'s
-first byte on it or a `StreamReset` for it, and no longer than a
-deadline fixed in code (SEC13-bounded-resources). The deadline closes
-the copy without a reset, logged with `stream-hold-expired`. That is
-routine on an idle stream whose client speaks first. While `wb-netd`
-holds the copy, it doesn't read end of file on the socket. The guest
-gets its FIN only once the deadline passes when `wb-proxyd` closes a
-stream before it writes or resets it, or drops its message for a full
-descriptor table ("Message form").
+Pipes and descriptors inherited at spawn are exempt. `wb-netd` keeps a
+stream's copy no longer than a deadline (SEC13-bounded-resources),
+then closes it without a reset, logged `stream-hold-expired`. Until
+then it doesn't read end of file there. So a stream that `wb-proxyd`
+closes before a byte or a `StreamReset`, or drops for a full
+descriptor table, gives the guest its FIN at the deadline.
 
 ### The contract
 
@@ -143,15 +128,11 @@ connection, not to close it, when it reads end of file on that socket.
 `wb-netd` reads what waits on the hand-off socket and sends every byte
 it already queued for the guest. Then it answers end of file with a
 FIN, or with a reset when a `StreamReset` for the stream came first
-(`stream-reset`). It answers any other read error on the stream's
-socket the same way, but with a reset logged `proxyd-stream-read-failed`
-when no `StreamReset` came.
-
-`wb-netd` also resets a stream whose guest takes none of its bytes
-within a deadline fixed in code (`guest-write-timeout`,
-SEC13-bounded-resources), or whose write to the guest fails
-(`guest-write-failed`). A stream that another path already reset,
-such as the end of its hand-off socket, isn't logged again.
+(`stream-reset`). Another read error gets a reset, logged
+`proxyd-stream-read-failed` when no `StreamReset` came. A guest that
+takes no bytes within a deadline (`guest-write-timeout`,
+SEC13-bounded-resources) or fails a write (`guest-write-failed`) is
+reset. Only the path that resets a stream first logs it.
 
 When a `StreamReset` send fails (`ENOBUFS` or its deadline), `wb-proxyd`
 closes the VM's hand-off socket before the stream's socket, and
