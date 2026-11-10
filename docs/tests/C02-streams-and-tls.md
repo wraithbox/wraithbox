@@ -382,8 +382,8 @@ Spec: S09-06-ca-keys, "Valid CA".
     see each in the Secure Enclave, not permanent, in no keychain, and
     with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` and nothing
     required for any operation (`TestC02HostKeyAttributes`). Restore
-    random bytes and another key's wrapped form, and see neither give
-    the first key (`TestC02HostKeyRestoreWrong`).
+    random bytes and another key's wrapped form, and see each fail or
+    give a key with another public key (`TestC02HostKeyRestoreWrong`).
   - In `internal/proxyd/ca`, in a bundle named `wb-proxyd`, issue a CA,
     read back its item's attributes, and restore it in a second process
     that signs a leaf the CA verifies (`TestC02HostIssueRoundTrip`).
