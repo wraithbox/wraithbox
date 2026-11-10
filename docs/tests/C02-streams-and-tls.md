@@ -341,8 +341,8 @@ Spec: S09-06-ca-keys, "Valid CA".
 - Fail an issue's read-back or restore, and see the record unchanged
   and its item deleted.
 - Through the cgo shim, read back a new CA key and its item, and check
-  `kSecAttrIsPermanent` false, `kSecAccessControlPrivateKeyUsage` as
-  the only access control flag,
+  that a keychain search for the key finds nothing,
+  `kSecAccessControlPrivateKeyUsage` as the only access control flag,
   `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and
   `kSecAttrSynchronizable` false.
 - On Linux, record "software" on a host with a TPM, and "TPM" on one
@@ -379,9 +379,11 @@ Spec: S09-06-ca-keys, "Valid CA".
     Go, and restore it from its wrapped form in the same process and in
     a second one, whose signature verifies with the first public key
     (`TestC02HostKeyRoundTrip`). Read back a new and a restored key and
-    see each in the Secure Enclave, not permanent, in no keychain, and
-    with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` and nothing
-    required for any operation (`TestC02HostKeyAttributes`). Restore
+    see each in the Secure Enclave, in no keychain, and with
+    `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` and nothing required
+    for any operation (`TestC02HostKeyAttributes`). The same search
+    finds a permanent key that the test makes and deletes again
+    (`TestC02HostKeyPermanentProbe`). Restore
     random bytes and another key's wrapped form, and see each fail or
     give a key with another public key (`TestC02HostKeyRestoreWrong`).
   - In `internal/proxyd/ca`, in a bundle named `wb-proxyd`, issue a CA,

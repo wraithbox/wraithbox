@@ -46,7 +46,10 @@ const (
 	caIDEnv = "WB_STORE_HOST_CA_ID"
 	certEnv = "WB_STORE_HOST_CERT"
 	// hostPrefix starts the VM name of every item a host test makes.
-	// TestMain fails a run that leaves one behind.
+	// Each test deletes its items by their exact names. wb-proxyd may not
+	// list the ca group (S15-03-access-rules, "Declared access"), so the
+	// secret store's bundle finds and removes what a run left
+	// (TestC05HostSweep).
 	hostPrefix = "wbtest-"
 )
 
@@ -83,28 +86,10 @@ func TestMain(m *testing.M) {
 		}
 	}
 	code := m.Run()
-	if os.Getenv(hostEnv) == "1" && (openErr != nil || leftovers()) {
+	if openErr != nil {
 		code = 1
 	}
 	os.Exit(code)
-}
-
-// leftovers lists the CA items and reports each one of a host test's
-// VM, and returns whether there was one.
-func leftovers() bool {
-	names, err := hostStore.List(context.Background(), storeitem.RoleCA)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "host test: listing the CA items: %v\n", err)
-		return true
-	}
-	found := false
-	for _, n := range names {
-		if strings.Contains(n.String(), "/"+hostPrefix) {
-			fmt.Fprintf(os.Stderr, "host test: %s is left\n", n)
-			found = true
-		}
-	}
-	return found
 }
 
 // hostStep skips the test unless the host tests are on, the run's step

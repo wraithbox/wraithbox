@@ -35,7 +35,8 @@ const (
 	hostEnv = "WB_STORE_HOST_TEST"
 	// stepEnv names the step of the run: "" for the bundle with the
 	// binding and ca groups, binding-only for the bundle with binding
-	// alone, and confine-after, confine-first, lock and g2.
+	// alone, and confine-after, confine-first, lock, g2, sweep-before and
+	// sweep-after.
 	stepEnv = "WB_STORE_HOST_STEP"
 	// g2OutEnv is the file the maintainer's run of Apple's security tool
 	// writes to in the g2 step.
@@ -455,6 +456,46 @@ func TestC05HostConfineAfterOpen(t *testing.T) {
 	}
 	if err := roundTrip(t, credset, proxyd, item); err != nil {
 		t.Error(err)
+	}
+}
+
+// TestC05HostSweep finds every item with hostPrefix in the bundle's
+// groups through the backend, as the test harness and not as a program,
+// and deletes each by its name. It runs first and last in a run, as the
+// sweep-before and sweep-after steps. The CA key's host tests run as
+// wb-proxyd, which may not list the ca group (S15-03-access-rules,
+// "Declared access"), so this step checks what they left. sweep-before
+// reports and removes what an earlier run left and passes, and
+// sweep-after fails when this run left anything.
+func TestC05HostSweep(t *testing.T) {
+	step := os.Getenv(stepEnv)
+	switch step {
+	case "sweep-before":
+		hostStep(t, "sweep-before")
+	default:
+		hostStep(t, "sweep-after")
+	}
+	k := &keychain{}
+	groups, err := k.Groups()
+	if err != nil {
+		t.Fatalf("the groups: %v", err)
+	}
+	for _, group := range groups {
+		names, st := k.List(t.Context(), group)
+		if st != StatusOK {
+			t.Errorf("listing %s: OSStatus %d", group, st)
+			continue
+		}
+		for _, name := range names {
+			if !strings.Contains(name, "/"+hostPrefix) {
+				continue
+			}
+			st := k.Delete(t.Context(), group, name)
+			t.Logf("%s: %s was left by a run, deleted: OSStatus %d", step, name, st)
+			if step == "sweep-after" || st != StatusOK {
+				t.Errorf("%s was left in %s", name, group)
+			}
+		}
 	}
 }
 

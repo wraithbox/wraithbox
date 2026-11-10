@@ -134,6 +134,10 @@ g2)
 	run wb-store-test g2 '^TestC05HostG2$'
 	;;
 *)
+	# wb-proxyd may not list the ca group, so the sweep in wb-store-test,
+	# which holds both groups, removes what an earlier run left first, and
+	# fails when this run left a wbtest- item last.
+	run wb-store-test sweep-before '^TestC05HostSweep$'
 	run wb-store-test '' '^TestC05Host'
 	run wb-store-test-binding binding-only '^TestC05HostGroupMismatch$'
 	run wb-store-test confine-after '^TestC05HostConfineAfterOpen$'
@@ -142,6 +146,7 @@ g2)
 	run wb-proxyd '' '^TestC02Host'
 	run wb-proxyd confine-proxyd '^TestC02HostConfined$'
 	bench wb-proxyd '^(BenchmarkLeaf|BenchmarkC02HostLeaf)$'
+	run wb-store-test sweep-after '^TestC05HostSweep$'
 	;;
 esac
 

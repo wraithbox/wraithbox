@@ -54,6 +54,13 @@ The key has:
   only flag, so no signature asks for user presence or biometry;
 - the protection `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
 
+`kSecAttrIsPermanent` is what the call asks for. A Secure Enclave key
+made with it false reads it back as true, so a check of the attribute
+can't tell. The check is a search of the keychain for the key, which
+finds nothing (I509).
+A restored key has the same access control as the new one, with
+no flag passed at the restore.
+
 The store item has `kSecAttrSynchronizable` false, so it never leaves
 the Mac.
 

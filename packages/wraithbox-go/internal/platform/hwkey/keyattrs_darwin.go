@@ -140,6 +140,84 @@ static wb_key_attrs wb_key_attributes(SecKeyRef k) {
 	CFRelease(a);
 	return out;
 }
+
+// What wb_permanent_probe saw.
+typedef struct {
+	// status is not 0 when the permanent key couldn't be made.
+	int status;
+	// attrs are the permanent key's attributes, read as for any key.
+	wb_key_attrs attrs;
+	// deleted is the OSStatus of its SecItemDelete, and after that of
+	// the search for it once deleted: -25300 when it is gone.
+	int deleted;
+	int after;
+} wb_probe;
+
+// wb_permanent_probe is the positive control of the keychain search of
+// wb_key_attributes. It makes a Secure Enclave key with
+// kSecAttrIsPermanent true in the data protection keychain, in the
+// process's first access group, reads its attributes, deletes it by its
+// application label, and searches for it again. Nothing is left: the
+// delete runs in this call, right after the read.
+static wb_probe wb_permanent_probe(void) {
+	wb_probe out = {0};
+	out.deleted = errSecParam;
+	out.after = errSecParam;
+	CFErrorRef err = NULL;
+	SecAccessControlRef ac = SecAccessControlCreateWithFlags(NULL,
+			kSecAttrAccessibleWhenUnlockedThisDeviceOnly, kSecAccessControlPrivateKeyUsage, &err);
+	CFMutableDictionaryRef priv = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	CFMutableDictionaryRef p = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	int bits = 256;
+	CFNumberRef size = CFNumberCreate(NULL, kCFNumberIntType, &bits);
+	if (ac == NULL || priv == NULL || p == NULL || size == NULL) {
+		out.status = errSecAllocate;
+	} else {
+		CFDictionarySetValue(priv, kSecAttrIsPermanent, kCFBooleanTrue);
+		CFDictionarySetValue(priv, kSecAttrAccessControl, ac);
+		CFDictionarySetValue(priv, kSecAttrLabel, CFSTR("wbtest-hwkey-permanent-probe"));
+		CFDictionarySetValue(p, kSecAttrKeyType, kSecAttrKeyTypeECSECPrimeRandom);
+		CFDictionarySetValue(p, kSecAttrKeySizeInBits, size);
+		CFDictionarySetValue(p, kSecAttrTokenID, kSecAttrTokenIDSecureEnclave);
+		CFDictionarySetValue(p, kSecUseDataProtectionKeychain, kCFBooleanTrue);
+		CFDictionarySetValue(p, kSecPrivateKeyAttrs, priv);
+	}
+	SecKeyRef k = out.status == 0 ? SecKeyCreateRandomKey(p, &err) : NULL;
+	if (out.status == 0 && k == NULL) {
+		out.status = err != NULL ? (int)CFErrorGetCode(err) : errSecInternalError;
+	}
+	if (err != NULL) {
+		CFRelease(err);
+	}
+	CFTypeRef refs[] = {ac, priv, p, size};
+	for (size_t i = 0; i < sizeof refs / sizeof refs[0]; i++) {
+		if (refs[i] != NULL) {
+			CFRelease(refs[i]);
+		}
+	}
+	if (k == NULL) {
+		return out;
+	}
+	out.attrs = wb_key_attributes(k);
+	CFDictionaryRef a = SecKeyCopyAttributes(k);
+	CFTypeRef label = a != NULL ? CFDictionaryGetValue(a, kSecAttrApplicationLabel) : NULL;
+	CFMutableDictionaryRef q = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	if (label != NULL && q != NULL) {
+		CFDictionarySetValue(q, kSecClass, kSecClassKey);
+		CFDictionarySetValue(q, kSecAttrApplicationLabel, label);
+		CFDictionarySetValue(q, kSecUseDataProtectionKeychain, kCFBooleanTrue);
+		out.deleted = (int)SecItemDelete(q);
+		out.after = wb_search_label(label);
+	}
+	if (q != NULL) {
+		CFRelease(q);
+	}
+	if (a != NULL) {
+		CFRelease(a);
+	}
+	CFRelease(k);
+	return out;
+}
 */
 import "C"
 
@@ -184,7 +262,31 @@ func readKeyAttributes(k Key) (keyAttributes, error) {
 	if ek.closed {
 		return keyAttributes{}, errors.New("the key is closed")
 	}
-	r := C.wb_key_attributes(ek.ref)
+	return goKeyAttributes(C.wb_key_attributes(ek.ref))
+}
+
+// permanentProbe is what probePermanent saw: the permanent key's
+// attributes, and the OSStatus of its delete and of the search after it.
+type permanentProbe struct {
+	Attributes keyAttributes
+	Deleted    int
+	After      int
+}
+
+// probePermanent makes a permanent Secure Enclave key in the keychain,
+// reads it back, and deletes it, as the positive control of the
+// keychain search of readKeyAttributes (C02-streams-and-tls, "CA key").
+func probePermanent() (permanentProbe, error) {
+	r := C.wb_permanent_probe()
+	if r.status != 0 {
+		return permanentProbe{}, fmt.Errorf("SecKeyCreateRandomKey of a permanent key: status %d", int(r.status))
+	}
+	a, err := goKeyAttributes(r.attrs)
+	return permanentProbe{Attributes: a, Deleted: int(r.deleted), After: int(r.after)}, err
+}
+
+// goKeyAttributes converts r and frees its C string.
+func goKeyAttributes(r C.wb_key_attrs) (keyAttributes, error) {
 	defer C.free(unsafe.Pointer(r.access_control))
 	if r.status != 0 {
 		return keyAttributes{}, fmt.Errorf("SecKeyCopyAttributes: status %d", int(r.status))

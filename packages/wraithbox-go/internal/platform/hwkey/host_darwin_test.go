@@ -194,7 +194,7 @@ func TestC02HostKeyRestoreChild(t *testing.T) {
 
 // TestC02HostKeyAttributes reads back the attributes of a new key and of
 // the key restored from it, through the shim, and sees each in the
-// Secure Enclave, not permanent and in no keychain, with an access
+// Secure Enclave and in no keychain, with an access
 // control of kSecAttrAccessibleWhenUnlockedThisDeviceOnly whose every
 // operation requires nothing: kSecAccessControlPrivateKeyUsage is its
 // only flag (S09-06-ca-keys, "Attributes"; C02-streams-and-tls, "CA
@@ -219,10 +219,13 @@ func checkKeyAttributes(t *testing.T, what string, k Key) {
 		t.Fatalf("attributes of the %s: %v", what, err)
 	}
 	t.Logf("attributes of the %s: %+v", what, a)
-	if a.Permanent == 1 {
-		t.Errorf("the %s is permanent", what)
-	}
-	// errSecItemNotFound.
+	// The key isn't stored: a search of the keychain by its application
+	// label finds nothing (errSecItemNotFound), and
+	// TestC02HostKeyPermanentProbe sees the same search find a key that
+	// is stored. kSecAttrIsPermanent isn't the check: a Secure Enclave
+	// key reads it back as true whatever the call asked for, as the run of
+	// 2026-11-10 measured for a new key made with false (#509). A software
+	// key made with false reads it back as false.
 	if a.Keychain != -25300 {
 		t.Errorf("searching the keychain for the %s: OSStatus %d, want -25300", what, a.Keychain)
 	}
@@ -235,6 +238,27 @@ func checkKeyAttributes(t *testing.T, what string, k Key) {
 	if a.Constraints == 0 || a.Unconstrained != a.Constraints {
 		t.Errorf("the %s's access control requires something for %d of its %d operations: %q",
 			what, a.Constraints-a.Unconstrained, a.Constraints, a.AccessControl)
+	}
+}
+
+// TestC02HostKeyPermanentProbe is the positive control of the keychain
+// search of TestC02HostKeyAttributes. It makes a Secure Enclave key with
+// kSecAttrIsPermanent true, in the bundle's first access group, sees the
+// search find it (OSStatus 0), deletes it, and sees the search find
+// nothing after (-25300). The make, the read and the delete are one call
+// of the shim, so the key isn't left behind.
+func TestC02HostKeyPermanentProbe(t *testing.T) {
+	hostStep(t, "")
+	p, err := probePermanent()
+	if err != nil {
+		t.Fatalf("the permanent key: %v", err)
+	}
+	t.Logf("permanent key: %+v", p)
+	if p.Attributes.Keychain != 0 {
+		t.Errorf("searching the keychain for the permanent key: OSStatus %d, want 0", p.Attributes.Keychain)
+	}
+	if p.Deleted != 0 || p.After != -25300 {
+		t.Errorf("deleting the permanent key: OSStatus %d, then the search %d; want 0, then -25300", p.Deleted, p.After)
 	}
 }
 
