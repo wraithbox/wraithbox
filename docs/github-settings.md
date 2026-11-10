@@ -12,8 +12,7 @@ Every command below is idempotent: it sets a value, it does not toggle.
 - The organization is on the **Team** plan and the repository is
   **public**. Rulesets work. Secret scanning, push protection, code
   scanning, and private vulnerability reporting are free for a public
-  repository. They are listed under [Repository: to
-  apply](#repository-to-apply) until they are switched on.
+  repository, and all are on.
 - Actions minutes are free for a public repository, and every
   workflow's logs are public. A workflow never prints a secret or a
   token.
@@ -28,12 +27,15 @@ Needs a token with `repo` scope and admin rights on the repository.
 | ------- | ----- | --- |
 | Dependabot alerts | on | Supply-chain policy (S10-tech-stack). Renovate reads them and opens the fixes |
 | Dependabot security updates | off | Renovate opens version and security updates ([Renovate](#renovate)) |
+| Secret scanning and push protection | on | A pushed credential raises an alert, and push protection rejects a push that contains a known token format |
+| Code scanning | default setup | CodeQL for Go, Swift, JavaScript/TypeScript and Actions, on pull requests, pushes to `main` and weekly. GitHub picks the languages and runners. Swift runs on a macOS runner |
+| Private vulnerability reporting | on | `SECURITY.md` sends reporters here, because a vulnerability is never a public issue |
 | Actions allowed | GitHub-owned plus `jdx/mise-action@*`, `zizmorcore/zizmor-action@*` | Only actions the workflows use; a new third-party action needs an explicit entry here |
 | Actions SHA pinning required | on | Enforces the "pin to full-length commit SHA" rule from `AGENTS.md` |
 | Default `GITHUB_TOKEN` permissions | read | Workflows ask for more per job |
 | Actions can approve pull requests | off | |
-| Fork pull request workflow approval | first-time contributors | GitHub's default for a public repository |
-| Environment `renovate`, deployable from `main` only | set | Holds the Renovate App's secrets, out of reach of workflows on other branches ([Renovate](#renovate)) |
+| Fork pull request workflow approval | every outside contributor | A fork's workflow runs on GitHub's runners with public logs. The maintainer reads each outside pull request before its workflows run, not only a contributor's first |
+| Environment `renovate`, deployable from `main` only | set | Holds the Renovate App's secrets, which workflows on other branches can't read ([Renovate](#renovate)) |
 | Squash merge | off | Owner prefers rebase, then merge commit |
 | Rebase merge, merge commit | on | Stacked branches need merge commits |
 | Delete branch on merge | on | |
@@ -46,6 +48,12 @@ Needs a token with `repo` scope and admin rights on the repository.
 R=repos/wraithbox/wraithbox
 gh api -X PUT "$R/vulnerability-alerts"
 gh api -X DELETE "$R/automated-security-fixes"
+gh api -X PATCH "$R" --input - <<'JSON'
+{"security_and_analysis": {"secret_scanning": {"status": "enabled"},
+ "secret_scanning_push_protection": {"status": "enabled"}}}
+JSON
+gh api -X PATCH "$R/code-scanning/default-setup" -f state=configured
+gh api -X PUT "$R/private-vulnerability-reporting"
 gh api -X PATCH "$R" -F has_wiki=false -F has_projects=false \
   -F allow_squash_merge=false -F allow_merge_commit=true -F allow_rebase_merge=true \
   -F delete_branch_on_merge=true -F allow_update_branch=true
@@ -58,7 +66,7 @@ gh api -X PUT "$R/actions/permissions/selected-actions" \
 gh api -X PUT "$R/actions/permissions/workflow" \
   -f default_workflow_permissions=read -F can_approve_pull_request_reviews=false
 gh api -X PUT "$R/actions/permissions/fork-pr-contributor-approval" \
-  -f approval_policy=first_time_contributors
+  -f approval_policy=all_external_contributors
 ```
 
 Adding a third-party action to a workflow means adding its
@@ -132,8 +140,8 @@ pushing feature branches and opening pull requests are unaffected. It:
   maintainer cannot approve their own pull request; the CI status
   checks are the gate;
 - allows the rebase and merge methods, matching the repository;
-- requires the `CI result` check, from GitHub Actions (integration ID
-  15368);
+- requires the `CI result` and `Dependency vulnerability scan` checks,
+  from GitHub Actions (integration ID 15368);
 - lets the repository Admin role (actor ID 5) bypass it, so the owner can
   still repair `main` in an emergency.
 
@@ -163,8 +171,8 @@ gh api -X POST repos/wraithbox/wraithbox/rulesets --input - <<'JSON'
 JSON
 ```
 
-`CI result` is the only required check. On a pull request, the
-`changes` job of `.github/workflows/ci.yml` runs `scripts/ci-changes.mjs`
+`CI result` and `Dependency vulnerability scan` are the required
+checks. On a pull request, the `changes` job of `.github/workflows/ci.yml` runs `scripts/ci-changes.mjs`
 to list the jobs the changed files need. The workflow skips `Go`, the
 `Fuzz smoke` shards, `Swift`, and the site check and build steps of `Docs` when that list
 leaves them out. A change that only the app bundle reads runs the
@@ -186,12 +194,15 @@ job of `GATED` is missing from `needs:`.
 The `CI result` requirement was applied on 2026-10-16, right after the
 pull request that added the `CI result` job (I58) merged.
 
-`Dependency vulnerability scan` is **not** required yet. The ruleset left it out
-while it failed on `main` because of
-[GHSA-ch52-4w7c-c8xp](https://osv.dev/GHSA-ch52-4w7c-c8xp)
-(`http-cache-semantics` in `packages/wraithbox-doc/bun.lock`). I55 moved
-that dependency to the fixed 4.3.0, and the scan passes. Adding it to
-`required_status_checks` is the maintainer's decision.
+`Dependency vulnerability scan` (the `vuln` job) runs on every run, not
+gated by `scripts/ci-changes.mjs`, so it reports on every pull request
+and can be required directly. The ruleset requires it since 2026-11-10.
+Before that it stayed out while
+[GHSA-ch52-4w7c-c8xp](https://osv.dev/GHSA-ch52-4w7c-c8xp) failed it on
+`main`, until I55 moved that dependency to the fixed release. An
+advisory published for a pinned dependency fails the scan on every pull
+request until Renovate's fix merges, or until the advisory gets an
+`osv-scanner.toml` entry (`AGENTS.md`, "Supply chain").
 
 ```json
 {
@@ -217,7 +228,8 @@ that dependency to the fixed 4.3.0, and the scan passes. Adding it to
       "strict_required_status_checks_policy": false,
       "do_not_enforce_on_create": false,
       "required_status_checks": [
-        {"context": "CI result", "integration_id": 15368}]}}
+        {"context": "CI result", "integration_id": 15368},
+        {"context": "Dependency vulnerability scan", "integration_id": 15368}]}}
   ]
 }
 ```
@@ -228,8 +240,8 @@ Save as `ruleset.json`, then update the existing ruleset with
 ruleset. A setting left out of the JSON changes on the next `PUT`, and
 the JSON above lists every setting the live ruleset has. Compare it
 with `gh api repos/wraithbox/wraithbox/rulesets/24412616` before you
-apply it. The check name is the `name:`
-of the `result` job in `.github/workflows/ci.yml`. Check it against a
+apply it. The check names are the `name:` of the `result` and `vuln`
+jobs in `.github/workflows/ci.yml`. Check them against a
 recent CI run on `main` with
 `gh api repos/wraithbox/wraithbox/commits/main/check-runs --jq '.check_runs[].name'`.
 
@@ -289,30 +301,3 @@ off SMS: GitHub removes members whose only method is insecure.
 Base permission is `read`, so every member, including `lsimons-bot`,
 can read every repository. Consider `none` plus explicit per-repository
 grants. The owner has kept `read` for now.
-
-## Repository: to apply
-
-The repository is public, so these are free. Each needs the maintainer's
-go-ahead, and moves to [Repository: applied](#repository-applied) when
-the maintainer switches it on.
-
-- Secret scanning and push protection:
-
-  ```sh
-  gh api -X PATCH repos/wraithbox/wraithbox --input - <<'JSON'
-  {"security_and_analysis": {"secret_scanning": {"status": "enabled"},
-   "secret_scanning_push_protection": {"status": "enabled"}}}
-  JSON
-  ```
-
-- Code scanning default setup. CodeQL covers Go, Swift,
-  JavaScript/TypeScript and Actions, and Swift needs a macOS runner:
-  `gh api -X PATCH repos/wraithbox/wraithbox/code-scanning/default-setup -f state=configured`.
-- Private vulnerability reporting:
-  `gh api -X PUT repos/wraithbox/wraithbox/private-vulnerability-reporting`.
-- Approval of workflow runs on fork pull requests for every outside
-  contributor, instead of first-time ones only:
-  `gh api -X PUT repos/wraithbox/wraithbox/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors`.
-- `Dependency vulnerability scan` as a required check. GHSA-ch52-4w7c-c8xp,
-  the advisory that kept it out, is fixed (I55), so this waits only on
-  the maintainer's decision.

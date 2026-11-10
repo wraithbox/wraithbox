@@ -17,7 +17,7 @@ its controls (`SEC*`) is a vulnerability, even before the first release.
 Do not open a public issue for a vulnerability.
 
 Please use the "Report a vulnerability" button under the Security tab of
-the GitHub project, once it is available there.
+the GitHub project.
 
 If you cannot use GitHub's vulnerability reporting workflow, please
 contact @lsimons on GitHub and ask for a private channel, without
