@@ -7,16 +7,16 @@ description: "A campaign of waves on the dedicated Mac, lane mac with two VM slo
 
 ## Summary
 
-Three waves merged nine pull requests into the train, at 89 dollars. `wb-netd` records a refusal before the guest can see the reset (PR722) and drops DNS queries over the rate at once (PR739), `wb-hostd` keeps a passed hand-off socket open until `wb-proxyd` holds it (PR727), and `wb-proxyd` refuses a GitLab project id with an empty segment (PR735) and checks a pass stream's end with its ClientHello send (PR738). Four flaky tests were fixed (PR725, PR726, PR733, PR734). The maintainer decided I728, I729 and I648 during the campaign: a per-socket number and acks on the hand-off sockets, which block I480, I490, I512 and I571. PR740 (I541) is out of rounds on a timing-dependent test of its own, and I741 needs a decision before I512.
+Three waves merged nine pull requests into the train, at 89 dollars. `wb-netd` records a refusal before the guest can see the reset (PR722) and drops DNS queries over the rate at once (PR739), `wb-hostd` keeps a passed hand-off socket open until `wb-proxyd` holds it (PR727), and `wb-proxyd` refuses a GitLab project id with an empty segment (PR735) and checks a pass stream's end with its ClientHello send (PR738). Four flaky tests were fixed (PR725, PR726, PR733, PR734). The maintainer decided I728, I729 and I648 during the campaign: a per-socket number and acks on the hand-off sockets, which block I480, I490, I512 and I571. PR740 (I541) gets one more fix round, and the maintainer decided I741: count the audit margin per sender and stop the VM whose sender overruns it, which now blocks I512.
 
 ## Budget
 
 | Limit | Spent | Of |
 |---|---|---|
-| Hours | 4.6 | 12 |
+| Hours | 5.4 | 12 |
 | Dollars | $89.14 | $240.00 |
 | Issues | 11 | 50 |
-| Pull requests | 10 | 50 |
+| Pull requests | 12 | 50 |
 
 ## Pull requests
 
@@ -32,6 +32,8 @@ Three waves merged nine pull requests into the train, at 89 dollars. `wb-netd` r
 | PR738 | I598 | fix(proxyd): check a pass stream's end in one step with its ClientHello send | on the train | 1 | none | 8 |
 | PR739 | I566 | feat(netd): drop DNS queries over the rate at once, not held | on the train | 2 | S07-02, S07-03, S07-04 | 9 |
 | PR740 | I541 | feat(hostd): hold back an event sender that ignores its budget | open | 2 | S04-08, S09-11 | 16 |
+| PR746 | I647 | fix(netd): keep a handed-off stream's end open until wb-proxyd holds it | open | 1 | none | 6 |
+| PR747 | I648 | fix(vmd): keep a passed descriptor until wb-hostd acknowledges it | open | 1 | S04-02, `vmd.proto` | 21 |
 
 ## Choices to veto
 
@@ -50,8 +52,7 @@ To veto a pull request on the train, comment `veto #<pr>` on PR721.
 
 ## Waiting for you
 
-- I741 (ready-for-human, blocks I512): one VM's audit budget hold can block the shared `wb-proxyd` event channel for every VM. Accept the coupling in T14-shared-proxyd, stop the VM past the margin, count the margin per sender, or give `wb-proxyd` a channel per VM.
-- PR740 (I541) is out of rounds: its own new test `TestStopBoundsASenderThatIgnoresIt` fails on Go (xcode-27) at c37439fe because it depends on timing. One more fix round, or drop c37439fe back to the approved, green 19de4952.
+- PR740 (I541): the maintainer chose one more fix round to make `TestStopBoundsASenderThatIgnoresIt` deterministic, keeping c37439fe. It runs outside the waves, and the reviewers check the new head before it merges into the train.
 - Triage is due for I723, I724, I731 and I742.
 
 ## Attended queue
@@ -60,7 +61,7 @@ To veto a pull request on the train, comment `veto #<pr>` on PR721.
 
 ## Health
 
-- First code review approved: 7 of 10 pull requests.
+- First code review approved: 7 of 12 pull requests.
 - Code review rounds per reviewed pull request: 1.3.
 - Follow-ups filed: 7.
 - Flaky tests filed: I731, I723, I724, I742.
