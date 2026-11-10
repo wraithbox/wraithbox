@@ -365,6 +365,7 @@ swiftpm
 shellcheck
 zizmor
 zizmorcore
+autobuild
 fnox
 bunx
 astrojs
