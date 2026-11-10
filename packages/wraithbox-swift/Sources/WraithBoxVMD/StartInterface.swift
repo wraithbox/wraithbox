@@ -118,6 +118,10 @@ public enum StartInterface {
             guard kind == S_IFIFO else {
                 throw refusal(descriptor, fd, "is not a pipe")
             }
+            // The read end only: wb-vmd never writes the password back.
+            guard fcntl(fd, F_GETFL) & O_ACCMODE == O_RDONLY else {
+                throw refusal(descriptor, fd, "is not the read end of a pipe")
+            }
         }
     }
 
